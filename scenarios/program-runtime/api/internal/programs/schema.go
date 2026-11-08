@@ -42,6 +42,11 @@ func EnsureCompatibility(ctx context.Context, db SQLExecutor) error {
 			}
 		}
 	}
+	if !columns["service_owner_json"] {
+		if _, err := db.ExecContext(ctx, "ALTER TABLE programs ADD COLUMN service_owner_json TEXT NOT NULL DEFAULT ''"); err != nil {
+			return fmt.Errorf("add service ownership to programs: %w", err)
+		}
+	}
 	return nil
 }
 

@@ -1,0 +1,10 @@
+{
+  "scope": "Inactive Program Runtime same-row service ownership; temporary SQLite and in-memory signed JWT/JWKS fixtures only",
+  "checks": [
+    {"command": "go test -race -v -count=1 ./internal/programs -run 'TestServiceAdmission|TestEnsureCompatibility'", "exit_status": 0, "log": "service-owner-focused-race.log"},
+    {"command": "go test -race -count=1 ./internal/programs ./internal/localworkbridge", "exit_status": 0, "log": "service-owner-final-race.log"},
+    {"command": "go vet ./internal/programs ./internal/localworkbridge", "exit_status": 1, "log": "service-owner-vet.log", "limitation": "Existing programs/service.go:952 clone assignment copies a generated protobuf mutex; line untouched"},
+    {"command": "make verify-committed-gen (packages/proto)", "exit_status": 2, "log": "service-owner-proto-freshness.log", "limitation": "23 existing generated-artifact differences; no regeneration or generated-file edits performed"}
+  ],
+  "limits": ["No live joined ServiceAdmissionBoundary exists", "No finite library source/input and one-shot-session adapter is installed", "Generic user/CLI routes unchanged", "No scenario-wide certification or live source/cloud qualification"]
+}

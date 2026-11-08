@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -16,6 +17,29 @@ import (
 type fakePublisher struct {
 	err  error
 	seen []*telemetryv1.ProgramEvent
+}
+
+type failFirstPendingRepository struct {
+	Repository
+	mu    sync.Mutex
+	calls int
+	err   error
+}
+
+func (r *failFirstPendingRepository) Pending(ctx context.Context, now time.Time, limit int) ([]outboxRow, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls++
+	if r.calls == 1 {
+		return nil, r.err
+	}
+	return r.Repository.Pending(ctx, now, limit)
+}
+
+func (r *failFirstPendingRepository) callCount() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.calls
 }
 
 func (p *fakePublisher) Publish(_ context.Context, event *telemetryv1.ProgramEvent) error {
@@ -86,4 +110,34 @@ func TestTelemetryListingSurvivesRepositoryRestart(t *testing.T) { // [REQ:PRT-P
 	events := restarted.List("sess_1", telemetryv1.EventKind_EVENT_KIND_UNSPECIFIED)
 	require.Len(t, events, 1)
 	require.Equal(t, "event_restart", events[0].GetEventId())
+}
+
+func TestDrainerReportsFirstAsyncFailureOnceAndStopsOnCancellation(t *testing.T) {
+	wantErr := errors.New("temporary repository failure")
+	repo := &failFirstPendingRepository{Repository: newMemoryRepository(), err: wantErr}
+	reported := make(chan error, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	drainer := NewDrainer(repo, &fakePublisher{}, nil, func(err error) {
+		reported <- err
+		cancel()
+	})
+	drainer.interval = time.Second
+
+	drainer.Start(ctx)
+
+	select {
+	case gotErr := <-reported:
+		require.ErrorIs(t, gotErr, wantErr)
+	case <-time.After(3 * time.Second):
+		t.Fatal("drainer did not report its asynchronous repository failure")
+	}
+
+	drainer.Stop()
+
+	require.Equal(t, 1, repo.callCount(), "cancellation should stop the next drain attempt")
+	select {
+	case err := <-reported:
+		t.Fatalf("reported more than the first failure: %v", err)
+	default:
+	}
 }

@@ -207,6 +207,10 @@ func TestAuthorityRelayRequiresExactPeerRouteAndLiveProof(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	require.NotContains(t, body, "synthetic-proof")
 	require.EqualValues(t, 1, calls.Load())
+	status, body = do(http.MethodPost, "/internal/program-runtime/tasks/learning_findings", good)
+	require.Equal(t, http.StatusOK, status)
+	require.NotContains(t, body, "synthetic-proof")
+	require.EqualValues(t, 2, calls.Load())
 	status, body = do(http.MethodPost, "/internal/program-runtime/bindings/execute", `{"session_id":"session-1","program_id":"program-1","binding_id":"web-console/session/native-thread-state"}`)
 	require.Equal(t, http.StatusOK, status)
 	require.NotContains(t, body, "synthetic-proof")
@@ -214,7 +218,7 @@ func TestAuthorityRelayRequiresExactPeerRouteAndLiveProof(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	for _, tc := range []struct{ method, path, body string }{
 		{http.MethodGet, "/internal/program-runtime/tasks/resolve", good},
-		{http.MethodPost, "/internal/program-runtime/tasks/fragment_publish", good},
+		{http.MethodPost, "/internal/program-runtime/tasks/not-a-task-route", good},
 		{http.MethodPost, "/internal/program-runtime/agent/execute", good},
 		{http.MethodPost, "/internal/program-runtime/agent/start", `{"session_id":"other","program_id":"program-1"}`},
 		{http.MethodPost, "/internal/program-runtime/agent/collect", `{"session_id":"session-1","program_id":"other"}`},
@@ -229,7 +233,7 @@ func TestAuthorityRelayRequiresExactPeerRouteAndLiveProof(t *testing.T) {
 		status, _ := do(tc.method, tc.path, tc.body)
 		require.Truef(t, status >= 400, "%s %s unexpectedly admitted", tc.method, tc.path)
 	}
-	require.EqualValues(t, 3, calls.Load(), "refused requests must not reach owner")
+	require.EqualValues(t, 4, calls.Load(), "refused requests must not reach owner")
 	active.Store(false)
 	status, _ = do(http.MethodPost, "/internal/program-runtime/tasks/resolve", good)
 	require.Equal(t, http.StatusUnauthorized, status, "receiving owner must reverify the carried proof")

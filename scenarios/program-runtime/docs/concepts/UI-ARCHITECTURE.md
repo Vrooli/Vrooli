@@ -53,8 +53,8 @@ When adding a shared component, search and adopt from the registry first:
 
 ```bash
 react-component-library components list --json
-react-component-library adoptions resolve-path <component-id> program-runtime
-react-component-library adoptions apply <component-id> program-runtime <adopted-path>
+react-component-library adoptions preflight "<component-id>" program-runtime
+react-component-library adoptions link "<component-id>" program-runtime
 ```
 
 Use scenario-local custom components for genuinely scenario-specific surfaces,

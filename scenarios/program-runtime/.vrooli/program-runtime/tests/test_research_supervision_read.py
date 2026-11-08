@@ -22,11 +22,12 @@ class Handle:
         return {"program": "fixture", "version": "1", "digest": "sha256:fixture", "output_contract": {"status": {"enum": ["ok", "partial", "failed", "unavailable", "refused"]}, "phase": {"enum": ["report"]}, "errors": {"classes": ["binding_error"]}}}
 
 
-def execute(inputs, native, evidence, event_page=None):
+def execute(inputs, native, evidence, event_page=None, attention_index=None):
     output = io.StringIO()
     program = ProgramHelper("2", {"status": {"enum": ["ok", "partial", "failed"]}, "errors": {"classes": ["invalid_response"]}})
     program._bind({"inputs": inputs})
-    lib = NS(web_console=NS(native_thread_state=native), agent_manager=NS(investigation_evidence=evidence))
+    lib = NS(web_console=NS(native_thread_state=native), agent_manager=NS(investigation_evidence=evidence),
+             program_runtime=NS(research_attention_index=attention_index))
     with contextlib.redirect_stdout(output):
         exec(compile(SOURCE.read_text(), str(SOURCE), "exec"), {"program": program, "lib": lib, "agent_manager": NS(run=NS(event_page=event_page))})
     return json.loads(output.getvalue())
@@ -54,6 +55,74 @@ def test_attention_identifies_explicit_blockers_without_claiming_health():
     assert result["signals"]["attention"] == [
         {"source": "native_state", "subject": "t", "signal": "goal_blocked"},
         {"source": "run_evidence", "subject": "r", "signal": "run_failed", "freshness": "unknown"},
+        {"source": "attention_index", "subject": "", "signal": "index_not_requested"},
+    ]
+    assert result["signals"]["decision"] == "review_required"
+
+
+def test_unselected_attention_index_is_explicitly_incomplete_without_owner_read():
+    requests = []
+    result = execute({"threads": ["t"], "run_ids": ["r"], "session_id": "s"},
+                     lambda **_: child("ok"), lambda **_: child("ok"),
+                     attention_index=lambda **kwargs: requests.append(kwargs))
+    assert requests == []
+    assert result["status"] == "partial"
+    assert result["signals"]["sources"]["attention_index"] == {"status": "not_requested"}
+    assert result["signals"]["attention"] == [
+        {"source": "attention_index", "subject": "", "signal": "index_not_requested"},
+    ]
+    assert result["signals"]["decision"] == "review_required"
+
+
+def test_selected_empty_attention_index_is_not_reported_as_missing():
+    requests = []
+    def attention_index(**kwargs):
+        requests.append(kwargs)
+        return child("ok", actionable_ids=[], proposal_coverage="parsed_snapshot", proposal_ids=[])
+    result = execute({"threads": ["t"], "run_ids": ["r"], "session_id": "s",
+                      "research_root": "/authorized/research"},
+                     lambda **_: child("ok"), lambda **_: child("ok"),
+                     attention_index=attention_index)
+    assert requests == [{"research_root": "/authorized/research"}]
+    assert result["status"] == "ok"
+    assert result["signals"]["sources"]["attention_index"]["status"] == "ok"
+    assert result["signals"]["attention"] == []
+    assert result["signals"]["decision"] == "review_required"
+
+
+def test_recorded_proposals_are_always_surfaced_for_approval():
+    def attention_index(**kwargs):
+        return child("ok", actionable_ids=[], proposal_coverage="parsed_snapshot", proposal_ids=["PROPOSAL-MUSIC-STUDIO"])
+    result = execute({"research_root": "/authorized/research"}, None, None, attention_index=attention_index)
+    assert result["signals"]["attention"] == [
+        {"source": "attention_index", "subject": "PROPOSAL-MUSIC-STUDIO", "signal": "proposal_awaiting_approval", "delivery": "not_checked"},
+    ]
+
+
+def test_unparsed_proposal_section_is_unknown_not_empty():
+    def attention_index(**kwargs):
+        return child("ok", actionable_ids=["WALLET-1"], proposal_coverage="unknown", proposal_ids=[])
+    result = execute({"research_root": "/authorized/research"}, None, None, attention_index=attention_index)
+    assert result["signals"]["attention"] == [
+        {"source": "attention_index", "subject": "", "signal": "proposals_unknown"},
+        {"source": "attention_index", "subject": "WALLET-1", "signal": "delivery_not_checked"},
+    ]
+
+
+def test_unavailable_attention_index_preserves_healthy_sibling_evidence():
+    requests = []
+    def attention_index(**kwargs):
+        requests.append(kwargs)
+        raise RuntimeError("index unavailable")
+    result = execute({"run_ids": ["r"], "research_root": "/authorized/research"},
+                     lambda **_: None, lambda **_: child("ok", subjects=[{"run_id": "r"}]),
+                     attention_index=attention_index)
+    assert requests == [{"research_root": "/authorized/research"}]
+    assert result["status"] == "partial"
+    assert result["signals"]["sources"]["attention_index"]["status"] == "unknown"
+    assert result["signals"]["sources"]["run_evidence"]["signals"]["subjects"] == [{"run_id": "r"}]
+    assert result["signals"]["attention"] == [
+        {"source": "attention_index", "subject": "", "signal": "index_unavailable"},
     ]
     assert result["signals"]["decision"] == "review_required"
 
@@ -140,7 +209,10 @@ def test_event_pages_resume_without_materializing_payloads():
     assert requests == [{"run_id": "r", "limit": 200, "summary_only": True, "after_sequence": 9}]
     assert page["next_cursor"] == 12 and page["has_more"] is True
     assert result["signals"]["sources"]["event_pages"]["status"] == "partial"
-    assert result["signals"]["attention"] == [{"source": "event_pages", "subject": "r", "signal": "event_backlog"}]
+    assert result["signals"]["attention"] == [
+        {"source": "event_pages", "subject": "r", "signal": "event_backlog"},
+        {"source": "attention_index", "subject": "", "signal": "index_not_requested"},
+    ]
 
 
 def test_event_cursor_requires_selected_run_and_valid_sequence():

@@ -216,8 +216,16 @@ func (b *Bridge) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p, err := b.Programs.Get(r.Context(), req.ProgramID)
-	if err != nil || p.GetSessionId() != req.SessionID || programs.RequireCallerOwner(r.Context(), p) != nil {
+	if err != nil {
+		writeError(w, http.StatusForbidden, errors.New("program is unavailable to task checkpoint"))
+		return
+	}
+	if p.GetSessionId() != req.SessionID {
 		writeError(w, http.StatusForbidden, errors.New("program does not belong to session"))
+		return
+	}
+	if err := programs.RequireCallerOwner(r.Context(), p); err != nil {
+		writeError(w, http.StatusForbidden, err)
 		return
 	}
 	action := strings.TrimPrefix(r.URL.Path, "/internal/program-runtime/tasks/")

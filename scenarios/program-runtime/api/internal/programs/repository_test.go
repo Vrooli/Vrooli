@@ -31,6 +31,7 @@ func TestEnsureCompatibilityMarksHistoricalCallerIdentityUnverified(t *testing.T
 	for _, name := range []string{"source_receipt_format", "stdout_receipt_format", "failure_detail_receipt_format"} {
 		legacySchema = strings.Replace(legacySchema, ",\n  "+name+" INTEGER NOT NULL DEFAULT 0", "", 1)
 	}
+	legacySchema = strings.Replace(legacySchema, ",\n  service_owner_json TEXT NOT NULL DEFAULT ''", "", 1)
 	require.NotEqual(t, Schema(), legacySchema)
 	require.NoError(t, apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(func() string { return legacySchema })))
 	_, err := d.ExecContext(context.Background(), `INSERT INTO programs (id, session_id, source, provenance, status, created_at, caller_run_id) VALUES ('legacy', '', '', '1', 'succeeded', '2026-01-01T00:00:00Z', 'self-reported-run')`)

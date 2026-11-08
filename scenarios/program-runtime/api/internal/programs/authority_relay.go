@@ -88,6 +88,35 @@ type authorityRelay struct {
 	drainTimeout time.Duration
 }
 
+var taskAuthorityRoutes = map[string]struct{}{
+	"/internal/program-runtime/tasks/learning_result_put":         {},
+	"/internal/program-runtime/tasks/learning_result_status":      {},
+	"/internal/program-runtime/tasks/learning_feedback":           {},
+	"/internal/program-runtime/tasks/learning_findings":           {},
+	"/internal/program-runtime/tasks/learning_finding_transition": {},
+	"/internal/program-runtime/tasks/fragment_rejection":          {},
+	"/internal/program-runtime/tasks/fragment_get":                {},
+	"/internal/program-runtime/tasks/fragment_list":               {},
+	"/internal/program-runtime/tasks/delivery_metrics":            {},
+	"/internal/program-runtime/tasks/fragment_put":                {},
+	"/internal/program-runtime/tasks/fragment_promote":            {},
+	"/internal/program-runtime/tasks/fragment_publish":            {},
+	"/internal/program-runtime/tasks/resolve":                     {},
+	"/internal/program-runtime/tasks/begin":                       {},
+	"/internal/program-runtime/tasks/get":                         {},
+	"/internal/program-runtime/tasks/resume":                      {},
+	"/internal/program-runtime/tasks/start":                       {},
+	"/internal/program-runtime/tasks/complete":                    {},
+}
+
+var taskAuthorityReadOnlyRoutes = map[string]struct{}{
+	"/internal/program-runtime/tasks/learning_result_status": {},
+	"/internal/program-runtime/tasks/learning_findings":      {},
+	"/internal/program-runtime/tasks/fragment_list":          {},
+	"/internal/program-runtime/tasks/delivery_metrics":       {},
+	"/internal/program-runtime/tasks/get":                    {},
+}
+
 func strictObject(data []byte) (map[string]json.RawMessage, error) {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	open, err := decoder.Token()
@@ -209,12 +238,11 @@ func (a *authorityRelay) serve(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	allowed := map[string]bool{
 		"/internal/program-runtime/bindings/execute": true,
-		"/internal/program-runtime/tasks/resolve":    true,
-		"/internal/program-runtime/tasks/begin":      true,
-		"/internal/program-runtime/tasks/start":      true,
-		"/internal/program-runtime/tasks/complete":   true,
 		"/internal/program-runtime/agent/start":      true,
 		"/internal/program-runtime/agent/collect":    true,
+	}
+	for path := range taskAuthorityRoutes {
+		allowed[path] = true
 	}
 	if r.Method != http.MethodPost || !allowed[path] || r.URL.RawQuery != "" || r.URL.RawPath != "" {
 		http.Error(w, "owner route not allowed", http.StatusForbidden)
@@ -272,7 +300,8 @@ func (a *authorityRelay) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	uncertain := false
-	readOnly := path == "/internal/program-runtime/bindings/execute"
+	_, readOnlyTask := taskAuthorityReadOnlyRoutes[path]
+	readOnly := path == "/internal/program-runtime/bindings/execute" || readOnlyTask
 	defer func() { a.endFlight(uncertain) }()
 	request.Header.Set("Content-Type", r.Header.Get("Content-Type"))
 	if database.IsTestMode(a.owner) {

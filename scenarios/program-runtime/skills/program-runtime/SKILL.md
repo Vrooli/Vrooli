@@ -1,6 +1,6 @@
 ---
 name: "program-runtime"
-description: "Use for high-arity, multi-scenario, or bounded AI decision workflows: compose governed capabilities and reusable subprograms, run them in a fresh session, and branch on every result envelope and failure explicitly."
+description: "Use for high-arity work: fan out independent calls across scenarios, replace recurring tool-call loops with governed programs, return bounded results, or make a bounded AI decision over retrieved candidates."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -9,9 +9,9 @@ metadata:
   tags: ["skill","program","python","session","binding","typed inference","governance","runtime","high arity","multi-scenario","cross-scenario","fan-out","bounded results","return bounded results","discard intermediates","discard intermediate data","tool-call compression","library","shape","nomination","delegation","bounded AI decision","subprogram"]
   icon: "terminal"
   status: "active"
-  revision: 14
+  revision: 15
   createdAt: "2026-08-06T00:00:00Z"
-  updatedAt: "2026-11-05T01:02:00Z"
+  updatedAt: "2026-11-05T08:48:17Z"
   requires:
     scenarios: ["program-runtime", "prompt-manager", "vrooli-memory", "ai-gateway", "agent-manager", "search-hub"]
     commands: ["program-runtime bindings", "program-runtime sessions", "program-runtime programs", "program-runtime library", "program-runtime space", "vrooli-memory recall", "vrooli-memory journal", "prompt-manager skill read", "vrooli scenario"]
@@ -23,7 +23,7 @@ metadata:
 ---
 ## Tools focus: Program Runtime
 
-Use `program-runtime` when a task needs many governed operations, must reduce a large result, or should make a bounded decision over candidates retrieved by an owning scenario. A program can compose owner-managed retrieval with a declared AI decision, then return only the selected evidence. Model calls go through AI Gateway; inspect the contract and usage/routing receipt before assuming a route is cheap. Reuse promoted programs and scenario-owned subprograms when their bounded contract fits, and preserve their statuses and errors. This skill holds the judgment `program-runtime <group> help` does not print: when a program is the right shape, which verb or scenario-owned program fits, and what to do with each envelope. Construction rules live in `path:scenarios/program-runtime/docs/guides/program-construction.md`; the standard for a scenario-owned program and its envelope lives in `path:scenarios/program-runtime/docs/guides/program-contracts.md`.
+Use `program-runtime` for high-arity work: fan out independent operations across scenario owners, reduce large results to bounded evidence, or make a bounded decision over candidates retrieved by an owning scenario. Package a recurring sequence as a governed program instead of repeating tool-call loops; keep one-off operations on the owner CLI. A program can compose owner-managed retrieval with a declared AI decision, then return only the selected evidence. Model calls go through AI Gateway; inspect the contract and usage/routing receipt before assuming a route is cheap. Reuse promoted programs and scenario-owned subprograms when their bounded contract fits, and preserve their statuses and errors. This skill holds the judgment `program-runtime <group> help` does not print: when a program is the right shape, which verb or scenario-owned program fits, and what to do with each envelope. Construction rules live in `path:scenarios/program-runtime/docs/guides/program-construction.md`; the standard for a scenario-owned program and its envelope lives in `path:scenarios/program-runtime/docs/guides/program-contracts.md`.
 
 Required reading before authoring or editing a program:
 - `path:scenarios/program-runtime/docs/guides/program-construction.md`
@@ -208,10 +208,7 @@ When you are the later caller and something a program produced turns out to be
 wrong, do not re-run the task. Name the reference the run handed back:
 
 ```bash
-program-runtime library run program-runtime.learning-feedback \
-  --input feedback_ref=<signals.learning.feedback_ref> \
-  --input disposition=contradicted --input dimension=usefulness \
-  --input evidence='["operator:the extracted list was last week'"'"'s"]'
+program-runtime library run program-runtime.learning-feedback --input 'feedback_ref=<signals.learning.feedback_ref>' --input disposition=contradicted --input dimension=usefulness --input 'evidence=["operator:the extracted list was last week"]'
 ```
 
 Use `usefulness` when the output did not meet the need, `context` when the
@@ -338,3 +335,7 @@ One `vrooli-memory journal note --scope program-runtime-usage --kind task-record
 ### Output expectations
 
 Every runtime workflow leaves a traceable session id, program id, provenance value, envelope status, and one journal line. A successful workflow may change only the state named under Safety. It must not mutate shared bindings, generated proto output, dependency approvals, library rows, or unrelated scenarios.
+
+### Local activity for cross-workspace reconciliation
+
+Use `program-runtime.local-work-snapshot` when the question is what local work is represented across Agent Manager, standing/finite Prompt Manager teams, Swarm and retained research, rather than whether services are healthy. It is one bounded read-only observation with no inference, scheduling, dispatch or acceptance. Start with the default four examples per source; pass an explicitly authorized `research_root` when research is needed. Read `path:scenarios/program-runtime/docs/guides/local-work-bridge.md` for paging, source freshness, exact unknowns and the existing Drive bridge. Normal results are `partial`: the contract deliberately leaves native liveness, team queues, Swarm executions and scientific acceptance to their owners. Do not collapse counts or force one-to-one Flywheel matches.

@@ -184,7 +184,20 @@ def step_report():
         else:
             items = delivery.get("signals", {}).get("items", [])
             by_id = {item.get("decision_id"): item for item in items if isinstance(item, dict)}
-            for item_id in index.get("signals", {}).get("actionable_ids", []):
+            index_signals = index.get("signals", {})
+            # Proposals await operator approval, so every recorded proposal is
+            # surfaced; actionable items are surfaced only when reconciliation
+            # is needed.
+            for item_id in index_signals.get("proposal_ids", []):
+                decision = by_id.get(item_id)
+                if decision is None:
+                    delivery_state = "not_checked" if not envelope["inputs"].get("effort_ref") else "unlinked_or_unobserved"
+                else:
+                    delivery_state = "not_pending" if decision.get("delivery") == "not_pending" else "pending"
+                attention.append({"source": "attention_index", "subject": item_id, "signal": "proposal_awaiting_approval", "delivery": delivery_state})
+            if index_signals.get("proposal_coverage") != "parsed_snapshot":
+                attention.append({"source": "attention_index", "subject": "", "signal": "proposals_unknown"})
+            for item_id in index_signals.get("actionable_ids", []):
                 decision = by_id.get(item_id)
                 if decision is None:
                     signal = "delivery_not_checked" if not envelope["inputs"].get("effort_ref") else "decision_unlinked_or_unobserved"

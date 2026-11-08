@@ -75,12 +75,7 @@ def open_bridge_request(request, timeout):
     request.remove_header("X-agent-operation-token")
     if trusted:
         socket_path = os.environ.get("PROGRAM_RUNTIME_AUTHORITY_RELAY", "")
-        checkpoint = destination.path in (
-            "/internal/program-runtime/tasks/resolve",
-            "/internal/program-runtime/tasks/begin",
-            "/internal/program-runtime/tasks/start",
-            "/internal/program-runtime/tasks/complete",
-        )
+        task_checkpoint = destination.path.startswith("/internal/program-runtime/tasks/")
         delegation = destination.path in (
             "/internal/program-runtime/agent/start",
             "/internal/program-runtime/agent/collect",
@@ -93,10 +88,10 @@ def open_bridge_request(request, timeout):
                 )
             except (TypeError, ValueError, AttributeError):
                 pass
-        if (checkpoint or delegation) and os.environ.get("PROGRAM_RUNTIME_AUTHORITY_RELAY_UNAVAILABLE") == "1":
-            kind = "task checkpoint" if checkpoint else "agent delegation"
+        if (task_checkpoint or delegation) and os.environ.get("PROGRAM_RUNTIME_AUTHORITY_RELAY_UNAVAILABLE") == "1":
+            kind = "task checkpoint" if task_checkpoint else "agent delegation"
             raise urllib.error.URLError(f"verified {kind} relay unavailable")
-        if socket_path and (checkpoint or delegation or native_read):
+        if socket_path and (task_checkpoint or delegation or native_read):
             return _open_relay(request, timeout, socket_path)
         return urllib.request.build_opener(
             urllib.request.ProxyHandler({}), _NoAgentRedirect()

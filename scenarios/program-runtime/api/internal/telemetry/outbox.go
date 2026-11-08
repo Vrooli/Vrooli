@@ -20,15 +20,19 @@ type Drainer struct {
 	publisher Publisher
 	clock     func() time.Time
 	interval  time.Duration
+	onError   func(error)
 	stop      chan struct{}
 	done      chan struct{}
 }
 
-func NewDrainer(repo Repository, publisher Publisher, clock func() time.Time) *Drainer {
+func NewDrainer(repo Repository, publisher Publisher, clock func() time.Time, onError func(error)) *Drainer {
 	if clock == nil {
 		clock = func() time.Time { return time.Now().UTC() }
 	}
-	return &Drainer{repo: repo, publisher: publisher, clock: clock, interval: defaultDrainInterval, stop: make(chan struct{}), done: make(chan struct{})}
+	if onError == nil {
+		onError = func(err error) { log.Printf("telemetry outbox drain failed: %v", err) }
+	}
+	return &Drainer{repo: repo, publisher: publisher, clock: clock, interval: defaultDrainInterval, onError: onError, stop: make(chan struct{}), done: make(chan struct{})}
 }
 
 func (d *Drainer) DrainOnce(ctx context.Context) error {
@@ -76,7 +80,7 @@ func (d *Drainer) Start(ctx context.Context) {
 			select {
 			case <-ticker.C:
 				if err := d.DrainOnce(ctx); err != nil {
-					log.Printf("telemetry outbox drain failed: %v", err)
+					d.onError(err)
 				}
 			case <-d.stop:
 				return

@@ -199,6 +199,16 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
+### Telemetry outbox error observer
+
+| | |
+|---|---|
+| **Seam** | Asynchronous outbox drain failure reporting |
+| **Interface** | `internal/telemetry::Options.OnError` (`func(error)`), passed to `Drainer` |
+| **Production wiring** | `api/main.go` supplies the callback that logs `telemetry outbox drain failed: <error>`. |
+| **Test fake** | `internal/telemetry/outbox_test.go::TestDrainerReportsFirstAsyncFailureOnceAndStopsOnCancellation` captures the callback and controls the first repository failure. |
+| **Why it exists** | The drainer runs asynchronously, so a repository error otherwise reaches only package-level logging and cannot be observed at its owner boundary. The callback makes that report testable while leaving the ticker, retry cadence, and stop behavior with the drainer. |
+
 ## Adding a new seam
 
 The right time to add a seam is the moment you find yourself reaching

@@ -60,8 +60,11 @@ automatically):
 
 ```bash
 program-runtime status
-program-runtime <domain> <command>   # e.g. list/create commands for your domain
+program-runtime bindings list --scenario "program-runtime" --json
 ```
+
+Use `program-runtime --help` to discover the current command groups. After
+adding a product domain, document and run its concrete commands here.
 
 Or directly via HTTP:
 

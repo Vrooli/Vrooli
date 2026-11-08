@@ -85,6 +85,9 @@ func RequireCallerOwner(ctx context.Context, p *programsv1.Program) error {
 // closure response does not claim that already-admitted effects have stopped.
 // No session, runner, second ledger or clock-based absence inference is used.
 func (s *Service) CloseDeclaredAdmission(ctx context.Context, source string, provenance programsv1.Provenance, includeMaterialized bool, identity Identity, caller Caller) (*programsv1.Program, error) {
+	if serviceAdmissionFrom(ctx) != nil {
+		return nil, ErrCallerIdentityMismatch
+	}
 	if identity.IdempotencyKey == "" {
 		return nil, ErrInvalidRequestKey
 	}
@@ -110,6 +113,12 @@ func (s *Service) CloseDeclaredAdmission(ctx context.Context, source string, pro
 // It intentionally includes failed/interrupted results: observation never replays
 // domain effects. Source includes the resolved input preamble and pinned program.
 func (s *Service) ReplayDeclared(ctx context.Context, source string, provenance programsv1.Provenance, includeMaterialized bool, identity Identity, caller Caller) (*programsv1.Program, error) {
+	if a := serviceAdmissionFrom(ctx); a != nil {
+		owner, err := a.identity(submissionID(identity))
+		if err != nil || owner.Name != identity.ProgramName || owner.Digest != identity.ProgramDigest || owner.RequestKey != identity.IdempotencyKey || a.deadline != identity.AdmissionDeadline || len(identity.Grants) != 0 {
+			return nil, ErrCallerIdentityMismatch
+		}
+	}
 	if identity.IdempotencyKey == "" {
 		if identity.AdmissionDeadline != "" {
 			return nil, fmt.Errorf("%w: admission_deadline requires idempotency_key", ErrInvalidRequestKey)

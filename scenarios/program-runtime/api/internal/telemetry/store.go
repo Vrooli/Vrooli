@@ -248,6 +248,7 @@ type Store struct {
 	repo      Repository
 	clock     func() time.Time
 	publisher Publisher
+	onError   func(error)
 	drainer   *Drainer
 }
 
@@ -264,6 +265,7 @@ type Options struct {
 	DB        sessions.SQLExecutor
 	Publisher Publisher
 	Clock     func() time.Time
+	OnError   func(error)
 }
 
 func NewStoreWithOptions(options Options) *Store {
@@ -275,7 +277,7 @@ func NewStoreWithOptions(options Options) *Store {
 	if options.DB != nil {
 		repo = NewRepository(options.DB)
 	}
-	return &Store{repo: repo, clock: clock, publisher: options.Publisher}
+	return &Store{repo: repo, clock: clock, publisher: options.Publisher, onError: options.OnError}
 }
 
 func (s *Store) Append(event *telemetryv1.ProgramEvent) {
@@ -307,7 +309,7 @@ func (s *Store) ListContext(ctx context.Context, sessionID string, kind telemetr
 
 func (s *Store) Start(ctx context.Context) {
 	if s.publisher != nil {
-		s.drainer = NewDrainer(s.repo, s.publisher, s.clock)
+		s.drainer = NewDrainer(s.repo, s.publisher, s.clock, s.onError)
 		s.drainer.Start(ctx)
 	}
 }
@@ -322,7 +324,7 @@ func (s *Store) DrainOnce(ctx context.Context) error {
 	if s.publisher == nil {
 		return nil
 	}
-	return NewDrainer(s.repo, s.publisher, s.clock).DrainOnce(ctx)
+	return NewDrainer(s.repo, s.publisher, s.clock, s.onError).DrainOnce(ctx)
 }
 
 func protoClone(event *telemetryv1.ProgramEvent) *telemetryv1.ProgramEvent {

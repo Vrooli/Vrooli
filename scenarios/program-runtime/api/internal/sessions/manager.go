@@ -114,6 +114,7 @@ type Session struct {
 }
 
 type Manager struct {
+	admissionGate       chan struct{}
 	mu                  sync.Mutex
 	options             Options
 	repo                Repository
@@ -151,7 +152,7 @@ func NewManager(options Options) *Manager {
 	if options.WorkspaceResolver == nil {
 		options.WorkspaceResolver = &localWorkspaceResolver{}
 	}
-	return &Manager{options: options, repo: repo, kernels: make(map[string]Kernel), uncertainAccounting: make(map[string]struct{}), oneShotCapabilities: make(map[string]*oneShotCapability)}
+	return &Manager{admissionGate: make(chan struct{}, 1), options: options, repo: repo, kernels: make(map[string]Kernel), uncertainAccounting: make(map[string]struct{}), oneShotCapabilities: make(map[string]*oneShotCapability)}
 }
 
 func (m *Manager) Create(ctx context.Context, name, sandbox string, grants []string) (*Session, error) {
@@ -396,7 +397,11 @@ func (m *Manager) List(ctx context.Context) []*Session {
 }
 
 func (m *Manager) Delete(ctx context.Context, id, reason string) (*Session, error) {
+	if err := m.lockAdmission(ctx); err != nil {
+		return nil, err
+	}
 	s, err := m.repo.Delete(ctx, id, strings.TrimSpace(reason), m.options.Clock.Now().UTC())
+	m.unlockAdmission()
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +517,12 @@ func (m *Manager) ReclaimIdle(ctx context.Context, now time.Time) []string {
 }
 
 func (m *Manager) reclaim(ctx context.Context, id, reason string) error {
-	if err := m.repo.Reclaim(ctx, id, reason, m.options.Clock.Now().UTC()); err != nil {
+	if err := m.lockAdmission(ctx); err != nil {
+		return err
+	}
+	err := m.repo.Reclaim(ctx, id, reason, m.options.Clock.Now().UTC())
+	m.unlockAdmission()
+	if err != nil {
 		return err
 	}
 	m.closeKernel(id)
@@ -564,3 +574,35 @@ func clone(s *Session) *Session {
 	c.Kernel = nil
 	return &c
 }
+
+// WithLiveSession holds the manager's deletion/reclamation boundary through a
+// final owner admission. The caller must use this same manager for all session
+// invalidation; direct repository writes are not part of this boundary. fn must
+// not call Delete or ReclaimIdle. Acquire external authority before this lock.
+func (m *Manager) WithLiveSession(ctx context.Context, id string, fn func(context.Context) error) error {
+	if err := m.lockAdmission(ctx); err != nil {
+		return err
+	}
+	defer m.unlockAdmission()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	s, err := m.repo.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if s.State != "running" {
+		return ErrReclaimed
+	}
+	return fn(ctx)
+}
+
+func (m *Manager) lockAdmission(ctx context.Context) error {
+	select {
+	case m.admissionGate <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+func (m *Manager) unlockAdmission() { <-m.admissionGate }

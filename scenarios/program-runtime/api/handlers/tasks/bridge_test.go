@@ -104,7 +104,7 @@ func TestTaskBridgeRequiresTheOwningVerifiedRun(t *testing.T) {
 
 	otherResponse := request("other-token")
 	require.Equal(t, http.StatusForbidden, otherResponse.Code)
-	require.Contains(t, otherResponse.Body.String(), "program does not belong to session")
+	require.Contains(t, otherResponse.Body.String(), "declared program admission belongs to a different verified caller")
 }
 
 func TestKernelTaskCheckpointRefusesPersistentSession(t *testing.T) {
@@ -175,6 +175,63 @@ print(json.dumps({"attempt_id": identity["attempt_id"], "task_id": identity["tas
 	require.Equal(t, "run-owner", completed.GetCallerRunId())
 	require.True(t, completed.GetCallerIdentityVerified())
 
+}
+
+func TestKernelTaskCheckpointUsesSealedProgramSessionAndVerifiedCaller(t *testing.T) {
+	ctx := context.Background()
+	t.Setenv("PROGRAM_RUNTIME_LEARNING_STATE_DIR", t.TempDir())
+	db := dbtest.NewSQLite(t)
+	db.SetMaxOpenConns(1)
+	for _, schema := range []string{taskstore.Schema(), library.Schema(), programs.Schema()} {
+		_, err := db.Exec(schema)
+		require.NoError(t, err)
+	}
+
+	verify := provenance.VerifierFunc(func(token string) (*cliutil.VerifyResult, error) {
+		if token != "owner-token" {
+			return &cliutil.VerifyResult{Valid: false}, nil
+		}
+		return &cliutil.VerifyResult{Valid: true, Claims: &cliutil.VerifiedClaims{RunID: "run-owner"}}, nil
+	})
+	var ownerCtx context.Context
+	provenance.Middleware(verify)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		ownerCtx = r.Context()
+	})).ServeHTTP(httptest.NewRecorder(), func() *http.Request {
+		r := httptest.NewRequest(http.MethodPost, "/submit", nil)
+		r.Header.Set(cliutil.HeaderAgentIdentityToken, "owner-token")
+		return r
+	}())
+
+	manager := sessions.NewManager(sessions.Options{})
+	session, admissionCtx, err := manager.CreateOneShot(ownerCtx, "declared-task-checkpoint", "", nil, 0, 0, 10000, 0)
+	require.NoError(t, err)
+	require.Equal(t, "owner-token", provenance.ForwardedIdentityToken(admissionCtx))
+	require.Equal(t, "run-owner", provenance.FromContext(admissionCtx).RunID)
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	kernel, err := filepath.Abs("../../../kernel/host/engine.py")
+	require.NoError(t, err)
+	runner := programs.NewSubprocessRunnerWithBindings(kernel, nil, server.URL+"/internal/program-runtime/bindings/execute")
+	defer runner.Close()
+	programService := programs.NewService(programs.Options{
+		Store: db, Runner: runner,
+		AuthorizeSession: manager.AuthorizeSubmission,
+		ValidateSession:  func(id string) bool { _, getErr := manager.Get(ctx, id); return getErr == nil },
+	})
+	bridge := &Bridge{Store: taskstore.NewStore(db), Contracts: contracts.NewIndex(), Library: library.NewRepository(db), Sessions: manager, Programs: programService}
+	mux.Handle("/internal/program-runtime/tasks/", provenance.Middleware(verify)(bridge))
+
+	program, _, err := programService.SubmitDeclared(admissionCtx, session.ID,
+		`print(tasks.learning_findings().head(1))`, programsv1.Provenance_PROVENANCE_AGENT, false, false,
+		programs.Identity{}, programs.Caller{RunID: "run-owner", Harness: "cli"}, true)
+	require.NoError(t, err)
+	completed, terminal, err := programService.Wait(ctx, program.GetId(), 10*time.Second)
+	require.NoError(t, err)
+	require.True(t, terminal)
+	require.Equal(t, programsv1.ProgramStatus_PROGRAM_STATUS_SUCCEEDED, completed.GetStatus(), completed.GetFailureDetail())
+	require.True(t, completed.GetCallerIdentityVerified())
+	require.Equal(t, session.ID, completed.GetSessionId())
 }
 
 func archivedFixture(t *testing.T, repo *library.Repository, id, source string, declaration []byte) contracts.Contract {

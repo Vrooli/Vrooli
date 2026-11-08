@@ -18,6 +18,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parents[1]))
 from host.engine import SessionKernel, _open_bridge_request
 from host.tasks import Tasks
+from host import bridge_transport
 
 
 class Response:
@@ -133,6 +134,23 @@ def test_learning_task_bridge_does_not_forward_caller_credentials():
         "session_id": "session-a",
         "program_id": "program-a",
     }
+
+
+def test_read_task_checkpoint_uses_verified_owner_relay():
+    request = urllib.request.Request(
+        "http://127.0.0.1:1234/internal/program-runtime/tasks/learning_findings",
+        data=b'{"session_id":"session-a","program_id":"program-a"}',
+        method="POST",
+    )
+    with patch.dict(os.environ, {"PROGRAM_RUNTIME_AUTHORITY_RELAY": "/tmp/runtime-owner.sock"}, clear=False), \
+         patch("host.bridge_transport._open_relay", return_value=Response({"findings": []})) as relay, \
+         patch("host.bridge_transport.urllib.request.urlopen") as direct:
+        response = bridge_transport.open_bridge_request(request, 5)
+
+    assert response.read() == b'{"findings": []}'
+    relay.assert_called_once()
+    assert relay.call_args.args[2] == "/tmp/runtime-owner.sock"
+    direct.assert_not_called()
 
 
 def test_persistent_caller_diagnostic_is_per_submission_and_does_not_call_owner():

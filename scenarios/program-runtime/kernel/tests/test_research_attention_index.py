@@ -95,3 +95,43 @@ def test_parent_reports_unavailable_index():
     with contextlib.redirect_stdout(io.StringIO()):
         runpy.run_path(str(PARENT), init_globals={'program': runtime, 'lib': library})
     assert {'source': 'attention_index', 'subject': '', 'signal': 'index_unavailable'} in runtime.result['signals']['attention']
+
+
+PAGE = ('# Research\n\nHeader line.\n\n## Proposals awaiting approval\n\n{proposals}\n\n'
+        '## Actionable now\n\n{actionable}\n\n## Agent prerequisites and future gates\n\n| ID | State |\n|---|---|\n')
+
+
+def test_proposals_are_reported_beside_actionable_items(tmp_path):
+    path = tmp_path / 'ATTENTION.md'
+    path.write_text(PAGE.format(proposals='No proposals are recorded.', actionable='No actionable items are recorded.'))
+    result = execute(tmp_path)
+    assert result['status'] == 'ok'
+    assert result['signals']['proposal_coverage'] == 'parsed_snapshot'
+    assert result['signals']['proposal_ids'] == []
+    assert result['signals']['actionable_ids'] == []
+    path.write_text(PAGE.format(
+        proposals='### PROPOSAL-MUSIC-STUDIO — Build a studio\n- What gets built: private detail\n\n### PROPOSAL-DEBT-small-audit — Smaller\n- detail',
+        actionable='### WALLET-1 — Choose a route\n- context'))
+    result = execute(tmp_path)
+    assert result['signals']['proposal_ids'] == ['PROPOSAL-MUSIC-STUDIO', 'PROPOSAL-DEBT-small-audit']
+    assert result['signals']['actionable_ids'] == ['WALLET-1']
+    assert 'private detail' not in str(result)
+
+
+def test_unparsed_proposals_are_unknown_without_losing_actionable_snapshot(tmp_path):
+    path = tmp_path / 'ATTENTION.md'
+    cases = [
+        '## Actionable now\n### WALLET-1 — Choose\n',  # older index without the section
+        PAGE.format(proposals='', actionable='### WALLET-1 — Choose'),  # empty without marker
+        PAGE.format(proposals='### MUSIC-STUDIO — Missing prefix', actionable='### WALLET-1 — Choose'),
+        PAGE.format(proposals='Unclassified prose\n### PROPOSAL-A — Build', actionable='### WALLET-1 — Choose'),
+        PAGE.format(proposals='### PROPOSAL-A — Build\n### PROPOSAL-A — Again', actionable='### WALLET-1 — Choose'),
+        PAGE.format(proposals='No proposals are recorded.', actionable='### WALLET-1 — Choose') + '## Proposals awaiting approval\nNo proposals are recorded.\n',
+    ]
+    for text in cases:
+        path.write_text(text)
+        result = execute(tmp_path)
+        assert result['status'] == 'ok', text
+        assert result['signals']['actionable_ids'] == ['WALLET-1'], text
+        assert result['signals']['proposal_coverage'] == 'unknown', text
+        assert result['signals']['proposal_ids'] == [], text

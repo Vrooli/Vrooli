@@ -215,6 +215,13 @@
         "degraded_behavior": "Program preparation exposes missing or unavailable owning skill content instead of presenting it as a complete read.",
         "versionRange": ">=1.0.0",
         "description": "Owning skill content for preparing a selected reusable program."
+      },
+      "swarm-manager": {
+        "required": false,
+        "startup_policy": "try_start",
+        "degraded_behavior": "Availability is inferred from source evidence; verify this scenario's capability contract before relying on it.",
+        "versionRange": ">=0.0.1",
+        "description": "Auto-detected dependency via program_binding"
       }
     }
   },

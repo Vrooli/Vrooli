@@ -499,6 +499,7 @@
         },
         {
           "name": "get",
+          "aliases": ["show", "describe", "info", "read"],
           "description": "Read one library program by name and optional version.",
           "positionals": [
             {

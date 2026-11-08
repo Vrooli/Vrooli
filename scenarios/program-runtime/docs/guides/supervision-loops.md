@@ -24,16 +24,16 @@ supervision decision. **`unavailable` is unknown, never zero.**
 | Runtime measure summaries / failure shapes / reachable bindings | `program-runtime.fleet-fanout`, `program-runtime.failure-triage`, `program-runtime.registry-sweep` | |
 | Agent run efficiency / setpoint / one-subject diagnosis | `agent-manager.efficiency-report`, `agent-manager.setpoint-read`, `agent-manager.investigate` + `investigation-evidence` | agent-manager-owned; reuse, don't re-author. |
 | Selected research threads, runs and changed event counts | `program-runtime.research-supervision-read` | Optional telemetry only. Caller supplies exact identities. Owner reports are review leads, not productivity grades. Missing sources remain unknown and never block unrelated research. Optional cursors select one page of event counts; `has_more` means more pages remain. |
-| Research attention and retained decisions | `program-runtime.research-attention-index`, `program-runtime.research-attention-delivery` | Pass an authorized `research_root` and, where enrolled, exact `effort_ref` to `research-supervision-read`. The first reads only the explicit actionable section; the second joins one owner decision page to exact Hub asks and receipts. Follow `next_page_token` as `decision_page_token` until empty. Set `include_effort_board=true` when its slower free-form needs-operator projection is needed. `delivery_not_checked` means no effort was selected; `decision_unlinked_or_unobserved` means the selected page did not contain the ID, not proof a decision does not exist. An authorization request or other non-decision item is not automatically linked to an effort decision. The snapshot cannot detect needs never recorded, and neither read wakes or notifies anyone. |
+| Research attention and retained decisions | `program-runtime.research-attention-index`, `program-runtime.research-attention-delivery` | Pass an authorized `research_root` and, where enrolled, exact `effort_ref` to `research-supervision-read`. The first reads only the explicit `## Proposals awaiting approval` and `## Actionable now` sections; every recorded proposal surfaces as `proposal_awaiting_approval`, and `proposals_unknown` means that section was missing or malformed; the second joins one owner decision page to exact Hub asks and receipts. Follow `next_page_token` as `decision_page_token` until empty. Set `include_effort_board=true` when its slower free-form needs-operator projection is needed. `delivery_not_checked` means no effort was selected; `decision_unlinked_or_unobserved` means the selected page did not contain the ID, not proof a decision does not exist. An authorization request or other non-decision item is not automatically linked to an effort decision. The snapshot cannot detect needs never recorded, and neither read wakes or notifies anyone. |
 | Research workspace navigation signals | `program-runtime.research-workspace-review` | Pass an authorized absolute research root. Bounded missing-file and size signals are prompts to inspect, not judgments of research quality. |
 
 ## The supervision cycle
 
 ```bash
-program-runtime library run program-runtime.supervision-sweep    # running/health
-program-runtime library run program-runtime.validation-sweep     # latest validation verdict
+program-runtime library run program-runtime.supervision-sweep
+program-runtime library run program-runtime.validation-sweep
 # for anything in either signals.attention:
-program-runtime library run program-runtime.scenario-triage --input scenario=<slug>
+program-runtime library run program-runtime.scenario-triage --input 'scenario=<slug>'
 ```
 
 Weekly, keep the layer honest: `portfolio-audit` + `usage-triage`.
@@ -46,10 +46,8 @@ records and operator stop information. Do not repeat failed reads or make teleme
 prerequisite for independent studies. For example, after resolving a run ID:
 
 ```bash
-program-runtime library run program-runtime.research-supervision-read \
-  --input 'run_ids=["<run-id>"]' --input 'event_cursors={"<run-id>":null}'
-program-runtime library run program-runtime.research-workspace-review \
-  --input research_root=/absolute/authorized/research/root
+program-runtime library run program-runtime.research-supervision-read --input 'run_ids=["<run-id>"]' --input 'event_cursors={"<run-id>":null}'
+program-runtime library run program-runtime.research-workspace-review --input research_root=/absolute/authorized/research/root
 ```
 
 For the next bounded event page, pass the returned `next_cursor` for that same run.

@@ -102,6 +102,19 @@ func TestProgramsWaitCommandUsesGovernedRPC(t *testing.T) {
 			if command.Architecture == nil || command.Architecture.Primitive != string(cliapp.PrimitiveProtoList) {
 				t.Fatalf("programs wait architecture = %#v, want proto_list", command.Architecture)
 			}
+			if len(command.Positionals) != 1 || command.Positionals[0].Name != "id" || !command.Positionals[0].Required {
+				t.Fatalf("programs wait positionals = %#v, want required <id>", command.Positionals)
+			}
+			hasTimeout := false
+			for _, flag := range command.Flags {
+				if flag.Name == "timeout" {
+					hasTimeout = true
+					break
+				}
+			}
+			if !hasTimeout {
+				t.Fatal("programs wait has no --timeout option")
+			}
 			return
 		}
 	}

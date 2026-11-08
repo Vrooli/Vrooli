@@ -1,6 +1,9 @@
 package main
 
 import (
+	"regexp"
+	"strings"
+
 	"program-runtime/cli/domains"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -62,7 +65,58 @@ func (a *App) Run(args []string) error {
 
 // programRuntimeCommandHint teaches the most common wrong shape: treating a
 // declared program name as a top-level CLI command instead of selecting it
-// through the library group.
-func programRuntimeCommandHint(_ []string) string {
-	return "Declared programs are not top-level commands. Search with `program-runtime library search \"<intent>\"`, then run one with `program-runtime library run <scenario>.<program> --input key=value`. Example: `program-runtime library run program-runtime.prepare-operation --input name=<scenario>.<program>`"
+// through the library group. When the invocation shows which program was
+// meant, it prints the same invocation rewritten to the library form.
+func programRuntimeCommandHint(args []string) string {
+	const guide = "Declared programs are not top-level commands. Search with `program-runtime library search \"<intent>\"`, then run one with `program-runtime library run <scenario>.<program> --input key=value`."
+	if corrected := libraryRunRewrite(args); corrected != "" {
+		return guide + "\nRun this invocation as:\n  " + corrected
+	}
+	return guide + " Example: `program-runtime library run program-runtime.prepare-operation --input name=<scenario>.<program>`"
+}
+
+// libraryRunRewrite maps `run <program> ...`, `<scenario>.<program> ...` and
+// `<program> --input ...` onto `program-runtime library run <program> ...`.
+// It returns "" when the invocation does not name a program.
+func libraryRunRewrite(args []string) string {
+	if len(args) == 0 {
+		return ""
+	}
+	program, rest := args[0], args[1:]
+	if program == "run" || program == "exec" {
+		if len(rest) == 0 || strings.HasPrefix(rest[0], "-") {
+			return ""
+		}
+		program, rest = rest[0], rest[1:]
+	}
+	switch {
+	case programNamePattern.MatchString(program) && strings.Contains(program, "."):
+	case programNamePattern.MatchString(program) && hasInputFlag(rest):
+		program = "program-runtime." + program
+	default:
+		return ""
+	}
+	parts := []string{"program-runtime", "library", "run", program}
+	for _, arg := range rest {
+		parts = append(parts, shellQuote(arg))
+	}
+	return strings.Join(parts, " ")
+}
+
+var programNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)?$`)
+
+func hasInputFlag(args []string) bool {
+	for _, arg := range args {
+		if arg == "--input" || strings.HasPrefix(arg, "--input=") {
+			return true
+		}
+	}
+	return false
+}
+
+func shellQuote(arg string) string {
+	if arg != "" && !strings.ContainsAny(arg, " \t\n'\"\\$`!*?;&|<>()[]{}#~") {
+		return arg
+	}
+	return "'" + strings.ReplaceAll(arg, "'", `'\''`) + "'"
 }

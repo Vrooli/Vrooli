@@ -80,8 +80,8 @@ operator-authorized research folder outside the checkout:
 
 ```bash
 program-runtime sessions create --name research-read --sandbox-workspace /absolute/research/path --json
-program-runtime programs submit --session-id <session-id> --source-file /absolute/program.py --provenance agent --json
-program-runtime sessions delete <session-id> --reason 'Completed research read' --json
+program-runtime programs submit --session-id "<session-id>" --source-file /absolute/program.py --provenance agent --json
+program-runtime sessions delete "<id>" --reason "Completed research read" --json
 ```
 
 The resolved directory is the kernel's working directory. Relative Python file
@@ -350,10 +350,9 @@ A synchronous submission is bounded at **two minutes**. That is a deliberate
 limit, not the runtime's capacity: work that legitimately takes longer is
 submitted asynchronously and awaited once.
 
-```text
-program-runtime programs submit --session-id <id> --source-file work.py \
-  --provenance agent --async
-program-runtime programs wait <program-id> --timeout 300s
+```bash
+program-runtime programs submit --session-id "<session-id>" --source-file work.py --provenance agent --async
+program-runtime programs wait "<id>" --timeout 300s
 ```
 
 `programs submit --async --wait-timeout 300s` does both in one command. Either

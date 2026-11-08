@@ -16,7 +16,7 @@ that touches the API).
 The CLI's command surface (groups, commands, positionals, flags,
 RPC bindings, governance metadata) is declared in
 [`cli/manifest.json`](../../cli/manifest.json) and validated against the
-project CLI-manifest schema (`path:../../.vrooli/schemas/cli-manifest.schema.json`)
+project CLI-manifest schema (`path:.vrooli/schemas/cli-manifest.schema.json`)
 (schema id `cli-manifest/v1`). The manifest is loaded at startup by
 `cliapp.LoadFromManifestPrimitives`, which:
 
@@ -122,11 +122,11 @@ the Python namespace taught by the
 Inspect the manifest-to-proto callable projection before writing a program:
 
 ```bash
-program-runtime bindings list [--scenario <name>]
-program-runtime bindings unbound [--scenario <name>]
-program-runtime bindings doctor [--scenario <name>]
-program-runtime bindings describe <scenario>/<group>/<command>
-program-runtime bindings act [--cell <id>]
+program-runtime bindings list --scenario "program-runtime"
+program-runtime bindings unbound --scenario "program-runtime"
+program-runtime bindings doctor --scenario "program-runtime"
+program-runtime bindings describe "program-runtime/<group>/<command>"
+program-runtime bindings act --json
 ```
 
 `doctor` reports the fleet callability census plus semantic manifest-binding
@@ -164,11 +164,11 @@ Create, inspect, grant, list, and reclaim persistent kernels. Destructive
 operations require an explicit grant and confirmation in the session:
 
 ```bash
-program-runtime sessions create --name <name> [--grants <grant,...>]
-program-runtime sessions get <session-id>
-program-runtime sessions grant <session-id> --grants <grant,...>
+program-runtime sessions create --name "<name>"
+program-runtime sessions get "<id>"
+program-runtime sessions grant "<id>" --grants "<grants>"
 program-runtime sessions list
-program-runtime sessions delete <session-id> --reason "finished"
+program-runtime sessions delete "<id>" --reason "finished"
 ```
 
 ### `program-runtime programs`
@@ -177,12 +177,11 @@ Submit a bounded Python program, inspect its result, and mine recurring
 failure shapes:
 
 ```bash
-program-runtime programs submit \
-  --session-id <session-id> --source '<python>' --provenance agent
-program-runtime programs get <program-id>
-program-runtime programs wait <program-id> [--timeout 90s]
-program-runtime programs list [--session-id <session-id>]
-program-runtime programs mine [--include-operator]
+program-runtime programs submit --session-id "<session-id>" --source "print('hello')" --provenance agent
+program-runtime programs get "<id>"
+program-runtime programs wait "<id>" --timeout 90s
+program-runtime programs list --session-id "<session-id>"
+program-runtime programs mine --include-operator
 ```
 
 Program output remains bounded by default. `--include-materialized` permits
@@ -194,9 +193,8 @@ A synchronous submission is bounded at two minutes. Longer work is submitted
 asynchronously and awaited **once**:
 
 ```bash
-program-runtime programs submit --session-id <id> --source-file work.py \
-  --provenance agent --async
-program-runtime programs wait <program-id> --timeout 300s
+program-runtime programs submit --session-id "<session-id>" --source-file work.py --provenance agent --async
+program-runtime programs wait "<id>" --timeout 300s
 ```
 
 `--async --wait-timeout 300s` on `submit` does both in one command. The wait is
@@ -244,7 +242,7 @@ Read typed program lifecycle events and their provenance through the shared
 event bus. The command is diagnostic and does not change program state:
 
 ```bash
-program-runtime telemetry events [--session-id <session-id>] [--kind <kind>]
+program-runtime telemetry events --session-id "<session-id>" --kind "<kind>"
 ```
 
 ## Scenario commands — `<domain>`

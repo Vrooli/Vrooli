@@ -1,6 +1,6 @@
 {
   "createdAt": "2026-08-06T00:00:00Z",
-  "description": "Use for high-arity, multi-scenario, or bounded AI decision workflows: compose governed capabilities and reusable subprograms, run them in a fresh session, and branch on every result envelope and failure explicitly.",
+  "description": "Use for high-arity work: fan out independent calls across scenarios, replace recurring tool-call loops with governed programs, return bounded results, or make a bounded AI decision over retrieved candidates.",
   "entry": "SKILL.md",
   "icon": "terminal",
   "id": "program-runtime",
@@ -38,7 +38,7 @@
       "search-hub"
     ]
   },
-  "revision": 14,
+  "revision": 15,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -66,5 +66,5 @@
     "bounded AI decision",
     "subprogram"
   ],
-  "updatedAt": "2026-11-05T01:02:00Z"
+  "updatedAt": "2026-11-05T08:48:17Z"
 }

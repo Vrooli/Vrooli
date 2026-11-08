@@ -58,3 +58,26 @@ func TestMetadata(t *testing.T) {
 		t.Fatal("appVersion must not be empty")
 	}
 }
+
+func TestProgramRuntimeCommandHintRewritesProgramInvocations(t *testing.T) {
+	cases := map[string]string{
+		"prepare-operation --input name=device-control.do-task":                            "program-runtime library run program-runtime.prepare-operation --input name=device-control.do-task",
+		"run program-runtime.prepare-operation --input name=agent-manager.friction-digest": "program-runtime library run program-runtime.prepare-operation --input name=agent-manager.friction-digest",
+		"device-control.do-task --input task=volume":                                       "program-runtime library run device-control.do-task --input task=volume",
+	}
+	for invocation, want := range cases {
+		hint := programRuntimeCommandHint(strings.Fields(invocation))
+		if !strings.Contains(hint, "Run this invocation as:\n  "+want) {
+			t.Errorf("%s: hint %q lacks %q", invocation, hint, want)
+		}
+	}
+	for _, invocation := range []string{"validate scenario device-control", "prepare-operation --help", "run --help"} {
+		hint := programRuntimeCommandHint(strings.Fields(invocation))
+		if strings.Contains(hint, "Run this invocation as") || !strings.Contains(hint, "library run program-runtime.prepare-operation") {
+			t.Errorf("%s: expected the generic guide, got %q", invocation, hint)
+		}
+	}
+	if got := shellQuote("name=a b"); got != "'name=a b'" {
+		t.Errorf("shellQuote = %s", got)
+	}
+}

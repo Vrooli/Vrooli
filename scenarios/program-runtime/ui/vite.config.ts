@@ -68,9 +68,11 @@ export default defineConfig(({ mode }): UserConfig => {
         //      generated registries, JSON catalogs).
         //
         // If a scenario adds genuinely-untestable code, prefer narrow file
-        // exclusions with a one-line rationale comment over loosening the
-        // thresholds. The default position is: every new src/ file ships
-        // with its own *.test.{ts,tsx} and lands inside the include set.
+        // exclusions with a one-line rationale comment over lowering the
+        // committed coverage floor (.vrooli/testing.json coverage.committed,
+        // gated by Unit Health). The default position is: every new src/
+        // file ships with its own *.test.{ts,tsx} and lands inside the
+        // include set.
         exclude: [
           'src/**/*.test.{ts,tsx}',
           'src/**/*.spec.{ts,tsx}',
@@ -94,19 +96,6 @@ export default defineConfig(({ mode }): UserConfig => {
           // hand-authored thin-test at the feature root.
           'src/**/generated/**',
         ],
-        // 85% is the floor every canonical-surface file (App.tsx +
-        // button/input/textarea + consts + i18n + api/client + lib/utils) clears with the
-        // tests shipped in this template. Tightening beyond actual
-        // coverage of a healthy template would make every new scenario
-        // start red; loosening below it would make the gate vacuous.
-        // When a scenario's surface stabilises above 90% for a full
-        // release, raise these together.
-        thresholds: {
-          lines: 85,
-          functions: 85,
-          branches: 85,
-          statements: 85,
-        }
       }
     }
   };

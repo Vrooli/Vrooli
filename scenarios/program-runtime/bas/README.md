@@ -35,8 +35,8 @@ can span it. The loop:
 # 2. Drive it inside a profile-mode perf trace:
 performance-health audit run "<scenario>" --workflow "<slug>"
 # 3. Analyze the returned trace, then optionally set a per-flow budget:
-performance-health analysis analyze --trace "<key>"
-performance-health budget set --flow <slug> --lcp-max-ms 2500 --ratchet
+performance-health analysis analyze "<scenario>" --trace "<trace>"
+performance-health budget set "<scenario>" --flow "<flow>" --lcp-max-ms 2500 --ratchet
 ```
 
 Reusable perf interaction helpers live in `actions/`:

@@ -17,6 +17,7 @@ import (
 	"program-runtime/internal/capabilities"
 	"program-runtime/internal/contracts"
 	"program-runtime/internal/library"
+	"program-runtime/internal/localworkbridge"
 	"program-runtime/internal/modules"
 	"program-runtime/internal/programs"
 	"program-runtime/internal/retention"
@@ -192,7 +193,13 @@ func main() {
 	bindingRegistry.SetExerciseReader(bindings.NewReceiptExerciseReader(discovery.ResolveScenarioURLDefault, http.DefaultClient))
 	refusalRepository := bindings.NewRefusalRepository(db.Primary())
 	unresolvedRecorder, _ := refusalRepository.(bindings.UnresolvedRecorder)
-	telemetryStore := telemetry.NewStoreWithDB(db.Primary(), telemetry.NewPublisher(os.Getenv("VROOLI_EVENTS_API_BASE")))
+	telemetryStore := telemetry.NewStoreWithOptions(telemetry.Options{
+		DB:        db.Primary(),
+		Publisher: telemetry.NewPublisher(os.Getenv("VROOLI_EVENTS_API_BASE")),
+		OnError: func(err error) {
+			log.Printf("telemetry outbox drain failed: %v", err)
+		},
+	})
 	shapeRepository.SetEventSink(telemetryStore)
 	telemetryStore.Start(context.Background())
 	registryBindings := bindingRegistry.List("", "")
@@ -400,6 +407,15 @@ func main() {
 	// mode, the dev-only RoutingService used by test-genie to install a
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
+	// Intentionally disabled: no environment/credential discovery or process I/O.
+	// Activation requires a reviewed, scoped provider and prepared runtime binding.
+	localWork, err := localworkbridge.Register(rootMux, localworkbridge.Config{
+		OnFailure: func(error) { log.Print("local work bridge lifecycle failed") },
+	})
+	if err != nil {
+		log.Fatal("local work bridge configuration failed")
+	}
+	localWork.Start(context.Background())
 	// This route is mounted outside srv.Handler's middleware. Verify any
 	// forwarded agent identity here so task ownership is evaluated against the
 	// actual caller rather than an absent context. The task owner retains its
@@ -489,6 +505,7 @@ func main() {
 		ReadTimeout:    budgets.ServerRead,
 		WriteTimeout:   budgets.ServerWrite,
 		Cleanup: func(ctx context.Context) error {
+			bridgeErr := localWork.Stop(ctx)
 			stopTaskDelivery()
 			<-taskDeliveryDone
 			_ = runner.Close()
@@ -497,7 +514,11 @@ func main() {
 			telemetryStore.Stop()
 			retentionWorker.Stop()
 			_ = retentionDB.Close()
-			return db.Close()
+			dbErr := db.Close()
+			if bridgeErr != nil {
+				return bridgeErr
+			}
+			return dbErr
 		},
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)

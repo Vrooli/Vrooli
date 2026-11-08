@@ -65,8 +65,6 @@ replace github.com/vrooli/vrooli => ../../..
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../../scenario-to-desktop/runtime
-
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
 
 replace github.com/vrooli/pyenv-go => ../../../packages/pyenv-go
@@ -74,5 +72,3 @@ replace github.com/vrooli/pyenv-go => ../../../packages/pyenv-go
 replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/maturity-go => ../../../packages/maturity-go
-
-replace github.com/vrooli/cliresolve => ../../../packages/cliresolve
