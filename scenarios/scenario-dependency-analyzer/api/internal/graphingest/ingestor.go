@@ -30,7 +30,6 @@ type DeclaredEdgeSource interface {
 // Satisfied by *app.Analyzer.
 type AnalyzeSource interface {
 	AnalyzeScenario(scenario string) (*types.DependencyAnalysisResponse, error)
-	AnalyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error)
 }
 
 // Persister writes the merged unified edges. Satisfied by *store.Store.
@@ -98,29 +97,14 @@ type FleetReport struct {
 	Metrics           *commonv1.ExecutionMetrics `json:"-"`
 }
 
-// RebuildFleet refreshes analyze rows, builds the fleet interface graph, merges
-// every source, and (when apply is true) atomically replaces graph_edges. It
-// emits per-stage ExecutionMetrics so the sweeper budgets can be sized from
-// measured cost. With apply=false it computes and reports the would-be result
-// without persisting (dry-run).
-func (ing *Ingestor) RebuildFleet(ctx context.Context, repoRoot string, apply bool) (FleetReport, error) {
+// RebuildStoredFleet merges already refreshed dependency rows with interface
+// evidence. Fleet analysis is owned by the durable operations manager.
+func (ing *Ingestor) RebuildStoredFleet(ctx context.Context, repoRoot string, apply bool) (FleetReport, error) {
 	if ing == nil {
 		return FleetReport{}, fmt.Errorf("ingestor not initialized")
 	}
 	report := FleetReport{}
 	collector := metrics.Start(metrics.WithEnvironment(ing.env))
-
-	if ing.analyze != nil {
-		st := collector.Stage("analyze")
-		results, err := ing.analyze.AnalyzeAllScenarios()
-		report.ScenariosAnalyzed = len(results)
-		st.Gauge("scenarios", float64(len(results)))
-		st.End()
-		if err != nil {
-			collector.Stop()
-			return report, fmt.Errorf("analyze fleet: %w", err)
-		}
-	}
 
 	st := collector.Stage("interfacegraph")
 	graph, stats, err := ing.graph.BuildWithStats(ctx, interfacegraph.BuildRequest{RepoRoot: repoRoot})
@@ -148,6 +132,14 @@ func (ing *Ingestor) RebuildFleet(ctx context.Context, repoRoot string, apply bo
 	mergeStage.Gauge("edges", float64(len(edges)))
 	mergeStage.End()
 
+	if err := ctx.Err(); err != nil {
+		collector.Stop()
+		return report, err
+	}
+	if apply && len(report.DegradedSources) > 0 {
+		collector.Stop()
+		return report, fmt.Errorf("graph sources degraded; last-good fleet graph retained")
+	}
 	if apply {
 		persistStage := collector.Stage("persist")
 		if err := ing.persist.ReplaceGraphEdges(edges); err != nil {

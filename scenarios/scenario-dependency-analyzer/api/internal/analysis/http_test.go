@@ -79,6 +79,18 @@ func TestAnalyzeScenarioRoute(t *testing.T) {
 	}
 }
 
+func TestLegacyFleetGETDoesNotStartAnalysis(t *testing.T) {
+	// A nil service would panic if the obsolete GET reached execution.
+	router := analysisTestRouter(nil, nil)
+	for i := 0; i < 2; i++ {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/analyze/all", nil))
+		if recorder.Code != http.StatusGone {
+			t.Fatalf("legacy fleet GET: %d %s", recorder.Code, recorder.Body.String())
+		}
+	}
+}
+
 func TestAnalyzeScenarioNotFound(t *testing.T) {
 	router := analysisTestRouter(fakeAnalysisService{err: errors.New("missing")}, fakeScanService{})
 

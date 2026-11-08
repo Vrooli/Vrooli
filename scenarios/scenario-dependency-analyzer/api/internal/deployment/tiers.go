@@ -30,12 +30,24 @@ func (r requirementNumbers) hasValues() bool {
 // ComputeTierAggregates walks the dependency tree and computes aggregate
 // requirements, fitness scores, and blocking dependencies for each deployment tier.
 func ComputeTierAggregates(nodes []types.DeploymentDependencyNode) map[string]types.DeploymentTierAggregate {
+	return computeTierAggregatesWithChildren(nodes, nodeChildren)
+}
+
+func computeTierAggregatesWithChildren(nodes []types.DeploymentDependencyNode, children bundleChildren) map[string]types.DeploymentTierAggregate {
 	accum := map[string]*tierAccumulator{}
+	seen := map[string]bool{}
 	var walk func(types.DeploymentDependencyNode)
 	walk = func(node types.DeploymentDependencyNode) {
 		if !isDeployIntentNode(node) {
 			return
 		}
+		// Shared dependencies represent one deployed service/resource. Mark only
+		// active paths: an optional first branch must not hide a required later one.
+		key := node.Type + ":" + node.Name
+		if seen[key] {
+			return
+		}
+		seen[key] = true
 		for tier, support := range node.TierSupport {
 			acc := accum[tier]
 			if acc == nil {
@@ -55,7 +67,7 @@ func ComputeTierAggregates(nodes []types.DeploymentDependencyNode) map[string]ty
 				acc.Blockers[node.Name] = struct{}{}
 			}
 		}
-		for _, child := range node.Children {
+		for _, child := range children(node) {
 			walk(child)
 		}
 	}

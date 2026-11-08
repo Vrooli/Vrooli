@@ -1,5 +1,47 @@
 # Scenario Dependency Analyzer Architecture
 
+## Fleet operation ownership
+
+Fleet analysis and fleet graph rebuilds use one server-owned operation lane.
+The operation contract is `AnalysisOperationsService.StartOperation`,
+`GetOperation`, and `WaitOperation`. Submission persists a receipt before work
+starts. A caller operation ID binds to one kind and apply setting; replay returns
+the same receipt, including after completion or restart. Concurrent identical
+active requests share one operation, and each accepted caller ID retains that
+binding. Reusing a caller ID for different inputs is a conflict.
+
+The operation owns a snapshot of scenario names and records each scenario's
+outcome, dependency counts and elapsed time. It does not retain every full
+deployment report in one response or heap. Full per-scenario reports remain
+available through their existing owner. Graph rebuild adds a graph stage after
+analysis; its apply flag controls graph-edge publication. Per-scenario failures
+are explicit partial outcomes rather than a successful fleet claim.
+
+Client cancellation ends only observation. One server-side wait observes the
+persisted operation; it does not run or retry analysis. Work has a fifteen-minute
+execution deadline, checked between bounded source reads and deployment
+owner expansions. In-flight local filesystem and database calls settle
+cooperatively before the worker joins. Startup marks interrupted running work as interrupted and
+resumes accepted queued work. An interrupted receipt is retained; a new scan
+requires a new caller ID. Detailed terminal history retains the latest 200
+operations. Older receipt headers and caller bindings remain replayable, with
+an explicit `details_pruned` flag. Each operation accepts at most 1,024 distinct
+caller IDs and 1,024 scenarios; the receipt-key budget is 100,000. Exhaustion
+refuses new admission rather than forgetting a key and repeating its work.
+
+The `analysisoperations` domain owns its repository, embedded schema, operation
+manager and wire adapter. It reuses `api-core/operationcoord` for waiter races;
+that coordinator is not the persistence authority. Submission refuses routed
+test mode until the existing analyzer's database and report-file writes can
+preserve a routed execution context. Unit fixtures use their own repository and
+runner. Wait removes the ordinary HTTP write deadline only for that RPC.
+
+The CLI and UI submit once and wait on the returned ID. The legacy fleet GET
+must return a migration error without starting work, so a transport retry cannot
+repeat a scan. Legacy single-scenario analysis keeps its detailed response.
+Fleet CLI JSON becomes the bounded operation receipt; callers needing detailed
+scenario data use the per-scenario read surface. These are the replacement contracts; deployment and native evidence are recorded separately.
+
 ## Pinned Akash CLI provisioning
 
 The closed `source/akt@1.0.4` request on owner `akt`, surface `host-tool`,

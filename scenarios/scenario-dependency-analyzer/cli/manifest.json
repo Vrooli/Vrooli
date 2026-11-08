@@ -4,6 +4,118 @@
   "description": "Governance manifest for the Scenario Dependency Analyzer CLI. Runtime command registration is still code-backed during the React-Vite migration; this manifest declares the Connect-backed surface first and documents deferred legacy command coverage.",
   "groups": [
     {
+      "name": "analysis",
+      "description": "Durable bounded fleet operations",
+      "commands": [
+        {
+          "name": "start",
+          "description": "Admit or replay fleet work without waiting",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AnalysisOperationsService",
+            "method": "StartOperation"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "flags": [
+            {
+              "name": "client-operation-id",
+              "description": "Stable replay key; generated when omitted",
+              "bind": {"field": "client_operation_id"}
+            },
+            {
+              "name": "kind",
+              "description": "fleet-analysis or graph-rebuild",
+              "default": "ANALYSIS_OPERATION_KIND_FLEET_ANALYSIS",
+              "values": ["ANALYSIS_OPERATION_KIND_FLEET_ANALYSIS", "ANALYSIS_OPERATION_KIND_GRAPH_REBUILD"],
+              "value_aliases": {"fleet-analysis": "ANALYSIS_OPERATION_KIND_FLEET_ANALYSIS", "graph-rebuild": "ANALYSIS_OPERATION_KIND_GRAPH_REBUILD"}
+            },
+            {
+              "name": "apply",
+              "description": "Publish rebuilt graph edges",
+              "bool": true,
+              "bind": {"field": "apply_graph"}
+            },
+            {
+              "name": "json",
+              "description": "Output bounded operation receipt",
+              "default": "false",
+              "local_only": true
+            }
+          ]
+        },
+        {
+          "name": "get",
+          "description": "Read an operation receipt",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AnalysisOperationsService",
+            "method": "GetOperation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "positionals": [
+            {
+              "name": "operation-id",
+              "description": "Persisted operation receipt ID",
+              "required": true,
+              "bind": {"field": "operation_id"}
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Output bounded operation receipt",
+              "default": "false",
+              "local_only": true
+            }
+          ]
+        },
+        {
+          "name": "wait",
+          "description": "Block once for a terminal outcome",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AnalysisOperationsService",
+            "method": "WaitOperation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "positionals": [
+            {
+              "name": "operation-id",
+              "description": "Persisted operation receipt ID",
+              "required": true,
+              "bind": {"field": "operation_id"}
+            }
+          ],
+          "flags": [
+            {
+              "name": "json",
+              "description": "Output bounded operation receipt",
+              "default": "false",
+              "local_only": true
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "health",
       "description": "Dependency readiness and governance validation (formerly dependency-health).",
       "flat": true,
@@ -56,11 +168,6 @@
             {
               "name": "all",
               "description": "Check every discovered Go scenario surface",
-              "default": "false"
-            },
-            {
-              "name": "apply",
-              "description": "Run go mod tidy on stale surfaces",
               "default": "false"
             },
             {
@@ -1041,7 +1148,7 @@
     {
       "name": "deps",
       "commands": [
-        {"name": "reconcile", "description": "Reconcile dependency records", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
+        {"name": "reconcile", "description": "Converge Go go.mod/go.sum on their import closure through the dependency gate (dry-run by default)", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
         {"name": "vendor", "description": "Synchronise a committed Go vendor tree", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
         {"name": "remove", "description": "Remove one exact Go root requirement (dry-run by default)", "needs_api": false, "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}},
         {"name": "resync", "description": "Restore a diverged JavaScript lockfile through the governed gateway (dry-run by default)", "binding": {"kind": "local"}, "governance": {"effect": "write", "run_eligible": false}}

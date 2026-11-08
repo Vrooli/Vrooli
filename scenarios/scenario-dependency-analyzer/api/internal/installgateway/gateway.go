@@ -110,6 +110,9 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 	if err := validateResolution(r); err != nil {
 		return "", err
 	}
+	if r.Profile.LifecycleMode == "managed-service-artifact" {
+		return provisionManagedServiceArtifact(ctx, r)
+	}
 	if r.Profile.LifecycleMode == "resource-agent" {
 		return provisionAgentResource(ctx, r)
 	}
@@ -223,6 +226,10 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 		}
 	}
 
+	if surface == "resource" && (ecosystem == "go" || ecosystem == "golang") {
+		surfaceRoot = goResourceModuleRoot(repoRoot, surfaceRoot)
+	}
+
 	manager, manifest, argv, err := planForEcosystem(surfaceRoot, ecosystem, packageName, version)
 	if err != nil {
 		return Resolution{}, err
@@ -289,6 +296,13 @@ func ApplyExactVersion(r *Resolution, version string) error {
 		}
 		if version != expected {
 			return fmt.Errorf("%s release version differs from the pinned profile", r.PackageName)
+		}
+		r.ExactVersion = true
+		return nil
+	}
+	if r.Profile.LifecycleMode == "managed-service-artifact" {
+		if version != r.HostToolTargetVersion {
+			return fmt.Errorf("managed-service exact version changed")
 		}
 		r.ExactVersion = true
 		return nil
@@ -507,6 +521,21 @@ func resolveSurfaceRoot(repoRoot, scenario, surface string) string {
 		}
 	}
 	return ""
+}
+
+// goResourceModuleRoot returns the Go module that owns a resource. Most Go
+// resources (the coding-agent CLIs among them) are packages of the shared
+// resources/ module rather than modules of their own, so a resource without a
+// go.mod resolves to resources/go.mod. A resource with its own module keeps it.
+func goResourceModuleRoot(repoRoot, resourceRoot string) string {
+	if fileExists(filepath.Join(resourceRoot, "go.mod")) {
+		return resourceRoot
+	}
+	shared := filepath.Join(repoRoot, "resources")
+	if fileExists(filepath.Join(shared, "go.mod")) {
+		return shared
+	}
+	return resourceRoot
 }
 
 func isSharedPackageRoot(repoRoot, surfaceRoot string) bool {

@@ -1,6 +1,8 @@
 package detection
 
 import (
+	"context"
+
 	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
@@ -78,4 +80,13 @@ func (d *Detector) ScanResources(scenarioPath, scenarioName string, cfg *types.M
 // Returns a list of detected scenario dependencies.
 func (d *Detector) ScanScenarioDependencies(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
 	return d.scenarioScanner.scanDependencies(scenarioPath, scenarioName)
+}
+
+// ScanResourcesContext cooperatively stops between bounded source-file reads.
+func (d *Detector) ScanResourcesContext(ctx context.Context, path, name string, cfg *types.Manifest) ([]types.ScenarioDependency, error) {
+	return d.resourceScanner.scanContext(ctx, path, name, cfg)
+}
+
+func (d *Detector) ScanScenarioDependenciesContext(ctx context.Context, path, name string) ([]types.ScenarioDependency, error) {
+	return d.scenarioScanner.scanDependenciesContext(ctx, path, name)
 }

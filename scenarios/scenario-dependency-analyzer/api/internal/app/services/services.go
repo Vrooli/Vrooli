@@ -2,13 +2,13 @@ package services
 
 import (
 	"context"
+
 	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
 // AnalysisService exposes dependency analysis operations.
 type AnalysisService interface {
 	AnalyzeScenario(name string) (*types.DependencyAnalysisResponse, error)
-	AnalyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error)
 }
 
 // ScanResult captures the outcome of a scan/apply operation.

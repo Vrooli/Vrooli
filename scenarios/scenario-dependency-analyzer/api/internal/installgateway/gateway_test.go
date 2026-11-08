@@ -725,3 +725,35 @@ func (templateLockInstaller) Install(_ context.Context, r Resolution) (string, e
 	}
 	return "", os.WriteFile(r.ManifestPath, raw, 0o644)
 }
+
+// Agent resources (codex, claude-code, ...) have no go.mod of their own; their
+// CLIs are packages of the shared resources/ module. A Go install on the
+// resource surface must reach that module instead of failing.
+func TestResolveGoResourceSurfaceUsesTheSharedResourcesModule(t *testing.T) {
+	repoRoot := t.TempDir()
+	mkResourceSurface(t, repoRoot, "codex", "cli", map[string]string{"main.go": "package main\n"})
+	shared := filepath.Join(repoRoot, "resources")
+	if err := os.WriteFile(filepath.Join(shared, "go.mod"), []byte("module github.com/vrooli/vrooli/resources\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r, err := Resolve(repoRoot, "codex", "resource", "go", "golang.org/x/mod", "v0.41.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.SurfaceRoot != shared || r.ManifestPath != filepath.Join(shared, "go.mod") {
+		t.Fatalf("resolution = %q %q, want the shared resources module", r.SurfaceRoot, r.ManifestPath)
+	}
+	if got, want := r.Command(), "go get golang.org/x/mod@v0.41.0"; got != want {
+		t.Fatalf("command = %q, want %q", got, want)
+	}
+	// A resource with its own module keeps it.
+	own := mkResourceSurface(t, repoRoot, "pii-detector", "", map[string]string{"go.mod": "module pii\n"})
+	r, err = Resolve(repoRoot, "pii-detector", "resource", "go", "golang.org/x/mod", "v0.41.0")
+	if err != nil || r.SurfaceRoot != own {
+		t.Fatalf("own module resolution = %q, %v", r.SurfaceRoot, err)
+	}
+	// An unknown resource still fails.
+	if _, err := Resolve(repoRoot, "nope", "resource", "go", "golang.org/x/mod", "v0.41.0"); err == nil {
+		t.Fatal("unknown resource resolved")
+	}
+}

@@ -307,3 +307,24 @@ func TestRepositoryTrustedBaseClosure(t *testing.T) {
 		t.Fatalf("repository trusted-base closure is invalid: %v", err)
 	}
 }
+
+// The legacy fixture also trusts workspace-sandbox. The operator may choose
+// only the mandatory recovery plane; its APIs must still boot so dependencies
+// can be inspected and repaired, while sandbox-dependent dispatch keeps its
+// own admission checks.
+func TestRepositoryMinimumRecoveryPlaneHasNoRequiredPeerOutsideTrustedBase(t *testing.T) {
+	repoRoot, err := repocontract.ResolveRepoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	minimum := append([]string(nil), apicoreset.RequiredOperationalScenarios...)
+	result := compute(filepath.Join(repoRoot, "scenarios"), apicoreset.Authority{Seed: minimum, TrustedBase: minimum})
+	if len(result.TrustedBaseViolations) != 0 {
+		t.Fatalf("minimum recovery plane cannot boot independently: %v", result.TrustedBaseViolations)
+	}
+	for _, name := range minimum {
+		if message := result.LoadErrors[name]; message != "" {
+			t.Fatalf("minimum recovery service %s is unreadable: %s", name, message)
+		}
+	}
+}

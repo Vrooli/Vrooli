@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,6 +16,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/gin-gonic/gin"
 	"github.com/vrooli/api-core/metrics"
+	apiServer "github.com/vrooli/api-core/server"
 	"github.com/vrooli/maturity-go/assessment"
 	"github.com/vrooli/vrooli/packages/deployability"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -82,8 +84,41 @@ func RegisterConnectRoutes(router *gin.Engine, scenariosDir func() string, opts 
 	// the zero Describer, which reports Unimplemented and makes consumers fall back.
 	describer, _ := assessment.LoadDescriber(filepath.Join(scenariosDir(), "scenario-dependency-analyzer"))
 	sharedPath, sharedHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(assessment.Serve(handler, describer))
+	// The producer advertises its operation budget in the phase descriptor.
+	// Validation can legitimately exceed the ordinary API write timeout; retain
+	// a bounded request lifetime and allow its result/timeout receipt to arrive.
+	budget, budgetErr := loadValidationBudget(scenariosDir())
+	if budgetErr != nil {
+		failure := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			http.Error(w, "dependency validation budget unavailable", http.StatusServiceUnavailable)
+		})
+		router.Any(nativePath+"*path", gin.WrapH(failure))
+		router.Any(sharedPath+"*path", gin.WrapH(failure))
+		return
+	}
+	nativeHandler, _ = apiServer.WithOperationBudget(nativeHandler, budget)
+	sharedHandler, _ = apiServer.WithOperationBudget(sharedHandler, budget)
 	router.Any(nativePath+"*path", gin.WrapH(nativeHandler))
 	router.Any(sharedPath+"*path", gin.WrapH(sharedHandler))
+}
+
+func loadValidationBudget(scenariosRoot string) (time.Duration, error) {
+	path := filepath.Join(scenariosRoot, "scenario-dependency-analyzer", ".vrooli", "test-genie.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, fmt.Errorf("read dependency validation budget: %w", err)
+	}
+	var descriptor struct {
+		Timeout string `json:"timeout"`
+	}
+	if err := json.Unmarshal(data, &descriptor); err != nil {
+		return 0, err
+	}
+	budget, err := time.ParseDuration(descriptor.Timeout)
+	if err != nil || budget <= 0 {
+		return 0, fmt.Errorf("dependency phase requires a positive timeout in %s", path)
+	}
+	return budget, nil
 }
 
 type connectHandler struct {
@@ -253,7 +288,15 @@ func (h *connectHandler) validatePortabilityHost(explicitPath, scenario string) 
 		return fmt.Errorf("unsupported runtime OS %q", runtime.GOOS)
 	}
 	repoRoot := filepath.Dir(filepath.Dir(root))
-	if err := coreset.ValidateConfiguredTrustedBaseClosure(repoRoot); err != nil {
+	// The trusted base is host authority from operator state, naming scenarios in
+	// the host repository this analyzer serves. Verify it there: a target staged
+	// in an isolated workspace (template deep validation, routed runs) carries
+	// only itself under scenarios/, and its portability does not depend on it.
+	hostRepoRoot := repoRoot
+	if scenariosDir := h.resolveScenariosDir(); scenariosDir != "" {
+		hostRepoRoot = filepath.Dir(scenariosDir)
+	}
+	if err := coreset.ValidateConfiguredTrustedBaseClosure(hostRepoRoot); err != nil {
 		return fmt.Errorf("validate trusted-base closure: %w", err)
 	}
 	if err := validateToolAcquisitionCoverage(repoRoot); err != nil {

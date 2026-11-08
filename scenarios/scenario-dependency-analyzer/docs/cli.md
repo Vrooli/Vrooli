@@ -725,11 +725,11 @@ lockfiles, and install state map to `package_readiness`; discovery and
 classification failures map to `surface_inventory`. Any new emitted rule ID
 must be registered in `.vrooli/maturity.json` before it is used.
 
-Fixes use preview/apply semantics. SDA may safely apply deterministic Go fixes
-for a specific surface, such as local replace reconciliation or `go mod tidy`.
-Ambiguous mappings, unsupported ecosystems, optional build failures, and
-third-party dependency governance changes are advisory until a typed fixer owns
-them.
+Fixes use preview/apply semantics. The deterministic Go fix
+(`dependency.go.tidy`, `dependency.gomod.replace.missing`) is Go module
+convergence through `deps reconcile`, which records new requirements only
+through the dependency gate. Ambiguous mappings, unsupported ecosystems, and
+optional build failures stay advisory until a typed fixer owns them.
 
 ---
 
@@ -747,7 +747,7 @@ scenario-dependency-analyzer freshness [--touched|--all] [OPTIONS]
 **Options:**
 - `--touched` - Check only surfaces impacted by changed in-repo modules (default)
 - `--all` - Check every discovered Go scenario surface
-- `--apply` - Run `go mod tidy` on stale surfaces
+- `--module <path>` - Check one Go module by repository-relative path or module path
 - `--build` - Run `go build ./...` after tidy checks
 - `--concurrency <n>` - Maximum package surfaces to check concurrently (default: `8`)
 - `--repo-root <path>` - Repository root (defaults to `git rev-parse --show-toplevel`)
@@ -758,20 +758,23 @@ scenario-dependency-analyzer freshness [--touched|--all] [OPTIONS]
 # Machine-readable touched-surface report for hygiene aggregation
 scenario-dependency-analyzer freshness --touched --json
 
-# Repair deterministic tidy drift on impacted Go surfaces
-scenario-dependency-analyzer freshness --touched --apply
+# Repair: freshness is read-only; repairs go through deps reconcile
+scenario-dependency-analyzer deps reconcile --all-modules --apply
 ```
 
 The report includes the selected mode, git-touched files, checked scenario
 surfaces, stale/error counts, diff paths, fixability labels, and next actions.
-Stale tidy drift is automatic and points to `freshness --apply`; errored
-surfaces caused by missing in-repo replaces are guided and point to
-`deps reconcile --all --json` for preview before apply. Touched mode maps
+Freshness never writes. Stale tidy drift is automatic and its next action is
+the governed `deps reconcile --scenario <name> --apply` (one stale scenario) or
+`deps reconcile --all-modules --apply`. Errored surfaces caused by missing
+in-repo replaces are guided and point to `deps reconcile --all --json` for
+preview before apply. Touched mode maps
 changed files to in-repo Go module roots and then to scenario surfaces requiring
 those modules; root `go.mod` and `go.sum` changes fan out to all Go surfaces.
 An ambiguous module owner is reported as an error for that surface while the
 remaining selected surfaces are still checked. Select a unique repository path
-with `--module <path-to-go.mod>` to inspect or repair one owner.
+with `--module <path-to-go.mod>` to inspect one owner; a module selector that
+names an ambiguous module path refuses instead of reporting.
 Go modules under any `docs/` directory are retained documentation/evidence,
 not active build surfaces, and are excluded from discovery.
 
@@ -780,6 +783,41 @@ scan or lockfile rewrite, use `deps remove --scenario vrooli --surface
 control-plane --ecosystem go --module <module-path>`. Review the dry-run output,
 then apply with `--apply --expected-sha256 <before-sha256>`; the command edits
 only that exact root requirement and leaves `go.sum` unchanged.
+
+---
+
+### deps reconcile
+
+Converge Go modules on their import closure. Each selected module's `go.mod`
+and `go.sum` are computed on a scratch copy with `go mod tidy -modfile`. Local
+replaces end up exactly matching the in-repo modules the tidied `go.mod`
+requires: missing ones are added, dead ones dropped. `go.sum` is put in
+canonical order. A module with Go packages under an unfenced documentation
+`docs/` tree is refused (docs-evidence convention). Requirements that a
+module would newly record pass the dependency gate. Indirect requirements are
+refused only by a recorded denial or a version outside a recorded approval
+range. Direct requirements pass the same gate as `deps install`. A refused module is left untouched, and the refusal names
+the `deps approved …` command that unblocks it. The policy lives in
+[Go module convergence](../../../docs/package-governance.md#go-module-convergence).
+
+**Usage:**
+```bash
+scenario-dependency-analyzer deps reconcile (--scenario <name> | --module <dir> | --all | --all-modules) [--surface api|cli|ui] [--apply | --check] [--json]
+```
+
+**Options:**
+- `--scenario <name>` - Every Go module in one scenario, including root and runtime modules
+- `--module <dir>` - Exactly one Go module directory, which may be outside the repository (Template Manager uses this for generated scenarios)
+- `--all` - Every scenario reported by the SDA API
+- `--all-modules` - Every buildable in-repo Go module: scenarios, resources, packages, and the control plane
+- `--surface <name>` - Only report or apply candidates for this surface
+- `--apply` - Write the converged files. Each write is atomic and refuses if the file changed after the preview
+- `--check` - Dry run that exits non-zero when any file would change
+- `--json` - Machine-readable report: `changes` (with go.mod before/after), `refused`, `failed`
+
+Refusals and failures always exit non-zero. Retained `docs/`, `testdata/`,
+`evidence/`, `fixtures/`, `bas/`, `templates/` and `.vrooli/` modules are never
+selected.
 
 ---
 

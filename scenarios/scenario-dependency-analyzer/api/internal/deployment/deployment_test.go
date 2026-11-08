@@ -1,15 +1,70 @@
 package deployment
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/vrooli/api-core/storage"
 	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
+
+func TestPersistReportReplacesOversizedLegacyReport(t *testing.T) {
+	scenarioDir := t.TempDir()
+	path := mustReportPath(t, scenarioDir)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Truncate(maxReportBytes + 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadReport(scenarioDir); err == nil || !strings.Contains(err.Error(), "rebuild") {
+		t.Fatalf("oversized report must require recomputation: %v", err)
+	}
+	report := &types.DeploymentAnalysisReport{Scenario: filepath.Base(scenarioDir), ReportVersion: ReportVersion}
+	if err := PersistReport(scenarioDir, report); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := LoadReport(scenarioDir)
+	if err != nil || loaded.Scenario != report.Scenario || loaded.Stale {
+		t.Fatalf("bounded replacement did not round-trip as fresh: %+v %v", loaded, err)
+	}
+}
+
+func TestTierAggregatesRetainActiveSharedDependencyChildren(t *testing.T) {
+	for _, firstActive := range []bool{false, true} {
+		t.Run(fmt.Sprintf("firstActive=%t", firstActive), func(t *testing.T) {
+			active := true
+			ram := 128.0
+			shared := types.DeploymentDependencyNode{Name: "shared", Type: "scenario", Path: "/shared", Required: &active}
+			leaf := types.DeploymentDependencyNode{Name: "database", Type: "resource", Required: &active,
+				TierSupport: map[string]types.TierSupportSummary{"server": {Requirements: &types.DeploymentRequirements{RAMMB: &ram}}}}
+			graph := &bundleDependencyGraph{ctx: context.Background(), children: map[string][]types.DeploymentDependencyNode{
+				"a": {shared}, "z": {shared}, "shared": {leaf},
+			}}
+			nodes := []types.DeploymentDependencyNode{
+				{Name: "a", Type: "scenario", Path: "/a", Required: &firstActive},
+				{Name: "z", Type: "scenario", Path: "/z", Required: &active},
+			}
+			aggregate := computeTierAggregatesWithChildren(nodes, graph.childrenOf)["server"]
+			if aggregate.DependencyCount != 1 || aggregate.EstimatedRequirements.RAMMB != ram {
+				t.Fatalf("shared resource must count exactly once through active paths: %+v", aggregate)
+			}
+		})
+	}
+}
 
 // TestBuildReport tests the main report building function.
 func TestBuildReport(t *testing.T) {

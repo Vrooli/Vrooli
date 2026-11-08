@@ -34,7 +34,7 @@ func RegisterInstall(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			},
 			{Name: "remove", Description: "Remove one exact Go requirement from the root module (dry-run by default)", NeedsAPIOverride: &noAPI, Run: func(args []string) error { return runRemove(core, args) }},
 			{Name: "resync", Description: "Restore a diverged JavaScript lockfile through the governed gateway (dry-run by default)", Run: func(args []string) error { return runResync(core, args) }},
-			{Name: "reconcile", Description: "Add missing local replaces for in-repo go.mod modules (dry-run by default)", Run: func(args []string) error { return runReconcile(core, args) }},
+			{Name: "reconcile", Description: "Converge Go go.mod/go.sum on their import closure through the dependency gate (dry-run by default)", Run: func(args []string) error { return runReconcile(core, args) }},
 			{Name: "vendor", Description: "Synchronise a committed Go vendor tree through the dependency gateway", Run: func(args []string) error { return runVendor(core, args) }},
 		},
 	}

@@ -1,18 +1,24 @@
-// Package gomodreconcile is the single reconcile primitive for in-repo Go module
-// replace directives. Go does not propagate a dependency's replace directives to
-// downstream main modules, so every surface go.mod that (transitively) requires
-// an in-repo module must declare its own local `replace`. When a shared leaf
-// package quietly takes on a new in-repo edge, consumers that lack the replace
-// fail `go build` only at restart time. This primitive detects and repairs that
-// gap, converging on the golden per-surface shape: each surface declares its own
-// require + a local replace pointing at the in-repo module's directory, with no
-// go.sum entry for the replaced in-repo module.
+// Package gomodreconcile converges each in-repo Go surface's go.mod and go.sum
+// on its import closure. Every scenario, resource, and package Go module binds
+// shared in-repo modules through local `replace` directives. A replace shares
+// source, not the module graph, and Go does not propagate a dependency's
+// replaces, so each consumer must declare two things itself:
 //
-// It is intentionally toolchain-driven (`go mod edit`/`go mod tidy`) rather than
-// pulling in golang.org/x/mod: the go binary is authoritative for go.mod
-// formatting (`go mod edit -fmt`) and is always present, and SDA — the
-// dependency authority — should not grow a new third-party dependency just to
-// rewrite go.mod files.
+//   - every requirement and checksum its import closure reaches, including
+//     those that arrive only through a shared module's imports, and
+//   - a local replace for every in-repo module among those requirements (and
+//     no others: Go prunes the module graph, so other replaces are dead).
+//
+// When a shared module gains an in-repo edge or a third-party import, every
+// consumer lacking the matching declaration fails `go build` (the 2026-09-01
+// api-core incident broke 98 of 118 modules). Plan detects missing replaces
+// cheaply; Converge computes the full converged state on a scratch copy; and
+// Convergence.Write installs it. Deciding whether a converged state may be
+// written without a new dependency decision belongs to the governance gate in
+// internal/dependencygovernance, not here.
+//
+// The go command stays authoritative for module semantics (`go mod edit`,
+// `go mod tidy`); golang.org/x/mod only parses go.mod files and orders go.sum.
 //
 // Topology (which module paths are in-repo and where they live) is ground truth
 // read from the repo's go.mod `module` declarations. This is the authoritative
@@ -23,20 +29,16 @@
 package gomodreconcile
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"go/parser"
-	"go/token"
+	"go/ast"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 
-	"github.com/vrooli/envkit-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"golang.org/x/mod/modfile"
 )
@@ -78,21 +80,6 @@ type MissingReplace struct {
 	// does not yet require it. The deterministic fix adds require v0.0.0 first,
 	// then the local replace.
 	AddRequire bool
-}
-
-// Candidate is a proposed (or applied) reconcile edit for a single surface
-// go.mod. Before/After hold the full file content so callers can present a diff.
-type Candidate struct {
-	// GoModPath is the absolute path of the surface go.mod.
-	GoModPath string
-	// Missing lists the in-repo replaces that were (or would be) added.
-	Missing []MissingReplace
-	Before  string
-	After   string
-	Applied bool
-	// SumChanged is true when the surface go.sum was synchronized by the
-	// reconcile tidy pass (the missing-transitive-entry drift class).
-	SumChanged bool
 }
 
 // LoadTopology scans repoRoot for in-repo Go modules and returns module path ->
@@ -226,15 +213,27 @@ func readModulePath(goModPath string) string {
 }
 
 // Plan computes the missing in-repo require/replace wiring for a single surface
-// go.mod without mutating anything. It covers both modules already present in
-// the dependency graph and in-repo modules imported by source files but not yet
-// declared in go.mod (for example a scenario CLI importing its sibling API).
+// go.mod without mutating anything: in-repo modules the go.mod requires without
+// a matching local replace, in-repo modules its own source imports without a
+// requirement (for example a scenario CLI importing its sibling API), and local
+// replaces that point somewhere other than the module's source.
+//
+// Plan does not follow in-repo modules' own requirements. Go prunes the module
+// graph: a dependency's requirements are loaded only when the consumer's go.mod
+// lists them, and `go mod tidy` lists every module that provides a package in
+// the import closure. Converge discovers those through tidy.
 func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplace, error) {
-	view, err := parseGoMod(ctx, goModPath)
+	return planModFile(ctx, goModPath, filepath.Dir(goModPath), topo)
+}
+
+// planModFile plans against modFile while resolving relative replaces and
+// source imports from moduleDir, so a scratch copy of a surface's go.mod can be
+// planned exactly as the surface itself would be.
+func planModFile(ctx context.Context, modFile, moduleDir string, topo Topology) ([]MissingReplace, error) {
+	view, err := parseGoMod(ctx, modFile)
 	if err != nil {
 		return nil, err
 	}
-	moduleDir := filepath.Dir(goModPath)
 	requiredDirect := make(map[string]struct{}, len(view.Require))
 	for _, req := range view.Require {
 		requiredDirect[req.Path] = struct{}{}
@@ -251,10 +250,6 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 			replaced[r.Old.Path] = "versioned"
 		}
 	}
-	required, err := requiredInRepoModules(ctx, view, topo)
-	if err != nil {
-		return nil, err
-	}
 	imported, err := importedInRepoModules(moduleDir, view.Module.Path, topo)
 	if err != nil {
 		return nil, err
@@ -267,8 +262,10 @@ func Plan(ctx context.Context, goModPath string, topo Topology) ([]MissingReplac
 			candidates[path] = false
 		}
 	}
-	for _, path := range required {
-		candidates[path] = false
+	for path := range requiredDirect {
+		if _, inRepo := topo[path]; inRepo {
+			candidates[path] = false
+		}
 	}
 	for _, path := range imported {
 		if _, ok := requiredDirect[path]; !ok {
@@ -348,34 +345,7 @@ func requiredInRepoModules(ctx context.Context, view goModView, topo Topology) (
 func importedInRepoModules(moduleDir, selfModule string, topo Topology) ([]string, error) {
 	modules := modulePrefixIndex(topo)
 	seen := map[string]struct{}{}
-	skipDir := map[string]struct{}{
-		".git": {}, "node_modules": {}, "vendor": {}, "data": {},
-		"dist": {}, "build": {}, ".cache": {}, "coverage": {},
-	}
-	err := filepath.WalkDir(moduleDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			if _, skip := skipDir[d.Name()]; skip {
-				return filepath.SkipDir
-			}
-			// Nested modules own their source imports independently, just as
-			// the Go toolchain excludes them from the parent module's packages.
-			if path != moduleDir {
-				if info, err := os.Stat(filepath.Join(path, "go.mod")); err == nil && !info.IsDir() {
-					return filepath.SkipDir
-				}
-			}
-			return nil
-		}
-		if !strings.HasSuffix(path, ".go") {
-			return nil
-		}
-		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
-		if err != nil {
-			return nil
-		}
+	err := walkModuleGoFiles(moduleDir, func(path string, file *ast.File) {
 		for _, spec := range file.Imports {
 			importPath := strings.Trim(spec.Path.Value, `"`)
 			if importPath == "" {
@@ -391,7 +361,6 @@ func importedInRepoModules(moduleDir, selfModule string, topo Topology) ([]strin
 			}
 			seen[module] = struct{}{}
 		}
-		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -522,135 +491,6 @@ func PrepareLocalInstall(ctx context.Context, goModPath, packagePath string, top
 	return true, nil
 }
 
-// PreviewSurface returns the deterministic before/after for adding the currently
-// missing in-repo replaces to one surface, without writing or tidying. Returns
-// nil when the surface is already converged.
-func PreviewSurface(ctx context.Context, goModPath string, topo Topology) (*Candidate, error) {
-	missing, err := Plan(ctx, goModPath, topo)
-	if err != nil {
-		return nil, err
-	}
-	if len(missing) == 0 {
-		return nil, nil
-	}
-	before, err := os.ReadFile(goModPath)
-	if err != nil {
-		return nil, err
-	}
-	after, err := editedGoMod(ctx, goModPath, string(before), missing)
-	if err != nil {
-		return nil, err
-	}
-	return &Candidate{
-		GoModPath: goModPath,
-		Missing:   missing,
-		Before:    string(before),
-		After:     after,
-	}, nil
-}
-
-// ApplySurface writes the missing replaces and runs `go mod tidy`, iterating to a
-// fixpoint so that in-repo edges newly materialized by tidy (as indirect
-// requires) also receive their replace. It then runs a final tidy even when no
-// replace was needed, because a surface can require an in-repo module *with* its
-// replace while its go.sum drifts behind that module's own transitive
-// requirements (the missing-protovalidate-entry class that stranded
-// brand-manager). It is idempotent: an already-converged surface produces no
-// change. Returns nil when nothing needed fixing.
-func ApplySurface(ctx context.Context, goModPath string, topo Topology) (*Candidate, error) {
-	before, err := os.ReadFile(goModPath)
-	if err != nil {
-		return nil, err
-	}
-	moduleDir := filepath.Dir(goModPath)
-	sumPath := filepath.Join(moduleDir, "go.sum")
-	sumBefore, _ := os.ReadFile(sumPath)
-	var allMissing []MissingReplace
-	changed := false
-	tidied := false
-	const maxIters = 8
-	for i := 0; i < maxIters; i++ {
-		missing, err := Plan(ctx, goModPath, topo)
-		if err != nil {
-			return nil, err
-		}
-		if len(missing) == 0 {
-			break
-		}
-		args := []string{"mod", "edit"}
-		for _, m := range missing {
-			if m.AddRequire {
-				args = append(args, "-require="+m.Module+"@v0.0.0")
-			}
-			args = append(args, "-replace="+m.Module+"="+m.RelPath)
-		}
-		if err := runGo(ctx, moduleDir, args...); err != nil {
-			return nil, fmt.Errorf("go mod edit: %w", err)
-		}
-		allMissing = append(allMissing, missing...)
-		changed = true
-		if err := runGo(ctx, moduleDir, "mod", "tidy"); err != nil {
-			return nil, fmt.Errorf("go mod tidy after adding replaces: %w", err)
-		}
-		tidied = true
-	}
-	if !tidied {
-		// No replace was missing, but the surface's go.sum may still be behind
-		// its in-repo module requires. Tidy is the governed lockfile-sync path.
-		if err := runGo(ctx, moduleDir, "mod", "tidy"); err != nil {
-			return nil, fmt.Errorf("go mod tidy: %w", err)
-		}
-	}
-	after, err := os.ReadFile(goModPath)
-	if err != nil {
-		return nil, err
-	}
-	sumAfter, _ := os.ReadFile(sumPath)
-	sumChanged := !bytes.Equal(sumBefore, sumAfter)
-	if !changed && bytes.Equal(before, after) && !sumChanged {
-		return nil, nil
-	}
-	allMissing = dedupeMissing(allMissing)
-	return &Candidate{
-		GoModPath:  goModPath,
-		Missing:    allMissing,
-		Before:     string(before),
-		After:      string(after),
-		Applied:    true,
-		SumChanged: sumChanged,
-	}, nil
-}
-
-// editedGoMod returns goMod content with the given replaces added, using a temp
-// copy so the original is untouched (`go mod edit -fmt` formatting).
-func editedGoMod(ctx context.Context, goModPath, content string, missing []MissingReplace) (string, error) {
-	tmpDir, err := os.MkdirTemp("", "gomodreconcile-preview-")
-	if err != nil {
-		return "", err
-	}
-	defer os.RemoveAll(tmpDir)
-	tmp := filepath.Join(tmpDir, "go.mod")
-	if err := os.WriteFile(tmp, []byte(content), 0o644); err != nil {
-		return "", err
-	}
-	args := []string{"mod", "edit"}
-	for _, m := range missing {
-		if m.AddRequire {
-			args = append(args, "-require="+m.Module+"@v0.0.0")
-		}
-		args = append(args, "-replace="+m.Module+"="+m.RelPath)
-	}
-	args = append(args, "-fmt", tmp)
-	if err := runGo(ctx, tmpDir, args...); err != nil {
-		return "", err
-	}
-	out, err := os.ReadFile(tmp)
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
-}
-
 func parseGoMod(ctx context.Context, goModPath string) (goModView, error) {
 	select {
 	case <-ctx.Done():
@@ -692,38 +532,4 @@ func parseGoMod(ctx context.Context, goModPath string) (goModView, error) {
 		}{Path: replacement.New.Path, Version: replacement.New.Version}})
 	}
 	return view, nil
-}
-
-func runGo(ctx context.Context, dir string, args ...string) error {
-	cmd := exec.CommandContext(ctx, "go", args...)
-	cmd.Dir = dir
-	cmd.Env = envkit.Toolchain(reconcileGoEnv(envkit.Env(os.Environ())), reconcileToolchain)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("%v: %s", err, strings.TrimSpace(string(out)))
-	}
-	return nil
-}
-
-// reconcileToolchain appends -mod=mod through the toolchain overlay so the
-// inherited GOFLAGS (and its width) survive; nothing assigns GOFLAGS.
-var reconcileToolchain = envkit.ToolchainOptions{GoFlags: []string{"-mod=mod"}}
-
-// reconcileGoEnv switches the workspace off; the spawn site composes the
-// build width and -mod=mod through envkit.Toolchain.
-func reconcileGoEnv(parent envkit.Env) envkit.Env {
-	return envkit.WithOverlay(parent, envkit.SameScenario, envkit.Env{"GOWORK=off"})
-}
-
-func dedupeMissing(in []MissingReplace) []MissingReplace {
-	seen := make(map[string]struct{}, len(in))
-	out := make([]MissingReplace, 0, len(in))
-	for _, m := range in {
-		if _, ok := seen[m.Module]; ok {
-			continue
-		}
-		seen[m.Module] = struct{}{}
-		out = append(out, m)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Module < out[j].Module })
-	return out
 }

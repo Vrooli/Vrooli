@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -40,7 +41,9 @@ func BuildTargetDAGWithOptions(repoRoot, expression string, recursive, refresh, 
 		if loadErr != nil {
 			return nil, loadErr
 		}
-		options := DependencyBuildOptions{IncludeProgramBindings: includeProgramBindings}
+		options := DependencyBuildOptions{IncludeProgramBindings: includeProgramBindings,
+			bundleGraph: &bundleDependencyGraph{ctx: context.Background(), children: make(map[string][]types.DeploymentDependencyNode)},
+		}
 		if includeProgramBindings {
 			options.ProgramBindings = CompositeProgramBindingSource{RepoRoot: repoRoot, BaseURL: firstEnv("VROOLI_PROGRAM_RUNTIME_URL", "PROGRAM_RUNTIME_API_URL")}
 		}

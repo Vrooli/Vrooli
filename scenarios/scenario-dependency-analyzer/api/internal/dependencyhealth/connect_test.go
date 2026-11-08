@@ -878,6 +878,7 @@ func emittedDependencyHealthRuleIDs() []string {
 		"dependency.go.tidy",
 		"dependency.go.build",
 		"dependency.gomod.replace.missing",
+		"dependency.gomod.evidence.unfenced",
 		"dependency.node.package_json_present",
 		"dependency.node.lockfile_present",
 		"dependency.node.single_lockfile",

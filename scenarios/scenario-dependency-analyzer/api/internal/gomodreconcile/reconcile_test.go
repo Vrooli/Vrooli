@@ -124,7 +124,10 @@ func TestPlanIgnoresAlreadyReplacedAndThirdParty(t *testing.T) {
 	}
 }
 
-func TestPlanFlagsTransitiveInRepoRequireMissingReplace(t *testing.T) {
+// Go prunes the module graph, so an in-repo module reachable only through a
+// dependency's requirements is not a missing replace by itself; Converge
+// discovers the ones the import closure needs through tidy.
+func TestPlanDoesNotFlagInRepoModulesReachableOnlyThroughRequirements(t *testing.T) {
 	root := t.TempDir()
 	parentDir := filepath.Join(root, "packages", "parent")
 	leafDir := filepath.Join(root, "packages", "leaf")
@@ -141,11 +144,8 @@ func TestPlanFlagsTransitiveInRepoRequireMissingReplace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Plan: %v", err)
 	}
-	if len(missing) != 1 {
-		t.Fatalf("missing = %#v", missing)
-	}
-	if missing[0].Module != "example.com/leaf" || missing[0].RelPath != "../../../packages/leaf" {
-		t.Fatalf("missing[0] = %#v", missing[0])
+	if len(missing) != 0 {
+		t.Fatalf("missing = %#v, want none", missing)
 	}
 }
 
@@ -242,163 +242,10 @@ func TestPlanNormalizesChildReplacePath(t *testing.T) {
 		t.Fatalf("expected child replace path ./sub, got %#v", missing)
 	}
 
-	// The full apply path (go mod edit) must accept the normalized path.
-	cand, err := ApplySurface(context.Background(), goModPath, topo)
-	if err != nil {
-		t.Fatalf("ApplySurface: %v", err)
-	}
-	if cand == nil {
-		t.Fatal("expected an applied candidate")
-	}
-	after, _ := os.ReadFile(goModPath)
-	if !strings.Contains(string(after), "replace demo/sub => ./sub") {
-		t.Fatalf("go.mod missing normalized replace:\n%s", after)
-	}
-}
-
-func TestPreviewSurfaceProducesDeterministicAfter(t *testing.T) {
-	root := t.TempDir()
-	leafDir := filepath.Join(root, "packages", "leaf")
-	consumerDir := filepath.Join(root, "scenarios", "demo", "cli")
-	writeModule(t, leafDir, "module example.com/leaf\n\ngo 1.25.0\n", nil)
-	goModPath := filepath.Join(consumerDir, "go.mod")
-	writeModule(t, consumerDir, "module demo/cli\n\ngo 1.25.0\n\nrequire example.com/leaf v0.0.0\n", nil)
-	topo := Topology{"example.com/leaf": leafDir}
-
-	cand, err := PreviewSurface(context.Background(), goModPath, topo)
-	if err != nil {
-		t.Fatalf("PreviewSurface: %v", err)
-	}
-	if cand == nil {
-		t.Fatal("expected a candidate, got nil")
-	}
-	if !strings.Contains(cand.After, "replace example.com/leaf => ../../../packages/leaf") {
-		t.Fatalf("after missing replace:\n%s", cand.After)
-	}
-	// Preview must not mutate the original file.
-	onDisk, _ := os.ReadFile(goModPath)
-	if string(onDisk) != cand.Before {
-		t.Fatal("PreviewSurface mutated the original go.mod")
-	}
-}
-
-func TestPreviewSurfaceAddsRequireForImportedInRepoModule(t *testing.T) {
-	root := t.TempDir()
-	apiDir := filepath.Join(root, "scenarios", "demo", "api")
-	cliDir := filepath.Join(root, "scenarios", "demo", "cli")
-	writeModule(t, apiDir, "module demo\n\ngo 1.25.0\n", map[string]string{
-		filepath.Join("models", "model.go"): "package models\n\ntype Model struct{}\n",
-	})
-	goModPath := filepath.Join(cliDir, "go.mod")
-	writeModule(t, cliDir, "module demo/cli\n\ngo 1.25.0\n", map[string]string{
-		"main.go": "package main\n\nimport \"demo/models\"\n\nfunc main() { _ = models.Model{} }\n",
-	})
-	topo := Topology{"demo": apiDir, "demo/cli": cliDir}
-
-	cand, err := PreviewSurface(context.Background(), goModPath, topo)
-	if err != nil {
-		t.Fatalf("PreviewSurface: %v", err)
-	}
-	if cand == nil {
-		t.Fatal("expected a candidate, got nil")
-	}
-	if !strings.Contains(cand.After, "require demo v0.0.0") {
-		t.Fatalf("after missing require:\n%s", cand.After)
-	}
-	if !strings.Contains(cand.After, "replace demo => ../api") {
-		t.Fatalf("after missing replace:\n%s", cand.After)
-	}
-}
-
-// TestApplySurfaceAddsReplaceAndIsIdempotent exercises the real go toolchain:
-// it adds the missing replace, tidies, and a second apply is a no-op.
-func TestApplySurfaceAddsReplaceAndIsIdempotent(t *testing.T) {
-	t.Setenv("GOPROXY", "off")
-	t.Setenv("GOFLAGS", "-mod=mod")
-	root := t.TempDir()
-	leafDir := filepath.Join(root, "packages", "leaf")
-	consumerDir := filepath.Join(root, "scenarios", "demo", "cli")
-	writeModule(t, leafDir, "module example.com/leaf\n\ngo 1.25.0\n", map[string]string{
-		"leaf.go": "package leaf\n\n// F is a no-op leaf symbol.\nfunc F() {}\n",
-	})
-	goModPath := filepath.Join(consumerDir, "go.mod")
-	writeModule(t, consumerDir,
-		"module demo/cli\n\ngo 1.25.0\n\nrequire example.com/leaf v0.0.0\n",
-		map[string]string{
-			"main.go": "package main\n\nimport \"example.com/leaf\"\n\nfunc main() { leaf.F() }\n",
-		})
-	topo := Topology{"example.com/leaf": leafDir}
-
-	cand, err := ApplySurface(context.Background(), goModPath, topo)
-	if err != nil {
-		t.Fatalf("ApplySurface: %v", err)
-	}
-	if cand == nil || !cand.Applied {
-		t.Fatalf("expected applied candidate, got %#v", cand)
-	}
-	after, _ := os.ReadFile(goModPath)
-	if !strings.Contains(string(after), "replace example.com/leaf => ../../../packages/leaf") {
-		t.Fatalf("go.mod missing replace after apply:\n%s", after)
-	}
-
-	// Idempotent: a second apply makes no change.
-	again, err := ApplySurface(context.Background(), goModPath, topo)
-	if err != nil {
-		t.Fatalf("second ApplySurface: %v", err)
-	}
-	if again != nil {
-		t.Fatalf("expected no-op on converged surface, got %#v", again)
-	}
-}
-
-// TestApplySurfaceSyncsGoSumForInRepoTransitiveRequirement is the regression for
-// the drift class that stranded brand-manager: the consumer already declares the
-// in-repo require and its local replace, but its go.sum is missing the entry its
-// in-repo dependency pulls in transitively. ApplySurface must tidy even though no
-// replace is missing.
-func TestApplySurfaceSyncsGoSumForInRepoTransitiveRequirement(t *testing.T) {
-	t.Setenv("GOPROXY", "off")
-	t.Setenv("GOFLAGS", "-mod=mod")
-	root := t.TempDir()
-	leafDir := filepath.Join(root, "packages", "leaf")
-	consumerDir := filepath.Join(root, "scenarios", "demo", "cli")
-	writeModule(t, leafDir,
-		"module example.com/leaf\n\ngo 1.25.0\n\nrequire golang.org/x/mod v0.37.0\n",
-		map[string]string{
-			"leaf.go": "package leaf\n\nimport \"golang.org/x/mod/module\"\n\ntype V = module.Version\n",
-		})
-	goModPath := filepath.Join(consumerDir, "go.mod")
-	writeModule(t, consumerDir,
-		"module demo/cli\n\ngo 1.25.0\n\nrequire example.com/leaf v0.0.0\n\nreplace example.com/leaf => ../../../packages/leaf\n",
-		map[string]string{
-			"main.go": "package main\n\nimport \"example.com/leaf\"\n\nfunc main() { _ = leaf.V{} }\n",
-		})
-	topo := Topology{"example.com/leaf": leafDir}
-
-	cand, err := ApplySurface(context.Background(), goModPath, topo)
-	if err != nil {
-		t.Fatalf("ApplySurface: %v", err)
-	}
-	if cand == nil {
-		t.Fatal("expected a candidate because go.sum was synced")
-	}
-	if len(cand.Missing) != 0 {
-		t.Fatalf("no replace was missing, got %#v", cand.Missing)
-	}
-	if !cand.SumChanged {
-		t.Fatalf("expected SumChanged for the transitive go.sum sync, got %#v", cand)
-	}
-	sum, _ := os.ReadFile(filepath.Join(consumerDir, "go.sum"))
-	if !strings.Contains(string(sum), "golang.org/x/mod") {
-		t.Fatalf("go.sum missing the in-repo transitive requirement entry:\n%s", sum)
-	}
-
-	again, err := ApplySurface(context.Background(), goModPath, topo)
-	if err != nil {
-		t.Fatalf("second ApplySurface: %v", err)
-	}
-	if again != nil {
-		t.Fatalf("expected no-op on a synced surface, got %#v", again)
+	// The convergence path (go mod edit) must accept the normalized path.
+	conv := mustConverge(t, goModPath, topo)
+	if !strings.Contains(conv.GoModAfter, "replace demo/sub => ./sub") {
+		t.Fatalf("go.mod missing normalized replace:\n%s", conv.GoModAfter)
 	}
 }
 

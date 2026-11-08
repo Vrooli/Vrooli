@@ -477,12 +477,25 @@
         ],
         "clean_requirement": "required"
       },
+      "dependency.gomod.evidence.unfenced": {
+        "capability_id": "package_readiness",
+        "local_level_impact": "L3",
+        "global_impact": "evolvability_gap",
+        "dimension": "dependencies",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "scientific-debugging"
+        ],
+        "clean_requirement": "required"
+      },
       "dependency.go.tidy": {
         "capability_id": "package_readiness",
         "local_level_impact": "L3",
         "global_impact": "hardening_gap",
         "dimension": "dependencies",
         "severity_default": "SEVERITY_ERROR",
+        "fix_class": "auto",
+        "fixer_status": "implemented",
         "recommended_skill_ids": [
           "scientific-debugging",
           "test"

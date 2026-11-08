@@ -139,7 +139,7 @@ func (h *connectHandler) checkReadiness(ctx context.Context, scenario string, su
 	for _, surface := range surfaces {
 		switch normalizedLanguage(surface.GetLanguage()) {
 		case "go":
-			findings = append(findings, h.checkGoSurface(ctx, runner, surface)...)
+			findings = append(findings, h.checkGoSurface(ctx, runner, scenario, surface)...)
 		case "javascript", "typescript":
 			findings = append(findings, checkNodeSurface(surface)...)
 		}

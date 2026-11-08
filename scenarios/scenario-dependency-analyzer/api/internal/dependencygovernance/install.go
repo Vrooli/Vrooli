@@ -91,7 +91,9 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 	if msg.GetScenario() == "vrooli" && msg.GetSurface() == "control-plane" {
 		target = "Vrooli control-plane root Go module"
 	}
-	if resolution.Profile.LifecycleMode == "resource-agent" {
+	if resolution.Profile.LifecycleMode == "managed-service-artifact" {
+		target = "resource-owned verified artifact " + msg.GetScenario() + " (staging only; serving process unchanged)"
+	} else if resolution.Profile.LifecycleMode == "resource-agent" {
 		target = "resource-owned harness " + msg.GetScenario() + " (exact user-prefix installation)"
 	} else if resolution.HostTool || resolution.HostToolRefresh {
 		target = "managed host tool " + msg.GetScenario() + " (private frozen candidate)"
@@ -106,6 +108,9 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 			verdict, msg.GetEcosystem(), msg.GetPackageName(), target)
 	case !msg.GetApply():
 		action := "install"
+		if resolution.Profile.LifecycleMode == "managed-service-artifact" {
+			action = "stage the verified artifact; serving process remains unchanged"
+		}
 		if resolution.HostToolRefresh {
 			action = "refresh source dependency inputs only; no runtime will be installed"
 		}
@@ -143,6 +148,12 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 			resp.SourceUpdated = true
 			resp.Message = "Updated canonical Python dependency inputs and hashed locks; no runtime was installed.\n" + strings.TrimSpace(output)
 			resp.NextSteps = append(resp.NextSteps, "Verify the owning input/lock conformance, then use the normal scenario or resource lifecycle to converge its private environment.")
+			return connect.NewResponse(resp), nil
+		}
+		if resolution.Profile.LifecycleMode == "managed-service-artifact" {
+			resp.Installed = true
+			resp.Message = "Staged verified resource artifact (" + verdict + "); serving process unchanged.\n" + strings.TrimSpace(output)
+			resp.NextSteps = append(resp.NextSteps, "Inspect desired, staged and running versions with vrooli resource status "+msg.GetScenario()+" --json; connector promotion and rollback are separate lifecycle operations.")
 			return connect.NewResponse(resp), nil
 		}
 		resp.Installed = true

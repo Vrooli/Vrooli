@@ -1,12 +1,12 @@
 package detection
 
 import (
+	"context"
 	"encoding/json"
 	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -35,11 +35,24 @@ func newScenarioScanner(catalog *catalogManager) *scenarioScanner {
 // walkCodeFiles visits code files that are relevant for scenario detection, applying shared
 // directory and documentation filters before invoking the provided callback.
 func (s *scenarioScanner) walkCodeFiles(
-	scenarioPath string,
+	ctx context.Context, scenarioPath string,
 	visit func(relPath string, content []byte) error,
 ) error {
 	return filepath.WalkDir(scenarioPath, func(path string, entry fs.DirEntry, walkErr error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if walkErr != nil {
+			return walkErr
+		}
+		rel, relErr := filepath.Rel(scenarioPath, path)
+		if relErr != nil {
+			return relErr
+		}
+		if shouldIgnoreDetectionFile(rel) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -59,18 +72,9 @@ func (s *scenarioScanner) walkCodeFiles(
 			return nil
 		}
 
-		content, err := os.ReadFile(path) // #nosec G304,G122 -- path comes from WalkDir under scenarioPath and symlink entries are skipped.
+		content, err := readDetectionSource(ctx, path, entry) // #nosec G304,G122 -- path comes from WalkDir under scenarioPath and symlink entries are skipped.
 		if err != nil {
-			return nil
-		}
-
-		rel, relErr := filepath.Rel(scenarioPath, path)
-		if relErr != nil {
-			rel = path
-		}
-
-		if shouldIgnoreDetectionFile(rel) {
-			return nil
+			return err
 		}
 
 		return visit(rel, content)
@@ -79,11 +83,15 @@ func (s *scenarioScanner) walkCodeFiles(
 
 // scanDependencies walks the scenario directory and detects scenario-to-scenario dependencies
 func (s *scenarioScanner) scanDependencies(scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
+	return s.scanDependenciesContext(context.Background(), scenarioPath, scenarioName)
+}
+
+func (s *scenarioScanner) scanDependenciesContext(ctx context.Context, scenarioPath, scenarioName string) ([]types.ScenarioDependency, error) {
 	var dependencies []types.ScenarioDependency
 
 	normalizedScenario := normalizeName(scenarioName)
 
-	err := s.walkCodeFiles(scenarioPath, func(rel string, content []byte) error {
+	err := s.walkCodeFiles(ctx, scenarioPath, func(rel string, content []byte) error {
 		deps := s.scanFile(string(content), rel, scenarioName, normalizedScenario)
 		dependencies = append(dependencies, deps...)
 		return nil

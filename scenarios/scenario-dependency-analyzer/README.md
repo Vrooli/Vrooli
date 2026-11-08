@@ -58,8 +58,14 @@ scenario-dependency-analyzer dag export chart-generator --recursive
 # Scan and optionally apply inferred dependencies
 scenario-dependency-analyzer scan chart-generator --apply
 
-# Analyze all scenarios (may take several minutes)
+# Analyze all scenarios (server-owned work; wait once)
 scenario-dependency-analyzer analyze all
+
+# Return immediately with a durable receipt and a stable replay key
+scenario-dependency-analyzer analysis start --client-operation-id my-fleet-refresh --json
+# After a lost response, repeat the same start command. To attach to its receipt:
+scenario-dependency-analyzer analysis wait OPERATION_ID --json
+scenario-dependency-analyzer analysis get OPERATION_ID --json
 
 # Generate declared dependency graph
 scenario-dependency-analyzer graph combined --format json
@@ -245,8 +251,8 @@ scenario-dependency-analyzer optimize your-scenario --apply --type resource
 # Predict dependencies for proposed scenarios
 scenario-dependency-analyzer propose "Your new scenario description"
 
-# Find similar patterns in existing scenarios
-scenario-dependency-analyzer analyze all | jq '.similar_patterns'
+# Refresh fleet dependency evidence and inspect the bounded receipt
+scenario-dependency-analyzer analyze all --json
 ```
 
 ### For System Architecture

@@ -60,12 +60,13 @@ func (s *graphIngestService) RegisterRoutes(api gin.IRoutes) {
 	api.GET("/graph/sweeper/status", s.handleSweeperStatus)
 }
 
-// StartSweeper launches the background ingest loop (default-ON).
-func (s *graphIngestService) StartSweeper(ctx context.Context) {
+// RunSweeper owns the ingest loop until cancellation. The caller tracks this
+// worker through quiescence; detaching it would report shutdown before writes stop.
+func (s *graphIngestService) RunSweeper(ctx context.Context) {
 	if s == nil || s.sweeper == nil {
 		return
 	}
-	go s.sweeper.RunLoop(ctx)
+	s.sweeper.RunLoop(ctx)
 }
 
 type rebuildRequest struct {
@@ -110,21 +111,7 @@ func (s *graphIngestService) handleRebuild(c *gin.Context) {
 		return
 	}
 
-	report, err := s.ingestor.RebuildFleet(ctx, s.repoRoot, req.Apply)
-	if err != nil {
-		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error(), "applied": req.Apply})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"scope":              "fleet",
-		"applied":            req.Apply,
-		"scenarios_analyzed": report.ScenariosAnalyzed,
-		"edges_persisted":    report.EdgesPersisted,
-		"scenario_edges":     report.ScenarioEdges,
-		"resource_edges":     report.ResourceEdges,
-		"degraded_sources":   report.DegradedSources,
-		"build_stats":        report.BuildStats,
-	})
+	c.JSON(http.StatusGone, gin.H{"error": "fleet rebuild requires AnalysisOperationsService.StartOperation; use scenario-dependency-analyzer analysis start --kind graph-rebuild"})
 }
 
 func (s *graphIngestService) handleSweeperStatus(c *gin.Context) {

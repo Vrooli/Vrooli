@@ -11,10 +11,12 @@
 package deployment
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -32,7 +34,10 @@ import (
 
 const (
 	// ReportVersion tracks the schema version of deployment reports.
-	ReportVersion = 1
+	ReportVersion = 2
+	// Reports are derived diagnostics. Legacy path-expanded reports can be many
+	// gigabytes; never deserialize them just to decide whether to recompute.
+	maxReportBytes = 32 << 20
 )
 
 // BuildReport orchestrates the full deployment analysis workflow.
@@ -42,12 +47,28 @@ func BuildReport(scenarioName, scenarioPath, scenariosDir string, cfg *types.Man
 	return BuildReportWithOptions(scenarioName, scenarioPath, scenariosDir, cfg, DependencyBuildOptions{})
 }
 
+// BuildReportContext shares the owner expansion cache while honoring the
+// server-owned operation deadline. A canceled partial report is never published.
+func BuildReportContext(ctx context.Context, scenarioName, scenarioPath, scenariosDir string, cfg *types.Manifest) (*types.DeploymentAnalysisReport, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	report := BuildReportWithOptions(scenarioName, scenarioPath, scenariosDir, cfg, DependencyBuildOptions{bundleGraph: &bundleDependencyGraph{ctx: ctx, children: make(map[string][]types.DeploymentDependencyNode)}})
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return report, nil
+}
+
 func BuildReportWithOptions(scenarioName, scenarioPath, scenariosDir string, cfg *types.Manifest, options DependencyBuildOptions) *types.DeploymentAnalysisReport {
 	if cfg == nil {
 		return nil
 	}
 
 	generatedAt := time.Now().UTC()
+	if options.bundleGraph == nil {
+		options.bundleGraph = &bundleDependencyGraph{ctx: context.Background(), children: make(map[string][]types.DeploymentDependencyNode)}
+	}
 	visited := map[string]struct{}{}
 	visited[config.NormalizeName(scenarioName)] = struct{}{}
 	nodes := BuildDependencyNodeListWithOptions(scenariosDir, scenarioName, cfg, visited, options)
@@ -55,8 +76,8 @@ func BuildReportWithOptions(scenarioName, scenarioPath, scenariosDir string, cfg
 	if root := buildRootScenarioNode(scenarioName, scenarioPath, cfg); root != nil {
 		aggregateNodes = append(aggregateNodes, *root)
 	}
-	aggregates := ComputeTierAggregates(aggregateNodes)
-	manifest := BuildBundleManifest(scenarioName, scenarioPath, generatedAt, nodes, cfg)
+	aggregates := computeTierAggregatesWithChildren(aggregateNodes, options.bundleGraph.childrenOf)
+	manifest := buildBundleManifest(scenarioName, scenarioPath, generatedAt, nodes, cfg, options.bundleGraph.childrenOf)
 
 	// Extract known tiers from aggregates
 	knownTiers := make([]string, 0, len(aggregates))
@@ -164,7 +185,7 @@ func PersistReport(scenarioPath string, report *types.DeploymentAnalysisReport) 
 	if err != nil {
 		return err
 	}
-	if existingData, err := os.ReadFile(reportPath); err == nil && string(existingData) == string(data) { // #nosec G304 -- reportPath is derived from the scenario runtime path.
+	if existingData, err := readReportBytes(reportPath); err == nil && string(existingData) == string(data) {
 		return nil
 	}
 	tmpPath := reportPath + ".tmp"
@@ -264,7 +285,7 @@ func LoadReport(scenarioPath string) (*types.DeploymentAnalysisReport, error) {
 	if err != nil {
 		return nil, err
 	}
-	data, err := os.ReadFile(reportPath) // #nosec G304 -- reportPath is derived from the scenario runtime path.
+	data, err := readReportBytes(reportPath)
 	if err != nil {
 		return nil, err
 	}
@@ -276,8 +297,31 @@ func LoadReport(scenarioPath string) (*types.DeploymentAnalysisReport, error) {
 	// An absent digest is also stale: it represents a legacy or manually
 	// authored report whose inputs were never proven. Keep the report available
 	// for diagnostics, but make the stale state explicit to every consumer.
-	report.Stale = strings.TrimSpace(report.Provenance.InputDigest) == "" || report.Provenance.InputDigest != currentDigest
+	report.Stale = report.ReportVersion != ReportVersion || strings.TrimSpace(report.Provenance.InputDigest) == "" || report.Provenance.InputDigest != currentDigest
 	return &report, nil
+}
+
+func readReportBytes(path string) ([]byte, error) {
+	f, err := os.Open(path) // #nosec G304 -- path is resolved from canonical scenario storage.
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() > maxReportBytes {
+		return nil, fmt.Errorf("deployment report exceeds %d bytes; rebuild it from current declarations", maxReportBytes)
+	}
+	data, err := io.ReadAll(io.LimitReader(f, maxReportBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxReportBytes {
+		return nil, fmt.Errorf("deployment report exceeds %d bytes; rebuild it from current declarations", maxReportBytes)
+	}
+	return data, nil
 }
 
 func reportPathForScenario(scenarioPath string) (string, error) {

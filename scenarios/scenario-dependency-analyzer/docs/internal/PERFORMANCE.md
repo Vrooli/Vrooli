@@ -30,14 +30,31 @@ owner once. Shared dependency edges retain their declarations; embedding can
 follow a shared owner first encountered through a discovery-only branch. The
 manifest route reads current inputs and does not build, load, clone, or persist
 the full deployment report. Request cancellation prevents returning a partial
-manifest. Full deployment-report and DAG routes retain their existing behavior;
-their expanded diagnostic trees can still grow with repeated dependency paths.
+manifest. Full deployment reports and scenario target-DAG exports also use a
+request-local owner expansion cache. They retain shared dependency declarations
+without copying every root-to-leaf path; tier totals count an active shared owner
+once. Stored deployment-report reads are capped at 32 MiB, and oversized legacy
+reports require recomputation before use.
 
 The focused regression `TestFreshBundleManifestBoundsRepeatedFanIn` covers an
 18-level graph with two shared owners per level. It retains 36 owners and 70
 edges, rather than expanding every root-to-leaf path. Companion tests cover
 discovery-before-embedding, UI inclusion, version/feature fidelity, cycles, and
 request cancellation.
+
+`TestBuildReportBoundsRepeatedFanIn` covers 16 owners with 30 retained edges and
+about 12 KiB of report output. `BuildReportWithOptions` initializes the shared
+cache for report and legacy scenario-DAG callers; `BuildTargetDAGWithOptions`
+initializes it for target-aware scenario exports. These bounds address the
+deployment-report expansion that previously caused multi-gigabyte retained
+reports and API memory growth.
+
+These graph and report limits do not impose a process memory ceiling or bound
+the number of concurrent HTTP requests. The synchronous report/DAG HTTP adapters
+currently call reporter methods without a request context; cancellation support
+in `BuildReportContext` applies to its server-owned analysis callers. Host
+memory ceilings and recovery reservations belong to the control plane, and
+require separate kernel-facing inspection and pressure qualification.
 
 ## Regression Procedure
 

@@ -35,12 +35,7 @@ func (h *HTTPHandler) AnalyzeScenario(c *gin.Context) {
 	scenarioName := c.Param("scenario")
 
 	if scenarioName == "all" {
-		results, err := h.analysis.AnalyzeAllScenarios()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusOK, results)
+		c.JSON(http.StatusGone, gin.H{"error": "fleet analysis requires AnalysisOperationsService.StartOperation; use scenario-dependency-analyzer analysis start"})
 		return
 	}
 

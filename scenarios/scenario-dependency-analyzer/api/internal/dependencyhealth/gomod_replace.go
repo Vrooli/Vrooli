@@ -16,6 +16,16 @@ import (
 // dependency-health finding rule and the ScenarioValidationService Fix-class id.
 const goModReplaceRuleID = "dependency.gomod.replace.missing"
 
+// goModEvidenceRuleID flags Go packages under a scenario docs/ tree without
+// their own module boundary: they compile into the enclosing module (often the
+// repository root) and drag their imports into its requirements.
+const goModEvidenceRuleID = "dependency.gomod.evidence.unfenced"
+
+// goModTidyRuleID is the readiness finding for a Go surface whose go.mod or
+// go.sum differs from what its import closure requires. The same convergence
+// fix that adds missing replaces repairs it, through the dependency gate.
+const goModTidyRuleID = "dependency.go.tidy"
+
 // evaluateGoModReplace flags every Go surface that requires an in-repo module
 // without a matching local replace — the fan-out gap that breaks `go build` at
 // restart time. Findings are ERROR (gating) so the test-genie dependencies phase
@@ -44,6 +54,32 @@ func (h *connectHandler) evaluateGoModReplace(ctx context.Context, scenario stri
 	var findings []*healthv1.DependencyHealthFinding
 	var degraded []*healthv1.DegradedDependency
 	ids := make([]string, 0)
+	evidenceRoot := h.scenarioDir(ctx, scenario)
+	evidence, err := gomodreconcile.UnfencedEvidence(evidenceRoot, false)
+	if err != nil {
+		degraded = append(degraded, &healthv1.DegradedDependency{
+			Id:         "gomod-replace.evidence",
+			Dependency: scenario,
+			Domain:     "gomod-replace",
+			Reason:     fmt.Sprintf("scan docs evidence: %v", err),
+		})
+	}
+	for _, dir := range evidence {
+		id := strings.Join([]string{"gomod-replace", "evidence", slug(dir)}, ".")
+		ids = append(ids, id)
+		findings = append(findings, &healthv1.DependencyHealthFinding{
+			Id:           id,
+			Severity:     "ERROR",
+			SourceDomain: "gomod-replace",
+			Title:        "Docs evidence joins a Go module",
+			Description:  fmt.Sprintf("Go packages under %s sit in a docs/ tree with no module boundary, so Go compiles them as part of the enclosing module and adds their imports to its requirements.", dir),
+			Remediation:  "Fence the evidence tree with the docs-evidence convention: a go.mod at the top of its docs/ directory containing `module github.com/vrooli/vrooli/scenarios/" + scenario + "/docs-evidence` and the repository go directive (see docs/package-governance.md, Go module convergence). Then run `" + reconcileCLIName + " deps reconcile --all-modules --apply`.",
+			FilePath:     relScenarioPath(filepath.Join(evidenceRoot, filepath.FromSlash(dir))),
+			RuleId:       goModEvidenceRuleID,
+			Observed:     "Go packages under " + dir + " without a go.mod at or below docs/",
+			Expected:     "docs/go.mod fencing retained source",
+		})
+	}
 	for _, surface := range surfaces {
 		if !strings.EqualFold(strings.TrimSpace(surface.GetLanguage()), "go") {
 			continue

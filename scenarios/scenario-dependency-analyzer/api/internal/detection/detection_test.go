@@ -9,6 +9,32 @@ import (
 	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
+func TestResourceHeuristicsPreserveCaseFoldingAndRejectAbsentNames(t *testing.T) {
+	for _, tc := range []struct {
+		source, resource string
+		found            bool
+	}{
+		{"POSTGRES_HOST=database", "postgres", true},
+		{"https://POSTGRES:5432", "postgres", true},
+		{"poſtgres://database", "postgres", true},
+		{"sErViCe://host", "ſervice", true},
+		{"application source without a resource reference", "postgres", false},
+	} {
+		t.Run(tc.source, func(t *testing.T) {
+			catalog := &catalogManager{loaded: true, knownResources: map[string]struct{}{tc.resource: {}}}
+			scanner := newResourceScanner(catalog)
+			for i := 0; i < 2; i++ {
+				results := map[string]types.ScenarioDependency{}
+				scanner.detectResourceHeuristics(tc.source, "api/main.go", "owner", results)
+				_, found := results[tc.resource]
+				if found != tc.found {
+					t.Fatalf("resource=%s found=%t, want %t", tc.resource, found, tc.found)
+				}
+			}
+		})
+	}
+}
+
 // TestNewDetector tests detector creation.
 func TestNewDetector(t *testing.T) {
 	cfg := appconfig.RuntimeConfig{

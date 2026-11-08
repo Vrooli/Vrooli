@@ -85,12 +85,12 @@ func TestRebuildFleetMergesAndPersistsWhenApplied(t *testing.T) {
 	persist := &fakePersist{}
 	ing := NewIngestor(fakeGraphSource{graph: graph}, declared, analyze, persist, WithClock(fixedClock{time.Now()}))
 
-	report, err := ing.RebuildFleet(context.Background(), "/repo", true)
+	report, err := ing.RebuildStoredFleet(context.Background(), "/repo", true)
 	if err != nil {
 		t.Fatalf("RebuildFleet: %v", err)
 	}
-	if analyze.allCalls != 1 {
-		t.Fatalf("expected AnalyzeAllScenarios called once, got %d", analyze.allCalls)
+	if analyze.allCalls != 0 || analyze.scenarioCalls != 0 {
+		t.Fatal("graph assembly repeated source analysis")
 	}
 	if report.EdgesPersisted != 2 {
 		t.Fatalf("edges persisted = %d, want 2", report.EdgesPersisted)
@@ -115,11 +115,25 @@ func TestRebuildFleetMergesAndPersistsWhenApplied(t *testing.T) {
 func TestRebuildFleetDryRunDoesNotPersist(t *testing.T) {
 	persist := &fakePersist{}
 	ing := NewIngestor(fakeGraphSource{}, fakeDeclared{}, &fakeAnalyze{}, persist)
-	if _, err := ing.RebuildFleet(context.Background(), "/repo", false); err != nil {
+	if _, err := ing.RebuildStoredFleet(context.Background(), "/repo", false); err != nil {
 		t.Fatalf("RebuildFleet dry-run: %v", err)
 	}
 	if persist.replaced != nil {
 		t.Fatalf("dry-run must not persist, got %d edges", len(persist.replaced))
+	}
+}
+
+func TestFleetDegradedSourcesCannotReplaceLastGoodGraph(t *testing.T) {
+	for _, apply := range []bool{false, true} {
+		persist := &fakePersist{replaced: []types.UnifiedGraphEdge{{From: "last-good"}}}
+		ing := NewIngestor(fakeGraphSource{graph: interfacegraph.Graph{Errors: []interfacegraph.Error{{Source: "proto-health", Message: "unavailable"}}}}, fakeDeclared{}, &fakeAnalyze{}, persist)
+		report, err := ing.RebuildStoredFleet(context.Background(), "/repo", apply)
+		if (err != nil) != apply || len(report.DegradedSources) != 1 {
+			t.Fatalf("apply=%t report=%+v err=%v", apply, report, err)
+		}
+		if len(persist.replaced) != 1 || persist.replaced[0].From != "last-good" {
+			t.Fatal("degraded fleet overwrote last-good graph")
+		}
 	}
 }
 

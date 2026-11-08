@@ -17,3 +17,17 @@ Add the handler, tests, generated proto/Connect contract when the surface is pro
 - `../../.vrooli/endpoints.json`
 - `../api.md`
 - `configuration.md`
+
+## Dependency validation operation budget
+
+The native dependency-health and shared scenario-validation Connect handlers
+use the dependency phase `timeout` from `.vrooli/test-genie.json`, captured at
+server startup. Their work receives that bounded request context, including
+earlier caller cancellation. The shared server operation-budget wrapper clears
+the ordinary response write deadline for these mounted services so a completed
+validation or timeout can return its receipt. Other API endpoints keep the
+ordinary server timeout. A missing, malformed or non-positive descriptor budget
+leaves these services explicitly unavailable.
+
+[CODE: scenarios/scenario-dependency-analyzer/api/internal/dependencyhealth/connect.go#loadValidationBudget]
+[CODE: packages/api-core/server/operation_budget.go#WithOperationBudget]

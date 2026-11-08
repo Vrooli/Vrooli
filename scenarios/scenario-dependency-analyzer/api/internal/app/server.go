@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/aisearch"
 	analysisapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/analysis"
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/analysisoperations"
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/catalog"
 	appconfig "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/config"
 	coresetapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/coreset"
@@ -58,11 +60,24 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, dbConn)
 	rootMux.Handle("/", handler)
-	handler = apihttp.TestModeMiddleware(rootMux)
+	handler = analysisoperations.ClearWaitDeadline(apihttp.TestModeMiddleware(rootMux))
 
 	h := newHandler(rt)
 	graphIngest := newGraphIngestService(rt)
 	registerRoutes(router, h, graphIngest)
+	operations := analysisoperations.NewManager(analysisoperations.NewRepository(dbConn), fleetOperationRunner{analyzer: rt.Analyzer(), graph: graphIngest}, analysisoperations.Config{})
+	if err := operations.Start(context.Background()); err != nil {
+		return fmt.Errorf("start fleet operations: %w", err)
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		if err := operations.Close(ctx); err != nil {
+			log.Printf("fleet operation shutdown: %v", err)
+		}
+	}()
+	operationPath, operationHandler := analysisoperations.NewHTTPHandler(operations)
+	router.Any(operationPath+"*path", gin.WrapH(operationHandler))
 	log.Println("Scenario Dependency Analyzer HTTP routes registered")
 
 	// AI semantic search over SDA's corpora. ONE multi-corpus service backs every
@@ -142,7 +157,7 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 		searchService.RunBackground,
 		func(ctx context.Context) {
 			if graphIngest != nil {
-				graphIngest.StartSweeper(ctx)
+				graphIngest.RunSweeper(ctx)
 			}
 		},
 		func(ctx context.Context) {
@@ -166,8 +181,18 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 		Handler: handler,
 		Port:    cfg.Port,
 		LifecycleHooks: lifecycle.Hooks{
-			Quiesce: workers.Stop,
-			Resume:  workers.Start,
+			Quiesce: func(ctx context.Context) error {
+				if err := operations.Close(ctx); err != nil {
+					return err
+				}
+				return workers.Stop(ctx)
+			},
+			Resume: func(ctx context.Context) error {
+				if err := operations.Start(context.Background()); err != nil {
+					return err
+				}
+				return workers.Start(ctx)
+			},
 		},
 	})
 }

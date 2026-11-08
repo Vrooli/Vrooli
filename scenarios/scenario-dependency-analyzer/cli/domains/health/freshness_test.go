@@ -213,151 +213,6 @@ func TestFilterGoSurfacesByModuleAcceptsRepositoryRelativeDirectory(t *testing.T
 	}
 }
 
-func TestCheckGoFreshnessApplyReportsCleanAfterVerifiedTidy(t *testing.T) {
-	root := filepath.Clean("/repo")
-	surface := goSurface{
-		scenario: "demo",
-		surface:  "api",
-		goMod:    filepath.Join(root, "scenarios", "demo", "api", "go.mod"),
-	}
-	calls := stubRunGo(t, []stubGoCall{
-		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.mod b/go.mod\n"},
-		{args: []string{"mod", "tidy"}, clean: true},
-		{args: []string{"mod", "tidy", "-diff"}, clean: true},
-	})
-
-	got := checkGoFreshness(context.Background(), root, surface, nil, freshnessRequest{apply: true})
-
-	if got.Status != "clean" {
-		t.Fatalf("status = %q, want clean after verified apply; report=%+v", got.Status, got)
-	}
-	if len(got.DiffPaths) != 0 {
-		t.Fatalf("diff paths = %#v, want cleared after verified apply", got.DiffPaths)
-	}
-	if *calls != 3 {
-		t.Fatalf("go calls = %d, want detect/apply/verify", *calls)
-	}
-}
-
-// unsortedGoSum is the real shape of the defect: every hash the module needs is
-// present, but two lines sit after the last entry instead of in sorted place.
-// `go mod tidy` rewrites go.sum only when the hash SET changes, so it leaves
-// this untouched forever while `tidy -diff` keeps reporting a diff.
-const unsortedGoSum = `connectrpc.com/connect v1.19.2 h1:aaa=
-connectrpc.com/connect v1.19.2/go.mod h1:bbb=
-gopkg.in/yaml.v3 v3.0.1 h1:ccc=
-gopkg.in/yaml.v3 v3.0.1/go.mod h1:ddd=
-github.com/creack/pty/v2 v2.0.1 h1:eee=
-github.com/creack/pty/v2 v2.0.1/go.mod h1:fff=
-`
-
-func newGoSumSurface(t *testing.T, contents string) (string, goSurface) {
-	t.Helper()
-	root := t.TempDir()
-	surfaceDir := filepath.Join(root, "scenarios", "demo", "api")
-	if err := os.MkdirAll(surfaceDir, 0o755); err != nil {
-		t.Fatalf("MkdirAll: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(surfaceDir, "go.sum"), []byte(contents), 0o644); err != nil {
-		t.Fatalf("WriteFile: %v", err)
-	}
-	return root, goSurface{
-		scenario: "demo",
-		surface:  "api",
-		goMod:    filepath.Join(surfaceDir, "go.mod"),
-	}
-}
-
-func TestCheckGoFreshnessApplyForcesGoSumRewriteWhenTidyCannotConverge(t *testing.T) {
-	root, surface := newGoSumSurface(t, unsortedGoSum)
-	sorted := strings.Join(sortedGoSumLines([]byte(unsortedGoSum)), "\n") + "\n"
-
-	calls := stubRunGo(t, []stubGoCall{
-		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.sum b/go.sum\n"},
-		// The real defect: tidy succeeds and writes nothing.
-		{args: []string{"mod", "tidy"}, clean: true},
-		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.sum b/go.sum\n"},
-		// After go.sum is removed, tidy regenerates it sorted.
-		{args: []string{"mod", "tidy"}, clean: true, do: func(dir string) {
-			if err := os.WriteFile(filepath.Join(dir, "go.sum"), []byte(sorted), 0o644); err != nil {
-				t.Fatalf("regenerate go.sum: %v", err)
-			}
-		}},
-		{args: []string{"mod", "tidy", "-diff"}, clean: true},
-	})
-
-	got := checkGoFreshness(context.Background(), root, surface, nil, freshnessRequest{apply: true})
-
-	if got.Status != "clean" {
-		t.Fatalf("status = %q, want clean after the forced go.sum rewrite; report=%+v", got.Status, got)
-	}
-	if len(got.DiffPaths) != 0 {
-		t.Fatalf("diff paths = %#v, want cleared after the forced rewrite", got.DiffPaths)
-	}
-	if *calls != 5 {
-		t.Fatalf("go calls = %d, want detect/apply/verify/rewrite/verify", *calls)
-	}
-	after, err := os.ReadFile(filepath.Join(filepath.Dir(surface.goMod), "go.sum"))
-	if err != nil {
-		t.Fatalf("ReadFile: %v", err)
-	}
-	if string(after) != sorted {
-		t.Fatalf("go.sum = %q, want the sorted rewrite", string(after))
-	}
-}
-
-func TestCheckGoFreshnessApplyKeepsStaleWhenRewriteStillDiffs(t *testing.T) {
-	root, surface := newGoSumSurface(t, unsortedGoSum)
-
-	stubRunGo(t, []stubGoCall{
-		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.sum b/go.sum\n"},
-		{args: []string{"mod", "tidy"}, clean: true},
-		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.sum b/go.sum\n"},
-		{args: []string{"mod", "tidy"}, clean: true, do: func(dir string) {
-			if err := os.WriteFile(filepath.Join(dir, "go.sum"), []byte(unsortedGoSum), 0o644); err != nil {
-				t.Fatalf("regenerate go.sum: %v", err)
-			}
-		}},
-		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.mod b/go.mod\n"},
-	})
-
-	got := checkGoFreshness(context.Background(), root, surface, nil, freshnessRequest{apply: true})
-
-	if got.Status != "stale" {
-		t.Fatalf("status = %q, want stale when the rewrite still diffs; report=%+v", got.Status, got)
-	}
-	if !reflect.DeepEqual(got.DiffPaths, []string{"scenarios/demo/api/go.mod"}) {
-		t.Fatalf("diff paths = %#v, want verified post-rewrite diff paths", got.DiffPaths)
-	}
-}
-
-// The repair reorders; it must never change what the module depends on.
-func TestForceGoSumRewriteRestoresOriginalWhenHashSetChanges(t *testing.T) {
-	_, surface := newGoSumSurface(t, unsortedGoSum)
-	surfaceDir := filepath.Dir(surface.goMod)
-
-	stubRunGo(t, []stubGoCall{
-		{args: []string{"mod", "tidy"}, clean: true, do: func(dir string) {
-			dropped := "connectrpc.com/connect v1.19.2 h1:aaa=\n"
-			if err := os.WriteFile(filepath.Join(dir, "go.sum"), []byte(dropped), 0o644); err != nil {
-				t.Fatalf("regenerate go.sum: %v", err)
-			}
-		}},
-	})
-
-	err := forceGoSumRewrite(context.Background(), surfaceDir)
-	if err == nil {
-		t.Fatal("forceGoSumRewrite returned nil, want an error when the hash set changes")
-	}
-	after, readErr := os.ReadFile(filepath.Join(surfaceDir, "go.sum"))
-	if readErr != nil {
-		t.Fatalf("ReadFile: %v", readErr)
-	}
-	if string(after) != unsortedGoSum {
-		t.Fatalf("go.sum = %q, want the original restored byte-for-byte", string(after))
-	}
-}
-
 func TestReportTouchedPathsKeepsOnlyDependencyRelevantChanges(t *testing.T) {
 	got := reportTouchedPaths(map[string][]string{
 		"/repo/scenarios/demo/api/go.mod": {
@@ -777,7 +632,7 @@ func TestCheckFreshnessAddsReconcileActionForErroredSurfaces(t *testing.T) {
 	}
 }
 
-func TestCheckFreshnessModuleApplyActionPreservesAndQuotesSelector(t *testing.T) {
+func TestCheckFreshnessStaleActionNamesGovernedReconcileForOneScenario(t *testing.T) {
 	root := t.TempDir()
 	selector := "scenarios/demo api's"
 	moduleDir := filepath.Join(root, filepath.FromSlash(selector))
@@ -791,10 +646,10 @@ func TestCheckFreshnessModuleApplyActionPreservesAndQuotesSelector(t *testing.T)
 		t.Fatalf("checkFreshness: %v", err)
 	}
 	if got.Summary.Stale != 1 || len(got.NextActions) != 1 {
-		t.Fatalf("report = %+v, want one stale selected module and one apply action", got)
+		t.Fatalf("report = %+v, want one stale selected module and one reconcile action", got)
 	}
-	want := "scenario-dependency-analyzer freshness --module 'scenarios/demo api'\\''s' --apply"
-	if got.NextActions[0].Command != want {
+	want := "scenario-dependency-analyzer deps reconcile --scenario 'demo api'\\''s' --apply"
+	if got.NextActions[0].Command != want || got.NextActions[0].Fixability != "automatic" {
 		t.Fatalf("next action command = %q, want %q", got.NextActions[0].Command, want)
 	}
 }
@@ -819,14 +674,14 @@ func TestFreshnessRetrievalHintsIncludesEveryAction(t *testing.T) {
 	report := freshnessReport{
 		Mode: "touched",
 		NextActions: []freshnessAction{
-			{Command: "scenario-dependency-analyzer freshness --touched --apply"},
+			{Command: "scenario-dependency-analyzer deps reconcile --all-modules --apply"},
 			{Command: "scenario-dependency-analyzer deps reconcile --all --json"},
 		},
 	}
 
 	got := freshnessRetrievalHints(report)
 	want := []string{
-		"scenario-dependency-analyzer freshness --touched --apply",
+		"scenario-dependency-analyzer deps reconcile --all-modules --apply",
 		"scenario-dependency-analyzer deps reconcile --all --json",
 		"scenario-dependency-analyzer freshness --touched --json",
 	}
@@ -968,11 +823,11 @@ func TestModuleDotSelectsOnlyRoot(t *testing.T) {
 	}
 }
 
-func TestExplicitEmptyModuleRefusesBeforeApply(t *testing.T) {
+func TestExplicitEmptyModuleRefusesBeforeRunningGo(t *testing.T) {
 	for _, selector := range []string{"", " "} {
 		t.Run(selector, func(t *testing.T) {
 			calls := stubRunGo(t, nil)
-			err := runFreshness([]string{"--module", selector, "--apply"})
+			err := runFreshness([]string{"--module", selector})
 			if err == nil || !strings.Contains(err.Error(), "nonempty") {
 				t.Fatalf("empty selector must refuse: %v", err)
 			}
@@ -1006,7 +861,7 @@ func TestExplicitModuleSymlinkCannotEscapeRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	stubRunGo(t, nil)
-	_, err := checkFreshness(context.Background(), root, freshnessRequest{module: "outside", apply: true})
+	_, err := checkFreshness(context.Background(), root, freshnessRequest{module: "outside"})
 	if err == nil || !strings.Contains(err.Error(), "escapes repository") {
 		t.Fatalf("escaped owner must refuse: %v", err)
 	}
@@ -1029,5 +884,23 @@ func TestKilledModuleRetryCannotReportClean(t *testing.T) {
 	}
 	if got.Clean || got.Summary.NeedsDownload != 1 || !strings.Contains(got.Surfaces[0].Error, "killed") {
 		t.Fatalf("killed resolution cannot qualify freshness: %+v", got)
+	}
+}
+
+func TestCheckFreshnessStaleActionAcrossModulesConvergesFleet(t *testing.T) {
+	root := t.TempDir()
+	for _, path := range []string{"scenarios/one/api/go.mod", "scenarios/two/api/go.mod"} {
+		writeFreshnessFile(t, filepath.Join(root, path), "module example.com/"+strings.Split(path, "/")[1]+"\n")
+	}
+	stubRunGo(t, []stubGoCall{
+		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.mod b/go.mod\n"},
+		{args: []string{"mod", "tidy", "-diff"}, diff: "diff --git a/go.mod b/go.mod\n"},
+	})
+	got, err := checkFreshness(context.Background(), root, freshnessRequest{all: true, concurrency: 1, noCache: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Summary.Stale != 2 || len(got.NextActions) != 1 || got.NextActions[0].Command != "scenario-dependency-analyzer deps reconcile --all-modules --apply" {
+		t.Fatalf("report = %+v, want one fleet reconcile action", got)
 	}
 }

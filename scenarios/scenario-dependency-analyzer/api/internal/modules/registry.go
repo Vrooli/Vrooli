@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/analysisoperations"
 	localdb "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/database"
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/store"
 
@@ -12,5 +13,6 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(store.Schema),
+		apidb.SchemaProviderFunc(analysisoperations.Schema),
 	}
 }

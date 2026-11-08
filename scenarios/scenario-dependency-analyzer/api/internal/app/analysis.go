@@ -1,9 +1,9 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,6 +17,13 @@ import (
 )
 
 func (a *Analyzer) AnalyzeScenario(scenarioName string) (*types.DependencyAnalysisResponse, error) {
+	return a.AnalyzeScenarioContext(context.Background(), scenarioName)
+}
+
+func (a *Analyzer) AnalyzeScenarioContext(ctx context.Context, scenarioName string) (*types.DependencyAnalysisResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if a == nil {
 		return nil, fmt.Errorf("analyzer not initialized")
 	}
@@ -31,49 +38,56 @@ func (a *Analyzer) AnalyzeScenario(scenarioName string) (*types.DependencyAnalys
 		return nil, fmt.Errorf("detector not initialized")
 	}
 
-	a.collectDetections(response, scenarioPath, scenarioName, serviceConfig)
+	if err := a.collectDetections(ctx, response, scenarioPath, scenarioName, serviceConfig); err != nil {
+		return nil, err
+	}
 
 	declaredScenarioDeps := convertDeclaredScenariosToDependencies(scenarioName, response.DeclaredScenarioSpecs)
 	response.ResourceDiff = buildResourceDiff(appconfig.ResolvedResourceMap(serviceConfig), response.DetectedResources)
 	response.ScenarioDiff = buildScenarioDiff(response.DeclaredScenarioSpecs, response.Scenarios)
 
-	a.persistAnalysisResults(response, declaredScenarioDeps, scenarioName, scenarioPath, serviceConfig)
-	a.attachDeploymentReport(response, scenarioName, scenarioPath, serviceConfig)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := a.persistAnalysisResults(response, declaredScenarioDeps, scenarioName, scenarioPath, serviceConfig); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := a.attachDeploymentReport(ctx, response, scenarioName, scenarioPath, serviceConfig); err != nil {
+		return nil, err
+	}
 	return response, nil
 }
 
-func (a *Analyzer) AnalyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error) {
+// ScenarioNames captures the fleet without retaining full analysis responses.
+func (a *Analyzer) ScenarioNames(ctx context.Context) ([]string, error) {
 	if a == nil {
 		return nil, fmt.Errorf("analyzer not initialized")
 	}
-	results := make(map[string]*types.DependencyAnalysisResponse)
-	scenariosDir := a.cfg.ScenariosDir
-	entries, err := os.ReadDir(scenariosDir)
+	entries, err := os.ReadDir(a.cfg.ScenariosDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read scenarios directory: %w", err)
+		return nil, fmt.Errorf("read scenarios: %w", err)
 	}
-
+	var names []string
 	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if !entry.IsDir() {
 			continue
 		}
-
-		scenarioName := entry.Name()
-		serviceConfigPath := filepath.Join(scenariosDir, scenarioName, ".vrooli", "service.json")
-		if _, err := os.Stat(serviceConfigPath); os.IsNotExist(err) {
+		_, err := os.Stat(filepath.Join(a.cfg.ScenariosDir, entry.Name(), ".vrooli", "service.json"))
+		if os.IsNotExist(err) {
 			continue
 		}
-
-		analysis, err := a.AnalyzeScenario(scenarioName)
 		if err != nil {
-			log.Printf("Warning: failed to analyze scenario %s: %v", scenarioName, err)
-			continue
+			return nil, err
 		}
-
-		results[scenarioName] = analysis
+		names = append(names, entry.Name())
 	}
-
-	return results, nil
+	return names, nil
 }
 
 func newAnalysisResponse(scenarioName string, serviceConfig *types.Manifest) *types.DependencyAnalysisResponse {
@@ -101,22 +115,17 @@ func newAnalysisResponse(scenarioName string, serviceConfig *types.Manifest) *ty
 	return response
 }
 
-func (a *Analyzer) collectDetections(response *types.DependencyAnalysisResponse, scenarioPath, scenarioName string, serviceConfig *types.Manifest) {
-	if a == nil || a.detector == nil {
-		return
+func (a *Analyzer) collectDetections(ctx context.Context, response *types.DependencyAnalysisResponse, scenarioPath, scenarioName string, serviceConfig *types.Manifest) error {
+	resources, err := a.detector.ScanResourcesContext(ctx, scenarioPath, scenarioName, serviceConfig)
+	if err != nil {
+		return fmt.Errorf("scan resource usage: %w", err)
 	}
-
-	if detectedResources, err := a.detector.ScanResources(scenarioPath, scenarioName, serviceConfig); err != nil {
-		log.Printf("Warning: failed to scan for resource usage: %v", err)
-	} else {
-		response.DetectedResources = detectedResources
+	scenarios, err := a.detector.ScanScenarioDependenciesContext(ctx, scenarioPath, scenarioName)
+	if err != nil {
+		return fmt.Errorf("scan scenario dependencies: %w", err)
 	}
-
-	if scenarioDeps, err := a.detector.ScanScenarioDependencies(scenarioPath, scenarioName); err != nil {
-		log.Printf("Warning: failed to scan for scenario dependencies: %v", err)
-	} else {
-		response.Scenarios = append(response.Scenarios, scenarioDeps...)
-	}
+	response.DetectedResources, response.Scenarios = resources, scenarios
+	return nil
 }
 
 func (a *Analyzer) persistAnalysisResults(
@@ -125,33 +134,39 @@ func (a *Analyzer) persistAnalysisResults(
 	scenarioName string,
 	scenarioPath string,
 	serviceConfig *types.Manifest,
-) {
+) error {
 	if a == nil || a.store == nil {
-		log.Printf("Warning: store not initialized; dependency metadata not persisted")
-		return
+		return fmt.Errorf("dependency store not initialized")
 	}
 
 	if err := a.store.StoreDependencies(response, declaredScenarioDeps); err != nil {
-		log.Printf("Warning: failed to store dependencies in database: %v", err)
+		return fmt.Errorf("store dependencies: %w", err)
 	}
 
 	if err := a.store.UpdateScenarioMetadata(scenarioName, serviceConfig, scenarioPath); err != nil {
-		log.Printf("Warning: failed to update scenario metadata: %v", err)
+		return fmt.Errorf("store metadata: %w", err)
 	}
+	return nil
 }
 
 func (a *Analyzer) attachDeploymentReport(
+	ctx context.Context,
 	response *types.DependencyAnalysisResponse,
 	scenarioName string,
 	scenarioPath string,
 	serviceConfig *types.Manifest,
-) {
-	if deploymentReport := deployment.BuildReport(scenarioName, scenarioPath, a.cfg.ScenariosDir, serviceConfig); deploymentReport != nil {
+) error {
+	deploymentReport, err := deployment.BuildReportContext(ctx, scenarioName, scenarioPath, a.cfg.ScenariosDir, serviceConfig)
+	if err != nil {
+		return err
+	}
+	if deploymentReport != nil {
 		response.DeploymentReport = deploymentReport
 		if err := deployment.PersistReport(scenarioPath, deploymentReport); err != nil {
-			log.Printf("Warning: failed to persist deployment report: %v", err)
+			return fmt.Errorf("persist deployment report: %w", err)
 		}
 	}
+	return nil
 }
 
 // extractDeclaredResources extracts declared resources using default seams.

@@ -42,8 +42,10 @@ no-touched clean/skip behavior, stale `go.mod`/`go.sum` detection through
 `go mod tidy -diff`, optional Go build checks as a separate signal, JSON output
 that identifies affected scenarios and module paths, and next-action/fix
 commands for deterministic Go tidy repair. SDA freshness supersedes that floor
-by covering every discovered Go surface and by routing missing local replace
-repair through `scenario-dependency-analyzer deps reconcile`.
+by covering every discovered Go surface. Freshness is read-only: tidy drift and
+missing local replaces are both repaired through the governed
+`scenario-dependency-analyzer deps reconcile`, documented in
+[Go module convergence](../../../../docs/package-governance.md#go-module-convergence).
 Reports classify deterministic tidy drift as automatic and missing local
 replace reconciliation as guided preview/apply work so root hygiene can show
 users and agents every relevant recovery command instead of only the first fix.
@@ -62,11 +64,12 @@ belong to `package_readiness`. Discovery or classification failures belong to
 `surface_inventory`. New emitted rule IDs must be added to
 `.vrooli/maturity.json` before tests can pass.
 
-Autofix is preview/apply only. Deterministic repairs may be implemented for
-specific Go surfaces, starting with local replace reconciliation and `go mod
-tidy` for a known module root. Unsupported ecosystems, ambiguous package-root
-mapping, optional build failures, and third-party dependency governance changes
-remain advisory until SDA has a typed fixer that can prove the write is safe.
+Autofix is preview/apply only. The deterministic Go repair is module
+convergence (`deps reconcile`): local replaces plus `go mod tidy` on a scratch
+copy. Any requirement the module would newly record passes the dependency gate
+before anything is written. Unsupported ecosystems, ambiguous package-root
+mapping, and optional build failures remain advisory until SDA has a typed fixer
+that can prove the write is safe.
 
 Approved dependency governance is exposed through generated Connect-backed commands: `deps approved list`, `deps approved search`, `deps approved explain`, `deps approved validate`, `deps approved triage`, `deps approved findings`, `deps approved usage`, `deps approved propose-records`, `deps approved upsert-batch`, `deps approved security-gaps`, `deps approved approve-observed`, `deps approved widen-range`, `deps approved upsert`, `deps approved approve`, `deps approved deny`, `deps approved remediate`, and `deps approved deny-vulnerable`. `deps approved validate --all --json` returns a first-class fleet rollup with per-scenario results, dependency usage groups, and normalized signal categories such as `direct_runtime`, `direct_dev`, `indirect`, and `lockfile_transitive`. `deps approved triage` groups fleet findings into operator decisions; use `--section security|seeding|ranges|hotspots|expired`, `--limit`, or `--json` for typed output. Its next commands include typed recipes such as `approve-observed <ecosystem>/<package> --from-findings` and `widen-range <ecosystem>/<package> --to-major-line`, both dry-run by default. `deps approved security-gaps` consumes Security Health vulnerability evidence and shows vulnerable package/version/advisory exposures that are not yet covered by SDA denied governance records. `deps approved propose-records --json` turns high-frequency unrecorded direct dependencies into honest draft records, and `deps approved upsert-batch --file proposals.json --dry-run --json` previews atomic registry changes before `--apply`. `deps approved findings --json` filters raw fleet findings, and `deps approved usage <ecosystem>/<package> --json` shows every scenario/surface using one dependency. Mutation commands dry-run by default and require `--apply` to write `.vrooli/dependencies/approved-dependencies.json`; `approve`, `deny`, and recipe commands accept range policy controls so broad decisions are explicit. Security-derived denial commands consume Security Health vulnerability evidence, write `security_denied` range policy records, and do not run scanners inside SDA. Approved dependency records are not an exhaustive allowlist; unrecorded packages produce review guidance in advisory mode and fail in strict mode.
 

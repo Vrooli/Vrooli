@@ -1,12 +1,13 @@
 package detection
 
 import (
+	"context"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,6 +23,9 @@ import (
 // resourceScanner handles resource dependency detection
 type resourceScanner struct {
 	catalog *catalogManager
+	// Immutable patterns are shared across scans. Cache only canonical catalog
+	// names, never source text; catalog removal still stops matching that name.
+	heuristicPatterns sync.Map
 }
 
 // newResourceScanner creates a scanner for detecting resource dependencies
@@ -33,10 +37,27 @@ func newResourceScanner(catalog *catalogManager) *resourceScanner {
 
 // scan walks the scenario directory and detects all resource dependencies
 func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.Manifest) ([]types.ScenarioDependency, error) {
+	return s.scanContext(context.Background(), scenarioPath, scenarioName, cfg)
+}
+
+func (s *resourceScanner) scanContext(ctx context.Context, scenarioPath, scenarioName string, cfg *types.Manifest) ([]types.ScenarioDependency, error) {
 	results := map[string]types.ScenarioDependency{}
 
 	err := filepath.WalkDir(scenarioPath, func(path string, entry fs.DirEntry, walkErr error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if walkErr != nil {
+			return walkErr
+		}
+		rel, relErr := filepath.Rel(scenarioPath, path)
+		if relErr != nil {
+			return relErr
+		}
+		if shouldIgnoreDetectionFile(rel) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 
@@ -58,20 +79,9 @@ func (s *resourceScanner) scan(scenarioPath, scenarioName string, cfg *types.Man
 		}
 
 		// Read file content
-		content, err := os.ReadFile(path) // #nosec G304,G122 -- path comes from WalkDir under scenarioPath and symlink entries are skipped.
+		content, err := readDetectionSource(ctx, path, entry) // #nosec G304,G122 -- path comes from WalkDir under scenarioPath and symlink entries are skipped.
 		if err != nil {
-			return nil
-		}
-
-		// Calculate relative path for filtering
-		rel, relErr := filepath.Rel(scenarioPath, path)
-		if relErr != nil {
-			rel = path
-		}
-
-		// Skip documentation and test files
-		if shouldIgnoreDetectionFile(rel) {
-			return nil
+			return err
 		}
 
 		// Scan this file for resource dependencies
@@ -129,8 +139,20 @@ func (s *resourceScanner) detectResourceCLICommands(content, relPath, scenarioNa
 // usage is delegated to code-facts/go-code-graph in the
 // scenario-dependency-analyzer-code-evidence-via-ast-facts follow-up.
 func (s *resourceScanner) detectResourceHeuristics(content, relPath, scenarioName string, results map[string]types.ScenarioDependency) {
+	// Every heuristic contains the literal resource name. For ASCII source and
+	// names, rule out absent names once before running four regular expressions.
+	// Keep Unicode on the regex path: Unicode case folding is broader than
+	// strings.ToLower (for example, long-s can match ASCII s).
+	asciiContent := isASCII(content)
+	lowerContent := ""
+	if asciiContent {
+		lowerContent = strings.ToLower(content)
+	}
 	for resourceName := range s.catalog.getResourceCatalog() {
-		for _, pattern := range resourceHeuristicPatterns(resourceName) {
+		if asciiContent && isASCII(resourceName) && !strings.Contains(lowerContent, normalizeName(resourceName)) {
+			continue
+		}
+		for _, pattern := range s.patternsForResource(resourceName) {
 			if !pattern.MatchString(content) {
 				continue
 			}
@@ -138,6 +160,24 @@ func (s *resourceScanner) detectResourceHeuristics(content, relPath, scenarioNam
 			break
 		}
 	}
+}
+
+func isASCII(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] >= 128 {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *resourceScanner) patternsForResource(name string) []*regexp.Regexp {
+	name = normalizeName(name)
+	if patterns, ok := s.heuristicPatterns.Load(name); ok {
+		return patterns.([]*regexp.Regexp)
+	}
+	patterns, _ := s.heuristicPatterns.LoadOrStore(name, resourceHeuristicPatterns(name))
+	return patterns.([]*regexp.Regexp)
 }
 
 func resourceHeuristicPatterns(resourceName string) []*regexp.Regexp {

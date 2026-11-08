@@ -11,7 +11,7 @@ import (
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_health"
 )
 
-func (h *connectHandler) checkGoSurface(ctx context.Context, runner commandRunner, surface *healthv1.DependencyHealthSurface) []*healthv1.DependencyHealthFinding {
+func (h *connectHandler) checkGoSurface(ctx context.Context, runner commandRunner, scenario string, surface *healthv1.DependencyHealthSurface) []*healthv1.DependencyHealthFinding {
 	root := packageRoot(surface)
 	modPath := packageConfigPath(surface, "go.mod")
 	if !fileExists(modPath) {
@@ -27,7 +27,7 @@ func (h *connectHandler) checkGoSurface(ctx context.Context, runner commandRunne
 		if observed == "" {
 			observed = err.Error()
 		}
-		findings = append(findings, readinessFinding("go."+surfaceID(surface)+".tidy-diff", "ERROR", "Go module metadata is not tidy", "go mod tidy -diff reported module metadata drift or failed.", "Run `cd "+filepath.ToSlash(root)+" && GOWORK=off go mod tidy`, then rerun dependency health.", surface, "dependency.go.tidy", observed, "go mod tidy -diff exits cleanly"))
+		findings = append(findings, readinessFinding("go."+surfaceID(surface)+".tidy-diff", "ERROR", "Go module metadata is not tidy", "go mod tidy -diff reported that go.mod or go.sum differs from the module's import closure (often after a shared in-repo package gained an import), or failed.", "Run `"+reconcileCLIName+" deps reconcile --scenario "+scenario+" --apply`; it converges go.mod and go.sum and refuses any requirement that still needs a `deps approved` decision. Do not run raw `go mod tidy`.", surface, goModTidyRuleID, observed, "go mod tidy -diff exits cleanly"))
 	}
 	out, err = runner.Run(ctx, root, "go", "build", "./...")
 	if err != nil {

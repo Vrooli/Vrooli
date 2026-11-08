@@ -241,6 +241,14 @@ Scan a scenario and optionally apply detected dependencies to `service.json`.
 ### `GET /api/v1/scenarios/:scenario/deployment`
 Get full deployment readiness report including recursive DAG, tier fitness, and metadata gaps.
 
+Report version 2 expands each scenario's children once. Later incoming edges retain
+the scenario path and edge-specific flags, with a shared-dependency note; consumers
+can resolve that owner's children at its first occurrence. Tier totals count each
+active service or resource once, including dependencies reached through a required
+path after an optional path. Bundle generation follows the owner adjacency graph.
+Reports from older versions are stale. Stored reports larger than 32 MiB require
+recomputation instead of deserialization; a refresh replaces them atomically.
+
 **Parameters**:
 - `scenario` (path): Scenario name
 
@@ -248,7 +256,7 @@ Get full deployment readiness report including recursive DAG, tier fitness, and 
 ```json
 {
   "scenario": "swarm-manager",
-  "report_version": 1,
+  "report_version": 2,
   "generated_at": "2025-01-22T10:00:00Z",
   "dependencies": [
     {

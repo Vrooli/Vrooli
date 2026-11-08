@@ -108,7 +108,7 @@ func runFreshness(args []string) error {
 	fs := support.NewFlagSet("freshness")
 	var repoRoot string
 	var concurrency int
-	var touched, all, apply, build, jsonOutput bool
+	var touched, all, build, jsonOutput bool
 	var module string
 	var timeout time.Duration
 	var noCache bool
@@ -116,7 +116,6 @@ func runFreshness(args []string) error {
 	fs.IntVar(&concurrency, "concurrency", 8, "Maximum package surfaces to check concurrently")
 	fs.BoolVar(&touched, "touched", false, "Only check surfaces impacted by changed in-repo modules")
 	fs.BoolVar(&all, "all", false, "Check every discovered Go scenario surface")
-	fs.BoolVar(&apply, "apply", false, "Run go mod tidy on stale surfaces")
 	fs.BoolVar(&build, "build", false, "Run go build ./... after tidy checks")
 	fs.StringVar(&module, "module", "", "Only check one Go module by repository-relative path or module path")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
@@ -135,7 +134,7 @@ func runFreshness(args []string) error {
 		return fmt.Errorf("--module requires a nonempty module path")
 	}
 	if len(fs.Args()) != 0 || (touched && all) || (moduleSpecified && (touched || all)) {
-		return fmt.Errorf("usage: %s freshness [--touched|--all|--module <path>] [--apply] [--build] [--concurrency <n>] [--repo-root <path>] [--json]", support.AppName)
+		return fmt.Errorf("usage: %s freshness [--touched|--all|--module <path>] [--build] [--concurrency <n>] [--repo-root <path>] [--json]", support.AppName)
 	}
 	if !touched && !all && module == "" {
 		touched = true
@@ -146,7 +145,7 @@ func runFreshness(args []string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	report, err := checkFreshness(ctx, root, freshnessRequest{touched: touched, all: all, module: module, apply: apply, build: build, noCache: noCache, concurrency: concurrency})
+	report, err := checkFreshness(ctx, root, freshnessRequest{touched: touched, all: all, module: module, build: build, noCache: noCache, concurrency: concurrency})
 	if err != nil {
 		return err
 	}
@@ -160,7 +159,6 @@ type freshnessRequest struct {
 	touched     bool
 	all         bool
 	module      string
-	apply       bool
 	build       bool
 	noCache     bool
 	concurrency int
@@ -209,6 +207,11 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 		if len(surfaces) == 0 {
 			return freshnessReport{}, fmt.Errorf("no Go module matches selector %q", req.module)
 		}
+		for _, surface := range surfaces {
+			if surface.ambiguous {
+				return freshnessReport{}, fmt.Errorf("Go module %q is declared from multiple source directories; select one with --module <repository-relative go.mod path>", surface.module)
+			}
+		}
 	} else if req.touched {
 		touchedPaths, err = changedPaths(root)
 		if err != nil {
@@ -218,7 +221,7 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 		touchedPaths = reportTouchedPaths(impacted)
 		surfaces = filterImpactedSurfaces(surfaces, impacted)
 	}
-	cacheEnabled := !req.noCache && !req.apply && !req.build
+	cacheEnabled := !req.noCache && !req.build
 	if cacheEnabled {
 		attachFreshnessCacheFingerprints(surfaces, modules)
 		for idx := range surfaces {
@@ -283,14 +286,10 @@ func checkFreshness(ctx context.Context, root string, req freshnessRequest) (fre
 	}
 	report.Summary.Checked = len(report.Surfaces)
 	if report.Summary.Stale > 0 {
-		command := fmt.Sprintf("%s freshness --%s --apply", support.AppName, report.Mode)
-		if report.Mode == "module" {
-			command = fmt.Sprintf("%s freshness --module %s --apply", support.AppName, shellQuoteCommandArg(req.module))
-		}
 		report.NextActions = append(report.NextActions, freshnessAction{
-			Code:       "apply_go_tidy",
-			Message:    "Run SDA-owned package freshness repair for impacted Go surfaces.",
-			Command:    command,
+			Code:       "reconcile_go_modules",
+			Message:    "Converge the stale Go modules through SDA's governed reconcile; requirements that need a new dependency decision are refused with the exact `deps approved` command.",
+			Command:    reconcileCommand(report),
 			Fixability: "automatic",
 		})
 	}
@@ -313,6 +312,26 @@ func shellQuoteCommandArg(value string) string {
 		return value
 	}
 	return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'"
+}
+
+// reconcileCommand names the governed repair for the stale surfaces: the
+// scenario when they all belong to one, otherwise every module (convergence is
+// idempotent, so converging already-clean modules is a no-op).
+func reconcileCommand(report freshnessReport) string {
+	scenarios := map[string]struct{}{}
+	for _, item := range report.Surfaces {
+		if item.Status == "stale" {
+			scenarios[item.Scenario] = struct{}{}
+		}
+	}
+	if len(scenarios) == 1 {
+		for scenario := range scenarios {
+			if scenario != "root" {
+				return fmt.Sprintf("%s deps reconcile --scenario %s --apply", support.AppName, shellQuoteCommandArg(scenario))
+			}
+		}
+	}
+	return fmt.Sprintf("%s deps reconcile --all-modules --apply", support.AppName)
 }
 
 func filterGoSurfacesByModule(root string, surfaces []goSurface, selector string) []goSurface {
@@ -351,6 +370,9 @@ func discoverGoExclusions(root string, modules map[string]goModule) []freshnessE
 		}
 		if reason == "" && strings.HasPrefix(rel, "templates/") {
 			reason = "template module is a generation source, not a fleet surface"
+		}
+		if reason == "" && excludedGoMod(path, root) {
+			reason = "retained documentation or evidence module, not a fleet surface"
 		}
 		if reason != "" {
 			out = append(out, freshnessExclusionReport{GoModPath: rel, Reason: reason})
@@ -628,7 +650,7 @@ func checkGoFreshness(ctx context.Context, root string, surface goSurface, impac
 		item.Error = fmt.Sprintf("Go module %q is declared from multiple source directories; select one with --module <repository-relative go.mod path>", surface.module)
 		return item
 	}
-	if !req.noCache && !req.apply && !req.build {
+	if !req.noCache && !req.build {
 		if surface.cacheKeyReady {
 			if cached, ok := loadFreshnessCache(root, surface.cacheKey); ok {
 				cached.Scenario, cached.Surface, cached.GoModPath = item.Scenario, item.Surface, item.GoModPath
@@ -673,41 +695,6 @@ func checkGoFreshnessUncached(ctx context.Context, root string, surface goSurfac
 	if !clean {
 		item.Status = "stale"
 		item.DiffPaths = tidyDiffPaths(root, surface.goMod, diff)
-		if req.apply {
-			if _, _, err := runGoCommand(ctx, surfaceRoot, "mod", "tidy"); err != nil {
-				item.Status = "error"
-				item.Error = "go mod tidy --apply failed: " + err.Error()
-				return item
-			}
-			diff, clean, err = runGoCommand(ctx, surfaceRoot, "mod", "tidy", "-diff")
-			if err != nil {
-				item.Status = "error"
-				item.Error = "go mod tidy post-apply verification failed: " + err.Error()
-				return item
-			}
-			if !clean {
-				// `go mod tidy` succeeded and the surface is still stale, so
-				// another tidy cannot fix it either (see forceGoSumRewrite).
-				// Force one full rewrite, then verify again.
-				if err := forceGoSumRewrite(ctx, surfaceRoot); err != nil {
-					item.Status = "error"
-					item.Error = "go.sum forced rewrite failed: " + err.Error()
-					return item
-				}
-				diff, clean, err = runGoCommand(ctx, surfaceRoot, "mod", "tidy", "-diff")
-				if err != nil {
-					item.Status = "error"
-					item.Error = "go mod tidy post-rewrite verification failed: " + err.Error()
-					return item
-				}
-			}
-			if clean {
-				item.Status = "clean"
-				item.DiffPaths = nil
-			} else {
-				item.DiffPaths = tidyDiffPaths(root, surface.goMod, diff)
-			}
-		}
 		return item
 	}
 	if req.build {
@@ -887,78 +874,6 @@ func storeFreshnessCache(root, key string, item freshnessSurfaceReport) {
 			_ = os.Remove(filepath.Join(dir, entry.Name()))
 		}
 	}
-}
-
-// forceGoSumRewrite repairs a go.sum that `go mod tidy` cannot converge.
-//
-// `go mod tidy` rewrites go.sum only when the set of hashes changes. A go.sum
-// holding exactly the right hashes in the wrong order therefore survives every
-// tidy untouched — tidy exits 0, writes nothing, and `tidy -diff` keeps
-// reporting a diff against its canonical sorted form. Without this, `--apply`
-// reports that surface stale forever while advertising an automatic fix.
-//
-// Removing go.sum forces tidy to regenerate it from go.mod, which writes it
-// sorted. The regenerated file must carry the same hash set as the original: a
-// set that changed would mean a real dependency change, which freshness repair
-// must never make on its own. If it differs — or anything else fails — the
-// original file is restored and the caller reports an error.
-func forceGoSumRewrite(ctx context.Context, surfaceRoot string) error {
-	goSum := filepath.Join(surfaceRoot, "go.sum")
-	info, err := os.Stat(goSum)
-	if err != nil {
-		return fmt.Errorf("stat go.sum: %w", err)
-	}
-	original, err := os.ReadFile(goSum)
-	if err != nil {
-		return fmt.Errorf("read go.sum: %w", err)
-	}
-	restore := func() {
-		_ = os.WriteFile(goSum, original, info.Mode().Perm())
-	}
-	if err := os.Remove(goSum); err != nil {
-		return fmt.Errorf("remove go.sum: %w", err)
-	}
-	if _, _, err := runGoCommand(ctx, surfaceRoot, "mod", "tidy"); err != nil {
-		restore()
-		return fmt.Errorf("go mod tidy after go.sum removal: %w", err)
-	}
-	rewritten, err := os.ReadFile(goSum)
-	if err != nil {
-		restore()
-		return fmt.Errorf("read regenerated go.sum: %w", err)
-	}
-	if !sameGoSumEntries(original, rewritten) {
-		restore()
-		return fmt.Errorf("regenerated go.sum changed the hash set; restored the original")
-	}
-	return nil
-}
-
-// sameGoSumEntries reports whether two go.sum files carry the same hash lines,
-// ignoring order and blank lines. Order is exactly what this repair changes.
-func sameGoSumEntries(a, b []byte) bool {
-	left, right := sortedGoSumLines(a), sortedGoSumLines(b)
-	if len(left) != len(right) {
-		return false
-	}
-	for i := range left {
-		if left[i] != right[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func sortedGoSumLines(data []byte) []string {
-	fields := strings.Split(string(data), "\n")
-	out := make([]string, 0, len(fields))
-	for _, line := range fields {
-		if line = strings.TrimSpace(line); line != "" {
-			out = append(out, line)
-		}
-	}
-	sort.Strings(out)
-	return out
 }
 
 const maxImpactedByPaths = 20

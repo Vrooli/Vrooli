@@ -282,6 +282,7 @@ func buildScenarioDependencyNode(scenariosDir, scenarioName string, parentMeta *
 		}
 		graph.paths[normalized] = scenarioPath
 		if _, expanded := graph.children[normalized]; expanded {
+			node.Notes = "shared dependency; children expanded at its first occurrence"
 			return node
 		}
 		graph.children[normalized] = nil

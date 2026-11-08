@@ -171,6 +171,26 @@ separate work; a repaired route alone does not prove that runtime installed.
 
 ## Work ladder
 
+- Scoped repair, 2026-11-05: W3 deployment-report path expansion. The live API reached
+  24 GiB RSS within eight minutes; its stored reports occupied 134,315,007,268 bytes
+  across 180 runtime directories. A 16-owner fan-in regression produced 510 nodes.
+  Reports and target DAG exports now reuse bounded owner expansion; active shared
+  dependencies count once in tier totals, and oversized legacy report reads require
+  recomputation. The regression now retains 30 edges and about 12 KiB. Focused
+  deployment/app/graph-ingest/sweeper tests pass. Live Android report regeneration
+  reduced 8,568,754,340 bytes to about 848 KiB with 75 unique dependencies, and the
+  heap returned to about 11 MiB. The fleet refresh completed at 14:30:43 EST,
+  reducing the 127 live reports to 46,773,805 bytes; the client attachment timed
+  out at 300 seconds while the original server request continued to completion
+  (10m3.927s, HTTP 200). Existing scanner exclusions now run before file reads
+  and prune excluded directories; a FIFO regression verifies that excluded inputs
+  are never opened. Focused scanner/app/deployment tests pass.
+  Test Genie unit run `20261105-191856-6c42fdd2` failed on the trusted-base
+  closure, two CLI freshness tests, and UI coverage thresholds. The edited
+  implementation's focused checks passed; the broader scenario gate remains failed.
+  This scoped implementation repair makes no W0–W2 claim;
+  the broader contract finding below remains unchanged.
+
 - Rung: W0 (goal/problem contract comparison)
 - Evidence: Indexed goals `search-hub-corpus-buildout` and `search-hub-federation-adoption` direct search capabilities for this scenario, while the P0 PRD targets do not name those search capabilities. The W0 contract therefore remains false for the scenario's broader goal set; this portability plan only consumes SDA's platform-verdict implementation and does not rewrite its product contract.
 - Constraint: Do not substitute the portability plan or dependency-governance evidence for the unresolved search-goal contract mismatch. No lower scenario gate was run under W0.

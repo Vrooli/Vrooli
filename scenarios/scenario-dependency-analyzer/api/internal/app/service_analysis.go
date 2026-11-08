@@ -16,10 +16,3 @@ func (s *analysisService) AnalyzeScenario(name string) (*types.DependencyAnalysi
 	}
 	return s.analyzer.AnalyzeScenario(name)
 }
-
-func (s *analysisService) AnalyzeAllScenarios() (map[string]*types.DependencyAnalysisResponse, error) {
-	if s == nil || s.analyzer == nil {
-		return nil, fmt.Errorf("analysis service not initialized")
-	}
-	return s.analyzer.AnalyzeAllScenarios()
-}

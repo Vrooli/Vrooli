@@ -1,3 +1,9 @@
+import { createClient } from "@connectrpc/connect";
+import {
+  AnalysisOperationsService,
+  AnalysisOperationKind,
+  AnalysisOperationState
+} from "@vrooli/proto-types/scenario-dependency-analyzer/v1/analysis_operations/analysis_operations_pb";
 import { buildApiUrl, createScenarioConnectTransport, resolveApiBase } from "@vrooli/api-base";
 import type { DescribeInterfaceGraphResponse } from "@vrooli/proto-types/scenario-dependency-analyzer/v1/graph/graph_pb";
 
@@ -47,8 +53,37 @@ export function fetchAnalysisHealth(): Promise<AnalysisHealthResponse> {
   return requestJson<AnalysisHealthResponse>("/health/analysis");
 }
 
+export const analysisOperationsClient = createClient(AnalysisOperationsService, transport);
+const pendingAnalysisKey = `sda:fleet-analysis:${API_BASE}`;
+let pendingAnalysisCaller: string | null = null;
+
+// Retain the admission key across lost responses and page reloads. Replaying it
+// recovers the same durable receipt, including a terminal/interrupted outcome.
 export async function analyzeAllScenarios(): Promise<void> {
-  await requestJson<unknown>("/analyze/all");
+  if (!pendingAnalysisCaller) {
+    try { pendingAnalysisCaller = sessionStorage.getItem(pendingAnalysisKey); } catch { /* Session storage may be disabled. */ }
+    pendingAnalysisCaller ??= crypto.randomUUID();
+    try { sessionStorage.setItem(pendingAnalysisKey, pendingAnalysisCaller); } catch { /* In-memory replay still works. */ }
+  }
+  const caller = pendingAnalysisCaller;
+  const started = await analysisOperationsClient.startOperation({
+    clientOperationId: caller,
+    kind: AnalysisOperationKind.FLEET_ANALYSIS
+  });
+  if (!started.operation?.id) throw new Error("Fleet analysis returned no operation receipt");
+  const result = await analysisOperationsClient.waitOperation({ operationId: started.operation.id });
+  const operation = result.operation;
+  if (!operation || ![
+    AnalysisOperationState.SUCCEEDED, AnalysisOperationState.PARTIAL,
+    AnalysisOperationState.FAILED, AnalysisOperationState.INTERRUPTED
+  ].includes(operation.state)) throw new Error("Fleet analysis returned no terminal outcome");
+  if (pendingAnalysisCaller === caller) {
+    pendingAnalysisCaller = null;
+    try { if (sessionStorage.getItem(pendingAnalysisKey) === caller) sessionStorage.removeItem(pendingAnalysisKey); } catch { /* Optional browser storage. */ }
+  }
+  if (operation.state !== AnalysisOperationState.SUCCEEDED) {
+    throw new Error(`Fleet analysis ${operation.id}: ${operation.error || "did not succeed"}`);
+  }
 }
 
 export function fetchScenarioSummaries(): Promise<ScenarioSummary[]> {

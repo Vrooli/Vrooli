@@ -2,6 +2,7 @@ package dependencygovernance
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -294,14 +295,14 @@ func TestHarnessInstallGovernanceBeforeEffects(t *testing.T) {
 			}
 			writeRegistry(t, root, record)
 			dir := filepath.Join(root, "resources", "codex")
-			if err := os.MkdirAll(dir, 0700); err != nil {
+			if err := os.MkdirAll(dir, 0o700); err != nil {
 				t.Fatal(err)
 			}
 			data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "resources", "codex", "resource.json"))
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(filepath.Join(dir, "resource.json"), data, 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "resource.json"), data, 0o600); err != nil {
 				t.Fatal(err)
 			}
 			installer := &recordingInstaller{}
@@ -313,6 +314,53 @@ func TestHarnessInstallGovernanceBeforeEffects(t *testing.T) {
 			want := tc.verdict == "approved"
 			if installer.called != want || resp.Msg.GetInstalled() != want || resp.Msg.GetBlocked() == want || resp.Msg.GetVerdict() != tc.verdict {
 				t.Fatalf("unsafe governance outcome: called=%v resp=%v", installer.called, resp.Msg)
+			}
+		})
+	}
+}
+
+func TestManagedServiceArtifactGovernanceStagesWithoutClaimingActivation(t *testing.T) {
+	for _, tc := range []struct {
+		name, state string
+		apply       bool
+	}{{"preview", "approved", false}, {"stage", "approved", true}, {"refused", "denied", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			dir := filepath.Join(root, "resources", "cloudflared")
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "resources", "cloudflared", "resource.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "resource.json"), data, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			var manifest struct {
+				ManagedService struct {
+					Artifact struct {
+						Version string `json:"version"`
+					} `json:"artifact"`
+				} `json:"managed_service"`
+			}
+			if err := json.Unmarshal(data, &manifest); err != nil {
+				t.Fatal(err)
+			}
+			version := manifest.ManagedService.Artifact.Version
+			writeRegistry(t, root, fmt.Sprintf(`{"records":[{"ecosystem":"source","package_name":"cloudflared","state":"%s","rationale":"Reviewed fixture.","version_range":"%s","allowed_surfaces":["host-tool"]}]}`, tc.state, version))
+			installer := &recordingInstaller{}
+			h := &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer}
+			resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{Scenario: "cloudflared", Surface: "host-tool", Ecosystem: "source", PackageName: "cloudflared", Version: version, ExactVersion: true, Apply: tc.apply}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantInstall := tc.state == "approved" && tc.apply
+			if installer.called != wantInstall || resp.Msg.GetInstalled() != wantInstall || resp.Msg.GetBlocked() != (tc.state == "denied") {
+				t.Fatalf("staging governance failed: called=%v resp=%v", installer.called, resp.Msg)
+			}
+			if tc.state == "approved" && !strings.Contains(resp.Msg.Message, "serving process unchanged") && !strings.Contains(resp.Msg.Message, "serving process remains unchanged") {
+				t.Fatalf("artifact install overclaims activation: %v", resp.Msg)
 			}
 		})
 	}

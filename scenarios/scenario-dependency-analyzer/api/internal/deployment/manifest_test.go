@@ -147,6 +147,52 @@ func TestFreshBundleManifestBoundsRepeatedFanIn(t *testing.T) {
 	t.Logf("18-level fan-in: %d owners, %d retained edges, %d manifest bytes", len(graph.children), count, len(raw))
 }
 
+func TestBuildReportBoundsRepeatedFanIn(t *testing.T) {
+	dir := t.TempDir()
+	const levels = 8
+	for level := levels - 1; level >= 0; level-- {
+		for _, side := range []string{"a", "b"} {
+			deps := map[string]scenariomodel.Dependency{}
+			if level+1 < levels {
+				for _, next := range []string{"a", "b"} {
+					deps[fmt.Sprintf("n%02d%s", level+1, next)] = scenariomodel.Dependency{Required: true}
+				}
+			}
+			writeBundleGraphOwner(t, dir, fmt.Sprintf("n%02d%s", level, side), deps)
+		}
+	}
+	writeBundleGraphOwner(t, dir, "root", map[string]scenariomodel.Dependency{"n00a": {Required: true}, "n00b": {Required: true}})
+	path := filepath.Join(dir, "root")
+	cfg, err := config.LoadServiceConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := BuildReport("root", path, dir, cfg)
+	count := 0
+	var walk func([]types.DeploymentDependencyNode)
+	walk = func(nodes []types.DeploymentDependencyNode) {
+		for _, node := range nodes {
+			count++
+			walk(node.Children)
+		}
+	}
+	walk(report.Dependencies)
+	if count > 4*levels {
+		t.Fatalf("report expanded shared dependency paths: %d nodes for %d owners", count, 2*levels)
+	}
+	if len(report.BundleManifest.Dependencies) != 2*levels {
+		t.Fatalf("lost unique dependency owners: %d", len(report.BundleManifest.Dependencies))
+	}
+	raw, err := json.Marshal(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(raw) > 400000 {
+		t.Fatalf("report output grew with dependency paths: %d bytes", len(raw))
+	}
+	t.Logf("%d owners, %d retained edges, %d report bytes", 2*levels, count, len(raw))
+}
+
 func TestFreshBundleManifestHonorsCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

@@ -1,70 +1,37 @@
 package dependencyhealth
 
 import (
-	"encoding/json"
+	"os"
 	"path/filepath"
-	"reflect"
-	"runtime"
+	"strings"
 	"testing"
-
-	"github.com/vrooli/vrooli/packages/deployability"
 )
 
-func TestDeclaredToolPlatformsUsesCanonicalPlatformStatus(t *testing.T) {
-	got := declaredToolPlatforms(portabilityToolManifest{
-		PlatformStatus: map[string]struct {
-			Status string `json:"status"`
-		}{
-			"linux":   {Status: "unqualified"},
-			"macos":   {Status: "unqualified"},
-			"windows": {Status: "unsupported"},
-		},
-	})
-	want := []deployability.HostOS{deployability.HostOSLinux, deployability.HostOSMacOS}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("declaredToolPlatforms() = %v, want %v", got, want)
+func writeToolManifest(t *testing.T, repoRoot, name, body string) {
+	t.Helper()
+	dir := filepath.Join(repoRoot, "internal", "tools", name)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "tool.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 
-func TestDeclaredToolPlatformsPrefersLegacyApplicabilityList(t *testing.T) {
-	got := declaredToolPlatforms(portabilityToolManifest{
-		Platforms: []string{"macos"},
-		PlatformStatus: map[string]struct {
-			Status string `json:"status"`
-		}{
-			"linux": {Status: "unqualified"},
-		},
-	})
-	want := []deployability.HostOS{deployability.HostOSMacOS}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("declaredToolPlatforms() = %v, want %v", got, want)
-	}
-}
-
-func TestHasAcquisitionTargetsRecognizesGovernedSourceTargets(t *testing.T) {
-	for name, raw := range map[string]string{
-		"declared targets": `{"kind":"url","targets":[{"when":{"os":"darwin"},"url":"https://example.invalid/buf"}]}`,
-		"empty targets":    `{"kind":"url","targets":[]}`,
-		"null":             `null`,
-	} {
-		t.Run(name, func(t *testing.T) {
-			var manifest json.RawMessage = []byte(raw)
-			got := hasAcquisitionTargets(manifest)
-			want := name == "declared targets"
-			if got != want {
-				t.Fatalf("hasAcquisitionTargets() = %t, want %t", got, want)
-			}
-		})
-	}
-}
-
-func TestValidateToolAcquisitionCoverageEnumeratesRepositoryTools(t *testing.T) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(filename), "..", "..", "..", "..", ".."))
+// The repository's own manifests are held to the rule by the control plane
+// (internal/tools TestToolManifestsDeclareAcquisitionRouteForEveryPlatform).
+// This test proves the provider reads the repository's internal/tools
+// directory and surfaces the shared rule's verdict.
+func TestValidateToolAcquisitionCoverageReadsRepositoryToolDirectory(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeToolManifest(t, repoRoot, "covered", `{"name": "covered", "defaultPackage": "covered"}`)
 	if err := validateToolAcquisitionCoverage(repoRoot); err != nil {
-		t.Fatalf("repository tool acquisition validation failed: %v", err)
+		t.Fatalf("covered tool rejected: %v", err)
+	}
+
+	writeToolManifest(t, repoRoot, "gap", `{"name": "gap", "platform_status": {"linux": {"status": "unqualified"}, "macos": {"status": "unsupported"}, "windows": {"status": "unsupported"}}}`)
+	err := validateToolAcquisitionCoverage(repoRoot)
+	if err == nil || !strings.Contains(err.Error(), `tool "gap" claims linux`) {
+		t.Fatalf("uncovered tool not reported: %v", err)
 	}
 }

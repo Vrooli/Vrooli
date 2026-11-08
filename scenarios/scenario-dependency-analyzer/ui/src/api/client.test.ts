@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { create } from "@bufbuild/protobuf";
+import { AnalysisOperationState, StartOperationResponseSchema, WaitOperationResponseSchema } from "@vrooli/proto-types/scenario-dependency-analyzer/v1/analysis_operations/analysis_operations_pb";
 
-import { fetchAnalysisHealth, fetchDependencyGraph, fetchDeploymentReport } from "./client";
+import { analyzeAllScenarios, analysisOperationsClient, fetchAnalysisHealth, fetchDependencyGraph, fetchDeploymentReport } from "./client";
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -21,6 +23,34 @@ beforeEach(() => {
 });
 
 describe("API client", () => {
+  it("reattaches after an observer failure using the same admission key", async () => {
+    const start = vi.spyOn(analysisOperationsClient, "startOperation").mockResolvedValue(create(StartOperationResponseSchema, { operation: { id: "persisted" } }));
+    const wait = vi.spyOn(analysisOperationsClient, "waitOperation")
+      .mockRejectedValueOnce(new Error("connection lost"))
+      .mockResolvedValue(create(WaitOperationResponseSchema, { operation: { id: "persisted", state: AnalysisOperationState.SUCCEEDED } }));
+    await expect(analyzeAllScenarios()).rejects.toThrow("connection lost");
+    await expect(analyzeAllScenarios()).resolves.toBeUndefined();
+    expect(start).toHaveBeenCalledTimes(2);
+    expect(start.mock.calls[0]?.[0]?.clientOperationId).toBeTruthy();
+    expect(start.mock.calls[1]?.[0]?.clientOperationId).toBe(start.mock.calls[0]?.[0]?.clientOperationId);
+    expect(wait).toHaveBeenCalledTimes(2);
+    expect(wait).toHaveBeenLastCalledWith({ operationId: "persisted" });
+    expect(fetch).not.toHaveBeenCalled();
+    start.mockRestore(); wait.mockRestore();
+  });
+
+  it("reports partial analysis and requires a new key for a deliberate rerun", async () => {
+    const start = vi.spyOn(analysisOperationsClient, "startOperation").mockResolvedValue(create(StartOperationResponseSchema, { operation: { id: "partial" } }));
+    const wait = vi.spyOn(analysisOperationsClient, "waitOperation")
+      .mockResolvedValueOnce(create(WaitOperationResponseSchema, { operation: { id: "partial", state: AnalysisOperationState.PARTIAL, error: "alpha could not be read" } }))
+      .mockResolvedValue(create(WaitOperationResponseSchema, { operation: { id: "next", state: AnalysisOperationState.SUCCEEDED } }));
+    await expect(analyzeAllScenarios()).rejects.toThrow("alpha could not be read");
+    await expect(analyzeAllScenarios()).resolves.toBeUndefined();
+    expect(start.mock.calls[0]?.[0]?.clientOperationId).toBeTruthy();
+    expect(start.mock.calls[1]?.[0]?.clientOperationId).not.toBe(start.mock.calls[0]?.[0]?.clientOperationId);
+    start.mockRestore(); wait.mockRestore();
+  });
+
   it("loads dependency graphs through the shared URL builder", async () => {
     await expect(fetchDependencyGraph("combined")).resolves.toMatchObject({
       id: "graph",

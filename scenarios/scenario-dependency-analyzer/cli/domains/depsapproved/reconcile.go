@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -20,24 +21,37 @@ import (
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
 )
 
-// goModReplaceRuleID mirrors the API fix-class id; the CLI scopes the Fix RPC to
-// this class so `deps reconcile` only ever touches in-repo go.mod replaces.
-const goModReplaceRuleID = "dependency.gomod.replace.missing"
+// goModRuleIDs mirror the API fix classes for Go module convergence: missing
+// in-repo replaces and go.mod/go.sum drift from the import closure. Both resolve
+// to the same per-surface convergence.
+var goModRuleIDs = []string{"dependency.gomod.replace.missing", "dependency.go.tidy"}
 
-// runReconcile is the operator entry point for repairing missing in-repo go.mod
-// replaces. It is dry-run by default (PreviewFix); --apply writes + tidies via
-// ApplyFix. It flows through the same SDA-owned reconcile primitive as the
-// test-genie dependencies phase, so detection and remediation never drift.
+// Message prefixes the API uses for surfaces it did not write.
+const (
+	fixMessageRefused = "refused "
+	fixMessageFailed  = "failed "
+)
+
+// runReconcile is the operator entry point for Go module convergence: every
+// selected surface's go.mod and go.sum are brought in line with its import
+// closure (missing in-repo replaces, plus third-party requirements and
+// checksums that shared in-repo modules pull in). It is dry-run by default
+// (PreviewFix); --apply writes through ApplyFix; --check previews and exits
+// non-zero when anything would change. Requirements a surface would newly
+// record pass the dependency governance gate; refused surfaces are left
+// untouched and reported with the `deps approved` command that unblocks them.
+// This is the same SDA-owned path as the test-genie dependencies phase.
 func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("deps reconcile")
-	var scenario, surface string
+	var scenario, surface, module string
 	var all, allModules, apply, check, jsonOutput bool
 	fs.StringVar(&scenario, "scenario", "", "Target scenario")
+	fs.StringVar(&module, "module", "", "Target exactly one Go module directory (absolute, or relative to the working directory); may be outside the repository, e.g. a freshly generated scenario")
 	fs.StringVar(&surface, "surface", "", "Only report/fix this surface (api|cli|ui|…)")
 	fs.BoolVar(&all, "all", false, "Reconcile every discovered scenario")
-	fs.BoolVar(&allModules, "all-modules", false, "Reconcile every buildable in-repo Go module")
-	fs.BoolVar(&apply, "apply", false, "Write the replaces (default is a dry run)")
-	fs.BoolVar(&check, "check", false, "Check go.sum entries for in-repo module requirements (writes nothing; non-zero exit on drift)")
+	fs.BoolVar(&allModules, "all-modules", false, "Reconcile every buildable in-repo Go module (scenarios, resources, packages, control plane)")
+	fs.BoolVar(&apply, "apply", false, "Write the converged go.mod/go.sum (default is a dry run)")
+	fs.BoolVar(&check, "check", false, "Dry run that exits non-zero when any module would change")
 	fs.BoolVar(&jsonOutput, "json", false, "Output raw JSON")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
@@ -45,66 +59,73 @@ func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 	if len(fs.Args()) != 0 {
 		return reconcileUsage()
 	}
-	if allModules && (all || scenario != "") || !allModules && all == (scenario != "") {
+	selectors := 0
+	for _, selected := range []bool{allModules, all, scenario != "", module != ""} {
+		if selected {
+			selectors++
+		}
+	}
+	if selectors != 1 {
 		return reconcileUsage()
 	}
-	if check && surface != "" {
-		return fmt.Errorf("--check may not be combined with --surface")
+	if check && apply {
+		return fmt.Errorf("--check is a dry run and may not be combined with --apply")
 	}
 
-	var modulePaths map[string]string
-	if allModules {
-		var err error
-		modulePaths, err = discoverBuildableModules()
+	var targets []reconcileTarget
+	switch {
+	case module != "":
+		dir, err := filepath.Abs(module)
 		if err != nil {
 			return err
 		}
-	}
-	if check {
-		return runReconcileCheck(core, scenario, all, allModules, modulePaths, jsonOutput)
-	}
-
-	targets := []string{scenario}
-	if allModules {
-		targets = make([]string, 0, len(modulePaths))
-		for path := range modulePaths {
-			targets = append(targets, path)
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err != nil {
+			return fmt.Errorf("--module %s: no go.mod: %w", module, err)
 		}
-		sort.Strings(targets)
-	}
-	if all {
-		var err error
-		targets, err = listScenarioNames(core)
+		// A bare module path converges exactly that module.
+		targets = []reconcileTarget{{label: dir, req: &scenariovalidationv1.FixRequest{Path: dir, RuleIds: goModRuleIDs}}}
+	case allModules:
+		modulePaths, err := discoverBuildableModules()
 		if err != nil {
 			return err
 		}
+		for rel, goModPath := range modulePaths {
+			// A bare module path converges exactly that module.
+			targets = append(targets, reconcileTarget{label: filepath.Dir(rel), req: &scenariovalidationv1.FixRequest{Path: filepath.Dir(goModPath), RuleIds: goModRuleIDs}})
+		}
+		sort.Slice(targets, func(i, j int) bool { return targets[i].label < targets[j].label })
+	case all:
+		names, err := listScenarioNames(core)
+		if err != nil {
+			return err
+		}
+		for _, name := range names {
+			targets = append(targets, reconcileTarget{label: name, req: &scenariovalidationv1.FixRequest{Scenario: name, RuleIds: goModRuleIDs}})
+		}
+	default:
+		targets = []reconcileTarget{{label: scenario, req: &scenariovalidationv1.FixRequest{Scenario: scenario, RuleIds: goModRuleIDs}}}
 	}
 
 	client := validationClient(core)
 	responses := make([]*scenariovalidationv1.FixResponse, len(targets))
 	sem := make(chan struct{}, 8)
 	var wg sync.WaitGroup
-	for idx, name := range targets {
-		idx, name := idx, name
+	for idx, target := range targets {
+		idx, target := idx, target
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			req := &scenariovalidationv1.FixRequest{Scenario: name, RuleIds: []string{goModReplaceRuleID}}
-			if allModules {
-				req.Scenario = filepath.Base(filepath.Dir(modulePaths[name]))
-				req.Path = filepath.Dir(modulePaths[name])
-			}
 			var resp *connect.Response[scenariovalidationv1.FixResponse]
 			var err error
 			if apply {
-				resp, err = client.ApplyFix(context.Background(), connect.NewRequest(req))
+				resp, err = client.ApplyFix(context.Background(), connect.NewRequest(target.req))
 			} else {
-				resp, err = client.PreviewFix(context.Background(), connect.NewRequest(req))
+				resp, err = client.PreviewFix(context.Background(), connect.NewRequest(target.req))
 			}
 			if err != nil {
-				responses[idx] = &scenariovalidationv1.FixResponse{Scenario: name, Messages: []string{fmt.Sprintf("%s: %v", name, err)}}
+				responses[idx] = &scenariovalidationv1.FixResponse{Messages: []string{fmt.Sprintf("%s%s: %v", fixMessageFailed, target.label, err)}}
 				return
 			}
 			responses[idx] = filterSurface(resp.Msg, surface)
@@ -112,91 +133,101 @@ func runReconcile(core *cliapp.ScenarioApp, args []string) error {
 	}
 	wg.Wait()
 
-	var synced, syncFailures []string
-	if apply {
-		dirs, derr := reconcileCheckTargets(core, scenario, all, allModules, modulePaths)
-		if derr != nil {
-			return derr
-		}
-		for _, dir := range filterDirsBySurface(dirs, surface) {
-			changed, terr := tidySurface(dir)
-			if terr != nil {
-				syncFailures = append(syncFailures, fmt.Sprintf("%s: %v", dir, terr))
-				continue
-			}
-			if changed {
-				synced = append(synced, dir)
-			}
-		}
-		sort.Strings(synced)
-		sort.Strings(syncFailures)
-	}
-
+	report := buildReconcileReport(targets, responses, apply, check)
 	if jsonOutput {
-		if len(synced) == 0 && len(syncFailures) == 0 {
-			if len(responses) == 1 {
-				return printProto(responses[0])
-			}
-			return printReconcileJSON(responses)
+		if err := support.PrintReportJSON(report); err != nil {
+			return err
 		}
-		return support.PrintReportJSON(struct {
-			Responses   []*scenariovalidationv1.FixResponse `json:"responses"`
-			GoSumSynced []string                            `json:"gosum_synced,omitempty"`
-			GoSumFailed []string                            `json:"gosum_failures,omitempty"`
-		}{Responses: responses, GoSumSynced: synced, GoSumFailed: syncFailures})
-	}
-	if err := printReconcileReport(responses, apply); err != nil {
+	} else if err := printReconcileReport(report); err != nil {
 		return err
 	}
+	return report.err()
+}
+
+type reconcileTarget struct {
+	label string
+	req   *scenariovalidationv1.FixRequest
+}
+
+// reconcileReport is the CLI's view of a reconcile run. go.mod edits carry
+// their before/after content; go.sum edits are summarized, since checksum
+// files are large and fully determined by the go.mod they accompany.
+type reconcileReport struct {
+	Mode    string            `json:"mode"`
+	Targets int               `json:"targets"`
+	Changes []reconcileChange `json:"changes,omitempty"`
+	Refused []string          `json:"refused,omitempty"`
+	Failed  []string          `json:"failed,omitempty"`
+}
+
+type reconcileChange struct {
+	Target      string `json:"target"`
+	File        string `json:"file"`
+	RuleID      string `json:"rule_id"`
+	Description string `json:"description"`
+	Applied     bool   `json:"applied"`
+	Before      string `json:"before,omitempty"`
+	After       string `json:"after,omitempty"`
+}
+
+func buildReconcileReport(targets []reconcileTarget, responses []*scenariovalidationv1.FixResponse, apply, check bool) reconcileReport {
+	report := reconcileReport{Mode: "preview", Targets: len(targets)}
 	if apply {
-		fmt.Printf("go.sum synchronized for %d module(s).\n", len(synced))
-		for _, dir := range syncFailures {
-			fmt.Printf("go.sum sync failed: %s\n", dir)
+		report.Mode = "apply"
+	} else if check {
+		report.Mode = "check"
+	}
+	for idx, resp := range responses {
+		for _, candidate := range resp.GetCandidates() {
+			change := reconcileChange{
+				Target:      targets[idx].label,
+				File:        candidate.GetFilePath(),
+				RuleID:      candidate.GetRuleId(),
+				Description: candidate.GetDescription(),
+				Applied:     candidate.GetApplied(),
+			}
+			if filepath.Base(change.File) == "go.mod" {
+				change.Before, change.After = candidate.GetBefore(), candidate.GetAfter()
+			}
+			report.Changes = append(report.Changes, change)
 		}
+		for _, message := range resp.GetMessages() {
+			switch {
+			case strings.HasPrefix(message, fixMessageRefused):
+				report.Refused = append(report.Refused, strings.TrimPrefix(message, fixMessageRefused))
+			case strings.HasPrefix(message, fixMessageFailed):
+				report.Failed = append(report.Failed, strings.TrimPrefix(message, fixMessageFailed))
+			}
+		}
+	}
+	sort.Strings(report.Refused)
+	sort.Strings(report.Failed)
+	return report
+}
+
+// err makes refusals and failures — and, for --check, any pending change —
+// a non-zero exit so the command can gate a workflow.
+func (r reconcileReport) err() error {
+	if len(r.Refused) > 0 || len(r.Failed) > 0 {
+		// The error carries each outcome so callers that keep only stderr (a
+		// generator, a lifecycle hook) still show the exact next step.
+		lines := make([]string, 0, len(r.Refused)+len(r.Failed))
+		for _, refused := range r.Refused {
+			lines = append(lines, "refused "+refused)
+		}
+		for _, failed := range r.Failed {
+			lines = append(lines, "failed "+failed)
+		}
+		return fmt.Errorf("deps reconcile: %d surface requirement(s) refused, %d surface(s) failed:\n  %s", len(r.Refused), len(r.Failed), strings.Join(lines, "\n  "))
+	}
+	if r.Mode == "check" && len(r.Changes) > 0 {
+		return fmt.Errorf("deps reconcile --check: %d file(s) are not converged; run with --apply", len(r.Changes))
 	}
 	return nil
 }
 
 func reconcileUsage() error {
-	return fmt.Errorf("usage: %s deps reconcile (--scenario <name> | --all | --all-modules) [--surface api|cli|ui] [--apply] [--check] [--json]", support.AppName)
-}
-
-// runReconcileCheck executes the read-only go.sum drift check over the selected
-// scope. It writes nothing and returns a non-nil error (non-zero exit) when any
-// module's go.sum drifts.
-func runReconcileCheck(core *cliapp.ScenarioApp, scenario string, all, allModules bool, modulePaths map[string]string, jsonOutput bool) error {
-	dirs, err := reconcileCheckTargets(core, scenario, all, allModules, modulePaths)
-	if err != nil {
-		return err
-	}
-	return reconcileCheck(dirs, goListDeps, jsonOutput)
-}
-
-func reconcileCheckTargets(core *cliapp.ScenarioApp, scenario string, all, allModules bool, modulePaths map[string]string) ([]string, error) {
-	if allModules {
-		dirs := make([]string, 0, len(modulePaths))
-		for _, goModPath := range modulePaths {
-			dirs = append(dirs, filepath.Dir(goModPath))
-		}
-		return dirs, nil
-	}
-	names := []string{scenario}
-	if all {
-		var err error
-		names, err = listScenarioNames(core)
-		if err != nil {
-			return nil, err
-		}
-	}
-	repoRoot := cliutil.ResolveRepoRoot()
-	var dirs []string
-	for _, name := range names {
-		scenarioDir := filepath.Join(repoRoot, "scenarios", name)
-		for _, goModPath := range scenarioGoMods(scenarioDir) {
-			dirs = append(dirs, filepath.Dir(goModPath))
-		}
-	}
-	return dirs, nil
+	return fmt.Errorf("usage: %s deps reconcile (--scenario <name> | --module <dir> | --all | --all-modules) [--surface api|cli|ui] [--apply | --check] [--json]", support.AppName)
 }
 
 func discoverBuildableModules() (map[string]string, error) {
@@ -210,8 +241,14 @@ func discoverBuildableModulesAt(root string) (map[string]string, error) {
 			return nil
 		}
 		if d.IsDir() {
+			if path == root {
+				return nil
+			}
 			switch d.Name() {
-			case ".git", "node_modules", "vendor", "data", "dist", "build", ".cache", "phase-cache":
+			// Documentation, evidence, fixture, template, and BAS directories
+			// hold retained or synthetic modules that are never build surfaces.
+			case ".git", "node_modules", "vendor", "data", "dist", "build", ".cache", "phase-cache", "coverage",
+				"docs", "testdata", "evidence", "fixtures", ".vrooli", "bas", "templates":
 				return filepath.SkipDir
 			}
 			return nil
@@ -220,11 +257,7 @@ func discoverBuildableModulesAt(root string) (map[string]string, error) {
 			return nil
 		}
 		rel, _ := filepath.Rel(root, path)
-		rel = filepath.ToSlash(rel)
-		if strings.HasPrefix(rel, "docs/") || strings.HasPrefix(rel, "templates/") || strings.Contains(rel, "/bas/") {
-			return nil
-		}
-		out[rel] = path
+		out[filepath.ToSlash(rel)] = path
 		return nil
 	})
 	return out, err
@@ -273,43 +306,33 @@ func filterSurface(resp *scenariovalidationv1.FixResponse, surface string) *scen
 
 func filepathSlash(p string) string { return strings.ReplaceAll(p, "\\", "/") }
 
-func printReconcileJSON(responses []*scenariovalidationv1.FixResponse) error {
-	for _, resp := range responses {
-		if len(responses) == 1 {
-			return printProto(resp)
-		}
-		break
+func printReconcileReport(report reconcileReport) error {
+	results := make([]string, 0, len(report.Changes)+len(report.Refused)+len(report.Failed))
+	for _, change := range report.Changes {
+		results = append(results, fmt.Sprintf("%s: %s — %s", change.Target, change.File, change.Description))
 	}
-	return support.PrintReportJSON(struct {
-		Responses []*scenariovalidationv1.FixResponse `json:"responses"`
-	}{Responses: responses})
-}
-
-func printReconcileReport(responses []*scenariovalidationv1.FixResponse, applied bool) error {
-	results := make([]string, 0)
-	total := 0
-	for _, resp := range responses {
-		for _, c := range resp.GetCandidates() {
-			total++
-			results = append(results, fmt.Sprintf("%s: %s — %s", resp.GetScenario(), c.GetFilePath(), strings.TrimPrefix(c.GetDescription(), "Add ")))
-		}
+	for _, refused := range report.Refused {
+		results = append(results, "REFUSED "+refused)
 	}
-	headline := "No missing in-repo go.mod replaces."
-	if total > 0 {
-		if applied {
-			headline = fmt.Sprintf("Reconciled %d surface go.mod file(s).", total)
-		} else {
-			headline = fmt.Sprintf("%d surface go.mod file(s) need a local replace (dry run).", total)
-		}
+	for _, failed := range report.Failed {
+		results = append(results, "FAILED "+failed)
 	}
-	report := cliapp.ListReport{
+	var headline string
+	switch {
+	case len(report.Changes) == 0 && len(report.Refused) == 0 && len(report.Failed) == 0:
+		headline = fmt.Sprintf("All %d target(s) are converged on their import closure.", report.Targets)
+	case report.Mode == "apply":
+		headline = fmt.Sprintf("Converged %d file(s); %d requirement(s) refused; %d surface(s) failed.", len(report.Changes), len(report.Refused), len(report.Failed))
+	default:
+		headline = fmt.Sprintf("%d file(s) would converge (dry run); %d requirement(s) refused; %d surface(s) failed.", len(report.Changes), len(report.Refused), len(report.Failed))
+	}
+	return support.PrintList(false, cliapp.ListReport{
 		Summary:        []string{headline},
 		ResultsHeading: "Surfaces",
 		Results:        results,
 		RetrievalHints: []string{
-			fmt.Sprintf("%s deps reconcile --all --json", support.AppName),
+			fmt.Sprintf("%s deps reconcile --all-modules --json", support.AppName),
 			fmt.Sprintf("%s deps reconcile --scenario <name> --apply", support.AppName),
 		},
-	}
-	return support.PrintList(false, report, nil)
+	}, nil)
 }

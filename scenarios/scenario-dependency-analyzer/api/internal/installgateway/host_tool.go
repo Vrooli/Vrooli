@@ -19,6 +19,8 @@ import (
 	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/resources"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/tools/akt"
 	"github.com/vrooli/vrooli/internal/tools/hyperframes"
@@ -30,6 +32,9 @@ import (
 // resolveHostTool is deliberately a closed owner surface, not an arbitrary path
 // or another interpretation of tools/<shared-package>.
 func resolveHostTool(root, name, ecosystem, pkg, version string) (Resolution, error) {
+	if name == "cloudflared" {
+		return resolveCloudflaredResource(root, ecosystem, pkg, version)
+	}
 	switch name {
 	case "codex", "claude-code", "opencode", "grok":
 		return resolveAgentResource(root, name, ecosystem, pkg, version)
@@ -495,4 +500,49 @@ func qualifyAgentBinary(ctx context.Context, name, binary, version, root string)
 		return fmt.Errorf("offline candidate version mismatch: %q", string(output))
 	}
 	return nil
+}
+
+// Cloudflared has one acquisition owner: the managed-service resource manifest.
+// This gateway only admits the exact committed target and delegates staging;
+// it cannot start/stop connectors or accept caller-selected paths/URLs.
+func resolveCloudflaredResource(root, ecosystem, pkg, version string) (Resolution, error) {
+	path := filepath.Join(root, "resources", "cloudflared", "resource.json")
+	m, err := manifestpkg.Load(path)
+	if err != nil {
+		return Resolution{}, err
+	}
+	if ecosystem != "source" || pkg != "cloudflared" || m.Name != "cloudflared" || m.Driver != "managed-service" || m.ManagedService == nil || m.ManagedService.Acquisition == nil || m.ManagedService.Artifact.Verification == "host-tool" || version != m.ManagedService.Artifact.Version {
+		return Resolution{}, fmt.Errorf("cloudflared requires its exact resource-owned checksum-pinned source release")
+	}
+	target, err := m.ManagedService.Acquisition.Resolve(binaryfetch.Facts{"os": runtime.GOOS, "arch": runtime.GOARCH})
+	if err != nil {
+		return Resolution{}, err
+	}
+	if target.Unsupported != "" || target.Executable != "" || m.ManagedService.Acquisition.EffectiveKind(target) != "url" {
+		return Resolution{}, fmt.Errorf("cloudflared has no pinned release on this platform")
+	}
+	return Resolution{RepositoryRoot: root, SurfaceRoot: filepath.Dir(path), ManifestPath: path, PackageManager: "native-binaryfetch", PackageName: pkg, HostToolTargetVersion: version, ExactVersion: true, Argv: []string{"native-acquire", pkg, version}, Profile: InstallProfile{Governance: "scenario-dependency-analyzer", LifecycleMode: "managed-service-artifact", FrozenLockfile: true, ScriptsDisabled: true}}, nil
+}
+
+func provisionManagedServiceArtifact(ctx context.Context, r Resolution) (string, error) {
+	want, err := resolveCloudflaredResource(r.RepositoryRoot, "source", r.PackageName, r.HostToolTargetVersion)
+	if err != nil {
+		return "", err
+	}
+	// Compare every field; an untrusted reconstructed resolution cannot widen the
+	// write from verified staging into an arbitrary install or lifecycle action.
+	a, _ := json.Marshal(r)
+	b, _ := json.Marshal(want)
+	if string(a) != string(b) {
+		return "", fmt.Errorf("managed-service artifact resolution changed before acquisition")
+	}
+	home, err := hostreqkit.InvokingUserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	info, err := resources.NewController(r.RepositoryRoot, home).StageManagedServiceArtifact(ctx, "cloudflared", r.HostToolTargetVersion)
+	if err != nil {
+		return "", err
+	}
+	return "Staged verified cloudflared " + info.Version + " at " + info.Path + "; serving connector unchanged", nil
 }

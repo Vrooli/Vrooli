@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	pb "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/analysis_operations"
+	"scenario-dependency-analyzer/cli/internal/fleetoperations"
 	"scenario-dependency-analyzer/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -27,6 +29,10 @@ func Register(core *cliapp.ScenarioApp) cliapp.CommandGroup {
 
 func run(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("analyze")
+	var callerID string
+	var startOnly bool
+	fs.StringVar(&callerID, "client-operation-id", "", "Replay key for fleet operations")
+	fs.BoolVar(&startOnly, "start-only", false, "Return the fleet operation receipt without waiting")
 	var includeTransitive bool
 	var jsonOutput bool
 	var verbose bool
@@ -52,6 +58,12 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("usage: %s analyze <scenario|all> [--transitive] [--json] [--verbose]", support.AppName)
 	}
 	scenario := positionals[0]
+	if scenario == "all" {
+		return fleetoperations.StartAndObserve(core, pb.AnalysisOperationKind_ANALYSIS_OPERATION_KIND_FLEET_ANALYSIS, false, callerID, !startOnly, jsonOutput)
+	}
+	if callerID != "" || startOnly {
+		return fmt.Errorf("operation flags require analyze all")
+	}
 	query := support.BuildQuery(map[string]string{
 		"include_transitive": support.BoolWord(includeTransitive, "true", "false"),
 	})

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	pb "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/analysis_operations"
+	"scenario-dependency-analyzer/cli/internal/fleetoperations"
 	"scenario-dependency-analyzer/cli/internal/support"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -14,6 +16,10 @@ import (
 // persists. Without a scenario it rebuilds the whole fleet.
 func runRebuild(core *cliapp.ScenarioApp, args []string) error {
 	fs := support.NewFlagSet("graph rebuild")
+	var callerID string
+	var startOnly bool
+	fs.StringVar(&callerID, "client-operation-id", "", "Replay key for fleet operations")
+	fs.BoolVar(&startOnly, "start-only", false, "Return the fleet operation receipt without waiting")
 	var scenario string
 	var apply bool
 	var force bool
@@ -36,6 +42,12 @@ func runRebuild(core *cliapp.ScenarioApp, args []string) error {
 		scenario = positionals[0]
 	}
 
+	if strings.TrimSpace(scenario) == "" {
+		return fleetoperations.StartAndObserve(core, pb.AnalysisOperationKind_ANALYSIS_OPERATION_KIND_GRAPH_REBUILD, apply, callerID, !startOnly, jsonOutput)
+	}
+	if callerID != "" || startOnly {
+		return fmt.Errorf("operation flags require a fleet graph rebuild")
+	}
 	query := support.BuildQuery(map[string]string{
 		"apply":    support.BoolWord(apply, "true", "false"),
 		"scenario": scenario,
