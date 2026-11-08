@@ -76,18 +76,20 @@ and leaves no file behind; the version follows the library through
 `adoptions reconverge`.
 
 ```bash
-react-component-library adoptions suggest {{SCENARIO_ID}} --json
-react-component-library adoptions link <component-id> {{SCENARIO_ID}}
-react-component-library adoptions preflight <component-id> {{SCENARIO_ID}}
+react-component-library components list --json
+react-component-library adoptions preflight "<component-id>" {{SCENARIO_ID}}
+react-component-library adoptions link "<component-id>" {{SCENARIO_ID}}
 react-component-library adoptions obligations {{SCENARIO_ID}} --json
 ```
 
 `link` writes to the files `ui/manifest.json` declares under `files`: the
 asset's selectors into `selectorRegistry`/`librarySelectors`, any tokens the
-ramp lacks into the `designTokens` managed region, and the asset's
-`defineStrings` entries into the default `localeCatalogue`. After a link, run
-`pnpm selector:manifest`, and `pnpm strings:gen` if the catalogue changed, so
-the generated registries match before `pnpm type-check`.
+ramp lacks into the `designTokens` managed region, and the
+`LibraryStringsProvider` block into `appEntry`. It does not touch your locale
+catalogues: library strings fall back to their `defineStrings` English
+defaults, so add a library key to `en.json` and every other locale only when
+you translate it. After a link, run `pnpm selector:manifest` so the generated
+registry matches before `pnpm type-check`.
 
 What the template already links, and what to reach for next:
 

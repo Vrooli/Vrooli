@@ -28,16 +28,9 @@ export default defineConfig({
         'src/consts/strings.generated.ts',
         'src/i18n/locales/**',
         'src/**/generated/**'
-      ],
-      // Policy floor for the react_vite_ui class. New surfaces ship with their
-      // own *.test.{ts,tsx}; prefer narrow file exclusions with a rationale
-      // over loosening these thresholds.
-      thresholds: {
-        lines: 85,
-        functions: 85,
-        branches: 85,
-        statements: 85
-      }
+      ]
+      // No `thresholds`: Unit Health owns the coverage gate through
+      // `coverage.committed` in .vrooli/testing.json.
     }
   }
 });

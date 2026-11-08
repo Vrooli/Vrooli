@@ -316,8 +316,9 @@ surface and the page templates is `docs/guides/choosing-ui.md`.
       for your route list and link it:
 
 ```bash
-react-component-library adoptions suggest {{SCENARIO_ID}} --json
-react-component-library adoptions link <component-id> {{SCENARIO_ID}}
+react-component-library components list --json
+react-component-library adoptions preflight "<component-id>" {{SCENARIO_ID}}
+react-component-library adoptions link "<component-id>" {{SCENARIO_ID}}
 react-component-library adoptions obligations {{SCENARIO_ID}} --json
 ```
 
@@ -448,7 +449,7 @@ deletion. It strips every fenced `EXAMPLE-DOMAIN` block (docs and code),
 deletes the example's files/dirs (including the relocated proto schema and
 its generated artifacts), prunes the example keys from the i18n locales
 and CLI manifest, then refreshes generated output (`make generate`,
-`pnpm strings:gen`, `go mod tidy`, `gofumpt`, CLI command surface):
+`pnpm strings:gen`, `scenario-dependency-analyzer deps reconcile`, `gofumpt`, CLI command surface):
 
 - [ ] Preview first: `template-manager detemplate <scenario> --dry-run`.
 - [ ] Remove it: `template-manager detemplate <scenario>`. If it refuses
@@ -483,10 +484,10 @@ this tree and the tree has to be real first.
       directory:
 
 ```bash
-react-component-library components draft-begin <component>
+react-component-library components draft-begin "<component>"
 # add the stories/states your experience spec declares
-react-component-library components test <component-id>
-react-component-library components draft-publish <component>
+react-component-library components test "<component>"
+react-component-library components draft-publish "<component>"
 ```
 
       A raised component improves every scenario already consuming it, which a
@@ -495,17 +496,15 @@ react-component-library components draft-publish <component>
       it so the canon inherits the claims rather than losing them:
 
 ```bash
-react-component-library components ingest {{SCENARIO_ID}} <tsx-path> <slug> \
-  --experience-contract experience/components/<component>.json \
-  --display-name "<Name>" --slot <slot>
+react-component-library components ingest {{SCENARIO_ID}} "ui/src/components/Example.tsx" example-component --experience-contract "experience/components/component.json" --display-name "Example" --slot "primitive"
 ```
 
 - [ ] Validate before calling anything canonical:
 
 ```bash
-react-component-library components test <component-id>
-react-component-library components style-fit <component-id> {{SCENARIO_ID}}
-react-component-library catalog evidence capture <asset-id>
+react-component-library components test "<component>"
+react-component-library components check "<component>"
+react-component-library catalog readiness --json
 ```
 
 - [ ] Read the promotion gate. It requires parity, examples, dependency
@@ -513,14 +512,13 @@ react-component-library catalog evidence capture <asset-id>
       scenario:
 
 ```bash
-react-component-library workflows promotion-readiness <asset-id> \
-  --origin-scenario {{SCENARIO_ID}}
+react-component-library workflows promotion-readiness "<asset-id>" --origin-scenario {{SCENARIO_ID}}
 ```
 
 - [ ] Adopt the published version back, then delete the local original:
 
 ```bash
-react-component-library adoptions link <component-id> {{SCENARIO_ID}}
+react-component-library adoptions link "<component-id>" {{SCENARIO_ID}}
 ```
 
       Promotion is not finished while this scenario still runs its own copy.

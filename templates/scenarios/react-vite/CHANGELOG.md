@@ -76,6 +76,73 @@ skill)" beats "modernize the API layer".
 
 ---
 
+## 6.0.1 — 2026-11-07
+
+Generated Go modules start converged on their import closure.
+
+### Changed
+- Generation, template validation, and detemplate finalizers converge each
+  Go module through `scenario-dependency-analyzer deps reconcile --module
+  <dir> --apply` instead of a raw `go mod tidy`. It adds the local replaces
+  the import closure needs, drops ones it does not, and gates new
+  requirements on approved dependencies.
+- `api/go.mod` and `cli/go.mod` are now exactly the converged shape. Unused
+  replaces are gone (`binaryfetch`, the repository root, and `api-core` in
+  the CLI). `platform-go`, which `api-core` now imports, is added.
+  `httpsnoop` is pinned to its approved v1.0.4.
+
+### Migration (for agents updating older scenarios)
+- [ ] Run `scenario-dependency-analyzer deps reconcile --scenario <name> --apply`
+      and confirm `--check` reports 0 changes. See "Go module convergence"
+      in `docs/package-governance.md`.
+
+## 6.0.0 — 2026-11-05
+
+Generated command examples now use the live React Component Library and
+Performance Health command surfaces. Removed verbs and shell-unsafe synopsis
+notation no longer steer scenario authors toward commands that do not exist.
+
+### Breaking
+
+- Adoption examples use `components list`, `adoptions preflight`, and
+  `adoptions link`; `adoptions suggest`, `resolve-path`, and `apply` are retired.
+- Component readiness examples use `components test/check`, `catalog readiness`,
+  and `workflows promotion-readiness`; `components style-fit` and
+  `catalog evidence capture` are retired.
+- BAS trace analysis and budget examples supply the required scenario
+  positional argument.
+- Generic CLI examples use the runnable `{{SCENARIO_ID}} --help` command.
+
+### Migration (for agents updating older scenarios)
+
+- [ ] In `docs/START-HERE.md`, `docs/concepts/UI-ARCHITECTURE.md`, and
+      `docs/guides/choosing-ui.md`, replace `adoptions suggest` with
+      `components list --json`, then use
+      `adoptions preflight "<component-id>" <scenario>` before
+      `adoptions link "<component-id>" <scenario>`.
+- [ ] Replace `adoptions resolve-path` with `adoptions preflight`; replace
+      `adoptions apply <component-id> <scenario> <adopted-path>` with
+      `adoptions link <component-id> <scenario>`. The current link command
+      writes the governed package dependency and takes no adopted-path argument.
+- [ ] In `docs/START-HERE.md`, replace `components style-fit` with
+      `components check <component>` and use `catalog readiness --json` for
+      catalog-wide readiness. Replace `catalog evidence capture <asset-id>`
+      with `workflows promotion-readiness <asset-id> --origin-scenario
+      <scenario>` when checking a specific promotion gate.
+- [ ] In `bas/README.md`, change trace examples to
+      `performance-health analysis analyze <scenario> --trace <trace>` and
+      budget examples to
+      `performance-health budget set <scenario> --flow <flow> ...`.
+- [ ] Replace generic `<domain> <command>` examples in executable CLI blocks
+      with `<scenario-id> --help`, and quote any remaining placeholder so it
+      is safe when pasted into a shell.
+- [ ] Validate each migrated scenario with
+      `cli-health command validate --policy docs` for the affected examples and
+      `vrooli scenario test <scenario> --phases docs`.
+- [ ] Update `.vrooli/service.json::generation.template.version` to `6.0.0`
+      after its generated documentation is reconciled and the scoped docs phase
+      passes.
+
 ## 5.0.0 — 2026-09-15
 
 New scenarios are born with the brand-identity `/public/*` layout and a branding declaration.

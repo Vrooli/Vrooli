@@ -5,10 +5,12 @@
     "labels": {
       "intent": "performance",
       "reset": "none",
-      "parameters_json": "[{\"name\":\"selector\",\"type\":\"string\",\"required\":true,\"description\":\"CSS selector of the drag handle (use a literal [data-testid=...]; @selector tokens do not resolve on the capture path)\"},{\"name\":\"dx\",\"type\":\"number\",\"required\":false,\"default\":80,\"description\":\"Horizontal drag distance in pixels\"},{\"name\":\"steps\",\"type\":\"number\",\"required\":false,\"default\":20,\"description\":\"Number of intermediate pointer moves\"}]"
+      "requires_confirmation": "true",
+      "parameters_json": "[{\"name\":\"selector\",\"type\":\"string\",\"required\":true,\"description\":\"CSS selector of the drag handle (use a literal [data-testid=...]; @selector tokens do not resolve on the capture path)\"},{\"name\":\"dx\",\"type\":\"number\",\"required\":false,\"default\":80,\"description\":\"Horizontal drag distance in pixels\"},{\"name\":\"steps\",\"type\":\"number\",\"required\":false,\"default\":20,\"description\":\"Number of intermediate pointer moves\"}]",
+      "routed_isolation": "true"
     },
     "version": "1",
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {},
   "nodes": [

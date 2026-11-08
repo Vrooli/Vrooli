@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/vrooli/cli-core/cliapp"
+	notesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/{{SCENARIO_ID}}/v1/notes/notes_v1connect"
 )
 
 // GroupName is the manifest group name this package owns. Exported so
@@ -17,11 +18,14 @@ const GroupName = "notes"
 // Register builds the notes subcommand group from the embedded manifest.
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
+	// Manifest bindings name the package-qualified service, so the key comes
+	// from the generated descriptor rather than a hand-written string.
+	service := notesconnect.NotesServiceName + "."
 	bindings := map[string]cliapp.PrimitiveHandler{
-		"NotesService.ListNotes":  cliapp.ProtoList(h.listCall, h.listReport),
-		"NotesService.CreateNote": cliapp.ProtoMutation(h.createCall, h.createReport),
-		"NotesService.GetNote":    cliapp.ProtoList(h.getCall, h.getReport),
-		"NotesService.CountNotes": cliapp.ProtoList(h.countCall, h.countReport),
+		service + "ListNotes":  cliapp.ProtoList(h.listCall, h.listReport),
+		service + "CreateNote": cliapp.ProtoMutation(h.createCall, h.createReport),
+		service + "GetNote":    cliapp.ProtoList(h.getCall, h.getReport),
+		service + "CountNotes": cliapp.ProtoList(h.countCall, h.countReport),
 	}
 	group, err := cliapp.LoadFromManifestPrimitives(manifest, GroupName, bindings)
 	if err != nil {

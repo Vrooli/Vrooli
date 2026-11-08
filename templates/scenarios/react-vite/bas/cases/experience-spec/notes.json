@@ -27,7 +27,9 @@
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Open Notes" }
+        "metadata": {
+          "label": "Open Notes"
+        }
       }
     },
     {
@@ -39,7 +41,23 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Notes page visible" }
+        "metadata": {
+          "label": "Notes page visible"
+        }
+      }
+    },
+    {
+      "id": "wait-notes-terminal",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "[data-testid=\"notes-surface\"][data-experience-state=\"ready\"], [data-testid=\"notes-surface\"][data-experience-state=\"empty\"], [data-testid=\"notes-surface\"][data-experience-state=\"error\"]",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Notes region settled in a declared terminal state"
+        }
       }
     }
   ]

@@ -173,10 +173,10 @@ The React/Vite template requires three roles:
 |---|---|---|
 | `api` | `go_service` | Go `go test`, 75% total coverage, `api/internal/testutil`, production-import guardrail. |
 | `cli` | `go_cli` | Go `go test`, 75% total coverage, `cli/internal/testutil`, app smoke test, production-import guardrail. |
-| `ui` | `react_vite_ui` | Vitest through pnpm, jsdom setup, V8 coverage, 85% coverage thresholds, `ui/src/test-utils/renderWithProviders.tsx`. |
+| `ui` | `react_vite_ui` | Vitest through pnpm, jsdom setup, V8 coverage, 85% coverage target with a committed floor gated by Unit Health (no native Vitest thresholds), `ui/src/test-utils/renderWithProviders.tsx`. |
 
 Scenario customizations are monotonic: they may add surfaces, add stricter
-checks, or raise thresholds. They may not weaken the template baseline unless
+checks, or raise coverage targets. They may not weaken the template baseline unless
 the policy includes a waiver with an owner, reason, expiry or revisit trigger,
 and the Unit Health finding evidence it addresses.
 

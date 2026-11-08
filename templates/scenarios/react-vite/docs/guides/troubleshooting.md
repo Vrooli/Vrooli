@@ -183,6 +183,16 @@ directory), `/health` never returns ready and the test times out.
 Wipe the test data dir and retry. The default lives under
 `${XDG_DATA_HOME:-~/.local/share}/vrooli/{{SCENARIO_ID}}/`.
 
+### UI unit phase fails with `COVERAGE_BELOW_COMMITTED`
+
+The tests passed but a coverage metric fell below the floor this scenario
+committed to in `.vrooli/testing.json` (`coverage.committed`). The finding
+names each metric with its measured and committed values. Add or restore
+tests for the code whose coverage dropped; do not lower the commitment. When
+coverage rises, ratchet the floor with
+`unit-health fix apply {{SCENARIO_ID}} --rules COVERAGE_COMMITMENT_BEHIND`. See
+[coverage target and committed floor](/scenarios/unit-health/docs/reference/configuration.md#coverage-target-and-committed-floor).
+
 ### Coverage gate fails (`API coverage 71.4% < 75%`)
 
 Coverage dropped below the floor. The fix is to add tests to the
@@ -235,8 +245,8 @@ writes to language-specific output paths: Go under
 ### Codegen ran but Go imports still fail
 
 The generated package paths follow `packages/proto/gen/go/{{SCENARIO_ID}}/v1/<domain>/`.
-After a rename, run `go mod tidy` from the affected module (`api/`
-and `cli/`) so the import paths resolve.
+After a rename, run `scenario-dependency-analyzer deps reconcile --scenario {{SCENARIO_ID}} --apply`
+so both modules (`api/` and `cli/`) record what the new import paths need.
 
 ## When to add a new entry here
 

@@ -241,7 +241,7 @@ make start
 ### "Go build failed"
 ```bash
 cd api
-go mod tidy
+scenario-dependency-analyzer deps reconcile --module . --apply
 go build -o landing-api .
 ```
 

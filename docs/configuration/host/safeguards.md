@@ -10,6 +10,14 @@ which is what `sudo vrooli setup --include-optional` does for an agent in the
 only on paths whose parent resolves inside the invoking user's home, and ignores
 `GROK_HOME`. See
 [Coding-agent updates](tools.md#coding-agent-updates).
+
+`generated_tree_ownership` does the same for the repository's generated Proto trees
+(`packages/proto/gen`, the replaced copy `gen.previous` and staging directories). A
+root-run materialization can leave root-owned files there that an unprivileged
+`make build` cannot replace. Setup is the one place sudo runs, so setup repairs them. It
+changes ownership recursively and never follows a symlink. Materialization and
+harness installs also hand their files back to the directory's owner when they run as
+root, so the repair is a backstop rather than the normal path.
 On Linux it configures the supported rotation and rate-limit controls. On
 macOS and Windows the current handler reports `unsupported` because native
 log-store controls are not implemented yet.

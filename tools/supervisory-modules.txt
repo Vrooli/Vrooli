@@ -16,3 +16,7 @@ scenarios/vrooli-autoheal/cli
 scenarios/vrooli-autoheal/cli/loop
 scenarios/vrooli-autoheal/langrecover
 scenarios/vrooli-bridge/agent
+# web-console is the operator's remote-access door (autoheal-protected); it
+# builds against root-module packages and spawns vrooli for agent updates and
+# capability actions, so a CLI it cannot build against must not install.
+scenarios/web-console/api

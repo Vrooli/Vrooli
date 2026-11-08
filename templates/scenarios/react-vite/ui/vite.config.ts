@@ -30,17 +30,25 @@ export default defineConfig(({ mode }): UserConfig => {
   return {
     base: './',  // Required for tunnel/proxy contexts
     plugins: [react(), stringsCodegen()],
-    resolve: isProfile
-      ? {
-          alias: {
-            "react-dom/client": "react-dom/profiling",
-            // Internal references inside react-dom/client.js do
-            // `require('react-dom')`, which would resolve back to the
-            // stripped-prod bundle. Force them through the profiling entry too.
-            "react-dom$": "react-dom/profiling",
-          },
-        }
-      : undefined,
+    resolve: {
+      // @vrooli/api-base pins its own React, router, query, i18n, and Testing
+      // Library packages. One instance of each must serve both this UI and
+      // api-base, or providers created on one side are invisible to hooks on
+      // the other ("useRoutes() may be used only in the context of a
+      // <Router>", "No QueryClient set").
+      dedupe: ["react", "react-dom", "react-router-dom", "@tanstack/react-query", "react-i18next", "i18next", "@testing-library/react"],
+      ...(isProfile
+        ? {
+            alias: {
+              "react-dom/client": "react-dom/profiling",
+              // Internal references inside react-dom/client.js do
+              // `require('react-dom')`, which would resolve back to the
+              // stripped-prod bundle. Force them through the profiling entry too.
+              "react-dom$": "react-dom/profiling",
+            },
+          }
+        : undefined),
+    },
     esbuild: isProfile
       ? {
           keepNames: true,
@@ -49,6 +57,9 @@ export default defineConfig(({ mode }): UserConfig => {
     test: {
       globals: true,
       environment: 'jsdom',
+      // Transform api-base through Vite so resolve.dedupe applies to its
+      // imports; an externalized package resolves its own pinned copies.
+      server: { deps: { inline: [/@vrooli\/api-base/] } },
       setupFiles: ['./src/test-setup.ts'],
       // `scripts/*.test.mjs` are node:test suites run by `pnpm test:template-library`;
       // vitest must not collect them.
@@ -71,9 +82,14 @@ export default defineConfig(({ mode }): UserConfig => {
         //      generated registries, JSON catalogs).
         //
         // If a scenario adds genuinely-untestable code, prefer narrow file
-        // exclusions with a one-line rationale comment over loosening the
-        // thresholds. The default position is: every new src/ file ships
-        // with its own *.test.{ts,tsx} and lands inside the include set.
+        // exclusions with a one-line rationale comment over lowering the
+        // committed coverage floor. The default position is: every new src/
+        // file ships with its own *.test.{ts,tsx} and lands inside the
+        // include set.
+        //
+        // No `thresholds` here: Unit Health owns the coverage gate. It reads
+        // coverage-summary.json and compares it with `coverage.committed` in
+        // .vrooli/testing.json (see scenarios/unit-health/docs/reference/configuration.md).
         exclude: [
           'src/**/*.test.{ts,tsx}',
           'src/**/*.spec.{ts,tsx}',
@@ -88,19 +104,6 @@ export default defineConfig(({ mode }): UserConfig => {
           // hand-authored thin-test at the feature root.
           'src/**/generated/**',
         ],
-        // 85% is the floor every scenario-owned file (App.tsx, the shell
-        // configuration, pages, consts, i18n, api/client, lib) clears with the
-        // tests shipped in this template. Tightening beyond actual
-        // coverage of a healthy template would make every new scenario
-        // start red; loosening below it would make the gate vacuous.
-        // When a scenario's surface stabilises above 90% for a full
-        // release, raise these together.
-        thresholds: {
-          lines: 85,
-          functions: 85,
-          branches: 85,
-          statements: 85,
-        }
       }
     }
   };

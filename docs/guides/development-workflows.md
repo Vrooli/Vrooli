@@ -61,7 +61,7 @@ Project-level:
 ```bash
 make test
 make hygiene
-make validate-package-governance
+make test-packages
 ```
 
 Scenario-level:

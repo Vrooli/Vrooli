@@ -4,6 +4,20 @@ All notable changes to the `landing-page-react-vite` template are documented her
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this template aims to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-11-07
+
+### Changed
+
+- Generation converges each Go module through
+  `scenario-dependency-analyzer deps reconcile --module <dir> --apply` instead
+  of a raw `go mod tidy`. `api/go.mod`, `cli/go.mod`, and their `go.sum` files
+  are now exactly the converged shape, with unused local replaces removed.
+
+### Migration
+
+- [ ] Run `scenario-dependency-analyzer deps reconcile --scenario <name> --apply`
+      and confirm `--check` reports 0 changes.
+
 ## [2.1.0] - 2026-09-07
 
 ### Added

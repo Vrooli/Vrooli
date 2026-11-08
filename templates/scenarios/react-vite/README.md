@@ -66,7 +66,8 @@ visual layout:
 - Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
 - Design tokens (`bg-app-background`, `rounded-panel`, etc.).
 - Library components linked through `react-component-library adoptions link`;
-  ask `adoptions suggest` before hand-rolling anything generic.
+  inspect `react-component-library components list` and run `adoptions preflight`
+  before hand-rolling anything generic.
 - The shell as a library import, configured in `ui/src/layout/AppShell.tsx`
   and never redrawn locally; Settings owns every preference.
 - The feature-folder pattern under `ui/src/features/<name>/`.

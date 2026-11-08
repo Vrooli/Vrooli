@@ -32,7 +32,10 @@ This regenerates `bas/registry.json`, which is tracked so other agents can see w
 A `bas/flows/` entry can double as a **performance-capture target** for the
 `performance-health` scenario. Mark it `metadata.labels.intent: "performance"`
 and keep it **assertion-free** — it only drives an interaction so a perf trace
-can span it. The loop:
+can span it. Scrolling, dragging and script evaluation change page state, so
+perf flows and helpers declare `execution_mode: "mutating"` with
+`requires_confirmation` and `routed_isolation` labels; `observer` is reserved
+for read-only navigate/wait/assert/extract/screenshot steps. The loop:
 
 ```bash
 # 1. Author bas/flows/<slug>.json (intent:performance, no asserts).
@@ -41,8 +44,8 @@ can span it. The loop:
 # 2. Drive it inside a profile-mode perf trace:
 performance-health audit run <scenario> --workflow <slug>
 # 3. Analyze the returned trace, then optionally set a per-flow budget:
-performance-health analysis analyze --trace <key>
-performance-health budget set --flow <slug> --lcp-max-ms 2500 --ratchet
+performance-health analysis analyze "<scenario>" --trace "<trace>"
+performance-health budget set "<scenario>" --flow "<flow>" --lcp-max-ms 2500 --ratchet
 ```
 
 Reusable perf interaction helpers live in `actions/`:

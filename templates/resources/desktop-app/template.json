@@ -41,5 +41,6 @@
   "platformExpectations": [
     "Generated scaffolds must fail clearly when the app is unsupported on a platform.",
     "Manual steps and install paths should be documented instead of hidden behind weak automation."
-  ]
+  ],
+  "transitional": true
 }

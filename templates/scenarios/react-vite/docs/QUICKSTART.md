@@ -60,8 +60,11 @@ automatically):
 
 ```bash
 {{SCENARIO_ID}} status
-{{SCENARIO_ID}} <domain> <command>   # e.g. list/create commands for your domain
+{{SCENARIO_ID}} --help
 ```
+
+Use the scenario CLI help to discover its current command groups. After
+adding a product domain, document and run its concrete commands here.
 
 Or directly via HTTP:
 

@@ -12,7 +12,7 @@
           "description": "List all notes",
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
+            "service": "vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService",
             "method": "ListNotes"
           },
           "governance": {
@@ -42,7 +42,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
+            "service": "vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService",
             "method": "CreateNote"
           },
           "governance": {
@@ -68,7 +68,7 @@
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
+            "service": "vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService",
             "method": "GetNote"
           },
           "governance": {
@@ -88,12 +88,14 @@
           "flags": [
             {
               "name": "window",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)"
+              "default": "this_week",
+              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)",
+              "bind_waiver": "CLI resolves the canonical time-window token into the structured TimeWindow RPC message."
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "NotesService",
+            "service": "vrooli.{{SCENARIO_ID_SNAKE}}.v1.notes.NotesService",
             "method": "CountNotes"
           },
           "governance": {

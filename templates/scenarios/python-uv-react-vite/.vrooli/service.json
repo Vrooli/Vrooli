@@ -27,6 +27,6 @@
       {"name": "ui_endpoint", "type": "http", "target": "http://localhost:${UI_PORT}/health", "timeout": 5000, "interval": 30000}
     ]}
   },
-  "dependencies": {},
+  "dependencies": {"resources": {}},
   "credentials": {}
 }

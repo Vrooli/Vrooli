@@ -48,12 +48,15 @@ it("changes the theme when the focused setting receives gamepad Select", async (
     { withoutRouter: true },
   );
   try {
-    const dark = screen.getByTestId(selectors.settingsPage.themeOption({ choice: "dark" }));
-    expect(dark).toHaveAttribute("aria-checked", "false");
+    // The theme control is a library Select: gamepad Select opens it on the
+    // focused trigger, then chooses the focused option.
+    const trigger = screen.getByTestId(selectors.settingsPage.themeSelect);
+    trigger.focus();
+    window.dispatchEvent(new Event("gamepadconnected"));
+    const dark = await screen.findByRole("option", { name: /dark/i });
     dark.focus();
     window.dispatchEvent(new Event("gamepadconnected"));
-    await waitFor(() => expect(dark).toHaveAttribute("aria-checked", "true"));
-    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    await waitFor(() => expect(document.documentElement).toHaveAttribute("data-theme", "dark"));
   } finally {
     view.unmount();
     controller.dispose();
