@@ -111,6 +111,27 @@ describe("a Learn comparison in the launcher", () => {
 describe("usage mode sheet", () => {
   beforeEach(() => { vi.resetAllMocks(); usage.windows = []; setDesktopViewport(); });
 
+  it("submits the harness and duration selected by keyboard and pointer", async () => {
+    const claude = { ...codex, agentId: "claude", runner: "claude", label: "Claude Code" };
+    api.getUsageMode.mockResolvedValue(state({ agents: [codex, claude] }));
+    api.startUsageMode.mockResolvedValue(state({}));
+    render(<Sheet />);
+    const first = await screen.findByTestId("usage-mode-agent-codex");
+    first.focus();
+    fireEvent.keyDown(first, { key: "ArrowRight" });
+    expect(screen.getByTestId("usage-mode-agent-claude")).toHaveFocus();
+    expect(screen.getByTestId("usage-mode-agent-claude")).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(first);
+    expect(first).toHaveAttribute("aria-checked", "true");
+    const duration = screen.getByTestId("usage-mode-choice-minutes-120");
+    duration.focus();
+    fireEvent.keyDown(duration, { key: "End" });
+    expect(screen.getByTestId("usage-mode-choice-off")).toHaveFocus();
+    expect(screen.getByTestId("usage-mode-choice-off")).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(screen.getByTestId("usage-mode-start"));
+    await waitFor(() => { expect(api.startUsageMode).toHaveBeenCalledWith({ agentId: "codex", kind: "off" }); });
+  });
+
   it("starts a mode from the operator's choice", async () => {
     api.getUsageMode.mockResolvedValue(state({}));
     api.startUsageMode.mockResolvedValue(state({ modes: [mode], agents: [inMode] }));

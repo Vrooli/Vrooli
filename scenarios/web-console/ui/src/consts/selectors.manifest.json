@@ -1292,6 +1292,11 @@
         }
       ]
     },
+    "launcher.open": {
+      "description": "New session control in the current workspace layout",
+      "selectorPattern": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"], [data-testid=\"workspace-sidebar-new\"], [data-testid=\"tab-bar-new\"]",
+      "params": []
+    },
     "launcher.shortcut": {
       "description": "Launcher shortcut button",
       "selectorPattern": "[data-testid=\"launcher-shortcut-${label}\"]",
@@ -1673,6 +1678,11 @@
         }
       ]
     },
+    "terminal.visiblePane": {
+      "description": "Visible terminal host in the active workspace (Playwright visibility selector)",
+      "selectorPattern": "[data-testid=\"terminal-pane\"]:visible",
+      "params": []
+    },
     "terminal.paneBySession": {
       "description": "Terminal host element by session ID",
       "selectorPattern": "[data-testid=\"terminal-pane\"][data-session-id=\"${sessionId}\"]",
@@ -1920,6 +1930,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0951e3f7ea561f3de51f76023726c077533491b467c5272fee5ddf25bc6eac97",
-    "ui/src/consts/selectors.ts": "3e4d29624b20780b082711b661c9252a6147b82974bcc095b1f63363a1ef3a19"
+    "ui/src/consts/selectors.ts": "a91698fbfd2840a218be8c8d47aa508aef1bc58a8efd5a1ad61415c5c103ff57"
   }
 }

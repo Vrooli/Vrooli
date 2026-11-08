@@ -30,7 +30,7 @@
         "action": {
           "type": "ACTION_TYPE_CLICK",
           "click": {
-            "selector": "[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]"
+            "selector": "@selector/launcher.open"
           },
           "metadata": {
             "label": "Open terminal launcher"
@@ -40,12 +40,14 @@
       {
         "id": "ensure-launcher-open",
         "action": {
-          "type": "ACTION_TYPE_EVALUATE",
-          "evaluate": {
-            "expression": "(async () => { const deadline = Date.now() + 10000; while (Date.now() < deadline) { if (document.querySelector('[data-testid=\"terminal-launcher\"]')) return; const button = document.querySelector('[data-testid=\"new-terminal-button\"], [data-testid=\"toolbar-new\"]'); if (button instanceof HTMLElement) button.click(); await new Promise((resolve) => setTimeout(resolve, 250)); } throw new Error('Terminal launcher did not appear'); })()"
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/launcher.dialog",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 10000
           },
           "metadata": {
-            "label": "Ensure launcher dialog is open"
+            "label": "Wait for terminal launcher dialog"
           }
         }
       },
@@ -78,9 +80,9 @@
       {
         "id": "click-launch",
         "action": {
-          "type": "ACTION_TYPE_EVALUATE",
-          "evaluate": {
-            "expression": "(() => { const launch = document.querySelector('[data-testid=\"launcher-submit-selection\"]'); if (!(launch instanceof HTMLButtonElement)) throw new Error('launcher custom launch button not found'); launch.click(); })()"
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/launcher.launch"
           },
           "metadata": {
             "label": "Launch terminal session"
@@ -92,7 +94,7 @@
         "action": {
           "type": "ACTION_TYPE_WAIT",
           "wait": {
-            "selector": "@selector/terminal.pane",
+            "selector": "@selector/terminal.visiblePane",
             "state": "WAIT_STATE_UNSPECIFIED",
             "timeout_ms": 15000
           },

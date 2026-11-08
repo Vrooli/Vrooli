@@ -50,9 +50,9 @@ func (s *Server) setupRoutes() {
 	if s.db != nil {
 		healthBuilder = healthBuilder.Check(health.DB(s.db.Primary()), health.Critical)
 		healthBuilder = healthBuilder.Functional(func(ctx context.Context) health.FunctionalStatus {
-			report, err := s.Integrity(ctx)
+			report, err := s.observeContinuityHealth(ctx)
 			if err != nil {
-				return health.FunctionalStatus{Healthy: false, Reason: "continuity integrity is unavailable: " + err.Error()}
+				return health.FunctionalStatus{Healthy: false, Reason: "continuity catalog health is unavailable: " + err.Error()}
 			}
 			if report.UncatalogedConversations > 0 {
 				return health.FunctionalStatus{Healthy: false, Reason: fmt.Sprintf("%d conversation projections have no continuity catalog", report.UncatalogedConversations)}

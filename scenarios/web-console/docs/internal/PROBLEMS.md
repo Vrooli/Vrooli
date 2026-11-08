@@ -2859,6 +2859,38 @@ surfaces as a visible busy status.
 
 ## 9. E2E Issues
 
+### Outage terminal journey and cleanup (2026-11-05)
+
+The shared launch action now uses registry selectors for the current sidebar,
+tab, toolbar and empty-workspace controls. It waits for the launcher and a
+visible pane, so an older hidden pane cannot block the journey. The terminal
+command case now declares explicit assertion modes and connects its teardown
+node before checking for leaks. Its original new-session, WebSocket traffic,
+command-output and cleanup assertions remain intact.
+
+Adversarial regressions reproduced cleanup deleting a concurrent operator
+session and treating a failed final inventory as zero leaks. Cleanup now
+requires current routed-lease provenance, retains exact owned IDs through the
+final absence check, and refuses unknown ownership or unavailable inventory.
+Four focused safety tests, type-check, scoped ESLint, selector generation/check
+and static workflow validation pass.
+
+Selected provider run `c74df2af-3f8a-4854-8239-3a2c89266f39` passed the complete
+case as BAS execution `2915c80e-3521-41ae-99c9-061462f979bf`: one executed and
+passed, 478 test-pool requests, zero primary requests or primary-root writes,
+and successful lease cleanup. This is a local selected-case receipt; the full
+Test Genie workflow phase and authenticated Cloudflare journey remain unproven.
+The target build/source evidence snapshot remains unknown because freshness
+was stale or unavailable. Earlier failed-run terminals were identified by exact
+run window and observed command marker, then removed through the session owner.
+Failed cases otherwise retain the existing disposable standard backend and
+10-minute expiry; storage counters alone do not prove native-job quiescence.
+
+Workflow-search normalization failure is recorded as
+`knw-1793917035139827317`; static acceptance of unsupported assertion defaults
+and unreachable teardown is recorded as `knw-1793918131438345485`. Those owner
+findings remain separate from this repaired Web Console case.
+
 **PARTIALLY RESOLVED** (2026-02-19): Added BAS workflows for terminal command execution, route-level session persistence, reconnect replay, and multi-pane independence:
 - `bas/cases/01-foundation/01-terminal/launch-custom-command-executes.json`
 - `bas/cases/01-foundation/01-terminal/session-metadata-persists-across-route-navigation.json`

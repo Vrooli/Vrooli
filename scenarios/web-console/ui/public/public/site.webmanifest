@@ -32,10 +32,9 @@
       "type": "image/png"
     }
   ],
-  "id": "/",
   "name": "Aquila",
-  "scope": "/",
+  "scope": "../",
   "short_name": "Aquila",
-  "start_url": "/",
+  "start_url": "../",
   "theme_color": "#0f172a"
 }

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/storage/storagetest"
+
 	"github.com/vrooli/cli-core/cliutil"
 )
 
@@ -83,7 +85,7 @@ func TestRegisterReconcilesEveryHook(t *testing.T) {
 		sleep:         func(time.Duration) {},
 		stdout:        stdout,
 		stderr:        &bytes.Buffer{},
-		getenv:        func(string) string { return "" },
+		getenv:        isolatedStorageEnv(t),
 		detectAPIPort: func() string { return "19777" },
 		readFile: func(path string) ([]byte, error) {
 			switch {
@@ -138,6 +140,7 @@ func TestRegisterRetriesTokenWithoutSleepingInTest(t *testing.T) {
 	r := testRegistrar()
 	r.maxAttempts = 3
 	r.sleep = func(time.Duration) { sleeps++ }
+	r.getenv = isolatedStorageEnv(t)
 	r.readFile = func(path string) ([]byte, error) {
 		switch {
 		case strings.HasSuffix(path, "start-api.json"):
@@ -199,7 +202,7 @@ func TestHookTokenPathResolvesThroughScenarioStorage(t *testing.T) {
 	// $XDG_STATE_HOME, and only a years-old file holding the same value kept
 	// hooks working at all.
 	r := testRegistrar()
-	r.getenv = func(string) string { return "" }
+	r.getenv = isolatedStorageEnv(t)
 	got, err := r.hookTokenPath()
 	if err != nil {
 		t.Fatalf("hookTokenPath: %v", err)
@@ -304,5 +307,19 @@ func TestTokenPathDoesNotReadSecretOrGuessNonLiveStorage(t *testing.T) {
 	}
 	if err := r.tokenPath(nil); err == nil {
 		t.Fatal("accepted an unrelated storage namespace")
+	}
+}
+
+// isolatedStorageEnv is an empty environment except for a per-test storage
+// root, so the hook token path resolves under the test, never the operator's
+// live state.
+func isolatedStorageEnv(t *testing.T) func(string) string {
+	t.Helper()
+	root := t.TempDir()
+	return func(key string) string {
+		if key == storagetest.RootEnv {
+			return root
+		}
+		return ""
 	}
 }

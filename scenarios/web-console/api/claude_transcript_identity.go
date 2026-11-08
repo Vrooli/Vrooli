@@ -59,6 +59,9 @@ type claudeIdentityResolver struct {
 	home     string
 	discover func() ([]agentProcess, error)
 	logger   *log.Logger
+	// firstEntryTime is an IO seam for verifying which eligible files require
+	// content inspection. Nil uses the production bounded header reader.
+	firstEntryTime func(string) (time.Time, bool)
 
 	// reported remembers the ambiguity already announced per session. Resolve
 	// runs on the transcript poller's cadence, so logging every unresolved pass
@@ -113,7 +116,7 @@ func (r *claudeIdentityResolver) Resolve(ctx context.Context) int {
 			claimed[row.AgentSessionID] = true
 			continue
 		}
-		if row.Status == sessionstore.StatusLive && row.AgentType == sessionstore.AgentClaude {
+		if row.Status == sessionstore.StatusLive && row.AgentType == sessionstore.AgentClaude && row.ArchivedAt.IsZero() {
 			unidentified = append(unidentified, row)
 		}
 	}
@@ -182,7 +185,16 @@ type paneProcess struct {
 // started when the transcript recorded its first message — and a pane is
 // adopted only when exactly one transcript nominates it.
 func (r *claudeIdentityResolver) resolveDirectory(ctx context.Context, dir string, panes []paneProcess, claimed map[string]bool) int {
-	candidates := r.candidatesForDirectory(dir, claimed)
+	if len(panes) == 0 {
+		return 0
+	}
+	oldestStart := panes[0].proc.StartedAt
+	for _, pane := range panes[1:] {
+		if pane.proc.StartedAt.Before(oldestStart) {
+			oldestStart = pane.proc.StartedAt
+		}
+	}
+	candidates := r.candidatesForDirectory(dir, claimed, oldestStart)
 	if len(candidates) == 0 {
 		return 0
 	}
@@ -264,7 +276,7 @@ func transcriptCouldBelongTo(candidate transcriptCandidate, proc agentProcess) b
 
 // candidatesForDirectory lists the unclaimed transcripts Claude would write for
 // a given working directory.
-func (r *claudeIdentityResolver) candidatesForDirectory(dir string, claimed map[string]bool) []transcriptCandidate {
+func (r *claudeIdentityResolver) candidatesForDirectory(dir string, claimed map[string]bool, oldestStart time.Time) []transcriptCandidate {
 	projectDir := claudeProjectDir(r.home, dir)
 	entries, err := os.ReadDir(projectDir)
 	if err != nil {
@@ -283,8 +295,18 @@ func (r *claudeIdentityResolver) candidatesForDirectory(dir string, claimed map[
 		if infoErr != nil {
 			continue
 		}
+		// transcriptCouldBelongTo requires modification at/after process start.
+		// Reject files that cannot belong to ANY candidate before opening their
+		// potentially large headers. Equality remains eligible, as before.
+		if !oldestStart.IsZero() && info.ModTime().Before(oldestStart) {
+			continue
+		}
 		path := filepath.Join(projectDir, entry.Name())
-		firstEntryAt, ok := claudeTranscriptFirstEntryTime(path)
+		reader := r.firstEntryTime
+		if reader == nil {
+			reader = claudeTranscriptFirstEntryTime
+		}
+		firstEntryAt, ok := reader(path)
 		if !ok {
 			// No message recorded yet. There is nothing to attribute and
 			// nothing to show, and the next pass will reconsider it.

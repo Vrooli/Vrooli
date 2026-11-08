@@ -246,7 +246,11 @@ func runControlPlaneHarness(ctx context.Context, command string, args []string) 
 	}
 	var out, stderr boundedOutput
 	result := cliinvoke.Run(ctx, cliinvoke.Invocation{Binary: binary, Args: append(strings.Fields(command), args...), Timeout: harnessActionWindow, Stdout: &out, Stderr: &stderr})
-	return out.Bytes(), result.Error()
+	err = result.Error()
+	if err != nil {
+		err = &agentUpdateCommandError{class: result.Class, exitCode: result.ExitCode, cause: err}
+	}
+	return out.Bytes(), err
 }
 
 func errorText(err error) string {

@@ -12,9 +12,9 @@ import launchProfiles from "../launch-profiles.json";
  * `<host>/public`) can make them fetchable by anonymous clients (iOS
  * Add-to-Home-Screen, OG crawlers) without weakening Access elsewhere.
  *
- * The manifest's `start_url` / `scope` / `id` must point at the app root
- * (`/`), NOT into `/public/`, or the installed PWA would launch into the
- * asset folder instead of the app.
+ * The manifest's `start_url` / `scope` must point at the app root, NOT into
+ * `/public/`, or the installed PWA would launch into the asset folder instead
+ * of the app. `id` is omitted so install identity defaults to that start_url.
  */
 
 const THIS_FILE: string = fileURLToPath(import.meta.url);
@@ -146,18 +146,21 @@ describe("public-assets convention: web-console branding/PWA/OG under /public/",
   });
 
   it("the manifest lives at /public/site.webmanifest", () => {
-    expect(/rel="manifest"[^>]*href="\.?\/public\/site\.webmanifest"/.test(INDEX_HTML)).toBe(true);
+    expect(/rel="manifest"[^>]*href="(?:\.?\/)?public\/site\.webmanifest"/.test(INDEX_HTML)).toBe(true);
     expect(existsSync(resolve(PUBLIC_DIR, "site.webmanifest"))).toBe(true);
   });
 
-  it("manifest start_url / scope / id point at the app root, not /public/", () => {
+  it("manifest start_url / scope point at the app root, not /public/, and id is omitted", () => {
     const manifest = readManifest();
-    // The installed PWA must launch into the app root. A value of "." would
-    // resolve relative to the manifest URL (/public/site.webmanifest) and
-    // wrongly scope the app to /public/.
-    expect(manifest.start_url).toBe("/");
-    expect(manifest.scope).toBe("/");
-    expect(manifest.id).toBe("/");
+    // The installed PWA must launch into the app root. Relative to the
+    // manifest URL (/public/site.webmanifest), "../" is that root, where "."
+    // would scope the app to /public/ and "/" would escape a path-prefix
+    // proxy (docs/concepts/PUBLIC_ASSETS.md §"Adopter requirements").
+    expect(manifest.start_url).toBe("../");
+    expect(manifest.scope).toBe("../");
+    // id resolves against the origin, so "/" would give every app behind one
+    // proxy the same install identity; omitted, it defaults to start_url.
+    expect(manifest).not.toHaveProperty("id");
   });
 
   it("manifest icon srcs are co-located in /public/ (resolve relative to the manifest URL)", () => {

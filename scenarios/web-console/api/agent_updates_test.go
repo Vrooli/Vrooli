@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http/httptest"
 	"sync"
@@ -12,6 +13,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/targetmodel"
 	"github.com/vrooli/cli-core/upstreamcheck"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/packages/capabilityprobe"
 	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
 	relayconnect "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay/relayv1connect"
@@ -63,6 +65,78 @@ func TestAgentUpdateRequiresMatchingFreshTargetEvidence(t *testing.T) {
 				t.Fatal("matching installed tool must be verified")
 			}
 		})
+	}
+}
+
+func TestDecodeAgentUpdateCheckPreservesOnlyTypedFailedChecks(t *testing.T) {
+	now := time.Date(2026, 11, 4, 12, 0, 0, 0, time.UTC)
+	checkEnvelope := func(success bool, action, state, name string) []byte {
+		envelope := harnessUpdateEnvelope{Success: success}
+		envelope.Update.Action, envelope.Update.Success = action, success
+		envelope.Update.Report = harnessUpdateReport{
+			Name: name, State: state, Installed: "1.0.0", Latest: "1.1.0", CommandPath: "/bin/codex",
+			OS: "linux", Arch: "amd64", CheckedAt: now,
+			Reason: "the owner could not verify the update source",
+			Checks: []harnessUpdateCheck{{ID: "source", Passed: false, Message: "source denied"}},
+		}
+		data, err := json.Marshal(envelope)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return data
+	}
+	commandFailure := &agentUpdateCommandError{class: cliinvoke.Lifecycle, exitCode: 1, cause: errors.New("exit status 1")}
+	cases := []struct {
+		name       string
+		data       []byte
+		commandErr error
+		wantValid  bool
+		wantState  string
+	}{
+		{name: "typed failed check", data: checkEnvelope(false, "check", agentStateCheckFailed, "codex"), commandErr: commandFailure, wantValid: true, wantState: agentStateCheckFailed},
+		{name: "successful check", data: checkEnvelope(true, "check", agentStateUpdateReady, "codex"), wantValid: true, wantState: agentStateUpdateReady},
+		{name: "malformed output", data: []byte(`{"success":false`), commandErr: commandFailure},
+		{name: "missing envelope success", data: []byte(`{"harness_update":{"action":"check","success":false,"report":{"name":"codex","state":"check_failed"}}}`), commandErr: commandFailure},
+		{name: "wrong action", data: checkEnvelope(false, "rollback", agentStateCheckFailed, "codex"), commandErr: commandFailure},
+		{name: "wrong resource", data: checkEnvelope(false, "check", agentStateCheckFailed, "opencode"), commandErr: commandFailure},
+		{name: "missing report state", data: checkEnvelope(true, "check", "", "codex")},
+		{name: "nonzero without failed-check state", data: checkEnvelope(false, "check", agentStateUpdateReady, "codex"), commandErr: commandFailure},
+		{name: "signaled process with buffered failed-check output", data: checkEnvelope(false, "check", agentStateCheckFailed, "codex"), commandErr: &agentUpdateCommandError{class: cliinvoke.Lifecycle, exitCode: -1, cause: errors.New("signal: killed")}},
+		{name: "timed out process with buffered failed-check output", data: checkEnvelope(false, "check", agentStateCheckFailed, "codex"), commandErr: &agentUpdateCommandError{class: cliinvoke.Timeout, exitCode: 1, cause: context.DeadlineExceeded}},
+		{name: "unexpected exit code with buffered failed-check output", data: checkEnvelope(false, "check", agentStateCheckFailed, "codex"), commandErr: &agentUpdateCommandError{class: cliinvoke.Lifecycle, exitCode: 2, cause: errors.New("exit status 2")}},
+		{name: "desktop owner failed-check report with successful wrapper", data: checkEnvelope(true, "check", agentStateCheckFailed, "codex"), wantValid: true, wantState: agentStateCheckFailed},
+	}
+	observation := capabilityprobe.Observation{ID: "codex", State: capabilityprobe.Ready, Path: "/bin/codex", Version: "1.0.0", ProbedAt: now}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			report, ok := decodeAgentUpdateCheck(tc.data, "codex", tc.commandErr, nil)
+			if ok != tc.wantValid {
+				t.Fatalf("valid = %v, want %v; report=%+v", ok, tc.wantValid, report)
+			}
+			if !ok {
+				return
+			}
+			if report.State != tc.wantState {
+				t.Fatalf("state = %q, want %q", report.State, tc.wantState)
+			}
+			projected := projectAgentUpdate(failedAgentUpdate("local", "codex", "codex", ""), report, observation, "linux", "amd64", now)
+			if projected.State != tc.wantState {
+				t.Fatalf("projected state = %q, want %q: %+v", projected.State, tc.wantState, projected)
+			}
+			if tc.wantState == agentStateCheckFailed {
+				if projected.Reason != report.Reason || len(projected.Checks) != 1 || projected.Checks[0].ID != "source" {
+					t.Fatalf("owner diagnostics were lost: %+v", projected)
+				}
+				if projected.ProbeVerified || projected.Status != upstreamcheck.StatusUnknown || projected.PrimaryAction != agentActionRetry {
+					t.Fatalf("failed check must remain unverified and retryable: %+v", projected)
+				}
+			} else if !projected.ProbeVerified || projected.Status != upstreamcheck.StatusBehind {
+				t.Fatalf("successful check did not preserve matching update evidence: %+v", projected)
+			}
+		})
+	}
+	if _, ok := decodeAgentUpdateCheck(checkEnvelope(false, "check", agentStateCheckFailed, "codex"), "codex", commandFailure, context.DeadlineExceeded); ok {
+		t.Fatal("a typed check result must not survive a cancelled or expired context")
 	}
 }
 
@@ -159,15 +233,19 @@ func TestRepairStatesDoNotDependOnAFreshProbe(t *testing.T) {
 }
 
 type agentUpdateRelayFake struct {
-	request *relayv1.RelayCallRequest
-	token   string
-	fail    bool
+	request  *relayv1.RelayCallRequest
+	token    string
+	fail     bool
+	response *relayv1.RelayCallResponse
 }
 
 func (f *agentUpdateRelayFake) Call(_ context.Context, req *connect.Request[relayv1.RelayCallRequest]) (*connect.Response[relayv1.RelayCallResponse], error) {
 	f.request, f.token = req.Msg, req.Header().Get("Authorization")
 	if f.fail {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("not permitted"))
+	}
+	if f.response != nil {
+		return connect.NewResponse(f.response), nil
 	}
 	return connect.NewResponse(&relayv1.RelayCallResponse{Outcome: relayv1.RelayCallOutcome_RELAY_CALL_OUTCOME_COMPLETED, Data: []byte(`{"success":true}`)}), nil
 }
@@ -192,6 +270,27 @@ func TestRemoteAgentUpdateUsesReadOnlyRelayOnSelectedNode(t *testing.T) {
 	fake.fail = true
 	if _, err := (&Server{}).remoteAgentUpdate(context.Background(), target, "codex"); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("permission failure not preserved: %v", err)
+	}
+}
+
+func TestRemoteAgentUpdateRetainsCompletedNonzeroTypedCheck(t *testing.T) {
+	data := []byte(`{"success":false,"harness_update":{"action":"check","success":false,"report":{"name":"codex","state":"check_failed","reason":"source denied"}}}`)
+	fake := &agentUpdateRelayFake{response: &relayv1.RelayCallResponse{
+		Outcome:  relayv1.RelayCallOutcome_RELAY_CALL_OUTCOME_COMPLETED,
+		ExitCode: 1,
+		Data:     data,
+	}}
+	_, handler := relayconnect.NewRelayServiceHandler(fake)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	target := targetConnection{Target: targetmodel.Target{NodeID: "node-one"}, BaseURL: server.URL, OwnerToken: "Bearer test"}
+	returned, err := (&Server{}).remoteAgentUpdate(context.Background(), target, "codex")
+	if err == nil || string(returned) != string(data) {
+		t.Fatalf("returned=%s err=%v; a completed command's nonzero status must retain its owner payload", returned, err)
+	}
+	report, ok := decodeAgentUpdateCheck(returned, "codex", err, nil)
+	if !ok || report.State != agentStateCheckFailed || report.Reason != "source denied" {
+		t.Fatalf("typed remote check failure was not preserved: report=%+v valid=%v", report, ok)
 	}
 }
 

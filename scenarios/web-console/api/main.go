@@ -630,6 +630,7 @@ func newCapabilityCheckers(ollamaURL, openrouterKey, bridgeURL, bridgeOwnerToken
 			Client:     &http.Client{Timeout: 3 * time.Second}, Probe: true,
 		},
 		"agent-manager":   &capabilities.ScenarioChecker{Slug: "agent-manager"},
+		"ai-gateway":      &capabilities.ScenarioChecker{Slug: "ai-gateway"},
 		"integration-hub": &capabilities.ScenarioChecker{Slug: "integration-hub"},
 		// notification-hub owns the operator's notification preferences and the
 		// approvals inbox the shared operator-decision rail surfaces. The approvals

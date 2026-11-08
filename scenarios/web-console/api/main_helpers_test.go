@@ -44,6 +44,10 @@ func TestProductionCapabilityCheckersCoverCatalogue(t *testing.T) {
 	if !ok || bridge.ResolveURL == nil {
 		t.Fatal("production Bridge checker must resolve its endpoint through api-core discovery")
 	}
+	gateway, ok := checkers["ai-gateway"].(*capabilities.ScenarioChecker)
+	if !ok || gateway.Slug != "ai-gateway" {
+		t.Fatal("production AI Gateway checker must probe the declared scenario through peer discovery")
+	}
 }
 
 func TestParseCleanupMaxBytesAcceptsHumanAndRawValues(t *testing.T) {

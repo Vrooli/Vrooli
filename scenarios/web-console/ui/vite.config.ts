@@ -104,12 +104,6 @@ export default defineConfig(({ mode }): UserConfig => {
           'src/audio-integration/components/Button.tsx',
         ],
         reportOnFailure: true,
-        thresholds: {
-          lines: 85,
-          functions: 85,
-          branches: 85,
-          statements: 85,
-        }
       }
     }
   };

@@ -37,11 +37,12 @@ type fakeOpenCodeClient struct {
 	sessions []opencode.Session
 	messages map[string][]opencode.MessageWithParts
 	// eventsFn, if set, drives the SSE seam; nil blocks until ctx cancel.
-	eventsFn   func(ctx context.Context, onEvent func(opencode.Event)) error
-	listCalls  int
-	listDirs   []string
-	eventCalls int
-	replies    []string // "requestID:reply" per ReplyPermission call
+	eventsFn     func(ctx context.Context, onEvent func(opencode.Event)) error
+	listCalls    int
+	listDirs     []string
+	eventCalls   int
+	messageCalls []string
+	replies      []string // "requestID:reply" per ReplyPermission call
 
 	// scopeByDirectory makes ListSessions behave like a real managed server:
 	// an empty directory resolves to serverDirectory and only sessions whose
@@ -80,7 +81,49 @@ func (f *fakeOpenCodeClient) ListSessions(_ context.Context, directory string) (
 func (f *fakeOpenCodeClient) SessionMessages(_ context.Context, sessionID string) ([]opencode.MessageWithParts, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.messageCalls = append(f.messageCalls, sessionID)
 	return append([]opencode.MessageWithParts(nil), f.messages[sessionID]...), nil
+}
+
+func TestOpenCodeWatcherPreservesArchivedClaimsWithoutFetchingHistory(t *testing.T) {
+	srv, w, paneID := newOpenCodeWatcherTest(t)
+	ctx := context.Background()
+	if err := srv.sessionStore.UpdateAgentInfo(ctx, paneID, sessionstore.AgentInfo{AgentType: sessionstore.AgentOpenCode, AgentSessionID: "ses_archived", CWD: "/work"}); err != nil {
+		t.Fatal(err)
+	}
+	_, retained := srv.conversations.AppendNativeEvent(ctx, paneID, opencodeSource, "user", "already retained", &NativeProvenance{Provider: "opencode", SessionID: "ses_archived", MessageID: "retained"})
+	if !retained.Appended {
+		t.Fatal("could not seed retained conversation")
+	}
+	if err := srv.sessionStore.MarkArchived(ctx, paneID, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	w.loadExistingClaims()
+	client := &fakeOpenCodeClient{sessions: []opencode.Session{ocSession("ses_archived", "/work")}, messages: map[string][]opencode.MessageWithParts{"ses_archived": {ocUser(10, "retained provider message")}}}
+	w.reconcileAll(ctx, client)
+	if len(client.messageCalls) != 0 {
+		t.Fatalf("archived history fetched: %v", client.messageCalls)
+	}
+	if w.claimed["ses_archived"] != paneID {
+		t.Fatal("archived native identity was released for reassignment")
+	}
+	if state := srv.conversations.ListSession(ctx, paneID); len(state.Events) != 1 || state.Events[0].Text != "already retained" {
+		t.Fatal("retained archive content changed")
+	}
+	if err := srv.sessionStore.MarkUnarchived(ctx, paneID); err != nil {
+		t.Fatal(err)
+	}
+	w.reconcileAll(ctx, client)
+	if len(client.messageCalls) != 1 || len(srv.conversations.ListSession(ctx, paneID).Events) != 2 {
+		t.Fatal("explicit unarchive did not resume capture")
+	}
+	if err := srv.sessionStore.Delete(ctx, paneID); err != nil {
+		t.Fatal(err)
+	}
+	w.reconcileAll(ctx, client)
+	if len(client.messageCalls) != 1 {
+		t.Fatal("missing metadata target was polled after deletion")
+	}
 }
 
 func (f *fakeOpenCodeClient) SessionStatus(context.Context) (map[string]opencode.SessionStatus, error) {
@@ -477,5 +520,84 @@ func TestOpenCodeWatcher_RestoresClaimsAfterRestart(t *testing.T) {
 	state := srv.conversations.ListSession(context.Background(), paneID)
 	if len(state.Events) != 2 || state.Events[0].Text != "resumed" {
 		t.Fatalf("restored claim should reconcile existing session; got %+v", state.Events)
+	}
+}
+
+type observedOpenCodeClient struct {
+	*fakeOpenCodeClient
+	lists chan struct{}
+}
+
+func (c *observedOpenCodeClient) ListSessions(ctx context.Context, directory string) ([]opencode.Session, error) {
+	sessions, err := c.fakeOpenCodeClient.ListSessions(ctx, directory)
+	select {
+	case c.lists <- struct{}{}:
+	default:
+	}
+	return sessions, err
+}
+
+func TestOpenCodeWatcherKeepalivesDoNotFetchConversationHistory(t *testing.T) {
+	srv, _, paneID := newOpenCodeWatcherTest(t)
+	callbacks := make(chan func(opencode.Event), 1)
+	fake := &fakeOpenCodeClient{sessions: []opencode.Session{ocSession("ses_a", "/work")}, messages: map[string][]opencode.MessageWithParts{"ses_a": {ocUser(10, "first")}}}
+	fake.eventsFn = func(ctx context.Context, onEvent func(opencode.Event)) error {
+		callbacks <- onEvent
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	client := &observedOpenCodeClient{fakeOpenCodeClient: fake, lists: make(chan struct{}, 1000)}
+	w := &OpenCodeWatcher{server: srv, checkpoints: srv.agentCheckpointStore, claimed: map[string]string{}, startServer: func() (opencode.Server, func(), error) { return opencode.Server{Major: 1}, func() {}, nil }, newClient: func(opencode.Server) opencode.Client { return client }, reconcileInterval: time.Hour, stopCh: make(chan struct{})}
+	w.Start()
+	t.Cleanup(w.Stop)
+	onEvent := <-callbacks
+	waitForEventCount(t, srv.conversations, paneID, 1, time.Second)
+	// Initial discovery queries both the server directory and pane cwd.
+initialLists:
+	for {
+		select {
+		case <-client.lists:
+		default:
+			break initialLists
+		}
+	}
+	for i := 0; i < 100; i++ {
+		onEvent(opencode.Event{Type: "server.heartbeat"})
+		onEvent(opencode.Event{Type: "server.connected"})
+	}
+	select {
+	case <-client.lists:
+		t.Fatal("stream keepalive fetched sessions/history despite no conversation changes")
+	case <-time.After(100 * time.Millisecond):
+	}
+	// A content event still catches up the complete native history promptly.
+	fake.mu.Lock()
+	fake.messages["ses_a"] = append(fake.messages["ses_a"], ocAssistant("msg_user_10", 20, 30, "second"))
+	fake.mu.Unlock()
+	onEvent(opencode.Event{Type: "message.updated", Properties: map[string]interface{}{"sessionID": "ses_a"}})
+	state := waitForEventCount(t, srv.conversations, paneID, 2, time.Second)
+	if state.Events[1].Text != "second" {
+		t.Fatalf("content event did not reconcile: %+v", state.Events)
+	}
+}
+
+func TestOpenCodeCaptureServerDisablesOnlyItsOwnFileWatcher(t *testing.T) {
+	parent := []string{"PATH=/tools", "OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER=false", "UNCHANGED=value"}
+	original := slices.Clone(parent)
+	cmd := openCodeCaptureServerCommand("/tools/opencode", "/project", parent)
+	if !slices.Equal(parent, original) {
+		t.Fatal("capture helper mutated interactive launch environment")
+	}
+	if cmd.Dir != "/project" || !slices.Equal(cmd.Args, []string{"/tools/opencode", "serve", "--hostname", "127.0.0.1", "--port", "0"}) {
+		t.Fatalf("capture ownership/listener changed: %+v", cmd)
+	}
+	var flags []string
+	for _, entry := range cmd.Environ() {
+		if strings.HasPrefix(entry, "OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER=") {
+			flags = append(flags, entry)
+		}
+	}
+	if !slices.Equal(flags, []string{"OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER=true"}) {
+		t.Fatalf("helper override is ambiguous: %+v", flags)
 	}
 }

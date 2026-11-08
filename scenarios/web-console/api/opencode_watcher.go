@@ -138,6 +138,12 @@ func (w *OpenCodeWatcher) run() {
 		// we were not subscribed.
 		signal(trigger)
 		err := client.Events(ctx, func(ev opencode.Event) {
+			// Transport liveness carries no changed conversation. The explicit
+			// connection reconcile above and the safety ticker already cover
+			// recovery; a heartbeat must not reload every retained history.
+			if ev.Type == "server.heartbeat" || ev.Type == "server.connected" {
+				return
+			}
 			w.applyActivity(ev)
 			signal(trigger)
 		})
@@ -221,6 +227,15 @@ func (w *OpenCodeWatcher) reconcileAll(ctx context.Context, client opencode.Clie
 	w.mu.Unlock()
 
 	for ocID, wcID := range pairs {
+		// Claims reserve native identity across archive/restore. They are not
+		// an instruction to poll every retained history forever. The explicit
+		// archive marker remains authoritative even when legacy status is live.
+		if w.server != nil && w.server.sessionStore != nil {
+			meta, err := w.server.sessionStore.Get(ctx, wcID)
+			if err != nil || !meta.ArchivedAt.IsZero() {
+				continue
+			}
+		}
 		w.reconcileSession(ctx, client, ocID, wcID)
 	}
 }
@@ -282,7 +297,7 @@ func (w *OpenCodeWatcher) opencodePaneDirectories(ctx context.Context) []string 
 	seen := make(map[string]bool)
 	var directories []string
 	for _, m := range metas {
-		if m.AgentType != sessionstore.AgentOpenCode || m.AgentSessionID != "" || !w.paneIsLive(m.ID) {
+		if m.AgentType != sessionstore.AgentOpenCode || m.AgentSessionID != "" || !m.ArchivedAt.IsZero() || !w.paneIsLive(m.ID) {
 			continue
 		}
 		directory := m.CWD
@@ -326,7 +341,7 @@ func (w *OpenCodeWatcher) attribute(sessions []opencode.Session) {
 
 	var panes []sessionstore.Metadata
 	for _, m := range metas {
-		if m.AgentType == sessionstore.AgentOpenCode && m.AgentSessionID == "" && !claimedPane[m.ID] && w.paneIsLive(m.ID) {
+		if m.AgentType == sessionstore.AgentOpenCode && m.AgentSessionID == "" && m.ArchivedAt.IsZero() && !claimedPane[m.ID] && w.paneIsLive(m.ID) {
 			if strings.TrimSpace(m.CWD) == "" {
 				m.CWD = config.ResolveWorkingDir()
 			}
@@ -539,9 +554,7 @@ func spawnOpenCodeServe() (opencode.Server, func(), error) {
 	}
 	env := cliutil.PrepareLaunchEnvironment(os.Environ(), launchContext)
 	major := opencodeMajorVersion(path, launchContext.WorkingDir, env)
-	cmd := exec.Command(path, "serve", "--hostname", "127.0.0.1", "--port", "0")
-	cmd.Dir = launchContext.WorkingDir
-	cmd.Env = env
+	cmd := openCodeCaptureServerCommand(path, launchContext.WorkingDir, env)
 	pr, pw, err := os.Pipe()
 	if err != nil {
 		return opencode.Server{}, nil, err
@@ -601,6 +614,17 @@ func spawnOpenCodeServe() (opencode.Server, func(), error) {
 		}
 	}
 	return server, stop, nil
+}
+
+// This server only observes native history and answers control requests. It
+// does not edit a project or run prompts, so repository filesystem watching is
+// unnecessary. Scope the supported flag to this child; interactive OpenCode
+// panes retain their own launch environment and file-watching behavior.
+func openCodeCaptureServerCommand(path, workingDir string, environment []string) *exec.Cmd {
+	cmd := exec.Command(path, "serve", "--hostname", "127.0.0.1", "--port", "0")
+	cmd.Dir = workingDir
+	cmd.Env = append(append([]string(nil), environment...), "OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER=true")
+	return cmd
 }
 
 func opencodeMajorVersion(path, dir string, env []string) int {

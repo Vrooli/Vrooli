@@ -381,6 +381,11 @@ const dynamicSelectorDefinitions = {
     }),
   },
   launcher: {
+    open: defineDynamicSelector({
+      description: 'New session control in the current workspace layout',
+      selectorPattern: '[data-testid="new-terminal-button"], [data-testid="toolbar-new"], [data-testid="workspace-sidebar-new"], [data-testid="tab-bar-new"]',
+      params: {},
+    }),
     shortcut: defineDynamicSelector({
       description: 'Launcher shortcut button',
       testIdPattern: 'launcher-shortcut-${label}',
@@ -571,6 +576,11 @@ const dynamicSelectorDefinitions = {
     }),
   },
   terminal: {
+    visiblePane: defineDynamicSelector({
+      description: 'Visible terminal host in the active workspace (Playwright visibility selector)',
+      selectorPattern: '[data-testid="terminal-pane"]:visible',
+      params: {},
+    }),
     paneBySession: defineDynamicSelector({
       description: 'Terminal host element by session ID',
       selectorPattern: '[data-testid="terminal-pane"][data-session-id="${sessionId}"]',

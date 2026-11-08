@@ -54,6 +54,7 @@ func launcherJourney(t *testing.T, check string) {
 	desktopJourney := !fullStackJourney && (allHarnessJourney || check == "TestJ8_DesktopUserOwnedInstallOperated")
 	updateJourney := check == "TestJ7_ManageUpdateWorksOnIsolatedHome"
 	cleanupJourney := check == "TestJ8_FoundCopyStaysUntouched" || check == "TestJ8_CleanupPreviewEqualsRemoval"
+	usageJourney := check == "TestJ7_UsageWindowsComeFromDataWithResetTimes"
 	manageJourney := fullStackJourney || desktopJourney || cleanupJourney || updateJourney || check == "TestJ7_ManageShowsBubbleWhenActionWaits" || check == "TestJ7_EligibilityReasonShownAndFixable"
 	var governanceCLI string
 	if fullStackJourney {
@@ -76,7 +77,7 @@ func launcherJourney(t *testing.T, check string) {
 		}
 	}
 	var sourcePrefix string
-	if manageJourney && !desktopJourney && !allHarnessJourney {
+	if (manageJourney || usageJourney) && !desktopJourney && !allHarnessJourney {
 		sourcePrefix = installedClaudePrefix(t)
 	}
 	home, err := os.MkdirTemp(evidence, "home-")
@@ -120,7 +121,7 @@ func launcherJourney(t *testing.T, check string) {
 	}
 	t.Setenv("AUDIO_TOOLS_URL", "http://127.0.0.1:1")
 	var localToken string
-	if manageJourney {
+	if manageJourney || usageJourney {
 		prepareUnlinkedHarness(t, home, sourcePrefix)
 		if desktopJourney {
 			isolateDesktopTools(t, home)
@@ -155,8 +156,15 @@ func launcherJourney(t *testing.T, check string) {
 		if cleanupJourney {
 			prepareFoundClaude(t, home, sourcePrefix)
 		}
-		localToken = fmt.Sprintf("%x", makeLocalToken(t))
-		t.Setenv("LAUNCHER_LOCAL_TOKEN", localToken)
+		if manageJourney {
+			localToken = fmt.Sprintf("%x", makeLocalToken(t))
+			t.Setenv("LAUNCHER_LOCAL_TOKEN", localToken)
+		}
+		if usageJourney {
+			// Keep Claude available in New Session while giving Manage a stable
+			// unlinked managed copy with its link action, independent of host PATH.
+			prepareFoundClaude(t, home, sourcePrefix)
+		}
 	}
 	db, err := sql.Open("sqlite", resolveSQLiteDSN())
 	if err != nil {

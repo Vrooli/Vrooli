@@ -139,7 +139,7 @@
     },
     {
       "name": "conversation",
-      "description": "Conversation history, cursors, summarization, and file references",
+      "description": "Conversation history and cursors. Search across active and archived conversations with `web-console continuity search`.",
       "commands": [
         {
           "name": "get",

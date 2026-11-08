@@ -14,6 +14,19 @@ Five independent paths feed the conversation store. All of them converge on the 
 
 Attribution is always path-, env-, or directory-bound — never inferred from PTY output text.
 
+Claude identity discovery rejects files modified before every candidate process
+started before opening their headers. The same per-process timestamp and mutual
+uniqueness checks still decide attribution; historical files cannot become a
+match merely because they were read less often.
+
+OpenCode connection and heartbeat frames report transport liveness and do not
+reload conversation histories. Content events still trigger reconciliation,
+and startup, reconnect and the 15-second safety pass catch missed updates. The
+capture-only helper disables project filesystem watching with OpenCode's
+[documented environment flag](https://opencode.ai/docs/cli/#experimental),
+`OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER=true`. This setting belongs only to
+that observer process; interactive OpenCode terminals use their own environment.
+
 ## Works from
 
 - **Shortcut launch** — clicking `claude` / `codex` / `opencode` / `grok` in the Terminal Launcher.
@@ -48,6 +61,31 @@ If conversation events are missing:
 6. For opencode, check `make logs` for `opencode-watcher: managed server at http://127.0.0.1:<port> (API v1|v2)` (capture is disabled if the `opencode` binary is missing) and `opencode-watcher: attributed session ... -> pane ...`. If a session is never attributed, first check that the pane row has a non-empty `cwd`, then check the ambiguity guard: another opencode pane shares the same cwd. Run them in distinct directories.
 
 For a recovered Claude pane, the Messages view shows a subtle warning only when it has emitted terminal output after recovery, two minutes have elapsed, and no new conversation event was recorded. This is a degraded-observability signal, not a claim that the agent stopped; check the transcript path and hook configuration before retrying anything.
+
+## Health and explicit integrity audits
+
+An explicit archive timestamp excludes a session from routine capture discovery,
+even when an older metadata row still has status `live`. OpenCode retains the
+native-session claim to protect identity, but routine reconciliation skips the
+archived or missing target before fetching history. Explicit unarchive resumes
+normal reconciliation. Claude excludes archived rows from transcript discovery
+and unresolved-identity process scans. Its successful complete discovery snapshot
+also stops readers no longer included, so archive takes effect at the next scan.
+A discovery error retains the existing readers. Stopping a reader retains its
+checkpoint; unarchive resumes from that checkpoint without replaying accepted
+content. Other sources retain their existing reader-lifetime policy.
+These filters do not remove transcripts, conversation events, cursors, or native
+sessions.
+
+`/health` and `/api/v1/health` check the database and current continuity catalog
+links without scanning retained conversation content. An uncataloged projection
+or a catalog query failure still degrades functional health immediately. These
+probes do not produce a conservation hash or an integrity generation.
+
+The explicit conversation integrity operation continues to inventory identities
+and hash event content. Its generation and content hash remain the stronger
+evidence used by operator audits and reconciliation. Health observations are
+never substituted for those receipts, and neither path deletes conversations.
 
 ## Session activity
 

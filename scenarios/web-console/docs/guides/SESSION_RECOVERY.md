@@ -37,6 +37,8 @@ manual appendix:
 ```bash
 web-console continuity integrity --json
 web-console continuity search --query "remembered text" --state any --json
+# Find an archived native-goal owner conversation by its goal/thread ID:
+web-console continuity search --query "NATIVE_GOAL_ID" --state any --json
 web-console continuity inspect --thread-id THREAD_ID --json
 web-console continuity reconcile --json
 ```

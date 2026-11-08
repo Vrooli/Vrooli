@@ -6,7 +6,7 @@
   "description": "Launch a terminal with a custom command and verify launched session connectivity",
   "metadata": {
     "name": "launch-custom-command-executes",
-    "description": "Launch a terminal with a custom command and verify launched session connectivity",
+    "description": "Given a hydrated workspace and routed test lease, when a shell command is launched, then its new session emits the expected output and WebSocket traffic, and cleanup removes only the test-owned session.",
     "execution_mode": "mutating",
     "labels": {
       "requires_confirmation": "true",
@@ -75,7 +75,8 @@
           "assert": {
             "selector": "body[data-terminal-smoke-session-id-captured='true']",
             "failure_message": "Expected launched session ID to be captured for output checks",
-            "timeout_ms": 5000
+            "timeout_ms": 5000,
+            "mode": "ASSERTION_MODE_EXISTS"
           },
           "metadata": {
             "label": "Verify launched session tracking"
@@ -101,7 +102,8 @@
           "assert": {
             "selector": "body[data-terminal-traffic-ok='true']",
             "failure_message": "Expected terminal websocket traffic after running a command",
-            "timeout_ms": 5000
+            "timeout_ms": 5000,
+            "mode": "ASSERTION_MODE_EXISTS"
           },
           "metadata": {
             "label": "Verify websocket message traffic"
@@ -127,7 +129,8 @@
           "assert": {
             "selector": "body[data-terminal-output-ok='true']",
             "failure_message": "Expected custom command marker in terminal output after launch",
-            "timeout_ms": 5000
+            "timeout_ms": 5000,
+            "mode": "ASSERTION_MODE_EXISTS"
           },
           "metadata": {
             "label": "Verify command marker output"
@@ -153,7 +156,8 @@
           "assert": {
             "selector": "body[data-bas-teardown-leaked='0']",
             "failure_message": "Expected teardown to remove only sessions created by this case and report no leak",
-            "timeout_ms": 5000
+            "timeout_ms": 5000,
+            "mode": "ASSERTION_MODE_EXISTS"
           },
           "metadata": {
             "label": "Verify no session leak"
@@ -207,6 +211,12 @@
       {
         "id": "e7",
         "source": "assert-terminal-output",
+        "target": "teardown-test-sessions",
+        "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
+      },
+      {
+        "id": "e-teardown-verification",
+        "source": "teardown-test-sessions",
         "target": "assert-no-session-leak",
         "type": "WORKFLOW_EDGE_TYPE_DEFAULT"
       }

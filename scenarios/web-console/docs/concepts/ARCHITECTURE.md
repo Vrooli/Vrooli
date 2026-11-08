@@ -92,6 +92,17 @@ The existing target contract distinguishes local and remote unknown readiness. T
 
 ## System Layers
 
+### Recovery availability
+
+Terminal startup does not require AI command generation. The AI Gateway edge
+uses `required=false` and `startup_policy=try_start`; a missing or failed gateway
+does not prevent the terminal API from serving. AI generation resolves its peer
+at call time and reports unavailability until that service recovers. Bundles
+retain `bundle_policy=embed`, so this host-startup distinction does not remove
+the packaged AI capability. The four-service minimum recovery plane must have
+no must-start peer outside its operator-declared trusted base; SDA's core-set
+tests cover that exact authority as well as the broader legacy fixture.
+
 ### Browser launch and viewport ownership
 
 The visual concept for launch is continuity: Aquila's existing icon and name

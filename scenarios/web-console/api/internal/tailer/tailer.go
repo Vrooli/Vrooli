@@ -89,6 +89,10 @@ type Config struct {
 	PollInterval time.Duration
 	TailInterval time.Duration
 	StaleTimeout time.Duration
+	// StopUndiscovered makes each successful discovery result authoritative
+	// for reader lifetime. Use only for sources that return a complete snapshot.
+	// Discovery errors retain existing readers; checkpoints are never removed.
+	StopUndiscovered bool
 	// Dispatch returns whether a durable projection accepted the event. A
 	// rejected event keeps the source cursor behind so a later scan can retry it.
 	Dispatch func(Event, string) bool
@@ -98,14 +102,15 @@ type Config struct {
 // Engine owns discovery, watcher lifecycle, byte-offset reads, and durable
 // cursor updates for one transcript source.
 type Engine struct {
-	name         string
-	source       Source
-	checkpoints  CheckpointStore
-	pollInterval time.Duration
-	tailInterval time.Duration
-	staleTimeout time.Duration
-	dispatch     func(Event, string) bool
-	logger       *log.Logger
+	name             string
+	source           Source
+	checkpoints      CheckpointStore
+	pollInterval     time.Duration
+	tailInterval     time.Duration
+	staleTimeout     time.Duration
+	stopUndiscovered bool
+	dispatch         func(Event, string) bool
+	logger           *log.Logger
 
 	stopOnce  sync.Once
 	stopCh    chan struct{}
@@ -113,6 +118,7 @@ type Engine struct {
 	tailWG    sync.WaitGroup
 	captureWG sync.WaitGroup
 	mu        sync.Mutex
+	scanMu    sync.Mutex
 	watchers  map[string]*watcher
 	decodeMu  sync.Mutex
 }
@@ -120,6 +126,7 @@ type Engine struct {
 type watcher struct {
 	refresh chan chan struct{}
 	done    chan struct{}
+	stopCh  chan struct{}
 }
 
 // New constructs a shared transcript engine.
@@ -140,16 +147,17 @@ func New(cfg Config) *Engine {
 		cfg.Logger = log.Default()
 	}
 	return &Engine{
-		name:         cfg.Name,
-		source:       cfg.Source,
-		checkpoints:  cfg.Checkpoints,
-		pollInterval: cfg.PollInterval,
-		tailInterval: cfg.TailInterval,
-		staleTimeout: cfg.StaleTimeout,
-		dispatch:     cfg.Dispatch,
-		logger:       cfg.Logger,
-		stopCh:       make(chan struct{}),
-		watchers:     make(map[string]*watcher),
+		name:             cfg.Name,
+		source:           cfg.Source,
+		checkpoints:      cfg.Checkpoints,
+		pollInterval:     cfg.PollInterval,
+		tailInterval:     cfg.TailInterval,
+		staleTimeout:     cfg.StaleTimeout,
+		stopUndiscovered: cfg.StopUndiscovered,
+		dispatch:         cfg.Dispatch,
+		logger:           cfg.Logger,
+		stopCh:           make(chan struct{}),
+		watchers:         make(map[string]*watcher),
 	}
 }
 
@@ -182,6 +190,8 @@ func (e *Engine) Stop() {
 	}
 	e.stopOnce.Do(func() { close(e.stopCh) })
 	e.pollWG.Wait()
+	e.scanMu.Lock()
+	defer e.scanMu.Unlock()
 	e.tailWG.Wait()
 	e.captureWG.Wait()
 }
@@ -192,10 +202,42 @@ func (e *Engine) Scan(ctx context.Context) {
 	if e == nil || e.source == nil {
 		return
 	}
+	e.scanMu.Lock()
+	defer e.scanMu.Unlock()
+	select {
+	case <-e.stopCh:
+		return
+	default:
+	}
 	files, err := e.source.DiscoverFiles(ctx)
 	if err != nil {
 		e.printf("discover files: %v", err)
 		return
+	}
+	if e.stopUndiscovered {
+		seen := make(map[string]bool, len(files))
+		for _, ref := range files {
+			if ref.Path != "" && ref.SessionID != "" {
+				key := ref.SourceKey
+				if key == "" {
+					key = ref.Path
+				}
+				seen[key] = true
+			}
+		}
+		var stopped []*watcher
+		e.mu.Lock()
+		for key, current := range e.watchers {
+			if !seen[key] {
+				delete(e.watchers, key)
+				close(current.stopCh)
+				stopped = append(stopped, current)
+			}
+		}
+		e.mu.Unlock()
+		for _, current := range stopped {
+			<-current.done
+		}
 	}
 	for _, ref := range files {
 		if ref.Path == "" || ref.SessionID == "" {
@@ -208,7 +250,7 @@ func (e *Engine) Scan(ctx context.Context) {
 		e.mu.Lock()
 		current, known := e.watchers[key]
 		if !known {
-			current = &watcher{refresh: make(chan chan struct{}), done: make(chan struct{})}
+			current = &watcher{refresh: make(chan chan struct{}), done: make(chan struct{}), stopCh: make(chan struct{})}
 			e.watchers[key] = current
 			e.tailWG.Add(1)
 		}
@@ -349,6 +391,8 @@ func (e *Engine) tail(ref FileRef, key string, current *watcher, ready chan stru
 	for {
 		select {
 		case <-e.stopCh:
+			return
+		case <-current.stopCh:
 			return
 		case ack := <-current.refresh:
 			process()

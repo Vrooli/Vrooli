@@ -18,6 +18,7 @@ import (
 	"web-console/internal/pty"
 
 	creackpty "github.com/creack/pty/v2"
+	"github.com/vrooli/cli-core/cliutil"
 )
 
 // localPTYAvailable is a compile-time platform seam. The implementation file
@@ -196,11 +197,28 @@ func filterServiceEnv(env []string) []string {
 			if _, blocked := serviceEnvVars[name]; blocked {
 				continue
 			}
+			if _, agent := ambientAgentEnv[name]; agent {
+				continue
+			}
 		}
 		result = append(result, v)
 	}
 	return result
 }
+
+// ambientAgentEnv is cli-core's canonical list of variables through which an
+// enclosing coding-agent session changes CLI behaviour (CODEX_CI,
+// CLAUDECODE, agent identity and session markers). The web-console service
+// may itself be started from an agent session; an operator terminal must not
+// inherit that session, or every caller detector misreads the operator as an
+// agent. A coding agent launched inside a pane sets its own markers.
+var ambientAgentEnv = func() map[string]struct{} {
+	keys := map[string]struct{}{}
+	for _, key := range cliutil.AmbientAgentEnvironment() {
+		keys[key] = struct{}{}
+	}
+	return keys
+}()
 
 func applySessionEnv(base []string, extra map[string]string) []string {
 	if len(extra) == 0 {

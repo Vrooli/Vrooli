@@ -1021,6 +1021,53 @@ describe("Manage", () => {
     expect(screen.queryByTestId("launcher-newer-than-reviewed")).toBeNull();
   });
 
+  it("refreshes every harness check without applying an update", async () => {
+    withState("codex", { state: "check_failed", status: "unknown", primaryAction: "retry" });
+    capabilities.runAgentUpdateAction.mockImplementation(((request: { agentId: string }) => Promise.resolve({ success: true, message: "", update: update(request.agentId) })) as never);
+    drawer();
+    await loaded();
+    openManage();
+    expect(screen.getByTestId("launcher-agent-status-codex")).toHaveTextContent(strings.launcher.statusCheckFailed);
+    capabilities.runAgentUpdateAction.mockClear();
+    fireEvent.click(screen.getByTestId("launcher-update-refresh"));
+    await waitFor(() => { expect(screen.getByTestId("launcher-agent-status-codex")).toHaveTextContent(strings.launcher.statusUpToDate); });
+    expect(capabilities.runAgentUpdateAction).toHaveBeenCalledTimes(3);
+    expect(capabilities.runAgentUpdateAction.mock.calls.map(([request]) => request.agentId).sort()).toEqual(["claude", "codex", "opencode"]);
+    for (const [request] of capabilities.runAgentUpdateAction.mock.calls) expect(request).toEqual({ targetId: "local", agentId: request.agentId, action: "retry" });
+  });
+
+  it("runs doctor and only uninstalls the exact previewed cleanup plan", async () => {
+    capabilities.runAgentUpdateAction.mockImplementation(((request: { action: string }) => Promise.resolve({
+      success: true, message: "Checked", update: update("claude"),
+      ...(request.action === "preview_cleanup" ? { cleanupPlan: { id: "plan-owned-42", remove: ["/managed/claude"], preserved: ["/found/claude"] } } : {}),
+    })) as never);
+    drawer();
+    await loaded();
+    openDetail("claude");
+    expect(screen.queryByTestId("launcher-uninstall-claude")).toBeNull();
+    fireEvent.click(screen.getByTestId("launcher-doctor-claude"));
+    await screen.findByTestId("launcher-action-done");
+    expect(capabilities.runAgentUpdateAction).toHaveBeenLastCalledWith({ targetId: "local", agentId: "claude", action: "doctor" }, expect.anything());
+    fireEvent.click(screen.getByTestId("launcher-cleanup-preview-claude"));
+    const plan = await screen.findByTestId("launcher-cleanup-plan");
+    expect(plan.querySelector("[data-cleanup-remove]")).toHaveTextContent("/managed/claude");
+    expect(plan.querySelector("[data-cleanup-preserve]")).toHaveTextContent("/found/claude");
+    expect(capabilities.runAgentUpdateAction).toHaveBeenCalledTimes(2);
+    fireEvent.click(screen.getByTestId("launcher-uninstall-claude"));
+    await waitFor(() => { expect(capabilities.runAgentUpdateAction).toHaveBeenLastCalledWith({ targetId: "local", agentId: "claude", action: "uninstall", cleanupPlanId: "plan-owned-42" }, expect.anything()); });
+  });
+
+  it("refreshes a stale model catalog through the selected harness owner", async () => {
+    models.getRoleModelChoices.mockResolvedValue(policy({ catalogStale: true, detail: "Catalog needs refresh" }) as never);
+    capabilities.runAgentUpdateAction.mockResolvedValue({ success: true, message: "Catalog refreshed", update: update("claude") } as never);
+    drawer();
+    await loaded();
+    openDetail("claude");
+    fireEvent.click(await screen.findByTestId("launcher-catalog-refresh"));
+    await waitFor(() => { expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith({ targetId: "local", agentId: "claude", action: "refresh_catalog" }, expect.anything()); });
+    expect(await screen.findByTestId("launcher-action-done")).toHaveTextContent("Catalog refreshed");
+  });
+
   it("writes one source sentence and absolute reset times in the detail, with no estimate label on cards", async () => {
     capabilities.agentUsage.mockImplementation(((request: { agentId: string }) => Promise.resolve(usage(request.agentId, [{ windowMinutes: 10080, usedPercent: 50 }]))) as never);
     drawer();

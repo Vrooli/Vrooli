@@ -19,6 +19,7 @@ import (
 	"github.com/vrooli/api-core/targetmodel"
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/cli-core/upstreamcheck"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/packages/capabilityprobe"
 	harnesslifecycle "github.com/vrooli/vrooli/packages/harness-lifecycle"
 	relayv1 "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-bridge/v1/relay"
@@ -128,6 +129,65 @@ type harnessUpdateEnvelope struct {
 		PreservedPath string                        `json:"preserved_path"`
 		Report        harnessUpdateReport           `json:"report"`
 	} `json:"harness_update"`
+}
+
+// agentUpdateCommandError retains the subprocess classification needed to
+// distinguish the owner's expected check-failed exit from interruption or
+// failure to launch the command. Error text remains the underlying CLI error.
+type agentUpdateCommandError struct {
+	class    cliinvoke.Class
+	exitCode int
+	cause    error
+}
+
+func (e *agentUpdateCommandError) Error() string { return e.cause.Error() }
+func (e *agentUpdateCommandError) Unwrap() error { return e.cause }
+
+func expectedAgentCheckFailure(err error) bool {
+	var commandErr *agentUpdateCommandError
+	return errors.As(err, &commandErr) && commandErr.class == cliinvoke.Lifecycle && commandErr.exitCode == 1
+}
+
+// decodeAgentUpdateCheck accepts only the check verb's structured result. A
+// check_failed report is a useful owner verdict even though the command exits
+// nonzero; all other command failures remain unavailable. In particular, an
+// interrupted check must not turn buffered output into a fresh observation.
+func decodeAgentUpdateCheck(data []byte, resource string, commandErr, contextErr error) (harnessUpdateReport, bool) {
+	if len(data) == 0 || len(data) > agentUpdateMaxOutput || contextErr != nil {
+		return harnessUpdateReport{}, false
+	}
+	var shape struct {
+		Success *bool `json:"success"`
+		Update  *struct {
+			Action  *string         `json:"action"`
+			Success *bool           `json:"success"`
+			Report  json.RawMessage `json:"report"`
+		} `json:"harness_update"`
+	}
+	if err := json.Unmarshal(data, &shape); err != nil || shape.Success == nil || shape.Update == nil || shape.Update.Action == nil || shape.Update.Success == nil || len(shape.Update.Report) == 0 {
+		return harnessUpdateReport{}, false
+	}
+	var envelope harnessUpdateEnvelope
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if err := decoder.Decode(&envelope); err != nil {
+		return harnessUpdateReport{}, false
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return harnessUpdateReport{}, false
+	}
+
+	if envelope.Update.Action != "check" || envelope.Update.Report.Name != resource || envelope.Update.Report.State == "" || envelope.Success != envelope.Update.Success {
+		return harnessUpdateReport{}, false
+	}
+	if commandErr != nil {
+		if !expectedAgentCheckFailure(commandErr) || envelope.Success || envelope.Update.Report.State != agentStateCheckFailed {
+			return harnessUpdateReport{}, false
+		}
+	} else if !envelope.Success {
+		return harnessUpdateReport{}, false
+	}
+	return envelope.Update.Report, true
 }
 
 type agentUpdateEntry struct {
@@ -296,16 +356,9 @@ func (s *Server) getAgentUpdate(ctx context.Context, targetID, agentID string) (
 		} else {
 			data, err = s.remoteAgentUpdate(ctx, target, resource)
 		}
-		if err != nil {
+		rep, valid := decodeAgentUpdateCheck(data, resource, err, ctx.Err())
+		if !valid {
 			return failedAgentUpdate(targetID, agentID, resource, "Update check unavailable"), nil
-		}
-		var envelope harnessUpdateEnvelope
-		if len(data) > agentUpdateMaxOutput || json.NewDecoder(bytes.NewReader(data)).Decode(&envelope) != nil || !envelope.Success {
-			return failedAgentUpdate(targetID, agentID, resource, "Update check returned an invalid response"), nil
-		}
-		rep := envelope.Update.Report
-		if rep.Name != resource {
-			return failedAgentUpdate(targetID, agentID, resource, "Update check returned a different resource"), nil
 		}
 		base := failedAgentUpdate(targetID, agentID, resource, "")
 		return projectAgentUpdate(base, rep, observation, target.OS, target.Architecture, time.Now().UTC()), nil
@@ -505,6 +558,16 @@ func projectAgentUpdate(out agentUpdate, rep harnessUpdateReport, observation ca
 	case agentStateMissing, agentStateFound, agentStateShadowed, agentStateUnlinked, agentStateNeedsSetup, agentStateCheckFailed:
 		// These come from the file evidence on the target and offer a repair, not
 		// a version claim, so a lagging heartbeat probe cannot make them false.
+		if rep.State == agentStateCheckFailed {
+			// The owner verdict is diagnostic evidence only. A matching installed
+			// version probe cannot turn a failed upstream/policy check into proof
+			// that an update is ready or that the latest version is known.
+			out.Status, out.ProbeVerified, out.PrimaryAction = upstreamcheck.StatusUnknown, false, agentActionRetry
+			if out.Reason == "" {
+				out.Reason = "The update check failed"
+			}
+			out.Note = out.Reason
+		}
 		return out
 	case agentStateUpdateReady:
 		if out.Status != upstreamcheck.StatusBehind {
@@ -528,8 +591,14 @@ func (s *Server) remoteAgentUpdate(ctx context.Context, target targetConnection,
 	if err != nil {
 		return nil, err
 	}
-	if response.Outcome != relayv1.RelayCallOutcome_RELAY_CALL_OUTCOME_COMPLETED || response.ExitCode != 0 {
+	if response.Outcome != relayv1.RelayCallOutcome_RELAY_CALL_OUTCOME_COMPLETED {
 		return nil, errors.New("target check was not completed")
+	}
+	if len(response.Data) > agentUpdateMaxOutput {
+		return nil, errors.New("target check response exceeded the output limit")
+	}
+	if response.ExitCode != 0 {
+		return response.Data, &agentUpdateCommandError{class: cliinvoke.Lifecycle, exitCode: int(response.ExitCode), cause: errors.New("target check returned an owner failure")}
 	}
 	return response.Data, nil
 }

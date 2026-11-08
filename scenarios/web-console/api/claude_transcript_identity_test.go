@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -373,5 +374,59 @@ func TestResolverLogsAmbiguityOncePerCandidateSet(t *testing.T) {
 	resolver.Resolve(context.Background())
 	if got := strings.Count(sink.String(), "leaving unidentified"); got != 2 {
 		t.Fatalf("logged %d times after the candidate set changed, want 2", got)
+	}
+}
+
+func TestResolverDoesNotReadHeadersOlderThanEveryCandidateProcess(t *testing.T) {
+	home := t.TempDir()
+	cwd := "/work/project"
+	started := time.Now().Add(-10 * time.Minute)
+	project := claudeProjectDir(home, cwd)
+	writeTranscript(t, project, "historical", started.Add(-time.Hour), started.Add(-time.Second))
+	writeTranscript(t, project, "eligible", started.Add(time.Second), started)
+	store := &identityStoreStub{rows: []sessionstore.Metadata{{ID: "pane", Status: sessionstore.StatusLive, AgentType: sessionstore.AgentClaude, CWD: cwd}}}
+	r := newResolverForTest(t, home, store, []agentProcess{{SessionID: "pane", StartedAt: started}})
+	var inspected []string
+	r.firstEntryTime = func(path string) (time.Time, bool) {
+		inspected = append(inspected, filepath.Base(path))
+		return claudeTranscriptFirstEntryTime(path)
+	}
+	if got := r.Resolve(context.Background()); got != 1 {
+		t.Fatalf("adopted=%d, want eligible unique transcript", got)
+	}
+	if len(inspected) != 1 || inspected[0] != "eligible.jsonl" {
+		t.Fatalf("read ineligible historical headers: %+v", inspected)
+	}
+	if got := store.updates["pane"].AgentSessionID; got != "eligible" {
+		t.Fatalf("attribution changed: %s", got)
+	}
+}
+
+func BenchmarkClaudeIdentityDiscoveryHistoricalDirectory(b *testing.B) {
+	home := b.TempDir()
+	cwd := "/work/project"
+	project := claudeProjectDir(home, cwd)
+	if err := os.MkdirAll(project, 0700); err != nil {
+		b.Fatal(err)
+	}
+	started := time.Now().Add(-time.Minute)
+	data := []byte(`{"type":"user","timestamp":"` + started.Add(-time.Hour).Format(time.RFC3339) + `","padding":"` + strings.Repeat("x", 32*1024) + `"}` + "\n")
+	for i := 0; i < 1000; i++ {
+		path := filepath.Join(project, fmt.Sprintf("historical-%04d.jsonl", i))
+		if err := os.WriteFile(path, data, 0600); err != nil {
+			b.Fatal(err)
+		}
+		if err := os.Chtimes(path, started.Add(-time.Hour), started.Add(-time.Hour)); err != nil {
+			b.Fatal(err)
+		}
+	}
+	store := &identityStoreStub{rows: []sessionstore.Metadata{{ID: "pane", Status: sessionstore.StatusLive, AgentType: sessionstore.AgentClaude, CWD: cwd}}}
+	r := &claudeIdentityResolver{store: store, home: home, discover: func() ([]agentProcess, error) { return []agentProcess{{SessionID: "pane", StartedAt: started}}, nil }}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if got := r.Resolve(context.Background()); got != 0 {
+			b.Fatalf("historical transcript adopted: %d", got)
+		}
 	}
 }

@@ -696,13 +696,14 @@
             "group": "models"
           }
         ],
-        "required": true,
+        "required": false,
+        "startup_policy": "try_start",
         "bundle_policy": "embed",
         "include_ui": false,
         "runtime_only": true,
         "runtime_only_rationale": "Web Console constructs its own prompts and consumes the common Gateway inference HTTP boundary.",
-        "description": "Required embedded AI routing service; call-time peer discovery prefers a full server in range.",
-        "degraded_behavior": "Terminal sessions remain available; AI generation reports Gateway unavailable until the required service recovers."
+        "description": "Optional AI command routing service; call-time peer discovery prefers a full server in range and bundles retain an embedded gateway.",
+        "degraded_behavior": "Terminal sessions and their API remain available when Gateway cannot start or be discovered. AI command generation reports Gateway unavailable until a healthy gateway is reachable."
       }
     }
   },

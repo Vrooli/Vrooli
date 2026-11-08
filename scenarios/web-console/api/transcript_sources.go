@@ -44,13 +44,20 @@ func (a transcriptCheckpointAdapter) Save(ctx context.Context, cp tailer.Checkpo
 	})
 }
 
-type claudeTranscriptSource struct{ tailer *ClaudeTailer }
+type claudeTranscriptSource struct {
+	tailer  *ClaudeTailer
+	homeDir func() (string, error)
+}
 
 func (s claudeTranscriptSource) DiscoverFiles(ctx context.Context) ([]tailer.FileRef, error) {
 	if s.tailer == nil || s.tailer.server == nil || s.tailer.server.sessionStore == nil {
 		return nil, nil
 	}
-	home, err := os.UserHomeDir()
+	homeDir := s.homeDir
+	if homeDir == nil {
+		homeDir = os.UserHomeDir
+	}
+	home, err := homeDir()
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +73,7 @@ func (s claudeTranscriptSource) DiscoverFiles(ctx context.Context) ([]tailer.Fil
 	}
 	files := make([]tailer.FileRef, 0, len(rows))
 	for _, row := range rows {
-		if row.Status != sessionstore.StatusLive || row.AgentType != sessionstore.AgentClaude {
+		if row.Status != sessionstore.StatusLive || row.AgentType != sessionstore.AgentClaude || !row.ArchivedAt.IsZero() {
 			continue
 		}
 		if row.AgentSessionID == "" || row.CWD == "" {
@@ -235,11 +242,12 @@ func (s *grokTranscriptSource) CaptureAgentInfo(path, sessionID string) {
 
 func newClaudeTranscriptEngine(ct *ClaudeTailer) *tailer.Engine {
 	return tailer.New(tailer.Config{
-		Name:         claudeTailerSource,
-		Source:       claudeTranscriptSource{tailer: ct},
-		Checkpoints:  transcriptCheckpointAdapter{store: ct.checkpoints},
-		PollInterval: claudeTailerPollInterval,
-		TailInterval: 500 * time.Millisecond,
+		Name:             claudeTailerSource,
+		Source:           claudeTranscriptSource{tailer: ct},
+		StopUndiscovered: true,
+		Checkpoints:      transcriptCheckpointAdapter{store: ct.checkpoints},
+		PollInterval:     claudeTailerPollInterval,
+		TailInterval:     500 * time.Millisecond,
 		Dispatch: func(event tailer.Event, sessionID string) bool {
 			if event.Role == "user" {
 				return ct.server.AppendUser(context.Background(), event.Text, sessionID, claudeTailerSource).Appended

@@ -57,6 +57,14 @@ func (s *Server) Integrity(ctx context.Context) (continuity.IntegrityReport, err
 	return report, err
 }
 
+func (s *Server) observeContinuityHealth(ctx context.Context) (continuity.HealthObservation, error) {
+	observation, err := continuity.NewIntegrityAuditor(s.db).ObserveHealth(ctx)
+	if err == nil && s.metrics != nil {
+		s.metrics.ContinuityOrphans.Store(observation.OrphanConversations + observation.OrphanCheckpoints + observation.OrphanWorkspacePanes)
+	}
+	return observation, err
+}
+
 func (s *Server) Catalog(ctx context.Context, lifecycleState string, limit int) ([]continuity.CatalogRecord, bool, error) {
 	return continuity.NewSQLCatalogStore(s.db).List(ctx, lifecycleState, limit)
 }

@@ -743,3 +743,22 @@ func TestFilterServiceEnvRemovesAmbientRunIdentityButKeepsSessionOverlay(t *test
 		t.Fatal("explicit reserved-session identity was lost after ambient filtering")
 	}
 }
+
+func TestFilterServiceEnv_RemovesAmbientAgentSession(t *testing.T) {
+	// REGRESSION 2026-11-07: a web-console service started from a Codex agent
+	// session leaked CODEX_CI/CODEX_SESSION_ID into every operator pane, so
+	// caller detectors read the operator as an agent.
+	env := []string{
+		"HOME=/home/user",
+		"CODEX_CI=1",
+		"CODEX_THREAD_ID=thread",
+		"CLAUDECODE=1",
+		"VROOLI_AGENT_SESSION=vrooli-agent-codex-1",
+		"GROK_AGENT=1",
+		"PATH=/usr/bin",
+	}
+	got := filterServiceEnv(env)
+	if len(got) != 2 {
+		t.Fatalf("expected only HOME and PATH, got %v", got)
+	}
+}
