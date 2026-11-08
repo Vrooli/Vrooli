@@ -29,6 +29,7 @@ import (
 	"time"
 
 	platformgo "github.com/vrooli/platform-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
@@ -75,8 +76,7 @@ const (
 	// the loop is considered wedged. The loop ticks every 60 seconds.
 	loopHeartbeatWindow = 3 * time.Minute
 
-	loopStatusRelPath = ".vrooli/state/vrooli-autoheal/loop-status.json"
-	loopSelfTestExit  = 3
+	loopSelfTestExit = 3
 
 	bootPolicyDedicated = "dedicated"
 )
@@ -677,7 +677,7 @@ func mergeProbes(base, override BootRecoveryProbes) BootRecoveryProbes {
 // binary resolution and pipe discipline match every other supervisor.
 func runSetupStatus(ctx context.Context) ([]byte, error) {
 	home, _ := os.UserHomeDir()
-	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: filepath.Join(home, ".vrooli")})
+	binary, err := resolveSetupStatusBinary(home, cliinvoke.ResolveOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -686,6 +686,16 @@ func runSetupStatus(ctx context.Context) ([]byte, error) {
 		return nil, result.Error()
 	}
 	return result.Stdout, nil
+}
+
+// resolveSetupStatusBinary resolves the vrooli binary for the setup-status
+// probe. home is the account's OS home: the invoker derives the runtime-home
+// bin directory from it through the repo contract, so passing the runtime
+// home itself would search <home>/.vrooli/.vrooli/bin and silently fall back
+// to PATH. opts carries only the invoker's test seams.
+func resolveSetupStatusBinary(home string, opts cliinvoke.ResolveOptions) (string, error) {
+	opts.UserHome = home
+	return cliinvoke.Resolve(opts)
 }
 
 // loopBinaryPath is the loop binary the unit executes: the scenario's built
@@ -774,7 +784,22 @@ func readLoopStatusFile() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return os.ReadFile(filepath.Join(home, filepath.FromSlash(loopStatusRelPath)))
+	path, err := loopStatusPath(home)
+	if err != nil {
+		return nil, err
+	}
+	return os.ReadFile(path)
+}
+
+// loopStatusPath is the status file the loop writes: the runtime-home state
+// entry from the repo contract, then vrooli-autoheal/loop-status.json. It is
+// the same resolution the loop's own writer uses, so the two cannot disagree.
+func loopStatusPath(home string) (string, error) {
+	stateRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		return "", fmt.Errorf("resolve runtime-home state entry: %w", err)
+	}
+	return filepath.Join(stateRoot, "vrooli-autoheal", "loop-status.json"), nil
 }
 
 func hashLoopBinary() (string, error) {

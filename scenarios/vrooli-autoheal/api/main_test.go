@@ -1,13 +1,43 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/vrooli/internal/recovery"
 	apiHandlers "github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/handlers"
 )
+
+func TestUnavailableCodingAgentLedgerDoesNotRemoveMechanicalRecoveryRequester(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+	path, err := recovery.DefaultCodingAgentRecordPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("invalid ledger fixture"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	broker, initErr := newCodingAgentRecoveryBroker()
+	if initErr == nil || broker != nil {
+		t.Fatal("corrupt fixture unexpectedly initialized a broker")
+	}
+	requester := codingAgentRecoveryRequester(broker, initErr)
+	if requester == nil {
+		t.Fatal("startup removed the explicit escalation failure path")
+	}
+	if id, err := requester(context.Background(), "web-console", "fixture"); err == nil || id.RequestID != "" || !strings.Contains(err.Error(), "coding-agent recovery unavailable") {
+		t.Fatalf("unavailable escalation fabricated admission: admission=%+v err=%v", id, err)
+	}
+}
 
 // webhookRouteMounted reports whether a POST to the decision-resolution webhook
 // path matches a route on the given router. The mount is the observable effect:

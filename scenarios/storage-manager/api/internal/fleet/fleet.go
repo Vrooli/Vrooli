@@ -327,14 +327,20 @@ func (c DataDirBudgetChecker) dataDirPaths(scenario string, scenarioDir string) 
 	if scenarioDir != "" {
 		paths = append(paths, corestorage.LifecycleDataDir(scenarioDir))
 	}
-	home := c.HomeDir
-	if home == "" {
-		if resolved, err := os.UserHomeDir(); err == nil {
-			home = resolved
-		}
+	if scenario == "" {
+		return paths
 	}
-	if home != "" && scenario != "" {
-		paths = append(paths, filepath.Join(home, ".vrooli", "data", "vrooli", scenario))
+	// The runtime data directory is the scenario's storage data class, so a
+	// custom VROOLI_STORAGE_ROOT is measured where the scenario writes.
+	cfg := corestorage.ResolverConfig{}
+	if c.HomeDir != "" {
+		home := c.HomeDir
+		cfg.UserHomeDir = func() (string, error) { return home, nil }
+	}
+	if resolver, err := corestorage.NewResolver(cfg); err == nil {
+		if resolved, err := resolver.Resolve(corestorage.Options{ScenarioID: scenario}); err == nil {
+			paths = append(paths, resolved.DataDir)
+		}
 	}
 	return paths
 }

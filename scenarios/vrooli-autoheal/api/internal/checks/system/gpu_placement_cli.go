@@ -16,7 +16,7 @@ import (
 // CLIPlacementReporter reads accelerator placement from the control plane,
 // which owns accelerator truth. autoheal never probes a device itself.
 //
-// It queries one resource at a time with --no-fast, because the fleet sweep is
+// It queries one resource at a time with --health-only --no-fast, because the fleet sweep is
 // deliberately fast: reading placement means reading the host once per
 // resource, which is right for a question about one resource and wasteful for
 // twenty-nine. Resources is therefore the small set that declares an
@@ -26,7 +26,7 @@ type CLIPlacementReporter struct {
 	Resources []string
 }
 
-// resourceStatus is the slice of `vrooli resource status <name> --no-fast
+// resourceStatus is the slice of `vrooli resource status <name> --health-only --no-fast
 // --json` this reporter needs.
 type resourceStatus struct {
 	Resource struct {
@@ -72,7 +72,7 @@ func (r CLIPlacementReporter) DriftedResources(ctx context.Context) ([]DriftedRe
 		go func(name string) {
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			output, err := executor.CombinedOutput(ctx, "vrooli", "resource", "status", name, "--no-fast", "--json")
+			output, err := executor.CombinedOutput(ctx, "vrooli", "resource", "status", name, "--health-only", "--no-fast", "--json")
 			if err != nil {
 				outcomes <- outcome{name: name, failed: true}
 				return

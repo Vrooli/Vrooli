@@ -184,6 +184,14 @@ func (c *ContainmentOccupancyCheck) readSlice(slice string) (map[string]interfac
 		orphans := agentscope.Agentless(entries)
 		detail["scopes"], detail["agentless_scopes"] = len(entries), len(orphans)
 		detail["agentless_tasks"] = agentscope.AgentlessTasks(entries)
+		if unknown := agentscope.Uncertain(entries); len(unknown) > 0 {
+			detail["membership_unknown_scopes"] = len(unknown)
+			note := fmt.Sprintf("membership of %d session scopes is undetermined", len(unknown))
+			detailText = strings.TrimSpace(detailText + "; " + note)
+			if status == checks.StatusOK {
+				message, status = slice+": "+note, checks.StatusWarning
+			}
+		}
 		if len(orphans) > 0 {
 			detail["agentless"] = agentlessNames(orphans)
 			held := agentscope.AgentlessTasks(entries)

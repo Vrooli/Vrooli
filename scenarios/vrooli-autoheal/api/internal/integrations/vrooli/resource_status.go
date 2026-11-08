@@ -36,6 +36,8 @@ type ResourceStatus struct {
 	ObservedMode string
 	// ModeReason is the host's evidence behind ObservedMode.
 	ModeReason string
+	// ArtifactVerification preserves whether this observation audited current bytes.
+	ArtifactVerification string
 	// ProbeError is the producer's full diagnosis. For needs_reacquire it names
 	// which host facts moved and the command that repairs it, so an incident
 	// body carries the reason without an operator re-running anything.
@@ -160,10 +162,10 @@ func (r ResourceStatus) NormalizedStatus() string {
 // recovery decisions consume this typed flag.
 func (r ResourceStatus) HasCompanionDownSignal() bool { return r.CompanionDown }
 
-// ResourceStatus runs `vrooli resource status <name> --json` and returns the
+// ResourceStatus runs `vrooli resource status <name> --health-only --json` and returns the
 // typed status mapped onto the autoheal domain shape.
 func (c *Client) ResourceStatus(ctx context.Context, resourceName string) (ResourceStatus, []byte, error) {
-	resp, err := c.cli.ResourceStatus(ctx, resourceName)
+	resp, err := c.cli.ResourceHealthStatus(ctx, resourceName)
 	if err != nil {
 		return ResourceStatus{}, nil, err
 	}
@@ -182,10 +184,10 @@ func (c *Client) ResourceStatus(ctx context.Context, resourceName string) (Resou
 	return status, diagnosticJSON(resp), nil
 }
 
-// ResourceStatuses maps the typed fleet response into the Autoheal status
+// ResourceStatuses requests explicit health-only observations and maps them into Autoheal status
 // vocabulary without routing through human-oriented CLI text.
 func (c *Client) ResourceStatuses(ctx context.Context) ([]ResourceStatus, bool, int, []byte, error) {
-	resp, err := c.cli.ResourceStatuses(ctx)
+	resp, err := c.cli.ResourceHealthStatuses(ctx)
 	if err != nil {
 		return nil, false, 0, nil, err
 	}
@@ -202,20 +204,21 @@ func resourceStatusFromRecord(success bool, item *cliv1.ResourceStatus) Resource
 	}
 	resource := item.GetResource()
 	status := ResourceStatus{
-		Success:       success,
-		Name:          resource.GetName(),
-		Installed:     item.GetInstalled(),
-		Running:       item.GetRunning(),
-		Healthy:       valueToBoolPtr(item.GetHealthy()),
-		Serving:       valueToBoolPtr(item.GetServing()),
-		StatusCode:    item.GetStatusCode(),
-		ProbeError:    item.GetProbeError(),
-		DeclaredMode:  item.GetDeclaredMode(),
-		ObservedMode:  item.GetObservedMode(),
-		ModeDrift:     item.GetModeDrift(),
-		ModeReason:    item.GetModeReason(),
-		Status:        item.GetMessage(),
-		CompanionDown: companionDownSignal(item.GetMessage()),
+		Success:              success,
+		Name:                 resource.GetName(),
+		Installed:            item.GetInstalled(),
+		Running:              item.GetRunning(),
+		Healthy:              valueToBoolPtr(item.GetHealthy()),
+		Serving:              valueToBoolPtr(item.GetServing()),
+		StatusCode:           item.GetStatusCode(),
+		ArtifactVerification: item.GetArtifactVerification(),
+		ProbeError:           item.GetProbeError(),
+		DeclaredMode:         item.GetDeclaredMode(),
+		ObservedMode:         item.GetObservedMode(),
+		ModeDrift:            item.GetModeDrift(),
+		ModeReason:           item.GetModeReason(),
+		Status:               item.GetMessage(),
+		CompanionDown:        companionDownSignal(item.GetMessage()),
 	}
 	if status.Status == "" {
 		status.Status = item.GetHealth()

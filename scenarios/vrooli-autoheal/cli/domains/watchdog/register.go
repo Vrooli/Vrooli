@@ -102,7 +102,7 @@ func Install(core *cliapp.ScenarioApp, args []string) error {
 // shared invoker; setup can prompt, so it gets a long deadline.
 func runVrooli(args ...string) error {
 	home, _ := os.UserHomeDir()
-	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
+	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{UserHome: home})
 	if err != nil {
 		return err
 	}

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "vrooli-autoheal",
-  "description": "Read-only typed autoheal reliability commands.",
+  "description": "Typed autoheal reliability observations and queries.",
   "exceptions": [
     {
       "command": "tick",
@@ -639,6 +639,37 @@
               "unit": "observations",
               "summary_template": "critical observations ({window_hours}h)"
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "check",
+      "description": "Inspect and refresh health observations",
+      "commands": [
+        {
+          "name": "run",
+          "description": "Refresh one check without recovery actions",
+          "positionals": [
+            {
+              "name": "check-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ChecksService",
+            "method": "RunCheck"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
           }
         }
       ]

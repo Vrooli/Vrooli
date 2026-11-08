@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/repo-contract-go/cliinvoke"
 	langrecover "vrooli-autoheal-langrecover"
 )
@@ -63,10 +64,18 @@ func (r PreflightResult) FailureClass() string {
 	return "preflight"
 }
 
-// toolchainPathEntries is the table the toolchain check searches after PATH.
-// A package variable so a test can take the host's real /usr/local/go/bin
-// out of play.
-var toolchainPathEntries = langrecover.DefaultPathEntries
+// toolchainPathEntries is the table the toolchain check and the recovery
+// floor search after PATH. A package variable so a test can take the host's
+// real /usr/local/go/bin out of play.
+var toolchainPathEntries = recoveryToolchainEntries
+
+// recoveryToolchainEntries is the per-OS toolchain table plus the runtime-home
+// bin directory, which langrecover cannot resolve itself: it comes from the
+// repository contract, like every other runtime-home entry the loop uses.
+func recoveryToolchainEntries() []string {
+	home, _ := os.UserHomeDir()
+	return langrecover.DefaultPathEntries(runtime.GOOS, home, runtimeHomeEntry(repocontract.HomeKeyBin))
+}
 
 // Preflight answers, before any heal is attempted, whether this loop is able
 // to heal at all: it can find the CLI, the CLI answers, the CLI still speaks
@@ -168,8 +177,7 @@ func checkStateWritable() PreflightCheck {
 }
 
 func checkToolchain() PreflightCheck {
-	home, _ := os.UserHomeDir()
-	path, err := langrecover.FindTool("go", exec.LookPath, toolchainPathEntries(runtime.GOOS, home))
+	path, err := langrecover.FindTool("go", exec.LookPath, toolchainPathEntries())
 	if err != nil {
 		return PreflightCheck{Name: "toolchain", Status: CheckFailed, Reason: err.Error()}
 	}

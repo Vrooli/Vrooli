@@ -235,8 +235,24 @@ func (l *loop) doHeal(ctx context.Context) loopState {
 	}
 	if l.backoff > 0 {
 		log.Printf("heal backoff: waiting %v before the next attempt", l.backoff)
-		if !l.sleep(ctx, l.backoff) {
-			return l.exit(exitSignal, "shutdown signal received during heal backoff")
+		// Backoff throttles mutations, not observation. An operator or another
+		// supervisor can restore the API while this loop waits.
+		for remaining := l.backoff; remaining > 0; {
+			probeCtx, cancelProbe := context.WithTimeout(ctx, 10*time.Second)
+			found := detectAPIPort(probeCtx, l.config)
+			recovered := found.Verified != "" && l.config.adoptPort(probeCtx, found.Verified)
+			cancelProbe()
+			if recovered {
+				l.backoff = 0
+				l.record.DegradedReason = ""
+				return stateVerify
+			}
+			l.persist()
+			interval := min(time.Minute, remaining)
+			if !l.sleep(ctx, interval) {
+				return l.exit(exitSignal, "shutdown signal received during heal backoff")
+			}
+			remaining -= interval
 		}
 	}
 	err := ensureAPIRunning(ctx, l.config, l.healReason)

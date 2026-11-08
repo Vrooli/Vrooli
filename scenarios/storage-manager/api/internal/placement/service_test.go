@@ -2,11 +2,13 @@ package placement
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	corestorage "github.com/vrooli/api-core/storage"
+	"storage-manager/internal/authority"
 )
 
 func TestPreviewRequiresApprovalAtApplyAndAuditsVerifiedMigration(t *testing.T) {
@@ -62,5 +64,27 @@ func TestVerifyUsesTargetPlatformIdentityAndDeclaredAbsence(t *testing.T) {
 				t.Fatalf("windows cache row = %#v", row)
 			}
 		}
+	}
+}
+
+// A redirected instance (a test-genie isolated run) may plan a placement but
+// never writes a destination outside its storage tree.
+func TestRedirectedMigrationRefusesHostDestination(t *testing.T) {
+	source := t.TempDir()
+	if err := os.WriteFile(filepath.Join(source, "payload"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(t.TempDir(), "moved")
+	service := New(nil)
+	service.scope = authority.Redirected(t.TempDir())
+	plan, err := service.Preview(context.Background(), "entry", source, destination)
+	if err != nil {
+		t.Fatalf("Preview: %v", err)
+	}
+	if _, err := service.Migrate(context.Background(), plan.ID, true); !errors.Is(err, authority.ErrOutOfScope) {
+		t.Fatalf("Migrate = %v, want ErrOutOfScope", err)
+	}
+	if _, err := os.Stat(destination); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("destination written by a redirected instance: %v", err)
 	}
 }

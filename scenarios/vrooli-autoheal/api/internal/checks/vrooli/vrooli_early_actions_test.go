@@ -73,7 +73,7 @@ func TestResourceCheckExecuteAction_AllActions(t *testing.T) {
 			}
 			// Add status response for verification (used by start/restart)
 			if tt.statusOutput != "" {
-				mockExecutor.Responses["vrooli resource status postgres --json"] = testutil.MockResponse{
+				mockExecutor.Responses["vrooli resource status postgres --health-only --json"] = testutil.MockResponse{
 					Output: []byte(tt.statusOutput),
 					Error:  nil,
 				}

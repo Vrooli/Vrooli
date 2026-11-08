@@ -58,7 +58,7 @@ func TestSlowFleetRefreshIsStaleAndBackedOff(t *testing.T) {
 			output []byte
 			err    error
 		}{
-			"vrooli resource status --json": {output: fleetJSON()},
+			"vrooli resource status --health-only --json": {output: fleetJSON()},
 		},
 		calls: make(map[string]int),
 		block: make(chan struct{}),
@@ -77,7 +77,7 @@ func TestSlowFleetRefreshIsStaleAndBackedOff(t *testing.T) {
 	}()
 	for {
 		executor.mu.Lock()
-		started := executor.calls["vrooli resource status --json"] > 0
+		started := executor.calls["vrooli resource status --health-only --json"] > 0
 		executor.mu.Unlock()
 		if started {
 			break
@@ -117,7 +117,7 @@ func TestSlowFleetRefreshIsStaleAndBackedOff(t *testing.T) {
 	}
 	executor.mu.Lock()
 	defer executor.mu.Unlock()
-	if got := executor.calls["vrooli resource status --json"]; got != 1 {
+	if got := executor.calls["vrooli resource status --health-only --json"]; got != 1 {
 		t.Fatalf("fleet calls = %d, want one scan during backoff", got)
 	}
 }
@@ -128,7 +128,7 @@ func TestSnapshotProviderUsesOneTypedFleetRefreshForConcurrentCallers(t *testing
 		responses: map[string]struct {
 			output []byte
 			err    error
-		}{"vrooli resource status --json": {output: fleetJSON()}},
+		}{"vrooli resource status --health-only --json": {output: fleetJSON()}},
 		calls: make(map[string]int),
 		block: make(chan struct{}),
 	}
@@ -155,7 +155,7 @@ func TestSnapshotProviderUsesOneTypedFleetRefreshForConcurrentCallers(t *testing
 	close(errs)
 
 	executor.mu.Lock()
-	gotCalls := executor.calls["vrooli resource status --json"]
+	gotCalls := executor.calls["vrooli resource status --health-only --json"]
 	executor.mu.Unlock()
 	if gotCalls != 1 {
 		t.Fatalf("fleet refresh calls = %d, want 1", gotCalls)
@@ -178,7 +178,7 @@ func TestSnapshotProviderCoalescesConcurrentForcedDeepReaders(t *testing.T) {
 		responses: map[string]struct {
 			output []byte
 			err    error
-		}{"vrooli resource status postgres --json": {output: []byte(`{"success":true,"name":"postgres","installed":true,"running":true,"healthy":true,"status":"healthy"}`)}},
+		}{"vrooli resource status postgres --health-only --json": {output: []byte(`{"success":true,"name":"postgres","installed":true,"running":true,"healthy":true,"status":"healthy"}`)}},
 		calls: make(map[string]int),
 		block: make(chan struct{}),
 	}
@@ -201,7 +201,7 @@ func TestSnapshotProviderCoalescesConcurrentForcedDeepReaders(t *testing.T) {
 	close(results)
 
 	executor.mu.Lock()
-	gotCalls := executor.calls["vrooli resource status postgres --json"]
+	gotCalls := executor.calls["vrooli resource status postgres --health-only --json"]
 	executor.mu.Unlock()
 	if gotCalls != 1 {
 		t.Fatalf("forced deep calls = %d, want 1", gotCalls)
@@ -219,7 +219,7 @@ func TestSnapshotProviderClonesResultsAndPreservesPartialPopulation(t *testing.T
 		responses: map[string]struct {
 			output []byte
 			err    error
-		}{"vrooli resource status --json": {output: []byte(`{"success":true,"resources":[{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"}],"discovery_failures":[{"name":"redis","error":"timeout"}]}`)}},
+		}{"vrooli resource status --health-only --json": {output: []byte(`{"success":true,"resources":[{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"}],"discovery_failures":[{"name":"redis","error":"timeout"}]}`)}},
 		calls: make(map[string]int),
 	}
 	provider := NewSnapshotProvider(NewClient(executor), WithSnapshotTTL(time.Minute))
@@ -249,7 +249,7 @@ func TestSnapshotProviderFailureIsFallbackAndBackedOff(t *testing.T) {
 		responses: map[string]struct {
 			output []byte
 			err    error
-		}{"vrooli resource status --json": {output: fleetJSON()}},
+		}{"vrooli resource status --health-only --json": {output: fleetJSON()}},
 		calls: make(map[string]int),
 	}
 	provider := NewSnapshotProvider(NewClient(executor),
@@ -261,7 +261,7 @@ func TestSnapshotProviderFailureIsFallbackAndBackedOff(t *testing.T) {
 		t.Fatalf("initial Snapshot: %v", err)
 	}
 	executor.mu.Lock()
-	executor.responses["vrooli resource status --json"] = struct {
+	executor.responses["vrooli resource status --health-only --json"] = struct {
 		output []byte
 		err    error
 	}{err: errors.New("fixture timeout")}
@@ -278,7 +278,7 @@ func TestSnapshotProviderFailureIsFallbackAndBackedOff(t *testing.T) {
 		t.Fatal("backoff result should remain unavailable")
 	}
 	executor.mu.Lock()
-	gotCalls := executor.calls["vrooli resource status --json"]
+	gotCalls := executor.calls["vrooli resource status --health-only --json"]
 	executor.mu.Unlock()
 	if gotCalls != 2 {
 		t.Fatalf("refresh calls during backoff = %d, want 2", gotCalls)
@@ -298,7 +298,7 @@ func TestSnapshotProviderStablePopulationUsesFleetOnly(t *testing.T) {
 		responses: map[string]struct {
 			output []byte
 			err    error
-		}{"vrooli resource status --json": {output: []byte(`{"success":true,"resources":[
+		}{"vrooli resource status --health-only --json": {output: []byte(`{"success":true,"resources":[
 			{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"},
 			{"resource":{"name":"redis"},"installed":true,"running":true,"healthy":true,"message":"healthy"},
 			{"resource":{"name":"qdrant"},"installed":true,"running":true,"healthy":true,"message":"healthy"}]}`)}},
@@ -315,10 +315,10 @@ func TestSnapshotProviderStablePopulationUsesFleetOnly(t *testing.T) {
 		}
 	}
 	executor.mu.Lock()
-	fleetCalls := executor.calls["vrooli resource status --json"]
-	namedCalls := executor.calls["vrooli resource status postgres --json"] +
-		executor.calls["vrooli resource status redis --json"] +
-		executor.calls["vrooli resource status qdrant --json"]
+	fleetCalls := executor.calls["vrooli resource status --health-only --json"]
+	namedCalls := executor.calls["vrooli resource status postgres --health-only --json"] +
+		executor.calls["vrooli resource status redis --health-only --json"] +
+		executor.calls["vrooli resource status qdrant --health-only --json"]
 	executor.mu.Unlock()
 	if fleetCalls != 1 || namedCalls != 0 {
 		t.Fatalf("stable population calls = fleet:%d named:%d, want fleet:1 named:0", fleetCalls, namedCalls)

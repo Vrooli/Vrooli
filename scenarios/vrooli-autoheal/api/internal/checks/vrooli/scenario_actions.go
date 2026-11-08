@@ -68,6 +68,9 @@ func (c *ScenarioCheck) verifyRecovery(ctx context.Context, result checks.Action
 				lastErr = healthErr.Error()
 			} else {
 				lastErr = fmt.Sprintf("scenario status=%s health=%s", scenarioStatus, healthStatus)
+				if detail := strings.TrimSpace(status.Scenario.HealthError); detail != "" {
+					lastErr += ": " + detail
+				}
 			}
 		} else {
 			lastErr = err.Error()
@@ -448,9 +451,9 @@ func (c *ScenarioCheck) executeLangRecover(ctx context.Context, start time.Time,
 	)
 	switch kind {
 	case langrecover.KindGo:
-		strategyResult, strategyErr = langrecover.RecoverGo(ctx, langrecover.DefaultRunner, scenarioDir, decision.GoSig)
+		strategyResult, strategyErr = langrecover.RecoverGo(ctx, recoveryRunner(), scenarioDir, decision.GoSig)
 	case langrecover.KindPnpm:
-		strategyResult, strategyErr = langrecover.RecoverPnpm(ctx, langrecover.DefaultRunner, scenarioDir, decision.PnpmSig)
+		strategyResult, strategyErr = langrecover.RecoverPnpm(ctx, recoveryRunner(), scenarioDir, decision.PnpmSig)
 	}
 	if strategyErr != nil {
 		result.Duration = time.Since(start)

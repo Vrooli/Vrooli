@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -35,7 +36,6 @@ import (
 	"github.com/vrooli/api-core/retention"
 	"github.com/vrooli/api-core/server"
 	"github.com/vrooli/api-core/storage"
-	"github.com/vrooli/envkit-go"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/internal/recovery"
@@ -65,30 +65,63 @@ func newCodingAgentRecoveryBroker() (*recovery.CodingAgentBroker, error) {
 	if err != nil {
 		return nil, err
 	}
-	return recovery.NewCodingAgentBroker(path, func(ctx context.Context, runner string, req recovery.CodingAgentRequest) error {
-		home, _ := os.UserHomeDir()
-		binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
-		if err != nil {
-			return fmt.Errorf("resolve vrooli CLI: %w", err)
-		}
-		prompt := codingAgentRecoveryPrompt(req)
-		childEnv := []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.ForeignScenario, nil))
-		result := cliinvoke.Run(ctx, cliinvoke.Invocation{
-			Binary: binary,
-			Args:   cliinvoke.AgentLaunch(runner, prompt, req.WorkingDir, []string{filepath.Join(req.WorkingDir, req.Claim)}),
-			Dir:    req.WorkingDir,
-			Env:    childEnv,
-		})
-		return result.Error()
-	})
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{UserHome: home})
+	if err != nil {
+		return nil, fmt.Errorf("resolve native recovery worker: %w", err)
+	}
+	return recovery.NewNativeCodingAgentBroker(path, binary)
 }
 
-func codingAgentRecoveryPrompt(req recovery.CodingAgentRequest) string {
-	return fmt.Sprintf(`You are the bounded recovery agent for Vrooli infrastructure.
+func codingAgentRecoveryRequester(broker *recovery.CodingAgentBroker, initErr error) checks.RecoveryRequester {
+	return func(ctx context.Context, scenario, reason string) (checks.RecoveryAdmission, error) {
+		if broker == nil {
+			if initErr != nil {
+				return checks.RecoveryAdmission{}, fmt.Errorf("coding-agent recovery unavailable: %w", initErr)
+			}
+			return checks.RecoveryAdmission{}, fmt.Errorf("coding-agent recovery broker is unavailable")
+		}
+		if _, err := broker.ReconcileNative(ctx, 32); err != nil {
+			return checks.RecoveryAdmission{}, fmt.Errorf("native recovery reconciliation unavailable: %w", err)
+		}
+		record, err := broker.SubmitContext(ctx, recovery.CodingAgentRequest{
+			Scenario: scenario, Reason: reason, Requester: "vrooli-autoheal",
+			WorkingDir: recoveryRepositoryRoot(), Claim: filepath.Join("scenarios", scenario),
+		})
+		admission := checks.RecoveryAdmission{RequestID: record.ID, Outcome: record.Outcome,
+			NativePending: record.ID != "" && (record.Outcome == "scheduled" || record.Outcome == "running")}
+		ownership, observeErr := codingAgentRecoveryObserver(broker, initErr)(ctx)
+		if current, ok := ownership["scenario-"+scenario]; ok && current.RequestID == record.ID {
+			admission = current
+		}
+		return admission, errors.Join(err, observeErr)
+	}
+}
 
-Investigate and repair the health failure for scenario %q. Autoheal exhausted its mechanical recovery actions and reported: %s
-
-Work from the repository root. Inspect the scenario status, autoheal evidence, recent logs, configuration, and relevant source before changing anything. Repair the underlying cause using supported Vrooli lifecycle and scenario commands. Validate the affected scenario and any directly related core infrastructure after the repair. Keep changes narrowly scoped to the failure; do not disable supervision, weaken health checks, expose credentials, or modify unrelated scenarios. If the issue cannot be safely repaired, leave a concise diagnosis in your final response and do not loop indefinitely.`, req.Scenario, req.Reason)
+func codingAgentRecoveryObserver(broker *recovery.CodingAgentBroker, initErr error) checks.RecoveryObserver {
+	return func(ctx context.Context) (map[string]checks.RecoveryAdmission, error) {
+		if broker == nil {
+			return nil, fmt.Errorf("coding-agent recovery ownership unavailable: %v", initErr)
+		}
+		snapshot, err := broker.NativeOwnershipSnapshot(ctx)
+		if err != nil {
+			return nil, err
+		}
+		ownership := make(map[string]checks.RecoveryAdmission, len(snapshot))
+		for _, item := range snapshot {
+			id := "scenario-" + item.Record.Scenario
+			// Never overwrite an unresolved exact native writer with another
+			// receipt's terminal projection if inconsistent history is retained.
+			if prior := ownership[id]; prior.NativePending {
+				continue
+			}
+			ownership[id] = checks.RecoveryAdmission{RequestID: item.Record.ID, Outcome: item.Record.Outcome, NativePending: item.NativePending}
+		}
+		return ownership, nil
+	}
 }
 
 func recoveryRepositoryRoot() string {
@@ -159,23 +192,12 @@ func run() error {
 		}
 	}
 	registry := checks.NewRegistry(plat)
-	codingAgentBroker, err := newCodingAgentRecoveryBroker()
-	if err != nil {
-		return fmt.Errorf("initialize coding-agent recovery broker: %w", err)
+	codingAgentBroker, codingAgentErr := newCodingAgentRecoveryBroker()
+	if codingAgentErr != nil {
+		log.Printf("warning: coding-agent escalation unavailable; monitoring and mechanical recovery remain active: %v", codingAgentErr)
 	}
-	registry.SetRecoveryRequester(func(ctx context.Context, scenario, reason string) (string, error) {
-		record, err := codingAgentBroker.Submit(recovery.CodingAgentRequest{
-			Scenario:   scenario,
-			Reason:     reason,
-			Requester:  "vrooli-autoheal",
-			WorkingDir: recoveryRepositoryRoot(),
-			Claim:      filepath.Join("scenarios", scenario),
-		})
-		if err != nil {
-			return "", err
-		}
-		return record.ID, nil
-	})
+	registry.SetRecoveryRequester(codingAgentRecoveryRequester(codingAgentBroker, codingAgentErr))
+	registry.SetRecoveryObserver(codingAgentRecoveryObserver(codingAgentBroker, codingAgentErr))
 	if home, err := os.UserHomeDir(); err != nil {
 		log.Printf("warning: runtime recovery ownership gate unavailable: %v", err)
 	} else {
@@ -198,6 +220,10 @@ func run() error {
 	// background so a healthy supervisor is available within the lifecycle
 	// health window.
 	startupCtx, cancelStartup := context.WithCancel(context.Background())
+	defer cancelStartup()
+	if codingAgentBroker != nil {
+		go codingAgentBroker.RunNativeReconciliation(startupCtx, func(err error) { log.Printf("coding-agent native reconciliation degraded: %v", err) })
+	}
 	var startupWG sync.WaitGroup
 	checksRegistered := make(chan struct{})
 	incidentReporterReady := make(chan struct{})
@@ -265,6 +291,7 @@ func run() error {
 
 	// Setup HTTP server
 	h := apiHandlers.New(registry, store, plat)
+	h.SetCodingAgentRecoveryInitialization(codingAgentErr)
 	close(incidentReporterReady)
 	log.Printf("startup stage=handlers-created")
 	if eventsBase, resolveErr := discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events"); resolveErr == nil {

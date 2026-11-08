@@ -115,6 +115,86 @@ vrooli-autoheal tick --force
 
 ## Action Logging
 
+Coding-agent escalation uses the control-plane recovery ledger. If that ledger
+cannot be opened, autoheal keeps its API, monitoring and mechanical recovery
+available; an escalation request returns an explicit unavailable error and no
+admission ID. Repair the ledger through its owner before expecting agent repair.
+The health response exposes this initialization verdict under
+`dependencies.coding_agent_recovery`; it is explicitly optional for API
+readiness and is not a current native-execution observation.
+
+Inspect investigations with `vrooli agent recover list --json`.
+`vrooli agent recover reconcile --limit 32 --json` marks historical or expired
+execution claims without native identity as `unconfirmed`, retaining diagnostics
+and duplicate suppression. This is an uncertainty receipt, not proof that an
+agent exited or that the scenario recovered. It stops and starts no process.
+
+The native escalation implementation uses a retained governed root executable
+and a separate versioned execution sidecar keyed by the admission ID. Before
+dispatch, it commits a once-only native intent. The fixed worker must prove its
+actual image, boot/process incarnation and native invocation, then claim that
+intent. Its editor lease is bound to the actual operation cgroup before the
+runner starts; a sibling agent scope cannot escape this job's deadline. The
+native limits are ten minutes, 2 GiB and 1024 tasks, with at most two unresolved
+native jobs admitted through the shared ledger. The hourly per-scenario window
+and suppression of unknown historical executions remain in force.
+
+Autoheal calls the control-plane reconciler every thirty seconds and before
+another escalation request. Reconciliation never replays a consumed dispatch.
+An admitted request whose durable dispatch bit is still unset can make its first
+submission after complete native absence, retained-image and original-specification
+checks. A crash after that bit is committed remains an uncertain start until
+the admitted deadline; it is never submitted again. A failed attempt retains the
+hourly budget. The model context retains the admission deadline; the independent
+native ten-minute runtime ceiling starts at native activation, with the native
+stop grace applying to descendant exclusion.
+
+Autoheal distinguishes a retained admission receipt from native execution
+ownership. An exact admitted native execution without exit proof defers
+mechanical actions for that target. This hold survives temporary healthy
+observations and Autoheal API replacement because the control-plane snapshot
+reads the durable admission and execution together. Autoheal refreshes that
+snapshot before a mechanical effect. Other targets and monitoring continue.
+Terminal or historical unconfirmed receipts without a native sidecar preserve
+the coding budget; they do not claim a physical writer or disable mechanical
+recovery. A lost dispatch acknowledgement retains the known admission instead
+of racing it with a restart. Snapshot failure preserves an already observed
+native owner; an unavailable optional broker does not invent an owner.
+
+It revokes before exclusion, requires exact native tree quiescence before
+closing an unresolved receipt, and retires its retained executable and bounded
+reserved atomic-write temporaries. A lost
+main with remaining descendants is a failed worker, not a live investigation.
+Unavailable native evidence preserves suppression and inputs. Existing runtime
+registry expiry owns lease retirement after worker death. Runner completion
+still does not prove that the scenario is healthy; subsequent health checks do.
+
+Scenario check details retain the control plane's `healthError`, and failed
+recovery verification includes that cause with the status. An initializing
+readiness response must remain distinguishable from a persistent failure or a
+generic degraded service. The outage investigation observed an old initializing
+snapshot causing a second restart after the API had recovered; a healthy
+lifecycle verdict and current API readiness must agree before that path is
+qualified. Reducing the supervision policy's sensitivity is not the remedy.
+
+Preparation commits its descriptor before copying the worker. An empty admission
+ledger is durable before the first preparation. A missing ledger with retained
+native inputs is explicit state loss and cannot reset the budget. Under the
+ledger lock, reconciliation revokes unadmitted preparations and proves native
+absence or exact exclusion before retiring their images. An unidentified
+published worker, unexpected file or nonregular input is preserved for owner
+inspection. Complete unit/cgroup absence also requires the captured root's
+incarnation to be gone when a root identity was retained.
+
+Rollout status is recorded in the active outage workstream's
+`native-coding-agent-execution-milestone.json`. Native execution is deployed;
+two configured-model file repairs passed, including one across Autoheal API
+replacement. The crash-edge milestone records subsequent preparation/dispatch
+qualification separately. An actual automatically triggered scenario/lifecycle
+repair remains a separate obligation. The installed root must advertise worker
+protocol 1 before the new API enables escalation. A missing protocol degrades
+escalation explicitly while monitoring and mechanical recovery stay available.
+
 All executed actions are logged to the database:
 - Timestamp
 - Check ID

@@ -39,9 +39,11 @@ Degraded ◀────────  Heal ◀───────────�
 - **Preflight** runs the six checks below. Failure is non-healable.
 - **Detect** runs `detectAPIPort`. A verified port goes to Verify; nothing, or
   a registry port nobody answers on, goes to Heal with a reason.
-- **Heal** waits out the backoff, then calls `ensureAPIRunning`: if the API
-  came up on its own in the meantime it is adopted without a lifecycle
-  command; otherwise `heal` runs `vrooli scenario start|restart <name>
+- **Heal** preserves the lifecycle retry backoff while checking for external
+  recovery between one-minute waits, with a ten-second observation budget. A verified restored API is adopted and
+  ticked immediately without a lifecycle command. Each observation refreshes
+  the status file without claiming that a health tick completed. At the end of
+  the backoff it calls `ensureAPIRunning`; otherwise `heal` runs `vrooli scenario start|restart <name>
   --best-effort` through the recovery floor and waits for the API to identify
   itself. Failures are classified by `cliinvoke.Result.Class`:
   - `usage`, `binary-missing`: non-healable. Counted; retried after one tick
@@ -161,8 +163,11 @@ invoker), `envkit-go`, and `langrecover`. `langrecover` is stdlib-only. Neither
 `packages/proto` nor `api-core` may appear in `go mod graph`: a shared-package
 change that breaks the scenario's API must not be able to break the loop that
 repairs it. `langrecover/toolchain.go` copies the per-OS PATH table from
-`platform-go` rather than importing it for the same reason; the equality test
-between the two tables lives in `packages/platform-go`.
+`platform-go` rather than importing it for the same reason; the API module,
+which imports both, tests that the copy covers every unit PATH entry
+(`api/internal/checks/vrooli/recovery_toolchain_test.go`). The runtime-home
+bin directory is not in the copy: callers resolve it through the repository
+contract and pass it to `langrecover.DefaultPathEntries`.
 
 ## Building and testing
 

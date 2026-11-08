@@ -5,6 +5,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -17,6 +18,22 @@ import (
 
 	"github.com/gorilla/mux"
 )
+
+func TestHealth_UnavailableEscalationIsVisibleAndMechanicalAPIStaysReady(t *testing.T) {
+	h := setupTestHandlers(&mockStore{pingErr: nil})
+	h.SetCodingAgentRecoveryInitialization(errors.New("recovery ledger unreadable"))
+	w := httptest.NewRecorder()
+	h.Health(w, httptest.NewRequest(http.MethodGet, "/health", nil))
+	response := apihttptest.MustDecodeJSON[map[string]interface{}](t, w.Body.Bytes())
+	if w.Code != http.StatusOK || response["readiness"] != true {
+		t.Fatalf("optional escalation failure disabled recovery API: %s", w.Body.String())
+	}
+	deps := response["dependencies"].(map[string]interface{})
+	state := deps["coding_agent_recovery"].(map[string]interface{})
+	if state["available_at_startup"] != false || state["required_for_readiness"] != false || state["error"] != "recovery ledger unreadable" {
+		t.Fatalf("unavailable escalation was hidden: %s", w.Body.String())
+	}
+}
 
 func TestHealth_Healthy(t *testing.T) {
 	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-autoheal")

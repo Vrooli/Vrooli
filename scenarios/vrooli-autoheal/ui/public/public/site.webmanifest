@@ -1,0 +1,18 @@
+{
+  "background_color": "#0b1220",
+  "description": "Health monitoring, auto-recovery, and watchdog controls for Vrooli.",
+  "display": "standalone",
+  "icons": [
+    {
+      "purpose": "any maskable",
+      "sizes": "any",
+      "src": "./favicon.svg",
+      "type": "image/svg+xml"
+    }
+  ],
+  "name": "Vrooli Autoheal",
+  "scope": "../",
+  "short_name": "Autoheal",
+  "start_url": "../",
+  "theme_color": "#0b1220"
+}

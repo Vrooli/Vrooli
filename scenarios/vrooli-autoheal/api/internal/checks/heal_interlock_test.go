@@ -37,7 +37,7 @@ func TestHealInterlockAllowsDestructionOutsideWindow(t *testing.T) {
 	if result := registry.ExecuteAction(context.Background(), starter.ID(), "start"); !result.Success {
 		t.Fatalf("start result = %#v, want success", result)
 	}
-	clock.current = clock.current.Add(DefaultHealInterlockWindow)
+	clock.Advance(DefaultHealInterlockWindow)
 
 	result := registry.ExecuteAction(context.Background(), destroyer.ID(), "kill")
 	if !result.Success || result.Refusal != nil {

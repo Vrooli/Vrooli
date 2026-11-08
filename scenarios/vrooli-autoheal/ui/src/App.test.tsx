@@ -416,3 +416,24 @@ describe('App', () => {
     }
   });
 });
+
+
+describe('health result freshness', () => {
+  it.each([false, undefined])('shows stale or unknown freshness (%s) while a new cycle runs', async (statusFresh) => {
+    vi.mocked(api.fetchStatus).mockResolvedValue(createStatusResponse({
+      status: 'ok', statusFresh, tickRunning: true,
+      statusStaleReason: 'No completed cycle since startup.',
+    }));
+    renderWithProviders(<App />);
+    expect(await screen.findByText('Health checks are out of date.')).toBeInTheDocument();
+    expect(screen.getByText(/these results remain historical until it completes/)).toBeInTheDocument();
+    expect(document.title).toContain('CHECKS OUT OF DATE');
+  });
+
+  it('withholds the freshness warning only for confirmed fresh results', async () => {
+    vi.mocked(api.fetchStatus).mockResolvedValue(createStatusResponse({ statusFresh: true }));
+    renderWithProviders(<App />);
+    await screen.findByText(/Autoheal/i);
+    expect(screen.queryByText('Health checks are out of date.')).not.toBeInTheDocument();
+  });
+});

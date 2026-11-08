@@ -234,10 +234,9 @@ func TestDNSCheckRecoveryActions(t *testing.T) {
 // TestDNSCheckExecuteAction_RestartResolved tests restart-resolved action
 // [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 func TestDNSCheckExecuteAction_RestartResolved(t *testing.T) {
-	allowRecoveryGrant(t)
 	mockExec := testutil.NewMockExecutor()
-	mockExec.Responses["sudo -n /usr/bin/systemctl restart systemd-resolved"] = testutil.MockResponse{
-		Output: []byte(""),
+	mockExec.Responses["vrooli host service restart systemd-resolved --json"] = testutil.MockResponse{
+		Output: []byte(`{"version":"v1","action":"host.service.recover","status":"verified","evidence":{"active":true}}`),
 		Error:  nil,
 	}
 
@@ -266,9 +265,8 @@ func TestDNSCheckExecuteAction_RestartResolved(t *testing.T) {
 
 // TestDNSCheckExecuteAction_RestartResolved_Failed tests restart failure
 func TestDNSCheckExecuteAction_RestartResolved_Failed(t *testing.T) {
-	allowRecoveryGrant(t)
 	mockExec := testutil.NewMockExecutor()
-	mockExec.Responses["sudo -n /usr/bin/systemctl restart systemd-resolved"] = testutil.MockResponse{
+	mockExec.Responses["vrooli host service restart systemd-resolved --json"] = testutil.MockResponse{
 		Output: []byte("Failed to restart"),
 		Error:  testutil.ErrPermissionDenied,
 	}

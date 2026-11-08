@@ -52,10 +52,10 @@ func TestResourceChecksAssessSnapshotAgeAfterRead(t *testing.T) {
 // [REQ:RES-MON-006] [REQ:RES-MON-007]
 func TestResourceChecksShareFreshFleetSnapshotAndEscalateAnomaly(t *testing.T) {
 	executor := testutil.NewMockExecutor()
-	executor.Responses["vrooli resource status --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[
+	executor.Responses["vrooli resource status --health-only --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[
 		{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"},
 		{"resource":{"name":"redis"},"installed":true,"running":true,"healthy":false,"message":"unhealthy"}]}`)}
-	executor.Responses["vrooli resource status redis --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"name":"redis","installed":true,"running":true,"healthy":false,"status":"unhealthy","resource":{"resource":{"name":"redis"},"installed":true,"running":true,"healthy":false,"message":"unhealthy"}}`)}
+	executor.Responses["vrooli resource status redis --health-only --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"name":"redis","installed":true,"running":true,"healthy":false,"status":"unhealthy","resource":{"resource":{"name":"redis"},"installed":true,"running":true,"healthy":false,"message":"unhealthy"}}`)}
 	provider := integration.NewSnapshotProvider(integration.NewClient(executor), integration.WithSnapshotTTL(time.Minute))
 
 	healthy := NewResourceCheck("postgres", WithResourceStatusProvider(provider)).Run(context.Background())
@@ -76,7 +76,7 @@ func TestResourceChecksShareFreshFleetSnapshotAndEscalateAnomaly(t *testing.T) {
 	if got := len(executor.Calls); got != 2 {
 		t.Fatalf("typed status calls = %d, want one fleet plus one deep call", got)
 	}
-	if got := testutil.CommandKey(executor.Calls[0].Name, executor.Calls[0].Args); got != "vrooli resource status --json" {
+	if got := testutil.CommandKey(executor.Calls[0].Name, executor.Calls[0].Args); got != "vrooli resource status --health-only --json" {
 		t.Fatalf("first call = %q, want fleet status", got)
 	}
 }
@@ -86,7 +86,7 @@ func TestResourceCheckNeverTreatsFailedSnapshotFallbackAsHealthy(t *testing.T) {
 	now := time.Date(2026, 9, 10, 0, 0, 0, 0, time.UTC)
 	current := now
 	executor := testutil.NewMockExecutor()
-	executor.Responses["vrooli resource status --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"}]}`)}
+	executor.Responses["vrooli resource status --health-only --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"}]}`)}
 	provider := integration.NewSnapshotProvider(integration.NewClient(executor),
 		integration.WithSnapshotTTL(time.Second),
 		integration.WithSnapshotClock(func() time.Time { return current }),
@@ -95,7 +95,7 @@ func TestResourceCheckNeverTreatsFailedSnapshotFallbackAsHealthy(t *testing.T) {
 	if result := check.Run(context.Background()); result.Status != checks.StatusOK {
 		t.Fatalf("initial status = %s, want ok; details=%#v", result.Status, result.Details)
 	}
-	executor.Responses["vrooli resource status --json"] = testutil.MockResponse{Error: errors.New("fixture timeout")}
+	executor.Responses["vrooli resource status --health-only --json"] = testutil.MockResponse{Error: errors.New("fixture timeout")}
 	current = current.Add(2 * time.Second)
 	result := check.Run(context.Background())
 	if result.Status != checks.StatusUndetermined {
@@ -113,7 +113,7 @@ func TestResourceCheckNeverTreatsFailedSnapshotFallbackAsHealthy(t *testing.T) {
 // [REQ:RES-MON-006] [REQ:RES-MON-007]
 func TestResourceRecoveryVerificationBypassesCachedSnapshot(t *testing.T) {
 	executor := testutil.NewMockExecutor()
-	executor.Responses["vrooli resource status --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"}]}`)}
+	executor.Responses["vrooli resource status --health-only --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"}]}`)}
 	provider := integration.NewSnapshotProvider(integration.NewClient(executor), integration.WithSnapshotTTL(time.Minute))
 	check := NewResourceCheck(
 		"postgres",
@@ -128,7 +128,7 @@ func TestResourceRecoveryVerificationBypassesCachedSnapshot(t *testing.T) {
 	// The fleet cache still reports the pre-action healthy state, while the
 	// named read reports that recovery did not actually succeed. Verification
 	// must trust the latter and refuse to certify the cached result.
-	executor.Responses["vrooli resource status postgres --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"name":"postgres","installed":true,"running":false,"healthy":false,"status":"stopped"}`)}
+	executor.Responses["vrooli resource status postgres --health-only --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"name":"postgres","installed":true,"running":false,"healthy":false,"status":"stopped"}`)}
 	verified := check.verifyRecovery(context.Background(), checks.ActionResult{ActionID: "restart", CheckID: check.ID()}, "restart", time.Now())
 	if verified.Success {
 		t.Fatalf("verification = %#v, want failed fresh deep verification", verified)
@@ -230,7 +230,7 @@ func TestSupervisionIntentAndAttributionAppearOnEveryTargetResult(t *testing.T) 
 
 	resourceChain := []coreset.AttributionStep{{Name: "redis", Kind: coreset.MemberKindResource, SupervisionIntent: coreset.IntentTryStart, Source: "core.seed"}}
 	resourceExecutor := testutil.NewMockExecutor()
-	resourceExecutor.Responses["vrooli resource status redis --json"] = testutil.MockResponse{
+	resourceExecutor.Responses["vrooli resource status redis --health-only --json"] = testutil.MockResponse{
 		Output: []byte(`{"success":true,"name":"redis","installed":false,"running":false,"status":"not installed"}`),
 	}
 	resourceResult := NewResourceCheck(
@@ -376,7 +376,7 @@ func TestResourceCheckRunWithMock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockExecutor := testutil.NewMockExecutor()
-			mockExecutor.Responses["vrooli resource status postgres --json"] = testutil.MockResponse{
+			mockExecutor.Responses["vrooli resource status postgres --health-only --json"] = testutil.MockResponse{
 				Output: []byte(tt.cliOutput),
 				Error:  tt.cliError,
 			}
@@ -401,7 +401,7 @@ func TestResourceCheckRunWithMock(t *testing.T) {
 
 func TestResourceCheckServingWithDeadCompanionIsObservedButNotAutoHealed(t *testing.T) {
 	mockExecutor := testutil.NewMockExecutor()
-	mockExecutor.Responses["vrooli resource status ollama --json"] = testutil.MockResponse{
+	mockExecutor.Responses["vrooli resource status ollama --health-only --json"] = testutil.MockResponse{
 		Output: []byte(`{"success":true,"name":"ollama","installed":true,"running":true,"healthy":false,"serving":true,"status":"running; capacity-sync companion down","resource":{"running":true,"healthy":false,"serving":true,"raw":{"companions":[{"name":"capacity-sync","alive":false}]}}}`),
 	}
 
@@ -527,7 +527,7 @@ func TestResourceCheckWhisperCompanionDownRecovery(t *testing.T) {
 		Output: []byte("Whisper activity-edge companion started"),
 		Error:  nil,
 	}
-	mockExecutor.Responses["vrooli resource status whisper --json"] = testutil.MockResponse{
+	mockExecutor.Responses["vrooli resource status whisper --health-only --json"] = testutil.MockResponse{
 		Output: []byte(`{"success":true,"name":"whisper","installed":true,"running":true,"healthy":true,"status":"healthy"}`),
 		Error:  nil,
 	}

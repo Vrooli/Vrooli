@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func findCheck(result PreflightResult, name string) PreflightCheck {
@@ -25,7 +27,7 @@ func TestPreflightNamesToolchainWhenGoMissing(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	empty := t.TempDir()
 	restore := toolchainPathEntries
-	toolchainPathEntries = func(string, string) []string { return []string{empty} }
+	toolchainPathEntries = func() []string { return []string{empty} }
 	t.Cleanup(func() { toolchainPathEntries = restore })
 
 	result := Preflight(context.Background(), config)
@@ -84,5 +86,19 @@ func TestPreflightSkipsInvocationsWhenTheBinaryIsMissing(t *testing.T) {
 		if check := findCheck(result, name); check.Status != CheckSkipped {
 			t.Errorf("%s = %+v, want skipped", name, check)
 		}
+	}
+}
+
+// The recovery floor's last toolchain entry is the runtime-home bin as the
+// repository contract places it for this account, not a hand-built join.
+func TestRecoveryToolchainEndsWithContractRuntimeBin(t *testing.T) {
+	home := isolatedHome(t)
+	want, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := recoveryToolchainEntries()
+	if len(entries) == 0 || entries[len(entries)-1] != want {
+		t.Fatalf("recovery toolchain = %v; want it to end with the contract bin %q", entries, want)
 	}
 }

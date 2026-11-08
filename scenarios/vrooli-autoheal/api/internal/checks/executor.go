@@ -83,8 +83,8 @@ const vrooliBinaryOverrideEnv = "VROOLI_CMD_PATH"
 func resolveVrooliBinary() string {
 	home, _ := os.UserHomeDir()
 	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{
-		Explicit:    strings.TrimSpace(os.Getenv(vrooliBinaryOverrideEnv)),
-		RuntimeHome: home,
+		Explicit: strings.TrimSpace(os.Getenv(vrooliBinaryOverrideEnv)),
+		UserHome: home,
 	})
 	if err != nil {
 		return "vrooli"

@@ -31,7 +31,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// RegisterTypedServices mounts the read-only, generated reliability surfaces.
+// RegisterTypedServices mounts generated reliability observations and queries.
 // Legacy REST handlers remain available while clients migrate to these contracts.
 func RegisterTypedServices(router *mux.Router, h *Handlers) {
 	if router == nil || h == nil {

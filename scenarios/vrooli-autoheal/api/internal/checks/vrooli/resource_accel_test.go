@@ -68,7 +68,7 @@ func TestResourceStatusIsDegradedSeparatesDegradedFromDown(t *testing.T) {
 // [REQ:AUTOHEAL-P0-012]
 func TestResourceRecoveryAcceptsServingResourceWithDownCompanion(t *testing.T) {
 	executor := testutil.NewMockExecutor()
-	executor.Responses["vrooli resource status reranker --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"name":"reranker","installed":true,"running":true,"healthy":false,"serving":true,"status":"degraded: companion down"}`)}
+	executor.Responses["vrooli resource status reranker --health-only --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"name":"reranker","installed":true,"running":true,"healthy":false,"serving":true,"status":"degraded: companion down"}`)}
 	check := NewResourceCheck(
 		"reranker",
 		WithResourceExecutor(executor),
@@ -87,7 +87,7 @@ func TestResourceRecoveryAcceptsServingResourceWithDownCompanion(t *testing.T) {
 // [REQ:AUTOHEAL-P0-012]
 func TestResourceRecoveryRejectsStoppedResourceWithOKStatusCode(t *testing.T) {
 	executor := testutil.NewMockExecutor()
-	executor.Responses["vrooli resource status reranker --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"name":"reranker","installed":true,"running":false,"healthy":false,"serving":false,"status":"stopped","resource":{"statusCode":"ok"}}`)}
+	executor.Responses["vrooli resource status reranker --health-only --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"name":"reranker","installed":true,"running":false,"healthy":false,"serving":false,"status":"stopped","resource":{"statusCode":"ok"}}`)}
 	check := NewResourceCheck(
 		"reranker",
 		WithResourceExecutor(executor),

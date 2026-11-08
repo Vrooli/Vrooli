@@ -18,6 +18,7 @@ import (
 	coreStorage "github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/packages/artifactledger"
+	"storage-manager/internal/authority"
 	"storage-manager/internal/recoverylock"
 )
 
@@ -51,6 +52,10 @@ type Enforcer struct {
 	OwnerReclaimAttempts map[string]time.Time
 	OwnerReclaimInterval time.Duration
 	Now                  func() time.Time
+	// Scope is this instance's storage authority. The zero value follows
+	// VROOLI_STORAGE_ROOT: a redirected instance measures every owner but
+	// prunes only inside its tree and never asks a live owner to reclaim.
+	Scope authority.Scope
 }
 
 // Result records the outcome for one owner entry. A successful result means
@@ -176,6 +181,17 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 				})
 				continue
 			}
+			// A redirected instance (a test-genie isolated run, a desktop
+			// bundle) is not the host's storage authority. Resources and
+			// safeguards still resolve to native host directories, so their
+			// budgets are measured here but never enforced.
+			if err := e.Scope.CheckPath(path); err != nil {
+				addResult(results, owner.ID, Result{
+					Owner: owner.ID, Entry: entry.Name, Refused: true,
+					Reason: err.Error(),
+				})
+				continue
+			}
 			var pruner budgetPruner
 			if entry.Kind == "dir" {
 				pruner, err = coreRetention.NewDirectoryPruner(coreRetention.DirectoryConfig{
@@ -206,8 +222,10 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 			}
 			over := budget.MaxBytes > 0 && out.After.Bytes > budget.MaxBytes
 			cycles := e.recordBudgetBreach(ctx, owner.ID, entry.Name, out.After.Bytes, budget.MaxBytes, over, entry.Regenerable)
-			result := Result{Owner: owner.ID, Entry: entry.Name, Deleted: int(out.Deleted), Freed: out.FreedBytes,
-				UsedBytes: out.After.Bytes, BudgetBytes: budget.MaxBytes, OverBytes: overBytes(out.After.Bytes, budget.MaxBytes), Incomplete: out.Incomplete}
+			result := Result{
+				Owner: owner.ID, Entry: entry.Name, Deleted: int(out.Deleted), Freed: out.FreedBytes,
+				UsedBytes: out.After.Bytes, BudgetBytes: budget.MaxBytes, OverBytes: overBytes(out.After.Bytes, budget.MaxBytes), Incomplete: out.Incomplete,
+			}
 			if out.Incomplete {
 				result.Reason = "retention incomplete; protected entries or traversal/deletion budget may prevent reconciliation"
 			}
@@ -278,6 +296,10 @@ func (e Enforcer) alarmOnly(ctx context.Context, owner coreStorage.OwnerManifest
 		delete(e.OwnerReclaimAttempts, key)
 	}
 	if !over || cycles < 2 || entry.Reclaim == nil || strings.TrimSpace(entry.Reclaim.Operation) == "" || e.OwnerReclaim == nil {
+		return result
+	}
+	// Reclaim runs in the live owner, so a redirected instance never asks.
+	if e.Scope.CheckHostAction("owner reclaim") != nil {
 		return result
 	}
 	repeated, due := e.ownerReclaimDue(key)

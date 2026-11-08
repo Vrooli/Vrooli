@@ -8,8 +8,9 @@ the migration is auditable.
 
 Disposition meanings:
 
-- `grant`: fixed service recovery argv covered by the setup-managed
-  `autoheal_recovery_privileges` sudoers grant.
+- `grant`: fixed service recovery covered by the setup-managed privilege broker's
+  `host.service.recover` action. Since 2026-11-05, runtime code invokes the control
+  plane and never invokes sudo or reads a private sudoers grant.
 - `delete`: an automatic host mutation that is not defensible as recovery.
 - `operator-action`: useful only as an explicit operator recommendation.
 - `setup-only`: installation/lifecycle ownership that belongs to setup or the
@@ -47,7 +48,23 @@ Disposition meanings:
 | 41 | `checks/infra/ntp.go` | `systemctl restart systemd-timesyncd` | grant | Timesyncd restart is a fixed service recovery operation. |
 | 42 | `checks/infra/network.go` | `systemctl restart systemd-timesyncd` (network-time fallback) | grant | The fallback uses the same fixed timesyncd unit grant. |
 
-The grant content is intentionally narrower than the historical inventory:
-it contains only absolute `/usr/bin/systemctl` `start` and `restart` entries
-for the fixed units. Dynamic service names, host-wide mutations, watchdog
-installation, and operator actions do not become sudoers permissions.
+The broker's compiled registry is intentionally narrower than the historical
+inventory: only `start` and `restart` are recovery operations. It constructs
+fixed native arguments and verifies active state. Dynamic service names,
+host-wide mutations, watchdog installation and stop actions are refused. The
+`autoheal_recovery_privileges` safeguard now verifies this broker capability;
+it creates no sudoers file. Any previously installed legacy file remains
+setup-owned historical host state for explicit cleanup, with no runtime consumer.
+
+Upgrade through `vrooli setup broker --sudo-mode=ask` or full project setup.
+An unavailable or outdated broker returns `needs_setup`; malformed or unverified
+receipts never become successful recovery and never trigger a sudo fallback.
+
+The manual `system-memory` / `memory-summary` diagnostic uses the shared native
+host inventory and `vrooli host kernel-memory --json`. The control plane reads
+slab accounting directly when permitted and otherwise uses the setup-managed
+`host.kernel-memory.inspect` capability. Autoheal does not read privileged proc
+files or invoke sudo itself. Missing inventory, failed commands, and malformed
+or empty kernel reports produce an incomplete action with useful partial output
+and an explicit error; they never produce a successful empty summary. Unknown
+slab reclaimability remains unknown.

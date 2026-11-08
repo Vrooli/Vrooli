@@ -76,6 +76,10 @@ export interface StatusResponse {
 	autoHealIssues?: Record<string, ActionLog>;
 	tickRunning?: boolean;
   tickStartedAt?: string | null;
+  lastCompletedTickAt?: string | null;
+  statusFresh?: boolean;
+  statusAgeSeconds?: number | null;
+  statusStaleReason?: string;
   timestamp: string;
 }
 

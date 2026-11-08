@@ -276,15 +276,14 @@ func TestResolvedCheckRecoveryActionsAllSafe(t *testing.T) {
 
 // TestResolvedCheckExecuteAction_Start tests start action
 func TestResolvedCheckExecuteAction_Start(t *testing.T) {
-	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
 	}
 
 	mockExec := testutil.NewMockExecutor()
-	mockExec.Responses["sudo -n /usr/bin/systemctl start systemd-resolved"] = testutil.MockResponse{
-		Output: []byte(""),
+	mockExec.Responses["vrooli host service start systemd-resolved --json"] = testutil.MockResponse{
+		Output: []byte(`{"version":"v1","action":"host.service.recover","status":"verified","evidence":{"active":true}}`),
 		Error:  nil,
 	}
 	// Verification
@@ -314,15 +313,14 @@ func TestResolvedCheckExecuteAction_Start(t *testing.T) {
 
 // TestResolvedCheckExecuteAction_Restart tests restart action
 func TestResolvedCheckExecuteAction_Restart(t *testing.T) {
-	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
 	}
 
 	mockExec := testutil.NewMockExecutor()
-	mockExec.Responses["sudo -n /usr/bin/systemctl restart systemd-resolved"] = testutil.MockResponse{
-		Output: []byte(""),
+	mockExec.Responses["vrooli host service restart systemd-resolved --json"] = testutil.MockResponse{
+		Output: []byte(`{"version":"v1","action":"host.service.recover","status":"verified","evidence":{"active":true}}`),
 		Error:  nil,
 	}
 	mockExec.Responses["systemctl list-unit-files systemd-resolved.service"] = testutil.MockResponse{
@@ -385,14 +383,13 @@ func TestResolvedCheckExecuteAction_UnknownAction(t *testing.T) {
 
 // TestResolvedCheckExecuteAction_StartFailure tests start action failure
 func TestResolvedCheckExecuteAction_StartFailure(t *testing.T) {
-	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
 	}
 
 	mockExec := testutil.NewMockExecutor()
-	mockExec.Responses["sudo -n /usr/bin/systemctl start systemd-resolved"] = testutil.MockResponse{
+	mockExec.Responses["vrooli host service start systemd-resolved --json"] = testutil.MockResponse{
 		Output: []byte("Failed to start systemd-resolved.service"),
 		Error:  testutil.ErrPermissionDenied,
 	}

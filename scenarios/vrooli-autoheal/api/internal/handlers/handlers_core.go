@@ -119,6 +119,8 @@ type Handlers struct {
 	installedProvider      reconcile.InstalledProvider
 	startedAt              time.Time
 	starter                string
+	codingAgentInitKnown   bool
+	codingAgentInitError   string
 	// skipLog keeps the action history to one row per auto-heal skip state
 	// change rather than one per tick.
 	skipLog *skipLogGate
@@ -128,6 +130,17 @@ type Handlers struct {
 	tickRunning bool
 	tickStarted time.Time
 	tickEnded   time.Time
+}
+
+// SetCodingAgentRecoveryInitialization records the startup capability verdict.
+// Configure before serving requests. A failed escalation ledger must remain
+// visible without making mechanical recovery's API unready.
+func (h *Handlers) SetCodingAgentRecoveryInitialization(err error) {
+	h.codingAgentInitKnown = true
+	h.codingAgentInitError = ""
+	if err != nil {
+		h.codingAgentInitError = err.Error()
+	}
 }
 
 func (h *Handlers) getTickState() (bool, *time.Time) {
@@ -298,6 +311,14 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 		"connected": pingErr == nil,
 		"database":  "sqlite",
 	}
+	dependencies := map[string]interface{}{"database": dbDependency}
+	if h.codingAgentInitKnown {
+		escalation := map[string]interface{}{"available_at_startup": h.codingAgentInitError == "", "required_for_readiness": false}
+		if h.codingAgentInitError != "" {
+			escalation["error"] = h.codingAgentInitError
+		}
+		dependencies["coding_agent_recovery"] = escalation
+	}
 	switch {
 	case pingErr != nil:
 		status = "unhealthy"
@@ -320,9 +341,7 @@ func (h *Handlers) Health(w http.ResponseWriter, r *http.Request) {
 		"build_identity": strings.TrimSpace(os.Getenv("VROOLI_BUILD_IDENTITY")),
 		"readiness":      status == "healthy",
 		"timestamp":      time.Now().UTC().Format(time.RFC3339),
-		"dependencies": map[string]interface{}{
-			"database": dbDependency,
-		},
+		"dependencies":   dependencies,
 		"summary": func() map[string]int {
 			summary := h.registry.GetSummary()
 			return map[string]int{"total": summary.TotalCount, "ok": summary.OkCount, "warning": summary.WarnCount, "critical": summary.CritCount, "notApplicable": summary.NotApplicableCount}

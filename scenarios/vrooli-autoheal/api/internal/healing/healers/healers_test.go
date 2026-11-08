@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/elevation"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/healing"
 )
 
@@ -333,12 +332,10 @@ func TestSystemdHealer_Actions(t *testing.T) {
 }
 
 func TestSystemdHealer_Execute(t *testing.T) {
-	restore := elevation.SetGrantPathForTest("test-vrooli-autoheal-grant", func() bool { return true })
-	t.Cleanup(restore)
-	exec := &mockExecutor{combinedOutputResult: []byte("ok")}
+	exec := &mockExecutor{combinedOutputResult: []byte(`{"version":"v1","action":"host.service.recover","status":"verified","evidence":{"active":true}}`)}
 	h := NewSystemdHealer("infra-cloudflared", "cloudflared", exec)
 
-	actions := []string{"start", "stop", "restart", "logs", "status"}
+	actions := []string{"start", "restart", "logs", "status"}
 	for _, actionID := range actions {
 		t.Run(actionID, func(t *testing.T) {
 			result := h.Execute(context.Background(), actionID, nil)

@@ -15,6 +15,7 @@ import (
 
 	"github.com/vrooli/api-core/database"
 	corestorage "github.com/vrooli/api-core/storage"
+	"storage-manager/internal/authority"
 )
 
 //go:embed schema.sql
@@ -54,7 +55,12 @@ type Verification struct {
 	Error             string `json:"error,omitempty"`
 }
 
-type Service struct{ store Store }
+type Service struct {
+	store Store
+	// scope is this instance's storage authority; the zero value follows
+	// VROOLI_STORAGE_ROOT, so a redirected instance never writes host paths.
+	scope authority.Scope
+}
 
 type Store interface {
 	SavePlan(context.Context, Plan) error
@@ -159,6 +165,9 @@ func (s *Service) Migrate(ctx context.Context, planID string, approved bool) (Au
 	}
 	if !approved {
 		return Audit{}, fmt.Errorf("placement migration requires explicit approval")
+	}
+	if err := s.scope.CheckPath(plan.Destination); err != nil {
+		return Audit{}, fmt.Errorf("placement migration: %w", err)
 	}
 	result, migrateErr := corestorage.MigrateVerified(plan.ID, plan.Source, plan.Destination, true)
 	audit := Audit{ID: plan.ID + "/" + time.Now().UTC().Format("20060102T150405.000000000Z"), PlanID: plan.ID, OccurredAt: time.Now().UTC(), Event: "migration.completed", Source: plan.Source, Destination: plan.Destination, Bytes: result.Bytes, Verified: result.Verified, SourcePreserved: result.SourcePreserved}

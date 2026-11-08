@@ -307,6 +307,9 @@ func (c *ScenarioCheck) Run(ctx context.Context) checks.Result {
 	}
 	result.Details["scenarioStatus"] = scenarioStatus
 	result.Details["healthStatus"] = healthStatus
+	if detail := strings.TrimSpace(parsed.Scenario.HealthError); detail != "" {
+		result.Details["healthError"] = detail
+	}
 	// Language-specific drift signatures take precedence: they map to cheaper,
 	// more targeted recovery actions (recover-go / recover-pnpm) than the
 	// catch-all setup-restart, which rebuilds bundles and re-runs full setup.

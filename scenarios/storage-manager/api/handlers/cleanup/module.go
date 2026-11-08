@@ -24,6 +24,7 @@ import (
 
 	"storage-manager/hostfs"
 	"storage-manager/hostpaths"
+	"storage-manager/internal/authority"
 	"storage-manager/internal/census"
 	cleanupcore "storage-manager/internal/cleanup"
 	"storage-manager/internal/growth"
@@ -790,6 +791,8 @@ type runtimeHomeBrokerRepairer struct {
 	socket string
 	uid    uint32
 	gid    uint32
+	// scope refuses privileged repair from a redirected instance.
+	scope authority.Scope
 }
 
 func newRuntimeHomeBrokerRepairer() cleanupcore.OwnershipRepairer {
@@ -813,6 +816,9 @@ func privilegeBrokerSocketPath() string {
 func (r *runtimeHomeBrokerRepairer) Repair(ctx context.Context, class string) (cleanupcore.OwnershipRepairResult, error) {
 	if r == nil || r.uid == 0 || r.gid == 0 {
 		return cleanupcore.OwnershipRepairResult{}, fmt.Errorf("privilege broker is unavailable")
+	}
+	if err := r.scope.CheckHostAction("runtime-home ownership repair"); err != nil {
+		return cleanupcore.OwnershipRepairResult{}, err
 	}
 	request := struct {
 		Version     string `json:"version"`

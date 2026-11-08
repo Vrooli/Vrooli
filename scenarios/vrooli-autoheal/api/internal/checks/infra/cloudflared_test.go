@@ -58,7 +58,7 @@ func TestCloudflaredCheckRunWithMock_ServiceActive(t *testing.T) {
 
 func TestCloudflaredCheckRunWithMock_ManagedResource(t *testing.T) {
 	mockExec := testutil.NewMockExecutor()
-	mockExec.Responses["vrooli resource status cloudflared --no-fast --json"] = testutil.MockResponse{
+	mockExec.Responses["vrooli resource status cloudflared --health-only --no-fast --json"] = testutil.MockResponse{
 		Output: []byte(`{"success":true,"running":true,"healthy":true,"status":"healthy","serving":true}`),
 	}
 
@@ -244,7 +244,6 @@ func TestCloudflaredCheckRecoveryActionsAllSafe(t *testing.T) {
 
 // TestCloudflaredCheckExecuteAction_Start tests the start action
 func TestCloudflaredCheckExecuteAction_Start(t *testing.T) {
-	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
@@ -252,8 +251,8 @@ func TestCloudflaredCheckExecuteAction_Start(t *testing.T) {
 
 	mockExec := testutil.NewMockExecutor()
 	// Start command succeeds
-	mockExec.Responses["sudo -n /usr/bin/systemctl start cloudflared"] = testutil.MockResponse{
-		Output: []byte(""),
+	mockExec.Responses["vrooli host service start cloudflared --json"] = testutil.MockResponse{
+		Output: []byte(`{"version":"v1","action":"host.service.recover","status":"verified","evidence":{"active":true}}`),
 		Error:  nil,
 	}
 	// Verification: service is now active
@@ -287,15 +286,14 @@ func TestCloudflaredCheckExecuteAction_Start(t *testing.T) {
 
 // TestCloudflaredCheckExecuteAction_Restart tests the restart action
 func TestCloudflaredCheckExecuteAction_Restart(t *testing.T) {
-	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
 	}
 
 	mockExec := testutil.NewMockExecutor()
-	mockExec.Responses["sudo -n /usr/bin/systemctl restart cloudflared"] = testutil.MockResponse{
-		Output: []byte(""),
+	mockExec.Responses["vrooli host service restart cloudflared --json"] = testutil.MockResponse{
+		Output: []byte(`{"version":"v1","action":"host.service.recover","status":"verified","evidence":{"active":true}}`),
 		Error:  nil,
 	}
 	mockExec.Responses["systemctl is-active cloudflared"] = testutil.MockResponse{
@@ -405,14 +403,13 @@ func TestCloudflaredCheckExecuteAction_UnknownAction(t *testing.T) {
 
 // TestCloudflaredCheckExecuteAction_StartFailure tests start action failure
 func TestCloudflaredCheckExecuteAction_StartFailure(t *testing.T) {
-	allowRecoveryGrant(t)
 	caps := &platform.Capabilities{
 		Platform:        platform.Linux,
 		SupportsSystemd: true,
 	}
 
 	mockExec := testutil.NewMockExecutor()
-	mockExec.Responses["sudo -n /usr/bin/systemctl start cloudflared"] = testutil.MockResponse{
+	mockExec.Responses["vrooli host service start cloudflared --json"] = testutil.MockResponse{
 		Output: []byte("Failed to start cloudflared.service: Unit cloudflared.service not found."),
 		Error:  testutil.ErrCommandNotFound,
 	}

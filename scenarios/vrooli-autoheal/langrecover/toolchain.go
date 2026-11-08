@@ -7,13 +7,21 @@ package langrecover
 // so `go mod download` could not run from the unit and every attempt burned a
 // breaker slot toward a six-hour suspension while nothing was actually wrong
 // with the repository. A tool is therefore resolved through PATH first and
-// then through the per-OS table below, which mirrors the default PATH the
-// platform package renders into the unit. langrecover cannot import that
-// package (it must stay stdlib-only so dependency drift can never break the
-// thing that repairs dependency drift), so the table is copied here and the
-// equality test lives beside the original in packages/platform-go.
+// then through the per-OS table below, which must cover every directory the
+// platform package renders into the unit's PATH. langrecover cannot import
+// that package (it must stay stdlib-only so dependency drift can never break
+// the thing that repairs dependency drift), so the table is a copy; the API
+// module, which imports both, holds the test that this table is a superset of
+// the platform one.
+//
+// The Vrooli runtime-home bin directory is the one entry whose location is
+// owned by the repository contract rather than by the OS. langrecover cannot
+// resolve the contract, so callers resolve that directory and pass it in;
+// hand-joining it here would ignore the contract's authority over the
+// runtime home layout.
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -26,11 +34,12 @@ var ErrToolMissing = errors.New("tool not found")
 
 // DefaultPathEntries returns the directories a scheduler unit is expected to
 // search for toolchains on the given OS, in order. home is the account's home
-// directory; entries under it are skipped when home is empty.
-func DefaultPathEntries(goos, home string) []string {
+// directory; entries under it are skipped when home is empty. runtimeBin is
+// the Vrooli runtime-home bin directory as resolved by the caller through the
+// repository contract; it is searched last and skipped when empty.
+func DefaultPathEntries(goos, home, runtimeBin string) []string {
 	var entries []string
-	switch goos {
-	case "windows":
+	if goos == "windows" {
 		entries = append(entries,
 			filepath.Join(os.Getenv("ProgramFiles"), "Go", "bin"),
 			filepath.Join(os.Getenv("SystemRoot"), "System32"),
@@ -40,29 +49,21 @@ func DefaultPathEntries(goos, home string) []string {
 				filepath.Join(home, "AppData", "Local", "Microsoft", "WinGet", "Links"),
 				filepath.Join(home, "go", "bin"),
 				filepath.Join(home, ".cargo", "bin"),
-				filepath.Join(home, ".vrooli", "bin"),
 			)
 		}
-	case "darwin":
+	} else {
 		entries = append(entries, "/usr/local/go/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin")
 		if home != "" {
 			entries = append(entries,
 				filepath.Join(home, "go", "bin"),
 				filepath.Join(home, ".cargo", "bin"),
 				filepath.Join(home, ".local", "bin"),
-				filepath.Join(home, ".vrooli", "bin"),
+				filepath.Join(home, "bin"),
 			)
 		}
-	default:
-		entries = append(entries, "/usr/local/go/bin", "/usr/local/bin", "/usr/bin", "/bin")
-		if home != "" {
-			entries = append(entries,
-				filepath.Join(home, "go", "bin"),
-				filepath.Join(home, ".cargo", "bin"),
-				filepath.Join(home, ".local", "bin"),
-				filepath.Join(home, ".vrooli", "bin"),
-			)
-		}
+	}
+	if runtimeBin = strings.TrimSpace(runtimeBin); runtimeBin != "" {
+		entries = append(entries, runtimeBin)
 	}
 	return entries
 }
@@ -101,11 +102,22 @@ func (e *ToolMissingError) Error() string {
 
 func (e *ToolMissingError) Unwrap() error { return ErrToolMissing }
 
-// ResolveTool resolves name for the current process: PATH, then the table for
-// this OS and the current home directory.
-func ResolveTool(name, goos string) (string, error) {
-	home, _ := os.UserHomeDir()
-	return FindTool(name, exec.LookPath, DefaultPathEntries(goos, home))
+// NewRunner returns the production Runner: each tool resolves through PATH
+// and then entries (normally DefaultPathEntries), and the command runs in the
+// supplied working directory with combined output.
+func NewRunner(entries []string) Runner {
+	entries = append([]string(nil), entries...)
+	return func(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
+		resolved, err := FindTool(name, exec.LookPath, entries)
+		if err != nil {
+			return nil, err
+		}
+		cmd := exec.CommandContext(ctx, resolved, args...)
+		if dir != "" {
+			cmd.Dir = dir
+		}
+		return cmd.CombinedOutput()
+	}
 }
 
 func isExecutableFile(path string) bool {

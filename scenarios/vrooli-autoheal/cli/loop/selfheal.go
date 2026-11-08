@@ -148,9 +148,13 @@ func resetSelfHealState(path string) {
 }
 
 // selfHealRunner is the command seam used by the recovery floor. Production
-// uses langrecover.DefaultRunner; tests substitute a fake so the floor can be
-// exercised without spawning real `go mod tidy` subprocesses.
-var selfHealRunner = langrecover.DefaultRunner
+// resolves each tool through PATH and then the recovery toolchain table, read
+// at call time so a runtime-home bin installed after the loop started is
+// found; tests substitute a fake so the floor can be exercised without
+// spawning real `go mod tidy` subprocesses.
+var selfHealRunner langrecover.Runner = func(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
+	return langrecover.NewRunner(toolchainPathEntries())(ctx, dir, name, args...)
+}
 
 // selfHealOutcome describes what the floor did, for logging and for the
 // caller's decision about whether to retry the start.

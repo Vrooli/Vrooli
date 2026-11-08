@@ -8,9 +8,14 @@ package langrecover
 
 import (
 	"context"
-	"os/exec"
-	"runtime"
+	"errors"
 )
+
+// ErrRunnerRequired is returned by a strategy invoked without a Runner. The
+// production Runner is NewRunner over the caller's toolchain table; there is
+// no implicit default because only the caller can resolve the runtime-home
+// bin directory the table needs.
+var ErrRunnerRequired = errors.New("langrecover: a Runner is required")
 
 // Kind identifies which language-level recovery strategy applies.
 type Kind string
@@ -54,19 +59,3 @@ type Result struct {
 // combined stdout/stderr plus any error. Strategies depend on this seam so
 // tests can inject a fake without spawning real subprocesses.
 type Runner func(ctx context.Context, dir, name string, args ...string) ([]byte, error)
-
-// DefaultRunner is the production implementation of Runner. It delegates to
-// os/exec.CommandContext and respects the supplied working directory. The
-// tool is resolved through PATH and then the per-OS toolchain table, because
-// the scheduler unit this runs under does not carry the operator's PATH.
-func DefaultRunner(ctx context.Context, dir, name string, args ...string) ([]byte, error) {
-	resolved, err := ResolveTool(name, runtime.GOOS)
-	if err != nil {
-		return nil, err
-	}
-	cmd := exec.CommandContext(ctx, resolved, args...)
-	if dir != "" {
-		cmd.Dir = dir
-	}
-	return cmd.CombinedOutput()
-}

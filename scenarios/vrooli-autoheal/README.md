@@ -2,6 +2,14 @@
 
 Self-healing supervisor that bootstraps, monitors, and auto-repairs Vrooli infrastructure across platforms.
 
+After a repair, `vrooli-autoheal check run <check-id> --json` refreshes one
+registered observation without waiting for its interval or running recovery
+actions. It persists the result and updates that check's incident evidence.
+The operation refuses concurrent observation cycles, leaves recovery settings
+unchanged, and does not mark the whole fleet fresh. For example, run
+`vrooli-autoheal check run system-boot-recovery-readiness --json` after project
+setup refreshes the watchdogs.
+
 ## Overview
 
 vrooli-autoheal replaces the legacy bash-based autoheal cronjob with a cross-platform solution featuring:
@@ -86,6 +94,19 @@ The system detects the current platform and capabilities:
 - RDP/xrdp/TermService health
 
 ## Configuration
+
+Coding-agent escalation waits for the continuous-unhealthy grace period and
+mechanical recovery threshold, then uses the control-plane recovery broker.
+The broker shares a per-scenario hourly admission window across API processes.
+Inspect its durable receipts with `vrooli agent recover list --json`.
+Unavailable executables permit a fallback runner; an ambiguous launch result
+or timeout leaves an `unconfirmed` receipt and blocks overlapping work.
+A successful runner exit does not itself establish repaired health.
+
+An API crash can leave a `scheduled` or `running` receipt whose native agent
+state needs reconciliation. Automatic reconciliation of those native sessions
+is still an open reliability gap; the hourly window does not erase that
+uncertainty. See [the investigation record](docs/internal/PROBLEMS.md).
 
 Health checks and supervised resources/scenarios are governed via:
 

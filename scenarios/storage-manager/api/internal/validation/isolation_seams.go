@@ -1,10 +1,12 @@
 package validation
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"path/filepath"
@@ -19,14 +21,9 @@ func init() {
 	register(&isoUnverified{})
 }
 
-// The four api-core seams whose presence, taken together, statically PROVE that
-// a Go scenario's destructive E2E playbooks land in an isolated test pool rather
-// than the real database. Each is (import path, exported function).
-//
-// Static proof of all four ⟹ the routed path is eligible ⟹ test-genie installs
-// a test pool on the live process ⟹ isolation by construction. Any missing seam
-// means the scenario silently falls back to its real DB during mutating
-// playbooks — exactly the real-data risk storage-manager exists to close.
+// These four api-core seams qualify the declared routed wiring. Their presence
+// does not prove runtime context propagation or absence of primary writes;
+// those require executed transport, asynchronous handoff and cleanup evidence.
 var isoSeams = []isoSeam{
 	{
 		key: "database.Open", importPath: "github.com/vrooli/api-core/database", fn: "Open",
@@ -38,7 +35,7 @@ var isoSeams = []isoSeam{
 	},
 	{
 		key: "apihttp.TestModeMiddleware", importPath: "github.com/vrooli/api-core/apihttp", fn: "TestModeMiddleware",
-		why: "reads the X-Vrooli-Test-Mode header and marks the request context for routing",
+		why: "marks test requests, or pins them through the same registered paired routing service",
 	},
 	{
 		key: "devrouting.Register", importPath: "github.com/vrooli/api-core/devrouting", fn: "Register",
@@ -92,7 +89,7 @@ func (isoRoutedSeams) Analyze(_ context.Context, ac AnalyzerContext) ([]Finding,
 	}
 	b.WriteString("Because isolation cannot be proven, test-genie will fail-closed and refuse this scenario's destructive playbooks until every seam is wired.")
 
-	remediation := "Wire the missing seam(s) in api/main.go: open the DB via database.Open (returns *RoutedDB), call database.EnsureSchemas(ctx, db.Primary(), modules.AllSchemas()...), wrap the handler with apihttp.TestModeMiddleware, and devrouting.RegisterWithFileRoots(rootMux, db, roots). See scenarios/storage-manager/docs/concepts/test-isolation-contract.md. (Autofixable: run `storage-manager` apply-fix for ROUTED_SEAMS_UNWIRED once the registry is wired.)"
+	remediation := "Wire the missing seam(s) in api/main.go: open the DB via database.Open (returns *RoutedDB), apply database.EnsureSchemas, and register the routing owner. For paired SQL/file storage, construct devrouting.NewService(db, roots), register that same instance with RegisterWithFileRootsService, and wrap the handler with its PinnedTestModeMiddleware. Legacy marker-only wiring uses apihttp.TestModeMiddleware and RegisterWithFileRoots. Runtime transport and async isolation still require execution evidence. See scenarios/storage-manager/docs/concepts/test-isolation-contract.md."
 
 	return []Finding{{
 		Code:        "ROUTED_SEAMS_UNWIRED",
@@ -111,7 +108,7 @@ func (isoRoutedSeams) Analyze(_ context.Context, ac AnalyzerContext) ([]Finding,
 // no seam evidence.
 func isoCollectSeams(absPath string, present map[string]bool) {
 	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, absPath, nil, parser.SkipObjectResolution)
+	file, err := parser.ParseFile(fset, absPath, nil, 0)
 	if err != nil {
 		return
 	}
@@ -135,7 +132,7 @@ func isoCollectSeams(absPath string, present map[string]bool) {
 			return true
 		}
 		pkgIdent, ok := sel.X.(*ast.Ident)
-		if !ok {
+		if !ok || pkgIdent.Obj != nil {
 			return true
 		}
 		path := aliasToPath[pkgIdent.Name]
@@ -166,6 +163,89 @@ func isoCollectSeams(absPath string, present map[string]bool) {
 	if schemaSplitBootstrapPresent(fset, file, aliasToPath) {
 		present["database.EnsureSchemas"] = true
 	}
+	if isoPinnedMiddlewarePresent(fset, file, aliasToPath) {
+		present["apihttp.TestModeMiddleware"] = true
+	}
+}
+
+// A method name alone is not seam evidence. Resolve its local constructor
+// binding and require the same unchanged instance in paired RPC registration.
+func isoPinnedMiddlewarePresent(fset *token.FileSet, file *ast.File, imports map[string]string) bool {
+	qualified := func(call *ast.CallExpr, name string) bool {
+		sel, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || sel.Sel.Name != name {
+			return false
+		}
+		pkg, ok := sel.X.(*ast.Ident)
+		return ok && pkg.Obj == nil && imports[pkg.Name] == "github.com/vrooli/api-core/devrouting"
+	}
+	same := func(a, b ast.Expr) bool {
+		var left, right bytes.Buffer
+		return format.Node(&left, fset, a) == nil && format.Node(&right, fset, b) == nil && left.String() == right.String()
+	}
+	type owner struct {
+		constructor         *ast.CallExpr
+		writes              int
+		registered, wrapped bool
+	}
+	for _, declaration := range file.Decls {
+		fn, ok := declaration.(*ast.FuncDecl)
+		if !ok || fn.Body == nil {
+			continue
+		}
+		owners := map[*ast.Object]*owner{}
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			assignment, ok := n.(*ast.AssignStmt)
+			if !ok {
+				return true
+			}
+			for _, lhs := range assignment.Lhs {
+				id, ok := lhs.(*ast.Ident)
+				if !ok || id.Obj == nil {
+					continue
+				}
+				bound := owners[id.Obj]
+				if bound == nil {
+					bound = &owner{}
+					owners[id.Obj] = bound
+				}
+				bound.writes++
+				if assignment.Tok == token.DEFINE && len(assignment.Lhs) == 1 && len(assignment.Rhs) == 1 {
+					if call, ok := assignment.Rhs[0].(*ast.CallExpr); ok && qualified(call, "NewService") && len(call.Args) == 2 {
+						bound.constructor = call
+					}
+				}
+			}
+			return true
+		})
+		ast.Inspect(fn.Body, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			if qualified(call, "RegisterWithFileRootsService") && len(call.Args) >= 4 {
+				if id, ok := call.Args[3].(*ast.Ident); ok && id.Obj != nil {
+					if bound := owners[id.Obj]; bound != nil && bound.constructor != nil && same(call.Args[1], bound.constructor.Args[0]) && same(call.Args[2], bound.constructor.Args[1]) {
+						bound.registered = true
+					}
+				}
+			}
+			if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "PinnedTestModeMiddleware" {
+				if id, ok := sel.X.(*ast.Ident); ok && id.Obj != nil {
+					if bound := owners[id.Obj]; bound != nil {
+						bound.wrapped = true
+					}
+				}
+			}
+			return true
+		})
+		for _, bound := range owners {
+			if bound.constructor != nil && bound.writes == 1 && bound.registered && bound.wrapped {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // importLocalName returns the identifier a Go file uses to reference an import:

@@ -4,6 +4,7 @@ package system
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"strings"
@@ -319,42 +320,60 @@ func (c *MemoryCheck) executeMemorySummary(ctx context.Context, start time.Time)
 	}
 
 	var outputBuilder strings.Builder
+	var failures []string
 
-	// Overall memory with human-readable format
+	// Basic inventory and privileged slab accounting both belong to the native
+	// control plane. Keep useful partial output, but never call it complete.
 	outputBuilder.WriteString("=== Memory Overview ===\n")
-	freeOutput, _ := c.executor.Output(ctx, "free", "-h")
-	outputBuilder.Write(freeOutput)
-	outputBuilder.WriteString("\n")
-
-	outputBuilder.WriteString("=== Detailed Memory Info ===\n")
-	if memInfo, err := c.readMemoryInfo(ctx); err == nil {
-		outputBuilder.WriteString(fmt.Sprintf("MemTotal: %d kB\n", memInfo.MemTotal))
-		outputBuilder.WriteString(fmt.Sprintf("MemFree: %d kB\n", memInfo.MemFree))
-		outputBuilder.WriteString(fmt.Sprintf("MemAvailable: %d kB\n", memInfo.MemAvailable))
-		outputBuilder.WriteString(fmt.Sprintf("Buffers: %d kB\n", memInfo.Buffers))
-		outputBuilder.WriteString(fmt.Sprintf("Cached: %d kB\n", memInfo.Cached))
-		outputBuilder.WriteString(fmt.Sprintf("SwapTotal: %d kB\n", memInfo.SwapTotal))
-		outputBuilder.WriteString(fmt.Sprintf("SwapFree: %d kB\n", memInfo.SwapFree))
+	memInfo, err := c.readMemoryInfo(ctx)
+	if err != nil {
+		failures = append(failures, fmt.Sprintf("memory inventory unavailable: %v", err))
+	} else if memInfo == nil || memInfo.MemTotal == 0 {
+		failures = append(failures, "memory inventory is empty")
 	} else {
-		outputBuilder.WriteString(fmt.Sprintf("failed to collect memory inventory: %v\n", err))
+		fmt.Fprintf(&outputBuilder, "MemTotal: %d kB\n", memInfo.MemTotal)
+		fmt.Fprintf(&outputBuilder, "MemAvailable: %d kB\n", memInfo.MemAvailable)
+		fmt.Fprintf(&outputBuilder, "Buffers: %d kB\n", memInfo.Buffers)
+		fmt.Fprintf(&outputBuilder, "Cached: %d kB\n", memInfo.Cached)
+		fmt.Fprintf(&outputBuilder, "SwapTotal: %d kB\n", memInfo.SwapTotal)
+		fmt.Fprintf(&outputBuilder, "SwapFree: %d kB\n", memInfo.SwapFree)
 	}
-	outputBuilder.WriteString("\n")
 
-	// Memory by type (slab, etc.)
-	outputBuilder.WriteString("=== Slab Memory ===\n")
-	slabOutput, _ := c.executor.Output(ctx, "cat", "/proc/slabinfo")
-	// Only show header and top entries
-	slabLines := strings.Split(string(slabOutput), "\n")
-	if len(slabLines) > 20 {
-		slabLines = slabLines[:20]
+	outputBuilder.WriteString("\n=== Kernel Slab Memory ===\n")
+	kernelOutput, err := c.executor.Output(ctx, "vrooli", "host", "kernel-memory", "--json")
+	if err != nil {
+		failures = append(failures, fmt.Sprintf("kernel memory diagnostic unavailable: %v", err))
+	} else {
+		var report sharedhost.KernelMemoryReport
+		if err := json.Unmarshal(kernelOutput, &report); err != nil {
+			failures = append(failures, fmt.Sprintf("invalid kernel memory diagnostic: %v", err))
+		} else if report.Source == "" || report.CacheCount < len(report.Caches) || len(report.Caches) == 0 {
+			failures = append(failures, "kernel memory diagnostic is empty or incomplete")
+		} else {
+			fmt.Fprintf(&outputBuilder, "Source: %s\nAllocated: %d bytes across %d caches\n", report.Source, report.AllocatedBytes, report.CacheCount)
+			for _, cache := range report.Caches {
+				reclaimable := "unknown"
+				if cache.Reclaimable != nil {
+					reclaimable = fmt.Sprint(*cache.Reclaimable)
+				}
+				fmt.Fprintf(&outputBuilder, "%s: %d bytes; reclaimable=%s\n", cache.Name, cache.AllocatedBytes, reclaimable)
+			}
+			if report.CacheCount > len(report.Caches) {
+				fmt.Fprintf(&outputBuilder, "Showing the largest %d caches.\n", len(report.Caches))
+			}
+		}
 	}
-	outputBuilder.WriteString(strings.Join(slabLines, "\n"))
-	outputBuilder.WriteString("\n... (truncated)\n")
 
 	result.Duration = time.Since(start)
+	result.Success = len(failures) == 0
+	if result.Success {
+		result.Message = "Memory summary retrieved"
+	} else {
+		result.Message = "Memory summary incomplete"
+		result.Error = strings.Join(failures, "; ")
+		fmt.Fprintf(&outputBuilder, "\nUnavailable diagnostics: %s\n", result.Error)
+	}
 	result.Output = outputBuilder.String()
-	result.Success = true
-	result.Message = "Memory summary retrieved"
 	return result
 }
 

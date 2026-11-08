@@ -177,6 +177,15 @@ durable rollups, indexes, WAL, and schema overhead beneath the database's 1 GiB
 working-set budget. Durable outage intervals, incidents, and heal trackers are
 kept separately from the raw operational ledgers.
 
+Tracker mutations are ordered with their database writes. Health observations,
+action outcomes, resume, reset, startup load, and disposition reconciliation
+share one writer lock; status reads use the separate registry state lock.
+Ordinary tracker saves and resets use a five-second persistence deadline and
+finish that attempt before returning. This prevents a delayed failure snapshot
+from overwriting a later healthy observation or resurrecting a reset tracker.
+Write failure is logged and does not prove durability of the in-memory state;
+this ordering contract is not an atomic transaction with a lifecycle side effect.
+
 Oversized health-result detail payloads and individual action-log text fields
 are capped at 64 KiB with an explicit truncation marker. Retention failures are
 logged and do not fail the health-check tick; the next scheduled cycle retries

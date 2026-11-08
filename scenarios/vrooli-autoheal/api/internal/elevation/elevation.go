@@ -1,18 +1,16 @@
-// Package elevation is autoheal's only runtime privilege boundary. It
-// accepts a closed set of service actions and delegates the actual consent
-// and elevation decision to the control-plane hostreqkit seam.
+// Package elevation delegates host service recovery to the control plane.
+// Runtime code never invokes sudo or interprets a private sudoers grant.
 package elevation
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"runtime"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/hostreqkit"
-	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
+	"github.com/vrooli/vrooli/internal/privilegebroker"
 )
 
 type State string
@@ -30,7 +28,6 @@ type Outcome struct {
 	Reason    string `json:"reason,omitempty"`
 	GrantName string `json:"grantName,omitempty"`
 }
-
 type Action string
 
 const (
@@ -43,75 +40,41 @@ type Executor interface {
 	CombinedOutput(context.Context, string, ...string) ([]byte, error)
 }
 
-var grantPath = "/etc/sudoers.d/vrooli-autoheal"
-
-var grantPresent = func() bool {
-	info, err := os.Stat(grantPath)
-	return err == nil && info.Mode().Perm() == 0o440
-}
-
 var osNameFn = func() string { return runtime.GOOS }
-
-// allowedUnits is intentionally closed. The setup safeguard grants only
-// these literal service subjects; accepting an arbitrary unit here would turn
-// the NOPASSWD policy into a general root command.
-var allowedUnits = map[string]struct{}{
-	"docker":                       {},
-	"systemd-resolved":             {},
-	"cloudflared":                  {},
-	"NetworkManager":               {},
-	"systemd-networkd":             {},
-	"systemd-timesyncd":            {},
-	"gnome-remote-desktop":         {},
-	"gnome-remote-desktop.service": {},
-	"xrdp":                         {},
-	"gdm":                          {},
-	"gdm3":                         {},
-	"lightdm":                      {},
-	"sddm":                         {},
-}
-
-func SetGrantPathForTest(path string, present func() bool) func() {
-	oldPath, oldPresent := grantPath, grantPresent
-	grantPath, grantPresent = path, present
-	return func() { grantPath, grantPresent = oldPath, oldPresent }
-}
 
 func Run(ctx context.Context, executor Executor, action Action, unit string) (Outcome, []byte, error) {
 	if executor == nil {
 		return Outcome{State: Refused, Reason: "no command executor configured"}, nil, errors.New("elevation: nil executor")
 	}
-	unit = strings.TrimSpace(unit)
-	if unit == "" {
-		return Outcome{State: Refused, Reason: "service unit is empty"}, nil, errors.New("elevation: empty service unit")
-	}
 	if osNameFn() != "linux" {
-		return Outcome{State: Unsupported, Command: fmt.Sprintf("service action %s %s", action, unit), Reason: "service recovery grant is Linux/systemd-only; use the declared native service mechanism", GrantName: "autoheal_recovery_privileges"}, nil, nil
+		return Outcome{State: Unsupported, Reason: "broker service recovery is Linux/systemd-only", GrantName: "privilege_broker"}, nil, nil
 	}
-	if _, ok := allowedUnits[unit]; !ok {
-		return Outcome{State: Refused, Reason: "service unit is not in the setup-provisioned grant registry", GrantName: "autoheal_recovery_privileges"}, nil, fmt.Errorf("elevation: unsupported service unit %q", unit)
-	}
-	if !grantPresent() && !hostreqkit.RunningAsRootFn() {
-		return Outcome{State: NeedsSetup, Command: "sudo vrooli setup", Reason: "the autoheal recovery sudoers grant is missing", GrantName: "autoheal_recovery_privileges"}, nil, nil
-	}
+	unit = strings.TrimSpace(unit)
 	verb := map[Action]string{ServiceStart: "start", ServiceRestart: "restart", ServiceStop: "stop"}[action]
-	if verb == "" {
-		return Outcome{State: Refused, Reason: "action is not in the privilege broker registry"}, nil, fmt.Errorf("elevation: unsupported action %q", action)
+	if !privilegebroker.ServiceRecoveryAllowed(verb, unit) {
+		return Outcome{State: Refused, Reason: "service action is outside the control-plane recovery registry", GrantName: "privilege_broker"}, nil, fmt.Errorf("elevation: unsupported service action %q for %q", action, unit)
 	}
-	command := platform.ServiceManagerCommandPath()
-	if command == "" {
-		return Outcome{State: Unsupported, Reason: "no native service-manager command is available for this platform", GrantName: "autoheal_recovery_privileges"}, nil, nil
-	}
-	args := []string{verb, unit}
-	out, err := hostreqkit.RunPrivilegedCommandWithOutput("ask", command, args, func(name string, args ...string) ([]byte, error) {
-		return executor.CombinedOutput(ctx, name, args...)
-	})
-	if err != nil {
-		state := Refused
-		if errors.Is(err, hostreqkit.ErrSudoSkipped) || errors.Is(err, hostreqkit.ErrSudoUnavailable) || errors.Is(err, hostreqkit.ErrElevationRequired) {
-			state = NeedsSetup
+	args := []string{"host", "service", verb, unit, "--json"}
+	command := "vrooli " + strings.Join(args, " ")
+	output, runErr := executor.CombinedOutput(ctx, "vrooli", args...)
+	var result privilegebroker.Result
+	decodeErr := json.Unmarshal(output, &result)
+	if decodeErr == nil && result.Version == privilegebroker.ProtocolVersion && result.Action == privilegebroker.ActionServiceRecover {
+		if runErr == nil && result.Status == "verified" && result.Evidence.Active {
+			return Outcome{State: Granted, Command: command, GrantName: "privilege_broker"}, output, nil
 		}
-		return Outcome{State: state, Command: "sudo -n " + command + " " + strings.Join(args, " "), Reason: err.Error(), GrantName: "autoheal_recovery_privileges"}, out, err
+		if result.Code != "action_not_allowed" {
+			if runErr == nil {
+				runErr = fmt.Errorf("host service recovery failed: %s", result.Code)
+			}
+			return Outcome{State: Refused, Command: command, Reason: runErr.Error(), GrantName: "privilege_broker"}, output, runErr
+		}
 	}
-	return Outcome{State: Granted, Command: command + " " + strings.Join(args, " "), GrantName: "autoheal_recovery_privileges"}, out, nil
+	// An old CLI/broker or a missing local broker is a setup gap, never a
+	// reason to fall back to direct systemctl/sudo or to claim recovery.
+	reason := "control-plane service recovery is unavailable or returned an invalid receipt"
+	if runErr != nil {
+		reason = runErr.Error()
+	}
+	return Outcome{State: NeedsSetup, Command: "vrooli setup broker --sudo-mode=ask", Reason: reason, GrantName: "privilege_broker"}, output, runErr
 }

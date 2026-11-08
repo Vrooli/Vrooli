@@ -169,8 +169,9 @@ export default function App() {
 
   useEffect(() => {
     if (data) {
-      const emoji = statusToEmoji(data.status);
-      document.title = `${emoji} Autoheal - ${data.status.toUpperCase()}`;
+      const freshnessUnknown = data.statusFresh !== true;
+      const emoji = freshnessUnknown ? "⚠️" : statusToEmoji(data.status);
+      document.title = `${emoji} Autoheal - ${freshnessUnknown ? "CHECKS OUT OF DATE" : data.status.toUpperCase()}`;
     }
   }, [data]);
 
@@ -207,6 +208,18 @@ export default function App() {
       onRunTick={() => tickMutation.mutate()}
       onTabChange={handleTabChange}
     >
+        {data?.statusFresh !== true ? (
+          <Notice tone="warning" className="mb-3 sm:mb-4" role="status">
+            <NoticeTitle tone="warning">Health checks are out of date.</NoticeTitle>
+            <p className="text-sm text-text-muted">
+              {data?.statusStaleReason || "A recent completed health check cycle has not been confirmed."}
+              {isTickRunning
+                ? " A cycle is running; these results remain historical until it completes."
+                : " Run health checks to get current results. If they do not complete, the recovery supervisor needs attention."}
+            </p>
+          </Notice>
+        ) : null}
+
         {isTickRunning ? (
           <Notice tone="info" className="mb-3 sm:mb-4">
             <div className="flex items-start gap-2 text-sm">

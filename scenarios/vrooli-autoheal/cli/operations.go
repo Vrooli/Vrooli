@@ -56,7 +56,7 @@ func (a *App) diagnosePort(args []string) error {
 	}
 
 	home, _ := os.UserHomeDir()
-	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
+	binary, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{UserHome: home})
 	if err != nil {
 		return err
 	}

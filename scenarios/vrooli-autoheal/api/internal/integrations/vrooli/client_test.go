@@ -32,7 +32,7 @@ func TestScenarioStatus_CurrentContract(t *testing.T) {
 
 func TestResourceStatuses_CurrentTypedFleetContract(t *testing.T) {
 	executor := testutil.NewMockExecutor()
-	executor.Responses["vrooli resource status --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[
+	executor.Responses["vrooli resource status --health-only --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[
 		{"resource":{"name":"postgres"},"installed":true,"running":true,"healthy":true,"message":"healthy"},
 		{"resource":{"name":"redis"},"installed":true,"running":false,"healthy":false,"message":"stopped"}]}`)}
 	client := NewClient(executor)
@@ -53,7 +53,7 @@ func TestResourceStatuses_CurrentTypedFleetContract(t *testing.T) {
 
 func TestResourceStatuses_PreservesTypedSignals(t *testing.T) {
 	executor := testutil.NewMockExecutor()
-	executor.Responses["vrooli resource status --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[
+	executor.Responses["vrooli resource status --health-only --json"] = testutil.MockResponse{Output: []byte(`{"success":true,"resources":[
 		{"resource":{"name":"llama"},"installed":true,"running":true,"healthy":false,"serving":true,"status_code":"mode_drift","message":"companion down","probe_error":"declared cuda; observed cpu","declared_mode":"cuda","observed_mode":"cpu","mode_drift":true,"mode_reason":"fallback"}]}`)}
 	status, success, failures, _, err := NewClient(executor).ResourceStatuses(context.Background())
 	if err != nil {

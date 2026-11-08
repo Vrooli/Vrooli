@@ -18,7 +18,7 @@ Existing local entry points (choose the domain test for the behavior you change)
 
 - [api/handlers/health/handler_test.go](../../api/handlers/health/handler_test.go)
 - [ui/src/App.test.tsx](../../ui/src/App.test.tsx)
-- [ui/src/features/health/HealthCard.test.tsx](../../ui/src/features/health/HealthCard.test.tsx)
+- [ui/src/api/health.test.ts](../../ui/src/api/health.test.ts)
 - [ui/src/layout/AppShell.a11y.test.tsx](../../ui/src/layout/AppShell.a11y.test.tsx)
 - [cli/app_test.go](../../cli/app_test.go)
 
@@ -219,3 +219,8 @@ Steps:
 Don't add a new `mocks/Fake*` interface for the proto type — the proto
 isn't a seam, it's a contract. Seams are interfaces; protos are
 payload shapes. See `SEAMS.md::Wire contracts live in proto, not seams`.
+
+## Cross-References
+
+- [`SEAMS.md`](SEAMS.md) — boundaries that tests must preserve.
+- [`PROBLEMS.md`](PROBLEMS.md) — open testing and validation debt.

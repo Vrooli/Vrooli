@@ -358,7 +358,6 @@ func TestDisplayManagerCheckExecuteActionLogs(t *testing.T) {
 // TestDisplayManagerCheckExecuteActionRestart verifies restart action execution
 // [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckExecuteActionRestart(t *testing.T) {
-	allowRecoveryGrant(t)
 	mockExec := testutil.NewMockExecutor()
 	// Set up GDM as active display manager
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
@@ -369,7 +368,7 @@ func TestDisplayManagerCheckExecuteActionRestart(t *testing.T) {
 		}
 	}
 	// Restart command
-	setMockResponse(mockExec, "sudo -n /usr/bin/systemctl restart gdm", []byte(""), nil)
+	setMockResponse(mockExec, "vrooli host service restart gdm --json", []byte(`{"version":"v1","action":"host.service.recover","status":"verified","evidence":{"active":true}}`), nil)
 	// gnome-shell is running after restart (for verification)
 	// The test machine has auto-login for alice, so mock the user-specific check
 	setMockResponse(mockExec, "pgrep gnome-shell", []byte("12345\n"), nil)
@@ -389,7 +388,6 @@ func TestDisplayManagerCheckExecuteActionRestart(t *testing.T) {
 // TestDisplayManagerCheckExecuteActionRestartFails verifies restart failure handling
 // [REQ:HEAL-ACTION-001] [REQ:TEST-SEAM-001]
 func TestDisplayManagerCheckExecuteActionRestartFails(t *testing.T) {
-	allowRecoveryGrant(t)
 	mockExec := testutil.NewMockExecutor()
 	// Set up GDM as active display manager
 	setMockResponse(mockExec, "systemctl get-default", []byte("graphical.target\n"), nil)
@@ -400,7 +398,7 @@ func TestDisplayManagerCheckExecuteActionRestartFails(t *testing.T) {
 		}
 	}
 	// Restart command fails
-	setMockResponse(mockExec, "sudo -n /usr/bin/systemctl restart gdm", []byte("Failed to restart gdm.service: Access denied\n"), errors.New("exit status 1"))
+	setMockResponse(mockExec, "vrooli host service restart gdm --json", []byte("Failed to restart gdm.service: Access denied\n"), errors.New("exit status 1"))
 
 	check := newDisplayManagerCheckForTest(mockExec)
 	result := check.ExecuteAction(context.Background(), "restart")

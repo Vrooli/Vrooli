@@ -20,7 +20,7 @@ import (
 // minimum-viable command keeps recovery audits small.
 func RecoverGo(ctx context.Context, runner Runner, scenarioDir string, sig GoSignature) (Result, error) {
 	if runner == nil {
-		runner = DefaultRunner
+		return Result{Kind: KindGo}, ErrRunnerRequired
 	}
 	apiDir := filepath.Join(scenarioDir, "api")
 	if _, err := os.Stat(filepath.Join(apiDir, "go.mod")); err != nil {
@@ -115,7 +115,7 @@ func appendOutput(parts ...string) string {
 // into go.mod drift).
 func RecoverRepoRootGo(ctx context.Context, runner Runner, repoRoot string, sig GoSignature) (Result, error) {
 	if runner == nil {
-		runner = DefaultRunner
+		return Result{Kind: KindRepoRoot}, ErrRunnerRequired
 	}
 	if _, err := os.Stat(filepath.Join(repoRoot, "go.mod")); err != nil {
 		return Result{Kind: KindRepoRoot}, fmt.Errorf("no go.mod at repo root %s: %w", repoRoot, err)

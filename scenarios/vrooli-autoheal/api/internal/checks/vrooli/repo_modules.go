@@ -225,7 +225,7 @@ func (c *RepoModulesCheck) ExecuteAction(ctx context.Context, actionID string) c
 		}
 	}
 
-	result, err := langrecover.RecoverRepoRootGo(ctx, langrecover.DefaultRunner, root, decision.GoSig)
+	result, err := langrecover.RecoverRepoRootGo(ctx, recoveryRunner(), root, decision.GoSig)
 
 	actionOutput := result.Output
 	if len(result.ModifiedPaths) > 0 {

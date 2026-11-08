@@ -20,7 +20,7 @@ import (
 // excludes scenarios; running without it picks up the wrong dependency graph.
 func RecoverPnpm(ctx context.Context, runner Runner, scenarioDir string, sig PnpmSignature) (Result, error) {
 	if runner == nil {
-		runner = DefaultRunner
+		return Result{Kind: KindPnpm}, ErrRunnerRequired
 	}
 	uiDir := filepath.Join(scenarioDir, "ui")
 	if _, err := os.Stat(filepath.Join(uiDir, "package.json")); err != nil {

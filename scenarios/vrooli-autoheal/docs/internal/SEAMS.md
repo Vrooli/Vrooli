@@ -236,7 +236,9 @@ scenario setup vrooli-autoheal`), never `go build` the loop by hand; the next
 `cli/loop/selfheal.go` routes every command the dependency-drift recovery
 floor executes (`go mod tidy`, `pnpm install`, the recovery scripts in
 `langrecover`) through `selfHealRunner`, a `langrecover.Runner`. Production
-uses `langrecover.DefaultRunner`; tests inject a recording runner and assert
+uses `langrecover.NewRunner` over the toolchain table plus the contract-resolved
+runtime-home bin (the API's repairs do the same through `recoveryRunner`);
+strategies refuse a nil runner. Tests inject a recording runner and assert
 the exact argv, working directory and ordering the floor would run, without
 touching a real module. Recovery decisions (`decideFromSources`) are pure over
 the failure output and the signatures, so a wrong recovery is a unit-test failure,

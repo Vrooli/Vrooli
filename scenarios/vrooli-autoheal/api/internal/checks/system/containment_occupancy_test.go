@@ -45,6 +45,18 @@ func occupancyCheck(reader OccupancyReader) *ContainmentOccupancyCheck {
 	return NewContainmentOccupancyCheck(WithOccupancySlices([]string{"vrooli-agents.slice"}), WithOccupancyReader(reader))
 }
 
+func TestUnknownScopeMembershipDoesNotReportHealthyOccupancy(t *testing.T) {
+	reader := fakeOccupancy{
+		paths:    map[string]string{"vrooli-agents.slice": "/agents"},
+		readings: map[string]platformgo.Occupancy{"/agents": {Tasks: 2, TasksMax: 100, MemoryBytes: 1, MemoryMaxBytes: 100}},
+		entries:  map[string][]agentscope.Entry{"/agents": {{Name: "vrooli-agent-sealed.scope", Tasks: 2, MembershipError: "permission denied"}}},
+	}
+	result := occupancyCheck(reader).Run(context.Background())
+	if result.Status != checks.StatusWarning || !strings.Contains(result.Message, "membership of 1 session scopes is undetermined") {
+		t.Fatalf("unknown membership hidden by spare capacity: %+v", result)
+	}
+}
+
 // The 2026-09-04 reading. Above the ceiling the kernel refuses the fork of
 // every new session, so this must be critical before it gets there.
 func TestOccupancyIsCriticalNearTheTaskCeiling(t *testing.T) {

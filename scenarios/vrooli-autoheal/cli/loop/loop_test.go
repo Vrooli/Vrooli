@@ -91,8 +91,15 @@ func TestBackoffDoublesAndResets(t *testing.T) {
 			t.Fatalf("attempt %d: state = %s, want heal", i, l.state)
 		}
 	}
-	if got := *slept; len(got) != 2 || got[0] != time.Minute || got[1] != 2*time.Minute {
-		t.Fatalf("slept %v, want [1m 2m] (no wait before the first attempt)", got)
+	var totalWait time.Duration
+	for _, duration := range *slept {
+		if duration > time.Minute {
+			t.Fatalf("blind observation interval %s exceeds one minute", duration)
+		}
+		totalWait += duration
+	}
+	if totalWait != 3*time.Minute {
+		t.Fatalf("total retry wait %s, want 3m (no wait before the first attempt)", totalWait)
 	}
 	if l.backoff != 4*time.Minute || l.record.LastFailureClass != "lifecycle" || l.record.ConsecutiveFailures != 0 {
 		t.Fatalf("after three healable failures: backoff=%v class=%q nonhealable=%d", l.backoff, l.record.LastFailureClass, l.record.ConsecutiveFailures)
@@ -236,5 +243,48 @@ func TestAliveButFailingTicksDegradeInsteadOfRestarting(t *testing.T) {
 	}
 	if countCalls(vrooliCalls(t, config.VrooliCmdPath), "scenario") != 0 {
 		t.Fatal("the lifecycle was touched")
+	}
+}
+
+// External recovery resumes health checks before the mutation cooldown expires.
+func TestHealBackoffObservesExternalRecovery(t *testing.T) {
+	isolatedHome(t)
+	config := testConfig(t)
+	port := fakeAPI(t, "Vrooli Autoheal API")
+	l, _ := testLoop(t, config)
+	l.state = stateHeal
+	l.backoff = healBackoffMax
+	var waited time.Duration
+	l.sleep = func(ctx context.Context, d time.Duration) bool {
+		waited += d
+		writeRegistryFile(t, config, "port", port)
+		return true
+	}
+	l.step(context.Background())
+	if l.state != stateVerify || waited > time.Minute || waited == 0 || config.APIPort != port {
+		t.Fatalf("external recovery: state=%s waited=%s port=%s", l.state, waited, config.APIPort)
+	}
+	if l.backoff != 0 {
+		t.Fatal("recovery did not clear cooldown")
+	}
+	l.step(context.Background())
+	if l.state != stateHealthy || readStatus(t, l).LastTickStatus != "ok" {
+		t.Fatal("restored API was not ticked")
+	}
+}
+
+func TestHealBackoffRejectsStrangerAndHonorsCancellation(t *testing.T) {
+	isolatedHome(t)
+	config := testConfig(t)
+	writeRegistryFile(t, config, "port", fakeAPI(t, "another-service"))
+	l, _ := testLoop(t, config)
+	l.state = stateHeal
+	l.backoff = healBackoffMax
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	l.sleep = func(context.Context, time.Duration) bool { cancel(); return false }
+	l.step(ctx)
+	if l.state != stateExit || l.exitCode != exitSignal || config.APIPort != "" {
+		t.Fatalf("cancelled recovery: state=%s code=%d port=%s", l.state, l.exitCode, config.APIPort)
 	}
 }

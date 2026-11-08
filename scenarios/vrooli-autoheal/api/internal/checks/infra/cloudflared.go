@@ -236,7 +236,7 @@ type managedCloudflaredStatus struct {
 // checkManagedResource delegates observation to the control plane, which owns
 // the resource lifecycle and credential injection.
 func (c *CloudflaredCheck) checkManagedResource(ctx context.Context, result checks.Result) checks.Result {
-	output, err := c.executor.Output(ctx, "vrooli", "resource", "status", "cloudflared", "--no-fast", "--json")
+	output, err := c.executor.Output(ctx, "vrooli", "resource", "status", "cloudflared", "--health-only", "--no-fast", "--json")
 	if err != nil {
 		result.Status = checks.StatusCritical
 		result.Message = "Cloudflared managed resource status unavailable"

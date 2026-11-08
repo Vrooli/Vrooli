@@ -51,6 +51,7 @@ read as OK.
 | SB16 | Do process count and process-creation rate stay below the operator bar? | vrooli-autoheal | NOW | | `system-host-pressure` joins process count and fork rate; fork rate is unread on darwin and windows by decision. |
 | SB17 | Is every workload accounted for under the declared host workload posture? | vrooli-autoheal | NOW | | `system-host-pressure` joins workload ownership reporting. `host_workload_posture` changes reporting, grading, and recorded detail, never classification. |
 | SB20 | Does the runtime supervisor refuse to start a recovery while host memory is stalling? | vrooli-autoheal | NOW | | The runtime supervisor's pressure gate reads memory PSI `some.avg10` against the setpoint bar for this cell (`internal/setpoint`, the one reader); the bar is instantaneous by design because a recovery attempted into a stalling host deepens the stall. |
+| SB21 | Does every containment slice stay below its task and memory ceilings? | vrooli-autoheal | NOW | | `system-containment-occupancy` reads each containment slice's task and memory occupancy against its cgroup ceiling and names session scopes that hold the ceiling after their coding agent is gone. Host-wide pressure cells cannot see this failure: on 2026-09-04 the agents slice filled its task ceiling while every host bar read green. |
 
 ## Reading Contract
 

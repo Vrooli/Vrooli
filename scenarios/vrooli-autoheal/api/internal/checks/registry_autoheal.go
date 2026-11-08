@@ -56,17 +56,26 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 	candidates := make([]healCandidate, 0)
 	now := r.now()
 	_, hasPolicy := r.getAutoHealPolicy()
+	r.refreshRecoveryOwnership(ctx)
 
 	// Phase 1: Collect and filter candidates
 	for _, result := range results {
 		r.observeScenarioHealth(result)
-		if recoveryRequestID := r.requestScenarioRecoveryIfReady(ctx, result); recoveryRequestID != "" {
+		if admission, pending := r.nativeRecoveryPending(result.CheckID); pending && r.shouldTriggerAutoHeal(result) {
+			autoHealResults = append(autoHealResults, pendingRecoveryResult(result.CheckID, admission))
+			continue
+		}
+		if admission := r.requestScenarioRecoveryIfReady(ctx, result); admission.RequestID != "" {
+			r.retainRecoveryAdmission(result.CheckID, admission)
 			autoHealResults = append(autoHealResults, AutoHealResult{
 				CheckID:           result.CheckID,
 				Attempted:         false,
-				Reason:            "coding-agent recovery scheduled",
-				RecoveryRequestID: recoveryRequestID,
+				Reason:            "coding-agent recovery receipt retained: " + admission.Outcome,
+				RecoveryRequestID: admission.RequestID,
 			})
+			if admission.NativePending {
+				continue
+			}
 		}
 		// Auto-heal trigger is per-check policy (critical or warning+critical).
 		if !r.shouldTriggerAutoHeal(result) {
@@ -241,6 +250,14 @@ func (r *Registry) RunAutoHeal(ctx context.Context, results []Result) []AutoHeal
 		if skipped := r.preHealRecheck(ctx, c, &autoHealResults); skipped {
 			continue
 		}
+		// A native investigation may have been admitted after collection or by
+		// another requester. Refresh before the mechanical effect, independently
+		// of failure streaks and cooldowns (which healthy observations can reset).
+		r.refreshRecoveryOwnership(ctx)
+		if admission, pending := r.nativeRecoveryPending(c.result.CheckID); pending {
+			autoHealResults = append(autoHealResults, pendingRecoveryResult(c.result.CheckID, admission))
+			continue
+		}
 		// The owner can enter coordinated maintenance while this tick is
 		// rechecking health. Refresh the same gate immediately before invoking
 		// the action so a stale phase-one observation cannot race the lifecycle.
@@ -287,36 +304,51 @@ func (r *Registry) allowsGatedHeal(ctx context.Context, checkID, actionID string
 	return gate.AllowsAutoHealRestart(ctx, checkID, actionID)
 }
 
-func (r *Registry) requestScenarioRecoveryIfReady(ctx context.Context, result Result) string {
+func pendingRecoveryResult(checkID string, admission RecoveryAdmission) AutoHealResult {
+	return AutoHealResult{CheckID: checkID, Attempted: false, RecoveryRequestID: admission.RequestID,
+		Reason: "native coding-agent recovery owns this target until exact execution exit: " + admission.Outcome}
+}
+
+func (r *Registry) requestScenarioRecoveryIfReady(ctx context.Context, result Result) RecoveryAdmission {
+	if !r.shouldTriggerAutoHeal(result) {
+		return RecoveryAdmission{}
+	}
 	if !strings.HasPrefix(result.CheckID, "scenario-") {
-		return ""
+		return RecoveryAdmission{}
 	}
 	if !r.IsAutoHealEnabled(result.CheckID) {
-		return ""
+		return RecoveryAdmission{}
 	}
 	policy, ok := r.getAutoHealPolicy()
 	if !ok {
-		return ""
+		return RecoveryAdmission{}
 	}
 	tracker := r.getHealTrackerSnapshot(result.CheckID)
 	if tracker.ConsecutiveFailures < policy.MaxRestartAttempts || !r.recoveryGraceElapsed(result.CheckID, r.now()) {
-		return ""
+		return RecoveryAdmission{}
 	}
 	requester := r.getRecoveryRequester()
 	if requester == nil {
-		return ""
+		return RecoveryAdmission{}
+	}
+	// Agent investigations consume host resources and can restart services.
+	// Escalation must not escape pressure, startup or maintenance coordination.
+	if allowed, _ := r.allowsGatedHeal(ctx, result.CheckID, "restart"); !allowed {
+		return RecoveryAdmission{}
 	}
 	scenario := strings.TrimPrefix(result.CheckID, "scenario-")
 	reason := result.Message
 	if reason == "" {
 		reason = "scenario health check remains unhealthy"
 	}
-	requestID, err := requester(ctx, scenario, fmt.Sprintf("mechanical autoheal exhausted after continuous unhealthy period: %s", reason))
+	admission, err := requester(ctx, scenario, fmt.Sprintf("mechanical autoheal exhausted after continuous unhealthy period: %s", reason))
 	if err != nil {
 		log.Printf("vrooli-autoheal: control-plane coding-agent recovery request for %s failed: %v", scenario, err)
-		return ""
+		// An ambiguous dispatch can still return its admitted identity. Keep
+		// that ownership instead of immediately racing it with another repair.
+		return admission
 	}
-	return requestID
+	return admission
 }
 
 func (r *Registry) recordHealIncident(ctx context.Context, checkID, actionID string, actionResult ActionResult, outcome healOutcome, tracker HealTracker) {
@@ -613,6 +645,8 @@ func (r *Registry) getHealTrackerSnapshot(checkID string) HealTracker {
 // unhealthy; the grace window must survive those attempts and be persisted so
 // an autoheal restart does not reset the escalation clock.
 func (r *Registry) observeScenarioHealth(result Result) {
+	r.trackerWriteMu.Lock()
+	defer r.trackerWriteMu.Unlock()
 	if !strings.HasPrefix(result.CheckID, "scenario-") {
 		return
 	}
@@ -646,12 +680,8 @@ func (r *Registry) observeScenarioHealth(result Result) {
 	store := r.healTrackerStore
 	copy := *tracker
 	r.mu.Unlock()
-	if changed && store != nil {
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = store.SaveHealTracker(ctx, result.CheckID, &copy)
-		}()
+	if changed {
+		persistTrackerSnapshot(store, result.CheckID, copy)
 	}
 }
 
@@ -679,6 +709,8 @@ func (r *Registry) recoveryGraceElapsed(checkID string, now time.Time) bool {
 // timeouts the tracker falls through to the failure path so a permanently-stuck
 // action does eventually cool down.
 func (r *Registry) updateHealTracker(checkID string, outcome healOutcome) {
+	r.trackerWriteMu.Lock()
+	defer r.trackerWriteMu.Unlock()
 	r.mu.Lock()
 
 	tracker, exists := r.healTrackers[checkID]
@@ -748,20 +780,10 @@ func (r *Registry) updateHealTracker(checkID string, outcome healOutcome) {
 		tracker.DispositionAt = now
 	}
 
-	// Persist to store if configured (async to not block)
 	store := r.healTrackerStore
 	trackerCopy := *tracker
 	r.mu.Unlock()
-
-	if store != nil {
-		// Use background context for persistence - don't block on this
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			// Ignore errors - persistence is best-effort, in-memory state is authoritative
-			_ = store.SaveHealTracker(ctx, checkID, &trackerCopy)
-		}()
-	}
+	persistTrackerSnapshot(store, checkID, trackerCopy)
 }
 
 func (r *Registry) now() time.Time {
@@ -824,6 +846,8 @@ func (r *Registry) GetSuspendedHealTrackers() map[string]HealTracker {
 // ResumeHealTracker clears only the bounded-retry suspension and failure
 // streak. Lifetime counters and the escalated disposition remain as evidence.
 func (r *Registry) ResumeHealTracker(checkID string) bool {
+	r.trackerWriteMu.Lock()
+	defer r.trackerWriteMu.Unlock()
 	r.mu.Lock()
 	tracker, exists := r.healTrackers[checkID]
 	if !exists || !tracker.IsSuspended() {
@@ -838,11 +862,7 @@ func (r *Registry) ResumeHealTracker(checkID string) bool {
 	store := r.healTrackerStore
 	copy := *tracker
 	r.mu.Unlock()
-	if store != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = store.SaveHealTracker(ctx, checkID, &copy)
-	}
+	persistTrackerSnapshot(store, checkID, copy)
 	return true
 }
 
@@ -850,6 +870,8 @@ func (r *Registry) ResumeHealTracker(checkID string) bool {
 // canonical checks are registered. Missing checks are retired; registered
 // checks already beyond the configured bound are escalated and suspended.
 func (r *Registry) ReconcileHealTrackerDispositions(ctx context.Context) error {
+	r.trackerWriteMu.Lock()
+	defer r.trackerWriteMu.Unlock()
 	r.mu.Lock()
 	if r.autoHealPolicy == nil {
 		r.mu.Unlock()
@@ -952,17 +974,18 @@ func (r *Registry) persistentRecoveryCheckLocked(checkID string) bool {
 
 // ResetHealTracker resets the heal tracker for a check (for manual intervention)
 func (r *Registry) ResetHealTracker(checkID string) {
+	r.trackerWriteMu.Lock()
+	defer r.trackerWriteMu.Unlock()
 	r.mu.Lock()
 	delete(r.healTrackers, checkID)
 	store := r.healTrackerStore
 	r.mu.Unlock()
 
-	// Delete from persistent store if configured (async)
 	if store != nil {
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			_ = store.DeleteHealTracker(ctx, checkID)
-		}()
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := store.DeleteHealTracker(ctx, checkID); err != nil {
+			log.Printf("vrooli-autoheal: reset tracker persistence failed for %s: %v", checkID, err)
+		}
 	}
 }

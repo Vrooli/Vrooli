@@ -245,7 +245,7 @@ func TestAutoHealCooldown_UsesConfiguredPolicy(t *testing.T) {
 		t.Fatalf("expected first attempt to run, got %+v", first)
 	}
 
-	clk.current = clk.current.Add(4 * time.Minute)
+	clk.Advance(4 * time.Minute)
 	second := reg.RunAutoHeal(context.Background(), []Result{
 		{CheckID: "healable-check", Status: StatusCritical},
 	})
@@ -295,7 +295,7 @@ func TestAutoHealSuspendsAtConfiguredFailureLimitAndCanResume(t *testing.T) {
 		t.Fatalf("first failure should attempt heal, got %+v", r1)
 	}
 
-	clk.current = clk.current.Add(61 * time.Second)
+	clk.Advance(61 * time.Second)
 	// Failure #2 reaches the configured bound and suspends further attempts.
 	r2 := reg.RunAutoHeal(context.Background(), []Result{
 		{CheckID: "failing-check", Status: StatusCritical},
@@ -314,11 +314,11 @@ func TestAutoHealSuspendsAtConfiguredFailureLimitAndCanResume(t *testing.T) {
 	if !tracker.IsSuspended() || tracker.Disposition != HealDispositionEscalated {
 		t.Fatalf("tracker after limit = %+v, want suspended/escalated", tracker)
 	}
-	if got := tracker.CooldownUntil.Sub(clk.current); got != 120*time.Second {
+	if got := tracker.CooldownUntil.Sub(clk.Now()); got != 120*time.Second {
 		t.Fatalf("cooldown after 2nd failure = %v, want 120s", got)
 	}
 
-	clk.current = clk.current.Add(121 * time.Second)
+	clk.Advance(121 * time.Second)
 	// Further ticks keep the failed check visible without retrying it.
 	r3 := reg.RunAutoHeal(context.Background(), []Result{
 		{CheckID: "failing-check", Status: StatusCritical},
@@ -599,7 +599,7 @@ func TestExecuteAutoHealAction_TimeoutDoesNotRatchetFailures(t *testing.T) {
 	if tracker.TotalTimeouts != 1 {
 		t.Errorf("TotalTimeouts = %d, want 1", tracker.TotalTimeouts)
 	}
-	expectedCooldownUntil := clk.current.Add(75 * time.Millisecond)
+	expectedCooldownUntil := clk.Now().Add(75 * time.Millisecond)
 	if !tracker.CooldownUntil.Equal(expectedCooldownUntil) {
 		t.Errorf("CooldownUntil = %v, want %v (short timeout-retry cooldown)", tracker.CooldownUntil, expectedCooldownUntil)
 	}
@@ -643,7 +643,7 @@ func TestExecuteAutoHealAction_GenuineFailureStillRatchets(t *testing.T) {
 	if tracker.TotalTimeouts != 0 {
 		t.Errorf("TotalTimeouts = %d, want 0", tracker.TotalTimeouts)
 	}
-	expectedCooldownUntil := clk.current.Add(2 * time.Minute)
+	expectedCooldownUntil := clk.Now().Add(2 * time.Minute)
 	if !tracker.CooldownUntil.Equal(expectedCooldownUntil) {
 		t.Errorf("CooldownUntil = %v, want %v", tracker.CooldownUntil, expectedCooldownUntil)
 	}
@@ -731,7 +731,7 @@ func TestAutoHeal_TimeoutThenSuccess_Recovers(t *testing.T) {
 
 	// Advance clock past the 1ms timeout-retry cooldown so the cooldown gate
 	// allows the next attempt.
-	clk.current = clk.current.Add(10 * time.Millisecond)
+	clk.Advance(10 * time.Millisecond)
 
 	// Make the mock fast and successful for the second attempt.
 	check.mu.Lock()

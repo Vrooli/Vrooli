@@ -24,12 +24,14 @@ import (
 	"strings"
 
 	coreRetention "github.com/vrooli/api-core/retention"
+	"storage-manager/internal/authority"
 	"storage-manager/internal/cleanup"
 )
 
 // FS reads and removes host filesystem entries on behalf of the file providers.
 type FS struct {
 	restrictToOwner bool
+	scope           authority.Scope
 }
 
 // Options configures an FS.
@@ -44,11 +46,15 @@ type Options struct {
 	// Attempting to remove those is both futile and dangerous, so they are
 	// filtered out before they can ever reach a preview.
 	AllowForeignOwnership bool
+	// Scope limits mutations to this instance's storage authority. The zero
+	// value follows VROOLI_STORAGE_ROOT, so a redirected (isolated or bundled)
+	// instance never removes or renames host paths outside its tree.
+	Scope authority.Scope
 }
 
 // New builds a production filesystem seam.
 func New(opts Options) *FS {
-	return &FS{restrictToOwner: !opts.AllowForeignOwnership}
+	return &FS{restrictToOwner: !opts.AllowForeignOwnership, scope: opts.Scope}
 }
 
 // OpenWalk exposes the shared cursor with strict ownership and device checks.
@@ -229,6 +235,9 @@ func (f *FS) RemoveAll(ctx context.Context, path string) error {
 		return err
 	}
 	path = filepath.Clean(path)
+	if err := f.scope.CheckPath(path); err != nil {
+		return fmt.Errorf("refusing to remove: %w", err)
+	}
 
 	info, err := os.Lstat(path)
 	if err != nil {
@@ -286,7 +295,11 @@ func (f *FS) MkdirAll(ctx context.Context, path string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return os.MkdirAll(filepath.Clean(path), 0o700)
+	path = filepath.Clean(path)
+	if err := f.scope.CheckPath(path); err != nil {
+		return fmt.Errorf("refusing to create: %w", err)
+	}
+	return os.MkdirAll(path, 0o700)
 }
 
 func (f *FS) Rename(ctx context.Context, oldPath, newPath string) error {
@@ -294,6 +307,11 @@ func (f *FS) Rename(ctx context.Context, oldPath, newPath string) error {
 		return err
 	}
 	oldPath, newPath = filepath.Clean(oldPath), filepath.Clean(newPath)
+	for _, path := range []string{oldPath, newPath} {
+		if err := f.scope.CheckPath(path); err != nil {
+			return fmt.Errorf("refusing to rename: %w", err)
+		}
+	}
 	info, err := os.Lstat(oldPath)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

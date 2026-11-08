@@ -59,7 +59,7 @@ func TestRunAutoHealEscalatesOnceThresholdIsReachedAndResolvesOnSuccess(t *testi
 
 	for i := 0; i < 3; i++ {
 		reg.RunAutoHeal(context.Background(), []Result{result})
-		clock.current = clock.current.Add(10 * time.Minute)
+		clock.Advance(10 * time.Minute)
 	}
 
 	if len(reporter.opened) != 1 {
@@ -103,7 +103,7 @@ func TestRunAutoHealDoesNotEscalateBelowFailureThreshold(t *testing.T) {
 	result := Result{CheckID: "resource-qdrant", Status: StatusCritical, Message: "qdrant stopped"}
 	for i := 0; i < 2; i++ {
 		reg.RunAutoHeal(context.Background(), []Result{result})
-		clock.current = clock.current.Add(10 * time.Minute)
+		clock.Advance(10 * time.Minute)
 	}
 	if len(reporter.opened) != 0 {
 		t.Fatalf("opened incidents = %d, want none below threshold", len(reporter.opened))

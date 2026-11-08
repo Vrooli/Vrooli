@@ -194,3 +194,20 @@ func TestRuntimeRecoveryGateRequiresExplicitOwnerAdmissionClosed(t *testing.T) {
 		})
 	}
 }
+
+func TestReadOwnerAdmissionRequestsFenceInsteadOfDrainProof(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("view") != "fence" {
+			http.Error(w, "executor inventory unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"closed":false,"revision":3,"inventoryObserved":false}`))
+	}))
+	defer server.Close()
+	port := server.Listener.Addr().(*net.TCPAddr).Port
+	state, code, err := readOwnerAdmission(t.Context(), port)
+	if err != nil || code != http.StatusOK || state.Closed == nil || *state.Closed {
+		t.Fatalf("fence observation: %+v HTTP%d %v", state, code, err)
+	}
+}

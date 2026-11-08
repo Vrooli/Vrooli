@@ -118,7 +118,7 @@ func readOwnerAdmission(ctx context.Context, port int) (ownerAdmissionProjection
 	if port <= 0 {
 		return projection, 0, fmt.Errorf("owner API port is invalid")
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/api/v1/maintenance/admission", port), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/api/v1/maintenance/admission?view=fence", port), nil)
 	if err != nil {
 		return projection, 0, err
 	}

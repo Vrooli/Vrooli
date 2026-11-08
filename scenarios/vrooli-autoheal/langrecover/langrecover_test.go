@@ -274,8 +274,38 @@ func TestRecoverGo_NoSignatureIsNoop(t *testing.T) {
 
 func TestRecoverGo_MissingGoModErrors(t *testing.T) {
 	dir := t.TempDir()
-	if _, err := RecoverGo(context.Background(), nil, dir, GoSignatureMissingSum); err == nil {
+	if _, err := RecoverGo(context.Background(), unusedRunner(t), dir, GoSignatureMissingSum); err == nil {
 		t.Fatalf("expected error when go.mod absent")
+	}
+}
+
+// A strategy has no implicit runner: only the caller can resolve the
+// runtime-home bin directory the toolchain table needs.
+func TestStrategiesRequireARunner(t *testing.T) {
+	dir := t.TempDir()
+	mustWrite(t, filepath.Join(dir, "go.mod"), "module x\n")
+	mustWrite(t, filepath.Join(dir, "api", "go.mod"), "module x\n")
+	mustWrite(t, filepath.Join(dir, "ui", "package.json"), "{}")
+	for name, run := range map[string]func() (Result, error){
+		"go": func() (Result, error) { return RecoverGo(context.Background(), nil, dir, GoSignatureMissingSum) },
+		"repo-root": func() (Result, error) {
+			return RecoverRepoRootGo(context.Background(), nil, dir, GoSignatureMissingSum)
+		},
+		"pnpm": func() (Result, error) {
+			return RecoverPnpm(context.Background(), nil, dir, PnpmSignatureOutdatedLockfile)
+		},
+	} {
+		if _, err := run(); !errors.Is(err, ErrRunnerRequired) {
+			t.Errorf("%s strategy with a nil runner: err = %v, want ErrRunnerRequired", name, err)
+		}
+	}
+}
+
+func unusedRunner(t *testing.T) Runner {
+	return func(context.Context, string, string, ...string) ([]byte, error) {
+		t.Helper()
+		t.Fatal("runner must not be called")
+		return nil, nil
 	}
 }
 
@@ -415,7 +445,7 @@ func TestRecoverRepoRootGo_MissingModule_RunsModTidy(t *testing.T) {
 
 func TestRecoverRepoRootGo_MissingGoModErrors(t *testing.T) {
 	dir := t.TempDir()
-	if _, err := RecoverRepoRootGo(context.Background(), nil, dir, GoSignatureMissingSum); err == nil {
+	if _, err := RecoverRepoRootGo(context.Background(), unusedRunner(t), dir, GoSignatureMissingSum); err == nil {
 		t.Fatalf("expected error when go.mod absent at repo root")
 	}
 }

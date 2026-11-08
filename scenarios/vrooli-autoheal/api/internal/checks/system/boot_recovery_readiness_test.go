@@ -5,11 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
+	"github.com/vrooli/repo-contract-go/cliinvoke"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 )
 
@@ -258,5 +262,70 @@ func TestReadinessContainmentPreconditionUndeterminedWithoutDelegation(t *testin
 	r = NewBootRecoveryReadinessCheck(WithBootRecoveryProbes(healthy)).Run(context.Background())
 	if state, _ := preconditionState(t, r, PreconditionContainment); state != PreconditionUndetermined {
 		t.Fatalf("uncountable scopes = %s, want undetermined", state)
+	}
+}
+
+// The setup-status probe passes the OS home to the invoker, which derives the
+// runtime-home bin entry through the repo contract. Passing ~/.vrooli instead
+// searched ~/.vrooli/.vrooli/bin and silently fell back to PATH.
+func TestSetupStatusBinaryResolvesFromRuntimeHomeBin(t *testing.T) {
+	home := t.TempDir()
+	binDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(binDir, "vrooli")
+	if runtime.GOOS == "windows" {
+		want += ".exe"
+	}
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(want, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got, err := resolveSetupStatusBinary(home, cliinvoke.ResolveOptions{
+		Getenv:   func(string) string { return "" },
+		LookPath: func(string) (string, error) { return "", exec.ErrNotFound },
+	})
+	if err != nil || got != want {
+		t.Fatalf("resolveSetupStatusBinary = %q, %v; want the runtime-home bin %q", got, err, want)
+	}
+}
+
+// The API reads the loop status from the same contract-resolved state entry
+// the loop writes, keyed by the account home it is given.
+func TestLoopStatusPathFollowsRuntimeHomeStateEntry(t *testing.T) {
+	home := t.TempDir()
+	stateRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := loopStatusPath(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(stateRoot, "vrooli-autoheal", "loop-status.json"); got != want {
+		t.Fatalf("loopStatusPath = %q; want %q", got, want)
+	}
+	if !strings.HasPrefix(got, home+string(filepath.Separator)) {
+		t.Fatalf("loopStatusPath %q is not under the given home %q", got, home)
+	}
+}
+
+// The emergency watchdog report is read from the runtime-home state entry
+// the repo contract declares, under the account home it is given.
+func TestEmergencyWatchdogReportPathFollowsRuntimeHomeStateEntry(t *testing.T) {
+	home := t.TempDir()
+	stateRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := emergencyWatchdogReportPath(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := filepath.Join(stateRoot, "emergency-watchdog", "last-report.json"); got != want {
+		t.Fatalf("emergencyWatchdogReportPath = %q; want %q", got, want)
 	}
 }

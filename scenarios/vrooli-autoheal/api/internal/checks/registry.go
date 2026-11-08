@@ -6,6 +6,7 @@ import (
 	"context"
 	cryptorand "crypto/rand"
 	"fmt"
+	"log"
 	"math/big"
 	mathrand "math/rand"
 	"sort"
@@ -283,11 +284,22 @@ type HealIncidentReporter interface {
 // RecoveryRequester delegates exhausted scenario repair to the control-plane
 // recovery broker. Autoheal observes and schedules recovery; it does not own
 // an agent-spawn ladder.
-type RecoveryRequester func(ctx context.Context, scenario, reason string) (requestID string, err error)
+type RecoveryAdmission struct {
+	RequestID     string
+	Outcome       string
+	NativePending bool // Exact native execution has not established exit.
+}
+
+type RecoveryRequester func(ctx context.Context, scenario, reason string) (RecoveryAdmission, error)
+
+// RecoveryObserver returns a bounded control-plane snapshot keyed by check ID.
+// Historical receipts without native execution ownership are not action locks.
+type RecoveryObserver func(context.Context) (map[string]RecoveryAdmission, error)
 
 // Registry manages health checks
 type Registry struct {
 	mu                   sync.RWMutex
+	trackerWriteMu       sync.Mutex // orders mutations with durable writes; never held by status reads
 	checks               map[string]Check
 	results              map[string]Result
 	lastRun              map[string]time.Time
@@ -300,6 +312,8 @@ type Registry struct {
 	recoveryGate         RecoveryOwnershipGate
 	healIncidentReporter HealIncidentReporter
 	recoveryRequester    RecoveryRequester
+	recoveryObserver     RecoveryObserver
+	recoveryOwnership    map[string]RecoveryAdmission
 	supervisedChecks     map[string]struct{}
 	recoveryGracePeriod  time.Duration
 	clock                Clock
@@ -319,6 +333,47 @@ func (r *Registry) getRecoveryRequester() RecoveryRequester {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.recoveryRequester
+}
+
+func (r *Registry) SetRecoveryObserver(observer RecoveryObserver) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.recoveryObserver = observer
+}
+
+func (r *Registry) refreshRecoveryOwnership(ctx context.Context) {
+	r.mu.RLock()
+	observer := r.recoveryObserver
+	r.mu.RUnlock()
+	if observer == nil {
+		return
+	}
+	ownership, err := observer(ctx)
+	if err != nil {
+		// Preserve an already identified writer on observation loss. An optional
+		// unavailable broker does not invent ownership or disable monitoring.
+		log.Printf("vrooli-autoheal: native recovery ownership unavailable: %v", err)
+		return
+	}
+	r.mu.Lock()
+	r.recoveryOwnership = ownership
+	r.mu.Unlock()
+}
+
+func (r *Registry) nativeRecoveryPending(checkID string) (RecoveryAdmission, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	admission := r.recoveryOwnership[checkID]
+	return admission, admission.RequestID != "" && admission.NativePending
+}
+
+func (r *Registry) retainRecoveryAdmission(checkID string, admission RecoveryAdmission) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.recoveryOwnership == nil {
+		r.recoveryOwnership = make(map[string]RecoveryAdmission)
+	}
+	r.recoveryOwnership[checkID] = admission
 }
 
 // SetSupervisedChecks publishes the current computed supervision closure to
@@ -512,6 +567,8 @@ func (r *Registry) SetClock(clock Clock) {
 // and loaded on startup via LoadHealTrackers.
 // [REQ:HEAL-ACTION-001]
 func (r *Registry) SetHealTrackerStore(store HealTrackerStore) {
+	r.trackerWriteMu.Lock()
+	defer r.trackerWriteMu.Unlock()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.healTrackerStore = store
@@ -521,6 +578,8 @@ func (r *Registry) SetHealTrackerStore(store HealTrackerStore) {
 // Should be called during startup to restore state from the database.
 // [REQ:HEAL-ACTION-001]
 func (r *Registry) LoadHealTrackers(ctx context.Context) error {
+	r.trackerWriteMu.Lock()
+	defer r.trackerWriteMu.Unlock()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

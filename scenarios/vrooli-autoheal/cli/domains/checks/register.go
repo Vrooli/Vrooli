@@ -85,6 +85,7 @@ func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		Subcommands: []cliapp.Command{
 			{Name: "list", Description: "List registered health checks", Run: func(args []string) error { return runList(core, args) }},
 			{Name: "get", Description: "Show the latest result for one check", Run: func(args []string) error { return runGet(core, args) }},
+			runCommand(),
 			{Name: "history", Description: "Show recent history for one check", Run: func(args []string) error { return runHistory(core, args) }},
 			{Name: "actions", Description: "List recovery actions for one check", Run: func(args []string) error { return runActions(core, args) }},
 			{Name: "run-action", Description: "Execute a recovery action for one check", Run: func(args []string) error { return runAction(core, args) }},

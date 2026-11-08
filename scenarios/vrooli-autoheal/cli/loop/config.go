@@ -158,7 +158,7 @@ func resolveVrooliRoot() string {
 // miss leaves the path empty and the preflight names it.
 func (config *Config) resolveVrooliBinary(explicit string) {
 	home, _ := os.UserHomeDir()
-	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{Explicit: explicit, RuntimeHome: home})
+	path, err := cliinvoke.Resolve(cliinvoke.ResolveOptions{Explicit: explicit, UserHome: home})
 	config.VrooliCmdPath, config.VrooliResolveErr = path, err
 }
 

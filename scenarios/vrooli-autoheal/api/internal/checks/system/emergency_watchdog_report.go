@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostpressure"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/checks"
 	"github.com/vrooli/vrooli/scenarios/vrooli-autoheal/api/internal/platform"
@@ -23,7 +24,6 @@ const (
 	// is stale, and a stale report is undetermined, never healthy.
 	emergencyWatchdogTimerInterval = 5 * time.Minute
 	emergencyWatchdogStaleAfter    = 3 * emergencyWatchdogTimerInterval
-	emergencyWatchdogReportRelPath = ".vrooli/state/emergency-watchdog/last-report.json"
 	// attributedFindings are the findings the watchdog attaches attribution to.
 	findingForkRate    = "fork-rate"
 	findingCPUPressure = "cpu-pressure"
@@ -74,12 +74,24 @@ func WithContainStormMode(mode string) EmergencyWatchdogReportOption {
 func NewEmergencyWatchdogReportCheck(opts ...EmergencyWatchdogReportOption) *EmergencyWatchdogReportCheck {
 	c := &EmergencyWatchdogReportCheck{now: time.Now, authority: NewProductionStormAuthority(ContainStormAutomatic), contained: map[string]StormOutcome{}}
 	if home, err := os.UserHomeDir(); err == nil {
-		c.path = filepath.Join(home, filepath.FromSlash(emergencyWatchdogReportRelPath))
+		c.path, _ = emergencyWatchdogReportPath(home)
 	}
 	for _, opt := range opts {
 		opt(c)
 	}
 	return c
+}
+
+// emergencyWatchdogReportPath is the report the watchdog timer writes:
+// emergency-watchdog/last-report.json under the runtime-home state entry from
+// the repo contract. An unresolvable contract leaves the path empty, which
+// the check reports as undetermined rather than guessing a location.
+func emergencyWatchdogReportPath(home string) (string, error) {
+	stateRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(stateRoot, "emergency-watchdog", "last-report.json"), nil
 }
 
 func (c *EmergencyWatchdogReportCheck) ID() string    { return EmergencyWatchdogReportCheckID }
@@ -113,7 +125,7 @@ func (c *EmergencyWatchdogReportCheck) Run(context.Context) checks.Result {
 		return result
 	}
 	if strings.TrimSpace(c.path) == "" {
-		return undetermined("no home directory to locate the report")
+		return undetermined("report location unresolved: no home directory or runtime-home state entry")
 	}
 	data, err := os.ReadFile(c.path)
 	if err != nil {

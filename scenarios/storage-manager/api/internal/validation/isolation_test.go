@@ -50,6 +50,69 @@ func TestRoutedSeams_AllWiredIsClean(t *testing.T) {
 	}
 }
 
+func TestRoutedSeamsPinnedMiddlewareRequiresRegisteredUnchangedOwner(t *testing.T) {
+	for _, tc := range []struct {
+		name, wiring string
+		clean        bool
+	}{
+		{"paired owner", `owner := devrouting.NewService(db, roots)
+ devrouting.RegisterWithFileRootsService(mux, db, roots, owner)
+ _ = owner.PinnedTestModeMiddleware(mux)`, true},
+		{"unrelated receiver", `owner := devrouting.NewService(db, roots)
+ devrouting.RegisterWithFileRootsService(mux, db, roots, owner)
+ _ = foreign.PinnedTestModeMiddleware(mux)`, false},
+		{"different registered owner", `owner := devrouting.NewService(db, roots)
+ other := devrouting.NewService(db, roots)
+ devrouting.RegisterWithFileRootsService(mux, db, roots, other)
+ _ = owner.PinnedTestModeMiddleware(mux)`, false},
+		{"different registered roots", `owner := devrouting.NewService(db, roots)
+ devrouting.RegisterWithFileRootsService(mux, db, otherRoots, owner)
+ _ = owner.PinnedTestModeMiddleware(mux)`, false},
+		{"shadowed receiver", `owner := devrouting.NewService(db, roots)
+ devrouting.RegisterWithFileRootsService(mux, db, roots, owner)
+ _ = func() { owner := foreign; _ = owner.PinnedTestModeMiddleware(mux) }`, false},
+		{"reassigned receiver", `owner := devrouting.NewService(db, roots)
+ owner = foreign
+ devrouting.RegisterWithFileRootsService(mux, db, roots, owner)
+ _ = owner.PinnedTestModeMiddleware(mux)`, false},
+		{"database only constructor", `owner := devrouting.NewService(db)
+ devrouting.RegisterWithFileRootsService(mux, db, roots, owner)
+ _ = owner.PinnedTestModeMiddleware(mux)`, false},
+		{"separate routing service", `owner := devrouting.NewService(db, roots)
+ devrouting.RegisterWithFileRoots(mux, db, roots)
+ _ = owner.PinnedTestModeMiddleware(mux)`, false},
+		{"shadowed import name", `_ = devrouting.NewService
+ devrouting := foreign
+ owner := devrouting.NewService(db, roots)
+ devrouting.RegisterWithFileRootsService(mux, db, roots, owner)
+ _ = owner.PinnedTestModeMiddleware(mux)`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			body := strings.Replace(isoWiredMain, "devrouting.Register(mux, db)", tc.wiring, 1)
+			body = strings.Replace(body, "_ = apihttp.TestModeMiddleware(mux)", "", 1)
+			ac := isoCtx(t, body, []Engine{EngineSQLite}, "go")
+			got, err := (isoRoutedSeams{}).Analyze(t.Context(), ac)
+			if err != nil || (len(got) == 0) != tc.clean {
+				t.Fatalf("pinned owner proof mismatch: findings=%+v err=%v", got, err)
+			}
+		})
+	}
+}
+
+func TestRoutedSeamsPinnedMiddlewareRecognizesImportAlias(t *testing.T) {
+	body := strings.Replace(isoWiredMain, "devrouting.Register(mux, db)", `owner := devrouting.NewService(db, roots)
+ devrouting.RegisterWithFileRootsService(mux, db, roots, owner)
+ _ = owner.PinnedTestModeMiddleware(mux)`, 1)
+	body = strings.Replace(body, "_ = apihttp.TestModeMiddleware(mux)", "", 1)
+	body = strings.Replace(body, `"github.com/vrooli/api-core/devrouting"`, `routing "github.com/vrooli/api-core/devrouting"`, 1)
+	body = strings.ReplaceAll(body, "devrouting.", "routing.")
+	ac := isoCtx(t, body, []Engine{EngineSQLite}, "go")
+	got, err := (isoRoutedSeams{}).Analyze(t.Context(), ac)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("aliased paired owner rejected: findings=%+v err=%v", got, err)
+	}
+}
+
 func TestRoutedSeams_MissingSeamFlagged(t *testing.T) {
 	// Same as wired, but drop devrouting.Register.
 	missing := strings.Replace(isoWiredMain, "\tdevrouting.Register(mux, db)\n", "", 1)
