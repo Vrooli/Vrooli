@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/schedule"
 	source "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 	scopes "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/scopes"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/learning"
@@ -17,10 +18,15 @@ import (
 
 type Handler struct {
 	client *ledgerclient.Client
-	now    func() time.Time
+	clock  schedule.Clock
 }
 
-func NewHandler(client *ledgerclient.Client) *Handler { return &Handler{client: client, now: time.Now} }
+func NewHandler(client *ledgerclient.Client, clock schedule.Clock) *Handler {
+	if clock == nil {
+		panic("learning.NewHandler requires a clock")
+	}
+	return &Handler{client: client, clock: clock}
+}
 func (h *Handler) scope(ctx context.Context, scope string, headers http.Header) error {
 	if strings.TrimSpace(scope) == "" || len(scope) > 128 {
 		return connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("explicit scope required (at most 128 bytes)"))
@@ -45,7 +51,7 @@ func (h *Handler) RecordAttempt(ctx context.Context, in *connect.Request[pb.Reco
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	end, _ := time.Parse(time.RFC3339Nano, in.Msg.Attempt.FinishedAt)
-	if end.After(h.now()) {
+	if end.After(h.clock.Now()) {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("attempt has not finished"))
 	}
 	if err = h.scope(ctx, in.Msg.Scope, in.Header()); err != nil {
@@ -85,7 +91,8 @@ func (h *Handler) RecordObservation(ctx context.Context, in *connect.Request[pb.
 		return nil, err
 	}
 	o := in.Msg.Observation
-	if err := learning.ValidateObservation(o); err != nil {
+	now := h.clock.Now().UTC()
+	if err := learning.ValidateObservation(o, now); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
 	get := connect.NewRequest(&source.GetEntryRequest{Scope: in.Msg.Scope, ImportProvenance: &source.ImportProvenance{
@@ -103,7 +110,7 @@ func (h *Handler) RecordObservation(ctx context.Context, in *connect.Request[pb.
 	if err != nil || attempt.AttemptId != o.AttemptId {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("attempt_id does not identify a valid attempt"))
 	}
-	body, err := learning.EncodeObservation(o)
+	body, err := learning.EncodeObservation(o, now)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -123,7 +130,7 @@ func (h *Handler) RecordObservation(ctx context.Context, in *connect.Request[pb.
 }
 
 func (h *Handler) MeasureLearning(ctx context.Context, in *connect.Request[pb.MeasureLearningRequest]) (*connect.Response[pb.MeasureLearningResponse], error) {
-	now := h.now().UTC()
+	now := h.clock.Now().UTC()
 	to := now
 	from := now.Add(-7 * 24 * time.Hour)
 	var err error
@@ -173,5 +180,5 @@ func (h *Handler) MeasureLearning(ctx context.Context, in *connect.Request[pb.Me
 			truncated = true
 		}
 	}
-	return connect.NewResponse(learning.Measure(entries, in.Msg.Scope, from, to, in.Msg.Operation, in.Msg.ContextKey, truncated)), nil
+	return connect.NewResponse(learning.Measure(entries, in.Msg.Scope, from, to, in.Msg.Operation, in.Msg.ContextKey, truncated, now)), nil
 }

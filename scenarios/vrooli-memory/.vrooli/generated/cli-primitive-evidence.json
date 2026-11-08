@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "vrooli-memory",
   "generator": "v1.0.0",
-  "manifest_hash": "ddecb34a6e7fead6dcfbf9134b8df0bdb978eacfc95a702db2009743cbfdb27c",
+  "manifest_hash": "ea97c60872ab42bbc07af58b6183df8dce395a62fcd6701fa791403e7c41680f",
   "commands": [
     {
       "path": "facets candidates",

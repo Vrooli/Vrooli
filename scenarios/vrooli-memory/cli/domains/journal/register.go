@@ -20,8 +20,8 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 func Command(core *cliapp.ScenarioApp) cliapp.Command {
 	h := newHandlers(core)
 	return cliapp.Command{Name: "note", Description: "Append an immutable memory entry", Args: cliapp.ArgSchema{
-		Positionals: []cliapp.Positional{{Name: "body", Required: true, Description: "Memory prose"}},
-		Flags:       []cliapp.Flag{{Name: "scope", Description: "Ledger scope (default agent-memory)", Default: "agent-memory"}, {Name: "kind", Description: "Entry kind"}, {Name: "trigger", Description: "Work-record trigger"}, {Name: "approach", Description: "Work-record approach"}, {Name: "evidence", Description: "Work-record evidence"}, {Name: "outcome", Description: "Work-record outcome"}},
+		Positionals: []cliapp.Positional{{Name: "body", Required: false, Description: "Required memory prose, separate from work-record fields; use --body-file for multiline or shell-sensitive text"}},
+		Flags:       []cliapp.Flag{{Name: "body-file", Description: "Read memory prose from a file, or - for standard input"}, {Name: "scope", Description: "Ledger scope (default agent-memory)", Default: "agent-memory"}, {Name: "kind", Description: "Entry kind"}, {Name: "trigger", Description: "Work-record trigger"}, {Name: "approach", Description: "Work-record approach"}, {Name: "evidence", Description: "Work-record evidence"}, {Name: "outcome", Description: "Work-record outcome"}},
 	}}.WithPrimitive(cliapp.ProtoMutation(h.noteCall, h.noteReport))
 }
 

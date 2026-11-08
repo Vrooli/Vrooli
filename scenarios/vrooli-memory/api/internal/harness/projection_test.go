@@ -8,12 +8,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"vrooli-memory/internal/ledgerclient"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	localdb "github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/scheduletest"
 	sourcerecall "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
 	recallconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
 )
@@ -47,13 +50,30 @@ func (*fakeRecall) ListSiblingEvents(context.Context, *connect.Request[sourcerec
 var _ recallconnect.RecallServiceClient = (*fakeRecall)(nil)
 
 func newProjectionTest(t *testing.T, wake recallconnect.RecallServiceClient, path string) (*Projector, *sql.DB) {
+	return newProjectionTestAt(t, wake, path, scheduletest.New(time.Date(2026, 11, 5, 0, 0, 0, 0, time.UTC)))
+}
+
+func newProjectionTestAt(t *testing.T, wake recallconnect.RecallServiceClient, path string, clk schedule.Clock) (*Projector, *sql.DB) {
 	t.Helper()
 	db := localdb.NewSQLite(t)
 	_, err := db.Exec(Schema())
 	require.NoError(t, err)
-	p := NewProjector(db, wake)
+	p := NewProjectorWithClock(db, wake, clk)
 	p.targets["claude-code"] = projectionTarget{Runtime: "claude-code", Path: path, Cap: 4096, LineCap: 12}
 	return p, db
+}
+
+func TestProjectionTimestampUsesInjectedClock(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "MEMORY.md")
+	instant := time.Date(2035, 2, 3, 4, 5, 6, 7, time.UTC)
+	p, db := newProjectionTestAt(t, &fakeRecall{}, path, scheduletest.New(instant))
+	defer db.Close()
+
+	_, err := p.Project(context.Background(), "claude-code", false)
+	require.NoError(t, err)
+	var updatedAt string
+	require.NoError(t, db.QueryRow(`SELECT updated_at FROM harness_projections WHERE runtime=?`, "claude-code").Scan(&updatedAt))
+	require.Equal(t, instant.Format(time.RFC3339Nano), updatedAt)
 }
 
 func TestProjectionWritesManagedBlockFromSourceWake(t *testing.T) {

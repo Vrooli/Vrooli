@@ -129,6 +129,30 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 **Refs:** `api/internal/learning/learning.go`, `api/internal/learning/learning_test.go`, bug `knw-1793644749148975095` (`bug-inbox/code-defect/learning-measure-invalidates-cross-context-parented-attempts`).
 
+### 2026-11-05 — API harness timestamps and retry diagnostics used ambient dependencies (RESOLVED)
+
+**Symptom:** Harness run/cursor/projection timestamps and background retry diagnostics were not directly controllable in tests.
+
+**Root cause:** `internal/harness/runs.go` (`setCursor`, `create`, `progress`, `finish`, `update`) and `internal/harness/projection.go` (`Project`) previously called `time.Now()` while persisting operational timestamps. Retry diagnostics in `internal/maintenance/service.go` previously used package-level `log.Printf`. Harness path environment is read during composition, and the bounded import worker limit plus maintenance parsers have explicit tests; those configuration reads do not require runtime replacement seams.
+
+**Resolution:** The harness module passes the existing shared `schedule.Clock` into the importer run store and projector. Their persisted timestamps use that clock; persistence tests pin run lifecycle, cursor, and projection timestamps to a fixed instant. The harness module also passes its application logger into maintenance, and retry tests assert scope-list, per-scope, and canceled-pass diagnostics through that logger. The `internal/httpx/errors.go` `slog.Default()` fallback remains intentionally documented as unreachable for the current error-envelope shape.
+
+**Owner:** vrooli-memory
+
+**Refs:** `api/internal/harness/runs.go`, `api/internal/harness/runs_test.go`, `api/internal/harness/projection.go`, `api/internal/harness/projection_test.go`, `api/handlers/harness/module.go`, `api/internal/maintenance/service.go`, `api/internal/maintenance/service_test.go`, `api/internal/httpx/errors.go`. Resolved in Rounds 38–39. The generic unit-health `MISSING_INJECTABLE_SEAM` finding remains at API and CLI paths; this entry makes no claim that the broader finding cleared.
+
+### 2026-11-05 — Work-record callers omitted the required memory body (RESOLVED)
+
+**Symptom:** Agent Manager recorded 13 failed `vrooli-memory journal note` calls in 12 runs with `memory body is required`, while the callers supplied work-record fields.
+
+**Root cause:** The canonical memory skill's decision-tree example showed the four structured work-record flags but omitted the separately required positional body. CLI help marked that positional optional to support `--body-file`, and the failure message did not explain that the work-record fields do not replace it.
+
+**Resolution:** The canonical skill and root `AGENTS.md` now show a brief body separately from the four work-record fields. CLI command metadata labels the prose as required, and the missing-body error names the distinction. Reference docs include a complete work-record command. Focused `go test ./domains/journal` and `UPDATE_CLI_EVIDENCE=1 go test .` passed; Test Genie docs run `20261105-114828-26ef18b9` passed after the Gate wording update.
+
+**Owner:** vrooli-memory
+
+**Refs:** `skills/vrooli-memory/SKILL.md`, `cli/domains/journal/handlers.go`, `cli/domains/journal/register.go`, `docs/reference/cli-commands.md`; Agent Manager fingerprint `b656e5856e335c5773abcba6`.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

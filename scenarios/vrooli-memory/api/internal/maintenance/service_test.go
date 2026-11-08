@@ -1,8 +1,10 @@
 package maintenance
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log"
 	"sync"
 	"testing"
 	"time"
@@ -282,11 +284,13 @@ type fakeEmbeddingRetrier struct {
 	scopes   []string
 	called   []string
 	errScope string
+	listErr  error
 }
 
 func (f *fakeEmbeddingRetrier) ListScopes(context.Context) ([]string, error) {
-	return append([]string(nil), f.scopes...), nil
+	return append([]string(nil), f.scopes...), f.listErr
 }
+
 func (f *fakeEmbeddingRetrier) RetryEmbeddings(ctx context.Context, scope string, limit int) (int, int, error) {
 	if _, ok := ctx.Deadline(); !ok {
 		return 0, 0, errors.New("missing deadline")
@@ -300,11 +304,54 @@ func (f *fakeEmbeddingRetrier) RetryEmbeddings(ctx context.Context, scope string
 	}
 	return 1, 0, nil
 }
+
 func TestEmbeddingRetriesContinueAcrossScopeFailure(t *testing.T) {
 	retrier := &fakeEmbeddingRetrier{scopes: []string{"b", "a", "c"}, errScope: "a"}
 	svc := NewService(newMemoryStore(), &fakeImporter{}, &fakeProjector{}, scheduletest.New(time.Unix(0, 0)), 0).WithEmbeddingRetries(retrier)
 	svc.retryEmbeddings(context.Background())
 	require.Equal(t, []string{"a", "b", "c"}, retrier.called)
+}
+
+func TestEmbeddingRetryDiagnosticsUseInjectedLogger(t *testing.T) {
+	var output bytes.Buffer
+	logger := log.New(&output, "", 0)
+	retrier := &fakeEmbeddingRetrier{scopes: []string{"scope-a", "scope-b"}, errScope: "scope-a"}
+	service := NewService(newMemoryStore(), &fakeImporter{}, &fakeProjector{}, scheduletest.New(time.Unix(0, 0)), 0).
+		WithEmbeddingRetries(retrier).
+		WithLogger(logger)
+
+	service.retryEmbeddings(context.Background())
+
+	require.Contains(t, output.String(), `scope="scope-a" processed=0 deferred=1 error=offline`)
+	require.Contains(t, retrier.called, "scope-b")
+}
+
+func TestEmbeddingRetryListFailureUsesInjectedLogger(t *testing.T) {
+	var output bytes.Buffer
+	logger := log.New(&output, "", 0)
+	retrier := &fakeEmbeddingRetrier{listErr: errors.New("ledger unavailable")}
+	service := NewService(newMemoryStore(), &fakeImporter{}, &fakeProjector{}, scheduletest.New(time.Unix(0, 0)), 0).
+		WithEmbeddingRetries(retrier).
+		WithLogger(logger)
+
+	service.retryEmbeddings(context.Background())
+
+	require.Contains(t, output.String(), "maintenance embedding retries: list scopes: ledger unavailable")
+}
+
+func TestEmbeddingRetryCanceledPassUsesInjectedLogger(t *testing.T) {
+	var output bytes.Buffer
+	logger := log.New(&output, "", 0)
+	retrier := &fakeEmbeddingRetrier{scopes: []string{"scope"}}
+	service := NewService(newMemoryStore(), &fakeImporter{}, &fakeProjector{}, scheduletest.New(time.Unix(0, 0)), 0).
+		WithEmbeddingRetries(retrier).
+		WithLogger(logger)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	service.retryEmbeddings(ctx)
+
+	require.Contains(t, output.String(), "maintenance embedding retry pass incomplete: context canceled")
 }
 
 type signalingClock struct {
@@ -326,6 +373,7 @@ type signalingRetrier struct{ calls chan string }
 func (f signalingRetrier) ListScopes(context.Context) ([]string, error) {
 	return []string{"scope"}, nil
 }
+
 func (f signalingRetrier) RetryEmbeddings(_ context.Context, scope string, _ int) (int, int, error) {
 	f.calls <- scope
 	return 1, 0, nil

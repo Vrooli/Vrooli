@@ -183,11 +183,15 @@
           "positionals": [
             {
               "name": "body",
-              "required": true,
-              "description": "Memory prose"
+              "required": false,
+              "description": "Required memory prose, separate from work-record fields; use --body-file for multiline or shell-sensitive text"
             }
           ],
           "flags": [
+            {
+              "name": "body-file",
+              "description": "Read memory prose from a file, or - for standard input"
+            },
             {
               "name": "scope",
               "description": "Ledger scope",

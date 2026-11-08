@@ -82,15 +82,16 @@ func main() {
 		log.Fatalf("source-ledger client configuration failed: %v", err)
 	}
 
+	clock := schedule.System()
 	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+		server.Deps{Clock: clock, Logger: log.Default()},
 		healthH.Module(db, "vrooli-memory-api", "1.0.0", maintenance.NewSQLiteStore(db.Primary()), db.Primary()),
 		journalH.Module(ledger, log.Default()),
-		learningH.Module(ledger),
+		learningH.Module(ledger, clock),
 		facetsH.Module(ledger, log.Default()),
 		forestH.Module(ledger, log.Default()),
-		recallH.Module(ledger, log.Default()),
-		harnessH.Module(db, fileRoots, ledger, log.Default(), ledger, schedule.System()),
+		recallH.Module(ledger, log.Default(), clock),
+		harnessH.Module(db, fileRoots, ledger, log.Default(), ledger, clock),
 		rulesH.Module(ledger, log.Default()),
 		scopesH.Module(ledger, log.Default()),
 	)

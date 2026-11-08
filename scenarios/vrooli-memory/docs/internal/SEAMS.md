@@ -90,10 +90,20 @@ and use matrix/trace helpers from the relevant testutil package.
 | | |
 |---|---|
 | **Seam** | Wall-clock time |
-| **Interface** | `internal/clock/clock.go::Clock` (`Now() time.Time`) |
-| **Production wiring** | `main.go` constructs `clock.System{}` and passes it via `server.Deps`. |
-| **Test fake** | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). |
-| **Why it exists** | Middleware computes request-duration log lines from two `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
+| **Interface** | `github.com/vrooli/api-core/schedule.Clock` (`Now`, timer, ticker, and sleep operations); timestamp-only domain logic receives a captured `time.Time`. |
+| **Production wiring** | `main.go` constructs one `schedule.System()` clock and passes it to `server.Deps`, learning, recall, and the harness module. The harness passes it to its importer run store and projection service. |
+| **Test fake** | `api-core/scheduletest.New(...)` implements the clock contract in middleware, learning, recall, and harness persistence tests. |
+| **Why it exists** | Middleware duration logs and learning observation validation need controlled time. Observation validation, encoding, decoding, measurement, and recall enrichment use one captured instant so timestamps equal to now are accepted and future timestamps are rejected consistently. Harness run, cursor, and projection timestamps use the same clock so persisted lifecycle times can be asserted deterministically. See `handlers/learning/connect_handler_test.go::TestRecordObservationUsesOneInjectedInstantForValidationAndEncoding`, `internal/learning/learning_test.go::TestObservationTimestampUsesCallerInstant`, and `internal/harness/runs_test.go::TestRunStoreUsesInjectedClockForRunAndCursorTimestamps`. |
+
+### Maintenance logger
+
+| | |
+|---|---|
+| **Seam** | Background maintenance diagnostics |
+| **Interface** | `*log.Logger`, supplied with `maintenance.Service.WithLogger(...)`. |
+| **Production wiring** | `main.go` supplies `log.Default()` to the harness module, which passes it to the maintenance service. |
+| **Test fake** | A buffer-backed `log.Logger` captures retry failures in `internal/maintenance/service_test.go`. |
+| **Why it exists** | Scheduled embedding retries run outside a request and must report list, scope, and pass failures through the application-owned logger. Tests can assert those diagnostics without intercepting the process-global logger. |
 
 ### Pinger (database reachability)
 

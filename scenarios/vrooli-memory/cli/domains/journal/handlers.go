@@ -3,6 +3,8 @@ package journal
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
 	"strconv"
 
 	"connectrpc.com/connect"
@@ -26,7 +28,11 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) noteCall(ctx cliapp.OperationContext) (*journalv1.AppendEntryResponse, error) {
-	resp, err := h.client.AppendEntry(context.Background(), connect.NewRequest(&journalv1.AppendEntryRequest{Body: ctx.Positional("body"), Scope: ctx.Flag("scope"), Kind: ctx.Flag("kind"), Trigger: ctx.Flag("trigger"), Approach: ctx.Flag("approach"), Evidence: ctx.Flag("evidence"), Outcome: ctx.Flag("outcome")}))
+	body, err := resolveNoteBody(ctx.Positional("body"), len(ctx.Args()) > 0, ctx.Flag("body-file"), os.Stdin)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := h.client.AppendEntry(context.Background(), connect.NewRequest(&journalv1.AppendEntryRequest{Body: body, Scope: ctx.Flag("scope"), Kind: ctx.Flag("kind"), Trigger: ctx.Flag("trigger"), Approach: ctx.Flag("approach"), Evidence: ctx.Flag("evidence"), Outcome: ctx.Flag("outcome")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("append memory", err, nil)
 	}
@@ -34,6 +40,30 @@ func (h *handlers) noteCall(ctx cliapp.OperationContext) (*journalv1.AppendEntry
 		return nil, fmt.Errorf("server returned no entry")
 	}
 	return resp.Msg, nil
+}
+
+func resolveNoteBody(positional string, positionalProvided bool, bodyFile string, stdin io.Reader) (string, error) {
+	if positionalProvided && bodyFile != "" {
+		return "", fmt.Errorf("provide the memory body as a positional argument or with --body-file, not both")
+	}
+	if bodyFile == "" {
+		if !positionalProvided {
+			return "", fmt.Errorf("memory body is required; work-record fields do not replace it; pass <body> or --body-file PATH (use - for stdin)")
+		}
+		return positional, nil
+	}
+	if bodyFile == "-" {
+		data, err := io.ReadAll(stdin)
+		if err != nil {
+			return "", fmt.Errorf("read memory body from stdin: %w", err)
+		}
+		return string(data), nil
+	}
+	data, err := os.ReadFile(bodyFile)
+	if err != nil {
+		return "", fmt.Errorf("read memory body file %q: %w", bodyFile, err)
+	}
+	return string(data), nil
 }
 
 func (h *handlers) noteReport(_ cliapp.OperationContext, msg *journalv1.AppendEntryResponse) cliapp.MutationReport {

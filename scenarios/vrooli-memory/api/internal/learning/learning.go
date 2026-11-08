@@ -19,7 +19,7 @@ const (
 	ObservationPrefix = "learning-observation/v1 "
 )
 
-func ValidateObservation(o *pb.Observation) error {
+func ValidateObservation(o *pb.Observation, now time.Time) error {
 	if o == nil {
 		return fmt.Errorf("observation is required")
 	}
@@ -44,21 +44,21 @@ func ValidateObservation(o *pb.Observation) error {
 		return fmt.Errorf("assessed observation requires evidence references")
 	}
 	when, err := time.Parse(time.RFC3339Nano, o.ObservedAt)
-	if err != nil || when.After(time.Now().UTC()) {
+	if err != nil || when.After(now.UTC()) {
 		return fmt.Errorf("observed_at must be a historical RFC3339 timestamp")
 	}
 	return nil
 }
 
-func EncodeObservation(o *pb.Observation) (string, error) {
-	if err := ValidateObservation(o); err != nil {
+func EncodeObservation(o *pb.Observation, now time.Time) (string, error) {
+	if err := ValidateObservation(o, now); err != nil {
 		return "", err
 	}
 	b, err := protojson.Marshal(o)
 	return ObservationPrefix + string(b), err
 }
 
-func DecodeObservation(body string) (*pb.Observation, error) {
+func DecodeObservation(body string, now time.Time) (*pb.Observation, error) {
 	body = strings.TrimSpace(body)
 	if !strings.HasPrefix(body, ObservationPrefix) {
 		return nil, fmt.Errorf("not a learning observation")
@@ -67,7 +67,7 @@ func DecodeObservation(body string) (*pb.Observation, error) {
 	if err := protojson.Unmarshal([]byte(strings.TrimPrefix(body, ObservationPrefix)), o); err != nil {
 		return nil, err
 	}
-	return o, ValidateObservation(o)
+	return o, ValidateObservation(o, now)
 }
 
 func Validate(a *pb.Attempt) error {
@@ -221,14 +221,14 @@ type (
 
 // Measure keeps comparison contexts separate and exposes missing denominators.
 // Entries are journal snapshots selected by the caller with a fixed upper time.
-func Measure(entries []*source.Entry, scope string, from, to time.Time, operation, contextKey string, truncated bool) *pb.MeasureLearningResponse {
+func Measure(entries []*source.Entry, scope string, from, to time.Time, operation, contextKey string, truncated bool, now time.Time) *pb.MeasureLearningResponse {
 	out := &pb.MeasureLearningResponse{Scope: scope, From: from.Format(time.RFC3339Nano), To: to.Format(time.RFC3339Nano), ScannedEntries: int32(len(entries)), Truncated: truncated, Interpretation: "Evidence-linked caller reports; operator/test is caller-declared. No causal or release-approval claim. Task timing covers observed attempts only; compare identical contexts and windows."}
 	feedback := map[string]string{}
 	for _, e := range entries {
 		if e == nil || e.Kind != "attempt-observation" {
 			continue
 		}
-		o, err := DecodeObservation(e.Body)
+		o, err := DecodeObservation(e.Body, now)
 		if err != nil {
 			out.InvalidRecords++
 			continue

@@ -25,27 +25,28 @@ func Module(db *database.RoutedDB, roots *filerouting.RoutedRoots, client *ledge
 	if _, err := internalharness.EnsureCuratedTopology("", home); err != nil {
 		panic(err)
 	}
-	projector := internalharness.NewProjector(db.Primary(), client.Recall, roots)
+	clk := schedule.Clock(schedule.System())
+	if len(clocks) > 0 && clocks[0] != nil {
+		clk = clocks[0]
+	}
+	projector := internalharness.NewProjectorWithClock(db.Primary(), client.Recall, clk, roots)
 	root := os.Getenv("VROOLI_MEMORY_CLAUDE_ROOT")
 	if root == "" {
 		if target, ok := projector.Target("claude-code"); ok {
 			root = filepath.Dir(target)
 		}
 	}
-	importer := internalharness.NewImporter(client.Journal, root, projector.TargetPaths(), db.Primary())
+	importer := internalharness.NewImporterWithClock(client.Journal, root, projector.TargetPaths(), clk, db.Primary())
 	interval, err := maintenance.IntervalFromOS()
 	if err != nil {
 		panic(err)
-	}
-	clk := schedule.Clock(schedule.System())
-	if len(clocks) > 0 && clocks[0] != nil {
-		clk = clocks[0]
 	}
 	compactLimit, err := maintenance.CompactLimitFromOS()
 	if err != nil {
 		panic(err)
 	}
 	maintenanceService := maintenance.NewService(maintenance.NewSQLiteStore(db.Primary()), importer, projector, clk, interval).
+		WithLogger(logger).
 		WithCompaction(compactor, compactLimit).
 		WithEmbeddingRetries(client)
 	path, h := harnessconnect.NewHarnessServiceHandler(NewConnectHandler(importer, projector, logger, maintenanceService))

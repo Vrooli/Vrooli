@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/filerouting"
+	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/storage"
 	sourcerecall "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
 	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
@@ -46,10 +47,20 @@ type Projector struct {
 	db      *sql.DB
 	wake    sourceconnect.RecallServiceClient
 	roots   *filerouting.RoutedRoots
+	clock   schedule.Clock
 	targets map[string]projectionTarget
 }
 
 func NewProjector(db *sql.DB, wake sourceconnect.RecallServiceClient, roots ...*filerouting.RoutedRoots) *Projector {
+	return NewProjectorWithClock(db, wake, schedule.System(), roots...)
+}
+
+// NewProjectorWithClock builds the projector and uses clk for persisted
+// projection timestamps.
+func NewProjectorWithClock(db *sql.DB, wake sourceconnect.RecallServiceClient, clk schedule.Clock, roots ...*filerouting.RoutedRoots) *Projector {
+	if clk == nil {
+		clk = schedule.System()
+	}
 	home, _ := os.UserHomeDir()
 	workspace, _ := os.Getwd()
 	if configured := strings.TrimSpace(os.Getenv(workspaceRootEnv)); configured != "" {
@@ -60,7 +71,7 @@ func NewProjector(db *sql.DB, wake sourceconnect.RecallServiceClient, roots ...*
 	if err != nil {
 		targets = map[string]projectionTarget{}
 	}
-	p := &Projector{db: db, wake: wake, targets: targets}
+	p := &Projector{db: db, wake: wake, clock: clk, targets: targets}
 	if len(roots) > 0 {
 		p.roots = roots[0]
 	}
@@ -253,7 +264,7 @@ func (p *Projector) finish(ctx context.Context, t projectionTarget, path, existi
 		p.roots.RecordWrite(ctx)
 	}
 	sum := sha256.Sum256([]byte(projected))
-	_, err = p.db.ExecContext(ctx, `INSERT INTO harness_projections(runtime,target_path,content_hash,size_bytes,size_lines,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(runtime) DO UPDATE SET target_path=excluded.target_path,content_hash=excluded.content_hash,size_bytes=excluded.size_bytes,size_lines=excluded.size_lines,updated_at=excluded.updated_at`, t.Runtime, path, hex.EncodeToString(sum[:]), len(projected), projectedLines, time.Now().UTC().Format(time.RFC3339Nano))
+	_, err = p.db.ExecContext(ctx, `INSERT INTO harness_projections(runtime,target_path,content_hash,size_bytes,size_lines,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(runtime) DO UPDATE SET target_path=excluded.target_path,content_hash=excluded.content_hash,size_bytes=excluded.size_bytes,size_lines=excluded.size_lines,updated_at=excluded.updated_at`, t.Runtime, path, hex.EncodeToString(sum[:]), len(projected), projectedLines, p.clock.Now().UTC().Format(time.RFC3339Nano))
 	return r, err
 }
 

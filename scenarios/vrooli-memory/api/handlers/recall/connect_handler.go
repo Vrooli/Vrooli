@@ -14,6 +14,7 @@ import (
 	"vrooli-memory/internal/learning"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/schedule"
 
 	sourcev1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall"
 	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/recall/recall_v1connect"
@@ -27,13 +28,17 @@ type connectHandler struct {
 	client  sourceconnect.RecallServiceClient
 	logger  *log.Logger
 	journal journalconnect.JournalServiceClient
+	clock   schedule.Clock
 }
 
-func NewConnectHandler(client sourceconnect.RecallServiceClient, logger *log.Logger, journals ...journalconnect.JournalServiceClient) *connectHandler {
+func NewConnectHandler(client sourceconnect.RecallServiceClient, logger *log.Logger, clock schedule.Clock, journals ...journalconnect.JournalServiceClient) *connectHandler {
 	if logger == nil {
 		logger = log.Default()
 	}
-	h := &connectHandler{client: client, logger: logger}
+	if clock == nil {
+		panic("recall.NewConnectHandler requires a clock")
+	}
+	h := &connectHandler{client: client, logger: logger, clock: clock}
 	if len(journals) > 0 {
 		h.journal = journals[0]
 	}
@@ -151,10 +156,10 @@ func (h *connectHandler) enrichLearning(ctx context.Context, scope string, heade
 	for _, hit := range hits {
 		hit.EvidenceReliable = nil
 	}
-	applyLearningEvidence(hits, entries, reliable)
+	applyLearningEvidence(hits, entries, reliable, h.clock.Now().UTC())
 }
 
-func applyLearningEvidence(hits []*memoryv1.RecallHit, entries []*journal.Entry, reliable bool) {
+func applyLearningEvidence(hits []*memoryv1.RecallHit, entries []*journal.Entry, reliable bool, now time.Time) {
 	byID := map[string]*memoryv1.RecallHit{}
 	for _, hit := range hits {
 		hit.EvidenceReliable = nil
@@ -177,7 +182,7 @@ func applyLearningEvidence(hits []*memoryv1.RecallHit, entries []*journal.Entry,
 		if hit == nil {
 			continue
 		}
-		if observation, err := learning.DecodeObservation(entry.Body); err == nil {
+		if observation, err := learning.DecodeObservation(entry.Body, now); err == nil {
 			if attempt := attemptsByID[observation.AttemptId]; attempt != nil {
 				noteOrigins[hit.EntryId] = attempt
 				root := attempt
@@ -204,7 +209,7 @@ func applyLearningEvidence(hits []*memoryv1.RecallHit, entries []*journal.Entry,
 		if !strings.HasPrefix(entry.Body, "learning-observation/v1 ") {
 			continue
 		}
-		observation, err := learning.DecodeObservation(entry.Body)
+		observation, err := learning.DecodeObservation(entry.Body, now)
 		if err != nil {
 			reliable = false
 			continue

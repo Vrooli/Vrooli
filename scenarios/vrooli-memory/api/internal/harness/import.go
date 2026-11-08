@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/schedule"
 	sourcejournal "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 	sourceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
 )
@@ -38,6 +39,15 @@ type (
 )
 
 func NewImporter(s sourceconnect.JournalServiceClient, claudeRoot string, projectionTargets []string, databases ...*sql.DB) *Importer {
+	return NewImporterWithClock(s, claudeRoot, projectionTargets, schedule.System(), databases...)
+}
+
+// NewImporterWithClock builds the importer and uses clk for persisted import
+// run and cursor timestamps.
+func NewImporterWithClock(s sourceconnect.JournalServiceClient, claudeRoot string, projectionTargets []string, clk schedule.Clock, databases ...*sql.DB) *Importer {
+	if clk == nil {
+		clk = schedule.System()
+	}
 	home, _ := os.UserHomeDir()
 	targets := make(map[string]struct{}, len(projectionTargets))
 	for _, target := range projectionTargets {
@@ -45,7 +55,7 @@ func NewImporter(s sourceconnect.JournalServiceClient, claudeRoot string, projec
 	}
 	i := &Importer{journal: s, claudeRoot: claudeRoot, adapters: defaultAdapters(claudeRoot, home), projectionTargets: targets, active: make(map[string]string)}
 	if len(databases) > 0 && databases[0] != nil {
-		i.runs = newRunStore(databases[0])
+		i.runs = newRunStore(databases[0], clk)
 	}
 	return i
 }

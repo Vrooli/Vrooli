@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/vrooli/api-core/schedule"
 )
 
 type ImportRunStatus string
@@ -26,10 +27,18 @@ type (
 		CurrentPath, ErrorMessage                                                 string
 		StartedAt, CompletedAt, UpdatedAt                                         time.Time
 	}
-	runStore struct{ db *sql.DB }
+	runStore struct {
+		db    *sql.DB
+		clock schedule.Clock
+	}
 )
 
-func newRunStore(db *sql.DB) *runStore { return &runStore{db: db} }
+func newRunStore(db *sql.DB, clk schedule.Clock) *runStore {
+	if clk == nil {
+		clk = schedule.System()
+	}
+	return &runStore{db: db, clock: clk}
+}
 
 func (s *runStore) cursor(ctx context.Context, runtime, root string) (string, error) {
 	var value string
@@ -41,12 +50,12 @@ func (s *runStore) cursor(ctx context.Context, runtime, root string) (string, er
 }
 
 func (s *runStore) setCursor(ctx context.Context, runtime, root, path string) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO harness_import_cursors(runtime,source_root,cursor_path,updated_at) VALUES(?,?,?,?) ON CONFLICT(runtime) DO UPDATE SET source_root=excluded.source_root,cursor_path=excluded.cursor_path,updated_at=excluded.updated_at`, runtime, root, path, time.Now().UTC().Format(time.RFC3339Nano))
+	_, err := s.db.ExecContext(ctx, `INSERT INTO harness_import_cursors(runtime,source_root,cursor_path,updated_at) VALUES(?,?,?,?) ON CONFLICT(runtime) DO UPDATE SET source_root=excluded.source_root,cursor_path=excluded.cursor_path,updated_at=excluded.updated_at`, runtime, root, path, s.clock.Now().UTC().Format(time.RFC3339Nano))
 	return err
 }
 
 func (s *runStore) create(ctx context.Context, runtime, root string, total int) (ImportRun, error) {
-	now := time.Now().UTC()
+	now := s.clock.Now().UTC()
 	r := ImportRun{ID: uuid.NewString(), Runtime: runtime, SourceRoot: root, Status: ImportRunQueued, TotalSources: total, StartedAt: now, UpdatedAt: now}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO harness_import_runs (id,runtime,source_root,status,total_sources,started_at,updated_at) VALUES (?,?,?,?,?,?,?)`, r.ID, r.Runtime, r.SourceRoot, r.Status, r.TotalSources, now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
 	return r, err
@@ -57,18 +66,18 @@ func (s *runStore) running(ctx context.Context, id string) error {
 }
 
 func (s *runStore) progress(ctx context.Context, id string, processed, imported, existing, failed int, path string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE harness_import_runs SET processed_sources=?,imported_count=?,existing_count=?,failed_count=?,current_path=?,updated_at=? WHERE id=?`, processed, imported, existing, failed, path, time.Now().UTC().Format(time.RFC3339Nano), id)
+	_, err := s.db.ExecContext(ctx, `UPDATE harness_import_runs SET processed_sources=?,imported_count=?,existing_count=?,failed_count=?,current_path=?,updated_at=? WHERE id=?`, processed, imported, existing, failed, path, s.clock.Now().UTC().Format(time.RFC3339Nano), id)
 	return err
 }
 
 func (s *runStore) finish(ctx context.Context, id string, status ImportRunStatus, processed, imported, existing, failed int, msg string) error {
-	now := time.Now().UTC()
+	now := s.clock.Now().UTC()
 	_, err := s.db.ExecContext(ctx, `UPDATE harness_import_runs SET status=?,processed_sources=?,imported_count=?,existing_count=?,failed_count=?,error_message=?,completed_at=?,updated_at=? WHERE id=?`, status, processed, imported, existing, failed, msg, now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano), id)
 	return err
 }
 
 func (s *runStore) update(ctx context.Context, id string, status ImportRunStatus, processed, imported, existing, failed int, path, msg string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE harness_import_runs SET status=?,updated_at=? WHERE id=?`, status, time.Now().UTC().Format(time.RFC3339Nano), id)
+	_, err := s.db.ExecContext(ctx, `UPDATE harness_import_runs SET status=?,updated_at=? WHERE id=?`, status, s.clock.Now().UTC().Format(time.RFC3339Nano), id)
 	return err
 }
 

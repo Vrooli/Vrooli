@@ -4,6 +4,7 @@ package learning
 import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/schedule"
 	pb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/learning"
 	rpc "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-memory/v1/learning/learningv1connect"
 	"vrooli-memory/internal/ledgerclient"
@@ -17,7 +18,7 @@ var Endpoints = []module.EndpointDescriptor{
 }
 var ProtoFile = pb.File_vrooli_memory_v1_learning_learning_proto
 
-func Module(client *ledgerclient.Client) module.Module {
-	path, handler := rpc.NewLearningServiceHandler(NewHandler(client))
+func Module(client *ledgerclient.Client, clock schedule.Clock) module.Module {
+	path, handler := rpc.NewLearningServiceHandler(NewHandler(client, clock))
 	return module.Module{Name: "learning", Endpoints: Endpoints, Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) }}
 }

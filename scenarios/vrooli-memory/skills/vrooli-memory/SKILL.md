@@ -75,7 +75,7 @@ I need memory for a skill or a program
 │   └─ "what else did this run record" → recall siblings <entry-id>               [S1]
 │
 ├─ After acting: one entry per attempt, success or not                             [S1]
-│     journal note --scope <scope> --kind <kind> --trigger --approach --evidence --outcome
+│     journal note "<brief searchable body>" --scope <scope> --kind <kind> --trigger "..." --approach "..." --evidence "..." --outcome "..."
 │
 └─ Curating what recall keeps showing
     ├─ an entry was right for the third time            → facets pin <entry-id>                       [S1]
@@ -111,7 +111,13 @@ I need memory for a skill or a program
 
 ### 4. Writing an entry
 
-One entry per attempt. Fill the four work-record fields. Append acknowledges durable source and completed or pending enrichment. Provider work shares a two-second budget; it cannot indefinitely delay persistence. Use the existing journal retry operations when classification or embeddings are needed.
+One entry per attempt. Fill the four work-record fields. The short memory body is also required and is separate from those fields; include a searchable summary of the outcome. Append acknowledges durable source and completed or pending enrichment. Provider work shares a two-second budget; it cannot indefinitely delay persistence. Use the existing journal retry operations when classification or embeddings are needed.
+
+For body prose, pass a short single-line value positionally. For multiline text or
+content with backticks and other shell-sensitive characters, use
+`journal note --body-file PATH`; use `--body-file -` to read the complete body
+from standard input. This preserves the body without shell interpolation. Pass
+either the positional body or `--body-file`, not both.
 
 | Field | Content | Example |
 |---|---|---|

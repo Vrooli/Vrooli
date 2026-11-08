@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/scheduletest"
 
 	source "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 	srpc "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
@@ -68,6 +69,46 @@ func TestObservationResolvesStableAttemptIdentityNotLedgerUUID(t *testing.T) {
 		t.Fatal(p)
 	}
 }
+
+func TestRecordObservationUsesOneInjectedInstantForValidationAndEncoding(t *testing.T) {
+	fixed := time.Date(2026, 9, 4, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name      string
+		observed  time.Time
+		wantError bool
+	}{
+		{name: "past", observed: fixed.Add(-time.Nanosecond)},
+		{name: "equal", observed: fixed},
+		{name: "one nanosecond future", observed: fixed.Add(time.Nanosecond), wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &journalFake{resolved: &source.Entry{Id: "attempt-ledger-id", Kind: "task-record", Body: mustAttemptBody(t, request().Msg.Attempt)}}
+			h := handler(f, true)
+			h.clock = scheduletest.New(fixed)
+			o := &pb.Observation{ObservationId: tc.name, AttemptId: "a", Disposition: "supported", EvidenceRefs: []string{"test:receipt"}, Provenance: "test", ObservedAt: tc.observed.Format(time.RFC3339Nano)}
+			_, err := h.RecordObservation(context.Background(), connect.NewRequest(&pb.RecordObservationRequest{Scope: "owner-usage", Observation: o}))
+			if (err != nil) != tc.wantError {
+				t.Fatalf("RecordObservation error = %v, wantError=%t", err, tc.wantError)
+			}
+			wantWrites := 1
+			if tc.wantError {
+				wantWrites = 0
+			}
+			if f.writes != wantWrites {
+				t.Fatalf("journal writes = %d, want %d", f.writes, wantWrites)
+			}
+		})
+	}
+}
+
+func mustAttemptBody(t *testing.T, a *pb.Attempt) string {
+	t.Helper()
+	body, err := learningdata.Encode(a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return body
+}
 func (f *journalFake) ListEntries(_ context.Context, r *connect.Request[source.ListEntriesRequest]) (*connect.Response[source.ListEntriesResponse], error) {
 	f.scope = r.Msg.Scope
 	f.reads++
@@ -93,7 +134,7 @@ func (f scopesFake) ListScopes(_ context.Context, r *connect.Request[scopes.List
 	return connect.NewResponse(out), nil
 }
 func handler(f *journalFake, exists bool) *Handler {
-	return &Handler{client: &ledgerclient.Client{Journal: f, Scopes: scopesFake{exists: exists}}, now: func() time.Time { return time.Date(2026, 9, 4, 0, 0, 0, 0, time.UTC) }}
+	return &Handler{client: &ledgerclient.Client{Journal: f, Scopes: scopesFake{exists: exists}}, clock: scheduletest.New(time.Date(2026, 9, 4, 0, 0, 0, 0, time.UTC))}
 }
 func request() *connect.Request[pb.RecordAttemptRequest] {
 	return connect.NewRequest(&pb.RecordAttemptRequest{Scope: "owner-usage", Attempt: &pb.Attempt{AttemptId: "a", TaskId: "t", Operation: "inspect", ContextKey: "linux-v1", TaskStartedAt: "2026-09-01T00:00:00Z", StartedAt: "2026-09-01T00:00:00Z", FinishedAt: "2026-09-01T00:01:00Z", AttemptNumber: 1, Outcome: "verified_success", EvidenceRefs: []string{"run:1"}, RecallStatus: "no_match", Provenance: "operator", Trigger: "task", Approach: "inspect"}})

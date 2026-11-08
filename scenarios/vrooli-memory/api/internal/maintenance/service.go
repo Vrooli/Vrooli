@@ -101,6 +101,7 @@ type (
 		compactor        Compactor
 		embeddingRetrier EmbeddingRetrier
 		clock            schedule.Clock
+		logger           *log.Logger
 		interval         time.Duration
 		compactLimit     int
 		running          atomic.Bool
@@ -111,7 +112,16 @@ func NewService(store Store, importer Importer, projector Projector, clk schedul
 	if clk == nil {
 		clk = schedule.System()
 	}
-	return &Service{store: store, importer: importer, projector: projector, clock: clk, interval: interval, compactLimit: DefaultCompactLimit}
+	return &Service{store: store, importer: importer, projector: projector, clock: clk, logger: log.Default(), interval: interval, compactLimit: DefaultCompactLimit}
+}
+
+// WithLogger routes background retry diagnostics through the application logger.
+// A nil logger keeps the standard process logger as the default.
+func (s *Service) WithLogger(logger *log.Logger) *Service {
+	if logger != nil {
+		s.logger = logger
+	}
+	return s
 }
 
 // WithCompaction adds the scheduled compaction step. It is separate from
@@ -138,7 +148,7 @@ func (s *Service) retryEmbeddings(ctx context.Context) {
 	defer cancel()
 	scopes, err := s.embeddingRetrier.ListScopes(pass)
 	if err != nil {
-		log.Printf("maintenance embedding retries: list scopes: %v", err)
+		s.logger.Printf("maintenance embedding retries: list scopes: %v", err)
 		return
 	}
 	sort.Strings(scopes)
@@ -155,11 +165,11 @@ func (s *Service) retryEmbeddings(ctx context.Context) {
 		processed, deferred, err := s.embeddingRetrier.RetryEmbeddings(attempt, scope, RetryScopeLimit)
 		stop()
 		if err != nil || deferred > 0 {
-			log.Printf("maintenance embedding retries scope=%q processed=%d deferred=%d error=%v", scope, processed, deferred, err)
+			s.logger.Printf("maintenance embedding retries scope=%q processed=%d deferred=%d error=%v", scope, processed, deferred, err)
 		}
 	}
 	if pass.Err() != nil {
-		log.Printf("maintenance embedding retry pass incomplete: %v", pass.Err())
+		s.logger.Printf("maintenance embedding retry pass incomplete: %v", pass.Err())
 	}
 }
 

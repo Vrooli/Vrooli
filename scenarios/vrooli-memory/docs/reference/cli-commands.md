@@ -134,6 +134,29 @@ The shipped operator domains are:
 bounded by the standing-rule policy budget and return a reviewable proposal
 when the budget is full.
 
+### `vrooli-memory journal note`
+
+Append a memory entry with required memory prose. For `work-record`, the body
+is separate from the required `--trigger`, `--approach`, `--evidence`, and
+`--outcome` fields; those fields do not replace it. Existing callers can pass
+the body as a positional argument. For multiline text or content with backticks
+and other shell-sensitive characters, use a file or standard input so the shell
+does not rewrite the body:
+
+```bash
+vrooli-memory journal note --body-file /tmp/memory-note.txt --scope agent-memory
+cat /tmp/memory-note.txt | vrooli-memory journal note --body-file - --scope agent-memory
+```
+
+A work-record call supplies both forms of content:
+
+```bash
+vrooli-memory journal note "Finished the bounded recovery change" --kind work-record --trigger "recovery workflow" --approach "added owner readback" --evidence "run 123; focused CLI checks passed" --outcome "verified; keep the exact receipt"
+```
+
+Pass either `<body>` or `--body-file PATH`, not both. `--body-file -` reads the
+complete body from stdin. The file contents and line breaks are preserved.
+
 ## Output contracts
 
 Every scenario command should render through one of three human

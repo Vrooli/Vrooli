@@ -33,7 +33,7 @@ func entry(t *testing.T, a *pb.Attempt) *source.Entry {
 }
 
 func measure(es []*source.Entry) *pb.MeasureLearningResponse {
-	return Measure(es, "scope", start, start.Add(24*time.Hour), "", "", false)
+	return Measure(es, "scope", start, start.Add(24*time.Hour), "", "", false, start.Add(24*time.Hour))
 }
 
 func TestOutcomeMetricsKeepUnresolvedAndUnknownVisible(t *testing.T) {
@@ -135,7 +135,7 @@ func TestCrossContextParentRemainsValidAndEffortIsLeftCensored(t *testing.T) {
 		}
 	}
 
-	filtered := Measure(es, "scope", start, start.Add(24*time.Hour), "", child.ContextKey, false)
+	filtered := Measure(es, "scope", start, start.Add(24*time.Hour), "", child.ContextKey, false, start.Add(24*time.Hour))
 	if !filtered.Reliable || filtered.InvalidRecords != 0 || filtered.EligibleAttempts != 1 || len(filtered.Cohorts) != 1 {
 		t.Fatalf("context filter erased a parent needed to validate its child: %+v", filtered)
 	}
@@ -148,11 +148,11 @@ func TestHalfOpenWindowAndScanLimit(t *testing.T) {
 	a := attempt("a", "task", 1, "verified_success")
 	es := []*source.Entry{entry(t, a)}
 	end, _ := time.Parse(time.RFC3339, a.FinishedAt)
-	r := Measure(es, "scope", start, end, "", "", false)
+	r := Measure(es, "scope", start, end, "", "", false, end)
 	if r.EligibleAttempts != 0 {
 		t.Fatal(r)
 	}
-	r = Measure(es, "scope", start, start.Add(24*time.Hour), "", "", true)
+	r = Measure(es, "scope", start, start.Add(24*time.Hour), "", "", true, start.Add(24*time.Hour))
 	if r.Reliable || r.Reason != "unreliable:scan_limit" {
 		t.Fatal(r)
 	}
@@ -203,7 +203,7 @@ func TestAgentProvenanceIsAcceptedAndSeparatedInMeasures(t *testing.T) {
 		t.Fatalf("agent attempt rejected: %v", err)
 	}
 	operator := attempt("operator-attempt", "agent-task", 1, "verified_success")
-	result := Measure([]*source.Entry{entry(t, agent), entry(t, operator)}, "agent-memory", start.Add(-time.Hour), start.Add(24*time.Hour), "", "", false)
+	result := Measure([]*source.Entry{entry(t, agent), entry(t, operator)}, "agent-memory", start.Add(-time.Hour), start.Add(24*time.Hour), "", "", false, start.Add(24*time.Hour))
 	if len(result.Cohorts) != 2 {
 		t.Fatalf("cohorts = %#v, want separate provenance cohorts", result.Cohorts)
 	}
@@ -216,32 +216,45 @@ func TestAgentProvenanceIsAcceptedAndSeparatedInMeasures(t *testing.T) {
 
 func TestObservationRoundTripAndUnknownNeedsNoEvidence(t *testing.T) {
 	o := &pb.Observation{ObservationId: "observation-1", AttemptId: "attempt-1", Disposition: "supported", EvidenceRefs: []string{"receipt:r1"}, MethodRevision: "method:v2", Provenance: "operator", ObservedAt: "2026-09-01T00:00:00Z"}
-	body, err := EncodeObservation(o)
+	now := start.Add(24 * time.Hour)
+	body, err := EncodeObservation(o, now)
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := DecodeObservation(body)
+	got, err := DecodeObservation(body, now)
 	if err != nil || got.ObservationId != o.ObservationId || got.MethodRevision != o.MethodRevision {
 		t.Fatalf("round trip changed observation: %#v (%v)", got, err)
 	}
 	o.Disposition = "unknown"
 	o.EvidenceRefs = nil
-	if _, err := EncodeObservation(o); err != nil {
+	if _, err := EncodeObservation(o, now); err != nil {
 		t.Fatalf("unknown observation should remain recordable without evidence: %v", err)
 	}
 }
 
 func TestObservationRejectsUnsupportedDisposition(t *testing.T) {
 	o := &pb.Observation{ObservationId: "observation-1", AttemptId: "attempt-1", Disposition: "maybe", Provenance: "operator", ObservedAt: "2026-09-01T00:00:00Z"}
-	if _, err := EncodeObservation(o); err == nil {
+	if _, err := EncodeObservation(o, start.Add(24*time.Hour)); err == nil {
 		t.Fatal("accepted unsupported disposition")
+	}
+}
+
+func TestObservationTimestampUsesCallerInstant(t *testing.T) {
+	now := time.Date(2026, 9, 4, 0, 0, 0, 0, time.UTC)
+	o := &pb.Observation{ObservationId: "observation-1", AttemptId: "attempt-1", Disposition: "supported", EvidenceRefs: []string{"receipt:r1"}, Provenance: "operator", ObservedAt: now.Format(time.RFC3339Nano)}
+	if err := ValidateObservation(o, now); err != nil {
+		t.Fatalf("timestamp equal to supplied now should be accepted: %v", err)
+	}
+	o.ObservedAt = now.Add(time.Nanosecond).Format(time.RFC3339Nano)
+	if err := ValidateObservation(o, now); err == nil {
+		t.Fatal("timestamp after supplied now should be rejected")
 	}
 }
 
 func TestMeasureProjectsLatestFeedbackWithoutChangingAttempt(t *testing.T) {
 	a := attempt("attempt-1", "task-1", 1, "unknown")
 	o := &pb.Observation{ObservationId: "observation-1", AttemptId: a.AttemptId, Disposition: "supported", EvidenceRefs: []string{"receipt:r1"}, Provenance: "operator", ObservedAt: "2026-09-02T00:00:00Z"}
-	body, err := EncodeObservation(o)
+	body, err := EncodeObservation(o, start.Add(24*time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}
