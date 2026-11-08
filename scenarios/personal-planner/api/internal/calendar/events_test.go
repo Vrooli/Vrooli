@@ -3,9 +3,8 @@ package calendar
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
-	"os"
+	"fmt"
 	"path/filepath"
 	"testing"
 	"time"
@@ -32,10 +31,12 @@ func (r *eventRepoStub) GetEvent(context.Context, string) (Event, error) { retur
 func (r *eventRepoStub) GetEventByIdempotencyKey(context.Context, string) (Event, error) {
 	return r.event, nil
 }
+
 func (r *eventRepoStub) CreateEvent(_ context.Context, input CreateEventInput) (Event, error) {
 	r.input = input
 	return input.Event, nil
 }
+
 func (r *eventRepoStub) UpdateEvent(_ context.Context, input UpdateEventInput) (Event, error) {
 	r.update = input
 	return input.Event, nil
@@ -43,8 +44,10 @@ func (r *eventRepoStub) UpdateEvent(_ context.Context, input UpdateEventInput) (
 
 func TestEventServicePreservesCivilDatesAndExclusiveEnd(t *testing.T) {
 	repo := &eventRepoStub{}
-	event := Event{Title: "South Jersey", Subject: "owner", AllDay: true,
-		StartDate: "2026-10-04", EndDateExclusive: "2026-10-07", Timezone: "America/New_York", Availability: "free"}
+	event := Event{
+		Title: "South Jersey", Subject: "owner", AllDay: true,
+		StartDate: "2026-10-04", EndDateExclusive: "2026-10-07", Timezone: "America/New_York", Availability: "free",
+	}
 	got, err := NewEventService(repo).Create(context.Background(), CreateEventInput{Event: event, IdempotencyKey: "synthetic-1"})
 	if err != nil {
 		t.Fatal(err)
@@ -56,8 +59,10 @@ func TestEventServicePreservesCivilDatesAndExclusiveEnd(t *testing.T) {
 
 func TestEventServicePreservesDistinctInstantsAcrossNewYorkDSTFold(t *testing.T) {
 	repo := &eventRepoStub{}
-	event := Event{Title: "DST fold", Timezone: "America/New_York", Availability: "busy",
-		StartAt: "2026-11-01T05:30:00Z", EndAt: "2026-11-01T06:30:00Z"}
+	event := Event{
+		Title: "DST fold", Timezone: "America/New_York", Availability: "busy",
+		StartAt: "2026-11-01T05:30:00Z", EndAt: "2026-11-01T06:30:00Z",
+	}
 	got, err := NewEventService(repo).Create(context.Background(), CreateEventInput{Event: event, IdempotencyKey: "synthetic-dst"})
 	if err != nil {
 		t.Fatal(err)
@@ -131,8 +136,10 @@ func TestSQLiteEventsRetainIdentityRevisionAndIdempotentCreateAcrossReopen(t *te
 		t.Fatal("expected an existing provider identity with changed content to conflict")
 	}
 	clock.Advance(time.Minute)
-	edit := UpdateEventInput{ExpectedRevision: 1, Event: Event{ID: created.ID, Title: "South Jersey edited", Subject: "owner", AllDay: true,
-		StartDate: "2026-10-04", EndDateExclusive: "2026-10-07", Timezone: "America/New_York", Availability: "free"}}
+	edit := UpdateEventInput{ExpectedRevision: 1, Event: Event{
+		ID: created.ID, Title: "South Jersey edited", Subject: "owner", AllDay: true,
+		StartDate: "2026-10-04", EndDateExclusive: "2026-10-07", Timezone: "America/New_York", Availability: "free",
+	}}
 	updated, err := repo.UpdateEvent(ownerCtx, edit)
 	if err != nil {
 		t.Fatal(err)
@@ -261,33 +268,60 @@ func TestSQLiteEventsAreBoundToVerifiedOwnerAndLeaveLegacyRowsUnowned(t *testing
 	}
 }
 
-func TestSQLiteCalendarManifestRetainsAllAcceptedFixtureIdentities(t *testing.T) {
-	manifestPath := filepath.Join("..", "..", "..", "docs", "internal", "goal", "sources", "calendar-manifest.json")
-	encoded, err := os.ReadFile(manifestPath)
-	if err != nil {
-		t.Fatal(err)
+// calendarFixture mirrors an imported provider event: a civil-date, all-day
+// event with a provider identity and a semantic category.
+type calendarFixture struct {
+	Title, Subject, Timezone, StartDate, EndDateExclusive, Notes string
+	GoogleCalendarID, GoogleEventID, SemanticCategory            string
+	AllDay                                                       bool
+}
+
+// calendarFixtures builds a synthetic month of imported events with the shapes
+// a personal calendar produces: multi-day travel spanning the New York DST
+// change, overlapping same-day events, single-day celebrations, and awareness
+// entries about other people that must not block the owner's availability.
+func calendarFixtures() []calendarFixture {
+	var out []calendarFixture
+	add := func(title, subject, category, start, endExclusive string) {
+		out = append(out, calendarFixture{
+			Title: title, Subject: subject, Timezone: "America/New_York", AllDay: true,
+			StartDate: start, EndDateExclusive: endExclusive, SemanticCategory: category,
+			GoogleCalendarID: "fixture-calendar@example.test", GoogleEventID: fmt.Sprintf("fixture-event-%02d", len(out)+1),
+		})
 	}
-	var manifest struct {
-		Events []struct {
-			Title            string `json:"title"`
-			Subject          string `json:"subject"`
-			AllDay           bool   `json:"all_day"`
-			Timezone         string `json:"timezone"`
-			StartDate        string `json:"start_date"`
-			EndDateExclusive string `json:"end_date_exclusive"`
-			Notes            string `json:"notes"`
-			GoogleCalendarID string `json:"google_calendar_id"`
-			GoogleEventID    string `json:"google_event_id"`
-			SemanticCategory string `json:"semantic_category"`
-		} `json:"events"`
+	for _, span := range [][2]string{
+		{"2026-10-04", "2026-10-07"},
+		{"2026-10-09", "2026-10-13"},
+		{"2026-10-17", "2026-10-19"},
+		{"2026-10-23", "2026-10-28"},
+		{"2026-11-01", "2026-11-04"},
+		{"2026-11-08", "2026-11-12"},
+		{"2026-11-19", "2026-11-22"},
+		{"2026-11-26", "2026-12-01"},
+	} {
+		add("Coastal trip", "owner", "owner_travel", span[0], span[1])
 	}
-	if err := json.Unmarshal(encoded, &manifest); err != nil {
-		t.Fatal(err)
+	for _, span := range [][2]string{{"2026-10-04", "2026-10-07"}, {"2026-10-23", "2026-10-28"}, {"2026-11-08", "2026-11-12"}, {"2026-11-27", "2026-12-01"}} {
+		add("Partner travelling", "partner_context", "partner_awareness", span[0], span[1])
 	}
-	if len(manifest.Events) != 21 {
-		t.Fatalf("accepted calendar manifest has %d identities, want 21", len(manifest.Events))
+	add("Partner away for a weekend", "partner_context", "partner_awareness", "2026-10-09", "2026-10-12")
+	add("Partner visiting a friend", "partner_context", "partner_awareness", "2026-11-12", "2026-11-16")
+	add("Relatives on holiday", "family_context", "family_awareness", "2026-11-04", "2026-11-09")
+	add("Birthday", "owner", "celebration", "2026-10-10", "2026-10-11")
+	add("Anniversary", "owner", "celebration", "2026-10-11", "2026-10-12")
+	add("Holiday dinner", "owner", "celebration", "2026-11-26", "2026-11-27")
+	add("Anniversary dinner", "owner", "personal_plans", "2026-10-16", "2026-10-17")
+	add("Foliage hike", "owner", "personal_plans", "2026-10-31", "2026-11-01")
+	add("Handing out candy with family", "owner", "personal_plans", "2026-10-31", "2026-11-01")
+	return out
+}
+
+func TestSQLiteCalendarRetainsImportedFixtureIdentitiesAcrossReopen(t *testing.T) {
+	fixtures := calendarFixtures()
+	if len(fixtures) != 21 {
+		t.Fatalf("fixture calendar has %d identities, want 21", len(fixtures))
 	}
-	dbPath := filepath.Join(t.TempDir(), "calendar-manifest-fixtures.sqlite")
+	dbPath := filepath.Join(t.TempDir(), "calendar-fixtures.sqlite")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatal(err)
@@ -297,17 +331,19 @@ func TestSQLiteCalendarManifestRetainsAllAcceptedFixtureIdentities(t *testing.T)
 		t.Fatal(err)
 	}
 	repo := NewSQLiteRepository(db, schedule.NewFake(time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC))).(EventRepository)
-	want := make(map[string]Event, len(manifest.Events))
-	ownerCtx := eventOwnerContext("manifest-owner")
-	for i, fixture := range manifest.Events {
+	want := make(map[string]Event, len(fixtures))
+	ownerCtx := eventOwnerContext("fixture-owner")
+	for i, fixture := range fixtures {
 		availability := "busy"
-		if fixture.SemanticCategory == "girlfriend_awareness" || fixture.SemanticCategory == "family_awareness" {
+		if fixture.SemanticCategory == "partner_awareness" || fixture.SemanticCategory == "family_awareness" {
 			availability = "free"
 		}
-		event := Event{Title: fixture.Title, Subject: fixture.Subject, Notes: fixture.Notes, Availability: availability,
+		event := Event{
+			Title: fixture.Title, Subject: fixture.Subject, Notes: fixture.Notes, Availability: availability,
 			Timezone: fixture.Timezone, AllDay: fixture.AllDay, StartDate: fixture.StartDate, EndDateExclusive: fixture.EndDateExclusive,
-			Provider: "fixture", ProviderCalendarID: fixture.GoogleCalendarID, ProviderEventID: fixture.GoogleEventID}
-		created, err := repo.CreateEvent(ownerCtx, CreateEventInput{Event: event, IdempotencyKey: "manifest-fixture-" + fixture.GoogleEventID})
+			Provider: "fixture", ProviderCalendarID: fixture.GoogleCalendarID, ProviderEventID: fixture.GoogleEventID,
+		}
+		created, err := repo.CreateEvent(ownerCtx, CreateEventInput{Event: event, IdempotencyKey: "fixture-" + fixture.GoogleEventID})
 		if err != nil {
 			t.Fatalf("fixture %d (%s): %v", i, fixture.GoogleEventID, err)
 		}
@@ -362,7 +398,7 @@ func TestSQLiteCalendarManifestRetainsAllAcceptedFixtureIdentities(t *testing.T)
 		if event.Title == "Foliage hike" {
 			hike++
 		}
-		if event.Title == "Handing out candy at girlfriend’s parents’ house" {
+		if event.Title == "Handing out candy with family" {
 			candy++
 		}
 	}
@@ -374,7 +410,7 @@ func TestSQLiteCalendarManifestRetainsAllAcceptedFixtureIdentities(t *testing.T)
 		t.Fatal(err)
 	}
 	for _, event := range november1 {
-		if event.Title == "South Jersey" && (event.StartDate != "2026-11-01" || event.EndDateExclusive != "2026-11-04") {
+		if event.Title == "Coastal trip" && (event.StartDate != "2026-11-01" || event.EndDateExclusive != "2026-11-04") {
 			t.Fatalf("New York DST date-only event shifted: %#v", event)
 		}
 	}

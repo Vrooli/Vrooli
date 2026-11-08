@@ -209,7 +209,10 @@ func canonicalizeDraft(draft *Draft) {
 	}
 	sort.SliceStable(draft.Unresolved, func(i, j int) bool {
 		if draft.Unresolved[i].Date == draft.Unresolved[j].Date {
-			return draft.Unresolved[i].Code < draft.Unresolved[j].Code
+			if draft.Unresolved[i].SlotName == draft.Unresolved[j].SlotName {
+				return draft.Unresolved[i].Code < draft.Unresolved[j].Code
+			}
+			return draft.Unresolved[i].SlotName < draft.Unresolved[j].SlotName
 		}
 		return draft.Unresolved[i].Date < draft.Unresolved[j].Date
 	})

@@ -154,6 +154,7 @@ func TestSQLiteApplyProposalIsRevisionCheckedAndIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	db.SetMaxOpenConns(1)
 	if _, err := db.Exec(Schema()); err != nil {
 		t.Fatal(err)
 	}
@@ -177,7 +178,9 @@ func TestSQLiteApplyProposalIsRevisionCheckedAndIdempotent(t *testing.T) {
 	if err != nil || proposal.ID == "" || proposal.BaseRevision != 1 {
 		t.Fatalf("proposal=%#v err=%v", proposal, err)
 	}
-	allocation, err := repo.ApplyProposal(context.Background(), ApplyProposalInput{ProposalID: proposal.ID, ExpectedRevision: proposal.BaseRevision, IdempotencyKey: "apply-1"})
+	applyCtx, cancelApply := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelApply()
+	allocation, err := repo.ApplyProposal(applyCtx, ApplyProposalInput{ProposalID: proposal.ID, ExpectedRevision: proposal.BaseRevision, IdempotencyKey: "apply-1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,6 +206,7 @@ func TestSQLiteScheduleProposalPlacesSelectedWorkInStableOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	db.SetMaxOpenConns(1)
 	if _, err := db.Exec(Schema()); err != nil {
 		t.Fatal(err)
 	}
@@ -226,6 +230,22 @@ func TestSQLiteScheduleProposalPlacesSelectedWorkInStableOrder(t *testing.T) {
 	}
 	if proposal.State != "feasible" || len(proposal.Placements) != 2 || proposal.Placements[0].StartMinutes != 540 || proposal.Placements[1].StartMinutes != 585 {
 		t.Fatalf("proposal=%#v", proposal)
+	}
+	// The proposal must recheck routines inside the transaction. Creating an
+	// overlapping routine after preview should return a conflict without waiting
+	// for a second SQLite connection, and must leave the proposal retryable.
+	routine, err := repo.CreateRoutine(context.Background(), CreateRoutineInput{Title: "Temporary overlap", Kind: "fixed", Timezone: "UTC", StartDate: "2026-09-19", EndDate: "2026-09-19", Weekdays: []int{6}, StartMinute: 540, DurationMinutes: 45, FrequencyPerWeek: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	applyCtx, cancelApply := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelApply()
+	_, err = repo.ApplyScheduleProposal(applyCtx, ApplyScheduleProposalInput{ProposalID: proposal.ID, ExpectedRevision: proposal.BaseRevision, IdempotencyKey: "schedule-apply-1"})
+	if _, ok := err.(ErrAllocationConflict); !ok {
+		t.Fatalf("expected prompt routine conflict from the owner transaction, got %v", err)
+	}
+	if _, err := db.Exec(`UPDATE routines SET active=0 WHERE id=?`, routine.ID); err != nil {
+		t.Fatal(err)
 	}
 	allocations, err := repo.ApplyScheduleProposal(context.Background(), ApplyScheduleProposalInput{ProposalID: proposal.ID, ExpectedRevision: proposal.BaseRevision, IdempotencyKey: "schedule-apply-1"})
 	if err != nil || len(allocations) != 2 {

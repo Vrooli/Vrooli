@@ -77,7 +77,7 @@ func (h *handlers) bugAdd(ctx cliapp.RunContext) error {
 		RunId:           ctx.Flag("run-id"),
 		SignalType:      ctx.Flag("signal-type"),
 		ReportSeverity:  ctx.Flag("report-severity"),
-		Repro:           splitCSV(ctx.Flag("repro")),
+		Repro:           ctx.FlagValues("repro-step"),
 		Expected:        ctx.Flag("expected"),
 		Actual:          ctx.Flag("actual"),
 		Description:     ctx.Flag("description"),

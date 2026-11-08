@@ -17,6 +17,16 @@ type ParsedQuery struct {
 	Keywords []string `json:"keywords"`
 }
 
+// generateWithGateway sends a prompt to the AI gateway's small chat role and
+// returns its JSON envelope. Tests replace it so they never depend on a live
+// model.
+var generateWithGateway = func(ctx context.Context, prompt string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
+		"--role", "chat.small", "--json", "--prompt-stdin")
+	cmd.Stdin = strings.NewReader(prompt)
+	return cmd.Output()
+}
+
 // parseNaturalLanguageQuery parses a natural language query into structured data.
 // Uses the resource-ollama gateway CLI for intelligent parsing, with fallback
 // to keyword matching when the daemon is unavailable.
@@ -40,10 +50,7 @@ Respond in JSON format like:
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "resource-ollama", "gateway", "generate",
-		"--role", "chat.small", "--json", "--prompt-stdin")
-	cmd.Stdin = strings.NewReader(prompt)
-	out, err := cmd.Output()
+	out, err := generateWithGateway(ctx, prompt)
 	if err == nil {
 		var decoded struct {
 			Response string `json:"response"`

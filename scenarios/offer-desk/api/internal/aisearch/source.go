@@ -331,8 +331,11 @@ func decisionContextRecords(
 			proposalsByNode[p.GetNodeId()] = append(proposalsByNode[p.GetNodeId()], p)
 		}
 	}
+	// The audit log arrives newest first; walk it oldest first so each node's
+	// recorded statuses read in lifecycle order.
 	statusesByNode := make(map[string][]string, len(nodes))
-	for _, a := range audits {
+	for i := len(audits) - 1; i >= 0; i-- {
+		a := audits[i]
 		statusesByNode[a.NodeID] = appendDistinctStatus(statusesByNode[a.NodeID], a.PriorStatus, a.NextStatus)
 	}
 

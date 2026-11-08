@@ -29,6 +29,7 @@ type (
 	}
 	Unresolved struct {
 		Date         string   `json:"date"`
+		SlotName     string   `json:"slotName,omitempty"`
 		Code         string   `json:"code"`
 		Message      string   `json:"message"`
 		CandidateIDs []string `json:"candidateIds,omitempty"`

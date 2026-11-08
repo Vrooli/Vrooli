@@ -48,7 +48,7 @@ func Generate(in GenerateInput) Draft {
 					name = candidate.Name
 				}
 				result.Occurrences = append(result.Occurrences, Occurrence{Date: slot.Date, SlotName: slot.SlotName, Mode: slot.Mode, Quantity: slot.Quantity, RecipeID: slot.RecipeID, RecipeName: name, Reason: "Preserved locked occurrence; eligibility needs review", Locked: true})
-				result.Unresolved = append(result.Unresolved, Unresolved{Date: slot.Date, Code: "locked_recipe_ineligible", Message: "locked occurrence is retained, but current rules or recipe evidence need review before applying", CandidateIDs: []string{slot.RecipeID}})
+				result.Unresolved = append(result.Unresolved, Unresolved{Date: slot.Date, SlotName: slot.SlotName, Code: "locked_recipe_ineligible", Message: "locked occurrence is retained, but current rules or recipe evidence need review before applying", CandidateIDs: []string{slot.RecipeID}})
 				continue
 			}
 			result.Occurrences = append(result.Occurrences, Occurrence{Date: slot.Date, SlotName: slot.SlotName, Mode: slot.Mode, Quantity: slot.Quantity, RecipeID: candidate.ID, RecipeName: candidate.Name, Reason: "Preserved locked occurrence", Locked: true})
@@ -66,7 +66,7 @@ func Generate(in GenerateInput) Draft {
 			chosen = &eligible[0]
 		}
 		if chosen == nil {
-			result.Unresolved = append(result.Unresolved, Unresolved{Date: slot.Date, Code: "no_eligible_meal", Message: "No eligible meal was found without relaxing required rules."})
+			result.Unresolved = append(result.Unresolved, Unresolved{Date: slot.Date, SlotName: slot.SlotName, Code: "no_eligible_meal", Message: "No eligible meal was found without relaxing required rules."})
 			continue
 		}
 		result.Occurrences = append(result.Occurrences, Occurrence{Date: slot.Date, SlotName: slot.SlotName, Mode: slot.Mode, Quantity: slot.Quantity, RecipeID: chosen.ID, RecipeName: chosen.Name, Reason: "Lowest weighted known cost, effort, and repetition score", Locked: false})

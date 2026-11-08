@@ -41,10 +41,17 @@
 
 ## Safe Retry Surface
 
-Safe: repeat `validate start` with the same explicit key; repeat `show` and
-`sync`. Unkeyed active starts coalesce only within the same execution and scope
+Safe: repeat `validate start` with the same explicit key; repeat `show`; retry
+the same log sync when the source entry has no explicit downstream reference.
+Log forwarding uses the source entry ID as its downstream idempotency key.
+Unkeyed active starts coalesce only within the same execution and scope
 generation. A different explicit key intentionally requests fresh evidence.
-Unsafe: interpret producer start output or a non-terminal sync as a verdict.
+Unsafe: retry a bug report whose source names an existing Scenario QA `knw-*`
+bug reference, or whose structured downstream reference is a `knw-*` bug owned
+by Scenario QA. `log sync` rejects that entry before calling the sink; reconcile
+the local reference manually first. Other owners' knowledge IDs are not treated
+as Scenario QA bug references. Do not interpret producer start output or a
+non-terminal sync as a verdict.
 
 ## Enforcement
 

@@ -11,13 +11,13 @@ const applyPlan = vi.hoisted(() => vi.fn());
 const recordFeedback = vi.hoisted(() => vi.fn());
 const undoFeedback = vi.hoisted(() => vi.fn());
 const previewSwap = vi.hoisted(() => vi.fn());
-const listRecipes = vi.hoisted(() => vi.fn());
+const exploreRecipes = vi.hoisted(() => vi.fn().mockResolvedValue({ candidates: [], blockingReasons: [] }));
 const listCatalogRevisions = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 const getRecipe = vi.hoisted(() => vi.fn());
 const startCookingSession = vi.hoisted(() => vi.fn());
 const listSupplementSchedules = vi.hoisted(() => vi.fn().mockResolvedValue([]));
-vi.mock("../../api/planning", () => ({ generatePlan, getPlan, applyPlan, previewSwap, recordFeedback, undoFeedback }));
-vi.mock("../../api/recipes", () => ({ listRecipes, getRecipe }));
+vi.mock("../../api/planning", () => ({ generatePlan, getPlan, applyPlan, previewSwap, exploreRecipes, recordFeedback, undoFeedback }));
+vi.mock("../../api/recipes", () => ({ getRecipe }));
 vi.mock("../../api/catalog", () => ({ listCatalogRevisions }));
 vi.mock("../../api/cooking", () => ({ startCookingSession }));
 vi.mock("../../api/supplement", () => ({ listSupplementSchedules, scheduleAppliesOnLocalDate: (schedule: { confirmed: boolean; paused: boolean; startDate: string; endDate: string; weekdays: number[] }, date: string) => schedule.confirmed && !schedule.paused && date >= schedule.startDate && (!schedule.endDate || date <= schedule.endDate) && schedule.weekdays.includes(new Date(`${date}T00:00:00Z`).getUTCDay()) }));
@@ -164,20 +164,19 @@ it("refreshes a stale swap against the latest saved day before showing its shopp
   const baseline = { occurrences: [{ date, slotName: "dinner", recipeId: "old", recipeName: "Old bowl", locked: false, reason: "Saved" }], unresolved: [], currentRevision: 4n };
   const latest = { occurrences: [{ date, slotName: "dinner", recipeId: "current", recipeName: "Current soup", locked: false, reason: "Saved elsewhere" }], unresolved: [], currentRevision: 5n };
   getPlan.mockResolvedValueOnce({ draft: baseline, hasPlan: true }).mockResolvedValueOnce({ draft: latest, hasPlan: true }).mockResolvedValueOnce({ draft: latest, hasPlan: true });
-  listRecipes.mockResolvedValue([{ id: "replacement", name: "Replacement" }]);
+  exploreRecipes.mockResolvedValue({ candidates: [{ recipeId: "replacement", name: "Replacement", recipeRevision: 1n, fitReasons: [{ code: "eligible", rule: "current rules", reference: "profile", message: "Fits current food rules.", methodId: "" }], methodAssessments: [], summary: "" }] });
   const preview = (revision: bigint, recipeId: string, recipeName: string) => ({ revision, preview: { draft: { ...baseline, currentRevision: revision, occurrences: [{ ...baseline.occurrences[0], recipeId, recipeName }] }, changes: [{ date, slotName: "dinner", beforeName: "Old bowl", afterName: recipeName }], shoppingChanges: [{ key: "ingredient:rice", after: { key: "ingredient:rice", label: "rice", need: "1 bag", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", sourceRecipeIds: [recipeId], checked: false } }] }, affectedDates: [date] });
   previewSwap.mockResolvedValueOnce(preview(4n, "replacement", "Replacement")).mockResolvedValueOnce(preview(5n, "replacement", "Replacement"));
   applyPlan.mockRejectedValueOnce(new Error("aborted: shopping impact input changed; refresh the review")).mockResolvedValueOnce({ revision: 6n });
   renderToday();
   await userEvent.click(await screen.findByRole("button", { name: "Swap meal" }));
-  await userEvent.selectOptions(screen.getByLabelText("Replacement meal"), "replacement");
-  await userEvent.click(screen.getByRole("button", { name: "Preview swap" }));
+  await userEvent.click(screen.getByRole("button", { name: "Review Replacement swap" }));
   await userEvent.click(await screen.findByRole("button", { name: "Apply reviewed changes" }));
   await userEvent.click(await screen.findByRole("button", { name: "Review latest day" }));
   await userEvent.click(await screen.findByRole("button", { name: "Use latest saved day" }));
   await userEvent.click(await screen.findByRole("button", { name: "Refresh swap review" }));
   expect(previewSwap).toHaveBeenLastCalledWith(expect.objectContaining({ expectedRevision: 5n, replacementRecipeId: "replacement" }));
-  expect(await screen.findByRole("region", { name: "Shopping impact" })).toBeInTheDocument();
+  expect(await screen.findByRole("region", { name: "Swap impact" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Apply reviewed changes" })).toBeInTheDocument();
   await userEvent.click(screen.getByRole("button", { name: "Apply reviewed changes" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -186,19 +185,117 @@ it("refreshes a stale swap against the latest saved day before showing its shopp
 
 it("records and undoes explicit eating feedback", async () => { generatePlan.mockResolvedValue({ occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); recordFeedback.mockResolvedValue({}); undoFeedback.mockResolvedValue({}); renderToday(); await waitFor(() => expect(screen.getByRole("button", { name: "I ate this" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "I ate this" })); await waitFor(() => expect(screen.getByText(/Recorded as eaten/)).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "Undo eaten" })); await waitFor(() => expect(screen.getByRole("button", { name: "I ate this" })).toBeInTheDocument()); });
 it("surfaces a feedback failure", async () => { generatePlan.mockResolvedValue({ occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); recordFeedback.mockRejectedValue(new Error("stale plan")); renderToday(); await waitFor(() => expect(screen.getByRole("button", { name: "I ate this" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "I ate this" })); await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("stale plan")); });
-it("previews and applies a scoped swap", async () => { generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); listRecipes.mockResolvedValue([{ id: "r2", name: "Soup" }]); previewSwap.mockResolvedValue({ revision: 1n, preview: { draft: { currentRevision: 1n, occurrences: [{ date: "2026-09-21", recipeId: "r2", recipeName: "Soup", locked: false, reason: "Compatible" }], unresolved: [] }, changes: [{ date: "2026-09-21", slotName: "dinner", beforeName: "Bowl", afterName: "Soup" }], shoppingChanges: [{ key: "ingredient:rice", after: { key: "ingredient:rice", label: "rice", need: "300 g", stock: "50 g", missing: "250 g", packageCount: "2", price: "4.00 USD / 200 g", sourceRecipeIds: ["r2"], checked: false } }] }, affectedDates: ["2026-09-21"] }); applyPlan.mockResolvedValue({ revision: 2n }); renderToday(); await waitFor(() => expect(screen.getByRole("heading", { name: "Bowl" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "Swap meal" })); await userEvent.selectOptions(screen.getByLabelText("Replacement meal"), "r2"); await userEvent.click(screen.getByRole("button", { name: "Preview swap" })); await waitFor(() => expect(screen.getByText(/dinner: Bowl.*Soup/))); expect(screen.getByRole("region", { name: "Shopping impact" })).toHaveTextContent("Added: rice"); expect(screen.getByRole("region", { name: "Shopping impact" })).toHaveTextContent("Price: 4.00 USD / 200 g"); await userEvent.click(screen.getByRole("button", { name: "Apply reviewed changes" })); await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument()); expect(previewSwap).toHaveBeenCalledWith(expect.objectContaining({ slotName: "dinner" })); expect(applyPlan).toHaveBeenCalled(); });
-it("uses a short confirmation when a scoped swap has no shopping or cross-date changes", async () => { generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); listRecipes.mockResolvedValue([{ id: "r2", name: "Soup" }]); previewSwap.mockResolvedValue({ revision: 1n, preview: { draft: { currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r2", recipeName: "Soup", locked: false, reason: "Compatible" }], unresolved: [] }, changes: [{ date: "2026-09-21", slotName: "dinner", beforeName: "Bowl", afterName: "Soup" }], shoppingChanges: [] }, affectedDates: ["2026-09-21"] }); applyPlan.mockResolvedValue({ revision: 2n }); renderToday(); await waitFor(() => expect(screen.getByRole("heading", { name: "Bowl" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "Swap meal" })); await userEvent.selectOptions(screen.getByLabelText("Replacement meal"), "r2"); await userEvent.click(screen.getByRole("button", { name: "Preview swap" })); expect(await screen.findByText("This preview changes one meal slot and no shopping lines.")).toBeInTheDocument(); expect(screen.queryByRole("region", { name: "Shopping impact" })).not.toBeInTheDocument(); expect(screen.getByRole("button", { name: "Confirm swap" })).toBeInTheDocument(); });
+it("previews and applies a scoped swap", async () => { generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); exploreRecipes.mockResolvedValue({ candidates: [{ recipeId: "r2", name: "Soup", recipeRevision: 1n, fitReasons: [{ code: "eligible", rule: "current rules", reference: "profile", message: "Fits current food rules.", methodId: "" }], methodAssessments: [], summary: "" }] }); previewSwap.mockResolvedValue({ revision: 1n, preview: { draft: { currentRevision: 1n, occurrences: [{ date: "2026-09-21", recipeId: "r2", recipeName: "Soup", locked: false, reason: "Compatible" }], unresolved: [] }, changes: [{ date: "2026-09-21", slotName: "dinner", beforeName: "Bowl", afterName: "Soup" }], shoppingChanges: [{ key: "ingredient:rice", after: { key: "ingredient:rice", label: "rice", need: "300 g", stock: "50 g", missing: "250 g", packageCount: "2", price: "4.00 USD / 200 g", sourceRecipeIds: ["r2"], checked: false } }] }, affectedDates: ["2026-09-21"] }); applyPlan.mockResolvedValue({ revision: 2n }); renderToday(); await waitFor(() => expect(screen.getByRole("heading", { name: "Bowl" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "Swap meal" })); await userEvent.click(screen.getByRole("button", { name: "Review Soup swap" })); await waitFor(() => expect(screen.getByText(/dinner: Bowl.*Soup/))); expect(screen.getByRole("region", { name: "Swap impact" })).toHaveTextContent("Added: rice"); expect(screen.getByRole("region", { name: "Swap impact" })).toHaveTextContent("Price: 4.00 USD / 200 g"); await userEvent.click(screen.getByRole("button", { name: "Apply reviewed changes" })); await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument()); expect(previewSwap).toHaveBeenCalledWith(expect.objectContaining({ slotName: "dinner" })); expect(applyPlan).toHaveBeenCalled(); });
+it("shows rule-eligible swap options immediately and names unavailable measures as unknown", async () => {
+  previewSwap.mockClear();
+  generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Saved" }], unresolved: [] });
+  exploreRecipes.mockResolvedValue({ candidates: [{ recipeId: "r2", name: "Soup", recipeRevision: 3n, fitReasons: [{ code: "method_viable", rule: "Stovetop", reference: "recipe.methods.stove", message: "This complete method meets your saved kitchen requirements.", methodId: "stove" }], methodAssessments: [], summary: "A saved dinner idea." }], blockingReasons: [{ message: "Does not meet the vegan rule." }] });
+  renderToday();
+  await userEvent.click(await screen.findByRole("button", { name: "Swap meal" }));
+  const alternatives = await screen.findByRole("list", { name: "Suitable alternatives" });
+  expect(alternatives).toHaveTextContent("Soup");
+  expect(alternatives).toHaveTextContent("Active time: Time not set");
+  expect(alternatives).toHaveTextContent("Protein: unknown");
+  expect(alternatives).not.toHaveTextContent("Does not meet the vegan rule.");
+  expect(screen.queryByLabelText("Replacement meal")).not.toBeInTheDocument();
+  expect(previewSwap).not.toHaveBeenCalled();
+});
+it("names server-reported blockers when there are no alternative meals", async () => {
+  previewSwap.mockClear();
+  generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Saved" }], unresolved: [] });
+  exploreRecipes.mockResolvedValue({ candidates: [], blockingReasons: [{ code: "required_group", rule: "vegan", reference: "profile", message: "No saved alternative meets the vegan rule.", methodId: "" }] });
+  renderToday();
+  await userEvent.click(await screen.findByRole("button", { name: "Swap meal" }));
+  expect(await screen.findByRole("list", { name: "Why other saved meals were excluded" })).toHaveTextContent("vegan rule");
+  expect(screen.getByRole("link", { name: "Add or review meals" })).toHaveAttribute("href", "/meals");
+  expect(screen.getByRole("link", { name: "Review restrictions" })).toHaveAttribute("href", "/kitchen?tab=preferences");
+  expect(previewSwap).not.toHaveBeenCalled();
+});
+it("lets an optional reason reorder alternatives using saved note evidence", async () => {
+  generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Saved" }], unresolved: [] });
+  exploreRecipes.mockResolvedValue({ candidates: [
+    { recipeId: "r2", name: "Stew", recipeRevision: 1n, fitReasons: [], methodAssessments: [], summary: "A family favorite." },
+    { recipeId: "r3", name: "Quick soup", recipeRevision: 1n, fitReasons: [], methodAssessments: [], summary: "Quick preparation." },
+  ] });
+  renderToday();
+  await userEvent.click(await screen.findByRole("button", { name: "Swap meal" }));
+  const alternatives = await screen.findByRole("list", { name: "Suitable alternatives" });
+  const names = () => [...alternatives.querySelectorAll("h3")].map((heading) => heading.textContent);
+  expect(names()).toEqual(["Stew", "Quick soup"]);
+  await userEvent.click(screen.getByRole("button", { name: "Less effort (saved-text match)" }));
+  expect(names()).toEqual(["Quick soup", "Stew"]);
+});
+it("uses the existing swap preview cost and stock deltas for supported reason chips", async () => {
+  generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Saved" }], unresolved: [] });
+  exploreRecipes.mockResolvedValue({ candidates: [
+    { recipeId: "r2", name: "Stew", recipeRevision: 1n, fitReasons: [], methodAssessments: [], summary: "" },
+    { recipeId: "r3", name: "Affordable soup", recipeRevision: 1n, fitReasons: [], methodAssessments: [], summary: "" },
+  ] });
+  previewSwap.mockImplementation(async ({ replacementRecipeId }: { replacementRecipeId: string }) => {
+    const cheap = replacementRecipeId === "r3";
+    const line = (amount: number, missing: string) => ({ key: "ingredient:beans", label: "Beans", need: "1 bag", stock: "0 g", missing, packageCount: "1", price: "unknown", portionCost: `${amount} USD`, checkoutTotal: "unknown", actualSpend: "unknown", sourceRecipeIds: [replacementRecipeId], checked: false });
+    return { revision: 1n, preview: { draft: { currentRevision: 1n, occurrences: [], unresolved: [] }, changes: [], relatedOccurrences: [], preparedBatchImpacts: [], shoppingChanges: [{ key: "ingredient:beans", before: line(8, "500 g"), after: line(cheap ? 2 : 12, cheap ? "0 g" : "300 g") }] }, affectedDates: ["2026-09-21"] };
+  });
+  renderToday();
+  await userEvent.click(await screen.findByRole("button", { name: "Swap meal" }));
+  const alternatives = await screen.findByRole("list", { name: "Suitable alternatives" });
+  const names = () => [...alternatives.querySelectorAll("h3")].map((heading) => heading.textContent);
+  await userEvent.click(screen.getByRole("button", { name: "Lower cost" }));
+  await waitFor(() => expect(names()).toEqual(["Affordable soup", "Stew"]));
+  await userEvent.click(screen.getByRole("button", { name: "Missing ingredients" }));
+  await waitFor(() => expect(names()).toEqual(["Affordable soup", "Stew"]));
+  expect(previewSwap).toHaveBeenCalledTimes(2);
+});
+it("keeps the server candidate order when cost or ingredient preview evidence is unavailable", async () => {
+  previewSwap.mockClear();
+  generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Saved" }], unresolved: [] });
+  exploreRecipes.mockResolvedValue({ candidates: [
+    { recipeId: "r2", name: "Pantry stew", recipeRevision: 1n, fitReasons: [], methodAssessments: [], summary: "Affordable pantry ingredients." },
+    { recipeId: "r3", name: "Soup", recipeRevision: 1n, fitReasons: [], methodAssessments: [], summary: "A saved meal." },
+  ] });
+  previewSwap.mockRejectedValue(new Error("preview unavailable"));
+  renderToday();
+  await userEvent.click(await screen.findByRole("button", { name: "Swap meal" }));
+  const alternatives = await screen.findByRole("list", { name: "Suitable alternatives" });
+  const names = () => [...alternatives.querySelectorAll("h3")].map((heading) => heading.textContent);
+  await userEvent.click(screen.getByRole("button", { name: "Lower cost" }));
+  await waitFor(() => expect(previewSwap).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(names()).toEqual(["Pantry stew", "Soup"]));
+  await userEvent.click(screen.getByRole("button", { name: "Missing ingredients" }));
+  expect(previewSwap).toHaveBeenCalledTimes(2);
+  await waitFor(() => expect(names()).toEqual(["Pantry stew", "Soup"]));
+});
+it("keeps the server candidate order when preview line metrics are unknown", async () => {
+  previewSwap.mockClear();
+  generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Saved" }], unresolved: [] });
+  exploreRecipes.mockResolvedValue({ candidates: [
+    { recipeId: "r2", name: "Cheap pantry stew", recipeRevision: 1n, fitReasons: [], methodAssessments: [], summary: "Affordable pantry ingredients." },
+    { recipeId: "r3", name: "Soup", recipeRevision: 1n, fitReasons: [], methodAssessments: [], summary: "A saved meal." },
+  ] });
+  const line = (recipeId: string) => ({ key: "ingredient:beans", label: "Beans", need: "unknown", stock: "unknown", missing: "unknown", packageCount: "unknown", price: "unknown", portionCost: "unknown", checkoutTotal: "unknown", actualSpend: "unknown", sourceRecipeIds: [recipeId], checked: false });
+  previewSwap.mockImplementation(async ({ replacementRecipeId }: { replacementRecipeId: string }) => ({ revision: 1n, preview: { draft: { currentRevision: 1n, occurrences: [], unresolved: [] }, changes: [], relatedOccurrences: [], preparedBatchImpacts: [], shoppingChanges: [{ key: "ingredient:beans", before: line(replacementRecipeId), after: line(replacementRecipeId) }] }, affectedDates: ["2026-09-21"] }));
+  renderToday();
+  await userEvent.click(await screen.findByRole("button", { name: "Swap meal" }));
+  const alternatives = await screen.findByRole("list", { name: "Suitable alternatives" });
+  const names = () => [...alternatives.querySelectorAll("h3")].map((heading) => heading.textContent);
+  await userEvent.click(screen.getByRole("button", { name: "Lower cost" }));
+  await waitFor(() => expect(previewSwap).toHaveBeenCalledTimes(2));
+  expect(names()).toEqual(["Cheap pantry stew", "Soup"]);
+  await userEvent.click(screen.getByRole("button", { name: "Missing ingredients" }));
+  expect(previewSwap).toHaveBeenCalledTimes(2);
+  expect(names()).toEqual(["Cheap pantry stew", "Soup"]);
+});
+it("requires impact review when target effects are absent from a scoped swap preview", async () => { generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); exploreRecipes.mockResolvedValue({ candidates: [{ recipeId: "r2", name: "Soup", recipeRevision: 1n, fitReasons: [{ code: "eligible", rule: "current rules", reference: "profile", message: "Fits current food rules.", methodId: "" }], methodAssessments: [], summary: "" }] }); previewSwap.mockResolvedValue({ revision: 1n, preview: { draft: { currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r2", recipeName: "Soup", locked: false, reason: "Compatible" }], unresolved: [] }, changes: [{ date: "2026-09-21", slotName: "dinner", beforeName: "Bowl", afterName: "Soup" }], shoppingChanges: [] }, affectedDates: ["2026-09-21"] }); renderToday(); await waitFor(() => expect(screen.getByRole("heading", { name: "Bowl" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "Swap meal" })); await userEvent.click(screen.getByRole("button", { name: "Review Soup swap" })); expect(await screen.findByRole("region", { name: "Swap impact" })).toHaveTextContent("Nutrition target effects are not included in this preview"); expect(screen.getByRole("button", { name: "Apply reviewed changes" })).toBeInTheDocument(); expect(screen.queryByRole("button", { name: "Confirm swap" })).not.toBeInTheDocument(); });
 it("requires a full impact review when a scoped swap leaves prepared portions available", async () => {
   const date = new Date().toISOString().slice(0, 10);
   applyPlan.mockClear();
   generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date, slotName: "dinner", recipeId: "r1", recipeName: "Beans", locked: false, reason: "Saved" }], unresolved: [] });
-  listRecipes.mockResolvedValue([{ id: "r2", name: "Soup" }]);
+  exploreRecipes.mockResolvedValue({ candidates: [{ recipeId: "r2", name: "Soup", recipeRevision: 1n, fitReasons: [{ code: "eligible", rule: "current rules", reference: "profile", message: "Fits current food rules.", methodId: "" }], methodAssessments: [], summary: "" }] });
   previewSwap.mockResolvedValue({ revision: 1n, preview: { draft: { currentRevision: 1n, occurrences: [{ date, slotName: "dinner", recipeId: "r2", recipeName: "Soup", locked: false, reason: "Swap" }], unresolved: [] }, changes: [{ date, slotName: "dinner", beforeName: "Beans", afterName: "Soup" }], relatedOccurrences: [], preparedBatchImpacts: [{ batchId: "beans-batch", recipeId: "r1", recipeName: "Beans", recipeRevision: 2, available: "1", unit: "serving" }], shoppingChanges: [] }, affectedDates: [date] });
   renderToday();
   await userEvent.click(await screen.findByRole("button", { name: "Swap meal" }));
-  await userEvent.selectOptions(screen.getByLabelText("Replacement meal"), "r2");
-  await userEvent.click(screen.getByRole("button", { name: "Preview swap" }));
-  const impact = await screen.findByRole("region", { name: "Shopping impact" });
+  await userEvent.click(screen.getByRole("button", { name: "Review Soup swap" }));
+  const impact = await screen.findByRole("region", { name: "Swap impact" });
   expect(impact).toHaveTextContent("Prepared portions to review");
   expect(impact).toHaveTextContent("Beans · revision 2 · batch beans-batch: 1 serving available");
   expect(screen.getByRole("button", { name: "Apply reviewed changes" })).toBeInTheDocument();
@@ -208,18 +305,17 @@ it("requires a full impact review for a cross-date swap even when shopping lines
   const today = new Date().toISOString().slice(0, 10);
   const later = new Date(new Date(`${today}T12:00:00`).setDate(new Date(`${today}T12:00:00`).getDate() + 1)).toISOString().slice(0, 10);
   generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: today, slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] });
-  listRecipes.mockResolvedValue([{ id: "r2", name: "Soup" }]);
+  exploreRecipes.mockResolvedValue({ candidates: [{ recipeId: "r2", name: "Soup", recipeRevision: 1n, fitReasons: [{ code: "eligible", rule: "current rules", reference: "profile", message: "Fits current food rules.", methodId: "" }], methodAssessments: [], summary: "" }] });
   previewSwap.mockResolvedValue({ revision: 1n, preview: { draft: { currentRevision: 1n, occurrences: [{ date: today, slotName: "dinner", recipeId: "r2", recipeName: "Soup", locked: false, reason: "Compatible" }], unresolved: [] }, changes: [{ date: today, slotName: "dinner", beforeName: "Bowl", afterName: "Soup" }], shoppingChanges: [] }, affectedDates: [today, later] });
   renderToday();
   await userEvent.click(await screen.findByRole("button", { name: "Swap meal" }));
-  await userEvent.selectOptions(screen.getByLabelText("Replacement meal"), "r2");
-  await userEvent.click(screen.getByRole("button", { name: "Preview swap" }));
-  expect(await screen.findByRole("region", { name: "Shopping impact" })).toHaveTextContent(`dates affected: ${today}, ${later}`);
+  await userEvent.click(screen.getByRole("button", { name: "Review Soup swap" }));
+  expect(await screen.findByRole("region", { name: "Swap impact" })).toHaveTextContent(`dates affected: ${today}, ${later}`);
   expect(screen.getByRole("button", { name: "Apply reviewed changes" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Confirm swap" })).not.toBeInTheDocument();
 });
-it("reports replacement-list failures", async () => { generatePlan.mockResolvedValue({ occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); listRecipes.mockRejectedValue(new Error("catalog unavailable")); renderToday(); await waitFor(() => expect(screen.getByRole("heading", { name: "Bowl" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "Swap meal" })); await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("catalog unavailable")); });
-it("reports swap preview and apply failures", async () => { generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); listRecipes.mockResolvedValue([{ id: "r2", name: "Soup" }]); previewSwap.mockRejectedValueOnce(new Error("ineligible replacement")); renderToday(); await waitFor(() => expect(screen.getByRole("heading", { name: "Bowl" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "Swap meal" })); await userEvent.selectOptions(screen.getByLabelText("Replacement meal"), "r2"); await userEvent.click(screen.getByRole("button", { name: "Preview swap" })); await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("ineligible replacement")); previewSwap.mockResolvedValueOnce({ revision: 1n, preview: { draft: { currentRevision: 1n, occurrences: [], unresolved: [] }, changes: [] } }); applyPlan.mockRejectedValueOnce(new Error("stale swap")); await userEvent.click(screen.getByRole("button", { name: "Preview swap" })); await waitFor(() => expect(screen.getByRole("button", { name: "Confirm swap" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "Confirm swap" })); await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("stale swap")); });
+it("reports replacement-list failures", async () => { generatePlan.mockResolvedValue({ occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); exploreRecipes.mockRejectedValue(new Error("eligibility unavailable")); renderToday(); await waitFor(() => expect(screen.getByRole("heading", { name: "Bowl" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "Swap meal" })); await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("eligibility unavailable")); });
+it("reports swap preview and apply failures", async () => { generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); exploreRecipes.mockResolvedValue({ candidates: [{ recipeId: "r2", name: "Soup", recipeRevision: 1n, fitReasons: [{ code: "eligible", rule: "current rules", reference: "profile", message: "Fits current food rules.", methodId: "" }], methodAssessments: [], summary: "" }] }); previewSwap.mockRejectedValueOnce(new Error("ineligible replacement")); renderToday(); await waitFor(() => expect(screen.getByRole("heading", { name: "Bowl" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "Swap meal" })); await userEvent.click(screen.getByRole("button", { name: "Review Soup swap" })); await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("ineligible replacement")); previewSwap.mockResolvedValueOnce({ revision: 1n, preview: { draft: { currentRevision: 1n, occurrences: [], unresolved: [] }, changes: [] } }); applyPlan.mockRejectedValueOnce(new Error("stale swap")); await userEvent.click(screen.getByRole("button", { name: "Review Soup swap" })); await waitFor(() => expect(screen.getByRole("button", { name: "Apply reviewed changes" })).toBeInTheDocument()); await userEvent.click(screen.getByRole("button", { name: "Apply reviewed changes" })); await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("stale swap")); });
 it("starts cooking by navigating to the occurrence’s pinned revision without applying the plan", async () => {
   vi.clearAllMocks();
   const date = new Date().toISOString().slice(0, 10);
@@ -265,7 +361,21 @@ describe("Today fixed supplement expectations", () => { beforeEach(() => { vi.cl
 
 describe("Today mapped supplement expectations", () => { beforeEach(() => { vi.clearAllMocks(); listCatalogRevisions.mockResolvedValue([]); }); it("includes pinned catalog nutrient amounts in Expected without recording a dose", async () => { const now = new Date(); const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; listSupplementSchedules.mockResolvedValue([{ id: "s1", revision: 3n, productRevisionId: "catalog:vitamin-c:2", dose: "2", doseUnit: "capsule", weekdays: [now.getDay()], startDate: date, endDate: date, paused: false, confirmed: true, createdAt: "" }]); listCatalogRevisions.mockResolvedValue([create(CatalogRevisionSchema, { id: "vitamin-c", revision: 2n, name: "Vitamin C", productName: "Citrus tablet", servingQuantity: "1", servingUnit: "capsule", nutrients: [create(NutrientValueSchema, { nutrientId: "vitamin_c", amount: "250", unit: "mg", basis: "1", basisUnit: "capsule", evidence: "label", sourceRef: "label:2" })] })]); renderToday(); expect(await screen.findByText(/vitamin_c: 500 mg expected \(label\)/)).toBeInTheDocument(); expect(screen.getByText(/does not record that a dose was taken/)).toBeInTheDocument(); }); });
 
-describe("Today swap dialog keyboard behavior", () => { beforeEach(() => { vi.clearAllMocks(); }); it("focuses the dialog, traps both Tab directions, ignores other keys, and restores the trigger on Escape", async () => { const user = userEvent.setup(); generatePlan.mockResolvedValue({ occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); listRecipes.mockResolvedValue([{ id: "r2", name: "Soup" }]); renderToday(); await waitFor(() => expect(screen.getByRole("button", { name: "Swap meal" })).toBeInTheDocument()); const trigger = screen.getByRole("button", { name: "Swap meal" }); await user.click(trigger); const select = screen.getByLabelText("Replacement meal"); expect(select).toHaveFocus(); await user.keyboard("x"); expect(select).toHaveFocus(); await user.keyboard("{Shift>}{Tab}{/Shift}"); const cancel = screen.getByRole("button", { name: "Cancel" }); expect(cancel).toHaveFocus(); await user.tab(); expect(select).toHaveFocus(); await user.keyboard("{Escape}"); expect(screen.queryByRole("dialog")).not.toBeInTheDocument(); expect(trigger).toHaveFocus(); }); });
+describe("Today swap dialog keyboard behavior", () => { beforeEach(() => { vi.clearAllMocks(); }); it("focuses the dialog, traps both Tab directions, ignores other keys, and restores the trigger on Escape", async () => { const user = userEvent.setup(); generatePlan.mockResolvedValue({ occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] }); exploreRecipes.mockResolvedValue({ candidates: [{ recipeId: "r2", name: "Soup", recipeRevision: 1n, fitReasons: [{ code: "eligible", rule: "current rules", reference: "profile", message: "Fits current food rules.", methodId: "" }], methodAssessments: [], summary: "" }] }); renderToday(); await waitFor(() => expect(screen.getByRole("button", { name: "Swap meal" })).toBeInTheDocument()); const trigger = screen.getByRole("button", { name: "Swap meal" }); await user.click(trigger); const firstCandidate = screen.getByRole("button", { name: "Review Soup swap" }); expect(firstCandidate).toHaveFocus(); await user.keyboard("x"); expect(firstCandidate).toHaveFocus(); await user.keyboard("{Shift>}{Tab}{/Shift}"); const cancel = screen.getByRole("button", { name: "Cancel" }); expect(cancel).toHaveFocus(); await user.tab(); expect(firstCandidate).toHaveFocus(); await user.keyboard("{Escape}"); expect(screen.queryByRole("dialog")).not.toBeInTheDocument(); expect(trigger).toHaveFocus(); }); });
+
+it("places the dimming backdrop outside the swap dialog content", async () => {
+  vi.clearAllMocks();
+  generatePlan.mockResolvedValue({ occurrences: [{ date: "2026-09-21", slotName: "dinner", recipeId: "r1", recipeName: "Bowl", locked: false, reason: "Known fit" }], unresolved: [] });
+  exploreRecipes.mockResolvedValue({ candidates: [{ recipeId: "r2", name: "Soup", recipeRevision: 1n, fitReasons: [], methodAssessments: [], summary: "" }] });
+  renderToday();
+  await userEvent.click(await screen.findByRole("button", { name: "Swap meal" }));
+  const dialog = await screen.findByRole("dialog");
+  const backdrop = document.querySelector(".today-swap-backdrop");
+  expect(backdrop).toHaveAttribute("aria-hidden", "true");
+  expect(backdrop?.nextElementSibling).toBe(dialog);
+  await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(document.querySelector(".today-swap-backdrop")).not.toBeInTheDocument();
+});
 
 it("shows the pinned revision for unchanged later uses in Today swap review", async () => {
   const todayDate = new Date();
@@ -274,12 +384,11 @@ it("shows the pinned revision for unchanged later uses in Today swap review", as
   todayDate.setDate(todayDate.getDate() + 1);
   const later = format(todayDate);
   generatePlan.mockResolvedValue({ currentRevision: 1n, occurrences: [{ date: today, slotName: "dinner", recipeId: "r1", recipeRevision: 4, recipeName: "Beans", locked: false, reason: "Saved" }], unresolved: [] });
-  listRecipes.mockResolvedValue([{ id: "r2", name: "Soup" }]);
+  exploreRecipes.mockResolvedValue({ candidates: [{ recipeId: "r2", name: "Soup", recipeRevision: 1n, fitReasons: [{ code: "eligible", rule: "current rules", reference: "profile", message: "Fits current food rules.", methodId: "" }], methodAssessments: [], summary: "" }] });
   previewSwap.mockResolvedValue({ revision: 1n, preview: { draft: { currentRevision: 1n, occurrences: [], unresolved: [] }, changes: [{ date: today, slotName: "dinner", beforeName: "Beans", afterName: "Soup" }], relatedOccurrences: [{ date: later, slotName: "dinner", recipeRevision: 4, recipeName: "Beans", locked: false }], shoppingChanges: [] }, affectedDates: [today] });
   renderToday();
   await userEvent.click(await screen.findByRole("button", { name: "Swap meal" }));
-  await userEvent.selectOptions(screen.getByLabelText("Replacement meal"), "r2");
-  await userEvent.click(screen.getByRole("button", { name: "Preview swap" }));
+  await userEvent.click(screen.getByRole("button", { name: "Review Soup swap" }));
   expect(await screen.findByText(`${later} · dinner: Beans · revision 4`)).toBeInTheDocument();
   expect(applyPlan).not.toHaveBeenCalled();
 });

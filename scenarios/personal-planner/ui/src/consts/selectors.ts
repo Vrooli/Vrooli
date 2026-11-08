@@ -70,6 +70,14 @@ const literalSelectors = {
     review: "page-review",
     settings: "page-settings",
   },
+  planPage: {
+    openPlacement: "plan-placement-open",
+    placementProposal: "plan-placement-proposal",
+    placementApply: "plan-placement-apply",
+    backlogProposal: "plan-backlog-proposal",
+    backlogPreview: "plan-backlog-preview",
+    backlogApply: "plan-backlog-apply",
+  },
   errorBoundary: {
     root: "error-boundary-root",
     retryButton: "error-boundary-retry",

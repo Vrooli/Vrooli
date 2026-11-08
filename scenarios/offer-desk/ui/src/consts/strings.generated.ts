@@ -12,44 +12,10 @@
 // function takes as its first argument.
 
 export const strings = {
-  $rowKey: "$rowKey",
-  $schema: "$schema",
-  $text: "$text",
-  "Changes saved successfully": {
-    "": "Changes saved successfully.",
-  },
-  Collapse: "Collapse",
-  "Content failed to load": {
-    "": "Content failed to load.",
-  },
-  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
-    "": "Disabled states retain the same geometry and clearly communicate that the action is unavailable.",
-  },
-  M: "M",
-  "Reconnect to refresh this view": {
-    "": "Reconnect to refresh this view.",
-  },
-  "Request in progress": "Request in progress",
-  Saved: "Saved",
-  "Try again": "Try again",
-  "Trying again…": "Trying again…",
-  "Your changes are safe": {
-    "": "Your changes are safe.",
-  },
   app: {
     description: "app.description",
     title: "app.title",
   },
-  "aria-label": "aria-label",
-  ascending: "ascending",
-  assertive: "assertive",
-  asset: "asset",
-  "border-app-primary bg-app-primary text-app-primary-foreground": "border-app-primary bg-app-primary text-app-primary-foreground",
-  capability: "capability",
-  caption: "caption",
-  children: "children",
-  clsx: "clsx",
-  component: "component",
   components: {
     asyncBoundary: {
       loadingContent: "components.asyncBoundary.loadingContent",
@@ -63,15 +29,6 @@ export const strings = {
       valuesLabel: "components.chart.valuesLabel",
     },
   },
-  default: "default",
-  defaultValue: "defaultValue",
-  desc: "desc",
-  description: "description",
-  detail: "detail",
-  dialog: "dialog",
-  emptyMessage: "emptyMessage",
-  en: "en",
-  equals: "equals",
   errorBoundary: {
     message: "errorBoundary.message",
     retry: "errorBoundary.retry",
@@ -95,25 +52,6 @@ export const strings = {
     unimplemented: "errors.unimplemented",
     unknown: "errors.unknown",
   },
-  example: "example",
-  export: "export",
-  feedback: {
-    "async-boundary": {
-      "loading-content": "feedback.async-boundary.loading-content",
-      "this-may-take-a-moment": "feedback.async-boundary.this-may-take-a-moment",
-    },
-  },
-  field: "field",
-  fixture: "fixture",
-  format: "format",
-  forms: {
-    "dirty-state-guard": {
-      "leave-now-and-your-recent-edits-will-be-lost-sav": "forms.dirty-state-guard.leave-now-and-your-recent-edits-will-be-lost-sav",
-      "saving-preserves-your-work-discarding-cannot-be-": "forms.dirty-state-guard.saving-preserves-your-work-discarding-cannot-be-",
-      "you-have-unsaved-changes": "forms.dirty-state-guard.you-have-unsaved-changes",
-    },
-  },
-  header: "header",
   health: {
     error: "health.error",
     loading: "health.loading",
@@ -125,11 +63,6 @@ export const strings = {
     timestampLabel: "health.timestampLabel",
     title: "health.title",
   },
-  iconName: "iconName",
-  id: "id",
-  issue: "issue",
-  kind: "kind",
-  label: "label",
   layout: {
     bottomNavLabel: "layout.bottomNavLabel",
     mainLabel: "layout.mainLabel",
@@ -140,22 +73,14 @@ export const strings = {
     },
     sidebarLabel: "layout.sidebarLabel",
   },
-  libraryId: "libraryId",
   locale: {
     switcherLabel: "locale.switcherLabel",
   },
-  "lucide-react": "lucide-react",
-  measured: "measured",
-  mobile: "mobile",
-  mode: "mode",
-  module: "module",
-  name: "name",
   notifications: {
     summary: "notifications.summary",
     summary_one: "notifications.summary_one",
     summary_zero: "notifications.summary_zero",
   },
-  online: "online",
   pages: {
     dashboard: {
       actualUnavailable: "pages.dashboard.actualUnavailable",
@@ -336,26 +261,6 @@ export const strings = {
       verdictUnsatisfied: "pages.triggers.verdictUnsatisfied",
     },
   },
-  path: "path",
-  placeholder: "placeholder",
-  provenance: "provenance",
-  purpose: "purpose",
-  react: "react",
-  "react-component-library:useEscapeKey": "react-component-library:useEscapeKey",
-  reducedMotion: "reducedMotion",
-  ref: "ref",
-  region: "region",
-  resolvedAt: "resolvedAt",
-  role: "role",
-  schema: "schema",
-  schemaVersion: "schemaVersion",
-  selector: "selector",
-  size: "size",
-  statement: "statement",
-  status: "status",
-  storyRef: "storyRef",
-  "tailwind-merge": "tailwind-merge",
-  testid: "testid",
   theme: {
     choice: {
       dark: "theme.choice.dark",
@@ -364,24 +269,6 @@ export const strings = {
     },
     switcherLabel: "theme.switcherLabel",
   },
-  tier: "tier",
-  title: "title",
-  tone: "tone",
-  true: "true",
-  type: "type",
-  value: "value",
-  variant: "variant",
-  version: "version",
-  visualization: {
-    chart: {
-      "chart-values": "visualization.chart.chart-values",
-      "explore-the-trend-and-select-a-point-for-its-exa": "visualization.chart.explore-the-trend-and-select-a-point-for-its-exa",
-      "performance-overview": "visualization.chart.performance-overview",
-      period: "visualization.chart.period",
-      value: "visualization.chart.value",
-    },
-  },
-  "⌃": "⌃",
 } as const;
 
 export type Strings = typeof strings;

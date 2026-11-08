@@ -1,15 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/vrooli/api-core/health"
-	"github.com/vrooli/api-core/preflight"
 	"net/http"
 	"os"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/vrooli/api-core/health"
+	"github.com/vrooli/api-core/preflight"
 )
 
 type SearchRequest struct {
@@ -775,9 +777,6 @@ func main() {
 		return // Process was re-exec'd after rebuild
 	}
 
-	// Initialize loggers after lifecycle check
-	initLoggers()
-
 	// Validate required API_PORT environment variable
 	port := getEnv("API_PORT", getEnv("PORT", ""))
 	if port == "" {
@@ -786,7 +785,7 @@ func main() {
 	}
 
 	// Initialize database connections
-	initDB()
+	initDB(context.Background())
 	initRedis()
 
 	// Initialize multi-source aggregator
@@ -799,7 +798,7 @@ func main() {
 		mainLogger.Info("Personalized recommendations enabled", nil)
 	}
 
-	http.HandleFunc("/health", enableCORS(health.Handler()))
+	http.HandleFunc("/health", enableCORS(healthHandler))
 	http.HandleFunc("/api/search", enableCORS(searchHandler))
 	http.HandleFunc("/api/categories", enableCORS(categoriesHandler))
 	http.HandleFunc("/api/places/", enableCORS(placeDetailsHandler))
@@ -847,3 +846,6 @@ func clearCacheHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
+
+// healthHandler serves the standardized api-core health response.
+var healthHandler = health.Handler()

@@ -1,38 +1,9 @@
 {
-  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
-  "$text": "Try again",
-  "Access limited": "Update needs attention",
-  "Changes saved successfully": {
-    "": "We couldn’t save your changes."
-  },
-  "Collapse": "Expand",
-  "Content failed to load": {
-    "": "Content is ready."
-  },
-  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
-    "": "A clear visual hierarchy, a full touch target, and a small amount of responsive motion make the next action feel inevitable."
-  },
-  "M": "L",
-  "Reconnect to refresh this view": {
-    "": "No content is available yet."
-  },
-  "Request in progress": "Ready to save",
-  "Saved": "Try again",
-  "Try again": "Retry",
-  "Trying again…": "Try again",
   "_comment": "Two interpolation surfaces live in this file. (1) Generator-time: tokens like Money Ledger are uppercase-snake-case placeholders replaced by `template-manager generate` before the scenario is built — they appear as literal display values at runtime. (2) Runtime: tokens like {{count}} are i18next interpolation, replaced by `t(key, { count })` at render time. Keys that start with an underscore (like this one) are sentinels — skipped by the codegen, parity test, and unused-key audit.",
   "app": {
     "description": "A read-time, append-only view of where money is and where it went.",
     "title": "Money Ledger"
   },
-  "assertive": "polite",
-  "asset": "preview.showcase",
-  "axis": "inline",
-  "background": "action",
-  "capability": "navigation",
-  "children": "Try again",
-  "component": "button",
-  "componentId": "react-component-library:StatusBadge",
   "components": {
     "asyncBoundary": {
       "loadingContent": "Loading content",
@@ -46,24 +17,6 @@
       "valuesLabel": "Chart values"
     }
   },
-  "data-display": {
-    "data-table": {
-      "access-is-limited": "Access is limited",
-      "all": "All",
-      "data-table-content": "Data table content",
-      "dense": "Dense",
-      "next": "Next",
-      "previous": "Previous",
-      "roomy": "Roomy",
-      "row-density": "Row density"
-    }
-  },
-  "default": "success",
-  "desc": "asc",
-  "description": "The default contract.",
-  "detail": "The generic harness supplies context; Button remains the subject.",
-  "dialog": "complementary",
-  "en": "en",
   "errorBoundary": {
     "message": "An unexpected error occurred while rendering the page. Try again, or reload if the problem persists.",
     "retry": "Try again",
@@ -87,23 +40,6 @@
     "unimplemented": "Not yet implemented.",
     "unknown": "An unknown error occurred."
   },
-  "example": "default",
-  "export": "Default",
-  "feedback": {
-    "async-boundary": {
-      "loading-content": "Loading content",
-      "this-may-take-a-moment": "This may take a moment."
-    }
-  },
-  "fixture": "fixtures.user-directory",
-  "format": "renderable-text",
-  "forms": {
-    "dirty-state-guard": {
-      "leave-now-and-your-recent-edits-will-be-lost-sav": "Leave now and your recent edits will be lost.",
-      "saving-preserves-your-work-discarding-cannot-be-": "Saving preserves your work. Discarding cannot be undone.",
-      "you-have-unsaved-changes": "You have unsaved changes"
-    }
-  },
   "health": {
     "error": "Unable to reach the API. Make sure the scenario is running through `vrooli scenario start`.",
     "loading": "Checking API status…",
@@ -115,11 +51,6 @@
     "timestampLabel": "Timestamp:",
     "title": "API Health"
   },
-  "iconName": "arrowEnd",
-  "id": "default",
-  "issue": "issues",
-  "kind": "component",
-  "label": "Disabled",
   "layout": {
     "bottomNavLabel": "Mobile navigation",
     "mainLabel": "Main content",
@@ -130,21 +61,14 @@
     },
     "sidebarLabel": "Primary navigation"
   },
-  "libraryId": "react-component-library:useNetworkStatus",
   "locale": {
     "switcherLabel": "Language"
   },
-  "lucide-react": "^0.424.0",
-  "measured": "unmeasured",
-  "mode": "live",
-  "module": "./story.tsx",
-  "name": "Default",
   "notifications": {
     "summary": "{{count}} notifications",
     "summary_one": "1 notification",
     "summary_zero": "No notifications"
   },
-  "online": "offline",
   "pages": {
     "accounts": {
       "acceptedKinds": "Accepted kinds: ASSET, LIABILITY, REVENUE, EXPENSE, EQUITY.",
@@ -363,24 +287,6 @@
       "uncategorisedNotReported": "Uncategorised count is not reported by this statement response."
     }
   },
-  "path": "disabled",
-  "provenance": "react-component-library:useAnnounce@1.0.0",
-  "purpose": "Publishes an accessible status message without duplicating announcer nodes.",
-  "react": "^18",
-  "react-component-library:useEscapeKey": "^1.0.0",
-  "ref": "../../../../../experience/components/button.json",
-  "region": "navigation",
-  "resolvedAt": "2026-08-31T05:05:16Z",
-  "role": "status",
-  "schema": "scenario-experience-spec/v1",
-  "schemaVersion": "1.1.0",
-  "selector": "button",
-  "size": "lg",
-  "state": "rest",
-  "statement": "The hook exposes its documented public behavior through a stable versioned entrypoint.",
-  "status": "alert",
-  "storyRef": "../../library/components/Button/versions/2.2.0/story.json",
-  "testid": "button-label",
   "theme": {
     "choice": {
       "dark": "Dark",
@@ -388,27 +294,5 @@
       "system": "System"
     },
     "switcherLabel": "Theme"
-  },
-  "tier": "manual",
-  "title": "useAnnounce",
-  "tone": "danger",
-  "true": "false",
-  "type": "manual-review",
-  "value": "1",
-  "variant": "primary",
-  "version": "1.0.0",
-  "visualization": {
-    "cartesian-charts": {
-      "title": "Progression"
-    },
-    "chart": {
-      "chart-values": "Chart values",
-      "explore-the-trend-and-select-a-point-for-its-exa": "Explore the trend and select a point for its exact value.",
-      "performance-overview": "Performance overview",
-      "period": "Period",
-      "value": "Value"
-    }
-  },
-  "↑": "↓",
-  "⌃": "⌄"
+  }
 }

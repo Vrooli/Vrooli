@@ -29,12 +29,16 @@ func TestTargetDateRoutesMapValidationConflictAndHistoryRead(t *testing.T) {
 	if _, err := sqlDB.Exec(`INSERT INTO goals (id,title,purpose,status,progress_method,progress_basis_points,target_basis_points,target_date,created_at,updated_at,revision) VALUES ('g-1','Ship','', 'active','manual',0,10000,'2026-11-01',1,1,3)`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := sqlDB.Exec(`INSERT INTO goal_owners (goal_id,owner_subject) VALUES ('g-1',?)`, goalTestSubject); err != nil {
+		t.Fatal(err)
+	}
 	router := mux.NewRouter()
 	Module(database.NewFromPrimary(sqlDB), schedule.System(), log.New(io.Discard, "", 0)).Mount(router)
 	request := func(method, path, body string) *httptest.ResponseRecorder {
 		t.Helper()
 		recorder := httptest.NewRecorder()
-		router.ServeHTTP(recorder, httptest.NewRequest(method, path, bytes.NewBufferString(body)))
+		req := httptest.NewRequest(method, path, bytes.NewBufferString(body))
+		router.ServeHTTP(recorder, req.WithContext(verifiedGoalContext(req.Context())))
 		return recorder
 	}
 	invalid := request(http.MethodPost, "/api/v1/goals/g-1/target-date", `{"target_date":"2026-12-01","expected_revision":3,"reason":" "}`)
@@ -83,7 +87,8 @@ func TestMeasuredGoalRESTCreateReadRoundTripAndValidation(t *testing.T) {
 	request := func(method, path, body string) *httptest.ResponseRecorder {
 		t.Helper()
 		recorder := httptest.NewRecorder()
-		router.ServeHTTP(recorder, httptest.NewRequest(method, path, bytes.NewBufferString(body)))
+		req := httptest.NewRequest(method, path, bytes.NewBufferString(body))
+		router.ServeHTTP(recorder, req.WithContext(verifiedGoalContext(req.Context())))
 		return recorder
 	}
 	createCases := []struct{ title, date, recurrence, period string }{
@@ -143,5 +148,31 @@ func TestMeasuredGoalRESTCreateReadRoundTripAndValidation(t *testing.T) {
 	}
 	if measuredCount != 2 || genericCount != 1 {
 		t.Fatalf("measured=%d generic=%d", measuredCount, genericCount)
+	}
+}
+
+func TestGoalRoutesRejectMissingPrincipalAsUnauthorized(t *testing.T) {
+	sqlDB, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sqlDB.Close()
+	sqlDB.SetMaxOpenConns(1)
+	if _, err := sqlDB.Exec(Schema()); err != nil {
+		t.Fatal(err)
+	}
+	router := mux.NewRouter()
+	Module(database.NewFromPrimary(sqlDB), schedule.System(), log.New(io.Discard, "", 0)).Mount(router)
+	for _, tc := range []struct{ method, path, body string }{
+		{http.MethodGet, "/api/v1/goals", ""},
+		{http.MethodPost, "/api/v1/goals", `{"title":"x","progress_method":"manual","target_basis_points":10000}`},
+		{http.MethodPost, "/api/v1/goals/g-1/target-date", `{"target_date":"2026-12-01","expected_revision":1,"reason":"Reschedule"}`},
+		{http.MethodGet, "/api/v1/goals/g-1/target-date/history", ""},
+	} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(tc.method, tc.path, bytes.NewBufferString(tc.body)))
+		if recorder.Code != http.StatusUnauthorized {
+			t.Errorf("%s %s status=%d body=%s, want 401", tc.method, tc.path, recorder.Code, recorder.Body.String())
+		}
 	}
 }

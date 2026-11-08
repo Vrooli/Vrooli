@@ -148,7 +148,7 @@ const dynamicSelectorDefinitions = {
     filterLink: defineDynamicSelector({
       description: "History filter link by request lifecycle state",
       testIdPattern: "history-filter-${state}",
-      params: { state: { type: "enum", values: ["all", "awaiting", "answered", "defaulted", "expired", "withdrawn"] as const } },
+      params: { state: { type: "enum", values: ["all", "awaiting", "answered", "defaulted", "expired", "withdrawn", "dismissed"] as const } },
     }),
   },
   settingsPage: {

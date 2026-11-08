@@ -44,6 +44,11 @@ type Service struct {
 	interval            time.Duration
 	storefrontReadiness *readinessreporter.Reporter
 	pricingReadiness    *readinessreporter.Reporter
+
+	// resolveLedgerURL locates Money Ledger. The board calls it per request
+	// so starting Money Ledger after Offer Desk needs no restart; nil means no
+	// ledger is wired and actuals are reported unavailable.
+	resolveLedgerURL func(context.Context) (string, error)
 }
 
 func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock) *Service {
@@ -54,24 +59,31 @@ func NewService(db *database.RoutedDB, logger *log.Logger, clock schedule.Clock)
 	if readinessBase, err := discovery.ResolveScenarioURLDefault(context.Background(), "deployment-manager"); err == nil && readinessBase != "" {
 		s.store.SetReadinessProvider(deploymentReadinessProvider(&http.Client{Timeout: 700 * time.Millisecond}, readinessBase))
 	}
-	base := os.Getenv("MONEY_LEDGER_API_URL")
-	if base == "" {
-		// The declared scenario dependency is the default wiring. An explicit
-		// environment URL remains an operator override for isolated deployments.
-		if resolved, err := discovery.ResolveScenarioURLDefault(context.Background(), "money-ledger"); err == nil {
-			base = resolved
-		}
-	}
-	if base != "" {
-		hc := &http.Client{Timeout: 700 * time.Millisecond}
-		s.journal = ledgerconnect.NewJournalServiceClient(hc, base)
-		s.position = ledgerconnect.NewPositionServiceClient(hc, base)
-		s.books = ledgerconnect.NewBooksServiceClient(hc, base)
+	s.resolveLedgerURL = resolveMoneyLedgerURL
+	if base, err := s.resolveLedgerURL(context.Background()); err == nil && base != "" {
+		s.useLedger(base)
 	}
 	if swarmBase, err := discovery.ResolveScenarioURLDefault(context.Background(), "swarm-manager"); err == nil && swarmBase != "" {
 		s.goals = swarmconnect.NewGoalServiceClient(&http.Client{Timeout: 700 * time.Millisecond}, swarmBase)
 	}
 	return s
+}
+
+// resolveMoneyLedgerURL returns the declared Money Ledger dependency. An
+// explicit MONEY_LEDGER_API_URL remains an operator override for isolated
+// deployments.
+func resolveMoneyLedgerURL(ctx context.Context) (string, error) {
+	if base := os.Getenv("MONEY_LEDGER_API_URL"); base != "" {
+		return base, nil
+	}
+	return discovery.ResolveScenarioURLDefault(ctx, "money-ledger")
+}
+
+func (s *Service) useLedger(base string) {
+	hc := &http.Client{Timeout: 700 * time.Millisecond}
+	s.journal = ledgerconnect.NewJournalServiceClient(hc, base)
+	s.position = ledgerconnect.NewPositionServiceClient(hc, base)
+	s.books = ledgerconnect.NewBooksServiceClient(hc, base)
 }
 
 func deploymentReadinessProvider(client *http.Client, baseURL string) catalog.ReadinessProvider {
@@ -532,13 +544,10 @@ func (s *Service) GetBoard(ctx context.Context, _ *connect.Request[offerspb.Proj
 	}
 	out := make([]*offerspb.BoardEntry, 0, len(nodes))
 	response := &offerspb.BoardResponse{Entries: out, Evaluation: &offerspb.EvaluationCondition{LastResult: offerspb.EvaluationResult_EVALUATION_NOT_RUN, Degraded: true, Reason: "evaluation has not run"}}
-	// Resolve the declared dependency per request so starting Money Ledger
-	// after Offer Desk does not require restarting this scenario.
-	if base, err := discovery.ResolveScenarioURLDefault(ctx, "money-ledger"); err == nil && base != "" {
-		hc := &http.Client{Timeout: 700 * time.Millisecond}
-		s.journal = ledgerconnect.NewJournalServiceClient(hc, base)
-		s.position = ledgerconnect.NewPositionServiceClient(hc, base)
-		s.books = ledgerconnect.NewBooksServiceClient(hc, base)
+	if s.resolveLedgerURL != nil {
+		if base, err := s.resolveLedgerURL(ctx); err == nil && base != "" {
+			s.useLedger(base)
+		}
 	}
 	if s.position == nil {
 		response.Availability = append(response.Availability, &offerspb.Availability{Source: "money-ledger", Reason: "actuals unavailable: declared money-ledger dependency could not be resolved"})

@@ -3,9 +3,11 @@ package planlog_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"plan-manager/internal/planlog"
 	planmodel "plan-manager/internal/planmodel"
 
@@ -53,12 +55,13 @@ func (s *recordingSink) WriteRecord(context.Context, planlog.Entry) (planlog.Dow
 // downstream forward fires at most once across repeat promotions.
 type countingBugSink struct {
 	ref  planmodel.DownstreamRef
+	err  error
 	bugs int
 }
 
 func (s *countingBugSink) FileBug(context.Context, planlog.Entry) (planlog.DownstreamRef, error) {
 	s.bugs++
-	return s.ref, nil
+	return s.ref, s.err
 }
 
 // planEchoResolver maps a handle verbatim to a plan id with no execution scope,
@@ -259,6 +262,163 @@ func TestSyncEntryRetrySucceeds(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, planmodel.LogSyncSynced, synced.SyncStatus)
 	require.Equal(t, "rec-999", synced.Downstream.Reference)
+}
+
+func TestSyncEntryBlocksExplicitPublishedScenarioQABugReference(t *testing.T) {
+	const reference = "knw-1788689623135002151"
+	sink := &countingBugSink{
+		ref: planmodel.DownstreamRef{System: "scenario-qa", Kind: "bug_report"},
+		err: errors.New("404 Not Found: 404 page not found"),
+	}
+	svc, repo := newService(t, planlog.Deps{Bugs: sink})
+	entry, _, step, err := svc.AddBug(context.Background(), planlog.AddInputs{
+		PlanOrExecution: "exec-1",
+		Title:           "BAS readiness surface",
+		Detail:          "Published scenario-qa bug " + reference + ".",
+	})
+	require.NoError(t, err)
+	require.Equal(t, planmodel.LogSyncFailed, entry.SyncStatus)
+	require.Equal(t, 0, sink.bugs, "initial capture must also be blocked")
+	require.Equal(t, reference, entry.Downstream.Reference)
+	require.NotContains(t, nextActionIDs(step), "log-sync", "an explicit existing bug reference must suppress retry guidance")
+	require.Contains(t, strings.Join(step.Instructions, " "), reference)
+
+	// The source text records a published downstream bug under another key.
+	// Explicit sync must remain blocked even after the sink recovers.
+	sink.err = nil
+	_, retryStep, err := svc.SyncEntry(context.Background(), entry.ID)
+	var duplicateRisk planlog.ErrDuplicateRisk
+	require.ErrorAs(t, err, &duplicateRisk)
+	require.Equal(t, reference, duplicateRisk.Reference)
+	require.Equal(t, 0, sink.bugs, "guard must stop before the side-effecting sink")
+	require.NotContains(t, nextActionIDs(retryStep), "log-sync")
+	require.Equal(t, connect.CodeFailedPrecondition, connect.CodeOf(planlog.ToConnectError(err)))
+
+	stored, ok, err := repo.GetEntry(context.Background(), entry.ID)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, planmodel.LogSyncFailed, stored.SyncStatus, "blocked reconciliation must leave history unchanged")
+	require.Equal(t, reference, stored.Downstream.Reference)
+
+	_, _, listStep, err := svc.ListEntries(context.Background(), planlog.Filter{SyncStatus: planmodel.LogSyncFailed})
+	require.NoError(t, err)
+	require.Equal(t, "Review degraded downstream entries", listStep.NextActions[0].Label)
+	require.Equal(t, []string{"log", "get", "<entry id>"}, listStep.NextActions[0].Argv)
+}
+
+func TestSyncEntryBlocksStructuredScenarioQABugReference(t *testing.T) {
+	const reference = "knw-1788802962375904482"
+	sink := &countingBugSink{
+		ref: planmodel.DownstreamRef{System: "scenario-qa", Kind: "bug_report", Reference: reference},
+		err: errors.New("downstream response was lost"),
+	}
+	svc, _ := newService(t, planlog.Deps{Bugs: sink})
+	entry, _, _, err := svc.AddBug(context.Background(), planlog.AddInputs{
+		PlanOrExecution: "exec-1",
+		Title:           "Bug with a structured downstream reference",
+	})
+	require.NoError(t, err)
+	require.Equal(t, planmodel.LogSyncFailed, entry.SyncStatus)
+	require.Equal(t, reference, entry.Downstream.Reference)
+	require.Equal(t, 1, sink.bugs, "initial forwarding may have stored a reference before failing")
+
+	sink.err = nil
+	_, _, err = svc.SyncEntry(context.Background(), entry.ID)
+	var duplicateRisk planlog.ErrDuplicateRisk
+	require.ErrorAs(t, err, &duplicateRisk)
+	require.Equal(t, reference, duplicateRisk.Reference)
+	require.Equal(t, 1, sink.bugs, "structured Scenario QA bug refs block replay before another sink call")
+}
+
+func TestSyncEntryBugWithoutPublishedReferenceRemainsRetryable(t *testing.T) {
+	sink := &countingBugSink{
+		ref: planmodel.DownstreamRef{System: "scenario-qa", Kind: "bug_report"},
+		err: errors.New("temporarily down"),
+	}
+	svc, _ := newService(t, planlog.Deps{Bugs: sink})
+	entry, _, step, err := svc.AddBug(context.Background(), planlog.AddInputs{
+		PlanOrExecution: "exec-1",
+		Title:           "A bug without an existing downstream reference",
+		Detail:          "A diagnostic mentions knw-1234 in a test fixture.",
+	})
+	require.NoError(t, err)
+	require.Equal(t, planmodel.LogSyncFailed, entry.SyncStatus)
+	require.Contains(t, nextActionIDs(step), "log-sync")
+
+	sink.err = nil
+	sink.ref.Reference = "knw-1999999999999999999"
+	synced, _, err := svc.SyncEntry(context.Background(), entry.ID)
+	require.NoError(t, err)
+	require.Equal(t, planmodel.LogSyncSynced, synced.SyncStatus)
+	require.Equal(t, 2, sink.bugs, "unmarked same-entry retries keep the stable source idempotency key path")
+}
+
+func TestSyncEntryNonScenarioQAKnowledgeReferenceRemainsRetryable(t *testing.T) {
+	sink := &countingBugSink{
+		ref: planmodel.DownstreamRef{System: "swarm-manager", Kind: "record", Reference: "knw-1234"},
+		err: errors.New("temporarily down"),
+	}
+	svc, _ := newService(t, planlog.Deps{Bugs: sink})
+	entry, _, _, err := svc.AddBug(context.Background(), planlog.AddInputs{
+		PlanOrExecution: "exec-1",
+		Title:           "A bug with a non-Scenario-QA knowledge reference",
+	})
+	require.NoError(t, err)
+	require.Equal(t, planmodel.LogSyncFailed, entry.SyncStatus)
+
+	sink.err = nil
+	synced, _, err := svc.SyncEntry(context.Background(), entry.ID)
+	require.NoError(t, err)
+	require.Equal(t, planmodel.LogSyncSynced, synced.SyncStatus)
+	require.Equal(t, 2, sink.bugs, "another owner’s knowledge ID is not a published Scenario QA bug ref")
+}
+
+func TestSyncEntryScenarioQARecordReferenceRemainsRetryable(t *testing.T) {
+	sink := &countingBugSink{
+		ref: planmodel.DownstreamRef{System: "scenario-qa", Kind: "record", Reference: "knw-1234"},
+		err: errors.New("temporarily down"),
+	}
+	svc, _ := newService(t, planlog.Deps{Bugs: sink})
+	entry, _, _, err := svc.AddBug(context.Background(), planlog.AddInputs{
+		PlanOrExecution: "exec-1",
+		Title:           "Bug with a non-bug Scenario QA ref",
+	})
+	require.NoError(t, err)
+	require.Equal(t, planmodel.LogSyncFailed, entry.SyncStatus)
+
+	sink.err = nil
+	synced, _, err := svc.SyncEntry(context.Background(), entry.ID)
+	require.NoError(t, err)
+	require.Equal(t, planmodel.LogSyncSynced, synced.SyncStatus)
+	require.Equal(t, 2, sink.bugs, "Scenario QA knowledge records are not bug reports")
+}
+
+func TestSyncEntryOtherOwnerBugReferenceRemainsRetryable(t *testing.T) {
+	sink := &countingBugSink{
+		ref: planmodel.DownstreamRef{System: "swarm-manager", Kind: "bug_report", Reference: "knw-1234"},
+		err: errors.New("temporarily down"),
+	}
+	svc, _ := newService(t, planlog.Deps{Bugs: sink})
+	entry, _, _, err := svc.AddBug(context.Background(), planlog.AddInputs{
+		PlanOrExecution: "exec-1",
+		Title:           "Bug with a knowledge ID from another owner",
+	})
+	require.NoError(t, err)
+	require.Equal(t, planmodel.LogSyncFailed, entry.SyncStatus)
+
+	sink.err = nil
+	synced, _, err := svc.SyncEntry(context.Background(), entry.ID)
+	require.NoError(t, err)
+	require.Equal(t, planmodel.LogSyncSynced, synced.SyncStatus)
+	require.Equal(t, 2, sink.bugs, "another owner’s bug kind is not a Scenario QA bug reference")
+}
+
+func nextActionIDs(step planlog.GuidedStep) []string {
+	ids := make([]string, 0, len(step.NextActions))
+	for _, action := range step.NextActions {
+		ids = append(ids, action.ID)
+	}
+	return ids
 }
 
 func TestPromoteFindingToBugPreservesOrigin(t *testing.T) {

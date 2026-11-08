@@ -35,12 +35,15 @@ func TestScenarioQABugReporterForwardsFullPayloadAndDraftDisposition(t *testing.
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	ref, err := NewScenarioQABugReporter(server.Client(), staticURLResolver{promptManagerSystem: server.URL}).FileBug(context.Background(), Entry{ID: "entry-1", Title: "cache drift", Bug: planmodel.BugReportPayload{SignalType: "regression", Severity: "major", Repro: []string{"start service"}, Expected: "fresh cache", Actual: "stale cache", Description: "details", Context: map[string]string{"scenario": "plan-manager"}, HonestyFlags: []string{"minimal-context"}}})
+	ref, err := NewScenarioQABugReporter(server.Client(), staticURLResolver{promptManagerSystem: server.URL}).FileBug(context.Background(), Entry{ID: "entry-1", CreatedAt: "2026-08-22T23:54:44.636107174Z", Title: "cache drift", Bug: planmodel.BugReportPayload{SignalType: "regression", Severity: "major", Repro: []string{"start service"}, Expected: "fresh cache", Actual: "stale cache", Description: "details", Context: map[string]string{"scenario": "plan-manager"}, HonestyFlags: []string{"minimal-context"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got.SignalType != "regression" || got.Severity != "major" || got.Actual != "stale cache" || got.Context["scenario"] != "plan-manager" {
 		t.Fatalf("payload was reshaped: %#v", got)
+	}
+	if got.ObservedAt != "2026-08-22" {
+		t.Fatalf("observed_at = %q, want original observation date 2026-08-22", got.ObservedAt)
 	}
 	if got.IdempotencyKey != "entry-1" || len(got.Repro) != 1 || len(got.HonestyFlags) != 1 {
 		t.Fatalf("capture identity or evidence lost: %#v", got)

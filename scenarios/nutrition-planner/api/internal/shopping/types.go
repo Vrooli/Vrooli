@@ -191,6 +191,9 @@ func Derive(draft planning.Draft, recipes []recipe.Recipe, checked map[string]bo
 				lines[key] = &Line{Key: key, Label: input, Need: "unknown", Stock: "unknown", Missing: "unknown", PackageCount: "unknown", Price: "unknown", PortionCost: "unknown", CheckoutTotal: "unknown", ActualSpend: "unknown", ItemID: input, Amount: decimalx.Unknown}
 			}
 			if ingredient, found := ingredients[input]; found {
+				if lines[key].Label == input && ingredient.Name != "" {
+					lines[key].Label = ingredient.Name
+				}
 				amount, amountErr := decimalx.Parse(ingredient.Amount)
 				yield, yieldErr := decimalx.Parse(item.CanonicalYield)
 				quantity, quantityErr := decimalx.Parse(occurrence.Quantity)

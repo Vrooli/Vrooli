@@ -63,3 +63,54 @@ func TestCryptoPreviewTransportPreservesUnitsAndNeverAcceptsApprovalOrWrites(t *
 		require.Zero(t, count)
 	}
 }
+
+func TestCryptoPreviewTransportKeepsEconomicIdentityAcrossBlockReinclusion(t *testing.T) {
+	sqlDB := databasetest.NewSQLite(t)
+	db := database.NewFromPrimary(sqlDB)
+	ctx := context.Background()
+	require.NoError(t, database.EnsureSchemas(ctx, sqlDB, database.SchemaProviderFunc(func() string { return (&ledger.Store{}).Schema() })))
+	service := ingestion.NewService(db, log.New(io.Discard, "", 0))
+	_, handler := rpc.NewIngestServiceHandler(service)
+	server := httptest.NewServer(handler)
+	defer server.Close()
+	client := rpc.NewIngestServiceClient(server.Client(), server.URL)
+
+	in := &pb.PreviewCryptoObservationRequest{
+		Network:         "eip155:8453",
+		AssetId:         "eip155:8453/erc20:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+		Address:         "0x1111111111111111111111111111111111111111",
+		AtomicAmount:    "1",
+		Decimals:        6,
+		State:           pb.CryptoObservationState_CRYPTO_OBSERVATION_STATE_FINALIZED,
+		LegKind:         pb.CryptoLegKind_CRYPTO_LEG_KIND_DEPOSIT,
+		SourceReference: "fixture:recommission-reinclusion-no-posting",
+		TransactionHash: "0x" + strings.Repeat("a", 64),
+		BlockHash:       "0x" + strings.Repeat("b", 64),
+		LegIndex:        3,
+	}
+	first, err := client.PreviewCryptoObservation(ctx, connect.NewRequest(in))
+	require.NoError(t, err)
+	reincluded := *in
+	reincluded.BlockHash = "0x" + strings.Repeat("c", 64)
+	second, err := client.PreviewCryptoObservation(ctx, connect.NewRequest(&reincluded))
+	require.NoError(t, err)
+	oneUSDC := *in
+	oneUSDC.AtomicAmount = "1000000"
+	oneUSDC.TransactionHash = "0x" + strings.Repeat("d", 64)
+	oneUSDC.BlockHash = "0x" + strings.Repeat("e", 64)
+	unitScale, err := client.PreviewCryptoObservation(ctx, connect.NewRequest(&oneUSDC))
+	require.NoError(t, err)
+
+	require.Equal(t, "1", first.Msg.AtomicAmount, "one atomic unit must remain exact")
+	require.Equal(t, "1000000", unitScale.Msg.AtomicAmount, "one USDC at six decimals must remain an exact integer quantity")
+	require.Equal(t, uint32(6), unitScale.Msg.Decimals)
+	require.Equal(t, first.Msg.OccurrenceKey, second.Msg.OccurrenceKey, "block re-inclusion revises evidence for one economic event")
+	require.NotEqual(t, first.Msg.InclusionRevision, second.Msg.InclusionRevision)
+	require.Equal(t, "withheld", second.Msg.PostingState)
+	require.Equal(t, "uncredited", second.Msg.BudgetState)
+	for _, table := range []string{"postings", "ingest_receipts", "adapters", "ledger_audit"} {
+		var count int
+		require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+table).Scan(&count))
+		require.Zero(t, count, "preview must not persist accounting state in %s", table)
+	}
+}

@@ -32,10 +32,9 @@
       "type": "image/png"
     }
   ],
-  "id": "/",
   "name": "Chimesail",
-  "scope": "/",
+  "scope": "../",
   "short_name": "Chimesail",
-  "start_url": "/",
+  "start_url": "../",
   "theme_color": "#0b1728"
 }

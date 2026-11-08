@@ -3320,8 +3320,9 @@
               ]
             },
             {
-              "name": "repro",
-              "description": "Comma-separated reproduction steps"
+              "name": "repro-step",
+              "description": "One reproduction step, preserved verbatim; repeat for additional steps",
+              "repeatable": true
             },
             {
               "name": "expected",

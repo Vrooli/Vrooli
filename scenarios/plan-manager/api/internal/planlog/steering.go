@@ -2,6 +2,9 @@ package planlog
 
 import (
 	"fmt"
+	"regexp"
+	"sort"
+	"strings"
 
 	planmodel "plan-manager/internal/planmodel"
 )
@@ -44,13 +47,18 @@ func stepForEntry(e Entry) GuidedStep {
 		}
 	case planmodel.LogEntryBugReport, planmodel.LogEntryRecord:
 		if e.SyncStatus == planmodel.LogSyncPending || e.SyncStatus == planmodel.LogSyncFailed {
-			step.NextActions = append([]NextAction{{
-				ID:     "log-sync",
-				Kind:   NextActionRecommended,
-				Label:  "Retry downstream sync",
-				Reason: fmt.Sprintf("Downstream forwarding is %s; retry once the downstream is reachable.", syncStatusLabel(e.SyncStatus)),
-				Argv:   []string{"log", "sync", e.ID},
-			}}, step.NextActions...)
+			if ref := explicitScenarioQABugReference(e); ref != "" {
+				step.Instructions = append(step.Instructions, fmt.Sprintf(
+					"This entry names existing Scenario QA bug %s. Do not retry forwarding; reconcile the local entry against that published reference first.", ref))
+			} else {
+				step.NextActions = append([]NextAction{{
+					ID:     "log-sync",
+					Kind:   NextActionRecommended,
+					Label:  "Retry downstream sync",
+					Reason: fmt.Sprintf("Downstream forwarding is %s; the source entry has no explicit Scenario QA reference, and retries retain the same idempotency key.", syncStatusLabel(e.SyncStatus)),
+					Argv:   []string{"log", "sync", e.ID},
+				}}, step.NextActions...)
+			}
 		}
 	}
 	return step
@@ -76,15 +84,54 @@ func stepForList(summary Summary) GuidedStep {
 		}},
 	}
 	if summary.PendingSync+summary.FailedSync > 0 {
-		step.NextActions = append([]NextAction{{
-			ID:     "log-sync",
+		step.NextActions[0] = NextAction{
+			ID:     "log-get",
 			Kind:   NextActionRecommended,
-			Label:  "Retry degraded downstream syncs",
-			Reason: fmt.Sprintf("%d bug/record entries are pending or failed downstream; retry them.", summary.PendingSync+summary.FailedSync),
-			Argv:   []string{"log", "sync", "<entry id>"},
-		}}, step.NextActions...)
+			Label:  "Review degraded downstream entries",
+			Reason: fmt.Sprintf("%d bug/record entries are pending or failed; inspect each exact entry for a published Scenario QA reference before syncing. Explicit references are blocked from automatic retry.", summary.PendingSync+summary.FailedSync),
+			Argv:   []string{"log", "get", "<entry id>"},
+		}
 	}
 	return step
+}
+
+var (
+	knowledgeReferencePattern     = regexp.MustCompile(`(?i)^knw-[0-9]+$`)
+	scenarioQABugReferencePattern = regexp.MustCompile(`(?i)\bscenario[- ]qa\s+bug\s+(knw-[0-9]+)\b`)
+)
+
+// explicitScenarioQABugReference returns a known published knowledge ID only
+// when the entry carries the ID in structured downstream state or in source
+// text that explicitly identifies it as a Scenario QA bug. A generic knw token
+// is not enough to block an otherwise idempotent retry.
+func explicitScenarioQABugReference(e Entry) string {
+	if e.Type != planmodel.LogEntryBugReport {
+		return ""
+	}
+	if strings.EqualFold(strings.TrimSpace(e.Downstream.System), scenarioQASystem) && strings.EqualFold(strings.TrimSpace(e.Downstream.Kind), "bug_report") {
+		if ref := strings.TrimSpace(e.Downstream.Reference); knowledgeReferencePattern.MatchString(ref) {
+			return knowledgeReferencePattern.FindString(ref)
+		}
+	}
+
+	texts := []string{e.Title, e.Detail, e.Bug.Description, e.Bug.Expected, e.Bug.Actual, e.Downstream.Detail}
+	texts = append(texts, e.Bug.Repro...)
+	texts = append(texts, e.Evidence...)
+	contextKeys := make([]string, 0, len(e.Bug.Context))
+	for key := range e.Bug.Context {
+		contextKeys = append(contextKeys, key)
+	}
+	sort.Strings(contextKeys)
+	for _, key := range contextKeys {
+		texts = append(texts, e.Bug.Context[key])
+	}
+
+	for _, text := range texts {
+		if match := scenarioQABugReferencePattern.FindStringSubmatch(text); len(match) == 2 {
+			return match[1]
+		}
+	}
+	return ""
 }
 
 func entryTypeLabel(t EntryType) string {

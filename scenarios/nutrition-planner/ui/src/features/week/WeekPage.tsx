@@ -266,14 +266,13 @@ export function WeekPage() {
   const occurrenceCount = draft?.occurrences.filter((item) => item.recipeId).length ?? 0;
   const openCount = draft?.occurrences.filter((item) => item.mode === "open" && !item.recipeId).length ?? 0;
   const lockedCount = draft?.occurrences.filter((item) => item.locked).length ?? 0;
-  const slotNames = Array.from(new Set((draft?.occurrences ?? []).map((item) => item.slotName || "meal")));
+  const slotNames = Array.from(new Set([...(draft?.occurrences ?? []).map((item) => item.slotName || "meal"), ...(draft?.unresolved ?? []).map((item) => item.slotName).filter((slot): slot is string => Boolean(slot))]));
   const rangeLabel = dates.length ? `${formatShortDate(dates[0] ?? "")} – ${formatShortDate(dates[6] ?? "")}` : "";
   const reviewingDraft = Boolean(draft && savedDraft && draft !== savedDraft);
   const draftChanges = draft && savedDraft ? describeWeekChanges(savedDraft, draft) : [];
   const draftNeedsSave = Boolean(draft && savedDraft && (draftChanges.length > 0 || (draft !== savedDraft && draft.unresolved.length > 0) || (!hasPlan && draft.occurrences.length > 0)));
   const appliedDates = Array.from(new Set(appliedChanges.map((change) => change.match(/^\d{4}-\d{2}-\d{2}/)?.[0]).filter((date): date is string => Boolean(date)))).sort();
-  const appliedDateLabels = appliedDates.map(formatWeekdayLong);
-  const appliedHeading = appliedDates.length > 1 ? `Your ${appliedDates.length}-day change is saved` : "Your plan change is saved";
+  const appliedHeading = appliedDates.length > 1 ? `Your changes across ${appliedDates.length} days are saved` : "Your plan change is saved";
   const openSwap = (date: string, slotName: string) => {
     setSwapDate(date);
     setSwapSlotName(slotName);
@@ -317,7 +316,7 @@ export function WeekPage() {
           {reviewingDraft && <WeekReview draft={draft} saved={savedDraft} />}
           {appliedChanges.length > 0 && <section className="week-applied-review" aria-label="Saved plan changes">
             <h2>{appliedHeading}</h2>
-            <div className="week-applied-banner" role="status"><strong>{appliedDateLabels.length > 1 ? `${appliedDateLabels.join(" and ")} updated together` : "Plan revision saved"}</strong><p>The plan changes are saved. They have not purchased groceries or consumed inventory.</p></div>
+            <div className="week-applied-banner" role="status"><strong>{appliedDates.length > 1 ? `Changes across ${appliedDates.length} days are saved` : "Plan revision saved"}</strong><p>The plan changes are saved. They have not purchased groceries or consumed inventory.</p></div>
             <div className="week-applied-summary">
               <h3>The plan after your choice</h3>
               <p>Saved changes:</p>
@@ -510,7 +509,7 @@ interface WeekOccurrenceActions {
   onSkip: (date: string, slotName: string) => void;
 }
 
-function MealOccurrence({ item, planRevision, ...actions }: { item: PlanDraft["occurrences"][number]; planRevision: bigint } & WeekOccurrenceActions) {
+function MealOccurrence({ item, unresolved, planRevision, ...actions }: { item: PlanDraft["occurrences"][number]; unresolved?: PlanDraft["unresolved"][number]; planRevision: bigint } & WeekOccurrenceActions) {
   const date = item.date;
   const slotName = item.slotName ?? "meal";
   const open = item.mode === "open" && !item.recipeId;
@@ -522,9 +521,10 @@ function MealOccurrence({ item, planRevision, ...actions }: { item: PlanDraft["o
         <strong>{item.recipeName || (open ? "Intentionally open" : "Recipe not selected")}</strong>
         <span className="week-meal-meta">{item.quantity ? `${item.quantity} portion${item.quantity === "1" ? "" : "s"}` : "Portion count unknown"} · Time not set</span>
         {(item.locked || open || !item.recipeId) && <span className={`week-meal-status${item.locked ? " is-locked" : ""}`}>{item.locked ? "Locked" : open ? "Open slot" : "Choose a meal"}</span>}
+        {unresolved && <span className="week-meal-review" role="status"><strong>Needs eligibility review</strong><span>{unresolved.message}</span></span>}
       </div>
       <div className="week-meal-actions">
-        <Link to={exploreSlotPath(date, slotName, planRevision, item.recipeId)}>Explore options</Link>
+        <Link to={exploreSlotPath(date, slotName, planRevision, item.recipeId)}>{unresolved ? "Review meal options" : "Explore options"}</Link>
         {item.recipeId && <button type="button" onClick={() => actions.onSwap(date, slotName)}>Swap meal</button>}
         {!open && item.recipeId && <button type="button" onClick={() => actions.onToggleLock(date, slotName)}>{item.locked ? "Unlock" : "Lock"}</button>}
         {item.recipeId && <button type="button" onClick={() => actions.onSkip(date, slotName)}>Skip</button>}
@@ -551,8 +551,8 @@ function WeekBoard({ dates, slotNames, occurrences, unresolved, selectedDate, on
           <th scope="row">{slot}</th>
           {dates.map((date) => {
             const item = occurrences.find((occurrence) => occurrence.date === date && (occurrence.slotName ?? "meal") === slot);
-            const unresolvedItem = unresolved.find((entry) => entry.date === date);
-            return <td key={date}>{item ? <MealOccurrence item={item} {...actions} /> : <div className="week-no-occurrence"><span>{unresolvedItem?.message ?? "No meal chosen"}</span><Link to={exploreSlotPath(date, slot, actions.planRevision, "")}>Explore meals</Link></div>}</td>;
+            const unresolvedItem = unresolved.find((entry) => entry.date === date && (entry.slotName ? entry.slotName === slot : item ? entry.candidateIds?.includes(item.recipeId) : slot === slots[0]));
+            return <td key={date}>{item ? <MealOccurrence item={item} unresolved={unresolvedItem} {...actions} /> : <div className="week-no-occurrence"><span>{unresolvedItem?.message ?? "No meal chosen"}</span><Link to={exploreSlotPath(date, slot, actions.planRevision, "")}>Explore {slot} options</Link></div>}</td>;
           })}
         </tr>)}</tbody>
       </table>
@@ -576,14 +576,17 @@ function WeekAgenda({ dates, occurrences, unresolved, selectedDate, supplements,
     <ol className="week-phone-agenda" aria-label="Meals by day">
       {dates.map((date) => {
         const items = occurrences.filter((occurrence) => occurrence.date === date);
-        const unresolvedItem = unresolved.find((entry) => entry.date === date);
+        const unresolvedItems = unresolved.filter((entry) => entry.date === date);
+        const unresolvedItem = unresolvedItems[0];
+        const unassignedWarnings = unresolvedItems.filter((entry) => !items.some((item) => entry.slotName ? entry.slotName === (item.slotName ?? "meal") : entry.candidateIds?.includes(item.recipeId)));
         const assignedCount = items.filter((item) => Boolean(item.recipeId)).length;
         const openCount = items.filter((item) => item.mode === "open" && !item.recipeId).length;
         const toChooseCount = items.length - assignedCount - openCount;
         const scheduled = supplements.filter((item) => scheduleAppliesOnLocalDate(item, date));
         return <li key={date} className={selectedDate === date ? "is-selected" : ""}>
           <header><time dateTime={date}>{formatLongDate(date)}</time><div className="week-day-heading-meta"><span className="week-day-count">{items.length ? `${assignedCount} assigned${openCount ? ` · ${openCount} open` : ""}${toChooseCount ? ` · ${toChooseCount} to choose` : ""}` : unresolvedItem ? "Needs a choice" : "No saved meals"}</span><span className="week-day-full-day">Full day</span></div></header>
-          {items.length ? items.map((item) => <MealOccurrence key={`${date}-${item.slotName}`} item={item} planRevision={planRevision} onSwap={onSwap} onToggleLock={onToggleLock} onSkip={onSkip} />) : <p>{unresolvedItem?.message ?? "No meal has been saved for this date."} <Link to={exploreSlotPath(date, "dinner", planRevision, "")}>Explore dinner options</Link></p>}
+          {items.length ? items.map((item) => <MealOccurrence key={`${date}-${item.slotName}`} item={item} unresolved={unresolvedItems.find((entry) => entry.slotName ? entry.slotName === (item.slotName ?? "meal") : entry.candidateIds?.includes(item.recipeId))} planRevision={planRevision} onSwap={onSwap} onToggleLock={onToggleLock} onSkip={onSkip} />) : unresolvedItems.length ? <div className="week-unresolved-day-list">{unresolvedItems.map((entry) => { const slot = entry.slotName || "dinner"; return <p key={`${entry.date}-${slot}-${entry.code}`}>{entry.slotName ? `${entry.slotName}: ` : "Needs a choice: "}{entry.message} <Link to={exploreSlotPath(date, slot, planRevision, entry.candidateIds?.[0] ?? "")}>Explore {slot} options</Link></p>; })}</div> : <p>No meal has been saved for this date. <Link to={exploreSlotPath(date, "dinner", planRevision, "")}>Explore dinner options</Link></p>}
+          {items.length > 0 && unassignedWarnings.map((entry) => { const slot = entry.slotName || "dinner"; return <p key={`${entry.date}-${slot}-${entry.code}`} className="week-unresolved-day-warning">{entry.slotName ? `${entry.slotName}: ` : "Needs review: "}{entry.message} <Link to={exploreSlotPath(date, slot, planRevision, entry.candidateIds?.[0] ?? "")}>Explore {slot} options</Link></p>; })}
           <section className="week-agenda-supplements" aria-label={`Supplement schedule for ${formatLongDate(date)}`}>
             <header><strong>Supplements</strong><span>Optional</span></header>
             {scheduled.length ? scheduled.map((item) => <p key={`${item.id}:${item.revision}`}>{scheduledSupplementNutrients(item, catalog).map((contribution, index) => <span key={`${contribution.nutrientId}:${index}`}>{index > 0 ? "; " : ""}{contribution.productName} · {item.dose} {item.doseUnit} expected · {contribution.unresolvedReason || `${contribution.nutrientId ? `${contribution.nutrientId}: ` : ""}${contribution.amount} ${contribution.unit} expected (${contribution.evidence})`}</span>)}</p>) : <p>No confirmed supplement schedule applies.</p>}
@@ -597,9 +600,6 @@ function WeekAgenda({ dates, occurrences, unresolved, selectedDate, supplements,
 
 function formatWeekday(date: string) {
   return new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
-}
-function formatWeekdayLong(date: string) {
-  return new Intl.DateTimeFormat(undefined, { weekday: "long", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
 }
 function formatDay(date: string) { return new Intl.DateTimeFormat(undefined, { day: "numeric", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`)); }
 function formatLongDate(date: string) { return new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`)); }
@@ -680,7 +680,7 @@ function WeekReview({ draft, saved }: { draft: PlanDraft; saved?: PlanDraft }) {
     <h2 className="font-semibold text-app-foreground">Review this week</h2>
     <p className="mt-1 text-sm text-app-foreground">{changes.length === 0 ? "No meal or lock changes from the saved week." : `${changes.length} meal or lock ${changes.length === 1 ? "change" : "changes"} to review.`} {unresolved.length > 0 && `${unresolved.length} date ${unresolved.length === 1 ? "needs" : "need"} a decision; no meal was assigned.`}</p>
     <details className="mt-2 text-sm text-app-foreground"><summary className="cursor-pointer font-medium">Show full-week changes and unresolved dates</summary>
-      <ul className="mt-2 list-disc space-y-1 pl-5">{changes.map((change) => <li key={change}>{change}</li>)}{unresolved.map((item) => <li key={`${item.date}-${item.code}`}>{item.date}: {item.message}</li>)}{changes.length === 0 && unresolved.length === 0 && <li>No changes.</li>}</ul>
+      <ul className="mt-2 list-disc space-y-1 pl-5">{changes.map((change) => <li key={change}>{change}</li>)}{unresolved.map((item) => <li key={`${item.date}-${item.slotName ?? ""}-${item.code}`}>{item.date}{item.slotName ? ` · ${item.slotName}` : ""}: {item.message}</li>)}{changes.length === 0 && unresolved.length === 0 && <li>No changes.</li>}</ul>
     </details>
   </section>;
 }

@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/redis/go-redis/v9"
+	"github.com/vrooli/api-core/database"
+	schema "local-info-scout/internal/scout"
 )
 
 // TestLogger provides controlled logging during tests
@@ -208,6 +212,26 @@ func assertPlacesResponse(t *testing.T, w *httptest.ResponseRecorder, expectedSt
 	return places
 }
 
+// assertSearchResponse validates the search contract ({places, sources}) and
+// returns its places.
+func assertSearchResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int) []Place {
+	t.Helper()
+
+	if w.Code != expectedStatus {
+		t.Errorf("Expected status %d, got %d. Body: %s", expectedStatus, w.Code, w.Body.String())
+	}
+
+	var response SearchResponse
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode search response: %v. Body: %s", err, w.Body.String())
+	}
+	if len(response.Sources) == 0 {
+		t.Errorf("Expected search response to name its data sources")
+	}
+
+	return response.Places
+}
+
 // assertStringArrayResponse validates a string array response
 func assertStringArrayResponse(t *testing.T, w *httptest.ResponseRecorder, expectedStatus int) []string {
 	t.Helper()
@@ -282,4 +306,33 @@ func createTestPlace(id, name, category string, distance, rating float64) Place 
 		OpenNow:     true,
 		Description: "Test place",
 	}
+}
+
+// boundedStartup bounds connection retries so an unreachable dependency
+// disables the feature within the test instead of retrying for minutes.
+func boundedStartup(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	t.Cleanup(cancel)
+	return ctx
+}
+
+// createTables reapplies the production schema to the current test database.
+func createTables() {
+	if db == nil {
+		return
+	}
+
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		dbLogger.Error("Failed to apply local-info-scout schema", map[string]interface{}{"error": err.Error()})
+	}
+}
+
+// TestMain keeps the suite hermetic: the AI gateway is unavailable unless a
+// test installs its own response, so parsing exercises the keyword fallback.
+func TestMain(m *testing.M) {
+	generateWithGateway = func(context.Context, string) ([]byte, error) {
+		return nil, errors.New("AI gateway disabled in tests")
+	}
+	os.Exit(m.Run())
 }

@@ -84,7 +84,7 @@ func TestDatabaseFlow(t *testing.T) {
 	defer func() { db = origDB }()
 
 	// Initialize database
-	initDB()
+	initDB(boundedStartup(t))
 
 	if db == nil {
 		t.Skip("Database not available")
@@ -186,7 +186,7 @@ func TestGetPopularSearchesWithData(t *testing.T) {
 	origDB := db
 	defer func() { db = origDB }()
 
-	initDB()
+	initDB(boundedStartup(t))
 
 	if db == nil {
 		t.Skip("Database not available")
@@ -413,7 +413,7 @@ func TestInitDBSuccess(t *testing.T) {
 	env := setupTestEnvironment(t)
 	defer env.Cleanup()
 
-	initDB()
+	initDB(boundedStartup(t))
 
 	if db != nil {
 		if err := db.Ping(); err == nil {

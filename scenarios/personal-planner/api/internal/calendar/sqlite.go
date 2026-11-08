@@ -197,7 +197,7 @@ func (r *sqliteRepository) ApplyProposal(ctx context.Context, in ApplyProposalIn
 	if busy {
 		return fail(ErrAllocationConflict{})
 	}
-	if routineIntervals, routineErr := r.routineBusy(ctx, proposal.LocalDate); routineErr != nil {
+	if routineIntervals, routineErr := r.routineBusyOn(ctx, tx, proposal.LocalDate); routineErr != nil {
 		return fail(routineErr)
 	} else if overlapsAny(routineIntervals, proposal.StartMinutes, proposal.StartMinutes+proposal.DurationMinutes) {
 		return fail(ErrAllocationConflict{})
@@ -418,7 +418,7 @@ func (r *sqliteRepository) ApplyScheduleProposal(ctx context.Context, in ApplySc
 		if busy {
 			return fail(ErrAllocationConflict{})
 		}
-		routineIntervals, routineErr := r.routineBusy(ctx, date)
+		routineIntervals, routineErr := r.routineBusyOn(ctx, tx, date)
 		if routineErr != nil {
 			return fail(routineErr)
 		}
@@ -502,7 +502,11 @@ type externalBusyResult struct {
 // consume the time in which a proposal may be placed. Older focused fixtures
 // predate the routine tables, so their absence is treated as no routine demand.
 func (r *sqliteRepository) routineBusy(ctx context.Context, date string) ([]capacityInterval, error) {
-	occurrences, err := r.ListRoutineOccurrences(ctx, date, date)
+	return r.routineBusyOn(ctx, r.db, date)
+}
+
+func (r *sqliteRepository) routineBusyOn(ctx context.Context, db SQLExecutor, date string) ([]capacityInterval, error) {
+	occurrences, err := r.listRoutineOccurrencesOn(ctx, db, date, date)
 	if err != nil {
 		if strings.Contains(err.Error(), "no such table") {
 			return nil, nil
@@ -809,7 +813,11 @@ func loadAllocation(ctx context.Context, db SQLExecutor, id string) (Allocation,
 }
 
 func (r *sqliteRepository) ListRoutines(ctx context.Context) ([]Routine, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id,title,kind,timezone,start_date,end_date,weekdays,start_minute,duration_minutes,frequency_per_week,revision,active FROM routines WHERE active=1 ORDER BY start_date,title,id`)
+	return r.listRoutinesOn(ctx, r.db)
+}
+
+func (r *sqliteRepository) listRoutinesOn(ctx context.Context, db SQLExecutor) ([]Routine, error) {
+	rows, err := db.QueryContext(ctx, `SELECT id,title,kind,timezone,start_date,end_date,weekdays,start_minute,duration_minutes,frequency_per_week,revision,active FROM routines WHERE active=1 ORDER BY start_date,title,id`)
 	if err != nil {
 		return nil, err
 	}
@@ -839,11 +847,15 @@ func (r *sqliteRepository) CreateRoutine(ctx context.Context, in CreateRoutineIn
 }
 
 func (r *sqliteRepository) ListRoutineOccurrences(ctx context.Context, start, end string) ([]RoutineOccurrence, error) {
-	routines, err := r.ListRoutines(ctx)
+	return r.listRoutineOccurrencesOn(ctx, r.db, start, end)
+}
+
+func (r *sqliteRepository) listRoutineOccurrencesOn(ctx context.Context, db SQLExecutor, start, end string) ([]RoutineOccurrence, error) {
+	routines, err := r.listRoutinesOn(ctx, db)
 	if err != nil {
 		return nil, err
 	}
-	skippedRows, err := r.db.QueryContext(ctx, `SELECT routine_id,local_date FROM routine_occurrence_overrides WHERE status='skipped' AND local_date>=? AND local_date<=?`, start, end)
+	skippedRows, err := db.QueryContext(ctx, `SELECT routine_id,local_date FROM routine_occurrence_overrides WHERE status='skipped' AND local_date>=? AND local_date<=?`, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -861,7 +873,7 @@ func (r *sqliteRepository) ListRoutineOccurrences(ctx context.Context, start, en
 		return nil, err
 	}
 	skippedRows.Close()
-	rescheduledRows, err := r.db.QueryContext(ctx, `SELECT routine_id,local_date,start_minute FROM routine_occurrence_reschedules WHERE local_date>=? AND local_date<=?`, start, end)
+	rescheduledRows, err := db.QueryContext(ctx, `SELECT routine_id,local_date,start_minute FROM routine_occurrence_reschedules WHERE local_date>=? AND local_date<=?`, start, end)
 	if err != nil {
 		return nil, err
 	}

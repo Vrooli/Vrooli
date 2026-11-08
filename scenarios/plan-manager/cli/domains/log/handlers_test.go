@@ -23,6 +23,7 @@ type logRecorder struct {
 	logconnect.UnimplementedLogServiceHandler
 	mu       sync.Mutex
 	evidence []string
+	repro    []string
 }
 
 func (r *logRecorder) record(ev []string) {
@@ -35,6 +36,12 @@ func (r *logRecorder) captured() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return append([]string(nil), r.evidence...)
+}
+
+func (r *logRecorder) capturedRepro() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]string(nil), r.repro...)
 }
 
 func ok() *connect.Response[logv1.AddEntryResponse] {
@@ -53,6 +60,13 @@ func (r *logRecorder) AddFinding(_ context.Context, req *connect.Request[logv1.A
 
 func (r *logRecorder) AddNote(_ context.Context, req *connect.Request[logv1.AddNoteRequest]) (*connect.Response[logv1.AddEntryResponse], error) {
 	r.record(req.Msg.GetEvidence())
+	return ok(), nil
+}
+
+func (r *logRecorder) AddBug(_ context.Context, req *connect.Request[logv1.AddBugRequest]) (*connect.Response[logv1.AddEntryResponse], error) {
+	r.mu.Lock()
+	r.repro = append([]string(nil), req.Msg.GetRepro()...)
+	r.mu.Unlock()
 	return ok(), nil
 }
 
@@ -123,4 +137,13 @@ func TestEvidenceFlagsDropEmptyEntries(t *testing.T) {
 		"plan-1", "--title", "t", "--evidence", " run:a , , run:b ")
 	require.NoError(t, err)
 	require.Equal(t, []string{"run:a", "run:b"}, rec.captured())
+}
+
+func TestBugAddReproStepPreservesCommaAndAccumulation(t *testing.T) {
+	rec := &logRecorder{}
+	app, groups := newLogFixture(t, rec)
+	_, err := clitest.RunCommand(t, clitest.FindCommand(t, groups, "log", "bug-add"), app,
+		"plan-1", "--title", "t", "--repro-step", "Step one, with a comma", "--repro-step", "Run the command")
+	require.NoError(t, err)
+	require.Equal(t, []string{"Step one, with a comma", "Run the command"}, rec.capturedRepro())
 }

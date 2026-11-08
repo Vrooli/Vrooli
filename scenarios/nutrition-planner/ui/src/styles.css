@@ -134,6 +134,10 @@ h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.
 .week-meal-meta,.week-meal-status { color:var(--color-muted-foreground); font-size:11px; line-height:1.25; }
 .week-meal-status { margin-top:auto; padding:3px 7px; border-radius:5px; background:color-mix(in srgb,var(--color-focus) 13%,var(--color-surface)); color:var(--color-focus); font-weight:650; }
 .week-meal-status.is-locked { background:color-mix(in srgb,var(--color-focus) 17%,var(--color-surface)); }
+.week-meal-review { display:flex; flex-direction:column; gap:2px; padding:5px 6px; border:1px solid var(--color-danger-border); border-radius:5px; background:var(--color-danger-subtle); color:var(--color-danger-foreground); font-size:11px; line-height:1.25; }
+.week-meal-review strong { font-weight:700; }
+.week-unresolved-day-warning { padding:6px 8px; border-left:3px solid var(--color-danger); background:var(--color-danger-subtle); color:var(--color-danger-foreground); font-size:12px; }
+.week-unresolved-day-list { display:flex; flex-direction:column; gap:8px; }
 .week-meal-actions { display:flex; flex-wrap:wrap; gap:3px; margin-top:auto; }
 .week-meal-actions button { min-height:28px; padding:0 5px; border:1px solid var(--color-border); border-radius:5px; background:var(--color-surface); color:var(--color-foreground); font-size:10px; }
 .week-meal-actions a { display:inline-flex; min-height:28px; align-items:center; padding:0 5px; border:1px solid var(--color-border); border-radius:5px; color:var(--color-primary); font-size:10px; text-decoration:none; }
@@ -302,6 +306,21 @@ h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.
 .today-primary-action { border:1px solid var(--color-primary); background:var(--color-primary); color:var(--color-primary-foreground); }
 .today-primary-action:disabled { opacity:.58; }
 .today-secondary-action { border:1px solid var(--color-border); background:var(--color-surface); color:var(--color-foreground); }
+.today-swap-backdrop { position:fixed; z-index:59; inset:0; background:rgb(22 29 24 / .48); }
+.today-swap-sheet { position:fixed; z-index:60; top:50%; left:50%; display:flex; width:min(680px,calc(100vw - 40px)); max-height:min(84dvh,760px); flex-direction:column; overflow:auto; padding:24px; transform:translate(-50%,-50%); border:1px solid var(--color-border); border-radius:14px; background:var(--color-surface); color:var(--color-foreground); box-shadow:0 20px 70px rgb(30 42 32 / .22); }
+.today-swap-sheet > h2 { margin:0; font:500 28px/1.15 var(--font-display); }
+.today-swap-context { margin:8px 0 0; color:var(--color-muted-foreground); font-size:14px; line-height:1.45; }
+.today-swap-reasons { display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; }
+.today-swap-reasons button { min-height:44px; padding:0 12px; border:1px solid var(--color-border); border-radius:999px; background:var(--color-surface); color:var(--color-foreground); font-size:13px; }
+.today-swap-reasons button[aria-pressed="true"] { border-color:var(--color-primary); background:color-mix(in srgb,var(--color-primary) 10%,var(--color-surface)); }
+.today-swap-candidates { display:grid; gap:8px; overflow:auto; margin:18px -4px 0 0; padding:0 4px 0 0; list-style:none; }
+.today-swap-candidates li { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:14px 0; border-bottom:1px solid var(--color-border); }
+.today-swap-candidates h3 { overflow-wrap:anywhere; margin:0; font:500 20px/1.2 var(--font-display); }
+.today-swap-candidates p { margin:5px 0 0; color:var(--color-muted-foreground); font-size:13px; line-height:1.4; }
+.today-swap-candidates .today-swap-evidence { font-size:12px; }
+.today-swap-candidates button { flex:0 0 auto; }
+.today-swap-empty { padding:18px 0; color:var(--color-muted-foreground); }
+.today-swap-actions { display:flex; flex-wrap:wrap; gap:8px; padding-top:16px; border-top:1px solid var(--color-border); }
 .today-success { margin:12px 0 0; color:var(--color-focus); font-size:13px; }
 .today-week-section { padding:2px 0 6px; }
 .today-section-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:12px; }
@@ -452,6 +471,10 @@ h1, h2, h3 { font-family:var(--font-display); font-weight:500; letter-spacing:-.
   .today-hero-scene svg { width:30px; height:30px; }
   .today-hero-scene > span { font-size:12px; }
   .today-hero-copy { padding:17px 16px 16px; }
+  .today-swap-sheet { inset:auto 0 0; width:100%; max-height:90dvh; padding:20px 18px calc(18px + env(safe-area-inset-bottom)); transform:none; border-radius:16px 16px 0 0; }
+  .today-swap-candidates li { align-items:flex-start; flex-direction:column; gap:10px; }
+  .today-swap-candidates button { width:100%; }
+  .today-swap-actions { display:grid; grid-template-columns:1fr; }
   .today-hero-copy h2 { max-width:20ch; font-size:clamp(34px,9vw,44px); }
   .today-hero-copy > p:not(.today-hero-kicker) { margin-top:8px; font-size:14px; }
   .today-hero-actions { display:grid; grid-template-columns:1fr 1fr; width:100%; margin-top:14px; }

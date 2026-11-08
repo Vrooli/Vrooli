@@ -23,6 +23,10 @@ func ToConnectError(err error) error {
 	if errors.As(err, &notPromotable) {
 		return connect.NewError(connect.CodeFailedPrecondition, notPromotable)
 	}
+	var duplicateRisk ErrDuplicateRisk
+	if errors.As(err, &duplicateRisk) {
+		return connect.NewError(connect.CodeFailedPrecondition, duplicateRisk)
+	}
 	var notFound ErrEntryNotFound
 	if errors.As(err, &notFound) {
 		return connect.NewError(connect.CodeNotFound, notFound)

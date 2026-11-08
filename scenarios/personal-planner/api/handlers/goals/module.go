@@ -27,7 +27,7 @@ func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) mod
 			case http.MethodGet:
 				goals, err := service.List(req.Context())
 				if err != nil {
-					http.Error(w, "goals are unavailable", http.StatusInternalServerError)
+					writeGoalError(w, err, "goals are unavailable")
 					return
 				}
 				out := make([]goalResponse, 0, len(goals))
@@ -52,12 +52,7 @@ func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) mod
 				}
 				created, err := service.Create(req.Context(), g.CreateInput{Title: body.Title, Purpose: body.Purpose, ProgressMethod: body.ProgressMethod, TargetBasisPoints: body.TargetBasisPoints, TargetDate: body.TargetDate, Measure: body.Measure})
 				if err != nil {
-					var invalid g.ErrInvalidGoal
-					if errors.As(err, &invalid) {
-						http.Error(w, err.Error(), http.StatusBadRequest)
-						return
-					}
-					http.Error(w, "goal could not be created", http.StatusInternalServerError)
+					writeGoalError(w, err, "goal could not be created")
 					return
 				}
 				w.WriteHeader(http.StatusCreated)
@@ -80,12 +75,7 @@ func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) mod
 				return
 			}
 			if err := service.SetTargetDate(req.Context(), mux.Vars(req)["id"], body.TargetDate, body.Reason, body.ExpectedRevision); err != nil {
-				var conflict g.ErrRevisionConflict
-				if errors.As(err, &conflict) {
-					http.Error(w, err.Error(), http.StatusConflict)
-					return
-				}
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				writeGoalError(w, err, "goal target date could not be updated")
 				return
 			}
 			w.WriteHeader(http.StatusNoContent)
@@ -93,17 +83,7 @@ func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) mod
 		r.HandleFunc("/api/v1/goals/{id}/target-date/history", func(w http.ResponseWriter, req *http.Request) {
 			history, err := service.ListTargetDateHistory(req.Context(), mux.Vars(req)["id"])
 			if err != nil {
-				var notFound g.ErrGoalNotFound
-				var invalid g.ErrInvalidGoal
-				if errors.As(err, &notFound) {
-					http.Error(w, err.Error(), http.StatusNotFound)
-					return
-				}
-				if errors.As(err, &invalid) {
-					http.Error(w, err.Error(), http.StatusBadRequest)
-					return
-				}
-				http.Error(w, "goal target date history is unavailable", http.StatusInternalServerError)
+				writeGoalError(w, err, "goal target date history is unavailable")
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
@@ -112,6 +92,29 @@ func Module(db *database.RoutedDB, clock schedule.Clock, logger *log.Logger) mod
 			}{History: history})
 		}).Methods(http.MethodGet)
 	}, Endpoints: Endpoints}
+}
+
+// writeGoalError maps goal domain errors to HTTP statuses. Unclassified
+// failures return a generic message so storage details never reach clients.
+func writeGoalError(w http.ResponseWriter, err error, unavailable string) {
+	var (
+		unverified g.ErrUnverifiedGoalPrincipal
+		invalid    g.ErrInvalidGoal
+		notFound   g.ErrGoalNotFound
+		conflict   g.ErrRevisionConflict
+	)
+	switch {
+	case errors.As(err, &unverified):
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+	case errors.As(err, &invalid):
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	case errors.As(err, &notFound):
+		http.Error(w, err.Error(), http.StatusNotFound)
+	case errors.As(err, &conflict):
+		http.Error(w, err.Error(), http.StatusConflict)
+	default:
+		http.Error(w, unavailable, http.StatusInternalServerError)
+	}
 }
 
 type goalResponse struct {

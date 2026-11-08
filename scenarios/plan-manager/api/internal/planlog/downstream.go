@@ -135,7 +135,7 @@ func (r *scenarioQABugReporter) lookup(ctx context.Context, baseURL, topic strin
 }
 
 func (r *scenarioQABugReporter) capture(ctx context.Context, baseURL string, entry Entry) (bugCaptureResponse, error) {
-	payload := bugCaptureRequest{Title: entry.Title, SignalType: entry.Bug.SignalType, Severity: entry.Bug.Severity, Repro: entry.Bug.Repro, Expected: entry.Bug.Expected, Actual: entry.Bug.Actual, Description: entry.Bug.Description, Context: entry.Bug.Context, HonestyFlags: entry.Bug.HonestyFlags, IdempotencyKey: entry.ID}
+	payload := bugCaptureRequest{Title: entry.Title, SignalType: entry.Bug.SignalType, Severity: entry.Bug.Severity, ObservedAt: observedDate(entry), Repro: entry.Bug.Repro, Expected: entry.Bug.Expected, Actual: entry.Bug.Actual, Description: entry.Bug.Description, Context: entry.Bug.Context, HonestyFlags: entry.Bug.HonestyFlags, IdempotencyKey: entry.ID}
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return bugCaptureResponse{}, err
@@ -282,6 +282,7 @@ type bugCaptureRequest struct {
 	Title          string            `json:"title"`
 	SignalType     string            `json:"signal_type"`
 	Severity       string            `json:"severity"`
+	ObservedAt     string            `json:"observed_at"`
 	Repro          []string          `json:"repro"`
 	Expected       string            `json:"expected"`
 	Actual         string            `json:"actual"`

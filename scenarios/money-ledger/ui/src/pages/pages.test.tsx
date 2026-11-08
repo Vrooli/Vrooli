@@ -11,6 +11,12 @@ import { SettingsPage } from "./SettingsPage";
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
 
+/** Pick an option from a library Select the way a user does: open it, click. */
+async function chooseOption(user: ReturnType<typeof userEvent.setup>, label: RegExp, option: RegExp | string) {
+  await user.click(screen.getByRole("button", { name: label }));
+  await user.click(await screen.findByRole("option", { name: option }));
+}
+
 const api = vi.hoisted(() => ({
   fetchBooks: vi.fn(),
   fetchAccounts: vi.fn(),
@@ -77,7 +83,8 @@ describe("ledger page empty and degraded states", () => {
     renderWithProviders(<JournalPage />);
 
     expect(await screen.findByLabelText(/date/i)).toBeVisible();
-    expect(screen.getByLabelText(/pages\.journal\.accountLabel/)).toBeVisible();
+    // The account picker is a library Select: its trigger is the labelled control.
+    expect(screen.getByRole("button", { name: /pages\.journal\.accountLabel/ })).toBeVisible();
     expect(screen.getByLabelText(/signed amount|signedAmountLabel/i)).toBeVisible();
     expect(screen.getByLabelText(/currency/i)).toBeVisible();
     expect(screen.getByLabelText(/description/i)).toBeVisible();
@@ -90,9 +97,8 @@ describe("ledger page empty and degraded states", () => {
     window.history.replaceState({}, "", "/journal");
     renderWithProviders(<JournalPage />);
 
-    const accountSelect = await screen.findByLabelText(/pages\.journal\.accountLabel/);
-    await waitFor(() => expect(screen.getByRole("option", { name: /Cash/ })).toBeVisible());
-    await user.selectOptions(accountSelect, "account-1");
+    await user.click(await screen.findByRole("button", { name: /pages\.journal\.accountLabel/ }));
+    await user.click(await screen.findByRole("option", { name: /Cash/ }));
     await user.type(screen.getByLabelText(/signed amount|signedAmountLabel/i), "1250");
     await user.type(screen.getByLabelText(/description/i), "Cash sale");
     await user.click(screen.getByRole("button", { name: /submitEntry/i }));
@@ -223,8 +229,8 @@ describe("ledger page empty and degraded states", () => {
     await user.click(screen.getByRole("button", { name: /createAccountAction/i }));
 		await waitFor(() => expect(api.createAccount).toHaveBeenCalledWith("book-created", "Receivables", "ASSET"));
 
-    await user.selectOptions(screen.getByLabelText(/fromAccountLabel/i), "account-1");
-    await user.selectOptions(screen.getByLabelText(/toAccountLabel/i), "account-2");
+    await chooseOption(user, /fromAccountLabel/i, /^Cash/);
+    await chooseOption(user, /toAccountLabel/i, /^Operating income/);
     await user.type(screen.getByLabelText(/transferAmountLabel/i), "2500");
     await user.click(screen.getByRole("button", { name: /transferAction/i }));
     await waitFor(() => expect(api.transfer).toHaveBeenCalledWith(expect.objectContaining({
@@ -264,9 +270,8 @@ describe("ledger page empty and degraded states", () => {
     const user = userEvent.setup();
     renderWithProviders(<AdaptersPage />);
     await screen.findByTestId("page-adapters");
-    const importAdapter = screen.getByRole("combobox", { name: /adapterIdLabel/i });
-    await user.selectOptions(importAdapter, "bank");
-    expect(importAdapter).toHaveValue("bank");
+    await chooseOption(user, /adapterIdLabel/i, "Bank");
+    expect(screen.getByRole("button", { name: /adapterIdLabel/i })).toHaveTextContent("Bank");
     const file = new File(["date,amount\n2026-08-16,2500"], "ledger.csv", { type: "text/csv" });
     Object.defineProperty(file, "arrayBuffer", {
       value: () => new TextEncoder().encode("date,amount\n2026-08-16,2500").buffer,

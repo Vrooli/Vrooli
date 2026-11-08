@@ -105,6 +105,27 @@ func TestCryptoPreviewPendingApprovalReversionAndRemovalHaveDistinctEffects(t *t
 	require.NoError(t, err)
 	require.Equal(t, original.OccurrenceKey, pendingPreview.OccurrenceKey, "pending and included observations share an economic identity")
 	require.Empty(t, pendingPreview.InclusionRevision)
+
+	// EVM hex identities are case-insensitive. Their display casing must not
+	// create a second economic occurrence or inclusion revision.
+	// Display casing (EIP-55 style) varies the hex digits; the 0x prefix stays.
+	upperHex := func(value string) string { return "0x" + strings.ToUpper(strings.TrimPrefix(value, "0x")) }
+	mixedCase := proto.Clone(in).(*ingestpb.PreviewCryptoObservationRequest)
+	assetParts := strings.SplitN(mixedCase.AssetId, "/", 2)
+	assetIdentity := strings.SplitN(assetParts[1], ":", 2)
+	mixedCase.AssetId = assetParts[0] + "/" + assetIdentity[0] + ":" + upperHex(assetIdentity[1])
+	mixedCase.Address = upperHex(mixedCase.Address)
+	mixedCase.TransactionHash = upperHex(mixedCase.TransactionHash)
+	mixedCase.BlockHash = upperHex(mixedCase.BlockHash)
+	mixedCasePreview, err := s.PreviewCryptoObservation(ctx, mixedCase)
+	require.NoError(t, err)
+	require.Equal(t, original.OccurrenceKey, mixedCasePreview.OccurrenceKey)
+	require.Equal(t, original.InclusionRevision, mixedCasePreview.InclusionRevision)
+	require.Equal(t, strings.ToLower(in.AssetId), mixedCasePreview.AssetId)
+	require.Equal(t, strings.ToLower(in.Address), mixedCasePreview.Address)
+	require.Equal(t, in.AtomicAmount, mixedCasePreview.AtomicAmount)
+	require.Equal(t, "withheld", mixedCasePreview.PostingState)
+	require.Equal(t, "uncredited", mixedCasePreview.BudgetState)
 }
 
 func TestCryptoPreviewBookReadbackDoesNotProveWalletOwnership(t *testing.T) {

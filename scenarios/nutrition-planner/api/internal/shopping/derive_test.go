@@ -64,9 +64,9 @@ func TestDerivePreservesUnknownsAndChecklistOnlyState(t *testing.T) {
 
 func TestDeriveScalesKnownIngredientDemandByPlannedQuantity(t *testing.T) {
 	draft := planning.Draft{Occurrences: []planning.Occurrence{{RecipeID: "r1", RecipeRevision: 1, RecipeName: "Bowl", Quantity: "3"}}}
-	item := recipe.Recipe{ID: "r1", Revision: 1, CanonicalYield: "2", Ingredients: []recipe.Ingredient{{ID: "rice", Name: "Rice", Amount: "100", Unit: "g"}}, Methods: []recipe.Method{{Steps: []recipe.MethodStep{{Inputs: []string{"rice"}}}}}}
+	item := recipe.Recipe{ID: "r1", Revision: 1, CanonicalYield: "2", Ingredients: []recipe.Ingredient{{ID: "rice-id", Name: "Rice", Amount: "100", Unit: "g"}}, Methods: []recipe.Method{{Steps: []recipe.MethodStep{{Inputs: []string{"rice-id"}}}}}}
 	lines := Derive(draft, []recipe.Recipe{item}, nil)
-	if len(lines) != 1 || lines[0].Need != "150 g" || lines[0].ItemID != "rice" || lines[0].Amount.String() != "150" {
+	if len(lines) != 1 || lines[0].Need != "150 g" || lines[0].ItemID != "rice-id" || lines[0].Label != "Rice" || lines[0].Amount.String() != "150" {
 		t.Fatalf("scaled demand=%+v", lines)
 	}
 }

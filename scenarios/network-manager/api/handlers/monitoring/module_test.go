@@ -54,7 +54,7 @@ type fakeRepository struct {
 
 func (r *fakeRepository) ListSchedules(_ context.Context, includeDisabled bool) ([]domainmonitoring.Schedule, error) {
 	out := []domainmonitoring.Schedule{}
-	for _, schedule := range r.clock {
+	for _, schedule := range r.schedule {
 		if includeDisabled || schedule.Enabled {
 			out = append(out, schedule)
 		}
@@ -63,7 +63,7 @@ func (r *fakeRepository) ListSchedules(_ context.Context, includeDisabled bool) 
 }
 
 func (r *fakeRepository) GetSchedule(_ context.Context, id string) (domainmonitoring.Schedule, error) {
-	schedule, ok := r.clock[id]
+	schedule, ok := r.schedule[id]
 	if !ok {
 		return domainmonitoring.Schedule{}, domainmonitoring.ErrNotFound
 	}
@@ -74,7 +74,7 @@ func (r *fakeRepository) UpsertSchedule(_ context.Context, schedule domainmonito
 	if schedule.ID == "" {
 		schedule.ID = "schedule-1"
 	}
-	r.clock[schedule.ID] = schedule
+	r.schedule[schedule.ID] = schedule
 	return schedule, nil
 }
 

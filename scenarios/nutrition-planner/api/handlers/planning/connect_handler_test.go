@@ -846,7 +846,7 @@ func TestNoochConnectRoutesWorkWithoutIdentity(t *testing.T) {
 	if err := json.Unmarshal(encodedRiceImpact, &riceImpactJSON); err != nil {
 		t.Fatal(err)
 	}
-	if riceImpactJSON["label"] != "rice" || riceImpactJSON["need"] != "300 g" || riceImpactJSON["stock"] != "75 g" || riceImpactJSON["missing"] != "225 g" || riceImpactJSON["packageCount"] != "2" || riceImpactJSON["price"] != "4.00 USD / 200 g" || riceImpactJSON["portionCost"] != "6 USD" || riceImpactJSON["checkoutTotal"] != "8 USD" || riceImpactJSON["actualSpend"] != "unknown" {
+	if riceImpactJSON["label"] != "Rice" || riceImpactJSON["need"] != "300 g" || riceImpactJSON["stock"] != "75 g" || riceImpactJSON["missing"] != "225 g" || riceImpactJSON["packageCount"] != "2" || riceImpactJSON["price"] != "4.00 USD / 200 g" || riceImpactJSON["portionCost"] != "6 USD" || riceImpactJSON["checkoutTotal"] != "8 USD" || riceImpactJSON["actualSpend"] != "unknown" {
 		t.Fatalf("anonymous shopping impact JSON must use the UI's camelCase fields: %s", encodedRiceImpact)
 	}
 	var envelope map[string]json.RawMessage

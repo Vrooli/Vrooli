@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
+	"strings"
 	"testing"
 )
 
-// TestParseNaturalLanguageQueryWithOllama tests query parsing with Ollama integration
-func TestParseNaturalLanguageQueryWithOllama(t *testing.T) {
+// TestParseNaturalLanguageQueryFallback tests keyword-fallback query parsing
+func TestParseNaturalLanguageQueryFallback(t *testing.T) {
 	cleanup := setupTestLogger()
 	defer cleanup()
 
@@ -117,7 +119,7 @@ func TestSearchHandlerWithAllFilters(t *testing.T) {
 				t.Errorf("Expected status 200, got %d", w.Code)
 			}
 
-			places := assertPlacesResponse(t, w, 200)
+			places := assertSearchResponse(t, w, 200)
 			t.Logf("Filter combination '%s' returned %d places", tc.name, len(places))
 		})
 	}
@@ -385,5 +387,26 @@ func TestPlaceDetailsHandlerWithDifferentIDs(t *testing.T) {
 				t.Errorf("Expected ID %s, got %s", id, place.ID)
 			}
 		})
+	}
+}
+
+// TestParseNaturalLanguageQueryPrefersGatewayResult verifies a well-formed
+// gateway answer is used instead of keyword fallback.
+func TestParseNaturalLanguageQueryPrefersGatewayResult(t *testing.T) {
+	original := generateWithGateway
+	defer func() { generateWithGateway = original }()
+	var gotPrompt string
+	generateWithGateway = func(_ context.Context, prompt string) ([]byte, error) {
+		gotPrompt = prompt
+		return []byte(`{"response":"{\"category\":\"fitness\",\"radius\":3,\"keywords\":[\"yoga\"]}"}`), nil
+	}
+
+	parsed := parseNaturalLanguageQuery("somewhere to stretch")
+
+	if !strings.Contains(gotPrompt, "somewhere to stretch") {
+		t.Fatalf("prompt did not carry the query: %q", gotPrompt)
+	}
+	if parsed.Category != "fitness" || parsed.Radius != 3 || len(parsed.Keywords) != 1 || parsed.Keywords[0] != "yoga" {
+		t.Fatalf("parsed = %+v, want gateway result", parsed)
 	}
 }

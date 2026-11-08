@@ -300,6 +300,9 @@ func (s *service) SyncEntry(ctx context.Context, id string) (Entry, GuidedStep, 
 	if e.SyncStatus == planmodel.LogSyncSynced {
 		return e, stepForEntry(e), nil // already synced; idempotent retry
 	}
+	if ref := explicitScenarioQABugReference(e); ref != "" {
+		return e, stepForEntry(e), ErrDuplicateRisk{EntryID: e.ID, Reference: ref}
+	}
 	e = s.attemptSync(ctx, e)
 	e.UpdatedAt = s.now()
 	if err := s.repo.SaveEntry(ctx, e); err != nil {
@@ -331,6 +334,16 @@ func (s *service) attemptSync(ctx context.Context, e Entry) Entry {
 		ref DownstreamRef
 		err error
 	)
+	if existingRef := explicitScenarioQABugReference(e); existingRef != "" {
+		e.SyncStatus = planmodel.LogSyncFailed
+		e.Downstream = DownstreamRef{
+			System:    scenarioQASystem,
+			Kind:      "bug_report",
+			Reference: existingRef,
+			Detail:    "automatic forwarding blocked: an explicit published Scenario QA bug reference requires manual reconciliation",
+		}
+		return e
+	}
 	switch e.Type {
 	case planmodel.LogEntryBugReport:
 		ref, err = s.bugs.FileBug(ctx, e)

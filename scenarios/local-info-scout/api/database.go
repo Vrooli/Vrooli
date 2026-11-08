@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"database/sql"
-	schema "local-info-scout/internal/scout"
 	"os"
 	"time"
+
+	schema "local-info-scout/internal/scout"
 
 	_ "github.com/lib/pq"
 	"github.com/vrooli/api-core/database"
@@ -13,9 +14,10 @@ import (
 
 var db *sql.DB
 
-// initDB initializes the PostgreSQL database connection with automatic retry and backoff.
-// Reads POSTGRES_* environment variables set by the lifecycle system.
-func initDB() {
+// initDB connects PostgreSQL persistence from the lifecycle's POSTGRES_*
+// environment, with retry and backoff bounded by ctx. Missing configuration or
+// an unreachable database disables persistence rather than failing startup.
+func initDB(ctx context.Context) {
 	// Check if database configuration is available through the shared seam.
 	dsn, dsnErr := database.ResolvePostgresDSN(os.Getenv)
 	if dsnErr != nil || dsn == "" {
@@ -24,7 +26,7 @@ func initDB() {
 	}
 
 	var err error
-	db, err = database.Connect(context.Background(), database.Config{
+	db, err = database.Connect(ctx, database.Config{
 		Driver:          "postgres",
 		DSN:             dsn,
 		MaxOpenConns:    25,
@@ -39,7 +41,7 @@ func initDB() {
 		return
 	}
 
-	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+	if err := database.EnsureSchemas(ctx, db, database.SchemaProviderFunc(schema.Schema)); err != nil {
 		dbLogger.Error("schema initialization failed", map[string]interface{}{"error": err.Error()})
 		_ = db.Close()
 		db = nil
@@ -55,19 +57,6 @@ func initDB() {
 		"max_lifetime":  "5m",
 		"max_idle_time": "1m",
 	})
-
-}
-
-// createTables reapplies the canonical domain-owned schema for compatibility
-// with older tests that call this helper directly.
-func createTables() {
-	if db == nil {
-		return
-	}
-
-	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
-		dbLogger.Error("Failed to apply local-info-scout schema", map[string]interface{}{"error": err.Error()})
-	}
 }
 
 // savePlaceToDb saves a place to the database

@@ -17,8 +17,8 @@ func TestGenerateIsDeterministicAndPreservesLocks(t *testing.T) {
 }
 
 func TestGenerateNoCandidateExplainsUnresolvedSlot(t *testing.T) {
-	draft := Generate(GenerateInput{Slots: []Slot{{Date: "2026-09-21"}}, Candidates: []Candidate{{ID: "blocked", Eligible: false}}})
-	if len(draft.Unresolved) != 1 || draft.Unresolved[0].Code != "no_eligible_meal" {
+	draft := Generate(GenerateInput{Slots: []Slot{{Date: "2026-09-21", SlotName: "lunch"}}, Candidates: []Candidate{{ID: "blocked", Eligible: false}}})
+	if len(draft.Unresolved) != 1 || draft.Unresolved[0].Code != "no_eligible_meal" || draft.Unresolved[0].SlotName != "lunch" {
 		t.Fatalf("draft=%#v", draft)
 	}
 }
@@ -35,7 +35,7 @@ func TestGenerateRetainsLockedOccurrenceWhenCurrentEligibilityNeedsReview(t *tes
 	if got.Date != "2026-09-21" || got.SlotName != "breakfast" || got.RecipeID != "oats" || got.RecipeName != "Cinnamon pear oats" || !got.Locked {
 		t.Fatalf("locked anchor identity was not retained: %#v", got)
 	}
-	if len(draft.Unresolved) != 1 || draft.Unresolved[0].Code != "locked_recipe_ineligible" || draft.Unresolved[0].CandidateIDs[0] != "oats" {
+	if len(draft.Unresolved) != 1 || draft.Unresolved[0].Code != "locked_recipe_ineligible" || draft.Unresolved[0].SlotName != "breakfast" || draft.Unresolved[0].CandidateIDs[0] != "oats" {
 		t.Fatalf("ineligible locked anchor must remain visibly unresolved: %#v", draft.Unresolved)
 	}
 }

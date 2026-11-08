@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/schedule"
 	v "github.com/vrooli/vrooli/packages/proto/gen/go/personal-planner/v1/goals"
 	_ "modernc.org/sqlite"
@@ -25,7 +26,7 @@ func TestConnectMeasuredGoalCreateListRoundTrip(t *testing.T) {
 	}
 
 	h := NewConnectHandler(Deps{Service: g.NewService(g.NewSQLiteRepository(db, schedule.NewFake(time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC))))})
-	ctx := context.Background()
+	ctx := verifiedGoalContext(context.Background())
 	cases := []struct {
 		name, targetDate, recurrence, period string
 		amount                               int64
@@ -76,5 +77,34 @@ func TestConnectMeasuredGoalCreateListRoundTrip(t *testing.T) {
 	generic := byTitle["generic"]
 	if generic == nil || generic.Measure != nil || generic.TargetDate != "" || generic.ProgressState != "" || generic.ProgressBasisPoints == nil || *generic.ProgressBasisPoints != 0 {
 		t.Errorf("generic goal compatibility changed: %+v", generic)
+	}
+}
+
+const goalTestSubject = "planner-test-owner"
+
+// verifiedGoalContext carries the verified human principal that owns goals.
+func verifiedGoalContext(ctx context.Context) context.Context {
+	return identity.WithPrincipal(ctx, identity.Principal{Kind: identity.ActorHuman, Subject: goalTestSubject, Verified: true})
+}
+
+func TestConnectGoalsRejectMissingPrincipalAsUnauthenticated(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec(g.Schema()); err != nil {
+		t.Fatal(err)
+	}
+	h := NewConnectHandler(Deps{Service: g.NewService(g.NewSQLiteRepository(db, schedule.System()))})
+
+	_, err = h.ListGoals(context.Background(), connect.NewRequest(&v.ListGoalsRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("ListGoals without principal: code=%v err=%v, want unauthenticated", connect.CodeOf(err), err)
+	}
+	_, err = h.CreateGoal(context.Background(), connect.NewRequest(&v.CreateGoalRequest{Title: "x", ProgressMethod: g.ProgressManual, TargetBasisPoints: 10000}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("CreateGoal without principal: code=%v err=%v, want unauthenticated", connect.CodeOf(err), err)
 	}
 }

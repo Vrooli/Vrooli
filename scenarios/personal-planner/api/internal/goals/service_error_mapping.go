@@ -23,6 +23,10 @@ func ToConnectError(err error) error {
 	if errors.As(err, &rc) {
 		return connect.NewError(connect.CodeAborted, err)
 	}
+	var up ErrUnverifiedGoalPrincipal
+	if errors.As(err, &up) {
+		return connect.NewError(connect.CodeUnauthenticated, err)
+	}
 	var pi ErrPrerequisitesIncomplete
 	if errors.As(err, &pi) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)

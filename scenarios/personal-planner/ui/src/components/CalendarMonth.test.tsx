@@ -1,6 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CalendarMonth } from "./CalendarMonth";
 import { renderWithProviders } from "../test-utils";
 
@@ -17,7 +17,15 @@ function renderMonth() {
   return renderWithProviders(<CalendarMonth />);
 }
 
-afterEach(() => { vi.clearAllMocks(); vi.unstubAllGlobals(); });
+// The fixtures are October and November 2026 events; pin the month the
+// calendar opens on so the suite does not depend on the wall clock. Only Date
+// is faked, so user-event and React Query timers keep running.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-15T12:00:00-04:00"));
+});
+
+afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); vi.unstubAllGlobals(); });
 
 describe("CalendarMonth", () => {
   it("shows loading and error states while keeping navigation available", async () => {

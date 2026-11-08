@@ -122,7 +122,7 @@ export function AdaptersPage() {
             <form className="grid gap-3" onSubmit={submitRegistration}>
               <label className="grid gap-1" htmlFor="adapter-id"><span>{t(strings.pages.adapters.adapterIdLabel)}</span><Input id="adapter-id" value={form.id} onChange={(event) => setForm({ ...form, id: event.target.value })} /></label>
               <label className="grid gap-1" htmlFor="adapter-name"><span>{t(strings.pages.adapters.adapterNameLabel)}</span><Input id="adapter-name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
-              <label className="grid gap-1" htmlFor="adapter-kind"><span>{t(strings.pages.adapters.adapterKindLabel)}</span><Select id="adapter-kind" value={form.kind} onChange={(event: ChangeEvent<HTMLSelectElement>) => setForm({ ...form, kind: event.target.value })} options={[{ value: String(AdapterKind.FILE), label: t(strings.pages.adapters.fileKind) }, { value: String(AdapterKind.AGGREGATOR), label: t(strings.pages.adapters.aggregatorKind) }]} /></label>
+              <label className="grid gap-1" htmlFor="adapter-kind"><span id="adapter-kind-label">{t(strings.pages.adapters.adapterKindLabel)}</span><Select id="adapter-kind" aria-labelledby="adapter-kind-label" value={form.kind} onChange={(event: ChangeEvent<HTMLSelectElement>) => setForm({ ...form, kind: event.target.value })} options={[{ value: String(AdapterKind.FILE), label: t(strings.pages.adapters.fileKind) }, { value: String(AdapterKind.AGGREGATOR), label: t(strings.pages.adapters.aggregatorKind) }]} /></label>
               <Button type="submit" disabled={registerMutation.isPending}>{t(strings.pages.adapters.registerAction)}</Button>
             </form>
           </FormSection>
@@ -130,7 +130,7 @@ export function AdaptersPage() {
         <DirtyStateGuard isDirty={Boolean(fileAdapterId)} protectUnload title={t(strings.pages.adapters.importTitle)} description={t(strings.pages.adapters.description)}>
           <FormSection title={t(strings.pages.adapters.importTitle)}>
             <form className="grid gap-3" onSubmit={submitImport}>
-              <label className="grid gap-1" htmlFor="import-adapter"><span>{t(strings.pages.adapters.adapterIdLabel)}</span><Select id="import-adapter" value={fileAdapterId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setFileAdapterId(event.target.value)} options={(adapters.data?.adapters ?? []).filter((adapter) => adapter.kind === AdapterKind.FILE).map((adapter) => ({ value: adapter.id, label: adapter.name }))} placeholder={t(strings.pages.adapters.adapterIdLabel)} /></label>
+              <label className="grid gap-1" htmlFor="import-adapter"><span id="import-adapter-label">{t(strings.pages.adapters.adapterIdLabel)}</span><Select id="import-adapter" aria-labelledby="import-adapter-label" value={fileAdapterId} onChange={(event: ChangeEvent<HTMLSelectElement>) => setFileAdapterId(event.target.value)} options={(adapters.data?.adapters ?? []).filter((adapter) => adapter.kind === AdapterKind.FILE).map((adapter) => ({ value: adapter.id, label: adapter.name }))} placeholder={t(strings.pages.adapters.adapterIdLabel)} /></label>
               <label className="grid gap-1" htmlFor="adapter-file"><span>{t(strings.pages.adapters.fileLabel)}</span><Input id="adapter-file" name="adapter-file" type="file" accept=".csv,text/csv" /></label>
               <Button type="submit" disabled={importMutation.isPending}>{t(strings.pages.adapters.importTitle)}</Button>
             </form>

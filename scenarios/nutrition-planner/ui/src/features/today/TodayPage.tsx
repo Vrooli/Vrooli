@@ -2,8 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Leaf } from "lucide-react";
 
-import { applyPlan, generatePlan, getPlan, previewSwap, recordFeedback, undoFeedback, type PlanDraft } from "../../api/planning";
-import { listRecipes } from "../../api/recipes";
+import { applyPlan, exploreRecipes, generatePlan, getPlan, previewSwap, recordFeedback, undoFeedback, type ExploreFitReason, type ExploreRecipe, type PlanDraft } from "../../api/planning";
 import { listCatalogRevisions, type CatalogRevision } from "../../api/catalog";
 import { getRecipe } from "../../api/recipes";
 import { ensureWorkspace } from "../../api/workspace";
@@ -33,17 +32,76 @@ export function TodayPage() {
   const [hasDraft, setHasDraft] = useState(false);
   const [selectedOccurrenceKey, setSelectedOccurrenceKey] = useState("");
   const [feedbackState, setFeedbackState] = useState<"unknown" | "recording" | "recorded">("unknown");
-  const [recipes, setRecipes] = useState<{ id: string; name: string }[]>([]);
+  const [swapCandidates, setSwapCandidates] = useState<ExploreRecipe[]>([]);
+  const [swapBlockingReasons, setSwapBlockingReasons] = useState<ExploreFitReason[]>([]);
   const [supplements, setSupplements] = useState<SupplementSchedule[]>([]);
   const [catalog, setCatalog] = useState<CatalogRevision[]>([]);
   const [supplementState, setSupplementState] = useState<"loading" | "ready" | "error">("loading");
   const [swapOpen, setSwapOpen] = useState(false);
   const [replacementId, setReplacementId] = useState("");
+  const [swapReason, setSwapReason] = useState("");
+  const [swapReasonInsights, setSwapReasonInsights] = useState<Record<string, Awaited<ReturnType<typeof previewSwap>> | "loading" | "unavailable">>({});
   const [swapPreview, setSwapPreview] = useState<Awaited<ReturnType<typeof previewSwap>>>();
   const navigate = useNavigate();
   const occurrence = draft?.occurrences.find((item) => `${item.date}:${item.slotName ?? "meal"}` === selectedOccurrenceKey) ?? draft?.occurrences[0];
   const todayChanges = describeTodayChanges(savedDraft, draft);
-  const swapNeedsImpactReview = Boolean(swapPreview && ((swapPreview.affectedDates?.length ?? 0) > 1 || (swapPreview.preview.shoppingChanges?.length ?? 0) > 0 || (swapPreview.preview.relatedOccurrences?.length ?? 0) > 0 || (swapPreview.preview.preparedBatchImpacts?.length ?? 0) > 0));
+  const swapReasonTerms: Record<string, string[]> = {
+    "Something different (saved-text match)": ["different", "variety", "new", "change"],
+    "Less effort (saved-text match)": ["easy", "simple", "quick", "fast", "low effort", "no prep"],
+  };
+  const swapReasonOptions = ["Something different (saved-text match)", "Less effort (saved-text match)", "Lower cost", "Missing ingredients"];
+  const rankedSwapCandidates = [...swapCandidates].sort((left, right) => {
+    const insightScore = (candidate: ExploreRecipe): number | undefined => {
+      const insight = swapReasonInsights[candidate.recipeId];
+      if (!insight || insight === "loading" || insight === "unavailable") return undefined;
+      const lines = insight.preview.shoppingChanges ?? [];
+      if (swapReason === "Missing ingredients") {
+        const knownShortages = lines.map((change) => change.after?.missing).filter((value): value is string => Boolean(value && /^\s*\d+(?:\.\d+)?\b/.test(value)));
+        if (knownShortages.length === 0) return undefined;
+        return knownShortages.filter((value) => Number.parseFloat(value) > 0).length;
+      }
+      if (swapReason === "Lower cost") {
+        const money = (value: string | undefined) => {
+          const match = value?.match(/^\s*(\d+(?:\.\d+)?)\s+([A-Z]{3})\s*$/);
+          return match ? { amount: Number(match[1]), currency: match[2] } : undefined;
+        };
+        const before = lines.map((change) => money(change.before?.portionCost));
+        const after = lines.map((change) => money(change.after?.portionCost));
+        const known = [...before, ...after].filter((value): value is NonNullable<typeof value> => Boolean(value));
+        if (known.length === 0 || known.some((value) => value.currency !== known[0]?.currency)) return undefined;
+        if ([...before, ...after].some((value) => value === undefined && lines.some((line) => line.before || line.after))) return undefined;
+        const beforeTotal = before.reduce((total, value) => total + (value?.amount ?? 0), 0);
+        const afterTotal = after.reduce((total, value) => total + (value?.amount ?? 0), 0);
+        return afterTotal - beforeTotal;
+      }
+      return undefined;
+    };
+    const score = (candidate: ExploreRecipe) => {
+      if (!swapReason) return 0;
+      if (swapReason === "Lower cost" || swapReason === "Missing ingredients") return 0;
+      const insight = insightScore(candidate);
+      if (insight !== undefined) return insight;
+      const evidence = `${candidate.name} ${candidate.summary} ${candidate.fitReasons.map((reason) => reason.message).join(" ")}`.toLocaleLowerCase();
+      return (swapReasonTerms[swapReason] ?? []).reduce((count, term) => count + Number(evidence.includes(term)), 0);
+    };
+    if (swapReason === "Lower cost" || swapReason === "Missing ingredients") {
+      const leftScore = insightScore(left);
+      const rightScore = insightScore(right);
+      if (leftScore !== undefined || rightScore !== undefined) {
+        if (leftScore === undefined) return 1;
+        if (rightScore === undefined) return -1;
+        return leftScore - rightScore;
+      }
+      return 0;
+    }
+    return score(right) - score(left);
+  });
+  // PreviewSwap currently omits nutrition-target deltas. Until its owning API
+  // can prove that a same-slot change has no target effects, every swap needs
+  // the fuller review path and an explicit notice about that contract gap.
+  const targetImpactNotReported = Boolean(swapPreview);
+  const swapNeedsImpactReview = Boolean(swapPreview && (targetImpactNotReported || occurrence?.locked || (swapPreview.affectedDates?.length ?? 0) > 1 || (swapPreview.preview.shoppingChanges?.length ?? 0) > 0 || (swapPreview.preview.relatedOccurrences?.length ?? 0) > 0 || (swapPreview.preview.preparedBatchImpacts?.length ?? 0) > 0));
+  const swapShoppingChanges = swapPreview?.preview.shoppingChanges ?? [];
   const closeSwap = useCallback(() => { setSwapOpen(false); setSwapPreview(undefined); }, []);
 
   useDialogFocusTrap(swapOpen, closeSwap, "[role=\"dialog\"]");
@@ -120,16 +178,39 @@ export function TodayPage() {
     if (!workspaceId) return;
     try {
       setError("");
-      const available = await listRecipes(workspaceId);
-      setRecipes(available.map((recipe) => ({ id: recipe.id, name: recipe.name })));
-      setReplacementId(""); setSwapPreview(undefined); setSwapOpen(true);
+      const available = await exploreRecipes(workspaceId);
+      setSwapCandidates(available.candidates.filter((recipe) => recipe.recipeId !== occurrence?.recipeId).slice(0, 4));
+      setSwapBlockingReasons(available.blockingReasons ?? []);
+      setReplacementId(""); setSwapReason(""); setSwapReasonInsights({}); setSwapPreview(undefined); setSwapOpen(true);
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to load replacement meals."); }
   }
 
-  async function makeSwapPreview() {
-    if (!draft || !workspaceId || !occurrence || !replacementId) return;
-    try { setError(""); setSwapPreview(await previewSwap({ workspaceId, expectedRevision: draft.currentRevision, date: occurrence.date, slotName: occurrence.slotName ?? "meal", replacementRecipeId: replacementId })); }
+  async function makeSwapPreview(recipeId = replacementId) {
+    if (!draft || !workspaceId || !occurrence || !recipeId) return;
+    try {
+      setError("");
+      const preview = await previewSwap({ workspaceId, expectedRevision: draft.currentRevision, date: occurrence.date, slotName: occurrence.slotName ?? "meal", replacementRecipeId: recipeId });
+      setSwapPreview(preview);
+      setSwapReasonInsights((current) => ({ ...current, [recipeId]: preview }));
+    }
     catch (err) { setError(err instanceof Error ? err.message : "Unable to preview this swap."); }
+  }
+
+  async function chooseSwapReason(reason: string) {
+    const nextReason = swapReason === reason ? "" : reason;
+    setSwapReason(nextReason);
+    if (!nextReason || (nextReason !== "Lower cost" && nextReason !== "Missing ingredients") || !draft || !workspaceId || !occurrence) return;
+    const needsInsight = swapCandidates.filter((candidate) => !swapReasonInsights[candidate.recipeId]);
+    if (needsInsight.length === 0) return;
+    setSwapReasonInsights((current) => ({ ...current, ...Object.fromEntries(needsInsight.map((candidate) => [candidate.recipeId, "loading"])) }));
+    await Promise.all(needsInsight.map(async (candidate) => {
+      try {
+        const insight = await previewSwap({ workspaceId, expectedRevision: draft.currentRevision, date: occurrence.date, slotName: occurrence.slotName ?? "meal", replacementRecipeId: candidate.recipeId });
+        setSwapReasonInsights((current) => ({ ...current, [candidate.recipeId]: insight }));
+      } catch {
+        setSwapReasonInsights((current) => ({ ...current, [candidate.recipeId]: "unavailable" }));
+      }
+    }));
   }
 
   async function applySwap() {
@@ -268,7 +349,17 @@ export function TodayPage() {
         {supplementState === "error" && <p role="status">Schedule status is unavailable; today’s supplement expectations are unknown.</p>}
         {supplementState === "ready" && (() => { const due = supplements.filter((schedule) => scheduleAppliesOnLocalDate(schedule, localDateString())); return due.length === 0 ? <p>No confirmed supplement schedule applies today.</p> : <ul aria-label="Supplements scheduled today">{due.map((schedule) => { const contributions = scheduledSupplementNutrients(schedule, catalog); return <li key={`${schedule.id}:${schedule.revision}`}><strong>{contributions[0]?.productName ?? schedule.productRevisionId}</strong> · {schedule.dose} {schedule.doseUnit} scheduled<ul>{contributions.map((item, index) => <li key={`${schedule.id}:${schedule.revision}:${item.nutrientId}:${index}`}>{item.nutrientId ? `${item.nutrientId}: ` : "Nutrient contribution: "}{item.unresolvedReason || `${item.amount} ${item.unit} expected (${item.evidence || "catalog evidence"})`}</li>)}</ul></li>; })}</ul>; })()}
       </section>}
-      {swapOpen && <div role="dialog" aria-labelledby="today-swap-heading" aria-modal="true" className="rounded-lg border border-app-accent bg-app-surface-muted p-5"><h2 id="today-swap-heading" className="font-semibold text-app-foreground">Preview a replacement</h2><label className="mt-4 block text-sm font-medium text-app-foreground" htmlFor="today-replacement-recipe">Replacement meal</label><select id="today-replacement-recipe" className="mt-1 min-h-11 w-full rounded border bg-app-surface px-3" value={replacementId} onChange={(event) => setReplacementId(event.target.value)}><option value="">Choose a meal</option>{recipes.map((recipe) => <option key={recipe.id} value={recipe.id}>{recipe.name}</option>)}</select>{swapPreview && <><ul className="mt-4 space-y-1 text-sm text-app-foreground">{swapPreview.preview.changes.map((change) => <li key={`${change.date}-${change.slotName}`}>{change.date} · {change.slotName}: {change.beforeName} → {change.afterName}</li>)}</ul>{swapNeedsImpactReview ? <section aria-label="Shopping impact" className="mt-4 rounded border bg-app-surface p-3"><h3 className="font-medium text-app-foreground">Shopping impact</h3>{(swapPreview.preview.relatedOccurrences?.length ?? 0) > 0 && <div className="mt-2 text-sm text-app-foreground"><h4 className="font-medium">Later uses to review</h4><p>These later occurrences are unchanged. Confirm whether any depends on this meal before applying; no batch or leftover relationship is inferred.</p><ul className="mt-1 list-disc pl-5">{swapPreview.preview.relatedOccurrences?.map((item) => <li key={`${item.date}-${item.slotName}`}>{item.date} · {item.slotName}: {item.recipeName} · revision {item.recipeRevision}{item.locked ? " · locked" : ""}</li>)}</ul></div>}{(swapPreview.preview.preparedBatchImpacts?.length ?? 0) > 0 && <div className="mt-2 text-sm text-app-foreground"><h4 className="font-medium">Prepared portions to review</h4><p>These portions remain in Kitchen inventory. Confirm whether this swap changes which meal should use them; the preview does not allocate or consume a batch.</p><ul className="mt-1 list-disc pl-5">{swapPreview.preview.preparedBatchImpacts?.map((item, index) => <li key={`${item.recipeId}-${item.recipeRevision}-${index}`}>{item.recipeName} · revision {item.recipeRevision} · batch {item.batchId}: {item.available} {item.unit} available</li>)}</ul></div>}{swapPreview.preview.shoppingChanges.length ? <ul className="mt-2 space-y-2 text-sm text-app-foreground">{swapPreview.preview.shoppingChanges.map((change) => { const line = change.after ?? change.before; if (!line) return null; return <li key={change.key}><strong>{change.after ? "Added" : "Removed"}:</strong> {line.label} · Need: {line.need} · Stock: {line.stock} · Missing: {line.missing} · Packages: {line.packageCount} · Price: {line.price}</li>; })}</ul> : <p className="mt-1 text-sm text-app-muted-foreground">No ingredient lines changed; dates affected: {swapPreview.affectedDates.join(", ")}.</p>}<p className="mt-2 text-xs text-app-muted-foreground">This is a plan-derived review only; it does not reserve stock, mark items purchased, or change inventory.</p></section> : <p className="mt-3 text-sm text-app-muted-foreground">This preview changes one meal slot and no shopping lines.</p>}</> }<div className="mt-4 flex gap-2"><button type="button" className="min-h-11 rounded bg-app-primary px-4 font-medium text-app-primary-foreground" onClick={() => void (swapPreview ? applySwap() : makeSwapPreview())} disabled={!replacementId}>{swapPreview ? (swapNeedsImpactReview ? "Apply reviewed changes" : "Confirm swap") : "Preview swap"}</button><button type="button" className="min-h-11 rounded border bg-app-surface px-4" onClick={() => setSwapOpen(false)}>Cancel</button></div></div>}
+      {swapOpen && <><div className="today-swap-backdrop" aria-hidden="true" /><div role="dialog" aria-labelledby="today-swap-heading" aria-modal="true" className="today-swap-sheet">
+        <h2 id="today-swap-heading">What sounds better?</h2>
+        <p className="today-swap-context">Suitable meals come from saved recipes that meet your current food rules. Choose one to review this slot.</p>
+        {swapCandidates.length === 0 ? <div className="today-swap-empty"><p role="status">No other saved meals are available for this swap.</p>{swapBlockingReasons.length > 0 && <><h3>Why other meals were excluded</h3><ul aria-label="Why other saved meals were excluded">{swapBlockingReasons.map((reason, index) => <li key={`${reason.code}:${reason.rule}:${reason.reference}:${index}`}>{reason.message}{reason.rule ? ` · ${reason.rule}` : ""}</li>)}</ul><p>Review the rules before continuing; no rule was changed.</p><div className="today-swap-actions"><Link className="today-secondary-action" to="/meals">Add or review meals</Link><Link className="today-secondary-action" to="/kitchen?tab=preferences">Review restrictions</Link></div></>}</div> : <ul className="today-swap-candidates" aria-label="Suitable alternatives">{rankedSwapCandidates.map((recipe) => <li key={`${recipe.recipeId}:${recipe.recipeRevision}`}><div><h3>{recipe.name}</h3><p>{recipe.fitReasons[0]?.message ?? "Meets the current saved food rules."}</p><p className="today-swap-evidence">Active time: Time not set <span aria-hidden="true">·</span> Protein: unknown</p></div><button type="button" className="today-secondary-action" aria-label={`Review ${recipe.name} swap`} disabled={Boolean(swapPreview && replacementId === recipe.recipeId)} onClick={() => { setReplacementId(recipe.recipeId); setSwapPreview(undefined); void makeSwapPreview(recipe.recipeId); }}>{swapPreview && replacementId === recipe.recipeId ? "Selected" : "Review swap"}</button></li>)}</ul>}
+        <div className="today-swap-reasons" role="group" aria-label="Reasons to swap">{swapReasonOptions.map((reason) => <button type="button" key={reason} aria-pressed={swapReason === reason} onClick={() => void chooseSwapReason(reason)}>{reason}</button>)}</div>
+        <p className="today-swap-context">Effort and difference chips match saved text only. Cost and missing-ingredient chips sort only with known plan preview evidence; otherwise the server order stays. Unrecorded time and protein stay unknown.</p>
+        {Object.values(swapReasonInsights).some((insight) => insight === "loading") && <p role="status" className="today-swap-context">Checking plan preview cost and ingredient evidence…</p>}
+        {swapPreview && <><ul className="mt-4 space-y-1 text-sm text-app-foreground">{swapPreview.preview.changes.map((change) => <li key={`${change.date}-${change.slotName}`}>{change.date} · {change.slotName}: {change.beforeName} → {change.afterName}</li>)}</ul>{swapNeedsImpactReview ? <section aria-label="Swap impact" className="mt-4 rounded border bg-app-surface p-3"><h3 className="font-medium text-app-foreground">Swap impact review</h3>{targetImpactNotReported && <p className="mt-2 text-sm">Nutrition target effects are not included in this preview. Review your targets before applying; no target effect is inferred.</p>}{occurrence?.locked && <p className="mt-2 text-sm">This slot is locked. Replacing it will change the saved locked meal.</p>}{(swapPreview.preview.relatedOccurrences?.length ?? 0) > 0 && <div className="mt-2 text-sm text-app-foreground"><h4 className="font-medium">Later uses to review</h4><p>These later occurrences are unchanged. Confirm whether any depends on this meal before applying; no batch or leftover relationship is inferred.</p><ul className="mt-1 list-disc pl-5">{swapPreview.preview.relatedOccurrences?.map((item) => <li key={`${item.date}-${item.slotName}`}>{item.date} · {item.slotName}: {item.recipeName} · revision {item.recipeRevision}{item.locked ? " · locked" : ""}</li>)}</ul></div>}{(swapPreview.preview.preparedBatchImpacts?.length ?? 0) > 0 && <div className="mt-2 text-sm text-app-foreground"><h4 className="font-medium">Prepared portions to review</h4><p>These portions remain in Kitchen inventory. Confirm whether this swap changes which meal should use them; the preview does not allocate or consume a batch.</p><ul className="mt-1 list-disc pl-5">{swapPreview.preview.preparedBatchImpacts?.map((item, index) => <li key={`${item.recipeId}-${item.recipeRevision}-${index}`}>{item.recipeName} · revision {item.recipeRevision} · batch {item.batchId}: {item.available} {item.unit} available</li>)}</ul></div>}{swapShoppingChanges.length ? <ul className="mt-2 space-y-2 text-sm text-app-foreground">{swapShoppingChanges.map((change) => { const line = change.after ?? change.before; if (!line) return null; return <li key={change.key}><strong>{change.after ? "Added" : "Removed"}:</strong> {line.label} · Need: {line.need} · Stock: {line.stock} · Missing: {line.missing} · Packages: {line.packageCount} · Price: {line.price}</li>; })}</ul> : <p className="mt-1 text-sm text-app-muted-foreground">No ingredient lines changed; dates affected: {(swapPreview.affectedDates ?? []).join(", ")}.</p>}<p className="mt-2 text-xs text-app-muted-foreground">This is a plan-derived review only; it does not reserve stock, mark items purchased, or change inventory.</p></section> : <p className="mt-3 text-sm text-app-muted-foreground">This preview changes one meal slot and no shopping lines.</p>}</> }
+        {swapPreview && <div className="today-swap-actions"><button type="button" className="today-primary-action" onClick={() => void applySwap()}>{swapNeedsImpactReview ? "Apply reviewed changes" : "Confirm swap"}</button><button type="button" className="today-secondary-action" onClick={() => { setReplacementId(""); setSwapPreview(undefined); }}>Choose another meal</button><button type="button" className="today-secondary-action" onClick={closeSwap}>Cancel</button></div>}
+        {!swapPreview && <div className="today-swap-actions"><button type="button" className="today-secondary-action" onClick={closeSwap}>Cancel</button></div>}
+      </div></>}
     </section>
   );
 }

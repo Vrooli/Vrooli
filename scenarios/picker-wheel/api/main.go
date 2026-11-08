@@ -10,8 +10,9 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
-	schema "picker-wheel/internal/wheel"
 	"time"
+
+	schema "picker-wheel/internal/wheel"
 
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/health"
@@ -64,7 +65,27 @@ func initDB() {
 		db = nil
 		return
 	}
+	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
+		logger.Warn("database schema initialization failed, using in-memory fallback", "error", err)
+		_ = db.Close()
+		db = nil
+		return
+	}
 	logger.Info("database connection pool established successfully")
+}
+
+// newRouter wires the API. The database is optional: without it the wheels
+// live in memory and health reports degraded rather than unhealthy.
+func newRouter(db *sql.DB) *mux.Router {
+	router := mux.NewRouter()
+	router.HandleFunc("/health", health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()).Methods("GET")
+	router.HandleFunc("/api/wheels", getWheelsHandler).Methods("GET")
+	router.HandleFunc("/api/wheels", createWheelHandler).Methods("POST")
+	router.HandleFunc("/api/wheels/{id}", getWheelHandler).Methods("GET")
+	router.HandleFunc("/api/wheels/{id}", deleteWheelHandler).Methods("DELETE")
+	router.HandleFunc("/api/history", getHistoryHandler).Methods("GET")
+	router.HandleFunc("/api/spin", spinHandler).Methods("POST")
+	return router
 }
 
 func main() {
@@ -87,19 +108,7 @@ func main() {
 	wheels = getDefaultWheels()
 	history = []SpinResult{}
 
-	router := mux.NewRouter()
-
-	// Health check
-	healthHandler := health.New().Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
-	router.HandleFunc("/health", healthHandler).Methods("GET")
-
-	// API endpoints
-	router.HandleFunc("/api/wheels", getWheelsHandler).Methods("GET")
-	router.HandleFunc("/api/wheels", createWheelHandler).Methods("POST")
-	router.HandleFunc("/api/wheels/{id}", getWheelHandler).Methods("GET")
-	router.HandleFunc("/api/wheels/{id}", deleteWheelHandler).Methods("DELETE")
-	router.HandleFunc("/api/history", getHistoryHandler).Methods("GET")
-	router.HandleFunc("/api/spin", spinHandler).Methods("POST")
+	router := newRouter(db)
 
 	// Enable CORS
 	c := cors.New(cors.Options{
@@ -115,9 +124,6 @@ func main() {
 		"service", "picker-wheel-api",
 		"version", "1.0.0")
 
-	if err := database.EnsureSchemas(context.Background(), db, database.SchemaProviderFunc(schema.Schema)); err != nil {
-		log.Fatalf("database schema initialization failed: %v", err)
-	}
 	if err := server.Run(server.Config{
 		Handler: handler,
 		Cleanup: func(ctx context.Context) error {
@@ -411,7 +417,6 @@ func spinHandler(w http.ResponseWriter, r *http.Request) {
 			INSERT INTO spin_history (wheel_id, result, session_id, timestamp)
 			VALUES ($1, $2, $3, $4)
 		`, spinRequest.WheelID, selectedOption, spinRequest.SessionID, result.Timestamp)
-
 		if err != nil {
 			logger.Error("failed to store spin history in database",
 				"error", err,

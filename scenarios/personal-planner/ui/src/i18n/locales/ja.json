@@ -103,6 +103,21 @@
       "connectionDisconnected": "Connection disconnected.",
       "connectionError": "The connection action could not be completed.",
       "integrationBoundary": "Live provider OAuth and credential storage are not configured in this local build."
+    },
+    "plan": {
+      "applyRecovery": {
+        "refreshProposal": "提案を更新",
+        "retrySameApply": "同じ適用を再試行",
+        "applyStale": "予定が変更されました。この提案は適用されていません。内容を確認してからプレビューを更新してください。",
+        "applyUncertain": "適用結果を確認できません。同じ提案を再試行して結果を確かめてから、新しい提案を作成してください。",
+        "backlogApplyStale": "予定が変更されました。このバックログ提案は適用されていません。内容を確認してからプレビューを更新してください。",
+        "backlogApplyUncertain": "適用結果を確認できません。同じバックログ提案を再試行して結果を確かめてから、新しい提案を作成してください。",
+        "staleDetails": "予定の変更により、この提案は適用されませんでした。内容を確認してから更新してください。",
+        "uncertainDetails": "結果を確認できません。同じ適用を再試行してから、新しい提案を作成してください。",
+        "confirmationBoundary": "プレビューです。適用が確認されるまで予定は変更されません。",
+        "previewPlacement": "配置をプレビュー",
+        "refreshBacklogProposal": "バックログ提案を更新"
+      }
     }
   },
   "health": {

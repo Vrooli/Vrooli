@@ -19,6 +19,18 @@ type ErrNotPromotable struct{ Reason string }
 
 func (e ErrNotPromotable) Error() string { return "entry not promotable: " + e.Reason }
 
+// ErrDuplicateRisk blocks automatic forwarding when a bug report carries an
+// explicit reference to an already-published Scenario QA bug. The local entry
+// must be reconciled against that reference before a retry can be considered.
+type ErrDuplicateRisk struct {
+	EntryID   string
+	Reference string
+}
+
+func (e ErrDuplicateRisk) Error() string {
+	return fmt.Sprintf("sync blocked for log entry %q: existing Scenario QA bug reference %s requires manual reconciliation before retry", e.EntryID, e.Reference)
+}
+
 // ErrDownstreamUnavailable is the typed, non-fatal signal that a downstream sink
 // could not be reached. The service records it as a degraded sync state on the
 // durable entry rather than failing the operation.

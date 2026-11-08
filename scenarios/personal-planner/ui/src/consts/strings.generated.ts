@@ -116,6 +116,21 @@ export const strings = {
       connectionError: "pages.settings.connectionError",
       integrationBoundary: "pages.settings.integrationBoundary",
     },
+    plan: {
+      applyRecovery: {
+        refreshProposal: "pages.plan.applyRecovery.refreshProposal",
+        retrySameApply: "pages.plan.applyRecovery.retrySameApply",
+        applyStale: "pages.plan.applyRecovery.applyStale",
+        applyUncertain: "pages.plan.applyRecovery.applyUncertain",
+        backlogApplyStale: "pages.plan.applyRecovery.backlogApplyStale",
+        backlogApplyUncertain: "pages.plan.applyRecovery.backlogApplyUncertain",
+        staleDetails: "pages.plan.applyRecovery.staleDetails",
+        uncertainDetails: "pages.plan.applyRecovery.uncertainDetails",
+        confirmationBoundary: "pages.plan.applyRecovery.confirmationBoundary",
+        previewPlacement: "pages.plan.applyRecovery.previewPlacement",
+        refreshBacklogProposal: "pages.plan.applyRecovery.refreshBacklogProposal",
+      },
+    },
   },
   health: {
     title: "health.title",

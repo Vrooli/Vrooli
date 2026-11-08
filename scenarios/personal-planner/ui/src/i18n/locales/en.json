@@ -103,6 +103,21 @@
       "connectionDisconnected": "Connection disconnected.",
       "connectionError": "The connection action could not be completed.",
       "integrationBoundary": "Live provider OAuth and credential storage are not configured in this local build."
+    },
+    "plan": {
+      "applyRecovery": {
+        "refreshProposal": "Refresh proposal",
+        "retrySameApply": "Retry same apply",
+        "applyStale": "The schedule changed. This proposal was not accepted; review it, then refresh the preview.",
+        "applyUncertain": "The apply result is unconfirmed. Retry this same proposal to resolve it before creating another.",
+        "backlogApplyStale": "The schedule changed. This backlog proposal was not accepted; review it, then refresh the preview.",
+        "backlogApplyUncertain": "The apply result is unconfirmed. Retry this same backlog proposal to resolve it before creating another.",
+        "staleDetails": "This proposal was not accepted because the schedule changed. Refresh it after reviewing these details.",
+        "uncertainDetails": "The result is unconfirmed. Retry the same apply before making another proposal.",
+        "confirmationBoundary": "Preview only. Nothing changes until acceptance is confirmed.",
+        "previewPlacement": "Preview placement",
+        "refreshBacklogProposal": "Refresh backlog proposal"
+      }
     }
   },
   "health": {

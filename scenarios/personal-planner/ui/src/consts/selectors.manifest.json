@@ -189,6 +189,30 @@
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
     },
+    "planPage.openPlacement": {
+      "testId": "plan-placement-open",
+      "selector": "[data-testid=\"plan-placement-open\"]"
+    },
+    "planPage.placementProposal": {
+      "testId": "plan-placement-proposal",
+      "selector": "[data-testid=\"plan-placement-proposal\"]"
+    },
+    "planPage.placementApply": {
+      "testId": "plan-placement-apply",
+      "selector": "[data-testid=\"plan-placement-apply\"]"
+    },
+    "planPage.backlogProposal": {
+      "testId": "plan-backlog-proposal",
+      "selector": "[data-testid=\"plan-backlog-proposal\"]"
+    },
+    "planPage.backlogPreview": {
+      "testId": "plan-backlog-preview",
+      "selector": "[data-testid=\"plan-backlog-preview\"]"
+    },
+    "planPage.backlogApply": {
+      "testId": "plan-backlog-apply",
+      "selector": "[data-testid=\"plan-backlog-apply\"]"
+    },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
       "selector": "[data-testid=\"error-boundary-root\"]"
@@ -270,6 +294,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "5415b9a9e81df05658f9050c658af2473bb26eb55ad8983df1e1f075db157dc7",
-    "ui/src/consts/selectors.ts": "ee173aa5802c6788af291bbca0a3e82c8326b4fb39d7068ee9ab4c87dccb2b1d"
+    "ui/src/consts/selectors.ts": "e4a0168f2738cbbd3b64f644835e4231eba89e4f6992c8e0ac6557e0cfa3297f"
   }
 }

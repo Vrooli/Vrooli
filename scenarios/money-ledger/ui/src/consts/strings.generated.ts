@@ -12,39 +12,10 @@
 // function takes as its first argument.
 
 export const strings = {
-  $schema: "$schema",
-  $text: "$text",
-  "Access limited": "Access limited",
-  "Changes saved successfully": {
-    "": "Changes saved successfully.",
-  },
-  Collapse: "Collapse",
-  "Content failed to load": {
-    "": "Content failed to load.",
-  },
-  "Disabled states retain the same geometry and clearly communicate that the action is unavailable": {
-    "": "Disabled states retain the same geometry and clearly communicate that the action is unavailable.",
-  },
-  M: "M",
-  "Reconnect to refresh this view": {
-    "": "Reconnect to refresh this view.",
-  },
-  "Request in progress": "Request in progress",
-  Saved: "Saved",
-  "Try again": "Try again",
-  "Trying again…": "Trying again…",
   app: {
     description: "app.description",
     title: "app.title",
   },
-  assertive: "assertive",
-  asset: "asset",
-  axis: "axis",
-  background: "background",
-  capability: "capability",
-  children: "children",
-  component: "component",
-  componentId: "componentId",
   components: {
     asyncBoundary: {
       loadingContent: "components.asyncBoundary.loadingContent",
@@ -58,24 +29,6 @@ export const strings = {
       valuesLabel: "components.chart.valuesLabel",
     },
   },
-  "data-display": {
-    "data-table": {
-      "access-is-limited": "data-display.data-table.access-is-limited",
-      all: "data-display.data-table.all",
-      "data-table-content": "data-display.data-table.data-table-content",
-      dense: "data-display.data-table.dense",
-      next: "data-display.data-table.next",
-      previous: "data-display.data-table.previous",
-      roomy: "data-display.data-table.roomy",
-      "row-density": "data-display.data-table.row-density",
-    },
-  },
-  default: "default",
-  desc: "desc",
-  description: "description",
-  detail: "detail",
-  dialog: "dialog",
-  en: "en",
   errorBoundary: {
     message: "errorBoundary.message",
     retry: "errorBoundary.retry",
@@ -99,23 +52,6 @@ export const strings = {
     unimplemented: "errors.unimplemented",
     unknown: "errors.unknown",
   },
-  example: "example",
-  export: "export",
-  feedback: {
-    "async-boundary": {
-      "loading-content": "feedback.async-boundary.loading-content",
-      "this-may-take-a-moment": "feedback.async-boundary.this-may-take-a-moment",
-    },
-  },
-  fixture: "fixture",
-  format: "format",
-  forms: {
-    "dirty-state-guard": {
-      "leave-now-and-your-recent-edits-will-be-lost-sav": "forms.dirty-state-guard.leave-now-and-your-recent-edits-will-be-lost-sav",
-      "saving-preserves-your-work-discarding-cannot-be-": "forms.dirty-state-guard.saving-preserves-your-work-discarding-cannot-be-",
-      "you-have-unsaved-changes": "forms.dirty-state-guard.you-have-unsaved-changes",
-    },
-  },
   health: {
     error: "health.error",
     loading: "health.loading",
@@ -127,11 +63,6 @@ export const strings = {
     timestampLabel: "health.timestampLabel",
     title: "health.title",
   },
-  iconName: "iconName",
-  id: "id",
-  issue: "issue",
-  kind: "kind",
-  label: "label",
   layout: {
     bottomNavLabel: "layout.bottomNavLabel",
     mainLabel: "layout.mainLabel",
@@ -142,21 +73,14 @@ export const strings = {
     },
     sidebarLabel: "layout.sidebarLabel",
   },
-  libraryId: "libraryId",
   locale: {
     switcherLabel: "locale.switcherLabel",
   },
-  "lucide-react": "lucide-react",
-  measured: "measured",
-  mode: "mode",
-  module: "module",
-  name: "name",
   notifications: {
     summary: "notifications.summary",
     summary_one: "notifications.summary_one",
     summary_zero: "notifications.summary_zero",
   },
-  online: "online",
   pages: {
     accounts: {
       acceptedKinds: "pages.accounts.acceptedKinds",
@@ -375,24 +299,6 @@ export const strings = {
       uncategorisedNotReported: "pages.statements.uncategorisedNotReported",
     },
   },
-  path: "path",
-  provenance: "provenance",
-  purpose: "purpose",
-  react: "react",
-  "react-component-library:useEscapeKey": "react-component-library:useEscapeKey",
-  ref: "ref",
-  region: "region",
-  resolvedAt: "resolvedAt",
-  role: "role",
-  schema: "schema",
-  schemaVersion: "schemaVersion",
-  selector: "selector",
-  size: "size",
-  state: "state",
-  statement: "statement",
-  status: "status",
-  storyRef: "storyRef",
-  testid: "testid",
   theme: {
     choice: {
       dark: "theme.choice.dark",
@@ -401,28 +307,6 @@ export const strings = {
     },
     switcherLabel: "theme.switcherLabel",
   },
-  tier: "tier",
-  title: "title",
-  tone: "tone",
-  true: "true",
-  type: "type",
-  value: "value",
-  variant: "variant",
-  version: "version",
-  visualization: {
-    "cartesian-charts": {
-      title: "visualization.cartesian-charts.title",
-    },
-    chart: {
-      "chart-values": "visualization.chart.chart-values",
-      "explore-the-trend-and-select-a-point-for-its-exa": "visualization.chart.explore-the-trend-and-select-a-point-for-its-exa",
-      "performance-overview": "visualization.chart.performance-overview",
-      period: "visualization.chart.period",
-      value: "visualization.chart.value",
-    },
-  },
-  "↑": "↑",
-  "⌃": "⌃",
 } as const;
 
 export type Strings = typeof strings;

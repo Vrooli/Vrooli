@@ -32,10 +32,9 @@
       "type": "image/png"
     }
   ],
-  "id": "/",
   "name": "Personal Planner",
-  "scope": "/",
+  "scope": "../",
   "short_name": "Personal Planner",
-  "start_url": "/",
+  "start_url": "../",
   "theme_color": "#ebe5d8"
 }

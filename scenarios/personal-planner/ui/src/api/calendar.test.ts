@@ -4,6 +4,7 @@ const client = vi.hoisted(() => ({ listTodayAllocations: vi.fn(), listAllocation
 vi.mock("@connectrpc/connect", () => ({ createClient: () => client }));
 
 import { applyAllocationProposal, applyScheduleProposal, carryForwardAllocation, createAllocation, createRoutine, fetchAllocations, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, previewAllocation, previewSchedule, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "./calendar";
+import type { CalendarEventRequestError } from "./calendar";
 import { API_BASE } from "./client";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
@@ -11,7 +12,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
 describe("calendar API transport", () => {
   it("preserves typed owner rejection status and code", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ code: "unauthenticated", message: "verified calendar event owner required" }), { status: 401, headers: { "Content-Type": "application/json" } })));
-    const { CalendarEventRequestError, createCalendarEvent } = await import("./calendar");
+    const { createCalendarEvent } = await import("./calendar");
     await expect(createCalendarEvent({ title: "Synthetic" } as never, "owner-key")).rejects.toMatchObject({
       name: "CalendarEventRequestError", status: 401, code: "unauthenticated", message: "verified calendar event owner required",
     } satisfies Partial<CalendarEventRequestError>);

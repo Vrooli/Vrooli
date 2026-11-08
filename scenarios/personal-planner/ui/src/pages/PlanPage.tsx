@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { useTranslation } from "../i18n";
 
 import { applyAllocationProposal, applyScheduleProposal, createRoutine, fetchAllocations, fetchRoutineOccurrences, fetchRoutines, fetchTodayAllocations, previewAllocation, previewSchedule, rescheduleRoutineOccurrence, skipRoutineOccurrence } from "../api/calendar";
 import { createCommitment, fetchCommitments, updateCommitmentState, type Commitment } from "../api/commitments";
@@ -6,6 +8,7 @@ import { fetchForecast, fetchForecastHistory } from "../api/forecasts";
 import { fetchWorkItems, updateWorkEstimate } from "../api/work";
 import { RangeView } from "../components/RangeView";
 import { selectors } from "../consts/selectors";
+import { strings } from "../consts/strings";
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
@@ -45,8 +48,17 @@ function dateRange() {
 function isDeepWorkCandidate(item: { title: string; description?: string }) {
   return /write|draft|design|research|code|analy[sz]e|strategy|plan|build|review/i.test(`${item.title} ${item.description ?? ""}`);
 }
+type ApplyState = "ready" | "stale" | "uncertain";
+
+function applyStateAfterError(error: unknown): ApplyState {
+  // An Aborted response is an explicit revision conflict from the owner. A
+  // transport failure may have happened after commit, so keep the same key
+  // available for a safe retry instead of creating a second proposal.
+  return error instanceof ConnectError && error.code === Code.Aborted ? "stale" : "uncertain";
+}
 
 export function PlanPage() {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { isMobile, isShortLandscape } = useBreakpoint();
   const compactViewControls = isMobile || isShortLandscape;
@@ -73,6 +85,8 @@ export function PlanPage() {
   const [estimateReason, setEstimateReason] = useState("new_information");
   const [proposal, setProposal] = useState<{ id: string; requestedStartMinutes: number; startMinutes: number; durationMinutes: number; reason: string; state: string; baseRevision: bigint } | null>(null);
   const [scheduleProposal, setScheduleProposal] = useState<Awaited<ReturnType<typeof previewSchedule>> | null>(null);
+  const [proposalApplyState, setProposalApplyState] = useState<ApplyState>("ready");
+  const [scheduleApplyState, setScheduleApplyState] = useState<ApplyState>("ready");
   const [routineTitle, setRoutineTitle] = useState("");
   const [routineKind, setRoutineKind] = useState<"fixed" | "flexible">("fixed");
   const [routineWeekdays, setRoutineWeekdays] = useState<number[]>([1]);
@@ -121,6 +135,7 @@ export function PlanPage() {
     try {
       const next = await previewAllocation(input);
       setProposal({ ...next, requestedStartMinutes: input.startMinutes });
+      setProposalApplyState("ready");
       setMessage(next.state === "feasible" ? `Preview ready: ${clock(Number(next.startMinutes))} for ${Number(next.durationMinutes)} minutes.` : next.reason);
     } catch { setMessage("That placement could not be previewed. Reload the plan and try again."); } finally { setPlacing(false); }
   };
@@ -130,24 +145,46 @@ export function PlanPage() {
     setPlacing(true); setMessage("");
     try {
       await applyAllocationProposal({ proposalId: proposal.id, expectedRevision: proposal.baseRevision, idempotencyKey: `${proposal.id}:apply` });
-      setProposal(null); await plan.refetch(); setMobilePlacementOpen(false); setMessage("Placed on today’s accepted schedule; the server rechecked the current schedule.");
-    } catch { setProposal(null); setMessage("That proposal is stale or could not be accepted. Preview again to use current schedule state."); } finally { setPlacing(false); }
+    } catch (error) {
+      const state = applyStateAfterError(error);
+      setProposalApplyState(state);
+      setMessage(state === "stale"
+        ? t(strings.pages.plan.applyRecovery.applyStale)
+        : t(strings.pages.plan.applyRecovery.applyUncertain));
+      setPlacing(false);
+      return;
+    }
+    setProposal(null); setProposalApplyState("ready"); setMobilePlacementOpen(false); setMessage("Placed on today’s accepted schedule; the server rechecked the current schedule.");
+    setPlacing(false);
+    await plan.refetch();
   };
   const previewBacklog = async () => {
     const ids = (work.data ?? []).filter((item) => Number(item.remainingMinutes) > 0).slice(0, 3).map((item) => item.id);
     if (ids.length < 2) return;
     const [hours = 9, minutes = 0] = startTime.split(":").map(Number);
     setPlacing(true); setMessage("");
-    try { setScheduleProposal(await previewSchedule({ localDate: localDate(), startMinutes: hours * 60 + minutes, workItemIds: ids })); }
+    try { setScheduleProposal(await previewSchedule({ localDate: localDate(), startMinutes: hours * 60 + minutes, workItemIds: ids })); setScheduleApplyState("ready"); }
     catch { setMessage("The selected backlog could not be previewed. Reload the plan and try again."); }
     finally { setPlacing(false); }
   };
   const applyBacklog = async () => {
     if (!scheduleProposal) return;
     setPlacing(true); setMessage("");
-    try { const allocations = await applyScheduleProposal({ proposalId: scheduleProposal.id, expectedRevision: scheduleProposal.baseRevision, idempotencyKey: `${scheduleProposal.id}:apply` }); setScheduleProposal(null); await plan.refetch(); setMessage(`Accepted ${allocations.length} sessions after a server recheck.`); }
-    catch { setScheduleProposal(null); setMessage("That schedule proposal is stale or could not be accepted. Preview the backlog again."); }
-    finally { setPlacing(false); }
+    let allocations: Awaited<ReturnType<typeof applyScheduleProposal>>;
+    try {
+      allocations = await applyScheduleProposal({ proposalId: scheduleProposal.id, expectedRevision: scheduleProposal.baseRevision, idempotencyKey: `${scheduleProposal.id}:apply` });
+    } catch (error) {
+      const state = applyStateAfterError(error);
+      setScheduleApplyState(state);
+      setMessage(state === "stale"
+        ? t(strings.pages.plan.applyRecovery.backlogApplyStale)
+        : t(strings.pages.plan.applyRecovery.backlogApplyUncertain));
+      setPlacing(false);
+      return;
+    }
+    setScheduleProposal(null); setScheduleApplyState("ready"); setMessage(`Accepted ${allocations.length} sessions after a server recheck.`);
+    setPlacing(false);
+    await plan.refetch();
   };
   const revealPlacement = () => {
     if (isMobile) {
@@ -165,10 +202,10 @@ export function PlanPage() {
     <FormField required label="Start" control={<Input required id={mobile ? "plan-start-time-mobile" : "plan-start-time"} aria-label="Start" type="time" value={startTime} onChange={(event) => setStartTime(event.target.value)} />} />
     <FormField required label="Minutes" control={<Input required id={mobile ? "plan-duration-mobile" : "plan-duration"} aria-label="Minutes" type="number" min="1" max="720" step="5" value={duration} onChange={(event) => setDuration(event.target.value)} />} />
     {energyHint && <div className="energy-suggestion" aria-label="Morning energy suggestion"><div><span className="card-kicker">MORNING WINDOW</span><strong>This looks like deep work.</strong><p>The planner heuristic protects higher-focus work earlier in the day, when the morning window is still open.</p></div><Button type="button" variant="secondary" size="sm" onClick={() => setStartTime("09:00")}>Use 09:00</Button></div>}
-    <Button type="button" className="secondary-action" variant="secondary" onClick={() => void previewNext()} disabled={placing || work.isLoading || !duration} pending={placing} pendingLabel="Checking…">Preview placement</Button>
-    {proposal?.state === "feasible" && <Button type="button" className="primary-action" onClick={() => void placeNext()} disabled={placing} pending={placing} pendingLabel="Placing…">Accept {clock(proposal.startMinutes)}</Button>}
-    {(work.data?.filter((item) => Number(item.remainingMinutes) > 0).length ?? 0) >= 2 && <Button type="button" className="secondary-action" variant="secondary" onClick={() => void previewBacklog()} disabled={placing} pending={placing} pendingLabel="Checking…">Preview next 3</Button>}
-    {mobile && proposal && <div className={`placement-proposal ${proposal.state}`} role="status"><span className="card-kicker">{proposal.state === "feasible" ? "PROPOSED · NOT ACCEPTED" : "NO FEASIBLE SLOT"}</span><strong>{proposal.state === "feasible" ? `${clock(proposal.startMinutes)} · ${proposal.durationMinutes} min` : "Placement blocked"}</strong>{proposal.state === "feasible" && <p className="placement-diff"><span>Requested {clock(proposal.requestedStartMinutes)}</span><span aria-hidden="true">→</span><span>Proposed {clock(proposal.startMinutes)}</span></p>}<p>{proposal.reason}</p><small>Preview only. Nothing changes until you accept.</small></div>}
+    <Button type="button" className="secondary-action" variant="secondary" onClick={() => void previewNext()} disabled={placing || work.isLoading || !duration || proposalApplyState === "uncertain" || scheduleApplyState === "uncertain"} pending={placing} pendingLabel="Checking…">{proposalApplyState === "stale" ? t(strings.pages.plan.applyRecovery.refreshProposal) : t(strings.pages.plan.applyRecovery.previewPlacement)}</Button>
+    {proposal?.state === "feasible" && proposalApplyState !== "stale" && <Button data-testid={selectors.planPage.placementApply} type="button" className="primary-action" onClick={() => void placeNext()} disabled={placing || (proposalApplyState !== "uncertain" && scheduleApplyState === "uncertain")} pending={placing} pendingLabel="Placing…">{proposalApplyState === "uncertain" ? t(strings.pages.plan.applyRecovery.retrySameApply) : `Accept ${clock(proposal.startMinutes)}`}</Button>}
+    {(work.data?.filter((item) => Number(item.remainingMinutes) > 0).length ?? 0) >= 2 && <Button data-testid={selectors.planPage.backlogPreview} type="button" className="secondary-action" variant="secondary" onClick={() => void previewBacklog()} disabled={placing || scheduleApplyState === "uncertain" || proposalApplyState === "uncertain"} pending={placing} pendingLabel="Checking…">{scheduleApplyState === "stale" ? t(strings.pages.plan.applyRecovery.refreshBacklogProposal) : "Preview next 3"}</Button>}
+    {mobile && proposal && <div data-testid={selectors.planPage.placementProposal} className={`placement-proposal ${proposal.state}`} role="status"><span className="card-kicker">{proposal.state === "feasible" ? "PROPOSED · NOT ACCEPTED" : "NO FEASIBLE SLOT"}</span><strong>{proposal.state === "feasible" ? `${clock(proposal.startMinutes)} · ${proposal.durationMinutes} min` : "Placement blocked"}</strong>{proposal.state === "feasible" && <p className="placement-diff"><span>Requested {clock(proposal.requestedStartMinutes)}</span><span aria-hidden="true">→</span><span>Proposed {clock(proposal.startMinutes)}</span></p>}<p>{proposal.reason}</p>{proposalApplyState === "stale" && <p>{t(strings.pages.plan.applyRecovery.staleDetails)}</p>}{proposalApplyState === "uncertain" && <p>{t(strings.pages.plan.applyRecovery.uncertainDetails)}</p>}<small>{t(strings.pages.plan.applyRecovery.confirmationBoundary)}</small></div>}
   </div>;
   const estimateEditor = (mobile = false) => <form className={`plan-estimate-editor${mobile ? " plan-estimate-sheet" : ""}`} onSubmit={(event) => { event.preventDefault(); estimateMutation.mutate(); }}>
     <div><span className="card-kicker">LEARNING SIGNAL</span><h2>Keep the estimate honest</h2><p>When the shape of work changes, record the new remaining effort and why. The original estimate stays intact for calibration.</p></div>
@@ -207,8 +244,8 @@ export function PlanPage() {
         {!isMobile && work.data && firstWorkItem && <Button type="button" className="plan-desktop-place-action primary-action" onClick={revealPlacement}>+ Place work</Button>}
       </div>
       {view === "day" && (isMobile ? <div className="plan-mobile-capacity" aria-label={`${Number(plan.data.plannedMinutes)} minutes planned of ${Number(plan.data.plannedMinutes) + Number(plan.data.availableMinutes)} available minutes`}><div><span className="card-kicker">TODAY’S CAPACITY</span><strong>{Number(plan.data.plannedMinutes)} min <small>/ {Number(plan.data.plannedMinutes) + Number(plan.data.availableMinutes)} min</small></strong></div><span className="plan-mobile-capacity-ring" aria-hidden="true" style={{ background: `conic-gradient(var(--color-accent) ${Math.min(100, Math.max(0, Number(plan.data.plannedMinutes) / Math.max(1, Number(plan.data.plannedMinutes) + Number(plan.data.availableMinutes)) * 100))}%, color-mix(in srgb, var(--color-muted-foreground) 18%, transparent) 0)` }}><span>{Math.round(Number(plan.data.plannedMinutes) / Math.max(1, Number(plan.data.plannedMinutes) + Number(plan.data.availableMinutes)) * 100)}%</span></span></div> : <div className="plan-capacity-strip"><div><span className="card-kicker">PLANNED</span><strong>{Number(plan.data.plannedMinutes)} min</strong></div><div><span className="card-kicker">AVAILABLE</span><strong>{Number(plan.data.availableMinutes)} min</strong></div><div><span className="card-kicker">BREATHING ROOM</span><strong>{Number(plan.data.breathingRoomMinutes)} min</strong></div></div>)}
-      {isMobile && view === "day" && work.data && firstWorkItem && typeof document !== "undefined" && createPortal(<div className="plan-mobile-action-bar" aria-label="Plan actions"><Button type="button" className="primary-action" onClick={revealPlacement}>+ Place work</Button><Button type="button" variant="secondary" aria-label="More planning views" onClick={() => setMobileMoreOpen(true)}>⋯</Button></div>, document.body)}
-      {isMobile && firstWorkItem && <Dialog open={mobilePlacementOpen} title="Plot work on today’s chart" description="Preview the route first. Nothing is accepted until you confirm the proposed time." onClose={() => { setMobilePlacementOpen(false); setProposal(null); }} closeLabel="Close placement" contentClassName="plan-placement-dialog">{placementForm(true)}</Dialog>}
+      {isMobile && view === "day" && work.data && firstWorkItem && typeof document !== "undefined" && createPortal(<div className="plan-mobile-action-bar" aria-label="Plan actions"><Button data-testid={selectors.planPage.openPlacement} type="button" className="primary-action" onClick={revealPlacement}>+ Place work</Button><Button type="button" variant="secondary" aria-label="More planning views" onClick={() => setMobileMoreOpen(true)}>⋯</Button></div>, document.body)}
+      {isMobile && firstWorkItem && <Dialog open={mobilePlacementOpen} title="Plot work on today’s chart" description="Preview the route first. Nothing is accepted until you confirm the proposed time." onClose={() => setMobilePlacementOpen(false)} closeLabel="Close placement" contentClassName="plan-placement-dialog">{placementForm(true)}</Dialog>}
       {compactViewControls && <Dialog open={mobileMoreOpen} title="More planning views" description="Open one supporting view without crowding the day plan." onClose={() => setMobileMoreOpen(false)} closeLabel="Close planning views" contentClassName="plan-more-dialog"><div className="plan-more-grid">{mobilePlanViews.map(({ view: nextView, label, Icon }) => <Button key={nextView} type="button" variant={view === nextView ? "primary" : "secondary"} data-testid={nextView === "month" ? "calendar-month-view" : undefined} icon={<Icon size={18} aria-hidden="true" />} onClick={() => selectMobileView(nextView)}>{label}</Button>)}{isMobile && <><Button type="button" variant="secondary" icon={<Repeat2 size={18} aria-hidden="true" />} onClick={() => { setMobileMoreOpen(false); setMobileRoutinesOpen(true); }}>Routines</Button><Button type="button" variant="secondary" icon={<TimerReset size={18} aria-hidden="true" />} onClick={() => { setMobileMoreOpen(false); setMobileEstimateOpen(true); }}>Update estimate</Button></>}</div></Dialog>}
       {isMobile && firstWorkItem && <Dialog open={mobileEstimateOpen} title="Update the estimate" description="Record what changed without rewriting the original prediction." onClose={() => setMobileEstimateOpen(false)} closeLabel="Close estimate editor" contentClassName="plan-estimate-dialog">{estimateEditor(true)}</Dialog>}
       {isMobile && <Dialog open={mobileRoutinesOpen} title="Routines" description="Shape recurring rhythms without crowding today’s chart." onClose={() => setMobileRoutinesOpen(false)} closeLabel="Close routines" contentClassName="plan-routines-dialog">{routinePanel(true)}</Dialog>}
@@ -218,11 +255,11 @@ export function PlanPage() {
       {view !== "month" && view !== "capacity" && view !== "commitments" && view !== "forecast" && plan.data.allocations.length === 0 && <EmptyState className="planner-empty-state" title="No accepted allocations yet. Place the next work item when you are ready." />}
       {!isMobile && view !== "capacity" && view !== "commitments" && view !== "forecast" && work.data && firstWorkItem && placementForm()}
       {!isMobile && view === "day" && work.data && firstWorkItem && estimateEditor()}
-      {!isMobile && proposal && <div className={`placement-proposal ${proposal.state}`} role="status"><span className="card-kicker">{proposal.state === "feasible" ? "PROPOSED · NOT ACCEPTED" : "NO FEASIBLE SLOT"}</span><strong>{proposal.state === "feasible" ? `${clock(proposal.startMinutes)} · ${proposal.durationMinutes} min` : "Placement blocked"}</strong>{proposal.state === "feasible" && <p className="placement-diff"><span>Requested {clock(proposal.requestedStartMinutes)}</span><span aria-hidden="true">→</span><span>Proposed {clock(proposal.startMinutes)}</span></p>}<p>{proposal.reason}</p><small>Preview only. Nothing changes until you accept.</small></div>}
-      {scheduleProposal && <div className={`placement-proposal schedule-proposal ${scheduleProposal.state}`} role="status"><span className="card-kicker">{scheduleProposal.state.toUpperCase()} · NOT ACCEPTED</span><strong>Next sessions in request order</strong><ul>{scheduleProposal.placements.map((placement) => <li key={placement.workItemId}><span>{placement.title}</span><span>{placement.state === "feasible" ? `${clock(Number(placement.startMinutes))} · ${Number(placement.durationMinutes)} min` : placement.reason}</span></li>)}</ul><p>{scheduleProposal.reason}</p>{scheduleProposal.placements.some((placement) => placement.state === "feasible") && <Button type="button" className="primary-action" onClick={() => void applyBacklog()} disabled={placing} pending={placing} pendingLabel="Accepting…">Accept feasible sessions</Button>}<small>Preview only. Nothing changes until you accept.</small></div>}
+      {!isMobile && proposal && <div data-testid={selectors.planPage.placementProposal} className={`placement-proposal ${proposal.state}`} role="status"><span className="card-kicker">{proposal.state === "feasible" ? "PROPOSED · NOT ACCEPTED" : "NO FEASIBLE SLOT"}</span><strong>{proposal.state === "feasible" ? `${clock(proposal.startMinutes)} · ${proposal.durationMinutes} min` : "Placement blocked"}</strong>{proposal.state === "feasible" && <p className="placement-diff"><span>Requested {clock(proposal.requestedStartMinutes)}</span><span aria-hidden="true">→</span><span>Proposed {clock(proposal.startMinutes)}</span></p>}<p>{proposal.reason}</p>{proposalApplyState === "stale" && <p>{t(strings.pages.plan.applyRecovery.staleDetails)}</p>}{proposalApplyState === "uncertain" && <p>{t(strings.pages.plan.applyRecovery.uncertainDetails)}</p>}<small>{t(strings.pages.plan.applyRecovery.confirmationBoundary)}</small></div>}
+      {scheduleProposal && <div data-testid={selectors.planPage.backlogProposal} className={`placement-proposal schedule-proposal ${scheduleProposal.state}`} role="status"><span className="card-kicker">{scheduleProposal.state.toUpperCase()} · NOT ACCEPTED</span><strong>Next sessions in request order</strong><ul>{scheduleProposal.placements.map((placement) => <li key={placement.workItemId}><span>{placement.title}</span><span>{placement.state === "feasible" ? `${clock(Number(placement.startMinutes))} · ${Number(placement.durationMinutes)} min` : placement.reason}</span></li>)}</ul><p>{scheduleProposal.reason}</p>{scheduleApplyState === "stale" && <p>{t(strings.pages.plan.applyRecovery.staleDetails)}</p>}{scheduleApplyState === "uncertain" && <p>{t(strings.pages.plan.applyRecovery.uncertainDetails)}</p>}{scheduleProposal.placements.some((placement) => placement.state === "feasible") && scheduleApplyState !== "stale" && <Button data-testid={selectors.planPage.backlogApply} type="button" className="primary-action" onClick={() => void applyBacklog()} disabled={placing || (scheduleApplyState !== "uncertain" && proposalApplyState === "uncertain")} pending={placing} pendingLabel="Accepting…">{scheduleApplyState === "uncertain" ? t(strings.pages.plan.applyRecovery.retrySameApply) : "Accept feasible sessions"}</Button>}<small>{t(strings.pages.plan.applyRecovery.confirmationBoundary)}</small></div>}
       {view === "day" && plan.data.allocations.length > 0 && <div className="plan-timeline" aria-label="Today’s accepted schedule" style={{ minHeight: `${Math.max(15, 3 + timelineLanes * 7)}rem` }}><div className="plan-timeline-scale" aria-hidden="true">{Array.from({ length: 11 }, (_, index) => <span key={index}>{clock(540 + index * 60)}</span>)}</div>{timelineAllocations.map(({ entry, lane }) => {
         const detail = { id: entry.id, title: entry.title, start: clock(Number(entry.startMinutes)), duration: Number(entry.durationMinutes), source: entry.sourceLabel || "Personal Planner" };
-        const compact = detail.duration < 60;
+        const compact = detail.duration < 60 && !isMobile;
         return <Popover key={entry.id} open={selectedAllocation?.id === entry.id} onOpenChange={(open) => setSelectedAllocation(open ? detail : null)} placement="bottom-start" responsive="auto">
           <PopoverParts.Trigger asChild aria-label={`${entry.title}, ${detail.start}, ${detail.duration} minutes`}>
             <article className={`plan-block${compact ? " plan-block-compact" : ""}`} role="group" tabIndex={0} aria-label={`${entry.title}, ${detail.start}, ${detail.duration} minutes`} aria-roledescription="interactive schedule block" title={entry.title} data-full-title={entry.title} style={{ left: `${Math.max(0, (Number(entry.startMinutes) - 540) / 600 * 100)}%`, width: `${Math.max(.5, Number(entry.durationMinutes) / 600 * 100)}%`, top: `${2.35 + lane * 7}rem` }}><span>{detail.start} · {detail.duration} min</span><h2>{compact ? `${detail.duration}m` : entry.title}</h2><small>{detail.source}</small></article>

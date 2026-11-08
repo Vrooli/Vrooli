@@ -851,7 +851,9 @@ func (s *Store) ListProposals(ctx context.Context, nodeID string, status offersp
 		query += ` AND requested_status=?`
 		args = append(args, int32(status))
 	}
-	query += ` ORDER BY created_at DESC,id DESC`
+	// Rows written within one clock tick share created_at; rowid keeps them
+	// in write order, which a random UUID id does not.
+	query += ` ORDER BY created_at DESC,rowid DESC`
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -1013,7 +1015,9 @@ func (s *Store) ListAudit(ctx context.Context, nodeID string) ([]AuditEntry, err
 		query += ` AND node_id=?`
 		args = append(args, nodeID)
 	}
-	query += ` ORDER BY created_at DESC,id DESC`
+	// Rows written within one clock tick share created_at; rowid keeps them
+	// in write order, which a random UUID id does not.
+	query += ` ORDER BY created_at DESC,rowid DESC`
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
@@ -1059,7 +1063,7 @@ func (s *Store) listProposalDeclines(ctx context.Context, proposalID string) ([]
 
 func (s *Store) recordLatestProposalDecline(ctx context.Context, nodeID, actor, reason string) error {
 	var proposalID string
-	if err := s.db.QueryRowContext(ctx, `SELECT id FROM proposals WHERE node_id=? ORDER BY created_at DESC,id DESC LIMIT 1`, nodeID).Scan(&proposalID); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT id FROM proposals WHERE node_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1`, nodeID).Scan(&proposalID); err != nil {
 		return nil
 	}
 	_, err := s.db.ExecContext(ctx, `INSERT INTO proposal_declines(id,proposal_id,actor,reason,created_at) VALUES(?,?,?,?,?)`, uuid.NewString(), proposalID, actor, reason, s.now().UTC().Format(time.RFC3339Nano))

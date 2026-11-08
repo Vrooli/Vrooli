@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/health"
 )
 
 type HealthResponse struct {
@@ -23,8 +22,6 @@ type HealthResponse struct {
 	Readiness bool      `json:"readiness"`
 	Version   string    `json:"version"`
 }
-
-var healthHandler = health.New("picker-wheel-api").Version("1.0.0").Check(health.DB(db), health.Optional).Handler()
 
 // TestLogger provides controlled logging during tests
 type TestLogger struct {
@@ -157,18 +154,7 @@ func assertErrorResponse(t *testing.T, w *httptest.ResponseRecorder, expectedSta
 
 // setupTestRouter creates a test router with all handlers
 func setupTestRouter() *mux.Router {
-	router := mux.NewRouter()
-
-	// Register all handlers
-	router.HandleFunc("/health", healthHandler).Methods("GET")
-	router.HandleFunc("/api/wheels", getWheelsHandler).Methods("GET")
-	router.HandleFunc("/api/wheels", createWheelHandler).Methods("POST")
-	router.HandleFunc("/api/wheels/{id}", getWheelHandler).Methods("GET")
-	router.HandleFunc("/api/wheels/{id}", deleteWheelHandler).Methods("DELETE")
-	router.HandleFunc("/api/history", getHistoryHandler).Methods("GET")
-	router.HandleFunc("/api/spin", spinHandler).Methods("POST")
-
-	return router
+	return newRouter(db)
 }
 
 // initTestWheels initializes wheels for testing

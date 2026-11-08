@@ -103,6 +103,21 @@
       "connectionDisconnected": "Connection disconnected.",
       "connectionError": "The connection action could not be completed.",
       "integrationBoundary": "Live provider OAuth and credential storage are not configured in this local build."
+    },
+    "plan": {
+      "applyRecovery": {
+        "refreshProposal": "تحديث الاقتراح",
+        "retrySameApply": "إعادة محاولة التطبيق نفسه",
+        "applyStale": "تغيّر الجدول. لم يُقبل هذا الاقتراح؛ راجعه ثم حدّث المعاينة.",
+        "applyUncertain": "لم يتم تأكيد نتيجة التطبيق. أعد المحاولة بهذا الاقتراح نفسه قبل إنشاء اقتراح آخر.",
+        "backlogApplyStale": "تغيّر الجدول. لم يُقبل اقتراح الأعمال هذا؛ راجعه ثم حدّث المعاينة.",
+        "backlogApplyUncertain": "لم يتم تأكيد نتيجة التطبيق. أعد المحاولة باقتراح الأعمال نفسه قبل إنشاء اقتراح آخر.",
+        "staleDetails": "لم يُقبل هذا الاقتراح لأن الجدول تغيّر. راجعه ثم حدّثه.",
+        "uncertainDetails": "النتيجة غير مؤكدة. أعد محاولة التطبيق نفسه قبل إنشاء اقتراح آخر.",
+        "confirmationBoundary": "هذه معاينة فقط. لن يتغير الجدول حتى يتم تأكيد التطبيق.",
+        "previewPlacement": "معاينة الموضع",
+        "refreshBacklogProposal": "تحديث اقتراح الأعمال"
+      }
     }
   },
   "health": {
