@@ -35,5 +35,15 @@ func processIncarnation(pid int) (string, error) {
 	if err != nil || start == 0 {
 		return "", fmt.Errorf("invalid process start identity")
 	}
-	return strings.TrimSpace(string(boot)) + ":" + fields[19], nil
+	return formatIncarnation(string(boot), fields[19]), nil
+}
+
+// formatIncarnation is the stored incarnation format; records written by one
+// release are compared with identities read by another.
+func formatIncarnation(boot, start string) string {
+	return strings.TrimSpace(boot) + ":" + start
+}
+
+func incarnationFormatSample() string {
+	return formatIncarnation("00000000-0000-0000-0000-000000000000\n", "1")
 }

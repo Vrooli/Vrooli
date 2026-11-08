@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
@@ -13,6 +14,7 @@ const (
 )
 
 var agentContextEnvKeys = []string{
+	cliutil.AgentSessionEnv,
 	"VROOLI_SANDBOX_ID",
 	"VROOLI_SANDBOX_MERGED",
 	"VROOLI_SWARM_MANAGER_SESSION_ID",
@@ -156,12 +158,13 @@ func destructiveVrooliArgs(args []string) bool {
 	if len(args) == 0 {
 		return false
 	}
-	switch args[0] {
+	switch NormalizeCommandName(args[0]) {
 	case "cleanup":
 		if len(args) < agentSafetyParameterA {
 			return false
 		}
-		switch args[1] {
+		// Cleanup's positional target trims space but remains case-sensitive.
+		switch strings.TrimSpace(args[1]) {
 		case "locks":
 			// Stale-lock cleanup is the narrowly scoped, proof-based owner
 			// maintenance operation. Permit only its exact public form from an
@@ -181,9 +184,9 @@ func destructiveVrooliArgs(args []string) bool {
 	case "stop", agentSafetyStopAll:
 		return true
 	case "scenario":
-		return len(args) > 1 && args[1] == agentSafetyStopAll
+		return len(args) > 1 && NormalizeCommandName(args[1]) == agentSafetyStopAll
 	case "resource":
-		return len(args) > 1 && (args[1] == agentSafetyStopAll || args[1] == "stop")
+		return len(args) > 1 && (NormalizeCommandName(args[1]) == agentSafetyStopAll || NormalizeCommandName(args[1]) == "stop")
 	}
 	return false
 }

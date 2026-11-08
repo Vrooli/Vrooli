@@ -87,7 +87,11 @@ func acquireSharedPackageLockContext(ctx context.Context, home, packageName, pac
 		return nil, fmt.Errorf("shared package lock wait ended without ownership")
 	}
 
-	lockDir := filepath.Join(home, scenarioLockDirName)
+	lockDir, err := scenarioLockDir(home)
+	if err != nil {
+		mu.Unlock()
+		return nil, fmt.Errorf("shared package lock for %q: %w", packageName, err)
+	}
 	if err := os.MkdirAll(lockDir, tuning.PermDir); err != nil {
 		mu.Unlock()
 		return nil, fmt.Errorf("create shared package lock dir: %w", err)

@@ -2,6 +2,8 @@ package cliinstall
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +15,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/repocontractmeta"
@@ -25,6 +28,7 @@ import (
 	"github.com/vrooli/vrooli/internal/artifactledger"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/config"
+	"github.com/vrooli/vrooli/internal/coreactivation"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenario"
 )
@@ -114,14 +118,113 @@ type DiscoveryReport struct {
 // The temporary-file, fsync, rename sequence preserves the last runnable
 // binary if power is lost during installation. This retains the 2026-05-07
 // incident history: a direct install left a zero-filled executable in PATH.
-func AtomicInstall(src, dst string) error {
+func AtomicInstall(src, dst string) error { return atomicInstall(src, dst, "") }
+
+// AtomicInstallExpected is guarded manual restoration. The current comparison
+// shares the publication lock; an already-restored source is idempotent.
+// Automatic enrollment remains the activation owner's separate admission path.
+func AtomicInstallExpected(src, dst, expectedCurrentSHA string) error {
+	if !rootCLIBuildIdentity.MatchString(expectedCurrentSHA) {
+		return fmt.Errorf("exact expected installed SHA-256 required")
+	}
+	return atomicInstall(src, dst, expectedCurrentSHA)
+}
+func atomicInstall(src, dst, expectedCurrentSHA string) error {
+	if enrolled, err := buildinfo.EnrolledRootUpdate(dst); err != nil {
+		return err
+	} else if enrolled {
+		if expectedCurrentSHA != "" {
+			return fmt.Errorf("guarded manual root restoration requires automatic enrollment disabled")
+		}
+		root, err := buildinfo.ResolveSourceRoot()
+		if err != nil {
+			return err
+		}
+		return buildinfo.RequestRootUpdate(context.Background(), src, root)
+	}
 	release, err := buildinfo.AcquireBinaryInstallLock(dst)
 	if err != nil {
 		return fmt.Errorf("lock binary install %s: %w", dst, err)
 	}
 	defer release()
+	if enrolled, err := buildinfo.EnrolledRootUpdate(dst); err != nil {
+		return err
+	} else if enrolled {
+		if expectedCurrentSHA != "" {
+			return fmt.Errorf("guarded manual root restoration requires automatic enrollment disabled")
+		}
+		release()
+		root, err := buildinfo.ResolveSourceRoot()
+		if err != nil {
+			return err
+		}
+		return buildinfo.RequestRootUpdate(context.Background(), src, root)
+	}
+	rootImage := filepath.Base(dst) == "vrooli" || filepath.Base(dst) == "vrooli.exe"
+	if rootImage {
+		if err := buildinfo.GuardRootActivation(context.Background(), dst); err != nil {
+			return err
+		}
+	}
+	if expectedCurrentSHA != "" {
+		current, err := installedImageSHA(dst)
+		if err != nil {
+			return err
+		}
+		source, err := installedImageSHA(src)
+		if err != nil {
+			return err
+		}
+		if current != expectedCurrentSHA && current != source {
+			return fmt.Errorf("installed image differs from expected candidate or retained prior; refused overwrite")
+		}
+		if current == source {
+			if rootImage {
+				if err := coreactivation.ValidateRootExecutableRole(src); err != nil {
+					return err
+				}
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if _, err := probeRootCLIIdentity(ctx, src); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+	if filepath.Base(dst) == "vrooli" || filepath.Base(dst) == "vrooli.exe" {
+		if err := buildinfo.GuardRootActivation(context.Background(), dst); err != nil {
+			return err
+		}
+		return installRootCLICandidate(src, dst)
+	}
 	_ = buildinfo.PreserveRootBinaryFallback(dst)
 	return config.InstallExecutableAtomic(src, dst)
+}
+
+func installedImageSHA(path string) (string, error) {
+	before, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+	if !before.Mode().IsRegular() || before.Size() <= 0 || before.Size() > rootCLIImageLimit {
+		return "", fmt.Errorf("installed/retained image is not a bounded nonempty regular file")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	after, err := f.Stat()
+	if err != nil || !os.SameFile(before, after) {
+		return "", fmt.Errorf("image changed while opening")
+	}
+	h := sha256.New()
+	n, err := io.Copy(h, io.LimitReader(f, rootCLIImageLimit+1))
+	if err != nil || n <= 0 || n > rootCLIImageLimit {
+		return "", fmt.Errorf("image read exceeded bounds")
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func (s InstallLocationStatus) PathMismatch() bool {

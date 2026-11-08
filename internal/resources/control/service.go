@@ -57,6 +57,16 @@ type Status struct {
 	Message    string          `json:"message,omitempty"`
 	ProbeError string          `json:"probe_error,omitempty"`
 	Raw        json.RawMessage `json:"raw,omitempty"`
+	// Artifact fields separate install/update intent from the owned running image.
+	// A missing new release must not hide a healthy retained service.
+	DeclaredArtifactVersion string `json:"declared_artifact_version,omitempty"`
+	StagedArtifactVersion   string `json:"staged_artifact_version,omitempty"`
+	RunningArtifactVersion  string `json:"running_artifact_version,omitempty"`
+	ArtifactUpdateAvailable bool   `json:"artifact_update_available,omitempty"`
+	ArtifactStagingError    string `json:"artifact_staging_error,omitempty"`
+	// ArtifactVerification describes this observation's current byte audit:
+	// verified, failed, or not_evaluated. Health is an independent observation.
+	ArtifactVerification string `json:"artifact_verification,omitempty"`
 	// DeclaredMode is the accelerator backend the resource asked the platform
 	// for. Empty when the resource declares no accelerator.
 	DeclaredMode string `json:"declared_mode,omitempty"`

@@ -1,6 +1,7 @@
 package vroolicli
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -49,9 +50,9 @@ func TestRunAgentCommandUsesTypedRunnerArguments(t *testing.T) {
 		want   string
 	}{
 		{runner: "claude", binary: "claude", want: "--dangerously-skip-permissions\n-p\nhello\n"},
-		{runner: "codex", binary: "codex", want: "--dangerously-skip-permissions\nhello\n"},
+		{runner: "codex", binary: "codex", want: "exec\n--dangerously-skip-permissions\nhello\n"},
 		{runner: "opencode", binary: "opencode", want: "run\n--dangerously-skip-permissions\nhello\n"},
-		{runner: "grok", binary: "grok", want: "--dangerously-skip-permissions\nhello\n"},
+		{runner: "grok", binary: "grok", want: "--dangerously-skip-permissions\n-p\nhello\n"},
 		{runner: "antigravity", binary: "agy", want: "--dangerously-skip-permissions\n-p\nhello\n"},
 	} {
 		t.Run(test.runner, func(t *testing.T) {
@@ -140,5 +141,20 @@ func TestRunAgentExecProtectedCommandAndTypedArguments(t *testing.T) {
 	}
 	if attach != 1 || detach != 1 {
 		t.Fatal("invalid arguments caused effects")
+	}
+}
+
+func TestAgentHelpListsEverySubcommand(t *testing.T) {
+	for _, args := range [][]string{nil, {"help"}, {"--help"}, {"-h"}} {
+		var stdout bytes.Buffer
+		app := &App{}
+		if err := app.runAgentCommand(&AppContext{Stdout: &stdout, app: app}, args); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		for _, sub := range agentSubcommands {
+			if !strings.Contains(stdout.String(), "  "+sub[0]+" ") {
+				t.Errorf("%v: help lacks %s:\n%s", args, sub[0], stdout.String())
+			}
+		}
 	}
 }

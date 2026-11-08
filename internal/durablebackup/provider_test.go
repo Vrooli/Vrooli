@@ -51,8 +51,9 @@ func TestRegistryVerifyBindsFreshOwnerEvidence(t *testing.T) {
 			Drill:   DrillEvidence{ID: "drill-1", SnapshotID: "snapshot-1", RestoreID: "restore-1", Status: providerVerified, Checksum: strings.Repeat("b", 64), ObservedAt: now.Add(-time.Hour)},
 		}, nil
 	}, 24*time.Hour)
-	provider.now = func() time.Time { return now }
-	registry, err := operatorcapability.NewRegistry(provider)
+	clock := func() time.Time { return now }
+	provider.now = clock
+	registry, err := operatorcapability.NewRegistryWithClock(clock, provider)
 	if err != nil {
 		t.Fatal(err)
 	}

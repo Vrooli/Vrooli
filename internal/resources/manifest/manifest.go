@@ -31,20 +31,35 @@ const (
 const (
 	manifestNativeCli   = "native-cli"
 	manifestUnsupported = "unsupported"
+	manifestCloudAPI    = "cloud-api"
+)
+
+// Manifest vocabulary the resource state stores and readers branch on.
+const (
+	HealthCheckReadiness = "readiness"
+	HealthCheckLiveness  = "liveness"
+	HealthCheckHTTP      = "http"
+	DurableDataDir       = "dir"
+	DurableDataFile      = "file"
+	DurableDataSQLite    = "sqlite"
+	DurableDataJSON      = "json"
+	TunableInteger       = "integer"
+	TunableString        = "string"
+	TunableBoolean       = "boolean"
 )
 
 const SchemaPath = ".vrooli/schemas/resource.schema.json"
 
 var AllowedDrivers = []string{
 	manifestExternalCli,
-	"cloud-api",
+	manifestCloudAPI,
 	manifestNativeCli,
 	manifestManagedService,
 }
 
 var (
 	AllowedPlatformSupportStates = []string{"supported", "build-verified", "partial", manifestUnsupported}
-	AllowedHealthCheckKinds      = []string{"readiness", "liveness"}
+	AllowedHealthCheckKinds      = []string{HealthCheckReadiness, HealthCheckLiveness}
 )
 
 type ResourceManifest struct {
@@ -495,6 +510,9 @@ func validateManifestContract(manifest ResourceManifest) error {
 }
 
 func validateManifestFeatures(manifest ResourceManifest) error {
+	if err := validateManagedServiceUpdateReadiness(manifest); err != nil {
+		return err
+	}
 	if group := manifest.Lifecycle.ExclusiveGroup; group != "" {
 		if manifest.Driver != manifestManagedService || !regexp.MustCompile(`^[a-z][a-z0-9-]{0,63}$`).MatchString(group) {
 			return fmt.Errorf("lifecycle.exclusive_group requires a managed-service and a lowercase group identifier (1..64 characters)")
@@ -540,14 +558,14 @@ func validateManagedServiceHealthContract(checks []ResourceHealthCheck) error {
 	seen := map[string]bool{}
 	for _, check := range checks {
 		kind := strings.TrimSpace(check.Kind)
-		if kind == "readiness" || kind == "liveness" {
+		if kind == HealthCheckReadiness || kind == HealthCheckLiveness {
 			seen[kind] = true
 			if check.IntervalSeconds <= 0 || check.TimeoutSeconds <= 0 {
 				return fmt.Errorf("managed-service %s health check requires positive interval_seconds and timeout_seconds", kind)
 			}
 		}
 	}
-	for _, kind := range []string{"readiness", "liveness"} {
+	for _, kind := range []string{HealthCheckReadiness, HealthCheckLiveness} {
 		if !seen[kind] {
 			return fmt.Errorf("managed-service requires a %s health check", kind)
 		}
@@ -573,6 +591,7 @@ func validateProviderPolicy(manifest ResourceManifest) error {
 func validateDriverConfiguration(manifest ResourceManifest) error {
 	return validateDriverConfigurationForCandidate(manifest, false)
 }
+
 func validateDriverConfigurationForCandidate(manifest ResourceManifest, candidate bool) error {
 	if candidate && manifest.Driver != manifestManagedService {
 		return fmt.Errorf("compose candidate requires managed-service resource")
@@ -585,7 +604,7 @@ func validateDriverConfigurationForCandidate(manifest ResourceManifest, candidat
 		if strings.TrimSpace(manifest.Binary) == "" {
 			return fmt.Errorf("binary is required for %s resources", manifest.Driver)
 		}
-	case "cloud-api":
+	case manifestCloudAPI:
 		if strings.TrimSpace(manifest.Endpoint) == "" {
 			return fmt.Errorf("endpoint is required for cloud-api resources")
 		}
@@ -603,6 +622,7 @@ func validateDriverConfigurationForCandidate(manifest ResourceManifest, candidat
 func validateManagedService(service *ResourceManagedService) error {
 	return validateManagedServiceForCandidate(service, false)
 }
+
 func validateManagedServiceForCandidate(service *ResourceManagedService, candidate bool) error {
 	if service == nil {
 		return fmt.Errorf("managed_service is required for managed-service resources")
@@ -633,6 +653,9 @@ func validateManagedServiceForCandidate(service *ResourceManagedService, candida
 		if acquisitionErr != nil {
 			return fmt.Errorf("managed_service.acquisition: %w", acquisitionErr)
 		}
+	}
+	if err := service.ValidateUpdatePolicy(); err != nil {
+		return fmt.Errorf("managed_service.update_policy: %w", err)
 	}
 	if err := service.ValidateDataArtifacts(); err != nil {
 		return fmt.Errorf("managed_service.data_artifacts: %w", err)
@@ -964,10 +987,10 @@ func validateDurableDataEntry(field string, e DurableDataEntry) error {
 			return fmt.Errorf("%s.path must not contain parent traversal: %q", field, path)
 		}
 	}
-	if e.Kind != "dir" && e.Kind != "file" {
+	if e.Kind != DurableDataDir && e.Kind != DurableDataFile {
 		return fmt.Errorf("%s.kind must be \"dir\" or \"file\": %q", field, e.Kind)
 	}
-	if e.Format != "" && e.Format != "sqlite" && e.Format != "json" {
+	if e.Format != "" && e.Format != DurableDataSQLite && e.Format != DurableDataJSON {
 		return fmt.Errorf("%s.format must be \"sqlite\" or \"json\": %q", field, e.Format)
 	}
 	return nil

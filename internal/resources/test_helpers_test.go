@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/scenario"
 	testscenario "github.com/vrooli/vrooli/internal/scenario/scenariotest"
 	"github.com/vrooli/vrooli/internal/shell/shelltest"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 func writeResourceCLI(t *testing.T, root, name string) {
@@ -33,8 +34,12 @@ func writeBlueprintArchivedMetadata(t *testing.T, root string, items ...Blueprin
 	})
 }
 
+// writeScenarioResourceManifest and writeResourceConfig declare resource
+// choices that the controller adopts into operator state on first read, so
+// each test that declares them owns a private operator state.
 func writeScenarioResourceManifest(t *testing.T, root, scenarioName, resourceName string) {
 	t.Helper()
+	testenv.IsolateStorage(t)
 	testscenario.WriteScenarioService(t, root, scenarioName, testscenario.ScenarioServiceManifest(
 		scenarioName,
 		testscenario.WithDependencies(scenario.Dependencies{
@@ -50,6 +55,7 @@ func writeScenarioResourceManifest(t *testing.T, root, scenarioName, resourceNam
 
 func writeResourceConfig(t *testing.T, root, name string, enabled bool) {
 	t.Helper()
+	testenv.IsolateStorage(t)
 	testscenario.WriteProjectResourceConfig(t, root, name, enabled)
 }
 

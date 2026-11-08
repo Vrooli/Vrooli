@@ -41,7 +41,10 @@ var actionsRequiringHostRequirements = map[string]struct{}{
 }
 
 func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
-	commandHandlers := buildResourceCommandHandlers(deps)
+	return rootHandlerWithCommands(deps, buildResourceCommandHandlers(deps))
+}
+
+func rootHandlerWithCommands[C any](deps rootcli.HandlerDeps[C], commandHandlers map[string]rootcli.ResourceHandler[C]) rootcli.Handler[C] {
 	return func(ctx C, args []string) error {
 		if len(args) == 0 || (len(args) == 1 && topcli.ListOrHelpWithoutRoot(args)) {
 			showResourceHelp(deps.Stdout(ctx))
@@ -116,6 +119,9 @@ func buildResourceCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree
 		resourcecli.CommandStatus: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
 			func(args []string) (resourcecli.StatusRequest, error) { return parseResourceStatusRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.StatusRequest) (resourceapp.StatusResponse, error) {
+				if req.HealthOnly {
+					controller = controller.ForHealthObservation()
+				}
 				if err := ensureNamedResourceCLI(deps, ctx, req.Name); err != nil {
 					return resourceapp.StatusResponse{}, err
 				}
@@ -171,8 +177,8 @@ func buildResourceCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree
 			resourcecli.WriteInfo,
 		),
 		resourcecli.CommandUpstreamCheck: resourceUpstreamCheckHandler(deps),
-		resourcecli.CommandUpdate:        resourceUpdateHandler(deps, resourcecli.ParseUpdateRequest),
-		resourcecli.CommandUpdateCheck:   resourceUpdateHandler(deps, resourcecli.ParseUpdateCheckRequest),
+		resourcecli.CommandUpdate:        resourceUpdateByOwnerHandler(deps, false),
+		resourcecli.CommandUpdateCheck:   resourceUpdateByOwnerHandler(deps, true),
 		resourcecli.CommandDeprecate: rootcli.BindResourceCommand(deps.Stdout, deps.OutputFormat,
 			func(args []string) (resourcecli.NameRequest, error) { return parseResourceDeprecateRequest(args) },
 			func(ctx C, controller *resources.Controller, req resourcecli.NameRequest) (resources.DeprecationReport, error) {

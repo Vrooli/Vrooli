@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/storage/storagetest"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/clock"
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -293,4 +294,21 @@ func RuntimeHome(t *testing.T) string {
 		}
 	}
 	return home
+}
+
+// RunWithIsolatedStorage runs a package's tests with all contract-routed
+// storage under a private temporary root. Under go test the storage resolver
+// refuses the operator's live runtime home, so any package whose code resolves
+// per-install storage on its own (operator state, for one, resolves from the
+// environment rather than from the repository root a test passes in) calls it
+// from TestMain. It is storagetest.RunWithIsolatedStorage, re-exported for
+// control-plane tests.
+func RunWithIsolatedStorage(m *testing.M) int { return storagetest.RunWithIsolatedStorage(m) }
+
+// IsolateStorage gives one test its own contract-routed storage root, so one
+// test's adopted operator-state choices cannot leak into the next. It is
+// storagetest.IsolateStorage.
+func IsolateStorage(t *testing.T) string {
+	t.Helper()
+	return storagetest.IsolateStorage(t)
 }

@@ -11,8 +11,41 @@ import (
 	"testing"
 	"time"
 
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/hostpressure"
+	"github.com/vrooli/vrooli/internal/process"
 )
+
+func TestWatchdogProducerWitnessNamesThisProcessAndValidNativeInvocation(t *testing.T) {
+	for _, invocation := range []string{"", strings.Repeat("b", 32), "invalid-credential-value"} {
+		t.Run(invocation, func(t *testing.T) {
+			t.Setenv("INVOCATION_ID", invocation)
+			var report output
+			stampWatchdogProducer(&report)
+			if report.BuildIdentity != buildVersion || report.ProducerPID != os.Getpid() {
+				t.Fatalf("producer does not identify this build/process: %+v", report)
+			}
+			incarnation, err := process.Incarnation(os.Getpid())
+			if err == nil && report.ProducerIncarnation != incarnation {
+				t.Fatal("producer witness identifies another process incarnation")
+			}
+			if len(invocation) == 32 {
+				if report.NativeInvocationID != invocation {
+					t.Fatal("native invocation not retained")
+				}
+			} else if report.NativeInvocationID != "" {
+				t.Fatal("invalid native invocation leaked into report")
+			}
+			data, err := json.Marshal(report)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.Contains(string(data), "invalid-credential-value") {
+				t.Fatal("untrusted native invocation value leaked")
+			}
+		})
+	}
+}
 
 func TestRediscoveryGate(t *testing.T) {
 	var report output
@@ -294,5 +327,26 @@ func TestFixtureRunDoesNotWriteLastReport(t *testing.T) {
 	writeLastReport(output{CapturedAt: time.Now().UTC()})
 	if _, err := os.Stat(lastReportPath()); err != nil {
 		t.Fatalf("live write missing: %v", err)
+	}
+}
+
+// Watchdog state, including the report autoheal's reader looks for, lives
+// under the runtime-home state entry from the repo contract.
+func TestWatchdogStatePathsUseTheRuntimeHomeStateEntry(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	stateRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for got, want := range map[string]string{
+		lastReportPath():       filepath.Join(stateRoot, "emergency-watchdog", "last-report.json"),
+		workloadCachePath():    filepath.Join(stateRoot, "watchdog-workloads.json"),
+		disposalProposalPath(): filepath.Join(stateRoot, "watchdog-disposal-proposals.jsonl"),
+		forkStatePath():        filepath.Join(stateRoot, "watchdog-fork-state.json"),
+	} {
+		if got != want {
+			t.Errorf("state path = %q, want %q", got, want)
+		}
 	}
 }

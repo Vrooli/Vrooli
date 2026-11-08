@@ -56,7 +56,7 @@ func TestAcquireSharedPackageLockUsesGeneratorLockForProto(t *testing.T) {
 		t.Fatalf("stat unified Proto lock %s: %v", lockPath, err)
 	}
 
-	legacyPath := sharedPackageLockPath(filepath.Join(home, scenarioLockDirName), root)
+	legacyPath := sharedPackageLockPath(testScenarioLockDir(t, home), root)
 	if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
 		t.Fatalf("legacy per-root lock %s unexpectedly exists, stat error=%v", legacyPath, err)
 	}

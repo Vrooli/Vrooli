@@ -64,6 +64,32 @@ func insideAgentSessionScope(entry processTableEntry) bool {
 	return strings.Contains(entry.Cgroup, agentSessionSlice)
 }
 
+// A dedicated native service tree has its own lifecycle owner, including when
+// only daemon children remain. A process-table heuristic cannot authorize
+// terminating one member of that tree (for example a serving adb daemon).
+func insideManagedServiceScope(entry processTableEntry) bool {
+	const services = "/vrooli-services.slice/"
+	_, relative, found := strings.Cut(entry.Cgroup, services)
+	if !found {
+		return false
+	}
+	unit := strings.SplitN(relative, "/", 2)[0]
+	return (strings.HasPrefix(unit, "vrooli-service-") && strings.HasSuffix(unit, ".scope")) ||
+		(strings.HasPrefix(unit, "vrooli-svc-") && strings.HasSuffix(unit, ".service"))
+}
+
+func insideLifecycleOwnedScope(entry processTableEntry) bool {
+	if insideAgentSessionScope(entry) || insideManagedServiceScope(entry) {
+		return true
+	}
+	_, relative, found := strings.Cut(entry.Cgroup, "/vrooli-operations.slice/")
+	if !found {
+		return false
+	}
+	unit := strings.SplitN(relative, "/", 2)[0]
+	return strings.HasPrefix(unit, "vrooli-op-") && strings.HasSuffix(unit, ".service")
+}
+
 // ProcessSnapshot is the maintenance subsystem's canonical view of host-level
 // Vrooli process health. API and CLI consumers should derive health and metrics
 // from this snapshot rather than reimplementing process-table heuristics.
@@ -291,7 +317,7 @@ func collectOrphans(root, home string, processTable map[int]processTableEntry, t
 		if !looksLikeVrooliProcessFn(root, home, entry) {
 			continue
 		}
-		if insideAgentSessionScope(entry) {
+		if insideLifecycleOwnedScope(entry) {
 			continue
 		}
 		// Never classify transient `vrooli` CLI invocations as orphans: they

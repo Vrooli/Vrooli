@@ -168,6 +168,12 @@ type StartOperationRepository interface {
 	// GetLatestStartOperation returns the most recently started record for
 	// the instance, ErrNotFound when none exists.
 	GetLatestStartOperation(ctx context.Context, scenario, variant string) (StartOperation, error)
+	// GetStartOperation reads one exact admitted attempt for an attached waiter.
+	GetStartOperation(ctx context.Context, operationID string) (StartOperation, error)
+	// GetStartOperationFenceRecoveryOwner returns the newest linked terminal
+	// attempt only when it failed or was abandoned. Unlinked preparation
+	// failures must not erase the durable owner of an already closed fence.
+	GetStartOperationFenceRecoveryOwner(ctx context.Context, scenario, variant string) (StartOperation, error)
 	// MarkStartOperationAbandoned transitions a running record to abandoned
 	// (dead initiator or explicit Ctrl-C handoff).
 	MarkStartOperationAbandoned(ctx context.Context, operationID string, reason string) (StartOperation, error)
@@ -287,19 +293,25 @@ INSERT INTO runtime_start_operations (
 			op.DependencyIndex, op.DependencyTotal, op.StepsJSON); err != nil {
 			return fmt.Errorf("insert start operation: %w", err)
 		}
-		// Bound history: keep the newest StartOperationKeepTerminal terminal
-		// records per instance.
+		// Keep bounded ordinary history plus at most one latest linked terminal
+		// owner. Repeated failed preparations must not prune the recovery proof
+		// for a fence still closed in a replacement provider.
 		if _, err := tx.ExecContext(ctx, `
 DELETE FROM runtime_start_operations
 WHERE scenario = ? AND variant = ? AND status != ?
   AND operation_id NOT IN (
     SELECT operation_id FROM runtime_start_operations
     WHERE scenario = ? AND variant = ? AND status != ?
-    ORDER BY started_at DESC, operation_id DESC
-    LIMIT ?)`,
+    ORDER BY rowid DESC
+    LIMIT ?)
+  AND operation_id NOT IN (
+    SELECT operation_id FROM runtime_start_operations
+    WHERE scenario = ? AND variant = ? AND status != ? AND fence_operation_id != ''
+    ORDER BY rowid DESC LIMIT 1)`,
 			op.Scenario, op.Variant, StartOperationStatusRunning,
 			op.Scenario, op.Variant, StartOperationStatusRunning,
-			StartOperationKeepTerminal); err != nil {
+			StartOperationKeepTerminal,
+			op.Scenario, op.Variant, StartOperationStatusRunning); err != nil {
 			return fmt.Errorf("prune start operation history: %w", err)
 		}
 		return nil
@@ -356,9 +368,29 @@ SELECT operation_id, fence_operation_id, scenario, variant, operation, status, v
        dependency_index, dependency_total, steps_json
 FROM runtime_start_operations
 WHERE scenario = ? AND variant = ?
-ORDER BY started_at DESC, operation_id DESC
+ORDER BY rowid DESC
 LIMIT 1`, scenario, variant)
 	return scanStartOperation(row)
+}
+
+func (s *SQLiteStore) GetStartOperationFenceRecoveryOwner(ctx context.Context, scenario, variant string) (StartOperation, error) {
+	variant = InstanceKey{Scenario: scenario, Variant: variant}.Normalize().Variant
+	row := s.db.QueryRowContext(ctx, `
+SELECT operation_id, fence_operation_id, scenario, variant, operation, status, verdict, error, initiator_pid,
+       initiator_argv, initiator_parent_pid, initiator_parent_argv, initiator_scope,
+       started_at, updated_at, finished_at, current_step, dependency_current,
+       dependency_index, dependency_total, steps_json
+FROM runtime_start_operations
+WHERE scenario = ? AND variant = ? AND fence_operation_id != '' AND status != ?
+ORDER BY rowid DESC LIMIT 1`, scenario, variant, StartOperationStatusRunning)
+	op, err := scanStartOperation(row)
+	if err != nil {
+		return StartOperation{}, err
+	}
+	if op.Status != StartOperationStatusFailed && op.Status != StartOperationStatusAbandoned {
+		return StartOperation{}, ErrNotFound
+	}
+	return op, nil
 }
 
 func (s *SQLiteStore) MarkStartOperationAbandoned(ctx context.Context, operationID string, reason string) (StartOperation, error) {
@@ -401,6 +433,10 @@ SELECT operation_id, fence_operation_id, scenario, variant, operation, status, v
 FROM runtime_start_operations
 WHERE operation_id = ?`, operationID)
 	return scanStartOperation(row)
+}
+
+func (s *SQLiteStore) GetStartOperation(ctx context.Context, operationID string) (StartOperation, error) {
+	return s.getStartOperation(ctx, operationID)
 }
 
 func (s *SQLiteStore) RecordPhaseDuration(ctx context.Context, scenario, variant, phase string, duration time.Duration) error {

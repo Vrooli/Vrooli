@@ -1,6 +1,7 @@
 package cliinstall
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/artifactledger"
+	"github.com/vrooli/vrooli/internal/artifactlock"
 
 	"github.com/vrooli/api-core/cleanupplan"
 	"github.com/vrooli/api-core/trustposture"
@@ -520,6 +522,45 @@ func LoadInstallRecord(home string) (InstallRecord, error) {
 }
 
 func WriteInstallRecord(home string, record InstallRecord) error {
+	release, err := lockInstallRecord(home)
+	if err != nil {
+		return err
+	}
+	defer release()
+	return writeInstallRecordLocked(home, record)
+}
+
+// lockInstallRecord covers the whole read/merge/write transaction. Binary and
+// unit locks protect their own subjects, not this shared ownership inventory.
+func lockInstallRecord(home string) (func(), error) {
+	path, err := InstallRecordPath(home)
+	if err != nil {
+		return nil, err
+	}
+	return artifactlock.AcquireWithPathContext(context.Background(), "install-record:"+path, func(string) (string, error) { return path + ".lock", nil })
+}
+
+func updateInstallRecord(home string, edit func(*InstallRecord) (bool, error)) error {
+	release, err := lockInstallRecord(home)
+	if err != nil {
+		return err
+	}
+	defer release()
+	record, err := LoadInstallRecord(home)
+	if err != nil {
+		return err
+	}
+	changed, err := edit(&record)
+	if err != nil || !changed {
+		return err
+	}
+	record.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	return writeInstallRecordLocked(home, record)
+}
+
+// writeInstallRecordLocked requires the shared inventory lock. Whole-record
+// replacement is separate from the merge APIs used by concurrent installers.
+func writeInstallRecordLocked(home string, record InstallRecord) error {
 	record = normalizeRecord(record)
 	if err := validateRecord(record, home); err != nil {
 		return err
@@ -532,7 +573,7 @@ func WriteInstallRecord(home string, record InstallRecord) error {
 	if err != nil {
 		return fmt.Errorf("encode install record: %w", err)
 	}
-	return config.WriteOwnedFile(path, append(data, '\n'), tuning.PermSecret)
+	return config.WriteOwnedFileDurable(path, append(data, '\n'), tuning.PermSecret)
 }
 
 // RecordInstallEntries merges explicit artifacts into the durable record. It
@@ -540,13 +581,10 @@ func WriteInstallRecord(home string, record InstallRecord) error {
 // created. That property is what makes an unrecorded install produce an empty
 // uninstall plan instead of an unsafe guess.
 func RecordInstallEntries(home string, entries ...InstallEntry) error {
-	record, err := LoadInstallRecord(home)
-	if err != nil {
-		return err
-	}
-	record.Entries = append(record.Entries, entries...)
-	record.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-	return WriteInstallRecord(home, record)
+	return updateInstallRecord(home, func(record *InstallRecord) (bool, error) {
+		record.Entries = append(record.Entries, entries...)
+		return len(entries) > 0, nil
+	})
 }
 
 // RecordToolArtifacts is the single recording seam used by fetched and
@@ -576,23 +614,20 @@ func RecordContainerRuntime(home, provider, endpoint, node string, before Observ
 	if action != ActionInstalled && action != ActionAdopted && action != ActionUpgraded && action != ActionNoOp {
 		return fmt.Errorf("record container runtime: invalid action %q", action)
 	}
-	record, err := LoadInstallRecord(home)
-	if err != nil {
-		return err
-	}
 	entry := RuntimeProviderProvenance{
 		Capability: "container-runtime", Provider: provider, Endpoint: endpoint,
 		ObservedBefore: before, Action: action, OwningNode: strings.TrimSpace(node),
 		RecordedAt: time.Now().UTC().Format(time.RFC3339), Attributable: before != ObservedUnknown,
 	}
-	for _, existing := range record.RuntimeProviders {
-		if existing.Capability == entry.Capability && existing.Provider == entry.Provider && existing.Endpoint == entry.Endpoint {
-			return nil
+	return updateInstallRecord(home, func(record *InstallRecord) (bool, error) {
+		for _, existing := range record.RuntimeProviders {
+			if existing.Capability == entry.Capability && existing.Provider == entry.Provider && existing.Endpoint == entry.Endpoint {
+				return false, nil
+			}
 		}
-	}
-	record.RuntimeProviders = append(record.RuntimeProviders, entry)
-	record.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-	return WriteInstallRecord(home, record)
+		record.RuntimeProviders = append(record.RuntimeProviders, entry)
+		return true, nil
+	})
 }
 
 // RecordPackageInstall is the shared recording helper for every host package

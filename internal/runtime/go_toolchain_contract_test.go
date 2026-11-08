@@ -9,13 +9,16 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/mod/modfile"
+
 	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/tools"
 )
 
 // TestGoToolchainContract keeps the exact release pin in one authority:
 // internal/tools/go/tool.json. The root module requests that same toolchain
-// and both GitHub workflows resolve their setup-go input from the manifest at
+// (its toolchain line, or its go line when Go omits a redundant toolchain line,
+// as `go mod tidy` does) and both GitHub workflows resolve their setup-go input from the manifest at
 // runtime, so a security bump cannot silently leave local and CI builds apart.
 func TestGoToolchainContract(t *testing.T) {
 	data, err := tools.Manifests.ReadFile("go/tool.json")
@@ -49,8 +52,8 @@ func TestGoToolchainContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read root go.mod: %v", err)
 	}
-	if !strings.Contains(string(goMod), "toolchain go"+manifest.Version) {
-		t.Errorf("root go.mod must contain toolchain go%s (manifest version)", manifest.Version)
+	if got := effectiveToolchain(t, goMod); got != "go"+manifest.Version {
+		t.Errorf("root go.mod requests toolchain %s; want go%s (manifest version)", got, manifest.Version)
 	}
 
 	for _, workflow := range []string{".github/workflows/test.yml", ".github/workflows/vrooli-release.yml"} {
@@ -64,6 +67,35 @@ func TestGoToolchainContract(t *testing.T) {
 			!strings.Contains(text, "jq -r '.version' internal/tools/go/tool.json") ||
 			!strings.Contains(text, "go-version: ${{ steps.go-version.outputs.value }}") {
 			t.Errorf("%s must resolve actions/setup-go's version from internal/tools/go/tool.json", workflow)
+		}
+	}
+}
+
+// effectiveToolchain returns the toolchain a go.mod requests. Go drops a
+// toolchain line equal to the go line, so the go line then names it.
+func effectiveToolchain(t *testing.T, goMod []byte) string {
+	t.Helper()
+	file, err := modfile.Parse("go.mod", goMod, nil)
+	if err != nil {
+		t.Fatalf("parse root go.mod: %v", err)
+	}
+	if file.Toolchain != nil {
+		return file.Toolchain.Name
+	}
+	if file.Go == nil {
+		t.Fatal("root go.mod declares no go version")
+	}
+	return "go" + file.Go.Version
+}
+
+func TestEffectiveToolchainReadsTheGoLineWhenTheToolchainLineIsRedundant(t *testing.T) {
+	for _, tc := range []struct{ goMod, want string }{
+		{"module m\n\ngo 1.26.0\n", "go1.26.0"},
+		{"module m\n\ngo 1.26.0\n\ntoolchain go1.26.2\n", "go1.26.2"},
+		{"module m\n\ngo 1.25.0\n", "go1.25.0"},
+	} {
+		if got := effectiveToolchain(t, []byte(tc.goMod)); got != tc.want {
+			t.Errorf("effectiveToolchain(%q) = %s; want %s", tc.goMod, got, tc.want)
 		}
 	}
 }

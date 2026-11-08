@@ -134,6 +134,26 @@ func (r *Runner) evaluateSetupVerdictsContext(ctx context.Context, item scenario
 				}
 			}
 		}
+		if _, stale := verdicts.ByComponent[name]; !stale {
+			if gap, incomplete := componentInstallGap(item, component, r.Root); incomplete {
+				verdicts.Stale = true
+				verdicts.ByComponent[name] = artifactVerdict{Stale: true, Cause: "incomplete install", HumanReason: fmt.Sprintf("Component %s: %s", name, gap)}
+			}
+		}
 	}
 	return verdicts, nil
+}
+
+// componentInstallGap reports a dependency install that no longer matches the
+// governed shared packages it links (see incompleteSharedPackageInstall).
+func componentInstallGap(item scenario.Scenario, component scenario.Component, repoRoot string) (string, bool) {
+	spec, ok := builderRegistry[component.Build.Kind]
+	if !ok || !spec.FollowsWorkspaceFileDeps {
+		return "", false
+	}
+	dir, err := componentWorkingDir(item.SourcePath(), component.Build.Dir)
+	if err != nil {
+		return "", false
+	}
+	return incompleteSharedPackageInstall(repoRoot, dir)
 }

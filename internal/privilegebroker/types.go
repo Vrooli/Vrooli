@@ -5,6 +5,7 @@ package privilegebroker
 import (
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/storageactivity"
 )
 
@@ -42,6 +43,8 @@ const (
 	// No subject is accepted: the target is the authenticated Unix peer.
 	ActionTemporaryActivityObserve = "storage.temporary-activity.observe"
 	ActionCapabilitiesInspect      = "broker.capabilities.inspect"
+	ActionKernelMemoryInspect      = "host.kernel-memory.inspect"
+	ActionServiceRecover           = "host.service.recover"
 
 	// Cloud target actions replace the shell strings scenario-to-cloud used to
 	// run over SSH. Each has a closed subject: package names from a compiled
@@ -78,6 +81,12 @@ type Request struct {
 	Process        *ProcessSubject        `json:"process,omitempty"`
 	Caddy          *CaddySubject          `json:"caddy,omitempty"`
 	LocalAdmission *LocalAdmissionSubject `json:"local_admission,omitempty"`
+	Service        *ServiceSubject        `json:"service,omitempty"`
+}
+
+type ServiceSubject struct {
+	Unit      string `json:"unit"`
+	Operation string `json:"operation"`
 }
 
 // CaddySubject scopes a validate/reload to the deployment whose snippet
@@ -152,16 +161,17 @@ type Subject struct {
 }
 
 type Result struct {
-	Version           string                    `json:"version"`
-	RequestID         string                    `json:"request_id,omitempty"`
-	Action            string                    `json:"action,omitempty"`
-	Status            string                    `json:"status"`
-	Code              string                    `json:"code,omitempty"`
-	Changed           bool                      `json:"changed,omitempty"`
-	Evidence          Evidence                  `json:"evidence,omitempty"`
-	TemporaryActivity *storageactivity.Snapshot `json:"temporary_activity,omitempty"`
-	Capabilities      []string                  `json:"capabilities,omitempty"`
-	LocalAdmission    *LocalAdmissionReport     `json:"local_admission,omitempty"`
+	Version           string                            `json:"version"`
+	RequestID         string                            `json:"request_id,omitempty"`
+	Action            string                            `json:"action,omitempty"`
+	Status            string                            `json:"status"`
+	Code              string                            `json:"code,omitempty"`
+	Changed           bool                              `json:"changed,omitempty"`
+	Evidence          Evidence                          `json:"evidence,omitempty"`
+	TemporaryActivity *storageactivity.Snapshot         `json:"temporary_activity,omitempty"`
+	Capabilities      []string                          `json:"capabilities,omitempty"`
+	LocalAdmission    *LocalAdmissionReport             `json:"local_admission,omitempty"`
+	KernelMemory      *hostinventory.KernelMemoryReport `json:"kernel_memory,omitempty"`
 }
 
 type Evidence struct {

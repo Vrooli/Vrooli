@@ -323,8 +323,10 @@ func testSupervisorDemandListener(t *testing.T, variant string) {
 		t.Fatal(err)
 	}
 	owner := os.Getpid()
-	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{InstanceID: "demand-listener", Scenario: "demand-fixture", Status: scenarioruntime.StatusRunning,
-		SupervisionPolicy: scenarioruntime.SupervisionPolicyDemand, OwnerPID: &owner, HostBootID: host.BootID, HostSessionID: host.SessionID}, time.Hour)
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
+		InstanceID: "demand-listener", Scenario: "demand-fixture", Status: scenarioruntime.StatusRunning,
+		SupervisionPolicy: scenarioruntime.SupervisionPolicyDemand, OwnerPID: &owner, HostBootID: host.BootID, HostSessionID: host.SessionID,
+	}, time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1221,16 +1223,20 @@ func TestServiceStatusReportsRunningOnlyForFreshLiveSession(t *testing.T) {
 // exercised without a hand-written fake of the whole Store surface.
 type flakyStore struct {
 	Store
+	mu                sync.Mutex
 	remainingFailures int
 	ticks             int
 }
 
 func (f *flakyStore) HeartbeatSupervisorSession(ctx context.Context, supervisorID string, ttl time.Duration) (scenarioruntime.SupervisorSession, error) {
+	f.mu.Lock()
 	f.ticks++
 	if f.remainingFailures > 0 {
 		f.remainingFailures--
+		f.mu.Unlock()
 		return scenarioruntime.SupervisorSession{}, errors.New("transient store failure")
 	}
+	f.mu.Unlock()
 	return f.Store.HeartbeatSupervisorSession(ctx, supervisorID, ttl)
 }
 
@@ -1241,7 +1247,7 @@ func TestRunSurvivesTransientTickFailures(t *testing.T) {
 	clk := testenv.NewClock(time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC))
 	dbPath := filepath.Join(t.TempDir(), "runtime.db")
 
-	var flaky *flakyStore
+	ready := make(chan *flakyStore, 1)
 	cfg := Config{
 		DBPath:        dbPath,
 		Clock:         clk,
@@ -1253,17 +1259,28 @@ func TestRunSurvivesTransientTickFailures(t *testing.T) {
 			if err != nil {
 				return nil, err
 			}
-			flaky = &flakyStore{Store: inner, remainingFailures: MaxConsecutiveTickFailures - 1}
+			flaky := &flakyStore{Store: inner, remainingFailures: MaxConsecutiveTickFailures - 1}
+			ready <- flaky
 			return flaky, nil
 		},
 	}
 
 	done := make(chan error, 1)
 	go func() { done <- Run(ctx, cfg) }()
+	var flaky *flakyStore
+	select {
+	case flaky = <-ready:
+	case <-time.After(10 * time.Second):
+		cancel()
+		t.Fatal("store did not initialize")
+	}
 
 	deadline := time.After(10 * time.Second)
 	for {
-		if flaky != nil && flaky.remainingFailures == 0 && flaky.ticks > MaxConsecutiveTickFailures {
+		flaky.mu.Lock()
+		recovered := flaky.remainingFailures == 0 && flaky.ticks > MaxConsecutiveTickFailures
+		flaky.mu.Unlock()
+		if recovered {
 			break
 		}
 		select {

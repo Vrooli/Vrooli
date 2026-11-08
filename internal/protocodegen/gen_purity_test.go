@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/vrooli/packages/proto/protogen"
 )
 
 func TestGenTreeContainsOnlyBufOutput(t *testing.T) {
@@ -43,6 +45,11 @@ func TestGenTreeContainsOnlyBufOutput(t *testing.T) {
 
 func isAllowedGeneratedPath(path string) bool {
 	switch {
+	// The artifact store publishes its selection stamp inside the view by the
+	// same atomic rename as the tree, so the stamp is the one sanctioned
+	// non-buf file; committed-output comparison already ignores it.
+	case path == protogen.CompatibilityStampName:
+		return true
 	case path == "typescript/package.json":
 		return true
 	case path == "descriptor/image.binpb":

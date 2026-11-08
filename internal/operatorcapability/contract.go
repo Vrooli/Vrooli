@@ -837,10 +837,23 @@ type Registry struct {
 	mu                sync.RWMutex
 	providers         map[string]Provider
 	verificationSlots chan struct{}
+	// now judges verification-evidence freshness. It is the same timeline
+	// the owning providers stamp evidence with; production uses wall time.
+	now func() time.Time
 }
 
 func NewRegistry(providers ...Provider) (*Registry, error) {
-	r := &Registry{providers: make(map[string]Provider, len(providers)), verificationSlots: make(chan struct{}, maxConcurrentVerifications)}
+	return NewRegistryWithClock(time.Now, providers...)
+}
+
+// NewRegistryWithClock builds a registry whose freshness judgments use now.
+// Tests that pin a provider's clock must pin the registry to the same clock,
+// or fixed-date evidence silently expires as wall time advances.
+func NewRegistryWithClock(now func() time.Time, providers ...Provider) (*Registry, error) {
+	if now == nil {
+		return nil, errors.New("capability registry clock is nil")
+	}
+	r := &Registry{providers: make(map[string]Provider, len(providers)), verificationSlots: make(chan struct{}, maxConcurrentVerifications), now: now}
 	for _, provider := range providers {
 		if err := r.Register(provider); err != nil {
 			return nil, err

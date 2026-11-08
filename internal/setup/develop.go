@@ -44,10 +44,10 @@ func RunBuild(root, home string, stdout, stderr io.Writer) error {
 	}
 	buildTime := time.Now().UTC().Format(time.RFC3339)
 
-	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli-api"), "./cmd/vrooli-api", []string{"cmd/vrooli-api", "internal"}, gitCommit, buildTime, stdout, stderr); err != nil {
+	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli-api"), "./cmd/vrooli-api", buildinfo.FingerprintTargetsForExecutable("vrooli-api"), gitCommit, buildTime, stdout, stderr); err != nil {
 		return err
 	}
-	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli"), "./cmd/vrooli", []string{"cmd/vrooli", "internal"}, gitCommit, buildTime, stdout, stderr); err != nil {
+	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli"), "./cmd/vrooli", buildinfo.FingerprintTargetsForExecutable("vrooli"), gitCommit, buildTime, stdout, stderr); err != nil {
 		return err
 	}
 	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli-agent-launcher"), "./cmd/vrooli-agent-launcher", []string{"cmd/vrooli-agent-launcher", "packages/cli-core"}, gitCommit, buildTime, stdout, stderr); err != nil {
@@ -190,6 +190,16 @@ func buildProjectBinary(root, outputPath, target string, fingerprintPaths []stri
 		"github.com/vrooli/vrooli/internal/buildinfo",
 		fingerprint,
 	)
+	runtimeHomeFlag, err := buildinfo.RuntimeHomeBuildFlag(root)
+	if err != nil {
+		return fmt.Errorf("freeze build runtime-home authority: %w", err)
+	}
+	ldflags += " " + runtimeHomeFlag
+	stateFlag, err := buildinfo.PersistentStateBuildFlag(root)
+	if err != nil {
+		return err
+	}
+	ldflags += " " + stateFlag
 
 	env := envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, envkit.Env{"CGO_ENABLED=0"})
 	goFlags := []string{"-trimpath"}

@@ -16,37 +16,61 @@ func (r *Runner) WaitForHealth(item scenario.Scenario, env map[string]string) (s
 }
 
 func (r *Runner) waitForHealth(ctx context.Context, item scenario.Scenario, env map[string]string) (string, error) {
+	status, _, err := r.waitForHealthSnapshot(ctx, item, env)
+	return status, err
+}
+
+func (r *Runner) waitForHealthSnapshot(ctx context.Context, item scenario.Scenario, env map[string]string) (string, scenarioruntime.HealthSnapshot, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	health := item.Manifest.HealthConfig()
 	if err := r.awaitScenarioReadiness(ctx, item, env); err != nil {
-		return scenarioruntime.HealthStatusUnhealthy, err
+		return scenarioruntime.HealthStatusUnhealthy, scenarioruntime.HealthSnapshot{}, err
 	}
 	if health == nil || len(health.Checks) == 0 {
 		r.logInfo("Scenario has no health checks; treating as running", logx.AttrScenario, item.Slug, logx.AttrStatus, scenarioruntime.StatusRunning)
-		return scenarioruntime.StatusRunning, nil
+		return scenarioruntime.StatusRunning, r.observeScenarioHealth(ctx, item, nil, ""), nil
 	}
 	ports := healthPortsFromEnv(item.Manifest, env)
 	r.logDebug("Waiting for scenario health", logx.AttrScenario, item.Slug, logx.AttrChecks, len(health.Checks), logx.AttrPorts, ports)
 
 	var lastStatus string
+	var snapshot scenarioruntime.HealthSnapshot
 	err := AwaitContext(ctx, r.awaitClock(), healthAwaitPolicy(health.Timeout, health.Interval), func() (bool, error) {
-		lastStatus = scenario.EvaluateHealth(health, ports)
-		return lastStatus == scenarioruntime.HealthStatusHealthy, nil
+		snapshot = r.observeScenarioHealth(ctx, item, ports, env[buildIdentityEnv])
+		lastStatus = snapshot.Status
+		return lastStatus == scenarioruntime.HealthStatusHealthy && healthSnapshotReady(snapshot), nil
 	})
 	if err == nil {
 		r.logInfo("Scenario reported healthy", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
-		return lastStatus, nil
+		return lastStatus, snapshot, nil
+	}
+	if ctx.Err() != nil {
+		return lastStatus, snapshot, ctx.Err()
 	}
 	// Deadline expiry. Degraded-after-timeout is a success path: non-critical
 	// checks failing must not fail the start.
-	if lastStatus == scenarioruntime.HealthStatusDegraded {
+	if lastStatus == scenarioruntime.HealthStatusDegraded && healthSnapshotReady(snapshot) {
 		r.logWarn("Scenario health checks degraded after timeout", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
-		return lastStatus, nil
+		return lastStatus, snapshot, nil
 	}
 	r.logWarn("Scenario health checks failed before timeout", logx.AttrScenario, item.Slug, logx.AttrStatus, lastStatus)
-	return lastStatus, fmt.Errorf("scenario %q failed health checks", item.Slug)
+	return lastStatus, snapshot, fmt.Errorf("scenario %q failed health/readiness checks: %s", item.Slug, snapshot.Error)
+}
+
+func (r *Runner) observeScenarioHealth(ctx context.Context, item scenario.Scenario, ports map[string]int, expectedBuild string) scenarioruntime.HealthSnapshot {
+	return (scenarioruntime.HealthProbe{Clock: healthObservationClock(r.runtimeDeps().now), AllowLegacyHTTP: true}).Probe(ctx, scenarioruntime.HealthProbeInput{
+		Scenario: item.Slug, HealthConfig: item.Manifest.HealthConfig(), Ports: ports, ExpectedBuildIdentity: expectedBuild,
+	})
+}
+
+type healthObservationClock func() time.Time
+
+func (c healthObservationClock) Now() time.Time { return c() }
+
+func healthSnapshotReady(snapshot scenarioruntime.HealthSnapshot) bool {
+	return snapshot.Readiness == nil || *snapshot.Readiness
 }
 
 // awaitScenarioReadiness evaluates every launched component before the
@@ -63,7 +87,10 @@ func (r *Runner) awaitScenarioReadiness(ctx context.Context, item scenario.Scena
 	}
 	names := make([]string, 0, len(item.Manifest.Components))
 	for name := range item.Manifest.Components {
-		if item.Manifest.Components[name].Run.SupervisedBy != "" {
+		component := item.Manifest.Components[name]
+		// Supervised components are probed through their supervisor; asset
+		// components are build-only and never become a process.
+		if component.Run.SupervisedBy != "" || isAssetComponent(component) {
 			continue
 		}
 		names = append(names, name)
@@ -152,17 +179,13 @@ func (r *Runner) isRegistryRuntimeServingHealthy(item scenario.Scenario, view re
 	// readiness. We fail toward reuse only after the probe is persistently bad.
 	healthy := false
 	_ = Await(r.awaitClock(), registryHealthRetryPolicy, func() (bool, error) {
-		healthy = allHealthChecksPass(health.Checks, view.Ports)
+		// Reuse asks whether this owner is available. A legacy endpoint cannot
+		// prove served-image identity, but missing identity is not failed health
+		// and must not churn a serving shared dependency. Startup acceptance
+		// separately requires the expected image through waitForHealthSnapshot.
+		snapshot := r.observeScenarioHealth(context.Background(), item, view.Ports, "")
+		healthy = healthSnapshotReady(snapshot) && (snapshot.Status == scenarioruntime.HealthStatusHealthy || snapshot.Status == scenarioruntime.HealthStatusDegraded)
 		return healthy, nil
 	})
 	return healthy
-}
-
-func allHealthChecksPass(checks []scenario.HealthCheck, ports map[string]int) bool {
-	for _, check := range checks {
-		if err := scenario.PerformHealthCheck(check, ports); err != nil {
-			return false
-		}
-	}
-	return true
 }

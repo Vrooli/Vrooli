@@ -74,8 +74,8 @@ func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) (*sta
 	}
 	store, err := deps.runtimeRegistry(ctx, r.Home)
 	if err != nil {
-		if opts.providerFenceOperationID != "" {
-			return nil, errors.Join(errors.New("provider fence is prepared but its recovery link cannot be persisted"), err)
+		if opts.providerFenceOperationID != "" || opts.Operation == lifecycleOperationRestart {
+			return nil, errors.Join(errors.New("restart requires a durable start-operation record before preparation or replacement"), err)
 		}
 		r.logWarn("Start-operation record unavailable; starting unrecorded",
 			logx.AttrScenario, name, "error", err.Error())
@@ -101,8 +101,8 @@ func (r *Runner) beginStartOperationRecord(name string, opts StartOptions) (*sta
 	})
 	if err != nil {
 		_ = store.Close()
-		if opts.providerFenceOperationID != "" {
-			return nil, errors.Join(errors.New("provider fence is prepared but its recovery link cannot be persisted"), err)
+		if opts.providerFenceOperationID != "" || opts.Operation == lifecycleOperationRestart {
+			return nil, errors.Join(errors.New("restart requires a durable start-operation record before preparation or replacement"), err)
 		}
 		r.logWarn("Start-operation record could not be created; starting unrecorded",
 			logx.AttrScenario, name, "error", err.Error())
@@ -264,16 +264,19 @@ func (rec *startOperationRecorder) beginStep(name string, at time.Time) {
 	})
 }
 
-// markCompletedStep records work that finished before the recorder was
-// created. Explicit restarts intentionally stop before opening the durable
-// start-operation record, so the stop remains visible without delaying the
-// interruption boundary on registry I/O.
+// markCompletedStep ensures a completed step remains visible even when its
+// progress event was not emitted. Replace a previously observed running step
+// instead of recording the same stop twice.
 func (rec *startOperationRecorder) markCompletedStep(name string, started, ended time.Time) {
 	if rec == nil {
 		return
 	}
 	started = started.UTC()
 	ended = ended.UTC()
+	if _, ok := rec.completeStep(name, ended, scenarioruntime.StartStepDone); ok {
+		rec.op.WithSteps(rec.steps)
+		return
+	}
 	rec.steps = append(rec.steps, scenarioruntime.StartOperationStep{
 		Name: name, Status: scenarioruntime.StartStepDone,
 		StartedAt: started, EndedAt: &ended,

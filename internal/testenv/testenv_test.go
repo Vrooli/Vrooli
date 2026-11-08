@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/storage/storagetest"
 	repocontract "github.com/vrooli/repo-contract-go"
 	_ "modernc.org/sqlite" // Registers the driver exercised by the SQLite fixture tests.
 )
@@ -181,5 +182,26 @@ func TestNewRepositoryTreeAcceptsServiceOverrides(t *testing.T) {
 	}
 	if string(data) != `{"service":"scenario"}` {
 		t.Fatalf("scenario service = %q", data)
+	}
+}
+
+func TestIsolateStorageRoutesStorageToOnePrivateRootPerTest(t *testing.T) {
+	var first string
+	t.Run("isolated", func(t *testing.T) {
+		first = IsolateStorage(t)
+		if got := os.Getenv(storagetest.RootEnv); got != first {
+			t.Fatalf("%s = %q, want %q", storagetest.RootEnv, got, first)
+		}
+		if again := IsolateStorage(t); again != first {
+			t.Fatalf("repeated isolation moved the root from %q to %q", first, again)
+		}
+	})
+	t.Run("next test", func(t *testing.T) {
+		if second := IsolateStorage(t); second == first {
+			t.Fatalf("a later test reused %q", first)
+		}
+	})
+	if got := os.Getenv(storagetest.RootEnv); got == first {
+		t.Fatalf("%s still points at a finished test's root", storagetest.RootEnv)
 	}
 }

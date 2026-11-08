@@ -234,6 +234,28 @@ func TestCharacterizeRegistryHealthOrphanSquatGuard(t *testing.T) {
 	}
 }
 
+// A not-ready dependency surfaces the resource's own diagnosis, so an image
+// that changed under a running service names its restart remedy instead of
+// leaving the operator to reconstruct it from raw status fields.
+func TestResourceDependencyNotReadyCarriesTheResourceRemedy(t *testing.T) {
+	clock := newFakeAwaitClock()
+	unhealthy := false
+	runner := &Runner{deps: lifecycleDeps{
+		now:   clock.Now,
+		sleep: clock.Sleep,
+		resourceStatus: func(string, bool) (resourcecontrol.Status, error) {
+			return resourcecontrol.Status{
+				Running: true, Healthy: &unhealthy, StatusCode: "unavailable",
+				Message: "running postgres image differs from its launch fingerprint; restart it with `vrooli resource restart postgres`",
+			}, nil
+		},
+	}}
+	_, err := runner.waitForResourceDependencyReady("postgres")
+	if err == nil || !strings.Contains(err.Error(), "restart it with `vrooli resource restart postgres`") {
+		t.Fatalf("error = %v, want the resource's restart remedy", err)
+	}
+}
+
 // --- waitForResourceDependencyReady (internal/lifecycle/dependencies.go) ---
 
 // TestCharacterizeResourceDependencyReadyTiming pins the resource readiness

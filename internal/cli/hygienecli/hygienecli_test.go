@@ -328,9 +328,9 @@ func TestRenderFindingShowsEveryNextAction(t *testing.T) {
 			Fixability: hygieneapp.FixabilityGuided,
 			NextActions: []hygieneapp.Action{
 				{
-					Code:       "apply_go_tidy",
+					Code:       "reconcile_go_modules",
 					Message:    "Run SDA-owned package freshness repair for impacted Go surfaces.",
-					Command:    "scenario-dependency-analyzer freshness --touched --apply",
+					Command:    "scenario-dependency-analyzer deps reconcile --all-modules --apply",
 					Fixability: hygieneapp.FixabilityAutomatic,
 				},
 				{
@@ -348,7 +348,7 @@ func TestRenderFindingShowsEveryNextAction(t *testing.T) {
 	}
 	text := out.String()
 	for _, want := range []string{
-		"Next: scenario-dependency-analyzer freshness --touched --apply",
+		"Next: scenario-dependency-analyzer deps reconcile --all-modules --apply",
 		"automatic - Run SDA-owned package freshness repair for impacted Go surfaces.",
 		"Also: scenario-dependency-analyzer deps reconcile --all --json",
 		"guided - Preview SDA-owned local replace reconciliation for errored Go surfaces.",

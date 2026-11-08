@@ -74,7 +74,7 @@ func (c *Controller) inheritedServiceTags(ctx context.Context, executors []Execu
 			if err := ctx.Err(); err != nil {
 				return nil, fmt.Errorf("service ownership observation deadline or cancellation")
 			}
-			if ref.PID == nil || ref.PGID == nil || *ref.PID <= 0 || ref.Status != "running" || ref.EndedAt != nil || ref.HostBootID != bootID || ref.Step == "" || ref.StartedAt.IsZero() {
+			if ref.PID == nil || ref.PGID == nil || *ref.PID <= 0 || ref.Status != scenarioruntime.ProcessRefStatusRunning || ref.EndedAt != nil || ref.HostBootID != bootID || ref.Step == "" || ref.StartedAt.IsZero() {
 				continue
 			}
 			pid := *ref.PID

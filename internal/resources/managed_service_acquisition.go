@@ -133,12 +133,33 @@ func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, m
 		}
 		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
 	}
+	pending := managedServiceArtifactPendingPath(path)
 	if err := verifyManagedServiceTargetArtifact(ctx, path, artifact, target); err == nil {
+		_ = os.RemoveAll(pending) // a staged copy of the installed bytes is redundant
 		recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
 		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
 	}
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	// A running service executes, maps and lazily loads files from the path it
+	// launched from, and its status re-verifies that path against the digest
+	// witnessed at launch. Replacing it in place breaks both, so a replacement
+	// for a running image is staged beside it and applied when the service is
+	// next started (restart stops it, then start commits the staged bytes).
+	running, err := managedServiceRunningFrom(manifest.Name, path)
+	if err != nil {
+		return err
+	}
+	if err := verifyManagedServiceTargetArtifact(ctx, pending, artifact, target); err == nil {
+		if running {
+			return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+		}
+		if err := replaceManagedServiceArtifact(pending, path); err != nil {
+			return fmt.Errorf("apply staged %s artifact: %w", manifest.Name, err)
+		}
+		recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
+		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
 	}
 	if err := verifyManagedServiceProvenance(ctx, manifest.ManagedService.Acquisition.Provenance); err != nil {
 		return fmt.Errorf("verify %s acquisition provenance: %w", manifest.Name, err)
@@ -158,95 +179,135 @@ func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, m
 	// The kind is resolved per target, so one resource can stage an OCI
 	// filesystem tree on one platform and a published archive on another.
 	targetKind := manifest.ManagedService.Acquisition.EffectiveKind(target)
-	if targetKind == "oci-image" {
-		if layout == managedServiceAcquisitionDir {
-			err := acquireManagedServiceDirectory(path,
-				func(stagedPath string) error {
-					_, err := binaryfetch.FetchOCI(ctx, target, stagedPath, nil)
-					return err
-				},
-				func(stagedPath string) error {
-					if err := verifyManagedServiceTargetArtifact(ctx, stagedPath, artifact, target); err != nil {
-						return fmt.Errorf("verify acquired artifact: %w", err)
-					}
-					if verdict := verifyManagedServiceRuntimeClosure(manifest, stagedPath); verdict.State == ClosureUnresolved {
-						return &RuntimeClosureError{Resource: manifest.Name, Artifact: stagedPath, Verdict: verdict}
-					}
-					return nil
-				})
-			if err != nil {
+	acquire := func(candidate string) error {
+		switch {
+		case targetKind == "oci-image" && layout == managedServiceAcquisitionDir:
+			if err := os.MkdirAll(candidate, 0o755); err != nil {
+				return err
+			}
+			if _, err := binaryfetch.FetchOCI(ctx, target, candidate, nil); err != nil {
 				return fmt.Errorf("acquire %s OCI artifact: %w", manifest.Name, err)
 			}
-		} else {
-			if _, err := binaryfetch.FetchOCIFile(ctx, target, path, nil); err != nil {
+		case targetKind == "oci-image":
+			if _, err := binaryfetch.FetchOCIFile(ctx, target, candidate, nil); err != nil {
 				return fmt.Errorf("acquire %s OCI executable: %w", manifest.Name, err)
 			}
-		}
-	} else if targetKind == "composed" {
-		if err := composeManagedServiceArtifactWithCache(ctx, manifest.Name, target, filepath.Join(controller.Root, "resources", manifest.Name), path); err != nil {
-			return fmt.Errorf("compose %s artifact: %w", manifest.Name, err)
-		}
-	} else {
-		name := filepath.Base(path)
-		spec := binaryfetch.Target{
-			Name: name, URL: target.URL, SHA256: target.SHA256,
-			Archive: target.Archive, Layout: layout, BinPath: target.BinPath, Mode: mode,
-		}
-		auth, err := resolveAcquisitionAuthorization(ctx, manifest, target)
-		if err != nil {
-			return err
-		}
-		spec.Authorization = auth
-		if layout == managedServiceAcquisitionDir {
-			if _, err := binaryfetch.FetchDir(ctx, spec, path, nil); err != nil {
-				return fmt.Errorf("acquire %s artifact tree: %w", manifest.Name, err)
+		case targetKind == "composed":
+			if err := composeManagedServiceArtifactWithCache(ctx, manifest.Name, target, filepath.Join(controller.Root, "resources", manifest.Name), candidate); err != nil {
+				return fmt.Errorf("compose %s artifact: %w", manifest.Name, err)
 			}
-		} else {
-			if _, err := binaryfetch.Fetch(ctx, spec, filepath.Dir(path), nil); err != nil {
+		default:
+			spec := binaryfetch.Target{
+				Name: filepath.Base(candidate), URL: target.URL, SHA256: target.SHA256,
+				Archive: target.Archive, Layout: layout, BinPath: target.BinPath, Mode: mode,
+			}
+			auth, err := resolveAcquisitionAuthorization(ctx, manifest, target)
+			if err != nil {
+				return err
+			}
+			spec.Authorization = auth
+			if layout == managedServiceAcquisitionDir {
+				if _, err := binaryfetch.FetchDir(ctx, spec, candidate, nil); err != nil {
+					return fmt.Errorf("acquire %s artifact tree: %w", manifest.Name, err)
+				}
+			} else if _, err := binaryfetch.Fetch(ctx, spec, filepath.Dir(candidate), nil); err != nil {
 				return fmt.Errorf("acquire %s artifact: %w", manifest.Name, err)
 			}
 		}
+		return nil
 	}
-	if targetKind != "oci-image" || layout != managedServiceAcquisitionDir {
-		if err := verifyManagedServiceTargetArtifact(ctx, path, artifact, target); err != nil {
+	validate := func(candidate string) error {
+		if err := verifyManagedServiceTargetArtifact(ctx, candidate, artifact, target); err != nil {
 			return fmt.Errorf("verify acquired %s artifact: %w", manifest.Name, err)
 		}
 		// The digest says these are the right bytes. The closure check says the
 		// host can start them. An artifact that passes the first and fails the
-		// second is worse than a missing one: it installs clean and then refuses to
-		// run, with no signal until someone reads the service log.
-		if verdict := verifyManagedServiceRuntimeClosure(manifest, path); verdict.State == ClosureUnresolved {
-			if removeErr := os.RemoveAll(path); removeErr != nil {
-				return fmt.Errorf("discard unusable %s artifact: %w", manifest.Name, removeErr)
-			}
+		// second is worse than a missing one: it installs clean and then refuses
+		// to run, with no signal until someone reads the service log.
+		if verdict := verifyManagedServiceRuntimeClosure(manifest, candidate); verdict.State == ClosureUnresolved {
 			return &RuntimeClosureError{Resource: manifest.Name, Artifact: path, Verdict: verdict}
 		}
+		return nil
 	}
+	destination := path
+	if running {
+		destination = pending
+	}
+	if err := acquireManagedServiceArtifact(destination, acquire, validate); err != nil {
+		return err
+	}
+	if running {
+		_, _ = fmt.Fprintf(os.Stderr, "resource %s is running from %s; its verified replacement is staged and applies at the next restart (vrooli resource restart %s)\n", manifest.Name, path, manifest.Name)
+		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+	}
+	_ = os.RemoveAll(pending) // superseded by the bytes just installed
 	recordManagedServiceInstallFacts(ctx, manifest, path, target, artifact)
 	return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
 }
 
-// acquireManagedServiceDirectory keeps the installed artifact available until
-// a replacement has been acquired and validated. A timeout, checksum failure,
-// or runtime-closure failure only discards the staged candidate.
-func acquireManagedServiceDirectory(path string, acquire func(string) error, validate func(string) error) error {
-	parent := filepath.Dir(path)
+// managedServiceArtifactPendingPath is where a replacement for a running
+// image waits. It is a sibling, so committing it is a same-filesystem rename.
+func managedServiceArtifactPendingPath(path string) string {
+	return path + ".pending"
+}
+
+// managedServiceRunningFrom reports whether the resource's supervised process
+// is running from path. An unreadable supervisor state is an error: it cannot
+// prove the path is free to replace.
+func managedServiceRunningFrom(name, path string) (bool, error) {
+	supervisor, _, err := managedServiceSupervisorFor(name)
+	if err != nil {
+		return false, err
+	}
+	state, running, err := supervisor.Status()
+	if err != nil {
+		return false, fmt.Errorf("read %s supervisor state before replacing its artifact: %w", name, err)
+	}
+	return running && filepath.Clean(state.ArtifactPath) == filepath.Clean(path), nil
+}
+
+// acquireManagedServiceArtifact acquires into a private staging location
+// beside destination, validates it, and only then swaps it into place. The
+// installed artifact stays available until the replacement is proven: a
+// timeout, checksum failure or runtime-closure failure only discards the
+// candidate.
+func acquireManagedServiceArtifact(destination string, acquire func(string) error, validate func(string) error) error {
+	parent := filepath.Dir(destination)
 	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return fmt.Errorf("create artifact parent: %w", err)
 	}
-	base := filepath.Base(path)
-	stagedPath, err := os.MkdirTemp(parent, "."+base+".staging-")
+	base := filepath.Base(destination)
+	staging, err := os.MkdirTemp(parent, "."+base+".staging-")
 	if err != nil {
 		return fmt.Errorf("create staged artifact directory: %w", err)
 	}
-	defer os.RemoveAll(stagedPath)
-	if err := acquire(stagedPath); err != nil {
+	defer os.RemoveAll(staging)
+	candidate := filepath.Join(staging, base)
+	if err := acquire(candidate); err != nil {
 		return err
 	}
-	if err := validate(stagedPath); err != nil {
+	if err := validate(candidate); err != nil {
 		return err
 	}
+	return replaceManagedServiceArtifact(candidate, destination)
+}
 
+// acquireManagedServiceDirectory is acquireManagedServiceArtifact for a tree
+// whose acquirer expects an existing, empty directory.
+func acquireManagedServiceDirectory(path string, acquire func(string) error, validate func(string) error) error {
+	return acquireManagedServiceArtifact(path, func(candidate string) error {
+		if err := os.MkdirAll(candidate, 0o755); err != nil {
+			return err
+		}
+		return acquire(candidate)
+	}, validate)
+}
+
+// replaceManagedServiceArtifact swaps a validated candidate (file or tree)
+// into destination, restoring the previous artifact if the swap fails.
+func replaceManagedServiceArtifact(candidate, destination string) error {
+	parent := filepath.Dir(destination)
+	base := filepath.Base(destination)
 	backupPath, err := os.MkdirTemp(parent, "."+base+".previous-")
 	if err != nil {
 		return fmt.Errorf("reserve previous artifact path: %w", err)
@@ -257,17 +318,17 @@ func acquireManagedServiceDirectory(path string, acquire func(string) error, val
 	defer os.RemoveAll(backupPath)
 
 	hadPrevious := false
-	if _, err := os.Lstat(path); err == nil {
-		if err := os.Rename(path, backupPath); err != nil {
+	if _, err := os.Lstat(destination); err == nil {
+		if err := os.Rename(destination, backupPath); err != nil {
 			return fmt.Errorf("preserve previous artifact: %w", err)
 		}
 		hadPrevious = true
 	} else if !os.IsNotExist(err) {
 		return fmt.Errorf("inspect previous artifact: %w", err)
 	}
-	if err := os.Rename(stagedPath, path); err != nil {
+	if err := os.Rename(candidate, destination); err != nil {
 		if hadPrevious {
-			if restoreErr := os.Rename(backupPath, path); restoreErr != nil {
+			if restoreErr := os.Rename(backupPath, destination); restoreErr != nil {
 				return fmt.Errorf("commit staged artifact: %w (restore previous artifact: %v)", err, restoreErr)
 			}
 		}
@@ -427,17 +488,28 @@ func flattenManagedComposePrefix(root, prefix string) error {
 	return os.RemoveAll(flat)
 }
 
+// managedComposeManifest is the provenance record written beside a composed
+// managed-service artifact (.vrooli-compose-manifest.json).
+type managedComposeManifest struct {
+	SchemaVersion string                       `json:"schema_version"`
+	Platform      string                       `json:"platform"`
+	Steps         []managedComposeManifestStep `json:"steps"`
+}
+
+type managedComposeManifestStep struct {
+	Role         string `json:"role"`
+	Kind         string `json:"kind"`
+	Dest         string `json:"dest"`
+	SourceDigest string `json:"source_digest,omitempty"`
+}
+
+const managedComposeManifestSchemaVersion = "v1"
+
 func writeManagedComposeManifest(ctx context.Context, target binaryfetch.AcquisitionTarget, root, platform, resourceRoot string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	type stepRecord struct {
-		Role         string `json:"role"`
-		Kind         string `json:"kind"`
-		Dest         string `json:"dest"`
-		SourceDigest string `json:"source_digest,omitempty"`
-	}
-	records := make([]stepRecord, 0, len(target.Compose))
+	records := make([]managedComposeManifestStep, 0, len(target.Compose))
 	for _, step := range target.Compose {
 		digest := step.SHA256
 		if step.Kind == "local" {
@@ -457,13 +529,9 @@ func writeManagedComposeManifest(ctx context.Context, target binaryfetch.Acquisi
 			}
 			digest = value
 		}
-		records = append(records, stepRecord{Role: step.Role, Kind: step.Kind, Dest: step.Dest, SourceDigest: digest})
+		records = append(records, managedComposeManifestStep{Role: step.Role, Kind: step.Kind, Dest: step.Dest, SourceDigest: digest})
 	}
-	data, err := json.MarshalIndent(struct {
-		SchemaVersion string       `json:"schema_version"`
-		Platform      string       `json:"platform"`
-		Steps         []stepRecord `json:"steps"`
-	}{"v1", platform, records}, "", "  ")
+	data, err := json.MarshalIndent(managedComposeManifest{SchemaVersion: managedComposeManifestSchemaVersion, Platform: platform, Steps: records}, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -687,7 +755,7 @@ func acquireManagedServiceDataArtifacts(ctx context.Context, controller *Control
 			return fmt.Errorf("record %s data artifact checksum: %w", declaration.Name, err)
 		}
 	}
-	if err := noteModelCachesLocked(manifest, "installed"); err != nil {
+	if err := noteModelCachesLocked(manifest, modelCacheEventInstalled); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "warning: model-cache usage not recorded; cleanup remains protected: %s\n", err)
 	}
 	return nil

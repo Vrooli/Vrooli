@@ -84,7 +84,7 @@ func ResourceManifest(name string, opts ...ResourceManifestOption) manifestpkg.R
 					resourcedeployment.ProviderManagedPrivate,
 					resourcedeployment.ProviderManagedShared,
 				},
-				ExternalManagement: "forbidden",
+				ExternalManagement: resourcedeployment.ExternalManagementForbidden,
 			},
 			Artifact: resourcedeployment.ServiceArtifact{
 				Path: "server/" + name, Version: "1.0.0", SHA256: strings.Repeat("a", fixtureDigestLength),
@@ -282,7 +282,7 @@ func WriteResourceManifest(t *testing.T, root, name string, manifest manifestpkg
 					resourcedeployment.ProviderManagedPrivate,
 					resourcedeployment.ProviderManagedShared,
 				},
-				ExternalManagement: "forbidden",
+				ExternalManagement: resourcedeployment.ExternalManagementForbidden,
 			},
 			Artifact: resourcedeployment.ServiceArtifact{
 				Path: "server/" + name, Version: "1.0.0", SHA256: strings.Repeat("a", fixtureDigestLength),
@@ -330,12 +330,12 @@ func defaultResourceCLIConfig(name string) *scenario.CLIConfig {
 		Enabled: true,
 		Command: "resource-" + strings.TrimSpace(name),
 		Adapter: scenario.CLIAdapterConfig{
-			Kind:      "go_module",
+			Kind:      scenario.CLIKindGoModule,
 			ModuleDir: "cli",
 		},
-		SourceBuild: &scenario.CLISourceBuildConfig{Kind: "go_module"},
+		SourceBuild: &scenario.CLISourceBuildConfig{Kind: scenario.CLIKindGoModule},
 		Invoke: scenario.CLIInvokeConfig{
-			Kind:    "installed_command",
+			Kind:    scenario.CLIInvokeInstalledCommand,
 			Command: "resource-" + strings.TrimSpace(name),
 		},
 		Freshness: &scenario.CLIFreshnessCheck{Inputs: []string{"cli/**", "resource.json"}},

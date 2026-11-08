@@ -435,11 +435,12 @@ func TestListOrphansHonorsTrackedProcessGroup(t *testing.T) {
 	}
 }
 
-func TestKillOrphansUsesGracefulThenForce(t *testing.T) {
+func TestKillOrphansUsesPinnedGracefulStop(t *testing.T) {
+	stubOrphanHandles(t)
 	root := t.TempDir()
 	home := t.TempDir()
 
-	orphan := processTableEntry{PID: 5200, PPID: 1, PGID: 5200, Executable: filepath.Join(root, "scenarios", "beta", "api", "server"), Command: filepath.Join(root, "scenarios", "beta", "api", "server")}
+	orphan := processTableEntry{PID: 5200, PPID: 1, PGID: 5200, Cgroup: "/", Executable: filepath.Join(root, "scenarios", "beta", "api", "server"), Command: filepath.Join(root, "scenarios", "beta", "api", "server")}
 
 	originalListProcessTable := listProcessTableFn
 	originalKillProcess := killProcessFn
@@ -481,9 +482,9 @@ func TestKillOrphansUsesGracefulThenForce(t *testing.T) {
 
 // TestKillOrphansSkipsRecycledPID verifies the check-and-act race fix: if the
 // orphan PID has been recycled to an unrelated process by the time we iterate,
-// we do not send a signal to it. The orphan is still reported as "stopped"
-// since it is effectively gone.
+// we do not send a signal to it or report a stop effect we did not perform.
 func TestKillOrphansSkipsRecycledPID(t *testing.T) {
+	stubOrphanHandles(t)
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -525,14 +526,16 @@ func TestKillOrphansSkipsRecycledPID(t *testing.T) {
 	if len(calls) != 0 {
 		t.Fatalf("expected no signals sent to a recycled PID; got %v", calls)
 	}
-	if len(report.Stopped) != 1 || report.Stopped[0].Name != "5200" {
-		t.Fatalf("expected recycled orphan to be reported stopped; got %#v", report.Stopped)
+	if len(report.Stopped) != 0 || len(report.Observed) != 1 || report.Observed[0].Name != "5200" {
+		t.Fatalf("recycled PID must be a skipped observation: %#v", report)
 	}
 }
 
 // TestKillOrphansSkipsExitedPID: if the PID has already exited between the
 // snapshot and KillOrphans iteration, no signal should fire.
 func TestKillOrphansSkipsExitedPID(t *testing.T) {
+	stubOrphanHandles(t)
+	openOrphanHandleFn = func(int) (process.Handle, error) { return &orphanTestHandle{alive: false}, nil }
 	root := t.TempDir()
 	home := t.TempDir()
 
@@ -568,8 +571,8 @@ func TestKillOrphansSkipsExitedPID(t *testing.T) {
 	if len(calls) != 0 {
 		t.Fatalf("expected no signals for an exited PID; got %v", calls)
 	}
-	if len(report.Stopped) != 1 {
-		t.Fatalf("expected exited orphan to still be reported stopped; got %#v", report.Stopped)
+	if len(report.Stopped) != 0 || len(report.Observed) != 1 {
+		t.Fatalf("exited PID must be a skipped observation: %#v", report)
 	}
 }
 
@@ -679,6 +682,27 @@ func TestKillOrphansPrunesStaleRecords(t *testing.T) {
 	recordPath := filepath.Join(mustProcDir(t, home, "alpha"), "start-api.json")
 	if _, err := os.Stat(recordPath); !os.IsNotExist(err) {
 		t.Fatalf("stale record should have been pruned; stat err=%v", err)
+	}
+}
+
+func TestStaleRecordCleanupDoesNotConfuseReusedPIDWithTheOldLaunch(t *testing.T) {
+	if _, err := process.Incarnation(os.Getpid()); err != nil {
+		t.Skipf("OS incarnation reader unavailable: %v", err)
+	}
+	root, home := t.TempDir(), t.TempDir()
+	if err := process.WriteScenarioRecord(home, "fixture", "api", process.Record{PID: os.Getpid(), Generation: "retired", Incarnation: "different-boot:retired"}); err != nil {
+		t.Fatal(err)
+	}
+	items, err := NewController(root, home).cleanStaleScenarioRecords()
+	if err != nil || len(items) != 1 {
+		t.Fatalf("stale launch survived numeric PID reuse: %+v %v", items, err)
+	}
+	remaining, err := process.ReadScenarioRecords(home, "fixture")
+	if err != nil || len(remaining) != 0 {
+		t.Fatalf("retired metadata still present: %+v %v", remaining, err)
+	}
+	if !process.IsPIDRunning(os.Getpid()) {
+		t.Fatal("record cleanup signaled the replacement process")
 	}
 }
 
@@ -2181,20 +2205,26 @@ func TestListRuntimeClaimsCapturesListenerSnapshotOnce(t *testing.T) {
 // a foreign process (or a recycled/absent PID) that happens to hold the port is
 // never killed.
 func TestReclaimSquattedPortEvictsOnlyVrooliOrphans(t *testing.T) {
+	stubOrphanHandles(t)
 	root := t.TempDir()
 	home := t.TempDir()
 
-	vrooliOrphan := processTableEntry{PID: 5200, PPID: 1, PGID: 5200, Executable: filepath.Join(root, "scenarios", "beta", "api", "server"), Command: filepath.Join(root, "scenarios", "beta", "api", "server")}
+	vrooliOrphan := processTableEntry{PID: 5200, PPID: 1, PGID: 5200, Cgroup: "/", Executable: filepath.Join(root, "scenarios", "beta", "api", "server"), Command: filepath.Join(root, "scenarios", "beta", "api", "server")}
 	foreign := processTableEntry{PID: 8000, PPID: 1, PGID: 8000, Executable: "/usr/bin/postgres", Command: "/usr/bin/postgres"}
 
 	originalKill := killProcessFn
 	originalRead := readProcessEntryFn
 	originalRunning := pidIsRunningFn
+	originalList := listProcessTableFn
 	t.Cleanup(func() {
 		killProcessFn = originalKill
 		readProcessEntryFn = originalRead
 		pidIsRunningFn = originalRunning
+		listProcessTableFn = originalList
 	})
+	listProcessTableFn = func() (map[int]processTableEntry, error) {
+		return map[int]processTableEntry{5200: vrooliOrphan, 8000: foreign}, nil
+	}
 
 	readProcessEntryFn = func(pid int) (processTableEntry, bool) {
 		switch pid {
@@ -2231,6 +2261,13 @@ func TestReclaimSquattedPortEvictsOnlyVrooliOrphans(t *testing.T) {
 	}
 	if len(killed) != 0 {
 		t.Fatalf("foreign process must not be signaled, got %v", killed)
+	}
+
+	// A dedicated native owner may still hold a service after its old port
+	// claim expired. Its lifecycle tree cannot become a generic eviction.
+	vrooliOrphan.Cgroup = "/vrooli.slice/vrooli-services.slice/vrooli-service-beta-start-api.scope"
+	if _, evicted := c.reclaimSquattedPort(PortReclaimCandidate{Scenario: "beta", Port: 7100, PID: 5200}); evicted || len(killed) != 0 {
+		t.Fatalf("expired claim authorized a stop of native-owned service: %v", killed)
 	}
 
 	// A recycled/absent PID is a silent no-op.

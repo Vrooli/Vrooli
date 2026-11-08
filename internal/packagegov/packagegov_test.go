@@ -1,24 +1,71 @@
 package packagegov
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
+
+	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
-func TestPackageKindsAndRefreshVocabulary(t *testing.T) {
-	if KindGoRuntime == "" || KindJSRuntime == "" {
-		t.Fatal("package kind vocabulary must remain available")
+// The JSON schema and the loader's own checks must accept the same package
+// kinds; a kind only one of them knows is a manifest that validates in one
+// place and fails in the other.
+func TestSchemaKindVocabularyMatchesLoader(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(testkitgo.ProjectRoot(t), ".vrooli", "schemas", "package.schema.json"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if RefreshScenarioSetup == "" || RefreshNone == "" {
-		t.Fatal("refresh lifecycle vocabulary must remain available")
+	var schema struct {
+		Properties struct {
+			Package struct {
+				Properties struct {
+					Kind struct {
+						Enum []PackageKind `json:"enum"`
+					} `json:"kind"`
+				} `json:"properties"`
+			} `json:"package"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		t.Fatal(err)
+	}
+	schemaKinds := schema.Properties.Package.Properties.Kind.Enum
+	for _, kind := range schemaKinds {
+		if !isAllowedPackageKind(kind) {
+			t.Errorf("schema allows package kind %q that the loader rejects", kind)
+		}
+	}
+	for _, kind := range []PackageKind{KindJSRuntime, KindGeneratedTypeScript, KindGoRuntime, KindGoCLI, KindPythonRuntime, KindRustRuntime, KindInternalPlatform, KindSchemaOrContract} {
+		if !slices.Contains(schemaKinds, kind) {
+			t.Errorf("loader accepts package kind %q that the schema rejects", kind)
+		}
 	}
 }
 
-func TestValidationIssueRemainsRegistryDiagnosticShape(t *testing.T) {
-	issue := ValidationIssue{Severity: "warning", Code: "registry-warning", Message: "example", Path: "packages/example"}
-	if issue.Code == "" || issue.Message == "" {
-		t.Fatal("registry diagnostics must retain code and message")
+func TestValidationIssueStringNamesThePackageAndFile(t *testing.T) {
+	issue := ValidationIssue{Severity: "error", Code: "missing-package-manifest", Message: "package root is missing .vrooli/package.json", Path: "packages/example/.vrooli/package.json", PackageName: "example"}
+	want := "error: example: package root is missing .vrooli/package.json [missing-package-manifest] (packages/example/.vrooli/package.json)"
+	if got := issue.String(); got != want {
+		t.Fatalf("String() = %q, want %q", got, want)
+	}
+}
+
+// Every directory under packages/ must load into the registry. The manifest
+// is what puts a package into `vrooli package list`, and therefore into
+// `make test-packages`, refresh planning and adoption checks; an unmanifested
+// package is invisible to all of them and its tests rot unnoticed.
+func TestRepositoryPackageRegistryIsComplete(t *testing.T) {
+	_, issues, err := LoadAll(testkitgo.ProjectRoot(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, issue := range issues {
+		if issue.Severity == "error" {
+			t.Errorf("%s", issue)
+		}
 	}
 }
 

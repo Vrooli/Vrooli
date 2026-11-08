@@ -34,6 +34,11 @@ func ParseUpdateRequest(args []string) (UpdateRequest, error) {
 	if len(parsed.Positionals) != 1 {
 		return UpdateRequest{}, fmt.Errorf("%s requires exactly one coding-agent resource name", command)
 	}
+	for _, flag := range []string{"--request", "--rollback-of", "--version", "--sha256", "--retry"} {
+		if parsed.HasFlag(flag) {
+			return UpdateRequest{}, fmt.Errorf("%s: %s applies only to managed-service updates", command, flag)
+		}
+	}
 	req := UpdateRequest{Name: parsed.Positionals[0], Action: agentinstall.ActionUpdate, OnBehalfOf: parsed.FlagValue("--on-behalf-of"), CleanupPlanID: parsed.FlagValue("--cleanup-plan")}
 	if parsed.HasFlag("--check") && parsed.HasFlag("--action") {
 		return UpdateRequest{}, fmt.Errorf("%s: --check and --action cannot be combined", command)

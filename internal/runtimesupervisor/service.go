@@ -145,6 +145,9 @@ type Config struct {
 	AgentOrphanReapInterval time.Duration
 	// AgentOrphanReap performs one reap; nil uses agentsession.ReapOrphaned.
 	AgentOrphanReap func(ctx context.Context, request agentsession.ReapRequest) ([]agentsession.Result, error)
+	// ManagedUpdateReconcile resumes only durable, already-admitted operations.
+	// It runs in one separate bounded worker, never on the fleet renewal path.
+	ManagedUpdateReconcile func(context.Context) error
 }
 
 type Service struct {
@@ -163,6 +166,7 @@ type Service struct {
 	lastLogBound time.Time
 	// lastAgentReap is when the orphaned agent session reap last ran.
 	lastAgentReap time.Time
+	logMu         sync.Mutex
 }
 
 // logBoundInterval spaces log bound sweeps. A runaway writer is caught within
@@ -265,6 +269,17 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	svc.logf("supervisor started supervisor_id=%s pid=%d lease_ttl=%s renew_interval=%s",
 		svc.session.SupervisorID, os.Getpid(), normalizeLeaseTTL(cfg.LeaseTTL), normalizeRenewInterval(cfg.RenewInterval))
+	updatesCtx, stopUpdates := context.WithCancel(ctx)
+	updatesDone := make(chan struct{})
+	go func() { defer close(updatesDone); svc.runManagedUpdateWorker(updatesCtx) }()
+	defer func() {
+		stopUpdates()
+		select {
+		case <-updatesDone:
+		case <-time.After(5 * time.Second):
+			svc.logf("managed update worker shutdown remains unresolved; durable checkpoint retained")
+		}
+	}()
 	ticker := time.NewTicker(normalizeRenewInterval(cfg.RenewInterval))
 	defer ticker.Stop()
 	// A tick failure is no longer fatal. Renewal for the whole fleet used to
@@ -302,6 +317,8 @@ func Run(ctx context.Context, cfg Config) error {
 // deliberately sparse — startup, shutdown, and anything that went wrong — so
 // the file stays readable and a failure has somewhere to be recorded.
 func (s *Service) logf(format string, args ...any) {
+	s.logMu.Lock()
+	defer s.logMu.Unlock()
 	w := s.cfg.Stderr
 	if w == nil {
 		w = os.Stderr
@@ -717,13 +734,7 @@ func allActiveClaimsListening(claims []scenarioruntime.PortClaim, listeners map[
 }
 
 func shouldProbeStartupHealth(snapshot scenarioruntime.HealthSnapshot, now time.Time, interval time.Duration) bool {
-	if interval <= 0 {
-		return false
-	}
-	if snapshot.CheckedAt == nil {
-		return true
-	}
-	return !snapshot.CheckedAt.Add(interval).After(now)
+	return scenarioruntime.HealthProbeDue(snapshot, now, interval)
 }
 
 func runtimeHealthAllowsStartupReconciliation(health scenarioruntime.HealthSnapshot) bool {
@@ -786,7 +797,7 @@ func (s *Service) Status(ctx context.Context) (StatusReport, error) {
 	if session.SupervisorID == "" {
 		return StatusReport{
 			Status:                        scenarioruntime.SupervisorStatusStopped,
-			BuildIdentity:                 s.buildIdentity(),
+			BuildIdentity:                 scenarioruntime.HealthStatusUnknown,
 			EffectiveRenewInterval:        normalizeRenewInterval(s.cfg.RenewInterval),
 			EffectiveLeaseTTL:             normalizeLeaseTTL(s.cfg.LeaseTTL),
 			EffectiveHealthInterval:       normalizeHealthInterval(s.cfg.HealthInterval),
@@ -830,7 +841,7 @@ func (s *Service) Status(ctx context.Context) (StatusReport, error) {
 		EffectiveRecoveryQuietPeriod:  s.recoveryQuietPeriod(),
 		EffectiveRecoveryCooldown:     s.recoveryCooldown(),
 		EffectiveRecoveryConcurrency:  s.recoveryConcurrency(),
-		BuildIdentity:                 s.buildIdentity(),
+		BuildIdentity:                 supervisorSessionBuildIdentity(session),
 		RecoveryPolicies:              policies,
 		PressureEpochs:                epochs,
 		LastTick:                      s.lastReport,
@@ -865,6 +876,19 @@ func (s *Service) classifySupervisorSession(session scenarioruntime.SupervisorSe
 	}
 	if session.PID != nil && *session.PID > 0 && !s.pidRunning(*session.PID) {
 		return StatusDead, fmt.Sprintf("recorded PID %d is not running", *session.PID)
+	}
+	identity, err := supervisorSessionIdentity(session)
+	if err != nil {
+		return StatusStale, err.Error()
+	}
+	if identity.ProcessIncarnation != "" {
+		if session.PID == nil || *session.PID <= 0 {
+			return StatusStale, "owner incarnation has no process"
+		}
+		actual, err := process.Incarnation(*session.PID)
+		if err != nil || actual != identity.ProcessIncarnation {
+			return StatusStale, "supervisor owner process incarnation is no longer current"
+		}
 	}
 	return scenarioruntime.SupervisorStatusRunning, ""
 }
@@ -919,6 +943,7 @@ func (s *Service) ensureStarted(ctx context.Context) error {
 		HostSessionID: s.host.SessionID,
 		PID:           &pid,
 		Version:       s.cfg.Version,
+		MetadataJSON:  s.supervisorOwnerMetadata(pid),
 	}, normalizeLeaseTTL(s.cfg.LeaseTTL))
 	if err != nil {
 		return err
@@ -1128,7 +1153,7 @@ func (s *Service) probeHealth(ctx context.Context, instance scenarioruntime.Inst
 			Error:      fmt.Sprintf("load scenario manifest: %v", err),
 		}
 	}
-	return scenarioruntime.HealthProbe{Clock: s.cfg.Clock}.Probe(ctx, scenarioruntime.HealthProbeInput{
+	return scenarioruntime.HealthProbe{Clock: s.cfg.Clock, AllowLegacyHTTP: true}.Probe(ctx, scenarioruntime.HealthProbeInput{
 		InstanceID:            instance.InstanceID,
 		Scenario:              instance.Scenario,
 		HealthConfig:          item.Manifest.HealthConfig(),

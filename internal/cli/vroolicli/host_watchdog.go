@@ -14,6 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	cleanupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup"
 	cleanupconnect "github.com/vrooli/vrooli/packages/proto/gen/go/storage-manager/v1/cleanup/cleanup_v1connect"
@@ -78,7 +79,11 @@ func runHostWatchdogTick(ctx context.Context, commandCtx hostWatchdogCommandCont
 		if err != nil {
 			return fmt.Errorf("resolve home: %w", err)
 		}
-		statePath = filepath.Join(home, ".vrooli", "state", "host-watchdog", "state.json")
+		stateRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+		if err != nil {
+			return fmt.Errorf("resolve runtime-home state entry: %w", err)
+		}
+		statePath = filepath.Join(stateRoot, "host-watchdog", "state.json")
 	}
 	floor := hostWatchdogDefaultFloorBytes
 	if raw := strings.TrimSpace(os.Getenv("VROOLI_WATCHDOG_FLOOR_BYTES")); raw != "" {

@@ -69,6 +69,10 @@ func reportLaunchError(err error) int {
 func runShim(runner string, args []string) int {
 	self := shimSelfPath()
 
+	if argv, ok := managedUpdateCommand(runner, args); ok {
+		return runManagedUpdate(argv, self)
+	}
+
 	err := launchWithRecovery(runner, args, self)
 	if err == nil {
 		return 0

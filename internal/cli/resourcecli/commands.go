@@ -103,6 +103,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 				Options: []commandtree.OptionArg{
 					{Name: "--fast", Description: "Use fast status probes"},
 					{Name: "--no-fast", Description: "Disable fast status probes"},
+					{Name: "--health-only", Description: "Observe process/health without auditing current artifact bytes; reports artifact_verification=not_evaluated"},
 					commandtree.JSONOption(),
 				},
 			},
@@ -150,14 +151,19 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		},
 		{
 			Name:    string(CommandUpdate),
-			Summary: "Update a coding agent, or repair or roll back how it is installed",
+			Summary: "Update a coding agent or prepare and reconcile a managed-service update",
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}},
 				Options: []commandtree.OptionArg{
 					{Name: "--check", Description: "Report state and eligibility without changing anything"},
 					{Name: "--on-behalf-of", ValueName: "subject", Description: "The verified operator a trusted caller acts for, recorded as the actor. An agent's claim is recorded as a claim."},
-					{Name: "--action", ValueName: "action", Description: "install, refresh-catalog, use-managed-copy, link-managed-copy, rollback, doctor, preview-cleanup or uninstall"},
+					{Name: "--action", ValueName: "action", Description: "Coding agents: install, refresh-catalog, use-managed-copy, link-managed-copy, rollback, doctor, preview-cleanup, uninstall. Managed services: prepare (default), rollback, status, resume, abort"},
 					{Name: "--cleanup-plan", ValueName: "id", Description: "Exact preview identity required for uninstall"},
+					{Name: "--request", ValueName: "id", Description: "Managed service request identity; reuse after an interrupted call"},
+					{Name: "--rollback-of", ValueName: "request", Description: "Qualified terminal receipt whose retained previous image is selected for rollback"},
+					{Name: "--version", ValueName: "version", Description: "Exact staged managed-service release for prepare"},
+					{Name: "--sha256", ValueName: "digest", Description: "Exact staged managed-service checksum for prepare"},
+					{Name: "--retry", Description: "Explicit managed-service retry with a new request after a failed release"},
 					commandtree.JSONOption(),
 				},
 			},
@@ -165,7 +171,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		},
 		{
 			Name:    string(CommandUpdateCheck),
-			Summary: "Report a coding agent's update state and eligibility (read-only)",
+			Summary: "Report a resource's update state and eligibility (read-only)",
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "name", Required: true}},
 				Options:     []commandtree.OptionArg{commandtree.JSONOption()},

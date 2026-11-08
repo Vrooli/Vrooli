@@ -563,7 +563,7 @@ func TestExecutorScopeCancellationCannotProveEmptyHost(t *testing.T) {
 }
 
 func TestExecutorScopeManagedHistoryCapacity(t *testing.T) {
-	for _, count := range []int{6000, 16384} {
+	for _, count := range []int{6000, 17029, 65536} {
 		t.Run(fmt.Sprint(count), func(t *testing.T) {
 			refs := make([]ExecutorScopeRef, count)
 			for i := range refs {

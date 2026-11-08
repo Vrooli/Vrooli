@@ -298,3 +298,31 @@ func TestResourceStopReportPreservesObservedJSONAndHuman(t *testing.T) {
 		}
 	}
 }
+
+// The operator needs update intent alongside actual service health; a missing
+// target must not be projected as a missing running connector.
+func TestResourceStatusReportsDesiredStagedAndRunningVersions(t *testing.T) {
+	healthy := true
+	item := resources.Status{Resource: resources.Resource{Name: "cloudflared"}, Installed: true, Running: true, Healthy: &healthy, Serving: &healthy, DeclaredArtifactVersion: "2026.10.7", RunningArtifactVersion: "2025.10.0", ArtifactUpdateAvailable: true, ArtifactStagingError: "target not acquired", ArtifactVerification: "not_evaluated"}
+	var b bytes.Buffer
+	if err := WriteStatus(&b, cliout.FormatJSON, item); err != nil {
+		t.Fatal(err)
+	}
+	got := testenv.DecodeJSON[map[string]any](t, b.Bytes())
+	r := got["resource"].(map[string]any)
+	if got["running"] != true || got["healthy"] != true || r["declared_artifact_version"] != "2026.10.7" || r["running_artifact_version"] != "2025.10.0" || r["staged_artifact_version"] != "" || r["artifact_update_available"] != true || r["artifact_staging_error"] != "target not acquired" || r["artifact_verification"] != "not_evaluated" {
+		t.Fatalf("operator update evidence lost: %s", b.String())
+	}
+	b.Reset()
+	item.StagedArtifactVersion = "2026.10.7"
+	item.ArtifactVerification = "verified"
+	item.ArtifactStagingError = ""
+	if err := WriteStatuses(&b, cliout.FormatJSON, []resources.Status{item}, nil); err != nil {
+		t.Fatal(err)
+	}
+	fleet := testenv.DecodeJSON[map[string]any](t, b.Bytes())
+	r = fleet["resources"].([]any)[0].(map[string]any)
+	if r["staged_artifact_version"] != "2026.10.7" || r["running_artifact_version"] != "2025.10.0" {
+		t.Fatalf("staged version replaced live identity: %s", b.String())
+	}
+}

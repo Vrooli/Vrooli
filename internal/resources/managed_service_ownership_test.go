@@ -12,10 +12,11 @@ import (
 
 func withOwnershipFacts(t *testing.T, env func(int) (map[string]string, error), executable func(int) (string, error)) {
 	t.Helper()
-	previousEnv, previousExecutable := readManagedServiceEnvironment, managedServiceExecutablePath
+	previousEnv, previousExecutable, previousIncarnation := readManagedServiceEnvironment, managedServiceExecutablePath, managedServiceProcessIncarnation
 	readManagedServiceEnvironment, managedServiceExecutablePath = env, executable
+	managedServiceProcessIncarnation = func(int) (string, error) { return "boot:original", nil }
 	t.Cleanup(func() {
-		readManagedServiceEnvironment, managedServiceExecutablePath = previousEnv, previousExecutable
+		readManagedServiceEnvironment, managedServiceExecutablePath, managedServiceProcessIncarnation = previousEnv, previousExecutable, previousIncarnation
 	})
 }
 
@@ -28,7 +29,7 @@ func executableAt(path string) func(int) (string, error) {
 }
 
 func ownershipState() ManagedServiceState {
-	return ManagedServiceState{PID: 4242, ArtifactPath: "/opt/postgres/bin/postgres", OwnershipTokenHash: managedServiceTokenHash("owned")}
+	return ManagedServiceState{PID: 4242, Incarnation: "boot:original", ArtifactPath: "/opt/postgres/bin/postgres", OwnershipTokenHash: managedServiceTokenHash("owned")}
 }
 
 func TestOwnershipFallsBackToTheExecutableWhenTheEnvironmentIsUnobservable(t *testing.T) {
@@ -92,5 +93,48 @@ func TestExecutableMatchAcceptsOnlyTheArtifactOrItsBundle(t *testing.T) {
 	withOwnershipFacts(t, unsupportedEnvironment, func(int) (string, error) { return "", platform.ErrUnsupported })
 	if managedServiceExecutableMatchesArtifact(ownershipState()) {
 		t.Error("a host that cannot name the executable must not match")
+	}
+}
+
+// A replacement can run the exact same executable. A path match alone must
+// never grant ownership of that replacement after the recorded process exits.
+func TestOwnershipRejectsSameExecutableWithoutRecordedIncarnation(t *testing.T) {
+	withOwnershipFacts(t, func(int) (map[string]string, error) { return map[string]string{}, nil }, executableAt("/opt/postgres/bin/postgres"))
+	if err := verifyManagedServiceOwnership(func() ManagedServiceState { s := ownershipState(); s.Incarnation = ""; return s }()); err == nil {
+		t.Fatal("same executable accepted without launch incarnation or ownership token")
+	}
+}
+
+func TestOwnershipRejectsReusedPIDDespiteSameExecutableOrToken(t *testing.T) {
+	for _, token := range []string{"", "owned"} {
+		t.Run("token_"+token, func(t *testing.T) {
+			withOwnershipFacts(t, func(int) (map[string]string, error) {
+				return map[string]string{managedServiceOwnershipTokenEnv: token}, nil
+			}, executableAt("/opt/postgres/bin/postgres"))
+			managedServiceProcessIncarnation = func(int) (string, error) { return "boot:replacement", nil }
+			if err := verifyManagedServiceOwnership(ownershipState()); err == nil {
+				t.Fatal("replacement incarnation gained ownership")
+			}
+		})
+	}
+}
+
+func TestOwnershipRejectsContradictoryTokenEvenWhenExecutableAndIncarnationMatch(t *testing.T) {
+	withOwnershipFacts(t, func(int) (map[string]string, error) {
+		return map[string]string{managedServiceOwnershipTokenEnv: "someone-else"}, nil
+	}, executableAt("/opt/postgres/bin/postgres"))
+	if err := verifyManagedServiceOwnership(ownershipState()); err == nil {
+		t.Fatal("contradictory token overridden by executable")
+	}
+}
+
+func TestOwnershipLegacyMatchingTokenRemainsUsable(t *testing.T) {
+	withOwnershipFacts(t, func(int) (map[string]string, error) {
+		return map[string]string{managedServiceOwnershipTokenEnv: "owned"}, nil
+	}, executableAt("/opt/postgres/bin/postgres"))
+	s := ownershipState()
+	s.Incarnation = ""
+	if err := verifyManagedServiceOwnership(s); err != nil {
+		t.Fatalf("legacy explicit token proof rejected: %v", err)
 	}
 }

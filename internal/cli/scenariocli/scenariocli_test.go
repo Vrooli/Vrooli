@@ -563,7 +563,7 @@ func TestWriteStatusHumanReportsInFlightLifecycleOperation(t *testing.T) {
 		Info:     InfoScenarioData{Name: "alpha", Path: "/x"},
 		Runtime:  InfoRuntimeData{Status: "stopped"},
 	})
-	for _, want := range []string{"Status: stopped", "Lifecycle: start in progress", "pid 3941220", "setup step"} {
+	for _, want := range []string{"Status: stopped", "Lifecycle: start in progress", "pid 3941220", "setup step", "Wait: vrooli scenario wait "} {
 		if !strings.Contains(out.String(), want) {
 			t.Fatalf("status output missing %q:\n%s", want, out.String())
 		}

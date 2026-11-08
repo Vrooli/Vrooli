@@ -25,6 +25,7 @@ import (
 
 	"github.com/vrooli/cli-core/cliutil"
 	"github.com/vrooli/envkit-go"
+	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	credentialauthority "github.com/vrooli/vrooli/internal/credentialauthority"
@@ -173,6 +174,7 @@ func (r *Runner) childStdoutConsole() io.Writer {
 }
 
 type lifecycleDeps struct {
+	adoptIntoScope          func(platform.AdoptSpec) (platform.ScopeRef, string, error)
 	sleep                   func(time.Duration)
 	now                     func() time.Time
 	signalProcessGroup      func(int, bool) error
@@ -259,6 +261,7 @@ type hostProbeCache struct {
 
 func defaultLifecycleDeps() lifecycleDeps {
 	return lifecycleDeps{
+		adoptIntoScope:      platform.AdoptIntoScope,
 		sleep:               time.Sleep,
 		now:                 time.Now,
 		signalProcessGroup:  signalProcessGroup,
@@ -467,6 +470,9 @@ func (r *Runner) hostProbeDeps() hostProbeDeps {
 func (r *Runner) runtimeDeps() lifecycleDeps {
 	deps := r.deps
 	defaults := defaultLifecycleDeps()
+	if deps.adoptIntoScope == nil {
+		deps.adoptIntoScope = defaults.adoptIntoScope
+	}
 	if deps.sleep == nil {
 		deps.sleep = defaults.sleep
 	}
@@ -624,6 +630,19 @@ func (r *Runner) latestStartOperationSnapshot(ctx context.Context, name, variant
 		return nil, err
 	}
 	op, readErr := store.GetLatestStartOperation(ctx, name, variant)
+	if readErr == nil {
+		op.Status = EvaluateStartOperation(op, r.runtimeDeps().isPIDRunning, r.runtimeDeps().now(), nil).Status
+	}
+	if readErr == nil && op.FenceOperationID == "" && op.IsTerminal() {
+		// A newer failed preparation or successful warm reuse may never reach
+		// negotiation. Its empty link must not hide the retained terminal owner
+		// of a closed fence. A newer linked success still ends that lineage.
+		if owner, ownerErr := store.GetStartOperationFenceRecoveryOwner(ctx, name, variant); ownerErr == nil {
+			op = owner
+		} else if !errors.Is(ownerErr, scenarioruntime.ErrNotFound) {
+			readErr = ownerErr
+		}
+	}
 	closeErr := store.Close()
 	if errors.Is(readErr, scenarioruntime.ErrNotFound) {
 		readErr = nil
@@ -671,6 +690,12 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 	}
 	defer func() {
 		if recorder != nil {
+			// Preparation and fence failures happen before startWithState can
+			// publish its terminal event. They are failed attempts, not lost
+			// initiators; attachers must receive the actual failure.
+			if returnErr != nil && !recorder.op.IsTerminal() {
+				r.publish(ProgressEvent{Kind: EventOperationFailed, Scenario: name, Operation: defaultIfEmpty(opts.Operation, "start"), Err: returnErr})
+			}
 			recorder.close()
 		}
 		if detachRecorder != nil {
@@ -678,6 +703,19 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		}
 	}()
 	if opts.stopFirst && name != "agent-manager" {
+		item, err = r.loadScenario(name, opts.CustomPath)
+		if err != nil {
+			return Result{}, err
+		}
+		item.Variant = opts.Variant
+		// Admit this attempt before replacement preparation. Builds and drain
+		// can take minutes while the old instance still serves; a waiter must
+		// observe this operation rather than the previous successful start.
+		candidate, beginErr := r.beginStartOperationRecord(name, opts)
+		if beginErr != nil {
+			return Result{}, beginErr
+		}
+		attachRecorder(candidate)
 		// Build and preflight before the stop: a restart whose replacement
 		// cannot be built or whose host requirements fail must leave the
 		// running instance serving (O14), as an ordinary stale replacement
@@ -686,11 +724,6 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		if err := r.prepareRestartBeforeStop(name, &opts); err != nil {
 			return Result{}, err
 		}
-		item, err = r.loadScenario(name, opts.CustomPath)
-		if err != nil {
-			return Result{}, err
-		}
-		item.Variant = opts.Variant
 		// Fence the current provider after replacement preflight/build has
 		// succeeded, but before issuing the stop. A failed drain must leave the
 		// serving process untouched; a successful drain keeps provider admission
@@ -702,16 +735,12 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		}
 		if opts.providerFence != nil {
 			opts.providerFenceOperationID = opts.providerFence.operationID
-		}
-		candidate, beginErr := r.beginStartOperationRecord(name, opts)
-		if beginErr != nil {
-			return Result{}, beginErr
-		}
-		if opts.providerFence != nil && candidate == nil {
-			return Result{}, fmt.Errorf("provider fence for %q requires a durable start-operation link", name)
-		}
-		attachRecorder(candidate)
-		if opts.providerFence != nil {
+			if recorder == nil {
+				return Result{}, fmt.Errorf("provider fence for %q requires a durable start-operation link", name)
+			}
+			if err := recorder.linkProviderFence(opts.providerFence.operationID); err != nil {
+				return Result{}, fmt.Errorf("link provider fence for %q to start operation: %w", name, err)
+			}
 			recorder.setProviderFence(opts.providerFence)
 		}
 		restartStopStartedAt = r.runtimeDeps().now()
@@ -1095,11 +1124,11 @@ func (r *Runner) executeStart(item scenario.Scenario, opts StartOptions, forceSe
 	r.publish(ProgressEvent{Kind: EventPhaseCompleted, Scenario: item.Slug, Phase: "develop"})
 
 	r.publish(ProgressEvent{Kind: EventHealthWaiting, Scenario: item.Slug})
-	healthStatus, err := r.waitForHealth(ctx, item, env.EnvVars)
+	healthStatus, healthSnapshot, err := r.waitForHealthSnapshot(ctx, item, env.EnvVars)
 	if err != nil {
 		return Result{}, err
 	}
-	if err := runtimeSession.recordHealth(ctx, item, env, healthStatus); err != nil {
+	if err := runtimeSession.recordHealth(ctx, item, healthSnapshot); err != nil {
 		return Result{}, err
 	}
 

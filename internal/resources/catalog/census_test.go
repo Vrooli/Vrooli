@@ -1,6 +1,12 @@
 package catalog
 
-import "testing"
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"syscall"
+	"testing"
+)
 
 func TestCensusReason(t *testing.T) {
 	tests := []struct {
@@ -21,5 +27,39 @@ func TestCensusReason(t *testing.T) {
 				t.Fatalf("censusReason() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestCensusSkipsSharedCodeDirectories(t *testing.T) {
+	dir := t.TempDir()
+	if declared, err := isResourceDir(dir + "/internal/resource.json"); err != nil || declared {
+		t.Fatal("a directory without resource.json counted as a resource")
+	}
+	manifest := dir + "/resource.json"
+	if err := os.WriteFile(manifest, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if declared, err := isResourceDir(manifest); err != nil || !declared {
+		t.Fatal("a declared resource was skipped")
+	}
+}
+
+func TestCensusManifestInspectionFailureIsNotAnAbsentResource(t *testing.T) {
+	dir := t.TempDir()
+	loop := filepath.Join(dir, "loop")
+	if err := os.Symlink("loop", loop); err != nil {
+		t.Fatal(err)
+	}
+	declared, err := isResourceDir(filepath.Join(loop, "resource.json"))
+	if declared || !errors.Is(err, syscall.ELOOP) {
+		t.Fatalf("unreadable inventory must fail, got declared=%v error=%v", declared, err)
+	}
+	file := filepath.Join(dir, "file")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	declared, err = isResourceDir(filepath.Join(file, "resource.json"))
+	if declared || !errors.Is(err, syscall.ENOTDIR) {
+		t.Fatalf("invalid inventory parent must fail, got declared=%v error=%v", declared, err)
 	}
 }

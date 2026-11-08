@@ -22,6 +22,8 @@ type providerFence struct {
 	operationID        string
 	token              string
 	revision           int64
+	interlock          string
+	persistence        commonv1.LifecycleFencePersistence
 	active             bool
 }
 
@@ -59,7 +61,7 @@ func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenari
 	// maintenance and start a fresh instance. Keep rejecting a present but
 	// non-authoritative instance below: that state may represent a live or
 	// otherwise unsafe runtime whose ownership cannot be established.
-	if !view.Present {
+	if !view.Present || view.ProviderAbsent {
 		return nil, nil
 	}
 	if !view.Authoritative || view.Ports["API_PORT"] <= 0 {
@@ -225,6 +227,7 @@ func (r *Runner) prepareProviderFence(ctx context.Context, item scenario.Scenari
 	return &providerFence{
 		client: client, scenario: item.Slug, providerInstanceID: standing.GetProviderInstanceId(),
 		operationID: operationID, token: standing.GetFenceToken(), revision: standing.GetRevision(), active: true,
+		interlock: standing.GetInterlock(), persistence: standing.GetFencePersistence(),
 	}, nil
 }
 
@@ -363,6 +366,9 @@ func validateDrainedStanding(scenario, operationID string, prepared, drained *co
 	if drained.GetFenceToken() != prepared.GetFenceToken() || drained.GetRevision() != prepared.GetRevision() {
 		return fmt.Errorf("lifecycle provider %q drain changed fence identity", scenario)
 	}
+	if drained.GetInterlock() != prepared.GetInterlock() || drained.GetFencePersistence() != prepared.GetFencePersistence() {
+		return fmt.Errorf("lifecycle provider %q drain changed fence persistence contract", scenario)
+	}
 	if !drained.GetAdmissionClosed() {
 		return fmt.Errorf("lifecycle provider %q reopened admission while draining", scenario)
 	}
@@ -391,10 +397,34 @@ func (f *providerFence) resume(ctx context.Context) error {
 		return err
 	}
 	if standing.GetProviderInstanceId() != f.providerInstanceID {
-		// Replacement succeeded. The new process starts with a fresh, open
-		// provider; the old generation's token must never be replayed against it.
-		if standing.GetAdmissionClosed() {
-			return fmt.Errorf("replacement lifecycle provider %q generation %q unexpectedly has a closed fence", standing.GetProvider(), standing.GetProviderInstanceId())
+		if !standing.GetAdmissionClosed() {
+			// A process-local provider starts open. Its predecessor's token must
+			// never be replayed against the replacement.
+			f.active = false
+			return nil
+		}
+		// A durable owner deliberately retains the admission gate across process
+		// replacement. Its fresh complete inventory and exact frozen identity
+		// must prove the same drained operation. An unspecified predecessor can
+		// be upgraded by that explicit durable proof; a known process-local
+		// predecessor cannot. None of these safety facts creates authorization.
+		if (f.persistence != commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_UNSPECIFIED && f.persistence != commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE) ||
+			standing.GetFencePersistence() != commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE ||
+			f.interlock == "" || standing.GetInterlock() != f.interlock ||
+			standing.GetOperationId() != f.operationID || standing.GetFenceToken() != f.token || standing.GetRevision() != f.revision ||
+			!standing.GetDrained() || standing.GetQuiescencePending() || standing.GetAdmitting() != 0 || standing.GetRemaining() != 0 || len(standing.GetBlockers()) != 0 {
+			return fmt.Errorf("replacement lifecycle provider %q generation %q has no exact drained durable fence proof", standing.GetProvider(), standing.GetProviderInstanceId())
+		}
+		resumed, err := f.client.Resume(ctx, &commonv1.LifecycleResumeRequest{OperationId: f.operationID, FenceToken: f.token, Revision: f.revision})
+		if err != nil {
+			return err
+		}
+		opened := resumed.GetStanding()
+		if err := validateStatusStanding(f.scenario, opened); err != nil {
+			return err
+		}
+		if opened.GetProviderInstanceId() != standing.GetProviderInstanceId() || opened.GetAdmissionClosed() {
+			return fmt.Errorf("replacement lifecycle provider %q did not confirm reopened admission", f.scenario)
 		}
 		f.active = false
 		return nil

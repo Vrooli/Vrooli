@@ -367,7 +367,7 @@ func (t CapacityTunable) validate() error {
 // override. The same rule validates defaults and mutable host choices.
 func (t CapacityTunable) ValidateValue(candidate any) error {
 	switch t.Type {
-	case "integer":
+	case TunableInteger:
 		value, ok := integerValue(candidate)
 		if !ok {
 			return fmt.Errorf("value must be an integer")
@@ -378,14 +378,14 @@ func (t CapacityTunable) ValidateValue(candidate any) error {
 		if t.Maximum != nil && value > *t.Maximum {
 			return fmt.Errorf("value %d is above maximum %d", value, *t.Maximum)
 		}
-	case "string":
+	case TunableString:
 		if _, ok := candidate.(string); !ok {
 			return fmt.Errorf("value must be a string")
 		}
 		if t.Minimum != nil || t.Maximum != nil {
 			return fmt.Errorf("minimum and maximum are only valid for integer tunables")
 		}
-	case "boolean":
+	case TunableBoolean:
 		if _, ok := candidate.(bool); !ok {
 			return fmt.Errorf("value must be a boolean")
 		}

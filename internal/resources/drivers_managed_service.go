@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/capacity"
 
 	"github.com/vrooli/vrooli/internal/shell"
@@ -124,6 +125,50 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 		return status, nil
 	}
 
+	// Running identity is an independent fact from the current release declaration.
+	// Inspect it first so staging an update cannot make a working service appear down.
+	supervisor, _, err := managedServiceSupervisorFor(manifest.Name)
+	if err != nil {
+		return status, err
+	}
+	state, running, err := supervisor.Status()
+	if err != nil {
+		status.StatusCode = StatusCodeCommandError
+		status.Message = "managed-service state is invalid"
+		status.ProbeError = err.Error()
+		return status, nil
+	}
+	status.DeclaredArtifactVersion = manifest.ManagedService.Artifact.Version
+	if raw, err := json.Marshal(state); err == nil {
+		status.Raw = raw
+	}
+	if controller.healthObservationOnly {
+		return d.observeManagedServiceHealth(ctx, controller, status, manifest, state, running, fast)
+	}
+	if running {
+		status.Installed, status.Running = true, true
+		status.RunningArtifactVersion = state.ArtifactVersion
+		status.ArtifactUpdateAvailable = state.ArtifactVersion != status.DeclaredArtifactVersion
+		if err := verifyManagedServiceRunningArtifact(ctx, state); err != nil {
+			status.ArtifactVerification = "failed"
+			healthy := false
+			status.Healthy = &healthy
+			// Kept strict: a process whose image cannot be proven to be the
+			// bytes it launched from is not admitted as a dependency. The
+			// remedy is one command, so the message names it.
+			status.StatusCode, status.ProbeError = StatusCodeUnavailable, err.Error()
+			status.Message = managedServiceUnverifiableImageMessage(manifest.Name)
+			return status, nil
+		}
+		status.ArtifactVerification = "verified"
+		if info, err := controller.inspectManagedServiceArtifactWithRunning(ctx, manifest, &state); err != nil {
+			status.ArtifactStagingError = err.Error()
+		} else {
+			status.StagedArtifactVersion = info.Version
+			status.ArtifactUpdateAvailable = status.ArtifactUpdateAvailable || state.ArtifactSHA256 != info.SHA256
+		}
+		return d.withRunningHealth(ctx, controller, status, manifest, fast)
+	}
 	artifactPath, err := managedServiceArtifactPath(controller, manifest)
 	if err != nil {
 		return status, err
@@ -147,6 +192,7 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 		return status, nil
 	}
 	if err := artifact.VerifyFileContext(ctx, artifactPath); err != nil {
+		status.ArtifactVerification = "failed"
 		// A digest mismatch is not the same event as a missing or unreadable
 		// artifact, and reporting both as "unavailable" is what let a staged,
 		// running, GPU-resident resource read as not installed with no cure
@@ -170,20 +216,7 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 		return status, nil
 	}
 	status.Installed = true
-	supervisor, _, err := managedServiceSupervisorFor(manifest.Name)
-	if err != nil {
-		return status, err
-	}
-	state, running, err := supervisor.Status()
-	if err != nil {
-		status.StatusCode = StatusCodeCommandError
-		status.Message = "managed-service state is invalid"
-		status.ProbeError = err.Error()
-		return status, nil
-	}
-	if raw, err := json.Marshal(state); err == nil {
-		status.Raw = raw
-	}
+	status.ArtifactVerification = "verified"
 	if declaration := manifest.EffectiveAcceleration(); declaration != nil && len(declaration.Backends) > 0 {
 		// A stopped resource cannot have placement evidence, but its declared
 		// mode remains known. The explicit sentinel distinguishes that state
@@ -191,11 +224,16 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 		status.DeclaredMode = declaration.Backends[0]
 		status.ObservedMode = "not_evaluated"
 	}
-	if !running {
-		healthy := false
-		status.Healthy = &healthy
-		status.Health = "stopped"
-		return status, nil
+	status.StagedArtifactVersion = manifest.ManagedService.Artifact.Version
+	healthy := false
+	status.Healthy = &healthy
+	status.Health = "stopped"
+	return status, nil
+}
+
+func (d managedServiceDriver) withRunningHealth(ctx context.Context, controller *Controller, status Status, manifest ResourceManifest, fast bool) (Status, error) {
+	if declaration := manifest.EffectiveAcceleration(); declaration != nil && len(declaration.Backends) > 0 {
+		status.DeclaredMode, status.ObservedMode = declaration.Backends[0], "not_evaluated"
 	}
 	status.Running = true
 	healthy := true
@@ -299,6 +337,9 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 				return managedServiceDriverError(item.Name, action, "Lifecycle", err)
 			}
 			defer release()
+			if err := ensureManagedUpdateLifecycleAvailable(manifest.Name, action); err != nil {
+				return managedServiceDriverError(item.Name, action, "Lifecycle", err)
+			}
 		}
 		if manifest.Lifecycle.ExclusiveGroup != "" {
 			if mode != resourcedeployment.ProviderManagedPrivate {
@@ -338,9 +379,9 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 			return d.runPrivate(ctx, controller, item, manifest, action, stdout, args...)
 		})
 		if runErr == nil && mode == resourcedeployment.ProviderManagedPrivate && (action == brokerTransportStart || action == brokerTransportRestart || action == brokerTransportStop) {
-			event := "started"
+			event := modelCacheEventStarted
 			if action == brokerTransportStop {
-				event = "stopped"
+				event = modelCacheEventStopped
 			}
 			if err := noteModelCaches(ctx, manifest, event); err != nil {
 				_, _ = fmt.Fprintf(stderr, "warning: model-cache usage not recorded; cleanup remains protected: %s\n", err)
@@ -395,6 +436,11 @@ func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Con
 			return err
 		}
 	case brokerTransportRestart:
+		// Acquire and verify replacement bytes before interrupting the
+		// serving instance. A network or checksum failure must preserve it.
+		if err := ensureManagedServiceArtifact(ctx, controller, manifest); err != nil {
+			return fmt.Errorf("prepare managed-service restart: %w", err)
+		}
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
 		err := stopManagedService(stopCtx, manifest, supervisor)
 		cancel()
@@ -546,6 +592,9 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		}
 		if err := ctx.Err(); err != nil {
 			return err
+		}
+		if err := ensureManagedServiceArtifact(ctx, controller, manifest); err != nil {
+			return fmt.Errorf("prepare managed-service restart: %w", err)
 		}
 		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
@@ -700,7 +749,7 @@ func managedServiceRuntimeEnvironment(ctx context.Context, controller *Controlle
 	}
 	for _, port := range manifest.Ports {
 		if port.Host > 0 {
-			env = valuehelpers.SetEnv(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
+			env = valuehelpers.SetEnv(env, resourcedeployment.ServicePortEnvironmentName(port.Name), fmt.Sprintf("%d", port.Host))
 		}
 	}
 	for key, value := range manifest.ManagedService.Environment {
@@ -761,6 +810,18 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 		return err
 	}
 	arguments := renderManagedServiceValues(manifest.ManagedService.ArgumentsFor(runtime.GOOS, runtime.GOARCH), env)
+	if manifest.ManagedService.UpdatePolicy != nil && runtime.GOOS == "linux" {
+		supervisor.verifyPlacement = func(pid int) error {
+			scope, err := platform.ProcessScope(pid)
+			if err != nil {
+				return err
+			}
+			if filepath.Base(scope) != resourceServiceScopeName(manifest.Name, "service")+".scope" || filepath.Base(filepath.Dir(scope)) != platform.ServicesSlice {
+				return fmt.Errorf("process is outside the enrolled resource service scope")
+			}
+			return nil
+		}
+	}
 	_, err = supervisor.StartContext(ctx, path, artifact, arguments, env, filepath.Dir(path), manifest.ManagedService.ProcessLimits)
 	if err != nil {
 		cleanupCredentials()
@@ -802,7 +863,7 @@ func materializeManagedServiceCredentialFiles(manifest ResourceManifest, env []s
 		}
 		field := declaration.Field
 		if strings.TrimSpace(field) == "" {
-			field = "value"
+			field = managedUpdateCredentialDefaultField
 		}
 		value, err := authority.Resolve(identity, field)
 		if err != nil {
@@ -1050,16 +1111,6 @@ func verifyManagedServiceRunning(supervisor *ManagedServiceSupervisor) error {
 		return fmt.Errorf("managed-service exited before it could be verified healthy")
 	}
 	return nil
-}
-
-func managedServicePortEnvName(name string) string {
-	name = strings.Map(func(r rune) rune {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
-			return r
-		}
-		return '_'
-	}, name)
-	return "RESOURCE_PORT_" + strings.ToUpper(name)
 }
 
 func writeManagedServiceConfig(manifest ResourceManifest, env []string) error {
@@ -1412,4 +1463,11 @@ func managedServiceStartTimeoutSeconds(controller *Controller, manifest Resource
 
 func managedServiceDriverError(resource, operation, category string, err error) *Error {
 	return &Error{Code: ErrorCodeCommandUnavailable, Resource: resource, Operation: operation, Category: category, Err: err}
+}
+
+// managedServiceUnverifiableImageMessage names the remedy when a running
+// service's on-disk image no longer matches the digest recorded at launch,
+// typically because its artifact path was replaced underneath it.
+func managedServiceUnverifiableImageMessage(name string) string {
+	return fmt.Sprintf("running %s image differs from its launch fingerprint; restart it with `vrooli resource restart %s`", name, name)
 }

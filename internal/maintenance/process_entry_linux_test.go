@@ -45,6 +45,9 @@ func TestReadProcessEntryReadsSelfWithoutForking(t *testing.T) {
 	if entry.Executable == "" {
 		t.Fatal("expected /proc/self/exe to resolve")
 	}
+	if entry.Cgroup == "" {
+		t.Fatal("kill-time membership reader omitted the native scope")
+	}
 }
 
 func TestReadProcessEntryReportsGoneForMissingPID(t *testing.T) {

@@ -54,18 +54,25 @@ type ownerManifest struct {
 }
 
 // rootCoreToolAllowlist enumerates tools that are intentionally declared
-// at the root manifest level. Four categories qualify:
+// at the root manifest level. Five categories qualify:
 //
-//  1. Universal Vrooli prerequisites (curl, docker, git, go, java, jq,
-//     node, python, yq) — needed by setup itself and many scenarios.
-//  2. Cross-scenario codegen toolchain (buf, protoc, protoc-gen-*) —
-//     drives the proto pipeline that all proto-aware scenarios consume.
-//  3. Cross-scenario formal verification (quint) — drives temporal-flow
+//  1. Universal Vrooli prerequisites (curl, docker, git, java, jq, yq) —
+//     needed by setup itself and many scenarios.
+//  2. Component build toolchains the control-plane lifecycle invokes for
+//     any scenario component (go, node, pnpm, python, uv — uv runs the
+//     `uv sync --frozen` install/build of Python components).
+//  3. Shared-package and cross-scenario codegen toolchain (buf, protoc,
+//     protoc-gen-* for the proto pipeline; ast-grep for the shared
+//     react-component-library build every React scenario start runs).
+//     Shared packages have no manifest that can declare a host tool, so
+//     the root owns their toolchain.
+//  4. Cross-scenario formal verification (quint) — drives temporal-flow
 //     model checking and generated conformance artifacts for templates.
-//  4. Host-wide observability/forensics (rasdaemon, mcelog,
+//  5. Host-wide observability/forensics (rasdaemon, mcelog,
 //     kdump-tools) — captures crash data Vrooli's autoheal and
 //     system-monitor scenarios both read.
 var rootCoreToolAllowlist = map[string]struct{}{
+	"ast-grep":              {},
 	"buf":                   {},
 	"curl":                  {},
 	"docker":                {},
@@ -84,6 +91,7 @@ var rootCoreToolAllowlist = map[string]struct{}{
 	"python":                {},
 	"quint":                 {},
 	"rasdaemon":             {},
+	"uv":                    {},
 	"yq":                    {},
 }
 

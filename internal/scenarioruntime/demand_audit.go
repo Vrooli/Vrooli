@@ -11,9 +11,38 @@ import (
 
 const demandAuditEventType = "demand_transition"
 
+const demandAuditEventSchemaVersion = 1
+
+// Demand-audit operations stored in runtime_events details_json.
+const (
+	demandAuditAcquired           = "acquired"
+	demandAuditRenewed            = "renewed"
+	demandAuditReleased           = "released"
+	demandAuditExpired            = "expired"
+	demandAuditRetainedExplicitly = "retained_explicitly"
+	demandAuditStopClaimed        = "stop_claimed"
+	demandAuditStopRestored       = "stop_restored"
+	demandAuditStopSignaling      = "stop_signaling"
+	demandAuditStopped            = "stopped"
+)
+
 // DemandAuditRetention bounds recent transition evidence per scenario across
 // variants. This is operational history, not an indefinite compliance archive.
 const DemandAuditRetention = 1000
+
+// This additive query index does not change the registry's logical schema or
+// compatibility version. Ensure it for existing writable registries as well as
+// fresh ones; older consumers can continue using the same tables and rows.
+// The single-column event_type index otherwise makes each lease renewal scan
+// demand history for the whole fleet before applying one scenario's retention.
+func (s *SQLiteStore) ensureDemandAuditIndex(ctx context.Context) error {
+	_, err := s.db.ExecContext(ctx, `CREATE INDEX IF NOT EXISTS idx_runtime_events_scenario_type
+ON runtime_events(scenario, event_type)`)
+	if err != nil {
+		return fmt.Errorf("ensure demand audit query index: %w", err)
+	}
+	return nil
+}
 
 // DemandTransition contains identity and outcome, never arbitrary consumer
 // metadata. Rows are committed with the state transition they describe.
@@ -33,7 +62,7 @@ type DemandTransition struct {
 }
 
 func (s *SQLiteStore) auditDemandTx(ctx context.Context, tx *sql.Tx, event DemandTransition) error {
-	event.SchemaVersion = 1
+	event.SchemaVersion = demandAuditEventSchemaVersion
 	event.EventID, event.RecordedAt = newID("evt"), s.now()
 	details, err := json.Marshal(event)
 	if err != nil {
@@ -58,13 +87,17 @@ WHERE scenario = ? AND event_type = ? AND rowid IN (
 }
 
 func (s *SQLiteStore) auditDemandLeaseTx(ctx context.Context, tx *sql.Tx, operation string, lease DemandLease) error {
-	return s.auditDemandTx(ctx, tx, DemandTransition{Operation: operation, Scenario: lease.Scenario,
-		Variant: lease.Variant, LeaseID: lease.LeaseID, ConsumerID: lease.ConsumerID, Kind: lease.Kind, ExpiresAt: &lease.ExpiresAt})
+	return s.auditDemandTx(ctx, tx, DemandTransition{
+		Operation: operation, Scenario: lease.Scenario,
+		Variant: lease.Variant, LeaseID: lease.LeaseID, ConsumerID: lease.ConsumerID, Kind: lease.Kind, ExpiresAt: &lease.ExpiresAt,
+	})
 }
 
 func (s *SQLiteStore) auditDemandInstanceTx(ctx context.Context, tx *sql.Tx, operation string, instance Instance) error {
-	return s.auditDemandTx(ctx, tx, DemandTransition{Operation: operation, Scenario: instance.Scenario,
-		Variant: instance.Variant, InstanceID: instance.InstanceID, Generation: instance.Generation})
+	return s.auditDemandTx(ctx, tx, DemandTransition{
+		Operation: operation, Scenario: instance.Scenario,
+		Variant: instance.Variant, InstanceID: instance.InstanceID, Generation: instance.Generation,
+	})
 }
 
 // ListDemandTransitions returns newest-first recent committed transitions for

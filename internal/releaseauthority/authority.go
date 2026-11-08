@@ -271,15 +271,16 @@ func (a *Authority) AddEvidence(stage, source, name, role, osName, arch, provena
 }
 
 func (a *Authority) privateKey() (*rsa.PrivateKey, bool, error) {
-	values := map[string]string{}
-	err := a.credentials.Inject(a.identity, privateField, privateField, values)
-	if errors.Is(err, credentialauthority.ErrUnconfigured) {
+	// The key is consumed in process memory, never handed to a child process,
+	// so it resolves directly rather than through environment injection.
+	value, err := a.credentials.Resolve(a.identity, privateField)
+	if errors.Is(err, credentialauthority.ErrUnconfigured) || (err == nil && strings.TrimSpace(value) == "") {
 		return nil, false, nil
 	}
 	if err != nil {
 		return nil, false, fmt.Errorf("load release authority key: %w", err)
 	}
-	block, _ := pem.Decode([]byte(values[privateField]))
+	block, _ := pem.Decode([]byte(value))
 	if block == nil || block.Type != "PRIVATE KEY" {
 		return nil, false, errors.New("stored release authority key is not PKCS#8 PEM")
 	}

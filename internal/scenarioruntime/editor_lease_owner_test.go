@@ -33,13 +33,15 @@ func TestEditorLeaseRecordsItsOwnerAtLaunch(t *testing.T) {
 	}
 }
 
-// A backfill fills only an empty owner; it never replaces a recorded one.
+// A backfill fills an unidentified owner; it never replaces a recorded identity.
 func TestBackfillEditorLeaseOwnerNeverOverwritesARecordedOwner(t *testing.T) {
 	ctx := context.Background()
 	store, _ := newEditorLeaseStore(t)
 	for _, lease := range []EditorLease{
 		{SessionID: "bare", PID: 1, Scope: "vrooli-agent-bare"},
 		{SessionID: "owned", PID: 2, Scope: "vrooli-agent-owned", Owner: EditorLeaseOwner{Kind: "web-console-session", Ref: "wc-1"}},
+		{SessionID: "unknown", PID: 3, Scope: "vrooli-agent-unknown", Owner: EditorLeaseOwner{Kind: "unknown", Source: EditorLeaseOwnerLaunch}},
+		{SessionID: "unknown-ref", PID: 4, Scope: "vrooli-agent-unknown-ref", Owner: EditorLeaseOwner{Kind: "unknown", Ref: "recorded-identity"}},
 	} {
 		if _, err := store.CreateEditorLease(ctx, lease, time.Minute); err != nil {
 			t.Fatal(err)
@@ -52,12 +54,60 @@ func TestBackfillEditorLeaseOwnerNeverOverwritesARecordedOwner(t *testing.T) {
 	if changed, err := store.BackfillEditorLeaseOwner(ctx, "owned", inferred); err != nil || changed {
 		t.Fatalf("backfill over a recorded owner = %v, %v; want unchanged", changed, err)
 	}
+	if changed, err := store.BackfillEditorLeaseOwner(ctx, "unknown", inferred); err != nil || !changed {
+		t.Fatalf("backfill of unknown owner = %v, %v; want changed", changed, err)
+	}
+	if changed, err := store.BackfillEditorLeaseOwner(ctx, "unknown-ref", inferred); err != nil || changed {
+		t.Fatalf("backfill replaced an existing identity = %v, %v", changed, err)
+	}
 	byID := leasesByID(t, store)
 	if o := byID["bare"].Owner; o.Kind != "agent-manager-run" || o.Ref != "run-9" || o.Source != EditorLeaseOwnerBackfill {
 		t.Fatalf("bare owner = %+v, want the backfilled run", o)
 	}
 	if o := byID["owned"].Owner; o.Kind != "web-console-session" || o.Ref != "wc-1" {
 		t.Fatalf("owned owner = %+v, want the launch owner kept", o)
+	}
+	if o := byID["unknown"].Owner; o.Kind != "agent-manager-run" || o.Ref != "run-9" || o.Source != EditorLeaseOwnerBackfill {
+		t.Fatalf("unknown owner = %+v, want identified owner", o)
+	}
+}
+
+func TestRefineBackfilledOwnerRequiresExactProcessAndPriorEvidence(t *testing.T) {
+	ctx := context.Background()
+	store, _ := newEditorLeaseStore(t)
+	prior := EditorLeaseOwner{Kind: "agent-manager-run", Ref: "maintainer", Source: EditorLeaseOwnerBackfill, EvidenceJSON: `{"run_id_source":"identity_token"}`}
+	for _, id := range []string{"inferred", "launch"} {
+		owner := prior
+		if id == "launch" {
+			owner.Source = EditorLeaseOwnerLaunch
+		}
+		if _, err := store.CreateEditorLease(ctx, EditorLease{SessionID: id, PID: 7, Owner: owner}, time.Minute); err != nil {
+			t.Fatal(err)
+		}
+	}
+	replacement := EditorLeaseOwner{Kind: "scenario-instance", Ref: "inst-owner", Source: EditorLeaseOwnerBackfill, EvidenceJSON: `{"runtime_instance_id":"inst-owner"}`}
+	for _, id := range []string{"launch", "inferred"} {
+		pid := 7
+		if id == "inferred" {
+			pid = 8
+		}
+		if changed, err := store.RefineBackfilledEditorLeaseOwner(ctx, id, pid, prior, replacement); err != nil || changed {
+			t.Fatalf("nonmatching process/source changed=%t err=%v", changed, err)
+		}
+	}
+	conflict := prior
+	conflict.EvidenceJSON = `{"changed":true}`
+	if changed, err := store.RefineBackfilledEditorLeaseOwner(ctx, "inferred", 7, conflict, replacement); err != nil || changed {
+		t.Fatalf("different prior evidence changed=%t err=%v", changed, err)
+	}
+	if changed, err := store.RefineBackfilledEditorLeaseOwner(ctx, "inferred", 7, prior, replacement); err != nil || !changed {
+		t.Fatalf("exact refinement changed=%t err=%v", changed, err)
+	}
+	if changed, err := store.RefineBackfilledEditorLeaseOwner(ctx, "inferred", 7, prior, replacement); err != nil || changed {
+		t.Fatalf("stale refinement changed=%t err=%v", changed, err)
+	}
+	if owner := leasesByID(t, store)["inferred"].Owner; owner.Kind != replacement.Kind || owner.Ref != replacement.Ref {
+		t.Fatalf("refined owner=%+v", owner)
 	}
 }
 

@@ -96,7 +96,9 @@ func DeferredCallers() ([]DeferredCaller, error) {
 			}
 			if d.IsDir() {
 				switch d.Name() {
-				case "node_modules", "vendor", "testdata", "ui", ".git":
+				// docs/ holds retained evidence snapshots of source files,
+				// which are records of past code, not callers.
+				case "node_modules", "vendor", "testdata", "ui", ".git", "docs":
 					return filepath.SkipDir
 				}
 				return nil

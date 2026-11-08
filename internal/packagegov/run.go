@@ -44,6 +44,11 @@ func RunCommandsWithOptions(workdir string, commands []CommandSpec, stdout, stde
 	if stdin == nil {
 		stdin = os.Stdin
 	}
+	// Consumers' installed copies may be hard links to these shipped files;
+	// give the package private inodes before any command can rewrite them.
+	if err := DetachShippedFiles(workdir); err != nil {
+		return err
+	}
 	for _, command := range commands {
 		if len(command.Run) == 0 {
 			continue

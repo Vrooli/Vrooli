@@ -12,13 +12,26 @@ import (
 // validate, so a later scenario could carry an invalid platform_capabilities
 // declaration unnoticed.
 func TestEveryScenarioServiceManifestValidates(t *testing.T) {
-	schema := compileRepoSchema(t, "service.schema.json")
-	matches, err := filepath.Glob(filepath.Join(repoRoot(t), "scenarios", "*", ".vrooli", "service.json"))
+	validateEveryManifest(t, "service.schema.json", filepath.Join(repoRoot(t), "scenarios", "*", ".vrooli", "service.json"))
+}
+
+// Every resource manifest must validate against the resource schema. The Go
+// loader decodes into typed structs and ignores enum vocabulary, so without
+// this sweep a manifest could carry a value the schema forbids (for example an
+// undeclared requirements.source) and nothing would notice.
+func TestEveryResourceManifestValidates(t *testing.T) {
+	validateEveryManifest(t, "resource.schema.json", filepath.Join(repoRoot(t), "resources", "*", "resource.json"))
+}
+
+func validateEveryManifest(t *testing.T, schemaName, pattern string) {
+	t.Helper()
+	schema := compileRepoSchema(t, schemaName)
+	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		t.Fatalf("glob: %v", err)
 	}
 	if len(matches) == 0 {
-		t.Fatal("no scenario service manifests found")
+		t.Fatalf("no manifests match %s", pattern)
 	}
 	for _, path := range matches {
 		data, err := os.ReadFile(path)
@@ -30,7 +43,7 @@ func TestEveryScenarioServiceManifestValidates(t *testing.T) {
 			t.Fatalf("decode %s: %v", path, err)
 		}
 		if err := schema.Validate(doc); err != nil {
-			t.Errorf("%s: %v", path, err)
+			t.Errorf("%s: %#v", path, err)
 		}
 	}
 }
@@ -126,6 +139,59 @@ func TestBuildIdentityRuntimeDocsAreDeclaredDocumentationPaths(t *testing.T) {
 			}
 			if !tc.valid && err == nil {
 				t.Error("expected rejected, got none")
+			}
+		})
+	}
+}
+
+// The managed-service environment file is read beneath RESOURCE_DATA_DIR, so
+// the schema refuses the same escapes the Go loader refuses.
+func TestManagedServiceEnvironmentFileStaysUnderTheDataDirectory(t *testing.T) {
+	schema := compileRepoSchema(t, "resource.schema.json#/definitions/managedService/properties/environment_file")
+	for _, tc := range []struct {
+		value string
+		valid bool
+	}{
+		{`"active.env"`, true},
+		{`"state/active.env"`, true},
+		{`"..hidden.env"`, true},
+		{`""`, false},
+		{`"/etc/active.env"`, false},
+		{`"../active.env"`, false},
+		{`"state/../../active.env"`, false},
+	} {
+		var doc any
+		if err := json.Unmarshal([]byte(tc.value), &doc); err != nil {
+			t.Fatalf("decode %s: %v", tc.value, err)
+		}
+		if err := schema.Validate(doc); (err == nil) != tc.valid {
+			t.Errorf("environment_file %s: valid=%t, err=%v", tc.value, tc.valid, err)
+		}
+	}
+}
+
+// An asset component is build-only (for example a Vite bundle a Go UI server
+// serves): it must not declare run, and every other role must.
+func TestAssetComponentsAreBuildOnly(t *testing.T) {
+	schema := compileRepoSchema(t, "service.schema.json#/definitions/component")
+	cases := []struct {
+		name  string
+		doc   string
+		valid bool
+	}{
+		{"asset without run", `{"role":"asset","build":{"kind":"pnpm_vite","dir":"ui"}}`, true},
+		{"asset with run", `{"role":"asset","build":{"kind":"pnpm_vite","dir":"ui"},"run":{"argv":["node","x.js"]}}`, false},
+		{"ui without run", `{"role":"ui","build":{"kind":"pnpm_vite","dir":"ui"}}`, false},
+		{"ui with run", `{"role":"ui","build":{"kind":"pnpm_vite","dir":"ui"},"run":{"argv":["node","x.js"]}}`, true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var doc any
+			if err := json.Unmarshal([]byte(tc.doc), &doc); err != nil {
+				t.Fatal(err)
+			}
+			if err := schema.Validate(doc); (err == nil) != tc.valid {
+				t.Fatalf("valid=%t, want %t: %v", err == nil, tc.valid, err)
 			}
 		})
 	}

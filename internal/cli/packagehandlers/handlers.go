@@ -34,7 +34,7 @@ func buildCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[ro
 				}
 				if len(issues) > 0 && service.format != cliout.FormatJSON {
 					for _, issue := range issues {
-						_, _ = io.WriteString(service.Stderr, "warning: "+issue.Message+"\n")
+						_, _ = io.WriteString(service.Stderr, issue.String()+"\n")
 					}
 				}
 				return packagecli.ListResponse{Packages: items}, nil

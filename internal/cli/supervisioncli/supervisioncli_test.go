@@ -58,3 +58,40 @@ func sampleReport() apicoreset.Report {
 		MemberCounts: map[string]int{"scenario": 1},
 	}
 }
+
+func TestRenderPreservesTrustedBaseViolationsForOperators(t *testing.T) {
+	report := sampleReport()
+	report.TrustedBaseViolations = map[string][]string{"agent-manager": {"workspace-sandbox"}}
+	var output bytes.Buffer
+	if err := Render(&output, cliout.FormatJSON, report); err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		Violations map[string][]string `json:"trusted_base_violations"`
+	}
+	if err := json.Unmarshal(output.Bytes(), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if got := decoded.Violations["agent-manager"]; len(got) != 1 || got[0] != "workspace-sandbox" {
+		t.Fatalf("trusted-base violation disappeared from operator JSON: %s", output.String())
+	}
+	output.Reset()
+	if err := Render(&output, cliout.FormatHuman, report); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "agent-manager") || !strings.Contains(output.String(), "workspace-sandbox") {
+		t.Fatalf("trusted-base violation disappeared from operator display: %s", output.String())
+	}
+}
+
+func TestRenderHumanPreservesUnavailableManifestEvidence(t *testing.T) {
+	report := sampleReport()
+	report.LoadErrors = map[string]string{"missing-peer": "manifest cannot be read"}
+	var output bytes.Buffer
+	if err := Render(&output, cliout.FormatHuman, report); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "missing-peer") || !strings.Contains(output.String(), "manifest cannot be read") {
+		t.Fatalf("unreadable manifest disappeared from operator display: %s", output.String())
+	}
+}

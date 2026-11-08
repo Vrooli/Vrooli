@@ -79,7 +79,7 @@ func ParseStatusRequest(args []string) (StatusRequest, error) {
 	// whole fleet is a sweep, so it stays fast: placement reads the host once
 	// per resource, which is fine for one and wasteful for twenty-nine.
 	// Either default is overridable.
-	req := StatusRequest{Fast: true}
+	req := StatusRequest{Fast: true, HealthOnly: parsed.HasFlag("--health-only")}
 	if len(parsed.Positionals) == 1 {
 		req.Name = parsed.Positionals[0]
 		req.Fast = false

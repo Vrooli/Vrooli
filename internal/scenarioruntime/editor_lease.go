@@ -297,9 +297,9 @@ func normalizeEditorLeaseOwner(owner EditorLeaseOwner, defaultSource string) Edi
 }
 
 // BackfillEditorLeaseOwner records an owner inferred after launch for an
-// active lease that has none. It never overwrites an owner already recorded:
-// the launch-time record is the stronger evidence, and a second inference is
-// not allowed to replace the first. It reports whether a row changed.
+// active lease with no identified owner (empty or unknown with no ref). It
+// never replaces an identified launch-time or backfilled owner. The SQL guard
+// preserves an identity recorded concurrently. It reports whether a row changed.
 func (s *SQLiteStore) BackfillEditorLeaseOwner(ctx context.Context, sessionID string, owner EditorLeaseOwner) (bool, error) {
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
@@ -311,7 +311,7 @@ func (s *SQLiteStore) BackfillEditorLeaseOwner(ctx context.Context, sessionID st
 	}
 	result, err := s.db.ExecContext(ctx, `UPDATE runtime_editor_leases
 SET owner_kind = ?, owner_ref = ?, owner_evidence_json = ?, owner_source = ?, owner_recorded_at = ?
-WHERE session_id = ? AND status = ? AND owner_kind = ''`,
+WHERE session_id = ? AND status = ? AND (owner_kind = '' OR (owner_kind = 'unknown' AND owner_ref = ''))`,
 		owner.Kind, owner.Ref, owner.EvidenceJSON, owner.Source, formatTime(s.now()), sessionID, EditorLeaseActive)
 	if err != nil {
 		return false, fmt.Errorf("backfill editor lease owner: %w", err)
@@ -321,6 +321,27 @@ WHERE session_id = ? AND status = ? AND owner_kind = ''`,
 		return false, err
 	}
 	return affected > 0, nil
+}
+
+// RefineBackfilledEditorLeaseOwner corrects an inferred owner only while its
+// exact process and prior evidence still match. Launch-recorded owners are
+// deliberately excluded; the caller owns the stronger provenance proof.
+func (s *SQLiteStore) RefineBackfilledEditorLeaseOwner(ctx context.Context, sessionID string, pid int, expected, replacement EditorLeaseOwner) (bool, error) {
+	expected = normalizeEditorLeaseOwner(expected, EditorLeaseOwnerBackfill)
+	replacement = normalizeEditorLeaseOwner(replacement, EditorLeaseOwnerBackfill)
+	if strings.TrimSpace(sessionID) == "" || pid <= 0 || expected.Kind == "" || expected.Source != EditorLeaseOwnerBackfill || replacement.Kind == "" || replacement.Ref == "" || replacement.Source != EditorLeaseOwnerBackfill {
+		return false, fmt.Errorf("refine editor lease owner: exact backfilled identity and process are required")
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE runtime_editor_leases
+SET owner_kind = ?, owner_ref = ?, owner_evidence_json = ?, owner_source = ?, owner_recorded_at = ?
+WHERE session_id = ? AND pid = ? AND status = ? AND owner_kind = ? AND owner_ref = ? AND owner_source = ? AND owner_evidence_json = ?`,
+		replacement.Kind, replacement.Ref, replacement.EvidenceJSON, replacement.Source, formatTime(s.now()),
+		sessionID, pid, EditorLeaseActive, expected.Kind, expected.Ref, expected.Source, expected.EvidenceJSON)
+	if err != nil {
+		return false, fmt.Errorf("refine editor lease owner: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	return affected > 0, err
 }
 
 // RefreshEditorLeaseOwnerEvidence replaces the evidence of an owner already

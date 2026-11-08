@@ -25,6 +25,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostpressure"
 	"github.com/vrooli/vrooli/internal/operatorstate"
+	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/setpoint"
 	"github.com/vrooli/vrooli/internal/shell"
@@ -45,9 +46,13 @@ const (
 )
 
 type output struct {
-	CapturedAt time.Time                     `json:"captured_at"`
-	Readings   hostpressure.PressureSnapshot `json:"readings"`
-	Findings   []string                      `json:"findings"`
+	CapturedAt          time.Time                     `json:"captured_at"`
+	BuildIdentity       string                        `json:"build_identity,omitempty"`
+	ProducerPID         int                           `json:"producer_pid,omitempty"`
+	ProducerIncarnation string                        `json:"producer_incarnation,omitempty"`
+	NativeInvocationID  string                        `json:"native_invocation_id,omitempty"`
+	Readings            hostpressure.PressureSnapshot `json:"readings"`
+	Findings            []string                      `json:"findings"`
 	// UnitsDown lists the core units the liveness probe found not active on
 	// this run, before the sustain window is applied.
 	UnitsDown  []string              `json:"units_down,omitempty"`
@@ -101,15 +106,34 @@ const (
 )
 
 func main() {
+	if handled, code := runCoreActivationCommand(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
 	fixtures := flag.String("fixtures", "", "read from a captured fixture directory")
 	reportOnly := flag.Bool("report-only", false, "report findings without taking action")
 	requestPressure := flag.Bool("request-pressure", false, "send a bounded floor-pressure request to storage-manager")
 	reclaim := flag.Bool("reclaim", false, "reclaim one eligible stranded managed resource (explicit operator action)")
 	version := flag.Bool("version", false, "print the watchdog build version")
+	runtimeHomeContract := flag.Bool("runtime-home-contract", false, "print the compiled runtime-home authority digest without initializing host state")
 	flag.Parse()
 	if *version {
 		fmt.Println(buildVersion)
 		return
+	}
+	if *runtimeHomeContract {
+		digest, err := buildinfo.RuntimeHomeSnapshotDigest()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "compiled runtime-home authority is unavailable")
+			os.Exit(1)
+		}
+		fmt.Println(digest)
+		return
+	}
+	if buildinfo.RuntimeHomeSnapshotBase64 != "" {
+		if err := buildinfo.PinCompiledRuntimeHome(); err != nil {
+			fmt.Fprintln(os.Stderr, "watchdog bootstrap refused: compiled runtime-home authority is invalid")
+			os.Exit(1)
+		}
 	}
 	if !*reportOnly && !*reclaim {
 		fmt.Fprintln(os.Stderr, "choose --report-only or the explicit operator action --reclaim")
@@ -122,6 +146,7 @@ func main() {
 	thresholds := readThresholds()
 	o := output{CapturedAt: time.Now().UTC(), Evidence: map[string][]string{}, Thresholds: thresholds}
 	if *fixtures == "" {
+		stampWatchdogProducer(&o)
 		previous := loadForkState()
 		o.Readings = hostpressure.Collect(context.Background(), hostpressure.Options{Previous: previous})
 		saveForkState(o.Readings)
@@ -165,6 +190,29 @@ func main() {
 	fmt.Println(string(data))
 }
 
+func stampWatchdogProducer(o *output) {
+	if o.Evidence == nil {
+		o.Evidence = map[string][]string{}
+	}
+	o.BuildIdentity = buildVersion
+	o.ProducerPID = os.Getpid()
+	if incarnation, err := process.Incarnation(o.ProducerPID); err == nil {
+		o.ProducerIncarnation = incarnation
+	} else {
+		o.Evidence["producer-identity"] = []string{"producer process incarnation unavailable"}
+	}
+	invocation := os.Getenv("INVOCATION_ID")
+	valid := len(invocation) == 32
+	for _, c := range invocation {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			valid = false
+		}
+	}
+	if valid {
+		o.NativeInvocationID = invocation
+	}
+}
+
 func hasFinding(o output, prefix string) bool {
 	for _, finding := range o.Findings {
 		if strings.HasPrefix(finding, prefix+":") {
@@ -175,13 +223,27 @@ func hasFinding(o output, prefix string) bool {
 }
 
 // lastReportPath is the sink autoheal's system-emergency-watchdog-report
-// check reads; the watchdog senses, autoheal decides.
+// check reads; the watchdog senses, autoheal decides. Both resolve
+// emergency-watchdog/last-report.json under the runtime-home state entry the
+// repo contract declares (the compiled pin in a native build). Without a home
+// or a resolvable contract the report goes to the temp directory rather than
+// a guessed runtime-home location.
 func lastReportPath() string {
+	return watchdogStatePath("vrooli-emergency-watchdog-last-report.json", filepath.Join("emergency-watchdog", "last-report.json"))
+}
+
+// watchdogStatePath places a watchdog state file at rel under the runtime-home
+// state entry the repo contract declares (the compiled pin in a native build).
+// Without a home or a resolvable contract the file goes to the temp directory
+// as tempName rather than to a guessed runtime-home location.
+func watchdogStatePath(tempName, rel string) string {
 	home, err := config.HomeDir()
-	if err != nil || strings.TrimSpace(home) == "" {
-		return filepath.Join(os.TempDir(), "vrooli-emergency-watchdog-last-report.json")
+	if err == nil && strings.TrimSpace(home) != "" {
+		if stateRoot, stateErr := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState); stateErr == nil {
+			return filepath.Join(stateRoot, rel)
+		}
 	}
-	return filepath.Join(home, ".vrooli", "state", "emergency-watchdog", "last-report.json")
+	return filepath.Join(os.TempDir(), tempName)
 }
 
 // writeLastReport stores the whole report atomically on every live run,
@@ -327,11 +389,7 @@ type disposalProposal struct {
 }
 
 func workloadCachePath() string {
-	home, err := config.HomeDir()
-	if err != nil || strings.TrimSpace(home) == "" {
-		return filepath.Join(os.TempDir(), "vrooli-watchdog-workloads.json")
-	}
-	return filepath.Join(home, ".vrooli", "state", "watchdog-workloads.json")
+	return watchdogStatePath("vrooli-watchdog-workloads.json", "watchdog-workloads.json")
 }
 
 func addLiveWorkloadFindings(o *output, thresholds thresholdSource) {
@@ -451,11 +509,7 @@ func proposeStormContainment(o *output, attribution hostpressure.AttributionRead
 }
 
 func disposalProposalPath() string {
-	home, err := config.HomeDir()
-	if err != nil || strings.TrimSpace(home) == "" {
-		return filepath.Join(os.TempDir(), "vrooli-watchdog-disposal-proposals.jsonl")
-	}
-	return filepath.Join(home, ".vrooli", "state", "watchdog-disposal-proposals.jsonl")
+	return watchdogStatePath("vrooli-watchdog-disposal-proposals.jsonl", "watchdog-disposal-proposals.jsonl")
 }
 
 func writeDisposalProposal(proposal disposalProposal) {
@@ -566,11 +620,7 @@ func unitActive(unit string) (bool, string) {
 var runtimeGOOS = func() string { return runtime.GOOS }
 
 func forkStatePath() string {
-	home, err := config.HomeDir()
-	if err != nil || strings.TrimSpace(home) == "" {
-		return filepath.Join(os.TempDir(), "vrooli-watchdog-fork-state.json")
-	}
-	return filepath.Join(home, ".vrooli", "state", "watchdog-fork-state.json")
+	return watchdogStatePath("vrooli-watchdog-fork-state.json", "watchdog-fork-state.json")
 }
 
 func loadForkState() *hostpressure.PressureSnapshot {

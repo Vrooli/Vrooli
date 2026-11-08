@@ -6,6 +6,8 @@ import (
 	"io"
 	"slices"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/cli/clipolicy"
 )
 
 const (
@@ -92,7 +94,7 @@ func MustValidateSpecs[H any](specs []Spec[H]) {
 }
 
 func NormalizeName(name string) string {
-	return strings.ToLower(strings.TrimSpace(name))
+	return clipolicy.NormalizeCommandName(name)
 }
 
 func BindSpec[ID any, H any](spec Spec[ID], handler H) Spec[H] {

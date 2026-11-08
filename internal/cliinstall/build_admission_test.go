@@ -42,6 +42,7 @@ func (l *admissionTestLease) Heartbeat(context.Context) error {
 	l.heartbeats.Add(1)
 	return l.heartbeatErr
 }
+
 func (l *admissionTestLease) Release(ctx context.Context) error {
 	l.releases.Add(1)
 	if l.releaseCheck != nil {
@@ -259,7 +260,8 @@ func TestCLIInstallAdmissionRenewalFailureCancelsBuildAndReleases(t *testing.T) 
 	}
 }
 
-func TestCLIInstallAdmissionsShareLedgerBudget(t *testing.T) {
+func withIsolatedCLIAdmission(t *testing.T) {
+	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), "capacity.db")
 	snapshot := hostinventory.Snapshot{Memory: hostinventory.Memory{
 		TotalBytes:     700 << 20,
@@ -272,6 +274,10 @@ func TestCLIInstallAdmissionsShareLedgerBudget(t *testing.T) {
 		}
 		return publiccapacity.NewBrokerWithSource(store, internalcapacity.StaticSource{Inventory: snapshot}), nil
 	}, time.Hour)
+}
+
+func TestCLIInstallAdmissionsShareLedgerBudget(t *testing.T) {
+	withIsolatedCLIAdmission(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

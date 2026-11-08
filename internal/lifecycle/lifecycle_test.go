@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
+	platform "github.com/vrooli/platform-go"
 	testkitgo "github.com/vrooli/repo-contract-go/repocontracttest"
 	credentialauthority "github.com/vrooli/vrooli/internal/credentialauthority"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
@@ -50,6 +51,11 @@ import (
 func newLifecycleRunnerForTest(t *testing.T, root, home string, mutate func(*lifecycleDeps), logger ...*slog.Logger) *Runner {
 	t.Helper()
 	deps := defaultLifecycleDeps()
+	// Unit fixtures own process/log behavior, not a real native service scope.
+	// Native probes construct their production runner explicitly.
+	deps.adoptIntoScope = func(platform.AdoptSpec) (platform.ScopeRef, string, error) {
+		return platform.ScopeRef{}, platform.MethodNone, nil
+	}
 	// Stub host-requirement enforcement by default so tests don't need a root
 	// manifest on disk. Tests exercising the enforcement hook override this.
 	deps.enforceHostRequirements = func(_ vrooliruntime.Options) (vrooliruntime.Report, error) {

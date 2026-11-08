@@ -38,12 +38,14 @@ func SocketPath() string {
 }
 
 type SetupStatus struct {
-	Available    bool     `json:"available"`
-	Supported    bool     `json:"supported"`
-	SocketPath   string   `json:"socket_path"`
-	Reason       string   `json:"reason,omitempty"`
-	Recovery     string   `json:"recovery,omitempty"`
-	Capabilities []string `json:"capabilities,omitempty"`
+	Available           bool     `json:"available"`
+	Supported           bool     `json:"supported"`
+	SocketPath          string   `json:"socket_path"`
+	Reason              string   `json:"reason,omitempty"`
+	Recovery            string   `json:"recovery,omitempty"`
+	Capabilities        []string `json:"capabilities,omitempty"`
+	UpgradeRequired     bool     `json:"upgrade_required,omitempty"`
+	MissingCapabilities []string `json:"missing_capabilities,omitempty"`
 }
 
 type Installer struct {
@@ -168,7 +170,28 @@ func Inspect() SetupStatus {
 	if result.Status != "completed" || len(result.Capabilities) == 0 {
 		return SetupStatus{Supported: true, SocketPath: socket, Reason: "broker capability registry is unavailable or outdated", Recovery: "Re-run `vrooli setup --sudo-mode=ask` to upgrade the privilege broker."}
 	}
-	return SetupStatus{Available: true, Supported: true, SocketPath: socket, Capabilities: result.Capabilities}
+	status := SetupStatus{Available: true, Supported: true, SocketPath: socket, Capabilities: result.Capabilities}
+	status.MissingCapabilities = missingCapabilities(result.Capabilities)
+	status.UpgradeRequired = len(status.MissingCapabilities) > 0
+	if status.UpgradeRequired {
+		status.Reason = "installed broker is missing current control-plane capabilities"
+		status.Recovery = "Run `vrooli setup broker --sudo-mode=ask` to upgrade the setup-managed broker."
+	}
+	return status
+}
+
+func missingCapabilities(actual []string) []string {
+	available := make(map[string]bool, len(actual))
+	for _, action := range actual {
+		available[action] = true
+	}
+	var missing []string
+	for _, action := range capabilities() {
+		if !available[action] {
+			missing = append(missing, action)
+		}
+	}
+	return missing
 }
 
 func systemdUnit(executable string, uid, gid int) string {

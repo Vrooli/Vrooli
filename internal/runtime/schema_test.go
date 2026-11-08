@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v5"
-	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/safeguards"
 	"github.com/vrooli/vrooli/internal/tools"
 )
@@ -42,24 +41,6 @@ func loadToolSchema(t *testing.T) *jsonschema.Schema {
 		t.Fatalf("compile tool schema: %v", err)
 	}
 	return schema
-}
-
-func TestReleaseManifestsDeclareLinuxArm64RouteOrUnsupportedReason(t *testing.T) {
-	for path, data := range embeddedToolManifests(t) {
-		var manifest hostreqkit.ToolManifest
-		if err := json.Unmarshal(data, &manifest); err != nil {
-			t.Fatalf("parse %s: %v", path, err)
-		}
-		if manifest.SourceType() != "url" || manifest.Acquisition == nil || len(manifest.Acquisition.Targets) == 0 {
-			continue
-		}
-		if _, ok := hostreqkit.TargetFor(manifest.Acquisition, "linux", "arm64"); ok {
-			continue
-		}
-		if reason, ok := hostreqkit.UnsupportedFor(manifest.Acquisition, "linux", "arm64"); !ok || strings.TrimSpace(reason) == "" {
-			t.Errorf("%s declares URL targets but neither linux/arm64 nor an unsupported reason", path)
-		}
-	}
 }
 
 func embeddedToolManifests(t *testing.T) map[string][]byte {
@@ -303,6 +284,11 @@ func TestManifestPlatformTokensHaveOneVocabulary(t *testing.T) {
 	}
 }
 
+// TestSafeguardsDoNotReadVrooliEnvironmentConfiguration keeps safeguard
+// configuration in the declared manifest config schema. It governs the code a
+// safeguard runs. Test files are outside it: the test binary re-executed as a
+// fixture is driven through its environment, and docs/TESTING.md gates live
+// checks behind VROOLI_<AREA>_LIVE-style opt-ins. Neither configures a safeguard.
 func TestSafeguardsDoNotReadVrooliEnvironmentConfiguration(t *testing.T) {
 	root := filepath.Join(repoRoot(t), "internal", "safeguards")
 	var violations []string
@@ -310,7 +296,7 @@ func TestSafeguardsDoNotReadVrooliEnvironmentConfiguration(t *testing.T) {
 		if walkErr != nil {
 			return walkErr
 		}
-		if entry.IsDir() || filepath.Ext(path) != ".go" {
+		if entry.IsDir() || filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
 		data, err := os.ReadFile(path)

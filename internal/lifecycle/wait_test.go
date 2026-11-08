@@ -248,7 +248,7 @@ func seedAbandonedStartOperation(t *testing.T, store *scenarioruntime.SQLiteStor
 // a live holder does after it acquires the lock.
 func writeLockHolderPID(t *testing.T, home, scenarioName string, pid int) {
 	t.Helper()
-	lockDir := filepath.Join(home, scenarioLockDirName)
+	lockDir := testScenarioLockDir(t, home)
 	if err := os.MkdirAll(lockDir, 0o755); err != nil {
 		t.Fatalf("mkdir lock dir: %v", err)
 	}

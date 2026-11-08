@@ -25,6 +25,7 @@ import (
 
 	"github.com/vrooli/envkit-go"
 	"github.com/vrooli/platform-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqkit"
@@ -175,6 +176,52 @@ func (r *Runner) RunSetupIfStopped(name string, opts PhaseOptions) (PhaseResult,
 	return r.runPhaseDetailed(name, phasesSetup, opts, true)
 }
 
+// SetupAdmissionBlockers names the instances ("scenario@variant") that would
+// make RunSetupIfStopped defer, other than the given variant ("" or "live" for
+// the canonical instance). A caller that intends to stop that variant and run
+// setup checks this first, so it never stops an instance it cannot set up and
+// restart.
+func (r *Runner) SetupAdmissionBlockers(name, exceptVariant string) ([]string, error) {
+	item, err := r.loadScenario(name, "")
+	if err != nil {
+		return nil, err
+	}
+	if exceptVariant == "" {
+		exceptVariant = scenarioruntime.DefaultVariant
+	}
+	return r.activeInstanceKeys(context.Background(), item.Slug, exceptVariant)
+}
+
+// activeInstanceKeys lists active or stopping instances of slug, skipping
+// exceptVariant when it is non-empty. Stopped-only setup is admitted only when this
+// is empty.
+func (r *Runner) activeInstanceKeys(ctx context.Context, slug, exceptVariant string) ([]string, error) {
+	store, err := r.runtimeDeps().runtimeRegistry(ctx, r.Home)
+	if err != nil {
+		return nil, fmt.Errorf("admit stopped-only setup for %q: %w", slug, err)
+	}
+	instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
+		Scenario: slug,
+		Statuses: append(scenarioruntime.ActiveInstanceStatuses(), scenarioruntime.StatusStopping),
+	})
+	_ = store.Close()
+	if err != nil {
+		return nil, fmt.Errorf("admit stopped-only setup for %q: %w", slug, err)
+	}
+	var keys []string
+	for _, instance := range instances {
+		variant := instance.Variant
+		if variant == "" {
+			variant = scenarioruntime.DefaultVariant
+		}
+		if exceptVariant != "" && variant == exceptVariant {
+			continue
+		}
+		keys = append(keys, instance.Scenario+"@"+variant)
+	}
+	return keys, nil
+}
+
 func (r *Runner) runPhaseDetailed(name, phaseName string, opts PhaseOptions, stoppedOnly bool) (PhaseResult, error) {
 	ctx := opts.Context
 	if ctx == nil {
@@ -202,19 +249,11 @@ func (r *Runner) runPhaseDetailed(name, phaseName string, opts PhaseOptions, sto
 	defer release()
 
 	if stoppedOnly {
-		store, err := r.runtimeDeps().runtimeRegistry(ctx, r.Home)
+		blockers, err := r.activeInstanceKeys(ctx, item.Slug, "")
 		if err != nil {
-			return PhaseResult{}, fmt.Errorf("admit stopped-only setup for %q: %w", item.Slug, err)
+			return PhaseResult{}, err
 		}
-		instances, err := store.ListInstances(ctx, scenarioruntime.InstanceFilter{
-			Scenario: item.Slug,
-			Statuses: append(scenarioruntime.ActiveInstanceStatuses(), scenarioruntime.StatusStopping),
-		})
-		_ = store.Close()
-		if err != nil {
-			return PhaseResult{}, fmt.Errorf("admit stopped-only setup for %q: %w", item.Slug, err)
-		}
-		if len(instances) > 0 {
+		if len(blockers) > 0 {
 			return PhaseResult{Scenario: item.Slug, Phase: phaseName, Status: PhaseExecutionRunningDeferred}, nil
 		}
 	}
@@ -641,6 +680,11 @@ func declaredPhaseSteps(manifest scenario.ServiceManifest, phaseName string, aut
 		if component.Run.SupervisedBy != "" {
 			continue
 		}
+		// An asset component is build-only: setup installs, builds, and
+		// fingerprints it, and another component serves the artifact.
+		if isAssetComponent(component) {
+			continue
+		}
 		steps = append(steps, scenario.PhaseStep{
 			Name:       "start-" + name,
 			Exec:       append([]string(nil), component.Run.Argv...),
@@ -697,7 +741,7 @@ func orderedComponentNames(components map[string]scenario.Component) []string {
 }
 
 func sortComponentNames(names []string, components map[string]scenario.Component) {
-	roleOrder := map[string]int{"api": 0, "worker": 1, "sidecar": 1, "ui": uiComponentRoleOrder}
+	roleOrder := map[string]int{componentRoleAsset: -1, "api": 0, "worker": 1, "sidecar": 1, "ui": uiComponentRoleOrder}
 	sort.Slice(names, func(i, j int) bool {
 		left, leftOK := roleOrder[components[names[i]].Role]
 		right, rightOK := roleOrder[components[names[j]].Role]
@@ -834,20 +878,29 @@ func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenari
 			return executed, targetErr
 		}
 		if !forceSetup {
+			fresh := false
 			if verdicts != nil {
-				if _, stale := verdicts[name]; !stale {
-					fmt.Fprintln(writer, "skipped (fresh)")
-					continue
-				}
+				_, stale := verdicts[name]
+				fresh = !stale
 			} else {
-				fresh, freshnessErr := r.componentIsFresh(ctx, item, name, component)
+				var freshnessErr error
+				fresh, freshnessErr = r.componentIsFresh(ctx, item, name, component)
 				if freshnessErr != nil {
 					return executed, fmt.Errorf("component %s freshness: %w", name, freshnessErr)
 				}
-				if fresh {
-					fmt.Fprintln(writer, "skipped (fresh)")
-					continue
+			}
+			// A fresh artifact built against an incomplete dependency install
+			// still needs the install repaired (for example a shared package
+			// file added after the consumer last installed).
+			if fresh {
+				if gap, incomplete := componentInstallGap(item, component, r.Root); incomplete {
+					fmt.Fprintf(writer, "reinstalling: %s\n", gap)
+					fresh = false
 				}
+			}
+			if fresh {
+				fmt.Fprintln(writer, "skipped (fresh)")
+				continue
 			}
 		}
 		install, _, installErr := installNeeded(r.Root, item.SourcePath(), component, spec, &deps)
@@ -951,6 +1004,11 @@ func (r *Runner) buildDeclaredComponentsSerial(ctx context.Context, item scenari
 				if err := r.runForegroundStep(buildCtx, item, phasesSetup, step, env, writer); err != nil {
 					if cleanupStage != nil {
 						cleanupStage()
+					}
+					if spec.Kind == "go_module" {
+						if drift := diagnoseGoModuleDrift(buildCtx, buildDir); len(drift) > 0 {
+							return executed, fmt.Errorf("build component %s: %w; go.mod/go.sum lag the module's import closure (%s), usually because a shared in-repo package gained a dependency; run scenario-dependency-analyzer deps reconcile --scenario %s --apply", name, err, strings.Join(drift, "; "), item.Slug)
+						}
 					}
 					return executed, fmt.Errorf("build component %s: %w", name, err)
 				}
@@ -1099,7 +1157,23 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, fmt.Errorf("assign process containment: %w", err))
 	}
 	r.registerContainment(cmd.Process.Pid, containmentRelease)
-	r.placeServiceProcess(slug, step.Name, cmd.Process.Pid)
+	if err := r.placeServiceProcess(slug, step.Name, cmd.Process.Pid); err != nil {
+		// This process was just started with Setsid. Never signal a caller's
+		// group if that invariant cannot be proved. No runtime record has been
+		// published yet, and the os.Process handle still owns the root.
+		group, groupErr := platform.ProcessGroupID(cmd.Process.Pid)
+		if groupErr == nil && group == cmd.Process.Pid {
+			if killErr := r.runtimeDeps().signalProcessGroup(group, true); killErr != nil {
+				err = errors.Join(err, fmt.Errorf("stop unplaced service group: %w", killErr))
+			}
+		} else if groupErr == nil {
+			err = errors.Join(err, fmt.Errorf("unplaced service group %d differs from new root %d; refused group signal", group, cmd.Process.Pid))
+		}
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		r.releaseContainment(cmd.Process.Pid)
+		return newPhaseStepError(item.Slug, phase, step.Name, logFile, err)
+	}
 
 	record := process.Record{
 		Generation:        generation,
@@ -1116,7 +1190,7 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 		Port:              port,
 		PortKey:           declared.PortKey,
 		StartedAt:         time.Now().UTC(),
-		Status:            "running",
+		Status:            process.RecordStatusRunning,
 	}
 	// Unsupported or already exited processes retain an empty identity and
 	// therefore cannot enter the exact-generation component-stop protocol.
@@ -1519,7 +1593,11 @@ func governedGoTempDir(env []string) string {
 		if home == "" {
 			return ""
 		}
-		runtimeHome = filepath.Join(home, ".vrooli")
+		root, err := repocontract.VrooliUserRoot(home)
+		if err != nil {
+			return ""
+		}
+		runtimeHome = root
 	}
 	return filepath.Join(runtimeHome, "tmp", "go-work")
 }
@@ -1722,26 +1800,26 @@ func extractExitCode(err error) int {
 // containment safeguard exists to enforce had been consumed by the services
 // it was never meant to contain.
 //
-// Placement is best-effort by design: a service that runs is worth more than
-// a service that is accounted for, so a failure here is logged and the daemon
-// keeps running where it was born. Off Linux the platform has no adoption
-// primitive and this is a no-op.
-func (r *Runner) placeServiceProcess(slug, step string, pid int) {
+// Placement is required wherever the platform supports adoption. Otherwise a
+// bounded recovery caller's expiry kills an apparently recovered service.
+// Off Linux the platform has no adoption primitive and this is a no-op.
+func (r *Runner) placeServiceProcess(slug, step string, pid int) error {
 	scope := serviceScopeName(slug, step)
-	ref, method, err := platform.AdoptIntoScope(platform.AdoptSpec{
+	ref, method, err := r.runtimeDeps().adoptIntoScope(platform.AdoptSpec{
 		PID:         pid,
 		Scope:       scope,
 		Slice:       platform.ServicesSlice,
 		Description: fmt.Sprintf("Vrooli service %s (%s)", slug, step),
+		Containment: recoveryServiceContainment(slug),
 	})
 	if err != nil {
-		if !errors.Is(err, platform.ErrUnsupported) {
-			r.Logger.Warn("service not placed in its own scope",
-				"scenario", slug, "step", step, "pid", pid, "slice", platform.ServicesSlice, "error", err)
+		if errors.Is(err, platform.ErrUnsupported) {
+			return nil
 		}
-		return
+		return fmt.Errorf("place service %s (%s) in its own scope: %w", slug, step, err)
 	}
 	r.Logger.Debug("service placed", "scenario", slug, "step", step, "scope", ref.Path, "method", method)
+	return nil
 }
 
 // serviceScopeName is the scope unit a service gets. It is derived from the

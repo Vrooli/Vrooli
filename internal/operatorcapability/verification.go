@@ -356,7 +356,7 @@ func (r *Registry) Verify(ctx context.Context, request VerificationRequest) ([]E
 		if err := descriptor.Evidence.ValidateReference(*receipt); err != nil {
 			return nil, err
 		}
-		if strings.TrimSpace(descriptor.Evidence.Freshness) != "" && !receipt.FreshAt(time.Now().UTC()) {
+		if strings.TrimSpace(descriptor.Evidence.Freshness) != "" && !receipt.FreshAt(r.now().UTC()) {
 			return nil, fmt.Errorf("verification evidence for capability %q is stale or missing an expiry", descriptor.ID)
 		}
 	}

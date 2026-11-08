@@ -8,6 +8,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	platform "github.com/vrooli/platform-go"
 )
 
 const (
@@ -32,6 +34,7 @@ func readProcessEntry(pid int) (processTableEntry, bool) {
 	entry.Command = readProcCmdline(pid, entry.Command)
 	entry.Executable, _ = os.Readlink(fmt.Sprintf("/proc/%d/exe", pid))
 	entry.Cwd, _ = os.Readlink(fmt.Sprintf("/proc/%d/cwd", pid))
+	entry.Cgroup, _ = platform.ProcessScope(pid)
 	return entry, true
 }
 

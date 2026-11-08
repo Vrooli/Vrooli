@@ -12,7 +12,10 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
+
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 
 	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/internal/buildinfo"
@@ -50,8 +53,16 @@ type Controller struct {
 	Environment string
 	// NoReclaim requires manifest-derived starts to use only already-free capacity.
 	NoReclaim bool
+	// healthObservationOnly separates frequent process/health observations from
+	// current on-disk artifact audits. Launch verification is always independent.
+	healthObservationOnly bool
 	// admitCapacity is an instance-scoped owner seam; nil uses canonical admission.
 	admitCapacity func(context.Context, capacity.AdmitOptions, func(context.Context) error) error
+	// The supervisor retains one controller so bounded recovery passes rotate
+	// fairly across unresolved resources instead of retrying the first forever.
+	updateResumeMu     sync.Mutex
+	updateResumeAfter  string
+	updateCleanupAfter string
 }
 
 type (
@@ -83,6 +94,15 @@ func NewController(root, home string) *Controller {
 		Home:        filepath.Clean(home),
 		Environment: normalizeEnvironment(""),
 	}
+}
+
+// ForHealthObservation returns an isolated read configuration. Its status
+// records explicitly leave artifact verification unevaluated; it changes no
+// acquisition or launch gate and never mutates the original controller.
+func (c *Controller) ForHealthObservation() *Controller {
+	copy := *c
+	copy.healthObservationOnly = true
+	return &copy
 }
 
 func normalizeEnvironment(value string) string {
@@ -407,16 +427,17 @@ func (c *Controller) commandForResourceContext(ctx context.Context, name string,
 				return nil, err
 			}
 			if manifest.ManagedService == nil {
-				return shell.Command(shell.Spec{Context: ctx,
-					Name: path,
-					Args: args,
-					Dir:  c.Root,
-					Env:  env,
+				return shell.Command(shell.Spec{
+					Context: ctx,
+					Name:    path,
+					Args:    args,
+					Dir:     c.Root,
+					Env:     env,
 				}), nil
 			}
 			for _, port := range manifest.Ports {
 				if port.Host > 0 {
-					env = values.SetEnv(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
+					env = values.SetEnv(env, resourcedeployment.ServicePortEnvironmentName(port.Name), fmt.Sprintf("%d", port.Host))
 				}
 			}
 			for key, value := range manifest.ManagedService.Environment {
@@ -439,11 +460,12 @@ func (c *Controller) commandForResourceContext(ctx context.Context, name string,
 		if runAsUser != "" && os.Geteuid() == 0 {
 			return shell.Command(shell.Spec{Context: ctx, Name: "runuser", Args: append([]string{"--preserve-environment", "--user", runAsUser, "--", path}, args...), Dir: c.Root, Env: env}), nil
 		}
-		return shell.Command(shell.Spec{Context: ctx,
-			Name: path,
-			Args: args,
-			Dir:  c.Root,
-			Env:  env,
+		return shell.Command(shell.Spec{
+			Context: ctx,
+			Name:    path,
+			Args:    args,
+			Dir:     c.Root,
+			Env:     env,
 		}), nil
 	}
 

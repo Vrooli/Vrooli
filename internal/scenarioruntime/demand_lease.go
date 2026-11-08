@@ -37,7 +37,7 @@ func (s *SQLiteStore) RetainExplicitInstance(ctx context.Context, instanceID str
 			if _, err := tx.ExecContext(ctx, `UPDATE runtime_instances SET supervision_policy = ?, updated_at = ? WHERE instance_id = ? AND generation = ? AND status = ?`, SupervisionPolicyManaged, formatTime(s.now()), instanceID, generation, StatusRunning); err != nil {
 				return err
 			}
-			if err := s.auditDemandInstanceTx(ctx, tx, "retained_explicitly", current); err != nil {
+			if err := s.auditDemandInstanceTx(ctx, tx, demandAuditRetainedExplicitly, current); err != nil {
 				return err
 			}
 		}
@@ -129,7 +129,7 @@ WHERE lease_id = ?`, lease.RequestID, formatTime(now), formatTime(deadline), Dem
 			if err != nil {
 				return fmt.Errorf("renew demand lease during acquire: %w", err)
 			}
-			return s.auditDemandLeaseTx(ctx, tx, "acquired", lease)
+			return s.auditDemandLeaseTx(ctx, tx, demandAuditAcquired, lease)
 		}
 		if err != ErrNotFound {
 			return err
@@ -142,7 +142,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?)`,
 		if err != nil {
 			return fmt.Errorf("create demand lease: %w", err)
 		}
-		return s.auditDemandLeaseTx(ctx, tx, "acquired", lease)
+		return s.auditDemandLeaseTx(ctx, tx, demandAuditAcquired, lease)
 	})
 	if err != nil {
 		return DemandLease{}, err
@@ -200,7 +200,7 @@ WHERE lease_id = ? AND status = ? AND expires_at > ?`,
 		if err != nil {
 			return err
 		}
-		return s.auditDemandLeaseTx(ctx, tx, "renewed", out)
+		return s.auditDemandLeaseTx(ctx, tx, demandAuditRenewed, out)
 	})
 	if err != nil {
 		return DemandLease{}, err
@@ -266,7 +266,7 @@ WHERE excluded.idle_until > runtime_demand_idle_windows.idle_until`,
 		if err != nil {
 			return err
 		}
-		return s.auditDemandLeaseTx(ctx, tx, "released", out)
+		return s.auditDemandLeaseTx(ctx, tx, demandAuditReleased, out)
 	})
 	return out, err
 }
@@ -293,7 +293,7 @@ func (s *SQLiteStore) ExpireDemandLeases(ctx context.Context, at time.Time) ([]D
 			return err
 		}
 		for _, lease := range expired {
-			if err := s.auditDemandLeaseTx(ctx, tx, "expired", lease); err != nil {
+			if err := s.auditDemandLeaseTx(ctx, tx, demandAuditExpired, lease); err != nil {
 				return err
 			}
 		}
@@ -448,7 +448,7 @@ ON CONFLICT(instance_id) DO UPDATE SET generation = excluded.generation, signali
 				claimed.InstanceID, claimed.Generation, formatTime(at)); err != nil {
 				return fmt.Errorf("persist demand stop intent: %w", err)
 			}
-			if err := s.auditDemandInstanceTx(ctx, tx, "stop_claimed", claimed); err != nil {
+			if err := s.auditDemandInstanceTx(ctx, tx, demandAuditStopClaimed, claimed); err != nil {
 				return err
 			}
 			out = append(out, claimed)
@@ -505,7 +505,7 @@ WHERE instance_id = ? AND generation = ?
 		if err != nil {
 			return err
 		}
-		return s.auditDemandInstanceTx(ctx, tx, "stop_restored", out)
+		return s.auditDemandInstanceTx(ctx, tx, demandAuditStopRestored, out)
 	})
 	if err != nil {
 		return Instance{}, err

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os/exec"
 
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
+
 	"github.com/vrooli/vrooli/internal/accel"
 	runtimehealth "github.com/vrooli/vrooli/internal/resources/runtime/health"
 	"github.com/vrooli/vrooli/internal/values"
@@ -44,7 +46,7 @@ func (c *Controller) runResourceHealthChecks(ctx context.Context, manifest Resou
 	}
 	for _, port := range manifest.Ports {
 		if port.Host > 0 {
-			env = values.SetEnv(env, managedServicePortEnvName(port.Name), fmt.Sprintf("%d", port.Host))
+			env = values.SetEnv(env, resourcedeployment.ServicePortEnvironmentName(port.Name), fmt.Sprintf("%d", port.Host))
 		}
 	}
 	result, err := runtimehealth.RunChecks(ctx, manifest.HealthChecks, runtimehealth.Config{

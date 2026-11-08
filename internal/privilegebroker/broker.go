@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/storageactivity"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
@@ -34,6 +35,7 @@ type Config struct {
 	RuntimeHomeRepair func(context.Context, RuntimeHomeSubject) Result
 	TemporaryActivity func(context.Context, uint32) (storageactivity.Snapshot, error)
 	LocalAdmission    *LocalAdmissionManager
+	KernelMemory      func() (hostinventory.KernelMemoryReport, error)
 }
 
 // Executor is the narrow test seam. Implementations receive only broker-built
@@ -56,6 +58,9 @@ func New(config Config) (*Broker, error) {
 	}
 	if config.TemporaryActivity == nil {
 		config.TemporaryActivity = storageactivity.Observe
+	}
+	if config.KernelMemory == nil {
+		config.KernelMemory = hostinventory.ReadKernelMemory
 	}
 	if config.LocalAdmission != nil && config.LocalAdmission.Policy.UID != config.AllowedUID {
 		return nil, fmt.Errorf("local admission policy caller does not match broker caller")
@@ -149,6 +154,16 @@ func (b *Broker) Execute(ctx context.Context, req Request, callerUID uint32) Res
 // recognise never reaches here.
 func (b *Broker) dispatch(ctx context.Context, req Request) Result {
 	switch req.Action {
+	case ActionKernelMemoryInspect:
+		report, err := b.config.KernelMemory()
+		if err != nil {
+			result := NewFailure(req.RequestID, req.Action, "kernel_memory_unavailable")
+			result.Evidence.Detail = err.Error()
+			return result
+		}
+		return Result{Status: "completed", KernelMemory: &report}
+	case ActionServiceRecover:
+		return executeServiceRecovery(ctx, b.config.Executor, req)
 	case ActionLocalAdmissionInspect, ActionLocalAdmissionEnsure, ActionLocalAdmissionRevoke:
 		if b.config.LocalAdmission == nil {
 			return NewFailure(req.RequestID, req.Action, "local_admission_not_installed")
@@ -211,15 +226,21 @@ func (b *Broker) audit(uid uint32, req Request, result Result) {
 	if req.LocalAdmission != nil {
 		localBinding = req.LocalAdmission.Binding
 	}
+	serviceUnit, serviceOperation := "", ""
+	if req.Service != nil {
+		serviceUnit, serviceOperation = req.Service.Unit, req.Service.Operation
+	}
 	_ = json.NewEncoder(f).Encode(struct {
-		RequestID    string `json:"request_id"`
-		CallerUID    uint32 `json:"caller_uid"`
-		Action       string `json:"action"`
-		Scenario     string `json:"scenario"`
-		Candidate    string `json:"candidate_ip"`
-		Port         int    `json:"port"`
-		Status       string `json:"status"`
-		Code         string `json:"code,omitempty"`
-		LocalBinding string `json:"local_binding,omitempty"`
-	}{req.RequestID, uid, req.Action, req.Subject.Scenario, req.Subject.CandidateIP, req.Subject.Port, result.Status, result.Code, localBinding})
+		RequestID        string `json:"request_id"`
+		CallerUID        uint32 `json:"caller_uid"`
+		Action           string `json:"action"`
+		Scenario         string `json:"scenario"`
+		Candidate        string `json:"candidate_ip"`
+		Port             int    `json:"port"`
+		Status           string `json:"status"`
+		Code             string `json:"code,omitempty"`
+		LocalBinding     string `json:"local_binding,omitempty"`
+		ServiceUnit      string `json:"service_unit,omitempty"`
+		ServiceOperation string `json:"service_operation,omitempty"`
+	}{req.RequestID, uid, req.Action, req.Subject.Scenario, req.Subject.CandidateIP, req.Subject.Port, result.Status, result.Code, localBinding, serviceUnit, serviceOperation})
 }

@@ -23,13 +23,18 @@ func Validate(req Request) error {
 	if req.SMART != nil && req.Action != ActionVolumeSMARTInspect {
 		return fmt.Errorf("subject_not_allowed")
 	}
+	if req.Service != nil && req.Action != ActionServiceRecover {
+		return fmt.Errorf("subject_not_allowed")
+	}
 	switch req.Action {
+	case ActionServiceRecover:
+		return validateServiceRecovery(req)
 	case ActionLocalAdmissionInspect, ActionLocalAdmissionEnsure, ActionLocalAdmissionRevoke:
 		if req.LocalAdmission == nil || !admissionID.MatchString(req.LocalAdmission.Binding) || req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || req.Apt != nil || req.Edge != nil || req.Process != nil || req.Caddy != nil {
 			return fmt.Errorf("local_binding_subject_required")
 		}
 		return nil
-	case ActionTemporaryActivityObserve, ActionCapabilitiesInspect:
+	case ActionTemporaryActivityObserve, ActionCapabilitiesInspect, ActionKernelMemoryInspect:
 		if req.Subject != (Subject{}) || req.Volume != nil || req.RuntimeHome != nil || req.Log != nil || req.Journal != nil || req.Docker != nil || hasCloudSubject(req) {
 			return fmt.Errorf("subject_not_allowed")
 		}

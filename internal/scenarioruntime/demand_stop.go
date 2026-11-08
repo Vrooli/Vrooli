@@ -83,7 +83,7 @@ func (s *SQLiteStore) BeginDemandStop(ctx context.Context, instanceID string, ge
 		if _, err := tx.ExecContext(ctx, `UPDATE runtime_demand_stops SET signaling_started = 1 WHERE instance_id = ? AND generation = ?`, instanceID, generation); err != nil {
 			return err
 		}
-		return s.auditDemandInstanceTx(ctx, tx, "stop_signaling", instance)
+		return s.auditDemandInstanceTx(ctx, tx, demandAuditStopSignaling, instance)
 	})
 }
 
@@ -116,7 +116,7 @@ func (s *SQLiteStore) CompleteDemandStop(ctx context.Context, instanceID string,
 		if _, err = tx.ExecContext(ctx, `DELETE FROM runtime_demand_stops WHERE instance_id = ? AND generation = ?`, instanceID, generation); err != nil {
 			return err
 		}
-		return s.auditDemandInstanceTx(ctx, tx, "stopped", current)
+		return s.auditDemandInstanceTx(ctx, tx, demandAuditStopped, current)
 	})
 }
 

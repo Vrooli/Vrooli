@@ -884,7 +884,11 @@ func sharedPackageArtifactSelectionDigest(home, packageName string) (string, err
 		selectionName = "active.json"
 	}
 	if strings.TrimSpace(artifactRoot) == "" {
-		artifactRoot = filepath.Join(home, ".vrooli", "artifacts", "react-component-library")
+		artifacts, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyArtifacts)
+		if err != nil {
+			return "", fmt.Errorf("resolve runtime-home artifacts entry: %w", err)
+		}
+		artifactRoot = filepath.Join(artifacts, "react-component-library")
 	}
 	selectionPath := filepath.Join(artifactRoot, selectionName)
 	data, err := os.ReadFile(selectionPath)

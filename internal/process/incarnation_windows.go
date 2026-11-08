@@ -21,5 +21,12 @@ func processIncarnation(pid int) (string, error) {
 	if err := windows.GetProcessTimes(h, &created, &exited, &kernel, &user); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("windows:%d:%d", pid, created.Nanoseconds()), nil
+	return formatIncarnation(pid, created.Nanoseconds()), nil
 }
+
+// formatIncarnation is the stored incarnation format.
+func formatIncarnation(pid int, created int64) string {
+	return fmt.Sprintf("windows:%d:%d", pid, created)
+}
+
+func incarnationFormatSample() string { return formatIncarnation(1, 1) }

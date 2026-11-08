@@ -61,16 +61,18 @@ const managedServiceOwnershipTokenEnv = "VROOLI_MANAGED_SERVICE_INSTANCE_TOKEN"
 // identifies the process Vrooli started; it is never inferred from a port,
 // process name, or an arbitrary external endpoint.
 type ManagedServiceState struct {
-	InstanceID              string     `json:"instance_id"`
-	OwnershipTokenHash      string     `json:"ownership_token_hash"`
-	PID                     int        `json:"pid"`
-	ArtifactPath            string     `json:"artifact_path"`
-	ArtifactSHA256          string     `json:"artifact_sha256"`
-	ArtifactVersion         string     `json:"artifact_version"`
-	PreviousArtifactSHA256  string     `json:"previous_artifact_sha256,omitempty"`
-	PreviousArtifactVersion string     `json:"previous_artifact_version,omitempty"`
-	StartedAt               time.Time  `json:"started_at"`
-	StoppedAt               *time.Time `json:"stopped_at,omitempty"`
+	UpdateLaunch            *ManagedUpdateServingLaunch `json:"update_launch,omitempty"`
+	InstanceID              string                      `json:"instance_id"`
+	OwnershipTokenHash      string                      `json:"ownership_token_hash"`
+	PID                     int                         `json:"pid"`
+	Incarnation             string                      `json:"incarnation,omitempty"`
+	ArtifactPath            string                      `json:"artifact_path"`
+	ArtifactSHA256          string                      `json:"artifact_sha256"`
+	ArtifactVersion         string                      `json:"artifact_version"`
+	PreviousArtifactSHA256  string                      `json:"previous_artifact_sha256,omitempty"`
+	PreviousArtifactVersion string                      `json:"previous_artifact_version,omitempty"`
+	StartedAt               time.Time                   `json:"started_at"`
+	StoppedAt               *time.Time                  `json:"stopped_at,omitempty"`
 }
 
 // ManagedServiceRecord associates a durable state record with the resource
@@ -138,6 +140,9 @@ type ManagedServiceSupervisor struct {
 	// place adopts the started daemon into its own services-slice scope so
 	// its lifetime is not tied to the caller's session. Nil skips placement.
 	place func(pid int) error
+	// Enrolled Linux update services require observed placement before their
+	// ordinary recovery start can be acknowledged as detached from its caller.
+	verifyPlacement func(pid int) error
 }
 
 func newManagedServiceSupervisor(statePath, logPath string) *ManagedServiceSupervisor {
@@ -211,6 +216,13 @@ func (s *ManagedServiceSupervisor) StartContext(ctx context.Context, artifactPat
 	if running {
 		return existing, nil
 	}
+	if existing.UpdateLaunch != nil {
+		// A dead root can leave a native unit or descendants behind. Retire the
+		// exact recorded owner before replacing its canonical serving record.
+		if err := s.stopManagedUpdateServing(ctx, existing); err != nil {
+			return ManagedServiceState{}, fmt.Errorf("retire prior native managed-service owner before start: %w", err)
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(s.logPath), tuning.PermPrivateDir); err != nil {
 		return ManagedServiceState{}, fmt.Errorf("create managed-service log directory: %w", err)
 	}
@@ -245,13 +257,33 @@ func (s *ManagedServiceSupervisor) StartContext(ctx context.Context, artifactPat
 	if err := s.start(cmd); err != nil {
 		return ManagedServiceState{}, fmt.Errorf("start managed-service artifact: %w", err)
 	}
+	incarnation, err := process.Incarnation(cmd.Process.Pid)
+	if err != nil || incarnation == "" {
+		// cmd still holds the native process handle; do not signal a bare PID
+		// after a failed identity read or permit an unidentifiable launch.
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return ManagedServiceState{}, fmt.Errorf("identify managed-service launch incarnation: %w", err)
+	}
 	if err := applyManagedServiceProcessLimits(cmd.Process.Pid, limits); err != nil {
 		_ = s.terminate(cmd.Process.Pid)
 		return ManagedServiceState{}, fmt.Errorf("apply managed-service process limits: %w", err)
 	}
 	if s.place != nil {
 		if err := s.place(cmd.Process.Pid); err != nil {
+			if s.verifyPlacement != nil {
+				_ = cmd.Process.Kill()
+				_ = cmd.Wait()
+				return ManagedServiceState{}, fmt.Errorf("managed-service placement failed; refusing caller-bound recovery: %w", err)
+			}
 			fmt.Fprintf(logFile, "%s warning: service not placed in its own scope, staying in the caller's: %v\n", s.now().UTC().Format(time.RFC3339), err)
+		}
+	}
+	if s.verifyPlacement != nil {
+		if err := s.verifyPlacement(cmd.Process.Pid); err != nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+			return ManagedServiceState{}, fmt.Errorf("managed-service dedicated scope is unverified; refusing caller-bound recovery: %w", err)
 		}
 	}
 	instanceID := existing.InstanceID
@@ -274,6 +306,7 @@ func (s *ManagedServiceSupervisor) StartContext(ctx context.Context, artifactPat
 		InstanceID:              instanceID,
 		OwnershipTokenHash:      managedServiceTokenHash(ownershipToken),
 		PID:                     cmd.Process.Pid,
+		Incarnation:             incarnation,
 		ArtifactPath:            artifactPath,
 		ArtifactSHA256:          artifactDigest,
 		ArtifactVersion:         artifact.Version,
@@ -306,6 +339,10 @@ func (s *ManagedServiceSupervisor) StopWithSignal(ctx context.Context, signal os
 }
 
 func (s *ManagedServiceSupervisor) stop(ctx context.Context, signal os.Signal) error {
+	stored, readErr := s.readState()
+	if readErr == nil && stored.UpdateLaunch != nil {
+		return s.stopManagedUpdateServing(ctx, stored)
+	}
 	state, running, err := s.Status()
 	if err != nil {
 		return fmt.Errorf("read managed-service state: %w", err)
@@ -504,6 +541,11 @@ func (s *ManagedServiceSupervisor) readState() (ManagedServiceState, error) {
 	if state.PID < 0 || strings.TrimSpace(state.InstanceID) == "" || strings.TrimSpace(state.OwnershipTokenHash) == "" || strings.TrimSpace(state.ArtifactSHA256) == "" || strings.TrimSpace(state.ArtifactVersion) == "" {
 		return ManagedServiceState{}, fmt.Errorf("managed-service state is incomplete")
 	}
+	if state.UpdateLaunch != nil {
+		if err := validateManagedUpdateServing(state); err != nil {
+			return ManagedServiceState{}, err
+		}
+	}
 	return state, nil
 }
 
@@ -524,16 +566,22 @@ func newManagedServiceToken() (string, error) {
 }
 
 func verifyManagedServiceOwnership(state ManagedServiceState) error {
+	if state.Incarnation != "" {
+		actual, err := managedServiceProcessIncarnation(state.PID)
+		if err != nil || actual != state.Incarnation {
+			return fmt.Errorf("managed-service process incarnation is unavailable or does not match")
+		}
+	}
 	env, err := readManagedServiceEnvironment(state.PID)
 	if err != nil {
 		// A host that cannot observe environments (not a denied or failed
 		// read) still has the executable-identity proof below.
-		if errors.Is(err, platform.ErrUnsupported) && managedServiceExecutableMatchesArtifact(state) {
+		if errors.Is(err, platform.ErrUnsupported) && state.Incarnation != "" && managedServiceExecutableMatchesArtifact(state) {
 			return nil
 		}
 		return fmt.Errorf("verify managed-service process ownership: %w", err)
 	}
-	if managedServiceTokenHash(env[managedServiceOwnershipTokenEnv]) == state.OwnershipTokenHash {
+	if token := env[managedServiceOwnershipTokenEnv]; token != "" && managedServiceTokenHash(token) == state.OwnershipTokenHash {
 		return nil
 	}
 	// Some otherwise legitimate managed services deliberately clear their
@@ -541,9 +589,10 @@ func verifyManagedServiceOwnership(state ManagedServiceState) error {
 	// enabled). In that case, retain a process-identity proof: the live
 	// executable must still be the verified artifact recorded by the supervisor.
 	// This does not accept an arbitrary PID, port, or process name, and it also
-	// keeps PID reuse from being mistaken for ownership because the supervisor
-	// state is tied to its recorded artifact path.
-	if managedServiceExecutableMatchesArtifact(state) {
+	// requires the launch's recorded OS incarnation: executable paths can be
+	// reused by later processes. A nonempty contradictory token is never a
+	// cleared environment and cannot be overruled by an executable match.
+	if env[managedServiceOwnershipTokenEnv] == "" && state.Incarnation != "" && managedServiceExecutableMatchesArtifact(state) {
 		return nil
 	}
 	return fmt.Errorf("managed-service process ownership token does not match")

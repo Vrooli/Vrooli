@@ -289,7 +289,13 @@ type CLIFreshnessCheck struct {
 	MetadataFile string   `json:"metadata_file,omitempty"`
 }
 
-const CLIArtifactLocationSibling = "sibling"
+// CLI contract vocabulary a manifest declares and the root stores with it.
+const (
+	CLIArtifactLocationSibling      = "sibling"
+	CLIKindGoModule                 = "go_module"
+	CLIInvokeInstalledCommand       = "installed_command"
+	CLIDistributionPrebuiltArtifact = "prebuilt_artifact"
+)
 
 type Dependencies struct {
 	Resources map[string]Dependency `json:"resources,omitempty"`

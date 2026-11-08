@@ -3,6 +3,8 @@ package resources
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -177,6 +179,118 @@ func TestArtifactRetentionKeepsNMostRecentPrevious(t *testing.T) {
 				t.Fatalf("keep=%d: version %s present=%v, want %v", tc.keep, version, !want, want)
 			}
 		}
+	}
+}
+
+func retentionUpdateFixture(t *testing.T, f retentionFixture) (*managedUpdateStore, ManagedServiceUpdate) {
+	t.Helper()
+	u := updateTestInitial(t)
+	u.Resource = f.name
+	for _, c := range []*ManagedUpdateContract{&u.Target, &u.Rollback} {
+		c.Manifest.Name, c.Artifact.Resource = f.name, f.name
+	}
+	for version, c := range map[string]*ManagedUpdateContract{"target": &u.Target, "retained": &u.Rollback} {
+		c.Manifest.ManagedService.Artifact.Version = version
+		c.Artifact.Version = version
+		c.Artifact.Path = filepath.Join(f.artifacts, f.name, version, "server", "entry")
+		c.Digest = c.digest()
+	}
+	u.Original.ArtifactPath = u.Rollback.Artifact.Path
+	u.Original.ArtifactVersion = u.Rollback.Artifact.Version
+	s, err := newManagedUpdateStore(f.name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Create(context.Background(), u, false); err != nil {
+		t.Fatal(err)
+	}
+	return s, u
+}
+
+func TestArtifactRetentionKeepsActiveUpdateArtifactsEvenWithoutLiveProcesses(t *testing.T) {
+	f := newRetentionFixture(t, "retained", "target", "unrelated", "active")
+	retentionUpdateFixture(t, f)
+	plan, err := f.controller.PruneManagedServiceArtifacts(f.name, ArtifactRetentionOptions{KeepPrevious: 0, Apply: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, version := range []string{"retained", "target"} {
+		if !f.present(version) || decisionsByVersion(plan)[version] == ArtifactRetainRemove {
+			t.Fatalf("active update lost its %s artifact during caller-death recovery", version)
+		}
+	}
+	if f.present("unrelated") {
+		t.Fatal("update pin disabled unrelated artifact retention")
+	}
+}
+
+func TestArtifactRetentionRefusesCorruptUpdateInventoryWithoutDeletingAnything(t *testing.T) {
+	f := newRetentionFixture(t, "retained", "target", "unrelated", "active")
+	s, _ := retentionUpdateFixture(t, f)
+	if err := os.WriteFile(s.path, []byte(`{"schema_version":1,"records":`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.controller.PruneManagedServiceArtifacts(f.name, ArtifactRetentionOptions{KeepPrevious: 0, Apply: true}); err == nil {
+		t.Fatal("unknown update inventory was treated as no active updates")
+	}
+	for _, version := range []string{"retained", "target", "unrelated", "active"} {
+		if !f.present(version) {
+			t.Fatalf("corrupt update inventory permitted deleting %s", version)
+		}
+	}
+}
+
+func TestManagedUpdateInterlocksOrdinaryStopAndUninstall(t *testing.T) {
+	for _, action := range []string{"stop", "uninstall"} {
+		t.Run(action, func(t *testing.T) {
+			f := newRetentionFixture(t, "retained", "target", "active")
+			_, u := retentionUpdateFixture(t, f)
+			m, err := f.controller.LoadManifest(filepath.Join(f.root, "resources", f.name, "resource.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = (managedServiceDriver{}).Run(context.Background(), f.controller, Resource{Name: f.name}, m, action, nil, io.Discard, io.Discard)
+			if !errors.Is(err, ErrManagedUpdateConflict) || !strings.Contains(err.Error(), u.ID) {
+				t.Fatalf("ordinary %s bypassed active update ownership: %v", action, err)
+			}
+		})
+	}
+}
+
+func TestManagedUpdateInterlocksSharedBrokerOwnerLifecycle(t *testing.T) {
+	f := newRetentionFixture(t, "retained", "target", "active")
+	_, u := retentionUpdateFixture(t, f)
+	m, err := f.controller.LoadManifest(filepath.Join(f.root, "resources", f.name, "resource.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := NewManagedServiceOwnerLifecycle(f.controller, m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range []string{"start", "restart", "stop"} {
+		_, err := owner.Manage(context.Background(), ManagedInstance{Resource: f.name, Provider: resourcedeployment.ProviderManagedShared}, action)
+		if !errors.Is(err, ErrManagedUpdateConflict) || !strings.Contains(err.Error(), u.ID) {
+			t.Fatalf("shared broker %s bypassed active update: %v", action, err)
+		}
+	}
+}
+
+func TestManagedUpdateLifecycleFenceSurvivesUnknownInventoryAndReleasesAfterTerminalReceipt(t *testing.T) {
+	f := newRetentionFixture(t, "retained", "target", "active")
+	s, u := retentionUpdateFixture(t, f)
+	last := updateStoreTrace(t, s, u, updateSuccessTrace())
+	if !last.Phase.Terminal() {
+		t.Fatal("fixture did not complete promotion")
+	}
+	if err := ensureManagedUpdateLifecycleAvailable(f.name, "stop"); err != nil {
+		t.Fatalf("terminal serving receipt retained an active operation fence: %v", err)
+	}
+	if err := os.WriteFile(s.path, []byte(`{"schema_version":1,"records":`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ensureManagedUpdateLifecycleAvailable(f.name, "stop"); err == nil || !strings.Contains(err.Error(), "read managed update ownership") {
+		t.Fatalf("unknown inventory released the lifecycle fence: %v", err)
 	}
 }
 

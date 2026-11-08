@@ -83,6 +83,21 @@ func chownPathToInvokingUser(path string) error {
 	return os.Lchown(path, uid, gid)
 }
 
+func chownFileToInvokingUser(file *os.File) error {
+	uid, gid, ok := hostreqkit.InvokingUserIDs()
+	if !ok {
+		return nil
+	}
+	boundary, err := VrooliHome()
+	if err != nil {
+		return err
+	}
+	if !withinHome(file.Name(), boundary) {
+		return nil
+	}
+	return file.Chown(uid, gid)
+}
+
 // withinHome reports whether path is the home root or sits beneath it. The
 // chown boundary: ownership operations never escape the resolved runtime home.
 func withinHome(path, home string) bool {

@@ -106,6 +106,12 @@ func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 		db.Close()
 		return nil, err
 	}
+	if !readOnly {
+		if err := store.ensureDemandAuditIndex(ctx); err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
 	return store, nil
 }
 
@@ -775,7 +781,7 @@ func (s *SQLiteStore) AddProcessRef(ctx context.Context, ref ProcessRef) (Proces
 		ref.StartedAt = s.now()
 	}
 	if strings.TrimSpace(ref.Status) == "" {
-		ref.Status = "running"
+		ref.Status = ProcessRefStatusRunning
 	}
 	_, err := s.db.ExecContext(ctx, `
 INSERT INTO runtime_process_refs (

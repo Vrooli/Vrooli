@@ -26,6 +26,9 @@ const (
 // RelativePath is where the setpoint lives under a repository root.
 const RelativePath = "scenarios/infrastructure-manager/setpoint/reliability-setpoint.json"
 
+// fallbackDocumentSchemaVersion labels the compiled fallback setpoint.
+const fallbackDocumentSchemaVersion = "1.0.0"
+
 // PathEnv overrides the file location; RootEnv is the repository root.
 const (
 	PathEnv = "VROOLI_SETPOINT_PATH"
@@ -289,7 +292,7 @@ func Fallback() Setpoint {
 		{ID: "substrate-memory-psi-stall", CellRef: CellMemoryPSI, Projection: "substrate", DecisionRef: fallbackDecisionRef, Unit: "percent", Max: f(fallbackMemoryPSIPercent), Sustain: "one read", Gradeable: true},
 		{ID: "availability-declared-crash-loop", CellRef: CellCrashLoop, Projection: "availability", DecisionRef: fallbackDecisionRef, Unit: "restarts per hour", Max: f(fallbackCrashLoopsPerHour), Window: time.Hour, Sustain: "1h", Gradeable: true},
 	}
-	out := Setpoint{Path: FallbackPath, Document: Document{SchemaVersion: "1.0.0", Bars: bars}, byCell: make(map[string]Bar, len(bars))}
+	out := Setpoint{Path: FallbackPath, Document: Document{SchemaVersion: fallbackDocumentSchemaVersion, Bars: bars}, byCell: make(map[string]Bar, len(bars))}
 	for _, bar := range bars {
 		out.byCell[bar.CellRef] = bar
 	}

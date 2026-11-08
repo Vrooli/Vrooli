@@ -470,10 +470,10 @@ func normalizeRecord(record InstallRecord) InstallRecord {
 		entry.Path = filepath.Clean(strings.TrimSpace(entry.Path))
 		entry.Prefix = filepath.Clean(strings.TrimSpace(entry.Prefix))
 		key := string(entry.Scope) + "\x00" + string(entry.Kind) + "\x00" + entry.Path
-		if entry.Path == "." || entry.Path == "" {
+		if emptyCleanPath(entry.Path) {
 			continue
 		}
-		if entry.Kind != EntryPackage && !isContainerEntry(entry.Kind) && (entry.Prefix == "." || entry.Prefix == "") {
+		if entry.Kind != EntryPackage && !isContainerEntry(entry.Kind) && emptyCleanPath(entry.Prefix) {
 			continue
 		}
 		if entry.Kind == EntryPackage && entry.Provenance.ObservedBefore == "" {
@@ -741,4 +741,9 @@ func newPlanID() (string, error) {
 		return "", fmt.Errorf("generate uninstall plan id: %w", err)
 	}
 	return hex.EncodeToString(raw), nil
+}
+
+// emptyCleanPath reports a cleaned path that names nothing.
+func emptyCleanPath(path string) bool {
+	return path == "." || path == ""
 }

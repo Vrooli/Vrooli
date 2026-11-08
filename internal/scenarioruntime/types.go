@@ -56,7 +56,12 @@ const (
 	// SupervisionPolicyDemand marks an instance that was started for a
 	// bounded consumer demand. The maintenance reconciler may stop only this
 	// explicitly opted-in policy when no active demand lease remains.
-	SupervisionPolicyDemand       = "demand"
+	SupervisionPolicyDemand = "demand"
+
+	// Process-ref statuses stored in runtime_process_refs.status; maintenance
+	// and lifecycle read them back by value.
+	ProcessRefStatusRunning       = "running"
+	ProcessRefStatusExited        = "exited"
 	DefaultMaxHealthResponseBytes = 64 * 1024
 )
 

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/app/runtime"
+	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/testenv"
@@ -18,6 +19,7 @@ func TestCliVersionJSONContract(t *testing.T) {
 		CLIVersion:      "1.4.2",
 		PlatformVersion: "1.4.3",
 		Root:            "/srv/vrooli",
+		BuildIdentity:   "sha256:fixture-build",
 	})); err != nil {
 		t.Fatalf("writeCliVersionJSON: %v", err)
 	}
@@ -34,6 +36,28 @@ func TestCliVersionJSONContract(t *testing.T) {
 	}
 	if got["root"] != "/srv/vrooli" {
 		t.Errorf("root: %v", got["root"])
+	}
+	if got["build_identity"] != "sha256:fixture-build" {
+		t.Errorf("actual executable identity missing: %v", got["build_identity"])
+	}
+}
+
+func TestCliVersionBuildIdentityIsNotInferredFromSource(t *testing.T) {
+	var out bytes.Buffer
+	if err := WriteVersion(&out, "/source/with/a/different-build", rootcli.GlobalOptions{JSON: true}, VersionInfo{CLIVersion: "1.0.0", PlatformVersion: "2.0.0", BuildIdentity: "actual-executable"}); err != nil {
+		t.Fatal(err)
+	}
+	got := testenv.DecodeJSON[map[string]any](t, out.Bytes())
+	if got["build_identity"] != "actual-executable" {
+		t.Fatalf("source path replaced actual executable identity: %v", got)
+	}
+	out.Reset()
+	if err := WriteVersion(&out, "/source", rootcli.GlobalOptions{JSON: true}, VersionInfo{}); err != nil {
+		t.Fatal(err)
+	}
+	got = testenv.DecodeJSON[map[string]any](t, out.Bytes())
+	if got["build_identity"] != "" {
+		t.Fatalf("unstamped executable fabricated an identity: %v", got)
 	}
 }
 

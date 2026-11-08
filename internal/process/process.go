@@ -48,6 +48,13 @@ type Record struct {
 	Status            string    `json:"status,omitempty"`
 }
 
+// Record statuses. LiveRecords reads them back by value, so they are stored
+// vocabulary.
+const (
+	RecordStatusRunning        = "running"
+	RecordStatusExitedVerified = "exited_verified"
+)
+
 type ScenarioRuntime struct {
 	Name         string
 	Records      []Record
@@ -102,11 +109,15 @@ func ScenarioLifecycleLogPath(home, name string) (string, error) {
 	return filepath.Join(root, name+".log"), nil
 }
 
-var ErrInvalidLogSelector = errors.New("invalid scenario log selector")
-var ErrLogSelectionLimit = errors.New("scenario log selection exceeds snapshot limits")
+var (
+	ErrInvalidLogSelector = errors.New("invalid scenario log selector")
+	ErrLogSelectionLimit  = errors.New("scenario log selection exceeds snapshot limits")
+)
 
-const maxScenarioLogDirectoryEntries = 4096
-const maxScenarioLogFiles = 128
+const (
+	maxScenarioLogDirectoryEntries = 4096
+	maxScenarioLogFiles            = 128
+)
 
 // ScenarioLogPaths selects the same bounded source set for CLI and RPC reads.
 // Runtime selection takes precedence over step selection; otherwise the default
@@ -190,6 +201,11 @@ func WriteScenarioRecord(home, name, step string, record Record) error {
 	if _, err := config.EnsureOwnedDir(processDir); err != nil {
 		return fmt.Errorf("create process dir %s: %w", processDir, err)
 	}
+	release, err := lockScenarioRecord(filepath.Join(processDir, step+".json"))
+	if err != nil {
+		return err
+	}
+	defer release()
 
 	if strings.TrimSpace(record.Step) == "" {
 		record.Step = step
@@ -224,6 +240,20 @@ func RemoveScenarioRecord(home, name, step string) error {
 	if err != nil {
 		return err
 	}
+	if _, err := os.Stat(processDir); os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	release, err := lockScenarioRecord(filepath.Join(processDir, step+".json"))
+	if err != nil {
+		return err
+	}
+	defer release()
+	return removeScenarioRecordLocked(processDir, step)
+}
+
+func removeScenarioRecordLocked(processDir, step string) error {
 	recordPath := filepath.Join(processDir, step+".json")
 	pidPath := filepath.Join(processDir, step+".pid")
 
@@ -273,7 +303,7 @@ func ReadScenarioRecords(home, name string) ([]Record, error) {
 func LiveRecords(records []Record) []Record {
 	live := make([]Record, 0, len(records))
 	for _, record := range records {
-		if record.Status == "exited_verified" {
+		if record.Status == RecordStatusExitedVerified {
 			continue
 		}
 		if isPIDRunningFn(record.PID) {

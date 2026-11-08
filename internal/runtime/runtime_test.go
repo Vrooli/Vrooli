@@ -29,6 +29,9 @@ const (
 	remoteSessionSysctlContent = "vm.swappiness = 10\nvm.oom_kill_allocating_task = 0\n"
 	remoteSessionUnitContent   = "[Service]\nOOMScoreAdjust=-900\n"
 	remoteSessionLogindContent = "[Login]\nKillUserProcesses=no\n"
+	// A fully protected 16 GiB host: memory inventory is required, and swap
+	// already meets the handler's RAM-sized target.
+	remoteSessionProtectedMeminfo = "MemTotal:       16777216 kB\nMemFree:         8388608 kB\nSwapTotal:      16777216 kB\n"
 )
 
 func TestCurrentMatchesRuntimeGOOS(t *testing.T) {
@@ -392,6 +395,8 @@ func TestRemoteSessionProtectionClassifiesUnsupportedAndNotApplicable(t *testing
 			return []byte(remoteSessionUnitContent), nil
 		case remoteSessionLogindPath:
 			return []byte(remoteSessionLogindContent), nil
+		case "/proc/meminfo":
+			return []byte(remoteSessionProtectedMeminfo), nil
 		default:
 			return nil, os.ErrNotExist
 		}

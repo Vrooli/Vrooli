@@ -228,7 +228,7 @@ func (c *Controller) stopDemandManagedInstance(ctx context.Context, store runtim
 		if ref.PGID != nil && *ref.PGID > 0 {
 			groups[*ref.PGID] = struct{}{}
 		}
-		if ref.Status == "running" && ref.PID != nil {
+		if ref.Status == scenarioruntime.ProcessRefStatusRunning && ref.PID != nil {
 			tracked[*ref.PID] = struct{}{}
 		}
 	}
@@ -246,7 +246,7 @@ func (c *Controller) stopDemandManagedInstance(ctx context.Context, store runtim
 			}
 			// No synthetic registry record: these handles protect discovered
 			// workers, while only authoritative refs receive status updates.
-			refs = append(refs, scenarioruntime.ProcessRef{PID: &pid, Status: "running", HostBootID: host.BootID})
+			refs = append(refs, scenarioruntime.ProcessRef{PID: &pid, Status: scenarioruntime.ProcessRefStatusRunning, HostBootID: host.BootID})
 		}
 	}
 	if len(refs) > 1024 {
@@ -266,7 +266,7 @@ func (c *Controller) stopDemandManagedInstance(ctx context.Context, store runtim
 	endedAt := time.Now().UTC()
 	liveTargets := 0
 	for _, ref := range refs {
-		if ref.Status != "running" {
+		if ref.Status != scenarioruntime.ProcessRefStatusRunning {
 			continue
 		}
 		if ref.PID == nil || *ref.PID <= 0 {
@@ -282,7 +282,7 @@ func (c *Controller) stopDemandManagedInstance(ctx context.Context, store runtim
 				return restore(fmt.Errorf("open demand-managed process ref %s: %w", ref.RefID, openErr))
 			}
 			if ref.RefID != "" {
-				if _, err := store.UpdateProcessRefStatus(ctx, ref.RefID, "exited", &endedAt); err != nil {
+				if _, err := store.UpdateProcessRefStatus(ctx, ref.RefID, scenarioruntime.ProcessRefStatusExited, &endedAt); err != nil {
 					return restore(err)
 				}
 			}
@@ -365,7 +365,7 @@ func (c *Controller) stopDemandManagedInstance(ctx context.Context, store runtim
 			return fmt.Errorf("demand-managed process ref %s pid %d remained running", item.ref.RefID, item.pid)
 		}
 		if item.ref.RefID != "" {
-			if _, err := store.UpdateProcessRefStatus(ctx, item.ref.RefID, "exited", &endedAt); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+			if _, err := store.UpdateProcessRefStatus(ctx, item.ref.RefID, scenarioruntime.ProcessRefStatusExited, &endedAt); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
 				return fmt.Errorf("mark demand-managed process ref %s exited: %w", item.ref.RefID, err)
 			}
 		}
@@ -653,6 +653,8 @@ func (c *Controller) ListOrphans() ([]SystemProcess, error) {
 }
 
 func (c *Controller) KillOrphans() (control.StopReport, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	orphans, err := c.ListOrphans()
 	if err != nil {
 		return control.StopReport{}, err
@@ -660,30 +662,15 @@ func (c *Controller) KillOrphans() (control.StopReport, error) {
 
 	stopped := make([]control.ResultItem, 0, len(orphans))
 	failed := make([]control.ResultItem, 0)
+	observed := make([]control.ResultItem, 0)
 	for _, item := range orphans {
-		// Re-validate right before signaling: if the PID has been recycled to
-		// an unrelated process (or has already exited) between the snapshot and
-		// now, skip the kill entirely. This closes the check-and-act race
-		// between ListOrphans and kill.
-		if !c.stillVrooliOrphan(item.PID) {
-			stopped = append(stopped, control.Stopped(strconv.Itoa(item.PID), item.Command))
-			continue
-		}
-		if err := killProcessFn(item.PID, false); err != nil && !isMissingProcessError(err) {
+		if err := c.stopOrphan(ctx, item.PID); err != nil {
+			if errors.Is(err, errOrphanSkipped) {
+				observed = append(observed, control.ResultItem{Name: strconv.Itoa(item.PID), Message: err.Error()})
+				continue
+			}
 			failed = append(failed, control.Failed(strconv.Itoa(item.PID), err))
 			continue
-		}
-		time.Sleep(tuning.MaintenanceSettleDelay())
-		if process.IsPIDRunning(item.PID) {
-			// Re-validate again: 150ms is long enough for the kernel to recycle
-			// a PID on a busy box. Only escalate to SIGKILL while the PID still
-			// resolves to a Vrooli process.
-			if c.stillVrooliOrphan(item.PID) {
-				if err := killProcessFn(item.PID, true); err != nil && !isMissingProcessError(err) {
-					failed = append(failed, control.Failed(strconv.Itoa(item.PID), err))
-					continue
-				}
-			}
 		}
 		stopped = append(stopped, control.Stopped(strconv.Itoa(item.PID), item.Command))
 	}
@@ -697,34 +684,28 @@ func (c *Controller) KillOrphans() (control.StopReport, error) {
 	}
 
 	return control.StopReport{
-		Stopped: stopped,
-		Failed:  failed,
-		Message: control.StopSummary(len(stopped), len(failed)),
+		Observed: observed,
+		Stopped:  stopped,
+		Failed:   failed,
+		Message:  control.StopSummary(len(stopped), len(failed)),
 	}, nil
 }
 
 // reclaimSquattedPort evicts a process still holding a port whose owning
 // instance was just expired as non-authoritative. It returns the result item
 // and whether an eviction actually happened. The guard is the same one
-// KillOrphans uses: the PID is signaled ONLY while it still resolves to a Vrooli
-// process from this install, so a foreign service that reused the freed port —
-// or a recycled PID — is never killed. A missing process (already gone) is a
-// silent no-op: the port is already reclaimed.
+// KillOrphans uses: a held incarnation must still be a current, unowned
+// candidate. Native lifecycle trees remain with their owner. An expired claim
+// does not authorize stopping a replacement service that acquired the port.
 func (c *Controller) reclaimSquattedPort(candidate PortReclaimCandidate) (control.ResultItem, bool) {
 	name := fmt.Sprintf("%s:%d", candidate.Scenario, candidate.Port)
-	// Re-validate right before signaling to close the check-and-act race: only a
-	// live Vrooli orphan from this install is eligible for eviction.
-	if !c.stillVrooliOrphan(candidate.PID) {
-		return control.ResultItem{}, false
-	}
-	if err := killProcessFn(candidate.PID, false); err != nil && !isMissingProcessError(err) {
-		return control.Failed(name, err), false
-	}
-	time.Sleep(tuning.MaintenanceSettleDelay())
-	if pidIsRunningFn(candidate.PID) && c.stillVrooliOrphan(candidate.PID) {
-		if err := killProcessFn(candidate.PID, true); err != nil && !isMissingProcessError(err) {
-			return control.Failed(name, err), false
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if err := c.stopOrphan(ctx, candidate.PID); err != nil {
+		if errors.Is(err, errOrphanSkipped) {
+			return control.ResultItem{}, false
 		}
+		return control.Failed(name, err), false
 	}
 	return control.Stopped(name, fmt.Sprintf("Reclaimed port %d from orphaned pid %d", candidate.Port, candidate.PID)), true
 }
@@ -804,13 +785,21 @@ func (c *Controller) cleanStaleScenarioRecords() ([]control.ResultItem, error) {
 		}
 		for _, record := range records {
 			if record.PID > 0 && process.IsPIDRunning(record.PID) {
-				continue
+				// A reused numeric PID does not keep an old launch record alive.
+				// Historical records without an OS identity remain conservative.
+				if record.Incarnation == "" {
+					continue
+				}
+				actual, err := process.Incarnation(record.PID)
+				if err != nil || actual == record.Incarnation {
+					continue
+				}
 			}
 			step := record.Step
 			if step == "" {
 				continue
 			}
-			if err := process.RemoveScenarioRecord(c.Home, scenario, step); err != nil {
+			if removed, err := process.RemoveScenarioRecordIfMatches(c.Home, scenario, step, record); err != nil || !removed {
 				continue
 			}
 			pruned = append(pruned, control.Stopped(scenario+"/"+step, "Removed stale process record (pid "+strconv.Itoa(record.PID)+")"))
@@ -828,7 +817,7 @@ func (c *Controller) stillVrooliOrphan(pid int) bool {
 	if !ok {
 		return false
 	}
-	if !looksLikeVrooliProcessFn(c.Root, c.Home, entry) || insideAgentSessionScope(entry) {
+	if !looksLikeVrooliProcessFn(c.Root, c.Home, entry) || insideLifecycleOwnedScope(entry) {
 		return false
 	}
 	// A leaked desktop-bundle process is only eligible while it is still an

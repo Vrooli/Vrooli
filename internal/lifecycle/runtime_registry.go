@@ -11,10 +11,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/runtimediagnostics"
 	"github.com/vrooli/vrooli/internal/logx"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/ports"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/internal/runtimeprofile"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
@@ -38,11 +40,12 @@ type scenarioRuntimeStore interface {
 }
 
 type runtimeRegistrySession struct {
-	enabled  bool
-	store    scenarioRuntimeStore
-	instance scenarioruntime.Instance
-	claims   map[string]scenarioruntime.PortClaim
-	version  string
+	enabled        bool
+	store          scenarioRuntimeStore
+	instance       scenarioruntime.Instance
+	claims         map[string]scenarioruntime.PortClaim
+	version        string
+	diagnosticsDir string
 }
 
 type runtimeRegistryStopSession struct {
@@ -71,6 +74,10 @@ func disabledRuntimeRegistrySession() runtimeRegistrySession {
 }
 
 func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Scenario, demandManaged bool) (runtimeRegistrySession, error) {
+	diagnosticsDir, err := runtimeprofile.Directory(r.Home)
+	if err != nil {
+		return runtimeRegistrySession{}, fmt.Errorf("resolve runtime diagnostics directory: %w", err)
+	}
 	deps := r.runtimeDeps()
 	store, err := deps.runtimeRegistry(ctx, r.Home)
 	if err != nil {
@@ -115,11 +122,12 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 		return runtimeRegistrySession{}, fmt.Errorf("create scenario runtime lease: %w", err)
 	}
 	return runtimeRegistrySession{
-		enabled:  true,
-		store:    store,
-		instance: instance,
-		claims:   map[string]scenarioruntime.PortClaim{},
-		version:  item.Manifest.Version,
+		enabled:        true,
+		store:          store,
+		instance:       instance,
+		claims:         map[string]scenarioruntime.PortClaim{},
+		version:        item.Manifest.Version,
+		diagnosticsDir: diagnosticsDir,
 	}, nil
 }
 
@@ -375,28 +383,22 @@ func (s runtimeRegistrySession) injectEnv(env map[string]string) {
 	}
 	env[runtimeRegistryInstanceEnv] = s.instance.InstanceID
 	env[runtimeRegistryGenerationEnv] = strconv.FormatInt(s.instance.Generation, 10)
+	if s.diagnosticsDir != "" {
+		env[runtimediagnostics.DirectoryEnv] = s.diagnosticsDir
+	}
 	if s.instance.BuildIdentity != "" {
 		env[buildIdentityEnv] = s.instance.BuildIdentity
 	}
 }
 
-func (s runtimeRegistrySession) recordHealth(ctx context.Context, item scenario.Scenario, env ports.Environment, healthStatus string) error {
+func (s runtimeRegistrySession) recordHealth(ctx context.Context, item scenario.Scenario, snapshot scenarioruntime.HealthSnapshot) error {
 	if !s.enabled {
 		return nil
 	}
-	snapshot := scenarioruntime.HealthProbe{}.Probe(ctx, scenarioruntime.HealthProbeInput{
-		InstanceID:            s.instance.InstanceID,
-		Scenario:              item.Slug,
-		HealthConfig:          item.Manifest.HealthConfig(),
-		Ports:                 healthPortsFromEnv(item.Manifest, env.EnvVars),
-		ExpectedBuildIdentity: s.instance.BuildIdentity,
-	})
-	lifecycleStatus := runtimeHealthStatus(healthStatus)
-	if lifecycleStatus != scenarioruntime.HealthStatusUnknown && shouldPreferLifecycleHealthStatus(snapshot) {
-		readiness := healthStatus == WaitVerdictHealthy || healthStatus == scenarioruntime.HealthStatusDegraded || healthStatus == WaitVerdictRunning
-		snapshot.Status = lifecycleStatus
-		snapshot.Readiness = &readiness
-	}
+	// Persist the exact sample accepted by the startup wait. A second probe
+	// can contradict that verdict and publish a not-ready instance as healthy.
+	snapshot.InstanceID = s.instance.InstanceID
+	snapshot.Scenario = item.Slug
 	if _, err := s.store.UpsertHealthSnapshot(ctx, snapshot); err != nil {
 		return fmt.Errorf("write scenario runtime health snapshot: %w", err)
 	}
@@ -602,7 +604,7 @@ func (s *runtimeRegistrySession) fail(ctx context.Context, cause error) error {
 	if _, err := s.store.RecordEvent(cleanupCtx, scenarioruntime.Event{
 		InstanceID:  s.instance.InstanceID,
 		Scenario:    s.instance.Scenario,
-		EventType:   "start_failed",
+		EventType:   scenarioruntime.EventTypeStartFailed,
 		DetailsJSON: string(details),
 	}); err != nil {
 		return fmt.Errorf("record scenario runtime failure event: %w", err)
@@ -631,7 +633,7 @@ func (s runtimeRegistryStopSession) finish(ctx context.Context) error {
 	}
 	endedAt := time.Now().UTC()
 	for _, refID := range s.processRefIDs {
-		if _, err := s.store.UpdateProcessRefStatus(ctx, refID, "exited", &endedAt); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
+		if _, err := s.store.UpdateProcessRefStatus(ctx, refID, scenarioruntime.ProcessRefStatusExited, &endedAt); err != nil && !errors.Is(err, scenarioruntime.ErrNotFound) {
 			return fmt.Errorf("mark runtime process %s exited during stop: %w", refID, err)
 		}
 	}
@@ -681,34 +683,20 @@ func runtimePortURL(portName string, port int) string {
 	return scenarioruntime.LocalPortURL(portName, port)
 }
 
-func runtimeHealthStatus(status string) string {
-	switch strings.TrimSpace(status) {
-	case WaitVerdictHealthy:
-		return scenarioruntime.HealthStatusHealthy
-	case scenarioruntime.HealthStatusDegraded:
-		return scenarioruntime.HealthStatusDegraded
-	case scenarioruntime.HealthStatusUnhealthy:
-		return scenarioruntime.HealthStatusUnhealthy
-	case WaitVerdictRunning:
-		return scenarioruntime.HealthStatusNotConfigured
-	default:
-		return scenarioruntime.HealthStatusUnknown
-	}
-}
-
 // registryRuntimeView is the lifecycle-facing view of registry-authoritative
 // runtime state. It captures everything the start/dependency reuse decisions
 // need: whether there is an authoritative instance, the ports it claims, and
-// the recorded health snapshot. PID visibility is intentionally not part of
-// this view — registry lease freshness and listener evidence are the
-// authority, not process records.
+// the recorded health snapshot. ProviderAbsent separately carries conservative
+// process and listener evidence for recovery of a crashed API; it never grants
+// authority to signal a process.
 type registryRuntimeView struct {
-	Present       bool
-	Authoritative bool
-	Instance      scenarioruntime.Instance
-	Claims        []scenarioruntime.PortClaim
-	Ports         map[string]int
-	HealthStatus  string
+	Present        bool
+	Authoritative  bool
+	Instance       scenarioruntime.Instance
+	Claims         []scenarioruntime.PortClaim
+	Ports          map[string]int
+	HealthStatus   string
+	ProviderAbsent bool
 }
 
 // lookupRegistryRuntime returns the authoritative registry runtime for a
@@ -742,12 +730,19 @@ func (r *Runner) lookupRegistryRuntime(ctx context.Context, item scenario.Scenar
 		}
 	}
 
-	claims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
+	providerClaims, err := store.ListPortClaims(ctx, scenarioruntime.PortClaimFilter{
 		InstanceID: latest.InstanceID,
-		Statuses:   scenarioruntime.ActivePortClaimStatuses(),
 	})
 	if err != nil {
 		return registryRuntimeView{}, err
+	}
+	// Expired claims cannot advertise an endpoint, but retain the port that
+	// must be checked before proving a crashed provider absent.
+	var claims []scenarioruntime.PortClaim
+	for _, claim := range providerClaims {
+		if scenarioruntime.IsActivePortClaimStatus(claim.Status) {
+			claims = append(claims, claim)
+		}
 	}
 	refs, err := store.ListProcessRefs(ctx, latest.InstanceID)
 	if err != nil {
@@ -782,10 +777,11 @@ func (r *Runner) lookupRegistryRuntime(ctx context.Context, item scenario.Scenar
 	})
 
 	view := registryRuntimeView{
-		Present:       true,
-		Authoritative: reconciled.Authoritative,
-		Instance:      latest,
-		HealthStatus:  health.Status,
+		Present:        true,
+		Authoritative:  reconciled.Authoritative,
+		Instance:       latest,
+		HealthStatus:   health.Status,
+		ProviderAbsent: providerKnownAbsent(item, latest, host.BootID, providerClaims, refs, snapshot.Listening, process.IsPIDRunning),
 	}
 	if !reconciled.Authoritative {
 		return view, nil
@@ -824,11 +820,4 @@ func isNewerInstance(candidate, current scenarioruntime.Instance) bool {
 		return candidate.UpdatedAt.After(current.UpdatedAt)
 	}
 	return candidate.InstanceID > current.InstanceID
-}
-
-func shouldPreferLifecycleHealthStatus(snapshot scenarioruntime.HealthSnapshot) bool {
-	if snapshot.Status == scenarioruntime.HealthStatusNotConfigured || snapshot.Status == scenarioruntime.HealthStatusUnknown {
-		return true
-	}
-	return snapshot.SchemaValid != nil && !*snapshot.SchemaValid
 }

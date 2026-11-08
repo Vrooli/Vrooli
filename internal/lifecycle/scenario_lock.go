@@ -12,6 +12,7 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	platform "github.com/vrooli/platform-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
 )
@@ -20,15 +21,23 @@ const (
 	scenarioLockParameterA = 64
 )
 
-// scenarioLockDirName is the subdirectory under Home where per-scenario
-// advisory lock files live. Runner.Home points at the user's home
-// directory ($HOME), and the canonical vrooli state tree lives under
-// "$HOME/.vrooli/state" — the lock files live alongside runtime.db so
-// every vrooli invocation, regardless of cwd or scenario context,
-// resolves the same path. Lock files are not deleted: flock(2) releases
-// the lock when the holding fd closes, and leaving inodes in place keeps
-// identity stable across acquisitions.
-const scenarioLockDirName = ".vrooli/state/locks"
+// scenarioLockDir is the directory holding per-scenario advisory lock files:
+// locks/ under the runtime-home state entry the repo contract declares for
+// home (the user's $HOME), alongside runtime.db, so every vrooli invocation,
+// regardless of cwd or scenario context, resolves the same path. Scenarios
+// share these files (agent-manager's maintenance interlock takes
+// scenario-agent-manager.lock, and internal/artifactlock keeps its locks in
+// the same directory), and they all resolve it through the same entry. Lock
+// files are not deleted: flock(2) releases the lock when the holding fd
+// closes, and leaving inodes in place keeps identity stable across
+// acquisitions.
+func scenarioLockDir(home string) (string, error) {
+	stateRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		return "", fmt.Errorf("resolve runtime-home state entry: %w", err)
+	}
+	return filepath.Join(stateRoot, "locks"), nil
+}
 
 // ErrScenarioBusy is returned when another vrooli process already holds
 // the lifecycle lock for the requested scenario. The wrapped error includes
@@ -145,7 +154,11 @@ func (r *Runner) acquireScenarioLockWithMode(name string, blocking bool) (func()
 		return nil, &ScenarioBusyError{Scenario: name}
 	}
 
-	lockDir := filepath.Join(home, scenarioLockDirName)
+	lockDir, err := scenarioLockDir(home)
+	if err != nil {
+		mu.Unlock()
+		return nil, fmt.Errorf("acquire scenario lock for %q: %w", name, err)
+	}
 	if err := os.MkdirAll(lockDir, tuning.PermDir); err != nil {
 		mu.Unlock()
 		return nil, fmt.Errorf("create scenario lock dir: %w", err)

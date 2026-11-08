@@ -8,7 +8,10 @@ package sessioncontain
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
 	platform "github.com/vrooli/platform-go"
@@ -29,8 +32,8 @@ func containment(c cliutil.SessionContainment) platform.Containment {
 
 // Run starts the process inside the scope and waits for it. A failure before
 // the process starts is an UncontainedError so the launcher can fall back; a
-// failure of the post-start step leaves the process running and is reported
-// through the session's method.
+// failure after spawn is cleaned up at the platform boundary. Cancellation
+// stops the acquired scope and reaps the exact root before returning.
 func (Container) Run(ctx context.Context, scope string, c cliutil.SessionContainment, p cliutil.SessionProcess) (cliutil.ContainedSession, error) {
 	contained, err := platform.ContainedCommand(platform.ContainedSpec{
 		Path: p.Path, Args: p.Args, Env: p.Env, Dir: p.Dir, Stdin: p.Stdin, Stdout: p.Stdout, Stderr: p.Stderr,
@@ -40,20 +43,52 @@ func (Container) Run(ctx context.Context, scope string, c cliutil.SessionContain
 		return cliutil.ContainedSession{Method: platform.MethodNone}, &cliutil.UncontainedError{Err: err}
 	}
 	defer contained.Release()
-	if err := contained.Start(); err != nil {
+	contained.Cmd.WaitDelay = 2 * time.Second
+	if err := contained.StartContext(ctx); err != nil {
+		if ctx.Err() != nil {
+			return cliutil.ContainedSession{Scope: contained.Scope.String(), Method: contained.Method}, err
+		}
 		if contained.Cmd.Process == nil {
 			return cliutil.ContainedSession{Method: platform.MethodNone}, &cliutil.UncontainedError{Err: err}
 		}
-		// Started but not placed: wait for it and report the gap.
-		waitErr := contained.Cmd.Wait()
-		return cliutil.ContainedSession{Scope: contained.Scope.String(), Method: contained.Method + " (unplaced: " + err.Error() + ")"}, waitErr
+		// StartContext already stopped/reaped the exact process on a
+		// post-spawn placement failure. Never start a fallback agent here.
+		return cliutil.ContainedSession{Scope: contained.Scope.String(), Method: contained.Method}, err
 	}
 	session := cliutil.ContainedSession{Scope: contained.Scope.String(), Method: contained.Method}
-	waitErr := contained.Cmd.Wait()
-	if ctx.Err() != nil && waitErr != nil {
-		return session, fmt.Errorf("%w: %v", ctx.Err(), waitErr)
+	if ctx.Done() == nil {
+		return session, contained.Cmd.Wait()
 	}
-	return session, waitErr
+	done := make(chan error, 1)
+	go func() { done <- contained.Cmd.Wait() }()
+	select {
+	case err := <-done:
+		return session, err
+	case <-ctx.Done():
+	}
+	cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	stopErr := platform.StopScopeContext(cleanup, contained.Scope)
+	// systemd-run may be outside the acquired agent scope. Kill only this
+	// invocation's root handle, then wait for its reaping with bounded pipes.
+	killErr := contained.Cmd.Process.Kill()
+	if errors.Is(killErr, os.ErrProcessDone) {
+		killErr = nil
+	}
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	select {
+	case waitErr := <-done:
+		if stopErr == nil {
+			stopErr = platform.WaitScopeEmpty(cleanup, contained.Scope)
+		}
+		if stopErr != nil {
+			stopErr = errors.Join(platform.ErrContainmentCleanupUnverified, stopErr)
+		}
+		return session, errors.Join(ctx.Err(), stopErr, killErr, waitErr)
+	case <-timer.C:
+		return session, errors.Join(ctx.Err(), stopErr, killErr, platform.ErrContainmentCleanupUnverified, errors.New("contained launcher reaping timed out"))
+	}
 }
 
 // ContainSelf moves the calling process into the scope before an exec.

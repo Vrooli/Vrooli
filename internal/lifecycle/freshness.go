@@ -73,7 +73,76 @@ func installNeeded(repoRoot, root string, component scenario.Component, spec Bui
 	if err := json.Unmarshal(data, &record); err != nil || record.Digest != digest {
 		return true, "install inputs changed", nil
 	}
+	if spec.FollowsWorkspaceFileDeps {
+		if gap, incomplete := incompleteSharedPackageInstall(repoRoot, filepath.Join(root, buildDir)); incomplete {
+			return true, gap, nil
+		}
+	}
 	return false, "install inputs unchanged", nil
+}
+
+// incompleteSharedPackageInstall verifies that each governed file: dependency
+// installed under node_modules carries every build output the package now
+// has. pnpm hardlinks a file: package's files into the consumer, so a rebuild
+// that rewrites existing files shows through while a file added afterwards
+// never appears; the recorded install digest alone cannot see that. Only
+// output directories the installed copy ships are compared, so outputs a
+// package deliberately does not publish never read as missing.
+func incompleteSharedPackageInstall(repoRoot, uiDir string) (string, bool) {
+	dependencies, err := sharedPackageDependencies(repoRoot, filepath.Join(uiDir, "package.json"))
+	if err != nil {
+		return "", false
+	}
+	for _, dependency := range dependencies {
+		installed := filepath.Join(uiDir, freshnessNodeModules, filepath.FromSlash(dependency.Name))
+		if _, err := os.Stat(installed); err != nil {
+			continue
+		}
+		for _, command := range append(append([]packagegov.CommandSpec{}, dependency.Generation...), dependency.Build...) {
+			files, err := declaredOutputFiles(dependency.Root, command.Outputs)
+			if err != nil {
+				continue
+			}
+			for _, file := range files {
+				rel, err := filepath.Rel(dependency.Root, file)
+				if err != nil {
+					continue
+				}
+				target := filepath.Join(installed, rel)
+				if _, err := os.Stat(filepath.Dir(target)); err != nil {
+					continue
+				}
+				canonical, canonicalErr := os.Stat(file)
+				copied, copiedErr := os.Stat(target)
+				if canonicalErr == nil && (copiedErr != nil || installedCopyDiffers(file, target, canonical, copied)) {
+					return fmt.Sprintf("installed %s is missing or stale %s", dependency.Name, filepath.ToSlash(rel)), true
+				}
+			}
+		}
+	}
+	return "", false
+}
+
+// installedCopyDiffers reports whether an installed copy no longer matches the
+// package's output. A hard-linked copy (the same inode) always matches; once a
+// package build detaches its outputs (packagegov.DetachShippedFiles) the copy
+// keeps the old inode and is compared by size, then content.
+func installedCopyDiffers(canonicalPath, copiedPath string, canonical, copied os.FileInfo) bool {
+	if os.SameFile(canonical, copied) {
+		return false
+	}
+	if canonical.Size() != copied.Size() {
+		return true
+	}
+	want, err := os.ReadFile(canonicalPath)
+	if err != nil {
+		return false
+	}
+	got, err := os.ReadFile(copiedPath)
+	if err != nil {
+		return true
+	}
+	return !bytes.Equal(want, got)
 }
 
 func recordInstallDigest(repoRoot, root string, component scenario.Component, spec BuilderSpec, probeDeps ...*hostProbeDeps) error {

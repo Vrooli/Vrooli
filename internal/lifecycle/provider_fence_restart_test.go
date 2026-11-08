@@ -491,14 +491,36 @@ func TestRestartRecoversClosedFenceLinkedToFailedReplacementAcrossNewInstance(t 
 		t.Fatal("first Restart() error = nil, want retained-fence failure")
 	}
 	first := latestStartOperation(t, runner.Home, "alpha")
-	if first.FenceOperationID == "" || first.Status != scenarioruntime.StartOperationStatusAbandoned {
-		t.Fatalf("first failed replacement record = %+v, want retained fence link and abandoned attempt", first)
+	if first.FenceOperationID == "" || first.Status != scenarioruntime.StartOperationStatusFailed {
+		t.Fatalf("first failed replacement record = %+v, want retained fence link and failed attempt", first)
 	}
 	firstFenceID := service.operationID()
 	if first.FenceOperationID != firstFenceID {
 		t.Fatalf("first record fence link = %q, provider fence = %q", first.FenceOperationID, firstFenceID)
 	}
 	registerRestartFenceTestProvider(t, runner, service.port)
+	// Intervening attempts may fail before reaching fence negotiation. More
+	// attempts than ordinary history retains must still preserve the exact
+	// first linked owner for the closed fence in the replacement generation.
+	prepareFailure := errors.New("replacement source temporarily unavailable")
+	runner.Engagements = &fakeEngagementResolver{err: prepareFailure}
+	for i := 0; i < scenarioruntime.StartOperationKeepTerminal+2; i++ {
+		if _, err := runner.Restart("alpha", StartOptions{}); !errors.Is(err, prepareFailure) {
+			t.Fatalf("preparation retry %d: %v", i, err)
+		}
+		failed := latestStartOperation(t, runner.Home, "alpha")
+		if failed.OperationID == first.OperationID || failed.FenceOperationID != "" || failed.Status != scenarioruntime.StartOperationStatusFailed {
+			t.Fatalf("preparation retry %d record = %+v", i, failed)
+		}
+	}
+	runner.Engagements = nil
+	// A caller lost before preparation emits no terminal event. The next
+	// admitted attempt supersedes that durable running record as abandoned.
+	store := openWaitTestStore(t, runner.Home)
+	lost, err := store.BeginStartOperation(t.Context(), scenarioruntime.StartOperation{Scenario: "alpha", Operation: lifecycleOperationRestart})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if _, err := runner.Restart("alpha", StartOptions{}); err != nil {
 		t.Fatalf("retry from exact retained fence: %v", err)
@@ -510,9 +532,39 @@ func TestRestartRecoversClosedFenceLinkedToFailedReplacementAcrossNewInstance(t 
 	if second.FenceOperationID != firstFenceID {
 		t.Fatalf("retry fence link = %q, want retained fence %q", second.FenceOperationID, firstFenceID)
 	}
+	interrupted, err := store.GetStartOperation(t.Context(), lost.OperationID)
+	if err != nil || interrupted.Status != scenarioruntime.StartOperationStatusAbandoned {
+		t.Fatalf("lost preparation was not superseded as abandoned: %+v, %v", interrupted, err)
+	}
 	got := snapshotRestartFenceEvents(service, events)
 	if len(got) != 7 || strings.Join(got, ",") != "prepare,drain,stop,prepare,drain,stop,resume" {
 		t.Fatalf("restart/recovery lifecycle events = %v", got)
+	}
+}
+
+func TestRestartRecoversRetainedClosedFenceAfterWarmStart(t *testing.T) {
+	runner, service, _ := restartFenceTestRunner(t, "allow")
+	runner.WithProgressSink(restartFenceProgressSink{service: service})
+	service.failFirstResume = true
+	if _, err := runner.Restart("alpha", StartOptions{}); err == nil {
+		t.Fatal("first replacement unexpectedly resumed its fence")
+	}
+	owner := latestStartOperation(t, runner.Home, "alpha")
+	registerRestartFenceTestProvider(t, runner, service.port)
+	warm, err := runner.Start("alpha", StartOptions{})
+	if err != nil || !warm.AlreadyRunning {
+		t.Fatalf("warm start under retained maintenance fence = %+v, %v", warm, err)
+	}
+	warmReceipt := latestStartOperation(t, runner.Home, "alpha")
+	if warmReceipt.Status != scenarioruntime.StartOperationStatusSucceeded || warmReceipt.FenceOperationID != "" {
+		t.Fatalf("warm receipt = %+v; want succeeded without a new fence", warmReceipt)
+	}
+	if _, err := runner.Restart("alpha", StartOptions{}); err != nil {
+		t.Fatalf("exact retained fence became unrecoverable after warm start: %v", err)
+	}
+	recovered := latestStartOperation(t, runner.Home, "alpha")
+	if recovered.FenceOperationID != owner.FenceOperationID {
+		t.Fatalf("recovered fence = %s, want exact %s", recovered.FenceOperationID, owner.FenceOperationID)
 	}
 }
 

@@ -44,7 +44,7 @@ func RenderDependents(w io.Writer, format cliout.Format, resp DependentsResponse
 			if len(resp.Issues) > 0 {
 				_, _ = fmt.Fprintln(w)
 				for _, issue := range resp.Issues {
-					_, _ = fmt.Fprintf(w, "%s: %s (%s)\n", issue.Severity, issue.Message, filepath.ToSlash(issue.Path))
+					_, _ = fmt.Fprintln(w, issue.String())
 				}
 			}
 			return nil

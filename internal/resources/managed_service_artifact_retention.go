@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -23,6 +24,7 @@ const (
 	ArtifactRetainRunning  = "running"
 	ArtifactRetainInUse    = "in-use"
 	ArtifactRetainRollback = "rollback"
+	ArtifactRetainUpdate   = "update-operation"
 	ArtifactRetainRemove   = "superseded"
 )
 
@@ -138,6 +140,14 @@ func planManagedServiceArtifactRetention(c *Controller, manifest ResourceManifes
 		return plan, err
 	}
 	plan.Root = root
+	// Caller death can leave neither a candidate nor a restored process alive.
+	// The operation's frozen bytes remain recovery inputs nonetheless. Read the
+	// strict ledger before planning any removals; an unreadable ledger is not
+	// evidence that no operation owns these artifacts.
+	updateVersions, err := managedUpdateArtifactVersions(manifest.Name, root)
+	if err != nil {
+		return plan, err
+	}
 	entries, err := os.ReadDir(root)
 	if os.IsNotExist(err) {
 		return plan, nil
@@ -179,6 +189,8 @@ func planManagedServiceArtifactRetention(c *Controller, manifest ResourceManifes
 			decision.Reason = ArtifactRetainRunning
 		case inUse[decision.Version]:
 			decision.Reason = ArtifactRetainInUse
+		case updateVersions[decision.Version]:
+			decision.Reason = ArtifactRetainUpdate
 		default:
 			candidates = append(candidates, decision)
 			continue
@@ -211,6 +223,37 @@ func planManagedServiceArtifactRetention(c *Controller, manifest ResourceManifes
 		return plan.Versions[i].Modified.After(plan.Versions[j].Modified)
 	})
 	return plan, nil
+}
+
+func managedUpdateArtifactVersions(resource, root string) (map[string]bool, error) {
+	store, err := newManagedUpdateStore(resource)
+	if err != nil {
+		return nil, err
+	}
+	u, err := store.Active()
+	if errors.Is(err, ErrManagedUpdateNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("retain managed update artifacts: %w", err)
+	}
+	versions := map[string]bool{}
+	for _, c := range []ManagedUpdateContract{u.Target, u.Rollback} {
+		relative, err := filepath.Rel(root, c.Artifact.Path)
+		if err != nil {
+			return nil, fmt.Errorf("locate retained update artifact: %w", err)
+		}
+		// Legacy artifacts outside this store are not prune candidates here.
+		if relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			continue
+		}
+		version := strings.SplitN(relative, string(filepath.Separator), 2)[0]
+		if version == "." || version != c.Artifact.Version {
+			return nil, fmt.Errorf("retained update artifact path disagrees with its version")
+		}
+		versions[version] = true
+	}
+	return versions, nil
 }
 
 // retainManagedServiceArtifactsAfterActivation applies default retention once

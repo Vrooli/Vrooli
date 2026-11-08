@@ -84,6 +84,7 @@ const (
 	CommandStopAll         CommandID = "stop-all"
 	CommandTest            CommandID = "test"
 	CommandLogs            CommandID = "logs"
+	CommandProfile         CommandID = "profile"
 	CommandScreenshot      CommandID = "screenshot"
 	CommandOpen            CommandID = "open"
 	CommandPort            CommandID = "port"
@@ -96,6 +97,15 @@ const (
 func CommandSpecs() []commandtree.Spec[CommandID] {
 	return []commandtree.Spec[CommandID]{
 		{
+			Name: string(CommandProfile), Group: "Read-only Commands", Summary: "Collect a bounded CPU profile from one exact local component launch", Handler: CommandProfile, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{
+				commandtree.JSONOption(), instanceOption(), nodeOption(),
+				{Name: "--seconds", ValueName: "1..30", Description: "Profile duration in seconds (default 10; maximum 30)"},
+				{Name: "--step", ValueName: "name", Description: "Exact lifecycle component step (default start-api)"},
+				{Name: "--out", ValueName: "path", Description: "New owner-only CPU profile file (required; never overwrites)"},
+			}},
+		},
+		{
 			Name: string(CommandList), Group: "Read-only Commands", Summary: "List discovered scenarios", Handler: CommandList, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{commandtree.JSONOption(), {Name: "--include-ports", Description: "Include port mappings in the list output"}}},
 		},
@@ -104,7 +114,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{commandtree.JSONOption()}},
 		},
 		{
-			Name: string(CommandStatus), Group: "Read-only Commands", Summary: "Show scenario runtime status", Handler: CommandStatus, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
+			Name: string(CommandStatus), Group: "Read-only Commands", Summary: "Snapshot runtime status; after start/restart, call `vrooli scenario wait <name>` once", Handler: CommandStatus, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name"}}, Options: []commandtree.OptionArg{commandtree.JSONOption(), instanceOption(), nodeOption()}},
 		},
 		{

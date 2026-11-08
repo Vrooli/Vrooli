@@ -135,6 +135,7 @@ func mergeHandlerMaps[C any](groups ...map[CommandID]rootcli.Handler[C]) map[Com
 
 func buildScenarioReadHandlers[C any](deps rootcli.HandlerDeps[C]) map[CommandID]rootcli.Handler[C] {
 	return map[CommandID]rootcli.Handler[C]{
+		CommandProfile: profileHandler(deps),
 		CommandValidate: func(ctx C, args []string) error {
 			format, err := deps.OutputFormat(ctx)
 			if err != nil {

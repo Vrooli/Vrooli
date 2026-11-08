@@ -7,7 +7,7 @@ import (
 )
 
 func cliVersionMessage(out versionOutput) *cliv1.CliVersion {
-	return &cliv1.CliVersion{CliVersion: out.CLIVersion, PlatformVersion: out.PlatformVersion, Root: out.Root}
+	return &cliv1.CliVersion{CliVersion: out.CLIVersion, PlatformVersion: out.PlatformVersion, Root: out.Root, BuildIdentity: out.BuildIdentity, RuntimeHomeContractSha256: out.RuntimeHomeContractSHA256, PersistentStateContractSha256: out.PersistentStateContractSHA256}
 }
 
 var _ proto.Message = (*cliv1.CliVersion)(nil)

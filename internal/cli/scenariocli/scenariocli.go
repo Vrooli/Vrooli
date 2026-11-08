@@ -399,6 +399,7 @@ func WriteStatusHuman(w io.Writer, output StatusSingleOutput) {
 	if op := status.StartOperation; op != nil {
 		if summary := op.InFlightSummary(); summary != "" {
 			_, _ = fmt.Fprintf(w, "Lifecycle: %s\n", summary)
+			_, _ = fmt.Fprintf(w, "Wait: vrooli scenario wait %s --json (blocks once until terminal; do not poll status)\n", info.Name)
 		}
 	}
 	if output.Scenario.Health != nil {

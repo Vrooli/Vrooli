@@ -25,6 +25,9 @@ func withManagedServiceLifecycleLock(ctx context.Context, resource string, fn fu
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if err := ensureManagedUpdateLifecycleAvailable(resource, "owner lifecycle"); err != nil {
+		return err
+	}
 	return fn()
 }
 

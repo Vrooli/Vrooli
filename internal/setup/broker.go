@@ -37,7 +37,7 @@ func (s *setupService) runSetupBroker(root string, opts Options, stdout, stderr 
 			fmt.Fprintln(stdout, "Dry run: setup would install/upgrade the broker and its saved local-service policy; other host requirements are excluded.")
 		}
 	}
-	if !opts.DryRun && !status.Available {
+	if !opts.DryRun && (!status.Available || status.UpgradeRequired) {
 		return fmt.Errorf("privilege broker remains unavailable: %s; use `vrooli setup broker --sudo-mode=ask`", status.Reason)
 	}
 	return nil

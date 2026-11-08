@@ -774,6 +774,10 @@ func TestProjectPhase7ActiveDiscoveryOnlyIncludesManifestBackedResources(t *test
 }
 
 func TestProjectManagedServiceStatusesUseNativeManifests(t *testing.T) {
+	// Status consults native ownership independently of the desired artifact.
+	// This fixture declares absent services, so isolate both state and images.
+	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", t.TempDir())
+	t.Setenv("VROOLI_RESOURCE_ARTIFACT_DIR", t.TempDir())
 	projectRoot := projectRootForResourcesTest(t)
 	root := t.TempDir()
 	home := t.TempDir()

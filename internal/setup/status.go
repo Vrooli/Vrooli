@@ -139,6 +139,9 @@ func renderPrivilegeBrokerStatus(stdout io.Writer, status privilegebroker.SetupS
 		if len(status.Capabilities) > 0 {
 			_, _ = fmt.Fprintf(stdout, "[INFO]    Setup-managed capabilities: %s\n", strings.Join(status.Capabilities, ", "))
 		}
+		if status.UpgradeRequired {
+			_, _ = fmt.Fprintf(stdout, "[INFO]    Privilege broker upgrade needed: %s\n[INFO]    %s\n", strings.Join(status.MissingCapabilities, ", "), status.Recovery)
+		}
 		return
 	}
 	if status.Supported {

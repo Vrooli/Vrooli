@@ -152,12 +152,12 @@ func WithPorts(ports map[string]scenario.Port) ScenarioServiceOption {
 
 func WithCLI(cli *scenario.CLIConfig) ScenarioServiceOption {
 	return func(manifest *scenario.ServiceManifest) {
-		if cli != nil && cli.Enabled && cli.Adapter.Kind == "go_module" {
+		if cli != nil && cli.Enabled && cli.Adapter.Kind == scenario.CLIKindGoModule {
 			if cli.SourceBuild == nil {
-				cli.SourceBuild = &scenario.CLISourceBuildConfig{Kind: "go_module"}
+				cli.SourceBuild = &scenario.CLISourceBuildConfig{Kind: scenario.CLIKindGoModule}
 			}
 			if cli.Invoke.Kind == "" {
-				cli.Invoke.Kind = "installed_command"
+				cli.Invoke.Kind = scenario.CLIInvokeInstalledCommand
 			}
 			if cli.Invoke.Command == "" {
 				cli.Invoke.Command = cli.Command

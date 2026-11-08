@@ -934,6 +934,15 @@ func (r *Runner) waitForResourceDependencyReady(resourceName string) (resourceco
 	if lastErr != nil {
 		return lastStatus, fmt.Errorf("status started resource dependency %s: %w", resourceName, lastErr)
 	}
+	// The resource's own status message carries its diagnosis and remedy
+	// (for example a restart for an image that changed under a running
+	// service), so surface it rather than only the raw fields.
+	if message := strings.TrimSpace(lastStatus.Message); message != "" {
+		return lastStatus, fmt.Errorf(
+			"resource dependency %s is not ready after start: %s (running=%t health=%q status_code=%q)",
+			resourceName, message, lastStatus.Running, lastStatus.Health, lastStatus.StatusCode,
+		)
+	}
 	return lastStatus, fmt.Errorf(
 		"resource dependency %s is not ready after start (running=%t health=%q status_code=%q)",
 		resourceName,

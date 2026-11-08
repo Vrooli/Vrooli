@@ -31,7 +31,19 @@ const (
 	StateFile                     = "operator-state.json"
 	DefaultDraftRetention         = 30 * 24 * time.Hour
 	hostWorkloadPostureVrooliOnly = "vrooli_only"
+	hostWorkloadPostureWholeHost  = "whole_host"
 	capacityPostureBalanced       = "balanced"
+	capacityPostureResponsive     = "responsive"
+	capacityPostureThroughput     = "throughput"
+	capacityPostureMinimal        = "minimal"
+	trustPosturePersonal          = "personal"
+	trustPostureShared            = "shared"
+	trustPostureHosted            = "hosted"
+	updateControlObserve          = "observe"
+	updateControlGuard            = "guard"
+	updateControlOwn              = "own"
+	profileSessionGuided          = "guided"
+	profileSessionManual          = "manual"
 	AccelPreferenceAuto           = "auto"
 	AccelPreferencePreferGPU      = "prefer_gpu"
 	AccelPreferenceForceCPU       = "force_cpu"
@@ -143,7 +155,7 @@ func validateProfileSession(value *ProfileSession) error {
 	if strings.TrimSpace(value.Actor) == "" || len(value.Actor) > 512 {
 		return errors.New("profile session actor is required and must be at most 512 characters")
 	}
-	if value.Mode != "guided" && value.Mode != "manual" {
+	if value.Mode != profileSessionGuided && value.Mode != profileSessionManual {
 		return errors.New("profile session mode must be guided or manual")
 	}
 	if len(value.ProfileID) > 128 || len(value.ProfileVersion) > 64 || len(value.CatalogRevision) > 256 || len(value.ConsequenceDigest) > 256 || len(value.BaseRevision) > 256 {
@@ -309,7 +321,7 @@ func (d Document) EffectiveAccelPreference() string {
 	case AccelPreferenceAuto, AccelPreferencePreferGPU, AccelPreferenceForceCPU:
 		return d.AccelPreference
 	}
-	if d.CapacityPosture == "minimal" {
+	if d.CapacityPosture == capacityPostureMinimal {
 		return AccelPreferenceForceCPU
 	}
 	return AccelPreferenceAuto
@@ -317,10 +329,10 @@ func (d Document) EffectiveAccelPreference() string {
 
 func (d Document) EffectiveUpdateControl() string {
 	switch d.UpdateControl {
-	case "observe", "guard", "own":
+	case updateControlObserve, updateControlGuard, updateControlOwn:
 		return d.UpdateControl
 	default:
-		return "observe"
+		return updateControlObserve
 	}
 }
 
@@ -383,6 +395,9 @@ func (s *Service) Path(ctx context.Context) (string, error) {
 	if root := strings.TrimSpace(s.cfg.StorageRoot); root != "" {
 		return filepath.Join(root, StateFile), nil
 	}
+	// Under go test the shared resolver refuses the operator's live storage, so
+	// a test with only a temporary RepoRoot (which keys the writer lock but does
+	// not place the document) fails instead of seeding the real file.
 	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
 	if err != nil {
 		return "", fmt.Errorf("create operator-state storage resolver: %w", err)
@@ -825,7 +840,7 @@ func (s *Service) loadLocked(path string) (Document, error) {
 
 func Default() Document {
 	return Document{
-		Schema: SchemaPath, Version: "1.0.0",
+		Schema: SchemaPath, Version: documentVersion,
 		HostWorkloadPosture: hostWorkloadPostureVrooliOnly,
 		CapacityPosture:     capacityPostureBalanced,
 		Scenarios:           map[string]ScenarioChoice{}, Resources: map[string]EnabledChoice{},
@@ -931,13 +946,13 @@ func (s *Service) validate(merged []byte, doc Document) error {
 			return fmt.Errorf("operator state validation failed at /session/profile: %w", err)
 		}
 	}
-	if doc.TrustPosture != "" && doc.TrustPosture != "personal" && doc.TrustPosture != "shared" && doc.TrustPosture != "hosted" {
+	if doc.TrustPosture != "" && doc.TrustPosture != trustPosturePersonal && doc.TrustPosture != trustPostureShared && doc.TrustPosture != trustPostureHosted {
 		return errors.New("operator state validation failed at /trust_posture: must be personal, shared, or hosted")
 	}
-	if doc.HostWorkloadPosture != "" && doc.HostWorkloadPosture != "whole_host" && doc.HostWorkloadPosture != hostWorkloadPostureVrooliOnly {
+	if doc.HostWorkloadPosture != "" && doc.HostWorkloadPosture != hostWorkloadPostureWholeHost && doc.HostWorkloadPosture != hostWorkloadPostureVrooliOnly {
 		return errors.New("operator state validation failed at /host_workload_posture: must be whole_host or vrooli_only")
 	}
-	if doc.CapacityPosture != "" && doc.CapacityPosture != "responsive" && doc.CapacityPosture != capacityPostureBalanced && doc.CapacityPosture != "throughput" && doc.CapacityPosture != "minimal" {
+	if doc.CapacityPosture != "" && doc.CapacityPosture != capacityPostureResponsive && doc.CapacityPosture != capacityPostureBalanced && doc.CapacityPosture != capacityPostureThroughput && doc.CapacityPosture != capacityPostureMinimal {
 		return errors.New("operator state validation failed at /capacity_posture: must be responsive, balanced, throughput, or minimal")
 	}
 	if doc.AccelPreference != "" && doc.AccelPreference != AccelPreferenceAuto && doc.AccelPreference != AccelPreferencePreferGPU && doc.AccelPreference != AccelPreferenceForceCPU {

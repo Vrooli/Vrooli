@@ -25,6 +25,7 @@ const defaultRecoveryInspectLimit = 50
 var (
 	supervisorCommandNames = []string{"run", "status", "install", "uninstall"}
 	recoveryPolicyNames    = []string{"set", "list"}
+	rootUpdateNames        = []string{"status", "apply", "retry", "enroll", "disable", "reconcile"}
 )
 
 const runtimeHelpText = `vrooli runtime - Manage Vrooli runtime control-plane services
@@ -35,6 +36,7 @@ Usage:
   vrooli runtime supervisor status [--json]
   vrooli runtime supervisor install [--user]
   vrooli runtime supervisor uninstall [--user]
+  vrooli runtime update <status|apply CANDIDATE|retry CANDIDATE|enroll|disable|reconcile> [--json]
   vrooli runtime recovery policy set <scenario> [options]
   vrooli runtime recovery policy list
 
@@ -66,6 +68,9 @@ func RegisteredCommandPaths() []string {
 	for _, name := range recoveryPolicyNames {
 		paths = append(paths, "runtime recovery policy "+name)
 	}
+	for _, name := range rootUpdateNames {
+		paths = append(paths, "runtime update "+name)
+	}
 	return paths
 }
 
@@ -78,6 +83,17 @@ func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 			commandCtx := &rootcli.CommandContext{Root: deps.Root(ctx), Globals: deps.Globals(ctx), Stdin: deps.Stdin(ctx), Stdout: deps.Stdout(ctx), Stderr: deps.Stderr(ctx), Context: operationCtx, HomeDirFn: func() (string, error) { return deps.HomeDir(ctx) }, ResolveRootFn: func() (string, error) { return deps.ResolveRoot(ctx) }, Version: deps.Version(ctx)}
 			app := &runtimeapp.Service{Version: deps.Version(ctx), ResolveRootFn: func() (string, error) { return deps.ResolveRoot(ctx) }}
 			return runtimeService{run: func(args []string) error {
+				if len(args) > 0 && args[0] == "update" {
+					full := append([]string{"runtime"}, args...)
+					handled, code := RunRootUpdateReadCommand(full, deps.Stdout(ctx), deps.Stderr(ctx))
+					if !handled {
+						_, code = RunRootUpdateEffectCommand(operationCtx, full, deps.Stdout(ctx), deps.Stderr(ctx), commandCtx.ResolveRoot)
+					}
+					if code != 0 {
+						return fmt.Errorf("root update command failed (exit %d)", code)
+					}
+					return nil
+				}
 				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
 					return writeRuntimeHelp(deps.Stdout(ctx))
 				}

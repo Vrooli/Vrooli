@@ -127,7 +127,7 @@ func (r *Runner) WaitScenario(name string, opts WaitOptions) (WaitOutcome, error
 	}
 	if ok && !view.Terminal() {
 		outcome.Attached = true
-		final, timedOut, err := r.awaitStartOperationTerminal(item, timeout, opts.OnTransition)
+		final, timedOut, err := r.awaitStartOperationTerminal(item, view.OperationID, timeout, opts.OnTransition)
 		if err != nil {
 			return WaitOutcome{}, err
 		}
@@ -144,25 +144,24 @@ func (r *Runner) WaitScenario(name string, opts WaitOptions) (WaitOutcome, error
 	if ok || outcome.Attached {
 		outcome.Operation = &view
 	}
-	r.resolveWaitVerdict(&outcome, item, view, ok)
-	return outcome, nil
+	return outcome, r.resolveWaitVerdict(&outcome, item, view, ok)
 }
 
 // resolveWaitVerdict maps a terminal (or absent) operation record plus the
 // live registry state onto the outcome verdict. Success claims are always
 // re-verified against the registry fast-path rather than trusted from the
 // record.
-func (r *Runner) resolveWaitVerdict(outcome *WaitOutcome, item scenario.Scenario, view StartOperationView, hasRecord bool) {
+func (r *Runner) resolveWaitVerdict(outcome *WaitOutcome, item scenario.Scenario, view StartOperationView, hasRecord bool) error {
 	if hasRecord {
 		switch view.Status {
 		case scenarioruntime.StartOperationStatusFailed:
 			outcome.Verdict = WaitVerdictFailed
 			outcome.Error = view.Error
-			return
+			return nil
 		case scenarioruntime.StartOperationStatusAbandoned:
 			outcome.Verdict = WaitVerdictAbandoned
 			outcome.Error = defaultIfEmpty(view.Error, "start abandoned before completion; re-run `vrooli scenario start`")
-			return
+			return nil
 		}
 	}
 	// Succeeded record or no record at all: the registry is the authority on
@@ -170,38 +169,43 @@ func (r *Runner) resolveWaitVerdict(outcome *WaitOutcome, item scenario.Scenario
 	registryView, err := r.lookupRegistryRuntime(context.Background(), item)
 	if err != nil {
 		r.logWarn("Wait verdict registry re-verify failed", logx.AttrScenario, item.Slug, "error", err.Error())
-		if hasRecord && view.Status == scenarioruntime.StartOperationStatusSucceeded && view.Verdict != "" {
-			outcome.Verdict = view.Verdict
-			return
-		}
-		outcome.Verdict = WaitVerdictNotRunning
-		outcome.Error = fmt.Sprintf("runtime registry unavailable: %v", err)
-		return
+		return fmt.Errorf("runtime registry unavailable while verifying scenario %q: %w", item.Slug, err)
 	}
 	if !registryView.Authoritative {
 		outcome.Verdict = WaitVerdictNotRunning
 		outcome.Error = "scenario is not running"
-		return
+		return nil
 	}
-	health := scenario.EvaluateHealth(item.Manifest.HealthConfig(), registryView.Ports)
+	snapshot := r.observeScenarioHealth(context.Background(), item, registryView.Ports, registryView.Instance.BuildIdentity)
+	health := snapshot.Status
 	outcome.Ports = registryView.Ports
+	if !healthSnapshotReady(snapshot) {
+		outcome.Verdict = WaitVerdictFailed
+		outcome.Error = "scenario is running but is not ready: " + snapshot.Error
+		return nil
+	}
 	switch health {
 	case WaitVerdictHealthy:
 		outcome.Verdict = WaitVerdictHealthy
 	case WaitVerdictDegraded:
 		outcome.Verdict = WaitVerdictDegraded
-	case "unknown", WaitVerdictRunning, "":
+	case "unknown", WaitVerdictRunning, "", scenarioruntime.HealthStatusNotConfigured:
 		// No health checks configured: registry authority is the best truth.
 		outcome.Verdict = WaitVerdictRunning
 	default:
 		outcome.Verdict = WaitVerdictFailed
 		outcome.Error = fmt.Sprintf("scenario is running but health evaluates %q", health)
 	}
+	return nil
 }
 
 // startOperationView reads and evaluates the latest operation record for an
 // instance. ok=false when no record exists.
 func (r *Runner) startOperationView(item scenario.Scenario) (StartOperationView, bool, error) {
+	return r.readStartOperationView(item, "")
+}
+
+func (r *Runner) readStartOperationView(item scenario.Scenario, operationID string) (StartOperationView, bool, error) {
 	deps := r.runtimeDeps()
 	ctx := context.Background()
 	store, err := deps.runtimeRegistry(ctx, r.Home)
@@ -209,12 +213,20 @@ func (r *Runner) startOperationView(item scenario.Scenario) (StartOperationView,
 		return StartOperationView{}, false, err
 	}
 	defer store.Close()
-	op, err := store.GetLatestStartOperation(ctx, item.Slug, item.Variant)
+	var op scenarioruntime.StartOperation
+	if operationID == "" {
+		op, err = store.GetLatestStartOperation(ctx, item.Slug, item.Variant)
+	} else {
+		op, err = store.GetStartOperation(ctx, operationID)
+	}
 	if errors.Is(err, scenarioruntime.ErrNotFound) {
 		return StartOperationView{}, false, nil
 	}
 	if err != nil {
 		return StartOperationView{}, false, err
+	}
+	if op.Scenario != item.Slug || op.Variant != (scenarioruntime.InstanceKey{Scenario: item.Slug, Variant: item.Variant}).Normalize().Variant {
+		return StartOperationView{}, false, fmt.Errorf("start operation %q belongs to a different scenario instance", op.OperationID)
 	}
 	estimates, err := store.PhaseDurationEstimates(ctx, item.Slug, item.Variant)
 	if err != nil {
@@ -227,13 +239,13 @@ func (r *Runner) startOperationView(item scenario.Scenario) (StartOperationView,
 // instance's operation record reaches a terminal state — including abandoned
 // via dead-initiator detection — or the ceiling elapses (timedOut=true, the
 // in-flight start unaffected).
-func (r *Runner) awaitStartOperationTerminal(item scenario.Scenario, timeout time.Duration, onTransition func(StartOperationView)) (*StartOperationView, bool, error) {
+func (r *Runner) awaitStartOperationTerminal(item scenario.Scenario, operationID string, timeout time.Duration, onTransition func(StartOperationView)) (*StartOperationView, bool, error) {
 	policy := attachPollPolicy
 	policy.Timeout = timeout
 	var last StartOperationView
 	var lastKey string
 	err := Await(r.awaitClock(), policy, func() (bool, error) {
-		view, ok, err := r.startOperationView(item)
+		view, ok, err := r.readStartOperationView(item, operationID)
 		if err != nil {
 			return false, err
 		}
@@ -241,6 +253,8 @@ func (r *Runner) awaitStartOperationTerminal(item scenario.Scenario, timeout tim
 			// The record vanished (pruned by a newer start burst); treat as
 			// abandoned rather than spinning on nothing.
 			last.Status = scenarioruntime.StartOperationStatusAbandoned
+			last.OperationID = operationID
+			last.Error = "attached start operation is no longer retained"
 			return true, nil
 		}
 		if onTransition != nil {

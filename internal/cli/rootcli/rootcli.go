@@ -569,6 +569,9 @@ type RunnerConfig[C any] struct {
 	ShowMainHelp func(C)
 	ShowVersion  func(C) error
 	DebugLog     func(*slog.Logger, string, ...any)
+	// BeforeDispatch validates a parsed request before any command handler can
+	// construct services, ensure child CLIs, or perform the requested operation.
+	BeforeDispatch func(C, ParsedArgs) error
 
 	MetricsRecorder *metrics.Recorder
 	CLIVersion      string
@@ -734,6 +737,11 @@ func (r *Runner[C]) dispatch(ctx C, parsed ParsedArgs) error {
 }
 
 func (r *Runner[C]) dispatchInner(ctx C, parsed ParsedArgs) error {
+	if r.config.BeforeDispatch != nil {
+		if err := r.config.BeforeDispatch(ctx, parsed); err != nil {
+			return err
+		}
+	}
 	switch parsed.Command {
 	case "help":
 		r.config.ShowMainHelp(ctx)

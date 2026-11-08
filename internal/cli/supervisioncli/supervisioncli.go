@@ -5,11 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 
 	apicoreset "github.com/vrooli/api-core/coreset"
 	"github.com/vrooli/vrooli/internal/cliout"
 	cliv1 "github.com/vrooli/vrooli/packages/proto/gen/go/cli/v1"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type Request struct {
@@ -66,20 +68,56 @@ func Render(w io.Writer, format cliout.Format, report apicoreset.Report) error {
 					formatAttribution(member.AttributionChain),
 				})
 			}
-			return cliout.RenderTable(w, []string{"Name", "Kind", "Intent", "Attribution"}, rows)
+			if err := cliout.RenderTable(w, []string{"Name", "Kind", "Intent", "Attribution"}, rows); err != nil {
+				return err
+			}
+			return renderDiagnostics(w, report)
 		})
+}
+
+func renderDiagnostics(w io.Writer, report apicoreset.Report) error {
+	var rows [][]string
+	for name, message := range report.LoadErrors {
+		rows = append(rows, []string{name, "Manifest unavailable", message})
+	}
+	for name, peers := range report.TrustedBaseViolations {
+		peers = append([]string(nil), peers...)
+		sort.Strings(peers)
+		rows = append(rows, []string{name, "Required peer outside trusted base", strings.Join(peers, ", ")})
+	}
+	if len(rows) == 0 {
+		return nil
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i][0] == rows[j][0] {
+			return rows[i][1] < rows[j][1]
+		}
+		return rows[i][0] < rows[j][0]
+	})
+	if _, err := fmt.Fprintln(w); err != nil {
+		return err
+	}
+	return cliout.RenderTable(w, []string{"Name", "Problem", "Details"}, rows)
 }
 
 func responseMessage(report apicoreset.Report) *cliv1.SupervisionSetResponse {
 	message := &cliv1.SupervisionSetResponse{
-		Source:         report.Source,
-		CoreSet:        append([]string(nil), report.CoreSet...),
-		Seed:           append([]string(nil), report.Seed...),
-		AddedByClosure: append([]string(nil), report.AddedByClosure...),
-		TrustedBase:    append([]string(nil), report.TrustedBase...),
-		MemberCounts:   make(map[string]int32, len(report.MemberCounts)),
-		LoadErrors:     report.LoadErrors,
-		Members:        make([]*cliv1.SupervisionMember, 0, len(report.Members)),
+		Source:                report.Source,
+		CoreSet:               append([]string(nil), report.CoreSet...),
+		Seed:                  append([]string(nil), report.Seed...),
+		AddedByClosure:        append([]string(nil), report.AddedByClosure...),
+		TrustedBase:           append([]string(nil), report.TrustedBase...),
+		MemberCounts:          make(map[string]int32, len(report.MemberCounts)),
+		LoadErrors:            report.LoadErrors,
+		TrustedBaseViolations: make(map[string]*structpb.ListValue, len(report.TrustedBaseViolations)),
+		Members:               make([]*cliv1.SupervisionMember, 0, len(report.Members)),
+	}
+	for name, peers := range report.TrustedBaseViolations {
+		values := make([]*structpb.Value, 0, len(peers))
+		for _, peer := range peers {
+			values = append(values, structpb.NewStringValue(peer))
+		}
+		message.TrustedBaseViolations[name] = &structpb.ListValue{Values: values}
 	}
 	for kind, count := range report.MemberCounts {
 		message.MemberCounts[kind] = int32(count) // #nosec G115 -- repository member counts are bounded by manifest inventory.

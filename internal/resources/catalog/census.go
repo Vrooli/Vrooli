@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -56,6 +57,14 @@ func (s *Service) Census(opts DiscoverOptions) ([]CensusRow, error) {
 		}
 		name := entry.Name()
 		manifestPath := manifestpkg.DefaultPath(s.Root, name)
+		declared, err := isResourceDir(manifestPath)
+		if err != nil {
+			return nil, err
+		}
+		if !declared {
+			// Shared code under resources/ (internal/, testkit/) is not a resource.
+			continue
+		}
 		manifest, err := manifestpkg.Load(manifestPath)
 		if err != nil {
 			return nil, err
@@ -148,4 +157,16 @@ func readModulePath(path string) string {
 		}
 	}
 	return ""
+}
+
+// isResourceDir reports whether a resources/ child declares a resource.
+func isResourceDir(manifestPath string) (bool, error) {
+	info, err := os.Stat(manifestPath)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("inspect resource manifest %s: %w", manifestPath, err)
+	}
+	return info.Mode().IsRegular(), nil
 }

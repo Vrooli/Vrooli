@@ -14,10 +14,12 @@ import (
 )
 
 const (
-	validationParameterA           = 2
-	scenarioInvokeInstalledCommand = "installed_command"
-	scenarioStatusUnhealthy        = "unhealthy"
-	scenarioStatusRunning          = "running"
+	validationParameterA = 2
+	// authenticationProfileVersion is the newest authentication profile
+	// format this release reads.
+	authenticationProfileVersion = 1
+	scenarioStatusUnhealthy      = "unhealthy"
+	scenarioStatusRunning        = "running"
 )
 
 var supportedAuthenticationModes = map[string]struct{}{
@@ -45,7 +47,7 @@ func (profile AuthenticationProfile) Validate() error {
 	default:
 		return fmt.Errorf("authentication profile %q is unsupported", profile.Profile)
 	}
-	if profile.Version < 0 || profile.Version > 1 {
+	if profile.Version < 0 || profile.Version > authenticationProfileVersion {
 		return fmt.Errorf("authentication profile version %d is unsupported", profile.Version)
 	}
 	if mode := strings.TrimSpace(profile.DefaultMode); mode != "" {
@@ -270,7 +272,7 @@ func (cfg *CLIConfig) applyDefaults() {
 		cfg.Artifacts.BuildMetadata.Location = CLIArtifactLocationSibling
 	}
 	if cfg.Enabled && cfg.Invoke.Kind == "" {
-		cfg.Invoke.Kind = scenarioInvokeInstalledCommand
+		cfg.Invoke.Kind = CLIInvokeInstalledCommand
 	}
 	if cfg.Enabled && cfg.Invoke.Command == "" {
 		cfg.Invoke.Command = cfg.Command
@@ -289,7 +291,7 @@ func (cfg CLIConfig) Validate() error {
 		return errors.New("command is required when cli.enabled=true")
 	}
 	switch cfg.Adapter.Kind {
-	case "go_module":
+	case CLIKindGoModule:
 		if cfg.Adapter.ModuleDir == "" {
 			return errors.New("adapter.module_dir is required for cli.adapter.kind=go_module")
 		}
@@ -297,7 +299,7 @@ func (cfg CLIConfig) Validate() error {
 		return fmt.Errorf("unsupported cli.adapter.kind %q", cfg.Adapter.Kind)
 	}
 	switch cfg.Invoke.Kind {
-	case "installed_command":
+	case CLIInvokeInstalledCommand:
 	default:
 		return fmt.Errorf("unsupported cli.invoke.kind %q", cfg.Invoke.Kind)
 	}
@@ -318,7 +320,7 @@ func (cfg CLIConfig) Validate() error {
 		return fmt.Errorf("unsupported cli.artifacts.build_metadata.location %q", cfg.Artifacts.BuildMetadata.Location)
 	}
 	if cfg.Distribution != nil {
-		if cfg.Distribution.Kind != "prebuilt_artifact" {
+		if cfg.Distribution.Kind != CLIDistributionPrebuiltArtifact {
 			return fmt.Errorf("unsupported cli.distribution.kind %q", cfg.Distribution.Kind)
 		}
 		if cfg.Distribution.ArtifactName == "" {
@@ -328,7 +330,7 @@ func (cfg CLIConfig) Validate() error {
 			return errors.New("distribution.artifact_name must contain ${os} and ${arch}")
 		}
 	}
-	if cfg.SourceBuild == nil || cfg.SourceBuild.Kind != "go_module" {
+	if cfg.SourceBuild == nil || cfg.SourceBuild.Kind != CLIKindGoModule {
 		return errors.New("cli.source_build.kind=go_module is required when cli.enabled=true")
 	}
 	if cfg.Freshness == nil || len(cfg.Freshness.Inputs) == 0 {

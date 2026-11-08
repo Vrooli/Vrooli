@@ -25,6 +25,10 @@ type HealthProbe struct {
 	Clock            clock.Clock
 	HTTPClient       *http.Client
 	MaxResponseBytes int64
+	// AllowLegacyHTTP retains lifecycle compatibility with older 2xx health
+	// endpoints that do not implement the standard JSON response. Recognized
+	// standard responses always retain their actual readiness and status.
+	AllowLegacyHTTP bool
 }
 
 type HealthProbeInput struct {
@@ -69,8 +73,12 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 		if result.schemaValid != nil && schemaValid == nil {
 			schemaValid = result.schemaValid
 		}
-		if result.readiness != nil && readiness == nil {
-			readiness = result.readiness
+		if result.readiness != nil {
+			ready := *result.readiness
+			if readiness != nil {
+				ready = ready && *readiness
+			}
+			readiness = &ready
 		}
 		if result.buildIdentity != "" && buildIdentity == "" {
 			buildIdentity = result.buildIdentity
@@ -99,6 +107,13 @@ func (p HealthProbe) Probe(ctx context.Context, in HealthProbeInput) HealthSnaps
 		} else {
 			nonCriticalFailure = true
 		}
+	}
+	// Legacy transport responses can participate in availability, but cannot
+	// establish served-image identity. At least one recognized standard health
+	// endpoint must verify the requested scenario build.
+	if expected := strings.TrimSpace(in.ExpectedBuildIdentity); expected != "" && buildIdentity != expected {
+		criticalFailure = true
+		failures = append(failures, fmt.Sprintf("no standard health endpoint verified expected build identity %q", expected))
 	}
 
 	switch {
@@ -184,6 +199,9 @@ func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, 
 	var decoded apihealth.Response
 	if err := json.NewDecoder(bytes.NewReader(body)).Decode(&decoded); err != nil {
 		valid := false
+		if p.AllowLegacyHTTP {
+			return checkProbeResult{status: HealthStatusHealthy, schemaValid: &valid, responseJSON: responseJSON}
+		}
 		return checkProbeResult{
 			schemaValid:  &valid,
 			responseJSON: responseJSON,
@@ -192,6 +210,20 @@ func (p HealthProbe) performHTTPCheck(ctx context.Context, client *http.Client, 
 	}
 	valid := isRecognizedHealthResponse(decoded)
 	if !valid {
+		if p.AllowLegacyHTTP {
+			// Missing legacy metadata must not erase an explicit negative
+			// readiness or status supplied by an otherwise parsed JSON body.
+			var partial struct {
+				Readiness *bool `json:"readiness"`
+			}
+			_ = json.Unmarshal(body, &partial)
+			status := HealthStatusHealthy
+			switch decoded.Status {
+			case apihealth.StatusHealthy, apihealth.StatusDegraded, apihealth.StatusUnhealthy:
+				status = decoded.Status
+			}
+			return checkProbeResult{status: status, readiness: partial.Readiness, schemaValid: &valid, responseJSON: responseJSON, degradedDetail: degradedHealthDetail(body)}
+		}
 		return checkProbeResult{
 			schemaValid:  &valid,
 			responseJSON: responseJSON,

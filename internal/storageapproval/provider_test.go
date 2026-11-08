@@ -81,8 +81,9 @@ func TestProviderVerificationReturnsContextBoundApprovalEvidence(t *testing.T) {
 	defer server.Close()
 
 	provider := NewWithClient(func() string { return server.URL }, server.Client(), "this-host")
-	provider.now = func() time.Time { return approvedAt.Add(time.Hour) }
-	registry, err := operatorcapability.NewRegistry(provider)
+	clock := func() time.Time { return approvedAt.Add(time.Hour) }
+	provider.now = clock
+	registry, err := operatorcapability.NewRegistryWithClock(clock, provider)
 	if err != nil {
 		t.Fatal(err)
 	}

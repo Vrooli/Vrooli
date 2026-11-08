@@ -91,11 +91,17 @@ func resourceStatusMessage(item resources.Status) *cliv1.ResourceStatus {
 		ProbeError: item.ProbeError,
 		Raw:        rawValue(item.Raw),
 
-		Serving:      boolValue(item.Serving),
-		DeclaredMode: item.DeclaredMode,
-		ObservedMode: observedMode,
-		ModeDrift:    item.ModeDrift,
-		ModeReason:   item.ModeReason,
+		Serving:                 boolValue(item.Serving),
+		DeclaredMode:            item.DeclaredMode,
+		ObservedMode:            observedMode,
+		ModeDrift:               item.ModeDrift,
+		ModeReason:              item.ModeReason,
+		DeclaredArtifactVersion: item.DeclaredArtifactVersion,
+		StagedArtifactVersion:   item.StagedArtifactVersion,
+		RunningArtifactVersion:  item.RunningArtifactVersion,
+		ArtifactUpdateAvailable: item.ArtifactUpdateAvailable,
+		ArtifactStagingError:    item.ArtifactStagingError,
+		ArtifactVerification:    item.ArtifactVerification,
 	}
 }
 

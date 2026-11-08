@@ -8,17 +8,17 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 )
 
-// Seams for the two process facts ownership is proved from. Tests replace
+// Seams for the process facts ownership is proved from. Tests replace
 // them to exercise a host that cannot observe a process environment.
 var (
-	readManagedServiceEnvironment = process.ReadEnvironment
-	managedServiceExecutablePath  = platform.ProcessExecutablePath
+	readManagedServiceEnvironment    = process.ReadEnvironment
+	managedServiceExecutablePath     = platform.ProcessExecutablePath
+	managedServiceProcessIncarnation = process.Incarnation
 )
 
-// managedServiceExecutableMatchesArtifact is the process-identity ownership
-// proof: the live executable must be the recorded artifact or lie inside the
-// recorded artifact bundle. It never accepts a PID, port, or process name on
-// its own. Hosts that cannot name a process executable never match.
+// managedServiceExecutableMatchesArtifact checks executable provenance only.
+// It does not prove launch ownership: the caller must also verify the token or
+// recorded OS incarnation. Hosts that cannot name an executable never match.
 func managedServiceExecutableMatchesArtifact(state ManagedServiceState) bool {
 	if state.PID <= 0 || strings.TrimSpace(state.ArtifactPath) == "" {
 		return false

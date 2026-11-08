@@ -208,7 +208,9 @@ func TestManagedServiceSupervisorUsesExplicitInterruptShutdown(t *testing.T) {
 func TestManagedServiceSupervisorEscalatesAfterShutdownDeadline(t *testing.T) {
 	dir := t.TempDir()
 	token := "supervisor-escalation-token"
-	t.Setenv(managedServiceOwnershipTokenEnv, token)
+	withOwnershipFacts(t, func(int) (map[string]string, error) {
+		return map[string]string{managedServiceOwnershipTokenEnv: token}, nil
+	}, executableAt(os.Args[0]))
 	alive := true
 	forced := false
 	supervisor := newManagedServiceSupervisor(filepath.Join(dir, "state.json"), filepath.Join(dir, "service.log"))

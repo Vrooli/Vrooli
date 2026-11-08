@@ -5,12 +5,116 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/testenv"
 )
+
+func TestDemandAuditQueryIndexRepairsExistingRegistryWithoutChangingCompatibility(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "runtime.db")
+	store, err := NewSQLiteStore(ctx, Config{DBPath: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.RecordEvent(ctx, Event{Scenario: "demo", EventType: "unrelated"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.db.ExecContext(ctx, `DROP INDEX idx_runtime_events_scenario_type`); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// A read-only observer can still inspect a registry created by an older
+	// binary. It must not need write permission merely to add an optimization.
+	observer, err := NewSQLiteStore(ctx, Config{DBPath: path, ReadOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := observer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	store, err = NewSQLiteStore(ctx, Config{DBPath: path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	var version, count int
+	if err := store.db.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version); err != nil || version != SchemaVersion {
+		t.Fatalf("compatibility version=%d err=%v", version, err)
+	}
+	if err := store.db.QueryRowContext(ctx, `SELECT count(*) FROM runtime_events WHERE scenario='demo'`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("existing history count=%d err=%v", count, err)
+	}
+	rows, err := store.db.QueryContext(ctx, `EXPLAIN QUERY PLAN SELECT rowid FROM runtime_events
+WHERE scenario = ? AND event_type = ? ORDER BY rowid DESC LIMIT -1 OFFSET ?`, "demo", demandAuditEventType, DemandAuditRetention)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	scoped := false
+	for rows.Next() {
+		var id, parent, unused int
+		var detail string
+		if err := rows.Scan(&id, &parent, &unused, &detail); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(detail, "(scenario=? AND event_type=?)") {
+			scoped = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	if !scoped {
+		t.Fatal("retention must seek the selected scenario and event family, not scan fleet history")
+	}
+}
+
+func BenchmarkDemandAuditRetentionFleet(b *testing.B) {
+	for _, indexed := range []bool{false, true} {
+		name := "fleet_scan"
+		if indexed {
+			name = "scenario_seek"
+		}
+		b.Run(name, func(b *testing.B) {
+			ctx := context.Background()
+			store, err := NewSQLiteStore(ctx, Config{DBPath: filepath.Join(b.TempDir(), "runtime.db")})
+			if err != nil {
+				b.Fatal(err)
+			}
+			defer store.Close()
+			if !indexed {
+				if _, err := store.db.ExecContext(ctx, `DROP INDEX idx_runtime_events_scenario_type`); err != nil {
+					b.Fatal(err)
+				}
+			}
+			// A hundred independent owners, each with its retained 1,000 rows.
+			// Only one owner's newest transition is being recorded/pruned.
+			_, err = store.db.ExecContext(ctx, `WITH RECURSIVE n(x) AS (
+SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<100000
+) INSERT INTO runtime_events(event_id, scenario, event_type, created_at, details_json)
+SELECT printf('seed-%d',x), printf('owner-%d',x%100), 'demand_transition', '2026-11-05T00:00:00Z', '{}' FROM n`)
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				if err := store.withTx(ctx, func(tx *sql.Tx) error {
+					return store.auditDemandTx(ctx, tx, DemandTransition{Operation: "renewed", Scenario: "owner-0", Variant: "live"})
+				}); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
 
 func TestDemandTransitionHistoryTracksOnlyCommittedChanges(t *testing.T) {
 	ctx := context.Background()

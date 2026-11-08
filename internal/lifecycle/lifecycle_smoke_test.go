@@ -39,6 +39,9 @@ func TestRunnerStartStopRestart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewRunner: %v", err)
 	}
+	// An assertion or a partially successful Start must not leave a detached
+	// fixture alive after TempDir removes its registry and executable paths.
+	cleanupRunner(t, runner, "alpha", StopOptions{})
 
 	start, err := runner.Start("alpha", StartOptions{})
 	if err != nil {

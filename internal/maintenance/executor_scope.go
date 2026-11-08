@@ -108,8 +108,11 @@ var (
 var scopeCurrentBootID = hostsession.CurrentBootID
 
 const (
-	ExecutorScopeMaxReferences = 16384
-	ExecutorScopeMaxBytes      = 8 << 20
+	// Retained terminal identities are inspected with the same single host
+	// observation as live runs. Keep wire memory and positive PID samples
+	// bounded independently; overflow remains an explicit incomplete inventory.
+	ExecutorScopeMaxReferences = 65536
+	ExecutorScopeMaxBytes      = 32 << 20
 	ExecutorScopeTimeout       = 4 * time.Second
 	executorScopeSampleBudget  = 65536
 )

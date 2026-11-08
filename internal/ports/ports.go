@@ -627,7 +627,7 @@ func (m *Manager) recordPortPreemptedEvent(ctx context.Context, options RuntimeC
 	_, _ = options.Store.RecordEvent(ctx, scenarioruntime.Event{
 		InstanceID:  options.InstanceID,
 		Scenario:    requestingScenario,
-		EventType:   "port_preempted",
+		EventType:   scenarioruntime.EventTypePortPreempted,
 		DetailsJSON: details,
 	})
 }

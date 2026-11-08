@@ -231,7 +231,14 @@ func assertClaimParity(t *testing.T, name string, got, want *capacity.ResourceCl
 	if got.ResourceKind != want.ResourceKind {
 		t.Fatalf("%s claim.resource_kind = %q, legacy said %q", name, got.ResourceKind, want.ResourceKind)
 	}
-	if got.PreferredBytes != want.PreferredBytes {
+	// A reservation re-derived from observation (confidence "measured")
+	// supersedes the legacy estimate's byte count. The migration preserved an
+	// estimate; it did not freeze it. Everything else about the claim, and the
+	// ladder's agreement with the new number, stays checked.
+	remeasured := got.Confidence == "measured" && got.PreferredBytes != want.PreferredBytes
+	if remeasured {
+		t.Logf("%s: preferred_bytes remeasured %d -> %d (confidence measured)", name, want.PreferredBytes, got.PreferredBytes)
+	} else if got.PreferredBytes != want.PreferredBytes {
 		t.Fatalf("%s claim.preferred_bytes = %d, legacy said %d", name, got.PreferredBytes, want.PreferredBytes)
 	}
 	if got.Priority != want.Priority {
@@ -273,6 +280,10 @@ func assertClaimParity(t *testing.T, name string, got, want *capacity.ResourceCl
 		t.Fatalf("%s claim ladder has %d steps, legacy had %d", name, len(got.Profile.Steps), len(want.Profile.Steps))
 	}
 	for i, step := range want.Profile.Steps {
+		if remeasured && i == 0 {
+			// The top rung is the preferred reservation, so it moves with it.
+			step.AmountBytes = got.PreferredBytes
+		}
 		if got.Profile.Steps[i] != step {
 			t.Fatalf("%s claim ladder step %d = %+v, legacy said %+v", name, i, got.Profile.Steps[i], step)
 		}

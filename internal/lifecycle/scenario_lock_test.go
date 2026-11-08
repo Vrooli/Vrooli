@@ -11,6 +11,7 @@ import (
 	"time"
 
 	platform "github.com/vrooli/platform-go"
+	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 )
@@ -198,7 +199,7 @@ func TestAcquireScenarioLockReturnsErrBusyAcrossSimulatedProcesses(t *testing.T)
 
 	// Pre-seed the lock file with a foreign pid so the contention error
 	// can quote it back to the user.
-	lockDir := filepath.Join(home, scenarioLockDirName)
+	lockDir := testScenarioLockDir(t, home)
 	if err := os.MkdirAll(lockDir, 0o755); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
@@ -271,7 +272,7 @@ func TestAcquireScenarioLockWritesAndReadsHolderPID(t *testing.T) {
 	}
 	defer release()
 
-	contents, err := os.ReadFile(filepath.Join(home, scenarioLockDirName, "scenario-ports-foo.lock"))
+	contents, err := os.ReadFile(filepath.Join(testScenarioLockDir(t, home), "scenario-ports-foo.lock"))
 	if err != nil {
 		t.Fatalf("read lock file: %v", err)
 	}
@@ -512,11 +513,90 @@ var _ = sync.Mutex{}
 
 func seedScenarioLockFile(t *testing.T, home, name, contents string) {
 	t.Helper()
-	lockDir := filepath.Join(home, scenarioLockDirName)
+	lockDir := testScenarioLockDir(t, home)
 	if err := os.MkdirAll(lockDir, 0o755); err != nil {
 		t.Fatalf("mkdir lock dir: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(lockDir, "scenario-"+sanitizeScenarioName(name)+".lock"), []byte(contents), 0o644); err != nil {
 		t.Fatalf("seed lock file: %v", err)
+	}
+}
+
+func testScenarioLockDir(t *testing.T, home string) string {
+	t.Helper()
+	dir, err := scenarioLockDir(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+// The lifecycle lock directory is locks/ under the runtime-home state entry,
+// the directory agent-manager's maintenance interlock and artifactlock share.
+// Scenario storage relocation (VROOLI_STORAGE_ROOT) must not move it.
+func TestScenarioLockDirIsTheRuntimeHomeStateLocksDirectory(t *testing.T) {
+	t.Setenv("VROOLI_STORAGE_ROOT", t.TempDir())
+	home := t.TempDir()
+	stateRoot, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyState)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := testScenarioLockDir(t, home), filepath.Join(stateRoot, "locks"); got != want {
+		t.Fatalf("scenarioLockDir = %q, want %q", got, want)
+	}
+}
+
+// The governed Go temp directory sits in the runtime home the contract names
+// for HOME, unless VROOLI_HOME or an explicit GOTMPDIR already decides it.
+func TestGovernedGoTempDirUsesTheContractRuntimeHome(t *testing.T) {
+	home := t.TempDir()
+	runtimeHome, err := repocontract.VrooliUserRoot(home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := governedGoTempDir([]string{"HOME=" + home}), filepath.Join(runtimeHome, "tmp", "go-work"); got != want {
+		t.Fatalf("governedGoTempDir = %q, want %q", got, want)
+	}
+	if got := governedGoTempDir([]string{"HOME=" + home, "VROOLI_HOME=/custom"}); got != filepath.Join("/custom", "tmp", "go-work") {
+		t.Fatalf("VROOLI_HOME ignored: %q", got)
+	}
+	if got := governedGoTempDir([]string{"HOME=" + home, "GOTMPDIR=/x"}); got != "" {
+		t.Fatalf("explicit GOTMPDIR overridden: %q", got)
+	}
+}
+
+// A refresh that will stop the live instance asks which other instances would
+// still defer setup. The live instance itself is not a blocker; a running
+// shadow is, and it is named so the caller can refuse before stopping.
+func TestSetupAdmissionBlockersNamesOtherRunningVariants(t *testing.T) {
+	root, home := t.TempDir(), t.TempDir()
+	writeLifecycleFixtureManifest(t, root, scenario.ServiceManifest{Service: scenario.ServiceMetadata{Name: "alpha"}})
+	dbPath := filepath.Join(home, "registry.db")
+	store, err := scenarioruntime.NewSQLiteStore(context.Background(), scenarioruntime.Config{DBPath: dbPath})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, instance := range []scenarioruntime.Instance{
+		{InstanceID: "live", Scenario: "alpha", Status: scenarioruntime.StatusRunning},
+		{InstanceID: "shadow", Scenario: "alpha", Variant: "shadow", Status: scenarioruntime.StatusRunning},
+		{InstanceID: "preview", Scenario: "alpha", Variant: "preview", Status: scenarioruntime.StatusStopped},
+	} {
+		if _, err := store.CreateInstance(context.Background(), instance); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = store.Close()
+	runner := newLifecycleRunnerForTest(t, root, home, func(deps *lifecycleDeps) {
+		deps.runtimeRegistry = func(context.Context, string) (scenarioRuntimeStore, error) {
+			return scenarioruntime.NewSQLiteStore(context.Background(), scenarioruntime.Config{DBPath: dbPath})
+		}
+	})
+
+	blockers, err := runner.SetupAdmissionBlockers("alpha", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(blockers) != 1 || blockers[0] != "alpha@shadow" {
+		t.Fatalf("blockers = %v, want only the running shadow", blockers)
 	}
 }

@@ -17,6 +17,14 @@ const StopReasonReaperFinalize = "reaper-finalize"
 // whenever a stuck-stopping instance is finalized.
 const EventTypeInstanceReaped = "instance_reaped"
 
+// EventTypeStartFailed is the runtime_events row recorded when a start fails
+// after its instance was registered.
+const EventTypeStartFailed = "start_failed"
+
+// EventTypePortPreempted is the runtime_events row recorded when a runtime port
+// claim preempts a conflicting holder.
+const EventTypePortPreempted = "port_preempted"
+
 // FinalizerStore is the union of repositories needed to finalize a single
 // stuck runtime instance. It is intentionally narrow so both the maintenance
 // reaper and the ports preemption path can satisfy it from their own store
@@ -49,10 +57,10 @@ func FinalizeStuckInstance(ctx context.Context, store FinalizerStore, instance I
 	}
 	endedAt := at
 	for _, ref := range refs {
-		if ref.Status != SupervisorStatusRunning {
+		if ref.Status != ProcessRefStatusRunning {
 			continue
 		}
-		if _, err := store.UpdateProcessRefStatus(ctx, ref.RefID, "exited", &endedAt); err != nil && !errors.Is(err, ErrNotFound) {
+		if _, err := store.UpdateProcessRefStatus(ctx, ref.RefID, ProcessRefStatusExited, &endedAt); err != nil && !errors.Is(err, ErrNotFound) {
 			return err
 		}
 	}

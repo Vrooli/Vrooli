@@ -61,6 +61,15 @@ type BuilderSpec struct {
 	Reserved                 bool
 }
 
+// componentRoleAsset marks a build-only component: setup installs, builds and
+// fingerprints its artifact, another component serves it, and the lifecycle
+// never launches it (for example a Vite bundle that a Go UI server serves).
+const componentRoleAsset = "asset"
+
+func isAssetComponent(component scenario.Component) bool {
+	return component.Role == componentRoleAsset
+}
+
 // BuildModeEnvVar names the perf-build channel selector. performance-health's
 // capture path sets it on `vrooli scenario restart` so a profile bundle is
 // produced through the standard lifecycle.

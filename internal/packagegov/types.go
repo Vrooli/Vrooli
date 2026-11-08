@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 type PackageKind string
@@ -139,6 +140,26 @@ type ValidationIssue struct {
 	Message     string `json:"message"`
 	Path        string `json:"path,omitempty"`
 	PackageName string `json:"package_name,omitempty"`
+}
+
+// String renders an issue for operators: severity, the package it concerns,
+// the message with its code, and the file to edit.
+func (i ValidationIssue) String() string {
+	var b strings.Builder
+	b.WriteString(i.Severity)
+	b.WriteString(": ")
+	if i.PackageName != "" {
+		b.WriteString(i.PackageName)
+		b.WriteString(": ")
+	}
+	b.WriteString(i.Message)
+	if i.Code != "" {
+		b.WriteString(" [" + i.Code + "]")
+	}
+	if i.Path != "" {
+		b.WriteString(" (" + filepath.ToSlash(i.Path) + ")")
+	}
+	return b.String()
 }
 
 func (m Manifest) ValidateBasics() error {

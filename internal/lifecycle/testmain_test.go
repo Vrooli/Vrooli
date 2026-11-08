@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
+	"github.com/vrooli/vrooli/internal/testenv"
 )
 
 // TestMain makes process cleanup an explicit package invariant. Lifecycle
@@ -34,7 +35,10 @@ func TestMain(m *testing.M) {
 	}()
 
 	before, beforeErr := lifecycleTestDescendants()
-	status := m.Run()
+	// Operator state resolves from the environment, not from the temporary
+	// repository a test builds; isolate storage so host-requirement preflight
+	// never reads the operator's live choices.
+	status := testenv.RunWithIsolatedStorage(m)
 	after, afterErr := waitForLifecycleTestDescendants()
 
 	if beforeErr == nil && afterErr == nil {

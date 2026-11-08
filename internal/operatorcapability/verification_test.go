@@ -203,7 +203,9 @@ func TestRegistryVerifyWithRetryBoundsAttemptsAndAvoidsEffectReplay(t *testing.T
 	}
 }
 
-func TestRegistryVerifyRejectsStaleEvidenceWhenDescriptorRequiresFreshness(t *testing.T) {
+func TestRegistryVerifyJudgesFreshnessOnTheRegistryClock(t *testing.T) {
+	observedAt := time.Date(2026, 9, 10, 12, 0, 0, 0, time.UTC)
+	expiresAt := observedAt.Add(time.Hour)
 	descriptor := fixtureDescriptor("fixture/stale", "Stale verification fixture", SensitivitySecret, nil)
 	descriptor.Evidence = EvidenceContract{
 		Kinds: []string{"fixture"}, RequiredFields: []string{"observed_at", "expires_at", "verified"},
@@ -213,18 +215,32 @@ func TestRegistryVerifyRejectsStaleEvidenceWhenDescriptorRequiresFreshness(t *te
 		descriptorFixtureProvider: descriptorFixtureProvider{descriptor: descriptor},
 		receipts: []EvidenceReference{{
 			SchemaVersion: EvidenceSchemaVersion, Kind: "fixture", ArtifactIdentity: "fixture-stale",
-			TargetID: "host-1", Operation: "readiness-check", ObservedAt: time.Now().Add(-time.Hour), ExpiresAt: time.Now().Add(-time.Minute), Verified: true,
+			TargetID: "host-1", Operation: "readiness-check", ObservedAt: observedAt, ExpiresAt: expiresAt, Verified: true,
 		}},
 	}
-	registry, err := NewRegistry(provider)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = registry.Verify(context.Background(), VerificationRequest{
-		CapabilityID: "fixture/stale", TargetID: "host-1", Operation: "readiness-check",
-		Effect: EffectBudget{Class: EffectReadOnly},
-	})
-	if err == nil || !strings.Contains(err.Error(), "stale") {
-		t.Fatalf("stale evidence was accepted: %v", err)
+	for _, tc := range []struct {
+		name      string
+		now       time.Time
+		wantStale bool
+	}{
+		{name: "within expiry", now: expiresAt.Add(-time.Minute)},
+		{name: "after expiry", now: expiresAt.Add(time.Minute), wantStale: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			registry, err := NewRegistryWithClock(func() time.Time { return tc.now }, provider)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = registry.Verify(context.Background(), VerificationRequest{
+				CapabilityID: "fixture/stale", TargetID: "host-1", Operation: "readiness-check",
+				Effect: EffectBudget{Class: EffectReadOnly},
+			})
+			if gotStale := err != nil && strings.Contains(err.Error(), "stale"); gotStale != tc.wantStale {
+				t.Fatalf("stale = %t, want %t (err %v)", gotStale, tc.wantStale, err)
+			}
+			if !tc.wantStale && err != nil {
+				t.Fatalf("fresh evidence was rejected: %v", err)
+			}
+		})
 	}
 }

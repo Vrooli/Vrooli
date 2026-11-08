@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -80,8 +81,12 @@ func TestAtomicInstallWaitsForRootRebuildLock(t *testing.T) {
 	if err := lockFile.Close(); err != nil {
 		t.Fatalf("close install lock: %v", err)
 	}
-	if err := <-result; err != nil {
-		t.Fatalf("AtomicInstall after lock release: %v", err)
+	if err := <-result; err == nil {
+		t.Fatal("unstamped non-CLI candidate was accepted after lock release")
+	}
+	data, err := os.ReadFile(destination)
+	if err != nil || string(data) != "old binary" {
+		t.Fatalf("rejected candidate changed prior root CLI: %q %v", data, err)
 	}
 }
 
@@ -638,6 +643,7 @@ func TestRepoEnabledResourceCLIsAreAllDiscoverable(t *testing.T) {
 }
 
 func TestInstallResourceCLIWithGoInstallerCreatesBinaryAndMetadata(t *testing.T) {
+	withIsolatedCLIAdmission(t)
 	root := testkitgo.ProjectRoot(t)
 	manager := mustManager(t, root, t.TempDir())
 	if err := manager.InstallResourceCLI("postgres"); err != nil {
@@ -1107,5 +1113,85 @@ func TestRenewalSkipsWritingWhenNothingWouldChange(t *testing.T) {
 
 	if !before.ModTime().Equal(after.ModTime()) {
 		t.Fatal("a renewal rewrote a lease that was still fresh and unmarked")
+	}
+}
+
+func TestGuardedAtomicInstallChecksCurrentInsidePublicationLock(t *testing.T) {
+	dir := t.TempDir()
+	src, dst := filepath.Join(dir, "prior"), filepath.Join(dir, "fixture-tool")
+	for p, b := range map[string]string{src: "retained prior", dst: "own candidate", dst + ".previous": "prior fallback"} {
+		if err := os.WriteFile(p, []byte(b), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	expected, err := installedImageSHA(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	release, err := buildinfo.AcquireBinaryInstallLock(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	locked := true
+	t.Cleanup(func() {
+		if locked {
+			release()
+		}
+	})
+	done := make(chan error, 1)
+	go func() { done <- AtomicInstallExpected(src, dst, expected) }()
+	select {
+	case err := <-done:
+		t.Fatalf("guarded installer did not wait for shared publication lock: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+	if err := os.WriteFile(dst, []byte("foreign publisher"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	release()
+	locked = false
+	if err := <-done; err == nil {
+		t.Fatal("foreign image overwritten after lock acquisition")
+	}
+	for p, want := range map[string]string{dst: "foreign publisher", dst + ".previous": "prior fallback"} {
+		b, _ := os.ReadFile(p)
+		if string(b) != want {
+			t.Fatalf("guard changed %s: %q", p, b)
+		}
+	}
+}
+func TestGuardedAtomicInstallAlreadyPriorIsIdempotent(t *testing.T) {
+	dir := t.TempDir()
+	src, dst := filepath.Join(dir, "prior"), filepath.Join(dir, "fixture-tool")
+	if err := os.WriteFile(src, []byte("retained prior"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, []byte("own candidate"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	expected, _ := installedImageSHA(dst)
+	if err := AtomicInstallExpected(src, dst, expected); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := os.Stat(dst)
+	if err := AtomicInstallExpected(src, dst, expected); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := os.Stat(dst)
+	if !os.SameFile(before, after) {
+		t.Fatal("idempotent prior observation republished image")
+	}
+}
+func TestGuardedAtomicInstallKeepsRootRoleCheckOnIdempotence(t *testing.T) {
+	dir := t.TempDir()
+	src, dst := filepath.Join(dir, "prior"), filepath.Join(dir, "vrooli")
+	for _, p := range []string{src, dst} {
+		if err := os.WriteFile(p, []byte("not root CLI"), 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	expected, _ := installedImageSHA(dst)
+	if err := AtomicInstallExpected(src, dst, expected); err == nil {
+		t.Fatal("identical unqualified root role accepted")
 	}
 }

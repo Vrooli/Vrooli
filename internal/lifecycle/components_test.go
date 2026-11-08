@@ -612,12 +612,16 @@ func TestDeclaredDevelopPhaseRetainsComponentArgv(t *testing.T) {
 				Role: "sidecar",
 				Run:  scenario.ComponentRun{Argv: []string{"node", "sidecar.js"}, SupervisedBy: "api"},
 			},
+			"bundle": {
+				Role:  componentRoleAsset,
+				Build: scenario.ComponentBuild{Kind: "pnpm_vite", Dir: "ui"},
+			},
 		},
 	}
 
 	steps := declaredPhaseSteps(manifest, "develop", nil)
 	if len(steps) != 2 {
-		t.Fatalf("develop step count = %d, want 2 unsupervised components", len(steps))
+		t.Fatalf("develop step count = %d, want 2: supervised and build-only asset components are never launched", len(steps))
 	}
 	for _, step := range steps {
 		if len(step.Exec) == 0 {

@@ -2,11 +2,12 @@ package manifest
 
 import (
 	"encoding/json"
-	"github.com/vrooli/binaryfetch"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/vrooli/binaryfetch"
 
 	"github.com/vrooli/vrooli/internal/scenario"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"

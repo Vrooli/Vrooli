@@ -10,7 +10,7 @@ import (
 // ValidateAcquisitionAuthReference binds a credential reference to the resource
 // that declares it. No credential store is read during manifest validation.
 func ValidateAcquisitionAuthReference(manifest ResourceManifest, auth binaryfetch.AcquisitionAuth) error {
-	if manifest.Driver != "managed-service" {
+	if manifest.Driver != manifestManagedService {
 		return errors.New("acquisition auth is supported only for managed-service resources")
 	}
 	for _, descriptor := range manifest.Credentials.All() {
@@ -52,7 +52,7 @@ func LoadForDataInspection(path string) (ResourceManifest, error) {
 	if err != nil {
 		return ResourceManifest{}, err
 	}
-	if manifest.Name == "" || manifest.Driver != "managed-service" || manifest.ManagedService == nil {
+	if manifest.Name == "" || manifest.Driver != manifestManagedService || manifest.ManagedService == nil {
 		return ResourceManifest{}, errors.New("data inspection requires a named managed-service resource")
 	}
 	if err := validateAcquisitionAuthReferences(manifest); err != nil {

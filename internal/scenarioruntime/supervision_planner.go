@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/clock"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 const defaultSupervisionBatchSize = 100
@@ -119,10 +120,23 @@ func (p *SupervisionPlan) addRenewal(batchSize int, claim SupervisionClaim) {
 }
 
 func shouldProbeHealth(snapshot HealthSnapshot, now time.Time, interval time.Duration) bool {
+	return HealthProbeDue(snapshot, now, interval)
+}
+
+// HealthProbeDue refreshes transitional readiness at the next renewal tick.
+// Keeping a startup snapshot for the steady-state health interval can trigger
+// recovery against an API that has already finished initialization.
+func HealthProbeDue(snapshot HealthSnapshot, now time.Time, interval time.Duration) bool {
 	if interval <= 0 {
 		return false
 	}
 	if snapshot.CheckedAt == nil {
+		return true
+	}
+	if snapshot.Readiness != nil && !*snapshot.Readiness {
+		interval = min(interval, tuning.LifecycleHealthPollInterval())
+	}
+	if snapshot.CheckedAt.After(now) {
 		return true
 	}
 	return !snapshot.CheckedAt.Add(interval).After(now)

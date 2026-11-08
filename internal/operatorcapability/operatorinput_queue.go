@@ -122,7 +122,7 @@ func Replace(requests []Request) error {
 		}
 		return nil
 	}
-	queue := Pending{Version: 1, UpdatedAt: time.Now().UTC(), Requests: append([]Request(nil), requests...)}
+	queue := Pending{Version: pendingQueueVersion, UpdatedAt: time.Now().UTC(), Requests: append([]Request(nil), requests...)}
 	data, err := json.MarshalIndent(queue, "", "  ")
 	if err != nil {
 		return err
@@ -180,7 +180,7 @@ func Load() (Pending, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return Pending{Version: 1, Requests: []Request{}}, nil
+			return Pending{Version: pendingQueueVersion, Requests: []Request{}}, nil
 		}
 		return Pending{}, err
 	}

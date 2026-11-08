@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
@@ -271,10 +272,5 @@ func resolvedClosureCacheKey(dir, root, toolchain string, cached closureCache, d
 
 // New C/assembly/swig files can change go-list's compiled file set too.
 func isGoBuildSource(name string) bool {
-	switch filepath.Ext(name) {
-	case ".go", ".c", ".cc", ".cpp", ".cxx", ".m", ".h", ".hh", ".hpp", ".f", ".F", ".for", ".f90", ".s", ".S", ".sx", ".swig", ".swigcxx", ".syso":
-		return true
-	default:
-		return false
-	}
+	return buildinfo.IsGoBuildSource(name)
 }

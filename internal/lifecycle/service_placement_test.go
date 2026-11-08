@@ -55,3 +55,17 @@ func TestServiceScopesKeepDistinctOwnership(t *testing.T) {
 		}
 	}
 }
+
+func TestOnlyLiveRecoveryPlaneGetsOOMPreference(t *testing.T) {
+	for _, tc := range []struct {
+		slug  string
+		avoid bool
+	}{
+		{"agent-manager", true}, {"web-console", true}, {"vrooli-autoheal", true}, {"prompt-manager", true},
+		{"web-console@shadow", false}, {"ordinary-app", false}, {"resource-ollama", false}, {"agent-manager@live", true},
+	} {
+		if got := recoveryServiceContainment(tc.slug).ManagedOOMAvoid; got != tc.avoid {
+			t.Errorf("%s avoidance=%v, want %v", tc.slug, got, tc.avoid)
+		}
+	}
+}

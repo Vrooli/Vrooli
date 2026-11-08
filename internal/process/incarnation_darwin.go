@@ -19,5 +19,12 @@ func processIncarnation(pid int) (string, error) {
 	if int(proc.Proc.P_pid) != pid || proc.Proc.P_starttime.Sec == 0 {
 		return "", fmt.Errorf("process identity unavailable for pid %d", pid)
 	}
-	return fmt.Sprintf("darwin:%d:%d:%d", pid, proc.Proc.P_starttime.Sec, proc.Proc.P_starttime.Usec), nil
+	return formatIncarnation(pid, int64(proc.Proc.P_starttime.Sec), int64(proc.Proc.P_starttime.Usec)), nil
 }
+
+// formatIncarnation is the stored incarnation format.
+func formatIncarnation(pid int, sec, usec int64) string {
+	return fmt.Sprintf("darwin:%d:%d:%d", pid, sec, usec)
+}
+
+func incarnationFormatSample() string { return formatIncarnation(1, 1, 1) }

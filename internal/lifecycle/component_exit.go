@@ -6,6 +6,7 @@ import (
 
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenario"
+	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
@@ -60,7 +61,7 @@ func (r *Runner) retireComponentGeneration(ctx context.Context, item scenario.Sc
 	if !found {
 		return fmt.Errorf("component launch disappeared before verified exit retirement")
 	}
-	record.Status = "exited_verified"
+	record.Status = process.RecordStatusExitedVerified
 	if err := process.WriteScenarioRecord(r.Home, recordSlug(item), record.Step, record); err != nil {
 		return err
 	}
@@ -96,7 +97,7 @@ func (r *Runner) retireComponentGeneration(ctx context.Context, item scenario.Sc
 				return fmt.Errorf("runtime process reference does not match verified launch")
 			}
 			ended := r.runtimeDeps().now().UTC()
-			if _, err = store.UpdateProcessRefStatus(ctx, ref.RefID, "exited", &ended); err != nil {
+			if _, err = store.UpdateProcessRefStatus(ctx, ref.RefID, scenarioruntime.ProcessRefStatusExited, &ended); err != nil {
 				return err
 			}
 			matched = true

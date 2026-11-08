@@ -1,9 +1,12 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/vrooli/vrooli/internal/fsx"
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -63,6 +66,13 @@ func WriteOwnedFile(path string, data []byte, perm os.FileMode) error {
 // rename, and the final path is rechecked after replacement. This keeps setup
 // sudo from leaving either a root-owned temporary or a partially-written file.
 func WriteOwnedFileAtomic(path string, data []byte, perm os.FileMode) error {
+	return writeOwnedFileAtomicStream(path, perm, func(dst io.Writer) error {
+		_, err := io.Copy(dst, bytes.NewReader(data))
+		return err
+	})
+}
+
+func writeOwnedFileAtomicStream(path string, perm os.FileMode, write func(io.Writer) error) error {
 	if path == "" {
 		return fmt.Errorf("config: empty file path")
 	}
@@ -79,7 +89,11 @@ func WriteOwnedFileAtomic(path string, data []byte, perm os.FileMode) error {
 		_ = tmp.Close()
 		return err
 	}
-	if _, err := tmp.Write(data); err != nil {
+	if err := write(tmp); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := chownPathToInvokingUser(tmpPath); err != nil {
 		_ = tmp.Close()
 		return err
 	}
@@ -87,16 +101,119 @@ func WriteOwnedFileAtomic(path string, data []byte, perm os.FileMode) error {
 		_ = tmp.Close()
 		return err
 	}
-	if err := tmp.Close(); err != nil {
+	expected, err := tmp.Stat()
+	if err != nil {
+		_ = tmp.Close()
 		return err
 	}
-	if err := chownPathToInvokingUser(tmpPath); err != nil {
+	if err := tmp.Close(); err != nil {
 		return err
 	}
 	if err := os.Rename(tmpPath, path); err != nil {
 		return err
 	}
-	return chownPathToInvokingUser(path)
+	actual, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !os.SameFile(expected, actual) {
+		return fmt.Errorf("config: published owned file identity changed")
+	}
+	return nil
+}
+
+// WriteOwnedFileDurable commits an owned file and syncs the rename and its
+// complete ancestor chain. Lifecycle intent must use this stronger
+// boundary before an irreversible effect. An error may follow a visible rename:
+// callers must reconcile the same request rather than assume nothing committed.
+// A filesystem/platform that cannot sync directories returns an error; it does
+// not silently downgrade a durable intent to an atomic-only write.
+func WriteOwnedFileDurable(path string, data []byte, perm os.FileMode) error {
+	return writeOwnedFileDurableWith(path, data, perm, WriteOwnedFileAtomic, syncOwnedDirectory)
+}
+
+// WriteOwnedFileDurableStream publishes a streamed payload through the same
+// owned atomic/durable boundary. The writer may validate a checksum and return
+// an error before publication. It must not close or retain the supplied writer.
+// This avoids buffering an entire executable or archive in memory.
+func WriteOwnedFileDurableStream(path string, perm os.FileMode, write func(io.Writer) error) error {
+	if write == nil {
+		return fmt.Errorf("config: stream writer is required")
+	}
+	return writeOwnedFileDurableWith(path, nil, perm, func(path string, _ []byte, perm os.FileMode) error {
+		return writeOwnedFileAtomicStream(path, perm, write)
+	}, syncOwnedDirectory)
+}
+
+func writeOwnedFileDurableWith(path string, data []byte, perm os.FileMode, write func(string, []byte, os.FileMode) error, syncDir func(string) error) error {
+	if path == "" {
+		return fmt.Errorf("config: empty file path")
+	}
+	parent := filepath.Dir(path)
+	if err := write(path, data, perm); err != nil {
+		return err
+	}
+	// Visible ancestors may be from an unconfirmed prior write. Resolve both
+	// directory aliases and their physical ancestors; a symlink's parent is
+	// not the directory that persists its target's own entry.
+	directories, err := ownedDurableDirectories(parent)
+	if err != nil {
+		return fmt.Errorf("config: commit visible but directory durability unconfirmed: %w", err)
+	}
+	for _, dir := range directories {
+		if err := syncDir(dir); err != nil {
+			return fmt.Errorf("config: commit visible but directory durability unconfirmed: %w", err)
+		}
+	}
+	return nil
+}
+
+func ownedDurableDirectories(parent string) ([]string, error) {
+	logical, err := filepath.Abs(parent)
+	if err != nil {
+		return nil, err
+	}
+	depths := map[string]int{}
+	for {
+		physical, err := filepath.EvalSymlinks(logical)
+		if err != nil {
+			return nil, err
+		}
+		var chain []string
+		for dir := physical; ; dir = filepath.Dir(dir) {
+			chain = append(chain, dir)
+			if filepath.Dir(dir) == dir {
+				break
+			}
+		}
+		for i, dir := range chain {
+			depths[dir] = len(chain) - i
+		}
+		if filepath.Dir(logical) == logical {
+			break
+		}
+		logical = filepath.Dir(logical)
+	}
+	directories := make([]string, 0, len(depths))
+	for dir := range depths {
+		directories = append(directories, dir)
+	}
+	sort.Slice(directories, func(i, j int) bool {
+		if depths[directories[i]] != depths[directories[j]] {
+			return depths[directories[i]] > depths[directories[j]]
+		}
+		return directories[i] < directories[j]
+	})
+	return directories, nil
+}
+
+func syncOwnedDirectory(path string) error {
+	dir, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
 }
 
 // InstallExecutableAtomic copies a prepared executable into its live path
@@ -203,6 +320,15 @@ func ReconcileVrooliOwnership() (int, error) {
 // vrooli never leaves them root-owned.
 func ChownToInvokingUser(path string) error {
 	return chownPathToInvokingUser(path)
+}
+
+// ChownFileToInvokingUser repairs an already-admitted runtime-home inode.
+// It never reopens or follows the file's pathname; the caller owns admission.
+func ChownFileToInvokingUser(file *os.File) error {
+	if file == nil {
+		return fmt.Errorf("config: nil owned file")
+	}
+	return chownFileToInvokingUser(file)
 }
 
 // missingAncestors returns the path and each ancestor that does not yet exist,

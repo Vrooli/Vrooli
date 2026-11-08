@@ -9,6 +9,12 @@ import (
 	"github.com/vrooli/vrooli/internal/vroolierr"
 )
 
+// NormalizeCommandName is the CLI grammar for command names, shared by dispatch
+// and pre-dispatch policy. It must not be applied to targets, paths or flag values.
+func NormalizeCommandName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
 const (
 	ErrorCategoryUsage       = "Usage"
 	ErrorCategoryEnvironment = "Environment"

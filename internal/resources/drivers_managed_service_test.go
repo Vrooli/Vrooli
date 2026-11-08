@@ -121,6 +121,82 @@ func TestManagedServiceInstallAcquiresDeclaredArtifactIdempotently(t *testing.T)
 	}
 }
 
+func TestManagedServiceRestartPreservesServingProcessWhenCandidateCannotBeVerified(t *testing.T) {
+	if testing.Short() {
+		t.Skip("uses owned helper processes")
+	}
+	body, err := os.ReadFile(os.Args[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := fmt.Sprintf("%x", sha256.Sum256(body))
+	for _, failure := range []string{"installed checksum", "acquired checksum"} {
+		t.Run(failure, func(t *testing.T) {
+			root := t.TempDir()
+			t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", filepath.Join(root, "runtime"))
+			t.Setenv("VROOLI_MANAGED_SERVICE_FIXTURE", "1")
+			originalDir := resolveCompanionDir
+			companionRoot := t.TempDir()
+			resolveCompanionDir = func(string) (string, error) { return companionRoot, nil }
+			t.Cleanup(func() { resolveCompanionDir = originalDir })
+			resourceRoot := filepath.Join(root, "resources", "fixture-service", "bin")
+			if err := os.MkdirAll(resourceRoot, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			binary := filepath.Join(resourceRoot, "service")
+			if err := os.WriteFile(binary, body, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			manifest := managedServiceTestManifest(sum)
+			manifest.Companions = []ResourceCompanion{{Name: "availability-edge", Command: binary, Args: []string{"-test.run=TestManagedServiceFixtureProcess", "--"}, Required: true}}
+			controller := NewController(root, filepath.Join(root, "home"))
+			item := Resource{Name: manifest.Name}
+			driver := managedServiceDriver{}
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			if err := driver.Run(ctx, controller, item, manifest, "start", nil, io.Discard, io.Discard); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				_ = driver.Run(context.Background(), controller, item, manifest, "stop", nil, io.Discard, io.Discard)
+			})
+			supervisor, _, err := managedServiceSupervisorFor(manifest.Name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			before, running, err := supervisor.Status()
+			if err != nil || !running {
+				t.Fatalf("baseline is not running: %+v %v", before, err)
+			}
+			companions, err := companionStatuses(manifest.Name, manifest.Companions)
+			if err != nil || len(companions) != 1 || !companions[0].Alive {
+				t.Fatalf("baseline companion=%+v error=%v", companions, err)
+			}
+			candidate := manifest
+			service := *manifest.ManagedService
+			candidate.ManagedService = &service
+			candidate.ManagedService.Artifact.Version = "2.0.0"
+			candidate.ManagedService.Artifact.SHA256 = strings.Repeat("a", 64)
+			if failure == "acquired checksum" {
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("invalid candidate")) }))
+				defer server.Close()
+				candidate.ManagedService.Acquisition = &binaryfetch.Acquisition{Kind: "url", Targets: []binaryfetch.AcquisitionTarget{{URL: server.URL, SHA256: strings.Repeat("a", 64), Layout: "file"}}}
+			}
+			if err := driver.Run(ctx, controller, item, candidate, "restart", nil, io.Discard, io.Discard); err == nil {
+				t.Fatal("unverified candidate restarted successfully")
+			}
+			after, running, err := supervisor.Status()
+			if err != nil || !running || after.PID != before.PID || after.InstanceID != before.InstanceID || after.ArtifactSHA256 != before.ArtifactSHA256 {
+				t.Fatalf("candidate failure interrupted serving process: before=%+v after=%+v running=%t error=%v", before, after, running, err)
+			}
+			afterCompanions, err := companionStatuses(manifest.Name, manifest.Companions)
+			if err != nil || len(afterCompanions) != 1 || !afterCompanions[0].Alive || afterCompanions[0].PID != companions[0].PID {
+				t.Fatalf("candidate failure interrupted companion: %+v error=%v", afterCompanions, err)
+			}
+		})
+	}
+}
+
 func TestNativeDataArtifactStagesVendoredBytesAndChecksum(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", filepath.Join(root, "runtime"))
@@ -518,7 +594,7 @@ func TestManagedServiceControlPlaneUsesSharedDefaultWithoutDesktopConsent(t *tes
 }
 
 func TestManagedServicePortEnvironmentName(t *testing.T) {
-	if got := managedServicePortEnvName("http-admin"); got != "RESOURCE_PORT_HTTP_ADMIN" {
+	if got := resourcedeployment.ServicePortEnvironmentName("http-admin"); got != "RESOURCE_PORT_HTTP_ADMIN" {
 		t.Fatalf("port environment name = %q", got)
 	}
 }

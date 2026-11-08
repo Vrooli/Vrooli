@@ -92,6 +92,8 @@ var durationDefinitions = []durationDefinition{
 	{Name: "DockerRuntimeOperationTimeout", CompiledDefault: defaultDockerRuntimeOperationTimeout, CallerProvidedDefault: false},
 	{Name: "ResourceControlExtendedTimeout", CompiledDefault: defaultResourceControlExtendedTimeout, CallerProvidedDefault: false},
 	{Name: "SetupExtendedOperationTimeout", CompiledDefault: defaultSetupExtendedOperationTimeout, CallerProvidedDefault: false},
+	{Name: "SharedPackageLockWaitTimeout", CompiledDefault: defaultSharedPackageLockWaitTimeout, CallerProvidedDefault: false},
+	{Name: "SharedPackageLockWaitLogInterval", CompiledDefault: defaultSharedPackageLockWaitLogInterval, CallerProvidedDefault: false},
 	{Name: "PrivilegeBrokerOperationTimeout", CompiledDefault: defaultPrivilegeBrokerOperationTimeout, CallerProvidedDefault: false},
 	{Name: "StructureProviderExtendedBudget", CompiledDefault: defaultStructureProviderExtendedBudget, CallerProvidedDefault: false},
 	{Name: "ProviderBudget", CompiledDefault: defaultProviderBudget, CallerProvidedDefault: false},

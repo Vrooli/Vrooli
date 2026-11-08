@@ -2,6 +2,7 @@ package vroolicli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -44,9 +45,38 @@ func (a *agentArgs) Set(value string) error {
 	return nil
 }
 
+// agentSubcommands is the `vrooli agent` family in help order.
+var agentSubcommands = [][2]string{
+	{"launch", "Launch an allowlisted coding-agent CLI with inherited terminal input and output"},
+	{"exec", "Run typed command argv inside a protected local native session"},
+	{"list", "List coding-agent sessions with owner, state, memory and reapability"},
+	{"reap", "Stop coding-agent sessions whose owner is confirmed gone"},
+	{"recover", "Attempt budgeted mechanical lifecycle recovery of a scenario"},
+	{"thaw", "Thaw a session scope frozen by storm containment (works with the API down)"},
+	{"identity-binding", "Emit the versioned proof binding a harness session to its agent identity (--json)"},
+	{"authorize", "Prepare reviewable consent for a session or run; a human approves it in Agent Manager"},
+	{"authorization", "List a session's or run's operation authorization grants"},
+	{"revoke-authorization", "Print the human decision link that revokes a session's approved grant"},
+}
+
+func printAgentHelp(ctx *AppContext) error {
+	var b strings.Builder
+	b.WriteString("Vrooli Agent Commands\n\nRun coding-agent sessions and bounded scenario recovery through the governed project surface.\n\nUsage:\n  vrooli agent <subcommand> [options]\n\nSubcommands:\n")
+	for _, sub := range agentSubcommands {
+		fmt.Fprintf(&b, "  %-22s %s\n", sub[0], sub[1])
+	}
+	b.WriteString("\nRun 'vrooli agent <subcommand> --help' for subcommand options.\n")
+	_, err := fmt.Fprint(ctx.Stdout, b.String())
+	return err
+}
+
 func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 	if len(args) == 0 || strings.TrimSpace(args[0]) == "" {
-		return clipolicy.UsageErrorf("agent", "an agent subcommand is required (supported: launch, exec, list, reap, recover, thaw, identity-binding, authorize, authorization, revoke-authorization)")
+		return printAgentHelp(ctx)
+	}
+	switch args[0] {
+	case "help", "-h", "--help":
+		return printAgentHelp(ctx)
 	}
 	if args[0] == "authorize" || args[0] == "authorization" || args[0] == "revoke-authorization" {
 		return app.runAgentAuthorization(ctx, args[0], args[1:])
@@ -70,7 +100,11 @@ func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 		return app.runAgentIdentityBinding(ctx, args[1:])
 	}
 	if args[0] != "launch" {
-		return clipolicy.UsageErrorf("agent", "unsupported agent subcommand %q (supported: launch, exec, list, reap, recover, thaw, identity-binding, authorize, authorization, revoke-authorization)", args[0])
+		names := make([]string, 0, len(agentSubcommands))
+		for _, sub := range agentSubcommands {
+			names = append(names, sub[0])
+		}
+		return clipolicy.UsageErrorf("agent", "unsupported agent subcommand %q (supported: %s)", args[0], strings.Join(names, ", "))
 	}
 
 	fs := commandtree.NewFlagSet("vrooli agent launch")
@@ -78,6 +112,7 @@ func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 	runner := fs.String("runner", agentClaude, "coding-agent runner: claude, codex, opencode, grok, or antigravity")
 	prompt := fs.String("prompt", "", "optional non-interactive prompt")
 	requireIdentity := fs.Bool("require-native-identity", false, "refuse protected startup without native identity; broker refusal is terminal")
+	timeout := fs.Duration("timeout", 0, "bound a waiting agent invocation; zero uses the caller's deadline")
 	cwd := fs.String("cwd", "", "optional working directory")
 	var extra agentArgs
 	fs.Var(&extra, "arg", "additional argv token passed to the runner (repeatable)")
@@ -92,13 +127,22 @@ func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 	if fs.NArg() != 0 {
 		return clipolicy.UsageErrorf("agent launch", "unexpected positional arguments: %s", strings.Join(fs.Args(), " "))
 	}
+	if *timeout < 0 {
+		return clipolicy.UsageErrorf("agent launch", "--timeout must be non-negative")
+	}
+	launchCtx := ctx.OperationContext()
+	if *timeout > 0 {
+		var cancel context.CancelFunc
+		launchCtx, cancel = context.WithTimeout(launchCtx, *timeout)
+		defer cancel()
+	}
 
 	binary, err := agentRunnerBinary(*runner)
 	if err != nil {
 		return err
 	}
 	childArgs := agentInvocationArgs(binary, extra, *prompt)
-	launch, err := cliutil.LaunchCodingAgentResult(context.Background(), cliutil.AgentLaunchRequest{
+	launch, err := cliutil.LaunchCodingAgentResult(launchCtx, cliutil.AgentLaunchRequest{
 		Agent:                 *runner,
 		RequireNativeIdentity: *requireIdentity,
 		Args:                  childArgs,
@@ -118,7 +162,57 @@ func (app *App) runAgentCommand(ctx *AppContext, args []string) error {
 }
 
 func (app *App) runAgentRecovery(ctx *AppContext, args []string) error {
+	if len(args) > 0 && args[0] == "investigate" {
+		return runCodingAgentInvestigation(ctx, args[1:], newCodingAgentInvestigationBroker)
+	}
+	if len(args) > 0 && args[0] == "reconcile" {
+		fs := commandtree.NewFlagSet("vrooli agent recover reconcile")
+		fs.SetOutput(ctx.Stderr)
+		limit := fs.Int("limit", 32, "maximum unverified execution claims to reconcile (1–128)")
+		asJSON := fs.Bool("json", ctx.Globals.JSON, "emit the bounded metadata reconciliation; no execution effects")
+		if err := fs.Parse(args[1:]); err != nil {
+			if errors.Is(err, flag.ErrHelp) {
+				return nil
+			}
+			return err
+		}
+		if fs.NArg() != 0 {
+			return clipolicy.UsageErrorf("agent recover reconcile", "unexpected positional arguments")
+		}
+		path, err := recovery.DefaultCodingAgentRecordPath()
+		if err != nil {
+			return err
+		}
+		broker, err := recovery.NewCodingAgentBroker(path, nil)
+		if err != nil {
+			return err
+		}
+		report, err := broker.ReconcileUnverified(ctx.OperationContext(), *limit)
+		if err != nil {
+			return err
+		}
+		if ctx.Stdout == nil {
+			return nil
+		}
+		if *asJSON {
+			return json.NewEncoder(ctx.Stdout).Encode(report)
+		}
+		_, err = fmt.Fprintf(ctx.Stdout, "Reconciled %d execution claims as unconfirmed; %d remain. No process was stopped or started; duplicate suppression remains.\n", len(report.Changed), report.Remaining)
+		return err
+	}
 	if len(args) > 0 && args[0] == "list" {
+		fs := commandtree.NewFlagSet("vrooli agent recover list")
+		fs.SetOutput(ctx.Stderr)
+		asJSON := fs.Bool("json", ctx.Globals.JSON, "print lifecycle and coding-agent recovery receipts as JSON")
+		if err := fs.Parse(args[1:]); err != nil {
+			if errors.Is(err, flag.ErrHelp) {
+				return nil
+			}
+			return err
+		}
+		if fs.NArg() != 0 {
+			return clipolicy.UsageErrorf("agent recover list", "unexpected positional arguments: %s", strings.Join(fs.Args(), " "))
+		}
 		path, err := recovery.DefaultRecordPath()
 		if err != nil {
 			return fmt.Errorf("resolve recovery record path: %w", err)
@@ -127,9 +221,35 @@ func (app *App) runAgentRecovery(ctx *AppContext, args []string) error {
 		if err != nil {
 			return err
 		}
+		codingPath, err := recovery.DefaultCodingAgentRecordPath()
+		if err != nil {
+			return err
+		}
+		codingBroker, err := recovery.NewCodingAgentBroker(codingPath, nil)
+		if err != nil {
+			return err
+		}
+		codingRecords, err := codingBroker.Snapshot()
+		if err != nil {
+			return err
+		}
+		if *asJSON {
+			if ctx.Stdout == nil {
+				return nil
+			}
+			return json.NewEncoder(ctx.Stdout).Encode(struct {
+				Lifecycle    []recovery.Record            `json:"lifecycle"`
+				CodingAgents []recovery.CodingAgentRecord `json:"coding_agents"`
+			}{broker.Records(), codingRecords})
+		}
 		for _, record := range broker.Records() {
 			if ctx.Stdout != nil {
 				_, _ = fmt.Fprintf(ctx.Stdout, "%s scenario=%s tier=%s budget_remaining=%d outcome=%s\n", record.ID, record.Scenario, record.TierReached, record.BudgetRemaining, record.Outcome)
+			}
+		}
+		for _, record := range codingRecords {
+			if ctx.Stdout != nil {
+				_, _ = fmt.Fprintf(ctx.Stdout, "%s scenario=%s kind=coding-agent runner=%s outcome=%s created_at=%s deadline_at=%s error=%q reconciliation=%q\n", record.ID, record.Scenario, record.Runner, record.Outcome, record.CreatedAt.Format("2006-01-02T15:04:05Z07:00"), record.DeadlineAt.Format("2006-01-02T15:04:05Z07:00"), record.Error, record.ReconciliationReason)
 			}
 		}
 		return nil
@@ -154,7 +274,7 @@ func (app *App) runAgentRecovery(ctx *AppContext, args []string) error {
 	}
 	broker, err := recovery.New(path, func(runCtx context.Context, tier, target string, childEnv []string) error {
 		home, _ := configpkg.HomeDir()
-		binary, resolveErr := cliinvoke.Resolve(cliinvoke.ResolveOptions{RuntimeHome: home})
+		binary, resolveErr := cliinvoke.Resolve(cliinvoke.ResolveOptions{UserHome: home})
 		if resolveErr != nil {
 			return resolveErr
 		}
@@ -186,7 +306,7 @@ func (app *App) runAgentRecovery(ctx *AppContext, args []string) error {
 // agentInvocationArgs keeps the governed wrapper's prompt contract aligned
 // with each runner's real CLI. The wrapper deliberately exposes one stable
 // Vrooli flag, while the underlying tools disagree: Claude and Antigravity use
-// -p, Codex and Grok accept a positional prompt, and OpenCode's non-interactive prompt lives
+// -p, Codex uses exec, and OpenCode's non-interactive prompt lives
 // under its run subcommand. Extra argv tokens remain operator-controlled but
 // are always passed as typed arguments, never through a shell.
 func agentInvocationArgs(binary string, extra []string, prompt string) []string {
@@ -194,19 +314,12 @@ func agentInvocationArgs(binary string, extra []string, prompt string) []string 
 	if strings.TrimSpace(prompt) == "" {
 		return args
 	}
-	switch binary {
-	case agentClaude, agentAntigravity:
-		return append(args, "-p", prompt)
-	case agentOpencode:
-		args = append([]string{"run"}, args...)
-		return append(args, prompt)
-	case agentCodex, agentGrok:
-		return append(args, prompt)
-	default:
-		// agentRunnerBinary is the admission boundary. Keep this fallback
-		// conservative if a future caller bypasses that boundary.
+	headless := recovery.CodingAgentArguments(binary, prompt)
+	if binary == agentOpencode || binary == agentCodex {
+		args = append(headless[:1:1], args...)
 		return append(args, prompt)
 	}
+	return append(args, headless...)
 }
 
 // agentRunnerBinary admits exactly the runners the harness descriptors declare.

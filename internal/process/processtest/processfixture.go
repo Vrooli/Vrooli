@@ -22,7 +22,7 @@ func ScenarioRecord(name, step string, pid int, opts ...ScenarioRecordOption) pr
 		WorkingDir: fmt.Sprintf("/repo/scenarios/%s", name),
 		LogFile:    fmt.Sprintf("/tmp/%s.log", name),
 		StartedAt:  time.Now().UTC(),
-		Status:     "running",
+		Status:     process.RecordStatusRunning,
 	}
 	for _, opt := range opts {
 		opt(&record)

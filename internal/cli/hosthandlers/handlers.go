@@ -38,7 +38,7 @@ type hostService struct {
 
 const hostMemoryBytesPerMegabyte = 1024
 
-var hostCommandNames = []string{"cron", "inventory", "desktop-session", "install", "safeguard", "reboot", "volume", "storage", "hyperframes", "renderer-profile", "triposr-source", "renderer-cache-repair"}
+var hostCommandNames = []string{"cron", "inventory", "kernel-memory", "service", "desktop-session", "install", "safeguard", "reboot", "volume", "storage", "hyperframes", "renderer-profile", "triposr-source", "renderer-cache-repair"}
 
 // RegisteredCommandPaths returns the child paths bound by the host handler.
 func RegisteredCommandPaths() []string {
@@ -131,6 +131,10 @@ func hostBindings(ctx *rootcli.CommandContext, names []string) map[string]func(c
 					return runHostCron(runCtx, ctx)
 				case "inventory":
 					return runHostInventory(runCtx, ctx)
+				case "kernel-memory":
+					return runHostKernelMemory(runCtx, ctx)
+				case "service":
+					return runHostServiceRecovery(runCtx, ctx)
 				case "desktop-session":
 					return runDesktopSession(runCtx, ctx)
 				case "hyperframes":

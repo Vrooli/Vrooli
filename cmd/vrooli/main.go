@@ -47,6 +47,37 @@ func main() {
 	// The macOS session ceiling re-execs through this binary as an rlimit
 	// shim before anything else runs (platform-go/rlimitexec).
 	rlimitexec.MaybeRun(os.Args)
+	if handled, code := writeStandaloneVersion(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
+	if handled, code := writeCodingAgentRecoveryCapability(os.Args[1:], os.Stdout); handled {
+		os.Exit(code)
+	}
+	if handled, code := writeNativeSupervisorDefinition(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
+	if handled, code := runRootUpdateReadCommand(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
+	// The explicit recovery request delegates to the independent watchdog;
+	// it does not run candidate-owned repair code or general initialization.
+	if args := os.Args[1:]; rootUpdateCommand(args) && len(args) >= 3 && args[2] == "reconcile" {
+		_, code := runRootUpdateEffectCommand(args, os.Stdout, os.Stderr)
+		os.Exit(code)
+	}
+	if handled, code := runNativeSupervisorCommand(os.Args[1:], os.Stderr); handled {
+		os.Exit(code)
+	}
+	if err := guardRootActivationEntrypoint(false); err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if handled, code := runCodingAgentRecoveryWorker(os.Args[1:], os.Stderr); handled {
+		os.Exit(code)
+	}
+	if handled, code := runRootUpdateEffectCommand(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
 	sessioncontain.Register()
 	sessionlease.Register()
 	// This internal-only service entry point is reached by the root-owned
@@ -172,10 +203,7 @@ func configuredRunner() *rootcli.Runner[*vroolicli.AppContext] {
 
 func configuredApp() *vroolicli.App {
 	return vroolicli.New(vroolicli.Config{
-		VersionInfo: vroolicli.VersionInfo{
-			CLIVersion:      cliVersion,
-			PlatformVersion: vrooliVersion,
-		},
+		VersionInfo:         rootVersionInfo(),
 		ResolveSourceRootFn: resolveSourceRootFn,
 		HomeDirFn:           config.HomeDir,
 		LookPathFn:          lookPathFn,

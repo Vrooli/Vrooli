@@ -50,6 +50,14 @@ type modelCacheStore struct {
 	running                func() (bool, error)
 }
 
+// The model-cache usage events a lifetime records. Cleanup reads the last one
+// back by value, so they are stored vocabulary.
+const (
+	modelCacheEventStarted   = "started"
+	modelCacheEventStopped   = "stopped"
+	modelCacheEventInstalled = "installed"
+)
+
 func modelCacheEntry(manifest ResourceManifest, name string) (ResourceStorageEntry, time.Duration, error) {
 	if name == "" || strings.ContainsAny(name, `/\\:`) || name == "." || name == ".." {
 		return ResourceStorageEntry{}, 0, fmt.Errorf("invalid model-cache entry identifier")
@@ -86,9 +94,11 @@ func newModelCacheStore(manifest ResourceManifest, entryName string) (*modelCach
 		return nil, err
 	}
 	supervisor := newManagedServiceSupervisor(filepath.Join(paths.StateDir, managedServiceStateFile), filepath.Join(paths.LogsDir, "service.log"))
-	return &modelCacheStore{manifest: manifest, entryName: entryName, root: filepath.Join(paths.DataDir, entry.Subpath),
+	return &modelCacheStore{
+		manifest: manifest, entryName: entryName, root: filepath.Join(paths.DataDir, entry.Subpath),
 		state: filepath.Join(paths.StateDir, "model-cache-"+entryName+".json"), age: age, now: time.Now,
-		running: func() (bool, error) { _, running, err := supervisor.Status(); return running, err }}, nil
+		running: func() (bool, error) { _, running, err := supervisor.Status(); return running, err },
+	}, nil
 }
 
 func (s *modelCacheStore) content() string {
@@ -120,7 +130,7 @@ func (s *modelCacheStore) save(usage ModelCacheUsage) error {
 	if err != nil {
 		return err
 	}
-	return runtimestorage.WriteFileAtomic(s.state, data, 0600)
+	return runtimestorage.WriteFileAtomic(s.state, data, 0o600)
 }
 
 func (s *modelCacheStore) note(event string) error {
@@ -133,7 +143,7 @@ func (s *modelCacheStore) note(event string) error {
 		return err
 	}
 	if running {
-		event = "started"
+		event = modelCacheEventStarted
 	}
 	usage.LastActivity, usage.Content, usage.Event = s.now().UTC(), s.content(), event
 	return s.save(usage)
@@ -156,7 +166,7 @@ func (s *modelCacheStore) preview() (ModelCachePreview, error) {
 		p.Reason = "model cache is pinned"
 	case usage.LastActivity.IsZero() || usage.Content != s.content():
 		p.Reason = "usage or model identity is unknown"
-	case usage.Event != "stopped" && usage.Event != "installed":
+	case usage.Event != modelCacheEventStopped && usage.Event != modelCacheEventInstalled:
 		p.Reason = "last active lifetime has no confirmed stop; use normal resource stop first"
 	case s.now().Sub(usage.LastActivity) < s.age:
 		p.Reason = "declared idle retention has not elapsed"

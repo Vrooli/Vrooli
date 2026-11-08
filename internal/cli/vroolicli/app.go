@@ -69,8 +69,11 @@ import (
 )
 
 type VersionInfo struct {
-	CLIVersion      string
-	PlatformVersion string
+	CLIVersion                    string
+	PlatformVersion               string
+	BuildIdentity                 string
+	RuntimeHomeContractSHA256     string
+	PersistentStateContractSHA256 string
 }
 
 type Config struct {
@@ -141,9 +144,12 @@ func (ctx *AppContext) OperationContext() context.Context {
 }
 
 type versionOutput struct {
-	CLIVersion      string `json:"cli_version"`
-	PlatformVersion string `json:"platform_version"`
-	Root            string `json:"root"`
+	CLIVersion                    string `json:"cli_version"`
+	PlatformVersion               string `json:"platform_version"`
+	Root                          string `json:"root"`
+	BuildIdentity                 string `json:"build_identity"`
+	RuntimeHomeContractSHA256     string `json:"runtime_home_contract_sha256"`
+	PersistentStateContractSHA256 string `json:"persistent_state_contract_sha256"`
 }
 
 func New(config Config) *App {
@@ -201,6 +207,7 @@ func RegisteredLeafPaths() ([]string, error) {
 		}
 	}
 	paths = append(paths, "agent launch", "agent list", "agent reap", "agent authorize", "agent authorization", "agent identity-binding", "agent revoke-authorization", "hygiene", "lifecycle protect")
+	paths = append(paths, "agent recover", "agent recover list", "agent recover reconcile", "agent recover investigate")
 	paths = append(paths,
 		"cleanup orphans", "cleanup locks", "cleanup template-validation",
 		"orphans list", "orphans kill", "locks list", "locks clean",
@@ -270,6 +277,9 @@ func (app *App) Runner() *rootcli.Runner[*AppContext] {
 		ShowVersion: func(ctx *AppContext) error {
 			return WriteVersion(ctx.Stdout, ctx.Root, ctx.Globals, app.VersionInfo)
 		},
+		BeforeDispatch: func(_ *AppContext, parsed rootcli.ParsedArgs) error {
+			return enforceAgentCommandPolicy(parsed.Command, parsed.Args)
+		},
 		DebugLog:          app.DebugLogFn,
 		MetricsRecorder:   app.newMetricsRecorder(),
 		CLIVersion:        app.VersionInfo.CLIVersion,
@@ -334,7 +344,7 @@ func WriteVersion(w io.Writer, root string, globals rootcli.GlobalOptions, info 
 	}
 	return cliout.RenderJSONOr(w, format,
 		func(w io.Writer) error {
-			return cliout.WriteProtoJSON(w, cliVersionMessage(versionOutput{CLIVersion: info.CLIVersion, PlatformVersion: info.PlatformVersion, Root: root}))
+			return cliout.WriteProtoJSON(w, cliVersionMessage(versionOutput{CLIVersion: info.CLIVersion, PlatformVersion: info.PlatformVersion, Root: root, BuildIdentity: info.BuildIdentity, RuntimeHomeContractSHA256: info.RuntimeHomeContractSHA256, PersistentStateContractSHA256: info.PersistentStateContractSHA256}))
 		},
 		func(w io.Writer) error {
 			_, _ = fmt.Fprintf(w, "Vrooli CLI v%s\n", info.CLIVersion)
@@ -914,6 +924,44 @@ func topLevelHandlerDefinitions() map[topcli.CommandID]rootcli.Handler[*AppConte
 		},
 		topcli.CommandUninstall: func(ctx *AppContext, args []string) error { return ctx.app.runUninstallCommand(ctx, args) },
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *AppContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
+		topcli.CommandManagedUpdateExec: func(ctx *AppContext, args []string) error {
+			if len(args) != 3 {
+				return fmt.Errorf("managed-update-exec requires resource, request and instance")
+			}
+			home, err := ctx.HomeDir()
+			if err != nil {
+				return err
+			}
+			return resources.NewController(ctx.Root, home).RunManagedUpdateExec(ctx.OperationContext(), args[0], args[1], args[2])
+		},
+		topcli.CommandManagedUpdateCandidate: func(ctx *AppContext, args []string) error {
+			if len(args) != 2 {
+				return fmt.Errorf("managed-update-candidate requires resource and request")
+			}
+			home, err := ctx.HomeDir()
+			if err != nil {
+				return err
+			}
+			result, err := resources.NewController(ctx.Root, home).AdvanceManagedUpdateCandidate(ctx.OperationContext(), args[0], args[1])
+			if err != nil {
+				return err
+			}
+			return cliout.WriteJSON(commandStdout(ctx), result)
+		},
+		topcli.CommandManagedUpdateRun: func(ctx *AppContext, args []string) error {
+			if len(args) != 2 {
+				return fmt.Errorf("managed-update-run requires resource and request")
+			}
+			home, err := ctx.HomeDir()
+			if err != nil {
+				return err
+			}
+			result, err := resources.NewController(ctx.Root, home).AdvanceManagedServiceUpdate(ctx.OperationContext(), args[0], args[1], false)
+			if err != nil {
+				return err
+			}
+			return cliout.WriteJSON(commandStdout(ctx), result)
+		},
 		topcli.CommandCLIRefresh: func(ctx *AppContext, args []string) error {
 			if len(args) != 3 {
 				return fmt.Errorf("cli-refresh requires kind, name, and running executable")
