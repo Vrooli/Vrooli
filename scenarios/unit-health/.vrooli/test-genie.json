@@ -365,6 +365,28 @@
         "capability_id": "coverage_quality",
         "clean_requirement": "advisory"
       },
+      "COVERAGE_BELOW_COMMITTED": {
+        "local_level_impact": "L2",
+        "global_impact": "hardening_gap",
+        "dimension": "coverage",
+        "severity_default": "SEVERITY_ERROR",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "execution_readiness",
+        "clean_requirement": "required"
+      },
+      "COVERAGE_COMMITMENT_BEHIND": {
+        "local_level_impact": "L2",
+        "global_impact": "advisory",
+        "dimension": "coverage",
+        "severity_default": "SEVERITY_INFO",
+        "recommended_skill_ids": [
+          "test"
+        ],
+        "capability_id": "coverage_quality",
+        "clean_requirement": "advisory"
+      },
       "TEST_SKIPPED_OR_ONLY": {
         "local_level_impact": "L2",
         "global_impact": "advisory",
@@ -477,7 +499,7 @@
       {
         "id": "execution_readiness",
         "label": "Execution Readiness",
-        "description": "Dependency installation, test command execution, timeout detection, and execution misconfiguration.",
+        "description": "Dependency installation, test command execution, timeout detection, execution misconfiguration, and coverage held at the committed floor.",
         "levels": [
           {
             "id": "L0",

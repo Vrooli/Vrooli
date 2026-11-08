@@ -85,7 +85,7 @@ func TestPerFileLowCoverageFindings(t *testing.T) {
 		"mod/a.go:1.1,3.2 2 0\n"+
 		"mod/b.go:1.1,2.2 2 1\n")
 	ws := Workspace{ID: "api", Language: "go", RootPath: wsDir, CoverageCommand: "go test -cover ./..."}
-	_, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
+	_, findings := analyzeCoverage("demo", root, []Workspace{ws}, passedCoverageRun(ws), fixedNowStr)
 
 	var perFile, hasA, hasB bool
 	for _, f := range findings {

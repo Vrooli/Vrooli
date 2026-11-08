@@ -12,8 +12,28 @@ func TestReadCoverageUsesDeclaredArtifactKind(t *testing.T) {
 	writeArtifact(t, filepath.Join(root, "coverage", "coverage-summary.json"), `{"total":{"lines":{"total":10,"covered":9}},"src/App.tsx":{"lines":{"total":10,"covered":9}}}`)
 
 	coverage, ok := ReadCoverage(root, []Artifact{{Kind: "istanbul-summary", Path: "coverage/coverage-summary.json"}})
-	if !ok || coverage["src/App.tsx"].Total != 10 || coverage["src/App.tsx"].Covered != 9 {
+	if !ok || coverage.Files["src/App.tsx"].Total != 10 || coverage.Files["src/App.tsx"].Covered != 9 {
 		t.Fatalf("coverage=%+v ok=%v", coverage, ok)
+	}
+	if _, reported := coverage.Totals[MetricBranches]; reported {
+		t.Fatalf("a metric absent from the summary must not be reported as covered: %+v", coverage.Totals)
+	}
+}
+
+func TestIstanbulSummaryTotalsCarryEveryReportedMetric(t *testing.T) {
+	root := t.TempDir()
+	writeArtifact(t, filepath.Join(root, "coverage", "coverage-summary.json"), `{
+		"total":{"lines":{"total":100,"covered":78},"statements":{"total":200,"covered":150},"functions":{"total":10,"covered":7},"branches":{"total":0,"covered":0}},
+		"src/App.tsx":{"lines":{"total":100,"covered":78}}}`)
+	coverage, ok := ReadCoverage(root, []Artifact{{Kind: "istanbul-summary", Path: "coverage/coverage-summary.json"}})
+	if !ok {
+		t.Fatal("summary rejected")
+	}
+	want := map[string]float64{MetricLines: 78, MetricStatements: 75, MetricFunctions: 70, MetricBranches: 100}
+	for metric, percent := range want {
+		if got := coverage.Totals[metric].Percent(); got != percent {
+			t.Fatalf("%s=%.2f want %.2f (totals=%+v)", metric, got, percent, coverage.Totals)
+		}
 	}
 }
 
@@ -23,8 +43,11 @@ func TestGoCoverageAcceptsNativeZeroStatementBlocks(t *testing.T) {
 	// when entered. They must neither invalidate the profile nor inflate coverage.
 	writeArtifact(t, filepath.Join(root, "coverage.out"), "mode: atomic\ndemo/a.go:1.1,1.1 0 5\ndemo/a.go:2.1,3.1 2 1\ndemo/a.go:4.1,5.1 3 0\n")
 	metrics, ok := ReadCoverage(root, DefaultCoverageArtifacts("go"))
-	if !ok || len(metrics) != 1 || metrics["demo/a.go"].Total != 5 || metrics["demo/a.go"].Covered != 2 {
+	if !ok || len(metrics.Files) != 1 || metrics.Files["demo/a.go"].Total != 5 || metrics.Files["demo/a.go"].Covered != 2 {
 		t.Fatalf("native zero-statement block lost or inflated metrics: %+v, accepted=%v", metrics, ok)
+	}
+	if total := metrics.Totals[MetricStatements]; total.Total != 5 || total.Covered != 2 {
+		t.Fatalf("go profile totals measure statements: %+v", metrics.Totals)
 	}
 }
 
@@ -44,7 +67,7 @@ func TestReadCoverageFallsThroughMissingArtifact(t *testing.T) {
 		{Kind: "istanbul-summary", Path: "coverage/missing.json"},
 		{Kind: "lcov", Path: "coverage/lcov.info"},
 	})
-	if !ok || coverage["src/a.ts"].Covered != 2 {
+	if !ok || coverage.Files["src/a.ts"].Covered != 2 || coverage.Totals[MetricLines].Total != 4 {
 		t.Fatalf("coverage=%+v ok=%v", coverage, ok)
 	}
 }
@@ -53,7 +76,7 @@ func TestReadCoverageParsesCoberturaDeclaredArtifact(t *testing.T) {
 	root := t.TempDir()
 	writeArtifact(t, filepath.Join(root, "coverage.xml"), `<coverage><packages><package><classes><class filename="worker.py"><lines><line number="1" hits="1"/><line number="2" hits="0"/></lines></class></classes></package></packages></coverage>`)
 	coverage, ok := ReadCoverage(root, []Artifact{{Kind: "cobertura", Path: "coverage.xml"}})
-	if !ok || coverage["worker.py"].Covered != 1 || coverage["worker.py"].Total != 2 {
+	if !ok || coverage.Files["worker.py"].Covered != 1 || coverage.Files["worker.py"].Total != 2 {
 		t.Fatalf("coverage=%+v ok=%v", coverage, ok)
 	}
 }
@@ -72,6 +95,7 @@ func TestReadCoverageRejectsMalformedDeclaredArtifacts(t *testing.T) {
 		{name: "lcov incomplete record", kind: "lcov", path: "coverage/lcov.info", contents: "SF:src/a.ts\nLF:4\nLH:2\n"},
 		{name: "cobertura negative line", kind: "cobertura", path: "coverage.xml", contents: `<coverage><packages><package><classes><class filename="a.py"><lines><line number="-1" hits="1"/></lines></class></classes></package></packages></coverage>`},
 		{name: "istanbul impossible metric", kind: "istanbul-summary", path: "coverage/coverage-summary.json", contents: `{"src/a.ts":{"lines":{"total":1,"covered":2}}}`},
+		{name: "istanbul impossible total", kind: "istanbul-summary", path: "coverage/coverage-summary.json", contents: `{"total":{"lines":{"total":1,"covered":1},"branches":{"total":1,"covered":3}},"src/a.ts":{"lines":{"total":1,"covered":1}}}`},
 	}
 
 	for _, tc := range tests {

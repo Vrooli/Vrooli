@@ -52,7 +52,7 @@ func TestAnalyzeProjectionReturnsAdapterOwnedDrift(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "vite.config.ts"), []byte("export default { test: { environment: 'jsdom' } }"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	drifts := AnalyzeProjection(ProjectionInput{RootPath: root, Policy: ProjectionPolicy{Environment: "jsdom", CoverageFloor: 80, CoverageProvider: "v8", ReportOnFailure: true}})
+	drifts := AnalyzeProjection(ProjectionInput{RootPath: root, Policy: ProjectionPolicy{Environment: "jsdom", CoverageProvider: "v8", ReportOnFailure: true}})
 	if len(drifts) == 0 {
 		t.Fatal("expected adapter-owned projection drift")
 	}
@@ -97,5 +97,46 @@ func TestAnalyzeArchitectureReturnsReactSpecificDrift(t *testing.T) {
 	}
 	if !seen["UNIT_POLICY_PROJECTION_DRIFT"] {
 		t.Fatalf("architecture drifts after helper = %+v", drifts)
+	}
+}
+
+func TestNativeCoverageThresholdsAreDriftBecauseThePolicyOwnsTheGate(t *testing.T) {
+	root := t.TempDir()
+	writeProjectionFile(t, filepath.Join(root, "package.json"), `{"scripts":{"test":"vitest run","test:coverage":"vitest run --coverage"},"devDependencies":{"vitest":"1"}}`)
+	writeProjectionFile(t, filepath.Join(root, "vite.config.ts"), "export default { test: { environment: 'jsdom', coverage: { provider: 'v8', thresholds: { lines: 85, statements: 85, functions: 85, branches: 85 } } } }")
+
+	var duplicate *ProjectionDrift
+	for _, drift := range AnalyzeProjection(ProjectionInput{RootPath: root, Policy: DefaultPolicy()}) {
+		if drift.Observed == "duplicate native coverage gate" {
+			drift := drift
+			duplicate = &drift
+		}
+	}
+	if duplicate == nil || duplicate.Evidence != "coverage.thresholds lines=85,statements=85,functions=85,branches=85" {
+		t.Fatalf("native thresholds must be reported as a second owner, got %+v", duplicate)
+	}
+}
+
+func TestEffectiveConfigPathFollowsVitestResolution(t *testing.T) {
+	root := t.TempDir()
+	if got := EffectiveConfigPath(root, "vitest run --coverage"); got != filepath.Join(root, "vite.config.ts") {
+		t.Fatalf("missing config should report vite.config.ts, got %s", got)
+	}
+	writeProjectionFile(t, filepath.Join(root, "vite.config.ts"), "export default {}")
+	writeProjectionFile(t, filepath.Join(root, "vitest.config.ts"), "export default {}")
+	if got := EffectiveConfigPath(root, "vitest run --coverage"); got != filepath.Join(root, "vitest.config.ts") {
+		t.Fatalf("vitest.config wins over vite.config, got %s", got)
+	}
+	for _, script := range []string{"vitest run --config vite.config.ts --coverage", "vitest run --config=vite.config.ts --coverage", "vitest run -c vite.config.ts --coverage"} {
+		if got := EffectiveConfigPath(root, script); got != filepath.Join(root, "vite.config.ts") {
+			t.Fatalf("explicit config in %q must win, got %s", script, got)
+		}
+	}
+}
+
+func writeProjectionFile(t *testing.T, path, contents string) {
+	t.Helper()
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

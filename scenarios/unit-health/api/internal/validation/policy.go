@@ -91,10 +91,15 @@ type unitHermeticity struct {
 }
 
 type unitCoveragePolicy struct {
-	MinimumPercent float64  `json:"minimum_percent"`
-	Mode           string   `json:"mode,omitempty"`
-	Provider       string   `json:"provider,omitempty"`
-	Reporters      []string `json:"reporters,omitempty"`
+	MinimumPercent float64 `json:"minimum_percent"`
+	// Committed is the scenario's per-metric coverage floor (lines,
+	// statements, functions, branches). It is the single owner of the coverage
+	// gate: a passing run below it is COVERAGE_BELOW_COMMITTED. Native runner
+	// thresholds must not restate it.
+	Committed map[string]float64 `json:"committed,omitempty"`
+	Mode      string             `json:"mode,omitempty"`
+	Provider  string             `json:"provider,omitempty"`
+	Reporters []string           `json:"reporters,omitempty"`
 }
 
 type unitTestUtilsPolicy struct {
@@ -244,6 +249,12 @@ func validateUnitPolicyProfile(scenario, path string, profile unitPolicyProfile,
 		}
 		if class.TestKind != "" && !validUnitTestKind(class.TestKind) {
 			findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, "policy_class="+name+" test_kind="+class.TestKind, "unit, component, repository, integration, or workflow", "unknown test kind", now))
+		}
+		for _, metric := range sortedKeys(class.Coverage.Committed) {
+			value := class.Coverage.Committed[metric]
+			if !knownCoverageMetric(metric) || value < 0 || value > 100 {
+				findings = append(findings, policyFileFinding(scenario, codeUnitPolicyInvalid, path, fmt.Sprintf("policy_class=%s coverage.committed.%s=%v", name, metric, value), "coverage.committed names lines, statements, functions, or branches with a percent from 0 to 100", "invalid coverage commitment", now))
+			}
 		}
 		if min := minimumCoverageForPolicyClass(name, class); min > 0 && class.Coverage.MinimumPercent > 0 && class.Coverage.MinimumPercent < min {
 			findings = append(findings, policyFileFinding(scenario, codeUnitPolicyWeakened, path, fmt.Sprintf("policy_class=%s minimum_percent=%.1f", name, class.Coverage.MinimumPercent), fmt.Sprintf("coverage minimum >= %.1f", min), "weaker coverage minimum", now))
@@ -493,6 +504,15 @@ func hasSupportedUnitDefault(surface discovery.Surface) bool {
 	default:
 		return false
 	}
+}
+
+func knownCoverageMetric(metric string) bool {
+	for _, known := range adapters.CoverageMetricNames {
+		if metric == known {
+			return true
+		}
+	}
+	return false
 }
 
 func minimumCoverageForPolicyClass(name string, class unitPolicyClass) float64 {

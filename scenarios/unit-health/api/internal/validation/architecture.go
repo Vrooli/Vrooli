@@ -487,9 +487,6 @@ func resolveProjectionPolicy(ws Workspace) adapters.ProjectionPolicy {
 		if !exists || !pathMatches(role.Match.Path, ws.RootPath, root) {
 			continue
 		}
-		if class.Coverage.MinimumPercent > 0 {
-			policy.CoverageFloor = class.Coverage.MinimumPercent
-		}
 		if class.Coverage.Provider != "" {
 			policy.CoverageProvider = class.Coverage.Provider
 		}

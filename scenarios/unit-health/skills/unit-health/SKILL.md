@@ -61,7 +61,9 @@ What question am I answering?
 │   → unit-health validate scenario <name> --execution                                  [S1]
 │     Bounded per workspace (timeout, no-output watchdog, worker caps). A
 │     TEST_EXECUTION_FAILURE, TEST_TIMEOUT_HANG, or TEST_DEPENDENCY_MISSING is the
-│     classified result of the run; read command output before touching tests.
+│     classified result of the run; read each command result's stdout/stderr excerpts
+│     before touching tests. In Test Genie, use the unfiltered `findings.report`
+│     artifact for the typed Unit Health response; `runs findings` is only a summary.
 │     Inside a Test Genie run the unit phase makes this read for you; do not run both.
 ├─ "Is one workspace the problem?"
 │   → unit-health validate scenario <name> --workspace <id> [--execution]               [S1]
@@ -112,7 +114,9 @@ What question am I answering?
 | `status` passed / failed / degraded | Error findings fail; degraded means discovery or a dependency was unavailable and the result must not be read as clean |
 | `maturity.label` and `blocking_finding_codes` | The lowest capability with a required finding decides the level; advisory codes never block |
 | `evidence_stages` | `executed=not_requested` means no test ran; `reviewed=not_supplied` means no sampled review was attached; `reviewed=supplied` means a cohort with an observed label was attached; `analyzed=partial` means at least one adapter returned unknown |
-| `coverage` and `LOW_COVERAGE` | Per-file floors from the scenario's policy profile in `.vrooli/testing.json`; advisory, capped at `num[threshold]:25` findings per workspace |
+| `coverage` and `LOW_COVERAGE` | Gap to the policy target (`coverage.minimum_percent`) per file and per metric; advisory debt, capped at `num[threshold]:25` per-file findings per workspace |
+| `COVERAGE_BELOW_COMMITTED` | Tests passed but a metric fell below `coverage.committed`; blocking. Add tests; never lower the floor to pass |
+| `COVERAGE_COMMITMENT_BEHIND` | The floor lags measured coverage; ratchet it with `unit-health fix apply <scenario> --rules COVERAGE_COMMITMENT_BEHIND` |
 | `traceability.unavailable_reason` | `OWNER_UNAVAILABLE` means the requirements owner did not answer; links are unknown, not missing |
 
 ### In-use settings

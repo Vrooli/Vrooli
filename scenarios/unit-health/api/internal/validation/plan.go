@@ -62,22 +62,24 @@ var codeSeverity = map[string]string{
 	codeUnitTestKindOutOfScope:  "warning",
 
 	// Phase 5 analyzer codes (coverage, architecture, quality, diagnostics).
-	codeLowCoverage:             "warning",
-	codeCoverageAbsent:          "info",
-	codeTestNotColocated:        "warning",
-	codeTestUtilMissing:         "warning",
-	codeTestHelperFromProd:      "error",
-	codeMissingInjectableSeam:   "warning",
-	codeTestSkippedOrOnly:       "warning",
-	codeTestExcessiveSnapshots:  "info",
-	codeTestFlakeSuspected:      "warning",
-	codeTestRuntimeGrowth:       "info",
-	codeTestUntaggedRequirement: "warning",
-	codeTestQualityViolation:    "error",
-	codeSeamDuplicatedInPackage: "error",
-	codeSeamReimplemented:       "error",
-	codeCompanionReimplemented:  "error",
-	codeCompanionAvailable:      "info",
+	codeLowCoverage:              "warning",
+	codeCoverageAbsent:           "info",
+	codeCoverageBelowCommitted:   "error",
+	codeCoverageCommitmentBehind: "info",
+	codeTestNotColocated:         "warning",
+	codeTestUtilMissing:          "warning",
+	codeTestHelperFromProd:       "error",
+	codeMissingInjectableSeam:    "warning",
+	codeTestSkippedOrOnly:        "warning",
+	codeTestExcessiveSnapshots:   "info",
+	codeTestFlakeSuspected:       "warning",
+	codeTestRuntimeGrowth:        "info",
+	codeTestUntaggedRequirement:  "warning",
+	codeTestQualityViolation:     "error",
+	codeSeamDuplicatedInPackage:  "error",
+	codeSeamReimplemented:        "error",
+	codeCompanionReimplemented:   "error",
+	codeCompanionAvailable:       "info",
 }
 
 // defaultWorkspaceTimeoutSeconds bounds each planned command. The bounded
@@ -386,7 +388,8 @@ func buildExecutionPlanForMode(workspaces []Workspace, fastTestOnly bool) Execut
 	plan := ExecutionPlan{}
 	for _, ws := range workspaces {
 		command := ws.TestCommand
-		if !fastTestOnly && ws.CoverageCommand != "" {
+		coverage := !fastTestOnly && ws.CoverageCommand != ""
+		if coverage {
 			command = ws.CoverageCommand
 		}
 		timeout := ws.TimeoutSeconds
@@ -400,7 +403,7 @@ func buildExecutionPlanForMode(workspaces []Workspace, fastTestOnly bool) Execut
 			if fastTestOnly {
 				artifacts = nil
 			}
-			if !fastTestOnly && ws.CoverageCommand != "" {
+			if coverage {
 				executable = ws.CoverageExecutable
 				args = ws.CoverageArgs
 			}
@@ -417,6 +420,7 @@ func buildExecutionPlanForMode(workspaces []Workspace, fastTestOnly bool) Execut
 				NoOutputTimeoutSeconds: ws.NoOutputTimeoutSeconds,
 				Kind:                   kindTest,
 				TestKind:               ws.TestKind,
+				Coverage:               coverage,
 				Hermetic:               ws.Hermetic,
 			})
 		}

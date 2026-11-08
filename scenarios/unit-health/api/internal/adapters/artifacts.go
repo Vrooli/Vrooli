@@ -19,6 +19,37 @@ type CoverageMetric struct {
 	Total   int64
 }
 
+// Percent reports covered/total. An empty denominator is fully covered, the
+// Istanbul convention: there is nothing in that metric left to exercise.
+func (m CoverageMetric) Percent() float64 {
+	if m.Total == 0 {
+		return 100
+	}
+	return float64(m.Covered) / float64(m.Total) * 100
+}
+
+// Coverage metric names shared by artifact readers and coverage commitments in
+// `unit.policy_profile`. Not every artifact reports every metric: Go cover
+// profiles measure statements, LCOV and Cobertura measure lines.
+const (
+	MetricLines      = "lines"
+	MetricStatements = "statements"
+	MetricFunctions  = "functions"
+	MetricBranches   = "branches"
+)
+
+// CoverageMetricNames lists the metrics a coverage commitment may name, in
+// reporting order.
+var CoverageMetricNames = []string{MetricLines, MetricStatements, MetricFunctions, MetricBranches}
+
+// CoverageReport is one parsed coverage artifact: per-file units (lines, or
+// statements for Go) for file-level targets, and workspace totals per metric
+// for committed-coverage gates.
+type CoverageReport struct {
+	Files  map[string]CoverageMetric
+	Totals map[string]CoverageMetric
+}
+
 func DefaultCoverageArtifacts(language string) []Artifact {
 	switch strings.ToLower(strings.TrimSpace(language)) {
 	case "go":
@@ -46,29 +77,43 @@ const (
 // ReadCoverage reads the first complete declared coverage artifact. Artifact
 // kinds are owned by adapters; an unknown kind is ignored rather than treated
 // as a different framework's format.
-func ReadCoverage(root string, artifacts []Artifact) (map[string]CoverageMetric, bool) {
+func ReadCoverage(root string, artifacts []Artifact) (CoverageReport, bool) {
 	for _, artifact := range artifacts {
 		path := artifact.Path
 		if !filepath.IsAbs(path) {
 			path = filepath.Join(root, path)
 		}
-		var coverage map[string]CoverageMetric
+		var report CoverageReport
 		var ok bool
 		switch strings.ToLower(strings.TrimSpace(artifact.Kind)) {
 		case "go-cover-profile":
-			coverage, ok = readGoCoverProfile(path)
+			report.Files, ok = readGoCoverProfile(path)
+			report.Totals = aggregateTotals(MetricStatements, report.Files)
 		case "istanbul-summary":
-			coverage, ok = readIstanbulSummary(path)
+			report, ok = readIstanbulSummary(path)
 		case "lcov":
-			coverage, ok = readLCOV(path)
+			report.Files, ok = readLCOV(path)
+			report.Totals = aggregateTotals(MetricLines, report.Files)
 		case "cobertura":
-			coverage, ok = readCobertura(path)
+			report.Files, ok = readCobertura(path)
+			report.Totals = aggregateTotals(MetricLines, report.Files)
 		}
 		if ok {
-			return coverage, true
+			return report, true
 		}
 	}
-	return nil, false
+	return CoverageReport{}, false
+}
+
+// aggregateTotals sums per-file units into the one metric the artifact kind
+// measures.
+func aggregateTotals(metric string, files map[string]CoverageMetric) map[string]CoverageMetric {
+	var total CoverageMetric
+	for _, file := range files {
+		total.Covered += file.Covered
+		total.Total += file.Total
+	}
+	return map[string]CoverageMetric{metric: total}
 }
 
 func boundedFile(path string) ([]byte, bool) {
@@ -139,36 +184,72 @@ func readGoCoverProfile(path string) (map[string]CoverageMetric, bool) {
 	return coverage, true
 }
 
-type istanbulSummaryEntry struct {
-	Lines struct {
-		Total   int64 `json:"total"`
-		Covered int64 `json:"covered"`
-	} `json:"lines"`
+type istanbulCount struct {
+	Total   int64 `json:"total"`
+	Covered int64 `json:"covered"`
 }
 
-func readIstanbulSummary(path string) (map[string]CoverageMetric, bool) {
+func (c istanbulCount) valid() bool { return c.Total >= 0 && c.Covered >= 0 && c.Covered <= c.Total }
+
+type istanbulSummaryEntry struct {
+	Lines      istanbulCount  `json:"lines"`
+	Statements *istanbulCount `json:"statements"`
+	Functions  *istanbulCount `json:"functions"`
+	Branches   *istanbulCount `json:"branches"`
+}
+
+// metrics returns only the metrics the summary actually reports, so an absent
+// metric is never mistaken for an empty (fully covered) one.
+func (e istanbulSummaryEntry) metrics() map[string]istanbulCount {
+	out := map[string]istanbulCount{MetricLines: e.Lines}
+	for name, count := range map[string]*istanbulCount{MetricStatements: e.Statements, MetricFunctions: e.Functions, MetricBranches: e.Branches} {
+		if count != nil {
+			out[name] = *count
+		}
+	}
+	return out
+}
+
+// readIstanbulSummary reads Istanbul's json-summary: per-file line units and,
+// from its `total` entry, all four workspace metrics. A summary without a
+// `total` entry falls back to aggregated lines.
+func readIstanbulSummary(path string) (CoverageReport, bool) {
 	data, ok := boundedFile(path)
 	if !ok {
-		return nil, false
+		return CoverageReport{}, false
 	}
 	var summary map[string]istanbulSummaryEntry
 	if json.Unmarshal(data, &summary) != nil || len(summary) > maxCoverageFiles {
-		return nil, false
+		return CoverageReport{}, false
 	}
-	coverage := make(map[string]CoverageMetric, len(summary))
+	report := CoverageReport{Files: make(map[string]CoverageMetric, len(summary))}
+	var total *istanbulSummaryEntry
 	for name, entry := range summary {
 		if strings.EqualFold(name, "total") {
+			entry := entry
+			total = &entry
 			continue
 		}
-		if entry.Lines.Total < 0 || entry.Lines.Covered < 0 || entry.Lines.Covered > entry.Lines.Total {
-			return nil, false
+		if !entry.Lines.valid() {
+			return CoverageReport{}, false
 		}
-		coverage[name] = CoverageMetric{Covered: entry.Lines.Covered, Total: entry.Lines.Total}
+		report.Files[name] = CoverageMetric{Covered: entry.Lines.Covered, Total: entry.Lines.Total}
 	}
-	if len(coverage) == 0 {
-		return nil, false
+	if len(report.Files) == 0 {
+		return CoverageReport{}, false
 	}
-	return coverage, true
+	if total == nil {
+		report.Totals = aggregateTotals(MetricLines, report.Files)
+		return report, true
+	}
+	report.Totals = make(map[string]CoverageMetric, len(CoverageMetricNames))
+	for metric, count := range total.metrics() {
+		if !count.valid() {
+			return CoverageReport{}, false
+		}
+		report.Totals[metric] = CoverageMetric{Covered: count.Covered, Total: count.Total}
+	}
+	return report, true
 }
 
 func readLCOV(path string) (map[string]CoverageMetric, bool) {

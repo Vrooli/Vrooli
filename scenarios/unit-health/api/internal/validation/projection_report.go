@@ -1,7 +1,6 @@
 package validation
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -189,15 +188,4 @@ func boolNative(value bool) string {
 		return "true"
 	}
 	return "false"
-}
-
-func thresholdNative(value float64, ok bool) string {
-	if !ok {
-		return ""
-	}
-	return projectionFormatCoverageFloor(value)
-}
-
-func projectionFormatCoverageFloor(floor float64) string {
-	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.1f", floor), "0"), ".")
 }

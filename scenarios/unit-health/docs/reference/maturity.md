@@ -24,7 +24,7 @@ capability as `highest_priority_capability` together with its `next_unlock`.
 | Capability | Rungs | Top rung means |
 |---|---|---|
 | `surface_discovery` | L0 No reliable test surface → L1 Test surfaces discovered → L2 Discovery clean | Code Facts found every workspace and its parse units without an unsupported unit |
-| `execution_readiness` | L0 Execution unavailable → L1 Commands runnable → L2 Execution clean | Planned commands ran to a classified result inside timeout and watchdog |
+| `execution_readiness` | L0 Execution unavailable → L1 Commands runnable → L2 Execution clean | Planned commands ran to a classified result inside timeout and watchdog, and coverage held at the committed floor |
 | `framework_config` | L0 Framework missing → L1 Framework configured → L2 Canonical and coverage-capable → L3 Framework config clean | Canonical runner, coverage config, and the policy profile are honored without weakening |
 | `test_architecture` | L0 Architecture contracts unavailable → L1 Architecture comparable → L2 Layout aligned → L3 Architecture clean | Tests are co-located, share a test-utility root, never import helpers from production, and ambient dependencies sit behind seams |
 | `coverage_quality` | L0 Coverage unavailable → L1 Coverage measured → L2 Quality depth clean | Coverage artifacts parse and the advisory depth findings are clean |
@@ -84,8 +84,10 @@ unmapped code is emitted.
 | `SEAM_REIMPLEMENTED` | L3 | evolvability_gap | tests | error | required |
 | `COMPANION_REIMPLEMENTED` | L3 | evolvability_gap | tests | error | required |
 | `COMPANION_AVAILABLE` | L3 | evolvability_gap | tests | info | advisory |
+| `COVERAGE_BELOW_COMMITTED` | L2 | hardening_gap | coverage | error | required |
 | `LOW_COVERAGE` | L2 | advisory | coverage | warning | advisory |
 | `COVERAGE_ABSENT` | L0 | advisory | coverage | info | advisory |
+| `COVERAGE_COMMITMENT_BEHIND` | L2 | advisory | coverage | info | advisory |
 | `TEST_EXCESSIVE_SNAPSHOTS` | L2 | advisory | tests | info | advisory |
 | `TEST_FLAKE_SUSPECTED` | L2 | advisory | tests | warning | advisory |
 | `TEST_RUNTIME_GROWTH` | L2 | advisory | tests | info | advisory |

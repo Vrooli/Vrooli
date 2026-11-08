@@ -2,6 +2,7 @@ package domains
 
 import (
 	"unit-health/cli/domains/calibrate"
+	"unit-health/cli/domains/fix"
 	"unit-health/cli/domains/mutation"
 	"unit-health/cli/domains/validate"
 
@@ -49,5 +50,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{validateGroup, calibrateGroup, mutationGroup}, nil
+	fixGroup, err := fix.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{validateGroup, calibrateGroup, mutationGroup, fixGroup}, nil
 }

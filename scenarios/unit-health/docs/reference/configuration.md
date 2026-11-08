@@ -198,7 +198,7 @@ surface inventory. The participating owners are:
 | Owner | Source | Responsibility |
 |---|---|---|
 | Unit Health | built-in resolver defaults | Canonical language/framework defaults, default coverage floors, unsupported-language behavior, and stable finding codes. |
-| Template | `.vrooli/testing.json` `unit.policy_profile` | Template identity, required roles, policy classes, minimum thresholds, projection expectations, customization rules, and waiver metadata. |
+| Template | `.vrooli/testing.json` `unit.policy_profile` | Template identity, required roles, policy classes, coverage targets and committed floors, projection expectations, customization rules, and waiver metadata. |
 | Code Facts | `DescribeCodeFacts` surfaces and parse units | Observed API, CLI, UI, and additional code surfaces present in the target scenario. |
 
 `.vrooli/testing.json` must not enumerate the actual surfaces a scenario has.
@@ -298,6 +298,48 @@ Unit Health validates waiver governance as part of the profile contract:
 must be concrete, and a waiver must either carry a future `expires_at`
 timestamp/date or a specific `revisit` trigger.
 
+### Coverage target and committed floor
+
+Each policy class's `coverage` block carries two different numbers, and Unit
+Health is the only thing that enforces either of them:
+
+```json
+"coverage": {
+  "minimum_percent": 85,
+  "committed": {"lines": 78, "statements": 78, "functions": 73, "branches": 65}
+}
+```
+
+| Field | Meaning | Effect |
+|---|---|---|
+| `minimum_percent` | The policy **target**. | Coverage below it is recorded debt: a `LOW_COVERAGE` warning naming every metric below target with its measured value. It never fails the phase. |
+| `committed` | The scenario's **committed floor** per metric (`lines`, `statements`, `functions`, `branches`). | After a passing coverage run, any metric more than one point below its floor fails the unit phase with `COVERAGE_BELOW_COMMITTED` (measured, committed, and target values in the finding). A committed metric the artifact does not report also fails; the gate fails closed. The one-point margin absorbs run-to-run noise from asynchronous tests; a real regression moves coverage further. |
+
+A class without `committed` is measured and reported but not gated. React/Vite
+UI classes are gated by default: one without a floor gets
+`COVERAGE_COMMITMENT_BEHIND` ("no committed coverage floor"), and the ratchet
+fix below adopts its measured baseline. Go classes are advisory until a
+scenario writes a commitment for them.
+Unit Health judges only artifacts written by the run's own coverage command:
+a dry run, a fast test-only run, or a failed test command never produces a
+coverage verdict (the failed tests are the finding).
+
+The floor is a ratchet toward the target. `COVERAGE_COMMITMENT_BEHIND` (info)
+reports a floor that measured coverage has outgrown (or a missing UI floor), and
+`unit-health fix apply <scenario> --rules COVERAGE_COMMITMENT_BEHIND` raises it
+to the measured value rounded down to a whole percent, capped at
+`minimum_percent`. The ratchet never lowers a floor; lowering one is a
+reviewed hand edit of `.vrooli/testing.json`, not a fix.
+
+Native runner thresholds are a second owner and are projection drift (see
+below). `unit-health fix apply <scenario> --rules UNIT_POLICY_PROJECTION_DRIFT`
+moves a native Vitest gate into the policy: it reads the workspace's
+`coverage/coverage-summary.json`, writes `committed` at the measured baseline
+(capped at the target, or at a stricter native value), and deletes
+`test.coverage.thresholds` in the same change. Without a readable coverage
+artifact it keeps the native gate and says why, so a workspace is never left
+ungated. Run the scenario's coverage command first.
+
 ### Native projections
 
 The profile is the desired policy. Native files prove whether the workspace
@@ -305,7 +347,7 @@ actually projects that policy:
 
 | Surface | Projection examples |
 |---|---|
-| UI | `package.json` Vitest dependency and `test`/`test:coverage` scripts, `vite.config.ts` jsdom/setupFiles/V8 coverage/reporters/thresholds, `src/test-utils`, canonical render helper, tests using that helper instead of direct Testing Library `render`, production import ban. |
+| UI | `package.json` Vitest dependency and `test`/`test:coverage` scripts; jsdom, setupFiles, V8 coverage, reporters, include/exclude, and `reportOnFailure` in the config Vitest loads (an explicit `--config` in `test:coverage`, else `vitest.config.*` before `vite.config.*`); no `test.coverage.thresholds`; `src/test-utils`, canonical render helper, tests using that helper instead of direct Testing Library `render`, production import ban. |
 | API | `go test` coverage command compatibility, `internal/testutil` root, test helper production-import guard, injectable seam coverage. |
 | CLI | `go test` coverage command compatibility, `cli/internal/testutil`, CLI production-import guard, smoke tests for app/help/version. |
 
@@ -324,7 +366,9 @@ The hard cutover adds these stable finding classes before maturity mapping:
 | `UNIT_SURFACE_UNGOVERNED` | governance | Code Facts observed a surface that has no explicit policy and no supported Unit Health default. |
 | `UNIT_POLICY_WEAKENED` | policy | Scenario-local policy is weaker than the template baseline. |
 | `UNIT_POLICY_WAIVER_INVALID` | governance | A waiver is malformed, expired, missing ownership, or does not reference evidence. |
-| `UNIT_POLICY_PROJECTION_DRIFT` | projection | Native config or test infrastructure does not project the effective policy. |
+| `UNIT_POLICY_PROJECTION_DRIFT` | projection | Native config or test infrastructure does not project the effective policy, including native coverage thresholds that restate `coverage.committed`. |
+| `COVERAGE_BELOW_COMMITTED` | coverage gate | Tests passed but a metric fell below `coverage.committed`; blocking. |
+| `COVERAGE_COMMITMENT_BEHIND` | coverage ratchet | Measured coverage has earned a higher committed floor; advisory. |
 
 Existing framework, coverage, architecture, quality, execution, and dependency
 codes remain in use for concrete workspace failures. The new codes identify

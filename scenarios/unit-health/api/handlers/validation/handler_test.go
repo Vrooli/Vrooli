@@ -3,6 +3,7 @@ package validation
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -560,8 +561,10 @@ func TestApplyFixWritesDeterministicCandidates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The native gate is untouched: without a measured baseline there is no
+	// commitment to move it into.
 	if !strings.Contains(string(vite), "setupFiles: ['./src/test-setup.ts']") ||
-		!strings.Contains(string(vite), "branches: 85") ||
+		!strings.Contains(string(vite), "branches: 70") ||
 		!strings.Contains(string(vite), "reportOnFailure: true") ||
 		!strings.Contains(string(vite), "include: ['src/**/*.{ts,tsx}']") ||
 		!strings.Contains(string(vite), "'src/test-utils/**'") {
@@ -590,42 +593,96 @@ func TestApplyFixWritesDeterministicCandidates(t *testing.T) {
 	}
 }
 
-func TestApplyFixRaisesCoverageThresholdsToPolicyFloor(t *testing.T) {
-	root := seedFixTarget(t)
-	writeHandlerFile(t, filepath.Join(root, ".vrooli", "testing.json"), `{
+// coverageGateTestingJSON is a react-vite profile whose ui role binds the ui
+// workspace, with an optional coverage.committed member for the UI class.
+func coverageGateTestingJSON(committed string) string {
+	coverage := `{"minimum_percent": 85}`
+	if committed != "" {
+		coverage = `{"minimum_percent": 85, "committed": ` + committed + `}`
+	}
+	return `{
   "$schema": "../../../../scenarios/test-genie/schemas/testing.schema.json",
   "unit": {
     "policy_profile": {
-      "version": "1.0.0",
+      "version": "2.0.0",
       "template": {"id": "react-vite", "scenario_class": "react-vite"},
-      "required_roles": [{"role": "ui", "policy_class": "react_vite_ui"}],
+      "required_roles": [{"role": "ui", "policy_class": "react_vite_ui", "match": {"surface_id": "ui", "path": "ui"}}],
       "policy_classes": {
         "react_vite_ui": {
           "language": "typescript",
           "framework": "vitest",
-          "coverage": {"minimum_percent": 90}
+          "coverage": ` + coverage + `
         }
       },
       "customization": {"mode": "monotonic", "waivers": []}
     }
   }
-}`)
-	h := NewSharedHandler(NewHandlerWithDeps(Deps{MaturitySpec: testSpec(t)}))
+}`
+}
 
-	_, err := h.ApplyFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{
-		Scenario: "demo",
-		Path:     root,
-		RuleIds:  []string{"UNIT_POLICY_PROJECTION_DRIFT"},
-	}))
+func writeCoverageSummary(t *testing.T, root string, lines, statements, functions, branches int) {
+	t.Helper()
+	metric := func(covered int) string { return fmt.Sprintf(`{"total":100,"covered":%d}`, covered) }
+	writeHandlerFile(t, filepath.Join(root, "ui", "coverage", "coverage-summary.json"), fmt.Sprintf(
+		`{"total":{"lines":%s,"statements":%s,"functions":%s,"branches":%s},"src/App.tsx":{"lines":%s}}`,
+		metric(lines), metric(statements), metric(functions), metric(branches), metric(lines)))
+}
+
+func applyFixRules(t *testing.T, root string, rules ...string) *scenariovalidationv1.FixResponse {
+	t.Helper()
+	h := NewSharedHandler(NewHandlerWithDeps(Deps{MaturitySpec: testSpec(t)}))
+	resp, err := h.ApplyFix(context.Background(), connect.NewRequest(&scenariovalidationv1.FixRequest{Scenario: "demo", Path: root, RuleIds: rules}))
 	if err != nil {
 		t.Fatalf("ApplyFix: %v", err)
 	}
-	vite, err := os.ReadFile(filepath.Join(root, "ui", "vite.config.ts"))
-	if err != nil {
-		t.Fatal(err)
+	return resp.Msg
+}
+
+func TestApplyFixMovesNativeCoverageGateIntoCommittedFloor(t *testing.T) {
+	root := seedFixTarget(t)
+	writeHandlerFile(t, filepath.Join(root, ".vrooli", "testing.json"), coverageGateTestingJSON(""))
+	writeCoverageSummary(t, root, 78, 79, 92, 65)
+
+	applyFixRules(t, root, "UNIT_POLICY_PROJECTION_DRIFT")
+
+	testing, _ := os.ReadFile(filepath.Join(root, ".vrooli", "testing.json"))
+	if !strings.Contains(string(testing), `"committed": {"lines": 78, "statements": 79, "functions": 85, "branches": 65}`) {
+		t.Fatalf("native gate was not adopted at the measured baseline:\n%s", testing)
 	}
-	if !strings.Contains(string(vite), "branches: 90") {
-		t.Fatalf("vite config threshold not raised to policy floor:\n%s", vite)
+	vite, _ := os.ReadFile(filepath.Join(root, "ui", "vite.config.ts"))
+	if strings.Contains(string(vite), "thresholds") {
+		t.Fatalf("native thresholds must be removed once coverage.committed owns the gate:\n%s", vite)
+	}
+}
+
+func TestApplyFixKeepsNativeGateWithoutCoverageMeasurement(t *testing.T) {
+	root := seedFixTarget(t)
+	writeHandlerFile(t, filepath.Join(root, ".vrooli", "testing.json"), coverageGateTestingJSON(""))
+
+	resp := applyFixRules(t, root, "UNIT_POLICY_PROJECTION_DRIFT")
+
+	vite, _ := os.ReadFile(filepath.Join(root, "ui", "vite.config.ts"))
+	if !strings.Contains(string(vite), "branches: 70") {
+		t.Fatalf("without a measured baseline the native gate must stay:\n%s", vite)
+	}
+	if !strings.Contains(strings.Join(resp.GetMessages(), "\n"), "no coverage artifact") {
+		t.Fatalf("the fix must say why the gate was kept, messages=%v", resp.GetMessages())
+	}
+}
+
+func TestApplyFixRatchetsCommittedFloorUpward(t *testing.T) {
+	root := seedFixTarget(t)
+	writeHandlerFile(t, filepath.Join(root, ".vrooli", "testing.json"), coverageGateTestingJSON(`{"lines": 78, "branches": 65}`))
+	writeCoverageSummary(t, root, 83, 0, 0, 60)
+
+	resp := applyFixRules(t, root, "COVERAGE_COMMITMENT_BEHIND")
+
+	testing, _ := os.ReadFile(filepath.Join(root, ".vrooli", "testing.json"))
+	if !strings.Contains(string(testing), `"committed": {"lines": 83, "branches": 65}`) {
+		t.Fatalf("ratchet must raise lines and never lower branches:\n%s", testing)
+	}
+	if len(resp.GetCandidates()) != 1 || resp.GetCandidates()[0].GetRuleId() != "COVERAGE_COMMITMENT_BEHIND" {
+		t.Fatalf("ratchet must touch only testing.json under its own rule, got %+v", resp.GetCandidates())
 	}
 }
 
@@ -710,16 +767,15 @@ func TestApplyFixRepairsVitestProjectionFieldsFromPolicy(t *testing.T) {
 	viteText := string(vite)
 	for _, want := range []string{
 		"environment: 'jsdom'",
-		"setupFiles: ['./src/test-setup.ts']",
+		// Missing setup files are appended; scenario-specific ones survive.
+		"setupFiles: ['./src/legacy-setup.ts', './src/test-setup.ts']",
 		"provider: 'v8'",
 		"reporter: ['text', 'json-summary', 'json']",
 		"reportOnFailure: true",
 		"include: ['src/**/*.{ts,tsx}']",
 		"'src/test-utils/**'",
-		"lines: 88",
-		"functions: 88",
-		"branches: 88",
-		"statements: 88",
+		// No measured baseline exists, so the native gate is kept as-is.
+		"lines: 80",
 	} {
 		if !strings.Contains(viteText, want) {
 			t.Fatalf("vite config missing %q after repair:\n%s", want, viteText)

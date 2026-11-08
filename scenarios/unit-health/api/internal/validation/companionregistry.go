@@ -209,7 +209,7 @@ func indexRegistrySymbols(registry companionRegistry) map[string]string {
 	return index
 }
 
-func sortedKeys(in map[string]string) []string {
+func sortedKeys[V any](in map[string]V) []string {
 	keys := make([]string, 0, len(in))
 	for key := range in {
 		keys = append(keys, key)

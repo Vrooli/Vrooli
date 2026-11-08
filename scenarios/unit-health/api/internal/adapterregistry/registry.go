@@ -51,6 +51,14 @@ func MinimumCoverageFloor(adapterID, framework, language, className string) floa
 	return 0
 }
 
+// CoverageCommittedByDefault reports whether the scenario templates gate an
+// adapter's coverage with a committed floor. React/Vitest UIs are committed by
+// the react-vite templates; Go and other adapters stay advisory until a
+// scenario writes a commitment.
+func CoverageCommittedByDefault(adapterID string) bool {
+	return strings.EqualFold(adapterID, "react-vitest")
+}
+
 func IsConfigFile(base string) bool {
 	return base == "testing.json" || strings.HasPrefix(base, "vite.config.") || strings.HasPrefix(base, "vitest.config.")
 }

@@ -39,7 +39,7 @@ func TestAnalyzeCoverageGoProfile(t *testing.T) {
 	writeUnitPolicyProfile(t, root, profile)
 
 	ws := Workspace{ID: "api", Language: "go", RootPath: wsDir, CoverageCommand: "go test -cover ./..."}
-	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
+	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, passedCoverageRun(ws), fixedNowStr)
 
 	if len(targets) != 2 {
 		t.Fatalf("expected 2 coverage targets, got %d: %+v", len(targets), targets)
@@ -53,7 +53,7 @@ func TestAnalyzeCoverageGoProfile(t *testing.T) {
 func TestAnalyzeCoverageAbsentArtifact(t *testing.T) {
 	root := t.TempDir()
 	ws := Workspace{ID: "api", Language: "go", RootPath: filepath.Join(root, "api"), CoverageCommand: "go test -cover ./..."}
-	_, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
+	_, findings := analyzeCoverage("demo", root, []Workspace{ws}, passedCoverageRun(ws), fixedNowStr)
 	if _, ok := findingByCode(findings, codeCoverageAbsent); !ok {
 		t.Errorf("expected COVERAGE_ABSENT, got %v", codes(findings))
 	}
@@ -65,7 +65,7 @@ func TestAnalyzeCoverageVitestSummary(t *testing.T) {
 	writeFile(t, filepath.Join(wsDir, "coverage", "coverage-summary.json"),
 		`{"total":{"lines":{"total":10,"covered":9}},"src/App.tsx":{"lines":{"total":10,"covered":9}}}`)
 	ws := Workspace{ID: "ui", Language: "typescript", RootPath: wsDir, CoverageCommand: "pnpm test:coverage"}
-	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
+	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, passedCoverageRun(ws), fixedNowStr)
 	if len(targets) != 1 || targets[0].CoveragePercent != 90 {
 		t.Fatalf("expected one 90%% target, got %+v", targets)
 	}
@@ -81,7 +81,7 @@ func TestAnalyzeCoverageDoesNotFlagFilesWithoutExecutableLines(t *testing.T) {
 	writeFile(t, filepath.Join(wsDir, "coverage", "coverage-summary.json"),
 		`{"total":{"lines":{"total":10,"covered":2}},"src/types.ts":{"lines":{"total":0,"covered":0}},"src/app.ts":{"lines":{"total":10,"covered":2}}}`)
 	ws := Workspace{ID: "ui", Language: "typescript", RootPath: wsDir, CoverageCommand: "pnpm test:coverage"}
-	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
+	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, passedCoverageRun(ws), fixedNowStr)
 	if len(targets) != 1 || targets[0].FilePath != "src/app.ts" {
 		t.Fatalf("expected only executable file as coverage target, got %+v", targets)
 	}
@@ -101,7 +101,7 @@ func TestAnalyzeCoverageReportsWhenNoExecutableLinesAreMeasured(t *testing.T) {
 	writeFile(t, filepath.Join(wsDir, "coverage", "coverage-summary.json"),
 		`{"total":{"lines":{"total":0,"covered":0}},"src/types.ts":{"lines":{"total":0,"covered":0}}}`)
 	ws := Workspace{ID: "ui", Language: "typescript", RootPath: wsDir, CoverageCommand: "pnpm test:coverage"}
-	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, fixedNowStr)
+	targets, findings := analyzeCoverage("demo", root, []Workspace{ws}, passedCoverageRun(ws), fixedNowStr)
 	if len(targets) != 0 {
 		t.Fatalf("unexpected targets: %+v", targets)
 	}
@@ -118,7 +118,7 @@ func TestParseLCOV(t *testing.T) {
 	path := filepath.Join(root, "lcov.info")
 	writeFile(t, path, "SF:src/a.ts\nLF:4\nLH:2\nend_of_record\n")
 	cov, ok := adapters.ReadCoverage(root, []adapters.Artifact{{Kind: "lcov", Path: "lcov.info"}})
-	if !ok || cov["src/a.ts"].Total != 4 || cov["src/a.ts"].Covered != 2 {
+	if !ok || cov.Files["src/a.ts"].Total != 4 || cov.Files["src/a.ts"].Covered != 2 {
 		t.Fatalf("lcov parse = %+v ok=%v", cov, ok)
 	}
 }

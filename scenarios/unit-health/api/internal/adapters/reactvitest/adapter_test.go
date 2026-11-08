@@ -32,7 +32,16 @@ func TestAnalyzerContractAndProjectionChecks(t *testing.T) {
 	if len(checks) < 10 {
 		t.Fatalf("projection checks = %+v", checks)
 	}
-	if boolText(true) != "true" || boolText(false) != "false" || thresholdValue(0, false) != "" || formatCoverageFloor(80) != "80" {
+	var thresholds *adapters.ProjectionCheck
+	for i := range checks {
+		if checks[i].Key == "coverage.thresholds" {
+			thresholds = &checks[i]
+		}
+	}
+	if thresholds == nil || thresholds.Pass || thresholds.NativeValue != "lines=80,statements=80,functions=80,branches=80" {
+		t.Fatalf("native thresholds must fail the single-owner check with their values: %+v", thresholds)
+	}
+	if boolText(true) != "true" || boolText(false) != "false" || formatCoverageFloor(80) != "80" {
 		t.Fatal("projection formatting helpers failed")
 	}
 }

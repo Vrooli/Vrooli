@@ -125,6 +125,26 @@ Exit status is nonzero when `counts.errors > 0`. The report uses the
 checks, findings grouped by capability, coverage, test-quality results,
 and next steps.
 
+### `unit-health fix preview|apply <scenario>`
+
+Preview (never writes) or apply Unit Health's deterministic fixes through the
+shared `ScenarioValidationService.PreviewFix`/`ApplyFix` RPCs. Each candidate
+is a whole-file before/after; apply refuses a file that changed since it was
+read. `--rules` restricts the run to finding codes.
+
+```bash
+unit-health fix preview scenario-dependency-analyzer
+unit-health fix apply scenario-dependency-analyzer --rules UNIT_POLICY_PROJECTION_DRIFT
+unit-health fix apply scenario-dependency-analyzer --rules COVERAGE_COMMITMENT_BEHIND
+```
+
+`UNIT_POLICY_PROJECTION_DRIFT` repairs drifted Vitest projection fields and
+moves a native Vitest coverage gate into `coverage.committed` at the measured
+baseline. `COVERAGE_COMMITMENT_BEHIND` ratchets existing commitments upward.
+Both read the coverage artifact already on disk, so run the scenario's
+coverage command first; the rules are explained in
+[coverage target and committed floor](configuration.md#coverage-target-and-committed-floor).
+
 ### `unit-health mutation pilot <scenario>`
 
 Run a bounded owner-side mutation pilot for a Go package. Unit Health applies

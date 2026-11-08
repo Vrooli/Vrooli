@@ -57,18 +57,32 @@ func TestAnalyzeTSArchitectureProjectionDriftMissingSetupFile(t *testing.T) {
 	}
 }
 
-func TestAnalyzeTSArchitectureProjectionDriftLoweredThreshold(t *testing.T) {
+func TestAnalyzeTSArchitectureNativeThresholdsAreASecondCoverageOwner(t *testing.T) {
 	root := t.TempDir()
 	writeCanonicalUIProjection(t, root)
-	writeFile(t, filepath.Join(root, "vite.config.ts"), strings.ReplaceAll(canonicalViteConfig(), "branches: 85", "branches: 70"))
+	writeFile(t, filepath.Join(root, "vite.config.ts"), strings.Replace(canonicalViteConfig(), "reportOnFailure: true,", "reportOnFailure: true,\n      thresholds: { lines: 85, functions: 85, branches: 70, statements: 85 },", 1))
 
 	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
 	f, ok := findingByCode(findings, codeUnitProjectionDrift)
 	if !ok {
 		t.Fatalf("expected UNIT_POLICY_PROJECTION_DRIFT, got %v", codes(findings))
 	}
-	if !strings.Contains(f.Evidence, "branches=70.0") {
-		t.Fatalf("expected lowered branch threshold evidence, got %+v", f)
+	if f.Evidence != "coverage.thresholds lines=85,statements=85,functions=85,branches=70" || !strings.Contains(f.Message, "coverage.committed") {
+		t.Fatalf("native thresholds must be reported as duplicating coverage.committed, got %+v", f)
+	}
+}
+
+func TestAnalyzeTSArchitectureJudgesTheConfigVitestLoads(t *testing.T) {
+	root := t.TempDir()
+	writeCanonicalUIProjection(t, root)
+	// A vitest.config.ts shadows the canonical vite.config.ts, so the policy
+	// projection Vitest actually runs is the incomplete one.
+	writeFile(t, filepath.Join(root, "vitest.config.ts"), "export default { test: { environment: 'jsdom', setupFiles: ['./src/test-setup.ts'], coverage: { provider: 'v8' } } }")
+
+	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: root, Framework: "vite"}}, fixedNowStr)
+	f, ok := findingByCode(findings, codeUnitProjectionDrift)
+	if !ok || filepath.Base(f.FilePath) != "vitest.config.ts" {
+		t.Fatalf("drift must be reported against the effective vitest.config.ts, got %+v", findings)
 	}
 }
 
@@ -239,35 +253,12 @@ func TestAnalyzeTSArchitectureProjectionClean(t *testing.T) {
 	}
 }
 
-func TestAnalyzeTSArchitectureProjectionUsesPolicyCoverageFloor(t *testing.T) {
-	scenarioRoot := t.TempDir()
-	uiRoot := filepath.Join(scenarioRoot, "ui")
-	profile := reactViteUnitPolicyProfile()
-	uiClass := profile.PolicyClasses["react_vite_ui"]
-	uiClass.Coverage.MinimumPercent = 90
-	profile.PolicyClasses["react_vite_ui"] = uiClass
-	writeUnitPolicyProfile(t, scenarioRoot, profile)
-	writeCanonicalUIProjection(t, uiRoot)
-
-	findings := analyzeArchitecture("demo", []Workspace{{ID: "ui", Language: "typescript", RootPath: uiRoot, Framework: "vite"}}, fixedNowStr)
-	f, ok := findingByCode(findings, codeUnitProjectionDrift)
-	if !ok {
-		t.Fatalf("expected stricter policy floor to flag 85%% native thresholds, got %v", codes(findings))
-	}
-	if !strings.Contains(f.Expected, "90.0") {
-		t.Fatalf("expected policy floor in finding detail, got %+v", f)
-	}
-}
-
 func TestBuildProjectionChecksReportsPolicyAndNativeValues(t *testing.T) {
 	scenarioRoot := t.TempDir()
 	uiRoot := filepath.Join(scenarioRoot, "ui")
-	profile := reactViteUnitPolicyProfile()
-	uiClass := profile.PolicyClasses["react_vite_ui"]
-	uiClass.Coverage.MinimumPercent = 90
-	profile.PolicyClasses["react_vite_ui"] = uiClass
-	writeUnitPolicyProfile(t, scenarioRoot, profile)
+	writeUnitPolicyProfile(t, scenarioRoot, reactViteUnitPolicyProfile())
 	writeCanonicalUIProjection(t, uiRoot)
+	writeFile(t, filepath.Join(uiRoot, "vite.config.ts"), strings.Replace(canonicalViteConfig(), "reportOnFailure: true,", "reportOnFailure: true,\n      thresholds: { branches: 85 },", 1))
 
 	checks := buildProjectionChecks(scenarioRoot, []Workspace{{ID: "ui", Language: "typescript", RootPath: uiRoot, Framework: "vite"}})
 	byID := map[string]ProjectionCheck{}
@@ -279,9 +270,9 @@ func TestBuildProjectionChecksReportsPolicyAndNativeValues(t *testing.T) {
 	if env.Status != "pass" || env.PolicyValue != "jsdom" || env.NativeValue != "jsdom" {
 		t.Fatalf("environment projection = %+v, want pass jsdom/jsdom", env)
 	}
-	threshold := byID["ui:coverage.threshold.branches"]
-	if threshold.Status != "drift" || threshold.PolicyValue != "90" || threshold.NativeValue != "85" {
-		t.Fatalf("threshold projection = %+v, want drift 90/85", threshold)
+	threshold := byID["ui:coverage.thresholds"]
+	if threshold.Status != "drift" || !strings.HasPrefix(threshold.PolicyValue, "absent") || threshold.NativeValue != "branches=85" {
+		t.Fatalf("threshold projection = %+v, want drift absent/branches=85", threshold)
 	}
 	if threshold.FindingCode != codeUnitProjectionDrift {
 		t.Fatalf("threshold finding code = %q, want %s", threshold.FindingCode, codeUnitProjectionDrift)
@@ -320,12 +311,6 @@ func TestAnalyzeTSArchitectureProjectionCleanWithEquivalentConfigShape(t *testin
         "src/i18n/locales/**",
         "src/**/generated/**",
       ],
-      "thresholds": {
-        "lines": 85,
-        "functions": 85,
-        "branches": 85,
-        "statements": 85,
-      },
     },
   },
 });
@@ -418,12 +403,6 @@ func canonicalViteConfig() string {
         'src/i18n/locales/**',
         'src/**/generated/**',
       ],
-      thresholds: {
-        lines: 85,
-        functions: 85,
-        branches: 85,
-        statements: 85,
-      },
     },
   },
 };`

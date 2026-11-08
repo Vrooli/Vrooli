@@ -16,6 +16,7 @@ import (
 
 	"unit-health/internal/adapters/reactvitest"
 	"unit-health/internal/discovery"
+	internalvalidation "unit-health/internal/validation"
 
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 )
@@ -84,9 +85,15 @@ func collectFixCandidates(root string, ruleIDs []string) ([]*scenariovalidationv
 	if allow(codeUnitPolicyInvalid) {
 		candidates = append(candidates, testingSchemaCandidate(root)...)
 	}
-	if allow(codeUnitProjectionDrift) {
+	migrate, ratchet := allow(codeUnitProjectionDrift), allow(codeCoverageCommitmentBehind)
+	gate := planCoverageGateFix(root, migrate, ratchet)
+	messages = append(messages, gate.messages...)
+	if gate.testing != nil {
+		candidates = append(candidates, gate.testing)
+	}
+	if migrate {
 		candidates = append(candidates, packageJSONCandidates(root)...)
-		candidates = append(candidates, viteConfigCandidates(root)...)
+		candidates = append(candidates, viteConfigCandidates(root, gate.removeNativeThresholds)...)
 		candidates = append(candidates, testUtilsCandidates(root)...)
 		candidates = append(candidates, eslintImportBanCandidates(root)...)
 	}
@@ -172,30 +179,107 @@ func scriptValue(v any) string {
 	return s
 }
 
-func viteConfigCandidates(root string) []*scenariovalidationv1.FixCandidate {
-	path := filepath.Join(root, "ui", "vite.config.ts")
+// coverageGateFix is the coverage-gate half of the fix: a testing.json
+// candidate that writes coverage.committed, and whether the native Vitest
+// thresholds are owned by that commitment and may be deleted.
+type coverageGateFix struct {
+	testing                *scenariovalidationv1.FixCandidate
+	removeNativeThresholds bool
+	messages               []string
+}
+
+// planCoverageGateFix moves a native Vitest coverage gate into
+// unit.policy_profile coverage.committed at the measured baseline (migrate)
+// and raises existing commitments to the coverage they have earned (ratchet).
+// Native thresholds are removed only once a commitment owns the gate, so the
+// fix never leaves a workspace ungated.
+func planCoverageGateFix(root string, migrate, ratchet bool) coverageGateFix {
+	var fix coverageGateFix
+	if !migrate && !ratchet {
+		return fix
+	}
+	uiRoot := filepath.Join(root, "ui")
+	manifest, _ := reactvitest.LoadManifest(uiRoot)
+	config, _ := readFixFile(reactvitest.EffectiveConfigPath(uiRoot, manifest.Scripts["test:coverage"]))
+	projection := reactvitest.Parse(config, "")
+	req := internalvalidation.CoverageCommitmentRequest{Ratchet: ratchet}
+	if migrate && projection.HasThresholds {
+		native := map[string]float64{}
+		for _, metric := range []string{"lines", "statements", "functions", "branches"} {
+			// A non-literal threshold value still declares a gate on every
+			// metric; the measured baseline decides the floor.
+			native[metric] = projection.Thresholds[metric]
+		}
+		req.NativeGates = map[string]map[string]float64{"ui": native}
+	}
+	plan, err := internalvalidation.PlanCoverageCommitments(root, req)
+	if err != nil {
+		fix.messages = append(fix.messages, "coverage commitment: "+err.Error())
+		return fix
+	}
+	fix.messages = append(fix.messages, plan.Messages...)
+	fix.removeNativeThresholds = migrate && projection.HasThresholds && plan.GateOwned["ui"]
+	if plan.After == plan.Before {
+		return fix
+	}
+	rule := codeCoverageCommitmentBehind
+	descriptions := make([]string, 0, len(plan.Changes))
+	for _, change := range plan.Changes {
+		verb := "raise"
+		if len(change.From) == 0 {
+			verb = "adopt"
+			if _, native := req.NativeGates[change.Workspace]; native {
+				rule = codeUnitProjectionDrift
+			}
+		}
+		descriptions = append(descriptions, fmt.Sprintf("%s %s (%s) coverage.committed %s from measured %s in %s",
+			verb, change.PolicyClass, change.Workspace, internalvalidation.FormatCommitment(change.To), internalvalidation.FormatCommitment(change.Measured), change.Artifact))
+	}
+	fix.testing = candidate(rule, plan.TestingPath, "Commit coverage floors in unit.policy_profile: "+strings.Join(descriptions, "; ")+".", plan.Before, plan.After)
+	return fix
+}
+
+// viteConfigCandidates repairs only the Vitest projection fields that drift
+// from policy, in the config Vitest actually loads.
+func viteConfigCandidates(root string, removeNativeThresholds bool) []*scenariovalidationv1.FixCandidate {
+	uiRoot := filepath.Join(root, "ui")
+	manifest, _ := reactvitest.LoadManifest(uiRoot)
+	path := reactvitest.EffectiveConfigPath(uiRoot, manifest.Scripts["test:coverage"])
 	before, ok := readFixFile(path)
 	if !ok {
-		path = filepath.Join(root, "ui", "vite.config.js")
-		before, ok = readFixFile(path)
-		if !ok {
-			return nil
-		}
+		return nil
 	}
-	after := before
+	projection := reactvitest.Parse(before, "")
 	expect := unitVitestFixProjection(root)
-	after = ensureVitestEnvironment(after, expect.environment)
-	after = ensureSetupFiles(after, expect.setupFiles)
-	after = ensureCoverageProvider(after, expect.coverageProvider)
-	after = ensureCoverageReporters(after, expect.coverageReporters)
-	after = ensureCoverageStringArray(after, "include", expect.coverageInclude)
-	after = ensureCoverageStringArray(after, "exclude", expect.coverageExclude)
-	after = ensureCoverageBoolean(after, "reportOnFailure", expect.reportOnFailure)
-	after = raiseCoverageThresholds(after, expect.coverageFloor)
+	after := before
+	if projection.Environment != expect.environment {
+		after, _ = reactvitest.SetTestProperty(after, "environment", "'"+expect.environment+"'")
+	}
+	if !reactvitest.ContainsAllSetupFiles(projection.SetupFiles, expect.setupFiles) {
+		after, _ = reactvitest.EnsureTestStrings(after, "setupFiles", expect.setupFiles)
+	}
+	if projection.CoverageProvider != expect.coverageProvider {
+		after, _ = reactvitest.SetCoverageProperty(after, "provider", "'"+expect.coverageProvider+"'")
+	}
+	if !reactvitest.ContainsAllStrings(projection.CoverageReporters, expect.coverageReporters) {
+		after, _ = reactvitest.EnsureCoverageStrings(after, "reporter", expect.coverageReporters)
+	}
+	if !reactvitest.ContainsAllStrings(projection.CoverageInclude, expect.coverageInclude) {
+		after, _ = reactvitest.EnsureCoverageStrings(after, "include", expect.coverageInclude)
+	}
+	if !reactvitest.ContainsAllStrings(projection.CoverageExclude, expect.coverageExclude) {
+		after, _ = reactvitest.EnsureCoverageStrings(after, "exclude", expect.coverageExclude)
+	}
+	if !projection.HasReportOnFailure || projection.ReportOnFailure != expect.reportOnFailure {
+		after, _ = reactvitest.SetCoverageProperty(after, "reportOnFailure", strconv.FormatBool(expect.reportOnFailure))
+	}
+	if removeNativeThresholds {
+		after, _ = reactvitest.RemoveCoverageThresholds(after)
+	}
 	if after == before {
 		return nil
 	}
-	return []*scenariovalidationv1.FixCandidate{candidate(codeUnitProjectionDrift, path, "Restore policy-declared Vitest environment, setupFiles, coverage provider/reporters, and minimum thresholds where the test block already exists.", before, after)}
+	return []*scenariovalidationv1.FixCandidate{candidate(codeUnitProjectionDrift, path, "Restore drifted Vitest projection fields from policy and remove native coverage thresholds once coverage.committed owns the gate.", before, after)}
 }
 
 type vitestFixProjection struct {
@@ -206,7 +290,6 @@ type vitestFixProjection struct {
 	coverageInclude   []string
 	coverageExclude   []string
 	reportOnFailure   bool
-	coverageFloor     float64
 }
 
 func unitVitestFixProjection(root string) vitestFixProjection {
@@ -228,7 +311,6 @@ func unitVitestFixProjection(root string) vitestFixProjection {
 			"src/**/generated/**",
 		},
 		reportOnFailure: true,
-		coverageFloor:   85,
 	}
 	raw, err := os.ReadFile(filepath.Join(root, ".vrooli", "testing.json"))
 	if err != nil {
@@ -243,9 +325,8 @@ func unitVitestFixProjection(root string) vitestFixProjection {
 				} `json:"required_roles"`
 				PolicyClasses map[string]struct {
 					Coverage struct {
-						MinimumPercent float64  `json:"minimum_percent"`
-						Provider       string   `json:"provider"`
-						Reporters      []string `json:"reporters"`
+						Provider  string   `json:"provider"`
+						Reporters []string `json:"reporters"`
 					} `json:"coverage"`
 					Projection struct {
 						Settings map[string]json.RawMessage `json:"settings"`
@@ -278,123 +359,9 @@ func unitVitestFixProjection(root string) vitestFixProjection {
 		if len(class.Coverage.Reporters) > 0 {
 			expect.coverageReporters = class.Coverage.Reporters
 		}
-		if class.Coverage.MinimumPercent > 0 {
-			expect.coverageFloor = class.Coverage.MinimumPercent
-		}
 		return expect
 	}
 	return expect
-}
-
-func ensureVitestEnvironment(src, environment string) string {
-	if environment == "" || !strings.Contains(src, "test:") {
-		return src
-	}
-	re := regexp.MustCompile(`(environment\s*:\s*)['"][^'"]+['"]`)
-	if re.MatchString(src) {
-		return re.ReplaceAllString(src, "${1}'"+environment+"'")
-	}
-	return insertAfterObjectOpen(src, "test", "environment: '"+environment+"',")
-}
-
-func ensureSetupFiles(src string, setupFiles []string) string {
-	if len(setupFiles) == 0 || !strings.Contains(src, "test:") {
-		return src
-	}
-	value := formatStringArray(setupFiles)
-	re := regexp.MustCompile(`(?s)(setupFiles\s*:\s*)(\[[^\]]*\]|['"][^'"]+['"])`)
-	if re.MatchString(src) {
-		return re.ReplaceAllString(src, "${1}"+value)
-	}
-	lines := strings.SplitAfter(src, "\n")
-	for i, line := range lines {
-		if !strings.Contains(line, "environment") {
-			continue
-		}
-		indent := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
-		lines = append(lines[:i+1], append([]string{indent + "setupFiles: " + value + ",\n"}, lines[i+1:]...)...)
-		return strings.Join(lines, "")
-	}
-	return insertAfterObjectOpen(src, "test", "setupFiles: "+value+",")
-}
-
-func ensureCoverageProvider(src, provider string) string {
-	if provider == "" || !strings.Contains(src, "coverage:") {
-		return src
-	}
-	re := regexp.MustCompile(`(provider\s*:\s*)['"][^'"]+['"]`)
-	if re.MatchString(src) {
-		return re.ReplaceAllString(src, "${1}'"+provider+"'")
-	}
-	return insertAfterObjectOpen(src, "coverage", "provider: '"+provider+"',")
-}
-
-func ensureCoverageReporters(src string, reporters []string) string {
-	if len(reporters) == 0 || !strings.Contains(src, "coverage:") {
-		return src
-	}
-	return ensureCoverageStringArray(src, "reporter", reporters)
-}
-
-func ensureCoverageStringArray(src, property string, values []string) string {
-	if len(values) == 0 || !strings.Contains(src, "coverage:") {
-		return src
-	}
-	value := formatStringArray(values)
-	re := regexp.MustCompile(`(?s)(` + regexp.QuoteMeta(property) + `\s*:\s*)(\[[^\]]*\]|['"][^'"]+['"])`)
-	if re.MatchString(src) {
-		return re.ReplaceAllString(src, "${1}"+value)
-	}
-	return insertAfterObjectOpen(src, "coverage", property+": "+value+",")
-}
-
-func ensureCoverageBoolean(src, property string, value bool) string {
-	if !strings.Contains(src, "coverage:") {
-		return src
-	}
-	rendered := strconv.FormatBool(value)
-	re := regexp.MustCompile(`(` + regexp.QuoteMeta(property) + `\s*:\s*)(true|false)`)
-	if re.MatchString(src) {
-		return re.ReplaceAllString(src, "${1}"+rendered)
-	}
-	return insertAfterObjectOpen(src, "coverage", property+": "+rendered+",")
-}
-
-func insertAfterObjectOpen(src, objectName, propertyLine string) string {
-	re := regexp.MustCompile(`(?m)^([ \t]*)` + regexp.QuoteMeta(objectName) + `\s*:\s*\{\s*$`)
-	loc := re.FindStringSubmatchIndex(src)
-	if loc == nil {
-		return src
-	}
-	indent := src[loc[2]:loc[3]] + "  "
-	insertAt := loc[1]
-	return src[:insertAt] + "\n" + indent + propertyLine + src[insertAt:]
-}
-
-func formatStringArray(values []string) string {
-	quoted := make([]string, 0, len(values))
-	for _, value := range values {
-		quoted = append(quoted, "'"+strings.ReplaceAll(value, "'", `\'`)+"'")
-	}
-	return "[" + strings.Join(quoted, ", ") + "]"
-}
-
-func raiseCoverageThresholds(src string, floor float64) string {
-	for _, key := range []string{"lines", "functions", "branches", "statements"} {
-		re := regexp.MustCompile(`(` + key + `\s*:\s*)([0-9]+(?:\.[0-9]+)?)`)
-		src = re.ReplaceAllStringFunc(src, func(match string) string {
-			parts := re.FindStringSubmatch(match)
-			if len(parts) != 3 {
-				return match
-			}
-			v, err := strconv.ParseFloat(parts[2], 64)
-			if err != nil || v >= floor {
-				return match
-			}
-			return parts[1] + formatCoverageFloor(floor)
-		})
-	}
-	return src
 }
 
 func testUtilsCandidates(root string) []*scenariovalidationv1.FixCandidate {
@@ -520,7 +487,8 @@ func eslintImportBanCandidates(root string) []*scenariovalidationv1.FixCandidate
 	if !exists {
 		return []*scenariovalidationv1.FixCandidate{candidate(codeUnitProjectionDrift, path, "Create the production import ban for test-only UI helpers.", "", canonicalESLintImportBanConfig())}
 	}
-	if hasCanonicalESLintImportBan(before) {
+	// The fixer acts on the same projection verdict Unit Health reports.
+	if reactvitest.Parse("", before).HasImportBanRule {
 		return nil
 	}
 	after := insertNoRestrictedImportsRule(before)
@@ -561,85 +529,6 @@ func insertNoRestrictedImportsRule(src string) string {
 	indent := src[loc[2]:loc[3]] + "  "
 	insertAt := loc[1]
 	return src[:insertAt] + "\n" + indent + `"no-restricted-imports": ["error", { patterns: [{ group: ["**/test-utils", "**/test-utils/*", "@/test-utils", "@/test-utils/*", "**/features/*/mocks", "**/features/*/mocks/*", "@/features/*/mocks", "@/features/*/mocks/*"] }] }],` + src[insertAt:]
-}
-
-func hasCanonicalESLintImportBan(src string) bool {
-	clean := stripFixJSComments(src)
-	return containsQuotedFixLiteral(clean, "no-restricted-imports") &&
-		containsQuotedFixLiteral(clean, "**/test-utils") &&
-		containsQuotedFixLiteral(clean, "@/test-utils/*") &&
-		containsQuotedFixLiteral(clean, "**/features/*/mocks") &&
-		containsQuotedFixLiteral(clean, "@/features/*/mocks/*")
-}
-
-func containsQuotedFixLiteral(src, value string) bool {
-	return strings.Contains(src, `"`+value+`"`) ||
-		strings.Contains(src, `'`+value+`'`) ||
-		strings.Contains(src, "`"+value+"`")
-}
-
-func stripFixJSComments(src string) string {
-	var b strings.Builder
-	inLineComment := false
-	inBlockComment := false
-	var quote byte
-	escaped := false
-	for i := 0; i < len(src); i++ {
-		c := src[i]
-		if inLineComment {
-			if c == '\n' {
-				inLineComment = false
-				b.WriteByte(c)
-			}
-			continue
-		}
-		if inBlockComment {
-			if c == '*' && i+1 < len(src) && src[i+1] == '/' {
-				inBlockComment = false
-				i++
-			}
-			continue
-		}
-		if quote != 0 {
-			b.WriteByte(c)
-			if escaped {
-				escaped = false
-				continue
-			}
-			if c == '\\' {
-				escaped = true
-				continue
-			}
-			if c == quote {
-				quote = 0
-			}
-			continue
-		}
-		if c == '/' && i+1 < len(src) {
-			switch src[i+1] {
-			case '/':
-				inLineComment = true
-				i++
-				continue
-			case '*':
-				inBlockComment = true
-				i++
-				continue
-			}
-		}
-		if c == '\'' || c == '"' || c == '`' {
-			quote = c
-		}
-		b.WriteByte(c)
-	}
-	return b.String()
-}
-
-func formatCoverageFloor(floor float64) string {
-	if floor == float64(int64(floor)) {
-		return strconv.FormatInt(int64(floor), 10)
-	}
-	return strconv.FormatFloat(floor, 'f', -1, 64)
 }
 
 func applyCandidate(c *scenariovalidationv1.FixCandidate) error {
@@ -692,6 +581,7 @@ func findRepoRootFrom(start string) (string, error) {
 }
 
 const (
-	codeUnitPolicyInvalid   = "UNIT_POLICY_PROFILE_INVALID"
-	codeUnitProjectionDrift = "UNIT_POLICY_PROJECTION_DRIFT"
+	codeUnitPolicyInvalid        = "UNIT_POLICY_PROFILE_INVALID"
+	codeUnitProjectionDrift      = "UNIT_POLICY_PROJECTION_DRIFT"
+	codeCoverageCommitmentBehind = "COVERAGE_COMMITMENT_BEHIND"
 )

@@ -156,3 +156,53 @@ func TestAddHandlesErrorAndBoundary(t *testing.T) {
 		t.Fatalf("rapid runs lost history: %+v", persisted)
 	}
 }
+
+// TestEndToEndCoverageRegressionFailsThroughValidate drives the real executor
+// and coverage parser: every test passes, but statement coverage sits below
+// the committed floor, so the run fails with COVERAGE_BELOW_COMMITTED instead
+// of an opaque command failure. Covering the branch clears the gate.
+func TestEndToEndCoverageRegressionFailsThroughValidate(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go toolchain not on PATH")
+	}
+	root := t.TempDir()
+	wsDir := filepath.Join(root, "api")
+	writeFile(t, filepath.Join(wsDir, "go.mod"), "module e2ecov\n\ngo 1.25\n")
+	writeFile(t, filepath.Join(wsDir, "sign.go"), "package e2ecov\n\nfunc Sign(v int) int {\n\tif v < 0 {\n\t\treturn -1\n\t}\n\treturn 1\n}\n")
+	writeFile(t, filepath.Join(wsDir, "sign_test.go"), "package e2ecov\n\nimport \"testing\"\n\nfunc TestSignPositive(t *testing.T) {\n\tif Sign(3) != 1 {\n\t\tt.Fatal(\"positive sign wrong\")\n\t}\n}\n")
+	profile := reactViteUnitPolicyProfile()
+	api := profile.PolicyClasses["go_service"]
+	api.Coverage.Committed = map[string]float64{"statements": 90}
+	profile.PolicyClasses["go_service"] = api
+	writeUnitPolicyProfile(t, root, profile)
+
+	inv := discovery.Inventory{
+		Scenario: "e2ecov", TargetKind: "scenario", RootPath: root,
+		Surfaces: []discovery.Surface{{ID: "api", Kind: "api", Language: "go", RootPath: wsDir, Status: "known"}},
+	}
+	svc := newService(fakeDiscoverer{inv: inv}, loadSpec(t))
+
+	resp, err := svc.Validate(context.Background(), Request{Scenario: "e2ecov", IncludeExecution: true})
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	gate, ok := findingByCode(resp.Findings, codeCoverageBelowCommitted)
+	if !ok || resp.Status != "failed" {
+		t.Fatalf("passing tests below the committed floor must fail as a coverage regression; status=%s findings=%v", resp.Status, codes(resp.Findings))
+	}
+	if _, failed := findingByCode(resp.Findings, codeTestExecutionFailure); failed {
+		t.Fatalf("a coverage regression must not be reported as a test failure: %v", codes(resp.Findings))
+	}
+	if !strings.Contains(gate.Message, "statements") || !strings.Contains(gate.Message, "committed 90%") {
+		t.Fatalf("gate must name the metric and the committed floor: %s", gate.Message)
+	}
+
+	writeFile(t, filepath.Join(wsDir, "sign_test.go"), "package e2ecov\n\nimport \"testing\"\n\nfunc TestSign(t *testing.T) {\n\tif Sign(3) != 1 || Sign(-3) != -1 {\n\t\tt.Fatal(\"sign wrong\")\n\t}\n}\n")
+	resp, err = svc.Validate(context.Background(), Request{Scenario: "e2ecov", IncludeExecution: true})
+	if err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if _, ok := findingByCode(resp.Findings, codeCoverageBelowCommitted); ok {
+		t.Fatalf("restoring coverage must clear the gate, got %v", codes(resp.Findings))
+	}
+}

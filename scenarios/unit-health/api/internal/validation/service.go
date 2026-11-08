@@ -280,6 +280,9 @@ type PlannedCommand struct {
 	// Scenario Dependency Analyzer.
 	Kind     string
 	TestKind string
+	// Coverage marks the workspace's coverage command: its declared artifacts
+	// are fresh evidence for coverage analysis when it runs.
+	Coverage bool `json:"-"`
 	Hermetic executor.HermeticPolicy
 }
 
@@ -641,7 +644,7 @@ func (s *Service) Validate(ctx context.Context, req Request) (Response, error) {
 		qualityExecuted = true
 		if targetKind == "scenario" {
 			var covFindings []Finding
-			coverage, covFindings = analyzeCoverage(scenario, inv.RootPath, workspaces, nowStr)
+			coverage, covFindings = analyzeCoverage(scenario, inv.RootPath, workspaces, coverageRunOutcomes(plan, commandResults), nowStr)
 			findings = append(findings, covFindings...)
 		}
 		execStage.End()
@@ -1035,6 +1038,20 @@ func toCommandResult(r executor.Result, pc PlannedCommand) CommandResult {
 	}
 }
 
+// coverageRunOutcomes reports, per workspace, whether this run executed its
+// coverage command and whether that command passed. Workspaces absent from the
+// map produced no fresh coverage (dry run, fast test-only mode, or no coverage
+// command), so their on-disk artifacts are never judged.
+func coverageRunOutcomes(plan ExecutionPlan, results []CommandResult) map[string]bool {
+	outcomes := map[string]bool{}
+	for i, result := range results {
+		if i < len(plan.Commands) && plan.Commands[i].Coverage {
+			outcomes[plan.Commands[i].WorkspaceID] = result.Status == executor.StatusPassed
+		}
+	}
+	return outcomes
+}
+
 // executionFinding maps a non-passing command result onto a maturity finding.
 func executionFinding(scenario string, r executor.Result, now, diagnostic string) (Finding, bool) {
 	if r.Status == executor.StatusPassed {
@@ -1074,7 +1091,7 @@ func executionFinding(scenario string, r executor.Result, now, diagnostic string
 		Expected:      "The workspace's tests run to completion and pass within the timeout.",
 		Observed:      fmt.Sprintf("status=%s, class=%s, exit=%d, %dms", r.Status, r.FailureClass, r.ExitCode, r.DurationMS),
 		WhyItMatters:  "A failing, hanging, or unrunnable test command blocks the scenario from being validated or hardened.",
-		Remediation:   "Inspect the command output, fix the failure, and re-run with `--execution`.",
+		Remediation:   "Inspect this command's stdout/stderr excerpts in the validation response. In Test Genie, download the unfiltered `findings.report` artifact; `runs findings` is only the phase summary. Re-run with `--execution` only if the retained excerpts are insufficient.",
 		SourceCommand: r.Command,
 		CreatedAt:     now,
 	}, true

@@ -1,7 +1,7 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "unit-health",
-  "description": "Unit Health CLI surface. Single source of truth for the `validate` domain: schema-validated against cli-manifest/v1 and cross-validated against the ValidationService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "Unit Health CLI surface. Single source of truth for the `validate` and `fix` domains: schema-validated against cli-manifest/v1 and cross-validated against the ValidationService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
   "groups": [
     {
       "name": "validate",
@@ -154,6 +154,84 @@
           "governance": {"effect": "read", "run_eligible": true, "permissions": ["filesystem:read", "filesystem:write", "network:internal"]}
         }
       ]
+    },
+    {
+      "name": "fix",
+      "description": "Deterministic unit-test policy remediation, including coverage.committed adoption and ratcheting (dry-run by default)",
+      "commands": [
+        {
+          "name": "preview",
+          "description": "Preview the deterministic fixes unit-health can apply (never writes)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rules",
+              "description": "Comma-separated finding codes to restrict the preview to (e.g. UNIT_POLICY_PROJECTION_DRIFT, COVERAGE_COMMITMENT_BEHIND)",
+              "bind": {
+                "field": "rule_ids"
+              }
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "PreviewFix"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "apply",
+          "description": "Apply the previewed deterministic fixes (explicit apply; the write half of the dry-run-by-default pair)",
+          "positionals": [
+            {
+              "name": "scenario",
+              "required": true,
+              "description": "Scenario slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "rules",
+              "description": "Comma-separated finding codes to restrict the apply to (e.g. UNIT_POLICY_PROJECTION_DRIFT, COVERAGE_COMMITMENT_BEHIND)"
+            },
+            {
+              "name": "json",
+              "description": "Emit JSON output"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenarioValidationService",
+            "method": "ApplyFix"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ]
     }
   ],
   "measures": {
@@ -164,16 +242,6 @@
       "service": "ScenarioValidationService",
       "method": "ValidateScenario",
       "reason": "Shared cross-scenario validation surface exposed alongside this scenario's own ValidationService; the CLI 'validate scenario' command targets the scenario-local ValidationService."
-    },
-    {
-      "service": "ScenarioValidationService",
-      "method": "PreviewFix",
-      "reason": "Shared deterministic fix surface consumed by Test Genie's aggregate fixer; no dedicated unit-health CLI command is exposed yet."
-    },
-    {
-      "service": "ScenarioValidationService",
-      "method": "ApplyFix",
-      "reason": "Shared deterministic fix surface consumed by Test Genie's aggregate fixer; no dedicated unit-health CLI command is exposed yet."
     },
     {
       "service": "ScenarioValidationService",

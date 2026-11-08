@@ -46,7 +46,6 @@ type ProjectionPolicy = adapters.ProjectionPolicy
 // template. Scenario policy settings may only strengthen or specialize it.
 func DefaultPolicy() ProjectionPolicy {
 	return ProjectionPolicy{
-		CoverageFloor:     80,
 		Environment:       "jsdom",
 		SetupFiles:        []string{"./src/test-setup.ts"},
 		CoverageProvider:  "v8",
@@ -124,16 +123,12 @@ func loadManifest(path string) (packageManifest, error) {
 // constructing Unit Health findings or importing validation policy types.
 func AnalyzeProjection(input ProjectionInput) []ProjectionDrift {
 	root := input.RootPath
-	vitePath := filepath.Join(root, "vite.config.ts")
+	manifest, _ := LoadManifest(root)
+	vitePath := EffectiveConfigPath(root, manifest.Scripts["test:coverage"])
 	config := readText(vitePath)
-	if config == "" {
-		vitePath = filepath.Join(root, "vite.config.js")
-		config = readText(vitePath)
-	}
 	if config == "" {
 		return nil
 	}
-	manifest, _ := LoadManifest(root)
 	projection := Parse(config, readText(filepath.Join(root, "eslint.config.js")))
 	policy := input.Policy
 	var drifts []ProjectionDrift
@@ -175,11 +170,8 @@ func AnalyzeProjection(input ProjectionInput) []ProjectionDrift {
 	if policy.ReportOnFailure && (!projection.HasReportOnFailure || !projection.ReportOnFailure) {
 		add(vitePath, "UI policy projection is missing coverage reporting on test failure.", "coverage.reportOnFailure=true not detected", "Vitest coverage.reportOnFailure is true.", "missing coverage reportOnFailure", "Set coverage.reportOnFailure to true so failed coverage runs remain interpretable.")
 	}
-	for _, key := range []string{"lines", "functions", "branches", "statements"} {
-		value, ok := projection.Thresholds[key]
-		if !ok || value < policy.CoverageFloor {
-			add(vitePath, "UI policy projection weakens Vitest coverage thresholds.", fmt.Sprintf("%s=%.1f", key, value), fmt.Sprintf("Vitest coverage thresholds are at least %.1f for lines, functions, branches, and statements.", policy.CoverageFloor), "coverage threshold below policy", fmt.Sprintf("Restore the threshold to %.1f or higher.", policy.CoverageFloor))
-		}
+	if projection.HasThresholds {
+		add(vitePath, "Native Vitest coverage thresholds restate the coverage gate owned by unit.policy_profile coverage.committed.", "coverage.thresholds "+describeThresholds(projection), "No test.coverage.thresholds; Unit Health compares coverage-summary.json with coverage.committed.", "duplicate native coverage gate", nativeThresholdRemediation)
 	}
 	if !projection.HasImportBanRule {
 		add(filepath.Join(root, "eslint.config.js"), "UI policy projection is missing the production import ban for test helpers.", "no-restricted-imports/test-utils pattern not detected", "ESLint forbids production imports from src/test-utils and feature mocks.", "missing production import ban", "Restore the no-restricted-imports patterns for test-utils and feature mocks.")
@@ -193,14 +185,10 @@ func AnalyzeProjection(input ProjectionInput) []ProjectionDrift {
 // selection logic.
 func AnalyzeProjectionChecks(input ProjectionInput) []adapters.ProjectionCheck {
 	root := input.RootPath
-	configPath := filepath.Join(root, "vite.config.ts")
-	config := readText(configPath)
-	if config == "" {
-		configPath = filepath.Join(root, "vite.config.js")
-		config = readText(configPath)
-	}
-	eslintPath := filepath.Join(root, "eslint.config.js")
 	manifest, _ := LoadManifest(root)
+	configPath := EffectiveConfigPath(root, manifest.Scripts["test:coverage"])
+	config := readText(configPath)
+	eslintPath := filepath.Join(root, "eslint.config.js")
 	projection := Parse(config, readText(eslintPath))
 	policy := input.Policy
 	checks := make([]adapters.ProjectionCheck, 0, 15)
@@ -218,11 +206,55 @@ func AnalyzeProjectionChecks(input ProjectionInput) []adapters.ProjectionCheck {
 	add("coverage.exclude", "vite.config.ts test.coverage", configPath, strings.Join(policy.CoverageExclude, ","), strings.Join(projection.CoverageExclude, ","), ContainsAllStrings(projection.CoverageExclude, policy.CoverageExclude), "Restore the canonical coverage exclusions.")
 	add("coverage.report_on_failure", "vite.config.ts test.coverage", configPath, "true", boolText(projection.HasReportOnFailure && projection.ReportOnFailure), projection.HasReportOnFailure && projection.ReportOnFailure, "Set coverage.reportOnFailure to true.")
 	add("eslint.production_import_ban", "eslint.config.js no-restricted-imports", eslintPath, "test-utils and feature mocks banned from production", boolText(projection.HasImportBanRule), projection.HasImportBanRule, "Restore the no-restricted-imports patterns for test helpers and feature mocks.")
-	for _, key := range []string{"lines", "functions", "branches", "statements"} {
-		value, ok := projection.Thresholds[key]
-		add("coverage.threshold."+key, "vite.config.ts test.coverage.thresholds", configPath, formatCoverageFloor(policy.CoverageFloor), thresholdValue(value, ok), ok && value >= policy.CoverageFloor, "Restore the "+key+" threshold to the policy floor or higher.")
-	}
+	add("coverage.thresholds", "vite.config.ts test.coverage.thresholds", configPath, "absent (unit.policy_profile coverage.committed owns the gate)", describeThresholds(projection), !projection.HasThresholds, nativeThresholdRemediation)
 	return checks
+}
+
+const nativeThresholdRemediation = "Remove test.coverage.thresholds. Run `unit-health fix apply <scenario> --rules UNIT_POLICY_PROJECTION_DRIFT` after a coverage run to move the gate into coverage.committed at the measured baseline."
+
+// describeThresholds renders native thresholds in stable metric order.
+func describeThresholds(projection Projection) string {
+	parts := make([]string, 0, len(projection.Thresholds))
+	for _, key := range []string{"lines", "statements", "functions", "branches"} {
+		if value, ok := projection.Thresholds[key]; ok {
+			parts = append(parts, key+"="+formatCoverageFloor(value))
+		}
+	}
+	if len(parts) == 0 && projection.HasThresholds {
+		return "present (non-literal value)"
+	}
+	return strings.Join(parts, ",")
+}
+
+// configCandidates is Vitest's own config resolution order: a vitest.config
+// file wins over vite.config when both exist.
+var configCandidates = []string{
+	"vitest.config.ts", "vitest.config.mts", "vitest.config.js", "vitest.config.mjs",
+	"vite.config.ts", "vite.config.mts", "vite.config.js", "vite.config.mjs",
+}
+
+// EffectiveConfigPath returns the config file Vitest actually loads for the
+// coverage script: an explicit `--config <file>` (or `-c`) wins, otherwise the
+// first existing file in Vitest's resolution order. Reading any other file
+// would judge configuration the runner ignores. It returns the vite.config.ts
+// path when nothing exists so callers report a stable location.
+func EffectiveConfigPath(root, script string) string {
+	fields := strings.Fields(script)
+	for i, field := range fields {
+		if value, ok := strings.CutPrefix(field, "--config="); ok {
+			return filepath.Join(root, value)
+		}
+		if (field == "--config" || field == "-c") && i+1 < len(fields) {
+			return filepath.Join(root, fields[i+1])
+		}
+	}
+	for _, name := range configCandidates {
+		path := filepath.Join(root, name)
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			return path
+		}
+	}
+	return filepath.Join(root, "vite.config.ts")
 }
 
 func boolText(value bool) string {
@@ -230,13 +262,6 @@ func boolText(value bool) string {
 		return "true"
 	}
 	return "false"
-}
-
-func thresholdValue(value float64, ok bool) string {
-	if !ok {
-		return ""
-	}
-	return formatCoverageFloor(value)
 }
 
 func formatCoverageFloor(value float64) string {

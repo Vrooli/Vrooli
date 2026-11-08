@@ -21,14 +21,17 @@ type Projection struct {
 	ReportOnFailure    bool
 	HasReportOnFailure bool
 	Thresholds         map[string]float64
-	HasImportBanRule   bool
+	// HasThresholds reports a coverage.thresholds property even when its
+	// value is not a literal the parser can read.
+	HasThresholds    bool
+	HasImportBanRule bool
 }
 
 // Parse reads the bounded subset of Vite and ESLint configuration needed by
 // the React/Vitest adapter. It is syntax-tolerant and never executes config.
 func Parse(config, eslint string) Projection {
 	p := Projection{Thresholds: map[string]float64{}}
-	clean := stripComments(config)
+	clean := maskComments(config)
 	testBlock, ok := objectValueBlock(clean, "test")
 	p.HasVitestConfig = ok
 	coverageBlock, _ := objectValueBlock(testBlock, "coverage")
@@ -43,6 +46,7 @@ func Parse(config, eslint string) Projection {
 	p.CoverageInclude = stringArrayPropertyValues(coverageBlock, "include")
 	p.CoverageExclude = stringArrayPropertyValues(coverageBlock, "exclude")
 	p.ReportOnFailure, p.HasReportOnFailure = booleanProperty(coverageBlock, "reportOnFailure")
+	_, p.HasThresholds = propertyValueIndex(coverageBlock, "thresholds")
 	thresholdBlock, _ := objectValueBlock(coverageBlock, "thresholds")
 	for _, key := range []string{"lines", "functions", "branches", "statements"} {
 		if value, ok := numericProperty(thresholdBlock, key); ok {
@@ -84,7 +88,7 @@ func normalizeSetupPath(path string) string {
 
 func hasESLintImportBanProjection(src string) bool {
 	hasRule, hasTestUtils, hasFeatureMocks := false, false, false
-	for _, literal := range stringLiterals(stripComments(src)) {
+	for _, literal := range stringLiterals(maskComments(src)) {
 		switch {
 		case literal == "no-restricted-imports":
 			hasRule = true
@@ -104,58 +108,6 @@ func contains(values []string, want string) bool {
 		}
 	}
 	return false
-}
-
-func stripComments(src string) string {
-	var b strings.Builder
-	line, block := false, false
-	var quote byte
-	escaped := false
-	for i := 0; i < len(src); i++ {
-		c := src[i]
-		if line {
-			if c == '\n' {
-				line = false
-				b.WriteByte(c)
-			}
-			continue
-		}
-		if block {
-			if c == '*' && i+1 < len(src) && src[i+1] == '/' {
-				block = false
-				i++
-			}
-			continue
-		}
-		if quote != 0 {
-			b.WriteByte(c)
-			if escaped {
-				escaped = false
-			} else if c == '\\' {
-				escaped = true
-			} else if c == quote {
-				quote = 0
-			}
-			continue
-		}
-		if c == '/' && i+1 < len(src) {
-			switch src[i+1] {
-			case '/':
-				line = true
-				i++
-				continue
-			case '*':
-				block = true
-				i++
-				continue
-			}
-		}
-		if c == '\'' || c == '"' || c == '`' {
-			quote = c
-		}
-		b.WriteByte(c)
-	}
-	return b.String()
 }
 
 func objectValueBlock(src, key string) (string, bool) {

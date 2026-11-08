@@ -11,22 +11,28 @@ import (
 // analyzers. Every code maps to an entry in the `maturity` block of `.vrooli/test-genie.json`; the anti-drift
 // test in maturity_spec_test.go proves codeSeverity and the spec agree.
 const (
-	codeLowCoverage             = "LOW_COVERAGE"
-	codeCoverageAbsent          = "COVERAGE_ABSENT"
-	codeTestNotColocated        = "TEST_NOT_COLOCATED"
-	codeTestUtilMissing         = "TEST_UTIL_MISSING"
-	codeTestHelperFromProd      = "TEST_HELPER_FROM_PRODUCTION"
-	codeMissingInjectableSeam   = "MISSING_INJECTABLE_SEAM"
-	codeTestSkippedOrOnly       = "TEST_SKIPPED_OR_ONLY"
-	codeTestExcessiveSnapshots  = "TEST_EXCESSIVE_SNAPSHOTS"
-	codeTestFlakeSuspected      = "TEST_FLAKE_SUSPECTED"
-	codeTestRuntimeGrowth       = "TEST_RUNTIME_GROWTH"
-	codeTestUntaggedRequirement = "TEST_UNTAGGED_REQUIREMENT"
-	codeTestQualityViolation    = "TEST_QUALITY_RULE_VIOLATION"
-	codeSeamDuplicatedInPackage = "SEAM_DUPLICATED_IN_PACKAGE"
-	codeSeamReimplemented       = "SEAM_REIMPLEMENTED"
-	codeCompanionReimplemented  = "COMPANION_REIMPLEMENTED"
-	codeCompanionAvailable      = "COMPANION_AVAILABLE"
+	codeLowCoverage    = "LOW_COVERAGE"
+	codeCoverageAbsent = "COVERAGE_ABSENT"
+	// codeCoverageBelowCommitted is the committed-coverage gate: tests passed
+	// but a metric fell below unit.policy_profile coverage.committed.
+	codeCoverageBelowCommitted = "COVERAGE_BELOW_COMMITTED"
+	// codeCoverageCommitmentBehind is advisory: measured coverage has earned a
+	// higher committed floor than the profile records.
+	codeCoverageCommitmentBehind = "COVERAGE_COMMITMENT_BEHIND"
+	codeTestNotColocated         = "TEST_NOT_COLOCATED"
+	codeTestUtilMissing          = "TEST_UTIL_MISSING"
+	codeTestHelperFromProd       = "TEST_HELPER_FROM_PRODUCTION"
+	codeMissingInjectableSeam    = "MISSING_INJECTABLE_SEAM"
+	codeTestSkippedOrOnly        = "TEST_SKIPPED_OR_ONLY"
+	codeTestExcessiveSnapshots   = "TEST_EXCESSIVE_SNAPSHOTS"
+	codeTestFlakeSuspected       = "TEST_FLAKE_SUSPECTED"
+	codeTestRuntimeGrowth        = "TEST_RUNTIME_GROWTH"
+	codeTestUntaggedRequirement  = "TEST_UNTAGGED_REQUIREMENT"
+	codeTestQualityViolation     = "TEST_QUALITY_RULE_VIOLATION"
+	codeSeamDuplicatedInPackage  = "SEAM_DUPLICATED_IN_PACKAGE"
+	codeSeamReimplemented        = "SEAM_REIMPLEMENTED"
+	codeCompanionReimplemented   = "COMPANION_REIMPLEMENTED"
+	codeCompanionAvailable       = "COMPANION_AVAILABLE"
 )
 
 // analyzerSkipDirs are directories the static analyzers never descend into:

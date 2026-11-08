@@ -17,7 +17,6 @@ type ArchitectureDrift struct {
 }
 
 type ProjectionPolicy struct {
-	CoverageFloor     float64
 	Environment       string
 	SetupFiles        []string
 	CoverageProvider  string
