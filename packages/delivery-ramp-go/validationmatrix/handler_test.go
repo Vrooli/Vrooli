@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
 )
 
 func TestHandlerCreatesAndReadsDurableMatrix(t *testing.T) {
@@ -45,6 +46,65 @@ func TestHandlerCreatesAndReadsDurableMatrix(t *testing.T) {
 	}
 	if loaded.RunID != run.RunID || loaded.Matrix.GetArtifactDigest() != "sha256:artifact" {
 		t.Fatalf("handler lost matrix identity: %+v", loaded)
+	}
+}
+
+func TestMatrixHTTPResponsesRedactLocalArtifactPaths(t *testing.T) {
+	store, err := NewFileStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	selection := baseSelection()
+	selection.ArtifactPath = "/producer/private/app.apk"
+	selection.ArtifactPaths = map[string]string{"android:local": "/producer/private/app.apk"}
+	service := NewService(store, Executors{})
+	router := mux.NewRouter()
+	NewHandler(service).RegisterRoutes(router)
+	body, err := json.Marshal(selection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	created := httptest.NewRecorder()
+	router.ServeHTTP(created, httptest.NewRequest(http.MethodPost, "/api/v1/validation/matrices", bytes.NewReader(body)))
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", created.Code, created.Body.String())
+	}
+	var run MatrixRun
+	if err := json.Unmarshal(created.Body.Bytes(), &run); err != nil {
+		t.Fatal(err)
+	}
+	if !store.Update(run.RunID, func(stored *MatrixRun) {
+		stored.Cells[0].Report = map[string]string{"review_recording_path": "/producer/private/review.mp4", "status": "captured"}
+		stored.Cells[0].Cell.Evidence = []*domainv1.LayeredEvidence{{
+			EvidenceId: "review", Uri: "file:///producer/private/evidence.mp4", Sha256: "sha256:evidence", Redacted: true,
+		}}
+		stored.Matrix.Cells = []*domainv1.ValidationCell{stored.Cells[0].Cell}
+		if stored.Selection.Metadata == nil {
+			stored.Selection.Metadata = make(map[string]string)
+		}
+		stored.Selection.Metadata["diagnostic_path"] = "/producer/private/debug.json"
+	}) {
+		t.Fatal("could not attach internal path evidence")
+	}
+	for _, path := range []string{"/api/v1/validation/matrices/" + run.RunID, "/api/v1/validation/matrices?scenario=" + selection.ScenarioName} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		if response.Code != http.StatusOK {
+			t.Fatalf("GET %s status=%d body=%s", path, response.Code, response.Body.String())
+		}
+		for _, privatePath := range [][]byte{
+			[]byte("/producer/private/app.apk"), []byte("/producer/private/review.mp4"),
+			[]byte("/producer/private/debug.json"), []byte("file:///producer/private/evidence.mp4"), []byte("artifact_paths"),
+			[]byte("review_recording_path"), []byte("diagnostic_path"),
+		} {
+			if bytes.Contains(response.Body.Bytes(), privatePath) {
+				t.Fatalf("GET %s exposed local artifact paths: %s", path, response.Body.String())
+			}
+		}
+	}
+	stored, ok := store.Get(run.RunID)
+	if !ok || stored.Selection.ArtifactPath != selection.ArtifactPath || stored.Selection.ArtifactPaths["android:local"] != selection.ArtifactPath || stored.Cells[0].Report["review_recording_path"] != "/producer/private/review.mp4" || stored.Selection.Metadata["diagnostic_path"] != "/producer/private/debug.json" || stored.Cells[0].Cell.Evidence[0].Uri != "file:///producer/private/evidence.mp4" || stored.Matrix.Cells[0].Evidence[0].Uri != "file:///producer/private/evidence.mp4" {
+		t.Fatalf("store did not retain internal paths for execution: %+v", stored)
 	}
 }
 

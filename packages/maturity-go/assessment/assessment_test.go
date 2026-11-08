@@ -1,6 +1,8 @@
 package assessment
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -96,14 +98,40 @@ func validMultiCapabilitySpec() Spec {
 	}
 }
 
-func TestRepositoryProviderSpecsValidateCleanRequirementContract(t *testing.T) {
+// repositoryMaturityDescriptors lists the scenario Test Genie descriptors that
+// embed a maturity block. A descriptor may legitimately declare only evidence
+// producers (no phase, no maturity); Test Genie accepts those as producer-only
+// declarations, so they are not maturity providers.
+func repositoryMaturityDescriptors(t *testing.T) []string {
+	t.Helper()
 	repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
-	specPaths, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "test-genie.json"))
+	paths, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", filepath.FromSlash(TestGenieDescriptorRelPath)))
 	if err != nil {
 		t.Fatalf("glob test-genie descriptors: %v", err)
 	}
+	providers := make([]string, 0, len(paths))
+	for _, path := range paths {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("read %s: %v", path, err)
+		}
+		var descriptor struct {
+			Maturity json.RawMessage `json:"maturity"`
+		}
+		if err := json.Unmarshal(raw, &descriptor); err != nil {
+			t.Fatalf("parse %s: %v", path, err)
+		}
+		if len(descriptor.Maturity) > 0 && string(descriptor.Maturity) != "null" {
+			providers = append(providers, path)
+		}
+	}
+	return providers
+}
+
+func TestRepositoryProviderSpecsValidateCleanRequirementContract(t *testing.T) {
+	specPaths := repositoryMaturityDescriptors(t)
 	if len(specPaths) == 0 {
-		t.Fatal("no scenario test-genie descriptors found")
+		t.Fatal("no scenario test-genie descriptors embed a maturity block")
 	}
 
 	for _, specPath := range specPaths {
@@ -533,12 +561,7 @@ func TestBuildProtoAssessmentWithZeroFindingsAndCapabilityOnlySpec(t *testing.T)
 }
 
 func TestBuildProtoAssessmentWithZeroFindingsForRepositoryCapabilitySpecs(t *testing.T) {
-	repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
-	specPaths, err := filepath.Glob(filepath.Join(repoRoot, "scenarios", "*", ".vrooli", "test-genie.json"))
-	if err != nil {
-		t.Fatalf("glob test-genie descriptors: %v", err)
-	}
-	for _, specPath := range specPaths {
+	for _, specPath := range repositoryMaturityDescriptors(t) {
 		spec, err := LoadSpecFromScenario(filepath.Dir(filepath.Dir(specPath)))
 		if err != nil {
 			t.Fatalf("load %s: %v", specPath, err)

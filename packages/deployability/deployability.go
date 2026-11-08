@@ -13,6 +13,7 @@ type (
 	ResourceRequirements           = core.ResourceRequirements
 	GPURequirement                 = core.GPURequirement
 	PlatformDeclaration            = core.PlatformDeclaration
+	PlatformPairDeclaration        = core.PlatformPairDeclaration
 	CapabilityDeclaration          = core.CapabilityDeclaration
 	DependencyDeclaration          = core.DependencyDeclaration
 	TargetDeclaration              = core.TargetDeclaration
@@ -68,10 +69,12 @@ const (
 )
 
 var (
-	Resolve                     = core.Resolve
-	ResolveCapability           = core.ResolveCapability
-	SuggestResourceSwaps        = core.SuggestResourceSwaps
-	ExtractDeclaredAlternatives = core.ExtractDeclaredAlternatives
-	FindInstanceLiterals        = core.FindInstanceLiterals
-	ValidateAcquisitionCoverage = core.ValidateAcquisitionCoverage
+	Resolve                                 = core.Resolve
+	ResolveCapability                       = core.ResolveCapability
+	SuggestResourceSwaps                    = core.SuggestResourceSwaps
+	ExtractDeclaredAlternatives             = core.ExtractDeclaredAlternatives
+	FindInstanceLiterals                    = core.FindInstanceLiterals
+	ValidateAcquisitionCoverage             = core.ValidateAcquisitionCoverage
+	ToolManifestAcquisitionCoverage         = core.ToolManifestAcquisitionCoverage
+	ValidateToolManifestAcquisitionCoverage = core.ValidateToolManifestAcquisitionCoverage
 )

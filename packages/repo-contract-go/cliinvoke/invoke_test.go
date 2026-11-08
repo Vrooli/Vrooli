@@ -153,10 +153,10 @@ func TestResolveOrderAndMissingCandidates(t *testing.T) {
 	}
 	env := map[string]string{BinaryEnvVar: fromEnv}
 	opts := ResolveOptions{
-		Explicit:    explicit,
-		RuntimeHome: home,
-		Getenv:      func(k string) string { return env[k] },
-		LookPath:    func(string) (string, error) { return fromPath, nil },
+		Explicit: explicit,
+		UserHome: home,
+		Getenv:   func(k string) string { return env[k] },
+		LookPath: func(string) (string, error) { return fromPath, nil },
 	}
 	if got, _ := Resolve(opts); got != explicit {
 		t.Fatalf("explicit should win, got %q", got)

@@ -36,6 +36,8 @@ const (
 	HomeKeyTestRuns      = "test_runs"
 	HomeKeyBackups       = "backups"
 	HomeKeyArtifacts     = "artifacts"
+	HomeKeyEvidence      = "evidence"
+	HomeKeyResearch      = "research"
 
 	// Scoped (parameterized) runtime-home path keys.
 	ScopedScenarioSecrets  = "scenario_secrets"
@@ -55,6 +57,17 @@ func RuntimeHomeEntryPath(home, key string) (string, error) {
 		return "", err
 	}
 	return entry.AbsPath, nil
+}
+
+// RuntimeHomeEntries resolves one consistent batch from the immutable native
+// pin, when present, or the active source authority. It does not alter source
+// discovery and never exposes the pinned Contract for mutation.
+func RuntimeHomeEntries(home string) ([]HomeEntry, error) {
+	contract, err := loadRuntimeHomeContract()
+	if err != nil {
+		return nil, err
+	}
+	return contract.RuntimeHomeEntries(home)
 }
 
 // RuntimeHomeScopedPath expands a parameterized runtime-home template by loading

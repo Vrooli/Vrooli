@@ -39,7 +39,10 @@ type artifactCacheManifest struct {
 	Artifacts     []CachedArtifact `json:"artifacts"`
 }
 
-const artifactCacheManifestName = "artifact-cache-v1.json"
+const (
+	artifactCacheManifestName  = "artifact-cache-v1.json"
+	artifactCacheSchemaVersion = "v1"
+)
 
 var artifactCacheLocks sync.Map
 
@@ -90,7 +93,7 @@ func StageCachedArtifacts(ctx context.Context, cacheRoot, outputRoot string, key
 	if len(artifacts) == 0 {
 		return nil, fmt.Errorf("resource artifact cache build produced no artifacts")
 	}
-	manifestData, err := json.MarshalIndent(artifactCacheManifest{SchemaVersion: "v1", Key: key, Artifacts: artifacts}, "", "  ")
+	manifestData, err := json.MarshalIndent(artifactCacheManifest{SchemaVersion: artifactCacheSchemaVersion, Key: key, Artifacts: artifacts}, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("encode resource artifact cache manifest: %w", err)
 	}
@@ -118,7 +121,7 @@ func verifyArtifactCache(ctx context.Context, cacheDir string, key ArtifactCache
 		return nil, false
 	}
 	var manifest artifactCacheManifest
-	if json.Unmarshal(data, &manifest) != nil || manifest.SchemaVersion != "v1" || manifest.Key != key || len(manifest.Artifacts) == 0 {
+	if json.Unmarshal(data, &manifest) != nil || manifest.SchemaVersion != artifactCacheSchemaVersion || manifest.Key != key || len(manifest.Artifacts) == 0 {
 		return nil, false
 	}
 	for _, artifact := range manifest.Artifacts {

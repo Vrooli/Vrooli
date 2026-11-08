@@ -239,3 +239,83 @@ func TestTargetKindNameRoundTripsEveryDeclaredKind(t *testing.T) {
 		}
 	}
 }
+
+func outOfScopeAssessment(t *testing.T) *commonv1.MaturityAssessment {
+	t.Helper()
+	out, err := BuildProtoAssessment(BuildInput{
+		Scenario: "storage-manager",
+		Spec:     scopeSpec(),
+		Findings: []Finding{
+			{Code: "STORAGE_ACCOUNTABILITY_UNDECLARED", Severity: "SEVERITY_INFO", Subject: target(commonv1.ValidationTargetKind_VALIDATION_TARGET_KIND_SAFEGUARD, "clock")},
+			{Code: "STORAGE_ACCOUNTABILITY_UNDECLARED", Severity: "SEVERITY_WARNING"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("BuildProtoAssessment error = %v", err)
+	}
+	return out
+}
+
+func capabilityCount(t *testing.T, a *commonv1.MaturityAssessment, id, severity string) int32 {
+	t.Helper()
+	for _, capability := range a.GetCapabilities() {
+		if capability.GetId() == id {
+			return capability.GetFindingsBySeverity()[severity]
+		}
+	}
+	t.Fatalf("capability %q missing", id)
+	return 0
+}
+
+// Wrapping an assessment in a validation response must not undo scoping: a
+// capability's counts describe the findings that scored it, and the
+// out-of-scope finding must not reappear in them.
+func TestBuildValidationResponseKeepsScopedCapabilityCounts(t *testing.T) {
+	response, err := BuildValidationResponse("storage-manager", outOfScopeAssessment(t), nil, nil)
+	if err != nil {
+		t.Fatalf("BuildValidationResponse error = %v", err)
+	}
+	got := response.GetAssessment()
+	if n := capabilityCount(t, got, "declaration_accountability", "FINDING_SEVERITY_INFO"); n != 0 {
+		t.Fatalf("out-of-scope INFO finding counted %d time(s) in the capability", n)
+	}
+	if n := capabilityCount(t, got, "declaration_accountability", "FINDING_SEVERITY_WARNING"); n != 1 {
+		t.Fatalf("in-scope WARNING finding counted %d time(s), want 1", n)
+	}
+	if n := got.GetFindingsBySeverity()["FINDING_SEVERITY_INFO"]; n != 1 {
+		t.Fatalf("assessment-level INFO count = %d, want the out-of-scope finding still visible", n)
+	}
+}
+
+// The validator cannot know the run's target, so it bounds capability counts:
+// subjectless findings always score, subject-attributed ones may not.
+func TestValidateAssessmentBoundsCapabilityCountsByScoping(t *testing.T) {
+	for name, tc := range map[string]struct {
+		severity string
+		count    int32
+	}{
+		"subjectless finding dropped":       {severity: "FINDING_SEVERITY_WARNING", count: 0},
+		"count exceeds attributed findings": {severity: "FINDING_SEVERITY_INFO", count: 2},
+	} {
+		t.Run(name, func(t *testing.T) {
+			a := outOfScopeAssessment(t)
+			for _, capability := range a.GetCapabilities() {
+				if capability.GetId() == "declaration_accountability" {
+					capability.FindingsBySeverity[tc.severity] = tc.count
+				}
+			}
+			if err := ValidateAssessment(a); err == nil {
+				t.Fatalf("ValidateAssessment accepted %s=%d", tc.severity, tc.count)
+			}
+		})
+	}
+	a := outOfScopeAssessment(t)
+	for _, capability := range a.GetCapabilities() {
+		if capability.GetId() == "declaration_accountability" {
+			capability.FindingsBySeverity["FINDING_SEVERITY_INFO"] = 1
+		}
+	}
+	if err := ValidateAssessment(a); err != nil {
+		t.Fatalf("a subject-attributed finding that scored (explicit target) must validate: %v", err)
+	}
+}

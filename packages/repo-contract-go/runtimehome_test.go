@@ -192,3 +192,20 @@ func TestUserSecretPathsMatchRuntimeHome(t *testing.T) {
 		t.Errorf("UserEncryptedSecretsPath = %q, want %q", encrypted, wantEnc.AbsPath)
 	}
 }
+
+// Every exported runtime-home key names an entry the contract declares, so a
+// consumer that resolves through a constant cannot hit a missing entry.
+func TestRuntimeHomeKeyConstantsResolve(t *testing.T) {
+	c := validContract(t)
+	home := filepath.Join(string(filepath.Separator), "tmp", "vrooli-home")
+	for _, key := range []string{
+		HomeKeyPlans, HomeKeyPlanArtifacts, HomeKeyState, HomeKeyConfig, HomeKeyData,
+		HomeKeyRuntimeDB, HomeKeySecrets, HomeKeySecretsEnc, HomeKeyBin, HomeKeyShims,
+		HomeKeyCache, HomeKeyLogs, HomeKeyMetrics, HomeKeyProcesses, HomeKeyBuild,
+		HomeKeyTestRuns, HomeKeyBackups, HomeKeyArtifacts, HomeKeyEvidence, HomeKeyResearch,
+	} {
+		if _, err := c.RuntimeHomeEntry(home, key); err != nil {
+			t.Errorf("RuntimeHomeEntry(%q): %v", key, err)
+		}
+	}
+}

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "comment": "Canonical improvement-dimension vocabulary (SSOT). Prose lives in docs/concepts/DIMENSIONS.md. Test Genie finding source tokens and skill target_dimensions declarations map into this vocabulary; descriptor-owned Test Genie phase dimensions live in scenarios/*/.vrooli/test-genie.json. Edit here only for global dimension/source vocabulary.",
+  "comment": "Canonical improvement-dimension vocabulary (SSOT); each dimension's description below is its canonical prose. Test Genie finding source tokens and skill target_dimensions declarations map into this vocabulary; descriptor-owned Test Genie phase dimensions live in scenarios/*/.vrooli/test-genie.json. Edit here only for global dimension/source vocabulary.",
   "dimensions": [
     {
       "id": "standards",
@@ -103,6 +103,8 @@
     "FINDING_SOURCE_DEPENDENCY": "dependency-accuracy",
     "FINDING_SOURCE_STORAGE": "storage",
     "FINDING_SOURCE_BRANDING": "branding",
-    "FINDING_SOURCE_WORKFLOW": "visual"
+    "FINDING_SOURCE_WORKFLOW": "visual",
+    "FINDING_SOURCE_PROGRAMS": "contracts",
+    "FINDING_SOURCE_SKILLS": "structure"
   }
 }

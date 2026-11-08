@@ -50,6 +50,32 @@ func TestSuiteRoundTripExplicitDefaultCollapses(t *testing.T) {
 	}
 }
 
+func TestSuiteRoundTripRetainsRegistrationPolicy(t *testing.T) {
+	const providerID = "demo.commands"
+	in := aisearch.TestSuite{
+		Coverage: aisearch.CoverageConfig{
+			RequiredTags: []string{"lifecycle"},
+			RequiredTagGroups: []aisearch.CoverageTagGroup{{
+				ID:                  "operations",
+				Description:         "operator workflows",
+				Tags:                []string{"lifecycle", "testing"},
+				MinReviewedPositive: 2,
+			}},
+		},
+		Minimum: &aisearch.EvalMinimum{
+			ReviewedPositive: 4,
+			Negative:         1,
+			RequiredTags:     []string{"strong"},
+		},
+		Cases: []aisearch.TestCase{{ID: "c1", Query: "restart a scenario"}},
+	}
+
+	got := SuiteFromProto(SuiteToProto(providerID, in))
+	if !reflect.DeepEqual(in, got) {
+		t.Fatalf("registration policy changed during suite round-trip:\n in = %#v\nout = %#v", in, got)
+	}
+}
+
 // TestSuiteToProtoStoreAssignedFields confirms the store-assigned fields are set
 // (provider_id, state, suite_id default) on the way out and dropped on the way
 // back — they are not part of the file SSOT.

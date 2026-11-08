@@ -4,8 +4,8 @@
 // controller's selection policy matches the two.
 //
 // The vocabulary and its mapping tables live in dimensions.json (embedded
-// below) so the data is machine-readable and shared with the prose in
-// docs/concepts/DIMENSIONS.md. Edit the JSON, never these accessors.
+// below) so the data is machine-readable; each dimension's description there is
+// its canonical prose. Edit the JSON, never these accessors.
 package dimensions
 
 import (

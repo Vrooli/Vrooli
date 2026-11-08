@@ -22,7 +22,9 @@
     "security",
     "measures",
     "proto",
-    "branding"
+    "branding",
+    "programs",
+    "skill-set"
   ],
   "phases": [
     {
@@ -341,11 +343,45 @@
           "stable_id": "afid:0000000000000015"
         }
       ]
+    },
+    {
+      "name": "programs",
+      "status": "failed",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 17,
+          "code": "PROGRAM_CONTRACT_INVALID",
+          "severity": 3,
+          "locations": [
+            "programs/fixture/program.json"
+          ],
+          "message": "program contract is invalid",
+          "stable_id": "afid:0000000000000017"
+        }
+      ]
+    },
+    {
+      "name": "skill-set",
+      "status": "failed",
+      "findings": [
+        {
+          "scenario": "fixture-scenario",
+          "source": 18,
+          "code": "SKILL_SOURCE_UNREACHABLE",
+          "severity": 3,
+          "locations": [
+            ".vrooli/service.json"
+          ],
+          "message": "declared skill source is unreachable",
+          "stable_id": "afid:0000000000000018"
+        }
+      ]
     }
   ],
   "phaseSummary": {
-    "total": 18,
+    "total": 20,
     "passed": 4,
-    "failed": 14
+    "failed": 16
   }
 }

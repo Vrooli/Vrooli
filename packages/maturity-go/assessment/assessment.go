@@ -688,15 +688,52 @@ func ValidateAssessment(a *commonv1.MaturityAssessment) error {
 		return err
 	}
 	for _, capability := range a.GetCapabilities() {
-		want := make(map[string]int32)
+		// A capability counts the findings that scored its ladder. Findings
+		// without a subject are about the run's own target and always score;
+		// a finding with a subject scores only when that subject is the run's
+		// target, which the assessment does not carry (see scope.go). The
+		// count is therefore exact for subjectless findings and bounded by
+		// the subject-attributed ones.
+		floor := make(map[string]int32)
+		ceiling := make(map[string]int32)
 		for _, finding := range a.GetFindings() {
-			if finding.GetMaturity().GetCapabilityId() == capability.GetId() {
-				want[NormalizeSeverity(finding.GetSeverity()).String()]++
+			if finding.GetMaturity().GetCapabilityId() != capability.GetId() {
+				continue
+			}
+			severity := NormalizeSeverity(finding.GetSeverity()).String()
+			ceiling[severity]++
+			if finding.GetSubject() == nil {
+				floor[severity]++
 			}
 		}
 		path := "assessment.capabilities[" + capability.GetId() + "].findings_by_severity"
-		if err := validateSeverityCounts(path, capability.GetFindingsBySeverity(), want); err != nil {
+		if err := validateScopedSeverityCounts(path, capability.GetFindingsBySeverity(), floor, ceiling); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func validateScopedSeverityCounts(path string, actual, floor, ceiling map[string]int32) error {
+	for key, count := range actual {
+		if count < 0 {
+			return fmt.Errorf("%s[%q] must not be negative", path, key)
+		}
+	}
+	for _, severity := range []architecturev1.FindingSeverity{
+		architecturev1.FindingSeverity_FINDING_SEVERITY_BLOCKER,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_ERROR,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_WARNING,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_INFO,
+		architecturev1.FindingSeverity_FINDING_SEVERITY_UNSPECIFIED,
+	} {
+		got := CountFindingsBySeverity(actual, severity)
+		low, high := int(floor[severity.String()]), int(ceiling[severity.String()])
+		if got < low {
+			return fmt.Errorf("%s counts %d %s finding(s), but %d subjectless finding(s) always score it", path, got, severity.String(), low)
+		}
+		if got > high {
+			return fmt.Errorf("%s counts %d %s finding(s), but findings contain %d", path, got, severity.String(), high)
 		}
 	}
 	return nil
@@ -743,12 +780,13 @@ func canonicalizeSeverityCounts(a *commonv1.MaturityAssessment) {
 		if capability == nil {
 			continue
 		}
-		capability.FindingsBySeverity = make(map[string]int32)
-		for _, finding := range a.GetFindings() {
-			if finding != nil && finding.GetMaturity().GetCapabilityId() == capability.GetId() {
-				capability.FindingsBySeverity[NormalizeSeverity(finding.GetSeverity()).String()]++
-			}
+		// Capability counts reflect target scoping, which the findings list
+		// alone cannot reproduce, so canonicalization only re-keys them.
+		canonical := make(map[string]int32, len(capability.GetFindingsBySeverity()))
+		for key, count := range capability.GetFindingsBySeverity() {
+			canonical[NormalizeSeverity(key).String()] += count
 		}
+		capability.FindingsBySeverity = canonical
 	}
 }
 

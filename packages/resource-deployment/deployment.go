@@ -26,6 +26,10 @@ const (
 	deploymentOSWindows            = "windows"
 	deploymentVerificationHostTool = "host-tool"
 	deploymentLayoutDir            = "dir"
+	deploymentVerificationChecksum = "checksum"
+	deploymentTargetUnsupported    = "unsupported"
+	dataAcquisitionEager           = "eager"
+	dataAcquisitionOnDemand        = "on-demand"
 	deploymentLayoutFile           = "file"
 	digestHexMultiplier            = 2
 	platformParts                  = 2
@@ -139,6 +143,7 @@ func (s ServiceShutdown) Validate() error {
 // nesting here makes the JSON contract shared by resource manifests, the
 // control plane, and deployment consumers.
 type ManagedService struct {
+	UpdatePolicy *ServiceUpdatePolicy `json:"update_policy,omitempty"`
 	// MinimumDataGroups fails startup promptly until enough declared data bundles exist.
 	MinimumDataGroups int            `json:"minimum_data_groups,omitempty"`
 	ProviderPolicy    ProviderPolicy `json:"provider_policy"`
@@ -365,22 +370,22 @@ func (m ManagedService) ValidateDataArtifacts() error {
 		if artifact.SizeBytes < 0 {
 			return fmt.Errorf("data artifact %d size_bytes must not be negative", i)
 		}
-		if artifact.AcquisitionMode != "" && artifact.AcquisitionMode != "eager" && artifact.AcquisitionMode != "on-demand" {
+		if artifact.AcquisitionMode != "" && artifact.AcquisitionMode != dataAcquisitionEager && artifact.AcquisitionMode != dataAcquisitionOnDemand {
 			return fmt.Errorf("data artifact %d has invalid acquisition_mode", i)
 		}
-		if artifact.AcquisitionMode == "on-demand" && artifact.Group == "" {
+		if artifact.AcquisitionMode == dataAcquisitionOnDemand && artifact.Group == "" {
 			return fmt.Errorf("on-demand data artifact %d requires group", i)
 		}
 		if artifact.Group != "" {
 			mode := artifact.AcquisitionMode
 			if mode == "" {
-				mode = "eager"
+				mode = dataAcquisitionEager
 			}
 			if previous, exists := modes[artifact.Group]; exists && previous != mode {
 				return fmt.Errorf("data group %s mixes acquisition modes", artifact.Group)
 			}
 			modes[artifact.Group] = mode
-			if mode == "on-demand" {
+			if mode == dataAcquisitionOnDemand {
 				groups[artifact.Group] = true
 			}
 			for j, ch := range artifact.Group {
@@ -467,7 +472,7 @@ func (a ServiceArtifact) Validate() error { return a.validate(false) }
 // ValidateForComposeCandidate validates a composed directory's structure before
 // its output digest exists. It never grants install, platform or launch authority.
 func (a ServiceArtifact) ValidateForComposeCandidate() error {
-	if a.Layout != "dir" || (a.Verification != "" && a.Verification != "checksum") {
+	if a.Layout != deploymentLayoutDir || (a.Verification != "" && a.Verification != deploymentVerificationChecksum) {
 		return fmt.Errorf("compose candidate requires a checksum directory artifact")
 	}
 	return a.validate(true)
@@ -485,7 +490,7 @@ func (a ServiceArtifact) validate(candidate bool) error {
 		return fmt.Errorf("artifact version is required")
 	}
 	verification := strings.ToLower(strings.TrimSpace(a.Verification))
-	if verification != "" && verification != "checksum" && verification != deploymentVerificationHostTool {
+	if verification != "" && verification != deploymentVerificationChecksum && verification != deploymentVerificationHostTool {
 		return fmt.Errorf("artifact verification %q is invalid", a.Verification)
 	}
 	if verification == deploymentVerificationHostTool && strings.TrimSpace(a.BundleArtifact) != "" {
@@ -713,11 +718,15 @@ func (p ProviderPolicy) ResolveProvider(request ProviderRequest) (ProviderMode, 
 	return mode, nil
 }
 
+// ExternalManagementForbidden is the only external-management policy a
+// provider may declare.
+const ExternalManagementForbidden = "forbidden"
+
 // Validate rejects ambiguous provider declarations before a caller can make a
 // lifecycle or credential decision. Keeping this in the portable contract
 // makes resource manifests and signed bundle plans enforce the same policy.
 func (p ProviderPolicy) Validate() error {
-	if p.ExternalManagement != "" && p.ExternalManagement != "forbidden" {
+	if p.ExternalManagement != "" && p.ExternalManagement != ExternalManagementForbidden {
 		return fmt.Errorf("external management must be forbidden")
 	}
 	if len(p.AllowedModes) == 0 {
@@ -877,7 +886,7 @@ func (d Deployment) Target(profile, platform, arch string) (Target, bool) {
 	case deploymentOSWin, deploymentOSWindows:
 		target = p.Windows
 	}
-	if target == nil || (target.Support != "unsupported" && strings.TrimSpace(arch) != "" && !slices.Contains(target.Architectures, arch)) {
+	if target == nil || (target.Support != deploymentTargetUnsupported && strings.TrimSpace(arch) != "" && !slices.Contains(target.Architectures, arch)) {
 		return Target{}, false
 	}
 	return *target, true

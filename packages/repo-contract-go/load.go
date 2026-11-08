@@ -22,7 +22,10 @@ func Load(path string) (*Contract, error) {
 	if err != nil {
 		return nil, &Error{Kind: ErrNotFound, Message: "read contract", Details: path, Err: err}
 	}
+	return parsedContracts.load(data, func() (*Contract, error) { return decodeContract(data, path) })
+}
 
+func decodeContract(data []byte, path string) (*Contract, error) {
 	var doc contractDoc
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, &Error{Kind: ErrInvalidContract, Message: "decode contract JSON", Details: path, Err: err}

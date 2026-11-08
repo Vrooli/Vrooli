@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/gorilla/mux"
+	domainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-to-desktop/v1/domain"
+	"google.golang.org/protobuf/proto"
 )
 
 // Handler exposes the durable orchestration seam without making the control
@@ -17,6 +20,16 @@ type Handler struct {
 }
 
 func NewHandler(service *Service) *Handler { return &Handler{service: service} }
+
+// Create delegates one typed matrix selection to the durable service. Scenario
+// owners can normalize provider-specific selections before entering this shared
+// orchestration seam.
+func (h *Handler) Create(selection MatrixSelection) (*MatrixRun, error) {
+	if h == nil || h.service == nil {
+		return nil, errors.New("validation matrix service is unavailable")
+	}
+	return h.service.Create(selection)
+}
 
 func (h *Handler) RegisterRoutes(router *mux.Router) {
 	if h == nil || h.service == nil {
@@ -77,7 +90,12 @@ func (h *Handler) catalog(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, h.service.List(r.URL.Query().Get("scenario")))
+	runs := h.service.List(r.URL.Query().Get("scenario"))
+	views := make([]*MatrixRun, 0, len(runs))
+	for _, run := range runs {
+		views = append(views, PublicRun(run))
+	}
+	writeJSON(w, http.StatusOK, views)
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +109,7 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusCreated, run)
+	writeJSON(w, http.StatusCreated, PublicRun(run))
 }
 
 func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
@@ -100,7 +118,7 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "matrix run not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, run)
+	writeJSON(w, http.StatusOK, PublicRun(run))
 }
 
 func (h *Handler) compare(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +141,7 @@ func (h *Handler) start(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusAccepted, run)
+	writeJSON(w, http.StatusAccepted, PublicRun(run))
 }
 
 func (h *Handler) wait(w http.ResponseWriter, r *http.Request) {
@@ -136,7 +154,7 @@ func (h *Handler) wait(w http.ResponseWriter, r *http.Request) {
 		writeError(w, status, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, run)
+	writeJSON(w, http.StatusOK, PublicRun(run))
 }
 
 func (h *Handler) abort(w http.ResponseWriter, r *http.Request) {
@@ -145,7 +163,7 @@ func (h *Handler) abort(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			if current, ok := h.service.store.Get(runID); ok {
-				writeJSON(w, http.StatusAccepted, current)
+				writeJSON(w, http.StatusAccepted, PublicRun(current))
 				return
 			}
 		}
@@ -156,7 +174,7 @@ func (h *Handler) abort(w http.ResponseWriter, r *http.Request) {
 		writeError(w, status, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, run)
+	writeJSON(w, http.StatusOK, PublicRun(run))
 }
 
 func (h *Handler) rerun(w http.ResponseWriter, r *http.Request) {
@@ -170,7 +188,72 @@ func (h *Handler) rerun(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusCreated, run)
+	writeJSON(w, http.StatusCreated, PublicRun(run))
+}
+
+// PublicRun creates the path-free representation used by HTTP consumers.
+func PublicRun(run *MatrixRun) *MatrixRun {
+	if run == nil {
+		return nil
+	}
+	view := *run
+	view.Selection = cloneSelection(run.Selection)
+	view.Selection.ArtifactPath = ""
+	view.Selection.ArtifactPaths = nil
+	view.Selection.Metadata = redactPathFields(view.Selection.Metadata)
+	if run.Matrix != nil {
+		view.Matrix = proto.Clone(run.Matrix).(*domainv1.ValidationMatrix)
+		for _, cell := range view.Matrix.GetCells() {
+			redactEvidenceURIs(cell)
+		}
+	}
+	view.Cells = make([]*CellRecord, len(run.Cells))
+	for i, cell := range run.Cells {
+		if cell == nil {
+			continue
+		}
+		publicCell := *cell
+		if cell.Cell != nil {
+			publicCell.Cell = proto.Clone(cell.Cell).(*domainv1.ValidationCell)
+			redactEvidenceURIs(publicCell.Cell)
+		}
+		publicCell.Report = redactPathFields(cell.Report)
+		view.Cells[i] = &publicCell
+	}
+	return &view
+}
+
+func redactEvidenceURIs(cell *domainv1.ValidationCell) {
+	if cell == nil {
+		return
+	}
+	for _, evidence := range cell.GetEvidence() {
+		if evidence != nil && isLocalEvidenceURI(evidence.GetUri()) {
+			evidence.Uri = "validation://local-evidence/" + evidence.GetEvidenceId()
+		}
+	}
+}
+
+func isLocalEvidenceURI(uri string) bool {
+	uri = strings.TrimSpace(uri)
+	if uri == "" || strings.HasPrefix(strings.ToLower(uri), "file:") || filepath.IsAbs(uri) || strings.HasPrefix(uri, `\\`) {
+		return uri != ""
+	}
+	return len(uri) >= 3 && ((uri[0] >= 'a' && uri[0] <= 'z') || (uri[0] >= 'A' && uri[0] <= 'Z')) && uri[1] == ':' && (uri[2] == '/' || uri[2] == '\\')
+}
+
+func redactPathFields(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return nil
+	}
+	redacted := make(map[string]string, len(values))
+	for key, value := range values {
+		if strings.Contains(strings.ToLower(key), "path") {
+			continue
+		}
+		redacted[key] = value
+	}
+	return redacted
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

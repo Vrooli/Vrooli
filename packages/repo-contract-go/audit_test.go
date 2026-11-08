@@ -12,8 +12,9 @@ import (
 
 // TestNoManifestPathLiteralJoins enforces the Phase 1 drift-impossibility
 // property: the literal strings "docs/manifest.json" and "cli/manifest.json"
-// must not appear anywhere outside .vrooli/repo-contract.json,
-// packages/repo-contract-go/ helpers, and the contract invariant checker.
+// must not appear in non-test source code under the contract's code roots
+// outside the packages/repo-contract-go/ helpers and the contract invariant
+// checker.
 // Consumers must resolve manifest paths through the Scenario*Manifest* helpers
 // instead of carrying their own path authority.
 func TestNoManifestPathLiteralJoins(t *testing.T) {
@@ -23,22 +24,18 @@ func TestNoManifestPathLiteralJoins(t *testing.T) {
 
 	// Directories pruned during walk (entire subtree skipped).
 	prunedDirs := map[string]bool{
-		".git":         true,
-		"node_modules": true,
-		"vendor":       true,
-		"data":         true,
-		"coverage":     true,
-		"dist":         true,
-		"build":        true,
-		".next":        true,
-		".cache":       true,
-		".turbo":       true,
-		"gen":          true, // generated proto trees
+		"data":     true,
+		"coverage": true,
+		"dist":     true,
+		"build":    true,
+		".next":    true,
+		".cache":   true,
+		".turbo":   true,
+		"gen":      true, // generated proto trees
 	}
 
 	// Specific paths (repo-root-relative, slash) excluded from the literal check.
 	allowlist := map[string]bool{
-		".vrooli/repo-contract.json":              true,
 		"internal/repocontractcheck/checks.go":    true,
 		"packages/repo-contract-go/audit_test.go": true,
 		"packages/repo-contract-go/manifests.go":  true,
@@ -79,7 +76,13 @@ func TestNoManifestPathLiteralJoins(t *testing.T) {
 	}
 	var hits []hit
 
-	err := filepath.WalkDir(repoRoot, func(path string, d os.DirEntry, walkErr error) error {
+	// Only source is audited; see Contract.WalkSource for why documentation
+	// evidence trees are excluded.
+	contract, err := LoadDefault(repoRoot)
+	if err != nil {
+		t.Fatalf("load repo contract: %v", err)
+	}
+	walk := func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -129,9 +132,9 @@ func TestNoManifestPathLiteralJoins(t *testing.T) {
 			}
 		}
 		return nil
-	})
-	if err != nil {
-		t.Fatalf("walk: %v", err)
+	}
+	if err := contract.WalkSource(repoRoot, walk); err != nil {
+		t.Fatalf("walk source: %v", err)
 	}
 
 	if len(hits) == 0 {

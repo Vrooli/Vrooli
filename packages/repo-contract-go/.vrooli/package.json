@@ -18,6 +18,6 @@
       "strategy": "none",
       "restart_running_consumers": false
     },
-    "docs": ["docs/repo-contract.md", "docs/package-governance.md"]
+    "docs": ["packages/repo-contract-go/README.md", "docs/repo-contract.md", "docs/package-governance.md"]
   }
 }

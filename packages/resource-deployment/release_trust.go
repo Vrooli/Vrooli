@@ -61,8 +61,11 @@ type ReleaseManifestSigner interface {
 	SignReleaseManifest(canonicalManifest []byte) (ReleaseSignature, error)
 }
 
+// releaseTrustSchemaVersion is the release manifest and signature format.
+const releaseTrustSchemaVersion = "v1"
+
 func (m ReleaseManifest) CanonicalBytes() ([]byte, error) {
-	if m.SchemaVersion != "v1" {
+	if m.SchemaVersion != releaseTrustSchemaVersion {
 		return nil, fmt.Errorf("unsupported release manifest schema %q", m.SchemaVersion)
 	}
 	a := append([]ReleaseArtifact(nil), m.Artifacts...)
@@ -161,7 +164,7 @@ func VerifyReleaseDirectory(root string, mode ArtifactTrustMode, publicKeyPath s
 // VerifyReleaseSignature verifies canonical release-owned metadata with the
 // same trust envelope used by complete release directories.
 func VerifyReleaseSignature(canonical []byte, s ReleaseSignature, pemData []byte) error {
-	if s.SchemaVersion != "v1" || s.Algorithm != "rsa-pkcs1v15-sha256" || strings.TrimSpace(s.KeyID) == "" {
+	if s.SchemaVersion != releaseTrustSchemaVersion || s.Algorithm != "rsa-pkcs1v15-sha256" || strings.TrimSpace(s.KeyID) == "" {
 		return fmt.Errorf("invalid production release signature envelope")
 	}
 	sig, e := base64.StdEncoding.DecodeString(s.Signature)

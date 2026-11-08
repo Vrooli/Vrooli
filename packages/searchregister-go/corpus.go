@@ -15,12 +15,11 @@ import (
 // search-hub proto, so neither side imports the other.
 //
 // The two shapes are a structural 1:1 after the corpus unification (one rank-
-// centric case list; negatives are cases; no full-path labels / gate-policy
-// fields). The ONLY fields that do not round-trip are the ones search-hub's store
-// assigns — provider_id (the enclosing provider already owns it), state, and the
-// created_at / updated_at timestamps. Everything a scenario authors in the file
-// survives a file → store → file round-trip byte-for-byte; that property is the
-// enforcement mechanism for the corpusStoreMirrorsFile invariant.
+// centric case list; negatives are cases; no full-path labels). The ONLY fields
+// that do not round-trip are the ones search-hub's store assigns — provider_id
+// (the enclosing provider already owns it), state, and the created_at / updated_at
+// timestamps. Everything a scenario authors in the file, including registration
+// minimum and coverage policy, survives a file → store → file round-trip.
 
 // SuiteToProto maps a parsed search.json TestSuite to the EvalSuite that
 // EvalService.RegisterSuite accepts. providerID comes from the enclosing
@@ -44,6 +43,28 @@ func SuiteToProto(providerID string, ts aisearch.TestSuite) *evalv1.EvalSuite {
 			Note:              c.Note,
 		})
 	}
+	var minimum *evalv1.EvalMinimum
+	if ts.Minimum != nil {
+		minimum = &evalv1.EvalMinimum{
+			ReviewedPositive: int32(ts.Minimum.ReviewedPositive),
+			Negative:         int32(ts.Minimum.Negative),
+			RequiredTags:     cloneStrings(ts.Minimum.RequiredTags),
+		}
+	}
+	coverage := &evalv1.EvalCoverageConfig{
+		RequiredTags: cloneStrings(ts.Coverage.RequiredTags),
+	}
+	if len(ts.Coverage.RequiredTagGroups) > 0 {
+		coverage.RequiredTagGroups = make([]*evalv1.EvalCoverageTagGroup, 0, len(ts.Coverage.RequiredTagGroups))
+		for _, group := range ts.Coverage.RequiredTagGroups {
+			coverage.RequiredTagGroups = append(coverage.RequiredTagGroups, &evalv1.EvalCoverageTagGroup{
+				Id:                  group.ID,
+				Description:         group.Description,
+				Tags:                cloneStrings(group.Tags),
+				MinReviewedPositive: int32(group.MinReviewedPositive),
+			})
+		}
+	}
 	return &evalv1.EvalSuite{
 		SuiteId:     ts.ResolvedSuiteID(providerID),
 		ProviderId:  providerID,
@@ -51,6 +72,8 @@ func SuiteToProto(providerID string, ts aisearch.TestSuite) *evalv1.EvalSuite {
 		Description: ts.Description,
 		Cases:       cases,
 		State:       "active",
+		Minimum:     minimum,
+		Coverage:    coverage,
 	}
 }
 
@@ -91,6 +114,30 @@ func SuiteFromProto(s *evalv1.EvalSuite) aisearch.TestSuite {
 		Name:        s.GetName(),
 		Description: s.GetDescription(),
 		Cases:       cases,
+	}
+	if minimum := s.GetMinimum(); minimum != nil {
+		ts.Minimum = &aisearch.EvalMinimum{
+			ReviewedPositive: int(minimum.GetReviewedPositive()),
+			Negative:         int(minimum.GetNegative()),
+			RequiredTags:     cloneStrings(minimum.GetRequiredTags()),
+		}
+	}
+	if coverage := s.GetCoverage(); coverage != nil {
+		ts.Coverage.RequiredTags = cloneStrings(coverage.GetRequiredTags())
+		if len(coverage.GetRequiredTagGroups()) > 0 {
+			ts.Coverage.RequiredTagGroups = make([]aisearch.CoverageTagGroup, 0, len(coverage.GetRequiredTagGroups()))
+			for _, group := range coverage.GetRequiredTagGroups() {
+				if group == nil {
+					continue
+				}
+				ts.Coverage.RequiredTagGroups = append(ts.Coverage.RequiredTagGroups, aisearch.CoverageTagGroup{
+					ID:                  group.GetId(),
+					Description:         group.GetDescription(),
+					Tags:                cloneStrings(group.GetTags()),
+					MinReviewedPositive: int(group.GetMinReviewedPositive()),
+				})
+			}
+		}
 	}
 	// Collapse the default suite id to the empty override so the round-trip is
 	// lossless (an implicit "<pid>.primary" never materializes as an explicit one).

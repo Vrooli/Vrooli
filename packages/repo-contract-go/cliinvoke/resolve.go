@@ -21,9 +21,11 @@ type ResolveOptions struct {
 	// Explicit is a path the caller was configured with (a --vrooli-bin flag,
 	// a retired VROOLI_CMD_PATH override). It wins when it exists.
 	Explicit string
-	// RuntimeHome is the vrooli runtime home (~/.vrooli by default). When set,
-	// its bin entry from the repo contract is tried before PATH.
-	RuntimeHome string
+	// UserHome is the account's OS home directory (for example /home/op), not
+	// the runtime home beneath it. When set, the runtime-home bin entry the
+	// repo contract places under it (<UserHome>/.vrooli/bin) is tried before
+	// PATH. Passing the runtime home itself would search .vrooli/.vrooli/bin.
+	UserHome string
 	// Getenv, Stat and LookPath are test seams; nil means the os defaults.
 	Getenv   func(string) string
 	Stat     func(string) (os.FileInfo, error)
@@ -75,7 +77,7 @@ func Resolve(opts ResolveOptions) (string, error) {
 			return candidate, nil
 		}
 	}
-	if home := strings.TrimSpace(opts.RuntimeHome); home != "" {
+	if home := strings.TrimSpace(opts.UserHome); home != "" {
 		if binDir, err := repocontract.RuntimeHomeEntryPath(home, repocontract.HomeKeyBin); err == nil {
 			candidate := filepath.Join(binDir, binaryName())
 			tried = append(tried, candidate)

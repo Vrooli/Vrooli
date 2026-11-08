@@ -1,11 +1,14 @@
 package credentialauthority
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 func TestRepositoryCredentialResolveGuard(t *testing.T) {
@@ -14,14 +17,18 @@ func TestRepositoryCredentialResolveGuard(t *testing.T) {
 		t.Fatal("runtime.Caller failed")
 	}
 	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(currentFile)))
+	contract, err := repocontract.LoadDefault(repoRoot)
+	if err != nil {
+		t.Fatalf("load repo contract: %v", err)
+	}
 	var findings []collapseFinding
-	err := filepath.Walk(repoRoot, func(path string, info os.FileInfo, err error) error {
+	err = contract.WalkSource(repoRoot, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
-			if path != repoRoot && (info.Name() == ".git" || info.Name() == "vendor" || info.Name() == "templates") {
-				return filepath.SkipDir
+		if entry.IsDir() {
+			if entry.Name() == "templates" {
+				return fs.SkipDir
 			}
 			return nil
 		}

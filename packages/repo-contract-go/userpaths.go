@@ -52,10 +52,12 @@ func UserScenarioPlaintextSecretsPath(home, scenario string) (string, error) {
 	return contract.ScopedRuntimePath(home, "scenario_secrets", map[string]string{"scenario": scenario})
 }
 
-// loadRuntimeHomeContract resolves the active repo root and loads the canonical
-// contract that holds the runtime_home authority. No fallback: a missing or
-// invalid contract is a hard error so structural names can never silently drift.
+// loadRuntimeHomeContract uses an explicitly pinned native-build authority or
+// resolves the active repo contract. Neither mode guesses a fallback layout.
 func loadRuntimeHomeContract() (*Contract, error) {
+	if pinned := pinnedRuntimeHome.Load(); pinned != nil {
+		return pinned, nil
+	}
 	contract, _, err := LoadDefaultFromEnvOrCWD()
 	if err != nil {
 		return nil, err
