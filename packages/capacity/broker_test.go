@@ -187,8 +187,22 @@ func TestObserveHostStateUsesCachedReadingAndReportsSwap(t *testing.T) {
 	}
 }
 
+// pinMemoryPSISetpoint makes a test independent of the host's live
+// reliability setpoint, which operators retune (substrate/SB20 moved from 10%
+// to 20% on 2026-11-02).
+func pinMemoryPSISetpoint(t *testing.T, maxPercent float64) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "setpoint.json")
+	body := fmt.Sprintf(`{"schema_version":"1.0.0","bars":[{"id":"memory-pressure","cell_ref":%q,"decision_ref":"test","unit":"percent","max":%g,"gradeable":true}]}`, setpoint.CellMemoryPSI, maxPercent)
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(setpoint.PathEnv, path)
+}
+
 func TestBrokerUsesFreshMemoryPSIToClassifySwapOccupancy(t *testing.T) {
 	const threshold = 10.0
+	pinMemoryPSISetpoint(t, threshold)
 	tests := []struct {
 		name       string
 		swapFree   uint64
@@ -289,12 +303,8 @@ func TestBrokerLowPSIDoesNotOverrideInsufficientRAM(t *testing.T) {
 }
 
 func TestBrokerUsesActiveMemoryPSISetpointAndFailsClosedOnInvalidBar(t *testing.T) {
-	setpointPath := filepath.Join(t.TempDir(), "setpoint.json")
-	valid := `{"schema_version":"1.0.0","bars":[{"id":"memory-pressure","cell_ref":"substrate/SB20","decision_ref":"test","unit":"percent","max":5,"gradeable":true}]}`
-	if err := os.WriteFile(setpointPath, []byte(valid), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv(setpoint.PathEnv, setpointPath)
+	pinMemoryPSISetpoint(t, 5)
+	setpointPath := os.Getenv(setpoint.PathEnv)
 	broker := newMemoryPressureTestBroker(t, hostinventory.Memory{TotalBytes: 100, AvailableBytes: 90}, hostinventory.Swap{TotalBytes: 100, FreeBytes: 90})
 	broker.memoryPressure = func() hostpressure.Reading { return hostpressure.NewRead(7, "fixture") }
 	lease, verdict, err := broker.Acquire(context.Background(), "test:custom-bar", 10, 0)

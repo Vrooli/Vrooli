@@ -38,6 +38,9 @@ type removalWalker struct {
 	depth   int
 	targets *[]RemovalTarget
 	invoked *bool
+	// operator collects operator-only commands (operator_only.go) seen while
+	// walking, with the same wrapper and nested-interpreter handling.
+	operator *[]string
 }
 
 // parseRemovals lists what the command text would delete. It never executes
@@ -63,7 +66,8 @@ func parseArgvRemovals(argv []string, env removalEnv) []RemovalTarget {
 func newRemovalWalker(env removalEnv, dialect shellDialect) *removalWalker {
 	targets := []RemovalTarget{}
 	invoked := false
-	return &removalWalker{env: env, dialect: dialect, vars: map[string]*string{}, cwd: filepath.Clean(env.WorkingDirectory), targets: &targets, invoked: &invoked}
+	operator := []string{}
+	return &removalWalker{env: env, dialect: dialect, vars: map[string]*string{}, cwd: filepath.Clean(env.WorkingDirectory), targets: &targets, invoked: &invoked, operator: &operator}
 }
 
 func quotedWord(text string) shellWord {
@@ -75,7 +79,7 @@ func (w *removalWalker) child() *removalWalker {
 	for name, value := range w.vars {
 		vars[name] = value
 	}
-	return &removalWalker{env: w.env, dialect: w.dialect, vars: vars, cwd: w.cwd, depth: w.depth, targets: w.targets, invoked: w.invoked}
+	return &removalWalker{env: w.env, dialect: w.dialect, vars: vars, cwd: w.cwd, depth: w.depth, targets: w.targets, invoked: w.invoked, operator: w.operator}
 }
 
 func (w *removalWalker) script(text string) {
@@ -163,6 +167,7 @@ func (w *removalWalker) command(words []shellWord, stdin []string, piped bool) {
 	for i < len(words) {
 		name := w.commandName(words[i])
 		if name == "" {
+			w.dynamicCommand(words[i], words[i+1:])
 			return
 		}
 		if w.isKeyword(name) {
@@ -233,6 +238,54 @@ func (w *removalWalker) skipWrapper(name string, words []shellWord, i int) (int,
 		return j, true
 	case "nohup", "builtin", "busybox", "chronic", "unbuffer", "call":
 		return j, true
+	case "setsid":
+		for j < len(words) && strings.HasPrefix(option(j), "-") {
+			j++
+		}
+		return j, true
+	case "flock":
+		// flock [options] lockfile command... | flock [options] lockfile -c text
+		for j < len(words) && strings.HasPrefix(option(j), "-") {
+			switch t := option(j); {
+			case t == "-c" || t == "--command":
+				if j+1 < len(words) {
+					w.nestedScript(w.textOf(words[j+1]), dialectPOSIX, "flock -c")
+				}
+				return len(words), true
+			case t == "-w" || t == "--timeout" || t == "-E" || t == "--conflict-exit-code":
+				j++
+			}
+			j++
+		}
+		j++ // the lock file or descriptor
+		if j < len(words) && (option(j) == "-c" || option(j) == "--command") {
+			if j+1 < len(words) {
+				w.nestedScript(w.textOf(words[j+1]), dialectPOSIX, "flock -c")
+			}
+			return len(words), true
+		}
+		return j, true
+	case "script":
+		// script runs its -c text in a shell; without -c it starts an
+		// interactive shell and runs nothing from the command line.
+		for ; j < len(words); j++ {
+			t := option(j)
+			if command, ok := strings.CutPrefix(t, "--command="); ok {
+				w.nestedScript(command, dialectPOSIX, "script -c")
+				continue
+			}
+			if t == "--command" || (strings.HasPrefix(t, "-") && !strings.HasPrefix(t, "--") && strings.Contains(t, "c")) {
+				command := ""
+				if index := strings.IndexByte(t, 'c'); t != "--command" && index < len(t)-1 {
+					command = t[index+1:]
+				} else if j+1 < len(words) {
+					j++
+					command = w.textOf(words[j])
+				}
+				w.nestedScript(command, dialectPOSIX, "script -c")
+			}
+		}
+		return len(words), true
 	case "exec":
 		for j < len(words) && strings.HasPrefix(option(j), "-") {
 			if option(j) == "-a" {
@@ -293,6 +346,10 @@ func (w *removalWalker) skipWrapper(name string, words []shellWord, i int) (int,
 }
 
 func (w *removalWalker) dispatch(name string, args []shellWord, stdin []string, piped bool) {
+	if reason := operatorOnlyCommand(name, w.argTexts(args)); reason != "" {
+		*w.operator = append(*w.operator, reason)
+	}
+	w.relaunchedOperatorCommands(name, args)
 	switch w.dialect {
 	case dialectPowerShell:
 		switch name {
@@ -891,6 +948,14 @@ func (w *removalWalker) textOf(word shellWord) string {
 	return text
 }
 
+func (w *removalWalker) argTexts(words []shellWord) []string {
+	texts := make([]string, 0, len(words))
+	for _, word := range words {
+		texts = append(texts, w.textOf(word))
+	}
+	return texts
+}
+
 func (w *removalWalker) joined(words []shellWord) string {
 	texts := make([]string, 0, len(words))
 	for _, word := range words {
@@ -943,6 +1008,59 @@ func (w *removalWalker) commandName(word shellWord) string {
 		text = text[index+1:]
 	}
 	return strings.TrimSuffix(strings.ToLower(text), ".exe")
+}
+
+// dynamicCommand checks a command whose name word only resolves when it runs.
+// The last path segment usually stays literal (`~/.vrooli/bin/vrooli`,
+// `"$ROOT/build/vrooli"`); when it does not, the arguments decide.
+func (w *removalWalker) dynamicCommand(word shellWord, args []shellWord) {
+	texts := w.argTexts(args)
+	reason := ""
+	if name := w.literalBasename(word); name != "" {
+		reason = operatorOnlyCommand(name, texts)
+	} else {
+		reason = dynamicOperatorCommand(texts)
+	}
+	if reason != "" {
+		*w.operator = append(*w.operator, reason)
+	}
+}
+
+// literalBasename is the word's last path segment when that segment is
+// literal text or resolves, whatever the directory part is.
+func (w *removalWalker) literalBasename(word shellWord) string {
+	segment, known := "", true
+	appendText := func(text string) {
+		if index := strings.LastIndexAny(text, `/\`); index >= 0 {
+			segment, known = text[index+1:], true
+			return
+		}
+		segment += text
+	}
+	for _, part := range word.parts {
+		switch part.kind {
+		case partText:
+			appendText(part.text)
+		case partVariable:
+			if value, ok := w.lookup(part.text); ok {
+				appendText(value)
+				continue
+			}
+			segment, known = segment+"$"+part.text, false
+		case partHome:
+			if w.env.Home != "" {
+				appendText(w.env.Home)
+				continue
+			}
+			segment, known = segment+part.text, false
+		default:
+			segment, known = segment+part.text, false
+		}
+	}
+	if !known || segment == "" {
+		return ""
+	}
+	return strings.TrimSuffix(strings.ToLower(segment), ".exe")
 }
 
 func isAssignmentWord(word shellWord) bool {

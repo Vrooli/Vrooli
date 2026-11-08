@@ -83,6 +83,7 @@ var resourceSpecs = map[string]resourceSpec{
 	"songgen":              {listen: "127.0.0.1:8897", upstream: "127.0.0.1:18897", methods: []string{http.MethodPost}, paths: []string{"/v1/compose"}},
 	"speaker-verification": {listen: "127.0.0.1:11452", upstream: "127.0.0.1:21452", methods: []string{http.MethodPost}, paths: []string{"/v1/profiles", "/v1/verify", "/v1/extract"}},
 	"ollama":               {listen: "127.0.0.1:11434", upstream: "127.0.0.1:21434", methods: []string{http.MethodPost}, paths: []string{"/api/generate", "/api/chat", "/api/embed", "/api/embeddings"}},
+	"ollaya":               {listen: "127.0.0.1:11435", upstream: "127.0.0.1:21435", methods: []string{http.MethodPost}, paths: []string{"/api/decide"}},
 	"reranker":             {listen: "127.0.0.1:11453", upstream: "127.0.0.1:21453", methods: []string{http.MethodPost}, paths: []string{"/rerank", "/v1/rerank"}},
 	"pii-detector":         {listen: "127.0.0.1:11460", upstream: "127.0.0.1:21460", methods: []string{http.MethodPost}, paths: []string{"/detect"}},
 }

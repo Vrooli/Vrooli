@@ -2,8 +2,10 @@ package storage
 
 import (
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
+	"testing"
 
 	repocontract "github.com/vrooli/repo-contract-go"
 )
@@ -17,10 +19,12 @@ const (
 	envStateRoot   = "VROOLI_STATE_ROOT"
 )
 
-// runtimeHomeEntryPath resolves a well-known runtime-home entry path through the
-// repo-contract authority. It is a package var so tests can inject contract-load
-// failures; production always uses
-// the real authority.
+// Resolve one batch through the runtime-home owner, including a compiled
+// native pin. Source discovery cannot substitute for pinned path authority.
+var loadRuntimeHomeEntries = repocontract.RuntimeHomeEntries
+
+// Single-entry resolution is also used by non-scenario owners. Those callers
+// do not need the batched class-root load above.
 var runtimeHomeEntryPath = repocontract.RuntimeHomeEntryPath
 
 type classRoots struct {
@@ -114,8 +118,51 @@ func resolveClassRoots(profile Profile, e env, rootOverride string) (classRoots,
 		}
 		roots.state = v
 	}
+	if err := refuseLiveRootsUnderTest(profile, e); err != nil {
+		return classRoots{}, err
+	}
 
 	return roots, nil
+}
+
+// refuseLiveRootsUnderTest is the test-isolation backstop for every caller of
+// the resolver. Under `go test`, resolving the operator's own runtime home
+// (the account home, with any class root left at its default) is refused, so a
+// test cannot read or write live per-install storage whatever file it
+// targets. A test isolates with VROOLI_STORAGE_ROOT (storagetest), a
+// redirected HOME, an explicit Options.RootOverride, or every per-class root.
+func refuseLiveRootsUnderTest(profile Profile, e env) error {
+	if !testing.Testing() {
+		return nil
+	}
+	switch profile {
+	case "", ProfileAuto, ProfileDesktop, ProfileMobile:
+	default:
+		return nil
+	}
+	allRedirected := true
+	for _, key := range []string{envConfigRoot, envDataRoot, envCacheRoot, envLogsRoot, envStateRoot} {
+		if strings.TrimSpace(e.get(key)) == "" {
+			allRedirected = false
+			break
+		}
+	}
+	if allRedirected {
+		return nil
+	}
+	home, err := e.userHomeDir()
+	if err != nil {
+		return nil
+	}
+	account, err := user.Current()
+	if err != nil || strings.TrimSpace(account.HomeDir) == "" || filepath.Clean(home) != filepath.Clean(account.HomeDir) {
+		return nil
+	}
+	return &Error{
+		Kind:    ErrResolve,
+		Message: "a test resolved the operator's live storage",
+		Details: "isolate with storagetest.RunWithIsolatedStorage (TestMain) or storagetest.IsolateStorage, a redirected HOME, or Options.RootOverride",
+	}
 }
 
 func defaultClassRoots(profile Profile, e env) (classRoots, error) {
@@ -147,6 +194,14 @@ func defaultUserClassRoots(e env) (classRoots, error) {
 	if err != nil {
 		return classRoots{}, &Error{Kind: ErrResolve, Message: "resolve user home dir", Err: err}
 	}
+	entries, err := loadRuntimeHomeEntries(home)
+	if err != nil {
+		return classRoots{}, &Error{Kind: ErrResolve, Message: "resolve runtime-home class roots", Err: err}
+	}
+	byKey := make(map[string]repocontract.HomeEntry, len(entries))
+	for _, entry := range entries {
+		byKey[entry.Key] = entry
+	}
 
 	roots := classRoots{}
 	for _, m := range []struct {
@@ -160,11 +215,11 @@ func defaultUserClassRoots(e env) (classRoots, error) {
 		{repocontract.HomeKeyState, &roots.state},
 		{repocontract.HomeKeyTestRuns, &roots.testRuns},
 	} {
-		path, err := runtimeHomeEntryPath(home, m.key)
-		if err != nil {
-			return classRoots{}, &Error{Kind: ErrResolve, Message: "resolve runtime-home class root", Details: m.key, Err: err}
+		entry, ok := byKey[m.key]
+		if !ok {
+			return classRoots{}, &Error{Kind: ErrResolve, Message: "runtime-home class root is missing", Details: m.key}
 		}
-		*m.dst = path
+		*m.dst = entry.AbsPath
 	}
 	return roots, nil
 }

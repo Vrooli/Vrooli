@@ -368,6 +368,7 @@ func (p *Provider) standing(ctx context.Context) (*commonv1.LifecycleStanding, e
 		Drained:            drained,
 		ObservedAt:         timestamppb.Now(),
 		Interlock:          ProtocolVersion,
+		FencePersistence:   commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_PROCESS_LOCAL,
 		ComponentStopReady: closed && quiesced && active == 0 && owner.Complete && owner.Remaining == 0 && len(owner.Blockers) == 0,
 		QuiescencePending:  closed && p.hooks.Quiesce != nil && !quiesced,
 		Work:               append([]*commonv1.LifecycleWorkItem(nil), owner.Work...),

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -12,13 +13,22 @@ import (
 	"time"
 )
 
+// liveCLIConformanceEnv opts into executing installed host CLIs.
+const liveCLIConformanceEnv = "VROOLI_CLI_CONFORMANCE_LIVE"
+
 // TestDerivedVerbsResolveToCLIInvocations proves that each run-eligible command
 // produced by the authorization catalog is accepted by the owning CLI's real
 // argument parser. CLIs run in parallel, while commands within one CLI run
 // sequentially so stale-detection rebuilds never race each other.
+//
+// It is a live host check, not a package unit test: it executes every installed
+// scenario CLI on PATH, lets stale CLIs rebuild themselves into the runtime
+// home, and relies on each CLI honouring --help before acting. Its verdict
+// therefore reflects host install state rather than this package, so the
+// routine package baseline skips it unless the operator opts in.
 func TestDerivedVerbsResolveToCLIInvocations(t *testing.T) {
-	if testing.Short() {
-		t.Skip("runtime CLI conformance is an integration-strength package check")
+	if testing.Short() || os.Getenv(liveCLIConformanceEnv) != "1" {
+		t.Skipf("live CLI conformance executes installed host CLIs; set %s=1 to run it", liveCLIConformanceEnv)
 	}
 
 	catalog, err := Build(repoRoot(t))

@@ -36,6 +36,12 @@ type JWTConfig struct {
 	// canonical value emitted in the resulting principal; accepted values are
 	// verification-only and must be removed after the migration window.
 	AcceptedAudiences []string
+	// ExclusiveAudience requires exactly Audience as the JWT's complete aud
+	// claim (a string or one-element array), and forbids migration audiences.
+	// Default false preserves existing session/migration contracts. Dedicated
+	// source capabilities must opt in; Principal.Audience alone proves only
+	// the configured relying-party name, not token exclusivity.
+	ExclusiveAudience bool
 	Kind              identity.ActorKind
 	JWKSURL           string
 	ResolveJWKS       func(context.Context) (string, error)
@@ -66,6 +72,7 @@ type JWTVerifier struct {
 }
 
 func NewJWTVerifier(cfg JWTConfig) *JWTVerifier {
+	cfg.AcceptedAudiences = append([]string(nil), cfg.AcceptedAudiences...)
 	if strings.TrimSpace(string(cfg.Source)) == "" || cfg.Source == identity.SourceUnknown {
 		cfg.Source = identity.SourceScenarioAuthenticator
 	}
@@ -91,6 +98,13 @@ func NewJWTVerifier(cfg JWTConfig) *JWTVerifier {
 		cfg.TokenLimit = DefaultJWTTokenLimit
 	}
 	return &JWTVerifier{cfg: cfg}
+}
+
+// UsesExclusiveAudience reports a construction invariant, not a claim inferred
+// from Principal metadata. Dedicated ingresses can reject permissive verifiers
+// before any credential or key access. There is no environment enable switch.
+func (v *JWTVerifier) UsesExclusiveAudience(audience string) bool {
+	return v != nil && v.cfg.ExclusiveAudience && audience != "" && v.cfg.Audience == audience && len(v.cfg.AcceptedAudiences) == 0
 }
 
 func (v *JWTVerifier) Source() identity.AuthSource {
@@ -136,7 +150,7 @@ func (v *JWTVerifier) Verify(ctx context.Context, raw string) (identity.Principa
 	if err != nil || header.Alg != "RS256" || strings.TrimSpace(header.Kid) == "" {
 		return identity.Principal{}, v.failure(identity.FailureInvalid, header, claims, false)
 	}
-	if strings.TrimSpace(v.cfg.Issuer) == "" || strings.TrimSpace(v.cfg.Audience) == "" {
+	if strings.TrimSpace(v.cfg.Issuer) == "" || strings.TrimSpace(v.cfg.Audience) == "" || (v.cfg.ExclusiveAudience && len(v.cfg.AcceptedAudiences) != 0) {
 		return identity.Principal{}, identity.NewFailure(identity.FailureUnavailable, v.Source())
 	}
 	keys, err := v.keysFor(ctx, false)
@@ -172,7 +186,10 @@ func (v *JWTVerifier) Verify(ctx context.Context, raw string) (identity.Principa
 		return identity.Principal{}, v.failure(identity.FailureInvalid, header, claims, false)
 	}
 	audienceMatched := containsAudience(claims.Audience, v.cfg.Audience)
-	if !audienceMatched {
+	if v.cfg.ExclusiveAudience {
+		audienceMatched = exclusiveJWTClaimsAudience(raw, v.cfg.Audience)
+	}
+	if !audienceMatched && !v.cfg.ExclusiveAudience {
 		for _, accepted := range v.cfg.AcceptedAudiences {
 			if containsAudience(claims.Audience, strings.TrimSpace(accepted)) {
 				audienceMatched = true
@@ -331,6 +348,70 @@ func compactStrings(values []string) []string {
 		out = append(out, value)
 	}
 	return out
+}
+
+// Inspect original signed claim keys: encoding/json struct decoding accepts
+// case-insensitive aliases and duplicate keys. Neither may hide extra audiences
+// from an exclusive capability contract. All top-level duplicate claims are
+// refused in this opt-in mode, including case aliases of security claims.
+func exclusiveJWTClaimsAudience(raw, expected string) bool {
+	parts := strings.Split(raw, ".")
+	if len(parts) != 3 {
+		return false
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return false
+	}
+	d := json.NewDecoder(strings.NewReader(string(payload)))
+	first, err := d.Token()
+	if err != nil || first != json.Delim('{') {
+		return false
+	}
+	seen := map[string]bool{}
+	var audience json.RawMessage
+	for d.More() {
+		k, err := d.Token()
+		if err != nil {
+			return false
+		}
+		key, ok := k.(string)
+		if !ok || seen[key] {
+			return false
+		}
+		seen[key] = true
+		// Match encoding/json's Unicode folding, not merely ASCII/lowercase:
+		// long-s (U+017F) aliases scope/iss under EqualFold.
+		for _, canonical := range []string{"user_id", "sub", "email", "realm", "actor_kind", "roles", "scope", "iss", "aud", "exp", "nbf", "iat"} {
+			if strings.EqualFold(key, canonical) && key != canonical {
+				return false
+			}
+		}
+		var value json.RawMessage
+		if d.Decode(&value) != nil {
+			return false
+		}
+		if key == "aud" {
+			audience = value
+		}
+	}
+	end, err := d.Token()
+	if err != nil || end != json.Delim('}') {
+		return false
+	}
+	if _, err = d.Token(); err != io.EOF {
+		return false
+	}
+	return exclusiveAudience(audience, expected)
+}
+
+func exclusiveAudience(raw json.RawMessage, expected string) bool {
+	var one string
+	if json.Unmarshal(raw, &one) == nil {
+		return one == expected
+	}
+	var many []string
+	return json.Unmarshal(raw, &many) == nil && len(many) == 1 && many[0] == expected
 }
 
 func containsAudience(raw json.RawMessage, expected string) bool {

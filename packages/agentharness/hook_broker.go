@@ -153,6 +153,10 @@ func (b *HookBroker) Reconcile(target HookTarget, registration HookRegistration)
 			}
 		}
 		if !found {
+			found = adoptStrippedEntry(groups, registration, desired)
+			changed = changed || found
+		}
+		if !found {
 			groups = append(groups, map[string]any{
 				"matcher": registration.Matcher,
 				"hooks":   []any{desired},
@@ -497,6 +501,41 @@ func validateHookRequest(target HookTarget, registration HookRegistration) error
 		return errors.New("event, id, and hook are required")
 	}
 	return nil
+}
+
+// adoptStrippedEntry finds an unmarked entry identical to the registration
+// under the same matcher and marks it as the managed one. Claude Code rewrites
+// settings.json without the broker's `_id`/`managedBy` keys, so without this a
+// re-registration appends a duplicate hook that then runs twice per event.
+func adoptStrippedEntry(groups []any, registration HookRegistration, desired map[string]any) bool {
+	matcher := registration.Matcher
+	if matcher == "" {
+		matcher = "*"
+	}
+	want := cloneMap(registration.Hook)
+	delete(want, "hookId")
+	delete(want, "id")
+	for groupIndex, raw := range groups {
+		group, ok := raw.(map[string]any)
+		if !ok || group["matcher"] != matcher {
+			continue
+		}
+		entries, ok := hookEntries(group)
+		if !ok {
+			continue
+		}
+		for entryIndex, rawEntry := range entries {
+			entry, ok := rawEntry.(map[string]any)
+			if !ok || hookIdentifier(entry) != "" || isManagedHook(entry) || !reflect.DeepEqual(entry, want) {
+				continue
+			}
+			entries[entryIndex] = desired
+			setHookEntries(group, entries)
+			groups[groupIndex] = group
+			return true
+		}
+	}
+	return false
 }
 
 func hookResult(target HookTarget, registration HookRegistration) HookResult {

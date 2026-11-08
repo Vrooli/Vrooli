@@ -114,3 +114,44 @@ func TestHookBrokerReconcilesGroupOwnedHooks(t *testing.T) {
 func containsJSON(data []byte, value string) bool {
 	return bytes.Contains(data, []byte(value))
 }
+
+// Claude Code rewrites settings.json without the broker's `_id`/`managedBy`
+// markers. Re-registering the same hook must adopt the stripped entry, not
+// append a duplicate that then runs twice on every event.
+func TestHookBrokerAdoptsAnIdenticalEntryWhoseMarkersWereStripped(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	stripped := map[string]any{"hooks": map[string]any{"SessionStart": []any{
+		map[string]any{"matcher": "compact", "hooks": []any{map[string]any{"type": "command", "command": "reread-hook"}}},
+		map[string]any{"matcher": "*", "hooks": []any{map[string]any{"type": "command", "command": "user-hook"}}},
+	}}}
+	data, _ := json.Marshal(stripped)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	broker := NewHookBroker()
+	target := HookTarget{Agent: "claude-code", Path: path}
+	registration := HookRegistration{Event: "SessionStart", ID: "reread", Matcher: "compact", Hook: map[string]any{"type": "command", "command": "reread-hook"}}
+	if _, err := broker.Reconcile(target, registration); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(path)
+	if n := bytes.Count(raw, []byte(`"reread-hook"`)); n != 1 {
+		t.Fatalf("reread-hook appears %d times: %s", n, raw)
+	}
+	if !containsJSON(raw, "user-hook") {
+		t.Fatalf("user hook lost: %s", raw)
+	}
+	entries, err := broker.List([]HookTarget{target})
+	if err != nil || len(entries) != 1 || entries[0].ID != "reread" {
+		t.Fatalf("adopted entry not managed: %+v, %v", entries, err)
+	}
+	// A user's entry with the same command under another matcher is not ours.
+	other := HookRegistration{Event: "SessionStart", ID: "user-copy", Matcher: "startup", Hook: map[string]any{"type": "command", "command": "user-hook"}}
+	if _, err := broker.Reconcile(target, other); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ = os.ReadFile(path)
+	if n := bytes.Count(raw, []byte(`"user-hook"`)); n != 2 {
+		t.Fatalf("user-hook under another matcher was adopted: %s", raw)
+	}
+}

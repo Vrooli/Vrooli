@@ -183,11 +183,11 @@ func TestResolvePerClassOverrideAboveDefault(t *testing.T) {
 // cannot be resolved, the default path returns an error rather than silently
 // falling back to an XDG path. NOT parallel: it swaps the package seam.
 func TestResolveContractFailureSurfaces(t *testing.T) {
-	orig := runtimeHomeEntryPath
-	runtimeHomeEntryPath = func(string, string) (string, error) {
-		return "", errors.New("no contract discoverable")
+	orig := loadRuntimeHomeEntries
+	loadRuntimeHomeEntries = func(string) ([]repocontract.HomeEntry, error) {
+		return nil, errors.New("no contract discoverable")
 	}
-	defer func() { runtimeHomeEntryPath = orig }()
+	defer func() { loadRuntimeHomeEntries = orig }()
 
 	r := mustResolver(t, ResolverConfig{
 		AppID:       "vrooli",
@@ -201,6 +201,26 @@ func TestResolveContractFailureSurfaces(t *testing.T) {
 	// An override bypasses the contract entirely (the sanctioned escape hatch).
 	if _, err := r.Resolve(Options{ScenarioID: "demo", RootOverride: "/ro"}); err != nil {
 		t.Fatalf("override should bypass contract: %v", err)
+	}
+}
+
+func TestResolveLoadsOneContractForAllClassRoots(t *testing.T) {
+	original := loadRuntimeHomeEntries
+	calls := 0
+	loadRuntimeHomeEntries = func(home string) ([]repocontract.HomeEntry, error) { calls++; return original(home) }
+	t.Cleanup(func() { loadRuntimeHomeEntries = original })
+	r := mustResolver(t, ResolverConfig{AppID: "vrooli", EnvGet: mapEnv(nil), UserHomeDir: func() (string, error) { return "/abs/home/op", nil }})
+	if _, err := r.Resolve(Options{ScenarioID: "demo"}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("one resolution loaded its contract %d times", calls)
+	}
+	if _, err := r.Resolve(Options{ScenarioID: "other"}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatal("subsequent resolution did not recheck the current contract")
 	}
 }
 

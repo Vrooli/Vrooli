@@ -133,6 +133,32 @@ func TestStableAudio3CanonicalBoundaryMatchesOnlyComposeWork(t *testing.T) {
 	}
 }
 
+func TestOllayaBoundaryDistinguishesDecisionsFromObservation(t *testing.T) {
+	h, err := ForResource("ollaya")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.DefaultListen != "127.0.0.1:11435" || h.DefaultUpstream != "127.0.0.1:21435" || h.Native {
+		t.Fatalf("wrong resource binding: %+v", h)
+	}
+	for _, tc := range []struct {
+		method, path string
+		work         bool
+	}{
+		{http.MethodPost, "/api/decide", true},
+		{http.MethodGet, "/api/decide", false},
+		{http.MethodGet, "/api/version", false},
+		{http.MethodGet, "/api/ps", false},
+		{http.MethodGet, "/api/tags", false},
+		{http.MethodGet, "/", false},
+		{http.MethodPost, "/api/pull", false},
+	} {
+		if got := h.Match(httptest.NewRequest(tc.method, tc.path, nil)); got != tc.work {
+			t.Errorf("%s %s work=%t, want %t", tc.method, tc.path, got, tc.work)
+		}
+	}
+}
+
 func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
 	cases := []struct {
 		resource   string
@@ -153,6 +179,7 @@ func TestEveryAcceleratorResourceTransitionsActiveThenIdle(t *testing.T) {
 		{resource: "stable-audio-3", method: http.MethodPost, path: "/v1/compose"},
 		{resource: "speaker-verification", method: http.MethodPost, path: "/v1/verify"},
 		{resource: "ollama", method: http.MethodPost, path: "/api/chat"},
+		{resource: "ollaya", method: http.MethodPost, path: "/api/decide"},
 		{resource: "reranker", method: http.MethodPost, path: "/rerank"},
 		{resource: "pii-detector", method: http.MethodPost, path: "/detect"},
 	}

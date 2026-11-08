@@ -111,6 +111,11 @@ type PermissionCommandConfig struct {
 	ListSuffix          func(io.Writer, PermissionAdapter)
 	ShowFields          func(map[string]any, PermissionAdapter, PermissionPolicy)
 	DoctorExtra         func(io.Writer, io.Writer, PermissionAdapter) error
+	// NativeDrift reports drift between the live native projections and the
+	// desired ones that the state fingerprint cannot show, for example a
+	// projection missing since before the last state write. drift-check runs
+	// it before comparing with the state sidecar.
+	NativeDrift func(PermissionAdapter) error
 	// PlanDocument compares a whole declared document with the live config. The
 	// returned apply writes the desired policy and its state; reconcile calls it
 	// only after the agent gate and only when the plan shows drift.
@@ -393,6 +398,12 @@ func (h *PermissionHandlers) DriftCheck(args []string) error {
 	live, err := a.Load()
 	if err != nil {
 		return err
+	}
+	if h.cfg.NativeDrift != nil {
+		if err := h.cfg.NativeDrift(a); err != nil {
+			fmt.Fprintf(h.cfg.Stderr, "drift detected: %v\n", err)
+			return err
+		}
 	}
 	liveFingerprint := a.Fingerprint(live)
 	state, err := a.LoadState()

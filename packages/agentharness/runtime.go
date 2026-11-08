@@ -37,6 +37,9 @@ func (r Runtime) Evaluate(event ToolEvent) (Decision, error) {
 	if !validProfile(profile) {
 		return Decision{}, fmt.Errorf("unsupported rollout profile %q", profile)
 	}
+	if reasons := operatorOnlyReasons(event, r.operatorEnv(event)); len(reasons) > 0 {
+		return operatorOnlyDecision(event, reasons), nil
+	}
 	risk := ClassifyToolEvent(event)
 	if risk == RiskFilesystemRemoval {
 		return r.evaluateRemoval(event, now), nil

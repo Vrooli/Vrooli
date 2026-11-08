@@ -5,11 +5,13 @@ package lifecycle
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
 	"net/netip"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -31,18 +33,32 @@ func LoopbackOnly(next http.Handler) http.Handler {
 		host := r.RemoteAddr
 		if parsed, err := netip.ParseAddr(strings.TrimSpace(host)); err == nil {
 			if parsed.IsLoopback() {
-				next.ServeHTTP(w, r)
+				serveLoopbackLifecycle(next, w, r)
 				return
 			}
 		}
 		if host, _, err := net.SplitHostPort(host); err == nil {
 			if parsed, err := netip.ParseAddr(host); err == nil && parsed.IsLoopback() {
-				next.ServeHTTP(w, r)
+				serveLoopbackLifecycle(next, w, r)
 				return
 			}
 		}
 		http.Error(w, "lifecycle endpoint requires a loopback caller", http.StatusForbidden)
 	})
+}
+
+// A drain is a server-owned wait for admitted work. Generic API write deadlines
+// must not sever its completion receipt after ingress has been closed. Apply the
+// exception only to the canonical Drain RPC after loopback admission; request
+// cancellation and the operation's own timeout remain authoritative.
+func serveLoopbackLifecycle(next http.Handler, w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == maintenanceServicePath+"Drain" {
+		if err := http.NewResponseController(w).SetWriteDeadline(time.Time{}); err != nil && !errors.Is(err, http.ErrNotSupported) {
+			http.Error(w, "lifecycle drain write deadline unavailable", http.StatusInternalServerError)
+			return
+		}
+	}
+	next.ServeHTTP(w, r)
 }
 
 func NewClient(httpClient *http.Client, baseURL string, opts ...connect.ClientOption) (*Client, error) {

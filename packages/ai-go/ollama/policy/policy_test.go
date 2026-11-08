@@ -3,6 +3,8 @@ package policy
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -113,4 +115,30 @@ func containsAll(s string, needles []string) bool {
 		}
 	}
 	return true
+}
+
+func TestExecRunnerIgnoresStderrNoticesOnSuccess(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "resource-cli")
+	script := "#!/bin/sh\necho '⚠ notice: rebuilt resource CLI' >&2\necho '{\"model\":\"m:latest\"}'\n"
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := (Resolver{Bin: bin}).ResolveRole(context.Background(), "embedding.default")
+	if err != nil {
+		t.Fatalf("ResolveRole with stderr notice: %v", err)
+	}
+	if resolved.Model != "m:latest" {
+		t.Fatalf("model = %q, want m:latest", resolved.Model)
+	}
+}
+
+func TestExecRunnerReportsStderrOnFailure(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "resource-cli")
+	if err := os.WriteFile(bin, []byte("#!/bin/sh\necho 'unknown model role' >&2\nexit 2\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, err := (Resolver{Bin: bin}).ResolveRole(context.Background(), "nope")
+	if err == nil || !strings.Contains(err.Error(), "unknown model role") {
+		t.Fatalf("error = %v, want stderr text", err)
+	}
 }

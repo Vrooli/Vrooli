@@ -67,6 +67,7 @@ import (
 	"github.com/vrooli/api-core/eventbus"
 	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/provenance"
+	"github.com/vrooli/api-core/runtimediagnostics"
 )
 
 // Config controls HTTP server behavior and lifecycle.
@@ -212,6 +213,12 @@ func Run(cfg Config) error {
 	// best-effort and self-disables until lifecycle provides scenario identity.
 	runtimeCtx, cancelRuntime := context.WithCancel(context.Background())
 	defer cancelRuntime()
+	stopDiagnostics, diagnosticErr := runtimediagnostics.StartFromEnv(runtimeCtx, cfg.getenv)
+	if diagnosticErr != nil {
+		cfg.log("Runtime CPU diagnostics unavailable: %v", diagnosticErr)
+	} else {
+		defer stopDiagnostics()
+	}
 	var stopEvents func()
 	cfg.Handler, stopEvents = eventbus.AutomaticRuntime(runtimeCtx, cfg.Handler)
 	defer stopEvents()

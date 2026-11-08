@@ -20,6 +20,16 @@ A control-plane replacement uses one durable operation ID to:
 3. retain the returned fence token and revision while replacing the process;
 4. resume the provider only after the replacement is healthy.
 
+The standing declares `fence_persistence`. The shared provider uses
+`PROCESS_LOCAL`: its replacement starts open and must not receive an old
+process token. A durable owner uses `OPERATION_DURABLE` and retains the same
+operation, token, revision and interlock in its own store. After replacement,
+the control plane resumes that exact fence only with a fresh complete, drained
+inventory and no pending admission or quiescence. A known process-local fence
+cannot be converted into a durable one. An older unspecified predecessor can
+be continued only when its successor explicitly supplies that exact durable
+proof. A new provider generation by itself is not proof of open admission.
+
 Mutation calls are mounted behind `LoopbackOnly` because the current control
 plane invokes them over loopback. A deployment that proxies a scenario must
 provide an equivalent authenticated local boundary before exposing the
@@ -33,3 +43,10 @@ permit replacement when process identity is non-authoritative.
 `emergency_override` remains an explicitly reasoned operator decision. It may
 override eligible blockers. It never substitutes for identifying the target
 process in the control plane.
+
+The loopback `Drain` RPC follows its operation/request context, including a
+request timeout when supplied. Its transport clears the ordinary HTTP response
+write deadline so a long quiescence wait can return its receipt after ingress
+has closed. Other requests retain the server write deadline. This exception
+preserves client cancellation and the owner must still await every tracked
+worker before reporting quiescence.

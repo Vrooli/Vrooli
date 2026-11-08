@@ -104,3 +104,36 @@ func TestTestModeMiddleware_ForceEnableOverridesProduction(t *testing.T) {
 		t.Fatalf("force-enable: expected IsTestMode true, got false")
 	}
 }
+
+func TestTestModeMiddleware_WebSocketQueryMarker(t *testing.T) {
+	for _, mode := range []string{"development", "production"} {
+		t.Run(mode, func(t *testing.T) {
+			projectmeta.SetStartDirForTesting(writeMode(t, mode))
+			t.Setenv(apihttp.TestModeForceEnableEnv, "")
+			for _, tc := range []struct {
+				name, method, query, connection, upgrade string
+				marked                                   bool
+			}{
+				{"upgrade", "GET", "__vrooli_test_mode=1", "keep-alive, Upgrade", "WebSocket", true},
+				{"ordinary-get", "GET", "__vrooli_test_mode=1", "", "", false},
+				{"missing-connection", "GET", "__vrooli_test_mode=1", "", "websocket", false},
+				{"wrong-method", "POST", "__vrooli_test_mode=1", "upgrade", "websocket", false},
+				{"wrong-value", "GET", "__vrooli_test_mode=true", "upgrade", "websocket", false},
+				{"duplicate", "GET", "__vrooli_test_mode=1&__vrooli_test_mode=1", "upgrade", "websocket", false},
+				{"malformed", "GET", "__vrooli_test_mode=1&bad=%xx", "upgrade", "websocket", false},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					var observed bool
+					h := apihttp.TestModeMiddleware(observingHandler(&observed))
+					req := httptest.NewRequest(tc.method, "/ws?"+tc.query, nil)
+					req.Header.Set("Connection", tc.connection)
+					req.Header.Set("Upgrade", tc.upgrade)
+					h.ServeHTTP(httptest.NewRecorder(), req)
+					if want := tc.marked && mode == "development"; observed != want {
+						t.Fatalf("test routing marked=%v want=%v", observed, want)
+					}
+				})
+			}
+		})
+	}
+}

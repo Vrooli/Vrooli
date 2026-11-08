@@ -7,6 +7,7 @@
 package policy
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -146,5 +147,16 @@ func (r Resolver) resolve(ctx context.Context, selectorFlag, selectorValue strin
 type execRunner struct{}
 
 func (execRunner) Run(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).CombinedOutput()
+	// Decode stdout only: a resource CLI may print notices (staleness,
+	// rebuild, deprecation) on stderr, and mixing them into the JSON stream
+	// turns a healthy resolve into a decode failure. stderr still reaches the
+	// caller's error on a non-zero exit.
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return append(out, stderr.Bytes()...), err
+	}
+	return out, nil
 }

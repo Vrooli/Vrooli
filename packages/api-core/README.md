@@ -10,6 +10,8 @@ Shared Go utilities for Vrooli scenario APIs. Provides:
 - **Marked references** - Shared parser for typed inline references such as `path:...` and `topic:...`
 - **Relationship references** - Shared parser for `[CODE:]`, `[DOC:]`, and `[REQ:]` documentation edges
 - **Retry utilities** - Exponential backoff with jitter for reliable connections
+- **Runtime CPU diagnostics** - Bounded CPU profiles through an owner-only Unix
+  socket, collected by `vrooli scenario profile`; see [the contract](runtimediagnostics/README.md)
 - **Verified request identity** - Provider-neutral human, agent, service, and
   conflict states with passive standard-server middleware
 

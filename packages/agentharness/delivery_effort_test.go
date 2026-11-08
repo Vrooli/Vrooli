@@ -3,9 +3,10 @@ package agentharness
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/vrooli/cli-core/agentcatalog"
 	"os"
 	"testing"
+
+	"github.com/vrooli/cli-core/agentcatalog"
 )
 
 func TestCodingPolicyResolveDeliveryCarriesActualDeclaredEffort(t *testing.T) {
@@ -27,7 +28,7 @@ func TestCodingPolicyResolveDeliveryCarriesActualDeclaredEffort(t *testing.T) {
 			if e != nil {
 				t.Fatal(e)
 			}
-			if e = os.WriteFile(path, raw, 0600); e != nil {
+			if e = os.WriteFile(path, raw, 0o600); e != nil {
 				t.Fatal(e)
 			}
 			var out bytes.Buffer
@@ -49,6 +50,7 @@ func TestCodingPolicyResolveDeliveryCarriesActualDeclaredEffort(t *testing.T) {
 		})
 	}
 }
+
 func TestDeliveryDeclaredEffortRefusesMissingAmbiguousInvalidEvidence(t *testing.T) {
 	medium, high, invalid := "medium", "high", " HIGH "
 	for _, r := range []agentcatalog.CodingRole{
