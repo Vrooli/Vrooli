@@ -673,7 +673,6 @@
           "limitations": [
             "No qualified native macos runtime is published."
           ],
-          "evidence": [],
           "reason": "The pinned runtime is qualified only on Linux amd64."
         },
         "windows": {
@@ -686,7 +685,6 @@
           "limitations": [
             "No qualified native windows runtime is published."
           ],
-          "evidence": [],
           "reason": "The pinned runtime is qualified only on Linux amd64."
         }
       }

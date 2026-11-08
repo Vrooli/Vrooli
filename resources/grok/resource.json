@@ -10,7 +10,7 @@
         "class": "data",
         "regenerable": false,
         "sensitive": true,
-        "rationale": "The managed Grok CLI sets GROK_DATA_DIR to ~/.grok for sessions, memory, configuration, and authentication.",
+        "rationale": "The Grok CLI keeps sessions, memory, configuration, and authentication under GROK_HOME (default ~/.grok).",
         "budget": {
           "max_bytes": "20GiB",
           "rationale": "Durable data storage ceiling is derived from the expected working set and raises an alarm before host capacity is threatened."
@@ -22,11 +22,14 @@
         "kind": "dir",
         "class": "config",
         "regenerable": true,
+        "relocation": {
+          "key": "GROK_HOME",
+          "scope": "process-tree"
+        },
         "projection": {
-          "environment": "GROK_DATA_DIR",
           "project_scope": false
         },
-        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection. GROK_HOME moves the whole Grok home (upstream: \"Override config directory (default: ~/.grok)\"), so skills follow it to $GROK_HOME/skills."
       }
     }
   },

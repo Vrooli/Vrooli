@@ -73,3 +73,11 @@ make build-server-onnx ROOT=<onnxruntime-root>   # real NER (requires staged ONN
 
 See the `TODO(acquire)` markers in `../resource.json`, `../model-policy.json`,
 and `server/engine_onnx.go` for the model + dependency checkpoints.
+
+## Acquisition status
+
+The serving binary is built from server/ (Go, reproducible -trimpath build). The pinned linux-amd64 sha256 is the DEFAULT (stub-engine, regex-only) build produced by `make build-server`; it serves the deterministic regex/checksum pass. REAL NER inference is implemented behind the `pii_onnx` build tag (server/engine_onnx.go) and uses the now-APPROVED governed dependency go/github.com/yalue/onnxruntime_go v1.25.0 (CGO-free dlopen; loads libonnxruntime.so at runtime). TWO token-classification tiers are served by the SAME engine (model-agnostic: reads graph I/O, id2label, and do_lower_case at load): the small tier (gravitee-io/bert-small-pii-detection, INT8, prebuilt ONNX from the Hub) and the large tier (ab-ai/pii_model_based_on_distilbert, DistilBERT, 65 labels; its ONNX is produced deterministically from the Hub safetensors by scripts/export_large_model.py). Both are checksum-pinned in model-policy.json models.*.artifact.files. Validated end-to-end: small TestRealModelDetectsPII + TestPIIEval (recall 13/13); large TestLargeModelDetectsPII + TestLargePIIEval (recall 11/12) — all green against ONNX Runtime 1.23.0 (ORT_API_VERSION 23, matching the v1.25.0 binding). Re-pin this binary sha when a `pii_onnx` release artifact (server + bundled libonnxruntime.so, sherpa-style) is published. The GLiNER zero-shot tiers from the original plan were deliberately not shipped (see docs/ZERO_SHOT_DECISION.md).
+
+## `pii_onnx` environment
+
+The pii_onnx build additionally reads: PII_DETECTOR_MODEL_DIR (explicit model dir; else resolved under PII_DETECTOR_MODEL_CACHE/<model-id>), PII_DETECTOR_ONNX_FILE (default model.quant.onnx), PII_DETECTOR_ONNXRUNTIME_LIB (path to libonnxruntime.so; else <bin>/../lib/libonnxruntime.so, the sherpa-style bundle layout), and the capacity ladder's PII_DETECTOR_LOAD_MODEL=on|off (off pins the server to the regex-only rung and releases the NER model's RAM). The default stub build ignores all of these.

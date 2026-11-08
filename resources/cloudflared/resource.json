@@ -37,21 +37,8 @@
     }
   },
   "driver": "managed-service",
-  "bundling": "host-required",
+  "bundling": "vendorable",
   "privilege": "user",
-  "hostTools": [
-    {
-      "name": "cloudflared",
-      "required": true,
-      "reason": "The managed service adopts the separately governed cloudflared host tool.",
-      "platforms": [
-        "linux",
-        "macos",
-        "windows"
-      ],
-      "bundling": "host-required"
-    }
-  ],
   "managed_service": {
     "provider_policy": {
       "target_defaults": {
@@ -65,16 +52,82 @@
       "external_management": "forbidden"
     },
     "artifact": {
-      "path": "cloudflared",
-      "version": "2025.10.0",
-      "verification": "host-tool"
+      "path": "server/cloudflared",
+      "version": "2026.10.7",
+      "sha256_by_platform": {
+        "linux-amd64": "1f99fb518b83dec2ba8d870a7cc991d82a77e6196295a3d2754ba17ab9f91872",
+        "linux-arm64": "3df43aedc9ff291d1735b5cb576cb97e0b157488796db2e32b28aecabb445775",
+        "macos-amd64": "5c55e77da7012cebca19170357e196176c48c9647cc2ead404702fa125ddbd86",
+        "macos-arm64": "2136431d5eb467bf447d2ee514b713e192719b143aec1d9e09bf7dc290d5bb12",
+        "windows-amd64": "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343"
+      },
+      "bundle_artifact": "cloudflared_${os}_${arch}"
     },
     "acquisition": {
-      "kind": "none",
-      "license": "Cloudflare Terms of Service",
+      "kind": "url",
+      "license": "Apache-2.0",
       "targets": [
         {
-          "executable": "cloudflared"
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-linux-amd64",
+          "sha256": "1f99fb518b83dec2ba8d870a7cc991d82a77e6196295a3d2754ba17ab9f91872",
+          "archive": "none",
+          "layout": "file",
+          "mode": "0755"
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-linux-arm64",
+          "sha256": "3df43aedc9ff291d1735b5cb576cb97e0b157488796db2e32b28aecabb445775",
+          "archive": "none",
+          "layout": "file",
+          "mode": "0755"
+        },
+        {
+          "when": {
+            "os": "darwin",
+            "arch": "amd64"
+          },
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-darwin-amd64.tgz",
+          "sha256": "02f3edfd87684dd5b705607688e4eb4b323f6e777b81e7b3a85af556aa356848",
+          "archive": "tar.gz",
+          "layout": "file",
+          "mode": "0755",
+          "bin_path": "cloudflared",
+          "artifact_sha256": "5c55e77da7012cebca19170357e196176c48c9647cc2ead404702fa125ddbd86"
+        },
+        {
+          "when": {
+            "os": "darwin",
+            "arch": "arm64"
+          },
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-darwin-arm64.tgz",
+          "sha256": "3586ccf397e98e5f437e60e7c307ca6ac463e110580503af8bb8e6f9ebf831bd",
+          "archive": "tar.gz",
+          "layout": "file",
+          "mode": "0755",
+          "bin_path": "cloudflared",
+          "artifact_sha256": "2136431d5eb467bf447d2ee514b713e192719b143aec1d9e09bf7dc290d5bb12"
+        },
+        {
+          "when": {
+            "os": "windows",
+            "arch": "amd64"
+          },
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-windows-amd64.exe",
+          "sha256": "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343",
+          "archive": "none",
+          "layout": "file",
+          "mode": "0755"
+        },
+        {
+          "unsupported": "Cloudflare does not publish a pinned connector asset for this operating system and architecture."
         }
       ]
     },
@@ -94,6 +147,17 @@
     ],
     "shutdown": {
       "signal": "terminate"
+    },
+    "update_policy": {
+      "strategy": "rolling-stateless",
+      "candidate_port": "http",
+      "readiness_metrics": [
+        {
+          "path": "/metrics",
+          "name": "cloudflared_tunnel_ha_connections",
+          "minimum": 4
+        }
+      ]
     }
   },
   "category": "network",
@@ -105,7 +169,7 @@
     "cpu_cores": 1,
     "network": "required",
     "bucket": "small",
-    "source": "measured",
+    "source": "manual",
     "confidence": "medium"
   },
   "platforms": {
@@ -157,56 +221,49 @@
       "desktop": {
         "linux": {
           "support": "conditional",
-          "mode": "manual",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "cloudflared"
-          ],
+          "requires": [],
           "limitations": [
-            "cloudflared is supplied by the governed host tool catalog and must be present on PATH."
+            "A tunnel credential and network connectivity are required; runtime qualification is recorded separately from artifact integrity."
           ],
           "evidence": [
             "manifest-validation",
-            "host-tool-preflight"
+            "native-artifact-check"
           ]
         },
         "macos": {
           "support": "conditional",
-          "mode": "manual",
+          "mode": "bundled-service",
           "architectures": [
             "amd64",
             "arm64"
           ],
-          "requires": [
-            "cloudflared"
-          ],
+          "requires": [],
           "limitations": [
-            "cloudflared is supplied by the governed host tool catalog and must be present on PATH."
+            "A tunnel credential and network connectivity are required; runtime qualification is recorded separately from artifact integrity."
           ],
           "evidence": [
             "manifest-validation",
-            "host-tool-preflight"
+            "native-artifact-check"
           ]
         },
         "windows": {
           "support": "conditional",
-          "mode": "manual",
+          "mode": "bundled-service",
           "architectures": [
-            "amd64",
-            "arm64"
+            "amd64"
           ],
-          "requires": [
-            "cloudflared"
-          ],
+          "requires": [],
           "limitations": [
-            "cloudflared is supplied by the governed host tool catalog and must be present on PATH."
+            "A tunnel credential and network connectivity are required; runtime qualification is recorded separately from artifact integrity."
           ],
           "evidence": [
             "manifest-validation",
-            "host-tool-preflight"
+            "native-artifact-check"
           ]
         }
       }

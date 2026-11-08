@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/vrooli/vrooli/resources/codex/cli/internal/permissions"
+	"github.com/vrooli/vrooli/resources/internal/agentapp"
 
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/cliapp"
@@ -69,9 +70,9 @@ func (h *Handlers) shared() *agentharness.PermissionHandlers {
 		},
 		ScopeDefault: string(permissions.ScopeUser),
 		ScopeHelp:    "Config scope: user (~/.codex/config.toml) or admin (system requirements.toml)",
-		Description:  "View and manage Codex permissions (~/.codex/config.toml [vrooli.permissions])",
+		Description:  "View and manage Codex permission intent ($CODEX_HOME/.vrooli-permissions-intent.json) and its native projections",
 		CommandDescriptions: map[string]string{
-			"show":        "Print the full config file (raw or pretty)",
+			"show":        "Print the managed intent, or the native config file with --raw",
 			"deny":        "Add a bash deny pattern (mutating)",
 			"allow":       "Add a bash allow pattern (mutating)",
 			"ask":         "Add a bash ask pattern (mutating)",
@@ -79,15 +80,22 @@ func (h *Handlers) shared() *agentharness.PermissionHandlers {
 			"drift-check": "Compare current config fingerprint to last Vrooli write",
 			"doctor":      "Check installed codex version and explain enforcement caveats",
 		},
-		ResourceLabel: "resource-codex", ConfigHint: "~/.codex/config.toml [vrooli.permissions]",
+		ResourceLabel: "resource-codex", ConfigHint: "$CODEX_HOME/.vrooli-permissions-intent.json",
 		VersionLabel: "resource-codex", CLIVersion: h.CLIVersion, PinnedVersion: h.PinnedVersion,
 		VersionCommand: h.VersionCommand, VersionRunner: h.VersionRunner, DetectCaller: h.DetectCaller,
 		Policy: h.Policy, Stdout: h.Stdout, Stderr: h.Stderr,
 		ExclusivePatterns: true,
-		DoctorExtra: func(stdout, _ io.Writer, shared agentharness.PermissionAdapter) error {
-			_, _ = fmt.Fprintln(stdout, "note: Codex does NOT enforce per-command-pattern deny/allow/ask natively today.")
-			_, _ = fmt.Fprintln(stdout, "      The `[vrooli.permissions]` section records Vrooli's intent for cross-agent")
-			_, _ = fmt.Fprintln(stdout, "      uniformity; native filesystem/network/approval settings are managed by v2 execution documents.")
+		ListSuffix: func(stdout io.Writer, shared agentharness.PermissionAdapter) {
+			if a, err := h.adapter(shared.Scope()); err == nil {
+				fmt.Fprintf(stdout, "intent: %s\n", a.IntentPath())
+			}
+		},
+		ShowFields: func(fields map[string]any, shared agentharness.PermissionAdapter, _ agentharness.PermissionPolicy) {
+			if a, err := h.adapter(shared.Scope()); err == nil {
+				fields["intentPath"] = a.IntentPath()
+			}
+		},
+		NativeDrift: func(shared agentharness.PermissionAdapter) error {
 			a, err := h.adapter(shared.Scope())
 			if err != nil {
 				return err
@@ -95,6 +103,29 @@ func (h *Handlers) shared() *agentharness.PermissionHandlers {
 			p, err := a.Load()
 			if err != nil {
 				return err
+			}
+			if p.HookFingerprint != a.DesiredHookFingerprint(p) {
+				return errors.New("managed PreToolUse hook registration differs from the recorded intent")
+			}
+			if p.NativeFingerprint != permissions.DesiredExecutionFingerprint(p.Execution, p.ExecutionActive) {
+				return errors.New("native execution projection differs from the recorded intent")
+			}
+			return nil
+		},
+		DoctorExtra: func(stdout, _ io.Writer, shared agentharness.PermissionAdapter) error {
+			a, err := h.adapter(shared.Scope())
+			if err != nil {
+				return err
+			}
+			p, err := a.Load()
+			if err != nil {
+				return err
+			}
+			_, _ = fmt.Fprintln(stdout, "note: Codex does NOT enforce Vrooli's per-command-pattern deny/allow/ask rules natively.")
+			fmt.Fprintf(stdout, "      They are recorded in %s and project to a PreToolUse hook;\n", a.IntentPath())
+			_, _ = fmt.Fprintln(stdout, "      native filesystem/network/approval settings are managed by v2 execution documents.")
+			if p.LegacyTable {
+				fmt.Fprintf(stdout, "legacy: %s still carries the retired [vrooli] table; run `resource-codex ensure` to move it\n", a.SettingsPath)
 			}
 			fmt.Fprintf(stdout, "execution: configured=%t active_intent=%t effective_runtime=unverified\n", p.Execution != nil, p.ExecutionActive)
 			if p.Execution != nil {
@@ -115,28 +146,6 @@ func Commands(h *Handlers) cliapp.SubcommandGroup {
 		{Name: "plan", Description: "Plan a whole declared portable permission document (JSON)", Run: h.Plan},
 		{Name: "reconcile", Description: "Reconcile a whole declared portable permission document (mutating, JSON)", Run: h.Reconcile},
 	})
-}
-
-func (h *Handlers) DriftCheck(args []string) error {
-	fs, scope := h.flagSet("permissions drift-check")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	a, err := h.adapter(*scope)
-	if err != nil {
-		return err
-	}
-	p, err := a.Load()
-	if err != nil {
-		return err
-	}
-	if p.HookFingerprint != a.DesiredHookFingerprint(p) {
-		return errors.New("managed hook registration drift detected")
-	}
-	if p.NativeFingerprint != permissions.DesiredExecutionFingerprint(p.Execution, p.ExecutionActive) {
-		return errors.New("native execution projection drift detected")
-	}
-	return h.shared().DriftCheck(args)
 }
 
 func (h *Handlers) flagSet(name string) (*flag.FlagSet, *string) {
@@ -167,6 +176,26 @@ func HookCommands(h *Handlers) cliapp.SubcommandGroup {
 		},
 		Stdout: h.Stdout, Stderr: h.Stderr,
 	})
+}
+
+// IntentMigrationStep is the `ensure` step that moves a retired `[vrooli]`
+// table out of config.toml, where Codex warns about it on every launch, into
+// the intent sidecar. It is silent when there is nothing to move.
+func IntentMigrationStep() agentapp.EnsureStep {
+	return agentapp.EnsureStep{Name: "permission-intent", Run: func(stdout, _ io.Writer) error {
+		a, err := permissions.DefaultAdapter(permissions.ScopeUser)
+		if err != nil {
+			return err
+		}
+		report, err := a.MigrateLegacyTable()
+		if err != nil {
+			return err
+		}
+		if report != "" {
+			fmt.Fprintf(stdout, "codex permissions: %s\n", report)
+		}
+		return nil
+	}}
 }
 
 func bridge(a *permissions.Adapter) agentharness.PermissionAdapter {

@@ -90,7 +90,7 @@ inventory or write Grok configuration.
 
 `resource-grok permissions` manages which shell commands Grok may run — the same
 uniform allow/ask/deny surface the `claude-code` and `codex` resources expose.
-Unlike Codex (whose rules are intent-only), **Grok enforces these natively**:
+Unlike Codex (which has no native setting for these rules, so Vrooli records them in a sidecar), **Grok enforces these natively**:
 
 - Rules are written into Grok's native `[permission]` table in
   `~/.grok/config.toml` (user scope) or `~/.grok/requirements.toml` (`--scope

@@ -14,7 +14,7 @@ import (
 	"github.com/vrooli/vrooli/resources/opencode/cli/internal/permissions"
 
 	"github.com/vrooli/agentharness"
-	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/resources/internal/agentapp"
 )
 
 type Handlers struct {
@@ -37,14 +37,18 @@ func Default() *Handlers {
 	}
 }
 
-func Commands(h *Handlers) cliapp.Command {
+// Step is OpenCode's contribution to the shared `ensure` command: the policy
+// hook, the permission block and the config file.
+func Step(h *Handlers) agentapp.EnsureStep {
 	if h == nil {
 		h = Default()
 	}
-	return cliapp.Command{
-		Name:        "ensure",
-		Description: "Self-heal OpenCode config, hooks, and permissions",
-		Run:         h.Ensure,
+	return agentapp.EnsureStep{
+		Name: "hooks-and-permissions",
+		Run: func(stdout, stderr io.Writer) error {
+			h.Stdout, h.Stderr = stdout, stderr
+			return h.Ensure(nil)
+		},
 	}
 }
 

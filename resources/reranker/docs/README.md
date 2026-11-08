@@ -51,10 +51,32 @@ Environment values exported by the resource and supplied to the supervised proce
 |---|---|---|
 | `RERANKER_PORT` | `11453` | supervised service port |
 | `RERANKER_MODEL` | `BAAI/bge-reranker-v2-m3` | served model |
+| `RERANKER_TOKENIZATION_WORKERS` | `4` | tokenizer worker count, independent of GPU batch-token limits |
 | `RESOURCE_DATA_DIR` | platform-specific | resource-owned model cache root |
 
 The HF model cache lives under the relocatable `model_cache` storage entry; it
 persists across restarts and is measured by Storage Manager.
+
+### Tokenizer memory
+
+TEI clones the tokenizer for each worker. The resource explicitly defaults to
+four workers instead of allowing TEI to select the host CPU count. Override
+`RERANKER_TOKENIZATION_WORKERS` in the resource environment when a measured
+workload needs another count, then use `vrooli resource restart reranker`.
+Confirm the effective count with `resource-reranker gateway info --json`.
+
+On 5 November 2026, a bounded 32/four/32-worker comparison on this CUDA host
+measured about 7.21 GiB host RAM-plus-swap for each 32-worker arm versus 1.38 GiB
+for four workers (81% lower). All six fixed relevance checks and distinguishable
+rank-order checks passed; maximum normalized score difference was 0.000406.
+The same baseline also varies between serial and batched requests. The earlier
+exact-output gate failed and remains a rejected experiment. Serial sampled p95
+was 94 ms; concurrency-four sampled p95 was 389 ms, within the prospectively
+specified 20% regression bound against both control arms. These small shared-host
+samples do not qualify production tails, high-concurrency throughput, or broader
+retrieval quality. Model, dtype, client batch size and GPU batch-token settings
+were unchanged. Retained protocol and raw results are in the local research home,
+`topics/local-model-performance/runs/reranker-memory-confirmation-20261105`.
 
 ## Operations
 

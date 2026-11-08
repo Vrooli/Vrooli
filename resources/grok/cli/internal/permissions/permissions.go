@@ -9,8 +9,8 @@
 // key/table (and every other key inside `[permission]`, e.g. `rules`)
 // round-trips untouched.
 //
-// Unlike Codex (whose `[vrooli.permissions]` block is intent-only),
-// Grok ENFORCES these rules natively: the decision flow evaluates
+// Unlike Codex (which has no native setting for these rules, so Vrooli
+// records them in a sidecar), Grok ENFORCES these rules natively: the decision flow evaluates
 // `deny > ask > allow` from the native `[permission]` section before
 // falling through to prompt policy (see ~/.grok/docs/user-guide/
 // 22-permissions-and-safety.md). The paired PreToolUse hook invokes the

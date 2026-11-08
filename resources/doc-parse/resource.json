@@ -82,7 +82,7 @@
     "ram_mb": 1024,
     "disk_mb": 128,
     "cpu_cores": 1,
-    "network": "none",
+    "network": "offline",
     "bucket": "small",
     "source": "measured",
     "confidence": "high"

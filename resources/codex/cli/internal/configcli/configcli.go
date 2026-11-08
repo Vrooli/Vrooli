@@ -8,9 +8,12 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pelletier/go-toml/v2"
 	"github.com/vrooli/agentharness"
 	"github.com/vrooli/cli-core/agentcatalog"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/resources/codex/cli/internal/permissions"
+	"github.com/vrooli/vrooli/resources/internal/agentapp"
 )
 
 type Handlers struct {
@@ -102,4 +105,25 @@ func (h *Handlers) Ensure(args []string) error {
 		}
 	}
 	return nil
+}
+
+// NativeSettings binds resources/codex/native-settings.json to the shared
+// Codex config. In a Web Console session CODEX_HOME is a per-session home
+// whose config.toml links to ~/.codex/config.toml; the shared reconciler
+// follows that link so every session sees one managed file.
+func NativeSettings() *agentapp.NativeSettings {
+	return &agentapp.NativeSettings{
+		SettingsPath: func() (string, error) {
+			adapter, err := permissions.DefaultAdapter(permissions.ScopeUser)
+			if err != nil {
+				return "", err
+			}
+			return adapter.SettingsPath, nil
+		},
+		Decode: func(data []byte) (map[string]any, error) {
+			doc := map[string]any{}
+			return doc, toml.Unmarshal(data, &doc)
+		},
+		Encode: func(doc map[string]any) ([]byte, error) { return toml.Marshal(doc) },
+	}
 }

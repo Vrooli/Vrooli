@@ -1,0 +1,41 @@
+{
+  "schema_version": "vrooli.agent-native-settings/v1",
+  "runner": "codex",
+  "description": "Codex configuration keys Vrooli's long-effort operating model depends on. `resource-codex ensure` (run by `vrooli setup`) and `resource-codex settings apply` project them into $CODEX_HOME/config.toml without overwriting values a user chose.",
+  "reference": "docs/agent-system/LONG_EFFORT_DESIGN.md#4-codex-multi-agent-settings",
+  "settings": [
+    {
+      "id": "multi-agent-thread-slots",
+      "path": [
+        "features",
+        "multi_agent_v2",
+        "max_concurrent_threads_per_session"
+      ],
+      "value": 8,
+      "verified_version": "0.166.0",
+      "rationale": "Every waiting ancestor holds a slot. At the default of 4 a sub-agent chain stopped at depth 3, which leaves no room for a scheduler, segment owners and their workers; at 8 a probe chain reached depth 7."
+    },
+    {
+      "id": "multi-agent-mode-hint",
+      "path": [
+        "features",
+        "multi_agent_v2",
+        "multi_agent_mode_hint_text"
+      ],
+      "value": "Use sub-agents when they advance the active goal or task: independent parallel work, long-lived owners of one coherent outcome, and independent review. Give each a fresh brief (fork_turns none) that carries the destination and the operator's stance verbatim, and size its outcome to the work, not to caution.",
+      "verified_version": "0.166.0",
+      "rationale": "Replaces Codex's default hint, which tells the model not to spawn sub-agents unless the user explicitly asks; that default suppresses the long-lived owners long efforts need."
+    },
+    {
+      "id": "subagent-developer-instructions",
+      "path": [
+        "features",
+        "multi_agent_v2",
+        "subagent_developer_instructions"
+      ],
+      "value": "You are a sub-agent. Your brief is your goal: the parent's goal text may be missing from your context. Read the charter or brief your parent named before substantive work, and read it again after any context compaction. Size the change to the outcome your brief names. You may spawn your own sub-agents when the outcome needs parallel or long-lived work. Report changed, verified, remaining and unverified.",
+      "verified_version": "0.166.0",
+      "rationale": "spawn_agent cannot give a child a native goal and a long parent goal is omitted after compaction, so every child is told that its brief is its goal and to re-read it after compaction."
+    }
+  ]
+}

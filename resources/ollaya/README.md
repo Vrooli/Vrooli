@@ -97,3 +97,18 @@ The daemon loads models on demand and unloads them after `OLLAYA_KEEP_ALIVE`
 (`capacity-sync`) and degrades to CPU (`capacity degrade --to cpu`, which
 restarts with `OLLAYA_DEVICE=cpu`) when the broker asks. Laya runs well on the
 CPU; Winnow does not.
+
+The required `activity-edge` companion owns the public loopback port `11435`.
+The daemon listens on the private upstream port `21435`. All local decision
+clients use the unchanged exported `OLLAYA_URL`; the edge forwards request and
+response bodies unchanged. It reports active while `POST /api/decide` requests
+are in flight and idle after the shared debounce. Health, model inventory and
+resident-model reads do not count as decisions. Hosted upstream calls bypass
+this local edge and do not mark the local GPU busy.
+
+Activity reporting is fail-open: a capacity outage does not block decisions.
+The edge is a required serving component, so a healthy private daemon alone
+does not prove public availability. Its parent is the managed daemon; normal
+resource lifecycle owns both. Port overrides use
+`OLLAYA_ACTIVITY_EDGE_LISTEN` and `OLLAYA_ACTIVITY_EDGE_UPSTREAM` together with
+the corresponding resource endpoint configuration.

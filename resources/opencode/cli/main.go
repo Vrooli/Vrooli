@@ -42,7 +42,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 			}
 			return install
 		},
-		InstallCommands: []cliapp.Command{ensurecli.Commands(ensurecli.Default())},
+		EnsureSteps:     []agentapp.EnsureStep{ensurecli.Step(ensurecli.Default())},
 		Posture:         agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"OpenCode native permission rules are projected alongside tool.execute.before; plugin firing and refusal require a live canary on the installed version."}},
 		Groups: func(install agentinstall.Spec) ([]cliapp.SubcommandGroup, error) {
 			return []cliapp.SubcommandGroup{

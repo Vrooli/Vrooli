@@ -31,7 +31,7 @@ func TestHelpListsTheDecisionSurface(t *testing.T) {
 	if err := app.CLI.RunWithWriters([]string{"help"}, &stdout, &stderr); err != nil {
 		t.Fatalf("help: %v (%s)", err, stderr.String())
 	}
-	for _, group := range []string{"gateway", "policy", "models", "capacity", "capacity-sync"} {
+	for _, group := range []string{"gateway", "policy", "models", "capacity", "capacity-sync", "activity-edge"} {
 		if !strings.Contains(stdout.String(), group) {
 			t.Fatalf("help output lacks %q:\n%s", group, stdout.String())
 		}

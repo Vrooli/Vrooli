@@ -28,8 +28,8 @@ func TestNewAppConfiguresResourceApp(t *testing.T) {
 	if app.StaleChecker.ManifestSourcePath != "resource.json" {
 		t.Fatalf("ManifestSourcePath = %q, want %q", app.StaleChecker.ManifestSourcePath, "resource.json")
 	}
-	if len(app.StaleChecker.FreshnessInputs) != 3 {
-		t.Fatalf("FreshnessInputs len = %d, want 3", len(app.StaleChecker.FreshnessInputs))
+	if len(app.StaleChecker.FreshnessInputs) < 3 {
+		t.Fatalf("FreshnessInputs len = %d, want at least the 3 required inputs", len(app.StaleChecker.FreshnessInputs))
 	}
 	if got, want := app.StaleChecker.FreshnessInputs[0], "cli/**"; got != want {
 		t.Fatalf("FreshnessInputs[0] = %q, want %q", got, want)

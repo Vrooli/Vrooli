@@ -36,6 +36,12 @@ func TestExecutionStagingActivationAndNativeDrift(t *testing.T) {
 	if doc["default_permissions"] != nil || doc["approval_policy"] != nil || doc["approvals_reviewer"] != "user" {
 		t.Fatalf("staging activated settings: %s", raw)
 	}
+	if _, ok := doc[legacyTableKey]; ok {
+		t.Fatalf("execution intent written into config.toml: %s", raw)
+	}
+	if intent := readIntent(t, a); intent.Execution == nil || intent.ExecutionActive {
+		t.Fatalf("staged execution intent not recorded in the sidecar: %+v", intent)
+	}
 	network := doc["permissions"].(map[string]any)[ExecutionProfile].(map[string]any)["network"].(map[string]any)
 	if network["enabled"] != false {
 		t.Fatal("staged profile allows unfiltered networking")
@@ -158,14 +164,14 @@ func TestHookOnlyDriftAndConfigRollback(t *testing.T) {
 	}
 	// JSON null is valid JSON, but cannot be a native hook document.
 	os.WriteFile(a.HookPath, []byte(`null`), 0o600)
-	before, _ := os.ReadFile(a.SettingsPath)
+	before, _ := os.ReadFile(a.IntentPath())
 	err = a.Save(Policy{BashDeny: []string{"different"}})
 	if err == nil {
 		t.Fatal("invalid hook document accepted")
 	}
-	after, _ := os.ReadFile(a.SettingsPath)
+	after, _ := os.ReadFile(a.IntentPath())
 	if string(before) != string(after) {
-		t.Fatal("config not restored after hook failure")
+		t.Fatal("intent not restored after hook failure")
 	}
 }
 
@@ -180,29 +186,27 @@ func TestWritableRootsKeepProtectedDirectoriesReadOnly(t *testing.T) {
 	}
 }
 
-func TestHookWriteFailureRestoresConfig(t *testing.T) {
+func TestHookWriteFailureRestoresConfigAndIntent(t *testing.T) {
 	a := newTestAdapter(t)
 	a.HookPath = filepath.Join(filepath.Dir(a.SettingsPath), "hooks.json")
-	if err := a.Save(Policy{BashDeny: []string{"original"}}); err != nil {
+	if err := a.Save(Policy{BashDeny: []string{"original"}, Execution: testExecution()}); err != nil {
 		t.Fatal(err)
 	}
-	before, err := os.ReadFile(a.SettingsPath)
-	if err != nil {
+	configBefore, intentBefore := mustRead(t, a.SettingsPath), mustRead(t, a.IntentPath())
+	if err := os.WriteFile(a.HookPath+".vrooli-lock", []byte("busy"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(a.HookPath+".vrooli-lock", []byte("busy"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	err = a.Save(Policy{BashDeny: []string{"replacement"}})
+	changed := testExecution()
+	changed.Filesystem.Workspace = "read"
+	err := a.Save(Policy{BashDeny: []string{"replacement"}, Execution: changed})
 	if err == nil || !strings.Contains(err.Error(), "rollback") {
 		t.Fatalf("missing recovery result: %v", err)
 	}
-	after, err := os.ReadFile(a.SettingsPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(after) != string(before) {
+	if string(mustRead(t, a.SettingsPath)) != string(configBefore) {
 		t.Fatal("hook write failure left changed config")
+	}
+	if string(mustRead(t, a.IntentPath())) != string(intentBefore) {
+		t.Fatal("hook write failure left changed intent")
 	}
 	if a.LastBackup == "" {
 		t.Fatal("backup missing")

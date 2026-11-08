@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 
 	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/configcli"
+	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/effort"
 	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/permissions"
 	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/permissionscli"
 	"github.com/vrooli/vrooli/resources/claude-code/cli/internal/statusline"
@@ -63,6 +65,10 @@ func newApp() (*cliapp.ResourceApp, error) {
 		DataDir:     []string{".claude"},
 		Posture:     agentharness.EnforcementPosture{Permissions: "hook_verified", Caveats: []string{"Claude native permission denials remain active; the source-controlled PreToolUse matcher is verified by data-only replay and a non-mutating live probe."}},
 		WrapInstall: func(install cliapp.Command) cliapp.Command { return installWithStatusLine(install, statusLine) },
+		EnsureSteps: []agentapp.EnsureStep{
+			{Name: "statusline-feed", Run: func(io.Writer, io.Writer) error { return statusLine.Install() }},
+			effort.EnsureStep(func() string { return settings.SettingsPath }, effort.Executable),
+		},
 		CommandGroups: []cliapp.CommandGroup{{Title: "Execution", Commands: []cliapp.Command{{
 			Name:        "run",
 			Description: "Run the resource-owned Claude Code executable",
@@ -73,6 +79,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 			return []cliapp.SubcommandGroup{
 				configcli.Commands(configcli.Default()),
 				statusline.Commands(statusLine),
+				effort.Commands(nil),
 				permissionscli.HookCommands(permissionscli.Default(agentapp.Version, upstreamPinnedVersion)),
 				permissionscli.Commands(permissionscli.Default(agentapp.Version, upstreamPinnedVersion)),
 				agentapp.NPMUpstream(install, upstreamPinnedVersion, "@anthropic-ai/claude-code"),

@@ -113,6 +113,20 @@ unmanaged Claude settings. This is the Go replacement for the retired
 
 Pinned upstream docs: <https://code.claude.com/docs/en/permissions> (see `resource.json` → `upstream_cli`).
 
+## `ensure` and the compaction re-read hook
+
+`vrooli setup` runs `resource-claude-code ensure`. It has two idempotent steps:
+- It reconciles the statusline quota feed (below).
+- It installs a `SessionStart` hook with the `compact` matcher in `~/.claude/settings.json`. After
+  every compaction, the hook runs `resource-claude-code effort compact-context`. That command prints
+  a reminder to re-read the active goal, plan, charter or brief before acting, because the compacted
+  summary can drop its objective, the operator's stance and its closure rules
+  ([`LONG_EFFORT_DESIGN.md`](../../docs/agent-system/LONG_EFFORT_DESIGN.md) §1).
+
+Claude Code rewrites `settings.json` without the hook broker's `_id` and `managedBy` markers. The
+broker therefore adopts an identical unmarked entry under the same matcher instead of appending a
+duplicate. Re-running `ensure` or a scenario's `hooks reconcile` stays idempotent.
+
 ## Provider quota feed (statusline)
 
 Claude Code passes its status line command a JSON object that, for Pro/Max
@@ -125,7 +139,9 @@ owns the feed that records them:
 - `resource-claude-code statusline run` is the `statusLine` command. It appends
   one NDJSON sample (`observed_at`, `session_id`, `model`, `five_hour`,
   `seven_day`) to `~/.vrooli/state/vrooli/claude-code/quota-samples.ndjson`
-  (override: `VROOLI_CLAUDE_QUOTA_SAMPLES`) when a reading changes, or every
+  (override: `VROOLI_CLAUDE_QUOTA_SAMPLES`; `VROOLI_STORAGE_ROOT` or
+  `VROOLI_STATE_ROOT` move it exactly as api-core/storage moves Agent
+  Manager's reader) when a reading changes, or every
   5 minutes while unchanged. At 4 MiB the file rotates to `.1`. Then it prints
   the status line. If a `statusLine` command existed before install, the feed
   runs that command with the same stdin and prints its output, so your status

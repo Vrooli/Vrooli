@@ -141,6 +141,7 @@
     "attach_health_path": "/health",
     "arguments": [
       "--model-id=${RERANKER_MODEL}",
+      "--tokenization-workers=${RERANKER_TOKENIZATION_WORKERS}",
       "--port=${RESOURCE_PORT_UPSTREAM}",
       "--prometheus-port=${RESOURCE_PORT_METRICS}",
       "--hostname=127.0.0.1",
@@ -149,6 +150,7 @@
     "environment_file": "active.env",
     "environment": {
       "RERANKER_MODEL": "BAAI/bge-reranker-v2-m3",
+      "RERANKER_TOKENIZATION_WORKERS": "4",
       "HUGGINGFACE_HUB_CACHE": "${RESOURCE_DATA_DIR}/model-cache",
       "HF_HOME": "${RESOURCE_DATA_DIR}/model-cache"
     }
@@ -170,7 +172,6 @@
           "limitations": [
             "The pinned TEI 1.7.4 server binary is evidenced on Linux amd64 when the host provides CUDA compute 8.9+. The current CPU image is explicitly unsupported because single-file extraction cannot carry its libiomp5.so runtime dependency."
           ],
-          "evidence": [],
           "reason": "The pinned OCI image is available for controlled acquisition, but desktop bundling remains unsupported until target smoke evidence is published."
         },
         "macos": {
@@ -184,7 +185,6 @@
           "limitations": [
             "A signed native macOS TEI bundle has not yet been staged and exercised."
           ],
-          "evidence": [],
           "reason": "Native macOS delivery remains pending an artifact and target smoke evidence."
         },
         "windows": {
@@ -198,7 +198,6 @@
           "limitations": [
             "A signed native Windows TEI bundle has not yet been staged and exercised."
           ],
-          "evidence": [],
           "reason": "Native Windows delivery remains pending an artifact and target smoke evidence."
         }
       }

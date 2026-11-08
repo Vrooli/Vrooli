@@ -8,6 +8,7 @@ import (
 	"github.com/vrooli/vrooli/resources/ollaya/cli/internal/commands"
 
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/vrooli/packages/capacity/activityedge"
 	"github.com/vrooli/vrooli/packages/capacity/companion"
 )
 
@@ -50,6 +51,10 @@ func newApp() (*cliapp.ResourceApp, error) {
 		return nil, err
 	}
 	handlers := commands.Default()
+	edge, err := activityedge.ForResource(appName)
+	if err != nil {
+		return nil, err
+	}
 	app.SetCommandsWithSubgroups(
 		append(app.StandardLifecycleCommands(), cliapp.CommandGroup{
 			Title: "Capacity",
@@ -58,7 +63,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 				Description: "Keep the Ollaya VRAM capacity claim alive",
 				Usage:       "resource-ollaya capacity-sync [--interval 15s] [--once]",
 				Run:         capacitysync.Command(nil),
-			}},
+			}, activityedge.Command(edge)},
 		}),
 		[]cliapp.SubcommandGroup{
 			commands.GatewayCommands(handlers),

@@ -75,17 +75,54 @@ type Sample struct {
 	SevenDay   *Window   `json:"seven_day,omitempty"`
 }
 
-// DefaultSamplesPath is ~/.vrooli/state/vrooli/claude-code/quota-samples.ndjson
-// unless SamplesEnv overrides it.
+// DefaultSamplesPath is the sample file for this process's environment and
+// home directory; see SamplesPath.
 func DefaultSamplesPath() (string, error) {
-	if override := strings.TrimSpace(os.Getenv(SamplesEnv)); override != "" {
+	return SamplesPath(os.Getenv, os.UserHomeDir)
+}
+
+// SamplesPath resolves the sample file Agent Manager reads: SamplesEnv when
+// set, else quota-samples.ndjson in the claude-code owner's state directory,
+// <state root>/vrooli/claude-code.
+//
+// The state root follows the api-core/storage class-root rule, which Agent
+// Manager's reader resolves through: VROOLI_STORAGE_ROOT/state, else
+// VROOLI_STATE_ROOT, else the runtime-home state entry ~/.vrooli/state. The
+// rule is restated here rather than imported because Claude Code runs this
+// command from any working directory with a copied binary, where the repo
+// contract the storage resolver loads for its default is not discoverable;
+// the agreement test beside this file compares the two resolvers.
+func SamplesPath(getenv func(string) string, userHomeDir func() (string, error)) (string, error) {
+	if override := strings.TrimSpace(getenv(SamplesEnv)); override != "" {
 		return override, nil
 	}
-	home, err := os.UserHomeDir()
+	stateRoot, err := storageStateRoot(getenv, userHomeDir)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".vrooli", "state", "vrooli", "claude-code", "quota-samples.ndjson"), nil
+	return filepath.Join(stateRoot, "vrooli", "claude-code", "quota-samples.ndjson"), nil
+}
+
+// storageStateRoot is the api-core/storage state class root for the
+// user profile.
+func storageStateRoot(getenv func(string) string, userHomeDir func() (string, error)) (string, error) {
+	if root := strings.TrimSpace(getenv("VROOLI_STORAGE_ROOT")); root != "" {
+		if !filepath.IsAbs(root) {
+			return "", fmt.Errorf("VROOLI_STORAGE_ROOT must be absolute: %q", root)
+		}
+		return filepath.Join(root, "state"), nil
+	}
+	if root := strings.TrimSpace(getenv("VROOLI_STATE_ROOT")); root != "" {
+		if !filepath.IsAbs(root) {
+			return "", fmt.Errorf("VROOLI_STATE_ROOT must be absolute: %q", root)
+		}
+		return root, nil
+	}
+	home, err := userHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(home, ".vrooli", "state"), nil
 }
 
 // Feed runs one statusline invocation: record a sample when the reading

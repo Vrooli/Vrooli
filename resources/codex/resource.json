@@ -22,11 +22,14 @@
         "kind": "dir",
         "class": "config",
         "regenerable": true,
+        "relocation": {
+          "key": "CODEX_HOME",
+          "scope": "process-tree"
+        },
         "projection": {
-          "environment": "CODEX_HOME",
           "project_scope": true
         },
-        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection. CODEX_HOME moves the whole Codex home, so skills follow it to $CODEX_HOME/skills."
       }
     }
   },
@@ -142,6 +145,7 @@
         "cli/**",
         "cli/internal/**",
         "model-policy.json",
+        "native-settings.json",
         "docs/**",
         "README.md",
         "resource.json",
@@ -181,10 +185,10 @@
   "acquisition": {
     "kind": "npm",
     "targets": [
-      {"when": {"os": "linux", "arch": "amd64"}, "package": "@openai/codex", "version": "0.161.0", "sha256": "4e472c1098f1162e1b46d4935e5f2264f7076182949b95bb47d839b35108c5f0"},
-      {"when": {"os": "linux", "arch": "arm64"}, "package": "@openai/codex", "version": "0.161.0", "sha256": "4e472c1098f1162e1b46d4935e5f2264f7076182949b95bb47d839b35108c5f0"},
-      {"when": {"os": "darwin", "arch": "amd64"}, "package": "@openai/codex", "version": "0.161.0", "sha256": "4e472c1098f1162e1b46d4935e5f2264f7076182949b95bb47d839b35108c5f0"},
-      {"when": {"os": "darwin", "arch": "arm64"}, "package": "@openai/codex", "version": "0.161.0", "sha256": "4e472c1098f1162e1b46d4935e5f2264f7076182949b95bb47d839b35108c5f0"}
+      {"when": {"os": "linux", "arch": "amd64"}, "package": "@openai/codex", "version": "0.166.0", "sha256": "67ee6f4069d9328956401f54ac202c20369233159058af9f4ec1af731b87f5b7"},
+      {"when": {"os": "linux", "arch": "arm64"}, "package": "@openai/codex", "version": "0.166.0", "sha256": "67ee6f4069d9328956401f54ac202c20369233159058af9f4ec1af731b87f5b7"},
+      {"when": {"os": "darwin", "arch": "amd64"}, "package": "@openai/codex", "version": "0.166.0", "sha256": "67ee6f4069d9328956401f54ac202c20369233159058af9f4ec1af731b87f5b7"},
+      {"when": {"os": "darwin", "arch": "arm64"}, "package": "@openai/codex", "version": "0.166.0", "sha256": "67ee6f4069d9328956401f54ac202c20369233159058af9f4ec1af731b87f5b7"}
     ]
   },
   "provider_policy": {
@@ -401,7 +405,7 @@
       "codex",
       "--version"
     ],
-    "upstream_release_source": "https://registry.npmjs.org/@openai/codex/latest",
+    "version_pinned": "0.166.0",
     "docs_source": "https://developers.openai.com/codex/permissions",
     "docs_pinned_at": "2026-05-28",
     "schema_version": 1

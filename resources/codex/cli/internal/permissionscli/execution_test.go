@@ -62,12 +62,12 @@ func TestExecutionPlanReconcileDigestActivationAndVersion(t *testing.T) {
 	if plan.Drift {
 		t.Fatalf("reconcile not idempotent: %s", out.String())
 	}
-	if err := h.DriftCheck(nil); err != nil {
+	if err := h.shared().DriftCheck(nil); err != nil {
 		t.Fatal(err)
 	}
 	raw = []byte(strings.Replace(string(raw), "network_proxy = true", "network_proxy = false", 1))
 	os.WriteFile(a.SettingsPath, raw, 0o600)
-	if err := h.DriftCheck(nil); err == nil {
+	if err := h.shared().DriftCheck(nil); err == nil {
 		t.Fatal("native drift not detected")
 	}
 	if err := h.Reconcile(append(args, "--expected-digest", plan.PreviewDigest)); err == nil {

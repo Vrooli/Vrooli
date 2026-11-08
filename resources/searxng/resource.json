@@ -27,7 +27,7 @@
         "regenerable": true,
         "relocation": {
           "key": "RESOURCE_DATA_DIR",
-            "scope": "resource"
+            "scope": "container"
         },
         "rationale": "SearXNG runtime cache is disposable and remains outside the pinned artifact.",
         "budget": {

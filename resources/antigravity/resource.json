@@ -33,16 +33,15 @@
         }
       },
       "skills": {
-        "rung": "relocatable",
-        "path": "$USER_HOME/.gemini/skills",
+        "rung": "pinned",
+        "path": "$USER_HOME/.gemini/config/skills",
         "kind": "dir",
         "class": "config",
         "regenerable": true,
         "projection": {
-          "environment": "ANTIGRAVITY_STATE_DIR",
           "project_scope": false
         },
-        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+        "rationale": "Native global skill discovery directory of the agy binary (~/.gemini/config/skills; workspace skills live in <workspace>/.agents/skills). agy reads no environment variable that moves it, so only HOME relocates it; ANTIGRAVITY_STATE_DIR is not read by agy."
       }
     }
   },

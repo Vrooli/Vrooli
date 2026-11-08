@@ -27,8 +27,9 @@ func TestNewAppConfiguresResourceApp(t *testing.T) {
 	}
 	// cli-core supplies the resource source inputs plus its own local package
 	// path, which must participate in stale detection because it owns the
-	// lifecycle command implementation.
-	wantFreshnessInputs := []string{"cli/**", "resource.json", "../../packages/cli-core"}
+	// lifecycle command implementation, and the proto artifact stamp, which
+	// stands for the generated proto tree.
+	wantFreshnessInputs := []string{"cli/**", "resource.json", "../../packages/cli-core", "../../packages/proto/gen/.vrooli-proto-artifact.json"}
 	if !reflect.DeepEqual(app.StaleChecker.FreshnessInputs, wantFreshnessInputs) {
 		t.Fatalf("FreshnessInputs = %q, want %q", app.StaleChecker.FreshnessInputs, wantFreshnessInputs)
 	}

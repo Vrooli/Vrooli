@@ -94,7 +94,9 @@ The dedicated executable profile follows the scoped approach in
 [OpenAI's sandbox guidance](https://learn.chatgpt.com/docs/sandboxing).
 Do not switch to unrestricted execution to hide a sandbox startup failure.
 
-Manage Codex Bash rules and native execution intent through `permissions`. User configuration honors `CODEX_HOME`, defaulting to `~/.codex`. V1 documents manage only `[vrooli.permissions]` and preserve native settings. V2 execution documents additionally manage the reserved `[permissions.vrooli]` profile; activation explicitly selects it and updates approval settings. Admin scope resolves system `requirements.toml` (`/etc/codex/requirements.toml` on Unix, `%ProgramData%/OpenAI/Codex/requirements.toml` on Windows). Vrooli Bash metadata there is not native administrative enforcement; v2 execution projection rejects admin scope. Existing user-local `requirements.toml` is never silently migrated.
+Manage Codex Bash rules and native execution intent through `permissions`. User configuration honors `CODEX_HOME`, defaulting to `~/.codex`; when `config.toml` there is a symlink (a Web Console session home), the adapter manages the shared target and keeps its sidecars beside it. Codex has no setting for Vrooli's command-pattern rules or for the portable execution document, so that intent lives in `$CODEX_HOME/.vrooli-permissions-intent.json`, and `config.toml` only ever receives keys Codex reads. V1 documents and the rule verbs change only the intent sidecar and the hook projection; they never touch `config.toml`. V2 execution documents additionally manage the reserved `[permissions.vrooli]` profile; activation explicitly selects it and updates approval settings. Admin scope keeps its intent in `.vrooli-permissions-intent.admin.json` beside the system `requirements.toml` (`/etc/codex/requirements.toml` on Unix, `%ProgramData%/OpenAI/Codex/requirements.toml` on Windows) and never writes Bash rules into that file; they are not native administrative enforcement, and v2 execution projection rejects admin scope. Existing user-local `requirements.toml` is never silently migrated.
+
+Earlier versions kept this intent in a `[vrooli]` table inside `config.toml`, which Codex 0.166 and later report on every launch ("`vrooli` is ignored"). `resource-codex ensure`, which `vrooli setup` runs, moves the table into the sidecar and removes it without reformatting the rest of the file; the next permissions write does the same. `permissions doctor` reports a table that has not moved yet.
 
 ```bash
 # Block git stash at user scope (motivating example)
@@ -113,7 +115,7 @@ resource-codex permissions doctor
 
 Mutating verbs (`deny`, `allow`, `ask`, `remove`, `reset`) refuse agent callers (detected via `cliutil.DetectCallerKind`) unless `--i-was-explicitly-authorized` is passed. Read verbs are always allowed.
 
-**Enforcement caveat.** Codex's effective native permission profile (or legacy sandbox) and approval settings remain authoritative; the `[vrooli.permissions]` section is a uniform policy projection rather than a native pattern matcher. Vrooli also projects `~/.codex/hooks.json` with a `PreToolUse` command hook when deny rules exist. The CLI reports this as `hook_unverified` until a live canary proves the installed Codex version fires and honors the hook; do not treat hook-file presence as sandbox enforcement.
+**Enforcement caveat.** Codex's effective native permission profile (or legacy sandbox) and approval settings remain authoritative; the recorded Bash rules are a uniform policy record rather than a native pattern matcher. Vrooli also projects `~/.codex/hooks.json` with a `PreToolUse` command hook when deny rules exist. The CLI reports this as `hook_unverified` until a live canary proves the installed Codex version fires and honors the hook; do not treat hook-file presence as sandbox enforcement.
 
 For declarative automation, use `permissions plan --scope user|admin --document desired.json --json` and `permissions reconcile --scope user|admin --document desired.json --json`. The strict v1 document contains `schema_version`, matching `scope`, and ID-addressed `allow`/`ask`/`deny` rules with `matcher: {"kind":"bash","pattern":"..."}`. Plan never writes; reconcile is authorization-gated, preserves unmanaged TOML, and reports desired/live fingerprints, native paths, changes, and the `hook_unverified` enforcement posture.
 
@@ -176,10 +178,11 @@ are rejected, not removed. Previously activated intent requires `--activate`
 for subsequent execution reconciliation. Rule-only operations and reset retain
 native execution intent. TOML values round-trip; formatting/comments may change.
 
-Writers preserve POSIX modes and Windows access ACLs, create private new files, reject file symlinks,
-and retain private pre-write config backups. Successful reconciliation returns
-`recovery_backup` when a backup was needed. Hook-write failure attempts config
-rollback and reports any partial hook migration. State publishes only after
+Writers preserve POSIX modes and Windows access ACLs, create private new files, reject file symlinks
+other than the session-home link above, and keep private pre-write config backups:
+`config.toml.vrooli-permissions.orig` (before the first rewrite) and `.bak` (latest pre-image).
+Successful reconciliation returns `recovery_backup` when a backup was needed. Hook-write failure
+attempts config and intent rollback and reports any partial hook migration. State publishes only after
 native readback succeeds. On failure, inspect the named backup and current config,
 then create a fresh preview; do not blindly restore over concurrent edits.
 Backups may contain private configuration and remain until the operator removes
@@ -213,6 +216,34 @@ the desktop client to verified.
 Upstream docs: <https://learn.chatgpt.com/docs/permissions> and
 <https://learn.chatgpt.com/docs/enterprise/managed-configuration>.
 
+
+## Native settings and `ensure`
+
+`native-settings.json` declares the Codex configuration keys that Vrooli's long-effort
+operating model depends on (multi-agent thread slots, the sub-agent hint and sub-agent
+instructions). The reasons and the probe evidence are in
+[`docs/agent-system/LONG_EFFORT_DESIGN.md`](../../docs/agent-system/LONG_EFFORT_DESIGN.md) §4.
+`vrooli setup` runs `resource-codex ensure`, so every installation gets them; nobody hand-edits
+`config.toml`.
+
+```bash
+resource-codex settings plan            # what apply would change (read-only)
+resource-codex settings apply           # add absent keys, update keys Vrooli wrote
+resource-codex settings apply --force   # also replace values the user chose
+resource-codex settings decline <id>    # stop managing one key on this machine
+resource-codex ensure --json            # what setup runs
+```
+
+Ownership is per key. The values Vrooli wrote are recorded in
+`$CODEX_HOME/.vrooli-native-settings-state.json`. A value the user changed is reported as a
+conflict and never overwritten silently. A key removed from the document is removed from the
+config only if it still holds Vrooli's value.
+
+Values survive a rewrite, but comments and key order do not. That is the same TOML round trip
+`permissions` writes use, and `ensure` rewrites the file only when a key changes.
+`config.toml.vrooli-native-settings.orig` keeps the config as it was before Vrooli first
+rewrote it, and `.bak` keeps the latest pre-image. When `CODEX_HOME` is a Web Console session home, its
+`config.toml` is a symlink and the shared target is updated.
 
 ## Model catalog operations
 

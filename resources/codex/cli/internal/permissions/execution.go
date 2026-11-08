@@ -6,10 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
-
-	"github.com/pelletier/go-toml/v2"
 
 	"github.com/vrooli/agentharness"
 )
@@ -47,8 +43,11 @@ func legacyConflict(doc map[string]any) bool {
 	return false
 }
 
-func projectExecution(doc map[string]any, e *agentharness.ExecutionPermissions, active bool) error {
-	for _, key := range []string{vrooliSectionKey, "permissions", "features"} {
+// projectExecution writes the native profile, and on activation its selection
+// and approval keys, into doc. owned reports whether recorded intent already
+// owns the reserved profile, so a hand-written one is never replaced.
+func projectExecution(doc map[string]any, e *agentharness.ExecutionPermissions, active, owned bool) error {
+	for _, key := range []string{"permissions", "features"} {
 		if value, exists := doc[key]; exists {
 			if _, ok := value.(map[string]any); !ok {
 				return fmt.Errorf("native %s must be a table; refusing to replace an incompatible value", key)
@@ -59,22 +58,15 @@ func projectExecution(doc map[string]any, e *agentharness.ExecutionPermissions, 
 	if active && legacyConflict(doc) {
 		return errors.New("legacy sandbox settings conflict with permission profiles; migrate explicitly before activation")
 	}
-	section, _ := doc[vrooliSectionKey].(map[string]any)
-	if section == nil {
-		section = map[string]any{}
-		doc[vrooliSectionKey] = section
-	}
 	profiles, _ := doc["permissions"].(map[string]any)
 	if profiles == nil {
 		profiles = map[string]any{}
 		doc["permissions"] = profiles
 	}
-	if _, exists := profiles[ExecutionProfile]; exists && section["execution"] == nil {
+	if _, exists := profiles[ExecutionProfile]; exists && !owned {
 		return errors.New("permissions.vrooli already exists without Vrooli ownership; choose an explicit migration")
 	}
 	profiles[ExecutionProfile] = nativeProfile(e, active)
-	section["execution"] = e
-	section["execution_active"] = active
 	if active {
 		doc["default_permissions"] = ExecutionProfile
 		doc["approval_policy"] = e.Approval.Policy
@@ -110,7 +102,7 @@ func DesiredExecutionFingerprint(e *agentharness.ExecutionPermissions, active bo
 		return ""
 	}
 	doc := map[string]any{}
-	_ = projectExecution(doc, e, active)
+	_ = projectExecution(doc, e, active, true)
 	return executionFingerprint(doc, active)
 }
 
@@ -194,49 +186,16 @@ func (a *Adapter) CheckExecutionProjection(p Policy) error {
 	if a.Scope == ScopeAdmin {
 		return errors.New("execution permissions currently support user scope only; admin requirements need a separately qualified projector")
 	}
-	snapshot, err := agentharness.ReadPermissionFile(a.SettingsPath)
+	s, err := a.readSnapshots()
 	if err != nil {
 		return err
 	}
-	doc := map[string]any{}
-	if len(snapshot.Data) > 0 {
-		if err = unmarshalConfig(snapshot.Data, &doc); err != nil {
-			return err
-		}
-	}
 	// Staging must not silently deactivate a previously active profile.
-	section, _ := doc[vrooliSectionKey].(map[string]any)
-	wasActive, _ := section["execution_active"].(bool)
-	if wasActive && !p.ExecutionActive {
+	if s.recorded.ExecutionActive && !p.ExecutionActive {
 		return errors.New("profile was activated previously; use --activate to reconcile active settings")
 	}
-	return projectExecution(doc, p.Execution, p.ExecutionActive)
+	return projectExecution(s.doc, p.Execution, p.ExecutionActive, s.recorded.Execution != nil)
 }
-
-func retainBackup(snapshot agentharness.PermissionFileSnapshot) (string, error) {
-	if !snapshot.Exists {
-		return "", nil
-	}
-	file, err := agentharness.CreatePermissionTemp(filepath.Dir(snapshot.Path), ".vrooli-permissions-backup-")
-	if err != nil {
-		return "", err
-	}
-	path := file.Name()
-
-	if _, err = file.Write(snapshot.Data); err == nil {
-		err = file.Sync()
-	}
-	closeErr := file.Close()
-	if err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		_ = os.Remove(path)
-		return "", err
-	}
-	return path, nil
-}
-func unmarshalConfig(data []byte, doc *map[string]any) error { return toml.Unmarshal(data, doc) }
 
 // Reconcile keeps configuration publication, native readback and state publication
 // under the same resource lock. Hook writes use the broker's own document lock.
@@ -256,7 +215,7 @@ func (a *Adapter) Reconcile(p Policy, version string, stateDrift bool) error {
 		if p.StateSnapshotDigest != agentharness.PermissionFilesDigest(state) {
 			return errors.New("state file changed since preview; plan again")
 		}
-		changed := Fingerprint(live) != Fingerprint(p)
+		changed := Fingerprint(live) != Fingerprint(p) || live.LegacyTable
 		if changed {
 			if err = a.saveLocked(p); err != nil {
 				return err

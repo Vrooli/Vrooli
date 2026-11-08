@@ -30,11 +30,14 @@
         "kind": "dir",
         "class": "config",
         "regenerable": true,
+        "relocation": {
+          "key": "XDG_CONFIG_HOME",
+          "scope": "process-tree"
+        },
         "projection": {
-          "environment": "OPENCODE_CONFIG_DIR",
           "project_scope": false
         },
-        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection. The global root is $XDG_CONFIG_HOME/opencode, so XDG_CONFIG_HOME relocates it. OPENCODE_CONFIG_DIR does not move this directory: OpenCode scans it as an additional config root alongside this one."
       }
     }
   },
@@ -462,7 +465,6 @@
       "--version"
     ],
     "version_pinned": "1.18.30",
-    "upstream_release_source": "https://api.github.com/repos/sst/opencode/releases/latest",
     "docs_source": "https://opencode.ai/docs/permissions/",
     "docs_pinned_at": "2026-06-22",
     "schema_version": 1

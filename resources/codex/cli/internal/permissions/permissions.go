@@ -1,12 +1,15 @@
-// Package permissions manages the Codex agent's permission config at
-// $CODEX_HOME/config.toml (user scope) or the system requirements.toml
-// (admin scope). Native execution projection supports user scope only.
+// Package permissions manages Vrooli's Codex permission intent and its native
+// projections for $CODEX_HOME (user scope) or the system requirements.toml
+// directory (admin scope). Native execution projection supports user scope
+// only.
 //
-// Scope is narrow on purpose: the adapter owns only a Vrooli-namespaced
-// section, `[vrooli.permissions]`, containing three string arrays —
-// `bash_deny`, `bash_ask`, `bash_allow`. Every other top-level key and
-// section round-trips untouched for v1 rule-only operations. V2 execution
-// documents additionally own the reserved native profile; activation is explicit.
+// Codex has no native seam for command-pattern rules or for the portable
+// execution document, so that intent lives in a Vrooli-owned sidecar beside
+// the config (.vrooli-permissions-intent.json, see Intent). config.toml only
+// ever receives keys Codex reads: v2 execution documents own the reserved
+// `[permissions.vrooli]` profile, and activation selects it and sets the
+// approval keys; every other key and table round-trips untouched. Rule-only
+// operations do not touch config.toml at all.
 //
 // Codex versions at and beyond the pinned resource version expose a
 // hooks.json PreToolUse command surface. The native sandbox/approval controls
@@ -15,6 +18,7 @@
 package permissions
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -22,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
@@ -40,11 +45,8 @@ const (
 	ScopeAdmin = "admin"
 )
 
-// vrooliSectionKey is the top-level TOML table the adapter owns.
-const vrooliSectionKey = "vrooli"
-
-// Policy is the canonical in-memory shape of the bash-pattern subset of
-// the Codex permission config the adapter manages.
+// Policy is the in-memory view of the intent plus fingerprints of its native
+// projections.
 type Policy struct {
 	BashDeny            []string
 	BashAsk             []string
@@ -55,6 +57,9 @@ type Policy struct {
 	HookFingerprint     string
 	SnapshotDigest      string
 	StateSnapshotDigest string
+	// LegacyTable reports a retired `[vrooli]` table still in config.toml;
+	// the next write or `resource-codex ensure` moves it out.
+	LegacyTable bool
 }
 
 // Adapter binds the on-disk config path. SettingsPath is selected by
@@ -66,8 +71,10 @@ type Adapter struct {
 	LastBackup   string
 }
 
-// DefaultAdapter honors CODEX_HOME (default $HOME/.codex) with the
-// given scope (defaults to ScopeUser).
+// DefaultAdapter honors CODEX_HOME (default $HOME/.codex) with the given
+// scope (defaults to ScopeUser). A Web Console session home links its
+// config.toml to the shared config; the adapter follows the link so the
+// intent, state and hooks live beside the one shared file.
 func DefaultAdapter(scope Scope) (*Adapter, error) {
 	if scope == "" {
 		scope = ScopeUser
@@ -99,72 +106,78 @@ func DefaultAdapter(scope Scope) (*Adapter, error) {
 	if scope != ScopeUser {
 		return nil, fmt.Errorf("unsupported scope %q", scope)
 	}
-	return &Adapter{SettingsPath: filepath.Join(configHome, "config.toml"), HookPath: filepath.Join(configHome, "hooks.json"), Scope: scope}, nil
+	settings, err := agentharness.ResolveNativeFilePath(filepath.Join(configHome, "config.toml"))
+	if err != nil {
+		return nil, err
+	}
+	return &Adapter{SettingsPath: settings, HookPath: filepath.Join(filepath.Dir(settings), "hooks.json"), Scope: scope}, nil
 }
 
-// Load reads and parses the config file. A missing file is not an
-// error — it resolves to an empty Policy so callers can use Save to
-// create a new file.
+// snapshots are the exact native and sidecar bytes one operation works from.
+type snapshots struct {
+	config, hooks, intent agentharness.PermissionFileSnapshot
+	doc                   map[string]any
+	recorded              Intent
+	legacy                bool
+}
+
+func (a *Adapter) readSnapshots() (snapshots, error) {
+	var s snapshots
+	var err error
+	if s.config, err = agentharness.ReadPermissionFile(a.SettingsPath); err != nil {
+		return s, err
+	}
+	if s.hooks, err = a.hookSnapshot(); err != nil {
+		return s, err
+	}
+	if s.intent, err = agentharness.ReadPermissionFile(a.IntentPath()); err != nil {
+		return s, err
+	}
+	s.doc = map[string]any{}
+	if len(s.config.Data) > 0 {
+		if err = toml.Unmarshal(s.config.Data, &s.doc); err != nil {
+			return s, fmt.Errorf("parse %s: %w", a.SettingsPath, err)
+		}
+	}
+	legacy, hasLegacy, err := legacyIntent(s.doc)
+	if err != nil {
+		return s, err
+	}
+	s.legacy = hasLegacy
+	if s.recorded, err = decodeIntent(s.intent); err != nil {
+		return s, err
+	}
+	if !s.intent.Exists && hasLegacy {
+		s.recorded = legacy
+	}
+	delete(s.doc, legacyTableKey)
+	return s, nil
+}
+
+func (s snapshots) digest() string {
+	return agentharness.PermissionFilesDigest(s.config, s.hooks, s.intent)
+}
+
+// Load reads the intent and fingerprints its native projections. Missing
+// files are not errors: they resolve to an empty Policy.
 func (a *Adapter) Load() (Policy, error) {
-	snapshot, err := agentharness.ReadPermissionFile(a.SettingsPath)
+	s, err := a.readSnapshots()
 	if err != nil {
 		return Policy{}, err
 	}
-	doc := map[string]any{}
-	if len(snapshot.Data) > 0 {
-		if err := toml.Unmarshal(snapshot.Data, &doc); err != nil {
-			return Policy{}, fmt.Errorf("parse %s: %w", a.SettingsPath, err)
-		}
+	p := Policy{BashDeny: s.recorded.BashDeny, BashAsk: s.recorded.BashAsk, BashAllow: s.recorded.BashAllow, Execution: s.recorded.Execution, ExecutionActive: s.recorded.ExecutionActive, LegacyTable: s.legacy}
+	if p.Execution != nil {
+		p.NativeFingerprint = executionFingerprint(s.doc, p.ExecutionActive)
 	}
-	section, _ := doc[vrooliSectionKey].(map[string]any)
-	perms, _ := section["permissions"].(map[string]any)
-	p := Policy{BashDeny: decodeStringArray(perms, "bash_deny"), BashAsk: decodeStringArray(perms, "bash_ask"), BashAllow: decodeStringArray(perms, "bash_allow")}
-	if raw, ok := section["execution"]; ok {
-		encoded, err := json.Marshal(raw)
-		if err != nil {
-			return Policy{}, err
-		}
-		if err = json.Unmarshal(encoded, &p.Execution); err != nil {
-			return Policy{}, err
-		}
-		if err = agentharness.ValidateExecutionPermissions(p.Execution); err != nil {
-			return Policy{}, fmt.Errorf("invalid recorded execution intent: %w", err)
-		}
-		p.ExecutionActive, _ = section["execution_active"].(bool)
-		p.NativeFingerprint = executionFingerprint(doc, p.ExecutionActive)
-	}
-	hooks, err := a.hookSnapshot()
-	if err != nil {
+	if p.HookFingerprint, err = a.hookFingerprint(s.hooks.Data); err != nil {
 		return Policy{}, err
 	}
-	p.HookFingerprint, err = a.hookFingerprint(hooks.Data)
-	if err != nil {
-		return Policy{}, err
-	}
-	p.SnapshotDigest = agentharness.PermissionFilesDigest(snapshot, hooks)
+	p.SnapshotDigest = s.digest()
 	return p, nil
 }
 
-func decodeStringArray(m map[string]any, key string) []string {
-	raw, ok := m[key]
-	if !ok {
-		return nil
-	}
-	arr, ok := raw.([]any)
-	if !ok {
-		return nil
-	}
-	out := make([]string, 0, len(arr))
-	for _, v := range arr {
-		if s, ok := v.(string); ok {
-			out = append(out, s)
-		}
-	}
-	return out
-}
-
-// Save writes the policy to disk. It preserves every top-level key
-// other than the `vrooli` section.
+// Save records the policy and reconciles its native projections. A nil
+// Execution keeps the recorded execution intent.
 func (a *Adapter) Save(p Policy) error {
 	return agentharness.NewHookBroker().WithLock(a.SettingsPath, func() error { return a.saveLocked(p) })
 }
@@ -173,54 +186,20 @@ func (a *Adapter) saveLocked(p Policy) error {
 	if err := os.MkdirAll(filepath.Dir(a.SettingsPath), 0o755); err != nil {
 		return fmt.Errorf("mkdir %s: %w", filepath.Dir(a.SettingsPath), err)
 	}
-
-	before, err := agentharness.ReadPermissionFile(a.SettingsPath)
+	s, err := a.readSnapshots()
 	if err != nil {
 		return err
 	}
-	hooks, err := a.hookSnapshot()
-	if err != nil {
-		return err
-	}
-	if p.SnapshotDigest != "" && p.SnapshotDigest != agentharness.PermissionFilesDigest(before, hooks) {
+	if p.SnapshotDigest != "" && p.SnapshotDigest != s.digest() {
 		return errors.New("native files changed since preview; plan again")
 	}
-	doc := map[string]any{}
-	if len(before.Data) > 0 {
-		if err := toml.Unmarshal(before.Data, &doc); err != nil {
-			return err
+	next := Intent{SettingsPath: a.SettingsPath, BashDeny: p.BashDeny, BashAsk: p.BashAsk, BashAllow: p.BashAllow, Execution: s.recorded.Execution, ExecutionActive: s.recorded.ExecutionActive}
+	config := s.config.Data
+	if s.legacy {
+		if config, err = stripLegacyTable(config); err != nil {
+			return fmt.Errorf("%s: %w", a.SettingsPath, err)
 		}
 	}
-
-	// Rebuild [vrooli] preserving any unknown sub-keys (e.g. future
-	// Vrooli-managed fields besides permissions).
-	section, _ := doc[vrooliSectionKey].(map[string]any)
-	if section == nil {
-		section = map[string]any{}
-	}
-
-	perms := map[string]any{}
-	if len(p.BashDeny) > 0 {
-		perms["bash_deny"] = sortedCopy(p.BashDeny)
-	}
-	if len(p.BashAsk) > 0 {
-		perms["bash_ask"] = sortedCopy(p.BashAsk)
-	}
-	if len(p.BashAllow) > 0 {
-		perms["bash_allow"] = sortedCopy(p.BashAllow)
-	}
-	if len(perms) == 0 {
-		delete(section, "permissions")
-	} else {
-		section["permissions"] = perms
-	}
-
-	if len(section) == 0 {
-		delete(doc, vrooliSectionKey)
-	} else {
-		doc[vrooliSectionKey] = section
-	}
-
 	if p.Execution != nil {
 		if a.Scope == ScopeAdmin {
 			return errors.New("native execution projection supports user scope only")
@@ -228,47 +207,116 @@ func (a *Adapter) saveLocked(p Policy) error {
 		if err := agentharness.ValidateExecutionPermissions(p.Execution); err != nil {
 			return err
 		}
-		if err := projectExecution(doc, p.Execution, p.ExecutionActive); err != nil {
+		unchanged := map[string]any{}
+		if err := toml.Unmarshal(config, &unchanged); err != nil {
 			return err
 		}
+		if err := projectExecution(s.doc, p.Execution, p.ExecutionActive, s.recorded.Execution != nil); err != nil {
+			return err
+		}
+		// Re-encoding drops comments and key order, so rewrite only on change.
+		if !reflect.DeepEqual(s.doc, unchanged) {
+			if config, err = toml.Marshal(s.doc); err != nil {
+				return fmt.Errorf("encode %s: %w", a.SettingsPath, err)
+			}
+		}
+		next.Execution, next.ExecutionActive = p.Execution, p.ExecutionActive
 	}
-	out, err := toml.Marshal(doc)
+	intent, err := encodeIntent(next)
 	if err != nil {
-		return fmt.Errorf("encode %s: %w", a.SettingsPath, err)
+		return err
 	}
-	backup := ""
-	if before.Exists && string(before.Data) != string(out) {
-		backup, err = retainBackup(before)
-		if err != nil {
+	a.LastBackup = ""
+	configChanged := !bytes.Equal(config, s.config.Data)
+	if configChanged {
+		if a.LastBackup, err = agentharness.BackupNativeFile(s.config, "permissions"); err != nil {
+			return err
+		}
+		if err = agentharness.PublishPermissionFile(s.config, config); err != nil {
 			return err
 		}
 	}
-	a.LastBackup = backup
-	if err := agentharness.PublishPermissionFile(before, out); err != nil {
-		return err
+	rollbackConfig := func() error {
+		if !configChanged {
+			return nil
+		}
+		return restoreFile(s.config, config)
+	}
+	if err = agentharness.PublishPermissionFile(s.intent, intent); err != nil {
+		return fmt.Errorf("intent publication failed: %w; config rollback: %v; backup: %s", err, rollbackConfig(), a.LastBackup)
 	}
 	if a.HookPath != "" {
 		if err := a.savePreToolHook(p); err != nil {
-			current, readErr := agentharness.ReadPermissionFile(a.SettingsPath)
-			if readErr == nil && string(current.Data) == string(out) {
-				if before.Exists {
-					readErr = agentharness.PublishPermissionFile(current, before.Data)
-				} else {
-					readErr = os.Remove(a.SettingsPath)
-				}
-			} else if readErr == nil {
-				readErr = errors.New("config changed after publication; rollback refused")
-			}
-			return fmt.Errorf("hook reconciliation failed: %w; config rollback: %v; backup: %s; hook migration may have applied, inspect and re-plan", err, readErr, backup)
+			intentErr := restoreFile(s.intent, intent)
+			return fmt.Errorf("hook reconciliation failed: %w; config rollback: %v; intent rollback: %v; backup: %s; hook migration may have applied, inspect and re-plan", err, rollbackConfig(), intentErr, a.LastBackup)
 		}
 	}
-
 	return nil
+}
+
+// restoreFile puts back the pre-image of a file this operation wrote, unless
+// someone changed it since.
+func restoreFile(before agentharness.PermissionFileSnapshot, written []byte) error {
+	current, err := agentharness.ReadPermissionFile(before.Path)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(current.Data, written) {
+		return errors.New("file changed after publication; rollback refused")
+	}
+	if before.Exists {
+		return agentharness.PublishPermissionFile(current, before.Data)
+	}
+	return os.Remove(before.Path)
+}
+
+// MigrateLegacyTable moves a retired `[vrooli]` table out of config.toml into
+// the intent sidecar. An existing sidecar is authoritative, so the table is
+// then only removed. It changes nothing else: hooks and state are left for
+// the next reconcile. It reports what it did; empty means nothing to move.
+func (a *Adapter) MigrateLegacyTable() (string, error) {
+	var report string
+	err := agentharness.NewHookBroker().WithLock(a.SettingsPath, func() error {
+		s, err := a.readSnapshots()
+		if err != nil || !s.legacy {
+			return err
+		}
+		stripped, err := stripLegacyTable(s.config.Data)
+		if err != nil {
+			return fmt.Errorf("%s: %w", a.SettingsPath, err)
+		}
+		action := "removed the legacy [vrooli] table; " + a.IntentPath() + " already holds the intent"
+		if !s.intent.Exists {
+			recorded := s.recorded
+			recorded.SettingsPath = a.SettingsPath
+			intent, err := encodeIntent(recorded)
+			if err != nil {
+				return err
+			}
+			// Intent first: if the config write then fails, the sidecar already
+			// wins and a later run only removes the table.
+			if err = agentharness.PublishPermissionFile(s.intent, intent); err != nil {
+				return err
+			}
+			action = "moved the legacy [vrooli] table to " + a.IntentPath()
+		}
+		backup, err := agentharness.BackupNativeFile(s.config, "permissions")
+		if err != nil {
+			return err
+		}
+		if err = agentharness.PublishPermissionFile(s.config, stripped); err != nil {
+			return err
+		}
+		report = fmt.Sprintf("%s: %s (backup: %s)", a.SettingsPath, action, backup)
+		return nil
+	})
+	return report, err
 }
 
 // RenderHook returns the native Codex PreToolUse projection. The command is
 // configurable because the policy runner is host-owned; no shell-specific
-// wrapper is assumed.
+// wrapper is assumed. Ownership markers go on the hook entry only: Codex
+// rejects the whole hooks.json for an unknown top-level key.
 func (a *Adapter) RenderHook(p Policy) map[string]any {
 	if len(p.BashDeny) == 0 {
 		return nil
@@ -278,7 +326,6 @@ func (a *Adapter) RenderHook(p Policy) map[string]any {
 		command = "vrooli-policy-runner"
 	}
 	return map[string]any{
-		"managedBy": "vrooli",
 		"hooks": map[string]any{
 			"PreToolUse": []any{map[string]any{
 				"matcher": "shell_command|exec_command|apply_patch|mcp",

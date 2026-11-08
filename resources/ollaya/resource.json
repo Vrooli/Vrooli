@@ -168,7 +168,7 @@
       "serve"
     ],
     "environment": {
-      "OLLAYA_HOST": "127.0.0.1:${RESOURCE_PORT_HTTP}",
+      "OLLAYA_HOST": "127.0.0.1:${RESOURCE_PORT_UPSTREAM}",
       "OLLAYA_MODELS": "${RESOURCE_DATA_DIR}/models",
       "OLLAYA_KEEP_ALIVE": "30m",
       "OLLAYA_MAX_LOADED_MODELS": "2",
@@ -192,7 +192,6 @@
           "limitations": [
             "The pinned Ollaya 0.18.0 tree is exercised on Linux amd64 with an NVIDIA CUDA 13 driver (R580+) and on the CPU archive; hosts with R525-R575 drivers need the separate cuda12 pack, which is not pinned."
           ],
-          "evidence": [],
           "reason": "Desktop bundling remains unsupported until target smoke evidence is published."
         },
         "macos": {
@@ -205,7 +204,6 @@
           "limitations": [
             "A darwin-arm64 Ollaya archive has not been pinned or exercised."
           ],
-          "evidence": [],
           "reason": "Native macOS delivery remains pending a pinned artifact and target smoke evidence."
         },
         "windows": {
@@ -218,7 +216,6 @@
           "limitations": [
             "A Windows Ollaya archive has not been pinned or exercised."
           ],
-          "evidence": [],
           "reason": "Native Windows delivery remains pending a pinned artifact and target smoke evidence."
         }
       }
@@ -277,6 +274,13 @@
       "args": [
         "capacity-sync"
       ]
+    },
+    {
+      "name": "activity-edge",
+      "command": "resource-ollaya",
+      "args": ["activity-edge"],
+      "port": 11435,
+      "required": true
     }
   ],
   "credentials": {
@@ -379,6 +383,11 @@
       "name": "http",
       "container": 11435,
       "host": 11435
+    },
+    {
+      "name": "upstream",
+      "container": 11435,
+      "host": 21435
     }
   ],
   "orchestration": {

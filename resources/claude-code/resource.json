@@ -42,11 +42,14 @@
         "kind": "dir",
         "class": "config",
         "regenerable": true,
+        "relocation": {
+          "key": "CLAUDE_CONFIG_DIR",
+          "scope": "process-tree"
+        },
         "projection": {
-          "environment": "CLAUDE_CONFIG_DIR",
           "project_scope": true
         },
-        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection."
+        "rationale": "Native skill discovery directory declared for data-driven Vrooli projection. CLAUDE_CONFIG_DIR moves the whole config root, so skills follow it to $CLAUDE_CONFIG_DIR/skills."
       }
     }
   },
@@ -139,6 +142,7 @@
         "name": "UserPromptSubmit",
         "supported": true,
         "can_inject_context": true,
+        "injection_channel": "stdout_json",
         "verified_by": "canary",
         "verified_at": "2026-09-07T19:30:22.333Z",
         "reason": "Live interactive Claude Code canary round-tripped VROOLI-CANARY-7f3a91c2 through hookSpecificOutput.additionalContext."
@@ -426,7 +430,6 @@
       "--version"
     ],
     "version_pinned": "2.1.185",
-    "upstream_release_source": "https://registry.npmjs.org/@anthropic-ai/claude-code/latest",
     "docs_source": "https://code.claude.com/docs/en/permissions",
     "docs_pinned_at": "2026-05-28",
     "schema_version": 1

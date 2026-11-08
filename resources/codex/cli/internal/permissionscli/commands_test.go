@@ -3,6 +3,7 @@ package permissionscli
 import (
 	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -143,7 +144,7 @@ func TestDriftCheckClean(t *testing.T) {
 	if err := h.shared().Deny([]string{"x"}); err != nil {
 		t.Fatalf("seed deny: %v", err)
 	}
-	if err := h.DriftCheck(nil); err != nil {
+	if err := h.shared().DriftCheck(nil); err != nil {
 		t.Fatalf("drift-check clean: %v", err)
 	}
 	if !strings.Contains(stdout.String(), "clean") {
@@ -162,7 +163,7 @@ func TestDriftCheckDetectsHandEdit(t *testing.T) {
 	if err := a.Save(p); err != nil {
 		t.Fatalf("hand edit save: %v", err)
 	}
-	if err := h.DriftCheck(nil); err == nil {
+	if err := h.shared().DriftCheck(nil); err == nil {
 		t.Fatal("expected drift error")
 	}
 }
@@ -245,5 +246,64 @@ func TestPatternMovesBetweenLists(t *testing.T) {
 	}
 	if len(p.BashAsk) != 1 || p.BashAsk[0] != "git stash *" {
 		t.Errorf("pattern should be in ask: %+v", p.BashAsk)
+	}
+}
+
+func TestEnsureStepMovesTheLegacyTableOutOfTheSharedConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("CODEX_HOME", home)
+	config := filepath.Join(home, "config.toml")
+	if err := os.WriteFile(config, []byte("model = 'm'\n\n[vrooli.permissions]\nbash_deny = ['rm -rf /']\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	h, stdout, _ := newTestHandlers(t, cliutil.CallerKindHuman)
+	h.AdapterFor = permissions.DefaultAdapter
+	if err := h.shared().Doctor(nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), "retired [vrooli] table") {
+		t.Fatalf("doctor does not report the pending move: %s", stdout.String())
+	}
+	var out bytes.Buffer
+	step := IntentMigrationStep()
+	if err := step.Run(&out, &out); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "moved the legacy [vrooli] table") {
+		t.Fatalf("ensure output: %s", out.String())
+	}
+	if got, _ := os.ReadFile(config); string(got) != "model = 'm'\n" {
+		t.Fatalf("config after ensure: %q", got)
+	}
+	out.Reset()
+	if err := step.Run(&out, &out); err != nil || out.Len() != 0 {
+		t.Fatalf("second ensure = %q, %v; want silent no-op", out.String(), err)
+	}
+	stdout.Reset()
+	if err := h.shared().List(nil); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), "rm -rf /") || !strings.Contains(stdout.String(), "intent: "+filepath.Join(home, ".vrooli-permissions-intent.json")) {
+		t.Fatalf("list after ensure: %s", stdout.String())
+	}
+}
+
+func TestDriftCheckReportsAMissingHookEvenWithoutState(t *testing.T) {
+	h, _, stderr := newTestHandlers(t, cliutil.CallerKindHuman)
+	inner := h.AdapterFor
+	h.AdapterFor = func(scope permissions.Scope) (*permissions.Adapter, error) {
+		a, err := inner(scope)
+		if err == nil {
+			a.HookPath = filepath.Join(filepath.Dir(a.SettingsPath), "hooks.json")
+		}
+		return a, err
+	}
+	a, _ := h.AdapterFor(permissions.ScopeUser)
+	// Intent recorded by an earlier version that never projected the hook.
+	if err := os.WriteFile(a.IntentPath(), []byte(`{"schemaVersion":1,"settingsPath":"x","bashDeny":["rm -rf /"]}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.shared().DriftCheck(nil); err == nil || !strings.Contains(stderr.String(), "PreToolUse hook") {
+		t.Fatalf("missing hook not reported: %v %s", err, stderr.String())
 	}
 }

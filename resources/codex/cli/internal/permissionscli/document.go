@@ -115,7 +115,7 @@ func (h *Handlers) planDocument(path, scope string, activate bool, executable st
 		desired.NativeFingerprint = permissions.DesiredExecutionFingerprint(d.Execution, activate)
 	}
 	desired.HookFingerprint = a.DesiredHookFingerprint(desired)
-	paths := []string{a.SettingsPath, a.StatePath()}
+	paths := []string{a.SettingsPath, a.IntentPath(), a.StatePath()}
 	if a.HookPath != "" {
 		paths = append(paths, a.HookPath)
 	}
