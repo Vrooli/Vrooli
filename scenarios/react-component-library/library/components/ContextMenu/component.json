@@ -9,8 +9,10 @@
     "1.0.3",
     "1.1.0",
     "1.1.1",
-    "1.2.9"
+    "1.2.9",
+    "1.3.0"
   ],
+  "description": "The pointer- or keyboard-invoked menu positioned around an interaction point, with viewport collision handling, nested actions, and awareness of the current selection.",
   "designStyles": [
     {
       "affinity": "native",
@@ -18,29 +20,12 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "ContextMenu",
   "draft": "",
   "evictedVersions": [
-    "1.1.0",
-    "1.0.3",
-    "1.0.2",
-    "1.0.1",
-    "1.0.0",
-    "0.1.0",
-    "1.2.1",
-    "1.2.0",
-    "1.1.2",
-    "1.1.1",
-    "1.2.5",
-    "1.2.4",
-    "1.2.3",
-    "1.2.2",
-    "1.2.8",
-    "1.2.7",
-    "1.2.6",
-    "1.2.9",
-    "1.2.10",
-    "1.3.1"
+    "1.2.10"
   ],
   "latest": "1.3.2",
-  "libraryId": "react-component-library:ContextMenu"
+  "libraryId": "react-component-library:ContextMenu",
+  "tags": []
 }

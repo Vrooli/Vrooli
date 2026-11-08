@@ -14,8 +14,6 @@ import (
 	"strings"
 
 	"react-component-library/internal/librarywalk"
-
-	"react-component-library/internal/themes"
 )
 
 func containsString(values []string, value string) bool {
@@ -168,61 +166,6 @@ func compatibilityGateResult(census Census, affinityOnly bool) Result {
 			Remediation: "Publish the missing semantic vocabulary through the shared base or a deliberate kit override; do not broaden affinity metadata.",
 			DocsRef:     "docs/design/TOKEN-DICTIONARY.md",
 		})
-	}
-	return result
-}
-
-func tokenValue(tokens []themes.DesignToken, property string) string {
-	for _, token := range tokens {
-		if token.Name == property {
-			return token.Value
-		}
-	}
-	return ""
-}
-
-func normalizeTokenValue(value string) string {
-	return strings.Join(strings.Fields(strings.TrimSpace(value)), " ")
-}
-
-func parseTokenFallbacks(source string) []tokenFallback {
-	var result []tokenFallback
-	for offset := 0; offset < len(source); {
-		relative := strings.Index(source[offset:], "var(")
-		if relative < 0 {
-			break
-		}
-		start := offset + relative
-		depth, comma, end := 0, -1, -1
-		for i := start + len("var("); i < len(source); i++ {
-			switch source[i] {
-			case '(':
-				depth++
-			case ')':
-				if depth == 0 {
-					end = i
-				} else {
-					depth--
-				}
-			case ',':
-				if depth == 0 && comma < 0 {
-					comma = i
-				}
-			}
-			if end >= 0 {
-				break
-			}
-		}
-		if end < 0 {
-			break
-		}
-		if comma > 0 {
-			property := strings.TrimSpace(source[start+len("var(") : comma])
-			if strings.HasPrefix(property, "--") && !strings.Contains(property, "${") {
-				result = append(result, tokenFallback{Property: property, Value: strings.TrimSpace(source[comma+1 : end]), Offset: start})
-			}
-		}
-		offset = end + 1
 	}
 	return result
 }

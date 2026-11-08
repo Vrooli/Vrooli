@@ -877,20 +877,6 @@ func catalogComponentSlot(slot string) string {
 	}
 }
 
-type versionDependencyLock struct {
-	SchemaVersion int    `json:"schemaVersion"`
-	LibraryID     string `json:"libraryId"`
-	Version       string `json:"version"`
-	ResolvedAt    string `json:"resolvedAt"`
-	Dependencies  []struct {
-		LibraryID string `json:"libraryId"`
-		Version   string `json:"version"`
-		Major     int    `json:"major"`
-		Observed  string `json:"observed"`
-		Rank      int    `json:"rank"`
-	} `json:"dependencies"`
-}
-
 func (idx *Indexer) readVersionDependencyLock(versionPath, libraryID, version string) ([]AssetDependency, *ComponentVersionFile, error) {
 	lockPath := filepath.ToSlash(filepath.Join(versionPath, "dependencies.json"))
 	raw, err := fs.ReadFile(idx.fs, lockPath)
@@ -900,7 +886,7 @@ func (idx *Indexer) readVersionDependencyLock(versionPath, libraryID, version st
 	if err != nil {
 		return nil, nil, fmt.Errorf("read dependency lock %s: %w", lockPath, err)
 	}
-	var lock versionDependencyLock
+	var lock VersionLock
 	if err := json.Unmarshal(raw, &lock); err != nil {
 		return nil, nil, ErrInvalidHeader{SourcePath: lockPath, Field: "dependencies.json", Reason: err.Error()}
 	}
@@ -910,10 +896,7 @@ func (idx *Indexer) readVersionDependencyLock(versionPath, libraryID, version st
 	seen := map[string]struct{}{}
 	dependencies := make([]AssetDependency, 0, len(lock.Dependencies))
 	for _, rawDependency := range lock.Dependencies {
-		observed := strings.TrimSpace(rawDependency.Observed)
-		if observed == "" {
-			observed = strings.TrimSpace(rawDependency.Version)
-		}
+		observed := rawDependency.Pin()
 		major := rawDependency.Major
 		if major == 0 && observed != "" {
 			_, _ = fmt.Sscanf(observed, "%d.", &major)

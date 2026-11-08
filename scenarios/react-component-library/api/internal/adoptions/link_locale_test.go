@@ -2,7 +2,6 @@ package adoptions_test
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
@@ -30,7 +29,7 @@ func (l *stringsLibrary) GetVersionContentAt(_ context.Context, _, _, path strin
 	return components.Content{Body: body, SourcePath: path}, nil
 }
 
-func TestLinkMergesOnlyStringsCompanionIntoLocaleCatalogue(t *testing.T) {
+func TestLinkLeavesLocaleCatalogueToTheAdopter(t *testing.T) {
 	repo := adoptmocks.NewFakeRepository()
 	lib := &stringsLibrary{
 		fakeLibrary: &fakeLibrary{
@@ -74,12 +73,11 @@ const registry = createSelectorRegistry({ library: librarySelectors, ...literalS
 	_, err := svc.Link(context.Background(), adoptions.LinkInput{ComponentID: "cmp-button", Scenario: "target", Version: "1.2.0"})
 	require.NoError(t, err)
 
-	var catalogue map[string]any
-	require.NoError(t, json.Unmarshal(files.bytes["target::ui/src/i18n/locales/en.json"], &catalogue))
-	require.Equal(t, map[string]any{
-		"app":      map[string]any{"title": "Target"},
-		"controls": map[string]any{"button": map[string]any{"loading": "Working…"}},
-	}, catalogue, "only defineStrings entries may be merged; story.json, dependencies.json and source literals must not leak")
+	// Library strings resolve through LibraryStringsProvider with their
+	// defineStrings defaults; the adopter's catalogue is never rewritten.
+	require.Equal(t, "{\n  \"app\": {\n    \"title\": \"Target\"\n  }\n}\n", string(files.bytes["target::ui/src/i18n/locales/en.json"]),
+		"linking must not copy library defaults (or story/dependency fields) into the adopter's catalogue")
+	require.Contains(t, string(files.bytes["target::ui/src/main.tsx"]), "<LibraryStringsProvider translate={(key, fallback) => i18n.t(key, { defaultValue: fallback })}>")
 
 	selectors := string(files.bytes["target::ui/src/consts/selectors.ts"])
 	require.Contains(t, selectors, "createSelectorRegistry(literalSelectors, dynamicSelectorDefinitions, librarySelectors);")

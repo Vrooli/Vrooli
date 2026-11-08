@@ -183,11 +183,11 @@ func (r *Repository) sourceReferencesDetailed(ctx context.Context) (map[string][
 			}
 		}
 	}
-	// The workbench UI is a first-class consumer of library versions, even
-	// though it is not indexed as a library asset. Retention must therefore
-	// protect its pinned relative imports just like imports between library
-	// versions; otherwise a cleanup can leave the UI with a broken module path.
-	if err := r.workbenchSourceReferences(byVersion, versions); err != nil {
+	// Scenarios, templates, the workbench UI and the library's own tests are
+	// consumers of library versions even though none is indexed as an asset.
+	// Retention protects their pins just like imports between library
+	// versions; otherwise a cleanup leaves a consumer with a broken module path.
+	if err := r.consumerSourceReferences(ctx, byVersion, versions); err != nil {
 		return nil, nil, err
 	}
 	if err := r.experienceStoryReferences(byVersion, versions); err != nil {
@@ -270,67 +270,6 @@ func collectStoryRefs(value any, refs *[]string) {
 	}
 }
 
-func (r *Repository) workbenchSourceReferences(byVersion map[string][]VersionReference, versions []sourceVersion) error {
-	root := filepath.Join(filepath.Dir(r.sourceRoot), "ui")
-	if _, err := os.Stat(root); err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return fmt.Errorf("inspect workbench source root: %w", err)
-	}
-	return librarywalk.WalkContext(context.Background(), root, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() {
-			if entry.Name() == "node_modules" || entry.Name() == "dist" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		ext := strings.ToLower(filepath.Ext(path))
-		if ext != ".ts" && ext != ".tsx" && ext != ".js" && ext != ".jsx" {
-			return nil
-		}
-		body, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("read workbench source %s: %w", path, err)
-		}
-		for _, match := range sourceImportRE.FindAllStringSubmatch(string(body), -1) {
-			specifier := match[1]
-			rel, _ := filepath.Rel(filepath.Dir(r.sourceRoot), path)
-			// The workbench pins library versions through the package export
-			// map, not through relative paths. Following only relative imports
-			// left every one of those pins invisible, and cold-tier eviction
-			// then removed version folders the app still imports.
-			if libraryID, version, ok := exactPackageSpecifier(specifier); ok {
-				key := sourceReferenceKey(libraryID, version)
-				byVersion[key] = appendUniqueReference(byVersion[key], VersionReference{
-					Kind: "workbench-source-import", OwnerPath: filepath.ToSlash(rel),
-					ImportSpecifier: specifier, Evidence: "workbench UI pins this version through the package export map",
-				})
-				continue
-			}
-			if !strings.HasPrefix(specifier, ".") {
-				continue
-			}
-			target := resolveSourceImport(filepath.Dir(path), specifier)
-			for _, targetVersion := range versions {
-				if !pathWithin(targetVersion.directory, target) {
-					continue
-				}
-				key := sourceReferenceKey(targetVersion.libraryID, targetVersion.version)
-				byVersion[key] = appendUniqueReference(byVersion[key], VersionReference{
-					Kind: "workbench-source-import", OwnerPath: filepath.ToSlash(rel),
-					ImportSpecifier: specifier, Evidence: "workbench UI import resolves into a surviving version folder",
-				})
-				break
-			}
-		}
-		return nil
-	})
-}
-
 // adoptedSourceReferences follows relative imports inside files copied into a
 // scenario. The adoption ledger is the authority for attribution; filesystem
 // layout is used only to resolve the importing file and its relative target.
@@ -356,9 +295,12 @@ func (r *Repository) adoptedSourceReferences(ctx context.Context) (map[string][]
 		return nil, err
 	}
 	rows.Close()
+	// adoption_records.scenario is a scenario name, so adopted paths resolve
+	// against the scenarios directory that holds this one.
+	scenariosRoot := filepath.Dir(filepath.Dir(filepath.Clean(r.sourceRoot)))
 	byPath := make(map[string]adoptedSourceFile, len(files))
 	for _, file := range files {
-		root := filepath.Join(filepath.Dir(r.sourceRoot), file.scenario)
+		root := filepath.Join(scenariosRoot, file.scenario)
 		path := filepath.Clean(filepath.Join(root, filepath.FromSlash(file.adoptedPath)))
 		if pathWithin(root, path) {
 			byPath[path] = file
@@ -366,7 +308,7 @@ func (r *Repository) adoptedSourceReferences(ctx context.Context) (map[string][]
 	}
 	refs := make(map[string][]VersionReference)
 	for _, owner := range files {
-		root := filepath.Join(filepath.Dir(r.sourceRoot), owner.scenario)
+		root := filepath.Join(scenariosRoot, owner.scenario)
 		ownerPath := filepath.Clean(filepath.Join(root, filepath.FromSlash(owner.adoptedPath)))
 		body, err := os.ReadFile(ownerPath)
 		if err != nil {
@@ -406,27 +348,55 @@ const packageSpecifierPrefix = "@vrooli/react-component-library/"
 // exactPackageSpecifier reports the library id and version an import pins, and
 // whether it pins one at all.
 //
-// Only exact specifiers count. A bare `@vrooli/react-component-library/Input`
-// follows whatever the manifest calls latest, so it says nothing about any
-// particular version and must not pin one against retirement.
+// Only exact specifiers count here. A bare `@vrooli/react-component-library/Input`
+// follows whatever the manifest calls latest, and a major selector follows the
+// newest release in its line, so neither names a version on its own; consumer
+// scanning resolves majors through newMajorResolver.
 func exactPackageSpecifier(specifier string) (string, string, bool) {
+	libraryID, selector, ok := packageSelector(specifier)
+	if !ok || !isExactVersion(selector) {
+		return "", "", false
+	}
+	return libraryID, selector, true
+}
+
+// packageSelector splits a package specifier into its library id and selector:
+// "" for latest, a major, or an exact release. The major-scoped form
+// `Name/<major>/<release>` selects its release, and a subpath below the
+// selector (e.g. `Input/1.1.2/styles.css`) selects the same version.
+func packageSelector(specifier string) (string, string, bool) {
 	rest, found := strings.CutPrefix(specifier, packageSpecifierPrefix)
 	if !found {
 		return "", "", false
 	}
-	name, version, found := strings.Cut(rest, "/")
-	if !found || name == "" {
+	segments := strings.Split(rest, "/")
+	if segments[0] == "" {
 		return "", "", false
 	}
-	// Subpaths below the version (e.g. `Input/1.1.2/styles.css`) still pin the
-	// same version.
-	if index := strings.Index(version, "/"); index >= 0 {
-		version = version[:index]
+	libraryID := "react-component-library:" + segments[0]
+	if len(segments) == 1 {
+		return libraryID, "", true
 	}
-	if !isExactVersion(version) {
+	selector := segments[1]
+	if isMajorSelector(selector) && len(segments) > 2 && isExactVersion(segments[2]) && strings.HasPrefix(segments[2], selector+".") {
+		selector = segments[2]
+	}
+	if !isExactVersion(selector) && !isMajorSelector(selector) {
 		return "", "", false
 	}
-	return "react-component-library:" + name, version, true
+	return libraryID, selector, true
+}
+
+func isMajorSelector(value string) bool {
+	if value == "" {
+		return false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // isExactVersion accepts the `major.minor.patch` shape the export map emits.

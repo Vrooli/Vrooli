@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -91,7 +92,25 @@ func materializeFixture(root, gate string, fixture CalibrationFixture) (string, 
 				cleanup()
 				return "", func() {}, err
 			}
-			if err := copyFile(filepath.Join(fixtureDir, fixture.Source), filepath.Join(duplicateDir, name+ext)); err != nil {
+			// The copy keeps the version literal but injects different CSS: a
+			// shared key only breaks a page when the stylesheets differ. The
+			// fixture's first backtick opens its CSS template literal.
+			source, err := os.ReadFile(filepath.Join(fixtureDir, fixture.Source))
+			if err != nil {
+				cleanup()
+				return "", func() {}, err
+			}
+			variant := strings.Replace(string(source), "`", "`.calibration-duplicate-variant{} ", 1)
+			if err := os.WriteFile(filepath.Join(duplicateDir, name+ext), []byte(variant), 0o644); err != nil {
+				cleanup()
+				return "", func() {}, err
+			}
+		}
+		if fixture.Mutation == "active-draft" {
+			// Released history is not re-judged; the defect has to sit in the
+			// asset's active draft for a version-literal gate to see it.
+			manifest = fmt.Sprintf("{\"libraryId\":\"%s\",\"catalogId\":\"%s\",\"latest\":\"0.9.0\",\"draft\":\"1.0.0\"}\n", name, fixture.AssetID)
+			if err := os.WriteFile(filepath.Join(componentDir, "component.json"), []byte(manifest), 0o644); err != nil {
 				cleanup()
 				return "", func() {}, err
 			}

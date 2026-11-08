@@ -7,12 +7,22 @@
     "1.0.0",
     "1.0.2"
   ],
+  "description": "The separator affordance itself: a pointer target wider than the seam it draws, with focus, drag, snap and collapse states, on either logical axis.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "ResizeHandle",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
     "1.0.0",
     "1.0.2"
   ],
-  "latest": "1.0.3",
-  "libraryId": "react-component-library:ResizeHandle"
+  "latest": "1.0.4",
+  "libraryId": "react-component-library:ResizeHandle",
+  "tags": []
 }

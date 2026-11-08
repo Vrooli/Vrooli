@@ -30,9 +30,7 @@
     "2.2.1",
     "2.2.5",
     "2.2.7",
-    "2.2.8",
-    "2.2.11",
-    "2.2.10"
+    "2.2.8"
   ],
   "latest": "2.2.12",
   "libraryId": "react-component-library:Button"

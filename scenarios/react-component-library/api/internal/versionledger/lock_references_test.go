@@ -179,7 +179,8 @@ INSERT INTO component_versions(id, component_id, library_id, version, status, so
 	require.NotNil(t, target)
 	require.False(t, target.Eligible, "a version the workbench pins through the export map must not be retired")
 	require.NotEmpty(t, target.References)
-	require.Equal(t, "workbench-source-import", target.References[0].Kind)
+	require.Equal(t, "consumer-import", target.References[0].Kind)
+	require.Equal(t, "@vrooli/react-component-library/Input/1.1.2", target.References[0].ImportSpecifier)
 }
 
 func TestExperienceStoryReferencesProtectVersion(t *testing.T) {

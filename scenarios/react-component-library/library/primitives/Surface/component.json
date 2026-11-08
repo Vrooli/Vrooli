@@ -13,9 +13,7 @@
     }
   ],
   "draft": "",
-  "evictedVersions": [
-    "1.0.1"
-  ],
+  "evictedVersions": [],
   "latest": "1.0.2",
   "libraryId": "react-component-library:Surface"
 }

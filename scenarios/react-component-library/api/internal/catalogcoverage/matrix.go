@@ -2,6 +2,7 @@ package catalogcoverage
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -12,20 +13,18 @@ import (
 // CountMatrixFailures evaluates the corpus matrix in-process. It is used by
 // corpus reporting so measurement does not compile or launch a second copy of
 // the gate executable.
-func CountMatrixFailures(ctx context.Context, root string) (int, error) {
+func CountMatrixFailures(ctx context.Context, root string, database *sql.DB) (int, error) {
 	definitions, err := LoadGateDefinitions(filepath.Join(root, "scenarios", "react-component-library", "catalog", "config.json"))
 	if err != nil {
 		return 0, err
 	}
 	// Corpus reporting runs the same DB-backed gates as the production matrix.
-	// Supplying the routed live database here prevents evidence-dependent gates
-	// from being classified as zero-input failures merely because this probe is
-	// in-process.
-	database, err := openLiveDatabase()
-	if err != nil {
-		return 0, fmt.Errorf("open live catalog database for matrix measurement: %w", err)
+	// The caller supplies the catalog database, so evidence-dependent gates are
+	// not classified as zero-input failures merely because this probe is
+	// in-process, and a test measures its own fixture.
+	if database == nil {
+		return 0, fmt.Errorf("matrix measurement needs a catalog database")
 	}
-	defer database.Close()
 	results := make([]gates.Result, len(definitions))
 	measured := make([]bool, len(definitions))
 	var firstErr error

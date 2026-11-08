@@ -15,8 +15,6 @@ type ScenarioPaths struct {
 	// TokenRampBegin and TokenRampEnd delimit the managed region.
 	TokenRampBegin string
 	TokenRampEnd   string
-	// LocaleCatalogue is the default-locale i18next catalogue library strings merge into.
-	LocaleCatalogue string
 	// SelectorRegistry is the scenario's typed selector registry.
 	SelectorRegistry string
 	// LibrarySelectors is the file the link writes derived selector ids into.
@@ -27,7 +25,6 @@ type ScenarioPaths struct {
 
 const (
 	defaultTokenRampPath        = "ui/src/design-tokens.css"
-	defaultLocaleCataloguePath  = "ui/src/i18n/locales/en.json"
 	defaultSelectorRegistryPath = "ui/src/consts/selectors.ts"
 	defaultLibrarySelectorsPath = "ui/src/consts/selectors.library.ts"
 	defaultAppEntryPath         = "ui/src/main.tsx"
@@ -39,7 +36,6 @@ func DefaultScenarioPaths() ScenarioPaths {
 		TokenRamp:        defaultTokenRampPath,
 		TokenRampBegin:   tokenRampBegin,
 		TokenRampEnd:     tokenRampEnd,
-		LocaleCatalogue:  defaultLocaleCataloguePath,
 		SelectorRegistry: defaultSelectorRegistryPath,
 		LibrarySelectors: defaultLibrarySelectorsPath,
 		AppEntry:         defaultAppEntryPath,
@@ -61,7 +57,6 @@ func (s *service) scenarioPaths(scenario string) ScenarioPaths {
 	}
 	paths.TokenRamp = manifest.ResolveFile("designTokens", paths.TokenRamp)
 	paths.TokenRampBegin, paths.TokenRampEnd = manifest.ManagedRegionMarkers("designTokens", paths.TokenRampBegin, paths.TokenRampEnd)
-	paths.LocaleCatalogue = manifest.ResolveLocaleFile("localeCatalogue", "", paths.LocaleCatalogue)
 	paths.SelectorRegistry = manifest.ResolveFile("selectorRegistry", paths.SelectorRegistry)
 	paths.LibrarySelectors = manifest.ResolveFile("librarySelectors", paths.LibrarySelectors)
 	paths.AppEntry = manifest.ResolveFile("appEntry", paths.AppEntry)

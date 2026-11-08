@@ -12,6 +12,15 @@
     "3.1.1",
     "3.1.2"
   ],
+  "description": "The icon-transition component animating between icon states with true path morphing where the geometry is compatible, and a configurable transform or crossfade fallback where it is not.",
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ],
+  "displayName": "MorphingIcon",
   "draft": "",
   "evictedVersions": [
     "3.1.0",
@@ -22,6 +31,7 @@
     "3.1.1",
     "3.1.2"
   ],
-  "latest": "3.1.3",
-  "libraryId": "react-component-library:MorphingIcon"
+  "latest": "3.1.4",
+  "libraryId": "react-component-library:MorphingIcon",
+  "tags": []
 }

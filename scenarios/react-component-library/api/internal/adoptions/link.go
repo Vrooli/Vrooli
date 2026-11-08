@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -91,28 +90,14 @@ func (s *service) Link(ctx context.Context, in LinkInput) (LinkResult, error) {
 			versionSource += "\n" + file.Content
 		}
 	}
-	// Locale entries come only from the version's `<Entry>.strings.ts`
-	// companion (a defineStrings map). Scanning every version file for
-	// `"key": "value"` pairs used to copy story.json and dependencies.json
-	// fields into the adopter's catalogue as if they were translations.
-	localeSource := ""
-	if reader, ok := s.library.(VersionFileReader); ok {
-		entry := strings.TrimSuffix(filepath.Base(versionInfo.SourcePath), filepath.Ext(versionInfo.SourcePath))
-		for _, candidate := range []string{entry + ".strings.ts", component.Slug + ".strings.ts"} {
-			content, readErr := reader.GetVersionContentAt(ctx, component.ID, version, candidate)
-			if readErr == nil {
-				localeSource = content.Body
-				break
-			}
-		}
-	}
+	// Library strings are not copied into the adopter's locale catalogue.
+	// Each one carries its English default in the component's defineStrings
+	// map, and the LibraryStringsProvider wired below resolves a key through
+	// the adopter's i18n first and falls back to that default. A scenario adds
+	// a library key to its catalogues only when it translates it, in every
+	// locale it ships, so copying defaults would only create a second owner
+	// and locale-parity debt.
 	paths := s.scenarioPaths(in.Scenario)
-	if err := mergeLocaleCatalog(ctx, s.files, in.Scenario, paths.LocaleCatalogue, derivedLocaleEntries(localeSource)); err != nil {
-		return LinkResult{}, err
-	}
-	if _, err := s.files.Exists(ctx, in.Scenario, paths.LocaleCatalogue); err == nil {
-		updatedFiles = append(updatedFiles, paths.LocaleCatalogue)
-	}
 
 	selectorPath := paths.LibrarySelectors
 	selectorExists, err := s.files.Exists(ctx, in.Scenario, selectorPath)
@@ -290,78 +275,7 @@ func canonicalImportSubpath(component components.Component, version string) stri
 	return "./" + component.Slug + "/" + version
 }
 
-var (
-	stringsDeclarationPattern = regexp.MustCompile(`(?m)["']([^"']+)["']\s*:\s*["']([^"']*)["']\s*,?`)
-	selectorLiteral           = regexp.MustCompile("data-testid\\s*=\\s*[\\\"'`]([^\\\"'`]+)[\\\"'`]")
-)
-
-func derivedLocaleEntries(source string) map[string]string {
-	entries := map[string]string{}
-	for _, match := range stringsDeclarationPattern.FindAllStringSubmatch(source, -1) {
-		if len(match) > 2 {
-			entries[match[1]] = match[2]
-		}
-	}
-	return entries
-}
-
-func mergeLocaleCatalog(ctx context.Context, files ScenarioFileWriter, scenario, path string, entries map[string]string) error {
-	if len(entries) == 0 {
-		return nil
-	}
-	exists, err := files.Exists(ctx, scenario, path)
-	if err != nil {
-		return fmt.Errorf("check adopter English catalog: %w", err)
-	}
-	var raw []byte
-	if exists {
-		raw, err = files.Read(ctx, scenario, path)
-		if err != nil {
-			return fmt.Errorf("read adopter English catalog: %w", err)
-		}
-	} else {
-		raw = []byte("{}")
-	}
-	var catalog map[string]any
-	if err := json.Unmarshal(raw, &catalog); err != nil {
-		return fmt.Errorf("decode adopter English catalog: %w", err)
-	}
-	changed := false
-	keys := make([]string, 0, len(entries))
-	for key := range entries {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	for _, key := range keys {
-		parts := strings.Split(key, ".")
-		cursor := catalog
-		for _, part := range parts[:len(parts)-1] {
-			next, ok := cursor[part].(map[string]any)
-			if !ok {
-				next = map[string]any{}
-				cursor[part] = next
-			}
-			cursor = next
-		}
-		leaf := parts[len(parts)-1]
-		if _, exists := cursor[leaf]; !exists {
-			cursor[leaf] = entries[key]
-			changed = true
-		}
-	}
-	if !changed {
-		return nil
-	}
-	updated, err := json.MarshalIndent(catalog, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode adopter English catalog: %w", err)
-	}
-	updated = append(updated, '\n')
-	if _, err := files.Write(ctx, scenario, path, updated); err != nil {
-		return fmt.Errorf("write adopter English catalog: %w", err)
-	}
-	return nil
-}
+var selectorLiteral = regexp.MustCompile("data-testid\\s*=\\s*[\\\"'`]([^\\\"'`]+)[\\\"'`]")
 
 func derivedSelectorIDs(source, root string) []string {
 	seen := map[string]struct{}{}

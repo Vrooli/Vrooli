@@ -12,6 +12,15 @@
     "1.0.6",
     "1.0.7"
   ],
+  "description": "Reusable selection control primitive implementation for the React component library.",
+  "designStyles": [
+    {
+      "affinity": "native",
+      "reason": "token-native operational-console baseline",
+      "styleId": "vrooli-default"
+    }
+  ],
+  "displayName": "Selection Control",
   "draft": "",
   "evictedVersions": [
     "1.0.1",
@@ -21,18 +30,11 @@
     "1.0.5",
     "1.0.6",
     "1.0.0",
-    "1.0.7"
+    "1.0.7",
+    "1.0.9",
+    "1.0.10"
   ],
-  "latest": "1.0.11",
+  "latest": "1.0.12",
   "libraryId": "react-component-library:SelectionControl",
-  "displayName": "Selection Control",
-  "description": "Reusable selection control primitive implementation for the React component library.",
-  "tags": [],
-  "designStyles": [
-    {
-      "styleId": "vrooli-default",
-      "affinity": "native",
-      "reason": "token-native operational-console baseline"
-    }
-  ]
+  "tags": []
 }

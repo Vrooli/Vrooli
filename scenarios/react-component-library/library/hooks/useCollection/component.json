@@ -2,7 +2,10 @@
   "$schema": "../../../../../.vrooli/schemas/component-manifest.schema.json",
   "assetKind": "runtime-hook",
   "catalogId": "hooks.use-collection",
-  "deprecatedVersions": [],
+  "deprecatedVersions": [
+    "1.0.0"
+  ],
+  "description": "Headless collection controller for stable rows, keyboard cursor, keyed selection, and one resolved action declaration.",
   "designStyles": [
     {
       "affinity": "native",
@@ -10,11 +13,10 @@
       "styleId": "vrooli-default"
     }
   ],
+  "displayName": "useCollection",
   "draft": "",
-  "evictedVersions": [
-    "1.1.1",
-    "1.1.0"
-  ],
+  "evictedVersions": [],
   "latest": "1.1.2",
-  "libraryId": "react-component-library:useCollection"
+  "libraryId": "react-component-library:useCollection",
+  "tags": []
 }

@@ -11,9 +11,7 @@
     }
   ],
   "draft": "",
-  "evictedVersions": [
-    "1.0.0"
-  ],
+  "evictedVersions": [],
   "latest": "1.0.1",
   "libraryId": "react-component-library:IconGeometry"
 }

@@ -17,8 +17,8 @@ func acceptanceFixture(t *testing.T) (*Store, string, AcceptanceIntent, Acceptan
 	t.Helper()
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0700))
-	require.NoError(t, os.WriteFile(path, []byte(`{"sketch":{}}`), 0600))
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+	require.NoError(t, os.WriteFile(path, []byte(`{"sketch":{}}`), 0o600))
 	store := NewStore(root)
 	base, err := store.Read("demo", "home")
 	require.NoError(t, err)
@@ -34,6 +34,7 @@ func acceptanceFixture(t *testing.T) (*Store, string, AcceptanceIntent, Acceptan
 	}
 	return store, path, intent, f
 }
+
 func TestAcceptancePreparedIntentAndImmutableReplay(t *testing.T) {
 	s, path, i, f := acceptanceFixture(t)
 	before, err := os.ReadFile(path)
@@ -62,6 +63,7 @@ func TestAcceptancePreparedIntentAndImmutableReplay(t *testing.T) {
 	_, err = s.RecordAcceptance(context.Background(), "demo", "one", i, evaluate)
 	require.ErrorIs(t, err, ErrAcceptanceConflict)
 }
+
 func TestAcceptanceMissingOrContradictoryProofNeverAccepts(t *testing.T) {
 	cases := map[string]func(*AcceptanceFacts){
 		"missing requirement":         func(f *AcceptanceFacts) { f.Requirements = f.Requirements[:6] },
@@ -85,6 +87,7 @@ func TestAcceptanceMissingOrContradictoryProofNeverAccepts(t *testing.T) {
 		})
 	}
 }
+
 func TestAcceptanceRechecksPageAfterEvidenceEvaluation(t *testing.T) {
 	s, _, i, f := acceptanceFixture(t)
 	d, err := s.RecordAcceptance(context.Background(), "demo", "one", i, func(context.Context) (AcceptanceFacts, error) {
@@ -98,6 +101,7 @@ func TestAcceptanceRechecksPageAfterEvidenceEvaluation(t *testing.T) {
 	require.Equal(t, "needs_evidence", d.State)
 	require.Contains(t, d.Detail, "changed")
 }
+
 func TestAcceptanceResumesPreparedAfterCrashAndRecordsProducerFailure(t *testing.T) {
 	s, _, i, f := acceptanceFixture(t)
 	func() {
@@ -116,6 +120,7 @@ func TestAcceptanceResumesPreparedAfterCrashAndRecordsProducerFailure(t *testing
 	require.NoError(t, err)
 	require.Equal(t, d, read)
 }
+
 func TestAcceptanceConcurrentRetriesEvaluateOnce(t *testing.T) {
 	s, _, i, f := acceptanceFixture(t)
 	var calls atomic.Int32
@@ -133,16 +138,19 @@ func TestAcceptanceConcurrentRetriesEvaluateOnce(t *testing.T) {
 	wg.Wait()
 	require.Equal(t, int32(1), calls.Load())
 }
+
 func TestAcceptanceRejectsTamperedHistory(t *testing.T) {
 	s, page, i, f := acceptanceFixture(t)
 	d, err := s.RecordAcceptance(context.Background(), "demo", "one", i, func(context.Context) (AcceptanceFacts, error) { return f, nil })
 	require.NoError(t, err)
 	relative, err := acceptancePath(i.DesignID, d.ID)
 	require.NoError(t, err)
-	path := filepath.Join(filepath.Dir(filepath.Dir(page)), relative)
+	// Decisions are generated data, kept beside the scenario's authored
+	// experience/ tree under data/experience.
+	path := filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(page))), "data", "experience", relative)
 	raw, err := os.ReadFile(path)
 	require.NoError(t, err)
-	require.NoError(t, os.WriteFile(path, []byte(strings.Replace(string(raw), "test-operator", "tampered", 1)), 0600))
+	require.NoError(t, os.WriteFile(path, []byte(strings.Replace(string(raw), "test-operator", "tampered", 1)), 0o600))
 	_, err = s.ReadAcceptance("demo", i.DesignID, d.ID)
 	require.Error(t, err)
 }

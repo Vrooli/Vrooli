@@ -19,7 +19,7 @@ func TestRelativeImportAcrossDirectories(t *testing.T) {
 
 func TestDefaultScenarioPathsMatchReactViteLayout(t *testing.T) {
 	paths := DefaultScenarioPaths()
-	if paths.TokenRamp != "ui/src/design-tokens.css" || paths.LocaleCatalogue != "ui/src/i18n/locales/en.json" || paths.SelectorRegistry != "ui/src/consts/selectors.ts" || paths.LibrarySelectors != "ui/src/consts/selectors.library.ts" || paths.AppEntry != "ui/src/main.tsx" {
+	if paths.TokenRamp != "ui/src/design-tokens.css" || paths.SelectorRegistry != "ui/src/consts/selectors.ts" || paths.LibrarySelectors != "ui/src/consts/selectors.library.ts" || paths.AppEntry != "ui/src/main.tsx" {
 		t.Fatalf("unexpected defaults: %+v", paths)
 	}
 }

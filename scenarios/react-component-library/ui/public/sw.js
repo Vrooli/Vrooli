@@ -1,5 +1,5 @@
 const CACHE_NAME = "react-component-library-app-shell-v2";
-const APP_SHELL_URLS = ["./", "./site.webmanifest"];
+const APP_SHELL_URLS = ["./", "./public/site.webmanifest"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

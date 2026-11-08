@@ -6,5 +6,6 @@
   "requiredFailureCode": "catalog.stylesheet-key",
   "source": "broken.tsx",
   "catalogAsset": "asset.json",
-  "description": "Uses a literal page-global stylesheet name."
+  "description": "The active draft uses a literal page-global stylesheet name.",
+  "mutation": "active-draft"
 }

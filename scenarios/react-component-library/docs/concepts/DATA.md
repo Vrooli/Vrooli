@@ -41,12 +41,21 @@ hash ledger.
 ## Cold version tier
 
 Version identity and version bytes have separate placement. The reachability
-predicate used by `versions reap` is the authority: latest and
-draft versions, adopted or dependency-pinned versions, and versions named by
-adoption files or source imports stay materialized. Other non-retired versions
+graph (`api/internal/versionledger/reachability.go`) is the authority for both
+the API's `versions reap` plan and automatic presence reconciliation. Its roots
+are latest and draft versions, adopted versions, and every exact pin held by
+something other than a cold catalog version: a materialized release's
+`dependencies.json` lock or source import, a preview harness lock, an owner the
+index has not recorded, and any package import under `scenarios/` or
+`templates/` (the tree the package build checks, including the workbench and
+`library/tests`; a major selector pins the release the export map resolves it
+to). Everything those roots reach stays materialized, so no materialized
+release ever pins an evicted one. Other non-retired versions
 may be marked `evicted`; their manifest identity, SQLite row, complete file
 mirror, and per-file SHA-256 hashes remain available to `versions show`, diff,
-preview, and package materialization.
+preview, and package materialization. A historical chain leaves owner first:
+once an owner is evicted, its pins are ordinary edges that hold their targets
+only while the owner itself is reachable.
 
 `versions recover --bundle <path>` is a narrower exception for the published
 Button 2.2.4 contract. The API host must be able to read an authorized bundle

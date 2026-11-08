@@ -24,7 +24,6 @@ import (
 // files; a template that declares a key overrides it.
 var durableFiles = []struct{ key, fallback string }{
 	{"designTokens", "ui/src/design-tokens.css"},
-	{"localeCatalogue", "ui/src/i18n/locales/en.json"},
 	{"librarySelectors", "ui/src/consts/selectors.library.ts"},
 	{"selectorRegistry", "ui/src/consts/selectors.ts"},
 	{"appEntry", "ui/src/main.tsx"},
@@ -128,7 +127,7 @@ func (h *handlers) obligations(ctx cliapp.RunContext) error {
 		"scenario":         scenario,
 		"files":            files,
 		"token":            present("designTokens"),
-		"locale_bridge":    present("localeCatalogue") && present("appEntry"),
+		"locale_bridge":    stringsProviderWired(filepath.Join(base, files["appEntry"])),
 		"selector":         present("librarySelectors") && present("selectorRegistry"),
 		"adoption_record":  adoptionRecord,
 		"package":          packageDeclared,
@@ -138,6 +137,15 @@ func (h *handlers) obligations(ctx cliapp.RunContext) error {
 		return json.NewEncoder(os.Stdout).Encode(result)
 	}
 	return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("Obligation report for %s", scenario)}, ResultsHeading: "Adoption obligations", Results: []string{fmt.Sprintf("tokens=%t locale-bridge=%t selector=%t adoption-record=%t package=%t component-import=%t", result["token"], result["locale_bridge"], result["selector"], result["adoption_record"], result["package"], result["component_import"])}})
+}
+
+// stringsProviderWired reports whether the app entry hosts the
+// LibraryStringsProvider block a link writes. That provider is the locale
+// bridge: library strings resolve through the adopter's i18n and fall back to
+// their defineStrings defaults, so no catalogue file is required.
+func stringsProviderWired(appEntry string) bool {
+	data, err := os.ReadFile(appEntry)
+	return err == nil && strings.Contains(string(data), "// vrooli:library-strings-provider start")
 }
 
 // linkedImportPresent recognizes the generated package import used by linked

@@ -31,8 +31,10 @@ func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
 	return &sqliteRepository{db: db, clock: clk}
 }
 
-var _ Repository = (*sqliteRepository)(nil)
-var _ RetirementRepository = (*sqliteRepository)(nil)
+var (
+	_ Repository           = (*sqliteRepository)(nil)
+	_ RetirementRepository = (*sqliteRepository)(nil)
+)
 
 func (s *sqliteRepository) DeleteRetiredComponent(ctx context.Context, id, libraryID string) error {
 	if id == "" || libraryID == "" {
@@ -1194,17 +1196,13 @@ func dependenciesFromFiles(files []ComponentVersionFile) ([]AssetDependency, boo
 		if file.Path != "dependencies.json" {
 			continue
 		}
-		var lock versionDependencyLock
+		var lock VersionLock
 		if err := json.Unmarshal([]byte(file.Content), &lock); err != nil {
 			return nil, false, err
 		}
 		dependencies := make([]AssetDependency, 0, len(lock.Dependencies))
 		for _, dependency := range lock.Dependencies {
-			version := strings.TrimSpace(dependency.Observed)
-			if version == "" {
-				version = strings.TrimSpace(dependency.Version)
-			}
-			dependencies = append(dependencies, AssetDependency{LibraryID: strings.TrimSpace(dependency.LibraryID), Version: version})
+			dependencies = append(dependencies, AssetDependency{LibraryID: strings.TrimSpace(dependency.LibraryID), Version: dependency.Pin()})
 		}
 		return dependencies, true, nil
 	}

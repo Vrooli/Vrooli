@@ -62,7 +62,12 @@ var corpusVersion = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 // BuildCorpusReport provides one stable, filesystem-based measurement seam.
 // It deliberately emits every plan dimension, even where a runtime
 // probe is not available to this command; every value remains numeric.
-func BuildCorpusReport(root string) (CorpusReport, error) {
+// BuildCorpusReport measures the corpus under root. catalog is the catalog
+// database the DB-backed invariants (I1 retention, I2 mirrors, I7 matrix)
+// measure; the caller chooses it, so a test measures its own fixture and only
+// the operator command reads the live catalog. A nil catalog reports those
+// invariants as failed measurements rather than guessing.
+func BuildCorpusReport(root string, catalog *sql.DB) (CorpusReport, error) {
 	libraryRoot := filepath.Join(root, "scenarios", "react-component-library", "library")
 	totalVersions, totalLines, latestLines := 0, 0, 0
 	exact, stale, bare := 0, 0, 0
@@ -209,7 +214,9 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 	allowlist := countAllowlistEntries(filepath.Join(libraryRoot, "vacuous-allowlist.json"))
 	warmMatrixSeconds, singleAssetSeconds, timingMeasured := liveTimingMeasurements(root)
 	measurementFailed := !timingMeasured
-	zeroFindingFailures, matrixMeasured := liveMatrixFailures(root)
+	zeroFindingFailures, matrixMeasured := liveMatrixFailures(root, catalog)
+	retentionCommands, retentionMeasured := retentionCommandCount(catalog, libraryRoot)
+	unreadableMirrors, mirrorsMeasured := countUnreadableMirrors(catalog)
 	zeroFindingFailuresFailed := !matrixMeasured
 	buildFailures, buildMeasured := liveBuildFailures(root)
 	buildFailuresFailed := !buildMeasured
@@ -230,8 +237,8 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 	duplications, _ := DuplicationCensus(root)
 	values := []CorpusInvariant{
 		{"I21", "adoption depth (library imports / ecosystem UI files)", adoptionDepth, 25, "percent", ""},
-		{"I1", "retention commands succeeding", float64(retentionCommandCount()), 3, "commands", ""},
-		{"I2", "unreadable version mirrors", float64(countUnreadableMirrors()), 0, "versions", ""},
+		{"I1", "retention commands succeeding", float64(retentionCommands), 3, "commands", ""},
+		{"I2", "unreadable version mirrors", float64(unreadableMirrors), 0, "versions", ""},
 		{"I3", "post-cutoff intra-library exact pins", float64(exact), 0, "pins", ""},
 		{"I4", "intra-library pins targeting superseded versions", float64(stale), 0, "pins", ""},
 		{"I5", "version directories", float64(totalVersions), 290, "versions", ""},
@@ -259,13 +266,13 @@ func BuildCorpusReport(root string) (CorpusReport, error) {
 		{"I25", "overdue implementation plans", float64(overduePlans), 0, "assets", ""},
 		{"I26", "overdue retired quarantine trees", float64(overdueRetired), 0, "trees", ""},
 	}
-	if measurementFailed || zeroFindingFailuresFailed || buildFailuresFailed {
-		for index := range values {
-			if (values[index].ID == "I8" || values[index].ID == "I9") && measurementFailed ||
-				values[index].ID == "I7" && zeroFindingFailuresFailed ||
-				values[index].ID == "I13" && buildFailuresFailed {
-				values[index].Status = "failed_measurement"
-			}
+	failed := map[string]bool{
+		"I1": !retentionMeasured, "I2": !mirrorsMeasured, "I7": zeroFindingFailuresFailed,
+		"I8": measurementFailed, "I9": measurementFailed, "I13": buildFailuresFailed,
+	}
+	for index := range values {
+		if failed[values[index].ID] {
+			values[index].Status = "failed_measurement"
 		}
 	}
 	return CorpusReport{SchemaVersion: "corpus-report/v1", CapturedAt: time.Now().UTC().Format(time.RFC3339Nano), InvariantCount: len(values), Invariants: values, VersionShapes: shapes}, nil
@@ -353,14 +360,17 @@ type matrixFailureReport struct {
 // matrix. The aggregate catalog API intentionally exposes only totals, so
 // using that API here would make it impossible to prove that every failing
 // cell has attributable findings.
-func liveMatrixFailures(root string) (int, bool) {
+func liveMatrixFailures(root string, catalog *sql.DB) (int, bool) {
+	if catalog == nil {
+		return 0, false
+	}
 	repositoryRoot, err := filepath.Abs(root)
 	if err != nil {
 		return 0, false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	failures, err := CountMatrixFailures(ctx, repositoryRoot)
+	failures, err := CountMatrixFailures(ctx, repositoryRoot, catalog)
 	if err != nil || ctx.Err() != nil {
 		return 0, false
 	}
@@ -580,26 +590,24 @@ func countUngovernedReleases(libraryRoot string) int {
 	return missing
 }
 
-func countUnreadableMirrors() int {
-	db, err := openLiveDatabase()
-	if err != nil {
-		return 0
+func countUnreadableMirrors(catalog *sql.DB) (int, bool) {
+	if catalog == nil {
+		return 0, false
 	}
-	defer db.Close()
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM component_versions v WHERE v.presence = 'evicted' AND NOT EXISTS (SELECT 1 FROM component_version_files f WHERE f.version_id = v.id)`).Scan(&count); err != nil {
-		return 0
+	if err := catalog.QueryRow(`SELECT COUNT(*) FROM component_versions v WHERE v.presence = 'evicted' AND NOT EXISTS (SELECT 1 FROM component_version_files f WHERE f.version_id = v.id)`).Scan(&count); err != nil {
+		return 0, false
 	}
-	return count
+	return count, true
 }
 
-func retentionCommandCount() int {
-	db, err := openLiveDatabase()
-	if err != nil {
-		return 0
+// retentionCommandCount runs the three retention reads against the catalog
+// and the report's own library tree, and counts the ones that succeed.
+func retentionCommandCount(catalog *sql.DB, libraryRoot string) (int, bool) {
+	if catalog == nil {
+		return 0, false
 	}
-	defer db.Close()
-	repo := versionledger.NewRepository(db, "")
+	repo := versionledger.NewRepository(catalog, libraryRoot)
 	ctx := context.Background()
 	count := 0
 	if _, err := repo.RetireCandidates(ctx, ""); err == nil {
@@ -611,10 +619,13 @@ func retentionCommandCount() int {
 	if _, err := repo.BuildReachability(ctx); err == nil {
 		count++
 	}
-	return count
+	return count, true
 }
 
-func openLiveDatabase() (*sql.DB, error) {
+// OpenLiveCatalogDatabase opens the operator's live catalog read-only. Only
+// the operator-facing corpus-report command calls it; everything below takes
+// the database as an argument.
+func OpenLiveCatalogDatabase() (*sql.DB, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err

@@ -20,7 +20,7 @@
 
 SCENARIO_NAME := $(notdir $(CURDIR))
 
-SCENARIO_CUSTOM_TARGETS += fmt-go fmt-ui lint-go lint-ui
+SCENARIO_CUSTOM_TARGETS += fmt-ui
 # Shared toolchain floor (mk/toolchain.mk) and build targets (mk/scenario.mk); a custom body for one of them is declared in SCENARIO_CUSTOM_TARGETS.
 -include ../../mk/scenario.mk
 
@@ -58,46 +58,9 @@ clean: ## Clean build artifacts
 
 fmt: fmt-go fmt-ui ## Format all code
 
-fmt-go: ## Format Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd api && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd api && gofmt -w .; \
-		fi; \
-	fi
-	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
-		if command -v gofumpt >/dev/null 2>&1; then \
-			cd cli && gofumpt -w .; \
-		elif command -v gofmt >/dev/null 2>&1; then \
-			cd cli && gofmt -w .; \
-		fi; \
-	fi
-
 fmt-ui: ## Format UI and published library source
 	@if [ -f ui/package.json ]; then \
 		cd ui && pnpm run format && pnpm run lint:fix && pnpm run strings:check; \
-	fi
-
-lint-go: ## Lint Go code
-	@if [ -d api ] && find api -name "*.go" | head -1 | grep -q .; then \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd api && GOWORK=off golangci-lint run ./...; \
-		elif command -v go >/dev/null 2>&1; then \
-			cd api && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
-		fi; \
-	fi
-	@if [ -d cli ] && find cli -name "*.go" | head -1 | grep -q .; then \
-		if command -v golangci-lint >/dev/null 2>&1; then \
-			cd cli && GOWORK=off golangci-lint run ./...; \
-		elif command -v go >/dev/null 2>&1; then \
-			cd cli && GOWORK=off go vet ./... && GOWORK=off go fmt ./...; \
-		fi; \
-	fi
-
-lint-ui: ## Lint UI code
-	@if [ -f ui/package.json ]; then \
-		cd ui && pnpm run lint && pnpm run type-check; \
 	fi
 
 lint: lint-go lint-ui ## Lint all code

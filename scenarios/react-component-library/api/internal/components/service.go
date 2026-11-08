@@ -15,6 +15,7 @@ import (
 	"unicode"
 
 	"react-component-library/internal/librarywalk"
+	"react-component-library/internal/tokenparity"
 )
 
 // defaultListLimit caps List rows when callers pass 0. Business
@@ -514,6 +515,13 @@ func (s *service) EnsureMaterialized(ctx context.Context, componentID, version, 
 		if err := s.repo.SetVersionPresence(ctx, c.ID, version, "materialized"); err != nil {
 			return MaterializeResult{}, err
 		}
+		// Bytes on disk are authoritative over the manifest's cold-tier
+		// marker. Left in evictedVersions, the release stays out of the
+		// package export map, so restoring it would not repair the imports
+		// that asked for it.
+		if err := store.ClearMaterializedEvictedMarker(c, version); err != nil {
+			return MaterializeResult{}, fmt.Errorf("clear evicted marker for %s@%s: %w", c.LibraryID, version, err)
+		}
 	}
 	result.Version = v.Version
 	result.Transient = strings.TrimSpace(into) != "" && filepath.Clean(into) != filepath.Clean(store.Root())
@@ -826,6 +834,10 @@ func (s *service) CheckComponentVersion(ctx context.Context, componentID, versio
 		add("dependencies", "failed", err.Error(), "repair the version-pinned dependency closure")
 	} else {
 		add("dependencies", "passed", "version-pinned dependency closure resolved", "")
+	}
+	if version == c.DraftVersion && strings.Contains(version, "-draft.") && componentAssetRoot(c) == "components" {
+		verdict, message := draftFallbackParity(s.source.Root(), filepath.Dir(v.SourcePath))
+		add("fallback-parity", verdict, message, "write var(--token) without a fallback, copy the canonical value verbatim, or declare the property inside this version")
 	}
 	if s.typescript != nil && version == c.DraftVersion && strings.Contains(version, "-draft.") {
 		manifestPath, sourcePath := c.ManifestPath, v.SourcePath
@@ -1336,4 +1348,49 @@ func archiveComponentWithHistory(ctx context.Context, repo Repository, store com
 	}
 	out.SourceArchivePath, err = store.ArchiveComponentSource(c)
 	return out, err
+}
+
+// draftFallbackParity applies the corpus fallback-parity gate to one draft
+// before it becomes an immutable release, so a disagreeing fallback is fixed
+// in the draft instead of surviving in the corpus.
+func draftFallbackParity(libraryRoot, versionDir string) (verdict, message string) {
+	repoRoot := repositoryRootFromLibrary(libraryRoot)
+	if repoRoot == "" {
+		// Like the token contract, the rule applies only inside a repository
+		// that carries the canonical vocabulary; a standalone library tree has
+		// nothing to compare against.
+		return "passed", "no canonical token vocabulary beside this library; fallback parity is not applicable"
+	}
+	canonical, err := tokenparity.LoadCanonical(repoRoot)
+	if err != nil {
+		return "failed", "read canonical token vocabulary: " + err.Error()
+	}
+	if !filepath.IsAbs(versionDir) {
+		versionDir = filepath.Join(libraryRoot, versionDir)
+	}
+	entries, err := os.ReadDir(versionDir)
+	if err != nil {
+		return "failed", "read draft version: " + err.Error()
+	}
+	sources := map[string][]byte{}
+	for _, entry := range entries {
+		ext := strings.ToLower(filepath.Ext(entry.Name()))
+		if entry.IsDir() || (ext != ".ts" && ext != ".tsx") {
+			continue
+		}
+		data, readErr := os.ReadFile(filepath.Join(versionDir, entry.Name()))
+		if readErr != nil {
+			return "failed", "read draft source: " + readErr.Error()
+		}
+		sources[entry.Name()] = data
+	}
+	mismatches := tokenparity.CheckVersion(canonical, sources)
+	if len(mismatches) == 0 {
+		return "passed", "every token fallback matches the canonical vocabulary"
+	}
+	messages := make([]string, 0, len(mismatches))
+	for _, mismatch := range mismatches {
+		messages = append(messages, fmt.Sprintf("%s: %s fallback %q disagrees with canonical %q", mismatch.File, mismatch.Property, mismatch.Value, mismatch.Canonical))
+	}
+	return "failed", strings.Join(messages, "; ")
 }

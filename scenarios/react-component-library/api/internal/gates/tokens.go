@@ -73,13 +73,3 @@ func ValidateTokens(scope Scope) (Result, error) {
 	}
 	return nonEmpty(result, "tokens"), nil
 }
-
-type tokenFallback struct {
-	Property string
-	Value    string
-	Offset   int
-}
-
-// ValidateFallbackParity makes authored fallbacks an honest view of the
-// canonical base vocabulary. Properties owned inside the same version and
-// host-computed --rcl-* contracts are intentionally outside this comparison.

@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { Route, Routes } from "react-router-dom";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { renderWithProviders } from "../test-utils";
+import { chooseOption, renderWithProviders } from "../test-utils";
 import { i18n } from "../i18n";
 import { DesignPage } from "./DesignPage";
 
@@ -49,6 +49,16 @@ const sketch = {
   notes: [],
   unplaced: [],
 };
+// The workspace is large, and a role+name query computes the accessible name
+// of every candidate on the page, again on every findBy poll; on a loaded host
+// that CPU pushed these tests past their timeout. Scope queries to the panel
+// they exercise.
+function inRegion(name: string) {
+  return within(screen.getByRole("region", { name }));
+}
+async function findRegion(name: string) {
+  return within(await screen.findByRole("region", { name }));
+}
 function renderPage(path = "/design/demo/page") {
   return renderWithProviders(
     <Routes>
@@ -263,11 +273,7 @@ describe("Design workspace", () => {
     const details = screen.getByText(i18n.t("design.changeTemplate")).closest("details")!;
     details.open = true;
     fireEvent(details, new Event("toggle"));
-    fireEvent.click(screen.getByRole("button", { name: /Choose a template/ }));
-    await screen.findByRole("option", { name: /New template/ });
-    fireEvent.change(screen.getByLabelText(i18n.t("design.template")), {
-      target: { value: "templates.new" },
-    });
+    await chooseOption(i18n.t("design.template"), /New template/);
     fireEvent.click(screen.getByRole("button", { name: i18n.t("design.previewRemap") }));
     const apply = await screen.findByRole("button", { name: i18n.t("design.applyTemplate") });
     expect(apply).toBeDisabled();
@@ -439,10 +445,8 @@ describe("Design workspace", () => {
   it("keeps historical revisions read only", async () => {
     setup();
     renderPage();
-    const picker = await screen.findByLabelText(i18n.t("design.revision"));
-    fireEvent.click(screen.getByRole("button", { name: /Current/ }));
-    await screen.findByRole("option", { name: /2026-01-01/ });
-    fireEvent.change(picker, { target: { value: "old-hash" } });
+    await screen.findByRole("button", { name: i18n.t("design.revision") });
+    await chooseOption(i18n.t("design.revision"), /2026-01-01/);
     expect(screen.getByRole("button", { name: i18n.t("design.verify") })).toBeDisabled();
     expect(screen.getByLabelText(i18n.t("design.note", { region: "body" }))).toBeDisabled();
   });
@@ -675,9 +679,9 @@ it("previews an immutable candidate without selecting the current draft", async 
     state: "completed",
     artifacts: [{ kind: "screenshot", reference: "bas:one:screenshot" }],
   });
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.captureStart") }));
+  fireEvent.click(await (await findRegion(i18n.t("design.captureTitle"))).findByRole("button", { name: i18n.t("design.captureStart") }));
   await screen.findByText(/attachment timed out/);
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.captureStart") }));
+  fireEvent.click(inRegion(i18n.t("design.captureTitle")).getByRole("button", { name: i18n.t("design.captureStart") }));
   await screen.findByText(i18n.t("design.captureRunning"));
   expect(api.captureCandidate).toHaveBeenCalledTimes(2);
   expect(api.captureCandidate.mock.calls[0]?.[0].idempotencyKey).toBe(
@@ -692,11 +696,11 @@ it("previews an immutable candidate without selecting the current draft", async 
     }),
   );
   api.cancelCapture.mockResolvedValue({ ...operation, state: "cancel_requested" });
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.captureCancel") }));
+  fireEvent.click(inRegion(i18n.t("design.captureTitle")).getByRole("button", { name: i18n.t("design.captureCancel") }));
   await screen.findByText(i18n.t("design.captureCancelRequested"));
   expect(api.cancelCapture).toHaveBeenCalledWith({ id: "capture-one" });
   expect(screen.queryByText(i18n.t("design.captureCancelled"))).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.captureAttach") }));
+  fireEvent.click(inRegion(i18n.t("design.captureTitle")).getByRole("button", { name: i18n.t("design.captureAttach") }));
   await screen.findByText(i18n.t("design.captureCompleted"));
   expect(api.attachCapture).toHaveBeenCalledWith({ id: "capture-one" });
   expect(api.getCaptureScreenshot).not.toHaveBeenCalled();
@@ -706,7 +710,7 @@ it("previews an immutable candidate without selecting the current draft", async 
     width: 2880,
     height: 1800,
   });
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.captureViewScreenshot") }));
+  fireEvent.click(inRegion(i18n.t("design.captureTitle")).getByRole("button", { name: i18n.t("design.captureViewScreenshot") }));
   const image = await screen.findByAltText(i18n.t("design.captureScreenshotAlt"));
   expect(api.getCaptureScreenshot).toHaveBeenCalledWith({
     id: "capture-one",
@@ -901,9 +905,9 @@ it("creates a new linked capture intent and reuses it after a lost acknowledgeme
   );
   const buttons = await screen.findAllByRole("button", { name: i18n.t("design.canvasRender") });
   fireEvent.click(buttons.find((button) => !(button as HTMLButtonElement).disabled)!);
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.captureAgain") }));
+  fireEvent.click(await (await findRegion(i18n.t("design.captureTitle"))).findByRole("button", { name: i18n.t("design.captureAgain") }));
   await screen.findByText(/retry acknowledgement lost/);
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.captureStart") }));
+  fireEvent.click(inRegion(i18n.t("design.captureTitle")).getByRole("button", { name: i18n.t("design.captureStart") }));
   await screen.findByText(i18n.t("design.captureRunning"));
   expect(api.retryCapture).toHaveBeenCalledTimes(2);
   const intent = api.retryCapture.mock.calls[0]?.[0];
@@ -915,7 +919,7 @@ it("creates a new linked capture intent and reuses it after a lost acknowledgeme
     screen.queryByRole("button", { name: i18n.t("design.captureAgain") }),
   ).not.toBeInTheDocument();
   fireEvent.click(screen.getByText(i18n.t("design.capturePrevious", { id: "capture-original" })));
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.capturePreviousRead") }));
+  fireEvent.click(inRegion(i18n.t("design.captureTitle")).getByRole("button", { name: i18n.t("design.capturePreviousRead") }));
   await waitFor(() => expect(api.getCapture).toHaveBeenLastCalledWith({ id: "capture-original" }));
 });
 
@@ -1016,8 +1020,7 @@ it("lists exact-render reviews and rejects mismatched review detail", async () =
   const buttons = await screen.findAllByRole("button", { name: i18n.t("design.canvasRender") });
   fireEvent.click(buttons.find((button) => !(button as HTMLButtonElement).disabled)!);
   fireEvent.click(
-    await screen.findByRole("button", {
-      name: i18n.t("design.reviewOpen", { critic: "critic-one", date: "2026-09-05" }),
+    await (await findRegion(i18n.t("design.reviewTitle"))).findByRole("button", { name: i18n.t("design.reviewOpen", { critic: "critic-one", date: "2026-09-05" }),
     }),
   );
   await screen.findByText(rationale);
@@ -1033,7 +1036,7 @@ it("lists exact-render reviews and rejects mismatched review detail", async () =
       },
     ],
   });
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.acceptanceCheck") }));
+  fireEvent.click(inRegion(i18n.t("design.acceptanceTitle")).getByRole("button", { name: i18n.t("design.acceptanceCheck") }));
   await screen.findByText("Reviewed calibration examples are required.");
   expect(api.checkCandidateAcceptance).toHaveBeenCalledWith({
     render: expect.objectContaining({ candidate }),
@@ -1055,11 +1058,11 @@ it("lists exact-render reviews and rejects mismatched review detail", async () =
   fireEvent.change(screen.getByLabelText(i18n.t("design.acceptanceActor")), {
     target: { value: "test-agent" },
   });
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.acceptanceRecord") }));
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.acceptanceRetry") }));
+  fireEvent.click(inRegion(i18n.t("design.acceptanceTitle")).getByRole("button", { name: i18n.t("design.acceptanceRecord") }));
+  fireEvent.click(await (await findRegion(i18n.t("design.acceptanceTitle"))).findByRole("button", { name: i18n.t("design.acceptanceRetry") }));
   await screen.findByText(i18n.t("design.acceptanceDecision_needs_evidence"));
   expect(api.acceptCandidate.mock.calls[0]?.[0]).toEqual(api.acceptCandidate.mock.calls[1]?.[0]);
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.acceptanceNewAttempt") }));
+  fireEvent.click(inRegion(i18n.t("design.acceptanceTitle")).getByRole("button", { name: i18n.t("design.acceptanceNewAttempt") }));
   await waitFor(() => expect(api.acceptCandidate).toHaveBeenCalledTimes(3));
   expect(api.acceptCandidate.mock.calls[2]?.[0].idempotencyKey).not.toBe(
     api.acceptCandidate.mock.calls[1]?.[0].idempotencyKey,
@@ -1068,10 +1071,9 @@ it("lists exact-render reviews and rejects mismatched review detail", async () =
   expect(api.listCritiques).toHaveBeenCalledWith({ target, beforeId: "" });
   expect(screen.getByText(i18n.t("design.reviewMinimum", { score: 2 }))).toBeInTheDocument();
   expect(screen.getByText(i18n.t("design.reviewNotAcceptance"))).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: i18n.t("design.reviewMore") }));
+  fireEvent.click(inRegion(i18n.t("design.reviewTitle")).getByRole("button", { name: i18n.t("design.reviewMore") }));
   fireEvent.click(
-    await screen.findByRole("button", {
-      name: i18n.t("design.reviewOpen", { critic: "critic-two", date: "2026-09-05" }),
+    await (await findRegion(i18n.t("design.reviewTitle"))).findByRole("button", { name: i18n.t("design.reviewOpen", { critic: "critic-two", date: "2026-09-05" }),
     }),
   );
   await screen.findByText(i18n.t("design.reviewMismatch"));
@@ -1114,7 +1116,7 @@ it("renders and captures the selected declared preview state", async () => {
   const buttons = await screen.findAllByRole("button", { name: i18n.t("design.canvasRender") });
   const enabled = buttons.find((button) => !(button as HTMLButtonElement).disabled)!;
   fireEvent.click(enabled);
-  fireEvent.click(await screen.findByRole("button", { name: i18n.t("design.captureStart") }));
+  fireEvent.click(await (await findRegion(i18n.t("design.captureTitle"))).findByRole("button", { name: i18n.t("design.captureStart") }));
   await waitFor(() =>
     expect(api.captureCandidate).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1134,7 +1136,7 @@ it("renders and captures the selected declared preview state", async () => {
     ),
   );
   expect(
-    await screen.findByRole("button", { name: i18n.t("design.captureStart") }),
+    await (await findRegion(i18n.t("design.captureTitle"))).findByRole("button", { name: i18n.t("design.captureStart") }),
   ).toBeInTheDocument();
 });
 
@@ -1243,8 +1245,7 @@ it("rejects a comparison response for another candidate", async () => {
   });
   renderPage();
   fireEvent.click(
-    await screen.findByRole("button", {
-      name: i18n.t("design.compareCandidate", { revision: "a" }),
+    await screen.findByRole("button", { name: i18n.t("design.compareCandidate", { revision: "a" }),
     }),
   );
   expect(await screen.findByText(i18n.t("design.compareMismatch"))).toBeInTheDocument();

@@ -1,5 +1,7 @@
 import { defineConfig, type UserConfig } from "vite";
+import { configDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import { existsSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
@@ -47,6 +49,38 @@ const packageAliasEntries = Object.entries(packageAlias).map(([find, replacement
   find,
   replacement,
 }));
+
+const directoryNames = (path: string): string[] =>
+  existsSync(path) ? readdirSync(path, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name) : [];
+
+// `library/tests/<kind>/<asset>/<version>/` holds one release's own tests and
+// runs only while that release is materialized. An evicted release's source
+// lives in the cold mirror, not on disk, so its tests have nothing to import.
+// Retention applies the same ownership rule
+// (api/internal/versionledger/consumer_references.go, newReleaseTestOwners).
+function coldReleaseTestFolders(): string[] {
+  const materialized = new Set<string>();
+  for (const kind of directoryNames(libraryRoot)) {
+    if (kind === "tests" || kind === ".retired") continue;
+    for (const asset of directoryNames(resolve(libraryRoot, kind))) {
+      for (const version of directoryNames(resolve(libraryRoot, kind, asset, "versions"))) {
+        materialized.add(`${asset}/${version}`);
+      }
+    }
+  }
+  const testsRoot = resolve(libraryRoot, "tests");
+  const cold: string[] = [];
+  for (const kind of directoryNames(testsRoot)) {
+    for (const asset of directoryNames(resolve(testsRoot, kind))) {
+      for (const version of directoryNames(resolve(testsRoot, kind, asset))) {
+        if (/^\d+\.\d+\.\d+$/.test(version) && !materialized.has(`${asset}/${version}`)) {
+          cold.push(`../library/tests/${kind}/${asset}/${version}/**`);
+        }
+      }
+    }
+  }
+  return cold;
+}
 
 function testDraftOverrides(mode: string): Record<string, string> {
   if (mode !== "test") return {};
@@ -161,9 +195,11 @@ export default defineConfig(({ mode }): UserConfig => {
         //      generated registries, JSON catalogs).
         //
         // If a scenario adds genuinely-untestable code, prefer narrow file
-        // exclusions with a one-line rationale comment over loosening the
-        // thresholds. The default position is: every new src/ file ships
-        // with its own *.test.{ts,tsx} and lands inside the include set.
+        // exclusions with a one-line rationale comment over lowering the
+        // committed coverage floor (.vrooli/testing.json coverage.committed,
+        // gated by Unit Health). The default position is: every new src/
+        // file ships with its own *.test.{ts,tsx} and lands inside the
+        // include set.
         exclude: [
           "src/**/*.test.{ts,tsx}",
           "src/**/*.spec.{ts,tsx}",
@@ -201,19 +237,6 @@ export default defineConfig(({ mode }): UserConfig => {
           // hand-authored thin-test at the feature root.
           "src/**/generated/**",
         ],
-        // 85% is the floor every canonical-surface file (App.tsx +
-        // button/input/textarea + consts + i18n + api/client + lib/utils) clears with the
-        // tests shipped in this template. Tightening beyond actual
-        // coverage of a healthy template would make every new scenario
-        // start red; loosening below it would make the gate vacuous.
-        // When a scenario's surface stabilises above 90% for a full
-        // release, raise these together.
-        thresholds: {
-          lines: 85,
-          functions: 85,
-          branches: 85,
-          statements: 85,
-        },
       },
       include: [
         isLibrary
@@ -221,6 +244,7 @@ export default defineConfig(({ mode }): UserConfig => {
           : "src/**/*.{test,spec}.{ts,tsx}",
         ...(isLibrary ? [] : ["scripts/vite-plugin-asset-stamp.test.mjs"]),
       ],
+      exclude: isLibrary ? [...configDefaults.exclude, ...coldReleaseTestFolders()] : configDefaults.exclude,
     },
   };
 });

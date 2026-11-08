@@ -9,10 +9,6 @@
       "/design/:scenario/:page",
       "/sketch/:scenario/:page"
     ],
-    "runtimeRoutes": [
-      "/design/switchboard/dashboard",
-      "/sketch/switchboard/dashboard"
-    ],
     "purpose": "Inspect a page declaration, its revisions and verification evidence; the legacy sketch route redirects here."
   },
   "priorities": [
@@ -20,17 +16,32 @@
       "statement": "Inspect a page declaration, its revisions and verification evidence; the legacy sketch route redirects here."
     }
   ],
-  "claims": [{
-    "id": "design-workspace-state-covered",
-    "type": "state-covered",
-    "statement": "The design workspace is captured in the declared page state.",
-    "tier": "machine",
-    "states": ["default"]
-  }],
+  "claims": [
+    {
+      "id": "design-workspace-state-covered",
+      "type": "state-covered",
+      "statement": "The design workspace is captured in the declared page state.",
+      "tier": "machine",
+      "states": [
+        "default",
+        "legacy-sketch-route"
+      ]
+    }
+  ],
   "states": [
     {
       "id": "default",
-      "description": "Inspect a page declaration, its revisions and verification evidence; the legacy sketch route redirects here."
+      "description": "Inspect a page declaration, its revisions and verification evidence; the legacy sketch route redirects here.",
+      "setup": {
+        "route": "/design/switchboard/dashboard"
+      }
+    },
+    {
+      "id": "legacy-sketch-route",
+      "description": "The legacy sketch route redirects into the same design workspace.",
+      "setup": {
+        "route": "/sketch/switchboard/dashboard"
+      }
     }
   ],
   "regions": [

@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"react-component-library/internal/components"
 	"react-component-library/internal/librarywalk"
 )
 
@@ -36,19 +37,14 @@ import (
 // disk, so it is true whether or not the index has caught up. Reading it makes
 // retention independent of index freshness, which is what let all three guards
 // fail at the same time.
-
-// lockDependency mirrors one entry of a generated version lock.
-type lockDependency struct {
-	LibraryID string `json:"libraryId"`
-	Version   string `json:"version"`
-}
-
-// versionLock mirrors `versions/<version>/dependencies.json`.
-type versionLock struct {
-	LibraryID    string           `json:"libraryId"`
-	Version      string           `json:"version"`
-	Dependencies []lockDependency `json:"dependencies"`
-}
+//
+// The lock reader then went blind a second time. Schema v2 moved each pin from
+// `version` to `observed`, and this file kept a private copy of the v1 shape,
+// so every regenerated lock decoded to entries with no release and was
+// skipped: the lock graph was empty, and releases pinned only by a live
+// release's lock were evicted. Locks are now
+// decoded through components.VersionLock, the one shape every reader shares,
+// and an entry that names no release is refused rather than skipped.
 
 // retiredDirName holds quarantined asset trees. Their imports must never keep a
 // live version alive: retired source is the one place a dangling reference is
@@ -56,26 +52,88 @@ type versionLock struct {
 const retiredDirName = ".retired"
 
 // lockReferences builds the reverse dependency graph from every generated
-// version lock under the library root: for each lock, the version that owns it
-// becomes a referrer of each version it depends on.
+// version lock: for each lock, the version that owns it becomes a referrer of
+// each release it pins.
 //
 // The walk is filesystem-first and deliberately independent of the index. A
 // version absent from SQLite still contributes its edges, which is exactly the
 // case that produced the IconButton deletion.
+//
+// Two trees carry locks. Library locks are owned by the version beside them.
+// Preview harness locks (`<scenario>/harnesses/<name>/versions/<v>`) are
+// written by the same generator but belong to no catalog version, so their
+// pins are external consumer roots like the workbench's imports.
 func (r *Repository) lockReferences(ctx context.Context) (map[string][]VersionReference, error) {
 	byVersion := make(map[string][]VersionReference)
+	if strings.TrimSpace(r.sourceRoot) == "" {
+		// A repository with no library root reads only the cold mirror;
+		// resolving "" would walk the process working directory instead.
+		return byVersion, r.mirroredLockReferences(ctx, byVersion)
+	}
 	root := filepath.Clean(r.sourceRoot)
+	libraryLocks, err := lockPathsUnder(ctx, root)
+	if err != nil {
+		return nil, fmt.Errorf("scan version locks: %w", err)
+	}
+	for _, lockPath := range libraryLocks {
+		lock, err := readVersionLock(lockPath)
+		if err != nil {
+			return nil, err
+		}
+		ownerPath, relErr := filepath.Rel(root, lockPath)
+		if relErr != nil {
+			ownerPath = lockPath
+		}
+		if err := addLockEdges(byVersion, lock, lockPath, VersionReference{
+			Kind:           "version-lock",
+			OwnerLibraryID: strings.TrimSpace(lock.LibraryID),
+			OwnerVersion:   strings.TrimSpace(lock.Version),
+			OwnerPath:      filepath.ToSlash(ownerPath),
+			Evidence:       "generated version lock records this dependency",
+		}); err != nil {
+			return nil, err
+		}
+	}
+	scenarioRoot := filepath.Dir(root)
+	harnessLocks, err := lockPathsUnder(ctx, filepath.Join(scenarioRoot, "harnesses"))
+	if err != nil {
+		return nil, fmt.Errorf("scan harness locks: %w", err)
+	}
+	for _, lockPath := range harnessLocks {
+		lock, err := readVersionLock(lockPath)
+		if err != nil {
+			return nil, err
+		}
+		ownerPath, relErr := filepath.Rel(scenarioRoot, lockPath)
+		if relErr != nil {
+			ownerPath = lockPath
+		}
+		if err := addLockEdges(byVersion, lock, lockPath, VersionReference{
+			Kind:      "harness-lock",
+			OwnerPath: filepath.ToSlash(ownerPath),
+			Evidence:  "preview harness lock pins this release",
+		}); err != nil {
+			return nil, err
+		}
+	}
+	if err := r.mirroredLockReferences(ctx, byVersion); err != nil {
+		return nil, err
+	}
+	return byVersion, nil
+}
+
+// lockPathsUnder lists every generated lock below root in stable order, so the
+// cleanup plan hash is reproducible across runs. A missing root is a
+// legitimate state for lightweight fixtures and contributes nothing.
+func lockPathsUnder(ctx context.Context, root string) ([]string, error) {
 	if _, err := os.Stat(root); err != nil {
 		if os.IsNotExist(err) {
-			// A repository pointed at a tree with no library is a legitimate
-			// state for lightweight fixtures. It contributes no edges.
-			return byVersion, nil
+			return nil, nil
 		}
-		return nil, fmt.Errorf("inspect library root for version locks: %w", err)
+		return nil, err
 	}
-
 	var lockPaths []string
-	err := librarywalk.WalkContext(context.Background(), root, func(path string, entry os.DirEntry, walkErr error) error {
+	err := librarywalk.WalkContext(ctx, root, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			if os.IsNotExist(walkErr) {
 				return filepath.SkipDir
@@ -93,57 +151,52 @@ func (r *Repository) lockReferences(ctx context.Context) (map[string][]VersionRe
 		}
 		return nil
 	})
-	if err != nil {
-		return nil, fmt.Errorf("scan version locks: %w", err)
-	}
-	// Stable order keeps the cleanup plan hash reproducible across runs.
 	sort.Strings(lockPaths)
+	return lockPaths, err
+}
 
-	for _, lockPath := range lockPaths {
-		raw, err := os.ReadFile(lockPath)
-		if err != nil {
-			return nil, fmt.Errorf("read version lock %s: %w", lockPath, err)
-		}
-		var lock versionLock
-		if err := json.Unmarshal(raw, &lock); err != nil {
-			// A malformed lock must not silently reduce protection. Retention
-			// is a deletion boundary; an unreadable record is a refusal, not an
-			// absent edge.
-			return nil, fmt.Errorf("decode version lock %s: %w", lockPath, err)
-		}
-		owner := strings.TrimSpace(lock.LibraryID)
-		ownerVersion := strings.TrimSpace(lock.Version)
-		if owner == "" || ownerVersion == "" {
-			return nil, fmt.Errorf("version lock %s names no owning library id and version", lockPath)
-		}
-		ownerPath, relErr := filepath.Rel(root, lockPath)
-		if relErr != nil {
-			ownerPath = lockPath
-		}
-		for _, dependency := range lock.Dependencies {
-			target := strings.TrimSpace(dependency.LibraryID)
-			targetVersion := strings.TrimSpace(dependency.Version)
-			if target == "" || targetVersion == "" {
-				continue
-			}
-			if target == owner && targetVersion == ownerVersion {
-				continue
-			}
-			key := sourceReferenceKey(target, targetVersion)
-			byVersion[key] = appendUniqueReference(byVersion[key], VersionReference{
-				Kind:            "version-lock",
-				OwnerLibraryID:  owner,
-				OwnerVersion:    ownerVersion,
-				OwnerPath:       filepath.ToSlash(ownerPath),
-				ImportSpecifier: target + "/" + targetVersion,
-				Evidence:        "generated version lock records this dependency",
-			})
-		}
+// readVersionLock decodes one lock and requires it to name its owner. A
+// malformed lock must not silently reduce protection: retention is a deletion
+// boundary, so an unreadable record is a refusal, not an absent edge.
+func readVersionLock(lockPath string) (components.VersionLock, error) {
+	var lock components.VersionLock
+	raw, err := os.ReadFile(lockPath)
+	if err != nil {
+		return lock, fmt.Errorf("read version lock %s: %w", lockPath, err)
 	}
-	if err := r.mirroredLockReferences(ctx, byVersion); err != nil {
-		return nil, err
+	if err := json.Unmarshal(raw, &lock); err != nil {
+		return lock, fmt.Errorf("decode version lock %s: %w", lockPath, err)
 	}
-	return byVersion, nil
+	if strings.TrimSpace(lock.LibraryID) == "" || strings.TrimSpace(lock.Version) == "" {
+		return lock, fmt.Errorf("version lock %s names no owning library id and version", lockPath)
+	}
+	return lock, nil
+}
+
+// addLockEdges records one reference per pinned release, stamped from the
+// template that says who owns the lock. An entry that names a dependency but
+// no release is refused for the same reason a malformed lock is.
+func addLockEdges(byVersion map[string][]VersionReference, lock components.VersionLock, source string, template VersionReference) error {
+	owner := strings.TrimSpace(lock.LibraryID)
+	ownerVersion := strings.TrimSpace(lock.Version)
+	for _, dependency := range lock.Dependencies {
+		target := strings.TrimSpace(dependency.LibraryID)
+		targetVersion := dependency.Pin()
+		if target == "" {
+			continue
+		}
+		if targetVersion == "" {
+			return fmt.Errorf("version lock %s pins %s without a release", source, target)
+		}
+		if target == owner && targetVersion == ownerVersion {
+			continue
+		}
+		key := sourceReferenceKey(target, targetVersion)
+		ref := template
+		ref.ImportSpecifier = target + "/" + targetVersion
+		byVersion[key] = appendUniqueReference(byVersion[key], ref)
+	}
+	return nil
 }
 
 // mirroredLockReferences adds edges declared by versions that live in cold
@@ -178,28 +231,21 @@ func (r *Repository) mirroredLockReferences(ctx context.Context, byVersion map[s
 		if err := rows.Scan(&owner, &ownerVersion, &content); err != nil {
 			return err
 		}
-		var lock versionLock
+		var lock components.VersionLock
 		if err := json.Unmarshal([]byte(content), &lock); err != nil {
 			return fmt.Errorf("decode mirrored version lock for %s@%s: %w", owner, ownerVersion, err)
 		}
-		for _, dependency := range lock.Dependencies {
-			target := strings.TrimSpace(dependency.LibraryID)
-			targetVersion := strings.TrimSpace(dependency.Version)
-			if target == "" || targetVersion == "" {
-				continue
-			}
-			if target == owner && targetVersion == ownerVersion {
-				continue
-			}
-			key := sourceReferenceKey(target, targetVersion)
-			byVersion[key] = appendUniqueReference(byVersion[key], VersionReference{
-				Kind:            "version-lock",
-				OwnerLibraryID:  owner,
-				OwnerVersion:    ownerVersion,
-				OwnerPath:       "(cold storage mirror)",
-				ImportSpecifier: target + "/" + targetVersion,
-				Evidence:        "evicted version's mirrored lock records this dependency",
-			})
+		// The mirror row, not the lock body, is the authority on which
+		// version owns these edges.
+		lock.LibraryID, lock.Version = owner, ownerVersion
+		if err := addLockEdges(byVersion, lock, owner+"@"+ownerVersion+" (cold storage mirror)", VersionReference{
+			Kind:           "version-lock",
+			OwnerLibraryID: owner,
+			OwnerVersion:   ownerVersion,
+			OwnerPath:      "(cold storage mirror)",
+			Evidence:       "evicted version's mirrored lock records this dependency",
+		}); err != nil {
+			return err
 		}
 	}
 	return rows.Err()

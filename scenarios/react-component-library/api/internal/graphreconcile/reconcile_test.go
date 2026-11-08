@@ -2,6 +2,7 @@ package graphreconcile
 
 import (
 	"context"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -149,6 +150,11 @@ func TestLiveReconcileReportsEveryCatalogAsset(t *testing.T) {
 // manifest field again, every asset collapses to ManifestEmpty and the gate
 // silently stops measuring anything — a green report that proves nothing.
 func TestLiveReconcileIsNotUniformlyManifestEmpty(t *testing.T) {
+	// The import view comes from the running typescript-code-graph scenario,
+	// so this is a live check: without it every asset reads imports-unavailable.
+	if os.Getenv("VROOLI_RCL_GRAPH_LIVE") == "" {
+		t.Skip("set VROOLI_RCL_GRAPH_LIVE=1 with typescript-code-graph running to reconcile the live corpus")
+	}
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
 	if err != nil {
 		t.Fatal(err)

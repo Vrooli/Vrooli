@@ -218,25 +218,15 @@ func (r *Repository) PlanCleanup(ctx context.Context, scope CleanupScope) ([]Cle
 				items = append(items, item)
 				continue
 			}
-			if r.hasUnindexedReference(ctx, item.References) {
-				// A lock or source reference whose owner is absent from the
-				// index is an unobserved consumer. Retention cannot prove that
-				// owner will be retired with this plan, so keep the target.
-				item.Reason = "referenced by source import"
-				items = append(items, item)
-				continue
-			}
 			switch {
 			case item.AdoptionCount > 0:
 				item.Reason = "referenced by adoption"
 			case scope.OlderThanDays > 0 && item.AgeDays < scope.OlderThanDays:
 				item.Reason = fmt.Sprintf("younger than %d days", scope.OlderThanDays)
 			default:
-				// References from an unreachable historical owner do not keep
-				// this candidate live: that owner is itself outside the root
-				// closure and can be retired in the same governed cleanup plan.
-				// References from live owners were handled by graph.IsReachable
-				// above, and external references are roots in BuildReachability.
+				// Every reference that can still break something is a root in
+				// BuildReachability. What remains are pins held only by cold,
+				// unreachable versions, which leave with them.
 				item.Eligible = true
 				item.Reason = "safe to retire"
 			}
@@ -250,25 +240,6 @@ func (r *Repository) isEvicted(ctx context.Context, componentID, version string)
 	var presence string
 	err := r.db.QueryRowContext(ctx, `SELECT presence FROM component_versions WHERE component_id=? AND version=?`, componentID, version).Scan(&presence)
 	return err == nil && strings.EqualFold(presence, "evicted")
-}
-
-func (r *Repository) hasUnindexedReference(ctx context.Context, references []VersionReference) bool {
-	for _, ref := range references {
-		if strings.TrimSpace(ref.OwnerLibraryID) == "" || strings.TrimSpace(ref.OwnerVersion) == "" {
-			continue
-		}
-		var exists int
-		err := r.db.QueryRowContext(ctx, `
-			SELECT EXISTS(
-				SELECT 1 FROM components c
-				JOIN component_versions v ON v.component_id = c.id
-				WHERE c.library_id = ? AND v.version = ?
-			)`, ref.OwnerLibraryID, ref.OwnerVersion).Scan(&exists)
-		if err == nil && exists == 0 {
-			return true
-		}
-	}
-	return false
 }
 
 func versionAgeDays(created, released string) int {

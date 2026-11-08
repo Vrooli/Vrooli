@@ -12,6 +12,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
+	"github.com/vrooli/cli-core/cliutil"
 	catalogv1 "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog"
 	catalogconnect "github.com/vrooli/vrooli/packages/proto/gen/go/react-component-library/v1/catalog/catalog_v1connect"
 	"react-component-library/internal/catalogcoverage"
@@ -26,7 +27,14 @@ func (h *handlers) corpusReport(_ cliapp.RunContext) error {
 	if err != nil {
 		return err
 	}
-	report, err := catalogcoverage.BuildCorpusReport(filepath.Join(root, "..", ".."))
+	// The corpus report measures the operator's live catalog; this command is
+	// the one place that opens it.
+	catalogDB, err := catalogcoverage.OpenLiveCatalogDatabase()
+	if err != nil {
+		return fmt.Errorf("open live catalog database: %w", err)
+	}
+	defer catalogDB.Close()
+	report, err := catalogcoverage.BuildCorpusReport(filepath.Join(root, "..", ".."), catalogDB)
 	if err != nil {
 		return err
 	}
@@ -77,13 +85,15 @@ func scenarioRoot() (string, error) {
 	starts := []string{}
 	if cwd, err := os.Getwd(); err == nil {
 		starts = append(starts, cwd)
-		// Agents commonly invoke the installed control surface from the
-		// repository root. The scenario is a sibling below `scenarios/`, so
-		// upward-only discovery must also inspect that canonical child.
-		starts = append(starts, filepath.Join(cwd, "scenarios", "react-component-library"))
 	}
 	if envRoot := os.Getenv("SCENARIO_PATH"); envRoot != "" {
 		starts = append(starts, envRoot)
+	}
+	// Outside the scenario tree (the repository root, scenarios/, or anywhere
+	// else) the shared repo-contract resolver names the scenario directly,
+	// sandbox overlays included.
+	if resolved := cliutil.ResolveScenarioPath("react-component-library"); resolved != "" {
+		starts = append(starts, resolved)
 	}
 	for _, start := range starts {
 		for current := filepath.Clean(start); ; current = filepath.Dir(current) {

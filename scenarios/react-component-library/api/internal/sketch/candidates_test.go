@@ -11,11 +11,11 @@ import (
 func TestCandidatesPreservePageAndRemainReadableAfterEdits(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	original := []byte(`{"claims":[{"id":"keep"}],"regions":[{"id":"main"}],"sketch":{"x-extension":true}}`)
-	if err := os.WriteFile(path, original, 0600); err != nil {
+	if err := os.WriteFile(path, original, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	store := NewStore(root)
@@ -75,7 +75,7 @@ func TestCandidatesPreservePageAndRemainReadableAfterEdits(t *testing.T) {
 		t.Fatal("stale candidate publication accepted")
 	}
 	relative, _ := candidatePath("design-one", saved.Hash)
-	candidatePath := filepath.Join(root, "scenarios", "demo", "experience", relative)
+	candidatePath := filepath.Join(root, "scenarios", "demo", "data", "experience", relative)
 	var altered Candidate
 	if err := json.Unmarshal(mustCandidateBytes(t, candidatePath), &altered); err != nil {
 		t.Fatal(err)
@@ -85,7 +85,7 @@ func TestCandidatesPreservePageAndRemainReadableAfterEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(candidatePath, damaged, 0600); err != nil {
+	if err := os.WriteFile(candidatePath, damaged, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := store.ListCandidates("demo", "home"); err == nil {
@@ -120,6 +120,7 @@ func TestNestedRegionLocksProtectDescendantsAndContainingLayout(t *testing.T) {
 		t.Fatal("containing layout change bypassed locked child")
 	}
 }
+
 func mustCandidateBytes(t *testing.T, path string) []byte {
 	t.Helper()
 	b, err := os.ReadFile(path)
@@ -128,6 +129,7 @@ func mustCandidateBytes(t *testing.T, path string) []byte {
 	}
 	return b
 }
+
 func TestCandidateIdentityRejectsTraversal(t *testing.T) {
 	for _, id := range []string{"../outside", "a/b", ""} {
 		if _, err := candidatePath(id, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"); err == nil {
@@ -139,13 +141,13 @@ func TestCandidateIdentityRejectsTraversal(t *testing.T) {
 func TestRegionLocksProtectPageWritesAndCandidateBranches(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "scenarios", "demo", "experience", "pages", "home.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	doc := renderSnapshot().Document
 	doc.Regions = []Region{{ID: "inspector", Locked: true}, {ID: "other"}}
 	raw, _ := json.Marshal(map[string]any{"sketch": doc, "claims": []any{map[string]any{"id": "preserve"}}})
-	if err := os.WriteFile(path, raw, 0600); err != nil {
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	store := NewStore(root)

@@ -7,5 +7,5 @@
   "source": "broken.tsx",
   "catalogAsset": "asset.json",
   "mutation": "duplicate-stylesheet-key",
-  "description": "Two version directories carry the same exact stylesheet identity."
+  "description": "Two version directories inject different CSS under the same exact stylesheet identity."
 }

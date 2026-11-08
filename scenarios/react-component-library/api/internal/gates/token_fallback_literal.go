@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"react-component-library/internal/components"
+	"react-component-library/internal/tokenparity"
 )
 
 // ValidateTokenFallbackLiteral rejects a literal CSS fallback in an active
@@ -38,7 +39,7 @@ func ValidateTokenFallbackLiteral(scope Scope) (Result, error) {
 		if readErr != nil {
 			return Result{}, readErr
 		}
-		for _, fallback := range parseTokenFallbacks(string(data)) {
+		for _, fallback := range tokenparity.ParseFallbacks(string(data)) {
 			if _, exempt := exemptions[fallback.Property]; exempt || strings.HasPrefix(strings.TrimSpace(fallback.Value), "var(") {
 				continue
 			}

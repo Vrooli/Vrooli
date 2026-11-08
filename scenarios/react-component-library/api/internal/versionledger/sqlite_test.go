@@ -250,7 +250,11 @@ INSERT INTO component_versions(component_id, library_id, version, status, source
 	require.Contains(t, items[0].References[0].Evidence, "surviving version")
 }
 
-func TestPlanCleanupIgnoresReferencesFromUnreachableHistoricalOwners(t *testing.T) {
+// A historical owner that is still materialized keeps its pins live: retiring
+// the target first would leave a release on disk importing a deleted one. The
+// owner is retired first; once it is cold, its pin is an ordinary edge from an
+// unreachable version and the target can follow.
+func TestPlanCleanupRetiresHistoricalChainsOwnerFirst(t *testing.T) {
 	database := databasetest.NewSQLite(t)
 	root := t.TempDir()
 	targetOld := filepath.Join(root, "components/Target/versions/1.0.0")
@@ -270,6 +274,7 @@ CREATE TABLE component_versions (component_id TEXT NOT NULL, library_id TEXT NOT
 CREATE TABLE adoption_records (id TEXT, component_id TEXT, library_id TEXT, adopted_version TEXT, mode TEXT NOT NULL DEFAULT 'copied', scenario TEXT NOT NULL DEFAULT '', adopted_path TEXT NOT NULL DEFAULT '');
 CREATE TABLE adoption_files (adoption_id TEXT, source_library_id TEXT, source_version TEXT, adopted_path TEXT NOT NULL DEFAULT '');
 CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
+CREATE TABLE component_version_files (version_id TEXT, path TEXT, content TEXT);
 INSERT INTO components VALUES
   ('target', 'react-component-library:Target', '1.0.1', '', 'components/Target/component.json'),
   ('owner', 'react-component-library:Owner', '1.0.1', '', 'components/Owner/component.json');
@@ -281,12 +286,32 @@ INSERT INTO component_versions VALUES
 `)
 	require.NoError(t, err)
 
-	items, _, err := NewRepository(database, root).PlanCleanup(context.Background(), CleanupScope{LibraryID: "react-component-library:Target"})
+	repository := NewRepository(database, root)
+	items, _, err := repository.PlanCleanup(context.Background(), CleanupScope{})
+	require.NoError(t, err)
+	byKey := map[string]CleanupItem{}
+	for _, item := range items {
+		byKey[item.Candidate.LibraryID+"@"+item.Candidate.Version] = item
+	}
+	require.True(t, byKey["react-component-library:Owner@1.0.0"].Eligible, "the unreachable owner leaves first")
+	target := byKey["react-component-library:Target@1.0.0"]
+	require.False(t, target.Eligible, "a materialized owner's pin keeps its target")
+	require.Equal(t, "referenced by source import", target.Reason)
+	require.Len(t, target.References, 1)
+
+	// Evict the owner: its bytes now live only in the mirror.
+	ownerSource, err := os.ReadFile(filepath.Join(ownerOld, "Owner.tsx"))
+	require.NoError(t, err)
+	_, err = database.ExecContext(context.Background(), `INSERT INTO component_version_files VALUES ('owner-old', 'Owner.tsx', ?); UPDATE component_versions SET presence='evicted' WHERE id='owner-old';`, string(ownerSource))
+	require.NoError(t, err)
+	require.NoError(t, os.RemoveAll(ownerOld))
+
+	items, _, err = repository.PlanCleanup(context.Background(), CleanupScope{LibraryID: "react-component-library:Target"})
 	require.NoError(t, err)
 	require.Len(t, items, 2)
 	require.True(t, items[0].Eligible)
 	require.Equal(t, "safe to retire", items[0].Reason)
-	require.Len(t, items[0].References, 1)
+	require.Len(t, items[0].References, 1, "the cold owner's pin stays visible as evidence")
 }
 
 func TestCleanupDraftRequiresAgeAndClearsManifest(t *testing.T) {
@@ -416,7 +441,7 @@ CREATE TABLE component_asset_dependencies (library_id TEXT, version TEXT);
 	require.NoError(t, err)
 	type versionFixture struct {
 		componentID, libraryID, version, status, sourcePath string
-		dependencies                                       []struct{ libraryID, version string }
+		dependencies                                        []struct{ libraryID, version string }
 	}
 	versions := []versionFixture{
 		{componentID: "root", libraryID: "react-component-library:DraftRoot", version: "2.0.0", status: "released", sourcePath: "components/DraftRoot/versions/2.0.0/DraftRoot.tsx"},

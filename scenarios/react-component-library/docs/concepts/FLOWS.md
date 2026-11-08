@@ -50,8 +50,12 @@ This document is the canonical workflow map for ordered behavior.
 3. Validate the target's package and design-token configuration.
 4. Add the version-pinned `file:` dependency through Scenario Dependency
    Analyzer and regenerate the package lock state.
-5. Install the managed locale bridge, derived English keys, and generated
-   selector registry.
+5. Install the managed locale bridge (`LibraryStringsProvider` in the app
+   entry) and the generated selector registry. Library strings are not copied
+   into the target's locale catalogue: each resolves through the target's
+   i18n and falls back to its `defineStrings` English default. A target adds
+   a library key to its catalogues only when it translates it, in every
+   locale it ships.
 6. Insert one linked parent adoption plus a durable record for each effective
    asset. No library source file enters the target scenario.
 

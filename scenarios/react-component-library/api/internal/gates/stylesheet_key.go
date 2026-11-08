@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"react-component-library/internal/components"
 	"react-component-library/internal/librarywalk"
 )
 
@@ -19,6 +20,7 @@ var (
 	styleSheetVersionArg = regexp.MustCompile(`^\s*["']\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?["']\s*,`)
 	styleSheetLibraryID  = regexp.MustCompile(`@libraryId\s+([^\s*]+)`)
 	styleSheetVersion    = regexp.MustCompile(`@version\s+([^\s*]+)`)
+	styleSheetReleaseDir = regexp.MustCompile(`^\d+\.\d+\.\d+$`)
 )
 
 type stylesheetSource struct {
@@ -27,11 +29,24 @@ type stylesheetSource struct {
 	version    string
 	assetID    string
 	versionDir string
+	// released marks immutable history: a release-shaped version of an asset
+	// that has published a release, other than its active draft. Everything
+	// else (the draft, or an asset with no release yet) can still change and
+	// is judged.
+	released bool
+	// current marks the version a consumer gets today: the latest release or
+	// the active draft (or any version of an asset with no release yet).
+	current bool
 }
 
 // ValidateStylesheetKey rejects the legacy literal key at each injection site.
 // The identity must come from the source header (or its manifest for older
 // adopted files), so the runtime key cannot drift from the published asset.
+//
+// Only the active draft is judged: it is the one version that can still
+// change. Released versions are immutable history, so their legacy keys are
+// reported as information instead of failing the gate on bytes nobody may
+// edit; a new release fixes them, and the store stamps every version it writes.
 func ValidateStylesheetKey(scope Scope) (Result, error) {
 	sources, err := stylesheetSources(scope)
 	if err != nil {
@@ -44,11 +59,27 @@ func ValidateStylesheetKey(scope Scope) (Result, error) {
 			return Result{}, err
 		}
 		text := string(data)
+		var findings []Finding
 		for _, match := range styleSheetLiteral.FindAllStringIndex(text, -1) {
-			result.Findings = append(result.Findings, Finding{
+			findings = append(findings, Finding{
 				Code: "catalog.stylesheet-key", AssetID: source.assetID, File: repoRel(scope.Root, source.path), Line: lineAt(data, match[0]),
 				Message:     "StyleSheet still passes a literal name instead of the exact asset identity",
 				Remediation: fmt.Sprintf("Replace the literal name with libraryId=%q and version=%q, or use the stylesheet identity codemod.", source.libraryID, source.version),
+				DocsRef:     "docs/reference/style-ownership.md",
+			})
+		}
+		// The key's version literal must be this version's own. A draft copied
+		// from its release keeps the release's literal unless the store
+		// rewrites it, and then two versions share one page-global key with
+		// different CSS (FullPageDrawer 1.4.5-1.5.0 all used 1.4.3).
+		for _, literal := range components.SelfStyleSheetVersions(text, source.libraryID) {
+			if literal.Version == source.version {
+				continue
+			}
+			findings = append(findings, Finding{
+				Code: "catalog.stylesheet-key-version", AssetID: source.assetID, File: repoRel(scope.Root, source.path), Line: lineAt(data, literal.Offset),
+				Message:     fmt.Sprintf("stylesheet key passes version %q but this version is %q", literal.Version, source.version),
+				Remediation: fmt.Sprintf("Pass version %q; draft-begin and draft-publish stamp it automatically.", source.version),
 				DocsRef:     "docs/reference/style-ownership.md",
 			})
 		}
@@ -56,28 +87,68 @@ func ValidateStylesheetKey(scope Scope) (Result, error) {
 			if styleSheetVersionArg.MatchString(text[match[1]:]) {
 				continue
 			}
-			result.Findings = append(result.Findings, Finding{
+			findings = append(findings, Finding{
 				Code: "catalog.stylesheet-key", AssetID: source.assetID, File: repoRel(scope.Root, source.path), Line: lineAt(data, match[0]),
 				Message:     "useLibraryStyleSheet still passes a legacy literal key",
 				Remediation: fmt.Sprintf("Pass libraryId %q and version %q as the first two arguments.", source.libraryID, source.version),
 				DocsRef:     "docs/reference/style-ownership.md",
 			})
 		}
+		if source.released {
+			result.InformationalFindings = append(result.InformationalFindings, findings...)
+		} else {
+			result.Findings = append(result.Findings, findings...)
+		}
 	}
 	return nonEmpty(result, "stylesheet-key"), nil
 }
 
-// ValidateStylesheetKeyUniqueness proves that two reachable version
-// directories cannot compute the same page-global stylesheet key.
+// ValidateStylesheetKeyUniqueness fails when the version a consumer gets today
+// (the latest release or the active draft) injects different CSS under the
+// same page-global stylesheet key as another version: whichever mounts first
+// wins and the other renders with the wrong styles. The key is computed from
+// the version literal the source actually passes, not from its header,
+// because copied drafts used to keep their release's literal.
+//
+// A key shared by versions whose CSS is identical breaks nothing and is
+// information, as is a shared key whose CSS cannot be read statically. A
+// collision confined to older releases is information too: released history
+// is immutable, and once the latest keys by its own version (the store stamps
+// it on release) nothing current can collide.
 func ValidateStylesheetKeyUniqueness(scope Scope) (Result, error) {
 	sources, err := stylesheetSources(scope)
 	if err != nil {
 		return Result{}, err
 	}
-	byKey := map[string][]stylesheetSource{}
+	type injection struct {
+		source stylesheetSource
+		css    string
+		known  bool
+	}
+	byKey := map[string][]injection{}
+	siblings := map[string][]string{}
 	for _, source := range sources {
-		key := libraryStyleSheetKey(source.libraryID, source.version)
-		byKey[key] = append(byKey[key], source)
+		data, err := os.ReadFile(source.path)
+		if err != nil {
+			return Result{}, err
+		}
+		text := string(data)
+		literals := components.SelfStyleSheetVersions(text, source.libraryID)
+		if len(literals) == 0 {
+			// A source that keys by header identity or a variable keeps the
+			// header version; it can still collide with a copied literal.
+			key := libraryStyleSheetKey(source.libraryID, source.version)
+			byKey[key] = append(byKey[key], injection{source: source})
+			continue
+		}
+		for _, literal := range literals {
+			if _, ok := siblings[source.versionDir]; !ok {
+				siblings[source.versionDir] = versionSourceTexts(source.versionDir)
+			}
+			css, known := components.StyleSheetConstText(literal.CSSName, append([]string{text}, siblings[source.versionDir]...)...)
+			key := libraryStyleSheetKey(source.libraryID, literal.Version)
+			byKey[key] = append(byKey[key], injection{source: source, css: strings.Join(strings.Fields(css), " "), known: known})
+		}
 	}
 	result := Result{Inspected: len(sources)}
 	keys := make([]string, 0, len(byKey))
@@ -88,27 +159,80 @@ func ValidateStylesheetKeyUniqueness(scope Scope) (Result, error) {
 	for _, key := range keys {
 		entries := byKey[key]
 		versionDirs := map[string]bool{}
+		cssByDir := map[string]string{}
+		unknown := false
+		current := false
 		for _, entry := range entries {
-			versionDirs[entry.versionDir] = true
+			versionDirs[entry.source.versionDir] = true
+			current = current || entry.source.current
+			if !entry.known {
+				unknown = true
+				continue
+			}
+			cssByDir[entry.source.versionDir] = entry.css
 		}
 		if len(versionDirs) < 2 {
 			continue
+		}
+		distinct := map[string]bool{}
+		for _, css := range cssByDir {
+			distinct[css] = true
 		}
 		paths := make([]string, 0, len(versionDirs))
 		for versionDir := range versionDirs {
 			paths = append(paths, repoRel(scope.Root, versionDir))
 		}
 		sort.Strings(paths)
+		collision := len(distinct) > 1
 		for _, entry := range entries {
-			result.Findings = append(result.Findings, Finding{
-				Code: "catalog.stylesheet-key-duplicate", AssetID: entry.assetID, File: repoRel(scope.Root, entry.versionDir),
-				Message:     fmt.Sprintf("computed stylesheet key %q is shared by version directories: %s", key, strings.Join(paths, ", ")),
-				Remediation: "Keep the asset libraryId and exact version from the source header so every version computes a unique stylesheet key.",
-				DocsRef:     "docs/reference/style-ownership.md",
-			})
+			finding := Finding{
+				Code: "catalog.stylesheet-key-duplicate", AssetID: entry.source.assetID, File: repoRel(scope.Root, entry.source.versionDir),
+				DocsRef: "docs/reference/style-ownership.md",
+			}
+			switch {
+			case collision && current:
+				finding.Message = fmt.Sprintf("stylesheet key %q injects different CSS from version directories: %s", key, strings.Join(paths, ", "))
+				finding.Remediation = "Release a new version; the store stamps the release's own version into its stylesheet key."
+				result.Findings = append(result.Findings, finding)
+			case collision:
+				finding.Code = "catalog.stylesheet-key-duplicate-history"
+				finding.Message = fmt.Sprintf("older releases share stylesheet key %q with different CSS: %s", key, strings.Join(paths, ", "))
+				finding.Remediation = "Nothing current collides; mounting two of these historical releases on one page would."
+				result.InformationalFindings = append(result.InformationalFindings, finding)
+			case unknown:
+				finding.Code = "catalog.stylesheet-key-shared"
+				finding.Message = fmt.Sprintf("stylesheet key %q is shared by version directories (%s); their CSS could not be compared statically", key, strings.Join(paths, ", "))
+				finding.Remediation = "Nothing breaks unless the CSS differs; the next release keys by its own version."
+				result.InformationalFindings = append(result.InformationalFindings, finding)
+			default:
+				finding.Code = "catalog.stylesheet-key-shared"
+				finding.Message = fmt.Sprintf("stylesheet key %q is shared by version directories with identical CSS: %s", key, strings.Join(paths, ", "))
+				finding.Remediation = "Nothing breaks; the next release keys by its own version."
+				result.InformationalFindings = append(result.InformationalFindings, finding)
+			}
 		}
 	}
 	return nonEmpty(result, "stylesheet-key-duplicate"), nil
+}
+
+// versionSourceTexts reads every .ts/.tsx file of one version directory, so a
+// CSS constant imported from a sibling module can be resolved.
+func versionSourceTexts(versionDir string) []string {
+	entries, err := os.ReadDir(versionDir)
+	if err != nil {
+		return nil
+	}
+	var texts []string
+	for _, entry := range entries {
+		ext := strings.ToLower(filepath.Ext(entry.Name()))
+		if entry.IsDir() || (ext != ".ts" && ext != ".tsx") {
+			continue
+		}
+		if data, err := os.ReadFile(filepath.Join(versionDir, entry.Name())); err == nil {
+			texts = append(texts, string(data))
+		}
+	}
+	return texts
 }
 
 func stylesheetSources(scope Scope) ([]stylesheetSource, error) {
@@ -153,11 +277,16 @@ func stylesheetSources(scope Scope) ([]stylesheetSource, error) {
 			}
 			return err
 		}
-		assetID, err := manifestIdentity(assetDir)
+		assetID, latest, draft, err := manifestIdentity(assetDir)
 		if err != nil {
 			return err
 		}
-		sources = append(sources, stylesheetSource{path: path, libraryID: libraryID, version: version, assetID: assetID, versionDir: filepath.Dir(path)})
+		versionName := filepath.Base(filepath.Dir(path))
+		sources = append(sources, stylesheetSource{
+			path: path, libraryID: libraryID, version: version, assetID: assetID, versionDir: filepath.Dir(path),
+			released: latest != "" && versionName != draft && styleSheetReleaseDir.MatchString(versionName),
+			current:  latest == "" || versionName == latest || versionName == draft,
+		})
 		return nil
 	})
 	if err != nil {
@@ -198,22 +327,27 @@ func manifestLibraryID(assetDir string) (string, error) {
 	return manifest.LibraryID, nil
 }
 
-func manifestIdentity(assetDir string) (string, error) {
+// manifestIdentity returns the asset's finding identity, its latest release
+// and its active draft version.
+func manifestIdentity(assetDir string) (string, string, string, error) {
 	data, err := os.ReadFile(filepath.Join(assetDir, "component.json"))
 	if err != nil {
-		return "", err
+		return "", "", "", err
 	}
 	var manifest struct {
 		CatalogID string `json:"catalogId"`
 		LibraryID string `json:"libraryId"`
+		Latest    string `json:"latest"`
+		Draft     string `json:"draft"`
 	}
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		return "", err
+		return "", "", "", err
 	}
+	id := manifest.LibraryID
 	if manifest.CatalogID != "" {
-		return manifest.CatalogID, nil
+		id = manifest.CatalogID
 	}
-	return manifest.LibraryID, nil
+	return id, strings.TrimSpace(manifest.Latest), strings.TrimSpace(manifest.Draft), nil
 }
 
 func libraryStyleSheetKey(libraryID, version string) string {

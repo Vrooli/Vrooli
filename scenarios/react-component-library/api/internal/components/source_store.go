@@ -305,6 +305,9 @@ func (s *FSContentStore) InitializeComponent(_ context.Context, in InitializeCom
 				body = ensureHeaderFields(body, libraryID, displayName, mf.Description, version, mf.Tags)
 			}
 		}
+		if isSourceFile(file.Path) {
+			body = StampStyleSheetVersions(body, libraryID, version)
+		}
 		path := filepath.Join(filepath.Dir(sourceAbs), file.Path)
 		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 			return "", "", fmt.Errorf("write component source %q: %w", filepath.ToSlash(filepath.Join(filepath.Dir(sourcePath), file.Path)), err)
@@ -441,6 +444,11 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 	}()
 	for _, file := range files {
 		body := file.Content
+		if isSourceFile(file.Path) {
+			// The stylesheet key literal is part of the version's identity,
+			// like the header (stylesheet_identity.go).
+			body = StampStyleSheetVersions(body, c.LibraryID, version)
+		}
 		if file.IsEntry {
 			body = strings.TrimSpace(body)
 			body = ensureHeaderFields(body, c.LibraryID, c.DisplayName, c.Description, version, c.Tags)
@@ -449,11 +457,15 @@ func (s *FSContentStore) CreateVersion(_ context.Context, c Component, in Create
 			// still an owned version artifact. Keep the inherited dependency
 			// candidates while rewriting the identity fields so the indexer does
 			// not reject the draft as belonging to the source release.
-			var lock frozenDependencyLock
+			var lock VersionLock
 			if err := json.Unmarshal([]byte(body), &lock); err != nil {
 				return "", fmt.Errorf("decode draft dependency lock: %w", err)
 			}
-			lock.SchemaVersion = 1
+			// The inherited entries keep the schema they were written under;
+			// relabelling v2 entries as v1 would misdescribe the record.
+			if lock.SchemaVersion == 0 {
+				lock.SchemaVersion = 2
+			}
 			lock.LibraryID = c.LibraryID
 			lock.Version = version
 			lock.ResolvedAt = time.Now().UTC().Format(time.RFC3339)
@@ -582,24 +594,8 @@ func SelectActivePackageVersion(versions []string, requested string) (string, bo
 	return candidates[len(candidates)-1], true
 }
 
-type frozenDependency struct {
-	LibraryID string `json:"libraryId"`
-	Version   string `json:"version,omitempty"`
-	Major     int    `json:"major"`
-	Observed  string `json:"observed"`
-	Rank      int    `json:"rank"`
-}
-
-type frozenDependencyLock struct {
-	SchemaVersion int                `json:"schemaVersion"`
-	LibraryID     string             `json:"libraryId"`
-	Version       string             `json:"version"`
-	ResolvedAt    string             `json:"resolvedAt"`
-	Dependencies  []frozenDependency `json:"dependencies"`
-}
-
 func (s *FSContentStore) freezeReleaseDependencies(c Component, version string, files []ComponentVersionFile) ([]ComponentVersionFile, error) {
-	dependencies := map[string]frozenDependency{}
+	dependencies := map[string]VersionLockDependency{}
 	for i := range files {
 		if ext := filepath.Ext(files[i].Path); ext != ".ts" && ext != ".tsx" {
 			continue
@@ -614,10 +610,7 @@ func (s *FSContentStore) freezeReleaseDependencies(c Component, version string, 
 				resolveErr = fmt.Errorf("freeze %s in %s: %w", libspec.Prefix+parsed.Name, files[i].Path, err)
 				return ""
 			}
-			version := dependency.Observed
-			if version == "" {
-				version = dependency.Version
-			}
+			version := dependency.Pin()
 			dependency.Version = version
 			dependency.Major = 0
 			if parts := strings.Split(version, "."); len(parts) > 0 {
@@ -637,7 +630,7 @@ func (s *FSContentStore) freezeReleaseDependencies(c Component, version string, 
 			return nil, resolveErr
 		}
 	}
-	ordered := make([]frozenDependency, 0, len(dependencies))
+	ordered := make([]VersionLockDependency, 0, len(dependencies))
 	for _, dependency := range dependencies {
 		// v2 records the imported major and the observed resolution. The
 		// exact version field is accepted only as a v1 read compatibility alias
@@ -651,7 +644,7 @@ func (s *FSContentStore) freezeReleaseDependencies(c Component, version string, 
 		}
 		return ordered[i].LibraryID < ordered[j].LibraryID
 	})
-	lock, err := json.MarshalIndent(frozenDependencyLock{SchemaVersion: 2, LibraryID: c.LibraryID, Version: version, ResolvedAt: time.Now().UTC().Format(time.RFC3339), Dependencies: ordered}, "", "  ")
+	lock, err := json.MarshalIndent(VersionLock{SchemaVersion: 2, LibraryID: c.LibraryID, Version: version, ResolvedAt: time.Now().UTC().Format(time.RFC3339), Dependencies: ordered}, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("encode frozen dependency lock: %w", err)
 	}
@@ -665,7 +658,7 @@ func (s *FSContentStore) freezeReleaseDependencies(c Component, version string, 
 	return append(files, ComponentVersionFile{Path: "dependencies.json", Content: string(lock)}), nil
 }
 
-func (s *FSContentStore) resolveSourceDependency(name, requested string) (frozenDependency, error) {
+func (s *FSContentStore) resolveSourceDependency(name, requested string) (VersionLockDependency, error) {
 	ranks := map[string]int{"foundations": 1, "hooks": 2, "services": 2, "adapters": 2, "primitives": 3, "components": 4, "patterns": 5, "navigation": 5, "page-templates": 6}
 	for kind, rank := range ranks {
 		manifestPath := filepath.Join(s.root, kind, name, "component.json")
@@ -674,7 +667,7 @@ func (s *FSContentStore) resolveSourceDependency(name, requested string) (frozen
 			continue
 		}
 		if err != nil {
-			return frozenDependency{}, err
+			return VersionLockDependency{}, err
 		}
 		var manifest struct {
 			LibraryID          string   `json:"libraryId"`
@@ -682,11 +675,11 @@ func (s *FSContentStore) resolveSourceDependency(name, requested string) (frozen
 			EvictedVersions    []string `json:"evictedVersions"`
 		}
 		if err := json.Unmarshal(raw, &manifest); err != nil {
-			return frozenDependency{}, fmt.Errorf("decode %s: %w", manifestPath, err)
+			return VersionLockDependency{}, fmt.Errorf("decode %s: %w", manifestPath, err)
 		}
 		entries, err := os.ReadDir(filepath.Join(s.root, kind, name, "versions"))
 		if err != nil {
-			return frozenDependency{}, err
+			return VersionLockDependency{}, err
 		}
 		unavailable := map[string]bool{}
 		for _, value := range append(manifest.DeprecatedVersions, manifest.EvictedVersions...) {
@@ -701,11 +694,11 @@ func (s *FSContentStore) resolveSourceDependency(name, requested string) (frozen
 		}
 		selected, ok := SelectActivePackageVersion(candidates, requested)
 		if !ok {
-			return frozenDependency{}, fmt.Errorf("%s has no active release matching %q", name, requested)
+			return VersionLockDependency{}, fmt.Errorf("%s has no active release matching %q", name, requested)
 		}
-		return frozenDependency{LibraryID: manifest.LibraryID, Version: selected, Rank: rank}, nil
+		return VersionLockDependency{LibraryID: manifest.LibraryID, Version: selected, Rank: rank}, nil
 	}
-	return frozenDependency{}, fmt.Errorf("unknown intra-library asset %s", name)
+	return VersionLockDependency{}, fmt.Errorf("unknown intra-library asset %s", name)
 }
 
 func compareSemver(left, right string) int {
@@ -1157,6 +1150,61 @@ func (s *FSContentStore) UpdateManifest(_ context.Context, c Component, in Updat
 	return nil
 }
 
+// ClearMaterializedEvictedMarker drops version from evictedVersions once its
+// folder is back on disk, and leaves every other manifest byte as it was.
+// Materialization calls it so a restored release re-enters the package export
+// map, which skips listed versions. Other listed versions are left alone even
+// when their folders exist: a few releases are kept on disk as recovery source
+// while deliberately unexported (VoiceInputButton 4.3.1 pins a ControlBase
+// release that no longer exists anywhere).
+func (s *FSContentStore) ClearMaterializedEvictedMarker(c Component, version string) error {
+	manifestPath := c.ManifestPath
+	if manifestPath == "" {
+		manifestPath = filepath.ToSlash(filepath.Join("components", c.Slug, "component.json"))
+	}
+	abs, err := s.resolveCreatable(manifestPath)
+	if err != nil {
+		return err
+	}
+	if info, statErr := os.Stat(filepath.Join(filepath.Dir(abs), "versions", version)); statErr != nil || !info.IsDir() {
+		return nil
+	}
+	raw, err := os.ReadFile(abs)
+	if err != nil {
+		return fmt.Errorf("read component manifest: %w", err)
+	}
+	manifest, order, err := decodeOrderedObject(raw)
+	if err != nil {
+		return ErrInvalidHeader{SourcePath: manifestPath, Field: "component.json", Reason: fmt.Sprintf("not a JSON object: %v", err)}
+	}
+	rawEvicted, ok := manifest["evictedVersions"]
+	if !ok {
+		return nil
+	}
+	var evicted []string
+	if err := json.Unmarshal(rawEvicted, &evicted); err != nil {
+		return ErrInvalidHeader{SourcePath: manifestPath, Field: "evictedVersions", Reason: "must be an array of versions"}
+	}
+	retained := make([]string, 0, len(evicted))
+	for _, listed := range evicted {
+		if strings.TrimSpace(listed) != version {
+			retained = append(retained, listed)
+		}
+	}
+	if len(retained) == len(evicted) {
+		return nil
+	}
+	setManifestField(manifest, &order, "evictedVersions", cleanTags(retained))
+	encoded, err := marshalOrderedObject(manifest, order)
+	if err != nil {
+		return fmt.Errorf("encode component manifest: %w", err)
+	}
+	if err := os.WriteFile(abs, encoded, 0o600); err != nil {
+		return fmt.Errorf("write component manifest: %w", err)
+	}
+	return nil
+}
+
 // decodeOrderedObject parses a JSON object into its key→value map plus the key
 // order as they appear on disk, so a rewrite can preserve field ordering. Empty
 // input yields an empty object, not an error (a fresh manifest is seeded by the
@@ -1480,7 +1528,7 @@ func (s *FSContentStore) ArchiveComponentSource(c Component) (string, error) {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
-	if err := os.MkdirAll(filepath.Dir(archive), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(archive), 0o755); err != nil {
 		return "", err
 	}
 	if err := os.Rename(filepath.Dir(manifestPath), archive); err != nil {
@@ -1506,7 +1554,7 @@ func (s *FSContentStore) PersistComponentRetirementSnapshot(snapshot componentRe
 	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
 	key := sha256.Sum256([]byte("asset:" + snapshot.Component.LibraryID))

@@ -8,18 +8,17 @@ import (
 	"regexp"
 	"strings"
 
-	"react-component-library/internal/themes"
+	"react-component-library/internal/tokenparity"
 )
 
+// ValidateFallbackParity makes authored fallbacks an honest view of the
+// canonical base vocabulary. Properties owned inside the same version and
+// host-computed --rcl-* contracts are intentionally outside this comparison.
 func ValidateFallbackParity(scope Scope) (Result, error) {
 	root := scope.Root
-	tokens, err := themes.ReadTokenFile(filepath.Join(root, "templates", "design", "_base", "tokens.css"))
+	canonical, err := tokenparity.LoadCanonical(root)
 	if err != nil {
 		return Result{}, fmt.Errorf("read canonical token vocabulary: %w", err)
-	}
-	canonical := make(map[string]string, len(tokens))
-	for _, token := range tokens {
-		canonical[token.Name] = normalizeTokenValue(token.Value)
 	}
 	// Backfilled releases preserve immutable historical bytes. Their fallbacks
 	// were authored against an earlier canonical ramp and are intentionally not
@@ -66,36 +65,22 @@ func ValidateFallbackParity(scope Scope) (Result, error) {
 		if len(versionSources) == 0 {
 			continue
 		}
-		declared := map[string]bool{}
-		contents := map[string][]byte{}
+		contents := make(map[string][]byte, len(versionSources))
 		for _, source := range versionSources {
 			data, readErr := os.ReadFile(source)
 			if readErr != nil {
 				return Result{}, readErr
 			}
 			contents[source] = data
-			for _, match := range regexp.MustCompile(`(?m)(--[A-Za-z0-9_-]+)\s*:`).FindAllSubmatch(data, -1) {
-				declared[string(match[1])] = true
-			}
 		}
-		for _, source := range versionSources {
-			data := contents[source]
-			result.Inspected++
-			for _, fallback := range parseTokenFallbacks(string(data)) {
-				want, known := canonical[fallback.Property]
-				if !known || declared[fallback.Property] || strings.HasPrefix(fallback.Property, "--rcl-") {
-					continue
-				}
-				if normalizeTokenValue(fallback.Value) == want {
-					continue
-				}
-				result.Findings = append(result.Findings, Finding{
-					Code: "catalog.fallback_parity", File: repoRel(root, source), Line: lineAt(data, fallback.Offset),
-					Message:     fmt.Sprintf("%s fallback %q disagrees with canonical value %q", fallback.Property, fallback.Value, tokenValue(tokens, fallback.Property)),
-					Remediation: fmt.Sprintf("Use var(%s, %s), or declare the property inside this component version when it is genuinely component-owned.", fallback.Property, tokenValue(tokens, fallback.Property)),
-					DocsRef:     "docs/design/TOKEN-DICTIONARY.md",
-				})
-			}
+		result.Inspected += len(versionSources)
+		for _, mismatch := range tokenparity.CheckVersion(canonical, contents) {
+			result.Findings = append(result.Findings, Finding{
+				Code: "catalog.fallback_parity", File: repoRel(root, mismatch.File), Line: lineAt(contents[mismatch.File], mismatch.Offset),
+				Message:     fmt.Sprintf("%s fallback %q disagrees with canonical value %q", mismatch.Property, mismatch.Value, mismatch.Canonical),
+				Remediation: fmt.Sprintf("Use var(%s, %s), or declare the property inside this component version when it is genuinely component-owned.", mismatch.Property, mismatch.Canonical),
+				DocsRef:     "docs/design/TOKEN-DICTIONARY.md",
+			})
 		}
 	}
 	return result, nil

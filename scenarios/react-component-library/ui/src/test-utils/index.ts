@@ -46,6 +46,9 @@
  * non-overridden export of `./api/health` via `importOriginal()`.
  */
 export { expectNoA11yViolations } from "@vrooli/api-base/testing";
+// Choose an option in a select by its label, for a native <select> or a
+// library Select (whose trigger, not its hidden native select, is the control).
+export { chooseOption } from "@vrooli/api-base/testing";
 export type { ProviderRenderOptions, ProviderRenderResult } from "@vrooli/api-base/testing";
 export { renderWithProviders } from "./renderWithProviders";
 export { interp } from "./interp";
