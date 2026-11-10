@@ -12,10 +12,12 @@ Separate ledger paths use separate locks. The lock identity canonicalizes an
 existing ledger or its existing parent directory when the ledger is new.
 It provides renewable operation leases and stale-claim cleanup, with explicit
 grant/degrade/queue/deny verdicts. It deliberately does not implement a second
-policy or preemption. Its `enforce` posture is advisory: callers receive the
-verdict and choose their fallback. This guarantee covers `packages/capacity`
-broker admissions; direct ledger and resource-specific admission writers remain
-outside this broker lock.
+policy or preemption. The public broker, strict no-reclaim control-plane CLI,
+resource lifecycle, and operation reservation paths use the same canonical
+ledger lock. Advisory reclaim paths must not hold it across external callbacks.
+Direct ledger writers that bypass admission remain outside that guarantee.
+Sensing, locking and ledger errors are returned as errors; a non-grant verdict
+without an error means an evaluated capacity refusal that a scheduler may retry.
 
 Operation leases expire after 15 minutes unless renewed through
 `RenewableLease.Heartbeat`. Renewal is conditional on the captured claim
@@ -52,3 +54,17 @@ The selector validates the existing owner-kind enum (resource/scenario/op) and
 resource-kind enum (vram/ram/cpu). Unknown enum values are malformed evidence,
 not legitimate foreign rows; they cannot authorize a new claim. Known foreign
 rows remain valid and are ignored by exact resource/VRAM/device selection.
+
+`AcquireResources` reserves RAM/CPU under the caller's interactive, service or
+batch priority. `AcquireScoped` also owns the connection and heartbeat lifecycle.
+A `Scope` cancels work on renewal loss, but retains its claims until the caller
+has reaped the worker and explicitly calls `Release`; cleanup is independent of
+request cancellation and failed releases may be retried.
+
+`UseGate{Root: collectionRoot}` protects model artifacts independently of RAM
+accounting. Readers call `Acquire(id)` and installers/removers call
+`AcquireExclusive(id)`. All processes must use the same collection root and ID.
+The lock files are never unlinked by artifact removal, and the operating system
+releases a crashed process's ownership. Warm workers hold both artifact-reader
+and memory ownership through residency; per-operation CPU/GPU claims end after
+worker execution/reap. Music Tools and Image Tools share the scope lifecycle.

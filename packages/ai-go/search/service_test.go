@@ -405,3 +405,59 @@ func TestMergeQueryFiltersPreservesRequestAndServiceConstraints(t *testing.T) {
 		t.Fatalf("filters were not composed: %#v", merged)
 	}
 }
+
+// blockingEmbedder models the shared Ollama daemon holding an embedding behind a
+// long generation: it returns only when its context is cancelled.
+type blockingEmbedder struct{}
+
+func (blockingEmbedder) Embed(ctx context.Context, _ string) ([]float64, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+func (blockingEmbedder) Available(context.Context) bool { return true }
+
+// Feature: a stalled embedding must not stall the search.
+func TestDenseModeStalledEmbeddingAnswersFromTextLegWithinBudget(t *testing.T) {
+	svc := NewService(ServiceOptions{
+		Embedder:    blockingEmbedder{},
+		VectorStore: &queryStore{available: true},
+		DenseBudget: 50 * time.Millisecond,
+		TextFallback: func(_ context.Context, _ SearchQuery) ([]SearchResult, error) {
+			return []SearchResult{{ID: "t", Score: 0.5, Payload: map[string]any{}}}, nil
+		},
+	})
+	started := time.Now()
+	resp, err := svc.Search(context.Background(), SearchQuery{Query: "screenshot", Mode: ModeDense, Limit: 5})
+	if err != nil {
+		t.Fatalf("a stalled dense leg with a text leg must answer, got %v", err)
+	}
+	if resp.Method != "text" {
+		t.Fatalf("method = %q, want text (labelled degradation)", resp.Method)
+	}
+	if elapsed := time.Since(started); elapsed > 2*time.Second {
+		t.Fatalf("answered after %v, want within the budget", elapsed)
+	}
+}
+
+func TestDenseModeCallerCancellationIsStillAnError(t *testing.T) {
+	svc := NewService(ServiceOptions{
+		Embedder:     blockingEmbedder{},
+		VectorStore:  &queryStore{available: true},
+		DenseBudget:  time.Minute,
+		TextFallback: func(context.Context, SearchQuery) ([]SearchResult, error) { return nil, nil },
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	if _, err := svc.Search(ctx, SearchQuery{Query: "x", Mode: ModeDense}); err == nil {
+		t.Fatal("the caller's own deadline is not the dense budget and must still surface")
+	}
+}
+
+func TestDenseModeWithoutTextLegKeepsOriginalBehaviour(t *testing.T) {
+	svc := NewService(ServiceOptions{Embedder: blockingEmbedder{}, VectorStore: &queryStore{available: true}, DenseBudget: 20 * time.Millisecond})
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	if _, err := svc.Search(ctx, SearchQuery{Query: "x", Mode: ModeDense}); err == nil {
+		t.Fatal("with no text leg there is nothing to degrade to; the error must surface")
+	}
+}

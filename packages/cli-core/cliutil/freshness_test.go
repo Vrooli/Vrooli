@@ -342,3 +342,44 @@ func mustWriteFile(t *testing.T, path, content string) {
 		t.Fatalf("write %s: %v", path, err)
 	}
 }
+
+// A test-file edit must not stale any CLI: the Go toolchain never compiles
+// _test.go files into the binary, so counting them made every CLI that imports
+// the edited package rebuild on its next call.
+func TestTestFileEditsDoNotChangeTheFingerprint(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, body string) {
+		t.Helper()
+		full := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("main.go", "package main\n")
+	write("main_test.go", "package main\n")
+	spec := FreshnessSpec{SourceRoot: root}
+	before, err := ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	write("main_test.go", "package main\n// edited\n")
+	write("extra_test.go", "package main\n")
+	afterTest, err := ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before != afterTest {
+		t.Fatalf("test-file edits changed the fingerprint: %s != %s", before, afterTest)
+	}
+	write("main.go", "package main\n// edited\n")
+	afterSource, err := ComputeFreshnessFingerprint(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if afterSource == before {
+		t.Fatal("a source edit must still change the fingerprint")
+	}
+}

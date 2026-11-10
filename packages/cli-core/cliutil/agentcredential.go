@@ -69,6 +69,18 @@ func ResolveAgentCredentials(ctx context.Context) (AgentCredentials, error) {
 	return resolveAgentCredentials(ctx, AgentCredentialSocket(), os.Getenv(EnvIdentityToken))
 }
 
+// ResolveAgentCredentialsForOperation asks the live local authority to select
+// only a currently approved operation grant that covers this exact operation
+// and target. The target is intent input, not authority; the broker checks it
+// against its persisted, owner-approved grant before returning a token.
+func ResolveAgentCredentialsForOperation(ctx context.Context, operation, target string) (AgentCredentials, error) {
+	operation, target = strings.TrimSpace(operation), strings.TrimSpace(target)
+	if operation == "" || target == "" {
+		return AgentCredentials{}, errors.New("operation and target are required for scoped agent credentials")
+	}
+	return resolveAgentCredentialsForOperation(ctx, AgentCredentialSocket(), os.Getenv(EnvIdentityToken), operation, target)
+}
+
 // ConfirmLocalOwnerEligible succeeds only when the live broker proves that this
 // peer is outside every current Agent Manager runner process tree. This is a
 // cooperative CLI preflight; the owner exchange remains responsible for proof.
@@ -110,6 +122,11 @@ func resolveAgentCredentials(ctx context.Context, socket, inherited string) (Age
 	return resolveAgentCredentialsWithPurpose(ctx, socket, inherited, false)
 }
 
+func resolveAgentCredentialsForOperation(ctx context.Context, socket, inherited, operation, target string) (AgentCredentials, error) {
+	credentials, _, err := resolveAgentCredentialsWithRequest(ctx, socket, inherited, "", operation, target)
+	return credentials, err
+}
+
 func resolveAgentCredentialsWithPurpose(ctx context.Context, socket, inherited string, ordinaryIdentity bool) (AgentCredentials, error) {
 	purpose := ""
 	if ordinaryIdentity {
@@ -120,14 +137,26 @@ func resolveAgentCredentialsWithPurpose(ctx context.Context, socket, inherited s
 }
 
 func resolveAgentCredentialsWithNamedPurpose(ctx context.Context, socket, inherited, purpose string) (AgentCredentials, bool, error) {
+	return resolveAgentCredentialsWithRequest(ctx, socket, inherited, purpose, "", "")
+}
+
+func resolveAgentCredentialsWithRequest(ctx context.Context, socket, inherited, purpose, operation, target string) (AgentCredentials, bool, error) {
 	inherited = strings.TrimSpace(inherited)
 	transport := &http.Transport{DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 		return (&net.Dialer{}).DialContext(ctx, "unix", socket)
 	}}
 	defer transport.CloseIdleConnections()
-	endpoint := "http://local-agent-manager/credential"
+	query := url.Values{}
 	if purpose != "" {
-		endpoint += "?purpose=" + url.QueryEscape(purpose)
+		query.Set("purpose", purpose)
+	}
+	if operation != "" || target != "" {
+		query.Set("operation", operation)
+		query.Set("target", target)
+	}
+	endpoint := "http://local-agent-manager/credential"
+	if encoded := query.Encode(); encoded != "" {
+		endpoint += "?" + encoded
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {

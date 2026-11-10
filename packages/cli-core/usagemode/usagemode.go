@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -46,12 +47,19 @@ type Until struct {
 	WindowMinutes int    `json:"window_minutes,omitempty"`
 }
 
-// RunnerSettings are concrete values computed when the mode starts.
+// RunnerSettings are one runner's settings of a mode. A save mode stores only
+// intent here (OverrideModel, Effort, ContextLimitTokens); Mode.SettingsFor
+// fills ModelMap and SessionModel from the resource policy when the mode is
+// applied. ModelMap and SessionModel written by an older version stay stored
+// and win over the policy for the keys they name; a learn mode's challenger
+// keeps them frozen.
 type RunnerSettings struct {
-	ModelMap           map[string]string `json:"model_map,omitempty"`
-	SessionModel       string            `json:"session_model,omitempty"`
-	Effort             string            `json:"effort,omitempty"`
-	ContextLimitTokens int               `json:"context_limit_tokens,omitempty"`
+	ModelMap     map[string]string `json:"model_map,omitempty"`
+	SessionModel string            `json:"session_model,omitempty"`
+	// OverrideModel sends every model the resource lowers to this one.
+	OverrideModel      string `json:"override_model,omitempty"`
+	Effort             string `json:"effort,omitempty"`
+	ContextLimitTokens int    `json:"context_limit_tokens,omitempty"`
 
 	extra map[string]json.RawMessage
 }
@@ -88,30 +96,37 @@ func (f *File) UnmarshalJSON(b []byte) error {
 	type plain File
 	return decodeKeepingExtra(b, (*plain)(f), &f.extra)
 }
+
 func (f File) MarshalJSON() ([]byte, error) {
 	type plain File
 	return encodeWithExtra(plain(f), f.extra)
 }
+
 func (m *Mode) UnmarshalJSON(b []byte) error {
 	type plain Mode
 	return decodeKeepingExtra(b, (*plain)(m), &m.extra)
 }
+
 func (m Mode) MarshalJSON() ([]byte, error) {
 	type plain Mode
 	return encodeWithExtra(plain(m), m.extra)
 }
+
 func (l *Learn) UnmarshalJSON(b []byte) error {
 	type plain Learn
 	return decodeKeepingExtra(b, (*plain)(l), &l.extra)
 }
+
 func (l Learn) MarshalJSON() ([]byte, error) {
 	type plain Learn
 	return encodeWithExtra(plain(l), l.extra)
 }
+
 func (r *RunnerSettings) UnmarshalJSON(b []byte) error {
 	type plain RunnerSettings
 	return decodeKeepingExtra(b, (*plain)(r), &r.extra)
 }
+
 func (r RunnerSettings) MarshalJSON() ([]byte, error) {
 	type plain RunnerSettings
 	return encodeWithExtra(plain(r), r.extra)
@@ -377,32 +392,96 @@ func NormalizeRunner(runner string) string {
 	return runner
 }
 
-// SettingsFor returns the mode's settings for a runner.
+// SettingsFor returns the mode's settings for a runner with the models the
+// resource policy lowers filled in. Without a readable policy the stored
+// values are returned unchanged.
 func (m Mode) SettingsFor(runner string) (RunnerSettings, bool) {
 	want := NormalizeRunner(runner)
 	for key, settings := range m.Runners {
 		if NormalizeRunner(key) == want {
-			return settings, true
+			return settings.resolved(want), true
 		}
 	}
 	return RunnerSettings{}, false
 }
 
-func (m Mode) exempts(role string) bool {
-	if role == "" || m.Scope.Role == role {
-		return false // a mode scoped to a role lists it explicitly
+// ResolvedRunners is SettingsFor for every runner the mode covers.
+func (m Mode) ResolvedRunners() map[string]RunnerSettings {
+	out := make(map[string]RunnerSettings, len(m.Runners))
+	for runner, settings := range m.Runners {
+		out[runner] = settings.resolved(NormalizeRunner(runner))
 	}
-	for _, exempt := range m.ExemptRoles {
-		if exempt == role {
-			return true
+	return out
+}
+
+func (s RunnerSettings) resolved(runner string) RunnerSettings {
+	tiers, ok := policyTiers(runner)
+	if !ok {
+		return s
+	}
+	if s.OverrideModel != "" {
+		var err error
+		if tiers, err = tiers.OverrideModel(s.OverrideModel); err != nil {
+			return s
 		}
 	}
-	for _, exempt := range DefaultExemptRoles {
-		if exempt == role {
-			return true
+	live, err := tiers.Settings()
+	if err != nil {
+		return s
+	}
+	for from, to := range s.ModelMap {
+		live.ModelMap[from] = to
+	}
+	if s.SessionModel != "" {
+		live.SessionModel = s.SessionModel
+	}
+	live.OverrideModel, live.Effort, live.ContextLimitTokens, live.extra = s.OverrideModel, s.Effort, s.ContextLimitTokens, s.extra
+	return live
+}
+
+// EffectiveExemptRoles are the roles a mode never touches: the ones it stores,
+// the defaults, and what each covered runner's policy declares.
+func (m Mode) EffectiveExemptRoles() []string {
+	out := append(append([]string(nil), m.ExemptRoles...), DefaultExemptRoles...)
+	runners := map[string]bool{NormalizeRunner(m.Scope.Runner): true}
+	for runner := range m.Runners {
+		runners[NormalizeRunner(runner)] = true
+	}
+	if m.Learn != nil {
+		for runner := range m.Learn.Runners {
+			runners[NormalizeRunner(runner)] = true
 		}
 	}
-	return false
+	for runner := range runners {
+		if tiers, ok := policyTiers(runner); runner != "" && ok {
+			out = append(out, tiers.ExemptRoles...)
+		}
+	}
+	return slices.Compact(slices.Sorted(slices.Values(out)))
+}
+
+// RoleExempt reports a role the mode never touches, whatever the mode's scope.
+func (m Mode) RoleExempt(role string) bool {
+	return role != "" && slices.Contains(m.EffectiveExemptRoles(), role)
+}
+
+// Exempts is RoleExempt except for the role a mode is scoped to, which an
+// operator lists explicitly.
+func (m Mode) Exempts(role string) bool {
+	return m.Scope.Role != role && m.RoleExempt(role)
+}
+
+// Rank orders scopes by specificity: profile, role, runner, global.
+func (s Scope) Rank() int {
+	switch {
+	case s.Profile != "":
+		return 4
+	case s.Role != "":
+		return 3
+	case s.Runner != "":
+		return 2
+	}
+	return 1
 }
 
 func (m Mode) specificity(q Query) int {
@@ -417,15 +496,7 @@ func (m Mode) specificity(q Query) int {
 	if m.Scope.Runner != "" && NormalizeRunner(m.Scope.Runner) != NormalizeRunner(q.Runner) {
 		return -1
 	}
-	switch {
-	case m.Scope.Profile != "":
-		return 4
-	case m.Scope.Role != "":
-		return 3
-	case m.Scope.Runner != "":
-		return 2
-	}
-	return 1
+	return m.Scope.Rank()
 }
 
 // Resolve returns the most specific active mode that applies to the query and
@@ -440,7 +511,7 @@ func resolveFrom(modes []Mode, q Query) (Mode, bool) {
 	bestRank, found := -1, false
 	for _, mode := range modes {
 		// A learn mode assigns arms; it never lowers everything like a save mode.
-		if !mode.Active(q.Now) || mode.IsLearn() || mode.exempts(q.Role) {
+		if !mode.Active(q.Now) || mode.IsLearn() || mode.Exempts(q.Role) {
 			continue
 		}
 		if _, ok := mode.SettingsFor(q.Runner); !ok {

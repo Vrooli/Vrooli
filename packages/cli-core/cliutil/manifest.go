@@ -532,10 +532,17 @@ var (
 	}
 
 	BuildOutputSkipSuffixes = []string{".log", ".test", ".tmp"}
+
+	// NonBuildInputSuffixes name authored files the Go toolchain never compiles
+	// into a binary. An edit to one cannot change the CLI, so counting it makes
+	// every CLI that depends on the edited package (all of them, for the shared
+	// cli-core input) report "rebuilt from current sources; restarting" on the
+	// next invocation. This is the owner of that tax: the freshness walk.
+	NonBuildInputSuffixes = []string{"_test.go"}
 )
 
-// isBuildOutput reports whether rel names a build/test product rather than a
-// build input.
+// isBuildOutput reports whether rel names a build/test product, or an authored
+// file the build never consumes (NonBuildInputSuffixes), rather than a build input.
 func isBuildOutput(rel string) bool {
 	base := path.Base(rel)
 	if isFreshnessManifestOutput(base) {
@@ -547,6 +554,11 @@ func isBuildOutput(rel string) bool {
 		}
 	}
 	for _, suffix := range BuildOutputSkipSuffixes {
+		if strings.HasSuffix(base, suffix) {
+			return true
+		}
+	}
+	for _, suffix := range NonBuildInputSuffixes {
 		if strings.HasSuffix(base, suffix) {
 			return true
 		}

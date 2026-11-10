@@ -424,12 +424,16 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 	// of death. The exec branch cannot heartbeat (the launcher becomes the
 	// agent), so it relies on that expiry alone.
 	launchResult.ClaimOverlaps = reportClaimOverlaps(ctx, request)
-	stopLease, recorded := recordEditorLease(ctx, EditorLeaseRecord{
+	leaseRecord := EditorLeaseRecord{
 		SessionID: hostSessionID, Harness: harnessKind, Agent: request.Agent, PID: os.Getpid(),
 		WorkingDir: launchWorkingDir(request), Scope: scope, Claims: request.Claims,
-	}, !willExec)
+	}
+	stopLease, recorded, observeContainment, leaseFenced := recordEditorLeaseBinding(ctx, leaseRecord, !willExec)
 	launchResult.LeaseRecorded = recorded
-	defer stopLease("session ended")
+	defer func() { stopLease("session ended") }()
+	if commandCallerBoundary {
+		observeContainment(report.leaseEvidence())
+	}
 	environment = withEnvironmentValue(environment, AgentSessionEnv, scope)
 	// Single-use: the human-owner delegation was consumed by the attach call
 	// above (forwarded on its header). It is a short-lived operator credential and
@@ -460,10 +464,27 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 		// The launcher moves itself into the session scope first; exec keeps
 		// the pid and the ceiling, so the agent is born contained.
 		containSelf(request, scope, containment, containmentSource, &report)
+		observeContainment(report.leaseEvidence())
 		// Returns only when the exec itself failed. That is a launcher problem,
 		// never the operator's, so fall through to spawn-and-wait rather than
 		// refusing to start the agent.
-		_ = execReplace(path, append([]string{binary}, request.Args...), environment, request.WorkingDir)
+		_ = execAgentReplace(path, append([]string{binary}, request.Args...), environment, request.WorkingDir)
+		// A fallback is a new native attempt. Its late callbacks and lifetime must
+		// never inherit or overwrite the successful/failed exec attempt's proof.
+		if _, ok := DefaultEditorLeaseRecorder.(EditorLeaseBindingRecorder); ok {
+			oldStop, oldFenced := stopLease, leaseFenced
+			// An unavailable incarnation used the legacy recorder. Its stop is
+			// session-wide, so finish it before a replacement can be created.
+			if !oldFenced {
+				oldStop("exec attempt ended before spawn")
+			}
+			stopLease, recorded, observeContainment, leaseFenced = recordEditorLeaseBinding(ctx, leaseRecord, true)
+			launchResult.LeaseRecorded = recorded
+			if oldFenced {
+				oldStop("exec attempt superseded by spawn")
+			}
+		}
+		report = containmentReport{}
 	}
 
 	runChild := request.RunChild
@@ -473,8 +494,11 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 			// when containment is unavailable or existing custody was adopted.
 			runChild = runNativeChild(request, binary)
 		} else {
-			runChild = runContainedChild(request, binary, scope, containment, containmentSource, &report)
+			runChild = runContainedChild(request, binary, scope, containment, containmentSource, &report, observeContainment)
 		}
+	}
+	if request.RunChild != nil && !commandCallerBoundary {
+		observeContainment(EditorLeaseContainment{Unavailable: true, Failure: "custom child runner supplies no native containment observation"})
 	}
 	err = runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
 	if attach.runID != "" {
@@ -543,8 +567,10 @@ func runUngovernedProbe(ctx context.Context, request AgentLaunchRequest, path, b
 	return result, runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
 }
 
-// environmentValue reads one key from an environment slice; an empty result
-// means absent, which is what an unmarked environment looks like.
+// The launcher knows the repository through its repo contract, which finds the
+// resource model policies a usage mode follows when the environment names none.
+func init() { usagemode.AddPolicyRoot(ResolveRepoRoot) }
+
 // ApplyUsageMode returns args and environment with the active usage mode
 // applied; with none they are returned unchanged.
 func ApplyUsageMode(runner string, args, environment []string) (outArgs, outEnvironment []string) {
@@ -555,6 +581,9 @@ func ApplyUsageMode(runner string, args, environment []string) (outArgs, outEnvi
 	}()
 	now := time.Now()
 	plan := usagemode.LaunchPlan(runner, args, environment, now)
+	if plan.Warning != "" {
+		fmt.Fprintf(os.Stderr, "vrooli: usage mode could not follow the %s model policy (%s); launching without that part\n", usagemode.NormalizeRunner(runner), plan.Warning)
+	}
 	if !plan.Applied {
 		return args, environment
 	}
@@ -572,6 +601,8 @@ func ApplyUsageMode(runner string, args, environment []string) (outArgs, outEnvi
 	return plan.Args, environment
 }
 
+// environmentValue reads one key from an environment slice; an empty result
+// means absent, which is what an unmarked environment looks like.
 func environmentValue(environment []string, key string) string {
 	for _, entry := range environment {
 		name, value, ok := strings.Cut(entry, "=")
@@ -599,6 +630,9 @@ func runInheritedSession(ctx context.Context, request AgentLaunchRequest, path, 
 	}
 	return result, runChild(ctx, path, append([]string(nil), request.Args...), environment, request.Stdin, request.Stdout, request.Stderr)
 }
+
+// execAgentReplace is substituted only by isolated launcher tests.
+var execAgentReplace = execReplace
 
 func canExecReplace(ctx context.Context, request AgentLaunchRequest) bool {
 	return ctx.Done() == nil && request.RunChild == nil && execReplaceSupported && stdioIsInherited(request)

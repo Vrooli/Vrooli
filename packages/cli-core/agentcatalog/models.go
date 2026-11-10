@@ -92,7 +92,7 @@ func DiscoverModels(ctx context.Context, runner string) (LiveModelCatalog, error
 		// The Codex cache is a compatibility fallback, not the authoritative
 		// model surface. Older app-server versions can leave it populated with
 		// a partial catalog even though the installed CLI accepts newer model
-		// slugs (for example gpt-6-luna and gpt-6-sol). Ask the installed runner
+		// slugs. Ask the installed runner
 		// first so policy validation can record what this machine visibly offers.
 		// The runner may expose only a partial visibility surface; absence is not
 		// an availability claim unless the result explicitly says exhaustive.

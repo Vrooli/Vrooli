@@ -16,7 +16,11 @@ type Plan struct {
 	Arm       string
 	Exception string
 	Label     string
-	Args      []string
+	// Warning is set when a mode is active but the runner's model policy cannot
+	// be used. The launch proceeds on what the mode stored; the launcher prints
+	// the line.
+	Warning string
+	Args    []string
 	// Env holds KEY=VALUE additions only; the caller's environment is not copied.
 	Env []string
 }
@@ -36,6 +40,7 @@ func LaunchPlan(runner string, args, env []string, now time.Time) Plan {
 		return learnPlan(runner, args, env, now, plan)
 	}
 	settings, _ := mode.SettingsFor(runner)
+	plan.Warning = PolicyProblem(runner)
 	switch NormalizeRunner(runner) {
 	case "claude":
 		plan.Env = claudeEnv(settings, args, env)

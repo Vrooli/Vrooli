@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/artifactlock"
 	internalcapacity "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostpressure"
@@ -491,16 +490,16 @@ func TestCapacityAdmissionLockIsLedgerSpecific(t *testing.T) {
 	if err := os.Symlink(dbPath, aliasPath); err != nil {
 		t.Skipf("symlink unavailable: %v", err)
 	}
-	first := capacityAdmissionLockKey(dbPath)
-	alias := capacityAdmissionLockKey(aliasPath)
+	first := admissionLockPath(t, dbPath)
+	alias := admissionLockPath(t, aliasPath)
 	if first != alias {
 		t.Fatalf("ledger path alias got a different lock key: %q != %q", first, alias)
 	}
-	second := capacityAdmissionLockKey(filepath.Join(t.TempDir(), "two", "capacity.db"))
+	second := admissionLockPath(t, filepath.Join(t.TempDir(), "two", "capacity.db"))
 	if first == "" || second == "" || first == second {
 		t.Fatalf("ledger lock keys must be nonempty and distinct: first=%q second=%q", first, second)
 	}
-	if capacityAdmissionLockKey(":memory:") != "" {
+	if admissionLockPath(t, ":memory:") != "" {
 		t.Fatal("separate in-memory stores must not share a cross-process lock")
 	}
 
@@ -519,7 +518,7 @@ func TestCapacityAdmissionLockIsLedgerSpecific(t *testing.T) {
 	if _, err := os.Stat(canonicalNewLedger); !os.IsNotExist(err) {
 		t.Fatalf("fixture ledger unexpectedly exists: %v", err)
 	}
-	if got, want := capacityAdmissionLockKey(canonicalNewLedger), capacityAdmissionLockKey(linkedNewLedger); got != want {
+	if got, want := admissionLockPath(t, canonicalNewLedger), admissionLockPath(t, linkedNewLedger); got != want {
 		t.Fatalf("new ledger through parent symlink got different lock keys: %q != %q", got, want)
 	}
 }
@@ -665,7 +664,7 @@ func TestBrokerAdmissionSerializesAcrossProcesses(t *testing.T) {
 	}
 }
 
-func TestBrokerAdmissionWaitsForCrossProcessLedgerLock(t *testing.T) {
+func TestBrokerAdmissionWaitsForControlPlaneCrossProcessLedgerLock(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "capacity.db")
 	store, err := internalcapacity.NewSQLiteStore(context.Background(), internalcapacity.Config{DBPath: dbPath})
@@ -675,7 +674,7 @@ func TestBrokerAdmissionWaitsForCrossProcessLedgerLock(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	unlock, err := artifactlock.AcquireContext(context.Background(), capacityAdmissionLockKey(dbPath))
+	unlock, err := internalcapacity.LockAdmissionPath(context.Background(), dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -718,16 +717,15 @@ func TestBrokerAdmissionWaitsForCrossProcessLedgerLock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("helper process: %v", err)
 	}
-	if got := strings.TrimSpace(string(result)); got != "deny" {
-		t.Fatalf("admission while another process holds the ledger lock = %q, want deny", got)
+	if got := strings.TrimSpace(string(result)); got != "lock-timeout" {
+		t.Fatalf("admission while control plane holds the ledger lock = %q, want lock-timeout", got)
 	}
 }
 
 func TestBrokerConstructorWaitsForLedgerLockBeforeOpeningSQLite(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "capacity.db")
-	lockKey := capacityAdmissionLockKey(dbPath)
-	unlock, err := artifactlock.AcquireContext(context.Background(), lockKey)
+	unlock, err := internalcapacity.LockAdmissionPath(context.Background(), dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -901,6 +899,11 @@ func TestBrokerAdmissionSubprocessHelper(t *testing.T) {
 	defer store.Close()
 	broker := NewBrokerWithSource(store, &countingSource{cores: 4, memory: hostinventory.Memory{TotalBytes: 100, AvailableBytes: 100}})
 	lease, verdict, err := broker.Acquire(ctx, "child-"+id, 60, 0)
+	if errors.Is(err, context.DeadlineExceeded) {
+		write("result-"+id, "lock-timeout")
+		waitForFile(t, os.Getenv("CAPACITY_ADMISSION_FINISH"))
+		return
+	}
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1035,4 +1038,13 @@ func waitForFile(t *testing.T, path string) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatalf("timed out waiting for %s", path)
+}
+
+func admissionLockPath(t *testing.T, path string) string {
+	t.Helper()
+	lock, err := internalcapacity.AdmissionLockPath(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return lock
 }

@@ -44,6 +44,9 @@ const (
 	NativeSettingUnchanged = "unchanged"
 	NativeSettingConflict  = "conflict"
 	NativeSettingDeclined  = "declined"
+	// NativeSettingHeld is a value_from setting whose policy could not be read:
+	// the live value stays exactly as it is and nothing is retired.
+	NativeSettingHeld = "held"
 )
 
 // NativeSettingsDocument is the declared, repository-owned desired state.
@@ -56,10 +59,17 @@ type NativeSettingsDocument struct {
 }
 
 // NativeSetting is one managed key. Path addresses nested tables or objects.
+// The desired value is either Value, or ValueFrom: a dotted path into the
+// resource's model-policy.json (for example "interactive_default.model"), so a
+// value the policy already owns is never written down a second time. A
+// ValueFrom the policy does not define means the setting is not declared. A
+// policy that cannot be read at all holds the setting instead (see
+// NativeSettingHeld): an unreadable policy is not a decision to retire a value.
 type NativeSetting struct {
 	ID              string   `json:"id"`
 	Path            []string `json:"path"`
-	Value           any      `json:"value"`
+	Value           any      `json:"value,omitempty"`
+	ValueFrom       string   `json:"value_from,omitempty"`
 	VerifiedVersion string   `json:"verified_version,omitempty"`
 	Rationale       string   `json:"rationale"`
 }
@@ -117,7 +127,7 @@ func (p NativeSettingsPlan) Mutates() bool {
 // ChangesState reports whether applying the plan changes the sidecar.
 func (p NativeSettingsPlan) ChangesState() bool {
 	for _, change := range p.Changes {
-		if change.Action != NativeSettingUnchanged && change.Action != NativeSettingConflict && change.Action != NativeSettingDeclined {
+		if change.Action != NativeSettingUnchanged && change.Action != NativeSettingConflict && change.Action != NativeSettingDeclined && change.Action != NativeSettingHeld {
 			return true
 		}
 	}
@@ -184,8 +194,8 @@ func (d NativeSettingsDocument) Validate() error {
 		if len(s.Path) == 0 || slices.Contains(s.Path, "") {
 			return fmt.Errorf("native setting %q needs a non-empty path", s.ID)
 		}
-		if s.Value == nil {
-			return fmt.Errorf("native setting %q needs a value", s.ID)
+		if (s.Value == nil) == (s.ValueFrom == "") {
+			return fmt.Errorf("native setting %q needs exactly one of value and value_from", s.ID)
 		}
 		if strings.TrimSpace(s.Rationale) == "" {
 			return fmt.Errorf("native setting %q needs a rationale", s.ID)
@@ -199,6 +209,24 @@ func (d NativeSettingsDocument) Validate() error {
 		}
 	}
 	return nil
+}
+
+// ResolveNativeSettings fills every value_from setting from the policy document
+// and drops the ones the policy does not define. The input is not modified.
+func ResolveNativeSettings(d NativeSettingsDocument, policy map[string]any) NativeSettingsDocument {
+	resolved := d
+	resolved.Settings = make([]NativeSetting, 0, len(d.Settings))
+	for _, s := range d.Settings {
+		if s.ValueFrom != "" {
+			value, ok := lookupPath(policy, strings.Split(s.ValueFrom, "."))
+			if !ok || value == nil || value == "" {
+				continue
+			}
+			s.Value = nativeValue(value)
+		}
+		resolved.Settings = append(resolved.Settings, s)
+	}
+	return resolved
 }
 
 // NativeSettingsStatePath is the sidecar next to the native file.
@@ -219,7 +247,7 @@ func LoadNativeSettingsState(path string) (*NativeSettingsState, error) {
 	decoder.UseNumber()
 	var state NativeSettingsState
 	if err := decoder.Decode(&state); err != nil {
-		return nil, fmt.Errorf("parse native settings state %s: %w", path, err)
+		return nil, fmt.Errorf("parse native settings state %s (it only records what Vrooli wrote; remove it to start fresh): %w", path, err)
 	}
 	for id, managed := range state.Managed {
 		managed.Value = nativeValue(managed.Value)
@@ -265,6 +293,10 @@ func PlanNativeSettings(live map[string]any, desired NativeSettingsDocument, sta
 	declared := map[string]bool{}
 	for _, s := range desired.Settings {
 		declared[s.ID] = true
+		if s.ValueFrom != "" && s.Value == nil {
+			plan.Changes = append(plan.Changes, NativeSettingChange{ID: s.ID, Path: s.DottedPath(), Action: NativeSettingHeld, Reason: "model policy unavailable; the live value is left as it is"})
+			continue
+		}
 		change := NativeSettingChange{ID: s.ID, Path: s.DottedPath(), Desired: s.Value, path: s.Path, value: s.Value, verified: s.VerifiedVersion}
 		liveValue, present := lookupPath(live, s.Path)
 		if present {

@@ -131,6 +131,15 @@ type ServiceOptions struct {
 	RerankText       RerankTextFunc
 	TextFallback     TextFallbackFunc
 
+	// DenseBudget bounds the dense/hybrid leg (embedding, vector query, rerank).
+	// When it is exceeded and a TextFallback exists, the call answers from the
+	// text leg (Method "text") instead of blocking until the caller gives up. The
+	// shared Ollama daemon serves embeddings and generations from one scheduler,
+	// so an in-flight generation can hold an embedding for tens of seconds; a
+	// caller with a per-provider timeout then sees a hard failure and, after a
+	// streak, an open circuit. 0 => DefaultDenseBudget; negative disables.
+	DenseBudget time.Duration
+
 	// OverridePolicy gates the per-request query-time override channel (see
 	// override.go). nil => DenyOverrides: the secure default in which the Service
 	// honors no per-request override regardless of what a Search call passes.
@@ -145,6 +154,7 @@ type Service struct {
 	reranker   *RerankerChain
 	reconciler *Reconciler
 
+	denseBudget   time.Duration
 	rerankEnabled bool
 	rerankBlend   bool
 	rrfK          int
@@ -203,7 +213,12 @@ func NewService(opts ServiceOptions) *Service {
 	if threshold < 0 {
 		threshold = 0
 	}
+	denseBudget := opts.DenseBudget
+	if denseBudget == 0 {
+		denseBudget = DefaultDenseBudget
+	}
 	return &Service{
+		denseBudget:      denseBudget,
 		embedder:         opts.Embedder,
 		sparse:           opts.SparseEncoder,
 		store:            opts.VectorStore,
@@ -301,12 +316,12 @@ func (s *Service) Search(ctx context.Context, q SearchQuery, opts ...SearchOptio
 	case ModeText:
 		return s.textSearch(ctx, q)
 	case ModeDense:
-		return s.vectorSearch(ctx, q, false, eff)
+		return s.boundedVectorSearch(ctx, q, false, eff)
 	case ModeHybrid:
 		if s.sparse == nil {
 			return SearchResponse{}, fmt.Errorf("hybrid mode requires a sparse encoder")
 		}
-		return s.vectorSearch(ctx, q, true, eff)
+		return s.boundedVectorSearch(ctx, q, true, eff)
 	case ModeAuto:
 		return s.autoSearch(ctx, q, eff)
 	default:
@@ -321,11 +336,11 @@ func (s *Service) autoSearch(ctx context.Context, q SearchQuery, eff effectivePa
 	embedUp := s.embedder != nil && s.embedder.Available(ctx)
 	if storeUp && embedUp {
 		if s.sparse != nil {
-			if resp, err := s.vectorSearch(ctx, q, true, eff); err == nil && len(resp.Results) > 0 {
+			if resp, err := s.boundedVectorSearch(ctx, q, true, eff); err == nil && len(resp.Results) > 0 {
 				return resp, nil
 			}
 		}
-		if resp, err := s.vectorSearch(ctx, q, false, eff); err == nil && len(resp.Results) > 0 {
+		if resp, err := s.boundedVectorSearch(ctx, q, false, eff); err == nil && len(resp.Results) > 0 {
 			return resp, nil
 		}
 	}
@@ -335,6 +350,22 @@ func (s *Service) autoSearch(ctx context.Context, q SearchQuery, eff effectivePa
 	// No text leg: return an empty (not errored) vector response so callers see a
 	// clean "no results" rather than a hard failure.
 	return SearchResponse{Query: q.Query, Method: "dense", Reranker: "none", Regime: RegimeForMethod("dense", "none")}, nil
+}
+
+// boundedVectorSearch runs vectorSearch under the dense-leg budget. If only the
+// budget (not the caller's context) expires and a text leg exists, it answers
+// from the text leg so the caller gets a labelled lexical result in time.
+func (s *Service) boundedVectorSearch(ctx context.Context, q SearchQuery, hybrid bool, eff effectiveParams) (SearchResponse, error) {
+	if s.denseBudget <= 0 || s.text == nil {
+		return s.vectorSearch(ctx, q, hybrid, eff)
+	}
+	vctx, cancel := context.WithTimeout(ctx, s.denseBudget)
+	defer cancel()
+	resp, err := s.vectorSearch(vctx, q, hybrid, eff)
+	if err != nil && vctx.Err() != nil && ctx.Err() == nil {
+		return s.textSearch(ctx, q)
+	}
+	return resp, err
 }
 
 // vectorSearch runs the dense or hybrid leg, then projects, post-filters,

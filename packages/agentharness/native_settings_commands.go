@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/vrooli/cli-core/cliapp"
@@ -117,13 +118,57 @@ func (cfg NativeSettingsConfig) settingsPath() (string, error) {
 	return ResolveNativeFilePath(path)
 }
 
-func (cfg NativeSettingsConfig) reconcile(apply, force bool) (NativeSettingsReport, error) {
-	desired, err := ReadNativeSettingsDocument(cfg.DocumentPath)
+// maxPolicyBytes bounds the model policy read for value_from settings.
+const maxPolicyBytes = 1 << 20
+
+// desired reads the declaration and resolves its value_from settings from the
+// model policy beside it. A policy file is read only when a setting needs it.
+// A policy that is missing, oversized, or invalid JSON is not an error: the
+// value_from settings are held as they are (see NativeSettingHeld), the rest of
+// the declaration still applies, and the problem comes back as a note.
+func (cfg NativeSettingsConfig) desired() (doc NativeSettingsDocument, notes []string, err error) {
+	doc, err = ReadNativeSettingsDocument(cfg.DocumentPath)
 	if err != nil {
-		return NativeSettingsReport{}, fmt.Errorf("read %s: %w", cfg.DocumentPath, err)
+		return doc, nil, fmt.Errorf("read %s: %w", cfg.DocumentPath, err)
 	}
-	if desired.Runner != cfg.Runner {
-		return NativeSettingsReport{}, fmt.Errorf("%s declares runner %q, want %q", cfg.DocumentPath, desired.Runner, cfg.Runner)
+	if doc.Runner != cfg.Runner {
+		return doc, nil, fmt.Errorf("%s declares runner %q, want %q", cfg.DocumentPath, doc.Runner, cfg.Runner)
+	}
+	if !slices.ContainsFunc(doc.Settings, func(s NativeSetting) bool { return s.ValueFrom != "" }) {
+		return doc, nil, nil
+	}
+	policyPath := filepath.Join(filepath.Dir(cfg.DocumentPath), "model-policy.json")
+	policy, err := readPolicyDocument(policyPath)
+	if err != nil {
+		return doc, []string{fmt.Sprintf("model policy unusable, so settings that follow it were left as they are: %v", err)}, nil
+	}
+	return ResolveNativeSettings(doc, policy), nil, nil
+}
+
+func readPolicyDocument(path string) (map[string]any, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	raw, err := io.ReadAll(io.LimitReader(file, maxPolicyBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(raw) > maxPolicyBytes {
+		return nil, fmt.Errorf("%s is larger than %d bytes", path, maxPolicyBytes)
+	}
+	policy := map[string]any{}
+	if err := json.Unmarshal(raw, &policy); err != nil {
+		return nil, fmt.Errorf("parse %s: %w", path, err)
+	}
+	return policy, nil
+}
+
+func (cfg NativeSettingsConfig) reconcile(apply, force bool) (NativeSettingsReport, error) {
+	desired, policyNotes, err := cfg.desired()
+	if err != nil {
+		return NativeSettingsReport{}, err
 	}
 	path, err := cfg.settingsPath()
 	if err != nil {
@@ -152,7 +197,7 @@ func (cfg NativeSettingsConfig) reconcile(apply, force bool) (NativeSettingsRepo
 		if cfg.InstalledVersion != nil {
 			report.InstalledVersion = cfg.InstalledVersion()
 		}
-		report.Notes = verifiedVersionNotes(plan, report.InstalledVersion)
+		report.Notes = append(policyNotes, verifiedVersionNotes(plan, report.InstalledVersion)...)
 		if !apply {
 			return nil
 		}

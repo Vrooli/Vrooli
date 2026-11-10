@@ -59,6 +59,12 @@ type SessionContainment struct {
 type ContainedSession struct {
 	Scope  string
 	Method string
+	// Process is observed by the native container after successful placement.
+	Process ProcessBinding
+	// BeforeExec proves placement preceded the target's ability to fork. A
+	// post-start root move alone cannot establish descendant containment.
+	BeforeExec   bool
+	ProofFailure string
 }
 
 // SessionProcess is the process a container starts and waits for.
@@ -70,6 +76,9 @@ type SessionProcess struct {
 	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
+	// OnContained is called only after native StartContext succeeds, before Wait.
+	// A returned scope after a failed start must never invoke this callback.
+	OnContained func(ContainedSession)
 }
 
 // SessionContainer applies the ceiling. Run starts the process inside the
@@ -230,6 +239,7 @@ type containmentReport struct {
 	Source      string
 	Failure     string
 	Unsupported bool
+	Session     ContainedSession
 }
 
 // UncontainedError is returned by a SessionContainer's Run when the ceiling
@@ -244,20 +254,32 @@ func (e *UncontainedError) Unwrap() error { return e.Err }
 // scope through the registered container. Without a container, or when the
 // container cannot set the ceiling up, the child still runs and the report
 // says so.
-func runContainedChild(request AgentLaunchRequest, argv0, scope string, containment SessionContainment, source string, report *containmentReport) ChildRunner {
+func runContainedChild(request AgentLaunchRequest, argv0, scope string, containment SessionContainment, source string, report *containmentReport, observers ...func(EditorLeaseContainment)) ChildRunner {
 	return func(ctx context.Context, path string, args, environment []string, stdin io.Reader, stdout, stderr io.Writer) error {
+		observe := func(e EditorLeaseContainment) {
+			for _, observer := range observers {
+				observer(e)
+			}
+		}
+		reported := false
+		onContained := func(session ContainedSession) {
+			reported = true
+			observe(EditorLeaseContainment{Session: session})
+		}
 		report.Source = source
 		report.Method = ContainmentMethodNone
 		container := DefaultSessionContainer
 		if container == nil {
 			report.Failure = "no session container registered in this binary"
+			observe(EditorLeaseContainment{Failure: report.Failure, Unavailable: true})
 			return runNativeChild(request, argv0)(ctx, path, args, environment, stdin, stdout, stderr)
 		}
-		session, err := container.Run(ctx, scope, containment, SessionProcess{Path: path, Args: args, Env: environment, Dir: request.WorkingDir, Stdin: stdin, Stdout: stdout, Stderr: stderr})
+		session, err := container.Run(ctx, scope, containment, SessionProcess{Path: path, Args: args, Env: environment, Dir: request.WorkingDir, Stdin: stdin, Stdout: stdout, Stderr: stderr, OnContained: onContained})
 		var uncontained *UncontainedError
 		if errors.As(err, &uncontained) {
 			report.Failure = uncontained.Err.Error()
 			report.Unsupported = !containmentSupported(container)
+			observe(EditorLeaseContainment{Failure: report.Failure, Unavailable: report.Unsupported})
 			if report.Unsupported {
 				// The platform has no ceiling primitive. Recorded, not warned:
 				// this is the host's permanent shape, and a per-launch warning
@@ -269,6 +291,13 @@ func runContainedChild(request AgentLaunchRequest, argv0, scope string, containm
 			return runNativeChild(request, argv0)(ctx, path, args, environment, stdin, stdout, stderr)
 		}
 		report.Scope, report.Method = session.Scope, session.Method
+		if !reported {
+			failure := "container did not provide a native start observation"
+			if err != nil {
+				failure = err.Error()
+			}
+			observe(EditorLeaseContainment{Failure: failure, Unavailable: err == nil})
+		}
 		return err
 	}
 }
@@ -284,6 +313,7 @@ func containSelf(request AgentLaunchRequest, scope string, containment SessionCo
 	}
 	session, err := DefaultSessionContainer.ContainSelf(scope, containment)
 	report.Scope, report.Method = session.Scope, session.Method
+	report.Session = session
 	if err != nil {
 		report.Failure = err.Error()
 		report.Unsupported = !containmentSupported(DefaultSessionContainer)
@@ -295,4 +325,8 @@ func containSelf(request AgentLaunchRequest, scope string, containment SessionCo
 			log.Printf("agent launch uncontained agent=%s scope=%s: %v", request.Agent, scope, err)
 		}
 	}
+}
+
+func (r containmentReport) leaseEvidence() EditorLeaseContainment {
+	return EditorLeaseContainment{Session: r.Session, Failure: r.Failure, Unavailable: r.Unsupported || r.Method == ContainmentMethodNone && DefaultSessionContainer == nil}
 }

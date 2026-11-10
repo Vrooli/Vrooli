@@ -25,10 +25,15 @@ import (
 // Request construction remains owned by ProtoBindings.
 type Renderer func(RunContext, proto.Message) error
 
+// RequestPreparer can add operation-specific headers after the manifest has
+// built the typed protobuf request. It must not alter the request body.
+type RequestPreparer func(OperationContext, string, proto.Message) (map[string]string, error)
+
 // ProtoBindingOptions configures the generic dispatcher.
 type ProtoBindingOptions struct {
 	Render    map[string]Renderer
 	Normalize map[string]func([]byte) ([]byte, error)
+	Prepare   RequestPreparer
 }
 
 // ResolvedField describes the proto path selected for one manifest argument.
@@ -307,7 +312,7 @@ func ProtoPrimitiveBindingsWithOperational(core *ScenarioApp, serviceFQN protore
 		m := method
 		key := string(svc.Name()) + "." + string(method.Name())
 		call := func(ctx OperationContext) (proto.Message, error) {
-			return invokeProtoOperation(ctx, core, svc, m, key, options.Normalize)
+			return invokeProtoOperation(ctx, core, svc, m, key, options.Normalize, options.Prepare)
 		}
 		if operationalMethods[string(method.Name())] {
 			out[key] = ProtoOperational(call, func(_ OperationContext, _ proto.Message) OperationalReport {
@@ -411,7 +416,7 @@ func selectProtoBindingsForManifest(raw []byte, groupName string, serviceName pr
 }
 
 func invokeProtoBinding(ctx RunContext, core *ScenarioApp, svc protoreflect.ServiceDescriptor, method protoreflect.MethodDescriptor, key string, options ProtoBindingOptions) error {
-	resp, err := invokeProtoOperation(ctx, core, svc, method, key, options.Normalize)
+	resp, err := invokeProtoOperation(ctx, core, svc, method, key, options.Normalize, options.Prepare)
 	if err != nil {
 		return err
 	}
@@ -421,7 +426,7 @@ func invokeProtoBinding(ctx RunContext, core *ScenarioApp, svc protoreflect.Serv
 	return PrintProtoJSON(ctx.Stdout(), resp)
 }
 
-func invokeProtoOperation(ctx OperationContext, core *ScenarioApp, svc protoreflect.ServiceDescriptor, method protoreflect.MethodDescriptor, key string, normalize map[string]func([]byte) ([]byte, error)) (proto.Message, error) {
+func invokeProtoOperation(ctx OperationContext, core *ScenarioApp, svc protoreflect.ServiceDescriptor, method protoreflect.MethodDescriptor, key string, normalize map[string]func([]byte) ([]byte, error), prepare RequestPreparer) (proto.Message, error) {
 	request := dynamicpb.NewMessage(method.Input())
 	var normalizer func([]byte) ([]byte, error)
 	if normalize != nil {
@@ -439,7 +444,20 @@ func invokeProtoOperation(ctx OperationContext, core *ScenarioApp, svc protorefl
 		*dm = *dynamicpb.NewMessage(method.Output())
 		return nil
 	}))
-	resp, err := client.CallUnary(context.Background(), connect.NewRequest(request))
+	connectRequest := connect.NewRequest(request)
+	if prepare != nil {
+		headers, prepareErr := prepare(ctx, key, request)
+		if prepareErr != nil {
+			return nil, fmt.Errorf("%s: prepare request authority: %w", key, prepareErr)
+		}
+		for name, value := range headers {
+			if strings.TrimSpace(name) == "" || strings.TrimSpace(value) == "" {
+				continue
+			}
+			connectRequest.Header().Set(name, value)
+		}
+	}
+	resp, err := client.CallUnary(context.Background(), connectRequest)
 	if err != nil {
 		return nil, WrapAPIError(key, err, nil)
 	}

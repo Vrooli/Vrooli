@@ -92,6 +92,40 @@ func TestModelRoleRestrictionsRequireKnownDistinctRoles(t *testing.T) {
 	}
 }
 
+// The interactive default is not a role: a restricted model may be the default,
+// an excluded or unknown one may not.
+func TestInteractiveDefaultMustBeKnownAndNotExcluded(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		model string
+		valid bool
+	}{
+		{"restricted model is allowed", "premium", true},
+		{"routine model", "routine", true},
+		{"excluded model", "banned", false},
+		{"excluded model, other case", "Banned", false},
+		{"unknown model", "missing", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			catalog := CodingRoleCatalog{
+				SchemaVersion: CodingRolePolicySchemaVersion, Runner: "test",
+				Provenance:         CatalogProvenance{Source: "fixture", ObservedAt: "2026-09-26"},
+				ExcludedModels:     []string{"banned"},
+				RestrictedModels:   map[string][]string{"premium": {"code.fast"}},
+				ModelAliases:       map[string]ModelAlias{"premium": {}, "routine": {}, "banned": {}, "Banned": {}},
+				InteractiveDefault: &InteractiveDefault{Model: tc.model, Effort: "high"},
+				Roles:              make(map[string]CodingRole),
+			}
+			for _, role := range []string{"code.default", "code.fast", "code.smart", "code.cheap"} {
+				catalog.Roles[role] = CodingRole{Model: "routine", Description: "fixture", Capabilities: []string{"code"}}
+			}
+			if err := validateCodingRoleCatalog(catalog, "test"); (err == nil) != tc.valid {
+				t.Fatalf("valid=%t, validation error=%v", tc.valid, err)
+			}
+		})
+	}
+}
+
 func TestLiveCatalogFindingsTreatExcludedModelsAsNamed(t *testing.T) {
 	catalog := CodingRoleCatalog{
 		SchemaVersion:  CodingRolePolicySchemaVersion,
@@ -122,5 +156,42 @@ func TestLiveCatalogAbsenceIsNonBlockingUnlessCatalogIsExhaustive(t *testing.T) 
 	exhaustiveFindings := liveCatalogFindings(catalog, LiveModelCatalog{Models: []string{"gpt-5.5"}, Exhaustive: true})
 	if len(exhaustiveFindings) == 0 || exhaustiveFindings[0].Type != "missing_primary_model" || exhaustiveFindings[0].Severity != "error" {
 		t.Fatalf("exhaustive findings = %+v, want blocking missing primary", exhaustiveFindings)
+	}
+}
+
+// Models a launch can reach without a role (the interactive default and the
+// usage-mode targets) are checked against the live catalog like role models.
+func TestLiveCatalogFindingsCoverInteractiveDefaultAndUsageTiers(t *testing.T) {
+	catalog := CodingRoleCatalog{
+		Roles:              map[string]CodingRole{"code.default": {Model: "present"}},
+		InteractiveDefault: &InteractiveDefault{Model: "gone-default"},
+		UsageTiers:         &UsageTiers{SessionModel: "gone-session", ModelMap: map[string]string{"present": "gone-target"}},
+	}
+	for name, tc := range map[string]struct {
+		live     LiveModelCatalog
+		severity string
+		prefix   string
+	}{
+		"exhaustive catalog": {LiveModelCatalog{Models: []string{"present"}, Exhaustive: true}, "error", "missing_"},
+		"partial catalog":    {LiveModelCatalog{Models: []string{"present"}}, "warning", "unconfirmed_"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := map[string]string{}
+			for _, f := range liveCatalogFindings(catalog, tc.live) {
+				if f.Severity != tc.severity {
+					t.Fatalf("%s severity = %s, want %s", f.Type, f.Severity, tc.severity)
+				}
+				got[f.Model] = f.Type
+			}
+			for model, kind := range map[string]string{"gone-default": "interactive_default_model", "gone-session": "usage_tier_model", "gone-target": "usage_tier_model"} {
+				if got[model] != tc.prefix+kind {
+					t.Fatalf("%s finding = %q, want %q (all: %v)", model, got[model], tc.prefix+kind, got)
+				}
+			}
+		})
+	}
+	healthy := LiveModelCatalog{Models: []string{"present", "gone-default", "gone-session", "gone-target"}, Exhaustive: true}
+	if findings := liveCatalogFindings(catalog, healthy); len(findings) != 0 {
+		t.Fatalf("available models produced findings: %+v", findings)
 	}
 }

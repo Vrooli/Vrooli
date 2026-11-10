@@ -38,6 +38,8 @@ func aliasModel(t *testing.T, policy []byte, alias string) string {
 }
 
 func TestShippedCodexPolicy(t *testing.T) {
+	useHome(t)
+	useShippedPolicies(t)
 	tiers, err := LoadTiers(readPolicy(t, "codex"))
 	if err != nil {
 		t.Fatal(err)
@@ -61,6 +63,8 @@ func TestShippedCodexPolicy(t *testing.T) {
 }
 
 func TestShippedClaudePolicy(t *testing.T) {
+	useHome(t)
+	useShippedPolicies(t)
 	policy := readPolicy(t, "claude-code")
 	tiers, err := LoadTiers(policy)
 	if err != nil {

@@ -86,6 +86,11 @@ const (
 	FactorDuration FactorKind = "duration"
 )
 
+// DefaultDenseBudget is the time the dense/hybrid leg may take before the
+// service answers from its text leg. It sits below DefaultRouterPerProviderTimeout
+// so a provider degrades inside the router's budget instead of timing out.
+const DefaultDenseBudget = 2500 * time.Millisecond
+
 // Router factor defaults are kept in the shared taxonomy package so the
 // control plane and Search Hub cannot grow a second set of router constants.
 // Duration values are represented as time.Duration in Go and as strings in the

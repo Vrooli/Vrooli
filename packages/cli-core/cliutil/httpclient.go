@@ -29,7 +29,10 @@ type APIError struct {
 	RecoveryHint string
 	AutoFix      *AutoFixInfo
 	ManualSteps  []string
-	RawResponse  []byte
+	// RequestAuthority is the exact command a refused agent runs to ask the
+	// operator for the grant that was missing (`request_authority` in the body).
+	RequestAuthority string
+	RawResponse      []byte
 }
 
 // AutoFixInfo describes an automatic fix command if available.
@@ -41,12 +44,18 @@ type AutoFixInfo struct {
 
 // Error implements the error interface.
 func (e *APIError) Error() string {
-	return fmt.Sprintf("api error (%d): %s", e.StatusCode, e.Message)
+	text := fmt.Sprintf("api error (%d): %s", e.StatusCode, e.Message)
+	// A refusal's request command must reach the terminal even when a server put
+	// it only in `request_authority` and not in the message.
+	if e.RequestAuthority != "" && !strings.Contains(e.Message, e.RequestAuthority) {
+		text += "; to request approval run: " + e.RequestAuthority
+	}
+	return text
 }
 
 // IsStructured returns true if the error has rich recovery information.
 func (e *APIError) IsStructured() bool {
-	return e.Code != "" || e.RecoveryHint != "" || e.AutoFix != nil || len(e.ManualSteps) > 0
+	return e.Code != "" || e.RecoveryHint != "" || e.AutoFix != nil || len(e.ManualSteps) > 0 || e.RequestAuthority != ""
 }
 
 // FormatConcise returns a human-readable error with recovery information.
@@ -58,6 +67,9 @@ func (e *APIError) FormatConcise() string {
 	}
 	if e.RecoveryHint != "" {
 		b.WriteString(fmt.Sprintf("\nRecovery: %s\n", e.RecoveryHint))
+	}
+	if e.RequestAuthority != "" {
+		b.WriteString(fmt.Sprintf("\nTo request approval from the operator, run:\n  %s\n", e.RequestAuthority))
 	}
 	if e.AutoFix != nil && e.AutoFix.Command != "" {
 		safe := ""
@@ -89,6 +101,8 @@ func ParseAPIError(statusCode int, data []byte) *APIError {
 		RecoveryHint string                 `json:"recovery_hint"`
 		AutoFix      *AutoFixInfo           `json:"auto_fix"`
 		ManualSteps  []string               `json:"manual_steps"`
+		// request_authority is a command; ignore any other JSON type.
+		RequestAuthority json.RawMessage `json:"request_authority"`
 	}
 
 	if err := json.Unmarshal(data, &parsed); err == nil {
@@ -103,6 +117,10 @@ func ParseAPIError(statusCode int, data []byte) *APIError {
 		apiErr.RecoveryHint = parsed.RecoveryHint
 		apiErr.AutoFix = parsed.AutoFix
 		apiErr.ManualSteps = parsed.ManualSteps
+		var request string
+		if json.Unmarshal(parsed.RequestAuthority, &request) == nil {
+			apiErr.RequestAuthority = strings.TrimSpace(request)
+		}
 	} else {
 		apiErr.Message = strings.TrimSpace(string(data))
 	}

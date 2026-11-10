@@ -157,3 +157,144 @@ func TestNativeSettingsKeepsTheOriginalConfigAcrossRewrites(t *testing.T) {
 		t.Fatal(".bak should hold the latest pre-image, not the original")
 	}
 }
+
+// A setting declared with value_from follows the resource's model policy: the
+// value is written once, a policy edit propagates, a user-chosen value is a
+// conflict, a matching live value is adopted, and removing the policy value
+// retires the setting. The declaration never repeats the value.
+func TestNativeSettingsValueFromFollowsThePolicy(t *testing.T) {
+	dir := t.TempDir()
+	docPath := filepath.Join(dir, "native-settings.json")
+	policyPath := filepath.Join(dir, "model-policy.json")
+	doc := `{"schema_version":"vrooli.agent-native-settings/v1","runner":"codex","settings":[
+	  {"id":"model","path":["model"],"value_from":"interactive_default.model","rationale":"r"},
+	  {"id":"effort","path":["model_reasoning_effort"],"value_from":"interactive_default.effort","rationale":"r"}]}`
+	writePolicy := func(body string) {
+		t.Helper()
+		if err := os.WriteFile(policyPath, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = os.WriteFile(docPath, []byte(doc), 0o644)
+	settings := filepath.Join(dir, "config.json")
+	cfg := jsonCodecConfig(t, settings, docPath)
+	read := func() map[string]any {
+		t.Helper()
+		data, _ := os.ReadFile(settings)
+		out := map[string]any{}
+		_ = json.Unmarshal(data, &out)
+		return out
+	}
+
+	writePolicy(`{"interactive_default":{"model":"sol","effort":"high"}}`)
+	if report, err := EnsureNativeSettings(cfg); err != nil || !report.Applied {
+		t.Fatalf("first ensure = %+v, %v", report, err)
+	}
+	if got := read(); got["model"] != "sol" || got["model_reasoning_effort"] != "high" {
+		t.Fatalf("config = %v", got)
+	}
+
+	writePolicy(`{"interactive_default":{"model":"terra","effort":"high"}}`)
+	if _, err := EnsureNativeSettings(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(); got["model"] != "terra" || got["model_reasoning_effort"] != "high" {
+		t.Fatalf("policy edit did not propagate: %v", got)
+	}
+
+	_ = os.WriteFile(settings, []byte(`{"model":"mine","model_reasoning_effort":"high"}`), 0o600)
+	writePolicy(`{"interactive_default":{"model":"luna","effort":"high"}}`)
+	report, err := EnsureNativeSettings(cfg)
+	if err != nil || len(report.Conflicts()) != 1 || report.Conflicts()[0].ID != "model" {
+		t.Fatalf("user-chosen model must conflict: %+v, %v", report, err)
+	}
+	if read()["model"] != "mine" {
+		t.Fatal("user-chosen model overwritten")
+	}
+
+	_ = os.WriteFile(settings, []byte(`{"model":"luna"}`), 0o600)
+	report, err = EnsureNativeSettings(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range report.Changes {
+		if change.ID == "model" && change.Action != NativeSettingAdopt {
+			t.Fatalf("matching live value must be adopted, got %s", change.Action)
+		}
+	}
+
+	writePolicy(`{}`)
+	if _, err := EnsureNativeSettings(cfg); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(); got["model"] != nil || got["model_reasoning_effort"] != nil {
+		t.Fatalf("values the policy no longer defines must be retired: %v", got)
+	}
+}
+
+func TestNativeSettingsNeedsExactlyOneValueSource(t *testing.T) {
+	for _, setting := range []string{
+		`{"id":"a","path":["a"],"rationale":"r"}`,
+		`{"id":"a","path":["a"],"value":1,"value_from":"x.y","rationale":"r"}`,
+	} {
+		doc := `{"schema_version":"vrooli.agent-native-settings/v1","runner":"codex","settings":[` + setting + `]}`
+		if _, err := ParseNativeSettingsDocument([]byte(doc)); err == nil {
+			t.Fatalf("accepted %s", setting)
+		}
+	}
+}
+
+// A model policy that cannot be used must never fail ensure, write a bad value,
+// retire a value Vrooli wrote earlier, or touch the rest of the native file.
+// The settings that do not follow the policy still apply.
+func TestNativeSettingsBrokenPolicyHoldsPolicySettingsAndAppliesTheRest(t *testing.T) {
+	doc := `{"schema_version":"vrooli.agent-native-settings/v1","runner":"codex","settings":[
+	  {"id":"model","path":["model"],"value_from":"interactive_default.model","rationale":"r"},
+	  {"id":"slots","path":["features","slots"],"value":8,"rationale":"r"}]}`
+	broken := map[string]func(dir string) error{
+		"invalid json": func(dir string) error {
+			return os.WriteFile(filepath.Join(dir, "model-policy.json"), []byte(`{"interactive_default":`), 0o644)
+		},
+		"empty file": func(dir string) error { return os.WriteFile(filepath.Join(dir, "model-policy.json"), nil, 0o644) },
+		"not an object": func(dir string) error {
+			return os.WriteFile(filepath.Join(dir, "model-policy.json"), []byte(`["sol"]`), 0o644)
+		},
+		"oversized": func(dir string) error {
+			return os.WriteFile(filepath.Join(dir, "model-policy.json"), bytes.Repeat([]byte(" "), maxPolicyBytes+1), 0o644)
+		},
+		"missing":   func(string) error { return nil },
+		"directory": func(dir string) error { return os.Mkdir(filepath.Join(dir, "model-policy.json"), 0o755) },
+	}
+	for name, breakPolicy := range broken {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			docPath, settings := filepath.Join(dir, "native-settings.json"), filepath.Join(dir, "config.json")
+			if err := os.WriteFile(docPath, []byte(doc), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			cfg := jsonCodecConfig(t, settings, docPath)
+			if err := breakPolicy(dir); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(settings, []byte(`{"model":"sol","extra":true}`), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			report, err := EnsureNativeSettings(cfg)
+			if err != nil {
+				t.Fatalf("a broken policy failed ensure: %v", err)
+			}
+			got := actions(report.NativeSettingsPlan)
+			if got["model"] != NativeSettingHeld || got["slots"] != NativeSettingAdd {
+				t.Fatalf("actions = %v, want model held and slots added", got)
+			}
+			if len(report.Notes) == 0 || !strings.Contains(report.Notes[0], "model policy unusable") {
+				t.Fatalf("the policy problem is not surfaced: %v", report.Notes)
+			}
+			data, _ := os.ReadFile(settings)
+			live := map[string]any{}
+			if err := json.Unmarshal(data, &live); err != nil || live["model"] != "sol" || live["extra"] != true || live["features"] == nil {
+				t.Fatalf("native file after broken policy = %s (%v)", data, err)
+			}
+		})
+	}
+}

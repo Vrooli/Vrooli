@@ -29,7 +29,21 @@ func useHome(t *testing.T) string {
 	// Harness defaults come from the test, never the developer's own config.
 	t.Setenv("CODEX_HOME", t.TempDir())
 	t.Setenv("CLAUDE_CONFIG_DIR", t.TempDir())
+	// Model policies come from the test too, unless it names a root.
+	searchFromWorkingDir = false
+	t.Cleanup(func() { searchFromWorkingDir = true })
+	t.Setenv("VROOLI_ROOT", t.TempDir())
+	// The ambient checkout must not supply a policy the test removed.
+	for _, key := range []string{"VROOLI_RESOURCE_ROOT", "PROJECT_ROOT", "VROOLI_SOURCE_ROOT"} {
+		t.Setenv(key, "")
+	}
 	return home
+}
+
+// useShippedPolicies points the live policy lookup at this repository.
+func useShippedPolicies(t *testing.T) {
+	t.Helper()
+	t.Setenv("VROOLI_ROOT", "../../..")
 }
 
 func TestPathUsesVrooliHome(t *testing.T) {

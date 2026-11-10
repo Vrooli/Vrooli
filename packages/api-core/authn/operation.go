@@ -20,6 +20,9 @@ type OwnerBinding struct {
 	Resources        []string            `json:"resources,omitempty"`
 }
 
+// ErrOperation is the sentinel for a refused operation. RequireOperation returns
+// an *OperationRefusal for an agent, which wraps it and adds the request
+// command; test with errors.Is, never ==.
 var ErrOperation = errors.New("operation or target is outside the approved agent grant")
 
 // RequireOperation admits a capable human, an agent with an explicitly approved
@@ -37,6 +40,9 @@ func RequireOperation(ctx context.Context, capability, operation, target string)
 			return identity.Principal{}, ErrOperation
 		}
 		if err := a.AuthorizeOperation(ctx, p, capability, operation, target); err != nil {
+			if p.Kind == identity.ActorAgent && err == ErrOperation {
+				return identity.Principal{}, NewOperationRefusal(operation, target)
+			}
 			return identity.Principal{}, err
 		}
 		return p, nil
@@ -68,72 +74,14 @@ func RequireOperation(ctx context.Context, capability, operation, target string)
 		if scopecatalog.Resolve(p.Scopes, capability) && p.Grant.Allows(operation, target, time.Now()) {
 			return p, nil
 		}
-		return identity.Principal{}, ErrOperation
+		// The refusal names the exact request that would let the operator approve
+		// this operation on this target. errors.Is(err, ErrOperation) still holds.
+		return identity.Principal{}, NewOperationRefusal(operation, target)
 	}
 	if !scopecatalog.Resolve(p.Scopes, capability) {
 		return identity.Principal{}, ErrCapability
 	}
 	return identity.Principal{}, ErrOperation
-}
-
-// Policy is the reviewed, finite operation set available to an interactive
-// grant. It cannot include retained human decisions or arbitrary capabilities.
-type Policy struct{ Scopes, Operations, Domains []string }
-
-func InteractivePolicy(name string) (Policy, bool) {
-	switch name {
-	case "swarm-bookkeeping":
-		return Policy{[]string{"swarm-manager:read", "swarm-manager:write", "swarm-manager:destructive"}, []string{"swarm.bookkeeping"}, []string{"swarm-manager"}}, true
-	case "run-creation":
-		// A standing, operator-approved authority for a trusted service (or an
-		// unattended agent) to create agent-manager runs within declared bounds.
-		// run.create is the sole operation; the concurrency/budget limits and the
-		// accountable owner live on the grant record, not this reviewed policy.
-		return Policy{[]string{"agent-manager:read", "agent-manager:write"}, []string{"run.create"}, []string{"agent-manager"}}, true
-	case "agent-investigation":
-		return Policy{[]string{"agent-manager:read", "agent-manager:write"}, []string{"agent.investigate"}, []string{"agent-manager"}}, true
-	case "agent-management":
-		return Policy{[]string{"agent-manager:read", "agent-manager:write"}, []string{"agent.investigate", "agent.manage"}, []string{"agent-manager"}}, true
-	case "run-deletion":
-		// Permanently delete named agent-manager runs (agent-manager:run/<id>, or
-		// a bounded prefix). Separate from agent-management because deletion is
-		// irreversible; it never covers run review (approve/reject).
-		return Policy{[]string{"agent-manager:read", "agent-manager:write"}, []string{"run.delete"}, []string{"agent-manager"}}, true
-	case "team-preparation":
-		// Disabled, undispatched draft revisions only; no start, grants or activation.
-		return Policy{[]string{"prompt-manager:read", "prompt-manager:write"}, []string{"team.prepare"}, []string{"prompt-manager"}}, true
-	case "team-management":
-		// Existing owner-checked team.manage mutations only. Targets still must
-		// be explicit and are stored on the approved grant; team-preparation
-		// remains the separate disabled-draft policy.
-		return Policy{[]string{"prompt-manager:read", "prompt-manager:write"}, []string{"team.manage"}, []string{"prompt-manager"}}, true
-	case "prompt-agent-creation":
-		// Create one explicitly named Prompt Manager catalog entity. This does
-		// not authorize updates, deletion, membership, or agent-file changes.
-		return Policy{[]string{"prompt-manager:read", "prompt-manager:write"}, []string{"agent.create"}, []string{"prompt-manager"}}, true
-	case "effort-metadata":
-		// Owner-facing effort metadata only (goal home, display name, revisions).
-		// Agent Manager refuses any change to authority, subjects or withdrawal.
-		return Policy{[]string{"agent-manager:read", "agent-manager:write"}, []string{"effort.reconcile"}, []string{"agent-manager"}}, true
-	case "delivery-management":
-		// Commission control on an existing effort only. The domain preserves
-		// enrollment authority and owns clock, revision and retained-run checks.
-		return Policy{[]string{"agent-manager:read", "agent-manager:write"}, []string{"effort.delivery"}, []string{"agent-manager"}}, true
-	case "notification-sending":
-		// Sending to an explicitly approved recipient only. Notification Hub
-		// retains its separate decision, answer, preference and subscription rules.
-		return Policy{[]string{"notification-hub:write"}, []string{"notification.send"}, []string{"notification-hub"}}, true
-	case "notification-decision-asking":
-		// Create a decision for the explicitly approved recipient only. This does
-		// not authorize informational sends, answers, preferences or subscriptions.
-		return Policy{[]string{"notification-hub:write"}, []string{"notification.ask"}, []string{"notification-hub"}}, true
-	case "deployment-operations":
-		return Policy{[]string{"deployment-manager:read", "deployment-manager:write", "deployment-manager:destructive", "scenario-to-cloud:read", "scenario-to-cloud:write", "scenario-to-cloud:destructive"}, []string{"deployment.manage"}, []string{"deployment-manager", "scenario-to-cloud"}}, true
-	case "nutrition-management":
-		return Policy{[]string{"nutrition-planner:read", "nutrition-planner:write", "nutrition-planner:destructive"}, []string{"nutrition.manage"}, []string{"nutrition-planner"}}, true
-	default:
-		return Policy{}, false
-	}
 }
 
 // RequireIndependentHuman retains a human decision even when a forwarded

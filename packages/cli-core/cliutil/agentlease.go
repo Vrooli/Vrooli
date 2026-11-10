@@ -2,10 +2,13 @@ package cliutil
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -50,6 +53,28 @@ type EditorLeaseRecorder interface {
 	Overlaps(ctx context.Context, paths []string) ([]ClaimHolder, error)
 }
 
+// ErrEditorLeaseBindingUnavailable permits legacy visibility when this platform
+// cannot observe an exact process incarnation. It never permits a proof.
+var ErrEditorLeaseBindingUnavailable = errors.New("editor lease process incarnation unavailable")
+
+// EditorLeaseBindingRecorder is the optional incarnation-fenced recording seam.
+// Older recorders remain usable, but never supply containment provenance.
+type EditorLeaseBindingRecorder interface {
+	BeginBinding(context.Context, EditorLeaseRecord) (string, error)
+	RecordContainment(context.Context, string, string, EditorLeaseContainment) error
+	HeartbeatBinding(context.Context, string, string) error
+	StopBinding(context.Context, string, string, string) error
+}
+
+// EditorLeaseContainment is an observation of one native attempt, not its plan.
+// Successful descendant containment requires Session.BeforeExec and its exact
+// process observation. Missing proof is unavailable, never inferred success.
+type EditorLeaseContainment struct {
+	Session     ContainedSession
+	Failure     string
+	Unavailable bool
+}
+
 // DefaultEditorLeaseRecorder is the registered recorder; nil means invisible.
 var DefaultEditorLeaseRecorder EditorLeaseRecorder
 
@@ -67,13 +92,42 @@ const EditorLeaseTTL = 3 * EditorLeaseHeartbeat
 // fails the launch: an unavailable registry is logged and the session runs
 // unrecorded, the same fail-open the attribution path uses.
 func recordEditorLease(ctx context.Context, record EditorLeaseRecord, heartbeat bool) (stop func(reason string), recorded bool) {
+	stop, recorded, _, _ = recordEditorLeaseBinding(ctx, record, heartbeat)
+	return
+}
+
+func recordEditorLeaseBinding(ctx context.Context, record EditorLeaseRecord, heartbeat bool) (stop func(string), recorded bool, observe func(EditorLeaseContainment), fenced bool) {
 	recorder := DefaultEditorLeaseRecorder
+	noop := func(EditorLeaseContainment) {}
 	if recorder == nil || strings.TrimSpace(record.SessionID) == "" {
-		return func(string) {}, false
+		return func(string) {}, false, noop, false
 	}
-	if err := recorder.Create(ctx, record); err != nil {
+	bindingRecorder, bound := recorder.(EditorLeaseBindingRecorder)
+	bindingID := ""
+	var err error
+	if bound {
+		bindingID, err = bindingRecorder.BeginBinding(ctx, record)
+		if errors.Is(err, ErrEditorLeaseBindingUnavailable) {
+			bound = false
+			err = recorder.Create(ctx, record)
+		}
+		if bound && err == nil && bindingID == "" {
+			err = fmt.Errorf("binding recorder returned no binding ID")
+		}
+	} else {
+		err = recorder.Create(ctx, record)
+	}
+	if err != nil {
 		log.Printf("agent launch editor lease not recorded session=%s: %v", record.SessionID, err)
-		return func(string) {}, false
+		return func(string) {}, false, noop, false
+	}
+	observe = noop
+	if bound {
+		observe = func(evidence EditorLeaseContainment) {
+			if err := bindingRecorder.RecordContainment(context.Background(), record.SessionID, bindingID, evidence); err != nil {
+				log.Printf("agent launch containment not recorded session=%s: %v", record.SessionID, err)
+			}
+		}
 	}
 	done := make(chan struct{})
 	if heartbeat {
@@ -85,24 +139,34 @@ func recordEditorLease(ctx context.Context, record EditorLeaseRecord, heartbeat 
 				case <-done:
 					return
 				case <-ticker.C:
-					if err := recorder.Heartbeat(context.Background(), record.SessionID); err != nil {
+					var err error
+					if bound {
+						err = bindingRecorder.HeartbeatBinding(context.Background(), record.SessionID, bindingID)
+					} else {
+						err = recorder.Heartbeat(context.Background(), record.SessionID)
+					}
+					if err != nil {
 						log.Printf("agent launch editor lease heartbeat failed session=%s: %v", record.SessionID, err)
 					}
 				}
 			}
 		}()
 	}
-	var once bool
+	var once sync.Once
 	return func(reason string) {
-		if once {
-			return
-		}
-		once = true
-		close(done)
-		if err := recorder.Stop(context.Background(), record.SessionID, reason); err != nil {
-			log.Printf("agent launch editor lease not stopped session=%s: %v", record.SessionID, err)
-		}
-	}, true
+		once.Do(func() {
+			close(done)
+			var err error
+			if bound {
+				err = bindingRecorder.StopBinding(context.Background(), record.SessionID, bindingID, reason)
+			} else {
+				err = recorder.Stop(context.Background(), record.SessionID, reason)
+			}
+			if err != nil {
+				log.Printf("agent launch editor lease not stopped session=%s: %v", record.SessionID, err)
+			}
+		})
+	}, true, observe, bound
 }
 
 // reportClaimOverlaps prints the holders of overlapping claims and returns

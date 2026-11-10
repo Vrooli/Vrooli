@@ -4,24 +4,21 @@ package capacity
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/artifactlock"
 	internalcapacity "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostpressure"
 )
 
-const capacityHeartbeatTTL = 15 * time.Minute
-const capacityCleanupTimeout = 5 * time.Second
+const (
+	capacityHeartbeatTTL   = 15 * time.Minute
+	capacityCleanupTimeout = 5 * time.Second
+)
 
 // RecommendedLeaseHeartbeatInterval returns a renewal cadence derived from
 // the broker's operation-claim TTL. Long-running owner work should call
@@ -106,9 +103,6 @@ type Broker struct {
 	// memoryPressure reads fresh Linux PSI for production admission. A nil
 	// reader is intentionally unknown for injected snapshot brokers.
 	memoryPressure func() hostpressure.Reading
-	// admissionLockKey identifies this ledger across processes. Empty is reserved
-	// for stores without a persistent SQLite path (for example :memory:).
-	admissionLockKey string
 
 	// cachedSnapshot is the last host reading and when it was taken. It is
 	// guarded by mu, which Acquire already holds for its whole body.
@@ -173,14 +167,9 @@ func NewBroker(ctx context.Context, dbPath string) (*Broker, error) {
 	// Schema verification reapplies idempotent DDL even for an existing
 	// ledger. Serialize construction with admissions before opening SQLite so
 	// two first-use brokers cannot race in ensureSchema before Acquire's lock.
-	lockKey := capacityAdmissionLockKey(dbPath)
-	unlock := func() {}
-	if lockKey != "" {
-		var err error
-		unlock, err = artifactlock.AcquireContext(ctx, lockKey)
-		if err != nil {
-			return nil, fmt.Errorf("capacity broker initialization lock unavailable: %w", err)
-		}
+	unlock, err := internalcapacity.LockAdmissionPath(ctx, dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("capacity broker initialization lock unavailable: %w", err)
 	}
 	defer unlock()
 	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: dbPath})
@@ -192,41 +181,13 @@ func NewBroker(ctx context.Context, dbPath string) (*Broker, error) {
 	return broker, nil
 }
 
-func capacityAdmissionLockKey(dbPath string) string {
-	dbPath = strings.TrimSpace(dbPath)
-	if dbPath == "" || dbPath == ":memory:" {
-		return ""
-	}
-	if absPath, err := filepath.Abs(filepath.Clean(dbPath)); err == nil {
-		dbPath = absPath
-	}
-	// Resolve symlink aliases for existing ledgers, and canonicalize the parent
-	// for a new ledger before its leaf exists, so initialization and admission
-	// use the same identity through alternate runtime-home paths.
-	if realPath, err := filepath.EvalSymlinks(dbPath); err == nil {
-		dbPath = realPath
-	} else if os.IsNotExist(err) {
-		// Before the ledger file exists, canonicalize its parent so a symlinked
-		// runtime-home directory still maps to the same initialization lock.
-		if parent, parentErr := filepath.EvalSymlinks(filepath.Dir(dbPath)); parentErr == nil {
-			dbPath = filepath.Join(parent, filepath.Base(dbPath))
-		}
-	}
-	digest := sha256.Sum256([]byte(filepath.Clean(dbPath)))
-	return "capacity-admission-" + hex.EncodeToString(digest[:])
-}
-
 // NewBrokerWithSource is a test seam and is also useful to callers that have
 // already collected a host snapshot through another lifecycle pass.
 func NewBrokerWithSource(store *internalcapacity.SQLiteStore, source internalcapacity.CapacitySource) *Broker {
 	if source == nil {
 		source = internalcapacity.HostInventorySource{}
 	}
-	var lockKey string
-	if store != nil {
-		lockKey = capacityAdmissionLockKey(store.DBPath())
-	}
-	return &Broker{store: store, source: source, admissionLockKey: lockKey}
+	return &Broker{store: store, source: source}
 }
 
 // Close closes the underlying ledger.
@@ -241,7 +202,7 @@ func (b *Broker) Close() error {
 // intentionally rejected by callers as unknown; this method only handles
 // measured estimates.
 func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli int64) (Lease, Verdict, error) {
-	return b.acquire(ctx, ownerID, ramBytes, cpuMilli, false)
+	return b.acquire(ctx, ownerID, ramBytes, cpuMilli, false, internalcapacity.PriorityBatch)
 }
 
 // AcquireNoReclaim admits an operation only from capacity that is already
@@ -249,26 +210,56 @@ func (b *Broker) Acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 // ledger-fit checks as Acquire, but will never schedule another owner's idle
 // claim for reclamation.
 func (b *Broker) AcquireNoReclaim(ctx context.Context, ownerID string, ramBytes, cpuMilli int64) (Lease, Verdict, error) {
-	return b.acquire(ctx, ownerID, ramBytes, cpuMilli, true)
+	return b.acquire(ctx, ownerID, ramBytes, cpuMilli, true, internalcapacity.PriorityBatch)
 }
 
-func (b *Broker) acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli int64, noReclaim bool) (Lease, Verdict, error) {
+// Request reserves host resources under the scheduler's actual priority.
+// RAM is bytes; CPU is millicores. NoReclaim preserves other resident owners.
+type Request struct {
+	OwnerID   string
+	RAMBytes  int64
+	CPUMilli  int64
+	Priority  string
+	NoReclaim bool
+}
+
+// AcquireResources is the shared renewable RAM/CPU admission boundary. Both
+// claims are admitted under one process-shared lock or both are rolled back.
+func (b *Broker) AcquireResources(ctx context.Context, req Request) (RenewableLease, Verdict, error) {
+	priority := req.Priority
+	if priority == "" {
+		priority = "service"
+	}
+	switch priority {
+	case "interactive", "service", "batch":
+	default:
+		return nil, Verdict{}, fmt.Errorf("capacity: unknown priority %q", priority)
+	}
+	if req.RAMBytes < 0 || req.CPUMilli < 0 {
+		return nil, Verdict{}, errors.New("capacity: resource budgets cannot be negative")
+	}
+	owned, verdict, err := b.acquire(ctx, req.OwnerID, req.RAMBytes, req.CPUMilli, req.NoReclaim, internalcapacity.ParsePriorityTier(priority))
+	if owned == nil {
+		return nil, verdict, err
+	}
+	return owned.(RenewableLease), verdict, err
+}
+
+func (b *Broker) acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli int64, noReclaim bool, priority int) (Lease, Verdict, error) {
 	if b == nil || b.store == nil {
-		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity broker is unavailable"}, nil
+		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity broker is unavailable"}, errors.New("capacity broker is unavailable")
 	}
 	if ownerID == "" || (ramBytes <= 0 && cpuMilli <= 0) {
-		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity request is missing owner or measured size"}, nil
+		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity request is missing owner or measured size"}, errors.New("capacity request is missing owner or measured size")
 	}
 
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.admissionLockKey != "" {
-		unlock, err := artifactlock.AcquireContext(ctx, b.admissionLockKey)
-		if err != nil {
-			return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity admission lock unavailable: " + err.Error()}, nil
-		}
-		defer unlock()
+	unlock, err := internalcapacity.LockAdmission(ctx, b.store)
+	if err != nil {
+		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity admission lock unavailable: " + err.Error()}, err
 	}
+	defer unlock()
 	// Admission is also an opportunistic liveness sweep. Operation claims are
 	// short-lived and heartbeat-backed; if their owner crashed or the process
 	// restarted, leaving them in the active ledger would make a dead operation
@@ -282,11 +273,11 @@ func (b *Broker) acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 	// This path has no GPU absence proof. The owner defaults resident expiry to
 	// unknown; operation TTL and non-GPU stale leases still expire normally.
 	if _, err := b.store.ExpireStaleClaims(ctx, at, nil); err != nil {
-		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity liveness sweep failed: " + err.Error()}, nil
+		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity liveness sweep failed: " + err.Error()}, err
 	}
 	snapshot, err := b.snapshot(ctx)
 	if err != nil {
-		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity sensing unavailable: " + err.Error()}, nil
+		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity sensing unavailable: " + err.Error()}, err
 	}
 	policy, err := b.store.GetPolicy(ctx)
 	if err != nil {
@@ -339,7 +330,7 @@ func (b *Broker) acquire(ctx context.Context, ownerID string, ramBytes, cpuMilli
 			ResourceKind:   spec.kind,
 			PreferredBytes: spec.want,
 			FloorBytes:     spec.want,
-			Priority:       internalcapacity.PriorityBatch,
+			Priority:       priority,
 			NoReclaim:      noReclaim,
 			TTL:            capacityHeartbeatTTL,
 		}
@@ -384,16 +375,14 @@ func (b *Broker) AcquireGPU(ctx context.Context, ownerID, expectedUUID string, v
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.admissionLockKey != "" {
-		unlock, err := artifactlock.AcquireContext(ctx, b.admissionLockKey)
-		if err != nil {
-			return deny("capacity admission lock unavailable: " + err.Error())
-		}
-		defer unlock()
+	unlock, err := internalcapacity.LockAdmission(ctx, b.store)
+	if err != nil {
+		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "capacity admission lock unavailable: " + err.Error()}, err
 	}
+	defer unlock()
 	snapshot, err := b.snapshot(ctx)
 	if err != nil {
-		return deny("GPU sensing unavailable: " + err.Error())
+		return nil, Verdict{Kind: internalcapacity.VerdictDeny, Reason: "GPU sensing unavailable: " + err.Error()}, err
 	}
 	var identity GPUIdentity
 	for _, gpu := range snapshot.GPUs {

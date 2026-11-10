@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"net/http"
@@ -10,13 +11,14 @@ import (
 	"time"
 )
 
-func TestOperationBudgetDeliversReceiptPastOrdinaryWriteDeadline(t *testing.T) {
+func TestOperationBudgetDeliversLargeReceiptPastOrdinaryWriteDeadline(t *testing.T) {
+	wantBody := bytes.Repeat([]byte("lifecycle candidate\n"), 160000)
 	handler, err := WithOperationBudget(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		timer := time.NewTimer(150 * time.Millisecond)
 		defer timer.Stop()
 		select {
 		case <-timer.C:
-			_, _ = io.WriteString(w, "validated")
+			_, _ = w.Write(wantBody)
 		case <-r.Context().Done():
 			http.Error(w, r.Context().Err().Error(), http.StatusRequestTimeout)
 		}
@@ -36,8 +38,26 @@ func TestOperationBudgetDeliversReceiptPastOrdinaryWriteDeadline(t *testing.T) {
 	}
 	defer response.Body.Close()
 	body, err := io.ReadAll(response.Body)
-	if err != nil || response.StatusCode != http.StatusOK || string(body) != "validated" {
+	if err != nil || response.StatusCode != http.StatusOK || !bytes.Equal(body, wantBody) {
 		t.Fatalf("operation receipt: status=%d body=%q err=%v", response.StatusCode, body, err)
+	}
+}
+
+func TestOperationBudgetFailsClosedWithoutWriteDeadlineControl(t *testing.T) {
+	called := false
+	handler, err := WithOperationBudget(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		called = true
+	}), time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	if called {
+		t.Fatal("operation ran without control of the response write deadline")
+	}
+	if recorder.Code != http.StatusInternalServerError || !strings.Contains(recorder.Body.String(), "operation response deadline unavailable") {
+		t.Fatalf("unsupported response writer: status=%d body=%q", recorder.Code, recorder.Body.String())
 	}
 }
 

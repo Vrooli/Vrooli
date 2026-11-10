@@ -28,6 +28,17 @@ type UsageTiers struct {
 	ExemptRoles  []string          `json:"exempt_roles,omitempty"`
 }
 
+// InteractiveDefault is the model and effort a person gets when they start the
+// harness without choosing one. It is not a role: restricted_models limits
+// which roles may resolve to a model, so the default may name a restricted
+// model (Sol is restricted to code.fallback yet is the interactive default),
+// but never an excluded one. Native settings project it into the harness
+// config (resources/<runner>/native-settings.json, value_from).
+type InteractiveDefault struct {
+	Model  string `json:"model"`
+	Effort string `json:"effort,omitempty"`
+}
+
 // Catalog vocabulary the policy readers branch on.
 const (
 	// LiveCatalogCurated marks a provider whose live marketplace is broader
@@ -59,10 +70,13 @@ type CodingRoleCatalog struct {
 	// UsageTiers declares the lower-cost tier mapping used by usage modes
 	// (docs/configuration/usage-modes.md). The resource owns concrete models;
 	// package usagemode validates and applies it.
-	UsageTiers          *UsageTiers       `json:"usage_tiers,omitempty"`
-	Provenance          CatalogProvenance `json:"provenance"`
-	Billing             *Billing          `json:"billing,omitempty"`
-	StalenessBudgetDays int               `json:"staleness_budget_days,omitempty"`
+	UsageTiers *UsageTiers `json:"usage_tiers,omitempty"`
+	// InteractiveDefault is the operator-chosen default for sessions that name
+	// no model. Optional; see InteractiveDefault.
+	InteractiveDefault  *InteractiveDefault `json:"interactive_default,omitempty"`
+	Provenance          CatalogProvenance   `json:"provenance"`
+	Billing             *Billing            `json:"billing,omitempty"`
+	StalenessBudgetDays int                 `json:"staleness_budget_days,omitempty"`
 	// LiveCatalogMode is "curated" when a provider exposes a large dynamic
 	// marketplace that is intentionally broader than the fleet's policy.
 	// In that mode role mappings remain validated, while every marketplace
@@ -263,6 +277,32 @@ func liveCatalogFindings(c CodingRoleCatalog, live LiveModelCatalog) []PolicyVal
 			}
 		}
 	}
+	// The interactive default and the usage-mode targets are models a launch
+	// can land on without a role, so they get the same availability check. A
+	// gap is a finding for the operator, never a reason to refuse a launch.
+	unavailable := func(kind, label, model string) {
+		if model == "" {
+			return
+		}
+		named[model] = struct{}{}
+		if live.Contains(model) || live.Aliases {
+			return
+		}
+		finding := PolicyValidationFinding{Type: "unconfirmed_" + kind, Severity: "warning", Model: model, Message: label + " is not listed by the runner's non-exhaustive catalog; do not infer that it is unavailable"}
+		if live.Exhaustive {
+			finding.Type, finding.Severity, finding.Message = "missing_"+kind, "error", label+" is absent from the runner exhaustive catalog"
+		}
+		findings = append(findings, finding)
+	}
+	if d := c.InteractiveDefault; d != nil {
+		unavailable("interactive_default_model", "interactive default model", d.Model)
+	}
+	if u := c.UsageTiers; u != nil {
+		unavailable("usage_tier_model", "usage mode session model", u.SessionModel)
+		for _, target := range u.ModelMap {
+			unavailable("usage_tier_model", "usage mode target model", target)
+		}
+	}
 	if c.LiveCatalogMode == LiveCatalogCurated {
 		return findings
 	}
@@ -336,6 +376,17 @@ func validateCodingRoleCatalog(c CodingRoleCatalog, expectedRunner string) error
 				errs = append(errs, fmt.Errorf("restricted_models.%s references unknown or duplicate role %q", model, role))
 			}
 			seenRoles[role] = true
+		}
+	}
+	if d := c.InteractiveDefault; d != nil {
+		if _, known := c.ModelAliases[d.Model]; !known {
+			errs = append(errs, fmt.Errorf("interactive_default.model %q is not in model_aliases", d.Model))
+		}
+		if _, excluded := seenExcluded[strings.ToLower(d.Model)]; excluded {
+			errs = append(errs, fmt.Errorf("interactive_default.model %q is excluded", d.Model))
+		}
+		if d.Effort != strings.TrimSpace(d.Effort) {
+			errs = append(errs, errors.New("interactive_default.effort must be trimmed"))
 		}
 	}
 	for _, required := range []string{"code.default", "code.fast", "code.smart", "code.cheap"} {

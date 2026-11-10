@@ -226,21 +226,19 @@ type NewModeOptions struct {
 	Effort             string
 	ContextLimitTokens int
 	ExtraExemptRoles   []string
+	// OverrideModel sends every model the resource lowers to this one instead
+	// of its own target; it must be provably lower (Tiers.OverrideModel).
+	OverrideModel string
 }
 
-// NewMode builds a mode from tiers. Every model_map target and the session
-// model must pass ValidateTarget.
-func NewMode(t Tiers, o NewModeOptions) (Mode, error) {
-	if t.Runner == "" {
-		return Mode{}, errors.New("tiers have no runner")
-	}
+// Settings are the concrete runner settings the tiers resolve to: every
+// model_map target and the session model must pass ValidateTarget, and no entry
+// may raise a model.
+func (t Tiers) Settings() (RunnerSettings, error) {
 	if len(t.ModelMap) == 0 && t.SessionModel == "" {
-		return Mode{}, errors.New("tiers map no models")
+		return RunnerSettings{}, errors.New("tiers map no models")
 	}
-	if o.ContextLimitTokens < 0 || (NormalizeRunner(t.Runner) == "claude" && o.ContextLimitTokens > 0 && o.ContextLimitTokens < MinClaudeContextLimit) {
-		return Mode{}, fmt.Errorf("context limit %d is below the minimum", o.ContextLimitTokens)
-	}
-	settings := RunnerSettings{ModelMap: map[string]string{}, Effort: o.Effort, ContextLimitTokens: o.ContextLimitTokens}
+	settings := RunnerSettings{ModelMap: map[string]string{}}
 	keys := make([]string, 0, len(t.ModelMap))
 	for from := range t.ModelMap {
 		keys = append(keys, from)
@@ -249,10 +247,10 @@ func NewMode(t Tiers, o NewModeOptions) (Mode, error) {
 	for _, from := range keys {
 		to := t.ModelMap[from]
 		if err := t.ValidateTarget(to); err != nil {
-			return Mode{}, err
+			return RunnerSettings{}, err
 		}
 		if err := t.checkNeverRaises(from, to); err != nil {
-			return Mode{}, err
+			return RunnerSettings{}, err
 		}
 		settings.ModelMap[from] = t.concrete(to)
 		// Full-id keys are resolved so Claude's alias remap sees ids too.
@@ -262,10 +260,37 @@ func NewMode(t Tiers, o NewModeOptions) (Mode, error) {
 	}
 	if t.SessionModel != "" {
 		if err := t.ValidateTarget(t.SessionModel); err != nil {
-			return Mode{}, err
+			return RunnerSettings{}, err
 		}
 		settings.SessionModel = t.concrete(t.SessionModel)
 	}
+	return settings, nil
+}
+
+// NewMode builds a mode from tiers, validating them through Settings.
+func NewMode(t Tiers, o NewModeOptions) (Mode, error) {
+	if t.Runner == "" {
+		return Mode{}, errors.New("tiers have no runner")
+	}
+	if o.OverrideModel != "" {
+		var err error
+		if t, err = t.OverrideModel(o.OverrideModel); err != nil {
+			return Mode{}, err
+		}
+	}
+	if o.ContextLimitTokens < 0 || (NormalizeRunner(t.Runner) == "claude" && o.ContextLimitTokens > 0 && o.ContextLimitTokens < MinClaudeContextLimit) {
+		return Mode{}, fmt.Errorf("context limit %d is below the minimum", o.ContextLimitTokens)
+	}
+	settings, err := t.Settings()
+	if err != nil {
+		return Mode{}, err
+	}
+	// A save mode stores intent and follows the resource policy when applied; a
+	// learn mode freezes its challenger so the comparison stays controlled.
+	if o.Kind != KindLearn {
+		settings = RunnerSettings{OverrideModel: o.OverrideModel}
+	}
+	settings.Effort, settings.ContextLimitTokens = o.Effort, o.ContextLimitTokens
 	now := o.Now
 	if now.IsZero() {
 		now = time.Now()
@@ -295,11 +320,10 @@ func NewMode(t Tiers, o NewModeOptions) (Mode, error) {
 	if kind == "" {
 		kind = KindSave
 	}
-	exempt := append(append([]string(nil), t.ExemptRoles...), o.ExtraExemptRoles...)
 	return Mode{
 		ID: "um-" + now.UTC().Format("20060102") + "-" + hex.EncodeToString(id), Label: o.Label, Kind: kind,
 		Scope: o.Scope, StartedAt: now.UTC(), StartedBy: o.StartedBy, Source: o.Source,
-		Until: until, ExpiresAt: expires, ExemptRoles: exempt,
+		Until: until, ExpiresAt: expires, ExemptRoles: o.ExtraExemptRoles,
 		Runners: map[string]RunnerSettings{NormalizeRunner(t.Runner): settings},
 	}, nil
 }

@@ -109,22 +109,6 @@ func (m Mode) ChallengerSettings(runner string) (RunnerSettings, bool) {
 	return RunnerSettings{}, false
 }
 
-// RoleExempt reports a role that never joins a comparison, whatever the
-// mode's scope: exempt roles stay out.
-func (m Mode) RoleExempt(role string) bool {
-	if role == "" {
-		return false
-	}
-	for _, list := range [][]string{m.ExemptRoles, DefaultExemptRoles} {
-		for _, exempt := range list {
-			if exempt == role {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // SessionArm is the arm of a randomized day block, fixed by the mode id and
 // the block's first UTC day alone, so the launcher, the ledger and a reader
 // with no database all agree and nothing needs to be stored to know it.
