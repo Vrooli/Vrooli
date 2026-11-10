@@ -33,8 +33,13 @@
       }
     ]
   },
+  "interactive_default": {
+    "model": "gpt-6.1-sol",
+    "effort": "high"
+  },
   "usage_tiers": {
     "model_map": {
+      "gpt-6.1-sol": "gpt-6-luna",
       "gpt-6.1-terra": "gpt-6-luna"
     },
     "session_model": "gpt-6-luna",

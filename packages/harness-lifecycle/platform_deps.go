@@ -77,7 +77,19 @@ func defaultPlatformDeps() platformDeps {
 					name = installed
 				}
 			}
-			return shell.NewCommandContext(ctx, name, args...).CombinedOutput()
+			command := shell.NewCommandContext(ctx, name, args...)
+			if isVersionProbe(args) && os.Geteuid() == 0 {
+				// A privileged run (`sudo vrooli setup`) must not let an agent
+				// write its state into the operator's home: it would leave
+				// root-owned files that the agent later fails to clean up.
+				scratch, err := os.MkdirTemp("", "vrooli-version-probe-")
+				if err != nil {
+					return nil, err
+				}
+				defer os.RemoveAll(scratch)
+				command.Env = append(os.Environ(), "HOME="+scratch, "CODEX_HOME="+scratch)
+			}
+			return command.CombinedOutput()
 		},
 		homeDir:         config.HomeDir,
 		mkdirAll:        os.MkdirAll,
@@ -153,3 +165,6 @@ func (d platformDeps) withDefaults() platformDeps {
 	}
 	return d
 }
+
+// isVersionProbe reports whether args ask an agent only for its version.
+func isVersionProbe(args []string) bool { return len(args) == 1 && args[0] == "--version" }

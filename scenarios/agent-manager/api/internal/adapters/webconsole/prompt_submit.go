@@ -139,9 +139,9 @@ func (c *Client) ObserveNativeAgent(ctx context.Context, webConsoleSessionID, na
 		}
 		switch thread.GetStatus() {
 		case "idle":
-			return NativeAgentObservation{State: NativeAgentIdle, Provider: "codex"}, nil
+			return NativeAgentObservation{State: NativeAgentIdle, Provider: "codex", ActiveTurnID: thread.GetActiveTurnId()}, nil
 		case "active":
-			return NativeAgentObservation{State: NativeAgentBusy, Provider: "codex"}, nil
+			return NativeAgentObservation{State: NativeAgentBusy, Provider: "codex", ActiveTurnID: thread.GetActiveTurnId()}, nil
 		default:
 			unknown.Reason = "native owner did not establish a live thread state"
 			return unknown, nil
@@ -151,14 +151,31 @@ func (c *Client) ObserveNativeAgent(ctx context.Context, webConsoleSessionID, na
 	return unknown, nil
 }
 
-// SendPromptForNativeSession refuses before PTY input unless the exact native
-// generation is proven live and idle. This prevents prompt prose falling
-// through to a shell after a coding harness exits.
+// SendPromptForNativeSession binds prompt delivery at Web Console's receiver.
+// The provider CAS below closes the liveness-check/submit race, and this path
+// never invokes TerminalService.SendInput.
 func (c *Client) SendPromptForNativeSession(ctx context.Context, webConsoleSessionID, nativeSessionID, prompt, source string) (PromptSubmission, error) {
-	if err := c.requireNativeIdle(ctx, webConsoleSessionID, nativeSessionID); err != nil {
+	observation, err := c.ObserveNativeAgent(ctx, webConsoleSessionID, nativeSessionID)
+	if err != nil {
 		return PromptSubmission{}, err
 	}
-	return c.submitComposerText(ctx, webConsoleSessionID, prompt, source, true, "paste prompt", ErrPromptNotSubmitted)
+	if observation.State != NativeAgentIdle && observation.State != NativeAgentBusy {
+		return PromptSubmission{}, fmt.Errorf("%w: %s", ErrNativeAgentUnknown, observation.Reason)
+	}
+	if observation.State == NativeAgentBusy && strings.TrimSpace(observation.ActiveTurnID) == "" {
+		return PromptSubmission{}, fmt.Errorf("%w: active native turn identity is unavailable", ErrNativeAgentUnknown)
+	}
+	response, err := c.sessions.DeliverNativePrompt(ctx, connect.NewRequest(&sessionsv1.DeliverNativePromptRequest{
+		SessionId: webConsoleSessionID, ExpectedThreadId: nativeSessionID,
+		ExpectedTurnId: observation.ActiveTurnID, Text: prompt, Source: source,
+	}))
+	if err != nil {
+		return PromptSubmission{}, fmt.Errorf("web-console receiver-bound native prompt: %w", err)
+	}
+	if response.Msg.GetThreadId() != nativeSessionID || response.Msg.GetTurnId() == "" {
+		return PromptSubmission{}, errors.New("web-console native receiver returned an incomplete delivery identity")
+	}
+	return PromptSubmission{Verified: true}, nil
 }
 
 // SendCommandForNativeSession applies the same provider and generation gate to
@@ -167,10 +184,7 @@ func (c *Client) SendCommandForNativeSession(ctx context.Context, webConsoleSess
 	if strings.ContainsAny(command, "\r\n") || strings.TrimSpace(command) == "" {
 		return PromptSubmission{}, ErrCommandMustBeSingleLine
 	}
-	if err := c.requireNativeIdle(ctx, webConsoleSessionID, nativeSessionID); err != nil {
-		return PromptSubmission{}, err
-	}
-	return c.submitComposerText(ctx, webConsoleSessionID, command, source, false, "type command", ErrCommandNotSubmitted)
+	return PromptSubmission{}, errors.New("native command delivery is unavailable; PTY command fallback is disabled")
 }
 
 func (c *Client) requireNativeIdle(ctx context.Context, webConsoleSessionID, nativeSessionID string) error {

@@ -265,6 +265,16 @@ assume a role. The execution owner must bind workers to their admitted roles.
 Provider prices and subscription quota are separate measurements: do not invent
 token prices or treat an estimated zero-dollar charge as unused weekly allowance.
 
+`interactive_default` (`model`, `effort`) is the model an interactive session starts on
+when nobody chooses one. It is not a role, so `restricted_models` does not apply to it
+(Sol is restricted to `code.fallback` yet is the interactive default); `excluded_models`
+does, and the catalog validator rejects an excluded or unknown default. `native-settings.json`
+projects it into `$CODEX_HOME/config.toml` as the top-level `model` and
+`model_reasoning_effort` (`value_from`), so changing the default is one policy edit
+followed by `resource-codex settings apply` (or `ensure`). A value you set yourself is
+reported as a conflict and left alone; `settings decline interactive-model` stops managing
+it. A usage mode lowers the default for new work at launch without editing config.toml.
+
 `resource-codex models list --json` queries `codex debug models` without invoking a model and falls back to the non-authoritative Codex model cache only when the runner probe is unavailable. A live result proves listed models are offered; only `exhaustive: true` permits an absent-model conclusion. A missing live probe remains unmeasured, and a partial listing's omissions remain unconfirmed. Record the measured binary path/version and verify managed launch behavior through the codec's shim-bypass test and bounded runner probe. Never downgrade owner-validated roles from a stale cache or partial surface. `resource-codex models resolve --model <id> --json` returns the resource-owned canonical pricing identity. Run `resource-codex policy validate --against-live --json` after a retarget. `observed_at` has a 14-day budget. Policy edits require explicit review; the drift safeguard never changes them.
 
 If this command reports an unexpectedly old partial catalog, rebuild the installed resource CLI from the current resource source before diagnosing model availability; a stale installed CLI can preserve obsolete discovery behavior.

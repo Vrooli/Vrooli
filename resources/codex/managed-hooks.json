@@ -1,0 +1,17 @@
+{
+  "schema_version": "vrooli.agent-managed-hooks/v1",
+  "runner": "codex",
+  "description": "Codex hooks Vrooli depends on. `resource-codex ensure` (run by `vrooli setup`) and `resource-codex hooks apply` project them into $CODEX_HOME/hooks.json as identified entries; `hooks plan` shows what would change and whether Codex has been told to trust them. Codex does not run a hook until its owner trusts it in Codex (`/hooks`); trust is a human decision and is never written by Vrooli.",
+  "reference": "docs/configuration/coding-agents.md#who-decides-a-model",
+  "hooks": [
+    {
+      "id": "vrooli-model-hook",
+      "event": "PreToolUse",
+      "matcher": "spawn_agent",
+      "program": "vrooli-policy-runner",
+      "args": ["model-hook", "--runner", "codex"],
+      "timeout_seconds": 10,
+      "rationale": "A sub-agent that names a model bypasses Agent Manager, so excluded_models in model-policy.json cannot stop it any other way. The hook denies (exit 2) only a call naming an excluded model; every error, a missing binary or a timeout lets the call run."
+    }
+  ]
+}

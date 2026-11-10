@@ -34,7 +34,7 @@ func newApp() (*cliapp.ResourceApp, error) {
 		UpstreamSourceKind: "npm",
 		UpstreamSourceID:   npmPackage,
 		NativeSettings:     configcli.NativeSettings(),
-		EnsureSteps:        []agentapp.EnsureStep{permissionscli.IntentMigrationStep()},
+		EnsureSteps:        []agentapp.EnsureStep{permissionscli.IntentMigrationStep(), permissionscli.ManagedHooksStep(permissionscli.Default(agentapp.Version, ""))},
 		Posture:            agentharness.EnforcementPosture{Permissions: "hook_unverified", Caveats: []string{"Codex has no native seam for Vrooli's command-pattern rules; Vrooli records them beside the config and projects a PreToolUse hook, but hook firing requires a live canary on the installed Codex version."}},
 		Groups: func(install agentinstall.Spec) ([]cliapp.SubcommandGroup, error) {
 			pinnedVersion, err := install.PinnedVersion()

@@ -110,9 +110,10 @@ const (
 // NativeAgentObservation reports evidence from the provider that owns the
 // exact native thread. PTY existence alone is never native-agent liveness.
 type NativeAgentObservation struct {
-	State    NativeAgentState
-	Provider string
-	Reason   string
+	State        NativeAgentState
+	Provider     string
+	Reason       string
+	ActiveTurnID string
 }
 
 // NativeAgentProbe is optional so portable adapters can report that their

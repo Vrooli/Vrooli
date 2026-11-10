@@ -5,6 +5,22 @@
   "reference": "docs/agent-system/LONG_EFFORT_DESIGN.md#4-codex-multi-agent-settings",
   "settings": [
     {
+      "id": "interactive-model",
+      "path": [
+        "model"
+      ],
+      "value_from": "interactive_default.model",
+      "rationale": "The model an interactive session starts on is operator policy, not a per-machine edit. It comes from interactive_default in model-policy.json; a usage mode lowers it for new work at launch without touching this file."
+    },
+    {
+      "id": "interactive-effort",
+      "path": [
+        "model_reasoning_effort"
+      ],
+      "value_from": "interactive_default.effort",
+      "rationale": "Reasoning effort of an interactive session, from interactive_default in model-policy.json."
+    },
+    {
       "id": "multi-agent-thread-slots",
       "path": [
         "features",
@@ -22,8 +38,8 @@
         "multi_agent_v2",
         "multi_agent_mode_hint_text"
       ],
-      "value": "Use sub-agents when they advance the active goal or task: independent parallel work, long-lived owners of one coherent outcome, and independent review. Give each a fresh brief (fork_turns none) that carries the destination and the operator's stance verbatim, and size its outcome to the work, not to caution.",
-      "verified_version": "0.166.0",
+      "value": "Use sub-agents when they advance the active goal or task: independent parallel work, long-lived owners of one coherent outcome, and independent review. Give each a fresh brief (fork_turns none) that carries the destination and the operator's stance verbatim, and size its outcome to the work, not to caution. Never pass model or reasoning_effort to spawn_agent: omit both so the child inherits this session's model, which role policy and any active usage mode already chose. If work needs a different tier, say so to the operator. Sub-agent messages reach you while you work, so when you have work of your own, do it and do not call wait_agent. When you have nothing to do but wait, call wait_agent with a long timeout_ms (up to 3600000): it returns as soon as a sub-agent messages or finishes, or the user types. Do not call it when no sub-agent is running.",
+      "verified_version": "0.167.0",
       "rationale": "Replaces Codex's default hint, which tells the model not to spawn sub-agents unless the user explicitly asks; that default suppresses the long-lived owners long efforts need."
     },
     {
@@ -33,9 +49,40 @@
         "multi_agent_v2",
         "subagent_developer_instructions"
       ],
-      "value": "You are a sub-agent. Your brief is your goal: the parent's goal text may be missing from your context. Read the charter or brief your parent named before substantive work, and read it again after any context compaction. Size the change to the outcome your brief names. You may spawn your own sub-agents when the outcome needs parallel or long-lived work. Report changed, verified, remaining and unverified.",
-      "verified_version": "0.166.0",
+      "value": "You are a sub-agent. Your brief is your goal: the parent's goal text may be missing from your context. Read the charter or brief your parent named before substantive work, and read it again after any context compaction. Size the change to the outcome your brief names. You may spawn your own sub-agents when the outcome needs parallel or long-lived work. Report changed, verified, remaining and unverified. Never pass model or reasoning_effort when you spawn: omit both so the child inherits your model. Message your parent only for your plan, a finished outcome, a decision that needs the operator, or a need you cannot meet yourself; keep progress in your checkpoint file, because every message wakes the parent. Stop every resource, service or model you start when its job ends.",
+      "verified_version": "0.167.0",
       "rationale": "spawn_agent cannot give a child a native goal and a long parent goal is omitted after compaction, so every child is told that its brief is its goal and to re-read it after compaction."
+    },
+    {
+      "id": "multi-agent-min-wait",
+      "path": [
+        "features",
+        "multi_agent_v2",
+        "min_wait_timeout_ms"
+      ],
+      "value": 120000,
+      "verified_version": "0.167.0",
+      "rationale": "Agents ask wait_agent for 30 to 60 seconds by habit (5,800 of 5,823 calls on 2026-11-05..10), and each timed-out wait costs a full-context request and invites a status check. A wait returns as soon as a sub-agent messages or the operator types, so a floor only slows polling. It is kept at two minutes, not longer, because a wait with no live sub-agent blocks for the whole floor. Probes on 0.167: with a 90000 floor a 5000 ms request returned after 90.0 s with 'clamped to the minimum of 90000ms'; with 600000 it returned after 600 s."
+    },
+    {
+      "id": "multi-agent-default-wait",
+      "path": [
+        "features",
+        "multi_agent_v2",
+        "default_wait_timeout_ms"
+      ],
+      "value": 600000,
+      "verified_version": "0.167.0",
+      "rationale": "A wait_agent call with no timeout should block until a sub-agent reports, not return after seconds; ten minutes bounds a wait made when no sub-agent is running. Probe on 0.167: with 150000, a call without timeout_ms returned after 150.0 s."
+    },
+    {
+      "id": "disable-native-update-prompt",
+      "path": [
+        "check_for_update_on_startup"
+      ],
+      "value": false,
+      "verified_version": "0.166.0",
+      "rationale": "Codex's own updater runs `npm install -g @openai/codex` against the system Node prefix, which needs sudo and writes a copy under /usr that the managed link shadows, so the prompt can never succeed. Updates go through `resource-codex update` (`vrooli resource update codex`)."
     }
   ]
 }

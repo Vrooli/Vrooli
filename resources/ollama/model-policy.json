@@ -252,6 +252,31 @@
         "sample_count": 1,
         "ollama_version": "live daemon"
       }
+    },
+    "image.quality.judge": {
+      "model": "qwen3-vl:4b",
+      "fallbacks": [],
+      "required_capabilities": [
+        "generate",
+        "chat",
+        "vision"
+      ],
+      "description": "Fixed local Apache-2.0 visual judge for Image Tools reference evaluation; no hosted or model fallback.",
+      "preference": 66,
+      "sampling_defaults": {
+        "temperature": 0.0
+      },
+      "sampling_support": {
+        "temperature": "honored"
+      },
+      "max_tokens": 768,
+      "provenance": {
+        "source_kind": "manual_policy",
+        "confidence": "medium",
+        "source": "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct (Apache-2.0); Image Tools IT7 evaluator role",
+        "observed_at": "2026-11-09",
+        "sample_count": 0
+      }
     }
   },
   "models": {

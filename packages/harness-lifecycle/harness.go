@@ -352,6 +352,22 @@ func RootOwnedHarnessPaths(home string) ([]string, error) {
 	return owned, nil
 }
 
+// codexScratchPaths lists Codex's per-launch scratch directories and their
+// entries. A privileged launch leaves them root-owned, and every later launch
+// then warns that it cannot clean up stale arg0 temp dirs.
+func codexScratchPaths(home string) []string {
+	var paths []string
+	for _, pattern := range []string{
+		filepath.Join(home, ".codex", "tmp", "arg0-linux", "*"),
+		filepath.Join(home, ".codex", "tmp", "arg0-linux", "*", "*"),
+		filepath.Join(home, ".codex", "tmp", "arg0-linux", "*", ".*"),
+	} {
+		matches, _ := filepath.Glob(pattern)
+		paths = append(paths, matches...)
+	}
+	return paths
+}
+
 func harnessFileCandidates(home string) ([]string, error) {
 	binDir := filepath.Join(home, ".local", "bin")
 	candidates := []string{binDir}
@@ -362,6 +378,9 @@ func harnessFileCandidates(home string) ([]string, error) {
 			continue
 		}
 		candidates = append(candidates, harnessInstallerPaths(resource, home)...)
+		if resource == "codex" {
+			candidates = append(candidates, codexScratchPaths(home)...)
+		}
 		if resource == "grok" {
 			delegate := filepath.Join(home, ".grok", "bin", "grok")
 			candidates = append(candidates, delegate)

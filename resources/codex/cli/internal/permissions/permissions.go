@@ -313,23 +313,26 @@ func (a *Adapter) MigrateLegacyTable() (string, error) {
 	return report, err
 }
 
+// permissionHookMatcher selects the Codex tools the deny-rule hook guards.
+// Codex 0.167 names the shell tool "Bash" in a hook payload (the earlier
+// "shell_command" and "exec_command" names are kept for older builds), and an
+// MCP tool "mcp__<server>__<tool>". A matcher naming only the older shell
+// names never fires for a shell command (verified with a throwaway CODEX_HOME).
+const permissionHookMatcher = "Bash|shell_command|exec_command|apply_patch|mcp__.*"
+
 // RenderHook returns the native Codex PreToolUse projection. The command is
-// configurable because the policy runner is host-owned; no shell-specific
-// wrapper is assumed. Ownership markers go on the hook entry only: Codex
-// rejects the whole hooks.json for an unknown top-level key.
+// the installed policy runner by absolute path (see PolicyRunnerCommand). Ownership
+// markers go on the hook entry only: Codex rejects the whole hooks.json for an
+// unknown top-level key.
 func (a *Adapter) RenderHook(p Policy) map[string]any {
 	if len(p.BashDeny) == 0 {
 		return nil
 	}
-	command := os.Getenv("VROOLI_AGENT_POLICY_RUNNER")
-	if command == "" {
-		command = "vrooli-policy-runner"
-	}
 	return map[string]any{
 		"hooks": map[string]any{
 			"PreToolUse": []any{map[string]any{
-				"matcher": "shell_command|exec_command|apply_patch|mcp",
-				"hooks":   []any{map[string]any{"type": "command", "command": command + " hook --runner codex"}},
+				"matcher": permissionHookMatcher,
+				"hooks":   []any{map[string]any{"type": "command", "command": PolicyRunnerCommand() + " hook --runner codex", "timeout": defaultHookTimeoutSeconds}},
 			}},
 		},
 	}

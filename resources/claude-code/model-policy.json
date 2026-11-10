@@ -32,8 +32,8 @@
       ]
     },
     "code.default": {
-      "model": "sonnet",
-      "canonical_model": "anthropic/claude-sonnet-5-5",
+      "model": "fable",
+      "canonical_model": "anthropic/claude-fable-5-2",
       "fallbacks": [
         "claude-sonnet-5-5"
       ],
@@ -43,6 +43,11 @@
         "tools"
       ],
       "models": [
+        {
+          "model": "fable",
+          "source": "claude-subscription",
+          "effort": "low"
+        },
         {
           "model": "sonnet",
           "source": "claude-subscription",
@@ -124,8 +129,8 @@
       ]
     },
     "code.judgment": {
-      "model": "opus",
-      "canonical_model": "anthropic/claude-opus-5-5",
+      "model": "fable",
+      "canonical_model": "anthropic/claude-fable-5-2",
       "fallbacks": [
         "claude-opus-5-5"
       ],
@@ -144,7 +149,7 @@
         {
           "model": "opus",
           "source": "claude-subscription",
-          "effort": "high"
+          "effort": "xhigh"
         },
         {
           "model": "openrouter/deepseek/deepseek-v4.1-flash",
@@ -155,9 +160,9 @@
     },
     "code.longrun": {
       "model": "fable",
-      "canonical_model": "anthropic/claude-fable-5-1",
+      "canonical_model": "anthropic/claude-fable-5-2",
       "fallbacks": [
-        "claude-fable-5-1"
+        "claude-opus-5-5"
       ],
       "description": "Long-horizon autonomous coding work with multi-source fallback chain.",
       "capabilities": [
@@ -174,7 +179,7 @@
         {
           "model": "opus",
           "source": "claude-subscription",
-          "effort": "high"
+          "effort": "xhigh"
         },
         {
           "model": "opencode-go/deepseek-v4.1-flash",
@@ -190,9 +195,8 @@
     },
     "code.smart": {
       "model": "fable",
-      "canonical_model": "anthropic/claude-fable-5-1",
+      "canonical_model": "anthropic/claude-fable-5-2",
       "fallbacks": [
-        "claude-fable-5-1",
         "claude-opus-5-5"
       ],
       "description": "Highest-capability Claude Code reasoning and long-horizon agentic work.",
@@ -210,7 +214,7 @@
         {
           "model": "opus",
           "source": "claude-subscription",
-          "effort": "high"
+          "effort": "xhigh"
         },
         {
           "model": "openrouter/deepseek/deepseek-v4.1-flash",
@@ -220,8 +224,8 @@
       ]
     },
     "code.ux": {
-      "model": "opus",
-      "canonical_model": "anthropic/claude-opus-5-5",
+      "model": "fable",
+      "canonical_model": "anthropic/claude-fable-5-2",
       "fallbacks": [
         "claude-opus-5-5"
       ],
@@ -233,12 +237,12 @@
       ],
       "models": [
         {
-          "model": "opus",
+          "model": "fable",
           "source": "claude-subscription",
-          "effort": "high"
+          "effort": "medium"
         },
         {
-          "model": "sonnet",
+          "model": "opus",
           "source": "claude-subscription",
           "effort": "high"
         },
@@ -250,8 +254,8 @@
       ]
     },
     "write.default": {
-      "model": "opus",
-      "canonical_model": "anthropic/claude-opus-5-5",
+      "model": "fable",
+      "canonical_model": "anthropic/claude-fable-5-2",
       "fallbacks": [
         "claude-opus-5-5"
       ],
@@ -262,14 +266,14 @@
       ],
       "models": [
         {
+          "model": "fable",
+          "source": "claude-subscription",
+          "effort": "medium"
+        },
+        {
           "model": "opus",
           "source": "claude-subscription",
           "effort": "high"
-        },
-        {
-          "model": "sonnet",
-          "source": "claude-subscription",
-          "effort": null
         },
         {
           "model": "openrouter/deepseek/deepseek-v4.1-flash",
@@ -290,6 +294,10 @@
     },
     "claude-fable-5-1": {
       "canonical_model": "anthropic/claude-fable-5-1",
+      "provider": "anthropic"
+    },
+    "claude-fable-5-2": {
+      "canonical_model": "anthropic/claude-fable-5-2",
       "provider": "anthropic"
     },
     "claude-haiku-4-5-20251001": {
@@ -317,7 +325,7 @@
       "provider": "anthropic"
     },
     "fable": {
-      "canonical_model": "anthropic/claude-fable-5-1",
+      "canonical_model": "anthropic/claude-fable-5-2",
       "provider": "anthropic"
     },
     "haiku": {
@@ -349,6 +357,7 @@
     "model_map": {
       "claude-fable-5": "claude-opus-5-5",
       "claude-fable-5-1": "claude-opus-5-5",
+      "claude-fable-5-2": "claude-opus-5-5",
       "claude-opus-5": "claude-sonnet-5-5",
       "claude-opus-5-5": "claude-sonnet-5-5",
       "fable": "opus",
@@ -363,8 +372,8 @@
     ]
   },
   "provenance": {
-    "source": "policy refresh from Claude Code 2.1.312 built-in model catalog",
-    "observed_at": "2026-10-31"
+    "source": "policy refresh by agent agent-manager run from Claude Code 2.1.321 built-in model catalog",
+    "observed_at": "2026-11-09"
   },
   "billing": {
     "mode": "subscription",

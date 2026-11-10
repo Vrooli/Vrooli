@@ -1905,3 +1905,22 @@ func TestHarnessLifecycleUpdatingRejectsConcurrentMutation(t *testing.T) {
 		t.Fatalf("active update did not complete exactly once: %+v (%v)", result, f.installed)
 	}
 }
+
+func TestCodexScratchPathsListsDirectoriesAndEntries(t *testing.T) {
+	home := t.TempDir()
+	dir := filepath.Join(home, ".codex", "tmp", "arg0-linux", "codex-arg0abc")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{".lock", "apply_patch"} {
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got := codexScratchPaths(home)
+	for _, want := range []string{dir, filepath.Join(dir, ".lock"), filepath.Join(dir, "apply_patch")} {
+		if !slices.Contains(got, want) {
+			t.Fatalf("codexScratchPaths = %v, missing %s", got, want)
+		}
+	}
+}

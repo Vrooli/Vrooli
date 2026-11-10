@@ -116,3 +116,14 @@ func TestDefaultPlatformDependenciesAreComplete(t *testing.T) {
 		t.Fatalf("default platform settings are incomplete: %+v", deps)
 	}
 }
+
+func TestIsVersionProbe(t *testing.T) {
+	if !isVersionProbe([]string{"--version"}) {
+		t.Fatal("--version must be a version probe")
+	}
+	for _, args := range [][]string{nil, {"--version", "--json"}, {"exec"}} {
+		if isVersionProbe(args) {
+			t.Fatalf("%q must not be a version probe", args)
+		}
+	}
+}

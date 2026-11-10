@@ -28,9 +28,14 @@ type Handlers struct {
 	PinnedVersion  string
 	VersionCommand []string
 	VersionRunner  func(context.Context, []string) (string, error)
-	Stdin          io.Reader
-	Stdout         io.Writer
-	Stderr         io.Writer
+	// ManagedHooksPath overrides resources/codex/managed-hooks.json (tests).
+	ManagedHooksPath string
+	// TrustProbe asks Codex whether it trusts the installed hooks; the default
+	// asks `codex app-server`.
+	TrustProbe permissions.TrustProbe
+	Stdin      io.Reader
+	Stdout     io.Writer
+	Stderr     io.Writer
 }
 
 func Default(cliVersion, pinnedVersion string) *Handlers {
@@ -110,7 +115,7 @@ func (h *Handlers) shared() *agentharness.PermissionHandlers {
 			if p.NativeFingerprint != permissions.DesiredExecutionFingerprint(p.Execution, p.ExecutionActive) {
 				return errors.New("native execution projection differs from the recorded intent")
 			}
-			return nil
+			return h.managedHookDrift(a)
 		},
 		DoctorExtra: func(stdout, _ io.Writer, shared agentharness.PermissionAdapter) error {
 			a, err := h.adapter(shared.Scope())
@@ -132,6 +137,9 @@ func (h *Handlers) shared() *agentharness.PermissionHandlers {
 				fmt.Fprintf(stdout, "native_projection_matches=%t\n", p.NativeFingerprint == permissions.DesiredExecutionFingerprint(p.Execution, p.ExecutionActive))
 			}
 			fmt.Fprintf(stdout, "hook_registration_matches=%t\n", p.HookFingerprint == a.DesiredHookFingerprint(p))
+			if a.HookPath != "" {
+				_ = h.reconcileManagedHooks(a, false, stdout)
+			}
 			fmt.Fprintln(stdout, "Higher-precedence config, launch flags and managed requirements may override this file; verify a fresh desktop session separately.")
 			return nil
 		},
@@ -163,7 +171,7 @@ func HookCommands(h *Handlers) cliapp.SubcommandGroup {
 	if h == nil {
 		h = Default("", "")
 	}
-	return agentharness.HookCommands(agentharness.HookCommandConfig{
+	group := agentharness.HookCommands(agentharness.HookCommandConfig{
 		Agent: "codex", Description: "Reconcile Codex hooks through the shared Vrooli hook broker",
 		ScopeDefault: string(permissions.ScopeUser),
 		ScopeHelp:    "Hook scope: user (~/.codex/hooks.json) or admin (unsupported)",
@@ -176,6 +184,8 @@ func HookCommands(h *Handlers) cliapp.SubcommandGroup {
 		},
 		Stdout: h.Stdout, Stderr: h.Stderr,
 	})
+	group.Subcommands = append(group.Subcommands, h.managedHookCommands()...)
+	return group
 }
 
 // IntentMigrationStep is the `ensure` step that moves a retired `[vrooli]`

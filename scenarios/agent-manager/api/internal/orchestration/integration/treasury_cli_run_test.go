@@ -209,16 +209,18 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 			}
 			var response struct {
 				Headroom struct {
-					BudgetID            string `json:"budgetId"`
-					TotalCapMinor       string `json:"totalCapMinor"`
-					TotalUsedMinor      string `json:"totalUsedMinor"`
-					TotalRemainingMinor string `json:"totalRemainingMinor"`
+					BudgetID            string `json:"budget_id"`
+					TotalCapMinor       string `json:"total_cap_minor"`
+					TotalRemainingMinor string `json:"total_remaining_minor"`
 				} `json:"headroom"`
 			}
 			if err := json.Unmarshal(data, &response); err != nil {
 				return fmt.Errorf("decode run-owned headroom response: %w", err)
 			}
-			if response.Headroom.BudgetID != config.BudgetID || response.Headroom.TotalCapMinor != "1000" || response.Headroom.TotalUsedMinor != strconv.FormatInt(expectedUsed, 10) || response.Headroom.TotalRemainingMinor != strconv.FormatInt(expectedRemaining, 10) {
+			capMinor, capErr := strconv.ParseInt(response.Headroom.TotalCapMinor, 10, 64)
+			remainingMinor, remainingErr := strconv.ParseInt(response.Headroom.TotalRemainingMinor, 10, 64)
+			usedMinor := capMinor - remainingMinor
+			if response.Headroom.BudgetID != config.BudgetID || capErr != nil || remainingErr != nil || capMinor != 1000 || usedMinor != expectedUsed || remainingMinor != expectedRemaining {
 				return fmt.Errorf("run-owned headroom %s did not match authorized spend ledger: %+v", label, response.Headroom)
 			}
 			return nil
@@ -493,7 +495,7 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	if err := writeJSON(configPath, config); err != nil {
 		t.Fatal(err)
 	}
-	if err := waitForFile(ctx, filepath.Join(coord, "authorization-ready.json"), nil); err != nil {
+	if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "authorization-ready.json"), nil); err != nil {
 		t.Fatalf("Treasury CLI did not propose spend: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(coord, "settle-release"), []byte("approved by local Treasury fixture"), 0o600); err != nil {
@@ -536,10 +538,10 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := waitForFile(ctx, filepath.Join(coord, "over-cap-authorization-ready.json"), nil); err != nil {
+	if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "over-cap-authorization-ready.json"), nil); err != nil {
 		t.Fatalf("Treasury CLI did not propose its separately granted spend: %v", err)
 	}
-	if err := waitForFile(ctx, filepath.Join(coord, "frozen-operation-grant-requested.json"), nil); err != nil {
+	if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "frozen-operation-grant-requested.json"), nil); err != nil {
 		t.Fatalf("run did not request an exact frozen-spend grant: %v", err)
 	}
 	frozenAuthorizationID := strings.TrimSpace(os.Getenv("TREASURY_CF1_IN_CAP_AUTHORIZATION_ID")) + "-frozen"
@@ -595,7 +597,7 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	if err != nil || json.Unmarshal(data, &outcome) != nil {
 		t.Fatalf("read run result evidence: %v", err)
 	}
-	if outcome.RunID != run.ID.String() || !outcome.SessionKey || !outcome.Identity || len(outcome.CLICommands) != 7 || len(outcome.SpendGrants) != 3 || outcome.SpendGrants[0] != grant.ID.String() || outcome.SpendGrants[1] != secondSpendGrant.ID.String() || outcome.SpendGrants[2] != frozenGrant.ID.String() {
+	if outcome.RunID != run.ID.String() || !outcome.SessionKey || !outcome.Identity || len(outcome.CLICommands) != 8 || len(outcome.SpendGrants) != 3 || outcome.SpendGrants[0] != grant.ID.String() || outcome.SpendGrants[1] != secondSpendGrant.ID.String() || outcome.SpendGrants[2] != frozenGrant.ID.String() {
 		t.Fatalf("incomplete Agent Manager CLI proof: %+v", outcome)
 	}
 	if err := writeJSON(filepath.Join(coord, "agent-manager-result.json"), map[string]any{

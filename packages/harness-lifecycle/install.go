@@ -7,6 +7,7 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/vrooli/binaryfetch"
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/cli-core/upstreamcheck"
 	governancev1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-dependency-analyzer/v1/dependency_governance"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -209,7 +211,14 @@ func installedVersion(ctx context.Context, path string, platform platformDeps) (
 
 // Install performs an idempotent user-prefix install without a shell.
 func Install(ctx context.Context, spec Spec) error {
-	return install(ctx, spec, defaultPlatformDeps())
+	installErr := install(ctx, spec, defaultPlatformDeps())
+	// Even a failed install can leave root-created files behind, so the hand
+	// back runs regardless of the outcome.
+	target := filepath.Join(spec.BinDir, spec.Binary)
+	if runtime.GOOS == "windows" {
+		target += ".exe"
+	}
+	return errors.Join(installErr, handBackToBinDirOwner(spec.BinDir, target, spec.DataDir))
 }
 
 func install(ctx context.Context, spec Spec, platform platformDeps) error {
@@ -234,27 +243,33 @@ func install(ctx context.Context, spec Spec, platform platformDeps) error {
 	if platform.windows {
 		target += ".exe"
 	}
-	if spec.Version != "" {
-		if current, err := installedVersion(ctx, target, platform); err == nil && strings.Contains(current, spec.Version) {
-			return nil
-		}
-	}
+	var resolved *binaryfetch.AcquisitionTarget
+	pin := spec.Version
 	if spec.Acquisition != nil {
-		target, err := spec.Acquisition.Resolve(binaryfetch.Facts{"os": platform.goos, "arch": platform.goarch})
+		acquired, err := spec.Acquisition.Resolve(binaryfetch.Facts{"os": platform.goos, "arch": platform.goarch})
 		if err != nil {
 			return err
 		}
-		if target.Unsupported != "" {
+		if acquired.Unsupported != "" {
 			return &UnsupportedPlatformError{OS: platform.goos, Arch: platform.goarch}
 		}
-		if target.Package != "" {
-			packageURL := npmTarballURL(target.Package, target.Version)
-			if err := binaryfetch.VerifyURL(ctx, packageURL, target.SHA256); err != nil {
-				return fmt.Errorf("verify npm package %s: %w", target.Package, err)
-			}
-			return installNPMWithDeps(ctx, spec, target.Package+"@"+target.Version, platform)
+		resolved, pin = &acquired, acquired.Version
+	}
+	if pin != "" {
+		if current, err := installedVersion(ctx, target, platform); err == nil && satisfiesPin(current, pin) {
+			return nil
 		}
-		_, err = binaryfetch.Fetch(ctx, binaryfetch.Target{Name: spec.Binary, URL: target.URL, SHA256: target.SHA256, Archive: target.Archive, BinPath: target.BinPath, Mode: target.Mode}, spec.BinDir, nil)
+	}
+	if resolved != nil {
+		artifact := *resolved
+		if artifact.Package != "" {
+			packageURL := npmTarballURL(artifact.Package, artifact.Version)
+			if err := binaryfetch.VerifyURL(ctx, packageURL, artifact.SHA256); err != nil {
+				return fmt.Errorf("verify npm package %s: %w", artifact.Package, err)
+			}
+			return installNPMWithDeps(ctx, spec, artifact.Package+"@"+artifact.Version, platform)
+		}
+		_, err := binaryfetch.Fetch(ctx, binaryfetch.Target{Name: spec.Binary, URL: artifact.URL, SHA256: artifact.SHA256, Archive: artifact.Archive, BinPath: artifact.BinPath, Mode: artifact.Mode}, spec.BinDir, nil)
 		return err
 	}
 	if spec.NPM != "" {
@@ -273,6 +288,24 @@ func install(ctx context.Context, spec Spec, platform platformDeps) error {
 		}
 	}
 	return downloadWithDeps(ctx, url, target, spec.ArchiveEntry, platform)
+}
+
+// satisfiesPin reports whether an installed copy already meets a declared pin.
+// A pin is the version a resource was reviewed against, not a ceiling: an
+// installed release that is newer (typically after `resource update`) must not
+// be reinstalled as the older pin, which the dependency approval no longer
+// covers and which would be a downgrade.
+func satisfiesPin(installedOutput, pin string) bool {
+	if strings.Contains(installedOutput, pin) {
+		return true
+	}
+	installed := upstreamcheck.ExtractSemver(installedOutput)
+	want := upstreamcheck.ExtractSemver(pin)
+	if installed == "" || want == "" {
+		return false
+	}
+	status := upstreamcheck.Compare(installed, want)
+	return status == upstreamcheck.StatusUpToDate || status == upstreamcheck.StatusAhead
 }
 
 // installNPM delegates all package mutation to the dependency-governance owner.
