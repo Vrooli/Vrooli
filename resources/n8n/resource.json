@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.vrooli/schemas/resource.schema.json",
+  "name": "n8n",
+  "display_name": "n8n Workflow Rehearsal Runtime",
+  "description": "Task-scoped n8n containers for isolated workflow rehearsal against declared synthetic companion services.",
+  "cli": {
+    "enabled": false
+  },
+  "driver": "managed-service",
+  "compose_service_override": {
+    "reason": "F7 approved task-scoped n8n runtime requires the pinned Docker image and private per-sandbox network owner API.",
+    "review_by": "2027-11-10"
+  },
+  "requirements": {
+    "ram_mb": 2048,
+    "disk_mb": 3072,
+    "cpu_cores": 1,
+    "network": "required",
+    "bucket": "medium",
+    "source": "estimated",
+    "confidence": "medium",
+    "class": "infrastructure",
+    "weight": 2
+  },
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "hostTools": [
+    {
+      "name": "docker",
+      "required": true,
+      "reason": "Task-scoped n8n containers run on a digest-pinned Docker image and use a private internal network with no external egress."
+    }
+  ],
+  "dependencies": [],
+  "ports": [
+    {
+      "name": "http",
+      "host_ip": "127.0.0.1",
+      "container": 5678,
+      "host": 0,
+      "protocol": "tcp"
+    }
+  ],
+  "managed_service": {
+    "task_scoped_container": true,
+    "provider_policy": {
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      },
+      "allowed_modes": ["managed-private"],
+      "shared_reuse_requires_consent": false,
+      "external_management": "forbidden",
+      "external_access_capabilities": []
+    }
+  },
+  "runtime": {
+    "image": "n8nio/n8n@sha256:416c29f75a0f9ac65b4339761a372af48f4a7e948de9df0d837b080d2b9d47a8"
+  },
+  "orchestration": {
+    "startup_order": 999,
+    "startup_timeout_seconds": 90,
+    "startup_time_estimate": "10-30s after image acquisition",
+    "dependencies": [],
+    "recovery_attempts": 0,
+    "priority": "optional"
+  },
+  "lifecycle": {
+    "start_timeout_seconds": 90,
+    "stop_timeout_seconds": 30,
+    "retries": 0
+  },
+  "capabilities": {
+    "supports_logs": true
+  },
+  "template_version": "2",
+  "privilege": "user",
+  "bundling": "vendorable"
+}

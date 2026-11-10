@@ -1,0 +1,25 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "Rehearse thirty unlike public community workflows spanning webhook, schedule, polling, sub-workflow, error-workflow, large-payload, and community-node cases; repair ten seeded defects and retain evidence and a handoff for each.",
+      "id": "CR-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Generic coverage and repair",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CR-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

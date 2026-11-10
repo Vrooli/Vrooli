@@ -1,0 +1,47 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "supabase",
+      "document": {
+        "openapi": "3.0.3",
+        "info": { "title": "Synthetic Supabase Row API", "version": "1" },
+        "servers": [{ "url": "https://supabase.synthetic.invalid" }],
+        "paths": {
+          "/v1/rows/get": {
+            "get": {
+              "x-n8n-node-type": "n8n-nodes-base.supabase",
+              "x-n8n-resource": "row",
+              "x-n8n-operation": "get",
+              "responses": { "200": { "content": { "application/json": { "example": { "id": "row_synthetic_001", "status": "found" } } } } }
+            }
+          },
+          "/v1/rows/create": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.supabase",
+              "x-n8n-resource": "row",
+              "x-n8n-operation": "create",
+              "responses": { "201": { "content": { "application/json": { "example": { "id": "row_synthetic_002", "status": "created" } } } } }
+            }
+          },
+          "/v1/rows/update": {
+            "patch": {
+              "x-n8n-node-type": "n8n-nodes-base.supabase",
+              "x-n8n-resource": "row",
+              "x-n8n-operation": "update",
+              "responses": { "200": { "content": { "application/json": { "example": { "id": "row_synthetic_002", "status": "updated" } } } } }
+            }
+          },
+          "/v1/rows/delete": {
+            "delete": {
+              "x-n8n-node-type": "n8n-nodes-base.supabase",
+              "x-n8n-resource": "row",
+              "x-n8n-operation": "delete",
+              "responses": { "200": { "content": { "application/json": { "example": { "id": "row_synthetic_002", "status": "deleted" } } } } }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+# Public workflow simulator fixtures
+
+These five JSON files are internal, sanitized test inputs for Client Workflow Rehearsal. They are not activated workflows and must be run only through the in-process synthetic service simulator. The files retain third-party workflow structure under the attribution below; they are not part of any public demo/export bundle.
+
+n8n's self-serve terms say public Community Materials may be used and adapted by other users in their own projects. The public workflow directory appears to fit that category, but this is an inference. Keep the fixtures internal, keep these source links and author names, and do not republish the exports. Source terms read 2026-11-10: <https://n8n.io/legal/self-serve-terms/>.
+
+| ID | Source workflow | Author | Source page | Source JSON bytes / SHA-256 |
+|---:|---|---|---|---|
+| 1804 | Sync your GitHub issues to your Notion database | n8n Team | <https://n8n.io/workflows/1804-sync-your-github-issues-to-your-notion-database/> | 5,709 / `43862ccd3fd815e6aa20199f8a4f3977f8408eb2efc117dc1f15601c9877fec5`; owner/repository/database IDs replaced with synthetic values |
+| 16081 | Manage job records via webhook REST API with PostgreSQL | Raj | <https://n8n.io/workflows/16081-manage-job-records-via-webhook-rest-api-with-postgresql/> | 9,350 / `443fe564ab517922e57f4d8c4728c44030b6cf05e9b157e34801924cceb39025` |
+| 8258 | Learn secure webhook APIs with authentication and Supabase integration | Wayne Simpson | <https://n8n.io/workflows/8258-learn-secure-webhook-apis-with-authentication-and-supabase-integration/> | 10,737 / `71126eff9f2e9011e863ffc01a01d62490faf5193c8c1225d98a5920fd6399e9`; webhook path replaced with `synthetic-contacts` |
+| 14745 | Keep Supabase free plan projects alive with scheduled database pings | LukaszB | <https://n8n.io/workflows/14745-keep-supabase-free-plan-projects-alive-with-scheduled-database-pings/> | 4,659 / `62d5c36a7be73e07851c18115dd9805c9752901c80f146a92311395d62b1e72f` |
+| 20047 | Sync WordPress and WooCommerce content with Pinecone using OpenAI embeddings | Stanislaw Chalupczak | <https://n8n.io/workflows/20047-sync-wordpress-and-woocommerce-content-with-pinecone-using-openai-embeddings/> | 24,385 / `8c79b9d6cd04ebe9c3a6a46180a92c59223bc0db77edc60187d187800667603c` |
+
+## Sanitization
+
+- The source API envelopes were flattened to the exported workflow object. Workflow IDs, versions, timestamps, tags, meta, pinned/static execution data and webhook IDs were removed; all fixtures are inactive.
+- Sticky-note annotation nodes were removed. One 10-digit phone-shaped value occurred in a sticky note in workflow 8258; the note is absent from the fixture and the raw source was not retained in the repository. The embedded GitHub owner/repository and Notion database ID in 1804 were replaced with synthetic values; the shared webhook path in 8258 was replaced with `synthetic-contacts`.
+- Credential references in workflows 1804, 16081, 8258 and 14745 were replaced with type-only source markers. No credential values were present in the inspected exports. Workflow 20047 retains credential-type markers; the n8n resource owner now maps the pinned LangChain OpenAI chat/embedding and Pinecone vector node types to synthetic credentials. Runtime credential resolution remains unverified.
+- The placeholder `your-store.com` in 20047 was rewritten to `wordpress.synthetic.invalid`. URL query strings and fragments were stripped from literal URL fields. Dynamic URL expressions remain data and must be interpreted only by the simulator.
+- Static review of Code/Function nodes found only data transformations, batching and delay selection; none contained direct network, process or file calls. No email addresses or common credential-token patterns were found in sanitized files.
+- Service nodes still describe external effects (GitHub/Notion, Postgres, Supabase, WordPress, OpenAI and Pinecone). No real service calls have occurred. The simulator must replace those effects with synthetic state and documented/recorded service behavior; these files are not safe to run directly against external APIs.
+
+Original API export bytes and hashes are recorded above for provenance. Sanitized fixture hashes and exact node/edge counts are in the F7 run's `PUBLIC-WORKFLOW-SAMPLE.md`. Fixture 8258 is now imported and synthetically run by the client-rehearsal API test `TestPublicSupabaseWorkflowRunsSelectedWebhookBranchesInSyntheticSimulator` on four webhook paths (GET, POST, PATCH, DELETE). It produces an in-memory handoff awaiting human review; the run is test evidence, not persisted showcase evidence. The Supabase route responses are fixed OpenAPI examples, not stateful CRUD. No n8n image/runtime or third-party service was used. The other four fixtures remain unimported/unrun; none has seeded-defect repair or delivery credit.

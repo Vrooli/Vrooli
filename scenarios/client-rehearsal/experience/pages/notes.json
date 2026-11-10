@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "notes",
+    "title": "Notes",
+    "routes": ["/notes"],
+    "purpose": "Expose the removable notes example as a concrete route while the scenario's real product domain is still being shaped.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "regions": [
+    {
+      "id": "notes",
+      "purpose": "Load the removable notes example and make its usable, empty, or failed state explicit to operators and automation.",
+      "component": {
+        "library": {"component": "experience-surface", "version": "1.0.0"}
+      },
+      "lifecycle": {"kind": "async", "states": ["loading", "ready", "empty", "error"]}
+    }
+  ],
+  "bindings": {
+    "regions": {
+      "notes": {"testid": "notes-surface"}
+    }
+  }
+}

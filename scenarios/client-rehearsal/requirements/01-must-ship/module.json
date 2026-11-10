@@ -1,0 +1,41 @@
+{
+  "_metadata": {
+    "description": "P0 product requirement for safe synthetic workflow rehearsal.",
+    "module": "P0-targets",
+    "priority": "P0",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P0",
+      "description": "Import representative workflow exports, replace every client credential and sensitive value with scoped synthetic stand-ins, execute through an engine adapter against simulated services with no real-client data or credential use, and retain an auditable run record.",
+      "id": "CR-P0-001",
+      "prd_ref": "OT-P0-001",
+      "status": "planned",
+      "title": "Safe synthetic rehearsal",
+      "validation": [
+        {
+          "type": "test",
+          "ref": "api/internal/rehearsals/sanitizer_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "[REQ:CR-P0-001] Proves n8n export normalization strips credential-shaped source values, rejects unsupported executable nodes, and fingerprints only operation structure."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/rehearsals/simulator_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "[REQ:CR-P0-001] Proves the typed simulator returns description-derived synthetic responses and applies a deterministic transient fault without network access."
+        },
+        {
+          "type": "test",
+          "ref": "api/internal/rehearsals/service_test.go",
+          "phase": "unit",
+          "status": "planned",
+          "notes": "[REQ:CR-P0-001] Proves fault/retry evidence is retained and execution remains unapproved until an explicit human decision."
+        }
+      ]
+    }
+  ]
+}

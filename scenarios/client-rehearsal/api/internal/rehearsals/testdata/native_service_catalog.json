@@ -1,0 +1,8 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {"id":"mail","document":{"openapi":"3.0.3","info":{"title":"Synthetic Mail","version":"1"},"servers":[{"url":"https://gmail.synthetic.invalid"}],"paths":{"/v1/messages":{"post":{"x-n8n-node-type":"n8n-nodes-base.gmail","x-n8n-resource":"message","x-n8n-operation":"send","responses":{"200":{"content":{"application/json":{"example":{"id":"synthetic-message","status":"sent"}}}}}}}}}},
+    {"id":"sheets","document":{"openapi":"3.0.3","info":{"title":"Synthetic Sheets","version":"1"},"servers":[{"url":"https://sheets.synthetic.invalid"}],"paths":{"/v1/rows":{"post":{"x-n8n-node-type":"n8n-nodes-base.googleSheets","x-n8n-resource":"sheet","x-n8n-operation":"append","responses":{"200":{"content":{"application/json":{"example":{"updatedRange":"A2:B2","status":"appended"}}}}}}}}}},
+    {"id":"crm","document":{"openapi":"3.0.3","info":{"title":"Synthetic CRM","version":"1"},"servers":[{"url":"https://crm.synthetic.invalid"}],"paths":{"/v1/contacts":{"post":{"x-n8n-node-type":"n8n-nodes-base.hubspot","x-n8n-resource":"contact","x-n8n-operation":"upsert","responses":{"200":{"content":{"application/json":{"example":{"id":"synthetic-contact","status":"upserted"}}}}}}}}}}
+  ]
+}
