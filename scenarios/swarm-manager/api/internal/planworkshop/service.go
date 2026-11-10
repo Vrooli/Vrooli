@@ -350,14 +350,18 @@ func (s *Service) SubmitResponse(ctx context.Context, id string, response Respon
 				if resolution.ResponseID == existing.ID {
 					if resolution.State == ResolutionPending && len(existing.Accepted) > 0 {
 						if err := s.applyDirectProposals(ctx, existing); err != nil {
-							resolution.State = ResolutionUnavailable
+							if transitionErr := resolution.Transition(ResolutionUnavailable); transitionErr != nil {
+								return Session{}, Resolution{}, transitionErr
+							}
 							resolution.Error = err.Error()
 							return s.replaceResolution(session, resolution)
 						}
 						if hasReconciliationProposal(existing.Accepted) {
 							return s.startReconciliation(ctx, session, existing, resolution)
 						}
-						resolution.State = ResolutionDirectApplied
+						if err := resolution.Transition(ResolutionDirectApplied); err != nil {
+							return Session{}, Resolution{}, err
+						}
 						resolution.Error = ""
 						return s.replaceResolution(session, resolution)
 					}
@@ -386,12 +390,15 @@ func (s *Service) SubmitResponse(ctx context.Context, id string, response Respon
 	}
 	response.SubmittedAt = s.now().UTC().Format(time.RFC3339Nano)
 	session.Responses = append(session.Responses, response)
-	resolution := Resolution{ResponseID: response.ID, State: ResolutionDirectApplied, AppliedAt: response.SubmittedAt}
+	initialState := ResolutionDirectApplied
+	if len(response.Accepted) > 0 {
+		initialState = ResolutionPending
+	}
+	resolution := Resolution{ResponseID: response.ID, State: initialState, AppliedAt: response.SubmittedAt}
 	if len(response.Accepted) > 0 {
 		// Persist the intent before starting Agent Manager. A retry after a
 		// transport interruption resumes this exact response rather than opening
 		// a second reconciliation engagement.
-		resolution.State = ResolutionPending
 		resolution.ReconciliationID = reconciliationID(session.ID, response.ID)
 	}
 	session.Resolutions = append(session.Resolutions, resolution)
@@ -403,12 +410,16 @@ func (s *Service) SubmitResponse(ctx context.Context, id string, response Respon
 		return session, resolution, nil
 	}
 	if err := s.applyDirectProposals(ctx, response); err != nil {
-		resolution.State = ResolutionUnavailable
+		if transitionErr := resolution.Transition(ResolutionUnavailable); transitionErr != nil {
+			return Session{}, Resolution{}, transitionErr
+		}
 		resolution.Error = err.Error()
 		return s.replaceResolution(session, resolution)
 	}
 	if !hasReconciliationProposal(response.Accepted) {
-		resolution.State = ResolutionDirectApplied
+		if err := resolution.Transition(ResolutionDirectApplied); err != nil {
+			return Session{}, Resolution{}, err
+		}
 		resolution.Error = ""
 		return s.replaceResolution(session, resolution)
 	}
@@ -463,17 +474,23 @@ func (s *Service) startReconciliation(ctx context.Context, session Session, resp
 		return session, resolution, nil
 	}
 	if s.start == nil {
-		resolution.State = ResolutionUnavailable
+		if err := resolution.Transition(ResolutionUnavailable); err != nil {
+			return Session{}, Resolution{}, err
+		}
 		resolution.Error = "plan workshop reconciliation is not configured"
 		return s.replaceResolution(session, resolution)
 	}
 	workflow, err := s.start(ctx, session, response)
 	if err != nil {
-		resolution.State = ResolutionUnavailable
+		if transitionErr := resolution.Transition(ResolutionUnavailable); transitionErr != nil {
+			return Session{}, Resolution{}, transitionErr
+		}
 		resolution.Error = err.Error()
 		return s.replaceResolution(session, resolution)
 	}
-	resolution.State = ResolutionReconciliation
+	if err := resolution.Transition(ResolutionReconciliation); err != nil {
+		return Session{}, Resolution{}, err
+	}
 	resolution.Workflow = &workflow
 	return s.replaceResolution(session, resolution)
 }
@@ -549,7 +566,9 @@ func (s *Service) ApplyReconciliation(ctx context.Context, id, responseID string
 		return Session{}, Resolution{}, err
 	}
 	if version != session.SubjectVersion || hash != session.PlanContentHash {
-		resolution.State = ResolutionStale
+		if err := resolution.Transition(ResolutionStale); err != nil {
+			return Session{}, Resolution{}, err
+		}
 		resolution.Error = "subject or canonical plan changed while reconciliation was running"
 		return s.replaceResolution(session, *resolution)
 	}
@@ -598,7 +617,10 @@ func (s *Service) ApplyReconciliationResult(ctx context.Context, id, responseID 
 		return Session{}, Resolution{}, err
 	}
 	if version != session.SubjectVersion || hash != session.PlanContentHash {
-		resolution.State, resolution.Error = ResolutionStale, "subject or canonical plan changed while reconciliation was running"
+		if err := resolution.Transition(ResolutionStale); err != nil {
+			return Session{}, Resolution{}, err
+		}
+		resolution.Error = "subject or canonical plan changed while reconciliation was running"
 		return s.replaceResolution(session, *resolution)
 	}
 	if err := result.Validate(); err != nil {
@@ -612,9 +634,15 @@ func (s *Service) ApplyReconciliationResult(ctx context.Context, id, responseID 
 		if strings.TrimSpace(candidate.ID) == "" || candidate.PlanID != session.PlanID || candidate.ExpectedBaseContentHash != session.PlanContentHash {
 			return Session{}, Resolution{}, fmt.Errorf("candidate does not match the immutable workshop frontier")
 		}
-		resolution.State, resolution.Candidate, resolution.Error = ResolutionCandidateReady, &candidate, ""
+		if err := resolution.Transition(ResolutionCandidateReady); err != nil {
+			return Session{}, Resolution{}, err
+		}
+		resolution.Candidate, resolution.Error = &candidate, ""
 	} else {
-		resolution.State, resolution.Error = ResolutionNeedsAttention, result.Reason
+		if err := resolution.Transition(ResolutionNeedsAttention); err != nil {
+			return Session{}, Resolution{}, err
+		}
+		resolution.Error = result.Reason
 	}
 	resolution.AppliedAt = s.now().UTC().Format(time.RFC3339Nano)
 	return s.replaceResolution(session, *resolution)
@@ -650,14 +678,19 @@ func (s *Service) ApplyCandidate(ctx context.Context, id, responseID string, ack
 			return Session{}, Resolution{}, err
 		}
 		if version != session.SubjectVersion || hash != session.PlanContentHash {
-			resolution.State = ResolutionStale
+			if err := resolution.Transition(ResolutionStale); err != nil {
+				return Session{}, Resolution{}, err
+			}
 			resolution.Error = "subject or canonical plan changed before candidate application"
 			return s.replaceResolution(session, *resolution)
 		}
 		if err := s.applyCandidate(ctx, session, *resolution.Candidate, true); err != nil {
 			return Session{}, Resolution{}, err
 		}
-		resolution.State, resolution.Error, resolution.AppliedAt = ResolutionCandidateApplied, "", s.now().UTC().Format(time.RFC3339Nano)
+		if err := resolution.Transition(ResolutionCandidateApplied); err != nil {
+			return Session{}, Resolution{}, err
+		}
+		resolution.Error, resolution.AppliedAt = "", s.now().UTC().Format(time.RFC3339Nano)
 		return s.replaceResolution(session, *resolution)
 	}
 	return Session{}, Resolution{}, fmt.Errorf("workshop resolution %q is missing", responseID)
@@ -687,7 +720,10 @@ func (s *Service) DiscardCandidate(ctx context.Context, id, responseID, reason s
 		if err := s.discardCandidate(ctx, session, *resolution.Candidate, strings.TrimSpace(reason)); err != nil {
 			return Session{}, Resolution{}, err
 		}
-		resolution.State, resolution.Error, resolution.AppliedAt = ResolutionCandidateDiscarded, "", s.now().UTC().Format(time.RFC3339Nano)
+		if err := resolution.Transition(ResolutionCandidateDiscarded); err != nil {
+			return Session{}, Resolution{}, err
+		}
+		resolution.Error, resolution.AppliedAt = "", s.now().UTC().Format(time.RFC3339Nano)
 		return s.replaceResolution(session, *resolution)
 	}
 	return Session{}, Resolution{}, fmt.Errorf("workshop resolution %q is missing", responseID)

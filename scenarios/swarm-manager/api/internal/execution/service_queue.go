@@ -397,7 +397,9 @@ func (s *Service) QueueSpecSyncArchive(ctx context.Context, ac ArchiveContext) (
 	record.RunID = res.RunID
 	record.TaskID = res.ExecutionID
 	record.StartedAt = nowRFC3339()
-	record.Status = StatusStarting
+	if err := record.TransitionStatus(StatusStarting); err != nil {
+		return Record{}, err
+	}
 	record.UpdatedAt = nowRFC3339()
 
 	for i := range records {

@@ -160,7 +160,7 @@ func (h *Handler) ReissueLegacyProposalDecision(w http.ResponseWriter, r *http.R
 	vars := mux.Vars(r)
 	target := proposalDecisionAuthorizationTarget(vars["session_id"], vars["proposal_id"])
 	if _, err := authn.RequireOperation(r.Context(), "swarm-manager:write", "swarm.bookkeeping", target); err != nil {
-		apierr.MapError(w, "[agent-sessions] authorize legacy decision reissue", apierr.Forbidden("proposal decision reissue is outside the approved bookkeeping grant"))
+		apierr.MapError(w, "[agent-sessions] authorize legacy decision reissue", apierr.Forbidden("proposal decision reissue is outside the approved bookkeeping grant; %v", err))
 		return
 	}
 	var req reissueLegacyProposalDecisionRequest

@@ -21,7 +21,9 @@ func (s *Service) cancelPlanExecutionLocked(ctx context.Context, records []Recor
 	if record.Cancellation == nil {
 		record.Cancellation = &CancellationStanding{RequestID: "cancel-" + record.ExecutionID, RequestedAt: nowRFC3339()}
 	}
-	record.Status = StatusCancelling
+	if err := record.TransitionStatus(StatusCancelling); err != nil {
+		return Record{}, err
+	}
 	record.FinishedAt = ""
 	record.FailureReason = "cancellation requested; local authority withdrawn; owner acknowledgement and terminal accounting pending"
 	record.UpdatedAt = nowRFC3339()
@@ -48,7 +50,9 @@ func (s *Service) cancelPlanExecutionLocked(ctx context.Context, records []Recor
 		record.SettledUsage = usage
 		record.Cancellation.SettledAt = nowRFC3339()
 		record.Cancellation.LastError = ""
-		record.Status = StatusCanceled
+		if err := record.TransitionStatus(StatusCanceled); err != nil {
+			return Record{}, err
+		}
 		record.FinishedAt = record.Cancellation.SettledAt
 		record.UpdatedAt = record.FinishedAt
 		record.FailureReason = "cancellation settled with original owner terminal accounting"
@@ -65,7 +69,9 @@ func (s *Service) cancelPlanExecutionLocked(ctx context.Context, records []Recor
 	finishUnreserved := func(evidence string) (Record, error) {
 		record.Cancellation.SettledAt = nowRFC3339()
 		record.Cancellation.LastError = ""
-		record.Status = StatusCanceled
+		if err := record.TransitionStatus(StatusCanceled); err != nil {
+			return Record{}, err
+		}
 		record.FinishedAt = record.Cancellation.SettledAt
 		record.UpdatedAt = record.FinishedAt
 		record.FailureReason = "cancellation settled without accounting: no reviewed allowance was reserved and " + evidence
@@ -206,7 +212,9 @@ func (s *Service) WriteOffCancellation(ctx context.Context, executionID, actor, 
 	record.Cancellation.WrittenOffAt = now
 	record.Cancellation.SettledAt = now
 	record.Cancellation.LastError = ""
-	record.Status = StatusCanceled
+	if err := record.TransitionStatus(StatusCanceled); err != nil {
+		return Record{}, err
+	}
 	record.FinishedAt = now
 	record.UpdatedAt = now
 	record.FailureReason = fmt.Sprintf("cancellation written off by %s: owner run terminal, usage unknown; the full reservation is charged as used: %s", actor, reason)

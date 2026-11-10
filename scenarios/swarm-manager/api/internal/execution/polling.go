@@ -188,7 +188,9 @@ func (s *Service) refreshRunningLocked(ctx context.Context) (holdCandidates []st
 	changedRecords := make(map[string]Record)
 
 	finalizationCandidates = s.collectValidatingCandidatesLocked(records)
-	s.inspectRunningRecordsLocked(ctx, records, &changed, changedRecords)
+	if err := s.inspectRunningRecordsLocked(ctx, records, &changed, changedRecords); err != nil {
+		return nil, nil, err
+	}
 	holdCandidates = s.collectHoldCandidatesLocked(records)
 
 	if changed {
@@ -230,7 +232,7 @@ func (s *Service) collectValidatingCandidatesLocked(records []Record) []string {
 // every pre-cutover record, so an active record WITHOUT an operation
 // correlation can no longer legitimately exist — fail it closed instead of
 // silently stranding it.
-func (s *Service) inspectRunningRecordsLocked(_ context.Context, records []Record, changed *bool, changedRecords map[string]Record) {
+func (s *Service) inspectRunningRecordsLocked(_ context.Context, records []Record, changed *bool, changedRecords map[string]Record) error {
 	for i := range records {
 		record := &records[i]
 		if !isInspectableStatus(record.Status) || strings.TrimSpace(record.RunID) == "" {
@@ -248,12 +250,15 @@ func (s *Service) inspectRunningRecordsLocked(_ context.Context, records []Recor
 		if _, err := s.transitionCorrelation(*record); err == nil {
 			continue
 		}
-		s.markRunFailed(record, "record has no operation correlation; the legacy poll driver was removed after the state migration",
+		if err := s.markRunFailed(record, "record has no operation correlation; the legacy poll driver was removed after the state migration",
 			"active record without op_execution_id (impossible post-migration), marking failed", "failed to set backlog status to in_review for uncorrelated record",
-			slog.String("backlog_ref", record.BacklogKind+"/"+record.BacklogName))
+			slog.String("backlog_ref", record.BacklogKind+"/"+record.BacklogName)); err != nil {
+			return err
+		}
 		*changed = true
 		changedRecords[record.ExecutionID] = *record
 	}
+	return nil
 }
 
 // collectHoldCandidatesLocked returns IDs of needs_review records that are
@@ -280,13 +285,15 @@ func (s *Service) collectHoldCandidatesLocked(records []Record) []string {
 // markRunFailed transitions a record to failed (today only the fail-closed
 // uncorrelated-record guard), emits the execution event, and best-effort lands
 // the backlog item in in_review for operator triage.
-func (s *Service) markRunFailed(record *Record, failureReason, warnMsg, backlogWarnMsg string, extra slog.Attr) {
+func (s *Service) markRunFailed(record *Record, failureReason, warnMsg, backlogWarnMsg string, extra slog.Attr) error {
 	slog.Warn(warnMsg,
 		"execution_id", record.ExecutionID,
 		"run_id", record.RunID,
 		extra.Key, extra.Value)
 	prevStatus := record.Status
-	record.Status = StatusFailed
+	if err := record.TransitionStatus(StatusFailed); err != nil {
+		return err
+	}
 	record.FailureReason = failureReason
 	record.UpdatedAt = nowRFC3339()
 	record.FinishedAt = record.UpdatedAt
@@ -299,13 +306,16 @@ func (s *Service) markRunFailed(record *Record, failureReason, warnMsg, backlogW
 				"execution_id", record.ExecutionID, "backlog_ref", record.BacklogKind+"/"+record.BacklogName, "err", err)
 		}
 	}
+	return nil
 }
 
 // applyCompletedTransition routes a completed run into finalization (eligible)
 // or directly to review_pending (ineligible), then clears the circuit breaker.
-func (s *Service) applyCompletedTransition(record *Record, item backlogItem, finalizationCandidates *[]string) {
+func (s *Service) applyCompletedTransition(record *Record, item backlogItem, finalizationCandidates *[]string) error {
 	if isFinalizationEligible(*record) {
-		record.Status = StatusValidating
+		if err := record.TransitionStatus(StatusValidating); err != nil {
+			return err
+		}
 		record.Finalization = &Finalization{
 			Eligible:          true,
 			Status:            FinalizationStatusPending,
@@ -343,6 +353,7 @@ func (s *Service) applyCompletedTransition(record *Record, item backlogItem, fin
 	}
 	// Clear circuit breaker on success.
 	_ = s.circuitBreaker.RecordSuccess(record.BacklogKind + "/" + record.BacklogName)
+	return nil
 }
 
 func matchesFilters(record Record, filters ListFilters) bool {

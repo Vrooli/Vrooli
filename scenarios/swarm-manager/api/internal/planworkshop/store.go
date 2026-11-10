@@ -39,6 +39,9 @@ func (s *Store) Load(id string) (Session, error) {
 	if !found {
 		return Session{}, os.ErrNotExist
 	}
+	if err := session.Validate(); err != nil {
+		return Session{}, err
+	}
 	return session, nil
 }
 

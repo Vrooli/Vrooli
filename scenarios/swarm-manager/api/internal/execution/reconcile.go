@@ -155,7 +155,9 @@ func (s *Service) applyReconciledGoalRun(ctx context.Context, executionID string
 	if !terminal {
 		return false, nil
 	}
-	target.Status = status
+	if err := target.TransitionStatus(status); err != nil {
+		return false, err
+	}
 	target.FailureReason = reason
 	target.StopReason = strings.TrimSpace(state.StopReason)
 	target.LastHandoff = state.LastHandoff
@@ -300,7 +302,11 @@ func (s *Service) applyReconciledWorkflowState(executionID, workflowID string, s
 			s.mu.Unlock()
 			return false, nil
 		}
-		current.Status, current.FailureReason = targetStatus, targetReason
+		if err := current.TransitionStatus(targetStatus); err != nil {
+			s.mu.Unlock()
+			return false, err
+		}
+		current.FailureReason = targetReason
 		current.FinishedAt = firstNonEmpty(state.UpdatedAt, nowRFC3339())
 		current.UpdatedAt = nowRFC3339()
 		if state.TerminalCode != "" {
@@ -319,7 +325,9 @@ func (s *Service) applyReconciledWorkflowState(executionID, workflowID string, s
 				// Reuse the canonical completion projection so a recovered
 				// callback enters validation/finalization exactly like the
 				// normal completion bridge.
-				s.applyCompletedTransition(&changed, item, &candidates)
+				if err := s.applyCompletedTransition(&changed, item, &candidates); err != nil {
+					return false, err
+				}
 			case StatusNeedsReview, StatusFailed:
 				_ = s.updateBacklogStatus(item, backlogStatusInReview)
 			case StatusCanceled:
@@ -409,7 +417,9 @@ func (s *Service) ReconcileStrandedRecords() (ReconcileReport, error) {
 			continue
 		}
 		prev := r.Status
-		r.Status = StatusFailed
+		if err := r.TransitionStatus(StatusFailed); err != nil {
+			return ReconcileReport{}, err
+		}
 		r.FailureReason = "reconciled: execution had no agent run id (stranded before a trackable run started); retry to re-run"
 		r.FinishedAt = nowRFC3339()
 		r.UpdatedAt = r.FinishedAt

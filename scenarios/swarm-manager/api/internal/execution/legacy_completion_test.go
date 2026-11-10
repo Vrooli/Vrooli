@@ -34,7 +34,9 @@ func commitExecutionRoundForTest(t *testing.T, service *Service, operationID, ou
 			switch next {
 			case StatusCompleted:
 				var candidates []string
-				service.applyCompletedTransition(&records[i], item, &candidates)
+				if err := service.applyCompletedTransition(&records[i], item, &candidates); err != nil {
+					t.Fatal(err)
+				}
 			case StatusFailed:
 				_ = service.updateBacklogStatus(item, backlogStatusInReview)
 			}

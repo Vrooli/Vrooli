@@ -35,7 +35,9 @@ func (s *Service) StopRun(ctx context.Context, runID string) error {
 		if strings.TrimSpace(records[i].RunID) != trimmed || !isActiveStatus(records[i].Status) {
 			continue
 		}
-		records[i].Status = StatusCancelled
+		if err := records[i].TransitionStatus(StatusCancelled); err != nil {
+			return err
+		}
 		records[i].FinishedAt = now
 		records[i].UpdatedAt = now
 		changed = true

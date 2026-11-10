@@ -33,7 +33,9 @@ func (s *Service) reapExpiredNeedsReviewLocked(records []Record, now time.Time) 
 		if err != nil || now.Sub(parkedAt) <= s.needsReviewTTL {
 			continue
 		}
-		record.Status = StatusFailed
+		if err := record.TransitionStatus(StatusFailed); err != nil {
+			return err
+		}
 		record.FinishedAt = now.UTC().Format(time.RFC3339)
 		record.UpdatedAt = record.FinishedAt
 		record.FailureReason = "needs_review expired after " + s.needsReviewTTL.String() + "; no operator review was recorded"

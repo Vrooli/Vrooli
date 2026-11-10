@@ -547,50 +547,70 @@ func (s *Service) finishPhasedPlanClaim(record *Record, outcome transitionrunner
 		// A bounded drain is an expected, resumable terminal. Preserve the
 		// reason and keep it in review so the operator can continue it; it is
 		// not evidence that the agent or transition failed.
-		record.Status = StatusBudgetExhausted
+		if err := record.TransitionStatus(StatusBudgetExhausted); err != nil {
+			return err
+		}
 		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, result.Reason, result.Summary, "workflow budget exhausted")
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
 		}
 	case outcome.Status == "blocked":
-		record.Status = StatusNeedsAttention
+		if err := record.TransitionStatus(StatusNeedsAttention); err != nil {
+			return err
+		}
 		record.FailureReason = stringsx.FirstNonEmpty(result.Blocker.Summary, result.Reason, result.Summary, "workflow blocked")
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
 		}
 	case outcome.Status == "abstained":
-		record.Status = StatusAbstained
+		if err := record.TransitionStatus(StatusAbstained); err != nil {
+			return err
+		}
 		record.FailureReason = stringsx.FirstNonEmpty(result.Reason, result.Summary, "workflow abstained")
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
 		}
 	case outcome.Status == "cancelled":
-		record.Status = StatusCanceled
+		if err := record.TransitionStatus(StatusCanceled); err != nil {
+			return err
+		}
 		if err := s.updateBacklogStatus(item, restoreBacklogStatus(*record)); err != nil {
 			return err
 		}
 	case outcome.Status == "failed":
-		record.Status = StatusFailed
+		if err := record.TransitionStatus(StatusFailed); err != nil {
+			return err
+		}
 		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, result.Outcome)
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
 		}
 	case result.Outcome == "complete":
-		record.Status = StatusCompleted
+		if err := record.TransitionStatus(StatusCompleted); err != nil {
+			return err
+		}
 		candidates := []string{}
-		s.applyCompletedTransition(record, item, &candidates)
+		if err := s.applyCompletedTransition(record, item, &candidates); err != nil {
+			return err
+		}
 	case result.Outcome == "blocked" || result.Outcome == "needs_review" || result.Outcome == "needs_attention" || result.Outcome == "abstained":
 		if result.Outcome == "abstained" {
-			record.Status = StatusAbstained
+			if err := record.TransitionStatus(StatusAbstained); err != nil {
+				return err
+			}
 		} else {
-			record.Status = StatusNeedsReview
+			if err := record.TransitionStatus(StatusNeedsReview); err != nil {
+				return err
+			}
 		}
 		record.FailureReason = stringsx.FirstNonEmpty(result.Blocker.Summary, result.Reason, result.Summary, "workflow "+result.Outcome)
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err
 		}
 	default:
-		record.Status = StatusFailed
+		if err := record.TransitionStatus(StatusFailed); err != nil {
+			return err
+		}
 		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, result.Outcome)
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err

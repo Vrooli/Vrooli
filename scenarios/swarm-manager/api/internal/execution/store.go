@@ -1,6 +1,7 @@
 package execution
 
 import (
+	"fmt"
 	"strings"
 
 	"swarm-manager/internal/runtimepaths"
@@ -48,6 +49,11 @@ func (s *FileStore) Load() ([]Record, error) {
 		}
 	}
 	records = migrateRecords(records)
+	for _, record := range records {
+		if !record.Status.Valid() {
+			return nil, fmt.Errorf("execution store: record %q has unknown status %q", record.ExecutionID, record.Status)
+		}
+	}
 	return records, nil
 }
 
@@ -57,13 +63,11 @@ func (s *FileStore) Load() ([]Record, error) {
 func migrateRecords(records []Record) []Record {
 	for i := range records {
 		if records[i].Status == StatusRunning && strings.TrimSpace(records[i].RunID) == "" {
-			records[i].Status = StatusFailed
+			records[i].NormalizePersistedStatus()
 			records[i].FailureReason = "orphaned execution: no run ID"
 		}
 		// Migrate legacy scheduled records to pending/manual.
-		if records[i].Status == "scheduled" {
-			records[i].Status = StatusPending
-		}
+		records[i].NormalizePersistedStatus()
 		if records[i].Mode == "scheduled" {
 			records[i].Mode = ModeManual
 		}
@@ -73,5 +77,10 @@ func migrateRecords(records []Record) []Record {
 
 // Save writes execution records atomically.
 func (s *FileStore) Save(records []Record) error {
+	for _, record := range records {
+		if !record.Status.Valid() {
+			return fmt.Errorf("execution store: record %q has unknown status %q", record.ExecutionID, record.Status)
+		}
+	}
 	return storage.WriteJSONAtomic(s.path, records)
 }

@@ -126,7 +126,7 @@ func TestStrategies_UsesSettledItemAllowanceWhenRequested(t *testing.T) {
 		t.Fatal(err)
 	}
 	approvalDigest := digestStrings(item.PlanAcceptance.SubjectVersion, item.PlanAcceptance.PlanContentHash)
-	if err := service.store.Save([]Record{{BacklogKind: "execute", BacklogName: "allowance-item", ApprovalDigest: approvalDigest, SettledUsage: &workflowcontract.Usage{TokensKnown: true, ChargeMeasured: true, Tokens: 250, Turns: 3, WallSeconds: 20, ChargeMicroUSD: 25}}}); err != nil {
+	if err := service.store.Save([]Record{{BacklogKind: "execute", BacklogName: "allowance-item", Status: StatusPending, ApprovalDigest: approvalDigest, SettledUsage: &workflowcontract.Usage{TokensKnown: true, ChargeMeasured: true, Tokens: 250, Turns: 3, WallSeconds: 20, ChargeMicroUSD: 25}}}); err != nil {
 		t.Fatal(err)
 	}
 	recorder := httptest.NewRecorder()

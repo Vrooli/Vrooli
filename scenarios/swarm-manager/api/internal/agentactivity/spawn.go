@@ -104,7 +104,9 @@ func (s *Service) spawnWithCallback(
 	updated := records[idx]
 	updated.UpdatedAt = nowRFC3339()
 	if spawnErr != nil {
-		updated.Status = StatusFailed
+		if err := updated.TransitionStatus(StatusFailed); err != nil {
+			return agentmanager.RunResult{}, err
+		}
 		updated.FailureReason = spawnErr.Error()
 		updated.FinishedAt = updated.UpdatedAt
 		records[idx] = updated
@@ -117,7 +119,9 @@ func (s *Service) spawnWithCallback(
 
 	updated.TaskID = strings.TrimSpace(runResult.TaskID)
 	updated.RunID = strings.TrimSpace(runResult.RunID)
-	updated.Status = StatusStarting
+	if err := updated.TransitionStatus(StatusStarting); err != nil {
+		return agentmanager.RunResult{}, err
+	}
 	updated.StartedAt = updated.UpdatedAt
 	records[idx] = updated
 	if err := s.store.Save(records); err != nil {
@@ -194,11 +198,15 @@ func (s *Service) continueTracked(ctx context.Context, spec Spec, runID string, 
 	updated := records[idx]
 	updated.UpdatedAt = nowRFC3339()
 	if continueErr != nil {
-		updated.Status = StatusFailed
+		if err := updated.TransitionStatus(StatusFailed); err != nil {
+			return err
+		}
 		updated.FailureReason = continueErr.Error()
 		updated.FinishedAt = updated.UpdatedAt
 	} else {
-		updated.Status = StatusRunning
+		if err := updated.TransitionStatus(StatusRunning); err != nil {
+			return err
+		}
 		updated.StartedAt = updated.UpdatedAt
 	}
 	records[idx] = updated

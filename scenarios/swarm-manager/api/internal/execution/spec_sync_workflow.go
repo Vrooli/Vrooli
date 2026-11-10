@@ -111,12 +111,20 @@ func (s *Service) applySpecSyncTransition(ctx context.Context, executionID strin
 	previous := record.Status
 	record.FinishedAt = nowRFC3339()
 	if workflowOutcome == "complete" {
-		record.Status = StatusCompleted
-		s.handleSpecSyncComplete(ctx, &record)
+		if err := record.TransitionStatus(StatusCompleted); err != nil {
+			return err
+		}
+		if err := s.handleSpecSyncComplete(ctx, &record); err != nil {
+			return err
+		}
 	} else if outcome.Name == "cancelled" {
-		record.Status = StatusCanceled
+		if err := record.TransitionStatus(StatusCanceled); err != nil {
+			return err
+		}
 	} else {
-		record.Status = StatusFailed
+		if err := record.TransitionStatus(StatusFailed); err != nil {
+			return err
+		}
 		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, outcome.Name, "spec-sync workflow failed")
 	}
 	s.logExecutionEvent(record, previous)

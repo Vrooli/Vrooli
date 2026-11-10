@@ -14,6 +14,7 @@ import (
 // ErrBacklogItemBusy is returned when a spawn is attempted for a backlog item
 // that already has an active agent (pending, starting, running, or needs_review).
 var ErrBacklogItemBusy = errors.New("another agent is already active for this backlog item")
+var ErrInvalidStatusTransition = errors.New("invalid agent activity status transition")
 
 // pendingSpawnTTL is how long a pending record without a RunID is considered
 // valid before being auto-failed. The spawn HTTP call typically has a 30-60s
@@ -208,12 +209,7 @@ func isKnownPurpose(purpose Purpose) bool {
 }
 
 func isActiveStatus(status Status) bool {
-	switch status {
-	case StatusPending, StatusStarting, StatusRunning, StatusNeedsReview:
-		return true
-	default:
-		return false
-	}
+	return status.Active()
 }
 
 // isPendingStale returns true when a pending record has no RunID and its

@@ -204,7 +204,9 @@ func (s *Service) startPlanOperationLocked(ctx context.Context, records []Record
 	record.StartedAt = nowRFC3339()
 	record.FinishedAt = ""
 	record.FailureReason = ""
-	record.Status = StatusStarting
+	if err := record.TransitionStatus(StatusStarting); err != nil {
+		return Record{}, err
+	}
 	record.UpdatedAt = nowRFC3339()
 	records[idx] = record
 	if err := s.store.Save(records); err != nil {
@@ -307,7 +309,9 @@ func (s *Service) launchGoalRun(ctx context.Context, records []Record, idx int, 
 	record.StartedAt = nowRFC3339()
 	record.FinishedAt = ""
 	record.FailureReason = ""
-	record.Status = StatusStarting
+	if err := record.TransitionStatus(StatusStarting); err != nil {
+		return Record{}, err
+	}
 	record.UpdatedAt = nowRFC3339()
 	records[idx] = record
 	if err := s.store.Save(records); err != nil {
@@ -352,7 +356,9 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 	prevStatus := record.Status
 	switch record.Status {
 	case StatusPending:
-		record.Status = StatusCanceled
+		if err := record.TransitionStatus(StatusCanceled); err != nil {
+			return Record{}, err
+		}
 		record.UpdatedAt = nowRFC3339()
 		record.FinishedAt = nowRFC3339()
 		records[idx] = record
@@ -383,7 +389,9 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 			if err := s.transitionRunner.CloseUnapplied(correlation.ExecutionID, "cancelled"); err != nil {
 				return Record{}, err
 			}
-			record.Status = StatusCanceled
+			if err := record.TransitionStatus(StatusCanceled); err != nil {
+				return Record{}, err
+			}
 			record.UpdatedAt = nowRFC3339()
 			record.FinishedAt = record.UpdatedAt
 			records[idx] = record
@@ -406,7 +414,9 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		if err := s.stopper.StopRun(ctx, record.RunID); err != nil {
 			return Record{}, err
 		}
-		record.Status = StatusCanceled
+		if err := record.TransitionStatus(StatusCanceled); err != nil {
+			return Record{}, err
+		}
 		record.UpdatedAt = nowRFC3339()
 		record.FinishedAt = nowRFC3339()
 		records[idx] = record
@@ -420,7 +430,9 @@ func (s *Service) Cancel(ctx context.Context, executionID string) (Record, error
 		s.dispatchStatusUpdate(record)
 		return record, nil
 	case StatusValidating, StatusNeedsFixup:
-		record.Status = StatusCanceled
+		if err := record.TransitionStatus(StatusCanceled); err != nil {
+			return Record{}, err
+		}
 		record.UpdatedAt = nowRFC3339()
 		record.FinishedAt = nowRFC3339()
 		// Also mark finalization as failed so the UI stops showing the progress indicator.
@@ -471,7 +483,9 @@ func (s *Service) TriggerReview(ctx context.Context, executionID string) (Record
 		return Record{}, apierr.BadRequest("execution type %q does not support post-run checks", record.effectiveRunType())
 	}
 
-	record.Status = StatusValidating
+	if err := record.TransitionStatus(StatusValidating); err != nil {
+		return Record{}, err
+	}
 	record.Finalization = &Finalization{
 		Eligible:          true,
 		Status:            FinalizationStatusPending,

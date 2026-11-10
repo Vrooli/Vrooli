@@ -2,6 +2,7 @@ package agentactivity
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -45,7 +46,11 @@ func (s *Service) refreshActiveLocked(ctx context.Context) error {
 				state = fetched
 				stateByWorkflowID[workflowID] = state
 			}
-			if applyWorkflowStateToRecord(record, state) {
+			updated, transitionErr := applyWorkflowStateToRecord(record, state)
+			if transitionErr != nil {
+				return fmt.Errorf("refresh workflow activity %q: %w", record.ActivityID, transitionErr)
+			}
+			if updated {
 				changed = true
 				changedRecords[record.ActivityID] = *record
 			}
@@ -66,7 +71,11 @@ func (s *Service) refreshActiveLocked(ctx context.Context) error {
 			stateByRunID[runID] = state
 		}
 
-		if applyRunStateToRecord(record, state) {
+		updated, transitionErr := applyRunStateToRecord(record, state)
+		if transitionErr != nil {
+			return fmt.Errorf("refresh run activity %q: %w", record.ActivityID, transitionErr)
+		}
+		if updated {
 			changed = true
 			changedRecords[record.ActivityID] = *record
 		}
@@ -117,7 +126,11 @@ func (s *Service) refreshActiveForOwnerLocked(ctx context.Context, records []Rec
 				state = fetched
 				stateByWorkflowID[workflowID] = state
 			}
-			if applyWorkflowStateToRecord(record, state) {
+			updated, transitionErr := applyWorkflowStateToRecord(record, state)
+			if transitionErr != nil {
+				return fmt.Errorf("refresh workflow activity %q: %w", record.ActivityID, transitionErr)
+			}
+			if updated {
 				changed = true
 				changedRecords[record.ActivityID] = *record
 			}
@@ -138,7 +151,11 @@ func (s *Service) refreshActiveForOwnerLocked(ctx context.Context, records []Rec
 			stateByRunID[runID] = state
 		}
 
-		if applyRunStateToRecord(record, state) {
+		updated, transitionErr := applyRunStateToRecord(record, state)
+		if transitionErr != nil {
+			return fmt.Errorf("refresh run activity %q: %w", record.ActivityID, transitionErr)
+		}
+		if updated {
 			changed = true
 			changedRecords[record.ActivityID] = *record
 		}
@@ -212,16 +229,18 @@ func recordWithinWindow(record Record, since time.Time) bool {
 // applyRunStateToRecord reconciles a record against a freshly fetched run state,
 // mutating it in place. It returns true when the record changed (and therefore
 // needs to be persisted/dispatched); a no-op state returns false.
-func applyRunStateToRecord(record *Record, state agentmanager.RunState) bool {
+func applyRunStateToRecord(record *Record, state agentmanager.RunState) (bool, error) {
 	nextStatus, reason := mapRunStatus(state.Status, state.ErrorMsg)
 	if nextStatus == record.Status &&
 		record.StartedAt == strings.TrimSpace(state.StartedAt) &&
 		record.FinishedAt == strings.TrimSpace(state.FinishedAt) &&
 		record.FailureReason == strings.TrimSpace(reason) {
-		return false
+		return false, nil
 	}
 
-	record.Status = nextStatus
+	if err := record.TransitionStatus(nextStatus); err != nil {
+		return false, err
+	}
 	record.FailureReason = strings.TrimSpace(reason)
 	record.UpdatedAt = nowRFC3339()
 	if record.TaskID == "" {
@@ -235,16 +254,18 @@ func applyRunStateToRecord(record *Record, state agentmanager.RunState) bool {
 	} else if !isActiveStatus(nextStatus) {
 		record.FinishedAt = record.UpdatedAt
 	}
-	return true
+	return true, nil
 }
 
-func applyWorkflowStateToRecord(record *Record, state agentmanager.WorkflowExecutionState) bool {
+func applyWorkflowStateToRecord(record *Record, state agentmanager.WorkflowExecutionState) (bool, error) {
 	nextStatus := mapWorkflowStatus(state.Status)
 	updatedAt := strings.TrimSpace(state.UpdatedAt)
 	if nextStatus == record.Status && (updatedAt == "" || record.UpdatedAt == updatedAt) {
-		return false
+		return false, nil
 	}
-	record.Status = nextStatus
+	if err := record.TransitionStatus(nextStatus); err != nil {
+		return false, err
+	}
 	if updatedAt != "" {
 		record.UpdatedAt = updatedAt
 	} else {
@@ -253,7 +274,7 @@ func applyWorkflowStateToRecord(record *Record, state agentmanager.WorkflowExecu
 	if !isActiveStatus(nextStatus) && strings.TrimSpace(record.FinishedAt) == "" {
 		record.FinishedAt = record.UpdatedAt
 	}
-	return true
+	return true, nil
 }
 
 func mapWorkflowStatus(status domainpb.WorkflowExecutionStatus) Status {

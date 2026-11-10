@@ -504,7 +504,9 @@ func (s *Service) ManuallyAcceptLatestForBacklog(ctx context.Context, backlogKin
 	prev := record.Status
 	now := nowRFC3339()
 	record.AcceptedPreviousStatus = prev
-	record.Status = StatusCompleted
+	if err := record.TransitionStatus(StatusCompleted); err != nil {
+		return "", false, err
+	}
 	record.ManuallyAccepted = true
 	record.AcceptedBy = strings.TrimSpace(acceptor)
 	record.AcceptedReason = strings.TrimSpace(reason)

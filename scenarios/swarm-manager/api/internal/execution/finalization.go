@@ -275,11 +275,17 @@ func (s *Service) finishFinalization(executionID string, reviewStarted bool, rev
 		case hasActionableFailure:
 			policy, _ := s.policyProvider.LoadPolicy()
 			if policy.AutoFixup && record.FixupAttempt < policy.MaxFixupAttempts {
-				record.Status = StatusNeedsFixup
+				if err := record.TransitionStatus(StatusNeedsFixup); err != nil {
+					s.mu.Unlock()
+					return err
+				}
 				record.FailureReason = ""
 				autoSpawnFixup = true
 			} else {
-				record.Status = StatusNeedsFixup
+				if err := record.TransitionStatus(StatusNeedsFixup); err != nil {
+					s.mu.Unlock()
+					return err
+				}
 				record.FailureReason = ""
 			}
 			if err := s.updateBacklogStatus(item, reviewStatus); err != nil {
@@ -287,7 +293,10 @@ func (s *Service) finishFinalization(executionID string, reviewStarted bool, rev
 					"execution_id", executionID, "backlog_ref", item.Kind+"/"+item.Name, "status", reviewStatus, "err", err)
 			}
 		default:
-			record.Status = StatusCompleted
+			if err := record.TransitionStatus(StatusCompleted); err != nil {
+				s.mu.Unlock()
+				return err
+			}
 			record.FailureReason = ""
 			if err := s.updateBacklogStatus(item, reviewStatus); err != nil {
 				slog.Warn("failed to set backlog review status after finalization",
@@ -295,7 +304,10 @@ func (s *Service) finishFinalization(executionID string, reviewStarted bool, rev
 			}
 		}
 	} else {
-		record.Status = StatusNeedsFixup
+		if err := record.TransitionStatus(StatusNeedsFixup); err != nil {
+			s.mu.Unlock()
+			return err
+		}
 		record.FailureReason = fmt.Sprintf("failed to load backlog item while finishing finalization: %v", loadErr)
 	}
 

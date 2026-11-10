@@ -12,38 +12,47 @@ import (
 )
 
 // handleSpecSyncComplete performs the archive after a successful spec-sync run.
-func (s *Service) handleSpecSyncComplete(ctx context.Context, record *Record) {
+func (s *Service) handleSpecSyncComplete(ctx context.Context, record *Record) error {
 	if s.archiver == nil {
 		slog.Error("spec-sync completed but no archiver configured", "backlog_name", record.BacklogName)
 		record.FailureReason = "archiver not configured"
-		record.Status = StatusFailed
-		return
+		if err := record.TransitionStatus(StatusFailed); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	ac := record.ArchiveContext
 	if _, err := os.Stat(ac.ScenarioPath); err != nil {
 		slog.Error("spec-sync completed but scenario dir missing", "scenario_path", ac.ScenarioPath)
 		record.FailureReason = "scenario directory no longer exists"
-		record.Status = StatusFailed
-		return
+		if err := record.TransitionStatus(StatusFailed); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	if err := s.archiver.ArchiveScenario(ctx, *ac); err != nil {
 		slog.Error("post-spec-sync archive failed", "scenario_name", ac.ScenarioName, "err", err)
 		record.FailureReason = "archive failed after spec-sync: " + err.Error()
-		record.Status = StatusFailed
-		return
+		if err := record.TransitionStatus(StatusFailed); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	// Delete the scenario directory after successful archive
 	if err := os.RemoveAll(ac.ScenarioPath); err != nil {
 		slog.Error("post-archive scenario deletion failed", "scenario_name", ac.ScenarioName, "err", err)
 		record.FailureReason = "scenario deletion failed after archive: " + err.Error()
-		record.Status = StatusFailed
-		return
+		if err := record.TransitionStatus(StatusFailed); err != nil {
+			return err
+		}
+		return nil
 	}
 
 	slog.Info("spec-sync-archive completed", "scenario_name", ac.ScenarioName)
+	return nil
 }
 
 func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlogItem) {
@@ -91,7 +100,10 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		}
 		for i := range records {
 			if records[i].ExecutionID == fixupRecord.ExecutionID {
-				records[i].Status = StatusFailed
+				if err := records[i].TransitionStatus(StatusFailed); err != nil {
+					slog.Error("failed to mark fixup execution failed", "execution_id", fixupRecord.ExecutionID, "err", err)
+					return
+				}
 				records[i].FailureReason = failureReason
 				records[i].FinishedAt = now
 				break
@@ -111,14 +123,20 @@ func (s *Service) spawnFixupRun(ctx context.Context, record *Record, item backlo
 		if records[i].ExecutionID == fixupRecord.ExecutionID {
 			records[i].RunID = res.RunID
 			records[i].TaskID = res.ExecutionID
-			records[i].Status = StatusStarting
+			if err := records[i].TransitionStatus(StatusStarting); err != nil {
+				slog.Error("failed to mark fixup execution starting", "execution_id", fixupRecord.ExecutionID, "err", err)
+				return
+			}
 			records[i].StartedAt = now
 			break
 		}
 	}
 
 	// Mark original record as failed with reference to fixup
-	record.Status = StatusFailed
+	if err := record.TransitionStatus(StatusFailed); err != nil {
+		slog.Error("failed to mark parent execution failed after fixup start", "execution_id", record.ExecutionID, "err", err)
+		return
+	}
 	record.FailureReason = fmt.Sprintf("fix-up spawned: %s", fixupRecord.ExecutionID)
 	record.FinishedAt = now
 	record.UpdatedAt = now
@@ -235,7 +253,9 @@ func (s *Service) FollowUp(ctx context.Context, req FollowUpRequest) (Record, er
 	}
 	followUpRecord.RunID = res.RunID
 	followUpRecord.TaskID = res.ExecutionID
-	followUpRecord.Status = StatusStarting
+	if err := followUpRecord.TransitionStatus(StatusStarting); err != nil {
+		return Record{}, err
+	}
 	followUpRecord.StartedAt = now
 
 	for i := range records {

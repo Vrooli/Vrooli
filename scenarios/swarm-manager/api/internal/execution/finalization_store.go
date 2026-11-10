@@ -23,7 +23,9 @@ func (s *Service) completeFinalizationSkipped(executionID string, reason string)
 	finalization.AggregateClassification = FinalizationAggregateSkipped
 	finalization.AggregateSummary = strings.TrimSpace(reason)
 	record.Finalization = finalization
-	record.Status = StatusCompleted
+	if err := record.TransitionStatus(StatusCompleted); err != nil {
+		return err
+	}
 	record.FinishedAt = nowRFC3339()
 	record.FailureReason = ""
 	record.UpdatedAt = nowRFC3339()
@@ -65,7 +67,9 @@ func (s *Service) failFinalization(executionID, scenarioName, message string) er
 		))
 	}
 	record.Finalization = finalization
-	record.Status = StatusFailed
+	if err := record.TransitionStatus(StatusFailed); err != nil {
+		return err
+	}
 	record.FailureReason = strings.TrimSpace(message)
 	record.FinishedAt = nowRFC3339()
 	record.UpdatedAt = nowRFC3339()
@@ -166,7 +170,9 @@ func (s *Service) markFinalizationPhase(executionID, phase string) error {
 	finalization.Status = FinalizationStatusRunning
 	finalization.Phase = strings.TrimSpace(phase)
 	record.Finalization = finalization
-	record.Status = StatusValidating
+	if err := record.TransitionStatus(StatusValidating); err != nil {
+		return err
+	}
 	record.UpdatedAt = nowRFC3339()
 	if err := s.store.Save(records); err != nil {
 		return err

@@ -340,16 +340,24 @@ func (s *Service) finishWorkWorkflowClaim(record *Record, outcome transitionrunn
 	record.FinishedAt = nowRFC3339()
 	switch outcome.Name {
 	case "complete":
-		record.Status = StatusCompleted
+		if err := record.TransitionStatus(StatusCompleted); err != nil {
+			return err
+		}
 		candidates := []string{}
-		s.applyCompletedTransition(record, item, &candidates)
+		if err := s.applyCompletedTransition(record, item, &candidates); err != nil {
+			return err
+		}
 	case "cancelled":
-		record.Status = StatusCanceled
+		if err := record.TransitionStatus(StatusCanceled); err != nil {
+			return err
+		}
 		if err := s.updateBacklogStatus(item, restoreBacklogStatus(*record)); err != nil {
 			return err
 		}
 	default:
-		record.Status = StatusNeedsReview
+		if err := record.TransitionStatus(StatusNeedsReview); err != nil {
+			return err
+		}
 		record.FailureReason = stringsx.FirstNonEmpty(outcome.TerminalCode, outcome.Name, "work workflow needs attention")
 		if err := s.updateBacklogStatus(item, backlogStatusInReview); err != nil {
 			return err

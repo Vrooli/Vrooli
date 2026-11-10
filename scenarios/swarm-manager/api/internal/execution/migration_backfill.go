@@ -96,7 +96,9 @@ func (s *Service) BackfillStuckTerminalEvents(ctx context.Context, alreadyEmitte
 		if r.Status == StatusValidating && r.Finalization != nil && r.Finalization.Status == FinalizationStatusCompleted {
 			rep.StuckValidating++
 			prev := r.Status
-			r.Status = StatusCompleted
+			if err := r.TransitionStatus(StatusCompleted); err != nil {
+				return rep, err
+			}
 			if r.FinishedAt == "" {
 				r.FinishedAt = nowRFC3339()
 			}
