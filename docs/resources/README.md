@@ -55,6 +55,10 @@ vrooli resource enable "<name>"
 vrooli resource disable "<name>"
 ```
 
+Disabling a managed-service resource stops it before recording the disabled
+choice. A stop failure leaves the resource enabled so it remains visible for
+recovery.
+
 Blueprint and template workflows:
 
 ```bash

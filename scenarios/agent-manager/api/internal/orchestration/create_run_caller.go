@@ -25,6 +25,12 @@ func (o *Orchestrator) authenticateCreateRunCaller(ctx context.Context, req *Cre
 		return domain.NewValidationErrorWithCode("authorization", message, domain.ErrCodePolicyScope)
 	}
 	verifiedOwner, hasVerifiedOwner := coreidentity.PrincipalFromContext(ctx)
+	if provenance.OperationProofOffered(ctx) {
+		proof, err := provenance.ReverifyOperationProof(ctx)
+		if err != nil || proof == nil {
+			return refuse("offered operation proof is invalid or unavailable")
+		}
+	}
 	// A verified service principal carries its identity in the Authorization
 	// bearer that the authn middleware already verified into this principal. That
 	// bearer is NOT a human owner token, so it must not enter owner verification;
@@ -210,6 +216,23 @@ func (o *Orchestrator) authenticateGrantedRunCreate(ctx context.Context, req *Cr
 	if provenance.ForwardedIdentityToken(ctx) != strings.TrimSpace(req.RunIdentityToken) {
 		return false, nil
 	}
+	// An offered operation proof must always be reverified, but it only owns
+	// this route when its own reviewed rules cover run.create for this target.
+	// RequireOperation also accepts the baseline write capability; calling it
+	// before making this distinction can therefore let an unrelated valid proof
+	// mask the separate baseline run-create route and then fail as a mismatched
+	// grant below. Keep the operation and target evaluation on the canonical
+	// OperationGrant evaluator (including multi-policy rule pairing).
+	proof, proofErr := provenance.ReverifyOperationProof(ctx)
+	if proofErr != nil {
+		return true, domain.NewValidationErrorWithCode("authorization", "run-creation grant is unavailable", domain.ErrCodePolicyScope)
+	}
+	if proof != nil && (proof.Grant == nil || !proof.Grant.Allows("run.create", standingGrantRunCreateTarget, o.now())) {
+		return false, nil
+	}
+	if proof == nil && principal.Grant != nil && !principal.Grant.Allows("run.create", standingGrantRunCreateTarget, o.now()) {
+		return false, nil
+	}
 	if _, err := authn.RequireOperation(ctx, "agent-manager:write", "run.create", standingGrantRunCreateTarget); err != nil {
 		return false, nil
 	}
@@ -218,10 +241,6 @@ func (o *Orchestrator) authenticateGrantedRunCreate(ctx context.Context, req *Cr
 	var grantRunID uuid.UUID
 	var grantScopes []string
 	var grantExpires time.Time
-	proof, proofErr := provenance.ReverifyOperationProof(ctx)
-	if proofErr != nil {
-		return true, domain.NewValidationErrorWithCode("authorization", "run-creation grant is unavailable", domain.ErrCodePolicyScope)
-	}
 	if proof != nil {
 		grant = proof.Grant
 		grantRunID, _ = uuid.Parse(strings.TrimSpace(proof.RunID))

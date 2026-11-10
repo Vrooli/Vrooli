@@ -577,7 +577,7 @@ func TestCanTransitionTo(t *testing.T) {
 		{StatusStopped, StatusRejected, true},
 		{StatusStopped, StatusDeleted, true},
 		{StatusStopped, StatusCreating, false},
-		{StatusStopped, StatusError, false},
+		{StatusStopped, StatusError, true},
 
 		// From Checkpointing
 		{StatusCheckpointing, StatusCheckpointed, true},
@@ -631,6 +631,43 @@ func TestValidTransitionsCompleteness(t *testing.T) {
 		if _, exists := ValidTransitions[status]; !exists {
 			t.Errorf("ValidTransitions missing entry for %s", status)
 		}
+	}
+}
+
+func TestSandboxTransitionStatusEnforcesGraphWithoutMutatingInvalidState(t *testing.T) {
+	tests := []struct {
+		name string
+		from Status
+		to   Status
+		want bool
+	}{
+		{name: "create succeeds", from: StatusCreating, to: StatusActive, want: true},
+		{name: "stopped heal can exhaust", from: StatusStopped, to: StatusError, want: true},
+		{name: "checkpoint resumes", from: StatusCheckpointed, to: StatusActive, want: true},
+		{name: "terminal cannot reopen", from: StatusApproved, to: StatusActive},
+		{name: "unknown persisted state is rejected", from: Status("mystery"), to: StatusDeleted},
+		{name: "unknown target is rejected", from: StatusActive, to: Status("mystery")},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sandbox := &Sandbox{Status: tt.from}
+			err := sandbox.TransitionStatus(tt.to)
+			if tt.want {
+				if err != nil {
+					t.Fatalf("TransitionStatus(%s) error = %v", tt.to, err)
+				}
+				if sandbox.Status != tt.to {
+					t.Fatalf("status = %s, want %s", sandbox.Status, tt.to)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("TransitionStatus(%s) unexpectedly succeeded", tt.to)
+			}
+			if sandbox.Status != tt.from {
+				t.Fatalf("invalid transition mutated status to %s, want %s", sandbox.Status, tt.from)
+			}
+		})
 	}
 }
 

@@ -1,6 +1,6 @@
 ---
 name: sandbox
-description: Create and review isolated workspace changes without the Vrooli control plane.
+description: "Give an agent or tool a safe, isolated copy of a project folder to work in, review what changed, and then accept or discard the changes, without the Vrooli control plane. Copy-on-write workspaces that are fast and storage-efficient."
 metadata:
   requires:
     scenarios: []

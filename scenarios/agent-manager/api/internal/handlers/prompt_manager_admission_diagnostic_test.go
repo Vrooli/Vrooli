@@ -466,7 +466,10 @@ func TestPromptManagerAdmissionDiagnosticRejectsUnverifiedOrNoncoveringAgents(t 
 			if w.Code != http.StatusForbidden {
 				t.Fatalf("unauthorized caller got %d: %s", w.Code, w.Body.String())
 			}
-			if strings.Contains(w.Body.String(), "prompt-manager") || strings.Contains(w.Body.String(), "grant_limit") {
+			// The refusal names the one fixed target an agent must be granted (its
+			// request command), but nothing about Prompt Manager's admission state.
+			refusal := strings.ReplaceAll(w.Body.String(), promptManagerAdmissionDiagnosticTarget, "<target>")
+			if strings.Contains(refusal, "prompt-manager") || strings.Contains(refusal, "grant_limit") {
 				t.Fatalf("refusal disclosed diagnostic data: %s", w.Body.String())
 			}
 			if strings.Contains(w.Body.String(), `"contributors"`) {

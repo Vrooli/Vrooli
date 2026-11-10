@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
@@ -15,6 +13,7 @@ import (
 	"github.com/vrooli/cli-core/agentcatalog"
 	"github.com/vrooli/cli-core/agentcatalog/harness"
 	"github.com/vrooli/cli-core/cliutil"
+	"github.com/vrooli/cli-core/usagemode"
 	"web-console/handlers/modelselection"
 )
 
@@ -48,7 +47,7 @@ func (s *Server) GetRoleModelChoices(_ context.Context, agentID, targetID, launc
 	}
 	result.CommandLiteral = launchCommand != "" && !composableLaunchCommand(descriptor, launchCommand)
 	resource := descriptor.Resource
-	path, ok := modelPolicyPath(resource)
+	path, ok := usagemode.PolicyPath(resource)
 	if !ok {
 		result.Detail = "resource policy could not be found"
 		return result
@@ -289,25 +288,4 @@ func modelSourceMetered(billing *agentcatalog.Billing, source string) bool {
 		}
 	}
 	return billing.Mode == "metered"
-}
-
-func modelPolicyPath(resource string) (string, bool) {
-	var roots []string
-	for _, key := range []string{"VROOLI_RESOURCE_ROOT", "VROOLI_ROOT"} {
-		if root := strings.TrimSpace(os.Getenv(key)); root != "" {
-			roots = append(roots, root)
-		}
-	}
-	if cwd, err := os.Getwd(); err == nil {
-		for dir, i := cwd, 0; i < 8; dir, i = filepath.Dir(dir), i+1 {
-			roots = append(roots, dir)
-		}
-	}
-	for _, root := range roots {
-		path := filepath.Join(root, "resources", resource, "model-policy.json")
-		if info, err := os.Stat(path); err == nil && !info.IsDir() {
-			return path, true
-		}
-	}
-	return "", false
 }

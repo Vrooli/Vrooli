@@ -98,6 +98,25 @@ func (r *interactiveDriverRegistry) cancelAndWait(runID uuid.UUID) bool {
 	return true
 }
 
+// cancelAndWaitContext drains a driver only until the caller's bounded
+// recovery window expires. A timeout leaves the driver registered and prevents
+// recovery from racing its completion writes.
+func (r *interactiveDriverRegistry) cancelAndWaitContext(ctx context.Context, runID uuid.UUID) (bool, error) {
+	r.mu.Lock()
+	d, ok := r.m[runID]
+	r.mu.Unlock()
+	if !ok {
+		return false, nil
+	}
+	d.cancel()
+	select {
+	case <-d.done:
+		return true, nil
+	case <-ctx.Done():
+		return true, ctx.Err()
+	}
+}
+
 // revokeInteractiveRunIdentity loads and durably revokes a run's currently
 // active identity. No-op when no token exists or it was already revoked.
 func (o *Orchestrator) revokeInteractiveRunIdentity(ctx context.Context, runID uuid.UUID) error {
@@ -282,7 +301,42 @@ func (o *Orchestrator) verifyInteractiveSession(ctx context.Context, run *domain
 		return domain.NewStateError("Run", string(run.Status), "continue",
 			fmt.Sprintf("web-console lookup returned session %s for retained session %s", session.ID, run.WebConsoleSessionID))
 	}
-	return nil
+	probe, ok := o.interactiveSessions.(webconsole.NativeAgentProbe)
+	if !ok {
+		return domain.RefuseBeforeEffects(fmt.Errorf("native agent liveness is unavailable for the interactive session"))
+	}
+	observation, err := probe.ObserveNativeAgent(ctx, run.WebConsoleSessionID, run.SessionID)
+	if err != nil {
+		return domain.RefuseBeforeEffects(fmt.Errorf("read native agent liveness before prompt delivery: %w", err))
+	}
+	switch observation.State {
+	case webconsole.NativeAgentIdle:
+		return nil
+	case webconsole.NativeAgentBusy:
+		return domain.RefuseBeforeEffects(fmt.Errorf("native agent is still busy; continuation was not submitted"))
+	default:
+		reason := observation.Reason
+		if reason == "" {
+			reason = "provider could not prove the exact native session is live"
+		}
+		return domain.RefuseBeforeEffects(fmt.Errorf("native agent liveness is unknown: %s", reason))
+	}
+}
+
+func (o *Orchestrator) sendBoundInteractivePrompt(ctx context.Context, run *domain.Run, prompt string) (webconsole.PromptSubmission, error) {
+	sender, ok := o.interactiveSessions.(webconsole.NativeBoundPromptSender)
+	if !ok {
+		return webconsole.PromptSubmission{}, fmt.Errorf("native-bound prompt delivery is unavailable")
+	}
+	return sender.SendPromptForNativeSession(ctx, run.WebConsoleSessionID, run.SessionID, prompt, interactiveRunSource(run.ID))
+}
+
+func (o *Orchestrator) sendBoundInteractiveCommand(ctx context.Context, run *domain.Run, command string) (webconsole.PromptSubmission, error) {
+	sender, ok := o.interactiveSessions.(webconsole.NativeBoundPromptSender)
+	if !ok {
+		return webconsole.PromptSubmission{}, fmt.Errorf("native-bound command delivery is unavailable")
+	}
+	return sender.SendCommandForNativeSession(ctx, run.WebConsoleSessionID, run.SessionID, command, interactiveRunSource(run.ID))
 }
 
 func (o *Orchestrator) continueInteractiveRunWithVerifiedSession(ctx context.Context, run *domain.Run, message string, reinstallGoal bool, tailContext interactive.TailContext) (*domain.Run, error) {
@@ -359,7 +413,7 @@ func (o *Orchestrator) continueInteractiveRunWithVerifiedSession(ctx context.Con
 
 	// Type the follow-up into the live session (paste + Enter submit). On failure
 	// finalize the run Failed rather than leaving it stuck Running.
-	submission, err := o.interactiveSessions.SendPrompt(ctx, run.WebConsoleSessionID, message, interactiveRunSource(run.ID))
+	submission, err := o.sendBoundInteractivePrompt(ctx, run, message)
 	if err != nil {
 		endedAt := o.now()
 		if _, terr := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
@@ -423,7 +477,7 @@ func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run)
 		return nil
 	}
 	command := "/goal " + runner.NativeGoalObjective(objective)
-	submission, err := o.interactiveSessions.SendCommand(ctx, run.WebConsoleSessionID, command, interactiveRunSource(run.ID))
+	submission, err := o.sendBoundInteractiveCommand(ctx, run, command)
 	if err != nil {
 		// SendCommand may have typed the command or pressed Enter before the
 		// transport failed. The caller must withhold the follow-up and leave its

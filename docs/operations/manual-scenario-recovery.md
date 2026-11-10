@@ -276,3 +276,21 @@ touched, and it stays the documented trusted-base escape hatch afterward.
 
 See also: [troubleshooting.md](troubleshooting.md) (first-line checks),
 [logging.md](logging.md) (diagnostic surfaces).
+
+
+## Explicit retained-runtime recovery
+
+The lifecycle owner now supports opt-in retained runtime capture and explicit
+selection. See [the command and qualification contract](../../internal/cli/scenariocli/runtime-release.md).
+This retains declared generated runtime bytes, unlike a source-only Baseline
+snapshot, and never restores data, grants or credentials. A verified capture is
+not by itself a qualified prior running build. Current serving health, declared
+closure completeness, isolated restore behavior, state compatibility and full
+physical process identity still have separate evidence obligations. Do not use a
+new capture to claim what an older Node process already loaded.
+
+No existing scenario is opted in by this change. Artifact verification does not
+supersede the applicable lifecycle safety conditions or the operator's maintenance
+scope. Use the documented owner route for attached executor recovery; do not
+fabricate process identity or treat a retained executable as a permission grant.
+Current scenario-specific blockers belong in the owning repair record.

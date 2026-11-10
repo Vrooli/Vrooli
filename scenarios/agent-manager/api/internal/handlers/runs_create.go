@@ -335,7 +335,7 @@ func (h *Handler) ResumeFromFailedRun(w http.ResponseWriter, r *http.Request) {
 	}
 	if p, ok := requestidentity.PrincipalFromContext(r.Context()); ok && p.Kind == requestidentity.ActorAgent {
 		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); err != nil {
-			writeJSON(w, http.StatusForbidden, map[string]string{"error": "fresh recovery requires run.create authority"})
+			writeOperationRefusal(w, err, "fresh recovery requires run.create authority")
 			return
 		}
 	}

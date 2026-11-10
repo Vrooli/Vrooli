@@ -36,7 +36,9 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 	}
 
 	now := s.clock.Now()
-	sandbox.Status = types.StatusCheckpointing
+	if err := sandbox.TransitionStatus(types.StatusCheckpointing); err != nil {
+		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
+	}
 	sandbox.LastUsedAt = now
 	sandbox.UpdatedAt = now
 	sandbox.ErrorMsg = ""
@@ -48,7 +50,9 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 	release()
 
 	restoreActive := func(stage string, cause error) error {
-		sandbox.Status = types.StatusActive
+		if transitionErr := sandbox.TransitionStatus(types.StatusActive); transitionErr != nil {
+			return fmt.Errorf("%s: %w; additionally failed to restore active checkpoint state: %v", stage, cause, transitionErr)
+		}
 		sandbox.ErrorMsg = ""
 		sandbox.LastUsedAt = s.clock.Now()
 		sandbox.UpdatedAt = sandbox.LastUsedAt
@@ -137,7 +141,9 @@ func (s *Service) TurnCheckpoint(ctx context.Context, req *types.TurnCheckpointR
 	}
 
 	now = s.clock.Now()
-	sandbox.Status = types.StatusCheckpointed
+	if err := sandbox.TransitionStatus(types.StatusCheckpointed); err != nil {
+		return nil, fmt.Errorf("cannot mark sandbox checkpointed: %w", err)
+	}
 	sandbox.LastUsedAt = now
 	sandbox.UpdatedAt = now
 	if err := s.repo.Update(ctx, sandbox); err != nil {
@@ -210,7 +216,9 @@ func (s *Service) Resume(ctx context.Context, id uuid.UUID) (*types.Sandbox, err
 	sandbox.HomeUpperDir = paths.HomeUpperDir
 	sandbox.HomeWorkDir = paths.HomeWorkDir
 	sandbox.HomeMergedDir = paths.HomeMergedDir
-	sandbox.Status = types.StatusActive
+	if err := sandbox.TransitionStatus(types.StatusActive); err != nil {
+		return nil, types.NewStateError(err.(*types.InvalidTransitionError))
+	}
 	sandbox.LastUsedAt = s.clock.Now()
 
 	if err := s.repo.Update(ctx, sandbox); err != nil {

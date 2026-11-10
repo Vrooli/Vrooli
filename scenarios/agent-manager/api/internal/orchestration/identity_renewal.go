@@ -144,6 +144,54 @@ func classifiedBindingProofFailure(stderr string) error {
 	return errBindingProofUnavailable
 }
 
+// sessionBindingFailureNext maps each fixed control-plane proof category to what
+// went wrong and what the caller can do next. Only these allow-listed categories
+// reach a requester; raw subprocess output never does.
+var sessionBindingFailureNext = map[string]string{
+	"lease_unavailable":              "the host session lease could not be read, so the session may have ended; run `vrooli agent list` to confirm it is live, then retry",
+	"lease_identity_mismatch":        "the host lease does not match the harness kind, session id or Web Console session in this request; run `vrooli agent list --json`, then retry naming that exact session",
+	"launch_owner_unverified":        "the lease does not carry a launcher-recorded Web Console owner; this session was started before that was recorded and cannot request authority, so relaunch it",
+	"web_console_session_unverified": "Web Console could not confirm the session is live (stopped, or its state is unreadable); retry once, and if it repeats check that Web Console is running",
+	"scope_membership_unverified":    "the session's launcher process is neither inside its agent scope nor the direct parent of the one process that is, so the host cannot tie the session to its scope; an operator must reconcile the installed `vrooli` CLI with the launcher that started this session, or the session must be relaunched",
+	"session_scope_unverified":       "the lease names an agent scope the host does not recognise; relaunch the session",
+	"kernel_binding_unverified":      "the kernel's record of the session process disagrees with its lease (boot, cgroup or identity); relaunch the session",
+	"process_incarnation_unverified": "the session process no longer matches the incarnation its lease recorded; relaunch the session",
+	"process_started_after_lease":    "the process claiming this lease started after the lease was created; relaunch the session",
+	"process_changed_during_proof":   "the session process or lease changed while it was being proved; retry once, and relaunch the session if it repeats",
+	"lease_changed_during_proof":     "the session process or lease changed while it was being proved; retry once, and relaunch the session if it repeats",
+	"lease_time_unverified":          "the lease timestamps are not consistent with the host clock; retry, and relaunch the session if it repeats",
+	"run_binding_missing":            "the attached run's process binding is missing; relaunch the session",
+	"run_process_mismatch":           "the attached run records a different process than the session's lease; relaunch the session",
+	"proof_cancelled":                "the proof was cancelled before it finished; retry",
+	"proof_reader_unavailable":       "the installed `vrooli` CLI could not run the proof; an operator must repair the control-plane install",
+	"runtime_registry":               "the installed `vrooli` CLI could not open the runtime registry, usually because the CLI build and the registry schema disagree; an operator must rebuild the CLI or finish the registry migration (no session can request authority until then)",
+	"runtime_home":                   "the installed `vrooli` CLI could not resolve its runtime home; an operator must repair the control-plane install",
+	"selector_missing":               "the request did not name a session; run `vrooli agent list --json` and retry naming it",
+}
+
+// describeSessionBindingFailure says which component could not prove the live
+// session and what to do about it. The result is shown to the requesting agent,
+// so it is built only from fixed categories and fixed text.
+func describeSessionBindingFailure(err error) string {
+	const prefix = "live launcher session binding is unavailable"
+	var reason bindingProofReason
+	switch {
+	case errors.Is(err, errBindingProofMismatch):
+		return prefix + ": the control-plane proof was returned for a different session, process, run or Web Console session than this request names; run `vrooli agent list --json` and retry naming the exact session. If it repeats, the session's recorded launch details no longer match the live process, so relaunch it"
+	case errors.Is(err, errBindingProofTimeout):
+		return prefix + ": `vrooli agent identity-binding` did not answer within " + sessionBindingProofTimeout.String() + "; the host may be under load, so retry once. If it repeats an operator must check the control-plane CLI"
+	case errors.As(err, &reason):
+		if next, ok := sessionBindingFailureNext[reason.category]; ok {
+			return prefix + " (owner proof " + reason.category + "): " + next
+		}
+		return prefix + " (owner proof " + reason.category + "); retry once, and ask the operator if it repeats"
+	case errors.Is(err, errBindingProofUnavailable):
+		return prefix + ": `vrooli agent identity-binding` failed without a recognised reason, which usually means the installed `vrooli` CLI is missing, outdated or unable to run it. An operator must check `vrooli agent identity-binding --help` on the host running Agent Manager"
+	default:
+		return prefix + ": the proof response was unusable; retry once, and ask the operator if it repeats"
+	}
+}
+
 func readCLISessionBindingProof(parent context.Context, request SessionBindingRequest) (SessionBindingProof, error) {
 	ctx, cancel := context.WithTimeout(parent, sessionBindingProofTimeout)
 	defer cancel()

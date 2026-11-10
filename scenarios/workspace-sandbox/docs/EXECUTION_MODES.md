@@ -44,12 +44,12 @@ Run a single command and wait for it to complete. Best for:
 
 ```bash
 # Basic usage
-workspace-sandbox exec <sandbox-id> -- <command> [args...]
+workspace-sandbox process exec <sandbox-id> -- <command> [args...]
 
 # Examples
-workspace-sandbox exec abc123 -- ls -la /workspace
-workspace-sandbox exec abc123 -- npm run build
-workspace-sandbox exec abc123 -- python script.py --input data.json
+workspace-sandbox process exec abc123 -- ls -la /workspace
+workspace-sandbox process exec abc123 -- npm run build
+workspace-sandbox process exec abc123 -- python script.py --input data.json
 ```
 
 **Characteristics:**
@@ -68,19 +68,19 @@ Start a detached process that runs in the background. Best for:
 
 ```bash
 # Basic usage
-workspace-sandbox run <sandbox-id> [OPTIONS] -- <command> [args...]
+workspace-sandbox process run <sandbox-id> [OPTIONS] -- <command> [args...]
 
 # Examples
-workspace-sandbox run abc123 --name=my-agent -- python agent.py
-workspace-sandbox run abc123 -- npm run dev
-workspace-sandbox run abc123 --memory=1024 -- ./train.sh
+workspace-sandbox process run abc123 --name=my-agent -- python agent.py
+workspace-sandbox process run abc123 -- npm run dev
+workspace-sandbox process run abc123 --memory=1024 -- ./train.sh
 ```
 
 **Characteristics:**
 - Returns immediately with PID
 - Output captured to log files
-- Monitor with `logs --follow`
-- Kill with `kill --pid=<PID>`
+- Monitor with `workspace-sandbox process logs <sandbox-id> --pid=<PID> --follow`
+- Kill with `workspace-sandbox process kill <sandbox-id> --pid=<PID>`
 
 ### Interactive Session (`shell`/`attach`)
 
@@ -92,17 +92,17 @@ Real-time bidirectional I/O with full PTY support. Best for:
 
 ```bash
 # Open a shell in the sandbox
-workspace-sandbox shell <sandbox-id> [OPTIONS]
+workspace-sandbox process shell <sandbox-id> [OPTIONS]
 
 # Run a specific command interactively
-workspace-sandbox attach <sandbox-id> [OPTIONS] -- <command> [args...]
+workspace-sandbox process attach <sandbox-id> [OPTIONS] -- <command> [args...]
 
 # Examples
-workspace-sandbox shell abc123                              # Opens /bin/sh (or $SHELL)
-workspace-sandbox shell abc123 --vrooli-aware               # With Vrooli CLI access
-workspace-sandbox attach abc123 -- python                   # Python REPL
-workspace-sandbox attach abc123 -- node                     # Node.js REPL
-workspace-sandbox attach abc123 --memory=512 -- vim file.py # Edit with vim
+workspace-sandbox process shell abc123                              # Opens /bin/sh (or $SHELL)
+workspace-sandbox process shell abc123 --vrooli-aware               # With Vrooli CLI access
+workspace-sandbox process attach abc123 -- python                   # Python REPL
+workspace-sandbox process attach abc123 -- node                     # Node.js REPL
+workspace-sandbox process attach abc123 --memory=512 -- vim file.py # Edit with vim
 ```
 
 **Characteristics:**
@@ -146,8 +146,8 @@ Maximum security - the process only sees the sandbox workspace:
 Extended access for orchestration tasks:
 
 ```bash
-workspace-sandbox exec abc123 --vrooli-aware -- visited-tracker list
-workspace-sandbox run abc123 --vrooli-aware -- scenario-manager start
+workspace-sandbox process exec abc123 --vrooli-aware -- visited-tracker list
+workspace-sandbox process run abc123 --vrooli-aware -- scenario-manager start
 ```
 
 **Additional access:**
@@ -232,13 +232,13 @@ Resource limits help prevent runaway processes and enable fair resource sharing.
 
 ```bash
 # Memory-constrained build
-workspace-sandbox exec abc123 --memory=512 --timeout=120 -- npm run build
+workspace-sandbox process exec abc123 --memory=512 --timeout=120 -- npm run build
 
 # Long-running agent with CPU limit
-workspace-sandbox run abc123 --memory=1024 --cpu-time=3600 -- python agent.py
+workspace-sandbox process run abc123 --memory=1024 --cpu-time=3600 -- python agent.py
 
 # Resource-intensive processing
-workspace-sandbox exec abc123 --memory=2048 --max-procs=50 -- ./process-data.sh
+workspace-sandbox process exec abc123 --memory=2048 --max-procs=50 -- ./process-data.sh
 ```
 
 ## CLI Reference
@@ -248,7 +248,7 @@ workspace-sandbox exec abc123 --memory=2048 --max-procs=50 -- ./process-data.sh
 Execute a command synchronously and return output.
 
 ```
-workspace-sandbox exec <sandbox-id> [OPTIONS] -- <command> [args...]
+workspace-sandbox process exec <sandbox-id> [OPTIONS] -- <command> [args...]
 
 Options:
   --memory=<MB>        Memory limit in MB (0 = unlimited)
@@ -268,7 +268,7 @@ Options:
 Start a background process and return PID.
 
 ```
-workspace-sandbox run <sandbox-id> [OPTIONS] -- <command> [args...]
+workspace-sandbox process run <sandbox-id> [OPTIONS] -- <command> [args...]
 
 Options:
   --name=<NAME>        Friendly name for the process
@@ -288,7 +288,7 @@ Options:
 List processes in a sandbox.
 
 ```
-workspace-sandbox processes <sandbox-id> [OPTIONS]
+workspace-sandbox process list <sandbox-id> [OPTIONS]
 
 Options:
   --running            Only show running processes
@@ -300,7 +300,7 @@ Options:
 Terminate processes in a sandbox.
 
 ```
-workspace-sandbox kill <sandbox-id> (--pid=<PID> | --all)
+workspace-sandbox process kill <sandbox-id> (--pid=<PID> | --all)
 
 Options:
   --pid=<PID>          Kill specific process by PID
@@ -312,12 +312,13 @@ Options:
 View or stream process logs.
 
 ```
-workspace-sandbox logs <sandbox-id> [OPTIONS]
+workspace-sandbox process logs <sandbox-id> [OPTIONS]
 
 Options:
   --pid=<PID>          View logs for specific process (omit to list all)
   --follow, -f         Stream logs in real-time
   --tail=<N>           Show last N lines (default: all)
+  --stream=<STREAM>    Read stdout (default) or stderr
   --json               Output as JSON
 ```
 
@@ -325,16 +326,16 @@ Options:
 
 ```bash
 # List all logs for a sandbox
-workspace-sandbox logs abc123
+workspace-sandbox process logs abc123
 
 # View specific process logs
-workspace-sandbox logs abc123 --pid=12345
+workspace-sandbox process logs abc123 --pid=12345 --stream=stdout
 
 # Follow logs in real-time
-workspace-sandbox logs abc123 --pid=12345 --follow
+workspace-sandbox process logs abc123 --pid=12345 --stream=stderr --follow
 
 # Show last 50 lines
-workspace-sandbox logs abc123 --pid=12345 --tail=50
+workspace-sandbox process logs abc123 --pid=12345 --stream=stdout --tail=50
 ```
 
 ### shell
@@ -342,7 +343,7 @@ workspace-sandbox logs abc123 --pid=12345 --tail=50
 Open an interactive shell in the sandbox.
 
 ```
-workspace-sandbox shell <sandbox-id> [OPTIONS]
+workspace-sandbox process shell <sandbox-id> [OPTIONS]
 
 Options:
   --memory=<MB>        Memory limit in MB (0 = unlimited)
@@ -354,13 +355,13 @@ Options:
 
 ```bash
 # Open default shell
-workspace-sandbox shell abc123
+workspace-sandbox process shell abc123
 
 # Shell with Vrooli CLI access
-workspace-sandbox shell abc123 --vrooli-aware
+workspace-sandbox process shell abc123 --vrooli-aware
 
 # Memory-limited shell
-workspace-sandbox shell abc123 --memory=512
+workspace-sandbox process shell abc123 --memory=512
 ```
 
 ### attach
@@ -368,7 +369,7 @@ workspace-sandbox shell abc123 --memory=512
 Run a command interactively with full PTY support.
 
 ```
-workspace-sandbox attach <sandbox-id> [OPTIONS] -- <command> [args...]
+workspace-sandbox process attach <sandbox-id> [OPTIONS] -- <command> [args...]
 
 Options:
   --memory=<MB>        Memory limit in MB (0 = unlimited)
@@ -380,16 +381,16 @@ Options:
 
 ```bash
 # Python REPL
-workspace-sandbox attach abc123 -- python
+workspace-sandbox process attach abc123 -- python
 
 # Node.js REPL
-workspace-sandbox attach abc123 -- node
+workspace-sandbox process attach abc123 -- node
 
 # Edit file with vim
-workspace-sandbox attach abc123 -- vim myfile.py
+workspace-sandbox process attach abc123 -- vim myfile.py
 
 # Interactive tool with Vrooli access
-workspace-sandbox attach abc123 --vrooli-aware -- htop
+workspace-sandbox process attach abc123 --vrooli-aware -- htop
 ```
 
 ## API Reference
@@ -559,7 +560,7 @@ GET /api/v1/sandboxes/{id}/logs
 sandbox_id=$(workspace-sandbox create --scope=/home/user/myproject --json | jq -r '.id')
 
 # Run build with resource limits
-workspace-sandbox exec $sandbox_id --memory=1024 --timeout=300 -- npm run build
+workspace-sandbox process exec $sandbox_id --memory=1024 --timeout=300 -- npm run build
 
 # Check the diff
 workspace-sandbox diff $sandbox_id
@@ -575,17 +576,17 @@ workspace-sandbox approve $sandbox_id -m "Build artifacts"
 sandbox_id=$(workspace-sandbox create --scope=/home/user/myproject --json | jq -r '.id')
 
 # Start agent in background
-workspace-sandbox run $sandbox_id --name=code-agent --memory=2048 -- \
+workspace-sandbox process run $sandbox_id --name=code-agent --memory=2048 -- \
   python agent.py --task "refactor authentication"
 
 # Monitor progress
-workspace-sandbox logs $sandbox_id --follow
+workspace-sandbox process logs $sandbox_id --follow
 
 # Check agent's changes
 workspace-sandbox diff $sandbox_id
 
 # Stop agent when done
-workspace-sandbox kill $sandbox_id --all
+workspace-sandbox process kill $sandbox_id --all
 
 # Review and approve changes
 workspace-sandbox approve $sandbox_id -m "Agent refactoring"
@@ -598,11 +599,11 @@ workspace-sandbox approve $sandbox_id -m "Agent refactoring"
 sandbox_id=$(workspace-sandbox create --scope=/home/user/myproject --json | jq -r '.id')
 
 # Run command that uses other Vrooli CLIs
-workspace-sandbox exec $sandbox_id --vrooli-aware --network -- \
+workspace-sandbox process exec $sandbox_id --vrooli-aware --network -- \
   visited-tracker add "localhost:8080"
 
 # Check status of another scenario
-workspace-sandbox exec $sandbox_id --vrooli-aware -- \
+workspace-sandbox process exec $sandbox_id --vrooli-aware -- \
   scenario-manager status api-server
 ```
 
@@ -641,7 +642,7 @@ workspace-sandbox exec $sandbox_id --vrooli-aware -- \
 
 **Solutions:**
 1. Ensure process is writing to stdout/stderr (not a file directly)
-2. Check process is actually running: `workspace-sandbox processes <sandbox-id> --running`
+2. Check process is actually running: `workspace-sandbox process list <sandbox-id> --running`
 3. Some processes buffer output - try adding flush or unbuffered mode
 
 ### Process Not Found After Start
@@ -650,8 +651,23 @@ workspace-sandbox exec $sandbox_id --vrooli-aware -- \
 
 **Solutions:**
 1. Process may have exited immediately - check `processes` without `--running`
-2. Check logs for startup errors: `workspace-sandbox logs <sandbox-id> --pid=<PID>`
+2. Check logs for startup errors: `workspace-sandbox process logs <sandbox-id> --pid=<PID>`
 3. Verify command path is correct and executable exists in sandbox
+
+## Companion services (F7)
+
+Sandbox companion services are declared per sandbox. The current API stores a complete, versioned declaration in sandbox metadata and records a declaration audit event:
+
+```http
+PUT /api/v1/sandboxes/{id}/companion-services
+Content-Type: application/json
+
+{"services":[{"name":"crm","kind":"http-mock","version":"1.0.0","options":{"fixture":"contacts-v1"}}]}
+```
+
+Read the declaration with `GET /api/v1/sandboxes/{id}/companion-services`. The declaration accepts at most 16 named services. Supported kinds are `postgres`, `redis`, and `http-mock`; versions must be pinned numeric versions. Options use per-kind allowlists. The API rejects images, commands, host paths, credentials, and arbitrary network destinations.
+
+Start and stop a declared service with `POST /api/v1/sandboxes/{id}/companion-services/{name}/start` and `/stop`. These routes return `503` until a concrete isolated runtime provider is configured. Do not interpret a stored declaration as a running service. F7 must add task-scoped lifecycle and cleanup. A companion container must start with no network (`--network none` or an equivalent) and must not join Docker default bridge or any egress-capable network; the n8n resource owner validates its Workspace Sandbox UUID/runtime/declaration labels and attaches only that companion to its task-owned `--internal` network. The provider must not claim this isolation until that end-to-end path is wired and tested.
 
 ## See Also
 

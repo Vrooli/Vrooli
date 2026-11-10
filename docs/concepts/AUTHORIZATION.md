@@ -337,15 +337,31 @@ vrooli agent revoke-authorization <session-or-run> \
 ```
 
 Every command that refuses an agent for lack of authority names the request
-command in its refusal (`request_authority` in Agent Manager's 403 body). The
-commands that record an operator decision — run review (`run approve`,
+command in its refusal. The shared owner is `authn.RequireOperation`: the error it
+returns to an agent is an `authn.OperationRefusal` (still `errors.Is(err,
+authn.ErrOperation)`) carrying the operation, the target, the narrowest reviewed
+policy that grants that operation and the ready-to-run
+`vrooli agent authorize … --policy <policy> --target <target>` command, so every
+scenario that calls it inherits the text. Agent Manager's 403 bodies also carry it as
+`request_authority`, and the CLIs print it. `--approval-base` is added when the
+refusing process is configured with `AGENT_MANAGER_AUTHORIZATION_URL`; otherwise
+`vrooli agent authorize` resolves Agent Manager's public HTTPS origin itself. An
+operation no reviewed policy covers says so instead of offering a request. When a
+live session cannot be proved (`live launcher session binding is unavailable`), the
+refusal names the failing proof step and what to do next.
+
+The commands that record an operator decision — run review (`run approve`,
 `run reject`), an investigation's approved recommendations
 (`run apply-investigation`) and workspace-sandbox's review result
-(`run sandbox-sync`) — have no agent grant: the decision is the operator's. Run
-review and a waiting investigation raise their decision in the operator's inbox
-themselves (`agent_manager.run.decision_requested.v1`,
-`agent_manager.investigation.decision_requested.v1`); sandbox-sync is the
-workspace-sandbox callback that records a review result.
+(`run sandbox-sync`) — have no agent grant: the decision is the operator's. A
+sandboxed run held for manual review (`approval_state` pending) and a waiting
+investigation raise their decision in the operator's inbox themselves
+(`agent_manager.run.decision_requested.v1`,
+`agent_manager.investigation.decision_requested.v1`); a run that reached
+`needs_review` another way (for example an in-place run whose completion could not
+be verified, `approval_state` none) raises none, so there is nothing for the
+operator's agent to hand over. sandbox-sync is the workspace-sandbox callback that
+records a review result.
 
 Agent Manager's additional grant requirements for verified agent operations are
 operator-configurable in **Settings → Orchestration → Operation permissions**
@@ -360,16 +376,26 @@ Reviewed policies (`authn.InteractivePolicy`):
 | Policy | Operations | Typical target |
 |---|---|---|
 | `swarm-bookkeeping` | `swarm.bookkeeping` | `swarm-manager:*` |
+| `run-creation` | `run.create` (bounded unattended/service run creation) | `agent-manager:*` |
 | `agent-investigation` | `agent.investigate` | `agent-manager:*` |
-| `agent-management` | `agent.investigate`, `agent.manage` (stop, stop-by-tag, continue, wake, recover a named run; `stop-all` only when the target covers every run) | `agent-manager:run/<id>`; `agent-manager:run/*` for `stop-all` |
+| `agent-management` | `agent.investigate`, `agent.manage` (stop, stop-by-tag, continue, wake, recover a named run, cancel or update a named task; `stop-all` only when the target covers every run) | `agent-manager:run/<id>`, `agent-manager:task/<id>`; `agent-manager:run/*` for `stop-all` |
 | `run-deletion` | `run.delete` (permanently delete a named run; never run review) | `agent-manager:run/<id>` or `agent-manager:run/*` |
-| `effort-metadata` | `effort.reconcile` (owner-facing effort metadata only, such as the goal home) | `agent-manager:effort/<name>` |
-| `delivery-management` | `effort.delivery` (start, pause, resume or stop the commission of an existing effort) | `agent-manager:effort/<name>` |
+| `team-preparation` | `team.prepare` (disabled, undispatched draft revisions only) | `prompt-manager:team/<id>` |
 | `team-management` | `team.manage` (team and membership owner mutations) | `prompt-manager:team/<id>` |
 | `prompt-agent-creation` | `agent.create` (create one catalog entity only) | `prompt-manager:agent/<id>` |
+| `effort-metadata` | `effort.reconcile` (owner-facing effort metadata only, such as the goal home) | `agent-manager:effort/<name>` |
+| `delivery-management` | `effort.delivery` (start, pause, resume or stop the commission of an existing effort) | `agent-manager:effort/<name>` |
+| `notification-sending` | `notification.send` (to an explicitly approved recipient only) | `notification-hub:recipient/<subject>` |
+| `notification-decision-asking` | `notification.ask` (create a decision for an approved recipient only) | `notification-hub:recipient/<subject>` |
 | `deployment-operations` | `deployment.manage` | `deployment-manager:*`, `scenario-to-cloud:*` |
 | `nutrition-management` | `nutrition.manage` | `nutrition-planner:*` |
-| `run-creation` | `run.create` (bounded unattended/service run creation) | `agent-manager:*` |
+| `treasury-spending` | `treasury.spend` (the signed mandate, amount, recipient and kill switch still apply) | an explicit `treasury:` target naming the exact authorized spend |
+| `treasury-wallet-reading` | `treasury.read` (the derived wallet) | an explicit `treasury:` target |
+
+The catalogue behind this table is `authn.InteractivePolicy` (`packages/api-core/authn`).
+A test fails when this table and the catalogue disagree. The same catalogue maps a
+refused operation back to the policy that grants it, which is how every refusal
+names its request command.
 
 An exact `team.manage` grant also permits the target-scoped `GetTeam` read needed
 to prepare management of that same team. It does not grant team listing or broaden

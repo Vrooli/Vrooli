@@ -1,8 +1,8 @@
 # Agent sessions: leases, owners, the list, reaping, claims, freezing and thawing
 
-Every coding-agent session launched through the control plane is born inside
-a ceiling, records what it belongs to, and stays visible for as long as it
-lives. This page names the pieces and the commands that read and act on them.
+The control-plane launcher attempts to contain each coding-agent session,
+record what it belongs to, and keep it visible for as long as it lives.
+Containment and recording remain fail-open when their native owners are unavailable. This page names the pieces and the commands that read and act on them.
 
 ## The editor lease
 
@@ -41,6 +41,44 @@ its owner is confirmed gone.
 
 A registry that cannot be opened never blocks a launch: the session runs
 unrecorded and the launcher says so (`LeaseRecorded: false`).
+
+### Containment provenance
+
+Schema 16 adds `runtime_editor_lease_bindings`. Each new supported launch attempt
+has its own binding ID, creation time and observed launcher PID, UID, boot ID and
+process start stamp. The session lease's `created_at` remains the original session
+time and must not substitute for the binding's incarnation. `lease.scope` remains
+the intended stable unit name for existing readers, not proof of containment.
+
+The binding starts `intended`. Only a successful native before-exec observation
+can transition it once to `established`, recording the actual cgroup reference,
+method and contained process incarnation. Spawn records this before waiting for
+the child, and exec records it before replacing the launcher. Failed setup is
+`failed`; missing or insufficient native evidence is `unavailable`. A returned
+scope after a failed start, an inferred vanished scope, a post-start root-only
+cgroup move and a process group without equivalent native proof do not establish
+descendant containment. The native recorder verifies the exact observed process
+still occupies the intended cgroup before recording successful evidence.
+
+Exec-to-spawn fallback creates a separate binding. Rebinding atomically marks the
+prior attempt `superseded`, while stop or expiry marks the current attempt
+`terminal`; both preserve its evidence. Binding-fenced heartbeats, stops and late
+containment callbacks cannot change a replacement attempt. These states describe
+recording lifetime, not proof that every descendant exited. Historical leases and
+unsupported incarnation observations remain without provenance. Reads, migrations
+and owner backfill never fabricate it, and an absent leader plus a missing planned
+scope is not by itself proof of descendant absence.
+
+The schema 15→16 migration is additive and leaves old binding IDs empty. A
+pre-16 control-plane binary refuses a migrated registry with a typed
+`SchemaCompatibilityError`, including when opened read-only. An additive schema
+is therefore not a rolling-reader compatibility guarantee: activating this
+version against the real registry requires coordinating those older binaries.
+An older process that already opened the database also retains its original SQL;
+its session-only updates are not retroactively fenced by this source change.
+Current legacy heartbeat and stop calls affect only rows with an empty binding ID.
+The isolated tests exercise upgrade and reader refusal; they do not migrate the
+operator's registry.
 
 ## The owner
 

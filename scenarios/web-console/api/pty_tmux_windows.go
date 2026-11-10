@@ -41,6 +41,7 @@ func tmuxPTYFactory(pty.LaunchSpec) (pty.PTY, error) { return nil, pty.ErrUnsupp
 func tmuxAttach(string) (*tmuxPTY, error)            { return nil, pty.ErrUnsupported }
 func tmuxAttachAsPTY(string) (pty.PTY, error)        { return nil, pty.ErrUnsupported }
 func DiscoverTmuxSessions() ([]string, error)        { return nil, nil }
+func reconcileTmuxGlobalEnvironment()                {}
 func refreshTmuxOptions(string)                      {}
 func tmuxCmd(args ...string) *exec.Cmd               { return exec.Command("tmux", args...) }
 func applyTmuxOptions(string, bool)                  {}

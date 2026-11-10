@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vrooli/envkit-go"
 	platform "github.com/vrooli/platform-go"
 	"web-console/backends/claude"
 	"web-console/backends/codex"
@@ -167,6 +168,7 @@ var serviceEnvVars = map[string]struct{}{
 	"VROOLI_SCENARIO":             {},
 	"VROOLI_STEP":                 {},
 	"VROOLI_PHASE":                {},
+	"LIFECYCLE_PHASE":             {},
 	// Instance identity belongs to this web-console instance. A shell in a
 	// presentation instance's terminal is not that instance, and a CLI that
 	// inherits these would resolve storage as if it were.
@@ -193,17 +195,32 @@ func filterServiceEnv(env []string) []string {
 	result := make([]string, 0, len(env))
 	for _, v := range env {
 		name, _, ok := strings.Cut(v, "=")
-		if ok {
-			if _, blocked := serviceEnvVars[name]; blocked {
-				continue
-			}
-			if _, agent := ambientAgentEnv[name]; agent {
-				continue
-			}
+		if ok && !terminalInheritsEnv(name) {
+			continue
 		}
 		result = append(result, v)
 	}
 	return result
+}
+
+// terminalInheritsEnv reports whether an operator terminal may inherit the
+// named variable from the web-console service. A terminal shell is a process
+// outside web-console, so the repository's envkit ForeignScenario boundary
+// applies, the same one lifecycle uses for every process it starts outside a
+// scenario. It drops relative identity (API_PORT, UI_PORT, SCENARIO_*,
+// VROOLI_SCENARIO*), caller-session plumbing (TMUX, Claude Code and Codex
+// session variables) and non-inheritable identity tokens. serviceEnvVars adds
+// web-console's own extras, and ambientAgentEnv adds cli-core's agent-context
+// keys. Per-session values (WC_WEB_CONSOLE_SESSION_ID, WC_SESSION_STATE_ROOT,
+// a per-session CODEX_HOME) are applied after this filter.
+func terminalInheritsEnv(name string) bool {
+	if _, blocked := serviceEnvVars[name]; blocked {
+		return false
+	}
+	if _, agent := ambientAgentEnv[name]; agent {
+		return false
+	}
+	return len(envkit.ForChild(envkit.Env{name + "=1"}, envkit.ForeignScenario)) == 1
 }
 
 // ambientAgentEnv is cli-core's canonical list of variables through which an

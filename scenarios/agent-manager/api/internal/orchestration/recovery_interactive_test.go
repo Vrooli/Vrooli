@@ -47,10 +47,13 @@ func TestStartInteractiveCodexTailerRefusesUnscopedRunState(t *testing.T) {
 // fakeInteractiveSessions is an in-memory webconsole.SessionController for
 // recovery tests: it reports whether a session is alive and records deletes.
 type fakeInteractiveSessions struct {
-	mu         sync.Mutex
-	alive      map[string]bool
-	getErr     error
-	getErrOnce bool
+	mu           sync.Mutex
+	alive        map[string]bool
+	getErr       error
+	getErrOnce   bool
+	nativeState  webconsole.NativeAgentState
+	nativeReason string
+	nativeErr    error
 }
 
 type retainedGoalReplayRunner struct{ *mocks.TranscriptReplayRunner }
@@ -137,6 +140,98 @@ func TestRecoverInteractiveConsumedGoalReconcilesDespiteAttachedTailer(t *testin
 	goalEvents, err = reconciler.events.Get(t.Context(), run.ID, event.GetOptions{AfterSequence: -1, EventTypes: []domain.RunEventType{domain.EventTypeGoalStatusChanged}})
 	if err != nil || len(goalEvents) != 1 {
 		t.Fatal("terminal recovery duplicated retained goal event", len(goalEvents), err)
+	}
+}
+
+func TestRecoverInteractiveReconcilesStaleDriverWhenNativeHarnessCannotBeProven(t *testing.T) {
+	sessions := newFakeInteractiveSessions("resolved-await-ui")
+	sessions.nativeState = webconsole.NativeAgentUnknown
+	sessions.nativeReason = "native owner unavailable"
+	reconciler, repos := newInteractiveRecoveryReconciler(t, sessions)
+	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
+		t.Fatal(err)
+	}
+	const nativeSessionID = "550e8400-e29b-41d4-a716-446655440000"
+	run := createInteractiveRecoveryRun(t, repos, "resolved-await-ui", filepath.Join(t.TempDir(), "unselected.jsonl"))
+	run.SessionID = nativeSessionID
+	run.IdentityTokenHash = "retained-identity-hash"
+	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
+	run.ResolvedConfig.Until = "finish assignment"
+	started := *run.StartedAt
+	invocation := started.Add(time.Second)
+	persistInteractiveInvocation(t, repos.Runs, run, invocation)
+	path := codexRecoveryTranscriptPath(t, reconciler, run, "resolved-await.jsonl")
+	body := fmt.Sprintf(
+		"{\"timestamp\":%q,\"type\":\"session_meta\",\"payload\":{\"id\":%q}}\n"+
+			"{\"timestamp\":%q,\"type\":\"event_msg\",\"payload\":{\"type\":\"user_message\",\"message\":\"await already resolved\"}}\n",
+		started.Add(2*time.Second).Format(time.RFC3339Nano), nativeSessionID,
+		invocation.Add(time.Minute).Format(time.RFC3339Nano),
+	)
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	run.TranscriptPath = path
+	run.TranscriptCursor = int64(len(body))
+	if err := repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+
+	registry := newInteractiveDriverRegistry()
+	reconciler.interactiveLiveDrivers = registry
+	driverCtx, driver := registry.register(context.Background(), run.ID)
+	go func() {
+		<-driverCtx.Done()
+		registry.finish(run.ID, driver)
+	}()
+	result, err := reconciler.RecoverRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatalf("RecoverRun: %v", err)
+	}
+	got, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusNeedsReview || got.TerminalClass != domain.RunTerminalClassInterruption || !strings.Contains(got.ErrorMsg, "native owner unavailable") {
+		t.Fatalf("lost native harness did not become truthful recoverable state: run=%+v result=%+v", got, result)
+	}
+	if got.WebConsoleSessionID != "resolved-await-ui" || got.SessionID != nativeSessionID || got.IdentityTokenHash != "retained-identity-hash" || !sessions.alive[got.WebConsoleSessionID] {
+		t.Fatalf("recovery changed session generation, identity, or PTY retention: run=%+v alive=%v", got, sessions.alive)
+	}
+	if registry.has(run.ID) {
+		t.Fatal("stale process-local driver still owns the reviewed run")
+	}
+}
+
+func TestRecoverInteractivePreservesProviderConfirmedBusyNativeDriver(t *testing.T) {
+	sessions := newFakeInteractiveSessions("busy-native-ui")
+	sessions.nativeState = webconsole.NativeAgentBusy
+	reconciler, repos := newInteractiveRecoveryReconciler(t, sessions)
+	if err := reconciler.runners.Register(&retainedGoalReplayRunner{mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)}); err != nil {
+		t.Fatal(err)
+	}
+	run := createInteractiveRecoveryRun(t, repos, "busy-native-ui", filepath.Join(t.TempDir(), "unselected.jsonl"))
+	run.SessionID = "550e8400-e29b-41d4-a716-446655440000"
+	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
+	run.ResolvedConfig.Until = "finish assignment"
+	persistInteractiveInvocation(t, repos.Runs, run, run.StartedAt.Add(time.Second))
+	registry := newInteractiveDriverRegistry()
+	reconciler.interactiveLiveDrivers = registry
+	driverCtx, driver := registry.register(context.Background(), run.ID)
+	defer func() {
+		registry.finish(run.ID, driver)
+	}()
+	result, err := reconciler.RecoverRun(t.Context(), run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := repos.Runs.Get(t.Context(), run.ID)
+	if err != nil || got.Status != domain.RunStatusRunning || result.Run.Status != domain.RunStatusRunning {
+		t.Fatalf("provider-confirmed busy agent was changed: run=%+v result=%+v err=%v", got, result, err)
+	}
+	select {
+	case <-driverCtx.Done():
+		t.Fatal("live busy native driver was cancelled")
+	default:
 	}
 }
 
@@ -644,6 +739,16 @@ func (f *fakeInteractiveSessions) GetSession(_ context.Context, id string) (webc
 	return webconsole.SessionInfo{}, webconsole.ErrSessionNotFound
 }
 
+func (f *fakeInteractiveSessions) ObserveNativeAgent(context.Context, string, string) (webconsole.NativeAgentObservation, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	state := f.nativeState
+	if state == "" {
+		state = webconsole.NativeAgentIdle
+	}
+	return webconsole.NativeAgentObservation{State: state, Reason: f.nativeReason}, f.nativeErr
+}
+
 func (f *fakeInteractiveSessions) ListSessions(context.Context) ([]webconsole.SessionInfo, error) {
 	return nil, nil
 }
@@ -662,6 +767,14 @@ func (f *fakeInteractiveSessions) SendCommand(context.Context, string, string, s
 
 func (f *fakeInteractiveSessions) SendPrompt(context.Context, string, string, string) (webconsole.PromptSubmission, error) {
 	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, nil
+}
+
+func (f *fakeInteractiveSessions) SendPromptForNativeSession(ctx context.Context, _, _, prompt, source string) (webconsole.PromptSubmission, error) {
+	return f.SendPrompt(ctx, "", prompt, source)
+}
+
+func (f *fakeInteractiveSessions) SendCommandForNativeSession(ctx context.Context, _, _, command, source string) (webconsole.PromptSubmission, error) {
+	return f.SendCommand(ctx, "", command, source)
 }
 func (f *fakeInteractiveSessions) Interrupt(context.Context, string, string) error { return nil }
 func (f *fakeInteractiveSessions) Screen(context.Context, string, bool) (string, error) {

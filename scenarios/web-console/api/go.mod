@@ -12,6 +12,7 @@ require (
 	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/binaryfetch v0.0.0
 	github.com/vrooli/cli-core v0.0.0
+	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/platform-go v0.0.0
 	github.com/vrooli/vrooli v3.2.0+incompatible
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
@@ -50,7 +51,6 @@ require (
 	github.com/mikelolasagasti/xz v1.0.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
 	github.com/vrooli/cliresolve v0.0.0 // indirect
-	github.com/vrooli/envkit-go v0.0.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/mod v0.41.0 // indirect
 )

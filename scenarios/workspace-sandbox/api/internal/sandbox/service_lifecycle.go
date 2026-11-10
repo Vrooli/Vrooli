@@ -185,7 +185,9 @@ func (s *Service) Stop(ctx context.Context, id uuid.UUID) (*types.Sandbox, error
 	}
 
 	now := s.clock.Now()
-	sandbox.Status = types.StatusStopped
+	if err := sandbox.TransitionStatus(types.StatusStopped); err != nil {
+		return nil, fmt.Errorf("cannot stop sandbox: %w", err)
+	}
 	sandbox.StoppedAt = &now
 
 	if err := s.repo.UpdateWithVersionCheck(ctx, sandbox, sandbox.Version); err != nil {
@@ -256,7 +258,10 @@ func (s *Service) Start(ctx context.Context, id uuid.UUID) (*types.Sandbox, erro
 	sandbox.HomeUpperDir = paths.HomeUpperDir
 	sandbox.HomeWorkDir = paths.HomeWorkDir
 	sandbox.HomeMergedDir = paths.HomeMergedDir
-	sandbox.Status = types.StatusActive
+	if err := sandbox.TransitionStatus(types.StatusActive); err != nil {
+		_ = s.driver.Unmount(ctx, sandbox)
+		return nil, fmt.Errorf("cannot start sandbox: %w", err)
+	}
 	sandbox.StoppedAt = nil
 	sandbox.LastUsedAt = s.clock.Now()
 
@@ -342,7 +347,9 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		// Delete is the lifecycle cleanup that follows. Just flip the
 		// sandbox status to Deleted (no re-snapshot, no archive
 		// mutation — the archive is immutable post-creation).
-		sandbox.Status = types.StatusDeleted
+		if err := sandbox.TransitionStatus(types.StatusDeleted); err != nil {
+			return fmt.Errorf("cannot mark sandbox deleted: %w", err)
+		}
 		sandbox.DeletedAt = &deletedAt
 		if err := s.repo.Update(ctx, sandbox); err != nil {
 			return fmt.Errorf("failed to update sandbox to deleted: %w", err)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/event"
+	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/invocationreadmodel"
 
 	"agent-manager/internal/adapters/runner"
@@ -46,9 +47,7 @@ func (r *Reconciler) recoverInteractiveRun(ctx context.Context, run *domain.Run,
 		return &RecoverResult{Run: run, Idempotent: true, Message: "interactive continuation or recovery owner is in flight"}, nil
 	}
 	defer r.interactiveRecoveryMu.Unlock()
-	if r.interactiveLiveDrivers != nil && r.interactiveLiveDrivers.has(run.ID) {
-		return &RecoverResult{Run: run, Idempotent: true, Message: "live interactive driver owns completion"}, nil
-	}
+	hasLiveDriver := r.interactiveLiveDrivers != nil && r.interactiveLiveDrivers.has(run.ID)
 	coord := r.interactiveCoordinator(interactiveContinuationRecoveryOptions(run))
 	if run.ResolvedConfig != nil && strings.TrimSpace(run.ResolvedConfig.Until) != "" {
 		joinCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
@@ -139,6 +138,44 @@ func (r *Reconciler) recoverInteractiveRun(ctx context.Context, run *domain.Run,
 		// A joined observer owned this run even for a read-triggered recovery call.
 		// Preserve that ownership when new work superseded historical completion.
 		allowTail = allowTail || hadTailer
+	}
+
+	// A process-local coordinator entry proves only that a Go goroutine was
+	// registered. It does not prove the native coding agent survived. For runs
+	// with a native completion goal, and whenever a local driver claims the run,
+	// require provider evidence tied to the exact retained Web Console session
+	// and native thread before preserving that entry as the completion owner.
+	if hasLiveDriver || (run.ResolvedConfig != nil && strings.TrimSpace(run.ResolvedConfig.Until) != "") {
+		observation := webconsole.NativeAgentObservation{State: webconsole.NativeAgentUnknown, Reason: "native liveness adapter is unavailable"}
+		var probeErr error
+		if probe, ok := r.sessions.(webconsole.NativeAgentProbe); ok {
+			observation, probeErr = probe.ObserveNativeAgent(ctx, run.WebConsoleSessionID, run.SessionID)
+		}
+		if observation.State == webconsole.NativeAgentIdle || observation.State == webconsole.NativeAgentBusy {
+			current, err := r.runs.Get(ctx, run.ID)
+			if err != nil {
+				return nil, err
+			}
+			if current == nil {
+				return nil, domain.NewNotFoundError("Run", run.ID)
+			}
+			run = current
+			if !run.Status.LivenessPolicy().ExpectsProcess {
+				return &RecoverResult{Run: run, Idempotent: true, Message: "interactive owner finalized while native liveness was checked"}, nil
+			}
+			if hasLiveDriver {
+				return &RecoverResult{Run: run, Idempotent: true, Message: "provider-confirmed native agent and live interactive driver own completion"}, nil
+			}
+		} else {
+			reason := strings.TrimSpace(observation.Reason)
+			if probeErr != nil {
+				reason = probeErr.Error()
+			}
+			if reason == "" {
+				reason = "provider did not prove the exact native thread live"
+			}
+			return r.recordInteractiveNativeLivenessFailure(ctx, run, reason)
+		}
 	}
 
 	// If a reattached tailer is already driving this run, do not re-drain or
@@ -271,6 +308,25 @@ func (r *Reconciler) reconcileCompletedInteractiveGoal(ctx context.Context, run 
 }
 
 func (r *Reconciler) retainInteractiveOnEvidenceUnavailable(ctx context.Context, run *domain.Run, coord *interactive.Coordinator, allowTail, hadTailer bool, evidenceMessage string) (*RecoverResult, error) {
+	if (r.interactiveLiveDrivers != nil && r.interactiveLiveDrivers.has(run.ID)) ||
+		(run.ResolvedConfig != nil && strings.TrimSpace(run.ResolvedConfig.Until) != "") {
+		observation := webconsole.NativeAgentObservation{State: webconsole.NativeAgentUnknown, Reason: "native liveness adapter is unavailable"}
+		if probe, ok := r.sessions.(webconsole.NativeAgentProbe); ok {
+			observed, err := probe.ObserveNativeAgent(ctx, run.WebConsoleSessionID, run.SessionID)
+			if err == nil {
+				observation = observed
+			} else {
+				observation.Reason = err.Error()
+			}
+		}
+		if observation.State != webconsole.NativeAgentIdle && observation.State != webconsole.NativeAgentBusy {
+			reason := strings.TrimSpace(observation.Reason)
+			if reason == "" {
+				reason = "provider did not prove the exact native thread live"
+			}
+			return r.recordInteractiveNativeLivenessFailure(ctx, run, reason)
+		}
+	}
 	alive, err := coord.VerifySession(ctx, run)
 	if err != nil {
 		if hadTailer {
@@ -291,6 +347,30 @@ func (r *Reconciler) retainInteractiveOnEvidenceUnavailable(ctx context.Context,
 		}
 	}
 	return &RecoverResult{Run: run, Message: evidenceMessage + "; web-console session remains present"}, nil
+}
+
+func (r *Reconciler) recordInteractiveNativeLivenessFailure(ctx context.Context, run *domain.Run, reason string) (*RecoverResult, error) {
+	if r.interactiveLiveDrivers != nil && r.interactiveLiveDrivers.has(run.ID) {
+		joinCtx, cancel := context.WithTimeout(ctx, 4*time.Second)
+		_, joinErr := r.interactiveLiveDrivers.cancelAndWaitContext(joinCtx, run.ID)
+		cancel()
+		if joinErr != nil {
+			return &RecoverResult{Run: run, Message: "native liveness is unknown and local driver drain is pending: " + joinErr.Error()}, nil
+		}
+	}
+	current, err := r.runs.Get(ctx, run.ID)
+	if err != nil {
+		return nil, err
+	}
+	if current == nil {
+		return nil, domain.NewNotFoundError("Run", run.ID)
+	}
+	if !current.Status.LivenessPolicy().ExpectsProcess {
+		return &RecoverResult{Run: current, Idempotent: true, Message: "interactive owner finalized while native liveness was reconciled"}, nil
+	}
+	return r.recordRecoveredInterruption(ctx, current, fmt.Sprintf(
+		"native agent liveness for Web Console session %s and thread %s is unknown; exact session and identity retained for recovery review: %s",
+		current.WebConsoleSessionID, current.SessionID, reason))
 }
 
 // drainInteractiveTranscript drains the run's on-disk transcript from the

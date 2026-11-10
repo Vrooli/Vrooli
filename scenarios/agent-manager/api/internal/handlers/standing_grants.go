@@ -161,7 +161,7 @@ func RegisterStandingGrants(r *mux.Router, admin StandingGrantAdmin) {
 func RegisterPromptManagerAdmissionDiagnostic(r *mux.Router, authority *StandingGrantAuthority) {
 	r.HandleFunc(promptManagerAdmissionDiagnosticPath, func(w http.ResponseWriter, r *http.Request) {
 		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.investigate", promptManagerAdmissionDiagnosticTarget); err != nil {
-			writeJSON(w, http.StatusForbidden, map[string]string{"error": "authorized investigation identity required"})
+			writeOperationRefusal(w, err, "authorized investigation identity required")
 			return
 		}
 		diagnostic, err := authority.diagnoseOperationWithRunDetails(r.Context(), promptManagerAdmissionDiagnosticSubject, "run.create", RunCreationTarget, true)

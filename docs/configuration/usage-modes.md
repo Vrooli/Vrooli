@@ -32,14 +32,9 @@ Location: `~/.vrooli/state/vrooli/usage-mode/mode.json`, resolved through `VROOL
       "source": "agent-manager",
       "until": { "kind": "window_reset", "provider": "openai", "window_minutes": 10080 },
       "expires_at": "2026-11-04T06:57:00Z",
-      "exempt_roles": ["code.fallback", "code.review"],
+      "exempt_roles": [],
       "runners": {
-        "codex": {
-          "model_map": { "gpt-6.1-terra": "gpt-6-luna" },
-          "session_model": "gpt-6-luna",
-          "effort": "",
-          "context_limit_tokens": 0
-        }
+        "codex": { "effort": "", "context_limit_tokens": 0 }
       }
     }
   ]
@@ -48,7 +43,9 @@ Location: `~/.vrooli/state/vrooli/usage-mode/mode.json`, resolved through `VROOL
 
 `until.kind` is `window_reset`, `time` or `off`. `off` modes have no `expires_at`. A `window_reset` mode stores the known reset time as `expires_at`. Agent Manager ends it sooner when a window resets early. If Agent Manager is down, the mode lasts until the stored time.
 
-`runners` holds concrete values computed when the mode starts, so readers never parse resource policies.
+`runners` holds intent only. A save mode stores the runner key and, when set, `effort`, `context_limit_tokens` and `override_model`. The models it lowers (`model_map`) and the lowered session model are read from the runner's `resources/<resource>/model-policy.json` (`usage_tiers`) every time the mode is applied, so a policy edit reaches active modes at once and nothing is copied. `exempt_roles` holds only the roles an operator added; the defaults and the policy's `usage_tiers.exempt_roles` are added when read.
+
+A mode written by an older version still has `model_map` and `session_model` stored. Those entries stay in force for the keys they name and the policy fills in the rest, so such a mode picks up a model added to the policy later (for example `gpt-6.1-sol`) without being restarted. End and restart it to follow policy edits to the entries it stores. A learn mode freezes its challenger in `learn.runners` on purpose, so the comparison does not move. If no policy file can be found or it is invalid, a mode applies what it stored and nothing else. The policy is found through `VROOLI_RESOURCE_ROOT`, `VROOLI_ROOT`, `PROJECT_ROOT`, `VROOLI_SOURCE_ROOT`, the launcher's repository root, then the working directory and its parents.
 
 ## Tier mapping
 
@@ -89,7 +86,7 @@ Environment variables are used because they don't persist and an explicit `--mod
 
 ### Codex settings at launch
 
-The launcher adds `-c model=`, `-c model_reasoning_effort=` and `-c model_auto_compact_token_limit=` for interactive sessions and `exec`. `-c model=` is added only when `config.toml` (under `CODEX_HOME` or `~/.codex`) sets no top-level `model` or sets one the mode lowers; an unreadable file means no change. An explicit model choice (`-m`, `-c model=`, `-c model_provider=`, `-p`/`--profile`, `--oss`) leaves the whole launch unchanged, effort and context limit included: Agent Manager runs always pass `-m`, so the shim never adds settings on top of a managed run, exempt roles included. `codex exec -o <file> resume` is a resume like `codex exec resume`. Other subcommands, including `resume` and `exec resume`, are unchanged. An explicit `-c` for the same key also wins. The shim carries no role or profile, so only global and runner-scoped modes reach it; role and profile scopes apply through Agent Manager runs. A mode's context limit is a number of tokens per runner. Claude ignores anything under 100k, so a smaller limit is raised to 100k (`ClaudeContextLimit` in the package) and the raise is stated wherever the limit is recorded. Claude launches with `--resume`, `-r`, `--continue` or `-c` are left alone, as is any variable the caller already set.
+The launcher adds `-c model=`, `-c model_reasoning_effort=` and `-c model_auto_compact_token_limit=` for interactive sessions and `exec`. `-c model=` is added only when `config.toml` (under `CODEX_HOME` or `~/.codex`) sets no top-level `model` or sets one the mode lowers; an unreadable file means no change. That top-level `model` is the policy's `interactive_default` written by `resource-codex settings apply`, so while a mode is active a new session on the default (Sol) starts on the mode's lower model (Luna), and with no mode it starts on the default. An explicit model choice (`-m`, `-c model=`, `-c model_provider=`, `-p`/`--profile`, `--oss`) leaves the whole launch unchanged, effort and context limit included: Agent Manager runs always pass `-m`, so the shim never adds settings on top of a managed run, exempt roles included. `codex exec -o <file> resume` is a resume like `codex exec resume`. Other subcommands, including `resume` and `exec resume`, are unchanged. An explicit `-c` for the same key also wins. The shim carries no role or profile, so only global and runner-scoped modes reach it; role and profile scopes apply through Agent Manager runs. A mode's context limit is a number of tokens per runner. Claude ignores anything under 100k, so a smaller limit is raised to 100k (`ClaudeContextLimit` in the package) and the raise is stated wherever the limit is recorded. Claude launches with `--resume`, `-r`, `--continue` or `-c` are left alone, as is any variable the caller already set.
 
 ## Context limits and compaction
 

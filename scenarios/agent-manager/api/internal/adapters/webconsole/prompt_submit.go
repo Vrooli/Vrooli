@@ -11,6 +11,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 	terminalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/terminal"
 )
 
@@ -25,6 +26,11 @@ var ErrCommandNotSubmitted = errors.New("command typed but not submitted: the co
 
 // ErrCommandMustBeSingleLine is returned when a command contains CR or LF.
 var ErrCommandMustBeSingleLine = errors.New("command must be a single line")
+
+var (
+	ErrNativeAgentUnknown = errors.New("native agent liveness is unavailable")
+	ErrNativeAgentBusy    = errors.New("native agent is still busy")
+)
 
 // PromptSubmission reports what SendPrompt could confirm about a submit.
 type PromptSubmission struct {
@@ -94,6 +100,95 @@ func (c *Client) SendCommand(ctx context.Context, sessionID, command, source str
 		return PromptSubmission{}, ErrCommandMustBeSingleLine
 	}
 	return c.submitComposerText(ctx, sessionID, command, source, false, "type command", ErrCommandNotSubmitted)
+}
+
+// ObserveNativeAgent requires exact Web Console session and native-thread
+// identity, then asks the native owner for current thread status. The current
+// portable native-state contract supports Codex app-server; every other or
+// unknown provider reports unknown instead of inferring liveness from a PTY.
+func (c *Client) ObserveNativeAgent(ctx context.Context, webConsoleSessionID, nativeSessionID string) (NativeAgentObservation, error) {
+	unknown := NativeAgentObservation{State: NativeAgentUnknown}
+	info, err := c.GetSession(ctx, webConsoleSessionID)
+	if err != nil {
+		return unknown, err
+	}
+	if info.ID != webConsoleSessionID {
+		unknown.Reason = "Web Console returned a different session generation"
+		return unknown, nil
+	}
+	if nativeSessionID == "" || info.NativeThreadID == "" || info.NativeThreadID != nativeSessionID {
+		unknown.Reason = "retained native thread does not match the current Web Console session binding"
+		return unknown, nil
+	}
+	if info.ControlMode != "native_capable" || info.LaunchMode != "codex_app_server" || info.NativeOwner == "" {
+		unknown.Reason = "native liveness is unsupported or not established for this provider"
+		return unknown, nil
+	}
+	unknown.Provider = "codex"
+	response, err := c.sessions.ReadNativeThreadState(ctx, connect.NewRequest(&sessionsv1.ReadNativeThreadStateRequest{
+		SessionId: webConsoleSessionID,
+		ThreadIds: []string{nativeSessionID},
+	}))
+	if err != nil {
+		unknown.Reason = "native thread state could not be read"
+		return unknown, fmt.Errorf("web-console native liveness: %w", err)
+	}
+	for _, thread := range response.Msg.GetThreads() {
+		if thread == nil || thread.GetThreadId() != nativeSessionID {
+			continue
+		}
+		switch thread.GetStatus() {
+		case "idle":
+			return NativeAgentObservation{State: NativeAgentIdle, Provider: "codex"}, nil
+		case "active":
+			return NativeAgentObservation{State: NativeAgentBusy, Provider: "codex"}, nil
+		default:
+			unknown.Reason = "native owner did not establish a live thread state"
+			return unknown, nil
+		}
+	}
+	unknown.Reason = "native owner returned no matching thread state"
+	return unknown, nil
+}
+
+// SendPromptForNativeSession refuses before PTY input unless the exact native
+// generation is proven live and idle. This prevents prompt prose falling
+// through to a shell after a coding harness exits.
+func (c *Client) SendPromptForNativeSession(ctx context.Context, webConsoleSessionID, nativeSessionID, prompt, source string) (PromptSubmission, error) {
+	if err := c.requireNativeIdle(ctx, webConsoleSessionID, nativeSessionID); err != nil {
+		return PromptSubmission{}, err
+	}
+	return c.submitComposerText(ctx, webConsoleSessionID, prompt, source, true, "paste prompt", ErrPromptNotSubmitted)
+}
+
+// SendCommandForNativeSession applies the same provider and generation gate to
+// native TUI commands such as goal recovery.
+func (c *Client) SendCommandForNativeSession(ctx context.Context, webConsoleSessionID, nativeSessionID, command, source string) (PromptSubmission, error) {
+	if strings.ContainsAny(command, "\r\n") || strings.TrimSpace(command) == "" {
+		return PromptSubmission{}, ErrCommandMustBeSingleLine
+	}
+	if err := c.requireNativeIdle(ctx, webConsoleSessionID, nativeSessionID); err != nil {
+		return PromptSubmission{}, err
+	}
+	return c.submitComposerText(ctx, webConsoleSessionID, command, source, false, "type command", ErrCommandNotSubmitted)
+}
+
+func (c *Client) requireNativeIdle(ctx context.Context, webConsoleSessionID, nativeSessionID string) error {
+	observation, err := c.ObserveNativeAgent(ctx, webConsoleSessionID, nativeSessionID)
+	if err != nil {
+		return err
+	}
+	switch observation.State {
+	case NativeAgentIdle:
+		return nil
+	case NativeAgentBusy:
+		return ErrNativeAgentBusy
+	default:
+		if observation.Reason == "" {
+			return ErrNativeAgentUnknown
+		}
+		return fmt.Errorf("%w: %s", ErrNativeAgentUnknown, observation.Reason)
+	}
 }
 
 func (c *Client) submitComposerText(ctx context.Context, sessionID, text, source string, isPaste bool, inputAction string, notSubmitted error) (PromptSubmission, error) {

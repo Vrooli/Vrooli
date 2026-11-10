@@ -974,13 +974,17 @@ func (c *Coordinator) scheduleInterruptionRecovery(parentCtx context.Context, ru
 		if ctx.Err() != nil {
 			return
 		}
+		sender, supported := c.deps.Sessions.(webconsole.NativeBoundPromptSender)
+		if !supported || strings.TrimSpace(current.SessionID) == "" {
+			return
+		}
 		if hasNativeGoal {
-			submission, err := c.deps.Sessions.SendCommand(ctx, current.WebConsoleSessionID, "/goal resume", interactiveSource(current))
+			submission, err := sender.SendCommandForNativeSession(ctx, current.WebConsoleSessionID, current.SessionID, "/goal resume", interactiveSource(current))
 			if err != nil || !submission.Verified {
 				return
 			}
 		} else {
-			submission, err := c.deps.Sessions.SendPrompt(ctx, current.WebConsoleSessionID, "continue", interactiveSource(current))
+			submission, err := sender.SendPromptForNativeSession(ctx, current.WebConsoleSessionID, current.SessionID, "continue", interactiveSource(current))
 			if err != nil || !submission.Verified {
 				return
 			}

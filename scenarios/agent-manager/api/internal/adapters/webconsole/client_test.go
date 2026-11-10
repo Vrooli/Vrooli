@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"google.golang.org/protobuf/proto"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -13,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"google.golang.org/protobuf/proto"
 
 	"connectrpc.com/connect"
 
@@ -38,6 +39,13 @@ type sessionTestServer struct {
 	fingerprint      string
 	wrongFingerprint bool
 	wrongOwner       bool
+	nativeThreadID   string
+	nativeControl    string
+	nativeLaunch     string
+	nativeOwner      string
+	nativeState      string
+	nativeStateErr   error
+	nativeStateReads int
 }
 
 func (s *sessionTestServer) List(_ context.Context, _ *connect.Request[sessionsv1.ListRequest]) (*connect.Response[sessionsv1.ListResponse], error) {
@@ -80,7 +88,23 @@ func (s *sessionTestServer) Get(_ context.Context, req *connect.Request[sessions
 	if s.wrongOwner {
 		owner = "unrelated"
 	}
-	return connect.NewResponse(&sessionsv1.GetResponse{Session: &sessionsv1.Session{Id: req.Msg.Id, Owner: owner, CreateFingerprint: fingerprint, Backend: "persistent", Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC, DisplayLabel: "drill", CreatedAt: s.getCreatedAt}}), nil
+	return connect.NewResponse(&sessionsv1.GetResponse{Session: &sessionsv1.Session{
+		Id: req.Msg.Id, Owner: owner, CreateFingerprint: fingerprint, Backend: "persistent",
+		Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC, DisplayLabel: "drill", CreatedAt: s.getCreatedAt,
+		NativeThreadId: s.nativeThreadID, ControlMode: s.nativeControl, LaunchMode: s.nativeLaunch, NativeOwner: s.nativeOwner,
+	}}), nil
+}
+
+func (s *sessionTestServer) ReadNativeThreadState(_ context.Context, req *connect.Request[sessionsv1.ReadNativeThreadStateRequest]) (*connect.Response[sessionsv1.ReadNativeThreadStateResponse], error) {
+	s.nativeStateReads++
+	if s.nativeStateErr != nil {
+		return nil, s.nativeStateErr
+	}
+	threads := make([]*sessionsv1.NativeThreadState, 0, len(req.Msg.GetThreadIds()))
+	for _, id := range req.Msg.GetThreadIds() {
+		threads = append(threads, &sessionsv1.NativeThreadState{ThreadId: id, Status: s.nativeState})
+	}
+	return connect.NewResponse(&sessionsv1.ReadNativeThreadStateResponse{Threads: threads}), nil
 }
 
 // Delete mirrors web-console's permanent-deletion guard. agent-manager must
@@ -246,6 +270,52 @@ func TestClientMaintainsInteractiveSessionContract(t *testing.T) {
 	}
 	if sessions.deleteCalls != 0 {
 		t.Fatalf("client reached permanent Delete %d times; agent-manager only archives", sessions.deleteCalls)
+	}
+}
+
+func TestBoundPromptRequiresExactLiveIdleNativeGenerationBeforeTerminalEffects(t *testing.T) {
+	const nativeSessionID = "550e8400-e29b-41d4-a716-446655440000"
+	for _, tc := range []struct {
+		name           string
+		nativeThreadID string
+		controlMode    string
+		launchMode     string
+		state          string
+		wantSend       bool
+		wantStateRead  bool
+	}{
+		{name: "live idle exact generation", nativeThreadID: nativeSessionID, controlMode: "native_capable", launchMode: "codex_app_server", state: "idle", wantSend: true, wantStateRead: true},
+		{name: "live busy harness", nativeThreadID: nativeSessionID, controlMode: "native_capable", launchMode: "codex_app_server", state: "active", wantStateRead: true},
+		{name: "absent thread metadata", controlMode: "native_capable", launchMode: "codex_app_server"},
+		{name: "generation changed", nativeThreadID: "550e8400-e29b-41d4-a716-446655440001", controlMode: "native_capable", launchMode: "codex_app_server"},
+		{name: "unknown provider mode", nativeThreadID: nativeSessionID, controlMode: "unknown", launchMode: "terminal_pty"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sessions := &sessionTestServer{
+				nativeThreadID: tc.nativeThreadID, nativeControl: tc.controlMode,
+				nativeLaunch: tc.launchMode, nativeOwner: "web-console:codex:test", nativeState: tc.state,
+			}
+			terminal := &terminalTestServer{composer: &scriptedComposer{}}
+			client := newWebConsoleTestClient(t, sessions, terminal)
+			client.wait = func(context.Context, time.Duration) error { return nil }
+			_, err := client.SendPromptForNativeSession(context.Background(), "web-session", nativeSessionID, "continue the objective", "agent-manager:run-test")
+			if tc.wantSend {
+				if err != nil {
+					t.Fatalf("bound prompt: %v", err)
+				}
+			} else if err == nil {
+				t.Fatal("prompt was accepted without exact live idle native evidence")
+			}
+			terminal.mu.Lock()
+			inputCount := len(terminal.inputs)
+			terminal.mu.Unlock()
+			if got := inputCount > 0; got != tc.wantSend {
+				t.Fatalf("terminal input effect=%t, want %t (count=%d)", got, tc.wantSend, inputCount)
+			}
+			if got := sessions.nativeStateReads > 0; got != tc.wantStateRead {
+				t.Fatalf("native state reads=%d, want-read=%t", sessions.nativeStateReads, tc.wantStateRead)
+			}
+		})
 	}
 }
 

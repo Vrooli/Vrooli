@@ -100,6 +100,9 @@ func (s *Service) snapshotAndTransitionWithExpectedPatch(
 	default:
 		return fmt.Errorf("sandbox.snapshotAndTransition: invalid terminal status %q", terminalStatus)
 	}
+	if !types.CanTransitionTo(sandbox.Status, terminalStatus) {
+		return &types.InvalidTransitionError{Current: sandbox.Status, Attempted: terminalStatus, Reason: "transition is not allowed"}
+	}
 
 	// Tests that don't wire the archive seam fall back to a plain status
 	// flip. Production always wires both via WithArchive in main.go.
@@ -113,7 +116,9 @@ func (s *Service) snapshotAndTransitionWithExpectedPatch(
 				return err
 			}
 		}
-		sandbox.Status = terminalStatus
+		if err := sandbox.TransitionStatus(terminalStatus); err != nil {
+			return err
+		}
 		if mutator != nil {
 			mutator(sandbox)
 		}
@@ -189,7 +194,9 @@ func (s *Service) snapshotAndTransitionWithExpectedPatch(
 		return fmt.Errorf("insert archive: %w", err)
 	}
 
-	sandbox.Status = terminalStatus
+	if err := sandbox.TransitionStatus(terminalStatus); err != nil {
+		return err
+	}
 	if mutator != nil {
 		mutator(sandbox)
 	}

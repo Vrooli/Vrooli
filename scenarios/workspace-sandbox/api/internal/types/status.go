@@ -6,6 +6,8 @@
 // The following diagram shows all valid status transitions:
 //
 //	CREATING ──success──► ACTIVE ──stop────► STOPPED ──start──► ACTIVE
+//	                                         │
+//	                                         └─heal failures─► ERROR
 //	    │                   │                  │
 //	    │ error             │ checkpoint       │ approve/reject/delete
 //	    ▼                   ▼                  ▼
@@ -32,7 +34,7 @@
 //
 //  1. Only Active sandboxes have a mounted overlay (MergedDir is valid)
 //  2. Terminal statuses cannot transition to other states
-//  3. All statuses can transition to Deleted (cleanup is always allowed)
+//  3. Every non-deleted status can transition to Deleted (cleanup is always allowed)
 //  4. Changes can only be approved/rejected from Active or Stopped
 package types
 
@@ -260,7 +262,7 @@ func CanGetWorkspacePath(status Status) error {
 var ValidTransitions = map[Status][]Status{
 	StatusCreating:      {StatusActive, StatusError, StatusDeleted},
 	StatusActive:        {StatusStopped, StatusCheckpointing, StatusApproved, StatusRejected, StatusError, StatusDeleted},
-	StatusStopped:       {StatusActive, StatusApproved, StatusRejected, StatusDeleted},
+	StatusStopped:       {StatusActive, StatusApproved, StatusRejected, StatusError, StatusDeleted},
 	StatusCheckpointing: {StatusCheckpointed, StatusActive, StatusError, StatusDeleted},
 	StatusCheckpointed:  {StatusActive, StatusRejected, StatusDeleted},
 	StatusApproved:      {StatusDeleted},
@@ -281,6 +283,28 @@ func CanTransitionTo(from, to Status) bool {
 		}
 	}
 	return false
+}
+
+// IsValid reports whether the status belongs to the persisted lifecycle.
+func (s Status) IsValid() bool {
+	_, exists := ValidTransitions[s]
+	return exists
+}
+
+// TransitionStatus is the single mutation owner for a sandbox lifecycle state.
+// Callers decide *when* an operation happens; this method enforces the graph.
+func (s *Sandbox) TransitionStatus(next Status) error {
+	if s == nil {
+		return fmt.Errorf("cannot transition a nil sandbox")
+	}
+	if !s.Status.IsValid() || !next.IsValid() {
+		return &InvalidTransitionError{Current: s.Status, Attempted: next, Reason: "unknown sandbox status"}
+	}
+	if !CanTransitionTo(s.Status, next) {
+		return &InvalidTransitionError{Current: s.Status, Attempted: next, Reason: "transition is not allowed"}
+	}
+	s.Status = next
+	return nil
 }
 
 // InvalidTransitionError indicates an invalid state transition was attempted.

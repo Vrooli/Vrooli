@@ -199,6 +199,33 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		if _, err := runCLI("agent-wallet", "--api-base", config.APIBaseURL, "budget", "agent-wallet", "--budget-id", config.BudgetID, "--json"); err != nil {
 			return nil, err
 		}
+		if _, err := runCLI("budget-headroom-before", "--api-base", config.APIBaseURL, "budget", "headroom", config.BudgetID, "--json"); err != nil {
+			return nil, err
+		}
+		readHeadroom := func(label string, expectedUsed, expectedRemaining int64) error {
+			data, readErr := os.ReadFile(filepath.Join(coord, label+".log"))
+			if readErr != nil {
+				return readErr
+			}
+			var response struct {
+				Headroom struct {
+					BudgetID            string `json:"budgetId"`
+					TotalCapMinor       string `json:"totalCapMinor"`
+					TotalUsedMinor      string `json:"totalUsedMinor"`
+					TotalRemainingMinor string `json:"totalRemainingMinor"`
+				} `json:"headroom"`
+			}
+			if err := json.Unmarshal(data, &response); err != nil {
+				return fmt.Errorf("decode run-owned headroom response: %w", err)
+			}
+			if response.Headroom.BudgetID != config.BudgetID || response.Headroom.TotalCapMinor != "1000" || response.Headroom.TotalUsedMinor != strconv.FormatInt(expectedUsed, 10) || response.Headroom.TotalRemainingMinor != strconv.FormatInt(expectedRemaining, 10) {
+				return fmt.Errorf("run-owned headroom %s did not match authorized spend ledger: %+v", label, response.Headroom)
+			}
+			return nil
+		}
+		if err := readHeadroom("budget-headroom-before", 0, 1000); err != nil {
+			return nil, err
+		}
 		if _, err := runCLI("authorization-propose", "--api-base", config.APIBaseURL, "authorization", "propose",
 			"--id", config.InCapAuthorization, "--idempotency-key", config.InCapIdempotency,
 			"--mandate-id", config.MandateID, "--amount-minor", strconv.FormatInt(config.InCapAmountMinor, 10),
@@ -210,16 +237,29 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		if err := write("authorization-ready.json", map[string]any{"authorization_id": config.InCapAuthorization, "cli_command": "authorization propose"}); err != nil {
 			return nil, err
 		}
+		if err := waitForFile(execCtx, filepath.Join(coord, "settle-release"), nil); err != nil {
+			return nil, err
+		}
+		// The harness writes the ordinary-run config before the run starts, then
+		// adds the Agent Manager operation-grant ID after approving the exact
+		// spend intent. Reload only after the release handshake so this runner
+		// observes the grant authorized for this spend.
+		if err := waitForFile(execCtx, configPath, &config); err != nil {
+			return nil, err
+		}
 		if config.InCapGrantID == "" {
 			return nil, errors.New("in-cap spend is missing its distinct Agent Manager operation grant")
 		}
-		if err := waitForFile(execCtx, filepath.Join(coord, "settle-release"), nil); err != nil {
+		if err := write("settle-release-observed.json", map[string]any{"observed": true}); err != nil {
 			return nil, err
 		}
 		if _, err := runCLI("settlement-report-altered-instrument", "--api-base", config.APIBaseURL, "settlement", "report-outcome",
 			"--authorization-id", config.InCapAuthorization, "--settlement-id", config.InCapSettlement,
 			"--instrument-id", config.InCapInstrumentID+"-altered", "--idempotency-key", config.InCapIdempotency+"-settlement", "--json"); err == nil {
 			return nil, errors.New("Treasury CLI accepted a settlement instrument that was not committed by the approved intent")
+		}
+		if err := write("altered-instrument-command-completed.json", map[string]any{"completed": true}); err != nil {
+			return nil, err
 		}
 		if err := write("altered-instrument-denied.json", map[string]any{
 			"authorization_id": config.InCapAuthorization, "expected_instrument_id": config.InCapInstrumentID,
@@ -233,6 +273,12 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 			return nil, err
 		}
 		if err := write("in-cap-settled.json", map[string]any{"authorization_id": config.InCapAuthorization, "settlement_id": config.InCapSettlement}); err != nil {
+			return nil, err
+		}
+		if _, err := runCLI("budget-headroom-after-in-cap", "--api-base", config.APIBaseURL, "budget", "headroom", config.BudgetID, "--json"); err != nil {
+			return nil, err
+		}
+		if err := readHeadroom("budget-headroom-after-in-cap", config.InCapAmountMinor, 1000-config.InCapAmountMinor); err != nil {
 			return nil, err
 		}
 		overCapTarget, overCapSettlementTarget := (cliutil.TreasurySpendIntent{
@@ -277,6 +323,12 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 			return nil, err
 		}
 		if err := write("over-cap-settled.json", map[string]any{"authorization_id": config.OverCapAuthorization, "settlement_id": config.OverCapSettlement}); err != nil {
+			return nil, err
+		}
+		if _, err := runCLI("budget-headroom-after-over-cap", "--api-base", config.APIBaseURL, "budget", "headroom", config.BudgetID, "--json"); err != nil {
+			return nil, err
+		}
+		if err := readHeadroom("budget-headroom-after-over-cap", config.InCapAmountMinor+config.OverCapAmountMinor, 1000-config.InCapAmountMinor-config.OverCapAmountMinor); err != nil {
 			return nil, err
 		}
 		if err := waitForFile(execCtx, filepath.Join(coord, "over-cap-retry-release"), nil); err != nil {
@@ -335,7 +387,7 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		}
 		result := map[string]any{
 			"run_id": request.RunID.String(), "profile_id": request.Profile.ID.String(), "task_id": request.Task.ID.String(),
-			"runner": string(request.ResolvedConfig.RunnerType), "cli_commands": []string{"budget agent-wallet", "authorization propose in-cap", "settlement report-outcome in-cap", "authorization propose over-cap", "settlement report-outcome over-cap", "same settlement retry after restart", "authorization propose while frozen"},
+			"runner": string(request.ResolvedConfig.RunnerType), "cli_commands": []string{"budget agent-wallet", "budget headroom before and after settlements", "authorization propose in-cap", "settlement report-outcome in-cap", "authorization propose over-cap", "settlement report-outcome over-cap", "same settlement retry after restart", "authorization propose while frozen"},
 			"session_private_key_injected": true, "identity_token_injected": true,
 			"per_spend_operation_grant_ids": []string{config.InCapGrantID, overCapGrantReceipt.GrantID, frozenGrantReceipt.GrantID},
 			"private_values_recorded":       false,
@@ -453,7 +505,7 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		RequiredTarget           string `json:"required_target"`
 		RequiredSettlementTarget string `json:"required_settlement_target"`
 	}
-	if err := waitForFile(ctx, filepath.Join(coord, "over-cap-operation-grant-requested.json"), &overCapGrantRequest); err != nil {
+	if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "over-cap-operation-grant-requested.json"), &overCapGrantRequest); err != nil {
 		t.Fatalf("Treasury CLI did not request its second exact intent grant: %v", err)
 	}
 	if overCapGrantRequest.AuthorizationID != overCapAuthorizationID || overCapGrantRequest.AmountMinor != 110 || overCapGrantRequest.RequiredTarget != overCapTarget || overCapGrantRequest.RequiredSettlementTarget != overCapSettlementTarget {
@@ -584,6 +636,32 @@ func waitForFile(ctx context.Context, path string, output any) error {
 		}
 		if !errors.Is(err, os.ErrNotExist) {
 			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+}
+
+func waitForFileOrRunTerminal(ctx context.Context, service *orchestration.Orchestrator, runID uuid.UUID, path string, output any) error {
+	for {
+		data, err := os.ReadFile(path)
+		if err == nil {
+			if output != nil {
+				if err := json.Unmarshal(data, output); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		run, runErr := service.GetStoredRun(ctx, runID)
+		if runErr == nil && run.Status.IsTerminal() {
+			return fmt.Errorf("Agent Manager run became terminal before writing %s: status=%s error=%s", filepath.Base(path), run.Status, run.ErrorMsg)
 		}
 		select {
 		case <-ctx.Done():

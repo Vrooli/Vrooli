@@ -46,6 +46,10 @@ type recordingSessions struct {
 	// promptResult overrides the default verified single-Enter submission.
 	promptResult *webconsole.PromptSubmission
 	shellScreen  string
+	nativeState  webconsole.NativeAgentState
+	nativeReason string
+	nativeErr    error
+	nativeReads  int
 }
 
 type legacyOnlyIdempotency struct {
@@ -93,6 +97,25 @@ func (r *recordingSessions) GetSession(_ context.Context, id string) (webconsole
 		return webconsole.SessionInfo{}, webconsole.ErrSessionNotFound
 	}
 	return webconsole.SessionInfo{ID: id, Owner: webconsole.OwnerAgentManager}, nil
+}
+
+func (r *recordingSessions) ObserveNativeAgent(context.Context, string, string) (webconsole.NativeAgentObservation, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.nativeReads++
+	state := r.nativeState
+	if state == "" {
+		state = webconsole.NativeAgentIdle
+	}
+	return webconsole.NativeAgentObservation{State: state, Reason: r.nativeReason}, r.nativeErr
+}
+
+func (r *recordingSessions) SendPromptForNativeSession(ctx context.Context, sessionID, _, prompt, source string) (webconsole.PromptSubmission, error) {
+	return r.SendPrompt(ctx, sessionID, prompt, source)
+}
+
+func (r *recordingSessions) SendCommandForNativeSession(ctx context.Context, sessionID, _, command, source string) (webconsole.PromptSubmission, error) {
+	return r.SendCommand(ctx, sessionID, command, source)
 }
 
 func (r *recordingSessions) ListSessions(context.Context) ([]webconsole.SessionInfo, error) {
@@ -758,6 +781,46 @@ func TestContinueInteractiveRun_RoutesToSendPromptNeverRespawn(t *testing.T) {
 	}
 }
 
+func TestContinueInteractiveRunRefusesBeforeEffectsWithoutLiveIdleNativeAgent(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		state    webconsole.NativeAgentState
+		probeErr error
+	}{
+		{name: "live PTY with absent harness", state: webconsole.NativeAgentUnknown, probeErr: nil},
+		{name: "provider reports busy native agent", state: webconsole.NativeAgentBusy},
+		{name: "provider liveness unavailable", state: webconsole.NativeAgentUnknown, probeErr: errors.New("native owner unavailable")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repos, _, cleanup := testutil.SetupTestRepos(t)
+			t.Cleanup(cleanup)
+			sessions := newRecordingSessions()
+			sessions.nativeState = tc.state
+			sessions.nativeErr = tc.probeErr
+			svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithRunStateRoot(t.TempDir()))
+			task := interactiveTestTask(t, svc)
+			run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusComplete, "native-generation-1", "web-generation-1")
+			before := *run
+			_, err := svc.ContinueRun(context.Background(), ContinueRunRequest{RunID: run.ID, Message: "continue the existing goal", IdempotencyKey: "unknown-native-proof"})
+			if err == nil || !domain.IsPreEffectRefusal(err) {
+				t.Fatalf("continuation error=%v, want pre-effect native liveness refusal", err)
+			}
+			after, readErr := repos.Runs.Get(context.Background(), run.ID)
+			if readErr != nil {
+				t.Fatal(readErr)
+			}
+			if after.Status != before.Status || after.InteractiveInvocationStartedAt != nil || after.SessionID != before.SessionID || after.WebConsoleSessionID != before.WebConsoleSessionID {
+				t.Fatalf("refusal changed durable run binding or invocation: before=%+v after=%+v", before, after)
+			}
+			for _, call := range sessions.callLog() {
+				if call == "sendprompt" || call == "sendcommand" || call == "create" {
+					t.Fatalf("refusal caused prompt/session effect %q: %v", call, sessions.callLog())
+				}
+			}
+		})
+	}
+}
+
 type nativeObjectiveReplayRunner struct {
 	runner.Runner
 	capabilities runner.Capabilities
@@ -939,6 +1002,98 @@ func TestContinueInteractiveRun_ClosesBoundedFollowupAfterBlockedGoalWithoutChan
 		select {
 		case <-deadline.C:
 			t.Fatalf("blocked-goal report follow-up did not close; status=%s error=%q stop=%s cursor=%d", got.Status, got.ErrorMsg, got.StopReason, got.TranscriptCursor)
+		case <-tick.C:
+		}
+	}
+}
+
+func TestContinueInteractiveRunClearsPriorTerminalProjectionUntilCurrentInvocationFinishes(t *testing.T) {
+	ctx := context.Background()
+	runs, sessions, svc, run := setupNativeGoalContinuation(t, "report the current lifecycle result", false)
+	priorEnd := time.Date(2026, 11, 10, 17, 15, 2, 0, time.UTC)
+	run.EndedAt = &priorEnd
+	run.Result = &domain.RunResult{FinalOutput: "pre-rebaseline blocked result", Success: false, TerminalReason: "goal_blocked"}
+	run.Summary = &domain.RunSummary{Description: "pre-rebaseline blocked result"}
+	run.StopReason = domain.RunStopReasonBlocked
+	run.TerminalClass = domain.RunTerminalClassVerdict
+	if err := runs.Update(ctx, run); err != nil {
+		t.Fatalf("seed historical terminal projection: %v", err)
+	}
+	if err := svc.events.Append(ctx, run.ID, domain.NewGoalStatusChangedEvent(run.ID, run.ResolvedConfig.Until, string(runner.GoalStatusBlocked), 1, "prior invocation blocked")); err != nil {
+		t.Fatalf("record historical blocked goal: %v", err)
+	}
+
+	enteredPrompt := make(chan struct{})
+	allowPrompt := make(chan struct{})
+	sessions.onPrompt = func() {
+		close(enteredPrompt)
+		<-allowPrompt
+	}
+	continuedCh := make(chan error, 1)
+	go func() {
+		_, err := svc.ContinueRun(ctx, ContinueRunRequest{RunID: run.ID, Message: "report the current lifecycle result"})
+		continuedCh <- err
+	}()
+	select {
+	case <-enteredPrompt:
+	case <-time.After(3 * time.Second):
+		t.Fatal("continuation did not reach prompt delivery")
+	}
+	active, err := svc.GetRun(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if active.Status != domain.RunStatusRunning || active.EndedAt != nil || active.Result != nil || active.Summary != nil || active.StopReason != "" || active.TerminalClass != "" {
+		t.Fatalf("new active invocation still carries prior terminal projection: status=%s ended=%v result=%+v summary=%+v stop=%q class=%q", active.Status, active.EndedAt, active.Result, active.Summary, active.StopReason, active.TerminalClass)
+	}
+	if active.InteractiveInvocationStartedAt == nil || !active.InteractiveInvocationStartedAt.After(priorEnd) {
+		t.Fatalf("new invocation fence was not advanced beyond prior terminal: %+v", active.InteractiveInvocationStartedAt)
+	}
+	if active.ObservedGoalStatus != string(runner.GoalStatusBlocked) {
+		t.Fatalf("historical goal verdict was erased instead of retained as history: %q", active.ObservedGoalStatus)
+	}
+
+	file, err := os.OpenFile(run.TranscriptPath, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := file.WriteString("done:post-rebaseline current invocation result\n"); err != nil {
+		_ = file.Close()
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	close(allowPrompt)
+	select {
+	case err := <-continuedCh:
+		if err != nil {
+			t.Fatalf("ContinueRun: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("ContinueRun did not return after prompt delivery")
+	}
+	deadline := time.NewTimer(8 * time.Second)
+	defer deadline.Stop()
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		current, err := svc.GetRun(ctx, run.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if current.Status == domain.RunStatusComplete {
+			if current.Result == nil || current.Result.TerminalReason != "completed_goal_continuation" || current.Result.FinalOutput == "pre-rebaseline blocked result" {
+				t.Fatalf("current invocation inherited historical final result: %+v", current.Result)
+			}
+			if current.ObservedGoalStatus != string(runner.GoalStatusBlocked) {
+				t.Fatalf("current completion rewrote historical goal verdict: %q", current.ObservedGoalStatus)
+			}
+			return
+		}
+		select {
+		case <-deadline.C:
+			t.Fatalf("current invocation failed to complete: status=%s result=%+v", current.Status, current.Result)
 		case <-tick.C:
 		}
 	}

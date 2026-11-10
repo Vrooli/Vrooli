@@ -321,6 +321,7 @@ func NewServer() (*Server, error) {
 	h := &handlers.Handlers{
 		ProviderIncarnationID: uuid.NewString(),
 		Service:               svc,
+		CompanionStore:        repo,
 		DriverSlot:            driverSlot,
 		DB:                    db,
 		Config:                cfg,

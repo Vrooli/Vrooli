@@ -9,10 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -110,6 +107,9 @@ type usageModeStartRequest struct {
 }
 
 type usageModePolicy struct {
+	InteractiveDefault struct {
+		Model string `json:"model"`
+	} `json:"interactive_default"`
 	Roles map[string]struct {
 		Model string `json:"model"`
 	} `json:"roles"`
@@ -121,35 +121,13 @@ func (s *Server) mountUsageMode() {
 	s.router.HandleFunc("/api/v1/usage-mode/end", s.handleUsageModeEnd).Methods(http.MethodPost)
 }
 
-func usageModePolicyBytes(resource string) ([]byte, error) {
-	var roots []string
-	for _, key := range []string{"VROOLI_RESOURCE_ROOT", "VROOLI_ROOT"} {
-		if v := strings.TrimSpace(os.Getenv(key)); v != "" {
-			roots = append(roots, v)
-		}
-	}
-	if wd, err := os.Getwd(); err == nil {
-		for dir, i := wd, 0; i < 8; dir, i = filepath.Dir(dir), i+1 {
-			roots = append(roots, dir)
-		}
-	}
-	for _, root := range roots {
-		for _, path := range []string{filepath.Join(root, "resources", resource, "model-policy.json"), filepath.Join(root, resource, "model-policy.json")} {
-			if raw, err := os.ReadFile(path); err == nil {
-				return raw, nil
-			}
-		}
-	}
-	return nil, fmt.Errorf("no model policy for %s", resource)
-}
-
 // usageModeAgents lists the agents whose resource declares usage tiers.
 func usageModeTiers(agentID string) (usagemode.Tiers, string, string, bool) {
 	resource, ok := agentResource(agentID)
 	if !ok {
 		return usagemode.Tiers{}, "", "", false
 	}
-	raw, err := usageModePolicyBytes(resource)
+	raw, err := usagemode.ReadPolicy(resource)
 	if err != nil {
 		return usagemode.Tiers{}, "", "", false
 	}
@@ -159,7 +137,13 @@ func usageModeTiers(agentID string) (usagemode.Tiers, string, string, bool) {
 	}
 	var policy usageModePolicy
 	_ = json.Unmarshal(raw, &policy)
-	return tiers, strings.TrimSpace(policy.Roles["code.default"].Model), usagemode.NormalizeRunner(resource), true
+	// Full power is the model a session starts on without a mode: the policy's
+	// interactive default, else what the mode's lower model stands in for.
+	usual := strings.TrimSpace(policy.InteractiveDefault.Model)
+	if usual == "" {
+		usual = usageModeHigherModel(tiers, strings.TrimSpace(policy.Roles["code.default"].Model))
+	}
+	return tiers, usual, usagemode.NormalizeRunner(resource), true
 }
 
 // usageModeHigherModel is the model a mode's session model stands in for, so
@@ -202,7 +186,6 @@ func buildUsageModeResponse(now time.Time, canControl bool) usageModeResponse {
 		if !ok || usual == "" || tiers.SessionModel == "" {
 			continue
 		}
-		usual = usageModeHigherModel(tiers, usual)
 		agent := usageModeAgent{AgentID: def.ID, Label: def.Label, Runner: runner, LowerModel: tiers.SessionModel, UsualModel: usual}
 		if mode, found := usagemode.Resolve(usagemode.Query{Runner: runner, Now: now}); found {
 			if settings, has := mode.SettingsFor(runner); has && settings.SessionModel != "" {

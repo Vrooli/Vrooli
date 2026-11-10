@@ -1175,6 +1175,9 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
+	// Clear web-console identity and agent markers a long-lived tmux server
+	// inherited, before any pane is created or recovered.
+	reconcileTmuxGlobalEnvironment()
 	srv := NewServer(db)
 	stopContinuityPublisher := srv.startContinuityPublisher()
 

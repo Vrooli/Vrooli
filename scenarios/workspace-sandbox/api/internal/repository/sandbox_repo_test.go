@@ -160,6 +160,25 @@ func TestWritePolicySurvivesRepositoryRoundTrip(t *testing.T) {
 	}
 }
 
+func TestGetRejectsUnknownPersistedSandboxStatus(t *testing.T) {
+	ctx := context.Background()
+	db := newTestDB(t)
+	repo := NewSandboxRepository(db, schedule.System())
+	sandbox := newTestSandbox()
+	if err := repo.Create(ctx, sandbox); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `PRAGMA ignore_check_constraints = ON`); err != nil {
+		t.Fatalf("disable check constraint for malformed persistence fixture: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE sandboxes SET status = ? WHERE id = ?`, "mystery", sandbox.ID.String()); err != nil {
+		t.Fatalf("corrupt status fixture: %v", err)
+	}
+	if _, err := repo.Get(ctx, sandbox.ID); err == nil || !strings.Contains(err.Error(), `unknown persisted status "mystery"`) {
+		t.Fatalf("Get error = %v, want unknown persisted status", err)
+	}
+}
+
 func TestGet_MissingReturnsNil(t *testing.T) {
 	got, err := newTestRepo(t).Get(context.Background(), uuid.New())
 	if err != nil {

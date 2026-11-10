@@ -46,8 +46,10 @@ type Handlers struct {
 	// distinguish a provider restart from a transient request failure without
 	// inferring identity from logs, ports, or timestamps.
 	ProviderIncarnationID string
-	Service               sandbox.ServiceAPI // Service interface for testability
-	DriverSlot            *driver.Slot       // Atomic holder for the active driver (hot-swap via SwitchDriver)
+	Service               sandbox.ServiceAPI    // Service interface for testability
+	CompanionServices     CompanionServiceAPI   // Optional isolated-service lifecycle provider
+	CompanionStore        companionSandboxStore // Durable sandbox metadata and audit seam
+	DriverSlot            *driver.Slot          // Atomic holder for the active driver (hot-swap via SwitchDriver)
 	DB                    Pinger
 	Config                config.Config         // Unified configuration for accessing levers
 	Behavior              config.BehaviorConfig // Operator-tunable behavior knobs (loaded from .vrooli/config.json)
@@ -297,6 +299,10 @@ func (h *Handlers) RegisterRoutes(router *mux.Router, metricsCollector *metrics.
 	api.HandleFunc("/sandboxes/{id}/stop", h.StopSandbox).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/start", h.StartSandbox).Methods("POST")
 	api.HandleFunc("/sandboxes/{id}/resume", h.ResumeSandbox).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/companion-services", h.PutCompanionServices).Methods("PUT")
+	api.HandleFunc("/sandboxes/{id}/companion-services", h.GetCompanionServices).Methods("GET")
+	api.HandleFunc("/sandboxes/{id}/companion-services/{name}/start", h.StartCompanionService).Methods("POST")
+	api.HandleFunc("/sandboxes/{id}/companion-services/{name}/stop", h.StopCompanionService).Methods("POST")
 
 	// --- Workflow: Diff and Approval ---
 	// Closed-sandbox archives are served through GetDiff (status-driven

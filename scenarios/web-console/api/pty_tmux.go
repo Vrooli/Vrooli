@@ -1071,6 +1071,35 @@ func tmuxAttachAsPTY(sessionName string) (pty.PTY, error) {
 	return tmuxAttach(sessionName)
 }
 
+// reconcileTmuxGlobalEnvironment removes every variable an operator terminal
+// must not inherit (terminalInheritsEnv) from the console tmux server's global
+// environment. A new tmux session takes the server's global environment plus
+// its own -e values, and a long-lived server keeps the environment it was born
+// with. Without this, a server started by an older web-console, or from an
+// agent session, hands every new pane web-console's process identity
+// (VROOLI_PROCESS_ID, VROOLI_RUNTIME_INSTANCE_ID, SCENARIO_NAME) and agent
+// markers (CODEX_CI, CODEX_SESSION_ID), even though each session's own
+// environment is filtered. Panes already open keep theirs; new windows and
+// sessions start clean. A missing server is not an error.
+func reconcileTmuxGlobalEnvironment() {
+	show, cancel := tmuxCmdWithTimeout("show-environment", "-g")
+	out, err := show.Output()
+	cancel()
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		name, _, ok := strings.Cut(line, "=")
+		// tmux prints a variable already marked for removal as "-NAME".
+		if !ok || name == "" || strings.HasPrefix(name, "-") || terminalInheritsEnv(name) {
+			continue
+		}
+		unset, cancelUnset := tmuxCmdWithTimeout("set-environment", "-g", "-u", name)
+		_ = unset.Run()
+		cancelUnset()
+	}
+}
+
 // DiscoverTmuxSessions finds surviving web console tmux sessions.
 // Returns session IDs (without the "wc-" prefix).
 func DiscoverTmuxSessions() ([]string, error) {

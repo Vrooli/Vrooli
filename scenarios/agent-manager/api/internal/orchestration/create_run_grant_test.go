@@ -148,6 +148,120 @@ func (v runCreateAgentIdentityVerifier) Verify(token string) (*cliutil.VerifyRes
 	return &cliutil.VerifyResult{Valid: true, Claims: &claims, RunStatus: string(verified.RunStatus)}, nil
 }
 
+type runCreateBaselinePairVerifier struct {
+	identityVerifier runCreateAgentIdentityVerifier
+	operation        *cliutil.VerifiedClaims
+	pairCalls        *int
+	validPairThrough int
+	invalidPair      bool
+}
+
+func (v runCreateBaselinePairVerifier) Verify(token string) (*cliutil.VerifyResult, error) {
+	return v.identityVerifier.Verify(token)
+}
+
+func (v runCreateBaselinePairVerifier) VerifyPair(ctx context.Context, baseline, operation string) (*cliutil.VerifyPairResult, error) {
+	if _, err := v.identityVerifier.Verify(baseline); err != nil || operation != grantFixtureOperationToken || v.operation == nil || v.invalidPair {
+		return &cliutil.VerifyPairResult{Error: "invalid_pair"}, nil
+	}
+	if v.pairCalls != nil {
+		*v.pairCalls++
+		if v.validPairThrough > 0 && *v.pairCalls > v.validPairThrough {
+			return &cliutil.VerifyPairResult{Error: "revoked_pair"}, nil
+		}
+	}
+	return &cliutil.VerifyPairResult{Valid: true, Operation: &cliutil.VerifyResult{Valid: true, Claims: v.operation}}, nil
+}
+
+func TestBaselineRunCreateDoesNotGetMaskedByUnrelatedValidConsent(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		approvals     bool
+		validPairTill int
+		invalidPair   bool
+		wantSuccess   bool
+	}{
+		{name: "baseline authority with approvals disabled", wantSuccess: true},
+		{name: "no matching run-create grant while approvals enabled", approvals: true},
+		{name: "invalid offered proof refuses", invalidPair: true},
+		{name: "revoked offered proof refuses", validPairTill: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			now := time.Now().UTC().Truncate(time.Second)
+			secret := []byte("test-secret-32-bytes-for-run-identity")
+			baselineID, taskID, unrelatedGrantRunID := uuid.New(), uuid.New(), uuid.New()
+			baselineClaims := &identity.Claims{
+				RunID: baselineID, TaskID: taskID, Subject: grantFixtureApprover,
+				Scopes: []string{"agent-manager:read", "agent-manager:write"}, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Hour).Unix(),
+			}
+			token, err := identity.GenerateToken(baselineClaims, secret)
+			if err != nil {
+				t.Fatal(err)
+			}
+			grant := &coreidentity.OperationGrant{
+				ID: uuid.NewString(), Policy: "agent-management", Approver: grantFixtureApprover,
+				Operations: []string{"agent.manage"}, Targets: []string{"agent-manager:*"},
+				Rules:     []coreidentity.OperationRule{runCreateRule("agent-management", []string{"agent.manage"}, []string{"agent-manager:*"})},
+				ExpiresAt: now.Add(time.Hour),
+			}
+			grantJSON, err := json.Marshal(grant)
+			if err != nil {
+				t.Fatal(err)
+			}
+			settings, err := config.NewOrchestrationSettingsStore(t.TempDir() + "/settings.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			setting := settings.Get()
+			setting.OperationApprovals.RunCreation = tc.approvals
+			if err := settings.Update(setting); err != nil {
+				t.Fatal(err)
+			}
+			baseline := &domain.Run{ID: baselineID, TaskID: taskID, Status: domain.RunStatusRunning, OwnerSubject: grantFixtureApprover}
+			o := &Orchestrator{
+				clock: func() time.Time { return now }, identitySecret: secret,
+				runs: baselineRunRepository{
+					runCreateGrantRunRepository: runCreateGrantRunRepository{run: baseline},
+					tokenHash:                   identity.HashToken(token),
+				},
+				orchestrationSettings: settings,
+			}
+			pairCalls := 0
+			verifier := runCreateBaselinePairVerifier{
+				identityVerifier: runCreateAgentIdentityVerifier{o: o},
+				operation: &cliutil.VerifiedClaims{
+					RunID: unrelatedGrantRunID.String(), Subject: grantFixtureApprover,
+					Scopes: []string{"agent-manager:write"}, ExpiresAt: now.Add(time.Hour).Unix(),
+					Meta: map[string]string{"authorization_id": grant.ID, "operation_grant": string(grantJSON)},
+				},
+				pairCalls: &pairCalls, validPairThrough: tc.validPairTill, invalidPair: tc.invalidPair,
+			}
+			created := CreateRunRequest{RunIdentityToken: token}
+			var callErr error
+			handler := provenance.Middleware(verifier)(authn.Middleware(authn.Config{})(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+				callErr = o.authenticateCreateRunCaller(r.Context(), &created)
+				if callErr == nil {
+					callErr = o.revalidateCreateRunCaller(r.Context(), created)
+				}
+			})))
+			req := httptest.NewRequest(http.MethodPost, "http://agent-manager/api/v1/runs", nil)
+			req.Header.Set(cliutil.HeaderAgentIdentityToken, token)
+			req.Header.Set(cliutil.HeaderAgentOperationToken, grantFixtureOperationToken)
+			handler.ServeHTTP(httptest.NewRecorder(), req)
+			if tc.wantSuccess {
+				if callErr != nil || created.caller == nil || created.caller.Kind != "agent-baseline" {
+					t.Fatalf("unrelated valid proof masked baseline run.create: caller=%+v err=%v", created.caller, callErr)
+				}
+				if !reflect.DeepEqual(created.OwnerScopes, baselineClaims.Scopes) {
+					t.Fatalf("baseline scope ceiling changed: %v", created.OwnerScopes)
+				}
+			} else if callErr == nil {
+				t.Fatal("unrelated, invalid, or revoked proof admitted top-level run creation")
+			}
+		})
+	}
+}
+
 func (r runCreateGrantRunRepository) Get(_ context.Context, id uuid.UUID) (*domain.Run, error) {
 	if r.run != nil && r.run.ID == id {
 		copy := *r.run

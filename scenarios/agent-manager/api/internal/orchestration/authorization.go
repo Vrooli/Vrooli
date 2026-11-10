@@ -412,8 +412,11 @@ func (o *Orchestrator) RequestAuthorization(ctx context.Context, req Authorizati
 	webConsoleSessionID := ""
 	if o.sessionBindingProofReader != nil {
 		proof, proofErr := o.sessionBindingProofReader.ReadSessionBinding(ctx, SessionBindingRequest{RunID: req.RunID, HarnessSessionID: req.HarnessSession, WebConsoleSessionID: req.WebConsoleSessionID, HarnessKind: req.HarnessKind, ProcessID: binding.PID})
-		if proofErr != nil || !validSessionBindingTuple(proof, req.RunID, req.HarnessSession, req.WebConsoleSessionID, req.HarnessKind, binding) {
-			return nil, domain.NewValidationError("harness", "live launcher session binding is unavailable")
+		if proofErr == nil && !validSessionBindingTuple(proof, req.RunID, req.HarnessSession, req.WebConsoleSessionID, req.HarnessKind, binding) {
+			proofErr = errBindingProofMismatch
+		}
+		if proofErr != nil {
+			return nil, domain.NewValidationError("harness", describeSessionBindingFailure(proofErr))
 		}
 		webConsoleSessionID = proof.WebConsoleSessionID
 	} else if req.WebConsoleSessionID != "" {
@@ -640,8 +643,11 @@ func (o *Orchestrator) ApproveAuthorization(ctx context.Context, id uuid.UUID) (
 	}
 	if o.sessionBindingProofReader != nil {
 		proof, proofErr := o.sessionBindingProofReader.ReadSessionBinding(ctx, SessionBindingRequest{RunID: g.RunID, HarnessSessionID: g.HarnessSession, WebConsoleSessionID: g.WebConsoleSessionID, HarnessKind: g.HarnessKind, ProcessID: g.Binding.PID})
-		if proofErr != nil || !validSessionBindingTuple(proof, g.RunID, g.HarnessSession, g.WebConsoleSessionID, g.HarnessKind, g.Binding) {
-			return nil, errors.New("authorization launcher session binding is unavailable or changed")
+		if proofErr == nil && !validSessionBindingTuple(proof, g.RunID, g.HarnessSession, g.WebConsoleSessionID, g.HarnessKind, g.Binding) {
+			proofErr = errBindingProofMismatch
+		}
+		if proofErr != nil {
+			return nil, errors.New("authorization " + describeSessionBindingFailure(proofErr))
 		}
 		// Older pending requests did not retain this non-authoritative locator.
 		// Resolve it from the same host-session lease and immutable process proof

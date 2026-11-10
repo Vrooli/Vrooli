@@ -263,7 +263,26 @@ func (o *Orchestrator) SendInteractivePrompt(ctx context.Context, sessionID, tex
 	if strings.TrimSpace(sessionID) == "" {
 		return errors.New("web-console session id is required to deliver an interactive prompt")
 	}
-	_, err := o.interactiveSessions.SendPrompt(ctx, sessionID, text, source)
+	session, err := o.interactiveSessions.GetSession(ctx, sessionID)
+	if err != nil {
+		return fmt.Errorf("read interactive session before prompt delivery: %w", err)
+	}
+	probe, ok := o.interactiveSessions.(webconsole.NativeAgentProbe)
+	if !ok {
+		return fmt.Errorf("native agent liveness is unavailable for interactive session %s", sessionID)
+	}
+	observation, err := probe.ObserveNativeAgent(ctx, sessionID, session.NativeThreadID)
+	if err != nil || observation.State != webconsole.NativeAgentIdle {
+		if err != nil {
+			return fmt.Errorf("native agent liveness is unavailable for interactive session %s: %w", sessionID, err)
+		}
+		return fmt.Errorf("native agent liveness is not idle for interactive session %s: %s", sessionID, observation.Reason)
+	}
+	sender, ok := o.interactiveSessions.(webconsole.NativeBoundPromptSender)
+	if !ok {
+		return fmt.Errorf("native-bound prompt delivery is unavailable for interactive session %s", sessionID)
+	}
+	_, err = sender.SendPromptForNativeSession(ctx, sessionID, session.NativeThreadID, text, source)
 	return err
 }
 
@@ -281,6 +300,11 @@ func (o *Orchestrator) typeIntoRunningSession(ctx context.Context, run *domain.R
 	}
 	if len(req.AttachmentIDs) > 0 || req.MaxTurns != nil || req.MaxToolCalls != nil || req.Timeout != nil || req.ResultSpec != nil || req.ReinstallGoal {
 		return false, domain.NewValidationError("continuationOverrides", "a running session accepts message text only")
+	}
+	// Prove the exact provider binding before idempotency, invocation, event, or
+	// PTY effects. A live persistent shell does not prove a native agent exists.
+	if err := o.verifyInteractiveSession(ctx, run); err != nil {
+		return false, domain.RefuseBeforeEffects(err)
 	}
 	if req.IdempotencyKey != "" && o.idempotency != nil {
 		_, acquired, err := o.reserveContinuationReceipt(ctx, req)
@@ -305,7 +329,7 @@ func (o *Orchestrator) typeIntoRunningSession(ctx context.Context, run *domain.R
 	// Web Console's SendText forwards LF literally to the PTY. Codex's TUI
 	// requires a named Enter key after a paste; otherwise the directive remains
 	// composed but unsubmitted. SendPrompt owns that paste+Enter contract.
-	submission, err := o.interactiveSessions.SendPrompt(ctx, run.WebConsoleSessionID, text, interactiveRunSource(run.ID))
+	submission, err := o.sendBoundInteractivePrompt(ctx, run, text)
 	if errors.Is(err, webconsole.ErrPromptNotSubmitted) {
 		// The directive is visibly composed but unsent. Keep the pending
 		// idempotency reservation: a same-key retry would paste a second copy.

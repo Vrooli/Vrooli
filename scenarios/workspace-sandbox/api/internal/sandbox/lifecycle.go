@@ -131,7 +131,12 @@ func (s *Service) ReconcileManualReviewExpiry(ctx context.Context, ttl time.Dura
 			continue
 		}
 
-		sandbox.Status = types.StatusRejected
+		if err := sandbox.TransitionStatus(types.StatusRejected); err != nil {
+			s.logAuditEvent(ctx, sandbox, "sandbox.warning", "system", "system", map[string]interface{}{
+				"message": "manual-review TTL: invalid rejection transition: " + err.Error(),
+			})
+			continue
+		}
 		if err := s.repo.Update(ctx, sandbox); err != nil {
 			s.logAuditEvent(ctx, sandbox, "sandbox.warning", "system", "system", map[string]interface{}{
 				"message": "manual-review TTL: failed to mark rejected: " + err.Error(),

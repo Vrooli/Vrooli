@@ -177,22 +177,29 @@ func (h *Handler) denyTokenlessAgent(w http.ResponseWriter, r *http.Request, ope
 
 // lifecycleGrant is the grant operation that admits a run identity to a named
 // run's lifecycle operation, and the reviewed policy an agent asks for to get it.
-// Operations without one (run review, global stops) stay operator decisions.
+// The policy comes from authn's catalogue (the narrowest policy that grants the
+// operation), so no second operation-to-policy table exists here. Operations
+// without a grant (run review, global stops) stay operator decisions.
 func lifecycleGrant(operation string) (grantOperation, policy string) {
 	switch operation {
 	case "stop-run", "continue-run", "wake-run", "recover-run", "stop-run-by-tag", "stop-all", "delete-run-message":
-		return "agent.manage", "agent-management"
+		grantOperation = "agent.manage"
 	case "delete-run":
-		return "run.delete", "run-deletion"
+		grantOperation = "run.delete"
+	default:
+		return "", ""
 	}
-	return "", ""
+	if policies := authn.PoliciesForOperation(grantOperation); len(policies) > 0 {
+		policy = policies[0]
+	}
+	return grantOperation, policy
 }
 
 // authorizationRequestCommand is the exact command a refused agent runs to ask
-// the operator for the missing grant (vrooli agent authorize; the operator
-// approves it in the inbox, and this session uses it on its next request).
+// the operator for the missing grant. It is authn's shared formatter, which
+// every refusal uses.
 func authorizationRequestCommand(policy, target string) string {
-	return `vrooli agent authorize "$VROOLI_AGENT_SESSION" --policy ` + policy + " --target " + target + ` --reason "<why>"`
+	return authn.AuthorizationRequestCommand(policy, target)
 }
 
 // runLifecycleGrantAllowsTarget checks the caller's exact, already-resolved run

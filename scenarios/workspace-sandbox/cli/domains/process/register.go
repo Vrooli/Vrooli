@@ -101,7 +101,7 @@ func runRun(deps support.Dependencies, args []string) error {
 	}
 	applyExecOptions(reqBody, opts)
 
-	body, err := deps.ScenarioApp().Request("POST", "/sandboxes/"+resolvedID+"/start-process", nil, reqBody)
+	body, err := deps.ScenarioApp().Request("POST", "/sandboxes/"+resolvedID+"/processes", nil, reqBody)
 	if err != nil {
 		return err
 	}
@@ -250,6 +250,7 @@ func runLogs(deps support.Dependencies, args []string) error {
 	var sandboxID string
 	var pid, tail int
 	var follow, jsonOut bool
+	stream := "stdout"
 
 	for _, arg := range args {
 		switch {
@@ -257,6 +258,8 @@ func runLogs(deps support.Dependencies, args []string) error {
 			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--pid="), "%d", &pid)
 		case strings.HasPrefix(arg, "--tail="):
 			_, _ = fmt.Sscanf(strings.TrimPrefix(arg, "--tail="), "%d", &tail)
+		case strings.HasPrefix(arg, "--stream="):
+			stream = strings.TrimPrefix(arg, "--stream=")
 		case arg == "--follow" || arg == "-f":
 			follow = true
 		case arg == "--json":
@@ -266,7 +269,10 @@ func runLogs(deps support.Dependencies, args []string) error {
 		}
 	}
 	if sandboxID == "" {
-		return fmt.Errorf("usage: %s process logs <sandbox-id> [--pid=<pid>] [--follow] [--tail=N] [--json]", support.CLIName)
+		return fmt.Errorf("usage: %s process logs <sandbox-id> [--pid=<pid>] [--stream=stdout|stderr] [--follow] [--tail=N] [--json]", support.CLIName)
+	}
+	if stream != "stdout" && stream != "stderr" {
+		return fmt.Errorf("invalid stream %q: expected stdout or stderr", stream)
 	}
 
 	resolvedID, err := support.ResolveSandboxID(deps.ScenarioApp(), sandboxID)
@@ -295,10 +301,11 @@ func runLogs(deps support.Dependencies, args []string) error {
 	}
 
 	if follow {
-		return streamLogs(deps, resolvedID, pid)
+		return streamLogs(deps, resolvedID, pid, stream)
 	}
 
 	query := url.Values{}
+	query.Set("stream", stream)
 	if tail > 0 {
 		query.Set("tail", fmt.Sprintf("%d", tail))
 	}
@@ -552,13 +559,14 @@ func renderLogRows(logs []support.LogResponse) []string {
 	return rows
 }
 
-func streamLogs(deps support.Dependencies, sandboxID string, pid int) error {
+func streamLogs(deps support.Dependencies, sandboxID string, pid int, stream string) error {
 	fmt.Printf("Streaming logs for PID %d (press Ctrl+C to stop)...\n\n", pid)
 
 	var lastOffset int64
 	for {
 		query := url.Values{}
 		query.Set("offset", fmt.Sprintf("%d", lastOffset))
+		query.Set("stream", stream)
 
 		body, err := deps.ScenarioApp().Get(fmt.Sprintf("/sandboxes/%s/processes/%d/logs", sandboxID, pid), query)
 		if err != nil {

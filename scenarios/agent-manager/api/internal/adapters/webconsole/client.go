@@ -88,6 +88,45 @@ type SessionInfo struct {
 	DisplayLabel      string
 	// CreatedAt is zero when web-console reports no parseable creation time.
 	CreatedAt time.Time
+	// Native fields bind recovery and continuation to the exact coding-agent
+	// generation owned by this Web Console session. Empty values are unknown.
+	LaunchMode         string
+	ControlMode        string
+	NativeOwner        string
+	NativeTransport    string
+	ProviderVersion    string
+	NativeThreadID     string
+	LastVerifiedTurnID string
+}
+
+type NativeAgentState string
+
+const (
+	NativeAgentUnknown NativeAgentState = "unknown"
+	NativeAgentIdle    NativeAgentState = "idle"
+	NativeAgentBusy    NativeAgentState = "busy"
+)
+
+// NativeAgentObservation reports evidence from the provider that owns the
+// exact native thread. PTY existence alone is never native-agent liveness.
+type NativeAgentObservation struct {
+	State    NativeAgentState
+	Provider string
+	Reason   string
+}
+
+// NativeAgentProbe is optional so portable adapters can report that their
+// provider has no supported liveness operation. Callers fail closed on that
+// explicit absence of evidence.
+type NativeAgentProbe interface {
+	ObserveNativeAgent(ctx context.Context, webConsoleSessionID, nativeSessionID string) (NativeAgentObservation, error)
+}
+
+// NativeBoundPromptSender delivers only after observing the exact session
+// generation and provider as live and idle.
+type NativeBoundPromptSender interface {
+	SendPromptForNativeSession(ctx context.Context, webConsoleSessionID, nativeSessionID, prompt, source string) (PromptSubmission, error)
+	SendCommandForNativeSession(ctx context.Context, webConsoleSessionID, nativeSessionID, command, source string) (PromptSubmission, error)
 }
 
 // SessionController is the proto-free web-console seam the interactive
@@ -270,12 +309,19 @@ func (c *Client) ListSessions(ctx context.Context) ([]SessionInfo, error) {
 
 func sessionInfoFromProto(s *sessionsv1.Session) SessionInfo {
 	info := SessionInfo{
-		ID:                s.GetId(),
-		Owner:             s.GetOwner(),
-		Backend:           s.GetBackend(),
-		Origin:            s.GetOrigin().String(),
-		DisplayLabel:      s.GetDisplayLabel(),
-		CreateFingerprint: s.GetCreateFingerprint(),
+		ID:                 s.GetId(),
+		Owner:              s.GetOwner(),
+		Backend:            s.GetBackend(),
+		Origin:             s.GetOrigin().String(),
+		DisplayLabel:       s.GetDisplayLabel(),
+		CreateFingerprint:  s.GetCreateFingerprint(),
+		LaunchMode:         s.GetLaunchMode(),
+		ControlMode:        s.GetControlMode(),
+		NativeOwner:        s.GetNativeOwner(),
+		NativeTransport:    s.GetNativeTransport(),
+		ProviderVersion:    s.GetProviderVersion(),
+		NativeThreadID:     s.GetNativeThreadId(),
+		LastVerifiedTurnID: s.GetLastVerifiedTurnId(),
 	}
 	// web-console stamps created_at as RFC3339 UTC; RFC3339Nano parses both.
 	if created, err := time.Parse(time.RFC3339Nano, s.GetCreatedAt()); err == nil {

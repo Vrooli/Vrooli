@@ -9,7 +9,7 @@ and the measured baselines. Method lives in skills: `harness-goal-authoring` wri
 briefs; `research-coordination`, `ecosystem-hunt`, `large-effort-orchestration` and
 `scenario-improvement-campaign` run efforts; `large-effort-supervision` supervises delivery
 orchestrators; and `effort-diagnosis` investigates an effort that under-delivers. Its mechanism catalog
-(M1–M23) is in `scenarios/prompt-manager/store/skills/packs/core/effort-diagnosis/references/mechanisms.md`.
+(M1–M30) is in `scenarios/prompt-manager/store/skills/packs/core/effort-diagnosis/references/mechanisms.md`.
 
 ## 1. Two facts the design follows
 
@@ -41,8 +41,8 @@ returns and keep owners working.
 |---|---|---|
 | D1 | **Ambition is a destination, not an adverb.** Name an end state that is large on its face, so small work is visibly unfinished ("Device Studio renders scenes, models and motion end to end", "the 129 friction findings are closed by class-level mechanisms"). | M6 |
 | D2 | **The agent ends units, never the goal.** Closure, "complete" and "nothing left" are decided by a fresh challenger run with the fixed brief in §2a; the agent that wants to close does not write the question. Blocked means one named human-owned decision, routed while other work continues. No-change units do not count toward a count destination. | M3, M4 |
-| D3 | **Kernel, stance message, charter.** The native goal is a kernel of 600 characters or fewer: destination, a stance excerpt in the operator's words, the charter path, "one unit per turn". The stance message is an ordinary user message of 3,500 characters or fewer, sent before the goal: the operator's full stance verbatim, the destination with its scale, and "re-read <charter> at every unit start and after compaction". Codex keeps both through compaction while fewer than eight newer user messages follow the stance message (§4a); a long goal it does not keep at all. In an Agent Manager run the stance message opens the task prompt. The charter file holds the rest and is re-read at every unit start and after every compaction. | M1, M13, M15 |
-| D4 | **One unit per turn.** Under a native goal, the agent ends its turn after each unit's record, so Codex re-injects the objective and the completion audit before the next unit. Without a native goal, ending the turn ends the effort: start the effort as a native goal or an Agent Manager run, or do not end the turn. A scheduler's unit is one segment return; its turn spans the wait, which is safe only because it does no domain work and its context barely grows (not yet measured). | M1 |
+| D3 | **Kernel, stance message, charter.** The native goal is a kernel of 600 characters or fewer: destination, a stance excerpt in the operator's words, the charter path, "one unit per turn". The stance message is an ordinary user message of 3,500 characters or fewer, sent before the goal: the operator's full stance verbatim, the destination with its scale, and "re-read <charter> at every unit start and after compaction". Codex keeps both through compaction while fewer than eight newer user messages follow the stance message (§4a); a long goal it does not keep at all. In an Agent Manager run the stance message opens the task prompt. The charter file holds the rest and is re-read at every unit start and after every compaction. Every operator message counts toward the eight, including a status question, so the charter re-read is what carries the stance through a long effort. A status question is answered from the state page (D15) and is not steering: it changes nothing about the unit loop. | M1, M13, M15, M27 |
+| D4 | **One unit per turn, and the turn spans the wait.** Under a native goal, the agent ends its turn after each unit's record, so Codex re-injects the objective and the completion audit before the next unit. A scheduler's unit is one owner return (a showcase claim, an operator-gated item or a failed owner) or one due review. It blocks for that inside the turn with `wait_agent` at `timeout_ms: 3600000`; a wake that brings neither is followed by another wait, with no record, no message to an owner and no turn end. Ending the turn while owners are only working makes the goal re-inject at once, and the scheduler then repeats its unit-start reads every few minutes (§5, four-programme cohort). Without an active native goal, ending the turn ends the effort: nothing wakes the session until the operator types. The agent can pause its goal but only the operator can re-activate it (`/goal resume`): after a pause, the first line of the reply to "resume" names that action, and the scheduler holds its wait inside the turn until the goal reads active. | M1, M24, M25 |
 | D5 | **Structure for ownership time.** A thin scheduler at the root; segment owners that own a coherent outcome for hours and are re-tasked with `followup_task` while productive; workers sized to an outcome, not to a step. Short or cheap workers are for lookups and reviews only (§3). | M8 |
 | D6 | **Fresh briefs from the charter.** Every brief is generated from the charter and carries the stance verbatim. Use `fork_turns=none`; a full-history fork inherits the parent's drift, most of its context window and its model. | M9 |
 | D7 | **Curated precedent.** Show workers pinned exemplars of a good unit and the recent output as numbers against the destination. Keep no-change verdicts in a separate list, out of the narrative a new worker wakes into. | M2 |
@@ -53,6 +53,9 @@ returns and keep owners working.
 | D12 | **Name the winning skill.** When an effort reads several skills, the effort's method skill wins over another skill's stop or threshold rule. Say so in the charter. | M13 |
 | D13 | **Intent is quoted, never paraphrased.** The operator's words live verbatim in the charter (a research topic's `MISSION.md`) and travel verbatim into every brief. Restatements may enlarge them, never shrink them; a commission is generated from the charter, not from the last checkpoint. | M18 |
 | D14 | **Both failure directions count; rigor follows reversibility.** Under-delivery is reported as plainly as overclaiming, with a cause; honesty rules govern claims, never scope. Validate building with owner tests and a running showcase; reserve controlled trials for choices that are expensive to reverse. Every charter carries a denominator (scorecard, workstream table) so small units are visibly small. | M19–M22 |
+| D15 | **Charter, state and ledger are three files.** The charter (stance, destination, cards, procedure, brief template) is stable and stays under about 25 KB, because the scheduler re-reads it at every unit start and after every compaction. Current state is one overwritten page (`STATE.md`): what needs the operator, then each card's workstream status, owner, last measured change and next review. History is an append-only `LEDGER.md` that nobody re-reads in full. Owners read their card and their mission, never the cohort ledger. | M11, M28 |
+| D16 | **Review workstreams, not increments.** One ambition review for each workstream plan and one challenger for each showcase claim (§2a, §2b). Increments are verified by owner tests and the running showcase (D14), not by a fresh agent, and they are not recorded or reported one by one. A rejected plan is answered by building its larger first item, not by a longer plan document. Code that moves money or deletes data gets one independent code review before its showcase claim. A workstream whose target is a reduction names the structures it replaces; the line count is the readout, never the plan. | M4, M26 |
+| D17 | **What needs the operator comes first, in plain words.** The state page and every reply to the operator open with a `Needs you` list: each open decision in one or two plain sentences, with the recommendation and the link or command that answers it. Evidence identifiers and hashes stay in the linked packet. A pending consent for the notification route is the first item until it is granted. A workstream whose remaining routes need the operator or elapsed days files that one request, and its owner takes the next workstream in the mission: polishing the same case is not a route. | M23, M29, M30 |
 
 ### 2a. The challenger brief
 
@@ -74,7 +77,7 @@ D8 separates whoever sets scope from whoever pays for it. Use these two briefs v
 architect pass when an effort or commission starts, when every open item is small, when a unit
 moved no scorecard dimension, or when a `drift` tripwire fires. Run the ambition review on the
 architect's output and on any plan an executor proposes before staffing it. Spawn both fresh
-(`fork_turns=none`), on the strongest available model. Neither one executes anything.
+(`fork_turns=none`, model and effort omitted so they inherit the parent's policy-chosen model; see [Choosing a model](../configuration/coding-agents.md#choosing-a-model-for-a-sub-agent)). Neither one executes anything.
 
 ```text
 You are the architect for <effort or topic>. Read <charter or MISSION.md> and <topic README or ledger>; the operator's words in it are the intent. Ignore how large past units were. Propose the workstreams that would make the end state true: for each, the destination, the scorecard dimensions it moves, the owners and files it will change, the agent-hours it needs (most should be 20–200), and the showcase that proves it landed. Include work that deletes, consolidates or migrates as well as work that adds, and anything the operator asked for that no current item covers. Rank them by value toward the end state. Return the table and one line on the largest risk.
@@ -93,21 +96,37 @@ the ambition reviewer again.
 
 | Tier | Role | Lifetime | Holds |
 |---|---|---|---|
-| Root scheduler | Reads the ledger, spawns or re-tasks segment owners from the charter template, has a fresh challenger audit each return against the destination and the measured magnitude, records, ends its turn. Does no domain work, so its context stays small. | The whole effort | The native goal (kernel), the ledger |
-| Segment owner | Owns one coherent outcome: a study's next epoch, ten hunt rounds, one migration. Spawns its own workers. Re-reads the charter at each round start. Does not return before its end state or time box. | A time box of at least 2 hours unless the outcome finishes sooner; up to about 8 hours; re-tasked while productive | A brief generated from the charter |
+| Root scheduler | Reads the charter and the state page, spawns or re-tasks segment owners from the charter template, blocks until an owner returns or a review is due (D4), has a fresh challenger audit each showcase claim against the destination and the measured magnitude (D16), overwrites the state page, appends one ledger entry, ends its turn. Does no domain work, so its context stays small. | The whole effort | The native goal (kernel), the state page, the ledger |
+| Segment owner | Owns one coherent outcome: a study's next epoch, ten hunt rounds, one migration. Spawns its own workers. Re-reads the charter at each round start. Does not return before its end state or time box. | A time box of at least 2 hours unless the outcome finishes sooner; about 6 hours; re-tasked at a return while inside the healthy window | A brief generated from the charter |
 | Worker | Implements, hunts or reviews one outcome sized to the work, not to a step. | Matches the outcome | Its brief |
 
 Sequential segments of about 2–6 hours stay inside the healthy window measured on the
 ecosystem hunt (rounds 1–29: about 6 hours and 7 compactions before decay). The scheduler
-stays healthy because each segment return ends a turn (D4).
+stays healthy because each segment return ends a turn (D4). An owner returns at a showcase
+claim or after about 6 hours. At that return the scheduler re-tasks it, unless it is past 6
+hours or 8 compactions in total (`drift` tripwire `owner-age`): then a fresh owner is briefed
+from the charter and told to read the old owner's checkpoint first. An owner is not replaced
+in the middle of its work unless it is stuck or failed. The four-programme owners ran one
+10-hour turn through 13–18 compactions, and their units shrank (§5).
+
+A finished, failed or silent owner is a unit for the scheduler. The hourly review looks for
+it: an owner whose turn ended, or whose checkpoint is more than two hours old, is re-tasked or
+replaced in that review.
+
+An owner messages the scheduler for four things only: its plan, a showcase claim, an item
+that needs the operator, and a need it cannot meet itself (capacity, a conflict with another
+card). Progress goes to its run folder checkpoint. Every owner message wakes the scheduler,
+so progress messages turn the scheduler's wait into polling.
 
 ### Slots
 
 Codex runs a fixed number of concurrent threads per session, and every waiting ancestor
 holds one. With the default of 4, a scheduler and one segment owner leave two worker slots;
-Vrooli's config raises the limit to 8 (§4). Run at most slots − 2 segment owners at once, so
-each has room for a worker or reviewer; rotate owners between outcomes at checkpoints instead
-of shrinking them. When a spawn fails with `agent thread limit reached`, do that work in the
+Vrooli's config raises the limit to 8 (§4). The scheduler holds one slot and each owner one,
+and what is left is shared by every owner's workers and the scheduler's reviewers: with 8
+slots, four owners leave three, and three owners leave four. Run no more owners than leaves
+about one worker slot each, write the real number in the charter, and rotate owners between
+outcomes at checkpoints instead of shrinking them. When a spawn fails with `agent thread limit reached`, do that work in the
 current thread or wait for a slot; do not retry the spawn in a loop.
 
 ### Harnesses
@@ -189,9 +208,22 @@ change a value, edit the document and re-run `ensure`. Do not hand-edit the conf
 | `features.multi_agent_v2.subagent_developer_instructions` | none | Injected as a developer message into every child at every depth. |
 | `agents.max_depth` | none reached at depth 7 | Unverified. `-c agents.max_depth=3` did not stop a chain, which reached depth 6 and stopped at the thread cap. The binary contains the message "Agent depth limit reached. Solve the task yourself." The thread cap is the working guard against runaway nesting. |
 
+| `features.multi_agent_v2.min_wait_timeout_ms` | none observed (agents request 10–60 s) | Verified on Codex 0.167, 2026-11-10. A floor for every `wait_agent` call: with 90000, a `timeout_ms: 5000` request returned after 90.0 s with "Requested timeout of 5000ms was clamped to the minimum of 90000ms"; with 600000 in `config.toml` it returned after 600.0 s. Vrooli sets 120000: enough to stop second-by-second polling, short enough that a wait made by mistake costs two minutes. |
+| `features.multi_agent_v2.default_wait_timeout_ms` | unknown | Verified on Codex 0.167, 2026-11-10. The timeout of a `wait_agent` call that passes none: with 150000 the call returned after 150.0 s. Vrooli sets 600000. |
+| `wait_agent` `timeout_ms` (tool argument) | — | Verified on Codex 0.167, 2026-11-10. A request of 3600000 is accepted and held: a probe blocked 848.3 s and returned `timed_out: false` the moment its sub-agent finished; the whole 14-minute run used 9,956 tokens. Whether a full hour is honoured is not yet measured. A blocked wait makes no model request, so a scheduler costs nothing between returns. A wait ends early when a sub-agent messages or finishes, and when the operator types ("Wait interrupted by new input", seen in four October–November rollouts). A wait made when no sub-agent is running does not return early: with a 600000 floor, a `timeout_ms: 5000` call in a session with no sub-agent blocked 600.1 s. That is why the floor is two minutes and the hint tells agents not to call `wait_agent` with nothing running. |
+
 Other fields in the same table (`usage_hint_text`, `root_agent_usage_hint_text`,
-`subagent_usage_hint_text`, wait timeouts, `preserve_fork_prefix`) are unverified. Verify a
+`subagent_usage_hint_text`, `max_wait_timeout_ms`, `preserve_fork_prefix`) are unverified. Verify a
 field with a probe before relying on it and record the result here.
+
+The config is read when a session starts. A session that was already running when a value
+changed keeps the old one: start a fresh session to pick it up.
+
+A native goal has three agent-settable states and one the agent cannot set. The `update_goal`
+tool accepts `complete`, `blocked` and `paused` (Codex 0.167 tool declaration); it has no
+`active`. After the agent pauses a goal at the operator's request, only the operator can
+re-activate it (`/goal resume`, recorded as `User set goal status: "active"`). An agent's own
+`update_goal` and `create_goal` calls write no `thread_goal_updated` event.
 
 ### 4a. What Codex keeps through compaction
 
@@ -237,6 +269,10 @@ Re-measure with `effort_anatomy.py` before citing these for another period. The 
 | Goals ≥1,500 characters | 47% paused by the operator, 17% complete |
 | Compactions that dropped the objective | 206 of 283 compaction records dated 2026-11-05 across all Web Console homes, counted per compaction line, including threads started on 11-04; every retained objective was ≤730 characters. `scan --since/--until` selects threads by start date, so its totals differ |
 | Research supervisor 2026-11-05 | closed itself 1 h 15 min into a 20 h allowance; median worker life 6.8 min; ~4.3k code lines in 9.5 h; no depth-2 workers |
+| Four-programme cohort 2026-11-08..10 (`effort_anatomy.py`, root thread `01a1bcbf`) | 173 threads, 82k changed lines in 12 active hours. The scheduler paused its goal at the operator's request and could not resume it: for 11 h it ran only on 14 operator messages, sent three owners no message for 4–6 h, and one owner sat idle for 129 min. After the operator re-activated the goal: 31 goal turns with a 4.6-minute median, 88 `wait_agent` calls at a 30 s median, 48M input tokens an hour for the scheduler (15–18% of the tree), a compaction every 20 min, 12–14 messages an hour to each owner and 25 reviewers in 2.4 h; output per 2-hour block did not rise |
+| The same cohort, packet and reviews | The packet held its ledger: 18 KB of charter grew to 177 KB, re-read 4–7 times per scheduler turn and after each of the owners' 13–18 compactions. 92 of 172 sub-agents were reviewers, challengers or auditors; in one topic they took about 60% of child time while one synthetic case went through six revisions. A 25% net-line reduction target moved 18 lines in 10 h while four plan reviews rejected the plan |
+| The same cohort, operator queue | The consent request for the notification route produced one push in 30 h and stayed pending under a heading that said no response was needed. Three proposals and three sets of review packets that gate showcases reached the operator only as a clause inside status paragraphs. The stance message left the retained context at the ninth operator message, five of which were status questions |
+| The same cohort, model tiers (not a controlled comparison) | 10 points of weekly Codex quota in about 40 min on `gpt-6-astra` at `max`; about 5 points in 10.5 h on `gpt-6-luna` at `high` with four owners. Changed lines per wall-clock hour on Luna were about 60% of the Astra burst. No task ran on both, and the supervision regime changed with the model |
 
 ## 6. Open platform gaps
 
@@ -247,3 +283,5 @@ Re-measure with `effort_anatomy.py` before citing these for another period. The 
 | `spawn_agent` cannot carry a native goal | Goal-bearing segments run as Agent Manager child runs (§3), with native sub-agents as the fallback | Codex (upstream); Agent Manager route exists |
 | Agent Manager wakes are user messages, so a parked run woken eight times no longer retains its task prompt (§4a) | Runs created with `--charter` end every wake with "Re-read your charter <path> before acting." A run without a charter has no carrier: give long parked runs a charter | Agent Manager (resolved for chartered runs) |
 | Attached sessions cannot parent Agent Manager runs | Start the scheduler as an Agent Manager root run, or delegate natively | Agent Manager |
+| A paused native goal has no agent-side resume, and a native session has no timer | D4: the scheduler names `/goal resume` first and holds its wait inside the turn. `effort_anatomy.py drift` fires `paused-goal`. A scheduler started as an Agent Manager root run can park on a review timer instead (`scenarios/agent-manager/docs/internal/TEMPORAL-FLOWS.md`, "Optional review timer") | Codex (upstream); Agent Manager route exists for managed runs |
+| The consent request that opens the notification route is announced once, with no reminder, and a native session's grant ends with the session | D17: a pending consent is the first `Needs you` item in every reply and on the state page, with its approval link, until it is granted | Agent Manager (authorization decision events) |

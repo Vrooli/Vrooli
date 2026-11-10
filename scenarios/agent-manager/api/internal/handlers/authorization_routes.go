@@ -239,7 +239,7 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
-		http.Error(w, "agent authority does not include global management or approval", http.StatusForbidden)
+		http.Error(w, "agent authority does not include global management or approval; run review (run approve, run reject), an investigation's approved recommendations and the workspace sandbox's review result are operator decisions with no agent grant, answered in Agent Manager or the operator's decision inbox", http.StatusForbidden)
 	})
 }
 

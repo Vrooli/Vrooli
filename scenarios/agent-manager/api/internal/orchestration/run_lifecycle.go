@@ -72,6 +72,12 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 		run.ExitCode = nil
 		run.TerminalClass = ""
 		run.StopReason = ""
+		// Terminal output belongs to the invocation that produced it. Keep the
+		// event history (including any prior native-goal verdict), but do not
+		// present the previous invocation's selected summary/result as the
+		// outcome of this newly admitted invocation.
+		run.Summary = nil
+		run.Result = nil
 	}
 	if input.Phase != "" {
 		run.Phase = input.Phase

@@ -233,6 +233,9 @@ func scanSandbox(row interface {
 	); err != nil {
 		return nil, err
 	}
+	if !s.Status.IsValid() {
+		return nil, fmt.Errorf("scan sandbox %s: unknown persisted status %q", idStr, s.Status)
+	}
 	s.HomeOverlayState = types.HomeOverlayState(homeOverlayState)
 
 	id, err := parseUUID(idStr)

@@ -108,10 +108,22 @@ func (f *fakeSessions) SendPrompt(_ context.Context, _, _, _ string) (webconsole
 	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, f.sendPromptErr
 }
 
+func (f *fakeSessions) SendPromptForNativeSession(ctx context.Context, sessionID, nativeID, prompt, source string) (webconsole.PromptSubmission, error) {
+	return f.SendPrompt(ctx, sessionID, nativeID, prompt, source)
+}
+
 func (f *fakeSessions) SendCommand(_ context.Context, _, _, _ string) (webconsole.PromptSubmission, error) {
 	f.recordCall("sendcommand")
 	f.goalSendCommands++
 	return webconsole.PromptSubmission{Verified: true, EnterPresses: 1}, f.sendCommandErr
+}
+
+func (f *fakeSessions) SendCommandForNativeSession(ctx context.Context, sessionID, nativeID, command, source string) (webconsole.PromptSubmission, error) {
+	return f.SendCommand(ctx, sessionID, nativeID, command, source)
+}
+
+func (f *fakeSessions) ObserveNativeAgent(context.Context, string, string) (webconsole.NativeAgentObservation, error) {
+	return webconsole.NativeAgentObservation{State: webconsole.NativeAgentIdle}, nil
 }
 
 func (f *fakeSessions) Interrupt(_ context.Context, _, _ string) error {

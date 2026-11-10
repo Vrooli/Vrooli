@@ -1,23 +1,27 @@
 package main
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/vrooli/cli-core/cliapptest"
 	workspacev1 "github.com/vrooli/vrooli/packages/proto/gen/go/workspace-sandbox/v1/workspace"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
+
+func TestMain(m *testing.M) { os.Exit(cliapptest.RunWithoutAgentSession(m)) }
 
 func TestApprovalCommandsForwardReviewedPatch(t *testing.T) {
 	for _, command := range []string{"approve", "promote"} {
 		t.Run(command, func(t *testing.T) {
 			digest := strings.Repeat("a", 64)
 			calls := 0
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_ = cliapptest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				if r.URL.Path == "/health" {
 					_, _ = w.Write([]byte(`{"status":"healthy"}`))
@@ -48,8 +52,6 @@ func TestApprovalCommandsForwardReviewedPatch(t *testing.T) {
 				}
 				_, _ = w.Write([]byte(`{"success":true,"applied":1,"appliedPatchSha256":"` + digest + `"}`))
 			}))
-			defer server.Close()
-			t.Setenv("WORKSPACE_SANDBOX_API_BASE", server.URL)
 			t.Setenv("CLI_CONFIG_DIR_OVERRIDE", t.TempDir())
 			app, err := NewApp()
 			if err != nil {
@@ -63,6 +65,87 @@ func TestApprovalCommandsForwardReviewedPatch(t *testing.T) {
 				t.Fatalf("CLI approval failed: %v, calls %d", err, calls)
 			}
 		})
+	}
+}
+
+func TestProcessRunUsesBackgroundProcessEndpoint(t *testing.T) {
+	const sandboxID = "bd34c03c-e2bf-4f24-97fb-0f078570fb8a"
+	calls := 0
+	_ = cliapptest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
+		calls++
+		if r.Method != http.MethodPost || r.URL.Path != "/api/v1/sandboxes/"+sandboxID+"/processes" {
+			t.Errorf("process run request = %s %s, want POST /api/v1/sandboxes/%s/processes", r.Method, r.URL.Path, sandboxID)
+			http.NotFound(w, r)
+			return
+		}
+		var request map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Errorf("decode process request: %v", err)
+		}
+		if request["command"] != "/bin/sleep" || request["name"] != "f3-lifecycle" {
+			t.Errorf("process request lost command/name: %#v", request)
+		}
+		_, _ = w.Write([]byte(`{"pid":4321,"sandboxId":"` + sandboxID + `","command":"/bin/sleep","name":"f3-lifecycle"}`))
+	}))
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", t.TempDir())
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Run([]string{"process", "run", sandboxID, "--name=f3-lifecycle", "--json", "--", "/bin/sleep", "60"}); err != nil {
+		t.Fatalf("process run failed: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("request count = %d, want 1", calls)
+	}
+}
+
+func TestProcessLogsForwardsRequiredStreamParameter(t *testing.T) {
+	const sandboxID = "bd34c03c-e2bf-4f24-97fb-0f078570fb8a"
+	const logPath = "/api/v1/sandboxes/" + sandboxID + "/processes/4321/logs"
+	wantStreams := []string{"stdout", "stderr", "stderr"}
+	calls := 0
+	_ = cliapptest.NewAPIServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"healthy"}`))
+			return
+		}
+		calls++
+		if r.Method != http.MethodGet || r.URL.Path != logPath {
+			t.Errorf("process logs request = %s %s, want GET %s", r.Method, r.URL.Path, logPath)
+		}
+		if calls > len(wantStreams) {
+			t.Errorf("unexpected extra log request %d", calls)
+			return
+		}
+		if got := r.URL.Query().Get("stream"); got != wantStreams[calls-1] {
+			t.Errorf("stream query = %q, want %q", got, wantStreams[calls-1])
+		}
+		_, _ = w.Write([]byte(`{"pid":4321,"sandboxId":"` + sandboxID + `","content":"route-log-ok"}`))
+	}))
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", t.TempDir())
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	commands := [][]string{
+		{"process", "logs", sandboxID, "--pid=4321", "--json"},
+		{"process", "logs", sandboxID, "--pid=4321", "--stream=stderr", "--json"},
+		{"process", "logs", sandboxID, "--pid=4321", "--stream=stderr", "--follow"},
+	}
+	for _, command := range commands {
+		if err := app.Run(command); err != nil {
+			t.Fatalf("process logs %v failed: %v", command, err)
+		}
+	}
+	if calls != len(wantStreams) {
+		t.Fatalf("request count = %d, want %d", calls, len(wantStreams))
 	}
 }
 

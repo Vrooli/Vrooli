@@ -197,7 +197,7 @@ func deliveryGrantActor(ctx context.Context, effortRef string) (supervision.Effo
 		return supervision.EffortActor{ID: p.Subject, DeliveryManager: true, PolicyOwner: p.Owner}, true, nil
 	}
 	if _, err := authn.RequireOperation(ctx, "agent-manager:write", "effort.delivery", target); err != nil {
-		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New("interactive grant does not allow effort.delivery on "+target))
+		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New(operationRefusalMessage(err, "interactive grant does not allow effort.delivery on "+target)))
 	}
 	grant := p.Grant
 	proof, err := provenance.ReverifyOperationProof(ctx)
@@ -255,7 +255,7 @@ func effortGrantActor(ctx context.Context, effortRef string, authority pb.WatchA
 	}
 	target := EffortGrantTarget(effortRef)
 	if _, err := authn.RequireOperation(ctx, "agent-manager:write", "effort.reconcile", target); err != nil {
-		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New("interactive grant does not allow effort.reconcile on "+target))
+		return supervision.EffortActor{}, true, connect.NewError(connect.CodePermissionDenied, errors.New(operationRefusalMessage(err, "interactive grant does not allow effort.reconcile on "+target)))
 	}
 	log.Printf("agent-manager effort metadata delegated caller=%s owner=%s grant=%s approver=%s target=%s", p.Subject, p.Owner, grant.ID, grant.Approver, target)
 	return supervision.EffortActor{ID: p.Subject, Delegated: true, ApprovedBy: grant.Approver}, true, nil

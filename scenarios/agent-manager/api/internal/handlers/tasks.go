@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"slices"
@@ -45,7 +46,7 @@ func (h *Handler) authorizeTaskCreate(ctx context.Context, identityToken string)
 	trustedCreator, intrinsic := h.taskCreateCaller(ctx, identityToken)
 	if !intrinsic {
 		if _, err := authn.RequireOperation(ctx, "agent-manager:write", "run.create", RunCreationTarget); err != nil {
-			return nil, errTaskCreateForbidden
+			return nil, fmt.Errorf("%w: %w", errTaskCreateForbidden, err)
 		}
 	}
 	return trustedCreator, nil
@@ -79,7 +80,7 @@ func (h *Handler) createTask(ctx context.Context, trustedCreator *domain.Run, re
 func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	trustedCreator, err := h.authorizeTaskCreate(r.Context(), r.Header.Get(cliutil.HeaderAgentIdentityToken))
 	if err != nil {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "task creation requires a live orchestrator or run.create authority"})
+		writeOperationRefusal(w, err, errTaskCreateForbidden.Error())
 		return
 	}
 	body, err := io.ReadAll(r.Body)
@@ -251,7 +252,7 @@ func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		if briefOnly := authorityErr != nil; briefOnly {
 			ownedQueuedTask, allowed := h.orchestratorTaskUpdateTarget(r, id)
 			if !allowed || !taskUpdateOnlyChangesBrief(req.Task, ownedQueuedTask) {
-				writeJSON(w, http.StatusForbidden, map[string]string{"error": "task brief updates require the verified creator orchestrator and an exact queued, undispatched task"})
+				writeOperationRefusal(w, authorityErr, "task brief updates require the verified creator orchestrator and an exact queued, undispatched task")
 				return
 			}
 			brief := &domain.Task{Title: req.Task.Title, Description: req.Task.Description}
@@ -344,7 +345,7 @@ func (h *Handler) CancelTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.manage", "agent-manager:task/"+id.String()); err != nil {
-		writeJSON(w, http.StatusForbidden, map[string]string{"error": "task cancellation requires exact agent.manage authority"})
+		writeOperationRefusal(w, err, "task cancellation requires exact agent.manage authority")
 		return
 	}
 
@@ -370,7 +371,7 @@ func (h *Handler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	}
 	if principal, ok := requestidentity.PrincipalFromContext(r.Context()); ok && principal.Kind == requestidentity.ActorAgent {
 		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "agent.manage", "agent-manager:task/"+id.String()); err != nil {
-			writeJSON(w, http.StatusForbidden, map[string]string{"error": "task deletion requires agent.manage authority"})
+			writeOperationRefusal(w, err, "task deletion requires agent.manage authority")
 			return
 		}
 	}

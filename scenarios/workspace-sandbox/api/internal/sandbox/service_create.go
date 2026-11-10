@@ -248,7 +248,9 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 
 	paths, err := s.driver.Mount(ctx, sandbox)
 	if err != nil {
-		sandbox.Status = types.StatusError
+		if transitionErr := sandbox.TransitionStatus(types.StatusError); transitionErr != nil {
+			return sandbox, fmt.Errorf("mount failed: %w; cannot mark sandbox error: %v", err, transitionErr)
+		}
 		sandbox.ErrorMsg = err.Error()
 		if updateErr := s.repo.Update(ctx, sandbox); updateErr != nil {
 			fmt.Printf("warning: failed to update sandbox status after mount failure: %v\n", updateErr)
@@ -267,7 +269,10 @@ func (s *Service) createAndMountSandbox(ctx context.Context, req *types.CreateRe
 	sandbox.HomeUpperDir = paths.HomeUpperDir
 	sandbox.HomeWorkDir = paths.HomeWorkDir
 	sandbox.HomeMergedDir = paths.HomeMergedDir
-	sandbox.Status = types.StatusActive
+	if err := sandbox.TransitionStatus(types.StatusActive); err != nil {
+		_ = s.driver.Cleanup(ctx, sandbox)
+		return nil, fmt.Errorf("cannot mark created sandbox active: %w", err)
+	}
 
 	if err := s.repo.Update(ctx, sandbox); err != nil {
 		if cleanupErr := s.driver.Cleanup(ctx, sandbox); cleanupErr != nil {

@@ -283,7 +283,12 @@ func (s *Service) markAutoHealExhausted(ctx context.Context, sandbox *types.Sand
 		return
 	}
 
-	current.Status = types.StatusError
+	if err := current.TransitionStatus(types.StatusError); err != nil {
+		s.logAuditEvent(ctx, sandbox, "sandbox.warning", "system", "system", map[string]interface{}{
+			"message": "invalid auto-heal exhaustion transition: " + err.Error(),
+		})
+		return
+	}
 	current.ErrorMsg = fmt.Sprintf("auto-heal failed after %d consecutive attempts: %s",
 		failures, "mount could not be restored automatically")
 

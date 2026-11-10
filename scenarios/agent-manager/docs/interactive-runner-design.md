@@ -629,6 +629,11 @@ timestamp is at or after `InteractiveInvocationStartedAt`. Historical goal
 status remains useful for diagnostics but cannot end a later continuation.
 Ordinary assistant prose, provider turn completion, and a still-open
 Web Console session do not substitute for a matching native terminal marker.
+When a parked or terminal run admits a new invocation, Agent Manager clears the
+prior terminal summary and result from the current run projection before
+delivering the prompt. The old event history and diagnostic goal status remain
+available, while only evidence attributed to the new invocation can populate
+its terminal result.
 
 | Class | Family | Evidence |
 |---|---|---|
