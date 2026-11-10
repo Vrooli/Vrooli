@@ -491,122 +491,77 @@ func packageUsageFacts(p *packages.Package, pkgID, moduleRoot string) []Node {
 // It walks p.Syntax (already sorted by the caller) but emits a sorted
 // slice keyed by (file_basename, name) so output is deterministic.
 func packageSymbols(p *packages.Package, pkgID, moduleRoot string) []Node {
-	type pending struct {
-		fileBase string
-		name     string
-		node     Node
-	}
-	var out []pending
-
 	if p.Fset == nil {
 		return nil
 	}
-
-	for _, syn := range p.Syntax {
-		if syn == nil {
+	occurrences := map[string]int{}
+	for _, file := range p.Syntax {
+		if file == nil {
 			continue
 		}
-		fileAbs := p.Fset.Position(syn.Pos()).Filename
-		fileBase := filepath.Base(fileAbs)
-		rel := relPath(moduleRoot, fileAbs)
-		fileID := "file:" + rel
-
-		for _, decl := range syn.Decls {
-			switch d := decl.(type) {
+		ast.Inspect(file, func(n ast.Node) bool {
+			if ident, ok := n.(*ast.Ident); ok {
+				occurrences[ident.Name]++
+			}
+			return true
+		})
+	}
+	var nodes []Node
+	for _, file := range p.Syntax {
+		if file == nil {
+			continue
+		}
+		rel := relPath(moduleRoot, p.Fset.Position(file.Pos()).Filename)
+		appendSymbol := func(kind NodeKind, name *ast.Ident, declaration ast.Node, extra map[string]string) {
+			if name == nil || name.Name == "_" {
+				return
+			}
+			attrs := usageAttributes(LanguageGo, pkgID, "file:"+rel, p.Fset, declaration.Pos(), declaration.End())
+			attrs["exported"] = boolAttr(name.IsExported())
+			// A conservative syntax fact, not proof of semantic reachability. It
+			// includes declarations, selectors, interface methods and other names.
+			attrs["package_name_occurrences"] = intAttr(occurrences[name.Name])
+			for k, v := range extra {
+				attrs[k] = v
+			}
+			identity := name.Name
+			if receiver := attrs["receiver"]; receiver != "" {
+				identity = receiver + "." + identity
+			}
+			nodes = append(nodes, Node{ID: string(kind) + ":" + pkgID + ":" + identity, Kind: kind, Name: name.Name, Path: rel, Attributes: attrs})
+		}
+		for _, declaration := range file.Decls {
+			switch d := declaration.(type) {
 			case *ast.FuncDecl:
-				if d.Name == nil {
-					continue
-				}
 				kind := NodeKindFunc
+				attrs := functionSyntaxAttributes(p.Fset, d)
 				if d.Recv != nil && len(d.Recv.List) > 0 {
 					kind = NodeKindMethod
 				}
-				out = append(out, pending{
-					fileBase: fileBase,
-					name:     d.Name.Name,
-					node: Node{
-						ID:   string(kind) + ":" + pkgID + ":" + d.Name.Name,
-						Kind: kind,
-						Name: d.Name.Name,
-						Path: rel,
-						Attributes: map[string]string{
-							"language":   string(LanguageGo),
-							"package_id": pkgID,
-							"file_id":    fileID,
-							"exported":   boolAttr(d.Name.IsExported()),
-						},
-					},
-				})
+				appendSymbol(kind, d.Name, d, attrs)
 			case *ast.GenDecl:
 				kind := genDeclKind(d.Tok)
 				if kind == "" {
 					continue
 				}
 				for _, spec := range d.Specs {
-					switch s := spec.(type) {
+					switch item := spec.(type) {
 					case *ast.TypeSpec:
-						if s.Name == nil {
-							continue
-						}
 						nk := kind
-						if _, isIface := s.Type.(*ast.InterfaceType); isIface {
+						if _, ok := item.Type.(*ast.InterfaceType); ok {
 							nk = NodeKindInterface
 						}
-						out = append(out, pending{
-							fileBase: fileBase,
-							name:     s.Name.Name,
-							node: Node{
-								ID:   string(nk) + ":" + pkgID + ":" + s.Name.Name,
-								Kind: nk,
-								Name: s.Name.Name,
-								Path: rel,
-								Attributes: map[string]string{
-									"language":   string(LanguageGo),
-									"package_id": pkgID,
-									"file_id":    fileID,
-									"exported":   boolAttr(s.Name.IsExported()),
-								},
-							},
-						})
+						appendSymbol(nk, item.Name, item, map[string]string{"type_expression": exprString(p.Fset, item.Type)})
 					case *ast.ValueSpec:
-						for _, ident := range s.Names {
-							if ident == nil || ident.Name == "_" {
-								continue
-							}
-							out = append(out, pending{
-								fileBase: fileBase,
-								name:     ident.Name,
-								node: Node{
-									ID:   string(kind) + ":" + pkgID + ":" + ident.Name,
-									Kind: kind,
-									Name: ident.Name,
-									Path: rel,
-									Attributes: map[string]string{
-										"language":   string(LanguageGo),
-										"package_id": pkgID,
-										"file_id":    fileID,
-										"exported":   boolAttr(ident.IsExported()),
-									},
-								},
-							})
+						for _, name := range item.Names {
+							appendSymbol(kind, name, item, nil)
 						}
 					}
 				}
 			}
 		}
 	}
-
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].fileBase != out[j].fileBase {
-			return out[i].fileBase < out[j].fileBase
-		}
-		return out[i].name < out[j].name
-	})
-
-	nodes := make([]Node, 0, len(out))
-	for _, p := range out {
-		nodes = append(nodes, p.node)
-	}
+	sort.Slice(nodes, func(i, j int) bool { return nodes[i].ID < nodes[j].ID })
 	return nodes
 }
 
@@ -683,7 +638,19 @@ func objectSymbolID(obj types.Object) string {
 	if obj == nil || obj.Pkg() == nil {
 		return ""
 	}
-	return string(objectNodeKind(obj)) + ":package:" + obj.Pkg().Path() + ":" + obj.Name()
+	name := obj.Name()
+	if fn, ok := obj.(*types.Func); ok {
+		if signature, ok := fn.Type().(*types.Signature); ok && signature.Recv() != nil {
+			receiver := signature.Recv().Type()
+			if pointer, ok := receiver.(*types.Pointer); ok {
+				receiver = pointer.Elem()
+			}
+			if named, ok := receiver.(*types.Named); ok {
+				name = named.Obj().Name() + "." + name
+			}
+		}
+	}
+	return string(objectNodeKind(obj)) + ":package:" + obj.Pkg().Path() + ":" + name
 }
 
 func objectPackagePath(obj types.Object) string {

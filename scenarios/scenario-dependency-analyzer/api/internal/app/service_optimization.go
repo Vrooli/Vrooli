@@ -26,6 +26,9 @@ func (s *optimizationService) RunOptimization(req types.OptimizationRequest) (ma
 	if scenario == "" {
 		scenario = "all"
 	}
+	if len(req.OnlyScenarios) > 0 && scenario == "all" {
+		return nil, fmt.Errorf("scenario dependency selection requires one target scenario")
+	}
 
 	var targets []string
 	if scenario == "all" {

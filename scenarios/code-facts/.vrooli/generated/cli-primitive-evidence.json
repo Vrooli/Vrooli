@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "code-facts",
   "generator": "v1.0.0",
-  "manifest_hash": "91288ddc8c3ab06af08b37b270692f0d64f79bc5774624af13c7561d459ed799",
+  "manifest_hash": "51addccc1138d1a0353ed7d2536b734f4e8850b5fafdc99f08c2e298d7d49bdd",
   "commands": [
     {
       "path": "cache clear",

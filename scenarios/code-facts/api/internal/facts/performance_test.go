@@ -43,7 +43,7 @@ func TestGraphFlightCoalescesIdenticalWork(t *testing.T) {
 	start := make(chan struct{})
 	release := make(chan struct{})
 	var calls atomic.Int32
-	fn := func(context.Context) (*GraphResult, error) {
+	fn := func(context.Context) (*factsv1.LanguageGraph, error) {
 		calls.Add(1)
 		close(start)
 		<-release
@@ -51,7 +51,7 @@ func TestGraphFlightCoalescesIdenticalWork(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	wg.Add(2)
-	results := make(chan *GraphResult, 2)
+	results := make(chan *factsv1.LanguageGraph, 2)
 	go func() {
 		defer wg.Done()
 		result, _ := group.Do(context.Background(), "same", fn)

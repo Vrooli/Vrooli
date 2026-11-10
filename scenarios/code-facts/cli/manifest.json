@@ -35,6 +35,7 @@
             }
           ],
           "flags": [
+            {"name": "graphs", "bool": true, "description": "Include cached language graphs and their extraction contracts", "bind": {"field": "include_graphs"}},
             {
               "name": "include",
               "description": "Comma-separated fact families such as surfaces,parse_units,imports,all"

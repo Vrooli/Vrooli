@@ -8,6 +8,14 @@ The API exposes health, scenario catalog, declared graph, actual interface graph
 
 SDA is analysis-oriented rather than CRUD-heavy. Mutating endpoints are limited to scan/apply and generated bundle or deployment artifacts.
 
+## Selected dependency removal
+
+`POST /api/v1/optimize-scenarios` requires one target `scenario` and nonempty
+`only_scenarios`. It intersects those exact dependency names with recommendation
+`type`; resource removals and other scenario dependencies are excluded. `apply`
+defaults to false. The distinct route makes old servers reject selected requests
+instead of ignoring the selector. CLI: `optimize <scenario> --only-scenarios a,b`.
+
 ## Adding a new endpoint
 
 Add the handler, tests, generated proto/Connect contract when the surface is programmatic, `.vrooli/endpoints.json` metadata, and this reference entry.

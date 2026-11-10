@@ -131,7 +131,7 @@ func TestDescribeFleetImportsUsesExplicitSubset(t *testing.T) {
 	provider := fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result: &GraphResult{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			protoImportNode("main.go", "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation"),
 		}}},
 	}
@@ -183,7 +183,7 @@ func TestDescribeFleetImportsReusesCache(t *testing.T) {
 	provider := &countingProvider{fakeProvider: fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result:   &GraphResult{Graph: &commonv1.CodeGraph{}},
+		result:   &factsv1.LanguageGraph{Graph: &commonv1.CodeGraph{}},
 	}}
 	svc := NewService(WithBroker(NewBroker(provider)))
 	req := &factsv1.DescribeFleetImportsRequest{
@@ -405,7 +405,7 @@ func TestDescribeNormalizesGoProviderFacts(t *testing.T) {
 	provider := fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result: &GraphResult{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "go_import_spec:main.go:fmt",
 				Name: "fmt",
@@ -453,7 +453,7 @@ func TestDescribeMapsGoRouteRegistrationFactsToCalls(t *testing.T) {
 	provider := fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result: &GraphResult{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "go_route_registration:routes.go:1",
 				Name: "POST /upload",
@@ -494,7 +494,7 @@ func TestDescribeNormalizesTypeScriptProviderFacts(t *testing.T) {
 	provider := fakeProvider{
 		language: "typescript",
 		analyzer: "typescript-code-graph",
-		result: &GraphResult{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "ts_import_binding:src/widget.tsx:1:1:Client",
 				Name: "Client",
@@ -538,7 +538,7 @@ func TestProtoAdoptionRecognizesGeneratedProtoTypeScriptAlias(t *testing.T) {
 	provider := fakeProvider{
 		language: "typescript",
 		analyzer: "typescript-code-graph",
-		result: &GraphResult{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "ts_import_binding:src/api/health.ts:1:1:ResponseSchema",
 				Name: "ResponseSchema",
@@ -588,11 +588,11 @@ func TestProtoAdoptionScopesGeneratedImportsToSurfaceParseUnit(t *testing.T) {
 	provider := unitProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		extract: func(unit *factsv1.ParseUnit) *GraphResult {
+		extract: func(unit *factsv1.ParseUnit) *factsv1.LanguageGraph {
 			if unit.GetRootPath() != filepath.Join(scenarioRoot, "cli") {
-				return &GraphResult{Graph: &commonv1.CodeGraph{}}
+				return &factsv1.LanguageGraph{Graph: &commonv1.CodeGraph{}}
 			}
-			return &GraphResult{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+			return &factsv1.LanguageGraph{Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 				protoImportNode("domains/describe/handlers.go", "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation"),
 			}}}
 		},
@@ -722,7 +722,7 @@ func TestDescribeCachesRepeatedSelectiveFactRequest(t *testing.T) {
 	provider := &countingProvider{fakeProvider: fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result: &GraphResult{GraphHash: "graph-one", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{GraphHash: "graph-one", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "go_import_spec:main.go:fmt",
 				Name: "fmt",
@@ -775,7 +775,7 @@ func TestDescribeCacheInvalidatesWhenSourceChanges(t *testing.T) {
 	provider := &countingProvider{fakeProvider: fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result: &GraphResult{GraphHash: "graph-one", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{GraphHash: "graph-one", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "go_import_spec:main.go:fmt",
 				Name: "fmt",
@@ -1254,7 +1254,7 @@ func TestClearCacheDryRunDoesNotDeleteEntries(t *testing.T) {
 	provider := &countingProvider{fakeProvider: fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result:   &GraphResult{GraphHash: "graph-one", Graph: &commonv1.CodeGraph{}},
+		result:   &factsv1.LanguageGraph{GraphHash: "graph-one", Graph: &commonv1.CodeGraph{}},
 	}}
 	svc := NewService(WithBroker(NewBroker(provider)))
 	target := &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root}
@@ -1303,7 +1303,7 @@ func TestDescribeUnsupportedParseUnitDoesNotCallProvider(t *testing.T) {
 
 func TestProtoAdoptionProvesGeneratedImportsBySurface(t *testing.T) {
 	repo, _ := writeScenarioFixture(t, "proto-health")
-	provider := unitProvider{language: "go", analyzer: "go-code-graph", extract: func(unit *factsv1.ParseUnit) *GraphResult {
+	provider := unitProvider{language: "go", analyzer: "go-code-graph", extract: func(unit *factsv1.ParseUnit) *factsv1.LanguageGraph {
 		nodes := []*commonv1.CodeGraphNode{}
 		if filepath.Base(unit.GetRootPath()) == "api" {
 			nodes = append(nodes, protoImportNode("api/handlers/health/handler.go", "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/health"))
@@ -1311,7 +1311,7 @@ func TestProtoAdoptionProvesGeneratedImportsBySurface(t *testing.T) {
 		if filepath.Base(unit.GetRootPath()) == "cli" {
 			nodes = append(nodes, protoImportNode("cli/domains/validation/handlers.go", "github.com/vrooli/vrooli/packages/proto/gen/go/proto-health/v1/validation"))
 		}
-		return &GraphResult{GraphHash: unit.GetId(), Graph: &commonv1.CodeGraph{Nodes: nodes}}
+		return &factsv1.LanguageGraph{GraphHash: unit.GetId(), Graph: &commonv1.CodeGraph{Nodes: nodes}}
 	}}
 
 	report, err := NewService(WithBroker(NewBroker(provider))).ProtoAdoption(context.Background(), &factsv1.CheckProtoAdoptionRequest{
@@ -1357,7 +1357,7 @@ func TestEndpointProofProvesRESTExceptionPayload(t *testing.T) {
 	provider := fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result: &GraphResult{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "route",
 				Name: "Methods",
@@ -1435,7 +1435,7 @@ func TestEndpointProofDoesNotBorrowPayloadFromDifferentHandler(t *testing.T) {
 	provider := fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result: &GraphResult{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "health-route",
 				Name: "GET /health",
@@ -1512,7 +1512,7 @@ func TestEndpointProofCorrelatesHandlerFactoryClosure(t *testing.T) {
 	provider := fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result: &GraphResult{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "factory",
 				Name: "NewHandler",
@@ -1668,7 +1668,7 @@ func TestEndpointProofUsesProvenTypeScriptWhenGoImplementationUnknown(t *testing
 	goProvider := fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result: &GraphResult{GraphHash: "go-mismatch", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{GraphHash: "go-mismatch", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "wrong-route",
 				Name: "POST /health",
@@ -1746,7 +1746,7 @@ func TestEndpointProofTypeScriptExpressMissingPayload(t *testing.T) {
 	provider := fakeProvider{
 		language: "typescript",
 		analyzer: "typescript-code-graph",
-		result: &GraphResult{GraphHash: "ts-express", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{GraphHash: "ts-express", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			tsExpressRouteNode(),
 			{
 				Id:   "response",
@@ -1790,7 +1790,7 @@ func TestEndpointProofTypeScriptExpressImportOnlyUnknown(t *testing.T) {
 	provider := fakeProvider{
 		language: "typescript",
 		analyzer: "typescript-code-graph",
-		result: &GraphResult{GraphHash: "ts-express", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{GraphHash: "ts-express", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			tsExpressRouteNode(),
 			tsImportNode("@vrooli/proto-types/proto-health/v1/health"),
 		}}},
@@ -1824,7 +1824,7 @@ func TestEndpointProofWarnsForUnsupportedTypeScriptFramework(t *testing.T) {
 	provider := fakeProvider{
 		language: "typescript",
 		analyzer: "typescript-code-graph",
-		result: &GraphResult{GraphHash: "ts-fastify", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{GraphHash: "ts-fastify", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "route",
 				Name: "GET /health",
@@ -1874,7 +1874,7 @@ func TestEndpointProofLeavesMismatchedRouteUnknown(t *testing.T) {
 	provider := fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result: &GraphResult{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "route",
 				Name: "GET /api/v1/notes/{id}/attachments",
@@ -1936,7 +1936,7 @@ func TestEndpointProofContradictsWrongResponseType(t *testing.T) {
 	provider := fakeProvider{
 		language: "go",
 		analyzer: "go-code-graph",
-		result: &GraphResult{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+		result: &factsv1.LanguageGraph{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 			{
 				Id:   "route",
 				Name: "Methods",
@@ -1991,8 +1991,8 @@ func endpointProofFixtureJSON() string {
 }]}`
 }
 
-func endpointProofGraphResult() *GraphResult {
-	return &GraphResult{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+func endpointProofGraphResult() *factsv1.LanguageGraph {
+	return &factsv1.LanguageGraph{GraphHash: "endpoint-proof", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 		{
 			Id:   "route",
 			Name: "Methods",
@@ -2042,8 +2042,8 @@ func endpointProofGraphResult() *GraphResult {
 	}}}
 }
 
-func tsExpressGraphResult(responseCallee, responseType string) *GraphResult {
-	return &GraphResult{GraphHash: "ts-express", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
+func tsExpressGraphResult(responseCallee, responseType string) *factsv1.LanguageGraph {
+	return &factsv1.LanguageGraph{GraphHash: "ts-express", Graph: &commonv1.CodeGraph{Nodes: []*commonv1.CodeGraphNode{
 		tsExpressRouteNode(),
 		tsImportNode("@vrooli/proto-types/proto-health/v1/health"),
 		{
@@ -2204,21 +2204,21 @@ func requireProofFact(t *testing.T, facts []*factsv1.GenericFact, subject string
 type fakeProvider struct {
 	language string
 	analyzer string
-	result   *GraphResult
+	result   *factsv1.LanguageGraph
 	err      error
 }
 
 func (f fakeProvider) Language() string     { return f.language }
 func (f fakeProvider) AnalyzerName() string { return f.analyzer }
 
-func (f fakeProvider) Extract(context.Context, *factsv1.ParseUnit) (*GraphResult, error) {
+func (f fakeProvider) Extract(context.Context, *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
 	if f.result != nil {
 		return f.result, nil
 	}
-	return &GraphResult{Graph: &commonv1.CodeGraph{}}, nil
+	return &factsv1.LanguageGraph{Graph: &commonv1.CodeGraph{}}, nil
 }
 
 type countingProvider struct {
@@ -2237,7 +2237,7 @@ func (f fakeFileDomainProvider) DescribeFileDomains(context.Context, *factsv1.Ta
 	return f.facts, f.evidence, f.warnings, f.err
 }
 
-func (f *countingProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*GraphResult, error) {
+func (f *countingProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
 	f.calls++
 	return f.fakeProvider.Extract(ctx, unit)
 }
@@ -2245,13 +2245,13 @@ func (f *countingProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit)
 type unitProvider struct {
 	language string
 	analyzer string
-	extract  func(*factsv1.ParseUnit) *GraphResult
+	extract  func(*factsv1.ParseUnit) *factsv1.LanguageGraph
 }
 
 func (f unitProvider) Language() string     { return f.language }
 func (f unitProvider) AnalyzerName() string { return f.analyzer }
 
-func (f unitProvider) Extract(_ context.Context, unit *factsv1.ParseUnit) (*GraphResult, error) {
+func (f unitProvider) Extract(_ context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
 	return f.extract(unit), nil
 }
 
@@ -2337,7 +2337,7 @@ func exerciseCacheBudgetEvictsLRUAndRefreshChangesOrder(t *testing.T, newRepo fu
 	probe := newRepo(0)
 	for _, item := range []struct {
 		entry cacheEntry
-		graph *GraphResult
+		graph *factsv1.LanguageGraph
 	}{{entryA, graphA}, {entryB, graphB}, {entryC, graphC}} {
 		if err := probe.PutGraph(ctx, item.entry, item.graph); err != nil {
 			t.Fatalf("probe PutGraph: %v", err)
@@ -2483,8 +2483,8 @@ func cacheTestEntry(key string, identity string, sourceHash string) cacheEntry {
 	}
 }
 
-func cacheTestGraph(hash string) *GraphResult {
-	return &GraphResult{
+func cacheTestGraph(hash string) *factsv1.LanguageGraph {
+	return &factsv1.LanguageGraph{
 		GraphHash: hash,
 		Graph: &commonv1.CodeGraph{
 			Nodes: []*commonv1.CodeGraphNode{{Id: hash, Name: hash}},
@@ -2492,7 +2492,7 @@ func cacheTestGraph(hash string) *GraphResult {
 	}
 }
 
-func largeCacheTestGraph(nodes int) *GraphResult {
+func largeCacheTestGraph(nodes int) *factsv1.LanguageGraph {
 	graph := &commonv1.CodeGraph{Nodes: make([]*commonv1.CodeGraphNode, 0, nodes)}
 	for i := 0; i < nodes; i++ {
 		id := fmt.Sprintf("node-%04d", i)
@@ -2506,10 +2506,10 @@ func largeCacheTestGraph(nodes int) *GraphResult {
 			},
 		})
 	}
-	return &GraphResult{GraphHash: "large-graph", Graph: graph}
+	return &factsv1.LanguageGraph{GraphHash: "large-graph", Graph: graph}
 }
 
-func graphPayloadBytes(t *testing.T, graph *GraphResult) int64 {
+func graphPayloadBytes(t *testing.T, graph *factsv1.LanguageGraph) int64 {
 	t.Helper()
 	payload, _, err := marshalGraphResult(graph)
 	if err != nil {
@@ -2556,7 +2556,7 @@ func BenchmarkSourceFingerprint(b *testing.B) {
 }
 
 func TestDescribeRetainsAllSurfacesWhileDerivedCacheWriterIsBusy(t *testing.T) {
-	repo, root := writeScenarioFixture(t,"cache-contention")
+	repo, root := writeScenarioFixture(t, "cache-contention")
 	_ = root
 	db, err := sql.Open("sqlite", "file:"+filepath.Join(t.TempDir(), "cache.db")+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(1)")
 	if err != nil {

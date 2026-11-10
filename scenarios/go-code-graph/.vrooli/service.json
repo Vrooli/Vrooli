@@ -1,6 +1,11 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "skills": {
+    "usage": {
+      "source": "skills/go-code-graph/SKILL.md"
+    }
+  },
   "storage": {
     "entries": {
       "data": {

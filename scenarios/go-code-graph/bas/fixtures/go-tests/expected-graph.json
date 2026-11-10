@@ -240,7 +240,7 @@
         ],
         [
           "callee_symbol",
-          "go_method:package:testing:Fatal"
+          "go_method:package:testing:common.Fatal"
         ],
         [
           "enclosing_symbol",
@@ -364,7 +364,7 @@
         ],
         [
           "callee_symbol",
-          "go_method:package:testing:Fatal"
+          "go_method:package:testing:common.Fatal"
         ],
         [
           "enclosing_symbol",
@@ -411,6 +411,26 @@
       "path": "helper/helper.go",
       "attributes": [
         [
+          "body_hash",
+          "e8f50bfbb5f14531d013cb974c195d1145d12a73c308d219eee78e3f37f363d8"
+        ],
+        [
+          "body_lines",
+          "3"
+        ],
+        [
+          "cyclomatic_complexity",
+          "1"
+        ],
+        [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "5"
+        ],
+        [
           "exported",
           "true"
         ],
@@ -425,6 +445,22 @@
         [
           "package_id",
           "package:github.com/vrooli/fixtures/go-tests/helper"
+        ],
+        [
+          "package_name_occurrences",
+          "1"
+        ],
+        [
+          "signature",
+          "func() string"
+        ],
+        [
+          "start_column",
+          "1"
+        ],
+        [
+          "start_line",
+          "3"
         ]
       ]
     },
@@ -434,6 +470,26 @@
       "name": "Live",
       "path": "lib/lib.go",
       "attributes": [
+        [
+          "body_hash",
+          "90a8d088468ed9cde3ec315da0425e2c8015299fb0c0be9ed405be82da3e07a0"
+        ],
+        [
+          "body_lines",
+          "3"
+        ],
+        [
+          "cyclomatic_complexity",
+          "1"
+        ],
+        [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "7"
+        ],
         [
           "exported",
           "true"
@@ -449,6 +505,22 @@
         [
           "package_id",
           "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "package_name_occurrences",
+          "1"
+        ],
+        [
+          "signature",
+          "func() string"
+        ],
+        [
+          "start_column",
+          "1"
+        ],
+        [
+          "start_line",
+          "5"
         ]
       ]
     },
@@ -458,6 +530,26 @@
       "name": "TestLive",
       "path": "lib/lib_test.go",
       "attributes": [
+        [
+          "body_hash",
+          "1528bc36893bc4f7b4f2339d8531e0e29ac21de89ca489430d20dee6f921bc30"
+        ],
+        [
+          "body_lines",
+          "5"
+        ],
+        [
+          "cyclomatic_complexity",
+          "2"
+        ],
+        [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "13"
+        ],
         [
           "exported",
           "true"
@@ -473,6 +565,22 @@
         [
           "package_id",
           "package:github.com/vrooli/fixtures/go-tests/lib"
+        ],
+        [
+          "package_name_occurrences",
+          "1"
+        ],
+        [
+          "signature",
+          "func(t *testing.T)"
+        ],
+        [
+          "start_column",
+          "1"
+        ],
+        [
+          "start_line",
+          "9"
         ]
       ]
     },
@@ -482,6 +590,26 @@
       "name": "TestExternal",
       "path": "lib/external_test.go",
       "attributes": [
+        [
+          "body_hash",
+          "41388f12bc9a705205fd733c28cf46f1cc40dcb4a97d59e2bdae851fa95db569"
+        ],
+        [
+          "body_lines",
+          "5"
+        ],
+        [
+          "cyclomatic_complexity",
+          "2"
+        ],
+        [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "13"
+        ],
         [
           "exported",
           "true"
@@ -497,6 +625,22 @@
         [
           "package_id",
           "package:github.com/vrooli/fixtures/go-tests/lib_test"
+        ],
+        [
+          "package_name_occurrences",
+          "1"
+        ],
+        [
+          "signature",
+          "func(t *testing.T)"
+        ],
+        [
+          "start_column",
+          "1"
+        ],
+        [
+          "start_line",
+          "9"
         ]
       ]
     },
@@ -1028,7 +1172,7 @@
         ],
         [
           "referenced_symbol",
-          "go_method:package:testing:Fatal"
+          "go_method:package:testing:common.Fatal"
         ],
         [
           "start_column",
@@ -1252,7 +1396,7 @@
         ],
         [
           "referenced_symbol",
-          "go_method:package:testing:Fatal"
+          "go_method:package:testing:common.Fatal"
         ],
         [
           "start_column",
@@ -1374,7 +1518,7 @@
       "attributes": [
         [
           "symbol_ids",
-          "go_method:package:testing:Fatal,go_type:package:testing:T"
+          "go_method:package:testing:common.Fatal,go_type:package:testing:T"
         ],
         [
           "symbol_kinds",
@@ -1414,7 +1558,7 @@
       "attributes": [
         [
           "symbol_ids",
-          "go_method:package:testing:Fatal,go_type:package:testing:T"
+          "go_method:package:testing:common.Fatal,go_type:package:testing:T"
         ],
         [
           "symbol_kinds",

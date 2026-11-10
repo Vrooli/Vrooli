@@ -67,6 +67,31 @@ benchmark have been removed.
 - Graph parsing belongs to provider scenarios.
 - Proto validation policy belongs to `proto-health`.
 
+## Debt discovery ownership
+
+Code Facts is the shared source and graph substrate. Consumers request bounded
+facts or language graphs through its broker and reuse its source identity,
+provider admission, in-flight coalescing, and cache. Consumers retain their own
+policy and durable findings; they do not discover parse units or call the same
+language parser through a parallel client.
+
+| Owner | Computation retained | Consolidation boundary |
+| --- | --- | --- |
+| code-facts | Target resolution, source inventory, parse-unit discovery, graph brokering, fact projection, freshness and caching | Sole entry point for source facts and language graphs |
+| go-code-graph | Go syntax/type analysis and mechanical Go rewrites | Parser provider behind Code Facts; public rewrite operations remain |
+| typescript-code-graph | TypeScript compiler analysis, comments, mechanical rewrites and sidecar supervision | Parser provider behind Code Facts; public rewrite operations remain |
+| architecture-cartographer | Domain inference, coupling signals, architectural conflicts, immutable audit snapshots | Consume Code Facts graphs; remove private language clients and source scanning |
+| tidiness-manager | Maintainability detectors, calibrated reduction estimates, ranked opportunities and cleanup campaigns | One detector registry and recommendation ranking over shared facts |
+| scenario-auditor | Standards-rule execution and managed fix operations | Publish rule findings to the detector registry; remove duplicate discovery and ranking |
+| flow-verifier | Inferred and declared lifecycle contracts, transition verification and counterexamples | Supply lifecycle detectors and conversion evidence |
+| template-manager | Template provenance, inherited drift/debt and governed migrations | Supply inherited-debt detectors and migration evidence |
+
+The first migration exposes Code Facts' cached graph results with their parse
+unit, source identity and extraction contract, then switches Cartographer to
+that surface. Historical Cartographer snapshots remain its domain evidence.
+Whole-scenario retirement is a separate operator decision; removing redundant
+internal scanners and clients does not retire a scenario's public capability.
+
 ## Cross-References
 
 - [ARCHITECTURE.md](ARCHITECTURE.md)

@@ -500,9 +500,10 @@ type ScenarioGapInfo struct {
 
 // OptimizationRequest represents a CLI/API optimization request payload.
 type OptimizationRequest struct {
-	Scenario string `json:"scenario"`
-	Type     string `json:"type"`
-	Apply    bool   `json:"apply"`
+	Scenario      string   `json:"scenario"`
+	Type          string   `json:"type"`
+	Apply         bool     `json:"apply"`
+	OnlyScenarios []string `json:"only_scenarios,omitempty"`
 }
 
 // OptimizationResult is returned after running optimizations for a scenario.

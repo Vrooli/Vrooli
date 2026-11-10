@@ -499,3 +499,23 @@ func TestBuildDependencyNodeIndex(t *testing.T) {
 }
 
 func boolPtr(v bool) *bool { return &v }
+
+func TestSelectRecommendationsPreservesExactMutationScope(t *testing.T) {
+	recommendations := []types.OptimizationRecommendation{
+		{ID: "selected", RecommendationType: "dependency_reduction", RecommendedState: map[string]interface{}{"action": "remove_scenario_dependency", "scenario_name": "go-code-graph"}},
+		{ID: "needed", RecommendationType: "dependency_reduction", RecommendedState: map[string]interface{}{"action": "remove_scenario_dependency", "scenario_name": "code-facts"}},
+		{ID: "resource", RecommendationType: "dependency_reduction", RecommendedState: map[string]interface{}{"action": "remove_resource", "resource_name": "go-code-graph"}},
+		{ID: "swap", RecommendationType: "resource_swap", RecommendedState: map[string]interface{}{"action": "swap_dependency"}},
+	}
+	selected := SelectRecommendations(recommendations, types.OptimizationRequest{OnlyScenarios: []string{"go-code-graph"}})
+	if len(selected) != 1 || selected[0].ID != "selected" {
+		t.Fatalf("selection escaped: %+v", selected)
+	}
+	swaps := SelectRecommendations(recommendations, types.OptimizationRequest{Type: "resource_swap"})
+	if len(swaps) != 1 || swaps[0].ID != "swap" {
+		t.Fatalf("type selector ignored: %+v", swaps)
+	}
+	if got := SelectRecommendations(recommendations, types.OptimizationRequest{Type: "resource_swap", OnlyScenarios: []string{"go-code-graph"}}); len(got) != 0 {
+		t.Fatalf("selectors must intersect: %+v", got)
+	}
+}

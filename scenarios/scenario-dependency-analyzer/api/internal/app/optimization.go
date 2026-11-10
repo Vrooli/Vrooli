@@ -18,10 +18,11 @@ func (s *optimizationService) runScenarioOptimization(scenarioName string, req t
 		return nil, err
 	}
 
-	recommendations := appoptimization.GenerateRecommendations(scenarioName, analysis)
-	if err := s.persistOptimizationResults(scenarioName, recommendations); err != nil {
+	allRecommendations := appoptimization.GenerateRecommendations(scenarioName, analysis)
+	if err := s.persistOptimizationResults(scenarioName, allRecommendations); err != nil {
 		return nil, err
 	}
+	recommendations := appoptimization.SelectRecommendations(allRecommendations, req)
 
 	depSvc := s.dependencies
 	if depSvc == nil {
@@ -41,10 +42,11 @@ func (s *optimizationService) runScenarioOptimization(scenarioName string, req t
 			if err != nil {
 				return nil, err
 			}
-			recommendations = appoptimization.GenerateRecommendations(scenarioName, analysis)
-			if err := s.persistOptimizationResults(scenarioName, recommendations); err != nil {
+			allRecommendations = appoptimization.GenerateRecommendations(scenarioName, analysis)
+			if err := s.persistOptimizationResults(scenarioName, allRecommendations); err != nil {
 				return nil, err
 			}
+			recommendations = appoptimization.SelectRecommendations(allRecommendations, req)
 		}
 	}
 

@@ -23,6 +23,45 @@ const (
 	AttemptOutputObserved    AttemptState = "output_observed"
 )
 
+var attemptStateEdges = map[AttemptState]map[AttemptState]struct{}{
+	AttemptDispatching: {
+		AttemptPreDispatchFailed: {}, AttemptUncertain: {}, AttemptPending: {},
+		AttemptSettled: {}, AttemptReleased: {}, AttemptOutputObserved: {},
+	},
+	AttemptUncertain: {
+		AttemptUncertain: {}, AttemptPending: {}, AttemptSettled: {},
+		AttemptReleased: {}, AttemptOutputObserved: {},
+	},
+	AttemptPending: {
+		AttemptUncertain: {}, AttemptPending: {}, AttemptSettled: {},
+		AttemptReleased: {}, AttemptOutputObserved: {},
+	},
+}
+
+// Valid reports whether state is part of the persisted hosted-attempt lifecycle.
+func (state AttemptState) Valid() bool {
+	switch state {
+	case AttemptDispatching, AttemptPreDispatchFailed, AttemptUncertain, AttemptPending,
+		AttemptSettled, AttemptReleased, AttemptOutputObserved:
+		return true
+	default:
+		return false
+	}
+}
+
+func (state AttemptState) Terminal() bool {
+	return state == AttemptPreDispatchFailed || state == AttemptSettled || state == AttemptReleased || state == AttemptOutputObserved
+}
+
+// CanTransition is the single policy for durable provider-attempt state changes.
+func (state AttemptState) CanTransition(next AttemptState) bool {
+	if !state.Valid() || !next.Valid() {
+		return false
+	}
+	_, ok := attemptStateEdges[state][next]
+	return ok
+}
+
 var ErrRootConflict = errors.New("root operation id is bound to different request content or device key generation")
 var ErrRootRequired = errors.New("root_operation_id must be a high-entropy value of 32 to 128 characters before HostedDoor dispatch")
 
@@ -83,6 +122,9 @@ FROM ai_gateway_inference_attempts WHERE root_operation_id=$1 ORDER BY attempt_o
 		return nil, err
 	}
 	record.State = AttemptState(state)
+	if !record.State.Valid() {
+		return nil, fmt.Errorf("inference attempt %s has unknown state %q", root, record.State)
+	}
 	if credits.Valid {
 		record.ChargedCredits = &credits.Int64
 	}
@@ -136,6 +178,9 @@ VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, root, record.Ordinal, validationAttempt, candi
 		return AttemptRecord{}, err
 	} else {
 		record.State = AttemptState(state)
+		if !record.State.Valid() {
+			return AttemptRecord{}, fmt.Errorf("inference attempt %s/%d has unknown state %q", root, record.Ordinal, record.State)
+		}
 		if credits.Valid {
 			record.ChargedCredits = &credits.Int64
 		}
@@ -150,10 +195,27 @@ func (l *SQLAttemptLedger) Set(ctx context.Context, root string, ordinal int, st
 	if l == nil || l.db == nil {
 		return errors.New("inference attempt ledger is unavailable")
 	}
+	if !state.Valid() {
+		return fmt.Errorf("unknown inference attempt state %q", state)
+	}
+	from := make([]AttemptState, 0, len(attemptStateEdges))
+	for current := range attemptStateEdges {
+		if current.CanTransition(state) {
+			from = append(from, current)
+		}
+	}
+	if len(from) == 0 {
+		return fmt.Errorf("inference attempt state %q has no valid incoming transition", state)
+	}
+	placeholders := make([]string, len(from))
+	args := []any{string(state), status, credits, root, ordinal}
+	for i, current := range from {
+		placeholders[i] = fmt.Sprintf("$%d", len(args)+1)
+		args = append(args, string(current))
+	}
 	result, err := l.db.ExecContext(ctx, `UPDATE ai_gateway_inference_attempts
 SET state=$1,accounting_status=$2,charged_credits=$3,updated_at=CURRENT_TIMESTAMP
-WHERE root_operation_id=$4 AND attempt_ordinal=$5 AND state NOT IN ($6,$7,$8)`,
-		string(state), status, credits, root, ordinal, string(AttemptSettled), string(AttemptReleased), string(AttemptOutputObserved))
+WHERE root_operation_id=$4 AND attempt_ordinal=$5 AND state IN (`+strings.Join(placeholders, ",")+")", args...)
 	if err != nil {
 		return err
 	}
@@ -169,7 +231,10 @@ WHERE root_operation_id=$4 AND attempt_ordinal=$5 AND state NOT IN ($6,$7,$8)`,
 	if errors.Is(err, sql.ErrNoRows) {
 		return fmt.Errorf("inference attempt %s/%d is missing", root, ordinal)
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return fmt.Errorf("inference attempt %s/%d cannot transition to %q from its current state", root, ordinal, state)
 }
 
 func validRootOperationID(root string) bool {

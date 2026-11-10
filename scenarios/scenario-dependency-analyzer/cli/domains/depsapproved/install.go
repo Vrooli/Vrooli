@@ -27,11 +27,12 @@ func RegisterInstall(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			{
 				Name:        "install",
 				Description: "Install a governed dependency into a scenario surface (dry-run by default)",
-				Usage:       "scenario-dependency-analyzer deps install <ecosystem>/<package>[@version] --scenario <name> --surface <surface> [options]",
-				HelpText:    "This command previews by default; --apply requests the install. --exact requires an explicit version. --refresh-lock is limited to closed host-tool source inputs and does not install a runtime.",
+				Usage:       "scenario-dependency-analyzer deps install <ecosystem>/<package>[@version] (--scenario <name> --surface <surface> | --workspace <absolute-path>) [options]",
+				HelpText:    "This command previews by default; --apply requests the install. --workspace targets an existing external pnpm JavaScript workspace with packageManager declared. --exact requires an explicit version. --refresh-lock is limited to closed host-tool source inputs and does not install a runtime.",
 				Args:        installArgumentSchema(),
 				RunCtx:      func(ctx cliapp.RunContext) error { return runInstall(core, ctx) },
 			},
+			{Name: "declare-runtime", Description: "Declare one optional runtime-only scenario dependency with startup_policy=ignore (dry-run by default)", NeedsAPIOverride: &noAPI, Run: func(args []string) error { return runDeclareRuntime(core, args) }},
 			{Name: "remove", Description: "Remove one exact Go requirement from the root module (dry-run by default)", NeedsAPIOverride: &noAPI, Run: func(args []string) error { return runRemove(core, args) }},
 			{Name: "resync", Description: "Restore a diverged JavaScript lockfile through the governed gateway (dry-run by default)", Run: func(args []string) error { return runResync(core, args) }},
 			{Name: "reconcile", Description: "Converge Go go.mod/go.sum on their import closure through the dependency gate (dry-run by default)", Run: func(args []string) error { return runReconcile(core, args) }},
@@ -50,6 +51,7 @@ func installArgumentSchema() cliapp.ArgSchema {
 		Flags: []cliapp.Flag{
 			{Name: "scenario", Description: "Required target scenario"},
 			{Name: "surface", Description: "Required target surface: ui, api, cli, agent, playwright-driver, resource, host-tool, tools/<package>, platforms/<package>, template/<id>, or control-plane (vrooli Go only)"},
+			{Name: "workspace", Description: "Existing absolute external JavaScript workspace; replaces --scenario and --surface"},
 			{Name: "version", Description: "Optional explicit version/range; overrides an inline package version"},
 			{Name: "apply", Bool: true, Description: "Perform the install; default is a dry-run preview"},
 			{Name: "exact", Bool: true, Description: "Persist an exact package version; requires an explicit version"},
@@ -66,12 +68,17 @@ func runInstall(core *cliapp.ScenarioApp, args cliapp.RunContext) error {
 	}
 	scenario := args.Flag("scenario")
 	surface := args.Flag("surface")
-	if strings.TrimSpace(scenario) == "" || strings.TrimSpace(surface) == "" {
-		return fmt.Errorf("--scenario and --surface are required")
+	workspace := strings.TrimSpace(args.Flag("workspace"))
+	if workspace != "" {
+		if strings.TrimSpace(scenario) != "" || strings.TrimSpace(surface) != "" {
+			return fmt.Errorf("--workspace cannot be combined with --scenario or --surface")
+		}
+	} else if strings.TrimSpace(scenario) == "" || strings.TrimSpace(surface) == "" {
+		return fmt.Errorf("--scenario and --surface, or --workspace, are required")
 	}
 
 	timeout := 45 * time.Second
-	if surface == "host-tool" || surface == "resource" {
+	if surface == "host-tool" || surface == "resource" || workspace != "" {
 		// Closed host operations and resource Python locks have a three-minute owner budget. Leave a
 		// bounded allowance for governance/resolution and response delivery.
 		timeout = 3*time.Minute + 15*time.Second
@@ -79,15 +86,16 @@ func runInstall(core *cliapp.ScenarioApp, args cliapp.RunContext) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	resp, err := governanceClientWithTimeout(core, timeout).InstallDependency(ctx, connect.NewRequest(&governancev1.InstallDependencyRequest{
-		Scenario:     scenario,
-		Surface:      surface,
-		Ecosystem:    ecosystem,
-		PackageName:  packageName,
-		Version:      version,
-		Apply:        args.BoolFlag("apply"),
-		ExactVersion: args.BoolFlag("exact"),
-		Development:  args.BoolFlag("dev"),
-		RefreshLock:  args.BoolFlag("refresh-lock"),
+		Scenario:      scenario,
+		Surface:       surface,
+		Ecosystem:     ecosystem,
+		PackageName:   packageName,
+		Version:       version,
+		Apply:         args.BoolFlag("apply"),
+		ExactVersion:  args.BoolFlag("exact"),
+		Development:   args.BoolFlag("dev"),
+		RefreshLock:   args.BoolFlag("refresh-lock"),
+		WorkspacePath: workspace,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("install dependency", err, nil)

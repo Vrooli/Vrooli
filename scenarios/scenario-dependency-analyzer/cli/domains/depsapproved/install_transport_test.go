@@ -26,6 +26,7 @@ func TestInstallFlagsReachTypedAPIWithApplyModes(t *testing.T) {
 		{"frozen-host-tool", []string{"npm/hyperframes@0.8.112", "--scenario", "hyperframes", "--surface", "host-tool", "--exact"}, false, false, false},
 		{"default-placement", []string{"npm/coverage-fixture@1.2.3", "--scenario", "demo", "--surface", "ui", "--exact"}, false, false, false},
 		{"explicit-apply", []string{"npm/coverage-fixture@1.2.3", "--scenario", "demo", "--surface", "ui", "--exact", "--apply"}, true, false, false},
+		{"external-workspace", []string{"npm/coverage-fixture@1.2.3", "--workspace", "/tmp/external replay", "--exact", "--apply"}, true, false, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			captured := make(chan *governancev1.InstallDependencyRequest, 1)
@@ -59,9 +60,12 @@ func TestInstallFlagsReachTypedAPIWithApplyModes(t *testing.T) {
 				if msg.GetApply() != tc.apply || !msg.GetExactVersion() || msg.GetDevelopment() != tc.dev || msg.GetRefreshLock() != tc.refresh || msg.GetVersion() == "" {
 					t.Fatalf("flags lost at RPC boundary: %v", msg)
 				}
+				if tc.name == "external-workspace" && (msg.GetWorkspacePath() != "/tmp/external replay" || msg.GetScenario() != "" || msg.GetSurface() != "") {
+					t.Fatalf("external target lost at RPC boundary: %v", msg)
+				}
 				budget := <-budgets
 				want := 45 * time.Second
-				if msg.GetSurface() == "host-tool" {
+				if msg.GetSurface() == "host-tool" || msg.GetWorkspacePath() != "" {
 					want = 3*time.Minute + 15*time.Second
 				}
 				if budget <= want-time.Second || budget > want {
@@ -97,10 +101,11 @@ func TestInstallHelpShowsSchemaArgumentsWithoutCallingAPI(t *testing.T) {
 	}
 	got := stdout.String()
 	for _, want := range []string{
-		"scenario-dependency-analyzer deps install <ecosystem>/<package>[@version] --scenario <name> --surface <surface> [options]",
+		"scenario-dependency-analyzer deps install <ecosystem>/<package>[@version] (--scenario <name> --surface <surface> | --workspace <absolute-path>) [options]",
 		"<dependency>",
 		"--scenario",
 		"--surface",
+		"--workspace",
 		"--version",
 		"--apply",
 		"--exact",

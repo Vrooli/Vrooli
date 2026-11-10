@@ -1,7 +1,9 @@
 package optimize
 
 import (
+	"flag"
 	"fmt"
+	"strings"
 
 	"scenario-dependency-analyzer/cli/internal/support"
 
@@ -29,9 +31,11 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 	var optType string
 	var apply bool
 	var jsonOutput bool
+	var onlyScenarios string
 	fs.StringVar(&optType, "type", "all", "Optimization type")
 	fs.BoolVar(&apply, "apply", false, "Apply safe optimizations")
 	fs.BoolVar(&jsonOutput, "json", false, "Output JSON")
+	fs.StringVar(&onlyScenarios, "only-scenarios", "", "Select exact comma-separated scenario dependencies; excludes resource removals")
 	if err := support.ParseFlags(fs, args); err != nil {
 		return err
 	}
@@ -39,10 +43,28 @@ func run(core *cliapp.ScenarioApp, args []string) error {
 	if positionals := fs.Args(); len(positionals) > 0 {
 		scenario = positionals[0]
 	}
-	body, err := core.Request("POST", "/optimize", nil, map[string]interface{}{
-		"scenario": scenario,
-		"type":     optType,
-		"apply":    apply,
+	endpoint := "/optimize"
+	var selection []string
+	onlySpecified := false
+	fs.Visit(func(f *flag.Flag) { onlySpecified = onlySpecified || f.Name == "only-scenarios" })
+	if onlySpecified {
+		if scenario == "all" {
+			return fmt.Errorf("--only-scenarios requires one target scenario")
+		}
+		for _, name := range strings.Split(onlyScenarios, ",") {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				return fmt.Errorf("--only-scenarios requires nonempty scenario names")
+			}
+			selection = append(selection, name)
+		}
+		endpoint = "/optimize-scenarios"
+	}
+	body, err := core.Request("POST", endpoint, nil, map[string]interface{}{
+		"scenario":       scenario,
+		"type":           optType,
+		"apply":          apply,
+		"only_scenarios": selection,
 	})
 	if err != nil {
 		return err

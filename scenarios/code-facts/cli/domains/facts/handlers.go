@@ -23,44 +23,13 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{client: factsconnect.NewCodeFactsServiceClient(httpClient, baseURL)}
 }
 
-func (h *handlers) describe(ctx cliapp.RunContext) error {
-	target := parseTarget(ctx.Positional("target"))
-	include, err := parseFamilies(ctx.Flag("include"))
-	if err != nil {
-		return err
-	}
-	resp, err := h.client.DescribeCodeFacts(context.Background(), connect.NewRequest(&factsv1.DescribeCodeFactsRequest{
-		Target:   target,
-		Include:  include,
-		UseCache: !ctx.BoolFlag("no-cache"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("describe code facts", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no code facts report")
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary: []string{
-			fmt.Sprintf("Resolved %s with %d surface(s), %d parse unit(s), %d fact(s).",
-				resp.Msg.GetTarget().GetRootPath(), len(resp.Msg.GetSurfaces()), len(resp.Msg.GetParseUnits()), len(resp.Msg.GetFacts())),
-		},
-		ResultsHeading: "Evidence",
-		Results:        evidenceLines(resp.Msg.GetEvidence()),
-		RetrievalHints: []string{
-			"`facts surfaces <target>` — inspect scenario/generic surfaces",
-			"`facts proto-adoption <target>` — request proto adoption proof evidence",
-		},
-	})
-}
-
 func (h *handlers) describeCall(ctx cliapp.OperationContext) (*factsv1.CodeFactsReport, error) {
 	target := parseTarget(ctx.Positional("target"))
 	include, err := parseFamilies(ctx.Flag("include"))
 	if err != nil {
 		return nil, err
 	}
-	resp, err := h.client.DescribeCodeFacts(context.Background(), connect.NewRequest(&factsv1.DescribeCodeFactsRequest{Target: target, Include: include, UseCache: !ctx.BoolFlag("no-cache")}))
+	resp, err := h.client.DescribeCodeFacts(context.Background(), connect.NewRequest(&factsv1.DescribeCodeFactsRequest{Target: target, Include: include, UseCache: !ctx.BoolFlag("no-cache"), IncludeGraphs: ctx.BoolFlag("graphs")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("describe code facts", err, nil)
 	}
@@ -71,36 +40,7 @@ func (h *handlers) describeCall(ctx cliapp.OperationContext) (*factsv1.CodeFacts
 }
 
 func (h *handlers) describeReport(_ cliapp.OperationContext, msg *factsv1.CodeFactsReport) cliapp.ListReport {
-	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Resolved %s with %d surface(s), %d parse unit(s), %d fact(s).", msg.GetTarget().GetRootPath(), len(msg.GetSurfaces()), len(msg.GetParseUnits()), len(msg.GetFacts()))}, ResultsHeading: "Evidence", Results: evidenceLines(msg.GetEvidence()), RetrievalHints: []string{"`facts surfaces <target>` — inspect scenario/generic surfaces", "`facts proto-adoption <target>` — request proto adoption proof evidence"}}
-}
-
-func (h *handlers) search(ctx cliapp.RunContext) error {
-	query := strings.TrimSpace(ctx.Positional("query"))
-	if query == "" {
-		return fmt.Errorf("a search query is required")
-	}
-	var target *factsv1.CodeTarget
-	if raw := strings.TrimSpace(ctx.Positional("target")); raw != "" {
-		target = parseTarget(raw)
-	}
-	families, err := parseFamilies(ctx.Flag("include"))
-	if err != nil {
-		return err
-	}
-	resp, err := h.client.Search(context.Background(), connect.NewRequest(&factsv1.SearchRequest{
-		Query: query, Limit: int32(parseSearchLimit(ctx.Flag("limit"))), Target: target, Families: families,
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("search code facts", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no code-facts search response")
-	}
-	results := make([]string, 0, len(resp.Msg.GetResults()))
-	for _, hit := range resp.Msg.GetResults() {
-		results = append(results, fmt.Sprintf("%s — %s (%s, %.2f) %s", hit.GetTitle(), hit.GetPath(), hit.GetFactKind(), hit.GetScore(), hit.GetText()))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d code-evidence hit(s).", len(results))}, ResultsHeading: "Code evidence", Results: results})
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Resolved %s with %d surface(s), %d parse unit(s), %d fact(s), %d language graph(s).", msg.GetTarget().GetRootPath(), len(msg.GetSurfaces()), len(msg.GetParseUnits()), len(msg.GetFacts()), len(msg.GetGraphs()))}, ResultsHeading: "Evidence", Results: evidenceLines(msg.GetEvidence()), RetrievalHints: []string{"`facts surfaces <target>` — inspect scenario/generic surfaces", "`facts proto-adoption <target>` — request proto adoption proof evidence"}}
 }
 
 func (h *handlers) searchCall(ctx cliapp.OperationContext) (*factsv1.SearchResponse, error) {
@@ -141,29 +81,6 @@ func parseSearchLimit(raw string) int {
 	return value
 }
 
-func (h *handlers) surfaces(ctx cliapp.RunContext) error {
-	target := parseTarget(ctx.Positional("target"))
-	resp, err := h.client.ListSurfaces(context.Background(), connect.NewRequest(&factsv1.ListSurfacesRequest{
-		Target:   target,
-		UseCache: !ctx.BoolFlag("no-cache"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("list surfaces", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no surfaces response")
-	}
-	results := make([]string, 0, len(resp.Msg.GetSurfaces()))
-	for _, surface := range resp.Msg.GetSurfaces() {
-		results = append(results, fmt.Sprintf("%s — %s (%s)", surface.GetId(), surface.GetKind(), surface.GetStatus()))
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Found %d surface(s).", len(resp.Msg.GetSurfaces()))},
-		ResultsHeading: "Surfaces",
-		Results:        results,
-	})
-}
-
 func (h *handlers) surfacesCall(ctx cliapp.OperationContext) (*factsv1.ListSurfacesResponse, error) {
 	resp, err := h.client.ListSurfaces(context.Background(), connect.NewRequest(&factsv1.ListSurfacesRequest{Target: parseTarget(ctx.Positional("target")), UseCache: !ctx.BoolFlag("no-cache")}))
 	if err != nil {
@@ -183,22 +100,6 @@ func (h *handlers) surfacesReport(_ cliapp.OperationContext, msg *factsv1.ListSu
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Found %d surface(s).", len(msg.GetSurfaces()))}, ResultsHeading: "Surfaces", Results: results}
 }
 
-func (h *handlers) protoAdoption(ctx cliapp.RunContext) error {
-	target := parseTarget(ctx.Positional("target"))
-	resp, err := h.client.CheckProtoAdoption(context.Background(), connect.NewRequest(&factsv1.CheckProtoAdoptionRequest{
-		Target:   target,
-		Surfaces: splitCSVValues(ctx.FlagValues("surface")),
-		UseCache: !ctx.BoolFlag("no-cache"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("check proto adoption", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no proto adoption response")
-	}
-	return renderProof(ctx, resp.Msg)
-}
-
 func (h *handlers) protoAdoptionCall(ctx cliapp.OperationContext) (*factsv1.ProofReport, error) {
 	resp, err := h.client.CheckProtoAdoption(context.Background(), connect.NewRequest(&factsv1.CheckProtoAdoptionRequest{Target: parseTarget(ctx.Positional("target")), Surfaces: splitCSVValues(ctx.FlagValues("surface")), UseCache: !ctx.BoolFlag("no-cache")}))
 	if err != nil {
@@ -208,22 +109,6 @@ func (h *handlers) protoAdoptionCall(ctx cliapp.OperationContext) (*factsv1.Proo
 		return nil, fmt.Errorf("server returned no proto adoption response")
 	}
 	return resp.Msg, nil
-}
-
-func (h *handlers) endpointProof(ctx cliapp.RunContext) error {
-	target := parseTarget(ctx.Positional("target"))
-	resp, err := h.client.CheckEndpointProof(context.Background(), connect.NewRequest(&factsv1.CheckEndpointProofRequest{
-		Target:      target,
-		EndpointIds: splitCSVValues(ctx.FlagValues("endpoint")),
-		UseCache:    !ctx.BoolFlag("no-cache"),
-	}))
-	if err != nil {
-		return cliapp.WrapAPIError("check endpoint proof", err, nil)
-	}
-	if resp == nil || resp.Msg == nil {
-		return fmt.Errorf("server returned no endpoint proof response")
-	}
-	return renderProof(ctx, resp.Msg)
 }
 
 func (h *handlers) endpointProofCall(ctx cliapp.OperationContext) (*factsv1.ProofReport, error) {
@@ -239,14 +124,6 @@ func (h *handlers) endpointProofCall(ctx cliapp.OperationContext) (*factsv1.Proo
 
 func (h *handlers) proofReport(_ cliapp.OperationContext, msg *factsv1.ProofReport) cliapp.ListReport {
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%s returned %d evidence item(s).", msg.GetFamily(), len(msg.GetEvidence()))}, ResultsHeading: "Evidence", Results: evidenceLines(msg.GetEvidence())}
-}
-
-func renderProof(ctx cliapp.RunContext, msg *factsv1.ProofReport) error {
-	return cliapp.RenderProtoList(ctx, msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%s returned %d evidence item(s).", msg.GetFamily(), len(msg.GetEvidence()))},
-		ResultsHeading: "Evidence",
-		Results:        evidenceLines(msg.GetEvidence()),
-	})
 }
 
 func parseTarget(raw string) *factsv1.CodeTarget {

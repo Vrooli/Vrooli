@@ -14,6 +14,7 @@ import (
 	"time"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	"google.golang.org/protobuf/proto"
 )
 
 type Service struct {
@@ -76,6 +77,9 @@ func WithSearchBackend(search SearchBackend) ServiceOption {
 }
 
 func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRequest) (*factsv1.CodeFactsReport, error) {
+	if req.GetIncludeGraphs() && (req.GetPageSize() > 0 || req.GetPageToken() != "") {
+		return nil, fmt.Errorf("language graphs require an unpaged bounded target")
+	}
 	if err := validateTarget(req.GetTarget()); err != nil {
 		return nil, err
 	}
@@ -86,8 +90,10 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 	include := normalizeFamilies(req.GetInclude())
 	parseUnits := filterParseUnits(discoverParseUnits(target), req.GetTarget().GetLanguageFilter())
 	sourceHash, configHash := sourceFingerprint(target, parseUnits)
-	reportPlan := reportCachePlan(req.GetTarget(), target, parseUnits, include, sourceHash, configHash, req.GetMaxDepth())
-	if req.GetUseCache() {
+	reportPlan := reportCachePlan(req.GetTarget(), target, parseUnits, include, sourceHash, configHash, req.GetMaxDepth(), req.GetIncludeGraphs())
+	// Language graphs already have a source-keyed cache. Storing them again in
+	// a report duplicates the payload and can freeze a partial provider result.
+	if req.GetUseCache() && !req.GetIncludeGraphs() {
 		if paged, ok := s.cache.(PagedReportCache); ok && req.GetPageSize() > 0 {
 			offset, err := pageOffset(req.GetPageToken())
 			if err != nil {
@@ -138,16 +144,17 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 	}
 	analysisInclude := expandAnalyzerFamilies(include)
 	analysisUnits := parseUnitsForDescribeAnalysis(parseUnits, include, req.GetTarget().GetLanguageFilter())
-	facts, warnings, evidence, graphHash, err := s.analyze(ctx, target, analysisUnits, analysisInclude, sourceHash, configHash, req.GetUseCache())
+	analysis, err := s.analyze(ctx, target, analysisUnits, analysisInclude, sourceHash, configHash, req.GetUseCache(), req.GetIncludeGraphs())
 	if err != nil {
 		return nil, err
 	}
-	reportPlan.GraphHash = graphHash
-	report.Cache.GraphHash = graphHash
-	report.Facts = append(report.Facts, filterFactsForFamilies(facts, include)...)
-	report.Warnings = append(report.Warnings, warnings...)
-	report.Evidence = append(report.Evidence, evidence...)
-	proofInput := s.proofInput(target, facts, warnings, evidence, report.Cache)
+	reportPlan.GraphHash = analysis.graphHash
+	report.Cache.GraphHash = analysis.graphHash
+	report.Graphs = analysis.graphs
+	report.Facts = append(report.Facts, filterFactsForFamilies(analysis.facts, include)...)
+	report.Warnings = append(report.Warnings, analysis.warnings...)
+	report.Evidence = append(report.Evidence, analysis.evidence...)
+	proofInput := s.proofInput(target, analysis.facts, analysis.warnings, analysis.evidence, report.Cache)
 	if hasFamily(include, factsv1.FactFamily_FACT_FAMILY_PROTO_ADOPTION) {
 		proofFacts, proofEvidence, proofWarnings := synthesizeProtoAdoption(proofInput, nil)
 		report.Facts = append(report.Facts, proofFacts...)
@@ -177,6 +184,9 @@ func (s *Service) Describe(ctx context.Context, req *factsv1.DescribeCodeFactsRe
 		report.Warnings = append(report.Warnings, unsupportedWarning(family))
 	}
 	report.TotalFacts = int32(len(report.GetFacts()))
+	if req.GetIncludeGraphs() {
+		return report, nil
+	}
 	if err := s.cache.PutReport(ctx, reportPlan, report); err != nil {
 		report.Cache = reportPlan.metadata("write_failed", err.Error())
 		report.Warnings = append(report.Warnings, &factsv1.Warning{Code: "report_cache_write_failed", Message: err.Error(), Status: factsv1.EvidenceStatus_EVIDENCE_STATUS_UNKNOWN})
@@ -512,14 +522,23 @@ func validateTarget(target *factsv1.CodeTarget) error {
 	return nil
 }
 
-func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, units []*factsv1.ParseUnit, include []factsv1.FactFamily, sourceHash string, configHash string, useCache bool) ([]*factsv1.GenericFact, []*factsv1.Warning, []*factsv1.Evidence, string, error) {
-	if !needsAnalyzer(include) {
-		return nil, nil, nil, "", nil
+type analysisResult struct {
+	facts     []*factsv1.GenericFact
+	warnings  []*factsv1.Warning
+	evidence  []*factsv1.Evidence
+	graphs    []*factsv1.LanguageGraph
+	graphHash string
+}
+
+func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, units []*factsv1.ParseUnit, include []factsv1.FactFamily, sourceHash string, configHash string, useCache, includeGraphs bool) (analysisResult, error) {
+	if !needsAnalyzer(include) && !includeGraphs {
+		return analysisResult{}, nil
 	}
 	var facts []*factsv1.GenericFact
 	var warnings []*factsv1.Warning
 	var evidence []*factsv1.Evidence
 	var graphHashes []string
+	var graphs []*factsv1.LanguageGraph
 	for _, unit := range units {
 		if unit.GetStatus() != factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN {
 			warnings = append(warnings, providerWarning("code-facts.analyzer-broker", unit.GetLanguage()+"_unsupported", firstUnitMessage(unit), factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED))
@@ -538,7 +557,7 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 				})
 				continue
 			}
-			return nil, nil, nil, "", unavailable
+			return analysisResult{}, unavailable
 		}
 		// Graph entries are scoped to one parse unit. A fleet/report-wide source
 		// hash would invalidate every language surface when one file changes,
@@ -546,14 +565,16 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 		unitSourceHash, unitConfigHash := sourceFingerprintForUnit(unit)
 		extractionProfile := providerExtractionProfile(provider, include)
 		graphPlan := graphCachePlan(target, unit, provider, extractionProfile, unitSourceHash, unitConfigHash)
-		var result *GraphResult
+		var result *factsv1.LanguageGraph
+		graphCacheHit := false
 		if useCache {
 			cached, entry, ok, err := s.cache.GetGraph(ctx, graphPlan.Key)
 			if err != nil {
-				return nil, nil, nil, "", err
+				return analysisResult{}, err
 			}
 			if ok {
 				result = cached
+				graphCacheHit = true
 				evidence = append(evidence, &factsv1.Evidence{
 					Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
 					Confidence: 1,
@@ -564,7 +585,7 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 		}
 		var err error
 		if result == nil {
-			result, err = s.graphFlights.Do(ctx, graphPlan.Key, func(workCtx context.Context) (*GraphResult, error) {
+			result, err = s.graphFlights.Do(ctx, graphPlan.Key, func(workCtx context.Context) (*factsv1.LanguageGraph, error) {
 				if useCache {
 					cached, _, ok, cacheErr := s.cache.GetGraph(workCtx, graphPlan.Key)
 					if cacheErr != nil {
@@ -613,7 +634,18 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 				})
 				continue
 			}
-			return nil, nil, nil, "", err
+			return analysisResult{}, err
+		}
+		if includeGraphs {
+			graph := proto.Clone(result).(*factsv1.LanguageGraph)
+			graph.ParseUnit = proto.Clone(unit).(*factsv1.ParseUnit)
+			state := "miss"
+			if graphCacheHit {
+				state = "hit"
+			}
+			graph.Cache = graphPlan.metadata(state, "shared language graph from Code Facts provider cache")
+			graph.Cache.GraphHash = result.GraphHash
+			graphs = append(graphs, graph)
 		}
 		graphHashes = append(graphHashes, result.GraphHash)
 		unitFacts, unitWarnings, unitEvidence := normalizeGraphFacts(unit, provider, result, include)
@@ -622,7 +654,7 @@ func (s *Service) analyze(ctx context.Context, target *factsv1.TargetContext, un
 		warnings = append(warnings, unitWarnings...)
 		evidence = append(evidence, unitEvidence...)
 	}
-	return facts, warnings, evidence, strings.Join(graphHashes, ","), nil
+	return analysisResult{facts: facts, warnings: warnings, evidence: evidence, graphs: graphs, graphHash: strings.Join(graphHashes, ",")}, nil
 }
 
 func qualifyFleetFacts(target *factsv1.TargetContext, unit *factsv1.ParseUnit, facts []*factsv1.GenericFact) {
@@ -656,14 +688,14 @@ func (s *Service) analyzeForProof(ctx context.Context, targetReq *factsv1.CodeTa
 	}
 	parseUnits := filterParseUnits(discoverParseUnits(target), filter)
 	sourceHash, configHash := sourceFingerprint(target, parseUnits)
-	cachePlan := reportCachePlan(targetReq, target, parseUnits, include, sourceHash, configHash, 0)
+	cachePlan := reportCachePlan(targetReq, target, parseUnits, include, sourceHash, configHash, 0, false)
 	cacheMeta := cachePlan.metadata(cacheState(useCache), cacheReason(useCache))
-	facts, warnings, evidence, graphHash, err := s.analyze(ctx, target, parseUnits, include, sourceHash, configHash, useCache)
+	analysis, err := s.analyze(ctx, target, parseUnits, include, sourceHash, configHash, useCache, false)
 	if err != nil {
 		return proofInput{}, err
 	}
-	cacheMeta.GraphHash = graphHash
-	return s.proofInput(target, facts, warnings, evidence, cacheMeta), nil
+	cacheMeta.GraphHash = analysis.graphHash
+	return s.proofInput(target, analysis.facts, analysis.warnings, analysis.evidence, cacheMeta), nil
 }
 
 func (s *Service) describeFileDomains(ctx context.Context, target *factsv1.TargetContext) ([]*factsv1.GenericFact, []*factsv1.Evidence, []*factsv1.Warning, error) {
@@ -921,13 +953,14 @@ func unsupportedWarning(family factsv1.FactFamily) *factsv1.Warning {
 	}
 }
 
-func reportCachePlan(targetReq *factsv1.CodeTarget, target *factsv1.TargetContext, units []*factsv1.ParseUnit, families []factsv1.FactFamily, sourceHash string, configHash string, maxDepth int32) cacheEntry {
+func reportCachePlan(targetReq *factsv1.CodeTarget, target *factsv1.TargetContext, units []*factsv1.ParseUnit, families []factsv1.FactFamily, sourceHash string, configHash string, maxDepth int32, includeGraphs bool) cacheEntry {
 	familiesKey := familyKey(families)
 	providers := providerVersions(units)
-	key := cacheKey(cacheScopeReport, cacheAnalyzerVersion, cacheSchemaVersion, target.GetRootPath(), targetReq.GetKind().String(), targetReq.GetScenario(), familiesKey, fmt.Sprint(maxDepth), sourceHash, configHash, providers)
+	options := fmt.Sprint(maxDepth, ":", includeGraphs, ":", targetReq.GetStrict(), ":", targetReq.GetLanguageFilter())
+	key := cacheKey(cacheScopeReport, cacheAnalyzerVersion, cacheSchemaVersion, target.GetRootPath(), targetReq.GetKind().String(), targetReq.GetScenario(), familiesKey, options, sourceHash, configHash, providers)
 	return cacheEntry{
 		Key:           key,
-		LogicalKey:    cacheKey(cacheScopeReport, target.GetRootPath(), cacheAnalyzerVersion, familiesKey, targetReq.GetKind().String(), targetReq.GetScenario(), targetReq.GetPath(), targetReq.GetRepoRoot(), fmt.Sprint(maxDepth), providers),
+		LogicalKey:    cacheKey(cacheScopeReport, target.GetRootPath(), cacheAnalyzerVersion, familiesKey, targetReq.GetKind().String(), targetReq.GetScenario(), targetReq.GetPath(), targetReq.GetRepoRoot(), options, providers),
 		Scope:         cacheScopeReport,
 		TargetRoot:    target.GetRootPath(),
 		Analyzer:      cacheAnalyzerVersion,
@@ -937,7 +970,7 @@ func reportCachePlan(targetReq *factsv1.CodeTarget, target *factsv1.TargetContex
 		SourceHash:    sourceHash,
 		ConfigHash:    configHash,
 		FamilyKey:     familiesKey,
-		Identity:      cacheKey(targetReq.GetKind().String(), targetReq.GetScenario(), targetReq.GetPath(), targetReq.GetRepoRoot(), fmt.Sprint(maxDepth), providers),
+		Identity:      cacheKey(targetReq.GetKind().String(), targetReq.GetScenario(), targetReq.GetPath(), targetReq.GetRepoRoot(), options, providers),
 	}
 }
 

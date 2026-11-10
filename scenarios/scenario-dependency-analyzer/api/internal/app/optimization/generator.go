@@ -11,6 +11,30 @@ import (
 	types "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/types"
 )
 
+// SelectRecommendations applies the caller's scope before either presentation
+// or mutation. Exact scenario selection never includes resource removals.
+func SelectRecommendations(recommendations []types.OptimizationRecommendation, req types.OptimizationRequest) []types.OptimizationRecommendation {
+	selected := make(map[string]bool, len(req.OnlyScenarios))
+	for _, name := range req.OnlyScenarios {
+		selected[name] = true
+	}
+	result := make([]types.OptimizationRecommendation, 0, len(recommendations))
+	for _, rec := range recommendations {
+		if req.Type != "" && req.Type != "all" && rec.RecommendationType != req.Type {
+			continue
+		}
+		if len(selected) > 0 {
+			action, _ := rec.RecommendedState["action"].(string)
+			name, _ := rec.RecommendedState["scenario_name"].(string)
+			if action != "remove_scenario_dependency" || !selected[name] {
+				continue
+			}
+		}
+		result = append(result, rec)
+	}
+	return result
+}
+
 func GenerateRecommendations(scenarioName string, analysis *types.DependencyAnalysisResponse) []types.OptimizationRecommendation {
 	if analysis == nil {
 		return nil

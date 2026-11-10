@@ -8,7 +8,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -22,14 +21,13 @@ import (
 	"time"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
 const (
-	cacheAnalyzerVersion = "code-facts.components-v1"
-	cacheSchemaVersion   = "code-facts-cache-v2"
+	cacheAnalyzerVersion = "code-facts.syntax-v2"
+	cacheSchemaVersion   = "code-facts-cache-v3"
 	cacheScopeGraph      = "graph"
 	cacheScopeReport     = "report"
 	DefaultCacheMaxBytes = int64(2 * 1024 * 1024 * 1024)
@@ -45,8 +43,8 @@ var lastCacheSweepAtUnix atomic.Int64
 type CacheRepository interface {
 	GetReport(ctx context.Context, key string) (*factsv1.CodeFactsReport, *cacheEntry, bool, error)
 	PutReport(ctx context.Context, entry cacheEntry, report *factsv1.CodeFactsReport) error
-	GetGraph(ctx context.Context, key string) (*GraphResult, *cacheEntry, bool, error)
-	PutGraph(ctx context.Context, entry cacheEntry, result *GraphResult) error
+	GetGraph(ctx context.Context, key string) (*factsv1.LanguageGraph, *cacheEntry, bool, error)
+	PutGraph(ctx context.Context, entry cacheEntry, result *factsv1.LanguageGraph) error
 	Status(ctx context.Context, targetRoot, key string) ([]cacheEntry, error)
 	Stats(ctx context.Context) (CacheStats, error)
 	Clear(ctx context.Context, targetRoot string, dryRun bool) (matched int64, cleared int64, err error)
@@ -176,7 +174,7 @@ func (r *memoryCacheRepository) PutReport(_ context.Context, entry cacheEntry, r
 	return nil
 }
 
-func (r *memoryCacheRepository) GetGraph(_ context.Context, key string) (*GraphResult, *cacheEntry, bool, error) {
+func (r *memoryCacheRepository) GetGraph(_ context.Context, key string) (*factsv1.LanguageGraph, *cacheEntry, bool, error) {
 	r.mu.RLock()
 	entry, ok := r.entries[key]
 	if !ok || entry.Scope != cacheScopeGraph {
@@ -191,7 +189,7 @@ func (r *memoryCacheRepository) GetGraph(_ context.Context, key string) (*GraphR
 	return result, &entry, true, nil
 }
 
-func (r *memoryCacheRepository) PutGraph(_ context.Context, entry cacheEntry, result *GraphResult) error {
+func (r *memoryCacheRepository) PutGraph(_ context.Context, entry cacheEntry, result *factsv1.LanguageGraph) error {
 	if result == nil || result.Graph == nil {
 		return nil
 	}
@@ -574,7 +572,7 @@ func (r *SQLiteCacheRepository) PutReport(ctx context.Context, entry cacheEntry,
 	return r.put(ctx, entry, facts)
 }
 
-func (r *SQLiteCacheRepository) GetGraph(ctx context.Context, key string) (*GraphResult, *cacheEntry, bool, error) {
+func (r *SQLiteCacheRepository) GetGraph(ctx context.Context, key string) (*factsv1.LanguageGraph, *cacheEntry, bool, error) {
 	entry, ok, err := r.get(ctx, key, cacheScopeGraph)
 	if err != nil || !ok {
 		return nil, nil, ok, err
@@ -586,7 +584,7 @@ func (r *SQLiteCacheRepository) GetGraph(ctx context.Context, key string) (*Grap
 	return result, &entry, true, nil
 }
 
-func (r *SQLiteCacheRepository) PutGraph(ctx context.Context, entry cacheEntry, result *GraphResult) error {
+func (r *SQLiteCacheRepository) PutGraph(ctx context.Context, entry cacheEntry, result *factsv1.LanguageGraph) error {
 	if result == nil || result.Graph == nil {
 		return nil
 	}
@@ -1000,57 +998,21 @@ func sortedScopeStats(byScope map[string]*CacheScopeStats) []CacheScopeStats {
 	return out
 }
 
-func marshalGraphResult(result *GraphResult) ([]byte, string, error) {
-	graph, err := proto.Marshal(result.Graph)
-	if err != nil {
-		return nil, "", err
-	}
-	warnings := make([]json.RawMessage, 0, len(result.Warnings))
-	for _, warning := range result.Warnings {
-		payload, err := protojson.Marshal(warning)
-		if err != nil {
-			return nil, "", err
-		}
-		warnings = append(warnings, json.RawMessage(payload))
-	}
-	warningsJSON, err := json.Marshal(warnings)
-	if err != nil {
-		return nil, "", err
-	}
-	return graph, string(warningsJSON), nil
+func marshalGraphResult(result *factsv1.LanguageGraph) ([]byte, string, error) {
+	payload, err := proto.Marshal(result)
+	return payload, "", err
 }
 
-func graphResultFromEntry(entry cacheEntry) (*GraphResult, error) {
-	var graph commonv1.CodeGraph
+func graphResultFromEntry(entry cacheEntry) (*factsv1.LanguageGraph, error) {
 	payload, err := decodeCachePayload(entry)
 	if err != nil {
 		return nil, err
 	}
-	switch entry.Codec {
-	case cacheCodecProto, cacheCodecGzipProto:
-		if err := proto.Unmarshal(payload, &graph); err != nil {
-			return nil, err
-		}
-	default:
-		if err := protojson.Unmarshal(payload, &graph); err != nil {
-			return nil, err
-		}
+	result := &factsv1.LanguageGraph{}
+	if err := proto.Unmarshal(payload, result); err != nil {
+		return nil, err
 	}
-	var rawWarnings []json.RawMessage
-	if strings.TrimSpace(entry.WarningsJSON) != "" {
-		if err := json.Unmarshal([]byte(entry.WarningsJSON), &rawWarnings); err != nil {
-			return nil, err
-		}
-	}
-	warnings := make([]*commonv1.CodeGraphWarning, 0, len(rawWarnings))
-	for _, raw := range rawWarnings {
-		var warning commonv1.CodeGraphWarning
-		if err := protojson.Unmarshal(raw, &warning); err != nil {
-			return nil, err
-		}
-		warnings = append(warnings, &warning)
-	}
-	return &GraphResult{Graph: &graph, Warnings: warnings, GraphHash: entry.GraphHash, ExtractionMs: entry.ExtractionMs}, nil
+	return result, nil
 }
 
 func gzipPayload(payload []byte) ([]byte, error) {

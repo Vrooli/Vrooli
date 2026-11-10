@@ -14,7 +14,7 @@ type normalizer struct {
 	includes map[factsv1.FactFamily]bool
 }
 
-func normalizeGraphFacts(unit *factsv1.ParseUnit, provider GraphProvider, result *GraphResult, includes []factsv1.FactFamily) ([]*factsv1.GenericFact, []*factsv1.Warning, []*factsv1.Evidence) {
+func normalizeGraphFacts(unit *factsv1.ParseUnit, provider GraphProvider, result *factsv1.LanguageGraph, includes []factsv1.FactFamily) ([]*factsv1.GenericFact, []*factsv1.Warning, []*factsv1.Evidence) {
 	n := normalizer{includes: includeSet(includes)}
 	analyzer := provider.AnalyzerName()
 	var facts []*factsv1.GenericFact

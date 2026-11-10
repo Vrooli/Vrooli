@@ -3,6 +3,7 @@ package facts
 import (
 	"context"
 	"fmt"
+	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	"sync"
 	"time"
 )
@@ -222,7 +223,7 @@ func workloadWeight(workload string) int {
 
 type graphFlightCall struct {
 	done    chan struct{}
-	result  *GraphResult
+	result  *factsv1.LanguageGraph
 	err     error
 	waiters int
 }
@@ -236,7 +237,7 @@ func newGraphFlightGroup() *graphFlightGroup {
 	return &graphFlightGroup{calls: map[string]*graphFlightCall{}}
 }
 
-func (g *graphFlightGroup) Do(ctx context.Context, key string, fn func(context.Context) (*GraphResult, error)) (*GraphResult, error) {
+func (g *graphFlightGroup) Do(ctx context.Context, key string, fn func(context.Context) (*factsv1.LanguageGraph, error)) (*factsv1.LanguageGraph, error) {
 	g.mu.Lock()
 	if call := g.calls[key]; call != nil {
 		call.waiters++

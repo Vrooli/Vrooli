@@ -23,7 +23,7 @@ type ExtractionCache interface {
 }
 
 const (
-	extractionCacheVersion                = 1
+	extractionCacheVersion                = 2
 	defaultExtractionCacheMaxBytes  int64 = 512 << 20
 	defaultExtractionMemoryEntries        = 8
 	defaultExtractionMemoryMaxBytes int64 = 128 << 20

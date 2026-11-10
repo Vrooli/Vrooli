@@ -32,6 +32,9 @@ import (
 // resolveHostTool is deliberately a closed owner surface, not an arbitrary path
 // or another interpretation of tools/<shared-package>.
 func resolveHostTool(root, name, ecosystem, pkg, version string) (Resolution, error) {
+	if ecosystem == "system" {
+		return resolveSystemHostTool(root, name, pkg, version)
+	}
 	if name == "cloudflared" {
 		return resolveCloudflaredResource(root, ecosystem, pkg, version)
 	}

@@ -72,7 +72,7 @@
         ],
         [
           "callee_symbol",
-          "go_method:package:example.com/usagefacts/producer:WriteThing"
+          "go_method:package:example.com/usagefacts/producer:Writer.WriteThing"
         ],
         [
           "enclosing_symbol",
@@ -136,7 +136,7 @@
         ],
         [
           "callee_symbol",
-          "go_method:package:example.com/usagefacts/producer:WriteThing"
+          "go_method:package:example.com/usagefacts/producer:Service.WriteThing"
         ],
         [
           "enclosing_symbol",
@@ -303,6 +303,26 @@
       "path": "consumer/consumer.go",
       "attributes": [
         [
+          "body_hash",
+          "4e55f0bd82df06881b8f99e8fa34208198188db9cc9886786d444afc38a8a74c"
+        ],
+        [
+          "body_lines",
+          "5"
+        ],
+        [
+          "cyclomatic_complexity",
+          "1"
+        ],
+        [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "15"
+        ],
+        [
           "exported",
           "true"
         ],
@@ -317,6 +337,22 @@
         [
           "package_id",
           "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "package_name_occurrences",
+          "1"
+        ],
+        [
+          "signature",
+          "func(ctx context.Context, writer prod.Writer) error"
+        ],
+        [
+          "start_column",
+          "1"
+        ],
+        [
+          "start_line",
+          "11"
         ]
       ]
     },
@@ -327,6 +363,26 @@
       "path": "consumer/consumer.go",
       "attributes": [
         [
+          "body_hash",
+          "4c3f83f60066f6ce8f13789bacf307444b9686c6200c79957a9df003ab2cc29a"
+        ],
+        [
+          "body_lines",
+          "4"
+        ],
+        [
+          "cyclomatic_complexity",
+          "1"
+        ],
+        [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "20"
+        ],
+        [
           "exported",
           "true"
         ],
@@ -341,6 +397,22 @@
         [
           "package_id",
           "package:example.com/usagefacts/consumer"
+        ],
+        [
+          "package_name_occurrences",
+          "1"
+        ],
+        [
+          "signature",
+          "func(ctx context.Context) error"
+        ],
+        [
+          "start_column",
+          "1"
+        ],
+        [
+          "start_line",
+          "17"
         ]
       ]
     },
@@ -350,6 +422,26 @@
       "name": "NewResponse",
       "path": "producer/producer.go",
       "attributes": [
+        [
+          "body_hash",
+          "ceecb50d81132e4931c133392c912c0e0973c79042ef937beba02095cc6df1c6"
+        ],
+        [
+          "body_lines",
+          "3"
+        ],
+        [
+          "cyclomatic_complexity",
+          "1"
+        ],
+        [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "21"
+        ],
         [
           "exported",
           "true"
@@ -365,6 +457,22 @@
         [
           "package_id",
           "package:example.com/usagefacts/producer"
+        ],
+        [
+          "package_name_occurrences",
+          "1"
+        ],
+        [
+          "signature",
+          "func(value string) *Response"
+        ],
+        [
+          "start_column",
+          "1"
+        ],
+        [
+          "start_line",
+          "19"
         ]
       ]
     },
@@ -635,6 +743,14 @@
       "path": "producer/producer.go",
       "attributes": [
         [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "11"
+        ],
+        [
           "exported",
           "true"
         ],
@@ -649,16 +765,52 @@
         [
           "package_id",
           "package:example.com/usagefacts/producer"
+        ],
+        [
+          "package_name_occurrences",
+          "1"
+        ],
+        [
+          "start_column",
+          "6"
+        ],
+        [
+          "start_line",
+          "9"
+        ],
+        [
+          "type_expression",
+          "interface {\n\tWriteThing(context.Context, *Response) error\n}"
         ]
       ]
     },
     {
-      "id": "go_method:package:example.com/usagefacts/producer:WriteThing",
+      "id": "go_method:package:example.com/usagefacts/producer:Service.WriteThing",
       "kind": "go_method",
       "name": "WriteThing",
       "path": "producer/producer.go",
       "attributes": [
         [
+          "body_hash",
+          "642a44ec6070ee42bffd1bd5bc6a1ad21dfeb58519d2b75d80f241a7133228d2"
+        ],
+        [
+          "body_lines",
+          "3"
+        ],
+        [
+          "cyclomatic_complexity",
+          "1"
+        ],
+        [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "17"
+        ],
+        [
           "exported",
           "true"
         ],
@@ -673,6 +825,26 @@
         [
           "package_id",
           "package:example.com/usagefacts/producer"
+        ],
+        [
+          "package_name_occurrences",
+          "2"
+        ],
+        [
+          "receiver",
+          "Service"
+        ],
+        [
+          "signature",
+          "func(_ context.Context, _ *Response) error"
+        ],
+        [
+          "start_column",
+          "1"
+        ],
+        [
+          "start_line",
+          "15"
         ]
       ]
     },
@@ -888,7 +1060,7 @@
         ],
         [
           "referenced_symbol",
-          "go_method:package:example.com/usagefacts/producer:WriteThing"
+          "go_method:package:example.com/usagefacts/producer:Writer.WriteThing"
         ],
         [
           "start_column",
@@ -1224,7 +1396,7 @@
         ],
         [
           "referenced_symbol",
-          "go_method:package:example.com/usagefacts/producer:WriteThing"
+          "go_method:package:example.com/usagefacts/producer:Service.WriteThing"
         ],
         [
           "start_column",
@@ -2027,6 +2199,14 @@
       "path": "producer/producer.go",
       "attributes": [
         [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "7"
+        ],
+        [
           "exported",
           "true"
         ],
@@ -2041,6 +2221,22 @@
         [
           "package_id",
           "package:example.com/usagefacts/producer"
+        ],
+        [
+          "package_name_occurrences",
+          "5"
+        ],
+        [
+          "start_column",
+          "6"
+        ],
+        [
+          "start_line",
+          "5"
+        ],
+        [
+          "type_expression",
+          "struct {\n\tValue string\n}"
         ]
       ]
     },
@@ -2051,6 +2247,14 @@
       "path": "producer/producer.go",
       "attributes": [
         [
+          "end_column",
+          "22"
+        ],
+        [
+          "end_line",
+          "13"
+        ],
+        [
           "exported",
           "true"
         ],
@@ -2065,6 +2269,22 @@
         [
           "package_id",
           "package:example.com/usagefacts/producer"
+        ],
+        [
+          "package_name_occurrences",
+          "2"
+        ],
+        [
+          "start_column",
+          "6"
+        ],
+        [
+          "start_line",
+          "13"
+        ],
+        [
+          "type_expression",
+          "struct{}"
         ]
       ]
     },
@@ -2306,7 +2526,7 @@
       "attributes": [
         [
           "symbol_ids",
-          "go_func:package:example.com/usagefacts/producer:NewResponse,go_interface:package:example.com/usagefacts/producer:Writer,go_method:package:example.com/usagefacts/producer:WriteThing,go_type:package:example.com/usagefacts/producer:Response,go_type:package:example.com/usagefacts/producer:Service,go_var:package:example.com/usagefacts/producer:Value"
+          "go_func:package:example.com/usagefacts/producer:NewResponse,go_interface:package:example.com/usagefacts/producer:Writer,go_method:package:example.com/usagefacts/producer:Service.WriteThing,go_method:package:example.com/usagefacts/producer:Writer.WriteThing,go_type:package:example.com/usagefacts/producer:Response,go_type:package:example.com/usagefacts/producer:Service,go_var:package:example.com/usagefacts/producer:Value"
         ],
         [
           "symbol_kinds",

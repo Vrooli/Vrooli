@@ -29,10 +29,12 @@ import (
 // Resolution is the resolved install plan for a request: where it runs, which
 // manager, the manifest it mutates, and the exact argv.
 type Resolution struct {
+	ExternalWorkspace     bool
 	HostTool              bool
 	HostSource            bool
 	HostToolRefresh       bool
 	HostToolTargetVersion string
+	HostManifestSHA256    string
 	HostToolExecutable    string
 	RepositoryRoot        string
 	SurfaceRoot           string
@@ -110,6 +112,9 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 	if err := validateResolution(r); err != nil {
 		return "", err
 	}
+	if r.Profile.LifecycleMode == "system-host-tool" {
+		return provisionSystemHostTool(ctx, r)
+	}
 	if r.Profile.LifecycleMode == "managed-service-artifact" {
 		return provisionManagedServiceArtifact(ctx, r)
 	}
@@ -139,7 +144,7 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 		return updatePythonLocks(ctx, r)
 	}
 
-	if r.PackageManager == "pnpm" {
+	if r.PackageManager == "pnpm" && !r.ExternalWorkspace {
 		if err := ensureReleaseAge(r.SurfaceRoot); err != nil {
 			return "", err
 		}
@@ -155,8 +160,13 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 	}
 	cmd := exec.CommandContext(ctx, r.Argv[0], r.Argv[1:]...)
 	cmd.Dir = r.SurfaceRoot
+	if r.ExternalWorkspace {
+		// Retain the shared pnpm release-age policy without creating workspace
+		// membership/configuration that a later operation could execute.
+		cmd.Env = append(os.Environ(), "npm_config_minimum_release_age=10080", "npm_config_ignore_pnpmfile=true", "npm_config_manage_package_manager_versions=false")
+	}
 	out, err := cmd.CombinedOutput()
-	if err != nil && r.PackageManager == "pnpm" && strings.Contains(string(out), "ERR_PNPM_UNEXPECTED_STORE") {
+	if err != nil && r.PackageManager == "pnpm" && !r.ExternalWorkspace && strings.Contains(string(out), "ERR_PNPM_UNEXPECTED_STORE") {
 		// A governed install must be able to repair a package workspace whose
 		// node_modules was linked by a different pnpm store configuration. The
 		// frozen, script-disabled relink is intentionally read-only with respect
@@ -284,6 +294,9 @@ func ApplyExactVersion(r *Resolution, version string) error {
 		return fmt.Errorf("install resolution is required")
 	}
 	version = strings.TrimSpace(version)
+	if r.ExternalWorkspace && r.ExactVersion {
+		return nil
+	}
 	if r.Profile.LifecycleMode == "pinned-release" {
 		var expected string
 		switch r.PackageName {

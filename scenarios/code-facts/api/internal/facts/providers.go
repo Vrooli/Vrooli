@@ -10,7 +10,6 @@ import (
 	"connectrpc.com/connect"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	gographv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
 	gographconnect "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph/graph_v1connect"
 	tsgraphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph"
@@ -29,21 +28,14 @@ type URLResolver interface {
 type GraphProvider interface {
 	Language() string
 	AnalyzerName() string
-	Extract(ctx context.Context, unit *factsv1.ParseUnit) (*GraphResult, error)
+	Extract(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error)
 }
 
 // familyAwareGraphProvider is an optional provider extension used when the
 // upstream graph API supports cheaper extraction profiles. Keeping it
 // optional preserves the provider seam for TypeScript and test doubles.
 type familyAwareGraphProvider interface {
-	ExtractForFamilies(ctx context.Context, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*GraphResult, error)
-}
-
-type GraphResult struct {
-	Graph        *commonv1.CodeGraph
-	Warnings     []*commonv1.CodeGraphWarning
-	GraphHash    string
-	ExtractionMs int64
+	ExtractForFamilies(ctx context.Context, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*factsv1.LanguageGraph, error)
 }
 
 type Broker struct {
@@ -61,7 +53,7 @@ func NewBroker(providers ...GraphProvider) *Broker {
 	return b
 }
 
-func (b *Broker) Analyze(ctx context.Context, unit *factsv1.ParseUnit) (*GraphResult, GraphProvider, error) {
+func (b *Broker) Analyze(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, GraphProvider, error) {
 	if b == nil {
 		return nil, nil, errNoProvider(unit.GetLanguage())
 	}
@@ -127,15 +119,15 @@ func NewGoGraphProvider(resolver URLResolver, httpClient connect.HTTPClient) Gra
 func (p *goGraphProvider) Language() string     { return "go" }
 func (p *goGraphProvider) AnalyzerName() string { return goProviderScenario }
 
-func (p *goGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*GraphResult, error) {
+func (p *goGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
 	return p.extract(ctx, unit, gographv1.ExtractionProfile_EXTRACTION_PROFILE_FULL)
 }
 
-func (p *goGraphProvider) ExtractForFamilies(ctx context.Context, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*GraphResult, error) {
+func (p *goGraphProvider) ExtractForFamilies(ctx context.Context, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*factsv1.LanguageGraph, error) {
 	return p.extract(ctx, unit, goExtractionProfile(families))
 }
 
-func (p *goGraphProvider) extract(ctx context.Context, unit *factsv1.ParseUnit, profile gographv1.ExtractionProfile) (*GraphResult, error) {
+func (p *goGraphProvider) extract(ctx context.Context, unit *factsv1.ParseUnit, profile gographv1.ExtractionProfile) (*factsv1.LanguageGraph, error) {
 	if p.resolver == nil {
 		return nil, ProviderUnavailableError{Analyzer: p.AnalyzerName(), Err: errors.New("missing URL resolver")}
 	}
@@ -151,12 +143,17 @@ func (p *goGraphProvider) extract(ctx context.Context, unit *factsv1.ParseUnit, 
 	if err != nil {
 		return nil, classifyProviderError(p.AnalyzerName(), err)
 	}
-	return &GraphResult{
-		Graph:        resp.Msg.GetGraph(),
-		Warnings:     resp.Msg.GetWarnings(),
-		GraphHash:    resp.Msg.GetGraphHash(),
-		ExtractionMs: resp.Msg.GetExtractionMs(),
-	}, nil
+	result := &factsv1.LanguageGraph{
+		Graph: resp.Msg.GetGraph(), Warnings: resp.Msg.GetWarnings(),
+		GraphHash: resp.Msg.GetGraphHash(), ExtractionMs: resp.Msg.GetExtractionMs(),
+		ExtractionProfile: strings.ToLower(strings.TrimPrefix(resp.Msg.GetProfile().String(), "EXTRACTION_PROFILE_")),
+	}
+	for _, omission := range resp.Msg.GetOmittedInformation() {
+		result.OmittedInformation = append(result.OmittedInformation, &factsv1.GraphInformationOmission{
+			Capability: omission.GetCapability(), Reason: omission.GetReason(),
+		})
+	}
+	return result, nil
 }
 
 // goExtractionProfile returns the cheapest profile that can produce every
@@ -176,7 +173,7 @@ func goExtractionProfile(families []factsv1.FactFamily) gographv1.ExtractionProf
 	return gographv1.ExtractionProfile_EXTRACTION_PROFILE_STRUCTURAL
 }
 
-func extractForFamilies(ctx context.Context, provider GraphProvider, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*GraphResult, error) {
+func extractForFamilies(ctx context.Context, provider GraphProvider, unit *factsv1.ParseUnit, families []factsv1.FactFamily) (*factsv1.LanguageGraph, error) {
 	if aware, ok := provider.(familyAwareGraphProvider); ok {
 		return aware.ExtractForFamilies(ctx, unit, families)
 	}
@@ -205,7 +202,7 @@ func NewTypeScriptGraphProvider(resolver URLResolver, httpClient connect.HTTPCli
 func (p *tsGraphProvider) Language() string     { return "typescript" }
 func (p *tsGraphProvider) AnalyzerName() string { return tsProviderScenario }
 
-func (p *tsGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*GraphResult, error) {
+func (p *tsGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
 	if p.resolver == nil {
 		return nil, ProviderUnavailableError{Analyzer: p.AnalyzerName(), Err: errors.New("missing URL resolver")}
 	}
@@ -219,7 +216,7 @@ func (p *tsGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) 
 	if err != nil {
 		return nil, classifyProviderError(p.AnalyzerName(), err)
 	}
-	return &GraphResult{
+	return &factsv1.LanguageGraph{
 		Graph:        resp.Msg.GetGraph(),
 		Warnings:     resp.Msg.GetWarnings(),
 		GraphHash:    resp.Msg.GetGraphHash(),

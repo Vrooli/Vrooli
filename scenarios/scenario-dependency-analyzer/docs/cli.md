@@ -147,6 +147,30 @@ scenario-dependency-analyzer analyze chart-generator --verbose
 
 ---
 
+### deps declare-runtime
+
+Declare one explicitly selected optional runtime-only scenario dependency whose
+source must never be started by the consumer. This local SDA-owned operation
+needs no API or lifecycle activation. It is not inference: both scenario
+manifests must exist, and the operator supplies the description, runtime-only
+rationale and degraded behavior. It fixes `required: false`, `runtime_only: true`
+and `startup_policy: ignore`; it does not grant access or contact the source.
+
+```bash
+scenario-dependency-analyzer deps declare-runtime --scenario <consumer> --dependency <source> --description '<purpose>' --rationale '<runtime boundary>' --degraded-behavior '<unavailable behavior>' --json
+# Repeat the same flags with --apply --expected-sha256 <before_sha256>.
+```
+
+Preview is the default. Apply requires the exact consumer manifest digest from
+preview, preserves unrelated fields and rejects conflicting existing entries,
+symlinked scenario paths and duplicate keys in the declaration path. Repeating
+an identical declaration is a no-op. It does not replace the import detector or
+modify approved third-party dependency records. Use scan for inferred edges;
+use this declaration for explicit optional runtime contracts that must not start
+the source. Editing or removing an existing different contract is not supported.
+
+---
+
 ### scan
 
 Run dependency scan and optionally apply detected dependencies to service.json.

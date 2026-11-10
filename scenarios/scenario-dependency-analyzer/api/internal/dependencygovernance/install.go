@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/installgateway"
 
@@ -26,6 +27,13 @@ func WithInstaller(installer installgateway.PackageInstaller) ConnectOption {
 // exact command + verdict without mutating anything.
 func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Request[governancev1.InstallDependencyRequest]) (*connect.Response[governancev1.InstallDependencyResponse], error) {
 	msg := req.Msg
+	if msg.GetWorkspacePath() != "" {
+		if msg.GetScenario() != "" || msg.GetSurface() != "" || msg.GetRefreshLock() || strings.HasPrefix(msg.GetVersion(), "override:") {
+			return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("workspace_path cannot be combined with scenario/surface, refresh_lock, or overrides"))
+		}
+		msg = proto.Clone(msg).(*governancev1.InstallDependencyRequest)
+		msg.Scenario, msg.Surface = "external-workspace", "workspace"
+	}
 	repoRoot := ""
 	if h != nil && h.scenariosDir != nil {
 		repoRoot = filepath.Dir(h.scenariosDir())
@@ -46,7 +54,9 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 	}
 	var resolution installgateway.Resolution
 	var err error
-	if msg.GetRefreshLock() {
+	if msg.GetWorkspacePath() != "" {
+		resolution, err = installgateway.ResolveWorkspace(repoRoot, msg.GetWorkspacePath(), msg.GetEcosystem(), msg.GetPackageName(), msg.GetVersion())
+	} else if msg.GetRefreshLock() {
 		resolution, err = installgateway.ResolveHostToolRefresh(repoRoot, msg.GetScenario(), msg.GetEcosystem(), msg.GetPackageName(), msg.GetVersion())
 	} else if isNpmOverride {
 		if strings.ToLower(strings.TrimSpace(msg.GetEcosystem())) != "npm" || strings.TrimSpace(overrideVersion) == "" {
@@ -88,6 +98,9 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		Guidance:       Guidance,
 	}
 	target := fmt.Sprintf("scenarios/%s/%s", msg.GetScenario(), msg.GetSurface())
+	if resolution.ExternalWorkspace {
+		target = "external workspace " + resolution.SurfaceRoot
+	}
 	if msg.GetScenario() == "vrooli" && msg.GetSurface() == "control-plane" {
 		target = "Vrooli control-plane root Go module"
 	}
@@ -174,6 +187,10 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 			resp.NextSteps = append(resp.NextSteps, "Verify managed bytes: vrooli host install hyperframes --dry-run", "Qualify one bounded local composition before fresh-film production; no browser was downloaded.")
 			return connect.NewResponse(resp), nil
 		}
+		if resolution.ExternalWorkspace {
+			resp.NextSteps = append(resp.NextSteps, "Re-run this deps install request without --apply to validate all direct workspace dependencies.", "Review the generated lockfile and retained package integrity values before executing upstream code.")
+			return connect.NewResponse(resp), nil
+		}
 		resp.NextSteps = append(resp.NextSteps,
 			fmt.Sprintf("Re-validate governance: %s deps approved validate %s", scenarioCLIName(), msg.GetScenario()),
 			"Confirm no new vulnerabilities: security-health deps status --json")
@@ -186,6 +203,23 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 // the resolved surface. It returns the verdict, whether the install is blocked
 // (fail-closed), agent-facing next steps, and any recorded security notes.
 func (r *Registry) governInstall(msg *governancev1.InstallDependencyRequest, resolution installgateway.Resolution) (verdict string, blocked bool, nextSteps, secNotes []string) {
+	if resolution.ExternalWorkspace {
+		declared, err := scanPackageJSON(resolution.ManifestPath)
+		if err != nil {
+			return "manifest_error", true, []string{fmt.Sprintf("Read external dependency closure: %v", err)}, nil
+		}
+		for _, dependency := range declared {
+			if dependency.PackageName == msg.GetPackageName() {
+				continue // The requested replacement is evaluated below.
+			}
+			peer := &governancev1.InstallDependencyRequest{Scenario: "external-workspace", Surface: "workspace", Ecosystem: "npm", PackageName: dependency.PackageName, Version: dependency.Version}
+			peerVerdict, peerBlocked, steps, notes := r.governInstall(peer, installgateway.Resolution{})
+			secNotes = append(secNotes, notes...)
+			if peerBlocked {
+				return peerVerdict, true, append([]string{"Existing external workspace dependency is not approved: " + dependency.PackageName}, steps...), secNotes
+			}
+		}
+	}
 	if resolution.PythonBootstrap != nil {
 		for _, requirement := range resolution.PythonBootstrap.Requirements {
 			peer := &governancev1.InstallDependencyRequest{Scenario: msg.GetScenario(), Surface: msg.GetSurface(), Ecosystem: "pip", PackageName: requirement.Name, Version: requirement.Version}

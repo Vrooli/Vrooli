@@ -73,6 +73,32 @@ that can prove the write is safe.
 
 Approved dependency governance is exposed through generated Connect-backed commands: `deps approved list`, `deps approved search`, `deps approved explain`, `deps approved validate`, `deps approved triage`, `deps approved findings`, `deps approved usage`, `deps approved propose-records`, `deps approved upsert-batch`, `deps approved security-gaps`, `deps approved approve-observed`, `deps approved widen-range`, `deps approved upsert`, `deps approved approve`, `deps approved deny`, `deps approved remediate`, and `deps approved deny-vulnerable`. `deps approved validate --all --json` returns a first-class fleet rollup with per-scenario results, dependency usage groups, and normalized signal categories such as `direct_runtime`, `direct_dev`, `indirect`, and `lockfile_transitive`. `deps approved triage` groups fleet findings into operator decisions; use `--section security|seeding|ranges|hotspots|expired`, `--limit`, or `--json` for typed output. Its next commands include typed recipes such as `approve-observed <ecosystem>/<package> --from-findings` and `widen-range <ecosystem>/<package> --to-major-line`, both dry-run by default. `deps approved security-gaps` consumes Security Health vulnerability evidence and shows vulnerable package/version/advisory exposures that are not yet covered by SDA denied governance records. `deps approved propose-records --json` turns high-frequency unrecorded direct dependencies into honest draft records, and `deps approved upsert-batch --file proposals.json --dry-run --json` previews atomic registry changes before `--apply`. `deps approved findings --json` filters raw fleet findings, and `deps approved usage <ecosystem>/<package> --json` shows every scenario/surface using one dependency. Mutation commands dry-run by default and require `--apply` to write `.vrooli/dependencies/approved-dependencies.json`; `approve`, `deny`, and recipe commands accept range policy controls so broad decisions are explicit. Security-derived denial commands consume Security Health vulnerability evidence, write `security_denied` range policy records, and do not run scanners inside SDA. Approved dependency records are not an exhaustive allowlist; unrecorded packages produce review guidance in advisory mode and fail in strict mode.
 
+## Governed installs into external workspaces
+
+For a task-owned standalone workspace outside the maintained Vrooli repository,
+the existing installer accepts an explicit absolute target:
+
+```sh
+scenario-dependency-analyzer deps install --workspace /absolute/task/dependencies --ecosystem npm --package zod --version 3.23.8 --json
+scenario-dependency-analyzer deps install --workspace /absolute/task/dependencies --ecosystem npm --package zod --version 3.23.8 --apply --json
+```
+
+The first command previews; the second applies through the same registry,
+resolver, package-manager and lock checks. `--workspace` cannot be combined with
+`--scenario` or `--surface`. Registry policy uses scenario `external-workspace`
+and surface `workspace`, and checks both the requested package and every existing
+direct dependency. This route currently supports npm packages only.
+
+The target must exist and contain a regular `package.json` declaring
+`packageManager: "pnpm@<exact-version>"`; all existing direct dependencies and the
+requested version must be exact registry versions. A first install may create
+`pnpm-lock.yaml`. Existing locks must be regular files. Workspace membership,
+resolver overrides, `.npmrc`, competing lockfiles and targets inside the
+maintained repository are rejected. Installs disable scripts and pnpm hooks,
+ignore parent workspace membership, preserve the release-age floor, and do not
+automatically change the pinned package-manager version. Review the returned
+receipt and retained manifest/lock diff before executing installed software.
+
 ## Adding a new command
 
 Register the command in the relevant CLI domain, add API coverage when needed, update generated docs, and add scenario tests for machine-readable output.

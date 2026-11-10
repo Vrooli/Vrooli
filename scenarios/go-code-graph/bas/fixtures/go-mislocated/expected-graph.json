@@ -55,6 +55,26 @@
       "path": "right/r.go",
       "attributes": [
         [
+          "body_hash",
+          "92f384a6dd9ded3b0cb812fed8db8f91627232758fe02c09480a7420d370d4fa"
+        ],
+        [
+          "body_lines",
+          "3"
+        ],
+        [
+          "cyclomatic_complexity",
+          "1"
+        ],
+        [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "7"
+        ],
+        [
           "exported",
           "true"
         ],
@@ -69,6 +89,22 @@
         [
           "package_id",
           "package:github.com/vrooli/fixtures/go-mislocated/right"
+        ],
+        [
+          "package_name_occurrences",
+          "1"
+        ],
+        [
+          "signature",
+          "func() string"
+        ],
+        [
+          "start_column",
+          "1"
+        ],
+        [
+          "start_line",
+          "5"
         ]
       ]
     },
@@ -78,6 +114,26 @@
       "name": "Mislocated",
       "path": "wrongdir/m.go",
       "attributes": [
+        [
+          "body_hash",
+          "5f467c1a153d2f99307bb1bee4bb8f5f6a212dde018491a97d6649a0e6b8d8cf"
+        ],
+        [
+          "body_lines",
+          "3"
+        ],
+        [
+          "cyclomatic_complexity",
+          "1"
+        ],
+        [
+          "end_column",
+          "2"
+        ],
+        [
+          "end_line",
+          "10"
+        ],
         [
           "exported",
           "true"
@@ -93,6 +149,22 @@
         [
           "package_id",
           "package:github.com/vrooli/fixtures/go-mislocated/wrongdir"
+        ],
+        [
+          "package_name_occurrences",
+          "1"
+        ],
+        [
+          "signature",
+          "func() string"
+        ],
+        [
+          "start_column",
+          "1"
+        ],
+        [
+          "start_line",
+          "8"
         ]
       ]
     },
