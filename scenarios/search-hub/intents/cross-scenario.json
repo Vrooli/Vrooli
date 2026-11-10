@@ -1,0 +1,278 @@
+{
+  "scenario": "*",
+  "description": "Cross-scenario 'do X' intents. Each case names the scenario whose leaf (skill, program or command) a cold agent should be shown. Cases are reviewed intents, not the current ranking: a failing case is a discoverability defect in the owning scenario's descriptions.",
+  "cases": [
+    {
+      "id": "web-page-screenshot",
+      "owner": "browser-automation-studio",
+      "query": "take a screenshot of a web page",
+      "tags": [
+        "browser"
+      ]
+    },
+    {
+      "id": "browser-flow",
+      "owner": "browser-automation-studio",
+      "query": "automate clicking through a website and record the steps",
+      "tags": [
+        "browser"
+      ]
+    },
+    {
+      "id": "run-scenario-tests",
+      "owner": "test-genie",
+      "query": "run the tests for a scenario",
+      "tags": [
+        "testing"
+      ]
+    },
+    {
+      "id": "android-app-build",
+      "owner": "scenario-to-android",
+      "query": "build and install an android app for a scenario",
+      "tags": [
+        "android"
+      ]
+    },
+    {
+      "id": "install-dependency",
+      "owner": "scenario-dependency-analyzer",
+      "query": "add a new package dependency to a scenario",
+      "tags": [
+        "dependencies"
+      ]
+    },
+    {
+      "id": "why-run-failed",
+      "owner": "agent-manager",
+      "query": "see why an agent run failed",
+      "tags": [
+        "agents"
+      ]
+    },
+    {
+      "id": "recall-decision",
+      "owner": "vrooli-memory",
+      "query": "recall what we decided about this earlier",
+      "tags": [
+        "memory"
+      ]
+    },
+    {
+      "id": "web-lookup",
+      "owner": "web-search",
+      "query": "look up current information on the internet",
+      "tags": [
+        "web"
+      ]
+    },
+    {
+      "id": "regression-snapshot",
+      "owner": "git-control-tower",
+      "query": "capture a regression snapshot of the working tree",
+      "tags": [
+        "git"
+      ]
+    },
+    {
+      "id": "notify-operator",
+      "owner": "notification-hub",
+      "query": "notify me and ask for a decision",
+      "tags": [
+        "notifications"
+      ]
+    },
+    {
+      "id": "ui-layout-audit",
+      "owner": "ui-health",
+      "query": "audit a page layout on mobile",
+      "tags": [
+        "ui"
+      ]
+    },
+    {
+      "id": "write-plan",
+      "owner": "plan-manager",
+      "query": "create an implementation plan with phases",
+      "tags": [
+        "planning"
+      ]
+    },
+    {
+      "id": "desktop-package",
+      "owner": "scenario-to-desktop",
+      "query": "package a scenario as a desktop app",
+      "tags": [
+        "desktop"
+      ]
+    },
+    {
+      "id": "release-readiness",
+      "owner": "deployment-manager",
+      "query": "check whether a scenario is ready to release",
+      "tags": [
+        "deploy"
+      ]
+    },
+    {
+      "id": "convert-audio",
+      "owner": "audio-tools",
+      "query": "convert an audio file to a different format",
+      "tags": [
+        "audio"
+      ]
+    },
+    {
+      "id": "resize-image",
+      "owner": "image-tools",
+      "query": "resize or compress an image",
+      "tags": [
+        "images"
+      ]
+    },
+    {
+      "id": "store-secret",
+      "owner": "secrets-manager",
+      "query": "store an api key securely",
+      "tags": [
+        "secrets"
+      ]
+    },
+    {
+      "id": "disk-space",
+      "owner": "storage-manager",
+      "query": "free up disk space",
+      "tags": [
+        "host"
+      ]
+    },
+    {
+      "id": "expose-tunnel",
+      "owner": "tunnel-manager",
+      "query": "expose a local service on a public url",
+      "tags": [
+        "network"
+      ]
+    },
+    {
+      "id": "system-health",
+      "owner": "system-monitor",
+      "query": "check cpu and memory usage on this machine",
+      "tags": [
+        "host"
+      ]
+    },
+    {
+      "id": "budget-planner",
+      "owner": "personal-planner",
+      "query": "add a task to my personal planner",
+      "tags": [
+        "planning"
+      ]
+    },
+    {
+      "id": "backup-data",
+      "owner": "data-backup-manager",
+      "query": "back up my data",
+      "tags": [
+        "backup"
+      ]
+    },
+    {
+      "id": "terminal-session",
+      "owner": "web-console",
+      "query": "open a terminal session in the browser",
+      "tags": [
+        "console"
+      ]
+    },
+    {
+      "id": "run-program",
+      "owner": "program-runtime",
+      "query": "run a saved program from the library",
+      "tags": [
+        "programs"
+      ]
+    },
+    {
+      "id": "swarm-initiative",
+      "owner": "swarm-manager",
+      "query": "start a multi-agent swarm initiative",
+      "tags": [
+        "agents"
+      ]
+    },
+    {
+      "id": "gateway-models",
+      "owner": "ai-gateway",
+      "query": "which local model is serving inference",
+      "tags": [
+        "ai"
+      ]
+    },
+    {
+      "id": "component-library",
+      "owner": "react-component-library",
+      "query": "find a reusable react component",
+      "tags": [
+        "ui"
+      ]
+    },
+    {
+      "id": "brand-assets",
+      "owner": "brand-manager",
+      "query": "generate a logo for a scenario",
+      "tags": [
+        "brand"
+      ]
+    },
+    {
+      "id": "cloud-deploy",
+      "owner": "scenario-to-cloud",
+      "query": "deploy a scenario to a cloud server",
+      "tags": [
+        "deploy"
+      ]
+    },
+    {
+      "id": "onboarding-setup",
+      "owner": "vrooli-onboarding",
+      "query": "set up vrooli on a new machine",
+      "tags": [
+        "setup"
+      ]
+    },
+    {
+      "id": "tech-tree",
+      "owner": "tech-tree-designer",
+      "query": "plan the technology roadmap for capabilities",
+      "tags": [
+        "planning"
+      ]
+    },
+    {
+      "id": "money-expenses",
+      "owner": "money-ledger",
+      "query": "record an expense",
+      "tags": [
+        "finance"
+      ]
+    },
+    {
+      "id": "music",
+      "owner": "music-tools",
+      "query": "generate or edit a music track",
+      "tags": [
+        "audio"
+      ]
+    },
+    {
+      "id": "content-publish",
+      "owner": "content-desk",
+      "query": "draft and publish an article",
+      "tags": [
+        "content"
+      ]
+    }
+  ]
+}

@@ -51,8 +51,10 @@ func (h *handlers) statusReport(_ cliapp.OperationContext, msg *routingv1.Status
 	summary := []string{
 		fmt.Sprintf("%d/%d active provider(s) reachable.", reachable, len(msg.GetProviders())),
 		fmt.Sprintf("Circuit-open share: %.1f%% (federation quorum %.1f%%; degraded=%t).", msg.GetCircuitOpenShare()*100, msg.GetCircuitOpenQuorum()*100, msg.GetFederationDegraded()),
-		fmt.Sprintf("Classifier (auto-routing): %s. Reranker (unified ranking): %s.",
-			availability(msg.GetClassifierAvailable()), availability(msg.GetRerankerAvailable())),
+		// The interactive LLM classifier was retired; the wire field is kept for
+		// older clients and is always false, so it is never rendered as a fault.
+		fmt.Sprintf("Auto-routing: %s (lexical + cross-encoder selection; the LLM classifier is retired, not down). Reranker (unified ranking): %s.",
+			activeStrategySummary(msg.GetActiveStrategy()), availability(msg.GetRerankerAvailable())),
 	}
 	stuck := make([]string, 0)
 	for _, p := range msg.GetProviders() {
@@ -153,6 +155,13 @@ func renderProviderHealth(providers []*routingv1.ProviderHealth) []string {
 		out = append(out, line)
 	}
 	return out
+}
+
+func activeStrategySummary(name string) string {
+	if name == "" {
+		return "strategy not reported"
+	}
+	return "strategy " + name
 }
 
 func availability(ok bool) string {

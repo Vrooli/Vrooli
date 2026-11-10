@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "search-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "6dd6d65ba575cc62a950518fedecedda7aae10f7168924472c7584c315d873af",
+  "manifest_hash": "976b742b161b9caffc9ff1a98f8e40e831dd39cd0e6aff31cd22cee18171bb2f",
   "commands": [
     {
       "path": "embedding abort",
@@ -189,6 +189,22 @@
       "binding": "MetricsService.Insights",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "intents coverage",
+      "group": "intents",
+      "command": "coverage",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
+    },
+    {
+      "path": "intents run",
+      "group": "intents",
+      "command": "run",
+      "binding": ".",
+      "declared_primitive": "action",
+      "observed_primitive": "action"
     },
     {
       "path": "maturity fix",

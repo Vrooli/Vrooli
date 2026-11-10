@@ -425,6 +425,7 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 			return nil, ErrInvalidQuery{Reason: fmt.Sprintf("retrieval strategy %q is retired and has no executable LLM classifier", name)}
 		}
 	}
+	scenarioScope := groupScope{}
 	hasExplicit := backgroundEvaluation || req.GetAll() || len(nonEmpty(req.GetTypes())) > 0 || strings.TrimSpace(req.GetGroup()) != ""
 	// Automatic routing has a model-free lexical fallback, so it remains
 	// available even when both local inference resources are stopped.
@@ -444,6 +445,9 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		return nil, fmt.Errorf("list providers: %w", err)
 	}
 	resolverLatency := r.deps.Now().Sub(start).Milliseconds()
+	if !backgroundEvaluation {
+		scenarioScope = resolveGroupScope(active, req.GetGroup())
+	}
 
 	var (
 		targets            []*registryv1.ProviderDescriptor
@@ -482,7 +486,11 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 		}
 		// Explicit selectors (--all / --type / --group) reach every active
 		// provider, including SCOPE_EXTERNAL ones — the operator asked for them.
-		targets = selectTargets(active, req)
+		if scenarioScope.Scenario != "" {
+			targets = selectScenarioTargets(active, req)
+		} else {
+			targets = selectTargets(active, req)
+		}
 		selectedLeafCount = len(targets)
 	} else {
 		routingMode = "automatic"
@@ -522,8 +530,16 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 	}
 
 	fanoutStarted := r.deps.Now()
-	groups := r.fanOut(qctx, targets, query, limit, hasExplicit, scope)
+	fetchLimit := limit
+	if scenarioScope.Scenario != "" {
+		fetchLimit = scenarioScopeFetchLimit(limit)
+	}
+	groups := r.fanOut(qctx, targets, query, fetchLimit, hasExplicit, scope)
 	groups = collapseDocumentHits(groups)
+	scenarioExamined := 0
+	if scenarioScope.Scenario != "" {
+		scenarioExamined = filterGroupsToScenario(groups, scenarioScope.Scenario, limit)
+	}
 	if qctx.Err() != nil {
 		usable := 0
 		for _, group := range groups {
@@ -610,6 +626,9 @@ func (r *Router) Query(ctx context.Context, req *routingv1.QueryRequest) (*routi
 				fmt.Sprintf("partial results: query deadline expired with %d provider(s) pending", pendingProviders))
 		}
 		resp.RoutingExplanation = append(resp.RoutingExplanation, rerankExplain...)
+	}
+	if scenarioScope.Scenario != "" {
+		resp.RoutingExplanation = append(scenarioScopeExplanation(scenarioScope, groups, scenarioExamined), resp.RoutingExplanation...)
 	}
 	resp.RoutingDegradeReason = routingIndexReason
 	resp.LatencyMs = r.deps.Now().Sub(start).Milliseconds()

@@ -72,3 +72,17 @@ func TestStatusReportKeepsUnregisteredAccountingRowsInAuditView(t *testing.T) {
 	require.Contains(t, joined, "Audit: stale.accounting.key")
 	require.NotContains(t, report.Results[0], "stale.accounting.key")
 }
+
+// The retired LLM classifier is not an outage: status must never print
+// "unavailable" for it, and must name the strategy that actually routes.
+func TestStatusReportDoesNotPresentRetiredClassifierAsFault(t *testing.T) {
+	report := (&handlers{}).statusReport(nil, &routingv1.StatusResponse{
+		ActiveStrategy:      "lexical-cross-encoder",
+		RerankerAvailable:   true,
+		ClassifierAvailable: false,
+	})
+	joined := strings.Join(report.Summary, "\n")
+	require.NotContains(t, joined, "Classifier")
+	require.Contains(t, joined, "strategy lexical-cross-encoder")
+	require.Contains(t, joined, "retired, not down")
+}

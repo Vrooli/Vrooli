@@ -99,6 +99,27 @@ active providers.
 search-hub query "how do I inspect a completed run" --type command,doc --limit 5
 ```
 
+`--group` accepts a provider group (`prompt-manager`, `cli-health`, ...) or a
+scenario name. A value that names no provider group is read as scenario scope:
+the router searches the leaf-bearing (DO and REUSE) providers, or the `--type`
+set, and keeps only leaves owned by that scenario. The routing note in the
+answer always states which reading applied, and an empty scenario scope says so
+and lists the provider groups, so a mistyped scenario is never a silent empty.
+
+```bash
+search-hub query "take a screenshot" --group device-control
+```
+
+## Scenario commands — `intents` (discoverability)
+
+`search-hub intents run [--scenario <name>] [--types library,skill,command] [--limit 5] [--assert]`
+issues each authored natural request through the public query path and reports
+whether a leaf of the owning scenario is in the top-k. `search-hub intents
+coverage` lists scenarios that expose skills, programs or commands but declare
+no intent case. Corpora live in `scenarios/search-hub/intents/*.json` and
+`scenarios/<name>/.vrooli/intents.json`; see
+[`../guides/intent-recall.md`](../guides/intent-recall.md).
+
 ## Scenario commands — `providers` (registry)
 
 The `providers` domain is search-hub's first real domain: the provider
