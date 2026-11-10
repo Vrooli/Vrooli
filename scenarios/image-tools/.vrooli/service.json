@@ -449,6 +449,15 @@
         "develop"
       ],
       "notes": "Data-declared release host tool (internal/tools/uv) fetched no-sudo into ~/.vrooli/bin. On the next start image-tools builds/repairs the venv from the embedded lock; until uv is installed the Python backends report unavailable (surfaced before use), never falling back to the shared interpreter. The single Python-dependency source of truth is the lock \u2014 there is no separate pip step."
+    },
+    {
+      "name": "tesseract",
+      "required": false,
+      "when": [
+        "develop"
+      ],
+      "reason": "Local OCR backend and English language data for the enabled tesseract model. Provisioning ensures it through the platform host-tool owner.",
+      "notes": "System package manifest internal/tools/tesseract; Apache-2.0 upstream. The scenario runs its CLI with a one-core CPU/RAM budget."
     }
   ],
   "environment": {},

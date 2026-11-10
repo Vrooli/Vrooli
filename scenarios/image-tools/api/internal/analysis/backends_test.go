@@ -28,7 +28,7 @@ func TestRegisterBackendProviders_PromotesStructuredBackendFamilies(t *testing.T
 		{ID: "laplacian-blur", Backend: models.BackendComputed, Enabled: true, Operations: []string{OpQuality}},
 		{ID: "goimagehash", Backend: models.BackendLibraryGo, Enabled: true, Operations: []string{OpDuplicate}},
 		{ID: "gozxing", Backend: models.BackendLibraryGo, Enabled: true, Operations: []string{"qr_barcode_read"}},
-		{ID: "tesseract", Backend: "library-cgo", Enabled: true, Operations: []string{OpOCR}},
+		{ID: "tesseract", Backend: "tesseract", Enabled: true, Operations: []string{OpOCR}},
 	})
 	for _, name := range []string{models.BackendComputed, models.BackendLibraryGo} {
 		row, ok := backendRow(report, name)
@@ -54,13 +54,13 @@ func TestDoctorForModelsReportsMissingBackendOperations(t *testing.T) {
 	}
 
 	report := reg.DoctorForModels(context.Background(), []models.Model{
-		{ID: "tesseract", Backend: "library-cgo", Enabled: true, Operations: []string{OpOCR}},
+		{ID: "tesseract", Backend: "tesseract", Enabled: true, Operations: []string{OpOCR}},
 		{ID: "yunet", Backend: "library-cgo", Enabled: true, Operations: []string{"face_detection"}},
 	})
 
 	var sawOCR, sawFaceGap bool
 	for _, row := range report.Backends {
-		if row.Name != "library-cgo" {
+		if row.Name != "library-cgo" && row.Name != "tesseract" {
 			continue
 		}
 		for _, op := range row.Operations {
@@ -73,7 +73,7 @@ func TestDoctorForModelsReportsMissingBackendOperations(t *testing.T) {
 		}
 	}
 	if !sawOCR {
-		t.Fatalf("expected available library-cgo OCR row: %+v", report.Backends)
+		t.Fatalf("expected available tesseract OCR row: %+v", report.Backends)
 	}
 	if !sawFaceGap {
 		t.Fatalf("expected unavailable library-cgo face_detection gap row: %+v", report.Backends)

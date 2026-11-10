@@ -81,7 +81,7 @@ func TestArgBuilders(t *testing.T) {
 				}
 				return r
 			}()),
-			want: []string{"-m", "/models/m1/model.gguf", "--mmproj", "/models/m1/mmproj-model.gguf", "--image", "/in.png", "-p", "alt text", "-n", "48", "--temp", "0.2"},
+			want: []string{"--verbosity", "0", "-m", "/models/m1/model.gguf", "--mmproj", "/models/m1/mmproj-model.gguf", "--image", "/in.png", "-p", "alt text", "-n", "48", "--temp", "0.2"},
 		},
 		{
 			name: "llama.cpp caption needs mmproj",

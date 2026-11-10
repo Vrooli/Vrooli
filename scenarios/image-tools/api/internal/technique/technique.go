@@ -641,6 +641,7 @@ func LlamaCppCaption(req backends.Request, modelDir string) ([]string, error) {
 		prompt = "Describe this image concisely."
 	}
 	args := []string{
+		"--verbosity", "0",
 		"-m", model,
 		"--mmproj", mmproj,
 		"--image", in,

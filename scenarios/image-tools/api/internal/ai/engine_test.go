@@ -51,6 +51,13 @@ func (p *fakeProvider) Standalone() bool               { return true }
 func (p *fakeProvider) IsCloud() bool                  { return false }
 func (p *fakeProvider) Available(context.Context) bool { return true }
 
+type mutableProvider struct {
+	fakeProvider
+	available bool
+}
+
+func (p *mutableProvider) Available(context.Context) bool { return p.available }
+
 func (p *fakeProvider) Execute(_ context.Context, req backends.Request) (backends.Result, error) {
 	p.lastReq = req
 	p.execN++
@@ -96,7 +103,7 @@ func TestRunFailureRetainsGatewayVariationEvidenceAndMarksUnstarted(t *testing.T
 	}
 	eng, _, modelID := newTestEngine(t, "text_to_image", fp)
 	runner := eng.BuildRunners()["text_to_image"]
-	payload, err := json.Marshal(Payload{Operation: "text_to_image", ModelID: modelID, GPU: true, Variations: 3, Params: map[string]string{"prompt": "partial evidence"}})
+	payload, err := marshalPinnedPayload(t, eng, "text_to_image", Payload{Operation: "text_to_image", ModelID: modelID, GPU: true, Variations: 3, Params: map[string]string{"prompt": "partial evidence"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +166,7 @@ func TestVariationCostRequiresEveryProviderReportedContribution(t *testing.T) {
 			fp := &fakeProvider{metas: tc.metas}
 			eng, _, modelID := newTestEngine(t, "text_to_image", fp)
 			runner := eng.BuildRunners()["text_to_image"]
-			payload, err := json.Marshal(Payload{Operation: "text_to_image", ModelID: modelID, GPU: true, Variations: 3, Params: map[string]string{"prompt": "cost test"}})
+			payload, err := marshalPinnedPayload(t, eng, "text_to_image", Payload{Operation: "text_to_image", ModelID: modelID, GPU: true, Variations: 3, Params: map[string]string{"prompt": "cost test"}})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -184,7 +191,7 @@ func TestVariationCostRequiresEveryProviderReportedContribution(t *testing.T) {
 }
 
 func TestRunLeasesModelAcrossVariationsAndReleasesBeforeAutoScan(t *testing.T) {
-	gate := models.NewModelUseGate()
+	gate := models.NewModelUseGate(t.TempDir())
 	fp := &fakeProvider{}
 	eng, _, modelID := newTestEngine(t, "text_to_image", fp)
 	eng.deps.AcquireModelUse = gate.Acquire
@@ -206,7 +213,7 @@ func TestRunLeasesModelAcrossVariationsAndReleasesBeforeAutoScan(t *testing.T) {
 			t.Errorf("exclusive acquire returned unexpected error: %v", err)
 		}
 	}
-	payload, err := json.Marshal(Payload{
+	payload, err := marshalPinnedPayload(t, eng, "text_to_image", Payload{
 		Operation: "text_to_image", ModelID: modelID, GPU: true, Variations: 2,
 		AutoScanNSFW: true, Params: map[string]string{"prompt": "lease coverage"},
 	})
@@ -324,7 +331,7 @@ func registryWithSyntheticUpscaleDefault(t *testing.T, base *models.Registry) *m
 // runJob drives the op's runner with a payload, returning the result ref.
 func runJob(t *testing.T, eng *Engine, op string, pl Payload) (string, error) {
 	t.Helper()
-	raw, err := json.Marshal(pl)
+	raw, err := marshalPinnedPayload(t, eng, op, pl)
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}
@@ -334,6 +341,24 @@ func runJob(t *testing.T, eng *Engine, op string, pl Payload) (string, error) {
 	}
 	result, err := runner(context.Background(), internaljobs.Job{Operation: op, Payload: raw}, func(int, string) {})
 	return result.Ref, err
+}
+
+func marshalPinnedPayload(t *testing.T, eng *Engine, op string, pl Payload) ([]byte, error) {
+	t.Helper()
+	if pl.Operation == "" {
+		pl.Operation = op
+	}
+	if pl.Backend == "" {
+		plan, err := eng.Plan(context.Background(), PlanRequest{Operation: op, ModelOverride: pl.ModelID, AllowBYOK: pl.AllowBYOK})
+		if err != nil {
+			return nil, err
+		}
+		pl.Backend = plan.Provider
+		if pl.Tier == "" {
+			pl.Tier = plan.Tier
+		}
+	}
+	return json.Marshal(pl)
 }
 
 func TestRunRejectsPersistedModelUnsupportedOnCurrentHost(t *testing.T) {
@@ -368,7 +393,7 @@ func TestRunRejectsPersistedModelUnsupportedOnCurrentHost(t *testing.T) {
 		t.Fatalf("new engine: %v", err)
 	}
 	_, runErr := runJob(t, eng, "text_to_image", Payload{
-		Operation: "text_to_image", ModelID: restricted.ID, GPU: false,
+		Operation: "text_to_image", ModelID: restricted.ID, Backend: fp.Name(), GPU: false,
 		Params: map[string]string{"prompt": "must not reach provider"},
 	})
 	if !errors.Is(runErr, ErrModelUnsupportedHost) {
@@ -441,6 +466,73 @@ func TestPlan_ModelNotInstalled(t *testing.T) {
 	}
 }
 
+func TestPlan_RequireGPURejectsCPUResolution(t *testing.T) {
+	eng, _, _ := newTestEngine(t, "naturalize", &fakeProvider{})
+	_, err := eng.Plan(context.Background(), PlanRequest{Operation: "naturalize", RequireGPU: true})
+	if !errors.Is(err, ErrGPURequired) {
+		t.Fatalf("GPU-required CPU plan error = %v, want ErrGPURequired", err)
+	}
+}
+
+func TestAdmissionPinsResolvedProviderAndRejectsLegacyPayload(t *testing.T) {
+	registry, err := models.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, ok := registry.DefaultFor("text_to_image")
+	if !ok {
+		t.Fatal("text_to_image default missing")
+	}
+	native := &mutableProvider{
+		fakeProvider: fakeProvider{name: model.Backend, ops: []string{"text_to_image"}},
+		available:    true,
+	}
+	substitute := &fakeProvider{name: "substitute", ops: []string{"text_to_image"}}
+	backendRegistry := backends.New()
+	if err := backendRegistry.Register(native); err != nil {
+		t.Fatal(err)
+	}
+	if err := backendRegistry.Register(substitute); err != nil {
+		t.Fatal(err)
+	}
+	eng, err := NewEngine(Deps{
+		Registry:       registry,
+		Backends:       backendRegistry,
+		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
+		Store:          storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir()),
+		ModelInstalled: func(string) bool { return true },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	plan, err := eng.Plan(context.Background(), PlanRequest{Operation: "text_to_image"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Provider != native.Name() {
+		t.Fatalf("plan selected %q, want model backend %q", plan.Provider, native.Name())
+	}
+	native.available = false
+
+	newPayload, err := json.Marshal(Payload{Operation: "text_to_image", ModelID: model.ID, Backend: plan.Provider})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = eng.Admit(context.Background(), internaljobs.Job{ID: "pinned", Operation: "text_to_image", Payload: newPayload})
+	if !errors.Is(err, backends.ErrNoneAvailable) || substitute.execN != 0 {
+		t.Fatalf("new payload silently changed provider after selection: err=%v substitute executions=%d", err, substitute.execN)
+	}
+
+	legacyPayload, err := json.Marshal(Payload{Operation: "text_to_image", ModelID: model.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := eng.Admit(context.Background(), internaljobs.Job{ID: "legacy", Operation: "text_to_image", Payload: legacyPayload}); err == nil || !strings.Contains(err.Error(), "no resolved provider") {
+		t.Fatalf("legacy payload admission error = %v, want missing-provider retirement boundary", err)
+	}
+}
+
 func TestPlan_SuccessUsesDefaultOverrideWarningsAndETA(t *testing.T) {
 	registry, err := models.Load()
 	if err != nil {
@@ -464,8 +556,8 @@ func TestPlan_SuccessUsesDefaultOverrideWarningsAndETA(t *testing.T) {
 			GPUs: []capabilities.GPU{{Name: "unknown", VRAMBytes: 0}},
 		}},
 		Store: store,
-		Enabled: func(context.Context) (models.EnabledFunc, error) {
-			return func(id string) bool { return id == def.ID }, nil
+		Enabled: func(context.Context) (map[string]bool, error) {
+			return map[string]bool{def.ID: true}, nil
 		},
 		DefaultOverride: func(_ context.Context, op string) (string, error) {
 			if op != "naturalize" {
@@ -488,6 +580,9 @@ func TestPlan_SuccessUsesDefaultOverrideWarningsAndETA(t *testing.T) {
 	if plan.ModelID != def.ID || plan.Tier != backends.TierLocalCPU.String() || plan.EstimatedSeconds != 2 {
 		t.Fatalf("plan = %+v", plan)
 	}
+	if plan.Provider != fp.Name() {
+		t.Fatalf("plan provider = %q, want %q", plan.Provider, fp.Name())
+	}
 	if plan.GPUViable {
 		t.Fatal("builtin naturalize should not be GPU-viable")
 	}
@@ -499,6 +594,50 @@ func TestPlan_SuccessUsesDefaultOverrideWarningsAndETA(t *testing.T) {
 	}
 	if _, err := eng.Plan(context.Background(), PlanRequest{Operation: "naturalize"}); !errors.Is(err, ErrModelNotRuntimeReady) {
 		t.Fatalf("Plan error = %v, want ErrModelNotRuntimeReady", err)
+	}
+}
+
+func TestPlanCustomModelUsesEnabledOverlayAgainstEffectiveRegistry(t *testing.T) {
+	registry, err := models.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, ok := registry.DefaultFor("naturalize")
+	if !ok {
+		t.Fatal("naturalize default missing")
+	}
+	custom := base
+	custom.ID = "custom-naturalize-enabled"
+	custom.Name = "Custom naturalize enabled"
+	custom.DefaultFor = nil
+	fp := &fakeProvider{name: custom.Backend, ops: []string{"naturalize"}}
+	backendReg := backends.New()
+	if err := backendReg.Register(fp); err != nil {
+		t.Fatal(err)
+	}
+	eng, err := NewEngine(Deps{
+		Registry: registry,
+		Backends: backendReg,
+		Probe:    capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
+		Store:    storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir()),
+		CustomModels: func(context.Context) ([]models.Model, error) {
+			return []models.Model{custom}, nil
+		},
+		Enabled: func(context.Context) (map[string]bool, error) {
+			return map[string]bool{}, nil
+		},
+		ModelInstalled:        func(id string) bool { return id == custom.ID },
+		ModelRuntimeReadiness: func(context.Context, string) (bool, string) { return true, "ready" },
+	})
+	if err != nil {
+		t.Fatalf("new engine: %v", err)
+	}
+	plan, err := eng.Plan(context.Background(), PlanRequest{Operation: "naturalize", ModelOverride: custom.ID})
+	if err != nil {
+		t.Fatalf("plan for enabled custom model: %v", err)
+	}
+	if plan.ModelID != custom.ID {
+		t.Fatalf("plan selected %q, want custom model %q", plan.ModelID, custom.ID)
 	}
 }
 
@@ -542,7 +681,7 @@ func TestPlan_ErrorSurfaces(t *testing.T) {
 	}
 
 	enabledErrDeps := base
-	enabledErrDeps.Enabled = func(context.Context) (models.EnabledFunc, error) { return nil, errors.New("overlay down") }
+	enabledErrDeps.Enabled = func(context.Context) (map[string]bool, error) { return nil, errors.New("overlay down") }
 	eng, err = NewEngine(enabledErrDeps)
 	if err != nil {
 		t.Fatalf("new engine enabled err: %v", err)

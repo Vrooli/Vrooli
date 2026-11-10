@@ -38,6 +38,7 @@ func (s *store) migrate(ctx context.Context) error {
 		`ALTER TABLE jobs ADD COLUMN request_fingerprint TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE jobs ADD COLUMN execution_timeout_seconds INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE jobs ADD COLUMN test_mode INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE jobs ADD COLUMN priority TEXT NOT NULL DEFAULT 'service'`,
 	} {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 			return fmt.Errorf("jobs: migrate schema: %w", err)
@@ -50,13 +51,13 @@ func (s *store) migrate(ctx context.Context) error {
 }
 
 const insertJobSQL = `
-INSERT INTO jobs (id, operation, lane, state, progress, message, error, result_ref, meta, payload, client_operation_id, request_fingerprint, execution_timeout_seconds, estimated_seconds, test_mode, created_at, started_at, finished_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+INSERT INTO jobs (id, operation, lane, state, progress, message, error, result_ref, meta, payload, client_operation_id, request_fingerprint, execution_timeout_seconds, estimated_seconds, test_mode, created_at, started_at, finished_at, priority)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 func (s *store) insert(ctx context.Context, j Job) error {
 	_, err := s.db.ExecContext(ctx, insertJobSQL,
 		j.ID, j.Operation, string(j.Lane), string(j.State), j.Progress, j.Message, j.Error, j.ResultRef, encodeMeta(j.Meta),
-		j.Payload, j.ClientOperationID, j.RequestFingerprint, j.ExecutionTimeoutSeconds, j.EstimatedSeconds, j.TestMode, j.CreatedAt.Format(jobTimeFormat), formatTimePtr(j.StartedAt), formatTimePtr(j.FinishedAt),
+		j.Payload, j.ClientOperationID, j.RequestFingerprint, j.ExecutionTimeoutSeconds, j.EstimatedSeconds, j.TestMode, j.CreatedAt.Format(jobTimeFormat), formatTimePtr(j.StartedAt), formatTimePtr(j.FinishedAt), string(normalizePriority(j.Priority)),
 	)
 	if err != nil {
 		return fmt.Errorf("jobs: insert: %w", err)
@@ -79,7 +80,7 @@ func (s *store) update(ctx context.Context, j Job) error {
 	return nil
 }
 
-const selectJobColumns = `id, operation, lane, state, progress, message, error, result_ref, meta, payload, client_operation_id, request_fingerprint, execution_timeout_seconds, estimated_seconds, test_mode, created_at, started_at, finished_at`
+const selectJobColumns = `id, operation, lane, state, progress, message, error, result_ref, meta, payload, client_operation_id, request_fingerprint, execution_timeout_seconds, estimated_seconds, test_mode, created_at, started_at, finished_at, priority`
 
 // encodeMeta stores an absent map as the empty string rather than "{}" so a row
 // that carries no backend record is distinguishable from one that carries an
@@ -198,7 +199,7 @@ func (s *store) listManagedOutputs(ctx context.Context, limit int) ([]Job, error
 
 // listNonTerminal returns jobs still queued/running (used at boot for recovery).
 func (s *store) listNonTerminal(ctx context.Context) ([]Job, error) {
-	rows, err := s.db.QueryContext(ctx, "SELECT "+selectJobColumns+" FROM jobs WHERE state IN (?, ?)", string(StateQueued), string(StateRunning))
+	rows, err := s.db.QueryContext(ctx, "SELECT "+selectJobColumns+" FROM jobs WHERE state IN (?, ?, ?, ?)", string(StateQueued), string(StateAdmitting), string(StateRunning), string(StateCanceling))
 	if err != nil {
 		return nil, fmt.Errorf("jobs: list non-terminal: %w", err)
 	}
@@ -231,7 +232,7 @@ func scanJob(sc scanner) (Job, error) {
 	)
 	if err := sc.Scan(
 		&j.ID, &j.Operation, &lane, &state, &j.Progress, &j.Message, &j.Error, &j.ResultRef, &meta,
-		&payload, &clientOperationID, &requestFingerprint, &j.ExecutionTimeoutSeconds, &j.EstimatedSeconds, &testMode, &createdAt, &startedAt, &finishedAt,
+		&payload, &clientOperationID, &requestFingerprint, &j.ExecutionTimeoutSeconds, &j.EstimatedSeconds, &testMode, &createdAt, &startedAt, &finishedAt, &j.Priority,
 	); err != nil {
 		return Job{}, fmt.Errorf("jobs: scan: %w", err)
 	}

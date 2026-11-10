@@ -12,6 +12,31 @@ import (
 // metadata stay proto-typed (see the proto_payloads declarations).
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID:          "ops_import_link",
+		Path:        "/api/v1/import/link",
+		Method:      "POST",
+		Summary:     "Import an image from a public link",
+		Description: "Fetches a public HTTP(S) image URL through an SSRF-safe bounded downloader, validates raster dimensions and stores the bytes as an Image Tools input blob.",
+		Category:    "ops",
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_request", Description: "URL is invalid or resolves to a non-public address"},
+			{Status: 413, Code: "invalid_request", Description: "Remote image exceeds the encoded byte limit"},
+			{Status: 422, Code: "invalid_request", Description: "Remote response is not a supported image or violates raster limits"},
+		},
+		Examples: []module.Example{
+			{Name: "Import a public image URL", Curl: "curl -X POST 'http://localhost:${API_PORT}/api/v1/import/link' -H 'Content-Type: application/json' -d '{\"url\":\"https://example.org/image.png\"}'"},
+		},
+		RESTException: &module.RESTException{
+			Reason: module.RESTReasonThirdPartyShape,
+			Note:   "This small REST action accepts a URL and returns an opaque input reference; the referenced image bytes are fetched server-side and never exposed as a proxy response.",
+			ProtoPayloads: &module.RESTProtoPayloads{
+				Request:  module.RESTPayload{Transport: "json", Conformance: "transport_only"},
+				Response: module.RESTPayload{Transport: "json", Conformance: "transport_only"},
+				Error:    module.RESTPayload{ProtoFullName: "vrooli.image_tools.v1.shared.ErrorEnvelope", Transport: "json", Conformance: "protojson"},
+			},
+		},
+	},
+	{
 		ID:          "ops_list_operations",
 		Path:        opsconnect.OpsServiceListOperationsProcedure,
 		Method:      "POST",

@@ -38,8 +38,8 @@ Always-on, declared and started by the lifecycle:
   for opaque binary uploads. Port assigned by lifecycle as `API_PORT`.
 - **React + Vite UI** — production bundle served by `ui/server.js`.
   Port assigned by lifecycle as `UI_PORT`.
-- **SQLite** — scenario metadata (jobs, recipes, model registry state,
-  measures) in the scenario database.
+- **SQLite** — scenario metadata (jobs, model/adapter lifecycle, Looks,
+  preparation, safety and measures) in the scenario database.
 - **api-core storage / blobstore** — image binaries stored outside the
   repo by default; per-request save-location override supported.
 - **root `vrooli` CLI host inventory** — hardware capability/capacity facts
@@ -49,19 +49,22 @@ Always-on, declared and started by the lifecycle:
   local platform CLI, not a peer-scenario dependency (system-monitor is not
   used).
 
-Declared `required:false`, NOT started by default — spin up only on demand:
+Optional runtime assets are installed through their owning lifecycle, not
+started as separate per-operation services:
 
-- **Per-op model resources** — `/ready`-gated; downloaded on demand,
-  checksummed, opt-in. Cheap deterministic ops need zero downloads.
-- **ComfyUI** — optional second-tier backend; image-tools works fully
-  via standalone backends (rembg, realesrgan, sd.cpp, LaMa, Tesseract,
-  etc.) when ComfyUI is absent.
+- **Model weights and backend tools** — downloaded/installed on demand,
+  checksum-verified where supported, and never bundled into the base service.
+  Deterministic operations need no model downloads.
+- **ComfyUI** — no seeded model requires it and it is not a hard dependency.
+  Current readiness is determined by registered providers and smoke receipts.
 - **BYOK cloud providers** — optional third-tier fallback.
 
 Hardware:
 
-- **GPU is optional.** Every AI op ships a CPU-capable default model;
-  CPU fallback always works (slower, with an explicit time warning).
+- **GPU is optional at the host level, not guaranteed per operation.** The
+  planner/picker reports whether a rights-clean model has a supported CPU
+  route, GPU route, or no qualified route on this host. Requests may opt into
+  `--require-gpu` to reject CPU degradation.
 - **Disk space** must accommodate opt-in model weights; the model
   manager enforces disk-space awareness and user confirmation before
   installs.
@@ -73,7 +76,7 @@ Hardware:
 |---|---|
 | API | Go binary built by the scenario lifecycle. Cheap deterministic ops require zero model downloads at build or first run. |
 | UI | Vite production bundle served by `ui/server.js`. PWA manifest/icons under `ui/public/` remain valid. |
-| CLI | Go CLI installed through scenario manifest install hooks; full headless parity with the UI. |
+| CLI | Go CLI installed through scenario manifest hooks; full mission-list parity is still being qualified. |
 | Proto | Schemas under `packages/proto/schemas/image-tools/`; generated clients are shared artifacts. |
 | AI models | Opt-in, on-demand installs through the model registry/manager — never bundled into the base scenario package. |
 

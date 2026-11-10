@@ -419,7 +419,7 @@ def run_model(model_path: str, image_path: str, out_path: str, model_id: str, re
     image_tensor = image_tensor.transpose(2, 0, 1)[None, ...].astype(np.float32)
 
     options = ort.SessionOptions()
-    options.intra_op_num_threads = max(1, min(8, os.cpu_count() or 1))
+    options.intra_op_num_threads = _common.onnx_thread_settings()["intra_op_num_threads"]
     session = ort.InferenceSession(model_path, sess_options=options, providers=["CPUExecutionProvider"])
     feed = {}
     for tensor in session.get_inputs():

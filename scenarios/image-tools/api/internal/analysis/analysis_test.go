@@ -137,7 +137,7 @@ func TestNSFW_StructuredResult(t *testing.T) {
 }
 
 func TestNSFW_HoldsModelUseLeaseThroughSidecar(t *testing.T) {
-	gate := models.NewModelUseGate()
+	gate := models.NewModelUseGate(t.TempDir())
 	const modelID = "adamcodd-vit-nsfw"
 	svc := mustService(t, Config{
 		ModelInstalled:  func(string) bool { return true },

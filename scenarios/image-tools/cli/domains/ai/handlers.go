@@ -2,7 +2,9 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -150,9 +152,32 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 					fmt.Sprintf("wait: image-tools jobs wait %s", resp.JobId)),
 			})
 		}
-		job, written, werr := waitAndDownload(h.core, resp.JobId, out)
+		downloadPath := out
+		if operation == "caption" {
+			// Caption results are structured text, not image bytes. Do not write
+			// their JSON blob to a path that may have an image extension.
+			downloadPath = ""
+		}
+		job, written, werr := waitAndDownload(h.core, resp.JobId, downloadPath)
 		if werr != nil {
 			return werr
+		}
+		var caption *captionOutput
+		if operation == "caption" {
+			data, err := fetchBlob(h.core, job.GetResultRef())
+			if err != nil {
+				return err
+			}
+			caption, err = parseCaptionOutput(data)
+			if err != nil {
+				return err
+			}
+			if out != "" {
+				written = pathForCaption(out)
+				if err := os.WriteFile(written, []byte(caption.Caption), 0o644); err != nil {
+					return fmt.Errorf("write caption %q: %w", written, err)
+				}
+			}
 		}
 		warnings := resp.Warnings
 		if written != "" && written != out {
@@ -166,23 +191,59 @@ func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cli
 				OutputPath string   `json:"output_path,omitempty"`
 				ResultRefs []string `json:"result_refs,omitempty"`
 				Warnings   []string `json:"warnings,omitempty"`
+				Caption    string   `json:"caption,omitempty"`
+				Backend    string   `json:"backend,omitempty"`
+				Model      string   `json:"model,omitempty"`
 			}{
 				JobId:      job.GetId(),
 				State:      stateName(job.GetState()),
 				OutputPath: written,
 				ResultRefs: job.GetResultRefs(),
 				Warnings:   warnings,
+				Caption:    captionValue(caption, func(c captionOutput) string { return c.Caption }),
+				Backend:    captionValue(caption, func(c captionOutput) string { return c.Backend }),
+				Model:      captionValue(caption, func(c captionOutput) string { return c.Model }),
 			})
 		}
 		changes := warnLines(warnings)
 		if written != "" {
 			changes = append(changes, fmt.Sprintf("wrote %s (job=%s)", written, job.GetId()))
 		}
+		resultLines := []string{fmt.Sprintf("%s %s on %s/%s", operation, stateName(job.GetState()), resp.ModelId, resp.Tier)}
+		if caption != nil {
+			resultLines = append(resultLines, caption.Caption)
+		}
 		return ctx.RenderMutation(cliapp.MutationReport{
-			Result:  []string{fmt.Sprintf("%s %s on %s/%s", operation, stateName(job.GetState()), resp.ModelId, resp.Tier)},
+			Result:  resultLines,
 			Changes: changes,
 		})
 	}
+}
+
+type captionOutput struct {
+	Caption string `json:"caption"`
+	Backend string `json:"backend"`
+	Model   string `json:"model"`
+}
+
+func parseCaptionOutput(data []byte) (*captionOutput, error) {
+	var output captionOutput
+	if err := json.Unmarshal(data, &output); err != nil {
+		return nil, fmt.Errorf("decode caption result: %w", err)
+	}
+	if strings.TrimSpace(output.Caption) == "" {
+		return nil, fmt.Errorf("caption result has no text")
+	}
+	output.Caption = strings.TrimSpace(output.Caption)
+	return &output, nil
+}
+
+func captionValue[T any](caption *captionOutput, pick func(captionOutput) T) T {
+	if caption == nil {
+		var zero T
+		return zero
+	}
+	return pick(*caption)
 }
 
 // explainResolution renders the read-only resolution for an op (the `--explain`
@@ -256,6 +317,7 @@ func buildParams(ctx cliapp.RunContext) *aiv1.AIParams {
 		OpenrouterRole:  flagOr(ctx, "role"),
 		Priority:        flagOr(ctx, "priority"),
 		AllowReclaim:    optionalReclaim(ctx),
+		RequireGpu:      boolOr(ctx, "require-gpu"),
 		AutoScanNsfw:    boolOr(ctx, "auto-scan"),
 		ConsentAffirmed: boolOr(ctx, "consent"),
 		Adapters:        adapterRefs(ctx),

@@ -339,6 +339,22 @@ func TestFit(t *testing.T) {
 	}
 }
 
+func TestFitUsesBestGPUAndSeparatesCapacityAdmission(t *testing.T) {
+	host := capabilities.Host{GPUs: []capabilities.GPU{
+		{Name: "gpu-a", VRAMBytes: 16 * bytesPerGB, VRAMUsedBytes: 11 * bytesPerGB},
+		{Name: "gpu-b", VRAMBytes: 10 * bytesPerGB, VRAMUsedBytes: 4 * bytesPerGB},
+	}}
+	model := Model{Hardware: Hardware{MinVRAMGB: 7}}
+
+	if fit := Fit(model, host); fit.GPUViable || fit.Runnable || fit.VRAMShortfallGB != 1 {
+		t.Fatalf("free-memory fit = %+v, want 1 GB shortfall across GPUs", fit)
+	}
+	fit := (SelectRequest{Host: host, CapacityManagedGPU: true}).fit(model)
+	if !fit.GPUViable || !fit.Runnable || fit.VRAMShortfallGB != 0 {
+		t.Fatalf("capacity-managed fit = %+v, want viable from the largest GPU total", fit)
+	}
+}
+
 func TestFitClass(t *testing.T) {
 	cases := []struct {
 		name  string

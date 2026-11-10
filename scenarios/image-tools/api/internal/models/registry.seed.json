@@ -2358,7 +2358,7 @@
         "ocr"
       ],
       "tier": "default",
-      "backend": "library-cgo",
+      "backend": "tesseract",
       "alt_backends": [
         "gosseract"
       ],
@@ -2380,7 +2380,7 @@
           "darwin/arm64",
           "windows/amd64"
         ],
-        "speed_note": "Go-native via gosseract (CGo, libtesseract). No Python. Weaker on dense/tabular layouts."
+        "speed_note": "Tesseract CLI with bounded CPU threads. No Python or API CGo dependency. Weaker on dense/tabular layouts."
       },
       "io": {
         "notes": "Per-language traineddata downloaded on demand."
@@ -2389,7 +2389,7 @@
         "nsfw_capable": false,
         "license": "Apache-2.0 (Tesseract) / MIT (gosseract)",
         "commercial_use": "yes",
-        "commercial_use_notes": "Permissive. Requires C build deps (libtesseract).",
+        "commercial_use_notes": "Permissive. Uses the governed tesseract host tool and English language data.",
         "base_model_lineage": "Tesseract OCR (Google)",
         "known_risks": "Lower accuracy than PaddleOCR on complex layouts."
       },

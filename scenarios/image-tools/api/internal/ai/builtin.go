@@ -54,59 +54,6 @@ func (p *builtinProvider) Execute(ctx context.Context, req backends.Request) (ba
 	return backends.Result{OutputRef: req.Output.LocalPath, Meta: map[string]string{"backend": p.name}}, nil
 }
 
-// runNaturalize is the builtin executor for the naturalize op: decode the input
-// image, run the deterministic realism compositor, and write the PNG result.
-func runNaturalize(_ context.Context, req backends.Request) error {
-	in, err := technique.Input0(req)
-	if err != nil {
-		return err
-	}
-	data, err := os.ReadFile(in)
-	if err != nil {
-		return fmt.Errorf("ai: read naturalize input: %w", err)
-	}
-	img, err := decodeNaturalizeInput(data)
-	if err != nil {
-		return err
-	}
-	out := Naturalize(img, parseNaturalizeParams(req.Params))
-	enc, err := encodePNG(out)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(req.Output.LocalPath, enc, 0o644); err != nil {
-		return fmt.Errorf("ai: write naturalize output: %w", err)
-	}
-	return nil
-}
-
-// runNormalMap derives an RGB normal map from a depth/luma input. It is the
-// computed default for normal_map: no weights, no host packages, just local CPU
-// gradients over a depth image.
-func runNormalMap(_ context.Context, req backends.Request) error {
-	in, err := technique.Input0(req)
-	if err != nil {
-		return err
-	}
-	data, err := os.ReadFile(in)
-	if err != nil {
-		return fmt.Errorf("ai: read normal-map input: %w", err)
-	}
-	img, err := decodeNaturalizeInput(data)
-	if err != nil {
-		return fmt.Errorf("ai: decode normal-map input: %w", err)
-	}
-	out := NormalMapFromDepth(img, parseNormalMapParams(req.Params))
-	enc, err := encodePNG(out)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(req.Output.LocalPath, enc, 0o644); err != nil {
-		return fmt.Errorf("ai: write normal-map output: %w", err)
-	}
-	return nil
-}
-
 // normalMapParams controls gradient strength. Larger values produce stronger
 // X/Y components; default is intentionally conservative for depth maps.
 type normalMapParams struct {
@@ -134,19 +81,7 @@ func NormalMapFromDepth(src image.Image, p normalMapParams) *image.NRGBA {
 		}
 	}
 	at := func(x, y int) float64 {
-		if x < 0 {
-			x = 0
-		}
-		if y < 0 {
-			y = 0
-		}
-		if x >= w {
-			x = w - 1
-		}
-		if y >= h {
-			y = h - 1
-		}
-		return luma[y*w+x]
+		return luma[min(max(y, 0), h-1)*w+min(max(x, 0), w-1)]
 	}
 	out := image.NewNRGBA(image.Rect(0, 0, w, h))
 	for y := 0; y < h; y++ {
@@ -175,63 +110,65 @@ func normalByte(v float64) uint8 {
 // weightless seed models that name these backend families.
 func builtinProviderSpecs() []*builtinProvider {
 	return []*builtinProvider{
-		{name: models.BackendBuiltin, ops: []string{"naturalize"}, exec: runNaturalize},
-		{name: models.BackendComputed, ops: []string{"normal_map"}, exec: dispatchComputed},
-		{name: models.BackendMaskFill, ops: []string{"object_removal"}, exec: runMaskFill},
+		{name: models.BackendBuiltin, ops: []string{"naturalize"}, exec: runBuiltin},
+		{name: models.BackendComputed, ops: []string{"normal_map"}, exec: runBuiltin},
+		{name: models.BackendMaskFill, ops: []string{"object_removal"}, exec: runBuiltin},
 	}
 }
 
-// runMaskFill is the standalone object-removal executor: decode the image and
-// its mask, membrane-fill the masked region, and write the PNG. It makes
-// object-removal succeed on a host with no iopaint.
-func runMaskFill(_ context.Context, req backends.Request) error {
-	in, err := technique.Input0(req)
+// runBuiltin owns image I/O once; each operation supplies only its transform.
+func runBuiltin(ctx context.Context, req backends.Request) error {
+	path, err := technique.Input0(req)
 	if err != nil {
 		return err
 	}
-	maskPath, err := technique.MaskPath(req)
+	src, err := readBuiltinImage(path)
 	if err != nil {
 		return err
 	}
-	srcData, err := os.ReadFile(in)
-	if err != nil {
-		return fmt.Errorf("ai: read object-removal input: %w", err)
-	}
-	maskData, err := os.ReadFile(maskPath)
-	if err != nil {
-		return fmt.Errorf("ai: read object-removal mask: %w", err)
-	}
-	src, err := decodeNaturalizeInput(srcData)
-	if err != nil {
-		return fmt.Errorf("ai: decode object-removal input: %w", err)
-	}
-	maskImg, err := decodeNaturalizeInput(maskData)
-	if err != nil {
-		return fmt.Errorf("ai: decode object-removal mask: %w", err)
-	}
-	p := DefaultMaskFillParams()
-	if v, err := strconv.Atoi(req.Params["grow_px"]); err == nil && v >= 0 {
-		p.GrowPx = v
-	}
-	if v, err := strconv.Atoi(req.Params["halo_threshold"]); err == nil && v >= 0 {
-		p.HaloThreshold = v
-	}
-	out := MaskFill(src, maskImg, p)
-	enc, err := encodePNG(out)
-	if err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := os.WriteFile(req.Output.LocalPath, enc, 0o644); err != nil {
-		return fmt.Errorf("ai: write object-removal output: %w", err)
-	}
-	return nil
-}
-
-func dispatchComputed(ctx context.Context, req backends.Request) error {
+	var out image.Image
 	switch req.Operation {
+	case "naturalize":
+		out = Naturalize(src, parseNaturalizeParams(req.Params))
 	case "normal_map":
-		return runNormalMap(ctx, req)
+		out = NormalMapFromDepth(src, parseNormalMapParams(req.Params))
+	case "object_removal":
+		path, err := technique.MaskPath(req)
+		if err != nil {
+			return err
+		}
+		mask, err := readBuiltinImage(path)
+		if err != nil {
+			return err
+		}
+		p := DefaultMaskFillParams()
+		if v, err := strconv.Atoi(req.Params["grow_px"]); err == nil && v >= 0 {
+			p.GrowPx = v
+		}
+		if v, err := strconv.Atoi(req.Params["halo_threshold"]); err == nil && v >= 0 {
+			p.HaloThreshold = v
+		}
+		out = MaskFill(src, mask, p)
 	default:
-		return fmt.Errorf("unsupported computed operation %q", req.Operation)
+		return fmt.Errorf("unsupported builtin operation %q", req.Operation)
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	data, err := encodePNG(out)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(req.Output.LocalPath, data, 0o644)
+}
+
+func readBuiltinImage(path string) (image.Image, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return decodeNaturalizeInput(data)
 }

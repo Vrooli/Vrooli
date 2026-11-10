@@ -24,6 +24,63 @@ from PIL import Image
 from . import _common
 
 
+def _processor():
+    from transformers import Sam2Processor
+    from transformers.models.sam2.image_processing_sam2_fast import Sam2ImageProcessorFast
+
+    return Sam2Processor(
+        image_processor=Sam2ImageProcessorFast(
+            size={"height": 1024, "width": 1024},
+            mask_size={"height": 256, "width": 256},
+            do_resize=True,
+            default_to_square=True,
+            resample=Image.Resampling.BILINEAR,
+            do_rescale=True,
+            rescale_factor=1.0 / 255.0,
+            do_normalize=True,
+            image_mean=[0.485, 0.456, 0.406],
+            image_std=[0.229, 0.224, 0.225],
+            do_convert_rgb=True,
+        ),
+        target_size=1024,
+    )
+
+
+def _load_model(model_dir: str, device):
+    import torch
+    from transformers import Sam2Model
+
+    return Sam2Model.from_pretrained(model_dir, local_files_only=True, low_cpu_mem_usage=True).to(device).eval()
+
+
+def smoke(model_dir: str, deep: bool = False) -> str:
+    """Load the pinned checkpoint locally, optionally proving a tiny forward pass."""
+    model = _load_model(model_dir, "cpu")
+    parameter_count = sum(parameter.numel() for parameter in model.parameters())
+    if parameter_count <= 0:
+        raise RuntimeError("SAM 2 checkpoint loaded without model parameters")
+    summary = f"sam2 smoke OK: loaded {parameter_count} parameters from {model_dir}"
+    if deep:
+        import torch
+
+        image = Image.new("RGB", (96, 96), (96, 144, 192))
+        processor = _processor()
+        inputs = processor(
+            images=image,
+            return_tensors="pt",
+            **_prompts('{"points":[{"x":0.5,"y":0.5}]}', image.size),
+        )
+        with torch.inference_mode():
+            outputs = model(**inputs, multimask_output=True)
+        if outputs.pred_masks.numel() == 0 or outputs.iou_scores.numel() == 0:
+            raise RuntimeError("SAM 2 forward pass returned empty mask or score tensors")
+        if not torch.isfinite(outputs.pred_masks).all() or not torch.isfinite(outputs.iou_scores).all():
+            raise RuntimeError("SAM 2 forward pass returned non-finite outputs")
+        summary += "; synthetic 96x96 point-prompt forward passed"
+    del model
+    return summary
+
+
 def _prompts(raw: str, size: tuple[int, int]) -> dict:
     prompt = json.loads(raw)
     if not isinstance(prompt, dict) or set(prompt) - {"points", "box"}:
@@ -85,8 +142,6 @@ def _max_rss_kib():
 
 def run(model_dir: str, image_path: str, out_path: str, prompt_json: str, device_name: str) -> None:
     import torch
-    from transformers import Sam2Model, Sam2Processor
-    from transformers.models.sam2.image_processing_sam2_fast import Sam2ImageProcessorFast
 
     if device_name not in {"cpu", "cuda"}:
         raise ValueError("SAM 2 device must be cpu or cuda")
@@ -98,28 +153,13 @@ def run(model_dir: str, image_path: str, out_path: str, prompt_json: str, device
     # These preprocessing defaults match the checkpoint's pinned upstream
     # preprocessor_config.json. The small HF metadata files are under Image
     # Tools' binary-artifact size floor, so keep the reviewed contract explicit.
-    processor = Sam2Processor(
-        image_processor=Sam2ImageProcessorFast(
-            size={"height": 1024, "width": 1024},
-            mask_size={"height": 256, "width": 256},
-            do_resize=True,
-            default_to_square=True,
-            resample=Image.Resampling.BILINEAR,
-            do_rescale=True,
-            rescale_factor=1.0 / 255.0,
-            do_normalize=True,
-            image_mean=[0.485, 0.456, 0.406],
-            image_std=[0.229, 0.224, 0.225],
-            do_convert_rgb=True,
-        ),
-        target_size=1024,
-    )
+    processor = _processor()
     inputs = processor(
         images=image,
         return_tensors="pt",
         **_prompts(prompt_json, image.size),
     )
-    model = Sam2Model.from_pretrained(model_dir, local_files_only=True, low_cpu_mem_usage=True).to(device).eval()
+    model = _load_model(model_dir, device)
     inputs = inputs.to(device)
     with torch.inference_mode():
         outputs = model(**inputs, multimask_output=True)

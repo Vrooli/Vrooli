@@ -2,8 +2,8 @@
 // mirrors the test-genie run-lifecycle philosophy: a submit returns a job id +
 // ETA immediately, work runs under a server-lifetime context (so a client
 // disconnect never destroys it), callers block ONCE on Wait (no polling), and
-// progress streams over a subscription for SSE. Local AI work uses one
-// serialized queue; lightweight CPU work and remote jobs use separate pools.
+// progress streams over a subscription for SSE. One priority scheduler admits
+// local and remote work; capacity leases determine safe local concurrency.
 package jobs
 
 import "time"
@@ -12,14 +12,23 @@ import "time"
 // retain when an AI job finalizes as failed or canceled.
 const MetaGatewayExecutionEvidence = "gateway_execution_evidence_v1"
 
+// MetaProvisioningEvidence retains the finalized per-model preparation report,
+// including partial outcomes when preparation fails or is canceled.
+const MetaProvisioningEvidence = "provisioning_evidence_v1"
+
 // State is a job's lifecycle state.
 type State string
 
 const (
 	// StateQueued: accepted, waiting for a worker.
 	StateQueued State = "queued"
+	// StateAdmitting: the scheduler is obtaining the job's resource leases.
+	StateAdmitting State = "admitting"
 	// StateRunning: a worker is executing it.
 	StateRunning State = "running"
+	// StateCanceling: cancellation was requested; owned work and claims are
+	// still being stopped. Only cleanup completion makes it terminal.
+	StateCanceling State = "canceling"
 	// StateSucceeded: finished successfully (terminal).
 	StateSucceeded State = "succeeded"
 	// StateFailed: finished with an error, incl. restart-interruption (terminal).
@@ -38,15 +47,13 @@ func (s State) Terminal() bool {
 	}
 }
 
-// Lane selects the scheduler queue. The legacy LaneGPU value is the serialized
-// local queue, including CPU-backed inference; it does not identify hardware.
-// LaneCPU is a concurrent pool for lightweight CPU work, while remote BYOK-cloud
-// jobs use their own bounded pool.
+// Lane is a compatibility scheduling class, not an execution-device claim.
+// Local classes share a capacity-admitted priority queue. Remote work has a
+// separate concurrency bound so local contention cannot block it.
 type Lane string
 
 const (
-	// LaneGPU is the legacy name for the serialized local queue. Local inference
-	// may execute on CPU or GPU; the queue name does not identify the device.
+	// LaneGPU is the legacy class for model work, which may use CPU or GPU.
 	LaneGPU Lane = "gpu"
 	// LaneCPU runs cheap work concurrently.
 	LaneCPU Lane = "cpu"
@@ -55,13 +62,24 @@ const (
 	LaneNetwork Lane = "network"
 )
 
+// Priority uses the platform-capacity vocabulary. Within a priority jobs are
+// FIFO; the scheduler ages queued jobs to prevent batch starvation.
+type Priority string
+
+const (
+	PriorityInteractive Priority = "interactive"
+	PriorityService     Priority = "service"
+	PriorityBatch       Priority = "batch"
+)
+
 // Spec describes a unit of work to submit.
 type Spec struct {
 	// Operation is the op name (e.g. "upscale", "resize"). Informational +
 	// surfaced in status; the Runner decides what to do with it.
 	Operation string
-	// Lane selects GPU (serialized) or CPU (concurrent).
-	Lane Lane
+	// Lane selects local or remote concurrency accounting.
+	Lane     Lane
+	Priority Priority
 	// Payload is opaque JSON the Runner interprets (request params, refs).
 	Payload []byte
 	// ClientOperationID and RequestFingerprint deduplicate caller retries when set.
@@ -79,6 +97,7 @@ type Job struct {
 	ID        string
 	Operation string
 	Lane      Lane
+	Priority  Priority
 	State     State
 	Progress  int    // 0..100
 	Message   string // latest progress / status message

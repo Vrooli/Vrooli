@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/packages/capacity"
 	"image-tools/internal/smoke"
 )
 
@@ -35,6 +38,9 @@ type SmokeConfig struct {
 	Deep bool
 	// Run is the injected probe executor (nil → os/exec).
 	Run smoke.Runner
+	// Acquire admits the CPU-only model load. Production supplies the shared
+	// broker; tests may inject isolated leases without host state.
+	Acquire func(context.Context, capacity.Request) (*capacity.Scope, error)
 }
 
 // SmokeModule is the Python probe module the gate invokes in the venv.
@@ -63,6 +69,13 @@ func probeArgsFor(m Model, dir string, deep bool) (kind string, args []string, o
 		}
 		return kind, args, true
 	}
+	if m.Backend == "sam2-transformers" {
+		args = []string{"--kind", "sam2", "--model-dir", dir}
+		if deep {
+			args = append(args, "--deep")
+		}
+		return "sam2", args, true
+	}
 	if hasONNXWeight(dir) {
 		args = []string{"--kind", "onnx", "--model-dir", dir}
 		return "onnx", args, true
@@ -70,7 +83,40 @@ func probeArgsFor(m Model, dir string, deep bool) (kind string, args []string, o
 	return "", nil, false
 }
 
+// HasLoadSmokeContract reports whether the catalog entry describes an install
+// shape supported by the smoke gate. Host-fit provisioning uses this static
+// check before downloading so a selected model cannot end in the known
+// smoke_unsupported lifecycle state after a large transfer.
+func HasLoadSmokeContract(m Model) bool {
+	switch m.Backend {
+	case BackendDiffusers:
+		return strings.TrimSpace(m.Runtime.Family) != "" || m.Architecture != "" && (m.ServesOperation("inpaint") || m.ServesOperation("outpaint"))
+	case "sam2-transformers":
+		return true
+	}
+	for _, asset := range m.Source.Assets {
+		if asset.Kind == ArtifactONNX || strings.EqualFold(filepath.Ext(asset.Filename), ".onnx") {
+			return true
+		}
+	}
+	return m.BuildProfile != nil && strings.EqualFold(filepath.Ext(m.BuildProfile.OutputFilename), ".onnx")
+}
+
+// NeedsLoadSmokeContract identifies model backends whose lifecycle requires a
+// model-specific load-smoke before they can be Ready.
+func NeedsLoadSmokeContract(m Model) bool {
+	switch m.Backend {
+	case BackendDiffusers, "python-sidecar", "onnxruntime", "sam2-transformers", "triposr":
+		return true
+	default:
+		return false
+	}
+}
+
 func hasONNXWeight(dir string) bool {
+	if info, err := os.Stat(dir); err == nil && !info.IsDir() {
+		return strings.EqualFold(filepath.Ext(dir), ".onnx")
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return false
@@ -93,7 +139,7 @@ func hasONNXWeight(dir string) bool {
 //   - probe runs and passes → cache PASS, nil.
 //   - probe runs and fails → cache FAIL, return ErrSmokeFailed (install reported
 //     failed; weights are kept for retry once the cause is fixed).
-func (in *Installer) ensureSmoke(ctx context.Context, m Model, dir, modelHash string, emit func(int, string)) error {
+func (in *Installer) ensureSmoke(ctx context.Context, m Model, dir, modelHash string, emit func(int, string)) (resultErr error) {
 	cfg := in.Smoke
 	if cfg == nil {
 		return nil
@@ -106,16 +152,56 @@ func (in *Installer) ensureSmoke(ctx context.Context, m Model, dir, modelHash st
 	if strings.TrimSpace(cfg.Python) == "" || !fileExists(cfg.Python) {
 		return nil
 	}
-	if v, ok := smoke.ReadVerdict(dir); ok && v.Fresh(modelHash, cfg.LockHash) {
-		if v.Pass {
-			return nil
-		}
-		return fmt.Errorf("%w: %s", ErrSmokeFailed, v.Reason)
+	evidenceDir := in.smokeEvidenceDir(m, dir)
+	if v, ok := smoke.ReadVerdict(evidenceDir); ok && v.Pass && v.Fresh(modelHash, cfg.LockHash) {
+		return nil
 	}
-
+	threads := min(4, runtime.NumCPU())
+	if cfg.Acquire != nil {
+		if m.Hardware.MinRAMGB <= 0 || m.Hardware.MinRAMGB > 1024 {
+			return fmt.Errorf("models: smoke %q needs a bounded model RAM budget", m.ID)
+		}
+		request := capacity.Request{OwnerID: "image-tools:model-smoke:" + m.ID, RAMBytes: int64(m.Hardware.MinRAMGB) << 30, CPUMilli: int64(threads) * 1000, Priority: "service", NoReclaim: true}
+		var owned *capacity.Scope
+		for {
+			var err error
+			owned, err = cfg.Acquire(ctx, request)
+			if err == nil {
+				break
+			}
+			var unavailable *capacity.UnavailableError
+			if !errors.As(err, &unavailable) {
+				return err
+			}
+			emit(95, "waiting for model smoke capacity: "+err.Error())
+			timer := time.NewTimer(2 * time.Second)
+			select {
+			case <-ctx.Done():
+				timer.Stop()
+				return context.Cause(ctx)
+			case <-timer.C:
+			}
+		}
+		if owned == nil {
+			return errors.New("models: smoke admission returned no scope")
+		}
+		defer func() { resultErr = errors.Join(resultErr, owned.Release(ctx)) }()
+		ctx = owned.Context()
+	}
 	emit(96, "smoke-testing model load")
-	inv := smoke.Invoker{Python: cfg.Python, PythonPath: cfg.PythonPath, Module: SmokeModule, Run: cfg.Run}
+	threadLimit := strconv.Itoa(threads)
+	env := []string{"CUDA_VISIBLE_DEVICES=", "IMAGE_TOOLS_DEVICE=cpu", "IMAGE_TOOLS_CPU_THREADS=" + threadLimit}
+	for _, name := range []string{"OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"} {
+		env = append(env, name+"="+threadLimit)
+	}
+	inv := smoke.Invoker{Python: cfg.Python, PythonPath: cfg.PythonPath, Module: SmokeModule, Env: env, Run: cfg.Run}
 	out, probeErr := inv.Probe(ctx, args)
+	if ctx.Err() != nil {
+		return context.Cause(ctx)
+	}
+	if err := os.MkdirAll(evidenceDir, 0o755); err != nil {
+		return fmt.Errorf("models: create smoke evidence directory: %w", err)
+	}
 	verdict := smoke.Verdict{
 		Kind: kind, ModelHash: modelHash, LockHash: cfg.LockHash,
 		CheckedAt: in.now().UTC().Format(time.RFC3339),
@@ -123,12 +209,13 @@ func (in *Installer) ensureSmoke(ctx context.Context, m Model, dir, modelHash st
 	if probeErr != nil {
 		verdict.Pass = false
 		verdict.Reason = firstNonEmpty(out, probeErr.Error())
-		_ = smoke.WriteVerdict(dir, verdict)
-		return fmt.Errorf("%w: %s", ErrSmokeFailed, verdict.Reason)
+		return errors.Join(fmt.Errorf("%w: %s", ErrSmokeFailed, verdict.Reason), smoke.WriteVerdict(evidenceDir, verdict))
 	}
 	verdict.Pass = true
 	verdict.Reason = out
-	_ = smoke.WriteVerdict(dir, verdict)
+	if err := smoke.WriteVerdict(evidenceDir, verdict); err != nil {
+		return fmt.Errorf("models: persist smoke evidence: %w", err)
+	}
 	emit(99, "smoke passed")
 	return nil
 }
@@ -147,9 +234,8 @@ func firstNonEmpty(vals ...string) string {
 	return "smoke failed"
 }
 
-// SmokeStatus is the read-side view of a model's env-provisioning + smoke state,
-// consumed by doctor, the health summary, and ready_state. It is computed without
-// running a probe (cache + interpreter presence only), so it is cheap to query.
+// SmokeStatus is the read-side evidence used by Lifecycle to derive model
+// readiness without launching a probe.
 type SmokeStatus struct {
 	// Applicable is false for binary-backend models (no Python smoke).
 	Applicable bool
@@ -158,12 +244,6 @@ type SmokeStatus struct {
 	// Verdict is the cached smoke outcome, if any.
 	Verdict    smoke.Verdict
 	HasVerdict bool
-}
-
-// SmokeStatusFor reports the cached smoke/env state for an installed model dir
-// without probing. dir should be the model's installed path.
-func (in *Installer) SmokeStatusFor(ctx context.Context, m Model, dir string) SmokeStatus {
-	return in.smokeStatusFor(m, dir, in.smokeModelHash(ctx, m, dir))
 }
 
 func (in *Installer) smokeStatusFor(m Model, dir, modelHash string) SmokeStatus {
@@ -175,31 +255,10 @@ func (in *Installer) smokeStatusFor(m Model, dir, modelHash string) SmokeStatus 
 	if in.Smoke != nil {
 		st.EnvProvisioned = strings.TrimSpace(in.Smoke.Python) != "" && fileExists(in.Smoke.Python)
 	}
-	if v, ok := smoke.ReadVerdict(dir); ok && in.Smoke != nil && v.Fresh(modelHash, in.Smoke.LockHash) {
+	if v, ok := smoke.ReadVerdict(in.smokeEvidenceDir(m, dir)); ok && in.Smoke != nil && v.Fresh(modelHash, in.Smoke.LockHash) {
 		st.Verdict, st.HasVerdict = v, true
 	}
 	return st
-}
-
-// smokeModelHash returns the same installed-artifact digest used by installation
-// when it records a verdict. Unknown or incomplete state yields an empty digest,
-// which deliberately makes any cached verdict stale.
-func (in *Installer) smokeModelHash(ctx context.Context, m Model, dir string) string {
-	if m.BuildProfile != nil {
-		digest, ready := buildOutputReady(m.BuildProfile, dir)
-		if !ready {
-			return ""
-		}
-		return digest
-	}
-	if in.State == nil {
-		return ""
-	}
-	rec, ok, err := in.State.Get(ctx, m.ID)
-	if err != nil || !ok || !rec.Installed {
-		return ""
-	}
-	return rec.Checksum
 }
 
 // RuntimeReadiness reports whether an installed model satisfies the gates needed
@@ -207,85 +266,62 @@ func (in *Installer) smokeModelHash(ctx context.Context, m Model, dir string) st
 // models need their verified export, and Python-backed models need a provisioned
 // environment plus a passing install-time load-smoke.
 func (in *Installer) RuntimeReadiness(ctx context.Context, id string) (bool, string) {
-	m, err := in.Resolve(ctx, id)
-	if err != nil || !in.Installed(ctx, id) {
-		return false, "needs_model_install"
+	state, err := in.Lifecycle(ctx, id)
+	if err != nil {
+		return false, "lifecycle_unavailable"
 	}
-	if m.BuildProfile != nil && !in.BuildReady(ctx, id) {
-		return false, "build_not_ready"
-	}
-	dir := in.ModelDir(id)
-	if in.State != nil {
-		if rec, ok, stateErr := in.State.Get(ctx, id); stateErr == nil && ok && rec.Path != "" {
-			dir = rec.Path
-		}
-	}
-	st := in.SmokeStatusFor(ctx, m, dir)
-	if !st.Applicable {
-		if m.Backend == "python-sidecar" {
-			return false, "smoke_unsupported"
-		}
-		return true, "ready"
-	}
-	if !st.EnvProvisioned {
-		return false, "env_not_provisioned"
-	}
-	if !st.HasVerdict {
-		return false, "smoke_pending"
-	}
-	if !st.Verdict.Pass {
-		return false, "smoke_failed"
-	}
-	return true, "ready"
+	return state.Ready(), state.Reason
 }
 
 // modelDirFor exposes the per-model install dir for readiness callers.
 func (in *Installer) ModelDir(id string) string { return filepath.Join(in.Root, "models", id) }
 
-// DoctorRuntime emits the runtime "enabled ⇒ runnable" findings that the static
-// catalog doctor cannot see: for every effectively-enabled, installed,
-// smoke-applicable model it reports whether the Python env is provisioned and
-// whether the cached load-smoke passed. This is what surfaces "installed but
-// broken" (and "enabled but env not ready") in doctor/health BEFORE a user op.
-func (in *Installer) DoctorRuntime(ctx context.Context, catalog []Model, overlay map[string]bool) []CatalogFinding {
-	var out []CatalogFinding
+// DoctorRuntime returns the lifecycle projection for the catalog together with
+// the runtime "enabled ⇒ runnable" findings. The caller can render both from
+// the same observation instead of hashing/reconciling every model twice.
+func (in *Installer) DoctorRuntimeReport(ctx context.Context, catalog []Model, overlay map[string]bool) (CatalogDoctorReport, error) {
+	report := CatalogDoctorReport{OK: true}
 	for _, m := range catalog {
-		if !EffectiveEnabled(m, overlay) || !in.Installed(ctx, m.ID) {
+		state, err := in.Lifecycle(ctx, m.ID)
+		if err != nil {
+			return report, fmt.Errorf("models: doctor lifecycle %q: %w", m.ID, err)
+		}
+		report.Models = append(report.Models, state)
+		if !EffectiveEnabled(m, overlay) {
 			continue
 		}
-		dir := in.ModelDir(m.ID)
-		if in.State != nil {
-			if rec, ok, _ := in.State.Get(ctx, m.ID); ok && rec.Path != "" {
-				dir = rec.Path
+		finding := runtimeFinding(m, state)
+		if finding != nil {
+			report.Findings = append(report.Findings, *finding)
+			if finding.Severity == FindingError {
+				report.OK = false
 			}
 		}
-		st := in.SmokeStatusFor(ctx, m, dir)
-		if !st.Applicable {
-			continue
-		}
-		switch {
-		case !st.EnvProvisioned:
-			out = append(out, CatalogFinding{
-				Severity: FindingWarning,
-				Code:     "enabled_model_env_not_provisioned",
-				ModelID:  m.ID,
-				Message:  "enabled model's Python venv is not provisioned yet (still building, or uv missing); ensure `vrooli host install uv`, then restart the scenario (`vrooli scenario start image-tools`) to build/repair the venv",
-			})
-		case st.HasVerdict && !st.Verdict.Pass:
-			out = append(out, CatalogFinding{
-				Severity: FindingError,
-				Code:     "enabled_model_smoke_failed",
-				ModelID:  m.ID,
-				Message:  "enabled model failed its install-time load-smoke (installed but not runnable): " + st.Verdict.Reason + " — re-validate with `vrooli scenario image-tools models install " + m.ID + "` after fixing the runtime",
-			})
-		case !st.HasVerdict:
-			out = append(out, CatalogFinding{
-				Severity: FindingWarning,
-				Code:     "enabled_model_smoke_pending",
-				ModelID:  m.ID,
-				Message:  "enabled model has not been load-smoke verified yet; re-run `vrooli scenario image-tools models install " + m.ID + "` (idempotent) to smoke it",
-			})
-		}
 	}
-	return out
+	return report, nil
+}
+
+// runtimeFinding derives the actionable doctor warning from the same lifecycle
+// value used by the picker and admission.
+func runtimeFinding(m Model, state ModelLifecycle) *CatalogFinding {
+	if state.Ready() {
+		return nil
+	}
+	severity := FindingWarning
+	if state.State == ModelFailed {
+		severity = FindingError
+	}
+	return &CatalogFinding{
+		Severity: severity, Code: "enabled_model_" + state.Reason, ModelID: m.ID,
+		Message: fmt.Sprintf("model lifecycle %s (%s): %s; run `image-tools models install %s --wait` to prepare or revalidate it", state.State, state.Reason, state.Detail, m.ID),
+	}
+}
+
+// Referenced local artifacts are read-only; smoke evidence belongs to this
+// scenario's managed model directory, never beside or inside the source.
+func (in *Installer) smokeEvidenceDir(m Model, dir string) string {
+	if m.Source.LocalPath != "" {
+		return in.ModelDir(m.ID)
+	}
+	return dir
 }

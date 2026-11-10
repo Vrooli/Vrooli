@@ -23,6 +23,9 @@ vi.mock("../../api/jobs", async (importOriginal) => {
   };
 });
 
+const { importImageLink } = vi.hoisted(() => ({ importImageLink: vi.fn() }));
+vi.mock("../../api/importLink", () => ({ importImageLink: (...args: unknown[]) => importImageLink(...args) }));
+
 // `fetchBlob` is exercised by the reopen path; stub it so the recent-rail
 // "reopen" click doesn't reach the network. `blobUrl` stays real (a pure URL
 // builder used for thumbnails).
@@ -81,6 +84,17 @@ describe("HomeLaunchpad", () => {
     const intent = takeWorkspaceIntent();
     expect(intent?.mode).toBe("edit");
     expect(intent?.operation).toBe("crop");
+  });
+
+  it("imports a public image link and opens the returned image in the workspace", async () => {
+    const user = userEvent.setup();
+    const imported = new File([new Uint8Array([9, 8, 7])], "imported.png", { type: "image/png" });
+    importImageLink.mockResolvedValue(imported);
+    renderWithProviders(<HomeLaunchpad />);
+    await user.type(screen.getByRole("textbox", { name: "home.entry.linkLabel" }), "https://images.example/photo.png");
+    await user.click(screen.getByRole("button", { name: "home.entry.importLink" }));
+    await waitFor(() => expect(takeWorkspaceIntent()?.file).toBe(imported));
+    expect(importImageLink).toHaveBeenCalledWith("https://images.example/photo.png");
   });
 
   it("an enhance tile stages an enhance-mode intent carrying the chosen action", async () => {

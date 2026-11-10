@@ -13,8 +13,11 @@ package measures
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -53,6 +56,35 @@ type JobTrace struct {
 	Error       string
 }
 
+// ModelProfile is an owner-collected cold, warm, or peak-memory observation.
+// Unavailable profiles are retained with an explanation, so consumers can
+// distinguish an unsupported measurement from missing recorder data.
+type ModelProfile struct {
+	Operation   string
+	ModelID     string
+	Profile     string // cold, warm, peak-memory, or worker-residency-peak-memory
+	Status      string // measured, unavailable, or failed
+	DurationMS  int64
+	PeakMemoryB int64
+	Device      string
+	Evidence    string
+}
+
+// ModelProfileStat summarizes owner-collected observations for one profile.
+type ModelProfileStat struct {
+	Operation      string `json:"operation"`
+	ModelID        string `json:"model_id"`
+	Profile        string `json:"profile"`
+	Status         string `json:"status"`
+	Samples        int    `json:"samples"`
+	LatencyP50MS   int64  `json:"latency_p50_ms"`
+	LatencyP95MS   int64  `json:"latency_p95_ms"`
+	PeakMemoryB    int64  `json:"peak_memory_bytes"`
+	Device         string `json:"device"`
+	LastEvidence   string `json:"last_evidence"`
+	LastRecordedAt string `json:"last_recorded_at"`
+}
+
 // Recorder persists samples and answers aggregate queries.
 type Recorder struct {
 	db  SQLExecutor
@@ -78,6 +110,292 @@ func (r *Recorder) Record(ctx context.Context, s Sample) error {
 		return fmt.Errorf("measures: record %q: %w", s.Operation, err)
 	}
 	return nil
+}
+
+// RecordModelProfile stores one cold/warm/memory observation, including honest
+// unavailable results. Measured numeric values are never inferred from absent
+// data.
+func (r *Recorder) RecordModelProfile(ctx context.Context, p ModelProfile) error {
+	if p.Operation == "" || p.ModelID == "" {
+		return fmt.Errorf("measures: profile operation and model id are required")
+	}
+	switch p.Profile {
+	case "cold", "warm", "peak-memory", "worker-residency-peak-memory":
+	default:
+		return fmt.Errorf("measures: unsupported model profile %q", p.Profile)
+	}
+	switch p.Status {
+	case "measured", "unavailable", "failed":
+	default:
+		return fmt.Errorf("measures: unsupported profile status %q", p.Status)
+	}
+	if p.Status != "measured" && (p.DurationMS != 0 || p.PeakMemoryB != 0) {
+		return fmt.Errorf("measures: non-measured profile cannot contain numeric results")
+	}
+	if p.Status == "measured" {
+		if (p.Profile == "cold" || p.Profile == "warm") && p.DurationMS <= 0 {
+			return fmt.Errorf("measures: measured %s profile requires positive duration", p.Profile)
+		}
+		if (p.Profile == "peak-memory" || p.Profile == "worker-residency-peak-memory") && p.PeakMemoryB <= 0 {
+			return fmt.Errorf("measures: measured %s profile requires positive memory", p.Profile)
+		}
+	}
+	_, err := r.db.ExecContext(ctx, `INSERT INTO model_profile (operation, model_id, profile, status, duration_ms, peak_memory_b, device, evidence, recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.Operation, p.ModelID, p.Profile, p.Status, p.DurationMS, p.PeakMemoryB, p.Device, p.Evidence, r.now().UTC().Format(time.RFC3339Nano))
+	if err != nil {
+		return fmt.Errorf("measures: record %s profile for %q: %w", p.Profile, p.ModelID, err)
+	}
+	return nil
+}
+
+// RecordModelJobProfiles derives only facts available from a successful durable
+// model job. Warm/cold classification requires explicit worker-residency
+// metadata; absent or malformed metadata never becomes an inferred profile.
+// Peak process memory is measured only when the provider supplies an explicit
+// per-job child-process RSS value and its source. Persistent-worker high-water
+// observations use a separately named profile so they cannot be confused with
+// isolated per-job peak RSS.
+func (r *Recorder) RecordModelJobProfiles(ctx context.Context, sample Sample, jobID string, meta map[string]string) error {
+	if sample.ModelID == "" || sample.Operation == "" {
+		return nil
+	}
+	reused, ok := meta["warm_reused"]
+	profile := ""
+	if ok {
+		switch reused {
+		case "true":
+			profile = "warm"
+		case "false":
+			profile = "cold"
+		default:
+			return fmt.Errorf("measures: job %q has malformed warm_reused metadata %q", jobID, reused)
+		}
+	}
+
+	peakRSSBytes, peakRSSMeasured, peakRSSEvidence, err := processPeakRSSMetadata(meta)
+	if err != nil {
+		return fmt.Errorf("measures: job %q process peak RSS metadata: %w", jobID, err)
+	}
+	workerRSSBytes, workerRSSMeasured, workerRSSEvidence, workerRSSPresent, err := workerResidencyPeakRSSMetadata(meta, sample.ModelID, jobID)
+	if err != nil {
+		return fmt.Errorf("measures: job %q worker residency peak RSS metadata: %w", jobID, err)
+	}
+	evidencePrefix := "durable job " + jobID
+	if profile != "" {
+		evidencePrefix += "; residency classification from warm_reused=" + reused
+	}
+	status := "measured"
+	duration := sample.DurationMS
+	if sample.State != "succeeded" {
+		status = "failed"
+		duration = 0
+	} else if duration <= 0 {
+		status = "unavailable"
+		duration = 0
+	}
+	var errs []error
+	if profile != "" {
+		if err := r.RecordModelProfile(ctx, ModelProfile{
+			Operation: sample.Operation, ModelID: sample.ModelID, Profile: profile,
+			Status: status, DurationMS: duration, Device: sample.Tier,
+			Evidence: evidencePrefix + "; duration from durable job timestamps",
+		}); err != nil {
+			errs = append(errs, fmt.Errorf("record %s profile: %w", profile, err))
+		}
+	}
+	peakStatus, peakMemory := "unavailable", int64(0)
+	if sample.State != "succeeded" {
+		peakStatus = "failed"
+	} else if peakRSSMeasured {
+		peakStatus, peakMemory = "measured", peakRSSBytes
+	}
+	if err := r.RecordModelProfile(ctx, ModelProfile{
+		Operation: sample.Operation, ModelID: sample.ModelID, Profile: "peak-memory",
+		Status: peakStatus, PeakMemoryB: peakMemory, Device: sample.Tier,
+		Evidence: evidencePrefix + "; " + peakRSSEvidence,
+	}); err != nil {
+		errs = append(errs, fmt.Errorf("record peak-memory profile: %w", err))
+	}
+	if workerRSSPresent {
+		workerStatus, workerMemory := "unavailable", int64(0)
+		if sample.State != "succeeded" {
+			workerStatus = "failed"
+		} else if workerRSSMeasured {
+			workerStatus, workerMemory = "measured", workerRSSBytes
+		}
+		if err := r.RecordModelProfile(ctx, ModelProfile{
+			Operation: sample.Operation, ModelID: sample.ModelID, Profile: "worker-residency-peak-memory",
+			Status: workerStatus, PeakMemoryB: workerMemory, Device: sample.Tier,
+			Evidence: evidencePrefix + "; " + workerRSSEvidence,
+		}); err != nil {
+			errs = append(errs, fmt.Errorf("record worker-residency-peak-memory profile: %w", err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+const (
+	processPeakRSSBytesMetadataKey  = "process_peak_rss_bytes"
+	processPeakRSSSourceMetadataKey = "process_peak_rss_source"
+	processPeakRSSStatusMetadataKey = "process_peak_rss_status"
+	processPeakRSSReasonMetadataKey = "process_peak_rss_reason"
+	processPeakRSSWait4Source       = "child_wait4_rusage_maxrss"
+)
+
+func processPeakRSSMetadata(meta map[string]string) (int64, bool, string, error) {
+	bytesText, hasBytes := meta[processPeakRSSBytesMetadataKey]
+	source, hasSource := meta[processPeakRSSSourceMetadataKey]
+	status, hasStatus := meta[processPeakRSSStatusMetadataKey]
+	reason, hasReason := meta[processPeakRSSReasonMetadataKey]
+	if !hasBytes && !hasSource && !hasStatus && !hasReason {
+		return 0, false, "per-job process peak RSS is unavailable: provider supplied no attributable child-process measurement", nil
+	}
+	if hasStatus && status == "unavailable" {
+		if hasBytes || hasSource || !hasReason || strings.TrimSpace(reason) == "" {
+			return 0, false, "", fmt.Errorf("unavailable RSS metadata requires a reason and cannot include a measurement")
+		}
+		return 0, false, "per-job process peak RSS is unavailable: " + strings.TrimSpace(reason), nil
+	}
+	if hasStatus || hasReason || !hasBytes || !hasSource {
+		return 0, false, "", fmt.Errorf("measured RSS metadata requires only %s and %s", processPeakRSSBytesMetadataKey, processPeakRSSSourceMetadataKey)
+	}
+	if source != processPeakRSSWait4Source {
+		return 0, false, "", fmt.Errorf("unsupported measurement source %q", source)
+	}
+	bytes, err := strconv.ParseInt(bytesText, 10, 64)
+	if err != nil || bytes <= 0 {
+		return 0, false, "", fmt.Errorf("%s must be a positive base-10 byte count", processPeakRSSBytesMetadataKey)
+	}
+	return bytes, true, "measured per-job child-process peak RSS from " + source, nil
+}
+
+const (
+	workerResidencyIDKey       = "worker_residency_id"
+	workerResidencyModelKey    = "worker_residency_model"
+	workerResidencyPIDKey      = "worker_residency_pid"
+	workerResidencyBytesKey    = "worker_residency_peak_rss_bytes"
+	workerResidencySourceKey   = "worker_residency_peak_rss_source"
+	workerResidencyStatusKey   = "worker_residency_peak_rss_status"
+	workerResidencyReasonKey   = "worker_residency_peak_rss_reason"
+	workerResidencyLinuxSource = "linux_proc_status_vm_hwm_residency"
+)
+
+func workerResidencyPeakRSSMetadata(meta map[string]string, modelID, jobID string) (int64, bool, string, bool, error) {
+	id, hasID := meta[workerResidencyIDKey]
+	model, hasModel := meta[workerResidencyModelKey]
+	pidText, hasPID := meta[workerResidencyPIDKey]
+	bytesText, hasBytes := meta[workerResidencyBytesKey]
+	source, hasSource := meta[workerResidencySourceKey]
+	status, hasStatus := meta[workerResidencyStatusKey]
+	reason, hasReason := meta[workerResidencyReasonKey]
+	if !hasID && !hasModel && !hasPID && !hasBytes && !hasSource && !hasStatus && !hasReason {
+		return 0, false, "", false, nil
+	}
+	if !hasID || strings.TrimSpace(id) == "" || !hasModel || model != modelID {
+		return 0, false, "", true, fmt.Errorf("worker RSS metadata requires a residency id and matching model id")
+	}
+	warmReused := meta["warm_reused"]
+	if warmReused != "true" && warmReused != "false" {
+		return 0, false, "", true, fmt.Errorf("worker RSS metadata requires explicit warm_reused classification")
+	}
+	if warmReused == "false" && id != "image-tools-worker-residency:"+jobID {
+		return 0, false, "", true, fmt.Errorf("cold worker residency id must be tied to its first durable job")
+	}
+	if status == "unavailable" {
+		if hasBytes || hasSource || !hasReason || strings.TrimSpace(reason) == "" {
+			return 0, false, "", true, fmt.Errorf("unavailable worker RSS metadata requires a reason and cannot contain a measurement")
+		}
+		if hasPID {
+			pid, err := strconv.Atoi(pidText)
+			if err != nil || pid < 0 {
+				return 0, false, "", true, fmt.Errorf("%s must be a non-negative process id", workerResidencyPIDKey)
+			}
+		}
+		return 0, false, fmt.Sprintf("resident worker high-water RSS unavailable for model %s, residency %s: %s; not isolated per-job RSS", modelID, id, strings.TrimSpace(reason)), true, nil
+	}
+	if status != "measured" || hasReason || !hasPID || !hasBytes || !hasSource {
+		return 0, false, "", true, fmt.Errorf("measured worker RSS metadata requires status, PID, bytes, source, and no reason")
+	}
+	pid, err := strconv.Atoi(pidText)
+	if err != nil || pid <= 0 {
+		return 0, false, "", true, fmt.Errorf("%s must be a positive process id", workerResidencyPIDKey)
+	}
+	if source != workerResidencyLinuxSource {
+		return 0, false, "", true, fmt.Errorf("unsupported worker residency measurement source %q", source)
+	}
+	bytes, err := strconv.ParseInt(bytesText, 10, 64)
+	if err != nil || bytes <= 0 {
+		return 0, false, "", true, fmt.Errorf("%s must be a positive base-10 byte count", workerResidencyBytesKey)
+	}
+	evidence := fmt.Sprintf("resident worker process high-water RSS from %s for model %s, residency %s, PID %d; not isolated per-job RSS", source, modelID, id, pid)
+	return bytes, true, evidence, true, nil
+}
+
+// ModelProfiles returns model-level summaries, optionally filtered by model
+// and operation. The latest status/evidence are paired with latency percentiles
+// and maximum observed peak memory from measured rows.
+func (r *Recorder) ModelProfiles(ctx context.Context, modelID, operation string) ([]ModelProfileStat, error) {
+	query := `SELECT operation, model_id, profile, status, duration_ms, peak_memory_b, device, evidence, recorded_at FROM model_profile`
+	where := []string{}
+	args := []any{}
+	if modelID != "" {
+		where = append(where, "model_id = ?")
+		args = append(args, modelID)
+	}
+	if operation != "" {
+		where = append(where, "operation = ?")
+		args = append(args, operation)
+	}
+	if len(where) != 0 {
+		query += " WHERE " + strings.Join(where, " AND ")
+	}
+	query += " ORDER BY operation, model_id, profile, recorded_at"
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("measures: query model profiles: %w", err)
+	}
+	defer rows.Close()
+	type aggregate struct {
+		stat      ModelProfileStat
+		durations []int64
+	}
+	byKey := map[string]*aggregate{}
+	order := []string{}
+	for rows.Next() {
+		var op, id, profile, status, device, evidence, recorded string
+		var duration, memory int64
+		if err := rows.Scan(&op, &id, &profile, &status, &duration, &memory, &device, &evidence, &recorded); err != nil {
+			return nil, fmt.Errorf("measures: scan model profile: %w", err)
+		}
+		key := op + "\x00" + id + "\x00" + profile
+		a := byKey[key]
+		if a == nil {
+			a = &aggregate{stat: ModelProfileStat{Operation: op, ModelID: id, Profile: profile}}
+			byKey[key] = a
+			order = append(order, key)
+		}
+		if status == "measured" {
+			a.stat.Samples++
+			if duration > 0 {
+				a.durations = append(a.durations, duration)
+			}
+			if memory > a.stat.PeakMemoryB {
+				a.stat.PeakMemoryB = memory
+			}
+		}
+		a.stat.Status, a.stat.Device, a.stat.LastEvidence, a.stat.LastRecordedAt = status, device, evidence, recorded
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("measures: iterate model profiles: %w", err)
+	}
+	out := make([]ModelProfileStat, 0, len(order))
+	for _, key := range order {
+		a := byKey[key]
+		a.stat.LatencyP50MS = percentile(a.durations, 50)
+		a.stat.LatencyP95MS = percentile(a.durations, 95)
+		out = append(out, a.stat)
+	}
+	return out, nil
 }
 
 const insertJobTraceSQL = `

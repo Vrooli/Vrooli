@@ -90,7 +90,7 @@ var registry = func() map[string]Op {
 		{Name: "pixel_sort", Category: CategoryColor, Summary: "Sort bright runs by lightness along an axis", run: tier2("pixel_sort")},
 		{Name: "displacement", Category: CategoryColor, Summary: "Offset pixels through a deterministic displacement map", run: tier2("displacement")},
 		{Name: "canny", Category: CategoryColor, Summary: "Deterministic Canny edge map (ControlNet conditioning preprocessor)", run: pixel(Canny)},
-		{Name: "convert", Category: CategoryFormat, Summary: "Convert to another image format", run: pixel(convertClone)},
+		{Name: "convert", Category: CategoryFormat, Summary: "Convert to another image format", run: pixel(convertImage)},
 		{Name: "rasterize", Category: CategoryFormat, Summary: "Rasterize an SVG at an exact pixel size", run: Rasterize},
 		{Name: "vectorize", Category: CategoryFormat, Summary: "Trace a flat raster mark into a clean SVG", run: Vectorize},
 		{Name: "icon_container", Category: CategoryFormat, Summary: "Pack PNG renders into an ICO or ICNS container", run: IconContainer},

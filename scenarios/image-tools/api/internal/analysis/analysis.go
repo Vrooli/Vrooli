@@ -1,8 +1,8 @@
 // Package analysis is image-tools' image→data engine (IMG-P0-004): OCR /
 // text-extraction, NSFW / safety classification, and image info / probe. Unlike
 // the generation/enhancement ops these return STRUCTURED DATA rather than an
-// output image, so they execute synchronously and are recorded as terminal
-// durable jobs for uniform observability.
+// output image, and execute through the common durable scheduler. The multipart API waits
+// once for completion and returns the structured response with its job ID.
 //
 // `probe` is pure-Go and always works headless (no model, no GPU). `ocr` and
 // `nsfw_classify` are model-backed standalone ops with CPU-capable defaults

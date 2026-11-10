@@ -34,6 +34,7 @@ func domainToProto(j internaljobs.Job) *jobsv1.Job {
 		Operation:        j.Operation,
 		Lane:             laneToProto(j.Lane),
 		SchedulingQueue:  queueToProto(j.Lane),
+		Priority:         string(j.Priority),
 		State:            stateToProto(j.State),
 		Progress:         int32(j.Progress),
 		Message:          j.Message,
@@ -109,6 +110,10 @@ func stateToProto(s internaljobs.State) jobsv1.JobState {
 		return jobsv1.JobState_JOB_STATE_QUEUED
 	case internaljobs.StateRunning:
 		return jobsv1.JobState_JOB_STATE_RUNNING
+	case internaljobs.StateAdmitting:
+		return jobsv1.JobState_JOB_STATE_ADMITTING
+	case internaljobs.StateCanceling:
+		return jobsv1.JobState_JOB_STATE_CANCELING
 	case internaljobs.StateSucceeded:
 		return jobsv1.JobState_JOB_STATE_SUCCEEDED
 	case internaljobs.StateFailed:
@@ -135,10 +140,8 @@ func laneToProto(l internaljobs.Lane) jobsv1.JobLane {
 
 func queueToProto(l internaljobs.Lane) jobsv1.JobQueue {
 	switch l {
-	case internaljobs.LaneGPU:
-		return jobsv1.JobQueue_JOB_QUEUE_LOCAL_SERIAL
-	case internaljobs.LaneCPU:
-		return jobsv1.JobQueue_JOB_QUEUE_CPU_POOL
+	case internaljobs.LaneGPU, internaljobs.LaneCPU:
+		return jobsv1.JobQueue_JOB_QUEUE_CAPACITY
 	case internaljobs.LaneNetwork:
 		return jobsv1.JobQueue_JOB_QUEUE_NETWORK_POOL
 	default:

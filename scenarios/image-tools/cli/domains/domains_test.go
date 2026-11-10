@@ -10,13 +10,14 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 )
 
-// TestCommandGroups exercises the flat-commands aggregator. The
-// template ships zero flat commands, so the contract is "returns nil";
-// the test exists so a future scenario that adds CommandGroups gets
-// caller-side wiring for free (the call goes through unchanged).
 func TestCommandGroups(t *testing.T) {
-	got := CommandGroups(&cliapp.ScenarioApp{})
-	require.Nil(t, got, "CommandGroups should return nil until a domain registers a flat group")
+	got := CommandGroups(&cliapp.ScenarioApp{}, readManifestForTest(t))
+	require.Len(t, got, 1)
+	var names []string
+	for _, command := range got[0].Commands {
+		names = append(names, command.Name)
+	}
+	require.ElementsMatch(t, []string{"doctor", "provision"}, names)
 }
 
 // TestSubcommandGroups proves the aggregator returns whatever domains

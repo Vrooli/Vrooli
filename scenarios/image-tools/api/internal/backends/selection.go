@@ -3,6 +3,7 @@ package backends
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"image-tools/internal/models"
 )
@@ -144,35 +145,15 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 			}
 		}
 	}
-
-	// applyLocalTier sets the honest execution tier for a chosen local provider.
-	// A GPU is only claimed when the host has a GPU-viable path AND the backend
-	// can actually use it: a CPU-only backend (e.g. the onnxruntime sidecar bound
-	// to CPUExecutionProvider) reports local-cpu even on a GPU host, so the tier
-	// label never overstates where the op really runs.
-	applyLocalTier := func(s *Selection, p Provider) {
-		switch {
-		case req.GPUViable && providerGPUCapable(p):
-			s.Tier = TierLocalGPU
-		case req.GPUViable && !providerGPUCapable(p):
-			s.Tier = TierLocalCPU
-			s.Warnings = append(s.Warnings, fmt.Sprintf("backend %q is CPU-only; running on CPU despite an available GPU", p.Name()))
-		default:
-			s.Tier = TierLocalCPU
-			s.Warnings = append(s.Warnings, "no GPU-viable path; running locally on CPU (slower)")
-		}
-		s.Reason = fmt.Sprintf("local backend %q (%s)", p.Name(), s.Tier)
-	}
-
 	switch {
 	case matchLocal != nil:
 		sel := Selection{Provider: matchLocal}
-		applyLocalTier(&sel, matchLocal)
+		applyLocalTier(&sel, matchLocal, req.GPUViable)
 		return sel, nil
 
 	case otherLocal != nil:
 		sel := Selection{Provider: otherLocal}
-		applyLocalTier(&sel, otherLocal)
+		applyLocalTier(&sel, otherLocal, req.GPUViable)
 		switch {
 		case req.RequireAdapters && req.ModelBackend != "" && req.ModelBackend != otherLocal.Name():
 			sel.Warnings = append(sel.Warnings, fmt.Sprintf("conditioning adapters require the %q backend; the model's native backend %q cannot apply them", otherLocal.Name(), req.ModelBackend))
@@ -183,7 +164,7 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 
 	case comfy != nil:
 		sel := Selection{Provider: comfy}
-		applyLocalTier(&sel, comfy)
+		applyLocalTier(&sel, comfy, req.GPUViable)
 		sel.Reason = fmt.Sprintf("ComfyUI provider %q (%s)", comfy.Name(), sel.Tier)
 		sel.Warnings = append(sel.Warnings, "no standalone backend available; using the optional ComfyUI plug-in")
 		return sel, nil
@@ -212,4 +193,58 @@ func (r *Registry) SelectProvider(ctx context.Context, req SelectRequest) (Selec
 		}
 		return Selection{}, fmt.Errorf("%w for %q", ErrNoneAvailable, req.Operation)
 	}
+}
+
+// RevalidateProvider checks one provider selected before the job was queued.
+// It intentionally does not walk the fallback ladder: queued jobs preserve the
+// selected backend and fail if it is no longer usable. CPU degradation is an
+// explicit caller decision that uses SelectProvider with GPUViable=false.
+func (r *Registry) RevalidateProvider(ctx context.Context, req SelectRequest, providerName string) (Selection, error) {
+	if strings.TrimSpace(providerName) == "" {
+		return Selection{}, fmt.Errorf("%w: resolved provider name is required", ErrNoneAvailable)
+	}
+	providers := r.byOp[req.Operation]
+	if len(providers) == 0 {
+		return Selection{}, fmt.Errorf("%w: %q", ErrNoProvider, req.Operation)
+	}
+	for _, p := range providers {
+		if p.Name() != providerName {
+			continue
+		}
+		availability := providerAvailability(ctx, p)
+		if !availability.Available {
+			detail := strings.TrimSpace(availability.Detail)
+			if detail == "" {
+				detail = "provider is unavailable"
+			}
+			return Selection{}, fmt.Errorf("%w for %q: pinned provider %q is unavailable (%s)", ErrNoneAvailable, req.Operation, providerName, detail)
+		}
+		if req.RequireAdapters && p.Standalone() && !providerSupportsAdapters(p, req.Operation) {
+			return Selection{}, fmt.Errorf("%w for %q: pinned provider %q cannot apply conditioning adapters", ErrNoneAvailable, req.Operation, providerName)
+		}
+		if p.IsCloud() {
+			if !req.AllowBYOK {
+				return Selection{}, fmt.Errorf("%w for %q: pinned provider %q requires BYOK", ErrNoneAvailable, req.Operation, providerName)
+			}
+			return Selection{Provider: p, Tier: TierBYOK, Reason: fmt.Sprintf("BYOK cloud provider %q", p.Name())}, nil
+		}
+		selection := Selection{Provider: p}
+		applyLocalTier(&selection, p, req.GPUViable)
+		return selection, nil
+	}
+	return Selection{}, fmt.Errorf("%w for %q: pinned provider %q no longer serves this operation", ErrNoneAvailable, req.Operation, providerName)
+}
+
+func applyLocalTier(selection *Selection, provider Provider, gpuViable bool) {
+	switch {
+	case gpuViable && providerGPUCapable(provider):
+		selection.Tier = TierLocalGPU
+	case gpuViable && !providerGPUCapable(provider):
+		selection.Tier = TierLocalCPU
+		selection.Warnings = append(selection.Warnings, fmt.Sprintf("backend %q is CPU-only; running on CPU despite an available GPU", provider.Name()))
+	default:
+		selection.Tier = TierLocalCPU
+		selection.Warnings = append(selection.Warnings, "no GPU-viable path; running locally on CPU (slower)")
+	}
+	selection.Reason = fmt.Sprintf("local backend %q (%s)", provider.Name(), selection.Tier)
 }

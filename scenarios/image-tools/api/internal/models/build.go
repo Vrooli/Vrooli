@@ -50,7 +50,6 @@ type BuildConfig struct {
 	Python        string
 	PythonPath    string
 	ReferenceONNX string
-	Run           func(context.Context, string, []string, []string) ([]byte, error)
 	Capacity      BuildCapacityBrokerFactory
 	Operations    BuildOperationOwner
 }
@@ -383,8 +382,8 @@ func (in *Installer) ensureBuild(ctx context.Context, m Model, dir, jobID string
 	if profile == nil {
 		return "", nil
 	}
-	if in.Build == nil || strings.TrimSpace(in.Build.Python) == "" || in.Build.Capacity == nil || strings.TrimSpace(in.Build.ReferenceONNX) == "" {
-		return "", fmt.Errorf("models: build profile %q requires the provisioned Python environment and native RAM capacity broker", profile.Kind)
+	if in.Build == nil || strings.TrimSpace(in.Build.Python) == "" || in.Build.Capacity == nil || in.Build.Operations == nil || strings.TrimSpace(in.Build.ReferenceONNX) == "" {
+		return "", fmt.Errorf("models: build profile %q requires the provisioned Python environment, native RAM broker, and operation owner", profile.Kind)
 	}
 	unlockBuild := lockModelBuild(m.ID)
 	defer unlockBuild()
@@ -477,27 +476,19 @@ func (in *Installer) ensureBuild(ctx context.Context, m Model, dir, jobID string
 	emit(91, "exporting pinned Big-LaMa generator to fixed 1024 ONNX")
 	var output []byte
 	var runErr error
-	if in.Build.Operations != nil {
-		if strings.TrimSpace(jobID) == "" || in.State == nil {
-			return "", errors.New("models: native exporter operation requires a durable install job identity and operation store")
-		}
-		failurePath := filepath.Join(dir, ".lama-export-failure.json")
-		_ = os.Remove(failurePath)
-		fullArgs = append(fullArgs, "--failure-report", failurePath)
-		output, runErr, retainRAMClaim = in.runOwnedBuild(buildCtx, jobID, m.ID, dir, in.Build.Python, fullArgs, extraEnv)
-		if runErr != nil {
-			if data, readErr := os.ReadFile(failurePath); readErr == nil {
-				output = data
-			}
-		}
-		_ = os.Remove(failurePath)
-	} else {
-		run := in.Build.Run
-		if run == nil {
-			run = defaultBuildRunner
-		}
-		output, runErr = run(buildCtx, in.Build.Python, fullArgs, extraEnv)
+	if strings.TrimSpace(jobID) == "" || in.State == nil {
+		return "", errors.New("models: native exporter operation requires a durable install job identity and operation store")
 	}
+	failurePath := filepath.Join(dir, ".lama-export-failure.json")
+	_ = os.Remove(failurePath)
+	fullArgs = append(fullArgs, "--failure-report", failurePath)
+	output, runErr, retainRAMClaim = in.runOwnedBuild(buildCtx, jobID, m.ID, dir, in.Build.Python, fullArgs, extraEnv)
+	if runErr != nil {
+		if data, readErr := os.ReadFile(failurePath); readErr == nil {
+			output = data
+		}
+	}
+	_ = os.Remove(failurePath)
 	if runErr != nil {
 		detail := strings.TrimSpace(string(output))
 		if len(detail) > 2048 {
@@ -532,26 +523,14 @@ func (in *Installer) ensureBuild(ctx context.Context, m Model, dir, jobID string
 	return sum, nil
 }
 
-// BuildReady reports whether an installed build-profile model has a complete,
-// checksum-matching export receipt. Downloaded source assets alone do not make a
-// compiled model available to inference.
-func (in *Installer) BuildReady(ctx context.Context, id string) bool {
-	if in == nil || in.Reg == nil {
+// BuildReadyForRecord reports whether an already-installed build-profile record
+// has a complete, checksum-matching export receipt. Callers that have already
+// loaded the install record can project build readiness without a second query.
+func (in *Installer) BuildReadyForRecord(m Model, rec InstallRecord) bool {
+	if in == nil || m.BuildProfile == nil || rec.ID != m.ID || !rec.Installed || !pathExists(rec.Path) {
 		return false
 	}
-	m, ok := in.Reg.ByID(id)
-	if !ok || m.BuildProfile == nil || !in.Installed(ctx, id) {
-		return false
-	}
-	if in.State != nil {
-		rec, found, err := in.State.Get(ctx, id)
-		if err != nil || !found || !rec.Installed {
-			return false
-		}
-		_, ready := buildOutputReady(m.BuildProfile, rec.Path)
-		return ready
-	}
-	_, ready := buildOutputReady(m.BuildProfile, in.modelDir(id))
+	_, ready := buildOutputReady(m.BuildProfile, rec.Path)
 	return ready
 }
 
@@ -594,10 +573,6 @@ func buildOutputReady(profile *BuildProfile, dir string) (string, bool) {
 		receipt.ReferenceProbeMaxAbs <= lamaReferenceTolerance && receipt.ReferenceProbeTolerance == lamaReferenceTolerance &&
 		(profile.OutputSHA256 == "" || profile.OutputSHA256 == sum)
 	return sum, valid
-}
-
-func defaultBuildRunner(ctx context.Context, python string, args, extraEnv []string) ([]byte, error) {
-	return nil, errors.New("models: direct exporter subprocesses are not supported; configure the native operation owner")
 }
 
 func readBuildReceipt(path string) (buildReceipt, error) {

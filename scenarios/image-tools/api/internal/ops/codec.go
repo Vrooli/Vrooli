@@ -53,18 +53,56 @@ const (
 	FormatICNS = "icns"
 )
 
-// EncodableFormats are the formats Encode can write. HEIC is intentionally
-// absent: the patent-encumbered HEVC encoder is not bundled (decode-in /
-// convert-out only). SVG is vector and is written only by the vectorize op, so
-// it is not a generic encodable format. ico/icns are icon containers.
-var EncodableFormats = []string{
-	FormatPNG, FormatJPEG, FormatGIF, FormatWebP, FormatTIFF, FormatBMP, FormatAVIF, FormatICO, FormatICNS,
+// formatSpecs is the canonical source for format metadata. HEIC is decode-only:
+// its HEVC encoder is not bundled. SVG is rasterized on input and written only
+// by the vectorize operation; ICO and ICNS are container encoders.
+type formatSpec struct {
+	name       string
+	mime       string
+	extensions []string
+	decodable  bool
+	encodable  bool
 }
 
-// DecodableFormats are the formats Decode recognizes (auto-detected, plus SVG
-// by content sniff).
-var DecodableFormats = []string{
-	FormatPNG, FormatJPEG, FormatGIF, FormatWebP, FormatTIFF, FormatBMP, FormatAVIF, FormatHEIC, FormatSVG,
+var formatSpecs = []formatSpec{
+	{name: FormatPNG, mime: "image/png", extensions: []string{"png"}, decodable: true, encodable: true},
+	{name: FormatJPEG, mime: "image/jpeg", extensions: []string{"jpg", "jpeg", "jpe"}, decodable: true, encodable: true},
+	{name: FormatGIF, mime: "image/gif", extensions: []string{"gif"}, decodable: true, encodable: true},
+	{name: FormatWebP, mime: "image/webp", extensions: []string{"webp"}, decodable: true, encodable: true},
+	{name: FormatTIFF, mime: "image/tiff", extensions: []string{"tif", "tiff"}, decodable: true, encodable: true},
+	{name: FormatBMP, mime: "image/bmp", extensions: []string{"bmp"}, decodable: true, encodable: true},
+	{name: FormatAVIF, mime: "image/avif", extensions: []string{"avif"}, decodable: true, encodable: true},
+	{name: FormatHEIC, mime: "image/heic", extensions: []string{"heic", "heif"}, decodable: true},
+	{name: FormatSVG, mime: "image/svg+xml", extensions: []string{"svg"}, decodable: true},
+	{name: FormatICO, mime: "image/x-icon", extensions: []string{"ico"}, encodable: true},
+	{name: FormatICNS, mime: "image/icns", extensions: []string{"icns"}, encodable: true},
+}
+
+// EncodableFormats are the formats Encode can write. DecodableFormats are the
+// formats Decode recognizes (auto-detected, plus SVG by content sniff).
+var (
+	EncodableFormats = listFormats(func(spec formatSpec) bool { return spec.encodable })
+	DecodableFormats = listFormats(func(spec formatSpec) bool { return spec.decodable })
+)
+
+func listFormats(include func(formatSpec) bool) []string {
+	formats := make([]string, 0, len(formatSpecs))
+	for _, spec := range formatSpecs {
+		if include(spec) {
+			formats = append(formats, spec.name)
+		}
+	}
+	return formats
+}
+
+func lookupFormat(format string) (formatSpec, bool) {
+	format = normalizeFormat(format)
+	for _, spec := range formatSpecs {
+		if spec.name == format {
+			return spec, true
+		}
+	}
+	return formatSpec{}, false
 }
 
 // Meta describes a decoded image's source facts.
@@ -173,89 +211,39 @@ func encodeTo(w io.Writer, img image.Image, format string, opts EncodeOptions) e
 
 // MIMEFor returns the canonical MIME type for a format ("" if unknown).
 func MIMEFor(format string) string {
-	switch normalizeFormat(format) {
-	case FormatPNG:
-		return "image/png"
-	case FormatJPEG:
-		return "image/jpeg"
-	case FormatGIF:
-		return "image/gif"
-	case FormatWebP:
-		return "image/webp"
-	case FormatTIFF:
-		return "image/tiff"
-	case FormatBMP:
-		return "image/bmp"
-	case FormatAVIF:
-		return "image/avif"
-	case FormatHEIC:
-		return "image/heic"
-	case FormatSVG:
-		return "image/svg+xml"
-	case FormatICO:
-		return "image/x-icon"
-	case FormatICNS:
-		return "image/icns"
-	default:
-		return ""
+	if spec, ok := lookupFormat(format); ok {
+		return spec.mime
 	}
+	return ""
 }
 
 // FormatFromExt maps a filename extension (with or without leading dot) to a
 // canonical format name ("" if unrecognized).
 func FormatFromExt(ext string) string {
 	ext = strings.ToLower(strings.TrimPrefix(strings.TrimSpace(ext), "."))
-	switch ext {
-	case "png":
-		return FormatPNG
-	case "jpg", "jpeg", "jpe":
-		return FormatJPEG
-	case "gif":
-		return FormatGIF
-	case "webp":
-		return FormatWebP
-	case "tif", "tiff":
-		return FormatTIFF
-	case "bmp":
-		return FormatBMP
-	case "avif":
-		return FormatAVIF
-	case "heic", "heif":
-		return FormatHEIC
-	case "svg":
-		return FormatSVG
-	case "ico":
-		return FormatICO
-	case "icns":
-		return FormatICNS
-	default:
-		return ""
+	for _, spec := range formatSpecs {
+		for _, candidate := range spec.extensions {
+			if ext == candidate {
+				return spec.name
+			}
+		}
 	}
+	return ""
 }
 
 // CanEncode reports whether Encode can write the given format.
 func CanEncode(format string) bool {
-	format = normalizeFormat(format)
-	for _, f := range EncodableFormats {
-		if f == format {
-			return true
-		}
-	}
-	return false
+	spec, ok := lookupFormat(format)
+	return ok && spec.encodable
 }
 
 // normalizeFormat folds decoder-reported aliases onto the canonical names.
 func normalizeFormat(format string) string {
-	switch strings.ToLower(strings.TrimSpace(format)) {
-	case "jpg", "jpeg":
-		return FormatJPEG
-	case "tif", "tiff":
-		return FormatTIFF
-	case "heif", "heic":
-		return FormatHEIC
-	default:
-		return strings.ToLower(strings.TrimSpace(format))
+	format = strings.ToLower(strings.TrimSpace(format))
+	if canonical := FormatFromExt(format); canonical != "" {
+		return canonical
 	}
+	return format
 }
 
 func clampQuality(q int) int {

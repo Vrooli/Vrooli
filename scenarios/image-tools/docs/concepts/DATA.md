@@ -1,154 +1,105 @@
 # Data — Image Tools
 
-This document is the canonical data ownership and storage map for the
-scenario. Update it when domains add tables, files, blobs, external
-records, retention rules, migrations, imports, or exports.
-
 ## Purpose Of This Document
 
-Use this document to answer:
-
-- What data does the scenario persist?
-- Which domain owns each data shape?
-- Where is the source of truth?
-- What is the retention/deletion story?
-- How are schema changes handled?
+This is the source map for data that Image Tools owns. Domain schemas live
+beside the Go code that interprets them; runtime artifacts and image bytes use
+their owning storage contracts instead of being copied into SQLite.
 
 ## Storage Overview
 
-image-tools has two distinct stores with a hard split, and the outside-repo
-data root is declared by storage class rather than as one aggregate budget:
+Image Tools uses these storage classes:
 
-- **Scenario metadata → embedded SQLite** through `modernc.org/sqlite`.
-  The database path is resolved from the scenario id by `api-core/storage`, and the
-  API applies schemas on startup through `api-core/database`. SQLite holds
-  jobs, recipes, model-registry state, watch-folder/automation config,
-  measures, and usage/cost records. None of these are image bytes.
-- **Image binaries → api-core storage/blobstore**, stored *outside the
-  repo* by default. The save location is overridable per request, and
-  outputs are user-owned (copyable, movable, deletable anywhere). Managed
-  terminal-job results under `blobs/out` have a separate derived-output budget;
-  the owner cleanup provider can delete only an approved, age-qualified result
-  whose job reference is still valid. Inputs, conditioning assets, and local
-  absolute outputs remain protected. The `storage` domain owns the consuming
-  seam; api-core owns the implementation. Opaque bytes never enter SQLite or
-  proto payloads — metadata references blobs by handle.
+- **Scenario metadata:** embedded SQLite, resolved from the scenario id by
+  `api-core/storage` and initialized through `api-core/database`. The module
+  registry applies each domain's schema at API boot.
+- **Image and result bytes:** `api-core` blobstore behind the
+  `internal/storage` seam. Job payloads and protobuf messages carry references,
+  not image bytes. Explicit local output paths are user-owned and outside the
+  scenario cleanup boundary.
+- **Installed model and adapter assets:** files under their managed roots, with
+  content identity and lifecycle state recorded in the corresponding catalog.
+  Model and adapter weights are not generic cache-cleanup targets.
 
-The service declaration separates the SQLite database, model weights, adapters,
-input/conditioning/auxiliary blobs, derived job outputs, Python environment,
-sidecar, and deployment state. Model weights and adapters are durable install
-assets, not generic age-cleanup targets. Runtime directories are rebuildable
-but are protected from the job-output provider while active.
-
-This separation is deliberate: SQLite is the queryable proto-typed
-metadata plane; blobstore is the bulk binary plane. External storage
-resources beyond api-core blobstore should be introduced only when a real
-domain needs them. Document those decisions in
-[`INTEGRATIONS.md`](INTEGRATIONS.md) before editing
-`.vrooli/service.json`.
-
-## Data Ownership
-
-| Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
-|---|---|---|---|---|---|
-| Job records (id, op, status, progress, ETA, tier, error) | jobs | SQLite | `api/internal/jobs/schema.sql` | Durable metadata; output cleanup is independent | Server-owned; survive client disconnect. |
-| Recipe definitions (op-stack graphs) | recipes | SQLite | `api/internal/recipes/schema.sql` | Until user deletes | Unified UI op-stack / CLI pipeline representation. |
-| Model registry state (entries, enabled flag, install/local-path) | models | SQLite | `api/internal/models/schema.sql` | Until model removed | Declarative entries; weights live on disk via blobstore/local path, not in SQLite. |
-| Watch-folder / automation config | automation | SQLite | `api/internal/automation/schema.sql` | Until user deletes config | Debounce, output routing, callback URLs. |
-| Webhook callback delivery state | automation | SQLite | `api/internal/automation/schema.sql` | Until completion + retry window | Best-effort POST + retry; not an event bus. |
-| Measure samples + aggregates | measures | SQLite | `api/internal/measures/schema.sql` | Rolling window per measures policy | Latency p50/p95, throughput, queue-wait, fallback-tier usage, VRAM headroom. |
-| BYOK usage / cost records | models / backends | SQLite | usage schema (audio-tools cost-tracking pattern) | Rolling window | Cost estimate before op; keys are secrets, never stored with usage rows. |
-| Image inputs and outputs (bytes) | storage | api-core blobstore (outside repo) | BlobStore implementation behind the `storage` seam | Inputs are protected; managed terminal outputs use owner preview/apply; local outputs are user-owned | Overridable save location per request; opaque bytes, never in proto or SQLite. |
-| Blob references + output-ownership metadata | storage | SQLite | `api/internal/storage/schema.sql` | Same lifecycle as referenced blob | Handle/id, owner, save-location resolution. |
+The outside-repository roots and cleanup boundaries are declared in
+`.vrooli/service.json`. Managed job-result cleanup is a separate governed
+owner operation; it cannot delete inputs, active model assets, or arbitrary
+local output paths.
 
 ## Schema Map
 
-| Table/File/Object | Owner | Defined In | Used By |
+## Data Ownership
+
+| Data | Owner | Schema | Source of truth and lifecycle |
 |---|---|---|---|
-| jobs tables | jobs | `api/internal/jobs/schema.sql` | jobs repository/queue/handlers, CLI wait, UI progress |
-| recipes tables | recipes | `api/internal/recipes/schema.sql` | recipes repository/replay/handlers |
-| model registry tables | models | `api/internal/models/schema.sql` | models repository/selector/handlers, CLI, Settings UI |
-| automation tables (watch-folder, callbacks) | automation | `api/internal/automation/schema.sql` | automation repository/handlers, watcher |
-| measures tables | measures | `api/internal/measures/schema.sql` | measures collector/aggregator, manifest measure blocks |
-| BYOK usage/cost tables | models / backends | usage schema | cost estimator, fallback messaging |
-| storage reference tables | storage | `api/internal/storage/schema.sql` | storage seam, all operation domains |
-| image blobs | storage | api-core blobstore (object store, outside repo) | every operation domain via the `storage` seam |
-| system schema | infrastructure | `api/internal/database/system.sql` | API boot and cross-cutting DB setup |
+| Durable job records, request identity, payload references, progress and terminal metadata | `jobs` | `api/internal/jobs/schema.sql` | Server-owned job state; retained across client disconnects. Recovery fails orphaned nonterminal jobs rather than resuming ambiguous work. |
+| Model enable overrides, install records, explicit lifecycle state, build-operation intent, custom catalog entries and per-operation default pins | `models` | `api/internal/models/schema.sql` | `registry.seed.json` is the immutable seed baseline. SQLite contains only operator overrides and add-only custom entries. Weights remain files on the managed model root. |
+| Adapter enable overrides, install records and custom entries | `adapters` | `api/internal/adapters/schema.sql` | `adapters.seed.json` is the seed baseline; custom entries cannot shadow seeded ids. Weights remain files under the adapter root. |
+| User-created Looks | `looks` | `api/internal/looks/schema.sql` | Built-in Looks come from `internal/looks/seed.go`; the table holds custom proto-JSON Looks and thumbnail references. Looks are the sole compound-workflow substrate. |
+| Consent affirmations for high-consent operations on public deployments | `safety` | `api/internal/safety/schema.sql` | Append-only audit rows record the operation, effective weight, deployment tier and affirmation time. Local personal-use tier does not write this log. |
+| Prepared-photograph metadata and idempotent review-operation identities | `sceneprep` | `api/internal/sceneprep/schema.sql` | Immutable records refer to pixels and geometry stored as blobs. A repeated operation id resolves to the same prepared child. |
+| Per-operation measurements and structured terminal job traces | `measures` | `api/internal/measures/schema.sql` | Finalized jobs record duration, queue wait, result state and available model/backend/tier facts. Aggregates are computed on read. |
+
+`api/internal/database/system.sql` is intentionally empty; tables belong to a
+domain schema. There is no `recipes`, `automation`, or `storage` SQLite
+domain/table today. The prior recipe graph is superseded by Looks; no second
+pipeline format should be added. Storage-reference metadata, where needed, is
+owned by the `api-core` storage contract rather than a local Image Tools table.
+
+## Storage Details
+
+| Data | Owner | Location / contract | Deletion boundary |
+|---|---|---|---|
+| Uploaded inputs and operation outputs | `storage` seam; `api-core/blobstore` implementation | Opaque blob handles; consumers do not depend on a concrete object-store engine | Inputs and referenced outputs follow the api-core storage owner and explicit user operations. The generic Image Tools result-cleanup provider is limited to eligible terminal outputs. |
+| Installed model files | `models` | Managed model root; checksum and lifecycle fingerprint recorded in SQLite | Removed only by the model lifecycle owner after model-use readers are released. |
+| Installed adapter files | `adapters` | Managed adapter root; checksum and install record in SQLite | Removed only by adapter lifecycle owner after reader leases are released. |
+| Python environment and backend runtime files | lifecycle / sidecar setup | Rebuildable scenario runtime roots | Rebuilt by managed setup; active runtime use is protected from cleanup. |
+| Quality datasets and evaluator artifacts | `quality` | Versioned local manifests and receipt directories | Evaluation fixtures retain source/license, reference, model and output identity in their manifest. These files are research artifacts, not user job state. |
 
 ## Migrations And Compatibility
 
-The generated template uses idempotent schema bootstrap. Domain schema
-files should use `CREATE TABLE IF NOT EXISTS` and live beside the code
-that interprets them.
-
-Two compatibility concerns are scenario-specific:
-
-- **Model registry schema is proto-validated.** Registry entries follow a
-  schema/proto contract (id/name, operations served, hardware
-  requirements, capability/license labels, checksum/source). Registry
-  *evolution* (new fields, new capability labels, new quant tiers per
-  OT-P2-004) is an additive, backward-compatible proto change — never a
-  destructive recreate. Existing-table column changes are one-shot
-  migrations, never a DB recreate.
-- **Blob references must outlive schema changes.** Because image bytes live
-  in api-core blobstore and SQLite only holds handles, a metadata
-  migration must never orphan or drop live blob references; backfills
-  preserve handle→blob mappings.
-
-For production data migrations that need column drops, renames, or data
-backfills, add a scenario-specific migration plan here and update
-[`../internal/DECISIONS.md`](../internal/DECISIONS.md) with the tradeoff.
+- Domain SQL remains beside its interpreting package and is applied through the
+  module schema registry. Additive tables are preferred; do not recreate a
+  deployed database to change a catalog or lifecycle contract.
+- Seed model and adapter catalogs are source-controlled baselines. User state
+  is overlaid at read time; custom entries are add-only and validated against
+  the same operation/backend vocabulary before persistence.
+- Image bytes are not placed in protobuf fields or SQLite JSON. Persist an
+  opaque blob reference and keep byte ownership with the blobstore contract.
+- Keep model lifecycle hashes separate: the artifact hash identifies installed
+  bytes, while runtime hash identifies the execution environment used for smoke.
+  A stale smoke result cannot make changed weights Ready.
 
 ## Import / Export
 
-| Path | Format | Owner | Status |
-|---|---|---|---|
-| Image input upload | multipart/form-data (PNG/JPEG/WebP/AVIF/HEIC/GIF/TIFF/BMP, SVG→raster import) | storage / operation domains | Planned (P0). |
-| Image output download/save | original or converted raster format; user-owned, overridable save location | storage | Planned (P0). |
-| Recipe export/import | proto-typed op-stack graph (portable across UI and CLI) | recipes | Planned (P1). |
-| Model registry entry import | declarative entry (custom/fine-tuned local model path) | models | Planned (P0, OT-P0-007). |
-| Analysis results | structured proto (OCR text, embeddings, detection boxes, hashes, QR payloads) | analysis | Planned (P0/P1). |
+| Surface | Contract | Current behavior |
+|---|---|---|
+| Image input | Multipart upload or a retained blob reference | Stored behind `internal/storage`; AI and deterministic operations receive a reference/path only at their execution boundary. |
+| Image output | Job result reference or an explicit local output path | Managed results remain governed job artifacts; a local output path stays user-owned. |
+| Model import | Inspected repository/local-source metadata with explicit commercial-rights attestation | The model manager validates metadata and rights declaration before catalog registration or weight acquisition. An import is not an independent legal review. |
+| Adapter import | Inspected adapter metadata and explicit rights declarations | The adapter manager validates before persistence or download. |
+| Quality evaluation | Versioned manifest linking operation, candidate outputs, references, budgets and provenance | `image-tools quality evaluate` records metrics and judge evidence; it is not a user-image import surface. |
 
 ## Retention And Deletion
 
-| Data | Delete Trigger | Retention Rule | Current Gap |
-|---|---|---|---|
-| Image inputs (uploads) | User delete / explicit domain policy | Protected from generic cleanup; user control | No generic TTL because references can be reused. |
-| Managed terminal job outputs (`blobs/out`) | Governed owner apply | Seven-day minimum age, oldest-first, 32 GiB cap, 200-item batches; provider disabled by default | Pinning remains an explicit future metadata surface; absent a pin, preview is the safety boundary. |
-| Local absolute outputs | User delete / move / copy | Never inspected or deleted by image-tools cleanup | User-owned path is intentionally outside the owner boundary. |
-| Job records | Domain lifecycle / database maintenance | Not deleted by the blob-output provider | Job rows remain the reference ledger for output eligibility. |
-| Measure samples | Rolling window | Aggregated then pruned | Window value to be set per measures policy. |
-| BYOK usage/cost records | Rolling window | Retained for cost reporting; keys never stored | None — keys handled as secrets only. |
-| Recipes / model registry / automation config | User delete | Retained until user removes | None. |
+Image bytes can contain personal and location information. Do not infer a
+universal upload TTL from a handler or UI session: the api-core blobstore and
+declared owner policy govern retention. The job-result cleanup provider applies
+only to explicitly eligible, age-qualified terminal output artifacts; it never
+walks arbitrary paths. Local outputs, installed weights and active model or
+adapter reads are outside that provider's authority.
 
 ## Privacy Notes
 
-image-tools handles user images, which can carry personal and location
-data, and BYOK provider keys. The privacy posture:
-
-- **EXIF/GPS stripped by default.** Metadata read is available, but the
-  GPS-strip op is on by default in the deterministic metadata path; users
-  opt in to retaining location/EXIF.
-- **Uploads are not retained beyond configured TTL / user control.** Input
-  images are transient; outputs are user-owned and live only where the
-  user saves them.
-- **BYOK keys are secrets.** Provider keys are handled as secrets, never
-  stored alongside images or in usage rows; only derived cost/usage
-  metadata is persisted.
-- **NSFW/safety classification produces metadata, not a hard block.**
-  Auto-scan of AI output is configurable; classification results are
-  metadata and do not, by default, block delivery.
-- **No face recognition / identity matching.** Anonymous face *detection*
-  (count + boxes) is in scope; no identity data is derived or stored.
-- **Ingestion safety.** Decompression-bomb / oversized-image guards run at
-  the upload boundary before any processing.
-
-If implementation expands what is persisted, update this document and
-[`../internal/SECURITY.md`](../internal/SECURITY.md) first.
+Model or adapter API keys are not stored in catalog rows. Cost and execution
+facts belong in structured job metadata/measurements; secrets remain with the
+platform credential owner. Image Tools performs anonymous face detection only;
+it does not store identity matches or facial identity records. Consent logging
+for high-consent-weight transformations is enabled by deployment policy, not by
+fixture content.
 
 ## Cross-References
 
-- [`DOMAINS.md`](DOMAINS.md) — data ownership by domain
-- [`INTEGRATIONS.md`](INTEGRATIONS.md) — external resources and scenarios
-- [`../reference/configuration.md`](../reference/configuration.md) — runtime configuration
-- [`../internal/SECURITY.md`](../internal/SECURITY.md) — privacy/security posture
+- [`DOMAINS.md`](DOMAINS.md) — data owners and domain boundaries
+- [`FLOWS.md`](FLOWS.md) — state transitions and cleanup ordering
+- [`INTEGRATIONS.md`](INTEGRATIONS.md) — platform storage and host boundaries

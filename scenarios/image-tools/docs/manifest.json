@@ -1102,7 +1102,7 @@
         },
         {
           "path": "reference/layered-photography.md",
-          "docType": "backends-reference",
+          "docType": "layered-photography-reference",
           "title": "Layered photographic parallax",
           "aliases": [
             "parallax",

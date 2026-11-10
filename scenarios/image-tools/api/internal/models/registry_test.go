@@ -197,6 +197,13 @@ func TestLaMaBuildProfileIsClosedAndCannotEnableUnpinnedOutput(t *testing.T) {
 	if err := r.validateModel(mutated); err == nil {
 		t.Fatal("build candidate enabled without pinned output hash")
 	}
+	mutated = model
+	bad = *model.BuildProfile
+	bad.SourceSHA256 = strings.Repeat("g", 64)
+	mutated.BuildProfile = &bad
+	if err := r.validateModel(mutated); err == nil {
+		t.Fatal("build profile accepted a 64-character non-hex source digest")
+	}
 }
 
 func TestSdxlInpaintUsesPinnedFp16RepositorySubsetAndRemainsDisabled(t *testing.T) {
@@ -244,25 +251,26 @@ func TestSeedDoctorCatalogIsInstallable(t *testing.T) {
 	}
 }
 
-// TestSeedRegistryLintIsClean is the build-time guard that every weight-backed
+// TestSeedFetchStrategyContractIsClean is the build-time guard that every weight-backed
 // seed row — enabled OR disabled — declares a concrete fetch strategy
 // (assets[]/repo/local_path) or is honestly marked source.manual. It is what
 // stops a landing-page-only stub from shipping and failing at a user's install.
-func TestSeedRegistryLintIsClean(t *testing.T) {
+func TestSeedFetchStrategyContractIsClean(t *testing.T) {
 	r, err := Load()
 	if err != nil {
 		t.Fatalf("Load: %v", err)
 	}
-	lint := r.RegistryLint()
-	if !lint.OK || len(lint.Findings) != 0 {
-		t.Fatalf("seed registry-lint must be clean (every weight-backed row has a fetch strategy or source.manual); findings: %+v", lint.Findings)
+	for _, model := range r.models {
+		if finding := fetchStrategyFinding(model); finding != nil {
+			t.Fatalf("seed model %q violates fetch strategy contract: %+v", model.ID, finding)
+		}
 	}
 }
 
-// TestRegistryLintFlagsLandingPageStub proves the lint catches a weight-backed row
+// TestDoctorFlagsLandingPageStub proves DoctorCatalog checks the fetch contract over every row,
 // whose only source is a documentation download_url, and that marking it manual
 // (or giving it a concrete strategy) clears the finding.
-func TestRegistryLintFlagsLandingPageStub(t *testing.T) {
+func TestDoctorFlagsLandingPageStub(t *testing.T) {
 	base := `{
 	  "schema_version": "1.0.0",
 	  "models": [
@@ -280,28 +288,38 @@ func TestRegistryLintFlagsLandingPageStub(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse: %v", err)
 	}
-	lint := r.RegistryLint()
-	if len(lint.Findings) != 1 || lint.Findings[0].Code != "model_without_fetch_strategy" {
-		t.Fatalf("disabled stub should yield one model_without_fetch_strategy finding: %+v", lint.Findings)
+	report := r.DoctorCatalog()
+	finding := findFinding(report.Findings, "model_without_fetch_strategy")
+	if finding == nil {
+		t.Fatalf("disabled stub should yield model_without_fetch_strategy finding: %+v", report.Findings)
 	}
-	if lint.Findings[0].Severity != FindingWarning {
-		t.Errorf("disabled stub finding should be a warning, got %q", lint.Findings[0].Severity)
-	}
-	if !lint.OK {
-		t.Error("a disabled-only (warning) lint should still be OK=true")
+	if finding.Severity != FindingWarning {
+		t.Errorf("disabled stub finding should be a warning, got %q", finding.Severity)
 	}
 
 	// enabled stub → error (and not OK).
 	r, _ = Parse([]byte(fmt.Sprintf(base, "true", "")))
-	if lint := r.RegistryLint(); lint.OK || lint.Findings[0].Severity != FindingError {
-		t.Fatalf("enabled stub must be an error: %+v", lint.Findings)
+	report = r.DoctorCatalog()
+	finding = findFinding(report.Findings, "model_without_fetch_strategy")
+	if finding == nil || finding.Severity != FindingError {
+		t.Fatalf("enabled stub must be an error: %+v", report.Findings)
 	}
 
 	// marked manual → clean.
 	r, _ = Parse([]byte(fmt.Sprintf(base, "false", `"manual": true, `)))
-	if lint := r.RegistryLint(); !lint.OK || len(lint.Findings) != 0 {
-		t.Fatalf("manual-marked stub must lint clean: %+v", lint.Findings)
+	report = r.DoctorCatalog()
+	if finding := findFinding(report.Findings, "model_without_fetch_strategy"); finding != nil {
+		t.Fatalf("manual-marked stub must not get fetch-strategy finding: %+v", finding)
 	}
+}
+
+func findFinding(findings []CatalogFinding, code string) *CatalogFinding {
+	for i := range findings {
+		if findings[i].Code == code {
+			return &findings[i]
+		}
+	}
+	return nil
 }
 
 // parseSeedWithEnabled re-parses the bundled seed with the given model ids forced

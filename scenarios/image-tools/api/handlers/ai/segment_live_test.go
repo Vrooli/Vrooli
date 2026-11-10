@@ -327,8 +327,8 @@ func TestSegment_ManagedInstallSAM2DurableJob(t *testing.T) {
 	engine, err := internalai.NewEngine(internalai.Deps{Registry: registry, Backends: providers, Store: store, ModelsRoot: modelRoot,
 		Probe:    hostProbe,
 		Capacity: capacityBroker,
-		Enabled: func(context.Context) (models.EnabledFunc, error) {
-			return func(id string) bool { return id == modelID }, nil
+		Enabled: func(context.Context) (map[string]bool, error) {
+			return map[string]bool{modelID: true}, nil
 		},
 		ModelInstalled: func(id string) bool { return id == modelID },
 	})

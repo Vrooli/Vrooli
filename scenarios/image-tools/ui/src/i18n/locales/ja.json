@@ -131,7 +131,8 @@
       "unspecified": "未指定",
       "localSerial": "ローカル直列キュー",
       "cpuPool": "CPUプール",
-      "networkPool": "ネットワークプール"
+      "networkPool": "ネットワークプール",
+      "capacity": "ローカル処理"
     },
     "state": {
       "unspecified": "未指定",
@@ -139,7 +140,9 @@
       "running": "実行中",
       "succeeded": "成功",
       "failed": "失敗",
-      "canceled": "キャンセル済み"
+      "canceled": "キャンセル済み",
+      "admitting": "リソース待機中",
+      "canceling": "停止中"
     },
     "errorLabel": "エラー:",
     "liveBadge": "ライブ"
@@ -153,7 +156,11 @@
       "camera": "カメラ",
       "sample": "サンプルを試す",
       "dropActive": "ドロップして開く",
-      "fileLabel": "画像ファイルを選択"
+      "fileLabel": "画像ファイルを選択",
+      "linkLabel": "公開画像 URL",
+      "linkPlaceholder": "公開画像のリンクを貼り付け",
+      "importLink": "リンクを読み込む",
+      "importingLink": "読み込み中…"
     },
     "group": {
       "quickEdits": "クイック編集",
@@ -351,6 +358,7 @@
         "needsBackendManual": "エンジンの手動セットアップが必要",
         "needsBoth": "重みとエンジンが必要",
         "disabled": "設定で無効",
+        "commercialRightsReviewRequired": "商用利用権の確認が必要",
         "insufficient": "このハードウェアでは実行不可",
         "unsupported": "お使いの OS では利用不可",
         "derivedUnproven": "ワークフロー経由（未実証）"
@@ -391,6 +399,7 @@
       "architectureLabel": "アーキテクチャを確認",
       "selectArchitecture": "アーキテクチャを選択…",
       "attestLabel": "商用権利を保有しています（公開/BYOK 提供を許可）",
+      "attestRequired": "Image Tools がモデルを登録または重みをダウンロードする前に、商用利用権の確認が必要です。",
       "import": "インポートとインストール",
       "importing": "インポート中…",
       "success": "インポートを開始しました — ダウンロード完了後にモデルが表示されます。",
@@ -458,6 +467,10 @@
       "quality_assessment": {
         "label": "品質を評価",
         "desc": "鮮明さ・露出・コントラストを即座に採点します。"
+      },
+      "caption": {
+        "label": "画像を説明",
+        "desc": "画像の内容をローカルで自然な文章にします。"
       }
     },
     "analyze": {
@@ -468,6 +481,7 @@
       "modelNote": "モデルを使用します。初回実行時にインストールされます。",
       "run": "解析",
       "running": "解析中…",
+      "cancel": "キャンセル",
       "retry": "再試行",
       "failed": "解析に失敗しました。",
       "probe": {

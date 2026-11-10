@@ -42,3 +42,21 @@ CREATE TABLE IF NOT EXISTS job_trace (
 
 CREATE INDEX IF NOT EXISTS idx_job_trace_operation ON job_trace (operation);
 CREATE INDEX IF NOT EXISTS idx_job_trace_model_id ON job_trace (model_id);
+
+-- Owner-collected model profiles. `profile` is cold, warm, or peak-memory;
+-- status is measured, unavailable, or failed so a missing device/model path is
+-- visible instead of silently disappearing from the query surface.
+CREATE TABLE IF NOT EXISTS model_profile (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  operation      TEXT NOT NULL,
+  model_id       TEXT NOT NULL,
+  profile        TEXT NOT NULL,
+  status         TEXT NOT NULL,
+  duration_ms    INTEGER NOT NULL DEFAULT 0,
+  peak_memory_b  INTEGER NOT NULL DEFAULT 0,
+  device         TEXT NOT NULL DEFAULT '',
+  evidence       TEXT NOT NULL DEFAULT '',
+  recorded_at    TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_model_profile_model ON model_profile (model_id, operation, profile);

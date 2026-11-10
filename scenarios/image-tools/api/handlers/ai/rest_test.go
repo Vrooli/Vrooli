@@ -177,6 +177,9 @@ func newTestServerWithStore(t *testing.T, installed bool) (*mux.Router, *fakeSub
 	if err := backendReg.Register(&fakeProvider{name: "onnxruntime", ops: []string{"segment"}}); err != nil {
 		t.Fatal(err)
 	}
+	if err := backendReg.Register(&fakeProvider{name: "llama.cpp", ops: []string{"caption"}}); err != nil {
+		t.Fatal(err)
+	}
 	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
 	eng, err := internalai.NewEngine(internalai.Deps{
 		Registry:       registry,
@@ -197,6 +200,35 @@ func newTestServerWithStore(t *testing.T, installed bool) (*mux.Router, *fakeSub
 	r.HandleFunc("/api/v1/ai/{operation}", deps.submitHandler).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/ai/operations/{operation_id}", deps.operationHandler).Methods(http.MethodGet)
 	return r, sub, store
+}
+
+func TestCaptionIsAdmittedThroughDurableAIJobRoute(t *testing.T) {
+	r, sub := newTestServer(t, true)
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	if err := mw.WriteField("params", `{"prompt":"Describe the red shape.","fallbackPolicy":"local_only"}`); err != nil {
+		t.Fatal(err)
+	}
+	image, err := mw.CreateFormFile("file", "synthetic.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := image.Write([]byte("synthetic image bytes")); err != nil {
+		t.Fatal(err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/ai/caption", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("caption admission status=%d body=%s", w.Code, w.Body.String())
+	}
+	if sub.calls != 1 || sub.last.Operation != "caption" {
+		t.Fatalf("caption was not submitted through the durable runner: calls=%d spec=%+v", sub.calls, sub.last)
+	}
 }
 
 func TestSubmit_ClientOperationKeyCanBeReadBack(t *testing.T) {

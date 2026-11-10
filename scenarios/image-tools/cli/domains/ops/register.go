@@ -16,6 +16,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
 		"OpsService.ListOperations": h.list,
+		"import-link":               h.importLink,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

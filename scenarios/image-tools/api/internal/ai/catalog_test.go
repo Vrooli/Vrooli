@@ -14,6 +14,10 @@ func TestCatalog_BreadthOpsRegistered(t *testing.T) {
 		{"background_replace", CategoryGeneration, true, true, true},
 		{"colorize", CategoryEnhancement, true, false, false},
 		{"depth_map", CategoryEnhancement, true, false, false},
+		{"deblur", CategoryRestoration, true, false, false},
+		{"face_restore", CategoryRestoration, true, false, false},
+		{"old_photo_restore", CategoryRestoration, true, false, false},
+		{"caption", CategoryAnalysis, true, false, false},
 	}
 	for _, c := range cases {
 		op, ok := Get(c.op)
@@ -36,7 +40,7 @@ func TestBuildRunners_CoversBreadthOps(t *testing.T) {
 	// dispatcher can execute it.
 	eng := &Engine{}
 	runners := eng.BuildRunners()
-	for _, op := range []string{"outpaint", "background_replace", "colorize", "depth_map"} {
+	for _, op := range []string{"outpaint", "background_replace", "colorize", "depth_map", "deblur", "face_restore", "old_photo_restore", "caption"} {
 		if _, ok := runners[op]; !ok {
 			t.Errorf("BuildRunners missing a runner for %q", op)
 		}

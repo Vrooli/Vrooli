@@ -16,6 +16,8 @@ Probe kinds:
     (delegates to _diffusers.inpaint_smoke).
   * onnx — construct an onnxruntime InferenceSession from the installed .onnx
     weight (a real, cheap load that catches corruption / opset mismatch).
+  * sam2 — load the local Transformers SAM 2 checkpoint; --deep also runs a
+    synthetic point-prompt forward pass through the operation adapter.
 """
 
 from __future__ import annotations
@@ -49,22 +51,30 @@ def _smoke_onnx(model_dir: str) -> str:
     return f"onnx smoke OK: loaded InferenceSession from {onnx_path} (inputs: {inputs})"
 
 
+def _smoke_sam2(model_dir: str, deep: bool) -> str:
+    from . import sam2
+
+    return sam2.smoke(model_dir, deep=deep)
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="image-tools install-time load-smoke probe")
-    p.add_argument("--kind", required=True, choices=["diffusers", "diffusers-inpaint", "onnx"])
+    p.add_argument("--kind", required=True, choices=["diffusers", "diffusers-inpaint", "onnx", "sam2"])
     p.add_argument("--model-dir", required=True, help="installed model directory")
     p.add_argument("--family", default="", help="diffusers family (required for --kind diffusers)")
     p.add_argument("--architecture", default="", help="model architecture (required for --kind diffusers-inpaint)")
     p.add_argument("--variant", default="", help="Diffusers weight variant for repository models")
-    p.add_argument("--deep", action="store_true", help="also load full weights (opt-in, expensive)")
+    p.add_argument("--deep", action="store_true", help="also run an opt-in model-specific forward smoke (expensive)")
     args = p.parse_args()
 
     if args.kind == "diffusers":
         summary = _smoke_diffusers(args.model_dir, args.family, args.deep)
     elif args.kind == "diffusers-inpaint":
         summary = _smoke_diffusers_inpaint(args.model_dir, args.architecture, args.deep, args.variant)
-    else:
+    elif args.kind == "onnx":
         summary = _smoke_onnx(args.model_dir)
+    else:
+        summary = _smoke_sam2(args.model_dir, args.deep)
 
     sys.stdout.write(summary + "\n")
     sys.exit(0)

@@ -4,6 +4,7 @@ import {
   Gauge,
   ScanSearch,
   ScanText,
+  Image,
   ShieldAlert,
   type LucideIcon,
 } from "lucide-react";
@@ -21,11 +22,9 @@ export interface AnalyzeOpPresentation {
 }
 
 /**
- * Maps each analysis op (discovered from `AnalysisService.ListAnalysisOperations`)
- * to its humanized label/description keys and a lucide icon. Driven by the live
- * catalog, so a backend that adds an analysis op still renders (via the
- * fallback) without a code change here. The three shipped ops are the pure-Go
- * `probe`, the model-backed `ocr`, and the model-backed `nsfw_classify`.
+ * Maps discovered analysis operations plus the durable AI `caption` operation
+ * to human labels and icons. Unknown operations still render through the
+ * fallback, provided the API result parser supports them.
  */
 export const ANALYZE_CATALOG: Readonly<Record<string, AnalyzeOpPresentation>> = {
   probe: {
@@ -52,6 +51,11 @@ export const ANALYZE_CATALOG: Readonly<Record<string, AnalyzeOpPresentation>> = 
     labelKey: strings.workspace.analyzeOp.quality_assessment.label,
     descKey: strings.workspace.analyzeOp.quality_assessment.desc,
     Icon: Gauge,
+  },
+  caption: {
+    labelKey: strings.workspace.analyzeOp.caption.label,
+    descKey: strings.workspace.analyzeOp.caption.desc,
+    Icon: Image,
   },
 };
 

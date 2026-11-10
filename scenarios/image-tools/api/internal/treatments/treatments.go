@@ -14,8 +14,9 @@ import (
 	"image/draw"
 	"math"
 	"sort"
-	"strconv"
 	"strings"
+
+	"image-tools/internal/colorutil"
 
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
@@ -105,40 +106,14 @@ type Params struct {
 }
 
 func parseColor(value string, fallback color.NRGBA) (color.NRGBA, error) {
-	s := strings.TrimPrefix(strings.TrimSpace(value), "#")
-	if s == "" {
+	if strings.TrimSpace(value) == "" {
 		return fallback, nil
 	}
-	if len(s) == 3 {
-		s = string([]byte{s[0], s[0], s[1], s[1], s[2], s[2]})
-	}
-	if len(s) != 6 && len(s) != 8 {
-		return color.NRGBA{}, fmt.Errorf("treatments: invalid color %q", value)
-	}
-	read := func(part string) (uint8, error) {
-		v, err := strconv.ParseUint(part, 16, 8)
-		return uint8(v), err
-	}
-	r, err := read(s[0:2])
+	c, err := colorutil.ParseHex(value)
 	if err != nil {
 		return color.NRGBA{}, fmt.Errorf("treatments: invalid color %q", value)
 	}
-	g, err := read(s[2:4])
-	if err != nil {
-		return color.NRGBA{}, fmt.Errorf("treatments: invalid color %q", value)
-	}
-	b, err := read(s[4:6])
-	if err != nil {
-		return color.NRGBA{}, fmt.Errorf("treatments: invalid color %q", value)
-	}
-	a := uint8(255)
-	if len(s) == 8 {
-		a, err = read(s[6:8])
-		if err != nil {
-			return color.NRGBA{}, fmt.Errorf("treatments: invalid color %q", value)
-		}
-	}
-	return color.NRGBA{R: r, G: g, B: b, A: a}, nil
+	return c, nil
 }
 
 func clone(src image.Image) *image.NRGBA {

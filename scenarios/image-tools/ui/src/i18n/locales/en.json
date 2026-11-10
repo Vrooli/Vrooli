@@ -136,7 +136,8 @@
       "unspecified": "Unspecified",
       "localSerial": "Serialized local queue",
       "cpuPool": "CPU pool",
-      "networkPool": "Network pool"
+      "networkPool": "Network pool",
+      "capacity": "Local work"
     },
     "state": {
       "unspecified": "Unspecified",
@@ -144,7 +145,9 @@
       "running": "Running",
       "succeeded": "Succeeded",
       "failed": "Failed",
-      "canceled": "Canceled"
+      "canceled": "Canceled",
+      "admitting": "Waiting for capacity",
+      "canceling": "Stopping"
     }
   },
   "home": {
@@ -156,7 +159,11 @@
       "camera": "Camera",
       "sample": "Try a sample",
       "dropActive": "Drop to open",
-      "fileLabel": "Choose an image file"
+      "fileLabel": "Choose an image file",
+      "linkLabel": "Public image URL",
+      "linkPlaceholder": "Paste a public image link",
+      "importLink": "Import link",
+      "importingLink": "Importing…"
     },
     "group": {
       "quickEdits": "Quick edits",
@@ -355,6 +362,7 @@
         "needsBackendManual": "Engine needs manual setup",
         "needsBoth": "Weights + engine needed",
         "disabled": "Disabled in settings",
+        "commercialRightsReviewRequired": "Commercial rights review required",
         "insufficient": "Can't run on your hardware",
         "unsupported": "Not available for your OS",
         "derivedUnproven": "Via workflow (not yet proven)"
@@ -394,7 +402,8 @@
       "nameLabel": "Display name",
       "architectureLabel": "Confirm architecture",
       "selectArchitecture": "Select an architecture…",
-      "attestLabel": "I hold commercial rights (allow public/BYOK serving)",
+      "attestLabel": "I hold commercial rights for these model weights",
+      "attestRequired": "A rights attestation is required before Image Tools registers the model or downloads its weights.",
       "import": "Import & install",
       "importing": "Importing…",
       "success": "Import started — the model will appear once its download finishes.",
@@ -462,6 +471,10 @@
       "quality_assessment": {
         "label": "Assess quality",
         "desc": "Score sharpness, exposure, and contrast instantly."
+      },
+      "caption": {
+        "label": "Describe image",
+        "desc": "Generate a local, natural-language description of the image."
       }
     },
     "analyze": {
@@ -472,6 +485,7 @@
       "modelNote": "Uses a model — installs on first run.",
       "run": "Analyze",
       "running": "Analyzing…",
+      "cancel": "Cancel",
       "retry": "Try again",
       "failed": "Analysis failed.",
       "probe": {

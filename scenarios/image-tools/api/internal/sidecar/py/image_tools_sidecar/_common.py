@@ -24,8 +24,12 @@ def onnx_thread_settings():
     This limits runtime worker fan-out. It does not reserve CPUs, set affinity,
     or impose a CPU quota; those are separate owner-level controls.
     """
+    admitted = os.environ.get("IMAGE_TOOLS_CPU_THREADS")
+    limit = _ONNX_MAX_INTRA_OP_THREADS if admitted is None else int(admitted)
+    if limit < 1:
+        raise ValueError("IMAGE_TOOLS_CPU_THREADS must be positive")
     return {
-        "intra_op_num_threads": max(1, min(_ONNX_MAX_INTRA_OP_THREADS, os.cpu_count() or 1)),
+        "intra_op_num_threads": max(1, min(limit, _ONNX_MAX_INTRA_OP_THREADS, os.cpu_count() or 1)),
         "inter_op_num_threads": _ONNX_INTER_OP_THREADS,
         "execution_mode": "sequential",
     }

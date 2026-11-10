@@ -25,9 +25,9 @@ import (
 )
 
 // Category and Op are views over the operation vocabulary SSOT
-// (internal/operations). The AI engine runs generation/enhancement and the
-// image-producing prompted segmentation job. Structured analysis and builtin
-// smart selection retain their owners. This catalog filters the vocabulary
+// (internal/operations). The AI engine runs generation/enhancement, captioning,
+// and the image-producing prompted segmentation job. Other structured analysis
+// and builtin smart selection retain their owners. This catalog filters the vocabulary
 // rather than redeclaring operation entries (W1 collapse, see
 // docs/internal/TECHNIQUE-SUBSTRATE.md).
 type Category = operations.Category
@@ -37,6 +37,8 @@ const (
 	CategoryGeneration = operations.CategoryGeneration
 	// CategoryEnhancement covers super-resolution / restoration enhancement.
 	CategoryEnhancement = operations.CategoryEnhancement
+	CategoryRestoration = operations.CategoryRestoration
+	CategoryAnalysis    = operations.CategoryAnalysis
 )
 
 // Op is one model-backed AI operation (an alias of the vocabulary entry). Name
@@ -44,21 +46,21 @@ const (
 // agree.
 type Op = operations.Operation
 
-// catalog is the AI-op table derived from the vocabulary SSOT: every generation +
-// enhancement operation (the ops the runner factory builds runners for). It is
+// catalog is the AI-op table derived from the vocabulary SSOT: generation,
+// enhancement, caption and prompted segmentation operations. It is
 // consumed by the runner factory (execution), the AIService (discovery), and the
 // CLI surface. Each op's model is forward-declared in registry.seed.json and the
 // op gates honestly (HTTP 409) until its backend program + weights are installed.
 var catalog = func() map[string]Op {
-	ops := operations.ByCategory(CategoryGeneration, CategoryEnhancement)
+	ops := operations.ByCategory(CategoryGeneration, CategoryEnhancement, CategoryRestoration)
 	m := make(map[string]Op, len(ops))
 	for _, o := range ops {
 		m[o.Name] = o
 	}
-	// Prompted segmentation is an image-producing, model-backed job, unlike
-	// synchronous heuristic smart-selection. Reuse the durable AI execution lane.
+	// Captioning returns structured text; segmentation returns an image. Both
+	// are model-backed jobs unlike synchronous heuristic smart-selection.
 	for _, o := range operations.ByCategory(operations.CategoryAnalysis) {
-		if o.Name == "segment" {
+		if o.Name == "segment" || o.Name == "caption" {
 			m[o.Name] = o
 		}
 	}

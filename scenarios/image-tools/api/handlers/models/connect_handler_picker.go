@@ -59,11 +59,16 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 		h.deps.Logger.Printf("models.ListOperationModels installs: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("load install state"))
 	}
+	registry, customIDs, err := h.effectiveRegistry(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("models.ListOperationModels custom registry: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("load custom model catalog"))
+	}
 
 	// Backend software readiness, keyed by provider/backend family name.
 	providerStatus := map[string]internalbackends.BackendStatus{}
 	if h.deps.Backends != nil {
-		for _, b := range h.deps.Backends.DoctorForModels(ctx, h.deps.Registry.Models()).Backends {
+		for _, b := range h.deps.Backends.DoctorForModels(ctx, registry.Models()).Backends {
 			providerStatus[b.Name] = b
 		}
 	}
@@ -72,27 +77,15 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 	// set contains it, native OR architecture-derived (proven or not), so a base
 	// checkpoint shows "inpaint ⚠ via workflow" instead of disappearing. Each
 	// carries its EffectiveOp (support/technique/caveat/Ready) for annotation.
-	candidates := h.deps.Registry.OpCandidates(op)
-	customMap := map[string]bool{}
-	if customs, cerr := h.customModels(ctx); cerr == nil {
-		for _, m := range customs {
-			for _, eo := range m.EffectiveOps() {
-				if eo.Op == op {
-					candidates = append(candidates, internalmodels.OpCandidate{Model: m, Effective: eo})
-					customMap[m.ID] = true
-					break
-				}
-			}
-		}
-	}
+	candidates := registry.OpCandidates(op)
 
 	// The model that would actually be selected on this host (for the "selected"
 	// flag + reason). A selection error (nothing runnable) leaves it empty.
 	selectedID, selectedReason := "", ""
-	if sel, serr := h.deps.Registry.Select(internalmodels.SelectRequest{
+	if sel, serr := registry.Select(internalmodels.SelectRequest{
 		Operation: op,
 		Host:      host,
-	}, h.deps.Registry.EnabledWithOverlay(overlay)); serr == nil {
+	}, registry.EnabledWithOverlay(overlay)); serr == nil {
 		selectedID, selectedReason = sel.Model.ID, sel.Reason
 	}
 
@@ -116,33 +109,34 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 		}
 		fitClass := internalmodels.FitClass(m, host, fit)
 		enabled := internalmodels.EffectiveEnabled(m, overlay)
+		record, found := installs[m.ID]
+		publicRecord, publicFound := h.publicInstallState(m, record, found)
 		installed := !m.RequiresWeights()
-		if rec, ok := installs[m.ID]; ok && rec.Installed {
+		if publicFound && publicRecord.Installed {
 			installed = true
 		}
 		backend := h.backendReadiness(ctx, m, providerStatus, toolCache)
-		var smokeStatus internalmodels.SmokeStatus
-		if h.deps.Installer != nil && installed {
-			dir := h.deps.Installer.ModelDir(m.ID)
-			if rec, ok := installs[m.ID]; ok && rec.Path != "" {
-				dir = rec.Path
+		lifecycle := internalmodels.ModelLifecycle{State: internalmodels.ModelReady, Reason: "ready"}
+		if h.deps.Installer != nil {
+			var err error
+			lifecycle, err = h.deps.Installer.LifecycleFromInstallList(ctx, m, record, found)
+			if err != nil {
+				return nil, connect.NewError(connect.CodeInternal, err)
 			}
-			smokeStatus = h.deps.Installer.SmokeStatusFor(ctx, m, dir)
 		}
 		eo := cand.Effective
 		// A derived op whose technique is not yet proven is honestly un-offerable
 		// (derived_pipeline_unproven) regardless of weights/backend/hardware — it is
 		// shown so the user understands the capability exists, never run.
-		ready := readyState(installed, enabled, fitClass, backend, smokeStatus)
-		ready = requirePythonSidecarSmoke(m, smokeStatus, ready)
-		if ready == "ready" && installed && m.BuildProfile != nil && h.deps.Installer != nil && !h.deps.Installer.BuildReady(ctx, m.ID) {
-			ready = "build_not_ready"
-		}
+		ready := readyState(installed, enabled, fitClass, backend, lifecycle)
 		if eo.Support == "derived" && !eo.Ready {
 			ready = "derived_pipeline_unproven"
 		}
+		if m.CapabilityLabels.CommercialUse != internalmodels.CommercialUseYes {
+			ready = "commercial_rights_review_required"
+		}
 		out.Candidates = append(out.Candidates, &modelsv1.CandidateModel{
-			Model:      domainToProto(m, viewFor(m, customMap[m.ID], overlay, installs)),
+			Model:      domainToProto(m, h.viewFor(m, customIDs[m.ID], overlay, installs)),
 			Fit:        fitToProto(fit, fitClass),
 			Backend:    backend,
 			ReadyState: ready,
@@ -154,13 +148,6 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 	}
 	sortCandidates(out.Candidates)
 	return connect.NewResponse(out), nil
-}
-
-func requirePythonSidecarSmoke(m internalmodels.Model, smoke internalmodels.SmokeStatus, state string) string {
-	if state == "ready" && m.Backend == "python-sidecar" && !smoke.Applicable {
-		return "smoke_unsupported"
-	}
-	return state
 }
 
 // ExplainResolution returns the explicit Resolution for an operation on this
@@ -355,7 +342,7 @@ func classifyTier(tool string, st *cliv1.CliHostInstallStatus) *toolTier {
 // apply to a model whose weights are installed and whose backend is otherwise
 // ready — they surface "installed but not runnable" (env not provisioned, or the
 // install-time load-smoke failed) BEFORE the user picks the model.
-func readyState(installed, enabled bool, fitClass string, br *modelsv1.BackendReadiness, smoke internalmodels.SmokeStatus) string {
+func readyState(installed, enabled bool, fitClass string, br *modelsv1.BackendReadiness, lifecycle internalmodels.ModelLifecycle) string {
 	switch fitClass {
 	case "unsupported_os":
 		return "unsupported"
@@ -369,18 +356,7 @@ func readyState(installed, enabled bool, fitClass string, br *modelsv1.BackendRe
 	backendAuto := br.GetInstallTier() == "auto"
 	switch {
 	case installed && backendReady:
-		if smoke.Applicable {
-			if !smoke.EnvProvisioned {
-				return "env_not_provisioned"
-			}
-			if !smoke.HasVerdict {
-				return "smoke_pending"
-			}
-			if smoke.HasVerdict && !smoke.Verdict.Pass {
-				return "smoke_failed"
-			}
-		}
-		return "ready"
+		return lifecycle.Reason
 	case !installed && backendReady:
 		return "needs_model_install"
 	case installed && !backendReady:
@@ -417,14 +393,16 @@ func readyRank(state string) int {
 		return 7
 	case "disabled":
 		return 8
-	case "derived_pipeline_unproven":
+	case "commercial_rights_review_required":
 		return 9
-	case "insufficient":
+	case "derived_pipeline_unproven":
 		return 10
+	case "insufficient":
+		return 11
 	case "unsupported":
-		return 11
+		return 12
 	default:
-		return 11
+		return 12
 	}
 }
 

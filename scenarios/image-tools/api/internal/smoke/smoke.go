@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-
 	"path/filepath"
 	"strings"
 
@@ -40,6 +39,8 @@ type Invoker struct {
 	PythonPath string
 	// Module is the probe module run as `python -m <Module> <args...>`.
 	Module string
+	// Env constrains the admitted process (device selection and thread pools).
+	Env []string
 	// Run is the injected executor; nil uses os/exec.
 	Run Runner
 }
@@ -52,7 +53,7 @@ func (in Invoker) Probe(ctx context.Context, args []string) (string, error) {
 		return "", fmt.Errorf("smoke: no venv interpreter (Python environment not provisioned)")
 	}
 	full := append([]string{"-m", in.Module}, args...)
-	var env []string
+	env := append([]string(nil), in.Env...)
 	if strings.TrimSpace(in.PythonPath) != "" {
 		env = append(env, "PYTHONPATH="+in.PythonPath)
 	}
@@ -105,8 +106,7 @@ func ReadVerdict(modelDir string) (Verdict, bool) {
 	return v, true
 }
 
-// WriteVerdict persists a verdict into a model dir (best-effort cache; the caller
-// treats a write error as non-fatal).
+// WriteVerdict persists the evidence required for model readiness.
 func WriteVerdict(modelDir string, v Verdict) error {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {

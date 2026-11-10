@@ -6,7 +6,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -35,16 +37,18 @@ func TestExecProvider_DiffusersReceivesCapacityDeviceDecision(t *testing.T) {
 			device = "cuda"
 		}
 		p := &execProvider{
-			name: "diffusers", program: "python3", pythonInterpreter: "/private/python",
-			techniques: technique.Single("edit_instruct", func(backends.Request, string) ([]string, error) {
+			backendProcess: backendProcess{
+				name: "diffusers", program: "python3", pythonInterpreter: "/private/python",
+
+				run: func(ctx context.Context, program string, args []string) error {
+					if got := strings.Join(args, " "); !strings.HasSuffix(got, "--device "+device) {
+						t.Fatalf("device decision lost: %s", got)
+					}
+					return nil
+				},
+			}, techniques: technique.Single("edit_instruct", func(backends.Request, string) ([]string, error) {
 				return []string{"-m", "image_tools_sidecar.edit_instruct"}, nil
 			}),
-			run: func(ctx context.Context, program string, args []string) error {
-				if got := strings.Join(args, " "); !strings.HasSuffix(got, "--device "+device) {
-					t.Fatalf("device decision lost: %s", got)
-				}
-				return nil
-			},
 		}
 		if _, err := p.Execute(context.Background(), backends.Request{Operation: "edit_instruct", GPU: gpu, Output: storage.OutputTarget{LocalPath: "/out.png"}}); err != nil {
 			t.Fatal(err)
@@ -71,7 +75,7 @@ func TestGPUDeviceBindingIsPerProcess(t *testing.T) {
 }
 
 func TestTripoSRProviderSupportsReservedGPUUUID(t *testing.T) {
-	provider := &execProvider{name: "triposr"}
+	provider := &execProvider{backendProcess: backendProcess{name: "triposr"}}
 	if !provider.SupportsGPUUUID() {
 		t.Fatal("TripoSR uses torch CUDA and must honor the broker-reserved CUDA_VISIBLE_DEVICES UUID")
 	}
@@ -103,7 +107,7 @@ func TestRegisterProviders_SatisfiesBootInvariant(t *testing.T) {
 func TestProgramName_PythonUsesVenvInterpreter(t *testing.T) {
 	const venv = "/data/image-tools/pyenv/bin/python"
 
-	py := &execProvider{name: "diffusers", program: "python3", pythonInterpreter: venv}
+	py := &execProvider{backendProcess: backendProcess{name: "diffusers", program: "python3", pythonInterpreter: venv}}
 	if got := py.programName(); got != venv {
 		t.Errorf("python backend with venv: programName() = %q, want %q", got, venv)
 	}
@@ -111,25 +115,27 @@ func TestProgramName_PythonUsesVenvInterpreter(t *testing.T) {
 	// No venv → no fallback to the shared host python3 (that is the contamination
 	// the isolation seam exists to prevent). programName() is empty; Availability/
 	// Execute then report the backend unavailable.
-	pyNoVenv := &execProvider{name: "diffusers", program: "python3"}
+	pyNoVenv := &execProvider{backendProcess: backendProcess{name: "diffusers", program: "python3"}}
 	if got := pyNoVenv.programName(); got != "" {
 		t.Errorf("python backend without venv must NOT fall back to PATH python3, got %q", got)
 	}
 
 	// A non-python backend must ignore the interpreter entirely.
-	sd := &execProvider{name: "sd", program: "sd", pythonInterpreter: venv}
+	sd := &execProvider{backendProcess: backendProcess{name: "sd", program: "sd", pythonInterpreter: venv}}
 	if got := sd.programName(); got != "sd" {
 		t.Errorf("non-python backend must not use the venv interpreter, got %q", got)
 	}
 
 	// GPU-alias resolution for non-python backends is unaffected by the seam.
 	sdGPU := &execProvider{
-		name: "sd", program: "sd", programAliases: []string{"sd-gpu"}, pythonInterpreter: venv,
-		lookPath: func(f string) (string, error) {
-			if f == "sd-gpu" {
-				return "/usr/bin/sd-gpu", nil
-			}
-			return "", errors.New("not found")
+		backendProcess: backendProcess{
+			name: "sd", program: "sd", programAliases: []string{"sd-gpu"}, pythonInterpreter: venv,
+			lookPath: func(f string) (string, error) {
+				if f == "sd-gpu" {
+					return "/usr/bin/sd-gpu", nil
+				}
+				return "", errors.New("not found")
+			},
 		},
 	}
 	if got := sdGPU.programName(); got != "sd-gpu" {
@@ -144,12 +150,14 @@ func TestProgramName_PythonUsesVenvInterpreter(t *testing.T) {
 // reintroduced a PATH fallback would wrongly flip the backend available and fail.
 func TestPythonBackendUnavailableWithoutVenv(t *testing.T) {
 	p := &execProvider{
-		name:      "diffusers",
-		program:   "python3",
-		imports:   []string{"diffusers", "torch", "PIL"},
-		provision: deriveProvision("uv"),
-		lookPath:  func(string) (string, error) { return "/usr/bin/python3", nil },
-		checkPy:   func(context.Context, string, []string) error { return nil },
+		backendProcess: backendProcess{
+			name:      "diffusers",
+			program:   "python3",
+			imports:   []string{"diffusers", "torch", "PIL"},
+			provision: deriveProvision("uv"),
+			lookPath:  func(string) (string, error) { return "/usr/bin/python3", nil },
+			checkPy:   func(context.Context, string, []string) error { return nil },
+		},
 	}
 
 	a := p.Availability(context.Background())
@@ -219,18 +227,20 @@ func TestExecProvider_Availability(t *testing.T) {
 
 func TestExecProvider_AvailabilityChecksPythonImports(t *testing.T) {
 	p := &execProvider{
-		name:              "onnxruntime",
-		program:           "python3",
-		pythonInterpreter: "/data/pyenv/bin/python",
-		imports:           []string{"onnxruntime", "PIL", "numpy"},
-		lookPath: func(string) (string, error) {
-			return "/usr/bin/python3", nil
-		},
-		checkPy: func(_ context.Context, _ string, modules []string) error {
-			if !slices.Equal(modules, []string{"onnxruntime", "PIL", "numpy"}) {
-				t.Fatalf("modules = %v", modules)
-			}
-			return errors.New("missing module")
+		backendProcess: backendProcess{
+			name:              "onnxruntime",
+			program:           "python3",
+			pythonInterpreter: "/data/pyenv/bin/python",
+			imports:           []string{"onnxruntime", "PIL", "numpy"},
+			lookPath: func(string) (string, error) {
+				return "/usr/bin/python3", nil
+			},
+			checkPy: func(_ context.Context, _ string, modules []string) error {
+				if !slices.Equal(modules, []string{"onnxruntime", "PIL", "numpy"}) {
+					t.Fatalf("modules = %v", modules)
+				}
+				return errors.New("missing module")
+			},
 		},
 	}
 
@@ -245,16 +255,18 @@ func TestExecProvider_AvailabilityChecksPythonImports(t *testing.T) {
 
 func TestExecProvider_ONNXRuntimeAvailabilityReportsExecutionProviders(t *testing.T) {
 	p := &execProvider{
-		name:              "onnxruntime",
-		program:           "python3",
-		pythonInterpreter: "/data/pyenv/bin/python",
-		imports:           []string{"onnxruntime", "PIL", "numpy"},
-		lookPath: func(string) (string, error) {
-			return "/usr/bin/python3", nil
-		},
-		checkPy: func(context.Context, string, []string) error { return nil },
-		checkONNX: func(context.Context, string) ([]string, error) {
-			return []string{"AzureExecutionProvider", "CPUExecutionProvider"}, nil
+		backendProcess: backendProcess{
+			name:              "onnxruntime",
+			program:           "python3",
+			pythonInterpreter: "/data/pyenv/bin/python",
+			imports:           []string{"onnxruntime", "PIL", "numpy"},
+			lookPath: func(string) (string, error) {
+				return "/usr/bin/python3", nil
+			},
+			checkPy: func(context.Context, string, []string) error { return nil },
+			checkONNX: func(context.Context, string) ([]string, error) {
+				return []string{"AzureExecutionProvider", "CPUExecutionProvider"}, nil
+			},
 		},
 	}
 
@@ -272,16 +284,18 @@ func TestExecProvider_ONNXRuntimeAvailabilityReportsExecutionProviders(t *testin
 
 func TestExecProvider_ONNXRuntimeAvailabilityRequiresCPUProvider(t *testing.T) {
 	p := &execProvider{
-		name:              "onnxruntime",
-		program:           "python3",
-		pythonInterpreter: "/data/pyenv/bin/python",
-		imports:           []string{"onnxruntime", "PIL", "numpy"},
-		lookPath: func(string) (string, error) {
-			return "/usr/bin/python3", nil
-		},
-		checkPy: func(context.Context, string, []string) error { return nil },
-		checkONNX: func(context.Context, string) ([]string, error) {
-			return []string{"CUDAExecutionProvider"}, nil
+		backendProcess: backendProcess{
+			name:              "onnxruntime",
+			program:           "python3",
+			pythonInterpreter: "/data/pyenv/bin/python",
+			imports:           []string{"onnxruntime", "PIL", "numpy"},
+			lookPath: func(string) (string, error) {
+				return "/usr/bin/python3", nil
+			},
+			checkPy: func(context.Context, string, []string) error { return nil },
+			checkONNX: func(context.Context, string) ([]string, error) {
+				return []string{"CUDAExecutionProvider"}, nil
+			},
 		},
 	}
 
@@ -296,15 +310,17 @@ func TestExecProvider_ONNXRuntimeAvailabilityRequiresCPUProvider(t *testing.T) {
 
 func TestExecProvider_ONNXRuntimeAvailabilityReportsProviderProbeFailure(t *testing.T) {
 	p := &execProvider{
-		name:              "onnxruntime",
-		program:           "python3",
-		pythonInterpreter: "/data/pyenv/bin/python",
-		imports:           []string{"onnxruntime", "PIL", "numpy"},
-		lookPath: func(string) (string, error) {
-			return "/usr/bin/python3", nil
+		backendProcess: backendProcess{
+			name:              "onnxruntime",
+			program:           "python3",
+			pythonInterpreter: "/data/pyenv/bin/python",
+			imports:           []string{"onnxruntime", "PIL", "numpy"},
+			lookPath: func(string) (string, error) {
+				return "/usr/bin/python3", nil
+			},
+			checkPy:   func(context.Context, string, []string) error { return nil },
+			checkONNX: func(context.Context, string) ([]string, error) { return nil, errors.New("probe failed") },
 		},
-		checkPy:   func(context.Context, string, []string) error { return nil },
-		checkONNX: func(context.Context, string) ([]string, error) { return nil, errors.New("probe failed") },
 	}
 
 	a := p.Availability(context.Background())
@@ -317,7 +333,7 @@ func TestExecProvider_ONNXRuntimeAvailabilityReportsProviderProbeFailure(t *test
 }
 
 func TestExecProvider_ONNXRuntimeProviderDetailReportsCUDAAvailable(t *testing.T) {
-	p := &execProvider{program: "python3", imports: []string{"onnxruntime", "PIL", "numpy"}}
+	p := &execProvider{backendProcess: backendProcess{program: "python3", imports: []string{"onnxruntime", "PIL", "numpy"}}}
 	detail := p.onnxRuntimeProviderDetail("/usr/bin/python3", []string{"CUDAExecutionProvider", "CPUExecutionProvider"})
 	if !strings.Contains(detail, "CUDAExecutionProvider available") {
 		t.Fatalf("detail should report CUDA availability: %q", detail)
@@ -363,15 +379,17 @@ func TestExecProvider_UsesWarmRunnerBeforeOneShot(t *testing.T) {
 	warm := &fakeWarmRunner{}
 	var oneShotCalls int
 	p := &execProvider{
-		name:              "onnxruntime",
-		program:           "python3",
-		pythonInterpreter: "/data/pyenv/bin/python",
-		techniques:        technique.Single("depth_map", technique.OnnxSidecar),
-		warm:              warm,
-		run: func(context.Context, string, []string) error {
-			oneShotCalls++
-			return nil
-		},
+		backendProcess: backendProcess{
+			name:              "onnxruntime",
+			program:           "python3",
+			pythonInterpreter: "/data/pyenv/bin/python",
+
+			warm: warm,
+			run: func(context.Context, string, []string) error {
+				oneShotCalls++
+				return nil
+			},
+		}, techniques: technique.Single("depth_map", technique.OnnxSidecar),
 	}
 	req := backends.Request{
 		Operation: "depth_map",
@@ -396,15 +414,17 @@ func TestExecProvider_DoesNotReplayFailedWarmInference(t *testing.T) {
 	warm := &fakeWarmRunner{err: errors.New("worker exited")}
 	var oneShotCalls int
 	p := &execProvider{
-		name:              "onnxruntime",
-		program:           "python3",
-		pythonInterpreter: "/data/pyenv/bin/python",
-		techniques:        technique.Single("depth_map", technique.OnnxSidecar),
-		warm:              warm,
-		run: func(context.Context, string, []string) error {
-			oneShotCalls++
-			return nil
-		},
+		backendProcess: backendProcess{
+			name:              "onnxruntime",
+			program:           "python3",
+			pythonInterpreter: "/data/pyenv/bin/python",
+
+			warm: warm,
+			run: func(context.Context, string, []string) error {
+				oneShotCalls++
+				return nil
+			},
+		}, techniques: technique.Single("depth_map", technique.OnnxSidecar),
 	}
 	req := backends.Request{
 		Operation: "depth_map",
@@ -429,7 +449,7 @@ func TestExecProvider_ExecutionErrors(t *testing.T) {
 		InputKeys: []string{"/in.png"},
 		Output:    storage.OutputTarget{LocalPath: "/out.png"},
 	}
-	p := &execProvider{name: "onnxruntime", program: "python3", pythonInterpreter: "/data/pyenv/bin/python", techniques: technique.Single("depth_map", technique.OnnxSidecar)}
+	p := &execProvider{backendProcess: backendProcess{name: "onnxruntime", program: "python3", pythonInterpreter: "/data/pyenv/bin/python"}, techniques: technique.Single("depth_map", technique.OnnxSidecar)}
 	if _, err := p.Execute(context.Background(), backends.Request{Operation: "depth_map", Model: models.Model{ID: "m1"}, InputKeys: []string{"/in.png"}}); err == nil {
 		t.Fatal("expected missing output path error")
 	}
@@ -513,6 +533,40 @@ func TestLlamaCppProvider_AvailabilityAndExecute(t *testing.T) {
 	}
 	if got["caption"] != "a small red square" || got["backend"] != "llama.cpp" || got["model"] != "m1" {
 		t.Fatalf("bad caption payload: %+v", got)
+	}
+	if res.Meta["process_peak_rss_status"] != "unavailable" || !strings.Contains(res.Meta["process_peak_rss_reason"], "attributable completed-child peak RSS") {
+		t.Fatalf("injected runner must state why peak RSS is unavailable: %+v", res.Meta)
+	}
+}
+
+func TestLlamaCppProvider_RecordsDefaultRunnerChildPeakRSS(t *testing.T) {
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" && runtime.GOOS != "freebsd" && runtime.GOOS != "openbsd" && runtime.GOOS != "netbsd" && runtime.GOOS != "dragonfly" {
+		t.Skipf("child rusage peak RSS is unsupported on %s", runtime.GOOS)
+	}
+	program := filepath.Join(t.TempDir(), "llama-mtmd-cli")
+	if err := os.WriteFile(program, []byte("#!/bin/sh\nprintf 'a small red square\\n'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	provider := &llamaCppProvider{lookPath: func(string) (string, error) { return program, nil }}
+	req := backends.Request{
+		Operation: "caption",
+		Model: models.Model{
+			ID:     "m1",
+			Source: models.Source{Assets: []models.Asset{{Filename: "model.gguf", Kind: models.ArtifactGGUF}, {Filename: "mmproj.gguf", Kind: models.ArtifactGGUF}}},
+		},
+		ModelDir:  "/models/m1",
+		InputKeys: []string{"/in.png"},
+		Output:    storage.OutputTarget{LocalPath: filepath.Join(t.TempDir(), "caption.json")},
+	}
+	res, err := provider.Execute(context.Background(), req)
+	if err != nil {
+		t.Fatalf("execute with default runner: %v", err)
+	}
+	if res.Meta["process_peak_rss_source"] != "child_wait4_rusage_maxrss" {
+		t.Fatalf("source = %q; metadata = %+v", res.Meta["process_peak_rss_source"], res.Meta)
+	}
+	if bytes, err := strconv.ParseInt(res.Meta["process_peak_rss_bytes"], 10, 64); err != nil || bytes <= 0 {
+		t.Fatalf("peak RSS bytes = %q, err=%v; metadata = %+v", res.Meta["process_peak_rss_bytes"], err, res.Meta)
 	}
 }
 
@@ -598,13 +652,15 @@ func TestExecProvider_PrefersGPUAlias(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			p := &execProvider{
-				program:        "sd",
-				programAliases: []string{"sd-gpu"},
-				lookPath: func(name string) (string, error) {
-					if tc.present[name] {
-						return "/fake/bin/" + name, nil
-					}
-					return "", errors.New("not found")
+				backendProcess: backendProcess{
+					program:        "sd",
+					programAliases: []string{"sd-gpu"},
+					lookPath: func(name string) (string, error) {
+						if tc.present[name] {
+							return "/fake/bin/" + name, nil
+						}
+						return "", errors.New("not found")
+					},
 				},
 			}
 			if got := p.programName(); got != tc.want {
@@ -646,7 +702,7 @@ func TestTorchCUDAProbeRejectsCPUOnlyAndBrokenRuntimes(t *testing.T) {
 
 func TestPythonGPUCapabilityRecoversAfterEnvironmentConverges(t *testing.T) {
 	ready := false
-	p := execProvider{program: pythonProgram, pythonInterpreter: "/private/pyenv/bin/python", gpuCapable: true, gpuProbe: func(context.Context, string) bool { return ready }}
+	p := execProvider{backendProcess: backendProcess{program: pythonProgram, pythonInterpreter: "/private/pyenv/bin/python", gpuCapable: true, gpuProbe: func(context.Context, string) bool { return ready }}}
 	if p.GPUCapable() {
 		t.Fatal("unprovisioned Torch runtime advertised CUDA")
 	}

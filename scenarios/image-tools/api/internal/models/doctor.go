@@ -3,6 +3,8 @@ package models
 import (
 	"fmt"
 	"strings"
+
+	"image-tools/internal/fetch"
 )
 
 // FindingSeverity classifies a catalog doctor finding.
@@ -26,6 +28,7 @@ type CatalogFinding struct {
 type CatalogDoctorReport struct {
 	OK       bool
 	Findings []CatalogFinding
+	Models   []ModelLifecycle
 }
 
 // DoctorCatalog checks installability and policy invariants that must become
@@ -42,6 +45,9 @@ func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 	installableEnabledByOp := make(map[string]int, len(r.vocab))
 	disabledDeclaredByOp := make(map[string]int, len(r.vocab))
 	for _, m := range r.models {
+		if f := fetchStrategyFinding(m); f != nil {
+			add(*f)
+		}
 		if !m.Enabled {
 			for _, op := range m.Operations {
 				disabledDeclaredByOp[op]++
@@ -94,30 +100,6 @@ func (r *Registry) DoctorCatalog() CatalogDoctorReport {
 		}
 	}
 
-	ok := true
-	for _, f := range findings {
-		if f.Severity == FindingError {
-			ok = false
-			break
-		}
-	}
-	return CatalogDoctorReport{OK: ok, Findings: findings}
-}
-
-// RegistryLint checks the fetch-strategy contract over EVERY row (enabled and
-// disabled), so a landing-page-only stub cannot ship undetected — it is caught in
-// `go test` / `models registry-lint`, not at a user's failed install. The rule:
-// a weight-backed model must declare a concrete fetch strategy (assets[]/repo/
-// local_path) OR be honestly marked source.manual. download_url is never a fetch
-// strategy (it is documentation-only). An enabled offender is an error; a disabled
-// one a warning (it must be fixed before it can be enabled).
-func (r *Registry) RegistryLint() CatalogDoctorReport {
-	var findings []CatalogFinding
-	for _, m := range r.models {
-		if f := fetchStrategyFinding(m); f != nil {
-			findings = append(findings, *f)
-		}
-	}
 	ok := true
 	for _, f := range findings {
 		if f.Severity == FindingError {
@@ -194,8 +176,8 @@ func doctorModelInstallable(m Model, add func(CatalogFinding)) bool {
 			add(CatalogFinding{Code: "asset_missing_min_bytes", ModelID: m.ID, Message: prefix + " has no positive min_bytes"})
 			installable = false
 		}
-		if sha := strings.TrimSpace(a.SHA256); sha != "" && len(sha) != 64 {
-			add(CatalogFinding{Code: "asset_bad_sha256", ModelID: m.ID, Message: prefix + " sha256 is not 64 hex characters"})
+		if sha := strings.TrimSpace(a.SHA256); sha != "" && !fetch.ValidSHA256(sha) {
+			add(CatalogFinding{Code: "asset_bad_sha256", ModelID: m.ID, Message: prefix + " sha256 is not a 64-character hexadecimal digest"})
 			installable = false
 		}
 	}
@@ -263,11 +245,11 @@ func doctorChecksumPolicy(m Model) []CatalogFinding {
 			Message: fmt.Sprintf("checksum algo %q is not sha256", algo),
 		})
 	}
-	if value != "" && len(value) != 64 {
+	if value != "" && !fetch.ValidSHA256(value) {
 		out = append(out, CatalogFinding{
 			Code:    "checksum_bad_sha256",
 			ModelID: m.ID,
-			Message: "checksum value is not 64 hex characters",
+			Message: "checksum value is not a 64-character hexadecimal digest",
 		})
 	}
 	if value == "" && status == "pinned" {

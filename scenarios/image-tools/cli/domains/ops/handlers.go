@@ -41,6 +41,21 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 	})
 }
 
+func (h *handlers) importLink(ctx cliapp.RunContext) error {
+	rawURL := ctx.Positional("url")
+	if rawURL == "" {
+		return fmt.Errorf("a public image URL is required")
+	}
+	result, err := importImageLink(h.core, rawURL)
+	if err != nil {
+		return err
+	}
+	return ctx.RenderMutation(cliapp.MutationReport{
+		Result:  []string{fmt.Sprintf("Imported %s (%dx%d %s)", result.InputRef, result.Width, result.Height, result.Format)},
+		Changes: []string{fmt.Sprintf("input_ref=%s", result.InputRef)},
+	})
+}
+
 // run wraps the common flow: build params, call the REST edge, write the output.
 func (h *handlers) run(operation string, build func(ctx cliapp.RunContext) *opsv1.OpParams) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {

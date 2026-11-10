@@ -27,6 +27,11 @@ vi.mock("../../api/analysis", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/analysis")>();
   return { ...actual, ...makeAnalysisMocks() };
 });
+vi.mock("../../api/ai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/ai")>();
+  const { makeAIMocks } = await import("./mocks/ai");
+  return { ...actual, ...makeAIMocks() };
+});
 
 import { AnalyzePanel } from "./AnalyzePanel";
 import type { UseAnalyze } from "./useAnalyze";

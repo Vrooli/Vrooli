@@ -49,7 +49,7 @@ func TestComputedProvider_NormalMapWritesPNG(t *testing.T) {
 		Output:    storage.OutputTarget{LocalPath: filepath.Join(t.TempDir(), "normal.png")},
 		Params:    map[string]string{"strength": "4"},
 	}
-	if err := dispatchComputed(context.Background(), req); err != nil {
+	if err := runBuiltin(context.Background(), req); err != nil {
 		t.Fatalf("normal_map: %v", err)
 	}
 	f, err := os.Open(req.Output.LocalPath)
@@ -77,7 +77,7 @@ func TestComputedProvider_NormalMapGoldenStructuralContract(t *testing.T) {
 		Output:    storage.OutputTarget{LocalPath: filepath.Join(t.TempDir(), "normal.png")},
 		Params:    map[string]string{"strength": "4"},
 	}
-	if err := dispatchComputed(context.Background(), req); err != nil {
+	if err := runBuiltin(context.Background(), req); err != nil {
 		t.Fatalf("normal_map: %v", err)
 	}
 	f, err := os.Open(req.Output.LocalPath)

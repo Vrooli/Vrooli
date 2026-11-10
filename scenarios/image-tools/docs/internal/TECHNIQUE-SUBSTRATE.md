@@ -1,9 +1,26 @@
 # Technique Substrate — Operation / Technique / Model
 
-> Phase-0 design note for the *operation-technique-model substrate + capability-derivation*
-> refactor. This is the contract the rest of that plan executes against. It defines the three
-> layers, who owns each, the glossary that prevents synonym drift, and the boundary decisions
-> (W3 doc/code reconciliation, recipes↔looks). No behavior changes from this note alone.
+> Implementation contract and status for the operation-technique-model substrate. The original
+> design has landed in stages; this document now records which source boundaries exist and which
+> showcases remain open. The code and its owner tests are authoritative when they differ.
+
+## Current implementation status — 2026-11-09
+
+| Stage | Implemented source | Remaining proof or limitation |
+|---|---|---|
+| Operation vocabulary | `internal/operations` is the vocabulary owner; `ai/catalog.go` filters categories and the seed no longer carries a second operation vocabulary. | Audit every public CLI/API/UI capability against the client list; end-to-end gaps remain under IT4. |
+| Technique and backend process | `internal/technique` owns operation argument builders and readiness; `ai/backend_process.go` owns process/runtime availability and invocation; `ai/providers.go` binds a backend process to resolved techniques. | This split does not itself qualify every provider or model on each platform. |
+| Architecture derivation | `models.Model.EffectiveOps` combines declared operations with architecture-derived operations; `_diffusers.py` mirrors the architecture table and parity tests protect the contract. `ServesOperation` delegates to the derived set. | Derived techniques remain unavailable unless their row is marked Ready; unqualified pipelines stay hidden. |
+| Resolution | `internal/resolver` returns the operation, selected model, technique, provider tier, support class and caveats; explain routes expose the decision without running inference. | Resolution evidence does not prove a model has enough live device capacity or produces acceptable output. |
+| Compound workflow | `internal/looks` is the sole persisted multi-step format; the `recipes` package/schema is absent. | Broader client journeys and every compound operation remain IT4 acceptance work. |
+| Picker capability | The API picker reports native, derived and unsupported/readiness states with caveats; UI presentation carries support and readiness state. | A served UI journey for every capability is still open. |
+| Model readiness | Persisted install/smoke/runtime evidence is reconciled by the model lifecycle and consumed by doctor, admission and picker paths. | Fresh-host provisioning to every enabled capability, timed end to end, remains open in IT1. |
+
+The implementation has materially changed since the Phase-0 design note. For
+example, `ai/providers.go` now contains provider dispatch while backend process
+behavior is isolated in `ai/backend_process.go`; the design's package split is
+not a promise that the combined packages have already met the 25% line target.
+The heavy-package baseline and current counts live in the IT1 checkpoint.
 
 ## 1. The three layers
 
@@ -65,30 +82,29 @@ Operation/Technique/Model spine is visible in `ls api/internal/`, not buried in 
 | **Look** | A saved/built-in compound recipe that compiles to ordered {operation + mask/selection + params} steps. The single multi-step substrate. | a recipe (recipes is the superseded name — see §5) |
 | **Operation category** | `generation` · `enhancement` · `restoration` · `analysis` — the taxonomy bucket of an operation. | a technique |
 
-### Operation taxonomy (the 28-op vocabulary, bucketed)
+### Operation taxonomy (the 30-op vocabulary, bucketed)
 
 The vocabulary SSOT carries a `category` per op so each consumer filters to the ops it owns
 *without* a hand-maintained second list:
 
 - **generation (7):** `text_to_image`, `image_to_image`, `edit_instruct`, `inpaint`, `outpaint`,
   `object_removal`, `background_replace`
-- **enhancement (7):** `upscale`, `background_removal`, `denoise`, `naturalize`, `colorize`,
-  `depth_map`, `normal_map`
-- **restoration (3):** `deblur`, `face_restore`, `old_photo_restore` — forward-declared in the
-  vocabulary and provider-served, but **not yet wired into the `ai` engine's runner set**; kept
-  out of the `ai` discovery catalog so Phase 1 changes no behavior. (Wiring them is out of scope.)
+- **enhancement (9):** `background_removal`, `upscale`, `denoise`, `naturalize`, `colorize`,
+  `depth_map`, `scene_geometry`, `image_to_object`, `normal_map`
+- **restoration (3):** `deblur`, `face_restore`, `old_photo_restore` — registered in the AI
+  runner and discovery catalog; each still requires a compatible enabled model/provider to run.
 - **analysis (11):** `segment`, `ocr`, `nsfw_classify`, `caption`, `object_detection`, `tagging`,
   `face_detection`, `quality_assessment`, `duplicate_detect`, `embedding`, `qr_barcode_read` —
-  owned by `internal/analysis`.
+  structured analysis routes are owned by `internal/analysis`; prompted `segment` runs through
+  the durable AI job lane.
 
-**Why a category drives `ai`'s catalog:** `internal/ai` owns exactly the ops it builds runners for
-(`BuildRunners` ⇒ generation ∪ enhancement = 14). Deriving `ai`'s catalog as
-`operations.ByCategory(generation, enhancement)` reproduces today's 14 ops exactly while deleting
-the duplicated `Op` table — the membership rule is now *data*, not a second hand-list.
+**Why a category drives `ai`'s catalog:** `internal/ai` owns generation, enhancement and restoration
+model operations, plus prompted segmentation as an image-producing job. Its catalog filters the
+vocabulary categories and adds `segment`; the membership rule is *data*, not a second hand-list.
 
 ## 4. Boundary decision — W3: generation/enhancement packages
 
-DOMAINS.md declares `api/internal/generation/`, `api/internal/enhancement/`, and
+Older DOMAINS prose declared `api/internal/generation/`, `api/internal/enhancement/`, and
 `api/internal/recipes/` packages; **none exist**. Reality: `api/internal/ai/` holds the single
 generation+enhancement execution engine (`engine.go`, `providers.go`, `catalog.go`, …), and
 `api/internal/looks/` is the compound substrate.

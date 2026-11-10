@@ -3,8 +3,12 @@ package models
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -65,8 +69,13 @@ func newInstallHandler(t *testing.T) (*connectHandler, *internalmodels.Installer
 		Tier:         internalmodels.TierNiceToHave,
 		Backend:      "onnxruntime",
 		SizeMBApprox: 16,
+		Enabled:      true,
 		Hardware:     internalmodels.Hardware{CPUCapable: true},
-		Source:       internalmodels.Source{DownloadURL: "https://example.test/handler-install-test-model.bin"},
+		CapabilityLabels: internalmodels.CapabilityLabels{
+			License:       "MIT",
+			CommercialUse: internalmodels.CommercialUseYes,
+		},
+		Source: internalmodels.Source{DownloadURL: "https://example.test/handler-install-test-model.bin"},
 	}); err != nil {
 		t.Fatalf("add handler install test model: %v", err)
 	}
@@ -80,6 +89,89 @@ func newInstallHandler(t *testing.T) (*connectHandler, *internalmodels.Installer
 		OpDefaults: internalmodels.NewOpDefaultStore(d),
 	})
 	return h, installer, sub
+}
+
+type installListQueryCounter struct {
+	internalmodels.SQLExecutor
+	listReads int
+	rowReads  int
+}
+
+func (c *installListQueryCounter) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	if strings.Contains(query, "FROM model_install") {
+		c.listReads++
+	}
+	return c.SQLExecutor.QueryContext(ctx, query, args...)
+}
+
+func (c *installListQueryCounter) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	if strings.Contains(query, "FROM model_install") {
+		c.rowReads++
+	}
+	return c.SQLExecutor.QueryRowContext(ctx, query, args...)
+}
+
+func TestInstallStatesProjectsBuildReadinessFromListedRecord(t *testing.T) {
+	h, installer, _ := newInstallHandler(t)
+	var buildModel internalmodels.Model
+	for _, model := range h.deps.Registry.Models() {
+		if model.BuildProfile != nil {
+			buildModel = model
+			break
+		}
+	}
+	if buildModel.ID == "" {
+		t.Fatal("fixture catalog has no build-profile model")
+	}
+
+	d := db.NewSQLite(t)
+	if err := apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(internalmodels.Schema)); err != nil {
+		t.Fatalf("ensure schemas: %v", err)
+	}
+	counter := &installListQueryCounter{SQLExecutor: d}
+	installer.State = internalmodels.NewInstallStore(counter)
+	if err := installer.State.Set(context.Background(), internalmodels.InstallRecord{
+		ID: buildModel.ID, Installed: true, Path: t.TempDir(),
+	}); err != nil {
+		t.Fatalf("persist listed build assets: %v", err)
+	}
+
+	states, err := h.installStates(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, found := states[buildModel.ID]
+	if !found || !record.Installed {
+		t.Fatalf("bulk install state = %+v found=%t, want raw durable source record", record, found)
+	}
+	publicRecord, publicFound := h.publicInstallState(buildModel, record, found)
+	if !publicFound || publicRecord.Installed {
+		t.Fatalf("public install state = %+v found=%t, want build output to gate readiness", publicRecord, publicFound)
+	}
+	if counter.listReads != 1 || counter.rowReads != 0 {
+		t.Fatalf("install state reads = list:%d row:%d, want one bulk list and no repeated per-model lookup", counter.listReads, counter.rowReads)
+	}
+}
+
+func TestListOperationModelsReusesBulkInstallRecords(t *testing.T) {
+	h, installer, _ := newInstallHandler(t)
+	d := db.NewSQLite(t)
+	if err := apidb.EnsureSchemas(context.Background(), d, apidb.SchemaProviderFunc(internalmodels.Schema)); err != nil {
+		t.Fatalf("ensure schemas: %v", err)
+	}
+	counter := &installListQueryCounter{SQLExecutor: d}
+	installer.State = internalmodels.NewInstallStore(counter)
+
+	resp, err := h.ListOperationModels(context.Background(), connect.NewRequest(&modelsv1.ListOperationModelsRequest{Operation: "text_to_image"}))
+	if err != nil {
+		t.Fatalf("list operation models: %v", err)
+	}
+	if len(resp.Msg.GetCandidates()) == 0 {
+		t.Fatal("expected text_to_image candidates")
+	}
+	if counter.listReads != 1 || counter.rowReads != 0 {
+		t.Fatalf("install record reads = list:%d row:%d, want one bulk read and no per-candidate install lookups", counter.listReads, counter.rowReads)
+	}
 }
 
 func TestSetAndListDefaults(t *testing.T) {
@@ -165,6 +257,10 @@ func TestInstallModelUsesConfiguredETA(t *testing.T) {
 func TestInstallModelAlreadyInstalledSkipsJob(t *testing.T) {
 	h, installer, sub := newInstallHandler(t)
 	ctx := context.Background()
+	_, _, _, python := prepareSmokeTestModel(t, installer, handlerInstallTestModelID)
+	installer.Smoke = &internalmodels.SmokeConfig{Python: python, LockHash: "ready-lock", Run: func(context.Context, string, []string, []string) ([]byte, error) {
+		return []byte("load passed"), nil
+	}}
 	if _, err := installer.Install(ctx, handlerInstallTestModelID, nil); err != nil {
 		t.Fatalf("pre-install: %v", err)
 	}
@@ -183,27 +279,17 @@ func TestInstallModelAlreadyInstalledSkipsJob(t *testing.T) {
 func TestInstallModelRevalidatesInstalledSmokePendingModelWithoutDownload(t *testing.T) {
 	h, installer, sub := newInstallHandler(t)
 	ctx := context.Background()
-	const modelID = "isnet-general-use"
-	modelDir := filepath.Join(installer.Root, "models", modelID)
+	modelDir, weightPath, weight, python := prepareSmokeTestModel(t, installer, handlerInstallTestModelID)
 	if err := os.MkdirAll(modelDir, 0o755); err != nil {
 		t.Fatalf("create installed model dir: %v", err)
 	}
-	weightPath := filepath.Join(modelDir, "weights.onnx")
-	weight := []byte("already-installed-onnx-artifact")
 	if err := os.WriteFile(weightPath, weight, 0o644); err != nil {
 		t.Fatalf("write installed artifact: %v", err)
 	}
 	if err := installer.State.Set(ctx, internalmodels.InstallRecord{
-		ID: modelID, Installed: true, Path: modelDir, Checksum: "model-checksum",
+		ID: handlerInstallTestModelID, Installed: true, Path: modelDir, Checksum: checksum(weight),
 	}); err != nil {
 		t.Fatalf("record installed model: %v", err)
-	}
-	python := filepath.Join(installer.Root, "venv", "bin", "python")
-	if err := os.MkdirAll(filepath.Dir(python), 0o755); err != nil {
-		t.Fatalf("create fake venv dir: %v", err)
-	}
-	if err := os.WriteFile(python, []byte("fake python"), 0o755); err != nil {
-		t.Fatalf("create fake interpreter: %v", err)
 	}
 	smokeCalls := 0
 	installer.Smoke = &internalmodels.SmokeConfig{
@@ -219,11 +305,11 @@ func TestInstallModelRevalidatesInstalledSmokePendingModelWithoutDownload(t *tes
 			return []byte("onnx load smoke passed"), nil
 		},
 	}
-	if ready, state := installer.RuntimeReadiness(ctx, modelID); ready || state != "smoke_pending" {
+	if ready, state := installer.RuntimeReadiness(ctx, handlerInstallTestModelID); ready || state != "smoke_pending" {
 		t.Fatalf("initial readiness = %t/%q, want smoke_pending", ready, state)
 	}
 
-	response, err := h.InstallModel(ctx, connect.NewRequest(&modelsv1.InstallModelRequest{Id: modelID}))
+	response, err := h.InstallModel(ctx, connect.NewRequest(&modelsv1.InstallModelRequest{Id: handlerInstallTestModelID}))
 	if err != nil {
 		t.Fatalf("request smoke revalidation: %v", err)
 	}
@@ -234,13 +320,13 @@ func TestInstallModelRevalidatesInstalledSmokePendingModelWithoutDownload(t *tes
 		t.Fatalf("revalidation must use one install job, got submissions=%d operation=%q", sub.submitted, sub.last.Operation)
 	}
 
-	if _, err := installer.InstallForJob(ctx, modelID, response.Msg.JobId, nil); err != nil {
+	if _, err := installer.InstallForJob(ctx, handlerInstallTestModelID, response.Msg.JobId, nil); err != nil {
 		t.Fatalf("run installed-model revalidation: %v", err)
 	}
 	if smokeCalls != 1 {
 		t.Fatalf("smoke calls = %d, want 1", smokeCalls)
 	}
-	if ready, state := installer.RuntimeReadiness(ctx, modelID); !ready || state != "ready" {
+	if ready, state := installer.RuntimeReadiness(ctx, handlerInstallTestModelID); !ready || state != "ready" {
 		t.Fatalf("readiness after smoke = %t/%q, want ready", ready, state)
 	}
 	gotWeight, err := os.ReadFile(weightPath)
@@ -250,6 +336,34 @@ func TestInstallModelRevalidatesInstalledSmokePendingModelWithoutDownload(t *tes
 	if !bytes.Equal(gotWeight, weight) {
 		t.Fatal("revalidation changed the installed model artifact")
 	}
+}
+
+func prepareSmokeTestModel(t *testing.T, installer *internalmodels.Installer, id string) (modelDir, weightPath string, weight []byte, python string) {
+	t.Helper()
+	model, err := installer.Resolve(context.Background(), id)
+	if err != nil {
+		t.Fatalf("resolve smoke test model: %v", err)
+	}
+	model.Source = internalmodels.Source{Assets: []internalmodels.Asset{{URL: "https://example.test/weights.onnx", Filename: "weights.onnx"}}}
+	if err := installer.Custom.Add(context.Background(), model); err != nil {
+		t.Fatalf("update smoke test model source: %v", err)
+	}
+	modelDir = filepath.Join(installer.Root, "models", id)
+	weightPath = filepath.Join(modelDir, "weights.onnx")
+	weight = bytes.Repeat([]byte("already-installed-onnx-artifact\n"), 128)
+	python = filepath.Join(installer.Root, "venv", "bin", "python")
+	if err := os.MkdirAll(filepath.Dir(python), 0o755); err != nil {
+		t.Fatalf("create fake venv dir: %v", err)
+	}
+	if err := os.WriteFile(python, []byte("fake python"), 0o755); err != nil {
+		t.Fatalf("create fake interpreter: %v", err)
+	}
+	return modelDir, weightPath, weight, python
+}
+
+func checksum(payload []byte) string {
+	sum := sha256.Sum256(payload)
+	return hex.EncodeToString(sum[:])
 }
 
 func TestInstallModelDoesNotScheduleSmokeWhenRuntimeEnvironmentIsMissing(t *testing.T) {
@@ -321,7 +435,7 @@ func TestInstallModelAlreadyInstalledSmokeReadySkipsJob(t *testing.T) {
 	}
 }
 
-func TestInstallModelSchedulesMissingBuildForInstalledAssets(t *testing.T) {
+func TestInstallModelBlocksConditionalBuildDespiteStoredAssets(t *testing.T) {
 	h, installer, sub := newInstallHandler(t)
 	const modelID = "big-lama-1024-export"
 	modelDir := filepath.Join(installer.Root, "models", modelID)
@@ -334,22 +448,17 @@ func TestInstallModelSchedulesMissingBuildForInstalledAssets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	resp, err := h.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: modelID}))
-	if err != nil {
-		t.Fatalf("install: %v", err)
+	_, err := h.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: modelID}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("conditional install error = %v, want FailedPrecondition", err)
 	}
-	if resp.Msg.AlreadyInstalled {
-		t.Fatal("source assets without a compiled build must not report already installed")
+	if sub.submitted != 0 {
+		t.Fatalf("conditional model submitted %d build/install jobs", sub.submitted)
 	}
-	if resp.Msg.JobId == "" || sub.submitted != 1 || sub.last.Operation != internalmodels.InstallJobOperation {
-		t.Fatalf("missing build should be delegated to one durable install job: response=%+v submitted=%d operation=%q", resp.Msg, sub.submitted, sub.last.Operation)
-	}
-
-	// The downloaded source record stays durable, but public catalog/install
-	// surfaces must not call it a runnable model until the derived artifact exists.
+	// Existing assets remain on disk, but they do not bypass the rights gate.
 	stored, ok, err := installer.State.Get(context.Background(), modelID)
 	if err != nil || !ok || !stored.Installed {
-		t.Fatalf("source asset record should remain durable and installed: record=%+v ok=%v err=%v", stored, ok, err)
+		t.Fatalf("stored source asset record should remain durable: record=%+v ok=%v err=%v", stored, ok, err)
 	}
 	got, err := h.GetModel(context.Background(), connect.NewRequest(&modelsv1.GetModelRequest{Id: modelID}))
 	if err != nil {
@@ -382,6 +491,27 @@ func TestInstallModelUnknownNotFound(t *testing.T) {
 	_, err := h.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: "nope"}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("got %v, want NotFound", connect.CodeOf(err))
+	}
+}
+
+func TestInstallModelCannotAcquireUnverifiedCommercialWeights(t *testing.T) {
+	h, _, submitter := newInstallHandler(t)
+	var conditionalID string
+	for _, model := range h.deps.Registry.Models() {
+		if model.CapabilityLabels.CommercialUse == internalmodels.CommercialUseConditional {
+			conditionalID = model.ID
+			break
+		}
+	}
+	if conditionalID == "" {
+		t.Fatal("seed should include a conditional-rights model for this regression")
+	}
+	_, err := h.InstallModel(context.Background(), connect.NewRequest(&modelsv1.InstallModelRequest{Id: conditionalID}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("install conditional model error = %v, want FailedPrecondition", err)
+	}
+	if submitter.submitted != 0 {
+		t.Fatalf("conditional model submitted %d install jobs", submitter.submitted)
 	}
 }
 
@@ -420,7 +550,7 @@ func TestRemoveModelClearsInstall(t *testing.T) {
 func TestRemoveModelReturnsFailedPreconditionWhileInUse(t *testing.T) {
 	h, installer, _ := newInstallHandler(t)
 	ctx := context.Background()
-	installer.UseGate = internalmodels.NewModelUseGate()
+	installer.UseGate = internalmodels.NewModelUseGate(t.TempDir())
 	if _, err := installer.Install(ctx, handlerInstallTestModelID, nil); err != nil {
 		t.Fatalf("install: %v", err)
 	}
@@ -449,9 +579,17 @@ func TestAddCustomModelRoundTrip(t *testing.T) {
 	}
 	resp, err := h.AddCustomModel(ctx, connect.NewRequest(&modelsv1.AddCustomModelRequest{
 		Model: &modelsv1.Model{
-			Id:         "my-model",
-			Operations: []string{"upscale"},
-			Backend:    "onnxruntime",
+			Id:           "my-model",
+			Name:         "My Model",
+			Operations:   []string{"upscale"},
+			Tier:         string(internalmodels.TierNiceToHave),
+			Backend:      "onnxruntime",
+			SizeMbApprox: 16,
+			Hardware:     &modelsv1.Hardware{CpuCapable: true},
+			CapabilityLabels: &modelsv1.CapabilityLabels{
+				License:       "MIT",
+				CommercialUse: modelsv1.CommercialUse_COMMERCIAL_USE_YES,
+			},
 		},
 		LocalPath: weights,
 	}))
@@ -476,6 +614,46 @@ func TestAddCustomModelRoundTrip(t *testing.T) {
 	if !found {
 		t.Fatal("custom model not surfaced in ListModels")
 	}
+}
+
+func TestSelectModelResolvesEnabledCustomOverride(t *testing.T) {
+	h, _, _ := newInstallHandler(t)
+	resp, err := h.SelectModel(context.Background(), connect.NewRequest(&modelsv1.SelectModelRequest{
+		Operation:  "upscale",
+		OverrideId: handlerInstallTestModelID,
+	}))
+	if err != nil {
+		t.Fatalf("select custom model: %v", err)
+	}
+	if resp.Msg.GetModel().GetId() != handlerInstallTestModelID {
+		t.Fatalf("selected model = %q, want %q", resp.Msg.GetModel().GetId(), handlerInstallTestModelID)
+	}
+	if !resp.Msg.GetModel().GetCustom() || !resp.Msg.GetModel().GetEnabled() {
+		t.Fatalf("custom model metadata = custom:%t enabled:%t, want true/true", resp.Msg.GetModel().GetCustom(), resp.Msg.GetModel().GetEnabled())
+	}
+}
+
+func TestListOperationModelsIncludesAndSelectsCustomCandidate(t *testing.T) {
+	h, _, _ := newInstallHandler(t)
+	resp, err := h.ListOperationModels(context.Background(), connect.NewRequest(&modelsv1.ListOperationModelsRequest{
+		Operation: "upscale",
+	}))
+	if err != nil {
+		t.Fatalf("list custom candidates: %v", err)
+	}
+	if resp.Msg.GetSelectedId() != handlerInstallTestModelID {
+		t.Fatalf("selected id = %q, want custom model %q", resp.Msg.GetSelectedId(), handlerInstallTestModelID)
+	}
+	for _, candidate := range resp.Msg.GetCandidates() {
+		if candidate.GetModel().GetId() != handlerInstallTestModelID {
+			continue
+		}
+		if !candidate.GetModel().GetCustom() || !candidate.GetSelected() {
+			t.Fatalf("custom candidate = %+v, want custom and selected", candidate)
+		}
+		return
+	}
+	t.Fatalf("custom model %q missing from upscale candidates", handlerInstallTestModelID)
 }
 
 func TestAddCustomModelSeedCollisionInvalid(t *testing.T) {

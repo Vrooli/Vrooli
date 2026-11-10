@@ -58,7 +58,7 @@ func (h *connectHandler) InspectModelSource(ctx context.Context, req *connect.Re
 		SizeBytes:         uint64(maxInt64(0, meta.TotalSize())),
 		PipelineClass:     meta.PipelineClass,
 		OfferedOperations: offered,
-		Proposed:          domainToProto(prop.Entry, viewFor(prop.Entry, true, overlay, installs)),
+		Proposed:          domainToProto(prop.Entry, h.viewFor(prop.Entry, true, overlay, installs)),
 	}), nil
 }
 
@@ -95,7 +95,7 @@ func (h *connectHandler) ImportModel(ctx context.Context, req *connect.Request[m
 
 	overlay, _ := h.overlay(ctx)
 	installs, _ := h.installStates(ctx)
-	modelProto := domainToProto(entry, viewFor(entry, true, overlay, installs))
+	modelProto := domainToProto(entry, h.viewFor(entry, true, overlay, installs))
 
 	if h.deps.Installer.Installed(ctx, entry.ID) {
 		return connect.NewResponse(&modelsv1.ImportModelResponse{Model: modelProto, AlreadyInstalled: true}), nil

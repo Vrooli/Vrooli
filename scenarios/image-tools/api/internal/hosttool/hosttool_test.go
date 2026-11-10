@@ -65,6 +65,23 @@ func TestToolForOperation(t *testing.T) {
 	}
 }
 
+func TestCaptionHostToolUsesManagedLlamaCppAcquisition(t *testing.T) {
+	tool, ok := ToolForOperation("caption")
+	if !ok || tool != "llama-cpp" {
+		t.Fatalf("ToolForOperation(caption) = %q,%v; want llama-cpp,true", tool, ok)
+	}
+	if !KnownTool(tool) {
+		t.Fatalf("caption host tool %q is not accepted by the managed host-tool guard", tool)
+	}
+	fake := &fakeInstaller{status: &cliv1.CliHostInstallStatus{ExecutionState: "installed", Ok: true}}
+	if _, err := NewEnsurerWithClient(fake).Ensure(context.Background(), tool); err != nil {
+		t.Fatalf("Ensure(%q): %v", tool, err)
+	}
+	if fake.gotTool != "llama-cpp" || fake.gotDryRun {
+		t.Fatalf("caption ensure request = tool %q, dry-run %v; want managed install of llama-cpp", fake.gotTool, fake.gotDryRun)
+	}
+}
+
 func TestKnownTool(t *testing.T) {
 	for _, tool := range []string{"sd", "realesrgan-ncnn-vulkan", "iopaint", "rembg", "llama-cpp", "uv"} {
 		if !KnownTool(tool) {

@@ -43,6 +43,12 @@ export const makeListAIOperationsResponse = (
         summary: "Reintroduce realistic texture/grain to over-smoothed images",
       }),
       makeAIOperationInfo({
+        name: "caption",
+        category: "analysis",
+        summary: "Describe an image in natural language",
+        requiresImage: true,
+      }),
+      makeAIOperationInfo({
         name: "text_to_image",
         category: "generation",
         summary: "Generate an image from a text prompt",

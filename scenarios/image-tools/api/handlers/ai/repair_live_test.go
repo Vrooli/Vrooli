@@ -81,8 +81,8 @@ func TestRepair_ManagedLaMaDurableJob(t *testing.T) {
 		Registry: registry, Backends: providers, Store: store, ModelsRoot: root,
 		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 4}},
 		ModelInstalled: func(id string) bool { return id == "big-lama" && installed.Installed },
-		Enabled: func(context.Context) (models.EnabledFunc, error) {
-			return func(id string) bool { return id == "big-lama" }, nil
+		Enabled: func(context.Context) (map[string]bool, error) {
+			return map[string]bool{"big-lama": true}, nil
 		},
 	})
 	if err != nil {

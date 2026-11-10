@@ -61,15 +61,16 @@ func newRepoInstaller(t *testing.T, fetch RepoFetcher) (*Installer, string) {
 	}
 	const id = "repo-test-model"
 	if err := in.AddCustom(context.Background(), Model{
-		ID:           id,
-		Name:         "Repo Test Model",
-		Operations:   []string{"edit_instruct"},
-		Tier:         TierQuality,
-		Backend:      "diffusers",
-		SizeMBApprox: 32,
-		Hardware:     Hardware{GPURequired: true},
-		Runtime:      Runtime{Family: "qwen-image-edit-plus"},
-		Source:       Source{Repo: RepoSource{RepoID: "Org/Repo", Revision: "deadbeefcafef00ddeadbeefcafef00ddeadbeef"}},
+		ID:               id,
+		Name:             "Repo Test Model",
+		Operations:       []string{"edit_instruct"},
+		Tier:             TierQuality,
+		Backend:          "diffusers",
+		SizeMBApprox:     32,
+		Hardware:         Hardware{GPURequired: true},
+		Runtime:          Runtime{Family: "qwen-image-edit-plus"},
+		CapabilityLabels: CapabilityLabels{License: "Apache-2.0", CommercialUse: CommercialUseYes},
+		Source:           Source{Repo: RepoSource{RepoID: "Org/Repo", Revision: "deadbeefcafef00ddeadbeefcafef00ddeadbeef"}},
 	}); err != nil {
 		t.Fatalf("add custom repo model: %v", err)
 	}

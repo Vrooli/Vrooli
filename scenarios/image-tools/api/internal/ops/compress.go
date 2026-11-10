@@ -3,8 +3,6 @@ package ops
 import (
 	"fmt"
 	"image"
-
-	"github.com/disintegration/imaging"
 )
 
 // resolveOutputFormat chooses the encode format: an explicit, encodable
@@ -73,15 +71,14 @@ func isLossy(format string) bool {
 	}
 }
 
-// convertClone is the pixel transform for the convert op: it returns the image
-// unchanged and lets the runner encode it into the requested format. Convert
-// requires an explicit, encodable target format.
-func convertClone(img image.Image, p *Params) (image.Image, error) {
+// convertImage returns the decoded source unchanged; Encode reads it without
+// mutating it, so conversion needs no full-size pixel clone.
+func convertImage(img image.Image, p *Params) (image.Image, error) {
 	if p.Format == "" {
 		return nil, fmt.Errorf("ops: convert requires a target format")
 	}
 	if !CanEncode(p.Format) {
 		return nil, fmt.Errorf("ops: cannot convert to %q (encodable: %v)", p.Format, EncodableFormats)
 	}
-	return imaging.Clone(img), nil
+	return img, nil
 }

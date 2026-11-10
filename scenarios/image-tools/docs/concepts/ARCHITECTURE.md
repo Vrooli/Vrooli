@@ -34,24 +34,26 @@ This document does not own:
 ## Scenario Shape
 
 image-tools is one product — a permanent, reusable image capability —
-expressed through three coordinated surfaces over one canonical contract
+expressed through coordinated surfaces over one canonical contract
 layer: a Go API server (Connect-RPC, proto-owned contracts, plus a REST
 multipart edge for opaque binary uploads), a React+Vite+TypeScript+
 Tailwind UI, and a Go CLI. The load-bearing tenet is
-**headless-completeness**: every operation — deterministic edit, AI
-generation, AI enhancement, image analysis — runs fully from the CLI with
-no UI and no ComfyUI dependency. The UI is an *enhancer* (mobile capture,
-drag-and-drop, clipboard paste, before/after slider, mask-painting,
-progress-with-cancel), never a gate. Three internal structures sit behind
-the operation domains and give the scenario its character:
+**headless-completeness** is a product contract and mission target: operations
+must be usable through the CLI/API without requiring the UI or ComfyUI. The
+current client-list capability set is not yet qualified end to end; see the
+Image Tools mission and its workstream checkpoints for the measured gaps. The
+UI adds capture and editing affordances, but it is not the owner of operation
+state. Internal structures sit behind the operation domains:
 
-- a **backend-provider abstraction** (`backends`) — every op has ≥1
-  standalone non-ComfyUI provider, with a Local-GPU → Local-CPU →
-  BYOK-cloud fallback ladder;
+- a **backend/provider abstraction** (`backends`) — the resolver selects a
+  compatible available route; local GPU/CPU and optional cloud availability
+  depend on the model, host and policy. Shared capacity admission is separate
+  from provider choice;
 - a **declarative model registry + hardware-aware selector** (`models`)
   that picks the best-fit enabled model for the probed host;
-- a **durable, server-owned async job queue** (`jobs`) that serializes
-  heavy GPU work and survives client disconnect.
+- a **durable, server-owned job scheduler** (`jobs`) with priorities,
+  platform-capacity admission, cross-process leases, warm residency and
+  cancellation cleanup. Queue class does not prove which device ran a job.
 
 The same three-surface, one-contract diagram below holds; image bytes flow
 across the REST multipart edge while all metadata stays proto-typed.
@@ -169,12 +171,12 @@ Use Connect-RPC by default:
 - CLI to API for proto-typed payloads,
 - API to API / inter-scenario calls with Vrooli-owned protos.
 
-REST is allowed only for four enumerated reasons, defined as
+REST is allowed only for enumerated reasons, defined as
 `RESTReason` constants in `api/internal/module/module.go`:
 
 | Reason | When it applies |
 |---|---|
-| `RESTReasonMultipartUpload` | Opaque file bytes via `multipart/form-data`. The notes attachments endpoint is the worked example. |
+| `RESTReasonMultipartUpload` | Opaque image bytes via `multipart/form-data`; operation parameters/results remain protobuf-typed. |
 | `RESTReasonWebhookReceiver` | Endpoint shape is dictated by a third-party system (Stripe, GitHub, etc.) we do not own. |
 | `RESTReasonThirdPartyShape` | Request or response is an externally-defined contract (OAuth callbacks, OpenAPI passthrough). |
 | `RESTReasonOpsProbe` | Lifecycle systems, load balancers, and `curl` must reach the endpoint without a generated client (plain `GET /health`, static iframe-facing HTML wrappers). |
@@ -182,18 +184,17 @@ REST is allowed only for four enumerated reasons, defined as
 Mechanical enforcement: `cmd/gen-endpoints` rejects any
 `EndpointDescriptor.Path` that is not a generated Connect procedure
 constant (i.e. does not start with `/vrooli.`) unless the descriptor
-carries a `RESTException` with one of the four reasons. A REST
+carries a `RESTException` with one of the documented reasons. A REST
 endpoint without that tag fails `make endpoints`, which fails
 `make test`, which fails CI. The fix is either to author a proto
 service method (the preferred path) or to tag the exception
 explicitly. There is no "internal endpoint, REST is fine" path —
 that rationalization is exactly what the validation pass prevents.
 
-Note: even for REST exceptions, the **payload shape** stays
-proto-typed wherever possible. The notes attachments handler returns
-the proto `UploadAttachmentResponse` message; only the request
-transport is multipart. Drift between API/UI/CLI is eliminated as
-long as the wire payload type is shared.
+Even for REST exceptions, the **metadata payload shape** stays
+proto-typed wherever possible. Multipart transports opaque image bytes;
+generated request/result messages carry operation parameters, job identity
+and blob references.
 
 ### Image bytes on the REST multipart edge
 
@@ -204,24 +205,24 @@ metadata stay proto-typed. Opaque image bytes are intentionally *not*
 carried inside proto payloads; the proto messages reference stored blobs
 by id/handle. This is the scenario's one durable transport deviation
 (recorded in *Intentional Deviations*) and applies uniformly across
-`ops`, `ai` (generation+enhancement), and `analysis`.
+`ops`, `ai` (generation+enhancement+restoration), and `analysis`.
 
-### The three internal seams
+### The internal seams
 
 Three contracts flow *inside* the API rather than over the wire, and each
 is wired once in production and substitutable in tests
 (see [`../internal/SEAMS.md`](../internal/SEAMS.md)):
 
-- **Backend provider interface** (`backends`): operation domains submit an
-  op request; the provider registry resolves a concrete provider and
-  applies the Local-GPU → Local-CPU → BYOK-cloud fallback ladder, emitting
-  user-visible messaging at each tier transition. Registration enforces
-  ≥1 standalone (non-ComfyUI) provider per operation.
+- **Backend provider interface** (`backends`): the resolver chooses an
+  available provider compatible with the operation, model and host. Local GPU,
+  local CPU and optional cloud routes are policy/model-dependent; capacity
+  admission authorizes local execution separately. Provider registration
+  enforces at least one standalone provider per registered operation.
 - **Durable job queue** (`jobs`): heavy/AI operations are submitted as
-  server-owned jobs returning a job-id + ETA immediately; the queue
-  serializes GPU work and streams progress over SSE. Clients never poll;
-  the CLI uses a block-once wait verb (mirroring test-genie's run
-  lifecycle).
+  server-owned jobs returning a job-id + ETA immediately; the scheduler admits
+  work through priority and shared CPU/RAM/GPU capacity and streams progress
+  over SSE. Cancellation waits for worker reap and claim cleanup. The CLI uses
+  a block-once wait verb; queue state does not prove which device executed.
 - **Storage seam** (`storage`): inputs and outputs cross an api-core
   blobstore boundary outside the repo, with an overridable per-request
   save location and a decompression-bomb / large-image guard at ingestion.
@@ -268,23 +269,24 @@ For a normal proto-backed domain:
 
 ### Adding an operation
 
-Adding a new image operation is the most common extension and has a fixed
-recipe that keeps the headless-completeness and ≥1-standalone invariants
-intact:
+Adding an image operation has a fixed implementation path that preserves the
+headless API/CLI contract and provider registration invariant:
 
 1. **Proto first** — add the operation's request/result messages and
    service method under
    `packages/proto/schemas/image-tools/v1/<domain>/`; image bytes stay
    blob-referenced, not inlined.
-2. **Backend provider(s)** — implement at least one standalone
-   (non-ComfyUI) provider in `backends`; optionally add ComfyUI and
-   BYOK-cloud providers. The CPU fallback path is mandatory for AI ops.
-   Registration fails if no standalone provider exists.
+2. **Backend provider(s)** — implement at least one standalone provider in
+   `backends`. Add local CPU/GPU routes only when the selected model supports
+   them and the host/capacity contract can admit them. Optional providers such
+   as cloud routes require their own policy, cost and credential owners; no
+   ComfyUI dependency is mandatory. Registration fails if no standalone
+   provider exists.
 3. **Model registry entry** — for AI ops, add the declarative `models`
    entry (hardware requirements, capability labels, license, checksum,
    default-for-op marker) so the selector can place it on a probed host.
-4. **Handler / CLI / UI** — wire the API handler, the CLI command (full
-   headless parity), and the UI feature (interactive widget only where the
+4. **Handler / CLI / UI** — wire the API handler and CLI command; implement
+   the served UI journey for the same capability (interactive widget only where the
    op genuinely benefits, always with an accessible fallback).
 5. **Jobs + measures** — route heavy ops through `jobs`; declare the op's
    measure block so latency/throughput/queue-wait/fallback-usage are
@@ -297,19 +299,20 @@ resources, update [`INTEGRATIONS.md`](INTEGRATIONS.md).
 
 ## Architecture Maturity
 
-This scenario is **pre-implementation**: the PRD scope is decided and the
-domain map is authored, but the operation domains, backend abstraction,
-model registry, job queue, and storage seam are not yet built. The table
-reflects the inherited `react-vite` template maturity plus the planned
-target shape. Update it as each domain becomes green.
+The operation, model, backend, job, storage, Look and quality domains are
+implemented. Their maturity is uneven: focused tests and partial live
+receipts exist, while the mission's full capability, fresh-host, GPU
+contention, quality-promotion and portability showcases remain open. The
+table records current source evidence and the remaining mission gates; it is
+not a release-readiness claim.
 
 | Area | Maturity | Evidence | Remaining Drift |
 |---|---|---|---|
-| API | Built | Module registry, per-domain schema, documented seams from `react-vite`. | The product domains live under `api/internal/` as `ops`/`ai` (the generation+enhancement engine — there is no separate `generation`/`enhancement` package; those are op *categories*)/`analysis`/`models`/`backends`/`jobs`/`storage`/`looks` (the single compound substrate — the former `recipes` domain is removed)/`selection`/`automation`/`measures`, with the Operation/Technique/Model spine expressed by `operations` (vocabulary SSOT) / `technique` (named-pipeline table) / `resolver` (op→model→technique Resolution) layered above `ai`; `notes` template example must be removed. |
-| UI | Template-ready, features planned | Feature folders, typed API clients, selector/i18n registries, modeltest helpers. | Operation forms, before/after slider, mask-painting canvas, progress-with-cancel, and model-management settings are planned. |
-| CLI | Template-ready, parity planned | Domain command groups wrap API calls and render reports. | Full headless parity across every op and the block-once job wait verb are planned. |
-| Docs | Contract-ready | Manifest v2 registers docs, maturity, stages, and validation hints; concept docs authored to PRD. | Reference docs and per-domain deep docs fill in as domains land. |
-| Infra seams | Designed, not wired | `backends` ladder, `models` selector, `jobs` queue, `storage` blobstore boundary specified in this doc; `capabilities` seam over the root CLI host-inventory contract built (Phase 0 done). | The `capabilities` host-facts prerequisite (root CLI `cli/v1` host-inventory contract + the image-tools `capabilities` seam) is satisfied; remaining seams wire as domains land. |
+| API | Implemented | `ops`, `ai`, `analysis`, `jobs`, `models`, `adapters`, `looks`, `selection`, `preparation`, `quality`, `safety`, `diff`, measures and health handler modules are source-backed. Operation/technique/model resolution lives in `operations`, `technique`, `models` and `resolver`. | Mission-listed operations still need complete client journeys, right-clean defaults, measured profiles and platform receipts. |
+| UI | Implemented, capability coverage in progress | Workspace, model picker/import, Looks, selection, activity, safety, preparation and comparison features consume typed API surfaces. | Every client-listed capability still needs its served UI journey; current UI existence does not imply model readiness or quality. |
+| CLI | Implemented, capability coverage in progress | Domain command groups wrap API contracts, including durable job wait/cancel and model lifecycle operations. | Every client-listed capability still needs an end-to-end CLI/API qualification on the target host. |
+| Docs | Existing, reconciliation in progress | Domain/data/flow docs now refer to current source owners and lifecycle rules. | Reference, deployment and remaining product docs need mission-scale freshness and portability evidence. |
+| Infra seams | Wired, still under qualification | Shared host inventory, cross-process capacity client, blobstore, lifecycle and schema owners are consumed through explicit seams. | Fresh-host provisioning and direct mixed-scenario GPU admission remain open showcases. |
 
 Use `docs/manifest.json` as the documentation contract. The declared
 `maturity` values are expected to be maintained by agents and later

@@ -66,6 +66,14 @@ func Schema() string { return internalmodels.Schema() }
 // (TestProtoConnectParity) asserts every rpc has exactly one entry here.
 var Endpoints = []module.EndpointDescriptor{
 	{
+		ID: "models_provision", Path: modelsconnect.ModelsServiceProvisionModelsProcedure, Method: "POST",
+		Summary: "Provision local model capabilities", Category: "models",
+		Description: "Prepares a minimal host-fit model set for every effectively enabled capability, including private runtime, backend tools, model artifacts and load-smoke evidence in one durable timed job. Unsupported, unready or non-commercial-clean capability routes remain visible as gaps and keep the overall readiness result incomplete. Explicit model_ids prepares only the requested models.",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"model_ids": "array<string> (optional)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string", "model_ids": "array<string>"}},
+		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "Unknown model"}, {Status: 412, Code: "failed_precondition", Description: "Model is not commercial-clean local content"}},
+	},
+	{
 		ID:          "models_list",
 		Path:        modelsconnect.ModelsServiceListModelsProcedure,
 		Method:      "POST",
@@ -164,7 +172,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        modelsconnect.ModelsServiceSetModelEnabledProcedure,
 		Method:      "POST",
 		Summary:     "Enable or disable a model",
-		Description: "Toggles a model's runtime-enabled state, persisted in the SQLite overlay over the read-only seed catalog.",
+		Description: "Toggles a model's runtime-enabled state, persisted in the SQLite overlay over the read-only seed catalog. Models without verified commercial rights cannot be enabled.",
 		Category:    "models",
 		Request: &module.Schema{
 			Type: "object",
@@ -179,6 +187,7 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 404, Code: "not_found", Description: "No model with that id exists"},
+			{Status: 412, Code: "failed_precondition", Description: "Model commercial rights are not verified"},
 			{Status: 500, Code: "internal", Description: "Model-state persistence failure"},
 		},
 		Examples: []module.Example{
@@ -351,7 +360,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        modelsconnect.ModelsServiceInstallModelProcedure,
 		Method:      "POST",
 		Summary:     "Install or runtime-validate a model",
-		Description: "Downloads missing weights or revalidates the load-smoke for an installed model through the durable install job. Checksums are pinned on first download and free disk space is checked first. Returns a job id + ETA; block once on jobs wait. A runtime-ready installed model returns already_installed=true with no job.",
+		Description: "Downloads missing weights or revalidates the load-smoke for an installed model through the durable install job. Checksums are pinned on first download and free disk space is checked first. Models without verified commercial rights cannot be installed. Returns a job id + ETA; block once on jobs wait. A runtime-ready installed model returns already_installed=true with no job.",
 		Category:    "models",
 		Request: &module.Schema{
 			Type:       "object",
@@ -368,7 +377,7 @@ var Endpoints = []module.EndpointDescriptor{
 		},
 		Errors: []module.ErrorDesc{
 			{Status: 404, Code: "not_found", Description: "No model with that id exists"},
-			{Status: 412, Code: "failed_precondition", Description: "Installed model runtime is not provisioned or cannot be smoke-validated"},
+			{Status: 412, Code: "failed_precondition", Description: "Model commercial rights are not verified, or installed runtime is not provisioned or cannot be smoke-validated"},
 			{Status: 500, Code: "internal", Description: "Install job submission failure"},
 			{Status: 501, Code: "unimplemented", Description: "Installation unavailable (read-only wiring)"},
 		},
@@ -466,7 +475,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        modelsconnect.ModelsServiceImportModelProcedure,
 		Method:      "POST",
 		Summary:     "Import a model by source (confirm + install)",
-		Description: "Composes inspect → operator-confirmed fields (architecture/operations/attestation) → an add-only custom entry → a durable install job (mirrors InstallModel: returns job id + ETA; block once on jobs wait). Imports default to local tier with a user-imported provenance label; public/BYOK serving requires attest_commercial_rights.",
+		Description: "Composes inspect → operator-confirmed fields (architecture/operations/attestation) → an add-only custom entry → a durable install job (mirrors InstallModel: returns job id + ETA; block once on jobs wait). A positive attest_commercial_rights is required before registration or weight download; it records the operator's rights claim.",
 		Category:    "models",
 		Request: &module.Schema{
 			Type: "object",
@@ -476,7 +485,7 @@ var Endpoints = []module.EndpointDescriptor{
 				"name":                     "string (optional display name)",
 				"architecture":             "string (required when inference is none; else overrides)",
 				"operations":               "array<string> (optional; defaults to the architecture's base ops)",
-				"attest_commercial_rights": "bool (allow public/BYOK serving — decision D4)",
+				"attest_commercial_rights": "bool (required true to register or download model weights; decision D4)",
 			},
 		},
 		Response: &module.Schema{
@@ -494,7 +503,7 @@ var Endpoints = []module.EndpointDescriptor{
 			{Status: 501, Code: "unimplemented", Description: "Custom models / import unavailable (read-only wiring)"},
 		},
 		Examples: []module.Example{
-			{Name: "Import an SDXL checkpoint", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ImportModel -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\",\"id\":\"imported-sdxl\",\"architecture\":\"sdxl\"}'"},
+			{Name: "Import an SDXL checkpoint", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ImportModel -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\",\"id\":\"imported-sdxl\",\"architecture\":\"sdxl\",\"attest_commercial_rights\":true}'"},
 		},
 	},
 	{
@@ -502,7 +511,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        modelsconnect.ModelsServiceSetDefaultModelProcedure,
 		Method:      "POST",
 		Summary:     "Pin the default model for an operation",
-		Description: "Pins (or clears, with empty model_id) the default model for an operation. Selection applies the pin when a request gives no explicit override.",
+		Description: "Pins (or clears, with empty model_id) the default model for an operation. Selection applies the pin when a request gives no explicit override. Models without verified commercial rights cannot be pinned.",
 		Category:    "models",
 		Request: &module.Schema{
 			Type: "object",
@@ -518,6 +527,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 400, Code: "invalid_argument", Description: "Unknown operation or model does not serve it"},
 			{Status: 404, Code: "not_found", Description: "No model with that id exists"},
+			{Status: 412, Code: "failed_precondition", Description: "Model commercial rights are not verified"},
 			{Status: 500, Code: "internal", Description: "Default persistence failure"},
 		},
 		Examples: []module.Example{

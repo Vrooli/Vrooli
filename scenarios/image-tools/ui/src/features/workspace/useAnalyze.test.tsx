@@ -11,6 +11,7 @@ import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { isAnalyzeActive, useAnalyze } from "./useAnalyze";
 import { makeAnalyzeClient, makeOcrResult, makeProbeResult } from "./mocks/analysis";
 import { makeSelectedModel } from "./mocks/ai";
+import type { AnalyzeCaption } from "../../api/analysis";
 
 const PNG = new File(["bytes"], "in.png", { type: "image/png" });
 
@@ -31,6 +32,38 @@ describe("isAnalyzeActive", () => {
 });
 
 describe("useAnalyze", () => {
+  it("runs image caption through the model-backed caption client", async () => {
+    const client = makeAnalyzeClient();
+    const { result } = renderHook(() => useAnalyze({ client }));
+
+    act(() => result.current.run("caption", PNG, true));
+
+    await waitFor(() => expect(result.current.phase).toBe("done"));
+    expect(client.selectModel).toHaveBeenCalledWith("caption");
+    expect(client.caption).toHaveBeenCalledWith(PNG, expect.any(AbortSignal), expect.any(Function));
+    expect(result.current.result).toMatchObject({ kind: "caption", caption: "A red square" });
+  });
+
+  it("cancels the active caption job and ignores its stale completion", async () => {
+    let signal: AbortSignal | undefined;
+    const client = makeAnalyzeClient({
+      caption: vi.fn((_file, currentSignal, onJob) => {
+        signal = currentSignal;
+        onJob("caption-active");
+        return new Promise<AnalyzeCaption>(() => undefined);
+      }),
+    });
+    const { result } = renderHook(() => useAnalyze({ client }));
+
+    act(() => result.current.run("caption", PNG, true));
+    await waitFor(() => expect(result.current.phase).toBe("running"));
+    act(() => result.current.cancel());
+
+    expect(signal?.aborted).toBe(true);
+    expect(client.cancelCaption).toHaveBeenCalledWith("caption-active");
+    expect(result.current.phase).toBe("idle");
+  });
+
   it("runs the pure-Go probe directly (no model gate) and exposes the result", async () => {
     const client = makeAnalyzeClient();
     const { result } = renderHook(() => useAnalyze({ client }));

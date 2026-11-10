@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS jobs (
   id                TEXT PRIMARY KEY,
   operation         TEXT NOT NULL,
   lane              TEXT NOT NULL,
+  priority          TEXT NOT NULL DEFAULT 'service',
   state             TEXT NOT NULL,
   progress          INTEGER NOT NULL DEFAULT 0,
   message           TEXT NOT NULL DEFAULT '',

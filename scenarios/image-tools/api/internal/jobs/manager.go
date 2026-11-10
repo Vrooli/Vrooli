@@ -43,22 +43,26 @@ type Result struct {
 var (
 	// ErrNotFound is returned for an unknown job id.
 	ErrNotFound = errors.New("jobs: not found")
-	// ErrQueueFull is returned when a lane's queue is saturated.
+	// ErrQueueFull is returned when the scheduler queue is saturated.
 	ErrQueueFull = errors.New("jobs: queue full")
 	// ErrNotStarted is returned when Submit is called before Start.
 	ErrNotStarted          = errors.New("jobs: manager not started")
 	ErrIdempotencyConflict = errors.New("jobs: client operation id was reused with different input")
 )
 
-const laneQueueCap = 1024
+const queueCapacity = 1024
 
 // Config configures a Manager.
 type Config struct {
 	// Runner executes work. Required.
 	Runner Runner
+	// Admit obtains all leases before a job runs. A capacity refusal requeues
+	// without executing; Release runs before any terminal event is published.
+	Admit Admitter
 	// Clock supplies timestamps. Defaults to schedule.System().
 	Clock schedule.Clock
-	// CPUWorkers is the concurrent CPU lane size. Defaults to 4 when <= 0.
+	// CPUWorkers bounds all local work, including CPU-backed model inference.
+	// Platform capacity determines the safe concurrency below this ceiling.
 	CPUWorkers int
 	// NetworkWorkers is the concurrent network lane size for remote tiers.
 	// Defaults to 4 when <= 0.
@@ -71,11 +75,12 @@ type Config struct {
 	OnComplete func(job Job)
 }
 
-// Manager owns durable jobs: it serializes GPU work, runs CPU work
-// concurrently, and survives client disconnects (work runs under baseCtx).
+// Manager owns durable jobs, their one priority queue, and admission lifetime.
+// Work survives client disconnects and is terminal only after cleanup returns.
 type Manager struct {
 	st         *store
 	runner     Runner
+	admit      Admitter
 	clock      schedule.Clock
 	cpuN       int
 	netN       int
@@ -83,13 +88,14 @@ type Manager struct {
 	baseCtx    context.Context
 	cancel     context.CancelFunc
 
-	mu      sync.Mutex
-	entries map[string]*jobEntry
-	gpuCh   chan *jobEntry
-	cpuCh   chan *jobEntry
-	netCh   chan *jobEntry
-	started bool
-	wg      sync.WaitGroup
+	mu            sync.Mutex
+	entries       map[string]*jobEntry
+	pending       []*jobEntry
+	wake          chan struct{}
+	localActive   int
+	networkActive int
+	started       bool
+	wg            sync.WaitGroup
 }
 
 type subscriber struct {
@@ -105,6 +111,9 @@ type jobEntry struct {
 	done        chan struct{}
 	subs        []*subscriber
 	last        *ProgressEvent
+	retryAt     time.Time
+	persistErr  error
+	runner      Runner
 }
 
 type testPoolPinner interface {
@@ -141,52 +150,39 @@ func New(db SQLExecutor, cfg Config) *Manager {
 	return &Manager{
 		st:         newStore(db),
 		runner:     cfg.Runner,
+		admit:      cfg.Admit,
 		clock:      clk,
 		cpuN:       n,
 		netN:       netN,
 		onComplete: cfg.OnComplete,
 		entries:    make(map[string]*jobEntry),
-		gpuCh:      make(chan *jobEntry, laneQueueCap),
-		cpuCh:      make(chan *jobEntry, laneQueueCap),
-		netCh:      make(chan *jobEntry, laneQueueCap),
+		wake:       make(chan struct{}, 1),
 	}
 }
 
-// Start launches the lane workers and runs restart recovery. ctx is the
-// server-lifetime context; canceling it (or calling Close) stops the manager.
+// Start performs restart recovery before admitting work. Failed startup never
+// exposes a manager that accepts jobs without a running scheduler.
 func (m *Manager) Start(ctx context.Context) error {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.started {
-		m.mu.Unlock()
 		return nil
 	}
 	if m.runner == nil {
-		m.mu.Unlock()
 		return fmt.Errorf("jobs: runner is required")
 	}
 	m.baseCtx, m.cancel = context.WithCancel(ctx)
-	m.started = true
-	m.mu.Unlock()
-
 	if err := m.st.migrate(m.baseCtx); err != nil {
+		m.cancel()
 		return err
 	}
 	if err := m.recover(); err != nil {
+		m.cancel()
 		return err
 	}
-
-	// One serialized local worker; N CPU workers (concurrency); a separate
-	// bounded network pool so remote tiers never queue behind local work.
+	m.started = true
 	m.wg.Add(1)
-	go m.worker(m.gpuCh)
-	for i := 0; i < m.cpuN; i++ {
-		m.wg.Add(1)
-		go m.worker(m.cpuCh)
-	}
-	for i := 0; i < m.netN; i++ {
-		m.wg.Add(1)
-		go m.worker(m.netCh)
-	}
+	go m.schedule()
 	return nil
 }
 
@@ -216,9 +212,10 @@ func (m *Manager) recover() error {
 	}
 	now := m.clock.Now()
 	for _, j := range orphans {
-		j.State = StateFailed
-		j.Error = "interrupted by server restart"
-		j.FinishedAt = &now
+		if err := j.transition(StateFailed, now, "interrupted by server restart"); err != nil {
+			return err
+		}
+		j.Error = j.Message
 		if err := m.st.update(m.baseCtx, j); err != nil {
 			return err
 		}
@@ -226,9 +223,21 @@ func (m *Manager) recover() error {
 	return nil
 }
 
-// Submit accepts a unit of work, persists it as queued, enqueues it on its
-// lane, and returns the job (with id + ETA) immediately.
+// Submit persists a job and places it in the shared priority queue.
 func (m *Manager) Submit(ctx context.Context, spec Spec) (Job, error) {
+	return m.submit(ctx, spec, nil)
+}
+
+// SubmitTask routes an inline domain operation through the same scheduler.
+// The closure is server-owned until completion, just like the configured runner.
+func (m *Manager) SubmitTask(ctx context.Context, spec Spec, run Runner) (Job, error) {
+	if run == nil {
+		return Job{}, errors.New("jobs: task runner is required")
+	}
+	return m.submit(ctx, spec, run)
+}
+
+func (m *Manager) submit(ctx context.Context, spec Spec, run Runner) (Job, error) {
 	m.mu.Lock()
 	if !m.started {
 		m.mu.Unlock()
@@ -270,6 +279,7 @@ func (m *Manager) Submit(ctx context.Context, spec Spec) (Job, error) {
 		ID:                      uuid.NewString(),
 		Operation:               spec.Operation,
 		Lane:                    lane,
+		Priority:                normalizePriority(spec.Priority),
 		State:                   StateQueued,
 		Payload:                 spec.Payload,
 		ClientOperationID:       spec.ClientOperationID,
@@ -293,25 +303,26 @@ func (m *Manager) Submit(ctx context.Context, spec Spec) (Job, error) {
 		return Job{}, err
 	}
 
-	entry := &jobEntry{job: job, routeValues: routeValues, done: make(chan struct{})}
+	entry := &jobEntry{job: job, routeValues: routeValues, done: make(chan struct{}), runner: run}
 	m.mu.Lock()
 	m.entries[job.ID] = entry
-	ch := m.laneChannel(lane)
-	m.mu.Unlock()
-
-	select {
-	case ch <- entry:
+	if !m.started || m.baseCtx.Err() != nil {
+		m.mu.Unlock()
+		_ = m.transition(entry, StateCanceled, "server shutting down")
+		m.finish(entry)
 		return job, nil
-	default:
-		// Lane saturated: fail the job rather than block Submit.
-		failed := job
-		failed.State = StateFailed
-		failed.Error = "lane queue is full"
-		failed.FinishedAt = &now
-		_ = m.st.update(valueOverlayContext{Context: m.baseCtx, values: routeValues}, failed)
-		m.finalizeEntry(entry, failed)
+	}
+	if len(m.pending) >= queueCapacity {
+		m.mu.Unlock()
+		entry.job.Error = "scheduler queue is full"
+		_ = m.transition(entry, StateFailed, entry.job.Error)
+		m.finish(entry)
 		return Job{}, ErrQueueFull
 	}
+	m.pending = append(m.pending, entry)
+	m.mu.Unlock()
+	m.signal()
+	return job, nil
 }
 
 // GetByClientOperation returns a durable job by its caller-owned idempotency key.
@@ -374,95 +385,169 @@ func (m *Manager) Record(spec Spec, resultRef string, runErr error) (Job, error)
 	return job, nil
 }
 
-func (m *Manager) worker(ch chan *jobEntry) {
-	defer m.wg.Done()
-	for {
-		select {
-		case <-m.baseCtx.Done():
-			return
-		case entry := <-ch:
-			m.execute(entry)
-		}
-	}
-}
-
 func (m *Manager) execute(entry *jobEntry) {
+	defer m.wg.Done()
+	defer m.finishedSlot(entry)
 	entry.mu.Lock()
 	if entry.job.State.Terminal() {
-		// Canceled while queued — skip.
 		entry.mu.Unlock()
 		return
 	}
-	var jobCtx context.Context
-	var cancel context.CancelFunc
-	if entry.job.ExecutionTimeoutSeconds > 0 {
-		jobCtx, cancel = context.WithTimeout(m.baseCtx, time.Duration(entry.job.ExecutionTimeoutSeconds)*time.Second)
-	} else {
-		jobCtx, cancel = context.WithCancel(m.baseCtx)
-	}
+	jobCtx, cancel := context.WithCancel(m.baseCtx)
 	entry.cancel = cancel
-	now := m.clock.Now()
-	entry.job.State = StateRunning
-	entry.job.StartedAt = &now
+	transitionErr := entry.job.transition(StateAdmitting, m.clock.Now(), "waiting for capacity")
+	if transitionErr == nil {
+		transitionErr = m.persistLocked(entry)
+	}
 	snapshot := entry.job
 	entry.mu.Unlock()
 	defer cancel()
-	storeCtx := valueOverlayContext{Context: m.baseCtx, values: entry.routeValues}
-	if snapshot.TestMode {
-		jobCtx = valueOverlayContext{Context: jobCtx, values: entry.routeValues}
+	jobCtx = valueOverlayContext{Context: jobCtx, values: entry.routeValues}
+	if transitionErr != nil {
+		m.complete(entry, Result{}, transitionErr, jobCtx.Err() != nil)
+		return
 	}
-
-	_ = m.st.update(storeCtx, snapshot)
-	m.emit(entry, StateRunning, snapshot.Progress, "started")
-
-	emit := func(progress int, message string) {
-		if progress < 0 {
-			progress = 0
+	requestCtx := jobCtx
+	admission, err := m.acquire(jobCtx, snapshot)
+	if admission.Context != nil {
+		jobCtx = admission.Context
+	}
+	// Cleanup is cancellation-independent and precedes completion even when the
+	// runner panics, admission fails partway, or cancellation wins a result race.
+	if err == nil && jobCtx.Err() == nil {
+		err = m.transition(entry, StateRunning, "started")
+	}
+	var result Result
+	if err == nil && jobCtx.Err() == nil {
+		runCtx := jobCtx
+		if snapshot.ExecutionTimeoutSeconds > 0 {
+			var stop context.CancelFunc
+			runCtx, stop = context.WithTimeout(jobCtx, time.Duration(snapshot.ExecutionTimeoutSeconds)*time.Second)
+			defer stop()
 		}
-		if progress > 100 {
-			progress = 100
+		run := m.runner
+		if entry.runner != nil {
+			run = entry.runner
 		}
-		entry.mu.Lock()
-		entry.job.Progress = progress
-		entry.job.Message = message
-		snap := entry.job
-		entry.mu.Unlock()
-		_ = m.st.update(storeCtx, snap)
-		m.emit(entry, StateRunning, progress, message)
+		result, err = runSafely(runCtx, snapshot, func(progress int, message string) { m.progress(entry, progress, message) }, run)
+		if runCtx.Err() != nil {
+			err = errors.Join(err, runCtx.Err())
+		}
 	}
-
-	result, err := m.runner(jobCtx, snapshot, emit)
-	if err == nil && errors.Is(jobCtx.Err(), context.DeadlineExceeded) {
-		err = context.DeadlineExceeded
+	wasCanceled := requestCtx.Err() != nil
+	if jobCtx.Err() != nil {
+		err = errors.Join(err, context.Cause(jobCtx))
 	}
+	retry := errors.Is(err, ErrCapacityBusy)
+	if admission.Release != nil {
+		cleanup, stop := context.WithTimeout(context.WithoutCancel(jobCtx), 10*time.Second)
+		releaseErr := admission.Release(cleanup)
+		stop()
+		if releaseErr != nil {
+			retry = false
+			err = errors.Join(err, ErrReleaseFailed, fmt.Errorf("release job capacity: %w", releaseErr))
+		}
+	}
+	if retry && !wasCanceled {
+		if m.requeue(entry, err.Error()) {
+			return
+		}
+	}
+	if len(admission.Meta) > 0 {
+		if result.Meta == nil {
+			result.Meta = map[string]string{}
+		}
+		for key, value := range admission.Meta {
+			result.Meta[key] = value
+		}
+	}
+	m.complete(entry, result, err, wasCanceled)
+}
 
+func runSafely(ctx context.Context, job Job, emit func(int, string), run Runner) (result Result, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("job runner panicked: %v", recovered)
+		}
+	}()
+	return run(ctx, job, emit)
+}
+
+// transition serializes the state change and its durable write against progress
+// and cancellation. Active work never runs after a failed transition write.
+func (m *Manager) transition(entry *jobEntry, next State, message string) error {
 	entry.mu.Lock()
-	fin := m.clock.Now()
-	entry.job.FinishedAt = &fin
+	defer entry.mu.Unlock()
+	if err := entry.job.transition(next, m.clock.Now(), message); err != nil {
+		return err
+	}
+	return m.persistLocked(entry)
+}
+
+func (m *Manager) persistLocked(entry *jobEntry) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(m.baseCtx), 5*time.Second)
+	defer cancel()
+	err := m.st.update(valueOverlayContext{Context: ctx, values: entry.routeValues}, entry.job)
+	entry.persistErr = err
+	ev := ProgressEvent{JobID: entry.job.ID, State: entry.job.State, Progress: entry.job.Progress, Message: entry.job.Message, At: m.clock.Now()}
+	entry.last = &ev
+	for _, sub := range entry.subs {
+		if !sub.closed {
+			trySend(sub.ch, ev)
+		}
+	}
+	return err
+}
+
+func (m *Manager) progress(entry *jobEntry, progress int, message string) {
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+	if entry.job.State != StateRunning {
+		return
+	}
+	entry.job.Progress = max(0, min(100, progress))
+	entry.job.Message = message
+	_ = m.persistLocked(entry)
+}
+
+func (m *Manager) complete(entry *jobEntry, result Result, runErr error, canceled bool) {
+	entry.mu.Lock()
+	if entry.job.State.Terminal() {
+		entry.mu.Unlock()
+		return
+	}
+	state, message := StateSucceeded, "completed"
 	switch {
-	case errors.Is(jobCtx.Err(), context.DeadlineExceeded):
-		entry.job.State = StateFailed
-		entry.job.Error = "execution time limit exceeded"
-	case err != nil && jobCtx.Err() != nil:
-		entry.job.State = StateCanceled
-		entry.job.Message = "canceled"
-	case err != nil:
-		entry.job.State = StateFailed
-		entry.job.Error = err.Error()
-	default:
-		entry.job.State = StateSucceeded
-		entry.job.Progress = 100
-		entry.job.ResultRef = result.Ref
-		entry.job.Meta = result.Meta
+	case errors.Is(runErr, ErrReleaseFailed):
+		state, message = StateFailed, runErr.Error()
+		entry.job.Error = message
+	case errors.Is(runErr, context.DeadlineExceeded):
+		state, message = StateFailed, "execution time limit exceeded"
+		entry.job.Error = message
+	case canceled || entry.job.State == StateCanceling:
+		state, message = StateCanceled, "canceled"
+	case runErr != nil:
+		state, message = StateFailed, runErr.Error()
+		entry.job.Error = message
 	}
-	if entry.job.State == StateFailed || entry.job.State == StateCanceled {
-		entry.job.Meta = failedExecutionEvidence(result.Meta)
-		entry.job.ResultRef = ""
+	if state == StateSucceeded {
+		entry.job.ResultRef, entry.job.Meta, entry.job.Progress = result.Ref, result.Meta, 100
+	} else {
+		entry.job.Meta, entry.job.ResultRef = failedExecutionEvidence(result.Meta), ""
 	}
+	if err := entry.job.transition(state, m.clock.Now(), message); err != nil {
+		entry.persistErr = errors.Join(entry.persistErr, err)
+	} else {
+		_ = m.persistLocked(entry)
+	}
+	entry.mu.Unlock()
+	m.finish(entry)
+}
+
+func (m *Manager) finish(entry *jobEntry) {
+	entry.mu.Lock()
 	final := entry.job
 	entry.mu.Unlock()
-
-	_ = m.st.update(storeCtx, final)
 	m.finalizeEntry(entry, final)
 }
 
@@ -470,6 +555,24 @@ func (m *Manager) execute(entry *jobEntry) {
 // additive D33 contract key. Validate its envelope and reject success-only
 // fields so backend cost or output metadata cannot leak into an incomplete job.
 func failedExecutionEvidence(meta map[string]string) map[string]string {
+	out := gatewayFailureEvidence(meta)
+	raw := strings.TrimSpace(meta[MetaProvisioningEvidence])
+	if raw != "" {
+		var report struct {
+			SchemaVersion int   `json:"schema_version"`
+			Ready         *bool `json:"ready"`
+		}
+		if json.Unmarshal([]byte(raw), &report) == nil && report.SchemaVersion == 1 && report.Ready != nil && !*report.Ready {
+			if out == nil {
+				out = map[string]string{}
+			}
+			out[MetaProvisioningEvidence] = raw
+		}
+	}
+	return out
+}
+
+func gatewayFailureEvidence(meta map[string]string) map[string]string {
 	raw := strings.TrimSpace(meta[MetaGatewayExecutionEvidence])
 	if raw == "" {
 		return nil
@@ -523,18 +626,6 @@ func (m *Manager) finalizeEntry(entry *jobEntry, final Job) {
 	}
 }
 
-func (m *Manager) emit(entry *jobEntry, state State, progress int, message string) {
-	ev := ProgressEvent{JobID: entry.job.ID, State: state, Progress: progress, Message: message, At: m.clock.Now()}
-	entry.mu.Lock()
-	entry.last = &ev
-	for _, s := range entry.subs {
-		if !s.closed {
-			trySend(s.ch, ev)
-		}
-	}
-	entry.mu.Unlock()
-}
-
 func trySend(ch chan ProgressEvent, ev ProgressEvent) {
 	select {
 	case ch <- ev:
@@ -544,8 +635,9 @@ func trySend(ch chan ProgressEvent, ev ProgressEvent) {
 	}
 }
 
-// Cancel aborts a job. A running job's context is canceled; a still-queued job
-// is marked canceled immediately so Wait returns without executing it.
+// Cancel marks active jobs canceling and signals their execution context.
+// Wait remains attached until resource cleanup finishes. Queued jobs own no
+// claims and can become canceled immediately.
 func (m *Manager) Cancel(id string) error {
 	m.mu.Lock()
 	entry, ok := m.entries[id]
@@ -554,26 +646,29 @@ func (m *Manager) Cancel(id string) error {
 		return fmt.Errorf("%w: %s", ErrNotFound, id)
 	}
 	entry.mu.Lock()
-	if entry.job.State.Terminal() {
+	if entry.job.State.Terminal() || entry.job.State == StateCanceling {
 		entry.mu.Unlock()
 		return nil
 	}
-	if entry.job.State == StateRunning && entry.cancel != nil {
-		c := entry.cancel
-		entry.mu.Unlock()
-		c() // execute() observes ctx cancellation and finalizes as canceled
-		return nil
+	active := entry.cancel != nil
+	state := StateCanceled
+	if active {
+		state = StateCanceling
 	}
-	// Queued: finalize as canceled now.
-	now := m.clock.Now()
-	entry.job.State = StateCanceled
-	entry.job.FinishedAt = &now
-	entry.job.Message = "canceled"
-	final := entry.job
+	err := entry.job.transition(state, m.clock.Now(), "canceled")
+	if err == nil {
+		err = m.persistLocked(entry)
+	}
+	cancel := entry.cancel
 	entry.mu.Unlock()
-	_ = m.st.update(valueOverlayContext{Context: m.baseCtx, values: entry.routeValues}, final)
-	m.finalizeEntry(entry, final)
-	return nil
+	if cancel != nil {
+		cancel()
+	}
+	if !active {
+		m.finish(entry)
+		m.signal()
+	}
+	return err
 }
 
 // Wait blocks ONCE until the job is terminal, then returns it. If ctx is
@@ -594,9 +689,9 @@ func (m *Manager) Wait(ctx context.Context, id string) (Job, error) {
 	select {
 	case <-entry.done:
 		entry.mu.Lock()
-		j := entry.job
+		j, err := entry.job, entry.persistErr
 		entry.mu.Unlock()
-		return j, nil
+		return j, err
 	case <-ctx.Done():
 		return Job{}, ctx.Err()
 	}
@@ -701,17 +796,5 @@ func normalizeLane(lane Lane) Lane {
 		return lane
 	default:
 		return LaneCPU
-	}
-}
-
-// laneChannel returns the queue a lane's workers read from.
-func (m *Manager) laneChannel(lane Lane) chan *jobEntry {
-	switch lane {
-	case LaneGPU:
-		return m.gpuCh
-	case LaneNetwork:
-		return m.netCh
-	default:
-		return m.cpuCh
 	}
 }

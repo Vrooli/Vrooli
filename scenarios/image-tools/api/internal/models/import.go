@@ -2,11 +2,8 @@ package models
 
 import (
 	"fmt"
-	"path"
-	"regexp"
 	"strings"
 
-	"image-tools/internal/fetch"
 	"image-tools/internal/hfmeta"
 )
 
@@ -58,14 +55,12 @@ type ImportConfirm struct {
 	AttestCommercialRights bool
 }
 
-var idSanitizer = regexp.MustCompile(`[^a-z0-9._-]+`)
-
 // ProposeImport inspects metadata into a proposal: it infers the architecture and
 // assembles the default entry. The proposal's Entry carries a default id derived
 // from the source; the operator confirms/overrides before ImportModel.
 func ProposeImport(meta hfmeta.Metadata) ImportProposal {
 	arch, conf, evidence := InferArchitecture(meta)
-	entry := assembleEntry(meta, arch, defaultID(meta), defaultName(meta), nil)
+	entry := assembleEntry(meta, arch, meta.ImportID("imported-model"), meta.ImportName("Imported model"), nil)
 	return ImportProposal{
 		Metadata:     meta,
 		Architecture: arch,
@@ -94,26 +89,24 @@ func BuildImportEntry(meta hfmeta.Metadata, confirm ImportConfirm) (Model, error
 	if arch == "" || arch == ArchNone {
 		return Model{}, fmt.Errorf("import: architecture could not be inferred and was not confirmed — select one explicitly")
 	}
+	if !confirm.AttestCommercialRights {
+		return Model{}, fmt.Errorf("import: confirm that you hold commercial rights before registering or downloading model weights")
+	}
 	if !arch.valid() {
 		return Model{}, fmt.Errorf("import: unknown architecture %q", arch)
 	}
 	name := confirm.Name
 	if strings.TrimSpace(name) == "" {
-		name = defaultName(meta)
+		name = meta.ImportName("Imported model")
 	}
 	entry := assembleEntry(meta, arch, confirm.ID, name, confirm.Operations)
 	if entry.Backend == "" {
 		return Model{}, fmt.Errorf("import: source layout %q has no runnable backend (provide a single-file checkpoint or a diffusers repo)", meta.Layout)
 	}
-	// Commercial posture: attested ⇒ yes; otherwise conditional (opt-in, blocked on
-	// public/BYOK by the safety tier gate until attested) with an explicit note.
-	if confirm.AttestCommercialRights {
-		entry.CapabilityLabels.CommercialUse = CommercialUseYes
-		entry.CapabilityLabels.CommercialUseNotes = "operator-attested commercial rights at import time"
-	} else {
-		entry.CapabilityLabels.CommercialUse = CommercialUseConditional
-		entry.CapabilityLabels.CommercialUseNotes = "user-imported; commercial rights unverified — public/BYOK serving blocked until attested"
-	}
+	// The final import flow only accepts an explicit rights attestation. Dry-run
+	// proposals remain conditional until the operator confirms in ImportConfirm.
+	entry.CapabilityLabels.CommercialUse = CommercialUseYes
+	entry.CapabilityLabels.CommercialUseNotes = "operator-attested commercial rights at import time"
 	return entry, nil
 }
 
@@ -133,7 +126,7 @@ func assembleEntry(meta hfmeta.Metadata, arch Architecture, id, name string, ops
 		Hardware:     importHardwareFor(arch),
 		CapabilityLabels: CapabilityLabels{
 			NSFWCapable:      meta.NSFW,
-			License:          licenseLabel(meta.License),
+			License:          meta.LicenseLabel(),
 			BaseModelLineage: meta.BaseModel,
 			Provenance:       ProvenanceUserImported,
 		},
@@ -162,39 +155,17 @@ func importHardwareFor(arch Architecture) Hardware {
 	}
 }
 
-// applyLayoutSource sets the backend + fetch strategy from the detected layout
-// (decision D3): a single-file checkpoint installs as a direct Asset on the
-// stable-diffusion.cpp backend (with diffusers as an alt for the derived ops); a
-// diffusers repo installs as a pinned snapshot on the diffusers backend.
 func applyLayoutSource(m *Model, meta hfmeta.Metadata) {
 	switch meta.Layout {
 	case hfmeta.LayoutSingleFile:
 		m.Backend = "stable-diffusion.cpp"
 		m.AltBackends = []string{BackendDiffusers}
-		if local := localSingleFilePath(meta); local != "" {
-			m.Source.LocalPath = local
-			return
-		}
-		filename, url := singleFileAsset(meta)
-		if url != "" {
-			m.Source.Assets = []Asset{{
-				URL:      url,
-				Filename: filename,
-				Kind:     checkpointKind(filename),
-			}}
-		}
 	case hfmeta.LayoutDiffusersRepo:
 		m.Backend = BackendDiffusers
-		if isLocalSource(meta) {
-			m.Source.LocalPath = meta.Source
-			return
-		}
-		if meta.RepoID != "" {
-			m.Source.Repo = fetch.RepoSpec{RepoID: meta.RepoID, Revision: meta.Revision}
-		}
 	default:
-		// Unknown layout → no backend; BuildImportEntry rejects it.
+		return
 	}
+	m.Source = meta.ImportSource(".safetensors", ".ckpt", ".gguf")
 }
 
 // baseOperationsFor is the native op set an imported base model declares for its
@@ -210,104 +181,4 @@ func baseOperationsFor(arch Architecture) []string {
 	default:
 		return nil
 	}
-}
-
-// licenseLabel normalizes a declared license to the catalog label: a declared id
-// passes through; an empty declaration is the explicit "unverified" marker the
-// safety tier gate keys on.
-func licenseLabel(declared string) string {
-	if strings.TrimSpace(declared) == "" {
-		return "unverified"
-	}
-	return declared
-}
-
-func defaultID(meta hfmeta.Metadata) string {
-	base := meta.RepoID
-	if base == "" {
-		base = meta.Source
-	}
-	base = strings.ToLower(path.Base(strings.TrimRight(base, "/")))
-	base = strings.TrimSuffix(base, path.Ext(base))
-	base = idSanitizer.ReplaceAllString(base, "-")
-	base = strings.Trim(base, "-._")
-	if base == "" {
-		base = "imported-model"
-	}
-	return "imported-" + base
-}
-
-func defaultName(meta hfmeta.Metadata) string {
-	base := meta.RepoID
-	if base == "" {
-		base = path.Base(strings.TrimRight(meta.Source, "/"))
-	}
-	if strings.TrimSpace(base) == "" {
-		return "Imported model"
-	}
-	return base
-}
-
-// singleFileAsset returns the on-disk filename + resolvable URL for a single-file
-// source: an HF repo's top-level checkpoint resolves to its resolve/<rev>/<file>
-// URL; a direct URL source is its own asset.
-func singleFileAsset(meta hfmeta.Metadata) (filename, url string) {
-	if isURLSource(meta) {
-		name := path.Base(strings.SplitN(meta.Source, "?", 2)[0])
-		return name, meta.Source
-	}
-	if meta.RepoID != "" {
-		name := topLevelCheckpoint(meta)
-		if name == "" {
-			return "", ""
-		}
-		rev := meta.Revision
-		if rev == "" {
-			rev = "main"
-		}
-		return name, fmt.Sprintf("https://huggingface.co/%s/resolve/%s/%s", meta.RepoID, rev, name)
-	}
-	return "", ""
-}
-
-// topLevelCheckpoint returns the first top-level checkpoint filename in the
-// listing (the single-file weight), or "".
-func topLevelCheckpoint(meta hfmeta.Metadata) string {
-	for _, f := range meta.Files {
-		name := path.Base(f.Path)
-		if strings.Contains(strings.Trim(f.Path, "/"), "/") {
-			continue
-		}
-		switch strings.ToLower(path.Ext(name)) {
-		case ".safetensors", ".ckpt", ".gguf":
-			return name
-		}
-	}
-	return ""
-}
-
-func checkpointKind(filename string) ArtifactKind {
-	switch strings.ToLower(path.Ext(filename)) {
-	case ".safetensors":
-		return ArtifactSafetensors
-	case ".gguf":
-		return ArtifactGGUF
-	default:
-		return ArtifactGeneric
-	}
-}
-
-func localSingleFilePath(meta hfmeta.Metadata) string {
-	if isLocalSource(meta) {
-		return meta.Source
-	}
-	return ""
-}
-
-func isURLSource(meta hfmeta.Metadata) bool {
-	return strings.HasPrefix(meta.Source, "http://") || strings.HasPrefix(meta.Source, "https://")
-}
-
-func isLocalSource(meta hfmeta.Metadata) bool {
-	return strings.HasPrefix(meta.Source, "/") || strings.HasPrefix(meta.Source, ".")
 }

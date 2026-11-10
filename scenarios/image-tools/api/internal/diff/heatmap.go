@@ -6,6 +6,9 @@ import (
 	"image/color"
 	"image/png"
 	"math"
+	"strings"
+
+	"image-tools/internal/colorutil"
 )
 
 // defaultHighlight is the heat-map tint applied to changed pixels (magenta).
@@ -83,36 +86,16 @@ func lerp(a, b uint8, t float64) uint8 {
 
 // parseHex parses #rrggbb (with or without the leading #) into an opaque colour.
 func parseHex(s string) (color.NRGBA, bool) {
-	if s == "" {
+	if s == "" || strings.TrimSpace(s) != s {
 		return color.NRGBA{}, false
 	}
-	if s[0] == '#' {
-		s = s[1:]
-	}
-	if len(s) != 6 {
+	value := strings.TrimPrefix(s, "#")
+	if len(value) != 6 {
 		return color.NRGBA{}, false
 	}
-	var rgb [3]uint8
-	for i := 0; i < 3; i++ {
-		hi, ok1 := hexNibble(s[i*2])
-		lo, ok2 := hexNibble(s[i*2+1])
-		if !ok1 || !ok2 {
-			return color.NRGBA{}, false
-		}
-		rgb[i] = hi<<4 | lo
+	c, err := colorutil.ParseHex(s)
+	if err != nil {
+		return color.NRGBA{}, false
 	}
-	return color.NRGBA{R: rgb[0], G: rgb[1], B: rgb[2], A: 255}, true
-}
-
-func hexNibble(c byte) (uint8, bool) {
-	switch {
-	case c >= '0' && c <= '9':
-		return c - '0', true
-	case c >= 'a' && c <= 'f':
-		return c - 'a' + 10, true
-	case c >= 'A' && c <= 'F':
-		return c - 'A' + 10, true
-	default:
-		return 0, false
-	}
+	return c, true
 }

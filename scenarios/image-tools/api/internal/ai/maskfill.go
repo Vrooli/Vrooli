@@ -137,8 +137,8 @@ func growHalo(px []color.NRGBA, mask []bool, w, h, threshold, passes int) []bool
 		}
 	}
 	window := func(x, y int) (r, g, bl float64, n float64) {
-		x0, y0 := maxInt(0, x-radius), maxInt(0, y-radius)
-		x1, y1 := minInt(w, x+radius+1), minInt(h, y+radius+1)
+		x0, y0 := max(0, x-radius), max(0, y-radius)
+		x1, y1 := min(w, x+radius+1), min(h, y+radius+1)
 		r = sumR[y1*iw+x1] - sumR[y0*iw+x1] - sumR[y1*iw+x0] + sumR[y0*iw+x0]
 		g = sumG[y1*iw+x1] - sumG[y0*iw+x1] - sumG[y1*iw+x0] + sumG[y0*iw+x0]
 		bl = sumB[y1*iw+x1] - sumB[y0*iw+x1] - sumB[y1*iw+x0] + sumB[y0*iw+x0]
@@ -281,18 +281,4 @@ func solveLaplace(px []color.NRGBA, mask []bool, w, h, maxIter int) {
 			break
 		}
 	}
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
 }

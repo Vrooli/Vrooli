@@ -30,6 +30,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"ModelsService.ListBlocklist":      h.blocklist,
 		"ModelsService.DoctorCatalog":      h.doctor,
 		"ModelsService.InstallModel":       h.install,
+		"ModelsService.ProvisionModels":    h.provision,
 		"ModelsService.RemoveModel":        h.remove,
 		"ModelsService.AddCustomModel":     h.addCustom,
 		"ModelsService.InspectModelSource": h.inspect,
@@ -55,4 +56,20 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		RunCtx: h.search,
 	})
 	return group, nil
+}
+
+// RootCommands reuses the manifest declarations for the two preparation entry
+// points, so image-tools doctor/provision and models doctor/provision agree.
+func RootCommands(core *cliapp.ScenarioApp, manifest []byte) cliapp.CommandGroup {
+	group, err := Register(core, manifest)
+	if err != nil {
+		panic(err)
+	}
+	out := cliapp.CommandGroup{Title: "Preparation"}
+	for _, command := range group.Subcommands {
+		if command.Name == "doctor" || command.Name == "provision" {
+			out.Commands = append(out.Commands, command)
+		}
+	}
+	return out
 }

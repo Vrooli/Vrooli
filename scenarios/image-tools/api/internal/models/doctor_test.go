@@ -90,6 +90,24 @@ func TestDoctorCatalogReportsActionableFindings(t *testing.T) {
 	}
 }
 
+func TestDoctorRejectsNonHexSHA256WithCorrectLength(t *testing.T) {
+	seed := `{"schema_version":"1.0.0","models":[{"id":"bad-hash","name":"Bad Hash","operations":["upscale"],"default_for":["upscale"],"tier":"default","backend":"onnxruntime","hardware":{"cpu_capable":true},"capability_labels":{"commercial_use":"yes"},"enabled":true,"source":{"assets":[{"url":"https://example.test/model.onnx","filename":"model.onnx","kind":"onnx","sha256":"` + strings.Repeat("g", 64) + `","min_bytes":1}],"checksum":{"algo":"sha256","value":"` + strings.Repeat("g", 64) + `","status":"pinned"}}}]}`
+	r, err := Parse([]byte(seed))
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	report := r.DoctorCatalog()
+	codes := make(map[string]bool)
+	for _, finding := range report.Findings {
+		codes[finding.Code] = true
+	}
+	for _, code := range []string{"asset_bad_sha256", "checksum_bad_sha256"} {
+		if !codes[code] {
+			t.Fatalf("doctor accepted 64-character non-hex digest; missing %q in %+v", code, report.Findings)
+		}
+	}
+}
+
 // TestDoctorDiffusersEditRunnableInvariant pins the Phase-4 "enabled ⇒ runnable"
 // invariant for diffusers edit_instruct models: an enabled such model must name a
 // registered, proven family adapter and declare a min_runtime. Each failure mode

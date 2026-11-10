@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink } from "react-router-dom";
-import { Camera, ImageUp, ScanText, Sparkles, Upload } from "lucide-react";
+import { Camera, ImageUp, Link2, ScanText, Sparkles, Upload } from "lucide-react";
 
 import { Button } from "../../components/ui/button";
 import { EmptyState } from "../../components/ui/empty-state";
@@ -9,6 +9,7 @@ import { LumeMark } from "../../components/ui/lume-mark";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { blobUrl } from "../../api/client";
+import { importImageLink } from "../../api/importLink";
 import { jobsClient } from "../../api/jobs";
 import { useTranslation } from "../../i18n";
 import { HealthCard } from "../health/HealthCard";
@@ -103,6 +104,9 @@ export function HomeLaunchpad() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [firstRun, setFirstRun] = useState(readFirstRun);
+  const [imageURL, setImageURL] = useState("");
+  const [importingLink, setImportingLink] = useState(false);
+  const [linkError, setLinkError] = useState("");
 
   const jobsQuery = useQuery({
     queryKey: JOBS_QUERY_KEY,
@@ -150,6 +154,22 @@ export function HomeLaunchpad() {
     event.preventDefault();
     setDragActive(false);
     openFile(event.dataTransfer.files[0] ?? null);
+  };
+
+  const submitImageLink = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!imageURL.trim() || importingLink) return;
+    setImportingLink(true);
+    setLinkError("");
+    try {
+      const file = await importImageLink(imageURL.trim());
+      setImageURL("");
+      openFile(file);
+    } catch (error) {
+      setLinkError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setImportingLink(false);
+    }
   };
 
   const showFirstRun = firstRun && recent.length === 0;
@@ -226,6 +246,25 @@ export function HomeLaunchpad() {
             {t(strings.home.entry.sample)}
           </Button>
         </div>
+        <form onSubmit={submitImageLink} className="mx-auto flex w-full max-w-2xl flex-col gap-2 rounded-panel border border-app-border bg-app-surface p-3 sm:flex-row">
+          <label className="sr-only" htmlFor="home-image-url">{t(strings.home.entry.linkLabel)}</label>
+          <input
+            id="home-image-url"
+            type="url"
+            inputMode="url"
+            autoComplete="url"
+            placeholder={t(strings.home.entry.linkPlaceholder)}
+            value={imageURL}
+            onChange={(event) => setImageURL(event.target.value)}
+            disabled={importingLink}
+            className="min-h-touch min-w-0 flex-1 rounded-control border border-app-border bg-app-background px-3 text-sm text-app-foreground placeholder:text-app-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-primary/50"
+          />
+          <Button type="submit" disabled={!imageURL.trim() || importingLink}>
+            <Link2 aria-hidden="true" className="me-2 h-4 w-4" />
+            {importingLink ? t(strings.home.entry.importingLink) : t(strings.home.entry.importLink)}
+          </Button>
+        </form>
+        {linkError ? <p role="alert" className="text-center text-sm text-app-danger">{linkError}</p> : null}
         {showFirstRun ? (
           <p data-testid={selectors.home.firstRun} className="text-center text-xs text-app-brand-strong">
             {t(strings.home.firstRun)}

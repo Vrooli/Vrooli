@@ -3,7 +3,10 @@ package ops
 import (
 	"image"
 	"image/color"
+	"runtime"
 	"testing"
+
+	"github.com/disintegration/imaging"
 )
 
 // testImage builds a deterministic 16x12 gradient with an alpha corner so
@@ -16,6 +19,48 @@ func testImage() *image.RGBA {
 		}
 	}
 	return img
+}
+
+// BenchmarkConvertImageTransform measures the full-frame allocation removed
+// from format conversion. The legacy row reconstructs convertClone's imaging
+// clone; the current row returns the immutable decoded source for the encoder.
+func BenchmarkConvertImageTransform(b *testing.B) {
+	src := image.NewRGBA(image.Rect(0, 0, 4000, 3000))
+	params := &Params{Format: FormatPNG}
+	b.Run("legacy_clone", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			out := imaging.Clone(src)
+			runtime.KeepAlive(out)
+		}
+	})
+	b.Run("shared_source", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			out, err := convertImage(src, params)
+			if err != nil {
+				b.Fatal(err)
+			}
+			runtime.KeepAlive(out)
+		}
+	})
+}
+
+var convertImageAllocationSink image.Image
+
+func TestConvertImageTransformAllocationBudget(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 4000, 3000))
+	params := &Params{Format: FormatPNG}
+	allocs := testing.AllocsPerRun(100, func() {
+		out, err := convertImage(src, params)
+		if err != nil {
+			t.Fatal(err)
+		}
+		convertImageAllocationSink = out
+	})
+	if allocs != 0 {
+		t.Fatalf("convert transform allocated %.2f objects/run; budget is 0", allocs)
+	}
 }
 
 func TestEncodeDecodeRoundTripAllFormats(t *testing.T) {
@@ -93,5 +138,10 @@ func TestFormatHelpers(t *testing.T) {
 	}
 	if MIMEFor(FormatWebP) != "image/webp" {
 		t.Errorf("MIMEFor(webp) = %q", MIMEFor(FormatWebP))
+	}
+	for alias, want := range map[string]string{"jpg": FormatJPEG, "jpe": FormatJPEG, "tiff": FormatTIFF, "heif": FormatHEIC} {
+		if got := normalizeFormat(alias); got != want {
+			t.Errorf("normalizeFormat(%q) = %q, want %q", alias, got, want)
+		}
 	}
 }

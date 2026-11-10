@@ -100,22 +100,19 @@ type DerivedTechnique struct {
 // sd15 AND sdxl; outpaint (needs canvas-expansion, delivered via the
 // outpaint-extend Look) and edit-via-img2img stay unproven. Unproven rows are
 // wired + inspectable but never offered for selection (no vaporware).
+var baseDiffusionTechniques = []DerivedTechnique{
+	{Op: "edit_instruct", Technique: "edit-via-img2img", Caveat: "derived: probabilistic edit via low-strength img2img; not identity-preserving like a true instruction-edit model"},
+	{Op: "image_to_image", Technique: "sd-img2img", Ready: true, Caveat: "derived: img2img on a base checkpoint is a first-class use; results follow the checkpoint's style"},
+	{Op: "inpaint", Technique: "diffusers-inpaint", Ready: true, Caveat: "derived: a base checkpoint inpaints via the standard pipeline; a dedicated *-inpainting model blends masked edges more cleanly"},
+	{Op: "outpaint", Technique: "diffusers-outpaint", Caveat: "derived: outpaint = expand-canvas + inpaint on a base checkpoint; new borders may need a refine pass"},
+}
+
 var architectureTechniques = map[Architecture][]DerivedTechnique{
-	ArchSD15: {
-		{Op: "image_to_image", Technique: "sd-img2img", Ready: true, Caveat: "derived: img2img on a base checkpoint is a first-class use; results follow the checkpoint's style"},
-		{Op: "inpaint", Technique: "diffusers-inpaint", Ready: true, Caveat: "derived: a base checkpoint inpaints via the standard pipeline; a dedicated *-inpainting model blends masked edges more cleanly"},
-		{Op: "outpaint", Technique: "diffusers-outpaint", Caveat: "derived: outpaint = expand-canvas + inpaint on a base checkpoint; new borders may need a refine pass"},
-		{Op: "edit_instruct", Technique: "edit-via-img2img", Caveat: "derived: probabilistic edit via low-strength img2img; not identity-preserving like a true instruction-edit model"},
-	},
-	ArchSDXL: {
-		{Op: "image_to_image", Technique: "sd-img2img", Ready: true, Caveat: "derived: img2img on a base checkpoint is a first-class use; results follow the checkpoint's style"},
-		{Op: "inpaint", Technique: "diffusers-inpaint", Ready: true, Caveat: "derived: a base checkpoint inpaints via the standard pipeline; a dedicated *-inpainting model blends masked edges more cleanly"},
-		{Op: "outpaint", Technique: "diffusers-outpaint", Caveat: "derived: outpaint = expand-canvas + inpaint on a base checkpoint; new borders may need a refine pass"},
-		{Op: "edit_instruct", Technique: "edit-via-img2img", Caveat: "derived: probabilistic edit via low-strength img2img; not identity-preserving like a true instruction-edit model"},
-	},
+	ArchSD15: baseDiffusionTechniques,
+	ArchSDXL: baseDiffusionTechniques,
 	ArchFlux: {
-		{Op: "image_to_image", Technique: "sd-img2img", Caveat: "derived: img2img on a base checkpoint is a first-class use; results follow the checkpoint's style"},
 		{Op: "edit_instruct", Technique: "edit-via-img2img", Caveat: "derived: probabilistic edit via low-strength img2img; not identity-preserving like a true instruction-edit model"},
+		{Op: "image_to_image", Technique: "sd-img2img", Caveat: "derived: img2img on a base checkpoint is a first-class use; results follow the checkpoint's style"},
 	},
 }
 
@@ -123,10 +120,7 @@ var architectureTechniques = map[Architecture][]DerivedTechnique{
 // op for determinism. Unknown / ArchNone architectures derive nothing.
 func DerivableTechniques(arch Architecture) []DerivedTechnique {
 	rows := architectureTechniques[arch]
-	out := make([]DerivedTechnique, len(rows))
-	copy(out, rows)
-	sort.Slice(out, func(i, j int) bool { return out[i].Op < out[j].Op })
-	return out
+	return append([]DerivedTechnique(nil), rows...)
 }
 
 // EffectiveOp is one entry in a model's derived effective op set: the operation,

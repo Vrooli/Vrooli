@@ -151,21 +151,7 @@ func waitAndDownload(core *cliapp.ScenarioApp, jobID, outPath string) (*jobsv1.J
 // downloadBlob fetches a managed blob and writes it, correcting the extension
 // when the bytes are a different format than outPath names.
 func downloadBlob(core *cliapp.ScenarioApp, ref, outPath string) (string, error) {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	url := strings.TrimRight(baseURL, "/") + "/api/v1/blobs/" + ref
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
-	if err != nil {
-		return "", err
-	}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("download result: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("download result failed (%d)", resp.StatusCode)
-	}
-	data, err := io.ReadAll(resp.Body)
+	data, err := fetchBlob(core, ref)
 	if err != nil {
 		return "", err
 	}
@@ -174,6 +160,28 @@ func downloadBlob(core *cliapp.ScenarioApp, ref, outPath string) (string, error)
 		return "", fmt.Errorf("write output %q: %w", target, err)
 	}
 	return target, nil
+}
+
+func fetchBlob(core *cliapp.ScenarioApp, ref string) ([]byte, error) {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	url := strings.TrimRight(baseURL, "/") + "/api/v1/blobs/" + ref
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download result: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download result failed (%d)", resp.StatusCode)
+	}
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 // imageExtensions maps a sniffed image format to its canonical extension and the
@@ -202,6 +210,13 @@ func pathForContent(outPath string, data []byte) string {
 		}
 	}
 	return strings.TrimSuffix(outPath, filepath.Ext(outPath)) + exts[0]
+}
+
+func pathForCaption(outPath string) string {
+	if strings.EqualFold(filepath.Ext(outPath), ".txt") {
+		return outPath
+	}
+	return strings.TrimSuffix(outPath, filepath.Ext(outPath)) + ".txt"
 }
 
 // sniffImageFormat names the image format of data ("" when unknown).

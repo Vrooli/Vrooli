@@ -8,46 +8,47 @@ import (
 
 	"image-tools/internal/capabilities"
 	internalmodels "image-tools/internal/models"
-	"image-tools/internal/smoke"
 
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 )
 
-// TestReadyState_EnvAndSmokeOverrides proves the picker surfaces "installed but
-// not runnable" before a user picks the model: an installed+enabled+backend-ready
-// candidate degrades to env_not_provisioned (no venv) or smoke_failed (load-smoke
-// failed), while a passing/absent/not-applicable smoke status stays "ready".
-func TestReadyState_EnvAndSmokeOverrides(t *testing.T) {
-	ready := &modelsv1.BackendReadiness{Ready: true, InstallTier: "auto"}
-	cases := []struct {
-		name  string
-		smoke internalmodels.SmokeStatus
-		want  string
-	}{
-		{"not applicable (binary backend)", internalmodels.SmokeStatus{}, "ready"},
-		{"env not provisioned", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: false}, "env_not_provisioned"},
-		{"smoke failed", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true, HasVerdict: true, Verdict: smoke.Verdict{Pass: false}}, "smoke_failed"},
-		{"smoke passed", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true, HasVerdict: true, Verdict: smoke.Verdict{Pass: true}}, "ready"},
-		{"env ok, no verdict yet", internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true}, "smoke_pending"},
-	}
-	for _, c := range cases {
-		if got := readyState(true, true, "ok", ready, c.smoke); got != c.want {
-			t.Errorf("%s: readyState = %q, want %q", c.name, got, c.want)
+// The picker reads the model lifecycle's actionable reason without rebuilding
+// environment, build and smoke decisions in the transport layer.
+func TestReadyStateUsesLifecycleReason(t *testing.T) {
+	backend := &modelsv1.BackendReadiness{Ready: true, InstallTier: "auto"}
+	for _, reason := range []string{"ready", "env_not_provisioned", "smoke_failed", "smoke_pending", "smoke_unsupported", "build_not_ready"} {
+		state := internalmodels.ModelLifecycle{Reason: reason}
+		if got := readyState(true, true, "ok", backend, state); got != reason {
+			t.Fatalf("%s projected as %s", reason, got)
 		}
-	}
-	// A not-yet-installed model is unaffected by the smoke override.
-	if got := readyState(false, true, "ok", ready, internalmodels.SmokeStatus{Applicable: true}); got != "needs_model_install" {
-		t.Errorf("smoke override must not apply to a not-installed model: %q", got)
+		if got := readyState(false, true, "ok", backend, state); got != "needs_model_install" {
+			t.Fatalf("missing weights projected as %s", got)
+		}
 	}
 }
 
-func TestPythonSidecarWithoutModelProbeIsNotReady(t *testing.T) {
-	m := internalmodels.Model{ID: "unprobed-sidecar", Backend: "python-sidecar"}
-	if got := requirePythonSidecarSmoke(m, internalmodels.SmokeStatus{}, "ready"); got != "smoke_unsupported" {
-		t.Fatalf("readiness = %q, want smoke_unsupported", got)
+func TestListOperationModelsMarksConditionalRightsAsReviewRequired(t *testing.T) {
+	h, reg := newTestHandler(t, cpuOnlyHost)
+	var conditional internalmodels.Model
+	for _, model := range reg.Models() {
+		if model.CapabilityLabels.CommercialUse == internalmodels.CommercialUseConditional && len(model.Operations) > 0 {
+			conditional = model
+			break
+		}
 	}
-	if got := requirePythonSidecarSmoke(m, internalmodels.SmokeStatus{Applicable: true, EnvProvisioned: true, HasVerdict: true}, "ready"); got != "ready" {
-		t.Fatalf("supported smoke readiness = %q, want ready", got)
+	if conditional.ID == "" {
+		t.Fatal("seed should include a conditional-rights model for this regression")
+	}
+	resp, err := h.ListOperationModels(context.Background(), connect.NewRequest(&modelsv1.ListOperationModelsRequest{Operation: conditional.Operations[0]}))
+	if err != nil {
+		t.Fatalf("list operation models: %v", err)
+	}
+	candidate := findCandidate(resp.Msg, conditional.ID)
+	if candidate == nil {
+		t.Fatalf("conditional model %q missing from its operation picker", conditional.ID)
+	}
+	if candidate.GetReadyState() != "commercial_rights_review_required" {
+		t.Fatalf("conditional model ready state = %q, want commercial_rights_review_required", candidate.GetReadyState())
 	}
 }
 

@@ -6,10 +6,151 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestWarmResidencyRetainsClaimsAcrossJobsAndReleasesOnIdle(t *testing.T) {
+	root, imports, outputs := writeSleepySidecarPackage(t)
+	setPythonPath(t, root)
+	runner := newWarmSidecarRunner()
+	runner.idleTimeout = 20 * time.Millisecond
+	t.Cleanup(func() { _ = runner.Close() })
+	var acquired, released atomic.Int32
+	closed := make(chan struct{}, 2)
+	acquire := func(ctx context.Context) (*leaseGroup, error) {
+		acquired.Add(1)
+		group := newLeaseGroup(ctx)
+		group.renew("RAM", &memoryTestLease{onRelease: func(context.Context) {
+			if runner.cmd != nil || runner.exited != nil {
+				t.Error("resident RAM released before worker reaped")
+			}
+			released.Add(1)
+			closed <- struct{}{}
+		}})
+		return group, nil
+	}
+	for i := range 2 {
+		meta := map[string]string{}
+		admitted, err := runner.reserve(context.Background(), "same-model", fmt.Sprintf("job-%d", i), acquire, meta)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := admitted.Meta["warm_reused"]; got != fmt.Sprint(i > 0) {
+			t.Fatalf("reuse %d: %s", i, got)
+		}
+		if err := runner.Run(admitted.Context, "python3", []string{"-m", "benchmark_sidecar.sleepy", "--out", filepath.Join(outputs, fmt.Sprint(i))}); err != nil {
+			t.Fatal(err)
+		}
+		if meta[workerResidencyIDMetadataKey] == "" || meta[workerResidencyModelMetadataKey] != "same-model" {
+			t.Fatalf("residency identity metadata = %#v", meta)
+		}
+		if meta[workerResidencyPeakRSSStatusKey] != "measured" && meta[workerResidencyPeakRSSStatusKey] != "unavailable" {
+			t.Fatalf("worker residency RSS was not explicitly classified: %#v", meta)
+		}
+		if runtime.GOOS == "linux" {
+			if meta[workerResidencyPeakRSSStatusKey] != "measured" || meta[workerResidencyPeakRSSSourceKey] != workerResidencyPeakRSSLinuxSource || meta[workerResidencyPIDMetadataKey] == "" || meta[workerResidencyPeakRSSBytesKey] == "" {
+				t.Fatalf("Linux worker high-water RSS missing: %#v", meta)
+			}
+		} else if meta[workerResidencyPeakRSSStatusKey] != "unavailable" || !strings.Contains(meta[workerResidencyPeakRSSReasonKey], "unsupported") {
+			t.Fatalf("unsupported platform should remain unavailable: %#v", meta)
+		}
+		if err := admitted.Release(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if acquired.Load() != 1 || released.Load() != 0 {
+			t.Fatalf("claims not retained across jobs: acquired=%d released=%d", acquired.Load(), released.Load())
+		}
+	}
+	if got := importCount(t, imports); got != 1 {
+		t.Fatalf("warm jobs reloaded Python module %d times", got)
+	}
+	select {
+	case <-closed:
+	case <-time.After(3 * time.Second):
+		t.Fatal("idle worker retained capacity")
+	}
+	if released.Load() != 1 {
+		t.Fatalf("resident release count=%d", released.Load())
+	}
+}
+
+func TestWarmResidencyCancellationAndModelSwitchReapBeforeRelease(t *testing.T) {
+	root, _, outputs := writeSleepySidecarPackage(t)
+	setPythonPath(t, root)
+	writeWarmSleepModule(t, root)
+	runner := newWarmSidecarRunner()
+	t.Cleanup(func() { _ = runner.Close() })
+	var live atomic.Int32
+	acquire := func(ctx context.Context) (*leaseGroup, error) {
+		if live.Add(1) != 1 {
+			t.Error("model switch retained old RAM")
+		}
+		group := newLeaseGroup(ctx)
+		group.renew("RAM", &memoryTestLease{onRelease: func(cleanup context.Context) {
+			if cleanup.Err() != nil || runner.cmd != nil {
+				t.Error("canceled cleanup or unreaped worker")
+			}
+			live.Add(-1)
+		}})
+		return group, nil
+	}
+	first, err := runner.reserve(context.Background(), "model-a", "job-model-a", acquire, map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.Run(first.Context, "python3", []string{"-m", "benchmark_sidecar.sleepy", "--out", filepath.Join(outputs, "one")}); err != nil {
+		t.Fatal(err)
+	}
+	if err := first.Release(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
+	defer cancel()
+	second, err := runner.reserve(ctx, "model-b", "job-model-b", acquire, map[string]string{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.Run(second.Context, "python3", []string{"-m", "benchmark_sidecar.long_sleep"}); err == nil {
+		t.Fatal("cancel did not stop warm worker")
+	}
+	if err := second.Release(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if live.Load() != 0 || runner.resident != nil || len(runner.gate) != 0 {
+		t.Fatalf("canceled residency leaked claims or gate: live=%d", live.Load())
+	}
+}
+
+func TestWarmSidecarRunnerMarksStaleResidencyIdentityUnavailable(t *testing.T) {
+	root, _, outputs := writeSleepySidecarPackage(t)
+	setPythonPath(t, root)
+	runner := newWarmSidecarRunner()
+	t.Cleanup(func() { _ = runner.Close() })
+	meta := map[string]string{}
+	admitted, err := runner.reserve(context.Background(), "model-a", "job-a", func(ctx context.Context) (*leaseGroup, error) {
+		return newLeaseGroup(ctx), nil
+	}, meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.Run(admitted.Context, "python3", []string{"-m", "benchmark_sidecar.sleepy", "--out", filepath.Join(outputs, "stale-id.txt")}); err != nil {
+		t.Fatal(err)
+	}
+	meta[workerResidencyIDMetadataKey] = "previous-residency"
+	runner.mu.Lock()
+	runner.recordResidencyPeakRSSLocked(admitted.Context)
+	runner.mu.Unlock()
+	if meta[workerResidencyPeakRSSStatusKey] != "unavailable" || !strings.Contains(meta[workerResidencyPeakRSSReasonKey], "identity changed") || meta[workerResidencyPeakRSSBytesKey] != "" {
+		t.Fatalf("stale residency identity was not rejected: %#v", meta)
+	}
+	if err := admitted.Release(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestWarmSidecarRunner_AmortizesPythonImport(t *testing.T) {
 	root, imports, outputs := writeSleepySidecarPackage(t)

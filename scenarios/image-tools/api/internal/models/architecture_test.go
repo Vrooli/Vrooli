@@ -170,3 +170,19 @@ func TestEffectiveOpsGolden(t *testing.T) {
 		}
 	}
 }
+
+func TestDerivableTechniquesReturnsIndependentCopies(t *testing.T) {
+	for _, arch := range []Architecture{ArchSD15, ArchSDXL} {
+		got := DerivableTechniques(arch)
+		if len(got) != 4 {
+			t.Fatalf("%s derivations: got %d, want 4", arch, len(got))
+		}
+		if got[0].Op != "edit_instruct" || got[1].Op != "image_to_image" {
+			t.Fatalf("%s derivations are not sorted: %v", arch, got)
+		}
+		got[0].Op = "caller mutation"
+		if next := DerivableTechniques(arch); next[0].Op != "edit_instruct" {
+			t.Errorf("%s derivation registry was changed through returned slice: %v", arch, next)
+		}
+	}
+}

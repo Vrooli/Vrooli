@@ -1,6 +1,7 @@
 package ops
 
 import (
+	"image-tools/internal/fetch"
 	"log"
 	"net/http"
 
@@ -36,6 +37,7 @@ func Module(store *storage.Store, jobs *internaljobs.Manager, logger *log.Logger
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 			r.HandleFunc("/api/v1/ops/{operation}", rest.runHandler).Methods(http.MethodPost)
 			r.HandleFunc("/api/v1/blobs/{key:.*}", rest.blobHandler).Methods(http.MethodGet)
+			r.Handle("/api/v1/import/link", importLinkHandler(store, fetch.RemoteImage{}, storage.DefaultGuard())).Methods(http.MethodPost)
 		},
 		Endpoints: Endpoints,
 	}

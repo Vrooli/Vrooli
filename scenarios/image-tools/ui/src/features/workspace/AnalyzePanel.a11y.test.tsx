@@ -20,6 +20,11 @@ vi.mock("../../api/analysis", async (importOriginal) => {
   const { makeAnalysisMocks } = await import("./mocks/analysis");
   return { ...actual, ...makeAnalysisMocks() };
 });
+vi.mock("../../api/ai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/ai")>();
+  const { makeAIMocks } = await import("./mocks/ai");
+  return { ...actual, ...makeAIMocks() };
+});
 
 const PNG = new File(["bytes"], "in.png", { type: "image/png" });
 

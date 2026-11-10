@@ -118,13 +118,23 @@ export interface AnalyzeQuality {
   notes: string[];
 }
 
+/** Model-backed natural-language description returned by the durable AI job lane. */
+export interface AnalyzeCaption {
+  kind: "caption";
+  jobId: string;
+  caption: string;
+  backend: string;
+  model: string;
+}
+
 /** The normalized result of one analysis op, discriminated by `kind`. */
 export type AnalyzeResult =
   | AnalyzeOcr
   | AnalyzeNsfw
   | AnalyzeProbe
   | AnalyzeDuplicate
-  | AnalyzeQuality;
+  | AnalyzeQuality
+  | AnalyzeCaption;
 
 const boxOf = (box: { x: number; y: number; width: number; height: number } | undefined): AnalyzeBox | null =>
   box ? { x: box.x, y: box.y, width: box.width, height: box.height } : null;

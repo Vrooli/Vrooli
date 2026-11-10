@@ -64,6 +64,7 @@ const READY_STATE = {
   needsBackendManual: "needs_backend_manual",
   needsBoth: "needs_both",
   disabled: "disabled",
+  commercialRightsReviewRequired: "commercial_rights_review_required",
   insufficient: "insufficient",
   unsupported: "unsupported",
   derivedUnproven: "derived_pipeline_unproven",
@@ -119,6 +120,10 @@ const STATUS_BY_STATE: Record<string, PickerChip> = {
   },
   [READY_STATE.needsBoth]: { key: strings.models.picker.state.needsBoth, tone: "info" },
   [READY_STATE.disabled]: { key: strings.models.picker.state.disabled, tone: "neutral" },
+  [READY_STATE.commercialRightsReviewRequired]: {
+    key: strings.models.picker.state.commercialRightsReviewRequired,
+    tone: "caution",
+  },
   [READY_STATE.insufficient]: { key: strings.models.picker.state.insufficient, tone: "muted" },
   [READY_STATE.unsupported]: { key: strings.models.picker.state.unsupported, tone: "muted" },
   [READY_STATE.derivedUnproven]: {
@@ -182,6 +187,7 @@ export function present(
   const dimmed =
     candidate.readyState === READY_STATE.insufficient ||
     candidate.readyState === READY_STATE.unsupported ||
+    candidate.readyState === READY_STATE.commercialRightsReviewRequired ||
     candidate.readyState === READY_STATE.derivedUnproven;
   return {
     fit: fitChip(candidate, host),

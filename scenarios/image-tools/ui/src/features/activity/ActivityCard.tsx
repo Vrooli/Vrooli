@@ -20,6 +20,7 @@ const QUEUE_LABEL: Record<JobQueue, (typeof strings.jobs.queue)[keyof typeof str
   [JobQueue.LOCAL_SERIAL]: strings.jobs.queue.localSerial,
   [JobQueue.CPU_POOL]: strings.jobs.queue.cpuPool,
   [JobQueue.NETWORK_POOL]: strings.jobs.queue.networkPool,
+  [JobQueue.CAPACITY]: strings.jobs.queue.capacity,
 };
 
 const QUEUE_ICON = {
@@ -27,6 +28,7 @@ const QUEUE_ICON = {
   [JobQueue.LOCAL_SERIAL]: Layers,
   [JobQueue.CPU_POOL]: Cpu,
   [JobQueue.NETWORK_POOL]: Cloud,
+  [JobQueue.CAPACITY]: Cpu,
 };
 
 const STATE_LABEL: Record<JobState, (typeof strings.jobs.state)[keyof typeof strings.jobs.state]> = {
@@ -36,9 +38,11 @@ const STATE_LABEL: Record<JobState, (typeof strings.jobs.state)[keyof typeof str
   [JobState.SUCCEEDED]: strings.jobs.state.succeeded,
   [JobState.FAILED]: strings.jobs.state.failed,
   [JobState.CANCELED]: strings.jobs.state.canceled,
+  [JobState.ADMITTING]: strings.jobs.state.admitting,
+  [JobState.CANCELING]: strings.jobs.state.canceling,
 };
 
-const isActive = (state: JobState) => state === JobState.QUEUED || state === JobState.RUNNING;
+const isActive = (state: JobState) => [JobState.QUEUED, JobState.ADMITTING, JobState.RUNNING, JobState.CANCELING].includes(state);
 
 interface JobRowProps {
   job: Job;
@@ -139,7 +143,7 @@ function JobRow({ job, index, onCancel, onOpen, cancelPending }: JobRowProps) {
               size="sm"
               data-testid={selectors.jobs.cancelButton}
               onClick={() => onCancel(job.id)}
-              disabled={cancelPending}
+              disabled={cancelPending || state === JobState.CANCELING}
             >
               {t(strings.jobs.cancel)}
             </Button>

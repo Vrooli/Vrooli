@@ -2,7 +2,6 @@ package ai
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -154,7 +153,7 @@ func newCapacityTestEngine(t *testing.T, op string, fp *fakeProvider, broker Cap
 
 func runGPUJob(t *testing.T, eng *Engine, op, modelID string) error {
 	t.Helper()
-	raw, err := json.Marshal(Payload{Operation: op, ModelID: modelID, GPU: true, CapacityPriority: "service", AllowReclaim: true})
+	raw, err := marshalPinnedPayload(t, eng, op, Payload{Operation: op, ModelID: modelID, GPU: true, CapacityPriority: "service", AllowReclaim: true})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -191,17 +190,17 @@ func TestCapacity_GrantKeepsGPU(t *testing.T) {
 	}
 }
 
-func TestCapacity_ReleaseFailureIsRetainedWithSuccessfulOutput(t *testing.T) {
+func TestCapacity_ReleaseFailureFailsWhileRetainingDirectEngineOutput(t *testing.T) {
 	fp := &fakeProvider{}
 	broker := &fakeBroker{releaseErr: errors.New("ledger unavailable")}
 	eng, modelID := newCapacityTestEngine(t, "text_to_image", fp, broker)
-	raw, err := json.Marshal(Payload{Operation: "text_to_image", ModelID: modelID, GPU: true})
+	raw, err := marshalPinnedPayload(t, eng, "text_to_image", Payload{Operation: "text_to_image", ModelID: modelID, GPU: true})
 	if err != nil {
 		t.Fatal(err)
 	}
 	result, err := eng.BuildRunners()["text_to_image"](context.Background(), internaljobs.Job{ID: "release-warning", Payload: raw}, func(int, string) {})
-	if err != nil || result.Ref == "" {
-		t.Fatalf("cleanup failure discarded successful inference: %+v, %v", result, err)
+	if err == nil || !strings.Contains(err.Error(), "ledger unavailable") || result.Ref == "" {
+		t.Fatalf("cleanup failure must fail explicitly while preserving direct-engine output: %+v, %v", result, err)
 	}
 	if !strings.Contains(result.Meta["capacity_release_warning"], "ledger unavailable") || broker.released != "clm-test" {
 		t.Fatalf("cleanup failure lost: %+v, released=%s", result, broker.released)
@@ -213,14 +212,14 @@ func TestCapacityPhysicalDeviceSelection(t *testing.T) {
 		{Index: 0, UUID: "GPU-small", VRAMBytes: 4 << 30, VRAMUsedBytes: 3 << 30},
 		{Index: 2, UUID: "GPU-large", VRAMBytes: 16 << 30, VRAMUsedBytes: 2 << 30},
 	}}
-	g, err := capacityGPU(host, 6<<30, &execProvider{name: "diffusers"})
+	g, err := capacityGPU(host, 6<<30, &execProvider{backendProcess: backendProcess{name: "diffusers"}})
 	if err != nil || g.Index != 2 || g.UUID != "GPU-large" {
 		t.Fatalf("wrong physical binding: %+v, %v", g, err)
 	}
-	if _, err := capacityGPU(host, 6<<30, &execProvider{name: "stable-diffusion.cpp"}); err == nil {
+	if _, err := capacityGPU(host, 6<<30, &execProvider{backendProcess: backendProcess{name: "stable-diffusion.cpp"}}); err == nil {
 		t.Fatal("unqualified multi-GPU backend silently accepted arbitrary device")
 	}
-	if _, err := capacityGPU(capabilities.Host{GPUs: []capabilities.GPU{{Index: 0, VRAMBytes: 16 << 30}}}, 6<<30, &execProvider{name: "stable-diffusion.cpp"}); err == nil {
+	if _, err := capacityGPU(capabilities.Host{GPUs: []capabilities.GPU{{Index: 0, VRAMBytes: 16 << 30}}}, 6<<30, &execProvider{backendProcess: backendProcess{name: "stable-diffusion.cpp"}}); err == nil {
 		t.Fatal("unidentified physical GPU accepted")
 	}
 }
@@ -238,6 +237,65 @@ func TestCapacity_DegradeSwitchesToCPU(t *testing.T) {
 	}
 	if broker.released != "clm-test" {
 		t.Errorf("claim should be released even after degrade; released=%q", broker.released)
+	}
+}
+
+func TestCapacity_RequireGPURejectsDegradationAndReleasesClaim(t *testing.T) {
+	fp := &fakeProvider{}
+	broker := &fakeBroker{degrade: true}
+	eng, modelID := newCapacityTestEngine(t, "text_to_image", fp, broker)
+	raw, err := marshalPinnedPayload(t, eng, "text_to_image", Payload{
+		Operation: "text_to_image", ModelID: modelID, GPU: true, RequireGPU: true,
+		CapacityPriority: "interactive", AllowReclaim: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := eng.BuildRunners()["text_to_image"]
+	_, err = runner(context.Background(), internaljobs.Job{ID: "require-gpu-degrade", Operation: "text_to_image", Payload: raw}, func(int, string) {})
+	if !errors.Is(err, internaljobs.ErrCapacityBusy) {
+		t.Fatalf("required GPU degradation error = %v, want capacity busy", err)
+	}
+	if fp.execN != 0 {
+		t.Fatalf("provider executed %d times after the broker degraded the GPU claim", fp.execN)
+	}
+	if broker.released != "clm-test" {
+		t.Fatalf("degraded GPU claim not released: %q", broker.released)
+	}
+}
+
+func TestAdmission_RequireGPUReleasesCPUAndRAMOnBrokerDegradation(t *testing.T) {
+	provider := &fakeProvider{}
+	broker := &fakeBroker{degrade: true}
+	eng, modelID := newCapacityTestEngine(t, "text_to_image", provider, broker)
+	cpuLease, ramLease := &memoryTestLease{}, &memoryTestLease{}
+	eng.deps.CPU = func(context.Context, string, int64) (MemoryLease, error) { return cpuLease, nil }
+	eng.deps.Memory = func(context.Context, string, int64) (MemoryLease, error) { return ramLease, nil }
+
+	raw, err := marshalPinnedPayload(t, eng, "text_to_image", Payload{
+		Operation: "text_to_image", ModelID: modelID, GPU: true, RequireGPU: true,
+		CapacityPriority: "interactive", AllowReclaim: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	admission, err := eng.Admit(context.Background(), internaljobs.Job{
+		ID: "require-gpu-releases-partial-claims", Operation: "text_to_image", Payload: raw,
+	})
+	if !errors.Is(err, internaljobs.ErrCapacityBusy) {
+		t.Fatalf("required GPU degradation error = %v, want capacity busy", err)
+	}
+	if admission.Release == nil {
+		t.Fatal("failed admission did not return cleanup for acquired CPU/RAM claims")
+	}
+	if err := admission.Release(context.Background()); err != nil {
+		t.Fatalf("release partial admission: %v", err)
+	}
+	if cpuLease.releases != 1 || ramLease.releases != 1 || broker.released != "clm-test" {
+		t.Fatalf("partial claims not fully released: CPU=%d RAM=%d GPU=%q", cpuLease.releases, ramLease.releases, broker.released)
+	}
+	if provider.execN != 0 {
+		t.Fatalf("provider executed %d times after required GPU admission failed", provider.execN)
 	}
 }
 
@@ -281,9 +339,11 @@ func (r capacityRunner) Run(ctx context.Context, _ string, args ...string) ([]by
 	}
 	return []byte(`{"verdict":{"kind":"deny","reason":"contended","warnings":["held by another owner"],"reclaim_bytes":42},"enforce":"advisory"}`), nil
 }
+
 func (r capacityRunner) RunCombined(ctx context.Context, name string, args ...string) ([]byte, error) {
 	return r.Run(ctx, name, args...)
 }
+
 func TestSharedCapacityAdapterDenialPermitsCPUButTransportFailureDoesNot(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		b := &CLICapacityBroker{Client: vroolicli.New(vroolicli.WithRunner(capacityRunner{fail: fail}))}

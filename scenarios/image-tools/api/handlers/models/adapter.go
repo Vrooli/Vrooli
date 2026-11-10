@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	internalai "image-tools/internal/ai"
@@ -180,6 +181,13 @@ func doctorReportToProto(r internalmodels.CatalogDoctorReport) *modelsv1.DoctorC
 			ModelId:   f.ModelID,
 			Operation: f.Operation,
 			Message:   f.Message,
+		})
+	}
+	for _, s := range r.Models {
+		out.Models = append(out.Models, &modelsv1.ModelLifecycle{
+			ModelId: s.ModelID, State: modelsv1.ModelLifecycleState(modelsv1.ModelLifecycleState_value["MODEL_LIFECYCLE_STATE_"+strings.ToUpper(string(s.State))]),
+			Reason: s.Reason, Detail: s.Detail, ArtifactHash: s.ArtifactHash, RuntimeHash: s.RuntimeHash,
+			UpdatedAt: s.UpdatedAt.UTC().Format(time.RFC3339Nano),
 		})
 	}
 	return out

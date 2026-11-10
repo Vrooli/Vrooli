@@ -310,8 +310,8 @@ func TestTerminalUpdateFailureDoesNotClaimDurableEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	final, err := m.Wait(context.Background(), job.ID)
-	if err != nil {
-		t.Fatal(err)
+	if err == nil || !strings.Contains(err.Error(), "terminal update failure") {
+		t.Fatalf("terminal persistence failure was hidden: %v", err)
 	}
 	if final.State != StateFailed || final.Meta[MetaGatewayExecutionEvidence] != evidence {
 		t.Fatalf("in-memory terminal result = %+v", final)
@@ -355,9 +355,10 @@ func TestCancelRunningJob(t *testing.T) {
 }
 
 func TestCancelQueuedJob(t *testing.T) {
-	// Occupy the single serialized local worker so the second local job stays queued.
+	// Use one local slot so the second local job stays queued.
 	block := make(chan struct{})
 	m := startManager(t, Config{
+		CPUWorkers: 1,
 		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
 			if j.Operation == "blocker" {
 				<-block
@@ -387,8 +388,8 @@ func TestCancelQueuedJob(t *testing.T) {
 	}
 }
 
-// The serialized local queue must run at most one job at a time.
-func TestGPUSerialized(t *testing.T) {
+// Local model jobs share the configured ceiling instead of a serial lane.
+func TestLocalModelsCanRunConcurrently(t *testing.T) {
 	var concurrent, maxConcurrent int32
 	var mu sync.Mutex
 	gate := make(chan struct{})
@@ -419,8 +420,8 @@ func TestGPUSerialized(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if maxConcurrent != 1 {
-		t.Fatalf("local serial queue ran %d concurrently, want 1", maxConcurrent)
+	if maxConcurrent != 3 {
+		t.Fatalf("admitted local models ran %d concurrently, want 3", maxConcurrent)
 	}
 }
 

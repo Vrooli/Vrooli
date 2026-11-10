@@ -2,6 +2,8 @@ package models
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -219,6 +221,14 @@ func (h *handlers) doctor(ctx cliapp.RunContext) error {
 	for _, f := range resp.Msg.Findings {
 		results = append(results, formatFinding(f))
 	}
+	ready := 0
+	for _, model := range resp.Msg.Models {
+		if model.State == modelsv1.ModelLifecycleState_MODEL_LIFECYCLE_STATE_READY {
+			ready++
+		}
+		state := strings.ToLower(strings.TrimPrefix(model.State.String(), "MODEL_LIFECYCLE_STATE_"))
+		results = append(results, fmt.Sprintf("%s: %s (%s)", model.ModelId, state, model.Reason))
+	}
 	if len(results) == 0 {
 		results = append(results, "no findings")
 	}
@@ -227,8 +237,8 @@ func (h *handlers) doctor(ctx cliapp.RunContext) error {
 		status = fmt.Sprintf("Catalog doctor found %d issue(s).", len(resp.Msg.Findings))
 	}
 	if err := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{status},
-		ResultsHeading: "Findings",
+		Summary:        []string{status, fmt.Sprintf("Model lifecycle: %d ready / %d catalog entries.", ready, len(resp.Msg.Models))},
+		ResultsHeading: "Lifecycle and findings",
 		Results:        results,
 		RetrievalHints: []string{
 			"Enabled weight-backed seed models need direct `source.assets[]` entries with `kind` and `min_bytes`.",
@@ -241,6 +251,111 @@ func (h *handlers) doctor(ctx cliapp.RunContext) error {
 		return fmt.Errorf("model catalog doctor failed")
 	}
 	return nil
+}
+
+func (h *handlers) provision(ctx cliapp.RunContext) error {
+	var ids []string
+	for _, id := range strings.Split(ctx.Flag("models"), ",") {
+		if id = strings.TrimSpace(id); id != "" {
+			ids = append(ids, id)
+		}
+	}
+	hostFit := len(ids) == 0
+	resp, err := h.client.ProvisionModels(context.Background(), connect.NewRequest(&modelsv1.ProvisionModelsRequest{ModelIds: ids}))
+	if err != nil {
+		return cliapp.WrapAPIError("provision local models", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.JobId == "" {
+		return errors.New("server returned no provisioning job")
+	}
+	if !ctx.BoolFlag("wait") {
+		message := fmt.Sprintf("Preparing exactly %d explicitly requested models in job %s.", len(resp.Msg.ModelIds), resp.Msg.JobId)
+		if hostFit {
+			message = fmt.Sprintf("Preparing a minimal host-fit model set for enabled capabilities in job %s (%d selected models). Readiness stays incomplete if any enabled capability lacks a host-fit, commercial-clean model.", resp.Msg.JobId, len(resp.Msg.ModelIds))
+		}
+		return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+			Result:      []string{message},
+			NextCommand: []string{fmt.Sprintf("jobs wait %s", resp.Msg.JobId)},
+		})
+	}
+	job, waitErr := h.waitJob(resp.Msg.JobId)
+	if job == nil {
+		return waitErr
+	}
+	var report provisionEvidence
+	if err := json.Unmarshal([]byte(job.GetResultMeta()["provisioning_evidence_v1"]), &report); err != nil {
+		return errors.Join(waitErr, fmt.Errorf("read provisioning evidence: %w", err))
+	}
+	results := report.resultLines(stateName(job.State), job.Id)
+	err = cliapp.RenderProtoMutation(ctx, job, cliapp.MutationReport{Result: results, NextCommand: []string{"image-tools doctor"}})
+	return errors.Join(waitErr, err)
+}
+
+type provisionEvidence struct {
+	Seconds             float64                  `json:"seconds"`
+	Ready               bool                     `json:"ready"`
+	Mode                string                   `json:"mode"`
+	CoverageComplete    bool                     `json:"coverage_complete"`
+	CoveredOperations   []string                 `json:"covered_operations"`
+	UncoveredOperations []provisionUncoveredOp   `json:"uncovered_operations"`
+	ExcludedModels      []provisionExcludedModel `json:"excluded_models"`
+	CandidateGaps       []provisionCandidateGap  `json:"candidate_gaps"`
+	Models              []provisionModelResult   `json:"models"`
+}
+
+type provisionUncoveredOp struct {
+	Operation string `json:"operation"`
+	Reason    string `json:"reason"`
+}
+
+type provisionExcludedModel struct {
+	ModelID    string   `json:"model_id"`
+	Operations []string `json:"operations"`
+	Reason     string   `json:"reason"`
+}
+
+type provisionCandidateGap struct {
+	ModelID   string `json:"model_id"`
+	Operation string `json:"operation"`
+	Reason    string `json:"reason"`
+}
+
+type provisionModelResult struct {
+	Lifecycle struct {
+		ModelID string `json:"model_id"`
+		State   string `json:"state"`
+		Reason  string `json:"reason"`
+	} `json:"lifecycle"`
+	Seconds float64 `json:"seconds"`
+	Error   string  `json:"error"`
+}
+
+func (report provisionEvidence) resultLines(state, jobID string) []string {
+	readiness := "Requested model set ready"
+	if report.Mode == "host_fit_operation_coverage" {
+		readiness = "All enabled capabilities ready"
+	}
+	results := []string{fmt.Sprintf("Provisioning %s in %.2fs (job %s). Plan mode: %s. %s: %t.", state, report.Seconds, jobID, report.Mode, readiness, report.Ready)}
+	if report.Mode == "host_fit_operation_coverage" {
+		results = append(results, fmt.Sprintf("Enabled capability coverage complete: %t (%d covered, %d uncovered).", report.CoverageComplete, len(report.CoveredOperations), len(report.UncoveredOperations)))
+	}
+	for _, model := range report.Models {
+		line := fmt.Sprintf("%s: %s (%s), %.2fs", model.Lifecycle.ModelID, model.Lifecycle.State, model.Lifecycle.Reason, model.Seconds)
+		if model.Error != "" {
+			line += " — " + model.Error
+		}
+		results = append(results, line)
+	}
+	for _, op := range report.UncoveredOperations {
+		results = append(results, fmt.Sprintf("Operation %s: not ready (%s).", op.Operation, op.Reason))
+	}
+	for _, model := range report.ExcludedModels {
+		results = append(results, fmt.Sprintf("Candidate %s excluded (%s); operations: %s.", model.ModelID, model.Reason, strings.Join(model.Operations, ", ")))
+	}
+	for _, gap := range report.CandidateGaps {
+		results = append(results, fmt.Sprintf("Candidate %s cannot serve %s (%s).", gap.ModelID, gap.Operation, gap.Reason))
+	}
+	return results
 }
 
 func (h *handlers) install(ctx cliapp.RunContext) error {
@@ -478,7 +593,10 @@ func modelMatches(m *modelsv1.Model, query string) bool {
 // waitJob blocks once on JobsService.WaitJob and returns the terminal job. It
 // reuses the block-once-no-polling pattern from the ai domain.
 func (h *handlers) waitJob(jobID string) (*jobsv1.Job, error) {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(h.core)
+	// Provision/download work can legitimately take longer than the CLI's
+	// ordinary request timeout. WaitJob is the server-owned terminal wait, so
+	// let it block until the job finishes or the caller cancels the process.
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(h.core, 0)
 	client := jobsconnect.NewJobsServiceClient(httpClient, baseURL)
 	resp, err := client.WaitJob(context.Background(), connect.NewRequest(&jobsv1.WaitJobRequest{Id: jobID}))
 	if err != nil {

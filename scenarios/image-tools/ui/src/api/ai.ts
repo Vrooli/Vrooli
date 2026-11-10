@@ -96,6 +96,33 @@ export interface AIImageResult {
   outputFile: File;
 }
 
+/** Structured result for image-to-text AI operations such as caption. */
+export interface AICaptionResult {
+  caption: string;
+  backend: string;
+  model: string;
+}
+
+/** Fetch and validate the JSON result emitted by the durable caption job. */
+export async function fetchAICaptionResult(resultRef: string): Promise<AICaptionResult> {
+  const blob = await fetchBlob(resultRef);
+  let payload: unknown;
+  try {
+    payload = JSON.parse(await blob.text());
+  } catch {
+    throw new Error("Caption job returned invalid JSON");
+  }
+  if (!payload || typeof payload !== "object" || !("caption" in payload) || typeof payload.caption !== "string" || !payload.caption.trim()) {
+    throw new Error("Caption job returned no text");
+  }
+  const record = payload as { caption: string; backend?: unknown; model?: unknown };
+  return {
+    caption: record.caption.trim(),
+    backend: typeof record.backend === "string" ? record.backend : "",
+    model: typeof record.model === "string" ? record.model : "",
+  };
+}
+
 const formatFromRef = (ref: string, mime: string): string => {
   const ext = ref.split(".").pop();
   if (ext && ext.length <= 5 && !ext.includes("/")) {

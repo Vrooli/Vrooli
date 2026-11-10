@@ -73,9 +73,10 @@ func TestImportModelRegistersAndSubmitsJob(t *testing.T) {
 	h.deps.Hfmeta = fakeHfmeta{meta: sdxlRepoMeta()}
 
 	resp, err := h.ImportModel(context.Background(), connect.NewRequest(&modelsv1.ImportModelRequest{
-		Source:       "stabilityai/stable-diffusion-xl-base-1.0",
-		Id:           "imported-sdxl",
-		Architecture: "sdxl",
+		Source:                 "stabilityai/stable-diffusion-xl-base-1.0",
+		Id:                     "imported-sdxl",
+		Architecture:           "sdxl",
+		AttestCommercialRights: true,
 	}))
 	if err != nil {
 		t.Fatalf("import: %v", err)
@@ -89,6 +90,26 @@ func TestImportModelRegistersAndSubmitsJob(t *testing.T) {
 	// The add-only entry is now resolvable as a custom model.
 	if _, err := installer.Resolve(context.Background(), "imported-sdxl"); err != nil {
 		t.Fatalf("imported entry not registered: %v", err)
+	}
+}
+
+func TestImportModelRequiresCommercialRightsAttestation(t *testing.T) {
+	h, installer, sub := newInstallHandler(t)
+	h.deps.Hfmeta = fakeHfmeta{meta: sdxlRepoMeta()}
+
+	_, err := h.ImportModel(context.Background(), connect.NewRequest(&modelsv1.ImportModelRequest{
+		Source:       "stabilityai/stable-diffusion-xl-base-1.0",
+		Id:           "unattested-sdxl",
+		Architecture: "sdxl",
+	}))
+	if connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("expected invalid_argument without commercial-rights attestation, got %v", err)
+	}
+	if sub.submitted != 0 {
+		t.Fatalf("unattested import submitted %d install jobs", sub.submitted)
+	}
+	if _, err := installer.Resolve(context.Background(), "unattested-sdxl"); err == nil {
+		t.Fatal("unattested model was registered")
 	}
 }
 

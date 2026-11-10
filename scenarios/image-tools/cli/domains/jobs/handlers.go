@@ -179,6 +179,10 @@ func jobStateLabel(s jobsv1.JobState) string {
 		return "queued"
 	case jobsv1.JobState_JOB_STATE_RUNNING:
 		return "running"
+	case jobsv1.JobState_JOB_STATE_ADMITTING:
+		return "admitting"
+	case jobsv1.JobState_JOB_STATE_CANCELING:
+		return "canceling"
 	case jobsv1.JobState_JOB_STATE_SUCCEEDED:
 		return "succeeded"
 	case jobsv1.JobState_JOB_STATE_FAILED:
@@ -202,6 +206,8 @@ func jobQueueLabel(queue jobsv1.JobQueue, legacyLane jobsv1.JobLane) string {
 		}
 	}
 	switch queue {
+	case jobsv1.JobQueue_JOB_QUEUE_CAPACITY:
+		return "capacity"
 	case jobsv1.JobQueue_JOB_QUEUE_LOCAL_SERIAL:
 		return "local-serial"
 	case jobsv1.JobQueue_JOB_QUEUE_CPU_POOL:

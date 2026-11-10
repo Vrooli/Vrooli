@@ -178,12 +178,13 @@ export function ImportModelWizard() {
             />
             {t(strings.models.import.attestLabel)}
           </label>
+          <p className="text-xs text-app-warning">{t(strings.models.import.attestRequired)}</p>
 
           <Button
             data-testid={selectors.models.import.submit}
             type="button"
             onClick={() => importMutation.mutate()}
-            disabled={!id.trim() || needsArchitecture || importMutation.isPending}
+            disabled={!id.trim() || !attest || needsArchitecture || importMutation.isPending}
           >
             {importMutation.isPending ? t(strings.models.import.importing) : t(strings.models.import.import)}
           </Button>

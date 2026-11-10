@@ -12,6 +12,19 @@ import (
 	"testing"
 )
 
+func TestParseColorUsesFallbackOnlyForEmptyInput(t *testing.T) {
+	fallback := color.NRGBA{R: 3, A: 255}
+	if got, err := parseColor("  ", fallback); err != nil || got != fallback {
+		t.Fatalf("empty color = %#v, %v; want fallback %#v", got, err, fallback)
+	}
+	if got, err := parseColor("#01020380", fallback); err != nil || got != (color.NRGBA{R: 1, G: 2, B: 3, A: 0x80}) {
+		t.Fatalf("RGBA color = %#v, %v", got, err)
+	}
+	if _, err := parseColor("not-a-color", fallback); err == nil {
+		t.Fatal("malformed color was accepted")
+	}
+}
+
 // Golden and assertion sizes. A treatment fixture has to be big enough that a
 // screen, a dot or a hatch is structurally present — at the previous 64×48 a
 // halftone cell was a large fraction of the frame, so no tonal defect could

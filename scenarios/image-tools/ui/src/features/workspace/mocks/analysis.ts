@@ -18,6 +18,7 @@ import {
 
 import type {
   AnalyzeDuplicate,
+  AnalyzeCaption,
   AnalyzeNsfw,
   AnalyzeOcr,
   AnalyzeProbe,
@@ -154,6 +155,8 @@ export const makeQualityResult = (overrides: Partial<AnalyzeQuality> = {}): Anal
 export const makeAnalyzeClient = (overrides: Partial<AnalyzeClient> = {}): AnalyzeClient => ({
   selectModel: vi.fn(() => Promise.resolve(makeSelectedModel({ id: "tesseract", name: "tesseract" }))),
   analyze: vi.fn((): Promise<AnalyzeResult> => Promise.resolve(makeProbeResult())),
+  caption: vi.fn((_file: File, _signal: AbortSignal, onJob: (jobId: string) => void): Promise<AnalyzeCaption> => { onJob("caption-1"); return Promise.resolve({ kind: "caption", jobId: "caption-1", caption: "A red square", backend: "llama.cpp", model: "smolvlm-256m" }); }),
+  cancelCaption: vi.fn(() => Promise.resolve()),
   install: vi.fn(() => Promise.resolve({ jobId: "install-1", alreadyInstalled: false })),
   waitJob: vi.fn(() => Promise.resolve({ ok: true, error: "" })),
   ...overrides,

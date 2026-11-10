@@ -8,6 +8,7 @@ package ops
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -65,6 +66,56 @@ func extToFormat(outPath string) string {
 // requests that output encoding via the `?format=` query.
 func runOp(core *cliapp.ScenarioApp, operation, inputPath, overlayPath, outFormat string, params *opsv1.OpParams) (runResult, error) {
 	return runOpWithPlates(core, operation, inputPath, overlayPath, outFormat, params, nil, "")
+}
+
+type importedImage struct {
+	InputRef string `json:"input_ref"`
+	Format   string `json:"format"`
+	MIME     string `json:"mime_type"`
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
+}
+
+func importImageLink(core *cliapp.ScenarioApp, rawURL string) (importedImage, error) {
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	return importImageLinkWithClient(httpClient, baseURL, rawURL)
+}
+
+type httpDoer interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
+func importImageLinkWithClient(httpClient httpDoer, baseURL, rawURL string) (importedImage, error) {
+	body, err := json.Marshal(map[string]string{"url": rawURL})
+	if err != nil {
+		return importedImage{}, err
+	}
+	endpoint := strings.TrimRight(baseURL, "/") + "/api/v1/import/link"
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return importedImage{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return importedImage{}, fmt.Errorf("import image link: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	response, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return importedImage{}, err
+	}
+	if resp.StatusCode != http.StatusCreated {
+		return importedImage{}, fmt.Errorf("import image link: API returned HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(response)))
+	}
+	var result importedImage
+	if err := json.Unmarshal(response, &result); err != nil {
+		return importedImage{}, fmt.Errorf("decode import image link response: %w", err)
+	}
+	if result.InputRef == "" {
+		return importedImage{}, fmt.Errorf("import image link: API returned no input reference")
+	}
+	return result, nil
 }
 
 func runOpWithPlates(core *cliapp.ScenarioApp, operation, inputPath, overlayPath, outFormat string, params *opsv1.OpParams, plates []string, operationID string) (runResult, error) {

@@ -113,6 +113,7 @@ describe("statusChip", () => {
     ["needs_backend_manual", strings.models.picker.state.needsBackendManual, "caution"],
     ["needs_both", strings.models.picker.state.needsBoth, "info"],
     ["disabled", strings.models.picker.state.disabled, "neutral"],
+    ["commercial_rights_review_required", strings.models.picker.state.commercialRightsReviewRequired, "caution"],
     ["insufficient", strings.models.picker.state.insufficient, "muted"],
     ["unsupported", strings.models.picker.state.unsupported, "muted"],
   ];
@@ -138,6 +139,7 @@ describe("actionFor", () => {
     ["needs_backend", "install-backend"],
     ["needs_backend_manual", "manual"],
     ["disabled", "enable"],
+    ["commercial_rights_review_required", "none"],
     ["insufficient", "none"],
     ["unsupported", "none"],
   ];
@@ -160,6 +162,7 @@ describe("present", () => {
   it("dims an insufficient and an unsupported candidate", () => {
     expect(present(makeCandidateModel({ readyState: "insufficient" }), gpuHost).dimmed).toBe(true);
     expect(present(makeCandidateModel({ readyState: "unsupported" }), gpuHost).dimmed).toBe(true);
+    expect(present(makeCandidateModel({ readyState: "commercial_rights_review_required" }), gpuHost).dimmed).toBe(true);
   });
 
   it("a needs_model_install candidate is neither selectable nor dimmed", () => {

@@ -360,6 +360,7 @@ const literalSelectors = {
       error: "workspace-analyze-error",
       actions: "workspace-analyze-actions",
       run: "workspace-analyze-run",
+      cancel: "workspace-analyze-cancel",
       progress: "workspace-analyze-progress",
       installGate: "workspace-analyze-install-gate",
       install: "workspace-analyze-install",
@@ -376,6 +377,7 @@ const literalSelectors = {
       duplicatePhash: "workspace-analyze-duplicate-phash",
       duplicateAhash: "workspace-analyze-duplicate-ahash",
       quality: "workspace-analyze-quality",
+      caption: "workspace-analyze-caption",
     },
   },
   pages: {

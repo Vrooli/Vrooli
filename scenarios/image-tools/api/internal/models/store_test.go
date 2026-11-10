@@ -104,3 +104,27 @@ func TestEnabledWithOverlayPrecedence(t *testing.T) {
 		t.Fatal("unknown id should report not-enabled")
 	}
 }
+
+func TestEffectiveEnabledKeepsConditionalRightsBlockedDespiteOverlay(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatalf("load registry: %v", err)
+	}
+	var conditional Model
+	for _, model := range r.Models() {
+		if model.CapabilityLabels.CommercialUse == CommercialUseConditional {
+			conditional = model
+			break
+		}
+	}
+	if conditional.ID == "" {
+		t.Fatal("seed should include a conditional-rights model for this regression")
+	}
+	overlay := map[string]bool{conditional.ID: true}
+	if EffectiveEnabled(conditional, overlay) {
+		t.Fatalf("overlay must not enable unverified-rights model %q", conditional.ID)
+	}
+	if r.EnabledWithOverlay(overlay)(conditional.ID) {
+		t.Fatalf("registry selector gate must not enable unverified-rights model %q", conditional.ID)
+	}
+}

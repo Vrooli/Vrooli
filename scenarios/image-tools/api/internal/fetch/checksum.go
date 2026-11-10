@@ -10,6 +10,15 @@ import (
 	"sort"
 )
 
+// ValidSHA256 reports whether value is a complete hexadecimal SHA-256 digest.
+func ValidSHA256(value string) bool {
+	if len(value) != sha256.Size*2 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
+}
+
 // HashFile returns the sha256 (hex) and byte size of the file at p.
 func HashFile(p string) (sum string, size int64, err error) {
 	f, err := os.Open(p) //nolint:gosec // path is engine-constructed under Root

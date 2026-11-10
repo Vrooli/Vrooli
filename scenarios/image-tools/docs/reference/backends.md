@@ -105,6 +105,7 @@ and surfaced (never auto-fetched) via `image-tools` `service.json` `hostTools`.
 | `rembg` | `rembg` | `background_removal`, `background_replace` | `vrooli host install rembg` |
 | `sam2-transformers` | `uv` | `segment` | `vrooli host install uv` |
 | `stable-diffusion.cpp` | `sd` | `text_to_image`, `image_to_image` | `vrooli host install sd` |
+| `tesseract` | `tesseract` | `ocr` | `vrooli host install tesseract` |
 | `triposr` | `uv` | `image_to_object` | `vrooli host install uv` |
 <!-- END GENERATED: host-tool-matrix -->
 
@@ -280,7 +281,7 @@ Every Python backend (`diffusers`, `onnxruntime`, `python-sidecar`) runs from a
 shared mutable namespace, and an unrelated `pip` upgrade on the box once pulled
 `transformers` 5.x and broke `edit_instruct`. The venv closes that class of bug.
 
-How it works (`api/internal/pyenv`, wired in `main.go`):
+How it works (`packages/pyenv-go`, wired in `main.go`):
 
 1. `uv` (a host tool — `vrooli host install uv`) builds the venv at
    `<cache-dir>/pyenv/` and syncs it from the embedded, fully-pinned + hashed

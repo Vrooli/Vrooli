@@ -17,8 +17,8 @@ import (
 
 // Module returns the analysis domain's contribution: the AnalysisService
 // discovery handler (Connect-RPC) plus the REST multipart analyze edge
-// (POST /api/v1/analysis/{operation}). Analysis ops run synchronously and are
-// recorded as terminal durable jobs.
+// (POST /api/v1/analysis/{operation}). The response waits once for the common
+// durable scheduler, including its capacity admission and cleanup.
 func Module(service *internalanalysis.Service, store *storage.Store, jobs *internaljobs.Manager, logger *log.Logger) module.Module {
 	if logger == nil {
 		logger = log.Default()

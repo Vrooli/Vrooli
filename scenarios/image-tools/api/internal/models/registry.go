@@ -120,13 +120,7 @@ type CapabilityLabels struct {
 // flow (not part of the license-verified seed). See CapabilityLabels.Provenance.
 const ProvenanceUserImported = "user-imported"
 
-// Checksum integrity record. Value is captured + pinned on first real download
-// (never hand-written); Status flips to "pinned" then.
-type Checksum struct {
-	Algo   string `json:"algo"`
-	Value  string `json:"value"`
-	Status string `json:"status"`
-}
+type Checksum = fetch.Checksum
 
 // The downloadable-weight vocabulary (ArtifactKind + Asset) lives in the shared
 // internal/fetch spine so the model and adapter catalogs describe their artifacts
@@ -189,37 +183,7 @@ type Runtime struct {
 // the catalog's historical name so the seed schema is unchanged.
 type RepoSource = fetch.RepoSpec
 
-// Source records where the model artifact comes from.
-type Source struct {
-	// DownloadURL is the single remote URL for an operator-registered CUSTOM
-	// model (the AddCustomModel API/UI field). Seed models use Assets instead;
-	// either way the downloaded bytes are artifact-validated before install.
-	DownloadURL  string `json:"download_url"`
-	SourceRepo   string `json:"source_repo"`
-	DocsURL      string `json:"docs_url"`
-	UpdateSource string `json:"update_source"`
-	LocalPath    string `json:"local_path,omitempty"` // set for custom/local entries
-	// Assets are the direct, resolvable weight artifacts for a seed model. When
-	// present they are the install source (DownloadURL is ignored). The installer
-	// downloads + validates each one into the model dir under its Filename.
-	Assets []Asset `json:"assets,omitempty"`
-	// Repo is a multi-file model repository (diffusers snapshot). When set it is
-	// the install source, fetched in whole at Repo.Revision; integrity is the
-	// tree-manifest checksum. Repo and Assets are mutually exclusive fetch
-	// strategies behind one installer seam.
-	Repo RepoSource `json:"repo,omitempty"`
-	// Manual declares — honestly — that this weight-backed model has NO single
-	// auto-fetchable artifact: its weights must be obtained manually per docs_url
-	// (e.g. an upstream that ships only a landing page or a multi-file repo with no
-	// pinned revision). The installer refuses to auto-install it (no HTML GET of a
-	// documentation page), and registry-lint accepts it instead of demanding an
-	// assets[]/repo it cannot honestly declare. download_url stays documentation-only.
-	Manual   bool     `json:"manual,omitempty"`
-	Checksum Checksum `json:"checksum"`
-}
-
-// HasRepo reports whether the source installs from a multi-file repo snapshot.
-func (s Source) HasRepo() bool { return strings.TrimSpace(s.Repo.RepoID) != "" }
+type Source = fetch.Source
 
 // HasFetchStrategy reports whether a weight-backed model declares a concrete,
 // auto-resolvable install source (direct assets, a pinned repo snapshot, or a
@@ -577,10 +541,10 @@ func (r *Registry) validateModel(m Model) error {
 		if m.ID != "big-lama-1024-export" || profile.Kind != "lama-onnx-fixed" || profile.SourceAsset != "lama-source.zip" || profile.CheckpointAsset != "big-lama.safetensors" || profile.Resolution != 1024 || profile.Opset != 17 || profile.OutputFilename != "lama_1024.onnx" {
 			return fmt.Errorf("unsupported model build profile %q", profile.Kind)
 		}
-		if !validSHA256(profile.SourceSHA256) || profile.CheckpointSHA256 != "12cb5eb5d515400f262b48d4e7c1994183e170aedb4b86699d9a55b770038e16" {
+		if !fetch.ValidSHA256(profile.SourceSHA256) || profile.CheckpointSHA256 != "12cb5eb5d515400f262b48d4e7c1994183e170aedb4b86699d9a55b770038e16" {
 			return fmt.Errorf("LaMa build profile must pin source and known generator-only safetensors SHA-256 values")
 		}
-		if profile.OutputSHA256 != "" && !validSHA256(profile.OutputSHA256) {
+		if profile.OutputSHA256 != "" && !fetch.ValidSHA256(profile.OutputSHA256) {
 			return fmt.Errorf("LaMa build profile output_sha256 must be a SHA-256 hex digest")
 		}
 		if m.Enabled && profile.OutputSHA256 == "" {
@@ -604,18 +568,6 @@ func (r *Registry) validateModel(m Model) error {
 		}
 	}
 	return nil
-}
-
-func validSHA256(value string) bool {
-	if len(value) != 64 {
-		return false
-	}
-	for _, char := range value {
-		if !((char >= '0' && char <= '9') || (char >= 'a' && char <= 'f') || (char >= 'A' && char <= 'F')) {
-			return false
-		}
-	}
-	return true
 }
 
 // validateSeedInvariants asserts the policy guarantees the bundled seed must

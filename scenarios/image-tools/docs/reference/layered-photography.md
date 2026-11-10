@@ -294,7 +294,7 @@ model-consistency evidence only.
 ### Prompted device masks: implemented foundation
 
 The model-backed `segment` operation uses the existing AI durable-job owner,
-model selector, installed-weight checks and serialized local-model lane. It is
+model selector, lifecycle readiness checks and capacity-admitted local scheduler. It is
 distinct from heuristic `select segment`. Submit typed
 `AIParams.segmentation` on `POST /api/v1/ai/segment`, then wait once through
 JobsService. The CLI exposes the same path:

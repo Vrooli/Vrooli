@@ -70,8 +70,8 @@ func TestSceneGeometry_InstalledMoGeDurableJob(t *testing.T) {
 	engine, err := internalai.NewEngine(internalai.Deps{
 		Registry: registry, Backends: providers, Store: store, ModelsRoot: root,
 		Probe: capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 4}},
-		Enabled: func(context.Context) (models.EnabledFunc, error) {
-			return func(id string) bool { return id == "moge-2-vits-normal" }, nil
+		Enabled: func(context.Context) (map[string]bool, error) {
+			return map[string]bool{"moge-2-vits-normal": true}, nil
 		},
 		ModelInstalled: func(id string) bool { return id == "moge-2-vits-normal" },
 	})

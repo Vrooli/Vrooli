@@ -24,14 +24,26 @@ import (
 
 type fakeRecorder struct{ jobs []internaljobs.Job }
 
-func (f *fakeRecorder) Record(spec internaljobs.Spec, ref string, runErr error) (internaljobs.Job, error) {
-	state := internaljobs.StateSucceeded
-	if runErr != nil {
-		state = internaljobs.StateFailed
+func (f *fakeRecorder) SubmitTask(ctx context.Context, spec internaljobs.Spec, runner internaljobs.Runner) (internaljobs.Job, error) {
+	j := internaljobs.Job{ID: "job-" + spec.Operation, Operation: spec.Operation, State: internaljobs.StateRunning, Priority: spec.Priority}
+	result, err := runner(ctx, j, func(int, string) {})
+	j.State = internaljobs.StateSucceeded
+	j.ResultRef = result.Ref
+	if err != nil {
+		j.State = internaljobs.StateFailed
+		j.Error = err.Error()
 	}
-	j := internaljobs.Job{ID: "job-" + spec.Operation, Operation: spec.Operation, State: state, ResultRef: ref}
 	f.jobs = append(f.jobs, j)
 	return j, nil
+}
+
+func (f *fakeRecorder) Wait(_ context.Context, id string) (internaljobs.Job, error) {
+	for _, j := range f.jobs {
+		if j.ID == id {
+			return j, nil
+		}
+	}
+	return internaljobs.Job{}, internaljobs.ErrNotFound
 }
 
 func newTestServer(t *testing.T, svc *internalanalysis.Service) (*mux.Router, *fakeRecorder) {

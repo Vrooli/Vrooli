@@ -1133,6 +1133,39 @@
       ]
     },
     {
+      "id": "models_provision",
+      "path": "/vrooli.image_tools.v1.models.ModelsService/ProvisionModels",
+      "method": "POST",
+      "summary": "Provision local model capabilities",
+      "description": "Prepares the private runtime, backend tools, model artifacts and load-smoke evidence in one durable timed job. An empty model_ids list selects every enabled local model.",
+      "category": "models",
+      "request": {
+        "type": "object",
+        "properties": {
+          "model_ids": "array<string> (optional)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "job_id": "string",
+          "model_ids": "array<string>"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Unknown model"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Model is not commercial-clean local content"
+        }
+      ]
+    },
+    {
       "id": "models_list",
       "path": "/vrooli.image_tools.v1.models.ModelsService/ListModels",
       "method": "POST",
@@ -1284,7 +1317,7 @@
       "path": "/vrooli.image_tools.v1.models.ModelsService/SetModelEnabled",
       "method": "POST",
       "summary": "Enable or disable a model",
-      "description": "Toggles a model's runtime-enabled state, persisted in the SQLite overlay over the read-only seed catalog.",
+      "description": "Toggles a model's runtime-enabled state, persisted in the SQLite overlay over the read-only seed catalog. Models without verified commercial rights cannot be enabled.",
       "category": "models",
       "request": {
         "type": "object",
@@ -1304,6 +1337,11 @@
           "status": 404,
           "code": "not_found",
           "description": "No model with that id exists"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Model commercial rights are not verified"
         },
         {
           "status": 500,
@@ -1553,7 +1591,7 @@
       "path": "/vrooli.image_tools.v1.models.ModelsService/InstallModel",
       "method": "POST",
       "summary": "Install or runtime-validate a model",
-      "description": "Downloads missing weights or revalidates the load-smoke for an installed model through the durable install job. Checksums are pinned on first download and free disk space is checked first. Returns a job id + ETA; block once on jobs wait. A runtime-ready installed model returns already_installed=true with no job.",
+      "description": "Downloads missing weights or revalidates the load-smoke for an installed model through the durable install job. Checksums are pinned on first download and free disk space is checked first. Models without verified commercial rights cannot be installed. Returns a job id + ETA; block once on jobs wait. A runtime-ready installed model returns already_installed=true with no job.",
       "category": "models",
       "request": {
         "type": "object",
@@ -1579,7 +1617,7 @@
         {
           "status": 412,
           "code": "failed_precondition",
-          "description": "Installed model runtime is not provisioned or cannot be smoke-validated"
+          "description": "Model commercial rights are not verified, or installed runtime is not provisioned or cannot be smoke-validated"
         },
         {
           "status": 500,
@@ -1730,13 +1768,13 @@
       "path": "/vrooli.image_tools.v1.models.ModelsService/ImportModel",
       "method": "POST",
       "summary": "Import a model by source (confirm + install)",
-      "description": "Composes inspect → operator-confirmed fields (architecture/operations/attestation) → an add-only custom entry → a durable install job (mirrors InstallModel: returns job id + ETA; block once on jobs wait). Imports default to local tier with a user-imported provenance label; public/BYOK serving requires attest_commercial_rights.",
+      "description": "Composes inspect → operator-confirmed fields (architecture/operations/attestation) → an add-only custom entry → a durable install job (mirrors InstallModel: returns job id + ETA; block once on jobs wait). A positive attest_commercial_rights is required before registration or weight download; it records the operator's rights claim.",
       "category": "models",
       "request": {
         "type": "object",
         "properties": {
           "architecture": "string (required when inference is none; else overrides)",
-          "attest_commercial_rights": "bool (allow public/BYOK serving — decision D4)",
+          "attest_commercial_rights": "bool (required true to register or download model weights; decision D4)",
           "id": "string (new entry id; must not collide with a seed model)",
           "name": "string (optional display name)",
           "operations": "array<string> (optional; defaults to the architecture's base ops)",
@@ -1772,7 +1810,7 @@
       "examples": [
         {
           "name": "Import an SDXL checkpoint",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ImportModel -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\",\"id\":\"imported-sdxl\",\"architecture\":\"sdxl\"}'"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ImportModel -H 'Content-Type: application/json' -d '{\"source\":\"stabilityai/stable-diffusion-xl-base-1.0\",\"id\":\"imported-sdxl\",\"architecture\":\"sdxl\",\"attest_commercial_rights\":true}'"
         }
       ]
     },
@@ -1781,7 +1819,7 @@
       "path": "/vrooli.image_tools.v1.models.ModelsService/SetDefaultModel",
       "method": "POST",
       "summary": "Pin the default model for an operation",
-      "description": "Pins (or clears, with empty model_id) the default model for an operation. Selection applies the pin when a request gives no explicit override.",
+      "description": "Pins (or clears, with empty model_id) the default model for an operation. Selection applies the pin when a request gives no explicit override. Models without verified commercial rights cannot be pinned.",
       "category": "models",
       "request": {
         "type": "object",
@@ -1807,6 +1845,11 @@
           "status": 404,
           "code": "not_found",
           "description": "No model with that id exists"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Model commercial rights are not verified"
         },
         {
           "status": 500,
@@ -1840,6 +1883,113 @@
           "curl": "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.models.ModelsService/ListDefaults -H 'Content-Type: application/json' -d '{}'"
         }
       ]
+    },
+    {
+      "id": "model_profiles",
+      "path": "/api/v1/measures/models",
+      "method": "GET",
+      "summary": "Query model performance profiles",
+      "description": "Returns owner-recorded cold, warm, and peak-memory profile summaries, including unavailable results.",
+      "category": "measures",
+      "request": {
+        "type": "object",
+        "properties": {
+          "model_id": "string query parameter (optional)",
+          "operation": "string query parameter (optional)"
+        }
+      },
+      "response": {
+        "type": "array",
+        "properties": {
+          "device": "string",
+          "last_evidence": "string",
+          "last_recorded_at": "string",
+          "latency_p50_ms": "integer",
+          "latency_p95_ms": "integer",
+          "model_id": "string",
+          "operation": "string",
+          "peak_memory_bytes": "integer",
+          "profile": "string",
+          "samples": "integer",
+          "status": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "The profile query could not be read"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Read-only profile query for owner-recorded model measurements; query parameters select model/operation and the response uses the declared profile shape rather than a Connect procedure.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "ops_import_link",
+      "path": "/api/v1/import/link",
+      "method": "POST",
+      "summary": "Import an image from a public link",
+      "description": "Fetches a public HTTP(S) image URL through an SSRF-safe bounded downloader, validates raster dimensions and stores the bytes as an Image Tools input blob.",
+      "category": "ops",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_request",
+          "description": "URL is invalid or resolves to a non-public address"
+        },
+        {
+          "status": 413,
+          "code": "invalid_request",
+          "description": "Remote image exceeds the encoded byte limit"
+        },
+        {
+          "status": 422,
+          "code": "invalid_request",
+          "description": "Remote response is not a supported image or violates raster limits"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Import a public image URL",
+          "curl": "curl -X POST 'http://localhost:${API_PORT}/api/v1/import/link' -H 'Content-Type: application/json' -d '{\"url\":\"https://example.org/image.png\"}'"
+        }
+      ],
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "This small REST action accepts a URL and returns an opaque input reference; the referenced image bytes are fetched server-side and never exposed as a proxy response.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "transport_only"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
     },
     {
       "id": "ops_list_operations",
@@ -1999,6 +2149,42 @@
       "summary": "Retain a visual review as a new immutable revision",
       "description": "",
       "category": "preparation"
+    },
+    {
+      "id": "quality_profiles",
+      "path": "/vrooli.image_tools.v1.quality.QualityService/ListQualityProfiles",
+      "method": "POST",
+      "summary": "List image-quality evaluation profiles",
+      "description": "Reference metrics and local-judge rubrics for image, matte, mask, text and structured outputs.",
+      "category": "quality"
+    },
+    {
+      "id": "quality_evaluate",
+      "path": "/api/v1/quality/evaluate",
+      "method": "POST",
+      "summary": "Evaluate an output set against references and regression budgets",
+      "description": "Multipart manifest and image parts; schedules a durable quality evaluation. Wait for its job and read the retained EvaluationReport. A failed quality gate is a completed report with passed=false.",
+      "category": "quality",
+      "rest_exception": {
+        "reason": "multipart_upload",
+        "note": "Image set payloads use multipart; manifest, baseline and result metadata use the quality protobuf contract.",
+        "proto_payloads": {
+          "request": {
+            "transport": "multipart/form-data",
+            "conformance": "transport_only"
+          },
+          "response": {
+            "proto_full_name": "vrooli.image_tools.v1.quality.SubmitEvaluationResponse",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.image_tools.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
     },
     {
       "id": "safety_get_policy",

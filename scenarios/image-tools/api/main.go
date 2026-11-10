@@ -27,7 +27,9 @@ import (
 	internalmeasures "image-tools/internal/measures"
 	internalmodels "image-tools/internal/models"
 	"image-tools/internal/modules"
+	"image-tools/internal/provision"
 	"image-tools/internal/pydeps"
+	internalquality "image-tools/internal/quality"
 	"image-tools/internal/safety"
 	"image-tools/internal/server"
 	"image-tools/internal/sidecar"
@@ -52,9 +54,11 @@ import (
 	healthH "image-tools/handlers/health"
 	jobsH "image-tools/handlers/jobs"
 	looksH "image-tools/handlers/looks"
+	measuresH "image-tools/handlers/measures"
 	modelsH "image-tools/handlers/models"
 	opsH "image-tools/handlers/ops"
 	preparationH "image-tools/handlers/preparation"
+	qualityH "image-tools/handlers/quality"
 	safetyH "image-tools/handlers/safety"
 	selectionH "image-tools/handlers/selection"
 
@@ -213,7 +217,7 @@ func main() {
 	// execution handlers on the dispatcher; in Phase 1 none are registered yet,
 	// so a submitted job for an unknown op fails cleanly (and nothing submits).
 	jobCtx, cancelJobs := context.WithCancel(context.Background())
-	dispatcher := jobrunner.New()
+	dispatcher := jobrunner.New(internalai.AdmitCPUWork)
 
 	// Runtime measures (IMG-P0-012): the recorder captures op latency + queue-wait
 	// + outcome for every finalized job via the Manager's OnComplete hook. Recorded
@@ -221,6 +225,7 @@ func main() {
 	measureRec := internalmeasures.NewRecorder(db)
 	jobManager := internaljobs.New(db, internaljobs.Config{
 		Runner:         dispatcher.Run,
+		Admit:          dispatcher.Admit,
 		Clock:          schedule.System(),
 		CPUWorkers:     runtimeCfg.CPUWorkers,
 		NetworkWorkers: runtimeCfg.NetworkWorkers,
@@ -231,6 +236,9 @@ func main() {
 			}
 			if err := measureRec.RecordJobTrace(jobCtx, trace); err != nil {
 				log.Printf("measures: trace job %s: %v", job.ID, err)
+			}
+			if err := measureRec.RecordModelJobProfiles(jobCtx, sample, job.ID, job.Meta); err != nil {
+				log.Printf("measures: model profiles for job %s: %v", job.ID, err)
 			}
 		},
 	})
@@ -288,40 +296,43 @@ func main() {
 		log.Printf("sidecar ready on PYTHONPATH: %s", sidecarPath)
 	}
 
-	// Python isolation seam (IMG robustness): provision a private, lock-pinned uv
-	// venv whose ABSOLUTE interpreter the Python backends invoke — never a bare
-	// "python3" off the host PATH — so torch/diffusers/transformers/onnxruntime
-	// come from the committed lock and cannot be perturbed by other Python on the
-	// box. Decided up front (the interpreter path is deterministic even before the
-	// build finishes):
-	//   * uv present → use the venv interpreter and build/repair it. The first
-	//     build syncs torch (multi-GB) so it runs in the BACKGROUND; until it
-	//     completes the Python backends report "not yet provisioned" (honest),
-	//     then become available. Steady-state boots are instant (sentinel match).
-	//   * uv absent / lock unavailable → pythonInterpreter stays empty, so the
-	//     Python backends report UNAVAILABLE (with a `vrooli host install uv`
-	//     remediation, surfaced before use via doctor/health/ready_state). There is
-	//     deliberately no fallback to the shared host python3 — that would defeat
-	//     the isolation. Boot never blocks or crashes; non-Python backends are
-	//     unaffected.
-	var pythonInterpreter string
+	// Runtime paths are stable before installation, so providers become usable
+	// immediately when provisioning finishes without an API restart.
+	backendEnsurer := internalhosttool.NewEnsurer()
 	venvDir := filepath.Join(runtimeRoot, "pyenv")
-	if _, uvErr := exec.LookPath("uv"); uvErr != nil {
-		log.Printf("WARNING: uv not found on PATH; the isolated Python venv cannot be built, so Python AI backends stay UNAVAILABLE (never run against the host python3). Run `vrooli host install uv` and restart to enable them.")
-	} else if lockPath, lpErr := pydeps.Materialize(runtimeRoot); lpErr != nil {
-		log.Printf("WARNING: materialize python lock failed (%v); Python AI backends stay unavailable until it succeeds (no host-python3 fallback)", lpErr)
-	} else {
-		pythonInterpreter = pyenv.InterpreterPath(venvDir)
-		venvSpec := pyenv.Spec{VenvDir: venvDir, LockFile: lockPath}
+	pythonInterpreter := pyenv.InterpreterPath(venvDir)
+	runtimeSerial := make(chan struct{}, 1)
+	ensureRuntime := func(ctx context.Context, emit func(int, string)) error {
+		select {
+		case runtimeSerial <- struct{}{}:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+		defer func() { <-runtimeSerial }()
+		if _, err := exec.LookPath("uv"); err != nil {
+			status, err := backendEnsurer.Ensure(ctx, "uv")
+			if err != nil {
+				return err
+			}
+			if !status.GetOk() {
+				return fmt.Errorf("provision uv: %s", strings.Join(status.GetNotes(), "; "))
+			}
+		}
+		lockPath, err := pydeps.Materialize(runtimeRoot)
+		if err != nil {
+			return err
+		}
+		emit(0, "preparing locked Python runtime")
+		_, err = pyenv.Ensure(ctx, pyenv.Spec{VenvDir: venvDir, LockFile: lockPath}, nil)
+		return err
+	}
+	if _, err := exec.LookPath("uv"); err == nil {
 		go func() {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer cancel()
-			interp, err := pyenv.Ensure(ctx, venvSpec, nil)
-			if err != nil {
-				log.Printf("WARNING: python venv provisioning failed (%v); Python AI backends stay unavailable until it succeeds — restart the scenario to retry (a changed lock auto-resyncs)", err)
-				return
+			if err := ensureRuntime(ctx, func(int, string) {}); err != nil {
+				log.Printf("Python runtime needs preparation: %v; run image-tools provision --wait", err)
 			}
-			log.Printf("python venv ready (lock %s): %s", interp.LockHash[:12], interp.Python)
 		}()
 	}
 
@@ -331,7 +342,7 @@ func main() {
 	// not just a stray directory. The Smoke gate runs an install-time load-smoke
 	// (fetch → env → smoke) through the venv interpreter so an installed-but-broken
 	// model fails the install instead of surfacing as a late job crash.
-	modelUseGate := internalmodels.NewModelUseGate()
+	modelUseGate := internalmodels.NewModelUseGate(modelsRoot)
 	installer := &internalmodels.Installer{
 		Root:      modelsRoot,
 		Reg:       registry,
@@ -339,12 +350,13 @@ func main() {
 		State:     internalmodels.NewInstallStore(db),
 		UseGate:   modelUseGate,
 		Download:  fetch.HTTPDownloader{},
-		RepoFetch: &fetch.HFSnapshotFetcher{},
+		RepoFetch: &fetch.HFSnapshotFetcher{Python: pythonInterpreter},
 		DiskAvail: fetch.DefaultDiskAvail,
 		Smoke: &internalmodels.SmokeConfig{
 			Python:     pythonInterpreter,
 			PythonPath: sidecarPath,
 			LockHash:   pydeps.LockHash(),
+			Acquire:    sharedcapacity.AcquireScoped,
 		},
 		Build: &internalmodels.BuildConfig{
 			Python:        pythonInterpreter,
@@ -378,13 +390,15 @@ func main() {
 	// downloads, disk-space checks, removal, and custom/imported entries, sharing
 	// the same fetch spine and data root (<dataDir>/adapters/<id>). Install state
 	// is DB-backed (adapter_install).
+	adapterUseGate := &sharedcapacity.UseGate{Root: filepath.Join(modelsRoot, "adapters")}
 	adapterInstaller := &internaladapters.Installer{
+		UseGate:   adapterUseGate,
 		Root:      modelsRoot,
 		Reg:       adapterRegistry,
 		Custom:    internaladapters.NewCustomStore(db),
 		State:     internaladapters.NewInstallStore(db),
 		Download:  fetch.HTTPDownloader{},
-		RepoFetch: &fetch.HFSnapshotFetcher{},
+		RepoFetch: &fetch.HFSnapshotFetcher{Python: pythonInterpreter},
 		DiskAvail: fetch.DefaultDiskAvail,
 	}
 
@@ -435,7 +449,6 @@ func main() {
 	// `vrooli host install <tool> --json` (the same compose-don't-reinvent path
 	// capabilities uses for host inventory) so a missing generative backend can
 	// be installed from the product with live progress and client-cancel safety.
-	backendEnsurer := internalhosttool.NewEnsurer()
 	dispatcher.Register(internalhosttool.EnsureJobOperation, func(jobCtx context.Context, job internaljobs.Job, emit func(progress int, message string)) (internaljobs.Result, error) {
 		var p internalhosttool.EnsurePayload
 		if err := json.Unmarshal(job.Payload, &p); err != nil {
@@ -466,16 +479,48 @@ func main() {
 		log.Fatalf("backend invariant failed: %v", err)
 	}
 
+	installer.BackendReadiness = func(ctx context.Context, model internalmodels.Model) error {
+		for _, op := range model.Operations {
+			available := false
+			for _, provider := range backendReg.Providers(op) {
+				if provider.Name() == model.Backend && provider.Available(ctx) {
+					available = true
+					break
+				}
+			}
+			if !available {
+				return fmt.Errorf("backend %s cannot currently serve %s", model.Backend, op)
+			}
+		}
+		return nil
+	}
+	provisioner := &provision.Service{
+		Installer: installer, EnsureRuntime: ensureRuntime,
+		RuntimeNeeded: func(model internalmodels.Model) bool {
+			tool, _ := internalai.HostToolForProvider(model.Backend)
+			return model.Source.HasRepo() || tool == "uv" || model.Backend == "python-sidecar" || model.Backend == "sam2-transformers"
+		},
+		EnsureBackend: func(ctx context.Context, model internalmodels.Model) error {
+			tool, ok := internalai.HostToolForProvider(model.Backend)
+			if !ok || tool == "uv" {
+				return nil
+			}
+			status, err := backendEnsurer.Ensure(ctx, tool)
+			if err != nil {
+				return err
+			}
+			if !status.GetOk() {
+				return fmt.Errorf("provision %s: %s", tool, strings.Join(status.GetNotes(), "; "))
+			}
+			return nil
+		},
+	}
+	dispatcher.Register(provision.Operation, provisioner.Run)
+
 	// Model enabled-state overlay (SQLite over the seed defaults), re-read per
 	// selection so runtime enable/disable changes take effect immediately.
 	modelStore := internalmodels.NewStore(db)
-	enabled := func(ctx context.Context) (internalmodels.EnabledFunc, error) {
-		overlay, lErr := modelStore.LoadOverlay(ctx)
-		if lErr != nil {
-			return nil, lErr
-		}
-		return registry.EnabledWithOverlay(overlay), nil
-	}
+	enabled := modelStore.LoadOverlay
 
 	// Per-operation default-model pins (settings surface): selection applies a
 	// pin when a request gives no explicit override.
@@ -484,6 +529,15 @@ func main() {
 	// Analysis service (OCR / NSFW / probe). Its NSFW path also backs the AI
 	// generation auto-scan hook.
 	analysisService, err := internalanalysis.NewService(internalanalysis.Config{
+		AcquireCapacity: sharedcapacity.AcquireScoped,
+		ModelReady:      installer.RuntimeReadiness,
+		ModelRAMBytes: func(id string) (int64, error) {
+			model, ok := registry.ByID(id)
+			if !ok || model.Hardware.MinRAMGB <= 0 {
+				return 0, fmt.Errorf("analysis model %s has no RAM budget", id)
+			}
+			return int64(model.Hardware.MinRAMGB) << 30, nil
+		},
 		ModelInstalled:  modelInstalled,
 		AcquireModelUse: modelUseGate.Acquire,
 		ModelsRoot:      modelsRoot,
@@ -493,6 +547,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("analysis service init failed: %v", err)
 	}
+
+	for _, op := range internalanalysis.List() {
+		dispatcher.RegisterAdmission(op.Name, analysisService.Admit)
+	}
+	qualityRunner := &internalquality.Runner{Evaluator: &internalquality.Evaluator{Judge: internalquality.NewGatewayJudge()}, Store: blobStore}
+	dispatcher.Register(internalquality.Operation, qualityRunner.Run)
+	dispatcher.RegisterAdmission(internalquality.Operation, internalquality.Admit)
 
 	// AI engine: probe → hardware-fit model select → backend select → execute →
 	// persist, with the optional NSFW auto-scan on generated output.
@@ -507,17 +568,19 @@ func main() {
 		ModelRuntimeReadiness: func(ctx context.Context, id string) (bool, string) {
 			return installer.RuntimeReadiness(ctx, id)
 		},
-		AcquireModelUse:  modelUseGate.Acquire,
-		CustomModels:     installer.Custom.List,
-		ModelsRoot:       modelsRoot,
-		AdapterByID:      adapterByID,
-		AdapterEnabled:   adapterEnabled,
-		AdapterInstalled: adapterInstalled,
-		AdaptersRoot:     modelsRoot,
-		AutoScan:         analysisService.ScanNSFW,
-		Capacity:         &internalai.CLICapacityBroker{},
-		Memory:           internalai.AcquireLocalRAM,
-		Logger:           log.Default(),
+		AcquireModelUse:   modelUseGate.Acquire,
+		CustomModels:      installer.Custom.List,
+		ModelsRoot:        modelsRoot,
+		AdapterByID:       adapterByID,
+		AdapterEnabled:    adapterEnabled,
+		AdapterInstalled:  adapterInstalled,
+		AcquireAdapterUse: adapterUseGate.Acquire,
+		AdaptersRoot:      modelsRoot,
+		AutoScan:          analysisService.ScanNSFW,
+		Capacity:          &internalai.CLICapacityBroker{},
+		Memory:            internalai.AcquireLocalRAM,
+		CPU:               internalai.AcquireLocalCPU,
+		Logger:            log.Default(),
 	})
 	if err != nil {
 		log.Fatalf("ai engine init failed: %v", err)
@@ -526,6 +589,7 @@ func main() {
 	// single Runner out to these per-operation handlers).
 	for op, run := range aiEngine.BuildRunners() {
 		dispatcher.Register(op, run)
+		dispatcher.RegisterAdmission(op, aiEngine.Admit)
 	}
 
 	// Responsible-Use deployment gate (IMG-P1-015): the tier is chosen at deploy
@@ -540,8 +604,19 @@ func main() {
 	// surfaces it; the transient env-not-provisioned state (venv still building)
 	// is intentionally not a degrade.
 	healthModelRuntime := func(ctx context.Context) error {
+		catalog := registry.Models()
+		enabled := make([]internalmodels.Model, 0, len(catalog))
+		for _, model := range catalog {
+			if internalmodels.EffectiveEnabled(model, nil) {
+				enabled = append(enabled, model)
+			}
+		}
+		runtime, err := installer.DoctorRuntimeReport(ctx, enabled, nil)
+		if err != nil {
+			return fmt.Errorf("enabled model lifecycle unavailable: %w", err)
+		}
 		var failed []string
-		for _, f := range installer.DoctorRuntime(ctx, registry.Models(), nil) {
+		for _, f := range runtime.Findings {
 			if f.Code == "enabled_model_smoke_failed" {
 				failed = append(failed, f.ModelID)
 			}
@@ -565,7 +640,9 @@ func main() {
 		diffH.Module(blobStore, jobManager, log.Default()),
 		jobsH.Module(jobManager, log.Default()),
 		looksH.Module(db, blobStore, log.Default()),
+		measuresH.Module(measureRec),
 		preparationH.Module(db, blobStore),
+		qualityH.Module(blobStore, jobManager),
 		modelsH.Module(db, registry, probe, installer, backendReg, jobManager, func(sizeMBApprox int) int {
 			return internalmodels.EstimateInstallSecondsAt(sizeMBApprox, runtimeCfg.InstallMBPerSecond)
 		}, backendEnsurer, modelsH.AdapterSeams{
@@ -583,11 +660,6 @@ func main() {
 	// runtime test DB pool and file roots without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
-
-	// No /measures substrate is mounted yet: image operations declare their
-	// op-latency / throughput / queue-wait measures as they land (Phase 2+),
-	// and the measures-go serve registry is wired here when the first measure
-	// exists. Mounting an empty substrate now would be dead scaffolding.
 
 	rootMux.Handle("/", srv.Handler())
 

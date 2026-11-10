@@ -59,16 +59,18 @@ func TestExecProvider_StreamsProgress(t *testing.T) {
 		"  |#####| 4/4 - 3.0s/it",
 	}
 	p := &execProvider{
-		name:         "stable-diffusion.cpp",
-		program:      "sd",
-		techniques:   technique.Single("text_to_image", technique.StableDiffusionCpp),
-		progressScan: scanStableDiffusionProgress,
-		stream: func(_ context.Context, _ string, _ []string, onLine func(string)) error {
-			for _, l := range lines {
-				onLine(l)
-			}
-			return nil
-		},
+		backendProcess: backendProcess{
+			name:    "stable-diffusion.cpp",
+			program: "sd",
+
+			progressScan: scanStableDiffusionProgress,
+			stream: func(_ context.Context, _ string, _ []string, onLine func(string)) error {
+				for _, l := range lines {
+					onLine(l)
+				}
+				return nil
+			},
+		}, techniques: technique.Single("text_to_image", technique.StableDiffusionCpp),
 	}
 	var got []float64
 	req := backends.Request{
@@ -101,13 +103,15 @@ func TestExecProvider_StreamsProgress(t *testing.T) {
 // streaming backend surfaces as an execution failure.
 func TestExecProvider_StreamErrorPropagates(t *testing.T) {
 	p := &execProvider{
-		name:         "stable-diffusion.cpp",
-		program:      "sd",
-		techniques:   technique.Single("text_to_image", technique.StableDiffusionCpp),
-		progressScan: scanStableDiffusionProgress,
-		stream: func(context.Context, string, []string, func(string)) error {
-			return errors.New("sd boom")
-		},
+		backendProcess: backendProcess{
+			name:    "stable-diffusion.cpp",
+			program: "sd",
+
+			progressScan: scanStableDiffusionProgress,
+			stream: func(context.Context, string, []string, func(string)) error {
+				return errors.New("sd boom")
+			},
+		}, techniques: technique.Single("text_to_image", technique.StableDiffusionCpp),
 	}
 	req := backends.Request{
 		Operation: "text_to_image",
@@ -128,18 +132,20 @@ func TestExecProvider_StreamErrorPropagates(t *testing.T) {
 func TestExecProvider_NoProgressUsesPlainRunner(t *testing.T) {
 	var plainCalls, streamCalls int
 	p := &execProvider{
-		name:         "stable-diffusion.cpp",
-		program:      "sd",
-		techniques:   technique.Single("text_to_image", technique.StableDiffusionCpp),
-		progressScan: scanStableDiffusionProgress,
-		run: func(context.Context, string, []string) error {
-			plainCalls++
-			return nil
-		},
-		stream: func(context.Context, string, []string, func(string)) error {
-			streamCalls++
-			return nil
-		},
+		backendProcess: backendProcess{
+			name:    "stable-diffusion.cpp",
+			program: "sd",
+
+			progressScan: scanStableDiffusionProgress,
+			run: func(context.Context, string, []string) error {
+				plainCalls++
+				return nil
+			},
+			stream: func(context.Context, string, []string, func(string)) error {
+				streamCalls++
+				return nil
+			},
+		}, techniques: technique.Single("text_to_image", technique.StableDiffusionCpp),
 	}
 	req := backends.Request{
 		Operation: "text_to_image",
@@ -164,11 +170,13 @@ func TestExecProvider_NoProgressUsesPlainRunner(t *testing.T) {
 func TestExecProvider_GPUCapableProbe(t *testing.T) {
 	mk := func(typeCap bool, probe func(context.Context, string) bool) *execProvider {
 		return &execProvider{
-			name:       "stable-diffusion.cpp",
-			program:    "sd",
-			gpuCapable: typeCap,
-			gpuProbe:   probe,
-			lookPath:   func(string) (string, error) { return "/usr/bin/sd", nil },
+			backendProcess: backendProcess{
+				name:       "stable-diffusion.cpp",
+				program:    "sd",
+				gpuCapable: typeCap,
+				gpuProbe:   probe,
+				lookPath:   func(string) (string, error) { return "/usr/bin/sd", nil },
+			},
 		}
 	}
 	var probeCalls int

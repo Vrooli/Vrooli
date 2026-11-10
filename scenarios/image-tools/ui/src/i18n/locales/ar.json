@@ -134,7 +134,8 @@
       "unspecified": "غير محدد",
       "localSerial": "قائمة انتظار محلية متسلسلة",
       "cpuPool": "مجموعة المعالج المركزي",
-      "networkPool": "مجموعة الشبكة"
+      "networkPool": "مجموعة الشبكة",
+      "capacity": "معالجة محلية"
     },
     "state": {
       "unspecified": "غير محدد",
@@ -142,7 +143,9 @@
       "running": "قيد التشغيل",
       "succeeded": "نجح",
       "failed": "فشل",
-      "canceled": "ملغى"
+      "canceled": "ملغى",
+      "admitting": "بانتظار الموارد",
+      "canceling": "جارٍ الإيقاف"
     },
     "errorLabel": "خطأ:",
     "liveBadge": "مباشر"
@@ -156,7 +159,11 @@
       "camera": "الكاميرا",
       "sample": "جرّب عيّنة",
       "dropActive": "أفلِت للفتح",
-      "fileLabel": "اختر ملف صورة"
+      "fileLabel": "اختر ملف صورة",
+      "linkLabel": "رابط صورة عام",
+      "linkPlaceholder": "ألصق رابط صورة عام",
+      "importLink": "استيراد الرابط",
+      "importingLink": "جارٍ الاستيراد…"
     },
     "group": {
       "quickEdits": "تعديلات سريعة",
@@ -359,6 +366,7 @@
         "needsBackendManual": "يحتاج المحرّك إلى إعداد يدوي",
         "needsBoth": "يلزم الأوزان والمحرّك",
         "disabled": "مُعطَّل في الإعدادات",
+        "commercialRightsReviewRequired": "يلزم التحقق من الحقوق التجارية",
         "insufficient": "لا يمكن تشغيله على جهازك",
         "unsupported": "غير متاح لنظام تشغيلك",
         "derivedUnproven": "عبر سير عمل (غير مُثبَت بعد)"
@@ -399,6 +407,7 @@
       "architectureLabel": "تأكيد البنية",
       "selectArchitecture": "اختر بنية…",
       "attestLabel": "أمتلك الحقوق التجارية (السماح بالتقديم العام/BYOK)",
+      "attestRequired": "يجب تأكيد الحقوق التجارية قبل أن يسجل Image Tools النموذج أو ينزّل أوزانه.",
       "import": "استيراد وتثبيت",
       "importing": "جارٍ الاستيراد…",
       "success": "بدأ الاستيراد — سيظهر النموذج بعد اكتمال التنزيل.",
@@ -466,6 +475,10 @@
       "quality_assessment": {
         "label": "تقييم الجودة",
         "desc": "قيِّم الحدة والإضاءة والتباين فورًا."
+      },
+      "caption": {
+        "label": "وصف الصورة",
+        "desc": "إنشاء وصف طبيعي محلي لمحتوى الصورة."
       }
     },
     "analyze": {
@@ -476,6 +489,7 @@
       "modelNote": "يستخدم نموذجًا — يُثبَّت عند أول تشغيل.",
       "run": "تحليل",
       "running": "جارٍ التحليل…",
+      "cancel": "إلغاء",
       "retry": "حاول مرة أخرى",
       "failed": "فشل التحليل.",
       "probe": {

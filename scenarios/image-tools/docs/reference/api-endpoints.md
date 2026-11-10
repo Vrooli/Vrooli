@@ -91,11 +91,15 @@ durable job system (`api/internal/jobs`). Jobs survive client
 disconnects: a submit returns a job id + ETA immediately, work runs under
 a server-lifetime context, callers block ONCE on `WaitJob` (never poll),
 and progress streams over `WatchJob`. `Job.scheduling_queue` reports queue
-policy: local work uses the serialized queue, lightweight CPU work uses the
-concurrent CPU pool, and remote work uses its bounded network pool. It does not
+policy: local work reports `CAPACITY`, and remote work reports `NETWORK_POOL`.
+The single scheduler orders interactive, service and batch jobs, ages waiting
+jobs, and obtains resource leases before execution. It does not
 identify the execution device; `Job.lane` is a deprecated compatibility field.
-Job *submission* is op-specific and lands with each
-operation domain from Phase 2.
+Jobs move through queued, admitting, running and a terminal state. Active
+cancellation reports canceling until worker cleanup and lease release finish.
+A temporary admission refusal returns the job to queued without executing it.
+`priority` records the requested scheduling tier. Analysis multipart responses
+wait once for this same durable scheduler and return their job ID.
 
 Proto: `packages/proto/schemas/image-tools/v1/jobs/jobs.proto`.
 

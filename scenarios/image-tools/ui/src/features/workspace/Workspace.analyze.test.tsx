@@ -23,6 +23,11 @@ vi.mock("../../api/analysis", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../api/analysis")>();
   return { ...actual, ...makeAnalysisMocks() };
 });
+vi.mock("../../api/ai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../api/ai")>();
+  const { makeAIMocks } = await import("./mocks/ai");
+  return { ...actual, ...makeAIMocks() };
+});
 
 import { Workspace } from "./Workspace";
 
@@ -82,5 +87,19 @@ describe("Workspace analyze flow", () => {
       "Hello world",
     );
     expect(screen.getByTestId(selectors.workspace.analyze.copy)).toBeInTheDocument();
+  });
+
+  it("surfaces local image captioning as an Analyze capability", async () => {
+    const user = userEvent.setup();
+    const analyzeClient = makeAnalyzeClient();
+    renderWithProviders(<Workspace analyzeClient={analyzeClient} />);
+
+    await user.click(await screen.findByTestId(selectors.workspace.modeOption({ mode: "analyze" })));
+    await user.upload(screen.getByTestId(selectors.workspace.fileInput), PNG);
+    await user.click(await screen.findByTestId(selectors.workspace.analyzeAction({ name: "caption" })));
+    await user.click(screen.getByTestId(selectors.workspace.analyze.run));
+
+    expect(await screen.findByTestId(selectors.workspace.analyze.caption)).toHaveTextContent("A red square");
+    expect(analyzeClient.caption).toHaveBeenCalledTimes(1);
   });
 });

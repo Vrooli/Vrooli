@@ -16,9 +16,9 @@ package operations
 import "sort"
 
 // Category buckets an operation for discovery and to drive each consumer's
-// membership. The AI engine owns generation+enhancement (the ops it builds
-// runners for); restoration is forward-declared + provider-served but not yet
-// AI-engine-wired; analysis is owned by internal/analysis.
+// membership. The AI engine owns generation, enhancement and restoration model
+// operations plus prompted segmentation; other structured analysis is owned by
+// internal/analysis.
 type Category string
 
 const (
@@ -27,11 +27,11 @@ const (
 	// CategoryEnhancement covers super-resolution / restoration-style enhancement
 	// wired into the AI engine.
 	CategoryEnhancement Category = "enhancement"
-	// CategoryRestoration covers degradation-repair ops that are forward-declared
-	// in the vocabulary and provider-served but NOT yet wired into the AI engine's
-	// runner set (kept out of the AI discovery catalog).
+	// CategoryRestoration covers model-backed degradation-repair operations exposed
+	// through the AI engine's runner and discovery catalogs.
 	CategoryRestoration Category = "restoration"
-	// CategoryAnalysis covers extraction/inference ops owned by internal/analysis.
+	// CategoryAnalysis covers extraction/inference ops, primarily owned by
+	// internal/analysis. Prompted segmentation uses the AI job runner.
 	CategoryAnalysis Category = "analysis"
 )
 

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { analyze, type AnalyzeResult } from "../../api/analysis";
+import { analyze, type AnalyzeCaption, type AnalyzeResult } from "../../api/analysis";
 import { liveEnhanceClient, type SelectedModel } from "./useEnhance";
+import { fetchAICaptionResult, submitAI } from "../../api/ai";
 
 /**
- * Analyze reuses the install-gate vocabulary from Enhance but runs
- * *synchronously*: one POST returns the structured result (no durable job to
- * watch). `needs-install` is the model gate for the model-backed ops
- * (ocr / nsfw_classify); the pure-Go `probe` skips it.
+ * Analyze reuses the install-gate vocabulary from Enhance. Most checks return
+ * structured results synchronously; caption uses a durable AI job. `needs-install`
+ * is the model gate for model-backed operations while pure-Go checks skip it.
  */
 export type AnalyzePhase =
   | "idle"
@@ -29,6 +29,8 @@ export const isAnalyzeActive = (phase: AnalyzePhase): boolean => ACTIVE_PHASES.h
 export interface AnalyzeClient {
   selectModel: (op: string) => Promise<SelectedModel>;
   analyze: (op: string, file: File) => Promise<AnalyzeResult>;
+  caption: (file: File, signal: AbortSignal, onJob: (jobId: string) => void) => Promise<AnalyzeCaption>;
+  cancelCaption: (jobId: string) => Promise<void>;
   install: (modelId: string) => Promise<{ jobId: string; alreadyInstalled: boolean }>;
   waitJob: (jobId: string) => Promise<{ ok: boolean; error: string }>;
 }
@@ -39,6 +41,26 @@ export const liveAnalyzeClient: AnalyzeClient = {
   install: liveEnhanceClient.install,
   waitJob: liveEnhanceClient.waitJob,
   analyze: (op, file) => analyze(op, file),
+  async caption(file, signal, onJob) {
+    const submitted = await submitAI("caption", { prompt: "Describe the visible contents of this image." }, { image: file, signal });
+    onJob(submitted.jobId);
+    if (signal.aborted) {
+      await liveEnhanceClient.cancel(submitted.jobId).catch(() => undefined);
+      throw new DOMException("Caption canceled", "AbortError");
+    }
+    let canceled = false;
+    const markCanceled = () => { canceled = true; };
+    signal.addEventListener("abort", markCanceled, { once: true });
+    await liveEnhanceClient.watch(submitted.jobId, signal, () => undefined);
+    signal.removeEventListener("abort", markCanceled);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- this flag is mutated by the AbortSignal listener during the awaited watch.
+    if (canceled) throw new DOMException("Caption canceled", "AbortError");
+    const terminal = await liveEnhanceClient.result(submitted.jobId);
+    if (!terminal.ok) throw new Error(terminal.error || "Caption job failed");
+    const payload = await fetchAICaptionResult(terminal.resultRef);
+    return { kind: "caption", jobId: submitted.jobId, ...payload };
+  },
+  cancelCaption: liveEnhanceClient.cancel,
 };
 
 export interface UseAnalyzeArgs {
@@ -78,13 +100,17 @@ export function useAnalyze({ client = liveAnalyzeClient }: UseAnalyzeArgs = {}):
   const mounted = useRef(true);
   const runId = useRef(0);
   const pending = useRef<{ op: string; file: File; modelBacked: boolean } | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const jobIdRef = useRef("");
 
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      abortRef.current?.abort();
+      if (jobIdRef.current) void client.cancelCaption(jobIdRef.current).catch(() => undefined);
     };
-  }, []);
+  }, [client]);
 
   const live = useCallback((id: number) => mounted.current && runId.current === id, []);
 
@@ -92,7 +118,15 @@ export function useAnalyze({ client = liveAnalyzeClient }: UseAnalyzeArgs = {}):
     async (op: string, file: File, id: number) => {
       setPhase("running");
       try {
-        const next = await client.analyze(op, file);
+        let next: AnalyzeResult;
+        if (op === "caption") {
+          const controller = new AbortController();
+          abortRef.current = controller;
+          next = await client.caption(file, controller.signal, (jobId) => { jobIdRef.current = jobId; });
+          jobIdRef.current = "";
+        } else {
+          next = await client.analyze(op, file);
+        }
         if (live(id)) {
           setResult(next);
           setPhase("done");
@@ -195,8 +229,11 @@ export function useAnalyze({ client = liveAnalyzeClient }: UseAnalyzeArgs = {}):
 
   const cancel = useCallback(() => {
     runId.current += 1;
+    abortRef.current?.abort();
+    if (jobIdRef.current) void client.cancelCaption(jobIdRef.current).catch(() => undefined);
+    jobIdRef.current = "";
     setPhase("idle");
-  }, []);
+  }, [client]);
 
   const retry = useCallback(() => {
     const job = pending.current;
@@ -207,11 +244,14 @@ export function useAnalyze({ client = liveAnalyzeClient }: UseAnalyzeArgs = {}):
 
   const clear = useCallback(() => {
     runId.current += 1;
+    abortRef.current?.abort();
+    if (jobIdRef.current) void client.cancelCaption(jobIdRef.current).catch(() => undefined);
+    jobIdRef.current = "";
     setResult(null);
     setError(null);
     setModel(null);
     setPhase("idle");
-  }, []);
+  }, [client]);
 
   return { phase, model, result, error, run, installAndRun, cancel, retry, clear };
 }

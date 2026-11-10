@@ -45,7 +45,9 @@ func NewApp() (*App, error) {
 		BuildTimestamp:   buildTimestamp,
 		BuildSourceRoot:  buildSourceRoot,
 		AllowAnonymous:   true,
-		CommandGroups:    domains.CommandGroups,
+		CommandGroups: func(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
+			return domains.CommandGroups(core, manifestBytes)
+		},
 		SubcommandGroups: subcommandGroups,
 	})
 	if err != nil {

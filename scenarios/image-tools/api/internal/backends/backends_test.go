@@ -295,6 +295,27 @@ func TestSelectNoneAvailable(t *testing.T) {
 	}
 }
 
+func TestRevalidateProviderChecksExactIdentityWithoutSubstitution(t *testing.T) {
+	r := New()
+	preferred := fakeProvider{name: "native", ops: []string{"generate"}, standalone: true, available: true}
+	substitute := fakeProvider{name: "substitute", ops: []string{"generate"}, standalone: true, available: true}
+	_ = r.Register(preferred)
+	_ = r.Register(substitute)
+
+	selected, err := r.RevalidateProvider(context.Background(), SelectRequest{Operation: "generate", GPUViable: true}, "native")
+	if err != nil || selected.Provider.Name() != "native" {
+		t.Fatalf("pinned provider = %+v, %v; want native", selected, err)
+	}
+
+	preferred.available = false
+	r = New()
+	_ = r.Register(preferred)
+	_ = r.Register(substitute)
+	if selected, err = r.RevalidateProvider(context.Background(), SelectRequest{Operation: "generate", GPUViable: true}, "native"); !errors.Is(err, ErrNoneAvailable) || selected.Provider != nil {
+		t.Fatalf("unavailable pin fell through to a substitute: %+v, %v", selected, err)
+	}
+}
+
 func TestDoctorReportsBackendAvailability(t *testing.T) {
 	r := New()
 	_ = r.Register(fakeProvider{name: "onnxruntime", ops: []string{"background_removal", "denoise"}, standalone: true, available: true, detail: "python ready", provision: "install python deps"})

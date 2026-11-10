@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 )
 
 // Config configures a Service.
@@ -22,6 +23,11 @@ type Config struct {
 	// AcquireModelUse holds shared ownership while NSFW inference reads model
 	// files; production shares this gate with the Installer and AI engine.
 	AcquireModelUse func(modelID string) (release func(), err error)
+	// AcquireCapacity is the shared host admission owner. Production supplies
+	// capacity.AcquireScoped; nil is reserved for isolated domain tests.
+	AcquireCapacity func(context.Context, sharedcapacity.Request) (*sharedcapacity.Scope, error)
+	ModelRAMBytes   func(string) (int64, error)
+	ModelReady      func(context.Context, string) (bool, string)
 	// ModelsRoot is the absolute directory model weights live under (per model:
 	// <ModelsRoot>/models/<id>).
 	ModelsRoot string
@@ -43,6 +49,9 @@ type Config struct {
 // function (no deps).
 type Service struct {
 	modelInstalled  func(string) bool
+	acquireCapacity func(context.Context, sharedcapacity.Request) (*sharedcapacity.Scope, error)
+	modelRAMBytes   func(string) (int64, error)
+	modelReady      func(context.Context, string) (bool, string)
 	acquireModelUse func(string) (func(), error)
 	modelsRoot      string
 	pythonProgram   string
@@ -67,6 +76,9 @@ func NewService(cfg Config) (*Service, error) {
 	}
 	return &Service{
 		modelInstalled:  cfg.ModelInstalled,
+		acquireCapacity: cfg.AcquireCapacity,
+		modelRAMBytes:   cfg.ModelRAMBytes,
+		modelReady:      cfg.ModelReady,
 		acquireModelUse: cfg.AcquireModelUse,
 		modelsRoot:      cfg.ModelsRoot,
 		pythonProgram:   strings.TrimSpace(cfg.PythonProgram),
@@ -89,7 +101,9 @@ func (s *Service) resolveRun() cmdOutput {
 		return s.run
 	}
 	return func(ctx context.Context, name string, args []string) ([]byte, error) {
-		return exec.CommandContext(ctx, name, args...).Output()
+		cmd := exec.CommandContext(ctx, name, args...)
+		cmd.Env = append(os.Environ(), "CUDA_VISIBLE_DEVICES=", "OMP_NUM_THREADS=1", "MKL_NUM_THREADS=1", "OPENBLAS_NUM_THREADS=1", "IMAGE_TOOLS_CPU_THREADS=1")
+		return cmd.Output()
 	}
 }
 
@@ -133,13 +147,22 @@ func withTempInput(src []byte, fn func(path string) error) error {
 
 // OCR extracts text via tesseract. Refuses with ErrBackendUnavailable when the
 // tesseract program is absent or the model is not installed.
-func (s *Service) OCR(ctx context.Context, src []byte) (OCRResult, error) {
+func (s *Service) OCR(ctx context.Context, src []byte) (result OCRResult, runErr error) {
+	ctx, finish, err := s.execution(ctx, OpOCR)
+	if err != nil {
+		return result, err
+	}
+	defer func() { runErr = errors.Join(runErr, finish()) }()
 	if _, err := s.resolveLookPath()("tesseract"); err != nil {
 		return OCRResult{}, fmt.Errorf("%w: install tesseract (the `ocr` default backend)", ErrBackendUnavailable)
 	}
 	var out []byte
-	err := withTempInput(src, func(path string) error {
-		b, err := s.resolveRun()(ctx, "tesseract", ocrArgs(path))
+	err = withTempInput(src, func(path string) error {
+		args := ocrArgs(path)
+		if s.modelsRoot != "" {
+			args = append(args, "--tessdata-dir", s.modelDir("tesseract"))
+		}
+		b, err := s.resolveRun()(ctx, "tesseract", args)
 		if err != nil {
 			return fmt.Errorf("analysis: tesseract: %w", err)
 		}
@@ -161,7 +184,12 @@ func ocrArgs(path string) []string {
 // NSFW classifies src for unsafe content via the onnxruntime Python sidecar.
 // It uses the isolated lock-pinned interpreter supplied by the app; a host
 // Python fallback would bypass the runtime's dependency and provenance contract.
-func (s *Service) NSFW(ctx context.Context, src []byte) (NSFWResult, error) {
+func (s *Service) NSFW(ctx context.Context, src []byte) (result NSFWResult, runErr error) {
+	ctx, finish, admissionErr := s.execution(ctx, OpNSFW)
+	if admissionErr != nil {
+		return result, admissionErr
+	}
+	defer func() { runErr = errors.Join(runErr, finish()) }()
 	const modelID = "adamcodd-vit-nsfw"
 	if s.pythonProgram == "" {
 		return NSFWResult{}, fmt.Errorf("%w: isolated Python environment is not provisioned; install uv and restart image-tools", ErrBackendUnavailable)
@@ -169,16 +197,6 @@ func (s *Service) NSFW(ctx context.Context, src []byte) (NSFWResult, error) {
 	python, err := s.resolveLookPath()(s.pythonProgram)
 	if err != nil {
 		return NSFWResult{}, fmt.Errorf("%w: isolated Python interpreter is unavailable at %q", ErrBackendUnavailable, s.pythonProgram)
-	}
-	if s.acquireModelUse != nil {
-		release, acquireErr := s.acquireModelUse(modelID)
-		if acquireErr != nil {
-			return NSFWResult{}, fmt.Errorf("analysis: acquire model use %q: %w", modelID, acquireErr)
-		}
-		if release == nil {
-			return NSFWResult{}, fmt.Errorf("analysis: acquire model use %q returned no release function", modelID)
-		}
-		defer release()
 	}
 	if !s.modelInstalled(modelID) {
 		return NSFWResult{}, fmt.Errorf("%w: model %q not installed — run `image-tools models install %s`", ErrBackendUnavailable, modelID, modelID)

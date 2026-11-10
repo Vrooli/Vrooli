@@ -40,11 +40,13 @@ func TestLive_StableDiffusion(t *testing.T) {
 	}
 	out := filepath.Join(t.TempDir(), "live-out.png")
 	p := &execProvider{
-		name:         "stable-diffusion.cpp",
-		program:      sd,
-		techniques:   technique.Single("text_to_image", technique.StableDiffusionCpp),
-		progressScan: scanStableDiffusionProgress,
-		lookPath:     exec.LookPath,
+		backendProcess: backendProcess{
+			name:    "stable-diffusion.cpp",
+			program: sd,
+
+			progressScan: scanStableDiffusionProgress,
+			lookPath:     exec.LookPath,
+		}, techniques: technique.Single("text_to_image", technique.StableDiffusionCpp),
 	}
 	var fracs []float64
 	req := backends.Request{

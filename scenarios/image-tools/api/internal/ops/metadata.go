@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"image"
 	"strings"
 
 	"github.com/disintegration/imaging"
@@ -64,25 +65,25 @@ func autoOrient(in RunInput) (RunResult, error) {
 		// the already-decoded image unchanged.
 		img = in.Img
 	}
-	format := resolveOutputFormat(in.Params.Format, in.Meta.Format)
-	data, err := Encode(img, format, EncodeOptions{Quality: in.Params.Quality, Lossless: in.Params.Lossless})
-	if err != nil {
-		return RunResult{}, err
-	}
-	b := img.Bounds()
-	return RunResult{Bytes: data, Format: format, Mime: MIMEFor(format), Width: b.Dx(), Height: b.Dy()}, nil
+	return encodeMetadataImage(in, img)
 }
 
 func stripMetadata(in RunInput) (RunResult, error) {
 	// Re-encoding through Go's encoders writes no EXIF/IPTC/XMP, so the result
 	// carries no metadata.
-	format := resolveOutputFormat(in.Params.Format, in.Meta.Format)
-	data, err := Encode(in.Img, format, EncodeOptions{Quality: in.Params.Quality, Lossless: in.Params.Lossless})
-	if err != nil {
-		return RunResult{}, err
-	}
-	b := in.Img.Bounds()
-	return RunResult{Bytes: data, Format: format, Mime: MIMEFor(format), Width: b.Dx(), Height: b.Dy()}, nil
+	return encodeMetadataImage(in, in.Img)
+}
+
+// encodeMetadataImage routes metadata transforms through the same pixel
+// adapter as ordinary image operations, so format selection, encoding
+// options, MIME and dimensions have one implementation.
+func encodeMetadataImage(in RunInput, img image.Image) (RunResult, error) {
+	in.Img = img
+	return pixel(identityImage)(in)
+}
+
+func identityImage(img image.Image, _ *Params) (image.Image, error) {
+	return img, nil
 }
 
 func readMetadata(in RunInput) (RunResult, error) {

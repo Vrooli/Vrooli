@@ -4,11 +4,15 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
 
-type gpuDeviceContextKey struct{}
+type (
+	gpuDeviceContextKey  struct{}
+	cpuThreadsContextKey struct{}
+)
 
 func probeTorchCUDA(ctx context.Context, python string) bool {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -35,16 +39,30 @@ func (p *execProvider) SupportsGPUUUID() bool {
 func inferenceCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, args...)
 	uuid, _ := ctx.Value(gpuDeviceContextKey{}).(string)
-	if uuid == "" {
+	threads, _ := ctx.Value(cpuThreadsContextKey{}).(int)
+	if uuid == "" && threads <= 0 {
 		return cmd
 	}
 	// Never mutate the serving process environment: concurrent jobs and probes
 	// must keep their own bindings. CUDA enumerates this one UUID as logical 0.
+	overrides := map[string]string{"CUDA_VISIBLE_DEVICES": ""}
+	if uuid != "" {
+		overrides["CUDA_VISIBLE_DEVICES"] = uuid
+		overrides["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+	}
+	if threads > 0 {
+		for _, key := range []string{"OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "IMAGE_TOOLS_CPU_THREADS"} {
+			overrides[key] = strconv.Itoa(threads)
+		}
+	}
 	for _, value := range os.Environ() {
-		if !strings.HasPrefix(value, "CUDA_VISIBLE_DEVICES=") && !strings.HasPrefix(value, "CUDA_DEVICE_ORDER=") {
+		key, _, _ := strings.Cut(value, "=")
+		if _, overridden := overrides[key]; !overridden {
 			cmd.Env = append(cmd.Env, value)
 		}
 	}
-	cmd.Env = append(cmd.Env, "CUDA_VISIBLE_DEVICES="+uuid, "CUDA_DEVICE_ORDER=PCI_BUS_ID")
+	for key, value := range overrides {
+		cmd.Env = append(cmd.Env, key+"="+value)
+	}
 	return cmd
 }

@@ -49,9 +49,12 @@ func TestBuildImportEntry_SingleFileURL(t *testing.T) {
 		Layout: hfmeta.LayoutSingleFile,
 		Files:  []hfmeta.FileInfo{{Path: "spicy-realism-xl.safetensors"}},
 	}
-	entry, err := BuildImportEntry(meta, ImportConfirm{ID: "imported-spicy", Name: "Spicy", Architecture: ArchSDXL})
+	if _, err := BuildImportEntry(meta, ImportConfirm{ID: "imported-spicy", Name: "Spicy", Architecture: ArchSDXL}); err == nil {
+		t.Fatal("unattested model import should be rejected")
+	}
+	entry, err := BuildImportEntry(meta, ImportConfirm{ID: "imported-spicy", Name: "Spicy", Architecture: ArchSDXL, AttestCommercialRights: true})
 	if err != nil {
-		t.Fatalf("build: %v", err)
+		t.Fatalf("attested build: %v", err)
 	}
 	if entry.Backend != "stable-diffusion.cpp" {
 		t.Fatalf("backend = %q", entry.Backend)
@@ -62,8 +65,8 @@ func TestBuildImportEntry_SingleFileURL(t *testing.T) {
 	if entry.Source.Assets[0].Kind != ArtifactSafetensors {
 		t.Fatalf("asset kind = %q", entry.Source.Assets[0].Kind)
 	}
-	if entry.CapabilityLabels.CommercialUse != CommercialUseConditional {
-		t.Fatalf("unattested should be conditional, got %q", entry.CapabilityLabels.CommercialUse)
+	if entry.CapabilityLabels.CommercialUse != CommercialUseYes {
+		t.Fatalf("attested should be commercial-clean, got %q", entry.CapabilityLabels.CommercialUse)
 	}
 }
 
@@ -75,7 +78,7 @@ func TestBuildImportEntry_SingleFileHFRepoResolveURL(t *testing.T) {
 		Layout:   hfmeta.LayoutSingleFile,
 		Files:    []hfmeta.FileInfo{{Path: "README.md"}, {Path: "dreamshaper.safetensors"}},
 	}
-	entry, err := BuildImportEntry(meta, ImportConfirm{ID: "imported-dreamshaper", Architecture: ArchSD15})
+	entry, err := BuildImportEntry(meta, ImportConfirm{ID: "imported-dreamshaper", Architecture: ArchSD15, AttestCommercialRights: true})
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -111,7 +114,7 @@ func TestBuildImportEntry_RunnableAndMergeable(t *testing.T) {
 		{ArchFlux, true},
 	} {
 		meta := hfmeta.Metadata{Source: "Org/Repo", RepoID: "Org/Repo", Revision: "r1", Layout: hfmeta.LayoutDiffusersRepo, Files: []hfmeta.FileInfo{{Path: "model_index.json"}}}
-		entry, err := BuildImportEntry(meta, ImportConfirm{ID: "imported-" + string(tc.arch), Architecture: tc.arch})
+		entry, err := BuildImportEntry(meta, ImportConfirm{ID: "imported-" + string(tc.arch), Architecture: tc.arch, AttestCommercialRights: true})
 		if err != nil {
 			t.Fatalf("%s build: %v", tc.arch, err)
 		}

@@ -257,6 +257,34 @@ func TestMetadataReadStrip(t *testing.T) {
 	}
 }
 
+func TestMetadataImageModesHonorSharedEncodeOptions(t *testing.T) {
+	src := encodePNG(t, solid(40, 30, color.RGBA{R: 1, A: 255}))
+	for _, tc := range []struct {
+		name   string
+		params *Params
+	}{
+		{name: "strip all", params: &Params{StripAll: true, Format: FormatJPEG, Quality: 73}},
+		{name: "auto orient", params: &Params{AutoOrient: true, Format: FormatJPEG, Quality: 73}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := Execute("metadata", src, tc.params)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if res.Format != FormatJPEG || res.Mime != MIMEFor(FormatJPEG) || res.Width != 40 || res.Height != 30 {
+				t.Fatalf("metadata image result = (%q, %q, %dx%d), want JPEG image/jpeg 40x30", res.Format, res.Mime, res.Width, res.Height)
+			}
+			img, meta, err := Decode(res.Bytes)
+			if err != nil {
+				t.Fatalf("decode re-encoded result: %v", err)
+			}
+			if meta.Format != FormatJPEG || img.Bounds().Dx() != 40 || img.Bounds().Dy() != 30 {
+				t.Fatalf("encoded result = %q %dx%d, want JPEG 40x30", meta.Format, img.Bounds().Dx(), img.Bounds().Dy())
+			}
+		})
+	}
+}
+
 func TestExecuteUnknownOp(t *testing.T) {
 	if _, err := Execute("nope", []byte("x"), nil); err == nil {
 		t.Fatal("expected unknown-op error")

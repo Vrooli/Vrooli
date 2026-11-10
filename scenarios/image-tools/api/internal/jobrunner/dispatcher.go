@@ -29,13 +29,43 @@ type OpRunner func(ctx context.Context, job internaljobs.Job, emit func(progress
 
 // Dispatcher routes a job to the handler registered for its operation.
 type Dispatcher struct {
-	mu       sync.RWMutex
-	handlers map[string]OpRunner
+	mu           sync.RWMutex
+	handlers     map[string]OpRunner
+	admitters    map[string]internaljobs.Admitter
+	defaultAdmit internaljobs.Admitter
 }
 
 // New returns an empty Dispatcher.
-func New() *Dispatcher {
-	return &Dispatcher{handlers: make(map[string]OpRunner)}
+func New(defaultAdmission ...internaljobs.Admitter) *Dispatcher {
+	d := &Dispatcher{handlers: make(map[string]OpRunner), admitters: make(map[string]internaljobs.Admitter)}
+	if len(defaultAdmission) > 0 {
+		d.defaultAdmit = defaultAdmission[0]
+	}
+	return d
+}
+
+// RegisterAdmission binds an operation's capacity policy to the shared
+// scheduler. It is separate from dispatch so runners remain easy to compose.
+func (d *Dispatcher) RegisterAdmission(operation string, admit internaljobs.Admitter) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if _, exists := d.admitters[operation]; exists {
+		panic("jobrunner: duplicate admission for " + operation)
+	}
+	d.admitters[operation] = admit
+}
+
+func (d *Dispatcher) Admit(ctx context.Context, job internaljobs.Job) (internaljobs.Admission, error) {
+	d.mu.RLock()
+	admit := d.admitters[job.Operation]
+	if admit == nil {
+		admit = d.defaultAdmit
+	}
+	d.mu.RUnlock()
+	if admit == nil {
+		return internaljobs.Admission{Context: ctx}, nil
+	}
+	return admit(ctx, job)
 }
 
 // Register binds an operation to its handler. A duplicate registration for the

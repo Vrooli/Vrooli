@@ -9,16 +9,19 @@ import { useTranslation } from "../../i18n";
 import {
   listAnalysisOperations,
   type AnalyzeDuplicate,
+  type AnalyzeCaption,
   type AnalyzeNsfw,
   type AnalyzeOcr,
   type AnalyzeProbe,
   type AnalyzeQuality,
 } from "../../api/analysis";
+import { listAIOperations } from "../../api/ai";
 import { ANALYZE_FALLBACK_ICON, analyzePresentation } from "./analyzeCatalog";
 import { MODE_LABEL } from "./modeLabels";
 import { isAnalyzeActive, type UseAnalyze } from "./useAnalyze";
 
 const ANALYSIS_OPS_QUERY_KEY = ["analysis-operations"] as const;
+const AI_OPS_QUERY_KEY = ["ai-operations"] as const;
 
 /** Compact human byte size for the probe panel. */
 const formatBytes = (n: number): string => {
@@ -355,14 +358,22 @@ function QualityView({ result }: { result: AnalyzeQuality }) {
   );
 }
 
+/** Caption result: natural-language image understanding from the durable AI lane. */
+function CaptionView({ result }: { result: AnalyzeCaption }) {
+  return (
+    <div data-testid={selectors.workspace.analyze.caption} className="flex flex-col gap-2 rounded-control border border-app-border bg-app-surface-muted p-3">
+      <p className="text-sm leading-relaxed text-app-foreground">{result.caption}</p>
+      {(result.model || result.backend) && (
+        <p className="text-xs text-app-muted-foreground">{[result.model, result.backend].filter(Boolean).join(" · ")}</p>
+      )}
+    </div>
+  );
+}
+
 /**
- * The Analyze-mode inspector: a one-tap list of the analysis ops discovered
- * from `AnalysisService.ListAnalysisOperations` (Inspect/probe, Extract text,
- * Safety check), the run control, the install gate for the model-backed ops
- * (ocr / nsfw_classify; pure-Go probe needs no model), and the structured
- * result — a metadata panel (probe), copyable text + on-canvas boxes (ocr), or
- * a safety verdict (nsfw). Analysis is synchronous, so the lifecycle is simpler
- * than Enhance/Create; it lives in `useAnalyze` (injected client).
+ * Analyze combines the synchronous metadata/text checks with durable AI image
+ * captioning. The model install gate is shared; caption runs on the same job,
+ * cancellation, and result-blob path used by other AI capabilities.
  */
 export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProps) {
   const { t } = useTranslation();
@@ -370,10 +381,17 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
     queryKey: ANALYSIS_OPS_QUERY_KEY,
     queryFn: listAnalysisOperations,
   });
+  const aiOpsQuery = useQuery({ queryKey: AI_OPS_QUERY_KEY, queryFn: listAIOperations });
 
   const [operation, setOperation] = useState(initialAction ?? "");
 
-  const operations = useMemo(() => opsQuery.data?.operations ?? [], [opsQuery.data]);
+  const operations = useMemo(() => {
+    if (!opsQuery.data || !aiOpsQuery.data) return [];
+    const discovered = opsQuery.data.operations;
+    const caption = aiOpsQuery.data.operations.find((op) => op.name === "caption");
+    if (!caption || discovered.some((op) => op.name === "caption")) return discovered;
+    return [...discovered, { name: caption.name, summary: caption.summary, modelBacked: true, defaultModelId: caption.defaultModelId }];
+  }, [aiOpsQuery.data, opsQuery.data]);
 
   // Default to the first analysis op once discovery resolves.
   useEffect(() => {
@@ -407,14 +425,14 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
         {t(strings.workspace.analyze.intro)}
       </p>
 
-      {opsQuery.isLoading ? (
+      {opsQuery.isLoading || aiOpsQuery.isLoading ? (
         <p
           data-testid={selectors.workspace.analyze.loading}
           className="mt-3 text-sm text-app-foreground"
         >
           {t(strings.workspace.analyze.loading)}
         </p>
-      ) : opsQuery.error ? (
+      ) : opsQuery.error || aiOpsQuery.error ? (
         <p
           data-testid={selectors.workspace.analyze.error}
           className="mt-3 text-sm text-app-danger"
@@ -509,6 +527,9 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
                   ? t(strings.workspace.enhance.install.installing)
                   : t(strings.workspace.analyze.running)}
               </span>
+              <Button variant="outline" size="sm" type="button" data-testid={selectors.workspace.analyze.cancel} onClick={analyze.cancel}>
+                {t(strings.workspace.analyze.cancel)}
+              </Button>
             </div>
           ) : (
             <Button
@@ -551,6 +572,7 @@ export function AnalyzePanel({ analyze, input, initialAction }: AnalyzePanelProp
               {analyze.result.kind === "nsfw" && <NsfwView result={analyze.result} />}
               {analyze.result.kind === "duplicate" && <DuplicateView result={analyze.result} />}
               {analyze.result.kind === "quality" && <QualityView result={analyze.result} />}
+              {analyze.result.kind === "caption" && <CaptionView result={analyze.result} />}
             </div>
           )}
         </div>

@@ -44,6 +44,11 @@ describe("ImportModelWizard", () => {
       source: "stabilityai/stable-diffusion-xl-base-1.0",
     });
 
+    // Import is blocked until the user explicitly attests rights for the weights.
+    expect(screen.getByTestId(selectors.models.import.submit)).toBeDisabled();
+    await user.click(screen.getByTestId(selectors.models.import.attest));
+    expect(screen.getByTestId(selectors.models.import.submit)).toBeEnabled();
+
     // Import uses the prefilled (confirmed) architecture + proposed id.
     await user.click(screen.getByTestId(selectors.models.import.submit));
     await waitFor(() => {
@@ -53,6 +58,7 @@ describe("ImportModelWizard", () => {
     expect(arg.source).toBe("stabilityai/stable-diffusion-xl-base-1.0");
     expect(arg.architecture).toBe("sdxl");
     expect(arg.id).toBe("imported-stable-diffusion-xl-base-1-0");
+    expect(arg.attestCommercialRights).toBe(true);
     expect(await screen.findByTestId(selectors.models.import.success)).toBeInTheDocument();
   });
 
@@ -74,6 +80,8 @@ describe("ImportModelWizard", () => {
     // Import is blocked until an architecture is chosen.
     expect(screen.getByTestId(selectors.models.import.submit)).toBeDisabled();
     await user.selectOptions(screen.getByTestId(selectors.models.import.architecture), "sd15");
+    expect(screen.getByTestId(selectors.models.import.submit)).toBeDisabled();
+    await user.click(screen.getByTestId(selectors.models.import.attest));
     expect(screen.getByTestId(selectors.models.import.submit)).toBeEnabled();
   });
 });

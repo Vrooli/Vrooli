@@ -39,12 +39,13 @@ func TestInstall_MultiAssetValidatesEach(t *testing.T) {
 	f := newInstallFixture(t)
 	// A custom model declaring two generic assets.
 	custom := Model{
-		ID:         "pair-model",
-		Name:       "Pair Model",
-		Operations: []string{"upscale"},
-		Tier:       TierNiceToHave,
-		Backend:    "realesrgan-ncnn-vulkan",
-		Hardware:   Hardware{CPUCapable: true},
+		ID:               "pair-model",
+		Name:             "Pair Model",
+		Operations:       []string{"upscale"},
+		Tier:             TierNiceToHave,
+		Backend:          "realesrgan-ncnn-vulkan",
+		Hardware:         Hardware{CPUCapable: true},
+		CapabilityLabels: CapabilityLabels{License: "MIT", CommercialUse: CommercialUseYes},
 		Source: Source{Assets: []Asset{
 			{URL: "https://example.test/a.param", Filename: "a.param", Kind: ArtifactNCNNParam},
 			{URL: "https://example.test/a.bin", Filename: "a.bin", Kind: ArtifactNCNNBin},

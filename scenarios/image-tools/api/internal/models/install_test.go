@@ -63,7 +63,11 @@ func newInstallFixture(t *testing.T) *installFixture {
 		Backend:      "onnxruntime",
 		SizeMBApprox: 16,
 		Hardware:     Hardware{CPUCapable: true},
-		Source:       Source{DownloadURL: "https://example.test/install-test-model.bin"},
+		CapabilityLabels: CapabilityLabels{
+			License:       "MIT",
+			CommercialUse: CommercialUseYes,
+		},
+		Source: Source{DownloadURL: "https://example.test/install-test-model.bin"},
 	}); err != nil {
 		t.Fatalf("add install test model: %v", err)
 	}
@@ -108,6 +112,26 @@ func TestEstimateInstallSecondsDefault(t *testing.T) {
 	}
 }
 
+func TestInstallRejectsConditionalCommercialRightsBeforeAcquisition(t *testing.T) {
+	f := newInstallFixture(t)
+	var conditionalID string
+	for _, model := range f.in.Reg.Models() {
+		if model.CapabilityLabels.CommercialUse == CommercialUseConditional {
+			conditionalID = model.ID
+			break
+		}
+	}
+	if conditionalID == "" {
+		t.Fatal("seed should include a conditional-rights model for this regression")
+	}
+	if _, err := f.in.Install(context.Background(), conditionalID, nil); err == nil || !strings.Contains(err.Error(), "commercial rights") {
+		t.Fatalf("install error = %v, want commercial-rights rejection", err)
+	}
+	if f.downloads != 0 {
+		t.Fatalf("conditional model caused %d artifact downloads", f.downloads)
+	}
+}
+
 func TestInstallStoreListAndDelete(t *testing.T) {
 	ctx := context.Background()
 	st := NewInstallStore(newStateDB(t))
@@ -146,6 +170,10 @@ func TestInstalledBuildCandidateFetchesMissingPinnedInputBeforeBuild(t *testing.
 	if !ok {
 		t.Fatal("missing LaMa export candidate")
 	}
+	// Exercise the native build pipeline with a synthetic explicitly attested
+	// custom entry. The shipped seed row is conditional and must remain blocked.
+	model.CapabilityLabels.CommercialUse = CommercialUseYes
+	model.CapabilityLabels.CommercialUseNotes = "test fixture attestation"
 	sourcePayload := bytes.Repeat([]byte("pinned source\n"), 128)
 	checkpointPayload := append([]byte{0x10, 0, 0, 0, 0, 0, 0, 0, '{'}, bytes.Repeat([]byte{' '}, 2048)...)
 	sourceHash := sha256Hex(sourcePayload)
@@ -157,6 +185,12 @@ func TestInstalledBuildCandidateFetchesMissingPinnedInputBeforeBuild(t *testing.
 	model.BuildProfile.SourceSHA256 = sourceHash
 	model.BuildProfile.CheckpointSHA256 = checkpointHash
 	f.in.Reg.byID[model.ID] = model
+	for i := range f.in.Reg.models {
+		if f.in.Reg.models[i].ID == model.ID {
+			f.in.Reg.models[i] = model
+			break
+		}
+	}
 
 	dir := f.in.modelDir(model.ID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -178,7 +212,7 @@ func TestInstalledBuildCandidateFetchesMissingPinnedInputBeforeBuild(t *testing.
 	})
 
 	_, err := f.in.Install(ctx, model.ID, nil)
-	if err == nil || !strings.Contains(err.Error(), "native RAM capacity broker") {
+	if err == nil || !strings.Contains(err.Error(), "operation owner") {
 		t.Fatalf("install should fetch the missing pinned asset before reaching the unavailable build seam, got %v", err)
 	}
 	if f.downloads != 2 {
@@ -276,6 +310,53 @@ func TestInstall_Idempotent(t *testing.T) {
 	}
 	if f.downloads != 1 {
 		t.Fatalf("expected exactly one download, got %d", f.downloads)
+	}
+}
+
+func TestAcquireInstalledArtifactsReadsRecordOnce(t *testing.T) {
+	ctx := context.Background()
+	f := newInstallFixture(t)
+	if _, err := f.in.Install(ctx, installTestModelID, nil); err != nil {
+		t.Fatalf("install fixture model: %v", err)
+	}
+	m, err := f.in.Resolve(ctx, installTestModelID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	counting := &countingModelSQL{SQLExecutor: f.in.State.db}
+	f.in.State = NewInstallStore(counting)
+
+	rec, err := f.in.acquireArtifacts(ctx, m, nil)
+	if err != nil {
+		t.Fatalf("reuse installed artifacts: %v", err)
+	}
+	if !rec.Installed || rec.Path == "" || rec.Checksum != sha256Hex(f.payload) {
+		t.Fatalf("reused install record = %+v", rec)
+	}
+	if counting.installReads != 1 {
+		t.Fatalf("idempotent artifact reuse read model_install %d times, want exactly once", counting.installReads)
+	}
+}
+
+func TestInstall_RevalidatesExistingArtifactsBeforeReuse(t *testing.T) {
+	ctx := context.Background()
+	f := newInstallFixture(t)
+	if _, err := f.in.Install(ctx, installTestModelID, nil); err != nil {
+		t.Fatalf("first install: %v", err)
+	}
+	path := filepath.Join(f.in.modelDir(installTestModelID), "install-test-model.bin")
+	if err := os.WriteFile(path, bytes.Repeat([]byte("corrupt"), 256), 0o644); err != nil {
+		t.Fatalf("corrupt installed artifact: %v", err)
+	}
+	if _, err := f.in.Install(ctx, installTestModelID, nil); err != nil {
+		t.Fatalf("repair install: %v", err)
+	}
+	if f.downloads != 2 {
+		t.Fatalf("repair should reacquire the invalid artifact; downloads=%d", f.downloads)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(got, f.payload) {
+		t.Fatalf("repaired artifact = %d bytes, err=%v", len(got), err)
 	}
 }
 
@@ -402,7 +483,7 @@ func TestRemove_InterruptedCleanupDoesNotReportPartialModelInstalled(t *testing.
 func TestRemove_RefusesWhileModelIsInUse(t *testing.T) {
 	ctx := context.Background()
 	f := newInstallFixture(t)
-	f.in.UseGate = NewModelUseGate()
+	f.in.UseGate = NewModelUseGate(t.TempDir())
 	if _, err := f.in.Install(ctx, installTestModelID, nil); err != nil {
 		t.Fatalf("install: %v", err)
 	}
@@ -432,7 +513,7 @@ func TestRemove_RefusesWhileModelIsInUse(t *testing.T) {
 func TestInstall_RefusesWhileModelIsInUse(t *testing.T) {
 	ctx := context.Background()
 	f := newInstallFixture(t)
-	f.in.UseGate = NewModelUseGate()
+	f.in.UseGate = NewModelUseGate(t.TempDir())
 	if _, err := f.in.Install(ctx, installTestModelID, nil); err != nil {
 		t.Fatalf("install: %v", err)
 	}
@@ -452,7 +533,7 @@ func TestInstall_RefusesWhileModelIsInUse(t *testing.T) {
 }
 
 func TestModelUseGateConcurrentReadersAndMutators(t *testing.T) {
-	gate := NewModelUseGate()
+	gate := NewModelUseGate(t.TempDir())
 	const workers = 8
 	const iterations = 100
 	start := make(chan struct{})
@@ -498,13 +579,14 @@ func TestAddCustom_RoundTripAndLocalInstall(t *testing.T) {
 		t.Fatalf("write weights: %v", err)
 	}
 	custom := Model{
-		ID:         "my-upscaler",
-		Name:       "My Upscaler",
-		Operations: []string{"upscale"},
-		Tier:       TierNiceToHave,
-		Backend:    "onnxruntime",
-		Hardware:   Hardware{CPUCapable: true},
-		Source:     Source{LocalPath: weights},
+		ID:               "my-upscaler",
+		Name:             "My Upscaler",
+		Operations:       []string{"upscale"},
+		Tier:             TierNiceToHave,
+		Backend:          "onnxruntime",
+		Hardware:         Hardware{CPUCapable: true},
+		CapabilityLabels: CapabilityLabels{License: "MIT", CommercialUse: CommercialUseYes},
+		Source:           Source{LocalPath: weights},
 	}
 	if err := f.in.AddCustom(ctx, custom); err != nil {
 		t.Fatalf("add custom: %v", err)
@@ -541,6 +623,17 @@ func TestAddCustomValidationErrors(t *testing.T) {
 	}
 	if err := f.in.AddCustom(ctx, Model{}); err == nil {
 		t.Fatal("expected empty custom id error")
+	}
+	base := Model{ID: "unclear-license", Name: "Unclear License", Operations: []string{"upscale"}, Tier: TierNiceToHave, Backend: "onnxruntime", Enabled: true, Hardware: Hardware{CPUCapable: true}}
+	missingLicense := base
+	missingLicense.CapabilityLabels.CommercialUse = CommercialUseYes
+	if err := f.in.AddCustom(ctx, missingLicense); err == nil || !strings.Contains(err.Error(), "license is required") {
+		t.Fatalf("expected custom model without license to be rejected, got %v", err)
+	}
+	conditional := base
+	conditional.CapabilityLabels = CapabilityLabels{License: "unknown", CommercialUse: CommercialUseConditional}
+	if err := f.in.AddCustom(ctx, conditional); err == nil || !strings.Contains(err.Error(), "explicitly commercial-clean") {
+		t.Fatalf("expected conditional custom license to be rejected, got %v", err)
 	}
 	if err := f.in.AddCustom(ctx, Model{ID: "missing-local", Source: Source{LocalPath: filepath.Join(t.TempDir(), "missing.bin")}}); !errors.Is(err, ErrLocalPathMissing) {
 		t.Fatalf("expected ErrLocalPathMissing, got %v", err)

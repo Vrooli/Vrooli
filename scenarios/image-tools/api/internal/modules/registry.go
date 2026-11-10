@@ -30,8 +30,10 @@ import (
 	jobsH "image-tools/handlers/jobs"
 	looksH "image-tools/handlers/looks"
 	modelsH "image-tools/handlers/models"
+	measuresH "image-tools/handlers/measures"
 	opsH "image-tools/handlers/ops"
 	preparationH "image-tools/handlers/preparation"
+	qualityH "image-tools/handlers/quality"
 	safetyH "image-tools/handlers/safety"
 	selectionH "image-tools/handlers/selection"
 	internalcleanup "image-tools/internal/cleanup"
@@ -47,6 +49,7 @@ import (
 	modelsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/models"
 	opsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ops"
 	preparationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/preparation"
+	qualityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/quality"
 	safetyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/safety"
 	selectionv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/selection"
 )
@@ -66,8 +69,10 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, jobsH.Endpoints...)
 	out = append(out, looksH.Endpoints...)
 	out = append(out, modelsH.Endpoints...)
+	out = append(out, measuresH.Endpoints...)
 	out = append(out, opsH.Endpoints...)
 	out = append(out, preparationH.Endpoints...)
+	out = append(out, qualityH.Endpoints...)
 	out = append(out, safetyH.Endpoints...)
 	out = append(out, selectionH.Endpoints...)
 	return out
@@ -105,6 +110,7 @@ func AllProtoFiles() []ProtoFileEntry {
 		{Module: "models", File: modelsv1.File_image_tools_v1_models_models_proto},
 		{Module: "ops", File: opsv1.File_image_tools_v1_ops_ops_proto},
 		{Module: "preparation", File: preparationv1.File_image_tools_v1_preparation_preparation_proto},
+		{Module: "quality", File: qualityv1.File_image_tools_v1_quality_quality_proto},
 		{Module: "safety", File: safetyv1.File_image_tools_v1_safety_safety_proto},
 		{Module: "selection", File: selectionv1.File_image_tools_v1_selection_selection_proto},
 	}

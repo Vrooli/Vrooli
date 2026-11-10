@@ -920,3 +920,19 @@ See `api/handlers/models/connect_handler.go`,
 `api/handlers/models/connect_handler_install_test.go`, the owner route in
 `api/handlers/models/module.go`, CLI `domains/models/handlers.go` and the
 cohort run `~/.vrooli/research/topics/image-tools-foundation/runs/cohort-six-topic-recommission-20261105-image-smoke-gate-repair-01/`.
+
+
+### W3 — Unified scheduling and cross-process capacity (2026-11-09)
+
+The IT2 implementation replaces the separate local-serial and CPU queues with
+one priority/aging scheduler. AI and multipart analysis acquire CPU/RAM and any
+GPU claim before running. Canceling stays nonterminal until cleanup. Warm
+workers own RAM and model readers through idle residency; model/adapter writers
+coordinate with readers through native shared-capacity locks.
+
+The public capacity broker and strict control-plane admission previously used
+different locks for one ledger. They now use the internal owner's canonical
+ledger path lock. Music Tools reuses the shared scope and completes only after
+release. Focused tests and race checks pass; live showcase and scenario-phase
+receipts are retained in the programme-four-20261108 IT2 checkpoint. Earlier
+serialized-queue descriptions above are historical, not the current policy.

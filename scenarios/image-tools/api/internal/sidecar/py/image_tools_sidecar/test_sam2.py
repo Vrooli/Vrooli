@@ -9,6 +9,19 @@ from .sam2 import _prompts
 
 
 class SAM2PromptContracts(unittest.TestCase):
+    def test_smoke_load_requires_nonempty_checkpoint_parameters(self):
+        model = SimpleNamespace(parameters=lambda: [SimpleNamespace(numel=lambda: 38_900_000)])
+        with patch.object(sam2, "_load_model", return_value=model) as load:
+            result = sam2.smoke("/models/sam2-tiny")
+        load.assert_called_once_with("/models/sam2-tiny", "cpu")
+        self.assertIn("38900000 parameters", result)
+
+    def test_smoke_rejects_empty_checkpoint(self):
+        model = SimpleNamespace(parameters=lambda: [])
+        with patch.object(sam2, "_load_model", return_value=model):
+            with self.assertRaisesRegex(RuntimeError, "without model parameters"):
+                sam2.smoke("/models/empty")
+
     def test_positive_and_negative_points_keep_normalized_image_coordinates(self):
         prompts = _prompts(
             '{"points":[{"x":0.75,"y":0.25},{"x":0.1,"y":0.9,"negative":true}]}',

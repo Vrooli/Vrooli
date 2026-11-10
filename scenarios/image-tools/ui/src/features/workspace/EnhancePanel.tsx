@@ -69,7 +69,7 @@ export function EnhancePanel({
   const [lastRunOp, setLastRunOp] = useState("");
 
   const enhancementOps = useMemo(
-    () => (aiOpsQuery.data?.operations ?? []).filter((op) => op.category === "enhancement"),
+    () => (aiOpsQuery.data?.operations ?? []).filter((op) => op.category === "enhancement" || op.category === "restoration"),
     [aiOpsQuery.data],
   );
 

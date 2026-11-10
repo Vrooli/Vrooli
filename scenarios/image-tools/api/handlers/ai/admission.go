@@ -103,7 +103,7 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 			return nil, rejectAdmission(http.StatusServiceUnavailable, httpx.CodeInternal, "failed to inspect retained operation")
 		}
 	}
-	plan, err := h.Engine.Plan(ctx, internalai.PlanRequest{Operation: op, ModelOverride: params.GetModelOverride(), AllowBYOK: allowBYOKForParams(params), QualityPolicy: qualityPolicyForParams(params), FallbackPolicy: fallbackPolicyForParams(params), Priority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), Role: params.GetOpenrouterRole(), Adapters: adapterRequests(params)})
+	plan, err := h.Engine.Plan(ctx, internalai.PlanRequest{Operation: op, ModelOverride: params.GetModelOverride(), AllowBYOK: allowBYOKForParams(params), QualityPolicy: qualityPolicyForParams(params), FallbackPolicy: fallbackPolicyForParams(params), Priority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), RequireGPU: params.GetRequireGpu(), Role: params.GetOpenrouterRole(), Adapters: adapterRequests(params)})
 	if err != nil {
 		return nil, planAdmissionError(err)
 	}
@@ -124,7 +124,7 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 			}
 		}
 	}
-	payload := internalai.Payload{Operation: op, InputKey: inputKey, MaskKey: maskKey, ModelID: plan.ModelID, Backend: h.modelBackend(plan.ModelID), Tier: plan.Tier, GPU: plan.GPUViable, AllowBYOK: allowBYOKForParams(params), CapacityPriority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), AutoScanNSFW: params.GetAutoScanNsfw() || forceScan, Variations: int(params.GetVariations()), Params: paramsMap(params), Adapters: plan.Adapters}
+	payload := internalai.Payload{Operation: op, InputKey: inputKey, MaskKey: maskKey, ModelID: plan.ModelID, Backend: plan.Provider, Tier: plan.Tier, GPU: plan.GPUViable, RequireGPU: params.GetRequireGpu(), AllowBYOK: allowBYOKForParams(params), CapacityPriority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), AutoScanNSFW: params.GetAutoScanNsfw() || forceScan, Variations: int(params.GetVariations()), Params: paramsMap(params), Adapters: plan.Adapters}
 	raw, err := json.Marshal(payload)
 	if err != nil {
 		return nil, rejectAdmission(http.StatusInternalServerError, httpx.CodeInternal, "failed to prepare job")
@@ -135,7 +135,7 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 	} else if operationID != "" {
 		timeout = 30 * 60
 	}
-	job, err := h.Jobs.Submit(ctx, internaljobs.Spec{Operation: op, Lane: internalai.LaneForTier(plan.Tier), Payload: raw, ClientOperationID: operationID, RequestFingerprint: fingerprint, ExecutionTimeoutSeconds: timeout, EstimatedSeconds: plan.EstimatedSeconds})
+	job, err := h.Jobs.Submit(ctx, internaljobs.Spec{Operation: op, Lane: internalai.LaneForTier(plan.Tier), Priority: internaljobs.Priority(payload.CapacityPriority), Payload: raw, ClientOperationID: operationID, RequestFingerprint: fingerprint, ExecutionTimeoutSeconds: timeout, EstimatedSeconds: plan.EstimatedSeconds})
 	if err != nil {
 		h.logf("ai.submit enqueue: %v", err)
 		if errors.Is(err, internaljobs.ErrIdempotencyConflict) {

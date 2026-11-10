@@ -149,6 +149,7 @@ export const strings = {
       localSerial: "jobs.queue.localSerial",
       cpuPool: "jobs.queue.cpuPool",
       networkPool: "jobs.queue.networkPool",
+      capacity: "jobs.queue.capacity",
     },
     state: {
       unspecified: "jobs.state.unspecified",
@@ -157,6 +158,8 @@ export const strings = {
       succeeded: "jobs.state.succeeded",
       failed: "jobs.state.failed",
       canceled: "jobs.state.canceled",
+      admitting: "jobs.state.admitting",
+      canceling: "jobs.state.canceling",
     },
   },
   home: {
@@ -169,6 +172,10 @@ export const strings = {
       sample: "home.entry.sample",
       dropActive: "home.entry.dropActive",
       fileLabel: "home.entry.fileLabel",
+      linkLabel: "home.entry.linkLabel",
+      linkPlaceholder: "home.entry.linkPlaceholder",
+      importLink: "home.entry.importLink",
+      importingLink: "home.entry.importingLink",
     },
     group: {
       quickEdits: "home.group.quickEdits",
@@ -367,6 +374,7 @@ export const strings = {
         needsBackendManual: "models.picker.state.needsBackendManual",
         needsBoth: "models.picker.state.needsBoth",
         disabled: "models.picker.state.disabled",
+        commercialRightsReviewRequired: "models.picker.state.commercialRightsReviewRequired",
         insufficient: "models.picker.state.insufficient",
         unsupported: "models.picker.state.unsupported",
         derivedUnproven: "models.picker.state.derivedUnproven",
@@ -407,6 +415,7 @@ export const strings = {
       architectureLabel: "models.import.architectureLabel",
       selectArchitecture: "models.import.selectArchitecture",
       attestLabel: "models.import.attestLabel",
+      attestRequired: "models.import.attestRequired",
       import: "models.import.import",
       importing: "models.import.importing",
       success: "models.import.success",
@@ -475,6 +484,10 @@ export const strings = {
         label: "workspace.analyzeOp.quality_assessment.label",
         desc: "workspace.analyzeOp.quality_assessment.desc",
       },
+      caption: {
+        label: "workspace.analyzeOp.caption.label",
+        desc: "workspace.analyzeOp.caption.desc",
+      },
     },
     analyze: {
       intro: "workspace.analyze.intro",
@@ -484,6 +497,7 @@ export const strings = {
       modelNote: "workspace.analyze.modelNote",
       run: "workspace.analyze.run",
       running: "workspace.analyze.running",
+      cancel: "workspace.analyze.cancel",
       retry: "workspace.analyze.retry",
       failed: "workspace.analyze.failed",
       probe: {

@@ -8,6 +8,7 @@ import (
 
 	"image-tools/internal/backends"
 	"image-tools/internal/capabilities"
+	"image-tools/internal/jobs"
 
 	vroolicli "github.com/vrooli/vrooli-cli-go"
 	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
@@ -127,29 +128,19 @@ func keepCapacityAlive(ctx context.Context, broker CapacityBroker, lease Capacit
 	}, interval)
 }
 
+type heartbeatLease struct{ beat func(context.Context) error }
+
+func (l heartbeatLease) Heartbeat(ctx context.Context) error { return l.beat(ctx) }
+func (heartbeatLease) Release(context.Context) error         { return nil }
+
 func keepLeaseAlive(ctx context.Context, kind string, heartbeat func(context.Context) error, interval time.Duration) (context.Context, func()) {
-	ctx, cancel := context.WithCancelCause(ctx)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				beatCtx, stop := context.WithTimeout(ctx, 5*time.Second)
-				err := heartbeat(beatCtx)
-				stop()
-				if err != nil {
-					cancel(fmt.Errorf("%s capacity renewal lost: %w", kind, err))
-					return
-				}
-			}
+	scope := sharedcapacity.MaintainWithInterval(ctx, heartbeatLease{beat: func(ctx context.Context) error {
+		if err := heartbeat(ctx); err != nil {
+			return fmt.Errorf("%s capacity renewal: %w", kind, err)
 		}
-	}()
-	return ctx, func() { cancel(context.Canceled); <-done }
+		return nil
+	}}, interval)
+	return scope.Context(), func() { _ = scope.Release(context.Background()) }
 }
 
 // MemoryLease stays live until inference and any resident worker have stopped.
@@ -161,27 +152,35 @@ type MemoryLease interface {
 
 type MemoryAdmission func(context.Context, string, int64) (MemoryLease, error)
 
-func keepMemoryAlive(ctx context.Context, lease MemoryLease) (context.Context, func()) {
-	return keepLeaseAlive(ctx, "RAM", lease.Heartbeat, sharedcapacity.RecommendedLeaseHeartbeatInterval())
-}
-
 type localMemoryLease struct {
 	sharedcapacity.RenewableLease
 	broker *sharedcapacity.Broker
 }
 
 func (l *localMemoryLease) Release(ctx context.Context) error {
-	return errors.Join(l.RenewableLease.Release(ctx), l.broker.Close())
+	if err := l.RenewableLease.Release(ctx); err != nil {
+		return err
+	}
+	return l.broker.Close()
 }
 
 // AcquireLocalRAM admits the declared host memory independently of GPU tier.
 // It never reclaims another owner's resident models or invokes a paid fallback.
 func AcquireLocalRAM(ctx context.Context, owner string, bytes int64) (MemoryLease, error) {
+	return acquireLocalResources(ctx, owner, bytes, 0)
+}
+
+// AcquireLocalCPU reserves millicores using the same cross-process broker.
+func AcquireLocalCPU(ctx context.Context, owner string, milli int64) (MemoryLease, error) {
+	return acquireLocalResources(ctx, owner, 0, milli)
+}
+
+func acquireLocalResources(ctx context.Context, owner string, bytes, cpuMilli int64) (MemoryLease, error) {
 	broker, err := sharedcapacity.NewBroker(ctx, "")
 	if err != nil {
 		return nil, fmt.Errorf("open RAM capacity broker: %w", err)
 	}
-	lease, verdict, err := broker.AcquireNoReclaim(ctx, owner, bytes, 0)
+	lease, verdict, err := broker.AcquireResources(ctx, sharedcapacity.Request{OwnerID: owner, RAMBytes: bytes, CPUMilli: cpuMilli, Priority: capacityPriority(ctx), NoReclaim: true})
 	if err != nil || verdict.Kind != "grant" || lease == nil {
 		var releaseErr error
 		if lease != nil {
@@ -189,7 +188,11 @@ func AcquireLocalRAM(ctx context.Context, owner string, bytes int64) (MemoryLeas
 			releaseErr = lease.Release(cleanup)
 			cancel()
 		}
-		return nil, errors.Join(fmt.Errorf("RAM capacity admission %s: %s", verdict.Kind, verdict.Reason), err, releaseErr, broker.Close())
+		closeErr := broker.Close()
+		if err == nil && releaseErr == nil && closeErr == nil && verdict.Kind != "grant" {
+			return nil, fmt.Errorf("%w: %s capacity admission: %s", jobs.ErrCapacityBusy, verdict.Kind, verdict.Reason)
+		}
+		return nil, errors.Join(fmt.Errorf("local capacity admission %s: %s", verdict.Kind, verdict.Reason), err, releaseErr, closeErr)
 	}
 	renewable, ok := lease.(sharedcapacity.RenewableLease)
 	if !ok {
@@ -200,7 +203,31 @@ func AcquireLocalRAM(ctx context.Context, owner string, bytes int64) (MemoryLeas
 	return &localMemoryLease{RenewableLease: renewable, broker: broker}, nil
 }
 
-type operationMemoryContextKey struct{}
+type (
+	operationMemoryContextKey struct{}
+	capacityPriorityKey       struct{}
+)
+
+func capacityPriority(ctx context.Context) string {
+	priority, _ := ctx.Value(capacityPriorityKey{}).(string)
+	return normalizeCapacityPriority(priority)
+}
+
+// AdmitCPUWork is the shared scheduler's floor for local support work. Model
+// operations override it with declared model RAM and CPU profiles in Admit.
+func AdmitCPUWork(ctx context.Context, job jobs.Job) (jobs.Admission, error) {
+	if job.Lane == jobs.LaneNetwork {
+		return jobs.Admission{Context: ctx}, nil
+	}
+	ctx = context.WithValue(ctx, capacityPriorityKey{}, string(job.Priority))
+	lease, err := acquireLocalResources(ctx, "image-tools:"+job.ID+":support", 256<<20, 1000)
+	if err != nil {
+		return jobs.Admission{}, err
+	}
+	group := newLeaseGroup(ctx)
+	group.renew("support", lease)
+	return jobs.Admission{Context: group.ctx, Release: group.release, Meta: map[string]string{"ram_capacity_claim_bytes": "268435456", "cpu_capacity_milli": "1000"}}, nil
+}
 
 func normalizeCapacityPriority(priority string) string {
 	switch priority {

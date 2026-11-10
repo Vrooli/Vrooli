@@ -52,7 +52,7 @@ type tesseractProvider struct {
 	run      cmdOutput
 }
 
-func (p *tesseractProvider) Name() string         { return "library-cgo" }
+func (p *tesseractProvider) Name() string         { return "tesseract" }
 func (p *tesseractProvider) Operations() []string { return []string{OpOCR} }
 func (p *tesseractProvider) Standalone() bool     { return true }
 func (p *tesseractProvider) IsCloud() bool        { return false }
@@ -83,7 +83,7 @@ func (p *tesseractProvider) Availability(context.Context) backends.Availability 
 
 func (p *tesseractProvider) Execute(ctx context.Context, req backends.Request) (backends.Result, error) {
 	if req.Output.LocalPath == "" {
-		return backends.Result{}, fmt.Errorf("analysis: library-cgo backend requires a local output path")
+		return backends.Result{}, fmt.Errorf("analysis: tesseract backend requires a local output path")
 	}
 	in, err := backendInput(req)
 	if err != nil {

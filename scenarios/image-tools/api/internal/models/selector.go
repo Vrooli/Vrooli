@@ -87,29 +87,15 @@ func (req SelectRequest) fit(m Model) HardwareFit {
 
 func fitGPU(m Model, h capabilities.Host, capacityManaged bool) HardwareFit {
 	needBytes := uint64(m.Hardware.MinVRAMGB) * bytesPerGB
-	var gpuViable bool
-	var bestKnownFreeVRAM uint64
-	var anyKnownGPU bool
-	for _, g := range h.GPUs {
-		free, known := g.VRAMFreeBytes()
-		if !known {
-			continue
-		}
-		if capacityManaged {
-			free = g.VRAMBytes
-		}
-		anyKnownGPU = true
-		if free > bestKnownFreeVRAM {
-			bestKnownFreeVRAM = free
-		}
-		if needBytes > 0 && free >= needBytes {
-			gpuViable = true
-		}
+	bestVRAM, known := h.MaxFreeVRAMBytes()
+	if capacityManaged {
+		bestVRAM, known = h.MaxVRAMBytes()
 	}
+	gpuViable := needBytes > 0 && known && bestVRAM >= needBytes
 	fit := HardwareFit{GPUViable: gpuViable}
 	fit.Runnable = gpuViable || m.Hardware.CPUCapable
-	if !gpuViable && anyKnownGPU && needBytes > bestKnownFreeVRAM {
-		shortfall := int((needBytes - bestKnownFreeVRAM + bytesPerGB - 1) / bytesPerGB) // round up
+	if !gpuViable && known && needBytes > bestVRAM {
+		shortfall := int((needBytes - bestVRAM + bytesPerGB - 1) / bytesPerGB) // round up
 		fit.VRAMShortfallGB = shortfall
 	}
 	return fit

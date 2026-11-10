@@ -3,8 +3,9 @@ package ops
 import (
 	"fmt"
 	"image/color"
-	"strconv"
 	"strings"
+
+	"image-tools/internal/colorutil"
 
 	"github.com/disintegration/imaging"
 )
@@ -187,34 +188,9 @@ func parseHexColor(s string) (color.NRGBA, error) {
 	if s == "" {
 		return color.NRGBA{A: 255}, nil
 	}
-	s = strings.TrimPrefix(s, "#")
-	expand := func(h string) (uint8, error) {
-		v, err := strconv.ParseUint(h, 16, 8)
-		return uint8(v), err
+	c, err := colorutil.ParseHex(s)
+	if err != nil {
+		return color.NRGBA{}, fmt.Errorf("ops: invalid hex color %q", strings.TrimPrefix(s, "#"))
 	}
-	switch len(s) {
-	case 3: // rgb
-		r, e1 := expand(strings.Repeat(s[0:1], 2))
-		g, e2 := expand(strings.Repeat(s[1:2], 2))
-		b, e3 := expand(strings.Repeat(s[2:3], 2))
-		if e1 != nil || e2 != nil || e3 != nil {
-			return color.NRGBA{}, fmt.Errorf("ops: invalid hex color %q", s)
-		}
-		return color.NRGBA{R: r, G: g, B: b, A: 255}, nil
-	case 6, 8:
-		r, e1 := expand(s[0:2])
-		g, e2 := expand(s[2:4])
-		b, e3 := expand(s[4:6])
-		a := uint8(255)
-		var e4 error
-		if len(s) == 8 {
-			a, e4 = expand(s[6:8])
-		}
-		if e1 != nil || e2 != nil || e3 != nil || e4 != nil {
-			return color.NRGBA{}, fmt.Errorf("ops: invalid hex color %q", s)
-		}
-		return color.NRGBA{R: r, G: g, B: b, A: a}, nil
-	default:
-		return color.NRGBA{}, fmt.Errorf("ops: invalid hex color %q", s)
-	}
+	return c, nil
 }

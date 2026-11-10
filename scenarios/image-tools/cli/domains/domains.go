@@ -8,9 +8,11 @@ import (
 	"image-tools/cli/domains/diff"
 	"image-tools/cli/domains/jobs"
 	"image-tools/cli/domains/looks"
+	"image-tools/cli/domains/measures"
 	"image-tools/cli/domains/models"
 	"image-tools/cli/domains/ops"
 	"image-tools/cli/domains/preparation"
+	"image-tools/cli/domains/quality"
 	"image-tools/cli/domains/safety"
 	"image-tools/cli/domains/selection"
 	"image-tools/cli/domains/settings"
@@ -24,9 +26,8 @@ import (
 // grows, add domains like domains/tasks or domains/projects and append their
 // registrations here. For greenfield scenarios, domain packages are the
 // default architecture; do not treat flat command files as the long-term plan.
-func CommandGroups(core *cliapp.ScenarioApp) []cliapp.CommandGroup {
-	_ = core
-	return nil
+func CommandGroups(core *cliapp.ScenarioApp, manifest []byte) []cliapp.CommandGroup {
+	return []cliapp.CommandGroup{models.RootCommands(core, manifest)}
 }
 
 // SubcommandGroups aggregates hierarchical command groups from domain packages.
@@ -100,5 +101,13 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{preparationGroup, jobsGroup, modelsGroup, adaptersGroup, backendsGroup, opsGroup, aiGroup, analyzeGroup, settingsGroup, looksGroup, selectGroup, diffGroup, safetyGroup}, nil
+	qualityGroup, err := quality.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	measuresGroup, err := measures.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{preparationGroup, qualityGroup, measuresGroup, jobsGroup, modelsGroup, adaptersGroup, backendsGroup, opsGroup, aiGroup, analyzeGroup, settingsGroup, looksGroup, selectGroup, diffGroup, safetyGroup}, nil
 }

@@ -69,8 +69,8 @@ func TestGetJobOK(t *testing.T) {
 	if resp.Msg.Job.Lane != jobsv1.JobLane_JOB_LANE_CPU {
 		t.Fatalf("lane = %v, want CPU", resp.Msg.Job.Lane)
 	}
-	if resp.Msg.Job.SchedulingQueue != jobsv1.JobQueue_JOB_QUEUE_CPU_POOL {
-		t.Fatalf("scheduling_queue = %v, want CPU_POOL", resp.Msg.Job.SchedulingQueue)
+	if resp.Msg.Job.SchedulingQueue != jobsv1.JobQueue_JOB_QUEUE_CAPACITY {
+		t.Fatalf("scheduling_queue = %v, want CAPACITY", resp.Msg.Job.SchedulingQueue)
 	}
 }
 
@@ -166,10 +166,10 @@ func TestStateAndLaneMapping(t *testing.T) {
 	if laneToProto(internaljobs.LaneGPU) != jobsv1.JobLane_JOB_LANE_GPU {
 		t.Fatal("gpu lane mapping")
 	}
-	if queueToProto(internaljobs.LaneGPU) != jobsv1.JobQueue_JOB_QUEUE_LOCAL_SERIAL {
+	if queueToProto(internaljobs.LaneGPU) != jobsv1.JobQueue_JOB_QUEUE_CAPACITY {
 		t.Fatal("local queue mapping")
 	}
-	if queueToProto(internaljobs.LaneCPU) != jobsv1.JobQueue_JOB_QUEUE_CPU_POOL {
+	if queueToProto(internaljobs.LaneCPU) != jobsv1.JobQueue_JOB_QUEUE_CAPACITY {
 		t.Fatal("cpu queue mapping")
 	}
 	if queueToProto(internaljobs.LaneNetwork) != jobsv1.JobQueue_JOB_QUEUE_NETWORK_POOL {

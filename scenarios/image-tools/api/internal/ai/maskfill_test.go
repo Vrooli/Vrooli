@@ -89,6 +89,22 @@ func TestMaskFillAbsorbsGlowHalo(t *testing.T) {
 	}
 }
 
+func TestGrowHaloDetectsEdgePixelsWithClippedNeighborhood(t *testing.T) {
+	const width, height = 3, 3
+	px := make([]color.NRGBA, width*height)
+	for i := range px {
+		px[i] = color.NRGBA{10, 10, 10, 255}
+	}
+	px[1*width+1] = color.NRGBA{220, 220, 220, 255}
+	mask := make([]bool, len(px))
+	mask[1*width] = true // Touching the left edge clips the estimate window.
+
+	got := growHalo(px, mask, width, height, 25, 1)
+	if !got[1*width+1] {
+		t.Fatal("glow pixel beside an edge mask was not included in the grown mask")
+	}
+}
+
 func maxDiff(a, b color.NRGBA) int {
 	d := absDiff(int(a.R), int(b.R))
 	if v := absDiff(int(a.G), int(b.G)); v > d {

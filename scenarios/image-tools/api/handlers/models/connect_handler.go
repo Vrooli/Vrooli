@@ -116,19 +116,17 @@ func (h *connectHandler) installStates(ctx context.Context) (map[string]internal
 		return nil, err
 	}
 	for _, r := range recs {
-		// Build-profile candidates persist downloaded source assets even when a
-		// derived runtime artifact is absent or failed. Public install state means
-		// the selected model artifact is ready; keep the durable asset record in
-		// InstallStore while projecting build candidates as uninstalled until the
-		// validated output and provenance are ready.
-		if h.deps.Installer.Reg != nil {
-			if model, ok := h.deps.Installer.Reg.ByID(r.ID); ok && model.BuildProfile != nil {
-				r.Installed = h.deps.Installer.BuildReady(ctx, r.ID)
-			}
-		}
 		out[r.ID] = r
 	}
 	return out, nil
+}
+
+func (h *connectHandler) publicInstallState(m internalmodels.Model, record internalmodels.InstallRecord, found bool) (internalmodels.InstallRecord, bool) {
+	if !found || m.BuildProfile == nil || h.deps.Installer == nil {
+		return record, found
+	}
+	record.Installed = h.deps.Installer.BuildReadyForRecord(m, record)
+	return record, true
 }
 
 // customModels returns operator-registered entries keyed by id (nil-safe).
@@ -139,11 +137,30 @@ func (h *connectHandler) customModels(ctx context.Context) ([]internalmodels.Mod
 	return h.deps.Installer.Custom.List(ctx)
 }
 
+// effectiveRegistry gives read-side model selectors the same seed+custom
+// catalog that the AI planner uses. Keeping the id set alongside the merged
+// registry preserves custom provenance in picker responses.
+func (h *connectHandler) effectiveRegistry(ctx context.Context) (*internalmodels.Registry, map[string]bool, error) {
+	customs, err := h.customModels(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	registry, err := h.deps.Registry.WithCustom(customs)
+	if err != nil {
+		return nil, nil, err
+	}
+	customIDs := make(map[string]bool, len(customs))
+	for _, model := range customs {
+		customIDs[model.ID] = true
+	}
+	return registry, customIDs, nil
+}
+
 // viewFor builds the runtime modelView for one model.
-func viewFor(m internalmodels.Model, custom bool, overlay map[string]bool, installs map[string]internalmodels.InstallRecord) modelView {
+func (h *connectHandler) viewFor(m internalmodels.Model, custom bool, overlay map[string]bool, installs map[string]internalmodels.InstallRecord) modelView {
 	v := modelView{custom: custom, enabled: internalmodels.EffectiveEnabled(m, overlay)}
 	if r, ok := installs[m.ID]; ok {
-		rec := r
+		rec, _ := h.publicInstallState(m, r, true)
 		v.install = &rec
 	}
 	return v
@@ -174,7 +191,7 @@ func (h *connectHandler) ListModels(ctx context.Context, req *connect.Request[mo
 
 	resp := &modelsv1.ListModelsResponse{Models: make([]*modelsv1.Model, 0, len(entries))}
 	for _, m := range entries {
-		resp.Models = append(resp.Models, domainToProto(m, viewFor(m, false, overlay, installs)))
+		resp.Models = append(resp.Models, domainToProto(m, h.viewFor(m, false, overlay, installs)))
 	}
 
 	// Merge operator-registered custom entries (filtered to the op when set).
@@ -187,7 +204,7 @@ func (h *connectHandler) ListModels(ctx context.Context, req *connect.Request[mo
 		if op != "" && !m.ServesOperation(op) {
 			continue
 		}
-		resp.Models = append(resp.Models, domainToProto(m, viewFor(m, true, overlay, installs)))
+		resp.Models = append(resp.Models, domainToProto(m, h.viewFor(m, true, overlay, installs)))
 	}
 	return connect.NewResponse(resp), nil
 }
@@ -227,7 +244,7 @@ func (h *connectHandler) GetModel(ctx context.Context, req *connect.Request[mode
 		return nil, connect.NewError(connect.CodeInternal, errors.New("load install state"))
 	}
 	return connect.NewResponse(&modelsv1.GetModelResponse{
-		Model: domainToProto(m, viewFor(m, custom, overlay, installs)),
+		Model: domainToProto(m, h.viewFor(m, custom, overlay, installs)),
 	}), nil
 }
 
@@ -253,6 +270,11 @@ func (h *connectHandler) SelectModel(ctx context.Context, req *connect.Request[m
 		h.deps.Logger.Printf("models.SelectModel installs: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("load install state"))
 	}
+	registry, customIDs, err := h.effectiveRegistry(ctx)
+	if err != nil {
+		h.deps.Logger.Printf("models.SelectModel custom registry: %v", err)
+		return nil, connect.NewError(connect.CodeInternal, errors.New("load custom model catalog"))
+	}
 
 	override := req.Msg.GetOverrideId()
 	if override == "" && h.deps.OpDefaults != nil {
@@ -260,7 +282,7 @@ func (h *connectHandler) SelectModel(ctx context.Context, req *connect.Request[m
 			override = pinned
 		}
 	}
-	sel, err := h.deps.Registry.Select(internalmodels.SelectRequest{
+	sel, err := registry.Select(internalmodels.SelectRequest{
 		Operation: req.Msg.GetOperation(),
 		Host:      host,
 		// The caller's routing policy, so the preview resolves the model a
@@ -270,13 +292,13 @@ func (h *connectHandler) SelectModel(ctx context.Context, req *connect.Request[m
 		QualityPolicy: req.Msg.GetQualityPolicy(),
 		AllowBYOK:     req.Msg.GetAllowByok(),
 		OverrideID:    override,
-	}, h.deps.Registry.EnabledWithOverlay(overlay))
+	}, registry.EnabledWithOverlay(overlay))
 	if err != nil {
 		return nil, selectError(err)
 	}
 
 	return connect.NewResponse(&modelsv1.SelectModelResponse{
-		Model:     domainToProto(sel.Model, viewFor(sel.Model, false, overlay, installs)),
+		Model:     domainToProto(sel.Model, h.viewFor(sel.Model, customIDs[sel.Model.ID], overlay, installs)),
 		GpuViable: sel.GPUViable,
 		Reason:    sel.Reason,
 		Warnings:  sel.Warnings,
@@ -288,6 +310,9 @@ func (h *connectHandler) SetModelEnabled(ctx context.Context, req *connect.Reque
 	m, custom, ok := h.resolve(ctx, id)
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("model not found"))
+	}
+	if req.Msg.GetEnabled() && m.CapabilityLabels.CommercialUse != internalmodels.CommercialUseYes {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("model cannot be enabled until its commercial rights are verified"))
 	}
 	if h.deps.Store == nil {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("model state store unavailable"))
@@ -301,7 +326,7 @@ func (h *connectHandler) SetModelEnabled(ctx context.Context, req *connect.Reque
 		h.deps.Logger.Printf("models.SetModelEnabled installs: %v", err)
 		return nil, connect.NewError(connect.CodeInternal, errors.New("load install state"))
 	}
-	v := viewFor(m, custom, nil, installs)
+	v := h.viewFor(m, custom, nil, installs)
 	v.enabled = req.Msg.GetEnabled()
 	return connect.NewResponse(&modelsv1.SetModelEnabledResponse{
 		Model: domainToProto(m, v),
@@ -326,22 +351,28 @@ func (h *connectHandler) InstallModel(ctx context.Context, req *connect.Request[
 	if !ok {
 		return nil, connect.NewError(connect.CodeNotFound, errors.New("model not found"))
 	}
+	if m.CapabilityLabels.CommercialUse != internalmodels.CommercialUseYes {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("model cannot be installed until its commercial rights are verified"))
+	}
 
-	if h.deps.Installer.Installed(ctx, id) && (m.BuildProfile == nil || h.deps.Installer.BuildReady(ctx, id)) {
-		runtimeReady, readiness := h.deps.Installer.RuntimeReadiness(ctx, id)
-		if runtimeReady {
-			return connect.NewResponse(&modelsv1.InstallModelResponse{
-				AlreadyInstalled: true,
-				SizeMbApprox:     int32(m.SizeMBApprox),
-			}), nil
-		}
-		if readiness != "smoke_pending" {
-			message := fmt.Sprintf("model %q is installed but not runtime-ready: %s", id, readiness)
-			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New(message))
-		}
-		// Installed models with a pending or stale load-smoke must use the same
-		// durable install job so Installer.InstallForJob can validate the runtime
-		// without downloading already-present weights.
+	lifecycle, err := h.deps.Installer.Lifecycle(ctx, id)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read model lifecycle: %w", err))
+	}
+	if lifecycle.Ready() {
+		return connect.NewResponse(&modelsv1.InstallModelResponse{
+			AlreadyInstalled: true,
+			SizeMbApprox:     int32(m.SizeMBApprox),
+		}), nil
+	}
+	// An absent model or an interrupted install can retry through the normal
+	// durable path. Installed artifacts with stale/failed smoke and incomplete
+	// native exports use that same path to revalidate without reacquisition.
+	switch lifecycle.Reason {
+	case "needs_model_install", "install_failed", "smoke_pending", "smoke_failed", "build_not_ready":
+	default:
+		message := fmt.Sprintf("model %q is not installable from lifecycle state %s (%s)", id, lifecycle.State, lifecycle.Reason)
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New(message))
 	}
 
 	payload, err := json.Marshal(internalmodels.InstallPayload{ModelID: id})
@@ -402,7 +433,7 @@ func (h *connectHandler) AddCustomModel(ctx context.Context, req *connect.Reques
 	overlay, _ := h.overlay(ctx)
 	installs, _ := h.installStates(ctx)
 	return connect.NewResponse(&modelsv1.AddCustomModelResponse{
-		Model: domainToProto(m, viewFor(m, true, overlay, installs)),
+		Model: domainToProto(m, h.viewFor(m, true, overlay, installs)),
 	}), nil
 }
 
@@ -422,6 +453,9 @@ func (h *connectHandler) SetDefaultModel(ctx context.Context, req *connect.Reque
 		}
 		if !m.ServesOperation(op) {
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("model does not serve that operation"))
+		}
+		if m.CapabilityLabels.CommercialUse != internalmodels.CommercialUseYes {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("model cannot be pinned until its commercial rights are verified"))
 		}
 	}
 	if err := h.deps.OpDefaults.Set(ctx, op, id); err != nil {
@@ -457,11 +491,12 @@ func (h *connectHandler) ListDefaults(ctx context.Context, _ *connect.Request[mo
 
 func (h *connectHandler) DoctorCatalog(ctx context.Context, _ *connect.Request[modelsv1.DoctorCatalogRequest]) (*connect.Response[modelsv1.DoctorCatalogResponse], error) {
 	report := h.deps.Registry.DoctorCatalog()
-	// Fold in the fetch-strategy lint over ALL rows (incl. disabled) so a
-	// landing-page-only stub surfaces here, not at a user's failed install.
-	lint := h.deps.Registry.RegistryLint()
-	report.Findings = append(report.Findings, lint.Findings...)
-	if !lint.OK {
+	if h.deps.Installer == nil {
+		report.Findings = append(report.Findings, internalmodels.CatalogFinding{
+			Severity: internalmodels.FindingError,
+			Code:     "model_lifecycle_unavailable",
+			Message:  "model lifecycle evidence is unavailable; runtime readiness cannot be established",
+		})
 		report.OK = false
 	}
 	// Fold in the runtime "enabled ⇒ runnable" findings (env provisioned + smoke
@@ -470,14 +505,58 @@ func (h *connectHandler) DoctorCatalog(ctx context.Context, _ *connect.Request[m
 	if h.deps.Installer != nil {
 		overlay, err := h.overlay(ctx)
 		if err != nil {
-			h.deps.Logger.Printf("models.DoctorCatalog overlay: %v", err)
+			return nil, connect.NewError(connect.CodeInternal, err)
 		}
-		runtime := h.deps.Installer.DoctorRuntime(ctx, h.deps.Registry.Models(), overlay)
-		report.Findings = append(report.Findings, runtime...)
-		for _, f := range runtime {
-			if f.Severity == internalmodels.FindingError {
+		catalog := h.deps.Registry.Models()
+		custom, err := h.customModels(ctx)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		runtime, err := h.deps.Installer.DoctorRuntimeReport(ctx, catalog, overlay)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+		report.Findings = append(report.Findings, runtime.Findings...)
+		report.Models = append(report.Models, runtime.Models...)
+		if !runtime.OK {
+			report.OK = false
+		}
+		if h.deps.Probe == nil {
+			report.Findings = append(report.Findings, internalmodels.CatalogFinding{
+				Severity: internalmodels.FindingError,
+				Code:     "host_inventory_unavailable",
+				Message:  "host inventory is unavailable; enabled-capability provisioning readiness cannot be established",
+			})
+			report.OK = false
+		} else {
+			plan, err := h.hostFitProvisionPlan(ctx, overlay)
+			if err != nil {
+				return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("build enabled-capability readiness plan: %w", err))
+			}
+			if len(plan.CoveredOperations)+len(plan.UncoveredOperations) == 0 {
+				report.Findings = append(report.Findings, internalmodels.CatalogFinding{
+					Severity: internalmodels.FindingError,
+					Code:     "enabled_capability_scope_empty",
+					Message:  "no enabled capability operations are in scope; readiness cannot be established",
+				})
 				report.OK = false
 			}
+			for _, gap := range plan.UncoveredOperations {
+				report.Findings = append(report.Findings, internalmodels.CatalogFinding{
+					Severity:  internalmodels.FindingError,
+					Code:      "enabled_capability_not_provisionable",
+					Operation: gap.Operation,
+					Message:   fmt.Sprintf("enabled capability %s has no host-fit, commercial-clean local model: %s", gap.Operation, gap.Reason),
+				})
+				report.OK = false
+			}
+		}
+		for _, m := range custom {
+			state, err := h.deps.Installer.Lifecycle(ctx, m.ID)
+			if err != nil {
+				return nil, connect.NewError(connect.CodeInternal, err)
+			}
+			report.Models = append(report.Models, state)
 		}
 	}
 	return connect.NewResponse(doctorReportToProto(report)), nil

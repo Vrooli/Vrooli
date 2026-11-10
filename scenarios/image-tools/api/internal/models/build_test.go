@@ -202,24 +202,24 @@ func TestBuildUsesExactNoReclaimRAMAdmissionAndReleases(t *testing.T) {
 	checkpointHash, _, _ := hashFile(filepath.Join(dir, "checkpoint.zip"))
 	lease := &buildLeaseStub{}
 	broker := &buildCapacityStub{lease: lease, verdict: capacity.Verdict{Kind: "grant"}}
-	runCalled := false
-	installer := &Installer{Build: &BuildConfig{
-		Python: "python", ReferenceONNX: "reference.onnx", Capacity: func(context.Context) (BuildCapacityBroker, error) { return broker, nil },
-		Run: func(context.Context, string, []string, []string) ([]byte, error) {
-			runCalled = true
-			return nil, errors.New("stop after admission")
-		},
+	db := newStateDB(t)
+	owner := &buildOperationStub{inspectFn: func(_ context.Context, ref platform.OperationRef, _ int) (platform.OperationObservation, error) {
+		return platform.OperationObservation{Ref: ref, State: platform.OperationStoppedOutcomeKnown, Result: "failure", ExitKnown: true, ExecMainStatus: 1}, nil
 	}}
+	installer := &Installer{Build: &BuildConfig{
+		Python: "/usr/bin/python3", ReferenceONNX: "reference.onnx", Capacity: func(context.Context) (BuildCapacityBroker, error) { return broker, nil }, Operations: owner,
+	}}
+	installer.State = NewInstallStore(db)
 	model := Model{ID: "big-lama-test", BuildProfile: &BuildProfile{Kind: "big-lama-onnx", SourceAsset: "source.zip", CheckpointAsset: "checkpoint.zip", SourceSHA256: sourceHash, CheckpointSHA256: checkpointHash}}
-	_, err := installer.ensureBuild(context.Background(), model, dir, "", func(int, string) {})
-	if err == nil || !runCalled {
-		t.Fatalf("expected exporter to run after grant and return its sentinel error; err=%v called=%v", err, runCalled)
+	_, err := installer.ensureBuild(context.Background(), model, dir, "job-build", func(int, string) {})
+	if err == nil || !owner.started {
+		t.Fatalf("expected owner-managed exporter to start after grant and return its failure; err=%v started=%v", err, owner.started)
 	}
 	if broker.owner != "image-tools:model-build:big-lama-test" || broker.ram != lamaBuildRAMBytes || broker.cpu != lamaBuildCPUMillicores {
 		t.Fatalf("unexpected capacity request: owner=%q ram=%d cpu=%d", broker.owner, broker.ram, broker.cpu)
 	}
-	if !lease.released || !broker.closed {
-		t.Fatalf("capacity lifecycle incomplete: released=%v closed=%v", lease.released, broker.closed)
+	if !lease.released || !broker.closed || !owner.released {
+		t.Fatalf("capacity lifecycle incomplete: lease released=%v broker closed=%v owner released=%v", lease.released, broker.closed, owner.released)
 	}
 }
 
@@ -233,15 +233,16 @@ func TestBuildDoesNotStartWithoutSharedBrokerGrant(t *testing.T) {
 	sourceHash, _, _ := hashFile(filepath.Join(dir, "source.zip"))
 	checkpointHash, _, _ := hashFile(filepath.Join(dir, "checkpoint.zip"))
 	broker := &buildCapacityStub{verdict: capacity.Verdict{Kind: "deny", Reason: "memory PSI above threshold"}}
-	runCalled := false
+	owner := &buildOperationStub{}
+	db := newStateDB(t)
 	installer := &Installer{Build: &BuildConfig{
-		Python: "python", ReferenceONNX: "reference.onnx", Capacity: func(context.Context) (BuildCapacityBroker, error) { return broker, nil },
-		Run: func(context.Context, string, []string, []string) ([]byte, error) { runCalled = true; return nil, nil },
+		Python: "python", ReferenceONNX: "reference.onnx", Capacity: func(context.Context) (BuildCapacityBroker, error) { return broker, nil }, Operations: owner,
 	}}
+	installer.State = NewInstallStore(db)
 	model := Model{ID: "big-lama-test", BuildProfile: &BuildProfile{Kind: "big-lama-onnx", SourceAsset: "source.zip", CheckpointAsset: "checkpoint.zip", SourceSHA256: sourceHash, CheckpointSHA256: checkpointHash}}
-	_, err := installer.ensureBuild(context.Background(), model, dir, "", func(int, string) {})
-	if err == nil || !strings.Contains(err.Error(), "memory PSI above threshold") || runCalled {
-		t.Fatalf("denial must prevent exporter start: err=%v called=%v", err, runCalled)
+	_, err := installer.ensureBuild(context.Background(), model, dir, "job-denied", func(int, string) {})
+	if err == nil || !strings.Contains(err.Error(), "memory PSI above threshold") || owner.started {
+		t.Fatalf("denial must prevent exporter start: err=%v started=%v", err, owner.started)
 	}
 	if !broker.closed {
 		t.Fatal("capacity broker was not closed after denial")
@@ -288,6 +289,24 @@ func TestBuildOutputReadyRequiresMatchingOutputAndReceipt(t *testing.T) {
 	}
 	if got, ready := buildOutputReady(profile, dir); !ready || got != sum {
 		t.Fatalf("valid receipt should make output ready: hash=%q ready=%v", got, ready)
+	}
+	installer := &Installer{}
+	model := Model{ID: "lama", BuildProfile: profile}
+	record := InstallRecord{ID: model.ID, Installed: true, Path: dir}
+	if !installer.BuildReadyForRecord(model, record) {
+		t.Fatal("listed installed record with a valid build receipt should project ready")
+	}
+	record.Installed = false
+	if installer.BuildReadyForRecord(model, record) {
+		t.Fatal("build output alone must not mark an uninstalled record ready")
+	}
+	record.Installed, record.ID = true, "another-model"
+	if installer.BuildReadyForRecord(model, record) {
+		t.Fatal("a record for a different model must not be projected ready")
+	}
+	record.ID, record.Path = model.ID, filepath.Join(dir, "missing")
+	if installer.BuildReadyForRecord(model, record) {
+		t.Fatal("missing install path must not be projected ready")
 	}
 	receipt.CapacityClaimBytes = int64(7 << 30)
 	data, err = json.Marshal(receipt)

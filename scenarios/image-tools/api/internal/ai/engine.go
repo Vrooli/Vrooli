@@ -52,7 +52,10 @@ type Deps struct {
 	Store BlobStore
 	// Enabled resolves a model's runtime enabled-state (SQLite overlay). nil ⇒
 	// seed defaults.
-	Enabled func(ctx context.Context) (models.EnabledFunc, error)
+	// Enabled returns explicit per-model overrides. The effective registry is
+	// built after custom models are loaded, so its defaults and this overlay are
+	// combined against the same catalog snapshot during selection.
+	Enabled func(ctx context.Context) (map[string]bool, error)
 	// DefaultOverride resolves the operator-pinned default model for an op (the
 	// settings surface), applied when a request carries no explicit override.
 	// Returns "" when no pin exists. nil disables the seam (seed default wins).
@@ -84,6 +87,8 @@ type Deps struct {
 	// AdapterInstalled reports whether an adapter's weights are on disk. nil ⇒
 	// treated as not installed (a conditioned request fails honestly until install).
 	AdapterInstalled func(id string) bool
+	// AcquireAdapterUse protects each conditioning artifact through worker reap.
+	AcquireAdapterUse func(id string) (func(), error)
 	// AdaptersRoot is the absolute directory adapter weights live under (per
 	// adapter: <AdaptersRoot>/adapters/<id>). Filled into each ResolvedAdapter.Dir.
 	AdaptersRoot string
@@ -98,6 +103,9 @@ type Deps struct {
 	// Memory admits local CPU and GPU inference. Production always supplies it;
 	// a warm worker must be reaped before this operation's RAM lease is released.
 	Memory MemoryAdmission
+	// CPU reserves the bounded inference thread budget independently of warm
+	// model residency. It is released after each job, including cancellation.
+	CPU MemoryAdmission
 	// Logger for diagnostics. Defaults to log.Default().
 	Logger *log.Logger
 }
@@ -153,16 +161,20 @@ func (e *Engine) effectiveRegistry(ctx context.Context) *models.Registry {
 // to execute the op without re-running selection's host probe from scratch
 // (model id is pinned at submit time for determinism).
 type Payload struct {
-	Operation        string            `json:"operation"`
-	InputKey         string            `json:"input_key,omitempty"`
-	MaskKey          string            `json:"mask_key,omitempty"`
-	ModelID          string            `json:"model_id"`
+	Operation string `json:"operation"`
+	InputKey  string `json:"input_key,omitempty"`
+	MaskKey   string `json:"mask_key,omitempty"`
+	ModelID   string `json:"model_id"`
+	// Backend is the selected provider identity pinned at submission. Jobs stored
+	// before this contract used the model's declared backend; restart recovery
+	// fails their nonterminal rows before this runner can admit them.
 	Backend          string            `json:"backend,omitempty"`
 	Tier             string            `json:"tier,omitempty"`
 	GPU              bool              `json:"gpu"`
 	AllowBYOK        bool              `json:"allow_byok,omitempty"`
 	CapacityPriority string            `json:"capacity_priority,omitempty"`
 	AllowReclaim     bool              `json:"allow_reclaim,omitempty"`
+	RequireGPU       bool              `json:"require_gpu,omitempty"`
 	AutoScanNSFW     bool              `json:"auto_scan_nsfw,omitempty"`
 	Variations       int               `json:"variations,omitempty"`
 	Params           map[string]string `json:"params,omitempty"`
@@ -178,6 +190,7 @@ type Payload struct {
 // unrunnable request up front).
 type Plan struct {
 	ModelID          string
+	Provider         string
 	Tier             string
 	Warnings         []string
 	EstimatedSeconds int
@@ -199,6 +212,7 @@ type PlanRequest struct {
 	FallbackPolicy string
 	Priority       string
 	AllowReclaim   bool
+	RequireGPU     bool
 	// Role is the caller's OpenRouter role, if any. A named role ranks the gateway
 	// model first when the cloud tier is permitted.
 	Role string
@@ -209,9 +223,12 @@ type PlanRequest struct {
 
 // ErrModelNotInstalled is returned by Plan when the selected model's weights are
 // not yet on disk (the operator must install it via the model management layer).
-var ErrModelNotInstalled = errors.New("ai: selected model is not installed")
-var ErrModelNotRuntimeReady = errors.New("ai: selected model is not runtime-ready")
-var ErrModelUnsupportedHost = errors.New("ai: selected model does not support the current host")
+var (
+	ErrModelNotInstalled    = errors.New("ai: selected model is not installed")
+	ErrModelNotRuntimeReady = errors.New("ai: selected model is not runtime-ready")
+	ErrModelUnsupportedHost = errors.New("ai: selected model does not support the current host")
+	ErrGPURequired          = errors.New("ai: requested local GPU execution is unavailable")
+)
 
 // Plan selects the model + provider for an op on the current host without
 // running it. It fails (before any job is created) when the op is unknown, no
@@ -225,7 +242,7 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 	if err != nil {
 		return Plan{}, fmt.Errorf("ai: host probe: %w", err)
 	}
-	enabled, err := e.enabledFunc(ctx)
+	enabledOverlay, err := e.enabledOverlay(ctx)
 	if err != nil {
 		return Plan{}, err
 	}
@@ -245,7 +262,9 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 	if err != nil {
 		return Plan{}, err
 	}
-	res, err := resolver.New(e.effectiveRegistry(ctx), e.deps.Backends).Resolve(ctx, resolver.Request{
+	registry := e.effectiveRegistry(ctx)
+	enabled := registry.EnabledWithOverlay(enabledOverlay)
+	res, err := resolver.New(registry, e.deps.Backends).Resolve(ctx, resolver.Request{
 		Operation:          req.Operation,
 		ModelOverride:      override,
 		Host:               host,
@@ -262,6 +281,9 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 	})
 	if err != nil {
 		return Plan{}, err // already actionable (no enabled model / VRAM shortfall / override invalid / no provider / adapter incompatible|not-ready|uninstalled)
+	}
+	if req.RequireGPU && (res.Tier != backends.TierLocalGPU.String() || !res.GPUViable) {
+		return Plan{}, fmt.Errorf("%w for operation %q with model %q", ErrGPURequired, req.Operation, res.Model.ID)
 	}
 	if !e.deps.ModelInstalled(res.Model.ID) {
 		return Plan{}, fmt.Errorf("%w: %q — run `image-tools models install %s`", ErrModelNotInstalled, res.Model.ID, res.Model.ID)
@@ -280,6 +302,7 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 	}
 	return Plan{
 		ModelID:          res.Model.ID,
+		Provider:         res.Provider,
 		Tier:             res.Tier,
 		Warnings:         res.Warnings,
 		EstimatedSeconds: estimateSecondsForTier(req.Operation, res.GPUViable, res.Tier),
@@ -308,15 +331,15 @@ func (e *Engine) absAdapterDir(adapterID string) string {
 	return filepath.Join(e.deps.AdaptersRoot, "adapters", adapterID)
 }
 
-func (e *Engine) enabledFunc(ctx context.Context) (models.EnabledFunc, error) {
+func (e *Engine) enabledOverlay(ctx context.Context) (map[string]bool, error) {
 	if e.deps.Enabled == nil {
 		return nil, nil
 	}
-	fn, err := e.deps.Enabled(ctx)
+	overlay, err := e.deps.Enabled(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("ai: load enabled overlay: %w", err)
 	}
-	return fn, nil
+	return overlay, nil
 }
 
 // estimateSeconds is a coarse initial ETA. GPU paths are far faster; CPU
@@ -413,166 +436,39 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 			}
 		}
 	}()
-	var pl Payload
-	if err := json.Unmarshal(job.Payload, &pl); err != nil {
-		return internaljobs.Result{}, fmt.Errorf("ai: decode payload: %w", err)
-	}
-	model, ok := e.effectiveRegistry(ctx).ByID(pl.ModelID)
+	prepared, ok := ctx.Value(executionAdmissionKey{}).(*preparedExecution)
 	if !ok {
-		return internaljobs.Result{}, fmt.Errorf("ai: model %q not in registry", pl.ModelID)
-	}
-	var releaseModelUse func()
-	if e.deps.AcquireModelUse != nil {
-		var acquireErr error
-		releaseModelUse, acquireErr = e.deps.AcquireModelUse(model.ID)
-		if acquireErr != nil {
-			return internaljobs.Result{}, fmt.Errorf("ai: acquire model use %q: %w", model.ID, acquireErr)
+		if job.Operation == "" {
+			job.Operation = op
 		}
-		if releaseModelUse == nil {
-			return internaljobs.Result{}, fmt.Errorf("ai: acquire model use %q returned no release function", model.ID)
-		}
-		defer func() {
-			if releaseModelUse != nil {
-				releaseModelUse()
-			}
-		}()
-	}
-	if !e.deps.ModelInstalled(model.ID) {
-		return internaljobs.Result{}, fmt.Errorf("%w: %q", ErrModelNotInstalled, model.ID)
-	}
-	if e.deps.ModelRuntimeReadiness != nil {
-		if ready, state := e.deps.ModelRuntimeReadiness(ctx, model.ID); !ready {
-			return internaljobs.Result{}, fmt.Errorf("%w: %q (%s)", ErrModelNotRuntimeReady, model.ID, state)
-		}
-	}
-	host, err := e.deps.Probe.Inventory(ctx)
-	if err != nil {
-		return internaljobs.Result{}, fmt.Errorf("ai: recheck host support for %q: %w", model.ID, err)
-	}
-	if !model.SupportsHost(host) {
-		return internaljobs.Result{}, fmt.Errorf("%w: %q (%s/%s)", ErrModelUnsupportedHost, model.ID, host.OS, host.Arch)
-	}
-
-	bsel, err := e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
-		Operation:       op,
-		ModelBackend:    model.Backend,
-		GPUViable:       pl.GPU,
-		AllowBYOK:       pl.AllowBYOK,
-		RequireAdapters: len(pl.Adapters) > 0,
-	})
-	if err != nil {
-		return internaljobs.Result{}, err
-	}
-	if bsel.Tier == backends.TierLocalCPU && !model.Hardware.CPUCapable {
-		return internaljobs.Result{}, fmt.Errorf("ai: model %q has no CPU execution path on the current backend", model.ID)
-	}
-	if bsel.Tier == backends.TierLocalGPU && modelVRAMClaimBytes(model) <= 0 {
-		if !model.Hardware.CPUCapable {
-			return internaljobs.Result{}, fmt.Errorf("ai: model %q has no declared GPU memory budget or CPU execution path", model.ID)
-		}
-		e.deps.Logger.Printf("ai: model %q has no declared GPU memory budget; using CPU", model.ID)
-		bsel, err = e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
-			Operation: op, ModelBackend: model.Backend, GPUViable: false,
-			AllowBYOK: pl.AllowBYOK, RequireAdapters: len(pl.Adapters) > 0,
-		})
-		if err != nil {
-			return internaljobs.Result{}, err
-		}
-	}
-
-	if e.deps.Memory != nil && (bsel.Tier == backends.TierLocalCPU || bsel.Tier == backends.TierLocalGPU) {
-		if model.Hardware.MinRAMGB <= 0 || model.Hardware.MinRAMGB > 1024 {
-			return internaljobs.Result{}, fmt.Errorf("ai: model %q requires a bounded host RAM budget before local execution", model.ID)
-		}
-		lease, err := e.deps.Memory(ctx, "image-tools:"+job.ID+":ram", int64(model.Hardware.MinRAMGB)<<30)
-		if err != nil {
-			return internaljobs.Result{}, fmt.Errorf("ai: local RAM capacity: %w", err)
-		}
-		if lease == nil {
-			return internaljobs.Result{}, errors.New("ai: local RAM admission returned no lease")
-		}
-		ctx = context.WithValue(ctx, operationMemoryContextKey{}, true)
-		var stopMemory func()
-		ctx, stopMemory = keepMemoryAlive(ctx, lease)
-		defer func() {
-			stopMemory()
-			if result.Meta == nil {
-				result.Meta = map[string]string{}
-			}
-			result.Meta["ram_capacity_claim_bytes"] = strconv.FormatInt(int64(model.Hardware.MinRAMGB)<<30, 10)
-			result.Meta["ram_capacity_policy"] = "shared-broker-no-reclaim"
-			cleanup, cancel := context.WithTimeout(context.WithoutCancel(jobContext), 10*time.Second)
-			defer cancel()
-			if err := lease.Release(cleanup); err != nil {
-				e.deps.Logger.Printf("ai: job %s RAM capacity release: %v", job.ID, err)
-				result.Meta["ram_capacity_release_warning"] = err.Error()
-				result.Meta["ram_capacity_release"] = "unknown; retained native TTL recovery"
-				runErr = errors.Join(runErr, fmt.Errorf("ai: release local RAM capacity: %w", err))
-			} else {
-				result.Meta["ram_capacity_release"] = "released"
-			}
-		}()
-	}
-
-	// Capacity arbitration (plan §7 Phase 7): when the selected tier is GPU, make
-	// an op-scoped VRAM claim against the host capacity broker. The broker may
-	// degrade this batch job to CPU when the GPU is contended by higher-priority
-	// work (e.g. an active transcription) — in which case we honor the verdict by
-	// re-selecting on CPU. Broker failures refuse unadmitted GPU work; a valid
-	// grant is renewed until execution stops, then released independently of
-	// job cancellation.
-	if e.deps.Capacity != nil && bsel.Tier == backends.TierLocalGPU {
-		host, err := e.deps.Probe.Inventory(ctx)
-		if err != nil {
-			return internaljobs.Result{}, fmt.Errorf("ai: GPU capacity inventory: %w", err)
-		}
-		gpu, err := capacityGPU(host, modelVRAMClaimBytes(model), bsel.Provider)
-		if err != nil {
-			return internaljobs.Result{}, err
-		}
-		lease, cerr := e.deps.Capacity.Claim(ctx, "image-tools:"+job.ID, modelVRAMClaimBytes(model), CapacityClaimOptions{
-			Priority:     pl.CapacityPriority,
-			AllowReclaim: pl.AllowReclaim,
-			GPUUUID:      gpu.UUID,
-		})
-		if cerr != nil {
-			return internaljobs.Result{}, fmt.Errorf("ai: GPU capacity admission failed: %w", cerr)
-		} else {
+		admission, err := e.Admit(ctx, job)
+		if admission.Release != nil {
 			defer func() {
-				if err := e.deps.Capacity.Release(jobContext, lease); err != nil {
-					e.deps.Logger.Printf("ai: job %s: %v", job.ID, err)
+				cleanup, stop := context.WithTimeout(context.WithoutCancel(jobContext), 10*time.Second)
+				defer stop()
+				if err := admission.Release(cleanup); err != nil {
+					runErr = errors.Join(runErr, err)
+				}
+				if len(admission.Meta) > 0 {
 					if result.Meta == nil {
 						result.Meta = map[string]string{}
 					}
-					result.Meta["capacity_release_warning"] = err.Error()
+					for key, value := range admission.Meta {
+						result.Meta[key] = value
+					}
 				}
 			}()
-			for _, w := range lease.Warnings {
-				e.deps.Logger.Printf("ai: capacity: %s", w)
-			}
-			if lease.DegradeToCPU {
-				if !model.Hardware.CPUCapable {
-					return internaljobs.Result{}, fmt.Errorf("ai: GPU capacity unavailable; model %q has no CPU execution path", model.ID)
-				}
-				emit(5, "GPU contended — capacity broker degraded this job to CPU")
-				bsel, err = e.deps.Backends.SelectProvider(ctx, backends.SelectRequest{
-					Operation:       op,
-					ModelBackend:    model.Backend,
-					GPUViable:       false,
-					AllowBYOK:       pl.AllowBYOK,
-					RequireAdapters: len(pl.Adapters) > 0,
-				})
-				if err != nil {
-					return internaljobs.Result{}, err
-				}
-			} else {
-				pl.GPUUUID = gpu.UUID
-				var stop func()
-				ctx, stop = keepCapacityAlive(ctx, e.deps.Capacity, lease, capacityClaimTTL/3)
-				defer stop()
-			}
 		}
+		if err != nil {
+			return internaljobs.Result{}, err
+		}
+		ctx = admission.Context
+		prepared, _ = ctx.Value(executionAdmissionKey{}).(*preparedExecution)
 	}
+	if prepared == nil {
+		return internaljobs.Result{}, errors.New("ai: execution was not admitted")
+	}
+	model, bsel, pl := prepared.model, prepared.selection, prepared.payload
 	emit(5, fmt.Sprintf("selected %s on %s", model.ID, bsel.Tier))
 
 	tmpDir, err := os.MkdirTemp("", "imgtools-ai-*")
@@ -683,13 +579,16 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 		delete(meta, MetaCostUSD)
 		delete(meta, MetaCostProvenance)
 	}
-	if releaseModelUse != nil {
-		releaseModelUse()
-		releaseModelUse = nil
-	}
-
 	primary := outKeys[0]
 	if e.deps.AutoScan != nil && pl.AutoScanNSFW && op != "scene_geometry" && op != "image_to_object" {
+		// Relinquish execution claims before the next model is admitted. A warm
+		// worker retains only its independently admitted resident ownership.
+		cleanup, stop := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		err := prepared.finishInference(cleanup)
+		stop()
+		if err != nil {
+			return internaljobs.Result{}, err
+		}
 		emit(92, "auto-scanning output for NSFW content")
 		if msg := e.autoScan(ctx, primary); msg != "" {
 			emit(96, msg)

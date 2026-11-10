@@ -3,10 +3,8 @@ package adapters
 import (
 	"fmt"
 	"path"
-	"regexp"
 	"strings"
 
-	"image-tools/internal/fetch"
 	"image-tools/internal/hfmeta"
 	"image-tools/internal/models"
 	"image-tools/internal/safety"
@@ -53,8 +51,6 @@ type ImportConfirm struct {
 	AttestCommercialRights bool
 }
 
-var idSanitizer = regexp.MustCompile(`[^a-z0-9._-]+`)
-
 // ProposeImport inspects metadata into a proposal: it infers the kind +
 // architecture and assembles the default entry. The proposal's Entry carries a
 // default id derived from the source; the operator confirms/overrides before
@@ -62,7 +58,7 @@ var idSanitizer = regexp.MustCompile(`[^a-z0-9._-]+`)
 func ProposeImport(meta hfmeta.Metadata) ImportProposal {
 	kind, kindEv := InferKind(meta)
 	arch, conf, archEv := models.InferArchitecture(meta)
-	entry := assembleEntry(meta, kind, arch, "", defaultID(meta), defaultName(meta))
+	entry := assembleEntry(meta, kind, arch, "", meta.ImportID("imported-adapter"), meta.ImportName("Imported adapter"))
 	return ImportProposal{
 		Metadata:     meta,
 		Kind:         kind,
@@ -112,7 +108,7 @@ func BuildImportEntry(meta hfmeta.Metadata, confirm ImportConfirm) (Adapter, err
 	}
 	name := confirm.Name
 	if strings.TrimSpace(name) == "" {
-		name = defaultName(meta)
+		name = meta.ImportName("Imported adapter")
 	}
 	entry := assembleEntry(meta, kind, arch, pre, confirm.ID, name)
 	if !entry.Source.HasFetchStrategy() {
@@ -142,7 +138,7 @@ func assembleEntry(meta hfmeta.Metadata, kind Kind, arch models.Architecture, pr
 		SizeMBApprox: int(meta.TotalSize() >> 20),
 		CapabilityLabels: models.CapabilityLabels{
 			NSFWCapable:      meta.NSFW,
-			License:          licenseLabel(meta.License),
+			License:          meta.LicenseLabel(),
 			BaseModelLineage: meta.BaseModel,
 			Provenance:       models.ProvenanceUserImported,
 		},
@@ -156,29 +152,8 @@ func assembleEntry(meta hfmeta.Metadata, kind Kind, arch models.Architecture, pr
 	return a
 }
 
-// applyLayoutSource sets the fetch strategy from the detected layout: a single-
-// file adapter installs as a direct Asset; a diffusers repo installs as a pinned
-// snapshot. A local source records its path.
 func applyLayoutSource(a *Adapter, meta hfmeta.Metadata) {
-	if isLocalSource(meta) {
-		a.Source.LocalPath = meta.Source
-		return
-	}
-	switch meta.Layout {
-	case hfmeta.LayoutSingleFile:
-		filename, url := singleFileAsset(meta)
-		if url != "" {
-			a.Source.Assets = []fetch.Asset{{
-				URL:      url,
-				Filename: filename,
-				Kind:     checkpointKind(filename),
-			}}
-		}
-	case hfmeta.LayoutDiffusersRepo:
-		if meta.RepoID != "" {
-			a.Source.Repo = fetch.RepoSpec{RepoID: meta.RepoID, Revision: meta.Revision}
-		}
-	}
+	a.Source = meta.ImportSource(".safetensors", ".ckpt", ".bin", ".pth")
 }
 
 // InferKind classifies an adapter source by its model-card tags, then filename
@@ -226,92 +201,4 @@ func defaultScaleRange(kind Kind) ScaleRange {
 		return ScaleRange{Min: 0, Max: 1, Default: 0.6}
 	}
 	return ScaleRange{Min: 0, Max: 2, Default: 1.0}
-}
-
-// licenseLabel normalizes a declared license to the catalog label (empty ⇒ the
-// explicit "unverified" marker the safety tier gate keys on).
-func licenseLabel(declared string) string {
-	if strings.TrimSpace(declared) == "" {
-		return "unverified"
-	}
-	return declared
-}
-
-func defaultID(meta hfmeta.Metadata) string {
-	base := meta.RepoID
-	if base == "" {
-		base = meta.Source
-	}
-	base = strings.ToLower(path.Base(strings.TrimRight(base, "/")))
-	base = strings.TrimSuffix(base, path.Ext(base))
-	base = idSanitizer.ReplaceAllString(base, "-")
-	base = strings.Trim(base, "-._")
-	if base == "" {
-		base = "imported-adapter"
-	}
-	return "imported-" + base
-}
-
-func defaultName(meta hfmeta.Metadata) string {
-	base := meta.RepoID
-	if base == "" {
-		base = path.Base(strings.TrimRight(meta.Source, "/"))
-	}
-	if strings.TrimSpace(base) == "" {
-		return "Imported adapter"
-	}
-	return base
-}
-
-// singleFileAsset returns the on-disk filename + resolvable URL for a single-file
-// source (an HF repo's top-level weight, or a direct URL).
-func singleFileAsset(meta hfmeta.Metadata) (filename, url string) {
-	if isURLSource(meta) {
-		name := path.Base(strings.SplitN(meta.Source, "?", 2)[0])
-		return name, meta.Source
-	}
-	if meta.RepoID != "" {
-		name := topLevelWeight(meta)
-		if name == "" {
-			return "", ""
-		}
-		rev := meta.Revision
-		if rev == "" {
-			rev = "main"
-		}
-		return name, fmt.Sprintf("https://huggingface.co/%s/resolve/%s/%s", meta.RepoID, rev, name)
-	}
-	return "", ""
-}
-
-// topLevelWeight returns the first top-level weight filename in the listing.
-func topLevelWeight(meta hfmeta.Metadata) string {
-	for _, f := range meta.Files {
-		if strings.Contains(strings.Trim(f.Path, "/"), "/") {
-			continue
-		}
-		name := path.Base(f.Path)
-		switch strings.ToLower(path.Ext(name)) {
-		case ".safetensors", ".ckpt", ".bin", ".pth":
-			return name
-		}
-	}
-	return ""
-}
-
-func checkpointKind(filename string) fetch.ArtifactKind {
-	switch strings.ToLower(path.Ext(filename)) {
-	case ".safetensors":
-		return fetch.ArtifactSafetensors
-	default:
-		return fetch.ArtifactGeneric
-	}
-}
-
-func isURLSource(meta hfmeta.Metadata) bool {
-	return strings.HasPrefix(meta.Source, "http://") || strings.HasPrefix(meta.Source, "https://")
-}
-
-func isLocalSource(meta hfmeta.Metadata) bool {
-	return strings.HasPrefix(meta.Source, "/") || strings.HasPrefix(meta.Source, ".")
 }

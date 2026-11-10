@@ -66,6 +66,9 @@ type Resolution struct {
 	Adapters []adapters.ResolvedAdapter
 	// Tier is the backend tier the op would run on (local-gpu|local-cpu|byok).
 	Tier string
+	// Provider is the exact backend selected for execution. Admission revalidates
+	// this identity so a queued request cannot silently change execution paths.
+	Provider string
 	// GPUViable is true when the chosen model would run on a detected GPU with
 	// known, sufficient VRAM.
 	GPUViable bool
@@ -184,6 +187,7 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error)
 			continue
 		}
 		res.Tier = bsel.Tier.String()
+		res.Provider = bsel.Provider.Name()
 		res.GPUViable = bsel.Tier == backends.TierLocalGPU
 		res.Warnings = append(res.Warnings, bsel.Warnings...)
 		res.Warnings = append(res.Warnings, skipped...)

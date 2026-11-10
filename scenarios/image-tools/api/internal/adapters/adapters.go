@@ -115,35 +115,7 @@ func (r ScaleRange) Clamp(v float64) float64 {
 	return v
 }
 
-// Source records where an adapter's weights come from, reusing the shared fetch
-// spine. Like a model, an adapter installs from direct Assets, a pinned Repo
-// snapshot, or a local path (mutually exclusive); the checksum is pinned on first
-// real download (never hand-written).
-type Source struct {
-	// Assets are direct, resolvable weight artifacts (a single .safetensors for a
-	// LoRA / IP-Adapter; the ControlNet files). Artifact-validated on install.
-	Assets []fetch.Asset `json:"assets,omitempty"`
-	// Repo is a multi-file diffusers repo snapshot (some ControlNets ship this
-	// way), fetched in whole at Repo.Revision. Mutually exclusive with Assets.
-	Repo fetch.RepoSpec `json:"repo,omitempty"`
-	// LocalPath points at already-present weights (custom/imported adapters).
-	LocalPath string `json:"local_path,omitempty"`
-	// SourceRepo / DocsURL are documentation-only provenance pointers.
-	SourceRepo string `json:"source_repo,omitempty"`
-	DocsURL    string `json:"docs_url,omitempty"`
-	// Checksum is the integrity record, pinned on first download.
-	Checksum models.Checksum `json:"checksum"`
-}
-
-// HasRepo reports whether the source installs from a multi-file repo snapshot.
-func (s Source) HasRepo() bool { return strings.TrimSpace(s.Repo.RepoID) != "" }
-
-// HasFetchStrategy reports whether the adapter declares a concrete, auto-
-// resolvable install source (assets, a pinned repo, or a local path). An adapter
-// with none cannot be installed and is caught by the catalog doctor.
-func (s Source) HasFetchStrategy() bool {
-	return strings.TrimSpace(s.LocalPath) != "" || s.HasRepo() || len(s.Assets) > 0
-}
+type Source = fetch.Source
 
 // Adapter is one catalog entry: a conditioning modifier compatible with exactly
 // one base architecture.

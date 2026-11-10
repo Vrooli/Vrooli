@@ -29,6 +29,18 @@ CREATE TABLE IF NOT EXISTS model_install (
   installed_at TEXT NOT NULL DEFAULT ''
 );
 
+-- Preparation phase is distinct from artifact acquisition. Readiness reconciles
+-- this transition record with the current artifact/runtime smoke fingerprints.
+CREATE TABLE IF NOT EXISTS model_lifecycle (
+  id            TEXT PRIMARY KEY,
+  state         TEXT NOT NULL,
+  reason        TEXT NOT NULL,
+  detail        TEXT NOT NULL DEFAULT '',
+  artifact_hash TEXT NOT NULL DEFAULT '',
+  runtime_hash  TEXT NOT NULL DEFAULT '',
+  updated_at    TEXT NOT NULL
+);
+
 -- Build-operation intent is persisted before dispatch so an exporter service
 -- remains attributable and recoverable across API restarts. It stores the
 -- operation identity, never its environment, which can contain credentials.

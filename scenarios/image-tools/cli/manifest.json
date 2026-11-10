@@ -52,7 +52,14 @@
               "network:internal"
             ]
           },
-          "semantics": {"kind": "query", "blocks": {"replaces": ["image-tools jobs get"]}}
+          "semantics": {
+            "kind": "query",
+            "blocks": {
+              "replaces": [
+                "image-tools jobs get"
+              ]
+            }
+          }
         },
         {
           "name": "list",
@@ -308,6 +315,35 @@
           }
         },
         {
+          "name": "provision",
+          "description": "Prepare runtime, backend tools and models in one durable job, retaining timed readiness evidence",
+          "flags": [
+            {
+              "name": "models",
+              "description": "Comma-separated model IDs (default: minimal host-fit models covering all enabled capabilities; readiness remains incomplete for unsupported capabilities)",
+              "local_only": true
+            },
+            {
+              "name": "wait",
+              "bool": true,
+              "description": "Block once until preparation completes",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ModelsService",
+            "method": "ProvisionModels"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
           "name": "install",
           "description": "Install model weights or revalidate an installed runtime as a durable job (--wait to block once on completion)",
           "positionals": [
@@ -462,7 +498,7 @@
             },
             {
               "name": "attest-commercial-rights",
-              "description": "Attest you hold commercial rights, allowing public/BYOK serving (decision D4)",
+              "description": "Required: attest you hold commercial rights before model registration or weight download",
               "bool": true
             }
           ],
@@ -795,8 +831,32 @@
     },
     {
       "name": "ops",
-      "description": "Run deterministic image operations (resize, crop, convert, \u2026)",
+      "description": "Run deterministic image operations (resize, crop, convert, \u2026) and import public image links",
       "commands": [
+        {
+          "name": "import-link",
+          "description": "Safely fetch a public image URL into Image Tools input storage",
+          "needs_api": true,
+          "positionals": [
+            {
+              "name": "url",
+              "required": true,
+              "description": "Public HTTP(S) URL of a raster image"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "import-link"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "network:external"
+            ]
+          }
+        },
         {
           "name": "list",
           "description": "List deterministic operations and supported formats",
@@ -1377,6 +1437,60 @@
               "local_only": true
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "quality",
+      "description": "Score reference output sets and gate model changes",
+      "commands": [
+        {
+          "name": "profiles",
+          "description": "List quality evaluation profiles and operation coverage",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "QualityService",
+            "method": "ListQualityProfiles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "measures",
+      "description": "Query owner-recorded model performance measurements",
+      "commands": [
+        {
+          "name": "models",
+          "description": "Query measured cold, warm and peak-memory profiles by model or operation",
+          "needs_api": true,
+          "flags": [
+            {
+              "name": "model",
+              "description": "Filter by model id"
+            },
+            {
+              "name": "operation",
+              "description": "Filter by operation"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "model_profiles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         }
       ]
     }
