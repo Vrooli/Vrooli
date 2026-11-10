@@ -18,13 +18,20 @@ import (
 )
 
 func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
-	return cliapp.SubcommandGroup{Name: "device", Description: "Inventory and onboard governed devices", NeedsAPI: true, Subcommands: append(inspectionCommands(core), []cliapp.Command{
-		command("list", "List devices with probed capability snapshots", cliapp.ArgSchema{}, func(ctx cliapp.RunContext) error {
+	return cliapp.SubcommandGroup{Name: "device", Description: "Inventory and onboard governed devices", NeedsAPI: true, Subcommands: append(append(inspectionCommands(core), userVerbs(core)...), []cliapp.Command{
+		command("list", "List your TVs, Google TVs, phones and tablets: one short row each with the one-call verbs it supports (screenshot, record, open, wake)", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "all", Bool: true, Description: "include unreachable and retained-but-absent rows"}, {Name: "full", Bool: true, Description: "print the complete inventory with every capability probe"}}}, func(ctx cliapp.RunContext) error {
 			b, err := core.Request(http.MethodGet, "/devices", nil, nil)
 			if err != nil {
 				return err
 			}
-			return emit(ctx, b, "Devices")
+			if ctx.BoolFlag("full") {
+				return emit(ctx, b, "Devices")
+			}
+			compact, err := compactDevices(b, ctx.BoolFlag("all"))
+			if err != nil {
+				return err
+			}
+			return emitValue(ctx, compact, "Devices")
 		}),
 		command("relations", "List unconfirmed transport correlation candidates", cliapp.ArgSchema{}, func(ctx cliapp.RunContext) error {
 			b, err := core.Request(http.MethodGet, "/devices/relations", nil, nil)
@@ -57,12 +64,12 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 		command("semantics", "Read a bounded accessibility snapshot from a device", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "device id"}}, Flags: []cliapp.Flag{{Name: "lease", Description: "existing device lease; acquired automatically if omitted"}, {Name: "transport", Description: "exact observed transport profile"}, {Name: "actor", Default: "cli", Description: "lease actor"}}}, func(ctx cliapp.RunContext) error {
 			return post(ctx, core, "/devices/"+url.PathEscape(ctx.Positional("id"))+"/semantics", map[string]any{"lease_token": ctx.Flag("lease"), "transport": ctx.Flag("transport"), "actor": ctx.Flag("actor")}, "Device semantics")
 		}),
-		command("capture", "Capture available device evidence or report an observation gap", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "exact device id or unique name"}}, Flags: []cliapp.Flag{{Name: "kind", Required: true, Description: "screenshot, recording, logs, console, or network"}, {Name: "seconds", Default: "5", Description: "recording duration, 1 to 30 seconds"}, {Name: "require-audio", Bool: true, Description: "opt in to playback audio; Android requires on-device consent for each session and verifies the audio track"}, {Name: "package", Description: "exact application package for logs"}, {Name: "actor", Default: "cli", Description: "audit actor"}}}, func(ctx cliapp.RunContext) error {
+		command("capture", "Low-level evidence capture by explicit kind (screenshot, recording, logs); prefer the screenshot and record verbs", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "exact device id or unique name"}}, Flags: []cliapp.Flag{{Name: "kind", Required: true, Description: "screenshot, recording, logs, console, or network"}, {Name: "seconds", Default: "5", Description: "recording duration, 1 to 30 seconds"}, {Name: "require-audio", Bool: true, Description: "opt in to playback audio; Android requires on-device consent for each session and verifies the audio track"}, {Name: "package", Description: "exact application package for logs"}, {Name: "wake", Bool: true, Description: "wake the screen first (screenshot and recording)"}, {Name: "home", Bool: true, Description: "wake and press Home first"}, {Name: "actor", Default: "cli", Description: "audit actor"}}}, func(ctx cliapp.RunContext) error {
 			seconds, err := strconv.Atoi(ctx.Flag("seconds"))
 			if err != nil || seconds < 1 || seconds > 30 {
 				return fmt.Errorf("seconds must be between 1 and 30")
 			}
-			return post(ctx, core, "/devices/"+url.PathEscape(ctx.Positional("id"))+"/capture", map[string]any{"kind": ctx.Flag("kind"), "seconds": seconds, "package": ctx.Flag("package"), "require_audio": ctx.BoolFlag("require-audio"), "actor": ctx.Flag("actor")}, "Device capture")
+			return post(ctx, core, "/devices/"+url.PathEscape(ctx.Positional("id"))+"/capture", map[string]any{"kind": ctx.Flag("kind"), "seconds": seconds, "package": ctx.Flag("package"), "require_audio": ctx.BoolFlag("require-audio"), "wake": ctx.BoolFlag("wake") || ctx.BoolFlag("home"), "home": ctx.BoolFlag("home"), "actor": ctx.Flag("actor")}, "Device capture")
 		}),
 		command("screen", "Wake, sleep, or prepare a device and verify its reported state", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "exact device id or unique name"}}, Flags: []cliapp.Flag{{Name: "operation", Required: true, Description: "wake, sleep, or ready"}, {Name: "auth-profile", Description: "authentication profile for ready when locked"}, {Name: "home", Bool: true, Description: "request Home after ready; may change the foreground application"}, {Name: "actor", Default: "cli", Description: "audit actor"}}}, func(ctx cliapp.RunContext) error {
 			return post(ctx, core, "/devices/"+url.PathEscape(ctx.Positional("id"))+"/screen", map[string]any{"operation": ctx.Flag("operation"), "auth_profile_id": ctx.Flag("auth-profile"), "home": ctx.BoolFlag("home"), "actor": ctx.Flag("actor")}, "Screen operation")
@@ -151,8 +158,8 @@ func Group(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
 			}
 			return emit(ctx, b, "Device forgotten")
 		}),
-		command("onboard-network", "Onboard a directly-addressable network ADB endpoint (TV/box, classic TCP 5555 or Wireless Debugging/TLS)", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "endpoint", Required: true, Description: "host:port of the ADB endpoint (e.g. 192.168.1.158:5555)"}}}, func(ctx cliapp.RunContext) error {
-			return post(ctx, core, "/devices/onboard-network", map[string]string{"endpoint": ctx.Flag("endpoint")}, "Network device onboarding")
+		command("onboard-network", "Onboard a directly-addressable network ADB endpoint (TV/box, classic TCP 5555 or Wireless Debugging/TLS)", cliapp.ArgSchema{Flags: []cliapp.Flag{{Name: "endpoint", Required: true, Description: "host:port of the ADB endpoint (e.g. 192.168.1.158:5555)"}, {Name: "attach-to", Description: "existing device id (for example the Cast TV) that this ADB endpoint belongs to; folds ADB in as another transport of the same device"}}}, func(ctx cliapp.RunContext) error {
+			return post(ctx, core, "/devices/onboard-network", map[string]string{"endpoint": ctx.Flag("endpoint"), "attach_to": ctx.Flag("attach-to")}, "Network device onboarding")
 		}),
 		command("promote", "Promote an onboarded Android device to wireless ADB", cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "id", Required: true, Description: "USB-onboarded device id"}}, Flags: []cliapp.Flag{{Name: "transport", Required: true, Description: "wireless"}}}, func(ctx cliapp.RunContext) error {
 			if ctx.Flag("transport") != "wireless" {

@@ -123,9 +123,14 @@ func (p *Provider) admit(ctx context.Context) (func(), error) {
 	}, nil
 }
 
+func isHealthPath(path string) bool { return path == "/health" || path == "/api/v1/health" }
+
 func (p *Provider) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if len(r.URL.Path) >= len(servicePath) && r.URL.Path[:len(servicePath)] == servicePath {
+		if (len(r.URL.Path) >= len(servicePath) && r.URL.Path[:len(servicePath)] == servicePath) || isHealthPath(r.URL.Path) {
+			// Lifecycle RPCs and health probes stay reachable while admission is
+			// closed: the control plane must see a healthy replacement before it
+			// can resume the durable fence, and probes carry no owner work.
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -371,7 +376,11 @@ func (p *Provider) standing() *commonv1.LifecycleStanding {
 			blockers = append(blockers, &commonv1.LifecycleBlocker{Code: "owner_inventory_unavailable", Message: "owner has not supplied lifecycle completion evidence: " + owner, Disposition: commonv1.LifecycleBlockerDisposition_LIFECYCLE_BLOCKER_DISPOSITION_UNKNOWN, Observed: true})
 		}
 	}
-	drained := p.closed && p.active == 0 && complete && len(blockers) == 0
+	// Owner quiescence still owed (the replacement-only stage that stops owner
+	// work and enumerated components) means the provider is not yet drained; the
+	// control plane drains with QuiesceComponents first, which completes it.
+	quiescencePending := p.closed && p.quiesce != nil && !p.componentQuiesced
+	drained := p.closed && p.active == 0 && complete && len(blockers) == 0 && !quiescencePending
 	phase := commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_OPEN
 	if p.closed {
 		phase = commonv1.LifecycleMaintenancePhase_LIFECYCLE_MAINTENANCE_PHASE_CLOSING
@@ -383,5 +392,5 @@ func (p *Provider) standing() *commonv1.LifecycleStanding {
 	if token == "" {
 		token = strconv.FormatInt(p.revision, 10)
 	}
-	return &commonv1.LifecycleStanding{Provider: "device-control", ProviderInstanceId: p.instance, Scenario: "device-control", InstanceId: p.instance, OperationId: p.operation, FenceToken: token, Revision: p.revision, Phase: phase, AdmissionClosed: p.closed, Admitting: int32(p.active), Remaining: int32(len(blockers)), InventoryComplete: complete, Drained: drained, Work: work, Blockers: blockers, ObservedAt: timestamppb.Now(), Interlock: "device-control-owner-fence-v1", ManagedComponents: components, ComponentStopReady: p.closed && p.componentQuiesced && complete && workQuiesced, QuiescencePending: p.closed && p.quiesce != nil && !p.componentQuiesced}
+	return &commonv1.LifecycleStanding{Provider: "device-control", ProviderInstanceId: p.instance, Scenario: "device-control", InstanceId: p.instance, OperationId: p.operation, FenceToken: token, Revision: p.revision, Phase: phase, AdmissionClosed: p.closed, Admitting: int32(p.active), Remaining: int32(len(blockers)), InventoryComplete: complete, Drained: drained, Work: work, Blockers: blockers, ObservedAt: timestamppb.Now(), Interlock: "device-control-owner-fence-v1", FencePersistence: commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE, ManagedComponents: components, ComponentStopReady: p.closed && p.componentQuiesced && complete && workQuiesced, QuiescencePending: quiescencePending}
 }

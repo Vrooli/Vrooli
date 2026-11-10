@@ -90,23 +90,17 @@ func (s *Service) LifecycleInventory(ctx context.Context) ([]*commonv1.Lifecycle
 	pairings := len(s.pendingPairings)
 	recordings := len(s.externalRecordings)
 	for id, recording := range s.externalRecordings {
-		status := "active"
-		if recording.Stopping {
-			status = "stopping"
-		}
-		if recording.Uncertain {
-			status = "uncertain"
-		}
+		status := map[closeState]string{stateOpen: "active", stateClosing: "stopping", stateUncertain: "uncertain"}[recording.State]
 		add("recordings", "recording/"+id, status, "recording "+id+" has not reached a verified stop receipt")
 	}
 	for id, pairing := range s.pendingPairings {
 		status := "pending"
 		message := "pairing session " + id + " remains open"
-		if pairing.closing {
+		switch pairing.close {
+		case stateClosing:
 			status = "closing"
 			message = "pairing session " + id + " is closing and has not returned a close receipt"
-		}
-		if pairing.uncertain {
+		case stateUncertain:
 			status = "uncertain"
 			message = "pairing session " + id + " close did not return a verified receipt"
 		}

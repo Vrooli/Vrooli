@@ -36,6 +36,15 @@ Known unresolved issues belong in [`PROBLEMS.md`](PROBLEMS.md).
 | D-013 | 2026-08-13 | Android generated-app conformance belongs to scenario-to-android; device-control retains only the provider-neutral device capability self-test. | The delivery ramp needs to vary its chapter set without changing the device strategy, while device-control must prove install, permissions, screenshot, and recording independently of a fixture. | Revisit when a device capability cannot be self-tested without an application supplied by a delivery ramp. |
 | D-014 | 2026-09-06 | Keep the native desktop adapter in the lifecycle-managed Go helper and do not add Terminator as a runtime dependency. | A pinned Terminator release must expose a supported, embeddable adapter boundary with equivalent helper-owned identity, lease/session checks, and packaging evidence. |
 | D-015 | 2026-09-17 | Treat Android TV and TV boxes as first-class Android targets of `android-adb`, with controller-owned network transport profiles and owner-asserted composition with Cast/Android TV Remote. Application install and launch stay behind the same lease, artifact-identity, capability-probe, audit, and postcondition gates as phone control. | A future Android transport or vendor API provides a stronger identity and application-control contract without weakening the common strategy boundary. |
+| D-016 | 2026-11-09 | Cast, Android TV Remote and ADB-over-network are transports of one TV. A same-host candidate is confirmed explicitly (`device relation-confirm`, or `onboard-network --attach-to`); the non-ADB identity stays canonical; model disagreement refuses unless forced. | A transport offers a hardware claim shared with Cast, making confirmation automatic and safe. |
+| D-017 | 2026-11-09 | One-call verbs (`screenshot`, `record`, `open`) own wake and evidence download; capture gaps and failures always carry `next_actions`; `device list` is compact by default. | A verb needs a side effect the owner has not authorized (for example Home), or callers need the full inventory by default. |
+| D-018 | 2026-11-09 | Inventory reconnects an absent network ADB endpoint once, gated by a 60 s backoff per device; a display name resolves without inventory only when freshly observed and available. | A transport reports presence cheaply enough to poll, or name collisions make cached resolution unsafe. |
+| D-019 | 2026-11-09 | Observe and open-app are programs bound to new typed `DeviceService` RPCs (`CaptureDevice`, `LaunchApp`), not canned flows. | The flow engine gains transport selection and wake as step semantics. |
+| D-020 | 2026-11-09 | Owner-held resources with a fallible close (pairing handshake, native recording) share one explicit protocol: open, closing, uncertain; an uncertain close is never replayed. | A third owner needs a retry-from-uncertain policy. |
+| D-021 | 2026-11-09 | Executable specifications of user journeys are Gherkin `.feature` files run by `internal/testutil/gherkin` (`TestFeatures`); unit-level Go tests remain for pure functions and fixtures too rich for plain steps. | A maintained Gherkin framework is approved as a dependency and replaces the in-repo runner. |
+| D-022 | 2026-11-09 | The lifecycle provider declares `OPERATION_DURABLE` fence persistence, reports not-drained while owner quiescence is owed, and serves `/health` and `/api/v1/health` behind a closed fence. | The shared `api-core` lifecycle provider replaces the local one. |
+| D-023 | 2026-11-09 | Hands-free unlock: when a swipe does not unlock a locked phone, `screen ready` (and so every one-call verb) uses the device's own active unlock profile; a profile whose last outcome was wrong, failed or unconfigured is never retried automatically. Lock-screen security settings are never changed. | A stronger unattended-unlock mechanism (for example a trusted-place or trusted-device policy the owner configures) replaces the PIN path. |
+| D-024 | 2026-11-09 | "Try an app on a phone" is one verb (`device install --apk --open --screenshot`, RPC `InstallApp`) and one program (`device-control.check-app`); `check-app` also covers screenshot-only and the install-free TV path. The separate `observe` and `open-app` programs were folded into it. | Programs need recording or log capture, or a second program shape (then reinstate `observe`). |
 
 ## Decision Details
 
@@ -310,3 +319,100 @@ remote-desktop scenario is not introduced for this release.
 - [`SEAMS.md`](SEAMS.md) — the seams these decisions imply
 - [`PROBLEMS.md`](PROBLEMS.md) — unresolved drift and debt
 - [`PROGRESS.md`](PROGRESS.md) — completed work history
+
+### D-016 — One TV, several transports (2026-11-09)
+
+*Evidence.* A Cast TV, its Android TV Remote endpoint and its ADB endpoint appear as separate identities; the
+agent session of 2026-11-07 minted a fourth ephemeral one and could not take a screenshot. The relation
+candidate (same normalized host, confidence 0.72) already existed and nothing surfaced it.
+
+*Decision.* The owner confirms the relation. The merge asserts the ADB hardware serial (`adb-serial`), keeps the
+identity the owner already knows canonical, retains every transport profile across restart, and routes the ADB profile
+by serial plus network endpoint (`strategyForFlow` no longer requires the identity's primary transport to be
+`wireless`). Confirmation refuses when both sides report a model and the names disagree unless forced.
+
+*Alternatives.* Auto-merge at 0.72 confidence: rejected, same-host is not same-device (bridges, containers, NAT).
+One identity per host: rejected, it loses the per-transport capability honesty of D-002. A new "ADB rung" as a
+separate identity kind: rejected, it recreates the second identity the owner cannot name.
+*Switch cost.* Auto-confirmation would be a one-function change in `ConfirmRelation`'s caller; the merge, routing and
+persistence are already transport-agnostic.
+
+*Why the identity "vanished" (2026-11-07).* It did not: it was retained but reported `device not present on host
+node local`, so `device list` hid it. Network ADB endpoints never reconnected after the host's adb server dropped
+them. D-018 fixes the cause; the hidden-row presentation is now explicit through `device list --all`.
+
+### D-017 — One-call verbs and next actions (2026-11-09)
+
+`screenshot`, `record` and `open` wake the screen first (`--no-wake` opts out; Home is opt-in because it can change the
+foreground app), download evidence to a file, and exit non-zero with `next_actions` on a gap or failure. The service-level
+`Capture` keeps wake opt-in (`wake`, `home`) so flow callers see no new side effect.
+*Alternatives.* Default wake inside `Capture`: rejected, an invisible actuation for programmatic callers. A single
+`observe` verb with `--kind`: rejected, a TV owner searches for "screenshot" and "record".
+*Switch cost.* Defaults live in `cli/domains/control/verbs.go` and the program inputs; changing one is a flag default.
+
+### D-018 — Reconnect and name resolution (2026-11-09)
+
+`startPromotedDiscoveries` reconnects an endpoint-bound adapter whose endpoint is absent, behind `reconnectGate` (one
+attempt in flight, 60 s after a failure). Name resolution used to run a full inventory (about 7 s) per call; a unique,
+available, recently observed identity (2 minutes) now resolves directly, and anything else still inventories.
+*Alternatives.* Periodic background reconnect: rejected, it pings a sleeping TV forever. Longer freshness window:
+rejected, stale `available` rows would route to a dropped endpoint.
+*Switch cost.* Two constants (`reconnectBackoff`, `freshNameWindow`).
+
+### D-019 — Programs bind to typed RPCs (2026-11-09)
+
+Governed program bindings derive from `cli/manifest.json` commands with `connect-rpc` bindings. A canned flow through
+`flow/run` cannot select a frame-bearing transport or wake the device, so `CaptureDevice` and `LaunchApp` were added
+to `DeviceService` (single repeated response field each, so the binding has an unambiguous primary field).
+*Switch cost.* Proto regeneration through the governed owner command; consumers are the two programs and the CLI manifest.
+
+### D-020 — Close protocol (2026-11-09)
+
+`closeState` replaces the `closing`/`uncertain` and `Stopping`/`Uncertain` boolean pairs. A completion arriving at an
+uncertain pairing session is now refused (previously it could proceed with the flags in a contradictory state).
+
+### D-021 — Gherkin specifications (2026-11-09)
+
+`api/internal/control/features/*.feature` hold the journeys: one TV many transports, open an app, close protocol,
+pairing close, reconnect gating. The runner supports Feature, Background, Scenario, Scenario Outline with Examples,
+and regex steps, in about 200 lines with its own tests. *Alternative:* godog, rejected for now because a dependency
+needs analyzer approval and the runner covers current needs.
+
+### D-022 — Lifecycle provider contract (2026-11-09)
+
+`vrooli scenario restart device-control` failed in three separate ways, found by running it:
+(1) the standing carried no `fence_persistence`, so the control plane could not prove a durable fence across the
+replacement; (2) an idle provider with quiescence still owed reported `drained` and `quiescence_pending` together,
+which the control plane rejects; (3) `/health` returned 503 behind the closed durable fence, but the control plane waits
+for a healthy replacement *before* resuming the fence, so every restart stranded the scenario with admission closed.
+All three are fixed in `api/handlers/lifecycle/provider.go` with tests; a restart now completes in about 7 s.
+A stranded fence was recovered by resuming it with its exact operation id, token and revision (the same Resume the
+control plane issues), then verified with two further ordinary restarts.
+*Alternative.* Move to the shared `packages/api-core/lifecycle` provider, which already serves health under a closed
+gate: deferred, because this provider's durable (SQLite) fence and component quiescence hooks are device-control specific.
+
+### D-023 — Hands-free unlock (2026-11-09)
+
+*Finding.* The moto had an active, provisioned PIN profile (credential provider available, last outcome
+`already_unlocked`), yet `screenshot`, `open` and `observe` reported "locked". `screen ready` only used a profile when
+`--auth-profile` was passed, so no one-call verb ever unlocked. The Galaxy A03s's only active profile last failed with
+`wrong_credential` and its credential version metadata is absent, so it needs one re-provision.
+*Decision.* Choose (a): a profile-backed unlock inside the ready path, after a swipe attempt, selecting the newest active
+profile whose last outcome is not wrong/failed/unconfigured (`auth.UnlockCandidate`). Wrong-PIN retries would burn the phone's
+lockout counter, so such a profile is surfaced as a re-provision step instead. The onboarding ladder (`connect --kind android`)
+has an `unattended-unlock` rung with the exact setup commands, and every locked-screen gap prints them. The PIN is only ever
+piped to `auth provision`.
+*Alternatives.* (b) keep-awake plus a swipe-only lock screen: rejected as the default because it weakens the phone's security
+and the operator asked that lock settings stay untouched; it remains the owner's own choice. (c) both: the profile path already
+covers a swipe-only screen through the dismissal step that runs first.
+*Switch cost.* One selector function and one call site in `Service.Screen`.
+
+### D-024 — One program for try-an-app (2026-11-09)
+
+*Install* was only reachable through the verified-artifact flow step; a local APK had no one-call path. `InstallApp` reads the package identity from the APK
+itself (aapt), installs through the transport that declares app lifecycle, proves it with package-state and the APK's version code, then reuses `LaunchApp` and
+`Capture`. A failed install never reaches open or screenshot.
+*Why programs were merged.* Adding install and check-app pushed the skill out of the top five for phone queries (recall 15/16 fell to 10/16): five device-control
+leaves filled the list. Folding `observe` and `open-app` into `check-app` restored 15/16. Recall budgets leaf count, not only wording.
+*TV.* The TV path of `check-app` sends no install: `app` given, open then screenshot only.
+*Switch cost.* Reinstating a program is a JSON and Python file pair over existing bindings.

@@ -115,33 +115,3 @@ func (f *SensorOnly) Describe(context.Context) (strategy.Declaration, error) {
 func (f *SensorOnly) ReadSensors(context.Context) ([]strategy.SensorReading, error) {
 	return append([]strategy.SensorReading(nil), f.Readings...), nil
 }
-
-type MediaOnly struct {
-	Declaration strategy.Declaration
-	Commands    []strategy.MediaCommand
-}
-
-func NewMediaOnly(id string) *MediaOnly {
-	return &MediaOnly{Declaration: strategy.Declaration{
-		StrategyID: id, Description: "media fixture", Status: strategy.StatusAvailable,
-		Capabilities: map[string]strategy.Capability{
-			strategy.CapMedia:      {Name: strategy.CapMedia, Status: strategy.StatusAvailable, StateClass: strategy.EventBearing},
-			strategy.CapInput:      {Name: strategy.CapInput, Status: strategy.StatusUnavailable, Reason: "media fixture has no generic input"},
-			strategy.CapScreenshot: {Name: strategy.CapScreenshot, Status: strategy.StatusUnavailable, Reason: "media fixture has no screen"},
-		}, Promotable: true, EvidenceClass: "fixture",
-	}}
-}
-func (f *MediaOnly) ID() string { return f.Declaration.StrategyID }
-func (f *MediaOnly) Describe(context.Context) (strategy.Declaration, error) {
-	return f.Declaration, nil
-}
-
-func (f *MediaOnly) ControlMedia(_ context.Context, command strategy.MediaCommand) error {
-	switch command.Action {
-	case "play", "pause", "stop", "next", "previous", "volume":
-		f.Commands = append(f.Commands, command)
-		return nil
-	default:
-		return fmt.Errorf("unsupported media command %q", command.Action)
-	}
-}

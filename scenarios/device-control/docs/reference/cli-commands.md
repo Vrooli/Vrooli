@@ -119,7 +119,25 @@ contracts below. Document your domain's commands here as you build
 them, one row/section per command, mirroring the endpoints they call
 in [`api-endpoints.md`](api-endpoints.md).
 
-The device group includes the LAN and identity operations:
+The device group leads with one-call verbs. Each wakes the screen unless
+`--no-wake`, verifies its outcome, writes artifacts to a temp file (or `--out`),
+and exits non-zero with `next_actions` when it cannot finish:
+
+```bash
+device-control device list [--all|--full]            # compact rows: id, name, status, can: [screenshot, record, open, ...]
+device-control device screenshot "<name>" [--home] [--out file]
+device-control device record "<name>" --seconds 8 [--out file]
+device-control device open "<name>" --app netflix    # name or exact package; verifies the foreground
+device-control device evidence <evidence-id> [--out file]
+device-control device relations                      # same-host transport candidates
+device-control device relation-confirm <candidate-id> [--force]
+device-control device onboard-network --endpoint <host>:5555 [--attach-to <device-id>]
+```
+
+`screenshot` and `open` are bound to the `CaptureDevice` and `LaunchApp` RPCs, which
+the `device-control.check-app` program calls.
+
+The device group also includes the LAN and identity operations:
 
 ```bash
 device-control device discover --service _googlecast._tcp --timeout-seconds 10 --json

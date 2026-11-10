@@ -9,7 +9,7 @@
       "commands": [
         {
           "name": "list",
-          "description": "List devices",
+          "description": "List your TVs, Google TVs, phones and tablets: one short row each with the one-call verbs it supports (screenshot, record, open, wake)",
           "binding": {
             "kind": "connect-rpc",
             "service": "DeviceService",
@@ -25,7 +25,7 @@
         },
         {
           "name": "relations",
-          "description": "List unconfirmed transport correlation candidates",
+          "description": "List same-host transport candidates, such as a Cast TV and its ADB endpoint, that may be one physical device (confirm with relation-confirm)",
           "binding": {
             "kind": "local"
           },
@@ -53,7 +53,7 @@
         },
         {
           "name": "state",
-          "description": "Read live state from a device",
+          "description": "Read live state of a TV or phone: screen on or off, locked, foreground app, volume, playback",
           "positionals": [
             {
               "name": "id",
@@ -74,26 +74,121 @@
         {
           "name": "semantics",
           "description": "Read a bounded accessibility snapshot from a device",
-          "positionals": [{"name": "id", "required": true}],
-          "flags": [{"name": "lease"}, {"name": "transport"}, {"name": "actor", "default": "cli"}],
-          "binding": {"kind": "local"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "lease"
+            },
+            {
+              "name": "transport"
+            },
+            {
+              "name": "actor",
+              "default": "cli"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "capture",
-          "description": "Capture available device evidence or report an observation gap",
-          "positionals": [{"name": "id", "required": true}],
-          "flags": [{"name": "kind", "required": true}, {"name": "seconds", "default": "5"}, {"name": "require-audio", "type": "bool", "description": "Opt in to playback audio; Android requires on-device consent for each session and verifies the audio track"}, {"name": "package"}, {"name": "actor"}],
-          "binding": {"kind": "local"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "description": "Low-level evidence capture by explicit kind (screenshot, recording, logs); prefer the screenshot and record verbs",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "kind",
+              "required": true
+            },
+            {
+              "name": "seconds",
+              "default": "5"
+            },
+            {
+              "name": "require-audio",
+              "type": "bool",
+              "description": "Opt in to playback audio; Android requires on-device consent for each session and verifies the audio track"
+            },
+            {
+              "name": "package"
+            },
+            {
+              "name": "wake",
+              "type": "bool",
+              "description": "wake the screen first (screenshot and recording)"
+            },
+            {
+              "name": "home",
+              "type": "bool",
+              "description": "wake and press Home first"
+            },
+            {
+              "name": "actor"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "screen",
-          "description": "Wake, sleep, or prepare a device and verify its reported state",
-          "positionals": [{"name": "id", "required": true}],
-          "flags": [{"name": "operation", "required": true}, {"name": "auth-profile"}, {"name": "home", "type": "bool"}, {"name": "actor"}],
-          "binding": {"kind": "local"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "description": "Wake, sleep or ready a TV, Google TV or phone screen and verify its reported state; --home also opens the home screen",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "operation",
+              "required": true
+            },
+            {
+              "name": "auth-profile"
+            },
+            {
+              "name": "home",
+              "type": "bool"
+            },
+            {
+              "name": "actor"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "volume",
@@ -301,7 +396,7 @@
         },
         {
           "name": "app",
-          "description": "Run one lease-owned app lifecycle operation",
+          "description": "Run one lease-owned Android app lifecycle operation (launch, stop, package-state, permissions); use open for the one-call app launch",
           "positionals": [
             {
               "name": "id",
@@ -364,11 +459,18 @@
               "network:internal"
             ]
           },
-          "semantics": {"kind": "query", "blocks": {"replaces": ["device-control device state"]}}
+          "semantics": {
+            "kind": "query",
+            "blocks": {
+              "replaces": [
+                "device-control device state"
+              ]
+            }
+          }
         },
         {
           "name": "describe",
-          "description": "Describe one device and every transport capability profile",
+          "description": "Describe one TV or phone: every transport it has, which can screenshot, record, open apps or send keys, and why not when one cannot",
           "positionals": [
             {
               "name": "id",
@@ -388,7 +490,7 @@
         },
         {
           "name": "connect",
-          "description": "Show device onboarding",
+          "description": "Show the guided setup ladder to connect an Android phone, an iPhone or a Google TV, including the ADB network debugging rung",
           "flags": [
             {
               "name": "kind",
@@ -422,12 +524,16 @@
         },
         {
           "name": "onboard-network",
-          "description": "Onboard a directly-addressable network ADB endpoint (TV/box, classic TCP 5555 or Wireless Debugging/TLS)",
+          "description": "Connect a TV or Android box over network ADB (host:5555) and optionally attach it to the Cast or Google TV device it belongs to",
           "flags": [
             {
               "name": "endpoint",
               "required": true,
               "description": "host:port of the ADB endpoint (e.g. 192.168.1.158:5555)"
+            },
+            {
+              "name": "attach-to",
+              "description": "existing device id this ADB endpoint belongs to; folds ADB in as another transport of the same device"
             }
           ],
           "binding": {
@@ -573,6 +679,224 @@
           },
           "governance": {
             "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "screenshot",
+          "description": "Take a screenshot of a TV, Google TV, Android phone or tablet in one call: wakes the screen, captures, saves the PNG and prints its path",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "bind": {
+                "field": "device"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "home",
+              "type": "bool"
+            },
+            {
+              "name": "wake",
+              "type": "bool"
+            },
+            {
+              "name": "kind"
+            },
+            {
+              "name": "seconds"
+            },
+            {
+              "name": "package"
+            },
+            {
+              "name": "actor"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeviceService",
+            "method": "CaptureDevice"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "record",
+          "description": "Record the screen of a TV, Google TV or Android phone for a few seconds, wake it first, save the MP4 and print its path",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "seconds",
+              "default": "5"
+            },
+            {
+              "name": "home",
+              "type": "bool"
+            },
+            {
+              "name": "no-wake",
+              "type": "bool"
+            },
+            {
+              "name": "out"
+            },
+            {
+              "name": "actor"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "open",
+          "description": "Open an app such as Netflix or YouTube on a TV, Google TV or Android phone and verify it reached the foreground",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "bind": {
+                "field": "device"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "app",
+              "required": true
+            },
+            {
+              "name": "wake",
+              "type": "bool"
+            },
+            {
+              "name": "actor"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeviceService",
+            "method": "LaunchApp"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "evidence",
+          "description": "Save a retained screenshot, recording or log by evidence id",
+          "positionals": [
+            {
+              "name": "evidence-id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "out"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "relation-confirm",
+          "description": "Confirm a same-host relation candidate as one physical device so its ADB transport serves screenshots, recording and app launch",
+          "positionals": [
+            {
+              "name": "candidate-id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "force",
+              "type": "bool"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "install",
+          "description": "Install an APK file on an Android phone and verify it by package state; --open launches it, --screenshot also captures its screen",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "bind": {
+                "field": "device"
+              }
+            }
+          ],
+          "flags": [
+            {
+              "name": "apk",
+              "required": true
+            },
+            {
+              "name": "open",
+              "type": "bool"
+            },
+            {
+              "name": "screenshot",
+              "type": "bool"
+            },
+            {
+              "name": "actor"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "DeviceService",
+            "method": "InstallApp"
+          },
+          "governance": {
+            "effect": "write",
             "run_eligible": true,
             "permissions": [
               "network:internal"
@@ -1029,44 +1353,126 @@
         {
           "name": "runs",
           "description": "List completed process-local run IDs and active flow count; not a restart fence",
-          "binding": {"kind": "local"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "forget",
           "description": "Forget one completed process-local run cache entry; retained copies and evidence may remain",
-          "positionals": [{"name": "run-id", "required": true}],
-          "flags": [{"name": "confirm-cache-only", "bool": true}],
-          "binding": {"kind": "local"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "confirm-cache-only",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "retained",
           "description": "List explicitly retained run IDs",
-          "binding": {"kind": "local"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "retain",
           "description": "Explicitly persist the full potentially private flow and run result",
-          "positionals": [{"name": "run-id", "required": true}],
-          "flags": [{"name": "confirm-sensitive", "bool": true}, {"name": "expires-at", "required": true}],
-          "binding": {"kind": "local"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "confirm-sensitive",
+              "bool": true
+            },
+            {
+              "name": "expires-at",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "retained-get",
           "description": "Read a retained flow and run result",
-          "positionals": [{"name": "run-id", "required": true}],
-          "binding": {"kind": "local"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]}
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "retained-delete",
           "description": "Delete a retained run record",
-          "positionals": [{"name": "run-id", "required": true}],
-          "binding": {"kind": "local"},
-          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]}
+          "positionals": [
+            {
+              "name": "run-id",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
         },
         {
           "name": "list",
@@ -2058,6 +2464,46 @@
       "service": "DesktopOwnerService",
       "method": "Stop",
       "reason": "Desktop operations use the authenticated local owner/helper Unix socket transport; the CLI command is intentionally local rather than a direct Connect-RPC binding."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "AttachViewer",
+      "reason": "Desktop session signaling and input are browser-facing WebRTC through the owner-authenticated Web Console; no CLI command exists or is intended."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "Clipboard",
+      "reason": "Desktop session signaling and input are browser-facing WebRTC through the owner-authenticated Web Console; no CLI command exists or is intended."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "CloseSession",
+      "reason": "Desktop session signaling and input are browser-facing WebRTC through the owner-authenticated Web Console; no CLI command exists or is intended."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "GetReadiness",
+      "reason": "Desktop session signaling and input are browser-facing WebRTC through the owner-authenticated Web Console; no CLI command exists or is intended."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "Input",
+      "reason": "Desktop session signaling and input are browser-facing WebRTC through the owner-authenticated Web Console; no CLI command exists or is intended."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "OpenSession",
+      "reason": "Desktop session signaling and input are browser-facing WebRTC through the owner-authenticated Web Console; no CLI command exists or is intended."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "Signal",
+      "reason": "Desktop session signaling and input are browser-facing WebRTC through the owner-authenticated Web Console; no CLI command exists or is intended."
+    },
+    {
+      "service": "DesktopSessionService",
+      "method": "TakeControl",
+      "reason": "Desktop session signaling and input are browser-facing WebRTC through the owner-authenticated Web Console; no CLI command exists or is intended."
     }
   ]
 }

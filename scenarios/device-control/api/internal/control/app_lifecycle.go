@@ -74,38 +74,79 @@ func (s *Service) ExecuteAppLifecycle(ctx context.Context, deviceID string, requ
 	if lifecycleNeedsConfirmation(request.Operation) && !request.Confirmed {
 		return AppLifecycleResponse{}, fmt.Errorf("app lifecycle operation %q requires explicit confirmation", request.Operation)
 	}
-	session, err := s.sessionForLease(ctx, deviceID, request.LeaseToken)
+	target, err := s.resolveLifecycleTarget(ctx, deviceID, request.LeaseToken, request.Operation)
 	if err != nil {
 		return AppLifecycleResponse{}, err
 	}
-	transport, err := s.requireCurrentEffectRoute(deviceID, "")
+	return s.runLifecycle(ctx, target, request)
+}
+
+// lifecycleTarget is a lease-checked, capability-probed route to one device's
+// app-lifecycle adapter. Resolving it once lets a multi-operation caller (such
+// as LaunchApp) skip repeating the adapter's capability probe per operation.
+type lifecycleTarget struct {
+	deviceID  string
+	session   Session
+	adapter   strategy.AppLifecycle
+	transport string
+}
+
+func (s *Service) resolveLifecycleTarget(ctx context.Context, deviceID, leaseToken, operation string) (lifecycleTarget, error) {
+	session, err := s.sessionForLease(ctx, deviceID, leaseToken)
 	if err != nil {
-		return AppLifecycleResponse{}, err
+		return lifecycleTarget{}, err
+	}
+	// A composed identity (Cast plus ADB, say) may be reachable by several
+	// transports of which only one can run app lifecycle. Try the default route
+	// first, then each retained profile, and keep the first that declares it.
+	routes := []string{""}
+	if record, found := s.devices.Get(deviceID); found {
+		for _, profile := range record.Transports {
+			routes = append(routes, profile.Name)
+		}
+	}
+	var firstErr error
+	for _, route := range routes {
+		target, err := s.lifecycleTargetOn(ctx, deviceID, session, route, operation)
+		if err == nil {
+			return target, nil
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+	return lifecycleTarget{}, firstErr
+}
+
+func (s *Service) lifecycleTargetOn(ctx context.Context, deviceID string, session Session, route, operation string) (lifecycleTarget, error) {
+	transport, err := s.requireCurrentEffectRoute(deviceID, route)
+	if err != nil {
+		return lifecycleTarget{}, err
 	}
 	adapter, ok := s.strategyForFlow(deviceID, transport)
 	if !ok {
-		return AppLifecycleResponse{}, fmt.Errorf("device %q has no available transport", deviceID)
+		return lifecycleTarget{}, fmt.Errorf("device %q has no available transport", deviceID)
 	}
-	if request.Operation == "home-set" || request.Operation == "package-enabled-set" {
+	if operation == "home-set" || operation == "package-enabled-set" {
 		reader, readable := adapter.(strategy.StateReader)
 		if !readable {
-			return AppLifecycleResponse{}, fmt.Errorf("device configuration requires observable unlocked state")
+			return lifecycleTarget{}, fmt.Errorf("device configuration requires observable unlocked state")
 		}
 		state, err := reader.ReadState(ctx)
 		if err != nil || state.LockState != "unlocked" || state.ScreenState != "on" {
-			return AppLifecycleResponse{}, fmt.Errorf("device configuration requires an unlocked, on-screen device")
+			return lifecycleTarget{}, fmt.Errorf("device configuration requires an unlocked, on-screen device")
 		}
 	}
 	var declaration strategy.Declaration
 	if prober, ok := adapter.(interface {
 		DescribePerformance(context.Context) (strategy.Declaration, error)
-	}); ok && request.Operation == "performance-state" {
+	}); ok && operation == "performance-state" {
 		declaration, err = prober.DescribePerformance(ctx)
 	} else {
 		declaration, err = adapter.Describe(ctx)
 	}
 	if err != nil {
-		return AppLifecycleResponse{}, fmt.Errorf("describe lifecycle strategy: %w", err)
+		return lifecycleTarget{}, fmt.Errorf("describe lifecycle strategy: %w", err)
 	}
 	capability, declared := declaration.Capabilities[strategy.CapAppLifecycle]
 	if !declared || capability.Status != strategy.StatusAvailable {
@@ -117,14 +158,20 @@ func (s *Service) ExecuteAppLifecycle(ctx context.Context, deviceID string, requ
 		if nextAction == "" {
 			nextAction = "select a transport that declares executable app lifecycle support"
 		}
-		return AppLifecycleResponse{}, &strategy.AvailabilityError{Reason: reason, NextAction: nextAction}
+		return lifecycleTarget{}, &strategy.AvailabilityError{Reason: reason, NextAction: nextAction}
 	}
 	lifecycle, ok := adapter.(strategy.AppLifecycle)
 	if !ok {
-		return AppLifecycleResponse{}, &strategy.UnsupportedCapabilityError{Capability: strategy.CapAppLifecycle, Operation: request.Operation}
+		return lifecycleTarget{}, &strategy.UnsupportedCapabilityError{Capability: strategy.CapAppLifecycle, Operation: operation}
 	}
+	// Endpoint-bound adapters may omit transport from Describe. Use the route
+	// that passed the Device Control inventory guard for the audit record.
+	return lifecycleTarget{deviceID: deviceID, session: session, adapter: lifecycle, transport: firstNonEmpty(declaration.Transport, transport)}, nil
+}
+
+func (s *Service) runLifecycle(ctx context.Context, target lifecycleTarget, request AppLifecycleOperation) (AppLifecycleResponse, error) {
 	commandID := uuid.NewString()
-	result, operationErr := lifecycle.AppLifecycle(ctx, request.AppLifecycleRequest)
+	result, operationErr := target.adapter.AppLifecycle(ctx, request.AppLifecycleRequest)
 	outcome := "success"
 	if result.Outcome != "" {
 		outcome = result.Outcome
@@ -132,17 +179,8 @@ func (s *Service) ExecuteAppLifecycle(ctx context.Context, deviceID string, requ
 	if operationErr != nil {
 		outcome = "failed"
 	}
-	// Endpoint-bound adapters may omit transport from Describe. Use the route
-	// that passed the Device Control inventory guard for the audit record.
-	auditTransport := declaration.Transport
-	if auditTransport == "" {
-		auditTransport = transport
-	}
-	audit := Audit{ID: uuid.NewString(), Actor: request.Actor, DeviceID: deviceID, Transport: auditTransport, OperationID: commandID, LeaseID: session.ID, Verb: "app-" + request.Operation, Outcome: outcome, CreatedAt: time.Now().UTC(), RedactionVerified: true, Interactive: true, EvidenceBacked: false}
+	audit := Audit{ID: uuid.NewString(), Actor: request.Actor, DeviceID: target.deviceID, Transport: target.transport, OperationID: commandID, LeaseID: target.session.ID, Verb: "app-" + request.Operation, Outcome: outcome, CreatedAt: time.Now().UTC(), RedactionVerified: true, Interactive: true, EvidenceBacked: false}
 	s.persistDirectAudit(ctx, audit)
 	response := AppLifecycleResponse{CommandID: commandID, Result: result, Audit: audit}
-	if operationErr != nil {
-		return response, operationErr
-	}
-	return response, nil
+	return response, operationErr
 }

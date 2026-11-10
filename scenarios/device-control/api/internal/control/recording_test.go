@@ -257,7 +257,7 @@ func TestFlowDoesNotRepeatUncertainRecordingStop(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "failed", result.Disposition)
 	require.Equal(t, 1, fixture.stops)
-	require.True(t, svc.externalRecordings["recording-fixture"].Uncertain)
+	require.True(t, (svc.externalRecordings["recording-fixture"].State == stateUncertain))
 	require.True(t, result.Incomplete)
 }
 
@@ -481,7 +481,7 @@ func TestInspectUncertainRecordingIsReadOnlyAndKeepsLifecycleBlocker(t *testing.
 	session, err := svc.Acquire("fake", "operator", time.Minute)
 	require.NoError(t, err)
 	recorder := &failingExternalRecorder{}
-	svc.externalRecordings["handle"] = externalRecording{DeviceID: "fake", LeaseID: session.ID, Recorder: recorder, Handle: strategy.RecordingHandle{ID: "handle"}, Uncertain: true}
+	svc.externalRecordings["handle"] = externalRecording{DeviceID: "fake", LeaseID: session.ID, Recorder: recorder, Handle: strategy.RecordingHandle{ID: "handle"}, State: stateUncertain}
 
 	beforeWork, beforeBlockers, beforeComplete := svc.LifecycleInventory(context.Background())
 	inspection, err := svc.InspectExternalRecording(context.Background(), "fake", session.LeaseToken, "handle")
@@ -495,7 +495,7 @@ func TestInspectUncertainRecordingIsReadOnlyAndKeepsLifecycleBlocker(t *testing.
 	require.Equal(t, beforeComplete, afterComplete)
 	require.Equal(t, beforeWork, afterWork)
 	require.Equal(t, beforeBlockers, afterBlockers)
-	require.True(t, svc.externalRecordings["handle"].Uncertain, "native readback must not clear the uncertain owner")
+	require.True(t, (svc.externalRecordings["handle"].State == stateUncertain), "native readback must not clear the uncertain owner")
 	require.Zero(t, recorder.stops.Load(), "inspection must not replay the native stop")
 }
 
@@ -535,7 +535,7 @@ func TestStopRecordingPreservesRedactedArtifactWhenRestorationFails(t *testing.T
 	require.NoError(t, err)
 	require.NotEmpty(t, bytes)
 	require.Equal(t, "video", kind)
-	require.True(t, svc.externalRecordings["handle"].Uncertain)
+	require.True(t, (svc.externalRecordings["handle"].State == stateUncertain))
 	repeated, err := svc.StopExternalRecording(context.Background(), "fake", "operator", session.LeaseToken, "handle")
 	require.ErrorContains(t, err, "outcome uncertain")
 	require.Equal(t, recovered.Reference.ID, repeated.Reference.ID)
@@ -574,6 +574,6 @@ func TestStopRecordingPreservesRestorationErrorWhenArtifactProcessingFails(t *te
 	require.ErrorContains(t, err, "restore failed")
 	require.ErrorContains(t, err, "external recording")
 	require.Empty(t, result.Reference.ID)
-	require.True(t, svc.externalRecordings["handle"].Uncertain)
+	require.True(t, (svc.externalRecordings["handle"].State == stateUncertain))
 	require.EqualValues(t, 1, recorder.stops.Load())
 }

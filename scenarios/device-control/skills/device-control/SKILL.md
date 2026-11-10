@@ -1,17 +1,17 @@
 ---
 name: "device-control"
-description: "Resolve logical devices, execute typed semantic volume operations, reuse exact saved flows, and learn from measured task outcomes."
+description: "Screenshot or screen-record my Android phone, tablet, TV or Google TV; open an app such as Netflix, YouTube or Settings; install and test my app on the phone; turn on or wake the TV, press home, check what app is running or what is on screen; change volume. One-call device-control verbs; also reuses saved flows."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["automation", "workflow", "learning"]
+  tags: ["tv", "turn-on-tv", "press-home", "home-screen", "google-tv", "android", "phone", "screenshot", "screen-recording", "open-app", "wake-tv", "test-on-device", "adb", "volume"]
   icon: "play"
   status: "active"
-  revision: 59
+  revision: 62
   createdAt: "2026-09-04T00:00:00Z"
-  updatedAt: "2026-11-03T03:06:11Z"
+  updatedAt: "2026-11-09T15:10:00Z"
   requires:
     scenarios: ["device-control", "program-runtime", "vrooli-memory"]
     commands: ["device-control", "program-runtime", "vrooli-memory"]
@@ -31,6 +31,32 @@ phones, and other declared strategies. Repairing the capability belongs to
 `path:docs/agent-system/SKILL_AUTHORING.md`.
 Read `path:scenarios/device-control/docs/reference/capabilities.md` when the
 selected task needs an unfamiliar modality.
+
+### One call for the common asks
+
+Run these first; each wakes the screen when needed, verifies its own result, and on
+failure prints the exact next command. Device is an id or a unique name from
+`device-control device list` (one short row per device, with the verbs it supports).
+
+| The user wants | One call |
+|---|---|
+| A screenshot of the TV, Google TV, phone or tablet (add `--home` for the home screen) | `device-control device screenshot "<name>" [--home] --json` prints the saved PNG path **[S1]** |
+| A short screen recording | `device-control device record "<name>" --seconds 8 --json` prints the saved MP4 path **[S1]** |
+| Install an APK on the phone, open it and screenshot it (test my app) | `device-control device install "<phone>" --apk /abs/app.apk --open --screenshot --json`, or `program-runtime library run device-control.check-app` **[S1]** |
+| Open Netflix, YouTube, Settings or any app | `device-control device open "<name>" --app netflix --json` verifies the app reached the foreground **[S1]** |
+| Wake the screen or go Home | `device-control device screen "<name>" --operation ready [--home] --json` **[S1]** |
+| What is on the device now | `device-control device state "<name>" --json`, or `semantics` for controls and labels **[S1]** |
+| Which devices exist and what each can do | `device-control device list --json` (`--all` adds unreachable rows) **[S1]** |
+| A saved screenshot or recording again | `device-control device evidence <evidence-id> [--out file]` **[S1]** |
+
+Test an Android app on a phone: the `install` row above does install, verify, open and screenshot in one call. Permissions go through `device app` or a flow.
+
+If a call ends in `capability_gap`, run the command in its `next_actions`. A TV known only
+over Cast has no frame; the usual step is `device relations`, then
+`device relation-confirm <candidate>` to fold its ADB endpoint in as another transport of
+the same TV, or `device onboard-network --endpoint <tv-ip>:5555 --attach-to <tv-id>` when
+no ADB identity exists yet (the TV needs Developer options, Network debugging, and the first
+connection needs an "Allow USB debugging" tap on the TV).
 
 ### Choose one operation
 
@@ -77,9 +103,9 @@ setpoint (`0.5`). Android TV Remote accepts relative volume keys, not numeric
 absolute values. When its live state identifies an ARC/eARC amplifier route, the
 planner uses a writable Cast `MASTER` setter and verifies the resulting Remote
 readback; directional Remote keys are retained as the plain-speaker fallback.
-Same-host transport candidates are diagnostic evidence and never a durable merge
-without owner confirmation. A confirmed merge retains both transport profiles
-across restart and makes the route reusable.
+Same-host transport candidates are diagnostic evidence until confirmed with
+`device relation-confirm`; a confirmed merge retains both transport profiles
+across restart and makes the ADB route reusable by screenshot, record and open.
 
 A context_key names the task, app/profile and relevant versions. Reuse that key
 across attempts under comparable conditions; change it when assumptions change.

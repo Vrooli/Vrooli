@@ -48,6 +48,15 @@ Use this shape so entries are scannable. Append newest at the bottom.
 ```
 
 ## Entries
+### 2026-11-09 — Open after the one-call device work
+
+- `Service.execute` in `api/internal/control/execution.go` is still one function of about 940 lines dispatching 35 step kinds over shared local state. It is the largest remaining implicit state machine; extract a step runner with one method per kind before adding step kinds.
+- `api/internal/native/host/backend.go` (1.6k lines), `api/handlers/control/module.go` (1.1k) and `api/strategy/contract.go` (1k) were not split by concern.
+- Test Genie `api` phase reports `api_health.preflight_missing_or_late` at `api/main.go:76` (API preflight runs after startup work); not addressed.
+- Live devices on 2026-11-09: the moto phone was locked (screenshot and open report it with the unlock command), the Galaxy A03s was not reachable, and the TV's `Allow USB debugging` prompt had to be accepted once before its ADB transport became usable.
+- Screenshot on the TV takes about 6 s in `screencap` itself; cold first capture is about 23 s, warm about 15 s. `device state` on the TV is about 9 s because the Cast and Remote transports are slow to answer.
+- Most of the 929 docs-phase warnings are unmarked counts in `docs/internal/goal/device-control-maturity/` logs; they are historical records, not live claims.
+
 ### 2026-08-17 — Shared workflow provider still cannot resolve the self route
 
 **Symptom:** The fresh Phase 9 run `20260817-112516-aad4c0fe` passes the

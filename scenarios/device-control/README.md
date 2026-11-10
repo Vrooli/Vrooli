@@ -38,108 +38,38 @@ agent-driven goal completion.
 - Durable multi-transport identities with evidence-bearing claims.
 - Lease-owned actuation, state reads, events, audit records, and bounded flows.
 
-This scenario packages the standard full-stack Vrooli scenario shape:
+## Quick use
 
-- Go API (`api/`)
-- React + TypeScript + Vite UI (`ui/`)
-- CLI wrapper (`cli/`)
-- Lifecycle + health wiring (`.vrooli/service.json`)
-- Requirements registry, generated L0 experience contract, and progress log
-  (`requirements/`, `experience/`, `docs/internal/PROGRESS.md`)
+```bash
+device-control device list
+device-control device screenshot "SmartTV 4K"
+device-control device open "SmartTV 4K" --app netflix
+```
 
-> **Start here:** open [`docs/START-HERE.md`](docs/START-HERE.md). It
-> owns the first-session initialization protocol — charter, requirements,
-> domain map, design language, placeholder replacement, and first real
-> vertical slice. Run `make orient` for a machine-readable gate status.
+One call each: the verb wakes the screen, does the work, verifies it, and on
+failure prints the exact next command. See [`docs/START-HERE.md`](docs/START-HERE.md).
 
-## What's In This Scenario
+## Layout
 
-- Go API (`api/`), Go CLI (`cli/`), and React/Vite UI (`ui/`)
-  coordinated through generated proto contracts.
-- Lifecycle metadata, Makefile entrypoints, health checks, endpoint
-  metadata, testing config, and CLI install wiring.
-- Domain-first API shape with per-domain service, repository, schema,
-  handler module, mocks, and tests.
-- SQLite by default. Add external resources to `.vrooli/service.json`
-  only when this scenario actually needs them.
-- UI/CLI guardrails for i18n, accessibility, API base resolution,
-  declarative command args, generated Connect clients, and report-shaped
-  output.
-- Baseline PWA/native-readiness metadata: web app manifest,
-  standalone-mode mobile tags, proxy-safe relative install asset URLs,
-  a minimal app-shell service worker, safe-area CSS tokens, and generic
-  placeholder icons ready for scenario-specific replacement.
-- Canonical responsive shell plus adopted-provenance UI primitives from
-  `react-component-library` for common shared surfaces such as buttons,
-  cards, data tables, empty states, inputs, selects, status badges, sidebar
-  shell, and bottom navigation.
-- Root-level `DESIGN.md` plus generated UI token assets from the
-  selected design kit.
-- Generated `experience/` L0 specs for the starter routes. These are UX
-  intent placeholders, not finished claims; grow them as routes become real.
-- A documentation contract in `docs/manifest.json`, with stubs for
-  domains, flows, data, integrations, monetization, deployment,
-  runbooks, observability, security, performance, and durable
-  decisions.
-
-## Durable Scaffolding
-
-The product surfaces are implemented around device inventory, strategy
-conformance, leased sessions, flow validation, and evidence. Treat these as
-durable seams to preserve as the visual layout evolves:
-
-- i18n wiring (`SUPPORTED_LOCALES`, `useTranslation`, `setLocale`).
-- Accessibility primitives (`role`, `aria-*`, `data-testid` selectors).
-- Design tokens (`bg-app-background`, `rounded-panel`, etc.).
-- Adopted shared UI primitives under `ui/src/components/ui/`; prefer
-  `react-component-library adoptions apply` over hand-rolling a new primitive.
-- The responsive shell floors: full viewport height, overflow-contained main
-  content, desktop sidebar, fixed safe-area mobile bottom nav, and Settings
-  ownership of locale switching.
-- The feature-folder pattern under `ui/src/features/<name>/`.
-- The proto → API → CLI → UI vertical-slice shape.
-
-**Connect-RPC is the default transport.** Every domain endpoint goes
-through a proto service and generated Connect handlers/clients. If
-you find yourself writing `Path: "/api/v1/..."` as a literal string in
-an `EndpointDescriptor`, stop — use a proto service method instead.
-Codegen rejects literal Paths that lack an explicit `RESTException`
-tag; the four allowed REST reasons (multipart upload, webhook
-receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. REST exceptions remain reserved for the
-explicitly documented third-party and operational shapes.
-
-[`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
-workflow in full.
+- Go API (`api/`), Go CLI (`cli/`, surface declared in `cli/manifest.json`), React UI (`ui/`).
+- Proto contracts in `packages/proto/schemas/device-control`; Connect-RPC is the
+  default transport, REST only for the documented third-party shapes.
+- Skills (`skills/`) and governed programs (`.vrooli/program-runtime/`).
+- Executable behavior specifications: `api/internal/control/features/*.feature`.
 
 ## Running The Scenario
 
 ```bash
-# Build API + UI, install pnpm deps, install scenario CLI
-make setup   # wraps `vrooli scenario setup`
-
-# Start API + UI in the background
-make start   # wraps `vrooli scenario start`
+make setup   # build API, UI and CLI
+make start   # start; make logs / make stop
+make test    # vrooli scenario test device-control
 ```
-
-See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full clone-to-running flow.
-
-## Customize Safely
-
-Keep device-control capability probing, leases, evidence retention, and
-fail-closed dispositions intact when customizing this scenario. Add behavior
-through a declared domain and its API, CLI, UI, requirements, and documentation
-surfaces; prefer the shared component canon before introducing a new primitive.
-
-Run tests with `make test` (which runs `vrooli scenario test`) or invoke
-`test-genie execute device-control --preset comprehensive` directly for
-finer-grained presets.
 
 ## Documentation Map
 
 | Need | Start Here |
 |---|---|
-| Initialize after generation | [`docs/START-HERE.md`](docs/START-HERE.md) |
+| Do something with a device | [`docs/START-HERE.md`](docs/START-HERE.md) |
 | Establish UI design language | `DESIGN.md` at this scenario's root |
 | Author UX intent | [`experience/README.md`](experience/README.md) |
 | Run the scenario | [`docs/QUICKSTART.md`](docs/QUICKSTART.md) |
@@ -156,24 +86,8 @@ finer-grained presets.
 
 ## Working Rules
 
-1. **Read [`docs/START-HERE.md`](docs/START-HERE.md) first.** It owns the first implementation workflow.
-2. **Run `make orient`** as a progress check — it reports initialization gates from `.vrooli/orientation.json`.
-3. **Update `PRD.md` and `requirements/`** before feature work. Operational targets drive code + tests.
-4. **Read root `DESIGN.md` before UI work.** Tokens, motion, and status semantics are binding; specific component lists in the design are illustrative — implement everything your scenario actually needs.
-5. **Keep `experience/` aligned with routes.** Start at L0, then add priorities, claims, bindings, states, and journeys before flipping pages active.
-6. **Update `docs/concepts/DOMAINS.md`** before adding product code.
-7. **Keep `docs/manifest.json` accurate.** Durable docs should be registered there with a truthful maturity value.
-8. **Append progress entries** to `docs/internal/PROGRESS.md` whenever you land work.
-9. **Add resources** to `.vrooli/service.json` only when needed; this scenario ships with no resource dependencies (SQLite is in-process).
-10. **Keep boundaries**: only edit within this scenario's directory.
-
-## pnpm Everywhere
-
-This scenario assumes pnpm. If you run another package manager, convert
-lockfiles yourself before committing. Scripts use `pnpm` directly (no
-`npm` fallbacks) to reduce drift.
-
-## Need Inspiration?
-
-Open `scenarios/browser-automation-studio/` to see the same template
-shape taken to completion.
+1. Capabilities are probed, never inferred; keep fail-closed dispositions, leases and evidence retention intact.
+2. Record non-obvious choices in `docs/internal/DECISIONS.md` and keep `docs/manifest.json` truthful.
+3. Express new behavior as Gherkin scenarios in `api/internal/control/features/` where it reads as a user journey.
+4. Read root `DESIGN.md` before UI work; reuse `react-component-library` assets.
+5. Keep changes inside this scenario unless a control-plane or shared piece must change, and say why.

@@ -58,10 +58,6 @@ func NewReference(id string, raw []byte, redaction Result) (Reference, error) {
 	return NewEvidenceSink(DefaultPolicy).Put(id, raw, redaction)
 }
 
-func NewVideoReference(id string, raw []byte, redaction Result, method string, fps float64) (Reference, error) {
-	return NewClaimedVideoReference(id, raw, redaction, method, fps, ClaimTransition)
-}
-
 func NewClaimedVideoReference(id string, raw []byte, redaction Result, method string, fps float64, class ClaimClass) (Reference, error) {
 	if redaction.Requested && !redaction.Verified {
 		return Reference{}, fmt.Errorf("capture redaction has not been verified")
@@ -129,13 +125,6 @@ type RecorderMetadata struct {
 }
 
 const MinimumUsefulFPS = 5.0
-
-func ValidateEffectiveFPS(fps float64) error {
-	if fps <= 0 {
-		return fmt.Errorf("recording effective frame rate must be positive")
-	}
-	return nil
-}
 
 func (r Recorder) Metadata() (method string, fps float64) {
 	if r.Native {

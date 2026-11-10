@@ -54,6 +54,11 @@ type CaptureRequest struct {
 	Seconds      int    `json:"seconds,omitempty"`
 	Package      string `json:"package,omitempty"`
 	RequireAudio bool   `json:"require_audio,omitempty"`
+	// Wake brings a sleeping or locked screen up before a screenshot or
+	// recording. Home also returns to the launcher; it may change the foreground
+	// application, so it is opt-in.
+	Wake bool `json:"wake,omitempty"`
+	Home bool `json:"home,omitempty"`
 }
 
 func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResult, error) {
@@ -76,6 +81,10 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 	}
 	if kind == "console" || kind == "network" {
 		return RunResult{Disposition: "no_evidence", Binding: RunBinding{DeviceID: device.ID}, Chapters: []Chapter{{ID: "capture", Title: kind, Disposition: "unavailable", Message: "Direct device capture is unavailable; a debuggable WebView may be inspected through the WebView attachment and browser workflow. No conclusion about events is possible."}}}, nil
+	}
+	var prepare []Chapter
+	if (request.Wake || request.Home) && (kind == "screenshot" || kind == "recording") {
+		prepare = s.prepareScreen(ctx, device, request)
 	}
 	profiles := device.Transports
 	if len(profiles) == 0 {
@@ -127,10 +136,11 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 		break
 	}
 	if !found {
+		message := "no available transport provides this capture"
 		if request.RequireAudio {
-			return RunResult{Disposition: "capability_gap", Binding: RunBinding{DeviceID: device.ID}, Chapters: []Chapter{{ID: "capture", Title: kind, Disposition: "unavailable", Message: "no available transport provides recording with audio"}}}, nil
+			message = "no available transport provides recording with audio"
 		}
-		return RunResult{Disposition: "capability_gap", Binding: RunBinding{DeviceID: device.ID}, Chapters: []Chapter{{ID: "capture", Title: kind, Disposition: "unavailable", Message: "no available transport provides this capture"}}}, nil
+		return RunResult{Disposition: "capability_gap", Binding: RunBinding{DeviceID: device.ID}, Chapters: append(prepare, Chapter{ID: "capture", Title: kind, Disposition: "unavailable", Message: message}), NextActions: s.captureGapNextActions(ctx, device, kind)}, nil
 	}
 	flow := Flow{ID: "capture-" + uuid.NewString(), Name: kind + " capture", Transport: transport, RedactSensitiveContent: kind == "logs", MaxDurationMS: 65000}
 	if kind == "screenshot" {
@@ -148,7 +158,24 @@ func (s *Service) Capture(ctx context.Context, request CaptureRequest) (RunResul
 	} else {
 		flow.Steps = []Step{{ID: "logs", Kind: "device-logs", RequiredCapabilities: []string{strategy.CapDeviceLogs}, TimeoutMS: 10000, Arguments: map[string]any{"package": strings.TrimSpace(request.Package)}}}
 	}
-	return s.Run(ctx, flow, device.ID, firstNonEmpty(strings.TrimSpace(request.Actor), "device-capture"))
+	result, err := s.Run(ctx, flow, device.ID, firstNonEmpty(strings.TrimSpace(request.Actor), "device-capture"))
+	result.Chapters = append(prepare, result.Chapters...)
+	if result.Disposition != "passed" {
+		result.NextActions = captureFailureNextActions(device, result.Chapters, s.unlockSetupAction(ctx, device))
+	}
+	return result, err
+}
+
+// prepareScreen wakes (and optionally homes) the screen through the
+// same verified Screen owner a caller would use by hand. A device without a
+// screen-control transport is reported as skipped rather than failing a capture
+// that may still succeed.
+func (s *Service) prepareScreen(ctx context.Context, device Device, request CaptureRequest) []Chapter {
+	result, err := s.Screen(ctx, ScreenRequest{Device: device.ID, Actor: request.Actor, Operation: "ready", Home: request.Home})
+	if err != nil {
+		return []Chapter{{ID: "prepare", Title: "wake screen", Disposition: "skipped", Message: err.Error()}}
+	}
+	return []Chapter{{ID: "prepare", Title: "wake screen", Disposition: "passed", Message: fmt.Sprintf("screen %s via %s", result.After.ScreenState, result.Transport)}}
 }
 
 func (s *Service) StartExternalRecording(ctx context.Context, deviceID, actor, leaseToken string, requestedTransport ...string) (strategy.RecordingHandle, error) {
@@ -201,14 +228,15 @@ func (s *Service) StopExternalRecording(ctx context.Context, deviceID, actor, le
 		s.mu.Unlock()
 		return ExternalRecordingResult{}, fmt.Errorf("recording %q is not active for device %q", handleID, deviceID)
 	}
-	if recording.Stopping || recording.Uncertain {
+	closing, admitted := recording.State.beginClose()
+	if !admitted {
 		s.mu.Unlock()
 		if recording.Recovered != nil {
 			return *recording.Recovered, fmt.Errorf("recording %q stop outcome uncertain; automatic replay is unavailable", handleID)
 		}
 		return ExternalRecordingResult{}, fmt.Errorf("recording %q stop is in progress or its outcome uncertain; automatic replay is unavailable", handleID)
 	}
-	recording.Stopping = true
+	recording.State = closing
 	s.externalRecordings[handleID] = recording
 	s.mu.Unlock()
 	// The recorder can consume its native handle before returning an error.
@@ -216,11 +244,11 @@ func (s *Service) StopExternalRecording(ctx context.Context, deviceID, actor, le
 	defer func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		if retErr == nil {
+		next, removed := recording.State.closeResult(retErr)
+		if removed {
 			delete(s.externalRecordings, handleID)
 		} else {
-			recording.Stopping = false
-			recording.Uncertain = true
+			recording.State = next
 			if result.Reference.ID != "" {
 				copy := result
 				recording.Recovered = &copy
@@ -300,11 +328,13 @@ func (s *Service) InspectExternalRecording(ctx context.Context, deviceID, leaseT
 		return ExternalRecordingInspection{}, fmt.Errorf("recording %q is not retained for device %q", handleID, deviceID)
 	}
 	inspection := ExternalRecordingInspection{HandleID: handleID, OwnerState: "active", ProcessState: "unknown", ObservedAt: time.Now().UTC()}
-	if recording.Uncertain {
+	switch recording.State {
+	case stateUncertain:
 		inspection.OwnerState = "uncertain"
-	}
-	if recording.Stopping {
+	case stateClosing:
 		inspection.OwnerState = "stopping"
+	}
+	if recording.State == stateClosing {
 		inspection.Reason = "the owner stop request has not returned"
 		if recording.Recovered != nil {
 			inspection.RecoveredEvidenceID = recording.Recovered.Reference.ID

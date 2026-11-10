@@ -270,10 +270,6 @@ var palette = func() color.Palette {
 	return color.Palette{color.Black, color.White, color.RGBA{R: 220, G: 38, B: 38, A: 255}, color.RGBA{R: 37, G: 99, B: 235, A: 255}}
 }()
 
-func NativeMetadata(effectiveFPS float64) (RecorderMetadata, error) {
-	return NativeMetadataForClaim(effectiveFPS, ClaimTransition)
-}
-
 func NativeMetadataForClaim(effectiveFPS float64, class ClaimClass) (RecorderMetadata, error) {
 	if effectiveFPS <= 0 || math.IsNaN(effectiveFPS) || math.IsInf(effectiveFPS, 0) {
 		return RecorderMetadata{}, fmt.Errorf("effective frame rate must be positive")

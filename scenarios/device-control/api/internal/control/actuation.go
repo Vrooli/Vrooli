@@ -64,6 +64,11 @@ func (s *Service) resolveExactOrUniqueDevice(ctx context.Context, selector strin
 		// Exact durable identity is already unambiguous. The selected adapter is
 		// probed below, so a stale record cannot establish availability.
 		matches = append(matches, deviceFromRecord(record))
+	} else if named := s.freshDevicesNamed(selector, time.Now().UTC()); len(named) == 1 {
+		// A display name that one freshly observed, available identity carries
+		// resolves without a full inventory sweep (seconds on a busy host). The
+		// route and adapter probes the caller performs next still prove it.
+		matches = named
 	} else {
 		for _, device := range s.Devices(ctx) {
 			if device.ID == selector {
@@ -222,8 +227,17 @@ func (s *Service) Screen(ctx context.Context, req ScreenRequest) (result ScreenR
 				}
 			}
 		}
-		if result.After.LockState == "locked" && req.AuthProfileID != "" {
-			unlock, unlockErr := s.UnlockDevice(ctx, req.AuthProfileID, device.ID, actor, lease.LeaseToken)
+		profileID := req.AuthProfileID
+		if result.After.LockState == "locked" && profileID == "" && s.auth != nil {
+			// A swipe did not unlock it: use the device's own active profile so
+			// every one-call verb unlocks transparently. A profile whose last
+			// attempt was wrong is never retried automatically.
+			if candidate, reason := authdomain.UnlockCandidate(s.auth.List(ctx), device.ID); reason == "" {
+				profileID = candidate.ID
+			}
+		}
+		if result.After.LockState == "locked" && profileID != "" {
+			unlock, unlockErr := s.UnlockDevice(ctx, profileID, device.ID, actor, lease.LeaseToken)
 			if unlockErr != nil {
 				return result, unlockErr
 			}
@@ -490,4 +504,27 @@ func (s *Service) persistDirectAudit(ctx context.Context, record Audit) {
 		_, _ = s.db.ExecContext(ctx, `INSERT INTO device_control_audits (id, actor, device_id, transport, causation_id, operation_id, lease_id, verb, outcome, created_at, redaction_verified, redaction_opted_out, interactive, evidence_backed, details_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, record.ID, record.Actor, record.DeviceID, record.Transport, record.CausationID, record.OperationID, record.LeaseID, record.Verb, record.Outcome, record.CreatedAt.Format(time.RFC3339Nano), 1, 0, 1, 0, string(details))
 	}
 	s.audits = append(s.audits, record)
+}
+
+// freshNameWindow bounds how old an observation may be to resolve a display
+// name without re-running inventory.
+const freshNameWindow = 2 * time.Minute
+
+// freshDevicesNamed returns identities named name (case-insensitive) that were
+// observed available within freshNameWindow.
+func (s *Service) freshDevicesNamed(name string, now time.Time) []Device {
+	var matches []Device
+	for _, record := range s.devices.List() {
+		if record.Name == "" || !strings.EqualFold(record.Name, name) {
+			continue
+		}
+		if record.Kind != "physical" && record.Kind != "emulator" && record.Kind != "desktop" {
+			continue
+		}
+		if record.Health != strategy.StatusAvailable || now.Sub(record.ObservedAt) > freshNameWindow {
+			continue
+		}
+		matches = append(matches, deviceFromRecord(record))
+	}
+	return matches
 }

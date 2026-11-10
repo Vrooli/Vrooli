@@ -87,6 +87,8 @@ type RunResult struct {
 	DisconnectReason string                      `json:"disconnect_reason,omitempty"`
 	DisconnectStep   string                      `json:"disconnect_step,omitempty"`
 	Binding          RunBinding                  `json:"binding"`
+	// NextActions are exact commands that resolve a capability gap or failure.
+	NextActions []string `json:"next_actions,omitempty"`
 }
 
 type RunBinding struct {

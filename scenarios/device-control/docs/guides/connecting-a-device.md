@@ -218,11 +218,20 @@ The governed onboarding sequence is:
 1. Enable Developer options and USB debugging, or Wireless debugging, on the
    TV. The owner must accept the RSA or pairing prompt on the TV. Device
    Control cannot enable debugging or approve trust remotely.
-2. Onboard the TV's network address as a first-class governed device:
+2. Onboard the TV's network address as a first-class governed device. When the
+   TV is already known through Cast, name it with `--attach-to` so the ADB endpoint
+   becomes another transport of that same TV instead of a second identity:
 
    ```sh
-   device-control device onboard-network --endpoint 192.168.1.158:5555 --json
+   device-control device onboard-network --endpoint 192.168.1.158:5555 --attach-to google-cast:<id> --json
    ```
+
+   If both identities already exist (for example from an earlier onboarding),
+   `device-control device relations` lists the same-host candidate and
+   `device-control device relation-confirm <candidate-id>` folds them together. The
+   confirmation asserts the ADB hardware serial, keeps the non-ADB identity canonical,
+   refuses when the two report different models unless `--force`, and survives restart.
+   After either path, `device screenshot`, `record` and `open` work on the TV's own id.
 
    This supports both classic authorized TCP ADB (`host:5555`) and Wireless
    Debugging/TLS endpoints. It runs `adb connect`, confirms the endpoint is an
@@ -241,6 +250,11 @@ The governed onboarding sequence is:
    verify package state after installation (`device app --operation
    package-state` returns a verified `installed` flag and `version`), and launch
    by explicit package identity.
+
+Network ADB endpoints reconnect during inventory: an absent endpoint (the TV slept,
+or the adb server restarted) is retried once, then not again for 60 seconds. If the TV
+reports `unauthorized`, accept the "Allow USB debugging" prompt on its screen and choose
+Always allow; `capability_gap` results name this step.
 
 Validated live on 2026-09-17 against a SmartTV 4K at `192.168.1.158:5555`
 (serial `AE70A4D38B`): onboarding exposed every ADB capability, `device state`

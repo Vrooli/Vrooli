@@ -12,6 +12,16 @@ The recipes describe template mechanics. This guide owns local behavior, test
 prerequisites, fixtures, and exceptions; local test sources and configuration
 identify the helpers and gates this scenario currently uses.
 
+## Gherkin specifications
+
+User journeys are specified as `.feature` files in `api/internal/control/features/` and run by
+`TestFeatures` (`go test ./internal/control -run TestFeatures -v`). The runner is
+`api/internal/testutil/gherkin` (Feature, Background, Scenario, Scenario Outline with Examples,
+regex steps); each scenario gets a fresh world. Add a scenario when behavior reads as
+"given a device state, when the owner acts, then the outcome and next step are X". Keep Go tests for
+pure functions and fixtures too rich for plain steps. Program contracts have Python tests in
+`.vrooli/program-runtime/tests/test_workflows.py` (`python3 -I`).
+
 ## Scenario-specific testing
 
 ### Desktop acceptance matrix

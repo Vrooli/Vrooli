@@ -109,6 +109,40 @@ func (c *deviceConnect) ExecuteVolume(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(response), nil
 }
 
+// CaptureDevice is the typed one-call capture binding. A capability gap is a
+// successful response that carries its next actions (decision D-010).
+func (c *deviceConnect) CaptureDevice(ctx context.Context, req *connect.Request[devicesv1.CaptureDeviceRequest]) (*connect.Response[devicesv1.CaptureDeviceResponse], error) {
+	result, err := c.h.service.Capture(ctx, internal.CaptureRequest{Device: req.Msg.Device, Actor: req.Msg.Actor, Kind: req.Msg.Kind, Seconds: int(req.Msg.Seconds), Package: req.Msg.Package, Wake: req.Msg.Wake, Home: req.Msg.Home})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	response := &devicesv1.CaptureDeviceResponse{Disposition: result.Disposition, DeviceId: result.Binding.DeviceID, NextAction: strings.Join(result.NextActions, "\n")}
+	for _, reference := range result.Evidence {
+		response.EvidenceIds = append(response.EvidenceIds, reference.ID)
+	}
+	if len(result.Chapters) > 0 {
+		last := result.Chapters[len(result.Chapters)-1]
+		response.Message, response.FailureClass = last.Message, last.FailureClass
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (c *deviceConnect) LaunchApp(ctx context.Context, req *connect.Request[devicesv1.LaunchAppRequest]) (*connect.Response[devicesv1.LaunchAppResponse], error) {
+	result, err := c.h.service.LaunchApp(ctx, internal.LaunchAppRequest{Device: req.Msg.Device, Actor: req.Msg.Actor, App: req.Msg.App, Wake: req.Msg.Wake})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&devicesv1.LaunchAppResponse{Status: result.Status, DeviceId: result.DeviceID, Package: result.Package, ForegroundPackage: result.ForegroundPackage, Detail: result.Detail, NextAction: strings.Join(result.NextActions, "\n")}), nil
+}
+
+func (c *deviceConnect) InstallApp(ctx context.Context, req *connect.Request[devicesv1.InstallAppRequest]) (*connect.Response[devicesv1.InstallAppResponse], error) {
+	result, err := c.h.service.InstallApp(ctx, internal.InstallAppRequest{Device: req.Msg.Device, Actor: req.Msg.Actor, APK: req.Msg.Apk, Open: req.Msg.Open, Screenshot: req.Msg.Screenshot})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return connect.NewResponse(&devicesv1.InstallAppResponse{Status: result.Status, DeviceId: result.DeviceID, Package: result.Package, VersionName: result.VersionName, VersionCode: result.VersionCode, Detail: result.Detail, LaunchStatus: result.LaunchStatus, ForegroundPackage: result.ForegroundPackage, NextAction: strings.Join(result.NextActions, "\n"), EvidenceIds: result.EvidenceIDs}), nil
+}
+
 func volumeStruct(value any) *structpb.Struct {
 	encoded, err := json.Marshal(value)
 	if err != nil {

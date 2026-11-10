@@ -2,7 +2,6 @@ package strategy
 
 import (
 	"context"
-	"fmt"
 )
 
 type ConformanceReport struct {
@@ -145,15 +144,3 @@ func Verify(ctx context.Context, s Strategy) ConformanceReport {
 	return r
 }
 
-func ValidateReport(r ConformanceReport) error {
-	if r.StrategyID == "" {
-		return fmt.Errorf("strategy_id is required")
-	}
-	if r.Status == "" {
-		return fmt.Errorf("status is required")
-	}
-	if r.Status == StatusAvailable && len(r.Failed) > 0 {
-		return fmt.Errorf("available strategy has failed checks")
-	}
-	return nil
-}

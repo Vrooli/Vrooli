@@ -2,7 +2,6 @@ package control
 
 import (
 	"context"
-	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -166,70 +165,6 @@ func TestLeaseFinishRetainsActiveOwnerUntilOperationCleanup(t *testing.T) {
 	s.sessionMu.Unlock()
 	if stillOwned {
 		t.Fatal("operation cleanup did not release active ownership")
-	}
-}
-
-func TestExpiredPairingRemainsVisibleUntilCloseReceipt(t *testing.T) {
-	s := newService(nil, nil)
-	session := &lifecyclePairingSession{started: make(chan struct{}), release: make(chan struct{}), closeErr: errors.New("close uncertain")}
-	s.mu.Lock()
-	s.pendingPairings["pairing-expired"] = pendingPairing{deviceID: "tv", session: session, expiresAt: time.Now().Add(-time.Second)}
-	s.mu.Unlock()
-
-	done := make(chan struct{})
-	go func() {
-		s.expirePairing("pairing-expired")
-		close(done)
-	}()
-	<-session.started
-	work, blockers, complete := s.LifecycleInventory(context.Background())
-	if !complete || len(blockers) == 0 || lifecyclePairingStatus(work, "pairing/pairing-expired") != "closing" {
-		t.Fatalf("pairing disappeared while Close was pending: complete=%v blockers=%+v work=%+v", complete, blockers, work)
-	}
-	if _, err := s.CompletePairDevice(context.Background(), "tv", "pairing-expired", []byte("835B64")); err == nil {
-		t.Fatal("concurrent completion was allowed to take ownership of an expiring session")
-	}
-	if got := session.closes.Load(); got != 1 {
-		t.Fatalf("Close called %d times during concurrent expiry/completion; want 1", got)
-	}
-	close(session.release)
-	<-done
-
-	work, blockers, complete = s.LifecycleInventory(context.Background())
-	if !complete || len(blockers) == 0 || lifecyclePairingStatus(work, "pairing/pairing-expired") != "uncertain" {
-		t.Fatalf("failed Close must remain an explicit lifecycle blocker: complete=%v blockers=%+v work=%+v", complete, blockers, work)
-	}
-	if _, err := s.CompletePairDevice(context.Background(), "tv", "pairing-expired", []byte("835B64")); err == nil {
-		t.Fatal("an uncertain close must not be replayed as a pairing completion")
-	}
-	if got := session.closes.Load(); got != 1 {
-		t.Fatalf("uncertain pairing Close was retried %d times; want one attempt", got)
-	}
-}
-
-func TestExpiredPairingLeavesInventoryIdleOnlyAfterSuccessfulClose(t *testing.T) {
-	s := newService(nil, nil)
-	session := &lifecyclePairingSession{started: make(chan struct{}), release: make(chan struct{})}
-	s.mu.Lock()
-	s.pendingPairings["pairing-expired"] = pendingPairing{deviceID: "tv", session: session, expiresAt: time.Now().Add(-time.Second)}
-	s.mu.Unlock()
-
-	done := make(chan struct{})
-	go func() {
-		s.expirePairing("pairing-expired")
-		close(done)
-	}()
-	<-session.started
-	work, blockers, complete := s.LifecycleInventory(context.Background())
-	if !complete || len(blockers) == 0 || lifecyclePairingStatus(work, "pairing/pairing-expired") != "closing" {
-		t.Fatalf("pairing disappeared while Close was pending: complete=%v blockers=%+v work=%+v", complete, blockers, work)
-	}
-	close(session.release)
-	<-done
-
-	work, blockers, complete = s.LifecycleInventory(context.Background())
-	if !complete || len(blockers) != 0 || lifecyclePairingStatus(work, "pairing/pairing-expired") != "" {
-		t.Fatalf("verified Close should clear the owner: complete=%v blockers=%+v work=%+v", complete, blockers, work)
 	}
 }
 

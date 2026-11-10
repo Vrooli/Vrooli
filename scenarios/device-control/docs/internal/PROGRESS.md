@@ -21,6 +21,10 @@ file to understand what changed without reconstructing history from git.
 Append concise milestones when work lands. Keep detailed execution receipts
 with the owning plan.
 
+## One-call device verbs, one TV across transports, explicit state — 2026-11-09
+
+Trigger: a cold agent could not take a screenshot of the TV (see `CHARTER-device-friction.md`). Landed: `device screenshot|record|open|evidence|relation-confirm`, compact `device list`, `next_actions` on every capture gap or failure, ADB-over-network as a confirmable transport of the same TV (D-016), inventory reconnect of absent network ADB endpoints (D-018), programs `device-control.observe` and `device-control.open-app` on new `CaptureDevice`/`LaunchApp` RPCs (D-019), the close protocol (D-020), Gherkin specifications (D-021), the lifecycle provider fixes that made `vrooli scenario restart` work (D-022), skill and command descriptions in user vocabulary, and docs rewritten from template residue. Cleanup: `androidadb.go` (3.2k lines) split into modality files, `control/service.go`, `execution.go`, `inventory.go` and `service_test.go` split by concern, unused code removed. Real-device results and numbers are in the closing report.
+
 ## Progress Log
 | Date | Author | Status | Summary |
 |---|---|---|---|

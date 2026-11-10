@@ -206,7 +206,7 @@ func TestLifecycleDurableFenceRequiresExactResumeIdentity(t *testing.T) {
 	}
 }
 
-func TestAdmissionMiddlewareClosesEveryIngressExceptLifecycle(t *testing.T) {
+func TestAdmissionMiddlewareClosesEveryIngressExceptLifecycleAndHealth(t *testing.T) {
 	_, p := testProvider(t)
 	ctx := context.Background()
 	if _, err := p.Prepare(ctx, connect.NewRequest(&commonv1.LifecyclePrepareRequest{OperationId: "op", Reason: "replacement"})); err != nil {
@@ -214,7 +214,7 @@ func TestAdmissionMiddlewareClosesEveryIngressExceptLifecycle(t *testing.T) {
 	}
 	called := 0
 	h := p.Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called++; w.WriteHeader(http.StatusNoContent) }))
-	for _, path := range []string{"/health", "/api/v1/devices", "/api/v1/flows/run", "/api/v1/desktop/session", "/some/unregistered/route"} {
+	for _, path := range []string{"/api/v1/devices", "/api/v1/flows/run", "/api/v1/desktop/session", "/some/unregistered/route"} {
 		r := httptest.NewRequest(http.MethodGet, path, nil)
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
@@ -227,6 +227,18 @@ func TestAdmissionMiddlewareClosesEveryIngressExceptLifecycle(t *testing.T) {
 	h.ServeHTTP(w, r)
 	if called != 1 || w.Code != http.StatusNoContent {
 		t.Fatalf("maintenance route not admitted: called=%d status=%d", called, w.Code)
+	}
+	// A replacement must report healthy behind its durable closed fence so the
+	// control plane can resume it; probes are served without being counted.
+	for _, path := range []string{"/health", "/api/v1/health"} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		if w.Code != http.StatusNoContent {
+			t.Errorf("%s was refused while admission is closed: %d", path, w.Code)
+		}
+	}
+	if p.standing().GetAdmitting() != 0 {
+		t.Fatal("health probes must not be counted as admitted work")
 	}
 }
 
@@ -308,4 +320,37 @@ func hasLifecycleBlocker(standing *commonv1.LifecycleStanding, code string) bool
 		}
 	}
 	return false
+}
+
+// A provider that has no work left but still owes owner quiescence must not
+// claim to be drained: the control plane rejects a drained standing that also
+// reports pending quiescence, which stranded a replacement behind a closed fence.
+func TestIdleOwnersWithQuiescenceOwedAreNotDrainedUntilQuiesced(t *testing.T) {
+	_, p := testProvider(t)
+	ctx := context.Background()
+	p.SetOwnerInventory(func(context.Context) ([]*commonv1.LifecycleWorkItem, []*commonv1.LifecycleBlocker, bool) {
+		return []*commonv1.LifecycleWorkItem{{Id: "owner/observers", Kind: "observers", Status: "idle"}}, nil, true
+	})
+	p.SetComponentMaintenance(func(context.Context, map[string]string) ([]*commonv1.LifecycleManagedComponent, []*commonv1.LifecycleWorkItem, []*commonv1.LifecycleBlocker, bool) {
+		return nil, nil, nil, true
+	}, func(context.Context) error { return nil })
+
+	prepared, err := p.Prepare(ctx, connect.NewRequest(&commonv1.LifecyclePrepareRequest{OperationId: "op", Reason: "replace"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	standing := prepared.Msg.GetStanding()
+	if standing.GetDrained() || !standing.GetQuiescencePending() {
+		t.Fatalf("idle owners with owed quiescence reported drained=%v quiescencePending=%v", standing.GetDrained(), standing.GetQuiescencePending())
+	}
+	if standing.GetFencePersistence() != commonv1.LifecycleFencePersistence_LIFECYCLE_FENCE_PERSISTENCE_OPERATION_DURABLE {
+		t.Fatalf("the DB-backed fence must declare durable persistence so a replacement can resume it: %v", standing.GetFencePersistence())
+	}
+	quiesced, err := p.Drain(ctx, connect.NewRequest(&commonv1.LifecycleDrainRequest{OperationId: "op", FenceToken: standing.GetFenceToken(), Revision: standing.GetRevision(), QuiesceComponents: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result := quiesced.Msg.GetStanding(); !result.GetDrained() || result.GetQuiescencePending() {
+		t.Fatalf("quiescing did not complete the drain: %+v", result)
+	}
 }

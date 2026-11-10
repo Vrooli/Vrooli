@@ -77,10 +77,6 @@ func ClaimsMatch(left, right []IdentityClaim) bool {
 	return false
 }
 
-func ClaimFor(strategyID, kind, value, evidence string) (IdentityClaim, error) {
-	return NewClaim(kind, value, strategyID, evidence)
-}
-
 func isNetworkIdentity(value string) bool {
 	if net.ParseIP(value) != nil || strings.Contains(value, ".local") {
 		return true

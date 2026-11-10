@@ -92,13 +92,6 @@ var pairingPIN = regexp.MustCompile(`^[0-9a-fA-F]{6}$`)
 
 const pairingSessionTTL = 2 * time.Minute
 
-func (s *Service) PairDevice(ctx context.Context, deviceID, pin string) error {
-	secret := []byte(strings.TrimSpace(pin))
-	defer zeroSecret(secret)
-	_, err := s.PairDeviceSecret(ctx, deviceID, secret)
-	return err
-}
-
 func (s *Service) PairDeviceSecret(ctx context.Context, deviceID string, secret []byte) (strategy.PairResult, error) {
 	defer zeroSecret(secret)
 	if !pairingPIN.Match(secret) {
@@ -194,8 +187,8 @@ func (s *Service) BeginPairDevice(ctx context.Context, deviceID string) (string,
 	}
 	var replaced []closeJob
 	for id, pending := range s.pendingPairings {
-		if pending.deviceID == deviceID && !pending.closing && !pending.uncertain {
-			pending.closing = true
+		if next, admitted := pending.close.beginClose(); pending.deviceID == deviceID && admitted {
+			pending.close = next
 			s.pendingPairings[id] = pending
 			replaced = append(replaced, closeJob{id: id, pending: pending})
 		}
@@ -205,15 +198,7 @@ func (s *Service) BeginPairDevice(ctx context.Context, deviceID string) (string,
 	for _, old := range replaced {
 		closeErr := old.pending.session.Close()
 		s.mu.Lock()
-		if current, stillPending := s.pendingPairings[old.id]; stillPending && current.closing {
-			if closeErr == nil {
-				delete(s.pendingPairings, old.id)
-			} else {
-				current.closing = false
-				current.uncertain = true
-				s.pendingPairings[old.id] = current
-			}
-		}
+		s.settlePairingClose(old.id, closeErr)
 		s.mu.Unlock()
 	}
 	time.AfterFunc(pairingSessionTTL, func() { s.expirePairing(pairingID) })
@@ -223,26 +208,22 @@ func (s *Service) BeginPairDevice(ctx context.Context, deviceID string) (string,
 func (s *Service) expirePairing(pairingID string) {
 	s.mu.Lock()
 	pending, ok := s.pendingPairings[pairingID]
-	if !ok || time.Now().UTC().Before(pending.expiresAt) || pending.closing || pending.uncertain {
+	if !ok || time.Now().UTC().Before(pending.expiresAt) {
 		s.mu.Unlock()
 		return
 	}
-	pending.closing = true
-	pending.uncertain = false
+	next, admitted := pending.close.beginClose()
+	if !admitted {
+		s.mu.Unlock()
+		return
+	}
+	pending.close = next
 	s.pendingPairings[pairingID] = pending
 	s.mu.Unlock()
 
 	closeErr := pending.session.Close()
 	s.mu.Lock()
-	if current, stillPending := s.pendingPairings[pairingID]; stillPending && current.closing {
-		if closeErr == nil {
-			delete(s.pendingPairings, pairingID)
-		} else {
-			current.closing = false
-			current.uncertain = true
-			s.pendingPairings[pairingID] = current
-		}
-	}
+	s.settlePairingClose(pairingID, closeErr)
 	s.mu.Unlock()
 }
 
@@ -252,16 +233,14 @@ func (s *Service) CompletePairDevice(ctx context.Context, deviceID, pairingID st
 	defer zeroSecret(secret)
 	s.mu.Lock()
 	pending, ok := s.pendingPairings[pairingID]
-	if ok && !time.Now().UTC().Before(pending.expiresAt) && !pending.closing {
+	if ok && !time.Now().UTC().Before(pending.expiresAt) && pending.close != stateClosing {
 		s.mu.Unlock()
-		if !pending.uncertain {
-			s.expirePairing(pairingID)
-		}
+		s.expirePairing(pairingID)
 		return strategy.PairResult{Outcome: "failed", Transport: "android-tv-remote", Detail: "pairing session is unavailable or expired"}, fmt.Errorf("pairing session is unavailable or expired")
 	}
-	closing := pending.closing
+	usable := pending.close.usable()
 	s.mu.Unlock()
-	if !ok || closing || pending.deviceID != deviceID {
+	if !ok || !usable || pending.deviceID != deviceID {
 		return strategy.PairResult{Outcome: "failed", Transport: "android-tv-remote", Detail: "pairing session is unavailable"}, fmt.Errorf("pairing session is unavailable or expired")
 	}
 	if !pairingPIN.Match(secret) {
@@ -271,25 +250,17 @@ func (s *Service) CompletePairDevice(ctx context.Context, deviceID, pairingID st
 	}
 	s.mu.Lock()
 	current, stillPending := s.pendingPairings[pairingID]
-	if !stillPending || current.closing || current.deviceID != deviceID || !time.Now().UTC().Before(current.expiresAt) {
+	if !stillPending || !current.close.usable() || current.deviceID != deviceID || !time.Now().UTC().Before(current.expiresAt) {
 		s.mu.Unlock()
 		s.expirePairing(pairingID)
 		return strategy.PairResult{Outcome: "failed", Transport: "android-tv-remote", Detail: "pairing session is unavailable"}, fmt.Errorf("pairing session is unavailable or expired")
 	}
-	current.closing = true
+	current.close, _ = current.close.beginClose()
 	s.pendingPairings[pairingID] = current
 	s.mu.Unlock()
 	result, err := pending.pairer.CompletePairing(ctx, pending.session, secret)
 	s.mu.Lock()
-	if current, stillPending := s.pendingPairings[pairingID]; stillPending && current.closing {
-		if err == nil {
-			delete(s.pendingPairings, pairingID)
-		} else {
-			current.closing = false
-			current.uncertain = true
-			s.pendingPairings[pairingID] = current
-		}
-	}
+	s.settlePairingClose(pairingID, err)
 	s.mu.Unlock()
 	s.recordPairAudit(ctx, pending.deviceID, result.Transport, result.Outcome)
 	if err != nil {
@@ -356,4 +327,21 @@ func zeroSecret(secret []byte) {
 	for i := range secret {
 		secret[i] = 0
 	}
+}
+
+// settlePairingClose applies the outcome of a close the caller began: a
+// verified close removes the session, a failed one leaves it uncertain. The
+// caller holds s.mu.
+func (s *Service) settlePairingClose(pairingID string, closeErr error) {
+	current, stillPending := s.pendingPairings[pairingID]
+	if !stillPending {
+		return
+	}
+	next, removed := current.close.closeResult(closeErr)
+	if removed {
+		delete(s.pendingPairings, pairingID)
+		return
+	}
+	current.close = next
+	s.pendingPairings[pairingID] = current
 }

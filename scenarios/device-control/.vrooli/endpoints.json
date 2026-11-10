@@ -279,6 +279,32 @@
       }
     },
     {
+      "id": "devices_semantics",
+      "path": "/api/v1/devices/{id}/semantics",
+      "method": "POST",
+      "summary": "Read a bounded accessibility snapshot under a device lease",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
       "id": "devices_state",
       "path": "/api/v1/devices/{id}/state",
       "method": "GET",
@@ -439,6 +465,84 @@
       "path": "/api/v1/devices/{id}/capture",
       "method": "POST",
       "summary": "Capture a still or bounded recording through the flow owner",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_install",
+      "path": "/api/v1/devices/{id}/install",
+      "method": "POST",
+      "summary": "Install a local APK, verify it, and optionally open and screenshot it",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_launch",
+      "path": "/api/v1/devices/{id}/launch",
+      "method": "POST",
+      "summary": "Open an app by name or package and verify it reached the foreground",
+      "description": "",
+      "category": "devices",
+      "rest_exception": {
+        "reason": "third_party_shape",
+        "note": "Scenario-owned JSON projection remains REST until its proto envelope is published.",
+        "proto_payloads": {
+          "request": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "devices_relations_confirm",
+      "path": "/api/v1/devices/relations/confirm",
+      "method": "POST",
+      "summary": "Confirm a same-host transport candidate as one physical device",
       "description": "",
       "category": "devices",
       "rest_exception": {
@@ -1507,6 +1611,30 @@
       "path": "/vrooli.device_control.v1.devices.DeviceService/ExecuteVolume",
       "method": "POST",
       "summary": "Execute semantic volume operation",
+      "description": "",
+      "category": "devices"
+    },
+    {
+      "id": "device_rpc_capture",
+      "path": "/vrooli.device_control.v1.devices.DeviceService/CaptureDevice",
+      "method": "POST",
+      "summary": "Capture a screenshot or recording of a named device in one call",
+      "description": "",
+      "category": "devices"
+    },
+    {
+      "id": "device_rpc_launch_app",
+      "path": "/vrooli.device_control.v1.devices.DeviceService/LaunchApp",
+      "method": "POST",
+      "summary": "Open an app by name or package and verify the foreground",
+      "description": "",
+      "category": "devices"
+    },
+    {
+      "id": "device_rpc_install_app",
+      "path": "/vrooli.device_control.v1.devices.DeviceService/InstallApp",
+      "method": "POST",
+      "summary": "Install a local APK on a phone, verify it, and optionally open and screenshot it",
       "description": "",
       "category": "devices"
     },

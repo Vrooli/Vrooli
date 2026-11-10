@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "device-control",
   "generator": "v1.0.0",
-  "manifest_hash": "094c0dd9875903cdd5f9bc7d74292a8f4ee2e8c5f0a3755ff81706710a2e1b07",
+  "manifest_hash": "c29720a5c62a817356f0b8c6f3212af8cec87c4ae86923a76220ffaa24a19056",
   "commands": [
     {
       "path": "agent abort",
@@ -229,6 +229,12 @@
       "binding": "."
     },
     {
+      "path": "device evidence",
+      "group": "device",
+      "command": "evidence",
+      "binding": "."
+    },
+    {
       "path": "device forget",
       "group": "device",
       "command": "forget",
@@ -239,6 +245,12 @@
       "group": "device",
       "command": "inspect",
       "binding": "DeviceService.InspectDevice"
+    },
+    {
+      "path": "device install",
+      "group": "device",
+      "command": "install",
+      "binding": "DeviceService.InstallApp"
     },
     {
       "path": "device list",
@@ -265,6 +277,12 @@
       "binding": "."
     },
     {
+      "path": "device open",
+      "group": "device",
+      "command": "open",
+      "binding": "DeviceService.LaunchApp"
+    },
+    {
       "path": "device pair",
       "group": "device",
       "command": "pair",
@@ -283,6 +301,18 @@
       "binding": "DeviceService.ReconnectDevice"
     },
     {
+      "path": "device record",
+      "group": "device",
+      "command": "record",
+      "binding": "."
+    },
+    {
+      "path": "device relation-confirm",
+      "group": "device",
+      "command": "relation-confirm",
+      "binding": "."
+    },
+    {
       "path": "device relations",
       "group": "device",
       "command": "relations",
@@ -293,6 +323,12 @@
       "group": "device",
       "command": "screen",
       "binding": "."
+    },
+    {
+      "path": "device screenshot",
+      "group": "device",
+      "command": "screenshot",
+      "binding": "DeviceService.CaptureDevice"
     },
     {
       "path": "device semantics",

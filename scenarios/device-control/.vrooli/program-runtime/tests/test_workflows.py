@@ -225,6 +225,54 @@ class Programs(unittest.TestCase):
         self.assertEqual('invalid_input', result['errors'][0]['class'])
         self.assertEqual([], called)
 
+    # screenshot-only check-app: one capture call that wakes the screen and returns evidence ids or the gap's next actions.
+    def test_given_a_named_tv_when_screenshotting_then_one_capture_wakes_and_returns_evidence_ids(self):
+        calls=[]
+        def screenshot(**kw):
+            calls.append(kw); return Handle([], {'disposition':'passed','evidenceIds':['ev-1']})
+        result=self.run_program('check-app', {'device':'SmartTV 4K','actor':'o'}, NS(device=NS(screenshot=screenshot)))
+        self.assertEqual('ok', result['status'])
+        self.assertEqual(['ev-1'], result['evidence'])
+        self.assertTrue(calls[0]['wake'])
+        self.assertFalse(calls[0]['home'], 'Home can change the foreground app and stays opt-in')
+
+    def test_given_a_tv_without_a_frame_when_screenshotting_then_the_gap_carries_next_actions(self):
+        gap={'disposition':'capability_gap','message':'no transport','nextAction':'device-control device relation-confirm c1'}
+        result=self.run_program('check-app', {'device':'tv','actor':'o'}, NS(device=NS(screenshot=lambda **kw: Handle([], gap))))
+        self.assertEqual('failed', result['status'])
+        self.assertEqual(['device-control device relation-confirm c1'], result['signals']['next_actions'])
+
+    # check-app: an apk is installed, opened and screenshotted by one owner call; an installed app is opened then captured.
+    def test_given_an_apk_when_checking_then_one_install_call_does_everything_and_no_open_is_sent(self):
+        calls=[]
+        def install(**kw):
+            calls.append(kw)
+            return Handle([], {'status':'installed_verified','package':'com.acme.demo','launchStatus':'foreground_verified','foregroundPackage':'com.acme.demo','evidenceIds':['ev-9']})
+        api=NS(device=NS(install=install, open=lambda **kw: self.fail('open must not be called'), screenshot=lambda **kw: self.fail('screenshot must not be called')))
+        result=self.run_program('check-app', {'device':'moto','actor':'o','apk':'/tmp/a.apk'}, api)
+        self.assertEqual('ok', result['status'])
+        self.assertEqual(['ev-9'], result['evidence'])
+        self.assertTrue(calls[0]['open'] and calls[0]['screenshot'])
+
+    def test_given_an_installed_app_when_checking_then_no_install_is_sent_and_it_is_captured_after_opening(self):
+        order=[]
+        def open_app(**kw): order.append('open'); return Handle([], {'status':'foreground_verified','package':'com.netflix.ninja','foregroundPackage':'com.netflix.ninja'})
+        def shot(**kw): order.append('shot'); return Handle([], {'disposition':'passed','evidenceIds':['ev-1']})
+        api=NS(device=NS(install=lambda **kw: self.fail('install must not be sent'), open=open_app, screenshot=shot))
+        result=self.run_program('check-app', {'device':'tv','actor':'o','app':'netflix'}, api)
+        self.assertEqual('ok', result['status'])
+        self.assertEqual(['open','shot'], order)
+
+    def test_given_an_app_that_never_reaches_the_foreground_when_checking_then_no_screenshot_is_taken(self):
+        api=NS(device=NS(open=lambda **kw: Handle([], {'status':'launched_unverified'}), screenshot=lambda **kw: self.fail('no screenshot of a wrong screen')))
+        result=self.run_program('check-app', {'device':'tv','actor':'o','app':'netflix'}, api)
+        self.assertEqual('failed', result['status'])
+        self.assertNotEqual('verified_success', result['signals']['outcome'])
+
+    def test_given_no_device_when_checking_then_it_is_invalid_input(self):
+        result=self.run_program('check-app', {'actor':'o'}, NS(device=NS()))
+        self.assertEqual('invalid_input', result['errors'][0]['class'])
+
     def test_setpoint_preserves_shared_unknowns_and_adds_owner_condition(self):
         calls=[]
         measured={'row':'completion-effort','reading':None,'unavailable':True,'reason':'empty_sample','in_band':None}
