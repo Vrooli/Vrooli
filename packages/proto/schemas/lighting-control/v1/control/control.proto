@@ -1,0 +1,198 @@
+syntax = "proto3";
+
+package vrooli.lighting_control.v1.control;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/control;control";
+
+// BackendState distinguishes resource lifecycle/readiness from device discovery.
+enum BackendState {
+  BACKEND_STATE_UNSPECIFIED = 0;
+  BACKEND_STATE_DISABLED = 1;
+  BACKEND_STATE_UNAVAILABLE = 2;
+  BACKEND_STATE_READY = 3;
+  BACKEND_STATE_PROTOCOL_MISMATCH = 4;
+  BACKEND_STATE_STARTING = 5;
+  BACKEND_STATE_STOPPED = 6;
+}
+
+enum BackendReason {
+  BACKEND_REASON_UNSPECIFIED = 0;
+  BACKEND_REASON_READY = 1;
+  BACKEND_REASON_DISABLED = 2;
+  BACKEND_REASON_NOT_INSTALLED = 3;
+  BACKEND_REASON_STOPPED = 4;
+  BACKEND_REASON_PERMISSION_DENIED = 5;
+  BACKEND_REASON_PROTOCOL_INCOMPATIBLE = 6;
+  BACKEND_REASON_UNSUPPORTED_PLATFORM = 7;
+  BACKEND_REASON_PROBE_FAILED = 8;
+}
+
+// OperationState never claims that an SDK acknowledgement was observed output.
+enum OperationState {
+  OPERATION_STATE_UNSPECIFIED = 0;
+  // The local packet write completed but no valid backend ACK was observed.
+  OPERATION_STATE_COMMAND_SENT = 1;
+  OPERATION_STATE_FAILED = 2;
+  OPERATION_STATE_UNSUPPORTED = 3;
+  OPERATION_STATE_DEFERRED = 4;
+  // OpenRGB v6 returned an ACK with status OK. This confirms backend-side
+  // processing only; it does not prove device state or visible output.
+  OPERATION_STATE_BACKEND_ACKNOWLEDGED = 5;
+}
+
+message BackendStatus {
+  BackendState state = 1;
+  string version = 2;
+  uint32 sdk_protocol_version = 3;
+  string detail = 4;
+  string checked_at = 5;
+  BackendReason reason = 6;
+}
+
+message ZoneCapability {
+  string zone_id = 1;
+  string name = 2;
+  uint32 led_count = 3;
+  bool supports_static_color = 4;
+  bool supports_brightness = 5;
+  repeated string supported_effects = 6;
+}
+
+message Controller {
+  // Backend namespace and opaque identity; never an enumeration index.
+  string backend_id = 1 [(buf.validate.field).string.min_len = 1];
+  string controller_id = 2 [(buf.validate.field).string.min_len = 1];
+  string name = 3;
+  string vendor = 4;
+  string description = 5;
+  bool enrolled = 6;
+  repeated ZoneCapability zones = 7;
+  google.protobuf.Timestamp last_seen_at = 8;
+  string identity_source = 9;
+}
+
+message Color {
+  uint32 red = 1 [(buf.validate.field).uint32.lte = 255];
+  uint32 green = 2 [(buf.validate.field).uint32.lte = 255];
+  uint32 blue = 3 [(buf.validate.field).uint32.lte = 255];
+}
+
+message ZoneState {
+  string controller_id = 1 [(buf.validate.field).string.min_len = 1];
+  string zone_id = 2 [(buf.validate.field).string.min_len = 1];
+  oneof desired_mode {
+    google.protobuf.Empty off = 3;
+    StaticZoneState static_color = 4;
+    EffectZoneState effect = 5;
+  }
+}
+
+message StaticZoneState {
+  Color color = 1;
+  uint32 brightness_percent = 2 [(buf.validate.field).uint32.lte = 100];
+}
+
+message EffectZoneState {
+  string effect_id = 1 [(buf.validate.field).string.min_len = 1];
+  Color color = 2;
+  uint32 brightness_percent = 3 [(buf.validate.field).uint32.lte = 100];
+}
+
+message ZoneApplyResult {
+  ZoneState desired = 1;
+  OperationState operation = 2;
+  string reason = 3;
+  google.protobuf.Timestamp completed_at = 4;
+  bool backend_acknowledged = 5;
+  // Numeric OpenRGB NetPacketStatus value from the v6 ACK (0 means OK).
+  uint32 backend_ack_status = 6;
+  bool local_write_completed = 7;
+}
+
+message OutputObservation {
+  ZoneState state = 1;
+  string source = 2;
+  google.protobuf.Timestamp observed_at = 3;
+  string evidence = 4;
+}
+
+message ZoneStatus {
+  ZoneState desired = 1;
+  ZoneApplyResult last_apply = 2;
+  OutputObservation observation = 3;
+}
+
+message ManualOverride {
+  bool active = 1;
+  bool all_enrolled = 2;
+  repeated string controller_ids = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp expires_at = 5;
+}
+
+message GetBackendStatusRequest {}
+message GetBackendStatusResponse { BackendStatus backend = 1; }
+
+message ListControllersRequest { bool include_unavailable = 1; }
+message ListControllersResponse {
+  BackendStatus backend = 1;
+  repeated Controller controllers = 2;
+}
+
+message EnrollControllerRequest {
+  string controller_id = 1 [(buf.validate.field).string.min_len = 1];
+  bool enrolled = 2;
+}
+message EnrollControllerResponse { Controller controller = 1; }
+
+message SetZoneStateRequest { ZoneState desired = 1; }
+message SetZoneStateResponse {
+  ZoneApplyResult result = 1;
+}
+
+message SetManualOffRequest {
+  // Explicit scope avoids overloading empty as both none and all.
+  bool all_enrolled = 1;
+  repeated string controller_ids = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+message SetManualOffResponse {
+  ManualOverride override = 1;
+  repeated ZoneApplyResult results = 2;
+}
+
+message GetDesiredStateRequest {}
+message GetDesiredStateResponse {
+  repeated ZoneStatus zones = 1;
+  ManualOverride manual_override = 2;
+}
+
+message ClearManualOverrideRequest {}
+message ClearManualOverrideResponse { bool cleared = 1; }
+
+message ReconcileZoneResult {
+  string controller_id = 1;
+  string zone_id = 2;
+  ZoneApplyResult result = 3;
+}
+
+message ReconcileRequest { string trigger = 1; }
+message ReconcileResponse {
+  repeated ReconcileZoneResult zones = 1;
+  google.protobuf.Timestamp completed_at = 2;
+}
+
+service ControlService {
+  rpc GetBackendStatus(GetBackendStatusRequest) returns (GetBackendStatusResponse);
+  rpc ListControllers(ListControllersRequest) returns (ListControllersResponse);
+  rpc EnrollController(EnrollControllerRequest) returns (EnrollControllerResponse);
+  rpc SetZoneState(SetZoneStateRequest) returns (SetZoneStateResponse);
+  rpc SetManualOff(SetManualOffRequest) returns (SetManualOffResponse);
+  rpc GetDesiredState(GetDesiredStateRequest) returns (GetDesiredStateResponse);
+  rpc ClearManualOverride(ClearManualOverrideRequest) returns (ClearManualOverrideResponse);
+  rpc Reconcile(ReconcileRequest) returns (ReconcileResponse);
+}

@@ -1,3 +1,4 @@
+from common.v1 import code_graph_pb2 as _code_graph_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -154,7 +155,7 @@ class CodeTarget(_message.Message):
     def __init__(self, kind: _Optional[_Union[TargetKind, str]] = ..., path: _Optional[str] = ..., scenario: _Optional[str] = ..., repo_root: _Optional[str] = ..., language_filter: _Optional[_Iterable[str]] = ..., strict: _Optional[bool] = ..., package_name: _Optional[str] = ...) -> None: ...
 
 class DescribeCodeFactsRequest(_message.Message):
-    __slots__ = ("target", "include", "endpoint_ids", "command_ids", "widget_ids", "max_depth", "use_cache", "page_size", "page_token")
+    __slots__ = ("target", "include", "endpoint_ids", "command_ids", "widget_ids", "max_depth", "use_cache", "page_size", "page_token", "include_graphs")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     INCLUDE_FIELD_NUMBER: _ClassVar[int]
     ENDPOINT_IDS_FIELD_NUMBER: _ClassVar[int]
@@ -164,6 +165,7 @@ class DescribeCodeFactsRequest(_message.Message):
     USE_CACHE_FIELD_NUMBER: _ClassVar[int]
     PAGE_SIZE_FIELD_NUMBER: _ClassVar[int]
     PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
+    INCLUDE_GRAPHS_FIELD_NUMBER: _ClassVar[int]
     target: CodeTarget
     include: _containers.RepeatedScalarFieldContainer[FactFamily]
     endpoint_ids: _containers.RepeatedScalarFieldContainer[str]
@@ -173,7 +175,8 @@ class DescribeCodeFactsRequest(_message.Message):
     use_cache: bool
     page_size: int
     page_token: str
-    def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., include: _Optional[_Iterable[_Union[FactFamily, str]]] = ..., endpoint_ids: _Optional[_Iterable[str]] = ..., command_ids: _Optional[_Iterable[str]] = ..., widget_ids: _Optional[_Iterable[str]] = ..., max_depth: _Optional[int] = ..., use_cache: _Optional[bool] = ..., page_size: _Optional[int] = ..., page_token: _Optional[str] = ...) -> None: ...
+    include_graphs: bool
+    def __init__(self, target: _Optional[_Union[CodeTarget, _Mapping]] = ..., include: _Optional[_Iterable[_Union[FactFamily, str]]] = ..., endpoint_ids: _Optional[_Iterable[str]] = ..., command_ids: _Optional[_Iterable[str]] = ..., widget_ids: _Optional[_Iterable[str]] = ..., max_depth: _Optional[int] = ..., use_cache: _Optional[bool] = ..., page_size: _Optional[int] = ..., page_token: _Optional[str] = ..., include_graphs: _Optional[bool] = ...) -> None: ...
 
 class SearchRequest(_message.Message):
     __slots__ = ("query", "limit", "target", "families", "expand_edges", "roles", "languages", "scope", "budget_ms", "lexical_budget_ms", "semantic_budget_ms", "graph_budget_ms")
@@ -709,7 +712,7 @@ class ClearCacheResponse(_message.Message):
     def __init__(self, cache_key: _Optional[str] = ..., matched_entries: _Optional[int] = ..., cleared_entries: _Optional[int] = ..., dry_run: _Optional[bool] = ...) -> None: ...
 
 class CodeFactsReport(_message.Message):
-    __slots__ = ("target", "parse_units", "surfaces", "facts", "evidence", "warnings", "cache", "next_page_token", "total_facts")
+    __slots__ = ("target", "parse_units", "surfaces", "facts", "evidence", "warnings", "cache", "next_page_token", "total_facts", "graphs")
     TARGET_FIELD_NUMBER: _ClassVar[int]
     PARSE_UNITS_FIELD_NUMBER: _ClassVar[int]
     SURFACES_FIELD_NUMBER: _ClassVar[int]
@@ -719,6 +722,7 @@ class CodeFactsReport(_message.Message):
     CACHE_FIELD_NUMBER: _ClassVar[int]
     NEXT_PAGE_TOKEN_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FACTS_FIELD_NUMBER: _ClassVar[int]
+    GRAPHS_FIELD_NUMBER: _ClassVar[int]
     target: TargetContext
     parse_units: _containers.RepeatedCompositeFieldContainer[ParseUnit]
     surfaces: _containers.RepeatedCompositeFieldContainer[Surface]
@@ -728,7 +732,36 @@ class CodeFactsReport(_message.Message):
     cache: CacheMetadata
     next_page_token: str
     total_facts: int
-    def __init__(self, target: _Optional[_Union[TargetContext, _Mapping]] = ..., parse_units: _Optional[_Iterable[_Union[ParseUnit, _Mapping]]] = ..., surfaces: _Optional[_Iterable[_Union[Surface, _Mapping]]] = ..., facts: _Optional[_Iterable[_Union[GenericFact, _Mapping]]] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[Warning, _Mapping]]] = ..., cache: _Optional[_Union[CacheMetadata, _Mapping]] = ..., next_page_token: _Optional[str] = ..., total_facts: _Optional[int] = ...) -> None: ...
+    graphs: _containers.RepeatedCompositeFieldContainer[LanguageGraph]
+    def __init__(self, target: _Optional[_Union[TargetContext, _Mapping]] = ..., parse_units: _Optional[_Iterable[_Union[ParseUnit, _Mapping]]] = ..., surfaces: _Optional[_Iterable[_Union[Surface, _Mapping]]] = ..., facts: _Optional[_Iterable[_Union[GenericFact, _Mapping]]] = ..., evidence: _Optional[_Iterable[_Union[Evidence, _Mapping]]] = ..., warnings: _Optional[_Iterable[_Union[Warning, _Mapping]]] = ..., cache: _Optional[_Union[CacheMetadata, _Mapping]] = ..., next_page_token: _Optional[str] = ..., total_facts: _Optional[int] = ..., graphs: _Optional[_Iterable[_Union[LanguageGraph, _Mapping]]] = ...) -> None: ...
+
+class LanguageGraph(_message.Message):
+    __slots__ = ("parse_unit", "graph", "warnings", "graph_hash", "extraction_ms", "extraction_profile", "omitted_information", "cache")
+    PARSE_UNIT_FIELD_NUMBER: _ClassVar[int]
+    GRAPH_FIELD_NUMBER: _ClassVar[int]
+    WARNINGS_FIELD_NUMBER: _ClassVar[int]
+    GRAPH_HASH_FIELD_NUMBER: _ClassVar[int]
+    EXTRACTION_MS_FIELD_NUMBER: _ClassVar[int]
+    EXTRACTION_PROFILE_FIELD_NUMBER: _ClassVar[int]
+    OMITTED_INFORMATION_FIELD_NUMBER: _ClassVar[int]
+    CACHE_FIELD_NUMBER: _ClassVar[int]
+    parse_unit: ParseUnit
+    graph: _code_graph_pb2.CodeGraph
+    warnings: _containers.RepeatedCompositeFieldContainer[_code_graph_pb2.CodeGraphWarning]
+    graph_hash: str
+    extraction_ms: int
+    extraction_profile: str
+    omitted_information: _containers.RepeatedCompositeFieldContainer[GraphInformationOmission]
+    cache: CacheMetadata
+    def __init__(self, parse_unit: _Optional[_Union[ParseUnit, _Mapping]] = ..., graph: _Optional[_Union[_code_graph_pb2.CodeGraph, _Mapping]] = ..., warnings: _Optional[_Iterable[_Union[_code_graph_pb2.CodeGraphWarning, _Mapping]]] = ..., graph_hash: _Optional[str] = ..., extraction_ms: _Optional[int] = ..., extraction_profile: _Optional[str] = ..., omitted_information: _Optional[_Iterable[_Union[GraphInformationOmission, _Mapping]]] = ..., cache: _Optional[_Union[CacheMetadata, _Mapping]] = ...) -> None: ...
+
+class GraphInformationOmission(_message.Message):
+    __slots__ = ("capability", "reason")
+    CAPABILITY_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    capability: str
+    reason: str
+    def __init__(self, capability: _Optional[str] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class ListSurfacesResponse(_message.Message):
     __slots__ = ("target", "surfaces", "warnings", "cache")

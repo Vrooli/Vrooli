@@ -161,6 +161,11 @@ type Headroom struct {
 	AvailableMinor         int64                  `protobuf:"varint,11,opt,name=available_minor,json=availableMinor,proto3" json:"available_minor,omitempty"`
 	PeriodStartedAt        *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=period_started_at,json=periodStartedAt,proto3" json:"period_started_at,omitempty"`
 	ComputedAt             *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=computed_at,json=computedAt,proto3" json:"computed_at,omitempty"`
+	FundingRequired        bool                   `protobuf:"varint,14,opt,name=funding_required,json=fundingRequired,proto3" json:"funding_required,omitempty"`
+	FundingCreditedMinor   int64                  `protobuf:"varint,15,opt,name=funding_credited_minor,json=fundingCreditedMinor,proto3" json:"funding_credited_minor,omitempty"`
+	FundingRemainingMinor  int64                  `protobuf:"varint,16,opt,name=funding_remaining_minor,json=fundingRemainingMinor,proto3" json:"funding_remaining_minor,omitempty"`
+	FundingAtomicAmount    string                 `protobuf:"bytes,17,opt,name=funding_atomic_amount,json=fundingAtomicAmount,proto3" json:"funding_atomic_amount,omitempty"`
+	FundingAssetId         string                 `protobuf:"bytes,18,opt,name=funding_asset_id,json=fundingAssetId,proto3" json:"funding_asset_id,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -286,6 +291,41 @@ func (x *Headroom) GetComputedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Headroom) GetFundingRequired() bool {
+	if x != nil {
+		return x.FundingRequired
+	}
+	return false
+}
+
+func (x *Headroom) GetFundingCreditedMinor() int64 {
+	if x != nil {
+		return x.FundingCreditedMinor
+	}
+	return 0
+}
+
+func (x *Headroom) GetFundingRemainingMinor() int64 {
+	if x != nil {
+		return x.FundingRemainingMinor
+	}
+	return 0
+}
+
+func (x *Headroom) GetFundingAtomicAmount() string {
+	if x != nil {
+		return x.FundingAtomicAmount
+	}
+	return ""
+}
+
+func (x *Headroom) GetFundingAssetId() string {
+	if x != nil {
+		return x.FundingAssetId
+	}
+	return ""
+}
+
 var File_treasury_v1_budget_budget_proto protoreflect.FileDescriptor
 
 const file_treasury_v1_budget_budget_proto_rawDesc = "" +
@@ -303,7 +343,7 @@ const file_treasury_v1_budget_budget_proto_rawDesc = "" +
 	"\x11requires_approval\x18\t \x01(\bR\x10requiresApproval\x12\x16\n" +
 	"\x06frozen\x18\n" +
 	" \x01(\bR\x06frozen\x12%\n" +
-	"\x0eperiod_seconds\x18\v \x01(\x03R\rperiodSeconds\"\xdb\x04\n" +
+	"\x0eperiod_seconds\x18\v \x01(\x03R\rperiodSeconds\"\xd2\x06\n" +
 	"\bHeadroom\x12\x1b\n" +
 	"\tbudget_id\x18\x01 \x01(\tR\bbudgetId\x12\x17\n" +
 	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x1a\n" +
@@ -319,7 +359,12 @@ const file_treasury_v1_budget_budget_proto_rawDesc = "" +
 	"\x0favailable_minor\x18\v \x01(\x03R\x0eavailableMinor\x12F\n" +
 	"\x11period_started_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x0fperiodStartedAt\x12;\n" +
 	"\vcomputed_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"computedAtBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget;budget_v1b\x06proto3"
+	"computedAt\x12)\n" +
+	"\x10funding_required\x18\x0e \x01(\bR\x0ffundingRequired\x124\n" +
+	"\x16funding_credited_minor\x18\x0f \x01(\x03R\x14fundingCreditedMinor\x126\n" +
+	"\x17funding_remaining_minor\x18\x10 \x01(\x03R\x15fundingRemainingMinor\x122\n" +
+	"\x15funding_atomic_amount\x18\x11 \x01(\tR\x13fundingAtomicAmount\x12(\n" +
+	"\x10funding_asset_id\x18\x12 \x01(\tR\x0efundingAssetIdBMZKgithub.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget;budget_v1b\x06proto3"
 
 var (
 	file_treasury_v1_budget_budget_proto_rawDescOnce sync.Once

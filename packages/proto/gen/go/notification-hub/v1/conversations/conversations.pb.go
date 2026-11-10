@@ -1412,6 +1412,237 @@ func (x *ListAsksResponse) GetNextCursor() string {
 	return ""
 }
 
+// Native consent stays owned and actionable only in the source service.
+type NativeConsent struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	AuthorizationId string                 `protobuf:"bytes,1,opt,name=authorization_id,json=authorizationId,proto3" json:"authorization_id,omitempty"`
+	NotificationId  string                 `protobuf:"bytes,2,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
+	Source          string                 `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
+	Title           string                 `protobuf:"bytes,4,opt,name=title,proto3" json:"title,omitempty"`
+	Body            string                 `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	ReviewUrl       string                 `protobuf:"bytes,6,opt,name=review_url,json=reviewUrl,proto3" json:"review_url,omitempty"`
+	// pending is source-verified; unavailable means the current state is unknown.
+	State           string `protobuf:"bytes,7,opt,name=state,proto3" json:"state,omitempty"`
+	ReviewExpiresAt string `protobuf:"bytes,8,opt,name=review_expires_at,json=reviewExpiresAt,proto3" json:"review_expires_at,omitempty"`
+	ObservedAt      string `protobuf:"bytes,9,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	CreatedAt       string `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *NativeConsent) Reset() {
+	*x = NativeConsent{}
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NativeConsent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NativeConsent) ProtoMessage() {}
+
+func (x *NativeConsent) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NativeConsent.ProtoReflect.Descriptor instead.
+func (*NativeConsent) Descriptor() ([]byte, []int) {
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *NativeConsent) GetAuthorizationId() string {
+	if x != nil {
+		return x.AuthorizationId
+	}
+	return ""
+}
+
+func (x *NativeConsent) GetNotificationId() string {
+	if x != nil {
+		return x.NotificationId
+	}
+	return ""
+}
+
+func (x *NativeConsent) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *NativeConsent) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *NativeConsent) GetBody() string {
+	if x != nil {
+		return x.Body
+	}
+	return ""
+}
+
+func (x *NativeConsent) GetReviewUrl() string {
+	if x != nil {
+		return x.ReviewUrl
+	}
+	return ""
+}
+
+func (x *NativeConsent) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *NativeConsent) GetReviewExpiresAt() string {
+	if x != nil {
+		return x.ReviewExpiresAt
+	}
+	return ""
+}
+
+func (x *NativeConsent) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+func (x *NativeConsent) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+type ListNativeConsentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Limit         uint32                 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	Cursor        string                 `protobuf:"bytes,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	Query         string                 `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNativeConsentsRequest) Reset() {
+	*x = ListNativeConsentsRequest{}
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNativeConsentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNativeConsentsRequest) ProtoMessage() {}
+
+func (x *ListNativeConsentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNativeConsentsRequest.ProtoReflect.Descriptor instead.
+func (*ListNativeConsentsRequest) Descriptor() ([]byte, []int) {
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *ListNativeConsentsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListNativeConsentsRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+func (x *ListNativeConsentsRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+type ListNativeConsentsResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Consents []*NativeConsent       `protobuf:"bytes,1,rep,name=consents,proto3" json:"consents,omitempty"`
+	// Candidate pagination includes closed records: an empty page is not the end.
+	NextCursor    string `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListNativeConsentsResponse) Reset() {
+	*x = ListNativeConsentsResponse{}
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListNativeConsentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListNativeConsentsResponse) ProtoMessage() {}
+
+func (x *ListNativeConsentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_notification_hub_v1_conversations_conversations_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListNativeConsentsResponse.ProtoReflect.Descriptor instead.
+func (*ListNativeConsentsResponse) Descriptor() ([]byte, []int) {
+	return file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ListNativeConsentsResponse) GetConsents() []*NativeConsent {
+	if x != nil {
+		return x.Consents
+	}
+	return nil
+}
+
+func (x *ListNativeConsentsResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
 var File_notification_hub_v1_conversations_conversations_proto protoreflect.FileDescriptor
 
 const file_notification_hub_v1_conversations_conversations_proto_rawDesc = "" +
@@ -1542,7 +1773,30 @@ const file_notification_hub_v1_conversations_conversations_proto_rawDesc = "" +
 	"\x10ListAsksResponse\x12A\n" +
 	"\x04asks\x18\x01 \x03(\v2-.vrooli.notification_hub.v1.conversations.AskR\x04asks\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor2\x83\a\n" +
+	"nextCursor\"\xc6\x02\n" +
+	"\rNativeConsent\x12)\n" +
+	"\x10authorization_id\x18\x01 \x01(\tR\x0fauthorizationId\x12'\n" +
+	"\x0fnotification_id\x18\x02 \x01(\tR\x0enotificationId\x12\x16\n" +
+	"\x06source\x18\x03 \x01(\tR\x06source\x12\x14\n" +
+	"\x05title\x18\x04 \x01(\tR\x05title\x12\x12\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body\x12\x1d\n" +
+	"\n" +
+	"review_url\x18\x06 \x01(\tR\treviewUrl\x12\x14\n" +
+	"\x05state\x18\a \x01(\tR\x05state\x12*\n" +
+	"\x11review_expires_at\x18\b \x01(\tR\x0freviewExpiresAt\x12\x1f\n" +
+	"\vobserved_at\x18\t \x01(\tR\n" +
+	"observedAt\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\n" +
+	" \x01(\tR\tcreatedAt\"_\n" +
+	"\x19ListNativeConsentsRequest\x12\x14\n" +
+	"\x05limit\x18\x01 \x01(\rR\x05limit\x12\x16\n" +
+	"\x06cursor\x18\x02 \x01(\tR\x06cursor\x12\x14\n" +
+	"\x05query\x18\x03 \x01(\tR\x05query\"\x92\x01\n" +
+	"\x1aListNativeConsentsResponse\x12S\n" +
+	"\bconsents\x18\x01 \x03(\v27.vrooli.notification_hub.v1.conversations.NativeConsentR\bconsents\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor2\xa5\b\n" +
 	"\x14ConversationsService\x12r\n" +
 	"\x03Ask\x124.vrooli.notification_hub.v1.conversations.AskRequest\x1a5.vrooli.notification_hub.v1.conversations.AskResponse\x12{\n" +
 	"\x06Answer\x127.vrooli.notification_hub.v1.conversations.AnswerRequest\x1a8.vrooli.notification_hub.v1.conversations.AnswerResponse\x12u\n" +
@@ -1550,7 +1804,8 @@ const file_notification_hub_v1_conversations_conversations_proto_rawDesc = "" +
 	"\aDismiss\x128.vrooli.notification_hub.v1.conversations.DismissRequest\x1a9.vrooli.notification_hub.v1.conversations.DismissResponse\x12\x81\x01\n" +
 	"\bWithdraw\x129.vrooli.notification_hub.v1.conversations.WithdrawRequest\x1a:.vrooli.notification_hub.v1.conversations.WithdrawResponse\x12{\n" +
 	"\x06GetAsk\x127.vrooli.notification_hub.v1.conversations.GetAskRequest\x1a8.vrooli.notification_hub.v1.conversations.GetAskResponse\x12\x81\x01\n" +
-	"\bListAsks\x129.vrooli.notification_hub.v1.conversations.ListAsksRequest\x1a:.vrooli.notification_hub.v1.conversations.ListAsksResponseBcZagithub.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations;conversations_v1b\x06proto3"
+	"\bListAsks\x129.vrooli.notification_hub.v1.conversations.ListAsksRequest\x1a:.vrooli.notification_hub.v1.conversations.ListAsksResponse\x12\x9f\x01\n" +
+	"\x12ListNativeConsents\x12C.vrooli.notification_hub.v1.conversations.ListNativeConsentsRequest\x1aD.vrooli.notification_hub.v1.conversations.ListNativeConsentsResponseBcZagithub.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations;conversations_v1b\x06proto3"
 
 var (
 	file_notification_hub_v1_conversations_conversations_proto_rawDescOnce sync.Once
@@ -1565,7 +1820,7 @@ func file_notification_hub_v1_conversations_conversations_proto_rawDescGZIP() []
 }
 
 var file_notification_hub_v1_conversations_conversations_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_notification_hub_v1_conversations_conversations_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_notification_hub_v1_conversations_conversations_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_notification_hub_v1_conversations_conversations_proto_goTypes = []any{
 	(ProviderDecisionContext_Scope)(0), // 0: vrooli.notification_hub.v1.conversations.ProviderDecisionContext.Scope
 	(*AskOption)(nil),                  // 1: vrooli.notification_hub.v1.conversations.AskOption
@@ -1585,36 +1840,42 @@ var file_notification_hub_v1_conversations_conversations_proto_goTypes = []any{
 	(*GetAskResponse)(nil),             // 15: vrooli.notification_hub.v1.conversations.GetAskResponse
 	(*ListAsksRequest)(nil),            // 16: vrooli.notification_hub.v1.conversations.ListAsksRequest
 	(*ListAsksResponse)(nil),           // 17: vrooli.notification_hub.v1.conversations.ListAsksResponse
-	(*shared.Notification)(nil),        // 18: vrooli.notification_hub.v1.shared.Notification
+	(*NativeConsent)(nil),              // 18: vrooli.notification_hub.v1.conversations.NativeConsent
+	(*ListNativeConsentsRequest)(nil),  // 19: vrooli.notification_hub.v1.conversations.ListNativeConsentsRequest
+	(*ListNativeConsentsResponse)(nil), // 20: vrooli.notification_hub.v1.conversations.ListNativeConsentsResponse
+	(*shared.Notification)(nil),        // 21: vrooli.notification_hub.v1.shared.Notification
 }
 var file_notification_hub_v1_conversations_conversations_proto_depIdxs = []int32{
 	0,  // 0: vrooli.notification_hub.v1.conversations.ProviderDecisionContext.scope:type_name -> vrooli.notification_hub.v1.conversations.ProviderDecisionContext.Scope
 	1,  // 1: vrooli.notification_hub.v1.conversations.AskRequest.options:type_name -> vrooli.notification_hub.v1.conversations.AskOption
 	2,  // 2: vrooli.notification_hub.v1.conversations.AskRequest.provider_decision_context:type_name -> vrooli.notification_hub.v1.conversations.ProviderDecisionContext
-	18, // 3: vrooli.notification_hub.v1.conversations.AskResponse.notification:type_name -> vrooli.notification_hub.v1.shared.Notification
+	21, // 3: vrooli.notification_hub.v1.conversations.AskResponse.notification:type_name -> vrooli.notification_hub.v1.shared.Notification
 	1,  // 4: vrooli.notification_hub.v1.conversations.Ask.options:type_name -> vrooli.notification_hub.v1.conversations.AskOption
 	2,  // 5: vrooli.notification_hub.v1.conversations.Ask.provider_decision_context:type_name -> vrooli.notification_hub.v1.conversations.ProviderDecisionContext
 	13, // 6: vrooli.notification_hub.v1.conversations.GetAskResponse.ask:type_name -> vrooli.notification_hub.v1.conversations.Ask
 	13, // 7: vrooli.notification_hub.v1.conversations.ListAsksResponse.asks:type_name -> vrooli.notification_hub.v1.conversations.Ask
-	3,  // 8: vrooli.notification_hub.v1.conversations.ConversationsService.Ask:input_type -> vrooli.notification_hub.v1.conversations.AskRequest
-	5,  // 9: vrooli.notification_hub.v1.conversations.ConversationsService.Answer:input_type -> vrooli.notification_hub.v1.conversations.AnswerRequest
-	11, // 10: vrooli.notification_hub.v1.conversations.ConversationsService.Wait:input_type -> vrooli.notification_hub.v1.conversations.WaitRequest
-	7,  // 11: vrooli.notification_hub.v1.conversations.ConversationsService.Dismiss:input_type -> vrooli.notification_hub.v1.conversations.DismissRequest
-	9,  // 12: vrooli.notification_hub.v1.conversations.ConversationsService.Withdraw:input_type -> vrooli.notification_hub.v1.conversations.WithdrawRequest
-	14, // 13: vrooli.notification_hub.v1.conversations.ConversationsService.GetAsk:input_type -> vrooli.notification_hub.v1.conversations.GetAskRequest
-	16, // 14: vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks:input_type -> vrooli.notification_hub.v1.conversations.ListAsksRequest
-	4,  // 15: vrooli.notification_hub.v1.conversations.ConversationsService.Ask:output_type -> vrooli.notification_hub.v1.conversations.AskResponse
-	6,  // 16: vrooli.notification_hub.v1.conversations.ConversationsService.Answer:output_type -> vrooli.notification_hub.v1.conversations.AnswerResponse
-	12, // 17: vrooli.notification_hub.v1.conversations.ConversationsService.Wait:output_type -> vrooli.notification_hub.v1.conversations.WaitResponse
-	8,  // 18: vrooli.notification_hub.v1.conversations.ConversationsService.Dismiss:output_type -> vrooli.notification_hub.v1.conversations.DismissResponse
-	10, // 19: vrooli.notification_hub.v1.conversations.ConversationsService.Withdraw:output_type -> vrooli.notification_hub.v1.conversations.WithdrawResponse
-	15, // 20: vrooli.notification_hub.v1.conversations.ConversationsService.GetAsk:output_type -> vrooli.notification_hub.v1.conversations.GetAskResponse
-	17, // 21: vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks:output_type -> vrooli.notification_hub.v1.conversations.ListAsksResponse
-	15, // [15:22] is the sub-list for method output_type
-	8,  // [8:15] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	18, // 8: vrooli.notification_hub.v1.conversations.ListNativeConsentsResponse.consents:type_name -> vrooli.notification_hub.v1.conversations.NativeConsent
+	3,  // 9: vrooli.notification_hub.v1.conversations.ConversationsService.Ask:input_type -> vrooli.notification_hub.v1.conversations.AskRequest
+	5,  // 10: vrooli.notification_hub.v1.conversations.ConversationsService.Answer:input_type -> vrooli.notification_hub.v1.conversations.AnswerRequest
+	11, // 11: vrooli.notification_hub.v1.conversations.ConversationsService.Wait:input_type -> vrooli.notification_hub.v1.conversations.WaitRequest
+	7,  // 12: vrooli.notification_hub.v1.conversations.ConversationsService.Dismiss:input_type -> vrooli.notification_hub.v1.conversations.DismissRequest
+	9,  // 13: vrooli.notification_hub.v1.conversations.ConversationsService.Withdraw:input_type -> vrooli.notification_hub.v1.conversations.WithdrawRequest
+	14, // 14: vrooli.notification_hub.v1.conversations.ConversationsService.GetAsk:input_type -> vrooli.notification_hub.v1.conversations.GetAskRequest
+	16, // 15: vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks:input_type -> vrooli.notification_hub.v1.conversations.ListAsksRequest
+	19, // 16: vrooli.notification_hub.v1.conversations.ConversationsService.ListNativeConsents:input_type -> vrooli.notification_hub.v1.conversations.ListNativeConsentsRequest
+	4,  // 17: vrooli.notification_hub.v1.conversations.ConversationsService.Ask:output_type -> vrooli.notification_hub.v1.conversations.AskResponse
+	6,  // 18: vrooli.notification_hub.v1.conversations.ConversationsService.Answer:output_type -> vrooli.notification_hub.v1.conversations.AnswerResponse
+	12, // 19: vrooli.notification_hub.v1.conversations.ConversationsService.Wait:output_type -> vrooli.notification_hub.v1.conversations.WaitResponse
+	8,  // 20: vrooli.notification_hub.v1.conversations.ConversationsService.Dismiss:output_type -> vrooli.notification_hub.v1.conversations.DismissResponse
+	10, // 21: vrooli.notification_hub.v1.conversations.ConversationsService.Withdraw:output_type -> vrooli.notification_hub.v1.conversations.WithdrawResponse
+	15, // 22: vrooli.notification_hub.v1.conversations.ConversationsService.GetAsk:output_type -> vrooli.notification_hub.v1.conversations.GetAskResponse
+	17, // 23: vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks:output_type -> vrooli.notification_hub.v1.conversations.ListAsksResponse
+	20, // 24: vrooli.notification_hub.v1.conversations.ConversationsService.ListNativeConsents:output_type -> vrooli.notification_hub.v1.conversations.ListNativeConsentsResponse
+	17, // [17:25] is the sub-list for method output_type
+	9,  // [9:17] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_notification_hub_v1_conversations_conversations_proto_init() }
@@ -1628,7 +1889,7 @@ func file_notification_hub_v1_conversations_conversations_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_notification_hub_v1_conversations_conversations_proto_rawDesc), len(file_notification_hub_v1_conversations_conversations_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

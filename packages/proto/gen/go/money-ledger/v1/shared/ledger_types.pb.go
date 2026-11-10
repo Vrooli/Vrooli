@@ -310,14 +310,17 @@ func (x *AuditEntry) GetCreatedAt() *timestamppb.Timestamp {
 // Posting is the immutable journal record shared by journal reads and the
 // ingestion response.
 type Posting struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Event         *MoneyEvent            `protobuf:"bytes,2,opt,name=event,proto3" json:"event,omitempty"`
-	ReversalOf    string                 `protobuf:"bytes,3,opt,name=reversal_of,json=reversalOf,proto3" json:"reversal_of,omitempty"`
-	Actor         string                 `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
-	Audit         []*AuditEntry          `protobuf:"bytes,5,rep,name=audit,proto3" json:"audit,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Event      *MoneyEvent            `protobuf:"bytes,2,opt,name=event,proto3" json:"event,omitempty"`
+	ReversalOf string                 `protobuf:"bytes,3,opt,name=reversal_of,json=reversalOf,proto3" json:"reversal_of,omitempty"`
+	Actor      string                 `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
+	Audit      []*AuditEntry          `protobuf:"bytes,5,rep,name=audit,proto3" json:"audit,omitempty"`
+	// Resolve the exact-token evidence through IngestService.GetCryptoReceipt.
+	// event.amount_minor remains the separately declared valuation delta.
+	CryptoReceiptId string `protobuf:"bytes,6,opt,name=crypto_receipt_id,json=cryptoReceiptId,proto3" json:"crypto_receipt_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *Posting) Reset() {
@@ -385,6 +388,13 @@ func (x *Posting) GetAudit() []*AuditEntry {
 	return nil
 }
 
+func (x *Posting) GetCryptoReceiptId() string {
+	if x != nil {
+		return x.CryptoReceiptId
+	}
+	return ""
+}
+
 var File_money_ledger_v1_shared_ledger_types_proto protoreflect.FileDescriptor
 
 const file_money_ledger_v1_shared_ledger_types_proto_rawDesc = "" +
@@ -421,14 +431,15 @@ const file_money_ledger_v1_shared_ledger_types_proto_rawDesc = "" +
 	"\vprior_value\x18\x06 \x01(\tR\n" +
 	"priorValue\x129\n" +
 	"\n" +
-	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xd2\x01\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xfe\x01\n" +
 	"\aPosting\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12?\n" +
 	"\x05event\x18\x02 \x01(\v2).vrooli.money_ledger.v1.shared.MoneyEventR\x05event\x12\x1f\n" +
 	"\vreversal_of\x18\x03 \x01(\tR\n" +
 	"reversalOf\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12?\n" +
-	"\x05audit\x18\x05 \x03(\v2).vrooli.money_ledger.v1.shared.AuditEntryR\x05audit*|\n" +
+	"\x05audit\x18\x05 \x03(\v2).vrooli.money_ledger.v1.shared.AuditEntryR\x05audit\x12*\n" +
+	"\x11crypto_receipt_id\x18\x06 \x01(\tR\x0fcryptoReceiptId*|\n" +
 	"\x05Basis\x12\x15\n" +
 	"\x11BASIS_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13BASIS_AUTHORITATIVE\x10\x01\x12\x11\n" +

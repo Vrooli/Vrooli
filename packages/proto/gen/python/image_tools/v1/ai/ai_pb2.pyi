@@ -36,7 +36,7 @@ class ListAIOperationsResponse(_message.Message):
     def __init__(self, operations: _Optional[_Iterable[_Union[AIOperationInfo, _Mapping]]] = ...) -> None: ...
 
 class AIParams(_message.Message):
-    __slots__ = ("prompt", "negative_prompt", "seed", "width", "height", "steps", "cfg_scale", "variations", "strength", "scale", "model_override", "allow_byok", "auto_scan_nsfw", "realism", "face_aware", "consent_affirmed", "adapters", "quality_policy", "fallback_policy", "priority", "allow_reclaim", "openrouter_role", "segmentation", "scene_geometry", "image_to_object", "background_repair", "inpaint")
+    __slots__ = ("prompt", "negative_prompt", "seed", "width", "height", "steps", "cfg_scale", "variations", "strength", "scale", "model_override", "allow_byok", "auto_scan_nsfw", "realism", "face_aware", "consent_affirmed", "adapters", "quality_policy", "fallback_policy", "priority", "allow_reclaim", "openrouter_role", "segmentation", "scene_geometry", "image_to_object", "background_repair", "inpaint", "require_gpu")
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     NEGATIVE_PROMPT_FIELD_NUMBER: _ClassVar[int]
     SEED_FIELD_NUMBER: _ClassVar[int]
@@ -64,6 +64,7 @@ class AIParams(_message.Message):
     IMAGE_TO_OBJECT_FIELD_NUMBER: _ClassVar[int]
     BACKGROUND_REPAIR_FIELD_NUMBER: _ClassVar[int]
     INPAINT_FIELD_NUMBER: _ClassVar[int]
+    REQUIRE_GPU_FIELD_NUMBER: _ClassVar[int]
     prompt: str
     negative_prompt: str
     seed: int
@@ -91,7 +92,8 @@ class AIParams(_message.Message):
     image_to_object: ImageToObjectParams
     background_repair: BackgroundRepairParams
     inpaint: InpaintParams
-    def __init__(self, prompt: _Optional[str] = ..., negative_prompt: _Optional[str] = ..., seed: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., steps: _Optional[int] = ..., cfg_scale: _Optional[float] = ..., variations: _Optional[int] = ..., strength: _Optional[float] = ..., scale: _Optional[int] = ..., model_override: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., auto_scan_nsfw: _Optional[bool] = ..., realism: _Optional[float] = ..., face_aware: _Optional[bool] = ..., consent_affirmed: _Optional[bool] = ..., adapters: _Optional[_Iterable[_Union[AdapterRef, _Mapping]]] = ..., quality_policy: _Optional[str] = ..., fallback_policy: _Optional[str] = ..., priority: _Optional[str] = ..., allow_reclaim: _Optional[bool] = ..., openrouter_role: _Optional[str] = ..., segmentation: _Optional[_Union[SegmentationPrompt, _Mapping]] = ..., scene_geometry: _Optional[_Union[SceneGeometryParams, _Mapping]] = ..., image_to_object: _Optional[_Union[ImageToObjectParams, _Mapping]] = ..., background_repair: _Optional[_Union[BackgroundRepairParams, _Mapping]] = ..., inpaint: _Optional[_Union[InpaintParams, _Mapping]] = ...) -> None: ...
+    require_gpu: bool
+    def __init__(self, prompt: _Optional[str] = ..., negative_prompt: _Optional[str] = ..., seed: _Optional[int] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., steps: _Optional[int] = ..., cfg_scale: _Optional[float] = ..., variations: _Optional[int] = ..., strength: _Optional[float] = ..., scale: _Optional[int] = ..., model_override: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., auto_scan_nsfw: _Optional[bool] = ..., realism: _Optional[float] = ..., face_aware: _Optional[bool] = ..., consent_affirmed: _Optional[bool] = ..., adapters: _Optional[_Iterable[_Union[AdapterRef, _Mapping]]] = ..., quality_policy: _Optional[str] = ..., fallback_policy: _Optional[str] = ..., priority: _Optional[str] = ..., allow_reclaim: _Optional[bool] = ..., openrouter_role: _Optional[str] = ..., segmentation: _Optional[_Union[SegmentationPrompt, _Mapping]] = ..., scene_geometry: _Optional[_Union[SceneGeometryParams, _Mapping]] = ..., image_to_object: _Optional[_Union[ImageToObjectParams, _Mapping]] = ..., background_repair: _Optional[_Union[BackgroundRepairParams, _Mapping]] = ..., inpaint: _Optional[_Union[InpaintParams, _Mapping]] = ..., require_gpu: _Optional[bool] = ...) -> None: ...
 
 class InpaintParams(_message.Message):
     __slots__ = ("crop_to_mask", "context_pixels", "max_edge_px", "neutralize_masked_pixels")

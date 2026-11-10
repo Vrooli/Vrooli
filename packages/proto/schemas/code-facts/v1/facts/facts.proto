@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package vrooli.code_facts.v1.facts;
 
+import "common/v1/code_graph.proto";
+
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts;facts_v1";
 
 // =============================================================================
@@ -168,6 +170,10 @@ message DescribeCodeFactsRequest {
   int32 page_size = 8;
   // Decimal fact offset returned by the previous response's next_page_token.
   string page_token = 9;
+  // Include the underlying language graphs from the same provider/cache pass.
+  // Graph consumers use this instead of duplicating parse-unit discovery and
+  // calling language providers themselves. Graphs are not fact-paginated.
+  bool include_graphs = 10;
 }
 
 message SearchRequest {
@@ -496,6 +502,26 @@ message CodeFactsReport {
   CacheMetadata cache = 7;
   string next_page_token = 8;
   int32 total_facts = 9;
+  repeated LanguageGraph graphs = 10;
+}
+
+// A complete language-provider result with the parse unit that owns its IDs.
+// Node paths and IDs are parse-unit-relative; consumers preserve that identity
+// when combining several modules in a scenario or repository.
+message LanguageGraph {
+  ParseUnit parse_unit = 1;
+  common.v1.CodeGraph graph = 2;
+  repeated common.v1.CodeGraphWarning warnings = 3;
+  string graph_hash = 4;
+  int64 extraction_ms = 5;
+  string extraction_profile = 6;
+  repeated GraphInformationOmission omitted_information = 7;
+  CacheMetadata cache = 8;
+}
+
+message GraphInformationOmission {
+  string capability = 1;
+  string reason = 2;
 }
 
 message ListSurfacesResponse {

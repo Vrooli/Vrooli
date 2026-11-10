@@ -64,6 +64,11 @@ message InstallDependencyRequest {
   // owner. Requires an explicit exact version and development=false. The
   // default remains frozen reproduction; this does not install a runtime.
   bool refresh_lock = 9;
+  // Existing absolute external JavaScript workspace. Mutually exclusive with
+  // scenario/surface; governance uses the external-workspace/workspace identity.
+  // The owner canonicalizes the directory, rejects maintained repository paths,
+  // and enforces the same package approval policy before any installation.
+  string workspace_path = 10;
 }
 
 message InstallDependencyResponse {

@@ -34,4 +34,9 @@ message Headroom {
   int64 available_minor = 11;
   google.protobuf.Timestamp period_started_at = 12;
   google.protobuf.Timestamp computed_at = 13;
+  bool funding_required = 14;
+  int64 funding_credited_minor = 15;
+  int64 funding_remaining_minor = 16;
+  string funding_atomic_amount = 17;
+  string funding_asset_id = 18;
 }

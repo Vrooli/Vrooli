@@ -48,6 +48,9 @@ const (
 	// SessionsServiceReadNativeThreadStateProcedure is the fully-qualified name of the
 	// SessionsService's ReadNativeThreadState RPC.
 	SessionsServiceReadNativeThreadStateProcedure = "/vrooli.web_console.v1.sessions.SessionsService/ReadNativeThreadState"
+	// SessionsServiceDeliverNativePromptProcedure is the fully-qualified name of the SessionsService's
+	// DeliverNativePrompt RPC.
+	SessionsServiceDeliverNativePromptProcedure = "/vrooli.web_console.v1.sessions.SessionsService/DeliverNativePrompt"
 	// SessionsServiceArchiveProcedure is the fully-qualified name of the SessionsService's Archive RPC.
 	SessionsServiceArchiveProcedure = "/vrooli.web_console.v1.sessions.SessionsService/Archive"
 	// SessionsServiceUnarchiveProcedure is the fully-qualified name of the SessionsService's Unarchive
@@ -88,6 +91,9 @@ type SessionsServiceClient interface {
 	ReadNativeUsage(context.Context, *connect.Request[sessions.ReadNativeUsageRequest]) (*connect.Response[sessions.ReadNativeUsageResponse], error)
 	// Read-only, bounded observation of native thread and goal state.
 	ReadNativeThreadState(context.Context, *connect.Request[sessions.ReadNativeThreadStateRequest]) (*connect.Response[sessions.ReadNativeThreadStateResponse], error)
+	// DeliverNativePrompt routes text through the exact live provider owner bound
+	// to this Web Console session. It never writes to the session PTY.
+	DeliverNativePrompt(context.Context, *connect.Request[sessions.DeliverNativePromptRequest]) (*connect.Response[sessions.DeliverNativePromptResponse], error)
 	Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error)
 	Unarchive(context.Context, *connect.Request[sessions.UnarchiveRequest]) (*connect.Response[sessions.UnarchiveResponse], error)
 	Delete(context.Context, *connect.Request[sessions.DeleteRequest]) (*connect.Response[sessions.DeleteResponse], error)
@@ -149,6 +155,12 @@ func NewSessionsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+SessionsServiceReadNativeThreadStateProcedure,
 			connect.WithSchema(sessionsServiceMethods.ByName("ReadNativeThreadState")),
+			connect.WithClientOptions(opts...),
+		),
+		deliverNativePrompt: connect.NewClient[sessions.DeliverNativePromptRequest, sessions.DeliverNativePromptResponse](
+			httpClient,
+			baseURL+SessionsServiceDeliverNativePromptProcedure,
+			connect.WithSchema(sessionsServiceMethods.ByName("DeliverNativePrompt")),
 			connect.WithClientOptions(opts...),
 		),
 		archive: connect.NewClient[sessions.ArchiveRequest, sessions.ArchiveResponse](
@@ -228,6 +240,7 @@ type sessionsServiceClient struct {
 	get                   *connect.Client[sessions.GetRequest, sessions.GetResponse]
 	readNativeUsage       *connect.Client[sessions.ReadNativeUsageRequest, sessions.ReadNativeUsageResponse]
 	readNativeThreadState *connect.Client[sessions.ReadNativeThreadStateRequest, sessions.ReadNativeThreadStateResponse]
+	deliverNativePrompt   *connect.Client[sessions.DeliverNativePromptRequest, sessions.DeliverNativePromptResponse]
 	archive               *connect.Client[sessions.ArchiveRequest, sessions.ArchiveResponse]
 	unarchive             *connect.Client[sessions.UnarchiveRequest, sessions.UnarchiveResponse]
 	delete                *connect.Client[sessions.DeleteRequest, sessions.DeleteResponse]
@@ -269,6 +282,11 @@ func (c *sessionsServiceClient) ReadNativeUsage(ctx context.Context, req *connec
 // ReadNativeThreadState calls vrooli.web_console.v1.sessions.SessionsService.ReadNativeThreadState.
 func (c *sessionsServiceClient) ReadNativeThreadState(ctx context.Context, req *connect.Request[sessions.ReadNativeThreadStateRequest]) (*connect.Response[sessions.ReadNativeThreadStateResponse], error) {
 	return c.readNativeThreadState.CallUnary(ctx, req)
+}
+
+// DeliverNativePrompt calls vrooli.web_console.v1.sessions.SessionsService.DeliverNativePrompt.
+func (c *sessionsServiceClient) DeliverNativePrompt(ctx context.Context, req *connect.Request[sessions.DeliverNativePromptRequest]) (*connect.Response[sessions.DeliverNativePromptResponse], error) {
+	return c.deliverNativePrompt.CallUnary(ctx, req)
 }
 
 // Archive calls vrooli.web_console.v1.sessions.SessionsService.Archive.
@@ -336,6 +354,9 @@ type SessionsServiceHandler interface {
 	ReadNativeUsage(context.Context, *connect.Request[sessions.ReadNativeUsageRequest]) (*connect.Response[sessions.ReadNativeUsageResponse], error)
 	// Read-only, bounded observation of native thread and goal state.
 	ReadNativeThreadState(context.Context, *connect.Request[sessions.ReadNativeThreadStateRequest]) (*connect.Response[sessions.ReadNativeThreadStateResponse], error)
+	// DeliverNativePrompt routes text through the exact live provider owner bound
+	// to this Web Console session. It never writes to the session PTY.
+	DeliverNativePrompt(context.Context, *connect.Request[sessions.DeliverNativePromptRequest]) (*connect.Response[sessions.DeliverNativePromptResponse], error)
 	Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error)
 	Unarchive(context.Context, *connect.Request[sessions.UnarchiveRequest]) (*connect.Response[sessions.UnarchiveResponse], error)
 	Delete(context.Context, *connect.Request[sessions.DeleteRequest]) (*connect.Response[sessions.DeleteResponse], error)
@@ -392,6 +413,12 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 		SessionsServiceReadNativeThreadStateProcedure,
 		svc.ReadNativeThreadState,
 		connect.WithSchema(sessionsServiceMethods.ByName("ReadNativeThreadState")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sessionsServiceDeliverNativePromptHandler := connect.NewUnaryHandler(
+		SessionsServiceDeliverNativePromptProcedure,
+		svc.DeliverNativePrompt,
+		connect.WithSchema(sessionsServiceMethods.ByName("DeliverNativePrompt")),
 		connect.WithHandlerOptions(opts...),
 	)
 	sessionsServiceArchiveHandler := connect.NewUnaryHandler(
@@ -474,6 +501,8 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 			sessionsServiceReadNativeUsageHandler.ServeHTTP(w, r)
 		case SessionsServiceReadNativeThreadStateProcedure:
 			sessionsServiceReadNativeThreadStateHandler.ServeHTTP(w, r)
+		case SessionsServiceDeliverNativePromptProcedure:
+			sessionsServiceDeliverNativePromptHandler.ServeHTTP(w, r)
 		case SessionsServiceArchiveProcedure:
 			sessionsServiceArchiveHandler.ServeHTTP(w, r)
 		case SessionsServiceUnarchiveProcedure:
@@ -527,6 +556,10 @@ func (UnimplementedSessionsServiceHandler) ReadNativeUsage(context.Context, *con
 
 func (UnimplementedSessionsServiceHandler) ReadNativeThreadState(context.Context, *connect.Request[sessions.ReadNativeThreadStateRequest]) (*connect.Response[sessions.ReadNativeThreadStateResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.ReadNativeThreadState is not implemented"))
+}
+
+func (UnimplementedSessionsServiceHandler) DeliverNativePrompt(context.Context, *connect.Request[sessions.DeliverNativePromptRequest]) (*connect.Response[sessions.DeliverNativePromptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.DeliverNativePrompt is not implemented"))
 }
 
 func (UnimplementedSessionsServiceHandler) Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error) {

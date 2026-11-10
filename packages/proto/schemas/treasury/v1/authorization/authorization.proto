@@ -10,6 +10,8 @@ import "treasury/v1/instrument/instrument.proto";
 import "treasury/v1/mandate/mandate.proto";
 import "treasury/v1/settlement/settlement.proto";
 import "treasury/v1/wallet/wallet.proto";
+import "treasury/v1/funding/funding.proto";
+import "treasury/v1/funding/wallet_ops.proto";
 
 option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization;authorization_v1";
 
@@ -38,6 +40,9 @@ message AuthorizationRecord {
   string idempotency_key = 13;
   string budget_id = 14;
   string book_id = 15;
+  string settlement_id = 16;
+  string instrument_id = 17;
+  string settlement_idempotency_key = 18;
 }
 
 message ProposeChargeRequest {
@@ -47,6 +52,9 @@ message ProposeChargeRequest {
   int64 amount_minor = 4;
   string currency = 5;
   string counterparty = 6;
+  string settlement_id = 7;
+  string instrument_id = 8;
+  string settlement_idempotency_key = 9;
 }
 
 message ProposeChargeResponse {
@@ -284,6 +292,7 @@ message ListBaseUSDCReceiptChecksResponse { repeated vrooli.treasury.v1.wallet.B
 // AgentSpend intentionally contains no policy-mutating RPC. Decision D-004
 // relies on the structural absence of those methods, not a runtime permission.
 service AgentSpend {
+ rpc GetBudgetWallet(vrooli.treasury.v1.funding.GetBudgetWalletRequest) returns (vrooli.treasury.v1.funding.BudgetWalletResponse);
   rpc ProposeCharge(ProposeChargeRequest) returns (ProposeChargeResponse);
   rpc GetAuthorization(GetAuthorizationRequest) returns (GetAuthorizationResponse);
   rpc GetBudgetHeadroom(GetBudgetHeadroomRequest) returns (GetBudgetHeadroomResponse);
@@ -294,6 +303,20 @@ service AgentSpend {
 // TreasuryAdmin is the operator-realm surface. Its methods are introduced with
 // their domain implementations so the descriptor never gets ahead of behavior.
 service TreasuryAdmin {
+ rpc ProvisionBudgetWallet(vrooli.treasury.v1.funding.ProvisionBudgetWalletRequest) returns (vrooli.treasury.v1.funding.BudgetWalletResponse);
+ rpc GetBudgetWallet(vrooli.treasury.v1.funding.GetBudgetWalletRequest) returns (vrooli.treasury.v1.funding.BudgetWalletResponse);
+ rpc RevokeMandateSession(vrooli.treasury.v1.funding.RevokeMandateSessionRequest) returns (vrooli.treasury.v1.funding.RevokeMandateSessionResponse);
+ rpc CreateFundingIntent(vrooli.treasury.v1.funding.CreateFundingIntentRequest) returns (vrooli.treasury.v1.funding.FundingIntentResponse);
+ rpc GetFundingIntent(vrooli.treasury.v1.funding.FundingIntentRequest) returns (vrooli.treasury.v1.funding.FundingIntentResponse);
+ rpc ConfirmFundingTransfer(vrooli.treasury.v1.funding.ConfirmFundingTransferRequest) returns (vrooli.treasury.v1.funding.FundingIntentResponse);
+ rpc ListFundingIntents(vrooli.treasury.v1.funding.ListFundingIntentsRequest) returns (vrooli.treasury.v1.funding.ListFundingIntentsResponse);
+ rpc SetWithdrawalDestination(vrooli.treasury.v1.funding.SetWithdrawalDestinationRequest) returns (vrooli.treasury.v1.funding.WithdrawalDestinationResponse);
+ rpc PreviewWithdrawal(vrooli.treasury.v1.funding.PreviewWithdrawalRequest) returns (vrooli.treasury.v1.funding.WithdrawalQuoteResponse);
+ rpc ExecuteWithdrawal(vrooli.treasury.v1.funding.ExecuteWithdrawalRequest) returns (vrooli.treasury.v1.funding.WithdrawalResponse);
+ rpc GetWithdrawal(vrooli.treasury.v1.funding.GetWithdrawalRequest) returns (vrooli.treasury.v1.funding.WithdrawalResponse);
+
+  rpc SubmitReceiptFunding(vrooli.treasury.v1.funding.SubmitReceiptFundingRequest) returns (vrooli.treasury.v1.funding.ReceiptFundingResponse);
+  rpc GetReceiptFunding(vrooli.treasury.v1.funding.GetReceiptFundingRequest) returns (vrooli.treasury.v1.funding.ReceiptFundingResponse);
   rpc CreateResearchWallet(CreateResearchWalletRequest) returns (ResearchWalletResponse);
   rpc GetResearchWallet(ResearchWalletRequest) returns (ResearchWalletResponse);
   rpc ProveResearchWallet(ProveResearchWalletRequest) returns (ProveResearchWalletResponse);

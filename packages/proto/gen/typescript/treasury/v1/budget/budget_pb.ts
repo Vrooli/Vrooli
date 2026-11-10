@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file treasury/v1/budget/budget.proto.
  */
 export const file_treasury_v1_budget_budget: GenFile = /*@__PURE__*/
-  fileDesc("Ch90cmVhc3VyeS92MS9idWRnZXQvYnVkZ2V0LnByb3RvEhl2cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0IpECCgZCdWRnZXQSCgoCaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRIXCg90b3RhbF9jYXBfbWlub3IYAyABKAMSGgoScGVyaW9kaWNfY2FwX21pbm9yGAQgASgDEiEKGXBlcl90cmFuc2FjdGlvbl9jYXBfbWlub3IYBSABKAMSEAoIY3VycmVuY3kYBiABKAkSHgoWYWxsb3dlZF9jb3VudGVycGFydGllcxgHIAMoCRIdChVkZW5pZWRfY291bnRlcnBhcnRpZXMYCCADKAkSGQoRcmVxdWlyZXNfYXBwcm92YWwYCSABKAgSDgoGZnJvemVuGAogASgIEhYKDnBlcmlvZF9zZWNvbmRzGAsgASgDIo0DCghIZWFkcm9vbRIRCglidWRnZXRfaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRIQCghjdXJyZW5jeRgDIAEoCRIXCg90b3RhbF9jYXBfbWlub3IYBCABKAMSGAoQdG90YWxfdXNlZF9taW5vchgFIAEoAxIdChV0b3RhbF9yZW1haW5pbmdfbWlub3IYBiABKAMSGgoScGVyaW9kaWNfY2FwX21pbm9yGAcgASgDEhkKEXBlcmlvZF91c2VkX21pbm9yGAggASgDEh4KFnBlcmlvZF9yZW1haW5pbmdfbWlub3IYCSABKAMSIQoZcGVyX3RyYW5zYWN0aW9uX2NhcF9taW5vchgKIAEoAxIXCg9hdmFpbGFibGVfbWlub3IYCyABKAMSNQoRcGVyaW9kX3N0YXJ0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2NvbXB1dGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcEJNWktnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL3RyZWFzdXJ5L3YxL2J1ZGdldDtidWRnZXRfdjFiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("Ch90cmVhc3VyeS92MS9idWRnZXQvYnVkZ2V0LnByb3RvEhl2cm9vbGkudHJlYXN1cnkudjEuYnVkZ2V0IpECCgZCdWRnZXQSCgoCaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRIXCg90b3RhbF9jYXBfbWlub3IYAyABKAMSGgoScGVyaW9kaWNfY2FwX21pbm9yGAQgASgDEiEKGXBlcl90cmFuc2FjdGlvbl9jYXBfbWlub3IYBSABKAMSEAoIY3VycmVuY3kYBiABKAkSHgoWYWxsb3dlZF9jb3VudGVycGFydGllcxgHIAMoCRIdChVkZW5pZWRfY291bnRlcnBhcnRpZXMYCCADKAkSGQoRcmVxdWlyZXNfYXBwcm92YWwYCSABKAgSDgoGZnJvemVuGAogASgIEhYKDnBlcmlvZF9zZWNvbmRzGAsgASgDIqEECghIZWFkcm9vbRIRCglidWRnZXRfaWQYASABKAkSDwoHYm9va19pZBgCIAEoCRIQCghjdXJyZW5jeRgDIAEoCRIXCg90b3RhbF9jYXBfbWlub3IYBCABKAMSGAoQdG90YWxfdXNlZF9taW5vchgFIAEoAxIdChV0b3RhbF9yZW1haW5pbmdfbWlub3IYBiABKAMSGgoScGVyaW9kaWNfY2FwX21pbm9yGAcgASgDEhkKEXBlcmlvZF91c2VkX21pbm9yGAggASgDEh4KFnBlcmlvZF9yZW1haW5pbmdfbWlub3IYCSABKAMSIQoZcGVyX3RyYW5zYWN0aW9uX2NhcF9taW5vchgKIAEoAxIXCg9hdmFpbGFibGVfbWlub3IYCyABKAMSNQoRcGVyaW9kX3N0YXJ0ZWRfYXQYDCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi8KC2NvbXB1dGVkX2F0GA0gASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIYChBmdW5kaW5nX3JlcXVpcmVkGA4gASgIEh4KFmZ1bmRpbmdfY3JlZGl0ZWRfbWlub3IYDyABKAMSHwoXZnVuZGluZ19yZW1haW5pbmdfbWlub3IYECABKAMSHQoVZnVuZGluZ19hdG9taWNfYW1vdW50GBEgASgJEhgKEGZ1bmRpbmdfYXNzZXRfaWQYEiABKAlCTVpLZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby90cmVhc3VyeS92MS9idWRnZXQ7YnVkZ2V0X3YxYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message vrooli.treasury.v1.budget.Budget
@@ -149,6 +149,31 @@ export type Headroom = Message<"vrooli.treasury.v1.budget.Headroom"> & {
    * @generated from field: google.protobuf.Timestamp computed_at = 13;
    */
   computedAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: bool funding_required = 14;
+   */
+  fundingRequired: boolean;
+
+  /**
+   * @generated from field: int64 funding_credited_minor = 15;
+   */
+  fundingCreditedMinor: bigint;
+
+  /**
+   * @generated from field: int64 funding_remaining_minor = 16;
+   */
+  fundingRemainingMinor: bigint;
+
+  /**
+   * @generated from field: string funding_atomic_amount = 17;
+   */
+  fundingAtomicAmount: string;
+
+  /**
+   * @generated from field: string funding_asset_id = 18;
+   */
+  fundingAssetId: string;
 };
 
 /**

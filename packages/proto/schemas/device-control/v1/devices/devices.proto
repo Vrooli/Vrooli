@@ -10,6 +10,14 @@ service DeviceService {
   rpc ConnectDevice(ConnectDeviceRequest) returns (ConnectDeviceResponse);
   rpc ReconnectDevice(ReconnectDeviceRequest) returns (ReconnectDeviceResponse);
   rpc ExecuteVolume(ExecuteVolumeRequest) returns (ExecuteVolumeResponse);
+  // One-call screenshot or recording of a named TV or phone: wakes the screen
+  // when asked, selects a frame-bearing transport, retains evidence.
+  rpc CaptureDevice(CaptureDeviceRequest) returns (CaptureDeviceResponse);
+  // One-call app open by common name or exact package, verified by foreground.
+  rpc LaunchApp(LaunchAppRequest) returns (LaunchAppResponse);
+  // Install a local APK on a phone, verify it by package state, and optionally
+  // open it and capture a screenshot: the whole "try my app on the phone" check.
+  rpc InstallApp(InstallAppRequest) returns (InstallAppResponse);
   // Read-only hardware/runtime qualification. No arbitrary device commands.
   rpc InspectDevice(InspectDeviceRequest) returns (InspectDeviceResponse);
 }
@@ -84,6 +92,71 @@ message ExecuteVolumeResponse {
   repeated string evidence = 9;
   int32 recovery_attempts = 10;
   string next_action = 11;
+}
+message CaptureDeviceRequest {
+  string device = 1;
+  string actor = 2;
+  // screenshot, recording, or logs
+  string kind = 3;
+  int32 seconds = 4;
+  string package = 5;
+  bool wake = 6;
+  bool home = 7;
+}
+message CaptureDeviceResponse {
+  // passed, capability_gap, failed, or no_evidence
+  string disposition = 1;
+  string device_id = 2;
+  // Retained evidence ids; fetch with `device-control device evidence <id>`.
+  repeated string evidence_ids = 3;
+  string message = 4;
+  string failure_class = 5;
+  // Exact commands that resolve a gap or failure, one per line. A single
+  // scalar keeps evidence_ids the response's only repeated (primary) field.
+  string next_action = 6;
+}
+message LaunchAppRequest {
+  string device = 1;
+  string actor = 2;
+  // Common name (netflix, youtube) or exact Android package.
+  string app = 3;
+  bool wake = 4;
+}
+message LaunchAppResponse {
+  // foreground_verified, launched_unverified, not_installed, or failed
+  string status = 1;
+  string device_id = 2;
+  string package = 3;
+  string foreground_package = 4;
+  string detail = 5;
+  // Exact commands that resolve a failure, one per line.
+  string next_action = 6;
+}
+message InstallAppRequest {
+  string device = 1;
+  string actor = 2;
+  // Absolute path of an APK readable by the Device Control host.
+  string apk = 3;
+  // Open the installed app and verify it reached the foreground.
+  bool open = 4;
+  // Capture a screenshot after opening (implies open).
+  bool screenshot = 5;
+}
+message InstallAppResponse {
+  // installed_verified or failed
+  string status = 1;
+  string device_id = 2;
+  string package = 3;
+  string version_name = 4;
+  int64 version_code = 5;
+  string detail = 6;
+  // foreground_verified, launched_unverified, failed, or empty when not requested
+  string launch_status = 7;
+  string foreground_package = 8;
+  // Exact commands that resolve a failure, one per line.
+  string next_action = 9;
+  // Screenshot evidence ids; fetch with `device-control device evidence <id>`.
+  repeated string evidence_ids = 10;
 }
 message Device {
   string id = 1;

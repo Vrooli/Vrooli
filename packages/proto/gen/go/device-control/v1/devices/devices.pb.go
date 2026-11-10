@@ -875,6 +875,541 @@ func (x *ExecuteVolumeResponse) GetNextAction() string {
 	return ""
 }
 
+type CaptureDeviceRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Device string                 `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	Actor  string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	// screenshot, recording, or logs
+	Kind          string `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	Seconds       int32  `protobuf:"varint,4,opt,name=seconds,proto3" json:"seconds,omitempty"`
+	Package       string `protobuf:"bytes,5,opt,name=package,proto3" json:"package,omitempty"`
+	Wake          bool   `protobuf:"varint,6,opt,name=wake,proto3" json:"wake,omitempty"`
+	Home          bool   `protobuf:"varint,7,opt,name=home,proto3" json:"home,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaptureDeviceRequest) Reset() {
+	*x = CaptureDeviceRequest{}
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureDeviceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureDeviceRequest) ProtoMessage() {}
+
+func (x *CaptureDeviceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureDeviceRequest.ProtoReflect.Descriptor instead.
+func (*CaptureDeviceRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *CaptureDeviceRequest) GetDevice() string {
+	if x != nil {
+		return x.Device
+	}
+	return ""
+}
+
+func (x *CaptureDeviceRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *CaptureDeviceRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *CaptureDeviceRequest) GetSeconds() int32 {
+	if x != nil {
+		return x.Seconds
+	}
+	return 0
+}
+
+func (x *CaptureDeviceRequest) GetPackage() string {
+	if x != nil {
+		return x.Package
+	}
+	return ""
+}
+
+func (x *CaptureDeviceRequest) GetWake() bool {
+	if x != nil {
+		return x.Wake
+	}
+	return false
+}
+
+func (x *CaptureDeviceRequest) GetHome() bool {
+	if x != nil {
+		return x.Home
+	}
+	return false
+}
+
+type CaptureDeviceResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// passed, capability_gap, failed, or no_evidence
+	Disposition string `protobuf:"bytes,1,opt,name=disposition,proto3" json:"disposition,omitempty"`
+	DeviceId    string `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	// Retained evidence ids; fetch with `device-control device evidence <id>`.
+	EvidenceIds  []string `protobuf:"bytes,3,rep,name=evidence_ids,json=evidenceIds,proto3" json:"evidence_ids,omitempty"`
+	Message      string   `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
+	FailureClass string   `protobuf:"bytes,5,opt,name=failure_class,json=failureClass,proto3" json:"failure_class,omitempty"`
+	// Exact commands that resolve a gap or failure, one per line. A single
+	// scalar keeps evidence_ids the response's only repeated (primary) field.
+	NextAction    string `protobuf:"bytes,6,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CaptureDeviceResponse) Reset() {
+	*x = CaptureDeviceResponse{}
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CaptureDeviceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CaptureDeviceResponse) ProtoMessage() {}
+
+func (x *CaptureDeviceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CaptureDeviceResponse.ProtoReflect.Descriptor instead.
+func (*CaptureDeviceResponse) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *CaptureDeviceResponse) GetDisposition() string {
+	if x != nil {
+		return x.Disposition
+	}
+	return ""
+}
+
+func (x *CaptureDeviceResponse) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *CaptureDeviceResponse) GetEvidenceIds() []string {
+	if x != nil {
+		return x.EvidenceIds
+	}
+	return nil
+}
+
+func (x *CaptureDeviceResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *CaptureDeviceResponse) GetFailureClass() string {
+	if x != nil {
+		return x.FailureClass
+	}
+	return ""
+}
+
+func (x *CaptureDeviceResponse) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
+}
+
+type LaunchAppRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Device string                 `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	Actor  string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	// Common name (netflix, youtube) or exact Android package.
+	App           string `protobuf:"bytes,3,opt,name=app,proto3" json:"app,omitempty"`
+	Wake          bool   `protobuf:"varint,4,opt,name=wake,proto3" json:"wake,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LaunchAppRequest) Reset() {
+	*x = LaunchAppRequest{}
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LaunchAppRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LaunchAppRequest) ProtoMessage() {}
+
+func (x *LaunchAppRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LaunchAppRequest.ProtoReflect.Descriptor instead.
+func (*LaunchAppRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *LaunchAppRequest) GetDevice() string {
+	if x != nil {
+		return x.Device
+	}
+	return ""
+}
+
+func (x *LaunchAppRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *LaunchAppRequest) GetApp() string {
+	if x != nil {
+		return x.App
+	}
+	return ""
+}
+
+func (x *LaunchAppRequest) GetWake() bool {
+	if x != nil {
+		return x.Wake
+	}
+	return false
+}
+
+type LaunchAppResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// foreground_verified, launched_unverified, not_installed, or failed
+	Status            string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	DeviceId          string `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	Package           string `protobuf:"bytes,3,opt,name=package,proto3" json:"package,omitempty"`
+	ForegroundPackage string `protobuf:"bytes,4,opt,name=foreground_package,json=foregroundPackage,proto3" json:"foreground_package,omitempty"`
+	Detail            string `protobuf:"bytes,5,opt,name=detail,proto3" json:"detail,omitempty"`
+	// Exact commands that resolve a failure, one per line.
+	NextAction    string `protobuf:"bytes,6,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *LaunchAppResponse) Reset() {
+	*x = LaunchAppResponse{}
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *LaunchAppResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*LaunchAppResponse) ProtoMessage() {}
+
+func (x *LaunchAppResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use LaunchAppResponse.ProtoReflect.Descriptor instead.
+func (*LaunchAppResponse) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *LaunchAppResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *LaunchAppResponse) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *LaunchAppResponse) GetPackage() string {
+	if x != nil {
+		return x.Package
+	}
+	return ""
+}
+
+func (x *LaunchAppResponse) GetForegroundPackage() string {
+	if x != nil {
+		return x.ForegroundPackage
+	}
+	return ""
+}
+
+func (x *LaunchAppResponse) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *LaunchAppResponse) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
+}
+
+type InstallAppRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Device string                 `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	Actor  string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	// Absolute path of an APK readable by the Device Control host.
+	Apk string `protobuf:"bytes,3,opt,name=apk,proto3" json:"apk,omitempty"`
+	// Open the installed app and verify it reached the foreground.
+	Open bool `protobuf:"varint,4,opt,name=open,proto3" json:"open,omitempty"`
+	// Capture a screenshot after opening (implies open).
+	Screenshot    bool `protobuf:"varint,5,opt,name=screenshot,proto3" json:"screenshot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstallAppRequest) Reset() {
+	*x = InstallAppRequest{}
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallAppRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallAppRequest) ProtoMessage() {}
+
+func (x *InstallAppRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallAppRequest.ProtoReflect.Descriptor instead.
+func (*InstallAppRequest) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *InstallAppRequest) GetDevice() string {
+	if x != nil {
+		return x.Device
+	}
+	return ""
+}
+
+func (x *InstallAppRequest) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *InstallAppRequest) GetApk() string {
+	if x != nil {
+		return x.Apk
+	}
+	return ""
+}
+
+func (x *InstallAppRequest) GetOpen() bool {
+	if x != nil {
+		return x.Open
+	}
+	return false
+}
+
+func (x *InstallAppRequest) GetScreenshot() bool {
+	if x != nil {
+		return x.Screenshot
+	}
+	return false
+}
+
+type InstallAppResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// installed_verified or failed
+	Status      string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	DeviceId    string `protobuf:"bytes,2,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	Package     string `protobuf:"bytes,3,opt,name=package,proto3" json:"package,omitempty"`
+	VersionName string `protobuf:"bytes,4,opt,name=version_name,json=versionName,proto3" json:"version_name,omitempty"`
+	VersionCode int64  `protobuf:"varint,5,opt,name=version_code,json=versionCode,proto3" json:"version_code,omitempty"`
+	Detail      string `protobuf:"bytes,6,opt,name=detail,proto3" json:"detail,omitempty"`
+	// foreground_verified, launched_unverified, failed, or empty when not requested
+	LaunchStatus      string `protobuf:"bytes,7,opt,name=launch_status,json=launchStatus,proto3" json:"launch_status,omitempty"`
+	ForegroundPackage string `protobuf:"bytes,8,opt,name=foreground_package,json=foregroundPackage,proto3" json:"foreground_package,omitempty"`
+	// Exact commands that resolve a failure, one per line.
+	NextAction string `protobuf:"bytes,9,opt,name=next_action,json=nextAction,proto3" json:"next_action,omitempty"`
+	// Screenshot evidence ids; fetch with `device-control device evidence <id>`.
+	EvidenceIds   []string `protobuf:"bytes,10,rep,name=evidence_ids,json=evidenceIds,proto3" json:"evidence_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InstallAppResponse) Reset() {
+	*x = InstallAppResponse{}
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InstallAppResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InstallAppResponse) ProtoMessage() {}
+
+func (x *InstallAppResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InstallAppResponse.ProtoReflect.Descriptor instead.
+func (*InstallAppResponse) Descriptor() ([]byte, []int) {
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *InstallAppResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *InstallAppResponse) GetDeviceId() string {
+	if x != nil {
+		return x.DeviceId
+	}
+	return ""
+}
+
+func (x *InstallAppResponse) GetPackage() string {
+	if x != nil {
+		return x.Package
+	}
+	return ""
+}
+
+func (x *InstallAppResponse) GetVersionName() string {
+	if x != nil {
+		return x.VersionName
+	}
+	return ""
+}
+
+func (x *InstallAppResponse) GetVersionCode() int64 {
+	if x != nil {
+		return x.VersionCode
+	}
+	return 0
+}
+
+func (x *InstallAppResponse) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *InstallAppResponse) GetLaunchStatus() string {
+	if x != nil {
+		return x.LaunchStatus
+	}
+	return ""
+}
+
+func (x *InstallAppResponse) GetForegroundPackage() string {
+	if x != nil {
+		return x.ForegroundPackage
+	}
+	return ""
+}
+
+func (x *InstallAppResponse) GetNextAction() string {
+	if x != nil {
+		return x.NextAction
+	}
+	return ""
+}
+
+func (x *InstallAppResponse) GetEvidenceIds() []string {
+	if x != nil {
+		return x.EvidenceIds
+	}
+	return nil
+}
+
 type Device struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -902,7 +1437,7 @@ type Device struct {
 
 func (x *Device) Reset() {
 	*x = Device{}
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[12]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -914,7 +1449,7 @@ func (x *Device) String() string {
 func (*Device) ProtoMessage() {}
 
 func (x *Device) ProtoReflect() protoreflect.Message {
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[12]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -927,7 +1462,7 @@ func (x *Device) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Device.ProtoReflect.Descriptor instead.
 func (*Device) Descriptor() ([]byte, []int) {
-	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{12}
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Device) GetId() string {
@@ -1075,7 +1610,7 @@ type CapabilitySnapshot struct {
 
 func (x *CapabilitySnapshot) Reset() {
 	*x = CapabilitySnapshot{}
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[13]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1087,7 +1622,7 @@ func (x *CapabilitySnapshot) String() string {
 func (*CapabilitySnapshot) ProtoMessage() {}
 
 func (x *CapabilitySnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[13]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1100,7 +1635,7 @@ func (x *CapabilitySnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapabilitySnapshot.ProtoReflect.Descriptor instead.
 func (*CapabilitySnapshot) Descriptor() ([]byte, []int) {
-	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{13}
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CapabilitySnapshot) GetName() string {
@@ -1148,7 +1683,7 @@ type TransportProfile struct {
 
 func (x *TransportProfile) Reset() {
 	*x = TransportProfile{}
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[14]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1160,7 +1695,7 @@ func (x *TransportProfile) String() string {
 func (*TransportProfile) ProtoMessage() {}
 
 func (x *TransportProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[14]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1173,7 +1708,7 @@ func (x *TransportProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TransportProfile.ProtoReflect.Descriptor instead.
 func (*TransportProfile) Descriptor() ([]byte, []int) {
-	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{14}
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *TransportProfile) GetStrategyId() string {
@@ -1252,7 +1787,7 @@ type OnboardingRung struct {
 
 func (x *OnboardingRung) Reset() {
 	*x = OnboardingRung{}
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[15]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1264,7 +1799,7 @@ func (x *OnboardingRung) String() string {
 func (*OnboardingRung) ProtoMessage() {}
 
 func (x *OnboardingRung) ProtoReflect() protoreflect.Message {
-	mi := &file_device_control_v1_devices_devices_proto_msgTypes[15]
+	mi := &file_device_control_v1_devices_devices_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1277,7 +1812,7 @@ func (x *OnboardingRung) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OnboardingRung.ProtoReflect.Descriptor instead.
 func (*OnboardingRung) Descriptor() ([]byte, []int) {
-	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{15}
+	return file_device_control_v1_devices_devices_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *OnboardingRung) GetId() string {
@@ -1405,7 +1940,57 @@ const file_device_control_v1_devices_devices_proto_rawDesc = "" +
 	"\x11recovery_attempts\x18\n" +
 	" \x01(\x05R\x10recoveryAttempts\x12\x1f\n" +
 	"\vnext_action\x18\v \x01(\tR\n" +
-	"nextAction\"\xc0\x05\n" +
+	"nextAction\"\xb4\x01\n" +
+	"\x14CaptureDeviceRequest\x12\x16\n" +
+	"\x06device\x18\x01 \x01(\tR\x06device\x12\x14\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x18\n" +
+	"\aseconds\x18\x04 \x01(\x05R\aseconds\x12\x18\n" +
+	"\apackage\x18\x05 \x01(\tR\apackage\x12\x12\n" +
+	"\x04wake\x18\x06 \x01(\bR\x04wake\x12\x12\n" +
+	"\x04home\x18\a \x01(\bR\x04home\"\xd9\x01\n" +
+	"\x15CaptureDeviceResponse\x12 \n" +
+	"\vdisposition\x18\x01 \x01(\tR\vdisposition\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\x12!\n" +
+	"\fevidence_ids\x18\x03 \x03(\tR\vevidenceIds\x12\x18\n" +
+	"\amessage\x18\x04 \x01(\tR\amessage\x12#\n" +
+	"\rfailure_class\x18\x05 \x01(\tR\ffailureClass\x12\x1f\n" +
+	"\vnext_action\x18\x06 \x01(\tR\n" +
+	"nextAction\"f\n" +
+	"\x10LaunchAppRequest\x12\x16\n" +
+	"\x06device\x18\x01 \x01(\tR\x06device\x12\x14\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x10\n" +
+	"\x03app\x18\x03 \x01(\tR\x03app\x12\x12\n" +
+	"\x04wake\x18\x04 \x01(\bR\x04wake\"\xca\x01\n" +
+	"\x11LaunchAppResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\x12\x18\n" +
+	"\apackage\x18\x03 \x01(\tR\apackage\x12-\n" +
+	"\x12foreground_package\x18\x04 \x01(\tR\x11foregroundPackage\x12\x16\n" +
+	"\x06detail\x18\x05 \x01(\tR\x06detail\x12\x1f\n" +
+	"\vnext_action\x18\x06 \x01(\tR\n" +
+	"nextAction\"\x87\x01\n" +
+	"\x11InstallAppRequest\x12\x16\n" +
+	"\x06device\x18\x01 \x01(\tR\x06device\x12\x14\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x10\n" +
+	"\x03apk\x18\x03 \x01(\tR\x03apk\x12\x12\n" +
+	"\x04open\x18\x04 \x01(\bR\x04open\x12\x1e\n" +
+	"\n" +
+	"screenshot\x18\x05 \x01(\bR\n" +
+	"screenshot\"\xd9\x02\n" +
+	"\x12InstallAppResponse\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\x12\x1b\n" +
+	"\tdevice_id\x18\x02 \x01(\tR\bdeviceId\x12\x18\n" +
+	"\apackage\x18\x03 \x01(\tR\apackage\x12!\n" +
+	"\fversion_name\x18\x04 \x01(\tR\vversionName\x12!\n" +
+	"\fversion_code\x18\x05 \x01(\x03R\vversionCode\x12\x16\n" +
+	"\x06detail\x18\x06 \x01(\tR\x06detail\x12#\n" +
+	"\rlaunch_status\x18\a \x01(\tR\flaunchStatus\x12-\n" +
+	"\x12foreground_package\x18\b \x01(\tR\x11foregroundPackage\x12\x1f\n" +
+	"\vnext_action\x18\t \x01(\tR\n" +
+	"nextAction\x12!\n" +
+	"\fevidence_ids\x18\n" +
+	" \x03(\tR\vevidenceIds\"\xc0\x05\n" +
 	"\x06Device\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -1459,12 +2044,16 @@ const file_device_control_v1_devices_devices_proto_rawDesc = "" +
 	"\x05owner\x18\x03 \x01(\tR\x05owner\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x12\x1f\n" +
 	"\vnext_action\x18\x05 \x01(\tR\n" +
-	"nextAction2\x9d\x05\n" +
+	"nextAction2\x8f\b\n" +
 	"\rDeviceService\x12z\n" +
 	"\vListDevices\x124.vrooli.device_control.v1.devices.ListDevicesRequest\x1a5.vrooli.device_control.v1.devices.ListDevicesResponse\x12\x80\x01\n" +
 	"\rConnectDevice\x126.vrooli.device_control.v1.devices.ConnectDeviceRequest\x1a7.vrooli.device_control.v1.devices.ConnectDeviceResponse\x12\x86\x01\n" +
 	"\x0fReconnectDevice\x128.vrooli.device_control.v1.devices.ReconnectDeviceRequest\x1a9.vrooli.device_control.v1.devices.ReconnectDeviceResponse\x12\x80\x01\n" +
 	"\rExecuteVolume\x126.vrooli.device_control.v1.devices.ExecuteVolumeRequest\x1a7.vrooli.device_control.v1.devices.ExecuteVolumeResponse\x12\x80\x01\n" +
+	"\rCaptureDevice\x126.vrooli.device_control.v1.devices.CaptureDeviceRequest\x1a7.vrooli.device_control.v1.devices.CaptureDeviceResponse\x12t\n" +
+	"\tLaunchApp\x122.vrooli.device_control.v1.devices.LaunchAppRequest\x1a3.vrooli.device_control.v1.devices.LaunchAppResponse\x12w\n" +
+	"\n" +
+	"InstallApp\x123.vrooli.device_control.v1.devices.InstallAppRequest\x1a4.vrooli.device_control.v1.devices.InstallAppResponse\x12\x80\x01\n" +
 	"\rInspectDevice\x126.vrooli.device_control.v1.devices.InspectDeviceRequest\x1a7.vrooli.device_control.v1.devices.InspectDeviceResponseBUZSgithub.com/vrooli/vrooli/packages/proto/gen/go/device-control/v1/devices;devices_v1b\x06proto3"
 
 var (
@@ -1479,7 +2068,7 @@ func file_device_control_v1_devices_devices_proto_rawDescGZIP() []byte {
 	return file_device_control_v1_devices_devices_proto_rawDescData
 }
 
-var file_device_control_v1_devices_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_device_control_v1_devices_devices_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_device_control_v1_devices_devices_proto_goTypes = []any{
 	(*InspectDeviceRequest)(nil),    // 0: vrooli.device_control.v1.devices.InspectDeviceRequest
 	(*InspectDeviceResponse)(nil),   // 1: vrooli.device_control.v1.devices.InspectDeviceResponse
@@ -1493,43 +2082,55 @@ var file_device_control_v1_devices_devices_proto_goTypes = []any{
 	(*ReconnectDeviceResponse)(nil), // 9: vrooli.device_control.v1.devices.ReconnectDeviceResponse
 	(*ExecuteVolumeRequest)(nil),    // 10: vrooli.device_control.v1.devices.ExecuteVolumeRequest
 	(*ExecuteVolumeResponse)(nil),   // 11: vrooli.device_control.v1.devices.ExecuteVolumeResponse
-	(*Device)(nil),                  // 12: vrooli.device_control.v1.devices.Device
-	(*CapabilitySnapshot)(nil),      // 13: vrooli.device_control.v1.devices.CapabilitySnapshot
-	(*TransportProfile)(nil),        // 14: vrooli.device_control.v1.devices.TransportProfile
-	(*OnboardingRung)(nil),          // 15: vrooli.device_control.v1.devices.OnboardingRung
-	nil,                             // 16: vrooli.device_control.v1.devices.InspectDeviceResponse.UnavailableEntry
-	nil,                             // 17: vrooli.device_control.v1.devices.VoiceInspection.UnavailableEntry
-	(*timestamppb.Timestamp)(nil),   // 18: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),         // 19: google.protobuf.Struct
+	(*CaptureDeviceRequest)(nil),    // 12: vrooli.device_control.v1.devices.CaptureDeviceRequest
+	(*CaptureDeviceResponse)(nil),   // 13: vrooli.device_control.v1.devices.CaptureDeviceResponse
+	(*LaunchAppRequest)(nil),        // 14: vrooli.device_control.v1.devices.LaunchAppRequest
+	(*LaunchAppResponse)(nil),       // 15: vrooli.device_control.v1.devices.LaunchAppResponse
+	(*InstallAppRequest)(nil),       // 16: vrooli.device_control.v1.devices.InstallAppRequest
+	(*InstallAppResponse)(nil),      // 17: vrooli.device_control.v1.devices.InstallAppResponse
+	(*Device)(nil),                  // 18: vrooli.device_control.v1.devices.Device
+	(*CapabilitySnapshot)(nil),      // 19: vrooli.device_control.v1.devices.CapabilitySnapshot
+	(*TransportProfile)(nil),        // 20: vrooli.device_control.v1.devices.TransportProfile
+	(*OnboardingRung)(nil),          // 21: vrooli.device_control.v1.devices.OnboardingRung
+	nil,                             // 22: vrooli.device_control.v1.devices.InspectDeviceResponse.UnavailableEntry
+	nil,                             // 23: vrooli.device_control.v1.devices.VoiceInspection.UnavailableEntry
+	(*timestamppb.Timestamp)(nil),   // 24: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),         // 25: google.protobuf.Struct
 }
 var file_device_control_v1_devices_devices_proto_depIdxs = []int32{
-	18, // 0: vrooli.device_control.v1.devices.InspectDeviceResponse.observed_at:type_name -> google.protobuf.Timestamp
-	16, // 1: vrooli.device_control.v1.devices.InspectDeviceResponse.unavailable:type_name -> vrooli.device_control.v1.devices.InspectDeviceResponse.UnavailableEntry
+	24, // 0: vrooli.device_control.v1.devices.InspectDeviceResponse.observed_at:type_name -> google.protobuf.Timestamp
+	22, // 1: vrooli.device_control.v1.devices.InspectDeviceResponse.unavailable:type_name -> vrooli.device_control.v1.devices.InspectDeviceResponse.UnavailableEntry
 	3,  // 2: vrooli.device_control.v1.devices.InspectDeviceResponse.voice:type_name -> vrooli.device_control.v1.devices.VoiceInspection
 	2,  // 3: vrooli.device_control.v1.devices.InspectDeviceResponse.video_encoders:type_name -> vrooli.device_control.v1.devices.VideoEncoder
-	17, // 4: vrooli.device_control.v1.devices.VoiceInspection.unavailable:type_name -> vrooli.device_control.v1.devices.VoiceInspection.UnavailableEntry
-	12, // 5: vrooli.device_control.v1.devices.ListDevicesResponse.devices:type_name -> vrooli.device_control.v1.devices.Device
-	15, // 6: vrooli.device_control.v1.devices.ConnectDeviceResponse.rungs:type_name -> vrooli.device_control.v1.devices.OnboardingRung
-	12, // 7: vrooli.device_control.v1.devices.ReconnectDeviceResponse.device:type_name -> vrooli.device_control.v1.devices.Device
-	19, // 8: vrooli.device_control.v1.devices.ExecuteVolumeResponse.plan:type_name -> google.protobuf.Struct
-	19, // 9: vrooli.device_control.v1.devices.ExecuteVolumeResponse.before:type_name -> google.protobuf.Struct
-	19, // 10: vrooli.device_control.v1.devices.ExecuteVolumeResponse.after:type_name -> google.protobuf.Struct
-	13, // 11: vrooli.device_control.v1.devices.Device.capabilities:type_name -> vrooli.device_control.v1.devices.CapabilitySnapshot
-	18, // 12: vrooli.device_control.v1.devices.Device.observed_at:type_name -> google.protobuf.Timestamp
-	14, // 13: vrooli.device_control.v1.devices.Device.transports:type_name -> vrooli.device_control.v1.devices.TransportProfile
-	13, // 14: vrooli.device_control.v1.devices.TransportProfile.capabilities:type_name -> vrooli.device_control.v1.devices.CapabilitySnapshot
+	23, // 4: vrooli.device_control.v1.devices.VoiceInspection.unavailable:type_name -> vrooli.device_control.v1.devices.VoiceInspection.UnavailableEntry
+	18, // 5: vrooli.device_control.v1.devices.ListDevicesResponse.devices:type_name -> vrooli.device_control.v1.devices.Device
+	21, // 6: vrooli.device_control.v1.devices.ConnectDeviceResponse.rungs:type_name -> vrooli.device_control.v1.devices.OnboardingRung
+	18, // 7: vrooli.device_control.v1.devices.ReconnectDeviceResponse.device:type_name -> vrooli.device_control.v1.devices.Device
+	25, // 8: vrooli.device_control.v1.devices.ExecuteVolumeResponse.plan:type_name -> google.protobuf.Struct
+	25, // 9: vrooli.device_control.v1.devices.ExecuteVolumeResponse.before:type_name -> google.protobuf.Struct
+	25, // 10: vrooli.device_control.v1.devices.ExecuteVolumeResponse.after:type_name -> google.protobuf.Struct
+	19, // 11: vrooli.device_control.v1.devices.Device.capabilities:type_name -> vrooli.device_control.v1.devices.CapabilitySnapshot
+	24, // 12: vrooli.device_control.v1.devices.Device.observed_at:type_name -> google.protobuf.Timestamp
+	20, // 13: vrooli.device_control.v1.devices.Device.transports:type_name -> vrooli.device_control.v1.devices.TransportProfile
+	19, // 14: vrooli.device_control.v1.devices.TransportProfile.capabilities:type_name -> vrooli.device_control.v1.devices.CapabilitySnapshot
 	4,  // 15: vrooli.device_control.v1.devices.DeviceService.ListDevices:input_type -> vrooli.device_control.v1.devices.ListDevicesRequest
 	6,  // 16: vrooli.device_control.v1.devices.DeviceService.ConnectDevice:input_type -> vrooli.device_control.v1.devices.ConnectDeviceRequest
 	8,  // 17: vrooli.device_control.v1.devices.DeviceService.ReconnectDevice:input_type -> vrooli.device_control.v1.devices.ReconnectDeviceRequest
 	10, // 18: vrooli.device_control.v1.devices.DeviceService.ExecuteVolume:input_type -> vrooli.device_control.v1.devices.ExecuteVolumeRequest
-	0,  // 19: vrooli.device_control.v1.devices.DeviceService.InspectDevice:input_type -> vrooli.device_control.v1.devices.InspectDeviceRequest
-	5,  // 20: vrooli.device_control.v1.devices.DeviceService.ListDevices:output_type -> vrooli.device_control.v1.devices.ListDevicesResponse
-	7,  // 21: vrooli.device_control.v1.devices.DeviceService.ConnectDevice:output_type -> vrooli.device_control.v1.devices.ConnectDeviceResponse
-	9,  // 22: vrooli.device_control.v1.devices.DeviceService.ReconnectDevice:output_type -> vrooli.device_control.v1.devices.ReconnectDeviceResponse
-	11, // 23: vrooli.device_control.v1.devices.DeviceService.ExecuteVolume:output_type -> vrooli.device_control.v1.devices.ExecuteVolumeResponse
-	1,  // 24: vrooli.device_control.v1.devices.DeviceService.InspectDevice:output_type -> vrooli.device_control.v1.devices.InspectDeviceResponse
-	20, // [20:25] is the sub-list for method output_type
-	15, // [15:20] is the sub-list for method input_type
+	12, // 19: vrooli.device_control.v1.devices.DeviceService.CaptureDevice:input_type -> vrooli.device_control.v1.devices.CaptureDeviceRequest
+	14, // 20: vrooli.device_control.v1.devices.DeviceService.LaunchApp:input_type -> vrooli.device_control.v1.devices.LaunchAppRequest
+	16, // 21: vrooli.device_control.v1.devices.DeviceService.InstallApp:input_type -> vrooli.device_control.v1.devices.InstallAppRequest
+	0,  // 22: vrooli.device_control.v1.devices.DeviceService.InspectDevice:input_type -> vrooli.device_control.v1.devices.InspectDeviceRequest
+	5,  // 23: vrooli.device_control.v1.devices.DeviceService.ListDevices:output_type -> vrooli.device_control.v1.devices.ListDevicesResponse
+	7,  // 24: vrooli.device_control.v1.devices.DeviceService.ConnectDevice:output_type -> vrooli.device_control.v1.devices.ConnectDeviceResponse
+	9,  // 25: vrooli.device_control.v1.devices.DeviceService.ReconnectDevice:output_type -> vrooli.device_control.v1.devices.ReconnectDeviceResponse
+	11, // 26: vrooli.device_control.v1.devices.DeviceService.ExecuteVolume:output_type -> vrooli.device_control.v1.devices.ExecuteVolumeResponse
+	13, // 27: vrooli.device_control.v1.devices.DeviceService.CaptureDevice:output_type -> vrooli.device_control.v1.devices.CaptureDeviceResponse
+	15, // 28: vrooli.device_control.v1.devices.DeviceService.LaunchApp:output_type -> vrooli.device_control.v1.devices.LaunchAppResponse
+	17, // 29: vrooli.device_control.v1.devices.DeviceService.InstallApp:output_type -> vrooli.device_control.v1.devices.InstallAppResponse
+	1,  // 30: vrooli.device_control.v1.devices.DeviceService.InspectDevice:output_type -> vrooli.device_control.v1.devices.InspectDeviceResponse
+	23, // [23:31] is the sub-list for method output_type
+	15, // [15:23] is the sub-list for method input_type
 	15, // [15:15] is the sub-list for extension type_name
 	15, // [15:15] is the sub-list for extension extendee
 	0,  // [0:15] is the sub-list for field type_name
@@ -1550,7 +2151,7 @@ func file_device_control_v1_devices_devices_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_device_control_v1_devices_devices_proto_rawDesc), len(file_device_control_v1_devices_devices_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -9,6 +9,7 @@ import (
 	context "context"
 	errors "errors"
 	authorization "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
+	funding "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding"
 	http "net/http"
 	strings "strings"
 )
@@ -35,6 +36,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// AgentSpendGetBudgetWalletProcedure is the fully-qualified name of the AgentSpend's
+	// GetBudgetWallet RPC.
+	AgentSpendGetBudgetWalletProcedure = "/vrooli.treasury.v1.authorization.AgentSpend/GetBudgetWallet"
 	// AgentSpendProposeChargeProcedure is the fully-qualified name of the AgentSpend's ProposeCharge
 	// RPC.
 	AgentSpendProposeChargeProcedure = "/vrooli.treasury.v1.authorization.AgentSpend/ProposeCharge"
@@ -49,6 +53,45 @@ const (
 	// AgentSpendReportOutcomeProcedure is the fully-qualified name of the AgentSpend's ReportOutcome
 	// RPC.
 	AgentSpendReportOutcomeProcedure = "/vrooli.treasury.v1.authorization.AgentSpend/ReportOutcome"
+	// TreasuryAdminProvisionBudgetWalletProcedure is the fully-qualified name of the TreasuryAdmin's
+	// ProvisionBudgetWallet RPC.
+	TreasuryAdminProvisionBudgetWalletProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/ProvisionBudgetWallet"
+	// TreasuryAdminGetBudgetWalletProcedure is the fully-qualified name of the TreasuryAdmin's
+	// GetBudgetWallet RPC.
+	TreasuryAdminGetBudgetWalletProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetBudgetWallet"
+	// TreasuryAdminRevokeMandateSessionProcedure is the fully-qualified name of the TreasuryAdmin's
+	// RevokeMandateSession RPC.
+	TreasuryAdminRevokeMandateSessionProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/RevokeMandateSession"
+	// TreasuryAdminCreateFundingIntentProcedure is the fully-qualified name of the TreasuryAdmin's
+	// CreateFundingIntent RPC.
+	TreasuryAdminCreateFundingIntentProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateFundingIntent"
+	// TreasuryAdminGetFundingIntentProcedure is the fully-qualified name of the TreasuryAdmin's
+	// GetFundingIntent RPC.
+	TreasuryAdminGetFundingIntentProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetFundingIntent"
+	// TreasuryAdminConfirmFundingTransferProcedure is the fully-qualified name of the TreasuryAdmin's
+	// ConfirmFundingTransfer RPC.
+	TreasuryAdminConfirmFundingTransferProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/ConfirmFundingTransfer"
+	// TreasuryAdminListFundingIntentsProcedure is the fully-qualified name of the TreasuryAdmin's
+	// ListFundingIntents RPC.
+	TreasuryAdminListFundingIntentsProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/ListFundingIntents"
+	// TreasuryAdminSetWithdrawalDestinationProcedure is the fully-qualified name of the TreasuryAdmin's
+	// SetWithdrawalDestination RPC.
+	TreasuryAdminSetWithdrawalDestinationProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/SetWithdrawalDestination"
+	// TreasuryAdminPreviewWithdrawalProcedure is the fully-qualified name of the TreasuryAdmin's
+	// PreviewWithdrawal RPC.
+	TreasuryAdminPreviewWithdrawalProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/PreviewWithdrawal"
+	// TreasuryAdminExecuteWithdrawalProcedure is the fully-qualified name of the TreasuryAdmin's
+	// ExecuteWithdrawal RPC.
+	TreasuryAdminExecuteWithdrawalProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/ExecuteWithdrawal"
+	// TreasuryAdminGetWithdrawalProcedure is the fully-qualified name of the TreasuryAdmin's
+	// GetWithdrawal RPC.
+	TreasuryAdminGetWithdrawalProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetWithdrawal"
+	// TreasuryAdminSubmitReceiptFundingProcedure is the fully-qualified name of the TreasuryAdmin's
+	// SubmitReceiptFunding RPC.
+	TreasuryAdminSubmitReceiptFundingProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/SubmitReceiptFunding"
+	// TreasuryAdminGetReceiptFundingProcedure is the fully-qualified name of the TreasuryAdmin's
+	// GetReceiptFunding RPC.
+	TreasuryAdminGetReceiptFundingProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/GetReceiptFunding"
 	// TreasuryAdminCreateResearchWalletProcedure is the fully-qualified name of the TreasuryAdmin's
 	// CreateResearchWallet RPC.
 	TreasuryAdminCreateResearchWalletProcedure = "/vrooli.treasury.v1.authorization.TreasuryAdmin/CreateResearchWallet"
@@ -134,6 +177,7 @@ const (
 
 // AgentSpendClient is a client for the vrooli.treasury.v1.authorization.AgentSpend service.
 type AgentSpendClient interface {
+	GetBudgetWallet(context.Context, *connect.Request[funding.GetBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error)
 	ProposeCharge(context.Context, *connect.Request[authorization.ProposeChargeRequest]) (*connect.Response[authorization.ProposeChargeResponse], error)
 	GetAuthorization(context.Context, *connect.Request[authorization.GetAuthorizationRequest]) (*connect.Response[authorization.GetAuthorizationResponse], error)
 	GetBudgetHeadroom(context.Context, *connect.Request[authorization.GetBudgetHeadroomRequest]) (*connect.Response[authorization.GetBudgetHeadroomResponse], error)
@@ -152,6 +196,12 @@ func NewAgentSpendClient(httpClient connect.HTTPClient, baseURL string, opts ...
 	baseURL = strings.TrimRight(baseURL, "/")
 	agentSpendMethods := authorization.File_treasury_v1_authorization_authorization_proto.Services().ByName("AgentSpend").Methods()
 	return &agentSpendClient{
+		getBudgetWallet: connect.NewClient[funding.GetBudgetWalletRequest, funding.BudgetWalletResponse](
+			httpClient,
+			baseURL+AgentSpendGetBudgetWalletProcedure,
+			connect.WithSchema(agentSpendMethods.ByName("GetBudgetWallet")),
+			connect.WithClientOptions(opts...),
+		),
 		proposeCharge: connect.NewClient[authorization.ProposeChargeRequest, authorization.ProposeChargeResponse](
 			httpClient,
 			baseURL+AgentSpendProposeChargeProcedure,
@@ -187,11 +237,17 @@ func NewAgentSpendClient(httpClient connect.HTTPClient, baseURL string, opts ...
 
 // agentSpendClient implements AgentSpendClient.
 type agentSpendClient struct {
+	getBudgetWallet   *connect.Client[funding.GetBudgetWalletRequest, funding.BudgetWalletResponse]
 	proposeCharge     *connect.Client[authorization.ProposeChargeRequest, authorization.ProposeChargeResponse]
 	getAuthorization  *connect.Client[authorization.GetAuthorizationRequest, authorization.GetAuthorizationResponse]
 	getBudgetHeadroom *connect.Client[authorization.GetBudgetHeadroomRequest, authorization.GetBudgetHeadroomResponse]
 	listMandates      *connect.Client[authorization.ListMandatesRequest, authorization.ListMandatesResponse]
 	reportOutcome     *connect.Client[authorization.ReportOutcomeRequest, authorization.ReportOutcomeResponse]
+}
+
+// GetBudgetWallet calls vrooli.treasury.v1.authorization.AgentSpend.GetBudgetWallet.
+func (c *agentSpendClient) GetBudgetWallet(ctx context.Context, req *connect.Request[funding.GetBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error) {
+	return c.getBudgetWallet.CallUnary(ctx, req)
 }
 
 // ProposeCharge calls vrooli.treasury.v1.authorization.AgentSpend.ProposeCharge.
@@ -222,6 +278,7 @@ func (c *agentSpendClient) ReportOutcome(ctx context.Context, req *connect.Reque
 // AgentSpendHandler is an implementation of the vrooli.treasury.v1.authorization.AgentSpend
 // service.
 type AgentSpendHandler interface {
+	GetBudgetWallet(context.Context, *connect.Request[funding.GetBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error)
 	ProposeCharge(context.Context, *connect.Request[authorization.ProposeChargeRequest]) (*connect.Response[authorization.ProposeChargeResponse], error)
 	GetAuthorization(context.Context, *connect.Request[authorization.GetAuthorizationRequest]) (*connect.Response[authorization.GetAuthorizationResponse], error)
 	GetBudgetHeadroom(context.Context, *connect.Request[authorization.GetBudgetHeadroomRequest]) (*connect.Response[authorization.GetBudgetHeadroomResponse], error)
@@ -236,6 +293,12 @@ type AgentSpendHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewAgentSpendHandler(svc AgentSpendHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	agentSpendMethods := authorization.File_treasury_v1_authorization_authorization_proto.Services().ByName("AgentSpend").Methods()
+	agentSpendGetBudgetWalletHandler := connect.NewUnaryHandler(
+		AgentSpendGetBudgetWalletProcedure,
+		svc.GetBudgetWallet,
+		connect.WithSchema(agentSpendMethods.ByName("GetBudgetWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentSpendProposeChargeHandler := connect.NewUnaryHandler(
 		AgentSpendProposeChargeProcedure,
 		svc.ProposeCharge,
@@ -268,6 +331,8 @@ func NewAgentSpendHandler(svc AgentSpendHandler, opts ...connect.HandlerOption) 
 	)
 	return "/vrooli.treasury.v1.authorization.AgentSpend/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case AgentSpendGetBudgetWalletProcedure:
+			agentSpendGetBudgetWalletHandler.ServeHTTP(w, r)
 		case AgentSpendProposeChargeProcedure:
 			agentSpendProposeChargeHandler.ServeHTTP(w, r)
 		case AgentSpendGetAuthorizationProcedure:
@@ -286,6 +351,10 @@ func NewAgentSpendHandler(svc AgentSpendHandler, opts ...connect.HandlerOption) 
 
 // UnimplementedAgentSpendHandler returns CodeUnimplemented from all methods.
 type UnimplementedAgentSpendHandler struct{}
+
+func (UnimplementedAgentSpendHandler) GetBudgetWallet(context.Context, *connect.Request[funding.GetBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.AgentSpend.GetBudgetWallet is not implemented"))
+}
 
 func (UnimplementedAgentSpendHandler) ProposeCharge(context.Context, *connect.Request[authorization.ProposeChargeRequest]) (*connect.Response[authorization.ProposeChargeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.AgentSpend.ProposeCharge is not implemented"))
@@ -309,6 +378,19 @@ func (UnimplementedAgentSpendHandler) ReportOutcome(context.Context, *connect.Re
 
 // TreasuryAdminClient is a client for the vrooli.treasury.v1.authorization.TreasuryAdmin service.
 type TreasuryAdminClient interface {
+	ProvisionBudgetWallet(context.Context, *connect.Request[funding.ProvisionBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error)
+	GetBudgetWallet(context.Context, *connect.Request[funding.GetBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error)
+	RevokeMandateSession(context.Context, *connect.Request[funding.RevokeMandateSessionRequest]) (*connect.Response[funding.RevokeMandateSessionResponse], error)
+	CreateFundingIntent(context.Context, *connect.Request[funding.CreateFundingIntentRequest]) (*connect.Response[funding.FundingIntentResponse], error)
+	GetFundingIntent(context.Context, *connect.Request[funding.FundingIntentRequest]) (*connect.Response[funding.FundingIntentResponse], error)
+	ConfirmFundingTransfer(context.Context, *connect.Request[funding.ConfirmFundingTransferRequest]) (*connect.Response[funding.FundingIntentResponse], error)
+	ListFundingIntents(context.Context, *connect.Request[funding.ListFundingIntentsRequest]) (*connect.Response[funding.ListFundingIntentsResponse], error)
+	SetWithdrawalDestination(context.Context, *connect.Request[funding.SetWithdrawalDestinationRequest]) (*connect.Response[funding.WithdrawalDestinationResponse], error)
+	PreviewWithdrawal(context.Context, *connect.Request[funding.PreviewWithdrawalRequest]) (*connect.Response[funding.WithdrawalQuoteResponse], error)
+	ExecuteWithdrawal(context.Context, *connect.Request[funding.ExecuteWithdrawalRequest]) (*connect.Response[funding.WithdrawalResponse], error)
+	GetWithdrawal(context.Context, *connect.Request[funding.GetWithdrawalRequest]) (*connect.Response[funding.WithdrawalResponse], error)
+	SubmitReceiptFunding(context.Context, *connect.Request[funding.SubmitReceiptFundingRequest]) (*connect.Response[funding.ReceiptFundingResponse], error)
+	GetReceiptFunding(context.Context, *connect.Request[funding.GetReceiptFundingRequest]) (*connect.Response[funding.ReceiptFundingResponse], error)
 	CreateResearchWallet(context.Context, *connect.Request[authorization.CreateResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	GetResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	ProveResearchWallet(context.Context, *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error)
@@ -350,6 +432,84 @@ func NewTreasuryAdminClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	treasuryAdminMethods := authorization.File_treasury_v1_authorization_authorization_proto.Services().ByName("TreasuryAdmin").Methods()
 	return &treasuryAdminClient{
+		provisionBudgetWallet: connect.NewClient[funding.ProvisionBudgetWalletRequest, funding.BudgetWalletResponse](
+			httpClient,
+			baseURL+TreasuryAdminProvisionBudgetWalletProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("ProvisionBudgetWallet")),
+			connect.WithClientOptions(opts...),
+		),
+		getBudgetWallet: connect.NewClient[funding.GetBudgetWalletRequest, funding.BudgetWalletResponse](
+			httpClient,
+			baseURL+TreasuryAdminGetBudgetWalletProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("GetBudgetWallet")),
+			connect.WithClientOptions(opts...),
+		),
+		revokeMandateSession: connect.NewClient[funding.RevokeMandateSessionRequest, funding.RevokeMandateSessionResponse](
+			httpClient,
+			baseURL+TreasuryAdminRevokeMandateSessionProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("RevokeMandateSession")),
+			connect.WithClientOptions(opts...),
+		),
+		createFundingIntent: connect.NewClient[funding.CreateFundingIntentRequest, funding.FundingIntentResponse](
+			httpClient,
+			baseURL+TreasuryAdminCreateFundingIntentProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("CreateFundingIntent")),
+			connect.WithClientOptions(opts...),
+		),
+		getFundingIntent: connect.NewClient[funding.FundingIntentRequest, funding.FundingIntentResponse](
+			httpClient,
+			baseURL+TreasuryAdminGetFundingIntentProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("GetFundingIntent")),
+			connect.WithClientOptions(opts...),
+		),
+		confirmFundingTransfer: connect.NewClient[funding.ConfirmFundingTransferRequest, funding.FundingIntentResponse](
+			httpClient,
+			baseURL+TreasuryAdminConfirmFundingTransferProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("ConfirmFundingTransfer")),
+			connect.WithClientOptions(opts...),
+		),
+		listFundingIntents: connect.NewClient[funding.ListFundingIntentsRequest, funding.ListFundingIntentsResponse](
+			httpClient,
+			baseURL+TreasuryAdminListFundingIntentsProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("ListFundingIntents")),
+			connect.WithClientOptions(opts...),
+		),
+		setWithdrawalDestination: connect.NewClient[funding.SetWithdrawalDestinationRequest, funding.WithdrawalDestinationResponse](
+			httpClient,
+			baseURL+TreasuryAdminSetWithdrawalDestinationProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("SetWithdrawalDestination")),
+			connect.WithClientOptions(opts...),
+		),
+		previewWithdrawal: connect.NewClient[funding.PreviewWithdrawalRequest, funding.WithdrawalQuoteResponse](
+			httpClient,
+			baseURL+TreasuryAdminPreviewWithdrawalProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("PreviewWithdrawal")),
+			connect.WithClientOptions(opts...),
+		),
+		executeWithdrawal: connect.NewClient[funding.ExecuteWithdrawalRequest, funding.WithdrawalResponse](
+			httpClient,
+			baseURL+TreasuryAdminExecuteWithdrawalProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("ExecuteWithdrawal")),
+			connect.WithClientOptions(opts...),
+		),
+		getWithdrawal: connect.NewClient[funding.GetWithdrawalRequest, funding.WithdrawalResponse](
+			httpClient,
+			baseURL+TreasuryAdminGetWithdrawalProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("GetWithdrawal")),
+			connect.WithClientOptions(opts...),
+		),
+		submitReceiptFunding: connect.NewClient[funding.SubmitReceiptFundingRequest, funding.ReceiptFundingResponse](
+			httpClient,
+			baseURL+TreasuryAdminSubmitReceiptFundingProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("SubmitReceiptFunding")),
+			connect.WithClientOptions(opts...),
+		),
+		getReceiptFunding: connect.NewClient[funding.GetReceiptFundingRequest, funding.ReceiptFundingResponse](
+			httpClient,
+			baseURL+TreasuryAdminGetReceiptFundingProcedure,
+			connect.WithSchema(treasuryAdminMethods.ByName("GetReceiptFunding")),
+			connect.WithClientOptions(opts...),
+		),
 		createResearchWallet: connect.NewClient[authorization.CreateResearchWalletRequest, authorization.ResearchWalletResponse](
 			httpClient,
 			baseURL+TreasuryAdminCreateResearchWalletProcedure,
@@ -523,6 +683,19 @@ func NewTreasuryAdminClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // treasuryAdminClient implements TreasuryAdminClient.
 type treasuryAdminClient struct {
+	provisionBudgetWallet         *connect.Client[funding.ProvisionBudgetWalletRequest, funding.BudgetWalletResponse]
+	getBudgetWallet               *connect.Client[funding.GetBudgetWalletRequest, funding.BudgetWalletResponse]
+	revokeMandateSession          *connect.Client[funding.RevokeMandateSessionRequest, funding.RevokeMandateSessionResponse]
+	createFundingIntent           *connect.Client[funding.CreateFundingIntentRequest, funding.FundingIntentResponse]
+	getFundingIntent              *connect.Client[funding.FundingIntentRequest, funding.FundingIntentResponse]
+	confirmFundingTransfer        *connect.Client[funding.ConfirmFundingTransferRequest, funding.FundingIntentResponse]
+	listFundingIntents            *connect.Client[funding.ListFundingIntentsRequest, funding.ListFundingIntentsResponse]
+	setWithdrawalDestination      *connect.Client[funding.SetWithdrawalDestinationRequest, funding.WithdrawalDestinationResponse]
+	previewWithdrawal             *connect.Client[funding.PreviewWithdrawalRequest, funding.WithdrawalQuoteResponse]
+	executeWithdrawal             *connect.Client[funding.ExecuteWithdrawalRequest, funding.WithdrawalResponse]
+	getWithdrawal                 *connect.Client[funding.GetWithdrawalRequest, funding.WithdrawalResponse]
+	submitReceiptFunding          *connect.Client[funding.SubmitReceiptFundingRequest, funding.ReceiptFundingResponse]
+	getReceiptFunding             *connect.Client[funding.GetReceiptFundingRequest, funding.ReceiptFundingResponse]
 	createResearchWallet          *connect.Client[authorization.CreateResearchWalletRequest, authorization.ResearchWalletResponse]
 	getResearchWallet             *connect.Client[authorization.ResearchWalletRequest, authorization.ResearchWalletResponse]
 	proveResearchWallet           *connect.Client[authorization.ProveResearchWalletRequest, authorization.ProveResearchWalletResponse]
@@ -551,6 +724,73 @@ type treasuryAdminClient struct {
 	registerInstrument            *connect.Client[authorization.RegisterInstrumentRequest, authorization.RegisterInstrumentResponse]
 	reportManualOutcome           *connect.Client[authorization.ReportManualOutcomeRequest, authorization.ReportManualOutcomeResponse]
 	resolveUnknownSettlement      *connect.Client[authorization.ResolveUnknownSettlementRequest, authorization.ResolveUnknownSettlementResponse]
+}
+
+// ProvisionBudgetWallet calls vrooli.treasury.v1.authorization.TreasuryAdmin.ProvisionBudgetWallet.
+func (c *treasuryAdminClient) ProvisionBudgetWallet(ctx context.Context, req *connect.Request[funding.ProvisionBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error) {
+	return c.provisionBudgetWallet.CallUnary(ctx, req)
+}
+
+// GetBudgetWallet calls vrooli.treasury.v1.authorization.TreasuryAdmin.GetBudgetWallet.
+func (c *treasuryAdminClient) GetBudgetWallet(ctx context.Context, req *connect.Request[funding.GetBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error) {
+	return c.getBudgetWallet.CallUnary(ctx, req)
+}
+
+// RevokeMandateSession calls vrooli.treasury.v1.authorization.TreasuryAdmin.RevokeMandateSession.
+func (c *treasuryAdminClient) RevokeMandateSession(ctx context.Context, req *connect.Request[funding.RevokeMandateSessionRequest]) (*connect.Response[funding.RevokeMandateSessionResponse], error) {
+	return c.revokeMandateSession.CallUnary(ctx, req)
+}
+
+// CreateFundingIntent calls vrooli.treasury.v1.authorization.TreasuryAdmin.CreateFundingIntent.
+func (c *treasuryAdminClient) CreateFundingIntent(ctx context.Context, req *connect.Request[funding.CreateFundingIntentRequest]) (*connect.Response[funding.FundingIntentResponse], error) {
+	return c.createFundingIntent.CallUnary(ctx, req)
+}
+
+// GetFundingIntent calls vrooli.treasury.v1.authorization.TreasuryAdmin.GetFundingIntent.
+func (c *treasuryAdminClient) GetFundingIntent(ctx context.Context, req *connect.Request[funding.FundingIntentRequest]) (*connect.Response[funding.FundingIntentResponse], error) {
+	return c.getFundingIntent.CallUnary(ctx, req)
+}
+
+// ConfirmFundingTransfer calls
+// vrooli.treasury.v1.authorization.TreasuryAdmin.ConfirmFundingTransfer.
+func (c *treasuryAdminClient) ConfirmFundingTransfer(ctx context.Context, req *connect.Request[funding.ConfirmFundingTransferRequest]) (*connect.Response[funding.FundingIntentResponse], error) {
+	return c.confirmFundingTransfer.CallUnary(ctx, req)
+}
+
+// ListFundingIntents calls vrooli.treasury.v1.authorization.TreasuryAdmin.ListFundingIntents.
+func (c *treasuryAdminClient) ListFundingIntents(ctx context.Context, req *connect.Request[funding.ListFundingIntentsRequest]) (*connect.Response[funding.ListFundingIntentsResponse], error) {
+	return c.listFundingIntents.CallUnary(ctx, req)
+}
+
+// SetWithdrawalDestination calls
+// vrooli.treasury.v1.authorization.TreasuryAdmin.SetWithdrawalDestination.
+func (c *treasuryAdminClient) SetWithdrawalDestination(ctx context.Context, req *connect.Request[funding.SetWithdrawalDestinationRequest]) (*connect.Response[funding.WithdrawalDestinationResponse], error) {
+	return c.setWithdrawalDestination.CallUnary(ctx, req)
+}
+
+// PreviewWithdrawal calls vrooli.treasury.v1.authorization.TreasuryAdmin.PreviewWithdrawal.
+func (c *treasuryAdminClient) PreviewWithdrawal(ctx context.Context, req *connect.Request[funding.PreviewWithdrawalRequest]) (*connect.Response[funding.WithdrawalQuoteResponse], error) {
+	return c.previewWithdrawal.CallUnary(ctx, req)
+}
+
+// ExecuteWithdrawal calls vrooli.treasury.v1.authorization.TreasuryAdmin.ExecuteWithdrawal.
+func (c *treasuryAdminClient) ExecuteWithdrawal(ctx context.Context, req *connect.Request[funding.ExecuteWithdrawalRequest]) (*connect.Response[funding.WithdrawalResponse], error) {
+	return c.executeWithdrawal.CallUnary(ctx, req)
+}
+
+// GetWithdrawal calls vrooli.treasury.v1.authorization.TreasuryAdmin.GetWithdrawal.
+func (c *treasuryAdminClient) GetWithdrawal(ctx context.Context, req *connect.Request[funding.GetWithdrawalRequest]) (*connect.Response[funding.WithdrawalResponse], error) {
+	return c.getWithdrawal.CallUnary(ctx, req)
+}
+
+// SubmitReceiptFunding calls vrooli.treasury.v1.authorization.TreasuryAdmin.SubmitReceiptFunding.
+func (c *treasuryAdminClient) SubmitReceiptFunding(ctx context.Context, req *connect.Request[funding.SubmitReceiptFundingRequest]) (*connect.Response[funding.ReceiptFundingResponse], error) {
+	return c.submitReceiptFunding.CallUnary(ctx, req)
+}
+
+// GetReceiptFunding calls vrooli.treasury.v1.authorization.TreasuryAdmin.GetReceiptFunding.
+func (c *treasuryAdminClient) GetReceiptFunding(ctx context.Context, req *connect.Request[funding.GetReceiptFundingRequest]) (*connect.Response[funding.ReceiptFundingResponse], error) {
+	return c.getReceiptFunding.CallUnary(ctx, req)
 }
 
 // CreateResearchWallet calls vrooli.treasury.v1.authorization.TreasuryAdmin.CreateResearchWallet.
@@ -700,6 +940,19 @@ func (c *treasuryAdminClient) ResolveUnknownSettlement(ctx context.Context, req 
 // TreasuryAdminHandler is an implementation of the vrooli.treasury.v1.authorization.TreasuryAdmin
 // service.
 type TreasuryAdminHandler interface {
+	ProvisionBudgetWallet(context.Context, *connect.Request[funding.ProvisionBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error)
+	GetBudgetWallet(context.Context, *connect.Request[funding.GetBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error)
+	RevokeMandateSession(context.Context, *connect.Request[funding.RevokeMandateSessionRequest]) (*connect.Response[funding.RevokeMandateSessionResponse], error)
+	CreateFundingIntent(context.Context, *connect.Request[funding.CreateFundingIntentRequest]) (*connect.Response[funding.FundingIntentResponse], error)
+	GetFundingIntent(context.Context, *connect.Request[funding.FundingIntentRequest]) (*connect.Response[funding.FundingIntentResponse], error)
+	ConfirmFundingTransfer(context.Context, *connect.Request[funding.ConfirmFundingTransferRequest]) (*connect.Response[funding.FundingIntentResponse], error)
+	ListFundingIntents(context.Context, *connect.Request[funding.ListFundingIntentsRequest]) (*connect.Response[funding.ListFundingIntentsResponse], error)
+	SetWithdrawalDestination(context.Context, *connect.Request[funding.SetWithdrawalDestinationRequest]) (*connect.Response[funding.WithdrawalDestinationResponse], error)
+	PreviewWithdrawal(context.Context, *connect.Request[funding.PreviewWithdrawalRequest]) (*connect.Response[funding.WithdrawalQuoteResponse], error)
+	ExecuteWithdrawal(context.Context, *connect.Request[funding.ExecuteWithdrawalRequest]) (*connect.Response[funding.WithdrawalResponse], error)
+	GetWithdrawal(context.Context, *connect.Request[funding.GetWithdrawalRequest]) (*connect.Response[funding.WithdrawalResponse], error)
+	SubmitReceiptFunding(context.Context, *connect.Request[funding.SubmitReceiptFundingRequest]) (*connect.Response[funding.ReceiptFundingResponse], error)
+	GetReceiptFunding(context.Context, *connect.Request[funding.GetReceiptFundingRequest]) (*connect.Response[funding.ReceiptFundingResponse], error)
 	CreateResearchWallet(context.Context, *connect.Request[authorization.CreateResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	GetResearchWallet(context.Context, *connect.Request[authorization.ResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error)
 	ProveResearchWallet(context.Context, *connect.Request[authorization.ProveResearchWalletRequest]) (*connect.Response[authorization.ProveResearchWalletResponse], error)
@@ -737,6 +990,84 @@ type TreasuryAdminHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	treasuryAdminMethods := authorization.File_treasury_v1_authorization_authorization_proto.Services().ByName("TreasuryAdmin").Methods()
+	treasuryAdminProvisionBudgetWalletHandler := connect.NewUnaryHandler(
+		TreasuryAdminProvisionBudgetWalletProcedure,
+		svc.ProvisionBudgetWallet,
+		connect.WithSchema(treasuryAdminMethods.ByName("ProvisionBudgetWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminGetBudgetWalletHandler := connect.NewUnaryHandler(
+		TreasuryAdminGetBudgetWalletProcedure,
+		svc.GetBudgetWallet,
+		connect.WithSchema(treasuryAdminMethods.ByName("GetBudgetWallet")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminRevokeMandateSessionHandler := connect.NewUnaryHandler(
+		TreasuryAdminRevokeMandateSessionProcedure,
+		svc.RevokeMandateSession,
+		connect.WithSchema(treasuryAdminMethods.ByName("RevokeMandateSession")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminCreateFundingIntentHandler := connect.NewUnaryHandler(
+		TreasuryAdminCreateFundingIntentProcedure,
+		svc.CreateFundingIntent,
+		connect.WithSchema(treasuryAdminMethods.ByName("CreateFundingIntent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminGetFundingIntentHandler := connect.NewUnaryHandler(
+		TreasuryAdminGetFundingIntentProcedure,
+		svc.GetFundingIntent,
+		connect.WithSchema(treasuryAdminMethods.ByName("GetFundingIntent")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminConfirmFundingTransferHandler := connect.NewUnaryHandler(
+		TreasuryAdminConfirmFundingTransferProcedure,
+		svc.ConfirmFundingTransfer,
+		connect.WithSchema(treasuryAdminMethods.ByName("ConfirmFundingTransfer")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminListFundingIntentsHandler := connect.NewUnaryHandler(
+		TreasuryAdminListFundingIntentsProcedure,
+		svc.ListFundingIntents,
+		connect.WithSchema(treasuryAdminMethods.ByName("ListFundingIntents")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminSetWithdrawalDestinationHandler := connect.NewUnaryHandler(
+		TreasuryAdminSetWithdrawalDestinationProcedure,
+		svc.SetWithdrawalDestination,
+		connect.WithSchema(treasuryAdminMethods.ByName("SetWithdrawalDestination")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminPreviewWithdrawalHandler := connect.NewUnaryHandler(
+		TreasuryAdminPreviewWithdrawalProcedure,
+		svc.PreviewWithdrawal,
+		connect.WithSchema(treasuryAdminMethods.ByName("PreviewWithdrawal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminExecuteWithdrawalHandler := connect.NewUnaryHandler(
+		TreasuryAdminExecuteWithdrawalProcedure,
+		svc.ExecuteWithdrawal,
+		connect.WithSchema(treasuryAdminMethods.ByName("ExecuteWithdrawal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminGetWithdrawalHandler := connect.NewUnaryHandler(
+		TreasuryAdminGetWithdrawalProcedure,
+		svc.GetWithdrawal,
+		connect.WithSchema(treasuryAdminMethods.ByName("GetWithdrawal")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminSubmitReceiptFundingHandler := connect.NewUnaryHandler(
+		TreasuryAdminSubmitReceiptFundingProcedure,
+		svc.SubmitReceiptFunding,
+		connect.WithSchema(treasuryAdminMethods.ByName("SubmitReceiptFunding")),
+		connect.WithHandlerOptions(opts...),
+	)
+	treasuryAdminGetReceiptFundingHandler := connect.NewUnaryHandler(
+		TreasuryAdminGetReceiptFundingProcedure,
+		svc.GetReceiptFunding,
+		connect.WithSchema(treasuryAdminMethods.ByName("GetReceiptFunding")),
+		connect.WithHandlerOptions(opts...),
+	)
 	treasuryAdminCreateResearchWalletHandler := connect.NewUnaryHandler(
 		TreasuryAdminCreateResearchWalletProcedure,
 		svc.CreateResearchWallet,
@@ -907,6 +1238,32 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 	)
 	return "/vrooli.treasury.v1.authorization.TreasuryAdmin/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case TreasuryAdminProvisionBudgetWalletProcedure:
+			treasuryAdminProvisionBudgetWalletHandler.ServeHTTP(w, r)
+		case TreasuryAdminGetBudgetWalletProcedure:
+			treasuryAdminGetBudgetWalletHandler.ServeHTTP(w, r)
+		case TreasuryAdminRevokeMandateSessionProcedure:
+			treasuryAdminRevokeMandateSessionHandler.ServeHTTP(w, r)
+		case TreasuryAdminCreateFundingIntentProcedure:
+			treasuryAdminCreateFundingIntentHandler.ServeHTTP(w, r)
+		case TreasuryAdminGetFundingIntentProcedure:
+			treasuryAdminGetFundingIntentHandler.ServeHTTP(w, r)
+		case TreasuryAdminConfirmFundingTransferProcedure:
+			treasuryAdminConfirmFundingTransferHandler.ServeHTTP(w, r)
+		case TreasuryAdminListFundingIntentsProcedure:
+			treasuryAdminListFundingIntentsHandler.ServeHTTP(w, r)
+		case TreasuryAdminSetWithdrawalDestinationProcedure:
+			treasuryAdminSetWithdrawalDestinationHandler.ServeHTTP(w, r)
+		case TreasuryAdminPreviewWithdrawalProcedure:
+			treasuryAdminPreviewWithdrawalHandler.ServeHTTP(w, r)
+		case TreasuryAdminExecuteWithdrawalProcedure:
+			treasuryAdminExecuteWithdrawalHandler.ServeHTTP(w, r)
+		case TreasuryAdminGetWithdrawalProcedure:
+			treasuryAdminGetWithdrawalHandler.ServeHTTP(w, r)
+		case TreasuryAdminSubmitReceiptFundingProcedure:
+			treasuryAdminSubmitReceiptFundingHandler.ServeHTTP(w, r)
+		case TreasuryAdminGetReceiptFundingProcedure:
+			treasuryAdminGetReceiptFundingHandler.ServeHTTP(w, r)
 		case TreasuryAdminCreateResearchWalletProcedure:
 			treasuryAdminCreateResearchWalletHandler.ServeHTTP(w, r)
 		case TreasuryAdminGetResearchWalletProcedure:
@@ -971,6 +1328,58 @@ func NewTreasuryAdminHandler(svc TreasuryAdminHandler, opts ...connect.HandlerOp
 
 // UnimplementedTreasuryAdminHandler returns CodeUnimplemented from all methods.
 type UnimplementedTreasuryAdminHandler struct{}
+
+func (UnimplementedTreasuryAdminHandler) ProvisionBudgetWallet(context.Context, *connect.Request[funding.ProvisionBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.ProvisionBudgetWallet is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) GetBudgetWallet(context.Context, *connect.Request[funding.GetBudgetWalletRequest]) (*connect.Response[funding.BudgetWalletResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.GetBudgetWallet is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) RevokeMandateSession(context.Context, *connect.Request[funding.RevokeMandateSessionRequest]) (*connect.Response[funding.RevokeMandateSessionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.RevokeMandateSession is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) CreateFundingIntent(context.Context, *connect.Request[funding.CreateFundingIntentRequest]) (*connect.Response[funding.FundingIntentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.CreateFundingIntent is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) GetFundingIntent(context.Context, *connect.Request[funding.FundingIntentRequest]) (*connect.Response[funding.FundingIntentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.GetFundingIntent is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) ConfirmFundingTransfer(context.Context, *connect.Request[funding.ConfirmFundingTransferRequest]) (*connect.Response[funding.FundingIntentResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.ConfirmFundingTransfer is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) ListFundingIntents(context.Context, *connect.Request[funding.ListFundingIntentsRequest]) (*connect.Response[funding.ListFundingIntentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.ListFundingIntents is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) SetWithdrawalDestination(context.Context, *connect.Request[funding.SetWithdrawalDestinationRequest]) (*connect.Response[funding.WithdrawalDestinationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.SetWithdrawalDestination is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) PreviewWithdrawal(context.Context, *connect.Request[funding.PreviewWithdrawalRequest]) (*connect.Response[funding.WithdrawalQuoteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.PreviewWithdrawal is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) ExecuteWithdrawal(context.Context, *connect.Request[funding.ExecuteWithdrawalRequest]) (*connect.Response[funding.WithdrawalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.ExecuteWithdrawal is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) GetWithdrawal(context.Context, *connect.Request[funding.GetWithdrawalRequest]) (*connect.Response[funding.WithdrawalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.GetWithdrawal is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) SubmitReceiptFunding(context.Context, *connect.Request[funding.SubmitReceiptFundingRequest]) (*connect.Response[funding.ReceiptFundingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.SubmitReceiptFunding is not implemented"))
+}
+
+func (UnimplementedTreasuryAdminHandler) GetReceiptFunding(context.Context, *connect.Request[funding.GetReceiptFundingRequest]) (*connect.Response[funding.ReceiptFundingResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.GetReceiptFunding is not implemented"))
+}
 
 func (UnimplementedTreasuryAdminHandler) CreateResearchWallet(context.Context, *connect.Request[authorization.CreateResearchWalletRequest]) (*connect.Response[authorization.ResearchWalletResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.treasury.v1.authorization.TreasuryAdmin.CreateResearchWallet is not implemented"))

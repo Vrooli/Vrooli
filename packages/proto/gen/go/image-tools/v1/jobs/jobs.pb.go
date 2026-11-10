@@ -37,6 +37,10 @@ const (
 	JobState_JOB_STATE_FAILED JobState = 4
 	// Aborted by request before completing (terminal).
 	JobState_JOB_STATE_CANCELED JobState = 5
+	// Obtaining capacity and worker ownership; execution has not started.
+	JobState_JOB_STATE_ADMITTING JobState = 6
+	// Cancellation requested; the worker and claims are still being released.
+	JobState_JOB_STATE_CANCELING JobState = 7
 )
 
 // Enum value maps for JobState.
@@ -48,6 +52,8 @@ var (
 		3: "JOB_STATE_SUCCEEDED",
 		4: "JOB_STATE_FAILED",
 		5: "JOB_STATE_CANCELED",
+		6: "JOB_STATE_ADMITTING",
+		7: "JOB_STATE_CANCELING",
 	}
 	JobState_value = map[string]int32{
 		"JOB_STATE_UNSPECIFIED": 0,
@@ -56,6 +62,8 @@ var (
 		"JOB_STATE_SUCCEEDED":   3,
 		"JOB_STATE_FAILED":      4,
 		"JOB_STATE_CANCELED":    5,
+		"JOB_STATE_ADMITTING":   6,
+		"JOB_STATE_CANCELING":   7,
 	}
 )
 
@@ -154,6 +162,8 @@ const (
 	JobQueue_JOB_QUEUE_CPU_POOL JobQueue = 2
 	// Remote work uses its own bounded pool.
 	JobQueue_JOB_QUEUE_NETWORK_POOL JobQueue = 3
+	// One local priority queue with platform-capacity admission.
+	JobQueue_JOB_QUEUE_CAPACITY JobQueue = 4
 )
 
 // Enum value maps for JobQueue.
@@ -163,12 +173,14 @@ var (
 		1: "JOB_QUEUE_LOCAL_SERIAL",
 		2: "JOB_QUEUE_CPU_POOL",
 		3: "JOB_QUEUE_NETWORK_POOL",
+		4: "JOB_QUEUE_CAPACITY",
 	}
 	JobQueue_value = map[string]int32{
 		"JOB_QUEUE_UNSPECIFIED":  0,
 		"JOB_QUEUE_LOCAL_SERIAL": 1,
 		"JOB_QUEUE_CPU_POOL":     2,
 		"JOB_QUEUE_NETWORK_POOL": 3,
+		"JOB_QUEUE_CAPACITY":     4,
 	}
 )
 
@@ -253,8 +265,11 @@ type Job struct {
 	// Scheduler queue and concurrency class. This is not an execution-device
 	// claim; inspect request/result metadata for backend execution evidence.
 	SchedulingQueue JobQueue `protobuf:"varint,16,opt,name=scheduling_queue,json=schedulingQueue,proto3,enum=vrooli.image_tools.v1.jobs.JobQueue" json:"scheduling_queue,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Platform-capacity priority: interactive, service, or batch. Queue aging
+	// prevents lower-priority requests from starving indefinitely.
+	Priority      string `protobuf:"bytes,17,opt,name=priority,proto3" json:"priority,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Job) Reset() {
@@ -398,6 +413,13 @@ func (x *Job) GetSchedulingQueue() JobQueue {
 		return x.SchedulingQueue
 	}
 	return JobQueue_JOB_QUEUE_UNSPECIFIED
+}
+
+func (x *Job) GetPriority() string {
+	if x != nil {
+		return x.Priority
+	}
+	return ""
 }
 
 // JobRequest is the typed echo of the submitted request.
@@ -1012,7 +1034,7 @@ var File_image_tools_v1_jobs_jobs_proto protoreflect.FileDescriptor
 
 const file_image_tools_v1_jobs_jobs_proto_rawDesc = "" +
 	"\n" +
-	"\x1eimage-tools/v1/jobs/jobs.proto\x12\x1avrooli.image_tools.v1.jobs\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbc\x06\n" +
+	"\x1eimage-tools/v1/jobs/jobs.proto\x12\x1avrooli.image_tools.v1.jobs\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd8\x06\n" +
 	"\x03Job\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1c\n" +
 	"\toperation\x18\x02 \x01(\tR\toperation\x12;\n" +
@@ -1036,7 +1058,8 @@ const file_image_tools_v1_jobs_jobs_proto_rawDesc = "" +
 	"\arequest\x18\x0e \x01(\v2&.vrooli.image_tools.v1.jobs.JobRequestR\arequest\x12\x1f\n" +
 	"\vresult_refs\x18\x0f \x03(\tR\n" +
 	"resultRefs\x12O\n" +
-	"\x10scheduling_queue\x18\x10 \x01(\x0e2$.vrooli.image_tools.v1.jobs.JobQueueR\x0fschedulingQueue\x1a=\n" +
+	"\x10scheduling_queue\x18\x10 \x01(\x0e2$.vrooli.image_tools.v1.jobs.JobQueueR\x0fschedulingQueue\x12\x1a\n" +
+	"\bpriority\x18\x11 \x01(\tR\bpriority\x1a=\n" +
 	"\x0fResultMetaEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc6\x02\n" +
@@ -1080,24 +1103,27 @@ const file_image_tools_v1_jobs_jobs_proto_rawDesc = "" +
 	"\x11CancelJobResponse\x121\n" +
 	"\x03job\x18\x01 \x01(\v2\x1f.vrooli.image_tools.v1.jobs.JobR\x03job\"!\n" +
 	"\x0fWatchJobRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id*\x99\x01\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id*\xcb\x01\n" +
 	"\bJobState\x12\x19\n" +
 	"\x15JOB_STATE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10JOB_STATE_QUEUED\x10\x01\x12\x15\n" +
 	"\x11JOB_STATE_RUNNING\x10\x02\x12\x17\n" +
 	"\x13JOB_STATE_SUCCEEDED\x10\x03\x12\x14\n" +
 	"\x10JOB_STATE_FAILED\x10\x04\x12\x16\n" +
-	"\x12JOB_STATE_CANCELED\x10\x05*]\n" +
+	"\x12JOB_STATE_CANCELED\x10\x05\x12\x17\n" +
+	"\x13JOB_STATE_ADMITTING\x10\x06\x12\x17\n" +
+	"\x13JOB_STATE_CANCELING\x10\a*]\n" +
 	"\aJobLane\x12\x18\n" +
 	"\x14JOB_LANE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fJOB_LANE_GPU\x10\x01\x12\x10\n" +
 	"\fJOB_LANE_CPU\x10\x02\x12\x14\n" +
-	"\x10JOB_LANE_NETWORK\x10\x03*u\n" +
+	"\x10JOB_LANE_NETWORK\x10\x03*\x8d\x01\n" +
 	"\bJobQueue\x12\x19\n" +
 	"\x15JOB_QUEUE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16JOB_QUEUE_LOCAL_SERIAL\x10\x01\x12\x16\n" +
 	"\x12JOB_QUEUE_CPU_POOL\x10\x02\x12\x1a\n" +
-	"\x16JOB_QUEUE_NETWORK_POOL\x10\x032\x89\x04\n" +
+	"\x16JOB_QUEUE_NETWORK_POOL\x10\x03\x12\x16\n" +
+	"\x12JOB_QUEUE_CAPACITY\x10\x042\x89\x04\n" +
 	"\vJobsService\x12_\n" +
 	"\x06GetJob\x12).vrooli.image_tools.v1.jobs.GetJobRequest\x1a*.vrooli.image_tools.v1.jobs.GetJobResponse\x12b\n" +
 	"\aWaitJob\x12*.vrooli.image_tools.v1.jobs.WaitJobRequest\x1a+.vrooli.image_tools.v1.jobs.WaitJobResponse\x12e\n" +

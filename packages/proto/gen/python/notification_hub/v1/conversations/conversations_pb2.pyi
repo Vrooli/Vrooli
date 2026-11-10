@@ -255,3 +255,45 @@ class ListAsksResponse(_message.Message):
     asks: _containers.RepeatedCompositeFieldContainer[Ask]
     next_cursor: str
     def __init__(self, asks: _Optional[_Iterable[_Union[Ask, _Mapping]]] = ..., next_cursor: _Optional[str] = ...) -> None: ...
+
+class NativeConsent(_message.Message):
+    __slots__ = ("authorization_id", "notification_id", "source", "title", "body", "review_url", "state", "review_expires_at", "observed_at", "created_at")
+    AUTHORIZATION_ID_FIELD_NUMBER: _ClassVar[int]
+    NOTIFICATION_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    TITLE_FIELD_NUMBER: _ClassVar[int]
+    BODY_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_URL_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    REVIEW_EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    authorization_id: str
+    notification_id: str
+    source: str
+    title: str
+    body: str
+    review_url: str
+    state: str
+    review_expires_at: str
+    observed_at: str
+    created_at: str
+    def __init__(self, authorization_id: _Optional[str] = ..., notification_id: _Optional[str] = ..., source: _Optional[str] = ..., title: _Optional[str] = ..., body: _Optional[str] = ..., review_url: _Optional[str] = ..., state: _Optional[str] = ..., review_expires_at: _Optional[str] = ..., observed_at: _Optional[str] = ..., created_at: _Optional[str] = ...) -> None: ...
+
+class ListNativeConsentsRequest(_message.Message):
+    __slots__ = ("limit", "cursor", "query")
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    CURSOR_FIELD_NUMBER: _ClassVar[int]
+    QUERY_FIELD_NUMBER: _ClassVar[int]
+    limit: int
+    cursor: str
+    query: str
+    def __init__(self, limit: _Optional[int] = ..., cursor: _Optional[str] = ..., query: _Optional[str] = ...) -> None: ...
+
+class ListNativeConsentsResponse(_message.Message):
+    __slots__ = ("consents", "next_cursor")
+    CONSENTS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_CURSOR_FIELD_NUMBER: _ClassVar[int]
+    consents: _containers.RepeatedCompositeFieldContainer[NativeConsent]
+    next_cursor: str
+    def __init__(self, consents: _Optional[_Iterable[_Union[NativeConsent, _Mapping]]] = ..., next_cursor: _Optional[str] = ...) -> None: ...

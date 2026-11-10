@@ -44,7 +44,12 @@ type InstallDependencyRequest struct {
 	// Refresh only the committed dependency inputs for the closed host-tool
 	// owner. Requires an explicit exact version and development=false. The
 	// default remains frozen reproduction; this does not install a runtime.
-	RefreshLock   bool `protobuf:"varint,9,opt,name=refresh_lock,json=refreshLock,proto3" json:"refresh_lock,omitempty"`
+	RefreshLock bool `protobuf:"varint,9,opt,name=refresh_lock,json=refreshLock,proto3" json:"refresh_lock,omitempty"`
+	// Existing absolute external JavaScript workspace. Mutually exclusive with
+	// scenario/surface; governance uses the external-workspace/workspace identity.
+	// The owner canonicalizes the directory, rejects maintained repository paths,
+	// and enforces the same package approval policy before any installation.
+	WorkspacePath string `protobuf:"bytes,10,opt,name=workspace_path,json=workspacePath,proto3" json:"workspace_path,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -140,6 +145,13 @@ func (x *InstallDependencyRequest) GetRefreshLock() bool {
 		return x.RefreshLock
 	}
 	return false
+}
+
+func (x *InstallDependencyRequest) GetWorkspacePath() string {
+	if x != nil {
+		return x.WorkspacePath
+	}
+	return ""
 }
 
 type InstallDependencyResponse struct {
@@ -3931,7 +3943,7 @@ var File_scenario_dependency_analyzer_v1_dependency_governance_dependency_govern
 
 const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_governance_proto_rawDesc = "" +
 	"\n" +
-	"Qscenario-dependency-analyzer/v1/dependency_governance/dependency_governance.proto\x12<vrooli.scenario_dependency_analyzer.v1.dependency_governance\"\xab\x02\n" +
+	"Qscenario-dependency-analyzer/v1/dependency_governance/dependency_governance.proto\x12<vrooli.scenario_dependency_analyzer.v1.dependency_governance\"\xd2\x02\n" +
 	"\x18InstallDependencyRequest\x12\x1a\n" +
 	"\bscenario\x18\x01 \x01(\tR\bscenario\x12\x18\n" +
 	"\asurface\x18\x02 \x01(\tR\asurface\x12\x1c\n" +
@@ -3941,7 +3953,9 @@ const file_scenario_dependency_analyzer_v1_dependency_governance_dependency_gove
 	"\x05apply\x18\x06 \x01(\bR\x05apply\x12#\n" +
 	"\rexact_version\x18\a \x01(\bR\fexactVersion\x12 \n" +
 	"\vdevelopment\x18\b \x01(\bR\vdevelopment\x12!\n" +
-	"\frefresh_lock\x18\t \x01(\bR\vrefreshLock\"\x91\x03\n" +
+	"\frefresh_lock\x18\t \x01(\bR\vrefreshLock\x12%\n" +
+	"\x0eworkspace_path\x18\n" +
+	" \x01(\tR\rworkspacePath\"\x91\x03\n" +
 	"\x19InstallDependencyResponse\x12\x1c\n" +
 	"\tinstalled\x18\x01 \x01(\bR\tinstalled\x12\x17\n" +
 	"\adry_run\x18\x02 \x01(\bR\x06dryRun\x12\x18\n" +

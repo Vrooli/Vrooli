@@ -290,7 +290,10 @@ type AIParams struct {
 	// mask exactly; these controls never infer or silently alter removal regions.
 	BackgroundRepair *BackgroundRepairParams `protobuf:"bytes,26,opt,name=background_repair,json=backgroundRepair,proto3" json:"background_repair,omitempty"`
 	// Explicit mask-aware contextual crop for native diffusion inpainting.
-	Inpaint       *InpaintParams `protobuf:"bytes,27,opt,name=inpaint,proto3" json:"inpaint,omitempty"`
+	Inpaint *InpaintParams `protobuf:"bytes,27,opt,name=inpaint,proto3" json:"inpaint,omitempty"`
+	// Require a local GPU provider and reject CPU degradation after capacity
+	// denial. This is an opt-in execution constraint; the default may use CPU.
+	RequireGpu    bool `protobuf:"varint,28,opt,name=require_gpu,json=requireGpu,proto3" json:"require_gpu,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -512,6 +515,13 @@ func (x *AIParams) GetInpaint() *InpaintParams {
 		return x.Inpaint
 	}
 	return nil
+}
+
+func (x *AIParams) GetRequireGpu() bool {
+	if x != nil {
+		return x.RequireGpu
+	}
+	return false
 }
 
 type InpaintParams struct {
@@ -1047,7 +1057,7 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\x18ListAIOperationsResponse\x12I\n" +
 	"\n" +
 	"operations\x18\x01 \x03(\v2).vrooli.image_tools.v1.ai.AIOperationInfoR\n" +
-	"operations\"\x96\t\n" +
+	"operations\"\xb7\t\n" +
 	"\bAIParams\x12\x16\n" +
 	"\x06prompt\x18\x01 \x01(\tR\x06prompt\x12'\n" +
 	"\x0fnegative_prompt\x18\x02 \x01(\tR\x0enegativePrompt\x12\x12\n" +
@@ -1080,7 +1090,9 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\x0escene_geometry\x18\x18 \x01(\v2-.vrooli.image_tools.v1.ai.SceneGeometryParamsR\rsceneGeometry\x12U\n" +
 	"\x0fimage_to_object\x18\x19 \x01(\v2-.vrooli.image_tools.v1.ai.ImageToObjectParamsR\rimageToObject\x12]\n" +
 	"\x11background_repair\x18\x1a \x01(\v20.vrooli.image_tools.v1.ai.BackgroundRepairParamsR\x10backgroundRepair\x12A\n" +
-	"\ainpaint\x18\x1b \x01(\v2'.vrooli.image_tools.v1.ai.InpaintParamsR\ainpaintB\x10\n" +
+	"\ainpaint\x18\x1b \x01(\v2'.vrooli.image_tools.v1.ai.InpaintParamsR\ainpaint\x12\x1f\n" +
+	"\vrequire_gpu\x18\x1c \x01(\bR\n" +
+	"requireGpuB\x10\n" +
 	"\x0e_allow_reclaim\"\xb2\x01\n" +
 	"\rInpaintParams\x12 \n" +
 	"\fcrop_to_mask\x18\x01 \x01(\bR\n" +

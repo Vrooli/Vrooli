@@ -39,6 +39,9 @@ const (
 	// ScenariosServiceGetScenarioProcedure is the fully-qualified name of the ScenariosService's
 	// GetScenario RPC.
 	ScenariosServiceGetScenarioProcedure = "/vrooli.flow_verifier.v1.scenarios.ScenariosService/GetScenario"
+	// ScenariosServiceListLifecyclesProcedure is the fully-qualified name of the ScenariosService's
+	// ListLifecycles RPC.
+	ScenariosServiceListLifecyclesProcedure = "/vrooli.flow_verifier.v1.scenarios.ScenariosService/ListLifecycles"
 	// ScenariosServiceGenerateScenarioArtifactsProcedure is the fully-qualified name of the
 	// ScenariosService's GenerateScenarioArtifacts RPC.
 	ScenariosServiceGenerateScenarioArtifactsProcedure = "/vrooli.flow_verifier.v1.scenarios.ScenariosService/GenerateScenarioArtifacts"
@@ -52,6 +55,9 @@ const (
 type ScenariosServiceClient interface {
 	ListScenarios(context.Context, *connect.Request[scenarios.ListScenariosRequest]) (*connect.Response[scenarios.ListScenariosResponse], error)
 	GetScenario(context.Context, *connect.Request[scenarios.GetScenarioRequest]) (*connect.Response[scenarios.GetScenarioResponse], error)
+	// Scan every service-backed scenario and rank inferred lifecycle candidates
+	// from Go field, write, guard, test, and durability-adjacent evidence.
+	ListLifecycles(context.Context, *connect.Request[scenarios.ListLifecyclesRequest]) (*connect.Response[scenarios.ListLifecyclesResponse], error)
 	// Server-stream: one GenerateScenarioArtifactsResponse per flow, in
 	// discovery order. The stream completes when every flow has been
 	// generated (success or per-flow failure). Per-flow failures do not
@@ -84,6 +90,12 @@ func NewScenariosServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(scenariosServiceMethods.ByName("GetScenario")),
 			connect.WithClientOptions(opts...),
 		),
+		listLifecycles: connect.NewClient[scenarios.ListLifecyclesRequest, scenarios.ListLifecyclesResponse](
+			httpClient,
+			baseURL+ScenariosServiceListLifecyclesProcedure,
+			connect.WithSchema(scenariosServiceMethods.ByName("ListLifecycles")),
+			connect.WithClientOptions(opts...),
+		),
 		generateScenarioArtifacts: connect.NewClient[scenarios.GenerateScenarioArtifactsRequest, scenarios.GenerateScenarioArtifactsResponse](
 			httpClient,
 			baseURL+ScenariosServiceGenerateScenarioArtifactsProcedure,
@@ -103,6 +115,7 @@ func NewScenariosServiceClient(httpClient connect.HTTPClient, baseURL string, op
 type scenariosServiceClient struct {
 	listScenarios             *connect.Client[scenarios.ListScenariosRequest, scenarios.ListScenariosResponse]
 	getScenario               *connect.Client[scenarios.GetScenarioRequest, scenarios.GetScenarioResponse]
+	listLifecycles            *connect.Client[scenarios.ListLifecyclesRequest, scenarios.ListLifecyclesResponse]
 	generateScenarioArtifacts *connect.Client[scenarios.GenerateScenarioArtifactsRequest, scenarios.GenerateScenarioArtifactsResponse]
 	clearScenarioArtifacts    *connect.Client[scenarios.ClearScenarioArtifactsRequest, scenarios.ClearScenarioArtifactsResponse]
 }
@@ -115,6 +128,11 @@ func (c *scenariosServiceClient) ListScenarios(ctx context.Context, req *connect
 // GetScenario calls vrooli.flow_verifier.v1.scenarios.ScenariosService.GetScenario.
 func (c *scenariosServiceClient) GetScenario(ctx context.Context, req *connect.Request[scenarios.GetScenarioRequest]) (*connect.Response[scenarios.GetScenarioResponse], error) {
 	return c.getScenario.CallUnary(ctx, req)
+}
+
+// ListLifecycles calls vrooli.flow_verifier.v1.scenarios.ScenariosService.ListLifecycles.
+func (c *scenariosServiceClient) ListLifecycles(ctx context.Context, req *connect.Request[scenarios.ListLifecyclesRequest]) (*connect.Response[scenarios.ListLifecyclesResponse], error) {
+	return c.listLifecycles.CallUnary(ctx, req)
 }
 
 // GenerateScenarioArtifacts calls
@@ -134,6 +152,9 @@ func (c *scenariosServiceClient) ClearScenarioArtifacts(ctx context.Context, req
 type ScenariosServiceHandler interface {
 	ListScenarios(context.Context, *connect.Request[scenarios.ListScenariosRequest]) (*connect.Response[scenarios.ListScenariosResponse], error)
 	GetScenario(context.Context, *connect.Request[scenarios.GetScenarioRequest]) (*connect.Response[scenarios.GetScenarioResponse], error)
+	// Scan every service-backed scenario and rank inferred lifecycle candidates
+	// from Go field, write, guard, test, and durability-adjacent evidence.
+	ListLifecycles(context.Context, *connect.Request[scenarios.ListLifecyclesRequest]) (*connect.Response[scenarios.ListLifecyclesResponse], error)
 	// Server-stream: one GenerateScenarioArtifactsResponse per flow, in
 	// discovery order. The stream completes when every flow has been
 	// generated (success or per-flow failure). Per-flow failures do not
@@ -161,6 +182,12 @@ func NewScenariosServiceHandler(svc ScenariosServiceHandler, opts ...connect.Han
 		connect.WithSchema(scenariosServiceMethods.ByName("GetScenario")),
 		connect.WithHandlerOptions(opts...),
 	)
+	scenariosServiceListLifecyclesHandler := connect.NewUnaryHandler(
+		ScenariosServiceListLifecyclesProcedure,
+		svc.ListLifecycles,
+		connect.WithSchema(scenariosServiceMethods.ByName("ListLifecycles")),
+		connect.WithHandlerOptions(opts...),
+	)
 	scenariosServiceGenerateScenarioArtifactsHandler := connect.NewServerStreamHandler(
 		ScenariosServiceGenerateScenarioArtifactsProcedure,
 		svc.GenerateScenarioArtifacts,
@@ -179,6 +206,8 @@ func NewScenariosServiceHandler(svc ScenariosServiceHandler, opts ...connect.Han
 			scenariosServiceListScenariosHandler.ServeHTTP(w, r)
 		case ScenariosServiceGetScenarioProcedure:
 			scenariosServiceGetScenarioHandler.ServeHTTP(w, r)
+		case ScenariosServiceListLifecyclesProcedure:
+			scenariosServiceListLifecyclesHandler.ServeHTTP(w, r)
 		case ScenariosServiceGenerateScenarioArtifactsProcedure:
 			scenariosServiceGenerateScenarioArtifactsHandler.ServeHTTP(w, r)
 		case ScenariosServiceClearScenarioArtifactsProcedure:
@@ -198,6 +227,10 @@ func (UnimplementedScenariosServiceHandler) ListScenarios(context.Context, *conn
 
 func (UnimplementedScenariosServiceHandler) GetScenario(context.Context, *connect.Request[scenarios.GetScenarioRequest]) (*connect.Response[scenarios.GetScenarioResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.flow_verifier.v1.scenarios.ScenariosService.GetScenario is not implemented"))
+}
+
+func (UnimplementedScenariosServiceHandler) ListLifecycles(context.Context, *connect.Request[scenarios.ListLifecyclesRequest]) (*connect.Response[scenarios.ListLifecyclesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.flow_verifier.v1.scenarios.ScenariosService.ListLifecycles is not implemented"))
 }
 
 func (UnimplementedScenariosServiceHandler) GenerateScenarioArtifacts(context.Context, *connect.Request[scenarios.GenerateScenarioArtifactsRequest], *connect.ServerStream[scenarios.GenerateScenarioArtifactsResponse]) error {

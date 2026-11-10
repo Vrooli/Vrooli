@@ -36,7 +36,7 @@ class Budget(_message.Message):
     def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., total_cap_minor: _Optional[int] = ..., periodic_cap_minor: _Optional[int] = ..., per_transaction_cap_minor: _Optional[int] = ..., currency: _Optional[str] = ..., allowed_counterparties: _Optional[_Iterable[str]] = ..., denied_counterparties: _Optional[_Iterable[str]] = ..., requires_approval: _Optional[bool] = ..., frozen: _Optional[bool] = ..., period_seconds: _Optional[int] = ...) -> None: ...
 
 class Headroom(_message.Message):
-    __slots__ = ("budget_id", "book_id", "currency", "total_cap_minor", "total_used_minor", "total_remaining_minor", "periodic_cap_minor", "period_used_minor", "period_remaining_minor", "per_transaction_cap_minor", "available_minor", "period_started_at", "computed_at")
+    __slots__ = ("budget_id", "book_id", "currency", "total_cap_minor", "total_used_minor", "total_remaining_minor", "periodic_cap_minor", "period_used_minor", "period_remaining_minor", "per_transaction_cap_minor", "available_minor", "period_started_at", "computed_at", "funding_required", "funding_credited_minor", "funding_remaining_minor", "funding_atomic_amount", "funding_asset_id")
     BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
     BOOK_ID_FIELD_NUMBER: _ClassVar[int]
     CURRENCY_FIELD_NUMBER: _ClassVar[int]
@@ -50,6 +50,11 @@ class Headroom(_message.Message):
     AVAILABLE_MINOR_FIELD_NUMBER: _ClassVar[int]
     PERIOD_STARTED_AT_FIELD_NUMBER: _ClassVar[int]
     COMPUTED_AT_FIELD_NUMBER: _ClassVar[int]
+    FUNDING_REQUIRED_FIELD_NUMBER: _ClassVar[int]
+    FUNDING_CREDITED_MINOR_FIELD_NUMBER: _ClassVar[int]
+    FUNDING_REMAINING_MINOR_FIELD_NUMBER: _ClassVar[int]
+    FUNDING_ATOMIC_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    FUNDING_ASSET_ID_FIELD_NUMBER: _ClassVar[int]
     budget_id: str
     book_id: str
     currency: str
@@ -63,4 +68,9 @@ class Headroom(_message.Message):
     available_minor: int
     period_started_at: _timestamp_pb2.Timestamp
     computed_at: _timestamp_pb2.Timestamp
-    def __init__(self, budget_id: _Optional[str] = ..., book_id: _Optional[str] = ..., currency: _Optional[str] = ..., total_cap_minor: _Optional[int] = ..., total_used_minor: _Optional[int] = ..., total_remaining_minor: _Optional[int] = ..., periodic_cap_minor: _Optional[int] = ..., period_used_minor: _Optional[int] = ..., period_remaining_minor: _Optional[int] = ..., per_transaction_cap_minor: _Optional[int] = ..., available_minor: _Optional[int] = ..., period_started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    funding_required: bool
+    funding_credited_minor: int
+    funding_remaining_minor: int
+    funding_atomic_amount: str
+    funding_asset_id: str
+    def __init__(self, budget_id: _Optional[str] = ..., book_id: _Optional[str] = ..., currency: _Optional[str] = ..., total_cap_minor: _Optional[int] = ..., total_used_minor: _Optional[int] = ..., total_remaining_minor: _Optional[int] = ..., periodic_cap_minor: _Optional[int] = ..., period_used_minor: _Optional[int] = ..., period_remaining_minor: _Optional[int] = ..., per_transaction_cap_minor: _Optional[int] = ..., available_minor: _Optional[int] = ..., period_started_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., computed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., funding_required: _Optional[bool] = ..., funding_credited_minor: _Optional[int] = ..., funding_remaining_minor: _Optional[int] = ..., funding_atomic_amount: _Optional[str] = ..., funding_asset_id: _Optional[str] = ...) -> None: ...

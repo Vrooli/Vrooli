@@ -176,6 +176,106 @@ class ExecuteVolumeResponse(_message.Message):
     next_action: str
     def __init__(self, status: _Optional[str] = ..., operation_id: _Optional[str] = ..., device_id: _Optional[str] = ..., device_name: _Optional[str] = ..., plan: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., before: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., after: _Optional[_Union[_struct_pb2.Struct, _Mapping]] = ..., verification_class: _Optional[str] = ..., evidence: _Optional[_Iterable[str]] = ..., recovery_attempts: _Optional[int] = ..., next_action: _Optional[str] = ...) -> None: ...
 
+class CaptureDeviceRequest(_message.Message):
+    __slots__ = ("device", "actor", "kind", "seconds", "package", "wake", "home")
+    DEVICE_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    KIND_FIELD_NUMBER: _ClassVar[int]
+    SECONDS_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_FIELD_NUMBER: _ClassVar[int]
+    WAKE_FIELD_NUMBER: _ClassVar[int]
+    HOME_FIELD_NUMBER: _ClassVar[int]
+    device: str
+    actor: str
+    kind: str
+    seconds: int
+    package: str
+    wake: bool
+    home: bool
+    def __init__(self, device: _Optional[str] = ..., actor: _Optional[str] = ..., kind: _Optional[str] = ..., seconds: _Optional[int] = ..., package: _Optional[str] = ..., wake: _Optional[bool] = ..., home: _Optional[bool] = ...) -> None: ...
+
+class CaptureDeviceResponse(_message.Message):
+    __slots__ = ("disposition", "device_id", "evidence_ids", "message", "failure_class", "next_action")
+    DISPOSITION_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_IDS_FIELD_NUMBER: _ClassVar[int]
+    MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_CLASS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
+    disposition: str
+    device_id: str
+    evidence_ids: _containers.RepeatedScalarFieldContainer[str]
+    message: str
+    failure_class: str
+    next_action: str
+    def __init__(self, disposition: _Optional[str] = ..., device_id: _Optional[str] = ..., evidence_ids: _Optional[_Iterable[str]] = ..., message: _Optional[str] = ..., failure_class: _Optional[str] = ..., next_action: _Optional[str] = ...) -> None: ...
+
+class LaunchAppRequest(_message.Message):
+    __slots__ = ("device", "actor", "app", "wake")
+    DEVICE_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    APP_FIELD_NUMBER: _ClassVar[int]
+    WAKE_FIELD_NUMBER: _ClassVar[int]
+    device: str
+    actor: str
+    app: str
+    wake: bool
+    def __init__(self, device: _Optional[str] = ..., actor: _Optional[str] = ..., app: _Optional[str] = ..., wake: _Optional[bool] = ...) -> None: ...
+
+class LaunchAppResponse(_message.Message):
+    __slots__ = ("status", "device_id", "package", "foreground_package", "detail", "next_action")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_FIELD_NUMBER: _ClassVar[int]
+    FOREGROUND_PACKAGE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    device_id: str
+    package: str
+    foreground_package: str
+    detail: str
+    next_action: str
+    def __init__(self, status: _Optional[str] = ..., device_id: _Optional[str] = ..., package: _Optional[str] = ..., foreground_package: _Optional[str] = ..., detail: _Optional[str] = ..., next_action: _Optional[str] = ...) -> None: ...
+
+class InstallAppRequest(_message.Message):
+    __slots__ = ("device", "actor", "apk", "open", "screenshot")
+    DEVICE_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_FIELD_NUMBER: _ClassVar[int]
+    APK_FIELD_NUMBER: _ClassVar[int]
+    OPEN_FIELD_NUMBER: _ClassVar[int]
+    SCREENSHOT_FIELD_NUMBER: _ClassVar[int]
+    device: str
+    actor: str
+    apk: str
+    open: bool
+    screenshot: bool
+    def __init__(self, device: _Optional[str] = ..., actor: _Optional[str] = ..., apk: _Optional[str] = ..., open: _Optional[bool] = ..., screenshot: _Optional[bool] = ...) -> None: ...
+
+class InstallAppResponse(_message.Message):
+    __slots__ = ("status", "device_id", "package", "version_name", "version_code", "detail", "launch_status", "foreground_package", "next_action", "evidence_ids")
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_ID_FIELD_NUMBER: _ClassVar[int]
+    PACKAGE_FIELD_NUMBER: _ClassVar[int]
+    VERSION_NAME_FIELD_NUMBER: _ClassVar[int]
+    VERSION_CODE_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    LAUNCH_STATUS_FIELD_NUMBER: _ClassVar[int]
+    FOREGROUND_PACKAGE_FIELD_NUMBER: _ClassVar[int]
+    NEXT_ACTION_FIELD_NUMBER: _ClassVar[int]
+    EVIDENCE_IDS_FIELD_NUMBER: _ClassVar[int]
+    status: str
+    device_id: str
+    package: str
+    version_name: str
+    version_code: int
+    detail: str
+    launch_status: str
+    foreground_package: str
+    next_action: str
+    evidence_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, status: _Optional[str] = ..., device_id: _Optional[str] = ..., package: _Optional[str] = ..., version_name: _Optional[str] = ..., version_code: _Optional[int] = ..., detail: _Optional[str] = ..., launch_status: _Optional[str] = ..., foreground_package: _Optional[str] = ..., next_action: _Optional[str] = ..., evidence_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
 class Device(_message.Message):
     __slots__ = ("id", "name", "kind", "strategy_id", "status", "health_reason", "host_node_id", "capabilities", "observed_at", "serial", "model", "os_version", "transport", "health", "first_seen_at", "last_seen_at", "transports", "identity_key", "identity_reason")
     ID_FIELD_NUMBER: _ClassVar[int]

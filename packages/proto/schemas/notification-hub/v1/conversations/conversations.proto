@@ -22,6 +22,8 @@ service ConversationsService {
   // ListAsks reads asks newest first; open_only limits it to asks that still
   // wait for an answer.
   rpc ListAsks(ListAsksRequest) returns (ListAsksResponse);
+  // Read-only projection of native human consent. It never creates a Hub ask.
+  rpc ListNativeConsents(ListNativeConsentsRequest) returns (ListNativeConsentsResponse);
 }
 
 // AskOption is one structured answer. key is what the requester receives;
@@ -171,5 +173,30 @@ message ListAsksRequest {
 message ListAsksResponse {
   repeated Ask asks = 1;
   // Empty at the end. Live keyset order is created_at DESC, id DESC.
+  string next_cursor = 2;
+}
+
+// Native consent stays owned and actionable only in the source service.
+message NativeConsent {
+  string authorization_id = 1;
+  string notification_id = 2;
+  string source = 3;
+  string title = 4;
+  string body = 5;
+  string review_url = 6;
+  // pending is source-verified; unavailable means the current state is unknown.
+  string state = 7;
+  string review_expires_at = 8;
+  string observed_at = 9;
+  string created_at = 10;
+}
+message ListNativeConsentsRequest {
+  uint32 limit = 1;
+  string cursor = 2;
+  string query = 3;
+}
+message ListNativeConsentsResponse {
+  repeated NativeConsent consents = 1;
+  // Candidate pagination includes closed records: an empty page is not the end.
   string next_cursor = 2;
 }

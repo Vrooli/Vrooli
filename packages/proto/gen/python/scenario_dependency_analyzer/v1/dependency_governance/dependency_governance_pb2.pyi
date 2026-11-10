@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class InstallDependencyRequest(_message.Message):
-    __slots__ = ("scenario", "surface", "ecosystem", "package_name", "version", "apply", "exact_version", "development", "refresh_lock")
+    __slots__ = ("scenario", "surface", "ecosystem", "package_name", "version", "apply", "exact_version", "development", "refresh_lock", "workspace_path")
     SCENARIO_FIELD_NUMBER: _ClassVar[int]
     SURFACE_FIELD_NUMBER: _ClassVar[int]
     ECOSYSTEM_FIELD_NUMBER: _ClassVar[int]
@@ -17,6 +17,7 @@ class InstallDependencyRequest(_message.Message):
     EXACT_VERSION_FIELD_NUMBER: _ClassVar[int]
     DEVELOPMENT_FIELD_NUMBER: _ClassVar[int]
     REFRESH_LOCK_FIELD_NUMBER: _ClassVar[int]
+    WORKSPACE_PATH_FIELD_NUMBER: _ClassVar[int]
     scenario: str
     surface: str
     ecosystem: str
@@ -26,7 +27,8 @@ class InstallDependencyRequest(_message.Message):
     exact_version: bool
     development: bool
     refresh_lock: bool
-    def __init__(self, scenario: _Optional[str] = ..., surface: _Optional[str] = ..., ecosystem: _Optional[str] = ..., package_name: _Optional[str] = ..., version: _Optional[str] = ..., apply: _Optional[bool] = ..., exact_version: _Optional[bool] = ..., development: _Optional[bool] = ..., refresh_lock: _Optional[bool] = ...) -> None: ...
+    workspace_path: str
+    def __init__(self, scenario: _Optional[str] = ..., surface: _Optional[str] = ..., ecosystem: _Optional[str] = ..., package_name: _Optional[str] = ..., version: _Optional[str] = ..., apply: _Optional[bool] = ..., exact_version: _Optional[bool] = ..., development: _Optional[bool] = ..., refresh_lock: _Optional[bool] = ..., workspace_path: _Optional[str] = ...) -> None: ...
 
 class InstallDependencyResponse(_message.Message):
     __slots__ = ("installed", "dry_run", "verdict", "blocked", "command", "package_manager", "manifest_path", "message", "next_steps", "security_notes", "guidance", "source_updated")

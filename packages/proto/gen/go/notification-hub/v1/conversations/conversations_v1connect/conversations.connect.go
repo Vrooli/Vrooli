@@ -54,6 +54,9 @@ const (
 	// ConversationsServiceListAsksProcedure is the fully-qualified name of the ConversationsService's
 	// ListAsks RPC.
 	ConversationsServiceListAsksProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/ListAsks"
+	// ConversationsServiceListNativeConsentsProcedure is the fully-qualified name of the
+	// ConversationsService's ListNativeConsents RPC.
+	ConversationsServiceListNativeConsentsProcedure = "/vrooli.notification_hub.v1.conversations.ConversationsService/ListNativeConsents"
 )
 
 // ConversationsServiceClient is a client for the
@@ -72,6 +75,8 @@ type ConversationsServiceClient interface {
 	// ListAsks reads asks newest first; open_only limits it to asks that still
 	// wait for an answer.
 	ListAsks(context.Context, *connect.Request[conversations.ListAsksRequest]) (*connect.Response[conversations.ListAsksResponse], error)
+	// Read-only projection of native human consent. It never creates a Hub ask.
+	ListNativeConsents(context.Context, *connect.Request[conversations.ListNativeConsentsRequest]) (*connect.Response[conversations.ListNativeConsentsResponse], error)
 }
 
 // NewConversationsServiceClient constructs a client for the
@@ -128,18 +133,25 @@ func NewConversationsServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(conversationsServiceMethods.ByName("ListAsks")),
 			connect.WithClientOptions(opts...),
 		),
+		listNativeConsents: connect.NewClient[conversations.ListNativeConsentsRequest, conversations.ListNativeConsentsResponse](
+			httpClient,
+			baseURL+ConversationsServiceListNativeConsentsProcedure,
+			connect.WithSchema(conversationsServiceMethods.ByName("ListNativeConsents")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // conversationsServiceClient implements ConversationsServiceClient.
 type conversationsServiceClient struct {
-	ask      *connect.Client[conversations.AskRequest, conversations.AskResponse]
-	answer   *connect.Client[conversations.AnswerRequest, conversations.AnswerResponse]
-	wait     *connect.Client[conversations.WaitRequest, conversations.WaitResponse]
-	dismiss  *connect.Client[conversations.DismissRequest, conversations.DismissResponse]
-	withdraw *connect.Client[conversations.WithdrawRequest, conversations.WithdrawResponse]
-	getAsk   *connect.Client[conversations.GetAskRequest, conversations.GetAskResponse]
-	listAsks *connect.Client[conversations.ListAsksRequest, conversations.ListAsksResponse]
+	ask                *connect.Client[conversations.AskRequest, conversations.AskResponse]
+	answer             *connect.Client[conversations.AnswerRequest, conversations.AnswerResponse]
+	wait               *connect.Client[conversations.WaitRequest, conversations.WaitResponse]
+	dismiss            *connect.Client[conversations.DismissRequest, conversations.DismissResponse]
+	withdraw           *connect.Client[conversations.WithdrawRequest, conversations.WithdrawResponse]
+	getAsk             *connect.Client[conversations.GetAskRequest, conversations.GetAskResponse]
+	listAsks           *connect.Client[conversations.ListAsksRequest, conversations.ListAsksResponse]
+	listNativeConsents *connect.Client[conversations.ListNativeConsentsRequest, conversations.ListNativeConsentsResponse]
 }
 
 // Ask calls vrooli.notification_hub.v1.conversations.ConversationsService.Ask.
@@ -177,6 +189,12 @@ func (c *conversationsServiceClient) ListAsks(ctx context.Context, req *connect.
 	return c.listAsks.CallUnary(ctx, req)
 }
 
+// ListNativeConsents calls
+// vrooli.notification_hub.v1.conversations.ConversationsService.ListNativeConsents.
+func (c *conversationsServiceClient) ListNativeConsents(ctx context.Context, req *connect.Request[conversations.ListNativeConsentsRequest]) (*connect.Response[conversations.ListNativeConsentsResponse], error) {
+	return c.listNativeConsents.CallUnary(ctx, req)
+}
+
 // ConversationsServiceHandler is an implementation of the
 // vrooli.notification_hub.v1.conversations.ConversationsService service.
 type ConversationsServiceHandler interface {
@@ -193,6 +211,8 @@ type ConversationsServiceHandler interface {
 	// ListAsks reads asks newest first; open_only limits it to asks that still
 	// wait for an answer.
 	ListAsks(context.Context, *connect.Request[conversations.ListAsksRequest]) (*connect.Response[conversations.ListAsksResponse], error)
+	// Read-only projection of native human consent. It never creates a Hub ask.
+	ListNativeConsents(context.Context, *connect.Request[conversations.ListNativeConsentsRequest]) (*connect.Response[conversations.ListNativeConsentsResponse], error)
 }
 
 // NewConversationsServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -244,6 +264,12 @@ func NewConversationsServiceHandler(svc ConversationsServiceHandler, opts ...con
 		connect.WithSchema(conversationsServiceMethods.ByName("ListAsks")),
 		connect.WithHandlerOptions(opts...),
 	)
+	conversationsServiceListNativeConsentsHandler := connect.NewUnaryHandler(
+		ConversationsServiceListNativeConsentsProcedure,
+		svc.ListNativeConsents,
+		connect.WithSchema(conversationsServiceMethods.ByName("ListNativeConsents")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/vrooli.notification_hub.v1.conversations.ConversationsService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ConversationsServiceAskProcedure:
@@ -260,6 +286,8 @@ func NewConversationsServiceHandler(svc ConversationsServiceHandler, opts ...con
 			conversationsServiceGetAskHandler.ServeHTTP(w, r)
 		case ConversationsServiceListAsksProcedure:
 			conversationsServiceListAsksHandler.ServeHTTP(w, r)
+		case ConversationsServiceListNativeConsentsProcedure:
+			conversationsServiceListNativeConsentsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -295,4 +323,8 @@ func (UnimplementedConversationsServiceHandler) GetAsk(context.Context, *connect
 
 func (UnimplementedConversationsServiceHandler) ListAsks(context.Context, *connect.Request[conversations.ListAsksRequest]) (*connect.Response[conversations.ListAsksResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.ListAsks is not implemented"))
+}
+
+func (UnimplementedConversationsServiceHandler) ListNativeConsents(context.Context, *connect.Request[conversations.ListNativeConsentsRequest]) (*connect.Response[conversations.ListNativeConsentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.notification_hub.v1.conversations.ConversationsService.ListNativeConsents is not implemented"))
 }

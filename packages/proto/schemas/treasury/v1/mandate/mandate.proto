@@ -33,4 +33,7 @@ message Mandate {
   int64 recurrence_seconds = 15;
   google.protobuf.Timestamp next_charge_at = 16;
   google.protobuf.Timestamp cancelled_at = 17;
+  // Required for automated spend; empty retains an operator-only manual mandate.
+  string agent_subject = 18;
+  string agent_run_id = 19;
 }

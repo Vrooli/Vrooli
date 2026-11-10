@@ -720,6 +720,9 @@ func (s *Store) MaterializeCompatibilityView(ctx context.Context, snapshot *Snap
 	if err := os.Chmod(view, 0o755); err != nil {
 		return fmt.Errorf("normalize compatibility view permissions: %w", err)
 	}
+	if err := handBackOwnership(view, parent); err != nil {
+		return err
+	}
 	backup := compatibilityBackupPath(target)
 	_ = os.RemoveAll(backup)
 	if _, err := os.Stat(target); err == nil {

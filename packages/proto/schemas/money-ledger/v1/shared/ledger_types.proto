@@ -53,4 +53,7 @@ message Posting {
   string reversal_of = 3;
   string actor = 4;
   repeated AuditEntry audit = 5;
+  // Resolve the exact-token evidence through IngestService.GetCryptoReceipt.
+  // event.amount_minor remains the separately declared valuation delta.
+  string crypto_receipt_id = 6;
 }

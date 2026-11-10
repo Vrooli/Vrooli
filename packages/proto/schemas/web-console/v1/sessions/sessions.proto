@@ -47,6 +47,9 @@ service SessionsService {
   rpc ReadNativeUsage(ReadNativeUsageRequest) returns (ReadNativeUsageResponse);
   // Read-only, bounded observation of native thread and goal state.
   rpc ReadNativeThreadState(ReadNativeThreadStateRequest) returns (ReadNativeThreadStateResponse);
+  // DeliverNativePrompt routes text through the exact live provider owner bound
+  // to this Web Console session. It never writes to the session PTY.
+  rpc DeliverNativePrompt(DeliverNativePromptRequest) returns (DeliverNativePromptResponse);
   rpc Archive(ArchiveRequest) returns (ArchiveResponse);
   rpc Unarchive(UnarchiveRequest) returns (UnarchiveResponse);
   rpc Delete(DeleteRequest) returns (DeleteResponse);
@@ -79,10 +82,27 @@ message NativeThreadState {
   int64 tokens_used = 7;
   int64 time_used_seconds = 8;
   optional int64 token_budget = 9;
+  string active_turn_id = 10;
 }
 
 message ReadNativeThreadStateResponse {
   repeated NativeThreadState threads = 1;
+}
+
+message DeliverNativePromptRequest {
+  string session_id = 1;
+  string expected_thread_id = 2;
+  string text = 3;
+  // Optional active-turn precondition for native steering. Empty requests a
+  // new turn and is accepted only when the owner has no active turn.
+  string expected_turn_id = 4;
+  string source = 5;
+}
+
+message DeliverNativePromptResponse {
+  string thread_id = 1;
+  string turn_id = 2;
+  string delivery = 3;
 }
 
 // -----------------------------------------------------------------------------

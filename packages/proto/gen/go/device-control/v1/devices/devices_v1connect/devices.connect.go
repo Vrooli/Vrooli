@@ -45,6 +45,14 @@ const (
 	// DeviceServiceExecuteVolumeProcedure is the fully-qualified name of the DeviceService's
 	// ExecuteVolume RPC.
 	DeviceServiceExecuteVolumeProcedure = "/vrooli.device_control.v1.devices.DeviceService/ExecuteVolume"
+	// DeviceServiceCaptureDeviceProcedure is the fully-qualified name of the DeviceService's
+	// CaptureDevice RPC.
+	DeviceServiceCaptureDeviceProcedure = "/vrooli.device_control.v1.devices.DeviceService/CaptureDevice"
+	// DeviceServiceLaunchAppProcedure is the fully-qualified name of the DeviceService's LaunchApp RPC.
+	DeviceServiceLaunchAppProcedure = "/vrooli.device_control.v1.devices.DeviceService/LaunchApp"
+	// DeviceServiceInstallAppProcedure is the fully-qualified name of the DeviceService's InstallApp
+	// RPC.
+	DeviceServiceInstallAppProcedure = "/vrooli.device_control.v1.devices.DeviceService/InstallApp"
 	// DeviceServiceInspectDeviceProcedure is the fully-qualified name of the DeviceService's
 	// InspectDevice RPC.
 	DeviceServiceInspectDeviceProcedure = "/vrooli.device_control.v1.devices.DeviceService/InspectDevice"
@@ -56,6 +64,14 @@ type DeviceServiceClient interface {
 	ConnectDevice(context.Context, *connect.Request[devices.ConnectDeviceRequest]) (*connect.Response[devices.ConnectDeviceResponse], error)
 	ReconnectDevice(context.Context, *connect.Request[devices.ReconnectDeviceRequest]) (*connect.Response[devices.ReconnectDeviceResponse], error)
 	ExecuteVolume(context.Context, *connect.Request[devices.ExecuteVolumeRequest]) (*connect.Response[devices.ExecuteVolumeResponse], error)
+	// One-call screenshot or recording of a named TV or phone: wakes the screen
+	// when asked, selects a frame-bearing transport, retains evidence.
+	CaptureDevice(context.Context, *connect.Request[devices.CaptureDeviceRequest]) (*connect.Response[devices.CaptureDeviceResponse], error)
+	// One-call app open by common name or exact package, verified by foreground.
+	LaunchApp(context.Context, *connect.Request[devices.LaunchAppRequest]) (*connect.Response[devices.LaunchAppResponse], error)
+	// Install a local APK on a phone, verify it by package state, and optionally
+	// open it and capture a screenshot: the whole "try my app on the phone" check.
+	InstallApp(context.Context, *connect.Request[devices.InstallAppRequest]) (*connect.Response[devices.InstallAppResponse], error)
 	// Read-only hardware/runtime qualification. No arbitrary device commands.
 	InspectDevice(context.Context, *connect.Request[devices.InspectDeviceRequest]) (*connect.Response[devices.InspectDeviceResponse], error)
 }
@@ -95,6 +111,24 @@ func NewDeviceServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(deviceServiceMethods.ByName("ExecuteVolume")),
 			connect.WithClientOptions(opts...),
 		),
+		captureDevice: connect.NewClient[devices.CaptureDeviceRequest, devices.CaptureDeviceResponse](
+			httpClient,
+			baseURL+DeviceServiceCaptureDeviceProcedure,
+			connect.WithSchema(deviceServiceMethods.ByName("CaptureDevice")),
+			connect.WithClientOptions(opts...),
+		),
+		launchApp: connect.NewClient[devices.LaunchAppRequest, devices.LaunchAppResponse](
+			httpClient,
+			baseURL+DeviceServiceLaunchAppProcedure,
+			connect.WithSchema(deviceServiceMethods.ByName("LaunchApp")),
+			connect.WithClientOptions(opts...),
+		),
+		installApp: connect.NewClient[devices.InstallAppRequest, devices.InstallAppResponse](
+			httpClient,
+			baseURL+DeviceServiceInstallAppProcedure,
+			connect.WithSchema(deviceServiceMethods.ByName("InstallApp")),
+			connect.WithClientOptions(opts...),
+		),
 		inspectDevice: connect.NewClient[devices.InspectDeviceRequest, devices.InspectDeviceResponse](
 			httpClient,
 			baseURL+DeviceServiceInspectDeviceProcedure,
@@ -110,6 +144,9 @@ type deviceServiceClient struct {
 	connectDevice   *connect.Client[devices.ConnectDeviceRequest, devices.ConnectDeviceResponse]
 	reconnectDevice *connect.Client[devices.ReconnectDeviceRequest, devices.ReconnectDeviceResponse]
 	executeVolume   *connect.Client[devices.ExecuteVolumeRequest, devices.ExecuteVolumeResponse]
+	captureDevice   *connect.Client[devices.CaptureDeviceRequest, devices.CaptureDeviceResponse]
+	launchApp       *connect.Client[devices.LaunchAppRequest, devices.LaunchAppResponse]
+	installApp      *connect.Client[devices.InstallAppRequest, devices.InstallAppResponse]
 	inspectDevice   *connect.Client[devices.InspectDeviceRequest, devices.InspectDeviceResponse]
 }
 
@@ -133,6 +170,21 @@ func (c *deviceServiceClient) ExecuteVolume(ctx context.Context, req *connect.Re
 	return c.executeVolume.CallUnary(ctx, req)
 }
 
+// CaptureDevice calls vrooli.device_control.v1.devices.DeviceService.CaptureDevice.
+func (c *deviceServiceClient) CaptureDevice(ctx context.Context, req *connect.Request[devices.CaptureDeviceRequest]) (*connect.Response[devices.CaptureDeviceResponse], error) {
+	return c.captureDevice.CallUnary(ctx, req)
+}
+
+// LaunchApp calls vrooli.device_control.v1.devices.DeviceService.LaunchApp.
+func (c *deviceServiceClient) LaunchApp(ctx context.Context, req *connect.Request[devices.LaunchAppRequest]) (*connect.Response[devices.LaunchAppResponse], error) {
+	return c.launchApp.CallUnary(ctx, req)
+}
+
+// InstallApp calls vrooli.device_control.v1.devices.DeviceService.InstallApp.
+func (c *deviceServiceClient) InstallApp(ctx context.Context, req *connect.Request[devices.InstallAppRequest]) (*connect.Response[devices.InstallAppResponse], error) {
+	return c.installApp.CallUnary(ctx, req)
+}
+
 // InspectDevice calls vrooli.device_control.v1.devices.DeviceService.InspectDevice.
 func (c *deviceServiceClient) InspectDevice(ctx context.Context, req *connect.Request[devices.InspectDeviceRequest]) (*connect.Response[devices.InspectDeviceResponse], error) {
 	return c.inspectDevice.CallUnary(ctx, req)
@@ -145,6 +197,14 @@ type DeviceServiceHandler interface {
 	ConnectDevice(context.Context, *connect.Request[devices.ConnectDeviceRequest]) (*connect.Response[devices.ConnectDeviceResponse], error)
 	ReconnectDevice(context.Context, *connect.Request[devices.ReconnectDeviceRequest]) (*connect.Response[devices.ReconnectDeviceResponse], error)
 	ExecuteVolume(context.Context, *connect.Request[devices.ExecuteVolumeRequest]) (*connect.Response[devices.ExecuteVolumeResponse], error)
+	// One-call screenshot or recording of a named TV or phone: wakes the screen
+	// when asked, selects a frame-bearing transport, retains evidence.
+	CaptureDevice(context.Context, *connect.Request[devices.CaptureDeviceRequest]) (*connect.Response[devices.CaptureDeviceResponse], error)
+	// One-call app open by common name or exact package, verified by foreground.
+	LaunchApp(context.Context, *connect.Request[devices.LaunchAppRequest]) (*connect.Response[devices.LaunchAppResponse], error)
+	// Install a local APK on a phone, verify it by package state, and optionally
+	// open it and capture a screenshot: the whole "try my app on the phone" check.
+	InstallApp(context.Context, *connect.Request[devices.InstallAppRequest]) (*connect.Response[devices.InstallAppResponse], error)
 	// Read-only hardware/runtime qualification. No arbitrary device commands.
 	InspectDevice(context.Context, *connect.Request[devices.InspectDeviceRequest]) (*connect.Response[devices.InspectDeviceResponse], error)
 }
@@ -180,6 +240,24 @@ func NewDeviceServiceHandler(svc DeviceServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(deviceServiceMethods.ByName("ExecuteVolume")),
 		connect.WithHandlerOptions(opts...),
 	)
+	deviceServiceCaptureDeviceHandler := connect.NewUnaryHandler(
+		DeviceServiceCaptureDeviceProcedure,
+		svc.CaptureDevice,
+		connect.WithSchema(deviceServiceMethods.ByName("CaptureDevice")),
+		connect.WithHandlerOptions(opts...),
+	)
+	deviceServiceLaunchAppHandler := connect.NewUnaryHandler(
+		DeviceServiceLaunchAppProcedure,
+		svc.LaunchApp,
+		connect.WithSchema(deviceServiceMethods.ByName("LaunchApp")),
+		connect.WithHandlerOptions(opts...),
+	)
+	deviceServiceInstallAppHandler := connect.NewUnaryHandler(
+		DeviceServiceInstallAppProcedure,
+		svc.InstallApp,
+		connect.WithSchema(deviceServiceMethods.ByName("InstallApp")),
+		connect.WithHandlerOptions(opts...),
+	)
 	deviceServiceInspectDeviceHandler := connect.NewUnaryHandler(
 		DeviceServiceInspectDeviceProcedure,
 		svc.InspectDevice,
@@ -196,6 +274,12 @@ func NewDeviceServiceHandler(svc DeviceServiceHandler, opts ...connect.HandlerOp
 			deviceServiceReconnectDeviceHandler.ServeHTTP(w, r)
 		case DeviceServiceExecuteVolumeProcedure:
 			deviceServiceExecuteVolumeHandler.ServeHTTP(w, r)
+		case DeviceServiceCaptureDeviceProcedure:
+			deviceServiceCaptureDeviceHandler.ServeHTTP(w, r)
+		case DeviceServiceLaunchAppProcedure:
+			deviceServiceLaunchAppHandler.ServeHTTP(w, r)
+		case DeviceServiceInstallAppProcedure:
+			deviceServiceInstallAppHandler.ServeHTTP(w, r)
 		case DeviceServiceInspectDeviceProcedure:
 			deviceServiceInspectDeviceHandler.ServeHTTP(w, r)
 		default:
@@ -221,6 +305,18 @@ func (UnimplementedDeviceServiceHandler) ReconnectDevice(context.Context, *conne
 
 func (UnimplementedDeviceServiceHandler) ExecuteVolume(context.Context, *connect.Request[devices.ExecuteVolumeRequest]) (*connect.Response[devices.ExecuteVolumeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.devices.DeviceService.ExecuteVolume is not implemented"))
+}
+
+func (UnimplementedDeviceServiceHandler) CaptureDevice(context.Context, *connect.Request[devices.CaptureDeviceRequest]) (*connect.Response[devices.CaptureDeviceResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.devices.DeviceService.CaptureDevice is not implemented"))
+}
+
+func (UnimplementedDeviceServiceHandler) LaunchApp(context.Context, *connect.Request[devices.LaunchAppRequest]) (*connect.Response[devices.LaunchAppResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.devices.DeviceService.LaunchApp is not implemented"))
+}
+
+func (UnimplementedDeviceServiceHandler) InstallApp(context.Context, *connect.Request[devices.InstallAppRequest]) (*connect.Response[devices.InstallAppResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.device_control.v1.devices.DeviceService.InstallApp is not implemented"))
 }
 
 func (UnimplementedDeviceServiceHandler) InspectDevice(context.Context, *connect.Request[devices.InspectDeviceRequest]) (*connect.Response[devices.InspectDeviceResponse], error) {

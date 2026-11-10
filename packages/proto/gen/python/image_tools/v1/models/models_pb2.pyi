@@ -25,6 +25,18 @@ class CatalogFindingSeverity(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CATALOG_FINDING_SEVERITY_UNSPECIFIED: _ClassVar[CatalogFindingSeverity]
     CATALOG_FINDING_SEVERITY_ERROR: _ClassVar[CatalogFindingSeverity]
     CATALOG_FINDING_SEVERITY_WARNING: _ClassVar[CatalogFindingSeverity]
+
+class ModelLifecycleState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    MODEL_LIFECYCLE_STATE_UNSPECIFIED: _ClassVar[ModelLifecycleState]
+    MODEL_LIFECYCLE_STATE_ABSENT: _ClassVar[ModelLifecycleState]
+    MODEL_LIFECYCLE_STATE_INSTALLING: _ClassVar[ModelLifecycleState]
+    MODEL_LIFECYCLE_STATE_INSTALLED: _ClassVar[ModelLifecycleState]
+    MODEL_LIFECYCLE_STATE_BUILDING: _ClassVar[ModelLifecycleState]
+    MODEL_LIFECYCLE_STATE_SMOKING: _ClassVar[ModelLifecycleState]
+    MODEL_LIFECYCLE_STATE_READY: _ClassVar[ModelLifecycleState]
+    MODEL_LIFECYCLE_STATE_STALE: _ClassVar[ModelLifecycleState]
+    MODEL_LIFECYCLE_STATE_FAILED: _ClassVar[ModelLifecycleState]
 COMMERCIAL_USE_UNSPECIFIED: CommercialUse
 COMMERCIAL_USE_YES: CommercialUse
 COMMERCIAL_USE_NO: CommercialUse
@@ -35,6 +47,15 @@ MODEL_LAYOUT_DIFFUSERS_REPO: ModelLayout
 CATALOG_FINDING_SEVERITY_UNSPECIFIED: CatalogFindingSeverity
 CATALOG_FINDING_SEVERITY_ERROR: CatalogFindingSeverity
 CATALOG_FINDING_SEVERITY_WARNING: CatalogFindingSeverity
+MODEL_LIFECYCLE_STATE_UNSPECIFIED: ModelLifecycleState
+MODEL_LIFECYCLE_STATE_ABSENT: ModelLifecycleState
+MODEL_LIFECYCLE_STATE_INSTALLING: ModelLifecycleState
+MODEL_LIFECYCLE_STATE_INSTALLED: ModelLifecycleState
+MODEL_LIFECYCLE_STATE_BUILDING: ModelLifecycleState
+MODEL_LIFECYCLE_STATE_SMOKING: ModelLifecycleState
+MODEL_LIFECYCLE_STATE_READY: ModelLifecycleState
+MODEL_LIFECYCLE_STATE_STALE: ModelLifecycleState
+MODEL_LIFECYCLE_STATE_FAILED: ModelLifecycleState
 
 class Hardware(_message.Message):
     __slots__ = ("cpu_capable", "gpu_required", "min_vram_gb", "min_ram_gb", "os_arch", "speed_note")
@@ -397,12 +418,46 @@ class DoctorCatalogRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class DoctorCatalogResponse(_message.Message):
-    __slots__ = ("ok", "findings")
+    __slots__ = ("ok", "findings", "models")
     OK_FIELD_NUMBER: _ClassVar[int]
     FINDINGS_FIELD_NUMBER: _ClassVar[int]
+    MODELS_FIELD_NUMBER: _ClassVar[int]
     ok: bool
     findings: _containers.RepeatedCompositeFieldContainer[CatalogFinding]
-    def __init__(self, ok: _Optional[bool] = ..., findings: _Optional[_Iterable[_Union[CatalogFinding, _Mapping]]] = ...) -> None: ...
+    models: _containers.RepeatedCompositeFieldContainer[ModelLifecycle]
+    def __init__(self, ok: _Optional[bool] = ..., findings: _Optional[_Iterable[_Union[CatalogFinding, _Mapping]]] = ..., models: _Optional[_Iterable[_Union[ModelLifecycle, _Mapping]]] = ...) -> None: ...
+
+class ModelLifecycle(_message.Message):
+    __slots__ = ("model_id", "state", "reason", "detail", "artifact_hash", "runtime_hash", "updated_at")
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    STATE_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    DETAIL_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_HASH_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_HASH_FIELD_NUMBER: _ClassVar[int]
+    UPDATED_AT_FIELD_NUMBER: _ClassVar[int]
+    model_id: str
+    state: ModelLifecycleState
+    reason: str
+    detail: str
+    artifact_hash: str
+    runtime_hash: str
+    updated_at: str
+    def __init__(self, model_id: _Optional[str] = ..., state: _Optional[_Union[ModelLifecycleState, str]] = ..., reason: _Optional[str] = ..., detail: _Optional[str] = ..., artifact_hash: _Optional[str] = ..., runtime_hash: _Optional[str] = ..., updated_at: _Optional[str] = ...) -> None: ...
+
+class ProvisionModelsRequest(_message.Message):
+    __slots__ = ("model_ids",)
+    MODEL_IDS_FIELD_NUMBER: _ClassVar[int]
+    model_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, model_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class ProvisionModelsResponse(_message.Message):
+    __slots__ = ("job_id", "model_ids")
+    JOB_ID_FIELD_NUMBER: _ClassVar[int]
+    MODEL_IDS_FIELD_NUMBER: _ClassVar[int]
+    job_id: str
+    model_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, job_id: _Optional[str] = ..., model_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class BackendStatus(_message.Message):
     __slots__ = ("name", "operations", "available", "standalone", "cloud", "gpu_capable", "detail", "provision", "host_tool", "host_tool_ready", "remediation")

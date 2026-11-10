@@ -53,6 +53,9 @@ const (
 	// ModelsServiceInstallModelProcedure is the fully-qualified name of the ModelsService's
 	// InstallModel RPC.
 	ModelsServiceInstallModelProcedure = "/vrooli.image_tools.v1.models.ModelsService/InstallModel"
+	// ModelsServiceProvisionModelsProcedure is the fully-qualified name of the ModelsService's
+	// ProvisionModels RPC.
+	ModelsServiceProvisionModelsProcedure = "/vrooli.image_tools.v1.models.ModelsService/ProvisionModels"
 	// ModelsServiceRemoveModelProcedure is the fully-qualified name of the ModelsService's RemoveModel
 	// RPC.
 	ModelsServiceRemoveModelProcedure = "/vrooli.image_tools.v1.models.ModelsService/RemoveModel"
@@ -115,6 +118,11 @@ type ModelsServiceClient interface {
 	// caller blocks once on JobsService.WaitJob. An already-installed model
 	// returns already_installed=true with no job.
 	InstallModel(context.Context, *connect.Request[models.InstallModelRequest]) (*connect.Response[models.InstallModelResponse], error)
+	// ProvisionModels prepares the private runtime, backend tools and model
+	// artifacts, then smoke-validates them through one server-owned job. Empty
+	// model_ids selects every effectively enabled local model. The job retains
+	// a timed per-model report, including partial failure and cancellation.
+	ProvisionModels(context.Context, *connect.Request[models.ProvisionModelsRequest]) (*connect.Response[models.ProvisionModelsResponse], error)
 	// RemoveModel deletes a model's downloaded weights and clears its install
 	// record. A custom local model is unlinked; its referenced path is never
 	// deleted.
@@ -231,6 +239,12 @@ func NewModelsServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(modelsServiceMethods.ByName("InstallModel")),
 			connect.WithClientOptions(opts...),
 		),
+		provisionModels: connect.NewClient[models.ProvisionModelsRequest, models.ProvisionModelsResponse](
+			httpClient,
+			baseURL+ModelsServiceProvisionModelsProcedure,
+			connect.WithSchema(modelsServiceMethods.ByName("ProvisionModels")),
+			connect.WithClientOptions(opts...),
+		),
 		removeModel: connect.NewClient[models.RemoveModelRequest, models.RemoveModelResponse](
 			httpClient,
 			baseURL+ModelsServiceRemoveModelProcedure,
@@ -315,6 +329,7 @@ type modelsServiceClient struct {
 	setModelEnabled     *connect.Client[models.SetModelEnabledRequest, models.SetModelEnabledResponse]
 	listBlocklist       *connect.Client[models.ListBlocklistRequest, models.ListBlocklistResponse]
 	installModel        *connect.Client[models.InstallModelRequest, models.InstallModelResponse]
+	provisionModels     *connect.Client[models.ProvisionModelsRequest, models.ProvisionModelsResponse]
 	removeModel         *connect.Client[models.RemoveModelRequest, models.RemoveModelResponse]
 	addCustomModel      *connect.Client[models.AddCustomModelRequest, models.AddCustomModelResponse]
 	inspectModelSource  *connect.Client[models.InspectModelSourceRequest, models.InspectModelSourceResponse]
@@ -362,6 +377,11 @@ func (c *modelsServiceClient) ListBlocklist(ctx context.Context, req *connect.Re
 // InstallModel calls vrooli.image_tools.v1.models.ModelsService.InstallModel.
 func (c *modelsServiceClient) InstallModel(ctx context.Context, req *connect.Request[models.InstallModelRequest]) (*connect.Response[models.InstallModelResponse], error) {
 	return c.installModel.CallUnary(ctx, req)
+}
+
+// ProvisionModels calls vrooli.image_tools.v1.models.ModelsService.ProvisionModels.
+func (c *modelsServiceClient) ProvisionModels(ctx context.Context, req *connect.Request[models.ProvisionModelsRequest]) (*connect.Response[models.ProvisionModelsResponse], error) {
+	return c.provisionModels.CallUnary(ctx, req)
 }
 
 // RemoveModel calls vrooli.image_tools.v1.models.ModelsService.RemoveModel.
@@ -449,6 +469,11 @@ type ModelsServiceHandler interface {
 	// caller blocks once on JobsService.WaitJob. An already-installed model
 	// returns already_installed=true with no job.
 	InstallModel(context.Context, *connect.Request[models.InstallModelRequest]) (*connect.Response[models.InstallModelResponse], error)
+	// ProvisionModels prepares the private runtime, backend tools and model
+	// artifacts, then smoke-validates them through one server-owned job. Empty
+	// model_ids selects every effectively enabled local model. The job retains
+	// a timed per-model report, including partial failure and cancellation.
+	ProvisionModels(context.Context, *connect.Request[models.ProvisionModelsRequest]) (*connect.Response[models.ProvisionModelsResponse], error)
 	// RemoveModel deletes a model's downloaded weights and clears its install
 	// record. A custom local model is unlinked; its referenced path is never
 	// deleted.
@@ -561,6 +586,12 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(modelsServiceMethods.ByName("InstallModel")),
 		connect.WithHandlerOptions(opts...),
 	)
+	modelsServiceProvisionModelsHandler := connect.NewUnaryHandler(
+		ModelsServiceProvisionModelsProcedure,
+		svc.ProvisionModels,
+		connect.WithSchema(modelsServiceMethods.ByName("ProvisionModels")),
+		connect.WithHandlerOptions(opts...),
+	)
 	modelsServiceRemoveModelHandler := connect.NewUnaryHandler(
 		ModelsServiceRemoveModelProcedure,
 		svc.RemoveModel,
@@ -649,6 +680,8 @@ func NewModelsServiceHandler(svc ModelsServiceHandler, opts ...connect.HandlerOp
 			modelsServiceListBlocklistHandler.ServeHTTP(w, r)
 		case ModelsServiceInstallModelProcedure:
 			modelsServiceInstallModelHandler.ServeHTTP(w, r)
+		case ModelsServiceProvisionModelsProcedure:
+			modelsServiceProvisionModelsHandler.ServeHTTP(w, r)
 		case ModelsServiceRemoveModelProcedure:
 			modelsServiceRemoveModelHandler.ServeHTTP(w, r)
 		case ModelsServiceAddCustomModelProcedure:
@@ -708,6 +741,10 @@ func (UnimplementedModelsServiceHandler) ListBlocklist(context.Context, *connect
 
 func (UnimplementedModelsServiceHandler) InstallModel(context.Context, *connect.Request[models.InstallModelRequest]) (*connect.Response[models.InstallModelResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.InstallModel is not implemented"))
+}
+
+func (UnimplementedModelsServiceHandler) ProvisionModels(context.Context, *connect.Request[models.ProvisionModelsRequest]) (*connect.Response[models.ProvisionModelsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.image_tools.v1.models.ModelsService.ProvisionModels is not implemented"))
 }
 
 func (UnimplementedModelsServiceHandler) RemoveModel(context.Context, *connect.Request[models.RemoveModelRequest]) (*connect.Response[models.RemoveModelResponse], error) {

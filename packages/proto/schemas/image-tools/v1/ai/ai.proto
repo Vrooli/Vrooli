@@ -170,6 +170,9 @@ message AIParams {
   BackgroundRepairParams background_repair = 26;
   // Explicit mask-aware contextual crop for native diffusion inpainting.
   InpaintParams inpaint = 27;
+  // Require a local GPU provider and reject CPU degradation after capacity
+  // denial. This is an opt-in execution constraint; the default may use CPU.
+  bool require_gpu = 28;
 }
 
 message InpaintParams {

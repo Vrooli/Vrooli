@@ -62,6 +62,12 @@ service ModelsService {
   // returns already_installed=true with no job.
   rpc InstallModel(InstallModelRequest) returns (InstallModelResponse);
 
+  // ProvisionModels prepares the private runtime, backend tools and model
+  // artifacts, then smoke-validates them through one server-owned job. Empty
+  // model_ids selects every effectively enabled local model. The job retains
+  // a timed per-model report, including partial failure and cancellation.
+  rpc ProvisionModels(ProvisionModelsRequest) returns (ProvisionModelsResponse);
+
   // RemoveModel deletes a model's downloaded weights and clears its install
   // record. A custom local model is unlinked; its referenced path is never
   // deleted.
@@ -467,6 +473,38 @@ message DoctorCatalogRequest {}
 message DoctorCatalogResponse {
   bool ok = 1;
   repeated CatalogFinding findings = 2;
+  repeated ModelLifecycle models = 3;
+}
+
+enum ModelLifecycleState {
+  MODEL_LIFECYCLE_STATE_UNSPECIFIED = 0;
+  MODEL_LIFECYCLE_STATE_ABSENT = 1;
+  MODEL_LIFECYCLE_STATE_INSTALLING = 2;
+  MODEL_LIFECYCLE_STATE_INSTALLED = 3;
+  MODEL_LIFECYCLE_STATE_BUILDING = 4;
+  MODEL_LIFECYCLE_STATE_SMOKING = 5;
+  MODEL_LIFECYCLE_STATE_READY = 6;
+  MODEL_LIFECYCLE_STATE_STALE = 7;
+  MODEL_LIFECYCLE_STATE_FAILED = 8;
+}
+
+message ModelLifecycle {
+  string model_id = 1;
+  ModelLifecycleState state = 2;
+  string reason = 3;
+  string detail = 4;
+  string artifact_hash = 5;
+  string runtime_hash = 6;
+  string updated_at = 7;
+}
+
+message ProvisionModelsRequest {
+  repeated string model_ids = 1;
+}
+
+message ProvisionModelsResponse {
+  string job_id = 1;
+  repeated string model_ids = 2;
 }
 
 message BackendStatus {

@@ -24,9 +24,8 @@ option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/
 // on the shared Manager and return a JobRef. This service owns the lifecycle
 // verbs every op shares: inspect, block-once wait, list, cancel, and watch.
 //
-// Local AI work uses one serialized scheduler queue; lightweight CPU work and
-// remote work use separate pools. Job.scheduling_queue reports that queue class
-// without claiming which device executed the operation.
+// One priority scheduler admits all work. Local jobs obtain platform capacity
+// before execution; remote work has a separate concurrency ceiling.
 //
 // Consumed by:
 //   - API: handlers/jobs/connect_handler.go implements JobsServiceHandler.
@@ -72,6 +71,10 @@ enum JobState {
   JOB_STATE_FAILED = 4;
   // Aborted by request before completing (terminal).
   JOB_STATE_CANCELED = 5;
+  // Obtaining capacity and worker ownership; execution has not started.
+  JOB_STATE_ADMITTING = 6;
+  // Cancellation requested; the worker and claims are still being released.
+  JOB_STATE_CANCELING = 7;
 }
 
 // JobLane is the legacy execution-lane hint retained for wire compatibility.
@@ -95,6 +98,8 @@ enum JobQueue {
   JOB_QUEUE_CPU_POOL = 2;
   // Remote work uses its own bounded pool.
   JOB_QUEUE_NETWORK_POOL = 3;
+  // One local priority queue with platform-capacity admission.
+  JOB_QUEUE_CAPACITY = 4;
 }
 
 // Job is the persisted, observable record of a submitted unit of work.
@@ -163,6 +168,9 @@ message Job {
   // Scheduler queue and concurrency class. This is not an execution-device
   // claim; inspect request/result metadata for backend execution evidence.
   JobQueue scheduling_queue = 16;
+  // Platform-capacity priority: interactive, service, or batch. Queue aging
+  // prevents lower-priority requests from starving indefinitely.
+  string priority = 17;
 }
 
 // JobRequest is the typed echo of the submitted request.

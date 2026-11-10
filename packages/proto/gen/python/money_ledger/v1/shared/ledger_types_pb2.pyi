@@ -71,15 +71,17 @@ class AuditEntry(_message.Message):
     def __init__(self, id: _Optional[str] = ..., entity_type: _Optional[str] = ..., entity_id: _Optional[str] = ..., actor: _Optional[str] = ..., reason: _Optional[str] = ..., prior_value: _Optional[str] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class Posting(_message.Message):
-    __slots__ = ("id", "event", "reversal_of", "actor", "audit")
+    __slots__ = ("id", "event", "reversal_of", "actor", "audit", "crypto_receipt_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     EVENT_FIELD_NUMBER: _ClassVar[int]
     REVERSAL_OF_FIELD_NUMBER: _ClassVar[int]
     ACTOR_FIELD_NUMBER: _ClassVar[int]
     AUDIT_FIELD_NUMBER: _ClassVar[int]
+    CRYPTO_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     event: MoneyEvent
     reversal_of: str
     actor: str
     audit: _containers.RepeatedCompositeFieldContainer[AuditEntry]
-    def __init__(self, id: _Optional[str] = ..., event: _Optional[_Union[MoneyEvent, _Mapping]] = ..., reversal_of: _Optional[str] = ..., actor: _Optional[str] = ..., audit: _Optional[_Iterable[_Union[AuditEntry, _Mapping]]] = ...) -> None: ...
+    crypto_receipt_id: str
+    def __init__(self, id: _Optional[str] = ..., event: _Optional[_Union[MoneyEvent, _Mapping]] = ..., reversal_of: _Optional[str] = ..., actor: _Optional[str] = ..., audit: _Optional[_Iterable[_Union[AuditEntry, _Mapping]]] = ..., crypto_receipt_id: _Optional[str] = ...) -> None: ...

@@ -242,6 +242,61 @@ func (CryptoLegKind) EnumDescriptor() ([]byte, []int) {
 	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{3}
 }
 
+type CryptoReceiptAction int32
+
+const (
+	CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_UNSPECIFIED CryptoReceiptAction = 0
+	CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_ORIGINAL    CryptoReceiptAction = 1
+	CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_REINCLUSION CryptoReceiptAction = 2
+	CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_REMOVAL     CryptoReceiptAction = 3
+	CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_CORRECTION  CryptoReceiptAction = 4
+)
+
+// Enum value maps for CryptoReceiptAction.
+var (
+	CryptoReceiptAction_name = map[int32]string{
+		0: "CRYPTO_RECEIPT_ACTION_UNSPECIFIED",
+		1: "CRYPTO_RECEIPT_ACTION_ORIGINAL",
+		2: "CRYPTO_RECEIPT_ACTION_REINCLUSION",
+		3: "CRYPTO_RECEIPT_ACTION_REMOVAL",
+		4: "CRYPTO_RECEIPT_ACTION_CORRECTION",
+	}
+	CryptoReceiptAction_value = map[string]int32{
+		"CRYPTO_RECEIPT_ACTION_UNSPECIFIED": 0,
+		"CRYPTO_RECEIPT_ACTION_ORIGINAL":    1,
+		"CRYPTO_RECEIPT_ACTION_REINCLUSION": 2,
+		"CRYPTO_RECEIPT_ACTION_REMOVAL":     3,
+		"CRYPTO_RECEIPT_ACTION_CORRECTION":  4,
+	}
+)
+
+func (x CryptoReceiptAction) Enum() *CryptoReceiptAction {
+	p := new(CryptoReceiptAction)
+	*p = x
+	return p
+}
+
+func (x CryptoReceiptAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CryptoReceiptAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_money_ledger_v1_ingest_ingest_proto_enumTypes[4].Descriptor()
+}
+
+func (CryptoReceiptAction) Type() protoreflect.EnumType {
+	return &file_money_ledger_v1_ingest_ingest_proto_enumTypes[4]
+}
+
+func (x CryptoReceiptAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CryptoReceiptAction.Descriptor instead.
+func (CryptoReceiptAction) EnumDescriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{4}
+}
+
 type Adapter struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	Id                 string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1683,6 +1738,797 @@ func (x *PreviewCryptoObservationResponse) GetInclusionRevision() string {
 	return ""
 }
 
+// Treasury is the chain evidence owner. These identifiers resolve its durable
+// check and wallet; source_reference is provenance, never a bearer credential.
+type TreasuryReceiptLink struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	CheckId          string                 `protobuf:"bytes,1,opt,name=check_id,json=checkId,proto3" json:"check_id,omitempty"`
+	WalletId         string                 `protobuf:"bytes,2,opt,name=wallet_id,json=walletId,proto3" json:"wallet_id,omitempty"`
+	OperatorIdentity string                 `protobuf:"bytes,3,opt,name=operator_identity,json=operatorIdentity,proto3" json:"operator_identity,omitempty"`
+	SourceReference  string                 `protobuf:"bytes,4,opt,name=source_reference,json=sourceReference,proto3" json:"source_reference,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *TreasuryReceiptLink) Reset() {
+	*x = TreasuryReceiptLink{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TreasuryReceiptLink) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TreasuryReceiptLink) ProtoMessage() {}
+
+func (x *TreasuryReceiptLink) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TreasuryReceiptLink.ProtoReflect.Descriptor instead.
+func (*TreasuryReceiptLink) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *TreasuryReceiptLink) GetCheckId() string {
+	if x != nil {
+		return x.CheckId
+	}
+	return ""
+}
+
+func (x *TreasuryReceiptLink) GetWalletId() string {
+	if x != nil {
+		return x.WalletId
+	}
+	return ""
+}
+
+func (x *TreasuryReceiptLink) GetOperatorIdentity() string {
+	if x != nil {
+		return x.OperatorIdentity
+	}
+	return ""
+}
+
+func (x *TreasuryReceiptLink) GetSourceReference() string {
+	if x != nil {
+		return x.SourceReference
+	}
+	return ""
+}
+
+// A declared valuation of the entire occurrence, kept separate from the exact
+// token amount. No exchange rate or stablecoin peg is inferred by Money Ledger.
+type CryptoValuation struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	AmountMinor    int64                  `protobuf:"varint,1,opt,name=amount_minor,json=amountMinor,proto3" json:"amount_minor,omitempty"`
+	Currency       string                 `protobuf:"bytes,2,opt,name=currency,proto3" json:"currency,omitempty"`
+	BasisReference string                 `protobuf:"bytes,3,opt,name=basis_reference,json=basisReference,proto3" json:"basis_reference,omitempty"`
+	ValuedAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=valued_at,json=valuedAt,proto3" json:"valued_at,omitempty"`
+	Basis          shared.Basis           `protobuf:"varint,5,opt,name=basis,proto3,enum=vrooli.money_ledger.v1.shared.Basis" json:"basis,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CryptoValuation) Reset() {
+	*x = CryptoValuation{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CryptoValuation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CryptoValuation) ProtoMessage() {}
+
+func (x *CryptoValuation) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CryptoValuation.ProtoReflect.Descriptor instead.
+func (*CryptoValuation) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *CryptoValuation) GetAmountMinor() int64 {
+	if x != nil {
+		return x.AmountMinor
+	}
+	return 0
+}
+
+func (x *CryptoValuation) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *CryptoValuation) GetBasisReference() string {
+	if x != nil {
+		return x.BasisReference
+	}
+	return ""
+}
+
+func (x *CryptoValuation) GetValuedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ValuedAt
+	}
+	return nil
+}
+
+func (x *CryptoValuation) GetBasis() shared.Basis {
+	if x != nil {
+		return x.Basis
+	}
+	return shared.Basis(0)
+}
+
+// The verified payer address is always retained. Payer identity may be known
+// before LPBS creates a funding lot, so the lot ID and owner are optional as a
+// pair. An accepted receipt is immutable; a lot created after acceptance is
+// linked by Treasury's separate owner-attribution record.
+type CryptoPayerAttribution struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	PayerAddress   string                 `protobuf:"bytes,1,opt,name=payer_address,json=payerAddress,proto3" json:"payer_address,omitempty"`
+	PayerIdentity  string                 `protobuf:"bytes,2,opt,name=payer_identity,json=payerIdentity,proto3" json:"payer_identity,omitempty"`
+	CreditLotId    string                 `protobuf:"bytes,3,opt,name=credit_lot_id,json=creditLotId,proto3" json:"credit_lot_id,omitempty"`
+	CreditLotOwner string                 `protobuf:"bytes,4,opt,name=credit_lot_owner,json=creditLotOwner,proto3" json:"credit_lot_owner,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CryptoPayerAttribution) Reset() {
+	*x = CryptoPayerAttribution{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CryptoPayerAttribution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CryptoPayerAttribution) ProtoMessage() {}
+
+func (x *CryptoPayerAttribution) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CryptoPayerAttribution.ProtoReflect.Descriptor instead.
+func (*CryptoPayerAttribution) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *CryptoPayerAttribution) GetPayerAddress() string {
+	if x != nil {
+		return x.PayerAddress
+	}
+	return ""
+}
+
+func (x *CryptoPayerAttribution) GetPayerIdentity() string {
+	if x != nil {
+		return x.PayerIdentity
+	}
+	return ""
+}
+
+func (x *CryptoPayerAttribution) GetCreditLotId() string {
+	if x != nil {
+		return x.CreditLotId
+	}
+	return ""
+}
+
+func (x *CryptoPayerAttribution) GetCreditLotOwner() string {
+	if x != nil {
+		return x.CreditLotOwner
+	}
+	return ""
+}
+
+type AcceptCryptoReceiptRequest struct {
+	state       protoimpl.MessageState           `protogen:"open.v1"`
+	Observation *PreviewCryptoObservationRequest `protobuf:"bytes,1,opt,name=observation,proto3" json:"observation,omitempty"`
+	Source      *TreasuryReceiptLink             `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	Action      CryptoReceiptAction              `protobuf:"varint,3,opt,name=action,proto3,enum=vrooli.money_ledger.v1.ingest.CryptoReceiptAction" json:"action,omitempty"`
+	// Root accepted original, required for every mutation of that occurrence.
+	OriginalReceiptId string                  `protobuf:"bytes,4,opt,name=original_receipt_id,json=originalReceiptId,proto3" json:"original_receipt_id,omitempty"`
+	Valuation         *CryptoValuation        `protobuf:"bytes,5,opt,name=valuation,proto3" json:"valuation,omitempty"`
+	Attribution       *CryptoPayerAttribution `protobuf:"bytes,6,opt,name=attribution,proto3" json:"attribution,omitempty"`
+	OccurredAt        *timestamppb.Timestamp  `protobuf:"bytes,7,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	CorrectionReason  string                  `protobuf:"bytes,8,opt,name=correction_reason,json=correctionReason,proto3" json:"correction_reason,omitempty"`
+	// Immediate accepted predecessor. A stale predecessor cannot change funds.
+	PreviousReceiptId string `protobuf:"bytes,9,opt,name=previous_receipt_id,json=previousReceiptId,proto3" json:"previous_receipt_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *AcceptCryptoReceiptRequest) Reset() {
+	*x = AcceptCryptoReceiptRequest{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptCryptoReceiptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptCryptoReceiptRequest) ProtoMessage() {}
+
+func (x *AcceptCryptoReceiptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptCryptoReceiptRequest.ProtoReflect.Descriptor instead.
+func (*AcceptCryptoReceiptRequest) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *AcceptCryptoReceiptRequest) GetObservation() *PreviewCryptoObservationRequest {
+	if x != nil {
+		return x.Observation
+	}
+	return nil
+}
+
+func (x *AcceptCryptoReceiptRequest) GetSource() *TreasuryReceiptLink {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *AcceptCryptoReceiptRequest) GetAction() CryptoReceiptAction {
+	if x != nil {
+		return x.Action
+	}
+	return CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_UNSPECIFIED
+}
+
+func (x *AcceptCryptoReceiptRequest) GetOriginalReceiptId() string {
+	if x != nil {
+		return x.OriginalReceiptId
+	}
+	return ""
+}
+
+func (x *AcceptCryptoReceiptRequest) GetValuation() *CryptoValuation {
+	if x != nil {
+		return x.Valuation
+	}
+	return nil
+}
+
+func (x *AcceptCryptoReceiptRequest) GetAttribution() *CryptoPayerAttribution {
+	if x != nil {
+		return x.Attribution
+	}
+	return nil
+}
+
+func (x *AcceptCryptoReceiptRequest) GetOccurredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return nil
+}
+
+func (x *AcceptCryptoReceiptRequest) GetCorrectionReason() string {
+	if x != nil {
+		return x.CorrectionReason
+	}
+	return ""
+}
+
+func (x *AcceptCryptoReceiptRequest) GetPreviousReceiptId() string {
+	if x != nil {
+		return x.PreviousReceiptId
+	}
+	return ""
+}
+
+// An immutable acceptance, including the signed effects calculated by the
+// ledger. Zero deltas are evidence revisions, not a second payment. A replay
+// returns this same identity even when Treasury obtained a new check id.
+type AcceptedCryptoReceipt struct {
+	state               protoimpl.MessageState  `protogen:"open.v1"`
+	Id                  string                  `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	PostingId           string                  `protobuf:"bytes,2,opt,name=posting_id,json=postingId,proto3" json:"posting_id,omitempty"`
+	Source              *TreasuryReceiptLink    `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
+	OccurrenceKey       string                  `protobuf:"bytes,4,opt,name=occurrence_key,json=occurrenceKey,proto3" json:"occurrence_key,omitempty"`
+	InclusionRevision   string                  `protobuf:"bytes,5,opt,name=inclusion_revision,json=inclusionRevision,proto3" json:"inclusion_revision,omitempty"`
+	AtomicDelta         string                  `protobuf:"bytes,6,opt,name=atomic_delta,json=atomicDelta,proto3" json:"atomic_delta,omitempty"`
+	ValuationDeltaMinor int64                   `protobuf:"varint,7,opt,name=valuation_delta_minor,json=valuationDeltaMinor,proto3" json:"valuation_delta_minor,omitempty"`
+	Currency            string                  `protobuf:"bytes,8,opt,name=currency,proto3" json:"currency,omitempty"`
+	AcceptedAt          *timestamppb.Timestamp  `protobuf:"bytes,9,opt,name=accepted_at,json=acceptedAt,proto3" json:"accepted_at,omitempty"`
+	OriginalReceiptId   string                  `protobuf:"bytes,10,opt,name=original_receipt_id,json=originalReceiptId,proto3" json:"original_receipt_id,omitempty"`
+	Action              CryptoReceiptAction     `protobuf:"varint,11,opt,name=action,proto3,enum=vrooli.money_ledger.v1.ingest.CryptoReceiptAction" json:"action,omitempty"`
+	Attribution         *CryptoPayerAttribution `protobuf:"bytes,12,opt,name=attribution,proto3" json:"attribution,omitempty"`
+	// The rail has no consumer chargeback process. Reorg/removal and accounting
+	// corrections remain possible and must retain their accepted-original link.
+	NoChargeback      bool                             `protobuf:"varint,13,opt,name=no_chargeback,json=noChargeback,proto3" json:"no_chargeback,omitempty"`
+	PreviousReceiptId string                           `protobuf:"bytes,14,opt,name=previous_receipt_id,json=previousReceiptId,proto3" json:"previous_receipt_id,omitempty"`
+	Observation       *PreviewCryptoObservationRequest `protobuf:"bytes,15,opt,name=observation,proto3" json:"observation,omitempty"`
+	Valuation         *CryptoValuation                 `protobuf:"bytes,16,opt,name=valuation,proto3" json:"valuation,omitempty"`
+	OccurredAt        *timestamppb.Timestamp           `protobuf:"bytes,17,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	CorrectionReason  string                           `protobuf:"bytes,18,opt,name=correction_reason,json=correctionReason,proto3" json:"correction_reason,omitempty"`
+	AcceptedBy        string                           `protobuf:"bytes,19,opt,name=accepted_by,json=acceptedBy,proto3" json:"accepted_by,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *AcceptedCryptoReceipt) Reset() {
+	*x = AcceptedCryptoReceipt{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptedCryptoReceipt) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptedCryptoReceipt) ProtoMessage() {}
+
+func (x *AcceptedCryptoReceipt) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptedCryptoReceipt.ProtoReflect.Descriptor instead.
+func (*AcceptedCryptoReceipt) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *AcceptedCryptoReceipt) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *AcceptedCryptoReceipt) GetPostingId() string {
+	if x != nil {
+		return x.PostingId
+	}
+	return ""
+}
+
+func (x *AcceptedCryptoReceipt) GetSource() *TreasuryReceiptLink {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *AcceptedCryptoReceipt) GetOccurrenceKey() string {
+	if x != nil {
+		return x.OccurrenceKey
+	}
+	return ""
+}
+
+func (x *AcceptedCryptoReceipt) GetInclusionRevision() string {
+	if x != nil {
+		return x.InclusionRevision
+	}
+	return ""
+}
+
+func (x *AcceptedCryptoReceipt) GetAtomicDelta() string {
+	if x != nil {
+		return x.AtomicDelta
+	}
+	return ""
+}
+
+func (x *AcceptedCryptoReceipt) GetValuationDeltaMinor() int64 {
+	if x != nil {
+		return x.ValuationDeltaMinor
+	}
+	return 0
+}
+
+func (x *AcceptedCryptoReceipt) GetCurrency() string {
+	if x != nil {
+		return x.Currency
+	}
+	return ""
+}
+
+func (x *AcceptedCryptoReceipt) GetAcceptedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AcceptedAt
+	}
+	return nil
+}
+
+func (x *AcceptedCryptoReceipt) GetOriginalReceiptId() string {
+	if x != nil {
+		return x.OriginalReceiptId
+	}
+	return ""
+}
+
+func (x *AcceptedCryptoReceipt) GetAction() CryptoReceiptAction {
+	if x != nil {
+		return x.Action
+	}
+	return CryptoReceiptAction_CRYPTO_RECEIPT_ACTION_UNSPECIFIED
+}
+
+func (x *AcceptedCryptoReceipt) GetAttribution() *CryptoPayerAttribution {
+	if x != nil {
+		return x.Attribution
+	}
+	return nil
+}
+
+func (x *AcceptedCryptoReceipt) GetNoChargeback() bool {
+	if x != nil {
+		return x.NoChargeback
+	}
+	return false
+}
+
+func (x *AcceptedCryptoReceipt) GetPreviousReceiptId() string {
+	if x != nil {
+		return x.PreviousReceiptId
+	}
+	return ""
+}
+
+func (x *AcceptedCryptoReceipt) GetObservation() *PreviewCryptoObservationRequest {
+	if x != nil {
+		return x.Observation
+	}
+	return nil
+}
+
+func (x *AcceptedCryptoReceipt) GetValuation() *CryptoValuation {
+	if x != nil {
+		return x.Valuation
+	}
+	return nil
+}
+
+func (x *AcceptedCryptoReceipt) GetOccurredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return nil
+}
+
+func (x *AcceptedCryptoReceipt) GetCorrectionReason() string {
+	if x != nil {
+		return x.CorrectionReason
+	}
+	return ""
+}
+
+func (x *AcceptedCryptoReceipt) GetAcceptedBy() string {
+	if x != nil {
+		return x.AcceptedBy
+	}
+	return ""
+}
+
+type AcceptCryptoReceiptResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Receipt       *AcceptedCryptoReceipt `protobuf:"bytes,1,opt,name=receipt,proto3" json:"receipt,omitempty"`
+	Duplicate     bool                   `protobuf:"varint,2,opt,name=duplicate,proto3" json:"duplicate,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AcceptCryptoReceiptResponse) Reset() {
+	*x = AcceptCryptoReceiptResponse{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AcceptCryptoReceiptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AcceptCryptoReceiptResponse) ProtoMessage() {}
+
+func (x *AcceptCryptoReceiptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AcceptCryptoReceiptResponse.ProtoReflect.Descriptor instead.
+func (*AcceptCryptoReceiptResponse) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *AcceptCryptoReceiptResponse) GetReceipt() *AcceptedCryptoReceipt {
+	if x != nil {
+		return x.Receipt
+	}
+	return nil
+}
+
+func (x *AcceptCryptoReceiptResponse) GetDuplicate() bool {
+	if x != nil {
+		return x.Duplicate
+	}
+	return false
+}
+
+type GetCryptoReceiptRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCryptoReceiptRequest) Reset() {
+	*x = GetCryptoReceiptRequest{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCryptoReceiptRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCryptoReceiptRequest) ProtoMessage() {}
+
+func (x *GetCryptoReceiptRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCryptoReceiptRequest.ProtoReflect.Descriptor instead.
+func (*GetCryptoReceiptRequest) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *GetCryptoReceiptRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type GetCryptoReceiptResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Receipt       *AcceptedCryptoReceipt `protobuf:"bytes,1,opt,name=receipt,proto3" json:"receipt,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetCryptoReceiptResponse) Reset() {
+	*x = GetCryptoReceiptResponse{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCryptoReceiptResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCryptoReceiptResponse) ProtoMessage() {}
+
+func (x *GetCryptoReceiptResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCryptoReceiptResponse.ProtoReflect.Descriptor instead.
+func (*GetCryptoReceiptResponse) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GetCryptoReceiptResponse) GetReceipt() *AcceptedCryptoReceipt {
+	if x != nil {
+		return x.Receipt
+	}
+	return nil
+}
+
+type ListCryptoReceiptsRequest struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	BookId         string                 `protobuf:"bytes,1,opt,name=book_id,json=bookId,proto3" json:"book_id,omitempty"`
+	WalletId       string                 `protobuf:"bytes,2,opt,name=wallet_id,json=walletId,proto3" json:"wallet_id,omitempty"`
+	CreditLotId    string                 `protobuf:"bytes,3,opt,name=credit_lot_id,json=creditLotId,proto3" json:"credit_lot_id,omitempty"`
+	Limit          uint32                 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	AfterReceiptId string                 `protobuf:"bytes,5,opt,name=after_receipt_id,json=afterReceiptId,proto3" json:"after_receipt_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListCryptoReceiptsRequest) Reset() {
+	*x = ListCryptoReceiptsRequest{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCryptoReceiptsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCryptoReceiptsRequest) ProtoMessage() {}
+
+func (x *ListCryptoReceiptsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCryptoReceiptsRequest.ProtoReflect.Descriptor instead.
+func (*ListCryptoReceiptsRequest) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ListCryptoReceiptsRequest) GetBookId() string {
+	if x != nil {
+		return x.BookId
+	}
+	return ""
+}
+
+func (x *ListCryptoReceiptsRequest) GetWalletId() string {
+	if x != nil {
+		return x.WalletId
+	}
+	return ""
+}
+
+func (x *ListCryptoReceiptsRequest) GetCreditLotId() string {
+	if x != nil {
+		return x.CreditLotId
+	}
+	return ""
+}
+
+func (x *ListCryptoReceiptsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListCryptoReceiptsRequest) GetAfterReceiptId() string {
+	if x != nil {
+		return x.AfterReceiptId
+	}
+	return ""
+}
+
+type ListCryptoReceiptsResponse struct {
+	state              protoimpl.MessageState   `protogen:"open.v1"`
+	Receipts           []*AcceptedCryptoReceipt `protobuf:"bytes,1,rep,name=receipts,proto3" json:"receipts,omitempty"`
+	NextAfterReceiptId string                   `protobuf:"bytes,2,opt,name=next_after_receipt_id,json=nextAfterReceiptId,proto3" json:"next_after_receipt_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ListCryptoReceiptsResponse) Reset() {
+	*x = ListCryptoReceiptsResponse{}
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCryptoReceiptsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCryptoReceiptsResponse) ProtoMessage() {}
+
+func (x *ListCryptoReceiptsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_money_ledger_v1_ingest_ingest_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCryptoReceiptsResponse.ProtoReflect.Descriptor instead.
+func (*ListCryptoReceiptsResponse) Descriptor() ([]byte, []int) {
+	return file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *ListCryptoReceiptsResponse) GetReceipts() []*AcceptedCryptoReceipt {
+	if x != nil {
+		return x.Receipts
+	}
+	return nil
+}
+
+func (x *ListCryptoReceiptsResponse) GetNextAfterReceiptId() string {
+	if x != nil {
+		return x.NextAfterReceiptId
+	}
+	return ""
+}
+
 var File_money_ledger_v1_ingest_ingest_proto protoreflect.FileDescriptor
 
 const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
@@ -1814,7 +2660,75 @@ const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
 	"\x17candidate_effect_atomic\x18\x0e \x01(\tR\x15candidateEffectAtomic\x12O\n" +
 	"$correction_requires_original_receipt\x18\x0f \x01(\bR!correctionRequiresOriginalReceipt\x12\x18\n" +
 	"\aaddress\x18\x10 \x01(\tR\aaddress\x12-\n" +
-	"\x12inclusion_revision\x18\x11 \x01(\tR\x11inclusionRevision*\x93\x01\n" +
+	"\x12inclusion_revision\x18\x11 \x01(\tR\x11inclusionRevision\"\xa5\x01\n" +
+	"\x13TreasuryReceiptLink\x12\x19\n" +
+	"\bcheck_id\x18\x01 \x01(\tR\acheckId\x12\x1b\n" +
+	"\twallet_id\x18\x02 \x01(\tR\bwalletId\x12+\n" +
+	"\x11operator_identity\x18\x03 \x01(\tR\x10operatorIdentity\x12)\n" +
+	"\x10source_reference\x18\x04 \x01(\tR\x0fsourceReference\"\xee\x01\n" +
+	"\x0fCryptoValuation\x12!\n" +
+	"\famount_minor\x18\x01 \x01(\x03R\vamountMinor\x12\x1a\n" +
+	"\bcurrency\x18\x02 \x01(\tR\bcurrency\x12'\n" +
+	"\x0fbasis_reference\x18\x03 \x01(\tR\x0ebasisReference\x127\n" +
+	"\tvalued_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bvaluedAt\x12:\n" +
+	"\x05basis\x18\x05 \x01(\x0e2$.vrooli.money_ledger.v1.shared.BasisR\x05basis\"\xb2\x01\n" +
+	"\x16CryptoPayerAttribution\x12#\n" +
+	"\rpayer_address\x18\x01 \x01(\tR\fpayerAddress\x12%\n" +
+	"\x0epayer_identity\x18\x02 \x01(\tR\rpayerIdentity\x12\"\n" +
+	"\rcredit_lot_id\x18\x03 \x01(\tR\vcreditLotId\x12(\n" +
+	"\x10credit_lot_owner\x18\x04 \x01(\tR\x0ecreditLotOwner\"\x87\x05\n" +
+	"\x1aAcceptCryptoReceiptRequest\x12`\n" +
+	"\vobservation\x18\x01 \x01(\v2>.vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequestR\vobservation\x12J\n" +
+	"\x06source\x18\x02 \x01(\v22.vrooli.money_ledger.v1.ingest.TreasuryReceiptLinkR\x06source\x12J\n" +
+	"\x06action\x18\x03 \x01(\x0e22.vrooli.money_ledger.v1.ingest.CryptoReceiptActionR\x06action\x12.\n" +
+	"\x13original_receipt_id\x18\x04 \x01(\tR\x11originalReceiptId\x12L\n" +
+	"\tvaluation\x18\x05 \x01(\v2..vrooli.money_ledger.v1.ingest.CryptoValuationR\tvaluation\x12W\n" +
+	"\vattribution\x18\x06 \x01(\v25.vrooli.money_ledger.v1.ingest.CryptoPayerAttributionR\vattribution\x12;\n" +
+	"\voccurred_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt\x12+\n" +
+	"\x11correction_reason\x18\b \x01(\tR\x10correctionReason\x12.\n" +
+	"\x13previous_receipt_id\x18\t \x01(\tR\x11previousReceiptId\"\xfd\a\n" +
+	"\x15AcceptedCryptoReceipt\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1d\n" +
+	"\n" +
+	"posting_id\x18\x02 \x01(\tR\tpostingId\x12J\n" +
+	"\x06source\x18\x03 \x01(\v22.vrooli.money_ledger.v1.ingest.TreasuryReceiptLinkR\x06source\x12%\n" +
+	"\x0eoccurrence_key\x18\x04 \x01(\tR\roccurrenceKey\x12-\n" +
+	"\x12inclusion_revision\x18\x05 \x01(\tR\x11inclusionRevision\x12!\n" +
+	"\fatomic_delta\x18\x06 \x01(\tR\vatomicDelta\x122\n" +
+	"\x15valuation_delta_minor\x18\a \x01(\x03R\x13valuationDeltaMinor\x12\x1a\n" +
+	"\bcurrency\x18\b \x01(\tR\bcurrency\x12;\n" +
+	"\vaccepted_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"acceptedAt\x12.\n" +
+	"\x13original_receipt_id\x18\n" +
+	" \x01(\tR\x11originalReceiptId\x12J\n" +
+	"\x06action\x18\v \x01(\x0e22.vrooli.money_ledger.v1.ingest.CryptoReceiptActionR\x06action\x12W\n" +
+	"\vattribution\x18\f \x01(\v25.vrooli.money_ledger.v1.ingest.CryptoPayerAttributionR\vattribution\x12#\n" +
+	"\rno_chargeback\x18\r \x01(\bR\fnoChargeback\x12.\n" +
+	"\x13previous_receipt_id\x18\x0e \x01(\tR\x11previousReceiptId\x12`\n" +
+	"\vobservation\x18\x0f \x01(\v2>.vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequestR\vobservation\x12L\n" +
+	"\tvaluation\x18\x10 \x01(\v2..vrooli.money_ledger.v1.ingest.CryptoValuationR\tvaluation\x12;\n" +
+	"\voccurred_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt\x12+\n" +
+	"\x11correction_reason\x18\x12 \x01(\tR\x10correctionReason\x12\x1f\n" +
+	"\vaccepted_by\x18\x13 \x01(\tR\n" +
+	"acceptedBy\"\x8b\x01\n" +
+	"\x1bAcceptCryptoReceiptResponse\x12N\n" +
+	"\areceipt\x18\x01 \x01(\v24.vrooli.money_ledger.v1.ingest.AcceptedCryptoReceiptR\areceipt\x12\x1c\n" +
+	"\tduplicate\x18\x02 \x01(\bR\tduplicate\")\n" +
+	"\x17GetCryptoReceiptRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"j\n" +
+	"\x18GetCryptoReceiptResponse\x12N\n" +
+	"\areceipt\x18\x01 \x01(\v24.vrooli.money_ledger.v1.ingest.AcceptedCryptoReceiptR\areceipt\"\xb5\x01\n" +
+	"\x19ListCryptoReceiptsRequest\x12\x17\n" +
+	"\abook_id\x18\x01 \x01(\tR\x06bookId\x12\x1b\n" +
+	"\twallet_id\x18\x02 \x01(\tR\bwalletId\x12\"\n" +
+	"\rcredit_lot_id\x18\x03 \x01(\tR\vcreditLotId\x12\x14\n" +
+	"\x05limit\x18\x04 \x01(\rR\x05limit\x12(\n" +
+	"\x10after_receipt_id\x18\x05 \x01(\tR\x0eafterReceiptId\"\xa1\x01\n" +
+	"\x1aListCryptoReceiptsResponse\x12P\n" +
+	"\breceipts\x18\x01 \x03(\v24.vrooli.money_ledger.v1.ingest.AcceptedCryptoReceiptR\breceipts\x121\n" +
+	"\x15next_after_receipt_id\x18\x02 \x01(\tR\x12nextAfterReceiptId*\x93\x01\n" +
 	"\vAdapterKind\x12\x1c\n" +
 	"\x18ADAPTER_KIND_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ADAPTER_KIND_MANUAL\x10\x01\x12\x15\n" +
@@ -1838,9 +2752,18 @@ const file_money_ledger_v1_ingest_ingest_proto_rawDesc = "" +
 	"\x17CRYPTO_LEG_KIND_BALANCE\x10\x01\x12\x1b\n" +
 	"\x17CRYPTO_LEG_KIND_DEPOSIT\x10\x02\x12\x17\n" +
 	"\x13CRYPTO_LEG_KIND_FEE\x10\x03\x12\x1c\n" +
-	"\x18CRYPTO_LEG_KIND_APPROVAL\x10\x042\x9a\b\n" +
+	"\x18CRYPTO_LEG_KIND_APPROVAL\x10\x04*\xd0\x01\n" +
+	"\x13CryptoReceiptAction\x12%\n" +
+	"!CRYPTO_RECEIPT_ACTION_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eCRYPTO_RECEIPT_ACTION_ORIGINAL\x10\x01\x12%\n" +
+	"!CRYPTO_RECEIPT_ACTION_REINCLUSION\x10\x02\x12!\n" +
+	"\x1dCRYPTO_RECEIPT_ACTION_REMOVAL\x10\x03\x12$\n" +
+	" CRYPTO_RECEIPT_ACTION_CORRECTION\x10\x042\xbb\v\n" +
 	"\rIngestService\x12\x9b\x01\n" +
-	"\x18PreviewCryptoObservation\x12>.vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest\x1a?.vrooli.money_ledger.v1.ingest.PreviewCryptoObservationResponse\x12\x80\x01\n" +
+	"\x18PreviewCryptoObservation\x12>.vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest\x1a?.vrooli.money_ledger.v1.ingest.PreviewCryptoObservationResponse\x12\x8c\x01\n" +
+	"\x13AcceptCryptoReceipt\x129.vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptRequest\x1a:.vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptResponse\x12\x83\x01\n" +
+	"\x10GetCryptoReceipt\x126.vrooli.money_ledger.v1.ingest.GetCryptoReceiptRequest\x1a7.vrooli.money_ledger.v1.ingest.GetCryptoReceiptResponse\x12\x89\x01\n" +
+	"\x12ListCryptoReceipts\x128.vrooli.money_ledger.v1.ingest.ListCryptoReceiptsRequest\x1a9.vrooli.money_ledger.v1.ingest.ListCryptoReceiptsResponse\x12\x80\x01\n" +
 	"\x0fRegisterAdapter\x125.vrooli.money_ledger.v1.ingest.RegisterAdapterRequest\x1a6.vrooli.money_ledger.v1.ingest.RegisterAdapterResponse\x12w\n" +
 	"\fListAdapters\x122.vrooli.money_ledger.v1.ingest.ListAdaptersRequest\x1a3.vrooli.money_ledger.v1.ingest.ListAdaptersResponse\x12t\n" +
 	"\vIngestEvent\x121.vrooli.money_ledger.v1.ingest.IngestEventRequest\x1a2.vrooli.money_ledger.v1.ingest.IngestEventResponse\x12q\n" +
@@ -1863,86 +2786,122 @@ func file_money_ledger_v1_ingest_ingest_proto_rawDescGZIP() []byte {
 	return file_money_ledger_v1_ingest_ingest_proto_rawDescData
 }
 
-var file_money_ledger_v1_ingest_ingest_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_money_ledger_v1_ingest_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_money_ledger_v1_ingest_ingest_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_money_ledger_v1_ingest_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_money_ledger_v1_ingest_ingest_proto_goTypes = []any{
 	(AdapterKind)(0),                         // 0: vrooli.money_ledger.v1.ingest.AdapterKind
 	(SourceMode)(0),                          // 1: vrooli.money_ledger.v1.ingest.SourceMode
 	(CryptoObservationState)(0),              // 2: vrooli.money_ledger.v1.ingest.CryptoObservationState
 	(CryptoLegKind)(0),                       // 3: vrooli.money_ledger.v1.ingest.CryptoLegKind
-	(*Adapter)(nil),                          // 4: vrooli.money_ledger.v1.ingest.Adapter
-	(*Receipt)(nil),                          // 5: vrooli.money_ledger.v1.ingest.Receipt
-	(*Availability)(nil),                     // 6: vrooli.money_ledger.v1.ingest.Availability
-	(*RegisterAdapterRequest)(nil),           // 7: vrooli.money_ledger.v1.ingest.RegisterAdapterRequest
-	(*RegisterAdapterResponse)(nil),          // 8: vrooli.money_ledger.v1.ingest.RegisterAdapterResponse
-	(*ListAdaptersRequest)(nil),              // 9: vrooli.money_ledger.v1.ingest.ListAdaptersRequest
-	(*ListAdaptersResponse)(nil),             // 10: vrooli.money_ledger.v1.ingest.ListAdaptersResponse
-	(*IngestEventRequest)(nil),               // 11: vrooli.money_ledger.v1.ingest.IngestEventRequest
-	(*IngestEventResponse)(nil),              // 12: vrooli.money_ledger.v1.ingest.IngestEventResponse
-	(*RunAdapterRequest)(nil),                // 13: vrooli.money_ledger.v1.ingest.RunAdapterRequest
-	(*RunAdapterResponse)(nil),               // 14: vrooli.money_ledger.v1.ingest.RunAdapterResponse
-	(*ImportFileRequest)(nil),                // 15: vrooli.money_ledger.v1.ingest.ImportFileRequest
-	(*ImportFileResponse)(nil),               // 16: vrooli.money_ledger.v1.ingest.ImportFileResponse
-	(*OperatorInputField)(nil),               // 17: vrooli.money_ledger.v1.ingest.OperatorInputField
-	(*OperatorImportRequest)(nil),            // 18: vrooli.money_ledger.v1.ingest.OperatorImportRequest
-	(*OperatorImportResponse)(nil),           // 19: vrooli.money_ledger.v1.ingest.OperatorImportResponse
-	(*OperatorInputStatusRequest)(nil),       // 20: vrooli.money_ledger.v1.ingest.OperatorInputStatusRequest
-	(*OperatorInputStatusResponse)(nil),      // 21: vrooli.money_ledger.v1.ingest.OperatorInputStatusResponse
-	(*PreviewCryptoObservationRequest)(nil),  // 22: vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest
-	(*PreviewCryptoObservationResponse)(nil), // 23: vrooli.money_ledger.v1.ingest.PreviewCryptoObservationResponse
-	(*timestamppb.Timestamp)(nil),            // 24: google.protobuf.Timestamp
-	(*shared.MoneyEvent)(nil),                // 25: vrooli.money_ledger.v1.shared.MoneyEvent
-	(*shared.Posting)(nil),                   // 26: vrooli.money_ledger.v1.shared.Posting
+	(CryptoReceiptAction)(0),                 // 4: vrooli.money_ledger.v1.ingest.CryptoReceiptAction
+	(*Adapter)(nil),                          // 5: vrooli.money_ledger.v1.ingest.Adapter
+	(*Receipt)(nil),                          // 6: vrooli.money_ledger.v1.ingest.Receipt
+	(*Availability)(nil),                     // 7: vrooli.money_ledger.v1.ingest.Availability
+	(*RegisterAdapterRequest)(nil),           // 8: vrooli.money_ledger.v1.ingest.RegisterAdapterRequest
+	(*RegisterAdapterResponse)(nil),          // 9: vrooli.money_ledger.v1.ingest.RegisterAdapterResponse
+	(*ListAdaptersRequest)(nil),              // 10: vrooli.money_ledger.v1.ingest.ListAdaptersRequest
+	(*ListAdaptersResponse)(nil),             // 11: vrooli.money_ledger.v1.ingest.ListAdaptersResponse
+	(*IngestEventRequest)(nil),               // 12: vrooli.money_ledger.v1.ingest.IngestEventRequest
+	(*IngestEventResponse)(nil),              // 13: vrooli.money_ledger.v1.ingest.IngestEventResponse
+	(*RunAdapterRequest)(nil),                // 14: vrooli.money_ledger.v1.ingest.RunAdapterRequest
+	(*RunAdapterResponse)(nil),               // 15: vrooli.money_ledger.v1.ingest.RunAdapterResponse
+	(*ImportFileRequest)(nil),                // 16: vrooli.money_ledger.v1.ingest.ImportFileRequest
+	(*ImportFileResponse)(nil),               // 17: vrooli.money_ledger.v1.ingest.ImportFileResponse
+	(*OperatorInputField)(nil),               // 18: vrooli.money_ledger.v1.ingest.OperatorInputField
+	(*OperatorImportRequest)(nil),            // 19: vrooli.money_ledger.v1.ingest.OperatorImportRequest
+	(*OperatorImportResponse)(nil),           // 20: vrooli.money_ledger.v1.ingest.OperatorImportResponse
+	(*OperatorInputStatusRequest)(nil),       // 21: vrooli.money_ledger.v1.ingest.OperatorInputStatusRequest
+	(*OperatorInputStatusResponse)(nil),      // 22: vrooli.money_ledger.v1.ingest.OperatorInputStatusResponse
+	(*PreviewCryptoObservationRequest)(nil),  // 23: vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest
+	(*PreviewCryptoObservationResponse)(nil), // 24: vrooli.money_ledger.v1.ingest.PreviewCryptoObservationResponse
+	(*TreasuryReceiptLink)(nil),              // 25: vrooli.money_ledger.v1.ingest.TreasuryReceiptLink
+	(*CryptoValuation)(nil),                  // 26: vrooli.money_ledger.v1.ingest.CryptoValuation
+	(*CryptoPayerAttribution)(nil),           // 27: vrooli.money_ledger.v1.ingest.CryptoPayerAttribution
+	(*AcceptCryptoReceiptRequest)(nil),       // 28: vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptRequest
+	(*AcceptedCryptoReceipt)(nil),            // 29: vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt
+	(*AcceptCryptoReceiptResponse)(nil),      // 30: vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptResponse
+	(*GetCryptoReceiptRequest)(nil),          // 31: vrooli.money_ledger.v1.ingest.GetCryptoReceiptRequest
+	(*GetCryptoReceiptResponse)(nil),         // 32: vrooli.money_ledger.v1.ingest.GetCryptoReceiptResponse
+	(*ListCryptoReceiptsRequest)(nil),        // 33: vrooli.money_ledger.v1.ingest.ListCryptoReceiptsRequest
+	(*ListCryptoReceiptsResponse)(nil),       // 34: vrooli.money_ledger.v1.ingest.ListCryptoReceiptsResponse
+	(*timestamppb.Timestamp)(nil),            // 35: google.protobuf.Timestamp
+	(*shared.MoneyEvent)(nil),                // 36: vrooli.money_ledger.v1.shared.MoneyEvent
+	(*shared.Posting)(nil),                   // 37: vrooli.money_ledger.v1.shared.Posting
+	(shared.Basis)(0),                        // 38: vrooli.money_ledger.v1.shared.Basis
 }
 var file_money_ledger_v1_ingest_ingest_proto_depIdxs = []int32{
 	0,  // 0: vrooli.money_ledger.v1.ingest.Adapter.kind:type_name -> vrooli.money_ledger.v1.ingest.AdapterKind
-	24, // 1: vrooli.money_ledger.v1.ingest.Adapter.last_success_at:type_name -> google.protobuf.Timestamp
-	24, // 2: vrooli.money_ledger.v1.ingest.Receipt.from:type_name -> google.protobuf.Timestamp
-	24, // 3: vrooli.money_ledger.v1.ingest.Receipt.to:type_name -> google.protobuf.Timestamp
-	24, // 4: vrooli.money_ledger.v1.ingest.Receipt.created_at:type_name -> google.protobuf.Timestamp
-	24, // 5: vrooli.money_ledger.v1.ingest.Availability.last_success_at:type_name -> google.protobuf.Timestamp
-	4,  // 6: vrooli.money_ledger.v1.ingest.RegisterAdapterRequest.adapter:type_name -> vrooli.money_ledger.v1.ingest.Adapter
-	4,  // 7: vrooli.money_ledger.v1.ingest.RegisterAdapterResponse.adapter:type_name -> vrooli.money_ledger.v1.ingest.Adapter
-	4,  // 8: vrooli.money_ledger.v1.ingest.ListAdaptersResponse.adapters:type_name -> vrooli.money_ledger.v1.ingest.Adapter
-	25, // 9: vrooli.money_ledger.v1.ingest.IngestEventRequest.event:type_name -> vrooli.money_ledger.v1.shared.MoneyEvent
-	26, // 10: vrooli.money_ledger.v1.ingest.IngestEventResponse.posting:type_name -> vrooli.money_ledger.v1.shared.Posting
-	5,  // 11: vrooli.money_ledger.v1.ingest.IngestEventResponse.receipt:type_name -> vrooli.money_ledger.v1.ingest.Receipt
-	24, // 12: vrooli.money_ledger.v1.ingest.RunAdapterRequest.from:type_name -> google.protobuf.Timestamp
-	24, // 13: vrooli.money_ledger.v1.ingest.RunAdapterRequest.to:type_name -> google.protobuf.Timestamp
-	5,  // 14: vrooli.money_ledger.v1.ingest.RunAdapterResponse.receipt:type_name -> vrooli.money_ledger.v1.ingest.Receipt
-	6,  // 15: vrooli.money_ledger.v1.ingest.RunAdapterResponse.availability:type_name -> vrooli.money_ledger.v1.ingest.Availability
-	24, // 16: vrooli.money_ledger.v1.ingest.ImportFileRequest.from:type_name -> google.protobuf.Timestamp
-	24, // 17: vrooli.money_ledger.v1.ingest.ImportFileRequest.to:type_name -> google.protobuf.Timestamp
-	5,  // 18: vrooli.money_ledger.v1.ingest.ImportFileResponse.receipt:type_name -> vrooli.money_ledger.v1.ingest.Receipt
-	24, // 19: vrooli.money_ledger.v1.ingest.OperatorInputField.observed_at:type_name -> google.protobuf.Timestamp
+	35, // 1: vrooli.money_ledger.v1.ingest.Adapter.last_success_at:type_name -> google.protobuf.Timestamp
+	35, // 2: vrooli.money_ledger.v1.ingest.Receipt.from:type_name -> google.protobuf.Timestamp
+	35, // 3: vrooli.money_ledger.v1.ingest.Receipt.to:type_name -> google.protobuf.Timestamp
+	35, // 4: vrooli.money_ledger.v1.ingest.Receipt.created_at:type_name -> google.protobuf.Timestamp
+	35, // 5: vrooli.money_ledger.v1.ingest.Availability.last_success_at:type_name -> google.protobuf.Timestamp
+	5,  // 6: vrooli.money_ledger.v1.ingest.RegisterAdapterRequest.adapter:type_name -> vrooli.money_ledger.v1.ingest.Adapter
+	5,  // 7: vrooli.money_ledger.v1.ingest.RegisterAdapterResponse.adapter:type_name -> vrooli.money_ledger.v1.ingest.Adapter
+	5,  // 8: vrooli.money_ledger.v1.ingest.ListAdaptersResponse.adapters:type_name -> vrooli.money_ledger.v1.ingest.Adapter
+	36, // 9: vrooli.money_ledger.v1.ingest.IngestEventRequest.event:type_name -> vrooli.money_ledger.v1.shared.MoneyEvent
+	37, // 10: vrooli.money_ledger.v1.ingest.IngestEventResponse.posting:type_name -> vrooli.money_ledger.v1.shared.Posting
+	6,  // 11: vrooli.money_ledger.v1.ingest.IngestEventResponse.receipt:type_name -> vrooli.money_ledger.v1.ingest.Receipt
+	35, // 12: vrooli.money_ledger.v1.ingest.RunAdapterRequest.from:type_name -> google.protobuf.Timestamp
+	35, // 13: vrooli.money_ledger.v1.ingest.RunAdapterRequest.to:type_name -> google.protobuf.Timestamp
+	6,  // 14: vrooli.money_ledger.v1.ingest.RunAdapterResponse.receipt:type_name -> vrooli.money_ledger.v1.ingest.Receipt
+	7,  // 15: vrooli.money_ledger.v1.ingest.RunAdapterResponse.availability:type_name -> vrooli.money_ledger.v1.ingest.Availability
+	35, // 16: vrooli.money_ledger.v1.ingest.ImportFileRequest.from:type_name -> google.protobuf.Timestamp
+	35, // 17: vrooli.money_ledger.v1.ingest.ImportFileRequest.to:type_name -> google.protobuf.Timestamp
+	6,  // 18: vrooli.money_ledger.v1.ingest.ImportFileResponse.receipt:type_name -> vrooli.money_ledger.v1.ingest.Receipt
+	35, // 19: vrooli.money_ledger.v1.ingest.OperatorInputField.observed_at:type_name -> google.protobuf.Timestamp
 	1,  // 20: vrooli.money_ledger.v1.ingest.OperatorImportRequest.source_mode:type_name -> vrooli.money_ledger.v1.ingest.SourceMode
-	17, // 21: vrooli.money_ledger.v1.ingest.OperatorImportResponse.fields:type_name -> vrooli.money_ledger.v1.ingest.OperatorInputField
-	17, // 22: vrooli.money_ledger.v1.ingest.OperatorInputStatusResponse.fields:type_name -> vrooli.money_ledger.v1.ingest.OperatorInputField
+	18, // 21: vrooli.money_ledger.v1.ingest.OperatorImportResponse.fields:type_name -> vrooli.money_ledger.v1.ingest.OperatorInputField
+	18, // 22: vrooli.money_ledger.v1.ingest.OperatorInputStatusResponse.fields:type_name -> vrooli.money_ledger.v1.ingest.OperatorInputField
 	2,  // 23: vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest.state:type_name -> vrooli.money_ledger.v1.ingest.CryptoObservationState
 	3,  // 24: vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest.leg_kind:type_name -> vrooli.money_ledger.v1.ingest.CryptoLegKind
 	2,  // 25: vrooli.money_ledger.v1.ingest.PreviewCryptoObservationResponse.source_reported_state:type_name -> vrooli.money_ledger.v1.ingest.CryptoObservationState
 	3,  // 26: vrooli.money_ledger.v1.ingest.PreviewCryptoObservationResponse.leg_kind:type_name -> vrooli.money_ledger.v1.ingest.CryptoLegKind
-	22, // 27: vrooli.money_ledger.v1.ingest.IngestService.PreviewCryptoObservation:input_type -> vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest
-	7,  // 28: vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter:input_type -> vrooli.money_ledger.v1.ingest.RegisterAdapterRequest
-	9,  // 29: vrooli.money_ledger.v1.ingest.IngestService.ListAdapters:input_type -> vrooli.money_ledger.v1.ingest.ListAdaptersRequest
-	11, // 30: vrooli.money_ledger.v1.ingest.IngestService.IngestEvent:input_type -> vrooli.money_ledger.v1.ingest.IngestEventRequest
-	13, // 31: vrooli.money_ledger.v1.ingest.IngestService.RunAdapter:input_type -> vrooli.money_ledger.v1.ingest.RunAdapterRequest
-	15, // 32: vrooli.money_ledger.v1.ingest.IngestService.ImportFile:input_type -> vrooli.money_ledger.v1.ingest.ImportFileRequest
-	18, // 33: vrooli.money_ledger.v1.ingest.IngestService.ImportOperatorInputs:input_type -> vrooli.money_ledger.v1.ingest.OperatorImportRequest
-	20, // 34: vrooli.money_ledger.v1.ingest.IngestService.OperatorInputStatus:input_type -> vrooli.money_ledger.v1.ingest.OperatorInputStatusRequest
-	23, // 35: vrooli.money_ledger.v1.ingest.IngestService.PreviewCryptoObservation:output_type -> vrooli.money_ledger.v1.ingest.PreviewCryptoObservationResponse
-	8,  // 36: vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter:output_type -> vrooli.money_ledger.v1.ingest.RegisterAdapterResponse
-	10, // 37: vrooli.money_ledger.v1.ingest.IngestService.ListAdapters:output_type -> vrooli.money_ledger.v1.ingest.ListAdaptersResponse
-	12, // 38: vrooli.money_ledger.v1.ingest.IngestService.IngestEvent:output_type -> vrooli.money_ledger.v1.ingest.IngestEventResponse
-	14, // 39: vrooli.money_ledger.v1.ingest.IngestService.RunAdapter:output_type -> vrooli.money_ledger.v1.ingest.RunAdapterResponse
-	16, // 40: vrooli.money_ledger.v1.ingest.IngestService.ImportFile:output_type -> vrooli.money_ledger.v1.ingest.ImportFileResponse
-	19, // 41: vrooli.money_ledger.v1.ingest.IngestService.ImportOperatorInputs:output_type -> vrooli.money_ledger.v1.ingest.OperatorImportResponse
-	21, // 42: vrooli.money_ledger.v1.ingest.IngestService.OperatorInputStatus:output_type -> vrooli.money_ledger.v1.ingest.OperatorInputStatusResponse
-	35, // [35:43] is the sub-list for method output_type
-	27, // [27:35] is the sub-list for method input_type
-	27, // [27:27] is the sub-list for extension type_name
-	27, // [27:27] is the sub-list for extension extendee
-	0,  // [0:27] is the sub-list for field type_name
+	35, // 27: vrooli.money_ledger.v1.ingest.CryptoValuation.valued_at:type_name -> google.protobuf.Timestamp
+	38, // 28: vrooli.money_ledger.v1.ingest.CryptoValuation.basis:type_name -> vrooli.money_ledger.v1.shared.Basis
+	23, // 29: vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptRequest.observation:type_name -> vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest
+	25, // 30: vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptRequest.source:type_name -> vrooli.money_ledger.v1.ingest.TreasuryReceiptLink
+	4,  // 31: vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptRequest.action:type_name -> vrooli.money_ledger.v1.ingest.CryptoReceiptAction
+	26, // 32: vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptRequest.valuation:type_name -> vrooli.money_ledger.v1.ingest.CryptoValuation
+	27, // 33: vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptRequest.attribution:type_name -> vrooli.money_ledger.v1.ingest.CryptoPayerAttribution
+	35, // 34: vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptRequest.occurred_at:type_name -> google.protobuf.Timestamp
+	25, // 35: vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt.source:type_name -> vrooli.money_ledger.v1.ingest.TreasuryReceiptLink
+	35, // 36: vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt.accepted_at:type_name -> google.protobuf.Timestamp
+	4,  // 37: vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt.action:type_name -> vrooli.money_ledger.v1.ingest.CryptoReceiptAction
+	27, // 38: vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt.attribution:type_name -> vrooli.money_ledger.v1.ingest.CryptoPayerAttribution
+	23, // 39: vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt.observation:type_name -> vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest
+	26, // 40: vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt.valuation:type_name -> vrooli.money_ledger.v1.ingest.CryptoValuation
+	35, // 41: vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt.occurred_at:type_name -> google.protobuf.Timestamp
+	29, // 42: vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptResponse.receipt:type_name -> vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt
+	29, // 43: vrooli.money_ledger.v1.ingest.GetCryptoReceiptResponse.receipt:type_name -> vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt
+	29, // 44: vrooli.money_ledger.v1.ingest.ListCryptoReceiptsResponse.receipts:type_name -> vrooli.money_ledger.v1.ingest.AcceptedCryptoReceipt
+	23, // 45: vrooli.money_ledger.v1.ingest.IngestService.PreviewCryptoObservation:input_type -> vrooli.money_ledger.v1.ingest.PreviewCryptoObservationRequest
+	28, // 46: vrooli.money_ledger.v1.ingest.IngestService.AcceptCryptoReceipt:input_type -> vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptRequest
+	31, // 47: vrooli.money_ledger.v1.ingest.IngestService.GetCryptoReceipt:input_type -> vrooli.money_ledger.v1.ingest.GetCryptoReceiptRequest
+	33, // 48: vrooli.money_ledger.v1.ingest.IngestService.ListCryptoReceipts:input_type -> vrooli.money_ledger.v1.ingest.ListCryptoReceiptsRequest
+	8,  // 49: vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter:input_type -> vrooli.money_ledger.v1.ingest.RegisterAdapterRequest
+	10, // 50: vrooli.money_ledger.v1.ingest.IngestService.ListAdapters:input_type -> vrooli.money_ledger.v1.ingest.ListAdaptersRequest
+	12, // 51: vrooli.money_ledger.v1.ingest.IngestService.IngestEvent:input_type -> vrooli.money_ledger.v1.ingest.IngestEventRequest
+	14, // 52: vrooli.money_ledger.v1.ingest.IngestService.RunAdapter:input_type -> vrooli.money_ledger.v1.ingest.RunAdapterRequest
+	16, // 53: vrooli.money_ledger.v1.ingest.IngestService.ImportFile:input_type -> vrooli.money_ledger.v1.ingest.ImportFileRequest
+	19, // 54: vrooli.money_ledger.v1.ingest.IngestService.ImportOperatorInputs:input_type -> vrooli.money_ledger.v1.ingest.OperatorImportRequest
+	21, // 55: vrooli.money_ledger.v1.ingest.IngestService.OperatorInputStatus:input_type -> vrooli.money_ledger.v1.ingest.OperatorInputStatusRequest
+	24, // 56: vrooli.money_ledger.v1.ingest.IngestService.PreviewCryptoObservation:output_type -> vrooli.money_ledger.v1.ingest.PreviewCryptoObservationResponse
+	30, // 57: vrooli.money_ledger.v1.ingest.IngestService.AcceptCryptoReceipt:output_type -> vrooli.money_ledger.v1.ingest.AcceptCryptoReceiptResponse
+	32, // 58: vrooli.money_ledger.v1.ingest.IngestService.GetCryptoReceipt:output_type -> vrooli.money_ledger.v1.ingest.GetCryptoReceiptResponse
+	34, // 59: vrooli.money_ledger.v1.ingest.IngestService.ListCryptoReceipts:output_type -> vrooli.money_ledger.v1.ingest.ListCryptoReceiptsResponse
+	9,  // 60: vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter:output_type -> vrooli.money_ledger.v1.ingest.RegisterAdapterResponse
+	11, // 61: vrooli.money_ledger.v1.ingest.IngestService.ListAdapters:output_type -> vrooli.money_ledger.v1.ingest.ListAdaptersResponse
+	13, // 62: vrooli.money_ledger.v1.ingest.IngestService.IngestEvent:output_type -> vrooli.money_ledger.v1.ingest.IngestEventResponse
+	15, // 63: vrooli.money_ledger.v1.ingest.IngestService.RunAdapter:output_type -> vrooli.money_ledger.v1.ingest.RunAdapterResponse
+	17, // 64: vrooli.money_ledger.v1.ingest.IngestService.ImportFile:output_type -> vrooli.money_ledger.v1.ingest.ImportFileResponse
+	20, // 65: vrooli.money_ledger.v1.ingest.IngestService.ImportOperatorInputs:output_type -> vrooli.money_ledger.v1.ingest.OperatorImportResponse
+	22, // 66: vrooli.money_ledger.v1.ingest.IngestService.OperatorInputStatus:output_type -> vrooli.money_ledger.v1.ingest.OperatorInputStatusResponse
+	56, // [56:67] is the sub-list for method output_type
+	45, // [45:56] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_money_ledger_v1_ingest_ingest_proto_init() }
@@ -1955,8 +2914,8 @@ func file_money_ledger_v1_ingest_ingest_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_money_ledger_v1_ingest_ingest_proto_rawDesc), len(file_money_ledger_v1_ingest_ingest_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   20,
+			NumEnums:      5,
+			NumMessages:   30,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

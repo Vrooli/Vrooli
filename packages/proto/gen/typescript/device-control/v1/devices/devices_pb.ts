@@ -12,7 +12,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file device-control/v1/devices/devices.proto.
  */
 export const file_device_control_v1_devices_devices: GenFile = /*@__PURE__*/
-  fileDesc("CidkZXZpY2UtY29udHJvbC92MS9kZXZpY2VzL2RldmljZXMucHJvdG8SIHZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzIjwKFEluc3BlY3REZXZpY2VSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCRIRCgl0cmFuc3BvcnQYAiABKAkirQUKFUluc3BlY3REZXZpY2VSZXNwb25zZRIRCglkZXZpY2VfaWQYASABKAkSLwoLb2JzZXJ2ZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBGFiaXMYAyADKAkSHwoSbWVtb3J5X3RvdGFsX2J5dGVzGAQgASgESACIAQESHQoQZGF0YV90b3RhbF9ieXRlcxgFIAEoBEgBiAEBEiEKFGRhdGFfYXZhaWxhYmxlX2J5dGVzGAYgASgESAKIAQESFwoPd2Vidmlld19wYWNrYWdlGAcgASgJEhcKD3dlYnZpZXdfdmVyc2lvbhgIIAEoCRIWCg5ob21lX2NvbXBvbmVudBgJIAEoCRIUCgdsb3dfcmFtGAogASgISAOIAQESXQoLdW5hdmFpbGFibGUYCyADKAsySC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5JbnNwZWN0RGV2aWNlUmVzcG9uc2UuVW5hdmFpbGFibGVFbnRyeRIRCgl0cmFuc3BvcnQYDCABKAkSQAoFdm9pY2UYDSABKAsyMS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5Wb2ljZUluc3BlY3Rpb24SRgoOdmlkZW9fZW5jb2RlcnMYDiADKAsyLi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5WaWRlb0VuY29kZXIaMgoQVW5hdmFpbGFibGVFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQhUKE19tZW1vcnlfdG90YWxfYnl0ZXNCEwoRX2RhdGFfdG90YWxfYnl0ZXNCFwoVX2RhdGFfYXZhaWxhYmxlX2J5dGVzQgoKCF9sb3dfcmFtIpkBCgxWaWRlb0VuY29kZXISEQoJbWltZV90eXBlGAEgASgJEgwKBG5hbWUYAiABKAkSGgoNc29mdHdhcmVfb25seRgDIAEoCEgAiAEBEiEKFGhhcmR3YXJlX2FjY2VsZXJhdGVkGAQgASgISAGIAQFCEAoOX3NvZnR3YXJlX29ubHlCFwoVX2hhcmR3YXJlX2FjY2VsZXJhdGVkIroDCg9Wb2ljZUluc3BlY3Rpb24SHwoSbWljcm9waG9uZV9mZWF0dXJlGAEgASgISACIAQESHgoWYXNzaXN0YW50X3JvbGVfaG9sZGVycxgCIAMoCRIgChNhc3Npc3RhbnRfY29tcG9uZW50GAMgASgJSAGIAQESKAobdm9pY2VfaW50ZXJhY3Rpb25fY29tcG9uZW50GAQgASgJSAKIAQESIgoadm9pY2VfaW50ZXJhY3Rpb25fc2VydmljZXMYBSADKAkSGgoScG9saWN5X2lucHV0X3R5cGVzGAYgAygJElcKC3VuYXZhaWxhYmxlGAcgAygLMkIudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuVm9pY2VJbnNwZWN0aW9uLlVuYXZhaWxhYmxlRW50cnkaMgoQVW5hdmFpbGFibGVFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQhUKE19taWNyb3Bob25lX2ZlYXR1cmVCFgoUX2Fzc2lzdGFudF9jb21wb25lbnRCHgocX3ZvaWNlX2ludGVyYWN0aW9uX2NvbXBvbmVudCIUChJMaXN0RGV2aWNlc1JlcXVlc3QiUAoTTGlzdERldmljZXNSZXNwb25zZRI5CgdkZXZpY2VzGAEgAygLMigudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRGV2aWNlIiQKFENvbm5lY3REZXZpY2VSZXF1ZXN0EgwKBGtpbmQYASABKAkicwoVQ29ubmVjdERldmljZVJlc3BvbnNlEj8KBXJ1bmdzGAEgAygLMjAudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuT25ib2FyZGluZ1J1bmcSGQoRZmlyc3RfbmV4dF9hY3Rpb24YAiABKAkiKwoWUmVjb25uZWN0RGV2aWNlUmVxdWVzdBIRCglkZXZpY2VfaWQYASABKAkiUwoXUmVjb25uZWN0RGV2aWNlUmVzcG9uc2USOAoGZGV2aWNlGAEgASgLMigudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRGV2aWNlIroBChRFeGVjdXRlVm9sdW1lUmVxdWVzdBIOCgZkZXZpY2UYASABKAkSDQoFYWN0b3IYAiABKAkSDAoEZ29hbBgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSEgoFdmFsdWUYBSABKAFIAIgBARIRCglkaXJlY3Rpb24YBiABKAkSGwoTdmVyaWZpY2F0aW9uX3BvbGljeRgHIAEoCRIUCgxvcGVyYXRpb25faWQYCCABKAlCCAoGX3ZhbHVlIrsCChVFeGVjdXRlVm9sdW1lUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEhQKDG9wZXJhdGlvbl9pZBgCIAEoCRIRCglkZXZpY2VfaWQYAyABKAkSEwoLZGV2aWNlX25hbWUYBCABKAkSJQoEcGxhbhgFIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSJwoGYmVmb3JlGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBImCgVhZnRlchgHIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSGgoSdmVyaWZpY2F0aW9uX2NsYXNzGAggASgJEhAKCGV2aWRlbmNlGAkgAygJEhkKEXJlY292ZXJ5X2F0dGVtcHRzGAogASgFEhMKC25leHRfYWN0aW9uGAsgASgJIvkDCgZEZXZpY2USCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIMCgRraW5kGAMgASgJEhMKC3N0cmF0ZWd5X2lkGAQgASgJEg4KBnN0YXR1cxgFIAEoCRIVCg1oZWFsdGhfcmVhc29uGAYgASgJEhQKDGhvc3Rfbm9kZV9pZBgHIAEoCRJKCgxjYXBhYmlsaXRpZXMYCCADKAsyNC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5DYXBhYmlsaXR5U25hcHNob3QSLwoLb2JzZXJ2ZWRfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnNlcmlhbBgKIAEoCRINCgVtb2RlbBgLIAEoCRISCgpvc192ZXJzaW9uGAwgASgJEhEKCXRyYW5zcG9ydBgNIAEoCRIOCgZoZWFsdGgYDiABKAkSFQoNZmlyc3Rfc2Vlbl9hdBgPIAEoCRIUCgxsYXN0X3NlZW5fYXQYECABKAkSRgoKdHJhbnNwb3J0cxgRIAMoCzIyLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLlRyYW5zcG9ydFByb2ZpbGUSFAoMaWRlbnRpdHlfa2V5GBIgASgJEhcKD2lkZW50aXR5X3JlYXNvbhgTIAEoCSJdChJDYXBhYmlsaXR5U25hcHNob3QSDAoEbmFtZRgBIAEoCRIOCgZzdGF0dXMYAiABKAkSFAoMcHJlcmVxdWlzaXRlGAMgASgJEhMKC25leHRfYWN0aW9uGAQgASgJIu8BChBUcmFuc3BvcnRQcm9maWxlEhMKC3N0cmF0ZWd5X2lkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEcm9sZRgDIAEoCRIQCghlbmRwb2ludBgEIAEoCRIOCgZoZWFsdGgYBSABKAkSFQoNaGVhbHRoX3JlYXNvbhgGIAEoCRJKCgxjYXBhYmlsaXRpZXMYByADKAsyNC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5DYXBhYmlsaXR5U25hcHNob3QSEgoKb3BlcmF0aW9ucxgIIAMoCRIRCgllbmRwb2ludHMYCSADKAkiZgoOT25ib2FyZGluZ1J1bmcSCgoCaWQYASABKAkSFAoMcHJlcmVxdWlzaXRlGAIgASgJEg0KBW93bmVyGAMgASgJEg4KBnN0YXR1cxgEIAEoCRITCgtuZXh0X2FjdGlvbhgFIAEoCTKdBQoNRGV2aWNlU2VydmljZRJ6CgtMaXN0RGV2aWNlcxI0LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkxpc3REZXZpY2VzUmVxdWVzdBo1LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkxpc3REZXZpY2VzUmVzcG9uc2USgAEKDUNvbm5lY3REZXZpY2USNi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5Db25uZWN0RGV2aWNlUmVxdWVzdBo3LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkNvbm5lY3REZXZpY2VSZXNwb25zZRKGAQoPUmVjb25uZWN0RGV2aWNlEjgudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuUmVjb25uZWN0RGV2aWNlUmVxdWVzdBo5LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLlJlY29ubmVjdERldmljZVJlc3BvbnNlEoABCg1FeGVjdXRlVm9sdW1lEjYudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRXhlY3V0ZVZvbHVtZVJlcXVlc3QaNy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5FeGVjdXRlVm9sdW1lUmVzcG9uc2USgAEKDUluc3BlY3REZXZpY2USNi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5JbnNwZWN0RGV2aWNlUmVxdWVzdBo3LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkluc3BlY3REZXZpY2VSZXNwb25zZUJVWlNnaXRodWIuY29tL3Zyb29saS92cm9vbGkvcGFja2FnZXMvcHJvdG8vZ2VuL2dvL2RldmljZS1jb250cm9sL3YxL2RldmljZXM7ZGV2aWNlc192MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_google_protobuf_struct]);
+  fileDesc("CidkZXZpY2UtY29udHJvbC92MS9kZXZpY2VzL2RldmljZXMucHJvdG8SIHZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzIjwKFEluc3BlY3REZXZpY2VSZXF1ZXN0EhEKCWRldmljZV9pZBgBIAEoCRIRCgl0cmFuc3BvcnQYAiABKAkirQUKFUluc3BlY3REZXZpY2VSZXNwb25zZRIRCglkZXZpY2VfaWQYASABKAkSLwoLb2JzZXJ2ZWRfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBGFiaXMYAyADKAkSHwoSbWVtb3J5X3RvdGFsX2J5dGVzGAQgASgESACIAQESHQoQZGF0YV90b3RhbF9ieXRlcxgFIAEoBEgBiAEBEiEKFGRhdGFfYXZhaWxhYmxlX2J5dGVzGAYgASgESAKIAQESFwoPd2Vidmlld19wYWNrYWdlGAcgASgJEhcKD3dlYnZpZXdfdmVyc2lvbhgIIAEoCRIWCg5ob21lX2NvbXBvbmVudBgJIAEoCRIUCgdsb3dfcmFtGAogASgISAOIAQESXQoLdW5hdmFpbGFibGUYCyADKAsySC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5JbnNwZWN0RGV2aWNlUmVzcG9uc2UuVW5hdmFpbGFibGVFbnRyeRIRCgl0cmFuc3BvcnQYDCABKAkSQAoFdm9pY2UYDSABKAsyMS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5Wb2ljZUluc3BlY3Rpb24SRgoOdmlkZW9fZW5jb2RlcnMYDiADKAsyLi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5WaWRlb0VuY29kZXIaMgoQVW5hdmFpbGFibGVFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQhUKE19tZW1vcnlfdG90YWxfYnl0ZXNCEwoRX2RhdGFfdG90YWxfYnl0ZXNCFwoVX2RhdGFfYXZhaWxhYmxlX2J5dGVzQgoKCF9sb3dfcmFtIpkBCgxWaWRlb0VuY29kZXISEQoJbWltZV90eXBlGAEgASgJEgwKBG5hbWUYAiABKAkSGgoNc29mdHdhcmVfb25seRgDIAEoCEgAiAEBEiEKFGhhcmR3YXJlX2FjY2VsZXJhdGVkGAQgASgISAGIAQFCEAoOX3NvZnR3YXJlX29ubHlCFwoVX2hhcmR3YXJlX2FjY2VsZXJhdGVkIroDCg9Wb2ljZUluc3BlY3Rpb24SHwoSbWljcm9waG9uZV9mZWF0dXJlGAEgASgISACIAQESHgoWYXNzaXN0YW50X3JvbGVfaG9sZGVycxgCIAMoCRIgChNhc3Npc3RhbnRfY29tcG9uZW50GAMgASgJSAGIAQESKAobdm9pY2VfaW50ZXJhY3Rpb25fY29tcG9uZW50GAQgASgJSAKIAQESIgoadm9pY2VfaW50ZXJhY3Rpb25fc2VydmljZXMYBSADKAkSGgoScG9saWN5X2lucHV0X3R5cGVzGAYgAygJElcKC3VuYXZhaWxhYmxlGAcgAygLMkIudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuVm9pY2VJbnNwZWN0aW9uLlVuYXZhaWxhYmxlRW50cnkaMgoQVW5hdmFpbGFibGVFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBQhUKE19taWNyb3Bob25lX2ZlYXR1cmVCFgoUX2Fzc2lzdGFudF9jb21wb25lbnRCHgocX3ZvaWNlX2ludGVyYWN0aW9uX2NvbXBvbmVudCIUChJMaXN0RGV2aWNlc1JlcXVlc3QiUAoTTGlzdERldmljZXNSZXNwb25zZRI5CgdkZXZpY2VzGAEgAygLMigudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRGV2aWNlIiQKFENvbm5lY3REZXZpY2VSZXF1ZXN0EgwKBGtpbmQYASABKAkicwoVQ29ubmVjdERldmljZVJlc3BvbnNlEj8KBXJ1bmdzGAEgAygLMjAudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuT25ib2FyZGluZ1J1bmcSGQoRZmlyc3RfbmV4dF9hY3Rpb24YAiABKAkiKwoWUmVjb25uZWN0RGV2aWNlUmVxdWVzdBIRCglkZXZpY2VfaWQYASABKAkiUwoXUmVjb25uZWN0RGV2aWNlUmVzcG9uc2USOAoGZGV2aWNlGAEgASgLMigudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRGV2aWNlIroBChRFeGVjdXRlVm9sdW1lUmVxdWVzdBIOCgZkZXZpY2UYASABKAkSDQoFYWN0b3IYAiABKAkSDAoEZ29hbBgDIAEoCRIRCglvcGVyYXRpb24YBCABKAkSEgoFdmFsdWUYBSABKAFIAIgBARIRCglkaXJlY3Rpb24YBiABKAkSGwoTdmVyaWZpY2F0aW9uX3BvbGljeRgHIAEoCRIUCgxvcGVyYXRpb25faWQYCCABKAlCCAoGX3ZhbHVlIrsCChVFeGVjdXRlVm9sdW1lUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEhQKDG9wZXJhdGlvbl9pZBgCIAEoCRIRCglkZXZpY2VfaWQYAyABKAkSEwoLZGV2aWNlX25hbWUYBCABKAkSJQoEcGxhbhgFIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSJwoGYmVmb3JlGAYgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBImCgVhZnRlchgHIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSGgoSdmVyaWZpY2F0aW9uX2NsYXNzGAggASgJEhAKCGV2aWRlbmNlGAkgAygJEhkKEXJlY292ZXJ5X2F0dGVtcHRzGAogASgFEhMKC25leHRfYWN0aW9uGAsgASgJIoEBChRDYXB0dXJlRGV2aWNlUmVxdWVzdBIOCgZkZXZpY2UYASABKAkSDQoFYWN0b3IYAiABKAkSDAoEa2luZBgDIAEoCRIPCgdzZWNvbmRzGAQgASgFEg8KB3BhY2thZ2UYBSABKAkSDAoEd2FrZRgGIAEoCBIMCgRob21lGAcgASgIIpIBChVDYXB0dXJlRGV2aWNlUmVzcG9uc2USEwoLZGlzcG9zaXRpb24YASABKAkSEQoJZGV2aWNlX2lkGAIgASgJEhQKDGV2aWRlbmNlX2lkcxgDIAMoCRIPCgdtZXNzYWdlGAQgASgJEhUKDWZhaWx1cmVfY2xhc3MYBSABKAkSEwoLbmV4dF9hY3Rpb24YBiABKAkiTAoQTGF1bmNoQXBwUmVxdWVzdBIOCgZkZXZpY2UYASABKAkSDQoFYWN0b3IYAiABKAkSCwoDYXBwGAMgASgJEgwKBHdha2UYBCABKAgiiAEKEUxhdW5jaEFwcFJlc3BvbnNlEg4KBnN0YXR1cxgBIAEoCRIRCglkZXZpY2VfaWQYAiABKAkSDwoHcGFja2FnZRgDIAEoCRIaChJmb3JlZ3JvdW5kX3BhY2thZ2UYBCABKAkSDgoGZGV0YWlsGAUgASgJEhMKC25leHRfYWN0aW9uGAYgASgJImEKEUluc3RhbGxBcHBSZXF1ZXN0Eg4KBmRldmljZRgBIAEoCRINCgVhY3RvchgCIAEoCRILCgNhcGsYAyABKAkSDAoEb3BlbhgEIAEoCBISCgpzY3JlZW5zaG90GAUgASgIIuIBChJJbnN0YWxsQXBwUmVzcG9uc2USDgoGc3RhdHVzGAEgASgJEhEKCWRldmljZV9pZBgCIAEoCRIPCgdwYWNrYWdlGAMgASgJEhQKDHZlcnNpb25fbmFtZRgEIAEoCRIUCgx2ZXJzaW9uX2NvZGUYBSABKAMSDgoGZGV0YWlsGAYgASgJEhUKDWxhdW5jaF9zdGF0dXMYByABKAkSGgoSZm9yZWdyb3VuZF9wYWNrYWdlGAggASgJEhMKC25leHRfYWN0aW9uGAkgASgJEhQKDGV2aWRlbmNlX2lkcxgKIAMoCSL5AwoGRGV2aWNlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEa2luZBgDIAEoCRITCgtzdHJhdGVneV9pZBgEIAEoCRIOCgZzdGF0dXMYBSABKAkSFQoNaGVhbHRoX3JlYXNvbhgGIAEoCRIUCgxob3N0X25vZGVfaWQYByABKAkSSgoMY2FwYWJpbGl0aWVzGAggAygLMjQudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuQ2FwYWJpbGl0eVNuYXBzaG90Ei8KC29ic2VydmVkX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZzZXJpYWwYCiABKAkSDQoFbW9kZWwYCyABKAkSEgoKb3NfdmVyc2lvbhgMIAEoCRIRCgl0cmFuc3BvcnQYDSABKAkSDgoGaGVhbHRoGA4gASgJEhUKDWZpcnN0X3NlZW5fYXQYDyABKAkSFAoMbGFzdF9zZWVuX2F0GBAgASgJEkYKCnRyYW5zcG9ydHMYESADKAsyMi52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5UcmFuc3BvcnRQcm9maWxlEhQKDGlkZW50aXR5X2tleRgSIAEoCRIXCg9pZGVudGl0eV9yZWFzb24YEyABKAkiXQoSQ2FwYWJpbGl0eVNuYXBzaG90EgwKBG5hbWUYASABKAkSDgoGc3RhdHVzGAIgASgJEhQKDHByZXJlcXVpc2l0ZRgDIAEoCRITCgtuZXh0X2FjdGlvbhgEIAEoCSLvAQoQVHJhbnNwb3J0UHJvZmlsZRITCgtzdHJhdGVneV9pZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBHJvbGUYAyABKAkSEAoIZW5kcG9pbnQYBCABKAkSDgoGaGVhbHRoGAUgASgJEhUKDWhlYWx0aF9yZWFzb24YBiABKAkSSgoMY2FwYWJpbGl0aWVzGAcgAygLMjQudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuQ2FwYWJpbGl0eVNuYXBzaG90EhIKCm9wZXJhdGlvbnMYCCADKAkSEQoJZW5kcG9pbnRzGAkgAygJImYKDk9uYm9hcmRpbmdSdW5nEgoKAmlkGAEgASgJEhQKDHByZXJlcXVpc2l0ZRgCIAEoCRINCgVvd25lchgDIAEoCRIOCgZzdGF0dXMYBCABKAkSEwoLbmV4dF9hY3Rpb24YBSABKAkyjwgKDURldmljZVNlcnZpY2USegoLTGlzdERldmljZXMSNC52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5MaXN0RGV2aWNlc1JlcXVlc3QaNS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5MaXN0RGV2aWNlc1Jlc3BvbnNlEoABCg1Db25uZWN0RGV2aWNlEjYudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuQ29ubmVjdERldmljZVJlcXVlc3QaNy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5Db25uZWN0RGV2aWNlUmVzcG9uc2UShgEKD1JlY29ubmVjdERldmljZRI4LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLlJlY29ubmVjdERldmljZVJlcXVlc3QaOS52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5SZWNvbm5lY3REZXZpY2VSZXNwb25zZRKAAQoNRXhlY3V0ZVZvbHVtZRI2LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkV4ZWN1dGVWb2x1bWVSZXF1ZXN0GjcudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuRXhlY3V0ZVZvbHVtZVJlc3BvbnNlEoABCg1DYXB0dXJlRGV2aWNlEjYudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuQ2FwdHVyZURldmljZVJlcXVlc3QaNy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5DYXB0dXJlRGV2aWNlUmVzcG9uc2USdAoJTGF1bmNoQXBwEjIudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuTGF1bmNoQXBwUmVxdWVzdBozLnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkxhdW5jaEFwcFJlc3BvbnNlEncKCkluc3RhbGxBcHASMy52cm9vbGkuZGV2aWNlX2NvbnRyb2wudjEuZGV2aWNlcy5JbnN0YWxsQXBwUmVxdWVzdBo0LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkluc3RhbGxBcHBSZXNwb25zZRKAAQoNSW5zcGVjdERldmljZRI2LnZyb29saS5kZXZpY2VfY29udHJvbC52MS5kZXZpY2VzLkluc3BlY3REZXZpY2VSZXF1ZXN0GjcudnJvb2xpLmRldmljZV9jb250cm9sLnYxLmRldmljZXMuSW5zcGVjdERldmljZVJlc3BvbnNlQlVaU2dpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vZGV2aWNlLWNvbnRyb2wvdjEvZGV2aWNlcztkZXZpY2VzX3YxYgZwcm90bzM", [file_google_protobuf_timestamp, file_google_protobuf_struct]);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.InspectDeviceRequest
@@ -427,6 +427,297 @@ export const ExecuteVolumeResponseSchema: GenMessage<ExecuteVolumeResponse> = /*
   messageDesc(file_device_control_v1_devices_devices, 11);
 
 /**
+ * @generated from message vrooli.device_control.v1.devices.CaptureDeviceRequest
+ */
+export type CaptureDeviceRequest = Message<"vrooli.device_control.v1.devices.CaptureDeviceRequest"> & {
+  /**
+   * @generated from field: string device = 1;
+   */
+  device: string;
+
+  /**
+   * @generated from field: string actor = 2;
+   */
+  actor: string;
+
+  /**
+   * screenshot, recording, or logs
+   *
+   * @generated from field: string kind = 3;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: int32 seconds = 4;
+   */
+  seconds: number;
+
+  /**
+   * @generated from field: string package = 5;
+   */
+  package: string;
+
+  /**
+   * @generated from field: bool wake = 6;
+   */
+  wake: boolean;
+
+  /**
+   * @generated from field: bool home = 7;
+   */
+  home: boolean;
+};
+
+/**
+ * Describes the message vrooli.device_control.v1.devices.CaptureDeviceRequest.
+ * Use `create(CaptureDeviceRequestSchema)` to create a new message.
+ */
+export const CaptureDeviceRequestSchema: GenMessage<CaptureDeviceRequest> = /*@__PURE__*/
+  messageDesc(file_device_control_v1_devices_devices, 12);
+
+/**
+ * @generated from message vrooli.device_control.v1.devices.CaptureDeviceResponse
+ */
+export type CaptureDeviceResponse = Message<"vrooli.device_control.v1.devices.CaptureDeviceResponse"> & {
+  /**
+   * passed, capability_gap, failed, or no_evidence
+   *
+   * @generated from field: string disposition = 1;
+   */
+  disposition: string;
+
+  /**
+   * @generated from field: string device_id = 2;
+   */
+  deviceId: string;
+
+  /**
+   * Retained evidence ids; fetch with `device-control device evidence <id>`.
+   *
+   * @generated from field: repeated string evidence_ids = 3;
+   */
+  evidenceIds: string[];
+
+  /**
+   * @generated from field: string message = 4;
+   */
+  message: string;
+
+  /**
+   * @generated from field: string failure_class = 5;
+   */
+  failureClass: string;
+
+  /**
+   * Exact commands that resolve a gap or failure, one per line. A single
+   * scalar keeps evidence_ids the response's only repeated (primary) field.
+   *
+   * @generated from field: string next_action = 6;
+   */
+  nextAction: string;
+};
+
+/**
+ * Describes the message vrooli.device_control.v1.devices.CaptureDeviceResponse.
+ * Use `create(CaptureDeviceResponseSchema)` to create a new message.
+ */
+export const CaptureDeviceResponseSchema: GenMessage<CaptureDeviceResponse> = /*@__PURE__*/
+  messageDesc(file_device_control_v1_devices_devices, 13);
+
+/**
+ * @generated from message vrooli.device_control.v1.devices.LaunchAppRequest
+ */
+export type LaunchAppRequest = Message<"vrooli.device_control.v1.devices.LaunchAppRequest"> & {
+  /**
+   * @generated from field: string device = 1;
+   */
+  device: string;
+
+  /**
+   * @generated from field: string actor = 2;
+   */
+  actor: string;
+
+  /**
+   * Common name (netflix, youtube) or exact Android package.
+   *
+   * @generated from field: string app = 3;
+   */
+  app: string;
+
+  /**
+   * @generated from field: bool wake = 4;
+   */
+  wake: boolean;
+};
+
+/**
+ * Describes the message vrooli.device_control.v1.devices.LaunchAppRequest.
+ * Use `create(LaunchAppRequestSchema)` to create a new message.
+ */
+export const LaunchAppRequestSchema: GenMessage<LaunchAppRequest> = /*@__PURE__*/
+  messageDesc(file_device_control_v1_devices_devices, 14);
+
+/**
+ * @generated from message vrooli.device_control.v1.devices.LaunchAppResponse
+ */
+export type LaunchAppResponse = Message<"vrooli.device_control.v1.devices.LaunchAppResponse"> & {
+  /**
+   * foreground_verified, launched_unverified, not_installed, or failed
+   *
+   * @generated from field: string status = 1;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string device_id = 2;
+   */
+  deviceId: string;
+
+  /**
+   * @generated from field: string package = 3;
+   */
+  package: string;
+
+  /**
+   * @generated from field: string foreground_package = 4;
+   */
+  foregroundPackage: string;
+
+  /**
+   * @generated from field: string detail = 5;
+   */
+  detail: string;
+
+  /**
+   * Exact commands that resolve a failure, one per line.
+   *
+   * @generated from field: string next_action = 6;
+   */
+  nextAction: string;
+};
+
+/**
+ * Describes the message vrooli.device_control.v1.devices.LaunchAppResponse.
+ * Use `create(LaunchAppResponseSchema)` to create a new message.
+ */
+export const LaunchAppResponseSchema: GenMessage<LaunchAppResponse> = /*@__PURE__*/
+  messageDesc(file_device_control_v1_devices_devices, 15);
+
+/**
+ * @generated from message vrooli.device_control.v1.devices.InstallAppRequest
+ */
+export type InstallAppRequest = Message<"vrooli.device_control.v1.devices.InstallAppRequest"> & {
+  /**
+   * @generated from field: string device = 1;
+   */
+  device: string;
+
+  /**
+   * @generated from field: string actor = 2;
+   */
+  actor: string;
+
+  /**
+   * Absolute path of an APK readable by the Device Control host.
+   *
+   * @generated from field: string apk = 3;
+   */
+  apk: string;
+
+  /**
+   * Open the installed app and verify it reached the foreground.
+   *
+   * @generated from field: bool open = 4;
+   */
+  open: boolean;
+
+  /**
+   * Capture a screenshot after opening (implies open).
+   *
+   * @generated from field: bool screenshot = 5;
+   */
+  screenshot: boolean;
+};
+
+/**
+ * Describes the message vrooli.device_control.v1.devices.InstallAppRequest.
+ * Use `create(InstallAppRequestSchema)` to create a new message.
+ */
+export const InstallAppRequestSchema: GenMessage<InstallAppRequest> = /*@__PURE__*/
+  messageDesc(file_device_control_v1_devices_devices, 16);
+
+/**
+ * @generated from message vrooli.device_control.v1.devices.InstallAppResponse
+ */
+export type InstallAppResponse = Message<"vrooli.device_control.v1.devices.InstallAppResponse"> & {
+  /**
+   * installed_verified or failed
+   *
+   * @generated from field: string status = 1;
+   */
+  status: string;
+
+  /**
+   * @generated from field: string device_id = 2;
+   */
+  deviceId: string;
+
+  /**
+   * @generated from field: string package = 3;
+   */
+  package: string;
+
+  /**
+   * @generated from field: string version_name = 4;
+   */
+  versionName: string;
+
+  /**
+   * @generated from field: int64 version_code = 5;
+   */
+  versionCode: bigint;
+
+  /**
+   * @generated from field: string detail = 6;
+   */
+  detail: string;
+
+  /**
+   * foreground_verified, launched_unverified, failed, or empty when not requested
+   *
+   * @generated from field: string launch_status = 7;
+   */
+  launchStatus: string;
+
+  /**
+   * @generated from field: string foreground_package = 8;
+   */
+  foregroundPackage: string;
+
+  /**
+   * Exact commands that resolve a failure, one per line.
+   *
+   * @generated from field: string next_action = 9;
+   */
+  nextAction: string;
+
+  /**
+   * Screenshot evidence ids; fetch with `device-control device evidence <id>`.
+   *
+   * @generated from field: repeated string evidence_ids = 10;
+   */
+  evidenceIds: string[];
+};
+
+/**
+ * Describes the message vrooli.device_control.v1.devices.InstallAppResponse.
+ * Use `create(InstallAppResponseSchema)` to create a new message.
+ */
+export const InstallAppResponseSchema: GenMessage<InstallAppResponse> = /*@__PURE__*/
+  messageDesc(file_device_control_v1_devices_devices, 17);
+
+/**
  * @generated from message vrooli.device_control.v1.devices.Device
  */
 export type Device = Message<"vrooli.device_control.v1.devices.Device"> & {
@@ -531,7 +822,7 @@ export type Device = Message<"vrooli.device_control.v1.devices.Device"> & {
  * Use `create(DeviceSchema)` to create a new message.
  */
 export const DeviceSchema: GenMessage<Device> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 12);
+  messageDesc(file_device_control_v1_devices_devices, 18);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.CapabilitySnapshot
@@ -563,7 +854,7 @@ export type CapabilitySnapshot = Message<"vrooli.device_control.v1.devices.Capab
  * Use `create(CapabilitySnapshotSchema)` to create a new message.
  */
 export const CapabilitySnapshotSchema: GenMessage<CapabilitySnapshot> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 13);
+  messageDesc(file_device_control_v1_devices_devices, 19);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.TransportProfile
@@ -620,7 +911,7 @@ export type TransportProfile = Message<"vrooli.device_control.v1.devices.Transpo
  * Use `create(TransportProfileSchema)` to create a new message.
  */
 export const TransportProfileSchema: GenMessage<TransportProfile> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 14);
+  messageDesc(file_device_control_v1_devices_devices, 20);
 
 /**
  * @generated from message vrooli.device_control.v1.devices.OnboardingRung
@@ -657,7 +948,7 @@ export type OnboardingRung = Message<"vrooli.device_control.v1.devices.Onboardin
  * Use `create(OnboardingRungSchema)` to create a new message.
  */
 export const OnboardingRungSchema: GenMessage<OnboardingRung> = /*@__PURE__*/
-  messageDesc(file_device_control_v1_devices_devices, 15);
+  messageDesc(file_device_control_v1_devices_devices, 21);
 
 /**
  * @generated from service vrooli.device_control.v1.devices.DeviceService
@@ -694,6 +985,38 @@ export const DeviceService: GenService<{
     methodKind: "unary";
     input: typeof ExecuteVolumeRequestSchema;
     output: typeof ExecuteVolumeResponseSchema;
+  },
+  /**
+   * One-call screenshot or recording of a named TV or phone: wakes the screen
+   * when asked, selects a frame-bearing transport, retains evidence.
+   *
+   * @generated from rpc vrooli.device_control.v1.devices.DeviceService.CaptureDevice
+   */
+  captureDevice: {
+    methodKind: "unary";
+    input: typeof CaptureDeviceRequestSchema;
+    output: typeof CaptureDeviceResponseSchema;
+  },
+  /**
+   * One-call app open by common name or exact package, verified by foreground.
+   *
+   * @generated from rpc vrooli.device_control.v1.devices.DeviceService.LaunchApp
+   */
+  launchApp: {
+    methodKind: "unary";
+    input: typeof LaunchAppRequestSchema;
+    output: typeof LaunchAppResponseSchema;
+  },
+  /**
+   * Install a local APK on a phone, verify it by package state, and optionally
+   * open it and capture a screenshot: the whole "try my app on the phone" check.
+   *
+   * @generated from rpc vrooli.device_control.v1.devices.DeviceService.InstallApp
+   */
+  installApp: {
+    methodKind: "unary";
+    input: typeof InstallAppRequestSchema;
+    output: typeof InstallAppResponseSchema;
   },
   /**
    * Read-only hardware/runtime qualification. No arbitrary device commands.

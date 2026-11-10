@@ -8,6 +8,8 @@ from treasury.v1.instrument import instrument_pb2 as _instrument_pb2
 from treasury.v1.mandate import mandate_pb2 as _mandate_pb2
 from treasury.v1.settlement import settlement_pb2 as _settlement_pb2
 from treasury.v1.wallet import wallet_pb2 as _wallet_pb2
+from treasury.v1.funding import funding_pb2 as _funding_pb2
+from treasury.v1.funding import wallet_ops_pb2 as _wallet_ops_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
@@ -33,7 +35,7 @@ AUTHORIZATION_VERDICT_RELEASED: AuthorizationVerdict
 AUTHORIZATION_VERDICT_SETTLED: AuthorizationVerdict
 
 class AuthorizationRecord(_message.Message):
-    __slots__ = ("id", "mandate_id", "requesting_agent", "amount_minor", "currency", "counterparty", "verdict", "violated_constraint", "remediation", "hold_minor", "created_at", "expires_at", "idempotency_key", "budget_id", "book_id")
+    __slots__ = ("id", "mandate_id", "requesting_agent", "amount_minor", "currency", "counterparty", "verdict", "violated_constraint", "remediation", "hold_minor", "created_at", "expires_at", "idempotency_key", "budget_id", "book_id", "settlement_id", "instrument_id", "settlement_idempotency_key")
     ID_FIELD_NUMBER: _ClassVar[int]
     MANDATE_ID_FIELD_NUMBER: _ClassVar[int]
     REQUESTING_AGENT_FIELD_NUMBER: _ClassVar[int]
@@ -49,6 +51,9 @@ class AuthorizationRecord(_message.Message):
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
     BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    INSTRUMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENT_IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     id: str
     mandate_id: str
     requesting_agent: str
@@ -64,23 +69,32 @@ class AuthorizationRecord(_message.Message):
     idempotency_key: str
     budget_id: str
     book_id: str
-    def __init__(self, id: _Optional[str] = ..., mandate_id: _Optional[str] = ..., requesting_agent: _Optional[str] = ..., amount_minor: _Optional[int] = ..., currency: _Optional[str] = ..., counterparty: _Optional[str] = ..., verdict: _Optional[_Union[AuthorizationVerdict, str]] = ..., violated_constraint: _Optional[str] = ..., remediation: _Optional[str] = ..., hold_minor: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., budget_id: _Optional[str] = ..., book_id: _Optional[str] = ...) -> None: ...
+    settlement_id: str
+    instrument_id: str
+    settlement_idempotency_key: str
+    def __init__(self, id: _Optional[str] = ..., mandate_id: _Optional[str] = ..., requesting_agent: _Optional[str] = ..., amount_minor: _Optional[int] = ..., currency: _Optional[str] = ..., counterparty: _Optional[str] = ..., verdict: _Optional[_Union[AuthorizationVerdict, str]] = ..., violated_constraint: _Optional[str] = ..., remediation: _Optional[str] = ..., hold_minor: _Optional[int] = ..., created_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., idempotency_key: _Optional[str] = ..., budget_id: _Optional[str] = ..., book_id: _Optional[str] = ..., settlement_id: _Optional[str] = ..., instrument_id: _Optional[str] = ..., settlement_idempotency_key: _Optional[str] = ...) -> None: ...
 
 class ProposeChargeRequest(_message.Message):
-    __slots__ = ("id", "idempotency_key", "mandate_id", "amount_minor", "currency", "counterparty")
+    __slots__ = ("id", "idempotency_key", "mandate_id", "amount_minor", "currency", "counterparty", "settlement_id", "instrument_id", "settlement_idempotency_key")
     ID_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     MANDATE_ID_FIELD_NUMBER: _ClassVar[int]
     AMOUNT_MINOR_FIELD_NUMBER: _ClassVar[int]
     CURRENCY_FIELD_NUMBER: _ClassVar[int]
     COUNTERPARTY_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    INSTRUMENT_ID_FIELD_NUMBER: _ClassVar[int]
+    SETTLEMENT_IDEMPOTENCY_KEY_FIELD_NUMBER: _ClassVar[int]
     id: str
     idempotency_key: str
     mandate_id: str
     amount_minor: int
     currency: str
     counterparty: str
-    def __init__(self, id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., mandate_id: _Optional[str] = ..., amount_minor: _Optional[int] = ..., currency: _Optional[str] = ..., counterparty: _Optional[str] = ...) -> None: ...
+    settlement_id: str
+    instrument_id: str
+    settlement_idempotency_key: str
+    def __init__(self, id: _Optional[str] = ..., idempotency_key: _Optional[str] = ..., mandate_id: _Optional[str] = ..., amount_minor: _Optional[int] = ..., currency: _Optional[str] = ..., counterparty: _Optional[str] = ..., settlement_id: _Optional[str] = ..., instrument_id: _Optional[str] = ..., settlement_idempotency_key: _Optional[str] = ...) -> None: ...
 
 class ProposeChargeResponse(_message.Message):
     __slots__ = ("authorization",)

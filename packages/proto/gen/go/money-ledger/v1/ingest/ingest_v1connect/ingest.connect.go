@@ -36,6 +36,15 @@ const (
 	// IngestServicePreviewCryptoObservationProcedure is the fully-qualified name of the IngestService's
 	// PreviewCryptoObservation RPC.
 	IngestServicePreviewCryptoObservationProcedure = "/vrooli.money_ledger.v1.ingest.IngestService/PreviewCryptoObservation"
+	// IngestServiceAcceptCryptoReceiptProcedure is the fully-qualified name of the IngestService's
+	// AcceptCryptoReceipt RPC.
+	IngestServiceAcceptCryptoReceiptProcedure = "/vrooli.money_ledger.v1.ingest.IngestService/AcceptCryptoReceipt"
+	// IngestServiceGetCryptoReceiptProcedure is the fully-qualified name of the IngestService's
+	// GetCryptoReceipt RPC.
+	IngestServiceGetCryptoReceiptProcedure = "/vrooli.money_ledger.v1.ingest.IngestService/GetCryptoReceipt"
+	// IngestServiceListCryptoReceiptsProcedure is the fully-qualified name of the IngestService's
+	// ListCryptoReceipts RPC.
+	IngestServiceListCryptoReceiptsProcedure = "/vrooli.money_ledger.v1.ingest.IngestService/ListCryptoReceipts"
 	// IngestServiceRegisterAdapterProcedure is the fully-qualified name of the IngestService's
 	// RegisterAdapter RPC.
 	IngestServiceRegisterAdapterProcedure = "/vrooli.money_ledger.v1.ingest.IngestService/RegisterAdapter"
@@ -62,6 +71,9 @@ const (
 // IngestServiceClient is a client for the vrooli.money_ledger.v1.ingest.IngestService service.
 type IngestServiceClient interface {
 	PreviewCryptoObservation(context.Context, *connect.Request[ingest.PreviewCryptoObservationRequest]) (*connect.Response[ingest.PreviewCryptoObservationResponse], error)
+	AcceptCryptoReceipt(context.Context, *connect.Request[ingest.AcceptCryptoReceiptRequest]) (*connect.Response[ingest.AcceptCryptoReceiptResponse], error)
+	GetCryptoReceipt(context.Context, *connect.Request[ingest.GetCryptoReceiptRequest]) (*connect.Response[ingest.GetCryptoReceiptResponse], error)
+	ListCryptoReceipts(context.Context, *connect.Request[ingest.ListCryptoReceiptsRequest]) (*connect.Response[ingest.ListCryptoReceiptsResponse], error)
 	RegisterAdapter(context.Context, *connect.Request[ingest.RegisterAdapterRequest]) (*connect.Response[ingest.RegisterAdapterResponse], error)
 	ListAdapters(context.Context, *connect.Request[ingest.ListAdaptersRequest]) (*connect.Response[ingest.ListAdaptersResponse], error)
 	IngestEvent(context.Context, *connect.Request[ingest.IngestEventRequest]) (*connect.Response[ingest.IngestEventResponse], error)
@@ -86,6 +98,24 @@ func NewIngestServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			httpClient,
 			baseURL+IngestServicePreviewCryptoObservationProcedure,
 			connect.WithSchema(ingestServiceMethods.ByName("PreviewCryptoObservation")),
+			connect.WithClientOptions(opts...),
+		),
+		acceptCryptoReceipt: connect.NewClient[ingest.AcceptCryptoReceiptRequest, ingest.AcceptCryptoReceiptResponse](
+			httpClient,
+			baseURL+IngestServiceAcceptCryptoReceiptProcedure,
+			connect.WithSchema(ingestServiceMethods.ByName("AcceptCryptoReceipt")),
+			connect.WithClientOptions(opts...),
+		),
+		getCryptoReceipt: connect.NewClient[ingest.GetCryptoReceiptRequest, ingest.GetCryptoReceiptResponse](
+			httpClient,
+			baseURL+IngestServiceGetCryptoReceiptProcedure,
+			connect.WithSchema(ingestServiceMethods.ByName("GetCryptoReceipt")),
+			connect.WithClientOptions(opts...),
+		),
+		listCryptoReceipts: connect.NewClient[ingest.ListCryptoReceiptsRequest, ingest.ListCryptoReceiptsResponse](
+			httpClient,
+			baseURL+IngestServiceListCryptoReceiptsProcedure,
+			connect.WithSchema(ingestServiceMethods.ByName("ListCryptoReceipts")),
 			connect.WithClientOptions(opts...),
 		),
 		registerAdapter: connect.NewClient[ingest.RegisterAdapterRequest, ingest.RegisterAdapterResponse](
@@ -136,6 +166,9 @@ func NewIngestServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 // ingestServiceClient implements IngestServiceClient.
 type ingestServiceClient struct {
 	previewCryptoObservation *connect.Client[ingest.PreviewCryptoObservationRequest, ingest.PreviewCryptoObservationResponse]
+	acceptCryptoReceipt      *connect.Client[ingest.AcceptCryptoReceiptRequest, ingest.AcceptCryptoReceiptResponse]
+	getCryptoReceipt         *connect.Client[ingest.GetCryptoReceiptRequest, ingest.GetCryptoReceiptResponse]
+	listCryptoReceipts       *connect.Client[ingest.ListCryptoReceiptsRequest, ingest.ListCryptoReceiptsResponse]
 	registerAdapter          *connect.Client[ingest.RegisterAdapterRequest, ingest.RegisterAdapterResponse]
 	listAdapters             *connect.Client[ingest.ListAdaptersRequest, ingest.ListAdaptersResponse]
 	ingestEvent              *connect.Client[ingest.IngestEventRequest, ingest.IngestEventResponse]
@@ -149,6 +182,21 @@ type ingestServiceClient struct {
 // vrooli.money_ledger.v1.ingest.IngestService.PreviewCryptoObservation.
 func (c *ingestServiceClient) PreviewCryptoObservation(ctx context.Context, req *connect.Request[ingest.PreviewCryptoObservationRequest]) (*connect.Response[ingest.PreviewCryptoObservationResponse], error) {
 	return c.previewCryptoObservation.CallUnary(ctx, req)
+}
+
+// AcceptCryptoReceipt calls vrooli.money_ledger.v1.ingest.IngestService.AcceptCryptoReceipt.
+func (c *ingestServiceClient) AcceptCryptoReceipt(ctx context.Context, req *connect.Request[ingest.AcceptCryptoReceiptRequest]) (*connect.Response[ingest.AcceptCryptoReceiptResponse], error) {
+	return c.acceptCryptoReceipt.CallUnary(ctx, req)
+}
+
+// GetCryptoReceipt calls vrooli.money_ledger.v1.ingest.IngestService.GetCryptoReceipt.
+func (c *ingestServiceClient) GetCryptoReceipt(ctx context.Context, req *connect.Request[ingest.GetCryptoReceiptRequest]) (*connect.Response[ingest.GetCryptoReceiptResponse], error) {
+	return c.getCryptoReceipt.CallUnary(ctx, req)
+}
+
+// ListCryptoReceipts calls vrooli.money_ledger.v1.ingest.IngestService.ListCryptoReceipts.
+func (c *ingestServiceClient) ListCryptoReceipts(ctx context.Context, req *connect.Request[ingest.ListCryptoReceiptsRequest]) (*connect.Response[ingest.ListCryptoReceiptsResponse], error) {
+	return c.listCryptoReceipts.CallUnary(ctx, req)
 }
 
 // RegisterAdapter calls vrooli.money_ledger.v1.ingest.IngestService.RegisterAdapter.
@@ -190,6 +238,9 @@ func (c *ingestServiceClient) OperatorInputStatus(ctx context.Context, req *conn
 // service.
 type IngestServiceHandler interface {
 	PreviewCryptoObservation(context.Context, *connect.Request[ingest.PreviewCryptoObservationRequest]) (*connect.Response[ingest.PreviewCryptoObservationResponse], error)
+	AcceptCryptoReceipt(context.Context, *connect.Request[ingest.AcceptCryptoReceiptRequest]) (*connect.Response[ingest.AcceptCryptoReceiptResponse], error)
+	GetCryptoReceipt(context.Context, *connect.Request[ingest.GetCryptoReceiptRequest]) (*connect.Response[ingest.GetCryptoReceiptResponse], error)
+	ListCryptoReceipts(context.Context, *connect.Request[ingest.ListCryptoReceiptsRequest]) (*connect.Response[ingest.ListCryptoReceiptsResponse], error)
 	RegisterAdapter(context.Context, *connect.Request[ingest.RegisterAdapterRequest]) (*connect.Response[ingest.RegisterAdapterResponse], error)
 	ListAdapters(context.Context, *connect.Request[ingest.ListAdaptersRequest]) (*connect.Response[ingest.ListAdaptersResponse], error)
 	IngestEvent(context.Context, *connect.Request[ingest.IngestEventRequest]) (*connect.Response[ingest.IngestEventResponse], error)
@@ -210,6 +261,24 @@ func NewIngestServiceHandler(svc IngestServiceHandler, opts ...connect.HandlerOp
 		IngestServicePreviewCryptoObservationProcedure,
 		svc.PreviewCryptoObservation,
 		connect.WithSchema(ingestServiceMethods.ByName("PreviewCryptoObservation")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestServiceAcceptCryptoReceiptHandler := connect.NewUnaryHandler(
+		IngestServiceAcceptCryptoReceiptProcedure,
+		svc.AcceptCryptoReceipt,
+		connect.WithSchema(ingestServiceMethods.ByName("AcceptCryptoReceipt")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestServiceGetCryptoReceiptHandler := connect.NewUnaryHandler(
+		IngestServiceGetCryptoReceiptProcedure,
+		svc.GetCryptoReceipt,
+		connect.WithSchema(ingestServiceMethods.ByName("GetCryptoReceipt")),
+		connect.WithHandlerOptions(opts...),
+	)
+	ingestServiceListCryptoReceiptsHandler := connect.NewUnaryHandler(
+		IngestServiceListCryptoReceiptsProcedure,
+		svc.ListCryptoReceipts,
+		connect.WithSchema(ingestServiceMethods.ByName("ListCryptoReceipts")),
 		connect.WithHandlerOptions(opts...),
 	)
 	ingestServiceRegisterAdapterHandler := connect.NewUnaryHandler(
@@ -258,6 +327,12 @@ func NewIngestServiceHandler(svc IngestServiceHandler, opts ...connect.HandlerOp
 		switch r.URL.Path {
 		case IngestServicePreviewCryptoObservationProcedure:
 			ingestServicePreviewCryptoObservationHandler.ServeHTTP(w, r)
+		case IngestServiceAcceptCryptoReceiptProcedure:
+			ingestServiceAcceptCryptoReceiptHandler.ServeHTTP(w, r)
+		case IngestServiceGetCryptoReceiptProcedure:
+			ingestServiceGetCryptoReceiptHandler.ServeHTTP(w, r)
+		case IngestServiceListCryptoReceiptsProcedure:
+			ingestServiceListCryptoReceiptsHandler.ServeHTTP(w, r)
 		case IngestServiceRegisterAdapterProcedure:
 			ingestServiceRegisterAdapterHandler.ServeHTTP(w, r)
 		case IngestServiceListAdaptersProcedure:
@@ -283,6 +358,18 @@ type UnimplementedIngestServiceHandler struct{}
 
 func (UnimplementedIngestServiceHandler) PreviewCryptoObservation(context.Context, *connect.Request[ingest.PreviewCryptoObservationRequest]) (*connect.Response[ingest.PreviewCryptoObservationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ingest.IngestService.PreviewCryptoObservation is not implemented"))
+}
+
+func (UnimplementedIngestServiceHandler) AcceptCryptoReceipt(context.Context, *connect.Request[ingest.AcceptCryptoReceiptRequest]) (*connect.Response[ingest.AcceptCryptoReceiptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ingest.IngestService.AcceptCryptoReceipt is not implemented"))
+}
+
+func (UnimplementedIngestServiceHandler) GetCryptoReceipt(context.Context, *connect.Request[ingest.GetCryptoReceiptRequest]) (*connect.Response[ingest.GetCryptoReceiptResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ingest.IngestService.GetCryptoReceipt is not implemented"))
+}
+
+func (UnimplementedIngestServiceHandler) ListCryptoReceipts(context.Context, *connect.Request[ingest.ListCryptoReceiptsRequest]) (*connect.Response[ingest.ListCryptoReceiptsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.money_ledger.v1.ingest.IngestService.ListCryptoReceipts is not implemented"))
 }
 
 func (UnimplementedIngestServiceHandler) RegisterAdapter(context.Context, *connect.Request[ingest.RegisterAdapterRequest]) (*connect.Response[ingest.RegisterAdapterResponse], error) {

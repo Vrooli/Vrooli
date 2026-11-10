@@ -99,8 +99,11 @@ type Mandate struct {
 	RecurrenceSeconds     int64                  `protobuf:"varint,15,opt,name=recurrence_seconds,json=recurrenceSeconds,proto3" json:"recurrence_seconds,omitempty"`
 	NextChargeAt          *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=next_charge_at,json=nextChargeAt,proto3" json:"next_charge_at,omitempty"`
 	CancelledAt           *timestamppb.Timestamp `protobuf:"bytes,17,opt,name=cancelled_at,json=cancelledAt,proto3" json:"cancelled_at,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Required for automated spend; empty retains an operator-only manual mandate.
+	AgentSubject  string `protobuf:"bytes,18,opt,name=agent_subject,json=agentSubject,proto3" json:"agent_subject,omitempty"`
+	AgentRunId    string `protobuf:"bytes,19,opt,name=agent_run_id,json=agentRunId,proto3" json:"agent_run_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Mandate) Reset() {
@@ -252,11 +255,25 @@ func (x *Mandate) GetCancelledAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Mandate) GetAgentSubject() string {
+	if x != nil {
+		return x.AgentSubject
+	}
+	return ""
+}
+
+func (x *Mandate) GetAgentRunId() string {
+	if x != nil {
+		return x.AgentRunId
+	}
+	return ""
+}
+
 var File_treasury_v1_mandate_mandate_proto protoreflect.FileDescriptor
 
 const file_treasury_v1_mandate_mandate_proto_rawDesc = "" +
 	"\n" +
-	"!treasury/v1/mandate/mandate.proto\x12\x1avrooli.treasury.v1.mandate\x1a\x1fgoogle/protobuf/timestamp.proto\"\xef\x05\n" +
+	"!treasury/v1/mandate/mandate.proto\x12\x1avrooli.treasury.v1.mandate\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb6\x06\n" +
 	"\aMandate\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\abook_id\x18\x02 \x01(\tR\x06bookId\x12\x1b\n" +
@@ -278,7 +295,10 @@ const file_treasury_v1_mandate_mandate_proto_rawDesc = "" +
 	"\x11required_evidence\x18\x0e \x03(\tR\x10requiredEvidence\x12-\n" +
 	"\x12recurrence_seconds\x18\x0f \x01(\x03R\x11recurrenceSeconds\x12@\n" +
 	"\x0enext_charge_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\fnextChargeAt\x12=\n" +
-	"\fcancelled_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\vcancelledAt*\xb8\x01\n" +
+	"\fcancelled_at\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\vcancelledAt\x12#\n" +
+	"\ragent_subject\x18\x12 \x01(\tR\fagentSubject\x12 \n" +
+	"\fagent_run_id\x18\x13 \x01(\tR\n" +
+	"agentRunId*\xb8\x01\n" +
 	"\rMandateStatus\x12\x1e\n" +
 	"\x1aMANDATE_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14MANDATE_STATUS_DRAFT\x10\x01\x12\x17\n" +

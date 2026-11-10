@@ -134,8 +134,95 @@ message PreviewCryptoObservationResponse {
  string inclusion_revision = 17;
 }
 
+// Treasury is the chain evidence owner. These identifiers resolve its durable
+// check and wallet; source_reference is provenance, never a bearer credential.
+message TreasuryReceiptLink {
+  string check_id = 1;
+  string wallet_id = 2;
+  string operator_identity = 3;
+  string source_reference = 4;
+}
+
+// A declared valuation of the entire occurrence, kept separate from the exact
+// token amount. No exchange rate or stablecoin peg is inferred by Money Ledger.
+message CryptoValuation {
+  int64 amount_minor = 1;
+  string currency = 2;
+  string basis_reference = 3;
+  google.protobuf.Timestamp valued_at = 4;
+  shared.Basis basis = 5;
+}
+
+// The verified payer address is always retained. Payer identity may be known
+// before LPBS creates a funding lot, so the lot ID and owner are optional as a
+// pair. An accepted receipt is immutable; a lot created after acceptance is
+// linked by Treasury's separate owner-attribution record.
+message CryptoPayerAttribution {
+  string payer_address = 1;
+  string payer_identity = 2;
+  string credit_lot_id = 3;
+  string credit_lot_owner = 4;
+}
+
+enum CryptoReceiptAction {
+  CRYPTO_RECEIPT_ACTION_UNSPECIFIED = 0;
+  CRYPTO_RECEIPT_ACTION_ORIGINAL = 1;
+  CRYPTO_RECEIPT_ACTION_REINCLUSION = 2;
+  CRYPTO_RECEIPT_ACTION_REMOVAL = 3;
+  CRYPTO_RECEIPT_ACTION_CORRECTION = 4;
+}
+
+message AcceptCryptoReceiptRequest {
+  PreviewCryptoObservationRequest observation = 1;
+  TreasuryReceiptLink source = 2;
+  CryptoReceiptAction action = 3;
+  // Root accepted original, required for every mutation of that occurrence.
+  string original_receipt_id = 4;
+  CryptoValuation valuation = 5;
+  CryptoPayerAttribution attribution = 6;
+  google.protobuf.Timestamp occurred_at = 7;
+  string correction_reason = 8;
+  // Immediate accepted predecessor. A stale predecessor cannot change funds.
+  string previous_receipt_id = 9;
+}
+
+// An immutable acceptance, including the signed effects calculated by the
+// ledger. Zero deltas are evidence revisions, not a second payment. A replay
+// returns this same identity even when Treasury obtained a new check id.
+message AcceptedCryptoReceipt {
+  string id = 1;
+  string posting_id = 2;
+  TreasuryReceiptLink source = 3;
+  string occurrence_key = 4;
+  string inclusion_revision = 5;
+  string atomic_delta = 6;
+  int64 valuation_delta_minor = 7;
+  string currency = 8;
+  google.protobuf.Timestamp accepted_at = 9;
+  string original_receipt_id = 10;
+  CryptoReceiptAction action = 11;
+  CryptoPayerAttribution attribution = 12;
+  // The rail has no consumer chargeback process. Reorg/removal and accounting
+  // corrections remain possible and must retain their accepted-original link.
+  bool no_chargeback = 13;
+  string previous_receipt_id = 14;
+  PreviewCryptoObservationRequest observation = 15;
+  CryptoValuation valuation = 16;
+  google.protobuf.Timestamp occurred_at = 17;
+  string correction_reason = 18;
+  string accepted_by = 19;
+}
+message AcceptCryptoReceiptResponse { AcceptedCryptoReceipt receipt = 1; bool duplicate = 2; }
+message GetCryptoReceiptRequest { string id = 1; }
+message GetCryptoReceiptResponse { AcceptedCryptoReceipt receipt = 1; }
+message ListCryptoReceiptsRequest { string book_id = 1; string wallet_id = 2; string credit_lot_id = 3; uint32 limit = 4; string after_receipt_id = 5; }
+message ListCryptoReceiptsResponse { repeated AcceptedCryptoReceipt receipts = 1; string next_after_receipt_id = 2; }
+
 service IngestService {
  rpc PreviewCryptoObservation(PreviewCryptoObservationRequest) returns (PreviewCryptoObservationResponse);
+ rpc AcceptCryptoReceipt(AcceptCryptoReceiptRequest) returns (AcceptCryptoReceiptResponse);
+ rpc GetCryptoReceipt(GetCryptoReceiptRequest) returns (GetCryptoReceiptResponse);
+ rpc ListCryptoReceipts(ListCryptoReceiptsRequest) returns (ListCryptoReceiptsResponse);
   rpc RegisterAdapter(RegisterAdapterRequest) returns (RegisterAdapterResponse);
   rpc ListAdapters(ListAdaptersRequest) returns (ListAdaptersResponse);
   rpc IngestEvent(IngestEventRequest) returns (IngestEventResponse);

@@ -42,6 +42,14 @@ class CryptoLegKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     CRYPTO_LEG_KIND_DEPOSIT: _ClassVar[CryptoLegKind]
     CRYPTO_LEG_KIND_FEE: _ClassVar[CryptoLegKind]
     CRYPTO_LEG_KIND_APPROVAL: _ClassVar[CryptoLegKind]
+
+class CryptoReceiptAction(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CRYPTO_RECEIPT_ACTION_UNSPECIFIED: _ClassVar[CryptoReceiptAction]
+    CRYPTO_RECEIPT_ACTION_ORIGINAL: _ClassVar[CryptoReceiptAction]
+    CRYPTO_RECEIPT_ACTION_REINCLUSION: _ClassVar[CryptoReceiptAction]
+    CRYPTO_RECEIPT_ACTION_REMOVAL: _ClassVar[CryptoReceiptAction]
+    CRYPTO_RECEIPT_ACTION_CORRECTION: _ClassVar[CryptoReceiptAction]
 ADAPTER_KIND_UNSPECIFIED: AdapterKind
 ADAPTER_KIND_MANUAL: AdapterKind
 ADAPTER_KIND_FILE: AdapterKind
@@ -61,6 +69,11 @@ CRYPTO_LEG_KIND_BALANCE: CryptoLegKind
 CRYPTO_LEG_KIND_DEPOSIT: CryptoLegKind
 CRYPTO_LEG_KIND_FEE: CryptoLegKind
 CRYPTO_LEG_KIND_APPROVAL: CryptoLegKind
+CRYPTO_RECEIPT_ACTION_UNSPECIFIED: CryptoReceiptAction
+CRYPTO_RECEIPT_ACTION_ORIGINAL: CryptoReceiptAction
+CRYPTO_RECEIPT_ACTION_REINCLUSION: CryptoReceiptAction
+CRYPTO_RECEIPT_ACTION_REMOVAL: CryptoReceiptAction
+CRYPTO_RECEIPT_ACTION_CORRECTION: CryptoReceiptAction
 
 class Adapter(_message.Message):
     __slots__ = ("id", "name", "kind", "enabled", "last_success_at", "availability_reason", "cursor")
@@ -316,3 +329,147 @@ class PreviewCryptoObservationResponse(_message.Message):
     address: str
     inclusion_revision: str
     def __init__(self, network: _Optional[str] = ..., asset_id: _Optional[str] = ..., atomic_amount: _Optional[str] = ..., decimals: _Optional[int] = ..., source_reported_state: _Optional[_Union[CryptoObservationState, str]] = ..., leg_kind: _Optional[_Union[CryptoLegKind, str]] = ..., source_reference: _Optional[str] = ..., occurrence_key: _Optional[str] = ..., disposition: _Optional[str] = ..., posting_state: _Optional[str] = ..., budget_state: _Optional[str] = ..., holds: _Optional[_Iterable[str]] = ..., book_account_status: _Optional[str] = ..., candidate_effect_atomic: _Optional[str] = ..., correction_requires_original_receipt: _Optional[bool] = ..., address: _Optional[str] = ..., inclusion_revision: _Optional[str] = ...) -> None: ...
+
+class TreasuryReceiptLink(_message.Message):
+    __slots__ = ("check_id", "wallet_id", "operator_identity", "source_reference")
+    CHECK_ID_FIELD_NUMBER: _ClassVar[int]
+    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
+    OPERATOR_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    check_id: str
+    wallet_id: str
+    operator_identity: str
+    source_reference: str
+    def __init__(self, check_id: _Optional[str] = ..., wallet_id: _Optional[str] = ..., operator_identity: _Optional[str] = ..., source_reference: _Optional[str] = ...) -> None: ...
+
+class CryptoValuation(_message.Message):
+    __slots__ = ("amount_minor", "currency", "basis_reference", "valued_at", "basis")
+    AMOUNT_MINOR_FIELD_NUMBER: _ClassVar[int]
+    CURRENCY_FIELD_NUMBER: _ClassVar[int]
+    BASIS_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    VALUED_AT_FIELD_NUMBER: _ClassVar[int]
+    BASIS_FIELD_NUMBER: _ClassVar[int]
+    amount_minor: int
+    currency: str
+    basis_reference: str
+    valued_at: _timestamp_pb2.Timestamp
+    basis: _ledger_types_pb2.Basis
+    def __init__(self, amount_minor: _Optional[int] = ..., currency: _Optional[str] = ..., basis_reference: _Optional[str] = ..., valued_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., basis: _Optional[_Union[_ledger_types_pb2.Basis, str]] = ...) -> None: ...
+
+class CryptoPayerAttribution(_message.Message):
+    __slots__ = ("payer_address", "payer_identity", "credit_lot_id", "credit_lot_owner")
+    PAYER_ADDRESS_FIELD_NUMBER: _ClassVar[int]
+    PAYER_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    CREDIT_LOT_ID_FIELD_NUMBER: _ClassVar[int]
+    CREDIT_LOT_OWNER_FIELD_NUMBER: _ClassVar[int]
+    payer_address: str
+    payer_identity: str
+    credit_lot_id: str
+    credit_lot_owner: str
+    def __init__(self, payer_address: _Optional[str] = ..., payer_identity: _Optional[str] = ..., credit_lot_id: _Optional[str] = ..., credit_lot_owner: _Optional[str] = ...) -> None: ...
+
+class AcceptCryptoReceiptRequest(_message.Message):
+    __slots__ = ("observation", "source", "action", "original_receipt_id", "valuation", "attribution", "occurred_at", "correction_reason", "previous_receipt_id")
+    OBSERVATION_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    ORIGINAL_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    VALUATION_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTION_FIELD_NUMBER: _ClassVar[int]
+    OCCURRED_AT_FIELD_NUMBER: _ClassVar[int]
+    CORRECTION_REASON_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    observation: PreviewCryptoObservationRequest
+    source: TreasuryReceiptLink
+    action: CryptoReceiptAction
+    original_receipt_id: str
+    valuation: CryptoValuation
+    attribution: CryptoPayerAttribution
+    occurred_at: _timestamp_pb2.Timestamp
+    correction_reason: str
+    previous_receipt_id: str
+    def __init__(self, observation: _Optional[_Union[PreviewCryptoObservationRequest, _Mapping]] = ..., source: _Optional[_Union[TreasuryReceiptLink, _Mapping]] = ..., action: _Optional[_Union[CryptoReceiptAction, str]] = ..., original_receipt_id: _Optional[str] = ..., valuation: _Optional[_Union[CryptoValuation, _Mapping]] = ..., attribution: _Optional[_Union[CryptoPayerAttribution, _Mapping]] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., correction_reason: _Optional[str] = ..., previous_receipt_id: _Optional[str] = ...) -> None: ...
+
+class AcceptedCryptoReceipt(_message.Message):
+    __slots__ = ("id", "posting_id", "source", "occurrence_key", "inclusion_revision", "atomic_delta", "valuation_delta_minor", "currency", "accepted_at", "original_receipt_id", "action", "attribution", "no_chargeback", "previous_receipt_id", "observation", "valuation", "occurred_at", "correction_reason", "accepted_by")
+    ID_FIELD_NUMBER: _ClassVar[int]
+    POSTING_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    OCCURRENCE_KEY_FIELD_NUMBER: _ClassVar[int]
+    INCLUSION_REVISION_FIELD_NUMBER: _ClassVar[int]
+    ATOMIC_DELTA_FIELD_NUMBER: _ClassVar[int]
+    VALUATION_DELTA_MINOR_FIELD_NUMBER: _ClassVar[int]
+    CURRENCY_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTED_AT_FIELD_NUMBER: _ClassVar[int]
+    ORIGINAL_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    ACTION_FIELD_NUMBER: _ClassVar[int]
+    ATTRIBUTION_FIELD_NUMBER: _ClassVar[int]
+    NO_CHARGEBACK_FIELD_NUMBER: _ClassVar[int]
+    PREVIOUS_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    OBSERVATION_FIELD_NUMBER: _ClassVar[int]
+    VALUATION_FIELD_NUMBER: _ClassVar[int]
+    OCCURRED_AT_FIELD_NUMBER: _ClassVar[int]
+    CORRECTION_REASON_FIELD_NUMBER: _ClassVar[int]
+    ACCEPTED_BY_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    posting_id: str
+    source: TreasuryReceiptLink
+    occurrence_key: str
+    inclusion_revision: str
+    atomic_delta: str
+    valuation_delta_minor: int
+    currency: str
+    accepted_at: _timestamp_pb2.Timestamp
+    original_receipt_id: str
+    action: CryptoReceiptAction
+    attribution: CryptoPayerAttribution
+    no_chargeback: bool
+    previous_receipt_id: str
+    observation: PreviewCryptoObservationRequest
+    valuation: CryptoValuation
+    occurred_at: _timestamp_pb2.Timestamp
+    correction_reason: str
+    accepted_by: str
+    def __init__(self, id: _Optional[str] = ..., posting_id: _Optional[str] = ..., source: _Optional[_Union[TreasuryReceiptLink, _Mapping]] = ..., occurrence_key: _Optional[str] = ..., inclusion_revision: _Optional[str] = ..., atomic_delta: _Optional[str] = ..., valuation_delta_minor: _Optional[int] = ..., currency: _Optional[str] = ..., accepted_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., original_receipt_id: _Optional[str] = ..., action: _Optional[_Union[CryptoReceiptAction, str]] = ..., attribution: _Optional[_Union[CryptoPayerAttribution, _Mapping]] = ..., no_chargeback: _Optional[bool] = ..., previous_receipt_id: _Optional[str] = ..., observation: _Optional[_Union[PreviewCryptoObservationRequest, _Mapping]] = ..., valuation: _Optional[_Union[CryptoValuation, _Mapping]] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., correction_reason: _Optional[str] = ..., accepted_by: _Optional[str] = ...) -> None: ...
+
+class AcceptCryptoReceiptResponse(_message.Message):
+    __slots__ = ("receipt", "duplicate")
+    RECEIPT_FIELD_NUMBER: _ClassVar[int]
+    DUPLICATE_FIELD_NUMBER: _ClassVar[int]
+    receipt: AcceptedCryptoReceipt
+    duplicate: bool
+    def __init__(self, receipt: _Optional[_Union[AcceptedCryptoReceipt, _Mapping]] = ..., duplicate: _Optional[bool] = ...) -> None: ...
+
+class GetCryptoReceiptRequest(_message.Message):
+    __slots__ = ("id",)
+    ID_FIELD_NUMBER: _ClassVar[int]
+    id: str
+    def __init__(self, id: _Optional[str] = ...) -> None: ...
+
+class GetCryptoReceiptResponse(_message.Message):
+    __slots__ = ("receipt",)
+    RECEIPT_FIELD_NUMBER: _ClassVar[int]
+    receipt: AcceptedCryptoReceipt
+    def __init__(self, receipt: _Optional[_Union[AcceptedCryptoReceipt, _Mapping]] = ...) -> None: ...
+
+class ListCryptoReceiptsRequest(_message.Message):
+    __slots__ = ("book_id", "wallet_id", "credit_lot_id", "limit", "after_receipt_id")
+    BOOK_ID_FIELD_NUMBER: _ClassVar[int]
+    WALLET_ID_FIELD_NUMBER: _ClassVar[int]
+    CREDIT_LOT_ID_FIELD_NUMBER: _ClassVar[int]
+    LIMIT_FIELD_NUMBER: _ClassVar[int]
+    AFTER_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    book_id: str
+    wallet_id: str
+    credit_lot_id: str
+    limit: int
+    after_receipt_id: str
+    def __init__(self, book_id: _Optional[str] = ..., wallet_id: _Optional[str] = ..., credit_lot_id: _Optional[str] = ..., limit: _Optional[int] = ..., after_receipt_id: _Optional[str] = ...) -> None: ...
+
+class ListCryptoReceiptsResponse(_message.Message):
+    __slots__ = ("receipts", "next_after_receipt_id")
+    RECEIPTS_FIELD_NUMBER: _ClassVar[int]
+    NEXT_AFTER_RECEIPT_ID_FIELD_NUMBER: _ClassVar[int]
+    receipts: _containers.RepeatedCompositeFieldContainer[AcceptedCryptoReceipt]
+    next_after_receipt_id: str
+    def __init__(self, receipts: _Optional[_Iterable[_Union[AcceptedCryptoReceipt, _Mapping]]] = ..., next_after_receipt_id: _Optional[str] = ...) -> None: ...

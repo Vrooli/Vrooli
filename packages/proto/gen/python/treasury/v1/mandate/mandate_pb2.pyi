@@ -26,7 +26,7 @@ MANDATE_STATUS_EXPIRED: MandateStatus
 MANDATE_STATUS_REVOKED: MandateStatus
 
 class Mandate(_message.Message):
-    __slots__ = ("id", "book_id", "budget_id", "authorizer", "cap_minor", "currency", "allowed_counterparties", "denied_counterparties", "expires_at", "signature", "issued_at", "status", "idempotency_key", "required_evidence", "recurrence_seconds", "next_charge_at", "cancelled_at")
+    __slots__ = ("id", "book_id", "budget_id", "authorizer", "cap_minor", "currency", "allowed_counterparties", "denied_counterparties", "expires_at", "signature", "issued_at", "status", "idempotency_key", "required_evidence", "recurrence_seconds", "next_charge_at", "cancelled_at", "agent_subject", "agent_run_id")
     ID_FIELD_NUMBER: _ClassVar[int]
     BOOK_ID_FIELD_NUMBER: _ClassVar[int]
     BUDGET_ID_FIELD_NUMBER: _ClassVar[int]
@@ -44,6 +44,8 @@ class Mandate(_message.Message):
     RECURRENCE_SECONDS_FIELD_NUMBER: _ClassVar[int]
     NEXT_CHARGE_AT_FIELD_NUMBER: _ClassVar[int]
     CANCELLED_AT_FIELD_NUMBER: _ClassVar[int]
+    AGENT_SUBJECT_FIELD_NUMBER: _ClassVar[int]
+    AGENT_RUN_ID_FIELD_NUMBER: _ClassVar[int]
     id: str
     book_id: str
     budget_id: str
@@ -61,4 +63,6 @@ class Mandate(_message.Message):
     recurrence_seconds: int
     next_charge_at: _timestamp_pb2.Timestamp
     cancelled_at: _timestamp_pb2.Timestamp
-    def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., budget_id: _Optional[str] = ..., authorizer: _Optional[str] = ..., cap_minor: _Optional[int] = ..., currency: _Optional[str] = ..., allowed_counterparties: _Optional[_Iterable[str]] = ..., denied_counterparties: _Optional[_Iterable[str]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., signature: _Optional[bytes] = ..., issued_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., status: _Optional[_Union[MandateStatus, str]] = ..., idempotency_key: _Optional[str] = ..., required_evidence: _Optional[_Iterable[str]] = ..., recurrence_seconds: _Optional[int] = ..., next_charge_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cancelled_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+    agent_subject: str
+    agent_run_id: str
+    def __init__(self, id: _Optional[str] = ..., book_id: _Optional[str] = ..., budget_id: _Optional[str] = ..., authorizer: _Optional[str] = ..., cap_minor: _Optional[int] = ..., currency: _Optional[str] = ..., allowed_counterparties: _Optional[_Iterable[str]] = ..., denied_counterparties: _Optional[_Iterable[str]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., signature: _Optional[bytes] = ..., issued_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., status: _Optional[_Union[MandateStatus, str]] = ..., idempotency_key: _Optional[str] = ..., required_evidence: _Optional[_Iterable[str]] = ..., recurrence_seconds: _Optional[int] = ..., next_charge_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., cancelled_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., agent_subject: _Optional[str] = ..., agent_run_id: _Optional[str] = ...) -> None: ...

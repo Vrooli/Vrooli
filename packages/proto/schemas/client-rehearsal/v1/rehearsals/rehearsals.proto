@@ -1,0 +1,87 @@
+syntax = "proto3";
+
+package vrooli.client_rehearsal.v1.rehearsals;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/rehearsals;rehearsals_v1";
+
+// RehearsalService exposes the reusable import, synthetic execution, and
+// human-review lifecycle. The first engine is in-process and synthetic.
+service RehearsalService {
+  rpc CreateAndRunRehearsal(CreateAndRunRehearsalRequest) returns (CreateAndRunRehearsalResponse);
+  rpc ListRehearsals(ListRehearsalsRequest) returns (ListRehearsalsResponse);
+  rpc GetRehearsal(GetRehearsalRequest) returns (GetRehearsalResponse);
+  rpc RecordReview(RecordReviewRequest) returns (RecordReviewResponse);
+}
+
+enum RehearsalState {
+  REHEARSAL_STATE_UNSPECIFIED = 0;
+  REHEARSAL_STATE_NEEDS_REVIEW = 1;
+  REHEARSAL_STATE_APPROVED = 2;
+  REHEARSAL_STATE_CHANGES_REQUESTED = 3;
+  REHEARSAL_STATE_FAILED = 4;
+}
+
+enum ReviewDecision {
+  REVIEW_DECISION_UNSPECIFIED = 0;
+  REVIEW_DECISION_APPROVE = 1;
+  REVIEW_DECISION_REQUEST_CHANGES = 2;
+}
+
+message Rehearsal {
+  string id = 1;
+  string title = 2;
+  string source_format = 3;
+  string source_sha256 = 4;
+  uint32 credential_replacements = 5;
+  string simulator_profile = 6;
+  RehearsalState state = 7;
+  repeated TraceEvent trace = 8;
+  string fault_summary = 9;
+  string repair_summary = 10;
+  string handoff_markdown = 11;
+  ReviewDecision review_decision = 12;
+  string review_note = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp reviewed_at = 15;
+  string simulator_source_sha256 = 16;
+}
+
+message TraceEvent {
+  uint32 sequence = 1;
+  string operation = 2;
+  string request_summary = 3;
+  string response_summary = 4;
+  string status = 5;
+  google.protobuf.Timestamp occurred_at = 6;
+}
+
+message CreateAndRunRehearsalRequest {
+  string title = 1;
+  // A synthetic workflow JSON document. Secret-shaped values are replaced
+  // before persistence. No workflow-provided URL is ever contacted.
+  string workflow_json = 2;
+  string simulator_profile = 3;
+  bool inject_seeded_fault = 4;
+  // An OpenAPI document or recorded HTTP exchange collection. It is parsed
+  // as data and never used to create an outbound network client.
+  string simulator_source_json = 5;
+  // Select exactly one trigger node when an export contains multiple trigger
+  // families; omitted is valid only when the imported workflow has one.
+  string trigger_node_id = 6;
+}
+message CreateAndRunRehearsalResponse { Rehearsal rehearsal = 1; }
+
+message ListRehearsalsRequest { uint32 limit = 1; }
+message ListRehearsalsResponse { repeated Rehearsal rehearsals = 1; }
+
+message GetRehearsalRequest { string id = 1; }
+message GetRehearsalResponse { Rehearsal rehearsal = 1; }
+
+message RecordReviewRequest {
+  string id = 1;
+  ReviewDecision decision = 2;
+  string note = 3;
+}
+message RecordReviewResponse { Rehearsal rehearsal = 1; }

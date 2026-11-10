@@ -65,7 +65,7 @@ class ReadNativeThreadStateRequest(_message.Message):
     def __init__(self, session_id: _Optional[str] = ..., thread_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class NativeThreadState(_message.Message):
-    __slots__ = ("thread_id", "status", "active_flags", "goal_available", "has_goal", "goal_status", "tokens_used", "time_used_seconds", "token_budget")
+    __slots__ = ("thread_id", "status", "active_flags", "goal_available", "has_goal", "goal_status", "tokens_used", "time_used_seconds", "token_budget", "active_turn_id")
     THREAD_ID_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     ACTIVE_FLAGS_FIELD_NUMBER: _ClassVar[int]
@@ -75,6 +75,7 @@ class NativeThreadState(_message.Message):
     TOKENS_USED_FIELD_NUMBER: _ClassVar[int]
     TIME_USED_SECONDS_FIELD_NUMBER: _ClassVar[int]
     TOKEN_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    ACTIVE_TURN_ID_FIELD_NUMBER: _ClassVar[int]
     thread_id: str
     status: str
     active_flags: _containers.RepeatedScalarFieldContainer[str]
@@ -84,13 +85,38 @@ class NativeThreadState(_message.Message):
     tokens_used: int
     time_used_seconds: int
     token_budget: int
-    def __init__(self, thread_id: _Optional[str] = ..., status: _Optional[str] = ..., active_flags: _Optional[_Iterable[str]] = ..., goal_available: _Optional[bool] = ..., has_goal: _Optional[bool] = ..., goal_status: _Optional[str] = ..., tokens_used: _Optional[int] = ..., time_used_seconds: _Optional[int] = ..., token_budget: _Optional[int] = ...) -> None: ...
+    active_turn_id: str
+    def __init__(self, thread_id: _Optional[str] = ..., status: _Optional[str] = ..., active_flags: _Optional[_Iterable[str]] = ..., goal_available: _Optional[bool] = ..., has_goal: _Optional[bool] = ..., goal_status: _Optional[str] = ..., tokens_used: _Optional[int] = ..., time_used_seconds: _Optional[int] = ..., token_budget: _Optional[int] = ..., active_turn_id: _Optional[str] = ...) -> None: ...
 
 class ReadNativeThreadStateResponse(_message.Message):
     __slots__ = ("threads",)
     THREADS_FIELD_NUMBER: _ClassVar[int]
     threads: _containers.RepeatedCompositeFieldContainer[NativeThreadState]
     def __init__(self, threads: _Optional[_Iterable[_Union[NativeThreadState, _Mapping]]] = ...) -> None: ...
+
+class DeliverNativePromptRequest(_message.Message):
+    __slots__ = ("session_id", "expected_thread_id", "text", "expected_turn_id", "source")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_THREAD_ID_FIELD_NUMBER: _ClassVar[int]
+    TEXT_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_TURN_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    expected_thread_id: str
+    text: str
+    expected_turn_id: str
+    source: str
+    def __init__(self, session_id: _Optional[str] = ..., expected_thread_id: _Optional[str] = ..., text: _Optional[str] = ..., expected_turn_id: _Optional[str] = ..., source: _Optional[str] = ...) -> None: ...
+
+class DeliverNativePromptResponse(_message.Message):
+    __slots__ = ("thread_id", "turn_id", "delivery")
+    THREAD_ID_FIELD_NUMBER: _ClassVar[int]
+    TURN_ID_FIELD_NUMBER: _ClassVar[int]
+    DELIVERY_FIELD_NUMBER: _ClassVar[int]
+    thread_id: str
+    turn_id: str
+    delivery: str
+    def __init__(self, thread_id: _Optional[str] = ..., turn_id: _Optional[str] = ..., delivery: _Optional[str] = ...) -> None: ...
 
 class ExpirationPolicy(_message.Message):
     __slots__ = ("mode", "duration")
