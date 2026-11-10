@@ -9,6 +9,7 @@ import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
 import { preserveRoutedTestMode } from "../routedTestMode";
 import { optionLabel } from "./askView";
+import { NativeConsents } from "./NativeConsents";
 
 const PAGE_SIZE = 50;
 const states = ["all", "awaiting", "answered", "defaulted", "expired", "withdrawn", "dismissed"] as const;
@@ -117,6 +118,7 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
         </nav>}
         {queue && <Link to={preserveRoutedTestMode(`/history${search ? `?q=${encodeURIComponent(search)}` : ""}`, location.search)} className="self-start text-sm font-medium underline underline-offset-4">{t("pages.history.searchAllStates")}</Link>}
       </div>
+      {queue && <NativeConsents query={query} />}
       {(list.isPending || searching) && <p role="status" className="text-sm text-app-muted-foreground">{t("pages.history.searching")}</p>}
       {(initialError || refreshError) && <div className="rounded-control border border-app-border bg-app-surface p-4">
         <p role="alert">{queue ? t(strings.asks.list.loadError) : t(strings.pages.history.loadError)}</p>

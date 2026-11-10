@@ -232,6 +232,16 @@
         "runtime_only_rationale": "Event ingress is inbound: vrooli-events POSTs to this scenario's webhook receiver, and subscriptions are managed across its API boundary. No events Go package is imported here.",
         "degraded_behavior": "Without vrooli-events, event-driven ingress is unavailable and the hub accepts direct Connect-RPC and CLI requests only. No notification path that was working stops working.",
         "description": "Event-driven ingress via durable subscription webhook delivery."
+      },
+      "agent-manager": {
+        "degraded_behavior": "Missing, invalid, unreachable, unknown or in-flight source state remains visibly unverified in Needs You. Direct notifications and Hub Ask flows continue; Hub never grants native permission.",
+        "description": "Read-only current native authorization state for Needs You; permission decisions remain on the original Agent Manager consent page.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "The injected lifecycle URL resolver locates Agent Manager at runtime for loopback GET /api/v1/authorizations/{id}/status. No Agent Manager Go package is imported and Hub never starts the source or sends owner credentials.",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     }
   },

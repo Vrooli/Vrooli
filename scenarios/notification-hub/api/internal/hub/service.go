@@ -115,24 +115,25 @@ func (unavailablePush) Send(context.Context, PushSubscription, PushMessage) (str
 }
 
 type Service struct {
-	db                *database.RoutedDB
-	clock             *swappableClock
-	log               *log.Logger
-	mu                sync.RWMutex
-	push              PushSender
-	email             EmailSender
-	desktop           DesktopSender
-	remote            RemoteDelivery
-	channel           ChannelDelivery
-	defaultRecipient  string
-	recipientResolver func(context.Context) string
-	ownerFallback     string
-	webPushPublicKey  string
-	worker            chan string
-	askDefaultFloor   time.Duration
-	resolutions       askResolutions
-	processLocks      [processLockStripes]sync.Mutex
-	preferences       Preferences
+	db                  *database.RoutedDB
+	clock               *swappableClock
+	log                 *log.Logger
+	mu                  sync.RWMutex
+	push                PushSender
+	email               EmailSender
+	desktop             DesktopSender
+	remote              RemoteDelivery
+	channel             ChannelDelivery
+	defaultRecipient    string
+	recipientResolver   func(context.Context) string
+	ownerFallback       string
+	webPushPublicKey    string
+	worker              chan string
+	askDefaultFloor     time.Duration
+	resolutions         askResolutions
+	processLocks        [processLockStripes]sync.Mutex
+	preferences         Preferences
+	nativeConsentReader NativeConsentReader
 	// iconURL resolves a browser-loadable URL to the source scenario's app
 	// icon for a push notification. Production sets a default in New; tests may
 	// stub it. A nil resolver (or a "" return) leaves the icon off the payload.

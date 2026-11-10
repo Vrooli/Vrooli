@@ -27,6 +27,15 @@ describe("Updates page", () => {
     vi.resetAllMocks();
   });
 
+  it("Given a native notification, when Updates opens, then its safe original source is linked without a Hub approval", async () => {
+    await setLocale("en");
+    getTimeline.mockResolvedValue({ notifications: [{ id: "native", title: "Permission", contextUrl: "https://agent-manager.example.test/api/v1/authorizations/native/approve", state: NotificationState.DELIVERED }, { id: "unsafe", title: "Unsafe", contextUrl: "javascript:alert(1)", state: NotificationState.PENDING }] } as never);
+    listAsks.mockResolvedValue({ asks: [] } as never);
+    renderWithProviders(<DashboardPage />);
+    expect(await screen.findByRole("link", { name: "Open original source" })).toHaveAttribute("href", "https://agent-manager.example.test/api/v1/authorizations/native/approve");
+    expect(screen.getAllByRole("link", { name: "Open original source" })).toHaveLength(1);
+  });
+
   it("scopes an empty state to the returned list and keeps API health separate", async () => {
     await setLocale("en");
     getTimeline.mockResolvedValue({ notifications: [] } as never);
@@ -125,7 +134,7 @@ describe("Updates page", () => {
       routerEntries: ["/updates?vrooli_test_mode=1&e4_fixture=empty-open-asks"],
     });
 
-    expect(await screen.findByText("E4 answered history fixture")).toBeInTheDocument();
+    expect(await screen.findByText(/E4 answered history fixture/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open decision" }))
       .toHaveAttribute("href", "/asks/e4-test-answered-ask?vrooli_test_mode=1");
   });
@@ -137,7 +146,7 @@ describe("Updates page", () => {
 
     renderWithProviders(<DashboardPage />);
 
-    expect(await screen.findByText("Informational update")).toBeInTheDocument();
+    expect(await screen.findByText(/Informational update/)).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("Checking linked decisions…");
     expect(screen.queryByRole("link", { name: "Open decision" })).not.toBeInTheDocument();
   });

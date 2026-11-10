@@ -276,8 +276,8 @@
       "searching": "Searching requests…",
       "noMatches": "No matching requests",
       "trySearch": "Try another search or change the status filter.",
-      "noAwaiting": "Nothing needs an answer",
-      "awaitingEmptyDetail": "There are no requests awaiting your answer right now.",
+      "noAwaiting": "No Hub questions awaiting an answer",
+      "awaitingEmptyDetail": "Native permission requests are checked separately above.",
       "emptyDetail": "Requests and their outcomes will appear here.",
       "moreError": "More requests could not be loaded. Your loaded results are still here.",
       "retryMore": "Try loading more again",
@@ -596,5 +596,17 @@
       "system": "System"
     },
     "switcherLabel": "Theme"
+  },
+  "nativeConsent": {
+    "context": "Open original source",
+    "title": "Native permission requests",
+    "authority": "Agent Manager owns these permissions. Review and confirm only on its original approval page. Opening a link grants nothing.",
+    "loading": "Checking current permission requests…",
+    "unavailable": "Current permission status could not be checked. The queue is not confirmed clear.",
+    "pending": "Agent Manager reports this request is awaiting your review.",
+    "unverified": "Current status is unverified. Check the original Agent Manager page before acting.",
+    "checked": "Checked {{time}} · Review window ends {{expiry}}",
+    "open": "Review in Agent Manager",
+    "more": "Check older permission requests"
   }
 }

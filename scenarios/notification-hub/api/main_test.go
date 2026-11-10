@@ -13,14 +13,19 @@ import (
 	"path/filepath"
 	"testing"
 
+	notificationH "notification-hub/handlers/notifications"
 	"notification-hub/internal/hub"
 	internalidentity "notification-hub/internal/identity"
 	"notification-hub/internal/modules"
 
+	"connectrpc.com/connect"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/schedule"
+	notificationsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
+	notificationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications/notifications_v1connect"
 )
 
 func TestLeasedTestModeRequestReadsOnlyTheDisposableAsk(t *testing.T) {
@@ -100,6 +105,51 @@ func TestLeasedTestModeRequestReadsOnlyTheDisposableAsk(t *testing.T) {
 	require.Zero(t, readAskAnswers, "an ordinary ask read must not acknowledge or answer it")
 	require.Equal(t, 1, fixtureAnswers, "History contains only a closed answered ask")
 	t.Logf("lease_id=%s test_pool_requests=%d primary_during_test_mode_requests=%d primary_asks=%d primary_answers=%d", routed.ActiveLeaseID(), stats.TestPoolRequests, stats.PrimaryDuringTestModeRequests, primaryAsks, answers)
+}
+
+func TestLeasedTestModeAcceptsAndReadsRealProducerNotification(t *testing.T) {
+	ctx := context.Background()
+	routed, err := database.Open(ctx, database.Config{Driver: database.DriverSQLite, DSN: filepath.Join(t.TempDir(), "primary.db")})
+	require.NoError(t, err)
+	defer routed.Close()
+	require.NoError(t, database.EnsureSchemas(ctx, routed.Primary(), modules.AllSchemas()...))
+	routed.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
+		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
+			return err
+		}
+		return seedTestRecipient(ctx, pool)
+	})
+	leaseID := "cf5-notification-lease"
+	require.NoError(t, routed.InstallTestPool(ctx, filepath.Join(t.TempDir(), "leased.db"), leaseID, 0))
+
+	service := hub.New(routed, schedule.System(), log.New(io.Discard, "", 0))
+	router := mux.NewRouter()
+	notificationH.Module(service).Mount(router)
+	server := httptest.NewServer(apihttp.TestModeMiddleware(requireRoutedTestLease(routed, router)))
+	defer server.Close()
+	client := notificationsconnect.NewNotificationsServiceClient(server.Client(), server.URL)
+	send := connect.NewRequest(&notificationsv1.SendRequest{
+		Title: "Treasury funds received", Body: "Received 1.000000 USDC and credited the rehearsal budget.",
+		Urgency: "normal", SensitivityLabel: "financial", IdempotencyKey: "cf5-receipt-1:funding-notice", DedupeKey: "cf5-receipt-1",
+	})
+	send.Header().Set("X-Vrooli-Test-Mode", "1")
+	created, err := client.Send(ctx, send)
+	require.NoError(t, err)
+	require.NotEmpty(t, created.Msg.GetNotification().GetId())
+
+	read := connect.NewRequest(&notificationsv1.GetRequest{Id: created.Msg.GetNotification().GetId()})
+	read.Header().Set("X-Vrooli-Test-Mode", "1")
+	got, err := client.Get(ctx, read)
+	require.NoError(t, err)
+	require.Equal(t, "Treasury funds received", got.Msg.GetNotification().GetTitle())
+	require.Contains(t, got.Msg.GetNotification().GetBody(), "credited the rehearsal budget")
+	stats := routed.LeaseStats()
+	require.Greater(t, stats.TestPoolRequests, int64(0))
+	require.Zero(t, stats.PrimaryDuringTestModeRequests)
+	var primaryCount int
+	require.NoError(t, routed.Primary().QueryRowContext(ctx, `SELECT count(*) FROM notifications`).Scan(&primaryCount))
+	require.Zero(t, primaryCount, "notification writes remain in the disposable routed lease")
+	t.Logf("lease_id=%s notification_id=%s test_pool_requests=%d primary_during_test_mode_requests=%d", leaseID, created.Msg.GetNotification().GetId(), stats.TestPoolRequests, stats.PrimaryDuringTestModeRequests)
 }
 
 func TestTestModeRequestsFailClosedWithoutAnActiveLease(t *testing.T) {

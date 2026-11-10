@@ -53,7 +53,7 @@ describe("AppShell accessibility", () => {
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
-    await screen.findByText(/Nothing needs an answer/);
+    await screen.findByText(/No Hub questions awaiting an answer/);
     await expectNoA11yViolations(container);
   });
 
@@ -69,7 +69,7 @@ describe("AppShell accessibility", () => {
       { withoutRouter: true },
     );
 
-    await screen.findByText(/Nothing needs an answer/);
+    await screen.findByText(/No Hub questions awaiting an answer/);
 
     expect(screen.queryByTestId(`${selectors.layout.shell}-menu-panel`)).not.toBeInTheDocument();
     const bottomBar = screen.getByTestId(`${selectors.layout.shell}-tabs`);

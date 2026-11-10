@@ -89,8 +89,8 @@
       "searching": "リクエストを検索中…",
       "noMatches": "一致するリクエストはありません",
       "trySearch": "検索語や状態の絞り込みを変更してください。",
-      "noAwaiting": "回答が必要なリクエストはありません",
-      "awaitingEmptyDetail": "現在、あなたの回答を待っているリクエストはありません。",
+      "noAwaiting": "Hub で回答を待つ質問はありません",
+      "awaitingEmptyDetail": "元のサービスの権限リクエストは上で個別に確認されます。",
       "emptyDetail": "リクエストとその結果がここに表示されます。",
       "moreError": "追加のリクエストを読み込めませんでした。読み込み済みの結果は保持されています。",
       "retryMore": "追加の読み込みを再試行",
@@ -595,5 +595,17 @@
       "notification-preferences": "通知の設定",
       "use-a-switch-when-the-setting-takes-effect-immediately-and-can-be-understood-as-on-or-off": "すぐに反映され、オンとオフで理解できる設定にはスイッチを使用します。"
     }
+  },
+  "nativeConsent": {
+    "context": "元の情報を開く",
+    "title": "元のサービスでの権限リクエスト",
+    "authority": "この権限は Agent Manager が管理します。元の承認ページでのみ確認・承認してください。リンクを開くだけでは権限は付与されません。",
+    "loading": "現在の権限リクエストを確認中…",
+    "unavailable": "現在の権限状態を確認できませんでした。未処理のリクエストがないとは確認できていません。",
+    "pending": "Agent Manager によると、このリクエストは確認待ちです。",
+    "unverified": "現在の状態は未確認です。操作する前に元の Agent Manager ページを確認してください。",
+    "checked": "確認日時 {{time}} · 確認期限 {{expiry}}",
+    "open": "Agent Manager で確認",
+    "more": "以前の権限リクエストを確認"
   }
 }

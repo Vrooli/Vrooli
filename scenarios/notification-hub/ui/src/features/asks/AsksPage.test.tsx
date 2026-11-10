@@ -1,3 +1,4 @@
+vi.mock("./NativeConsents", () => ({ NativeConsents: () => null }));
 import en from "../../i18n/locales/en.json";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
@@ -32,7 +33,7 @@ describe("Needs you complete search", () => {
   it("shows a checked empty queue without hiding search or imposing a result cap", async () => {
     listAsks.mockResolvedValue({ asks: [], nextCursor: "" } as never);
     const { container } = show();
-    await screen.findByRole("heading", { name: "Nothing needs an answer" });
+    await screen.findByRole("heading", { name: "No Hub questions awaiting an answer" });
     expect(screen.getByRole("searchbox", { name: "Search requests" })).toBeInTheDocument();
     expect(screen.queryByText(/Latest 200|older requests may exist/i)).not.toBeInTheDocument();
     await expectNoA11yViolations(container);

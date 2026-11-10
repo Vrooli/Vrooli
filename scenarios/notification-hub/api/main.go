@@ -189,6 +189,7 @@ func main() {
 		posture = string(state.Posture)
 	}
 	scenarioResolver := discovery.NewResolver(discovery.ResolverConfig{})
+	service.SetNativeConsentReader(integrations.AgentManagerConsentReader{Resolver: scenarioResolver})
 	ownerVerifier := owneridentity.NewClient(owneridentity.Config{Resolver: scenarioResolver})
 	providerDecisionAudience := strings.TrimSpace(os.Getenv("VROOLI_AUTH_PROVIDER_DECISION_AUDIENCE"))
 	var providerDecisionVerifier authn.TokenVerifier
@@ -425,6 +426,14 @@ func requireRoutedTestLease(db *database.RoutedDB, next http.Handler) http.Handl
 			http.Error(w, "routed test lease is not active", http.StatusServiceUnavailable)
 			return
 		}
+		// A routed test lease is a disposable owner boundary as well as a
+		// storage boundary. Give every request in that pinned lease the fixed
+		// fixture recipient so scenario-to-scenario rehearsals can exercise the
+		// real producer and readback handlers without inventing owner credentials.
+		// Production identity remains untouched: this context exists only when
+		// TestModeMiddleware has marked the request and the lease was pinned above.
+		ctx = internalidentity.WithLeasedTestOwner(ctx, hub.TestRecipientSubject)
+		r = r.WithContext(ctx)
 		// E4 visual cases may select a disposable-pool fixture after the lease
 		// has been pinned. These mutations cannot run on ordinary requests or
 		// fall through to primary storage.

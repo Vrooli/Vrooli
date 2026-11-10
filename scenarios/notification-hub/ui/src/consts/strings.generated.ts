@@ -609,6 +609,18 @@ export const strings = {
     },
     switcherLabel: "theme.switcherLabel",
   },
+  nativeConsent: {
+    context: "nativeConsent.context",
+    title: "nativeConsent.title",
+    authority: "nativeConsent.authority",
+    loading: "nativeConsent.loading",
+    unavailable: "nativeConsent.unavailable",
+    pending: "nativeConsent.pending",
+    unverified: "nativeConsent.unverified",
+    checked: "nativeConsent.checked",
+    open: "nativeConsent.open",
+    more: "nativeConsent.more",
+  },
 } as const;
 
 export type Strings = typeof strings;

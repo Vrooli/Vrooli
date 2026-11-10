@@ -22,6 +22,7 @@ Use this document to answer:
 | `scenario-authenticator` | scenario | yes | Every authenticated surface | JWKS verified locally via `api-core/owneridentity` | Authenticated surfaces fail closed; accepted notifications keep draining. |
 | `vrooli-bridge` | scenario | no | Cross-node delivery | Durable dispatch of this scenario's cataloged `notifications relay` CLI verb to a remote machine | Host-bound channels are marked unroutable with a reason. |
 | `vrooli-events` | scenario | no | Event-driven ingress | Inbound subscription webhook to this scenario's receiver | Event ingress unavailable; direct requests unaffected. |
+| `agent-manager` | scenario | no | Native consent projection in Needs You | Lifecycle-resolved loopback status GET; source approval page remains authoritative | Current consent stays visibly unverified. The Hub does not start the source or grant permissions. |
 | `tunnel-manager` | scenario | yes | Push subscription origin | Core-tier public hostname, never auto-expired | No new device can subscribe; existing subscriptions keep working while the origin resolves. |
 | Browser push service | third-party | yes | Web Push adapter | RFC 8030 Web Push with VAPID; payload encrypted under RFC 8291 | Deliveries fail retryably, then terminally with a stated reason. `410 Gone` deletes the subscription. |
 | Linux desktop session | host capability | optional | `linux_notification` sender | `notify-send` through the freedesktop notification interface; requires a graphical display and a reachable D-Bus session bus | The channel reports unavailable with the missing display, session bus, or sender binary. It is never advertised as a macOS-only channel. |
@@ -203,3 +204,30 @@ derived from the content, so a retry is deduplicated by vrooli-events.
 - [`DATA.md`](DATA.md) — storage ownership
 - [`../reference/configuration.md`](../reference/configuration.md) — environment and service manifest
 - [`../operations/DEPLOYMENT.md`](../operations/DEPLOYMENT.md) — deployment readiness
+
+## Native human consent visibility
+
+Agent Manager interactive authorization stays native. Its
+`agent_manager.authorization_requested.notification.v1` FYI is delivery evidence,
+not an answerable Hub ask. `ConversationsService.ListNativeConsents` projects
+existing configured-recipient notifications whose source is `agent-manager`,
+category is `authorization-requested`, canonical UUID dedupe identity matches the
+original consent URL, and current source state is checked. Candidate pagination
+is independent of the 20-row Updates window; even a closed-only page has a next
+cursor when older candidates remain.
+
+The optional source dependency is Agent Manager's lifecycle-resolved loopback
+`GET /api/v1/authorizations/{id}/status`. Hub sends no owner credentials, follows
+no redirects, never fetches a notification-provided URL, and never starts Agent
+Manager. The reader returns only authorization identity, effective state, and
+review expiry. Missing, invalid, unreachable, or in-flight source state stays
+visibly unverified rather than clearing the queue. Approved, revoked, expired,
+and superseded source states are omitted from Needs You. No grant state is cached
+or written into Hub, and neither viewing nor opening the original review URL
+answers an ask or approves a permission. The sole authorization action remains
+Agent Manager's human-verified consent page. Updates also retains safe source
+context links.
+
+A push transport receipt means provider acceptance, not OS display. This repair
+does not create requests, resend notifications, or claim that an iPhone displayed
+an existing receipt. Device display verification remains a separate operator test.

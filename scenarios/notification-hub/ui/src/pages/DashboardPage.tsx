@@ -6,6 +6,7 @@ import { conversationsClient, deliveryClient } from "../api/notifications";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
+import { safeContextUrl } from "../features/asks/askView";
 import { HealthCard } from "../features/health/HealthCard";
 import { deliveryStateKey, formatDeliveryTime } from "../features/delivery/deliveryView";
 import { preserveRoutedTestMode } from "../features/routedTestMode";
@@ -68,6 +69,7 @@ export function DashboardPage() {
               const state = deliveryStateKey(item.state);
               const askId = askByNotification.get(item.id);
               const time = formatDeliveryTime(item.createdAt);
+              const contextUrl = item.contextUrl ? safeContextUrl(item.contextUrl) : null;
               return (
                 <li key={item.id} className="rounded-panel border border-app-border p-4">
                   <article className="flex flex-col gap-2">
@@ -104,6 +106,7 @@ export function DashboardPage() {
                       >
                         {t(strings.pages.dashboard.deliveryDetails)}
                       </Link>
+                      {contextUrl && <a href={contextUrl} rel="noreferrer" className="rounded-sm underline focus-visible:outline focus-visible:outline-2">{t(strings.nativeConsent.context)}</a>}
                       {askId && (
                         <Link
                           to={preserveRoutedTestMode(`/asks/${encodeURIComponent(askId)}`, location.search)}

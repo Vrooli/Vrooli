@@ -99,6 +99,7 @@ Because readiness is asked rather than pushed, freshness is this scenario's resp
 - `tunnel-manager` — required. Supplies the stable public origin a push subscription is bound to (OT-P0-015). This scenario is a core-seed member, so its hostname is always-on and never auto-expired; a leased hostname would silently unsubscribe every device on expiry. Absent, previously registered subscriptions keep working until the browser next needs the origin, and no new device can subscribe.
 - `vrooli-bridge` — optional. Supplies the node registry and durable dispatch for cross-node delivery. Absent, the hub delivers only what this host can reach and marks other channels unavailable rather than failing.
 - `vrooli-events` — optional. Supplies event ingress. Absent, direct requests still work.
+- `agent-manager` — optional, read-only, and never started by the hub (`startup_policy: ignore`). Supplies current native authorization state through the lifecycle-resolved loopback `GET /api/v1/authorizations/{id}/status` for Needs You. Absent, invalid, unreachable, or in-flight source state remains visible as unverified; direct notification and Hub Ask flows continue. Native permission decisions remain on Agent Manager's human-verified consent page. See [Native human consent visibility](docs/concepts/INTEGRATIONS.md#native-human-consent-visibility).
 
 **Risks**
 

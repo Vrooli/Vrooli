@@ -65,6 +65,7 @@
   "measures":{"domains":[]},
   "exceptions":[],
   "omitted":[
+    {"service":"ConversationsService","method":"ListNativeConsents","reason":"Read-only cross-source Needs You projection for the browser. Native permission review and action stay in Agent Manager, not in Hub conversations commands."},
     {"service":"IdentityService","method":"Login","reason":"Same-origin browser session facade for the installed web app (HttpOnly cookie); the CLI presents its own scenario-authenticator bearer token instead."},
     {"service":"IdentityService","method":"GetSession","reason":"Same-origin browser session facade for the installed web app (HttpOnly cookie); the CLI presents its own scenario-authenticator bearer token instead."},
     {"service":"IdentityService","method":"Logout","reason":"Same-origin browser session facade for the installed web app (HttpOnly cookie); the CLI presents its own scenario-authenticator bearer token instead."}

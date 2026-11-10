@@ -1,3 +1,4 @@
+vi.mock("./NativeConsents", () => ({ NativeConsents: () => null }));
 import en from "../../i18n/locales/en.json";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
