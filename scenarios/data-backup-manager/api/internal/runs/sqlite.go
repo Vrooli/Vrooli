@@ -478,3 +478,33 @@ func placeholders(n int) string {
 	}
 	return strings.TrimSuffix(strings.Repeat("?,", n), ",")
 }
+
+var _ PlanSuccessReader = (*sqliteRepository)(nil)
+
+// PlanSuccess returns when each target of planID last had a succeeded outcome
+// under that plan. Outcomes recorded for other plans do not count.
+func (s *sqliteRepository) PlanSuccess(ctx context.Context, planID string) (PlanSuccess, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT o.target_id, MAX(o.finished_at) FROM run_outcomes o JOIN runs r ON r.id = o.run_id WHERE r.plan_id = ? AND o.status = ? AND o.finished_at != '' GROUP BY o.target_id`,
+		planID, string(OutcomeSucceeded))
+	if err != nil {
+		return PlanSuccess{}, fmt.Errorf("plan success: %w", err)
+	}
+	defer rows.Close()
+	out := PlanSuccess{ByTarget: map[string]time.Time{}}
+	for rows.Next() {
+		var targetID, finished string
+		if err := rows.Scan(&targetID, &finished); err != nil {
+			return PlanSuccess{}, fmt.Errorf("scan plan success: %w", err)
+		}
+		t := parseTime(finished)
+		out.ByTarget[targetID] = t
+		if t.After(out.At) {
+			out.At = t
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return PlanSuccess{}, fmt.Errorf("iterate plan success: %w", err)
+	}
+	return out, nil
+}

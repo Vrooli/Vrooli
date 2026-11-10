@@ -50,6 +50,55 @@
         "max_bytes": "16MiB",
         "rationale": "Measured at 1838 bytes on 2026-11-03; retain approval evidence while surfacing unexpected growth for an explicit retention policy."
       }
+    },
+    "backup-failure": {
+      "rung": "owned",
+      "kind": "dir",
+      "class": "state",
+      "subpath": "backup-failure",
+      "regenerable": false,
+      "rationale": "Incident journals record what DBM diagnosed when backups to a destination stopped, what the operator was asked, what was answered and what was done. They keep one open question per condition across restarts.",
+      "budget": {
+        "max_bytes": "16MiB",
+        "rationale": "Each incident is a few kilobytes and a condition opens a new generation at most daily; the ceiling makes unexpected growth visible."
+      }
+    },
+    "backup-failure-decisions": {
+      "rung": "owned",
+      "kind": "dir",
+      "class": "state",
+      "subpath": "backup-failure-decisions",
+      "regenerable": false,
+      "rationale": "Durable Notification Hub asks and callback outcomes for backup-failure questions, needed to correlate a verified answer with its incident and to make replays no-ops.",
+      "budget": {
+        "max_bytes": "16MiB",
+        "rationale": "One small record per question generation; the ceiling surfaces unexpected growth."
+      }
+    },
+    "backup-exceptions": {
+      "rung": "owned",
+      "kind": "dir",
+      "class": "state",
+      "subpath": "backup-exceptions",
+      "regenerable": false,
+      "rationale": "The operator's recorded decisions to tolerate specific unreadable leftover repository paths: exact path, who approved, and when. Losing them silently re-blocks backups; they are evidence, not a cache.",
+      "budget": {
+        "max_bytes": "4MiB",
+        "rationale": "One small record per excepted path on a destination; a handful of kilobytes in practice."
+      }
+    },
+    "backup-notices": {
+      "rung": "owned",
+      "kind": "dir",
+      "class": "state",
+      "subpath": "backup-notices",
+      "regenerable": true,
+      "rationale": "When each stalled-backup, switched-off-plan and accepted-exception notice was last sent, so a restart neither drops the daily cadence nor repeats a once-only notice.",
+      "budget": {
+        "max_age": "365d",
+        "max_bytes": "1MiB",
+        "rationale": "A single small JSON file of timestamps."
+      }
     }
     },
     "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."

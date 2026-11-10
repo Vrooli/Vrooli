@@ -2,6 +2,7 @@ package destinations
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,8 +12,10 @@ import (
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/module"
+	"data-backup-manager/internal/repohealth"
 	"data-backup-manager/internal/sysmounts"
 
+	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/api-core/schedule"
 
@@ -47,6 +50,47 @@ func ModuleWithRecoveryDecisions(db *database.RoutedDB, clk schedule.Clock, eng 
 // api-core's maintenance hooks; tests that only need routes can use the wrapper
 // above without starting background work.
 func ModuleWithRecoveryWorker(db *database.RoutedDB, clk schedule.Clock, eng engine.KopiaEngine, protectedRoot string, recoveryStateRoot string, logger *log.Logger, publisher operatordecision.Publisher, webhookSecret string) (module.Module, *VolumeRecoveryWorker) {
+	m, workers := ModuleWithBackupRecovery(db, clk, eng, protectedRoot, recoveryStateRoot, logger, publisher, webhookSecret, BackupFailureConfig{})
+	return m, workers.Volume
+}
+
+// BackupFailureConfig enables the backup-failure recovery path: diagnosing a
+// destination that stops backups, asking the operator one question, and warning
+// when backups stall. A zero value leaves it off.
+type BackupFailureConfig struct {
+	History    BackupHistory
+	Usage      *repohealth.UsageEngine
+	Exceptions repohealth.ExceptionStore
+}
+
+// Workers are the lifecycle-managed monitors of the destinations domain.
+type Workers struct {
+	Volume        *VolumeRecoveryWorker
+	BackupFailure *BackupFailureWorker
+}
+
+// Start starts every configured monitor.
+func (w Workers) Start() error {
+	if err := w.Volume.Start(); err != nil {
+		return err
+	}
+	return w.BackupFailure.Start()
+}
+
+// Stop stops every configured monitor.
+func (w Workers) Stop(ctx context.Context) error {
+	return errors.Join(w.BackupFailure.Stop(ctx), w.Volume.Stop(ctx))
+}
+
+// LifecycleHooks quiesces and resumes every monitor around maintenance.
+func (w Workers) LifecycleHooks() lifecycle.Hooks {
+	return lifecycle.Hooks{Quiesce: w.Stop, Resume: func(context.Context) error { return w.Start() }}
+}
+
+// ModuleWithBackupRecovery returns the destinations API module and its monitors:
+// the volume recovery monitor and, when configured, the backup-failure monitor
+// that shares its decision, journal and callback machinery.
+func ModuleWithBackupRecovery(db *database.RoutedDB, clk schedule.Clock, eng engine.KopiaEngine, protectedRoot string, recoveryStateRoot string, logger *log.Logger, publisher operatordecision.Publisher, webhookSecret string, failureCfg BackupFailureConfig) (module.Module, Workers) {
 	repo := internaldestinations.NewSQLiteRepository(db, clk)
 	readinessSvc := destinationreadiness.NewService(
 		destinationreadiness.NewReadOnlyInspector(sysmounts.New()),
@@ -68,6 +112,24 @@ func ModuleWithRecoveryWorker(db *database.RoutedDB, clk schedule.Clock, eng eng
 		)
 	}
 	recoveryWorker := newVolumeRecoveryWorker(svc, readinessSvc, recoveryStore, decisions, logger)
+	workers := Workers{Volume: recoveryWorker}
+	var backupFlow *BackupFailureFlow
+	if failureCfg.History != nil && failureCfg.Usage != nil && failureCfg.Exceptions != nil {
+		incidents := &repohealth.FileIncidentStore{Root: filepath.Join(recoveryStateRoot, "backup-failure")}
+		backupFlow = newBackupFailureFlow(BackupFailureFlowDeps{
+			Readiness: readinessSvc, Volume: decisions, Recoveries: recoveryStore,
+			Asks:      &destinationreadiness.FileDecisionStore{Root: filepath.Join(recoveryStateRoot, "backup-failure-decisions")},
+			Publisher: publisher, Incidents: incidents, Exceptions: failureCfg.Exceptions,
+			Scanner: failureCfg.Usage.Scanner, Usage: failureCfg.Usage, History: failureCfg.History, Dests: svc,
+			Enabled: publisher != nil && strings.TrimSpace(webhookSecret) != "", Logger: logger,
+		})
+		workers.BackupFailure = newBackupFailureWorker(BackupFailureWorkerDeps{
+			History: failureCfg.History, Dests: svc, Readiness: readinessSvc, Flow: backupFlow, Volume: recoveryWorker,
+			Usage: failureCfg.Usage, Exceptions: failureCfg.Exceptions, Incidents: incidents,
+			Notices:   &repohealth.NoticeStateStore{Path: filepath.Join(recoveryStateRoot, "backup-notices", "state.json")},
+			Publisher: publisher, Recoveries: recoveryStore, Logger: logger,
+		})
+	}
 	connectPath, connectHandler := destinationsconnect.NewDestinationsServiceHandler(NewConnectHandler(Deps{
 		Service:       svc,
 		Readiness:     readinessSvc,
@@ -80,7 +142,11 @@ func ModuleWithRecoveryWorker(db *database.RoutedDB, clk schedule.Clock, eng eng
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 			if decisions != nil && strings.TrimSpace(webhookSecret) != "" {
-				r.Handle(recoveryDecisionWebhookPath, operatordecision.Webhook(webhookSecret, decisions)).Methods("POST")
+				effects := []operatordecision.DomainEffect{decisions}
+				if backupFlow != nil {
+					effects = append(effects, backupFlow)
+				}
+				r.Handle(recoveryDecisionWebhookPath, operatordecision.Webhook(webhookSecret, effects...)).Methods("POST")
 				if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 					target := "http://127.0.0.1:" + port + recoveryDecisionWebhookPath
 					go func() {
@@ -96,7 +162,7 @@ func ModuleWithRecoveryWorker(db *database.RoutedDB, clk schedule.Clock, eng eng
 			}
 		},
 		Endpoints: Endpoints,
-	}, recoveryWorker
+	}, workers
 }
 
 // Schema re-exports the destinations domain SQL so the modules registry

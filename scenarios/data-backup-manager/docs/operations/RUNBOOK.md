@@ -381,3 +381,23 @@ external Git storage, non-current owners/groups, hard links, ACLs/xattrs, specia
 files and unsupported platforms are refused. Do not weaken those checks to make
 an unsupported tree report success. There is no tested production-engine receipt
 for this new source kind; mocked validation does not establish one.
+
+## Backups blocked on a mounted drive
+
+DBM watches enabled plans. When a run is stopped by a destination-level reason it
+diagnoses read-only and raises one Notification Hub decision (options A to D).
+Do not hand-run kopia repair, delete or rename repository files to clear it.
+
+1. Read the decision: it states the cause, days stopped, and items with no other
+   copy. Its technical details list every unreadable repository path.
+2. Answering A records one exception per listed path. `runs preflight --plan <id>`
+   then passes while only those paths are unreadable, and a backup is triggered.
+   The exception files are under the scenario state root, `backup-exceptions/`.
+3. Answering B runs unmount, offline repair, remount through the control plane;
+   it is refused while a backup is running.
+4. Answering C records a request: an agent must register a new destination and
+   re-point the plan. Nothing is changed automatically.
+5. Declining or not answering leaves backups blocked. The stalled-backup notice
+   repeats daily; the question returns after a day (declined) and is asked again at
+   once if the hub expires it unanswered after its week-long deadline.
+

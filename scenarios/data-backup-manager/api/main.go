@@ -7,12 +7,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"data-backup-manager/internal/destinationreadiness"
 	"data-backup-manager/internal/engine"
 	"data-backup-manager/internal/modules"
+	"data-backup-manager/internal/repohealth"
 	"data-backup-manager/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
@@ -189,7 +191,7 @@ func run(ctx context.Context) error {
 	// lifecycle; empty in bare dev runs, which makes the rule permissive.
 	clk := schedule.System()
 	logger := log.Default()
-	kopia := engine.NewKopiaCLI()
+	kopiaCLI := engine.NewKopiaCLI()
 	protectedRoot, _ := lookupEnvTrimmed("SCENARIO_DATA_DIR")
 	fileResolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
 	if err != nil {
@@ -201,10 +203,37 @@ func run(ctx context.Context) error {
 	}
 	fileRoots := filerouting.New(filePaths)
 
+	// Every repository usage measurement (preflight, destination usage, cap
+	// checks, run accounting) goes through one rule: kopia's answer wins, and a
+	// failure is excused only by an operator-recorded exception for the exact
+	// unreadable leftover path it names. The locator is bound once destinations
+	// exist.
+	backupExceptions := &repohealth.FileExceptionStore{Root: filepath.Join(filePaths.StateDir, "backup-exceptions")}
+	var destinationCatalog destint.Service
+	kopia := &repohealth.UsageEngine{
+		KopiaEngine: kopiaCLI, Exceptions: backupExceptions, Scanner: &repohealth.Scanner{},
+		Locate: func(ctx context.Context, repoName string) (string, string, bool) {
+			if destinationCatalog == nil {
+				return "", "", false
+			}
+			list, err := destinationCatalog.ListDestinations(ctx, 500)
+			if err != nil {
+				return "", "", false
+			}
+			for _, d := range list {
+				if d.Name == repoName && d.BackendKind == destint.BackendFilesystem && d.RepositoryLocation != "" {
+					return d.ID, d.RepositoryLocation, true
+				}
+			}
+			return "", "", false
+		},
+	}
+
 	// Concrete domain services used both for mounting (via each module) and as
 	// the backing for the cross-domain adapters the run orchestration needs.
 	targetsSvc := targetsint.NewService(targetsint.NewSQLiteRepository(db, clk))
 	destSvc := destint.NewService(destint.NewSQLiteRepository(db, clk), kopia, &destint.FSBundleWriter{}, protectedRoot)
+	destinationCatalog = destSvc
 	if err := destSvc.ReconcileCredentialReferences(ctx); err != nil {
 		// A destination may be mounted read-only while the manager is still
 		// able to serve catalog/readiness requests. Keep the service available,
@@ -285,8 +314,9 @@ func run(ctx context.Context) error {
 	// Late-bound: the scheduler is constructed below (it needs runsSvc as its
 	// trigger), then assigned into this adapter before any request runs.
 	nextSched := &nextScheduleAdapter{plans: plansSvc}
+	runsRepo := runsint.NewSQLiteRepository(db, clk)
 	runsSvc := runsint.NewService(runsint.Deps{
-		Repo:                 runsint.NewSQLiteRepository(db, clk),
+		Repo:                 runsRepo,
 		Plans:                planLookup{svc: plansSvc},
 		Targets:              targetLookup{svc: targetsSvc},
 		ActiveTargets:        targetLookup{svc: targetsSvc},
@@ -433,10 +463,15 @@ func run(ctx context.Context) error {
 		RuntimeRoot:  discoveryint.RuntimeRoot,
 	})
 
-	destinationsModule, recoveryWorker := destinationsH.ModuleWithRecoveryWorker(
+	destinationsModule, recoveryWorkers := destinationsH.ModuleWithBackupRecovery(
 		db, clk, kopia, protectedRoot, filePaths.StateDir, logger, decisionPublisher, eventsWebhookSecret,
+		destinationsH.BackupFailureConfig{
+			History:    backupHistory{plans: plansSvc, runs: runsSvc, repo: runsRepo, targets: targetsSvc},
+			Usage:      kopia,
+			Exceptions: backupExceptions,
+		},
 	)
-	if err := recoveryWorker.Start(); err != nil {
+	if err := recoveryWorkers.Start(); err != nil {
 		cancelExec()
 		_ = db.Close()
 		return fmt.Errorf("start volume recovery monitor: %w", err)
@@ -482,7 +517,7 @@ func run(ctx context.Context) error {
 			// Interrupt and drain in-flight runs + restores before closing the DB
 			// so no worker can write to a closed handle.
 			cancelExec()
-			if err := recoveryWorker.Stop(cctx); err != nil {
+			if err := recoveryWorkers.Stop(cctx); err != nil {
 				logger.Printf("volume recovery monitor shutdown: %v", err)
 			}
 			_ = runsSvc.Shutdown(cctx)
@@ -491,7 +526,7 @@ func run(ctx context.Context) error {
 			_ = drillsSvc.Shutdown(cctx)
 			return db.Close()
 		},
-		LifecycleHooks: recoveryWorker.LifecycleHooks(),
+		LifecycleHooks: recoveryWorkers.LifecycleHooks(),
 	}); err != nil {
 		return fmt.Errorf("server error: %w", err)
 	}

@@ -68,3 +68,17 @@ type IncidentUpdater interface {
 	SavePreflightIncidents(ctx context.Context, runID string, incidents []failures.Cause) error
 	IncidentsForRun(ctx context.Context, runID string) ([]failures.Cause, error)
 }
+
+// PlanSuccess is the recorded success history of one plan: the newest
+// succeeded target outcome overall and per target. It is read-only evidence for
+// the stalled-backup monitor.
+type PlanSuccess struct {
+	At       time.Time
+	ByTarget map[string]time.Time
+}
+
+// PlanSuccessReader is an optional additive read seam, kept separate so narrow
+// test repositories stay compatible.
+type PlanSuccessReader interface {
+	PlanSuccess(ctx context.Context, planID string) (PlanSuccess, error)
+}

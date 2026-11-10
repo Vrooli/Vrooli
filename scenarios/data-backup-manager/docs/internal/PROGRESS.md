@@ -470,3 +470,24 @@ temporary config/cache and did not alter the registered repository. This
 rules against corruption limited to the registered Kopia cache, but does not
 resolve the separate repo-stats failure on the exact `s/...f.tmp` object. A
 direct `stat` and directory walk of that exact path still return `EIO`.
+
+## 2026-11-10 — backup-failure recovery path, stalled-backup notices, recorded exceptions
+
+Backups to the Elements drive last succeeded on 2026-08-19 18:58Z (kopia lists
+192 snapshots, 97 of them on 19 August, none later); DBM's run store holds no
+success for that plan, so nothing in DBM said backups had stopped. The usage
+check that now blocks entered on 2026-11-04, after the incident; before it the
+Nov 3 attempt was blocked by snapshot enumeration (missing manifest blobs since
+repaired). The unreadable leftover is 13 entries, not one: kopia stops at the
+first, a read-only walk finds all 13 (all `s/*/*.f.tmp.*`, session-marker
+uploads), and the newest directory mtime matches the last snapshot to the second.
+
+Added `internal/repohealth` (repository walk, entry classification, per-path
+exception store, `UsageEngine`, diagnosis, plain-language decision text, stalled
+notice rules, incident journal), the destinations `BackupFailureWorker` and
+`BackupFailureFlow` (one question per condition, verified-human answers only),
+`runs.PlanSuccessReader`, notification categories, and storage declarations for
+the four new state directories. Focused tests cover each layer; see
+`DBM-RECOVERY-002` and `DBM-ALERT-001`. No repository write path exists in the
+new code.
+

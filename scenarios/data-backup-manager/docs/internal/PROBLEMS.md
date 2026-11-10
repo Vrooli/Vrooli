@@ -50,6 +50,16 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 ## Entries
 
+### 2026-11-10 — Elements: 13 unreadable leftovers, backups stopped since 2026-08-19 (now asked about)
+
+**Update:** the unreadable set is 13 `s/*/*.f.tmp.*` session-marker upload leftovers
+(only the first is named by kopia's error). Backups last succeeded on 2026-08-19.
+DBM now diagnoses this, raises one decision (skip as recorded exceptions, offline
+repair, or fresh repository by an agent) and sends daily stalled-backup notices.
+The leftovers themselves are untouched. Revoking an exception has no CLI yet:
+`FileExceptionStore.Revoke` is the only path (a record under
+`state/backup-exceptions`).
+
 ### 2026-11-04 — Elements Kopia repository contains an unreadable temp object
 
 **Symptom:** Destination usage and Kopia blob statistics fail with `EIO` while

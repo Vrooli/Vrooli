@@ -32,6 +32,7 @@ formal-model work.
 | Verified restore | restores | Operator/scenario requests restore or verify of a target. | Target restored to a location, or test-restored to scratch + checksummed (last-verified recorded). | Stateful job with verify gate. | Implemented: domain transition owner, persisted compare-and-swap enforcement, invalid-transition regressions; declarative Level 4 contract remains open. |
 | Scheduled recovery drill | drills | Operator requests a drill, or a configured plan schedule becomes due. | A successful snapshot is restored through the verify path and terminal drill evidence records the result. | Stateful queued job linked to a verified restore; startup reconciliation fails orphaned active drills. | Implemented: typed start/verify/fail events, SQLite compare-and-swap transitions, restore-link guard, invalid-state matrix and persistence regressions. |
 | Destination volume recovery | destinationreadiness | Operator confirms or resumes recovery after a volume becomes unavailable. | An identity-bound sequence is completed, paused for inspection, or left pending after a successful dry run. | Crash-resumable journal and ordered host-remediation steps; an ambiguous in-flight repair is never replayed automatically. | Implemented: journal/step transition owners, persisted-state validation, invalid-event matrix and resume/refusal regressions. |
+| Backup-failure recovery | destinations (`repohealth`) | An enabled plan's latest run is stopped by a destination-level reason (blocked preflight or failed run) on a mounted volume. | Read-only diagnosis, safe steps, ONE plain Notification Hub question kept outstanding until answered; a verified-human answer is applied (record exceptions, repair, or request an agent); a result notice follows. | Durable incident journal per condition and generation; ask ledger; exception records. | Implemented: `backup_failure_test.go`, `repohealth_test.go`. Live operator answer unverified. |
 | Generic snapshot audit | audits | Operator/scenario requests an audit of a snapshot. | Snapshot restored to scratch (recoverability), live target captured to scratch (read-only), both walked and compared by generic inventory; proof persisted. | Stateful async job; pass/diff/drift/failed terminal. | Implemented: typed transition owner, SQLite compare-and-swap writes, terminal event/status validation, and exhaustive event-matrix tests; service, reconciliation and repository callers migrated. |
 | Storage-limit block | destinations / runs | A run would write past a destination's cap. | Run is blocked, an alert is raised, no bytes are written; never silent eviction. | Branch on cap-check before write. | Implemented: destination service cap-policy and usage tests. |
 
@@ -149,6 +150,46 @@ formal-model work.
   known states before atomically persisting the journal.
 - Existing preparation API remains the owner of device identity, explicit
   confirmation, and data-loss acknowledgement constraints.
+
+### Backup-failure recovery
+
+- Owner: `api/handlers/destinations` (`BackupFailureWorker`, `BackupFailureFlow`) over
+  `api/internal/repohealth`. It reuses the volume-recovery machinery: the ask
+  ledger and Raiser, the signed Notification Hub callback, the control-plane
+  volume owner for repair, and the retryable result notice.
+- Trigger: an enabled plan's newest run failed with a destination-level code
+  (`repository_invalid`, `destination_inaccessible`, `destination_dirty`,
+  `destination_read_only`, `destination_unmounted`).
+- Diagnosis (read-only, at most once per new failed run and every 30 minutes):
+  volume mounted/writable, repository opens, snapshots list, usage measurable;
+  if usage fails, a bounded walk of the repository directory classifies each
+  unreadable entry as a leftover temporary upload (`<blob>.f.tmp.<hex>`) or
+  repository content; days since the last success (run log or newest repository
+  snapshot); items that no other enabled, recently successful plan protects.
+- Safe steps without asking: re-read, retry the plan when every check passes, and
+  hand an unmounted drive to the existing clean-check remount.
+- The question: lettered options, each with its risk, one recommended. A: skip
+  only the exact unreadable leftover files and resume (offered only when every
+  unreadable entry is a leftover temporary file). B: take the drive offline and
+  repair it (unmount, offline repair, remount through the control plane; refused
+  while a backup runs). C: a fresh backup set (an agent sets it up; nothing is
+  changed). D: do nothing; the question returns after a day. Decline, dismissal,
+  Other, or no answer leaves backups blocked; the daily stalled notice names the
+  open question. The question is held open for a week (the hub closes a non-critical
+  question at its deadline); when the hub expires it unanswered, nothing is changed and
+  the monitor asks again at once, so one question is outstanding while backups are blocked.
+- Exceptions: option A records one exception per exact path (path, failure kind,
+  approver, identity source, time) under `state/backup-exceptions`. The usage
+  engine (`repohealth.UsageEngine`) honours an exception only when the engine's
+  failure names that exact path, every unreadable entry is covered, and the path
+  is still an unreadable leftover temporary file of the recorded kind. Any other
+  unreadable entry, or an excepted path that changes shape, blocks again and asks
+  again. Nothing is deleted, renamed, or written in the repository.
+- Notices (`.vrooli/notifications.json`): `backup-stalled` (no success for twice
+  the schedule, at least 48 h; 48 h without a schedule; daily), `backup-plan-disabled`
+  (switched-off plan with unprotected items; once per distinct set),
+  `backup-exception-active` (daily standing warning), `backup-recovery-completed`,
+  `backup-recovery-needs-attention`.
 
 ### Generic snapshot audit
 
