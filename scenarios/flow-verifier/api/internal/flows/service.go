@@ -47,14 +47,11 @@ func List(root, flowID, kindFilter string) ([]Summary, error) {
 	if err != nil {
 		return nil, err
 	}
-	specs, err := discovery.FindContracts(rootAbs)
+	specs, err := findSpecs(rootAbs, flowID)
 	if err != nil {
 		return nil, err
 	}
-	selected := discovery.Filter(specs, flowID)
-	if flowID != "" && len(selected) == 0 {
-		return nil, fmt.Errorf("unknown flow id %s", flowID)
-	}
+	selected := specs
 	if kindFilter != "" {
 		filtered := make([]kind.Spec, 0, len(selected))
 		for _, s := range selected {
@@ -346,15 +343,7 @@ func loadSpec(root, flowID string) (kind.Spec, error) {
 	if err != nil {
 		return nil, err
 	}
-	specs, err := discovery.FindContracts(rootAbs)
-	if err != nil {
-		return nil, err
-	}
-	selected := discovery.Filter(specs, flowID)
-	if len(selected) == 0 {
-		return nil, fmt.Errorf("unknown flow id %s", flowID)
-	}
-	return selected[0], nil
+	return discovery.FindContract(rootAbs, flowID)
 }
 
 // deriveScenarioRoot infers the scenario root from a contract path that
@@ -379,15 +368,15 @@ func discoverFiltered(root, flowID string) ([]model.Flow, error) {
 	if err != nil {
 		return nil, err
 	}
-	specs, err := discovery.FindContracts(rootAbs)
+	specs, err := findSpecs(rootAbs, flowID)
 	if err != nil {
 		return nil, err
 	}
-	selected := discovery.Filter(specs, flowID)
-	if flowID != "" && len(selected) == 0 {
-		return nil, fmt.Errorf("unknown flow id %s", flowID)
-	}
-	return temporal.FlowsFromSpecs(selected), nil
+	return temporal.FlowsFromSpecs(specs), nil
+}
+
+func findSpecs(root, flowID string) ([]kind.Spec, error) {
+	return discovery.FindContractsFiltered(root, flowID)
 }
 
 func buildExplainReport(root string, flow model.Flow) string {

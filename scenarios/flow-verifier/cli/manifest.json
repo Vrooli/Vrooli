@@ -548,6 +548,37 @@
               "network:internal"
             ]
           }
+        },
+        {
+          "name": "lifecycles",
+          "description": "Rank inferred lifecycle candidates across the scenario fleet",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Restrict the inventory to one scenario id",
+              "bind": {
+                "field": "scenario_id"
+              }
+            },
+            {
+              "name": "hunt-index",
+              "description": "Source Ledger full export or Search Hub recall JSON; complete coverage metadata is displayed when present",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ScenariosService",
+            "method": "ListLifecycles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal",
+              "filesystem:read"
+            ]
+          }
         }
       ]
     },

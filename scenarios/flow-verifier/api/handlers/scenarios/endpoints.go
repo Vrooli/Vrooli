@@ -26,6 +26,14 @@ var Endpoints = []module.EndpointDescriptor{
 		Category:    "scenarios",
 	},
 	{
+		ID:          "scenarios.lifecycles",
+		Path:        scenariosconnect.ScenariosServiceListLifecyclesProcedure,
+		Method:      "POST",
+		Summary:     "Infer lifecycle candidates across scenarios",
+		Description: "Ranks Go status/state candidates with source evidence and optional operator-supplied hunt record references.",
+		Category:    "scenarios",
+	},
+	{
 		ID:          "scenarios.generate_artifacts",
 		Path:        scenariosconnect.ScenariosServiceGenerateScenarioArtifactsProcedure,
 		Method:      "POST",

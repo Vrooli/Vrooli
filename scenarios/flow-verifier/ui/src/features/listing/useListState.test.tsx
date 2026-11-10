@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { act, cleanup, render } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { describe, expect, it } from "vitest";
+import { act } from "@testing-library/react";
+import { useLocation } from "react-router-dom";
 
+import { renderWithProviders } from "../../test-utils";
 import { useListState, type ListStateCodec } from "./useListState";
 
 interface S {
@@ -29,14 +30,11 @@ function Probe({ onReady }: { onReady: (api: ReturnType<typeof useListState<S>>,
 }
 
 describe("useListState", () => {
-  afterEach(() => cleanup());
-
   it("reads initial state from the URL", () => {
     let captured: S | null = null;
-    render(
-      <MemoryRouter initialEntries={["/x?q=hello&flag=1"]}>
-        <Probe onReady={(api) => { captured = api.state; }} />
-      </MemoryRouter>,
+    renderWithProviders(
+      <Probe onReady={(api) => { captured = api.state; }} />,
+      { routerEntries: ["/x?q=hello&flag=1"] },
     );
     expect(captured).toEqual({ q: "hello", flag: true });
   });
@@ -44,15 +42,14 @@ describe("useListState", () => {
   it("writes state back to the URL via the codec", () => {
     let api: ReturnType<typeof useListState<S>> | null = null;
     let search = "";
-    render(
-      <MemoryRouter initialEntries={["/x"]}>
-        <Probe
-          onReady={(a, s) => {
-            api = a;
-            search = s;
-          }}
-        />
-      </MemoryRouter>,
+    renderWithProviders(
+      <Probe
+        onReady={(a, s) => {
+          api = a;
+          search = s;
+        }}
+      />,
+      { routerEntries: ["/x"] },
     );
     act(() => {
       api!.setState({ q: "abc", flag: false });

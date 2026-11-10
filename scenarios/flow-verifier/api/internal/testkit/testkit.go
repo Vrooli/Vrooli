@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vrooli/repo-contract-go/repocontracttest"
+
 	"flow-verifier/internal/flows/kinds/temporal/compile"
 	"flow-verifier/internal/flows/kinds/temporal/contract"
 	"flow-verifier/internal/flows/kinds/temporal/layout"
@@ -134,18 +136,7 @@ func WriteJSONMap(t *testing.T, path string, body map[string]any) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteFile(t, filepath.Dir(path), filepath.Base(path), string(data))
-}
-
-func WriteFile(t *testing.T, root string, rel string, body string) {
-	t.Helper()
-	path := filepath.Join(root, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	repocontracttest.WriteFile(t, path, string(data))
 }
 
 func WriteFlowJSON(t *testing.T, root string, rel string, raw contract.Contract) {

@@ -6,11 +6,14 @@ package scenarios
 
 import (
 	"log"
+	"net/http"
+	"time"
 
 	"flow-verifier/internal/module"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
+	"github.com/vrooli/api-core/server"
 
 	scenariosconnect "github.com/vrooli/vrooli/packages/proto/gen/go/flow-verifier/v1/scenarios/scenarios_v1connect"
 )
@@ -30,10 +33,23 @@ func ModuleWithLogger(scenariosSvc Service, artifactsSvc ArtifactsService, logge
 		Logger:    logger,
 	})
 	path, h := scenariosconnect.NewScenariosServiceHandler(handler)
+	operationHandler, operationErr := server.WithOperationBudget(h, 2*time.Minute)
+	if operationErr != nil {
+		operationHandler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			http.Error(w, "lifecycle inventory operation unavailable", http.StatusInternalServerError)
+		})
+	}
 	return module.Module{
 		Name: "scenarios",
 		Mount: func(r *mux.Router) {
-			connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: h})
+			serviceHandler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if req.URL.Path == scenariosconnect.ScenariosServiceListLifecyclesProcedure {
+					operationHandler.ServeHTTP(w, req)
+					return
+				}
+				h.ServeHTTP(w, req)
+			})
+			connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: serviceHandler})
 		},
 		Endpoints: Endpoints,
 	}

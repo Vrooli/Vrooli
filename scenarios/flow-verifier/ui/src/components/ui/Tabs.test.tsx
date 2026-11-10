@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
+import { renderWithProviders } from "../../test-utils";
 
 import { TabList, TabPanel } from "./Tabs";
 
@@ -37,24 +38,23 @@ function Harness({ value }: { value: Key }) {
 }
 
 describe("TabList / TabPanel", () => {
-  afterEach(() => cleanup());
 
   it("renders each tab with aria-selected reflecting the active value", () => {
-    render(<Harness value="b" />);
+    renderWithProviders(<Harness value="b" />);
     expect(screen.getByTestId("x-tab-a")).toHaveAttribute("aria-selected", "false");
     expect(screen.getByTestId("x-tab-b")).toHaveAttribute("aria-selected", "true");
     expect(screen.getByTestId("x-tab-c")).toHaveAttribute("aria-selected", "false");
   });
 
   it("renders only the active panel", () => {
-    render(<Harness value="a" />);
+    renderWithProviders(<Harness value="a" />);
     expect(screen.getByTestId("x-content-a")).toBeInTheDocument();
     expect(screen.queryByTestId("x-content-b")).not.toBeInTheDocument();
   });
 
   it("calls onChange when a different tab is clicked", async () => {
     const onChange = vi.fn();
-    render(
+    renderWithProviders(
       <TabList
         idPrefix="y"
         value="a"
@@ -70,7 +70,7 @@ describe("TabList / TabPanel", () => {
 
   it("ArrowRight cycles to the next tab", () => {
     const onChange = vi.fn();
-    render(
+    renderWithProviders(
       <TabList
         idPrefix="z"
         value="a"
@@ -85,7 +85,7 @@ describe("TabList / TabPanel", () => {
 
   it("ArrowLeft wraps to the last tab", () => {
     const onChange = vi.fn();
-    render(
+    renderWithProviders(
       <TabList
         idPrefix="z2"
         value="a"
@@ -100,7 +100,7 @@ describe("TabList / TabPanel", () => {
 
   it("Home and End jump to the boundary tabs", () => {
     const onChange = vi.fn();
-    render(
+    renderWithProviders(
       <TabList
         idPrefix="z3"
         value="b"
@@ -116,7 +116,7 @@ describe("TabList / TabPanel", () => {
   });
 
   it("roving tabindex: only the active tab is in the tab order", () => {
-    render(
+    renderWithProviders(
       <TabList
         idPrefix="z4"
         value="b"

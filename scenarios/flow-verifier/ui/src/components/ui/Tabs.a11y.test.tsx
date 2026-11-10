@@ -1,7 +1,5 @@
-import { afterEach, describe, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
-
-import { expectNoA11yViolations } from "../../test-utils";
+import { describe, it } from "vitest";
+import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { TabList, TabPanel } from "./Tabs";
 
 type Key = "a" | "b";
@@ -11,10 +9,9 @@ const items: { value: Key; label: string }[] = [
 ];
 
 describe("Tabs accessibility", () => {
-  afterEach(() => cleanup());
 
   it("renders without axe violations", async () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <>
         <TabList
           idPrefix="t"

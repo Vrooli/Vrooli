@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"flow-verifier/internal/flows/discovery"
+	"flow-verifier/internal/flows/kind"
 	"flow-verifier/internal/flows/kinds/temporal"
 	"flow-verifier/internal/flows/kinds/temporal/layout"
 	"flow-verifier/internal/flows/kinds/temporal/model"
@@ -276,17 +277,18 @@ func findFlow(root, flowID string) (model.Flow, error) {
 	if flowID == "" {
 		return model.Flow{}, fmt.Errorf("flow id is required")
 	}
-	specs, err := discovery.FindContracts(rootAbs(root))
+	spec, err := discovery.FindContract(rootAbs(root), flowID)
 	if err != nil {
+		if errors.Is(err, discovery.ErrFlowNotFound) {
+			return model.Flow{}, fmt.Errorf("%w: %s", ErrFlowNotFound, flowID)
+		}
 		return model.Flow{}, err
 	}
-	flowsList := temporal.FlowsFromSpecs(specs)
-	for _, f := range flowsList {
-		if f.FlowID == flowID {
-			return f, nil
-		}
+	flowsList := temporal.FlowsFromSpecs([]kind.Spec{spec})
+	if len(flowsList) == 0 {
+		return model.Flow{}, fmt.Errorf("%w: %s is not a temporal flow", ErrFlowNotFound, flowID)
 	}
-	return model.Flow{}, fmt.Errorf("%w: %s", ErrFlowNotFound, flowID)
+	return flowsList[0], nil
 }
 
 func generatedAbs(root string, flow model.Flow) (string, error) {

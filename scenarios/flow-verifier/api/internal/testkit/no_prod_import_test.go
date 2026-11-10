@@ -1,20 +1,19 @@
 package testkit
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
 
 func TestTestkitIsOnlyImportedByTests(t *testing.T) {
-	_, file, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime caller unavailable")
+	root, err := moduleRoot()
+	if err != nil {
+		t.Fatal(err)
 	}
-	root := filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
-	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -32,5 +31,24 @@ func TestTestkitIsOnlyImportedByTests(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func moduleRoot() (string, error) {
+	start, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for dir := filepath.Clean(start); ; dir = filepath.Dir(dir) {
+		data, readErr := os.ReadFile(filepath.Join(dir, "go.mod"))
+		if readErr == nil && strings.Contains(string(data), "module flow-verifier\n") {
+			if info, statErr := os.Stat(filepath.Join(dir, "internal", "testkit")); statErr == nil && info.IsDir() {
+				return dir, nil
+			}
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", fmt.Errorf("flow-verifier module root not found from %s", start)
+		}
 	}
 }

@@ -14,8 +14,9 @@ const GroupName = "scenarios"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h := newHandlers(core)
 	bindings := map[string]func(cliapp.RunContext) error{
-		"ScenariosService.ListScenarios": h.list,
-		"ScenariosService.GetScenario":   h.show,
+		"ScenariosService.ListScenarios":  h.list,
+		"ScenariosService.GetScenario":    h.show,
+		"ScenariosService.ListLifecycles": h.lifecycles,
 	}
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {

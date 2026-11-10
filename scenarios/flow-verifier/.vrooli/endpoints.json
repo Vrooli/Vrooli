@@ -149,6 +149,14 @@
       "category": "scenarios"
     },
     {
+      "id": "scenarios.lifecycles",
+      "path": "/vrooli.flow_verifier.v1.scenarios.ScenariosService/ListLifecycles",
+      "method": "POST",
+      "summary": "Infer lifecycle candidates across scenarios",
+      "description": "Ranks Go status/state candidates with source evidence and optional operator-supplied hunt record references.",
+      "category": "scenarios"
+    },
+    {
       "id": "scenarios.generate_artifacts",
       "path": "/vrooli.flow_verifier.v1.scenarios.ScenariosService/GenerateScenarioArtifacts",
       "method": "POST",

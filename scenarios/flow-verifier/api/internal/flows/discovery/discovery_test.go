@@ -1,6 +1,9 @@
 package discovery
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	_ "flow-verifier/internal/flows/kinds/temporal" // register the temporal kind
@@ -28,6 +31,36 @@ func TestFindContractsIgnoresGeneratedAndDependencyDirs(t *testing.T) {
 	}
 	if contracts[0].FlowID() != "example.visible.api" {
 		t.Fatalf("flow id = %s", contracts[0].FlowID())
+	}
+}
+
+func TestFindContractUsesNotFoundSentinel(t *testing.T) {
+	_, err := FindContract(t.TempDir(), "missing.flow")
+	if !errors.Is(err, ErrFlowNotFound) {
+		t.Fatalf("FindContract() error = %v, want ErrFlowNotFound", err)
+	}
+}
+
+func TestFindContractIgnoresInvalidUnrelatedContracts(t *testing.T) {
+	root := t.TempDir()
+	writeFlow(t, root, "api/visible/flow/flow.json", "example.visible.api")
+	badPath := filepath.Join(root, "api/unrelated/flow/flow.json")
+	if err := os.MkdirAll(filepath.Dir(badPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(badPath, []byte(`{"kind":"temporal","flowId":"example.unrelated.api"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	spec, err := FindContract(root, "example.visible.api")
+	if err != nil {
+		t.Fatalf("FindContract() error = %v", err)
+	}
+	if got, want := spec.FlowID(), "example.visible.api"; got != want {
+		t.Fatalf("flow id = %s, want %s", got, want)
+	}
+	if _, err := FindContracts(root); err == nil {
+		t.Fatal("global inventory should still report invalid unrelated contracts")
 	}
 }
 

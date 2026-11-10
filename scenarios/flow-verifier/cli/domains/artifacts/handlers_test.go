@@ -47,6 +47,10 @@ func (f *fakeScenarios) GetScenario(context.Context, *connect.Request[scenariosv
 	return connect.NewResponse(&scenariosv1.GetScenarioResponse{}), nil
 }
 
+func (f *fakeScenarios) ListLifecycles(context.Context, *connect.Request[scenariosv1.ListLifecyclesRequest]) (*connect.Response[scenariosv1.ListLifecyclesResponse], error) {
+	return connect.NewResponse(&scenariosv1.ListLifecyclesResponse{}), nil
+}
+
 func (f *fakeScenarios) GenerateScenarioArtifacts(_ context.Context, _ *connect.Request[scenariosv1.GenerateScenarioArtifactsRequest], stream *connect.ServerStream[scenariosv1.GenerateScenarioArtifactsResponse]) error {
 	for _, msg := range f.stream {
 		if err := stream.Send(msg); err != nil {

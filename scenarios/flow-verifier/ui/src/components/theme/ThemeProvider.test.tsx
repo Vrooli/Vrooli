@@ -1,6 +1,7 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithProviders } from "../../test-utils";
 
 import { ThemeProvider } from "./ThemeProvider";
 import { useTheme } from "./useTheme";
@@ -58,10 +59,11 @@ describe("ThemeProvider", () => {
 
   it("defaults to system and resolves to OS preference", () => {
     installMatchMedia(true);
-    render(
+    renderWithProviders(
       <ThemeProvider>
         <Probe />
       </ThemeProvider>,
+      { extraProviders: (children) => children },
     );
     expect(screen.getByTestId("theme").textContent).toBe("system");
     expect(screen.getByTestId("resolved").textContent).toBe("dark");
@@ -71,10 +73,11 @@ describe("ThemeProvider", () => {
   it("setTheme writes the dark class on <html>", async () => {
     installMatchMedia(false);
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <ThemeProvider>
         <Probe />
       </ThemeProvider>,
+      { extraProviders: (children) => children },
     );
     expect(document.documentElement.classList.contains("dark")).toBe(false);
     await user.click(screen.getByTestId("to-dark"));
@@ -84,10 +87,11 @@ describe("ThemeProvider", () => {
 
   it("system mode tracks OS toggles", () => {
     const mm = installMatchMedia(false);
-    render(
+    renderWithProviders(
       <ThemeProvider>
         <Probe />
       </ThemeProvider>,
+      { extraProviders: (children) => children },
     );
     expect(screen.getByTestId("resolved").textContent).toBe("light");
     act(() => mm.flip(true));
@@ -97,10 +101,11 @@ describe("ThemeProvider", () => {
   it("persists to localStorage for first-paint cache", async () => {
     installMatchMedia(false);
     const user = userEvent.setup();
-    render(
+    renderWithProviders(
       <ThemeProvider>
         <Probe />
       </ThemeProvider>,
+      { extraProviders: (children) => children },
     );
     await user.click(screen.getByTestId("to-dark"));
     expect(window.localStorage.getItem("flow-verifier.theme.v1")).toBe("dark");

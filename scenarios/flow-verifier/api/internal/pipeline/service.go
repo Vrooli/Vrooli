@@ -90,14 +90,11 @@ func Verify(ctx context.Context, opts VerifyOptions) (VerifyResult, error) {
 	if err != nil {
 		return VerifyResult{}, err
 	}
-	specs, err := discovery.FindContracts(rootAbs)
+	specs, err := discovery.FindContractsFiltered(rootAbs, opts.FlowID)
 	if err != nil {
 		return VerifyResult{}, err
 	}
-	filtered := discovery.Filter(specs, opts.FlowID)
-	if opts.FlowID != "" && len(filtered) == 0 {
-		return VerifyResult{}, fmt.Errorf("unknown flow id %s", opts.FlowID)
-	}
+	filtered := specs
 	var temporalSpecs, navigationSpecs []kind.Spec
 	for _, s := range filtered {
 		switch s.Kind() {
