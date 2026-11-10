@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	repocontract "github.com/vrooli/repo-contract-go"
 
 	"agent-manager/internal/adapters/database"
 	capabilities "agent-manager/internal/capabilities"
@@ -84,6 +85,7 @@ func (h *searchControlTokens) get(providerID string) string {
 
 // Server owns lifecycle sequencing around the wiring-owned service graph.
 type Server struct {
+	configurationRoot        string
 	terminalEvents           *wiring.TerminalEvents
 	recovery                 *maintenance.Recovery
 	maintenance              *maintenance.Handler
@@ -155,6 +157,21 @@ func databaseConfigFromLevers(dsn string, storage agentconfig.StorageLevers) cor
 	}
 }
 
+// serverConfigurationPaths binds canonical declaration paths before storage or
+// background work starts. Retained executable and writable state roots remain
+// owned by lifecycle and storage, respectively.
+func serverConfigurationPaths() (string, string, error) {
+	root, err := agentconfig.RepoRoot()
+	if err != nil {
+		return "", "", fmt.Errorf("resolve canonical configuration root: %w", err)
+	}
+	scenario, err := repocontract.ResolveScenarioPath(root, "agent-manager")
+	if err != nil {
+		return "", "", err
+	}
+	return root, filepath.Join(scenario, ".vrooli", "search.json"), nil
+}
+
 // NewServer builds the graph and routes before launching observable recovery.
 func NewServer() (*Server, error) {
 	return NewServerWithTerminalEvents(nil)
@@ -163,6 +180,10 @@ func NewServer() (*Server, error) {
 // NewServerWithTerminalEvents is an explicit trusted composition seam. Main
 // calls NewServer, so capture, dispatch and transport remain disabled by default.
 func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server, error) {
+	repoRoot, conversationSearchFile, err := serverConfigurationPaths()
+	if err != nil {
+		return nil, err
+	}
 	levers, leversErr := agentconfig.LoadLevers()
 	if levers == nil {
 		defaults := agentconfig.DefaultLevers()
@@ -223,12 +244,7 @@ func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server
 		_ = db.Close()
 		return nil, fmt.Errorf("initialize conversation search source: %w", err)
 	}
-	repoRoot := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
-	if repoRoot == "" {
-		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
-	}
 	semanticCtx, semanticCancel := context.WithTimeout(context.Background(), 10*time.Second)
-	conversationSearchFile := filepath.Join(repoRoot, "scenarios", "agent-manager", ".vrooli", "search.json")
 	semanticRuntime, semanticConfigErr := conversationsearch.BuildSemanticRuntime(semanticCtx, conversationsearch.SemanticRuntimeOptions{
 		SearchFilePath: conversationSearchFile,
 		Source:         conversationSource, Projection: conversationRepository,
@@ -281,6 +297,7 @@ func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server
 	// space through the search domain's own optimize.
 	deps.TranscriptImporter.SetAfterEviction(conversationRepository.OptimizeIndex)
 	srv := &Server{
+		configurationRoot:  repoRoot,
 		terminalEvents:     deps.TerminalEvents,
 		recovery:           maintenance.NewRecovery(),
 		capabilityRegistry: capabilities.NewRegistry(), db: db, fileRoots: fileRoots, router: mux.NewRouter().UseEncodedPath(), orchestrator: deps.Orchestrator,
@@ -410,10 +427,7 @@ func (s *Server) recoverySteps() []maintenance.RecoveryStep {
 	if s.reconciler != nil {
 		add("in_flight_runs", s.reconciler.RecoverInFlightRuns)
 	}
-	repoRoot := os.Getenv("PROJECT_ROOT")
-	if repoRoot == "" {
-		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
-	}
+	repoRoot := s.configurationRoot
 	if s.orchestrator != nil {
 		// Register this service's own declarations before scanning retained
 		// historical projections. Historical work is non-critical and must not

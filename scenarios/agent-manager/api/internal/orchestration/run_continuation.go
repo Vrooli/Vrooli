@@ -683,6 +683,19 @@ func (o *Orchestrator) assembleContinuationEnv(ctx context.Context, run *domain.
 		IdentityToken: identityToken,
 		Config:        run.ResolvedConfig,
 	})
+	treasurySessionKey, err := resolveTreasurySessionKey(ctx, o.treasurySessionKeys, run.ID, identityToken, o.identitySecret)
+	if err != nil {
+		return nil, err
+	}
+	delete(env, treasurySessionKeyEnv)
+	if treasurySessionKey != "" {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		// Apply the authority-issued value after CustomEnv so callers cannot
+		// substitute a key in either the initial run or a continuation.
+		env[treasurySessionKeyEnv] = treasurySessionKey
+	}
 	if run.ResolvedConfig == nil {
 		return env, nil
 	}

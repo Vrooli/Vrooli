@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/stepback"
@@ -17,10 +18,14 @@ import (
 	"github.com/google/uuid"
 )
 
-func effortDiscoveryConfig() supervision.EffortDiscoveryConfig {
+func effortDiscoveryConfig() (supervision.EffortDiscoveryConfig, error) {
+	projectRoot, err := agentconfig.RepoRoot()
+	if err != nil {
+		return supervision.EffortDiscoveryConfig{}, err
+	}
 	root := strings.TrimSpace(os.Getenv("AGENT_MANAGER_EFFORT_ROOT"))
 	if root == "" {
-		if contract, _, err := repocontract.LoadDefaultFromEnvOrCWD(); err == nil {
+		if contract, err := repocontract.LoadDefault(projectRoot); err == nil {
 			if runtimeRoot := strings.TrimSpace(os.Getenv("AGENT_MANAGER_RUNTIME_ROOT")); runtimeRoot != "" {
 				// Contract resolves the protected class; the runtime root itself is configurable.
 				if entry, err := contract.RuntimeHomeEntry(string(filepath.Separator), repocontract.HomeKeyPlanArtifacts); err == nil {
@@ -34,11 +39,7 @@ func effortDiscoveryConfig() supervision.EffortDiscoveryConfig {
 		}
 	}
 	interval, _ := time.ParseDuration(os.Getenv("AGENT_MANAGER_EFFORT_SCAN_INTERVAL"))
-	projectRoot := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
-	if projectRoot == "" {
-		projectRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
-	}
-	return supervision.EffortDiscoveryConfig{Root: root, Interval: interval, StandingAllowanceRef: strings.TrimSpace(os.Getenv("AGENT_MANAGER_SUPERVISION_ALLOWANCE_REF")), ProjectRoot: projectRoot}
+	return supervision.EffortDiscoveryConfig{Root: root, Interval: interval, StandingAllowanceRef: strings.TrimSpace(os.Getenv("AGENT_MANAGER_SUPERVISION_ALLOWANCE_REF")), ProjectRoot: projectRoot}, nil
 }
 
 type supervisionRunController struct{ orchestrator *orchestration.Orchestrator }

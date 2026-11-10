@@ -172,7 +172,7 @@ func resolveUsageMode(runner, resourceRole, roleRef, profile string, now time.Ti
 		if !ok {
 			continue
 		}
-		if !found || scopeRank(mode.Scope) > scopeRank(best.Scope) {
+		if !found || mode.Scope.Rank() > best.Scope.Rank() {
 			best, found = mode, true
 		}
 	}
@@ -180,37 +180,11 @@ func resolveUsageMode(runner, resourceRole, roleRef, profile string, now time.Ti
 		return usagemode.Mode{}, false
 	}
 	for _, role := range []string{resourceRole, roleRef} {
-		if modeExempts(best, role) {
+		if best.Exempts(role) {
 			return usagemode.Mode{}, false
 		}
 	}
 	return best, true
-}
-
-func scopeRank(scope usagemode.Scope) int {
-	switch {
-	case scope.Profile != "":
-		return 4
-	case scope.Role != "":
-		return 3
-	case scope.Runner != "":
-		return 2
-	}
-	return 1
-}
-
-func modeExempts(mode usagemode.Mode, role string) bool {
-	if role == "" || mode.Scope.Role == role {
-		return false
-	}
-	for _, list := range [][]string{mode.ExemptRoles, usagemode.DefaultExemptRoles} {
-		for _, exempt := range list {
-			if exempt == role {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // applyLearnMode joins a new managed run to a Learn comparison when an active,

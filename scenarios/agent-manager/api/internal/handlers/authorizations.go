@@ -90,6 +90,32 @@ func RegisterAuthorizations(r *mux.Router, svc AuthorizationService) {
 		}
 		writeJSON(w, http.StatusOK, grants)
 	}).Methods(http.MethodGet)
+	r.HandleFunc("/api/v1/authorizations/{id}/status", func(w http.ResponseWriter, r *http.Request) {
+		// Local consumers may observe consent, but never receive grant material
+		// or decide it. The native human consent routes remain authoritative.
+		w.Header().Set("Cache-Control", "no-store")
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
+			http.Error(w, "local control-plane request required", http.StatusForbidden)
+			return
+		}
+		rawID := mux.Vars(r)["id"]
+		id, err := uuid.Parse(rawID)
+		if err != nil || id.String() != rawID {
+			http.Error(w, "invalid authorization identifier", http.StatusBadRequest)
+			return
+		}
+		grant, err := svc.GetAuthorization(r.Context(), id)
+		if err != nil {
+			writeError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, struct {
+			AuthorizationID uuid.UUID `json:"authorization_id"`
+			State           string    `json:"state"`
+			ReviewExpiresAt time.Time `json:"review_expires_at"`
+		}{AuthorizationID: grant.ID, State: grant.EffectiveState(time.Now()), ReviewExpiresAt: grant.RequestExpiresAt})
+	}).Methods(http.MethodGet)
 	for _, action := range []string{"approve", "revoke"} {
 		action := action
 		r.HandleFunc("/api/v1/authorizations/{id}/"+action, func(w http.ResponseWriter, r *http.Request) {

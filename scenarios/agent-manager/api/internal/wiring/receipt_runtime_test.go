@@ -44,7 +44,7 @@ func TestReceiptSummaryReaderDistinguishesRuntimeEmptyStates(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			reader := newReceiptSummaryReader(eventbus.Client{BaseURL: events.URL, HTTPClient: events.Client()}, []string{"test-genie"}, func(context.Context, string) (eventbus.RuntimeState, error) {
 				return tc.runtime, nil
-			})
+			}, nil)
 			summary, err := reader.ReadReceiptSummary(context.Background(), uuid.New())
 			if err != nil || summary.State != tc.wantState || !strings.Contains(summary.Reason, tc.wantDetail) {
 				t.Fatalf("summary=%+v err=%v", summary, err)

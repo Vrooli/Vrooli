@@ -89,7 +89,7 @@ func ActiveModePeriods(now time.Time) []ModePeriod {
 		if mode.ExpiresAt != nil {
 			period.ExpiresAt = *mode.ExpiresAt
 		}
-		settingsByRunner := mode.Runners
+		settingsByRunner := mode.ResolvedRunners()
 		if mode.IsLearn() && mode.Learn != nil {
 			period.Kind, period.Split = usagemode.KindLearn, mode.Learn.Split()
 			if mode.Learn.Sessions != nil && mode.Learn.Sessions.OptIn {

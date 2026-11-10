@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
 
+	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/orchestration"
 	"agent-manager/internal/runreport"
 
@@ -29,9 +29,16 @@ type receiptCaptureDeclaration struct {
 
 type receiptRuntimeReader func(context.Context, string) (eventbus.RuntimeState, error)
 
-func receiptCaptureDeclarationPath() string {
-	root, _ := filepath.Abs(filepath.Join("..", "..", ".."))
-	return filepath.Join(root, "scenarios", "agent-manager", ".vrooli", "vrooli-events", "receipt-capture.json")
+func receiptCaptureDeclarationPath() (string, error) {
+	return agentconfig.ScenarioSourcePath(".vrooli", "vrooli-events", "receipt-capture.json")
+}
+
+func receiptCaptureTargets() ([]string, error) {
+	path, err := receiptCaptureDeclarationPath()
+	if err != nil {
+		return nil, err
+	}
+	return declaredReceiptTargets(path)
 }
 
 func declaredReceiptTargets(path string) ([]string, error) {
@@ -99,7 +106,16 @@ func receiptRuntimeAvailability(ctx context.Context, targets []string, read rece
 	return runreport.ReceiptSummary{}, false
 }
 
-func newReceiptSummaryReader(receipts eventbus.Client, targets []string, runtime receiptRuntimeReader) orchestration.ReceiptSummaryReader {
+// A missing/invalid declaration is unavailable evidence, not a declaration
+// that intentionally contains no capture policies.
+func receiptCaptureAvailability(ctx context.Context, targets []string, runtime receiptRuntimeReader, declarationErr error) (runreport.ReceiptSummary, bool) {
+	if declarationErr != nil {
+		return runreport.ReceiptSummary{Availability: runreport.Availability{State: runreport.AvailabilityUnavailable, Reason: "receipt capture declaration unavailable: " + declarationErr.Error()}}, true
+	}
+	return receiptRuntimeAvailability(ctx, targets, runtime)
+}
+
+func newReceiptSummaryReader(receipts eventbus.Client, targets []string, runtime receiptRuntimeReader, declarationErr error) orchestration.ReceiptSummaryReader {
 	return orchestration.ReceiptSummaryReaderFunc(func(ctx context.Context, id uuid.UUID) (runreport.ReceiptSummary, error) {
 		if !receipts.Enabled() {
 			return runreport.ReceiptSummary{Availability: runreport.Availability{State: runreport.AvailabilityUnavailable, Reason: "vrooli-events observations are not configured"}}, nil
@@ -140,7 +156,7 @@ func newReceiptSummaryReader(receipts eventbus.Client, targets []string, runtime
 			}
 		}
 		if verified == 0 {
-			if summary, decisive := receiptRuntimeAvailability(ctx, targets, runtime); decisive {
+			if summary, decisive := receiptCaptureAvailability(ctx, targets, runtime, declarationErr); decisive {
 				summary.Calls, summary.UnmatchedCount = calls, len(calls)
 				return summary, nil
 			}

@@ -108,7 +108,11 @@ func (o *Orchestrator) newRunExecutor(ctx context.Context, run *domain.Run, task
 	executor.hooks = o
 	executor.WithClock(o.now)
 	executor.WithIdentitySecret(o.identitySecret)
-	executor.WithTerminalObserver(o.projectTerminalInvocationReadModel)
+	executor.WithTreasurySessionKeyStore(o.treasurySessionKeys)
+	executor.WithTerminalObserver(func(terminalCtx context.Context, terminalRun *domain.Run) {
+		o.projectTerminalInvocationReadModel(terminalCtx, terminalRun)
+		o.revokeTerminalCredentialUse(terminalCtx, terminalRun)
+	})
 	executor.WithRunStateRoot(runStateRoot)
 	executor.WithRunStateWriteObserver(func() { o.recordRunStateWrite(ctx) })
 	executor.WithStructuredResultResolver(o.structuredResults)

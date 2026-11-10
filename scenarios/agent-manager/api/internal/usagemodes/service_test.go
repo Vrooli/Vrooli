@@ -46,6 +46,18 @@ func span(provider string, minutes int64, reset, first, last time.Time, percent 
 
 func newService(t *testing.T, readings ...pricing.QuotaReadingSpan) *Service {
 	t.Helper()
+	// Started modes follow the resource policy files, so the tests own them.
+	root := t.TempDir()
+	for resource, policy := range map[string]string{"codex": codexPolicy, "claude-code": claudePolicy} {
+		dir := filepath.Join(root, "resources", resource)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "model-policy.json"), []byte(policy), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("VROOLI_ROOT", root)
 	return &Service{
 		Tiers:    fakeTiers{"codex": codexPolicy, "claude-code": claudePolicy},
 		Readings: fakeReadings(readings),
@@ -70,6 +82,9 @@ func TestStartRecordsOperatorAndLowerTier(t *testing.T) {
 	settings, ok := m.SettingsFor("codex")
 	if !ok || settings.ModelMap["gpt-6.1-terra"] != "gpt-6-luna" {
 		t.Fatalf("settings = %+v", settings)
+	}
+	if stored := m.Runners["codex"]; stored.ModelMap != nil || stored.SessionModel != "" {
+		t.Fatalf("a started mode must store intent, not a copy of the policy: %+v", stored)
 	}
 	if listed := s.List(); len(listed) != 1 || listed[0].ID != m.ID {
 		t.Fatalf("list = %+v", listed)

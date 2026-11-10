@@ -61,12 +61,6 @@ func (s *Service) StartLearn(ctx context.Context, req LearnRequest) (usagemode.M
 	if probe.RoleExempt(role) {
 		return usagemode.Mode{}, invalid("role %s is exempt from usage modes and is never randomized", role)
 	}
-	if model := strings.TrimSpace(req.Model); model != "" {
-		// A challenger may never exceed the incumbent.
-		if tiers, err = tiers.OverrideModel(model); err != nil {
-			return usagemode.Mode{}, invalid("%s: %v", runner, err)
-		}
-	}
 	now := s.now()
 	untilOpts, err := s.parseUntil(ctx, req.Until, runner, now)
 	if err != nil {
@@ -74,6 +68,7 @@ func (s *Service) StartLearn(ctx context.Context, req LearnRequest) (usagemode.M
 	}
 	untilOpts.Label, untilOpts.Kind, untilOpts.Source, untilOpts.StartedBy, untilOpts.Now = req.Label, usagemode.KindLearn, "agent-manager", req.StartedBy, now
 	untilOpts.Scope = usagemode.Scope{Runner: runner, Role: role, Profile: strings.TrimSpace(req.Profile)}
+	untilOpts.OverrideModel = strings.TrimSpace(req.Model) // a challenger may never exceed the incumbent
 	mode, err := usagemode.NewMode(tiers, untilOpts)
 	if err != nil {
 		return usagemode.Mode{}, invalid("%s: %v", runner, err)

@@ -8,12 +8,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
-
-	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // Revision is an immutable validated desired-permission revision. Its digest
@@ -73,12 +71,11 @@ func ResolvePath() string {
 	if path = strings.TrimSpace(path); path != "" {
 		return path
 	}
-	root, err := repocontract.ResolveRepoRoot()
+	path, err := config.ScenarioSourcePath("config", "permission-policy-catalog.json")
 	if err != nil {
-		root = "."
+		// Empty is deliberately unreadable. Never fall back to a cwd-relative
+		// catalog when canonical source resolution failed.
+		return ""
 	}
-	if resolved, err := repocontract.ResolveScenarioPath(root, "agent-manager"); err == nil {
-		return filepath.Join(resolved, "config", "permission-policy-catalog.json")
-	}
-	return filepath.Join(root, "scenarios", "agent-manager", "config", "permission-policy-catalog.json")
+	return path
 }

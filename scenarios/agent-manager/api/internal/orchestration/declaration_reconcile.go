@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/workflowcatalog"
@@ -214,7 +215,11 @@ func (o *Orchestrator) ReconcileScenarioDeclarations(ctx context.Context, req Re
 	if scenario == "" {
 		return nil, domain.NewValidationErrorWithHint("scenario", "field is required", "Provide the owning scenario slug")
 	}
-	contract, repoRoot, err := repocontract.LoadDefaultFromEnvOrCWD()
+	repoRoot, err := config.RepoRoot()
+	if err != nil {
+		return nil, domain.NewConfigInvalidError("repoContract", "failed to resolve repository source", err)
+	}
+	contract, err := repocontract.LoadDefault(repoRoot)
 	if err != nil {
 		return nil, domain.NewConfigInvalidError("repoContract", "failed to resolve repository contract", err)
 	}

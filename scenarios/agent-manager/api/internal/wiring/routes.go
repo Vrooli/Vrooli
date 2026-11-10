@@ -171,13 +171,13 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 			eventsBaseURL = resolved
 		}
 	}
-	receiptTargets, receiptTargetsErr := declaredReceiptTargets(receiptCaptureDeclarationPath())
+	receiptTargets, receiptTargetsErr := receiptCaptureTargets()
 	if receiptTargetsErr != nil {
 		routesLog := obs.Component("routes")
 		routesLog.Warn("receipt capture declaration unavailable", obs.KeyError, receiptTargetsErr.Error())
 	}
 	receiptAvailability := func(ctx context.Context) runreport.Availability {
-		if summary, decisive := receiptRuntimeAvailability(ctx, receiptTargets, productionReceiptRuntimeReader); decisive {
+		if summary, decisive := receiptCaptureAvailability(ctx, receiptTargets, productionReceiptRuntimeReader, receiptTargetsErr); decisive {
 			return summary.Availability
 		}
 		return runreport.Availability{State: runreport.AvailabilityUnobserved}
@@ -318,11 +318,16 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		routesLog.Info("capability descriptor registered", "path", "/api/v1/capabilities/describe")
 	}
 
-	repoRoot := os.Getenv("PROJECT_ROOT")
-	if repoRoot == "" {
-		repoRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
+	repoRoot, rootErr := config.RepoRoot()
+	if rootErr != nil {
+		obs.Component("routes").Error("canonical configuration root unavailable", obs.KeyError, rootErr.Error())
 	}
 	conformancePath, conformanceHandler := scenariovalidationconnect.NewScenarioValidationServiceHandler(conformance.NewHandler(repoRoot, deps.PermissionPolicy))
+	if rootErr != nil {
+		conformanceHandler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			http.Error(w, "canonical configuration root unavailable", http.StatusServiceUnavailable)
+		})
+	}
 	router.PathPrefix(strings.TrimRight(conformancePath, "/")).Handler(conformanceHandler)
 	handler.RegisterRoutes(router)
 
@@ -429,6 +434,10 @@ func catalogFreshnessReader(repoRoot string) func(context.Context) []agentcatalo
 		descriptors := harness.Active().All()
 		freshness := make([]agentcatalog.CatalogFreshness, 0, len(descriptors))
 		for _, descriptor := range descriptors {
+			if strings.TrimSpace(repoRoot) == "" {
+				freshness = append(freshness, agentcatalog.CatalogFreshness{Runner: descriptor.Resource, Status: "invalid", Error: "canonical configuration root unavailable"})
+				continue
+			}
 			path := filepath.Join(repoRoot, "resources", descriptor.Resource, "model-policy.json")
 			freshness = append(freshness, agentcatalog.ReadCatalogFreshness(descriptor.Resource, path, time.Now().UTC()))
 		}

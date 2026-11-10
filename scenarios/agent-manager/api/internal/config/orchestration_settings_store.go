@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-
-	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // OrchestrationSettingsStore provides thread-safe access to orchestration
@@ -105,28 +103,11 @@ func (s *OrchestrationSettingsStore) writeToDisk(settings OrchestrationSettings)
 	return nil
 }
 
-// ResolveOrchestrationSettingsPath determines the settings file path.
-// Checks ORCHESTRATION_SETTINGS_PATH env var first, then falls back to
-// VROOLI_ROOT/scenarios/agent-manager/config/orchestration.json.
-func ResolveOrchestrationSettingsPath() string {
-	path, _ := os.LookupEnv("ORCHESTRATION_SETTINGS_PATH")
-	if path = strings.TrimSpace(path); path != "" {
-		return path
+// ResolveOrchestrationSettingsPath uses an explicit file override or canonical
+// scenario source. A missing/invalid root cannot seed defaults under the cwd.
+func ResolveOrchestrationSettingsPath() (string, error) {
+	if path := strings.TrimSpace(os.Getenv("ORCHESTRATION_SETTINGS_PATH")); path != "" {
+		return path, nil
 	}
-	root := resolveRepoRoot()
-	if root == "" {
-		root = "."
-	}
-	if resolved, err := repocontract.ResolveScenarioPath(root, "agent-manager"); err == nil {
-		return filepath.Join(resolved, "config", "orchestration.json")
-	}
-	return filepath.Join(root, "scenarios", "agent-manager", "config", "orchestration.json")
-}
-
-func resolveRepoRoot() string {
-	root, err := repocontract.ResolveRepoRoot()
-	if err != nil {
-		return ""
-	}
-	return root
+	return ScenarioSourcePath("config", "orchestration.json")
 }

@@ -3,6 +3,7 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -116,6 +117,7 @@ type Orchestrator struct {
 	// credential authority integration. Terminal run transitions revoke every
 	// run-bound credential capability before the run is exposed as finished.
 	credentialUseReleaser CredentialUseReleaser
+	treasurySessionKeys   TreasurySessionKeyStore
 
 	// Flag validation
 	flagValidator runner.FlagValidator
@@ -275,15 +277,76 @@ type CredentialUseReleaser interface {
 
 // WithCredentialUseReleaser installs the terminal credential cleanup seam.
 func WithCredentialUseReleaser(releaser CredentialUseReleaser) Option {
-	return func(o *Orchestrator) { o.credentialUseReleaser = releaser }
+	return func(o *Orchestrator) {
+		o.credentialUseReleaser = appendCredentialUseReleaser(o.credentialUseReleaser, releaser)
+	}
 }
 
 // SetCredentialUseReleaser installs the terminal credential cleanup seam after
 // construction, which keeps scenario discovery and wiring order flexible.
 func (o *Orchestrator) SetCredentialUseReleaser(releaser CredentialUseReleaser) {
 	if o != nil {
-		o.credentialUseReleaser = releaser
+		o.credentialUseReleaser = appendCredentialUseReleaser(o.credentialUseReleaser, releaser)
 	}
+}
+
+// TreasurySessionKeyStore owns the per-run agent signing secret outside the
+// run database. ResolveOrMint returns the same secret for a resumed run;
+// RevokeRunCredentialUse destroys it after the run becomes terminal.
+type TreasurySessionKeyStore interface {
+	ResolveOrMint(context.Context, uuid.UUID) (string, error)
+	RevokeRunCredentialUse(context.Context, uuid.UUID, string) error
+}
+
+// WithTreasurySessionKeyStore installs the run-owned Treasury signing-key
+// authority. A nil store leaves Treasury session signing unavailable.
+func WithTreasurySessionKeyStore(store TreasurySessionKeyStore) Option {
+	return func(o *Orchestrator) {
+		o.treasurySessionKeys = store
+		if store != nil {
+			o.credentialUseReleaser = appendCredentialUseReleaser(o.credentialUseReleaser, store)
+		}
+	}
+}
+
+// SetTreasurySessionKeyStore installs the authority after construction. The
+// same owner is registered for terminal cleanup so secrets are revoked with
+// the existing run lifecycle rather than through a second cleanup path.
+func (o *Orchestrator) SetTreasurySessionKeyStore(store TreasurySessionKeyStore) {
+	if o == nil {
+		return
+	}
+	o.treasurySessionKeys = store
+	if store != nil {
+		o.credentialUseReleaser = appendCredentialUseReleaser(o.credentialUseReleaser, store)
+	}
+}
+
+type credentialUseReleaseChain []CredentialUseReleaser
+
+func (chain credentialUseReleaseChain) RevokeRunCredentialUse(ctx context.Context, runID uuid.UUID, reason string) error {
+	var combined error
+	for _, releaser := range chain {
+		if releaser == nil {
+			continue
+		}
+		combined = errors.Join(combined, releaser.RevokeRunCredentialUse(ctx, runID, reason))
+	}
+	return combined
+}
+
+func appendCredentialUseReleaser(existing CredentialUseReleaser, added CredentialUseReleaser) CredentialUseReleaser {
+	if added == nil {
+		return existing
+	}
+	if existing == nil {
+		return added
+	}
+	chain, ok := existing.(credentialUseReleaseChain)
+	if !ok {
+		chain = credentialUseReleaseChain{existing}
+	}
+	return append(chain, added)
 }
 
 // SetConversationSearchNotifier installs the derived-index post-commit hook.

@@ -3,6 +3,8 @@ package measures
 import (
 	"context"
 	"errors"
+	"maps"
+	"slices"
 	"sort"
 	"time"
 
@@ -235,19 +237,14 @@ func protoUsageMode(m usagemode.Mode) *measurepb.UsageMode {
 	out := &measurepb.UsageMode{
 		Id: m.ID, Label: m.Label, Kind: m.Kind, StartedAt: m.StartedAt.UTC().Format(time.RFC3339), StartedBy: m.StartedBy, Source: m.Source,
 		Scope:     &measurepb.UsageModeScope{Runner: m.Scope.Runner, Role: m.Scope.Role, Profile: m.Scope.Profile},
-		UntilKind: m.Until.Kind, UntilProvider: m.Until.Provider, UntilWindowMinutes: int64(m.Until.WindowMinutes), ExemptRoles: m.ExemptRoles,
+		UntilKind: m.Until.Kind, UntilProvider: m.Until.Provider, UntilWindowMinutes: int64(m.Until.WindowMinutes), ExemptRoles: m.EffectiveExemptRoles(),
 	}
 	if m.ExpiresAt != nil {
 		out.ExpiresAt = m.ExpiresAt.UTC().Format(time.RFC3339)
 	}
-	runners := make([]string, 0, len(m.Runners))
-	for runner := range m.Runners {
-		runners = append(runners, runner)
-	}
-	sort.Strings(runners)
-	for _, runner := range runners {
-		s := m.Runners[runner]
-		out.Settings = append(out.Settings, protoModeSettings(runner, s))
+	resolved := m.ResolvedRunners()
+	for _, runner := range slices.Sorted(maps.Keys(resolved)) {
+		out.Settings = append(out.Settings, protoModeSettings(runner, resolved[runner]))
 	}
 	if m.Learn != nil {
 		learn := &measurepb.UsageModeLearn{SplitPercent: int32(m.Learn.Split() * 100), Paused: m.Learn.Paused, PausedReason: m.Learn.PausedReason}

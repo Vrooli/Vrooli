@@ -14,7 +14,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"github.com/vrooli/envkit-go"
 )
@@ -44,23 +46,31 @@ type CommandExecutor interface {
 
 type commandExecutor struct{}
 
+// resolveTimeout bounds one resource policy command. Run creation waits on it,
+// so a wedged resource CLI must become a prompt, named failure, not a hang.
+var resolveTimeout = 30 * time.Second
+
 func (commandExecutor) Run(ctx context.Context, command string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, resolveTimeout)
+	defer cancel()
 	cmd := exec.CommandContext(ctx, command, args...)
+	cmd.WaitDelay = 2 * time.Second
 	cmd.Env = []string(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.Resource, nil))
 	// Resource policy CLIs resolve their repository-owned catalog paths
 	// relative to the repository root. Agent Manager is lifecycle-launched from
 	// its scenario API directory, so preserve the control-plane root explicitly
 	// when it is available instead of making every resource rediscover it.
-	root := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
-	if root == "" {
-		root = strings.TrimSpace(os.Getenv("VROOLI_SOURCE_ROOT"))
+	root, err := config.RepoRoot()
+	if err != nil {
+		return nil, fmt.Errorf("resolve resource policy configuration root: %w", err)
 	}
-	if root != "" {
-		cmd.Dir = root
-	}
+	cmd.Dir = root
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	output, err := cmd.Output()
+	if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		err = fmt.Errorf("%s did not answer within %s", command, resolveTimeout)
+	}
 	if err != nil && stderr.Len() > 0 {
 		// Diagnostics must remain available for unknown-role/unavailable
 		// classification, but never enter a successful JSON response.
@@ -342,9 +352,9 @@ func (r *ResourceRoleResolver) PolicyFile(ctx context.Context, runner domain.Run
 		return nil, fmt.Errorf("%w: %s reported no policy_path", ErrInvalidResourceResponse, resourceCommand(runner))
 	}
 	if !filepath.IsAbs(path) {
-		root := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
-		if root == "" {
-			root = strings.TrimSpace(os.Getenv("VROOLI_SOURCE_ROOT"))
+		root, err := config.RepoRoot()
+		if err != nil {
+			return nil, err
 		}
 		path = filepath.Join(root, path)
 	}

@@ -922,14 +922,26 @@ const (
 )
 
 func (o *Orchestrator) ResolveAuthorizationCredentials(ctx context.Context, pid int, baselineToken string) (AuthorizationCredentials, error) {
-	return o.resolveAuthorizationCredentials(ctx, pid, baselineToken, authorizationCredentialPurposeDefault)
+	return o.resolveAuthorizationCredentials(ctx, pid, baselineToken, authorizationCredentialPurposeDefault, "", "")
+}
+
+// ResolveAuthorizationCredentialsForOperation selects only a persisted grant
+// whose canonical operation/target evaluator covers the requested action.
+// Callers supply intent data; this method only returns authority already
+// approved for that exact operation and target.
+func (o *Orchestrator) ResolveAuthorizationCredentialsForOperation(ctx context.Context, pid int, baselineToken, operation, target string) (AuthorizationCredentials, error) {
+	operation, target = strings.TrimSpace(operation), strings.TrimSpace(target)
+	if operation == "" || target == "" {
+		return AuthorizationCredentials{}, errors.New("operation and exact target are required")
+	}
+	return o.resolveAuthorizationCredentials(ctx, pid, baselineToken, authorizationCredentialPurposeDefault, operation, target)
 }
 
 // resolveOrdinaryRunIdentityCredential is used only by the local identity
 // reporting command. It shares the exact peer, managed-run, expiry and renewal
 // checks with normal credential resolution but never returns an operation grant.
 func (o *Orchestrator) resolveOrdinaryRunIdentityCredential(ctx context.Context, pid int, baselineToken string) (AuthorizationCredentials, error) {
-	credentials, err := o.resolveAuthorizationCredentials(ctx, pid, baselineToken, authorizationCredentialPurposeOrdinaryIdentity)
+	credentials, err := o.resolveAuthorizationCredentials(ctx, pid, baselineToken, authorizationCredentialPurposeOrdinaryIdentity, "", "")
 	if err != nil {
 		return credentials, err
 	}
@@ -943,7 +955,7 @@ func ordinaryIdentityCredentialFailure(cause error) (AuthorizationCredentials, e
 	return AuthorizationCredentials{OperationRefusal: "identity_refresh_unavailable"}, identityRefreshUnavailable(cause)
 }
 
-func (o *Orchestrator) resolveAuthorizationCredentials(ctx context.Context, pid int, baselineToken string, purpose authorizationCredentialPurpose) (AuthorizationCredentials, error) {
+func (o *Orchestrator) resolveAuthorizationCredentials(ctx context.Context, pid int, baselineToken string, purpose authorizationCredentialPurpose, requestedOperation, requestedTarget string) (AuthorizationCredentials, error) {
 	baselineToken = strings.TrimSpace(baselineToken)
 	if purpose == authorizationCredentialPurposeOrdinaryIdentity && baselineToken == "" {
 		return ordinaryIdentityCredentialFailure(nil)
@@ -1004,7 +1016,7 @@ func (o *Orchestrator) resolveAuthorizationCredentials(ctx context.Context, pid 
 		if inheritedClaims, verifyErr := identity.VerifyToken(baselineToken, o.identitySecret); verifyErr == nil && inheritedClaims.Meta["authorization_id"] != "" {
 			// Existing grant-only identities remain on the legacy bounded path;
 			// they are never reinterpreted as a baseline for a second grant.
-			legacy, found, resolveErr := o.resolveAuthorizationCredentialForRun(ctx, pid, requiredRunID)
+			legacy, found, resolveErr := o.resolveAuthorizationCredentialForRunTarget(ctx, pid, requiredRunID, requestedOperation, requestedTarget)
 			if resolveErr != nil {
 				return AuthorizationCredentials{OperationRefusal: authorizationRefusalCode(resolveErr)}, resolveErr
 			}
@@ -1018,7 +1030,7 @@ func (o *Orchestrator) resolveAuthorizationCredentials(ctx context.Context, pid 
 		}
 	}
 	if baselineToken == "" {
-		legacy, found, resolveErr := o.resolveAuthorizationCredentialForRun(ctx, pid, requiredRunID)
+		legacy, found, resolveErr := o.resolveAuthorizationCredentialForRunTarget(ctx, pid, requiredRunID, requestedOperation, requestedTarget)
 		if resolveErr != nil {
 			return AuthorizationCredentials{OperationRefusal: authorizationRefusalCode(resolveErr)}, resolveErr
 		}
@@ -1110,7 +1122,7 @@ func (o *Orchestrator) resolveAuthorizationCredentials(ctx context.Context, pid 
 			return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: credentials.OperationRefusal}, nil
 		}
 	}
-	grantToken, found, resolveErr := o.resolveAuthorizationCredentialForRun(ctx, pid, requiredRunID)
+	grantToken, found, resolveErr := o.resolveAuthorizationCredentialForRunTarget(ctx, pid, requiredRunID, requestedOperation, requestedTarget)
 	if resolveErr != nil {
 		return AuthorizationCredentials{BaselineToken: baselineToken, OperationRefusal: authorizationRefusalCode(resolveErr)}, nil
 	}
@@ -1203,6 +1215,10 @@ func (o *Orchestrator) ResolveAuthorizationCredential(ctx context.Context, pid i
 // preserves legacy resolution for ownerless attached roots and grant-only
 // identities.
 func (o *Orchestrator) resolveAuthorizationCredentialForRun(ctx context.Context, pid int, requiredRunID uuid.UUID) (string, bool, error) {
+	return o.resolveAuthorizationCredentialForRunTarget(ctx, pid, requiredRunID, "", "")
+}
+
+func (o *Orchestrator) resolveAuthorizationCredentialForRunTarget(ctx context.Context, pid int, requiredRunID uuid.UUID, requestedOperation, requestedTarget string) (string, bool, error) {
 	for root, hops := pid, 0; root > 1 && hops < 256; hops++ {
 		grants, err := o.ListAuthorizations(ctx, root)
 		if err != nil {
@@ -1231,6 +1247,12 @@ func (o *Orchestrator) resolveAuthorizationCredentialForRun(ctx context.Context,
 			var claims identity.Claims
 			if err := json.Unmarshal([]byte(g.ClaimsJSON), &claims); err != nil {
 				return "", true, err
+			}
+			if requestedOperation != "" {
+				var operationGrant requestidentity.OperationGrant
+				if json.Unmarshal([]byte(claims.Meta["operation_grant"]), &operationGrant) != nil || !operationGrant.Allows(requestedOperation, requestedTarget, o.now()) {
+					continue
+				}
 			}
 			token, err := identity.GenerateToken(&claims, o.identitySecret)
 			if err != nil {

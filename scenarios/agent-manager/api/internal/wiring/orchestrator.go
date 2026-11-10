@@ -6,7 +6,6 @@ import (
 	"log"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -118,6 +117,10 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 	if len(fileRoots) == 0 || fileRoots[0] == nil {
 		return OrchestratorDependencies{}, fmt.Errorf("durable file roots are required for Agent Manager startup")
 	}
+	repoRoot, err := agentconfig.RepoRoot()
+	if err != nil {
+		return OrchestratorDependencies{}, fmt.Errorf("resolve canonical configuration root: %w", err)
+	}
 	bootLog := obs.Component("bootstrap")
 	var runStateResolver runstate.RootResolver
 	runStateResolver = runstate.RoutedRoot{Roots: fileRoots[0]}
@@ -149,7 +152,11 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 	sandboxProvider := sandbox.NewWorkspaceSandboxProvider(sandboxURL)
 	bindSandboxLauncher(runners, sandboxProvider)
 
-	settingsStore, err := agentconfig.NewOrchestrationSettingsStore(agentconfig.ResolveOrchestrationSettingsPath())
+	settingsPath, err := agentconfig.ResolveOrchestrationSettingsPath()
+	if err != nil {
+		return OrchestratorDependencies{}, fmt.Errorf("resolve orchestration settings: %w", err)
+	}
+	settingsStore, err := agentconfig.NewOrchestrationSettingsStore(settingsPath)
 	if err != nil {
 		bootLog.Warn("orchestration settings load failed", obs.KeyError, err.Error())
 	}
@@ -193,6 +200,7 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 		orchestration.WithStructuredExtractor(extractor), orchestration.WithLabelGenerator(extractor), orchestration.WithHealthStore(healthStore), orchestration.WithInvestigationSettings(repos.InvestigationSettings),
 		orchestration.WithPromptClient(promptmanager.NewHTTPClient()), orchestration.WithFlagValidator(flagValidator), orchestration.WithAttachmentStorage(uploads),
 		orchestration.WithOrchestrationSettings(settingsStore), orchestration.WithIdentitySecret(identitySecret), orchestration.WithSpawnDispatcher(spawnDispatcher),
+		orchestration.WithTreasurySessionKeyStore(orchestration.NewCredentialAuthorityTreasurySessionKeys()),
 		orchestration.WithRunStateRootResolver(runStateResolver), orchestration.WithArtifacts(artifactCollector), orchestration.WithReceiptSummaryReader(receiptReader), orchestration.WithFindings(repos.Findings), orchestration.WithInvestigationLifecycleRepository(repos.Investigations), orchestration.WithInvestigationLearningRecorder(investigationlearning.NewClient()), orchestration.WithReceiptEvidenceStore(repos.ReceiptEvidence), orchestration.WithInvestigationLedgerStore(repos.InvestigationLedger), orchestration.WithInvocationReadModel(repos.InvocationReadModel), orchestration.WithPortOwners(processPortOwners()), orchestration.WithDurabilityBoundary(repos.DurabilityBoundary),
 		orchestration.WithOwnerIdentity(ownerIdentity),
 		orchestration.WithAuthorizations(database.NewAuthorizationRepository(db)),
@@ -257,11 +265,7 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 	if err != nil {
 		return OrchestratorDependencies{}, err
 	}
-	modelPolicyRoot := strings.TrimSpace(os.Getenv("PROJECT_ROOT"))
-	if modelPolicyRoot == "" {
-		modelPolicyRoot, _ = filepath.Abs(filepath.Join("..", "..", ".."))
-	}
-	modelPolicyDrift := modelpolicydrift.New(modelPolicyRoot, "", modelPolicyDriftInterval(), modelPolicyReporter{client: promptmanager.NewHTTPClient()})
+	modelPolicyDrift := modelpolicydrift.New(repoRoot, "", modelPolicyDriftInterval(), modelPolicyReporter{client: promptmanager.NewHTTPClient()})
 	usageAlerts := newUsageAlerts(db, usageAttributionStore(db, orch), pricingRepository, pricingService, receiptsClient)
 	usageModes := &usagemodes.Service{Tiers: usagemodes.ResourceTiers{Files: roleResolver}, Readings: usageAlerts.Readings}
 	usageAlerts.OnForecasts = func(_ context.Context, forecasts []usageforecast.Forecast, now time.Time) {
@@ -434,7 +438,10 @@ func wireSupervision(db *database.DB, repos *database.Repositories, orch *orches
 		obs.Component("cohort-supervision").Warn("watch processing failed", obs.KeyError, err.Error())
 	})
 	supervisionScheduler.SetPolicyStore(supervisionPolicies)
-	effortConfig := effortDiscoveryConfig()
+	effortConfig, err := effortDiscoveryConfig()
+	if err != nil {
+		return nil, nil, fmt.Errorf("resolve effort configuration: %w", err)
+	}
 	supervisionService.Efforts = supervision.NewEffortService(supervisionRepo, supervisionRunController{orchestrator: orch}, effortConfig)
 	supervisionService.Efforts.SetRunRegistry(repos.Runs)
 	effortSignalCursors, ok := repos.Runs.(supervision.EffortSignalCursorStore)
@@ -582,11 +589,11 @@ func newReceiptsClient(bootLog *slog.Logger) (eventbus.Client, orchestration.Rec
 		receiptsBaseURL, _ = discovery.ResolveScenarioURLDefault(context.Background(), "vrooli-events")
 	}
 	receiptsClient := eventbus.Client{BaseURL: receiptsBaseURL}
-	receiptTargets, receiptTargetsErr := declaredReceiptTargets(receiptCaptureDeclarationPath())
+	receiptTargets, receiptTargetsErr := receiptCaptureTargets()
 	if receiptTargetsErr != nil {
 		bootLog.Warn("receipt capture declaration unavailable", obs.KeyError, receiptTargetsErr.Error())
 	}
-	receiptReader := newReceiptSummaryReader(receiptsClient, receiptTargets, productionReceiptRuntimeReader)
+	receiptReader := newReceiptSummaryReader(receiptsClient, receiptTargets, productionReceiptRuntimeReader, receiptTargetsErr)
 	return receiptsClient, receiptReader
 }
 

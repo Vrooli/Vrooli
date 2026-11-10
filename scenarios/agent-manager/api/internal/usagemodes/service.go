@@ -158,12 +158,8 @@ func (s *Service) Start(ctx context.Context, req StartRequest) (StartResult, err
 			}
 			return StartResult{}, fmt.Errorf("resolve usage tiers: %w", err)
 		}
-		if model := strings.TrimSpace(req.Model); model != "" {
-			if tiers, err = tiers.OverrideModel(model); err != nil {
-				return StartResult{}, invalid("%s: %v", name, err)
-			}
-		}
 		opts := untilOpts
+		opts.OverrideModel = strings.TrimSpace(req.Model)
 		opts.Label, opts.Kind, opts.Source, opts.StartedBy, opts.Now = req.Label, "save", "agent-manager", req.StartedBy, now
 		opts.Scope = usagemode.Scope{Runner: runner, Role: strings.TrimSpace(req.Role), Profile: strings.TrimSpace(req.Profile)}
 		opts.Effort, opts.ContextLimitTokens = req.Effort, req.ContextLimitTokens

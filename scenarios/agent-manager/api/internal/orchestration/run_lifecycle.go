@@ -142,17 +142,25 @@ func (o *Orchestrator) applyRunStatusTransition(ctx context.Context, input RunSt
 	}
 	if previousStatus != input.NewStatus && hydrated.Status.IsTerminal() {
 		o.projectTerminalInvocationReadModel(ctx, hydrated)
-		if o.credentialUseReleaser != nil {
-			cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-			err := o.credentialUseReleaser.RevokeRunCredentialUse(cleanupCtx, hydrated.ID, string(hydrated.Status))
-			cancel()
-			if err != nil {
-				obs.Component("credential-use").Warn("terminal credential cleanup failed", obs.KeyRunID, hydrated.ID.String(), obs.KeyError, err.Error())
-			}
-		}
+		o.revokeTerminalCredentialUse(ctx, hydrated)
 	}
 
 	return hydrated, nil
+}
+
+// revokeTerminalCredentialUse retires run-bound credentials after the durable
+// terminal result is committed. Executor-driven completions use the same hook
+// as explicit lifecycle transitions so run-owned Treasury session keys cannot
+// survive an ordinary successful run.
+func (o *Orchestrator) revokeTerminalCredentialUse(ctx context.Context, run *domain.Run) {
+	if o == nil || run == nil || o.credentialUseReleaser == nil {
+		return
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := o.credentialUseReleaser.RevokeRunCredentialUse(cleanupCtx, run.ID, string(run.Status)); err != nil {
+		obs.Component("credential-use").Warn("terminal credential cleanup failed", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+	}
 }
 
 // accountSummaryTokens writes the run's usage-account total into its summary,

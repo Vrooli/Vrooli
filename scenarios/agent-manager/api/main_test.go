@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -21,6 +22,7 @@ import (
 	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/storage/storagetest"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 	searchregister "github.com/vrooli/searchregister-go"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
@@ -148,7 +150,9 @@ func TestNewServerBuildsAndShutsDownTheRealCompositionRoot(t *testing.T) {
 	t.Setenv("VROOLI_STORAGE_NAMESPACE", "agent-manager")
 	t.Setenv("VROOLI_VARIANT", "live")
 	t.Setenv("UPLOAD_DIR", t.TempDir())
-	t.Setenv("PROJECT_ROOT", t.TempDir())
+	fixture := repocontracttest.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	t.Setenv("PROJECT_ROOT", fixture.Root)
 	// The composition root opens the scenario database and runs recovery; its
 	// storage must be private, or the test builds against the live install.
 	storagetest.IsolateStorage(t)
@@ -256,5 +260,38 @@ func TestSearchControlTokensRejectEmptyAndRoundTripMintedToken(t *testing.T) {
 	tokens.set("agent-manager.runs", "minted-token")
 	if got := tokens.get("agent-manager.runs"); got != "minted-token" {
 		t.Fatalf("token=%q", got)
+	}
+}
+
+func TestServerConfigurationPathsRetainedSource(t *testing.T) {
+	fixture := repocontracttest.NewRepoFixture(t, repocontracttest.WithScenarioDir("apps"))
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "agent-manager")
+	source := filepath.Join(fixture.Root, "apps", "agent-manager")
+	retained := t.TempDir()
+	for _, key := range []string{"PROJECT_ROOT", "VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+		t.Setenv(key, "")
+	}
+	t.Setenv("SCENARIO_NAME", "agent-manager")
+	t.Setenv("VROOLI_SCENARIO", "agent-manager")
+	t.Setenv("SCENARIO_PATH", source)
+	t.Setenv("VROOLI_SCENARIO_DIR", source)
+	t.Chdir(retained)
+	root, search, err := serverConfigurationPaths()
+	if err != nil || root != fixture.Root || search != filepath.Join(source, ".vrooli", "search.json") {
+		t.Fatalf("root=%q search=%q err=%v", root, search, err)
+	}
+}
+
+func TestNewServerRejectsInvalidRootBeforeStorage(t *testing.T) {
+	t.Setenv("PROJECT_ROOT", filepath.Join(t.TempDir(), "missing"))
+	data := filepath.Join(t.TempDir(), "must-not-create")
+	t.Setenv("SCENARIO_DATA_DIR", data)
+	server, err := NewServer()
+	if err == nil || server != nil || !strings.Contains(err.Error(), "configuration root") {
+		t.Fatalf("server=%v err=%v", server, err)
+	}
+	if _, err := os.Stat(data); !os.IsNotExist(err) {
+		t.Fatalf("invalid root reached storage: %v", err)
 	}
 }

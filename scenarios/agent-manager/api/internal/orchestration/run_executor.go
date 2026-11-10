@@ -140,8 +140,10 @@ type RunExecutor struct {
 	skillSource promptmanager.SourceClient
 
 	// Identity token state
-	identitySecret []byte
-	identityToken  string
+	identitySecret      []byte
+	identityToken       string
+	treasurySessionKeys TreasurySessionKeyStore
+	treasurySessionKey  string
 
 	// onRunning fires exactly once when the run reaches
 	// RunStatusRunning. Wired by the spawn dispatcher to release the
@@ -491,6 +493,10 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 		AccountScopes:   e.run.OwnerScopes,
 		RequestedScopes: e.run.RequestedScopes,
 	})
+	if err := e.prepareTreasurySessionKey(execCtx); err != nil {
+		e.failWithError(execCtx, err)
+		return
+	}
 
 	// Step 4: Execute, walking the preset chain on model-unavailable errors.
 	e.advancePhase(execCtx, domain.RunPhaseExecuting)
@@ -565,6 +571,15 @@ func (e *RunExecutor) Execute(ctx context.Context) {
 	e.resultDeferred = resultOut.Deferred
 }
 
+func (e *RunExecutor) prepareTreasurySessionKey(ctx context.Context) error {
+	key, err := resolveTreasurySessionKey(ctx, e.treasurySessionKeys, e.run.ID, e.identityToken, e.identitySecret)
+	if err != nil {
+		return err
+	}
+	e.treasurySessionKey = key
+	return nil
+}
+
 // =============================================================================
 // COORDINATOR HELPERS
 // =============================================================================
@@ -610,7 +625,21 @@ func (e *RunExecutor) MergedEnvVars() map[string]string {
 		}
 		env[key] = value
 	}
+	delete(env, treasurySessionKeyEnv)
+	if e.treasurySessionKey != "" {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		// This protected value is applied last: caller-supplied CustomEnv cannot
+		// replace the run-owned session key with a chosen signer identity.
+		env[treasurySessionKeyEnv] = e.treasurySessionKey
+	}
 	return env
+}
+
+func (e *RunExecutor) WithTreasurySessionKeyStore(store TreasurySessionKeyStore) *RunExecutor {
+	e.treasurySessionKeys = store
+	return e
 }
 
 // shouldSkipPhase returns true if we're resuming and have already completed this phase.

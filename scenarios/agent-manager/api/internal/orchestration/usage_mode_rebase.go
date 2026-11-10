@@ -150,7 +150,7 @@ func (o *Orchestrator) rebaseOneRun(ctx context.Context, mode usagemode.Mode, id
 		return unableRebase(id, from, "the run was created with an explicit model, which a usage mode never overrides")
 	}
 	for _, role := range []string{candidate.ResourceRole, cfg.RoleRef} {
-		if modeExempts(mode, role) {
+		if mode.Exempts(role) {
 			return unableRebase(id, from, "role "+role+" is exempt from usage modes")
 		}
 	}

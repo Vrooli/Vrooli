@@ -10,7 +10,9 @@ import (
 	"strings"
 	"sync"
 
+	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // HarnessSkillStorage is a harness's native skill discovery directory as its
@@ -57,27 +59,21 @@ var (
 	harnessResourcesDir = defaultHarnessResourcesDir
 )
 
-// defaultHarnessResourcesDir is $PROJECT_ROOT/resources, else the nearest
-// ancestor of the working directory that holds a resources/ directory.
+// defaultHarnessResourcesDir locates declaration sources, never retained binaries.
 func defaultHarnessResourcesDir() string {
-	if root := strings.TrimSpace(os.Getenv("PROJECT_ROOT")); root != "" {
-		return filepath.Join(root, "resources")
-	}
-	dir, err := os.Getwd()
+	root, err := config.RepoRoot()
 	if err != nil {
-		return "resources"
+		return ""
 	}
-	for {
-		candidate := filepath.Join(dir, "resources")
-		if matches, _ := filepath.Glob(filepath.Join(candidate, "*", "resource.json")); len(matches) > 0 {
-			return candidate
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			return "resources"
-		}
-		dir = parent
+	contract, err := repocontract.LoadDefault(root)
+	if err != nil {
+		return ""
 	}
+	resources, err := contract.TopLevelDir(root, "resources")
+	if err != nil {
+		return ""
+	}
+	return resources
 }
 
 // harnessSkillStorage returns the runner's declared skill storage. A runner

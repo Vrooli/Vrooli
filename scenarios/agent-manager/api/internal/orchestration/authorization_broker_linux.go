@@ -114,6 +114,11 @@ func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, er
 				}
 				purpose = values[0]
 			}
+			operation, target := strings.TrimSpace(r.URL.Query().Get("operation")), strings.TrimSpace(r.URL.Query().Get("target"))
+			if (operation == "") != (target == "") || (operation != "" && (purpose != "" || len(r.URL.Query()["operation"]) != 1 || len(r.URL.Query()["target"]) != 1)) {
+				http.Error(w, "invalid operation target request", http.StatusBadRequest)
+				return
+			}
 			if purpose == "local_owner_eligibility" {
 				if baselineToken != "" {
 					localOwnerEligibilityRefusal(w, "agent_identity_present")
@@ -135,7 +140,11 @@ func (o *Orchestrator) startAuthorizationBrokerAt(path string) (func() error, er
 			var err error
 			switch purpose {
 			case "":
-				credentials, err = o.ResolveAuthorizationCredentials(r.Context(), peer.pid, baselineToken)
+				if operation != "" {
+					credentials, err = o.ResolveAuthorizationCredentialsForOperation(r.Context(), peer.pid, baselineToken, operation, target)
+				} else {
+					credentials, err = o.ResolveAuthorizationCredentials(r.Context(), peer.pid, baselineToken)
+				}
 			case "ordinary_identity":
 				credentials, err = o.resolveOrdinaryRunIdentityCredential(r.Context(), peer.pid, baselineToken)
 			default:

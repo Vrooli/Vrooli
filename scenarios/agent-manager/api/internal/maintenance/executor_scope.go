@@ -22,19 +22,22 @@ const (
 )
 
 type executorScopeRef struct {
-	RunID     string     `json:"runId"`
-	Tag       string     `json:"tag"`
-	LegacyTag string     `json:"legacyTag"`
-	PID       int        `json:"pid"`
-	PGID      int        `json:"pgid"`
-	StartedAt *time.Time `json:"startedAt,omitempty"`
-	EndedAt   *time.Time `json:"endedAt,omitempty"`
+	HarnessKind      string     `json:"harnessKind,omitempty"`
+	HarnessSessionID string     `json:"harnessSessionId,omitempty"`
+	RunID            string     `json:"runId"`
+	Tag              string     `json:"tag"`
+	LegacyTag        string     `json:"legacyTag"`
+	PID              int        `json:"pid"`
+	PGID             int        `json:"pgid"`
+	StartedAt        *time.Time `json:"startedAt,omitempty"`
+	EndedAt          *time.Time `json:"endedAt,omitempty"`
 }
 
 type executorScopeReport struct {
-	SchemaVersion string `json:"schemaVersion"`
-	Complete      bool   `json:"complete"`
-	Executors     []struct {
+	SchemaVersion   string `json:"schemaVersion"`
+	IdentityVersion string `json:"identityVersion,omitempty"`
+	Complete        bool   `json:"complete"`
+	Executors       []struct {
 		RunID   string   `json:"runId"`
 		State   string   `json:"state"`
 		PIDs    []int    `json:"pids"`
@@ -98,6 +101,7 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 	request := struct {
 		Executors []executorScopeRef `json:"executors"`
 	}{}
+	requiresAttachedIdentity := false
 	expected := map[string]ExecutorRef{}
 	identities := map[uuid.UUID]*domain.Run{}
 	if o.lookupBatch != nil {
@@ -137,7 +141,17 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 			return nil, fmt.Errorf("duplicate executor scope")
 		}
 		expected[ref.ID] = ref
-		request.Executors = append(request.Executors, executorScopeRef{RunID: ref.ID, Tag: run.GetTag(), LegacyTag: "opencode-continue-" + id.String()[:8], PID: ref.PID, PGID: ref.PGID, StartedAt: run.StartedAt, EndedAt: run.EndedAt})
+		scope := executorScopeRef{RunID: ref.ID, Tag: run.GetTag(), LegacyTag: "opencode-continue-" + id.String()[:8], PID: ref.PID, PGID: ref.PGID, StartedAt: run.StartedAt, EndedAt: run.EndedAt}
+		if run.ExecutionMode == domain.ExecutionModeAttached {
+			// The native lease is anchored to HarnessSessionID, not the run ID
+			// or mutable transcript SessionID. Retain even partial/malformed
+			// anchors so the owner cannot mistake them for missing legacy data.
+			scope.HarnessKind, scope.HarnessSessionID = run.HarnessKind, run.HarnessSessionID
+		}
+		if scope.HarnessKind != "" || scope.HarnessSessionID != "" {
+			requiresAttachedIdentity = true
+		}
+		request.Executors = append(request.Executors, scope)
 	}
 	input, err := json.Marshal(request)
 	if err != nil {
@@ -156,6 +170,12 @@ func (o *ControlPlaneObserver) Observe(ctx context.Context, refs []ExecutorRef) 
 	var report executorScopeReport
 	if err := json.Unmarshal(data, &report); err != nil || report.SchemaVersion != "executor-scope-v1" {
 		return nil, fmt.Errorf("invalid control-plane executor-scope evidence")
+	}
+	// Older owners can silently ignore additive request fields while returning
+	// the same schema. An anchored exclusion requires explicit key support;
+	// the capability marker does not replace complete, exact scope evidence.
+	if requiresAttachedIdentity && report.IdentityVersion != "attached-key-v1" {
+		return nil, fmt.Errorf("control-plane executor-scope lacks attached-key-v1 identity support")
 	}
 	var evidence []ExecutorEvidence
 	var incomplete error

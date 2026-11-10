@@ -134,6 +134,9 @@ func (a *App) runCreate(args []string) error {
 	workloadKind := fs.String("workload-kind", "", "Workload kind (workflow_node, scheduled, interactive, adhoc, imported)")
 	parentRunID := fs.String("parent-run-id", "", "Parent run ID for durable child lineage (the creating run's own ID; nesting is capped by runExecution.maxChildDepth)")
 	charter := fs.String("charter", "", "Absolute path of an existing charter file; the task prompt names it and asks the agent to re-read it at every unit start and after any compaction")
+	expectedOwnerSubject := fs.String("expected-owner-subject", "", "Refuse run identity credentials for a different verified owner")
+	var requestedScopes cliutil.StringList
+	fs.Var(&requestedScopes, "requested-scope", "Request a narrowed run identity scope; repeatable and never grants authority (for example, treasury:write)")
 	var targetInstances cliutil.StringList
 	fs.Var(&targetInstances, "target-instance", "Scenario instance this run changes, <scenario>@<instance> (repeatable); a quiesce of another instance skips the run")
 	maxWeightedTokens := fs.Int64("max-weighted-tokens", 0, "Observed weighted-token threshold; may only lower the profile limit; action depends on token-cap mode and usage reporting")
@@ -169,6 +172,18 @@ func (a *App) runCreate(args []string) error {
 			return fmt.Errorf("--charter %q must be an absolute path", *charter)
 		}
 		req.CharterPath = protoString(*charter)
+	}
+	if len(requestedScopes.Values()) > 0 || strings.TrimSpace(*expectedOwnerSubject) != "" {
+		scopes := requestedScopes.Values()
+		for i, scope := range scopes {
+			scopes[i] = strings.TrimSpace(scope)
+			if scopes[i] == "" {
+				return fmt.Errorf("--requested-scope values must not be empty")
+			}
+		}
+		req.RequestedScopes = &apipb.RunIdentityScopeRequest{
+			Scopes: scopes, ExpectedOwnerSubject: strings.TrimSpace(*expectedOwnerSubject),
+		}
 	}
 	req.TargetInstances = targetInstances.Values()
 	if *maxWeightedTokens < 0 {

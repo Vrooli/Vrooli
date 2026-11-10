@@ -36,7 +36,7 @@ func readMaintenanceExecutorIdentities(ctx context.Context, db *database.DB, ref
 		for i, ref := range batch {
 			args[i] = ref.ID
 		}
-		query := `SELECT id,COALESCE(tag,''),COALESCE(runner_pid,0),COALESCE(runner_pgid,0),started_at,ended_at FROM runs WHERE id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(args)), ",") + `)`
+		query := `SELECT id,COALESCE(tag,''),COALESCE(runner_pid,0),COALESCE(runner_pgid,0),started_at,ended_at,COALESCE(execution_mode,''),COALESCE(harness_kind,''),COALESCE(harness_session_id,'') FROM runs WHERE id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(args)), ",") + `)`
 		rows, err := db.QueryContext(ctx, query, args...)
 		if err != nil {
 			return nil, err
@@ -44,7 +44,7 @@ func readMaintenanceExecutorIdentities(ctx context.Context, db *database.DB, ref
 		for rows.Next() {
 			run := new(domain.Run)
 			var started, ended database.NullableTime
-			if err := rows.Scan(&run.ID, &run.Tag, &run.RunnerPID, &run.RunnerPGID, &started, &ended); err != nil {
+			if err := rows.Scan(&run.ID, &run.Tag, &run.RunnerPID, &run.RunnerPGID, &started, &ended, &run.ExecutionMode, &run.HarnessKind, &run.HarnessSessionID); err != nil {
 				rows.Close()
 				return nil, err
 			}

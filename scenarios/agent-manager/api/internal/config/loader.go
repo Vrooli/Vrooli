@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"agent-manager/internal/conversationpolicy"
+
+	repocontract "github.com/vrooli/repo-contract-go"
 )
 
 // LoadLevers loads configuration with the following precedence (highest first):
@@ -38,7 +40,15 @@ func LoadLevers() (*Levers, error) {
 	// stale sidecar file; otherwise the sidecar file — which the CLI edits — is
 	// the source of truth. A missing file is simply no policy.
 	if len(levers.ConversationPolicy.Rules) == 0 {
-		doc, err := conversationpolicy.LoadDocument(conversationpolicy.ResolveFilePath(RepoRoot()))
+		path := strings.TrimSpace(os.Getenv(conversationpolicy.FileEnvVar))
+		if path == "" {
+			var err error
+			path, err = ScenarioSourcePath(".vrooli", conversationpolicy.DefaultFileName)
+			if err != nil {
+				return nil, err
+			}
+		}
+		doc, err := conversationpolicy.LoadDocument(path)
 		if err != nil {
 			return nil, err
 		}
@@ -53,18 +63,24 @@ func LoadLevers() (*Levers, error) {
 	return &levers, nil
 }
 
-// RepoRoot resolves the Vrooli repository root the same way the server's
-// composition root does: PROJECT_ROOT when set, else three levels up from the
-// scenario working directory. It is exported so the CLI (a separate module that
-// shares this package) resolves the identical conversation-policy file path.
-func RepoRoot() string {
-	if root := strings.TrimSpace(os.Getenv("PROJECT_ROOT")); root != "" {
-		return root
+// RepoRoot resolves canonical configuration and declaration source, not retained
+// executable artifacts or runtime state. PROJECT_ROOT remains the explicit
+// Agent Manager override; the shared contract owns lifecycle/process discovery.
+func RepoRoot() (string, error) {
+	return repocontract.ResolveScenarioSourceRoot("agent-manager", os.Getenv("PROJECT_ROOT"))
+}
+
+// ScenarioSourcePath resolves a configuration path using the canonical layout.
+func ScenarioSourcePath(parts ...string) (string, error) {
+	root, err := RepoRoot()
+	if err != nil {
+		return "", err
 	}
-	if abs, err := filepath.Abs(filepath.Join("..", "..", "..")); err == nil {
-		return abs
+	scenario, err := repocontract.ResolveScenarioPath(root, "agent-manager")
+	if err != nil {
+		return "", err
 	}
-	return ""
+	return filepath.Join(append([]string{scenario}, parts...)...), nil
 }
 
 // loadFromFile reads configuration from a JSON file.

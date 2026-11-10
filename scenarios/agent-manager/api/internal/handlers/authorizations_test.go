@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -50,6 +51,134 @@ func (f *authorizationFake) ApproveAuthorization(context.Context, uuid.UUID) (*d
 
 func (*authorizationFake) RevokeAuthorization(context.Context, uuid.UUID) (*domain.AuthorizationGrant, error) {
 	return nil, nil
+}
+
+// Only the read method is implemented: any call that requests or changes
+// authority fails the test instead of silently succeeding through a fake.
+type authorizationStatusFake struct {
+	AuthorizationService
+	grant *domain.AuthorizationGrant
+	err   error
+	reads []uuid.UUID
+}
+
+func (f *authorizationStatusFake) GetAuthorization(_ context.Context, id uuid.UUID) (*domain.AuthorizationGrant, error) {
+	f.reads = append(f.reads, id)
+	return f.grant, f.err
+}
+
+func TestAuthorizationStatusReturnsOnlyCurrentReviewState(t *testing.T) {
+	id := uuid.MustParse("2db09861-3cc0-4849-a2c4-335c82553781")
+	past := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+	future := time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name, storedState, wantState string
+		reviewDeadline               time.Time
+		grant                        *identity.OperationGrant
+	}{
+		{name: "pending", storedState: "pending", wantState: "pending", reviewDeadline: future},
+		{name: "review expired", storedState: "pending", wantState: "expired", reviewDeadline: past},
+		{name: "approved", storedState: "approved", wantState: "approved", reviewDeadline: past, grant: &identity.OperationGrant{ExpiresAt: future}},
+		{name: "grant expired", storedState: "approved", wantState: "expired", reviewDeadline: past, grant: &identity.OperationGrant{ExpiresAt: past}},
+		{name: "approving", storedState: "approving", wantState: "approving", reviewDeadline: future},
+		{name: "revoked", storedState: "revoked", wantState: "revoked", reviewDeadline: future},
+		{name: "superseded", storedState: "superseded", wantState: "superseded", reviewDeadline: future},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &authorizationStatusFake{grant: &domain.AuthorizationGrant{
+				ID: id, State: tc.storedState, RequestExpiresAt: tc.reviewDeadline, Grant: tc.grant,
+				Policy: "private-policy", Targets: []string{"private-target"}, HarnessSession: "private-session",
+				RequesterContext: &domain.AuthorizationRequesterContext{BigPicture: "private explanation"},
+			}}
+			router := mux.NewRouter()
+			router.Use(AgentOperationMiddleware)
+			RegisterAuthorizations(router, f)
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/authorizations/"+id.String()+"/status", nil)
+			req.RemoteAddr = "127.0.0.1:12345"
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+			}
+			var got map[string]any
+			if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+				t.Fatal(err)
+			}
+			if len(got) != 3 || got["authorization_id"] != id.String() || got["state"] != tc.wantState || got["review_expires_at"] != tc.reviewDeadline.Format(time.RFC3339) {
+				t.Fatalf("expected only authorization ID, effective state, and review deadline, got %v", got)
+			}
+			if rec.Header().Get("Cache-Control") != "no-store" {
+				t.Fatal("current authority state must not be cached")
+			}
+			if len(f.reads) != 1 || f.reads[0] != id || f.grant.State != tc.storedState {
+				t.Fatalf("read must use the requested ID without changing stored state: reads=%v state=%q", f.reads, f.grant.State)
+			}
+		})
+	}
+}
+
+func TestAuthorizationStatusRequiresLoopbackAndValidIdentifier(t *testing.T) {
+	id := uuid.MustParse("2db09861-3cc0-4849-a2c4-335c82553781")
+	for _, tc := range []struct {
+		name, remote, requestID string
+		human                   bool
+		wantStatus, wantReads   int
+	}{
+		{name: "IPv6 loopback", remote: "[::1]:12345", requestID: id.String(), wantStatus: http.StatusOK, wantReads: 1},
+		{name: "remote anonymous", remote: "192.0.2.1:12345", requestID: id.String(), wantStatus: http.StatusForbidden},
+		{name: "remote verified human", remote: "192.0.2.1:12345", requestID: id.String(), human: true, wantStatus: http.StatusForbidden},
+		{name: "malformed peer", remote: "localhost:12345", requestID: id.String(), wantStatus: http.StatusForbidden},
+		{name: "malformed identifier", remote: "127.0.0.1:12345", requestID: "not-a-uuid", wantStatus: http.StatusBadRequest},
+		{name: "noncanonical identifier", remote: "127.0.0.1:12345", requestID: "urn:uuid:" + id.String(), wantStatus: http.StatusBadRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &authorizationStatusFake{grant: &domain.AuthorizationGrant{ID: id, State: "revoked"}}
+			router := mux.NewRouter()
+			RegisterAuthorizations(router, f)
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/authorizations/"+tc.requestID+"/status", nil)
+			req.RemoteAddr = tc.remote
+			req.Header.Set("X-Forwarded-For", "127.0.0.1")
+			if tc.human {
+				req = req.WithContext(identity.WithPrincipal(req.Context(), identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Verified: true, ExpiresAt: time.Date(2100, 1, 1, 0, 0, 0, 0, time.UTC)}))
+			}
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			if rec.Code != tc.wantStatus || len(f.reads) != tc.wantReads {
+				t.Fatalf("status = %d, reads = %v, want status %d and %d reads", rec.Code, f.reads, tc.wantStatus, tc.wantReads)
+			}
+			if rec.Header().Get("Cache-Control") != "no-store" {
+				t.Fatal("authority status responses, including refusals, must not be cached")
+			}
+		})
+	}
+}
+
+func TestAuthorizationStatusDistinguishesMissingFromUnavailable(t *testing.T) {
+	id := uuid.MustParse("2db09861-3cc0-4849-a2c4-335c82553781")
+	for _, tc := range []struct {
+		name       string
+		err        error
+		wantStatus int
+	}{
+		{name: "missing", err: domain.NewNotFoundError("Authorization", id), wantStatus: http.StatusNotFound},
+		{name: "unavailable", err: errors.New("authorization authority unavailable"), wantStatus: http.StatusInternalServerError},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &authorizationStatusFake{err: tc.err}
+			router := mux.NewRouter()
+			RegisterAuthorizations(router, f)
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/authorizations/"+id.String()+"/status", nil)
+			req.RemoteAddr = "127.0.0.1:12345"
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			if rec.Code != tc.wantStatus || len(f.reads) != 1 || f.reads[0] != id {
+				t.Fatalf("status = %d, reads = %v, want status %d for requested ID", rec.Code, f.reads, tc.wantStatus)
+			}
+			if rec.Header().Get("Cache-Control") != "no-store" {
+				t.Fatal("authority lookup failure must not be cached")
+			}
+		})
+	}
 }
 
 func TestAuthorizationConsentRequiresIndependentHumanAndConfiguredOrigin(t *testing.T) {

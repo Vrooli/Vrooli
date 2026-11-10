@@ -9,8 +9,10 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"agent-manager/internal/domain"
+	"github.com/vrooli/repo-contract-go/repocontracttest"
 )
 
 type fakeCommandExecutor struct {
@@ -180,7 +182,9 @@ func TestCommandExecutorResourceResponseStreams(t *testing.T) {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-			t.Setenv("PROJECT_ROOT", bin)
+			fixture := repocontracttest.NewRepoFixture(t)
+			fixture.WriteRepoContract(t)
+			t.Setenv("PROJECT_ROOT", fixture.Root)
 			if tc.wantErr == nil {
 				output, err := (commandExecutor{}).Run(context.Background(), "resource-codex", "policy", "resolve", "--role", "code.default", "--json")
 				if err != nil || string(output) != tc.stdout {
@@ -199,5 +203,57 @@ func TestCommandExecutorResourceResponseStreams(t *testing.T) {
 				t.Fatalf("lost command stderr/stdout diagnostic: %v", err)
 			}
 		})
+	}
+}
+
+// A resource CLI that never answers must turn into a prompt failure that names
+// the command, so run creation reports the cause instead of hanging.
+func TestCommandExecutorBoundsAWedgedResourceCLI(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "resource-wedged")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nexec sleep 30\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	previous := resolveTimeout
+	resolveTimeout = 200 * time.Millisecond
+	t.Cleanup(func() { resolveTimeout = previous })
+	started := time.Now()
+	_, err := commandExecutor{}.Run(context.Background(), script, "policy", "resolve")
+	if err == nil || !strings.Contains(err.Error(), "did not answer within") || !strings.Contains(err.Error(), script) {
+		t.Fatalf("err = %v, want a named timeout", err)
+	}
+	if elapsed := time.Since(started); elapsed > 5*time.Second {
+		t.Fatalf("took %s", elapsed)
+	}
+}
+
+func TestCommandExecutorUsesCanonicalSourceFromRetainedCWD(t *testing.T) {
+	fixture := repocontracttest.NewRepoFixture(t)
+	fixture.WriteRepoContract(t)
+	fixture.WriteScenarioStub(t, "agent-manager")
+	source := filepath.Join(fixture.Root, "scenarios", "agent-manager")
+	for _, key := range []string{"PROJECT_ROOT", "VROOLI_SOURCE_ROOT", "VROOLI_ROOT"} {
+		t.Setenv(key, "")
+	}
+	t.Setenv("SCENARIO_NAME", "agent-manager")
+	t.Setenv("VROOLI_SCENARIO", "agent-manager")
+	t.Setenv("SCENARIO_PATH", source)
+	t.Setenv("VROOLI_SCENARIO_DIR", source)
+	retained := t.TempDir()
+	// This fixture is the selected executable, independent of canonical source.
+	command := filepath.Join(retained, "policy-fixture")
+	if err := os.WriteFile(command, []byte("#!/bin/sh\nprintf '%s' \"$PWD\"\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(retained)
+	body, err := (commandExecutor{}).Run(context.Background(), command)
+	if err != nil || string(body) != fixture.Root {
+		t.Fatalf("cwd=%q err=%v", body, err)
+	}
+	if cwd, _ := os.Getwd(); cwd != retained {
+		t.Fatal("changed parent runtime cwd")
+	}
+	t.Setenv("PROJECT_ROOT", filepath.Join(fixture.Root, "missing"))
+	if _, err := (commandExecutor{}).Run(context.Background(), command); err == nil {
+		t.Fatal("executed with invalid config root")
 	}
 }
