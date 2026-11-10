@@ -63,6 +63,18 @@ func (s *Service) verify(ctx context.Context, operator string, wallet walletpkg.
 	}
 	canonicalHash := strings.ToLower(transactionHash)
 	transfers, verifyErr := s.verifier.VerifyWalletTransaction(ctx, wallet, canonicalHash)
+	if prior != nil && (errors.Is(verifyErr, ErrPending) || errors.Is(verifyErr, ErrRPCUnavailable)) {
+		if canonical, ok := s.verifier.(interface {
+			PriorCanonical(context.Context, []Observation) (bool, error)
+		}); ok {
+			stillCanonical, canonicalErr := canonical.PriorCanonical(ctx, prior.Transfers)
+			if canonicalErr != nil {
+				verifyErr = canonicalErr
+			} else if !stillCanonical {
+				verifyErr = ErrNotCanonical
+			}
+		}
+	}
 	if verifyErr == nil && !validObservations(wallet, canonicalHash, s.provider, transfers) {
 		verifyErr = errors.New("Base receipt verifier returned inconsistent transfer evidence")
 	}

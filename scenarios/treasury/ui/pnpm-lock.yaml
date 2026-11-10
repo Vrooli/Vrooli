@@ -53,6 +53,9 @@ importers:
       lucide-react:
         specifier: ^0.424.0
         version: 0.424.0(react@18.3.1)
+      qrcode.react:
+        specifier: ^4.2.0
+        version: 4.2.0(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -72,6 +75,9 @@ importers:
       '@eslint/js':
         specifier: ^9.39.2
         version: 9.39.4
+      '@foundry-rs/anvil':
+        specifier: 1.7.1
+        version: 1.7.1
       '@testing-library/jest-dom':
         specifier: ^6.6.3
         version: 6.9.1
@@ -492,6 +498,45 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@foundry-rs/anvil-darwin-amd64@1.7.1':
+    resolution: {integrity: sha512-OgwzwY+FsGrsPyDv4mmbhOwARO8s37YHrm2qaNzgSH4VlKnXgJCrnoT7bpgOhLyBPtxXjBT8L2E3b79deesXRg==}
+    engines: {node: '>=20'}
+    cpu: [x64]
+    os: [darwin]
+    hasBin: true
+
+  '@foundry-rs/anvil-darwin-arm64@1.7.1':
+    resolution: {integrity: sha512-JNeu3+A3f/npXLn8SR8EahVcqE7BpO9VQZMcPvSIy27/RNc1GsoEBvSLR99aSvt8sGKWAgNg/EzrtjAPq6mxcA==}
+    engines: {node: '>=20'}
+    cpu: [arm64]
+    os: [darwin]
+    hasBin: true
+
+  '@foundry-rs/anvil-linux-amd64@1.7.1':
+    resolution: {integrity: sha512-+XmShybEaxfCrr0OUUZwYEy2OnYZt5pHH9TzBtLv3+VrK0O/ANuNSVEahqNhKHlgX7GRJ59383ofNhxkRWIYTg==}
+    engines: {node: '>=20'}
+    cpu: [x64]
+    os: [linux]
+    hasBin: true
+
+  '@foundry-rs/anvil-linux-arm64@1.7.1':
+    resolution: {integrity: sha512-ykHJmFOGdBR8+9smOKBm9ZZDCCCkLQctiHOAddLvmYx9mPeBDMfq6jP51hKYsO5MG8ClPLSlWe+JpiXPjoXgBQ==}
+    engines: {node: '>=20'}
+    cpu: [arm64]
+    os: [linux]
+    hasBin: true
+
+  '@foundry-rs/anvil-win32-amd64@1.7.1':
+    resolution: {integrity: sha512-IeuBcmQ+AQKUxXA77czSVIfpST+KLBdXaL71JlK/h6e0DoP2CYnmVZn8WE/fuQfjAU2zaWw7PDXmq1kedbIUGA==}
+    engines: {node: '>=20'}
+    cpu: [x64]
+    os: [win32]
+    hasBin: true
+
+  '@foundry-rs/anvil@1.7.1':
+    resolution: {integrity: sha512-rcy+hu8e90DNizfh5WpbJjMiadgDBtV3JHe2M6OsdmIzoDH77Gk0sVgNxr7LnBiKpkzt6pV2XEOI7XMXmJo1Kg==}
+    hasBin: true
 
   '@humanfs/core@0.19.2':
     resolution: {integrity: sha512-UhXNm+CFMWcbChXywFwkmhqjs3PRCmcSa/hfBgLIb7oQ5HNb1wS0icWsGtSAUNgefHeI+eBrA8I1fxmbHsGdvA==}
@@ -2998,6 +3043,11 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
+  qrcode.react@4.2.0:
+    resolution: {integrity: sha512-QpgqWi8rD9DsS9EP3z7BT+5lY5SFhsqGjpgW5DY/i3mK4M9DTBNz3ErMi8BWYEfI3L0d8GIbGmcdFAS1uIRGjA==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
   qs@6.14.2:
     resolution: {integrity: sha512-V/yCWTTF7VJ9hIh18Ugr2zhJMP01MY7c5kh4J870L7imm6/DIzBsNLTXzMwUA3yZ5b/KBqLx8Kp3uRvd7xSe3Q==}
     engines: {node: '>=0.6'}
@@ -4009,6 +4059,29 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
+
+  '@foundry-rs/anvil-darwin-amd64@1.7.1':
+    optional: true
+
+  '@foundry-rs/anvil-darwin-arm64@1.7.1':
+    optional: true
+
+  '@foundry-rs/anvil-linux-amd64@1.7.1':
+    optional: true
+
+  '@foundry-rs/anvil-linux-arm64@1.7.1':
+    optional: true
+
+  '@foundry-rs/anvil-win32-amd64@1.7.1':
+    optional: true
+
+  '@foundry-rs/anvil@1.7.1':
+    optionalDependencies:
+      '@foundry-rs/anvil-darwin-amd64': 1.7.1
+      '@foundry-rs/anvil-darwin-arm64': 1.7.1
+      '@foundry-rs/anvil-linux-amd64': 1.7.1
+      '@foundry-rs/anvil-linux-arm64': 1.7.1
+      '@foundry-rs/anvil-win32-amd64': 1.7.1
 
   '@humanfs/core@0.19.2':
     dependencies:
@@ -7103,6 +7176,10 @@ snapshots:
       ipaddr.js: 1.9.1
 
   punycode@2.3.1: {}
+
+  qrcode.react@4.2.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
 
   qs@6.14.2:
     dependencies:

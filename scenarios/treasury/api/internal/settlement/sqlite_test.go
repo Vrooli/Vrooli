@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"treasury/internal/testutil/agentclaims"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
@@ -97,6 +98,27 @@ func TestConcurrentRetrySettlesExactlyOnce(t *testing.T) {
 	require.EqualValues(t, 1, fixture.adapter.settleCalls.Load())
 	require.NoError(t, fixture.db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM ledger_emissions WHERE settlement_id='settlement-1'`).Scan(&count))
 	require.Equal(t, 1, count)
+}
+
+func TestSettlementRejectsChangedPreapprovedIntentBeforeRailDispatch(t *testing.T) {
+	for name, mutate := range map[string]func(*settlement.SettleInput){
+		"cross authorization":   func(in *settlement.SettleInput) { in.AuthorizationID = "auth-other" },
+		"changed settlement ID": func(in *settlement.SettleInput) { in.ID = "settlement-other" },
+		"changed instrument":    func(in *settlement.SettleInput) { in.InstrumentID = "instrument-other" },
+		"changed retry key":     func(in *settlement.SettleInput) { in.IdempotencyKey = "settle-key-other" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			fixture := newFixture(t, &adapter{settleResult: settledResult()})
+			attempt := fixture.input
+			mutate(&attempt)
+			_, err := fixture.service.Settle(context.Background(), attempt)
+			require.Error(t, err)
+			require.Zero(t, fixture.adapter.settleCalls.Load(), "altered or cross-intent terms must be rejected before dispatch")
+			var count int
+			require.NoError(t, fixture.db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM settlements`).Scan(&count))
+			require.Zero(t, count, "a denied altered intent must not reserve a settlement")
+		})
+	}
 }
 
 // Settlement and authorization projection are separate durable owners. If
@@ -336,7 +358,7 @@ func TestInterruptedX402BeforeReferenceCommitDeletesOrphan(t *testing.T) {
 
 type recordRecoveryPanicRepository struct{ settlement.Repository }
 
-func (recordRecoveryPanicRepository) RecordX402RecoveryInput(context.Context, string, string, string) error {
+func (recordRecoveryPanicRepository) RecordRecoveryInput(context.Context, string, string, string) error {
 	panic("simulated process interruption before SQLite reference commit")
 }
 
@@ -441,7 +463,7 @@ func newFixture(t *testing.T, railAdapter *adapter) fixture {
 	_, err = instruments.Register(ctx, instrument.RegisterInput{ID: "instrument-1", MandateID: "mandate-1", Rail: railAdapter.Name(), CredentialReference: "treasury/test-credential", Counterparty: "api.example"})
 	require.NoError(t, err)
 	authorizations := authorization.NewSQLiteRepository(handle)
-	_, err = authorizations.Create(ctx, authorization.Record{ID: "auth-1", IdempotencyKey: "auth-key-1", BookID: "book-1", MandateID: "mandate-1", BudgetID: "budget-1", RequestingAgent: "agent:1", AmountMinor: 250, Currency: "USD", Counterparty: "api.example", Verdict: authorization.VerdictApproved, HoldMinor: 250, CreatedAt: now, ExpiresAt: now.Add(15 * time.Minute)})
+	_, err = authorizations.Create(ctx, authorization.Record{ID: "auth-1", IdempotencyKey: "auth-key-1", BookID: "book-1", MandateID: "mandate-1", BudgetID: "budget-1", RequestingAgent: "agent:1", AmountMinor: 250, Currency: "USD", Counterparty: "api.example", SettlementID: "settlement-1", InstrumentID: "instrument-1", SettlementIdempotencyKey: "settle-key-1", Verdict: authorization.VerdictApproved, HoldMinor: 250, CreatedAt: now, ExpiresAt: now.Add(15 * time.Minute)})
 	require.NoError(t, err)
 	settlements := settlement.NewSQLiteRepository(handle)
 	return fixture{
@@ -480,9 +502,9 @@ type identityVerifier struct{}
 
 func (identityVerifier) Verify(_ context.Context, token string) (identity.Claims, error) {
 	if token != "opaque-agent-token" {
-		return identity.Claims{Subject: "agent:other"}, nil
+		return agentclaims.For("agent:other"), nil
 	}
-	return identity.Claims{Subject: "agent:1"}, nil
+	return agentclaims.For("agent:1"), nil
 }
 
 type adapter struct {

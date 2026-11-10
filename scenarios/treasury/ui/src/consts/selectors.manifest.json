@@ -81,6 +81,10 @@
       "testId": "page-approvals",
       "selector": "[data-testid=\"page-approvals\"]"
     },
+    "pages.fund": {
+      "testId": "page-fund",
+      "selector": "[data-testid=\"page-fund\"]"
+    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
@@ -100,6 +104,74 @@
     "approvals.bookSelect": {
       "testId": "approvals-book-select",
       "selector": "[data-testid=\"approvals-book-select\"]"
+    },
+    "funding.operatorToken": {
+      "testId": "funding-operator-token",
+      "selector": "[data-testid=\"funding-operator-token\"]"
+    },
+    "funding.agentToken": {
+      "testId": "funding-agent-token",
+      "selector": "[data-testid=\"funding-agent-token\"]"
+    },
+    "funding.budgetId": {
+      "testId": "funding-budget-id",
+      "selector": "[data-testid=\"funding-budget-id\"]"
+    },
+    "funding.refreshButton": {
+      "testId": "funding-refresh-intents",
+      "selector": "[data-testid=\"funding-refresh-intents\"]"
+    },
+    "funding.atomicAmount": {
+      "testId": "funding-atomic-amount",
+      "selector": "[data-testid=\"funding-atomic-amount\"]"
+    },
+    "funding.declaredValue": {
+      "testId": "funding-declared-value",
+      "selector": "[data-testid=\"funding-declared-value\"]"
+    },
+    "funding.ledgerBookId": {
+      "testId": "funding-ledger-book-id",
+      "selector": "[data-testid=\"funding-ledger-book-id\"]"
+    },
+    "funding.ledgerAccountId": {
+      "testId": "funding-ledger-account-id",
+      "selector": "[data-testid=\"funding-ledger-account-id\"]"
+    },
+    "funding.createIntentButton": {
+      "testId": "funding-create-intent",
+      "selector": "[data-testid=\"funding-create-intent\"]"
+    },
+    "funding.paymentUri": {
+      "testId": "funding-payment-uri",
+      "selector": "[data-testid=\"funding-payment-uri\"]"
+    },
+    "funding.paymentQr": {
+      "testId": "funding-payment-qr",
+      "selector": "[data-testid=\"funding-payment-qr\"]"
+    },
+    "funding.copyLinkButton": {
+      "testId": "funding-copy-link",
+      "selector": "[data-testid=\"funding-copy-link\"]"
+    },
+    "funding.transactionHash": {
+      "testId": "funding-transaction-hash",
+      "selector": "[data-testid=\"funding-transaction-hash\"]"
+    },
+    "funding.confirmTransferButton": {
+      "testId": "funding-confirm-transfer",
+      "selector": "[data-testid=\"funding-confirm-transfer\"]"
+    },
+    "funding.withdrawalDestination": {
+      "testId": "funding-withdrawal-destination",
+      "selector": "[data-testid=\"funding-withdrawal-destination\"]"
+    },
+    "funding.mandateId": {
+      "testId": "funding-withdrawal-mandate-id",
+      "selector": "[data-testid=\"funding-withdrawal-mandate-id\"]"
+    },
+    "funding.withdrawalPreviewButton": {
+      "testId": "funding-withdrawal-preview",
+      "selector": "[data-testid=\"funding-withdrawal-preview\"]"
     },
     "controls.panel": {
       "testId": "controls-panel",
@@ -201,6 +273,7 @@
           "type": "enum",
           "values": [
             "approvals",
+            "fund",
             "settings"
           ]
         }
@@ -216,6 +289,7 @@
           "type": "enum",
           "values": [
             "approvals",
+            "fund",
             "settings"
           ]
         }
@@ -297,7 +371,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0317e60f9b44f46ba791f33d24ad9c624fb630defca459a591a1ccf4482bcebc",
-    "ui/src/consts/selectors.ts": "3a13de9427f8010f29a927d6b355be203d567f608d6bdccb8f4120dbdbb048ee",
+    "ui/src/consts/selectors.ts": "76c02ecc29dee3f2c6125d0e391989cee99b3a885cfd08431e377ac1863f89ad",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

@@ -6,7 +6,10 @@ import (
 	"time"
 )
 
-var ErrNotFound = errors.New("authorization not found")
+var (
+	ErrNotFound = errors.New("authorization not found")
+	ErrFrozen   = errors.New("authorization freeze gate is engaged")
+)
 
 type Usage struct {
 	BudgetTotalMinor  int64

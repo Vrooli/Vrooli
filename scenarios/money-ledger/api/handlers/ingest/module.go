@@ -5,12 +5,14 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"os"
 
 	"money-ledger/internal/ingest"
 	"money-ledger/internal/module"
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
 	ingestconnect "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest/ingest_v1connect"
@@ -28,7 +30,29 @@ func NewService(db *database.RoutedDB, logger *log.Logger) *Service {
 
 func Module(db *database.RoutedDB, _ interface{}, logger *log.Logger) module.Module {
 	s := NewService(db, logger)
-	return module.Module{Name: "ingest", Mount: func(r *mux.Router) { p, h := ingestconnect.NewIngestServiceHandler(s); r.PathPrefix(p).Handler(h) }, Endpoints: Endpoints}
+	cfg, err := authn.FromEnvironment(func(key string) string {
+		if value := os.Getenv(key); value != "" {
+			return value
+		}
+		switch key {
+		case "VROOLI_AUTH_PROVIDERS":
+			return "scenario_authenticator"
+		case "VROOLI_AUTH_SCENARIO_AUDIENCE":
+			return "scenario-authenticator:money-ledger"
+		}
+		return ""
+	})
+	if err != nil {
+		// Misconfiguration must never turn acceptance into an anonymous route.
+		if logger != nil {
+			logger.Printf("crypto receipt authentication unavailable: %v", err)
+		}
+		cfg = authn.Config{}
+	}
+	return module.Module{Name: "ingest", Mount: func(r *mux.Router) {
+		p, h := ingestconnect.NewIngestServiceHandler(s)
+		r.PathPrefix(p).Handler(authn.Middleware(cfg)(h))
+	}, Endpoints: Endpoints}
 }
 
 func invalid(err error) error  { return connect.NewError(connect.CodeInvalidArgument, err) }
@@ -136,6 +160,9 @@ func (s *Service) OperatorInputStatus(ctx context.Context, req *connect.Request[
 
 var Endpoints = []module.EndpointDescriptor{
 	{ID: "ingest_crypto_preview", Method: http.MethodPost, Path: ingestconnect.IngestServicePreviewCryptoObservationProcedure, Summary: "Preview exact crypto observations without posting or budget credit"},
+	{ID: "ingest_crypto_accept", Method: http.MethodPost, Path: ingestconnect.IngestServiceAcceptCryptoReceiptProcedure, Summary: "Accept a Treasury receipt with exact token and separate valuation effects"},
+	{ID: "ingest_crypto_get", Method: http.MethodPost, Path: ingestconnect.IngestServiceGetCryptoReceiptProcedure, Summary: "Read an immutable accepted crypto receipt"},
+	{ID: "ingest_crypto_list", Method: http.MethodPost, Path: ingestconnect.IngestServiceListCryptoReceiptsProcedure, Summary: "List accepted crypto receipts and customer credit lot attribution"},
 	ep("ingest_register", "/vrooli.money_ledger.v1.ingest.IngestService/RegisterAdapter", "Register a money adapter"),
 	ep("ingest_list", "/vrooli.money_ledger.v1.ingest.IngestService/ListAdapters", "List money adapters"),
 	ep("ingest_event", "/vrooli.money_ledger.v1.ingest.IngestService/IngestEvent", "Admit one typed money event"),

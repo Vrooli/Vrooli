@@ -53,3 +53,10 @@ WHEN NOT EXISTS (
 BEGIN
     SELECT RAISE(ABORT, 'mandate budget must belong to mandate book');
 END;
+
+-- A legacy mandate without a delegate remains usable only by the operator.
+CREATE TABLE IF NOT EXISTS mandate_agent_bindings (
+ mandate_id TEXT PRIMARY KEY REFERENCES mandates(id),
+ agent_subject TEXT NOT NULL CHECK(length(trim(agent_subject))>0),
+ agent_run_id TEXT NOT NULL CHECK(length(trim(agent_run_id))>0)
+);

@@ -312,6 +312,9 @@ func (s *Store) Ingest(ctx context.Context, e *sharedpb.MoneyEvent, actor string
 	if e == nil {
 		return nil, false, errors.New("money event is required")
 	}
+	if e.AdapterId == TreasuryAdapterID {
+		return nil, false, errors.New("Treasury token events require authenticated receipt acceptance")
+	}
 	if e.Basis == sharedpb.Basis_BASIS_UNSPECIFIED || e.Basis == sharedpb.Basis_BASIS_PROJECTED {
 		return nil, false, errors.New("basis must be authoritative, derived, or operator-asserted")
 	}
@@ -364,23 +367,13 @@ func (s *Store) Ingest(ctx context.Context, e *sharedpb.MoneyEvent, actor string
 		return nil, false, err
 	}
 	defer func() { _ = tx.Rollback() }()
-	result, err := tx.ExecContext(ctx, `INSERT INTO postings(id,external_id,adapter_id,account_id,book_id,amount_minor,currency,occurred_at,fetched_at,basis,description,category,actor,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(adapter_id,external_id) DO NOTHING`, p.Id, e.ExternalId, e.AdapterId, e.AccountId, e.BookId, e.AmountMinor, e.Currency, e.OccurredAt.AsTime().UTC().Format(time.RFC3339Nano), e.FetchedAt.AsTime().UTC().Format(time.RFC3339Nano), int32(e.Basis), e.Description, e.Category, actor, created)
+	inserted, err := s.appendMoneyEvent(ctx, tx, e, actor, "", created)
 	if err != nil {
 		return nil, false, err
 	}
-	inserted, err := result.RowsAffected()
-	if err != nil {
-		return nil, false, err
-	}
-	duplicate := inserted == 0
+	duplicate := !inserted
 	if duplicate {
-		// A concurrent writer may have accepted this exact source identity after
-		// the initial read. Return its canonical posting after transaction closure.
 		if err = tx.QueryRowContext(ctx, `SELECT id FROM postings WHERE adapter_id=? AND external_id=?`, e.AdapterId, e.ExternalId).Scan(&p.Id); err != nil {
-			return nil, false, err
-		}
-	} else {
-		if _, err = tx.ExecContext(ctx, `INSERT INTO ledger_audit(id,entity_type,entity_id,actor,reason,prior_value,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), "posting", p.Id, actor, "ingested money event", "", created); err != nil {
 			return nil, false, err
 		}
 	}
@@ -421,7 +414,7 @@ func (s *Store) GetPosting(ctx context.Context, id string) (*sharedpb.Posting, e
 	var external, adapter, account, book, currency, occurred, fetched, rev, desc, cat, actor string
 	var amount int64
 	var basis int32
-	if err := s.db.QueryRowContext(ctx, `SELECT id,external_id,adapter_id,account_id,book_id,amount_minor,currency,occurred_at,fetched_at,basis,description,category,reversal_of,actor FROM postings WHERE id=?`, id).Scan(&p.Id, &external, &adapter, &account, &book, &amount, &currency, &occurred, &fetched, &basis, &desc, &cat, &rev, &actor); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT id,external_id,adapter_id,account_id,book_id,amount_minor,currency,occurred_at,fetched_at,basis,description,category,reversal_of,actor,COALESCE((SELECT id FROM crypto_receipts WHERE posting_id=postings.id),'') FROM postings WHERE id=?`, id).Scan(&p.Id, &external, &adapter, &account, &book, &amount, &currency, &occurred, &fetched, &basis, &desc, &cat, &rev, &actor, &p.CryptoReceiptId); err != nil {
 		return nil, fmt.Errorf("posting %q not found: %w", id, err)
 	}
 	ot, err := time.Parse(time.RFC3339Nano, occurred)
@@ -446,7 +439,7 @@ func (s *Store) ListPostings(ctx context.Context, accountID, bookID, from, to st
 	// already excludes them, so returning them here made the journal page show
 	// retired drill data as though it were the live ledger — one surface
 	// disagreeing with another about what exists.
-	q := `SELECT p.id,p.external_id,p.adapter_id,p.account_id,p.book_id,p.amount_minor,p.currency,p.occurred_at,p.fetched_at,p.basis,p.description,p.category,p.reversal_of,p.actor FROM postings p JOIN books b ON b.id=p.book_id`
+	q := `SELECT p.id,p.external_id,p.adapter_id,p.account_id,p.book_id,p.amount_minor,p.currency,p.occurred_at,p.fetched_at,p.basis,p.description,p.category,p.reversal_of,p.actor,COALESCE((SELECT id FROM crypto_receipts WHERE posting_id=p.id),'') FROM postings p JOIN books b ON b.id=p.book_id`
 	conditions := []string{}
 	args := []any{}
 	if bookID == "" {
@@ -485,7 +478,7 @@ func (s *Store) ListPostings(ctx context.Context, accountID, bookID, from, to st
 		var p sharedpb.Posting
 		var external, adapter, account, book, currency, occurred, fetched, desc, cat, rev, actor string
 		var amount, basis int64
-		if err := rows.Scan(&p.Id, &external, &adapter, &account, &book, &amount, &currency, &occurred, &fetched, &basis, &desc, &cat, &rev, &actor); err != nil {
+		if err := rows.Scan(&p.Id, &external, &adapter, &account, &book, &amount, &currency, &occurred, &fetched, &basis, &desc, &cat, &rev, &actor, &p.CryptoReceiptId); err != nil {
 			return nil, err
 		}
 		ot, _ := time.Parse(time.RFC3339Nano, occurred)
@@ -520,6 +513,9 @@ func (s *Store) Reverse(ctx context.Context, id, reason, actor string) (*sharedp
 	original, err := s.GetPosting(ctx, id)
 	if err != nil {
 		return nil, err
+	}
+	if original.CryptoReceiptId != "" {
+		return nil, errors.New("exact-token postings require an accepted crypto correction or removal")
 	}
 	if original.Event.AmountMinor == math.MinInt64 {
 		return nil, errors.New("posting amount cannot be negated in int64")
@@ -1118,4 +1114,32 @@ func (s *Store) hasAccountObservation(ctx context.Context, bookID string, kinds 
 		return false, "no " + strings.Join(kinds, "/") + " observation exists"
 	}
 	return true, ""
+}
+
+// appendMoneyEvent is the common journal writer for ordinary adapters and the
+// Treasury adapter. The caller owns the transaction so typed source evidence,
+// posting and audit either all commit or all roll back.
+func (s *Store) appendMoneyEvent(ctx context.Context, tx *sql.Tx, event *sharedpb.MoneyEvent, actor, reversalOf, created string) (bool, error) {
+	result, err := tx.ExecContext(ctx, `INSERT INTO postings(id,external_id,adapter_id,account_id,book_id,amount_minor,currency,occurred_at,fetched_at,basis,description,category,reversal_of,actor,created_at)
+ SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,? FROM accounts a JOIN books b ON b.id=a.book_id WHERE a.id=? AND a.book_id=? AND b.currency=? COLLATE NOCASE AND b.archived=0
+ ON CONFLICT(adapter_id,external_id) DO NOTHING`, event.Id, event.ExternalId, event.AdapterId, event.AccountId, event.BookId, event.AmountMinor, event.Currency, event.OccurredAt.AsTime().UTC().Format(time.RFC3339Nano), event.FetchedAt.AsTime().UTC().Format(time.RFC3339Nano), int32(event.Basis), event.Description, event.Category, reversalOf, actor, created, event.AccountId, event.BookId, event.Currency)
+	if err != nil {
+		return false, err
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if count == 0 {
+		var existing string
+		if err := tx.QueryRowContext(ctx, `SELECT id FROM postings WHERE adapter_id=? AND external_id=?`, event.AdapterId, event.ExternalId).Scan(&existing); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return false, errors.New("posting requires an active account in the supplied book and currency")
+			}
+			return false, err
+		}
+		return false, nil
+	}
+	_, err = tx.ExecContext(ctx, `INSERT INTO ledger_audit(id,entity_type,entity_id,actor,reason,prior_value,created_at) VALUES(?,?,?,?,?,?,?)`, uuid.NewString(), "posting", event.Id, actor, "ingested money event", reversalOf, created)
+	return err == nil, err
 }

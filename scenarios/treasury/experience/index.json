@@ -40,6 +40,12 @@
       "status": "active"
     },
     {
+      "id": "fund",
+      "path": "pages/fund.json",
+      "title": "Fund and withdraw",
+      "status": "active"
+    },
+    {
       "id": "settings",
       "path": "pages/settings.json",
       "title": "Settings",

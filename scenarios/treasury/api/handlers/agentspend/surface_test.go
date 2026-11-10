@@ -16,6 +16,7 @@ var permittedAgentSpendMethods = map[protoreflect.Name]struct{}{
 	"ProposeCharge":     {},
 	"GetAuthorization":  {},
 	"GetBudgetHeadroom": {},
+	"GetBudgetWallet":   {},
 	"ListMandates":      {},
 	"ReportOutcome":     {},
 }
@@ -50,7 +51,7 @@ func TestGeneratedAgentSpendDescriptorHasOnlyReviewedMethods(t *testing.T) {
 // This mutation test proves the guard is live: adding SetGating to an otherwise
 // valid AgentSpend descriptor fails the same validator used above.
 func TestAgentSpendDescriptorGuardRejectsPolicyMutation(t *testing.T) {
-	methodNames := []string{"ProposeCharge", "GetAuthorization", "ListMandates", "ReportOutcome", "SetGating"}
+	methodNames := []string{"ProposeCharge", "GetAuthorization", "GetBudgetWallet", "ListMandates", "ReportOutcome", "SetGating"}
 	methods := make([]*descriptorpb.MethodDescriptorProto, 0, len(methodNames))
 	for _, name := range methodNames {
 		methods = append(methods, &descriptorpb.MethodDescriptorProto{Name: proto.String(name), InputType: proto.String(".test.Request"), OutputType: proto.String(".test.Response")})

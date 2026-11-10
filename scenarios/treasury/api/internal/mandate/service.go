@@ -28,39 +28,41 @@ func (e *ValidationError) Error() string { return "mandate constraint violated: 
 func (e *ValidationError) Unwrap() error { return ErrInvalid }
 
 type Mandate struct {
-	ID                    string
-	IdempotencyKey        string
-	BookID                string
-	BudgetID              string
-	Authorizer            string
-	CapMinor              int64
-	Currency              string
-	AllowedCounterparties []string
-	DeniedCounterparties  []string
-	RequiredEvidence      []string
-	ExpiresAt             time.Time
-	IssuedAt              time.Time
-	Signature             []byte
-	Status                flow.MandateStatus
-	RecurrenceInterval    time.Duration
-	NextChargeAt          time.Time
-	CancelledAt           time.Time
+	AgentSubject, AgentRunID string
+	ID                       string
+	IdempotencyKey           string
+	BookID                   string
+	BudgetID                 string
+	Authorizer               string
+	CapMinor                 int64
+	Currency                 string
+	AllowedCounterparties    []string
+	DeniedCounterparties     []string
+	RequiredEvidence         []string
+	ExpiresAt                time.Time
+	IssuedAt                 time.Time
+	Signature                []byte
+	Status                   flow.MandateStatus
+	RecurrenceInterval       time.Duration
+	NextChargeAt             time.Time
+	CancelledAt              time.Time
 }
 
 type IssueInput struct {
-	ID                    string
-	IdempotencyKey        string
-	BookID                string
-	BudgetID              string
-	Authorizer            string
-	CapMinor              int64
-	Currency              string
-	AllowedCounterparties []string
-	DeniedCounterparties  []string
-	RequiredEvidence      []string
-	ExpiresAt             time.Time
-	RecurrenceInterval    time.Duration
-	NextChargeAt          time.Time
+	AgentSubject, AgentRunID string
+	ID                       string
+	IdempotencyKey           string
+	BookID                   string
+	BudgetID                 string
+	Authorizer               string
+	CapMinor                 int64
+	Currency                 string
+	AllowedCounterparties    []string
+	DeniedCounterparties     []string
+	RequiredEvidence         []string
+	ExpiresAt                time.Time
+	RecurrenceInterval       time.Duration
+	NextChargeAt             time.Time
 }
 
 type DueOccurrence struct {
@@ -250,6 +252,8 @@ func (s *service) stateAt(value Mandate, now time.Time) Mandate {
 }
 
 func validateIssue(in IssueInput, now time.Time) (Mandate, error) {
+	in.AgentSubject = strings.TrimSpace(in.AgentSubject)
+	in.AgentRunID = strings.TrimSpace(in.AgentRunID)
 	in.ID = strings.TrimSpace(in.ID)
 	in.IdempotencyKey = strings.TrimSpace(in.IdempotencyKey)
 	in.BookID = strings.TrimSpace(in.BookID)
@@ -259,6 +263,8 @@ func validateIssue(in IssueInput, now time.Time) (Mandate, error) {
 	scopeAllow := normalize(in.AllowedCounterparties)
 	scopeDeny := normalize(in.DeniedCounterparties)
 	switch {
+	case (in.AgentSubject == "") != (in.AgentRunID == ""):
+		return Mandate{}, &ValidationError{Constraint: "agent_subject and agent_run_id must be supplied together"}
 	case in.ID == "":
 		return Mandate{}, &ValidationError{Constraint: "id is required"}
 	case in.IdempotencyKey == "":
@@ -287,6 +293,7 @@ func validateIssue(in IssueInput, now time.Time) (Mandate, error) {
 		return Mandate{}, &ValidationError{Constraint: "next_charge_at must be after issue and no later than expiry"}
 	}
 	return Mandate{
+		AgentSubject: in.AgentSubject, AgentRunID: in.AgentRunID,
 		ID:                    in.ID,
 		IdempotencyKey:        in.IdempotencyKey,
 		BookID:                in.BookID,
@@ -324,6 +331,8 @@ func normalize(values []string) []string {
 
 func signingPayload(value Mandate) ([]byte, error) {
 	type unsignedMandate struct {
+		AgentSubject          string    `json:"agent_subject,omitempty"`
+		AgentRunID            string    `json:"agent_run_id,omitempty"`
 		ID                    string    `json:"id"`
 		IdempotencyKey        string    `json:"idempotency_key"`
 		BookID                string    `json:"book_id"`
@@ -341,6 +350,7 @@ func signingPayload(value Mandate) ([]byte, error) {
 		NextChargeAt          time.Time `json:"next_charge_at,omitempty"`
 	}
 	return json.Marshal(unsignedMandate{
+		AgentSubject: value.AgentSubject, AgentRunID: value.AgentRunID,
 		ID: value.ID, IdempotencyKey: value.IdempotencyKey, BookID: value.BookID,
 		BudgetID: value.BudgetID, Authorizer: value.Authorizer, CapMinor: value.CapMinor,
 		Currency: value.Currency, AllowedCounterparties: value.AllowedCounterparties,

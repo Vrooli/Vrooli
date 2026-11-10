@@ -10,11 +10,14 @@ import (
 	"treasury/internal/instrument"
 	"treasury/internal/mandate"
 	"treasury/internal/module"
+	"treasury/internal/nativeusdc"
 	"treasury/internal/operatorauth"
 	"treasury/internal/rail"
 	"treasury/internal/rail/card"
+	"treasury/internal/receiptfunding"
 	"treasury/internal/settlement"
 	"treasury/internal/wallet"
+	"treasury/internal/walletops"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -26,10 +29,10 @@ import (
 func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock schedule.Clock, relay approval.Relay, rails *rail.Registry, cardIssuers *card.Registry, credentials instrument.CredentialResolver, signer mandate.Signer, optionalServices ...any) module.Module {
 	authorizations := authorization.NewSQLiteRepository(db)
 	evidenceRecorder := evidence.NewRecorder(evidence.NewSQLiteRecorder(db))
-	approvals := approval.NewService(approval.NewSQLiteRepository(db), authorizations, relay, clock, evidenceRecorder)
 	books := book.NewService(book.NewSQLiteRepository(db), clock)
 	budgets := budget.NewService(budget.NewSQLiteRepository(db), clock, authorizations)
 	mandates := mandate.NewService(mandate.NewSQLiteRepository(db), clock, signer)
+	approvals := approval.NewService(approval.NewSQLiteRepository(db), authorization.NewApprovalController(authorizations, mandates, budgets, clock), relay, clock, evidenceRecorder)
 	instruments := instrument.NewServiceWithCardIssuers(instrument.NewSQLiteRepository(db), mandates, rails, credentials, clock, cardIssuers)
 	settlements := settlement.NewService(settlement.NewSQLiteRepository(db), authorizations, instruments, rails, nil, clock, budgets)
 	services := []any{books, budgets, mandates, approvals, instruments, settlements, authorizations}
@@ -45,5 +48,5 @@ func Module(db *database.RoutedDB, authorizer operatorauth.Authorizer, clock sch
 }
 
 func Schema() string {
-	return rail.Schema() + "\n" + approval.Schema() + "\n" + instrument.Schema() + "\n" + wallet.Schema() + "\n" + baseusdc.Schema()
+	return rail.Schema() + "\n" + approval.Schema() + "\n" + instrument.Schema() + "\n" + wallet.Schema() + "\n" + baseusdc.Schema() + "\n" + receiptfunding.Schema() + "\n" + nativeusdc.Schema() + "\n" + walletops.Schema()
 }

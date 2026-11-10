@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 	"time"
+	"treasury/internal/testutil/agentclaims"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -32,7 +33,7 @@ type capturingVerifier struct{ token string }
 
 func (v *capturingVerifier) Verify(_ context.Context, token string) (identity.Claims, error) {
 	v.token = token
-	return identity.Claims{Subject: "agent:1"}, nil
+	return agentclaims.For("agent:1"), nil
 }
 
 type mandateLister struct{ values []mandate.Mandate }
@@ -48,7 +49,7 @@ func TestIdentityTokenHeadersSupportGeneratedCLIAndExplicitAgentRealm(t *testing
 func TestListMandatesRequiresVerifiedAgentAndReturnsTypedGrants(t *testing.T) {
 	verifier := &capturingVerifier{}
 	now := time.Now().UTC()
-	handler := NewConnectHandler(mandateLister{values: []mandate.Mandate{{ID: "mandate-1", Authorizer: "local-operator", ExpiresAt: now.Add(time.Hour), IssuedAt: now, Status: mandateflow.MandateLive}}}, verifier).(*connectHandler)
+	handler := NewConnectHandler(mandateLister{values: []mandate.Mandate{{AgentSubject: "agent:1", AgentRunID: "test-run", BudgetID: "budget-1", ID: "mandate-1", Authorizer: "local-operator", ExpiresAt: now.Add(time.Hour), IssuedAt: now, Status: mandateflow.MandateLive}}}, verifier).(*connectHandler)
 	request := connect.NewRequest(&authorizationv1.ListMandatesRequest{})
 	request.Header().Set("Authorization", "Bearer generated-cli-agent-token")
 	response, err := handler.ListMandates(context.Background(), request)
@@ -79,7 +80,7 @@ func TestProposeChargeFailsClosedWhenIdentityAuthorityIsUnavailable(t *testing.T
 	now := time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
 	service := authorization.NewService(authorization.NewSQLiteRepository(handle), handlerVerifier{err: errors.New("connection refused")}, handlerMandates{}, handlerBudgets{}, evidence.NewRecorder(evidence.NewSQLiteRecorder(handle)), schedule.NewFake(now))
 	handler := NewConnectHandler(service).(*connectHandler)
-	request := connect.NewRequest(&authorizationv1.ProposeChargeRequest{Id: "auth-1", IdempotencyKey: "key-1", MandateId: "mandate-1", AmountMinor: 10, Currency: "USD", Counterparty: "api.example"})
+	request := connect.NewRequest(&authorizationv1.ProposeChargeRequest{Id: "auth-1", IdempotencyKey: "key-1", MandateId: "mandate-1", AmountMinor: 10, Currency: "USD", Counterparty: "api.example", SettlementId: "settlement-1", InstrumentId: "instrument-1", SettlementIdempotencyKey: "settlement-key-1"})
 
 	response, err := handler.ProposeCharge(context.Background(), request)
 	require.NoError(t, err)
@@ -97,11 +98,11 @@ func TestProposeChargeCannotSupplyItsOwnVerdict(t *testing.T) {
 	handle := db.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), handle, database.SchemaProviderFunc(authorization.Schema), database.SchemaProviderFunc(evidence.Schema)))
 	now := time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
-	grant := mandate.Mandate{ID: "mandate-1", BookID: "book-1", BudgetID: "budget-1", CapMinor: 100, Currency: "USD", AllowedCounterparties: []string{"api.example"}, ExpiresAt: now.Add(time.Hour), Status: mandateflow.MandateLive}
+	grant := mandate.Mandate{AgentSubject: "operator:1", AgentRunID: "test-run", ID: "mandate-1", BookID: "book-1", BudgetID: "budget-1", CapMinor: 100, Currency: "USD", AllowedCounterparties: []string{"api.example"}, ExpiresAt: now.Add(time.Hour), Status: mandateflow.MandateLive}
 	policy := budget.Budget{ID: "budget-1", BookID: "book-1", Currency: "USD", TotalCapMinor: 100, PeriodicCapMinor: 100, PerTransactionCapMinor: 50, Period: time.Hour, AllowedCounterparties: []string{"api.example"}}
-	service := authorization.NewService(authorization.NewSQLiteRepository(handle), handlerVerifier{claims: identity.Claims{Subject: "operator:1"}}, handlerMandates{grant}, handlerBudgets{policy}, evidence.NewRecorder(evidence.NewSQLiteRecorder(handle)), schedule.NewFake(now))
+	service := authorization.NewService(authorization.NewSQLiteRepository(handle), handlerVerifier{claims: agentclaims.For("operator:1")}, handlerMandates{grant}, handlerBudgets{policy}, evidence.NewRecorder(evidence.NewSQLiteRecorder(handle)), schedule.NewFake(now))
 	handler := NewConnectHandler(service).(*connectHandler)
-	request := connect.NewRequest(&authorizationv1.ProposeChargeRequest{Id: "auth-1", IdempotencyKey: "key-1", MandateId: "mandate-1", AmountMinor: 75, Currency: "USD", Counterparty: "api.example"})
+	request := connect.NewRequest(&authorizationv1.ProposeChargeRequest{Id: "auth-1", IdempotencyKey: "key-1", MandateId: "mandate-1", AmountMinor: 125, Currency: "USD", Counterparty: "api.example", SettlementId: "settlement-1", InstrumentId: "instrument-1", SettlementIdempotencyKey: "settlement-key-1"})
 	request.Header().Set(identity.HeaderAgentIdentityToken, "opaque")
 
 	response, err := handler.ProposeCharge(context.Background(), request)
@@ -157,7 +158,7 @@ func TestGetAuthorizationRequiresLiveOwnerIdentity(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			repository := &authorizationReadRepository{record: authorization.Record{ID: "public-attempt", RequestingAgent: "owner-account", Counterparty: "private-counterparty.example", AmountMinor: 10}}
 			service := authorization.NewService(repository, nil, nil, nil, nil, nil)
-			verifier := &authorizationReadVerifier{claims: identity.Claims{Subject: test.subject}, err: test.verifyErr}
+			verifier := &authorizationReadVerifier{claims: agentclaims.For(test.subject), err: test.verifyErr}
 			var handler *connectHandler
 			if test.noVerifier {
 				handler = NewConnectHandler(service).(*connectHandler)
@@ -190,7 +191,7 @@ func TestGetAuthorizationRequiresLiveOwnerIdentity(t *testing.T) {
 func TestGetAuthorizationRechecksRevokedIdentity(t *testing.T) {
 	repository := &authorizationReadRepository{record: authorization.Record{ID: "public-attempt", RequestingAgent: "owner-account"}}
 	service := authorization.NewService(repository, nil, nil, nil, nil, nil)
-	verifier := &authorizationReadVerifier{claims: identity.Claims{Subject: "owner-account"}}
+	verifier := &authorizationReadVerifier{claims: agentclaims.For("owner-account")}
 	handler := NewConnectHandler(service, verifier).(*connectHandler)
 	request := connect.NewRequest(&authorizationv1.GetAuthorizationRequest{Id: "public-attempt"})
 	request.Header().Set(identity.HeaderAgentIdentityToken, "public-fake-token")

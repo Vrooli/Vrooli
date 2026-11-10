@@ -54,6 +54,7 @@ type SettleCommand struct {
 
 type Query struct {
 	SettlementID     string
+	AuthorizationID  string
 	MandateReference string
 	InstrumentID     string
 	ExternalID       string

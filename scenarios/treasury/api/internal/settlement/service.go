@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vrooli/cli-core/cliutil"
 	"treasury/internal/authorization"
 	"treasury/internal/budget"
 	"treasury/internal/identity"
@@ -54,6 +55,7 @@ type Record struct {
 type SettleInput struct {
 	ID, AuthorizationID, InstrumentID, IdempotencyKey string
 	IdentityToken                                     string
+	OperationToken                                    string
 	Attestation                                       *rail.Attestation
 }
 
@@ -149,12 +151,24 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 
 	unlock := s.locks.lock(in.IdempotencyKey)
 	defer unlock()
+	var verifiedClaims identity.Claims
 	if !operator {
-		claims, err := s.verifier.Verify(ctx, strings.TrimSpace(in.IdentityToken))
+		var claims identity.Claims
+		var err error
+		if strings.TrimSpace(in.OperationToken) != "" {
+			pairVerifier, ok := s.verifier.(identity.PairVerifier)
+			if !ok {
+				return Record{}, fmt.Errorf("%w: paired operation verification is unavailable", ErrInvalid)
+			}
+			claims, err = pairVerifier.VerifyPair(ctx, strings.TrimSpace(in.IdentityToken), strings.TrimSpace(in.OperationToken))
+		} else {
+			claims, err = s.verifier.Verify(ctx, strings.TrimSpace(in.IdentityToken))
+		}
 		if err != nil {
 			return Record{}, fmt.Errorf("%w: live agent identity verification failed: %v", ErrInvalid, err)
 		}
 		verifiedSubject = claims.Subject
+		verifiedClaims = claims
 	}
 
 	if existing, err := s.repository.GetByIdempotencyKey(ctx, in.IdempotencyKey); err == nil {
@@ -164,6 +178,12 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 		auth, authErr := s.authorizations.Get(ctx, existing.AuthorizationID)
 		if authErr != nil || !operator && auth.RequestingAgent != verifiedSubject {
 			return Record{}, fmt.Errorf("%w: settlement identity does not own the authorization", ErrInvalid)
+		}
+		if err := matchesApprovedSpendIntent(auth, existing.ID, existing.InstrumentID, existing.IdempotencyKey); err != nil {
+			return Record{}, err
+		}
+		if !operator && identity.Authorize(verifiedClaims, "treasury.spend", cliutil.TreasurySettlementTarget(auth.ID, auth.MandateID, auth.AmountMinor, auth.Currency, auth.Counterparty, existing.ID, existing.InstrumentID, existing.IdempotencyKey), s.clock.Now()) != nil {
+			return Record{}, fmt.Errorf("%w: operation grant does not cover settlement budget", ErrInvalid)
 		}
 		if existing.Outcome == OutcomeCalling {
 			return existing, ErrInProgress
@@ -177,7 +197,13 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 	if err != nil {
 		return Record{}, fmt.Errorf("load authorization: %w", err)
 	}
+	if err := matchesApprovedSpendIntent(auth, in.ID, in.InstrumentID, in.IdempotencyKey); err != nil {
+		return Record{}, err
+	}
 	now := s.clock.Now().UTC()
+	if !operator && identity.Authorize(verifiedClaims, "treasury.spend", cliutil.TreasurySettlementTarget(auth.ID, auth.MandateID, auth.AmountMinor, auth.Currency, auth.Counterparty, in.ID, in.InstrumentID, in.IdempotencyKey), now) != nil {
+		return Record{}, fmt.Errorf("%w: operation grant does not cover settlement budget", ErrInvalid)
+	}
 	if auth.Verdict != authorization.VerdictApproved || !now.Before(auth.ExpiresAt) || auth.HoldMinor != auth.AmountMinor {
 		return Record{}, fmt.Errorf("%w: authorization must be approved, unexpired, and fully held", ErrInvalid)
 	}
@@ -216,8 +242,8 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 		Currency: auth.Currency, Counterparty: auth.Counterparty, Outcome: OutcomeReady,
 		CreatedAt: now, UpdatedAt: now, RetainUntil: now.Add(RetentionWindow),
 	}
-	if candidate.Rail == "x402" {
-		candidate.Basis = BasisX402PreflightOnly
+	if protectedRail(candidate.Rail) {
+		candidate.Basis = preflightBasis(candidate.Rail)
 	}
 	claim, err := s.repository.Claim(ctx, candidate)
 	if err != nil {
@@ -245,7 +271,7 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 			if storeErr != nil {
 				return storeErr
 			}
-			if recordErr := s.repository.RecordX402RecoveryInput(recordCtx, claim.Record.ID, digest, reference); recordErr != nil {
+			if recordErr := s.repository.RecordRecoveryInput(recordCtx, claim.Record.ID, digest, reference); recordErr != nil {
 				_ = s.recoveryVault.DeleteSettlementRecoveryInput(context.WithoutCancel(recordCtx), reference)
 				return recordErr
 			}
@@ -254,8 +280,8 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 	})
 	outcome, normalized, resultErr := normalizeRailResult(railReply, false)
 	recoveryReference := ""
-	if candidate.Rail == "x402" {
-		if prepared, getErr := s.repository.Get(ctx, claim.Record.ID); getErr == nil && prepared.Basis == BasisX402PaymentReady {
+	if protectedRail(candidate.Rail) {
+		if prepared, getErr := s.repository.Get(ctx, claim.Record.ID); getErr == nil && prepared.Basis == preparedBasis(prepared.Rail) {
 			recoveryReference = prepared.ReceiptReference
 			// Use the protected reference from the calling fence, never the payload.
 			if outcome == OutcomeUnknown {
@@ -297,12 +323,22 @@ func (s *Service) settle(ctx context.Context, in SettleInput, verifiedSubject st
 	if err != nil {
 		return completed, err
 	}
-	if candidate.Rail == "x402" && outcome != OutcomeUnknown && s.recoveryVault != nil && recoveryReference != "" {
+	if protectedRail(candidate.Rail) && outcome != OutcomeUnknown && s.recoveryVault != nil && recoveryReference != "" {
 		if err := s.recoveryVault.DeleteSettlementRecoveryInput(context.WithoutCancel(durableCtx), recoveryReference); err != nil {
 			return completed, fmt.Errorf("settlement completed but protected replay credential cleanup failed: %w", err)
 		}
 	}
 	return completed, nil
+}
+
+func matchesApprovedSpendIntent(auth authorization.Record, settlementID, instrumentID, idempotencyKey string) error {
+	if auth.SettlementID == "" || auth.InstrumentID == "" || auth.SettlementIdempotencyKey == "" {
+		return fmt.Errorf("%w: authorization has no complete preapproved settlement intent", ErrInvalid)
+	}
+	if auth.SettlementID != settlementID || auth.InstrumentID != instrumentID || auth.SettlementIdempotencyKey != idempotencyKey {
+		return fmt.Errorf("%w: settlement request changed the immutable authorization intent", ErrInvalid)
+	}
+	return nil
 }
 
 // ResolveUnknown is the operator reconciliation operation for durable unknown
@@ -347,8 +383,8 @@ func (s *Service) ResolveUnknown(ctx context.Context, id string) (Record, error)
 		return current, fmt.Errorf("%w: instrument scope no longer covers the unknown settlement", ErrInvalid)
 	}
 	recoveryInput := current.ReceiptReference
-	if current.Rail == "x402" {
-		if current.Basis != BasisX402PaymentReady || s.recoveryVault == nil {
+	if protectedRail(current.Rail) {
+		if current.Basis != preparedBasis(current.Rail) || s.recoveryVault == nil {
 			return current, fmt.Errorf("%w: protected x402 replay authorization is unavailable", ErrInvalid)
 		}
 		recoveryInput, err = s.recoveryVault.ResolveSettlementRecoveryInput(ctx, current.ReceiptReference)
@@ -356,12 +392,12 @@ func (s *Service) ResolveUnknown(ctx context.Context, id string) (Record, error)
 			return current, fmt.Errorf("resolve protected x402 replay authorization: %w", err)
 		}
 	}
-	railReply, err := adapter.QueryOutcome(ctx, rail.Query{SettlementID: current.ID, MandateReference: current.MandateID, InstrumentID: current.InstrumentID, ExternalID: current.ExternalID, ReceiptReference: recoveryInput, IdempotencyKey: current.IdempotencyKey, Counterparty: current.Counterparty, Credential: scoped.Value})
+	railReply, err := adapter.QueryOutcome(ctx, rail.Query{SettlementID: current.ID, AuthorizationID: current.AuthorizationID, MandateReference: current.MandateID, InstrumentID: current.InstrumentID, ExternalID: current.ExternalID, ReceiptReference: recoveryInput, IdempotencyKey: current.IdempotencyKey, Counterparty: current.Counterparty, Credential: scoped.Value})
 	if err != nil {
 		return current, fmt.Errorf("query rail outcome: %w", err)
 	}
 	outcome, normalized, resultErr := normalizeRailResult(railReply, true)
-	if current.Rail == "x402" && outcome == OutcomeUnknown {
+	if protectedRail(current.Rail) && outcome == OutcomeUnknown {
 		// QueryOutcome necessarily received the signed input in memory. Keep the
 		// protected reference in SQLite if the result is still inconclusive.
 		normalized.ExternalID = current.ExternalID
@@ -400,7 +436,7 @@ func (s *Service) ResolveUnknown(ctx context.Context, id string) (Record, error)
 	if err != nil {
 		return completed, err
 	}
-	if current.Rail == "x402" && s.recoveryVault != nil {
+	if protectedRail(current.Rail) && s.recoveryVault != nil {
 		if err := s.recoveryVault.DeleteSettlementRecoveryInput(context.WithoutCancel(durableCtx), current.ReceiptReference); err != nil {
 			return completed, fmt.Errorf("settlement resolved but protected replay credential cleanup failed: %w", err)
 		}
@@ -451,10 +487,10 @@ func (s *Service) recoverInterruptedCall(ctx context.Context, value Record) (Rec
 		Basis:            "interrupted_execution",
 		Detail:           "Treasury recovered a durable rail-call fence without a conclusive response; the external side effect may have occurred and was not retried",
 	}
-	if value.Rail == "x402" && value.Basis == BasisX402PaymentReady {
-		result.Basis = BasisX402PaymentReady
+	if protectedRail(value.Rail) && value.Basis == preparedBasis(value.Rail) {
+		result.Basis = preparedBasis(value.Rail)
 	}
-	if value.Rail == "x402" && value.Basis == BasisX402PreflightOnly && value.ExternalID == "" && value.ReceiptReference == "" {
+	if protectedRail(value.Rail) && value.Basis == preflightBasis(value.Rail) && value.ExternalID == "" && value.ReceiptReference == "" {
 		// New x402 calls persist this phase before adapter work. The paid request
 		// is strictly after signed-payload persistence, so this versioned state
 		// proves a crash here happened before any payment dispatch. Empty-basis
@@ -577,4 +613,19 @@ func (k *keyLocks) lock(key string) func() {
 func transitionOutcome(current Outcome, event settlementflow.SettlementEvent) (Outcome, error) {
 	next, err := settlementflow.TransitionSettlement(settlementflow.SettlementState{Status: settlementflow.SettlementStatus(current)}, event)
 	return Outcome(next.Status), err
+}
+
+func protectedRail(name string) bool { return name == "x402" || name == "base-usdc" }
+func preparedBasis(name string) string {
+	if name == "x402" {
+		return BasisX402PaymentReady
+	}
+	return "base_usdc_payment_prepared"
+}
+
+func preflightBasis(name string) string {
+	if name == "x402" {
+		return BasisX402PreflightOnly
+	}
+	return "base_usdc_preflight_only"
 }

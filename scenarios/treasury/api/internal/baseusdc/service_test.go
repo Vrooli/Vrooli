@@ -279,6 +279,40 @@ type sequenceVerifier struct {
 	index   int
 }
 
+func TestRecheckDebitsOnlyAfterIndependentSameChainCanonicalProof(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		mutate  func(*fakeRPC)
+		removed bool
+	}{
+		{"missing receipt unchanged block", func(r *fakeRPC) { r.receipt = nil }, false},
+		{"receipt provider failure unchanged block", func(r *fakeRPC) { r.err["eth_getTransactionReceipt"] = errors.New("archive unavailable") }, false},
+		{"missing receipt replaced block", func(r *fakeRPC) { r.receipt = nil; r.block.Hash = "0x" + strings.Repeat("c", 64) }, true},
+		{"receipt provider failure replaced block", func(r *fakeRPC) {
+			r.err["eth_getTransactionReceipt"] = errors.New("archive unavailable")
+			r.block.Hash = "0x" + strings.Repeat("c", 64)
+		}, true},
+		{"canonical block unavailable", func(r *fakeRPC) { r.receipt = nil; r.block = nil }, false},
+		{"wrong network", func(r *fakeRPC) { r.chainID = "0x1"; r.receipt = nil; r.block.Hash = "0x" + strings.Repeat("c", 64) }, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			_, store := openReceiptStore(t, filepath.Join(t.TempDir(), "receipts.sqlite"))
+			rpc := validRPC()
+			w := testWallet()
+			w.OperatorIdentity = "operator"
+			svc := NewService(store, testVerifier(rpc, time.Now()), "fixture-base-rpc", time.Now)
+			original, err := svc.Verify(ctx, "operator", w, testTx)
+			require.NoError(t, err)
+			tc.mutate(rpc)
+			recheck, err := svc.Recheck(ctx, "operator", w, testTx, original.ID)
+			require.Error(t, err)
+			require.Equal(t, tc.removed, errors.Is(err, ErrNotCanonical))
+			require.Equal(t, tc.removed, recheck.Relation == "provider_reports_not_canonical")
+		})
+	}
+}
+
 func (s *sequenceVerifier) VerifyWalletTransaction(context.Context, walletpkg.Wallet, string) ([]Observation, error) {
 	var value []Observation
 	if s.index < len(s.results) {

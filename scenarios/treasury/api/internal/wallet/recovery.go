@@ -99,6 +99,103 @@ func (s *Service) qualifyRecovery(ctx context.Context, w Wallet) error {
 	return s.repository.SetRecovery(ctx, w.ID, digest)
 }
 
+// ExportPortableRecoveryBundle creates an encrypted, key-only wallet bundle
+// under a secret supplied by the operator. The secret is deliberately not
+// resolved from or written to same-host Credential Authority. Callers must
+// transfer the returned ciphertext through an independently qualified backup
+// destination and keep the secret off-host.
+func (s *Service) ExportPortableRecoveryBundle(ctx context.Context, id, network, operator, operatorSecret string) ([]byte, error) {
+	if len(operatorSecret) < 32 || len(operatorSecret) > 4096 {
+		return nil, fmt.Errorf("%w: portable recovery requires an operator-held secret of at least 32 bytes", ErrInvalid)
+	}
+	if _, err := s.binding(ctx, id, network, operator); err != nil {
+		return nil, err
+	}
+	var bundle []byte
+	err := s.repository.WithCustodyLock(ctx, id, func(repository Repository) error {
+		w, err := repository.Get(ctx, id)
+		if err != nil {
+			return err
+		}
+		locked := *s
+		locked.repository = repository
+		key, err := locked.key(w)
+		if err != nil {
+			return err
+		}
+		defer key.Zero()
+		if w.Address == "" || w.Address != Address(key.PubKey()) || w.PublicKey != hex.EncodeToString(key.PubKey().SerializeUncompressed()) {
+			return ErrMismatch
+		}
+		identity, err := credentialauthority.ParseIdentity(w.CustodyReference)
+		if err != nil {
+			return ErrMismatch
+		}
+		bundle, err = locked.custody.ExportRecovery([]credentialauthority.RecoveryEntry{{Identity: identity, Field: keyField}}, operatorSecret)
+		if err != nil {
+			return fmt.Errorf("%w: portable recovery export failed", ErrUnavailable)
+		}
+		return verifyRecoveryBinding(bundle, operatorSecret, w)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return bundle, nil
+}
+
+// RestorePortableRecoveryBundle restores only the missing, previously minted
+// wallet scalar. It verifies the ciphertext, external secret, wallet identity
+// and immutable public address in transient memory before Credential Authority
+// is changed. Existing or mismatched keys are never replaced.
+func (s *Service) RestorePortableRecoveryBundle(ctx context.Context, id, network, operator string, blob []byte, operatorSecret string) (Wallet, error) {
+	if len(operatorSecret) < 32 || len(operatorSecret) > 4096 || len(blob) == 0 || len(blob) > 1<<20 {
+		return Wallet{}, ErrInvalid
+	}
+	w, err := s.binding(ctx, id, network, operator)
+	if err != nil {
+		return Wallet{}, err
+	}
+	err = s.repository.WithCustodyLock(ctx, id, func(repository Repository) error {
+		w, err := repository.Get(ctx, id)
+		if err != nil {
+			return err
+		}
+		locked := *s
+		locked.repository = repository
+		if _, keyErr := locked.key(w); keyErr == nil {
+			return fmt.Errorf("%w: portable recovery refuses to replace an existing key", ErrMismatch)
+		} else if !errors.Is(keyErr, credentialauthority.ErrUnconfigured) {
+			return keyErr
+		}
+		minted, err := repository.Minted(ctx, w.ID, false)
+		if err != nil || !minted {
+			return fmt.Errorf("%w: portable recovery requires a previously witnessed wallet key", ErrMismatch)
+		}
+		if err = verifyRecoveryBinding(blob, operatorSecret, w); err != nil {
+			return err
+		}
+		if err = ctx.Err(); err != nil {
+			return err
+		}
+		if err = locked.custody.RestoreRecovery(blob, operatorSecret); err != nil {
+			return fmt.Errorf("%w: portable recovery restore failed", ErrUnavailable)
+		}
+		key, err := locked.key(w)
+		if err != nil {
+			return err
+		}
+		defer key.Zero()
+		if Address(key.PubKey()) != w.Address || hex.EncodeToString(key.PubKey().SerializeUncompressed()) != w.PublicKey {
+			return ErrMismatch
+		}
+		return nil
+	})
+	if err != nil {
+		return Wallet{}, err
+	}
+	return s.Get(ctx, w.ID, w.Network, operator)
+}
+
 func readBackup(path string) ([]byte, error) {
 	stat, err := os.Lstat(path)
 	if err != nil {

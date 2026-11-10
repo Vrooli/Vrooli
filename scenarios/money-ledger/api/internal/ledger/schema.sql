@@ -23,3 +23,53 @@ CREATE INDEX IF NOT EXISTS operator_measures_path_observed ON operator_measures(
 CREATE TABLE IF NOT EXISTS operator_input_findings (
   id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL
 );
+-- Exact token evidence and its declared valuation are committed with the normal
+-- money-event posting. Quantities are decimal strings, never SQLite integers or
+-- floating-point values. The immutable payload preserves the typed provenance.
+CREATE TABLE IF NOT EXISTS crypto_receipts (
+  sequence INTEGER PRIMARY KEY AUTOINCREMENT,
+  id TEXT NOT NULL UNIQUE,
+  posting_id TEXT NOT NULL UNIQUE REFERENCES postings(id),
+  occurrence_key TEXT NOT NULL,
+  inclusion_revision TEXT NOT NULL,
+  original_receipt_id TEXT NOT NULL,
+  previous_receipt_id TEXT NOT NULL DEFAULT '',
+  action INTEGER NOT NULL,
+  book_id TEXT NOT NULL REFERENCES books(id),
+  account_id TEXT NOT NULL REFERENCES accounts(id),
+  wallet_id TEXT NOT NULL,
+  source_check_id TEXT NOT NULL,
+  network TEXT NOT NULL,
+  asset_id TEXT NOT NULL,
+  decimals INTEGER NOT NULL,
+  atomic_amount TEXT NOT NULL,
+  atomic_delta TEXT NOT NULL,
+  valuation_amount_minor INTEGER NOT NULL,
+  valuation_delta_minor INTEGER NOT NULL,
+  currency TEXT NOT NULL,
+  valuation_basis_reference TEXT NOT NULL,
+  payer_address TEXT NOT NULL,
+  payer_identity TEXT NOT NULL DEFAULT '',
+  credit_lot_id TEXT NOT NULL DEFAULT '',
+  credit_lot_owner TEXT NOT NULL DEFAULT '',
+  no_chargeback INTEGER NOT NULL CHECK(no_chargeback=1),
+  accepted_at TEXT NOT NULL,
+  semantic_hash TEXT NOT NULL,
+  payload BLOB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS crypto_receipts_occurrence ON crypto_receipts(occurrence_key, sequence);
+CREATE INDEX IF NOT EXISTS crypto_receipts_book ON crypto_receipts(book_id, sequence);
+CREATE UNIQUE INDEX IF NOT EXISTS crypto_receipts_one_original ON crypto_receipts(occurrence_key) WHERE action=1;
+CREATE UNIQUE INDEX IF NOT EXISTS crypto_receipts_credit_lot ON crypto_receipts(credit_lot_owner,credit_lot_id) WHERE action=1 AND credit_lot_id<>'';
+-- Every source check is retained, including retries whose check id changed.
+-- The deferred reference permits the receipt and normal posting to commit as
+-- one transaction and makes a failed acceptance leave no partial submission.
+CREATE TABLE IF NOT EXISTS crypto_submissions (
+  check_id TEXT NOT NULL,
+  occurrence_key TEXT NOT NULL,
+  semantic_hash TEXT NOT NULL,
+  source_reference TEXT NOT NULL,
+  receipt_id TEXT NOT NULL REFERENCES crypto_receipts(id) DEFERRABLE INITIALLY DEFERRED,
+  observed_at TEXT NOT NULL,
+  PRIMARY KEY(check_id, occurrence_key)
+);

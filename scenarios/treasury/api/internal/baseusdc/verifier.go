@@ -252,6 +252,43 @@ func (v *Verifier) VerifyWalletTransaction(ctx context.Context, wallet walletpkg
 	return observations, nil
 }
 
+// PriorCanonical distinguishes a missing receipt from a provider-reported
+// reorganization. A pending/missing receipt alone never authorizes a reversal;
+// the previously accepted block must have a different canonical hash.
+func (v *Verifier) PriorCanonical(ctx context.Context, prior []Observation) (bool, error) {
+	if v == nil || v.rpc == nil || len(prior) == 0 {
+		return false, errors.New("prior inclusion evidence is required")
+	}
+	// A failed receipt lookup can still be resolved from independent canonical
+	// block evidence. Recheck the network before trusting that evidence; a
+	// provider failure or a different chain never becomes an accounting debit.
+	var chainID string
+	if err := v.rpc.Call(ctx, "eth_chainId", []any{}, &chainID); err != nil {
+		return false, fmt.Errorf("%w: prior inclusion chain read failed", ErrRPCUnavailable)
+	}
+	chain, err := parseQuantity(chainID, "chain ID")
+	if err != nil || !chain.IsUint64() || chain.Uint64() != ChainID {
+		return false, ErrWrongNetwork
+	}
+	for _, observation := range prior {
+		var canonical *block
+		if err := v.rpc.Call(ctx, "eth_getBlockByNumber", []any{"0x" + strconv.FormatUint(observation.BlockNumber, 16), false}, &canonical); err != nil {
+			return false, fmt.Errorf("%w: prior canonical block read failed", ErrRPCUnavailable)
+		}
+		if canonical == nil {
+			return false, fmt.Errorf("%w: prior canonical height is unavailable", ErrRPCUnavailable)
+		}
+		number, err := parseQuantity(canonical.Number, "prior canonical block number")
+		if err != nil || !number.IsUint64() || number.Uint64() != observation.BlockNumber || !evHash.MatchString(canonical.Hash) {
+			return false, errors.New("prior canonical block identity is invalid")
+		}
+		if !strings.EqualFold(canonical.Hash, observation.BlockHash) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
 func parseQuantity(value, field string) (*big.Int, error) {
 	if len(value) < 3 || !strings.HasPrefix(value, "0x") || (len(value) > 3 && value[2] == '0') {
 		return nil, fmt.Errorf("%s is not a canonical hex quantity", field)

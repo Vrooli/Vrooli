@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"treasury/internal/testutil/agentclaims"
+
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	db "github.com/vrooli/api-core/databasetest"
@@ -15,7 +17,6 @@ import (
 	"treasury/internal/book"
 	"treasury/internal/budget"
 	internalevidence "treasury/internal/evidence"
-	"treasury/internal/identity"
 	"treasury/internal/mandate"
 )
 
@@ -36,10 +37,10 @@ func TestSQLiteGrantSpineReservesHeadroomAtomicallyWithinTheService(t *testing.T
 	signer, err := mandate.NewHMACSigner([]byte("test-only-key"))
 	require.NoError(t, err)
 	mandatesService := mandate.NewService(mandate.NewSQLiteRepository(handle), clock, signer)
-	_, err = mandatesService.Issue(ctx, mandate.IssueInput{ID: "mandate-1", IdempotencyKey: "mandate-key", BookID: "book-1", BudgetID: "budget-1", Authorizer: "operator:1", CapMinor: 100, Currency: "USD", AllowedCounterparties: []string{"api.example"}, ExpiresAt: now.Add(time.Hour)})
+	_, err = mandatesService.Issue(ctx, mandate.IssueInput{AgentSubject: "operator:1", AgentRunID: "test-run", ID: "mandate-1", IdempotencyKey: "mandate-key", BookID: "book-1", BudgetID: "budget-1", Authorizer: "operator:1", CapMinor: 100, Currency: "USD", AllowedCounterparties: []string{"api.example"}, ExpiresAt: now.Add(time.Hour)})
 	require.NoError(t, err)
 
-	service := authorization.NewService(authorization.NewSQLiteRepository(handle), verifier{claims: identity.Claims{Subject: "operator:1"}}, mandatesService, budget.NewService(budget.NewSQLiteRepository(handle), clock), internalevidence.NewRecorder(internalevidence.NewSQLiteRecorder(handle)), clock, &approvalQueue{})
+	service := authorization.NewService(authorization.NewSQLiteRepository(handle), verifier{claims: agentclaims.For("operator:1")}, mandatesService, budget.NewService(budget.NewSQLiteRepository(handle), clock), internalevidence.NewRecorder(internalevidence.NewSQLiteRecorder(handle)), clock, &approvalQueue{})
 	results := make(chan authorization.Record, 2)
 	errorsSeen := make(chan error, 2)
 	var group sync.WaitGroup
@@ -81,4 +82,40 @@ func TestSQLiteGrantSpineReservesHeadroomAtomicallyWithinTheService(t *testing.T
 	// reassigned to another book, even through a raw SQL write.
 	_, err = handle.ExecContext(ctx, `UPDATE authorization_book_bindings SET book_id='book-2' WHERE authorization_id=(SELECT authorization_id FROM authorization_book_bindings LIMIT 1)`)
 	require.Error(t, err)
+}
+
+// [REQ:TRS-P1-006] Authorization admission shares a serialized DB write gate
+// with budget/book/scenario freezes, so a freeze committed first cannot admit
+// a new approval even if a caller's earlier policy read was stale.
+func TestSQLiteCreateRechecksFreezeAfterAcquiringAdmissionGate(t *testing.T) {
+	ctx := context.Background()
+	handle := db.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(ctx, handle,
+		database.SchemaProviderFunc(book.Schema), database.SchemaProviderFunc(budget.Schema), database.SchemaProviderFunc(mandate.Schema),
+		database.SchemaProviderFunc(authorization.Schema),
+	))
+	now := time.Date(2026, 8, 18, 12, 0, 0, 0, time.UTC)
+	clock := schedule.NewFake(now)
+	_, err := book.NewService(book.NewSQLiteRepository(handle), clock).Create(ctx, book.CreateInput{ID: "book-1", Name: "Operator", BeneficiaryIdentity: "operator:1"})
+	require.NoError(t, err)
+	budgets := budget.NewService(budget.NewSQLiteRepository(handle), clock)
+	_, err = budgets.Create(ctx, budget.Budget{ID: "budget-1", BookID: "book-1", Currency: "USD", TotalCapMinor: 100, PeriodicCapMinor: 100, PerTransactionCapMinor: 100, Period: time.Hour, AllowedCounterparties: []string{"api.example"}})
+	require.NoError(t, err)
+	signer, err := mandate.NewHMACSigner([]byte("test-only-key"))
+	require.NoError(t, err)
+	mandates := mandate.NewService(mandate.NewSQLiteRepository(handle), clock, signer)
+	_, err = mandates.Issue(ctx, mandate.IssueInput{AgentSubject: "operator:1", AgentRunID: "test-run", ID: "mandate-1", IdempotencyKey: "mandate-key", BookID: "book-1", BudgetID: "budget-1", Authorizer: "operator:1", CapMinor: 100, Currency: "USD", AllowedCounterparties: []string{"api.example"}, ExpiresAt: now.Add(time.Hour)})
+	require.NoError(t, err)
+	repository := authorization.NewSQLiteRepository(handle)
+	_, err = budgets.SetFrozen(ctx, "budget-1", true)
+	require.NoError(t, err)
+	_, err = repository.Create(ctx, authorization.Record{
+		ID: "must-not-admit", IdempotencyKey: "must-not-admit", BookID: "book-1", MandateID: "mandate-1", BudgetID: "budget-1",
+		RequestingAgent: "operator:1", AmountMinor: 10, Currency: "USD", Counterparty: "api.example", Verdict: authorization.VerdictApproved,
+		HoldMinor: 10, CreatedAt: now, ExpiresAt: now.Add(time.Minute),
+	})
+	require.ErrorIs(t, err, authorization.ErrFrozen)
+	var count int
+	require.NoError(t, handle.QueryRowContext(ctx, `SELECT COUNT(*) FROM authorizations WHERE id='must-not-admit'`).Scan(&count))
+	require.Zero(t, count)
 }

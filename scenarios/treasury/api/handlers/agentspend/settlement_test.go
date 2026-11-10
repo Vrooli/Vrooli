@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"treasury/internal/testutil/agentclaims"
+
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
@@ -26,12 +28,11 @@ import (
 
 	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
 	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
-	settlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/settlement"
 )
 
-// [REQ:TRS-P0-011] The generated AgentSpend client executes the server-owned
-// rail result exactly once and rejects the deprecated caller-asserted outcome.
-func TestReportOutcomeUsesDurableServerOwnedSettlement(t *testing.T) {
+// [REQ:TRS-P0-011] The generated AgentSpend client cannot reach settlement
+// before its run-held mandate session key is bound and proves the exact intent.
+func TestReportOutcomeRejectsUnboundAgentSessionBeforeSettlement(t *testing.T) {
 	ctx := context.Background()
 	handle := db.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, handle,
@@ -56,9 +57,9 @@ func TestReportOutcomeUsesDurableServerOwnedSettlement(t *testing.T) {
 	_, err = instruments.Register(ctx, instrument.RegisterInput{ID: "instrument-1", MandateID: "mandate-1", Rail: adapter.Name(), CredentialReference: "treasury/handler-test", Counterparty: "api.example"})
 	require.NoError(t, err)
 	authorizations := authorization.NewSQLiteRepository(handle)
-	_, err = authorizations.Create(ctx, authorization.Record{ID: "auth-1", IdempotencyKey: "auth-key", BookID: "book-1", MandateID: "mandate-1", BudgetID: "budget-1", RequestingAgent: "agent:1", AmountMinor: 125, Currency: "USD", Counterparty: "api.example", Verdict: authorization.VerdictApproved, HoldMinor: 125, CreatedAt: now, ExpiresAt: now.Add(15 * time.Minute)})
+	_, err = authorizations.Create(ctx, authorization.Record{ID: "auth-1", IdempotencyKey: "auth-key", BookID: "book-1", MandateID: "mandate-1", BudgetID: "budget-1", RequestingAgent: "agent:1", AmountMinor: 125, Currency: "USD", Counterparty: "api.example", SettlementID: "settlement-1", InstrumentID: "instrument-1", SettlementIdempotencyKey: "settle-key", Verdict: authorization.VerdictApproved, HoldMinor: 125, CreatedAt: now, ExpiresAt: now.Add(15 * time.Minute)})
 	require.NoError(t, err)
-	verifier := handlerVerifier{claims: identity.Claims{Subject: "agent:1"}}
+	verifier := handlerVerifier{claims: agentclaims.For("agent:1")}
 	authorizationService := authorization.NewService(authorizations, verifier, mandates, budget.NewService(budget.NewSQLiteRepository(handle), clock), evidence.NewRecorder(evidence.NewSQLiteRecorder(handle)), clock)
 	settlementService := settlement.NewService(settlement.NewSQLiteRepository(handle), authorizations, instruments, registry, verifier, clock)
 	_, transport := authorizationconnect.NewAgentSpendHandler(NewConnectHandler(authorizationService, settlementService))
@@ -74,14 +75,9 @@ func TestReportOutcomeUsesDurableServerOwnedSettlement(t *testing.T) {
 
 	request := connect.NewRequest(&authorizationv1.ReportOutcomeRequest{AuthorizationId: "auth-1", SettlementId: "settlement-1", InstrumentId: "instrument-1", IdempotencyKey: "settle-key"})
 	request.Header().Set(identity.HeaderAgentIdentityToken, "opaque")
-	first, err := client.ReportOutcome(ctx, request)
-	require.NoError(t, err)
-	require.Equal(t, settlementv1.ChargeOutcome_CHARGE_OUTCOME_SETTLED, first.Msg.GetSettlement().GetOutcome())
-	require.Equal(t, authorizationv1.AuthorizationVerdict_AUTHORIZATION_VERDICT_SETTLED, first.Msg.GetAuthorization().GetVerdict())
-	second, err := client.ReportOutcome(ctx, request)
-	require.NoError(t, err)
-	require.Equal(t, first.Msg.GetSettlement().GetExternalId(), second.Msg.GetSettlement().GetExternalId())
-	require.EqualValues(t, 1, adapter.calls.Load())
+	_, err = client.ReportOutcome(ctx, request)
+	require.Equal(t, connect.CodeUnavailable, connect.CodeOf(err), "missing walletops session verifier must fail closed")
+	require.Zero(t, adapter.calls.Load(), "no rail dispatch occurs without agent-held session proof")
 }
 
 func TestAgentSpendChargeRedactsPendingX402PaymentSignature(t *testing.T) {

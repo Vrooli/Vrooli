@@ -46,6 +46,59 @@ func TestPriceDeclarationAndUnpaidChallenge(t *testing.T) {
 	router.ServeHTTP(unpaidResult, unpaid)
 	require.Equal(t, http.StatusPaymentRequired, unpaidResult.Code)
 	require.NotEmpty(t, unpaidResult.Header().Get("Payment-Required"))
+
+	unpaidGet := httptest.NewRequest(http.MethodGet, "/api/v1/x402/prices/price-1/admit", nil)
+	unpaidGetResult := httptest.NewRecorder()
+	router.ServeHTTP(unpaidGetResult, unpaidGet)
+	require.Equal(t, http.StatusPaymentRequired, unpaidGetResult.Code)
+	require.NotEmpty(t, unpaidGetResult.Header().Get("Payment-Required"))
+}
+
+func TestOfferDeskPriceRouteIsOperatorBoundAndUsesResolvedQuote(t *testing.T) {
+	repository := &fixtureRepository{}
+	gate, err := x402rail.NewGate(repository, fixtureFacilitator{})
+	require.NoError(t, err)
+	authorizer, err := operatorauth.NewStaticToken("operator-secret")
+	require.NoError(t, err)
+	prices := &fixedOfferDeskPrice{value: x402rail.OfferDeskPrice{OfferID: "offer-7", VariantID: "variant-2", AmountMinor: 37, Currency: "USD"}}
+	router := mux.NewRouter()
+	ModuleWithOfferDesk(gate, authorizer, prices).Mount(router)
+	body, err := json.Marshal(map[string]any{
+		"offer_id": "offer-7", "variant_id": "variant-2",
+		"price": map[string]any{
+			"id": "offerdesk-inference", "resource_url": "https://service.example/inference",
+			"description": "Offer Desk inference", "mime_type": "application/json",
+			"network": "eip155:8453", "scheme": "exact", "pay_to": fixturePrice().PayTo,
+			"asset": fixturePrice().Asset, "asset_decimals": 6, "max_timeout_seconds": 300,
+			"extra_json": fixturePrice().ExtraJSON,
+		},
+	})
+	require.NoError(t, err)
+	unauthorized := httptest.NewRequest(http.MethodPost, "/api/v1/x402/prices/offer-desk", bytes.NewReader(body))
+	unauthorizedResult := httptest.NewRecorder()
+	router.ServeHTTP(unauthorizedResult, unauthorized)
+	require.Equal(t, http.StatusUnauthorized, unauthorizedResult.Code)
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/x402/prices/offer-desk", bytes.NewReader(body))
+	request.Header.Set(operatorauth.HeaderOperatorToken, "operator-secret")
+	result := httptest.NewRecorder()
+	router.ServeHTTP(result, request)
+	require.Equal(t, http.StatusCreated, result.Code)
+	require.Equal(t, "offer-7", prices.requestedOfferID)
+	require.Equal(t, "variant-2", prices.requestedVariantID)
+	require.EqualValues(t, 37, repository.price.AmountMinor)
+	require.Equal(t, "370000", repository.price.Amount)
+}
+
+type fixedOfferDeskPrice struct {
+	value              x402rail.OfferDeskPrice
+	requestedOfferID   string
+	requestedVariantID string
+}
+
+func (f *fixedOfferDeskPrice) ResolvePrice(_ context.Context, offerID, variantID string) (x402rail.OfferDeskPrice, error) {
+	f.requestedOfferID, f.requestedVariantID = offerID, variantID
+	return f.value, nil
 }
 
 func fixturePrice() x402rail.Price {

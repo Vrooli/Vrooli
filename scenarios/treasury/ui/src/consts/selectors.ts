@@ -40,6 +40,7 @@ const literalSelectors = {
   },
   pages: {
     approvals: "page-approvals",
+    fund: "page-fund",
     settings: "page-settings",
   },
   approvals: {
@@ -47,6 +48,25 @@ const literalSelectors = {
     openQueueButton: "approvals-open-queue",
     queue: "approvals-queue",
     bookSelect: "approvals-book-select",
+  },
+  funding: {
+    operatorToken: "funding-operator-token",
+    agentToken: "funding-agent-token",
+    budgetId: "funding-budget-id",
+    refreshButton: "funding-refresh-intents",
+    atomicAmount: "funding-atomic-amount",
+    declaredValue: "funding-declared-value",
+    ledgerBookId: "funding-ledger-book-id",
+    ledgerAccountId: "funding-ledger-account-id",
+    createIntentButton: "funding-create-intent",
+    paymentUri: "funding-payment-uri",
+    paymentQr: "funding-payment-qr",
+    copyLinkButton: "funding-copy-link",
+    transactionHash: "funding-transaction-hash",
+    confirmTransferButton: "funding-confirm-transfer",
+    withdrawalDestination: "funding-withdrawal-destination",
+    mandateId: "funding-withdrawal-mandate-id",
+    withdrawalPreviewButton: "funding-withdrawal-preview",
   },
   controls: {
     panel: "controls-panel",
@@ -71,6 +91,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "approvals",
+            "fund",
             "settings",
           ] as const,
         },
@@ -84,6 +105,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "approvals",
+            "fund",
             "settings",
           ] as const,
         },

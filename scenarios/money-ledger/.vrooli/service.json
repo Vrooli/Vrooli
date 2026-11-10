@@ -17,6 +17,11 @@
   },
   "maturity": "pilot",
   "version": "1.0.0",
+  "skills": {
+    "usage": {
+      "source": "skills/money-ledger/SKILL.md"
+    }
+  },
   "service": {
     "parent": "vrooli",
     "name": "money-ledger",

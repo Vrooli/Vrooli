@@ -37,5 +37,9 @@
     ]
   }],
   "measures":{"domains":[{"domain":"ledger","stateful":true,"reason":"Ledger postings and position are the scenario's governed financial facts."}]},
-  "exceptions":[],"omitted":[]
+  "exceptions":[],"omitted":[
+    {"service":"IngestService","method":"AcceptCryptoReceipt","reason":"Treasury owns signed service delivery of chain receipts; operator submission uses Treasury's authenticated boundary."},
+    {"service":"IngestService","method":"GetCryptoReceipt","reason":"Treasury reads immutable acceptance receipts using its verified service identity."},
+    {"service":"IngestService","method":"ListCryptoReceipts","reason":"Treasury reconciles accepted receipt and credit lot evidence using its verified service identity."}
+  ]
 }

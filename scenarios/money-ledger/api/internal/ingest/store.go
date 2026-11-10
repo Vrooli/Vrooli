@@ -37,6 +37,9 @@ func (s *Store) RegisterAdapter(ctx context.Context, a *ingestpb.Adapter) (*inge
 	if a == nil || strings.TrimSpace(a.Id) == "" || strings.TrimSpace(a.Name) == "" || a.Kind == ingestpb.AdapterKind_ADAPTER_KIND_UNSPECIFIED {
 		return nil, errors.New("adapter id, name, and kind are required")
 	}
+	if a.Id == ledger.TreasuryAdapterID {
+		return nil, errors.New("the Treasury adapter is registered by authenticated receipt acceptance")
+	}
 	if a.Id == "" {
 		a.Id = uuid.NewString()
 	}

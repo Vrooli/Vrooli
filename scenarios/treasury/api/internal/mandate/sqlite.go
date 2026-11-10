@@ -44,6 +44,11 @@ func (r *SQLiteRepository) Create(ctx context.Context, value Mandate) (Mandate, 
 	if err != nil {
 		return Mandate{}, fmt.Errorf("create mandate: %w", err)
 	}
+	if value.AgentSubject != "" {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO mandate_agent_bindings(mandate_id,agent_subject,agent_run_id) VALUES(?,?,?)`, value.ID, value.AgentSubject, value.AgentRunID); err != nil {
+			return Mandate{}, err
+		}
+	}
 	if value.RecurrenceInterval > 0 {
 		if _, err := tx.ExecContext(ctx, `INSERT INTO mandate_recurrences(mandate_id,interval_seconds,next_charge_at,cancelled_at,updated_at) VALUES(?,?,?,'',?)`, value.ID, int64(value.RecurrenceInterval/time.Second), value.NextChargeAt.Format(time.RFC3339Nano), value.IssuedAt.Format(time.RFC3339Nano)); err != nil {
 			return Mandate{}, fmt.Errorf("create mandate recurrence: %w", err)
@@ -174,7 +179,7 @@ func scanMandate(row scanner) (Mandate, error) {
 	var allowed, denied, evidence, expiresAt, issuedAt, status string
 	var recurrenceSeconds sql.NullInt64
 	var nextChargeAt, cancelledAt sql.NullString
-	err := row.Scan(&value.ID, &value.IdempotencyKey, &value.BookID, &value.BudgetID, &value.Authorizer, &value.CapMinor, &value.Currency, &allowed, &denied, &evidence, &expiresAt, &issuedAt, &value.Signature, &status, &recurrenceSeconds, &nextChargeAt, &cancelledAt)
+	err := row.Scan(&value.ID, &value.IdempotencyKey, &value.BookID, &value.BudgetID, &value.Authorizer, &value.CapMinor, &value.Currency, &allowed, &denied, &evidence, &expiresAt, &issuedAt, &value.Signature, &status, &recurrenceSeconds, &nextChargeAt, &cancelledAt, &value.AgentSubject, &value.AgentRunID)
 	if err != nil {
 		return Mandate{}, err
 	}
@@ -208,6 +213,6 @@ func scanMandate(row scanner) (Mandate, error) {
 	return value, nil
 }
 
-const selectMandate = `SELECT m.id,m.idempotency_key,m.book_id,m.budget_id,m.authorizer,m.cap_minor,m.currency,m.allowed_counterparties_json,m.denied_counterparties_json,m.required_evidence_json,m.expires_at,m.issued_at,m.signature,m.status,r.interval_seconds,r.next_charge_at,r.cancelled_at FROM mandates m LEFT JOIN mandate_recurrences r ON r.mandate_id=m.id`
+const selectMandate = `SELECT m.id,m.idempotency_key,m.book_id,m.budget_id,m.authorizer,m.cap_minor,m.currency,m.allowed_counterparties_json,m.denied_counterparties_json,m.required_evidence_json,m.expires_at,m.issued_at,m.signature,m.status,r.interval_seconds,r.next_charge_at,r.cancelled_at,COALESCE(a.agent_subject,''),COALESCE(a.agent_run_id,'') FROM mandates m LEFT JOIN mandate_recurrences r ON r.mandate_id=m.id LEFT JOIN mandate_agent_bindings a ON a.mandate_id=m.id`
 
 var _ Repository = (*SQLiteRepository)(nil)

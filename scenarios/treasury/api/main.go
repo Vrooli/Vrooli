@@ -11,22 +11,29 @@ import (
 	"time"
 
 	"treasury/internal/approval"
+	"treasury/internal/authorization"
 	"treasury/internal/baseusdc"
 	"treasury/internal/book"
+	"treasury/internal/budget"
 	"treasury/internal/capabilities"
+	"treasury/internal/evidence"
 	"treasury/internal/identity"
 	"treasury/internal/instrument"
 	"treasury/internal/ledger"
 	"treasury/internal/mandate"
 	"treasury/internal/modules"
+	"treasury/internal/nativeusdc"
 	"treasury/internal/operatorauth"
 	"treasury/internal/rail"
 	"treasury/internal/rail/card"
 	lithicrail "treasury/internal/rail/card/lithic"
 	"treasury/internal/rail/manual"
 	x402rail "treasury/internal/rail/x402"
+	"treasury/internal/receiptfunding"
 	"treasury/internal/server"
+	"treasury/internal/settlement"
 	"treasury/internal/wallet"
+	"treasury/internal/walletops"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -112,6 +119,10 @@ func fileRootPath(ctx context.Context, roots *filerouting.RoutedRoots, class sto
 	return filepath.Join(root, rel), nil
 }
 
+// openCredentialAuthority is selected at compile time. Only the explicitly tagged
+// local-fork rehearsal build substitutes an isolated encrypted test authority.
+var openCredentialAuthority = credentialauthority.Default
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -141,7 +152,7 @@ func main() {
 	clock := schedule.System()
 	startupCtx := context.Background()
 	var credentialClient credentialclient.Client
-	authority, authorityErr := credentialauthority.Default()
+	authority, authorityErr := openCredentialAuthority()
 	if authorityErr == nil {
 		credentialClient, authorityErr = credentialclient.NewInProcess(credentialclient.InProcessOptions{Authority: authority})
 	}
@@ -217,6 +228,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("x402 inbound gate configuration failed: %v", err)
 	}
+	var offerDeskPrices x402rail.OfferDeskPriceReader
+	if offerDeskURL := scenarioURL(startupCtx, os.Getenv("OFFER_DESK_BASE_URL"), "offer-desk"); offerDeskURL != "" {
+		offerDeskPrices, err = x402rail.NewOfferDeskPriceSource(offerDeskURL, x402HTTPClient)
+		if err != nil {
+			log.Printf("Offer Desk x402 pricing unavailable; Offer Desk-priced admissions fail closed: %v", err)
+			offerDeskPrices = nil
+		}
+	} else {
+		log.Printf("Offer Desk x402 pricing unavailable; Offer Desk-priced admissions fail closed")
+	}
 	var credentialResolver instrument.CredentialResolver
 	if authorityErr == nil {
 		credentialResolver, authorityErr = instrument.NewCredentialClientResolver(credentialClient)
@@ -235,11 +256,26 @@ func main() {
 	ledgerCtx, stopLedger := context.WithCancel(context.Background())
 	go ledgerService.Run(ledgerCtx, 5*time.Second, log.Default())
 
-	var walletService treasuryadminH.Wallets
+	var walletService *wallet.Service
 	if authorityErr == nil && authority != nil {
 		walletService = wallet.NewService(wallet.NewSQLiteRepository(db), book.NewService(book.NewSQLiteRepository(db), clock), authority, clock, func(ctx context.Context, rel string) (string, error) {
 			return fileRootPath(ctx, fileRoots, storage.ClassData, rel)
 		})
+	}
+	var nativeUSDCAdapter *nativeusdc.Adapter
+	if walletService != nil && strings.TrimSpace(os.Getenv("TREASURY_BASE_USDC_MODE")) == "local-fork" {
+		nativeUSDCAdapter, err = nativeusdc.New(db, walletService, strings.TrimSpace(os.Getenv("TREASURY_BASE_RPC_URL")), "local-fork")
+		if err != nil {
+			log.Printf("local-fork native USDC rail unavailable: %v", err)
+			nativeUSDCAdapter = nil
+		} else {
+			adapters := append(railRegistry.Adapters(), nativeUSDCAdapter)
+			railRegistry, err = rail.NewRegistry(adapters...)
+			if err != nil {
+				log.Printf("local-fork native USDC rail registration failed: %v", err)
+				nativeUSDCAdapter = nil
+			}
+		}
 	}
 	baseRPCURL := strings.TrimSpace(os.Getenv("TREASURY_BASE_RPC_URL"))
 	baseProviderID := "base-mainnet-public-rpc"
@@ -256,21 +292,96 @@ func main() {
 	if baseRPCErr != nil {
 		log.Printf("Base native-USDC receipt checks unavailable: operator RPC configuration is invalid")
 	}
+	var baseReceiptService *baseusdc.Service
 	adminServices := make([]any, 0, 2)
 	if walletService != nil {
 		adminServices = append(adminServices, walletService)
 	}
 	if baseReceiptVerifier != nil {
-		adminServices = append(adminServices, baseusdc.NewService(baseusdc.NewSQLiteStore(db), baseReceiptVerifier, baseProviderID, clock.Now))
+		baseReceiptService = baseusdc.NewService(baseusdc.NewSQLiteStore(db), baseReceiptVerifier, baseProviderID, clock.Now)
+		adminServices = append(adminServices, baseReceiptService)
 	}
+	var receiptAcceptor receiptfunding.Acceptor = receiptfunding.UnavailableAcceptor{}
+	var creditLotGranter receiptfunding.CreditLotGranter
+	serviceTokens, tokenErr := ledger.NewServiceTokenSource(credentialClient, scenarioURL(startupCtx, os.Getenv("SCENARIO_AUTHENTICATOR_API_URL"), "scenario-authenticator"), nil)
+	if tokenErr == nil {
+		if client, err := receiptfunding.NewMoneyLedgerClient(scenarioURL(startupCtx, os.Getenv("MONEY_LEDGER_API_URL"), "money-ledger"), serviceTokens, nil); err == nil {
+			receiptAcceptor = client
+		}
+	}
+	if credentialClient != nil {
+		if client, err := receiptfunding.NewLPBSCreditLotClient(scenarioURL(startupCtx, os.Getenv("LANDING_PAGE_BUSINESS_SUITE_API_URL"), "landing-page-business-suite"), credentialClient, nil); err == nil {
+			creditLotGranter = client
+		}
+	}
+	fundingService := receiptfunding.NewService(receiptfunding.NewStore(db), baseusdc.NewSQLiteStore(db), walletService, budget.NewSQLiteRepository(db), receiptAcceptor, clock.Now)
+	fundingService.SetCreditLotGranter(creditLotGranter)
+	adminServices = append(adminServices, fundingService)
+	bookService := book.NewService(book.NewSQLiteRepository(db), clock)
+	authorizationRepository := authorization.NewSQLiteRepository(db)
+	budgetService := budget.NewService(budget.NewSQLiteRepository(db), clock, authorizationRepository)
+	mandateService := mandate.NewService(mandate.NewSQLiteRepository(db), clock, mandateSigner)
+	evidenceRecorder := evidence.NewRecorder(evidence.NewSQLiteRecorder(db))
+	approvalService := approval.NewService(approval.NewSQLiteRepository(db), authorization.NewApprovalController(authorizationRepository, mandateService, budgetService, clock), approvalRelay, clock, evidenceRecorder)
+	walletInstrumentService := instrument.NewServiceWithCardIssuers(instrument.NewSQLiteRepository(db), mandateService, railRegistry, credentialResolver, clock, cardRegistry)
+	walletAuthorizationService := authorization.NewService(authorizationRepository, identityVerifier, mandateService, budgetService, evidenceRecorder, clock, approvalService)
+	walletSettlementService := settlement.NewService(settlement.NewSQLiteRepository(db), authorizationRepository, walletInstrumentService, railRegistry, identityVerifier, clock, budgetService)
+	var credentialWriter instrument.CredentialWriter
+	if writer, ok := credentialResolver.(instrument.CredentialWriter); ok {
+		credentialWriter = writer
+	}
+	walletOperations := walletops.New(walletops.Config{
+		DB: db, Wallets: walletService, Books: bookService, Budgets: budgetService,
+		Receipts: baseReceiptService, Funding: fundingService, Native: nativeUSDCAdapter,
+		Mandates: mandateService, Authorizations: walletAuthorizationService, Approvals: approvalService,
+		Instruments: walletInstrumentService, Credentials: credentialWriter, Settlements: walletSettlementService,
+		Clock: clock,
+	})
+	if walletService != nil {
+		walletService.SetSessionSignAuthorizer(walletOperations)
+	}
+	// Both RPC surfaces share these policy services and their in-process
+	// serialization, not merely the same SQLite rows.
+	adminServices = append(adminServices, bookService, budgetService, mandateService, approvalService, walletInstrumentService, authorizationRepository, walletAuthorizationService, walletSettlementService)
+	notificationHubURL := scenarioURL(startupCtx, os.Getenv("NOTIFICATION_HUB_API_URL"), "notification-hub")
+	if notificationHubURL != "" {
+		var notifier *walletops.NotificationHub
+		var notifyErr error
+		if os.Getenv("TREASURY_CF5_NOTIFICATION_TEST_MODE") == "1" {
+			notifier, notifyErr = walletops.NewLeasedTestNotificationHub(notificationHubURL)
+		} else {
+			notifier, notifyErr = walletops.NewNotificationHub(notificationHubURL, &http.Client{Timeout: 5 * time.Second})
+		}
+		if notifyErr == nil {
+			walletOperations.Notifications = notifier
+		} else {
+			log.Printf("funding notifications unavailable; durable receipt credit continues: %v", notifyErr)
+		}
+	}
+	adminServices = append(adminServices, walletOperations)
+	go fundingService.Run(ledgerCtx, 2*time.Second, log.Default())
+	go func() {
+		ticker := time.NewTicker(3 * time.Second)
+		defer ticker.Stop()
+		for {
+			if err := walletOperations.RetryNotifications(ledgerCtx); err != nil {
+				log.Printf("funding notification retry incomplete: %v", err)
+			}
+			select {
+			case <-ledgerCtx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
 	srv := server.New(
 		server.Deps{Clock: clock, Logger: log.Default()},
 		healthH.Module(db, "treasury-api", "1.0.0"),
 		capsH.Module(capabilities.NewRegistry()),
-		agentspendH.Module(db, identityVerifier, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver),
+		agentspendH.Module(db, identityVerifier, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver, walletOperations, walletAuthorizationService, walletSettlementService),
 		treasuryadminH.Module(db, operatorAuthorizer, clock, approvalRelay, railRegistry, cardRegistry, credentialResolver, mandateSigner, adminServices...),
 		ledgeradminH.Module(db, operatorAuthorizer),
-		x402gateH.Module(x402Gate, operatorAuthorizer),
+		x402gateH.ModuleWithOfferDesk(x402Gate, operatorAuthorizer, offerDeskPrices),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

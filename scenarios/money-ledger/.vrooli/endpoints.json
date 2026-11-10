@@ -199,6 +199,30 @@
       "category": ""
     },
     {
+      "id": "ingest_crypto_accept",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/AcceptCryptoReceipt",
+      "method": "POST",
+      "summary": "Accept a Treasury receipt with exact token and separate valuation effects",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "ingest_crypto_get",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/GetCryptoReceipt",
+      "method": "POST",
+      "summary": "Read an immutable accepted crypto receipt",
+      "description": "",
+      "category": ""
+    },
+    {
+      "id": "ingest_crypto_list",
+      "path": "/vrooli.money_ledger.v1.ingest.IngestService/ListCryptoReceipts",
+      "method": "POST",
+      "summary": "List accepted crypto receipts and customer credit lot attribution",
+      "description": "",
+      "category": ""
+    },
+    {
       "id": "ingest_register",
       "path": "/vrooli.money_ledger.v1.ingest.IngestService/RegisterAdapter",
       "method": "POST",

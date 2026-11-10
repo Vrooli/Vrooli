@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "treasury",
   "generator": "v1.0.0",
-  "manifest_hash": "640f278045927ace72d0e976092e007fb79bcd90b33084f7f5a36e49cc353b48",
+  "manifest_hash": "1452fdce812726391e0315a71fcd8cd87dc6ca6219e1f18ca1f937574f6ad81a",
   "commands": [
     {
       "path": "approval list",
@@ -41,6 +41,12 @@
       "group": "book",
       "command": "get",
       "binding": "TreasuryAdmin.GetBook"
+    },
+    {
+      "path": "budget agent-wallet",
+      "group": "budget",
+      "command": "agent-wallet",
+      "binding": "AgentSpend.GetBudgetWallet"
     },
     {
       "path": "budget freeze",
@@ -181,10 +187,40 @@
       "binding": "AgentSpend.ReportOutcome"
     },
     {
+      "path": "wallet budget-wallet",
+      "group": "wallet",
+      "command": "budget-wallet",
+      "binding": "TreasuryAdmin.GetBudgetWallet"
+    },
+    {
       "path": "wallet create",
       "group": "wallet",
       "command": "create",
       "binding": "TreasuryAdmin.CreateResearchWallet"
+    },
+    {
+      "path": "wallet fund-confirm",
+      "group": "wallet",
+      "command": "fund-confirm",
+      "binding": "TreasuryAdmin.ConfirmFundingTransfer"
+    },
+    {
+      "path": "wallet fund-intent",
+      "group": "wallet",
+      "command": "fund-intent",
+      "binding": "TreasuryAdmin.CreateFundingIntent"
+    },
+    {
+      "path": "wallet fund-intent-get",
+      "group": "wallet",
+      "command": "fund-intent-get",
+      "binding": "TreasuryAdmin.GetFundingIntent"
+    },
+    {
+      "path": "wallet fund-list",
+      "group": "wallet",
+      "command": "fund-list",
+      "binding": "TreasuryAdmin.ListFundingIntents"
     },
     {
       "path": "wallet get",
@@ -197,6 +233,12 @@
       "group": "wallet",
       "command": "prove",
       "binding": "TreasuryAdmin.ProveResearchWallet"
+    },
+    {
+      "path": "wallet provision-budget",
+      "group": "wallet",
+      "command": "provision-budget",
+      "binding": "TreasuryAdmin.ProvisionBudgetWallet"
     },
     {
       "path": "wallet qualify-recovery",
@@ -217,10 +259,46 @@
       "binding": "TreasuryAdmin.ListBaseUSDCReceiptChecks"
     },
     {
+      "path": "wallet receipt-fund",
+      "group": "wallet",
+      "command": "receipt-fund",
+      "binding": "TreasuryAdmin.SubmitReceiptFunding"
+    },
+    {
+      "path": "wallet receipt-funding",
+      "group": "wallet",
+      "command": "receipt-funding",
+      "binding": "TreasuryAdmin.GetReceiptFunding"
+    },
+    {
       "path": "wallet recover",
       "group": "wallet",
       "command": "recover",
       "binding": "TreasuryAdmin.RecoverResearchWallet"
+    },
+    {
+      "path": "wallet withdrawal-destination-set",
+      "group": "wallet",
+      "command": "withdrawal-destination-set",
+      "binding": "TreasuryAdmin.SetWithdrawalDestination"
+    },
+    {
+      "path": "wallet withdrawal-execute",
+      "group": "wallet",
+      "command": "withdrawal-execute",
+      "binding": "TreasuryAdmin.ExecuteWithdrawal"
+    },
+    {
+      "path": "wallet withdrawal-get",
+      "group": "wallet",
+      "command": "withdrawal-get",
+      "binding": "TreasuryAdmin.GetWithdrawal"
+    },
+    {
+      "path": "wallet withdrawal-preview",
+      "group": "wallet",
+      "command": "withdrawal-preview",
+      "binding": "TreasuryAdmin.PreviewWithdrawal"
     }
   ]
 }

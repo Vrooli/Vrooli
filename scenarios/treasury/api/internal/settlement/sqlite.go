@@ -69,9 +69,9 @@ func (r *SQLiteRepository) Claim(ctx context.Context, value Record) (ClaimResult
 	return ClaimResult{Record: stored, Claimed: claimed}, nil
 }
 
-// RecordX402RecoveryInput stores only a protected Credential Authority
+// RecordRecoveryInput stores only a protected Credential Authority
 // reference and digest before an x402 paid request can be dispatched.
-func (r *SQLiteRepository) RecordX402RecoveryInput(ctx context.Context, id, digest, reference string) error {
+func (r *SQLiteRepository) RecordRecoveryInput(ctx context.Context, id, digest, reference string) error {
 	if strings.TrimSpace(id) == "" || len(digest) != len("sha256:")+sha256.Size*2 || !strings.HasPrefix(digest, "sha256:") || strings.TrimSpace(reference) == "" {
 		return errors.New("record x402 recovery input: settlement id, sha256 digest and protected reference are required")
 	}
@@ -81,7 +81,7 @@ func (r *SQLiteRepository) RecordX402RecoveryInput(ctx context.Context, id, dige
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	result, err := tx.ExecContext(ctx, `UPDATE settlements SET external_id=?,receipt_reference=?,basis=? WHERE id=? AND rail='x402' AND outcome='calling' AND basis='x402_preflight_only' AND external_id='' AND receipt_reference=''`, digest, reference, BasisX402PaymentReady, id)
+	result, err := tx.ExecContext(ctx, `UPDATE settlements SET external_id=?,receipt_reference=?,basis=CASE rail WHEN 'x402' THEN 'x402_payment_prepared' ELSE 'base_usdc_payment_prepared' END WHERE id=? AND rail IN ('x402','base-usdc') AND outcome='calling' AND basis IN ('x402_preflight_only','base_usdc_preflight_only') AND external_id='' AND receipt_reference=''`, digest, reference, id)
 	if err != nil {
 		return fmt.Errorf("persist x402 recovery input: %w", err)
 	}
@@ -94,7 +94,7 @@ func (r *SQLiteRepository) RecordX402RecoveryInput(ctx context.Context, id, dige
 		if getErr != nil {
 			return getErr
 		}
-		if current.Rail != "x402" || current.Outcome != OutcomeCalling || current.Basis != BasisX402PaymentReady || current.ExternalID != digest || current.ReceiptReference != reference {
+		if !protectedRail(current.Rail) || current.Outcome != OutcomeCalling || current.Basis != preparedBasis(current.Rail) || current.ExternalID != digest || current.ReceiptReference != reference {
 			return errors.New("record x402 recovery input: settlement is not an empty calling fence or input conflicts")
 		}
 	}

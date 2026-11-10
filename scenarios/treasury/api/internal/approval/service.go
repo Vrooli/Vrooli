@@ -113,6 +113,9 @@ func (s *Service) Resolve(ctx context.Context, id string, resolution Status, res
 		return Request{}, err
 	}
 	if current.Status != StatusQueued {
+		if current.Status == resolution && current.ResolverIdentity == resolver {
+			return current, nil
+		}
 		return Request{}, fmt.Errorf("%w: approval is already %s", ErrInvalid, current.Status)
 	}
 	event := approvalflow.ApprovalApprove

@@ -29,12 +29,37 @@ func (r *SQLiteRepository) Create(ctx context.Context, value Record) (Record, er
 		return Record{}, err
 	}
 	defer func() { _ = tx.Rollback() }()
+	// This first write acquires SQLite's writer lock before the freeze read.
+	// SetFrozen and SetScopeFrozen write the same database, so exactly one of
+	// freeze or authorization admission commits first.
+	if _, err = tx.ExecContext(ctx, `UPDATE authorization_admission_gate SET generation=generation+1 WHERE id=1`); err != nil {
+		return Record{}, fmt.Errorf("acquire authorization freeze gate: %w", err)
+	}
+	var frozen bool
+	if err = tx.QueryRowContext(ctx, `SELECT EXISTS(
+		SELECT 1 FROM budgets WHERE id=? AND frozen=1
+		UNION ALL SELECT 1 FROM freeze_controls WHERE frozen=1 AND (
+			(scope='scenario' AND scope_id='*') OR (scope='book' AND scope_id=?))
+	)`, value.BudgetID, value.BookID).Scan(&frozen); err != nil {
+		return Record{}, fmt.Errorf("recheck freeze gate during authorization admission: %w", err)
+	}
+	if frozen {
+		return Record{}, ErrFrozen
+	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO authorizations(id, idempotency_key, mandate_id, budget_id, requesting_agent, amount_minor, currency, counterparty, verdict, violated_constraint, remediation, hold_minor, created_at, expires_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, value.ID, value.IdempotencyKey, value.MandateID, value.BudgetID, value.RequestingAgent, value.AmountMinor, value.Currency, value.Counterparty, string(value.Verdict), value.ViolatedConstraint, value.Remediation, value.HoldMinor, value.CreatedAt.Format(time.RFC3339Nano), value.ExpiresAt.Format(time.RFC3339Nano))
 	if err != nil {
 		return Record{}, fmt.Errorf("create authorization: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO authorization_book_bindings(authorization_id,book_id) VALUES(?,?)`, value.ID, value.BookID); err != nil {
 		return Record{}, fmt.Errorf("bind authorization book: %w", err)
+	}
+	if value.SettlementID != "" || value.InstrumentID != "" || value.SettlementIdempotencyKey != "" {
+		if value.SettlementID == "" || value.InstrumentID == "" || value.SettlementIdempotencyKey == "" {
+			return Record{}, fmt.Errorf("create authorization: partial immutable settlement intent")
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO authorization_spend_intents(authorization_id,settlement_id,instrument_id,settlement_idempotency_key) VALUES(?,?,?,?)`, value.ID, value.SettlementID, value.InstrumentID, value.SettlementIdempotencyKey); err != nil {
+			return Record{}, fmt.Errorf("persist immutable settlement intent: %w", err)
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return Record{}, err
@@ -53,7 +78,7 @@ func (r *SQLiteRepository) GetByIdempotencyKey(ctx context.Context, key string) 
 func (r *SQLiteRepository) get(ctx context.Context, query, arg string) (Record, error) {
 	var value Record
 	var verdict, createdAt, expiresAt string
-	err := r.db.QueryRowContext(ctx, query, arg).Scan(&value.ID, &value.IdempotencyKey, &value.BookID, &value.MandateID, &value.BudgetID, &value.RequestingAgent, &value.AmountMinor, &value.Currency, &value.Counterparty, &verdict, &value.ViolatedConstraint, &value.Remediation, &value.HoldMinor, &createdAt, &expiresAt)
+	err := r.db.QueryRowContext(ctx, query, arg).Scan(&value.ID, &value.IdempotencyKey, &value.BookID, &value.MandateID, &value.BudgetID, &value.RequestingAgent, &value.AmountMinor, &value.Currency, &value.Counterparty, &verdict, &value.ViolatedConstraint, &value.Remediation, &value.HoldMinor, &createdAt, &expiresAt, &value.SettlementID, &value.InstrumentID, &value.SettlementIdempotencyKey)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Record{}, ErrNotFound
 	}
@@ -70,7 +95,7 @@ func (r *SQLiteRepository) get(ctx context.Context, query, arg string) (Record, 
 	return value, nil
 }
 
-const selectAuthorization = `SELECT a.id,a.idempotency_key,b.book_id,a.mandate_id,a.budget_id,a.requesting_agent,a.amount_minor,a.currency,a.counterparty,a.verdict,a.violated_constraint,a.remediation,a.hold_minor,a.created_at,a.expires_at FROM authorizations a JOIN authorization_book_bindings b ON b.authorization_id=a.id`
+const selectAuthorization = `SELECT a.id,a.idempotency_key,b.book_id,a.mandate_id,a.budget_id,a.requesting_agent,a.amount_minor,a.currency,a.counterparty,a.verdict,a.violated_constraint,a.remediation,a.hold_minor,a.created_at,a.expires_at,COALESCE(i.settlement_id,''),COALESCE(i.instrument_id,''),COALESCE(i.settlement_idempotency_key,'') FROM authorizations a JOIN authorization_book_bindings b ON b.authorization_id=a.id LEFT JOIN authorization_spend_intents i ON i.authorization_id=a.id`
 
 func (r *SQLiteRepository) Usage(ctx context.Context, budgetID, mandateID string, periodStart, now time.Time) (Usage, error) {
 	var usage Usage

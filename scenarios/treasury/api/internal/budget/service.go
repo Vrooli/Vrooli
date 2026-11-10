@@ -46,6 +46,9 @@ type Headroom struct {
 	PeriodicCapMinor, PeriodUsedMinor, PeriodRemainingMinor int64
 	PerTransactionCapMinor, AvailableMinor                  int64
 	PeriodStartedAt, ComputedAt                             time.Time
+	FundingRequired                                         bool
+	FundingCreditedMinor, FundingRemainingMinor             int64
+	FundingAtomicAmount, FundingAssetID                     string
 }
 
 type FreezeScope string
@@ -78,6 +81,7 @@ type Service interface {
 	ScenarioFreezeStatus(context.Context) (FreezeControl, error)
 	IsFrozen(context.Context, string, string) (bool, FreezeScope, error)
 	Headroom(context.Context, string) (Headroom, error)
+	Funding(context.Context, string) (Funding, error)
 }
 
 type service struct {
@@ -279,7 +283,26 @@ func (s *service) Headroom(ctx context.Context, id string) (Headroom, error) {
 	totalRemaining := max(int64(0), policy.TotalCapMinor-usage.TotalMinor)
 	periodRemaining := max(int64(0), policy.PeriodicCapMinor-usage.PeriodMinor)
 	available := min(policy.PerTransactionCapMinor, min(totalRemaining, periodRemaining))
-	if policy.Frozen {
+	funding, err := s.Funding(ctx, policy.ID)
+	if err != nil {
+		return Headroom{}, fmt.Errorf("read accepted receipt funding: %w", err)
+	}
+	fundingRemaining := int64(0)
+	if funding.Required {
+		if funding.CreditedMinor > usage.TotalMinor {
+			fundingRemaining = funding.CreditedMinor - usage.TotalMinor
+		}
+		available = min(available, fundingRemaining)
+	}
+	frozen := policy.Frozen
+	if _, ok := s.repository.(FreezeRepository); ok {
+		var freezeErr error
+		frozen, _, freezeErr = s.IsFrozen(ctx, policy.BookID, policy.ID)
+		if freezeErr != nil {
+			return Headroom{}, fmt.Errorf("read headroom kill switch: %w", freezeErr)
+		}
+	}
+	if frozen {
 		available = 0
 	}
 	return Headroom{
@@ -288,6 +311,9 @@ func (s *service) Headroom(ctx context.Context, id string) (Headroom, error) {
 		PeriodicCapMinor: policy.PeriodicCapMinor, PeriodUsedMinor: usage.PeriodMinor, PeriodRemainingMinor: periodRemaining,
 		PerTransactionCapMinor: policy.PerTransactionCapMinor, AvailableMinor: available,
 		PeriodStartedAt: periodStart, ComputedAt: now,
+		FundingRequired: funding.Required, FundingCreditedMinor: funding.CreditedMinor,
+		FundingRemainingMinor: fundingRemaining, FundingAtomicAmount: funding.AtomicAmount,
+		FundingAssetID: funding.AssetID,
 	}, nil
 }
 

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -38,6 +39,29 @@ type DB interface {
 type SQLiteStore struct{ db DB }
 
 func NewSQLiteStore(db DB) *SQLiteStore { return &SQLiteStore{db: db} }
+
+// GetCheck resolves a retained evidence record in its complete operator scope.
+// Funding consumers use this lookup rather than accepting caller-made logs.
+func (s *SQLiteStore) GetCheck(ctx context.Context, operator, walletID, transactionHash, checkID string) (Check, error) {
+	var value Check
+	var checkedAt, transfersJSON string
+	err := s.db.QueryRowContext(ctx, `SELECT id,operator_identity,wallet_id,network,transaction_hash,provider_id,outcome,error_code,checked_at,transfers_json,prior_check_id,relation FROM baseusdc_receipt_checks WHERE id=? AND operator_identity=? AND wallet_id=? AND transaction_hash=?`, checkID, operator, walletID, strings.ToLower(transactionHash)).Scan(
+		&value.ID, &value.OperatorIdentity, &value.WalletID, &value.Network, &value.TransactionHash, &value.ProviderID, &value.Outcome, &value.ErrorCode, &checkedAt, &transfersJSON, &value.PriorCheckID, &value.Relation,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Check{}, ErrPriorCheckNotFound
+	}
+	if err != nil {
+		return Check{}, err
+	}
+	if value.CheckedAt, err = time.Parse(time.RFC3339Nano, checkedAt); err != nil {
+		return Check{}, err
+	}
+	if err := json.Unmarshal([]byte(transfersJSON), &value.Transfers); err != nil {
+		return Check{}, fmt.Errorf("decode retained Base receipt observations: %w", err)
+	}
+	return value, nil
+}
 
 func (s *SQLiteStore) Append(ctx context.Context, value Check) error {
 	if s == nil || s.db == nil || value.ID == "" || value.OperatorIdentity == "" || value.WalletID == "" || value.Network != Network || value.TransactionHash == "" || value.ProviderID == "" || value.Outcome == "" || value.CheckedAt.IsZero() {

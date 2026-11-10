@@ -16,10 +16,12 @@ import (
 	"treasury/internal/mandate"
 	mandateflow "treasury/internal/mandate/flow"
 	"treasury/internal/settlement"
+	"treasury/internal/walletops"
 
 	authorizationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization"
 	authorizationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/authorization/authorization_v1connect"
 	budgetv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/budget"
+	fundingpb "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding"
 	mandatev1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/mandate"
 	settlementv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/settlement"
 )
@@ -38,6 +40,7 @@ type connectHandler struct {
 	mandates    MandateLister
 	verifier    identity.Verifier
 	headroom    HeadroomReader
+	walletOps   *walletops.Service
 }
 
 func NewConnectHandler(services ...any) authorizationconnect.AgentSpendHandler {
@@ -54,9 +57,43 @@ func NewConnectHandler(services ...any) authorizationconnect.AgentSpendHandler {
 			handler.verifier = value
 		case HeadroomReader:
 			handler.headroom = value
+		case *walletops.Service:
+			handler.walletOps = value
 		}
 	}
 	return handler
+}
+
+func (h *connectHandler) GetBudgetWallet(ctx context.Context, request *connect.Request[fundingpb.GetBudgetWalletRequest]) (*connect.Response[fundingpb.BudgetWalletResponse], error) {
+	if request == nil || request.Msg == nil || strings.TrimSpace(request.Msg.GetBudgetId()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("budget ID is required"))
+	}
+	if h.walletOps == nil || h.verifier == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("budget wallet reporting is unavailable"))
+	}
+	claims, err := identity.VerifyRequest(ctx, h.verifier, request.Header())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	if mandateID := request.Msg.GetMandateId(); mandateID != "" {
+		if publicKey := strings.TrimSpace(request.Header().Get(walletops.HeaderAgentSessionPublicKey)); publicKey != "" {
+			if err = h.walletOps.BindAgentSessionPublicKey(ctx, request.Msg.GetBudgetId(), mandateID, claims, publicKey); err != nil {
+				return nil, connect.NewError(connect.CodePermissionDenied, err)
+			}
+		}
+	}
+	wallet, err := h.walletOps.GetForAgent(ctx, request.Msg.GetBudgetId(), request.Msg.GetMandateId(), claims)
+	if err != nil {
+		switch {
+		case errors.Is(err, identity.ErrUnverifiable):
+			return nil, connect.NewError(connect.CodePermissionDenied, err)
+		case errors.Is(err, walletops.ErrNotFound):
+			return nil, connect.NewError(connect.CodeNotFound, err)
+		default:
+			return nil, connect.NewError(connect.CodeInternal, err)
+		}
+	}
+	return connect.NewResponse(&fundingpb.BudgetWalletResponse{Wallet: wallet}), nil
 }
 
 func (h *connectHandler) GetBudgetHeadroom(ctx context.Context, request *connect.Request[authorizationv1.GetBudgetHeadroomRequest]) (*connect.Response[authorizationv1.GetBudgetHeadroomResponse], error) {
@@ -66,8 +103,12 @@ func (h *connectHandler) GetBudgetHeadroom(ctx context.Context, request *connect
 	if h.headroom == nil || h.verifier == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("headroom reporting is unavailable"))
 	}
-	if _, err := h.verifier.Verify(ctx, identityTokenFromHeaders(request.Header())); err != nil {
+	claims, err := identity.VerifyRequest(ctx, h.verifier, request.Header())
+	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	if err := identity.Authorize(claims, "treasury.read", "treasury:budget/"+request.Msg.GetBudgetId(), time.Now()); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
 	value, err := h.headroom.Headroom(ctx, request.Msg.GetBudgetId())
 	if err != nil {
@@ -82,6 +123,9 @@ func (h *connectHandler) GetBudgetHeadroom(ctx context.Context, request *connect
 		PeriodicCapMinor: value.PeriodicCapMinor, PeriodUsedMinor: value.PeriodUsedMinor, PeriodRemainingMinor: value.PeriodRemainingMinor,
 		PerTransactionCapMinor: value.PerTransactionCapMinor, AvailableMinor: value.AvailableMinor,
 		PeriodStartedAt: timestamppb.New(value.PeriodStartedAt), ComputedAt: timestamppb.New(value.ComputedAt),
+		FundingRequired: value.FundingRequired, FundingCreditedMinor: value.FundingCreditedMinor,
+		FundingRemainingMinor: value.FundingRemainingMinor, FundingAtomicAmount: value.FundingAtomicAmount,
+		FundingAssetId: value.FundingAssetID,
 	}}), nil
 }
 
@@ -93,7 +137,12 @@ func (h *connectHandler) ProposeCharge(ctx context.Context, request *connect.Req
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("authorization service is unavailable"))
 	}
 	msg := request.Msg
-	result, err := h.service.Propose(ctx, authorization.ProposeInput{ID: msg.GetId(), IdempotencyKey: msg.GetIdempotencyKey(), MandateID: msg.GetMandateId(), IdentityToken: identityTokenFromHeaders(request.Header()), AmountMinor: msg.GetAmountMinor(), Currency: msg.GetCurrency(), Counterparty: msg.GetCounterparty()})
+	result, err := h.service.Propose(ctx, authorization.ProposeInput{
+		ID: msg.GetId(), IdempotencyKey: msg.GetIdempotencyKey(), MandateID: msg.GetMandateId(),
+		IdentityToken: identityTokenFromHeaders(request.Header()), OperationToken: strings.TrimSpace(request.Header().Get(identity.HeaderAgentOperationToken)),
+		AmountMinor: msg.GetAmountMinor(), Currency: msg.GetCurrency(), Counterparty: msg.GetCounterparty(),
+		SettlementID: msg.GetSettlementId(), InstrumentID: msg.GetInstrumentId(), SettlementIdempotencyKey: msg.GetSettlementIdempotencyKey(),
+	})
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -107,7 +156,7 @@ func (h *connectHandler) GetAuthorization(ctx context.Context, request *connect.
 	if h.service == nil || h.verifier == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("authorization service is unavailable"))
 	}
-	claims, err := h.verifier.Verify(ctx, identityTokenFromHeaders(request.Header()))
+	claims, err := identity.VerifyRequest(ctx, h.verifier, request.Header())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
@@ -115,7 +164,7 @@ func (h *connectHandler) GetAuthorization(ctx context.Context, request *connect.
 	if err != nil {
 		return nil, mapError(err)
 	}
-	if result.RequestingAgent != claims.Subject {
+	if result.RequestingAgent != claims.Subject || identity.Authorize(claims, "treasury.read", "treasury:budget/"+result.BudgetID, time.Now()) != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, errors.New("authorization belongs to another owner"))
 	}
 	return connect.NewResponse(&authorizationv1.GetAuthorizationResponse{Authorization: toProto(result)}), nil
@@ -128,7 +177,8 @@ func (h *connectHandler) ListMandates(ctx context.Context, request *connect.Requ
 	if h.mandates == nil || h.verifier == nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("mandate listing is unavailable"))
 	}
-	if _, err := h.verifier.Verify(ctx, identityTokenFromHeaders(request.Header())); err != nil {
+	claims, err := identity.VerifyRequest(ctx, h.verifier, request.Header())
+	if err != nil {
 		return nil, connect.NewError(connect.CodeUnauthenticated, err)
 	}
 	values, err := h.mandates.List(ctx)
@@ -137,6 +187,9 @@ func (h *connectHandler) ListMandates(ctx context.Context, request *connect.Requ
 	}
 	response := &authorizationv1.ListMandatesResponse{Mandates: make([]*mandatev1.Mandate, 0, len(values))}
 	for _, value := range values {
+		if value.AgentSubject != claims.Subject || value.AgentRunID != claims.RunID || identity.Authorize(claims, "treasury.read", "treasury:budget/"+value.BudgetID, time.Now()) != nil {
+			continue
+		}
 		response.Mandates = append(response.Mandates, mandateToProto(value))
 	}
 	return connect.NewResponse(response), nil
@@ -156,7 +209,7 @@ func mandateToProto(value mandate.Mandate) *mandatev1.Mandate {
 	case mandateflow.MandateRevoked:
 		status = mandatev1.MandateStatus_MANDATE_STATUS_REVOKED
 	}
-	result := &mandatev1.Mandate{Id: value.ID, IdempotencyKey: value.IdempotencyKey, BookId: value.BookID, BudgetId: value.BudgetID, Authorizer: value.Authorizer, CapMinor: value.CapMinor, Currency: value.Currency, AllowedCounterparties: value.AllowedCounterparties, DeniedCounterparties: value.DeniedCounterparties, RequiredEvidence: value.RequiredEvidence, ExpiresAt: timestamppb.New(value.ExpiresAt), IssuedAt: timestamppb.New(value.IssuedAt), Signature: value.Signature, Status: status, RecurrenceSeconds: int64(value.RecurrenceInterval / time.Second)}
+	result := &mandatev1.Mandate{AgentSubject: value.AgentSubject, AgentRunId: value.AgentRunID, Id: value.ID, IdempotencyKey: value.IdempotencyKey, BookId: value.BookID, BudgetId: value.BudgetID, Authorizer: value.Authorizer, CapMinor: value.CapMinor, Currency: value.Currency, AllowedCounterparties: value.AllowedCounterparties, DeniedCounterparties: value.DeniedCounterparties, RequiredEvidence: value.RequiredEvidence, ExpiresAt: timestamppb.New(value.ExpiresAt), IssuedAt: timestamppb.New(value.IssuedAt), Signature: value.Signature, Status: status, RecurrenceSeconds: int64(value.RecurrenceInterval / time.Second)}
 	if !value.NextChargeAt.IsZero() {
 		result.NextChargeAt = timestamppb.New(value.NextChargeAt)
 	}
@@ -170,18 +223,39 @@ func (h *connectHandler) ReportOutcome(ctx context.Context, request *connect.Req
 	if request == nil || request.Msg == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("request is required"))
 	}
-	if h.settlements == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("settlement service is unavailable"))
-	}
 	msg := request.Msg
 	if strings.TrimSpace(msg.GetOutcome()) != "" || strings.TrimSpace(msg.GetRailReference()) != "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("caller-asserted outcome and rail_reference are forbidden; Treasury reads both from the registered rail"))
 	}
-	charge, err := h.settlements.Settle(ctx, settlement.SettleInput{ID: msg.GetSettlementId(), AuthorizationID: msg.GetAuthorizationId(), InstrumentID: msg.GetInstrumentId(), IdempotencyKey: msg.GetIdempotencyKey(), IdentityToken: identityTokenFromHeaders(request.Header())})
+	if h.settlements == nil || h.service == nil || h.walletOps == nil || h.verifier == nil {
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("mandate session settlement authority is unavailable"))
+	}
+	claims, err := identity.VerifyRequest(ctx, h.verifier, request.Header())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	auth, err := h.service.Get(ctx, msg.GetAuthorizationId())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	intent := walletops.AgentSettlementIntent{
+		AuthorizationID: auth.ID, MandateID: auth.MandateID, BudgetID: auth.BudgetID,
+		AgentSubject: claims.Subject, AgentRunID: claims.RunID, SettlementID: msg.GetSettlementId(),
+		InstrumentID: msg.GetInstrumentId(), IdempotencyKey: msg.GetIdempotencyKey(),
+		AmountMinor: auth.AmountMinor, Currency: auth.Currency, Counterparty: auth.Counterparty,
+	}
+	if err = h.walletOps.AuthorizeAgentSettlement(ctx, claims, intent, request.Header().Get(walletops.HeaderAgentSessionProof)); err != nil {
+		return nil, connect.NewError(connect.CodePermissionDenied, err)
+	}
+	charge, err := h.settlements.Settle(ctx, settlement.SettleInput{
+		ID: msg.GetSettlementId(), AuthorizationID: msg.GetAuthorizationId(), InstrumentID: msg.GetInstrumentId(),
+		IdempotencyKey: msg.GetIdempotencyKey(), IdentityToken: identityTokenFromHeaders(request.Header()),
+		OperationToken: strings.TrimSpace(request.Header().Get(identity.HeaderAgentOperationToken)),
+	})
 	if err != nil {
 		return nil, mapSettlementError(err)
 	}
-	auth, err := h.service.Get(ctx, charge.AuthorizationID)
+	auth, err = h.service.Get(ctx, charge.AuthorizationID)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -225,7 +299,7 @@ func settlementToProto(value settlement.Record) *settlementv1.Charge {
 		outcome = settlementv1.ChargeOutcome_CHARGE_OUTCOME_UNKNOWN
 	}
 	receiptReference := value.ReceiptReference
-	if value.Rail == "x402" && value.Outcome == settlement.OutcomeUnknown {
+	if (value.Rail == "x402" || value.Rail == "base-usdc") && value.Outcome == settlement.OutcomeUnknown {
 		// A pending x402 Credential Authority reference locates replay
 		// authorization. Keep it private to Treasury's service boundary.
 		receiptReference = ""
@@ -265,5 +339,11 @@ func toProto(value authorization.Record) *authorizationv1.AuthorizationRecord {
 	case authorization.VerdictSettled:
 		verdict = authorizationv1.AuthorizationVerdict_AUTHORIZATION_VERDICT_SETTLED
 	}
-	return &authorizationv1.AuthorizationRecord{Id: value.ID, IdempotencyKey: value.IdempotencyKey, BookId: value.BookID, MandateId: value.MandateID, BudgetId: value.BudgetID, RequestingAgent: value.RequestingAgent, AmountMinor: value.AmountMinor, Currency: value.Currency, Counterparty: value.Counterparty, Verdict: verdict, ViolatedConstraint: value.ViolatedConstraint, Remediation: value.Remediation, HoldMinor: value.HoldMinor, CreatedAt: timestamppb.New(value.CreatedAt), ExpiresAt: timestamppb.New(value.ExpiresAt)}
+	return &authorizationv1.AuthorizationRecord{
+		Id: value.ID, IdempotencyKey: value.IdempotencyKey, BookId: value.BookID, MandateId: value.MandateID, BudgetId: value.BudgetID,
+		RequestingAgent: value.RequestingAgent, AmountMinor: value.AmountMinor, Currency: value.Currency, Counterparty: value.Counterparty,
+		Verdict: verdict, ViolatedConstraint: value.ViolatedConstraint, Remediation: value.Remediation, HoldMinor: value.HoldMinor,
+		CreatedAt: timestamppb.New(value.CreatedAt), ExpiresAt: timestamppb.New(value.ExpiresAt),
+		SettlementId: value.SettlementID, InstrumentId: value.InstrumentID, SettlementIdempotencyKey: value.SettlementIdempotencyKey,
+	}
 }

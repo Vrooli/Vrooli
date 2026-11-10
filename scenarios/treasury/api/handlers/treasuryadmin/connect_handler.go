@@ -3,6 +3,7 @@ package treasuryadmin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -17,8 +18,10 @@ import (
 	mandateflow "treasury/internal/mandate/flow"
 	"treasury/internal/operatorauth"
 	"treasury/internal/rail"
+	"treasury/internal/receiptfunding"
 	"treasury/internal/settlement"
 	"treasury/internal/wallet"
+	"treasury/internal/walletops"
 
 	"connectrpc.com/connect"
 	approvalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/approval"
@@ -85,6 +88,7 @@ type BaseUSDCReceiptService interface {
 }
 
 type connectHandler struct {
+	funding        *receiptfunding.Service
 	wallets        Wallets
 	baseUSDC       BaseUSDCReceiptService
 	authorizer     operatorauth.Authorizer
@@ -95,12 +99,15 @@ type connectHandler struct {
 	books          Books
 	budgets        Budgets
 	mandates       Mandates
+	walletOps      *walletops.Service
 }
 
 func NewConnectHandler(authorizer operatorauth.Authorizer, services ...any) authorizationconnect.TreasuryAdminHandler {
 	handler := &connectHandler{authorizer: authorizer}
 	for _, service := range services {
 		switch value := service.(type) {
+		case *receiptfunding.Service:
+			handler.funding = value
 		case Wallets:
 			handler.wallets = value
 		case BaseUSDCReceiptService:
@@ -119,6 +126,8 @@ func NewConnectHandler(authorizer operatorauth.Authorizer, services ...any) auth
 			handler.budgets = value
 		case Mandates:
 			handler.mandates = value
+		case *walletops.Service:
+			handler.walletOps = value
 		}
 	}
 	return handler
@@ -196,7 +205,7 @@ func (h *connectHandler) CreateMandate(ctx context.Context, request *connect.Req
 	if err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, err)
 	}
-	issue := mandate.IssueInput{ID: input.GetId(), IdempotencyKey: input.GetIdempotencyKey(), BookID: input.GetBookId(), BudgetID: input.GetBudgetId(), Authorizer: identity.Subject, CapMinor: input.GetCapMinor(), Currency: input.GetCurrency(), AllowedCounterparties: input.GetAllowedCounterparties(), DeniedCounterparties: input.GetDeniedCounterparties(), RequiredEvidence: input.GetRequiredEvidence(), ExpiresAt: input.GetExpiresAt().AsTime(), RecurrenceInterval: time.Duration(input.GetRecurrenceSeconds()) * time.Second}
+	issue := mandate.IssueInput{AgentSubject: input.GetAgentSubject(), AgentRunID: input.GetAgentRunId(), ID: input.GetId(), IdempotencyKey: input.GetIdempotencyKey(), BookID: input.GetBookId(), BudgetID: input.GetBudgetId(), Authorizer: identity.Subject, CapMinor: input.GetCapMinor(), Currency: input.GetCurrency(), AllowedCounterparties: input.GetAllowedCounterparties(), DeniedCounterparties: input.GetDeniedCounterparties(), RequiredEvidence: input.GetRequiredEvidence(), ExpiresAt: input.GetExpiresAt().AsTime(), RecurrenceInterval: time.Duration(input.GetRecurrenceSeconds()) * time.Second}
 	if input.GetNextChargeAt() != nil {
 		issue.NextChargeAt = input.GetNextChargeAt().AsTime()
 	}
@@ -240,7 +249,8 @@ func (h *connectHandler) ListMandates(ctx context.Context, request *connect.Requ
 }
 
 func (h *connectHandler) RevokeMandate(ctx context.Context, request *connect.Request[authorizationv1.RevokeMandateRequest]) (*connect.Response[authorizationv1.RevokeMandateResponse], error) {
-	if err := h.authorize(ctx, request); err != nil {
+	operator, err := h.operatorIdentity(ctx, request)
+	if err != nil {
 		return nil, err
 	}
 	if h.mandates == nil {
@@ -249,6 +259,11 @@ func (h *connectHandler) RevokeMandate(ctx context.Context, request *connect.Req
 	value, err := h.mandates.Revoke(ctx, request.Msg.GetMandateId())
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	if h.walletOps != nil {
+		if revokeErr := h.walletOps.RevokeMandateSession(ctx, operator.Subject, request.Msg.GetMandateId()); revokeErr != nil && !errors.Is(revokeErr, walletops.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("revoke mandate session key: %w", revokeErr))
+		}
 	}
 	return connect.NewResponse(&authorizationv1.RevokeMandateResponse{Mandate: mandateToProto(value)}), nil
 }
@@ -491,7 +506,7 @@ func mandateToProto(value mandate.Mandate) *mandatev1.Mandate {
 	case mandateflow.MandateRevoked:
 		status = mandatev1.MandateStatus_MANDATE_STATUS_REVOKED
 	}
-	result := &mandatev1.Mandate{Id: value.ID, IdempotencyKey: value.IdempotencyKey, BookId: value.BookID, BudgetId: value.BudgetID, Authorizer: value.Authorizer, CapMinor: value.CapMinor, Currency: value.Currency, AllowedCounterparties: value.AllowedCounterparties, DeniedCounterparties: value.DeniedCounterparties, RequiredEvidence: value.RequiredEvidence, ExpiresAt: timestamppb.New(value.ExpiresAt), IssuedAt: timestamppb.New(value.IssuedAt), Signature: value.Signature, Status: status, RecurrenceSeconds: int64(value.RecurrenceInterval / time.Second)}
+	result := &mandatev1.Mandate{AgentSubject: value.AgentSubject, AgentRunId: value.AgentRunID, Id: value.ID, IdempotencyKey: value.IdempotencyKey, BookId: value.BookID, BudgetId: value.BudgetID, Authorizer: value.Authorizer, CapMinor: value.CapMinor, Currency: value.Currency, AllowedCounterparties: value.AllowedCounterparties, DeniedCounterparties: value.DeniedCounterparties, RequiredEvidence: value.RequiredEvidence, ExpiresAt: timestamppb.New(value.ExpiresAt), IssuedAt: timestamppb.New(value.IssuedAt), Signature: value.Signature, Status: status, RecurrenceSeconds: int64(value.RecurrenceInterval / time.Second)}
 	if !value.NextChargeAt.IsZero() {
 		result.NextChargeAt = timestamppb.New(value.NextChargeAt)
 	}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/cli-core/cliutil"
 
 	authorizationflow "treasury/internal/authorization/flow"
 	"treasury/internal/budget"
@@ -30,31 +31,38 @@ const (
 )
 
 type Record struct {
-	ID                 string
-	IdempotencyKey     string
-	BookID             string
-	MandateID          string
-	BudgetID           string
-	RequestingAgent    string
-	AmountMinor        int64
-	Currency           string
-	Counterparty       string
-	Verdict            Verdict
-	ViolatedConstraint string
-	Remediation        string
-	HoldMinor          int64
-	CreatedAt          time.Time
-	ExpiresAt          time.Time
+	ID                       string
+	IdempotencyKey           string
+	BookID                   string
+	MandateID                string
+	BudgetID                 string
+	RequestingAgent          string
+	AmountMinor              int64
+	Currency                 string
+	Counterparty             string
+	SettlementID             string
+	InstrumentID             string
+	SettlementIdempotencyKey string
+	Verdict                  Verdict
+	ViolatedConstraint       string
+	Remediation              string
+	HoldMinor                int64
+	CreatedAt                time.Time
+	ExpiresAt                time.Time
 }
 
 type ProposeInput struct {
-	ID             string
-	IdempotencyKey string
-	MandateID      string
-	IdentityToken  string
-	AmountMinor    int64
-	Currency       string
-	Counterparty   string
+	ID                       string
+	IdempotencyKey           string
+	MandateID                string
+	IdentityToken            string
+	OperationToken           string
+	AmountMinor              int64
+	Currency                 string
+	Counterparty             string
+	SettlementID             string
+	InstrumentID             string
+	SettlementIdempotencyKey string
 }
 
 type Mandates interface {
@@ -135,12 +143,15 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	in.MandateID = strings.TrimSpace(in.MandateID)
 	in.Currency = strings.ToUpper(strings.TrimSpace(in.Currency))
 	in.Counterparty = strings.ToLower(strings.TrimSpace(in.Counterparty))
-	if in.ID == "" || in.IdempotencyKey == "" || in.MandateID == "" || in.AmountMinor <= 0 || in.Currency == "" || in.Counterparty == "" {
-		return Record{}, fmt.Errorf("%w: id, idempotency_key, mandate_id, positive amount, currency, and counterparty are required", ErrInvalid)
+	in.SettlementID = strings.TrimSpace(in.SettlementID)
+	in.InstrumentID = strings.TrimSpace(in.InstrumentID)
+	in.SettlementIdempotencyKey = strings.TrimSpace(in.SettlementIdempotencyKey)
+	if in.ID == "" || in.IdempotencyKey == "" || in.MandateID == "" || in.AmountMinor <= 0 || in.Currency == "" || in.Counterparty == "" || in.SettlementID == "" || in.InstrumentID == "" || in.SettlementIdempotencyKey == "" {
+		return Record{}, fmt.Errorf("%w: authorization fields and complete settlement intent are required", ErrInvalid)
 	}
 
 	now := s.clock.Now().UTC()
-	claims, err := s.verifier.Verify(ctx, strings.TrimSpace(in.IdentityToken))
+	claims, err := verifySpendIdentity(ctx, s.verifier, in.IdentityToken, in.OperationToken)
 	if err != nil {
 		refusal := baseRecord(in, now)
 		refusal.Verdict, _ = initialVerdict(authorizationflow.AuthorizationRefuse)
@@ -159,8 +170,11 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	defer s.mu.Unlock()
 
 	if existing, err := s.repository.GetByIdempotencyKey(ctx, in.IdempotencyKey); err == nil {
-		if existing.ID != in.ID || existing.MandateID != in.MandateID || existing.AmountMinor != in.AmountMinor || existing.Currency != in.Currency || existing.Counterparty != in.Counterparty || existing.RequestingAgent != claims.Subject {
+		if existing.ID != in.ID || existing.MandateID != in.MandateID || existing.AmountMinor != in.AmountMinor || existing.Currency != in.Currency || existing.Counterparty != in.Counterparty || existing.SettlementID != in.SettlementID || existing.InstrumentID != in.InstrumentID || existing.SettlementIdempotencyKey != in.SettlementIdempotencyKey || existing.RequestingAgent != claims.Subject {
 			return Record{}, fmt.Errorf("%w: idempotency key was already used for a different charge", ErrInvalid)
+		}
+		if err := identity.Authorize(claims, "treasury.spend", treasurySpendIntentTarget(existing), now); err != nil {
+			return s.deny(ctx, in, claims.Subject, now, "operation_grant", "obtain a live operation grant covering this authorization")
 		}
 		if existing.Verdict == VerdictPending {
 			if err := s.ensureApproval(ctx, existing); err != nil {
@@ -177,6 +191,12 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	if err != nil {
 		return s.deny(ctx, in, claims.Subject, now, "mandate_live", "issue or select a live, unexpired mandate")
 	}
+	if err := identity.Authorize(claims, "treasury.spend", cliutil.TreasurySpendIntentAuthorizationTarget(treasurySpendIntent(in)), now); err != nil {
+		return s.deny(ctx, in, claims.Subject, now, "operation_grant", "obtain a live operation grant covering this authorization")
+	}
+	if grant.AgentSubject == "" || grant.AgentSubject != claims.Subject || grant.AgentRunID != claims.RunID {
+		return s.deny(ctx, in, claims.Subject, now, "mandate_delegate", "use the mandate issued to this agent run")
+	}
 	policy, err := s.budgets.Get(ctx, grant.BudgetID)
 	if err != nil {
 		return Record{}, fmt.Errorf("load mandate budget: %w", err)
@@ -187,7 +207,7 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	if in.Currency != grant.Currency || in.Currency != policy.Currency {
 		return s.deny(ctx, in, claims.Subject, now, "currency", "submit the charge in the mandate and budget currency")
 	}
-	if in.AmountMinor > policy.PerTransactionCapMinor || in.AmountMinor > grant.CapMinor {
+	if in.AmountMinor > grant.CapMinor {
 		return s.deny(ctx, in, claims.Subject, now, "per_transaction_cap", "reduce the amount or ask the operator for a larger scoped grant")
 	}
 	if !policy.AllowsCounterparty(in.Counterparty) || !grant.AllowsCounterparty(in.Counterparty) {
@@ -209,6 +229,15 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	if err != nil {
 		return Record{}, fmt.Errorf("compute headroom: %w", err)
 	}
+	if funded, ok := s.budgets.(budget.FundingReader); ok {
+		funding, fundingErr := funded.Funding(ctx, policy.ID)
+		if fundingErr != nil {
+			return Record{}, fmt.Errorf("read accepted receipt funding: %w", fundingErr)
+		}
+		if funding.Required && (funding.CreditedMinor <= usage.BudgetTotalMinor || in.AmountMinor > funding.CreditedMinor-usage.BudgetTotalMinor) {
+			return s.deny(ctx, in, claims.Subject, now, "receipt_funding", "fund the budget and wait for Money Ledger to accept the receipt")
+		}
+	}
 	switch {
 	case in.AmountMinor > policy.TotalCapMinor-usage.BudgetTotalMinor:
 		return s.deny(ctx, in, claims.Subject, now, "total_headroom", "reduce the amount or ask the operator to increase the total cap")
@@ -224,8 +253,12 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	record.RequestingAgent = claims.Subject
 	record.HoldMinor = in.AmountMinor
 	record.ExpiresAt = minTime(grant.ExpiresAt, now.Add(15*time.Minute))
-	if policy.RequiresApproval {
+	if policy.RequiresApproval || in.AmountMinor > policy.PerTransactionCapMinor {
 		record.Verdict, err = initialVerdict(authorizationflow.AuthorizationRequireApproval)
+		if in.AmountMinor > policy.PerTransactionCapMinor {
+			record.ViolatedConstraint = "per_transaction_cap"
+			record.Remediation = "operator approval is required for this exact charge above the automatic transaction cap"
+		}
 	} else {
 		record.Verdict, err = initialVerdict(authorizationflow.AuthorizationApprove)
 	}
@@ -234,6 +267,9 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 	}
 	created, err := s.repository.Create(ctx, record)
 	if err != nil {
+		if errors.Is(err, ErrFrozen) {
+			return s.deny(ctx, in, claims.Subject, now, "freeze_gate", "the kill switch engaged before this authorization was admitted")
+		}
 		return Record{}, err
 	}
 	if created.Verdict == VerdictPending {
@@ -246,6 +282,27 @@ func (s *Service) Propose(ctx context.Context, in ProposeInput) (Record, error) 
 		return Record{}, fmt.Errorf("record authorization evidence: %w", err)
 	}
 	return created, nil
+}
+
+// verifySpendIdentity keeps the ordinary run identity and the approved,
+// operation-specific consent as a pair at the Treasury authorization
+// boundary. A grant token is never accepted as a replacement for the run
+// identity, and a caller that supplies an operation token cannot fall back to
+// verifying only its baseline token.
+func verifySpendIdentity(ctx context.Context, verifier identity.Verifier, baseline, operation string) (identity.Claims, error) {
+	baseline = strings.TrimSpace(baseline)
+	operation = strings.TrimSpace(operation)
+	if operation == "" {
+		return verifier.Verify(ctx, baseline)
+	}
+	pairVerifier, ok := verifier.(identity.PairVerifier)
+	if !ok {
+		return identity.Claims{}, fmt.Errorf("%w: paired operation verification is unavailable", identity.ErrUnverifiable)
+	}
+	if baseline == "" || baseline == operation {
+		return identity.Claims{}, fmt.Errorf("%w: identity token pair is incomplete", identity.ErrUnverifiable)
+	}
+	return pairVerifier.VerifyPair(ctx, baseline, operation)
 }
 
 func (s *Service) ensureApproval(ctx context.Context, record Record) error {
@@ -297,7 +354,28 @@ func (s *Service) recordEvidence(ctx context.Context, record Record, detail stri
 }
 
 func baseRecord(in ProposeInput, now time.Time) Record {
-	return Record{ID: in.ID, IdempotencyKey: in.IdempotencyKey, MandateID: in.MandateID, AmountMinor: in.AmountMinor, Currency: in.Currency, Counterparty: in.Counterparty, CreatedAt: now, ExpiresAt: now}
+	return Record{
+		ID: in.ID, IdempotencyKey: in.IdempotencyKey, MandateID: in.MandateID,
+		AmountMinor: in.AmountMinor, Currency: in.Currency, Counterparty: in.Counterparty,
+		SettlementID: in.SettlementID, InstrumentID: in.InstrumentID, SettlementIdempotencyKey: in.SettlementIdempotencyKey,
+		CreatedAt: now, ExpiresAt: now,
+	}
+}
+
+func treasurySpendIntent(in ProposeInput) cliutil.TreasurySpendIntent {
+	return cliutil.TreasurySpendIntent{
+		AuthorizationID: in.ID, MandateID: in.MandateID, AmountMinor: in.AmountMinor,
+		Currency: in.Currency, Counterparty: in.Counterparty, AuthorizationIdempotencyKey: in.IdempotencyKey,
+		SettlementID: in.SettlementID, InstrumentID: in.InstrumentID, SettlementIdempotencyKey: in.SettlementIdempotencyKey,
+	}
+}
+
+func treasurySpendIntentTarget(record Record) string {
+	return cliutil.TreasurySpendIntentAuthorizationTarget(cliutil.TreasurySpendIntent{
+		AuthorizationID: record.ID, MandateID: record.MandateID, AmountMinor: record.AmountMinor,
+		Currency: record.Currency, Counterparty: record.Counterparty, AuthorizationIdempotencyKey: record.IdempotencyKey,
+		SettlementID: record.SettlementID, InstrumentID: record.InstrumentID, SettlementIdempotencyKey: record.SettlementIdempotencyKey,
+	})
 }
 
 func periodBoundary(now time.Time, period time.Duration) time.Time {

@@ -1,4 +1,5 @@
-// Package wallet owns receive-only address custody. It cannot authorize or send funds.
+// Package wallet owns encrypted wallet-key custody and narrowly scoped signing.
+// Policy authorization and transaction dispatch belong to separate owners.
 package wallet
 
 import (
@@ -58,6 +59,7 @@ type (
 		Verified                   bool
 	}
 )
+
 type Books interface {
 	Get(context.Context, string) (book.Book, error)
 }
@@ -71,11 +73,12 @@ type Custody interface {
 type (
 	RecoveryPath func(context.Context, string) (string, error)
 	Service      struct {
-		repository   Repository
-		books        Books
-		custody      Custody
-		clock        schedule.Clock
-		recoveryPath RecoveryPath
+		repository            Repository
+		books                 Books
+		custody               Custody
+		clock                 schedule.Clock
+		recoveryPath          RecoveryPath
+		sessionSignAuthorizer SessionSignAuthorizer
 	}
 )
 
@@ -113,6 +116,10 @@ func validReference(w Wallet) bool {
 }
 
 func (s *Service) Create(ctx context.Context, in CreateInput) (Wallet, error) {
+	return s.create(ctx, in, secp.GeneratePrivateKey)
+}
+
+func (s *Service) create(ctx context.Context, in CreateInput, mint func() (*secp.PrivateKey, error)) (Wallet, error) {
 	if err := s.available(ctx); err != nil {
 		return Wallet{}, err
 	}
@@ -148,7 +155,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Wallet, error) {
 			return ErrMismatch
 		}
 		_, err = s.custody.ResolveOrMint(identity, keyField, witness{repository: repository, ctx: ctx, id: w.ID, reference: w.CustodyReference}, func() (string, error) {
-			key, err := secp.GeneratePrivateKey()
+			key, err := mint()
 			if err != nil {
 				return "", err
 			}
