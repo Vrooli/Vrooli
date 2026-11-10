@@ -1,0 +1,205 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Host-local SQLite persistence for controller enrollment, desired state, policy configuration and reconciliation state, plus lifecycle-owned deployment metadata.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "Observed footprint was 28672 bytes on 2026-11-10; 1MiB leaves room for device enrollment and SQLite sidecars while keeping this configuration store bounded."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Storage Manager writes the latest compact retention enforcement receipt in this scenario's state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "This compact receipt is replaceable operational state and is refreshed by each retention enforcement run."
+        }
+      }
+    }
+  },
+  "branding": {
+    "brand": "lighting-control",
+    "targets": [
+      "web-public-v1"
+    ]
+  },
+  "cli": {
+    "enabled": true,
+    "command": "lighting-control",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "source_build": {
+      "kind": "go_module"
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "lighting-control"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    }
+  },
+  "components": {
+    "api": {
+      "role": "api",
+      "build": {
+        "kind": "go_module",
+        "dir": "api"
+      },
+      "run": {
+        "argv": [
+          "{{bin.api}}"
+        ],
+        "cwd": "api",
+        "port": "api"
+      }
+    },
+    "ui": {
+      "role": "ui",
+      "build": {
+        "kind": "pnpm_vite",
+        "dir": "ui"
+      },
+      "run": {
+        "argv": [
+          "node",
+          "server.js"
+        ],
+        "cwd": "ui",
+        "port": "ui"
+      }
+    }
+  },
+  "dependencies": {
+    "resources": {},
+    "scenarios": {
+      "agent-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Supplies current active-run counts for the optional work and combined lighting presets.",
+        "startup_policy": "try_start",
+        "degraded_behavior": "When unavailable or stale, the policy marks agent evidence unavailable and uses its configured static fallback."
+      },
+      "system-monitor": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "description": "Supplies measured CPU/GPU usage and memory-pressure evidence for load and health lighting presets.",
+        "startup_policy": "try_start",
+        "degraded_behavior": "When unavailable, stale, or missing measured metrics, the policy records degraded evidence and uses its configured static fallback."
+      }
+    }
+  },
+  "environment": {},
+  "generation": {
+    "content_sha": "5b674a2c7be4c28d1b68582dea6b40c5eb5b0fe466ba7e025deeaa192282ef2d",
+    "design": {
+      "adapter": "react-vite-tailwind",
+      "id": "vrooli-default",
+      "version": "0.2.0"
+    },
+    "generated_at": "2026-11-10T16:11:11Z",
+    "manifest_sha": "f25dddd48885fad4d4416d6a25c234080d7c34b42b3b197df6fd3e3a3636f42a",
+    "template": {
+      "id": "react-vite",
+      "version": "6.0.1"
+    }
+  },
+  "hostTools": [],
+  "lifecycle": {
+    "version": "2.0.0",
+    "health": {
+      "description": "Standard API/UI health checks",
+      "endpoints": {
+        "api": "/health",
+        "ui": "/health"
+      },
+      "startup_grace_period": 15000,
+      "checks": [
+        {
+          "name": "api_endpoint",
+          "type": "http",
+          "target": "http://localhost:${API_PORT}/health",
+          "timeout": 10000,
+          "interval": 30000,
+          "critical": true
+        },
+        {
+          "name": "ui_endpoint",
+          "type": "http",
+          "target": "http://localhost:${UI_PORT}/health",
+          "timeout": 5000,
+          "interval": 30000,
+          "critical": false
+        }
+      ]
+    }
+  },
+  "ports": {
+    "api": {
+      "env_var": "API_PORT",
+      "description": "Go API server",
+      "range": "15000-19999"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "description": "React UI",
+      "range": "20000-24999"
+    }
+  },
+  "service": {
+    "parent": "vrooli",
+    "name": "lighting-control",
+    "displayName": "Lighting Control",
+    "description": "Persistent, capability-aware host lighting control and policy",
+    "version": "0.0.1",
+    "type": "business-application",
+    "category": "ai_tools",
+    "tags": [
+      "react-ui",
+      "go-api"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "support@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scenarios/lighting-control"
+    },
+    "license": "MIT",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "https://github.com/Vrooli/Vrooli/tree/master/docs",
+    "support": {
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "skills": {
+    "usage": {
+      "source": "skills/lighting-control/SKILL.md"
+    }
+  },
+  "version": "1.0.0"
+}

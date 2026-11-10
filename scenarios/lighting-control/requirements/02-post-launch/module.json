@@ -1,0 +1,25 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "The scenario should explain backend readiness, input provenance and staleness, policy precedence, and controller limitations through its UI, CLI, and API.",
+      "id": "LIGHTING-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Operator diagnostics",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:LIGHTING-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,216 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.lighting_control.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.lighting_control.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "Read-only operational snapshot consumed by readiness and lifecycle tooling; no scenario business operation is performed.",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Lifecycle/readiness tooling consumes this generated capability snapshot without a Connect client."
+      }
+    },
+    {
+      "id": "control_backend_status",
+      "path": "/vrooli.lighting_control.v1.control.ControlService/GetBackendStatus",
+      "method": "POST",
+      "summary": "Get OpenRGB backend status",
+      "description": "Reports whether the explicitly configured loopback SDK backend is ready and its protocol compatibility.",
+      "category": "control",
+      "response": {
+        "type": "object",
+        "properties": {
+          "backend": "BackendStatus"
+        }
+      }
+    },
+    {
+      "id": "control_list_controllers",
+      "path": "/vrooli.lighting_control.v1.control.ControlService/ListControllers",
+      "method": "POST",
+      "summary": "List lighting controllers",
+      "description": "Discovers controllers through OpenRGB SDK protocol v6 and reports stable unique IDs and zone capabilities.",
+      "category": "control",
+      "response": {
+        "type": "object",
+        "properties": {
+          "backend": "BackendStatus",
+          "controllers": "array<Controller>"
+        }
+      }
+    },
+    {
+      "id": "control_enroll_controller",
+      "path": "/vrooli.lighting_control.v1.control.ControlService/EnrollController",
+      "method": "POST",
+      "summary": "Enroll or unenroll a controller",
+      "description": "Persists explicit controller enrollment using the SDK v6 unique controller ID.",
+      "category": "control",
+      "response": {
+        "type": "object",
+        "properties": {
+          "controller": "Controller"
+        }
+      }
+    },
+    {
+      "id": "control_set_zone_state",
+      "path": "/vrooli.lighting_control.v1.control.ControlService/SetZoneState",
+      "method": "POST",
+      "summary": "Set desired state for a lighting zone",
+      "description": "Persists the requested state, then returns a per-zone result that distinguishes a local socket write from observed output.",
+      "category": "control",
+      "response": {
+        "type": "object",
+        "properties": {
+          "result": "ZoneApplyResult"
+        }
+      }
+    },
+    {
+      "id": "control_set_manual_off",
+      "path": "/vrooli.lighting_control.v1.control.ControlService/SetManualOff",
+      "method": "POST",
+      "summary": "Set manual Off override",
+      "description": "Persists a higher-priority manual Off override for all enrolled or explicitly selected controllers, optionally with expiry.",
+      "category": "control",
+      "response": {
+        "type": "object",
+        "properties": {
+          "override": "ManualOverride",
+          "results": "array<ZoneApplyResult>"
+        }
+      }
+    },
+    {
+      "id": "control_get_desired_state",
+      "path": "/vrooli.lighting_control.v1.control.ControlService/GetDesiredState",
+      "method": "POST",
+      "summary": "Get persisted desired lighting state",
+      "description": "Returns durable per-zone desired state, last command outcome, and the current manual Off override including expiry.",
+      "category": "control",
+      "response": {
+        "type": "object",
+        "properties": {
+          "manual_override": "ManualOverride",
+          "zones": "array<ZoneStatus>"
+        }
+      }
+    },
+    {
+      "id": "control_clear_manual_override",
+      "path": "/vrooli.lighting_control.v1.control.ControlService/ClearManualOverride",
+      "method": "POST",
+      "summary": "Clear manual Off override",
+      "description": "Clears the persisted manual override so configured desired states can resume.",
+      "category": "control",
+      "response": {
+        "type": "object",
+        "properties": {
+          "cleared": "boolean"
+        }
+      }
+    },
+    {
+      "id": "control_reconcile",
+      "path": "/vrooli.lighting_control.v1.control.ControlService/Reconcile",
+      "method": "POST",
+      "summary": "Reconcile persisted lighting state",
+      "description": "Refreshes SDK v6 controller identities and attempts each persisted zone command once, preserving per-zone outcomes.",
+      "category": "control",
+      "response": {
+        "type": "object",
+        "properties": {
+          "completed_at": "timestamp",
+          "zones": "array<ReconcileZoneResult>"
+        }
+      }
+    },
+    {
+      "id": "policy_get",
+      "path": "/vrooli.lighting_control.v1.policy.PolicyService/GetPolicy",
+      "method": "POST",
+      "summary": "Read lighting policy",
+      "description": "Returns the persisted policy and current evidence-backed effective preset.",
+      "category": "policy"
+    },
+    {
+      "id": "policy_set",
+      "path": "/vrooli.lighting_control.v1.policy.PolicyService/SetPolicy",
+      "method": "POST",
+      "summary": "Configure lighting policy",
+      "description": "Persists policy thresholds, preset definitions, brightness limits, and stale-evidence fallback.",
+      "category": "policy"
+    },
+    {
+      "id": "policy_set_manual",
+      "path": "/vrooli.lighting_control.v1.policy.PolicyService/SetManualPreset",
+      "method": "POST",
+      "summary": "Set a temporary manual lighting preset",
+      "description": "Applies a selected preset at higher priority than automatic evidence until it is cleared or expires.",
+      "category": "policy"
+    },
+    {
+      "id": "policy_clear_manual",
+      "path": "/vrooli.lighting_control.v1.policy.PolicyService/ClearManualPreset",
+      "method": "POST",
+      "summary": "Clear the manual lighting preset",
+      "description": "Clears the persisted manual policy request and resumes configured evidence-driven behavior.",
+      "category": "policy"
+    },
+    {
+      "id": "policy_evaluate",
+      "path": "/vrooli.lighting_control.v1.policy.PolicyService/EvaluatePolicy",
+      "method": "POST",
+      "summary": "Evaluate and reconcile lighting policy",
+      "description": "Reads current source evidence, persists evaluator state, and applies desired states to enrolled zones.",
+      "category": "policy"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "mode": "built-in image_gen",
+  "status": "concept and all six boards approved by operator on 2026-11-10 at 17:49Z; illustrative data; implementation unverified",
+  "assets": [
+    {
+      "path": "scenarios/lighting-control/docs/mockups/light-desk-controller-concept-v1.png",
+      "bytes": 1486109,
+      "sha256": "5506ff64566ab8be40786979329c975f510873d0476c700eef6986a347f72d8a"
+    },
+    {
+      "path": "scenarios/lighting-control/docs/mockups/light-desk-customize-concept-v1.png",
+      "bytes": 1563913,
+      "sha256": "79d6bd947500888d45528fc312e06389f95635607f66775dd6398508a8d1dffe"
+    },
+    {
+      "path": "scenarios/lighting-control/docs/mockups/light-desk-overview-concept-v1.png",
+      "bytes": 1637331,
+      "sha256": "b3ff32f7250f830ccaff612f56a40e213080ed58c3b058a7793215a00eb90806"
+    },
+    {
+      "path": "scenarios/lighting-control/docs/mockups/light-desk-presets-concept-v1.png",
+      "bytes": 1510498,
+      "sha256": "4bb2edff622cadc2a4ccaa7c7af6f39ba14886dd498edfba46f7ee7dd3a7a2e0"
+    },
+    {
+      "path": "scenarios/lighting-control/docs/mockups/light-desk-settings-concept-v1.png",
+      "bytes": 1548046,
+      "sha256": "3de2c35512256f83368b6f1aed37ed5f8a73c275e438807fe770d34e527a1ffb"
+    },
+    {
+      "path": "scenarios/lighting-control/docs/mockups/light-desk-states-concept-v1.png",
+      "bytes": 1503254,
+      "sha256": "bd6bab47a5acdca59e77ddf1074ef7fc77145f68435ed5e2300b8dfd95785b48"
+    }
+  ]
+}

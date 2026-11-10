@@ -1,0 +1,25 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P2 operational targets.",
+    "module": "P2-targets",
+    "priority": "P2",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P2",
+      "description": "The scenario may add another lighting backend after a separate contract and qualification; the current release shall make no such provider claim.",
+      "id": "LIGHTING-P2-001",
+      "prd_ref": "OT-P2-001",
+      "status": "planned",
+      "title": "Future provider extension",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:LIGHTING-P2-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

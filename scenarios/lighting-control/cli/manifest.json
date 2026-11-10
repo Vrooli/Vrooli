@@ -1,0 +1,274 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "lighting-control",
+  "description": "Lighting Control CLI surface for typed Connect-RPC APIs.",
+  "groups": [
+    {
+      "name": "control",
+      "description": "Discover, enroll, and control lighting controllers and persisted desired state.",
+      "commands": [
+        {
+          "name": "backend-status",
+          "description": "Show OpenRGB SDK readiness and protocol compatibility.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "GetBackendStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "controllers",
+          "description": "Discover controllers and show stable SDK v6 identities and zones.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "ListControllers"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "flags": [
+            {
+              "name": "include-unavailable",
+              "description": "Include persisted enrolled controllers that are not present in the current SDK discovery."
+            }
+          ]
+        },
+        {
+          "name": "enroll",
+          "description": "Enroll or unenroll a controller by its SDK v6 unique ID.",
+          "flags": [
+            {
+              "name": "controller-id",
+              "required": true,
+              "description": "Stable SDK v6 controller ID."
+            },
+            {
+              "name": "enrolled",
+              "required": true,
+              "description": "true to enroll, false to unenroll."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "EnrollController"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "set",
+          "description": "Persist and apply one zone desired state from a proto JSON file.",
+          "flags": [
+            {
+              "name": "desired",
+              "required": true,
+              "description": "Path to a JSON ZoneState message.",
+              "bind": {
+                "field": "desired",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "SetZoneState"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "off",
+          "description": "Set a durable manual Off override for enrolled controllers, optionally until expiry.",
+          "flags": [
+            {
+              "name": "all-enrolled",
+              "description": "Apply to all enrolled controllers."
+            },
+            {
+              "name": "controller-ids",
+              "description": "JSON array of selected enrolled controller IDs.",
+              "bind": {
+                "field": "controller_ids",
+                "kind": "json_inline"
+              }
+            },
+            {
+              "name": "expires-at",
+              "description": "JSON protobuf Timestamp value.",
+              "bind": {
+                "field": "expires_at",
+                "kind": "json_inline"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "SetManualOff"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "desired",
+          "description": "Read persisted zone state, command outcomes, and manual Off expiry.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "GetDesiredState"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "off-clear",
+          "description": "Clear the persisted manual Off override.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "ClearManualOverride"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "reconcile",
+          "description": "Refresh SDK identities and retry each persisted zone command once.",
+          "flags": [
+            {
+              "name": "trigger",
+              "description": "Reason for reconciliation, such as operator or backend-reconnect."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "Reconcile"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "policy",
+      "description": "Configure evidence-driven lighting presets and temporary manual requests.",
+      "commands": [
+        {
+          "name": "get",
+          "description": "Read persisted policy and effective evidence-backed preset.",
+          "binding": {"kind": "connect-rpc", "service": "PolicyService", "method": "GetPolicy"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
+          "name": "set",
+          "description": "Persist policy configuration from a proto JSON file.",
+          "flags": [{"name": "config", "required": true, "description": "Path to a JSON PolicyConfig message.", "bind": {"field": "config", "kind": "json_file"}}],
+          "binding": {"kind": "connect-rpc", "service": "PolicyService", "method": "SetPolicy"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "set-manual",
+          "description": "Apply a preset manually until cleared or its optional expiry.",
+          "flags": [
+            {"name": "preset", "required": true, "description": "Preset enum value (for example PRESET_KIND_OFF or PRESET_KIND_WORK)."},
+            {"name": "expires-at", "description": "Expiry as a protobuf Timestamp JSON object.", "bind": {"field": "expires_at", "kind": "json_inline"}}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "PolicyService", "method": "SetManualPreset"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "clear-manual",
+          "description": "Clear the manual preset and resume configured policy.",
+          "binding": {"kind": "connect-rpc", "service": "PolicyService", "method": "ClearManualPreset"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "evaluate",
+          "description": "Read current sources and reconcile the effective policy once.",
+          "flags": [{"name": "trigger", "description": "Reason for evaluation, such as operator or reconnect."}],
+          "binding": {"kind": "connect-rpc", "service": "PolicyService", "method": "EvaluatePolicy"},
+          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": []
+}

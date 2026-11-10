@@ -1,0 +1,155 @@
+{
+  "bundling": "host-required",
+  "cli": {
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "command": "resource-openrgb",
+    "distribution": {
+      "artifact_name": "resource-openrgb_${os}_${arch}",
+      "kind": "prebuilt_artifact"
+    },
+    "enabled": true,
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        "README.md",
+        "resource.json"
+      ]
+    },
+    "invoke": {
+      "command": "resource-openrgb",
+      "kind": "installed_command"
+    },
+    "source_build": {
+      "kind": "go_module"
+    }
+  },
+  "description": "Opt-in, locally bound OpenRGB SDK backend for enrolled lighting controllers.",
+  "display_name": "OpenRGB",
+  "driver": "managed-service",
+  "platforms": {
+    "linux": "supported",
+    "macos": "unsupported",
+    "windows": "unsupported"
+  },
+  "ports": [
+    {
+      "name": "sdk",
+      "container": 6742,
+      "host": 6742
+    }
+  ],
+  "health_checks": [
+    {
+      "type": "tcp",
+      "kind": "readiness",
+      "target": "127.0.0.1:${RESOURCE_PORT_SDK}",
+      "interval_seconds": 5,
+      "timeout_seconds": 5
+    },
+    {
+      "type": "tcp",
+      "kind": "liveness",
+      "target": "127.0.0.1:${RESOURCE_PORT_SDK}",
+      "interval_seconds": 30,
+      "timeout_seconds": 5
+    }
+  ],
+  "orchestration": {
+    "startup_order": 900,
+    "startup_timeout_seconds": 60,
+    "recovery_attempts": 1,
+    "priority": "low"
+  },
+  "managed_service": {
+    "host_tool_executable": "openrgb",
+    "host_tool_version": "1.1",
+    "source_selection_required": true,
+    "artifact_role": "managed-service",
+    "provenance_class": "upstream-digest",
+    "artifact": {
+      "path": "server/openrgb.AppImage",
+      "version": "1.1",
+      "layout": "file",
+      "sha256_by_platform": {
+        "linux-amd64": "d556c2273b0ef863dbee7ffdb438304b382add5d685c93c60758b42de3b0268d"
+      }
+    },
+    "acquisition": {
+      "kind": "url",
+      "license": "GPL-2.0-or-later",
+      "provenance": {
+        "kind": "none"
+      },
+      "targets": [
+        {
+          "when": {
+            "os": "linux",
+            "arch": "amd64"
+          },
+          "url": "https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_1.1/OpenRGB_1.1_x86_64_8e16de2.AppImage",
+          "sha256": "d556c2273b0ef863dbee7ffdb438304b382add5d685c93c60758b42de3b0268d",
+          "layout": "file",
+          "bin_path": "OpenRGB.AppImage",
+          "mode": "0755"
+        },
+        {
+          "when": {
+            "os": "linux",
+            "arch": "arm64"
+          },
+          "unsupported": "OpenRGB 1.1 arm64 assets are published, but the headless runtime and package dependencies have not been qualified by this resource."
+        },
+        {
+          "when": {
+            "os": "macos"
+          },
+          "unsupported": "The native OpenRGB release is not yet integrated with Vrooli's headless service startup and permissions contract on macOS."
+        },
+        {
+          "when": {
+            "os": "windows"
+          },
+          "unsupported": "The native OpenRGB release is not yet integrated with Vrooli's headless service startup and permissions contract on Windows."
+        }
+      ]
+    },
+    "provider_policy": {
+      "allowed_modes": [
+        "managed-private"
+      ],
+      "external_management": "forbidden",
+      "target_defaults": {
+        "control-plane": "managed-private",
+        "desktop-bundle": "managed-private"
+      }
+    },
+    "arguments": [
+      "--server",
+      "--server-host",
+      "127.0.0.1",
+      "--server-port",
+      "${RESOURCE_PORT_SDK}",
+      "--config",
+      "${RESOURCE_CONFIG_DIR}/OpenRGB"
+    ],
+    "config": {
+      "path": "OpenRGB/OpenRGB.json",
+      "content_file": "config/detectors-release_1.1.json"
+    },
+    "environment": {
+      "QT_QPA_PLATFORM": "offscreen",
+      "XDG_CONFIG_HOME": "${RESOURCE_CONFIG_DIR}"
+    }
+  },
+  "name": "openrgb",
+  "privilege": "user",
+  "requirements": {
+    "class": "developer-tooling",
+    "confidence": "low",
+    "source": "estimated",
+    "weight": 1
+  }
+}

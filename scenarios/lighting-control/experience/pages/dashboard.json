@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Home",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Give the operator the first useful view of Lighting Control and make the primary next action clear.",
+    "prd_refs": [
+      "OT-P0-001"
+    ]
+  },
+  "states": [
+    { "id": "default", "description": "The dashboard shows the current service health and the next useful action." },
+    { "id": "loading", "description": "The dashboard announces that health information is still loading." },
+    { "id": "empty", "description": "No scenario data is available yet; the dashboard explains how to begin." }
+  ]
+}
