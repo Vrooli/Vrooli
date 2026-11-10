@@ -26,7 +26,7 @@ func recoveryJournalToProto(j destinationreadiness.RecoveryJournal) *destination
 	for _, step := range j.Steps {
 		out.Steps = append(out.Steps, &destinationsv1.VolumeRecoveryStep{
 			Plan:     preparationPlanToProto(step.Plan),
-			Status:   step.Status,
+		Status:   string(step.Status),
 			Attempts: int32(step.Attempts),
 			Detail:   step.Detail,
 		})

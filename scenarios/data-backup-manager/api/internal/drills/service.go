@@ -107,7 +107,7 @@ func (s *service) Run(ctx context.Context, planID, targetID, destinationID, idem
 	}
 	if existing, ok, err := s.deps.Repo.LatestForUnit(ctx, plan.ID, targetID, destinationID); err != nil {
 		return Drill{}, err
-	} else if ok && (existing.Status == StatusRequested || existing.Status == StatusRunning) {
+	} else if ok && IsActive(existing.Status) {
 		return Drill{}, ErrAlreadyActive{ID: existing.ID}
 	}
 
@@ -118,7 +118,9 @@ func (s *service) Run(ctx context.Context, planID, targetID, destinationID, idem
 		return Drill{}, fmt.Errorf("find latest successful snapshot: %w", err)
 	}
 	if !ok || snapshot.ID == "" {
-		d.Status = StatusFailed
+		if err := d.TransitionStatus(EventFail); err != nil {
+			return Drill{}, err
+		}
 		d.Error = "no successful backup snapshot exists for this target and destination"
 		d.NextAction = "run the backup plan successfully, then retry the recovery drill"
 		d.FinishedAt = now
@@ -191,7 +193,7 @@ func (s *service) worker(ctx context.Context) {
 }
 
 func (s *service) execute(ctx context.Context, d Drill) {
-	if err := s.deps.Repo.MarkRunning(ctx, d.ID, "", s.deps.Clock.Now().UTC()); err != nil {
+	if err := s.deps.Repo.Start(ctx, d.ID, s.deps.Clock.Now().UTC()); err != nil {
 		s.deps.Logger.Printf("drills: mark %s running: %v", d.ID, err)
 		s.failWithAction(ctx, d.ID, fmt.Sprintf("could not persist drill start: %v", err), "repair catalog storage, then retry the recovery drill")
 		return
@@ -201,7 +203,7 @@ func (s *service) execute(ctx context.Context, d Drill) {
 		s.fail(ctx, d.ID, fmt.Sprintf("start verified restore: %v", err))
 		return
 	}
-	if err := s.deps.Repo.MarkRunning(ctx, d.ID, r.ID, s.deps.Clock.Now().UTC()); err != nil {
+	if err := s.deps.Repo.AttachRestore(ctx, d.ID, r.ID); err != nil {
 		s.deps.Logger.Printf("drills: record restore %s: %v", d.ID, err)
 		s.failWithAction(ctx, d.ID, fmt.Sprintf("verified restore started but drill linkage could not be persisted: %v", err), "inspect the linked restore and catalog storage before retrying the drill")
 		return
@@ -215,7 +217,7 @@ func (s *service) execute(ctx context.Context, d Drill) {
 		}
 		switch strings.ToLower(current.Status) {
 		case "verified":
-			if err := s.deps.Repo.Finish(ctx, d.ID, StatusVerified, "", "", s.deps.Clock.Now().UTC()); err != nil {
+			if err := s.deps.Repo.Finish(ctx, d.ID, EventVerify, "", "", s.deps.Clock.Now().UTC()); err != nil {
 				// A successful restore without durable drill evidence is not a
 				// successful drill. Try to leave an explicit failed record rather
 				// than silently abandoning the requested/running row.
@@ -251,7 +253,7 @@ func (s *service) fail(ctx context.Context, id, reason string) {
 }
 
 func (s *service) failWithAction(ctx context.Context, id, reason, nextAction string) {
-	if err := s.deps.Repo.Finish(ctx, id, StatusFailed, reason, nextAction, s.deps.Clock.Now().UTC()); err != nil {
+	if err := s.deps.Repo.Finish(ctx, id, EventFail, reason, nextAction, s.deps.Clock.Now().UTC()); err != nil {
 		s.deps.Logger.Printf("drills: finish %s: %v", id, err)
 	}
 }
@@ -291,7 +293,7 @@ func (s *service) RunDue(ctx context.Context) error {
 					return e
 				}
 				if ok {
-					if last.Status == StatusRequested || last.Status == StatusRunning {
+					if IsActive(last.Status) {
 						continue
 					}
 					at := last.FinishedAt
@@ -321,8 +323,8 @@ func (s *service) Reconcile(ctx context.Context) error {
 	}
 	now := s.deps.Clock.Now().UTC()
 	for _, d := range list {
-		if d.Status == StatusRequested || d.Status == StatusRunning {
-			if err := s.deps.Repo.Finish(ctx, d.ID, StatusFailed, "reconciled: process restarted while recovery drill was in-flight", "retry the recovery drill after verifying service health", now); err != nil {
+		if IsActive(d.Status) {
+			if err := s.deps.Repo.Finish(ctx, d.ID, EventFail, "reconciled: process restarted while recovery drill was in-flight", "retry the recovery drill after verifying service health", now); err != nil {
 				return err
 			}
 		}

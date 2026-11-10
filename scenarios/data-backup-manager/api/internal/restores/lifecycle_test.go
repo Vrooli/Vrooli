@@ -8,42 +8,55 @@ import (
 // TestTransition_Matrix covers the legal transitions and rejects illegal ones
 // (FLOWS.md: verifying before requesting, any escape from a terminal state).
 func TestTransition_Matrix(t *testing.T) {
-	legal := []struct {
-		from RestoreStatus
-		ev   RestoreEvent
-		want RestoreStatus
-	}{
-		{RestoreRequested, EventStartRestore, RestoreRestoring},
-		{RestoreRequested, EventStartVerify, RestoreVerifying},
-		{RestoreRestoring, EventRestored, RestoreRestored},
-		{RestoreVerifying, EventVerified, RestoreVerified},
-		{RestoreRequested, EventFail, RestoreFailed},
-		{RestoreRestoring, EventFail, RestoreFailed},
-		{RestoreVerifying, EventFail, RestoreFailed},
+	states := []RestoreStatus{RestoreRequested, RestoreRestoring, RestoreVerifying, RestoreVerified, RestoreRestored, RestoreFailed}
+	events := []RestoreEvent{EventStartRestore, EventStartVerify, EventRestored, EventVerified, EventFail}
+	legal := map[struct {
+		from  RestoreStatus
+		event RestoreEvent
+	}]RestoreStatus{
+		{RestoreRequested, EventStartRestore}: RestoreRestoring,
+		{RestoreRequested, EventStartVerify}:  RestoreVerifying,
+		{RestoreRestoring, EventRestored}:     RestoreRestored,
+		{RestoreVerifying, EventVerified}:     RestoreVerified,
+		{RestoreRequested, EventFail}:         RestoreFailed,
+		{RestoreRestoring, EventFail}:         RestoreFailed,
+		{RestoreVerifying, EventFail}:         RestoreFailed,
 	}
-	for _, tc := range legal {
-		got, ok := Transition(tc.from, tc.ev)
-		if !ok || got != tc.want {
-			t.Errorf("Transition(%s,%s) = %s,%v; want %s,true", tc.from, tc.ev, got, ok, tc.want)
+	for _, from := range states {
+		for _, event := range events {
+			key := struct {
+				from  RestoreStatus
+				event RestoreEvent
+			}{from, event}
+			want, wantOK := legal[key]
+			got, gotOK := Transition(from, event)
+			if gotOK != wantOK || (wantOK && got != want) || (!wantOK && got != from) {
+				t.Errorf("Transition(%s,%s) = %s,%v; want %s,%v", from, event, got, gotOK, want, wantOK)
+			}
 		}
 	}
+}
 
-	illegal := []struct {
-		from RestoreStatus
-		ev   RestoreEvent
+func TestRestoreTransitionRejectsWithoutMutation(t *testing.T) {
+	tests := []struct {
+		name   string
+		status RestoreStatus
+		event  RestoreEvent
 	}{
-		{RestoreRequested, EventRestored},   // restored before restoring
-		{RestoreRequested, EventVerified},   // verified before verifying
-		{RestoreRestoring, EventVerified},   // can't verify from restoring path
-		{RestoreVerifying, EventRestored},   // can't restore from verifying path
-		{RestoreVerified, EventStartVerify}, // escape terminal
-		{RestoreRestored, EventStartRestore},
-		{RestoreFailed, EventFail},
+		{name: "unknown state", status: "future-state", event: EventFail},
+		{name: "wrong branch", status: RestoreRestoring, event: EventVerified},
+		{name: "terminal state", status: RestoreVerified, event: EventFail},
 	}
-	for _, tc := range illegal {
-		if _, ok := Transition(tc.from, tc.ev); ok {
-			t.Errorf("Transition(%s,%s) should be illegal", tc.from, tc.ev)
-		}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			record := Restore{Status: tc.status}
+			if err := record.Transition(tc.event); err == nil {
+				t.Fatal("expected invalid transition error")
+			}
+			if record.Status != tc.status {
+				t.Fatalf("invalid transition mutated state to %q; want %q", record.Status, tc.status)
+			}
+		})
 	}
 }
 

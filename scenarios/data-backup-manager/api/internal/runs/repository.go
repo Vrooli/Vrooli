@@ -21,21 +21,21 @@ type Repository interface {
 	// StartedAt populated.
 	CreateRun(ctx context.Context, r Run) (Run, error)
 
-	// UpdateRunStatus persists a (non-terminal) status transition and bumps the
+	// UpdateRunStatus applies a legal non-terminal lifecycle event and bumps the
 	// run's heartbeat. Used by the executor for pending→capturing→snapshotting.
-	UpdateRunStatus(ctx context.Context, runID string, status RunStatus) error
+	UpdateRunStatus(ctx context.Context, runID string, event RunEvent) error
 
 	// SaveOutcome upserts a single per-target outcome as it completes (keyed by
 	// run_id+target_id+destination_id) and bumps the run's heartbeat, so partial
 	// progress is durable before the run reaches its terminal state.
 	SaveOutcome(ctx context.Context, runID string, o TargetOutcome) error
 
-	// FinishRun records the run's terminal status, an optional run-level error
+	// FinishRun applies a terminal event and records the optional run-level error
 	// reason, FinishedAt, and the physical (deduped) repo-growth bytes attributed
 	// to the run. It is the single terminal-write the executor and startup
 	// reconciliation share (reconciliation passes 0 — an orphan wrote nothing
 	// measurable).
-	FinishRun(ctx context.Context, runID string, status RunStatus, errMsg string, finishedAt time.Time, physicalBytes int64) error
+	FinishRun(ctx context.Context, runID string, event RunEvent, errMsg string, finishedAt time.Time, physicalBytes int64) error
 
 	// ListNonTerminalRuns returns runs left in a non-terminal status
 	// (pending/capturing/snapshotting) — the orphans startup reconciliation

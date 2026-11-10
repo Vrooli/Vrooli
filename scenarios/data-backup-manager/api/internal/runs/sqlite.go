@@ -63,15 +63,14 @@ func (s *sqliteRepository) CreateRun(ctx context.Context, r Run) (Run, error) {
 	return r, nil
 }
 
-func (s *sqliteRepository) UpdateRunStatus(ctx context.Context, runID string, status RunStatus) error {
-	now := formatTime(s.clock.Now().UTC())
-	if _, err := s.db.ExecContext(ctx,
-		`UPDATE runs SET status = ?, updated_at = ? WHERE id = ?`,
-		string(status), now, runID,
-	); err != nil {
-		return fmt.Errorf("update run status %q: %w", runID, err)
-	}
-	return nil
+func (s *sqliteRepository) UpdateRunStatus(ctx context.Context, runID string, event RunEvent) error {
+	return s.transitionRun(ctx, runID, event, false, func(next, current RunStatus) error {
+		result, err := s.db.ExecContext(ctx,
+			`UPDATE runs SET status = ?, updated_at = ? WHERE id = ? AND status = ?`,
+			string(next), formatTime(s.clock.Now().UTC()), runID, string(current),
+		)
+		return requireRunTransitionWrite(result, err, runID, current, event)
+	})
 }
 
 func (s *sqliteRepository) SaveOutcome(ctx context.Context, runID string, o TargetOutcome) error {
@@ -96,16 +95,76 @@ func (s *sqliteRepository) SaveOutcome(ctx context.Context, runID string, o Targ
 	return nil
 }
 
-func (s *sqliteRepository) FinishRun(ctx context.Context, runID string, status RunStatus, errMsg string, finishedAt time.Time, physicalBytes int64) error {
+func (s *sqliteRepository) FinishRun(ctx context.Context, runID string, event RunEvent, errMsg string, finishedAt time.Time, physicalBytes int64) error {
+	run, err := s.GetRun(ctx, runID)
+	if err != nil {
+		return err
+	}
+	current := run.Status
+	if err := run.TransitionStatus(event); err != nil {
+		return err
+	}
+	if !terminal(run.Status) {
+		return fmt.Errorf("finish run requires a terminal state, got %q", run.Status)
+	}
+	run.Error = errMsg
+	if err := CheckInvariants(run); err != nil {
+		return err
+	}
 	now := formatTime(s.clock.Now().UTC())
 	if physicalBytes < 0 {
 		physicalBytes = 0
 	}
-	if _, err := s.db.ExecContext(ctx,
-		`UPDATE runs SET status = ?, error = ?, finished_at = ?, updated_at = ?, physical_bytes = ? WHERE id = ?`,
-		string(status), errMsg, formatTime(finishedAt), now, physicalBytes, runID,
-	); err != nil {
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE runs SET status = ?, error = ?, finished_at = ?, updated_at = ?, physical_bytes = ? WHERE id = ? AND status = ?`,
+		string(run.Status), errMsg, formatTime(finishedAt), now, physicalBytes, runID, string(current),
+	)
+	if err := requireRunTransitionWrite(result, err, runID, current, event); err != nil {
 		return fmt.Errorf("finish run %q: %w", runID, err)
+	}
+	return nil
+}
+
+func (s *sqliteRepository) transitionRun(ctx context.Context, runID string, event RunEvent, terminalWrite bool, persist func(next, current RunStatus) error) error {
+	current, err := s.readRunStatus(ctx, runID)
+	if err != nil {
+		return err
+	}
+	run := Run{Status: current}
+	if err := run.TransitionStatus(event); err != nil {
+		return err
+	}
+	if terminal(run.Status) != terminalWrite {
+		if terminalWrite {
+			return fmt.Errorf("terminal event %q cannot use the non-terminal update path", event)
+		}
+		return fmt.Errorf("non-terminal event %q cannot use the finish path", event)
+	}
+	return persist(run.Status, current)
+}
+
+func (s *sqliteRepository) readRunStatus(ctx context.Context, runID string) (RunStatus, error) {
+	var status string
+	err := s.db.QueryRowContext(ctx, `SELECT status FROM runs WHERE id = ?`, runID).Scan(&status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrRunNotFound{ID: runID}
+	}
+	if err != nil {
+		return "", fmt.Errorf("read run %q before transition: %w", runID, err)
+	}
+	return RunStatus(status), nil
+}
+
+func requireRunTransitionWrite(result sql.Result, err error, runID string, from RunStatus, event RunEvent) error {
+	if err != nil {
+		return fmt.Errorf("persist transition from %q via %q: %w", from, event, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check transition write: %w", err)
+	}
+	if rows != 1 {
+		return fmt.Errorf("run %q changed after reading state %q; transition via %q was not applied", runID, from, event)
 	}
 	return nil
 }

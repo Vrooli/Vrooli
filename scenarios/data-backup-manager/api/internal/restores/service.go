@@ -233,7 +233,7 @@ func (s *service) executeJob(ctx context.Context, job RestoreJob) {
 
 func (s *service) runRestore(ctx context.Context, job RestoreJob) {
 	id := job.Restore.ID
-	if err := s.deps.Repo.UpdateRestoreStatus(ctx, id, RestoreRestoring); err != nil {
+	if err := s.deps.Repo.UpdateRestoreStatus(ctx, id, EventStartRestore); err != nil {
 		s.logf("restore %s -> restoring: %v", id, err)
 		s.finishFailed(ctx, id, fmt.Sprintf("could not persist restoring transition: %v", err))
 		return
@@ -280,14 +280,14 @@ func (s *service) runRestore(ctx context.Context, job RestoreJob) {
 		return
 	}
 
-	if err := s.deps.Repo.FinishRestore(ctx, id, RestoreRestored, "", time.Time{}, s.deps.Clock.Now().UTC(), ""); err != nil {
+	if err := s.deps.Repo.FinishRestore(ctx, id, EventRestored, "", time.Time{}, s.deps.Clock.Now().UTC(), ""); err != nil {
 		s.logf("finish restore %s: %v", id, err)
 	}
 }
 
 func (s *service) runVerify(ctx context.Context, job RestoreJob) {
 	id := job.Restore.ID
-	if err := s.deps.Repo.UpdateRestoreStatus(ctx, id, RestoreVerifying); err != nil {
+	if err := s.deps.Repo.UpdateRestoreStatus(ctx, id, EventStartVerify); err != nil {
 		s.logf("restore %s -> verifying: %v", id, err)
 		s.finishFailed(ctx, id, fmt.Sprintf("could not persist verifying transition: %v", err))
 		return
@@ -356,7 +356,7 @@ func (s *service) runVerify(ctx context.Context, job RestoreJob) {
 	}
 
 	now := s.deps.Clock.Now().UTC()
-	if err := s.deps.Repo.FinishRestore(ctx, id, RestoreVerified, checksum, now, now, ""); err != nil {
+	if err := s.deps.Repo.FinishRestore(ctx, id, EventVerified, checksum, now, now, ""); err != nil {
 		s.logf("finish verify %s: %v", id, err)
 	}
 }
@@ -365,7 +365,7 @@ func (s *service) runVerify(ctx context.Context, job RestoreJob) {
 // last_verified_at unset (the OT-P0-006 invariant for a failed verify).
 func (s *service) finishFailed(ctx context.Context, id, errMsg string) {
 	now := s.deps.Clock.Now().UTC()
-	if err := s.deps.Repo.FinishRestore(ctx, id, RestoreFailed, "", time.Time{}, now, errMsg); err != nil {
+	if err := s.deps.Repo.FinishRestore(ctx, id, EventFail, "", time.Time{}, now, errMsg); err != nil {
 		s.logf("finish failed restore %s: %v", id, err)
 	}
 }
@@ -389,7 +389,7 @@ func (s *service) Reconcile(ctx context.Context) error {
 	const reason = "reconciled: process restarted while restore was in-flight"
 	now := s.deps.Clock.Now().UTC()
 	for _, r := range orphans {
-		if err := s.deps.Repo.FinishRestore(ctx, r.ID, RestoreFailed, "", time.Time{}, now, reason); err != nil {
+		if err := s.deps.Repo.FinishRestore(ctx, r.ID, EventFail, "", time.Time{}, now, reason); err != nil {
 			s.logf("reconcile restore %s: %v", r.ID, err)
 		}
 	}
@@ -422,7 +422,10 @@ func (s *service) LastVerifiedByTarget(ctx context.Context, targetIDs []string) 
 // failRestore records a failed restore and persists it. If persistence fails,
 // returns the persistence error (the caller still sees a failure).
 func (s *service) failRestore(ctx context.Context, rec Restore, errMsg string) (Restore, error) {
-	rec.Status = RestoreFailed
+	rec.Status = RestoreRequested
+	if err := rec.Transition(EventFail); err != nil {
+		return Restore{}, fmt.Errorf("transition new restore to failed: %w", err)
+	}
 	rec.Error = errMsg
 	rec.FinishedAt = s.deps.Clock.Now().UTC()
 	saved, persistErr := s.deps.Repo.CreateRestore(ctx, rec)

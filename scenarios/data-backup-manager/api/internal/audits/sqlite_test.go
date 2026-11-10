@@ -52,7 +52,15 @@ func TestRepository_RoundTripWithInventories(t *testing.T) {
 	}
 
 	// Finish with full evidence and confirm it survives a round trip.
-	created.Status = audits.AuditCompleted
+	if err := created.TransitionStatus(audits.AuditStart); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.UpdateAuditStatus(ctx, created.ID, audits.AuditStart); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if err := created.TransitionStatus(audits.AuditComplete); err != nil {
+		t.Fatal(err)
+	}
 	created.Restorable = true
 	created.SnapshotTime = time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
 	created.FinishedAt = time.Date(2026, 6, 1, 1, 0, 0, 0, time.UTC)
@@ -62,7 +70,7 @@ func TestRepository_RoundTripWithInventories(t *testing.T) {
 		SQLite: []audits.SqliteInventory{{Path: "events.db", IntegrityStatus: "ok", TableCount: 3, SchemaSHA256: "sh"}},
 	}
 	created.Comparison = &audits.AuditComparison{Matches: true}
-	if err := repo.FinishAudit(ctx, created); err != nil {
+	if err := repo.FinishAudit(ctx, created, audits.AuditComplete); err != nil {
 		t.Fatalf("finish: %v", err)
 	}
 
@@ -84,6 +92,35 @@ func TestRepository_RoundTripWithInventories(t *testing.T) {
 	}
 	if !got.SnapshotTime.Equal(created.SnapshotTime) {
 		t.Errorf("snapshot_time = %v, want %v", got.SnapshotTime, created.SnapshotTime)
+	}
+}
+
+func TestRepository_RejectsInvalidTransitionWithoutMutation(t *testing.T) {
+	repo := audits.NewSQLiteRepository(newAuditsDB(t), scheduletest.New(time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)))
+	ctx := context.Background()
+	created, err := repo.CreateAudit(ctx, audits.Audit{TargetID: "t-1", DestinationID: "d-1", SnapshotID: "s-1"})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := repo.UpdateAuditStatus(ctx, created.ID, audits.AuditComplete); err == nil {
+		t.Fatal("requested audit completed without first entering running")
+	}
+	got, err := repo.GetAudit(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get after rejected transition: %v", err)
+	}
+	if got.Status != audits.AuditRequested {
+		t.Fatalf("invalid transition mutated persisted state to %q", got.Status)
+	}
+	if err := repo.FinishAudit(ctx, created, audits.AuditComplete); err == nil {
+		t.Fatal("terminal write accepted a completion event from requested")
+	}
+	got, err = repo.GetAudit(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("get after rejected terminal write: %v", err)
+	}
+	if got.Status != audits.AuditRequested {
+		t.Fatalf("invalid terminal write mutated persisted state to %q", got.Status)
 	}
 }
 

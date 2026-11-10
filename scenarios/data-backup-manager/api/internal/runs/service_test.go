@@ -69,12 +69,66 @@ type failFirstStatusRepo struct {
 	failed bool
 }
 
-func (r *failFirstStatusRepo) UpdateRunStatus(ctx context.Context, id string, status runs.RunStatus) error {
+func (r *failFirstStatusRepo) UpdateRunStatus(ctx context.Context, id string, event runs.RunEvent) error {
 	if !r.failed {
 		r.failed = true
 		return r.err
 	}
-	return r.Repository.UpdateRunStatus(ctx, id, status)
+	return r.Repository.UpdateRunStatus(ctx, id, event)
+}
+
+func finishSeededRun(t *testing.T, ctx context.Context, repo runs.Repository, id string, at time.Time) {
+	t.Helper()
+	if err := repo.UpdateRunStatus(ctx, id, runs.EventStartCapture); err != nil {
+		t.Fatalf("start seeded run capture: %v", err)
+	}
+	if err := repo.UpdateRunStatus(ctx, id, runs.EventStartSnapshot); err != nil {
+		t.Fatalf("start seeded run snapshot: %v", err)
+	}
+	if err := repo.FinishRun(ctx, id, runs.EventComplete, "", at, 0); err != nil {
+		t.Fatalf("finish seeded run: %v", err)
+	}
+}
+
+func TestRunRepositoryRejectsInvalidEventsAndOutcomeMismatch(t *testing.T) {
+	ctx := context.Background()
+	repo := runs.NewSQLiteRepository(newRunsDB(t), scheduletest.New(time.Unix(1700000000, 0).UTC()))
+	created, err := repo.CreateRun(ctx, runs.Run{PlanID: "plan-1", Trigger: runs.TriggerManual})
+	if err != nil {
+		t.Fatalf("CreateRun: %v", err)
+	}
+	if err := repo.FinishRun(ctx, created.ID, runs.EventComplete, "", time.Now().UTC(), 0); err == nil {
+		t.Fatal("cannot complete a run before capture and snapshot")
+	}
+	got, err := repo.GetRun(ctx, created.ID)
+	if err != nil || got.Status != runs.RunPending {
+		t.Fatalf("invalid completion mutated run: status=%s err=%v", got.Status, err)
+	}
+	if err := repo.UpdateRunStatus(ctx, created.ID, runs.EventStartCapture); err != nil {
+		t.Fatalf("start capture: %v", err)
+	}
+	if err := repo.FinishRun(ctx, created.ID, runs.EventComplete, "", time.Now().UTC(), 0); err == nil {
+		t.Fatal("cannot complete a run before snapshot")
+	}
+	if err := repo.UpdateRunStatus(ctx, created.ID, runs.EventStartSnapshot); err != nil {
+		t.Fatalf("start snapshot: %v", err)
+	}
+	if err := repo.SaveOutcome(ctx, created.ID, runs.TargetOutcome{TargetID: "target", DestinationID: "dest", Status: runs.OutcomeFailed}); err != nil {
+		t.Fatalf("save failed target outcome: %v", err)
+	}
+	if err := repo.FinishRun(ctx, created.ID, runs.EventComplete, "", time.Now().UTC(), 0); err == nil {
+		t.Fatal("terminal success must agree with the persisted target outcomes")
+	}
+	got, err = repo.GetRun(ctx, created.ID)
+	if err != nil || got.Status != runs.RunSnapshotting || !got.FinishedAt.IsZero() {
+		t.Fatalf("mismatched terminal result mutated run: status=%s finished=%v err=%v", got.Status, got.FinishedAt, err)
+	}
+	if err := repo.FinishRun(ctx, created.ID, runs.EventFail, "target failed", time.Now().UTC(), 0); err != nil {
+		t.Fatalf("finish failed run: %v", err)
+	}
+	if err := repo.FinishRun(ctx, created.ID, runs.EventFail, "again", time.Now().UTC(), 0); err == nil {
+		t.Fatal("terminal state must reject a second finish event")
+	}
 }
 
 func TestRun_StatusTransitionFailureIsVisibleAndStopsCapture(t *testing.T) {
@@ -292,9 +346,7 @@ func TestListTargetStatus_DefaultsToActiveCatalogTargets(t *testing.T) {
 		if err := repo.SaveOutcome(ctx, runID, runs.TargetOutcome{TargetID: targetID, Status: runs.OutcomeSucceeded, FinishedAt: startedAt}); err != nil {
 			t.Fatalf("seed outcome %s: %v", runID, err)
 		}
-		if err := repo.FinishRun(ctx, runID, runs.RunCompleted, "", startedAt, 0); err != nil {
-			t.Fatalf("finish run %s: %v", runID, err)
-		}
+		finishSeededRun(t, ctx, repo, runID, startedAt)
 	}
 	seedRun("run-old", "plan-deleted", "deleted-target", now.Add(-time.Hour))
 	seedRun("run-current", "plan-current", "current-target", now)
@@ -348,9 +400,7 @@ func TestListTargetStatus_NextScheduledAt(t *testing.T) {
 	if err := repo.SaveOutcome(ctx, "r1", runs.TargetOutcome{TargetID: "manual-target", Status: runs.OutcomeSucceeded, FinishedAt: now}); err != nil {
 		t.Fatalf("seed outcome manual: %v", err)
 	}
-	if err := repo.FinishRun(ctx, "r1", runs.RunCompleted, "", now, 0); err != nil {
-		t.Fatalf("finish run: %v", err)
-	}
+	finishSeededRun(t, ctx, repo, "r1", now)
 
 	nextFire := now.Add(2 * time.Hour)
 	svc := runs.NewService(runs.Deps{
@@ -390,9 +440,7 @@ func TestListTargetStatus_ManualOnlyTargetDoesNotBecomeOverdueByAge(t *testing.T
 			t.Fatalf("seed outcome %s: %v", targetID, err)
 		}
 	}
-	if err := repo.FinishRun(ctx, "r1", runs.RunCompleted, "", lastSuccess, 0); err != nil {
-		t.Fatalf("finish run: %v", err)
-	}
+	finishSeededRun(t, ctx, repo, "r1", lastSuccess)
 	svc := runs.NewService(runs.Deps{
 		Repo:          repo,
 		ActiveTargets: &runsmocks.FakeActiveTargetLookup{TargetIDs: []string{"scheduled-target", "manual-target"}},

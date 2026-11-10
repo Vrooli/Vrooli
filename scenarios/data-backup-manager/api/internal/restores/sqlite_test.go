@@ -102,6 +102,63 @@ func TestSQLiteRepository_RoundTrip(t *testing.T) {
 	}
 }
 
+func TestSQLiteRepository_RejectsInvalidTransitionsWithoutMutation(t *testing.T) {
+	ctx := context.Background()
+	clk := scheduletest.New(time.Unix(1700000000, 0).UTC())
+	repo := restores.NewSQLiteRepository(newRestoresDB(t), clk)
+	created, err := repo.CreateRestore(ctx, restores.Restore{
+		TargetID: "target", DestinationID: "dest", SnapshotID: "snapshot", Mode: restores.ModeVerify,
+	})
+	if err != nil {
+		t.Fatalf("CreateRestore: %v", err)
+	}
+
+	if err := repo.FinishRestore(ctx, created.ID, restores.EventVerified, "checksum", clk.Now(), clk.Now(), ""); err == nil {
+		t.Fatal("verified transition from requested must fail")
+	}
+	got, err := repo.GetRestore(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("GetRestore after invalid transition: %v", err)
+	}
+	if got.Status != restores.RestoreRequested || got.Checksum != "" || !got.LastVerifiedAt.IsZero() {
+		t.Fatalf("invalid transition mutated persisted record: %+v", got)
+	}
+
+	if err := repo.UpdateRestoreStatus(ctx, created.ID, restores.EventStartRestore); err != nil {
+		t.Fatalf("start restore: %v", err)
+	}
+	if err := repo.FinishRestore(ctx, created.ID, restores.EventStartVerify, "", time.Time{}, time.Time{}, ""); err == nil {
+		t.Fatal("terminal finish method must reject a non-terminal event")
+	}
+	if err := repo.UpdateRestoreStatus(ctx, created.ID, restores.EventFail); err == nil {
+		t.Fatal("non-terminal update method must reject a terminal event")
+	}
+	if err := repo.FinishRestore(ctx, created.ID, restores.EventVerified, "checksum", clk.Now(), clk.Now(), ""); err == nil {
+		t.Fatal("verified transition from restoring must fail")
+	}
+	got, err = repo.GetRestore(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("GetRestore after branch mismatch: %v", err)
+	}
+	if got.Status != restores.RestoreRestoring || got.Checksum != "" || !got.LastVerifiedAt.IsZero() {
+		t.Fatalf("branch mismatch mutated persisted record: %+v", got)
+	}
+
+	if err := repo.FinishRestore(ctx, created.ID, restores.EventFail, "", time.Time{}, clk.Now(), "restore failed"); err != nil {
+		t.Fatalf("fail restore: %v", err)
+	}
+	if err := repo.FinishRestore(ctx, created.ID, restores.EventFail, "", time.Time{}, clk.Now(), "again"); err == nil {
+		t.Fatal("transition out of terminal failed state must fail")
+	}
+	got, err = repo.GetRestore(ctx, created.ID)
+	if err != nil {
+		t.Fatalf("GetRestore after terminal attempt: %v", err)
+	}
+	if got.Status != restores.RestoreFailed || got.Error != "restore failed" {
+		t.Fatalf("terminal invalid transition mutated persisted record: %+v", got)
+	}
+}
+
 // TestLastVerifiedByTarget asserts the proven-restorable rollup: only
 // status=verified, mode=verify records count; the newest verify wins per
 // target; failed verifies and plain restores are ignored; and a target that

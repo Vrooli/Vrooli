@@ -68,7 +68,7 @@ func (s *FileDecisionStore) Put(ctx context.Context, ask *operatordecision.Pendi
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(ask, "", "  ")
@@ -81,7 +81,7 @@ func (s *FileDecisionStore) Put(ctx context.Context, ask *operatordecision.Pendi
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
-	if err := tmp.Chmod(0600); err != nil {
+	if err := tmp.Chmod(0o600); err != nil {
 		_ = tmp.Close()
 		return err
 	}

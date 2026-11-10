@@ -299,7 +299,7 @@ func (s *service) executeRun(ctx context.Context, job RunJob) {
 		}
 	}
 
-	if err := s.deps.Repo.UpdateRunStatus(ctx, job.RunID, RunCapturing); err != nil {
+	if err := s.deps.Repo.UpdateRunStatus(ctx, job.RunID, EventStartCapture); err != nil {
 		s.logf("run %s -> capturing: %v", job.RunID, err)
 		s.finishRun(ctx, job, RunFailed, fmt.Sprintf("could not persist capturing transition: %v", err), failures.Unknown, failures.CategoryExecution, "repair catalog storage and retry the backup", 0, 0, 0, 0)
 		return
@@ -327,7 +327,7 @@ func (s *service) executeRun(ctx context.Context, job RunJob) {
 	)
 	onSnapshotStart := func() {
 		once.Do(func() {
-			if err := s.deps.Repo.UpdateRunStatus(ctx, job.RunID, RunSnapshotting); err != nil {
+			if err := s.deps.Repo.UpdateRunStatus(ctx, job.RunID, EventStartSnapshot); err != nil {
 				s.logf("run %s -> snapshotting: %v", job.RunID, err)
 				lifecycleMu.Lock()
 				lifecycleErrs = append(lifecycleErrs, fmt.Sprintf("snapshotting transition: %v", err))
@@ -486,7 +486,12 @@ func (s *service) targetConcurrency() int {
 
 // finishRun persists the terminal state and emits the backup-outcome event.
 func (s *service) finishRun(ctx context.Context, job RunJob, status RunStatus, errMsg string, code failures.Code, category failures.Category, nextAction string, succeeded, failed, blocked int, physicalBytes int64) {
-	if err := s.deps.Repo.FinishRun(ctx, job.RunID, status, errMsg, s.deps.Clock.Now().UTC(), physicalBytes); err != nil {
+	event, err := terminalEvent(status)
+	if err != nil {
+		s.logf("run %s finish (%s): %v", job.RunID, status, err)
+		return
+	}
+	if err := s.deps.Repo.FinishRun(ctx, job.RunID, event, errMsg, s.deps.Clock.Now().UTC(), physicalBytes); err != nil {
 		s.logf("run %s finish (%s): %v", job.RunID, status, err)
 	}
 	if updater, ok := s.deps.Repo.(FailureUpdater); ok && code != "" {
@@ -502,6 +507,19 @@ func (s *service) finishRun(ctx context.Context, job RunJob, status RunStatus, e
 	}
 }
 
+func terminalEvent(status RunStatus) (RunEvent, error) {
+	switch status {
+	case RunCompleted:
+		return EventComplete, nil
+	case RunPartialFailed:
+		return EventPartialFail, nil
+	case RunFailed:
+		return EventFail, nil
+	default:
+		return "", fmt.Errorf("%q is not a terminal run status", status)
+	}
+}
+
 // Reconcile closes any run left in a non-terminal state by a crash/restart or a
 // client disconnect that killed an in-flight backup. v1 policy is fail-not-
 // resume: each orphan is marked failed with a reconciliation reason. Resume is
@@ -513,7 +531,7 @@ func (s *service) Reconcile(ctx context.Context) error {
 	}
 	const reason = "reconciled: process restarted while run was in-flight"
 	for _, r := range orphans {
-		if err := s.deps.Repo.FinishRun(ctx, r.ID, RunFailed, reason, s.deps.Clock.Now().UTC(), 0); err != nil {
+		if err := s.deps.Repo.FinishRun(ctx, r.ID, EventFail, reason, s.deps.Clock.Now().UTC(), 0); err != nil {
 			s.logf("reconcile run %s: %v", r.ID, err)
 			continue
 		}

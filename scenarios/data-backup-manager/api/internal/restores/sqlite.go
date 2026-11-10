@@ -64,24 +64,66 @@ func (s *sqliteRepository) CreateRestore(ctx context.Context, r Restore) (Restor
 	return r, nil
 }
 
-func (s *sqliteRepository) UpdateRestoreStatus(ctx context.Context, id string, status RestoreStatus) error {
-	now := formatTime(s.clock.Now().UTC())
-	if _, err := s.db.ExecContext(ctx,
-		`UPDATE restores SET status = ?, updated_at = ? WHERE id = ?`,
-		string(status), now, id,
-	); err != nil {
-		return fmt.Errorf("update restore status %q: %w", id, err)
-	}
-	return nil
+func (s *sqliteRepository) UpdateRestoreStatus(ctx context.Context, id string, event RestoreEvent) error {
+	return s.transitionRestore(ctx, id, event, func(next, current RestoreStatus) error {
+		if terminal(next) {
+			return fmt.Errorf("non-terminal restore update cannot persist terminal state %q", next)
+		}
+		result, err := s.db.ExecContext(ctx,
+			`UPDATE restores SET status = ?, updated_at = ? WHERE id = ? AND status = ?`,
+			string(next), formatTime(s.clock.Now().UTC()), id, string(current),
+		)
+		return requireRestoreTransitionWrite(result, err, id, current, event)
+	})
 }
 
-func (s *sqliteRepository) FinishRestore(ctx context.Context, id string, status RestoreStatus, checksum string, lastVerifiedAt, finishedAt time.Time, errMsg string) error {
-	now := formatTime(s.clock.Now().UTC())
-	if _, err := s.db.ExecContext(ctx,
-		`UPDATE restores SET status = ?, checksum = ?, last_verified_at = ?, finished_at = ?, error = ?, updated_at = ? WHERE id = ?`,
-		string(status), checksum, formatTime(lastVerifiedAt), formatTime(finishedAt), errMsg, now, id,
-	); err != nil {
-		return fmt.Errorf("finish restore %q: %w", id, err)
+func (s *sqliteRepository) FinishRestore(ctx context.Context, id string, event RestoreEvent, checksum string, lastVerifiedAt, finishedAt time.Time, errMsg string) error {
+	return s.transitionRestore(ctx, id, event, func(next, current RestoreStatus) error {
+		if !terminal(next) {
+			return fmt.Errorf("finish restore requires terminal state, got %q", next)
+		}
+		candidate := Restore{Status: next, Checksum: checksum, LastVerifiedAt: lastVerifiedAt}
+		if err := CheckInvariants(candidate); err != nil {
+			return err
+		}
+		result, err := s.db.ExecContext(ctx,
+			`UPDATE restores SET status = ?, checksum = ?, last_verified_at = ?, finished_at = ?, error = ?, updated_at = ? WHERE id = ? AND status = ?`,
+			string(next), checksum, formatTime(lastVerifiedAt), formatTime(finishedAt), errMsg, formatTime(s.clock.Now().UTC()), id, string(current),
+		)
+		return requireRestoreTransitionWrite(result, err, id, current, event)
+	})
+}
+
+// transitionRestore reads the stored source state, applies the lifecycle owner,
+// then lets the caller persist with a compare-and-swap predicate. The final
+// UPDATE prevents concurrent workers from overwriting a newer state.
+func (s *sqliteRepository) transitionRestore(ctx context.Context, id string, event RestoreEvent, persist func(next, current RestoreStatus) error) error {
+	var currentText string
+	err := s.db.QueryRowContext(ctx, `SELECT status FROM restores WHERE id = ?`, id).Scan(&currentText)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrRestoreNotFound{ID: id}
+	}
+	if err != nil {
+		return fmt.Errorf("read restore %q before transition: %w", id, err)
+	}
+	current := RestoreStatus(currentText)
+	record := Restore{Status: current}
+	if err := record.Transition(event); err != nil {
+		return err
+	}
+	return persist(record.Status, current)
+}
+
+func requireRestoreTransitionWrite(result sql.Result, err error, id string, from RestoreStatus, event RestoreEvent) error {
+	if err != nil {
+		return fmt.Errorf("persist restore %q transition from %q via %q: %w", id, from, event, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check restore %q transition write: %w", id, err)
+	}
+	if rows != 1 {
+		return fmt.Errorf("restore %q changed after reading state %q; transition via %q was not applied", id, from, event)
 	}
 	return nil
 }

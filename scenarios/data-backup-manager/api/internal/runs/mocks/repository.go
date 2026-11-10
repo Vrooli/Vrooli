@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
@@ -41,7 +42,7 @@ func (f *FakeRepository) CreateRun(_ context.Context, r runs.Run) (runs.Run, err
 	return r, nil
 }
 
-func (f *FakeRepository) UpdateRunStatus(_ context.Context, runID string, status runs.RunStatus) error {
+func (f *FakeRepository) UpdateRunStatus(_ context.Context, runID string, event runs.RunEvent) error {
 	if f.SaveErr != nil {
 		return f.SaveErr
 	}
@@ -49,8 +50,7 @@ func (f *FakeRepository) UpdateRunStatus(_ context.Context, runID string, status
 	defer f.mu.Unlock()
 	for i := range f.runs {
 		if f.runs[i].ID == runID {
-			f.runs[i].Status = status
-			return nil
+			return f.runs[i].TransitionStatus(event)
 		}
 	}
 	return runs.ErrRunNotFound{ID: runID}
@@ -79,7 +79,7 @@ func (f *FakeRepository) SaveOutcome(_ context.Context, runID string, o runs.Tar
 	return runs.ErrRunNotFound{ID: runID}
 }
 
-func (f *FakeRepository) FinishRun(_ context.Context, runID string, status runs.RunStatus, errMsg string, finishedAt time.Time, physicalBytes int64) error {
+func (f *FakeRepository) FinishRun(_ context.Context, runID string, event runs.RunEvent, errMsg string, finishedAt time.Time, physicalBytes int64) error {
 	if f.SaveErr != nil {
 		return f.SaveErr
 	}
@@ -87,10 +87,20 @@ func (f *FakeRepository) FinishRun(_ context.Context, runID string, status runs.
 	defer f.mu.Unlock()
 	for i := range f.runs {
 		if f.runs[i].ID == runID {
-			f.runs[i].Status = status
-			f.runs[i].Error = errMsg
-			f.runs[i].FinishedAt = finishedAt
-			f.runs[i].PhysicalBytes = physicalBytes
+			candidate := f.runs[i]
+			if err := candidate.TransitionStatus(event); err != nil {
+				return err
+			}
+			if !runs.IsTerminal(candidate.Status) {
+				return fmt.Errorf("finish run requires a terminal state, got %q", candidate.Status)
+			}
+			candidate.Error = errMsg
+			if err := runs.CheckInvariants(candidate); err != nil {
+				return err
+			}
+			candidate.FinishedAt = finishedAt
+			candidate.PhysicalBytes = physicalBytes
+			f.runs[i] = candidate
 			return nil
 		}
 	}

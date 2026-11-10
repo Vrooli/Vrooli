@@ -122,8 +122,8 @@ type signalFinishRepo struct {
 	finished chan struct{}
 }
 
-func (r signalFinishRepo) Finish(ctx context.Context, id string, status drills.Status, errMsg, nextAction string, finishedAt time.Time) error {
-	err := r.Repository.Finish(ctx, id, status, errMsg, nextAction, finishedAt)
+func (r signalFinishRepo) Finish(ctx context.Context, id string, event drills.Event, errMsg, nextAction string, finishedAt time.Time) error {
+	err := r.Repository.Finish(ctx, id, event, errMsg, nextAction, finishedAt)
 	select {
 	case <-r.finished:
 	default:
@@ -132,16 +132,17 @@ func (r signalFinishRepo) Finish(ctx context.Context, id string, status drills.S
 	return err
 }
 
-func (r failVerifiedFinishRepo) Finish(ctx context.Context, id string, status drills.Status, errMsg, nextAction string, finishedAt time.Time) error {
-	if status == drills.StatusVerified {
+func (r failVerifiedFinishRepo) Finish(ctx context.Context, id string, event drills.Event, errMsg, nextAction string, finishedAt time.Time) error {
+	if event == drills.EventVerify {
 		return errors.New("catalog is unavailable")
 	}
+	err := r.Repository.Finish(ctx, id, event, errMsg, nextAction, finishedAt)
 	select {
 	case <-r.finished:
 	default:
 		close(r.finished)
 	}
-	return r.Repository.Finish(ctx, id, status, errMsg, nextAction, finishedAt)
+	return err
 }
 
 type failMarkRunningRepo struct {
@@ -150,7 +151,7 @@ type failMarkRunningRepo struct {
 	finished chan struct{}
 }
 
-func (r failMarkRunningRepo) MarkRunning(context.Context, string, string, time.Time) error {
+func (r failMarkRunningRepo) Start(context.Context, string, time.Time) error {
 	select {
 	case <-r.called:
 	default:
@@ -159,13 +160,14 @@ func (r failMarkRunningRepo) MarkRunning(context.Context, string, string, time.T
 	return errors.New("catalog is unavailable")
 }
 
-func (r failMarkRunningRepo) Finish(ctx context.Context, id string, status drills.Status, errMsg, nextAction string, finishedAt time.Time) error {
+func (r failMarkRunningRepo) Finish(ctx context.Context, id string, event drills.Event, errMsg, nextAction string, finishedAt time.Time) error {
+	err := r.Repository.Finish(ctx, id, event, errMsg, nextAction, finishedAt)
 	select {
 	case <-r.finished:
 	default:
 		close(r.finished)
 	}
-	return r.Repository.Finish(ctx, id, status, errMsg, nextAction, finishedAt)
+	return err
 }
 
 func TestService_MarkRunningFailureLeavesActionableFailedEvidence(t *testing.T) {

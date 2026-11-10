@@ -19,20 +19,28 @@ type recoveryInspector struct {
 func (i recoveryInspector) Inspect(context.Context, string) (destinationreadiness.Inspection, error) {
 	return destinationreadiness.Inspection{Identity: i.identity, LocationExists: true, LocationIsDirectory: true, Mounted: true}, nil
 }
+
 func (i recoveryInspector) InspectDevice(context.Context, destinationreadiness.DeviceIdentity) (destinationreadiness.Inspection, error) {
 	return destinationreadiness.Inspection{Identity: i.identity, LocationExists: true, LocationIsDirectory: true, Mounted: true}, nil
 }
 
 type recoveryRemediator struct {
-	calls int
-	fail  bool
+	calls   int
+	fail    bool
+	entered chan struct{}
+	release chan struct{}
 }
 
 func (r *recoveryRemediator) Supported(destinationreadiness.PreparationAction) (bool, string) {
 	return true, ""
 }
+
 func (r *recoveryRemediator) Remediate(context.Context, destinationreadiness.Plan, bool) (destinationreadiness.RemediationOutcome, error) {
 	r.calls++
+	if r.entered != nil {
+		r.entered <- struct{}{}
+		<-r.release
+	}
 	if r.fail {
 		return destinationreadiness.RemediationOutcome{Status: "refused", RefusalReason: "operator must inspect first"}, errors.New("operator must inspect first")
 	}
@@ -45,8 +53,12 @@ type memoryRecoveryStore struct {
 }
 
 func (m *memoryRecoveryStore) Load(context.Context, string) (destinationreadiness.RecoveryJournal, error) {
+	if m.journal.ID == "" {
+		return destinationreadiness.RecoveryJournal{}, destinationreadiness.ErrRecoveryNotFound
+	}
 	return m.journal, nil
 }
+
 func (m *memoryRecoveryStore) Save(_ context.Context, j destinationreadiness.RecoveryJournal) error {
 	m.journal = j
 	m.saves++
@@ -90,6 +102,36 @@ func TestResumeRecoveryPersistsEachStepAndIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestConcurrentResumeRecoveryExecutesEachHostStepOnce(t *testing.T) {
+	svc, journal, remediator := recoveryFixture(t)
+	remediator.entered = make(chan struct{}, 1)
+	remediator.release = make(chan struct{})
+	store := &memoryRecoveryStore{journal: journal}
+	type result struct {
+		journal destinationreadiness.RecoveryJournal
+		err     error
+	}
+	results := make(chan result, 2)
+	resume := func() {
+		got, err := svc.ResumeRecovery(context.Background(), store, journal, map[int]string{0: "confirm-unmount", 1: "confirm-mount"}, false, false)
+		results <- result{journal: got, err: err}
+	}
+	go resume()
+	<-remediator.entered
+	go resume()
+	close(remediator.release)
+	first, second := <-results, <-results
+	if first.err != nil || second.err != nil {
+		t.Fatalf("resume errors: first=%v second=%v", first.err, second.err)
+	}
+	if remediator.calls != 2 {
+		t.Fatalf("host steps executed %d times, want one execution per step (2 total)", remediator.calls)
+	}
+	if store.journal.State != destinationreadiness.RecoveryCompleted || store.journal.Current != 2 {
+		t.Fatalf("durable journal did not finish: %+v", store.journal)
+	}
+}
+
 func TestResumeRecoveryPausesWithoutAdvancingOnRefusal(t *testing.T) {
 	svc, journal, remediator := recoveryFixture(t)
 	remediator.fail = true
@@ -122,6 +164,117 @@ func TestResumeRecoveryPausesAfterAmbiguousInFlightAction(t *testing.T) {
 	}
 }
 
+func TestRecoveryStateTransitionMatrix(t *testing.T) {
+	states := []destinationreadiness.RecoveryState{
+		destinationreadiness.RecoveryPending,
+		destinationreadiness.RecoveryRunning,
+		destinationreadiness.RecoveryPaused,
+		destinationreadiness.RecoveryCompleted,
+		destinationreadiness.RecoveryFailed,
+	}
+	events := []destinationreadiness.RecoveryEvent{
+		destinationreadiness.RecoveryResume,
+		destinationreadiness.RecoveryPause,
+		destinationreadiness.RecoveryComplete,
+		destinationreadiness.RecoveryDryRunReset,
+	}
+	legal := map[struct {
+		state destinationreadiness.RecoveryState
+		event destinationreadiness.RecoveryEvent
+	}]destinationreadiness.RecoveryState{
+		{destinationreadiness.RecoveryPending, destinationreadiness.RecoveryResume}:      destinationreadiness.RecoveryRunning,
+		{destinationreadiness.RecoveryRunning, destinationreadiness.RecoveryResume}:      destinationreadiness.RecoveryRunning,
+		{destinationreadiness.RecoveryPaused, destinationreadiness.RecoveryResume}:       destinationreadiness.RecoveryRunning,
+		{destinationreadiness.RecoveryFailed, destinationreadiness.RecoveryResume}:       destinationreadiness.RecoveryRunning,
+		{destinationreadiness.RecoveryRunning, destinationreadiness.RecoveryPause}:       destinationreadiness.RecoveryPaused,
+		{destinationreadiness.RecoveryRunning, destinationreadiness.RecoveryComplete}:    destinationreadiness.RecoveryCompleted,
+		{destinationreadiness.RecoveryRunning, destinationreadiness.RecoveryDryRunReset}: destinationreadiness.RecoveryPending,
+	}
+	for _, state := range states {
+		for _, event := range events {
+			journal := destinationreadiness.RecoveryJournal{State: state}
+			got, ok := state.Transition(event)
+			want, wantOK := legal[struct {
+				state destinationreadiness.RecoveryState
+				event destinationreadiness.RecoveryEvent
+			}{state, event}]
+			if ok != wantOK || (ok && got != want) || (!ok && got != state) {
+				t.Errorf("Transition(%s,%s) = %s,%v; want %s,%v", state, event, got, ok, want, wantOK)
+			}
+			err := journal.Transition(event)
+			if wantOK {
+				if err != nil || journal.State != want {
+					t.Errorf("journal transition %s + %s = %s, %v; want %s", state, event, journal.State, err, want)
+				}
+			} else if err == nil || journal.State != state {
+				t.Errorf("invalid journal transition %s + %s mutated to %s (err=%v)", state, event, journal.State, err)
+			}
+		}
+	}
+	unknown := destinationreadiness.RecoveryJournal{State: "future-state"}
+	if err := unknown.Transition(destinationreadiness.RecoveryResume); err == nil || unknown.State != "future-state" {
+		t.Fatalf("unknown-state transition changed journal: %+v err=%v", unknown, err)
+	}
+}
+
+func TestRecoveryStepTransitionMatrix(t *testing.T) {
+	statuses := []destinationreadiness.RecoveryStepStatus{
+		destinationreadiness.RecoveryStepPending,
+		destinationreadiness.RecoveryStepInFlight,
+		destinationreadiness.RecoveryStepBlocked,
+		destinationreadiness.RecoveryStepValidated,
+		destinationreadiness.RecoveryStepCompleted,
+	}
+	events := []destinationreadiness.RecoveryStepEvent{
+		destinationreadiness.RecoveryStepBegin,
+		destinationreadiness.RecoveryStepBlock,
+		destinationreadiness.RecoveryStepValidate,
+		destinationreadiness.RecoveryStepComplete,
+	}
+	legal := map[struct {
+		status destinationreadiness.RecoveryStepStatus
+		event  destinationreadiness.RecoveryStepEvent
+	}]destinationreadiness.RecoveryStepStatus{
+		{destinationreadiness.RecoveryStepPending, destinationreadiness.RecoveryStepBegin}:     destinationreadiness.RecoveryStepInFlight,
+		{destinationreadiness.RecoveryStepInFlight, destinationreadiness.RecoveryStepBlock}:    destinationreadiness.RecoveryStepBlocked,
+		{destinationreadiness.RecoveryStepInFlight, destinationreadiness.RecoveryStepValidate}: destinationreadiness.RecoveryStepValidated,
+		{destinationreadiness.RecoveryStepInFlight, destinationreadiness.RecoveryStepComplete}: destinationreadiness.RecoveryStepCompleted,
+		{destinationreadiness.RecoveryStepBlocked, destinationreadiness.RecoveryStepBegin}:     destinationreadiness.RecoveryStepInFlight,
+		{destinationreadiness.RecoveryStepValidated, destinationreadiness.RecoveryStepBegin}:   destinationreadiness.RecoveryStepInFlight,
+	}
+	for _, status := range statuses {
+		for _, event := range events {
+			step := destinationreadiness.RecoveryStep{Status: status}
+			want, ok := legal[struct {
+				status destinationreadiness.RecoveryStepStatus
+				event  destinationreadiness.RecoveryStepEvent
+			}{status, event}]
+			err := step.Transition(event)
+			if ok {
+				if err != nil || step.Status != want {
+					t.Errorf("step transition %s + %s = %s, %v; want %s", status, event, step.Status, err, want)
+				}
+			} else if err == nil || step.Status != status {
+				t.Errorf("invalid step transition %s + %s mutated to %s (err=%v)", status, event, step.Status, err)
+			}
+		}
+	}
+}
+
+func TestFileRecoveryStoreRejectsUnknownLifecycleValues(t *testing.T) {
+	_, journal, _ := recoveryFixture(t)
+	store := &destinationreadiness.FileRecoveryStore{Root: t.TempDir()}
+	journal.State = "future-state"
+	if err := store.Save(context.Background(), journal); err == nil {
+		t.Fatal("unknown journal state must not be persisted")
+	}
+	_, journal, _ = recoveryFixture(t)
+	journal.Steps[0].Status = "future-step"
+	if err := store.Save(context.Background(), journal); err == nil {
+		t.Fatal("unknown step status must not be persisted")
+	}
+}
+
 func TestFileRecoveryStoreUsesAtomicPrivateJournal(t *testing.T) {
 	_, journal, _ := recoveryFixture(t)
 	root := t.TempDir()
@@ -137,7 +290,7 @@ func TestFileRecoveryStoreUsesAtomicPrivateJournal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0600 {
+	if info.Mode().Perm() != 0o600 {
 		t.Fatalf("journal mode=%o", info.Mode().Perm())
 	}
 }
@@ -270,7 +423,7 @@ func TestFileRecoveryStoreRejectsJournalIDMismatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	const otherID = "000000000000000000000000"
-	if err := os.WriteFile(filepath.Join(root, otherID+".json"), data, 0600); err != nil {
+	if err := os.WriteFile(filepath.Join(root, otherID+".json"), data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, err = store.Load(context.Background(), otherID)

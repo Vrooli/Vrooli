@@ -6,39 +6,55 @@ import "testing"
 // ones FLOWS.md names (snapshotting before capturing; any escape from a
 // terminal state).
 func TestTransition_Matrix(t *testing.T) {
-	legal := []struct {
-		from RunStatus
-		ev   RunEvent
-		want RunStatus
-	}{
-		{RunPending, EventStartCapture, RunCapturing},
-		{RunCapturing, EventStartSnapshot, RunSnapshotting},
-		{RunSnapshotting, EventComplete, RunCompleted},
-		{RunCapturing, EventPartialFail, RunPartialFailed},
-		{RunSnapshotting, EventPartialFail, RunPartialFailed},
-		{RunCapturing, EventFail, RunFailed},
+	states := []RunStatus{RunPending, RunCapturing, RunSnapshotting, RunCompleted, RunPartialFailed, RunFailed}
+	events := []RunEvent{EventStartCapture, EventStartSnapshot, EventComplete, EventPartialFail, EventFail}
+	legal := map[struct {
+		from  RunStatus
+		event RunEvent
+	}]RunStatus{
+		{RunPending, EventStartCapture}:     RunCapturing,
+		{RunPending, EventFail}:             RunFailed,
+		{RunCapturing, EventStartSnapshot}:  RunSnapshotting,
+		{RunCapturing, EventPartialFail}:    RunPartialFailed,
+		{RunCapturing, EventFail}:           RunFailed,
+		{RunSnapshotting, EventComplete}:    RunCompleted,
+		{RunSnapshotting, EventPartialFail}: RunPartialFailed,
+		{RunSnapshotting, EventFail}:        RunFailed,
 	}
-	for _, tc := range legal {
-		got, ok := Transition(tc.from, tc.ev)
-		if !ok || got != tc.want {
-			t.Errorf("Transition(%s,%s) = %s,%v; want %s,true", tc.from, tc.ev, got, ok, tc.want)
+	for _, from := range states {
+		for _, event := range events {
+			key := struct {
+				from  RunStatus
+				event RunEvent
+			}{from, event}
+			want, wantOK := legal[key]
+			got, gotOK := Transition(from, event)
+			if gotOK != wantOK || (gotOK && got != want) || (!gotOK && got != from) {
+				t.Errorf("Transition(%s,%s) = %s,%v; want %s,%v", from, event, got, gotOK, want, wantOK)
+			}
 		}
 	}
+}
 
-	illegal := []struct {
-		from RunStatus
-		ev   RunEvent
+func TestRunTransitionStatusRejectsWithoutMutation(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		status RunStatus
+		event  RunEvent
 	}{
-		{RunPending, EventStartSnapshot},  // snapshot before capture
-		{RunPending, EventComplete},       // complete before any work
-		{RunCompleted, EventStartCapture}, // escape terminal
-		{RunFailed, EventComplete},        // escape terminal
-		{RunSnapshotting, EventStartCapture},
-	}
-	for _, tc := range illegal {
-		if _, ok := Transition(tc.from, tc.ev); ok {
-			t.Errorf("Transition(%s,%s) should be illegal", tc.from, tc.ev)
-		}
+		{name: "unknown state", status: "future-state", event: EventFail},
+		{name: "wrong branch", status: RunCapturing, event: EventComplete},
+		{name: "terminal state", status: RunCompleted, event: EventFail},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			run := Run{Status: tc.status}
+			if err := run.TransitionStatus(tc.event); err == nil {
+				t.Fatal("expected transition to fail")
+			}
+			if run.Status != tc.status {
+				t.Fatalf("invalid transition mutated status to %q; want %q", run.Status, tc.status)
+			}
+		})
 	}
 }
 
@@ -73,5 +89,16 @@ func TestCheckInvariants(t *testing.T) {
 	bad := Run{Status: RunCompleted, Outcomes: []TargetOutcome{{Status: OutcomeSucceeded}, {Status: OutcomeFailed}}}
 	if err := CheckInvariants(bad); err == nil {
 		t.Error("a completed run with a failed outcome must violate invariants")
+	}
+}
+
+func TestCheckInvariantsAllowsPartialFailureFromWarningsOrPersistenceErrors(t *testing.T) {
+	for _, run := range []Run{
+		{Status: RunPartialFailed, Outcomes: []TargetOutcome{{Status: OutcomeSucceeded, Warning: "retention failed"}}},
+		{Status: RunPartialFailed, Error: "cleanup_failed", Outcomes: []TargetOutcome{{Status: OutcomeSucceeded}}},
+	} {
+		if err := CheckInvariants(run); err != nil {
+			t.Errorf("valid partial-failure run rejected: %+v: %v", run, err)
+		}
 	}
 }

@@ -66,28 +66,77 @@ func (s *sqliteRepository) CreateAudit(ctx context.Context, a Audit) (Audit, err
 	return a, nil
 }
 
-func (s *sqliteRepository) UpdateAuditStatus(ctx context.Context, id string, status AuditStatus) error {
+func (s *sqliteRepository) UpdateAuditStatus(ctx context.Context, id string, event AuditEvent) error {
+	current, err := s.readAuditStatus(ctx, id)
+	if err != nil {
+		return err
+	}
+	state := Audit{Status: current}
+	if err := state.TransitionStatus(event); err != nil {
+		return err
+	}
+	if IsTerminal(state.Status) {
+		return fmt.Errorf("non-terminal audit update cannot persist terminal state %q", state.Status)
+	}
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE audits SET status = ?, updated_at = ? WHERE id = ? AND status = ?`,
+		string(state.Status), formatTime(s.clock.Now().UTC()), id, string(current),
+	)
+	return requireAuditTransitionWrite(result, err, id, current, event)
+}
+
+func (s *sqliteRepository) FinishAudit(ctx context.Context, a Audit, event AuditEvent) error {
+	stored, err := s.GetAudit(ctx, a.ID)
+	if err != nil {
+		return err
+	}
+	current := stored.Status
+	if err := stored.TransitionStatus(event); err != nil {
+		return err
+	}
+	if !IsTerminal(stored.Status) {
+		return fmt.Errorf("finish audit requires a terminal state, got %q", stored.Status)
+	}
+	if a.Status != stored.Status {
+		return fmt.Errorf("audit %q terminal status %q does not match event result %q", a.ID, a.Status, stored.Status)
+	}
 	now := formatTime(s.clock.Now().UTC())
-	if _, err := s.db.ExecContext(ctx,
-		`UPDATE audits SET status = ?, updated_at = ? WHERE id = ?`,
-		string(status), now, id,
-	); err != nil {
-		return fmt.Errorf("update audit status %q: %w", id, err)
+	result, err := s.db.ExecContext(ctx,
+		`UPDATE audits SET status = ?, restorable = ?, live_json = ?, snapshot_json = ?,
+			comparison_json = ?, snapshot_time = ?, finished_at = ?, error = ?, updated_at = ?
+		 WHERE id = ? AND status = ?`,
+		string(a.Status), boolToInt(a.Restorable),
+		marshalInventory(a.Live), marshalInventory(a.Snapshot), marshalComparison(a.Comparison),
+		formatTime(a.SnapshotTime), formatTime(a.FinishedAt), a.Error, now, a.ID, string(current),
+	)
+	if err := requireAuditTransitionWrite(result, err, a.ID, current, event); err != nil {
+		return fmt.Errorf("finish audit %q: %w", a.ID, err)
 	}
 	return nil
 }
 
-func (s *sqliteRepository) FinishAudit(ctx context.Context, a Audit) error {
-	now := formatTime(s.clock.Now().UTC())
-	if _, err := s.db.ExecContext(ctx,
-		`UPDATE audits SET status = ?, restorable = ?, live_json = ?, snapshot_json = ?,
-			comparison_json = ?, snapshot_time = ?, finished_at = ?, error = ?, updated_at = ?
-		 WHERE id = ?`,
-		string(a.Status), boolToInt(a.Restorable),
-		marshalInventory(a.Live), marshalInventory(a.Snapshot), marshalComparison(a.Comparison),
-		formatTime(a.SnapshotTime), formatTime(a.FinishedAt), a.Error, now, a.ID,
-	); err != nil {
-		return fmt.Errorf("finish audit %q: %w", a.ID, err)
+func (s *sqliteRepository) readAuditStatus(ctx context.Context, id string) (AuditStatus, error) {
+	var status string
+	err := s.db.QueryRowContext(ctx, `SELECT status FROM audits WHERE id = ?`, id).Scan(&status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrAuditNotFound{ID: id}
+	}
+	if err != nil {
+		return "", fmt.Errorf("read audit %q before transition: %w", id, err)
+	}
+	return AuditStatus(status), nil
+}
+
+func requireAuditTransitionWrite(result sql.Result, err error, id string, from AuditStatus, event AuditEvent) error {
+	if err != nil {
+		return fmt.Errorf("persist transition from %q via %q: %w", from, event, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check transition write: %w", err)
+	}
+	if rows != 1 {
+		return fmt.Errorf("audit %q changed after reading state %q; transition via %q was not applied", id, from, event)
 	}
 	return nil
 }

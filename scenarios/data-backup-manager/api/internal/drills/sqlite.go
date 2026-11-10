@@ -23,6 +23,9 @@ func NewSQLiteRepository(db SQLExecutor) Repository { return &sqliteRepository{d
 const drillTime = time.RFC3339Nano
 
 func (s *sqliteRepository) Create(ctx context.Context, d Drill) (Drill, error) {
+	if d.Status != StatusRequested && d.Status != StatusFailed {
+		return Drill{}, fmt.Errorf("new drill must begin requested or failed, got %q", d.Status)
+	}
 	if d.ID == "" {
 		d.ID = uuid.NewString()
 	}
@@ -35,14 +38,77 @@ func (s *sqliteRepository) Create(ctx context.Context, d Drill) (Drill, error) {
 	return d, nil
 }
 
-func (s *sqliteRepository) MarkRunning(ctx context.Context, id, restoreID string, startedAt time.Time) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE recovery_drills SET status='running', restore_id=?, started_at=? WHERE id=?`, restoreID, formatTime(startedAt), id)
-	return err
+func (s *sqliteRepository) Start(ctx context.Context, id string, startedAt time.Time) error {
+	return s.persistTransition(ctx, id, EventStart, func(from, next Status) (sql.Result, error) {
+		return s.db.ExecContext(ctx, `UPDATE recovery_drills SET status=?, started_at=? WHERE id=? AND status=?`, string(next), formatTime(startedAt), id, string(from))
+	})
 }
 
-func (s *sqliteRepository) Finish(ctx context.Context, id string, status Status, errMsg, nextAction string, finishedAt time.Time) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE recovery_drills SET status=?, error=?, next_action=?, finished_at=? WHERE id=?`, string(status), errMsg, nextAction, formatTime(finishedAt), id)
-	return err
+func (s *sqliteRepository) AttachRestore(ctx context.Context, id, restoreID string) error {
+	if restoreID == "" {
+		return errors.New("restore ID is required")
+	}
+	var status, existingRestoreID string
+	err := s.db.QueryRowContext(ctx, `SELECT status, restore_id FROM recovery_drills WHERE id=?`, id).Scan(&status, &existingRestoreID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound{ID: id}
+	}
+	if err != nil {
+		return fmt.Errorf("read recovery drill before linking restore: %w", err)
+	}
+	if Status(status) != StatusRunning || existingRestoreID != "" {
+		return fmt.Errorf("cannot link restore to drill %q from status %q with existing restore %q", id, status, existingRestoreID)
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE recovery_drills SET restore_id=? WHERE id=? AND status=? AND restore_id=''`, restoreID, id, string(StatusRunning))
+	return requireDrillWrite(result, err, id, "attach restore")
+}
+
+func (s *sqliteRepository) Finish(ctx context.Context, id string, event Event, errMsg, nextAction string, finishedAt time.Time) error {
+	return s.persistTransition(ctx, id, event, func(from, next Status) (sql.Result, error) {
+		return s.db.ExecContext(ctx, `UPDATE recovery_drills SET status=?, error=?, next_action=?, finished_at=? WHERE id=? AND status=?`, string(next), errMsg, nextAction, formatTime(finishedAt), id, string(from))
+	})
+}
+
+func (s *sqliteRepository) persistTransition(ctx context.Context, id string, event Event, write func(Status, Status) (sql.Result, error)) error {
+	var raw string
+	err := s.db.QueryRowContext(ctx, `SELECT status FROM recovery_drills WHERE id=?`, id).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound{ID: id}
+	}
+	if err != nil {
+		return fmt.Errorf("read recovery drill before transition: %w", err)
+	}
+	from := Status(raw)
+	next, ok := Transition(from, event)
+	if !ok {
+		return fmt.Errorf("invalid recovery-drill transition %q + %q", from, event)
+	}
+	result, err := write(from, next)
+	if err != nil {
+		return fmt.Errorf("persist recovery-drill transition: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check recovery-drill transition: %w", err)
+	}
+	if rows != 1 {
+		return fmt.Errorf("recovery drill %q changed after state %q was read; event %q was not applied", id, from, event)
+	}
+	return nil
+}
+
+func requireDrillWrite(result sql.Result, err error, id, action string) error {
+	if err != nil {
+		return fmt.Errorf("%s recovery drill %q: %w", action, id, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check %s recovery drill write: %w", action, err)
+	}
+	if rows != 1 {
+		return fmt.Errorf("recovery drill %q changed while attempting to %s", id, action)
+	}
+	return nil
 }
 
 func (s *sqliteRepository) Get(ctx context.Context, id string) (Drill, error) {
@@ -111,6 +177,9 @@ func scanDrill(sc scanner) (Drill, error) {
 		return Drill{}, err
 	}
 	d.Status = Status(status)
+	if !ValidStatus(d.Status) {
+		return Drill{}, fmt.Errorf("recovery drill %q has unknown status %q", d.ID, d.Status)
+	}
 	d.Scheduled = scheduled != 0
 	var err error
 	if d.RequestedAt, err = parseTime(requested); err != nil {

@@ -107,7 +107,7 @@ func (r *InMemoryRepository) CreateAudit(_ context.Context, a audits.Audit) (aud
 	return a, nil
 }
 
-func (r *InMemoryRepository) UpdateAuditStatus(_ context.Context, id string, status audits.AuditStatus) error {
+func (r *InMemoryRepository) UpdateAuditStatus(_ context.Context, id string, event audits.AuditEvent) error {
 	if r.StatErr != nil {
 		return r.StatErr
 	}
@@ -117,19 +117,34 @@ func (r *InMemoryRepository) UpdateAuditStatus(_ context.Context, id string, sta
 	if !ok {
 		return audits.ErrAuditNotFound{ID: id}
 	}
-	a.Status = status
+	if err := a.TransitionStatus(event); err != nil {
+		return err
+	}
+	if audits.IsTerminal(a.Status) {
+		return fmt.Errorf("non-terminal audit update cannot persist terminal state %q", a.Status)
+	}
 	r.byID[id] = a
 	return nil
 }
 
-func (r *InMemoryRepository) FinishAudit(_ context.Context, a audits.Audit) error {
+func (r *InMemoryRepository) FinishAudit(_ context.Context, a audits.Audit, event audits.AuditEvent) error {
 	if r.FinErr != nil {
 		return r.FinErr
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, ok := r.byID[a.ID]; !ok {
+	stored, ok := r.byID[a.ID]
+	if !ok {
 		return audits.ErrAuditNotFound{ID: a.ID}
+	}
+	if err := stored.TransitionStatus(event); err != nil {
+		return err
+	}
+	if !audits.IsTerminal(stored.Status) {
+		return fmt.Errorf("finish audit requires a terminal state, got %q", stored.Status)
+	}
+	if a.Status != stored.Status {
+		return fmt.Errorf("audit %q terminal status %q does not match event result %q", a.ID, a.Status, stored.Status)
 	}
 	r.byID[a.ID] = a
 	return nil

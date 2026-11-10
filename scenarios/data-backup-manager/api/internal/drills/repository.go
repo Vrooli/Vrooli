@@ -7,8 +7,9 @@ import (
 
 type Repository interface {
 	Create(ctx context.Context, d Drill) (Drill, error)
-	MarkRunning(ctx context.Context, id, restoreID string, startedAt time.Time) error
-	Finish(ctx context.Context, id string, status Status, errMsg, nextAction string, finishedAt time.Time) error
+	Start(ctx context.Context, id string, startedAt time.Time) error
+	AttachRestore(ctx context.Context, id, restoreID string) error
+	Finish(ctx context.Context, id string, event Event, errMsg, nextAction string, finishedAt time.Time) error
 	Get(ctx context.Context, id string) (Drill, error)
 	List(ctx context.Context, planID, targetID string, limit int) ([]Drill, error)
 	FindByIdempotency(ctx context.Context, key string) (Drill, bool, error)

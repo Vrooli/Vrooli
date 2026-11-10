@@ -10,16 +10,16 @@ type Repository interface {
 	// CreateAudit persists a new audit record and returns it with ID set.
 	CreateAudit(ctx context.Context, a Audit) (Audit, error)
 
-	// UpdateAuditStatus persists a (non-terminal) status transition and bumps
-	// the record's heartbeat. Used by the worker for requested→running.
-	UpdateAuditStatus(ctx context.Context, id string, status AuditStatus) error
+	// UpdateAuditStatus applies a legal non-terminal event and bumps the record's
+	// heartbeat. Used by the worker for requested→running.
+	UpdateAuditStatus(ctx context.Context, id string, event AuditEvent) error
 
-	// FinishAudit persists the terminal record: status, restorable, the live and
+	// FinishAudit applies a terminal event and persists the record: status, restorable, the live and
 	// snapshot inventories, the comparison, snapshot_time, finished_at, and any
 	// error. It is the single terminal-write the worker and startup
 	// reconciliation share (reconciliation passes a failed record with no
 	// inventories).
-	FinishAudit(ctx context.Context, a Audit) error
+	FinishAudit(ctx context.Context, a Audit, event AuditEvent) error
 
 	// ListNonTerminalAudits returns records left in a non-terminal status
 	// (requested/running) — the orphans startup reconciliation closes.

@@ -33,14 +33,115 @@ const (
 	RecoveryFailed    RecoveryState = "failed"
 )
 
+type RecoveryEvent string
+
+const (
+	RecoveryResume      RecoveryEvent = "resume"
+	RecoveryPause       RecoveryEvent = "pause"
+	RecoveryComplete    RecoveryEvent = "complete"
+	RecoveryDryRunReset RecoveryEvent = "dry_run_reset"
+)
+
+// Transition returns the legal next journal state for an event. Failed
+// journals remain resumable to preserve the existing recovery behavior.
+func (s RecoveryState) Transition(event RecoveryEvent) (RecoveryState, bool) {
+	switch s {
+	case RecoveryPending, RecoveryRunning, RecoveryPaused, RecoveryCompleted, RecoveryFailed:
+	default:
+		return s, false
+	}
+	switch event {
+	case RecoveryResume:
+		if s == RecoveryPending || s == RecoveryRunning || s == RecoveryPaused || s == RecoveryFailed {
+			return RecoveryRunning, true
+		}
+	case RecoveryPause:
+		if s == RecoveryRunning {
+			return RecoveryPaused, true
+		}
+	case RecoveryComplete:
+		if s == RecoveryRunning {
+			return RecoveryCompleted, true
+		}
+	case RecoveryDryRunReset:
+		if s == RecoveryRunning {
+			return RecoveryPending, true
+		}
+	}
+	return s, false
+}
+
+// Transition applies one legal event to the persisted journal state.
+func (j *RecoveryJournal) Transition(event RecoveryEvent) error {
+	if j == nil {
+		return errors.New("cannot transition a nil recovery journal")
+	}
+	next, ok := j.State.Transition(event)
+	if !ok {
+		return fmt.Errorf("invalid recovery transition %q + %q", j.State, event)
+	}
+	j.State = next
+	return nil
+}
+
+type RecoveryStepStatus string
+
+const (
+	RecoveryStepPending   RecoveryStepStatus = "pending"
+	RecoveryStepInFlight  RecoveryStepStatus = "in_flight"
+	RecoveryStepBlocked   RecoveryStepStatus = "blocked"
+	RecoveryStepValidated RecoveryStepStatus = "validated"
+	RecoveryStepCompleted RecoveryStepStatus = "completed"
+)
+
+type RecoveryStepEvent string
+
+const (
+	RecoveryStepBegin    RecoveryStepEvent = "begin"
+	RecoveryStepBlock    RecoveryStepEvent = "block"
+	RecoveryStepValidate RecoveryStepEvent = "validate"
+	RecoveryStepComplete RecoveryStepEvent = "complete"
+)
+
 // RecoveryStep records one identity-bound action. A step is only marked
 // completed after the control plane reports a satisfied end state and the
 // journal has been durably saved.
 type RecoveryStep struct {
-	Plan     Plan   `json:"plan"`
-	Status   string `json:"status"`
-	Attempts int    `json:"attempts"`
-	Detail   string `json:"detail,omitempty"`
+	Plan     Plan               `json:"plan"`
+	Status   RecoveryStepStatus `json:"status"`
+	Attempts int                `json:"attempts"`
+	Detail   string             `json:"detail,omitempty"`
+}
+
+// Transition applies one legal event to a persisted recovery step.
+func (s *RecoveryStep) Transition(event RecoveryStepEvent) error {
+	if s == nil {
+		return errors.New("cannot transition a nil recovery step")
+	}
+	var next RecoveryStepStatus
+	switch event {
+	case RecoveryStepBegin:
+		if s.Status == RecoveryStepPending || s.Status == RecoveryStepBlocked || s.Status == RecoveryStepValidated {
+			next = RecoveryStepInFlight
+		}
+	case RecoveryStepBlock:
+		if s.Status == RecoveryStepInFlight {
+			next = RecoveryStepBlocked
+		}
+	case RecoveryStepValidate:
+		if s.Status == RecoveryStepInFlight {
+			next = RecoveryStepValidated
+		}
+	case RecoveryStepComplete:
+		if s.Status == RecoveryStepInFlight {
+			next = RecoveryStepCompleted
+		}
+	}
+	if next == "" {
+		return fmt.Errorf("invalid recovery-step transition %q + %q", s.Status, event)
+	}
+	s.Status = next
+	return nil
 }
 
 // RecoveryJournal is the crash-resumable record for the ordered recovery
@@ -70,6 +171,38 @@ type RecoveryStore interface {
 	Save(ctx context.Context, journal RecoveryJournal) error
 }
 
+type recoveryExecutionLock struct {
+	mu   sync.Mutex
+	refs int
+}
+
+type recoveryLockSet struct {
+	mu    sync.Mutex
+	locks map[string]*recoveryExecutionLock
+}
+
+func (s *recoveryLockSet) lock(id string) func() {
+	s.mu.Lock()
+	entry := s.locks[id]
+	if entry == nil {
+		entry = &recoveryExecutionLock{}
+		s.locks[id] = entry
+	}
+	entry.refs++
+	s.mu.Unlock()
+
+	entry.mu.Lock()
+	return func() {
+		entry.mu.Unlock()
+		s.mu.Lock()
+		entry.refs--
+		if entry.refs == 0 {
+			delete(s.locks, id)
+		}
+		s.mu.Unlock()
+	}
+}
+
 // NewRecoveryJournal validates that all steps target the same physical volume
 // and creates a pending journal. Only remediation actions are accepted.
 func NewRecoveryJournal(location string, identity DeviceIdentity, plans []Plan, now time.Time) (RecoveryJournal, error) {
@@ -96,7 +229,7 @@ func NewRecoveryJournal(location string, identity DeviceIdentity, plans []Plan, 
 		if filepath.Clean(strings.TrimSpace(plan.Location)) != filepath.Clean(location) {
 			return RecoveryJournal{}, fmt.Errorf("recovery step %d targets a different mount location", n+1)
 		}
-		steps[n] = RecoveryStep{Plan: plan, Status: "pending"}
+		steps[n] = RecoveryStep{Plan: plan, Status: RecoveryStepPending}
 	}
 	if now.IsZero() {
 		now = time.Now().UTC()
@@ -119,13 +252,29 @@ func (s *Service) ResumeRecovery(ctx context.Context, store RecoveryStore, journ
 	if store == nil {
 		return journal, errors.New("recovery store is required")
 	}
+	// The API shares one Service instance across requests. Serialize this
+	// journal's recovery and reload its persisted state so a stale request cannot
+	// replay a host action while preserving concurrency for other journals.
+	if s == nil || s.recoveryLocks == nil {
+		return journal, errors.New("recovery service execution gate is not initialized")
+	}
+	unlock := s.recoveryLocks.lock(journal.ID)
+	defer unlock()
+	persisted, loadErr := store.Load(ctx, journal.ID)
+	if loadErr == nil {
+		journal = persisted
+	} else if !errors.Is(loadErr, ErrRecoveryNotFound) {
+		return journal, fmt.Errorf("load recovery before resume: %w", loadErr)
+	}
 	if err := validateJournal(journal); err != nil {
 		return journal, err
 	}
 	if journal.State == RecoveryCompleted {
 		return journal, nil
 	}
-	journal.State = RecoveryRunning
+	if err := journal.Transition(RecoveryResume); err != nil {
+		return journal, err
+	}
 	journal.LastError = ""
 	if err := store.Save(ctx, journal); err != nil {
 		return journal, fmt.Errorf("persist recovery start: %w", err)
@@ -134,12 +283,14 @@ func (s *Service) ResumeRecovery(ctx context.Context, store RecoveryStore, journ
 	for cursor < len(journal.Steps) {
 		idx := cursor
 		step := &journal.Steps[idx]
-		if step.Status == "in_flight" {
+		if step.Status == RecoveryStepInFlight {
 			// The previous process may have completed the host action and
 			// crashed before recording the result. Re-running a repair in that
 			// ambiguous window could modify the filesystem twice. Pause and make
 			// the operator re-inspect/re-plan explicitly.
-			journal.State = RecoveryPaused
+			if err := journal.Transition(RecoveryPause); err != nil {
+				return journal, err
+			}
 			journal.LastError = "previous recovery action may have completed; inspect the volume before retrying this step"
 			if saveErr := store.Save(ctx, journal); saveErr != nil {
 				return journal, fmt.Errorf("persist recovery ambiguity: %w", saveErr)
@@ -147,7 +298,9 @@ func (s *Service) ResumeRecovery(ctx context.Context, store RecoveryStore, journ
 			return journal, errors.New(journal.LastError)
 		}
 		step.Attempts++
-		step.Status = "in_flight"
+		if err := step.Transition(RecoveryStepBegin); err != nil {
+			return journal, err
+		}
 		if err := store.Save(ctx, journal); err != nil {
 			return journal, fmt.Errorf("persist recovery attempt: %w", err)
 		}
@@ -158,9 +311,13 @@ func (s *Service) ResumeRecovery(ctx context.Context, store RecoveryStore, journ
 			AcknowledgeDataLoss: acknowledgeDataLoss && step.Plan.Destructive,
 		})
 		if err != nil {
-			journal.State = RecoveryPaused
+			if err := journal.Transition(RecoveryPause); err != nil {
+				return journal, err
+			}
 			journal.LastError = err.Error()
-			step.Status = "blocked"
+			if transitionErr := step.Transition(RecoveryStepBlock); transitionErr != nil {
+				return journal, transitionErr
+			}
 			step.Detail = err.Error()
 			if saveErr := store.Save(ctx, journal); saveErr != nil {
 				return journal, fmt.Errorf("recovery paused (%v), and pause could not be persisted: %w", err, saveErr)
@@ -169,15 +326,21 @@ func (s *Service) ResumeRecovery(ctx context.Context, store RecoveryStore, journ
 		}
 		step.Detail = result.Detail
 		if dryRun {
-			step.Status = "validated"
+			if err := step.Transition(RecoveryStepValidate); err != nil {
+				return journal, err
+			}
 			cursor++
 			continue
 		}
-		step.Status = "completed"
+		if err := step.Transition(RecoveryStepComplete); err != nil {
+			return journal, err
+		}
 		journal.Current++
 		cursor = journal.Current
 		if journal.Current == len(journal.Steps) {
-			journal.State = RecoveryCompleted
+			if err := journal.Transition(RecoveryComplete); err != nil {
+				return journal, err
+			}
 		}
 		journal.UpdatedAt = time.Now().UTC()
 		if err := store.Save(ctx, journal); err != nil {
@@ -185,7 +348,9 @@ func (s *Service) ResumeRecovery(ctx context.Context, store RecoveryStore, journ
 		}
 	}
 	if dryRun {
-		journal.State = RecoveryPending
+		if err := journal.Transition(RecoveryDryRunReset); err != nil {
+			return journal, err
+		}
 		journal.UpdatedAt = time.Now().UTC()
 		if err := store.Save(ctx, journal); err != nil {
 			return journal, fmt.Errorf("persist recovery dry-run: %w", err)
@@ -213,6 +378,11 @@ func validateJournal(j RecoveryJournal) error {
 	if j.Current < 0 || j.Current > len(j.Steps) || len(j.Steps) == 0 {
 		return errors.New("invalid recovery cursor")
 	}
+	switch j.State {
+	case RecoveryPending, RecoveryRunning, RecoveryPaused, RecoveryCompleted, RecoveryFailed:
+	default:
+		return fmt.Errorf("unknown recovery state %q", j.State)
+	}
 	for _, step := range j.Steps {
 		if !step.Plan.Action.IsRemediation() || !step.Plan.Identity.StrongIdentity() ||
 			strings.TrimSpace(step.Plan.Identity.DevicePath) == "" ||
@@ -222,11 +392,19 @@ func validateJournal(j RecoveryJournal) error {
 		}
 	}
 	for index, step := range j.Steps {
-		if index < j.Current && step.Status != "completed" {
+		switch step.Status {
+		case RecoveryStepPending, RecoveryStepInFlight, RecoveryStepBlocked, RecoveryStepValidated, RecoveryStepCompleted:
+		default:
+			return fmt.Errorf("recovery step %d has unknown status %q", index+1, step.Status)
+		}
+		if index < j.Current && step.Status != RecoveryStepCompleted {
 			return errors.New("recovery journal cursor skips an incomplete step")
 		}
-		if index >= j.Current && step.Status == "completed" {
+		if index >= j.Current && step.Status == RecoveryStepCompleted {
 			return errors.New("recovery journal marks a future step completed")
+		}
+		if index > j.Current && (step.Status == RecoveryStepInFlight || step.Status == RecoveryStepBlocked) {
+			return errors.New("recovery journal has an active step after its cursor")
 		}
 	}
 	if j.State == RecoveryCompleted && j.Current != len(j.Steps) {
@@ -373,7 +551,7 @@ func (s *FileRecoveryStore) readEpisode(path string) (RecoveryEpisode, error) {
 }
 
 func (s *FileRecoveryStore) writeEpisode(path string, episode RecoveryEpisode) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(episode, "", "  ")
@@ -386,7 +564,7 @@ func (s *FileRecoveryStore) writeEpisode(path string, episode RecoveryEpisode) e
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
-	if err := tmp.Chmod(0600); err != nil {
+	if err := tmp.Chmod(0o600); err != nil {
 		tmp.Close()
 		return err
 	}
@@ -427,7 +605,7 @@ func (s *FileRecoveryStore) Save(ctx context.Context, journal RecoveryJournal) e
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		return err
 	}
 	data, err := json.MarshalIndent(journal, "", "  ")
@@ -440,7 +618,7 @@ func (s *FileRecoveryStore) Save(ctx context.Context, journal RecoveryJournal) e
 	}
 	tmpName := tmp.Name()
 	defer os.Remove(tmpName)
-	if err = tmp.Chmod(0600); err == nil {
+	if err = tmp.Chmod(0o600); err == nil {
 		_, err = tmp.Write(data)
 	}
 	if err == nil {

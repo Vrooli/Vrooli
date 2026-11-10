@@ -39,12 +39,16 @@ type Service struct {
 	deviceInspector DeviceInspector
 	preparer        Preparer
 	remediator      Remediator
+	// The API shares one Service instance across requests. Journal-scoped gates
+	// prevent stale concurrent requests from replaying the same host action
+	// without serializing independent volume recoveries.
+	recoveryLocks *recoveryLockSet
 }
 
 // NewService constructs a readiness service. Device-scoped inspection is wired
 // when the inspector provides it, so a path-only fake stays a valid Inspector.
 func NewService(inspector Inspector, preparer Preparer) *Service {
-	s := &Service{inspector: inspector, preparer: preparer}
+	s := &Service{inspector: inspector, preparer: preparer, recoveryLocks: &recoveryLockSet{locks: make(map[string]*recoveryExecutionLock)}}
 	if devices, ok := inspector.(DeviceInspector); ok {
 		s.deviceInspector = devices
 	}

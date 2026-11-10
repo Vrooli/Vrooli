@@ -43,3 +43,32 @@ func TestSQLiteRepository_IdempotencyAndLatest(t *testing.T) {
 		t.Fatalf("latest key = %q", latest.IdempotencyKey)
 	}
 }
+
+func TestSQLiteRepository_EnforcesDrillTransitionsWithoutMutation(t *testing.T) {
+	repo := newDrillRepo(t)
+	ctx := context.Background()
+	drill, err := repo.Create(ctx, drills.Drill{PlanID: "plan-1", TargetID: "target-1", DestinationID: "dest-1", Status: drills.StatusRequested})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.Finish(ctx, drill.ID, drills.EventVerify, "", "", time.Now()); err == nil {
+		t.Fatal("requested drill accepted verification")
+	}
+	got, err := repo.Get(ctx, drill.ID)
+	if err != nil || got.Status != drills.StatusRequested {
+		t.Fatalf("rejected verification mutated state: drill=%+v err=%v", got, err)
+	}
+	if err := repo.Start(ctx, drill.ID, time.Now()); err != nil {
+		t.Fatalf("start: %v", err)
+	}
+	if err := repo.Finish(ctx, drill.ID, drills.EventVerify, "", "", time.Now()); err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if err := repo.Finish(ctx, drill.ID, drills.EventFail, "late failure", "", time.Now()); err == nil {
+		t.Fatal("terminal drill accepted a second finish event")
+	}
+	got, err = repo.Get(ctx, drill.ID)
+	if err != nil || got.Status != drills.StatusVerified {
+		t.Fatalf("terminal rejection mutated state: drill=%+v err=%v", got, err)
+	}
+}

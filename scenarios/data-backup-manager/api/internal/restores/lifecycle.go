@@ -1,5 +1,7 @@
 package restores
 
+import "fmt"
+
 // lifecycle.go is the Level-2 workflow model for a restore/verify operation
 // (per docs/concepts/FLOWS.md): the legal state set, the transition function,
 // and the invariants. It is pure — no I/O, no clock — so the service
@@ -30,6 +32,11 @@ func terminal(s RestoreStatus) bool {
 // transition is legal. Illegal transitions (e.g. moving to verified from
 // restoring, or any transition out of a terminal state) return ok=false.
 func Transition(from RestoreStatus, ev RestoreEvent) (RestoreStatus, bool) {
+	switch from {
+	case RestoreRequested, RestoreRestoring, RestoreVerifying, RestoreVerified, RestoreRestored, RestoreFailed:
+	default:
+		return from, false
+	}
 	if terminal(from) {
 		return from, false
 	}
@@ -56,6 +63,21 @@ func Transition(from RestoreStatus, ev RestoreEvent) (RestoreStatus, bool) {
 		}
 	}
 	return from, false
+}
+
+// Transition applies one legal lifecycle event to a restore record. It is the
+// only in-memory status mutation point; repositories use it before persisting
+// the resulting state.
+func (r *Restore) Transition(ev RestoreEvent) error {
+	if r == nil {
+		return fmt.Errorf("cannot transition a nil restore")
+	}
+	next, ok := Transition(r.Status, ev)
+	if !ok {
+		return fmt.Errorf("invalid restore transition %q + %q", r.Status, ev)
+	}
+	r.Status = next
+	return nil
 }
 
 // CheckInvariants validates a restore record against the lifecycle invariants.

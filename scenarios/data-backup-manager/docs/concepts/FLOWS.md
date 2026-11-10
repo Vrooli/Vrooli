@@ -20,19 +20,19 @@ workflow model.
 
 ## Flow Inventory
 
-These are the intended product flows for the locked design. They are
-not modeled yet; the rows below name them, their owner domain, and the
-states they will need. The flow modeling machinery (Levels 2–5,
-described later in this document) is the target maturity, not the
-current state.
+These are the product workflows and their current validation evidence.
+The validation column distinguishes implemented enforcement from remaining
+formal-model work.
 
 | Flow | Domain | Trigger | Outcome | Statefulness | Validation |
 |---|---|---|---|---|---|
 | Target self-registration | targets | A scenario calls register at its lifecycle. | Target upserted (owner+name), or no-op if unchanged. | Idempotent upsert; create-vs-update branch. | Implemented: service-level idempotency and reconstruction tests. |
 | Default coverage acceptance | coverage | Operator runs `coverage accept-defaults` (or the UI "Register recommended"). | All non-sensitive discovered durable targets registered; sensitive ones skipped unless opted in. | Idempotent bulk upsert; per-item success/skip/fail. | Coverage service tests (split, dry-run, idempotency, partial failure). |
-| Scheduled backup run | runs | In-process scheduler fires a plan, or operator/scenario triggers on-demand. | One snapshot per target per destination, run + per-target outcomes recorded. | Stateful job with per-target fan-out and partial failure. | Planned: Level 5 flow model (states, traces, checked model, replay). |
-| Verified restore | restores | Operator/scenario requests restore or verify of a target. | Target restored to a location, or test-restored to scratch + checksummed (last-verified recorded). | Stateful job with verify gate. | Planned: Level 5 flow model. |
-| Generic snapshot audit | audits | Operator/scenario requests an audit of a snapshot. | Snapshot restored to scratch (recoverability), live target captured to scratch (read-only), both walked and compared by generic inventory; proof persisted. | Stateful async job; pass/diff/drift/failed terminal. | Implemented: service + walker + dbcheck + comparator tests (`api/internal/audits/*_test.go`). |
+| Scheduled backup run | runs | In-process scheduler fires a plan, or operator/scenario triggers on-demand. | One snapshot per target per destination, run + per-target outcomes recorded. | Stateful job with per-target fan-out and partial failure. | Implemented: typed transition owner, SQLite compare-and-swap status updates, outcome-aware terminal invariant checks and event matrix tests; declarative Level 4 contract remains open. |
+| Verified restore | restores | Operator/scenario requests restore or verify of a target. | Target restored to a location, or test-restored to scratch + checksummed (last-verified recorded). | Stateful job with verify gate. | Implemented: domain transition owner, persisted compare-and-swap enforcement, invalid-transition regressions; declarative Level 4 contract remains open. |
+| Scheduled recovery drill | drills | Operator requests a drill, or a configured plan schedule becomes due. | A successful snapshot is restored through the verify path and terminal drill evidence records the result. | Stateful queued job linked to a verified restore; startup reconciliation fails orphaned active drills. | Implemented: typed start/verify/fail events, SQLite compare-and-swap transitions, restore-link guard, invalid-state matrix and persistence regressions. |
+| Destination volume recovery | destinationreadiness | Operator confirms or resumes recovery after a volume becomes unavailable. | An identity-bound sequence is completed, paused for inspection, or left pending after a successful dry run. | Crash-resumable journal and ordered host-remediation steps; an ambiguous in-flight repair is never replayed automatically. | Implemented: journal/step transition owners, persisted-state validation, invalid-event matrix and resume/refusal regressions. |
+| Generic snapshot audit | audits | Operator/scenario requests an audit of a snapshot. | Snapshot restored to scratch (recoverability), live target captured to scratch (read-only), both walked and compared by generic inventory; proof persisted. | Stateful async job; pass/diff/drift/failed terminal. | Implemented: typed transition owner, SQLite compare-and-swap writes, terminal event/status validation, and exhaustive event-matrix tests; service, reconciliation and repository callers migrated. |
 | Storage-limit block | destinations / runs | A run would write past a destination's cap. | Run is blocked, an alert is raised, no bytes are written; never silent eviction. | Branch on cap-check before write. | Implemented: destination service cap-policy and usage tests. |
 
 ## Flow Details
@@ -133,6 +133,23 @@ current state.
   target's committed runtime data from git. No verify, no git removal.
 - Requirements: OT-P0-006; OT-P1-004 (granularity) extends step 1.
 
+### Destination volume recovery
+
+- Owner domain: destinationreadiness. Control-plane handlers own host
+  inspection and remediation; this journal owns ordered work and reports
+  outcomes.
+- Trigger: the operator reviews and confirms an identity-bound recovery plan,
+  or resumes a paused journal after inspecting its volume.
+- States: journal `pending`, `running`, `paused`, `completed`, or legacy
+  `failed`; steps `pending`, `in_flight`, `blocked`, `validated`, or `completed`.
+- Rules: journal and step events pass through typed transition owners. A
+  resumed `in_flight` step pauses before any host operation because its prior
+  outcome is ambiguous. Dry runs validate every step and return the journal
+  to `pending` without advancing the durable cursor. The file store validates
+  known states before atomically persisting the journal.
+- Existing preparation API remains the owner of device identity, explicit
+  confirmation, and data-loss acknowledgement constraints.
+
 ### Generic snapshot audit
 
 - Owner domain: audits.
@@ -187,13 +204,16 @@ current state.
 
 ## State Machines
 
-These are the target state sets for the modeled flows once they reach
-Level 2+. They are design intent, not implemented machines.
+These state sets describe the current domain models and their enforcement.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|
-| runs / backup run | pending, capturing, snapshotting, completed, partial_failed, failed | snapshotting before capturing, terminal-state escape, success after a recorded target failure | Planned: `*.flow.json` contract + generated checked model + replay tests |
-| restores / verified restore | requested, restoring, verifying, verified, restored, failed | verifying without a completed restore-to-scratch, marking verified after a checksum mismatch | Planned: `*.flow.json` contract + generated checked model + replay tests |
+| runs / backup run | pending, capturing, snapshotting, completed, partial_failed, failed | snapshotting before capturing, terminal-state escape, success after a recorded target failure | `Run.TransitionStatus` owns state changes; SQLite updates compare the stored source state, and `CheckInvariants` prevents terminal status from contradicting outcomes, warnings, or persistence errors. `*.flow.json` and generated replay remain future work. |
+| restores / verified restore | requested, restoring, verifying, verified, restored, failed | verifying without a completed restore-to-scratch, marking verified after a checksum mismatch, any transition out of a terminal state | `Transition` owns state changes; the SQLite repository applies events with a state compare-and-swap; invalid event/method combinations are rejected without mutating the record. `*.flow.json` and generated replay remain future work. |
+| drills / scheduled recovery drill | requested, running, verified, failed | verify before running, terminal-state escape, arbitrary status writes | `Drill.TransitionStatus` owns state changes; SQLite repository calls accept events and compare the stored source state. Restore linkage is only accepted while running and once. |
+| audits / generic snapshot audit | requested, running, completed, failed | completing before running, terminal-state escape, arbitrary status write | `Audit.TransitionStatus` owns state changes; repository APIs accept events and SQLite compares the stored source state. Invalid event/status pairs fail without mutation. |
+| destinationreadiness / recovery journal | pending, running, paused, completed, failed | completing before all steps finish, resuming an ambiguous in-flight step without inspection, concurrent stale-copy replay | `RecoveryJournal.Transition` owns state; `validateJournal` rejects unknown states and cursor mismatches. The shared service serializes resume execution and reloads persisted state before honoring a request. |
+| destinationreadiness / recovery step | pending, in_flight, blocked, validated, completed | completion before execution, automatic retry of an in-flight action, non-current blocked or in-flight steps | `RecoveryStep.Transition` owns status; `validateJournal` rejects unknown statuses and illegal cursor placement. |
 
 ## Maturity Ladder
 

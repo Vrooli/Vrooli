@@ -156,9 +156,13 @@ func (s *service) RunSnapshotAudit(ctx context.Context, targetID, destinationID,
 func (s *service) executeJob(ctx context.Context, job AuditJob) {
 	id := job.Audit.ID
 	rec := job.Audit
-	if err := s.deps.Repo.UpdateAuditStatus(ctx, id, AuditRunning); err != nil {
+	if err := s.deps.Repo.UpdateAuditStatus(ctx, id, AuditStart); err != nil {
 		s.logf("audit %s -> running: %v", id, err)
 		s.finishFailed(ctx, rec, fmt.Sprintf("could not persist running transition: %v", err))
+		return
+	}
+	if err := rec.TransitionStatus(AuditStart); err != nil {
+		s.finishFailed(ctx, rec, err.Error())
 		return
 	}
 
@@ -242,9 +246,12 @@ func (s *service) executeJob(ctx context.Context, job AuditJob) {
 		return
 	}
 
-	rec.Status = AuditCompleted
+	if err := rec.TransitionStatus(AuditComplete); err != nil {
+		s.finishFailed(ctx, rec, err.Error())
+		return
+	}
 	rec.FinishedAt = s.deps.Clock.Now().UTC()
-	if err := s.deps.Repo.FinishAudit(ctx, rec); err != nil {
+	if err := s.deps.Repo.FinishAudit(ctx, rec, AuditComplete); err != nil {
 		s.logf("finish audit %s: %v", id, err)
 	}
 }
@@ -285,10 +292,13 @@ func (s *service) snapshotTime(ctx context.Context, repo, snapshotID string) tim
 // finishFailed persists a terminal failed audit, keeping whatever partial
 // evidence (restorable, snapshot inventory) was already gathered.
 func (s *service) finishFailed(ctx context.Context, rec Audit, errMsg string) {
-	rec.Status = AuditFailed
+	if err := rec.TransitionStatus(AuditFail); err != nil {
+		s.logf("audit %s failed transition: %v", rec.ID, err)
+		return
+	}
 	rec.Error = errMsg
 	rec.FinishedAt = s.deps.Clock.Now().UTC()
-	if err := s.deps.Repo.FinishAudit(ctx, rec); err != nil {
+	if err := s.deps.Repo.FinishAudit(ctx, rec, AuditFail); err != nil {
 		s.logf("finish failed audit %s: %v", rec.ID, err)
 	}
 }
@@ -296,7 +306,9 @@ func (s *service) finishFailed(ctx context.Context, rec Audit, errMsg string) {
 // failSync records a synchronously-failed audit (bad target/destination) and
 // persists it. If persistence fails, returns the persistence error.
 func (s *service) failSync(ctx context.Context, rec Audit, errMsg string) (Audit, error) {
-	rec.Status = AuditFailed
+	if err := rec.TransitionStatus(AuditFail); err != nil {
+		return Audit{}, fmt.Errorf("transition synchronous audit failure: %w", err)
+	}
 	rec.Error = errMsg
 	rec.FinishedAt = s.deps.Clock.Now().UTC()
 	saved, persistErr := s.deps.Repo.CreateAudit(ctx, rec)
@@ -343,10 +355,13 @@ func (s *service) Reconcile(ctx context.Context) error {
 	}
 	const reason = "reconciled: process restarted while audit was in-flight"
 	for _, a := range orphans {
-		a.Status = AuditFailed
+		if err := a.TransitionStatus(AuditFail); err != nil {
+			s.logf("reconcile audit %s transition: %v", a.ID, err)
+			continue
+		}
 		a.Error = reason
 		a.FinishedAt = s.deps.Clock.Now().UTC()
-		if err := s.deps.Repo.FinishAudit(ctx, a); err != nil {
+		if err := s.deps.Repo.FinishAudit(ctx, a, AuditFail); err != nil {
 			s.logf("reconcile audit %s: %v", a.ID, err)
 		}
 	}
