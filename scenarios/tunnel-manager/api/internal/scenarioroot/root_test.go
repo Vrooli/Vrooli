@@ -3,16 +3,11 @@ package scenarioroot
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 )
 
 func TestResolveUsesCanonicalLifecycleRootWhenNestedScenariosExists(t *testing.T) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(filename), "../../../../../"))
+	repoRoot := testRepoRoot(t)
 
 	t.Setenv("VROOLI_SCENARIOS_ROOT", "")
 	t.Setenv("VROOLI_SOURCE_ROOT", repoRoot)
@@ -38,11 +33,7 @@ func TestNewRejectsInvalidExplicitScenariosRoot(t *testing.T) {
 }
 
 func TestServiceFileUsesContractWellKnownPath(t *testing.T) {
-	_, filename, _, ok := runtime.Caller(0)
-	if !ok {
-		t.Fatal("runtime.Caller failed")
-	}
-	repoRoot := filepath.Clean(filepath.Join(filepath.Dir(filename), "../../../../../"))
+	repoRoot := testRepoRoot(t)
 	t.Setenv("VROOLI_SCENARIOS_ROOT", "")
 	t.Setenv("VROOLI_SOURCE_ROOT", repoRoot)
 	t.Setenv("VROOLI_ROOT", "")
@@ -56,5 +47,23 @@ func TestServiceFileUsesContractWellKnownPath(t *testing.T) {
 	}
 	if want := filepath.Join(repoRoot, "scenarios", "secrets-manager", ".vrooli", "service.json"); path != want {
 		t.Fatalf("ServiceFile() = %q, want %q", path, want)
+	}
+}
+
+func testRepoRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("resolve test working directory: %v", err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("find repository root from test working directory")
+		}
+		dir = parent
 	}
 }

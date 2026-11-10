@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"tunnel-manager/cli/internal/testutil"
+	"github.com/vrooli/cli-core/cliapptest"
 )
 
 // TestAccessGroupRegisters asserts the access group loads from the manifest
@@ -15,7 +15,7 @@ import (
 // command per RPC, so the dry-run preview is a flag on status, not a separate
 // verb; this test pins that shape.
 func TestAccessGroupRegisters(t *testing.T) {
-	group, err := Register(&cliapp.ScenarioApp{}, testutil.ReadManifest(t))
+	group, err := Register(&cliapp.ScenarioApp{}, cliapptest.ReadManifest(t))
 	require.NoError(t, err, "access group must build from cli/manifest.json")
 	require.Equal(t, GroupName, group.Name)
 	require.Len(t, group.Subcommands, 1, "access group binds one command per RPC")

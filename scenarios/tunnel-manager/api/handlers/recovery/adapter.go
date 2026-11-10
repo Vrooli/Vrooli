@@ -18,7 +18,7 @@ func stateToProto(s recovery.RecoveryState) *recoveryv1.RecoveryState {
 		ConsecFailures:   int32(s.ConsecFailures),
 		BackoffLevel:     int32(s.BackoffLevel),
 		FailedRecoveries: int32(s.FailedRecovery),
-		CircuitOpen:      s.CircuitOpen,
+		CircuitOpen:      s.CircuitIsOpen(),
 		LastCheck:        optionalTS(s.LastCheck),
 		LastRecovery:     optionalTS(s.LastRecovery),
 		NextRetryAfter:   optionalTS(s.NextRetryAfter),

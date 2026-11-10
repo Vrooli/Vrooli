@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -21,6 +22,23 @@ type recoverySchedulerService struct {
 	events []recovery.RecoveryEvent
 	acted  []bool
 	called chan int
+}
+
+type lockedBuffer struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (b *lockedBuffer) Write(data []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.Write(data)
+}
+
+func (b *lockedBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.String()
 }
 
 func newRecoverySchedulerService() *recoverySchedulerService {
@@ -69,7 +87,7 @@ func TestRecoverySchedulerRunsBootAndPeriodicEvaluation(t *testing.T) {
 		{Action: recovery.ActionRestart, Outcome: recovery.OutcomeSkipped, Attempt: 2},
 	}
 	svc.acted = []bool{true, true}
-	var logs bytes.Buffer
+	var logs lockedBuffer
 	scheduler, err := recovery.NewScheduler(recovery.SchedulerConfig{
 		Service: svc,
 		Ticks:   ticks,
@@ -105,7 +123,7 @@ func TestRecoverySchedulerContinuesAfterFailure(t *testing.T) {
 	svc.errs = []error{errors.New("sqlite unavailable")}
 	svc.events = []recovery.RecoveryEvent{{}, {Action: recovery.ActionRestart, Outcome: recovery.OutcomeFailure, Attempt: 1}}
 	svc.acted = []bool{false, true}
-	var logs bytes.Buffer
+	var logs lockedBuffer
 	scheduler, err := recovery.NewScheduler(recovery.SchedulerConfig{
 		Service: svc,
 		Ticks:   ticks,
@@ -121,11 +139,11 @@ func TestRecoverySchedulerContinuesAfterFailure(t *testing.T) {
 		scheduler.Run(ctx)
 	}()
 	waitRecoveryCall(t, svc, 1)
-	require.Contains(t, logs.String(), "failed (will retry)")
+	require.Eventually(t, func() bool { return strings.Contains(logs.String(), "failed (will retry)") }, time.Second, time.Millisecond)
 
 	ticks <- time.Now()
 	waitRecoveryCall(t, svc, 2)
-	require.Contains(t, logs.String(), "outcome=failure")
+	require.Eventually(t, func() bool { return strings.Contains(logs.String(), "outcome=failure") }, time.Second, time.Millisecond)
 
 	cancel()
 	select {

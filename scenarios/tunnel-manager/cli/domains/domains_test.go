@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vrooli/cli-core/cliapp"
-	"tunnel-manager/cli/internal/testutil"
+	"github.com/vrooli/cli-core/cliapptest"
 )
 
 // TestCommandGroups exercises the flat-commands aggregator. The
@@ -29,7 +29,7 @@ func TestCommandGroups(t *testing.T) {
 // but forgets to set Name or has no
 // subcommands) still fails this test loudly.
 func TestSubcommandGroups(t *testing.T) {
-	manifest := testutil.ReadManifest(t)
+	manifest := cliapptest.ReadManifest(t)
 	got, err := SubcommandGroups(&cliapp.ScenarioApp{}, manifest)
 	require.NoError(t, err, "SubcommandGroups must build cleanly from cli/manifest.json")
 	require.NotNil(t, got, "SubcommandGroups must return a slice (possibly empty), not nil")

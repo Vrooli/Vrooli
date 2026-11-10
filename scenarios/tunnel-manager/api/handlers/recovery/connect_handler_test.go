@@ -67,7 +67,7 @@ func newClientWithAuthorizer(t *testing.T, svc internalrecovery.Service, authori
 
 func TestHandlerGetStateMapsEnumAndZeroTimes(t *testing.T) {
 	client := newClient(t, &fakeService{state: internalrecovery.RecoveryState{
-		Status: internalrecovery.StatusCircuitOpen, ConsecFailures: 4, CircuitOpen: true,
+		Status: internalrecovery.StatusCircuitOpen, ConsecFailures: 4,
 	}})
 	resp, err := client.GetState(context.Background(), connect.NewRequest(&recoveryv1.GetStateRequest{}))
 	require.NoError(t, err)

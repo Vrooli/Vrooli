@@ -195,6 +195,13 @@ re-probe → success closes breaker; repeated failure opens breaker (alert-only)
   decision, see [`../internal/DECISIONS.md`](../internal/DECISIONS.md)).
 - Retry/cancel: backoff between attempts; breaker bounds total attempts.
   `vrooli-autoheal` must be alert-only so the two never duel.
+- The runtime recovery snapshot uses one four-state status lifecycle:
+  `idle → monitoring → recovering → idle|monitoring|circuit_open`. An open
+  circuit can return to `idle`, `monitoring`, or `recovering` only after the
+  cooldown expires or a forced manual attempt bypasses the guard. The domain
+  owner is `RecoveryState.TransitionStatus`; the in-flight and circuit-open
+  conditions are derived from status, and the wire-level `circuit_open` field
+  remains a derived projection for existing consumers.
 
 ### app-monitor exposure-query
 
@@ -222,6 +229,11 @@ enforced. Plain CRUD with no ordering constraints does not appear here.
 > No `*.flow.json` contracts or Quint models exist yet. The exposure
 > service currently enforces the rules in Go with unit tests; formal flow
 > contracts remain a maturity follow-up.
+
+The recovery status edge table and invalid-state matrix live in
+`api/internal/recovery/lifecycle_test.go`; service tests continue to verify
+the managed restart and event-persistence paths. `RecoveryState` itself is an
+in-memory snapshot, while recovery events remain the persisted audit log.
 
 | Domain/Flow | States | Illegal Transitions | Enforcement |
 |---|---|---|---|

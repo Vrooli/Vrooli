@@ -63,7 +63,6 @@ type engine struct {
 
 	mu             sync.Mutex
 	state          RecoveryState
-	recovering     bool
 	attemptCounter int
 	dormant        bool // tracks the unit-absent log transition (guards spam)
 }
@@ -144,7 +143,7 @@ func (e *engine) Recover(ctx context.Context, force bool) (EventOutcome, Recover
 
 	// Idempotency: a recovery already in flight is not re-triggered.
 	// The second caller observes a SKIPPED outcome — twice == once.
-	if e.recovering {
+	if e.state.Status == StatusRecovering {
 		e.mu.Unlock()
 		evt, err := e.persistSkipped(ctx, TriggerManual, "recovery already in flight")
 		return OutcomeSkipped, evt, err
@@ -156,8 +155,10 @@ func (e *engine) Recover(ctx context.Context, force bool) (EventOutcome, Recover
 		return OutcomeSkipped, evt, err
 	}
 
-	e.recovering = true
-	e.state.Status = StatusRecovering
+	if err := e.state.TransitionStatus(StatusRecovering); err != nil {
+		e.mu.Unlock()
+		return OutcomeSkipped, RecoveryEvent{}, err
+	}
 	e.state.LastRecovery = e.clock.Now().UTC()
 	attempt := e.nextAttemptLocked()
 	e.mu.Unlock()
@@ -165,13 +166,15 @@ func (e *engine) Recover(ctx context.Context, force bool) (EventOutcome, Recover
 	evt := e.executeRecovery(ctx, TriggerManual, attempt)
 
 	e.mu.Lock()
-	e.recovering = false
-	e.applyOutcomeLocked(evt)
+	transitionErr := e.applyOutcomeLocked(evt)
 	e.mu.Unlock()
 
 	stored, err := e.repo.PersistEvent(ctx, evt)
 	if err != nil {
 		return evt.Outcome, evt, err
+	}
+	if transitionErr != nil {
+		return stored.Outcome, stored, transitionErr
 	}
 	return stored.Outcome, stored, nil
 }
@@ -185,8 +188,13 @@ func (e *engine) Evaluate(ctx context.Context) (RecoveryEvent, bool, error) {
 	if !e.presence.CloudflaredUnitPresent(ctx) {
 		e.mu.Lock()
 		e.state.LastCheck = e.clock.Now().UTC()
-		e.state.Status = StatusIdle
 		e.state.ConsecFailures = 0
+		if e.state.Status != StatusRecovering {
+			if err := e.state.TransitionStatus(StatusIdle); err != nil {
+				e.mu.Unlock()
+				return RecoveryEvent{}, false, err
+			}
+		}
 		if !e.dormant {
 			e.dormant = true
 			slog.Info("recovery dormant because no managed cloudflared resource is present", "component", "tunnel-manager")
@@ -202,27 +210,40 @@ func (e *engine) Evaluate(ctx context.Context) (RecoveryEvent, bool, error) {
 	}
 	e.state.LastCheck = e.clock.Now().UTC()
 
-	if e.recovering || e.blockedLocked() {
+	blocked, err := e.blockedLocked()
+	if err != nil {
+		e.mu.Unlock()
+		return RecoveryEvent{}, false, err
+	}
+	if e.state.Status == StatusRecovering || blocked {
 		e.mu.Unlock()
 		return RecoveryEvent{}, false, nil
 	}
 
 	if e.health.Ready(ctx) {
 		e.state.ConsecFailures = 0
-		e.state.Status = StatusIdle
+		if err := e.state.TransitionStatus(StatusIdle); err != nil {
+			e.mu.Unlock()
+			return RecoveryEvent{}, false, err
+		}
 		e.mu.Unlock()
 		return RecoveryEvent{}, false, nil
 	}
 
 	e.state.ConsecFailures++
 	if e.state.ConsecFailures < e.cfg.ConsecutiveFailures {
-		e.state.Status = StatusMonitoring
+		if err := e.state.TransitionStatus(StatusMonitoring); err != nil {
+			e.mu.Unlock()
+			return RecoveryEvent{}, false, err
+		}
 		e.mu.Unlock()
 		return RecoveryEvent{}, false, nil
 	}
 
-	e.recovering = true
-	e.state.Status = StatusRecovering
+	if err := e.state.TransitionStatus(StatusRecovering); err != nil {
+		e.mu.Unlock()
+		return RecoveryEvent{}, false, err
+	}
 	e.state.LastRecovery = e.clock.Now().UTC()
 	attempt := e.nextAttemptLocked()
 	failures := e.state.ConsecFailures
@@ -232,13 +253,15 @@ func (e *engine) Evaluate(ctx context.Context) (RecoveryEvent, bool, error) {
 	evt.Details = fmt.Sprintf("%s (after %d consecutive ready failures)", evt.Details, failures)
 
 	e.mu.Lock()
-	e.recovering = false
-	e.applyOutcomeLocked(evt)
+	transitionErr := e.applyOutcomeLocked(evt)
 	e.mu.Unlock()
 
 	stored, err := e.repo.PersistEvent(ctx, evt)
 	if err != nil {
 		return evt, true, err
+	}
+	if transitionErr != nil {
+		return stored, true, transitionErr
 	}
 	return stored, true, nil
 }
@@ -247,7 +270,7 @@ func (e *engine) Evaluate(ctx context.Context) (RecoveryEvent, bool, error) {
 // Resets the breaker after cooldown; force bypasses (and resets) it.
 // Must hold e.mu.
 func (e *engine) circuitGuarded(force bool) bool {
-	if !e.state.CircuitOpen {
+	if e.state.Status != StatusCircuitOpen {
 		return false
 	}
 	if force {
@@ -258,26 +281,26 @@ func (e *engine) circuitGuarded(force bool) bool {
 		e.resetCountersLocked()
 		return false
 	}
-	e.state.Status = StatusCircuitOpen
 	return true
 }
 
 // blockedLocked reports whether automatic evaluation is paused by the
 // circuit breaker or an unexpired backoff window. Must hold e.mu.
-func (e *engine) blockedLocked() bool {
-	if e.state.CircuitOpen {
+func (e *engine) blockedLocked() (bool, error) {
+	if e.state.Status == StatusCircuitOpen {
 		if e.clock.Now().Sub(e.circuit) >= e.cfg.CircuitCooldown {
 			e.resetCountersLocked()
 		} else {
-			e.state.Status = StatusCircuitOpen
-			return true
+			return true, nil
 		}
 	}
 	if !e.state.NextRetryAfter.IsZero() && e.clock.Now().Before(e.state.NextRetryAfter) {
-		e.state.Status = StatusMonitoring
-		return true
+		if err := e.state.TransitionStatus(StatusMonitoring); err != nil {
+			return false, err
+		}
+		return true, nil
 	}
-	return false
+	return false, nil
 }
 
 func (e *engine) nextAttemptLocked() int {
@@ -314,18 +337,15 @@ func (e *engine) executeRecovery(ctx context.Context, trigger string, attempt in
 
 // applyOutcomeLocked updates engine state from a finished attempt. Must
 // hold e.mu.
-func (e *engine) applyOutcomeLocked(evt RecoveryEvent) {
+func (e *engine) applyOutcomeLocked(evt RecoveryEvent) error {
 	if evt.Outcome == OutcomeSuccess {
 		e.resetCountersLocked()
-		e.state.Status = StatusIdle
-		return
+		return e.state.TransitionStatus(StatusIdle)
 	}
 	e.state.FailedRecovery++
 	if e.state.FailedRecovery >= e.cfg.MaxBackoffRetries {
-		e.state.CircuitOpen = true
 		e.circuit = e.clock.Now()
-		e.state.Status = StatusCircuitOpen
-		return
+		return e.state.TransitionStatus(StatusCircuitOpen)
 	}
 	idx := e.state.BackoffLevel
 	if idx > len(e.cfg.BackoffSchedule)-1 {
@@ -333,11 +353,10 @@ func (e *engine) applyOutcomeLocked(evt RecoveryEvent) {
 	}
 	e.state.NextRetryAfter = e.clock.Now().Add(e.cfg.BackoffSchedule[idx])
 	e.state.BackoffLevel++
-	e.state.Status = StatusMonitoring
+	return e.state.TransitionStatus(StatusMonitoring)
 }
 
 func (e *engine) resetCountersLocked() {
-	e.state.CircuitOpen = false
 	e.state.BackoffLevel = 0
 	e.state.FailedRecovery = 0
 	e.state.ConsecFailures = 0

@@ -96,7 +96,7 @@ func TestRecover_SuccessRestartsAndResets(t *testing.T) {
 
 	state, _ := svc.GetState(context.Background())
 	require.Equal(t, recovery.StatusIdle, state.Status)
-	require.False(t, state.CircuitOpen)
+	require.False(t, state.CircuitIsOpen())
 }
 
 func TestRecover_RestartFailureBacksOff(t *testing.T) {
@@ -126,7 +126,7 @@ func TestRecover_CircuitOpensAfterMaxFailures(t *testing.T) {
 	_ = outcome2
 
 	state, _ := svc.GetState(context.Background())
-	require.True(t, state.CircuitOpen)
+	require.True(t, state.CircuitIsOpen())
 	require.Equal(t, recovery.StatusCircuitOpen, state.Status)
 
 	// While open, a non-forced recover is skipped (no further restart).
@@ -170,6 +170,46 @@ func TestRecover_IdempotentWhileInFlight(t *testing.T) {
 	<-done
 	require.Equal(t, recovery.OutcomeSuccess, firstOutcome)
 	require.Equal(t, 1, runner.CallCount(), "twice == once: a single recovery attempt, not two")
+}
+
+func TestEvaluateWithoutUnitDoesNotClearInFlightStatus(t *testing.T) {
+	repo := &fakeRepo{}
+	runner := &mocks.FakeCmdRunner{}
+	release := make(chan struct{})
+	defer func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	}()
+	health := &gatedHealth{gate: release}
+	presence := &togglePresence{present: true}
+	clk := scheduletest.New(time.Date(2026, 5, 1, 12, 0, 0, 0, time.UTC))
+	svc := recovery.NewService(repo, health, presence, recovery.NewControlPlaneLifecycle(runner.Run), clk, recovery.Config{ReadyPollAttempts: 100}, noopSleep)
+
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := svc.Recover(context.Background(), false)
+		done <- err
+	}()
+	health.waitUntilPolling()
+
+	presence.present = false
+	_, acted, err := svc.Evaluate(context.Background())
+	require.NoError(t, err)
+	require.False(t, acted)
+	state, err := svc.GetState(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, recovery.StatusRecovering, state.Status, "missing resource must not clear the only in-flight signal")
+
+	outcome, _, err := svc.Recover(context.Background(), false)
+	require.NoError(t, err)
+	require.Equal(t, recovery.OutcomeSkipped, outcome, "status continues to guard duplicate restarts while the unit is absent")
+	require.Equal(t, 1, runner.CallCount())
+
+	close(release)
+	require.NoError(t, <-done)
 }
 
 func TestListEvents_RejectsNegativeLimit(t *testing.T) {
@@ -223,7 +263,7 @@ func TestEvaluate_DormantWhenNoCloudflaredUnit(t *testing.T) {
 	state, _ := svc.GetState(context.Background())
 	require.Equal(t, recovery.StatusIdle, state.Status, "dormant maps to idle")
 	require.Equal(t, 0, state.ConsecFailures, "dormant never counts a failure")
-	require.False(t, state.CircuitOpen, "circuit never opens while dormant")
+	require.False(t, state.CircuitIsOpen(), "circuit never opens while dormant")
 }
 
 func TestEvaluate_ResumesWhenUnitAppears(t *testing.T) {
