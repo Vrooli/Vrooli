@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "review-public-forfeiture-case",
+    "title": "Review a published forfeiture case",
+    "purpose": "Inspect an offline, public BTC trace and distinguish chain observations from the complaint's narrative.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "steps": [
+    {
+      "page": "dashboard",
+      "state": "empty",
+      "intent": "Choose the bundled public case when no local cases have been opened.",
+      "via": "Open published example"
+    },
+    {
+      "page": "dashboard",
+      "state": "partial",
+      "intent": "Inspect the verified transaction excerpt, source citations, evidence grades, and explicit gaps.",
+      "via": "Select transaction edge"
+    }
+  ]
+}

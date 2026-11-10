@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.1.0",
+  "page": {
+    "id": "notes",
+    "title": "Notes example",
+    "routes": ["/notes"],
+    "purpose": "Keep the generated CRUD example explicit as temporary scaffold until the real case-review domain is green.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "states": [
+    { "id": "default", "description": "The temporary example is available while the case-review surface is being built." },
+    { "id": "empty", "description": "No example entries are present." }
+  ]
+}

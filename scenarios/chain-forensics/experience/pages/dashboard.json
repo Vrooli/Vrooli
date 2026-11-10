@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "dashboard",
+    "title": "Case workspace",
+    "routes": [
+      "/"
+    ],
+    "purpose": "Open a sourced case, understand the current evidence graph, and keep gaps visible before creating a local packet.",
+    "prd_refs": [
+      "OT-P0-001"
+    ]
+  },
+  "states": [
+    { "id": "default", "description": "The case workspace shows the selected case, evidence graph, and source inspector." },
+    { "id": "loading", "description": "The case or a bounded public source read is loading; the last stable graph remains labelled." },
+    { "id": "empty", "description": "No cases have been opened; the bundled, cited public example is offered for offline review." },
+    { "id": "partial", "description": "Some history or a provider result is unavailable; each absent interval is shown as a gap." },
+    { "id": "stale", "description": "The graph uses a prior capture and displays its retrieval time and source hash." },
+    { "id": "request-error", "description": "A source request failed; the operator can retry or inspect a cached capture." }
+  ]
+}
