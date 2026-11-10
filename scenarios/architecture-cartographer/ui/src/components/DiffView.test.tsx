@@ -1,12 +1,13 @@
+import { renderWithProviders } from "../test-utils";
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 
 import { selectors } from "../consts/selectors";
 import { DiffView } from "./DiffView";
 
 describe("DiffView", () => {
   it("renders added, removed, and context lines", () => {
-    render(
+    renderWithProviders(
       <DiffView
         addedLabel="Added"
         removedLabel="Removed"
@@ -24,7 +25,7 @@ describe("DiffView", () => {
   });
 
   it("labels added rows for screen readers", () => {
-    render(
+    renderWithProviders(
       <DiffView
         addedLabel="Added"
         removedLabel="Removed"

@@ -1,12 +1,13 @@
+import { renderWithProviders } from "../../test-utils";
 import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 
 import { selectors } from "../../consts/selectors";
 import { Tabs, TabsList, TabsTrigger, TabsPanel } from "./tabs";
 
 describe("Tabs", () => {
   const renderTabs = (defaultValue = "a") =>
-    render(
+    renderWithProviders(
       <Tabs defaultValue={defaultValue} ariaLabel="t">
         <TabsList>
           <TabsTrigger value="a">A</TabsTrigger>

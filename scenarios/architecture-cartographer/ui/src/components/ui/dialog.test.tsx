@@ -1,12 +1,13 @@
+import { renderWithProviders } from "../../test-utils";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 
 import { selectors } from "../../consts/selectors";
 import { Dialog } from "./dialog";
 
 describe("Dialog", () => {
   it("renders nothing when closed", () => {
-    render(
+    renderWithProviders(
       <Dialog open={false} onClose={() => {}} ariaLabel="x">
         content
       </Dialog>,
@@ -15,7 +16,7 @@ describe("Dialog", () => {
   });
 
   it("renders content when open with the supplied aria-label", () => {
-    render(
+    renderWithProviders(
       <Dialog open onClose={() => {}} ariaLabel="confirm-action">
         <p>body</p>
       </Dialog>,
@@ -27,7 +28,7 @@ describe("Dialog", () => {
   });
 
   it("uses aria-labelledby when supplied (no aria-label)", () => {
-    render(
+    renderWithProviders(
       <Dialog open onClose={() => {}} ariaLabel="ignored" ariaLabelledBy="t">
         <h1 id="t">heading</h1>
       </Dialog>,
@@ -39,7 +40,7 @@ describe("Dialog", () => {
 
   it("invokes onClose on Escape", () => {
     const onClose = vi.fn();
-    render(
+    renderWithProviders(
       <Dialog open onClose={onClose} ariaLabel="x">
         body
       </Dialog>,
@@ -50,7 +51,7 @@ describe("Dialog", () => {
 
   it("invokes onClose when the backdrop is clicked", () => {
     const onClose = vi.fn();
-    render(
+    renderWithProviders(
       <Dialog open onClose={onClose} ariaLabel="x">
         <p>body</p>
       </Dialog>,

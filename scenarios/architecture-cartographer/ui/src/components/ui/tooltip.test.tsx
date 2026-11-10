@@ -1,12 +1,13 @@
+import { renderWithProviders } from "../../test-utils";
 import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 
 import { selectors } from "../../consts/selectors";
 import { Tooltip } from "./tooltip";
 
 describe("Tooltip", () => {
   it("hides the tooltip by default", () => {
-    render(
+    renderWithProviders(
       <Tooltip label="help">
         <button>trigger</button>
       </Tooltip>,
@@ -15,7 +16,7 @@ describe("Tooltip", () => {
   });
 
   it("shows the tooltip on hover and hides on leave", () => {
-    render(
+    renderWithProviders(
       <Tooltip label="help">
         <button data-testid="t-trigger">trigger</button>
       </Tooltip>,
@@ -28,7 +29,7 @@ describe("Tooltip", () => {
   });
 
   it("shows the tooltip on focus and wires aria-describedby", () => {
-    render(
+    renderWithProviders(
       <Tooltip label="help">
         <button data-testid="t-trigger">trigger</button>
       </Tooltip>,

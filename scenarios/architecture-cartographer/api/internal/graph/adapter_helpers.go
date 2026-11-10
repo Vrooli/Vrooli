@@ -3,7 +3,6 @@ package graph
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -16,77 +15,6 @@ import (
 
 type ScenarioURLResolver interface {
 	ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string, error)
-}
-
-type ProjectPathFn func(scenarioName string) (path string, found bool, err error)
-
-func ResolveAdapterTarget(
-	ctx context.Context,
-	urls ScenarioURLResolver,
-	projectOf ProjectPathFn,
-	targetScenario string,
-	producerScenario string,
-	languageName string,
-) (projectPath string, baseURL string, found bool, err error) {
-	if projectOf == nil || urls == nil {
-		return "", "", false, IntegrationError{
-			Kind:     "internal",
-			Scenario: producerScenario,
-			Cause:    fmt.Errorf("%s adapter not fully configured (missing URLResolver or ProjectPath)", languageName),
-		}
-	}
-	projectPath, found, err = projectOf(targetScenario)
-	if err != nil {
-		return "", "", false, IntegrationError{
-			Kind:     "internal",
-			Scenario: producerScenario,
-			Cause:    fmt.Errorf("resolve %s project path for %q: %w", languageName, targetScenario, err),
-		}
-	}
-	if !found {
-		return projectPath, "", false, nil
-	}
-	baseURL, err = urls.ResolveScenarioURLDefault(ctx, producerScenario)
-	if err != nil {
-		return "", "", false, ClassifyResolveError(err, producerScenario)
-	}
-	return projectPath, baseURL, true, nil
-}
-
-func ExtractFromProject(
-	ctx context.Context,
-	urls ScenarioURLResolver,
-	projectOf ProjectPathFn,
-	targetScenario string,
-	producerScenario string,
-	languageName string,
-	call func(context.Context, string, string) (RawGraph, error),
-) (RawGraph, error) {
-	projectPath, baseURL, found, err := ResolveAdapterTarget(ctx, urls, projectOf, targetScenario, producerScenario, languageName)
-	if err != nil {
-		return RawGraph{}, err
-	}
-	if !found {
-		return RawGraph{}, nil
-	}
-	raw, err := call(ctx, baseURL, projectPath)
-	if err != nil {
-		return RawGraph{}, err
-	}
-	RebaseFilesToScenario(&raw, targetScenario, projectPath)
-	return raw, nil
-}
-
-func RebaseFilesToScenario(raw *RawGraph, scenario, projectPath string) {
-	if raw == nil {
-		return
-	}
-	if subdir := ScenarioSubdir(scenario, projectPath); subdir != "" {
-		for i := range raw.Files {
-			raw.Files[i].Path = subdir + "/" + raw.Files[i].Path
-		}
-	}
-	AssignPackageRepoPaths(raw.Packages, raw.Files)
 }
 
 func FileNodeFromProto(n *commonv1.CodeGraphNode, language Language) FileNode {
@@ -123,15 +51,6 @@ func ParseNonNegativeIntAttr(s string) int {
 	return n
 }
 
-func ScenarioSubdir(scenario, projectPath string) string {
-	marker := "/scenarios/" + scenario + "/"
-	idx := strings.LastIndex(projectPath, marker)
-	if idx < 0 {
-		return ""
-	}
-	return strings.TrimSuffix(projectPath[idx+len(marker):], "/")
-}
-
 func ClassifyResolveError(err error, scenario string) error {
 	kind := "internal"
 	var de *discovery.Error
@@ -156,6 +75,8 @@ func ClassifyConnectError(err error, scenario string) error {
 	var ce *connect.Error
 	if errors.As(err, &ce) {
 		switch ce.Code() {
+		case connect.CodeCanceled:
+			kind = "canceled"
 		case connect.CodeUnavailable:
 			kind = "scenario_unreachable"
 		case connect.CodeDeadlineExceeded:

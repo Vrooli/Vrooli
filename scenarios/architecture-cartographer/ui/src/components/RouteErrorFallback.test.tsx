@@ -1,10 +1,9 @@
+import { renderWithProviders } from "../test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 
-import { render, screen } from "@testing-library/react";
-import { I18nextProvider } from "react-i18next";
+import { screen } from "@testing-library/react";
 
-import { i18n } from "../i18n";
 import { RouteErrorFallback } from "./RouteErrorFallback";
 
 const buildRouter = () =>
@@ -30,10 +29,9 @@ describe("RouteErrorFallback", () => {
 
   it("renders the error UI with retry + home actions", () => {
     const router = buildRouter();
-    render(
-      <I18nextProvider i18n={i18n}>
-        <RouterProvider router={router} future={{ v7_startTransition: true }} />
-      </I18nextProvider>,
+    renderWithProviders(
+      <RouterProvider router={router} future={{ v7_startTransition: true }} />,
+      { withoutRouter: true },
     );
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(screen.getByRole("button")).toBeInTheDocument(); // retry

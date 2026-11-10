@@ -16,6 +16,8 @@ import (
 
 	"github.com/vrooli/cli-core/cliapp"
 	maturityreport "github.com/vrooli/maturity-go/report"
+
+	"architecture-cartographer/cli/internal/protolabel"
 )
 
 // Exit codes (per L5-readiness plan §7 phase 3 step 4).
@@ -336,7 +338,7 @@ func renderHuman(msg *auditv1.AuditRunResponse) {
 		if sid == "" {
 			sid = f.GetId()
 		}
-		fmt.Printf("  [%s/%s] %s %s — %s\n", severityName(f.GetSeverity()), findingClassName(f.GetFindingClass()), sid, f.GetType(), f.GetHeadline())
+		fmt.Printf("  [%s/%s] %s %s — %s\n", severityName(f.GetSeverity()), protolabel.FindingClass(f.GetFindingClass()), sid, f.GetType(), f.GetHeadline())
 	}
 }
 
@@ -352,7 +354,7 @@ func renderCategoryMatrix(categories []*auditv1.AuditCategory) {
 	for _, category := range categories {
 		for _, item := range category.GetTopItems() {
 			advisory = append(advisory, fmt.Sprintf("%s: [%s/%s] %s",
-				category.GetLabel(), severityName(item.GetSeverity()), findingClassName(item.GetFindingClass()), item.GetHeadline()))
+				category.GetLabel(), severityName(item.GetSeverity()), protolabel.FindingClass(item.GetFindingClass()), item.GetHeadline()))
 			if len(advisory) == 5 {
 				break
 			}
@@ -425,17 +427,6 @@ func severityName(s sharedv1.Severity) string {
 		return "warn"
 	case sharedv1.Severity_SEVERITY_INFO:
 		return "info"
-	default:
-		return "unspecified"
-	}
-}
-
-func findingClassName(c sharedv1.FindingClass) string {
-	switch c {
-	case sharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC:
-		return "deterministic"
-	case sharedv1.FindingClass_FINDING_CLASS_HEURISTIC:
-		return "heuristic"
 	default:
 		return "unspecified"
 	}
@@ -541,7 +532,7 @@ func jsonReport(msg *auditv1.AuditRunResponse) jsonReportT {
 			Type:       f.GetType(),
 			Subtype:    f.GetSubtype(),
 			Severity:   severityName(f.GetSeverity()),
-			Class:      findingClassName(f.GetFindingClass()),
+			Class:      protolabel.FindingClass(f.GetFindingClass()),
 			Locations:  f.GetLocations(),
 			Domains:    f.GetDomains(),
 			Headline:   f.GetHeadline(),
@@ -566,7 +557,7 @@ func categoryJSON(category *auditv1.AuditCategory) jsonCategory {
 			Type:         item.GetType(),
 			Subtype:      item.GetSubtype(),
 			Severity:     severityName(item.GetSeverity()),
-			FindingClass: findingClassName(item.GetFindingClass()),
+			FindingClass: protolabel.FindingClass(item.GetFindingClass()),
 			Locations:    item.GetLocations(),
 			Headline:     item.GetHeadline(),
 		})

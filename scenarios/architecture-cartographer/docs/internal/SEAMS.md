@@ -273,9 +273,9 @@ and use matrix/trace helpers from the relevant testutil package.
 
 | | |
 |---|---|
-| **Seam** | Adapter to language-specific code-graph scenarios (`go-code-graph`, `typescript-code-graph`) |
+| **Seam** | Adapter to the shared Code Facts graph substrate |
 | **Interface** | `internal/graph/adapter.go::CodeGraphAdapter` (`Extract(ctx, scenario string) (Graph, error)`, `Rewrite(ctx, ops []Operation) error`) |
-| **Production wiring** | `internal/graph/gocodegraph/client.go` and `internal/graph/tscodegraph/client.go` construct Connect-RPC clients to the respective scenarios. URL resolution + retry policy follow the same pattern as ui-health's react-component-library client (`scenarios/ui-health/api/integrations/reactcomponentlibrary/client.go`). |
+| **Production wiring** | `internal/graph/codefacts/client.go` requests cached graph envelopes from Code Facts, which owns source discovery and language-provider admission. |
 | **Test fake** | `internal/graph/mocks::FakeCodeGraphAdapter` (canned `Graph` and operation responses, recorded calls). Used by graph-service tests so cartographer integration tests don't require live language-graph scenarios. |
 | **Why it exists** | Cartographer must never parse source code itself (architecture rule). The adapter is the single boundary between cartographer's normalized graph model and the wire format of each language-graph scenario. Adding a new language (Python, Rust) means writing a new adapter + registering it; the rest of the cartographer is unchanged. |
 
@@ -367,7 +367,7 @@ why a boundary lives where it does and what still needs follow-up.
 | Domain-specific fakes | Earlier templates often put every fake under shared testutil. | One-domain fakes live under `api/internal/<domain>/mocks/`; cross-domain fakes stay under `api/internal/testutil/mocks/`. | Preserve this split when adding new domains. |
 | Temporal workflow side effects | Async flows can bury transition rules inside handlers/components. | Pure workflow transitions are domain policy; side effects remain behind seams. | See [`FLOWS.md`](../concepts/FLOWS.md) for modeled flows. |
 | Domain schemas | Central schema files make domain deletion and ownership harder. | Domain tables live beside domain code; `internal/database/system.sql` is only for genuinely cross-cutting DB infrastructure. | If a table is added to system schema, document why it is not domain-owned. |
-| No in-process source parsing | Cartographer could be tempted to parse Go/TS in-process for speed. | Strictly forbidden — all parsing goes through `go-code-graph` / `typescript-code-graph` via `CodeGraphAdapter`. Architecture rule, not just a preference. | If a future need surfaces, propose a new language-graph scenario; do not add a parser in `internal/graph/`. |
+| No in-process source parsing | Cartographer could be tempted to parse Go/TS in-process for speed. | Strictly forbidden — all parsing goes through Code Facts via `CodeGraphAdapter`. Architecture rule, not just a preference. | If a future need surfaces, propose a new language-graph scenario; do not add a parser in `internal/graph/`. |
 | Plug-in registries (Detector / Resolver / Signal / Recipe) | Hard-coded switch statements would bake conflict types into the orchestration layer. | Each plug-in type has a single registry; orchestration code dispatches by `Name()` and never enumerates types. | Adding a new conflict type or signal must not require changes to anything but the relevant registry and a new struct file. |
 | Build-green guard as a seam, not a flag | Build verification could be ad-hoc per apply path. | `BuildGuard` is a first-class seam; every code-modifying operation routes through it. `--force --note` is the only bypass and is logged. | If a new apply path is added (e.g., recipe execution), it must consume `BuildGuard` — there is no other entry point. |
 

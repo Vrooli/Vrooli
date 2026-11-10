@@ -30,7 +30,8 @@ func Normalize(scenario string, raw RawGraph) GraphSnapshot {
 
 	profiles := uniqueStrings(raw.ExtractionProfiles)
 	omissions := uniqueOmissions(raw.OmittedInformation)
-	hash := contentHash(scenario, raw.Languages, files, packages, symbols, imports, profiles, omissions)
+	skipped := uniqueStrings(raw.SkippedAdapters)
+	hash := contentHash(scenario, raw.Languages, files, packages, symbols, imports, profiles, omissions, skipped, raw.SourceFingerprint)
 
 	return GraphSnapshot{
 		ID:                 "snap:" + scenario + ":" + hash,
@@ -44,6 +45,8 @@ func Normalize(scenario string, raw RawGraph) GraphSnapshot {
 		Imports:            imports,
 		ExtractionProfiles: profiles,
 		OmittedInformation: omissions,
+		SkippedAdapters:    skipped,
+		SourceFingerprint:  raw.SourceFingerprint,
 	}
 }
 
@@ -235,25 +238,31 @@ func contentHash(
 	imps []ImportEdge,
 	profiles []string,
 	omissions []InformationOmission,
+	skipped []string,
+	sourceFingerprint string,
 ) string {
 	payload := struct {
-		Scenario  string                `json:"scenario"`
-		Languages []Language            `json:"languages"`
-		Files     []FileNode            `json:"files"`
-		Packages  []PackageNode         `json:"packages"`
-		Symbols   []SymbolNode          `json:"symbols"`
-		Imports   []ImportEdge          `json:"imports"`
-		Profiles  []string              `json:"profiles,omitempty"`
-		Omissions []InformationOmission `json:"omissions,omitempty"`
+		Scenario          string                `json:"scenario"`
+		Languages         []Language            `json:"languages"`
+		Files             []FileNode            `json:"files"`
+		Packages          []PackageNode         `json:"packages"`
+		Symbols           []SymbolNode          `json:"symbols"`
+		Imports           []ImportEdge          `json:"imports"`
+		Profiles          []string              `json:"profiles,omitempty"`
+		Omissions         []InformationOmission `json:"omissions,omitempty"`
+		Skipped           []string              `json:"skipped,omitempty"`
+		SourceFingerprint string                `json:"source_fingerprint,omitempty"`
 	}{
-		Scenario:  scenario,
-		Languages: uniqueLanguages(langs),
-		Files:     files,
-		Packages:  pkgs,
-		Symbols:   syms,
-		Imports:   imps,
-		Profiles:  profiles,
-		Omissions: omissions,
+		Scenario:          scenario,
+		Languages:         uniqueLanguages(langs),
+		Files:             files,
+		Packages:          pkgs,
+		Symbols:           syms,
+		Imports:           imps,
+		Profiles:          profiles,
+		Omissions:         omissions,
+		Skipped:           skipped,
+		SourceFingerprint: sourceFingerprint,
 	}
 	b, _ := json.Marshal(payload)
 	sum := sha256.Sum256(b)

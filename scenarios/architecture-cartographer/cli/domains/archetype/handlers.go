@@ -12,6 +12,8 @@ import (
 	graphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph/graph_v1connect"
 
 	"architecture-cartographer/cli/internal/attestrender"
+	"architecture-cartographer/cli/internal/graphclient"
+	"architecture-cartographer/cli/internal/protolabel"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -22,11 +24,7 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{
-		core:   core,
-		client: graphconnect.NewGraphServiceClient(httpClient, baseURL),
-	}
+	return &handlers{core: core, client: graphclient.New(core)}
 }
 
 func (h *handlers) infer(ctx cliapp.RunContext) error {
@@ -73,7 +71,7 @@ func (h *handlers) infer(ctx cliapp.RunContext) error {
 func archetypeSummary(archetypes []*domainsv1.DomainArchetype) string {
 	var declared, inferred []string
 	for _, a := range archetypes {
-		label := archetypeLabel(a)
+		label := protolabel.Archetype(a)
 		if label == "" {
 			continue
 		}
@@ -85,25 +83,4 @@ func archetypeSummary(archetypes []*domainsv1.DomainArchetype) string {
 		}
 	}
 	return fmt.Sprintf("declared=[%s] inferred=[%s]", strings.Join(declared, ", "), strings.Join(inferred, ", "))
-}
-
-func archetypeLabel(a *domainsv1.DomainArchetype) string {
-	switch a.GetArchetype() {
-	case domainsv1.Archetype_ARCHETYPE_REPORTING:
-		return "reporting"
-	case domainsv1.Archetype_ARCHETYPE_SERVICE:
-		return "service"
-	case domainsv1.Archetype_ARCHETYPE_MUTATION:
-		return "mutation"
-	case domainsv1.Archetype_ARCHETYPE_CLASSIFICATION:
-		return "classification"
-	case domainsv1.Archetype_ARCHETYPE_ORCHESTRATION:
-		return "orchestration"
-	case domainsv1.Archetype_ARCHETYPE_SCORING:
-		return "scoring"
-	case domainsv1.Archetype_ARCHETYPE_QUERY:
-		return "query"
-	default:
-		return a.GetDeclaredLabel()
-	}
 }

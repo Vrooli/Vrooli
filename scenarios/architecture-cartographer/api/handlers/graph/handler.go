@@ -12,6 +12,8 @@ import (
 	"sort"
 	"strings"
 
+	conflictshandler "architecture-cartographer/handlers/conflicts"
+	domainshandler "architecture-cartographer/handlers/domains"
 	"architecture-cartographer/internal/archetype"
 	"architecture-cartographer/internal/attest"
 	"architecture-cartographer/internal/conflicts"
@@ -216,7 +218,7 @@ func (h *Handler) GetZoneMap(ctx context.Context, req *connect.Request[graphv1.G
 		resp.ZoneMap.Violations = append(resp.ZoneMap.Violations, &graphv1.ZoneViolation{
 			Kind:      v.Type,
 			Subtype:   v.Subtype,
-			Severity:  severityToProto(v.Severity),
+			Severity:  conflictshandler.SeverityToProto(v.Severity),
 			Locations: append([]string(nil), v.Locations...),
 			Domains:   append([]string(nil), v.Domains...),
 			Summary:   firstEvidenceSummary(v),
@@ -401,7 +403,7 @@ func archetypeReport(snap graph.GraphSnapshot, d intdomains.DerivedDomain) *grap
 			declaredPrimary = a.Name
 		}
 		report.Archetypes = append(report.Archetypes, &domainsv1.DomainArchetype{
-			Archetype:     graphArchetypeEnum(a.Name),
+			Archetype:     domainshandler.ArchetypeNameToProto(a.Name),
 			Source:        domainsv1.ArchetypeSource_ARCHETYPE_SOURCE_DECLARED,
 			Confidence:    a.Confidence,
 			Evidence:      append([]string(nil), a.Evidence...),
@@ -414,7 +416,7 @@ func archetypeReport(snap graph.GraphSnapshot, d intdomains.DerivedDomain) *grap
 			inferredPrimary = r.Name
 		}
 		report.Archetypes = append(report.Archetypes, &domainsv1.DomainArchetype{
-			Archetype:  graphArchetypeEnum(r.Name),
+			Archetype:  domainshandler.ArchetypeNameToProto(r.Name),
 			Source:     domainsv1.ArchetypeSource_ARCHETYPE_SOURCE_INFERRED,
 			Confidence: r.Confidence,
 			Evidence:   append([]string(nil), r.Evidence...),
@@ -446,27 +448,6 @@ func archetypeReport(snap graph.GraphSnapshot, d intdomains.DerivedDomain) *grap
 	}
 	report.Attestation = a
 	return report
-}
-
-func graphArchetypeEnum(name string) domainsv1.Archetype {
-	switch archetype.Name(name) {
-	case archetype.Reporting:
-		return domainsv1.Archetype_ARCHETYPE_REPORTING
-	case archetype.Service:
-		return domainsv1.Archetype_ARCHETYPE_SERVICE
-	case archetype.Mutation:
-		return domainsv1.Archetype_ARCHETYPE_MUTATION
-	case archetype.Classification:
-		return domainsv1.Archetype_ARCHETYPE_CLASSIFICATION
-	case archetype.Orchestration:
-		return domainsv1.Archetype_ARCHETYPE_ORCHESTRATION
-	case archetype.Scoring:
-		return domainsv1.Archetype_ARCHETYPE_SCORING
-	case archetype.Query:
-		return domainsv1.Archetype_ARCHETYPE_QUERY
-	default:
-		return domainsv1.Archetype_ARCHETYPE_UNSPECIFIED
-	}
 }
 
 func orDash(s string) string {
@@ -678,21 +659,6 @@ func firstEvidenceSummary(c conflicts.Conflict) string {
 		return strings.Join(c.Locations, " -> ")
 	}
 	return c.Subtype
-}
-
-func severityToProto(s conflicts.Severity) sharedv1.Severity {
-	switch s {
-	case conflicts.SeverityInfo:
-		return sharedv1.Severity_SEVERITY_INFO
-	case conflicts.SeverityWarn:
-		return sharedv1.Severity_SEVERITY_WARN
-	case conflicts.SeverityError:
-		return sharedv1.Severity_SEVERITY_ERROR
-	case conflicts.SeverityBlocker:
-		return sharedv1.Severity_SEVERITY_BLOCKER
-	default:
-		return sharedv1.Severity_SEVERITY_UNSPECIFIED
-	}
 }
 
 func sliceToProto(in intslice.DomainSlice) *graphv1.DomainSlice {

@@ -11,6 +11,7 @@ import (
 	domainsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/domains/domains_v1connect"
 
 	"architecture-cartographer/cli/internal/attestrender"
+	"architecture-cartographer/cli/internal/protolabel"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -170,39 +171,15 @@ func renderMap(ctx cliapp.RunContext, m *domainsv1.DerivedDomainMap) error {
 func primaryArchetypeName(archetypes []*domainsv1.DomainArchetype) string {
 	for _, archetype := range archetypes {
 		if archetype.GetSource() == domainsv1.ArchetypeSource_ARCHETYPE_SOURCE_DECLARED {
-			if label := archetypeLabel(archetype); label != "" {
+			if label := protolabel.Archetype(archetype); label != "" {
 				return label
 			}
 		}
 	}
 	if len(archetypes) > 0 {
-		return archetypeLabel(archetypes[0])
+		return protolabel.Archetype(archetypes[0])
 	}
 	return ""
-}
-
-// archetypeLabel renders a DomainArchetype as its canonical lowercase name,
-// falling back to the preserved declared label when the declared value did not
-// map onto the canonical vocabulary.
-func archetypeLabel(a *domainsv1.DomainArchetype) string {
-	switch a.GetArchetype() {
-	case domainsv1.Archetype_ARCHETYPE_REPORTING:
-		return "reporting"
-	case domainsv1.Archetype_ARCHETYPE_SERVICE:
-		return "service"
-	case domainsv1.Archetype_ARCHETYPE_MUTATION:
-		return "mutation"
-	case domainsv1.Archetype_ARCHETYPE_CLASSIFICATION:
-		return "classification"
-	case domainsv1.Archetype_ARCHETYPE_ORCHESTRATION:
-		return "orchestration"
-	case domainsv1.Archetype_ARCHETYPE_SCORING:
-		return "scoring"
-	case domainsv1.Archetype_ARCHETYPE_QUERY:
-		return "query"
-	default:
-		return a.GetDeclaredLabel()
-	}
 }
 
 func sourceNames(sources []domainsv1.DomainSource) []string {

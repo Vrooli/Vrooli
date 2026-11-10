@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"architecture-cartographer/cli/internal/attestrender"
+	"architecture-cartographer/cli/internal/protolabel"
 
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliutil"
@@ -210,7 +211,7 @@ func conflictDetailLines(c *sharedv1.Conflict) []string {
 	lines := []string{
 		fmt.Sprintf("what     : %s (%s)", c.GetType(), c.GetSubtype()),
 		fmt.Sprintf("severity : %s", severityName(c.GetSeverity())),
-		fmt.Sprintf("class    : %s", findingClassName(c.GetFindingClass())),
+		fmt.Sprintf("class    : %s", protolabel.FindingClass(c.GetFindingClass())),
 		fmt.Sprintf("stable_id: %s", c.GetStableId()),
 	}
 	if att := c.GetAttestation(); att != nil {
@@ -268,7 +269,7 @@ func conflictLine(c *sharedv1.Conflict) string {
 		}
 	}
 	return fmt.Sprintf("%s [%s/%s/%s] %s domain=%s loc=%s",
-		c.GetId(), c.GetType(), severityName(c.GetSeverity()), findingClassName(c.GetFindingClass()), c.GetSubtype(), domains, loc)
+		c.GetId(), c.GetType(), severityName(c.GetSeverity()), protolabel.FindingClass(c.GetFindingClass()), c.GetSubtype(), domains, loc)
 }
 
 func severityName(s sharedv1.Severity) string {
@@ -281,17 +282,6 @@ func severityName(s sharedv1.Severity) string {
 		return "error"
 	case sharedv1.Severity_SEVERITY_BLOCKER:
 		return "blocker"
-	default:
-		return "unspecified"
-	}
-}
-
-func findingClassName(c sharedv1.FindingClass) string {
-	switch c {
-	case sharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC:
-		return "deterministic"
-	case sharedv1.FindingClass_FINDING_CLASS_HEURISTIC:
-		return "heuristic"
 	default:
 		return "unspecified"
 	}

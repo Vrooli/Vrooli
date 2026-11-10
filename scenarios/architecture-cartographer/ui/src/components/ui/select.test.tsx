@@ -1,12 +1,13 @@
+import { renderWithProviders } from "../../test-utils";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 
 import { Select } from "./select";
 
 describe("Select", () => {
   it("renders options and fires change", () => {
     const onChange = vi.fn();
-    render(
+    renderWithProviders(
       <Select data-testid="s" onChange={onChange}>
         <option value="a">A</option>
         <option value="b">B</option>
@@ -19,7 +20,7 @@ describe("Select", () => {
   });
 
   it("applies the base classes and merges custom className", () => {
-    render(
+    renderWithProviders(
       <Select data-testid="s" className="custom">
         <option>A</option>
       </Select>,

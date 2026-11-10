@@ -56,13 +56,6 @@ FROM graph_snapshots WHERE id = ?`
 SELECT id, scenario, content_hash, source_fingerprint, payload, payload_codec, extracted_at, extraction_ms
 FROM graph_snapshots WHERE scenario = ? AND content_hash = ?`
 
-	selectSnapshotBySourceFingerprintSQL = `
-SELECT id, scenario, content_hash, source_fingerprint, payload, payload_codec, extracted_at, extraction_ms
-FROM graph_snapshots
-WHERE scenario = ? AND source_fingerprint = ?
-ORDER BY extracted_at DESC, id DESC
-LIMIT 1`
-
 	selectLatestSnapshotMetaSQL = `
 SELECT id, scenario, content_hash, source_fingerprint, extracted_at, extraction_ms, length(payload)
 FROM graph_snapshots
@@ -174,21 +167,6 @@ func (r *sqliteRepository) FindByHash(ctx context.Context, scenario, contentHash
 	}
 	if err != nil {
 		return GraphSnapshot{}, fmt.Errorf("find by hash: %w", err)
-	}
-	return s, nil
-}
-
-func (r *sqliteRepository) FindBySourceFingerprint(ctx context.Context, scenario, sourceFingerprint string) (GraphSnapshot, error) {
-	if err := r.ensureSourceFingerprintColumn(ctx); err != nil {
-		return GraphSnapshot{}, err
-	}
-	row := r.db.QueryRowContext(ctx, selectSnapshotBySourceFingerprintSQL, scenario, sourceFingerprint)
-	s, err := scanSnapshot(row)
-	if errors.Is(err, sql.ErrNoRows) {
-		return GraphSnapshot{}, ErrSnapshotNotFound{ID: fmt.Sprintf("scenario=%s source_fingerprint=%s", scenario, sourceFingerprint)}
-	}
-	if err != nil {
-		return GraphSnapshot{}, fmt.Errorf("find by source fingerprint: %w", err)
 	}
 	return s, nil
 }

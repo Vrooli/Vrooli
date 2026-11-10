@@ -25,14 +25,13 @@ type FakeRepository struct {
 	ListErr  error
 	ClearErr error
 
-	SaveCalls       atomic.Int64
-	GetCalls        atomic.Int64
-	MetaCalls       atomic.Int64
-	FindCalls       atomic.Int64
-	SourceFindCalls atomic.Int64
-	ListCalls       atomic.Int64
-	ClearCalls      atomic.Int64
-	PruneCalls      atomic.Int64
+	SaveCalls  atomic.Int64
+	GetCalls   atomic.Int64
+	MetaCalls  atomic.Int64
+	FindCalls  atomic.Int64
+	ListCalls  atomic.Int64
+	ClearCalls atomic.Int64
+	PruneCalls atomic.Int64
 
 	PruneErr error
 }
@@ -96,19 +95,6 @@ func (f *FakeRepository) FindByHash(_ context.Context, scenario, contentHash str
 	return f.findSnapshot(
 		func(s graph.GraphSnapshot) bool { return s.Scenario == scenario && s.ContentHash == contentHash },
 		scenario+":"+contentHash,
-	)
-}
-
-func (f *FakeRepository) FindBySourceFingerprint(_ context.Context, scenario, sourceFingerprint string) (graph.GraphSnapshot, error) {
-	f.SourceFindCalls.Add(1)
-	if f.FindErr != nil {
-		return graph.GraphSnapshot{}, f.FindErr
-	}
-	return f.findLatestSnapshot(
-		func(s graph.GraphSnapshot) bool {
-			return s.Scenario == scenario && s.SourceFingerprint == sourceFingerprint
-		},
-		scenario+":"+sourceFingerprint,
 	)
 }
 

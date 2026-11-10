@@ -126,6 +126,35 @@ func TestService_ExtractGraph_PersistsAndCaches(t *testing.T) {
 	}
 }
 
+func TestService_ExtractGraph_ProviderRecoveryChangesSnapshotEvidence(t *testing.T) {
+	repo := &mocks.FakeRepository{}
+	adapter := newAdapter(graph.LanguageGo, graph.RawGraph{
+		Languages: []graph.Language{graph.LanguageGo}, SourceFingerprint: "source-a",
+		SkippedAdapters: []string{"go-code-graph.unavailable"},
+	})
+	svc := graph.NewService(repo, newClock(), adapter)
+	partial, _, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "demo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A provider can recover with an empty graph; structural equality must not
+	// reuse an old partial result or erase its historical warning evidence.
+	adapter.Raw.SkippedAdapters = nil
+	healthy, cached, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "demo"})
+	if err != nil || cached || healthy.ID == partial.ID || len(healthy.SkippedAdapters) != 0 {
+		t.Fatalf("recovery reused partial snapshot: partial=%+v healthy=%+v cached=%v err=%v", partial, healthy, cached, err)
+	}
+	adapter.Raw.SourceFingerprint = "source-b"
+	changed, cached, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "demo"})
+	if err != nil || cached || changed.ID == healthy.ID || changed.SourceFingerprint != "source-b;" {
+		t.Fatalf("source evidence stale: %+v cached=%v err=%v", changed, cached, err)
+	}
+	retained, err := svc.GetSnapshot(context.Background(), partial.ID)
+	if err != nil || len(retained.SkippedAdapters) != 1 {
+		t.Fatalf("historical evidence lost: %+v %v", retained, err)
+	}
+}
+
 func TestService_ExtractGraph_SkipPersistenceAvoidsRepositoryCache(t *testing.T) {
 	repo := &mocks.FakeRepository{Snapshots: []graph.GraphSnapshot{{Scenario: "control-plane", ContentHash: "same"}}}
 	raw := graph.RawGraph{
@@ -133,10 +162,7 @@ func TestService_ExtractGraph_SkipPersistenceAvoidsRepositoryCache(t *testing.T)
 		Files:     []graph.FileNode{{ID: "file:root.go", Path: "root.go", PackageID: "pkg:root", Language: graph.LanguageGo}},
 		Packages:  []graph.PackageNode{{ID: "pkg:root", ImportPath: "root", Language: graph.LanguageGo}},
 	}
-	svc := graph.NewServiceWithFingerprinter(repo, newClock(), fingerprinterFunc(func(context.Context, graph.ExtractGraphInput) (string, error) {
-		t.Fatal("one-off extraction must not fingerprint the repository")
-		return "", nil
-	}), newAdapter(graph.LanguageGo, raw))
+	svc := graph.NewService(repo, newClock(), newAdapter(graph.LanguageGo, raw))
 
 	snap, fromCache, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "control-plane", SkipPersistence: true})
 	if err != nil {
@@ -151,68 +177,25 @@ func TestService_ExtractGraph_SkipPersistenceAvoidsRepositoryCache(t *testing.T)
 	if got := repo.FindCalls.Load(); got != 0 {
 		t.Fatalf("FindByHash calls=%d want 0", got)
 	}
-	if got := repo.SourceFindCalls.Load(); got != 0 {
-		t.Fatalf("FindBySourceFingerprint calls=%d want 0", got)
-	}
 	if got := repo.SaveCalls.Load(); got != 0 {
 		t.Fatalf("SaveSnapshot calls=%d want 0", got)
 	}
 }
 
-func TestService_ExtractGraph_SourceFingerprintHitSkipsAdapters(t *testing.T) {
-	repo := &mocks.FakeRepository{Snapshots: []graph.GraphSnapshot{{
-		ID:                "snap:demo:src",
-		Scenario:          "demo",
-		ContentHash:       "graph-hash",
-		SourceFingerprint: "src:demo",
+func TestService_ExtractGraph_PreservesSharedSourceAndPartialEvidence(t *testing.T) {
+	repo := &mocks.FakeRepository{}
+	adapter := newAdapter(graph.LanguageGo, graph.RawGraph{
+		SourceFingerprint: "owner-source-hash",
+		SkippedAdapters:   []string{"go-code-graph.unavailable"},
 		Files:             []graph.FileNode{{ID: "file:a.go", Path: "a.go"}},
-	}}}
-	adapter := newAdapter(graph.LanguageGo, graph.RawGraph{
-		Files: []graph.FileNode{{ID: "file:should-not-run", Path: "slow.go"}},
 	})
-	svc := graph.NewServiceWithFingerprinter(repo, newClock(), fingerprinterFunc(func(context.Context, graph.ExtractGraphInput) (string, error) {
-		return "src:demo", nil
-	}), adapter)
-
-	snap, fromCache, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "demo"})
+	svc := graph.NewService(repo, newClock(), adapter)
+	snap, _, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "demo"})
 	if err != nil {
-		t.Fatalf("Extract: %v", err)
+		t.Fatal(err)
 	}
-	if !fromCache {
-		t.Fatal("source fingerprint hit should return from cache")
-	}
-	if snap.ID != "snap:demo:src" {
-		t.Fatalf("got snapshot %q", snap.ID)
-	}
-	if got := adapter.ExtractCalls.Load(); got != 0 {
-		t.Fatalf("adapter calls=%d want 0", got)
-	}
-}
-
-func TestService_ExtractGraph_DegradedSourceFingerprintHitReExtracts(t *testing.T) {
-	repo := &mocks.FakeRepository{Snapshots: []graph.GraphSnapshot{{
-		ID:                "snap:demo:degraded",
-		Scenario:          "demo",
-		ContentHash:       "old-graph-hash",
-		SourceFingerprint: "src:demo",
-		SkippedAdapters:   []string{"typescript"},
-	}}}
-	adapter := newAdapter(graph.LanguageGo, graph.RawGraph{
-		Files: []graph.FileNode{{ID: "file:a.go", Path: "a.go"}},
-	})
-	svc := graph.NewServiceWithFingerprinter(repo, newClock(), fingerprinterFunc(func(context.Context, graph.ExtractGraphInput) (string, error) {
-		return "src:demo", nil
-	}), adapter)
-
-	_, fromCache, err := svc.ExtractGraph(context.Background(), graph.ExtractGraphInput{Scenario: "demo"})
-	if err != nil {
-		t.Fatalf("Extract: %v", err)
-	}
-	if fromCache {
-		t.Fatal("degraded source fingerprint hit must re-extract")
-	}
-	if got := adapter.ExtractCalls.Load(); got != 1 {
-		t.Fatalf("adapter calls=%d want 1", got)
+	if snap.SourceFingerprint != "owner-source-hash;" || len(snap.SkippedAdapters) != 1 {
+		t.Fatalf("shared source evidence lost: %+v", snap)
 	}
 }
 
@@ -230,12 +213,6 @@ func TestService_ClearSnapshots_DryRun(t *testing.T) {
 	if len(repo.Snapshots) != 1 {
 		t.Fatal("dry-run should not delete")
 	}
-}
-
-type fingerprinterFunc func(context.Context, graph.ExtractGraphInput) (string, error)
-
-func (f fingerprinterFunc) Fingerprint(ctx context.Context, in graph.ExtractGraphInput) (string, error) {
-	return f(ctx, in)
 }
 
 func TestNormalize_DedupesAndHashesStably(t *testing.T) {

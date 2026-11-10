@@ -1,18 +1,19 @@
+import { renderWithProviders } from "../../test-utils";
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 
 import { Badge } from "./badge";
 
 describe("Badge", () => {
   it("renders the default variant with base classes", () => {
-    render(<Badge data-testid="b">x</Badge>);
+    renderWithProviders(<Badge data-testid="b">x</Badge>);
     const el = screen.getByTestId("b");
     expect(el.className).toMatch(/rounded-pill/);
     expect(el.className).toMatch(/bg-app-surface-muted/);
   });
 
   it("applies a danger variant token", () => {
-    render(
+    renderWithProviders(
       <Badge data-testid="b" variant="danger">
         x
       </Badge>,
@@ -21,7 +22,7 @@ describe("Badge", () => {
   });
 
   it("merges custom className with base classes", () => {
-    render(
+    renderWithProviders(
       <Badge data-testid="b" className="custom">
         x
       </Badge>,

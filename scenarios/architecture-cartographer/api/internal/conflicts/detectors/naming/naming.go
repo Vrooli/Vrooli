@@ -121,7 +121,7 @@ func conflictForPackage(scenario string, pkg graph.PackageNode, segment, domain 
 		Subtype:   "generic-package-name",
 		Severity:  conflicts.SeverityWarn,
 		Locations: []string{pkg.RepoPath},
-		Domains:   domainList(domain),
+		Domains:   conflicts.SortedUniqueDomainNames(domain),
 		Evidence: []conflicts.Evidence{{
 			Kind:    "banned_vocabulary",
 			Summary: fmt.Sprintf("package path segment %q is generic and hides ownership", segment),
@@ -148,21 +148,4 @@ func lastSegment(path string) string {
 		return path[i+1:]
 	}
 	return path
-}
-
-func domainList(parts ...string) []string {
-	seen := make(map[string]struct{}, len(parts))
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if p = strings.TrimSpace(p); p == "" {
-			continue
-		}
-		if _, ok := seen[p]; ok {
-			continue
-		}
-		seen[p] = struct{}{}
-		out = append(out, p)
-	}
-	sort.Strings(out)
-	return out
 }

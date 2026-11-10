@@ -1,9 +1,8 @@
 //go:build e2e_lang_graph
 
 // Package conflicts_test contains the live end-to-end check that
-// runs cartographer against real `go-code-graph` / `typescript-code-graph`
-// instances. Tagged `e2e_lang_graph` so it stays opt-in until those
-// dependency scenarios ship (tracked in docs/internal/PROBLEMS.md).
+// runs Cartographer through the shared Code Facts graph substrate. Tagged
+// `e2e_lang_graph` because it requires the managed dependency scenarios.
 //
 // Run via: go test -tags e2e_lang_graph ./internal/conflicts/...
 package conflicts_test
@@ -17,7 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"architecture-cartographer/internal/graph/gocodegraph"
+	"architecture-cartographer/internal/graph"
+	"architecture-cartographer/internal/graph/codefacts"
 )
 
 type staticURLResolver struct {
@@ -26,63 +26,43 @@ type staticURLResolver struct {
 
 func (r staticURLResolver) ResolveScenarioURLDefault(_ context.Context, _ string) (string, error) {
 	if r.baseURL == "" {
-		return "", fmt.Errorf("empty go-code-graph base URL")
+		return "", fmt.Errorf("empty code-facts base URL")
 	}
 	return r.baseURL, nil
 }
 
-// TestE2E_LiveGoCodeGraph drives cartographer's production Go adapter through
-// a live go-code-graph producer and verifies test-only import metadata survives
-// the cross-scenario Connect-RPC boundary.
-func TestE2E_LiveGoCodeGraph(t *testing.T) {
-	fixture, err := filepath.Abs("../../../../go-code-graph/bas/fixtures/go-tests")
+// TestE2E_LiveCodeFactsGraph exercises the production substrate boundary.
+func TestE2E_LiveCodeFactsGraph(t *testing.T) {
+	root, err := filepath.Abs("../../../../..")
 	if err != nil {
-		t.Fatalf("resolve go-tests fixture: %v", err)
+		t.Fatal(err)
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
-
-	client := gocodegraph.New(gocodegraph.Config{
-		URLResolver: staticURLResolver{baseURL: liveGoCodeGraphURL(t, ctx)},
-		ProjectPath: func(_ string) (string, bool, error) {
-			return fixture, true, nil
-		},
-	})
-
-	raw, err := client.Extract(ctx, "go-tests")
+	client := codefacts.New(staticURLResolver{baseURL: liveCodeFactsURL(t, ctx)}, root, graph.LanguageGo, nil)
+	raw, err := client.Extract(ctx, "architecture-cartographer")
 	if err != nil {
-		t.Fatalf("extract through live go-code-graph: %v", err)
+		t.Fatalf("extract through shared Code Facts: %v", err)
 	}
-
-	var sawLiveImport bool
-	var sawInternalTestImport bool
-	var sawExternalTestImport bool
-	for _, edge := range raw.Imports {
-		switch {
-		case edge.From == "package:github.com/vrooli/fixtures/go-tests/lib" &&
-			edge.ToPackageID == "package:fmt" && !edge.TestOnly:
-			sawLiveImport = true
-		case edge.From == "package:github.com/vrooli/fixtures/go-tests/lib" &&
-			edge.ToPackageID == "package:github.com/vrooli/fixtures/go-tests/helper" && edge.TestOnly:
-			sawInternalTestImport = true
-		case edge.From == "package:github.com/vrooli/fixtures/go-tests/lib_test" &&
-			edge.ToPackageID == "package:github.com/vrooli/fixtures/go-tests/lib" && edge.TestOnly:
-			sawExternalTestImport = true
-		}
+	var api, cli bool
+	for _, file := range raw.Files {
+		api = api || file.Path == "api/main.go"
+		cli = cli || file.Path == "cli/main.go"
 	}
-	if !sawLiveImport || !sawInternalTestImport || !sawExternalTestImport {
-		t.Fatalf("missing expected live/test import classifications: live=%v internal_test=%v external_test=%v imports=%+v",
-			sawLiveImport, sawInternalTestImport, sawExternalTestImport, raw.Imports)
+	if !api || !cli {
+		t.Fatalf("all scenario parse units must be discovered: api=%v cli=%v", api, cli)
+	}
+	if raw.SourceFingerprint == "" || len(raw.ExtractionProfiles) == 0 || len(raw.OmittedInformation) == 0 {
+		t.Fatalf("shared source/extraction evidence missing: %+v", raw)
 	}
 }
 
-func liveGoCodeGraphURL(t *testing.T, ctx context.Context) string {
+func liveCodeFactsURL(t *testing.T, ctx context.Context) string {
 	t.Helper()
-	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", "go-code-graph", "--json")
+	cmd := exec.CommandContext(ctx, "vrooli", "scenario", "port", "code-facts", "--json")
 	out, err := cmd.Output()
 	if err != nil {
-		t.Fatalf("resolve go-code-graph port; start it with `make start` in scenarios/go-code-graph or `vrooli scenario start go-code-graph`: %v", err)
+		t.Fatalf("resolve Code Facts port; start it with `make start` in scenarios/code-facts or `vrooli scenario start code-facts`: %v", err)
 	}
 	var payload struct {
 		Ports []struct {
@@ -92,13 +72,13 @@ func liveGoCodeGraphURL(t *testing.T, ctx context.Context) string {
 		} `json:"ports"`
 	}
 	if err := json.Unmarshal(out, &payload); err != nil {
-		t.Fatalf("decode go-code-graph port JSON: %v\n%s", err, string(out))
+		t.Fatalf("decode code-facts port JSON: %v\n%s", err, string(out))
 	}
 	for _, p := range payload.Ports {
 		if p.Key == "API_PORT" && p.Port > 0 && p.ListenerStatus == "listening" {
 			return fmt.Sprintf("http://127.0.0.1:%d", p.Port)
 		}
 	}
-	t.Fatalf("go-code-graph API_PORT is not listening: %s", string(out))
+	t.Fatalf("code-facts API_PORT is not listening: %s", string(out))
 	return ""
 }

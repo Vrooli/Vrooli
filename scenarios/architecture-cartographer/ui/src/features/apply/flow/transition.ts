@@ -95,6 +95,15 @@ export function transition(state: ApplyState, event: ApplyEvent): ApplyState {
   }
 }
 
+// Flow Verifier replays object-shaped UI states through this adapter. The
+// product transition function remains the scalar status contract above.
+export function transitionState(
+  state: { readonly status: ApplyState },
+  event: ApplyEvent,
+): { readonly status: ApplyState } {
+  return { status: transition(state.status, event) };
+}
+
 export function legalEventsFor(state: ApplyState): readonly ApplyEvent[] {
   return APPLY_EVENTS.filter((event) => transition(state, event) !== state);
 }

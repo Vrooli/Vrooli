@@ -86,6 +86,29 @@ func TestHandler_ExtractDomains_Translates(t *testing.T) {
 	}
 }
 
+func TestArchetypeNameToProto(t *testing.T) {
+	tests := []struct {
+		name string
+		want domainsv1.Archetype
+	}{
+		{"reporting", domainsv1.Archetype_ARCHETYPE_REPORTING},
+		{"service", domainsv1.Archetype_ARCHETYPE_SERVICE},
+		{"mutation", domainsv1.Archetype_ARCHETYPE_MUTATION},
+		{"classification", domainsv1.Archetype_ARCHETYPE_CLASSIFICATION},
+		{"orchestration", domainsv1.Archetype_ARCHETYPE_ORCHESTRATION},
+		{"scoring", domainsv1.Archetype_ARCHETYPE_SCORING},
+		{"query", domainsv1.Archetype_ARCHETYPE_QUERY},
+		{"unknown", domainsv1.Archetype_ARCHETYPE_UNSPECIFIED},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ArchetypeNameToProto(tt.name); got != tt.want {
+				t.Fatalf("ArchetypeNameToProto(%q) = %v, want %v", tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestHandler_ConvergenceReport(t *testing.T) {
 	// Authority (doc) declares graph + conflicts; folders only have graph,
 	// so conflicts is a missing_implementation finding.

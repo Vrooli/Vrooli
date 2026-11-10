@@ -79,16 +79,11 @@ the aggregator deterministic scores and assert:
 
 ### Graph adapter tests use Connect-RPC fake servers
 
-`internal/graph/gocodegraph/client_test.go` (and the TS counterpart)
-use `connectxtest.StartTestServer` to spin up a fake `GoCodeGraphService`
-implementation that returns canned `Graph` responses. The cartographer
-client under test does not know it is talking to a fake. Coverage:
-
-1. Successful extraction → normalized graph matches expected shape.
-2. Transport failure → adapter retries per policy, then surfaces a
-   typed `IntegrationError`.
-3. URL re-resolution after `CodeUnavailable` — same pattern as
-   ui-health's react-component-library client.
+`internal/graph/codefacts/client_test.go` exercises the shared Code Facts contract
+through a fake Connect server. It verifies scenario/control-plane scope, language
+selection, multi-root identity isolation, rebased paths, extraction metadata,
+partial results, and typed errors. Graph service tests verify immutable snapshots,
+cache reuse and recovery from partial extraction without stale evidence.
 
 ### BuildGuard tests substitute the shell
 

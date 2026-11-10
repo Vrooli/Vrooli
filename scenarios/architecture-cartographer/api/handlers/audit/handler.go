@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	conflictshandler "architecture-cartographer/handlers/conflicts"
 	"architecture-cartographer/internal/audit"
 	"architecture-cartographer/internal/conflicts"
 
@@ -230,21 +231,6 @@ func severityFromProto(s sharedv1.Severity) conflicts.Severity {
 	}
 }
 
-func severityToProto(s conflicts.Severity) sharedv1.Severity {
-	switch s {
-	case conflicts.SeverityInfo:
-		return sharedv1.Severity_SEVERITY_INFO
-	case conflicts.SeverityWarn:
-		return sharedv1.Severity_SEVERITY_WARN
-	case conflicts.SeverityError:
-		return sharedv1.Severity_SEVERITY_ERROR
-	case conflicts.SeverityBlocker:
-		return sharedv1.Severity_SEVERITY_BLOCKER
-	default:
-		return sharedv1.Severity_SEVERITY_UNSPECIFIED
-	}
-}
-
 func outcomeToProto(o audit.Outcome) auditv1.AuditOutcome {
 	switch o {
 	case audit.OutcomeClean:
@@ -298,8 +284,8 @@ func reportToProto(r audit.Report, spec *assessment.Spec) *auditv1.AuditRunRespo
 			Detector:     c.Detector,
 			Type:         c.Type,
 			Subtype:      c.Subtype,
-			Severity:     severityToProto(c.Severity),
-			FindingClass: findingClassToProto(c.FindingClass),
+			Severity:     conflictshandler.SeverityToProto(c.Severity),
+			FindingClass: conflictshandler.FindingClassToProto(c.FindingClass),
 			Locations:    append([]string(nil), c.Locations...),
 			Domains:      append([]string(nil), c.Domains...),
 			Headline:     headlineFor(c),
@@ -323,24 +309,13 @@ func categoryToProto(category audit.AuditCategory) *auditv1.AuditCategory {
 			StableId:     item.StableID,
 			Type:         item.Type,
 			Subtype:      item.Subtype,
-			Severity:     severityToProto(item.Severity),
-			FindingClass: findingClassToProto(item.FindingClass),
+			Severity:     conflictshandler.SeverityToProto(item.Severity),
+			FindingClass: conflictshandler.FindingClassToProto(item.FindingClass),
 			Locations:    append([]string(nil), item.Locations...),
 			Headline:     item.Headline,
 		})
 	}
 	return out
-}
-
-func findingClassToProto(c conflicts.FindingClass) sharedv1.FindingClass {
-	switch c {
-	case conflicts.FindingClassDeterministic:
-		return sharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC
-	case conflicts.FindingClassHeuristic:
-		return sharedv1.FindingClass_FINDING_CLASS_HEURISTIC
-	default:
-		return sharedv1.FindingClass_FINDING_CLASS_UNSPECIFIED
-	}
 }
 
 func coverageToProto(c audit.CoverageSummary, authorityConfidence string) *auditv1.CoverageSummary {
@@ -402,7 +377,7 @@ func buildMaturityAssessment(r audit.Report, spec *assessment.Spec) (*commonv1.M
 	for _, c := range r.Findings {
 		findings = append(findings, assessment.Finding{
 			Code:        architectureFindingCode(c),
-			Severity:    severityToProto(c.Severity).String(),
+			Severity:    conflictshandler.SeverityToProto(c.Severity).String(),
 			Title:       headlineFor(c),
 			Location:    strings.Join(c.Locations, ", "),
 			Remediation: "Use Architecture Cartographer campaign guidance to resolve the drift or add a deliberate suppression.",

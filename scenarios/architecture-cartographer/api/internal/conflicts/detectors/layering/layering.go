@@ -69,7 +69,7 @@ func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflic
 			Subtype:   violation.kind,
 			Severity:  d.severityFor(violation.blockerEligible),
 			Locations: []string{from.Path, to.Path},
-			Domains:   domainList(from.Domain, to.Domain),
+			Domains:   conflicts.SortedUniqueDomainNames(from.Domain, to.Domain),
 			Evidence: []conflicts.Evidence{
 				{
 					Kind:    "import_edge",
@@ -232,21 +232,4 @@ func resolvePackage(id string, packages map[string]graph.PackageNode, files map[
 		return packages[f.PackageID]
 	}
 	return graph.PackageNode{}
-}
-
-func domainList(parts ...string) []string {
-	seen := make(map[string]struct{}, len(parts))
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if p = strings.TrimSpace(p); p == "" {
-			continue
-		}
-		if _, ok := seen[p]; ok {
-			continue
-		}
-		seen[p] = struct{}{}
-		out = append(out, p)
-	}
-	sort.Strings(out)
-	return out
 }

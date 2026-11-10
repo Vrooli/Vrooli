@@ -158,7 +158,7 @@ func (h *Handler) ListDetectors(ctx context.Context, _ *connect.Request[conflict
 			Description:  d.Description,
 			Stability:    d.Stability,
 			EmitsTypes:   append([]string(nil), d.EmitsTypes...),
-			FindingClass: findingClassToProto(d.Class),
+			FindingClass: FindingClassToProto(d.Class),
 		})
 	}
 	return connect.NewResponse(out), nil
@@ -193,8 +193,8 @@ func conflictToProto(c conflicts.Conflict) *sharedv1.Conflict {
 		Detector:          c.Detector,
 		Type:              c.Type,
 		Subtype:           c.Subtype,
-		Severity:          severityToProto(c.Severity),
-		FindingClass:      findingClassToProto(c.FindingClass),
+		Severity:          SeverityToProto(c.Severity),
+		FindingClass:      FindingClassToProto(c.FindingClass),
 		Locations:         append([]string(nil), c.Locations...),
 		Domains:           append([]string(nil), c.Domains...),
 		SnapshotId:        c.SnapshotID,
@@ -286,32 +286,6 @@ func conflictClaim(c conflicts.Conflict) string {
 
 func isDocLocator(s string) bool {
 	return strings.Contains(s, ".md") || strings.Contains(strings.ToUpper(s), "DOMAINS") || strings.Contains(strings.ToUpper(s), "ARCHITECTURE.MD")
-}
-
-func findingClassToProto(c conflicts.FindingClass) sharedv1.FindingClass {
-	switch c {
-	case conflicts.FindingClassDeterministic:
-		return sharedv1.FindingClass_FINDING_CLASS_DETERMINISTIC
-	case conflicts.FindingClassHeuristic:
-		return sharedv1.FindingClass_FINDING_CLASS_HEURISTIC
-	default:
-		return sharedv1.FindingClass_FINDING_CLASS_UNSPECIFIED
-	}
-}
-
-func severityToProto(s conflicts.Severity) sharedv1.Severity {
-	switch s {
-	case conflicts.SeverityInfo:
-		return sharedv1.Severity_SEVERITY_INFO
-	case conflicts.SeverityWarn:
-		return sharedv1.Severity_SEVERITY_WARN
-	case conflicts.SeverityError:
-		return sharedv1.Severity_SEVERITY_ERROR
-	case conflicts.SeverityBlocker:
-		return sharedv1.Severity_SEVERITY_BLOCKER
-	default:
-		return sharedv1.Severity_SEVERITY_UNSPECIFIED
-	}
 }
 
 func fixKindToProto(k conflicts.FixKind) sharedv1.FixKind {

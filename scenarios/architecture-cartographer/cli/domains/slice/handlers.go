@@ -11,6 +11,7 @@ import (
 	graphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/graph/graph_v1connect"
 
 	"architecture-cartographer/cli/internal/attestrender"
+	"architecture-cartographer/cli/internal/graphclient"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -21,11 +22,7 @@ type handlers struct {
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
-	return &handlers{
-		core:   core,
-		client: graphconnect.NewGraphServiceClient(httpClient, baseURL),
-	}
+	return &handlers{core: core, client: graphclient.New(core)}
 }
 
 func (h *handlers) show(ctx cliapp.RunContext) error {

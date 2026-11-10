@@ -1,12 +1,13 @@
+import { renderWithProviders } from "../test-utils";
 import { describe, expect, it } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 
 import { selectors } from "../consts/selectors";
 import { SplitPane } from "./SplitPane";
 
 describe("SplitPane", () => {
   it("renders primary and secondary slots", () => {
-    render(
+    renderWithProviders(
       <SplitPane
         primary={<div data-testid="primary-content">P</div>}
         secondary={<div data-testid="secondary-content">S</div>}
@@ -18,7 +19,7 @@ describe("SplitPane", () => {
   });
 
   it("renders an accessible separator with valuenow", () => {
-    render(
+    renderWithProviders(
       <SplitPane
         primary={<div data-testid="p">P</div>}
         secondary={<div data-testid="s">S</div>}
@@ -32,7 +33,7 @@ describe("SplitPane", () => {
   });
 
   it("keyboard adjusts the split percentage", () => {
-    render(
+    renderWithProviders(
       <SplitPane
         primary={<div data-testid="p">P</div>}
         secondary={<div data-testid="s">S</div>}

@@ -250,7 +250,7 @@ func domainAttestation(d domains.DerivedDomain) *commonv1.AttestedAnswer {
 
 func archetypeToProto(a domains.DomainArchetype) *domainsv1.DomainArchetype {
 	return &domainsv1.DomainArchetype{
-		Archetype:     archetypeNameToProto(a.Name),
+		Archetype:     ArchetypeNameToProto(a.Name),
 		Source:        archetypeSourceToProto(a.Source),
 		Confidence:    a.Confidence,
 		Evidence:      append([]string(nil), a.Evidence...),
@@ -258,7 +258,9 @@ func archetypeToProto(a domains.DomainArchetype) *domainsv1.DomainArchetype {
 	}
 }
 
-func archetypeNameToProto(name string) domainsv1.Archetype {
+// ArchetypeNameToProto maps the shared internal archetype name to its wire enum.
+// Graph responses use the same domain mapping as domain-map responses.
+func ArchetypeNameToProto(name string) domainsv1.Archetype {
 	switch archetype.Name(name) {
 	case archetype.Reporting:
 		return domainsv1.Archetype_ARCHETYPE_REPORTING

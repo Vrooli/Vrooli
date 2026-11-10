@@ -151,6 +151,15 @@ export function transition(state: CampaignItemState, event: CampaignEvent): Camp
   }
 }
 
+// Flow Verifier replays object-shaped UI states through this adapter. The
+// product transition function remains the scalar status contract above.
+export function transitionState(
+  state: { readonly status: CampaignItemState },
+  event: CampaignEvent,
+): { readonly status: CampaignItemState } {
+  return { status: transition(state.status, event) };
+}
+
 /**
  * The per-item actions legal from the given state. Only `resolve`/`apply`
  * are per-item buttons; `validate`/`regress`/`close` are campaign-level.

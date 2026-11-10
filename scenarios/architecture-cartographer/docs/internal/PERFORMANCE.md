@@ -119,13 +119,12 @@ provided capture template (inherited from the react-vite template).
 
 ## Performance Anti-Patterns
 
-- **Re-extracting unchanged graphs.** Always check the source cache
-  first. Production graph extraction now computes a cheap
-  `source_fingerprint` and checks it before calling language graph
-  adapters. Bypassing that cache without a reason is a regression in
-  itself.
+- **Re-extracting unchanged graphs.** Code Facts owns the source/configuration
+  identity and graph cache shared by all consumers. Cartographer requests cached
+  graph envelopes and retains architectural snapshots; it does not scan sources
+  or cache another raw language graph copy.
 - **Requesting facts the consumer does not use.** Cartographer's
-  production Go adapter requests the `structural` go-code-graph profile.
+  Code Facts provider requests the `structural` Go profile.
   The returned profile and `omitted_information` metadata are persisted
   with the snapshot, so missing resolved facts are explainable rather than
   mistaken for extraction errors. Consumers needing type resolution or test

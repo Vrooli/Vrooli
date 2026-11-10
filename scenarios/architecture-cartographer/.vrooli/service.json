@@ -1,31 +1,6 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "storage": {
-    "entries": {
-      "data": {
-        "rung": "owned",
-        "kind": "dir",
-        "class": "data",
-        "regenerable": false,
-        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
-        "budget": {
-          "max_bytes": "5GiB",
-          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
-        }
-      }
-    },
-    "cleanup_providers": [
-      {
-        "id": "architecture-cartographer-snapshots",
-        "name": "Architecture Cartographer graph snapshots",
-        "safety_tier": "safe_with_owner",
-        "default_mode": "disabled",
-        "default_approval": "owner"
-      }
-    ],
-    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
-  },
   "service": {
     "parent": "vrooli",
     "name": "architecture-cartographer",
@@ -38,45 +13,6 @@
       "react-ui",
       "go-api"
     ]
-  },
-  "generation": {
-    "template": {
-      "id": "react-vite",
-      "version": "1.1.0"
-    },
-    "generated_at": "2026-05-21T14:22:11Z",
-    "design": {
-      "id": "vrooli-default",
-      "version": "0.2.0",
-      "adapter": "react-vite-tailwind"
-    },
-    "manifest_sha": "bf981a854ff9ecb47f454d773e57bb1ee262138035e02d26bf5226c00b8961ea",
-    "content_sha": "18f4f18a35fff00577f790c466c274ec6177f11631acccc3602698cf8f7fde73"
-  },
-  "cli": {
-    "enabled": true,
-    "command": "architecture-cartographer",
-    "adapter": {
-      "kind": "go_module",
-      "module_dir": "cli"
-    },
-    "artifacts": {
-      "manifest": {},
-      "build_metadata": {}
-    },
-    "invoke": {
-      "kind": "installed_command",
-      "command": "architecture-cartographer"
-    },
-    "freshness": {
-      "inputs": [
-        "cli/**",
-        ".vrooli/service.json"
-      ]
-    },
-    "source_build": {
-      "kind": "go_module"
-    }
   },
   "ports": {
     "api": {
@@ -128,24 +64,6 @@
         "description": "Provides import, endpoint, CLI, and proto adoption facts used to enrich domain evidence.",
         "degraded_behavior": "Audit still runs with graph/domain evidence, but domain enrichment omits code-facts-backed proofs while the dependency is unavailable.",
         "supervision_precedence": "required"
-      },
-      "go-code-graph": {
-        "enabled": true,
-        "required": true,
-        "startup_policy": "try_start",
-        "freshness_policy": "reuse_running",
-        "description": "Extracts Go code graphs for cartographer graph snapshots.",
-        "degraded_behavior": "Go graph extraction fails for scenarios with Go surfaces until go-code-graph is available.",
-        "supervision_precedence": "required"
-      },
-      "typescript-code-graph": {
-        "enabled": true,
-        "required": true,
-        "startup_policy": "try_start",
-        "freshness_policy": "reuse_running",
-        "description": "Extracts TypeScript code graphs for cartographer graph snapshots.",
-        "degraded_behavior": "TypeScript graph extraction fails for scenarios with TypeScript surfaces until typescript-code-graph is available.",
-        "supervision_precedence": "required"
       }
     },
     "resources": {
@@ -176,6 +94,70 @@
         "description": "Cross-encoder reranker (BAAI/bge-reranker-v2-m3 via TEI) that reorders the dense domain-search shortlist and collapses gibberish leakage to ~0, separating junk from weak-but-real domain matches that overlap in the dense cosine band.",
         "degraded_behavior": "Reranking falls back to raw dense (cosine) order; search still returns results, but honest no-match rejection is weaker until the reranker is reachable."
       }
+    }
+  },
+  "storage": {
+    "entries": {
+      "data": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "data",
+        "regenerable": false,
+        "rationale": "Scenario-owned durable data observed in the canonical data directory.",
+        "budget": {
+          "max_bytes": "5GiB",
+          "rationale": "Durable storage is bounded by the workload byte ceiling; it is alarm-only because the data is not regenerable."
+        }
+      }
+    },
+    "cleanup_providers": [
+      {
+        "id": "architecture-cartographer-snapshots",
+        "name": "Architecture Cartographer graph snapshots",
+        "safety_tier": "safe_with_owner",
+        "default_mode": "disabled",
+        "default_approval": "owner"
+      }
+    ],
+    "rationale": "Storage surfaces are declared from observed canonical scenario directories; external resource databases are not claimed by this scenario."
+  },
+  "generation": {
+    "template": {
+      "id": "react-vite",
+      "version": "1.1.0"
+    },
+    "generated_at": "2026-05-21T14:22:11Z",
+    "design": {
+      "id": "vrooli-default",
+      "version": "0.2.0",
+      "adapter": "react-vite-tailwind"
+    },
+    "manifest_sha": "bf981a854ff9ecb47f454d773e57bb1ee262138035e02d26bf5226c00b8961ea",
+    "content_sha": "18f4f18a35fff00577f790c466c274ec6177f11631acccc3602698cf8f7fde73"
+  },
+  "cli": {
+    "enabled": true,
+    "command": "architecture-cartographer",
+    "adapter": {
+      "kind": "go_module",
+      "module_dir": "cli"
+    },
+    "artifacts": {
+      "manifest": {},
+      "build_metadata": {}
+    },
+    "invoke": {
+      "kind": "installed_command",
+      "command": "architecture-cartographer"
+    },
+    "freshness": {
+      "inputs": [
+        "cli/**",
+        ".vrooli/service.json"
+      ]
+    },
+    "source_build": {
+      "kind": "go_module"
     }
   },
   "environment": {},

@@ -25,10 +25,6 @@ type Repository interface {
 	// ErrSnapshotNotFound when none is cached.
 	FindByHash(ctx context.Context, scenario, contentHash string) (GraphSnapshot, error)
 
-	// FindBySourceFingerprint returns the latest snapshot extracted from
-	// the same source tree/options fingerprint.
-	FindBySourceFingerprint(ctx context.Context, scenario, sourceFingerprint string) (GraphSnapshot, error)
-
 	// ListSnapshots paginates snapshots; scenario filter when set.
 	ListSnapshots(ctx context.Context, f ListSnapshotsFilter) (SnapshotPage, error)
 

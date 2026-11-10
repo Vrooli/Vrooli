@@ -114,24 +114,25 @@ func TestSQLiteRepository_SaveAndGetSnapshot(t *testing.T) {
 	}
 }
 
-func TestSQLiteRepository_FindBySourceFingerprint(t *testing.T) {
+func TestSQLiteRepository_SourceFingerprintRoundTrip(t *testing.T) {
 	d := newSchemaDB(t)
 	repo := graph.NewSQLiteRepository(d, schedule.System())
-	if _, err := repo.SaveSnapshot(context.Background(), graph.GraphSnapshot{
+	saved, err := repo.SaveSnapshot(context.Background(), graph.GraphSnapshot{
 		Scenario: "demo", ContentHash: "h1", SourceFingerprint: "src:demo",
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 
-	got, err := repo.FindBySourceFingerprint(context.Background(), "demo", "src:demo")
+	got, err := repo.GetSnapshot(context.Background(), saved.ID)
 	if err != nil {
-		t.Fatalf("FindBySourceFingerprint: %v", err)
+		t.Fatalf("GetSnapshot: %v", err)
 	}
-	if got.ContentHash != "h1" {
+	if got.ContentHash != "h1" || got.SourceFingerprint != "src:demo" {
 		t.Fatalf("unexpected: %+v", got)
 	}
 
-	_, err = repo.FindBySourceFingerprint(context.Background(), "demo", "missing")
+	_, err = repo.GetSnapshot(context.Background(), "missing")
 	var notFound graph.ErrSnapshotNotFound
 	if !errors.As(err, &notFound) {
 		t.Fatalf("want ErrSnapshotNotFound, got %v", err)

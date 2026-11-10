@@ -1,5 +1,6 @@
+import { renderWithProviders } from "../test-utils";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 
 import { selectors } from "../consts/selectors";
 import { DataTable } from "./DataTable";
@@ -20,12 +21,12 @@ const columns = [
 
 describe("DataTable", () => {
   it("renders empty message when no rows", () => {
-    render(<DataTable rows={[]} columns={columns} getRowId={(r) => r.id} emptyMessage="none" />);
+    renderWithProviders(<DataTable rows={[]} columns={columns} getRowId={(r) => r.id} emptyMessage="none" />);
     expect(screen.getByTestId(selectors.shared.dataTable.empty)).toHaveTextContent("none");
   });
 
   it("renders rows with stable testids", () => {
-    render(
+    renderWithProviders(
       <DataTable rows={rows} columns={columns} getRowId={(r) => r.id} emptyMessage="none" />,
     );
     expect(screen.getByTestId(selectors.shared.dataTable.row({ id: "1" }))).toBeInTheDocument();
@@ -39,7 +40,7 @@ describe("DataTable", () => {
 
   it("fires onRowClick with the row data", () => {
     const onRowClick = vi.fn();
-    render(
+    renderWithProviders(
       <DataTable
         rows={rows}
         columns={columns}
