@@ -1,0 +1,159 @@
+{
+  "id": "us-v-1hq3-public-forfeiture",
+  "title": "United States v. 1HQ3 — public BTC flow excerpt",
+  "summary": "A bounded reconstruction of two Bitcoin transactions discussed in a 2020 federal forfeiture complaint. Chain events and the complaint's claims are retained separately.",
+  "private": true,
+  "sources": [
+    {
+      "id": "doj-complaint",
+      "name": "U.S. v. Approximately 69,370 Bitcoin — Complaint for Forfeiture",
+      "url": "https://www.justice.gov/d9/press-releases/attachments/2020/11/05/complaint_crypto_seizure.pdf",
+      "retrieved_at": "2026-11-09T22:00:54Z",
+      "sha256": "b1c377d146883fe754731c93939632fdbfe775224c6d4448bc47f8d3e4e7665c",
+      "citation": "Case 3:20-cv-07811-VC, filed 2020-11-05, paragraphs 15-19 (PDF pages 4-5).",
+      "limitations": "A complaint records allegations, not a final finding about address control or identity."
+    },
+    {
+      "id": "mempool-tx-2013",
+      "name": "mempool.space Bitcoin transaction API",
+      "url": "https://mempool.space/api/tx/5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "retrieved_at": "2026-11-09T22:00:54Z",
+      "sha256": "493c5148a9a8570952d59ebb361ab42dcbc1d90e4f3f4bbc6ed13fdfe60320c5",
+      "citation": "Transaction 5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c; block 230514.",
+      "limitations": "Public explorer API response captured at retrieval time; this project does not operate the provider or guarantee its availability."
+    },
+    {
+      "id": "mempool-tx-2015",
+      "name": "mempool.space Bitcoin transaction API",
+      "url": "https://mempool.space/api/tx/97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff",
+      "retrieved_at": "2026-11-09T22:00:54Z",
+      "sha256": "90be90cb9d859c5420c4427b5a6f4a63f3a21cddb39276be69836e1f5eeff57e",
+      "citation": "Transaction 97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff; block 353375.",
+      "limitations": "Public explorer API response captured at retrieval time; transaction output destination is not itself an exchange identity."
+    }
+  ],
+  "claims": [
+    {
+      "id": "complaint-1hq3-history",
+      "text": "The complaint states that law enforcement's analysis found transfers from two addresses to 1HQ3 and reports that 1HQ3 later sent 101 BTC to BTC-e.",
+      "source_id": "doj-complaint",
+      "kind": "legal_claim"
+    }
+  ],
+  "occurrences": [
+    {
+      "id": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "chain": "bitcoin",
+      "transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "block_height": 230514,
+      "timestamp": "2013-04-09T21:03:36Z",
+      "event_index": 0,
+      "direction": "output",
+      "to": "1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx",
+      "asset": "BTC",
+      "atomic_quantity": "6947108220100",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2013"
+    },
+    {
+      "id": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+      "chain": "bitcoin",
+      "transaction_id": "97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff",
+      "block_height": 353375,
+      "timestamp": "2015-04-23T14:10:25Z",
+      "event_index": 0,
+      "direction": "input",
+      "previous_transaction_id": "5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c",
+      "previous_output_index": 0,
+      "from": "1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx",
+      "asset": "BTC",
+      "atomic_quantity": "6947108220100",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2015"
+    },
+    {
+      "id": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:0",
+      "chain": "bitcoin",
+      "transaction_id": "97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff",
+      "block_height": 353375,
+      "timestamp": "2015-04-23T14:10:25Z",
+      "event_index": 0,
+      "direction": "output",
+      "from": "1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx",
+      "to": "1PLbnu8oYYyyXftkCBW4so6KHNKkpnexCB",
+      "asset": "BTC",
+      "atomic_quantity": "10100000000",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2015"
+    },
+    {
+      "id": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:1",
+      "chain": "bitcoin",
+      "transaction_id": "97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff",
+      "block_height": 353375,
+      "timestamp": "2015-04-23T14:10:25Z",
+      "event_index": 1,
+      "direction": "output",
+      "from": "1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx",
+      "to": "1HQ3Go3ggs8pFnXuHVHRytPCq5fGG8Hbhx",
+      "asset": "BTC",
+      "atomic_quantity": "6937008220100",
+      "scale": 8,
+      "kind": "observation",
+      "source_id": "mempool-tx-2015"
+    }
+  ],
+  "edges": [
+    {
+      "id": "utxo-spend-2013-to-2015-payment",
+      "from_occurrence": "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+      "to_occurrence": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+      "grade": "observed",
+      "rule": "bitcoin-input-outpoint-linked-to-explicit-output",
+      "evidence_ids": [
+        "bitcoin:5d9ef693d41cb3bb4c6d98e70ea8b2cc91be29a804245a06ec8761d9cddc103c:out:0",
+        "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0"
+      ],
+      "caveats": [
+        "The chain proves an output was spent into this transaction; it does not identify a natural person or prove intent.",
+        "The complaint calls the 101 BTC destination BTC-e; this transaction alone does not prove that service label."
+      ]
+    },
+    {
+      "id": "transaction-input-to-payment-output",
+      "from_occurrence": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+      "to_occurrence": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:0",
+      "grade": "observed",
+      "rule": "single-input-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+        "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:0"
+      ],
+      "caveats": [
+        "The chain shows this one input and its outputs in the same transaction; it does not allocate particular satoshis to a particular output."
+      ]
+    },
+    {
+      "id": "transaction-input-to-change-output",
+      "from_occurrence": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+      "to_occurrence": "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:1",
+      "grade": "observed",
+      "rule": "single-input-transaction-membership",
+      "evidence_ids": [
+        "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:in:0",
+        "bitcoin:97facbd7e07c4f3140d9ea167c2e54d85bc5f6fd04d9774d80b1284b706920ff:out:1"
+      ],
+      "caveats": [
+        "The chain shows this one input and its outputs in the same transaction; it does not allocate particular satoshis to a particular output."
+      ]
+    }
+  ],
+  "gaps": [
+    "The first transaction has many inputs sourced from the two addresses described in the complaint; this slice does not recreate every preceding transfer or all 54 transfers alleged by the complaint.",
+    "The BTC-e label is retained as a complaint assertion and is not independently corroborated by a public deposit-cluster label.",
+    "This selected excerpt does not establish ownership, identity, intent, liability, or a complete case history."
+  ]
+}

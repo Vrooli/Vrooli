@@ -25,6 +25,20 @@ file, or source control. Automated-rail work must first add a Credential
 Authority-backed injection path and prove it never appears in argv, logs,
 status JSON, or repository files.
 
+The pinned upstream `1.3.0` configuration format puts the signer reference in
+the chain's `signers` list (for example, `$FACILITATOR_PRIVATE_KEY`) and
+resolves that reference from the process environment. The resource currently
+has no Credential Authority injection path for that process. Therefore the
+facilitator must stay on the empty-chain bootstrap configuration; do not start
+it with a signer injected through `runtime.env`, command arguments, or a
+temporary repository config. The CF4 local-fork cryptographic harness is a
+separate test implementation and is not evidence that this upstream process
+settled a transaction.
+
+Platform support is Linux only. macOS and Windows remain explicitly unsupported
+until upstream publishes signed native facilitator artifacts; a running Linux
+resource does not change those platform declarations.
+
 ## Operator checks
 
 ```text
