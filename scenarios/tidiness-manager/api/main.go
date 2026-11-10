@@ -32,6 +32,7 @@ type Config struct {
 
 // Server wires the HTTP router and database connection
 type Server struct {
+	reductionFacts       ReductionFacts
 	config               *Config
 	db                   *sql.DB
 	store                *TidinessStore

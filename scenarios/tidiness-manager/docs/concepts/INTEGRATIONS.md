@@ -22,4 +22,4 @@ The API uses PostgreSQL for issues, metrics, campaigns, and history. Database co
 
 ## Optional Analyzer Tools
 
-Tools such as gocyclo, dupl, and jscpd enrich complexity and duplication findings. Missing tools should produce degraded metadata, not failed basic scans.
+Code Facts owns Go syntax graphs and complexity facts. Tidiness projects those facts into metrics and reduction recommendations. Dupl and jscpd still supply token-level duplication findings pending their migration into the shared registry. Missing source providers or tools produce explicit degraded metadata.

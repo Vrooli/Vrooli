@@ -10,6 +10,14 @@ import { noCycle } from "./eslint-rules/import-no-cycle.js";
 const strictTypeChecked = tsPlugin.configs["strict-type-checked"] ?? tsPlugin.configs.strictTypeChecked;
 
 export default [
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "**/__tests__/**", "**/test-utils/**"],
+    rules: {
+"no-restricted-imports": ["error", { patterns: [{ group: ["**/test-utils", "**/test-utils/*", "@/test-utils", "@/test-utils/*", "**/features/*/mocks", "**/features/*/mocks/*", "@/features/*/mocks", "@/features/*/mocks/*"] }] }],
+    },
+  },
+
   { ignores: ["dist", "node_modules", "coverage"] },
   js.configs.recommended,
   {

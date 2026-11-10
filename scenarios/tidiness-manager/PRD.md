@@ -15,7 +15,7 @@
 
 ### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Maintainability scanning | Detect long files, technical debt markers, coupling, complexity, and duplication, then return normalized tidiness findings for agents and Test Genie
-- [ ] OT-P0-002 | Code quality metrics | Detect languages (Go/TS/JS/Python/Rust), compute line counts, technical debt markers (TODO/FIXME/HACK), import/function metrics, cyclomatic complexity (via gocyclo), and code duplication (via dupl/jscpd) with graceful tool degradation
+- [ ] OT-P0-002 | Code quality metrics | Detect languages (Go/TS/JS/Python/Rust), compute line counts, technical debt markers (TODO/FIXME/HACK), import/function metrics, cyclomatic complexity (from Code Facts), and code duplication (via dupl/jscpd) with graceful tool degradation
 - [x] OT-P0-003 | Light scan performance | Complete light scans for typical scenarios in under 60-120 seconds or surface clear timeout status
 - [ ] OT-P0-004 | AI batch scanning | Process files in batches using resource-claude-code/resource-codes with configurable limits
 - [ ] OT-P0-005 | visited-tracker integration | Create/attach to campaigns and prioritize unvisited/least-visited files for smart scans
@@ -50,14 +50,14 @@
 ## 🧱 Tech Direction Snapshot
 - Preferred stacks / frameworks: Go API (Makefile execution, language detection, file traversal, AI orchestration), React UI (dashboard, campaign management, metrics visualization), CLI (agent integration)
 - Data + storage expectations: PostgreSQL (issue tracking, campaign state, audit trail), file-based JSON (light scan caching for portability), optional Redis (expensive operation caching)
-- Integration strategy: CLI-first for agents → HTTP API for UI/external → visited-tracker campaigns → resource-claude-code/codes for AI analysis → optional static analysis tools (gocyclo, dupl, jscpd)
+- Integration strategy: CLI-first for agents → HTTP API for UI/external → visited-tracker campaigns → resource-claude-code/codes for AI analysis → Code Facts syntax graphs and optional duplication tools (dupl, jscpd)
 - Non-goals / guardrails: Not auto-fixing code; not pattern/anti-pattern detection; not standards enforcement (that's scenario-auditor's domain); not lint/type/static-quality contract enforcement (that's quality-health's domain); not real-time IDE integration (batch-oriented)
 - **Unowned capability gap (2026-08-18):** auto-fix and pattern-based smell detection previously belonged to the `code-smell` scenario, which was retired as abandoned (no dependents, no registry entry, source stale since 2025-12; the planned integration was never built). These two capabilities now have **no owner**. Tidiness Manager still declines them by design — adopting them would be a deliberate scope expansion requiring a PRD revision, not a bugfix.
 
 ## 🤝 Dependencies & Launch Plan
 - Required resources: postgres (data storage), resource-claude-code (AI analysis), resource-codes (additional AI capabilities)
 - Optional resources: redis (caching), visited-tracker (campaign management, file prioritization)
-- Optional tools: gocyclo (Go complexity analysis), dupl (Go duplication detection), jscpd (TS/JS duplication detection)
+- Shared source owner: Code Facts (Go complexity analysis). Optional tools: dupl (Go duplication detection), jscpd (TS/JS duplication detection)
 - Scenario dependencies: visited-tracker (file tracking), scenario-auditor (complementary standards checks), app-issue-tracker (task creation integration for P2)
 - Operational risks: AI cost runaway (mitigate with strict batching + session limits); false positive noise (mitigate with configurable thresholds); Makefile inconsistency across scenarios (document standards); campaign resource exhaustion (enforce global concurrency limit K)
 - Launch sequencing: Phase 1 - Light scanning + language metrics + basic UI (2 weeks); Phase 2 - AI integration + visited-tracker + agent API (3 weeks); Phase 3 - Auto-campaigns + issue management (2 weeks); Phase 4 - Integrations + P2 features (ongoing)
@@ -97,7 +97,7 @@ Higher score = higher priority for next smart scan
 
 - **length**: Files exceeding line count thresholds (detected via line counting)
 - **duplication**: Repeated logic across files (detected via dupl/jscpd)
-- **complexity**: High cyclomatic complexity functions (detected via gocyclo)
+- **complexity**: High cyclomatic complexity functions (from Code Facts)
 - **technical_debt**: TODO/FIXME/HACK markers (detected via regex)
 - **coupling**: Excessive imports/dependencies (detected via import counting)
 - **dead_code**: Unused functions, imports, components (AI-powered)
@@ -128,7 +128,7 @@ Light scans automatically detect languages and collect metrics per language:
 - Function metrics: avg/max functions per file (language-aware parsing)
 
 **Tool-Enhanced Metrics** (graceful degradation):
-- **Complexity** (Go via gocyclo): cyclomatic complexity, high-complexity function locations
+- **Complexity** (Go through Code Facts): cyclomatic complexity, high-complexity function locations
 - **Duplication** (Go via dupl, TS/JS via jscpd): duplicate block detection with file locations
 
 **Design Principles**:

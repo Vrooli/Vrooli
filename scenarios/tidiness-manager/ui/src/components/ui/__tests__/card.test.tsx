@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../../../test-utils";
 import {
   Card,
   CardHeader,
@@ -11,14 +12,14 @@ import {
 
 describe('Card', () => {
   it('renders correctly', () => {
-    render(<Card>Card content</Card>);
+    renderWithProviders(<Card>Card content</Card>);
     const card = screen.getByRole('region');
     expect(card).toBeInTheDocument();
     expect(card).toHaveTextContent('Card content');
   });
 
   it('applies default styling classes', () => {
-    render(<Card>Content</Card>);
+    renderWithProviders(<Card>Content</Card>);
     const card = screen.getByRole('region');
     expect(card).toHaveClass(
       'rounded-xl',
@@ -30,13 +31,13 @@ describe('Card', () => {
   });
 
   it('applies custom className', () => {
-    render(<Card className="custom-card">Content</Card>);
+    renderWithProviders(<Card className="custom-card">Content</Card>);
     const card = screen.getByRole('region');
     expect(card).toHaveClass('custom-card');
   });
 
   it('includes role="region"', () => {
-    render(<Card>Test</Card>);
+    renderWithProviders(<Card>Test</Card>);
     const card = screen.getByText('Test');
     expect(card).toHaveAttribute('role', 'region');
   });
@@ -44,7 +45,7 @@ describe('Card', () => {
 
 describe('CardHeader', () => {
   it('renders correctly', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>Header content</CardHeader>
       </Card>
@@ -53,7 +54,7 @@ describe('CardHeader', () => {
   });
 
   it('applies default styling', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>Header</CardHeader>
       </Card>
@@ -63,7 +64,7 @@ describe('CardHeader', () => {
   });
 
   it('applies custom className', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader className="custom-header">Header</CardHeader>
       </Card>
@@ -75,7 +76,7 @@ describe('CardHeader', () => {
 
 describe('CardTitle', () => {
   it('renders correctly', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardTitle>Card Title</CardTitle>
@@ -86,7 +87,7 @@ describe('CardTitle', () => {
   });
 
   it('applies default styling', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardTitle>Title</CardTitle>
@@ -98,7 +99,7 @@ describe('CardTitle', () => {
   });
 
   it('renders as h2 element for proper heading hierarchy', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardTitle>Title</CardTitle>
@@ -110,7 +111,7 @@ describe('CardTitle', () => {
   });
 
   it('is a valid heading element', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardTitle>Title</CardTitle>
@@ -123,7 +124,7 @@ describe('CardTitle', () => {
   });
 
   it('applies custom className', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardTitle className="custom-title">Title</CardTitle>
@@ -137,7 +138,7 @@ describe('CardTitle', () => {
 
 describe('CardDescription', () => {
   it('renders correctly', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardDescription>Card description text</CardDescription>
@@ -148,7 +149,7 @@ describe('CardDescription', () => {
   });
 
   it('applies default styling', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardDescription>Description</CardDescription>
@@ -160,7 +161,7 @@ describe('CardDescription', () => {
   });
 
   it('renders as p element', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardDescription>Description</CardDescription>
@@ -172,7 +173,7 @@ describe('CardDescription', () => {
   });
 
   it('applies custom className', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardDescription className="custom-desc">Description</CardDescription>
@@ -186,7 +187,7 @@ describe('CardDescription', () => {
 
 describe('CardContent', () => {
   it('renders correctly', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardContent>Content text</CardContent>
       </Card>
@@ -195,7 +196,7 @@ describe('CardContent', () => {
   });
 
   it('applies default styling', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardContent>Content</CardContent>
       </Card>
@@ -205,7 +206,7 @@ describe('CardContent', () => {
   });
 
   it('applies custom className', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardContent className="custom-content">Content</CardContent>
       </Card>
@@ -217,7 +218,7 @@ describe('CardContent', () => {
 
 describe('CardFooter', () => {
   it('renders correctly', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardFooter>Footer content</CardFooter>
       </Card>
@@ -226,7 +227,7 @@ describe('CardFooter', () => {
   });
 
   it('applies default styling', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardFooter>Footer</CardFooter>
       </Card>
@@ -236,7 +237,7 @@ describe('CardFooter', () => {
   });
 
   it('applies custom className', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardFooter className="custom-footer">Footer</CardFooter>
       </Card>
@@ -248,7 +249,7 @@ describe('CardFooter', () => {
 
 describe('Card composition', () => {
   it('renders complete card with all sections', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardTitle>Test Card</CardTitle>
@@ -270,7 +271,7 @@ describe('Card composition', () => {
   });
 
   it('supports nested content structures', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardTitle>Stats</CardTitle>
@@ -290,7 +291,7 @@ describe('Card composition', () => {
   });
 
   it('supports card without header', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardContent>Simple card content</CardContent>
       </Card>
@@ -300,7 +301,7 @@ describe('Card composition', () => {
   });
 
   it('supports card without footer', () => {
-    render(
+    renderWithProviders(
       <Card>
         <CardHeader>
           <CardTitle>Title Only</CardTitle>
@@ -314,7 +315,7 @@ describe('Card composition', () => {
   });
 
   it('supports responsive layout classes', () => {
-    render(
+    renderWithProviders(
       <Card className="w-full sm:w-1/2 lg:w-1/3">
         <CardContent>Responsive card</CardContent>
       </Card>

@@ -59,7 +59,7 @@ func GenerateIssuesFromMetrics(scenario string, metrics []DetailedFileMetrics, c
 				Column:   1,
 				Message:  fmt.Sprintf("File has max cyclomatic complexity of %d, exceeds threshold of %d", *m.ComplexityMax, config.HighComplexityMax),
 				Severity: severityForComplexity(*m.ComplexityMax, config.HighComplexityMax),
-				Tool:     "gocyclo",
+				Tool:     "code-facts",
 				Category: "complexity",
 			})
 		}

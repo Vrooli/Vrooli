@@ -27,10 +27,10 @@ Filters include scenario, file, folder, category, severity, status, and limit.
 
 ```bash
 tidiness-manager recommend-refactors <scenario> --limit 10
-tidiness-manager recommend-refactors <scenario> --sort-by complexity --min-lines 200
+tidiness-manager recommend-refactors <scenario> --min-lines 200 --format json
 ```
 
-Recommendations combine stored metrics and visit context when available.
+Recommendations use the current Code Facts graph. Each entry names its detector, source locations, estimated removable and replacement lines, and calibration provenance. Ranking uses historical precision × estimated net lines; uncalibrated entries follow calibrated entries. Synthetic regression cases do not count as measured historical precision. An unavailable source returns an error; it cannot fall back to stale metric rows. `--min-lines` filters estimated net reduction, and `--format paths` emits candidate locations.
 
 ## scenarios
 

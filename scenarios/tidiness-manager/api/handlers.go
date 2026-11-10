@@ -133,74 +133,28 @@ func (s *Server) handleParseType(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleRefactorRecommendations returns prioritized refactor candidates, optionally
-// triggering a light scan to seed metrics when none exist.
+// handleRefactorRecommendations ranks current detector opportunities by measured
+// expected net production reduction. It does not mutate campaigns or seed scans.
 func (s *Server) handleRefactorRecommendations(w http.ResponseWriter, r *http.Request) {
-	scenario := r.URL.Query().Get("scenario")
-	if scenario == "" {
-		respondError(w, http.StatusBadRequest, "scenario parameter is required")
-		return
-	}
-
 	if err := s.ensureScanCoordinator(); err != nil {
-		respondError(w, http.StatusInternalServerError, "scan coordinator not initialized")
+		respondError(w, http.StatusInternalServerError, "scenario locator unavailable")
 		return
 	}
-
-	scenarioName, err := s.scanCoordinator.NormalizeScenarioName(scenario)
+	scenario, err := s.scanCoordinator.NormalizeScenarioName(r.URL.Query().Get("scenario"))
 	if err != nil {
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-
-	limit := parseIntParam(r, "limit", 10)
-	sortBy := parseStringParam(r, "sort_by", "priority")
-	minLines := parseIntParam(r, "min_lines", 0)
-	maxVisits := parseIntParam(r, "max_visits", 0)
-	autoScan := parseBoolParam(r, "auto_scan")
-
-	if autoScan {
-		if err := s.scanCoordinator.EnsureFileMetrics(r.Context(), scenarioName); err != nil {
-			s.log("auto-scan failed", map[string]interface{}{
-				"error":    err.Error(),
-				"scenario": scenarioName,
-			})
-		}
-	}
-
-	recommender := NewRefactorRecommender(s.db, s.campaignMgr)
-	recommendations, err := recommender.GetRecommendations(
-		r.Context(),
-		scenarioName,
-		limit,
-		sortBy,
-		minLines,
-		maxVisits,
-	)
-	if err != nil {
-		s.log("failed to get refactor recommendations", map[string]interface{}{
-			"error":    err.Error(),
-			"scenario": scenarioName,
-		})
-		respondError(w, http.StatusInternalServerError, "failed to get recommendations")
+	if order := r.URL.Query().Get("sort_by"); order != "" && order != "priority" && order != "expected_net_reduction" {
+		respondError(w, http.StatusBadRequest, "recommendations rank by expected_net_reduction; metric sorts are available in file metrics")
 		return
 	}
-
-	response := map[string]interface{}{
-		"scenario":        scenarioName,
-		"recommendations": recommendations,
-		"count":           len(recommendations),
+	report, err := s.recommendReductions(r.Context(), scenario, parseIntParam(r, "limit", 10), parseIntParam(r, "min_lines", 0))
+	if err != nil {
+		respondError(w, http.StatusServiceUnavailable, err.Error())
+		return
 	}
-
-	// Add warning if no data exists for scenario
-	if len(recommendations) == 0 {
-		hasMetrics, _ := s.scanCoordinator.HasMetricsForScenario(r.Context(), scenarioName)
-		if !hasMetrics {
-			response["warning"] = "no file metrics found for scenario - run 'tidiness-manager scan <scenario-path>' first"
-		}
-	}
-
-	respondJSON(w, http.StatusOK, response)
+	respondJSON(w, http.StatusOK, report)
 }
 
 // respondJSON writes a JSON response

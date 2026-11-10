@@ -194,7 +194,7 @@ func (ls *LightScanner) collectLanguageMetrics(ctx context.Context, languages ma
 			metrics.CodeMetrics = codeMetrics
 		}
 
-		// Run complexity analysis (requires external tools)
+		// Reuse current Code Facts syntax metrics.
 		complexityAnalyzer := NewComplexityAnalyzer(ls.scenarioPath, ls.timeout)
 		complexity, err := complexityAnalyzer.AnalyzeComplexity(ctx, lang, files)
 		if err == nil {

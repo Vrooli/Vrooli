@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppShell } from '../components/layout/AppShell';
@@ -13,12 +14,13 @@ function renderWithRouter(ui: React.ReactElement) {
     },
   });
 
-  return render(
+  return renderWithProviders(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         {ui}
       </MemoryRouter>
-    </QueryClientProvider>
+    </QueryClientProvider>,
+    { withoutRouter: true },
   );
 }
 

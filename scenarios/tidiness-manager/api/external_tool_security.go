@@ -8,11 +8,10 @@ import (
 )
 
 var allowedExternalCommands = map[string]struct{}{
-	"dupl":    {},
-	"go":      {},
-	"gocyclo": {},
-	"make":    {},
-	"npx":     {},
+	"dupl": {},
+	"go":   {},
+	"make": {},
+	"npx":  {},
 }
 
 // commandExists only resolves the small set of tools Tidiness Manager is allowed

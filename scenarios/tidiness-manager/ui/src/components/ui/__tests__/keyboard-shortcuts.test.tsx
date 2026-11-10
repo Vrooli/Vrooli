@@ -1,29 +1,30 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
+import { renderWithProviders } from "../../../test-utils";
 import { KeyboardShortcuts } from "../keyboard-shortcuts";
 
 describe("KeyboardShortcuts", () => {
   it("renders the help button by default", () => {
-    render(<KeyboardShortcuts />);
+    renderWithProviders(<KeyboardShortcuts />);
     const button = screen.getByRole("button", { name: /show keyboard shortcuts/i });
     expect(button).toBeInTheDocument();
   });
 
   it("has proper aria-label on help button", () => {
-    render(<KeyboardShortcuts />);
+    renderWithProviders(<KeyboardShortcuts />);
     const button = screen.getByLabelText("Show keyboard shortcuts");
     expect(button).toBeInTheDocument();
   });
 
   it("has Keyboard icon on help button", () => {
-    render(<KeyboardShortcuts />);
+    renderWithProviders(<KeyboardShortcuts />);
     const button = screen.getByRole("button", { name: /show keyboard shortcuts/i });
     expect(button.querySelector('svg')).toBeInTheDocument();
   });
 
   describe("modal behavior", () => {
     it("opens modal when help button is clicked", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
       const button = screen.getByRole("button", { name: /show keyboard shortcuts/i });
       fireEvent.click(button);
 
@@ -32,7 +33,7 @@ describe("KeyboardShortcuts", () => {
     });
 
     it("modal has proper ARIA attributes", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
       const button = screen.getByRole("button", { name: /show keyboard shortcuts/i });
       fireEvent.click(button);
 
@@ -42,7 +43,7 @@ describe("KeyboardShortcuts", () => {
     });
 
     it("shows backdrop when modal is open", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
       const button = screen.getByRole("button", { name: /show keyboard shortcuts/i });
       fireEvent.click(button);
 
@@ -51,7 +52,7 @@ describe("KeyboardShortcuts", () => {
     });
 
     it("closes modal when close button is clicked", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
       const openButton = screen.getByRole("button", { name: /show keyboard shortcuts/i });
       fireEvent.click(openButton);
 
@@ -62,7 +63,7 @@ describe("KeyboardShortcuts", () => {
     });
 
     it("closes modal when backdrop is clicked", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
       const openButton = screen.getByRole("button", { name: /show keyboard shortcuts/i });
       fireEvent.click(openButton);
 
@@ -73,7 +74,7 @@ describe("KeyboardShortcuts", () => {
     });
 
     it("closes modal when Escape key is pressed", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
       const button = screen.getByRole("button", { name: /show keyboard shortcuts/i });
       fireEvent.click(button);
 
@@ -85,7 +86,7 @@ describe("KeyboardShortcuts", () => {
 
   describe("keyboard shortcuts display", () => {
     it("displays General section shortcuts", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
       const button = screen.getByRole("button", { name: /show keyboard shortcuts/i });
       fireEvent.click(button);
 
@@ -96,7 +97,7 @@ describe("KeyboardShortcuts", () => {
     });
 
     it("displays Navigation section shortcuts", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
       const button = screen.getByRole("button", { name: /show keyboard shortcuts/i });
       fireEvent.click(button);
 
@@ -107,7 +108,7 @@ describe("KeyboardShortcuts", () => {
     });
 
     it("displays keyboard key badges", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
       const button = screen.getByRole("button", { name: /show keyboard shortcuts/i });
       fireEvent.click(button);
 
@@ -119,7 +120,7 @@ describe("KeyboardShortcuts", () => {
   describe("keyboard navigation functionality", () => {
     it("calls onNavigate when g+d is pressed", () => {
       const mockNavigate = vi.fn();
-      render(<KeyboardShortcuts onNavigate={mockNavigate} />);
+      renderWithProviders(<KeyboardShortcuts onNavigate={mockNavigate} />);
 
       fireEvent.keyDown(window, { key: "g" });
       fireEvent.keyDown(window, { key: "d" });
@@ -129,7 +130,7 @@ describe("KeyboardShortcuts", () => {
 
     it("calls onNavigate when g+c is pressed", () => {
       const mockNavigate = vi.fn();
-      render(<KeyboardShortcuts onNavigate={mockNavigate} />);
+      renderWithProviders(<KeyboardShortcuts onNavigate={mockNavigate} />);
 
       fireEvent.keyDown(window, { key: "g" });
       fireEvent.keyDown(window, { key: "c" });
@@ -139,7 +140,7 @@ describe("KeyboardShortcuts", () => {
 
     it("calls onNavigate when g+s is pressed", () => {
       const mockNavigate = vi.fn();
-      render(<KeyboardShortcuts onNavigate={mockNavigate} />);
+      renderWithProviders(<KeyboardShortcuts onNavigate={mockNavigate} />);
 
       fireEvent.keyDown(window, { key: "g" });
       fireEvent.keyDown(window, { key: "s" });
@@ -149,7 +150,7 @@ describe("KeyboardShortcuts", () => {
 
     it("does not trigger shortcuts when typing in input", () => {
       const mockNavigate = vi.fn();
-      render(
+      renderWithProviders(
         <>
           <input data-testid="test-input" />
           <KeyboardShortcuts onNavigate={mockNavigate} />
@@ -167,7 +168,7 @@ describe("KeyboardShortcuts", () => {
 
     it("does not trigger shortcuts when typing in textarea", () => {
       const mockNavigate = vi.fn();
-      render(
+      renderWithProviders(
         <>
           <textarea data-testid="test-textarea" />
           <KeyboardShortcuts onNavigate={mockNavigate} />
@@ -184,7 +185,7 @@ describe("KeyboardShortcuts", () => {
     });
 
     it("toggles modal when ? is pressed", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
 
       fireEvent.keyDown(window, { key: "?", shiftKey: false });
       expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -196,7 +197,7 @@ describe("KeyboardShortcuts", () => {
 
   describe("responsive design", () => {
     it("has responsive padding on mobile (p-4) and desktop (sm:p-6)", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
       const button = screen.getByRole("button", { name: /show keyboard shortcuts/i });
       fireEvent.click(button);
 
@@ -206,7 +207,7 @@ describe("KeyboardShortcuts", () => {
     });
 
     it("has max-height constraint for scrolling", () => {
-      render(<KeyboardShortcuts />);
+      renderWithProviders(<KeyboardShortcuts />);
       const button = screen.getByRole("button", { name: /show keyboard shortcuts/i });
       fireEvent.click(button);
 

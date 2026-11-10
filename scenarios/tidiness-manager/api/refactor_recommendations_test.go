@@ -1,23 +1,42 @@
 package main
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"testing"
 
-func TestCalculatePriority_OrdersDistinctCandidatesWithPercentageDuplication(t *testing.T) {
-	rr := &RefactorRecommender{}
-	duplication := func(value float64) *float64 { return &value }
-	candidates := []RefactorRecommendation{
-		{FilePath: "api/low.go", StalenessScore: 10, DuplicationPct: duplication(6), HasTestFile: true, CommentRatio: 0.2},
-		{FilePath: "api/medium.go", StalenessScore: 10, DuplicationPct: duplication(45), HasTestFile: true, CommentRatio: 0.2},
-		{FilePath: "api/high.go", StalenessScore: 10, DuplicationPct: duplication(100), HasTestFile: true, CommentRatio: 0.2},
+	"connectrpc.com/connect"
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+)
+
+type reductionSourceFunc func(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error)
+
+func (f reductionSourceFunc) DescribeCodeFacts(ctx context.Context, request *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
+	return f(ctx, request)
+}
+
+func TestReductionRecommendationsRequireCurrentSharedEvidence(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	srv := &Server{scenarioLocator: &ScenarioLocator{repoRoot: "/repo"}}
+	calls := 0
+	srv.reductionFacts = reductionSourceFunc(func(received context.Context, request *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
+		calls++
+		if received != ctx || !request.Msg.GetIncludeGraphs() || !request.Msg.GetUseCache() || request.Msg.GetTarget().GetScenario() != "demo" {
+			t.Fatalf("shared source scope lost: %v", request.Msg)
+		}
+		return nil, errors.New("source unavailable")
+	})
+	if _, err := srv.recommendReductions(ctx, "demo", 5, 0); err == nil || calls != 1 {
+		t.Fatalf("unavailable evidence converted to recommendations: %v calls=%d", err, calls)
 	}
-	for i := range candidates {
-		candidates[i].RefactorPriority = rr.calculatePriority(candidates[i])
-	}
-	rr.sortRecommendations(candidates, "priority")
-	if !(candidates[0].RefactorPriority > candidates[1].RefactorPriority && candidates[1].RefactorPriority > candidates[2].RefactorPriority) {
-		t.Fatalf("priorities = %#v, want strictly descending distinct order", candidates)
-	}
-	if candidates[0].FilePath != "api/high.go" || candidates[2].FilePath != "api/low.go" {
-		t.Fatalf("ordered candidates = %#v, want high to low duplication", candidates)
+	// No database or campaign manager is needed: recommendations are current
+	// source facts, and fetching them cannot create a visited-tracker campaign.
+	srv.reductionFacts = reductionSourceFunc(func(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
+		return connect.NewResponse(&facts.CodeFactsReport{Cache: &facts.CacheMetadata{SourceHash: "fresh"}}), nil
+	})
+	report, err := srv.recommendReductions(ctx, "demo", 5, 0)
+	if err != nil || report.SourceHash != "fresh" || report.Count != 0 {
+		t.Fatalf("fresh empty result: %+v %v", report, err)
 	}
 }

@@ -1,21 +1,4 @@
 {
-  "name": "tidiness-manager-ui",
-  "version": "1.0.0",
-  "description": "React + Vite front-end for Tidiness Manager",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vrooli lifecycle protect -- vite",
-    "build": "pnpm selector:manifest && vite build",
-    "preview": "node server.js",
-    "lint": "eslint src --ext ts,tsx",
-    "lint:fix": "eslint src --ext ts,tsx --fix",
-    "strings:check": "node -e \"process.exit(0)\"",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run --coverage",
-    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
-    "selector:check": "node scripts/generate-selector-manifest.mjs --check"
-  },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",
     "@tanstack/react-query": "^5.59.0",
@@ -33,15 +16,7 @@
     "tailwind-merge": "^2.3.0",
     "ws": "^8.21.0"
   },
-  "pnpm": {
-    "overrides": {
-      "@remix-run/router": "1.23.2",
-      "path-to-regexp": "0.1.13",
-      "qs": "6.15.2",
-      "react-router": "6.30.4",
-      "ws": "8.21.0"
-    }
-  },
+  "description": "React + Vite front-end for Tidiness Manager",
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
@@ -63,5 +38,31 @@
     "vite": "^5.4.21",
     "vitest": "^2.1.4"
   },
-  "packageManager": "pnpm@9.12.1"
+  "name": "tidiness-manager-ui",
+  "packageManager": "pnpm@9.12.1",
+  "pnpm": {
+    "overrides": {
+      "@remix-run/router": "1.23.2",
+      "path-to-regexp": "0.1.13",
+      "qs": "6.15.2",
+      "react-router": "6.30.4",
+      "ws": "8.21.0"
+    }
+  },
+  "private": true,
+  "scripts": {
+    "build": "pnpm selector:manifest \u0026\u0026 vite build",
+    "dev": "vrooli lifecycle protect -- vite",
+    "lint": "eslint src --ext ts,tsx",
+    "lint:fix": "eslint src --ext ts,tsx --fix",
+    "preview": "node server.js",
+    "selector:check": "node scripts/generate-selector-manifest.mjs --check",
+    "selector:manifest": "node scripts/generate-selector-manifest.mjs",
+    "strings:check": "node -e \"process.exit(0)\"",
+    "test": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage",
+    "type-check": "tsc --noEmit"
+  },
+  "type": "module",
+  "version": "1.0.0"
 }

@@ -116,25 +116,44 @@ type CampaignEnvelope struct {
 }
 
 type Recommendation struct {
-	FilePath         string   `json:"file_path"`
-	Language         string   `json:"language"`
-	LineCount        int      `json:"line_count"`
-	VisitCount       int      `json:"visit_count"`
-	RefactorPriority float64  `json:"refactor_priority"`
-	StalenessScore   float64  `json:"staleness_score"`
-	ComplexityMax    *int     `json:"complexity_max,omitempty"`
-	TodoCount        int      `json:"todo_count"`
-	FixmeCount       int      `json:"fixme_count"`
-	HackCount        int      `json:"hack_count"`
-	HasTestFile      *bool    `json:"has_test_file,omitempty"`
-	Reasons          []string `json:"reasons,omitempty"`
+	ID         string `json:"id"`
+	DetectorID string `json:"detector_id"`
+	Title      string `json:"title"`
+	Locations  []struct {
+		Path      string `json:"path"`
+		StartLine int    `json:"start_line"`
+		EndLine   int    `json:"end_line"`
+		Symbol    string `json:"symbol"`
+	} `json:"locations"`
+	RemovableLines   int      `json:"removable_lines"`
+	ReplacementLines int      `json:"replacement_lines"`
+	NetLines         int      `json:"net_lines"`
+	ExpectedNetLines *float64 `json:"expected_net_lines"`
+	Calibration      struct {
+		Basis              string   `json:"basis"`
+		HistoricalCases    int      `json:"historical_cases"`
+		RegressionCases    int      `json:"regression_cases"`
+		RegressionFailures int      `json:"regression_failures"`
+		Precision          *float64 `json:"precision"`
+		Recall             *float64 `json:"recall"`
+		CorpusVersion      string   `json:"corpus_version"`
+		TruePositive       int      `json:"true_positive"`
+		FalsePositive      int      `json:"false_positive"`
+		FalseNegative      int      `json:"false_negative"`
+		TrueNegative       int      `json:"true_negative"`
+	} `json:"calibration"`
+	Reason string `json:"reason"`
+	Action string `json:"action"`
 }
 
 type RecommendationsResponse struct {
-	Scenario        string           `json:"scenario"`
-	Recommendations []Recommendation `json:"recommendations"`
-	Count           int              `json:"count"`
-	Warning         string           `json:"warning,omitempty"`
+	Scenario        string            `json:"scenario"`
+	SourceHash      string            `json:"source_hash"`
+	ConfigHash      string            `json:"config_hash"`
+	Recommendations []Recommendation  `json:"recommendations"`
+	Detectors       []json.RawMessage `json:"detectors"`
+	Warnings        []string          `json:"warnings,omitempty"`
+	Count           int               `json:"count"`
 }
 
 type SmartScanRequest struct {

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import Dashboard from '../Dashboard';
@@ -52,12 +53,13 @@ function renderDashboard() {
     },
   });
 
-  return render(
+  return renderWithProviders(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Dashboard />
       </BrowserRouter>
-    </QueryClientProvider>
+    </QueryClientProvider>,
+    { withoutRouter: true },
   );
 }
 

@@ -1,5 +1,6 @@
 // [REQ:TM-UI-003] Test file detail view
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -22,14 +23,15 @@ function renderFileDetail(scenarioName: string, filePath: string) {
     },
   });
 
-  return render(
+  return renderWithProviders(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[`/scenario/${scenarioName}/file/${filePath}`]}>
         <Routes>
           <Route path="/scenario/:scenarioName/file/*" element={<FileDetail />} />
         </Routes>
       </MemoryRouter>
-    </QueryClientProvider>
+    </QueryClientProvider>,
+    { withoutRouter: true },
   );
 }
 

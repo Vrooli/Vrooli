@@ -1,0 +1,603 @@
+{
+  "version": "debt-detector-corpus-v1",
+  "cases": [
+    {
+      "id": "code-facts-facts-describe",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/code-facts/cli/domains/facts/handlers.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Primitive binding uses the Call/Report replacement; package search has no production caller of this private RunContext wrapper.",
+      "symbols": [
+        {
+          "Name": "describe",
+          "Path": "cli/domains/facts/handlers.go",
+          "Package": "facts",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 1,
+          "Start": 26,
+          "End": 55
+        },
+        {
+          "Name": "describeCall",
+          "Path": "cli/domains/facts/handlers.go",
+          "Package": "facts",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.OperationContext) (proto.Message, error)",
+          "Occurrences": 2,
+          "Start": 26,
+          "End": 55
+        }
+      ]
+    },
+    {
+      "id": "code-facts-facts-search",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/code-facts/cli/domains/facts/handlers.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Primitive binding uses the Call/Report replacement; package search has no production caller of this private RunContext wrapper.",
+      "symbols": [
+        {
+          "Name": "search",
+          "Path": "cli/domains/facts/handlers.go",
+          "Package": "facts",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 1,
+          "Start": 77,
+          "End": 104
+        },
+        {
+          "Name": "searchCall",
+          "Path": "cli/domains/facts/handlers.go",
+          "Package": "facts",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.OperationContext) (proto.Message, error)",
+          "Occurrences": 2,
+          "Start": 77,
+          "End": 104
+        }
+      ]
+    },
+    {
+      "id": "code-facts-facts-surfaces",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/code-facts/cli/domains/facts/handlers.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Primitive binding uses the Call/Report replacement; package search has no production caller of this private RunContext wrapper.",
+      "symbols": [
+        {
+          "Name": "surfaces",
+          "Path": "cli/domains/facts/handlers.go",
+          "Package": "facts",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 1,
+          "Start": 144,
+          "End": 165
+        },
+        {
+          "Name": "surfacesCall",
+          "Path": "cli/domains/facts/handlers.go",
+          "Package": "facts",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.OperationContext) (proto.Message, error)",
+          "Occurrences": 2,
+          "Start": 144,
+          "End": 165
+        }
+      ]
+    },
+    {
+      "id": "code-facts-facts-protoAdoption",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/code-facts/cli/domains/facts/handlers.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Primitive binding uses the Call/Report replacement; package search has no production caller of this private RunContext wrapper.",
+      "symbols": [
+        {
+          "Name": "protoAdoption",
+          "Path": "cli/domains/facts/handlers.go",
+          "Package": "facts",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 1,
+          "Start": 186,
+          "End": 200
+        },
+        {
+          "Name": "protoAdoptionCall",
+          "Path": "cli/domains/facts/handlers.go",
+          "Package": "facts",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.OperationContext) (proto.Message, error)",
+          "Occurrences": 2,
+          "Start": 186,
+          "End": 200
+        }
+      ]
+    },
+    {
+      "id": "code-facts-facts-endpointProof",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/code-facts/cli/domains/facts/handlers.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Primitive binding uses the Call/Report replacement; package search has no production caller of this private RunContext wrapper.",
+      "symbols": [
+        {
+          "Name": "endpointProof",
+          "Path": "cli/domains/facts/handlers.go",
+          "Package": "facts",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 1,
+          "Start": 213,
+          "End": 227
+        },
+        {
+          "Name": "endpointProofCall",
+          "Path": "cli/domains/facts/handlers.go",
+          "Package": "facts",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.OperationContext) (proto.Message, error)",
+          "Occurrences": 2,
+          "Start": 213,
+          "End": 227
+        }
+      ]
+    },
+    {
+      "id": "code-facts-cache-status",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/code-facts/cli/domains/cache/handlers.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Primitive binding uses the Call/Report replacement; package search has no production caller of this private RunContext wrapper.",
+      "symbols": [
+        {
+          "Name": "status",
+          "Path": "cli/domains/cache/handlers.go",
+          "Package": "cache",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 1,
+          "Start": 74,
+          "End": 94
+        },
+        {
+          "Name": "statusCall",
+          "Path": "cli/domains/cache/handlers.go",
+          "Package": "cache",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.OperationContext) (proto.Message, error)",
+          "Occurrences": 2,
+          "Start": 74,
+          "End": 94
+        }
+      ]
+    },
+    {
+      "id": "code-facts-cache-inspect",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/code-facts/cli/domains/cache/handlers.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Primitive binding uses the Call/Report replacement; package search has no production caller of this private RunContext wrapper.",
+      "symbols": [
+        {
+          "Name": "inspect",
+          "Path": "cli/domains/cache/handlers.go",
+          "Package": "cache",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 1,
+          "Start": 96,
+          "End": 117
+        },
+        {
+          "Name": "inspectCall",
+          "Path": "cli/domains/cache/handlers.go",
+          "Package": "cache",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.OperationContext) (proto.Message, error)",
+          "Occurrences": 2,
+          "Start": 96,
+          "End": 117
+        }
+      ]
+    },
+    {
+      "id": "code-facts-cache-clear",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/code-facts/cli/domains/cache/handlers.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Primitive binding uses the Call/Report replacement; package search has no production caller of this private RunContext wrapper.",
+      "symbols": [
+        {
+          "Name": "clear",
+          "Path": "cli/domains/cache/handlers.go",
+          "Package": "cache",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 1,
+          "Start": 119,
+          "End": 142
+        },
+        {
+          "Name": "clearCall",
+          "Path": "cli/domains/cache/handlers.go",
+          "Package": "cache",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.OperationContext) (proto.Message, error)",
+          "Occurrences": 2,
+          "Start": 119,
+          "End": 142
+        }
+      ]
+    },
+    {
+      "id": "bound",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": false,
+      "origin": "regression-boundary",
+      "source": "go graph contract",
+      "reason": "A registered old handler remains live.",
+      "symbols": [
+        {
+          "Name": "bound",
+          "Path": "cli/domain/handlers.go",
+          "Package": "domain",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 2,
+          "Exported": false,
+          "Start": 10,
+          "End": 30
+        },
+        {
+          "Name": "boundCall",
+          "Path": "cli/domain/handlers.go",
+          "Package": "domain",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.OperationContext) error",
+          "Occurrences": 2,
+          "Exported": false,
+          "Start": 10,
+          "End": 30
+        }
+      ]
+    },
+    {
+      "id": "visible",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": false,
+      "origin": "regression-boundary",
+      "source": "go graph contract",
+      "reason": "Exported API may have callers in another package.",
+      "symbols": [
+        {
+          "Name": "visible",
+          "Path": "cli/domain/handlers.go",
+          "Package": "domain",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 1,
+          "Exported": true,
+          "Start": 10,
+          "End": 30
+        },
+        {
+          "Name": "visibleCall",
+          "Path": "cli/domain/handlers.go",
+          "Package": "domain",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.OperationContext) error",
+          "Occurrences": 1,
+          "Exported": true,
+          "Start": 10,
+          "End": 30
+        }
+      ]
+    },
+    {
+      "id": "other",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": false,
+      "origin": "regression-boundary",
+      "source": "go graph contract",
+      "reason": "Different receiver is not a replacement.",
+      "symbols": [
+        {
+          "Name": "other",
+          "Path": "cli/domain/handlers.go",
+          "Package": "domain",
+          "Receiver": "first",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 1,
+          "Exported": false,
+          "Start": 10,
+          "End": 30
+        },
+        {
+          "Name": "otherCall",
+          "Path": "cli/domain/handlers.go",
+          "Package": "domain",
+          "Receiver": "second",
+          "Signature": "func(ctx cliapp.OperationContext) error",
+          "Occurrences": 1,
+          "Exported": false,
+          "Start": 10,
+          "End": 30
+        }
+      ]
+    },
+    {
+      "id": "interfaceUse",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": false,
+      "origin": "regression-boundary",
+      "source": "go graph contract",
+      "reason": "An interface method declaration is a conservative use, not an unused-method proof.",
+      "symbols": [
+        {
+          "Name": "interfaceUse",
+          "Path": "cli/domain/handlers.go",
+          "Package": "domain",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 2,
+          "Exported": false,
+          "Start": 10,
+          "End": 30
+        },
+        {
+          "Name": "interfaceUseCall",
+          "Path": "cli/domain/handlers.go",
+          "Package": "domain",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.OperationContext) error",
+          "Occurrences": 2,
+          "Exported": false,
+          "Start": 10,
+          "End": 30
+        }
+      ]
+    },
+    {
+      "id": "withoutReplacement",
+      "detector_id": "migration.unbound-cli-handler",
+      "expected": false,
+      "origin": "regression-boundary",
+      "source": "go graph contract",
+      "reason": "No replacement proves a completed primitive migration.",
+      "symbols": [
+        {
+          "Name": "withoutReplacement",
+          "Path": "cli/domain/handlers.go",
+          "Package": "domain",
+          "Receiver": "handlers",
+          "Signature": "func(ctx cliapp.RunContext) error",
+          "Occurrences": 1,
+          "Exported": false,
+          "Start": 10,
+          "End": 30
+        }
+      ]
+    },
+    {
+      "id": "nontrivial-clones",
+      "detector_id": "duplication.identical-function-body",
+      "expected": true,
+      "origin": "regression-boundary",
+      "source": "go graph contract",
+      "reason": "Exact body identity and minimum useful body size.",
+      "symbols": [
+        {
+          "Name": "function0",
+          "Path": "api/domain0/service.go",
+          "Package": "domain0",
+          "Signature": "func() error",
+          "BodyHash": "same",
+          "BodyLines": 15,
+          "Start": 10,
+          "End": 25
+        },
+        {
+          "Name": "function1",
+          "Path": "api/domain1/service.go",
+          "Package": "domain1",
+          "Signature": "func() error",
+          "BodyHash": "same",
+          "BodyLines": 15,
+          "Start": 10,
+          "End": 25
+        }
+      ]
+    },
+    {
+      "id": "trivial-forwarders",
+      "detector_id": "duplication.identical-function-body",
+      "expected": false,
+      "origin": "regression-boundary",
+      "source": "go graph contract",
+      "reason": "Exact body identity and minimum useful body size.",
+      "symbols": [
+        {
+          "Name": "function0",
+          "Path": "api/domain0/service.go",
+          "Package": "domain0",
+          "Signature": "func() error",
+          "BodyHash": "same",
+          "BodyLines": 2,
+          "Start": 10,
+          "End": 12
+        },
+        {
+          "Name": "function1",
+          "Path": "api/domain1/service.go",
+          "Package": "domain1",
+          "Signature": "func() error",
+          "BodyHash": "same",
+          "BodyLines": 2,
+          "Start": 10,
+          "End": 12
+        }
+      ]
+    },
+    {
+      "id": "distinct-implementations",
+      "detector_id": "duplication.identical-function-body",
+      "expected": false,
+      "origin": "regression-boundary",
+      "source": "go graph contract",
+      "reason": "Exact body identity and minimum useful body size.",
+      "symbols": [
+        {
+          "Name": "function0",
+          "Path": "api/domain0/service.go",
+          "Package": "domain0",
+          "Signature": "func() error",
+          "BodyHash": "one",
+          "BodyLines": 15,
+          "Start": 10,
+          "End": 25
+        },
+        {
+          "Name": "function1",
+          "Path": "api/domain1/service.go",
+          "Package": "domain1",
+          "Signature": "func() error",
+          "BodyHash": "two",
+          "BodyLines": 15,
+          "Start": 10,
+          "End": 25
+        }
+      ]
+    },
+    {
+      "id": "architecture-cartographer-severity-proto-mappers",
+      "detector_id": "duplication.identical-function-body",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/architecture-cartographer/api/handlers/conflicts/handler.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Code Facts found the same 14-line severity-to-protobuf switch in audit, conflicts, and graph handlers. A shared converter within the existing conflicts handler preserved all five enum outcomes, passed the full API suite and owner Test Genie, and removed 19 production lines across the three handler files.",
+      "symbols": [
+        {"Name": "severityToProto", "Path": "handlers/audit/handler.go", "Package": "handlers/audit", "Signature": "func(s conflicts.Severity) sharedv1.Severity", "BodyHash": "0ca5e76b96aff1b3d92725b2140cbb36d64c43bc17b8f049f794953d4f0daeda", "BodyLines": 14, "Occurrences": 4, "Start": 233, "End": 246},
+        {"Name": "severityToProto", "Path": "handlers/conflicts/handler.go", "Package": "handlers/conflicts", "Signature": "func(s conflicts.Severity) sharedv1.Severity", "BodyHash": "0ca5e76b96aff1b3d92725b2140cbb36d64c43bc17b8f049f794953d4f0daeda", "BodyLines": 14, "Occurrences": 2, "Start": 302, "End": 315},
+        {"Name": "severityToProto", "Path": "handlers/graph/handler.go", "Package": "handlers/graph", "Signature": "func(s conflicts.Severity) sharedv1.Severity", "BodyHash": "0ca5e76b96aff1b3d92725b2140cbb36d64c43bc17b8f049f794953d4f0daeda", "BodyLines": 14, "Occurrences": 1, "Start": 683, "End": 696}
+      ]
+    },
+    {
+      "id": "architecture-cartographer-finding-class-proto-mappers",
+      "detector_id": "duplication.identical-function-body",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/architecture-cartographer/api/handlers/conflicts/handler.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Code Facts found the same 10-line finding-class-to-protobuf switch in audit and conflicts handlers. The existing conflicts handler now owns that mapping for both callers; explicit deterministic, heuristic, and unspecified tests pass, and the combined mapper consolidation removes 30 production lines across three handler files.",
+      "symbols": [
+        {"Name": "findingClassToProto", "Path": "handlers/audit/handler.go", "Package": "handlers/audit", "Signature": "func(c conflicts.FindingClass) sharedv1.FindingClass", "BodyHash": "996dc9f30925472898af574860b8001ad2df189d40093edb5bc1af5fd0fccf7c", "BodyLines": 10, "Occurrences": 3, "Start": 335, "End": 344},
+        {"Name": "findingClassToProto", "Path": "handlers/conflicts/handler.go", "Package": "handlers/conflicts", "Signature": "func(c conflicts.FindingClass) sharedv1.FindingClass", "BodyHash": "996dc9f30925472898af574860b8001ad2df189d40093edb5bc1af5fd0fccf7c", "BodyLines": 10, "Occurrences": 3, "Start": 291, "End": 300}
+      ]
+    },
+    {
+      "id": "architecture-cartographer-archetype-proto-mappers",
+      "detector_id": "duplication.identical-function-body",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/architecture-cartographer/api/handlers/domains/handler.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "The live Code Facts-backed recommendation found identical archetype-name to protobuf-enum switches in the domains and graph handlers. The domains handler now owns the exported conversion used by both callers; the full enum/default matrix is tested and the consolidation removes 17 production lines.",
+      "symbols": [
+        {"Name": "archetypeNameToProto", "Path": "handlers/domains/handler.go", "Package": "handlers/domains", "Signature": "func(name string) domainsv1.Archetype", "BodyHash": "85ab872eb79cdc411c8e352495b609bab21c80d38b0788a2cd6d578b9edc6351", "BodyLines": 20, "Occurrences": 1, "Start": 261, "End": 280},
+        {"Name": "graphArchetypeEnum", "Path": "handlers/graph/handler.go", "Package": "handlers/graph", "Signature": "func(name string) domainsv1.Archetype", "BodyHash": "85ab872eb79cdc411c8e352495b609bab21c80d38b0788a2cd6d578b9edc6351", "BodyLines": 20, "Occurrences": 2, "Start": 451, "End": 470}
+      ]
+    },
+    {
+      "id": "architecture-cartographer-cli-archetype-labels",
+      "detector_id": "duplication.identical-function-body",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/architecture-cartographer/cli/domains/archetype/handlers.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Code Facts found identical protobuf archetype label switches in the archetype and domains CLI commands. One shared CLI internal label owner now preserves canonical names and declared-label fallback; enum, unknown and nil outcomes are tested.",
+      "symbols": [
+        {"Name": "archetypeLabel", "Path": "domains/archetype/handlers.go", "Package": "domains/archetype", "Signature": "func(a *domainsv1.DomainArchetype) string", "BodyHash": "88381963bd82ffdb9f94112169d67eb0f7e37eddeff028d090b54570158624fe", "BodyLines": 20, "Occurrences": 1, "Start": 90, "End": 109},
+        {"Name": "archetypeLabel", "Path": "domains/domains/handlers.go", "Package": "domains/domains", "Signature": "func(a *domainsv1.DomainArchetype) string", "BodyHash": "88381963bd82ffdb9f94112169d67eb0f7e37eddeff028d090b54570158624fe", "BodyLines": 20, "Occurrences": 2, "Start": 187, "End": 206}
+      ]
+    },
+    {
+      "id": "architecture-cartographer-cli-finding-class-labels",
+      "detector_id": "duplication.identical-function-body",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/architecture-cartographer/cli/domains/audit/handlers.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Code Facts found identical finding-class label switches in the audit and conflict CLI commands. One shared CLI internal label owner now provides deterministic/heuristic/unspecified output, with an explicit invalid-enum fallback test.",
+      "symbols": [
+        {"Name": "findingClassName", "Path": "domains/audit/handlers.go", "Package": "domains/audit", "Signature": "func(c sharedv1.FindingClass) string", "BodyHash": "5d330e8af0d54586b8391b98b705d007320547f87b184ea4f6940d5c73317a4b", "BodyLines": 10, "Occurrences": 4, "Start": 433, "End": 442},
+        {"Name": "findingClassName", "Path": "domains/conflicts/handlers.go", "Package": "domains/conflicts", "Signature": "func(c sharedv1.FindingClass) string", "BodyHash": "5d330e8af0d54586b8391b98b705d007320547f87b184ea4f6940d5c73317a4b", "BodyLines": 10, "Occurrences": 3, "Start": 289, "End": 298}
+      ]
+    },
+    {
+      "id": "architecture-cartographer-sorted-domain-list",
+      "detector_id": "duplication.identical-function-body",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/architecture-cartographer/api/internal/conflicts/detectors/layering/layering.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Code Facts found identical trim/dedupe/sort helpers in the layering and naming detectors. Both callers now use the existing conflicts domain as the common owner; focused behavior coverage preserves filtering, trimming, uniqueness and stable ordering.",
+      "symbols": [
+        {"Name": "domainList", "Path": "internal/conflicts/detectors/layering/layering.go", "Package": "internal/conflicts/detectors/layering", "Signature": "func(parts ...string) []string", "BodyHash": "cf6a0d5e20ec130cddd602e8b34c2f52170c8f6294dcc82e6286494350df8ad6", "BodyLines": 16, "Start": 237, "End": 252},
+        {"Name": "domainList", "Path": "internal/conflicts/detectors/naming/naming.go", "Package": "internal/conflicts/detectors/naming", "Signature": "func(parts ...string) []string", "BodyHash": "cf6a0d5e20ec130cddd602e8b34c2f52170c8f6294dcc82e6286494350df8ad6", "BodyLines": 16, "Start": 153, "End": 168}
+      ]
+    },
+    {
+      "id": "architecture-cartographer-shared-graph-client-construction",
+      "detector_id": "duplication.identical-function-body",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/architecture-cartographer/cli/domains/archetype/handlers.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Code Facts found four CLI domains constructing the same GraphServiceClient from ScenarioApp. One shared CLI internal graphclient constructor now owns this transport setup, while each domain retains its own typed handler and command behavior.",
+      "symbols": [
+        {"Name": "newHandlers", "Path": "domains/archetype/handlers.go", "Package": "domains/archetype", "Signature": "func(core *cliapp.ScenarioApp) *handlers", "BodyHash": "b68aa1b51c53fbd3ea6a61bcaa8e3a1090daa9492225a850e2b331ca003a5294", "BodyLines": 7, "Occurrences": 1, "Start": 24, "End": 30},
+        {"Name": "newHandlers", "Path": "domains/graph/handlers.go", "Package": "domains/graph", "Signature": "func(core *cliapp.ScenarioApp) *handlers", "BodyHash": "b68aa1b51c53fbd3ea6a61bcaa8e3a1090daa9492225a850e2b331ca003a5294", "BodyLines": 7, "Occurrences": 1, "Start": 22, "End": 28},
+        {"Name": "newHandlers", "Path": "domains/slice/handlers.go", "Package": "domains/slice", "Signature": "func(core *cliapp.ScenarioApp) *handlers", "BodyHash": "b68aa1b51c53fbd3ea6a61bcaa8e3a1090daa9492225a850e2b331ca003a5294", "BodyLines": 7, "Occurrences": 1, "Start": 23, "End": 29},
+        {"Name": "newHandlers", "Path": "domains/zones/handlers.go", "Package": "domains/zones", "Signature": "func(core *cliapp.ScenarioApp) *handlers", "BodyHash": "b68aa1b51c53fbd3ea6a61bcaa8e3a1090daa9492225a850e2b331ca003a5294", "BodyLines": 7, "Occurrences": 1, "Start": 33, "End": 39}
+      ]
+    },
+    {
+      "id": "scenario-auditor-content-type-noop-stubs",
+      "detector_id": "duplication.identical-function-body",
+      "expected": true,
+      "origin": "repository-beforeimage",
+      "source": "scenarios/scenario-auditor/api/rules/api/content_type_csv.go",
+      "revision": "54c000ed2bbb8bc1bbcaaec85f479877d8fa54ae",
+      "reason": "Code Facts found six format-specific unimplemented content-type checks with the same body hash and nil result. Replacing their repeated bodies with one shared nil-result helper removed 57 production lines while preserving each exported rule entry point; focused behavior tests pass.",
+      "symbols": [
+        {"Name": "CheckCSVContentTypeHeaders", "Path": "api/rules/api/content_type_csv.go", "Package": "rules/api", "Signature": "func(content []byte, filePath string) []Violation", "BodyHash": "fc74c44482cfdf555c20d45c299ee55109241d4d9052c44891168a8b18eac68e", "BodyLines": 14, "Occurrences": 1, "Exported": true, "Start": 125, "End": 138},
+        {"Name": "CheckHTMLContentTypeHeaders", "Path": "api/rules/api/content_type_html.go", "Package": "rules/api", "Signature": "func(content []byte, filePath string) []Violation", "BodyHash": "fc74c44482cfdf555c20d45c299ee55109241d4d9052c44891168a8b18eac68e", "BodyLines": 12, "Occurrences": 1, "Exported": true, "Start": 78, "End": 89},
+        {"Name": "CheckPDFContentTypeHeaders", "Path": "api/rules/api/content_type_pdf.go", "Package": "rules/api", "Signature": "func(content []byte, filePath string) []Violation", "BodyHash": "fc74c44482cfdf555c20d45c299ee55109241d4d9052c44891168a8b18eac68e", "BodyLines": 14, "Occurrences": 1, "Exported": true, "Start": 141, "End": 154},
+        {"Name": "CheckStreamingContentTypeHeaders", "Path": "api/rules/api/content_type_streaming.go", "Package": "rules/api", "Signature": "func(content []byte, filePath string) []Violation", "BodyHash": "fc74c44482cfdf555c20d45c299ee55109241d4d9052c44891168a8b18eac68e", "BodyLines": 14, "Occurrences": 1, "Exported": true, "Start": 174, "End": 187},
+        {"Name": "CheckPlainTextContentTypeHeaders", "Path": "api/rules/api/content_type_text.go", "Package": "rules/api", "Signature": "func(content []byte, filePath string) []Violation", "BodyHash": "fc74c44482cfdf555c20d45c299ee55109241d4d9052c44891168a8b18eac68e", "BodyLines": 14, "Occurrences": 1, "Exported": true, "Start": 103, "End": 116},
+        {"Name": "CheckXMLContentTypeHeaders", "Path": "api/rules/api/content_type_xml.go", "Package": "rules/api", "Signature": "func(content []byte, filePath string) []Violation", "BodyHash": "fc74c44482cfdf555c20d45c299ee55109241d4d9052c44891168a8b18eac68e", "BodyLines": 12, "Occurrences": 1, "Exported": true, "Start": 88, "End": 99}
+      ]
+    }
+  ]
+}
