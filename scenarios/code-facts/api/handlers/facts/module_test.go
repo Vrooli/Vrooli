@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"testing"
 
-	"code-facts/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/stretchr/testify/require"
 )

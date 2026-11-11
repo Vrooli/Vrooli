@@ -2,13 +2,10 @@ package health
 
 import (
 	"context"
-	"net/http"
 	"os"
 
-	"code-facts/internal/database"
-	"code-facts/internal/module"
-
-	"github.com/gorilla/mux"
+	apidb "github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/module"
 )
 
 // Module returns the health domain's contribution to the API: the
@@ -17,7 +14,7 @@ import (
 // probe convention infrastructure (LB, Kubernetes) reaches for;
 // /api/v1/health is what API clients use so they only have to know
 // one base path.
-func Module(pinger database.Pinger, service, version string, cacheMetrics func(context.Context) (map[string]any, error)) module.Module {
+func Module(pinger apidb.Pinger, service, version string, cacheMetrics func(context.Context) (map[string]any, error)) module.Module {
 	h := NewHandler(Deps{
 		Pinger:        pinger,
 		Service:       service,
@@ -25,14 +22,7 @@ func Module(pinger database.Pinger, service, version string, cacheMetrics func(c
 		BuildIdentity: os.Getenv(buildIdentityEnv),
 		CacheMetrics:  cacheMetrics,
 	})
-	return module.Module{
-		Name: "health",
-		Mount: func(r *mux.Router) {
-			r.HandleFunc("/health", h).Methods(http.MethodGet)
-			r.HandleFunc("/api/v1/health", h).Methods(http.MethodGet)
-		},
-		Endpoints: Endpoints,
-	}
+	return module.Health(h, Endpoints)
 }
 
 // Schema returns "" — health is stateless, no tables to own. The

@@ -23,7 +23,7 @@ type Language struct {
 var languageRegistry = []Language{
 	{Name: "go", Extensions: []string{".go"}, Capabilities: Capabilities{true, true, true, true, true, true}},
 	{Name: "typescript", Extensions: []string{".ts", ".tsx"}, Capabilities: Capabilities{true, true, true, true, true, true}},
-	{Name: "javascript", Extensions: []string{".js", ".jsx", ".mjs", ".cjs"}, Capabilities: Capabilities{true, true, true, true, false, false}},
+	{Name: "javascript", Extensions: []string{".js", ".jsx", ".mjs", ".cjs"}, Capabilities: Capabilities{true, true, true, true, true, false}},
 	{Name: "protobuf", Extensions: []string{".proto"}, Capabilities: Capabilities{true, true, true, true, true, true}},
 	{Name: "python", Extensions: []string{".py"}, Capabilities: Capabilities{true, true, false, true, false, false}},
 	{Name: "rust", Extensions: []string{".rs"}, Capabilities: Capabilities{true, true, false, true, false, false}},

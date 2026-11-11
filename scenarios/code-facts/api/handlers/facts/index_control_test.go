@@ -139,7 +139,7 @@ func TestSharedSearchControlMapsDryRunJobStatusAndCancellation(t *testing.T) {
 	if err != nil || dryRun.Msg.GetPlannedUpserts() != 42 || !dryRun.Msg.GetDryRun() {
 		t.Fatalf("dry-run response=%+v err=%v", dryRun, err)
 	}
-	started, err := handler.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{ShadowCollection: "g2"}))
+	started, err := handler.Reindex(context.Background(), connect.NewRequest(&controlv1.ReindexRequest{}))
 	if err != nil || started.Msg.GetJobId() != "job-1" {
 		t.Fatalf("reindex response=%+v err=%v", started, err)
 	}
@@ -150,6 +150,24 @@ func TestSharedSearchControlMapsDryRunJobStatusAndCancellation(t *testing.T) {
 	cancelled, err := handler.ReindexCancel(context.Background(), connect.NewRequest(&controlv1.ReindexCancelRequest{JobId: "job-1"}))
 	if err != nil || !cancelled.Msg.GetCancelled() {
 		t.Fatalf("cancel response=%+v err=%v", cancelled, err)
+	}
+}
+
+func TestSharedSearchControlRejectsUnsupportedMigrationActionsBeforeController(t *testing.T) {
+	controller := &fakeIndexController{}
+	handler := &SearchControlHandler{Controller: controller, Authorizer: allowIndexAuthorizer{}, Jobs: &fakeJobStore{}}
+	for _, request := range []*controlv1.ReindexRequest{
+		{Action: "shadow", ShadowCollection: "candidate", EmbeddingModel: "m", EmbeddingRole: "r", EmbeddingDimensions: 3, EmbeddingPolicySchemaVersion: "v1"},
+		{Action: "cutover", ShadowCollection: "candidate"},
+		{Action: "promote", ShadowCollection: "candidate"},
+		{EmbeddingModel: "m"},
+	} {
+		if _, err := handler.Reindex(context.Background(), connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("request %+v: code=%s err=%v, want invalid_argument", request, connect.CodeOf(err), err)
+		}
+	}
+	if len(controller.calls) != 0 {
+		t.Fatalf("unsupported migration requests reached index controller: %v", controller.calls)
 	}
 }
 

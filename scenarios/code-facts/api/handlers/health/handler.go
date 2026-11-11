@@ -2,7 +2,7 @@
 //
 // Built on api-core/health for the standardized response schema
 // (status / dependencies / metrics) but plumbed through the local
-// database.Pinger seam so handler tests can substitute a fake without
+// api-core/database.Pinger seam so handler tests can substitute a fake without
 // opening the on-disk SQLite file.
 package health
 
@@ -16,7 +16,7 @@ import (
 	"strings"
 	"time"
 
-	"code-facts/internal/database"
+	apidb "github.com/vrooli/api-core/database"
 )
 
 // buildIdentityEnv is the environment variable the lifecycle sets to
@@ -28,7 +28,7 @@ const buildIdentityEnv = "VROOLI_BUILD_IDENTITY"
 // are reported in the response envelope; Pinger backs the "database"
 // dependency check.
 type Deps struct {
-	Pinger        database.Pinger
+	Pinger        apidb.Pinger
 	Service       string
 	Version       string
 	BuildIdentity string

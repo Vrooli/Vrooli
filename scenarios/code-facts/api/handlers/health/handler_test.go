@@ -4,20 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 	"testing"
 
 	"code-facts/handlers/health"
-	"code-facts/internal/module"
-	"code-facts/internal/server"
-	"code-facts/internal/testutil/mocks"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
-
-	"github.com/vrooli/api-core/schedule"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/health"
@@ -37,7 +33,7 @@ import (
 //   - the handler invokes the Pinger exactly once per request (no
 //     accidental double-checks, no zero-checks)
 //
-// The pattern: spin up a *server.Server with mocked deps, wrap it in
+// The pattern: mount the production module with mocked deps, wrap it in
 // httpx.NewLiveServer (real httptest.Server over real socket), issue a
 // real HTTP request, decode JSON straight into the generated proto
 // type via apihttptest.MustUnmarshalProto, assert on typed fields. Same
@@ -76,7 +72,7 @@ func TestHealthHandler(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
+			pinger := &databasetest.FakePinger{PingErr: tc.pingErr}
 			h := health.NewHandler(health.Deps{
 				Pinger:  pinger,
 				Service: "react-vite-test",
@@ -95,11 +91,9 @@ func TestHealthHandler(t *testing.T) {
 					r.HandleFunc("/health", h).Methods(http.MethodGet)
 				},
 			}
-			srv := server.New(
-				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
-				mod,
-			)
-			live := httpx.NewLiveServer(t, srv)
+			live := httpx.NewLiveServer(t, httpx.HandlerProviderFunc(func() http.Handler {
+				return apihttp.NewModuleRouter([]module.Module{mod}, apihttp.SecurityHeaders)
+			}))
 
 			resp, body := live.Do(t, http.MethodGet, "/health", nil)
 			apihttptest.AssertStatus(t, resp, tc.wantStatusCode)

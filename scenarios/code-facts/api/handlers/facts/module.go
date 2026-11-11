@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"code-facts/internal/indexcontrol"
-	"code-facts/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"
@@ -26,6 +26,7 @@ func Module(db *sql.DB, logger *log.Logger, cacheMaxBytes int64, admission *Admi
 		internalfacts.WithBroker(internalfacts.NewBroker(
 			internalfacts.NewGoGraphProvider(resolver, http.DefaultClient),
 			internalfacts.NewTypeScriptGraphProvider(resolver, http.DefaultClient),
+			internalfacts.NewJavaScriptGraphProvider(resolver, http.DefaultClient),
 		)),
 		internalfacts.WithFileDomainProvider(internalfacts.NewCartographerFileDomainProvider(resolver, http.DefaultClient)),
 		internalfacts.WithAdmission(admission),

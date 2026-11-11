@@ -46,6 +46,24 @@ func TestGoExtractionProfileUsesCheapestCompatibleProfile(t *testing.T) {
 	}
 }
 
+func TestTypeScriptGraphCacheProfileVersionsBodyIdentityAndJavaScriptSupport(t *testing.T) {
+	t.Parallel()
+	for _, language := range []string{"typescript", "javascript"} {
+		tsProvider := &tsGraphProvider{language: language}
+		profile := providerExtractionProfile(tsProvider, []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_SYMBOLS})
+		if profile != "typescript-owned-source-body-identity-js-v1" {
+			t.Errorf("%s graph cache profile = %q, want a versioned body-identity/JS profile", language, profile)
+		}
+		unit := &factsv1.ParseUnit{Id: language + ":/repo/ui", Language: language, RootPath: "/repo/ui", ConfigPath: "/repo/ui/tsconfig.json"}
+		cacheProvider := fakeProvider{language: language, analyzer: tsProviderScenario}
+		current := graphCachePlan(&factsv1.TargetContext{RootPath: "/repo"}, unit, cacheProvider, profile, "source", "config")
+		stale := graphCachePlan(&factsv1.TargetContext{RootPath: "/repo"}, unit, cacheProvider, "default", "source", "config")
+		if current.Key == stale.Key || current.LogicalKey == stale.LogicalKey {
+			t.Errorf("%s provider change reused the stale graph cache key", language)
+		}
+	}
+}
+
 func TestGraphCacheKeyIncludesExtractionProfile(t *testing.T) {
 	t.Parallel()
 	target := &factsv1.TargetContext{RootPath: "/repo"}
@@ -1280,24 +1298,27 @@ func TestClearCacheDryRunDoesNotDeleteEntries(t *testing.T) {
 	}
 }
 
-func TestDescribeUnsupportedParseUnitDoesNotCallProvider(t *testing.T) {
+func TestDescribeJavaScriptPackageRoutesToGraphProvider(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "package.json"), `{"scripts":{"build":"node index.js"}}`)
 	writeFile(t, filepath.Join(root, "index.js"), "console.log('hi')\n")
-	provider := &countingProvider{fakeProvider: fakeProvider{language: "go", analyzer: "go-code-graph"}}
+	provider := &countingProvider{fakeProvider: fakeProvider{language: "javascript", analyzer: "typescript-code-graph", result: &factsv1.LanguageGraph{Graph: &commonv1.CodeGraph{}}}}
 
 	report, err := NewService(WithBroker(NewBroker(provider))).Describe(context.Background(), &factsv1.DescribeCodeFactsRequest{
 		Target:  &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: root},
-		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
+		Include: []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS, factsv1.FactFamily_FACT_FAMILY_PARSE_UNITS},
 	})
 	if err != nil {
 		t.Fatalf("Describe() error = %v", err)
 	}
-	if provider.calls != 0 {
-		t.Fatalf("provider calls = %d, want 0", provider.calls)
+	if provider.calls != 1 {
+		t.Fatalf("provider calls = %d, want one JavaScript graph call", provider.calls)
 	}
-	if len(report.GetWarnings()) == 0 || report.GetWarnings()[0].GetStatus() != factsv1.EvidenceStatus_EVIDENCE_STATUS_UNSUPPORTED {
-		t.Fatalf("warnings = %#v, want unsupported parse unit warning", report.GetWarnings())
+	if len(report.GetParseUnits()) != 1 || report.GetParseUnits()[0].GetLanguage() != "javascript" {
+		t.Fatalf("parse units = %#v, want a JavaScript package unit", report.GetParseUnits())
+	}
+	if len(report.GetWarnings()) != 0 {
+		t.Fatalf("warnings = %#v, want supported JavaScript analysis", report.GetWarnings())
 	}
 }
 

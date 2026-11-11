@@ -91,9 +91,8 @@ only the resulting proof statuses and evidence.
 | `api/internal/module/` | Transport substrate | Gorilla mux and endpoint descriptors | module tests |
 | `api/internal/modules/` | Composition registry | handler modules | registry tests |
 | `api/internal/registration/` | Search Hub integration adapter | HTTP, Connect, generated registry client | integration tests |
-| `api/internal/server/` | Composition root | all mounted modules and transport substrate | server tests |
 | `api/internal/testutil/` | Test-only substrate | domain contracts and deterministic fakes | no-production-import gate |
-| `api/main.go` | Composition root | all concrete adapters | lifecycle and server tests |
+| `api/main.go` | Composition root | API Core module router and recovery boundary plus concrete adapters | lifecycle and API Core composition tests |
 | `api/cmd/` | Operator/build tooling | domain and substrate packages | command tests |
 | `cli/` | Transport edge | generated clients and renderers | manifest/service coverage tests |
 | `ui/src/api/` | UI transport edge | generated web clients | UI unit tests |

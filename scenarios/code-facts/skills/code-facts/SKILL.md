@@ -9,7 +9,7 @@ metadata:
   modes: ["tools"]
   tags: ["code-facts", "code-search", "symbols", "contracts", "endpoints", "definition", "where-is", "proto-adoption", "code-index"]
   requires:
-    scenarios: ["code-facts"]
+    scenarios: ["code-facts", "tidiness-manager"]
     commands: ["code-facts facts search"]
   origin:
     kind: "authored"
@@ -26,5 +26,7 @@ Target-aware code evidence for scenarios and generic code roots.
 | Is an endpoint really implemented | `code-facts facts endpoint-proof` |
 | Proto adoption | `code-facts facts proto-adoption` |
 | Index state | `code-facts index status`, `code-facts index reconcile` |
+
+For ranked code reduction opportunities based on current Go, TypeScript, and JavaScript graph evidence, use `tidiness-manager recommend-refactors <scenario> --limit 10`. Code Facts owns parsed facts and graph freshness; Tidiness Manager owns detector calibration and recommendation ranking.
 
 Run `code-facts <group> <command> --help` for flags.

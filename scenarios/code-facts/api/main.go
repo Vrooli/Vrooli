@@ -14,13 +14,11 @@ import (
 	"code-facts/internal/catalog"
 	"code-facts/internal/modules"
 	"code-facts/internal/registration"
-	"code-facts/internal/server"
-
-	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
+	"github.com/vrooli/api-core/module"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
 	_ "modernc.org/sqlite"
@@ -92,14 +90,14 @@ func main() {
 			sweep.StaleRows, sweep.EvictedRows, sweep.ReclaimedByte, sweep.RemainingByte, cacheMaxBytes)
 	}()
 
-	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: logger},
+	apiModules := []module.Module{
 		healthH.Module(db, "code-facts-api", "1.0.0", func(ctx context.Context) (map[string]any, error) {
 			return factsH.OperationalMetrics(ctx, db.Primary(), cacheMaxBytes, admission)
 		}),
 		validationH.Module(),
 		factsH.Module(db.Primary(), logger, cacheMaxBytes, admission, os.Getenv("CODE_FACTS_INDEX_CONTROL_TOKEN"), searchTokens.Matches),
-	)
+	}
+	apiHandler := apiserver.RecoveryMiddleware(logger)(apihttp.NewModuleRouter(apiModules, apihttp.SecurityHeaders))
 
 	// Top-level mux that mounts the API handler plus, when in development
 	// mode, the dev-only RoutingService used by test-genie to install a
@@ -107,7 +105,7 @@ func main() {
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
 
-	rootMux.Handle("/", srv.Handler())
+	rootMux.Handle("/", apiHandler)
 	go func() {
 		// The lifecycle registry publishes this scenario only after health turns
 		// green. Delay endpoint-probed self-registration until that publication

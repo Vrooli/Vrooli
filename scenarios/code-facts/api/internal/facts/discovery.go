@@ -397,6 +397,17 @@ func tsParseUnit(root, tsconfig string) *factsv1.ParseUnit {
 
 func nodePackageUnit(root string) *factsv1.ParseUnit {
 	packagePath := filepath.Join(root, "package.json")
+	if hasJavaScriptSource(root) {
+		return &factsv1.ParseUnit{
+			Id:         "javascript:" + filepath.ToSlash(root),
+			Language:   "javascript",
+			RootPath:   root,
+			ConfigPath: packagePath,
+			Status:     factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN,
+			Evidence:   []*factsv1.Evidence{evidence(factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, "JavaScript package discovered and routed to the shared TypeScript AST provider.", packagePath)},
+			Toolchain:  toolchainObservation(root, "node", packagePath),
+		}
+	}
 	return &factsv1.ParseUnit{
 		Id:         "node:" + filepath.ToSlash(root),
 		Language:   "node",
@@ -628,8 +639,36 @@ func hasScriptSource(root string) bool {
 	return found
 }
 
+func hasJavaScriptSource(root string) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || found {
+			return nil
+		}
+		if d.IsDir() {
+			if path != root && shouldPruneDir(d.Name()) {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		switch strings.ToLower(filepath.Ext(path)) {
+		case ".js", ".jsx", ".mjs", ".cjs":
+			found = true
+		}
+		return nil
+	})
+	return found
+}
+
 func shouldPruneDir(name string) bool {
 	if strings.HasPrefix(name, ".proto-gen-stage-") {
+		return true
+	}
+	// React Component Library writes throwaway tsconfigs here to ask the TS
+	// parser for import evidence. They are runtime scratch projects, not source
+	// owners; discovering them recursively creates duplicate graph units and
+	// feeds potentially incomplete temporary inputs into repo-wide analysis.
+	if strings.HasPrefix(name, ".graph-project-") {
 		return true
 	}
 	switch name {

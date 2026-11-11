@@ -75,20 +75,27 @@ provider admission, in-flight coalescing, and cache. Consumers retain their own
 policy and durable findings; they do not discover parse units or call the same
 language parser through a parallel client.
 
-| Owner | Computation retained | Consolidation boundary |
-| --- | --- | --- |
-| code-facts | Target resolution, source inventory, parse-unit discovery, graph brokering, fact projection, freshness and caching | Sole entry point for source facts and language graphs |
-| go-code-graph | Go syntax/type analysis and mechanical Go rewrites | Parser provider behind Code Facts; public rewrite operations remain |
-| typescript-code-graph | TypeScript compiler analysis, comments, mechanical rewrites and sidecar supervision | Parser provider behind Code Facts; public rewrite operations remain |
-| architecture-cartographer | Domain inference, coupling signals, architectural conflicts, immutable audit snapshots | Consume Code Facts graphs; remove private language clients and source scanning |
-| tidiness-manager | Maintainability detectors, calibrated reduction estimates, ranked opportunities and cleanup campaigns | One detector registry and recommendation ranking over shared facts |
-| scenario-auditor | Standards-rule execution and managed fix operations | Publish rule findings to the detector registry; remove duplicate discovery and ranking |
-| flow-verifier | Inferred and declared lifecycle contracts, transition verification and counterexamples | Supply lifecycle detectors and conversion evidence |
-| template-manager | Template provenance, inherited drift/debt and governed migrations | Supply inherited-debt detectors and migration evidence |
+| Owner | Computation retained | Live caller / interface | Consolidation boundary |
+| --- | --- | --- | --- |
+| code-facts | Target resolution, source inventory, parse-unit discovery, graph brokering, fact projection, freshness and caching | `api/internal/facts.Service` and `api/internal/analysis.Broker`; `CodeFactsService.DescribeCodeFacts`; Cartographer graph projection; RCL graph reconciliation | Sole entry point for source facts and language graphs |
+| go-code-graph | Go syntax/type analysis and mechanical Go rewrites | `code-facts/api/internal/analysis` provider; Code Facts broker selects it for Go parse units | Parser provider behind Code Facts; public rewrite operations remain |
+| typescript-code-graph | TypeScript/JavaScript compiler analysis, comments, mechanical rewrites and sidecar supervision | `code-facts/api/internal/analysis` provider; Code Facts broker selects it for TypeScript projects and JavaScript packages | Sole TS/JS parser provider behind Code Facts; public rewrite operations remain |
+| architecture-cartographer | Domain inference, coupling signals, architectural conflicts, immutable audit snapshots | `api/internal/graph/codefacts` and graph service; signal and audit modules consume those graphs | Consume Code Facts graphs; private Go/TypeScript clients and source scanner are retired |
+| tidiness-manager | Maintainability metrics, reduction detectors, calibrated estimates, ranked opportunities and cleanup campaigns | Light scan → `ComplexityAnalyzer` / `DuplicationDetector`; `/recommend-refactors` → `recommendReductions` → `internal/discovery.Registry` | One detector registry and recommendation ranking over shared facts; Go/TypeScript/JavaScript exact-body and Go complexity scan adapters use Code Facts. A separate audit ledger covers 48 debt runs and 110 hunt entries. Corpus v2 has selected Go duplicate and CLI-migration evidence (9 and 8 positives, no historical negatives), so precision and recall remain unknown. TypeScript and JavaScript have synthetic regressions only. |
+| scenario-auditor | Standards-rule execution and managed fix operations | `api/scanners`, rule packages and standards scan handlers; CLI `standards scan`; cached `/api/v1/standards/violations` consumed by Tidiness Manager | Keep standards policy here. Tidiness Manager includes cached findings in its one registry while preserving policy metadata; standards carry no line-reduction estimate or precision |
+| flow-verifier | Inferred and declared lifecycle contracts, transition verification and counterexamples | `api/internal/lifecycleinference` inventory, lifecycle endpoints and CLI | Supply lifecycle detectors and conversion evidence; remains a distinct lifecycle lens |
+| template-manager | Template provenance, inherited drift/debt and governed migrations | Template engine provenance and inherited-drift/debt surfaces | Supply inherited-debt detectors and migration evidence; remains a distinct template lens |
 
 The first migration exposes Code Facts' cached graph results with their parse
 unit, source identity and extraction contract, then switches Cartographer to
-that surface. Historical Cartographer snapshots remain its domain evidence.
+that surface. Go, TypeScript and JavaScript Tidiness scans now project the same
+body-identity groups used by the reduction registry; the Go `dupl` and all
+language `jscpd` branches are deleted. JavaScript package discovery routes
+through the TypeScript AST provider while each graph node retains its source
+language. Tidiness also imports Scenario Auditor's cached standards findings
+into its registry with rule, severity, standard, source, location, and
+remediation preserved; it leaves them uncalibrated because they do not predict
+line reduction. Historical Cartographer snapshots remain its domain evidence.
 Whole-scenario retirement is a separate operator decision; removing redundant
 internal scanners and clients does not retire a scenario's public capability.
 

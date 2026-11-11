@@ -181,8 +181,18 @@ func extractForFamilies(ctx context.Context, provider GraphProvider, unit *facts
 }
 
 func providerExtractionProfile(provider GraphProvider, families []factsv1.FactFamily) string {
-	if provider != nil && provider.Language() == "go" {
+	if provider == nil {
+		return "default"
+	}
+	switch provider.Language() {
+	case "go":
 		return goExtractionProfile(families).String()
+	case "typescript", "javascript":
+		// The provider now emits normalized body identity, includes owned JS
+		// sources in TS projects, and discovers standalone JavaScript packages.
+		// Version this contract so cached pre-identity graphs cannot mask the
+		// new detector evidence or source boundary.
+		return "typescript-owned-source-body-identity-js-v1"
 	}
 	return "default"
 }
@@ -190,16 +200,24 @@ func providerExtractionProfile(provider GraphProvider, families []factsv1.FactFa
 type tsGraphProvider struct {
 	resolver   URLResolver
 	httpClient connect.HTTPClient
+	language   string
 }
 
 func NewTypeScriptGraphProvider(resolver URLResolver, httpClient connect.HTTPClient) GraphProvider {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
-	return &tsGraphProvider{resolver: resolver, httpClient: httpClient}
+	return &tsGraphProvider{resolver: resolver, httpClient: httpClient, language: "typescript"}
 }
 
-func (p *tsGraphProvider) Language() string     { return "typescript" }
+func NewJavaScriptGraphProvider(resolver URLResolver, httpClient connect.HTTPClient) GraphProvider {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	return &tsGraphProvider{resolver: resolver, httpClient: httpClient, language: "javascript"}
+}
+
+func (p *tsGraphProvider) Language() string     { return p.language }
 func (p *tsGraphProvider) AnalyzerName() string { return tsProviderScenario }
 
 func (p *tsGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) (*factsv1.LanguageGraph, error) {
@@ -211,7 +229,7 @@ func (p *tsGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) 
 		return nil, ProviderUnavailableError{Analyzer: p.AnalyzerName(), Err: err}
 	}
 	resp, err := tsgraphconnect.NewTypeScriptCodeGraphServiceClient(p.httpClient, baseURL).Extract(ctx, connect.NewRequest(&tsgraphv1.ExtractRequest{
-		ProjectPath: unit.GetConfigPath(),
+		ProjectPath: graphProjectPath(p.language, unit),
 	}))
 	if err != nil {
 		return nil, classifyProviderError(p.AnalyzerName(), err)
@@ -222,6 +240,13 @@ func (p *tsGraphProvider) Extract(ctx context.Context, unit *factsv1.ParseUnit) 
 		GraphHash:    resp.Msg.GetGraphHash(),
 		ExtractionMs: resp.Msg.GetExtractionMs(),
 	}, nil
+}
+
+func graphProjectPath(language string, unit *factsv1.ParseUnit) string {
+	if language == "javascript" {
+		return unit.GetRootPath()
+	}
+	return unit.GetConfigPath()
 }
 
 func classifyProviderError(analyzer string, err error) error {

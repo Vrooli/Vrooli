@@ -4,20 +4,20 @@
 // domains uniformly.
 //
 // The runtime Module(...) constructors stay inline in main.go's
-// server.New(...) call — they need live deps (db handle, clock, logger)
+// apihttp.NewModuleRouter(...) call — they need live deps (db handle, logger)
 // and abstracting them is needless ceremony. This package only handles
 // the static side: the Endpoints slice each handler exports for
 // codegen, and the Schema() function each handler re-exports for
 // EnsureSchemas.
 //
 // Adding a domain: add two lines below — one in AllEndpoints, one in
-// AllSchemas. The runtime constructor lands in main.go's server.New
+// AllSchemas. The runtime constructor lands in main.go's module list
 // call as a third line. Three central lines per new domain, no other
 // central registry mutations.
 package modules
 
 import (
-	"code-facts/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"

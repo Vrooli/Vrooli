@@ -6,6 +6,7 @@ Cache keys include:
 
 - Code Facts analyzer/schema version.
 - Provider analyzer version.
+- Versioned extraction profile for provider output contracts. TypeScript/JavaScript uses `typescript-owned-source-body-identity-js-v1`; bump this profile when emitted body identity, owned-source boundaries, or JavaScript routing changes.
 - Canonical target root.
 - Parse unit id, root, and config path for graph entries.
 - Request options and requested fact families for report entries.

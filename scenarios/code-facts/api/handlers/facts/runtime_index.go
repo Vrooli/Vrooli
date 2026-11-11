@@ -8,6 +8,7 @@ import (
 
 	"code-facts/internal/indexcontrol"
 	"connectrpc.com/connect"
+	aisearch "github.com/vrooli/ai-go/search"
 
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
@@ -178,6 +179,13 @@ func (handler *SearchControlHandler) Reindex(ctx context.Context, req *connect.R
 	if err := handler.authorize(ctx, "reindex", req.Msg.GetControlToken()); err != nil {
 		return nil, err
 	}
+	if err := aisearch.ValidateReindexMigrationRequest(&aisearch.ReindexMigrationRequest{
+		Action: req.Msg.GetAction(), ShadowCollection: req.Msg.GetShadowCollection(), RollbackCollection: req.Msg.GetRollbackCollection(),
+		EmbeddingModel: req.Msg.GetEmbeddingModel(), EmbeddingRole: req.Msg.GetEmbeddingRole(), EmbeddingDimensions: req.Msg.GetEmbeddingDimensions(),
+		EmbeddingPolicySchemaVersion: req.Msg.GetEmbeddingPolicySchemaVersion(), DryRun: req.Msg.GetDryRun(),
+	}, "reindex", "reconcile"); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	status, err := handler.Controller.Status(ctx)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, err)
@@ -188,24 +196,15 @@ func (handler *SearchControlHandler) Reindex(ctx context.Context, req *connect.R
 	action := strings.ToLower(strings.TrimSpace(req.Msg.GetAction()))
 	var response *factsv1.IndexControlResponse
 	switch action {
-	case "", "reindex", "shadow":
-		generation := strings.TrimSpace(req.Msg.GetShadowCollection())
-		if generation == "" {
-			now := time.Now
-			if handler.Now != nil {
-				now = handler.Now
-			}
-			generation = fmt.Sprintf("shadow-%d", now().UTC().UnixNano())
+	case "", "reindex":
+		now := time.Now
+		if handler.Now != nil {
+			now = handler.Now
 		}
+		generation := fmt.Sprintf("reindex-%d", now().UTC().UnixNano())
 		response, err = handler.Controller.Reindex(ctx, generation)
 	case "reconcile":
 		response, err = handler.Controller.Reconcile(ctx, status.GetActiveGeneration())
-	case "promote":
-		response, err = handler.Controller.Promote(ctx, req.Msg.GetShadowCollection())
-	case "rollback":
-		response, err = handler.Controller.Rollback(ctx, req.Msg.GetRollbackCollection())
-	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported reindex action %q", action))
 	}
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, err)

@@ -1,6 +1,7 @@
 package testutil_test
 
 import (
+	"bufio"
 	"go/parser"
 	"go/token"
 	"os"
@@ -14,14 +15,14 @@ import (
 var codeFactsDomains = []string{"analysis", "cache", "catalog", "indexcontrol", "proof", "retrieval", "targets"}
 
 func TestDomainPackagesAreTransportFreeAndIndependent(t *testing.T) {
-	module := readModuleName(t)
+	module := readCodeFactsModule(t)
 	domainSet := map[string]bool{}
 	for _, domain := range codeFactsDomains {
 		domainSet[domain] = true
 	}
 	for _, domain := range codeFactsDomains {
 		root := filepath.Join("..", domain)
-		walk(t, root, func(path string) {
+		walkSourceFiles(t, root, func(path string) {
 			if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 				return
 			}
@@ -57,7 +58,7 @@ func TestDomainPackagesAreTransportFreeAndIndependent(t *testing.T) {
 }
 
 func TestZoneMapMatchesTopLevelPackageTree(t *testing.T) {
-	wantInternal := []string{"analysis", "cache", "catalog", "database", "facts", "fswatch", "httpc", "httpx", "indexcontrol", "logging", "module", "modules", "proof", "registration", "retrieval", "server", "targets", "testutil"}
+	wantInternal := []string{"analysis", "cache", "catalog", "database", "facts", "fswatch", "httpc", "httpx", "indexcontrol", "logging", "module", "modules", "proof", "registration", "retrieval", "targets", "testutil"}
 	wantHandlers := []string{"facts", "health", "validation"}
 	assertDirectorySet(t, "..", wantInternal)
 	assertDirectorySet(t, filepath.Join("..", "..", "handlers"), wantHandlers)
@@ -66,6 +67,9 @@ func TestZoneMapMatchesTopLevelPackageTree(t *testing.T) {
 		if !strings.Contains(architecture, "`"+directory+"/`") {
 			t.Errorf("Zone Map does not declare %s/", directory)
 		}
+	}
+	if !strings.Contains(architecture, "`api/main.go`") {
+		t.Error("Zone Map does not declare the API composition root")
 	}
 }
 
@@ -118,4 +122,41 @@ func readRelative(t *testing.T, path string) string {
 		t.Fatal(err)
 	}
 	return string(payload)
+}
+
+func readCodeFactsModule(t *testing.T) string {
+	t.Helper()
+	file, err := os.Open(filepath.Join("..", "..", "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if module, ok := strings.CutPrefix(line, "module "); ok {
+			return strings.TrimSpace(module)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatal(err)
+	}
+	t.Fatal("module directive not found")
+	return ""
+}
+
+func walkSourceFiles(t *testing.T, root string, visit func(string)) {
+	t.Helper()
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			visit(path)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk %s: %v", root, err)
+	}
 }

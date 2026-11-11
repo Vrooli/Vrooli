@@ -102,6 +102,28 @@ func TestDiscoverNestedParseUnitsEmitsPolyglotDependencyEvidence(t *testing.T) {
 	}
 }
 
+func TestDiscoverNestedParseUnitsSkipsThrowawayGraphProjects(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, ".graph-project-123", "tsconfig.json"), `{}`)
+	writeFile(t, filepath.Join(root, "ui", "tsconfig.json"), `{}`)
+
+	units := discoverNestedParseUnits(root)
+	require.Len(t, units, 1)
+	require.Equal(t, filepath.Join(root, "ui"), units[0].GetRootPath())
+}
+
+func TestDiscoverNestedParseUnitsRoutesJavaScriptPackageToGraphProvider(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "ui", "package.json"), `{"name":"ui"}`)
+	writeFile(t, filepath.Join(root, "ui", "src", "app.jsx"), "export function App() { return null; }\n")
+
+	units := discoverNestedParseUnits(root)
+	require.Len(t, units, 1)
+	require.Equal(t, "javascript", units[0].GetLanguage())
+	require.Equal(t, filepath.Join(root, "ui"), units[0].GetRootPath())
+	require.Equal(t, factsv1.EvidenceStatus_EVIDENCE_STATUS_PROVEN, units[0].GetStatus())
+}
+
 func TestParseUnitPublishesNeutralToolchainObservation(t *testing.T) {
 	root := t.TempDir()
 	writeFileFixture(t, filepath.Join(root, "package.json"), `{"packageManager":"pnpm@9.0.0","scripts":{"test":"vitest run"},"devDependencies":{"vitest":"1.0.0"}}`)

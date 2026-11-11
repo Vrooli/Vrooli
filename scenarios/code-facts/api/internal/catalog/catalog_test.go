@@ -114,7 +114,11 @@ func TestGitDiscovererStreamsGovernedRootsAndClassifies(t *testing.T) {
 	}
 }
 
-func TestLanguageRegistryDoesNotClaimUnsupportedGraphProof(t *testing.T) {
+func TestLanguageRegistrySeparatesGraphFromProofSupport(t *testing.T) {
+	javascript, ok := LanguageForPath("app.jsx")
+	if !ok || !javascript.Capabilities.Graph || javascript.Capabilities.Proof {
+		t.Fatalf("JavaScript AST graph capability = %+v, want graph without endpoint proof", javascript.Capabilities)
+	}
 	python, ok := LanguageForPath("tool.py")
 	if !ok || python.Capabilities.Graph || python.Capabilities.Proof {
 		t.Fatalf("python capabilities overclaim graph/proof: %+v", python.Capabilities)
