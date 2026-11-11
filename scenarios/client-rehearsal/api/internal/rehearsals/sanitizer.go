@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -168,9 +169,17 @@ func normalizeN8NWorkflow(raw rawWorkflow) (Workflow, error) {
 		byName[name] = id
 		byName["id:"+id] = id
 		params, _ := node["parameters"].(map[string]any)
-		model, err := normalizeWorkflowNode(id, name, typeName, params)
+		typeVersion, _ := node["typeVersion"].(float64)
+		model, err := normalizeWorkflowNodeVersion(id, name, typeName, params, typeVersion)
 		if err != nil {
 			return Workflow{}, err
+		}
+		switch onError, _ := node["onError"].(string); onError {
+		case "", "continueRegularOutput":
+		case "continueErrorOutput":
+			model.ErrorOutput = true
+		default:
+			return Workflow{}, ErrInvalid{Field: "nodes.onError", Reason: "only continueRegularOutput and continueErrorOutput are modeled"}
 		}
 		workflow.Nodes = append(workflow.Nodes, model)
 		if model.Trigger != "" && model.Trigger != TriggerError && model.Trigger != TriggerSubworkflow {
@@ -220,6 +229,10 @@ func normalizeN8NWorkflow(raw rawWorkflow) (Workflow, error) {
 }
 
 func normalizeWorkflowNode(id, name, typeName string, params map[string]any) (WorkflowNode, error) {
+	return normalizeWorkflowNodeVersion(id, name, typeName, params, 0)
+}
+
+func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]any, typeVersion float64) (WorkflowNode, error) {
 	node := WorkflowNode{ID: id, Name: name, Type: typeName}
 	if kind, ok := classifyTrigger(typeName); ok {
 		node.Trigger = kind
@@ -238,6 +251,12 @@ func normalizeWorkflowNode(id, name, typeName string, params map[string]any) (Wo
 			return WorkflowNode{}, err
 		}
 		node.Condition = &condition
+	case "n8n-nodes-base.filter":
+		condition, err := normalizeFilter(params)
+		if err != nil {
+			return WorkflowNode{}, err
+		}
+		node.FilterCondition = &condition
 	case "n8n-nodes-base.switch":
 		rules, err := normalizeSwitch(params)
 		if err != nil {
@@ -248,15 +267,115 @@ func normalizeWorkflowNode(id, name, typeName string, params map[string]any) (Wo
 		// A no-op has deterministic pass-through semantics.
 	case "n8n-nodes-base.set":
 		mode, _ := params["mode"].(string)
-		if mode != "raw" {
-			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.mode", Reason: "Set currently accepts only a raw JSON-path projection"}
+		if mode == "" && params["assignments"] != nil {
+			mode = "manual"
 		}
-		rawOutput, _ := params["jsonOutput"].(string)
-		path, ok := parseJSONExpression(rawOutput)
-		if !ok {
-			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.jsonOutput", Reason: "raw Set output must be a simple JSON-path expression"}
+		if mode == "raw" {
+			rawOutput, _ := params["jsonOutput"].(string)
+			path, ok := parseJSONExpression(rawOutput)
+			if !ok {
+				return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.jsonOutput", Reason: "raw Set output must be a simple JSON-path expression"}
+			}
+			node.OutputPath = path
+		} else if mode == "manual" {
+			values, projections, expressions, includeInput, err := normalizeSetAssignments(params)
+			if err != nil {
+				return WorkflowNode{}, err
+			}
+			node.SetValues = values
+			node.SetProjections = projections
+			node.SetExpressions = expressions
+			node.SetIncludeInput = includeInput
+		} else {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.mode", Reason: "Set accepts only bounded manual assignments or a raw JSON-path projection"}
 		}
-		node.OutputPath = path
+	case "n8n-nodes-base.splitOut":
+		field, _ := params["fieldToSplitOut"].(string)
+		field = strings.TrimSpace(field)
+		if !validJSONPath(field) {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.fieldToSplitOut", Reason: "Split Out requires a bounded static JSON path"}
+		}
+		include, _ := params["include"].(string)
+		if include != "" && include != "noOtherFields" {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.include", Reason: "Split Out currently accepts only noOtherFields"}
+		}
+		node.SplitField = field
+	case "n8n-nodes-base.code":
+		if !onlyKeys(params, "jsCode", "functionCode", "mode", "language") {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "Code accepts only source, mode, and language selectors"}
+		}
+		mode, _ := params["mode"].(string)
+		if mode != "" && mode != "runOnceForAllItems" {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.mode", Reason: "safe Code supports only bounded runOnceForAllItems mode"}
+		}
+		language, _ := params["language"].(string)
+		if language != "" && language != "javaScript" {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.language", Reason: "safe Code interprets only the allowlisted JavaScript subset"}
+		}
+		source, _ := params["jsCode"].(string)
+		functionSource, _ := params["functionCode"].(string)
+		if source == "" {
+			source = functionSource
+		} else if functionSource != "" {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "only one Code source field may be provided"}
+		}
+		if _, err := parseSafeCode(source); err != nil {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.jsCode", Reason: "Code node is outside the bounded safe subset: " + err.Error()}
+		}
+		node.SafeCode = source
+	case "n8n-nodes-base.rssFeedRead":
+		if typeVersion != 0 && typeVersion > 1.2 {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.typeVersion", Reason: "RSS Feed Read supports only pinned versions through 1.2"}
+		}
+		if !onlyKeys(params, "url", "options") {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "RSS Feed Read accepts only a bounded URL expression and empty options"}
+		}
+		if options, ok := params["options"].(map[string]any); ok && len(options) != 0 {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.options", Reason: "RSS Feed Read options are unsupported in synthetic mode"}
+		}
+		rawURL, _ := params["url"].(string)
+		path, ok := parseJSONExpression(rawURL)
+		if !ok || strings.Contains(rawURL, "$node[") {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.url", Reason: "RSS Feed Read requires a simple current-item JSON path; external URLs are never fetched"}
+		}
+		node.RSSURLPath = path
+	case "n8n-nodes-base.aggregate":
+		fields, keepMissing, mergeLists, disableDotNotation, err := normalizeAggregate(params)
+		if err != nil {
+			return WorkflowNode{}, err
+		}
+		node.AggregateFields = fields
+		node.AggregateKeepMissing = keepMissing
+		node.AggregateMergeLists = mergeLists
+		node.AggregateDisableDotNotation = disableDotNotation
+	case "n8n-nodes-base.splitInBatches":
+		if typeVersion != 3 {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.typeVersion", Reason: "Loop Over Items currently supports pinned Split In Batches version 3 only"}
+		}
+		if !onlyKeys(params, "options") {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "Loop Over Items accepts only bounded batch options"}
+		}
+		options, _ := params["options"].(map[string]any)
+		if !onlyKeys(options, "batchSize") {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.options", Reason: "Loop Over Items accepts only a static batchSize"}
+		}
+		batchSize := 1.0
+		if raw, ok := options["batchSize"]; ok {
+			var valid bool
+			batchSize, valid = raw.(float64)
+			if !valid || batchSize < 1 || batchSize > maxSyntheticItems || batchSize != float64(uint32(batchSize)) {
+				return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.options.batchSize", Reason: "batchSize must be a static integer within the synthetic item bound"}
+			}
+		}
+		node.LoopBatchSize = uint32(batchSize)
+	case "n8n-nodes-base.wait":
+		seconds, amountPath, unit, err := normalizeWaitNode(params)
+		if err != nil {
+			return WorkflowNode{}, err
+		}
+		node.WaitSeconds = seconds
+		node.WaitAmountPath = amountPath
+		node.WaitUnit = unit
 	case "n8n-nodes-base.respondToWebhook", "n8n-nodes-base.stickyNote":
 		// Response delivery belongs to the runtime adapter. Sticky note text is
 		// intentionally omitted from the normalized graph.
@@ -267,12 +386,27 @@ func normalizeWorkflowNode(id, name, typeName string, params map[string]any) (Wo
 		}
 	default:
 		if !isNativeServiceNode(typeName) {
-			return WorkflowNode{}, ErrInvalid{Field: "nodes.type", Reason: "unsupported executable node; native service nodes require an n8n-nodes-base type and static resource/operation fields"}
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.type", Reason: "unsupported executable node; external operations require an allowlisted node type and static resource/operation fields"}
 		}
 		resource, _ := params["resource"].(string)
 		action, _ := params["operation"].(string)
 		resource = strings.TrimSpace(resource)
 		action = strings.TrimSpace(action)
+		if typeName == "n8n-nodes-base.hubspot" && resource == "" && typeVersion == 2 {
+			// HubSpot V2's pinned ContactDescription defaults resource to contact.
+			// https://raw.githubusercontent.com/n8n-io/n8n/n8n%402.48.0/packages/nodes-base/nodes/Hubspot/V2/ContactDescription.ts
+			resource = "contact"
+		}
+		if typeName == "n8n-nodes-base.notion" && typeVersion == 2 && resource == "databasePage" && action == "" {
+			// Pinned Notion v2.48.0 declares databasePage.operation's default as create.
+			// https://raw.githubusercontent.com/n8n-io/n8n/n8n%402.48.0/packages/nodes-base/nodes/Notion/shared/descriptions/DatabasePageDescription.ts
+			action = "create"
+		}
+		if typeName == "n8n-nodes-base.notion" && typeVersion == 2 && resource == "" {
+			// Notion v2.48.0 selects `page` when the resource field is omitted.
+			// The operation, when absent too, is selected below only for explicit node pairs.
+			resource = "page"
+		}
 		if typeName == "n8n-nodes-base.supabase" && resource == "" {
 			// Pinned n8n 2.48.0 Supabase.node.ts defaults resource to "row":
 			// https://github.com/n8n-io/n8n/blob/n8n@2.48.0/packages/nodes-base/nodes/Supabase/Supabase.node.ts
@@ -283,22 +417,389 @@ func normalizeWorkflowNode(id, name, typeName string, params map[string]any) (Wo
 			// https://github.com/n8n-io/n8n/blob/n8n@2.48.0/packages/nodes-base/nodes/Supabase/RowDescription.ts
 			action = "create"
 		}
-		if resource == "" || action == "" || len(resource) > 100 || len(action) > 100 || strings.ContainsAny(resource+action, "\r\n") {
-			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "native service nodes require bounded static resource and operation names"}
+		// n8n exports can omit the UI's selected defaults. Resolve only these
+		// stable native operation defaults; the simulator still requires an
+		// explicit profile mapping and never performs the service effect.
+		if typeName == "n8n-nodes-base.googleSheets" && resource == "" {
+			resource = "sheet"
 		}
-		node.Request = &Step{ID: id, Operation: typeName + ":" + resource + "." + action, NodeType: typeName, Resource: resource, Action: action}
+		if typeName == "n8n-nodes-base.googleSheets" && resource == "sheet" && action == "" && typeVersion == 4.6 {
+			// Pinned n8n 2.48.0 GoogleSheetsV2 uses Sheet.resource's default
+			// operation "read" for node version 4.6.
+			action = "read"
+		}
+		if typeName == "n8n-nodes-base.gmail" {
+			if resource == "" {
+				resource = "message"
+			}
+			if action == "" {
+				action = "send"
+			}
+		}
+		if typeName == "n8n-nodes-base.github" {
+			if resource == "" {
+				resource = "issue"
+			}
+			if action == "" {
+				action = "create"
+			}
+		}
+		if typeName == "n8n-nodes-base.slack" && resource == "" && action == "" {
+			selectTo, _ := params["select"].(string)
+			text, _ := params["text"].(string)
+			if (selectTo == "channel" || selectTo == "user") && text != "" && len(text) <= 4096 && !strings.ContainsRune(text, '\x00') {
+				// Slack V2 omits unchanged UI defaults in exports. A static destination
+				// selector and message text bind the generic Message > Send operation.
+				resource, action = "message", "post"
+			}
+		}
+		if typeName == "@n8n/n8n-nodes-langchain.openAi" {
+			if resource == "" && action == "" {
+				model, _ := params["modelId"].(string)
+				messages, _ := params["messages"].(map[string]any)
+				values, _ := messages["values"].([]any)
+				if model == "" || len(model) > 100 || strings.ContainsAny(model, "\x00\r\n") || strings.Contains(model, "={{") || strings.Contains(model, "{{") || len(values) == 0 || len(values) > 16 {
+					return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "OpenAI chat simulation requires a bounded model selector and 1 to 16 message descriptors"}
+				}
+				for _, rawMessage := range values {
+					message, ok := rawMessage.(map[string]any)
+					rawRole, rolePresent := message["role"]
+					role, roleIsString := rawRole.(string)
+					content, contentOK := message["content"].(string)
+					if !ok || !contentOK || (rolePresent && !roleIsString) || (rolePresent && role != "system" && role != "user" && role != "assistant") || len(content) > 4096 {
+						return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.messages", Reason: "OpenAI simulation supports only bounded static role/content descriptors"}
+					}
+				}
+				resource, action = "chat", "completion"
+			} else if resource != "chat" || action != "completion" {
+				return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "the LangChain OpenAI adapter supports only chat completion through a synthetic profile"}
+			}
+		}
+		if typeName == "n8n-nodes-base.postgres" {
+			if resource == "" {
+				resource = "query"
+			}
+			if action == "executeQuery" {
+				query, _ := params["query"].(string)
+				statement, ok := classifyPostgresStatement(query)
+				if !ok {
+					return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.query", Reason: "Postgres simulation accepts one bounded static SELECT, INSERT, UPDATE, or DELETE statement"}
+				}
+				// Retain only the statement class for OpenAPI profile routing. SQL,
+				// query parameters, and expressions never enter the normalized graph.
+				action += "." + statement
+			}
+		}
+		if resource == "" || action == "" || len(resource) > 100 || len(action) > 100 || strings.ContainsAny(resource+action, "\r\n") {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: fmt.Sprintf("native service node %q (%s) requires a supported bounded static resource and operation (resource=%q operation=%q)", name, typeName, resource, action)}
+		}
+		request := &Step{ID: id, Operation: typeName + ":" + resource + "." + action, NodeType: typeName, Resource: resource, Action: action}
+		if typeName == "n8n-nodes-base.googleSheets" && resource == "sheet" && action == "read" {
+			if locator, ok := params["sheetName"].(map[string]any); ok {
+				if value, ok := locator["value"].(string); ok && value != "" && len(value) <= 128 && !strings.ContainsAny(value, "\x00\r\n") && !strings.Contains(value, "={{") {
+					request.Input = map[string]any{"sheetName": value}
+				}
+			}
+			node.RequestReplacesInput = true
+		}
+		node.Request = request
 	}
 	return node, nil
 }
 
+func normalizeSetAssignments(params map[string]any) (map[string]any, map[string]string, map[string]string, bool, error) {
+	container, _ := params["assignments"].(map[string]any)
+	items, _ := container["assignments"].([]any)
+	if len(items) == 0 || len(items) > 64 {
+		return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "manual Set requires 1 to 64 bounded assignments"}
+	}
+	values := make(map[string]any, len(items))
+	projections := make(map[string]string)
+	expressions := make(map[string]string)
+	seen := map[string]bool{}
+	for _, item := range items {
+		assignment, ok := item.(map[string]any)
+		if !ok {
+			return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "each Set assignment must be an object"}
+		}
+		name, _ := assignment["name"].(string)
+		kind, _ := assignment["type"].(string)
+		value := assignment["value"]
+		if name == "" || len(name) > 100 || strings.ContainsAny(name, "\x00\r\n") || seen[name] {
+			return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set assignment names must be unique, nonempty and bounded"}
+		}
+		seen[name] = true
+		if exprText, ok := value.(string); ok && strings.Contains(exprText, "={{") {
+			expression, err := normalizeSafeExpression(exprText)
+			if err != nil {
+				return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set expression is outside the bounded safe subset: " + err.Error()}
+			}
+			if path, simple := parseJSONExpression(exprText); simple {
+				projections[name] = path
+			} else {
+				expressions[name] = expression
+			}
+			continue
+		}
+		switch kind {
+		case "string":
+			text, ok := value.(string)
+			if !ok || len(text) > 4096 || strings.ContainsAny(text, "\x00") {
+				return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set string values must be bounded literals or safe expressions"}
+			}
+			values[name] = text
+		case "number":
+			if _, ok := value.(float64); !ok {
+				return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set number values must be numeric literals or safe expressions"}
+			}
+			values[name] = value
+		case "boolean":
+			if _, ok := value.(bool); !ok {
+				return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set boolean values must be boolean literals or safe expressions"}
+			}
+			values[name] = value
+		default:
+			return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set supports bounded string, number and boolean values"}
+		}
+	}
+	includeInput, _ := params["includeOtherFields"].(bool)
+	return values, projections, expressions, includeInput, nil
+}
+
+func normalizeAggregate(params map[string]any) ([]AggregateField, bool, bool, bool, error) {
+	mode, _ := params["aggregate"].(string)
+	if mode != "" && mode != "aggregateIndividualFields" {
+		return nil, false, false, false, ErrInvalid{Field: "nodes.parameters.aggregate", Reason: "Aggregate supports only bounded Individual Fields mode"}
+	}
+	container, _ := params["fieldsToAggregate"].(map[string]any)
+	rawFields, _ := container["fieldToAggregate"].([]any)
+	if len(rawFields) == 0 || len(rawFields) > 64 {
+		return nil, false, false, false, ErrInvalid{Field: "nodes.parameters.fieldsToAggregate", Reason: "Aggregate requires 1 to 64 fields"}
+	}
+	options, _ := params["options"].(map[string]any)
+	keepMissing, _ := options["keepMissing"].(bool)
+	mergeLists, _ := options["mergeLists"].(bool)
+	disableDotNotation, _ := options["disableDotNotation"].(bool)
+	fields := make([]AggregateField, 0, len(rawFields))
+	seen := map[string]bool{}
+	for _, raw := range rawFields {
+		item, ok := raw.(map[string]any)
+		if !ok {
+			return nil, false, false, false, ErrInvalid{Field: "nodes.parameters.fieldsToAggregate", Reason: "each aggregate field must be an object"}
+		}
+		path, _ := item["fieldToAggregate"].(string)
+		path = strings.TrimSpace(path)
+		if !validJSONPath(path) {
+			return nil, false, false, false, ErrInvalid{Field: "nodes.parameters.fieldsToAggregate", Reason: "field paths must be bounded static JSON paths"}
+		}
+		rename, _ := item["renameField"].(bool)
+		out, _ := item["outputFieldName"].(string)
+		if rename {
+			if out == "" || len(out) > 64 || !validPathPart(out) {
+				return nil, false, false, false, ErrInvalid{Field: "nodes.parameters.fieldsToAggregate", Reason: "renamed aggregate fields require a bounded static output name"}
+			}
+		}
+		if out == "" {
+			out = path
+			if index := strings.LastIndex(out, "."); index >= 0 {
+				out = out[index+1:]
+			}
+			if bracket := strings.Index(out, "["); bracket >= 0 {
+				out = out[:bracket]
+			}
+		}
+		if out == "" || seen[out] {
+			return nil, false, false, false, ErrInvalid{Field: "nodes.parameters.fieldsToAggregate", Reason: "aggregate output names must be nonempty and unique"}
+		}
+		seen[out] = true
+		fields = append(fields, AggregateField{InputPath: path, OutputName: out})
+	}
+	return fields, keepMissing, mergeLists, disableDotNotation, nil
+}
+
+func validJSONPath(path string) bool {
+	_, ok := parseJSONPath(path)
+	return ok
+}
+
+type jsonPathSegment struct {
+	key     string
+	index   int
+	isIndex bool
+}
+
+// parseJSONPath accepts a short dotted object path with bounded numeric array
+// indexes. It is deliberately not a JavaScript expression parser.
+func parseJSONPath(path string) ([]jsonPathSegment, bool) {
+	if path == "" || len(path) > 256 {
+		return nil, false
+	}
+	var result []jsonPathSegment
+	for pos := 0; pos < len(path); {
+		if path[pos] == '.' {
+			pos++
+			if pos >= len(path) {
+				return nil, false
+			}
+		}
+		if path[pos] == '[' {
+			end := strings.IndexByte(path[pos:], ']')
+			if end < 0 {
+				return nil, false
+			}
+			end += pos
+			value := path[pos+1 : end]
+			if value == "" || len(value) > 3 {
+				return nil, false
+			}
+			index, err := strconv.Atoi(value)
+			if err != nil || index < 0 || index > 100 {
+				return nil, false
+			}
+			result = append(result, jsonPathSegment{index: index, isIndex: true})
+			pos = end + 1
+		} else {
+			start := pos
+			for pos < len(path) && path[pos] != '.' && path[pos] != '[' {
+				pos++
+			}
+			key := path[start:pos]
+			if !validPathPart(key) || len(key) > 64 {
+				return nil, false
+			}
+			result = append(result, jsonPathSegment{key: key})
+		}
+		if len(result) > 8 {
+			return nil, false
+		}
+	}
+	return result, len(result) > 0
+}
+
+func classifyPostgresStatement(query string) (string, bool) {
+	query = strings.TrimSpace(query)
+	if query == "" || len(query) > 16*1024 || strings.ContainsAny(query, "\x00") || strings.Contains(query, "={{") {
+		return "", false
+	}
+	if strings.HasSuffix(query, ";") {
+		query = strings.TrimSpace(strings.TrimSuffix(query, ";"))
+	}
+	// This does not parse or execute SQL. Reject multiple statements and retain
+	// only a recognized first keyword as a simulation selector.
+	if strings.Contains(query, ";") {
+		return "", false
+	}
+	fields := strings.Fields(query)
+	if len(fields) == 0 {
+		return "", false
+	}
+	verb := strings.ToLower(fields[0])
+	switch verb {
+	case "select", "insert", "update", "delete":
+		return verb, true
+	default:
+		return "", false
+	}
+}
+
 func isNativeServiceNode(typeName string) bool {
-	return strings.HasPrefix(typeName, "n8n-nodes-base.") && !strings.HasSuffix(typeName, "Trigger")
+	return (strings.HasPrefix(typeName, "n8n-nodes-base.") && !strings.HasSuffix(typeName, "Trigger")) || typeName == "@n8n/n8n-nodes-langchain.openAi"
+}
+
+func normalizeWait(params map[string]any) (uint32, error) {
+	seconds, amountPath, _, err := normalizeWaitNode(params)
+	if err != nil {
+		return 0, err
+	}
+	if amountPath != "" {
+		return 0, ErrInvalid{Field: "nodes.parameters.amount", Reason: "dynamic Wait amounts cannot be normalized without an input item"}
+	}
+	return seconds, nil
+}
+
+func normalizeWaitNode(params map[string]any) (uint32, string, string, error) {
+	for key := range params {
+		if key != "amount" && key != "unit" {
+			return 0, "", "", ErrInvalid{Field: "nodes.parameters", Reason: "Wait accepts only bounded static amount and unit fields"}
+		}
+	}
+	unit, _ := params["unit"].(string)
+	if unit == "" {
+		// Pinned n8n 2.48.0 Wait.node.ts defaults the unit to hours.
+		unit = "hours"
+	}
+	multiplier := uint64(0)
+	switch unit {
+	case "seconds":
+		multiplier = 1
+	case "minutes":
+		multiplier = 60
+	case "hours":
+		multiplier = 60 * 60
+	case "days":
+		multiplier = 24 * 60 * 60
+	default:
+		return 0, "", "", ErrInvalid{Field: "nodes.parameters.unit", Reason: "Wait supports only static seconds, minutes, hours, or days"}
+	}
+	amountValue := params["amount"]
+	if amount, ok := amountValue.(string); ok {
+		if !isCurrentItemJSONExpression(amount) {
+			return 0, "", "", ErrInvalid{Field: "nodes.parameters.amount", Reason: "dynamic Wait amount requires a current-item $json path"}
+		}
+		path, valid := parseJSONExpression(amount)
+		if !valid || !validJSONPath(path) {
+			return 0, "", "", ErrInvalid{Field: "nodes.parameters.amount", Reason: "dynamic Wait amount requires a simple current-item JSON path"}
+		}
+		return 0, path, unit, nil
+	}
+	amount, ok := amountValue.(float64)
+	if !ok || amount < 1 {
+		return 0, "", "", ErrInvalid{Field: "nodes.parameters.amount", Reason: "Wait amount must be a positive static integer or a simple current-item JSON path"}
+	}
+	maxSeconds := uint64(30 * 24 * 60 * 60)
+	if amount > float64(maxSeconds/multiplier) {
+		return 0, "", "", ErrInvalid{Field: "nodes.parameters.amount", Reason: "Wait virtual delay exceeds the 30-day bound"}
+	}
+	if amount != float64(uint64(amount)) {
+		return 0, "", "", ErrInvalid{Field: "nodes.parameters.amount", Reason: "Wait amount must be a positive integer"}
+	}
+	seconds := uint64(amount) * multiplier
+	return uint32(seconds), "", unit, nil
+}
+
+func isCurrentItemJSONExpression(raw string) bool {
+	expression := strings.TrimSpace(raw)
+	if strings.HasPrefix(expression, "=") {
+		expression = strings.TrimSpace(strings.TrimPrefix(expression, "="))
+	}
+	if !strings.HasPrefix(expression, "{{") || !strings.HasSuffix(expression, "}}") {
+		return false
+	}
+	expression = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(expression, "{{"), "}}"))
+	return strings.HasPrefix(expression, "$json.")
+}
+
+func waitUnitSeconds(unit string) uint64 {
+	switch unit {
+	case "seconds":
+		return 1
+	case "minutes":
+		return 60
+	case "hours":
+		return 60 * 60
+	case "days":
+		return 24 * 60 * 60
+	default:
+		return 0
+	}
 }
 
 func classifyTrigger(typeName string) (TriggerKind, bool) {
 	switch typeName {
 	case "n8n-nodes-base.manualTrigger":
 		return TriggerManual, true
+	case "n8n-nodes-base.cron":
+		return TriggerScheduled, true
 	case "n8n-nodes-base.webhook":
 		return TriggerWebhook, true
 	case "n8n-nodes-base.scheduleTrigger":
@@ -365,6 +866,69 @@ func normalizeCondition(params map[string]any) (Condition, error) {
 	return conditionFromEntry(first)
 }
 
+func normalizeFilter(params map[string]any) (Condition, error) {
+	if !onlyKeys(params, "conditions", "options") {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters", Reason: "Filter accepts only conditions and options"}
+	}
+	if options, ok := params["options"].(map[string]any); !ok || len(options) != 0 {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters.options", Reason: "Filter options must be empty"}
+	}
+	root, ok := params["conditions"].(map[string]any)
+	if !ok || !onlyKeys(root, "combinator", "conditions", "options") {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions", Reason: "Filter requires a bounded single-condition object"}
+	}
+	combinator, _ := root["combinator"].(string)
+	if combinator != "and" && combinator != "or" {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.combinator", Reason: "Filter combinator must be and or or"}
+	}
+	rootOptions, ok := root["options"].(map[string]any)
+	if !ok || !onlyKeys(rootOptions, "caseSensitive", "leftValue", "typeValidation") {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.options", Reason: "Filter condition options are unsupported"}
+	}
+	if rootOptions["caseSensitive"] != true || rootOptions["leftValue"] != "" || (rootOptions["typeValidation"] != "strict" && rootOptions["typeValidation"] != "loose") {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.options", Reason: "Filter options must use the supported case and type settings"}
+	}
+	conditions, ok := root["conditions"].([]any)
+	if !ok || len(conditions) != 1 {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.conditions", Reason: "Filter supports exactly one condition"}
+	}
+	entry, ok := conditions[0].(map[string]any)
+	if !ok || !onlyKeys(entry, "id", "leftValue", "operator", "rightValue") {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.conditions", Reason: "Filter condition fields are unsupported"}
+	}
+	operator, ok := entry["operator"].(map[string]any)
+	if !ok || !onlyKeys(operator, "type", "operation", "singleValue") || operator["type"] != "boolean" || operator["singleValue"] != true {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.conditions.operator", Reason: "Filter supports only single-value boolean conditions"}
+	}
+	condition, err := conditionFromEntry(entry)
+	if err != nil {
+		return Condition{}, err
+	}
+	if condition.Operator != "true" && condition.Operator != "false" {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.conditions.operator", Reason: "Filter supports only boolean true/false predicates"}
+	}
+	if condition.Operator == "true" && entry["rightValue"] != true || condition.Operator == "false" && entry["rightValue"] != false {
+		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.conditions.rightValue", Reason: "Filter boolean predicate must use its matching boolean value"}
+	}
+	return condition, nil
+}
+
+func onlyKeys(values map[string]any, allowed ...string) bool {
+	if values == nil {
+		return false
+	}
+	set := make(map[string]bool, len(allowed))
+	for _, key := range allowed {
+		set[key] = true
+	}
+	for key := range values {
+		if !set[key] {
+			return false
+		}
+	}
+	return true
+}
+
 func conditionFromEntry(entry map[string]any) (Condition, error) {
 	left, _ := entry["leftValue"].(string)
 	if left == "" {
@@ -383,7 +947,7 @@ func conditionFromEntry(entry map[string]any) (Condition, error) {
 		operator = "equals"
 	}
 	switch operator {
-	case "equals", "notEquals", "contains", "gt", "gte", "lt", "lte":
+	case "equals", "notEquals", "contains", "gt", "gte", "lt", "lte", "true", "false":
 	default:
 		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.operator", Reason: "operator must be equals, notEquals, contains, gt, gte, lt, or lte"}
 	}
@@ -472,6 +1036,33 @@ func parseJSONExpression(raw string) (string, bool) {
 	}
 	parts := []string{}
 	for len(path) > 0 {
+		if strings.HasPrefix(path, `["`) {
+			end := strings.Index(path[2:], `"]`)
+			if end < 0 {
+				return "", false
+			}
+			part := path[2 : 2+end]
+			if !validPathPart(part) {
+				return "", false
+			}
+			parts = append(parts, part)
+			path = path[2+end+2:]
+			continue
+		}
+		if strings.HasPrefix(path, "[") {
+			end := strings.IndexByte(path, ']')
+			if end < 0 || len(parts) == 0 {
+				return "", false
+			}
+			rawIndex := path[1:end]
+			index, err := strconv.Atoi(rawIndex)
+			if err != nil || index < 0 || index > 100 {
+				return "", false
+			}
+			parts[len(parts)-1] += fmt.Sprintf("[%d]", index)
+			path = path[end+1:]
+			continue
+		}
 		if strings.HasPrefix(path, ".") {
 			path = path[1:]
 			end := strings.IndexAny(path, ".[ ")
@@ -520,6 +1111,10 @@ func validPathPart(part string) bool {
 }
 
 func validateGraph(workflow Workflow) error {
+	feedbackEdges, err := loopFeedbackEdges(workflow)
+	if err != nil {
+		return ErrInvalid{Field: "connections", Reason: err.Error()}
+	}
 	nodes := make(map[string]WorkflowNode, len(workflow.Nodes))
 	indegree := make(map[string]int, len(workflow.Nodes))
 	outgoing := make(map[string][]string, len(workflow.Nodes))
@@ -530,8 +1125,32 @@ func validateGraph(workflow Workflow) error {
 		if edge.OutputPort < 0 || edge.OutputPort > 32 || edge.InputPort < 0 || edge.InputPort > 32 {
 			return ErrInvalid{Field: "connections", Reason: "ports must be between 0 and 32"}
 		}
-		indegree[edge.To]++
-		outgoing[edge.From] = append(outgoing[edge.From], edge.To)
+		source := nodes[edge.From]
+		maxPort := 0
+		if source.Condition != nil {
+			maxPort = 1
+		}
+		if source.FilterCondition != nil {
+			maxPort = 1
+		}
+		if source.LoopBatchSize > 0 {
+			maxPort = 1
+		}
+		for _, rule := range source.SwitchRules {
+			if rule.OutputPort > maxPort {
+				maxPort = rule.OutputPort
+			}
+		}
+		if source.ErrorOutput {
+			maxPort++
+		}
+		if edge.OutputPort > maxPort {
+			return ErrInvalid{Field: "connections.main", Reason: fmt.Sprintf("output port %d is outside the modeled output set for node type %q", edge.OutputPort, source.Type)}
+		}
+		if !feedbackEdges[edge] {
+			indegree[edge.To]++
+			outgoing[edge.From] = append(outgoing[edge.From], edge.To)
+		}
 	}
 	queue := make([]string, 0, len(workflow.Nodes))
 	for _, node := range workflow.Nodes {
@@ -629,6 +1248,53 @@ func workflowStructureFingerprint(root *Workflow) any {
 			}
 			if node.OutputPath != "" {
 				entry["output_path"] = node.OutputPath
+			}
+			if node.Condition != nil {
+				entry["condition"] = node.Condition
+			}
+			if node.FilterCondition != nil {
+				entry["filter_condition"] = node.FilterCondition
+			}
+			if len(node.SwitchRules) > 0 {
+				entry["switch_rules"] = node.SwitchRules
+			}
+			if node.SetValues != nil {
+				entry["set_values"] = node.SetValues
+				entry["set_include_input"] = node.SetIncludeInput
+			}
+			if node.SetProjections != nil {
+				entry["set_projections"] = node.SetProjections
+				entry["set_include_input"] = node.SetIncludeInput
+			}
+			if node.SetExpressions != nil {
+				entry["set_expressions"] = node.SetExpressions
+				entry["set_include_input"] = node.SetIncludeInput
+			}
+			if node.SplitField != "" {
+				entry["split_field"] = node.SplitField
+			}
+			if node.SafeCode != "" {
+				digest := sha256.Sum256([]byte(node.SafeCode))
+				entry["safe_code_sha256"] = hex.EncodeToString(digest[:])
+			}
+			if len(node.AggregateFields) > 0 {
+				entry["aggregate_fields"] = node.AggregateFields
+				entry["aggregate_keep_missing"] = node.AggregateKeepMissing
+				entry["aggregate_merge_lists"] = node.AggregateMergeLists
+				entry["aggregate_disable_dot_notation"] = node.AggregateDisableDotNotation
+			}
+			if node.WaitSeconds > 0 {
+				entry["wait_seconds"] = node.WaitSeconds
+			}
+			if node.WaitAmountPath != "" {
+				entry["wait_amount_path"] = node.WaitAmountPath
+				entry["wait_unit"] = node.WaitUnit
+			}
+			if node.LoopBatchSize > 0 {
+				entry["loop_batch_size"] = node.LoopBatchSize
+			}
+			if node.ErrorOutput {
+				entry["error_output"] = true
 			}
 			if node.SubworkflowID != "" {
 				entry["subworkflow"] = node.SubworkflowID

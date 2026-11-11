@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "selectors": {
     "app.title": {
       "testId": "app-title",
@@ -35,6 +36,54 @@
     "health.refreshCount": {
       "testId": "health-refresh-count",
       "selector": "[data-testid=\"health-refresh-count\"]"
+    },
+    "rehearsals.surface": {
+      "testId": "rehearsals-surface",
+      "selector": "[data-testid=\"rehearsals-surface\"]"
+    },
+    "rehearsals.fileInput": {
+      "testId": "rehearsals-workflow-file",
+      "selector": "[data-testid=\"rehearsals-workflow-file\"]"
+    },
+    "rehearsals.triggerSelect": {
+      "testId": "rehearsals-trigger-select",
+      "selector": "[data-testid=\"rehearsals-trigger-select\"]"
+    },
+    "rehearsals.simulatorSource": {
+      "testId": "rehearsals-simulator-source",
+      "selector": "[data-testid=\"rehearsals-simulator-source\"]"
+    },
+    "rehearsals.runButton": {
+      "testId": "rehearsals-run-button",
+      "selector": "[data-testid=\"rehearsals-run-button\"]"
+    },
+    "rehearsals.error": {
+      "testId": "rehearsals-error",
+      "selector": "[data-testid=\"rehearsals-error\"]"
+    },
+    "rehearsals.empty": {
+      "testId": "rehearsals-empty",
+      "selector": "[data-testid=\"rehearsals-empty\"]"
+    },
+    "rehearsals.rehearsalRow": {
+      "testId": "rehearsals-history-row",
+      "selector": "[data-testid=\"rehearsals-history-row\"]"
+    },
+    "rehearsals.detail": {
+      "testId": "rehearsals-detail",
+      "selector": "[data-testid=\"rehearsals-detail\"]"
+    },
+    "rehearsals.trace": {
+      "testId": "rehearsals-trace",
+      "selector": "[data-testid=\"rehearsals-trace\"]"
+    },
+    "rehearsals.approveButton": {
+      "testId": "rehearsals-approve-button",
+      "selector": "[data-testid=\"rehearsals-approve-button\"]"
+    },
+    "rehearsals.changesButton": {
+      "testId": "rehearsals-request-changes-button",
+      "selector": "[data-testid=\"rehearsals-request-changes-button\"]"
     },
     "notifications.summary": {
       "testId": "notifications-summary",
@@ -202,5 +251,9 @@
         }
       ]
     }
+  },
+  "sources": {
+    "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
+    "ui/src/consts/selectors.ts": "a37d85f9e49162a7b1ad3d3e1321849853e009ea8f14cc89c63de5ea963bbd04"
   }
 }

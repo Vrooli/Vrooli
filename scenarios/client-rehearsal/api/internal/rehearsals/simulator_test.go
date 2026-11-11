@@ -2,6 +2,7 @@ package rehearsals
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -61,6 +62,46 @@ func TestNativeServiceBindingUsesProfileRouteAndRejectsUnmappedOperations(t *tes
 	}
 	if _, err := simulator.Invoke(context.Background(), Step{NodeType: "n8n-nodes-base.gmail", Resource: "message", Action: "delete"}, 1, false); err == nil {
 		t.Fatal("unmapped native operation must fail closed")
+	}
+}
+
+func TestNativeServiceCatalogFingerprintsEveryMappedOperation(t *testing.T) {
+	simulator, err := NewDescriptionSimulator(readFixture(t, "native_service_catalog.json"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fingerprint, err := json.Marshal(simulator.sourceFingerprint())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var projected struct {
+		NativeOperations []struct {
+			Service  string `json:"service"`
+			NodeType string `json:"node_type"`
+			Resource string `json:"resource"`
+			Action   string `json:"action"`
+		} `json:"native_operations"`
+	}
+	if err := json.Unmarshal(fingerprint, &projected); err != nil {
+		t.Fatal(err)
+	}
+	if len(projected.NativeOperations) != 4 {
+		t.Fatalf("fingerprint must retain all mapped native operations, got %#v", projected.NativeOperations)
+	}
+	seen := map[string]bool{}
+	for _, operation := range projected.NativeOperations {
+		key := operation.NodeType + "/" + operation.Resource + "/" + operation.Action
+		seen[key] = true
+	}
+	for _, key := range []string{
+		"n8n-nodes-base.gmail/message/send",
+		"n8n-nodes-base.googleSheets/sheet/append",
+		"n8n-nodes-base.slack/message/post",
+		"n8n-nodes-base.hubspot/contact/upsert",
+	} {
+		if !seen[key] {
+			t.Errorf("fingerprint omitted native selector %s", key)
+		}
 	}
 }
 
@@ -166,5 +207,59 @@ func TestDescriptionSimulatorHTTPBridgeEnforcesRequestSize(t *testing.T) {
 	_ = response.Body.Close()
 	if response.StatusCode != http.StatusRequestEntityTooLarge {
 		t.Fatalf("oversized body should be rejected, got %d", response.StatusCode)
+	}
+}
+
+func TestDescriptionSimulatorExportsBoundedSandboxHTTPProfile(t *testing.T) {
+	simulator, err := NewDescriptionSimulator(readFixture(t, "native_service_catalog.json"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := simulator.ExportHTTPMockProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.SchemaVersion != 1 || len(profile.Operations) != 4 {
+		t.Fatalf("expected schema-v1 profile with three explicit native operations: %#v", profile)
+	}
+	want := map[string]HTTPMockRoute{
+		"n8n-nodes-base.gmail|message|send":        {Host: "gmail.synthetic.invalid", Method: "POST", Path: "/v1/messages", Status: http.StatusOK, ContentType: "application/json", Body: `{"id":"synthetic-id","status":"active"}`},
+		"n8n-nodes-base.googlesheets|sheet|append": {Host: "sheets.synthetic.invalid", Method: "POST", Path: "/v1/rows", Status: http.StatusOK, ContentType: "application/json", Body: `{"status":"active","updatedRange":"A2:B2"}`},
+		"n8n-nodes-base.slack|message|post":        {Host: "slack.synthetic.invalid", Method: "POST", Path: "/v1/messages", Status: http.StatusOK, ContentType: "application/json", Body: `{"id":"synthetic-id","status":"active"}`},
+		"n8n-nodes-base.hubspot|contact|upsert":    {Host: "crm.synthetic.invalid", Method: "POST", Path: "/v1/contacts", Status: http.StatusOK, ContentType: "application/json", Body: `{"id":"synthetic-id","status":"active"}`},
+	}
+	for _, operation := range profile.Operations {
+		key := nativeOperationKey(operation.Selector.NodeType, operation.Selector.Resource, operation.Selector.Operation)
+		route, ok := want[key]
+		if !ok || route != operation.Route {
+			t.Fatalf("unexpected exported operation %q: %#v", key, operation)
+		}
+		delete(want, key)
+	}
+	if len(want) != 0 {
+		t.Fatalf("profile omitted expected selectors: %#v", want)
+	}
+}
+
+func TestDescriptionSimulatorHTTPMockExportFailsClosedOnNonSyntheticOrDynamicRoute(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+	}{
+		{"real host", `{"kind":"openapi","document":{"servers":[{"url":"https://api.example.com"}],"paths":{"/v1/contacts":{"post":{"x-n8n-node-type":"n8n-nodes-base.hubspot","x-n8n-resource":"contact","x-n8n-operation":"upsert","responses":{"200":{"content":{"application/json":{"example":{"id":"source-id"}}}}}}}}}}`},
+		{"parameterized path", `{"kind":"openapi","document":{"servers":[{"url":"https://crm.synthetic.invalid"}],"paths":{"/v1/contacts/{contactId}":{"get":{"x-n8n-node-type":"n8n-nodes-base.hubspot","x-n8n-resource":"contact","x-n8n-operation":"get","responses":{"200":{"content":{"application/json":{"example":{"id":"source-id"}}}}}}}}}}`},
+		{"query parameter", `{"kind":"openapi","document":{"servers":[{"url":"https://crm.synthetic.invalid"}],"paths":{"/v1/contacts":{"get":{"parameters":[{"name":"filter","in":"query","schema":{"type":"string"}}],"x-n8n-node-type":"n8n-nodes-base.hubspot","x-n8n-resource":"contact","x-n8n-operation":"getAll","responses":{"200":{"content":{"application/json":{"example":{"items":[]}}}}}}}}}}`},
+		{"secret-shaped response", `{"kind":"openapi","document":{"servers":[{"url":"https://crm.synthetic.invalid"}],"paths":{"/v1/contacts":{"get":{"x-n8n-node-type":"n8n-nodes-base.hubspot","x-n8n-resource":"contact","x-n8n-operation":"getAll","responses":{"200":{"content":{"application/json":{"example":{"access_token":"must-not-export"}}}}}}}}}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			simulator, err := NewDescriptionSimulator(tc.raw, false)
+			if err != nil {
+				t.Fatalf("description should be valid for in-process simulation: %v", err)
+			}
+			if _, err := simulator.ExportHTTPMockProfile(); err == nil {
+				t.Fatal("unsafe or dynamic route must fail closed for Sandbox export")
+			}
+		})
 	}
 }

@@ -17,32 +17,9 @@ const maxSubworkflowDepth = 16
 // client, runtime endpoint, or credential surface.
 type SyntheticEngine struct{}
 
-func (SyntheticEngine) Execute(ctx context.Context, workflow Workflow, triggerNodeID string, simulator Simulator, injectFault bool, now time.Time) ([]TraceEvent, error) {
-	trace := make([]TraceEvent, 0, len(workflow.Nodes)*2)
-	if len(workflow.EntryNodeIDs) == 0 {
-		return trace, fmt.Errorf("workflow %s has no externally invokable trigger", workflow.ID)
-	}
-	if triggerNodeID == "" && len(workflow.EntryNodeIDs) == 1 {
-		triggerNodeID = workflow.EntryNodeIDs[0]
-	}
-	entry := ""
-	for _, candidate := range workflow.EntryNodeIDs {
-		if candidate == triggerNodeID {
-			entry = candidate
-			break
-		}
-	}
-	if entry == "" {
-		return trace, ErrInvalid{Field: "trigger_node_id", Reason: "must identify one of the imported workflow's trigger nodes"}
-	}
-	if err := ctx.Err(); err != nil {
-		return trace, err
-	}
-	input := syntheticTriggerInput(workflow.NodesByID()[entry].Trigger)
-	if _, err := executeWorkflowEntry(ctx, workflow, entry, input, simulator, injectFault, now, &trace, map[string]bool{}, 0); err != nil {
-		return trace, err
-	}
-	return trace, nil
+func (engine SyntheticEngine) Execute(ctx context.Context, workflow Workflow, triggerNodeID string, simulator Simulator, injectFault bool, now time.Time) ([]TraceEvent, error) {
+	execution, err := engine.ExecuteDetailed(ctx, workflow, triggerNodeID, simulator, injectFault, now)
+	return execution.Trace, err
 }
 
 func executeWorkflowEntry(ctx context.Context, workflow Workflow, entryID string, input map[string]any, simulator Simulator, injectFault bool, now time.Time, trace *[]TraceEvent, stack map[string]bool, depth int) (map[string]any, error) {
@@ -64,6 +41,10 @@ func executeWorkflowEntry(ctx context.Context, workflow Workflow, entryID string
 }
 
 func executeGraph(ctx context.Context, workflow Workflow, entryID string, initial map[string]any, simulator Simulator, injectFault bool, now time.Time, trace *[]TraceEvent, stack map[string]bool, depth int) (map[string]any, error) {
+	return executeGraphMany(ctx, workflow, entryID, []map[string]any{initial}, simulator, injectFault, now, trace, stack, depth, "", nil)
+}
+
+func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, initial []map[string]any, simulator Simulator, injectFault bool, now time.Time, trace *[]TraceEvent, stack map[string]bool, depth int, captureNode string, captured *[]map[string]any) (map[string]any, error) {
 	if depth > maxSubworkflowDepth {
 		return nil, fmt.Errorf("subworkflow nesting exceeds %d", maxSubworkflowDepth)
 	}
@@ -80,105 +61,381 @@ func executeGraph(ctx context.Context, workflow Workflow, entryID string, initia
 	if err != nil {
 		return nil, err
 	}
-	inputs := map[string][]map[string]any{entryID: {initial}}
+	initialItems := make([]map[string]any, 0, len(initial))
+	for _, item := range initial {
+		initialItems = append(initialItems, cloneMap(item))
+	}
+	inputs := map[string][]map[string]any{entryID: initialItems}
+	priorNodeOutputs := map[string][]map[string]any{}
+	incomingSources := map[string]map[string]bool{}
+	feedbackEdges, err := loopFeedbackEdges(workflow)
+	if err != nil {
+		return nil, err
+	}
+	for _, edge := range workflow.Connections {
+		if feedbackEdges[edge] {
+			continue
+		}
+		if incomingSources[edge.To] == nil {
+			incomingSources[edge.To] = map[string]bool{}
+		}
+		incomingSources[edge.To][edge.From] = true
+	}
 	var last map[string]any
 	for _, id := range order {
 		if err := ctx.Err(); err != nil {
 			return last, err
 		}
 		node := nodes[id]
-		var input map[string]any
+		var contexts []map[string]any
 		if node.Trigger != "" {
 			if node.ID != entryID {
 				continue
 			}
-			input = cloneMap(initial)
+			contexts = cloneMapSlice(initialItems)
+			priorNodeOutputs[node.Name] = cloneMapSlice(contexts)
 		} else {
 			incoming := inputs[id]
 			if len(incoming) == 0 {
 				continue
 			}
-			input = mergeMaps(incoming)
+			if len(incomingSources[id]) > 1 {
+				contexts = []map[string]any{mergeMaps(incoming)}
+			} else {
+				contexts = incoming
+			}
 		}
-		outputPort := 0
-		output := cloneMap(input)
-		operation := node.Name
-		switch {
-		case node.Request != nil:
-			response, err := invokeWithRetry(ctx, simulator, *node.Request, injectFault, now, trace, workflow.ID, node.Name)
+		if node.LoopBatchSize > 0 {
+			body, bodyEntry, err := linearLoopBody(workflow, node)
 			if err != nil {
 				return last, err
 			}
-			output = mergeMaps([]map[string]any{input, decodeObject(response)})
-			operation = node.Request.Operation
-		case node.Condition != nil:
-			matches := evaluateCondition(*node.Condition, input)
-			if !matches {
-				outputPort = 1
-			}
-			operation = "If " + node.Condition.Path + " " + node.Condition.Operator
-		case node.OutputPath != "":
-			output = projectedValue(input, node.OutputPath)
-			operation = "Set JSON projection"
-		case len(node.SwitchRules) > 0:
-			outputPort = -1
-			for _, rule := range node.SwitchRules {
-				if evaluateCondition(rule.Condition, input) {
-					outputPort = rule.OutputPort
-					break
+			loopResults := make([]map[string]any, 0, len(contexts))
+			batchSize := int(node.LoopBatchSize)
+			for start := 0; start < len(contexts); start += batchSize {
+				if err := ctx.Err(); err != nil {
+					return last, err
+				}
+				end := start + batchSize
+				if end > len(contexts) {
+					end = len(contexts)
+				}
+				batch := contexts[start:end]
+				// A deterministic virtual millisecond gives each invocation a stable
+				// but distinct random stream without introducing wall-clock waits.
+				batchNow := now.Add(time.Duration(start/batchSize) * time.Millisecond)
+				*trace = append(*trace, TraceEvent{Sequence: uint32(len(*trace) + 1), Operation: workflow.ID + "/Loop Over Items", RequestSummary: node.Name, ResponseSummary: fmt.Sprintf("processing batch %d (%d item(s))", start/batchSize+1, len(batch)), Status: "succeeded", OccurredAt: batchNow.UTC()})
+				bodyStack := cloneSet(stack)
+				delete(bodyStack, workflow.ID)
+				batchOutputs := []map[string]any{}
+				batchOutput, err := executeGraphMany(ctx, body, bodyEntry, batch, simulator, injectFault, batchNow, trace, bodyStack, depth, loopFeedbackSource(workflow, node.ID), &batchOutputs)
+				if err != nil {
+					return last, fmt.Errorf("Loop Over Items %s batch %d: %w", node.Name, start/batchSize+1, err)
+				}
+				if len(batchOutputs) > 0 {
+					loopResults = append(loopResults, batchOutputs...)
+				} else if batchOutput != nil {
+					loopResults = append(loopResults, batchOutput)
 				}
 			}
-			operation = "Switch"
-		case node.SubworkflowID != "":
-			child := workflow.Subworkflows[node.SubworkflowID]
-			if child == nil {
-				return last, fmt.Errorf("subworkflow %s is not in the import bundle", node.SubworkflowID)
+			if len(loopResults) > 0 {
+				last = loopResults[len(loopResults)-1]
 			}
-			entry := child.SubworkflowEntryID
-			if entry == "" {
-				return last, fmt.Errorf("subworkflow %s has no Execute Workflow Trigger", child.ID)
+			priorNodeOutputs[node.Name] = cloneMapSlice(loopResults)
+			for _, edge := range workflow.Connections {
+				if edge.From == id && edge.OutputPort == 0 {
+					for _, item := range loopResults {
+						inputs[edge.To] = append(inputs[edge.To], cloneMap(item))
+					}
+				}
 			}
-			nested, err := executeWorkflowEntry(ctx, *child, entry, input, simulator, injectFault, now, trace, stack, depth+1)
+			continue
+		}
+		if len(node.AggregateFields) > 0 {
+			aggregated, err := aggregateItems(contexts, node)
 			if err != nil {
-				return last, err
+				return last, fmt.Errorf("Aggregate node %s: %w", node.Name, err)
 			}
-			output = mergeMaps([]map[string]any{input, nested})
-			operation = "Execute Workflow " + child.ID
-		case node.Trigger == TriggerError:
-			operation = "Error Trigger"
-		case node.Trigger == TriggerSubworkflow:
-			operation = "Execute Workflow Trigger"
-		case node.Type == "n8n-nodes-base.respondToWebhook":
-			operation = "Respond to Webhook"
-		case node.Type == "n8n-nodes-base.stickyNote":
-			operation = "Non-executable Note"
-		case node.Trigger != "":
-			operation = string(node.Trigger) + " Trigger"
-		case node.Type == "n8n-nodes-base.noOp":
-			operation = "No Operation"
+			*trace = append(*trace, TraceEvent{Sequence: uint32(len(*trace) + 1), Operation: workflow.ID + "/Aggregate individual fields", RequestSummary: node.Name, ResponseSummary: fmt.Sprintf("aggregated %d synthetic items", len(contexts)), Status: "succeeded", OccurredAt: now.UTC()})
+			last = aggregated
+			priorNodeOutputs[node.Name] = []map[string]any{cloneMap(aggregated)}
+			if captured != nil && id == captureNode {
+				*captured = []map[string]any{cloneMap(aggregated)}
+			}
+			for _, edge := range workflow.Connections {
+				if edge.From == id && edge.OutputPort == 0 {
+					inputs[edge.To] = append(inputs[edge.To], cloneMap(aggregated))
+				}
+			}
+			continue
 		}
-		*trace = append(*trace, TraceEvent{Sequence: uint32(len(*trace) + 1), Operation: workflow.ID + "/" + operation, RequestSummary: node.Name, ResponseSummary: "synthetic dataflow", Status: "succeeded", OccurredAt: now.UTC()})
-		last = output
-		for _, edge := range workflow.Connections {
-			if edge.From == id && edge.OutputPort == outputPort {
-				inputs[edge.To] = append(inputs[edge.To], cloneMap(output))
+		if node.SafeCode != "" {
+			codeOutput, err := executeSafeCodeWithNodeOutputs(node.SafeCode, contexts, priorNodeOutputs, now)
+			if err != nil {
+				return last, fmt.Errorf("Code node %s rejected or failed in safe interpreter: %w", node.Name, err)
+			}
+			outputs := make([]map[string]any, 0, len(codeOutput))
+			for _, item := range codeOutput {
+				payload, ok := item["json"].(map[string]any)
+				if !ok {
+					return last, fmt.Errorf("Code node %s returned an invalid item", node.Name)
+				}
+				outputs = append(outputs, cloneMap(payload))
+			}
+			if len(outputs) > 0 {
+				last = mergeMaps(outputs)
+			}
+			priorNodeOutputs[node.Name] = cloneMapSlice(outputs)
+			if captured != nil && id == captureNode {
+				*captured = cloneMapSlice(outputs)
+			}
+			*trace = append(*trace, TraceEvent{Sequence: uint32(len(*trace) + 1), Operation: workflow.ID + "/Safe Code subset", RequestSummary: node.Name, ResponseSummary: fmt.Sprintf("safe Code interpreter emitted %d synthetic items", len(outputs)), Status: "succeeded", OccurredAt: now.UTC()})
+			for _, edge := range workflow.Connections {
+				if edge.From == id && edge.OutputPort == 0 {
+					for _, item := range outputs {
+						inputs[edge.To] = append(inputs[edge.To], cloneMap(item))
+					}
+				}
+			}
+			continue
+		}
+		nodeOutputs := make([]map[string]any, 0)
+		for _, input := range contexts {
+			outputPort := 0
+			output := cloneMap(input)
+			outputs := []map[string]any{output}
+			operation := node.Name
+			responseSummary := "synthetic dataflow"
+			switch {
+			case node.WaitSeconds > 0 || node.WaitAmountPath != "":
+				// Rehearsal uses virtual time: it proves the bounded continuation
+				// edge without sleeping or persisting a deferred execution.
+				seconds := node.WaitSeconds
+				if node.WaitAmountPath != "" {
+					amountValue, ok := jsonPathValue(input, node.WaitAmountPath)
+					amount, number := numberValue(amountValue)
+					multiplier := waitUnitSeconds(node.WaitUnit)
+					maxSeconds := float64(30 * 24 * 60 * 60)
+					if !ok || !number || amount < 1 || amount != float64(uint64(amount)) || multiplier == 0 || amount > maxSeconds/float64(multiplier) {
+						return last, fmt.Errorf("Wait node %s amount path %s is missing or outside the bounded integer range", node.Name, node.WaitAmountPath)
+					}
+					seconds = uint32(amount * float64(multiplier))
+				}
+				responseSummary = fmt.Sprintf("virtual resume after %d seconds", seconds)
+				operation = "Wait / virtual resume"
+			case node.Request != nil:
+				response, err := invokeWithRetry(ctx, simulator, *node.Request, injectFault, now, trace, workflow.ID, node.Name)
+				if err != nil {
+					return last, err
+				}
+				responseItems, err := decodeSimulatorItems(response)
+				if err != nil {
+					return last, fmt.Errorf("simulated response for %s: %w", node.Name, err)
+				}
+				outputs = make([]map[string]any, 0, len(responseItems))
+				for _, responseItem := range responseItems {
+					outputs = append(outputs, mergeMaps([]map[string]any{input, responseItem}))
+				}
+				if len(outputs) > 0 {
+					output = mergeMaps(outputs)
+				}
+				operation = node.Request.Operation
+			case node.Condition != nil:
+				matches := evaluateCondition(*node.Condition, input)
+				if !matches {
+					outputPort = 1
+				}
+				operation = "If " + node.Condition.Path + " " + node.Condition.Operator
+			case node.FilterCondition != nil:
+				matches := evaluateCondition(*node.FilterCondition, input)
+				if !matches {
+					outputPort = 1
+					responseSummary = "sent item to discarded output"
+				} else {
+					responseSummary = "kept matching item"
+				}
+				operation = "Filter " + node.FilterCondition.Path + " " + node.FilterCondition.Operator
+			case node.OutputPath != "":
+				output = projectedValue(input, node.OutputPath)
+				outputs = []map[string]any{output}
+				operation = "Set JSON projection"
+			case node.SetValues != nil:
+				values := cloneMap(node.SetValues)
+				for key, path := range node.SetProjections {
+					if value, ok := jsonPathValue(input, path); ok {
+						values[key] = value
+					}
+				}
+				for key, expression := range node.SetExpressions {
+					value, expressionErr := executeSafeExpression(expression, input, now)
+					if expressionErr != nil {
+						return last, fmt.Errorf("Set expression %s failed in safe interpreter: %w", key, expressionErr)
+					}
+					values[key] = value
+				}
+				if node.SetIncludeInput {
+					output = mergeMaps([]map[string]any{input, values})
+				} else {
+					output = values
+				}
+				outputs = []map[string]any{output}
+				operation = "Set bounded assignments"
+			case node.SplitField != "":
+				value, ok := jsonPathValue(input, node.SplitField)
+				items, isArray := value.([]any)
+				if !ok || !isArray || len(items) > 10000 {
+					return last, fmt.Errorf("Split Out field %s is missing, not an array, or over the 10000-item bound", node.SplitField)
+				}
+				outputs = make([]map[string]any, 0, len(items))
+				for _, item := range items {
+					object, ok := item.(map[string]any)
+					if !ok {
+						return last, fmt.Errorf("Split Out field %s contains a non-object item", node.SplitField)
+					}
+					outputs = append(outputs, cloneMap(object))
+				}
+				responseSummary = fmt.Sprintf("split into %d synthetic items", len(outputs))
+				operation = "Split Out " + node.SplitField
+			case len(node.SwitchRules) > 0:
+				outputPort = -1
+				for _, rule := range node.SwitchRules {
+					if evaluateCondition(rule.Condition, input) {
+						outputPort = rule.OutputPort
+						break
+					}
+				}
+				operation = "Switch"
+			case node.SubworkflowID != "":
+				child := workflow.Subworkflows[node.SubworkflowID]
+				if child == nil {
+					return last, fmt.Errorf("subworkflow %s is not in the import bundle", node.SubworkflowID)
+				}
+				entry := child.SubworkflowEntryID
+				if entry == "" {
+					return last, fmt.Errorf("subworkflow %s has no Execute Workflow Trigger", child.ID)
+				}
+				nested, err := executeWorkflowEntry(ctx, *child, entry, input, simulator, injectFault, now, trace, stack, depth+1)
+				if err != nil {
+					return last, err
+				}
+				output = mergeMaps([]map[string]any{input, nested})
+				outputs = []map[string]any{output}
+				operation = "Execute Workflow " + child.ID
+			case node.Trigger == TriggerError:
+				operation = "Error Trigger"
+			case node.Trigger == TriggerSubworkflow:
+				operation = "Execute Workflow Trigger"
+			case node.Type == "n8n-nodes-base.respondToWebhook":
+				operation = "Respond to Webhook"
+			case node.Type == "n8n-nodes-base.stickyNote":
+				operation = "Non-executable Note"
+			case node.Trigger != "":
+				operation = string(node.Trigger) + " Trigger"
+			case node.Type == "n8n-nodes-base.noOp":
+				operation = "No Operation"
+			}
+			*trace = append(*trace, TraceEvent{Sequence: uint32(len(*trace) + 1), Operation: workflow.ID + "/" + operation, RequestSummary: node.Name, ResponseSummary: responseSummary, Status: "succeeded", OccurredAt: now.UTC()})
+			last = output
+			nodeOutputs = append(nodeOutputs, cloneMapSlice(outputs)...)
+			if captured != nil && id == captureNode {
+				*captured = cloneMapSlice(outputs)
+			}
+			for _, edge := range workflow.Connections {
+				if edge.From == id && edge.OutputPort == outputPort {
+					for _, item := range outputs {
+						inputs[edge.To] = append(inputs[edge.To], cloneMap(item))
+					}
+				}
 			}
 		}
+		priorNodeOutputs[node.Name] = nodeOutputs
 	}
 	return last, nil
 }
 
-func projectedValue(input map[string]any, path string) map[string]any {
+func aggregateItems(items []map[string]any, node WorkflowNode) (map[string]any, error) {
+	if len(items) > maxSyntheticItems {
+		return nil, fmt.Errorf("input item count exceeds %d", maxSyntheticItems)
+	}
+	encoded, err := json.Marshal(items)
+	if err != nil {
+		return nil, err
+	}
+	if len(encoded) > maxSafeCodeInputBytes {
+		return nil, fmt.Errorf("input byte bound exceeded")
+	}
+	result := make(map[string]any, len(node.AggregateFields))
+	for _, field := range node.AggregateFields {
+		values := make([]any, 0, len(items))
+		for _, item := range items {
+			var value any
+			var ok bool
+			if node.AggregateDisableDotNotation {
+				value, ok = item[field.InputPath]
+			} else {
+				value, ok = jsonPathValue(item, field.InputPath)
+			}
+			if !ok || value == nil {
+				if node.AggregateKeepMissing {
+					values = append(values, nil)
+				}
+				continue
+			}
+			if list, ok := value.([]any); ok && node.AggregateMergeLists {
+				values = append(values, list...)
+				if len(values) > maxSyntheticItems {
+					return nil, fmt.Errorf("aggregated list exceeds item bound")
+				}
+			} else {
+				values = append(values, value)
+			}
+			if len(values) > maxSyntheticItems {
+				return nil, fmt.Errorf("aggregated field exceeds item bound")
+			}
+		}
+		result[field.OutputName] = values
+	}
+	encoded, err = json.Marshal(result)
+	if err != nil {
+		return nil, err
+	}
+	if len(encoded) > maxSafeCodeOutputBytes {
+		return nil, fmt.Errorf("output byte bound exceeded")
+	}
+	return result, nil
+}
+
+func jsonPathValue(input map[string]any, path string) (any, bool) {
 	var value any = input
-	for _, component := range strings.Split(path, ".") {
+	parts, ok := parseJSONPath(path)
+	if !ok {
+		return nil, false
+	}
+	for _, component := range parts {
+		if component.isIndex {
+			array, ok := value.([]any)
+			if !ok || component.index >= len(array) {
+				return nil, false
+			}
+			value = array[component.index]
+			continue
+		}
 		object, ok := value.(map[string]any)
 		if !ok {
-			return map[string]any{}
+			return nil, false
 		}
-		value, ok = object[component]
+		value, ok = object[component.key]
 		if !ok {
-			return map[string]any{}
+			return nil, false
 		}
+	}
+	return value, true
+}
+
+func projectedValue(input map[string]any, path string) map[string]any {
+	value, ok := jsonPathValue(input, path)
+	if !ok {
+		return map[string]any{}
 	}
 	if object, ok := value.(map[string]any); ok {
 		return cloneMap(object)
@@ -208,9 +465,16 @@ func invokeWithRetry(ctx context.Context, simulator Simulator, step Step, inject
 }
 
 func topologicalOrder(workflow Workflow) ([]string, error) {
+	feedbackEdges, err := loopFeedbackEdges(workflow)
+	if err != nil {
+		return nil, err
+	}
 	indegree := make(map[string]int, len(workflow.Nodes))
 	outgoing := make(map[string][]string, len(workflow.Nodes))
 	for _, edge := range workflow.Connections {
+		if feedbackEdges[edge] {
+			continue
+		}
 		indegree[edge.To]++
 		outgoing[edge.From] = append(outgoing[edge.From], edge.To)
 	}
@@ -254,21 +518,35 @@ func (workflow Workflow) NodesByID() map[string]WorkflowNode {
 }
 
 func syntheticTriggerInput(kind TriggerKind) map[string]any {
-	return map[string]any{"id": "synthetic-001", "status": "active", "source": string(kind), "email": "avery@example.invalid", "body": map[string]any{"action": "edited", "id": "synthetic-001"}}
+	action := "edited"
+	if kind == TriggerWebhook {
+		// A synthetic list event is a bounded, read-only sample for webhook APIs.
+		action = "list"
+	}
+	input := map[string]any{"id": "synthetic-001", "status": "active", "source": string(kind), "email": "avery@example.invalid", "body": map[string]any{"action": action, "id": "synthetic-001"}}
+	if kind == TriggerPolling {
+		// A generic row sample lets polling-trigger workflows exercise their
+		// dataflow using synthetic values, independent of a particular template.
+		input["Name"] = "Synthetic Lead"
+		input["Email"] = "lead@example.invalid"
+		input["Status"] = "New"
+		input["Tag"] = "unprocessed"
+	}
+	return input
 }
 
 func evaluateCondition(condition Condition, input map[string]any) bool {
-	var value any = input
-	for _, component := range strings.Split(condition.Path, ".") {
-		object, ok := value.(map[string]any)
-		if !ok {
-			return false
-		}
-		value = object[component]
+	value, ok := jsonPathValue(input, condition.Path)
+	if !ok {
+		return false
 	}
 	left := fmt.Sprint(value)
 	right := fmt.Sprint(condition.Value)
 	switch condition.Operator {
+	case "true":
+		return value == true
+	case "false":
+		return value == false
 	case "equals":
 		return left == right
 	case "notEquals":
@@ -314,6 +592,14 @@ func cloneMap(input map[string]any) map[string]any {
 	return result
 }
 
+func cloneMapSlice(input []map[string]any) []map[string]any {
+	result := make([]map[string]any, 0, len(input))
+	for _, item := range input {
+		result = append(result, cloneMap(item))
+	}
+	return result
+}
+
 func cloneSet(input map[string]bool) map[string]bool {
 	result := make(map[string]bool, len(input)+1)
 	for key, value := range input {
@@ -328,4 +614,35 @@ func decodeObject(raw string) map[string]any {
 		return result
 	}
 	return result
+}
+
+// decodeSimulatorItems accepts the two generic n8n output shapes used by
+// service profiles: a single JSON object or a bounded array of item objects.
+func decodeSimulatorItems(raw string) ([]map[string]any, error) {
+	if len(raw) > maxSafeCodeInputBytes {
+		return nil, fmt.Errorf("response byte bound exceeded")
+	}
+	var value any
+	if err := json.Unmarshal([]byte(raw), &value); err != nil {
+		return nil, fmt.Errorf("response must be JSON: %w", err)
+	}
+	switch typed := value.(type) {
+	case map[string]any:
+		return []map[string]any{typed}, nil
+	case []any:
+		if len(typed) > maxSyntheticItems {
+			return nil, fmt.Errorf("response item count exceeds %d", maxSyntheticItems)
+		}
+		items := make([]map[string]any, 0, len(typed))
+		for index, rawItem := range typed {
+			item, ok := rawItem.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("response item %d must be an object", index)
+			}
+			items = append(items, item)
+		}
+		return items, nil
+	default:
+		return nil, fmt.Errorf("response must be an object or array of objects")
+	}
 }

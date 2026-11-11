@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,6 +19,8 @@ import (
 
 const maxSimulatorRequestBytes = 512 * 1024
 const maxSimulatorSourceBytes = 2 * 1024 * 1024
+const maxSandboxProfileResponseBytes = 64 * 1024
+const maxSandboxProfileTotalResponseBytes = 1024 * 1024
 
 const defaultSimulatorSource = `{"kind":"openapi-catalog","services":[{"id":"crm","document":{"openapi":"3.0.3","info":{"title":"Synthetic CRM","version":"1"},"servers":[{"url":"https://crm.synthetic.invalid"}],"paths":{"/v1/contacts":{"post":{"responses":{"200":{"content":{"application/json":{"example":{"id":"contact_synthetic_001","status":"upserted"}}}}}}}}}},{"id":"sheets","document":{"openapi":"3.0.3","info":{"title":"Synthetic Sheets","version":"1"},"servers":[{"url":"https://sheets.synthetic.invalid"}],"paths":{"/v1/spreadsheets/{sheetId}/rows":{"post":{"responses":{"200":{"content":{"application/json":{"example":{"updatedRange":"A2:B2","status":"appended"}}}}}}}}}}]}`
 
@@ -51,6 +54,40 @@ func simulatorSourceSHA256(raw string) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
+// HTTPMockProfile mirrors the bounded Workspace Sandbox declaration format.
+// It is emitted from generic API descriptions so callers can persist/start the
+// same exact synthetic operations outside the in-process simulator.
+type HTTPMockProfile struct {
+	SchemaVersion uint32                     `json:"schemaVersion"`
+	Operations    []HTTPMockProfileOperation `json:"operations"`
+}
+
+type HTTPMockProfileOperation struct {
+	Selector HTTPMockProfileSelector `json:"selector"`
+	Route    HTTPMockRoute           `json:"route"`
+}
+
+type HTTPMockProfileSelector struct {
+	NodeType  string `json:"nodeType"`
+	Resource  string `json:"resource"`
+	Operation string `json:"operation"`
+}
+
+type HTTPMockRoute struct {
+	Host        string `json:"host"`
+	Method      string `json:"method"`
+	Path        string `json:"path"`
+	Status      int    `json:"status"`
+	ContentType string `json:"contentType"`
+	Body        string `json:"body"`
+}
+
+var (
+	sandboxProfileNodeTypePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9._-]{0,127}$`)
+	sandboxProfilePartPattern     = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,63}$`)
+	sandboxProfilePathPartPattern = regexp.MustCompile(`^[A-Za-z0-9._~-]+$`)
+)
+
 type DescriptionSimulator struct {
 	kind         string
 	services     []apiDescription
@@ -64,7 +101,7 @@ type apiDescription struct {
 	hosts            []string
 	basePaths        map[string]string
 	paths            map[string]map[string]any
-	nativeOperations map[string]Step
+	nativeOperations map[string][]Step
 }
 
 // NewDescriptionSimulator builds a simulator from inert OpenAPI descriptions
@@ -132,16 +169,183 @@ func NewDescriptionSimulator(raw string, injectFault bool) (*DescriptionSimulato
 	default:
 		return nil, ErrInvalid{Field: "simulator_source_json.kind", Reason: "must be openapi, openapi-catalog, or recorded-exchanges"}
 	}
-	bindings := map[string]string{}
+	type bindingOwner struct {
+		service string
+		step    Step
+	}
+	bindings := map[string][]bindingOwner{}
 	for _, service := range sim.services {
-		for key := range service.nativeOperations {
-			if previous, exists := bindings[key]; exists {
-				return nil, ErrInvalid{Field: "simulator_source_json.services", Reason: fmt.Sprintf("native operation mapping %q is ambiguous across services %q and %q", key, previous, service.id)}
+		for key, candidates := range service.nativeOperations {
+			for _, candidate := range candidates {
+				for _, previous := range bindings[key] {
+					if inputMatchesOverlap(previous.step.InputMatch, candidate.InputMatch) {
+						return nil, ErrInvalid{Field: "simulator_source_json.services", Reason: fmt.Sprintf("native operation mapping %q has overlapping input selectors across services %q and %q", key, previous.service, service.id)}
+					}
+				}
+				bindings[key] = append(bindings[key], bindingOwner{service: service.id, step: candidate})
 			}
-			bindings[key] = service.id
 		}
 	}
 	return sim, nil
+}
+
+// ExportHTTPMockProfile derives exact static routes from OpenAPI operations
+// explicitly bound to n8n node/resource/operation selectors. It refuses
+// parameterized paths, non-synthetic hosts, duplicate routes, and non-catalog
+// sources. Recorded exchanges do not carry selectors and cannot be exported
+// without an explicit API-description binding.
+func (s *DescriptionSimulator) ExportHTTPMockProfile() (HTTPMockProfile, error) {
+	if s == nil || len(s.services) == 0 {
+		return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export requires an OpenAPI API catalog"}
+	}
+	profile := HTTPMockProfile{SchemaVersion: 1}
+	for _, service := range s.services {
+		if len(service.nativeOperations) == 0 {
+			continue
+		}
+		if len(service.hosts) != 1 {
+			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.servers", Reason: "native API operation export requires exactly one declared host per service"}
+		}
+		host := service.hosts[0]
+		if !strings.HasSuffix(host, ".synthetic.invalid") {
+			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.servers", Reason: "HTTP mock export requires synthetic.invalid hosts"}
+		}
+		for _, candidateBindings := range service.nativeOperations {
+			for _, binding := range candidateBindings {
+				if len(binding.InputMatch) > 0 {
+					return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.document.paths", Reason: "HTTP mock export does not yet preserve input-conditioned native selectors"}
+				}
+				if strings.ContainsAny(binding.URL, "{}?#%\\") || !strings.HasPrefix(binding.URL, "/") {
+					return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.paths", Reason: "HTTP mock export requires exact static paths"}
+				}
+				pathItem := service.paths[binding.URL]
+				if hasQueryParameter(pathItem) {
+					return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.parameters", Reason: "HTTP mock export does not yet support variable query parameters"}
+				}
+				operation, ok := matchOpenAPIOperation(service.paths, binding.Method, binding.URL)
+				if !ok {
+					return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.paths", Reason: "bound API operation is missing"}
+				}
+				responses, _ := operation["responses"].(map[string]any)
+				status, raw := firstSuccessResponse(responses)
+				if raw == nil {
+					return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.responses", Reason: "HTTP mock export requires a successful response fixture"}
+				}
+				response, _ := raw.(map[string]any)
+				content, _ := response["content"].(map[string]any)
+				jsonContent, _ := content["application/json"].(map[string]any)
+				var value any
+				if example, exists := jsonContent["example"]; exists {
+					value = example
+				} else if schema, exists := jsonContent["schema"].(map[string]any); exists && len(schema) > 0 {
+					value = syntheticValue(schema)
+				} else if len(jsonContent) > 0 {
+					value = map[string]any{"status": "synthetic-success"}
+				} else {
+					return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.responses", Reason: "HTTP mock export supports only JSON response fixtures"}
+				}
+				if containsSecretKey(value) {
+					return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.responses", Reason: "HTTP mock response contains a credential-shaped field"}
+				}
+				body := responseString(syntheticize(value, ""))
+				path := strings.TrimSuffix(service.basePaths[host], "/") + binding.URL
+				profile.Operations = append(profile.Operations, HTTPMockProfileOperation{
+					Selector: HTTPMockProfileSelector{NodeType: binding.NodeType, Resource: binding.Resource, Operation: binding.Action},
+					Route:    HTTPMockRoute{Host: host, Method: binding.Method, Path: path, Status: status, ContentType: "application/json", Body: body},
+				})
+			}
+		}
+	}
+	if len(profile.Operations) == 0 || len(profile.Operations) > 128 {
+		return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export requires 1 to 128 bound operations"}
+	}
+	sort.Slice(profile.Operations, func(i, j int) bool {
+		return workspaceProfileSelectorSortKey(profile.Operations[i].Selector) < workspaceProfileSelectorSortKey(profile.Operations[j].Selector)
+	})
+	routes := map[string]bool{}
+	selectors := map[string]bool{}
+	totalResponseBytes := 0
+	for _, operation := range profile.Operations {
+		selector := operation.Selector
+		if !sandboxProfileNodeTypePattern.MatchString(selector.NodeType) || !sandboxProfilePartPattern.MatchString(selector.Resource) || !sandboxProfilePartPattern.MatchString(selector.Operation) {
+			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export contains an unsupported native selector"}
+		}
+		route := operation.Route
+		totalResponseBytes += len(route.Body)
+		if !validSandboxProfilePath(route.Path) || !oneOfFold(route.Method, http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions) || route.Status < 200 || route.Status >= 300 || len(route.Body) > maxSandboxProfileResponseBytes || totalResponseBytes > maxSandboxProfileTotalResponseBytes || route.ContentType != "application/json" {
+			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export contains an unsupported static route or response"}
+		}
+		selectorKey := nativeOperationKey(selector.NodeType, selector.Resource, selector.Operation)
+		routeKey := route.Method + " " + route.Host + " " + route.Path
+		if selectors[selectorKey] || routes[routeKey] {
+			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export has duplicate selectors or exact routes"}
+		}
+		selectors[selectorKey], routes[routeKey] = true, true
+	}
+	encoded, err := json.Marshal(profile)
+	if err != nil || len(encoded) > maxSimulatorSourceBytes {
+		return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export exceeds the 2 MiB profile bound"}
+	}
+	return profile, nil
+}
+
+func validSandboxProfilePath(path string) bool {
+	if len(path) == 0 || len(path) > 2048 || !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "?#%\\\x00") {
+		return false
+	}
+	for _, segment := range strings.Split(path, "/") {
+		if segment == "." || segment == ".." || (segment != "" && !sandboxProfilePathPartPattern.MatchString(segment)) {
+			return false
+		}
+	}
+	return true
+}
+
+func hasQueryParameter(pathItem map[string]any) bool {
+	for _, raw := range []any{pathItem["parameters"]} {
+		if parameterListHasQuery(raw) {
+			return true
+		}
+	}
+	for _, rawOperation := range pathItem {
+		operation, ok := rawOperation.(map[string]any)
+		if !ok {
+			continue
+		}
+		if parameterListHasQuery(operation["parameters"]) {
+			return true
+		}
+	}
+	return false
+}
+
+func parameterListHasQuery(raw any) bool {
+	parameters, _ := raw.([]any)
+	for _, item := range parameters {
+		parameter, _ := item.(map[string]any)
+		if location, _ := parameter["in"].(string); strings.EqualFold(location, "query") {
+			return true
+		}
+	}
+	return false
+}
+
+func containsSecretKey(value any) bool {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			if secretKey(key) || containsSecretKey(child) {
+				return true
+			}
+		}
+	case []any:
+		for _, child := range typed {
+			if containsSecretKey(child) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func validSimulatorHost(host string) bool {
@@ -177,11 +381,12 @@ func (s *DescriptionSimulator) takeFault() bool {
 func (s *DescriptionSimulator) resolve(step Step) (int, string) {
 	if step.NodeType != "" {
 		for _, service := range s.services {
-			operation, ok := service.nativeOperations[nativeOperationKey(step.NodeType, step.Resource, step.Action)]
-			if !ok {
-				continue
+			candidates := service.nativeOperations[nativeOperationKey(step.NodeType, step.Resource, step.Action)]
+			for _, operation := range candidates {
+				if inputMatches(operation.InputMatch, step.Input) {
+					return resolveDescriptionOperation(service, operation.Method, operation.URL)
+				}
 			}
-			return resolveDescriptionOperation(service, operation.Method, operation.URL)
 		}
 		return http.StatusNotFound, `{"error":"no matching synthetic native service operation"}`
 	}
@@ -241,6 +446,72 @@ func nativeOperationKey(nodeType, resource, action string) string {
 	return strings.ToLower(strings.TrimSpace(nodeType)) + "|" + strings.ToLower(strings.TrimSpace(resource)) + "|" + strings.ToLower(strings.TrimSpace(action))
 }
 
+func parseNativeInputMatch(raw any) (map[string]any, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	match, ok := raw.(map[string]any)
+	if !ok || len(match) == 0 || len(match) > 16 {
+		return nil, ErrInvalid{Field: "simulator_source_json.x-n8n-input-match", Reason: "must be an object with 1 to 16 exact scalar selectors"}
+	}
+	validated := make(map[string]any, len(match))
+	for key, value := range match {
+		trimmedKey := strings.TrimSpace(key)
+		if trimmedKey == "" || len(key) > 64 || strings.ContainsAny(key, ".[]") || key != trimmedKey {
+			return nil, ErrInvalid{Field: "simulator_source_json.x-n8n-input-match", Reason: "selector keys must be short top-level input field names"}
+		}
+		key = trimmedKey
+		switch typed := value.(type) {
+		case string:
+			if typed == "" || len(typed) > 512 || strings.ContainsRune(typed, '\x00') {
+				return nil, ErrInvalid{Field: "simulator_source_json.x-n8n-input-match", Reason: "string selector values must be nonempty and at most 512 bytes"}
+			}
+		case bool, float64:
+		default:
+			return nil, ErrInvalid{Field: "simulator_source_json.x-n8n-input-match", Reason: "selector values must be strings, numbers, or booleans"}
+		}
+		validated[key] = value
+	}
+	return validated, nil
+}
+
+func inputMatches(match, input map[string]any) bool {
+	for key, want := range match {
+		got, ok := input[key]
+		if !ok || !sameSimulatorScalar(got, want) {
+			return false
+		}
+	}
+	return true
+}
+
+// Two predicates overlap when no shared field excludes a common input. Empty
+// predicates are unconditional and therefore overlap every binding.
+func inputMatchesOverlap(left, right map[string]any) bool {
+	for key, leftValue := range left {
+		if rightValue, exists := right[key]; exists && !sameSimulatorScalar(leftValue, rightValue) {
+			return false
+		}
+	}
+	return true
+}
+
+func sameSimulatorScalar(left, right any) bool {
+	switch leftValue := left.(type) {
+	case string:
+		rightValue, ok := right.(string)
+		return ok && leftValue == rightValue
+	case bool:
+		rightValue, ok := right.(bool)
+		return ok && leftValue == rightValue
+	case float64:
+		rightValue, ok := right.(float64)
+		return ok && leftValue == rightValue
+	default:
+		return false
+	}
+}
+
 func firstSuccessResponse(responses map[string]any) (int, any) {
 	keys := make([]string, 0, len(responses))
 	for key := range responses {
@@ -264,7 +535,7 @@ func parseAPIDescription(id string, doc map[string]any) (apiDescription, error) 
 	if len(paths) == 0 {
 		return apiDescription{}, ErrInvalid{Field: "simulator_source_json.document.paths", Reason: "OpenAPI document requires paths"}
 	}
-	service := apiDescription{id: id, paths: map[string]map[string]any{}, basePaths: map[string]string{}, nativeOperations: map[string]Step{}}
+	service := apiDescription{id: id, paths: map[string]map[string]any{}, basePaths: map[string]string{}, nativeOperations: map[string][]Step{}}
 	servers, _ := doc["servers"].([]any)
 	for _, raw := range servers {
 		item, _ := raw.(map[string]any)
@@ -294,6 +565,10 @@ func parseAPIDescription(id string, doc map[string]any) (apiDescription, error) 
 				nodeType, _ := operation["x-n8n-node-type"].(string)
 				resource, _ := operation["x-n8n-resource"].(string)
 				action, _ := operation["x-n8n-operation"].(string)
+				inputMatch, matchErr := parseNativeInputMatch(operation["x-n8n-input-match"])
+				if matchErr != nil {
+					return apiDescription{}, matchErr
+				}
 				if nodeType == "" && resource == "" && action == "" {
 					continue
 				}
@@ -301,10 +576,12 @@ func parseAPIDescription(id string, doc map[string]any) (apiDescription, error) 
 					return apiDescription{}, ErrInvalid{Field: "simulator_source_json.document.paths", Reason: "native operation extensions require an n8n service node type, resource, and operation"}
 				}
 				key := nativeOperationKey(nodeType, resource, action)
-				if _, exists := service.nativeOperations[key]; exists {
-					return apiDescription{}, ErrInvalid{Field: "simulator_source_json.document.paths", Reason: "native node/resource/operation mappings must be unique per service"}
+				for _, previous := range service.nativeOperations[key] {
+					if inputMatchesOverlap(previous.InputMatch, inputMatch) {
+						return apiDescription{}, ErrInvalid{Field: "simulator_source_json.document.paths", Reason: "native operation input selectors must be disjoint"}
+					}
 				}
-				service.nativeOperations[key] = Step{Operation: key, NodeType: nodeType, Resource: resource, Action: action, Method: strings.ToUpper(method), URL: path}
+				service.nativeOperations[key] = append(service.nativeOperations[key], Step{Operation: key, NodeType: nodeType, Resource: resource, Action: action, Method: strings.ToUpper(method), URL: path, InputMatch: inputMatch})
 			}
 		}
 	}
@@ -346,12 +623,13 @@ func (s *DescriptionSimulator) sourceFingerprint() any {
 		Method []string `json:"methods"`
 	}
 	type nativeOperationShape struct {
-		Service  string `json:"service"`
-		NodeType string `json:"node_type"`
-		Resource string `json:"resource"`
-		Action   string `json:"action"`
-		Method   string `json:"method"`
-		Path     string `json:"path"`
+		Service    string         `json:"service"`
+		NodeType   string         `json:"node_type"`
+		Resource   string         `json:"resource"`
+		Action     string         `json:"action"`
+		Method     string         `json:"method"`
+		Path       string         `json:"path"`
+		InputMatch map[string]any `json:"input_match,omitempty"`
 	}
 	operations := make([]operationShape, 0)
 	nativeOperations := make([]nativeOperationShape, 0)
@@ -374,8 +652,10 @@ func (s *DescriptionSimulator) sourceFingerprint() any {
 				operations = append(operations, operationShape{Path: path, Method: methods})
 			}
 		}
-		for _, binding := range service.nativeOperations {
-			nativeOperations = append(nativeOperations, nativeOperationShape{Service: service.id, NodeType: binding.NodeType, Resource: binding.Resource, Action: binding.Action, Method: binding.Method, Path: binding.URL})
+		for _, candidates := range service.nativeOperations {
+			for _, binding := range candidates {
+				nativeOperations = append(nativeOperations, nativeOperationShape{Service: service.id, NodeType: binding.NodeType, Resource: binding.Resource, Action: binding.Action, Method: binding.Method, Path: binding.URL, InputMatch: binding.InputMatch})
+			}
 		}
 	}
 	sort.Slice(nativeOperations, func(i, j int) bool {
@@ -413,6 +693,14 @@ func syntheticize(value any, key string) any {
 	case string:
 		lower := strings.ToLower(key)
 		switch {
+		case lower == "type" && (typed == "person" || typed == "bot"):
+			// Preserve these low-risk category enums so generic Switch nodes can
+			// exercise people-vs-automation paths without retaining identity data.
+			return typed
+		case strings.Contains(lower, "status") && oneOfFold(typed, "To develop", "Done", "In progress", "active", "completed", "open", "closed"):
+			// Recognized workflow-state enums carry branch meaning but no identity
+			// or secret material. Other status strings remain syntheticized below.
+			return typed
 		case strings.Contains(lower, "email"):
 			return "person@example.invalid"
 		case lower == "id" || strings.HasSuffix(lower, "id"):
@@ -433,6 +721,15 @@ func syntheticize(value any, key string) any {
 	default:
 		return typed
 	}
+}
+
+func oneOfFold(value string, candidates ...string) bool {
+	for _, candidate := range candidates {
+		if strings.EqualFold(value, candidate) {
+			return true
+		}
+	}
+	return false
 }
 
 // ServeHTTP is the future companion-service bridge for n8n HTTP/API nodes.

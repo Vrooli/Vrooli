@@ -51,6 +51,58 @@ func TestWorkflowFingerprintIncludesNativeOperationAndSetProjection(t *testing.T
 	}
 }
 
+func TestNormalizeManualSetAndSplitOutUsesBoundedStaticSelectors(t *testing.T) {
+	base := `{"nodes":[{"name":"Manual","type":"n8n-nodes-base.manualTrigger","parameters":{}},{"name":"Settings","type":"n8n-nodes-base.set","parameters":{"mode":"manual","includeOtherFields":false,"assignments":{"assignments":[{"name":"account","type":"string","value":"synthetic-account"}]} }},{"name":"Split","type":"n8n-nodes-base.splitOut","parameters":{"fieldToSplitOut":"payload.items","include":"noOtherFields"}}],"connections":{"Manual":{"main":[[{"node":"Settings"}]]},"Settings":{"main":[[{"node":"Split"}]]}}}`
+	workflow, firstHash, _, err := normalizeWorkflow(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if workflow.Nodes[1].SetValues["account"] != "synthetic-account" || workflow.Nodes[1].SetIncludeInput || workflow.Nodes[2].SplitField != "payload.items" {
+		t.Fatalf("unexpected normalized manual Set or Split Out nodes: %#v", workflow.Nodes)
+	}
+	changedValue := strings.Replace(base, "synthetic-account", "another-account", 1)
+	_, changedHash, _, err := normalizeWorkflow(changedValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstHash == changedHash {
+		t.Fatal("manual Set value changes must change the sanitized workflow fingerprint")
+	}
+	changedSplit := strings.Replace(base, "payload.items", "payload.entries", 1)
+	_, splitHash, _, err := normalizeWorkflow(changedSplit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if firstHash == splitHash {
+		t.Fatal("Split Out path changes must change the sanitized workflow fingerprint")
+	}
+	projection := strings.Replace(base, `"value":"synthetic-account"`, `"value":"={{ $json.account }}"`, 1)
+	projected, projectionHash, _, err := normalizeWorkflow(projection)
+	if err != nil {
+		t.Fatalf("simple JSON-path Set projection should be supported: %v", err)
+	}
+	if projectionHash == firstHash || projected.Nodes[1].SetProjections["account"] != "account" {
+		t.Fatalf("expected projection path to be normalized and fingerprinted: %#v", projected.Nodes[1])
+	}
+	for _, unsafe := range []string{
+		strings.Replace(base, `"value":"synthetic-account"`, `"value":"={{ $json.account + process.env.SECRET }}"`, 1),
+	} {
+		if _, _, _, err := normalizeWorkflow(unsafe); err == nil {
+			t.Fatal("expected executable Set expression or indexed Split Out path to fail closed")
+		}
+	}
+	indexed := strings.Replace(base, `"fieldToSplitOut":"payload.items"`, `"fieldToSplitOut":"payload.items[0]"`, 1)
+	parsed, _, _, err := normalizeWorkflow(indexed)
+	if err != nil || parsed.Nodes[2].SplitField != "payload.items[0]" {
+		t.Fatalf("bounded static array path should be supported: %#v %v", parsed, err)
+	}
+	for _, oversized := range []string{"payload.items[101]", "payload.items[9999]", "payload.items[one]"} {
+		if validJSONPath(oversized) {
+			t.Fatalf("unsafe array path %q accepted", oversized)
+		}
+	}
+}
+
 func TestNormalizeWorkflowClassifiesTriggerFamilies(t *testing.T) {
 	cases := []struct {
 		typeName string
@@ -92,6 +144,33 @@ func TestNormalizeWorkflowRejectsExportAboveBound(t *testing.T) {
 	tooLarge := strings.Repeat(" ", maxWorkflowBytes+1)
 	if _, _, _, err := normalizeWorkflow(tooLarge); err == nil {
 		t.Fatal("expected the bounded importer to reject an oversized export")
+	}
+}
+
+func TestClassifyPostgresStatementRetainsOnlyOneSafeQueryVerb(t *testing.T) {
+	for _, test := range []struct {
+		query string
+		want  string
+	}{
+		{"SELECT * FROM jobs", "select"},
+		{"INSERT INTO jobs (title) VALUES ('synthetic')", "insert"},
+		{"UPDATE jobs SET status = 'closed'", "update"},
+		{"DELETE FROM jobs WHERE id = 'synthetic'", "delete"},
+	} {
+		got, ok := classifyPostgresStatement(test.query)
+		if !ok || got != test.want {
+			t.Errorf("classifyPostgresStatement(%q) = %q, %v; want %q, true", test.query, got, ok, test.want)
+		}
+	}
+	for _, query := range []string{
+		"DROP TABLE jobs",
+		"SELECT * FROM jobs; DELETE FROM jobs",
+		"={{ $json.query }}",
+		strings.Repeat("x", 16*1024+1),
+	} {
+		if got, ok := classifyPostgresStatement(query); ok {
+			t.Errorf("classifyPostgresStatement(%q) = %q, true; want rejection", query, got)
+		}
 	}
 }
 

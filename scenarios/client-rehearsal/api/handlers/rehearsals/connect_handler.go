@@ -24,7 +24,7 @@ func NewConnectHandler(service internal.Service, logger *log.Logger) *ConnectHan
 }
 
 func (h *ConnectHandler) CreateAndRunRehearsal(ctx context.Context, req *connect.Request[v1.CreateAndRunRehearsalRequest]) (*connect.Response[v1.CreateAndRunRehearsalResponse], error) {
-	item, err := h.service.CreateAndRun(ctx, internal.CreateInput{Title: req.Msg.Title, WorkflowJSON: req.Msg.WorkflowJson, TriggerNodeID: req.Msg.TriggerNodeId, SimulatorProfile: req.Msg.SimulatorProfile, SimulatorSourceJSON: req.Msg.SimulatorSourceJson, InjectSeededFault: req.Msg.InjectSeededFault})
+	item, err := h.service.CreateAndRun(ctx, internal.CreateInput{Title: req.Msg.Title, WorkflowJSON: req.Msg.WorkflowJson, TriggerNodeID: req.Msg.TriggerNodeId, SimulatorProfile: req.Msg.SimulatorProfile, SimulatorSourceJSON: req.Msg.SimulatorSourceJson, InjectSeededFault: req.Msg.InjectSeededFault, RequiredOutputPaths: req.Msg.RequiredOutputPaths, RepairOfID: req.Msg.RepairOfId})
 	if err != nil {
 		return nil, toConnectError(err)
 	}

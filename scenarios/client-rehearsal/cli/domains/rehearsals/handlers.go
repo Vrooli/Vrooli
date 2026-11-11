@@ -21,7 +21,11 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	return &handlers{client: connectclient.NewRehearsalServiceClient(httpClient, baseURL)}
 }
 func (h *handlers) createCall(ctx cliapp.OperationContext) (*v1.CreateAndRunRehearsalResponse, error) {
-	resp, err := h.client.CreateAndRunRehearsal(context.Background(), connect.NewRequest(&v1.CreateAndRunRehearsalRequest{Title: ctx.Flag("title"), WorkflowJson: ctx.Flag("workflow-json"), TriggerNodeId: ctx.Flag("trigger-node-id"), SimulatorSourceJson: ctx.Flag("simulator-source-json"), InjectSeededFault: ctx.Flag("inject-seeded-fault") == "true"}))
+	var requiredOutputPaths []string
+	if raw := strings.TrimSpace(ctx.Flag("required-output-paths")); raw != "" {
+		requiredOutputPaths = strings.Split(raw, ",")
+	}
+	resp, err := h.client.CreateAndRunRehearsal(context.Background(), connect.NewRequest(&v1.CreateAndRunRehearsalRequest{Title: ctx.Flag("title"), WorkflowJson: ctx.Flag("workflow-json"), TriggerNodeId: ctx.Flag("trigger-node-id"), SimulatorSourceJson: ctx.Flag("simulator-source-json"), InjectSeededFault: ctx.Flag("inject-seeded-fault") == "true", RequiredOutputPaths: requiredOutputPaths, RepairOfId: ctx.Flag("repair-of-id")}))
 	if err != nil {
 		return nil, cliapp.WrapAPIError("create and run rehearsal", err, nil)
 	}

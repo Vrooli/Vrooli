@@ -5,15 +5,33 @@
       "id": "supabase",
       "document": {
         "openapi": "3.0.3",
-        "info": { "title": "Synthetic Supabase Row API", "version": "1" },
-        "servers": [{ "url": "https://supabase.synthetic.invalid" }],
+        "info": {
+          "title": "Synthetic Supabase Row API",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://supabase.synthetic.invalid"
+          }
+        ],
         "paths": {
           "/v1/rows/get": {
             "get": {
               "x-n8n-node-type": "n8n-nodes-base.supabase",
               "x-n8n-resource": "row",
               "x-n8n-operation": "get",
-              "responses": { "200": { "content": { "application/json": { "example": { "id": "row_synthetic_001", "status": "found" } } } } }
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "id": "row_synthetic_001",
+                        "status": "found"
+                      }
+                    }
+                  }
+                }
+              }
             }
           },
           "/v1/rows/create": {
@@ -21,7 +39,18 @@
               "x-n8n-node-type": "n8n-nodes-base.supabase",
               "x-n8n-resource": "row",
               "x-n8n-operation": "create",
-              "responses": { "201": { "content": { "application/json": { "example": { "id": "row_synthetic_002", "status": "created" } } } } }
+              "responses": {
+                "201": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "id": "row_synthetic_002",
+                        "status": "created"
+                      }
+                    }
+                  }
+                }
+              }
             }
           },
           "/v1/rows/update": {
@@ -29,7 +58,18 @@
               "x-n8n-node-type": "n8n-nodes-base.supabase",
               "x-n8n-resource": "row",
               "x-n8n-operation": "update",
-              "responses": { "200": { "content": { "application/json": { "example": { "id": "row_synthetic_002", "status": "updated" } } } } }
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "id": "row_synthetic_002",
+                        "status": "updated"
+                      }
+                    }
+                  }
+                }
+              }
             }
           },
           "/v1/rows/delete": {
@@ -37,7 +77,218 @@
               "x-n8n-node-type": "n8n-nodes-base.supabase",
               "x-n8n-resource": "row",
               "x-n8n-operation": "delete",
-              "responses": { "200": { "content": { "application/json": { "example": { "id": "row_synthetic_002", "status": "deleted" } } } } }
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "id": "row_synthetic_002",
+                        "status": "deleted"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "postgres",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic PostgreSQL Query Outcomes",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://postgres.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/query/select": {
+            "get": {
+              "x-n8n-node-type": "n8n-nodes-base.postgres",
+              "x-n8n-resource": "query",
+              "x-n8n-operation": "executeQuery.select",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "rows": [
+                          {
+                            "id": "job_synthetic_001",
+                            "title": "Synthetic role",
+                            "status": "open"
+                          }
+                        ],
+                        "status": "selected"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/v1/query/insert": {
+            "post": {
+              "x-n8n-node-type": "n8n-nodes-base.postgres",
+              "x-n8n-resource": "query",
+              "x-n8n-operation": "executeQuery.insert",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "rows": [
+                          {
+                            "id": "job_synthetic_002",
+                            "status": "inserted"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/v1/query/update": {
+            "patch": {
+              "x-n8n-node-type": "n8n-nodes-base.postgres",
+              "x-n8n-resource": "query",
+              "x-n8n-operation": "executeQuery.update",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "rows": [
+                          {
+                            "id": "job_synthetic_002",
+                            "status": "updated"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/v1/query/delete": {
+            "delete": {
+              "x-n8n-node-type": "n8n-nodes-base.postgres",
+              "x-n8n-resource": "query",
+              "x-n8n-operation": "executeQuery.delete",
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "rows": [
+                          {
+                            "id": "job_synthetic_002",
+                            "status": "deleted"
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "starter-data",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic Invoice and Payment API",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://api.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/invoices-and-payments": {
+            "get": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "assignment": {
+                          "invoices": [
+                            {
+                              "id": "invoice_001",
+                              "amount": 125,
+                              "currency": "USD",
+                              "status": "open"
+                            },
+                            {
+                              "id": "invoice_002",
+                              "amount": 250,
+                              "currency": "USD",
+                              "status": "paid"
+                            }
+                          ],
+                          "payments": [
+                            {
+                              "id": "payment_001",
+                              "amount": 125,
+                              "currency": "USD",
+                              "status": "posted"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-crawler",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic Crawler API",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://crawl.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/scrape": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "data": {
+                          "markdown": "synthetic page content"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }

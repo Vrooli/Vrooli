@@ -160,6 +160,14 @@
             {
               "name": "inject-seeded-fault",
               "description": "Inject one synthetic transient fault and exercise retry repair"
+            },
+            {
+              "name": "required-output-paths",
+              "description": "Comma-separated dotted JSON paths that must exist in synthetic output"
+            },
+            {
+              "name": "repair-of-id",
+              "description": "Link this changed workflow revision to a failed run with matching output checks"
             }
           ],
           "binding": {

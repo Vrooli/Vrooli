@@ -1,0 +1,141 @@
+{
+  "name": "Sanitized public template 8995",
+  "nodes": [
+    {
+      "name": "Google Sheets Trigger",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "parameters": {
+        "event": "rowAdded",
+        "options": {},
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "sheetName": "Synthetic Leads",
+        "documentId": "synthetic-sheet-8995"
+      }
+    },
+    {
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "parameters": {
+        "amount": 1,
+        "unit": "seconds"
+      }
+    },
+    {
+      "name": "Create Email & Tag",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "parameters": {
+        "modelId": "synthetic-chat-profile",
+        "options": {},
+        "messages": {
+          "values": [
+            {
+              "content": "Review the synthetic lead and return a brief response and tag."
+            }
+          ]
+        },
+        "jsonOutput": true
+      }
+    },
+    {
+      "name": "Send Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "parameters": {
+        "sendTo": "synthetic-recipient@example.invalid",
+        "message": "A synthetic follow-up message.",
+        "options": {},
+        "subject": "Synthetic lead follow-up",
+        "emailType": "text"
+      }
+    },
+    {
+      "name": "Update Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "parameters": {
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Tag": "synthetic-tag",
+            "Name": "Synthetic Lead",
+            "Status": "Pending"
+          }
+        },
+        "options": {},
+        "operation": "update",
+        "sheetName": "Synthetic Leads",
+        "documentId": "synthetic-sheet-8995"
+      }
+    },
+    {
+      "name": "Notify Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "parameters": {
+        "text": "Synthetic lead notification.",
+        "select": "channel",
+        "channel": "synthetic-leads",
+        "otherOptions": {},
+        "authentication": "oAuth2"
+      }
+    }
+  ],
+  "connections": {
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Create Email & Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Email & Tag": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

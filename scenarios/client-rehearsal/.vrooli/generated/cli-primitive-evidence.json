@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "client-rehearsal",
   "generator": "v1.0.0",
-  "manifest_hash": "553fd8bbf147792dc90ddec8dfc6d770b9f9650b8efd5c785bf5bafcc72d5a0e",
+  "manifest_hash": "3ecda4be21b3f621de8285c17136ad528e8f8c77f36c16c927b59b2c68919e93",
   "commands": [
     {
       "path": "notes attach",

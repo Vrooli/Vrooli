@@ -16,8 +16,52 @@ type TriggerOption = { id: string; name: string; kind: string };
 const SYNTHETIC_OPENAPI = JSON.stringify({
   kind: "openapi-catalog",
   services: [
-    { id: "crm", document: { openapi: "3.0.3", info: { title: "Synthetic CRM", version: "1" }, servers: [{ url: "https://crm.synthetic.invalid" }], paths: { "/v1/contacts": { post: { responses: { "200": { content: { "application/json": { example: { id: "contact_synthetic_001", status: "upserted" } } } } } } } } },
-    { id: "sheets", document: { openapi: "3.0.3", info: { title: "Synthetic Sheets", version: "1" }, servers: [{ url: "https://sheets.synthetic.invalid" }], paths: { "/v1/spreadsheets/{sheetId}/rows": { post: { responses: { "200": { content: { "application/json": { example: { updatedRange: "A2:B2", status: "appended" } } } } } } } } },
+    {
+      id: "crm",
+      document: {
+        openapi: "3.0.3",
+        info: { title: "Synthetic CRM", version: "1" },
+        servers: [{ url: "https://crm.synthetic.invalid" }],
+        paths: {
+          "/v1/contacts": {
+            post: {
+              responses: {
+                "200": {
+                  content: {
+                    "application/json": {
+                      example: { id: "contact_synthetic_001", status: "upserted" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    {
+      id: "sheets",
+      document: {
+        openapi: "3.0.3",
+        info: { title: "Synthetic Sheets", version: "1" },
+        servers: [{ url: "https://sheets.synthetic.invalid" }],
+        paths: {
+          "/v1/spreadsheets/{sheetId}/rows": {
+            post: {
+              responses: {
+                "200": {
+                  content: {
+                    "application/json": {
+                      example: { updatedRange: "A2:B2", status: "appended" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   ],
 });
 

@@ -23,15 +23,16 @@ const (
 )
 
 type Step struct {
-	ID        string         `json:"id"`
-	Operation string         `json:"operation"`
-	NodeType  string         `json:"node_type,omitempty"`
-	Resource  string         `json:"resource,omitempty"`
-	Action    string         `json:"action,omitempty"`
-	Method    string         `json:"method"`
-	Host      string         `json:"host"`
-	URL       string         `json:"url"`
-	Input     map[string]any `json:"input"`
+	ID         string         `json:"id"`
+	Operation  string         `json:"operation"`
+	NodeType   string         `json:"node_type,omitempty"`
+	Resource   string         `json:"resource,omitempty"`
+	Action     string         `json:"action,omitempty"`
+	Method     string         `json:"method"`
+	Host       string         `json:"host"`
+	URL        string         `json:"url"`
+	Input      map[string]any `json:"input"`
+	InputMatch map[string]any `json:"input_match,omitempty"`
 }
 type (
 	Workflow struct {
@@ -47,15 +48,33 @@ type (
 		TriggerKinds       []TriggerKind        `json:"trigger_kinds"`
 	}
 	WorkflowNode struct {
-		ID            string       `json:"id"`
-		Name          string       `json:"name"`
-		Type          string       `json:"type"`
-		Trigger       TriggerKind  `json:"trigger,omitempty"`
-		Request       *Step        `json:"request,omitempty"`
-		Condition     *Condition   `json:"condition,omitempty"`
-		SwitchRules   []SwitchRule `json:"switch_rules,omitempty"`
-		OutputPath    string       `json:"output_path,omitempty"`
-		SubworkflowID string       `json:"subworkflow_id,omitempty"`
+		ID                          string            `json:"id"`
+		Name                        string            `json:"name"`
+		Type                        string            `json:"type"`
+		Trigger                     TriggerKind       `json:"trigger,omitempty"`
+		Request                     *Step             `json:"request,omitempty"`
+		Condition                   *Condition        `json:"condition,omitempty"`
+		FilterCondition             *Condition        `json:"filter_condition,omitempty"`
+		SwitchRules                 []SwitchRule      `json:"switch_rules,omitempty"`
+		OutputPath                  string            `json:"output_path,omitempty"`
+		SetValues                   map[string]any    `json:"set_values,omitempty"`
+		SetProjections              map[string]string `json:"set_projections,omitempty"`
+		SetExpressions              map[string]string `json:"set_expressions,omitempty"`
+		SetIncludeInput             bool              `json:"set_include_input,omitempty"`
+		SplitField                  string            `json:"split_field,omitempty"`
+		SubworkflowID               string            `json:"subworkflow_id,omitempty"`
+		SafeCode                    string            `json:"safe_code,omitempty"`
+		AggregateFields             []AggregateField  `json:"aggregate_fields,omitempty"`
+		AggregateKeepMissing        bool              `json:"aggregate_keep_missing,omitempty"`
+		AggregateMergeLists         bool              `json:"aggregate_merge_lists,omitempty"`
+		AggregateDisableDotNotation bool              `json:"aggregate_disable_dot_notation,omitempty"`
+		WaitSeconds                 uint32            `json:"wait_seconds,omitempty"`
+		WaitAmountPath              string            `json:"wait_amount_path,omitempty"`
+		WaitUnit                    string            `json:"wait_unit,omitempty"`
+		LoopBatchSize               uint32            `json:"loop_batch_size,omitempty"`
+		RSSURLPath                  string            `json:"rss_url_path,omitempty"`
+		RequestReplacesInput        bool              `json:"request_replaces_input,omitempty"`
+		ErrorOutput                 bool              `json:"error_output,omitempty"`
 	}
 	SwitchRule struct {
 		Condition  Condition `json:"condition"`
@@ -83,6 +102,13 @@ type (
 		OccurredAt      time.Time `json:"occurred_at"`
 	}
 )
+
+type AggregateField struct {
+	InputPath  string `json:"input_path"`
+	OutputName string `json:"output_name"`
+}
+
+const maxSyntheticItems = 1000
 
 const (
 	TriggerManual      TriggerKind = "manual"
@@ -119,6 +145,8 @@ type CreateInput struct {
 	SimulatorProfile    string
 	SimulatorSourceJSON string
 	InjectSeededFault   bool
+	RequiredOutputPaths []string
+	RepairOfID          string
 }
 type ReviewInput struct {
 	ID       string
@@ -134,6 +162,13 @@ type Repository interface {
 }
 type Engine interface {
 	Execute(context.Context, Workflow, string, Simulator, bool, time.Time) ([]TraceEvent, error)
+}
+type DetailedEngine interface {
+	ExecuteDetailed(context.Context, Workflow, string, Simulator, bool, time.Time) (ExecutionResult, error)
+}
+type ExecutionResult struct {
+	Trace  []TraceEvent
+	Output map[string]any
 }
 type Simulator interface {
 	Invoke(context.Context, Step, uint32, bool) (string, error)
