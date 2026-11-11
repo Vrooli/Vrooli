@@ -8,6 +8,12 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class NativeGoalMutationOrigin(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    NATIVE_GOAL_MUTATION_ORIGIN_UNSPECIFIED: _ClassVar[NativeGoalMutationOrigin]
+    NATIVE_GOAL_MUTATION_ORIGIN_USER_DIRECTED: _ClassVar[NativeGoalMutationOrigin]
+    NATIVE_GOAL_MUTATION_ORIGIN_AUTOMATIC: _ClassVar[NativeGoalMutationOrigin]
+
 class SessionOrigin(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SESSION_ORIGIN_UNSPECIFIED: _ClassVar[SessionOrigin]
@@ -37,6 +43,9 @@ class ArchiveRestoreState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ARCHIVE_RESTORE_STATE_REOPENABLE: _ClassVar[ArchiveRestoreState]
     ARCHIVE_RESTORE_STATE_READ_ONLY: _ClassVar[ArchiveRestoreState]
     ARCHIVE_RESTORE_STATE_NOTHING_TO_RESTORE: _ClassVar[ArchiveRestoreState]
+NATIVE_GOAL_MUTATION_ORIGIN_UNSPECIFIED: NativeGoalMutationOrigin
+NATIVE_GOAL_MUTATION_ORIGIN_USER_DIRECTED: NativeGoalMutationOrigin
+NATIVE_GOAL_MUTATION_ORIGIN_AUTOMATIC: NativeGoalMutationOrigin
 SESSION_ORIGIN_UNSPECIFIED: SessionOrigin
 SESSION_ORIGIN_UI: SessionOrigin
 SESSION_ORIGIN_PROGRAMMATIC: SessionOrigin
@@ -95,18 +104,20 @@ class ReadNativeThreadStateResponse(_message.Message):
     def __init__(self, threads: _Optional[_Iterable[_Union[NativeThreadState, _Mapping]]] = ...) -> None: ...
 
 class DeliverNativePromptRequest(_message.Message):
-    __slots__ = ("session_id", "expected_thread_id", "text", "expected_turn_id", "source")
+    __slots__ = ("session_id", "expected_thread_id", "text", "expected_turn_id", "source", "expected_native_owner")
     SESSION_ID_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_THREAD_ID_FIELD_NUMBER: _ClassVar[int]
     TEXT_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_TURN_ID_FIELD_NUMBER: _ClassVar[int]
     SOURCE_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_NATIVE_OWNER_FIELD_NUMBER: _ClassVar[int]
     session_id: str
     expected_thread_id: str
     text: str
     expected_turn_id: str
     source: str
-    def __init__(self, session_id: _Optional[str] = ..., expected_thread_id: _Optional[str] = ..., text: _Optional[str] = ..., expected_turn_id: _Optional[str] = ..., source: _Optional[str] = ...) -> None: ...
+    expected_native_owner: str
+    def __init__(self, session_id: _Optional[str] = ..., expected_thread_id: _Optional[str] = ..., text: _Optional[str] = ..., expected_turn_id: _Optional[str] = ..., source: _Optional[str] = ..., expected_native_owner: _Optional[str] = ...) -> None: ...
 
 class DeliverNativePromptResponse(_message.Message):
     __slots__ = ("thread_id", "turn_id", "delivery")
@@ -117,6 +128,34 @@ class DeliverNativePromptResponse(_message.Message):
     turn_id: str
     delivery: str
     def __init__(self, thread_id: _Optional[str] = ..., turn_id: _Optional[str] = ..., delivery: _Optional[str] = ...) -> None: ...
+
+class SetNativeGoalRequest(_message.Message):
+    __slots__ = ("session_id", "expected_native_owner", "expected_thread_id", "objective", "status", "token_budget", "origin")
+    SESSION_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_NATIVE_OWNER_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_THREAD_ID_FIELD_NUMBER: _ClassVar[int]
+    OBJECTIVE_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    TOKEN_BUDGET_FIELD_NUMBER: _ClassVar[int]
+    ORIGIN_FIELD_NUMBER: _ClassVar[int]
+    session_id: str
+    expected_native_owner: str
+    expected_thread_id: str
+    objective: str
+    status: str
+    token_budget: int
+    origin: NativeGoalMutationOrigin
+    def __init__(self, session_id: _Optional[str] = ..., expected_native_owner: _Optional[str] = ..., expected_thread_id: _Optional[str] = ..., objective: _Optional[str] = ..., status: _Optional[str] = ..., token_budget: _Optional[int] = ..., origin: _Optional[_Union[NativeGoalMutationOrigin, str]] = ...) -> None: ...
+
+class SetNativeGoalResponse(_message.Message):
+    __slots__ = ("thread_id", "status", "objective")
+    THREAD_ID_FIELD_NUMBER: _ClassVar[int]
+    STATUS_FIELD_NUMBER: _ClassVar[int]
+    OBJECTIVE_FIELD_NUMBER: _ClassVar[int]
+    thread_id: str
+    status: str
+    objective: str
+    def __init__(self, thread_id: _Optional[str] = ..., status: _Optional[str] = ..., objective: _Optional[str] = ...) -> None: ...
 
 class ExpirationPolicy(_message.Message):
     __slots__ = ("mode", "duration")

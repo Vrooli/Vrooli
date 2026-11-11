@@ -173,6 +173,9 @@ message AIParams {
   // Require a local GPU provider and reject CPU degradation after capacity
   // denial. This is an opt-in execution constraint; the default may use CPU.
   bool require_gpu = 28;
+  // Force CPU-only model selection and execution even when a local GPU is
+  // available. The selected model must declare a CPU execution path.
+  bool force_cpu = 29;
 }
 
 message InpaintParams {
@@ -229,6 +232,9 @@ message AdapterRef {
   // (canny|depth|pose|segment|none) instead of the adapter's declared one. Ignored
   // for non-ControlNet kinds.
   string preprocessor_override = 4;
+  // license_terms_accepted records that the user saw and accepted the adapter's
+  // model-specific use restrictions and pass-through duties.
+  bool license_terms_accepted = 5;
 }
 
 // SubmitAIResponse is the protojson body returned by the REST submit edge. The

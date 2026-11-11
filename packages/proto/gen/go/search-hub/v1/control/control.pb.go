@@ -156,8 +156,12 @@ type ReindexResponse struct {
 	PlannedUpserts int32                  `protobuf:"varint,2,opt,name=planned_upserts,json=plannedUpserts,proto3" json:"planned_upserts,omitempty"`
 	PlannedDeletes int32                  `protobuf:"varint,3,opt,name=planned_deletes,json=plannedDeletes,proto3" json:"planned_deletes,omitempty"`
 	DryRun         bool                   `protobuf:"varint,4,opt,name=dry_run,json=dryRun,proto3" json:"dry_run,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Present only for action="capabilities". The protocol version and
+	// normalized action set are negotiated before migration mutations.
+	MigrationProtocolVersion  uint32   `protobuf:"varint,5,opt,name=migration_protocol_version,json=migrationProtocolVersion,proto3" json:"migration_protocol_version,omitempty"`
+	SupportedMigrationActions []string `protobuf:"bytes,6,rep,name=supported_migration_actions,json=supportedMigrationActions,proto3" json:"supported_migration_actions,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
 }
 
 func (x *ReindexResponse) Reset() {
@@ -216,6 +220,20 @@ func (x *ReindexResponse) GetDryRun() bool {
 		return x.DryRun
 	}
 	return false
+}
+
+func (x *ReindexResponse) GetMigrationProtocolVersion() uint32 {
+	if x != nil {
+		return x.MigrationProtocolVersion
+	}
+	return 0
+}
+
+func (x *ReindexResponse) GetSupportedMigrationActions() []string {
+	if x != nil {
+		return x.SupportedMigrationActions
+	}
+	return nil
 }
 
 // ReindexStatusRequest looks up a job by its assigned id.
@@ -754,12 +772,14 @@ const file_search_hub_v1_control_control_proto_rawDesc = "" +
 	"\x0eembedding_role\x18\b \x01(\tR\rembeddingRole\x121\n" +
 	"\x14embedding_dimensions\x18\t \x01(\x05R\x13embeddingDimensions\x12E\n" +
 	"\x1fembedding_policy_schema_version\x18\n" +
-	" \x01(\tR\x1cembeddingPolicySchemaVersion\"\x93\x01\n" +
+	" \x01(\tR\x1cembeddingPolicySchemaVersion\"\x91\x02\n" +
 	"\x0fReindexResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12'\n" +
 	"\x0fplanned_upserts\x18\x02 \x01(\x05R\x0eplannedUpserts\x12'\n" +
 	"\x0fplanned_deletes\x18\x03 \x01(\x05R\x0eplannedDeletes\x12\x17\n" +
-	"\adry_run\x18\x04 \x01(\bR\x06dryRun\"R\n" +
+	"\adry_run\x18\x04 \x01(\bR\x06dryRun\x12<\n" +
+	"\x1amigration_protocol_version\x18\x05 \x01(\rR\x18migrationProtocolVersion\x12>\n" +
+	"\x1bsupported_migration_actions\x18\x06 \x03(\tR\x19supportedMigrationActions\"R\n" +
 	"\x14ReindexStatusRequest\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12#\n" +
 	"\rcontrol_token\x18\x02 \x01(\tR\fcontrolToken\"\x8e\x01\n" +

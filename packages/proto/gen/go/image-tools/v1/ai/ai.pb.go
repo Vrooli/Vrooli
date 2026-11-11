@@ -293,7 +293,10 @@ type AIParams struct {
 	Inpaint *InpaintParams `protobuf:"bytes,27,opt,name=inpaint,proto3" json:"inpaint,omitempty"`
 	// Require a local GPU provider and reject CPU degradation after capacity
 	// denial. This is an opt-in execution constraint; the default may use CPU.
-	RequireGpu    bool `protobuf:"varint,28,opt,name=require_gpu,json=requireGpu,proto3" json:"require_gpu,omitempty"`
+	RequireGpu bool `protobuf:"varint,28,opt,name=require_gpu,json=requireGpu,proto3" json:"require_gpu,omitempty"`
+	// Force CPU-only model selection and execution even when a local GPU is
+	// available. The selected model must declare a CPU execution path.
+	ForceCpu      bool `protobuf:"varint,29,opt,name=force_cpu,json=forceCpu,proto3" json:"force_cpu,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -520,6 +523,13 @@ func (x *AIParams) GetInpaint() *InpaintParams {
 func (x *AIParams) GetRequireGpu() bool {
 	if x != nil {
 		return x.RequireGpu
+	}
+	return false
+}
+
+func (x *AIParams) GetForceCpu() bool {
+	if x != nil {
+		return x.ForceCpu
 	}
 	return false
 }
@@ -814,6 +824,9 @@ type AdapterRef struct {
 	// (canny|depth|pose|segment|none) instead of the adapter's declared one. Ignored
 	// for non-ControlNet kinds.
 	PreprocessorOverride string `protobuf:"bytes,4,opt,name=preprocessor_override,json=preprocessorOverride,proto3" json:"preprocessor_override,omitempty"`
+	// license_terms_accepted records that the user saw and accepted the adapter's
+	// model-specific use restrictions and pass-through duties.
+	LicenseTermsAccepted bool `protobuf:"varint,5,opt,name=license_terms_accepted,json=licenseTermsAccepted,proto3" json:"license_terms_accepted,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -874,6 +887,13 @@ func (x *AdapterRef) GetPreprocessorOverride() string {
 		return x.PreprocessorOverride
 	}
 	return ""
+}
+
+func (x *AdapterRef) GetLicenseTermsAccepted() bool {
+	if x != nil {
+		return x.LicenseTermsAccepted
+	}
+	return false
 }
 
 // SubmitAIResponse is the protojson body returned by the REST submit edge. The
@@ -1057,7 +1077,7 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\x18ListAIOperationsResponse\x12I\n" +
 	"\n" +
 	"operations\x18\x01 \x03(\v2).vrooli.image_tools.v1.ai.AIOperationInfoR\n" +
-	"operations\"\xb7\t\n" +
+	"operations\"\xd4\t\n" +
 	"\bAIParams\x12\x16\n" +
 	"\x06prompt\x18\x01 \x01(\tR\x06prompt\x12'\n" +
 	"\x0fnegative_prompt\x18\x02 \x01(\tR\x0enegativePrompt\x12\x12\n" +
@@ -1092,7 +1112,8 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\x11background_repair\x18\x1a \x01(\v20.vrooli.image_tools.v1.ai.BackgroundRepairParamsR\x10backgroundRepair\x12A\n" +
 	"\ainpaint\x18\x1b \x01(\v2'.vrooli.image_tools.v1.ai.InpaintParamsR\ainpaint\x12\x1f\n" +
 	"\vrequire_gpu\x18\x1c \x01(\bR\n" +
-	"requireGpuB\x10\n" +
+	"requireGpu\x12\x1b\n" +
+	"\tforce_cpu\x18\x1d \x01(\bR\bforceCpuB\x10\n" +
 	"\x0e_allow_reclaim\"\xb2\x01\n" +
 	"\rInpaintParams\x12 \n" +
 	"\fcrop_to_mask\x18\x01 \x01(\bR\n" +
@@ -1110,14 +1131,15 @@ const file_image_tools_v1_ai_ai_proto_rawDesc = "" +
 	"\x0fmesh_resolution\x18\x01 \x01(\rR\x0emeshResolution\"\x8c\x01\n" +
 	"\x12SegmentationPrompt\x12>\n" +
 	"\x06points\x18\x01 \x03(\v2&.vrooli.image_tools.v1.selection.PointR\x06points\x126\n" +
-	"\x03box\x18\x02 \x01(\v2$.vrooli.image_tools.v1.selection.BoxR\x03box\"\xac\x01\n" +
+	"\x03box\x18\x02 \x01(\v2$.vrooli.image_tools.v1.selection.BoxR\x03box\"\xe2\x01\n" +
 	"\n" +
 	"AdapterRef\x12\x1d\n" +
 	"\n" +
 	"adapter_id\x18\x01 \x01(\tR\tadapterId\x12\x14\n" +
 	"\x05scale\x18\x02 \x01(\x01R\x05scale\x124\n" +
 	"\x16conditioning_image_key\x18\x03 \x01(\tR\x14conditioningImageKey\x123\n" +
-	"\x15preprocessor_override\x18\x04 \x01(\tR\x14preprocessorOverride\"\xa1\x01\n" +
+	"\x15preprocessor_override\x18\x04 \x01(\tR\x14preprocessorOverride\x124\n" +
+	"\x16license_terms_accepted\x18\x05 \x01(\bR\x14licenseTermsAccepted\"\xa1\x01\n" +
 	"\x10SubmitAIResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12+\n" +
 	"\x11estimated_seconds\x18\x02 \x01(\x05R\x10estimatedSeconds\x12\x19\n" +

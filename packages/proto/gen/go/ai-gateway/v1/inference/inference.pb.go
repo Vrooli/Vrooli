@@ -972,8 +972,11 @@ type RunRequest struct {
 	// Caller-generated high-entropy idempotency name, not authorization. Reuse
 	// with exactly the same request to recover a prior HostedDoor attempt.
 	RootOperationId string `protobuf:"bytes,12,opt,name=root_operation_id,json=rootOperationId,proto3" json:"root_operation_id,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// privacy_class is the caller's sensitivity classification. The gateway
+	// combines it with profile and resolved candidate locality before dispatch.
+	PrivacyClass  shared.PrivacyClass `protobuf:"varint,13,opt,name=privacy_class,json=privacyClass,proto3,enum=vrooli.ai_gateway.v1.shared.PrivacyClass" json:"privacy_class,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RunRequest) Reset() {
@@ -1088,6 +1091,13 @@ func (x *RunRequest) GetRootOperationId() string {
 		return x.RootOperationId
 	}
 	return ""
+}
+
+func (x *RunRequest) GetPrivacyClass() shared.PrivacyClass {
+	if x != nil {
+		return x.PrivacyClass
+	}
+	return shared.PrivacyClass(0)
 }
 
 type RunResponse struct {
@@ -1259,11 +1269,14 @@ func (x *RunBatchItem) GetSource() string {
 }
 
 type RunBatchRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Items         []*RunBatchItem        `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
-	SchemaJson    string                 `protobuf:"bytes,2,opt,name=schema_json,json=schemaJson,proto3" json:"schema_json,omitempty"`
-	Instruction   string                 `protobuf:"bytes,3,opt,name=instruction,proto3" json:"instruction,omitempty"`
-	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Items       []*RunBatchItem        `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	SchemaJson  string                 `protobuf:"bytes,2,opt,name=schema_json,json=schemaJson,proto3" json:"schema_json,omitempty"`
+	Instruction string                 `protobuf:"bytes,3,opt,name=instruction,proto3" json:"instruction,omitempty"`
+	Role        string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	// One routing contract applies to every item in the ordered batch.
+	Profile       shared.Profile      `protobuf:"varint,5,opt,name=profile,proto3,enum=vrooli.ai_gateway.v1.shared.Profile" json:"profile,omitempty"`
+	PrivacyClass  shared.PrivacyClass `protobuf:"varint,6,opt,name=privacy_class,json=privacyClass,proto3,enum=vrooli.ai_gateway.v1.shared.PrivacyClass" json:"privacy_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1324,6 +1337,20 @@ func (x *RunBatchRequest) GetRole() string {
 		return x.Role
 	}
 	return ""
+}
+
+func (x *RunBatchRequest) GetProfile() shared.Profile {
+	if x != nil {
+		return x.Profile
+	}
+	return shared.Profile(0)
+}
+
+func (x *RunBatchRequest) GetPrivacyClass() shared.PrivacyClass {
+	if x != nil {
+		return x.PrivacyClass
+	}
+	return shared.PrivacyClass(0)
 }
 
 type RunBatchResponse struct {
@@ -1737,7 +1764,9 @@ type DecideRequest struct {
 	Questions []*DecisionQuestion `protobuf:"bytes,4,rep,name=questions,proto3" json:"questions,omitempty"`
 	// profile carries the caller's locality stance; LOCAL_ONLY never leaves the
 	// host and REMOTE_ONLY never runs a local candidate.
-	Profile       shared.Profile `protobuf:"varint,5,opt,name=profile,proto3,enum=vrooli.ai_gateway.v1.shared.Profile" json:"profile,omitempty"`
+	Profile shared.Profile `protobuf:"varint,5,opt,name=profile,proto3,enum=vrooli.ai_gateway.v1.shared.Profile" json:"profile,omitempty"`
+	// privacy_class participates in the same eligibility policy as routing Run.
+	PrivacyClass  shared.PrivacyClass `protobuf:"varint,6,opt,name=privacy_class,json=privacyClass,proto3,enum=vrooli.ai_gateway.v1.shared.PrivacyClass" json:"privacy_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1805,6 +1834,13 @@ func (x *DecideRequest) GetProfile() shared.Profile {
 		return x.Profile
 	}
 	return shared.Profile(0)
+}
+
+func (x *DecideRequest) GetPrivacyClass() shared.PrivacyClass {
+	if x != nil {
+		return x.PrivacyClass
+	}
+	return shared.PrivacyClass(0)
 }
 
 type DecisionProbability struct {
@@ -2243,6 +2279,7 @@ type DecideBatchRequest struct {
 	Questions     []*DecisionQuestion    `protobuf:"bytes,2,rep,name=questions,proto3" json:"questions,omitempty"`
 	Items         []*DecideBatchItem     `protobuf:"bytes,3,rep,name=items,proto3" json:"items,omitempty"`
 	Profile       shared.Profile         `protobuf:"varint,4,opt,name=profile,proto3,enum=vrooli.ai_gateway.v1.shared.Profile" json:"profile,omitempty"`
+	PrivacyClass  shared.PrivacyClass    `protobuf:"varint,5,opt,name=privacy_class,json=privacyClass,proto3,enum=vrooli.ai_gateway.v1.shared.PrivacyClass" json:"privacy_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2303,6 +2340,13 @@ func (x *DecideBatchRequest) GetProfile() shared.Profile {
 		return x.Profile
 	}
 	return shared.Profile(0)
+}
+
+func (x *DecideBatchRequest) GetPrivacyClass() shared.PrivacyClass {
+	if x != nil {
+		return x.PrivacyClass
+	}
+	return shared.PrivacyClass(0)
 }
 
 type DecideBatchResponse struct {
@@ -2415,7 +2459,7 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\x05state\x18\x02 \x01(\x0e24.vrooli.ai_gateway.v1.inference.RecoveryReceiptStateR\x05state\x12+\n" +
 	"\x11accounting_status\x18\x03 \x01(\tR\x10accountingStatus\x12,\n" +
 	"\x0fcharged_credits\x18\x04 \x01(\x03H\x00R\x0echargedCredits\x88\x01\x01B\x12\n" +
-	"\x10_charged_credits\"\xe0\x04\n" +
+	"\x10_charged_credits\"\xb0\x05\n" +
 	"\n" +
 	"RunRequest\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12\x1f\n" +
@@ -2432,7 +2476,8 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	" \x01(\x05R\x10maxProviderCalls\x12K\n" +
 	"\vspend_limit\x18\v \x01(\v2*.vrooli.ai_gateway.v1.inference.SpendLimitR\n" +
 	"spendLimit\x12*\n" +
-	"\x11root_operation_id\x18\f \x01(\tR\x0frootOperationId\"\xa9\x04\n" +
+	"\x11root_operation_id\x18\f \x01(\tR\x0frootOperationId\x12N\n" +
+	"\rprivacy_class\x18\r \x01(\x0e2).vrooli.ai_gateway.v1.shared.PrivacyClassR\fprivacyClass\"\xa9\x04\n" +
 	"\vRunResponse\x12\x1d\n" +
 	"\n" +
 	"value_json\x18\x01 \x01(\tR\tvalueJson\x12\x1a\n" +
@@ -2447,13 +2492,15 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\brecovery\x18\n" +
 	" \x01(\v2/.vrooli.ai_gateway.v1.inference.RecoveryReceiptR\brecovery\"&\n" +
 	"\fRunBatchItem\x12\x16\n" +
-	"\x06source\x18\x01 \x01(\tR\x06source\"\xac\x01\n" +
+	"\x06source\x18\x01 \x01(\tR\x06source\"\xbc\x02\n" +
 	"\x0fRunBatchRequest\x12B\n" +
 	"\x05items\x18\x01 \x03(\v2,.vrooli.ai_gateway.v1.inference.RunBatchItemR\x05items\x12\x1f\n" +
 	"\vschema_json\x18\x02 \x01(\tR\n" +
 	"schemaJson\x12 \n" +
 	"\vinstruction\x18\x03 \x01(\tR\vinstruction\x12\x12\n" +
-	"\x04role\x18\x04 \x01(\tR\x04role\"\x96\x01\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12>\n" +
+	"\aprofile\x18\x05 \x01(\x0e2$.vrooli.ai_gateway.v1.shared.ProfileR\aprofile\x12N\n" +
+	"\rprivacy_class\x18\x06 \x01(\x0e2).vrooli.ai_gateway.v1.shared.PrivacyClassR\fprivacyClass\"\x96\x01\n" +
 	"\x10RunBatchResponse\x12E\n" +
 	"\aresults\x18\x01 \x03(\v2+.vrooli.ai_gateway.v1.inference.RunResponseR\aresults\x12;\n" +
 	"\x05usage\x18\x02 \x01(\v2%.vrooli.ai_gateway.v1.inference.UsageR\x05usage\"\x83\x01\n" +
@@ -2480,14 +2527,15 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\aoptions\x18\x04 \x03(\v2..vrooli.ai_gateway.v1.inference.DecisionOptionR\aoptions\x12\x16\n" +
 	"\x06levels\x18\x05 \x03(\tR\x06levels\x12)\n" +
 	"\x10true_description\x18\x06 \x01(\tR\x0ftrueDescription\x12+\n" +
-	"\x11false_description\x18\a \x01(\tR\x10falseDescription\"\xe8\x01\n" +
+	"\x11false_description\x18\a \x01(\tR\x10falseDescription\"\xb8\x02\n" +
 	"\rDecideRequest\x12\x12\n" +
 	"\x04role\x18\x01 \x01(\tR\x04role\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12\x1d\n" +
 	"\n" +
 	"state_json\x18\x03 \x01(\tR\tstateJson\x12N\n" +
 	"\tquestions\x18\x04 \x03(\v20.vrooli.ai_gateway.v1.inference.DecisionQuestionR\tquestions\x12>\n" +
-	"\aprofile\x18\x05 \x01(\x0e2$.vrooli.ai_gateway.v1.shared.ProfileR\aprofile\"O\n" +
+	"\aprofile\x18\x05 \x01(\x0e2$.vrooli.ai_gateway.v1.shared.ProfileR\aprofile\x12N\n" +
+	"\rprivacy_class\x18\x06 \x01(\x0e2).vrooli.ai_gateway.v1.shared.PrivacyClassR\fprivacyClass\"O\n" +
 	"\x13DecisionProbability\x12\x16\n" +
 	"\x06option\x18\x01 \x01(\tR\x06option\x12 \n" +
 	"\vprobability\x18\x02 \x01(\x01R\vprobability\"\xe9\x02\n" +
@@ -2532,12 +2580,13 @@ const file_ai_gateway_v1_inference_inference_proto_rawDesc = "" +
 	"\x0fDecideBatchItem\x12\x14\n" +
 	"\x05state\x18\x01 \x01(\tR\x05state\x12\x1d\n" +
 	"\n" +
-	"state_json\x18\x02 \x01(\tR\tstateJson\"\xff\x01\n" +
+	"state_json\x18\x02 \x01(\tR\tstateJson\"\xcf\x02\n" +
 	"\x12DecideBatchRequest\x12\x12\n" +
 	"\x04role\x18\x01 \x01(\tR\x04role\x12N\n" +
 	"\tquestions\x18\x02 \x03(\v20.vrooli.ai_gateway.v1.inference.DecisionQuestionR\tquestions\x12E\n" +
 	"\x05items\x18\x03 \x03(\v2/.vrooli.ai_gateway.v1.inference.DecideBatchItemR\x05items\x12>\n" +
-	"\aprofile\x18\x04 \x01(\x0e2$.vrooli.ai_gateway.v1.shared.ProfileR\aprofile\"\x9c\x01\n" +
+	"\aprofile\x18\x04 \x01(\x0e2$.vrooli.ai_gateway.v1.shared.ProfileR\aprofile\x12N\n" +
+	"\rprivacy_class\x18\x05 \x01(\x0e2).vrooli.ai_gateway.v1.shared.PrivacyClassR\fprivacyClass\"\x9c\x01\n" +
 	"\x13DecideBatchResponse\x12H\n" +
 	"\aresults\x18\x01 \x03(\v2..vrooli.ai_gateway.v1.inference.DecideResponseR\aresults\x12;\n" +
 	"\x05usage\x18\x02 \x01(\v2%.vrooli.ai_gateway.v1.inference.UsageR\x05usage*\xbc\x01\n" +
@@ -2634,7 +2683,8 @@ var file_ai_gateway_v1_inference_inference_proto_goTypes = []any{
 	(*shared.Attachment)(nil),       // 30: vrooli.ai_gateway.v1.shared.Attachment
 	(shared.Profile)(0),             // 31: vrooli.ai_gateway.v1.shared.Profile
 	(*shared.SamplingControls)(nil), // 32: vrooli.ai_gateway.v1.shared.SamplingControls
-	(*shared.AppliedSettings)(nil),  // 33: vrooli.ai_gateway.v1.shared.AppliedSettings
+	(shared.PrivacyClass)(0),        // 33: vrooli.ai_gateway.v1.shared.PrivacyClass
+	(*shared.AppliedSettings)(nil),  // 34: vrooli.ai_gateway.v1.shared.AppliedSettings
 }
 var file_ai_gateway_v1_inference_inference_proto_depIdxs = []int32{
 	0,  // 0: vrooli.ai_gateway.v1.inference.Usage.input_tokens_provenance:type_name -> vrooli.ai_gateway.v1.inference.UsageProvenance
@@ -2648,50 +2698,55 @@ var file_ai_gateway_v1_inference_inference_proto_depIdxs = []int32{
 	31, // 8: vrooli.ai_gateway.v1.inference.RunRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
 	32, // 9: vrooli.ai_gateway.v1.inference.RunRequest.sampling:type_name -> vrooli.ai_gateway.v1.shared.SamplingControls
 	9,  // 10: vrooli.ai_gateway.v1.inference.RunRequest.spend_limit:type_name -> vrooli.ai_gateway.v1.inference.SpendLimit
-	6,  // 11: vrooli.ai_gateway.v1.inference.RunResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	7,  // 12: vrooli.ai_gateway.v1.inference.RunResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
-	33, // 13: vrooli.ai_gateway.v1.inference.RunResponse.applied:type_name -> vrooli.ai_gateway.v1.shared.AppliedSettings
-	10, // 14: vrooli.ai_gateway.v1.inference.RunResponse.spend_authorization:type_name -> vrooli.ai_gateway.v1.inference.SpendAuthorization
-	11, // 15: vrooli.ai_gateway.v1.inference.RunResponse.recovery:type_name -> vrooli.ai_gateway.v1.inference.RecoveryReceipt
-	14, // 16: vrooli.ai_gateway.v1.inference.RunBatchRequest.items:type_name -> vrooli.ai_gateway.v1.inference.RunBatchItem
-	13, // 17: vrooli.ai_gateway.v1.inference.RunBatchResponse.results:type_name -> vrooli.ai_gateway.v1.inference.RunResponse
-	6,  // 18: vrooli.ai_gateway.v1.inference.RunBatchResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	32, // 19: vrooli.ai_gateway.v1.inference.EmbedRequest.sampling:type_name -> vrooli.ai_gateway.v1.shared.SamplingControls
-	19, // 20: vrooli.ai_gateway.v1.inference.EmbedResponse.vectors:type_name -> vrooli.ai_gateway.v1.inference.EmbeddingVector
-	6,  // 21: vrooli.ai_gateway.v1.inference.EmbedResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	7,  // 22: vrooli.ai_gateway.v1.inference.EmbedResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
-	3,  // 23: vrooli.ai_gateway.v1.inference.DecisionQuestion.type:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestionType
-	20, // 24: vrooli.ai_gateway.v1.inference.DecisionQuestion.options:type_name -> vrooli.ai_gateway.v1.inference.DecisionOption
-	21, // 25: vrooli.ai_gateway.v1.inference.DecideRequest.questions:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestion
-	31, // 26: vrooli.ai_gateway.v1.inference.DecideRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
-	3,  // 27: vrooli.ai_gateway.v1.inference.DecisionAnswer.type:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestionType
-	23, // 28: vrooli.ai_gateway.v1.inference.DecisionAnswer.probabilities:type_name -> vrooli.ai_gateway.v1.inference.DecisionProbability
-	5,  // 29: vrooli.ai_gateway.v1.inference.DecisionCandidate.status:type_name -> vrooli.ai_gateway.v1.inference.DecisionCandidateStatus
-	24, // 30: vrooli.ai_gateway.v1.inference.DecideResponse.answers:type_name -> vrooli.ai_gateway.v1.inference.DecisionAnswer
-	4,  // 31: vrooli.ai_gateway.v1.inference.DecideResponse.method:type_name -> vrooli.ai_gateway.v1.inference.DecisionMethod
-	6,  // 32: vrooli.ai_gateway.v1.inference.DecideResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	7,  // 33: vrooli.ai_gateway.v1.inference.DecideResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
-	25, // 34: vrooli.ai_gateway.v1.inference.DecideResponse.candidates:type_name -> vrooli.ai_gateway.v1.inference.DecisionCandidate
-	21, // 35: vrooli.ai_gateway.v1.inference.DecideBatchRequest.questions:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestion
-	27, // 36: vrooli.ai_gateway.v1.inference.DecideBatchRequest.items:type_name -> vrooli.ai_gateway.v1.inference.DecideBatchItem
-	31, // 37: vrooli.ai_gateway.v1.inference.DecideBatchRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
-	26, // 38: vrooli.ai_gateway.v1.inference.DecideBatchResponse.results:type_name -> vrooli.ai_gateway.v1.inference.DecideResponse
-	6,  // 39: vrooli.ai_gateway.v1.inference.DecideBatchResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
-	12, // 40: vrooli.ai_gateway.v1.inference.InferenceService.Run:input_type -> vrooli.ai_gateway.v1.inference.RunRequest
-	15, // 41: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:input_type -> vrooli.ai_gateway.v1.inference.RunBatchRequest
-	17, // 42: vrooli.ai_gateway.v1.inference.InferenceService.Embed:input_type -> vrooli.ai_gateway.v1.inference.EmbedRequest
-	22, // 43: vrooli.ai_gateway.v1.inference.InferenceService.Decide:input_type -> vrooli.ai_gateway.v1.inference.DecideRequest
-	28, // 44: vrooli.ai_gateway.v1.inference.InferenceService.DecideBatch:input_type -> vrooli.ai_gateway.v1.inference.DecideBatchRequest
-	13, // 45: vrooli.ai_gateway.v1.inference.InferenceService.Run:output_type -> vrooli.ai_gateway.v1.inference.RunResponse
-	16, // 46: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:output_type -> vrooli.ai_gateway.v1.inference.RunBatchResponse
-	18, // 47: vrooli.ai_gateway.v1.inference.InferenceService.Embed:output_type -> vrooli.ai_gateway.v1.inference.EmbedResponse
-	26, // 48: vrooli.ai_gateway.v1.inference.InferenceService.Decide:output_type -> vrooli.ai_gateway.v1.inference.DecideResponse
-	29, // 49: vrooli.ai_gateway.v1.inference.InferenceService.DecideBatch:output_type -> vrooli.ai_gateway.v1.inference.DecideBatchResponse
-	45, // [45:50] is the sub-list for method output_type
-	40, // [40:45] is the sub-list for method input_type
-	40, // [40:40] is the sub-list for extension type_name
-	40, // [40:40] is the sub-list for extension extendee
-	0,  // [0:40] is the sub-list for field type_name
+	33, // 11: vrooli.ai_gateway.v1.inference.RunRequest.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
+	6,  // 12: vrooli.ai_gateway.v1.inference.RunResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	7,  // 13: vrooli.ai_gateway.v1.inference.RunResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
+	34, // 14: vrooli.ai_gateway.v1.inference.RunResponse.applied:type_name -> vrooli.ai_gateway.v1.shared.AppliedSettings
+	10, // 15: vrooli.ai_gateway.v1.inference.RunResponse.spend_authorization:type_name -> vrooli.ai_gateway.v1.inference.SpendAuthorization
+	11, // 16: vrooli.ai_gateway.v1.inference.RunResponse.recovery:type_name -> vrooli.ai_gateway.v1.inference.RecoveryReceipt
+	14, // 17: vrooli.ai_gateway.v1.inference.RunBatchRequest.items:type_name -> vrooli.ai_gateway.v1.inference.RunBatchItem
+	31, // 18: vrooli.ai_gateway.v1.inference.RunBatchRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
+	33, // 19: vrooli.ai_gateway.v1.inference.RunBatchRequest.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
+	13, // 20: vrooli.ai_gateway.v1.inference.RunBatchResponse.results:type_name -> vrooli.ai_gateway.v1.inference.RunResponse
+	6,  // 21: vrooli.ai_gateway.v1.inference.RunBatchResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	32, // 22: vrooli.ai_gateway.v1.inference.EmbedRequest.sampling:type_name -> vrooli.ai_gateway.v1.shared.SamplingControls
+	19, // 23: vrooli.ai_gateway.v1.inference.EmbedResponse.vectors:type_name -> vrooli.ai_gateway.v1.inference.EmbeddingVector
+	6,  // 24: vrooli.ai_gateway.v1.inference.EmbedResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	7,  // 25: vrooli.ai_gateway.v1.inference.EmbedResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
+	3,  // 26: vrooli.ai_gateway.v1.inference.DecisionQuestion.type:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestionType
+	20, // 27: vrooli.ai_gateway.v1.inference.DecisionQuestion.options:type_name -> vrooli.ai_gateway.v1.inference.DecisionOption
+	21, // 28: vrooli.ai_gateway.v1.inference.DecideRequest.questions:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestion
+	31, // 29: vrooli.ai_gateway.v1.inference.DecideRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
+	33, // 30: vrooli.ai_gateway.v1.inference.DecideRequest.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
+	3,  // 31: vrooli.ai_gateway.v1.inference.DecisionAnswer.type:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestionType
+	23, // 32: vrooli.ai_gateway.v1.inference.DecisionAnswer.probabilities:type_name -> vrooli.ai_gateway.v1.inference.DecisionProbability
+	5,  // 33: vrooli.ai_gateway.v1.inference.DecisionCandidate.status:type_name -> vrooli.ai_gateway.v1.inference.DecisionCandidateStatus
+	24, // 34: vrooli.ai_gateway.v1.inference.DecideResponse.answers:type_name -> vrooli.ai_gateway.v1.inference.DecisionAnswer
+	4,  // 35: vrooli.ai_gateway.v1.inference.DecideResponse.method:type_name -> vrooli.ai_gateway.v1.inference.DecisionMethod
+	6,  // 36: vrooli.ai_gateway.v1.inference.DecideResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	7,  // 37: vrooli.ai_gateway.v1.inference.DecideResponse.error:type_name -> vrooli.ai_gateway.v1.inference.InferenceError
+	25, // 38: vrooli.ai_gateway.v1.inference.DecideResponse.candidates:type_name -> vrooli.ai_gateway.v1.inference.DecisionCandidate
+	21, // 39: vrooli.ai_gateway.v1.inference.DecideBatchRequest.questions:type_name -> vrooli.ai_gateway.v1.inference.DecisionQuestion
+	27, // 40: vrooli.ai_gateway.v1.inference.DecideBatchRequest.items:type_name -> vrooli.ai_gateway.v1.inference.DecideBatchItem
+	31, // 41: vrooli.ai_gateway.v1.inference.DecideBatchRequest.profile:type_name -> vrooli.ai_gateway.v1.shared.Profile
+	33, // 42: vrooli.ai_gateway.v1.inference.DecideBatchRequest.privacy_class:type_name -> vrooli.ai_gateway.v1.shared.PrivacyClass
+	26, // 43: vrooli.ai_gateway.v1.inference.DecideBatchResponse.results:type_name -> vrooli.ai_gateway.v1.inference.DecideResponse
+	6,  // 44: vrooli.ai_gateway.v1.inference.DecideBatchResponse.usage:type_name -> vrooli.ai_gateway.v1.inference.Usage
+	12, // 45: vrooli.ai_gateway.v1.inference.InferenceService.Run:input_type -> vrooli.ai_gateway.v1.inference.RunRequest
+	15, // 46: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:input_type -> vrooli.ai_gateway.v1.inference.RunBatchRequest
+	17, // 47: vrooli.ai_gateway.v1.inference.InferenceService.Embed:input_type -> vrooli.ai_gateway.v1.inference.EmbedRequest
+	22, // 48: vrooli.ai_gateway.v1.inference.InferenceService.Decide:input_type -> vrooli.ai_gateway.v1.inference.DecideRequest
+	28, // 49: vrooli.ai_gateway.v1.inference.InferenceService.DecideBatch:input_type -> vrooli.ai_gateway.v1.inference.DecideBatchRequest
+	13, // 50: vrooli.ai_gateway.v1.inference.InferenceService.Run:output_type -> vrooli.ai_gateway.v1.inference.RunResponse
+	16, // 51: vrooli.ai_gateway.v1.inference.InferenceService.RunBatch:output_type -> vrooli.ai_gateway.v1.inference.RunBatchResponse
+	18, // 52: vrooli.ai_gateway.v1.inference.InferenceService.Embed:output_type -> vrooli.ai_gateway.v1.inference.EmbedResponse
+	26, // 53: vrooli.ai_gateway.v1.inference.InferenceService.Decide:output_type -> vrooli.ai_gateway.v1.inference.DecideResponse
+	29, // 54: vrooli.ai_gateway.v1.inference.InferenceService.DecideBatch:output_type -> vrooli.ai_gateway.v1.inference.DecideBatchResponse
+	50, // [50:55] is the sub-list for method output_type
+	45, // [45:50] is the sub-list for method input_type
+	45, // [45:45] is the sub-list for extension type_name
+	45, // [45:45] is the sub-list for extension extendee
+	0,  // [0:45] is the sub-list for field type_name
 }
 
 func init() { file_ai_gateway_v1_inference_inference_proto_init() }

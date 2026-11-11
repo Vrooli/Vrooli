@@ -15,7 +15,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file lighting-control/v1/policy/policy.proto.
  */
 export const file_lighting_control_v1_policy_policy: GenFile = /*@__PURE__*/
-  fileDesc("CidsaWdodGluZy1jb250cm9sL3YxL3BvbGljeS9wb2xpY3kucHJvdG8SIXZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeSLbAQoGUHJlc2V0EjsKBGtpbmQYASABKA4yLS52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuUHJlc2V0S2luZBINCgVsYWJlbBgCIAEoCRI4CgVjb2xvchgDIAEoCzIpLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLmNvbnRyb2wuQ29sb3ISJwoWYnJpZ2h0bmVzc19jYXBfcGVyY2VudBgEIAEoDUIHukgEKgIYZBIRCgllZmZlY3RfaWQYBSABKAkSDwoHZW5hYmxlZBgGIAEoCCLRAwoMUG9saWN5Q29uZmlnEkUKDmRlZmF1bHRfcHJlc2V0GAEgASgOMi0udnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LlByZXNldEtpbmQSOgoHcHJlc2V0cxgCIAMoCzIpLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5QcmVzZXQSKwoWc291cmNlX21heF9hZ2Vfc2Vjb25kcxgDIAEoDUILukgIKgYYgKMFKAUSIwoSbG9hZF9lbnRlcl9wZXJjZW50GAQgASgNQge6SAQqAhhkEiIKEWxvYWRfZXhpdF9wZXJjZW50GAUgASgNQge6SAQqAhhkEiIKEGRlYm91bmNlX3NlY29uZHMYBiABKA1CCLpIBSoDGJAcEicKFmJyaWdodG5lc3NfY2FwX3BlcmNlbnQYByABKA1CB7pIBCoCGGQSRwoUc3RhbGVfZmFsbGJhY2tfY29sb3IYCCABKAsyKS52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5jb250cm9sLkNvbG9yEjIKIXN0YWxlX2ZhbGxiYWNrX2JyaWdodG5lc3NfcGVyY2VudBgJIAEoDUIHukgEKgIYZCLoAgoORXZpZGVuY2VTb3VyY2USDgoGc291cmNlGAEgASgJEj8KBXN0YXRlGAIgASgOMjAudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LkV2aWRlbmNlU3RhdGUSLwoLb2JzZXJ2ZWRfYXQYAyABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEjQKEHNvdXJjZV90aW1lc3RhbXAYBCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEg4KBnJlYXNvbhgFIAEoCRJZCgxtZWFzdXJlbWVudHMYBiADKAsyQy52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuRXZpZGVuY2VTb3VyY2UuTWVhc3VyZW1lbnRzRW50cnkaMwoRTWVhc3VyZW1lbnRzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4ASKqAwoPRWZmZWN0aXZlUG9saWN5Ej0KBnByZXNldBgBIAEoDjItLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5QcmVzZXRLaW5kEjgKBWNvbG9yGAIgASgLMikudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEuY29udHJvbC5Db2xvchIaChJicmlnaHRuZXNzX3BlcmNlbnQYAyABKA0SEQoJZWZmZWN0X2lkGAQgASgJEg4KBnJlYXNvbhgFIAEoCRIwCgxldmFsdWF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEkMKCGV2aWRlbmNlGAcgAygLMjEudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LkV2aWRlbmNlU291cmNlEhcKD21hbnVhbF9wcmlvcml0eRgIIAEoCBI2ChJyZXF1ZXN0X2V4cGlyZXNfYXQYCSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhcKD3N0YXRpY19mYWxsYmFjaxgKIAEoCCISChBHZXRQb2xpY3lSZXF1ZXN0IpsBChFHZXRQb2xpY3lSZXNwb25zZRI/CgZjb25maWcYASABKAsyLy52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuUG9saWN5Q29uZmlnEkUKCWVmZmVjdGl2ZRgCIAEoCzIyLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5FZmZlY3RpdmVQb2xpY3kiUwoQU2V0UG9saWN5UmVxdWVzdBI/CgZjb25maWcYASABKAsyLy52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuUG9saWN5Q29uZmlnIlQKEVNldFBvbGljeVJlc3BvbnNlEj8KBmNvbmZpZxgBIAEoCzIvLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5Qb2xpY3lDb25maWcihwEKFlNldE1hbnVhbFByZXNldFJlcXVlc3QSPQoGcHJlc2V0GAEgASgOMi0udnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LlByZXNldEtpbmQSLgoKZXhwaXJlc19hdBgCIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXAimAEKEFBvbGljeVpvbmVSZXN1bHQSFQoNY29udHJvbGxlcl9pZBgBIAEoCRIPCgd6b25lX2lkGAIgASgJEhcKD3N0YXRpY19mYWxsYmFjaxgDIAEoCBJDCgZyZXN1bHQYBCABKAsyMy52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5jb250cm9sLlpvbmVBcHBseVJlc3VsdCKmAQoXU2V0TWFudWFsUHJlc2V0UmVzcG9uc2USRQoJZWZmZWN0aXZlGAEgASgLMjIudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LkVmZmVjdGl2ZVBvbGljeRJECgdyZXN1bHRzGAIgAygLMjMudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LlBvbGljeVpvbmVSZXN1bHQiGgoYQ2xlYXJNYW51YWxQcmVzZXRSZXF1ZXN0IiwKGUNsZWFyTWFudWFsUHJlc2V0UmVzcG9uc2USDwoHY2xlYXJlZBgBIAEoCCIoChVFdmFsdWF0ZVBvbGljeVJlcXVlc3QSDwoHdHJpZ2dlchgBIAEoCSKlAQoWRXZhbHVhdGVQb2xpY3lSZXNwb25zZRJFCgllZmZlY3RpdmUYASABKAsyMi52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuRWZmZWN0aXZlUG9saWN5EkQKB3Jlc3VsdHMYAiADKAsyMy52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuUG9saWN5Wm9uZVJlc3VsdCq0AQoKUHJlc2V0S2luZBIbChdQUkVTRVRfS0lORF9VTlNQRUNJRklFRBAAEhMKD1BSRVNFVF9LSU5EX09GRhABEhQKEFBSRVNFVF9LSU5EX0xPQUQQAhIUChBQUkVTRVRfS0lORF9XT1JLEAMSFgoSUFJFU0VUX0tJTkRfSEVBTFRIEAQSGAoUUFJFU0VUX0tJTkRfQ09NQklORUQQBRIWChJQUkVTRVRfS0lORF9TVEFUSUMQBiqgAQoNRXZpZGVuY2VTdGF0ZRIeChpFVklERU5DRV9TVEFURV9VTlNQRUNJRklFRBAAEhgKFEVWSURFTkNFX1NUQVRFX0ZSRVNIEAESGAoURVZJREVOQ0VfU1RBVEVfU1RBTEUQAhIeChpFVklERU5DRV9TVEFURV9VTkFWQUlMQUJMRRADEhsKF0VWSURFTkNFX1NUQVRFX0RFR1JBREVEEAQyowUKDVBvbGljeVNlcnZpY2USdgoJR2V0UG9saWN5EjMudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LkdldFBvbGljeVJlcXVlc3QaNC52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuR2V0UG9saWN5UmVzcG9uc2USdgoJU2V0UG9saWN5EjMudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LlNldFBvbGljeVJlcXVlc3QaNC52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuU2V0UG9saWN5UmVzcG9uc2USiAEKD1NldE1hbnVhbFByZXNldBI5LnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5TZXRNYW51YWxQcmVzZXRSZXF1ZXN0GjoudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LlNldE1hbnVhbFByZXNldFJlc3BvbnNlEo4BChFDbGVhck1hbnVhbFByZXNldBI7LnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5DbGVhck1hbnVhbFByZXNldFJlcXVlc3QaPC52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuQ2xlYXJNYW51YWxQcmVzZXRSZXNwb25zZRKFAQoORXZhbHVhdGVQb2xpY3kSOC52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuRXZhbHVhdGVQb2xpY3lSZXF1ZXN0GjkudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LkV2YWx1YXRlUG9saWN5UmVzcG9uc2VCUlpQZ2l0aHViLmNvbS92cm9vbGkvdnJvb2xpL3BhY2thZ2VzL3Byb3RvL2dlbi9nby9saWdodGluZy1jb250cm9sL3YxL3BvbGljeTtwb2xpY3liBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp, file_lighting_control_v1_control_control]);
+  fileDesc("CidsaWdodGluZy1jb250cm9sL3YxL3BvbGljeS9wb2xpY3kucHJvdG8SIXZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeSLbAQoGUHJlc2V0EjsKBGtpbmQYASABKA4yLS52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuUHJlc2V0S2luZBINCgVsYWJlbBgCIAEoCRI4CgVjb2xvchgDIAEoCzIpLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLmNvbnRyb2wuQ29sb3ISJwoWYnJpZ2h0bmVzc19jYXBfcGVyY2VudBgEIAEoDUIHukgEKgIYZBIRCgllZmZlY3RfaWQYBSABKAkSDwoHZW5hYmxlZBgGIAEoCCLFAQoNSGVhbHRoUGFsZXR0ZRI6CgdoZWFsdGh5GAEgASgLMikudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEuY29udHJvbC5Db2xvchI8CglhdHRlbnRpb24YAiABKAsyKS52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5jb250cm9sLkNvbG9yEjoKB2ZhaWx1cmUYAyABKAsyKS52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5jb250cm9sLkNvbG9yIm0KD0FjdGl2aXR5RWZmZWN0cxIYChBhY3RpdmVfZWZmZWN0X2lkGAEgASgJEhYKDmJ1c3lfZWZmZWN0X2lkGAIgASgJEigKFGJ1c3lfYWdlbnRfdGhyZXNob2xkGAMgASgNQgq6SAcqBRiIJygCIukECgxQb2xpY3lDb25maWcSRQoOZGVmYXVsdF9wcmVzZXQYASABKA4yLS52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuUHJlc2V0S2luZBI6CgdwcmVzZXRzGAIgAygLMikudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LlByZXNldBIrChZzb3VyY2VfbWF4X2FnZV9zZWNvbmRzGAMgASgNQgu6SAgqBhiAowUoBRIjChJsb2FkX2VudGVyX3BlcmNlbnQYBCABKA1CB7pIBCoCGGQSIgoRbG9hZF9leGl0X3BlcmNlbnQYBSABKA1CB7pIBCoCGGQSIgoQZGVib3VuY2Vfc2Vjb25kcxgGIAEoDUIIukgFKgMYkBwSJwoWYnJpZ2h0bmVzc19jYXBfcGVyY2VudBgHIAEoDUIHukgEKgIYZBJHChRzdGFsZV9mYWxsYmFja19jb2xvchgIIAEoCzIpLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLmNvbnRyb2wuQ29sb3ISMgohc3RhbGVfZmFsbGJhY2tfYnJpZ2h0bmVzc19wZXJjZW50GAkgASgNQge6SAQqAhhkEkgKDmhlYWx0aF9wYWxldHRlGAogASgLMjAudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LkhlYWx0aFBhbGV0dGUSTAoQYWN0aXZpdHlfZWZmZWN0cxgLIAEoCzIyLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5BY3Rpdml0eUVmZmVjdHMi6AIKDkV2aWRlbmNlU291cmNlEg4KBnNvdXJjZRgBIAEoCRI/CgVzdGF0ZRgCIAEoDjIwLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5FdmlkZW5jZVN0YXRlEi8KC29ic2VydmVkX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBI0ChBzb3VyY2VfdGltZXN0YW1wGAQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIOCgZyZWFzb24YBSABKAkSWQoMbWVhc3VyZW1lbnRzGAYgAygLMkMudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LkV2aWRlbmNlU291cmNlLk1lYXN1cmVtZW50c0VudHJ5GjMKEU1lYXN1cmVtZW50c0VudHJ5EgsKA2tleRgBIAEoCRINCgV2YWx1ZRgCIAEoAToCOAEiqgMKD0VmZmVjdGl2ZVBvbGljeRI9CgZwcmVzZXQYASABKA4yLS52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuUHJlc2V0S2luZBI4CgVjb2xvchgCIAEoCzIpLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLmNvbnRyb2wuQ29sb3ISGgoSYnJpZ2h0bmVzc19wZXJjZW50GAMgASgNEhEKCWVmZmVjdF9pZBgEIAEoCRIOCgZyZWFzb24YBSABKAkSMAoMZXZhbHVhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBJDCghldmlkZW5jZRgHIAMoCzIxLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5FdmlkZW5jZVNvdXJjZRIXCg9tYW51YWxfcHJpb3JpdHkYCCABKAgSNgoScmVxdWVzdF9leHBpcmVzX2F0GAkgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIXCg9zdGF0aWNfZmFsbGJhY2sYCiABKAgiEgoQR2V0UG9saWN5UmVxdWVzdCKbAQoRR2V0UG9saWN5UmVzcG9uc2USPwoGY29uZmlnGAEgASgLMi8udnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LlBvbGljeUNvbmZpZxJFCgllZmZlY3RpdmUYAiABKAsyMi52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuRWZmZWN0aXZlUG9saWN5IlMKEFNldFBvbGljeVJlcXVlc3QSPwoGY29uZmlnGAEgASgLMi8udnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LlBvbGljeUNvbmZpZyJUChFTZXRQb2xpY3lSZXNwb25zZRI/CgZjb25maWcYASABKAsyLy52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuUG9saWN5Q29uZmlnIocBChZTZXRNYW51YWxQcmVzZXRSZXF1ZXN0Ej0KBnByZXNldBgBIAEoDjItLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5QcmVzZXRLaW5kEi4KCmV4cGlyZXNfYXQYAiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wIpgBChBQb2xpY3lab25lUmVzdWx0EhUKDWNvbnRyb2xsZXJfaWQYASABKAkSDwoHem9uZV9pZBgCIAEoCRIXCg9zdGF0aWNfZmFsbGJhY2sYAyABKAgSQwoGcmVzdWx0GAQgASgLMjMudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEuY29udHJvbC5ab25lQXBwbHlSZXN1bHQipgEKF1NldE1hbnVhbFByZXNldFJlc3BvbnNlEkUKCWVmZmVjdGl2ZRgBIAEoCzIyLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5FZmZlY3RpdmVQb2xpY3kSRAoHcmVzdWx0cxgCIAMoCzIzLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5Qb2xpY3lab25lUmVzdWx0IhoKGENsZWFyTWFudWFsUHJlc2V0UmVxdWVzdCIsChlDbGVhck1hbnVhbFByZXNldFJlc3BvbnNlEg8KB2NsZWFyZWQYASABKAgiKAoVRXZhbHVhdGVQb2xpY3lSZXF1ZXN0Eg8KB3RyaWdnZXIYASABKAkipQEKFkV2YWx1YXRlUG9saWN5UmVzcG9uc2USRQoJZWZmZWN0aXZlGAEgASgLMjIudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LkVmZmVjdGl2ZVBvbGljeRJECgdyZXN1bHRzGAIgAygLMjMudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LlBvbGljeVpvbmVSZXN1bHQqtAEKClByZXNldEtpbmQSGwoXUFJFU0VUX0tJTkRfVU5TUEVDSUZJRUQQABITCg9QUkVTRVRfS0lORF9PRkYQARIUChBQUkVTRVRfS0lORF9MT0FEEAISFAoQUFJFU0VUX0tJTkRfV09SSxADEhYKElBSRVNFVF9LSU5EX0hFQUxUSBAEEhgKFFBSRVNFVF9LSU5EX0NPTUJJTkVEEAUSFgoSUFJFU0VUX0tJTkRfU1RBVElDEAYqoAEKDUV2aWRlbmNlU3RhdGUSHgoaRVZJREVOQ0VfU1RBVEVfVU5TUEVDSUZJRUQQABIYChRFVklERU5DRV9TVEFURV9GUkVTSBABEhgKFEVWSURFTkNFX1NUQVRFX1NUQUxFEAISHgoaRVZJREVOQ0VfU1RBVEVfVU5BVkFJTEFCTEUQAxIbChdFVklERU5DRV9TVEFURV9ERUdSQURFRBAEMqMFCg1Qb2xpY3lTZXJ2aWNlEnYKCUdldFBvbGljeRIzLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5HZXRQb2xpY3lSZXF1ZXN0GjQudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LkdldFBvbGljeVJlc3BvbnNlEnYKCVNldFBvbGljeRIzLnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5TZXRQb2xpY3lSZXF1ZXN0GjQudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LlNldFBvbGljeVJlc3BvbnNlEogBCg9TZXRNYW51YWxQcmVzZXQSOS52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuU2V0TWFudWFsUHJlc2V0UmVxdWVzdBo6LnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5TZXRNYW51YWxQcmVzZXRSZXNwb25zZRKOAQoRQ2xlYXJNYW51YWxQcmVzZXQSOy52cm9vbGkubGlnaHRpbmdfY29udHJvbC52MS5wb2xpY3kuQ2xlYXJNYW51YWxQcmVzZXRSZXF1ZXN0GjwudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LkNsZWFyTWFudWFsUHJlc2V0UmVzcG9uc2UShQEKDkV2YWx1YXRlUG9saWN5EjgudnJvb2xpLmxpZ2h0aW5nX2NvbnRyb2wudjEucG9saWN5LkV2YWx1YXRlUG9saWN5UmVxdWVzdBo5LnZyb29saS5saWdodGluZ19jb250cm9sLnYxLnBvbGljeS5FdmFsdWF0ZVBvbGljeVJlc3BvbnNlQlJaUGdpdGh1Yi5jb20vdnJvb2xpL3Zyb29saS9wYWNrYWdlcy9wcm90by9nZW4vZ28vbGlnaHRpbmctY29udHJvbC92MS9wb2xpY3k7cG9saWN5YgZwcm90bzM", [file_buf_validate_validate, file_google_protobuf_timestamp, file_lighting_control_v1_control_control]);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.Preset
@@ -58,6 +58,64 @@ export type Preset = Message<"vrooli.lighting_control.v1.policy.Preset"> & {
  */
 export const PresetSchema: GenMessage<Preset> = /*@__PURE__*/
   messageDesc(file_lighting_control_v1_policy_policy, 0);
+
+/**
+ * @generated from message vrooli.lighting_control.v1.policy.HealthPalette
+ */
+export type HealthPalette = Message<"vrooli.lighting_control.v1.policy.HealthPalette"> & {
+  /**
+   * @generated from field: vrooli.lighting_control.v1.control.Color healthy = 1;
+   */
+  healthy?: Color | undefined;
+
+  /**
+   * @generated from field: vrooli.lighting_control.v1.control.Color attention = 2;
+   */
+  attention?: Color | undefined;
+
+  /**
+   * @generated from field: vrooli.lighting_control.v1.control.Color failure = 3;
+   */
+  failure?: Color | undefined;
+};
+
+/**
+ * Describes the message vrooli.lighting_control.v1.policy.HealthPalette.
+ * Use `create(HealthPaletteSchema)` to create a new message.
+ */
+export const HealthPaletteSchema: GenMessage<HealthPalette> = /*@__PURE__*/
+  messageDesc(file_lighting_control_v1_policy_policy, 1);
+
+/**
+ * @generated from message vrooli.lighting_control.v1.policy.ActivityEffects
+ */
+export type ActivityEffects = Message<"vrooli.lighting_control.v1.policy.ActivityEffects"> & {
+  /**
+   * The effect used while 1..busy_agent_threshold-1 active agents are present.
+   *
+   * @generated from field: string active_effect_id = 1;
+   */
+  activeEffectId: string;
+
+  /**
+   * The effect used when activity reaches busy_agent_threshold or more.
+   *
+   * @generated from field: string busy_effect_id = 2;
+   */
+  busyEffectId: string;
+
+  /**
+   * @generated from field: uint32 busy_agent_threshold = 3;
+   */
+  busyAgentThreshold: number;
+};
+
+/**
+ * Describes the message vrooli.lighting_control.v1.policy.ActivityEffects.
+ * Use `create(ActivityEffectsSchema)` to create a new message.
+ */
+export const ActivityEffectsSchema: GenMessage<ActivityEffects> = /*@__PURE__*/
+  messageDesc(file_lighting_control_v1_policy_policy, 2);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.PolicyConfig
@@ -109,6 +167,16 @@ export type PolicyConfig = Message<"vrooli.lighting_control.v1.policy.PolicyConf
    * @generated from field: uint32 stale_fallback_brightness_percent = 9;
    */
   staleFallbackBrightnessPercent: number;
+
+  /**
+   * @generated from field: vrooli.lighting_control.v1.policy.HealthPalette health_palette = 10;
+   */
+  healthPalette?: HealthPalette | undefined;
+
+  /**
+   * @generated from field: vrooli.lighting_control.v1.policy.ActivityEffects activity_effects = 11;
+   */
+  activityEffects?: ActivityEffects | undefined;
 };
 
 /**
@@ -116,7 +184,7 @@ export type PolicyConfig = Message<"vrooli.lighting_control.v1.policy.PolicyConf
  * Use `create(PolicyConfigSchema)` to create a new message.
  */
 export const PolicyConfigSchema: GenMessage<PolicyConfig> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 1);
+  messageDesc(file_lighting_control_v1_policy_policy, 3);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.EvidenceSource
@@ -158,7 +226,7 @@ export type EvidenceSource = Message<"vrooli.lighting_control.v1.policy.Evidence
  * Use `create(EvidenceSourceSchema)` to create a new message.
  */
 export const EvidenceSourceSchema: GenMessage<EvidenceSource> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 2);
+  messageDesc(file_lighting_control_v1_policy_policy, 4);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.EffectivePolicy
@@ -220,7 +288,7 @@ export type EffectivePolicy = Message<"vrooli.lighting_control.v1.policy.Effecti
  * Use `create(EffectivePolicySchema)` to create a new message.
  */
 export const EffectivePolicySchema: GenMessage<EffectivePolicy> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 3);
+  messageDesc(file_lighting_control_v1_policy_policy, 5);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.GetPolicyRequest
@@ -233,7 +301,7 @@ export type GetPolicyRequest = Message<"vrooli.lighting_control.v1.policy.GetPol
  * Use `create(GetPolicyRequestSchema)` to create a new message.
  */
 export const GetPolicyRequestSchema: GenMessage<GetPolicyRequest> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 4);
+  messageDesc(file_lighting_control_v1_policy_policy, 6);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.GetPolicyResponse
@@ -255,7 +323,7 @@ export type GetPolicyResponse = Message<"vrooli.lighting_control.v1.policy.GetPo
  * Use `create(GetPolicyResponseSchema)` to create a new message.
  */
 export const GetPolicyResponseSchema: GenMessage<GetPolicyResponse> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 5);
+  messageDesc(file_lighting_control_v1_policy_policy, 7);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.SetPolicyRequest
@@ -272,7 +340,7 @@ export type SetPolicyRequest = Message<"vrooli.lighting_control.v1.policy.SetPol
  * Use `create(SetPolicyRequestSchema)` to create a new message.
  */
 export const SetPolicyRequestSchema: GenMessage<SetPolicyRequest> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 6);
+  messageDesc(file_lighting_control_v1_policy_policy, 8);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.SetPolicyResponse
@@ -289,7 +357,7 @@ export type SetPolicyResponse = Message<"vrooli.lighting_control.v1.policy.SetPo
  * Use `create(SetPolicyResponseSchema)` to create a new message.
  */
 export const SetPolicyResponseSchema: GenMessage<SetPolicyResponse> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 7);
+  messageDesc(file_lighting_control_v1_policy_policy, 9);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.SetManualPresetRequest
@@ -311,7 +379,7 @@ export type SetManualPresetRequest = Message<"vrooli.lighting_control.v1.policy.
  * Use `create(SetManualPresetRequestSchema)` to create a new message.
  */
 export const SetManualPresetRequestSchema: GenMessage<SetManualPresetRequest> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 8);
+  messageDesc(file_lighting_control_v1_policy_policy, 10);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.PolicyZoneResult
@@ -343,7 +411,7 @@ export type PolicyZoneResult = Message<"vrooli.lighting_control.v1.policy.Policy
  * Use `create(PolicyZoneResultSchema)` to create a new message.
  */
 export const PolicyZoneResultSchema: GenMessage<PolicyZoneResult> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 9);
+  messageDesc(file_lighting_control_v1_policy_policy, 11);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.SetManualPresetResponse
@@ -365,7 +433,7 @@ export type SetManualPresetResponse = Message<"vrooli.lighting_control.v1.policy
  * Use `create(SetManualPresetResponseSchema)` to create a new message.
  */
 export const SetManualPresetResponseSchema: GenMessage<SetManualPresetResponse> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 10);
+  messageDesc(file_lighting_control_v1_policy_policy, 12);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.ClearManualPresetRequest
@@ -378,7 +446,7 @@ export type ClearManualPresetRequest = Message<"vrooli.lighting_control.v1.polic
  * Use `create(ClearManualPresetRequestSchema)` to create a new message.
  */
 export const ClearManualPresetRequestSchema: GenMessage<ClearManualPresetRequest> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 11);
+  messageDesc(file_lighting_control_v1_policy_policy, 13);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.ClearManualPresetResponse
@@ -395,7 +463,7 @@ export type ClearManualPresetResponse = Message<"vrooli.lighting_control.v1.poli
  * Use `create(ClearManualPresetResponseSchema)` to create a new message.
  */
 export const ClearManualPresetResponseSchema: GenMessage<ClearManualPresetResponse> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 12);
+  messageDesc(file_lighting_control_v1_policy_policy, 14);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.EvaluatePolicyRequest
@@ -412,7 +480,7 @@ export type EvaluatePolicyRequest = Message<"vrooli.lighting_control.v1.policy.E
  * Use `create(EvaluatePolicyRequestSchema)` to create a new message.
  */
 export const EvaluatePolicyRequestSchema: GenMessage<EvaluatePolicyRequest> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 13);
+  messageDesc(file_lighting_control_v1_policy_policy, 15);
 
 /**
  * @generated from message vrooli.lighting_control.v1.policy.EvaluatePolicyResponse
@@ -434,7 +502,7 @@ export type EvaluatePolicyResponse = Message<"vrooli.lighting_control.v1.policy.
  * Use `create(EvaluatePolicyResponseSchema)` to create a new message.
  */
 export const EvaluatePolicyResponseSchema: GenMessage<EvaluatePolicyResponse> = /*@__PURE__*/
-  messageDesc(file_lighting_control_v1_policy_policy, 14);
+  messageDesc(file_lighting_control_v1_policy_policy, 16);
 
 /**
  * @generated from enum vrooli.lighting_control.v1.policy.PresetKind

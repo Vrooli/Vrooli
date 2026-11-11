@@ -51,6 +51,9 @@ const (
 	// SessionsServiceDeliverNativePromptProcedure is the fully-qualified name of the SessionsService's
 	// DeliverNativePrompt RPC.
 	SessionsServiceDeliverNativePromptProcedure = "/vrooli.web_console.v1.sessions.SessionsService/DeliverNativePrompt"
+	// SessionsServiceSetNativeGoalProcedure is the fully-qualified name of the SessionsService's
+	// SetNativeGoal RPC.
+	SessionsServiceSetNativeGoalProcedure = "/vrooli.web_console.v1.sessions.SessionsService/SetNativeGoal"
 	// SessionsServiceArchiveProcedure is the fully-qualified name of the SessionsService's Archive RPC.
 	SessionsServiceArchiveProcedure = "/vrooli.web_console.v1.sessions.SessionsService/Archive"
 	// SessionsServiceUnarchiveProcedure is the fully-qualified name of the SessionsService's Unarchive
@@ -94,6 +97,9 @@ type SessionsServiceClient interface {
 	// DeliverNativePrompt routes text through the exact live provider owner bound
 	// to this Web Console session. It never writes to the session PTY.
 	DeliverNativePrompt(context.Context, *connect.Request[sessions.DeliverNativePromptRequest]) (*connect.Response[sessions.DeliverNativePromptResponse], error)
+	// SetNativeGoal mutates Codex's provider-owned goal for the exact session
+	// generation. The request never enters a PTY.
+	SetNativeGoal(context.Context, *connect.Request[sessions.SetNativeGoalRequest]) (*connect.Response[sessions.SetNativeGoalResponse], error)
 	Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error)
 	Unarchive(context.Context, *connect.Request[sessions.UnarchiveRequest]) (*connect.Response[sessions.UnarchiveResponse], error)
 	Delete(context.Context, *connect.Request[sessions.DeleteRequest]) (*connect.Response[sessions.DeleteResponse], error)
@@ -161,6 +167,12 @@ func NewSessionsServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+SessionsServiceDeliverNativePromptProcedure,
 			connect.WithSchema(sessionsServiceMethods.ByName("DeliverNativePrompt")),
+			connect.WithClientOptions(opts...),
+		),
+		setNativeGoal: connect.NewClient[sessions.SetNativeGoalRequest, sessions.SetNativeGoalResponse](
+			httpClient,
+			baseURL+SessionsServiceSetNativeGoalProcedure,
+			connect.WithSchema(sessionsServiceMethods.ByName("SetNativeGoal")),
 			connect.WithClientOptions(opts...),
 		),
 		archive: connect.NewClient[sessions.ArchiveRequest, sessions.ArchiveResponse](
@@ -241,6 +253,7 @@ type sessionsServiceClient struct {
 	readNativeUsage       *connect.Client[sessions.ReadNativeUsageRequest, sessions.ReadNativeUsageResponse]
 	readNativeThreadState *connect.Client[sessions.ReadNativeThreadStateRequest, sessions.ReadNativeThreadStateResponse]
 	deliverNativePrompt   *connect.Client[sessions.DeliverNativePromptRequest, sessions.DeliverNativePromptResponse]
+	setNativeGoal         *connect.Client[sessions.SetNativeGoalRequest, sessions.SetNativeGoalResponse]
 	archive               *connect.Client[sessions.ArchiveRequest, sessions.ArchiveResponse]
 	unarchive             *connect.Client[sessions.UnarchiveRequest, sessions.UnarchiveResponse]
 	delete                *connect.Client[sessions.DeleteRequest, sessions.DeleteResponse]
@@ -287,6 +300,11 @@ func (c *sessionsServiceClient) ReadNativeThreadState(ctx context.Context, req *
 // DeliverNativePrompt calls vrooli.web_console.v1.sessions.SessionsService.DeliverNativePrompt.
 func (c *sessionsServiceClient) DeliverNativePrompt(ctx context.Context, req *connect.Request[sessions.DeliverNativePromptRequest]) (*connect.Response[sessions.DeliverNativePromptResponse], error) {
 	return c.deliverNativePrompt.CallUnary(ctx, req)
+}
+
+// SetNativeGoal calls vrooli.web_console.v1.sessions.SessionsService.SetNativeGoal.
+func (c *sessionsServiceClient) SetNativeGoal(ctx context.Context, req *connect.Request[sessions.SetNativeGoalRequest]) (*connect.Response[sessions.SetNativeGoalResponse], error) {
+	return c.setNativeGoal.CallUnary(ctx, req)
 }
 
 // Archive calls vrooli.web_console.v1.sessions.SessionsService.Archive.
@@ -357,6 +375,9 @@ type SessionsServiceHandler interface {
 	// DeliverNativePrompt routes text through the exact live provider owner bound
 	// to this Web Console session. It never writes to the session PTY.
 	DeliverNativePrompt(context.Context, *connect.Request[sessions.DeliverNativePromptRequest]) (*connect.Response[sessions.DeliverNativePromptResponse], error)
+	// SetNativeGoal mutates Codex's provider-owned goal for the exact session
+	// generation. The request never enters a PTY.
+	SetNativeGoal(context.Context, *connect.Request[sessions.SetNativeGoalRequest]) (*connect.Response[sessions.SetNativeGoalResponse], error)
 	Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error)
 	Unarchive(context.Context, *connect.Request[sessions.UnarchiveRequest]) (*connect.Response[sessions.UnarchiveResponse], error)
 	Delete(context.Context, *connect.Request[sessions.DeleteRequest]) (*connect.Response[sessions.DeleteResponse], error)
@@ -419,6 +440,12 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 		SessionsServiceDeliverNativePromptProcedure,
 		svc.DeliverNativePrompt,
 		connect.WithSchema(sessionsServiceMethods.ByName("DeliverNativePrompt")),
+		connect.WithHandlerOptions(opts...),
+	)
+	sessionsServiceSetNativeGoalHandler := connect.NewUnaryHandler(
+		SessionsServiceSetNativeGoalProcedure,
+		svc.SetNativeGoal,
+		connect.WithSchema(sessionsServiceMethods.ByName("SetNativeGoal")),
 		connect.WithHandlerOptions(opts...),
 	)
 	sessionsServiceArchiveHandler := connect.NewUnaryHandler(
@@ -503,6 +530,8 @@ func NewSessionsServiceHandler(svc SessionsServiceHandler, opts ...connect.Handl
 			sessionsServiceReadNativeThreadStateHandler.ServeHTTP(w, r)
 		case SessionsServiceDeliverNativePromptProcedure:
 			sessionsServiceDeliverNativePromptHandler.ServeHTTP(w, r)
+		case SessionsServiceSetNativeGoalProcedure:
+			sessionsServiceSetNativeGoalHandler.ServeHTTP(w, r)
 		case SessionsServiceArchiveProcedure:
 			sessionsServiceArchiveHandler.ServeHTTP(w, r)
 		case SessionsServiceUnarchiveProcedure:
@@ -560,6 +589,10 @@ func (UnimplementedSessionsServiceHandler) ReadNativeThreadState(context.Context
 
 func (UnimplementedSessionsServiceHandler) DeliverNativePrompt(context.Context, *connect.Request[sessions.DeliverNativePromptRequest]) (*connect.Response[sessions.DeliverNativePromptResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.DeliverNativePrompt is not implemented"))
+}
+
+func (UnimplementedSessionsServiceHandler) SetNativeGoal(context.Context, *connect.Request[sessions.SetNativeGoalRequest]) (*connect.Response[sessions.SetNativeGoalResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.web_console.v1.sessions.SessionsService.SetNativeGoal is not implemented"))
 }
 
 func (UnimplementedSessionsServiceHandler) Archive(context.Context, *connect.Request[sessions.ArchiveRequest]) (*connect.Response[sessions.ArchiveResponse], error) {

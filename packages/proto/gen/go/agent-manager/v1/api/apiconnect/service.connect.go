@@ -223,6 +223,9 @@ const (
 	// AgentManagerServiceCreateRunProcedure is the fully-qualified name of the AgentManagerService's
 	// CreateRun RPC.
 	AgentManagerServiceCreateRunProcedure = "/agent_manager.v1.AgentManagerService/CreateRun"
+	// AgentManagerServiceGetRuntimeActivityProcedure is the fully-qualified name of the
+	// AgentManagerService's GetRuntimeActivity RPC.
+	AgentManagerServiceGetRuntimeActivityProcedure = "/agent_manager.v1.AgentManagerService/GetRuntimeActivity"
 	// AgentManagerServiceGetRunProcedure is the fully-qualified name of the AgentManagerService's
 	// GetRun RPC.
 	AgentManagerServiceGetRunProcedure = "/agent_manager.v1.AgentManagerService/GetRun"
@@ -385,6 +388,10 @@ type AgentManagerServiceClient interface {
 	CreateTask(context.Context, *connect.Request[api.CreateTaskRequest]) (*connect.Response[api.CreateTaskResponse], error)
 	// CreateRun starts a new run for a task.
 	CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error)
+	// GetRuntimeActivity reads current physical execution evidence. It does not
+	// grant maintenance or lifecycle authority and does not count logical roster
+	// rows as executing work.
+	GetRuntimeActivity(context.Context, *connect.Request[api.GetRuntimeActivityRequest]) (*connect.Response[api.GetRuntimeActivityResponse], error)
 	// GetRun retrieves a run by ID.
 	GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error)
 	// GetRunReport returns the bounded diagnostic projection used by CLI, UI,
@@ -833,6 +840,12 @@ func NewAgentManagerServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(agentManagerServiceMethods.ByName("CreateRun")),
 			connect.WithClientOptions(opts...),
 		),
+		getRuntimeActivity: connect.NewClient[api.GetRuntimeActivityRequest, api.GetRuntimeActivityResponse](
+			httpClient,
+			baseURL+AgentManagerServiceGetRuntimeActivityProcedure,
+			connect.WithSchema(agentManagerServiceMethods.ByName("GetRuntimeActivity")),
+			connect.WithClientOptions(opts...),
+		),
 		getRun: connect.NewClient[api.GetRunRequest, api.GetRunResponse](
 			httpClient,
 			baseURL+AgentManagerServiceGetRunProcedure,
@@ -1033,6 +1046,7 @@ type agentManagerServiceClient struct {
 	listProfiles                     *connect.Client[api.ListProfilesRequest, api.ListProfilesResponse]
 	createTask                       *connect.Client[api.CreateTaskRequest, api.CreateTaskResponse]
 	createRun                        *connect.Client[api.CreateRunRequest, api.CreateRunResponse]
+	getRuntimeActivity               *connect.Client[api.GetRuntimeActivityRequest, api.GetRuntimeActivityResponse]
 	getRun                           *connect.Client[api.GetRunRequest, api.GetRunResponse]
 	getRunReport                     *connect.Client[api.GetRunReportRequest, api.RunReport]
 	getRunAccounting                 *connect.Client[api.GetRunAccountingRequest, api.RunAccounting]
@@ -1375,6 +1389,11 @@ func (c *agentManagerServiceClient) CreateRun(ctx context.Context, req *connect.
 	return c.createRun.CallUnary(ctx, req)
 }
 
+// GetRuntimeActivity calls agent_manager.v1.AgentManagerService.GetRuntimeActivity.
+func (c *agentManagerServiceClient) GetRuntimeActivity(ctx context.Context, req *connect.Request[api.GetRuntimeActivityRequest]) (*connect.Response[api.GetRuntimeActivityResponse], error) {
+	return c.getRuntimeActivity.CallUnary(ctx, req)
+}
+
 // GetRun calls agent_manager.v1.AgentManagerService.GetRun.
 func (c *agentManagerServiceClient) GetRun(ctx context.Context, req *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error) {
 	return c.getRun.CallUnary(ctx, req)
@@ -1582,6 +1601,10 @@ type AgentManagerServiceHandler interface {
 	CreateTask(context.Context, *connect.Request[api.CreateTaskRequest]) (*connect.Response[api.CreateTaskResponse], error)
 	// CreateRun starts a new run for a task.
 	CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error)
+	// GetRuntimeActivity reads current physical execution evidence. It does not
+	// grant maintenance or lifecycle authority and does not count logical roster
+	// rows as executing work.
+	GetRuntimeActivity(context.Context, *connect.Request[api.GetRuntimeActivityRequest]) (*connect.Response[api.GetRuntimeActivityResponse], error)
 	// GetRun retrieves a run by ID.
 	GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error)
 	// GetRunReport returns the bounded diagnostic projection used by CLI, UI,
@@ -2026,6 +2049,12 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 		connect.WithSchema(agentManagerServiceMethods.ByName("CreateRun")),
 		connect.WithHandlerOptions(opts...),
 	)
+	agentManagerServiceGetRuntimeActivityHandler := connect.NewUnaryHandler(
+		AgentManagerServiceGetRuntimeActivityProcedure,
+		svc.GetRuntimeActivity,
+		connect.WithSchema(agentManagerServiceMethods.ByName("GetRuntimeActivity")),
+		connect.WithHandlerOptions(opts...),
+	)
 	agentManagerServiceGetRunHandler := connect.NewUnaryHandler(
 		AgentManagerServiceGetRunProcedure,
 		svc.GetRun,
@@ -2286,6 +2315,8 @@ func NewAgentManagerServiceHandler(svc AgentManagerServiceHandler, opts ...conne
 			agentManagerServiceCreateTaskHandler.ServeHTTP(w, r)
 		case AgentManagerServiceCreateRunProcedure:
 			agentManagerServiceCreateRunHandler.ServeHTTP(w, r)
+		case AgentManagerServiceGetRuntimeActivityProcedure:
+			agentManagerServiceGetRuntimeActivityHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunProcedure:
 			agentManagerServiceGetRunHandler.ServeHTTP(w, r)
 		case AgentManagerServiceGetRunReportProcedure:
@@ -2589,6 +2620,10 @@ func (UnimplementedAgentManagerServiceHandler) CreateTask(context.Context, *conn
 
 func (UnimplementedAgentManagerServiceHandler) CreateRun(context.Context, *connect.Request[api.CreateRunRequest]) (*connect.Response[api.CreateRunResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.CreateRun is not implemented"))
+}
+
+func (UnimplementedAgentManagerServiceHandler) GetRuntimeActivity(context.Context, *connect.Request[api.GetRuntimeActivityRequest]) (*connect.Response[api.GetRuntimeActivityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("agent_manager.v1.AgentManagerService.GetRuntimeActivity is not implemented"))
 }
 
 func (UnimplementedAgentManagerServiceHandler) GetRun(context.Context, *connect.Request[api.GetRunRequest]) (*connect.Response[api.GetRunResponse], error) {

@@ -1,8 +1,9 @@
 from search_hub.v1.eval import eval_pb2 as _eval_pb2
 from search_hub.v1.registry import registry_pb2 as _registry_pb2
+from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
-from collections.abc import Mapping as _Mapping
+from collections.abc import Iterable as _Iterable, Mapping as _Mapping
 from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
@@ -32,16 +33,20 @@ class ReindexRequest(_message.Message):
     def __init__(self, scope: _Optional[str] = ..., dry_run: _Optional[bool] = ..., control_token: _Optional[str] = ..., action: _Optional[str] = ..., shadow_collection: _Optional[str] = ..., rollback_collection: _Optional[str] = ..., embedding_model: _Optional[str] = ..., embedding_role: _Optional[str] = ..., embedding_dimensions: _Optional[int] = ..., embedding_policy_schema_version: _Optional[str] = ...) -> None: ...
 
 class ReindexResponse(_message.Message):
-    __slots__ = ("job_id", "planned_upserts", "planned_deletes", "dry_run")
+    __slots__ = ("job_id", "planned_upserts", "planned_deletes", "dry_run", "migration_protocol_version", "supported_migration_actions")
     JOB_ID_FIELD_NUMBER: _ClassVar[int]
     PLANNED_UPSERTS_FIELD_NUMBER: _ClassVar[int]
     PLANNED_DELETES_FIELD_NUMBER: _ClassVar[int]
     DRY_RUN_FIELD_NUMBER: _ClassVar[int]
+    MIGRATION_PROTOCOL_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTED_MIGRATION_ACTIONS_FIELD_NUMBER: _ClassVar[int]
     job_id: str
     planned_upserts: int
     planned_deletes: int
     dry_run: bool
-    def __init__(self, job_id: _Optional[str] = ..., planned_upserts: _Optional[int] = ..., planned_deletes: _Optional[int] = ..., dry_run: _Optional[bool] = ...) -> None: ...
+    migration_protocol_version: int
+    supported_migration_actions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, job_id: _Optional[str] = ..., planned_upserts: _Optional[int] = ..., planned_deletes: _Optional[int] = ..., dry_run: _Optional[bool] = ..., migration_protocol_version: _Optional[int] = ..., supported_migration_actions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ReindexStatusRequest(_message.Message):
     __slots__ = ("job_id", "control_token")

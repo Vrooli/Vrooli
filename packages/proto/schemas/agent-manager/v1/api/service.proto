@@ -288,6 +288,13 @@ service AgentManagerService {
     };
   }
 
+  // GetRuntimeActivity reads current physical execution evidence. It does not
+  // grant maintenance or lifecycle authority and does not count logical roster
+  // rows as executing work.
+  rpc GetRuntimeActivity(GetRuntimeActivityRequest) returns (GetRuntimeActivityResponse) {
+    option (google.api.http) = {get: "/api/v1/runtime/activity"};
+  }
+
   // GetRun retrieves a run by ID.
   rpc GetRun(GetRunRequest) returns (GetRunResponse) {
     option (google.api.http) = {get: "/api/v1/runs/{run_id}"};
@@ -1642,6 +1649,13 @@ message RecoverRunRequest {
   // Run ID.
   // @format uuid
   string run_id = 1 [(buf.validate.field).string.uuid = true];
+  // When both offsets are present, reconcile self-contained retained Codex
+  // command_execution tool facts (at most 1 MiB and 128 facts, within committed stdout).
+  // This mode does not change execution, lifecycle, cursors or accounting.
+  optional int64 transcript_from_byte = 2;
+  optional int64 transcript_through_byte = 3;
+  // SHA-256 of the exact bounded source bytes; required with either offset.
+  string transcript_sha256 = 4;
 }
 
 message RecoverRunResponse {
@@ -1649,6 +1663,21 @@ message RecoverRunResponse {
   bool recovered = 2;
   bool idempotent = 3;
   string message = 4;
+  TranscriptEvidenceReplayReceipt transcript_replay = 5;
+}
+
+message TranscriptEvidenceReplayReceipt {
+  int64 from_byte = 1;
+  int64 through_byte = 2;
+  string source_sha256 = 3;
+  int64 records_parsed = 4;
+  int64 events_inserted = 5;
+  int64 events_replayed = 6;
+  int64 events_ignored = 7;
+  // Newly inserted facts whose source omitted a timestamp. Their event timestamp
+  // is publication time; the original occurrence time remains unknown.
+  int64 events_with_publication_time = 8;
+  repeated string inserted_event_ids = 9;
 }
 
 // =============================================================================
@@ -2187,3 +2216,26 @@ message ListInvestigationsResponse { repeated InvestigationRecord investigations
 message WaitInvestigationRequest { string investigation_id = 1 [(buf.validate.field).string.min_len = 1]; int32 timeout_seconds = 2; }
 message WaitInvestigationResponse { InvestigationRecord investigation = 1; bool terminal = 2; }
 message CancelInvestigationRequest { string investigation_id = 1 [(buf.validate.field).string.min_len = 1]; }
+
+
+// GetRuntimeActivityRequest reads the current bounded owner observation.
+message GetRuntimeActivityRequest {}
+
+// GetRuntimeActivityResponse separates physical execution from logical queue
+// metadata. Missing exact count means unknown, not zero. Positive observations
+// remain useful even when another scope cannot be resolved.
+message GetRuntimeActivityResponse {
+  // Conservative start time of this bounded owner observation, not HTTP receipt.
+  google.protobuf.Timestamp observed_at = 1;
+  // True only when every canonical candidate scope has usable coverage.
+  bool complete = 2;
+  // Present only with complete coverage; zero then proves no executing scopes.
+  optional uint32 executing_runs = 3;
+  // Physically verified positive run scopes; a lower bound if incomplete.
+  uint32 observed_executing_runs = 4;
+  // Pending/starting database records, independent from physical execution.
+  // May overlap in-flight transitions and must never be used as a work pulse.
+  uint32 logical_queued_runs = 5;
+  repeated string unknown_reasons = 6 [(buf.validate.field).repeated.max_items = 64];
+  string reason = 7;
+}

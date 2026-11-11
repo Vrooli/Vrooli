@@ -99,6 +99,10 @@ message ReindexResponse {
   int32 planned_upserts = 2;
   int32 planned_deletes = 3;
   bool dry_run = 4;
+  // Present only for action="capabilities". The protocol version and
+  // normalized action set are negotiated before migration mutations.
+  uint32 migration_protocol_version = 5;
+  repeated string supported_migration_actions = 6;
 }
 
 // ReindexStatusRequest looks up a job by its assigned id.

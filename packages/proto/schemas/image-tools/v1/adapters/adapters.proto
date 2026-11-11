@@ -146,6 +146,8 @@ message Adapter {
   InstallState install = 13;
   // custom is true for operator-registered / imported entries (not in the seed).
   bool custom = 14;
+  // license_terms_version identifies a versioned model agreement required before use.
+  string license_terms_version = 15;
 }
 
 message ListAdaptersRequest {

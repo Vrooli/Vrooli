@@ -45,6 +45,9 @@ const (
 	// EvalServiceValidateCorpusProcedure is the fully-qualified name of the EvalService's
 	// ValidateCorpus RPC.
 	EvalServiceValidateCorpusProcedure = "/vrooli.search_hub.v1.eval.EvalService/ValidateCorpus"
+	// EvalServiceGetLatestCorpusValidationProcedure is the fully-qualified name of the EvalService's
+	// GetLatestCorpusValidation RPC.
+	EvalServiceGetLatestCorpusValidationProcedure = "/vrooli.search_hub.v1.eval.EvalService/GetLatestCorpusValidation"
 	// EvalServiceListRunsProcedure is the fully-qualified name of the EvalService's ListRuns RPC.
 	EvalServiceListRunsProcedure = "/vrooli.search_hub.v1.eval.EvalService/ListRuns"
 	// EvalServiceGetRunProcedure is the fully-qualified name of the EvalService's GetRun RPC.
@@ -77,6 +80,9 @@ type EvalServiceClient interface {
 	// Re-probe positive labels and classify whether expect_ids still refer to
 	// live provider results. Advisory only: stale labels warn, never fail a run.
 	ValidateCorpus(context.Context, *connect.Request[eval.ValidateCorpusRequest]) (*connect.Response[eval.ValidateCorpusResponse], error)
+	// Read the newest durable corpus-validation receipt without exposing probed
+	// queries or provider error text.
+	GetLatestCorpusValidation(context.Context, *connect.Request[eval.GetLatestCorpusValidationRequest]) (*connect.Response[eval.GetLatestCorpusValidationResponse], error)
 	// History, optionally filtered by tag.
 	ListRuns(context.Context, *connect.Request[eval.ListRunsRequest]) (*connect.Response[eval.ListRunsResponse], error)
 	GetRun(context.Context, *connect.Request[eval.GetRunRequest]) (*connect.Response[eval.GetRunResponse], error)
@@ -147,6 +153,12 @@ func NewEvalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(evalServiceMethods.ByName("ValidateCorpus")),
 			connect.WithClientOptions(opts...),
 		),
+		getLatestCorpusValidation: connect.NewClient[eval.GetLatestCorpusValidationRequest, eval.GetLatestCorpusValidationResponse](
+			httpClient,
+			baseURL+EvalServiceGetLatestCorpusValidationProcedure,
+			connect.WithSchema(evalServiceMethods.ByName("GetLatestCorpusValidation")),
+			connect.WithClientOptions(opts...),
+		),
 		listRuns: connect.NewClient[eval.ListRunsRequest, eval.ListRunsResponse](
 			httpClient,
 			baseURL+EvalServiceListRunsProcedure,
@@ -200,19 +212,20 @@ func NewEvalServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // evalServiceClient implements EvalServiceClient.
 type evalServiceClient struct {
-	registerSuite     *connect.Client[eval.RegisterSuiteRequest, eval.RegisterSuiteResponse]
-	listSuites        *connect.Client[eval.ListSuitesRequest, eval.ListSuitesResponse]
-	getSuite          *connect.Client[eval.GetSuiteRequest, eval.GetSuiteResponse]
-	runSuite          *connect.Client[eval.RunSuiteRequest, eval.RunSuiteResponse]
-	validateCorpus    *connect.Client[eval.ValidateCorpusRequest, eval.ValidateCorpusResponse]
-	listRuns          *connect.Client[eval.ListRunsRequest, eval.ListRunsResponse]
-	getRun            *connect.Client[eval.GetRunRequest, eval.GetRunResponse]
-	compareRuns       *connect.Client[eval.CompareRunsRequest, eval.CompareRunsResponse]
-	sweep             *connect.Client[eval.SweepRequest, eval.SweepResponse]
-	compareStrategies *connect.Client[eval.CompareStrategiesRequest, eval.CompareStrategiesResponse]
-	generate          *connect.Client[eval.GenerateRequest, eval.GenerateResponse]
-	promoteCases      *connect.Client[eval.PromoteCasesRequest, eval.PromoteCasesResponse]
-	reapOrphanSuites  *connect.Client[eval.ReapOrphanSuitesRequest, eval.ReapOrphanSuitesResponse]
+	registerSuite             *connect.Client[eval.RegisterSuiteRequest, eval.RegisterSuiteResponse]
+	listSuites                *connect.Client[eval.ListSuitesRequest, eval.ListSuitesResponse]
+	getSuite                  *connect.Client[eval.GetSuiteRequest, eval.GetSuiteResponse]
+	runSuite                  *connect.Client[eval.RunSuiteRequest, eval.RunSuiteResponse]
+	validateCorpus            *connect.Client[eval.ValidateCorpusRequest, eval.ValidateCorpusResponse]
+	getLatestCorpusValidation *connect.Client[eval.GetLatestCorpusValidationRequest, eval.GetLatestCorpusValidationResponse]
+	listRuns                  *connect.Client[eval.ListRunsRequest, eval.ListRunsResponse]
+	getRun                    *connect.Client[eval.GetRunRequest, eval.GetRunResponse]
+	compareRuns               *connect.Client[eval.CompareRunsRequest, eval.CompareRunsResponse]
+	sweep                     *connect.Client[eval.SweepRequest, eval.SweepResponse]
+	compareStrategies         *connect.Client[eval.CompareStrategiesRequest, eval.CompareStrategiesResponse]
+	generate                  *connect.Client[eval.GenerateRequest, eval.GenerateResponse]
+	promoteCases              *connect.Client[eval.PromoteCasesRequest, eval.PromoteCasesResponse]
+	reapOrphanSuites          *connect.Client[eval.ReapOrphanSuitesRequest, eval.ReapOrphanSuitesResponse]
 }
 
 // RegisterSuite calls vrooli.search_hub.v1.eval.EvalService.RegisterSuite.
@@ -238,6 +251,11 @@ func (c *evalServiceClient) RunSuite(ctx context.Context, req *connect.Request[e
 // ValidateCorpus calls vrooli.search_hub.v1.eval.EvalService.ValidateCorpus.
 func (c *evalServiceClient) ValidateCorpus(ctx context.Context, req *connect.Request[eval.ValidateCorpusRequest]) (*connect.Response[eval.ValidateCorpusResponse], error) {
 	return c.validateCorpus.CallUnary(ctx, req)
+}
+
+// GetLatestCorpusValidation calls vrooli.search_hub.v1.eval.EvalService.GetLatestCorpusValidation.
+func (c *evalServiceClient) GetLatestCorpusValidation(ctx context.Context, req *connect.Request[eval.GetLatestCorpusValidationRequest]) (*connect.Response[eval.GetLatestCorpusValidationResponse], error) {
+	return c.getLatestCorpusValidation.CallUnary(ctx, req)
 }
 
 // ListRuns calls vrooli.search_hub.v1.eval.EvalService.ListRuns.
@@ -291,6 +309,9 @@ type EvalServiceHandler interface {
 	// Re-probe positive labels and classify whether expect_ids still refer to
 	// live provider results. Advisory only: stale labels warn, never fail a run.
 	ValidateCorpus(context.Context, *connect.Request[eval.ValidateCorpusRequest]) (*connect.Response[eval.ValidateCorpusResponse], error)
+	// Read the newest durable corpus-validation receipt without exposing probed
+	// queries or provider error text.
+	GetLatestCorpusValidation(context.Context, *connect.Request[eval.GetLatestCorpusValidationRequest]) (*connect.Response[eval.GetLatestCorpusValidationResponse], error)
 	// History, optionally filtered by tag.
 	ListRuns(context.Context, *connect.Request[eval.ListRunsRequest]) (*connect.Response[eval.ListRunsResponse], error)
 	GetRun(context.Context, *connect.Request[eval.GetRunRequest]) (*connect.Response[eval.GetRunResponse], error)
@@ -357,6 +378,12 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(evalServiceMethods.ByName("ValidateCorpus")),
 		connect.WithHandlerOptions(opts...),
 	)
+	evalServiceGetLatestCorpusValidationHandler := connect.NewUnaryHandler(
+		EvalServiceGetLatestCorpusValidationProcedure,
+		svc.GetLatestCorpusValidation,
+		connect.WithSchema(evalServiceMethods.ByName("GetLatestCorpusValidation")),
+		connect.WithHandlerOptions(opts...),
+	)
 	evalServiceListRunsHandler := connect.NewUnaryHandler(
 		EvalServiceListRunsProcedure,
 		svc.ListRuns,
@@ -417,6 +444,8 @@ func NewEvalServiceHandler(svc EvalServiceHandler, opts ...connect.HandlerOption
 			evalServiceRunSuiteHandler.ServeHTTP(w, r)
 		case EvalServiceValidateCorpusProcedure:
 			evalServiceValidateCorpusHandler.ServeHTTP(w, r)
+		case EvalServiceGetLatestCorpusValidationProcedure:
+			evalServiceGetLatestCorpusValidationHandler.ServeHTTP(w, r)
 		case EvalServiceListRunsProcedure:
 			evalServiceListRunsHandler.ServeHTTP(w, r)
 		case EvalServiceGetRunProcedure:
@@ -460,6 +489,10 @@ func (UnimplementedEvalServiceHandler) RunSuite(context.Context, *connect.Reques
 
 func (UnimplementedEvalServiceHandler) ValidateCorpus(context.Context, *connect.Request[eval.ValidateCorpusRequest]) (*connect.Response[eval.ValidateCorpusResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.ValidateCorpus is not implemented"))
+}
+
+func (UnimplementedEvalServiceHandler) GetLatestCorpusValidation(context.Context, *connect.Request[eval.GetLatestCorpusValidationRequest]) (*connect.Response[eval.GetLatestCorpusValidationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.search_hub.v1.eval.EvalService.GetLatestCorpusValidation is not implemented"))
 }
 
 func (UnimplementedEvalServiceHandler) ListRuns(context.Context, *connect.Request[eval.ListRunsRequest]) (*connect.Response[eval.ListRunsResponse], error) {

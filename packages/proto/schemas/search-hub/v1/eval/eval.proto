@@ -107,6 +107,10 @@ message EvalCase {
   // Composed suites use this to retain the corpus owner per case. Empty means
   // the suite provider_id owns the case, preserving the provider-suite shape.
   string expected_provider_id = 13;
+  // Optional exact dotted metadata key that carries the durable entity ID
+  // represented by expect_ids (for example "run_id"). Arbitrary *_id metadata
+  // must never satisfy a label because fields such as tenant_id are unrelated.
+  string expected_identity_field = 14;
 }
 
 // An immutable execution of a suite. The TAG is the experimentation lever.
@@ -129,6 +133,43 @@ message EvalRun {
   repeated UnavailableCase unavailable_cases = 13;
   // Human-readable run-level reason when no quality case was gradeable.
   string unavailable_reason = 14;
+  // Exact comparison contract captured at evaluation time. When a run is used
+  // to compare or promote a model/runtime, every identity field must be bound
+  // to provider-owned evidence; unknown values are retained as unknown and do
+  // not qualify a promotion.
+  EvaluationIdentity comparison_identity = 15;
+}
+
+// Immutable identity of one evaluation arm and the fixed corpus denominator
+// against which it was scored. Arm-specific identities (model/artifact/license
+// and runtime/recipe) may vary; caller, corpus, split, evaluation version, and
+// denominator must match exactly across compared runs.
+message EvaluationIdentity {
+  string corpus_provider_id = 1;
+  string corpus_id = 2;
+  string corpus_sha256 = 3;
+  string split_version = 4;
+  repeated string denominator_case_ids = 5;
+  repeated string heldout_case_ids = 6;
+  string denominator_sha256 = 7;
+  // Evaluated caller identity from an authoritative caller-owned source.
+  // Never derive these from corpus_provider_id or provider_revision; unknown
+  // caller identity remains empty and blocks promotion.
+  string caller_id = 8;
+  string caller_version = 9;
+  string model_id = 10;
+  string artifact_sha256 = 11;
+  string license_id = 12;
+  string rights_decision_id = 13;
+  string runtime_id = 14;
+  string runtime_sha256 = 15;
+  string recipe_sha256 = 16;
+  string evaluation_version = 17;
+  // Digest/time of the durable provider-owned validation receipt that matches
+  // this exact suite and fixed denominator. Missing receipts remain empty.
+  string provider_validation_sha256 = 18;
+  string provider_validation_at = 19;
+  reserved 20;
 }
 
 // Captured from the provider's status probe at run time so a historical
@@ -159,6 +200,17 @@ message ConfigSnapshot {
   // Stable provider-selection leg that produced the routing decision:
   // "cross_encoder", "llm", "lexical", or an explicit evaluation label.
   string selector_leg = 10;
+  // Optional owner-reported immutable identity fields. Missing values remain
+  // empty and are never synthesized from a display model name.
+  string model_id = 11;
+  string artifact_sha256 = 12;
+  string license_id = 13;
+  string rights_decision_id = 14;
+  string runtime_id = 15;
+  string runtime_sha256 = 16;
+  string recipe_sha256 = 17;
+  string provider_revision = 18;
+  reserved 19, 20;
 }
 
 message CaseResult {
@@ -182,6 +234,10 @@ message CaseResult {
   // provider remains CaseResult.expected_provider_id so the trace is
   // immutable evidence and cannot become part of the routing decision.
   vrooli.search_hub.v1.shared.RoutingTrace routing_trace = 10;
+  // Provider search attempts and elapsed milliseconds for this case. Candidate
+  // cases that are not executed have zero attempts and latency.
+  int32 attempt_count = 11;
+  int32 latency_ms = 12;
 }
 
 message UnavailableCase {
@@ -204,6 +260,8 @@ message EvalAggregate {
   double mean_strong_top1 = 4;
   // worst junk leakage over gibberish cases (lower = better).
   double max_gibberish_score = 5;
+  // p95 of observed evaluation-call latency, including failed/unavailable
+  // calls. Candidate cases without calls are excluded.
   int32 latency_p95_ms = 6;
   // Number of cases with a grading outcome. Errors and n/a cases are not
   // graded; keeping this denominator explicit prevents an empty run from
@@ -231,6 +289,9 @@ service EvalService {
   // Re-probe positive labels and classify whether expect_ids still refer to
   // live provider results. Advisory only: stale labels warn, never fail a run.
   rpc ValidateCorpus(ValidateCorpusRequest) returns (ValidateCorpusResponse);
+  // Read the newest durable corpus-validation receipt without exposing probed
+  // queries or provider error text.
+  rpc GetLatestCorpusValidation(GetLatestCorpusValidationRequest) returns (GetLatestCorpusValidationResponse);
   // History, optionally filtered by tag.
   rpc ListRuns(ListRunsRequest) returns (ListRunsResponse);
   rpc GetRun(GetRunRequest) returns (GetRunResponse);
@@ -391,6 +452,29 @@ message ValidateCorpusResponse {
   string provider_id = 2;
   repeated CorpusValidationCase cases = 3;
   CorpusValidationRollup rollup = 4;
+  // Exact provider corpus contract and fixed reviewed-positive denominator
+  // this validation probed. Receipts without these fields cannot bind a run.
+  string suite_sha256 = 5;
+  string denominator_sha256 = 6;
+  repeated string denominator_case_ids = 7;
+}
+
+message GetLatestCorpusValidationRequest {
+  string suite_id = 1;
+}
+
+message GetLatestCorpusValidationResponse {
+  bool found = 1;
+  string suite_id = 2;
+  string provider_id = 3;
+  string suite_sha256 = 4;
+  string denominator_sha256 = 5;
+  repeated string denominator_case_ids = 6;
+  CorpusValidationRollup rollup = 7;
+  // Timestamp from the durable store row, not provider-reported status.
+  string created_at = 8;
+  // SHA-256 of the exact deterministic persisted ValidateCorpusResponse.
+  string receipt_sha256 = 9;
 }
 
 message ListRunsRequest {

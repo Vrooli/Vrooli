@@ -143,6 +143,18 @@ message PreviewItem {
   int64 bytes = 4;
   string action = 5;
   string safety_tier = 6;
+  // Host-local filesystem identity captured during preview. Review metadata
+  // only; ApplyPlan does not treat this client-visible value as authority.
+  string object_identity = 7;
+  // Modification time captured by the provider during preview. ApplyPlan
+  // rechecks current provider state.
+  google.protobuf.Timestamp modified_at = 8;
+  // Age at Plan.created_at in whole seconds. A zero value alone is ambiguous;
+  // consult age_known. This is review metadata, never disposal authority.
+  int64 age_seconds = 9;
+  // Whether the provider supplied a modification time. False means age is
+  // unknown, not that the item is new or safe.
+  bool age_known = 10;
 }
 
 message ApplyPlanRequest {

@@ -44,6 +44,16 @@ enum OperationState {
   OPERATION_STATE_BACKEND_ACKNOWLEDGED = 5;
 }
 
+// CachedModeReadback describes a later OpenRGB controller-data observation.
+// It is separate from the preceding command ACK and never means LEDs were
+// observed producing light.
+enum CachedModeReadback {
+  CACHED_MODE_READBACK_UNSPECIFIED = 0;
+  CACHED_MODE_READBACK_NOT_CHECKED = 1;
+  CACHED_MODE_READBACK_MATCHES = 2;
+  CACHED_MODE_READBACK_MISMATCH = 3;
+}
+
 message BackendStatus {
   BackendState state = 1;
   string version = 2;
@@ -60,6 +70,12 @@ message ZoneCapability {
   bool supports_static_color = 4;
   bool supports_brightness = 5;
   repeated string supported_effects = 6;
+  bool supports_led_count_configuration = 7;
+  uint32 min_led_count = 8;
+  uint32 max_led_count = 9;
+  // Desired physical length is explicit; zero means no length was selected.
+  uint32 configured_led_count = 10;
+  bool setup_needed = 11;
 }
 
 message Controller {
@@ -111,6 +127,7 @@ message ZoneApplyResult {
   // Numeric OpenRGB NetPacketStatus value from the v6 ACK (0 means OK).
   uint32 backend_ack_status = 6;
   bool local_write_completed = 7;
+  CachedModeReadback cached_mode_readback = 8;
 }
 
 message OutputObservation {
@@ -148,6 +165,17 @@ message EnrollControllerRequest {
   bool enrolled = 2;
 }
 message EnrollControllerResponse { Controller controller = 1; }
+
+message ConfigureZoneRequest {
+  string controller_id = 1 [(buf.validate.field).string.min_len = 1];
+  string zone_id = 2 [(buf.validate.field).string.min_len = 1];
+  uint32 led_count = 3 [(buf.validate.field).uint32.gt = 0];
+}
+message ConfigureZoneResponse {
+  ZoneCapability zone = 1;
+  // Configuration is persisted before reconciliation; output remains a separate fact.
+  repeated ReconcileZoneResult results = 2;
+}
 
 message SetZoneStateRequest { ZoneState desired = 1; }
 message SetZoneStateResponse {
@@ -190,6 +218,7 @@ service ControlService {
   rpc GetBackendStatus(GetBackendStatusRequest) returns (GetBackendStatusResponse);
   rpc ListControllers(ListControllersRequest) returns (ListControllersResponse);
   rpc EnrollController(EnrollControllerRequest) returns (EnrollControllerResponse);
+  rpc ConfigureZone(ConfigureZoneRequest) returns (ConfigureZoneResponse);
   rpc SetZoneState(SetZoneStateRequest) returns (SetZoneStateResponse);
   rpc SetManualOff(SetManualOffRequest) returns (SetManualOffResponse);
   rpc GetDesiredState(GetDesiredStateRequest) returns (GetDesiredStateResponse);

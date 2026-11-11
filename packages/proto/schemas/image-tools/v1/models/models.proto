@@ -284,6 +284,8 @@ message SelectModelRequest {
   // model. Empty quality_policy keeps the historical "balanced" ordering.
   string quality_policy = 3;
   bool allow_byok = 4;
+  // force_cpu selects only a CPU-capable model and returns its CPU fit.
+  bool force_cpu = 5;
 }
 
 message SelectModelResponse {
@@ -572,6 +574,8 @@ message GetHostSummaryResponse {
 message ListOperationModelsRequest {
   // Operation to list candidate models for (must be in the vocabulary).
   string operation = 1;
+  // force_cpu selects a CPU-capable candidate for the selected marker.
+  bool force_cpu = 2;
 }
 
 // Resolution is the explicit, inspectable answer to "what would run for this
@@ -620,6 +624,7 @@ message AdapterRef {
   double scale = 2;
   string conditioning_image_key = 3;
   string preprocessor_override = 4;
+  bool license_terms_accepted = 5;
 }
 
 // ResolvedAdapter is one validated, execution-ready conditioning modifier in a
@@ -636,6 +641,8 @@ message ResolvedAdapter {
   // preprocessor is the effective ControlNet preprocessor ("" for other kinds).
   string preprocessor = 7;
   string conditioning_image_key = 8;
+  bool license_terms_accepted = 9;
+  string license_terms_version = 10;
 }
 
 message ExplainResolutionRequest {
@@ -661,6 +668,9 @@ message ExplainResolutionRequest {
   // fallback_policy mirrors AIParams.fallback_policy: local_only forbids the
   // cloud tier, cloud_allowed permits it, any leaves allow_byok as sent.
   string fallback_policy = 7;
+  // force_cpu resolves only models with a declared CPU execution path and
+  // explains the resulting CPU provider/tier without submitting a job.
+  bool force_cpu = 8;
 }
 
 message ExplainResolutionResponse {

@@ -1311,22 +1311,52 @@ class QuiesceRunRef(_message.Message):
     def __init__(self, id: _Optional[str] = ..., tag: _Optional[str] = ..., status: _Optional[str] = ..., scope_path: _Optional[str] = ..., instances: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class RecoverRunRequest(_message.Message):
-    __slots__ = ("run_id",)
+    __slots__ = ("run_id", "transcript_from_byte", "transcript_through_byte", "transcript_sha256")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSCRIPT_FROM_BYTE_FIELD_NUMBER: _ClassVar[int]
+    TRANSCRIPT_THROUGH_BYTE_FIELD_NUMBER: _ClassVar[int]
+    TRANSCRIPT_SHA256_FIELD_NUMBER: _ClassVar[int]
     run_id: str
-    def __init__(self, run_id: _Optional[str] = ...) -> None: ...
+    transcript_from_byte: int
+    transcript_through_byte: int
+    transcript_sha256: str
+    def __init__(self, run_id: _Optional[str] = ..., transcript_from_byte: _Optional[int] = ..., transcript_through_byte: _Optional[int] = ..., transcript_sha256: _Optional[str] = ...) -> None: ...
 
 class RecoverRunResponse(_message.Message):
-    __slots__ = ("run", "recovered", "idempotent", "message")
+    __slots__ = ("run", "recovered", "idempotent", "message", "transcript_replay")
     RUN_FIELD_NUMBER: _ClassVar[int]
     RECOVERED_FIELD_NUMBER: _ClassVar[int]
     IDEMPOTENT_FIELD_NUMBER: _ClassVar[int]
     MESSAGE_FIELD_NUMBER: _ClassVar[int]
+    TRANSCRIPT_REPLAY_FIELD_NUMBER: _ClassVar[int]
     run: _run_pb2.Run
     recovered: bool
     idempotent: bool
     message: str
-    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ..., recovered: _Optional[bool] = ..., idempotent: _Optional[bool] = ..., message: _Optional[str] = ...) -> None: ...
+    transcript_replay: TranscriptEvidenceReplayReceipt
+    def __init__(self, run: _Optional[_Union[_run_pb2.Run, _Mapping]] = ..., recovered: _Optional[bool] = ..., idempotent: _Optional[bool] = ..., message: _Optional[str] = ..., transcript_replay: _Optional[_Union[TranscriptEvidenceReplayReceipt, _Mapping]] = ...) -> None: ...
+
+class TranscriptEvidenceReplayReceipt(_message.Message):
+    __slots__ = ("from_byte", "through_byte", "source_sha256", "records_parsed", "events_inserted", "events_replayed", "events_ignored", "events_with_publication_time", "inserted_event_ids")
+    FROM_BYTE_FIELD_NUMBER: _ClassVar[int]
+    THROUGH_BYTE_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_SHA256_FIELD_NUMBER: _ClassVar[int]
+    RECORDS_PARSED_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_INSERTED_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_REPLAYED_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_IGNORED_FIELD_NUMBER: _ClassVar[int]
+    EVENTS_WITH_PUBLICATION_TIME_FIELD_NUMBER: _ClassVar[int]
+    INSERTED_EVENT_IDS_FIELD_NUMBER: _ClassVar[int]
+    from_byte: int
+    through_byte: int
+    source_sha256: str
+    records_parsed: int
+    events_inserted: int
+    events_replayed: int
+    events_ignored: int
+    events_with_publication_time: int
+    inserted_event_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, from_byte: _Optional[int] = ..., through_byte: _Optional[int] = ..., source_sha256: _Optional[str] = ..., records_parsed: _Optional[int] = ..., events_inserted: _Optional[int] = ..., events_replayed: _Optional[int] = ..., events_ignored: _Optional[int] = ..., events_with_publication_time: _Optional[int] = ..., inserted_event_ids: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class GetRunEventsRequest(_message.Message):
     __slots__ = ("run_id", "after_sequence", "limit", "event_types", "summary_only")
@@ -2088,3 +2118,25 @@ class CancelInvestigationRequest(_message.Message):
     INVESTIGATION_ID_FIELD_NUMBER: _ClassVar[int]
     investigation_id: str
     def __init__(self, investigation_id: _Optional[str] = ...) -> None: ...
+
+class GetRuntimeActivityRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetRuntimeActivityResponse(_message.Message):
+    __slots__ = ("observed_at", "complete", "executing_runs", "observed_executing_runs", "logical_queued_runs", "unknown_reasons", "reason")
+    OBSERVED_AT_FIELD_NUMBER: _ClassVar[int]
+    COMPLETE_FIELD_NUMBER: _ClassVar[int]
+    EXECUTING_RUNS_FIELD_NUMBER: _ClassVar[int]
+    OBSERVED_EXECUTING_RUNS_FIELD_NUMBER: _ClassVar[int]
+    LOGICAL_QUEUED_RUNS_FIELD_NUMBER: _ClassVar[int]
+    UNKNOWN_REASONS_FIELD_NUMBER: _ClassVar[int]
+    REASON_FIELD_NUMBER: _ClassVar[int]
+    observed_at: _timestamp_pb2.Timestamp
+    complete: bool
+    executing_runs: int
+    observed_executing_runs: int
+    logical_queued_runs: int
+    unknown_reasons: _containers.RepeatedScalarFieldContainer[str]
+    reason: str
+    def __init__(self, observed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., complete: _Optional[bool] = ..., executing_runs: _Optional[int] = ..., observed_executing_runs: _Optional[int] = ..., logical_queued_runs: _Optional[int] = ..., unknown_reasons: _Optional[_Iterable[str]] = ..., reason: _Optional[str] = ...) -> None: ...

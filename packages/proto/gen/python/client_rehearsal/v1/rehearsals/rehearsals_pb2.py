@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n/client-rehearsal/v1/rehearsals/rehearsals.proto\x12%vrooli.client_rehearsal.v1.rehearsals\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9f\x06\n\tRehearsal\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12#\n\rsource_format\x18\x03 \x01(\tR\x0csourceFormat\x12#\n\rsource_sha256\x18\x04 \x01(\tR\x0csourceSha256\x12\x37\n\x17\x63redential_replacements\x18\x05 \x01(\rR\x16\x63redentialReplacements\x12+\n\x11simulator_profile\x18\x06 \x01(\tR\x10simulatorProfile\x12K\n\x05state\x18\x07 \x01(\x0e\x32\x35.vrooli.client_rehearsal.v1.rehearsals.RehearsalStateR\x05state\x12G\n\x05trace\x18\x08 \x03(\x0b\x32\x31.vrooli.client_rehearsal.v1.rehearsals.TraceEventR\x05trace\x12#\n\rfault_summary\x18\t \x01(\tR\x0c\x66\x61ultSummary\x12%\n\x0erepair_summary\x18\n \x01(\tR\rrepairSummary\x12)\n\x10handoff_markdown\x18\x0b \x01(\tR\x0fhandoffMarkdown\x12^\n\x0freview_decision\x18\x0c \x01(\x0e\x32\x35.vrooli.client_rehearsal.v1.rehearsals.ReviewDecisionR\x0ereviewDecision\x12\x1f\n\x0breview_note\x18\r \x01(\tR\nreviewNote\x12\x39\n\ncreated_at\x18\x0e \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n\x0breviewed_at\x18\x0f \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nreviewedAt\x12\x36\n\x17simulator_source_sha256\x18\x10 \x01(\tR\x15simulatorSourceSha256\"\xef\x01\n\nTraceEvent\x12\x1a\n\x08sequence\x18\x01 \x01(\rR\x08sequence\x12\x1c\n\toperation\x18\x02 \x01(\tR\toperation\x12\'\n\x0frequest_summary\x18\x03 \x01(\tR\x0erequestSummary\x12)\n\x10response_summary\x18\x04 \x01(\tR\x0fresponseSummary\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12;\n\x0boccurred_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\noccurredAt\"\x92\x02\n\x1c\x43reateAndRunRehearsalRequest\x12\x14\n\x05title\x18\x01 \x01(\tR\x05title\x12#\n\rworkflow_json\x18\x02 \x01(\tR\x0cworkflowJson\x12+\n\x11simulator_profile\x18\x03 \x01(\tR\x10simulatorProfile\x12.\n\x13inject_seeded_fault\x18\x04 \x01(\x08R\x11injectSeededFault\x12\x32\n\x15simulator_source_json\x18\x05 \x01(\tR\x13simulatorSourceJson\x12&\n\x0ftrigger_node_id\x18\x06 \x01(\tR\rtriggerNodeId\"o\n\x1d\x43reateAndRunRehearsalResponse\x12N\n\trehearsal\x18\x01 \x01(\x0b\x32\x30.vrooli.client_rehearsal.v1.rehearsals.RehearsalR\trehearsal\"-\n\x15ListRehearsalsRequest\x12\x14\n\x05limit\x18\x01 \x01(\rR\x05limit\"j\n\x16ListRehearsalsResponse\x12P\n\nrehearsals\x18\x01 \x03(\x0b\x32\x30.vrooli.client_rehearsal.v1.rehearsals.RehearsalR\nrehearsals\"%\n\x13GetRehearsalRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"f\n\x14GetRehearsalResponse\x12N\n\trehearsal\x18\x01 \x01(\x0b\x32\x30.vrooli.client_rehearsal.v1.rehearsals.RehearsalR\trehearsal\"\x8c\x01\n\x13RecordReviewRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12Q\n\x08\x64\x65\x63ision\x18\x02 \x01(\x0e\x32\x35.vrooli.client_rehearsal.v1.rehearsals.ReviewDecisionR\x08\x64\x65\x63ision\x12\x12\n\x04note\x18\x03 \x01(\tR\x04note\"f\n\x14RecordReviewResponse\x12N\n\trehearsal\x18\x01 \x01(\x0b\x32\x30.vrooli.client_rehearsal.v1.rehearsals.RehearsalR\trehearsal*\xb4\x01\n\x0eRehearsalState\x12\x1f\n\x1bREHEARSAL_STATE_UNSPECIFIED\x10\x00\x12 \n\x1cREHEARSAL_STATE_NEEDS_REVIEW\x10\x01\x12\x1c\n\x18REHEARSAL_STATE_APPROVED\x10\x02\x12%\n!REHEARSAL_STATE_CHANGES_REQUESTED\x10\x03\x12\x1a\n\x16REHEARSAL_STATE_FAILED\x10\x04*s\n\x0eReviewDecision\x12\x1f\n\x1bREVIEW_DECISION_UNSPECIFIED\x10\x00\x12\x1b\n\x17REVIEW_DECISION_APPROVE\x10\x01\x12#\n\x1fREVIEW_DECISION_REQUEST_CHANGES\x10\x02\x32\xdb\x04\n\x10RehearsalService\x12\xa2\x01\n\x15\x43reateAndRunRehearsal\x12\x43.vrooli.client_rehearsal.v1.rehearsals.CreateAndRunRehearsalRequest\x1a\x44.vrooli.client_rehearsal.v1.rehearsals.CreateAndRunRehearsalResponse\x12\x8d\x01\n\x0eListRehearsals\x12<.vrooli.client_rehearsal.v1.rehearsals.ListRehearsalsRequest\x1a=.vrooli.client_rehearsal.v1.rehearsals.ListRehearsalsResponse\x12\x87\x01\n\x0cGetRehearsal\x12:.vrooli.client_rehearsal.v1.rehearsals.GetRehearsalRequest\x1a;.vrooli.client_rehearsal.v1.rehearsals.GetRehearsalResponse\x12\x87\x01\n\x0cRecordReview\x12:.vrooli.client_rehearsal.v1.rehearsals.RecordReviewRequest\x1a;.vrooli.client_rehearsal.v1.rehearsals.RecordReviewResponseB]Z[github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/rehearsals;rehearsals_v1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n/client-rehearsal/v1/rehearsals/rehearsals.proto\x12%vrooli.client_rehearsal.v1.rehearsals\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9f\x06\n\tRehearsal\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n\x05title\x18\x02 \x01(\tR\x05title\x12#\n\rsource_format\x18\x03 \x01(\tR\x0csourceFormat\x12#\n\rsource_sha256\x18\x04 \x01(\tR\x0csourceSha256\x12\x37\n\x17\x63redential_replacements\x18\x05 \x01(\rR\x16\x63redentialReplacements\x12+\n\x11simulator_profile\x18\x06 \x01(\tR\x10simulatorProfile\x12K\n\x05state\x18\x07 \x01(\x0e\x32\x35.vrooli.client_rehearsal.v1.rehearsals.RehearsalStateR\x05state\x12G\n\x05trace\x18\x08 \x03(\x0b\x32\x31.vrooli.client_rehearsal.v1.rehearsals.TraceEventR\x05trace\x12#\n\rfault_summary\x18\t \x01(\tR\x0c\x66\x61ultSummary\x12%\n\x0erepair_summary\x18\n \x01(\tR\rrepairSummary\x12)\n\x10handoff_markdown\x18\x0b \x01(\tR\x0fhandoffMarkdown\x12^\n\x0freview_decision\x18\x0c \x01(\x0e\x32\x35.vrooli.client_rehearsal.v1.rehearsals.ReviewDecisionR\x0ereviewDecision\x12\x1f\n\x0breview_note\x18\r \x01(\tR\nreviewNote\x12\x39\n\ncreated_at\x18\x0e \x01(\x0b\x32\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n\x0breviewed_at\x18\x0f \x01(\x0b\x32\x1a.google.protobuf.TimestampR\nreviewedAt\x12\x36\n\x17simulator_source_sha256\x18\x10 \x01(\tR\x15simulatorSourceSha256\"\xef\x01\n\nTraceEvent\x12\x1a\n\x08sequence\x18\x01 \x01(\rR\x08sequence\x12\x1c\n\toperation\x18\x02 \x01(\tR\toperation\x12\'\n\x0frequest_summary\x18\x03 \x01(\tR\x0erequestSummary\x12)\n\x10response_summary\x18\x04 \x01(\tR\x0fresponseSummary\x12\x16\n\x06status\x18\x05 \x01(\tR\x06status\x12;\n\x0boccurred_at\x18\x06 \x01(\x0b\x32\x1a.google.protobuf.TimestampR\noccurredAt\"\xe8\x02\n\x1c\x43reateAndRunRehearsalRequest\x12\x14\n\x05title\x18\x01 \x01(\tR\x05title\x12#\n\rworkflow_json\x18\x02 \x01(\tR\x0cworkflowJson\x12+\n\x11simulator_profile\x18\x03 \x01(\tR\x10simulatorProfile\x12.\n\x13inject_seeded_fault\x18\x04 \x01(\x08R\x11injectSeededFault\x12\x32\n\x15simulator_source_json\x18\x05 \x01(\tR\x13simulatorSourceJson\x12&\n\x0ftrigger_node_id\x18\x06 \x01(\tR\rtriggerNodeId\x12\x32\n\x15required_output_paths\x18\x07 \x03(\tR\x13requiredOutputPaths\x12 \n\x0crepair_of_id\x18\x08 \x01(\tR\nrepairOfId\"o\n\x1d\x43reateAndRunRehearsalResponse\x12N\n\trehearsal\x18\x01 \x01(\x0b\x32\x30.vrooli.client_rehearsal.v1.rehearsals.RehearsalR\trehearsal\"-\n\x15ListRehearsalsRequest\x12\x14\n\x05limit\x18\x01 \x01(\rR\x05limit\"j\n\x16ListRehearsalsResponse\x12P\n\nrehearsals\x18\x01 \x03(\x0b\x32\x30.vrooli.client_rehearsal.v1.rehearsals.RehearsalR\nrehearsals\"%\n\x13GetRehearsalRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\"f\n\x14GetRehearsalResponse\x12N\n\trehearsal\x18\x01 \x01(\x0b\x32\x30.vrooli.client_rehearsal.v1.rehearsals.RehearsalR\trehearsal\"\x8c\x01\n\x13RecordReviewRequest\x12\x0e\n\x02id\x18\x01 \x01(\tR\x02id\x12Q\n\x08\x64\x65\x63ision\x18\x02 \x01(\x0e\x32\x35.vrooli.client_rehearsal.v1.rehearsals.ReviewDecisionR\x08\x64\x65\x63ision\x12\x12\n\x04note\x18\x03 \x01(\tR\x04note\"f\n\x14RecordReviewResponse\x12N\n\trehearsal\x18\x01 \x01(\x0b\x32\x30.vrooli.client_rehearsal.v1.rehearsals.RehearsalR\trehearsal*\xb4\x01\n\x0eRehearsalState\x12\x1f\n\x1bREHEARSAL_STATE_UNSPECIFIED\x10\x00\x12 \n\x1cREHEARSAL_STATE_NEEDS_REVIEW\x10\x01\x12\x1c\n\x18REHEARSAL_STATE_APPROVED\x10\x02\x12%\n!REHEARSAL_STATE_CHANGES_REQUESTED\x10\x03\x12\x1a\n\x16REHEARSAL_STATE_FAILED\x10\x04*s\n\x0eReviewDecision\x12\x1f\n\x1bREVIEW_DECISION_UNSPECIFIED\x10\x00\x12\x1b\n\x17REVIEW_DECISION_APPROVE\x10\x01\x12#\n\x1fREVIEW_DECISION_REQUEST_CHANGES\x10\x02\x32\xdb\x04\n\x10RehearsalService\x12\xa2\x01\n\x15\x43reateAndRunRehearsal\x12\x43.vrooli.client_rehearsal.v1.rehearsals.CreateAndRunRehearsalRequest\x1a\x44.vrooli.client_rehearsal.v1.rehearsals.CreateAndRunRehearsalResponse\x12\x8d\x01\n\x0eListRehearsals\x12<.vrooli.client_rehearsal.v1.rehearsals.ListRehearsalsRequest\x1a=.vrooli.client_rehearsal.v1.rehearsals.ListRehearsalsResponse\x12\x87\x01\n\x0cGetRehearsal\x12:.vrooli.client_rehearsal.v1.rehearsals.GetRehearsalRequest\x1a;.vrooli.client_rehearsal.v1.rehearsals.GetRehearsalResponse\x12\x87\x01\n\x0cRecordReview\x12:.vrooli.client_rehearsal.v1.rehearsals.RecordReviewRequest\x1a;.vrooli.client_rehearsal.v1.rehearsals.RecordReviewResponseB]Z[github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/rehearsals;rehearsals_v1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,30 +33,30 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'client_rehearsal.v1.rehears
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'Z[github.com/vrooli/vrooli/packages/proto/gen/go/client-rehearsal/v1/rehearsals;rehearsals_v1'
-  _globals['_REHEARSALSTATE']._serialized_start=2103
-  _globals['_REHEARSALSTATE']._serialized_end=2283
-  _globals['_REVIEWDECISION']._serialized_start=2285
-  _globals['_REVIEWDECISION']._serialized_end=2400
+  _globals['_REHEARSALSTATE']._serialized_start=2189
+  _globals['_REHEARSALSTATE']._serialized_end=2369
+  _globals['_REVIEWDECISION']._serialized_start=2371
+  _globals['_REVIEWDECISION']._serialized_end=2486
   _globals['_REHEARSAL']._serialized_start=124
   _globals['_REHEARSAL']._serialized_end=923
   _globals['_TRACEEVENT']._serialized_start=926
   _globals['_TRACEEVENT']._serialized_end=1165
   _globals['_CREATEANDRUNREHEARSALREQUEST']._serialized_start=1168
-  _globals['_CREATEANDRUNREHEARSALREQUEST']._serialized_end=1442
-  _globals['_CREATEANDRUNREHEARSALRESPONSE']._serialized_start=1444
-  _globals['_CREATEANDRUNREHEARSALRESPONSE']._serialized_end=1555
-  _globals['_LISTREHEARSALSREQUEST']._serialized_start=1557
-  _globals['_LISTREHEARSALSREQUEST']._serialized_end=1602
-  _globals['_LISTREHEARSALSRESPONSE']._serialized_start=1604
-  _globals['_LISTREHEARSALSRESPONSE']._serialized_end=1710
-  _globals['_GETREHEARSALREQUEST']._serialized_start=1712
-  _globals['_GETREHEARSALREQUEST']._serialized_end=1749
-  _globals['_GETREHEARSALRESPONSE']._serialized_start=1751
-  _globals['_GETREHEARSALRESPONSE']._serialized_end=1853
-  _globals['_RECORDREVIEWREQUEST']._serialized_start=1856
-  _globals['_RECORDREVIEWREQUEST']._serialized_end=1996
-  _globals['_RECORDREVIEWRESPONSE']._serialized_start=1998
-  _globals['_RECORDREVIEWRESPONSE']._serialized_end=2100
-  _globals['_REHEARSALSERVICE']._serialized_start=2403
-  _globals['_REHEARSALSERVICE']._serialized_end=3006
+  _globals['_CREATEANDRUNREHEARSALREQUEST']._serialized_end=1528
+  _globals['_CREATEANDRUNREHEARSALRESPONSE']._serialized_start=1530
+  _globals['_CREATEANDRUNREHEARSALRESPONSE']._serialized_end=1641
+  _globals['_LISTREHEARSALSREQUEST']._serialized_start=1643
+  _globals['_LISTREHEARSALSREQUEST']._serialized_end=1688
+  _globals['_LISTREHEARSALSRESPONSE']._serialized_start=1690
+  _globals['_LISTREHEARSALSRESPONSE']._serialized_end=1796
+  _globals['_GETREHEARSALREQUEST']._serialized_start=1798
+  _globals['_GETREHEARSALREQUEST']._serialized_end=1835
+  _globals['_GETREHEARSALRESPONSE']._serialized_start=1837
+  _globals['_GETREHEARSALRESPONSE']._serialized_end=1939
+  _globals['_RECORDREVIEWREQUEST']._serialized_start=1942
+  _globals['_RECORDREVIEWREQUEST']._serialized_end=2082
+  _globals['_RECORDREVIEWRESPONSE']._serialized_start=2084
+  _globals['_RECORDREVIEWRESPONSE']._serialized_end=2186
+  _globals['_REHEARSALSERVICE']._serialized_start=2489
+  _globals['_REHEARSALSERVICE']._serialized_end=3092
 # @@protoc_insertion_point(module_scope)

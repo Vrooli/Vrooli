@@ -388,9 +388,11 @@ type Adapter struct {
 	// install is the on-disk weight status.
 	Install *InstallState `protobuf:"bytes,13,opt,name=install,proto3" json:"install,omitempty"`
 	// custom is true for operator-registered / imported entries (not in the seed).
-	Custom        bool `protobuf:"varint,14,opt,name=custom,proto3" json:"custom,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Custom bool `protobuf:"varint,14,opt,name=custom,proto3" json:"custom,omitempty"`
+	// license_terms_version identifies a versioned model agreement required before use.
+	LicenseTermsVersion string `protobuf:"bytes,15,opt,name=license_terms_version,json=licenseTermsVersion,proto3" json:"license_terms_version,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Adapter) Reset() {
@@ -519,6 +521,13 @@ func (x *Adapter) GetCustom() bool {
 		return x.Custom
 	}
 	return false
+}
+
+func (x *Adapter) GetLicenseTermsVersion() string {
+	if x != nil {
+		return x.LicenseTermsVersion
+	}
+	return ""
 }
 
 type ListAdaptersRequest struct {
@@ -1732,7 +1741,7 @@ const file_image_tools_v1_adapters_adapters_proto_rawDesc = "" +
 	"\bchecksum\x18\x03 \x01(\tR\bchecksum\x12\x1d\n" +
 	"\n" +
 	"size_bytes\x18\x04 \x01(\x04R\tsizeBytes\x12!\n" +
-	"\finstalled_at\x18\x05 \x01(\tR\vinstalledAt\"\x9d\x04\n" +
+	"\finstalled_at\x18\x05 \x01(\tR\vinstalledAt\"\xd1\x04\n" +
 	"\aAdapter\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -1749,7 +1758,8 @@ const file_image_tools_v1_adapters_adapters_proto_rawDesc = "" +
 	"\apending\x18\v \x01(\tR\apending\x12\x18\n" +
 	"\aenabled\x18\f \x01(\bR\aenabled\x12F\n" +
 	"\ainstall\x18\r \x01(\v2,.vrooli.image_tools.v1.adapters.InstallStateR\ainstall\x12\x16\n" +
-	"\x06custom\x18\x0e \x01(\bR\x06custom\"M\n" +
+	"\x06custom\x18\x0e \x01(\bR\x06custom\x122\n" +
+	"\x15license_terms_version\x18\x0f \x01(\tR\x13licenseTermsVersion\"M\n" +
 	"\x13ListAdaptersRequest\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\"\n" +
 	"\farchitecture\x18\x02 \x01(\tR\farchitecture\"[\n" +

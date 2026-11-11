@@ -421,8 +421,12 @@ type EvalCase struct {
 	// Composed suites use this to retain the corpus owner per case. Empty means
 	// the suite provider_id owns the case, preserving the provider-suite shape.
 	ExpectedProviderId string `protobuf:"bytes,13,opt,name=expected_provider_id,json=expectedProviderId,proto3" json:"expected_provider_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Optional exact dotted metadata key that carries the durable entity ID
+	// represented by expect_ids (for example "run_id"). Arbitrary *_id metadata
+	// must never satisfy a label because fields such as tenant_id are unrelated.
+	ExpectedIdentityField string `protobuf:"bytes,14,opt,name=expected_identity_field,json=expectedIdentityField,proto3" json:"expected_identity_field,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *EvalCase) Reset() {
@@ -546,6 +550,13 @@ func (x *EvalCase) GetExpectedProviderId() string {
 	return ""
 }
 
+func (x *EvalCase) GetExpectedIdentityField() string {
+	if x != nil {
+		return x.ExpectedIdentityField
+	}
+	return ""
+}
+
 // An immutable execution of a suite. The TAG is the experimentation lever.
 type EvalRun struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
@@ -567,8 +578,13 @@ type EvalRun struct {
 	UnavailableCases []*UnavailableCase `protobuf:"bytes,13,rep,name=unavailable_cases,json=unavailableCases,proto3" json:"unavailable_cases,omitempty"`
 	// Human-readable run-level reason when no quality case was gradeable.
 	UnavailableReason string `protobuf:"bytes,14,opt,name=unavailable_reason,json=unavailableReason,proto3" json:"unavailable_reason,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Exact comparison contract captured at evaluation time. When a run is used
+	// to compare or promote a model/runtime, every identity field must be bound
+	// to provider-owned evidence; unknown values are retained as unknown and do
+	// not qualify a promotion.
+	ComparisonIdentity *EvaluationIdentity `protobuf:"bytes,15,opt,name=comparison_identity,json=comparisonIdentity,proto3" json:"comparison_identity,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *EvalRun) Reset() {
@@ -685,6 +701,210 @@ func (x *EvalRun) GetUnavailableReason() string {
 	return ""
 }
 
+func (x *EvalRun) GetComparisonIdentity() *EvaluationIdentity {
+	if x != nil {
+		return x.ComparisonIdentity
+	}
+	return nil
+}
+
+// Immutable identity of one evaluation arm and the fixed corpus denominator
+// against which it was scored. Arm-specific identities (model/artifact/license
+// and runtime/recipe) may vary; caller, corpus, split, evaluation version, and
+// denominator must match exactly across compared runs.
+type EvaluationIdentity struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	CorpusProviderId   string                 `protobuf:"bytes,1,opt,name=corpus_provider_id,json=corpusProviderId,proto3" json:"corpus_provider_id,omitempty"`
+	CorpusId           string                 `protobuf:"bytes,2,opt,name=corpus_id,json=corpusId,proto3" json:"corpus_id,omitempty"`
+	CorpusSha256       string                 `protobuf:"bytes,3,opt,name=corpus_sha256,json=corpusSha256,proto3" json:"corpus_sha256,omitempty"`
+	SplitVersion       string                 `protobuf:"bytes,4,opt,name=split_version,json=splitVersion,proto3" json:"split_version,omitempty"`
+	DenominatorCaseIds []string               `protobuf:"bytes,5,rep,name=denominator_case_ids,json=denominatorCaseIds,proto3" json:"denominator_case_ids,omitempty"`
+	HeldoutCaseIds     []string               `protobuf:"bytes,6,rep,name=heldout_case_ids,json=heldoutCaseIds,proto3" json:"heldout_case_ids,omitempty"`
+	DenominatorSha256  string                 `protobuf:"bytes,7,opt,name=denominator_sha256,json=denominatorSha256,proto3" json:"denominator_sha256,omitempty"`
+	// Evaluated caller identity from an authoritative caller-owned source.
+	// Never derive these from corpus_provider_id or provider_revision; unknown
+	// caller identity remains empty and blocks promotion.
+	CallerId          string `protobuf:"bytes,8,opt,name=caller_id,json=callerId,proto3" json:"caller_id,omitempty"`
+	CallerVersion     string `protobuf:"bytes,9,opt,name=caller_version,json=callerVersion,proto3" json:"caller_version,omitempty"`
+	ModelId           string `protobuf:"bytes,10,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
+	ArtifactSha256    string `protobuf:"bytes,11,opt,name=artifact_sha256,json=artifactSha256,proto3" json:"artifact_sha256,omitempty"`
+	LicenseId         string `protobuf:"bytes,12,opt,name=license_id,json=licenseId,proto3" json:"license_id,omitempty"`
+	RightsDecisionId  string `protobuf:"bytes,13,opt,name=rights_decision_id,json=rightsDecisionId,proto3" json:"rights_decision_id,omitempty"`
+	RuntimeId         string `protobuf:"bytes,14,opt,name=runtime_id,json=runtimeId,proto3" json:"runtime_id,omitempty"`
+	RuntimeSha256     string `protobuf:"bytes,15,opt,name=runtime_sha256,json=runtimeSha256,proto3" json:"runtime_sha256,omitempty"`
+	RecipeSha256      string `protobuf:"bytes,16,opt,name=recipe_sha256,json=recipeSha256,proto3" json:"recipe_sha256,omitempty"`
+	EvaluationVersion string `protobuf:"bytes,17,opt,name=evaluation_version,json=evaluationVersion,proto3" json:"evaluation_version,omitempty"`
+	// Digest/time of the durable provider-owned validation receipt that matches
+	// this exact suite and fixed denominator. Missing receipts remain empty.
+	ProviderValidationSha256 string `protobuf:"bytes,18,opt,name=provider_validation_sha256,json=providerValidationSha256,proto3" json:"provider_validation_sha256,omitempty"`
+	ProviderValidationAt     string `protobuf:"bytes,19,opt,name=provider_validation_at,json=providerValidationAt,proto3" json:"provider_validation_at,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *EvaluationIdentity) Reset() {
+	*x = EvaluationIdentity{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EvaluationIdentity) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EvaluationIdentity) ProtoMessage() {}
+
+func (x *EvaluationIdentity) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EvaluationIdentity.ProtoReflect.Descriptor instead.
+func (*EvaluationIdentity) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *EvaluationIdentity) GetCorpusProviderId() string {
+	if x != nil {
+		return x.CorpusProviderId
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetCorpusId() string {
+	if x != nil {
+		return x.CorpusId
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetCorpusSha256() string {
+	if x != nil {
+		return x.CorpusSha256
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetSplitVersion() string {
+	if x != nil {
+		return x.SplitVersion
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetDenominatorCaseIds() []string {
+	if x != nil {
+		return x.DenominatorCaseIds
+	}
+	return nil
+}
+
+func (x *EvaluationIdentity) GetHeldoutCaseIds() []string {
+	if x != nil {
+		return x.HeldoutCaseIds
+	}
+	return nil
+}
+
+func (x *EvaluationIdentity) GetDenominatorSha256() string {
+	if x != nil {
+		return x.DenominatorSha256
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetCallerId() string {
+	if x != nil {
+		return x.CallerId
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetCallerVersion() string {
+	if x != nil {
+		return x.CallerVersion
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetModelId() string {
+	if x != nil {
+		return x.ModelId
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetArtifactSha256() string {
+	if x != nil {
+		return x.ArtifactSha256
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetLicenseId() string {
+	if x != nil {
+		return x.LicenseId
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetRightsDecisionId() string {
+	if x != nil {
+		return x.RightsDecisionId
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetRuntimeId() string {
+	if x != nil {
+		return x.RuntimeId
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetRuntimeSha256() string {
+	if x != nil {
+		return x.RuntimeSha256
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetRecipeSha256() string {
+	if x != nil {
+		return x.RecipeSha256
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetEvaluationVersion() string {
+	if x != nil {
+		return x.EvaluationVersion
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetProviderValidationSha256() string {
+	if x != nil {
+		return x.ProviderValidationSha256
+	}
+	return ""
+}
+
+func (x *EvaluationIdentity) GetProviderValidationAt() string {
+	if x != nil {
+		return x.ProviderValidationAt
+	}
+	return ""
+}
+
 // Captured from the provider's status probe at run time so a historical
 // comparison stays meaningful months later. Fields the probe can't supply are
 // left zero (honest). The sweep (Sweep RPC) fills the factor fields directly
@@ -713,14 +933,24 @@ type ConfigSnapshot struct {
 	FloorRegime string `protobuf:"bytes,9,opt,name=floor_regime,json=floorRegime,proto3" json:"floor_regime,omitempty"`
 	// Stable provider-selection leg that produced the routing decision:
 	// "cross_encoder", "llm", "lexical", or an explicit evaluation label.
-	SelectorLeg   string `protobuf:"bytes,10,opt,name=selector_leg,json=selectorLeg,proto3" json:"selector_leg,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SelectorLeg string `protobuf:"bytes,10,opt,name=selector_leg,json=selectorLeg,proto3" json:"selector_leg,omitempty"`
+	// Optional owner-reported immutable identity fields. Missing values remain
+	// empty and are never synthesized from a display model name.
+	ModelId          string `protobuf:"bytes,11,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
+	ArtifactSha256   string `protobuf:"bytes,12,opt,name=artifact_sha256,json=artifactSha256,proto3" json:"artifact_sha256,omitempty"`
+	LicenseId        string `protobuf:"bytes,13,opt,name=license_id,json=licenseId,proto3" json:"license_id,omitempty"`
+	RightsDecisionId string `protobuf:"bytes,14,opt,name=rights_decision_id,json=rightsDecisionId,proto3" json:"rights_decision_id,omitempty"`
+	RuntimeId        string `protobuf:"bytes,15,opt,name=runtime_id,json=runtimeId,proto3" json:"runtime_id,omitempty"`
+	RuntimeSha256    string `protobuf:"bytes,16,opt,name=runtime_sha256,json=runtimeSha256,proto3" json:"runtime_sha256,omitempty"`
+	RecipeSha256     string `protobuf:"bytes,17,opt,name=recipe_sha256,json=recipeSha256,proto3" json:"recipe_sha256,omitempty"`
+	ProviderRevision string `protobuf:"bytes,18,opt,name=provider_revision,json=providerRevision,proto3" json:"provider_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ConfigSnapshot) Reset() {
 	*x = ConfigSnapshot{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[6]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -732,7 +962,7 @@ func (x *ConfigSnapshot) String() string {
 func (*ConfigSnapshot) ProtoMessage() {}
 
 func (x *ConfigSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[6]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -745,7 +975,7 @@ func (x *ConfigSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigSnapshot.ProtoReflect.Descriptor instead.
 func (*ConfigSnapshot) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{6}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ConfigSnapshot) GetRerankEnabled() bool {
@@ -818,6 +1048,62 @@ func (x *ConfigSnapshot) GetSelectorLeg() string {
 	return ""
 }
 
+func (x *ConfigSnapshot) GetModelId() string {
+	if x != nil {
+		return x.ModelId
+	}
+	return ""
+}
+
+func (x *ConfigSnapshot) GetArtifactSha256() string {
+	if x != nil {
+		return x.ArtifactSha256
+	}
+	return ""
+}
+
+func (x *ConfigSnapshot) GetLicenseId() string {
+	if x != nil {
+		return x.LicenseId
+	}
+	return ""
+}
+
+func (x *ConfigSnapshot) GetRightsDecisionId() string {
+	if x != nil {
+		return x.RightsDecisionId
+	}
+	return ""
+}
+
+func (x *ConfigSnapshot) GetRuntimeId() string {
+	if x != nil {
+		return x.RuntimeId
+	}
+	return ""
+}
+
+func (x *ConfigSnapshot) GetRuntimeSha256() string {
+	if x != nil {
+		return x.RuntimeSha256
+	}
+	return ""
+}
+
+func (x *ConfigSnapshot) GetRecipeSha256() string {
+	if x != nil {
+		return x.RecipeSha256
+	}
+	return ""
+}
+
+func (x *ConfigSnapshot) GetProviderRevision() string {
+	if x != nil {
+		return x.ProviderRevision
+	}
+	return ""
+}
+
 type CaseResult struct {
 	state  protoimpl.MessageState `protogen:"open.v1"`
 	CaseId string                 `protobuf:"bytes,1,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
@@ -839,14 +1125,18 @@ type CaseResult struct {
 	// Automatic-routing stage evidence copied from QueryResponse. The expected
 	// provider remains CaseResult.expected_provider_id so the trace is
 	// immutable evidence and cannot become part of the routing decision.
-	RoutingTrace  *shared.RoutingTrace `protobuf:"bytes,10,opt,name=routing_trace,json=routingTrace,proto3" json:"routing_trace,omitempty"`
+	RoutingTrace *shared.RoutingTrace `protobuf:"bytes,10,opt,name=routing_trace,json=routingTrace,proto3" json:"routing_trace,omitempty"`
+	// Provider search attempts and elapsed milliseconds for this case. Candidate
+	// cases that are not executed have zero attempts and latency.
+	AttemptCount  int32 `protobuf:"varint,11,opt,name=attempt_count,json=attemptCount,proto3" json:"attempt_count,omitempty"`
+	LatencyMs     int32 `protobuf:"varint,12,opt,name=latency_ms,json=latencyMs,proto3" json:"latency_ms,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CaseResult) Reset() {
 	*x = CaseResult{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[7]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -858,7 +1148,7 @@ func (x *CaseResult) String() string {
 func (*CaseResult) ProtoMessage() {}
 
 func (x *CaseResult) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[7]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -871,7 +1161,7 @@ func (x *CaseResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaseResult.ProtoReflect.Descriptor instead.
 func (*CaseResult) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{7}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CaseResult) GetCaseId() string {
@@ -944,6 +1234,20 @@ func (x *CaseResult) GetRoutingTrace() *shared.RoutingTrace {
 	return nil
 }
 
+func (x *CaseResult) GetAttemptCount() int32 {
+	if x != nil {
+		return x.AttemptCount
+	}
+	return 0
+}
+
+func (x *CaseResult) GetLatencyMs() int32 {
+	if x != nil {
+		return x.LatencyMs
+	}
+	return 0
+}
+
 type UnavailableCase struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CaseId        string                 `protobuf:"bytes,1,opt,name=case_id,json=caseId,proto3" json:"case_id,omitempty"`
@@ -954,7 +1258,7 @@ type UnavailableCase struct {
 
 func (x *UnavailableCase) Reset() {
 	*x = UnavailableCase{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[8]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -966,7 +1270,7 @@ func (x *UnavailableCase) String() string {
 func (*UnavailableCase) ProtoMessage() {}
 
 func (x *UnavailableCase) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[8]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -979,7 +1283,7 @@ func (x *UnavailableCase) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnavailableCase.ProtoReflect.Descriptor instead.
 func (*UnavailableCase) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{8}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UnavailableCase) GetCaseId() string {
@@ -1007,7 +1311,7 @@ type ScoredHit struct {
 
 func (x *ScoredHit) Reset() {
 	*x = ScoredHit{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[9]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1019,7 +1323,7 @@ func (x *ScoredHit) String() string {
 func (*ScoredHit) ProtoMessage() {}
 
 func (x *ScoredHit) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[9]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1032,7 +1336,7 @@ func (x *ScoredHit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScoredHit.ProtoReflect.Descriptor instead.
 func (*ScoredHit) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{9}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ScoredHit) GetId() string {
@@ -1066,7 +1370,9 @@ type EvalAggregate struct {
 	MeanStrongTop1 float64 `protobuf:"fixed64,4,opt,name=mean_strong_top1,json=meanStrongTop1,proto3" json:"mean_strong_top1,omitempty"`
 	// worst junk leakage over gibberish cases (lower = better).
 	MaxGibberishScore float64 `protobuf:"fixed64,5,opt,name=max_gibberish_score,json=maxGibberishScore,proto3" json:"max_gibberish_score,omitempty"`
-	LatencyP95Ms      int32   `protobuf:"varint,6,opt,name=latency_p95_ms,json=latencyP95Ms,proto3" json:"latency_p95_ms,omitempty"`
+	// p95 of observed evaluation-call latency, including failed/unavailable
+	// calls. Candidate cases without calls are excluded.
+	LatencyP95Ms int32 `protobuf:"varint,6,opt,name=latency_p95_ms,json=latencyP95Ms,proto3" json:"latency_p95_ms,omitempty"`
 	// Number of cases with a grading outcome. Errors and n/a cases are not
 	// graded; keeping this denominator explicit prevents an empty run from
 	// masquerading as a clean zero-miss result.
@@ -1087,7 +1393,7 @@ type EvalAggregate struct {
 
 func (x *EvalAggregate) Reset() {
 	*x = EvalAggregate{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[10]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1099,7 +1405,7 @@ func (x *EvalAggregate) String() string {
 func (*EvalAggregate) ProtoMessage() {}
 
 func (x *EvalAggregate) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[10]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1112,7 +1418,7 @@ func (x *EvalAggregate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvalAggregate.ProtoReflect.Descriptor instead.
 func (*EvalAggregate) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{10}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *EvalAggregate) GetCases() int32 {
@@ -1201,7 +1507,7 @@ type RegisterSuiteRequest struct {
 
 func (x *RegisterSuiteRequest) Reset() {
 	*x = RegisterSuiteRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[11]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1213,7 +1519,7 @@ func (x *RegisterSuiteRequest) String() string {
 func (*RegisterSuiteRequest) ProtoMessage() {}
 
 func (x *RegisterSuiteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[11]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1226,7 +1532,7 @@ func (x *RegisterSuiteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterSuiteRequest.ProtoReflect.Descriptor instead.
 func (*RegisterSuiteRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{11}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RegisterSuiteRequest) GetSuite() *EvalSuite {
@@ -1247,7 +1553,7 @@ type RegisterSuiteResponse struct {
 
 func (x *RegisterSuiteResponse) Reset() {
 	*x = RegisterSuiteResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[12]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1259,7 +1565,7 @@ func (x *RegisterSuiteResponse) String() string {
 func (*RegisterSuiteResponse) ProtoMessage() {}
 
 func (x *RegisterSuiteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[12]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1272,7 +1578,7 @@ func (x *RegisterSuiteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterSuiteResponse.ProtoReflect.Descriptor instead.
 func (*RegisterSuiteResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{12}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RegisterSuiteResponse) GetSuite() *EvalSuite {
@@ -1299,7 +1605,7 @@ type ListSuitesRequest struct {
 
 func (x *ListSuitesRequest) Reset() {
 	*x = ListSuitesRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[13]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1311,7 +1617,7 @@ func (x *ListSuitesRequest) String() string {
 func (*ListSuitesRequest) ProtoMessage() {}
 
 func (x *ListSuitesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[13]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1324,7 +1630,7 @@ func (x *ListSuitesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSuitesRequest.ProtoReflect.Descriptor instead.
 func (*ListSuitesRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{13}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListSuitesRequest) GetProviderId() string {
@@ -1343,7 +1649,7 @@ type ListSuitesResponse struct {
 
 func (x *ListSuitesResponse) Reset() {
 	*x = ListSuitesResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[14]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1355,7 +1661,7 @@ func (x *ListSuitesResponse) String() string {
 func (*ListSuitesResponse) ProtoMessage() {}
 
 func (x *ListSuitesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[14]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1368,7 +1674,7 @@ func (x *ListSuitesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSuitesResponse.ProtoReflect.Descriptor instead.
 func (*ListSuitesResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{14}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListSuitesResponse) GetSuites() []*EvalSuite {
@@ -1387,7 +1693,7 @@ type GetSuiteRequest struct {
 
 func (x *GetSuiteRequest) Reset() {
 	*x = GetSuiteRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[15]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1399,7 +1705,7 @@ func (x *GetSuiteRequest) String() string {
 func (*GetSuiteRequest) ProtoMessage() {}
 
 func (x *GetSuiteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[15]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1412,7 +1718,7 @@ func (x *GetSuiteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSuiteRequest.ProtoReflect.Descriptor instead.
 func (*GetSuiteRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{15}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetSuiteRequest) GetSuiteId() string {
@@ -1436,7 +1742,7 @@ type GetSuiteResponse struct {
 
 func (x *GetSuiteResponse) Reset() {
 	*x = GetSuiteResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[16]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1448,7 +1754,7 @@ func (x *GetSuiteResponse) String() string {
 func (*GetSuiteResponse) ProtoMessage() {}
 
 func (x *GetSuiteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[16]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1461,7 +1767,7 @@ func (x *GetSuiteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSuiteResponse.ProtoReflect.Descriptor instead.
 func (*GetSuiteResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{16}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetSuiteResponse) GetSuite() *EvalSuite {
@@ -1496,7 +1802,7 @@ type RunSuiteRequest struct {
 
 func (x *RunSuiteRequest) Reset() {
 	*x = RunSuiteRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[17]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1508,7 +1814,7 @@ func (x *RunSuiteRequest) String() string {
 func (*RunSuiteRequest) ProtoMessage() {}
 
 func (x *RunSuiteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[17]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1521,7 +1827,7 @@ func (x *RunSuiteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunSuiteRequest.ProtoReflect.Descriptor instead.
 func (*RunSuiteRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{17}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RunSuiteRequest) GetSuiteId() string {
@@ -1573,7 +1879,7 @@ type RunSuiteResponse struct {
 
 func (x *RunSuiteResponse) Reset() {
 	*x = RunSuiteResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[18]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1585,7 +1891,7 @@ func (x *RunSuiteResponse) String() string {
 func (*RunSuiteResponse) ProtoMessage() {}
 
 func (x *RunSuiteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[18]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1598,7 +1904,7 @@ func (x *RunSuiteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunSuiteResponse.ProtoReflect.Descriptor instead.
 func (*RunSuiteResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{18}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RunSuiteResponse) GetRun() *EvalRun {
@@ -1627,7 +1933,7 @@ type CompareStrategiesRequest struct {
 
 func (x *CompareStrategiesRequest) Reset() {
 	*x = CompareStrategiesRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[19]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1639,7 +1945,7 @@ func (x *CompareStrategiesRequest) String() string {
 func (*CompareStrategiesRequest) ProtoMessage() {}
 
 func (x *CompareStrategiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[19]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1652,7 +1958,7 @@ func (x *CompareStrategiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareStrategiesRequest.ProtoReflect.Descriptor instead.
 func (*CompareStrategiesRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{19}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CompareStrategiesRequest) GetSuiteId() string {
@@ -1696,7 +2002,7 @@ type CompareStrategiesResponse struct {
 
 func (x *CompareStrategiesResponse) Reset() {
 	*x = CompareStrategiesResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[20]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1708,7 +2014,7 @@ func (x *CompareStrategiesResponse) String() string {
 func (*CompareStrategiesResponse) ProtoMessage() {}
 
 func (x *CompareStrategiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[20]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1721,7 +2027,7 @@ func (x *CompareStrategiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareStrategiesResponse.ProtoReflect.Descriptor instead.
 func (*CompareStrategiesResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{20}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CompareStrategiesResponse) GetSuiteId() string {
@@ -1785,7 +2091,7 @@ type StrategyComparisonArm struct {
 
 func (x *StrategyComparisonArm) Reset() {
 	*x = StrategyComparisonArm{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[21]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1797,7 +2103,7 @@ func (x *StrategyComparisonArm) String() string {
 func (*StrategyComparisonArm) ProtoMessage() {}
 
 func (x *StrategyComparisonArm) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[21]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1810,7 +2116,7 @@ func (x *StrategyComparisonArm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyComparisonArm.ProtoReflect.Descriptor instead.
 func (*StrategyComparisonArm) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{21}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *StrategyComparisonArm) GetStrategyName() string {
@@ -1950,7 +2256,7 @@ type ValidateCorpusRequest struct {
 
 func (x *ValidateCorpusRequest) Reset() {
 	*x = ValidateCorpusRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[22]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1962,7 +2268,7 @@ func (x *ValidateCorpusRequest) String() string {
 func (*ValidateCorpusRequest) ProtoMessage() {}
 
 func (x *ValidateCorpusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[22]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1975,7 +2281,7 @@ func (x *ValidateCorpusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateCorpusRequest.ProtoReflect.Descriptor instead.
 func (*ValidateCorpusRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{22}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ValidateCorpusRequest) GetSuiteId() string {
@@ -2006,7 +2312,7 @@ type CorpusValidationCase struct {
 
 func (x *CorpusValidationCase) Reset() {
 	*x = CorpusValidationCase{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[23]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2018,7 +2324,7 @@ func (x *CorpusValidationCase) String() string {
 func (*CorpusValidationCase) ProtoMessage() {}
 
 func (x *CorpusValidationCase) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[23]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2031,7 +2337,7 @@ func (x *CorpusValidationCase) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CorpusValidationCase.ProtoReflect.Descriptor instead.
 func (*CorpusValidationCase) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{23}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *CorpusValidationCase) GetCaseId() string {
@@ -2084,7 +2390,7 @@ type CorpusValidationRollup struct {
 
 func (x *CorpusValidationRollup) Reset() {
 	*x = CorpusValidationRollup{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[24]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2096,7 +2402,7 @@ func (x *CorpusValidationRollup) String() string {
 func (*CorpusValidationRollup) ProtoMessage() {}
 
 func (x *CorpusValidationRollup) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[24]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2109,7 +2415,7 @@ func (x *CorpusValidationRollup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CorpusValidationRollup.ProtoReflect.Descriptor instead.
 func (*CorpusValidationRollup) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{24}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CorpusValidationRollup) GetPositives() int32 {
@@ -2162,18 +2468,23 @@ func (x *CorpusValidationRollup) GetProviderErrors() int32 {
 }
 
 type ValidateCorpusResponse struct {
-	state         protoimpl.MessageState  `protogen:"open.v1"`
-	SuiteId       string                  `protobuf:"bytes,1,opt,name=suite_id,json=suiteId,proto3" json:"suite_id,omitempty"`
-	ProviderId    string                  `protobuf:"bytes,2,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
-	Cases         []*CorpusValidationCase `protobuf:"bytes,3,rep,name=cases,proto3" json:"cases,omitempty"`
-	Rollup        *CorpusValidationRollup `protobuf:"bytes,4,opt,name=rollup,proto3" json:"rollup,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState  `protogen:"open.v1"`
+	SuiteId    string                  `protobuf:"bytes,1,opt,name=suite_id,json=suiteId,proto3" json:"suite_id,omitempty"`
+	ProviderId string                  `protobuf:"bytes,2,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	Cases      []*CorpusValidationCase `protobuf:"bytes,3,rep,name=cases,proto3" json:"cases,omitempty"`
+	Rollup     *CorpusValidationRollup `protobuf:"bytes,4,opt,name=rollup,proto3" json:"rollup,omitempty"`
+	// Exact provider corpus contract and fixed reviewed-positive denominator
+	// this validation probed. Receipts without these fields cannot bind a run.
+	SuiteSha256        string   `protobuf:"bytes,5,opt,name=suite_sha256,json=suiteSha256,proto3" json:"suite_sha256,omitempty"`
+	DenominatorSha256  string   `protobuf:"bytes,6,opt,name=denominator_sha256,json=denominatorSha256,proto3" json:"denominator_sha256,omitempty"`
+	DenominatorCaseIds []string `protobuf:"bytes,7,rep,name=denominator_case_ids,json=denominatorCaseIds,proto3" json:"denominator_case_ids,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ValidateCorpusResponse) Reset() {
 	*x = ValidateCorpusResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[25]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2185,7 +2496,7 @@ func (x *ValidateCorpusResponse) String() string {
 func (*ValidateCorpusResponse) ProtoMessage() {}
 
 func (x *ValidateCorpusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[25]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2198,7 +2509,7 @@ func (x *ValidateCorpusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidateCorpusResponse.ProtoReflect.Descriptor instead.
 func (*ValidateCorpusResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{25}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ValidateCorpusResponse) GetSuiteId() string {
@@ -2229,6 +2540,181 @@ func (x *ValidateCorpusResponse) GetRollup() *CorpusValidationRollup {
 	return nil
 }
 
+func (x *ValidateCorpusResponse) GetSuiteSha256() string {
+	if x != nil {
+		return x.SuiteSha256
+	}
+	return ""
+}
+
+func (x *ValidateCorpusResponse) GetDenominatorSha256() string {
+	if x != nil {
+		return x.DenominatorSha256
+	}
+	return ""
+}
+
+func (x *ValidateCorpusResponse) GetDenominatorCaseIds() []string {
+	if x != nil {
+		return x.DenominatorCaseIds
+	}
+	return nil
+}
+
+type GetLatestCorpusValidationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SuiteId       string                 `protobuf:"bytes,1,opt,name=suite_id,json=suiteId,proto3" json:"suite_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLatestCorpusValidationRequest) Reset() {
+	*x = GetLatestCorpusValidationRequest{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLatestCorpusValidationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLatestCorpusValidationRequest) ProtoMessage() {}
+
+func (x *GetLatestCorpusValidationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLatestCorpusValidationRequest.ProtoReflect.Descriptor instead.
+func (*GetLatestCorpusValidationRequest) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GetLatestCorpusValidationRequest) GetSuiteId() string {
+	if x != nil {
+		return x.SuiteId
+	}
+	return ""
+}
+
+type GetLatestCorpusValidationResponse struct {
+	state              protoimpl.MessageState  `protogen:"open.v1"`
+	Found              bool                    `protobuf:"varint,1,opt,name=found,proto3" json:"found,omitempty"`
+	SuiteId            string                  `protobuf:"bytes,2,opt,name=suite_id,json=suiteId,proto3" json:"suite_id,omitempty"`
+	ProviderId         string                  `protobuf:"bytes,3,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
+	SuiteSha256        string                  `protobuf:"bytes,4,opt,name=suite_sha256,json=suiteSha256,proto3" json:"suite_sha256,omitempty"`
+	DenominatorSha256  string                  `protobuf:"bytes,5,opt,name=denominator_sha256,json=denominatorSha256,proto3" json:"denominator_sha256,omitempty"`
+	DenominatorCaseIds []string                `protobuf:"bytes,6,rep,name=denominator_case_ids,json=denominatorCaseIds,proto3" json:"denominator_case_ids,omitempty"`
+	Rollup             *CorpusValidationRollup `protobuf:"bytes,7,opt,name=rollup,proto3" json:"rollup,omitempty"`
+	// Timestamp from the durable store row, not provider-reported status.
+	CreatedAt string `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// SHA-256 of the exact deterministic persisted ValidateCorpusResponse.
+	ReceiptSha256 string `protobuf:"bytes,9,opt,name=receipt_sha256,json=receiptSha256,proto3" json:"receipt_sha256,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLatestCorpusValidationResponse) Reset() {
+	*x = GetLatestCorpusValidationResponse{}
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLatestCorpusValidationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLatestCorpusValidationResponse) ProtoMessage() {}
+
+func (x *GetLatestCorpusValidationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLatestCorpusValidationResponse.ProtoReflect.Descriptor instead.
+func (*GetLatestCorpusValidationResponse) Descriptor() ([]byte, []int) {
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GetLatestCorpusValidationResponse) GetFound() bool {
+	if x != nil {
+		return x.Found
+	}
+	return false
+}
+
+func (x *GetLatestCorpusValidationResponse) GetSuiteId() string {
+	if x != nil {
+		return x.SuiteId
+	}
+	return ""
+}
+
+func (x *GetLatestCorpusValidationResponse) GetProviderId() string {
+	if x != nil {
+		return x.ProviderId
+	}
+	return ""
+}
+
+func (x *GetLatestCorpusValidationResponse) GetSuiteSha256() string {
+	if x != nil {
+		return x.SuiteSha256
+	}
+	return ""
+}
+
+func (x *GetLatestCorpusValidationResponse) GetDenominatorSha256() string {
+	if x != nil {
+		return x.DenominatorSha256
+	}
+	return ""
+}
+
+func (x *GetLatestCorpusValidationResponse) GetDenominatorCaseIds() []string {
+	if x != nil {
+		return x.DenominatorCaseIds
+	}
+	return nil
+}
+
+func (x *GetLatestCorpusValidationResponse) GetRollup() *CorpusValidationRollup {
+	if x != nil {
+		return x.Rollup
+	}
+	return nil
+}
+
+func (x *GetLatestCorpusValidationResponse) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *GetLatestCorpusValidationResponse) GetReceiptSha256() string {
+	if x != nil {
+		return x.ReceiptSha256
+	}
+	return ""
+}
+
 type ListRunsRequest struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	SuiteId string                 `protobuf:"bytes,1,opt,name=suite_id,json=suiteId,proto3" json:"suite_id,omitempty"`
@@ -2243,7 +2729,7 @@ type ListRunsRequest struct {
 
 func (x *ListRunsRequest) Reset() {
 	*x = ListRunsRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[26]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2255,7 +2741,7 @@ func (x *ListRunsRequest) String() string {
 func (*ListRunsRequest) ProtoMessage() {}
 
 func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[26]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2268,7 +2754,7 @@ func (x *ListRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunsRequest.ProtoReflect.Descriptor instead.
 func (*ListRunsRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{26}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ListRunsRequest) GetSuiteId() string {
@@ -2309,7 +2795,7 @@ type ListRunsResponse struct {
 
 func (x *ListRunsResponse) Reset() {
 	*x = ListRunsResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[27]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2321,7 +2807,7 @@ func (x *ListRunsResponse) String() string {
 func (*ListRunsResponse) ProtoMessage() {}
 
 func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[27]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2334,7 +2820,7 @@ func (x *ListRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRunsResponse.ProtoReflect.Descriptor instead.
 func (*ListRunsResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{27}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ListRunsResponse) GetRuns() []*EvalRun {
@@ -2353,7 +2839,7 @@ type GetRunRequest struct {
 
 func (x *GetRunRequest) Reset() {
 	*x = GetRunRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[28]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2365,7 +2851,7 @@ func (x *GetRunRequest) String() string {
 func (*GetRunRequest) ProtoMessage() {}
 
 func (x *GetRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[28]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2378,7 +2864,7 @@ func (x *GetRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunRequest.ProtoReflect.Descriptor instead.
 func (*GetRunRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{28}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetRunRequest) GetRunId() string {
@@ -2397,7 +2883,7 @@ type GetRunResponse struct {
 
 func (x *GetRunResponse) Reset() {
 	*x = GetRunResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[29]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2409,7 +2895,7 @@ func (x *GetRunResponse) String() string {
 func (*GetRunResponse) ProtoMessage() {}
 
 func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[29]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2422,7 +2908,7 @@ func (x *GetRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRunResponse.ProtoReflect.Descriptor instead.
 func (*GetRunResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{29}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetRunResponse) GetRun() *EvalRun {
@@ -2442,7 +2928,7 @@ type CompareRunsRequest struct {
 
 func (x *CompareRunsRequest) Reset() {
 	*x = CompareRunsRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[30]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2454,7 +2940,7 @@ func (x *CompareRunsRequest) String() string {
 func (*CompareRunsRequest) ProtoMessage() {}
 
 func (x *CompareRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[30]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2467,7 +2953,7 @@ func (x *CompareRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareRunsRequest.ProtoReflect.Descriptor instead.
 func (*CompareRunsRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{30}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CompareRunsRequest) GetRunA() string {
@@ -2497,7 +2983,7 @@ type CompareRunsResponse struct {
 
 func (x *CompareRunsResponse) Reset() {
 	*x = CompareRunsResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[31]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2509,7 +2995,7 @@ func (x *CompareRunsResponse) String() string {
 func (*CompareRunsResponse) ProtoMessage() {}
 
 func (x *CompareRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[31]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2522,7 +3008,7 @@ func (x *CompareRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompareRunsResponse.ProtoReflect.Descriptor instead.
 func (*CompareRunsResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{31}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *CompareRunsResponse) GetRunA() *EvalRun {
@@ -2561,7 +3047,7 @@ type CaseDelta struct {
 
 func (x *CaseDelta) Reset() {
 	*x = CaseDelta{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[32]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2573,7 +3059,7 @@ func (x *CaseDelta) String() string {
 func (*CaseDelta) ProtoMessage() {}
 
 func (x *CaseDelta) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[32]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2586,7 +3072,7 @@ func (x *CaseDelta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaseDelta.ProtoReflect.Descriptor instead.
 func (*CaseDelta) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{32}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *CaseDelta) GetCaseId() string {
@@ -2658,7 +3144,7 @@ type SweepRequest struct {
 
 func (x *SweepRequest) Reset() {
 	*x = SweepRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[33]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2670,7 +3156,7 @@ func (x *SweepRequest) String() string {
 func (*SweepRequest) ProtoMessage() {}
 
 func (x *SweepRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[33]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2683,7 +3169,7 @@ func (x *SweepRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SweepRequest.ProtoReflect.Descriptor instead.
 func (*SweepRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{33}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *SweepRequest) GetSuiteId() string {
@@ -2741,7 +3227,7 @@ type SweepArm struct {
 
 func (x *SweepArm) Reset() {
 	*x = SweepArm{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[34]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2753,7 +3239,7 @@ func (x *SweepArm) String() string {
 func (*SweepArm) ProtoMessage() {}
 
 func (x *SweepArm) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[34]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2766,7 +3252,7 @@ func (x *SweepArm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SweepArm.ProtoReflect.Descriptor instead.
 func (*SweepArm) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{34}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *SweepArm) GetTag() string {
@@ -2850,7 +3336,7 @@ type SweepResult struct {
 
 func (x *SweepResult) Reset() {
 	*x = SweepResult{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[35]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2862,7 +3348,7 @@ func (x *SweepResult) String() string {
 func (*SweepResult) ProtoMessage() {}
 
 func (x *SweepResult) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[35]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2875,7 +3361,7 @@ func (x *SweepResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SweepResult.ProtoReflect.Descriptor instead.
 func (*SweepResult) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{35}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *SweepResult) GetSuiteId() string {
@@ -2959,7 +3445,7 @@ type SweepStats struct {
 
 func (x *SweepStats) Reset() {
 	*x = SweepStats{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[36]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2971,7 +3457,7 @@ func (x *SweepStats) String() string {
 func (*SweepStats) ProtoMessage() {}
 
 func (x *SweepStats) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[36]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2984,7 +3470,7 @@ func (x *SweepStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SweepStats.ProtoReflect.Descriptor instead.
 func (*SweepStats) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{36}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *SweepStats) GetIncumbentScore() float64 {
@@ -3066,7 +3552,7 @@ type SweepResponse struct {
 
 func (x *SweepResponse) Reset() {
 	*x = SweepResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[37]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3078,7 +3564,7 @@ func (x *SweepResponse) String() string {
 func (*SweepResponse) ProtoMessage() {}
 
 func (x *SweepResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[37]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3091,7 +3577,7 @@ func (x *SweepResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SweepResponse.ProtoReflect.Descriptor instead.
 func (*SweepResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{37}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *SweepResponse) GetResult() *SweepResult {
@@ -3120,7 +3606,7 @@ type AdequacyWarning struct {
 
 func (x *AdequacyWarning) Reset() {
 	*x = AdequacyWarning{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[38]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3132,7 +3618,7 @@ func (x *AdequacyWarning) String() string {
 func (*AdequacyWarning) ProtoMessage() {}
 
 func (x *AdequacyWarning) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[38]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3145,7 +3631,7 @@ func (x *AdequacyWarning) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdequacyWarning.ProtoReflect.Descriptor instead.
 func (*AdequacyWarning) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{38}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *AdequacyWarning) GetCode() string {
@@ -3188,7 +3674,7 @@ type GenerateRequest struct {
 
 func (x *GenerateRequest) Reset() {
 	*x = GenerateRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[39]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3200,7 +3686,7 @@ func (x *GenerateRequest) String() string {
 func (*GenerateRequest) ProtoMessage() {}
 
 func (x *GenerateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[39]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3213,7 +3699,7 @@ func (x *GenerateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateRequest.ProtoReflect.Descriptor instead.
 func (*GenerateRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{39}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GenerateRequest) GetSuiteId() string {
@@ -3263,7 +3749,7 @@ type GeneratedCase struct {
 
 func (x *GeneratedCase) Reset() {
 	*x = GeneratedCase{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[40]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3275,7 +3761,7 @@ func (x *GeneratedCase) String() string {
 func (*GeneratedCase) ProtoMessage() {}
 
 func (x *GeneratedCase) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[40]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3288,7 +3774,7 @@ func (x *GeneratedCase) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GeneratedCase.ProtoReflect.Descriptor instead.
 func (*GeneratedCase) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{40}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *GeneratedCase) GetCase() *EvalCase {
@@ -3336,7 +3822,7 @@ type GenerateResponse struct {
 
 func (x *GenerateResponse) Reset() {
 	*x = GenerateResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[41]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3348,7 +3834,7 @@ func (x *GenerateResponse) String() string {
 func (*GenerateResponse) ProtoMessage() {}
 
 func (x *GenerateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[41]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3361,7 +3847,7 @@ func (x *GenerateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerateResponse.ProtoReflect.Descriptor instead.
 func (*GenerateResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{41}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *GenerateResponse) GetSuiteId() string {
@@ -3426,7 +3912,7 @@ type PromoteCasesRequest struct {
 
 func (x *PromoteCasesRequest) Reset() {
 	*x = PromoteCasesRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[42]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3438,7 +3924,7 @@ func (x *PromoteCasesRequest) String() string {
 func (*PromoteCasesRequest) ProtoMessage() {}
 
 func (x *PromoteCasesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[42]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3451,7 +3937,7 @@ func (x *PromoteCasesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteCasesRequest.ProtoReflect.Descriptor instead.
 func (*PromoteCasesRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{42}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *PromoteCasesRequest) GetSuiteId() string {
@@ -3484,7 +3970,7 @@ type ReapOrphanSuitesRequest struct {
 
 func (x *ReapOrphanSuitesRequest) Reset() {
 	*x = ReapOrphanSuitesRequest{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[43]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3496,7 +3982,7 @@ func (x *ReapOrphanSuitesRequest) String() string {
 func (*ReapOrphanSuitesRequest) ProtoMessage() {}
 
 func (x *ReapOrphanSuitesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[43]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3509,7 +3995,7 @@ func (x *ReapOrphanSuitesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReapOrphanSuitesRequest.ProtoReflect.Descriptor instead.
 func (*ReapOrphanSuitesRequest) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{43}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ReapOrphanSuitesRequest) GetConfirm() bool {
@@ -3531,7 +4017,7 @@ type ReapOrphanSuitesResponse struct {
 
 func (x *ReapOrphanSuitesResponse) Reset() {
 	*x = ReapOrphanSuitesResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[44]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3543,7 +4029,7 @@ func (x *ReapOrphanSuitesResponse) String() string {
 func (*ReapOrphanSuitesResponse) ProtoMessage() {}
 
 func (x *ReapOrphanSuitesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[44]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3556,7 +4042,7 @@ func (x *ReapOrphanSuitesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReapOrphanSuitesResponse.ProtoReflect.Descriptor instead.
 func (*ReapOrphanSuitesResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{44}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ReapOrphanSuitesResponse) GetOrphanSuites() []*EvalSuite {
@@ -3599,7 +4085,7 @@ type PromoteCasesResponse struct {
 
 func (x *PromoteCasesResponse) Reset() {
 	*x = PromoteCasesResponse{}
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[45]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3611,7 +4097,7 @@ func (x *PromoteCasesResponse) String() string {
 func (*PromoteCasesResponse) ProtoMessage() {}
 
 func (x *PromoteCasesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[45]
+	mi := &file_search_hub_v1_eval_eval_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3624,7 +4110,7 @@ func (x *PromoteCasesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PromoteCasesResponse.ProtoReflect.Descriptor instead.
 func (*PromoteCasesResponse) Descriptor() ([]byte, []int) {
-	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{45}
+	return file_search_hub_v1_eval_eval_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *PromoteCasesResponse) GetSuiteId() string {
@@ -3700,7 +4186,7 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
 	"\x04tags\x18\x03 \x03(\tR\x04tags\x122\n" +
-	"\x15min_reviewed_positive\x18\x04 \x01(\x05R\x13minReviewedPositive\"\xc0\x03\n" +
+	"\x15min_reviewed_positive\x18\x04 \x01(\x05R\x13minReviewedPositive\"\xf8\x03\n" +
 	"\bEvalCase\x12\x17\n" +
 	"\acase_id\x18\x01 \x01(\tR\x06caseId\x12\x14\n" +
 	"\x05query\x18\x02 \x01(\tR\x05query\x12\x12\n" +
@@ -3716,7 +4202,8 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	" \x01(\tR\x06status\x12\x14\n" +
 	"\x05scope\x18\v \x01(\tR\x05scope\x12*\n" +
 	"\x11expect_min_margin\x18\f \x01(\x01R\x0fexpectMinMargin\x120\n" +
-	"\x14expected_provider_id\x18\r \x01(\tR\x12expectedProviderId\"\x99\x04\n" +
+	"\x14expected_provider_id\x18\r \x01(\tR\x12expectedProviderId\x126\n" +
+	"\x17expected_identity_field\x18\x0e \x01(\tR\x15expectedIdentityField\"\xf9\x04\n" +
 	"\aEvalRun\x12\x15\n" +
 	"\x06run_id\x18\x01 \x01(\tR\x05runId\x12\x19\n" +
 	"\bsuite_id\x18\x02 \x01(\tR\asuiteId\x12\x10\n" +
@@ -3731,7 +4218,31 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\bdegraded\x18\v \x01(\bR\bdegraded\x12'\n" +
 	"\x0fdegraded_reason\x18\f \x01(\tR\x0edegradedReason\x12W\n" +
 	"\x11unavailable_cases\x18\r \x03(\v2*.vrooli.search_hub.v1.eval.UnavailableCaseR\x10unavailableCases\x12-\n" +
-	"\x12unavailable_reason\x18\x0e \x01(\tR\x11unavailableReason\"\xf2\x02\n" +
+	"\x12unavailable_reason\x18\x0e \x01(\tR\x11unavailableReason\x12^\n" +
+	"\x13comparison_identity\x18\x0f \x01(\v2-.vrooli.search_hub.v1.eval.EvaluationIdentityR\x12comparisonIdentity\"\x9d\x06\n" +
+	"\x12EvaluationIdentity\x12,\n" +
+	"\x12corpus_provider_id\x18\x01 \x01(\tR\x10corpusProviderId\x12\x1b\n" +
+	"\tcorpus_id\x18\x02 \x01(\tR\bcorpusId\x12#\n" +
+	"\rcorpus_sha256\x18\x03 \x01(\tR\fcorpusSha256\x12#\n" +
+	"\rsplit_version\x18\x04 \x01(\tR\fsplitVersion\x120\n" +
+	"\x14denominator_case_ids\x18\x05 \x03(\tR\x12denominatorCaseIds\x12(\n" +
+	"\x10heldout_case_ids\x18\x06 \x03(\tR\x0eheldoutCaseIds\x12-\n" +
+	"\x12denominator_sha256\x18\a \x01(\tR\x11denominatorSha256\x12\x1b\n" +
+	"\tcaller_id\x18\b \x01(\tR\bcallerId\x12%\n" +
+	"\x0ecaller_version\x18\t \x01(\tR\rcallerVersion\x12\x19\n" +
+	"\bmodel_id\x18\n" +
+	" \x01(\tR\amodelId\x12'\n" +
+	"\x0fartifact_sha256\x18\v \x01(\tR\x0eartifactSha256\x12\x1d\n" +
+	"\n" +
+	"license_id\x18\f \x01(\tR\tlicenseId\x12,\n" +
+	"\x12rights_decision_id\x18\r \x01(\tR\x10rightsDecisionId\x12\x1d\n" +
+	"\n" +
+	"runtime_id\x18\x0e \x01(\tR\truntimeId\x12%\n" +
+	"\x0eruntime_sha256\x18\x0f \x01(\tR\rruntimeSha256\x12#\n" +
+	"\rrecipe_sha256\x18\x10 \x01(\tR\frecipeSha256\x12-\n" +
+	"\x12evaluation_version\x18\x11 \x01(\tR\x11evaluationVersion\x12<\n" +
+	"\x1aprovider_validation_sha256\x18\x12 \x01(\tR\x18providerValidationSha256\x124\n" +
+	"\x16provider_validation_at\x18\x13 \x01(\tR\x14providerValidationAtJ\x04\b\x14\x10\x15\"\xa7\x05\n" +
 	"\x0eConfigSnapshot\x12%\n" +
 	"\x0ererank_enabled\x18\x01 \x01(\bR\rrerankEnabled\x12!\n" +
 	"\freranker_leg\x18\x02 \x01(\tR\vrerankerLeg\x12\x1f\n" +
@@ -3744,7 +4255,17 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x06engine\x18\b \x01(\tR\x06engine\x12!\n" +
 	"\ffloor_regime\x18\t \x01(\tR\vfloorRegime\x12!\n" +
 	"\fselector_leg\x18\n" +
-	" \x01(\tR\vselectorLeg\"\xb4\x03\n" +
+	" \x01(\tR\vselectorLeg\x12\x19\n" +
+	"\bmodel_id\x18\v \x01(\tR\amodelId\x12'\n" +
+	"\x0fartifact_sha256\x18\f \x01(\tR\x0eartifactSha256\x12\x1d\n" +
+	"\n" +
+	"license_id\x18\r \x01(\tR\tlicenseId\x12,\n" +
+	"\x12rights_decision_id\x18\x0e \x01(\tR\x10rightsDecisionId\x12\x1d\n" +
+	"\n" +
+	"runtime_id\x18\x0f \x01(\tR\truntimeId\x12%\n" +
+	"\x0eruntime_sha256\x18\x10 \x01(\tR\rruntimeSha256\x12#\n" +
+	"\rrecipe_sha256\x18\x11 \x01(\tR\frecipeSha256\x12+\n" +
+	"\x11provider_revision\x18\x12 \x01(\tR\x10providerRevisionJ\x04\b\x13\x10\x14J\x04\b\x14\x10\x15\"\xf8\x03\n" +
 	"\n" +
 	"CaseResult\x12\x17\n" +
 	"\acase_id\x18\x01 \x01(\tR\x06caseId\x126\n" +
@@ -3757,7 +4278,10 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x06margin\x18\b \x01(\x01R\x06margin\x12%\n" +
 	"\x0eoutcome_reason\x18\t \x01(\tR\routcomeReason\x12N\n" +
 	"\rrouting_trace\x18\n" +
-	" \x01(\v2).vrooli.search_hub.v1.shared.RoutingTraceR\froutingTrace\"B\n" +
+	" \x01(\v2).vrooli.search_hub.v1.shared.RoutingTraceR\froutingTrace\x12#\n" +
+	"\rattempt_count\x18\v \x01(\x05R\fattemptCount\x12\x1d\n" +
+	"\n" +
+	"latency_ms\x18\f \x01(\x05R\tlatencyMs\"B\n" +
 	"\x0fUnavailableCase\x12\x17\n" +
 	"\acase_id\x18\x01 \x01(\tR\x06caseId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"G\n" +
@@ -3852,13 +4376,30 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x05stale\x18\x04 \x01(\x05R\x05stale\x12\"\n" +
 	"\finconclusive\x18\x05 \x01(\x05R\finconclusive\x12\x1c\n" +
 	"\tcandidate\x18\x06 \x01(\x05R\tcandidate\x12'\n" +
-	"\x0fprovider_errors\x18\a \x01(\x05R\x0eproviderErrors\"\xe6\x01\n" +
+	"\x0fprovider_errors\x18\a \x01(\x05R\x0eproviderErrors\"\xea\x02\n" +
 	"\x16ValidateCorpusResponse\x12\x19\n" +
 	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x1f\n" +
 	"\vprovider_id\x18\x02 \x01(\tR\n" +
 	"providerId\x12E\n" +
 	"\x05cases\x18\x03 \x03(\v2/.vrooli.search_hub.v1.eval.CorpusValidationCaseR\x05cases\x12I\n" +
-	"\x06rollup\x18\x04 \x01(\v21.vrooli.search_hub.v1.eval.CorpusValidationRollupR\x06rollup\"h\n" +
+	"\x06rollup\x18\x04 \x01(\v21.vrooli.search_hub.v1.eval.CorpusValidationRollupR\x06rollup\x12!\n" +
+	"\fsuite_sha256\x18\x05 \x01(\tR\vsuiteSha256\x12-\n" +
+	"\x12denominator_sha256\x18\x06 \x01(\tR\x11denominatorSha256\x120\n" +
+	"\x14denominator_case_ids\x18\a \x03(\tR\x12denominatorCaseIds\"=\n" +
+	" GetLatestCorpusValidationRequest\x12\x19\n" +
+	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\"\x8a\x03\n" +
+	"!GetLatestCorpusValidationResponse\x12\x14\n" +
+	"\x05found\x18\x01 \x01(\bR\x05found\x12\x19\n" +
+	"\bsuite_id\x18\x02 \x01(\tR\asuiteId\x12\x1f\n" +
+	"\vprovider_id\x18\x03 \x01(\tR\n" +
+	"providerId\x12!\n" +
+	"\fsuite_sha256\x18\x04 \x01(\tR\vsuiteSha256\x12-\n" +
+	"\x12denominator_sha256\x18\x05 \x01(\tR\x11denominatorSha256\x120\n" +
+	"\x14denominator_case_ids\x18\x06 \x03(\tR\x12denominatorCaseIds\x12I\n" +
+	"\x06rollup\x18\a \x01(\v21.vrooli.search_hub.v1.eval.CorpusValidationRollupR\x06rollup\x12\x1d\n" +
+	"\n" +
+	"created_at\x18\b \x01(\tR\tcreatedAt\x12%\n" +
+	"\x0ereceipt_sha256\x18\t \x01(\tR\rreceiptSha256\"h\n" +
 	"\x0fListRunsRequest\x12\x19\n" +
 	"\bsuite_id\x18\x01 \x01(\tR\asuiteId\x12\x10\n" +
 	"\x03tag\x18\x02 \x01(\tR\x03tag\x12\x14\n" +
@@ -3971,14 +4512,15 @@ const file_search_hub_v1_eval_eval_proto_rawDesc = "" +
 	"\x18REFERENTIAL_OUTCOME_HARD\x10\x02\x12\x1d\n" +
 	"\x19REFERENTIAL_OUTCOME_STALE\x10\x03\x12$\n" +
 	" REFERENTIAL_OUTCOME_INCONCLUSIVE\x10\x04\x12&\n" +
-	"\"REFERENTIAL_OUTCOME_PROVIDER_ERROR\x10\x052\x8e\v\n" +
+	"\"REFERENTIAL_OUTCOME_PROVIDER_ERROR\x10\x052\xa7\f\n" +
 	"\vEvalService\x12r\n" +
 	"\rRegisterSuite\x12/.vrooli.search_hub.v1.eval.RegisterSuiteRequest\x1a0.vrooli.search_hub.v1.eval.RegisterSuiteResponse\x12i\n" +
 	"\n" +
 	"ListSuites\x12,.vrooli.search_hub.v1.eval.ListSuitesRequest\x1a-.vrooli.search_hub.v1.eval.ListSuitesResponse\x12c\n" +
 	"\bGetSuite\x12*.vrooli.search_hub.v1.eval.GetSuiteRequest\x1a+.vrooli.search_hub.v1.eval.GetSuiteResponse\x12c\n" +
 	"\bRunSuite\x12*.vrooli.search_hub.v1.eval.RunSuiteRequest\x1a+.vrooli.search_hub.v1.eval.RunSuiteResponse\x12u\n" +
-	"\x0eValidateCorpus\x120.vrooli.search_hub.v1.eval.ValidateCorpusRequest\x1a1.vrooli.search_hub.v1.eval.ValidateCorpusResponse\x12c\n" +
+	"\x0eValidateCorpus\x120.vrooli.search_hub.v1.eval.ValidateCorpusRequest\x1a1.vrooli.search_hub.v1.eval.ValidateCorpusResponse\x12\x96\x01\n" +
+	"\x19GetLatestCorpusValidation\x12;.vrooli.search_hub.v1.eval.GetLatestCorpusValidationRequest\x1a<.vrooli.search_hub.v1.eval.GetLatestCorpusValidationResponse\x12c\n" +
 	"\bListRuns\x12*.vrooli.search_hub.v1.eval.ListRunsRequest\x1a+.vrooli.search_hub.v1.eval.ListRunsResponse\x12]\n" +
 	"\x06GetRun\x12(.vrooli.search_hub.v1.eval.GetRunRequest\x1a).vrooli.search_hub.v1.eval.GetRunResponse\x12l\n" +
 	"\vCompareRuns\x12-.vrooli.search_hub.v1.eval.CompareRunsRequest\x1a..vrooli.search_hub.v1.eval.CompareRunsResponse\x12Z\n" +
@@ -4001,127 +4543,134 @@ func file_search_hub_v1_eval_eval_proto_rawDescGZIP() []byte {
 }
 
 var file_search_hub_v1_eval_eval_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_search_hub_v1_eval_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
+var file_search_hub_v1_eval_eval_proto_msgTypes = make([]protoimpl.MessageInfo, 49)
 var file_search_hub_v1_eval_eval_proto_goTypes = []any{
-	(ReferentialOutcome)(0),           // 0: vrooli.search_hub.v1.eval.ReferentialOutcome
-	(*EvalSuite)(nil),                 // 1: vrooli.search_hub.v1.eval.EvalSuite
-	(*EvalMinimum)(nil),               // 2: vrooli.search_hub.v1.eval.EvalMinimum
-	(*EvalCoverageConfig)(nil),        // 3: vrooli.search_hub.v1.eval.EvalCoverageConfig
-	(*EvalCoverageTagGroup)(nil),      // 4: vrooli.search_hub.v1.eval.EvalCoverageTagGroup
-	(*EvalCase)(nil),                  // 5: vrooli.search_hub.v1.eval.EvalCase
-	(*EvalRun)(nil),                   // 6: vrooli.search_hub.v1.eval.EvalRun
-	(*ConfigSnapshot)(nil),            // 7: vrooli.search_hub.v1.eval.ConfigSnapshot
-	(*CaseResult)(nil),                // 8: vrooli.search_hub.v1.eval.CaseResult
-	(*UnavailableCase)(nil),           // 9: vrooli.search_hub.v1.eval.UnavailableCase
-	(*ScoredHit)(nil),                 // 10: vrooli.search_hub.v1.eval.ScoredHit
-	(*EvalAggregate)(nil),             // 11: vrooli.search_hub.v1.eval.EvalAggregate
-	(*RegisterSuiteRequest)(nil),      // 12: vrooli.search_hub.v1.eval.RegisterSuiteRequest
-	(*RegisterSuiteResponse)(nil),     // 13: vrooli.search_hub.v1.eval.RegisterSuiteResponse
-	(*ListSuitesRequest)(nil),         // 14: vrooli.search_hub.v1.eval.ListSuitesRequest
-	(*ListSuitesResponse)(nil),        // 15: vrooli.search_hub.v1.eval.ListSuitesResponse
-	(*GetSuiteRequest)(nil),           // 16: vrooli.search_hub.v1.eval.GetSuiteRequest
-	(*GetSuiteResponse)(nil),          // 17: vrooli.search_hub.v1.eval.GetSuiteResponse
-	(*RunSuiteRequest)(nil),           // 18: vrooli.search_hub.v1.eval.RunSuiteRequest
-	(*RunSuiteResponse)(nil),          // 19: vrooli.search_hub.v1.eval.RunSuiteResponse
-	(*CompareStrategiesRequest)(nil),  // 20: vrooli.search_hub.v1.eval.CompareStrategiesRequest
-	(*CompareStrategiesResponse)(nil), // 21: vrooli.search_hub.v1.eval.CompareStrategiesResponse
-	(*StrategyComparisonArm)(nil),     // 22: vrooli.search_hub.v1.eval.StrategyComparisonArm
-	(*ValidateCorpusRequest)(nil),     // 23: vrooli.search_hub.v1.eval.ValidateCorpusRequest
-	(*CorpusValidationCase)(nil),      // 24: vrooli.search_hub.v1.eval.CorpusValidationCase
-	(*CorpusValidationRollup)(nil),    // 25: vrooli.search_hub.v1.eval.CorpusValidationRollup
-	(*ValidateCorpusResponse)(nil),    // 26: vrooli.search_hub.v1.eval.ValidateCorpusResponse
-	(*ListRunsRequest)(nil),           // 27: vrooli.search_hub.v1.eval.ListRunsRequest
-	(*ListRunsResponse)(nil),          // 28: vrooli.search_hub.v1.eval.ListRunsResponse
-	(*GetRunRequest)(nil),             // 29: vrooli.search_hub.v1.eval.GetRunRequest
-	(*GetRunResponse)(nil),            // 30: vrooli.search_hub.v1.eval.GetRunResponse
-	(*CompareRunsRequest)(nil),        // 31: vrooli.search_hub.v1.eval.CompareRunsRequest
-	(*CompareRunsResponse)(nil),       // 32: vrooli.search_hub.v1.eval.CompareRunsResponse
-	(*CaseDelta)(nil),                 // 33: vrooli.search_hub.v1.eval.CaseDelta
-	(*SweepRequest)(nil),              // 34: vrooli.search_hub.v1.eval.SweepRequest
-	(*SweepArm)(nil),                  // 35: vrooli.search_hub.v1.eval.SweepArm
-	(*SweepResult)(nil),               // 36: vrooli.search_hub.v1.eval.SweepResult
-	(*SweepStats)(nil),                // 37: vrooli.search_hub.v1.eval.SweepStats
-	(*SweepResponse)(nil),             // 38: vrooli.search_hub.v1.eval.SweepResponse
-	(*AdequacyWarning)(nil),           // 39: vrooli.search_hub.v1.eval.AdequacyWarning
-	(*GenerateRequest)(nil),           // 40: vrooli.search_hub.v1.eval.GenerateRequest
-	(*GeneratedCase)(nil),             // 41: vrooli.search_hub.v1.eval.GeneratedCase
-	(*GenerateResponse)(nil),          // 42: vrooli.search_hub.v1.eval.GenerateResponse
-	(*PromoteCasesRequest)(nil),       // 43: vrooli.search_hub.v1.eval.PromoteCasesRequest
-	(*ReapOrphanSuitesRequest)(nil),   // 44: vrooli.search_hub.v1.eval.ReapOrphanSuitesRequest
-	(*ReapOrphanSuitesResponse)(nil),  // 45: vrooli.search_hub.v1.eval.ReapOrphanSuitesResponse
-	(*PromoteCasesResponse)(nil),      // 46: vrooli.search_hub.v1.eval.PromoteCasesResponse
-	(*shared.RoutingTrace)(nil),       // 47: vrooli.search_hub.v1.shared.RoutingTrace
+	(ReferentialOutcome)(0),                   // 0: vrooli.search_hub.v1.eval.ReferentialOutcome
+	(*EvalSuite)(nil),                         // 1: vrooli.search_hub.v1.eval.EvalSuite
+	(*EvalMinimum)(nil),                       // 2: vrooli.search_hub.v1.eval.EvalMinimum
+	(*EvalCoverageConfig)(nil),                // 3: vrooli.search_hub.v1.eval.EvalCoverageConfig
+	(*EvalCoverageTagGroup)(nil),              // 4: vrooli.search_hub.v1.eval.EvalCoverageTagGroup
+	(*EvalCase)(nil),                          // 5: vrooli.search_hub.v1.eval.EvalCase
+	(*EvalRun)(nil),                           // 6: vrooli.search_hub.v1.eval.EvalRun
+	(*EvaluationIdentity)(nil),                // 7: vrooli.search_hub.v1.eval.EvaluationIdentity
+	(*ConfigSnapshot)(nil),                    // 8: vrooli.search_hub.v1.eval.ConfigSnapshot
+	(*CaseResult)(nil),                        // 9: vrooli.search_hub.v1.eval.CaseResult
+	(*UnavailableCase)(nil),                   // 10: vrooli.search_hub.v1.eval.UnavailableCase
+	(*ScoredHit)(nil),                         // 11: vrooli.search_hub.v1.eval.ScoredHit
+	(*EvalAggregate)(nil),                     // 12: vrooli.search_hub.v1.eval.EvalAggregate
+	(*RegisterSuiteRequest)(nil),              // 13: vrooli.search_hub.v1.eval.RegisterSuiteRequest
+	(*RegisterSuiteResponse)(nil),             // 14: vrooli.search_hub.v1.eval.RegisterSuiteResponse
+	(*ListSuitesRequest)(nil),                 // 15: vrooli.search_hub.v1.eval.ListSuitesRequest
+	(*ListSuitesResponse)(nil),                // 16: vrooli.search_hub.v1.eval.ListSuitesResponse
+	(*GetSuiteRequest)(nil),                   // 17: vrooli.search_hub.v1.eval.GetSuiteRequest
+	(*GetSuiteResponse)(nil),                  // 18: vrooli.search_hub.v1.eval.GetSuiteResponse
+	(*RunSuiteRequest)(nil),                   // 19: vrooli.search_hub.v1.eval.RunSuiteRequest
+	(*RunSuiteResponse)(nil),                  // 20: vrooli.search_hub.v1.eval.RunSuiteResponse
+	(*CompareStrategiesRequest)(nil),          // 21: vrooli.search_hub.v1.eval.CompareStrategiesRequest
+	(*CompareStrategiesResponse)(nil),         // 22: vrooli.search_hub.v1.eval.CompareStrategiesResponse
+	(*StrategyComparisonArm)(nil),             // 23: vrooli.search_hub.v1.eval.StrategyComparisonArm
+	(*ValidateCorpusRequest)(nil),             // 24: vrooli.search_hub.v1.eval.ValidateCorpusRequest
+	(*CorpusValidationCase)(nil),              // 25: vrooli.search_hub.v1.eval.CorpusValidationCase
+	(*CorpusValidationRollup)(nil),            // 26: vrooli.search_hub.v1.eval.CorpusValidationRollup
+	(*ValidateCorpusResponse)(nil),            // 27: vrooli.search_hub.v1.eval.ValidateCorpusResponse
+	(*GetLatestCorpusValidationRequest)(nil),  // 28: vrooli.search_hub.v1.eval.GetLatestCorpusValidationRequest
+	(*GetLatestCorpusValidationResponse)(nil), // 29: vrooli.search_hub.v1.eval.GetLatestCorpusValidationResponse
+	(*ListRunsRequest)(nil),                   // 30: vrooli.search_hub.v1.eval.ListRunsRequest
+	(*ListRunsResponse)(nil),                  // 31: vrooli.search_hub.v1.eval.ListRunsResponse
+	(*GetRunRequest)(nil),                     // 32: vrooli.search_hub.v1.eval.GetRunRequest
+	(*GetRunResponse)(nil),                    // 33: vrooli.search_hub.v1.eval.GetRunResponse
+	(*CompareRunsRequest)(nil),                // 34: vrooli.search_hub.v1.eval.CompareRunsRequest
+	(*CompareRunsResponse)(nil),               // 35: vrooli.search_hub.v1.eval.CompareRunsResponse
+	(*CaseDelta)(nil),                         // 36: vrooli.search_hub.v1.eval.CaseDelta
+	(*SweepRequest)(nil),                      // 37: vrooli.search_hub.v1.eval.SweepRequest
+	(*SweepArm)(nil),                          // 38: vrooli.search_hub.v1.eval.SweepArm
+	(*SweepResult)(nil),                       // 39: vrooli.search_hub.v1.eval.SweepResult
+	(*SweepStats)(nil),                        // 40: vrooli.search_hub.v1.eval.SweepStats
+	(*SweepResponse)(nil),                     // 41: vrooli.search_hub.v1.eval.SweepResponse
+	(*AdequacyWarning)(nil),                   // 42: vrooli.search_hub.v1.eval.AdequacyWarning
+	(*GenerateRequest)(nil),                   // 43: vrooli.search_hub.v1.eval.GenerateRequest
+	(*GeneratedCase)(nil),                     // 44: vrooli.search_hub.v1.eval.GeneratedCase
+	(*GenerateResponse)(nil),                  // 45: vrooli.search_hub.v1.eval.GenerateResponse
+	(*PromoteCasesRequest)(nil),               // 46: vrooli.search_hub.v1.eval.PromoteCasesRequest
+	(*ReapOrphanSuitesRequest)(nil),           // 47: vrooli.search_hub.v1.eval.ReapOrphanSuitesRequest
+	(*ReapOrphanSuitesResponse)(nil),          // 48: vrooli.search_hub.v1.eval.ReapOrphanSuitesResponse
+	(*PromoteCasesResponse)(nil),              // 49: vrooli.search_hub.v1.eval.PromoteCasesResponse
+	(*shared.RoutingTrace)(nil),               // 50: vrooli.search_hub.v1.shared.RoutingTrace
 }
 var file_search_hub_v1_eval_eval_proto_depIdxs = []int32{
 	5,  // 0: vrooli.search_hub.v1.eval.EvalSuite.cases:type_name -> vrooli.search_hub.v1.eval.EvalCase
 	2,  // 1: vrooli.search_hub.v1.eval.EvalSuite.minimum:type_name -> vrooli.search_hub.v1.eval.EvalMinimum
 	3,  // 2: vrooli.search_hub.v1.eval.EvalSuite.coverage:type_name -> vrooli.search_hub.v1.eval.EvalCoverageConfig
 	4,  // 3: vrooli.search_hub.v1.eval.EvalCoverageConfig.required_tag_groups:type_name -> vrooli.search_hub.v1.eval.EvalCoverageTagGroup
-	7,  // 4: vrooli.search_hub.v1.eval.EvalRun.config:type_name -> vrooli.search_hub.v1.eval.ConfigSnapshot
-	8,  // 5: vrooli.search_hub.v1.eval.EvalRun.results:type_name -> vrooli.search_hub.v1.eval.CaseResult
-	11, // 6: vrooli.search_hub.v1.eval.EvalRun.aggregate:type_name -> vrooli.search_hub.v1.eval.EvalAggregate
-	9,  // 7: vrooli.search_hub.v1.eval.EvalRun.unavailable_cases:type_name -> vrooli.search_hub.v1.eval.UnavailableCase
-	10, // 8: vrooli.search_hub.v1.eval.CaseResult.top:type_name -> vrooli.search_hub.v1.eval.ScoredHit
-	47, // 9: vrooli.search_hub.v1.eval.CaseResult.routing_trace:type_name -> vrooli.search_hub.v1.shared.RoutingTrace
-	1,  // 10: vrooli.search_hub.v1.eval.RegisterSuiteRequest.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
-	1,  // 11: vrooli.search_hub.v1.eval.RegisterSuiteResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
-	1,  // 12: vrooli.search_hub.v1.eval.ListSuitesResponse.suites:type_name -> vrooli.search_hub.v1.eval.EvalSuite
-	1,  // 13: vrooli.search_hub.v1.eval.GetSuiteResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
-	39, // 14: vrooli.search_hub.v1.eval.GetSuiteResponse.adequacy:type_name -> vrooli.search_hub.v1.eval.AdequacyWarning
-	6,  // 15: vrooli.search_hub.v1.eval.RunSuiteResponse.run:type_name -> vrooli.search_hub.v1.eval.EvalRun
-	39, // 16: vrooli.search_hub.v1.eval.RunSuiteResponse.adequacy:type_name -> vrooli.search_hub.v1.eval.AdequacyWarning
-	22, // 17: vrooli.search_hub.v1.eval.CompareStrategiesResponse.arms:type_name -> vrooli.search_hub.v1.eval.StrategyComparisonArm
-	11, // 18: vrooli.search_hub.v1.eval.StrategyComparisonArm.aggregate:type_name -> vrooli.search_hub.v1.eval.EvalAggregate
-	0,  // 19: vrooli.search_hub.v1.eval.CorpusValidationCase.referential:type_name -> vrooli.search_hub.v1.eval.ReferentialOutcome
-	24, // 20: vrooli.search_hub.v1.eval.ValidateCorpusResponse.cases:type_name -> vrooli.search_hub.v1.eval.CorpusValidationCase
-	25, // 21: vrooli.search_hub.v1.eval.ValidateCorpusResponse.rollup:type_name -> vrooli.search_hub.v1.eval.CorpusValidationRollup
-	6,  // 22: vrooli.search_hub.v1.eval.ListRunsResponse.runs:type_name -> vrooli.search_hub.v1.eval.EvalRun
-	6,  // 23: vrooli.search_hub.v1.eval.GetRunResponse.run:type_name -> vrooli.search_hub.v1.eval.EvalRun
-	6,  // 24: vrooli.search_hub.v1.eval.CompareRunsResponse.run_a:type_name -> vrooli.search_hub.v1.eval.EvalRun
-	6,  // 25: vrooli.search_hub.v1.eval.CompareRunsResponse.run_b:type_name -> vrooli.search_hub.v1.eval.EvalRun
-	33, // 26: vrooli.search_hub.v1.eval.CompareRunsResponse.deltas:type_name -> vrooli.search_hub.v1.eval.CaseDelta
-	7,  // 27: vrooli.search_hub.v1.eval.SweepArm.config:type_name -> vrooli.search_hub.v1.eval.ConfigSnapshot
-	11, // 28: vrooli.search_hub.v1.eval.SweepArm.aggregate:type_name -> vrooli.search_hub.v1.eval.EvalAggregate
-	35, // 29: vrooli.search_hub.v1.eval.SweepResult.arms:type_name -> vrooli.search_hub.v1.eval.SweepArm
-	37, // 30: vrooli.search_hub.v1.eval.SweepResult.stats:type_name -> vrooli.search_hub.v1.eval.SweepStats
-	36, // 31: vrooli.search_hub.v1.eval.SweepResponse.result:type_name -> vrooli.search_hub.v1.eval.SweepResult
-	5,  // 32: vrooli.search_hub.v1.eval.GeneratedCase.case:type_name -> vrooli.search_hub.v1.eval.EvalCase
-	41, // 33: vrooli.search_hub.v1.eval.GenerateResponse.proposed:type_name -> vrooli.search_hub.v1.eval.GeneratedCase
-	1,  // 34: vrooli.search_hub.v1.eval.GenerateResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
-	39, // 35: vrooli.search_hub.v1.eval.GenerateResponse.adequacy:type_name -> vrooli.search_hub.v1.eval.AdequacyWarning
-	1,  // 36: vrooli.search_hub.v1.eval.ReapOrphanSuitesResponse.orphan_suites:type_name -> vrooli.search_hub.v1.eval.EvalSuite
-	1,  // 37: vrooli.search_hub.v1.eval.PromoteCasesResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
-	12, // 38: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:input_type -> vrooli.search_hub.v1.eval.RegisterSuiteRequest
-	14, // 39: vrooli.search_hub.v1.eval.EvalService.ListSuites:input_type -> vrooli.search_hub.v1.eval.ListSuitesRequest
-	16, // 40: vrooli.search_hub.v1.eval.EvalService.GetSuite:input_type -> vrooli.search_hub.v1.eval.GetSuiteRequest
-	18, // 41: vrooli.search_hub.v1.eval.EvalService.RunSuite:input_type -> vrooli.search_hub.v1.eval.RunSuiteRequest
-	23, // 42: vrooli.search_hub.v1.eval.EvalService.ValidateCorpus:input_type -> vrooli.search_hub.v1.eval.ValidateCorpusRequest
-	27, // 43: vrooli.search_hub.v1.eval.EvalService.ListRuns:input_type -> vrooli.search_hub.v1.eval.ListRunsRequest
-	29, // 44: vrooli.search_hub.v1.eval.EvalService.GetRun:input_type -> vrooli.search_hub.v1.eval.GetRunRequest
-	31, // 45: vrooli.search_hub.v1.eval.EvalService.CompareRuns:input_type -> vrooli.search_hub.v1.eval.CompareRunsRequest
-	34, // 46: vrooli.search_hub.v1.eval.EvalService.Sweep:input_type -> vrooli.search_hub.v1.eval.SweepRequest
-	20, // 47: vrooli.search_hub.v1.eval.EvalService.CompareStrategies:input_type -> vrooli.search_hub.v1.eval.CompareStrategiesRequest
-	40, // 48: vrooli.search_hub.v1.eval.EvalService.Generate:input_type -> vrooli.search_hub.v1.eval.GenerateRequest
-	43, // 49: vrooli.search_hub.v1.eval.EvalService.PromoteCases:input_type -> vrooli.search_hub.v1.eval.PromoteCasesRequest
-	44, // 50: vrooli.search_hub.v1.eval.EvalService.ReapOrphanSuites:input_type -> vrooli.search_hub.v1.eval.ReapOrphanSuitesRequest
-	13, // 51: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:output_type -> vrooli.search_hub.v1.eval.RegisterSuiteResponse
-	15, // 52: vrooli.search_hub.v1.eval.EvalService.ListSuites:output_type -> vrooli.search_hub.v1.eval.ListSuitesResponse
-	17, // 53: vrooli.search_hub.v1.eval.EvalService.GetSuite:output_type -> vrooli.search_hub.v1.eval.GetSuiteResponse
-	19, // 54: vrooli.search_hub.v1.eval.EvalService.RunSuite:output_type -> vrooli.search_hub.v1.eval.RunSuiteResponse
-	26, // 55: vrooli.search_hub.v1.eval.EvalService.ValidateCorpus:output_type -> vrooli.search_hub.v1.eval.ValidateCorpusResponse
-	28, // 56: vrooli.search_hub.v1.eval.EvalService.ListRuns:output_type -> vrooli.search_hub.v1.eval.ListRunsResponse
-	30, // 57: vrooli.search_hub.v1.eval.EvalService.GetRun:output_type -> vrooli.search_hub.v1.eval.GetRunResponse
-	32, // 58: vrooli.search_hub.v1.eval.EvalService.CompareRuns:output_type -> vrooli.search_hub.v1.eval.CompareRunsResponse
-	38, // 59: vrooli.search_hub.v1.eval.EvalService.Sweep:output_type -> vrooli.search_hub.v1.eval.SweepResponse
-	21, // 60: vrooli.search_hub.v1.eval.EvalService.CompareStrategies:output_type -> vrooli.search_hub.v1.eval.CompareStrategiesResponse
-	42, // 61: vrooli.search_hub.v1.eval.EvalService.Generate:output_type -> vrooli.search_hub.v1.eval.GenerateResponse
-	46, // 62: vrooli.search_hub.v1.eval.EvalService.PromoteCases:output_type -> vrooli.search_hub.v1.eval.PromoteCasesResponse
-	45, // 63: vrooli.search_hub.v1.eval.EvalService.ReapOrphanSuites:output_type -> vrooli.search_hub.v1.eval.ReapOrphanSuitesResponse
-	51, // [51:64] is the sub-list for method output_type
-	38, // [38:51] is the sub-list for method input_type
-	38, // [38:38] is the sub-list for extension type_name
-	38, // [38:38] is the sub-list for extension extendee
-	0,  // [0:38] is the sub-list for field type_name
+	8,  // 4: vrooli.search_hub.v1.eval.EvalRun.config:type_name -> vrooli.search_hub.v1.eval.ConfigSnapshot
+	9,  // 5: vrooli.search_hub.v1.eval.EvalRun.results:type_name -> vrooli.search_hub.v1.eval.CaseResult
+	12, // 6: vrooli.search_hub.v1.eval.EvalRun.aggregate:type_name -> vrooli.search_hub.v1.eval.EvalAggregate
+	10, // 7: vrooli.search_hub.v1.eval.EvalRun.unavailable_cases:type_name -> vrooli.search_hub.v1.eval.UnavailableCase
+	7,  // 8: vrooli.search_hub.v1.eval.EvalRun.comparison_identity:type_name -> vrooli.search_hub.v1.eval.EvaluationIdentity
+	11, // 9: vrooli.search_hub.v1.eval.CaseResult.top:type_name -> vrooli.search_hub.v1.eval.ScoredHit
+	50, // 10: vrooli.search_hub.v1.eval.CaseResult.routing_trace:type_name -> vrooli.search_hub.v1.shared.RoutingTrace
+	1,  // 11: vrooli.search_hub.v1.eval.RegisterSuiteRequest.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	1,  // 12: vrooli.search_hub.v1.eval.RegisterSuiteResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	1,  // 13: vrooli.search_hub.v1.eval.ListSuitesResponse.suites:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	1,  // 14: vrooli.search_hub.v1.eval.GetSuiteResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	42, // 15: vrooli.search_hub.v1.eval.GetSuiteResponse.adequacy:type_name -> vrooli.search_hub.v1.eval.AdequacyWarning
+	6,  // 16: vrooli.search_hub.v1.eval.RunSuiteResponse.run:type_name -> vrooli.search_hub.v1.eval.EvalRun
+	42, // 17: vrooli.search_hub.v1.eval.RunSuiteResponse.adequacy:type_name -> vrooli.search_hub.v1.eval.AdequacyWarning
+	23, // 18: vrooli.search_hub.v1.eval.CompareStrategiesResponse.arms:type_name -> vrooli.search_hub.v1.eval.StrategyComparisonArm
+	12, // 19: vrooli.search_hub.v1.eval.StrategyComparisonArm.aggregate:type_name -> vrooli.search_hub.v1.eval.EvalAggregate
+	0,  // 20: vrooli.search_hub.v1.eval.CorpusValidationCase.referential:type_name -> vrooli.search_hub.v1.eval.ReferentialOutcome
+	25, // 21: vrooli.search_hub.v1.eval.ValidateCorpusResponse.cases:type_name -> vrooli.search_hub.v1.eval.CorpusValidationCase
+	26, // 22: vrooli.search_hub.v1.eval.ValidateCorpusResponse.rollup:type_name -> vrooli.search_hub.v1.eval.CorpusValidationRollup
+	26, // 23: vrooli.search_hub.v1.eval.GetLatestCorpusValidationResponse.rollup:type_name -> vrooli.search_hub.v1.eval.CorpusValidationRollup
+	6,  // 24: vrooli.search_hub.v1.eval.ListRunsResponse.runs:type_name -> vrooli.search_hub.v1.eval.EvalRun
+	6,  // 25: vrooli.search_hub.v1.eval.GetRunResponse.run:type_name -> vrooli.search_hub.v1.eval.EvalRun
+	6,  // 26: vrooli.search_hub.v1.eval.CompareRunsResponse.run_a:type_name -> vrooli.search_hub.v1.eval.EvalRun
+	6,  // 27: vrooli.search_hub.v1.eval.CompareRunsResponse.run_b:type_name -> vrooli.search_hub.v1.eval.EvalRun
+	36, // 28: vrooli.search_hub.v1.eval.CompareRunsResponse.deltas:type_name -> vrooli.search_hub.v1.eval.CaseDelta
+	8,  // 29: vrooli.search_hub.v1.eval.SweepArm.config:type_name -> vrooli.search_hub.v1.eval.ConfigSnapshot
+	12, // 30: vrooli.search_hub.v1.eval.SweepArm.aggregate:type_name -> vrooli.search_hub.v1.eval.EvalAggregate
+	38, // 31: vrooli.search_hub.v1.eval.SweepResult.arms:type_name -> vrooli.search_hub.v1.eval.SweepArm
+	40, // 32: vrooli.search_hub.v1.eval.SweepResult.stats:type_name -> vrooli.search_hub.v1.eval.SweepStats
+	39, // 33: vrooli.search_hub.v1.eval.SweepResponse.result:type_name -> vrooli.search_hub.v1.eval.SweepResult
+	5,  // 34: vrooli.search_hub.v1.eval.GeneratedCase.case:type_name -> vrooli.search_hub.v1.eval.EvalCase
+	44, // 35: vrooli.search_hub.v1.eval.GenerateResponse.proposed:type_name -> vrooli.search_hub.v1.eval.GeneratedCase
+	1,  // 36: vrooli.search_hub.v1.eval.GenerateResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	42, // 37: vrooli.search_hub.v1.eval.GenerateResponse.adequacy:type_name -> vrooli.search_hub.v1.eval.AdequacyWarning
+	1,  // 38: vrooli.search_hub.v1.eval.ReapOrphanSuitesResponse.orphan_suites:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	1,  // 39: vrooli.search_hub.v1.eval.PromoteCasesResponse.suite:type_name -> vrooli.search_hub.v1.eval.EvalSuite
+	13, // 40: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:input_type -> vrooli.search_hub.v1.eval.RegisterSuiteRequest
+	15, // 41: vrooli.search_hub.v1.eval.EvalService.ListSuites:input_type -> vrooli.search_hub.v1.eval.ListSuitesRequest
+	17, // 42: vrooli.search_hub.v1.eval.EvalService.GetSuite:input_type -> vrooli.search_hub.v1.eval.GetSuiteRequest
+	19, // 43: vrooli.search_hub.v1.eval.EvalService.RunSuite:input_type -> vrooli.search_hub.v1.eval.RunSuiteRequest
+	24, // 44: vrooli.search_hub.v1.eval.EvalService.ValidateCorpus:input_type -> vrooli.search_hub.v1.eval.ValidateCorpusRequest
+	28, // 45: vrooli.search_hub.v1.eval.EvalService.GetLatestCorpusValidation:input_type -> vrooli.search_hub.v1.eval.GetLatestCorpusValidationRequest
+	30, // 46: vrooli.search_hub.v1.eval.EvalService.ListRuns:input_type -> vrooli.search_hub.v1.eval.ListRunsRequest
+	32, // 47: vrooli.search_hub.v1.eval.EvalService.GetRun:input_type -> vrooli.search_hub.v1.eval.GetRunRequest
+	34, // 48: vrooli.search_hub.v1.eval.EvalService.CompareRuns:input_type -> vrooli.search_hub.v1.eval.CompareRunsRequest
+	37, // 49: vrooli.search_hub.v1.eval.EvalService.Sweep:input_type -> vrooli.search_hub.v1.eval.SweepRequest
+	21, // 50: vrooli.search_hub.v1.eval.EvalService.CompareStrategies:input_type -> vrooli.search_hub.v1.eval.CompareStrategiesRequest
+	43, // 51: vrooli.search_hub.v1.eval.EvalService.Generate:input_type -> vrooli.search_hub.v1.eval.GenerateRequest
+	46, // 52: vrooli.search_hub.v1.eval.EvalService.PromoteCases:input_type -> vrooli.search_hub.v1.eval.PromoteCasesRequest
+	47, // 53: vrooli.search_hub.v1.eval.EvalService.ReapOrphanSuites:input_type -> vrooli.search_hub.v1.eval.ReapOrphanSuitesRequest
+	14, // 54: vrooli.search_hub.v1.eval.EvalService.RegisterSuite:output_type -> vrooli.search_hub.v1.eval.RegisterSuiteResponse
+	16, // 55: vrooli.search_hub.v1.eval.EvalService.ListSuites:output_type -> vrooli.search_hub.v1.eval.ListSuitesResponse
+	18, // 56: vrooli.search_hub.v1.eval.EvalService.GetSuite:output_type -> vrooli.search_hub.v1.eval.GetSuiteResponse
+	20, // 57: vrooli.search_hub.v1.eval.EvalService.RunSuite:output_type -> vrooli.search_hub.v1.eval.RunSuiteResponse
+	27, // 58: vrooli.search_hub.v1.eval.EvalService.ValidateCorpus:output_type -> vrooli.search_hub.v1.eval.ValidateCorpusResponse
+	29, // 59: vrooli.search_hub.v1.eval.EvalService.GetLatestCorpusValidation:output_type -> vrooli.search_hub.v1.eval.GetLatestCorpusValidationResponse
+	31, // 60: vrooli.search_hub.v1.eval.EvalService.ListRuns:output_type -> vrooli.search_hub.v1.eval.ListRunsResponse
+	33, // 61: vrooli.search_hub.v1.eval.EvalService.GetRun:output_type -> vrooli.search_hub.v1.eval.GetRunResponse
+	35, // 62: vrooli.search_hub.v1.eval.EvalService.CompareRuns:output_type -> vrooli.search_hub.v1.eval.CompareRunsResponse
+	41, // 63: vrooli.search_hub.v1.eval.EvalService.Sweep:output_type -> vrooli.search_hub.v1.eval.SweepResponse
+	22, // 64: vrooli.search_hub.v1.eval.EvalService.CompareStrategies:output_type -> vrooli.search_hub.v1.eval.CompareStrategiesResponse
+	45, // 65: vrooli.search_hub.v1.eval.EvalService.Generate:output_type -> vrooli.search_hub.v1.eval.GenerateResponse
+	49, // 66: vrooli.search_hub.v1.eval.EvalService.PromoteCases:output_type -> vrooli.search_hub.v1.eval.PromoteCasesResponse
+	48, // 67: vrooli.search_hub.v1.eval.EvalService.ReapOrphanSuites:output_type -> vrooli.search_hub.v1.eval.ReapOrphanSuitesResponse
+	54, // [54:68] is the sub-list for method output_type
+	40, // [40:54] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
 func init() { file_search_hub_v1_eval_eval_proto_init() }
@@ -4129,14 +4678,14 @@ func file_search_hub_v1_eval_eval_proto_init() {
 	if File_search_hub_v1_eval_eval_proto != nil {
 		return
 	}
-	file_search_hub_v1_eval_eval_proto_msgTypes[10].OneofWrappers = []any{}
+	file_search_hub_v1_eval_eval_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_search_hub_v1_eval_eval_proto_rawDesc), len(file_search_hub_v1_eval_eval_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   46,
+			NumMessages:   49,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -70,7 +70,7 @@ class InstallState(_message.Message):
     def __init__(self, installed: _Optional[bool] = ..., path: _Optional[str] = ..., checksum: _Optional[str] = ..., size_bytes: _Optional[int] = ..., installed_at: _Optional[str] = ...) -> None: ...
 
 class Adapter(_message.Message):
-    __slots__ = ("id", "name", "kind", "architecture", "weight", "preprocessor", "scale_range", "size_mb_approx", "capability_labels", "ready", "pending", "enabled", "install", "custom")
+    __slots__ = ("id", "name", "kind", "architecture", "weight", "preprocessor", "scale_range", "size_mb_approx", "capability_labels", "ready", "pending", "enabled", "install", "custom", "license_terms_version")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -85,6 +85,7 @@ class Adapter(_message.Message):
     ENABLED_FIELD_NUMBER: _ClassVar[int]
     INSTALL_FIELD_NUMBER: _ClassVar[int]
     CUSTOM_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_TERMS_VERSION_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     kind: str
@@ -99,7 +100,8 @@ class Adapter(_message.Message):
     enabled: bool
     install: InstallState
     custom: bool
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[str] = ..., architecture: _Optional[str] = ..., weight: _Optional[str] = ..., preprocessor: _Optional[str] = ..., scale_range: _Optional[_Union[ScaleRange, _Mapping]] = ..., size_mb_approx: _Optional[int] = ..., capability_labels: _Optional[_Union[CapabilityLabels, _Mapping]] = ..., ready: _Optional[bool] = ..., pending: _Optional[str] = ..., enabled: _Optional[bool] = ..., install: _Optional[_Union[InstallState, _Mapping]] = ..., custom: _Optional[bool] = ...) -> None: ...
+    license_terms_version: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[str] = ..., architecture: _Optional[str] = ..., weight: _Optional[str] = ..., preprocessor: _Optional[str] = ..., scale_range: _Optional[_Union[ScaleRange, _Mapping]] = ..., size_mb_approx: _Optional[int] = ..., capability_labels: _Optional[_Union[CapabilityLabels, _Mapping]] = ..., ready: _Optional[bool] = ..., pending: _Optional[str] = ..., enabled: _Optional[bool] = ..., install: _Optional[_Union[InstallState, _Mapping]] = ..., custom: _Optional[bool] = ..., license_terms_version: _Optional[str] = ...) -> None: ...
 
 class ListAdaptersRequest(_message.Message):
     __slots__ = ("kind", "architecture")

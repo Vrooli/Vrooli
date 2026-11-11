@@ -70,6 +70,12 @@ message CreateAndRunRehearsalRequest {
   // Select exactly one trigger node when an export contains multiple trigger
   // families; omitted is valid only when the imported workflow has one.
   string trigger_node_id = 6;
+  // Require these bounded dotted JSON paths to exist in the synthetic final
+  // graph output. Only paths are recorded in assertion traces, never values.
+  repeated string required_output_paths = 7;
+  // Link a changed workflow revision to the failed run whose required outputs
+  // it repairs. The simulator source and exact failed paths must match.
+  string repair_of_id = 8;
 }
 message CreateAndRunRehearsalResponse { Rehearsal rehearsal = 1; }
 

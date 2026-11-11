@@ -79,7 +79,7 @@ class EvalCoverageTagGroup(_message.Message):
     def __init__(self, id: _Optional[str] = ..., description: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., min_reviewed_positive: _Optional[int] = ...) -> None: ...
 
 class EvalCase(_message.Message):
-    __slots__ = ("case_id", "query", "tags", "expect_ids", "expect_within_top_k", "expect_min_score", "expect_max_score", "expect_no_strong_hit", "note", "status", "scope", "expect_min_margin", "expected_provider_id")
+    __slots__ = ("case_id", "query", "tags", "expect_ids", "expect_within_top_k", "expect_min_score", "expect_max_score", "expect_no_strong_hit", "note", "status", "scope", "expect_min_margin", "expected_provider_id", "expected_identity_field")
     CASE_ID_FIELD_NUMBER: _ClassVar[int]
     QUERY_FIELD_NUMBER: _ClassVar[int]
     TAGS_FIELD_NUMBER: _ClassVar[int]
@@ -93,6 +93,7 @@ class EvalCase(_message.Message):
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     EXPECT_MIN_MARGIN_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    EXPECTED_IDENTITY_FIELD_FIELD_NUMBER: _ClassVar[int]
     case_id: str
     query: str
     tags: _containers.RepeatedScalarFieldContainer[str]
@@ -106,10 +107,11 @@ class EvalCase(_message.Message):
     scope: str
     expect_min_margin: float
     expected_provider_id: str
-    def __init__(self, case_id: _Optional[str] = ..., query: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., expect_ids: _Optional[_Iterable[str]] = ..., expect_within_top_k: _Optional[int] = ..., expect_min_score: _Optional[float] = ..., expect_max_score: _Optional[float] = ..., expect_no_strong_hit: _Optional[bool] = ..., note: _Optional[str] = ..., status: _Optional[str] = ..., scope: _Optional[str] = ..., expect_min_margin: _Optional[float] = ..., expected_provider_id: _Optional[str] = ...) -> None: ...
+    expected_identity_field: str
+    def __init__(self, case_id: _Optional[str] = ..., query: _Optional[str] = ..., tags: _Optional[_Iterable[str]] = ..., expect_ids: _Optional[_Iterable[str]] = ..., expect_within_top_k: _Optional[int] = ..., expect_min_score: _Optional[float] = ..., expect_max_score: _Optional[float] = ..., expect_no_strong_hit: _Optional[bool] = ..., note: _Optional[str] = ..., status: _Optional[str] = ..., scope: _Optional[str] = ..., expect_min_margin: _Optional[float] = ..., expected_provider_id: _Optional[str] = ..., expected_identity_field: _Optional[str] = ...) -> None: ...
 
 class EvalRun(_message.Message):
-    __slots__ = ("run_id", "suite_id", "tag", "created_at", "config", "results", "aggregate", "tier", "degraded", "degraded_reason", "unavailable_cases", "unavailable_reason")
+    __slots__ = ("run_id", "suite_id", "tag", "created_at", "config", "results", "aggregate", "tier", "degraded", "degraded_reason", "unavailable_cases", "unavailable_reason", "comparison_identity")
     RUN_ID_FIELD_NUMBER: _ClassVar[int]
     SUITE_ID_FIELD_NUMBER: _ClassVar[int]
     TAG_FIELD_NUMBER: _ClassVar[int]
@@ -122,6 +124,7 @@ class EvalRun(_message.Message):
     DEGRADED_REASON_FIELD_NUMBER: _ClassVar[int]
     UNAVAILABLE_CASES_FIELD_NUMBER: _ClassVar[int]
     UNAVAILABLE_REASON_FIELD_NUMBER: _ClassVar[int]
+    COMPARISON_IDENTITY_FIELD_NUMBER: _ClassVar[int]
     run_id: str
     suite_id: str
     tag: str
@@ -134,10 +137,53 @@ class EvalRun(_message.Message):
     degraded_reason: str
     unavailable_cases: _containers.RepeatedCompositeFieldContainer[UnavailableCase]
     unavailable_reason: str
-    def __init__(self, run_id: _Optional[str] = ..., suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., created_at: _Optional[str] = ..., config: _Optional[_Union[ConfigSnapshot, _Mapping]] = ..., results: _Optional[_Iterable[_Union[CaseResult, _Mapping]]] = ..., aggregate: _Optional[_Union[EvalAggregate, _Mapping]] = ..., tier: _Optional[str] = ..., degraded: _Optional[bool] = ..., degraded_reason: _Optional[str] = ..., unavailable_cases: _Optional[_Iterable[_Union[UnavailableCase, _Mapping]]] = ..., unavailable_reason: _Optional[str] = ...) -> None: ...
+    comparison_identity: EvaluationIdentity
+    def __init__(self, run_id: _Optional[str] = ..., suite_id: _Optional[str] = ..., tag: _Optional[str] = ..., created_at: _Optional[str] = ..., config: _Optional[_Union[ConfigSnapshot, _Mapping]] = ..., results: _Optional[_Iterable[_Union[CaseResult, _Mapping]]] = ..., aggregate: _Optional[_Union[EvalAggregate, _Mapping]] = ..., tier: _Optional[str] = ..., degraded: _Optional[bool] = ..., degraded_reason: _Optional[str] = ..., unavailable_cases: _Optional[_Iterable[_Union[UnavailableCase, _Mapping]]] = ..., unavailable_reason: _Optional[str] = ..., comparison_identity: _Optional[_Union[EvaluationIdentity, _Mapping]] = ...) -> None: ...
+
+class EvaluationIdentity(_message.Message):
+    __slots__ = ("corpus_provider_id", "corpus_id", "corpus_sha256", "split_version", "denominator_case_ids", "heldout_case_ids", "denominator_sha256", "caller_id", "caller_version", "model_id", "artifact_sha256", "license_id", "rights_decision_id", "runtime_id", "runtime_sha256", "recipe_sha256", "evaluation_version", "provider_validation_sha256", "provider_validation_at")
+    CORPUS_PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    CORPUS_ID_FIELD_NUMBER: _ClassVar[int]
+    CORPUS_SHA256_FIELD_NUMBER: _ClassVar[int]
+    SPLIT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    DENOMINATOR_CASE_IDS_FIELD_NUMBER: _ClassVar[int]
+    HELDOUT_CASE_IDS_FIELD_NUMBER: _ClassVar[int]
+    DENOMINATOR_SHA256_FIELD_NUMBER: _ClassVar[int]
+    CALLER_ID_FIELD_NUMBER: _ClassVar[int]
+    CALLER_VERSION_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_ID_FIELD_NUMBER: _ClassVar[int]
+    RIGHTS_DECISION_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_SHA256_FIELD_NUMBER: _ClassVar[int]
+    RECIPE_SHA256_FIELD_NUMBER: _ClassVar[int]
+    EVALUATION_VERSION_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_VALIDATION_SHA256_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_VALIDATION_AT_FIELD_NUMBER: _ClassVar[int]
+    corpus_provider_id: str
+    corpus_id: str
+    corpus_sha256: str
+    split_version: str
+    denominator_case_ids: _containers.RepeatedScalarFieldContainer[str]
+    heldout_case_ids: _containers.RepeatedScalarFieldContainer[str]
+    denominator_sha256: str
+    caller_id: str
+    caller_version: str
+    model_id: str
+    artifact_sha256: str
+    license_id: str
+    rights_decision_id: str
+    runtime_id: str
+    runtime_sha256: str
+    recipe_sha256: str
+    evaluation_version: str
+    provider_validation_sha256: str
+    provider_validation_at: str
+    def __init__(self, corpus_provider_id: _Optional[str] = ..., corpus_id: _Optional[str] = ..., corpus_sha256: _Optional[str] = ..., split_version: _Optional[str] = ..., denominator_case_ids: _Optional[_Iterable[str]] = ..., heldout_case_ids: _Optional[_Iterable[str]] = ..., denominator_sha256: _Optional[str] = ..., caller_id: _Optional[str] = ..., caller_version: _Optional[str] = ..., model_id: _Optional[str] = ..., artifact_sha256: _Optional[str] = ..., license_id: _Optional[str] = ..., rights_decision_id: _Optional[str] = ..., runtime_id: _Optional[str] = ..., runtime_sha256: _Optional[str] = ..., recipe_sha256: _Optional[str] = ..., evaluation_version: _Optional[str] = ..., provider_validation_sha256: _Optional[str] = ..., provider_validation_at: _Optional[str] = ...) -> None: ...
 
 class ConfigSnapshot(_message.Message):
-    __slots__ = ("rerank_enabled", "reranker_leg", "embed_model", "indexed_count", "provider_note", "embed_task_prefix", "rerank_blend", "engine", "floor_regime", "selector_leg")
+    __slots__ = ("rerank_enabled", "reranker_leg", "embed_model", "indexed_count", "provider_note", "embed_task_prefix", "rerank_blend", "engine", "floor_regime", "selector_leg", "model_id", "artifact_sha256", "license_id", "rights_decision_id", "runtime_id", "runtime_sha256", "recipe_sha256", "provider_revision")
     RERANK_ENABLED_FIELD_NUMBER: _ClassVar[int]
     RERANKER_LEG_FIELD_NUMBER: _ClassVar[int]
     EMBED_MODEL_FIELD_NUMBER: _ClassVar[int]
@@ -148,6 +194,14 @@ class ConfigSnapshot(_message.Message):
     ENGINE_FIELD_NUMBER: _ClassVar[int]
     FLOOR_REGIME_FIELD_NUMBER: _ClassVar[int]
     SELECTOR_LEG_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    ARTIFACT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_ID_FIELD_NUMBER: _ClassVar[int]
+    RIGHTS_DECISION_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_SHA256_FIELD_NUMBER: _ClassVar[int]
+    RECIPE_SHA256_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_REVISION_FIELD_NUMBER: _ClassVar[int]
     rerank_enabled: bool
     reranker_leg: str
     embed_model: str
@@ -158,10 +212,18 @@ class ConfigSnapshot(_message.Message):
     engine: str
     floor_regime: str
     selector_leg: str
-    def __init__(self, rerank_enabled: _Optional[bool] = ..., reranker_leg: _Optional[str] = ..., embed_model: _Optional[str] = ..., indexed_count: _Optional[int] = ..., provider_note: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., engine: _Optional[str] = ..., floor_regime: _Optional[str] = ..., selector_leg: _Optional[str] = ...) -> None: ...
+    model_id: str
+    artifact_sha256: str
+    license_id: str
+    rights_decision_id: str
+    runtime_id: str
+    runtime_sha256: str
+    recipe_sha256: str
+    provider_revision: str
+    def __init__(self, rerank_enabled: _Optional[bool] = ..., reranker_leg: _Optional[str] = ..., embed_model: _Optional[str] = ..., indexed_count: _Optional[int] = ..., provider_note: _Optional[str] = ..., embed_task_prefix: _Optional[bool] = ..., rerank_blend: _Optional[bool] = ..., engine: _Optional[str] = ..., floor_regime: _Optional[str] = ..., selector_leg: _Optional[str] = ..., model_id: _Optional[str] = ..., artifact_sha256: _Optional[str] = ..., license_id: _Optional[str] = ..., rights_decision_id: _Optional[str] = ..., runtime_id: _Optional[str] = ..., runtime_sha256: _Optional[str] = ..., recipe_sha256: _Optional[str] = ..., provider_revision: _Optional[str] = ...) -> None: ...
 
 class CaseResult(_message.Message):
-    __slots__ = ("case_id", "top", "expected_rank", "observed_top_score", "outcome", "expected_provider_id", "provider_routed", "margin", "outcome_reason", "routing_trace")
+    __slots__ = ("case_id", "top", "expected_rank", "observed_top_score", "outcome", "expected_provider_id", "provider_routed", "margin", "outcome_reason", "routing_trace", "attempt_count", "latency_ms")
     CASE_ID_FIELD_NUMBER: _ClassVar[int]
     TOP_FIELD_NUMBER: _ClassVar[int]
     EXPECTED_RANK_FIELD_NUMBER: _ClassVar[int]
@@ -172,6 +234,8 @@ class CaseResult(_message.Message):
     MARGIN_FIELD_NUMBER: _ClassVar[int]
     OUTCOME_REASON_FIELD_NUMBER: _ClassVar[int]
     ROUTING_TRACE_FIELD_NUMBER: _ClassVar[int]
+    ATTEMPT_COUNT_FIELD_NUMBER: _ClassVar[int]
+    LATENCY_MS_FIELD_NUMBER: _ClassVar[int]
     case_id: str
     top: _containers.RepeatedCompositeFieldContainer[ScoredHit]
     expected_rank: int
@@ -182,7 +246,9 @@ class CaseResult(_message.Message):
     margin: float
     outcome_reason: str
     routing_trace: _routing_trace_pb2.RoutingTrace
-    def __init__(self, case_id: _Optional[str] = ..., top: _Optional[_Iterable[_Union[ScoredHit, _Mapping]]] = ..., expected_rank: _Optional[int] = ..., observed_top_score: _Optional[float] = ..., outcome: _Optional[str] = ..., expected_provider_id: _Optional[str] = ..., provider_routed: _Optional[bool] = ..., margin: _Optional[float] = ..., outcome_reason: _Optional[str] = ..., routing_trace: _Optional[_Union[_routing_trace_pb2.RoutingTrace, _Mapping]] = ...) -> None: ...
+    attempt_count: int
+    latency_ms: int
+    def __init__(self, case_id: _Optional[str] = ..., top: _Optional[_Iterable[_Union[ScoredHit, _Mapping]]] = ..., expected_rank: _Optional[int] = ..., observed_top_score: _Optional[float] = ..., outcome: _Optional[str] = ..., expected_provider_id: _Optional[str] = ..., provider_routed: _Optional[bool] = ..., margin: _Optional[float] = ..., outcome_reason: _Optional[str] = ..., routing_trace: _Optional[_Union[_routing_trace_pb2.RoutingTrace, _Mapping]] = ..., attempt_count: _Optional[int] = ..., latency_ms: _Optional[int] = ...) -> None: ...
 
 class UnavailableCase(_message.Message):
     __slots__ = ("case_id", "reason")
@@ -397,16 +463,50 @@ class CorpusValidationRollup(_message.Message):
     def __init__(self, positives: _Optional[int] = ..., live: _Optional[int] = ..., hard: _Optional[int] = ..., stale: _Optional[int] = ..., inconclusive: _Optional[int] = ..., candidate: _Optional[int] = ..., provider_errors: _Optional[int] = ...) -> None: ...
 
 class ValidateCorpusResponse(_message.Message):
-    __slots__ = ("suite_id", "provider_id", "cases", "rollup")
+    __slots__ = ("suite_id", "provider_id", "cases", "rollup", "suite_sha256", "denominator_sha256", "denominator_case_ids")
     SUITE_ID_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     CASES_FIELD_NUMBER: _ClassVar[int]
     ROLLUP_FIELD_NUMBER: _ClassVar[int]
+    SUITE_SHA256_FIELD_NUMBER: _ClassVar[int]
+    DENOMINATOR_SHA256_FIELD_NUMBER: _ClassVar[int]
+    DENOMINATOR_CASE_IDS_FIELD_NUMBER: _ClassVar[int]
     suite_id: str
     provider_id: str
     cases: _containers.RepeatedCompositeFieldContainer[CorpusValidationCase]
     rollup: CorpusValidationRollup
-    def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., cases: _Optional[_Iterable[_Union[CorpusValidationCase, _Mapping]]] = ..., rollup: _Optional[_Union[CorpusValidationRollup, _Mapping]] = ...) -> None: ...
+    suite_sha256: str
+    denominator_sha256: str
+    denominator_case_ids: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., cases: _Optional[_Iterable[_Union[CorpusValidationCase, _Mapping]]] = ..., rollup: _Optional[_Union[CorpusValidationRollup, _Mapping]] = ..., suite_sha256: _Optional[str] = ..., denominator_sha256: _Optional[str] = ..., denominator_case_ids: _Optional[_Iterable[str]] = ...) -> None: ...
+
+class GetLatestCorpusValidationRequest(_message.Message):
+    __slots__ = ("suite_id",)
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    suite_id: str
+    def __init__(self, suite_id: _Optional[str] = ...) -> None: ...
+
+class GetLatestCorpusValidationResponse(_message.Message):
+    __slots__ = ("found", "suite_id", "provider_id", "suite_sha256", "denominator_sha256", "denominator_case_ids", "rollup", "created_at", "receipt_sha256")
+    FOUND_FIELD_NUMBER: _ClassVar[int]
+    SUITE_ID_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+    SUITE_SHA256_FIELD_NUMBER: _ClassVar[int]
+    DENOMINATOR_SHA256_FIELD_NUMBER: _ClassVar[int]
+    DENOMINATOR_CASE_IDS_FIELD_NUMBER: _ClassVar[int]
+    ROLLUP_FIELD_NUMBER: _ClassVar[int]
+    CREATED_AT_FIELD_NUMBER: _ClassVar[int]
+    RECEIPT_SHA256_FIELD_NUMBER: _ClassVar[int]
+    found: bool
+    suite_id: str
+    provider_id: str
+    suite_sha256: str
+    denominator_sha256: str
+    denominator_case_ids: _containers.RepeatedScalarFieldContainer[str]
+    rollup: CorpusValidationRollup
+    created_at: str
+    receipt_sha256: str
+    def __init__(self, found: _Optional[bool] = ..., suite_id: _Optional[str] = ..., provider_id: _Optional[str] = ..., suite_sha256: _Optional[str] = ..., denominator_sha256: _Optional[str] = ..., denominator_case_ids: _Optional[_Iterable[str]] = ..., rollup: _Optional[_Union[CorpusValidationRollup, _Mapping]] = ..., created_at: _Optional[str] = ..., receipt_sha256: _Optional[str] = ...) -> None: ...
 
 class ListRunsRequest(_message.Message):
     __slots__ = ("suite_id", "tag", "limit", "tier")

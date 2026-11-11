@@ -215,20 +215,28 @@ class ProviderPlan(_message.Message):
     def __init__(self, provider_id: _Optional[str] = ..., provider_version: _Optional[str] = ..., estimated_bytes: _Optional[int] = ..., item_count: _Optional[int] = ..., blocked_reason: _Optional[str] = ..., items: _Optional[_Iterable[_Union[PreviewItem, _Mapping]]] = ..., warnings: _Optional[_Iterable[str]] = ..., approval_mode: _Optional[str] = ...) -> None: ...
 
 class PreviewItem(_message.Message):
-    __slots__ = ("id", "path", "description", "bytes", "action", "safety_tier")
+    __slots__ = ("id", "path", "description", "bytes", "action", "safety_tier", "object_identity", "modified_at", "age_seconds", "age_known")
     ID_FIELD_NUMBER: _ClassVar[int]
     PATH_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
     BYTES_FIELD_NUMBER: _ClassVar[int]
     ACTION_FIELD_NUMBER: _ClassVar[int]
     SAFETY_TIER_FIELD_NUMBER: _ClassVar[int]
+    OBJECT_IDENTITY_FIELD_NUMBER: _ClassVar[int]
+    MODIFIED_AT_FIELD_NUMBER: _ClassVar[int]
+    AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
+    AGE_KNOWN_FIELD_NUMBER: _ClassVar[int]
     id: str
     path: str
     description: str
     bytes: int
     action: str
     safety_tier: str
-    def __init__(self, id: _Optional[str] = ..., path: _Optional[str] = ..., description: _Optional[str] = ..., bytes: _Optional[int] = ..., action: _Optional[str] = ..., safety_tier: _Optional[str] = ...) -> None: ...
+    object_identity: str
+    modified_at: _timestamp_pb2.Timestamp
+    age_seconds: int
+    age_known: bool
+    def __init__(self, id: _Optional[str] = ..., path: _Optional[str] = ..., description: _Optional[str] = ..., bytes: _Optional[int] = ..., action: _Optional[str] = ..., safety_tier: _Optional[str] = ..., object_identity: _Optional[str] = ..., modified_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., age_seconds: _Optional[int] = ..., age_known: _Optional[bool] = ...) -> None: ...
 
 class ApplyPlanRequest(_message.Message):
     __slots__ = ("plan_id", "policy_version", "approval_mode", "approval_token", "idempotency_key", "item_ids")

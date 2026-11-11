@@ -224,25 +224,149 @@ func (x *Preset) GetEnabled() bool {
 	return false
 }
 
+type HealthPalette struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Healthy       *control.Color         `protobuf:"bytes,1,opt,name=healthy,proto3" json:"healthy,omitempty"`
+	Attention     *control.Color         `protobuf:"bytes,2,opt,name=attention,proto3" json:"attention,omitempty"`
+	Failure       *control.Color         `protobuf:"bytes,3,opt,name=failure,proto3" json:"failure,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HealthPalette) Reset() {
+	*x = HealthPalette{}
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HealthPalette) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HealthPalette) ProtoMessage() {}
+
+func (x *HealthPalette) ProtoReflect() protoreflect.Message {
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HealthPalette.ProtoReflect.Descriptor instead.
+func (*HealthPalette) Descriptor() ([]byte, []int) {
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *HealthPalette) GetHealthy() *control.Color {
+	if x != nil {
+		return x.Healthy
+	}
+	return nil
+}
+
+func (x *HealthPalette) GetAttention() *control.Color {
+	if x != nil {
+		return x.Attention
+	}
+	return nil
+}
+
+func (x *HealthPalette) GetFailure() *control.Color {
+	if x != nil {
+		return x.Failure
+	}
+	return nil
+}
+
+type ActivityEffects struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The effect used while 1..busy_agent_threshold-1 active agents are present.
+	ActiveEffectId string `protobuf:"bytes,1,opt,name=active_effect_id,json=activeEffectId,proto3" json:"active_effect_id,omitempty"`
+	// The effect used when activity reaches busy_agent_threshold or more.
+	BusyEffectId       string `protobuf:"bytes,2,opt,name=busy_effect_id,json=busyEffectId,proto3" json:"busy_effect_id,omitempty"`
+	BusyAgentThreshold uint32 `protobuf:"varint,3,opt,name=busy_agent_threshold,json=busyAgentThreshold,proto3" json:"busy_agent_threshold,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *ActivityEffects) Reset() {
+	*x = ActivityEffects{}
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityEffects) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityEffects) ProtoMessage() {}
+
+func (x *ActivityEffects) ProtoReflect() protoreflect.Message {
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityEffects.ProtoReflect.Descriptor instead.
+func (*ActivityEffects) Descriptor() ([]byte, []int) {
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ActivityEffects) GetActiveEffectId() string {
+	if x != nil {
+		return x.ActiveEffectId
+	}
+	return ""
+}
+
+func (x *ActivityEffects) GetBusyEffectId() string {
+	if x != nil {
+		return x.BusyEffectId
+	}
+	return ""
+}
+
+func (x *ActivityEffects) GetBusyAgentThreshold() uint32 {
+	if x != nil {
+		return x.BusyAgentThreshold
+	}
+	return 0
+}
+
 type PolicyConfig struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	DefaultPreset       PresetKind             `protobuf:"varint,1,opt,name=default_preset,json=defaultPreset,proto3,enum=vrooli.lighting_control.v1.policy.PresetKind" json:"default_preset,omitempty"`
 	Presets             []*Preset              `protobuf:"bytes,2,rep,name=presets,proto3" json:"presets,omitempty"`
 	SourceMaxAgeSeconds uint32                 `protobuf:"varint,3,opt,name=source_max_age_seconds,json=sourceMaxAgeSeconds,proto3" json:"source_max_age_seconds,omitempty"`
 	// Enter/exit thresholds prevent rapid switching around a load boundary.
-	LoadEnterPercent               uint32         `protobuf:"varint,4,opt,name=load_enter_percent,json=loadEnterPercent,proto3" json:"load_enter_percent,omitempty"`
-	LoadExitPercent                uint32         `protobuf:"varint,5,opt,name=load_exit_percent,json=loadExitPercent,proto3" json:"load_exit_percent,omitempty"`
-	DebounceSeconds                uint32         `protobuf:"varint,6,opt,name=debounce_seconds,json=debounceSeconds,proto3" json:"debounce_seconds,omitempty"`
-	BrightnessCapPercent           uint32         `protobuf:"varint,7,opt,name=brightness_cap_percent,json=brightnessCapPercent,proto3" json:"brightness_cap_percent,omitempty"`
-	StaleFallbackColor             *control.Color `protobuf:"bytes,8,opt,name=stale_fallback_color,json=staleFallbackColor,proto3" json:"stale_fallback_color,omitempty"`
-	StaleFallbackBrightnessPercent uint32         `protobuf:"varint,9,opt,name=stale_fallback_brightness_percent,json=staleFallbackBrightnessPercent,proto3" json:"stale_fallback_brightness_percent,omitempty"`
+	LoadEnterPercent               uint32           `protobuf:"varint,4,opt,name=load_enter_percent,json=loadEnterPercent,proto3" json:"load_enter_percent,omitempty"`
+	LoadExitPercent                uint32           `protobuf:"varint,5,opt,name=load_exit_percent,json=loadExitPercent,proto3" json:"load_exit_percent,omitempty"`
+	DebounceSeconds                uint32           `protobuf:"varint,6,opt,name=debounce_seconds,json=debounceSeconds,proto3" json:"debounce_seconds,omitempty"`
+	BrightnessCapPercent           uint32           `protobuf:"varint,7,opt,name=brightness_cap_percent,json=brightnessCapPercent,proto3" json:"brightness_cap_percent,omitempty"`
+	StaleFallbackColor             *control.Color   `protobuf:"bytes,8,opt,name=stale_fallback_color,json=staleFallbackColor,proto3" json:"stale_fallback_color,omitempty"`
+	StaleFallbackBrightnessPercent uint32           `protobuf:"varint,9,opt,name=stale_fallback_brightness_percent,json=staleFallbackBrightnessPercent,proto3" json:"stale_fallback_brightness_percent,omitempty"`
+	HealthPalette                  *HealthPalette   `protobuf:"bytes,10,opt,name=health_palette,json=healthPalette,proto3" json:"health_palette,omitempty"`
+	ActivityEffects                *ActivityEffects `protobuf:"bytes,11,opt,name=activity_effects,json=activityEffects,proto3" json:"activity_effects,omitempty"`
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *PolicyConfig) Reset() {
 	*x = PolicyConfig{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[1]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -254,7 +378,7 @@ func (x *PolicyConfig) String() string {
 func (*PolicyConfig) ProtoMessage() {}
 
 func (x *PolicyConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[1]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -267,7 +391,7 @@ func (x *PolicyConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicyConfig.ProtoReflect.Descriptor instead.
 func (*PolicyConfig) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{1}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *PolicyConfig) GetDefaultPreset() PresetKind {
@@ -333,6 +457,20 @@ func (x *PolicyConfig) GetStaleFallbackBrightnessPercent() uint32 {
 	return 0
 }
 
+func (x *PolicyConfig) GetHealthPalette() *HealthPalette {
+	if x != nil {
+		return x.HealthPalette
+	}
+	return nil
+}
+
+func (x *PolicyConfig) GetActivityEffects() *ActivityEffects {
+	if x != nil {
+		return x.ActivityEffects
+	}
+	return nil
+}
+
 type EvidenceSource struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Source          string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
@@ -347,7 +485,7 @@ type EvidenceSource struct {
 
 func (x *EvidenceSource) Reset() {
 	*x = EvidenceSource{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[2]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -359,7 +497,7 @@ func (x *EvidenceSource) String() string {
 func (*EvidenceSource) ProtoMessage() {}
 
 func (x *EvidenceSource) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[2]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -372,7 +510,7 @@ func (x *EvidenceSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvidenceSource.ProtoReflect.Descriptor instead.
 func (*EvidenceSource) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{2}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *EvidenceSource) GetSource() string {
@@ -435,7 +573,7 @@ type EffectivePolicy struct {
 
 func (x *EffectivePolicy) Reset() {
 	*x = EffectivePolicy{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[3]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -447,7 +585,7 @@ func (x *EffectivePolicy) String() string {
 func (*EffectivePolicy) ProtoMessage() {}
 
 func (x *EffectivePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[3]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -460,7 +598,7 @@ func (x *EffectivePolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EffectivePolicy.ProtoReflect.Descriptor instead.
 func (*EffectivePolicy) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{3}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *EffectivePolicy) GetPreset() PresetKind {
@@ -541,7 +679,7 @@ type GetPolicyRequest struct {
 
 func (x *GetPolicyRequest) Reset() {
 	*x = GetPolicyRequest{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[4]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -553,7 +691,7 @@ func (x *GetPolicyRequest) String() string {
 func (*GetPolicyRequest) ProtoMessage() {}
 
 func (x *GetPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[4]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -566,7 +704,7 @@ func (x *GetPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPolicyRequest.ProtoReflect.Descriptor instead.
 func (*GetPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{4}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{6}
 }
 
 type GetPolicyResponse struct {
@@ -579,7 +717,7 @@ type GetPolicyResponse struct {
 
 func (x *GetPolicyResponse) Reset() {
 	*x = GetPolicyResponse{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[5]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -591,7 +729,7 @@ func (x *GetPolicyResponse) String() string {
 func (*GetPolicyResponse) ProtoMessage() {}
 
 func (x *GetPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[5]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -604,7 +742,7 @@ func (x *GetPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPolicyResponse.ProtoReflect.Descriptor instead.
 func (*GetPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{5}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetPolicyResponse) GetConfig() *PolicyConfig {
@@ -630,7 +768,7 @@ type SetPolicyRequest struct {
 
 func (x *SetPolicyRequest) Reset() {
 	*x = SetPolicyRequest{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[6]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -642,7 +780,7 @@ func (x *SetPolicyRequest) String() string {
 func (*SetPolicyRequest) ProtoMessage() {}
 
 func (x *SetPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[6]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -655,7 +793,7 @@ func (x *SetPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPolicyRequest.ProtoReflect.Descriptor instead.
 func (*SetPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{6}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SetPolicyRequest) GetConfig() *PolicyConfig {
@@ -674,7 +812,7 @@ type SetPolicyResponse struct {
 
 func (x *SetPolicyResponse) Reset() {
 	*x = SetPolicyResponse{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[7]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -686,7 +824,7 @@ func (x *SetPolicyResponse) String() string {
 func (*SetPolicyResponse) ProtoMessage() {}
 
 func (x *SetPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[7]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -699,7 +837,7 @@ func (x *SetPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetPolicyResponse.ProtoReflect.Descriptor instead.
 func (*SetPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{7}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *SetPolicyResponse) GetConfig() *PolicyConfig {
@@ -719,7 +857,7 @@ type SetManualPresetRequest struct {
 
 func (x *SetManualPresetRequest) Reset() {
 	*x = SetManualPresetRequest{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[8]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -731,7 +869,7 @@ func (x *SetManualPresetRequest) String() string {
 func (*SetManualPresetRequest) ProtoMessage() {}
 
 func (x *SetManualPresetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[8]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -744,7 +882,7 @@ func (x *SetManualPresetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetManualPresetRequest.ProtoReflect.Descriptor instead.
 func (*SetManualPresetRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{8}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SetManualPresetRequest) GetPreset() PresetKind {
@@ -773,7 +911,7 @@ type PolicyZoneResult struct {
 
 func (x *PolicyZoneResult) Reset() {
 	*x = PolicyZoneResult{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[9]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -785,7 +923,7 @@ func (x *PolicyZoneResult) String() string {
 func (*PolicyZoneResult) ProtoMessage() {}
 
 func (x *PolicyZoneResult) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[9]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -798,7 +936,7 @@ func (x *PolicyZoneResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PolicyZoneResult.ProtoReflect.Descriptor instead.
 func (*PolicyZoneResult) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{9}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PolicyZoneResult) GetControllerId() string {
@@ -839,7 +977,7 @@ type SetManualPresetResponse struct {
 
 func (x *SetManualPresetResponse) Reset() {
 	*x = SetManualPresetResponse{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[10]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -851,7 +989,7 @@ func (x *SetManualPresetResponse) String() string {
 func (*SetManualPresetResponse) ProtoMessage() {}
 
 func (x *SetManualPresetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[10]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -864,7 +1002,7 @@ func (x *SetManualPresetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetManualPresetResponse.ProtoReflect.Descriptor instead.
 func (*SetManualPresetResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{10}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SetManualPresetResponse) GetEffective() *EffectivePolicy {
@@ -889,7 +1027,7 @@ type ClearManualPresetRequest struct {
 
 func (x *ClearManualPresetRequest) Reset() {
 	*x = ClearManualPresetRequest{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[11]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -901,7 +1039,7 @@ func (x *ClearManualPresetRequest) String() string {
 func (*ClearManualPresetRequest) ProtoMessage() {}
 
 func (x *ClearManualPresetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[11]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -914,7 +1052,7 @@ func (x *ClearManualPresetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearManualPresetRequest.ProtoReflect.Descriptor instead.
 func (*ClearManualPresetRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{11}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{13}
 }
 
 type ClearManualPresetResponse struct {
@@ -926,7 +1064,7 @@ type ClearManualPresetResponse struct {
 
 func (x *ClearManualPresetResponse) Reset() {
 	*x = ClearManualPresetResponse{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[12]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -938,7 +1076,7 @@ func (x *ClearManualPresetResponse) String() string {
 func (*ClearManualPresetResponse) ProtoMessage() {}
 
 func (x *ClearManualPresetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[12]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -951,7 +1089,7 @@ func (x *ClearManualPresetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearManualPresetResponse.ProtoReflect.Descriptor instead.
 func (*ClearManualPresetResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{12}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ClearManualPresetResponse) GetCleared() bool {
@@ -970,7 +1108,7 @@ type EvaluatePolicyRequest struct {
 
 func (x *EvaluatePolicyRequest) Reset() {
 	*x = EvaluatePolicyRequest{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[13]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -982,7 +1120,7 @@ func (x *EvaluatePolicyRequest) String() string {
 func (*EvaluatePolicyRequest) ProtoMessage() {}
 
 func (x *EvaluatePolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[13]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -995,7 +1133,7 @@ func (x *EvaluatePolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvaluatePolicyRequest.ProtoReflect.Descriptor instead.
 func (*EvaluatePolicyRequest) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{13}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *EvaluatePolicyRequest) GetTrigger() string {
@@ -1015,7 +1153,7 @@ type EvaluatePolicyResponse struct {
 
 func (x *EvaluatePolicyResponse) Reset() {
 	*x = EvaluatePolicyResponse{}
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[14]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1027,7 +1165,7 @@ func (x *EvaluatePolicyResponse) String() string {
 func (*EvaluatePolicyResponse) ProtoMessage() {}
 
 func (x *EvaluatePolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[14]
+	mi := &file_lighting_control_v1_policy_policy_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1040,7 +1178,7 @@ func (x *EvaluatePolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EvaluatePolicyResponse.ProtoReflect.Descriptor instead.
 func (*EvaluatePolicyResponse) Descriptor() ([]byte, []int) {
-	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{14}
+	return file_lighting_control_v1_policy_policy_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *EvaluatePolicyResponse) GetEffective() *EffectivePolicy {
@@ -1068,7 +1206,16 @@ const file_lighting_control_v1_policy_policy_proto_rawDesc = "" +
 	"\x05color\x18\x03 \x01(\v2).vrooli.lighting_control.v1.control.ColorR\x05color\x12=\n" +
 	"\x16brightness_cap_percent\x18\x04 \x01(\rB\a\xbaH\x04*\x02\x18dR\x14brightnessCapPercent\x12\x1b\n" +
 	"\teffect_id\x18\x05 \x01(\tR\beffectId\x12\x18\n" +
-	"\aenabled\x18\x06 \x01(\bR\aenabled\"\xfc\x04\n" +
+	"\aenabled\x18\x06 \x01(\bR\aenabled\"\xe2\x01\n" +
+	"\rHealthPalette\x12C\n" +
+	"\ahealthy\x18\x01 \x01(\v2).vrooli.lighting_control.v1.control.ColorR\ahealthy\x12G\n" +
+	"\tattention\x18\x02 \x01(\v2).vrooli.lighting_control.v1.control.ColorR\tattention\x12C\n" +
+	"\afailure\x18\x03 \x01(\v2).vrooli.lighting_control.v1.control.ColorR\afailure\"\x9f\x01\n" +
+	"\x0fActivityEffects\x12(\n" +
+	"\x10active_effect_id\x18\x01 \x01(\tR\x0eactiveEffectId\x12$\n" +
+	"\x0ebusy_effect_id\x18\x02 \x01(\tR\fbusyEffectId\x12<\n" +
+	"\x14busy_agent_threshold\x18\x03 \x01(\rB\n" +
+	"\xbaH\a*\x05\x18\x88'(\x02R\x12busyAgentThreshold\"\xb4\x06\n" +
 	"\fPolicyConfig\x12T\n" +
 	"\x0edefault_preset\x18\x01 \x01(\x0e2-.vrooli.lighting_control.v1.policy.PresetKindR\rdefaultPreset\x12C\n" +
 	"\apresets\x18\x02 \x03(\v2).vrooli.lighting_control.v1.policy.PresetR\apresets\x12@\n" +
@@ -1078,7 +1225,10 @@ const file_lighting_control_v1_policy_policy_proto_rawDesc = "" +
 	"\x10debounce_seconds\x18\x06 \x01(\rB\b\xbaH\x05*\x03\x18\x90\x1cR\x0fdebounceSeconds\x12=\n" +
 	"\x16brightness_cap_percent\x18\a \x01(\rB\a\xbaH\x04*\x02\x18dR\x14brightnessCapPercent\x12[\n" +
 	"\x14stale_fallback_color\x18\b \x01(\v2).vrooli.lighting_control.v1.control.ColorR\x12staleFallbackColor\x12R\n" +
-	"!stale_fallback_brightness_percent\x18\t \x01(\rB\a\xbaH\x04*\x02\x18dR\x1estaleFallbackBrightnessPercent\"\xb6\x03\n" +
+	"!stale_fallback_brightness_percent\x18\t \x01(\rB\a\xbaH\x04*\x02\x18dR\x1estaleFallbackBrightnessPercent\x12W\n" +
+	"\x0ehealth_palette\x18\n" +
+	" \x01(\v20.vrooli.lighting_control.v1.policy.HealthPaletteR\rhealthPalette\x12]\n" +
+	"\x10activity_effects\x18\v \x01(\v22.vrooli.lighting_control.v1.policy.ActivityEffectsR\x0factivityEffects\"\xb6\x03\n" +
 	"\x0eEvidenceSource\x12\x16\n" +
 	"\x06source\x18\x01 \x01(\tR\x06source\x12F\n" +
 	"\x05state\x18\x02 \x01(\x0e20.vrooli.lighting_control.v1.policy.EvidenceStateR\x05state\x12;\n" +
@@ -1165,71 +1315,78 @@ func file_lighting_control_v1_policy_policy_proto_rawDescGZIP() []byte {
 }
 
 var file_lighting_control_v1_policy_policy_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_lighting_control_v1_policy_policy_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_lighting_control_v1_policy_policy_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_lighting_control_v1_policy_policy_proto_goTypes = []any{
 	(PresetKind)(0),                   // 0: vrooli.lighting_control.v1.policy.PresetKind
 	(EvidenceState)(0),                // 1: vrooli.lighting_control.v1.policy.EvidenceState
 	(*Preset)(nil),                    // 2: vrooli.lighting_control.v1.policy.Preset
-	(*PolicyConfig)(nil),              // 3: vrooli.lighting_control.v1.policy.PolicyConfig
-	(*EvidenceSource)(nil),            // 4: vrooli.lighting_control.v1.policy.EvidenceSource
-	(*EffectivePolicy)(nil),           // 5: vrooli.lighting_control.v1.policy.EffectivePolicy
-	(*GetPolicyRequest)(nil),          // 6: vrooli.lighting_control.v1.policy.GetPolicyRequest
-	(*GetPolicyResponse)(nil),         // 7: vrooli.lighting_control.v1.policy.GetPolicyResponse
-	(*SetPolicyRequest)(nil),          // 8: vrooli.lighting_control.v1.policy.SetPolicyRequest
-	(*SetPolicyResponse)(nil),         // 9: vrooli.lighting_control.v1.policy.SetPolicyResponse
-	(*SetManualPresetRequest)(nil),    // 10: vrooli.lighting_control.v1.policy.SetManualPresetRequest
-	(*PolicyZoneResult)(nil),          // 11: vrooli.lighting_control.v1.policy.PolicyZoneResult
-	(*SetManualPresetResponse)(nil),   // 12: vrooli.lighting_control.v1.policy.SetManualPresetResponse
-	(*ClearManualPresetRequest)(nil),  // 13: vrooli.lighting_control.v1.policy.ClearManualPresetRequest
-	(*ClearManualPresetResponse)(nil), // 14: vrooli.lighting_control.v1.policy.ClearManualPresetResponse
-	(*EvaluatePolicyRequest)(nil),     // 15: vrooli.lighting_control.v1.policy.EvaluatePolicyRequest
-	(*EvaluatePolicyResponse)(nil),    // 16: vrooli.lighting_control.v1.policy.EvaluatePolicyResponse
-	nil,                               // 17: vrooli.lighting_control.v1.policy.EvidenceSource.MeasurementsEntry
-	(*control.Color)(nil),             // 18: vrooli.lighting_control.v1.control.Color
-	(*timestamppb.Timestamp)(nil),     // 19: google.protobuf.Timestamp
-	(*control.ZoneApplyResult)(nil),   // 20: vrooli.lighting_control.v1.control.ZoneApplyResult
+	(*HealthPalette)(nil),             // 3: vrooli.lighting_control.v1.policy.HealthPalette
+	(*ActivityEffects)(nil),           // 4: vrooli.lighting_control.v1.policy.ActivityEffects
+	(*PolicyConfig)(nil),              // 5: vrooli.lighting_control.v1.policy.PolicyConfig
+	(*EvidenceSource)(nil),            // 6: vrooli.lighting_control.v1.policy.EvidenceSource
+	(*EffectivePolicy)(nil),           // 7: vrooli.lighting_control.v1.policy.EffectivePolicy
+	(*GetPolicyRequest)(nil),          // 8: vrooli.lighting_control.v1.policy.GetPolicyRequest
+	(*GetPolicyResponse)(nil),         // 9: vrooli.lighting_control.v1.policy.GetPolicyResponse
+	(*SetPolicyRequest)(nil),          // 10: vrooli.lighting_control.v1.policy.SetPolicyRequest
+	(*SetPolicyResponse)(nil),         // 11: vrooli.lighting_control.v1.policy.SetPolicyResponse
+	(*SetManualPresetRequest)(nil),    // 12: vrooli.lighting_control.v1.policy.SetManualPresetRequest
+	(*PolicyZoneResult)(nil),          // 13: vrooli.lighting_control.v1.policy.PolicyZoneResult
+	(*SetManualPresetResponse)(nil),   // 14: vrooli.lighting_control.v1.policy.SetManualPresetResponse
+	(*ClearManualPresetRequest)(nil),  // 15: vrooli.lighting_control.v1.policy.ClearManualPresetRequest
+	(*ClearManualPresetResponse)(nil), // 16: vrooli.lighting_control.v1.policy.ClearManualPresetResponse
+	(*EvaluatePolicyRequest)(nil),     // 17: vrooli.lighting_control.v1.policy.EvaluatePolicyRequest
+	(*EvaluatePolicyResponse)(nil),    // 18: vrooli.lighting_control.v1.policy.EvaluatePolicyResponse
+	nil,                               // 19: vrooli.lighting_control.v1.policy.EvidenceSource.MeasurementsEntry
+	(*control.Color)(nil),             // 20: vrooli.lighting_control.v1.control.Color
+	(*timestamppb.Timestamp)(nil),     // 21: google.protobuf.Timestamp
+	(*control.ZoneApplyResult)(nil),   // 22: vrooli.lighting_control.v1.control.ZoneApplyResult
 }
 var file_lighting_control_v1_policy_policy_proto_depIdxs = []int32{
 	0,  // 0: vrooli.lighting_control.v1.policy.Preset.kind:type_name -> vrooli.lighting_control.v1.policy.PresetKind
-	18, // 1: vrooli.lighting_control.v1.policy.Preset.color:type_name -> vrooli.lighting_control.v1.control.Color
-	0,  // 2: vrooli.lighting_control.v1.policy.PolicyConfig.default_preset:type_name -> vrooli.lighting_control.v1.policy.PresetKind
-	2,  // 3: vrooli.lighting_control.v1.policy.PolicyConfig.presets:type_name -> vrooli.lighting_control.v1.policy.Preset
-	18, // 4: vrooli.lighting_control.v1.policy.PolicyConfig.stale_fallback_color:type_name -> vrooli.lighting_control.v1.control.Color
-	1,  // 5: vrooli.lighting_control.v1.policy.EvidenceSource.state:type_name -> vrooli.lighting_control.v1.policy.EvidenceState
-	19, // 6: vrooli.lighting_control.v1.policy.EvidenceSource.observed_at:type_name -> google.protobuf.Timestamp
-	19, // 7: vrooli.lighting_control.v1.policy.EvidenceSource.source_timestamp:type_name -> google.protobuf.Timestamp
-	17, // 8: vrooli.lighting_control.v1.policy.EvidenceSource.measurements:type_name -> vrooli.lighting_control.v1.policy.EvidenceSource.MeasurementsEntry
-	0,  // 9: vrooli.lighting_control.v1.policy.EffectivePolicy.preset:type_name -> vrooli.lighting_control.v1.policy.PresetKind
-	18, // 10: vrooli.lighting_control.v1.policy.EffectivePolicy.color:type_name -> vrooli.lighting_control.v1.control.Color
-	19, // 11: vrooli.lighting_control.v1.policy.EffectivePolicy.evaluated_at:type_name -> google.protobuf.Timestamp
-	4,  // 12: vrooli.lighting_control.v1.policy.EffectivePolicy.evidence:type_name -> vrooli.lighting_control.v1.policy.EvidenceSource
-	19, // 13: vrooli.lighting_control.v1.policy.EffectivePolicy.request_expires_at:type_name -> google.protobuf.Timestamp
-	3,  // 14: vrooli.lighting_control.v1.policy.GetPolicyResponse.config:type_name -> vrooli.lighting_control.v1.policy.PolicyConfig
-	5,  // 15: vrooli.lighting_control.v1.policy.GetPolicyResponse.effective:type_name -> vrooli.lighting_control.v1.policy.EffectivePolicy
-	3,  // 16: vrooli.lighting_control.v1.policy.SetPolicyRequest.config:type_name -> vrooli.lighting_control.v1.policy.PolicyConfig
-	3,  // 17: vrooli.lighting_control.v1.policy.SetPolicyResponse.config:type_name -> vrooli.lighting_control.v1.policy.PolicyConfig
-	0,  // 18: vrooli.lighting_control.v1.policy.SetManualPresetRequest.preset:type_name -> vrooli.lighting_control.v1.policy.PresetKind
-	19, // 19: vrooli.lighting_control.v1.policy.SetManualPresetRequest.expires_at:type_name -> google.protobuf.Timestamp
-	20, // 20: vrooli.lighting_control.v1.policy.PolicyZoneResult.result:type_name -> vrooli.lighting_control.v1.control.ZoneApplyResult
-	5,  // 21: vrooli.lighting_control.v1.policy.SetManualPresetResponse.effective:type_name -> vrooli.lighting_control.v1.policy.EffectivePolicy
-	11, // 22: vrooli.lighting_control.v1.policy.SetManualPresetResponse.results:type_name -> vrooli.lighting_control.v1.policy.PolicyZoneResult
-	5,  // 23: vrooli.lighting_control.v1.policy.EvaluatePolicyResponse.effective:type_name -> vrooli.lighting_control.v1.policy.EffectivePolicy
-	11, // 24: vrooli.lighting_control.v1.policy.EvaluatePolicyResponse.results:type_name -> vrooli.lighting_control.v1.policy.PolicyZoneResult
-	6,  // 25: vrooli.lighting_control.v1.policy.PolicyService.GetPolicy:input_type -> vrooli.lighting_control.v1.policy.GetPolicyRequest
-	8,  // 26: vrooli.lighting_control.v1.policy.PolicyService.SetPolicy:input_type -> vrooli.lighting_control.v1.policy.SetPolicyRequest
-	10, // 27: vrooli.lighting_control.v1.policy.PolicyService.SetManualPreset:input_type -> vrooli.lighting_control.v1.policy.SetManualPresetRequest
-	13, // 28: vrooli.lighting_control.v1.policy.PolicyService.ClearManualPreset:input_type -> vrooli.lighting_control.v1.policy.ClearManualPresetRequest
-	15, // 29: vrooli.lighting_control.v1.policy.PolicyService.EvaluatePolicy:input_type -> vrooli.lighting_control.v1.policy.EvaluatePolicyRequest
-	7,  // 30: vrooli.lighting_control.v1.policy.PolicyService.GetPolicy:output_type -> vrooli.lighting_control.v1.policy.GetPolicyResponse
-	9,  // 31: vrooli.lighting_control.v1.policy.PolicyService.SetPolicy:output_type -> vrooli.lighting_control.v1.policy.SetPolicyResponse
-	12, // 32: vrooli.lighting_control.v1.policy.PolicyService.SetManualPreset:output_type -> vrooli.lighting_control.v1.policy.SetManualPresetResponse
-	14, // 33: vrooli.lighting_control.v1.policy.PolicyService.ClearManualPreset:output_type -> vrooli.lighting_control.v1.policy.ClearManualPresetResponse
-	16, // 34: vrooli.lighting_control.v1.policy.PolicyService.EvaluatePolicy:output_type -> vrooli.lighting_control.v1.policy.EvaluatePolicyResponse
-	30, // [30:35] is the sub-list for method output_type
-	25, // [25:30] is the sub-list for method input_type
-	25, // [25:25] is the sub-list for extension type_name
-	25, // [25:25] is the sub-list for extension extendee
-	0,  // [0:25] is the sub-list for field type_name
+	20, // 1: vrooli.lighting_control.v1.policy.Preset.color:type_name -> vrooli.lighting_control.v1.control.Color
+	20, // 2: vrooli.lighting_control.v1.policy.HealthPalette.healthy:type_name -> vrooli.lighting_control.v1.control.Color
+	20, // 3: vrooli.lighting_control.v1.policy.HealthPalette.attention:type_name -> vrooli.lighting_control.v1.control.Color
+	20, // 4: vrooli.lighting_control.v1.policy.HealthPalette.failure:type_name -> vrooli.lighting_control.v1.control.Color
+	0,  // 5: vrooli.lighting_control.v1.policy.PolicyConfig.default_preset:type_name -> vrooli.lighting_control.v1.policy.PresetKind
+	2,  // 6: vrooli.lighting_control.v1.policy.PolicyConfig.presets:type_name -> vrooli.lighting_control.v1.policy.Preset
+	20, // 7: vrooli.lighting_control.v1.policy.PolicyConfig.stale_fallback_color:type_name -> vrooli.lighting_control.v1.control.Color
+	3,  // 8: vrooli.lighting_control.v1.policy.PolicyConfig.health_palette:type_name -> vrooli.lighting_control.v1.policy.HealthPalette
+	4,  // 9: vrooli.lighting_control.v1.policy.PolicyConfig.activity_effects:type_name -> vrooli.lighting_control.v1.policy.ActivityEffects
+	1,  // 10: vrooli.lighting_control.v1.policy.EvidenceSource.state:type_name -> vrooli.lighting_control.v1.policy.EvidenceState
+	21, // 11: vrooli.lighting_control.v1.policy.EvidenceSource.observed_at:type_name -> google.protobuf.Timestamp
+	21, // 12: vrooli.lighting_control.v1.policy.EvidenceSource.source_timestamp:type_name -> google.protobuf.Timestamp
+	19, // 13: vrooli.lighting_control.v1.policy.EvidenceSource.measurements:type_name -> vrooli.lighting_control.v1.policy.EvidenceSource.MeasurementsEntry
+	0,  // 14: vrooli.lighting_control.v1.policy.EffectivePolicy.preset:type_name -> vrooli.lighting_control.v1.policy.PresetKind
+	20, // 15: vrooli.lighting_control.v1.policy.EffectivePolicy.color:type_name -> vrooli.lighting_control.v1.control.Color
+	21, // 16: vrooli.lighting_control.v1.policy.EffectivePolicy.evaluated_at:type_name -> google.protobuf.Timestamp
+	6,  // 17: vrooli.lighting_control.v1.policy.EffectivePolicy.evidence:type_name -> vrooli.lighting_control.v1.policy.EvidenceSource
+	21, // 18: vrooli.lighting_control.v1.policy.EffectivePolicy.request_expires_at:type_name -> google.protobuf.Timestamp
+	5,  // 19: vrooli.lighting_control.v1.policy.GetPolicyResponse.config:type_name -> vrooli.lighting_control.v1.policy.PolicyConfig
+	7,  // 20: vrooli.lighting_control.v1.policy.GetPolicyResponse.effective:type_name -> vrooli.lighting_control.v1.policy.EffectivePolicy
+	5,  // 21: vrooli.lighting_control.v1.policy.SetPolicyRequest.config:type_name -> vrooli.lighting_control.v1.policy.PolicyConfig
+	5,  // 22: vrooli.lighting_control.v1.policy.SetPolicyResponse.config:type_name -> vrooli.lighting_control.v1.policy.PolicyConfig
+	0,  // 23: vrooli.lighting_control.v1.policy.SetManualPresetRequest.preset:type_name -> vrooli.lighting_control.v1.policy.PresetKind
+	21, // 24: vrooli.lighting_control.v1.policy.SetManualPresetRequest.expires_at:type_name -> google.protobuf.Timestamp
+	22, // 25: vrooli.lighting_control.v1.policy.PolicyZoneResult.result:type_name -> vrooli.lighting_control.v1.control.ZoneApplyResult
+	7,  // 26: vrooli.lighting_control.v1.policy.SetManualPresetResponse.effective:type_name -> vrooli.lighting_control.v1.policy.EffectivePolicy
+	13, // 27: vrooli.lighting_control.v1.policy.SetManualPresetResponse.results:type_name -> vrooli.lighting_control.v1.policy.PolicyZoneResult
+	7,  // 28: vrooli.lighting_control.v1.policy.EvaluatePolicyResponse.effective:type_name -> vrooli.lighting_control.v1.policy.EffectivePolicy
+	13, // 29: vrooli.lighting_control.v1.policy.EvaluatePolicyResponse.results:type_name -> vrooli.lighting_control.v1.policy.PolicyZoneResult
+	8,  // 30: vrooli.lighting_control.v1.policy.PolicyService.GetPolicy:input_type -> vrooli.lighting_control.v1.policy.GetPolicyRequest
+	10, // 31: vrooli.lighting_control.v1.policy.PolicyService.SetPolicy:input_type -> vrooli.lighting_control.v1.policy.SetPolicyRequest
+	12, // 32: vrooli.lighting_control.v1.policy.PolicyService.SetManualPreset:input_type -> vrooli.lighting_control.v1.policy.SetManualPresetRequest
+	15, // 33: vrooli.lighting_control.v1.policy.PolicyService.ClearManualPreset:input_type -> vrooli.lighting_control.v1.policy.ClearManualPresetRequest
+	17, // 34: vrooli.lighting_control.v1.policy.PolicyService.EvaluatePolicy:input_type -> vrooli.lighting_control.v1.policy.EvaluatePolicyRequest
+	9,  // 35: vrooli.lighting_control.v1.policy.PolicyService.GetPolicy:output_type -> vrooli.lighting_control.v1.policy.GetPolicyResponse
+	11, // 36: vrooli.lighting_control.v1.policy.PolicyService.SetPolicy:output_type -> vrooli.lighting_control.v1.policy.SetPolicyResponse
+	14, // 37: vrooli.lighting_control.v1.policy.PolicyService.SetManualPreset:output_type -> vrooli.lighting_control.v1.policy.SetManualPresetResponse
+	16, // 38: vrooli.lighting_control.v1.policy.PolicyService.ClearManualPreset:output_type -> vrooli.lighting_control.v1.policy.ClearManualPresetResponse
+	18, // 39: vrooli.lighting_control.v1.policy.PolicyService.EvaluatePolicy:output_type -> vrooli.lighting_control.v1.policy.EvaluatePolicyResponse
+	35, // [35:40] is the sub-list for method output_type
+	30, // [30:35] is the sub-list for method input_type
+	30, // [30:30] is the sub-list for extension type_name
+	30, // [30:30] is the sub-list for extension extendee
+	0,  // [0:30] is the sub-list for field type_name
 }
 
 func init() { file_lighting_control_v1_policy_policy_proto_init() }
@@ -1243,7 +1400,7 @@ func file_lighting_control_v1_policy_policy_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_lighting_control_v1_policy_policy_proto_rawDesc), len(file_lighting_control_v1_policy_policy_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   16,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

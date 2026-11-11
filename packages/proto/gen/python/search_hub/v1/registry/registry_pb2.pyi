@@ -341,7 +341,7 @@ class ExecuteEmbeddingMigrationRequest(_message.Message):
     def __init__(self, provider_id: _Optional[str] = ..., action: _Optional[str] = ..., shadow_collection: _Optional[str] = ..., rollback_collection: _Optional[str] = ..., embedding_model: _Optional[str] = ..., embedding_role: _Optional[str] = ..., embedding_dimensions: _Optional[int] = ..., embedding_policy_schema_version: _Optional[str] = ..., scope: _Optional[str] = ..., dry_run: _Optional[bool] = ..., job_id: _Optional[str] = ...) -> None: ...
 
 class ExecuteEmbeddingMigrationResponse(_message.Message):
-    __slots__ = ("job_id", "state", "planned_upserts", "planned_deletes", "processed", "total", "error")
+    __slots__ = ("job_id", "state", "planned_upserts", "planned_deletes", "processed", "total", "error", "migration_protocol_version", "supported_actions")
     JOB_ID_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     PLANNED_UPSERTS_FIELD_NUMBER: _ClassVar[int]
@@ -349,6 +349,8 @@ class ExecuteEmbeddingMigrationResponse(_message.Message):
     PROCESSED_FIELD_NUMBER: _ClassVar[int]
     TOTAL_FIELD_NUMBER: _ClassVar[int]
     ERROR_FIELD_NUMBER: _ClassVar[int]
+    MIGRATION_PROTOCOL_VERSION_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTED_ACTIONS_FIELD_NUMBER: _ClassVar[int]
     job_id: str
     state: str
     planned_upserts: int
@@ -356,7 +358,9 @@ class ExecuteEmbeddingMigrationResponse(_message.Message):
     processed: int
     total: int
     error: str
-    def __init__(self, job_id: _Optional[str] = ..., state: _Optional[str] = ..., planned_upserts: _Optional[int] = ..., planned_deletes: _Optional[int] = ..., processed: _Optional[int] = ..., total: _Optional[int] = ..., error: _Optional[str] = ...) -> None: ...
+    migration_protocol_version: int
+    supported_actions: _containers.RepeatedScalarFieldContainer[str]
+    def __init__(self, job_id: _Optional[str] = ..., state: _Optional[str] = ..., planned_upserts: _Optional[int] = ..., planned_deletes: _Optional[int] = ..., processed: _Optional[int] = ..., total: _Optional[int] = ..., error: _Optional[str] = ..., migration_protocol_version: _Optional[int] = ..., supported_actions: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class ListMaturityTargetsRequest(_message.Message):
     __slots__ = ()

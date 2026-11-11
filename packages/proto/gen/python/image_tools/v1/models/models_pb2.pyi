@@ -200,16 +200,18 @@ class ListOperationsResponse(_message.Message):
     def __init__(self, operations: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class SelectModelRequest(_message.Message):
-    __slots__ = ("operation", "override_id", "quality_policy", "allow_byok")
+    __slots__ = ("operation", "override_id", "quality_policy", "allow_byok", "force_cpu")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     OVERRIDE_ID_FIELD_NUMBER: _ClassVar[int]
     QUALITY_POLICY_FIELD_NUMBER: _ClassVar[int]
     ALLOW_BYOK_FIELD_NUMBER: _ClassVar[int]
+    FORCE_CPU_FIELD_NUMBER: _ClassVar[int]
     operation: str
     override_id: str
     quality_policy: str
     allow_byok: bool
-    def __init__(self, operation: _Optional[str] = ..., override_id: _Optional[str] = ..., quality_policy: _Optional[str] = ..., allow_byok: _Optional[bool] = ...) -> None: ...
+    force_cpu: bool
+    def __init__(self, operation: _Optional[str] = ..., override_id: _Optional[str] = ..., quality_policy: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., force_cpu: _Optional[bool] = ...) -> None: ...
 
 class SelectModelResponse(_message.Message):
     __slots__ = ("model", "gpu_viable", "reason", "warnings")
@@ -536,10 +538,12 @@ class GetHostSummaryResponse(_message.Message):
     def __init__(self, host: _Optional[_Union[HostSummary, _Mapping]] = ...) -> None: ...
 
 class ListOperationModelsRequest(_message.Message):
-    __slots__ = ("operation",)
+    __slots__ = ("operation", "force_cpu")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
+    FORCE_CPU_FIELD_NUMBER: _ClassVar[int]
     operation: str
-    def __init__(self, operation: _Optional[str] = ...) -> None: ...
+    force_cpu: bool
+    def __init__(self, operation: _Optional[str] = ..., force_cpu: _Optional[bool] = ...) -> None: ...
 
 class Resolution(_message.Message):
     __slots__ = ("operation", "model_id", "model_name", "support", "technique", "pipeline_class", "caveat", "weight", "tier", "gpu_viable", "warnings", "adapters")
@@ -570,19 +574,21 @@ class Resolution(_message.Message):
     def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., model_name: _Optional[str] = ..., support: _Optional[str] = ..., technique: _Optional[str] = ..., pipeline_class: _Optional[str] = ..., caveat: _Optional[str] = ..., weight: _Optional[str] = ..., tier: _Optional[str] = ..., gpu_viable: _Optional[bool] = ..., warnings: _Optional[_Iterable[str]] = ..., adapters: _Optional[_Iterable[_Union[ResolvedAdapter, _Mapping]]] = ...) -> None: ...
 
 class AdapterRef(_message.Message):
-    __slots__ = ("adapter_id", "scale", "conditioning_image_key", "preprocessor_override")
+    __slots__ = ("adapter_id", "scale", "conditioning_image_key", "preprocessor_override", "license_terms_accepted")
     ADAPTER_ID_FIELD_NUMBER: _ClassVar[int]
     SCALE_FIELD_NUMBER: _ClassVar[int]
     CONDITIONING_IMAGE_KEY_FIELD_NUMBER: _ClassVar[int]
     PREPROCESSOR_OVERRIDE_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_TERMS_ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     adapter_id: str
     scale: float
     conditioning_image_key: str
     preprocessor_override: str
-    def __init__(self, adapter_id: _Optional[str] = ..., scale: _Optional[float] = ..., conditioning_image_key: _Optional[str] = ..., preprocessor_override: _Optional[str] = ...) -> None: ...
+    license_terms_accepted: bool
+    def __init__(self, adapter_id: _Optional[str] = ..., scale: _Optional[float] = ..., conditioning_image_key: _Optional[str] = ..., preprocessor_override: _Optional[str] = ..., license_terms_accepted: _Optional[bool] = ...) -> None: ...
 
 class ResolvedAdapter(_message.Message):
-    __slots__ = ("id", "name", "kind", "architecture", "scale", "weight", "preprocessor", "conditioning_image_key")
+    __slots__ = ("id", "name", "kind", "architecture", "scale", "weight", "preprocessor", "conditioning_image_key", "license_terms_accepted", "license_terms_version")
     ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     KIND_FIELD_NUMBER: _ClassVar[int]
@@ -591,6 +597,8 @@ class ResolvedAdapter(_message.Message):
     WEIGHT_FIELD_NUMBER: _ClassVar[int]
     PREPROCESSOR_FIELD_NUMBER: _ClassVar[int]
     CONDITIONING_IMAGE_KEY_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_TERMS_ACCEPTED_FIELD_NUMBER: _ClassVar[int]
+    LICENSE_TERMS_VERSION_FIELD_NUMBER: _ClassVar[int]
     id: str
     name: str
     kind: str
@@ -599,10 +607,12 @@ class ResolvedAdapter(_message.Message):
     weight: str
     preprocessor: str
     conditioning_image_key: str
-    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[str] = ..., architecture: _Optional[str] = ..., scale: _Optional[float] = ..., weight: _Optional[str] = ..., preprocessor: _Optional[str] = ..., conditioning_image_key: _Optional[str] = ...) -> None: ...
+    license_terms_accepted: bool
+    license_terms_version: str
+    def __init__(self, id: _Optional[str] = ..., name: _Optional[str] = ..., kind: _Optional[str] = ..., architecture: _Optional[str] = ..., scale: _Optional[float] = ..., weight: _Optional[str] = ..., preprocessor: _Optional[str] = ..., conditioning_image_key: _Optional[str] = ..., license_terms_accepted: _Optional[bool] = ..., license_terms_version: _Optional[str] = ...) -> None: ...
 
 class ExplainResolutionRequest(_message.Message):
-    __slots__ = ("operation", "model_id", "allow_byok", "adapters", "quality_policy", "openrouter_role", "fallback_policy")
+    __slots__ = ("operation", "model_id", "allow_byok", "adapters", "quality_policy", "openrouter_role", "fallback_policy", "force_cpu")
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     MODEL_ID_FIELD_NUMBER: _ClassVar[int]
     ALLOW_BYOK_FIELD_NUMBER: _ClassVar[int]
@@ -610,6 +620,7 @@ class ExplainResolutionRequest(_message.Message):
     QUALITY_POLICY_FIELD_NUMBER: _ClassVar[int]
     OPENROUTER_ROLE_FIELD_NUMBER: _ClassVar[int]
     FALLBACK_POLICY_FIELD_NUMBER: _ClassVar[int]
+    FORCE_CPU_FIELD_NUMBER: _ClassVar[int]
     operation: str
     model_id: str
     allow_byok: bool
@@ -617,7 +628,8 @@ class ExplainResolutionRequest(_message.Message):
     quality_policy: str
     openrouter_role: str
     fallback_policy: str
-    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., adapters: _Optional[_Iterable[_Union[AdapterRef, _Mapping]]] = ..., quality_policy: _Optional[str] = ..., openrouter_role: _Optional[str] = ..., fallback_policy: _Optional[str] = ...) -> None: ...
+    force_cpu: bool
+    def __init__(self, operation: _Optional[str] = ..., model_id: _Optional[str] = ..., allow_byok: _Optional[bool] = ..., adapters: _Optional[_Iterable[_Union[AdapterRef, _Mapping]]] = ..., quality_policy: _Optional[str] = ..., openrouter_role: _Optional[str] = ..., fallback_policy: _Optional[str] = ..., force_cpu: _Optional[bool] = ...) -> None: ...
 
 class ExplainResolutionResponse(_message.Message):
     __slots__ = ("resolution",)

@@ -35,6 +35,20 @@ message Preset {
   bool enabled = 6;
 }
 
+message HealthPalette {
+  vrooli.lighting_control.v1.control.Color healthy = 1;
+  vrooli.lighting_control.v1.control.Color attention = 2;
+  vrooli.lighting_control.v1.control.Color failure = 3;
+}
+
+message ActivityEffects {
+  // The effect used while 1..busy_agent_threshold-1 active agents are present.
+  string active_effect_id = 1;
+  // The effect used when activity reaches busy_agent_threshold or more.
+  string busy_effect_id = 2;
+  uint32 busy_agent_threshold = 3 [(buf.validate.field).uint32 = {gte: 2, lte: 5000}];
+}
+
 message PolicyConfig {
   PresetKind default_preset = 1;
   repeated Preset presets = 2;
@@ -46,6 +60,8 @@ message PolicyConfig {
   uint32 brightness_cap_percent = 7 [(buf.validate.field).uint32.lte = 100];
   vrooli.lighting_control.v1.control.Color stale_fallback_color = 8;
   uint32 stale_fallback_brightness_percent = 9 [(buf.validate.field).uint32.lte = 100];
+  HealthPalette health_palette = 10;
+  ActivityEffects activity_effects = 11;
 }
 
 message EvidenceSource {

@@ -42,6 +42,9 @@ const (
 	// ControlServiceEnrollControllerProcedure is the fully-qualified name of the ControlService's
 	// EnrollController RPC.
 	ControlServiceEnrollControllerProcedure = "/vrooli.lighting_control.v1.control.ControlService/EnrollController"
+	// ControlServiceConfigureZoneProcedure is the fully-qualified name of the ControlService's
+	// ConfigureZone RPC.
+	ControlServiceConfigureZoneProcedure = "/vrooli.lighting_control.v1.control.ControlService/ConfigureZone"
 	// ControlServiceSetZoneStateProcedure is the fully-qualified name of the ControlService's
 	// SetZoneState RPC.
 	ControlServiceSetZoneStateProcedure = "/vrooli.lighting_control.v1.control.ControlService/SetZoneState"
@@ -65,6 +68,7 @@ type ControlServiceClient interface {
 	GetBackendStatus(context.Context, *connect.Request[control.GetBackendStatusRequest]) (*connect.Response[control.GetBackendStatusResponse], error)
 	ListControllers(context.Context, *connect.Request[control.ListControllersRequest]) (*connect.Response[control.ListControllersResponse], error)
 	EnrollController(context.Context, *connect.Request[control.EnrollControllerRequest]) (*connect.Response[control.EnrollControllerResponse], error)
+	ConfigureZone(context.Context, *connect.Request[control.ConfigureZoneRequest]) (*connect.Response[control.ConfigureZoneResponse], error)
 	SetZoneState(context.Context, *connect.Request[control.SetZoneStateRequest]) (*connect.Response[control.SetZoneStateResponse], error)
 	SetManualOff(context.Context, *connect.Request[control.SetManualOffRequest]) (*connect.Response[control.SetManualOffResponse], error)
 	GetDesiredState(context.Context, *connect.Request[control.GetDesiredStateRequest]) (*connect.Response[control.GetDesiredStateResponse], error)
@@ -100,6 +104,12 @@ func NewControlServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			httpClient,
 			baseURL+ControlServiceEnrollControllerProcedure,
 			connect.WithSchema(controlServiceMethods.ByName("EnrollController")),
+			connect.WithClientOptions(opts...),
+		),
+		configureZone: connect.NewClient[control.ConfigureZoneRequest, control.ConfigureZoneResponse](
+			httpClient,
+			baseURL+ControlServiceConfigureZoneProcedure,
+			connect.WithSchema(controlServiceMethods.ByName("ConfigureZone")),
 			connect.WithClientOptions(opts...),
 		),
 		setZoneState: connect.NewClient[control.SetZoneStateRequest, control.SetZoneStateResponse](
@@ -140,6 +150,7 @@ type controlServiceClient struct {
 	getBackendStatus    *connect.Client[control.GetBackendStatusRequest, control.GetBackendStatusResponse]
 	listControllers     *connect.Client[control.ListControllersRequest, control.ListControllersResponse]
 	enrollController    *connect.Client[control.EnrollControllerRequest, control.EnrollControllerResponse]
+	configureZone       *connect.Client[control.ConfigureZoneRequest, control.ConfigureZoneResponse]
 	setZoneState        *connect.Client[control.SetZoneStateRequest, control.SetZoneStateResponse]
 	setManualOff        *connect.Client[control.SetManualOffRequest, control.SetManualOffResponse]
 	getDesiredState     *connect.Client[control.GetDesiredStateRequest, control.GetDesiredStateResponse]
@@ -160,6 +171,11 @@ func (c *controlServiceClient) ListControllers(ctx context.Context, req *connect
 // EnrollController calls vrooli.lighting_control.v1.control.ControlService.EnrollController.
 func (c *controlServiceClient) EnrollController(ctx context.Context, req *connect.Request[control.EnrollControllerRequest]) (*connect.Response[control.EnrollControllerResponse], error) {
 	return c.enrollController.CallUnary(ctx, req)
+}
+
+// ConfigureZone calls vrooli.lighting_control.v1.control.ControlService.ConfigureZone.
+func (c *controlServiceClient) ConfigureZone(ctx context.Context, req *connect.Request[control.ConfigureZoneRequest]) (*connect.Response[control.ConfigureZoneResponse], error) {
+	return c.configureZone.CallUnary(ctx, req)
 }
 
 // SetZoneState calls vrooli.lighting_control.v1.control.ControlService.SetZoneState.
@@ -193,6 +209,7 @@ type ControlServiceHandler interface {
 	GetBackendStatus(context.Context, *connect.Request[control.GetBackendStatusRequest]) (*connect.Response[control.GetBackendStatusResponse], error)
 	ListControllers(context.Context, *connect.Request[control.ListControllersRequest]) (*connect.Response[control.ListControllersResponse], error)
 	EnrollController(context.Context, *connect.Request[control.EnrollControllerRequest]) (*connect.Response[control.EnrollControllerResponse], error)
+	ConfigureZone(context.Context, *connect.Request[control.ConfigureZoneRequest]) (*connect.Response[control.ConfigureZoneResponse], error)
 	SetZoneState(context.Context, *connect.Request[control.SetZoneStateRequest]) (*connect.Response[control.SetZoneStateResponse], error)
 	SetManualOff(context.Context, *connect.Request[control.SetManualOffRequest]) (*connect.Response[control.SetManualOffResponse], error)
 	GetDesiredState(context.Context, *connect.Request[control.GetDesiredStateRequest]) (*connect.Response[control.GetDesiredStateResponse], error)
@@ -223,6 +240,12 @@ func NewControlServiceHandler(svc ControlServiceHandler, opts ...connect.Handler
 		ControlServiceEnrollControllerProcedure,
 		svc.EnrollController,
 		connect.WithSchema(controlServiceMethods.ByName("EnrollController")),
+		connect.WithHandlerOptions(opts...),
+	)
+	controlServiceConfigureZoneHandler := connect.NewUnaryHandler(
+		ControlServiceConfigureZoneProcedure,
+		svc.ConfigureZone,
+		connect.WithSchema(controlServiceMethods.ByName("ConfigureZone")),
 		connect.WithHandlerOptions(opts...),
 	)
 	controlServiceSetZoneStateHandler := connect.NewUnaryHandler(
@@ -263,6 +286,8 @@ func NewControlServiceHandler(svc ControlServiceHandler, opts ...connect.Handler
 			controlServiceListControllersHandler.ServeHTTP(w, r)
 		case ControlServiceEnrollControllerProcedure:
 			controlServiceEnrollControllerHandler.ServeHTTP(w, r)
+		case ControlServiceConfigureZoneProcedure:
+			controlServiceConfigureZoneHandler.ServeHTTP(w, r)
 		case ControlServiceSetZoneStateProcedure:
 			controlServiceSetZoneStateHandler.ServeHTTP(w, r)
 		case ControlServiceSetManualOffProcedure:
@@ -292,6 +317,10 @@ func (UnimplementedControlServiceHandler) ListControllers(context.Context, *conn
 
 func (UnimplementedControlServiceHandler) EnrollController(context.Context, *connect.Request[control.EnrollControllerRequest]) (*connect.Response[control.EnrollControllerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.lighting_control.v1.control.ControlService.EnrollController is not implemented"))
+}
+
+func (UnimplementedControlServiceHandler) ConfigureZone(context.Context, *connect.Request[control.ConfigureZoneRequest]) (*connect.Response[control.ConfigureZoneResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("vrooli.lighting_control.v1.control.ControlService.ConfigureZone is not implemented"))
 }
 
 func (UnimplementedControlServiceHandler) SetZoneState(context.Context, *connect.Request[control.SetZoneStateRequest]) (*connect.Response[control.SetZoneStateResponse], error) {

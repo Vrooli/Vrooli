@@ -42,6 +42,13 @@ class OperationState(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     OPERATION_STATE_UNSUPPORTED: _ClassVar[OperationState]
     OPERATION_STATE_DEFERRED: _ClassVar[OperationState]
     OPERATION_STATE_BACKEND_ACKNOWLEDGED: _ClassVar[OperationState]
+
+class CachedModeReadback(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    CACHED_MODE_READBACK_UNSPECIFIED: _ClassVar[CachedModeReadback]
+    CACHED_MODE_READBACK_NOT_CHECKED: _ClassVar[CachedModeReadback]
+    CACHED_MODE_READBACK_MATCHES: _ClassVar[CachedModeReadback]
+    CACHED_MODE_READBACK_MISMATCH: _ClassVar[CachedModeReadback]
 BACKEND_STATE_UNSPECIFIED: BackendState
 BACKEND_STATE_DISABLED: BackendState
 BACKEND_STATE_UNAVAILABLE: BackendState
@@ -64,6 +71,10 @@ OPERATION_STATE_FAILED: OperationState
 OPERATION_STATE_UNSUPPORTED: OperationState
 OPERATION_STATE_DEFERRED: OperationState
 OPERATION_STATE_BACKEND_ACKNOWLEDGED: OperationState
+CACHED_MODE_READBACK_UNSPECIFIED: CachedModeReadback
+CACHED_MODE_READBACK_NOT_CHECKED: CachedModeReadback
+CACHED_MODE_READBACK_MATCHES: CachedModeReadback
+CACHED_MODE_READBACK_MISMATCH: CachedModeReadback
 
 class BackendStatus(_message.Message):
     __slots__ = ("state", "version", "sdk_protocol_version", "detail", "checked_at", "reason")
@@ -82,20 +93,30 @@ class BackendStatus(_message.Message):
     def __init__(self, state: _Optional[_Union[BackendState, str]] = ..., version: _Optional[str] = ..., sdk_protocol_version: _Optional[int] = ..., detail: _Optional[str] = ..., checked_at: _Optional[str] = ..., reason: _Optional[_Union[BackendReason, str]] = ...) -> None: ...
 
 class ZoneCapability(_message.Message):
-    __slots__ = ("zone_id", "name", "led_count", "supports_static_color", "supports_brightness", "supported_effects")
+    __slots__ = ("zone_id", "name", "led_count", "supports_static_color", "supports_brightness", "supported_effects", "supports_led_count_configuration", "min_led_count", "max_led_count", "configured_led_count", "setup_needed")
     ZONE_ID_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     LED_COUNT_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_STATIC_COLOR_FIELD_NUMBER: _ClassVar[int]
     SUPPORTS_BRIGHTNESS_FIELD_NUMBER: _ClassVar[int]
     SUPPORTED_EFFECTS_FIELD_NUMBER: _ClassVar[int]
+    SUPPORTS_LED_COUNT_CONFIGURATION_FIELD_NUMBER: _ClassVar[int]
+    MIN_LED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    MAX_LED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    CONFIGURED_LED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    SETUP_NEEDED_FIELD_NUMBER: _ClassVar[int]
     zone_id: str
     name: str
     led_count: int
     supports_static_color: bool
     supports_brightness: bool
     supported_effects: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, zone_id: _Optional[str] = ..., name: _Optional[str] = ..., led_count: _Optional[int] = ..., supports_static_color: _Optional[bool] = ..., supports_brightness: _Optional[bool] = ..., supported_effects: _Optional[_Iterable[str]] = ...) -> None: ...
+    supports_led_count_configuration: bool
+    min_led_count: int
+    max_led_count: int
+    configured_led_count: int
+    setup_needed: bool
+    def __init__(self, zone_id: _Optional[str] = ..., name: _Optional[str] = ..., led_count: _Optional[int] = ..., supports_static_color: _Optional[bool] = ..., supports_brightness: _Optional[bool] = ..., supported_effects: _Optional[_Iterable[str]] = ..., supports_led_count_configuration: _Optional[bool] = ..., min_led_count: _Optional[int] = ..., max_led_count: _Optional[int] = ..., configured_led_count: _Optional[int] = ..., setup_needed: _Optional[bool] = ...) -> None: ...
 
 class Controller(_message.Message):
     __slots__ = ("backend_id", "controller_id", "name", "vendor", "description", "enrolled", "zones", "last_seen_at", "identity_source")
@@ -162,7 +183,7 @@ class EffectZoneState(_message.Message):
     def __init__(self, effect_id: _Optional[str] = ..., color: _Optional[_Union[Color, _Mapping]] = ..., brightness_percent: _Optional[int] = ...) -> None: ...
 
 class ZoneApplyResult(_message.Message):
-    __slots__ = ("desired", "operation", "reason", "completed_at", "backend_acknowledged", "backend_ack_status", "local_write_completed")
+    __slots__ = ("desired", "operation", "reason", "completed_at", "backend_acknowledged", "backend_ack_status", "local_write_completed", "cached_mode_readback")
     DESIRED_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
     REASON_FIELD_NUMBER: _ClassVar[int]
@@ -170,6 +191,7 @@ class ZoneApplyResult(_message.Message):
     BACKEND_ACKNOWLEDGED_FIELD_NUMBER: _ClassVar[int]
     BACKEND_ACK_STATUS_FIELD_NUMBER: _ClassVar[int]
     LOCAL_WRITE_COMPLETED_FIELD_NUMBER: _ClassVar[int]
+    CACHED_MODE_READBACK_FIELD_NUMBER: _ClassVar[int]
     desired: ZoneState
     operation: OperationState
     reason: str
@@ -177,7 +199,8 @@ class ZoneApplyResult(_message.Message):
     backend_acknowledged: bool
     backend_ack_status: int
     local_write_completed: bool
-    def __init__(self, desired: _Optional[_Union[ZoneState, _Mapping]] = ..., operation: _Optional[_Union[OperationState, str]] = ..., reason: _Optional[str] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., backend_acknowledged: _Optional[bool] = ..., backend_ack_status: _Optional[int] = ..., local_write_completed: _Optional[bool] = ...) -> None: ...
+    cached_mode_readback: CachedModeReadback
+    def __init__(self, desired: _Optional[_Union[ZoneState, _Mapping]] = ..., operation: _Optional[_Union[OperationState, str]] = ..., reason: _Optional[str] = ..., completed_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., backend_acknowledged: _Optional[bool] = ..., backend_ack_status: _Optional[int] = ..., local_write_completed: _Optional[bool] = ..., cached_mode_readback: _Optional[_Union[CachedModeReadback, str]] = ...) -> None: ...
 
 class OutputObservation(_message.Message):
     __slots__ = ("state", "source", "observed_at", "evidence")
@@ -252,6 +275,24 @@ class EnrollControllerResponse(_message.Message):
     CONTROLLER_FIELD_NUMBER: _ClassVar[int]
     controller: Controller
     def __init__(self, controller: _Optional[_Union[Controller, _Mapping]] = ...) -> None: ...
+
+class ConfigureZoneRequest(_message.Message):
+    __slots__ = ("controller_id", "zone_id", "led_count")
+    CONTROLLER_ID_FIELD_NUMBER: _ClassVar[int]
+    ZONE_ID_FIELD_NUMBER: _ClassVar[int]
+    LED_COUNT_FIELD_NUMBER: _ClassVar[int]
+    controller_id: str
+    zone_id: str
+    led_count: int
+    def __init__(self, controller_id: _Optional[str] = ..., zone_id: _Optional[str] = ..., led_count: _Optional[int] = ...) -> None: ...
+
+class ConfigureZoneResponse(_message.Message):
+    __slots__ = ("zone", "results")
+    ZONE_FIELD_NUMBER: _ClassVar[int]
+    RESULTS_FIELD_NUMBER: _ClassVar[int]
+    zone: ZoneCapability
+    results: _containers.RepeatedCompositeFieldContainer[ReconcileZoneResult]
+    def __init__(self, zone: _Optional[_Union[ZoneCapability, _Mapping]] = ..., results: _Optional[_Iterable[_Union[ReconcileZoneResult, _Mapping]]] = ...) -> None: ...
 
 class SetZoneStateRequest(_message.Message):
     __slots__ = ("desired",)

@@ -1839,8 +1839,11 @@ type ExecuteEmbeddingMigrationResponse struct {
 	Processed      int32                  `protobuf:"varint,5,opt,name=processed,proto3" json:"processed,omitempty"`
 	Total          int32                  `protobuf:"varint,6,opt,name=total,proto3" json:"total,omitempty"`
 	Error          string                 `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Populated for action="capabilities" after provider negotiation.
+	MigrationProtocolVersion uint32   `protobuf:"varint,8,opt,name=migration_protocol_version,json=migrationProtocolVersion,proto3" json:"migration_protocol_version,omitempty"`
+	SupportedActions         []string `protobuf:"bytes,9,rep,name=supported_actions,json=supportedActions,proto3" json:"supported_actions,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *ExecuteEmbeddingMigrationResponse) Reset() {
@@ -1920,6 +1923,20 @@ func (x *ExecuteEmbeddingMigrationResponse) GetError() string {
 		return x.Error
 	}
 	return ""
+}
+
+func (x *ExecuteEmbeddingMigrationResponse) GetMigrationProtocolVersion() uint32 {
+	if x != nil {
+		return x.MigrationProtocolVersion
+	}
+	return 0
+}
+
+func (x *ExecuteEmbeddingMigrationResponse) GetSupportedActions() []string {
+	if x != nil {
+		return x.SupportedActions
+	}
+	return nil
 }
 
 type ListMaturityTargetsRequest struct {
@@ -2300,7 +2317,7 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x05scope\x18\t \x01(\tR\x05scope\x12\x17\n" +
 	"\adry_run\x18\n" +
 	" \x01(\bR\x06dryRun\x12\x15\n" +
-	"\x06job_id\x18\v \x01(\tR\x05jobId\"\xec\x01\n" +
+	"\x06job_id\x18\v \x01(\tR\x05jobId\"\xd7\x02\n" +
 	"!ExecuteEmbeddingMigrationResponse\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x14\n" +
 	"\x05state\x18\x02 \x01(\tR\x05state\x12'\n" +
@@ -2308,7 +2325,9 @@ const file_search_hub_v1_registry_registry_proto_rawDesc = "" +
 	"\x0fplanned_deletes\x18\x04 \x01(\x05R\x0eplannedDeletes\x12\x1c\n" +
 	"\tprocessed\x18\x05 \x01(\x05R\tprocessed\x12\x14\n" +
 	"\x05total\x18\x06 \x01(\x05R\x05total\x12\x14\n" +
-	"\x05error\x18\a \x01(\tR\x05error\"\x1c\n" +
+	"\x05error\x18\a \x01(\tR\x05error\x12<\n" +
+	"\x1amigration_protocol_version\x18\b \x01(\rR\x18migrationProtocolVersion\x12+\n" +
+	"\x11supported_actions\x18\t \x03(\tR\x10supportedActions\"\x1c\n" +
 	"\x1aListMaturityTargetsRequest\"f\n" +
 	"\x1bListMaturityTargetsResponse\x12G\n" +
 	"\atargets\x18\x01 \x03(\v2-.vrooli.search_hub.v1.registry.MaturityTargetR\atargets\"s\n" +

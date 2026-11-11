@@ -160,6 +160,9 @@ message RunRequest {
   // Caller-generated high-entropy idempotency name, not authorization. Reuse
   // with exactly the same request to recover a prior HostedDoor attempt.
   string root_operation_id = 12;
+  // privacy_class is the caller's sensitivity classification. The gateway
+  // combines it with profile and resolved candidate locality before dispatch.
+  vrooli.ai_gateway.v1.shared.PrivacyClass privacy_class = 13;
 }
 
 message RunResponse {
@@ -192,6 +195,9 @@ message RunBatchRequest {
   string schema_json = 2;
   string instruction = 3;
   string role = 4;
+  // One routing contract applies to every item in the ordered batch.
+  vrooli.ai_gateway.v1.shared.Profile profile = 5;
+  vrooli.ai_gateway.v1.shared.PrivacyClass privacy_class = 6;
 }
 
 message RunBatchResponse {
@@ -273,6 +279,8 @@ message DecideRequest {
   // profile carries the caller's locality stance; LOCAL_ONLY never leaves the
   // host and REMOTE_ONLY never runs a local candidate.
   vrooli.ai_gateway.v1.shared.Profile profile = 5;
+  // privacy_class participates in the same eligibility policy as routing Run.
+  vrooli.ai_gateway.v1.shared.PrivacyClass privacy_class = 6;
 }
 
 message DecisionProbability {
@@ -373,6 +381,7 @@ message DecideBatchRequest {
   repeated DecisionQuestion questions = 2;
   repeated DecideBatchItem items = 3;
   vrooli.ai_gateway.v1.shared.Profile profile = 4;
+  vrooli.ai_gateway.v1.shared.PrivacyClass privacy_class = 5;
 }
 
 message DecideBatchResponse {

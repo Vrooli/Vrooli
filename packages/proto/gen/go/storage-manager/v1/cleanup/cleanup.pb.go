@@ -1166,13 +1166,25 @@ func (x *ProviderPlan) GetApprovalMode() string {
 }
 
 type PreviewItem struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	Bytes         int64                  `protobuf:"varint,4,opt,name=bytes,proto3" json:"bytes,omitempty"`
-	Action        string                 `protobuf:"bytes,5,opt,name=action,proto3" json:"action,omitempty"`
-	SafetyTier    string                 `protobuf:"bytes,6,opt,name=safety_tier,json=safetyTier,proto3" json:"safety_tier,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Path        string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Description string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Bytes       int64                  `protobuf:"varint,4,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	Action      string                 `protobuf:"bytes,5,opt,name=action,proto3" json:"action,omitempty"`
+	SafetyTier  string                 `protobuf:"bytes,6,opt,name=safety_tier,json=safetyTier,proto3" json:"safety_tier,omitempty"`
+	// Host-local filesystem identity captured during preview. Review metadata
+	// only; ApplyPlan does not treat this client-visible value as authority.
+	ObjectIdentity string `protobuf:"bytes,7,opt,name=object_identity,json=objectIdentity,proto3" json:"object_identity,omitempty"`
+	// Modification time captured by the provider during preview. ApplyPlan
+	// rechecks current provider state.
+	ModifiedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=modified_at,json=modifiedAt,proto3" json:"modified_at,omitempty"`
+	// Age at Plan.created_at in whole seconds. A zero value alone is ambiguous;
+	// consult age_known. This is review metadata, never disposal authority.
+	AgeSeconds int64 `protobuf:"varint,9,opt,name=age_seconds,json=ageSeconds,proto3" json:"age_seconds,omitempty"`
+	// Whether the provider supplied a modification time. False means age is
+	// unknown, not that the item is new or safe.
+	AgeKnown      bool `protobuf:"varint,10,opt,name=age_known,json=ageKnown,proto3" json:"age_known,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1247,6 +1259,34 @@ func (x *PreviewItem) GetSafetyTier() string {
 		return x.SafetyTier
 	}
 	return ""
+}
+
+func (x *PreviewItem) GetObjectIdentity() string {
+	if x != nil {
+		return x.ObjectIdentity
+	}
+	return ""
+}
+
+func (x *PreviewItem) GetModifiedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ModifiedAt
+	}
+	return nil
+}
+
+func (x *PreviewItem) GetAgeSeconds() int64 {
+	if x != nil {
+		return x.AgeSeconds
+	}
+	return 0
+}
+
+func (x *PreviewItem) GetAgeKnown() bool {
+	if x != nil {
+		return x.AgeKnown
+	}
+	return false
 }
 
 type ApplyPlanRequest struct {
@@ -2410,7 +2450,7 @@ const file_storage_manager_v1_cleanup_cleanup_proto_rawDesc = "" +
 	"\x0eblocked_reason\x18\x05 \x01(\tR\rblockedReason\x12D\n" +
 	"\x05items\x18\x06 \x03(\v2..vrooli.cleanup_manager.v1.cleanup.PreviewItemR\x05items\x12\x1a\n" +
 	"\bwarnings\x18\a \x03(\tR\bwarnings\x12#\n" +
-	"\rapproval_mode\x18\b \x01(\tR\fapprovalMode\"\xa2\x01\n" +
+	"\rapproval_mode\x18\b \x01(\tR\fapprovalMode\"\xc6\x02\n" +
 	"\vPreviewItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04path\x18\x02 \x01(\tR\x04path\x12 \n" +
@@ -2418,7 +2458,14 @@ const file_storage_manager_v1_cleanup_cleanup_proto_rawDesc = "" +
 	"\x05bytes\x18\x04 \x01(\x03R\x05bytes\x12\x16\n" +
 	"\x06action\x18\x05 \x01(\tR\x06action\x12\x1f\n" +
 	"\vsafety_tier\x18\x06 \x01(\tR\n" +
-	"safetyTier\"\xe2\x01\n" +
+	"safetyTier\x12'\n" +
+	"\x0fobject_identity\x18\a \x01(\tR\x0eobjectIdentity\x12;\n" +
+	"\vmodified_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"modifiedAt\x12\x1f\n" +
+	"\vage_seconds\x18\t \x01(\x03R\n" +
+	"ageSeconds\x12\x1b\n" +
+	"\tage_known\x18\n" +
+	" \x01(\bR\bageKnown\"\xe2\x01\n" +
 	"\x10ApplyPlanRequest\x12\x17\n" +
 	"\aplan_id\x18\x01 \x01(\tR\x06planId\x12%\n" +
 	"\x0epolicy_version\x18\x02 \x01(\tR\rpolicyVersion\x12#\n" +
@@ -2615,45 +2662,46 @@ var file_storage_manager_v1_cleanup_cleanup_proto_depIdxs = []int32{
 	34, // 9: vrooli.cleanup_manager.v1.cleanup.Plan.census_started_at:type_name -> google.protobuf.Timestamp
 	34, // 10: vrooli.cleanup_manager.v1.cleanup.Plan.census_completed_at:type_name -> google.protobuf.Timestamp
 	19, // 11: vrooli.cleanup_manager.v1.cleanup.ProviderPlan.items:type_name -> vrooli.cleanup_manager.v1.cleanup.PreviewItem
-	22, // 12: vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse.results:type_name -> vrooli.cleanup_manager.v1.cleanup.ApplyResult
-	25, // 13: vrooli.cleanup_manager.v1.cleanup.ListAuditResponse.events:type_name -> vrooli.cleanup_manager.v1.cleanup.AuditEvent
-	34, // 14: vrooli.cleanup_manager.v1.cleanup.AuditEvent.time:type_name -> google.protobuf.Timestamp
-	1,  // 15: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.band:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureBand
-	26, // 16: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.hot_writers:type_name -> vrooli.cleanup_manager.v1.cleanup.HotWriter
-	2,  // 17: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.trigger:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureTrigger
-	1,  // 18: vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse.band:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureBand
-	3,  // 19: vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse.action:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureAction
-	2,  // 20: vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest.trigger:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureTrigger
-	34, // 21: vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse.started_at:type_name -> google.protobuf.Timestamp
-	34, // 22: vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse.completed_at:type_name -> google.protobuf.Timestamp
-	32, // 23: vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse.runs:type_name -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
-	4,  // 24: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListProviders:input_type -> vrooli.cleanup_manager.v1.cleanup.ListProvidersRequest
-	7,  // 25: vrooli.cleanup_manager.v1.cleanup.CleanupService.GetPolicy:input_type -> vrooli.cleanup_manager.v1.cleanup.GetPolicyRequest
-	9,  // 26: vrooli.cleanup_manager.v1.cleanup.CleanupService.SetPolicyProfile:input_type -> vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileRequest
-	11, // 27: vrooli.cleanup_manager.v1.cleanup.CleanupService.ConfigureTemporaryRetention:input_type -> vrooli.cleanup_manager.v1.cleanup.ConfigureTemporaryRetentionRequest
-	15, // 28: vrooli.cleanup_manager.v1.cleanup.CleanupService.CreatePlan:input_type -> vrooli.cleanup_manager.v1.cleanup.CreatePlanRequest
-	20, // 29: vrooli.cleanup_manager.v1.cleanup.CleanupService.ApplyPlan:input_type -> vrooli.cleanup_manager.v1.cleanup.ApplyPlanRequest
-	23, // 30: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListAudit:input_type -> vrooli.cleanup_manager.v1.cleanup.ListAuditRequest
-	27, // 31: vrooli.cleanup_manager.v1.cleanup.CleanupService.ReportPressure:input_type -> vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest
-	29, // 32: vrooli.cleanup_manager.v1.cleanup.CleanupService.StartRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest
-	30, // 33: vrooli.cleanup_manager.v1.cleanup.CleanupService.WaitRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryWaitRequest
-	31, // 34: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryRequest
-	5,  // 35: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListProviders:output_type -> vrooli.cleanup_manager.v1.cleanup.ListProvidersResponse
-	8,  // 36: vrooli.cleanup_manager.v1.cleanup.CleanupService.GetPolicy:output_type -> vrooli.cleanup_manager.v1.cleanup.GetPolicyResponse
-	10, // 37: vrooli.cleanup_manager.v1.cleanup.CleanupService.SetPolicyProfile:output_type -> vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileResponse
-	12, // 38: vrooli.cleanup_manager.v1.cleanup.CleanupService.ConfigureTemporaryRetention:output_type -> vrooli.cleanup_manager.v1.cleanup.ConfigureTemporaryRetentionResponse
-	16, // 39: vrooli.cleanup_manager.v1.cleanup.CleanupService.CreatePlan:output_type -> vrooli.cleanup_manager.v1.cleanup.CreatePlanResponse
-	21, // 40: vrooli.cleanup_manager.v1.cleanup.CleanupService.ApplyPlan:output_type -> vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse
-	24, // 41: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListAudit:output_type -> vrooli.cleanup_manager.v1.cleanup.ListAuditResponse
-	28, // 42: vrooli.cleanup_manager.v1.cleanup.CleanupService.ReportPressure:output_type -> vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse
-	32, // 43: vrooli.cleanup_manager.v1.cleanup.CleanupService.StartRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
-	32, // 44: vrooli.cleanup_manager.v1.cleanup.CleanupService.WaitRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
-	33, // 45: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse
-	35, // [35:46] is the sub-list for method output_type
-	24, // [24:35] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	34, // 12: vrooli.cleanup_manager.v1.cleanup.PreviewItem.modified_at:type_name -> google.protobuf.Timestamp
+	22, // 13: vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse.results:type_name -> vrooli.cleanup_manager.v1.cleanup.ApplyResult
+	25, // 14: vrooli.cleanup_manager.v1.cleanup.ListAuditResponse.events:type_name -> vrooli.cleanup_manager.v1.cleanup.AuditEvent
+	34, // 15: vrooli.cleanup_manager.v1.cleanup.AuditEvent.time:type_name -> google.protobuf.Timestamp
+	1,  // 16: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.band:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureBand
+	26, // 17: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.hot_writers:type_name -> vrooli.cleanup_manager.v1.cleanup.HotWriter
+	2,  // 18: vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest.trigger:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureTrigger
+	1,  // 19: vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse.band:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureBand
+	3,  // 20: vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse.action:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureAction
+	2,  // 21: vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest.trigger:type_name -> vrooli.cleanup_manager.v1.cleanup.PressureTrigger
+	34, // 22: vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse.started_at:type_name -> google.protobuf.Timestamp
+	34, // 23: vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse.completed_at:type_name -> google.protobuf.Timestamp
+	32, // 24: vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse.runs:type_name -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
+	4,  // 25: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListProviders:input_type -> vrooli.cleanup_manager.v1.cleanup.ListProvidersRequest
+	7,  // 26: vrooli.cleanup_manager.v1.cleanup.CleanupService.GetPolicy:input_type -> vrooli.cleanup_manager.v1.cleanup.GetPolicyRequest
+	9,  // 27: vrooli.cleanup_manager.v1.cleanup.CleanupService.SetPolicyProfile:input_type -> vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileRequest
+	11, // 28: vrooli.cleanup_manager.v1.cleanup.CleanupService.ConfigureTemporaryRetention:input_type -> vrooli.cleanup_manager.v1.cleanup.ConfigureTemporaryRetentionRequest
+	15, // 29: vrooli.cleanup_manager.v1.cleanup.CleanupService.CreatePlan:input_type -> vrooli.cleanup_manager.v1.cleanup.CreatePlanRequest
+	20, // 30: vrooli.cleanup_manager.v1.cleanup.CleanupService.ApplyPlan:input_type -> vrooli.cleanup_manager.v1.cleanup.ApplyPlanRequest
+	23, // 31: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListAudit:input_type -> vrooli.cleanup_manager.v1.cleanup.ListAuditRequest
+	27, // 32: vrooli.cleanup_manager.v1.cleanup.CleanupService.ReportPressure:input_type -> vrooli.cleanup_manager.v1.cleanup.ReportPressureRequest
+	29, // 33: vrooli.cleanup_manager.v1.cleanup.CleanupService.StartRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunRequest
+	30, // 34: vrooli.cleanup_manager.v1.cleanup.CleanupService.WaitRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryWaitRequest
+	31, // 35: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListRecovery:input_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryRequest
+	5,  // 36: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListProviders:output_type -> vrooli.cleanup_manager.v1.cleanup.ListProvidersResponse
+	8,  // 37: vrooli.cleanup_manager.v1.cleanup.CleanupService.GetPolicy:output_type -> vrooli.cleanup_manager.v1.cleanup.GetPolicyResponse
+	10, // 38: vrooli.cleanup_manager.v1.cleanup.CleanupService.SetPolicyProfile:output_type -> vrooli.cleanup_manager.v1.cleanup.SetPolicyProfileResponse
+	12, // 39: vrooli.cleanup_manager.v1.cleanup.CleanupService.ConfigureTemporaryRetention:output_type -> vrooli.cleanup_manager.v1.cleanup.ConfigureTemporaryRetentionResponse
+	16, // 40: vrooli.cleanup_manager.v1.cleanup.CleanupService.CreatePlan:output_type -> vrooli.cleanup_manager.v1.cleanup.CreatePlanResponse
+	21, // 41: vrooli.cleanup_manager.v1.cleanup.CleanupService.ApplyPlan:output_type -> vrooli.cleanup_manager.v1.cleanup.ApplyPlanResponse
+	24, // 42: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListAudit:output_type -> vrooli.cleanup_manager.v1.cleanup.ListAuditResponse
+	28, // 43: vrooli.cleanup_manager.v1.cleanup.CleanupService.ReportPressure:output_type -> vrooli.cleanup_manager.v1.cleanup.ReportPressureResponse
+	32, // 44: vrooli.cleanup_manager.v1.cleanup.CleanupService.StartRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
+	32, // 45: vrooli.cleanup_manager.v1.cleanup.CleanupService.WaitRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryRunResponse
+	33, // 46: vrooli.cleanup_manager.v1.cleanup.CleanupService.ListRecovery:output_type -> vrooli.cleanup_manager.v1.cleanup.RecoveryHistoryResponse
+	36, // [36:47] is the sub-list for method output_type
+	25, // [25:36] is the sub-list for method input_type
+	25, // [25:25] is the sub-list for extension type_name
+	25, // [25:25] is the sub-list for extension extendee
+	0,  // [0:25] is the sub-list for field type_name
 }
 
 func init() { file_storage_manager_v1_cleanup_cleanup_proto_init() }

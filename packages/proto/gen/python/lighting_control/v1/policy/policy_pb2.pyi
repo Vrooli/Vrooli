@@ -58,8 +58,28 @@ class Preset(_message.Message):
     enabled: bool
     def __init__(self, kind: _Optional[_Union[PresetKind, str]] = ..., label: _Optional[str] = ..., color: _Optional[_Union[_control_pb2.Color, _Mapping]] = ..., brightness_cap_percent: _Optional[int] = ..., effect_id: _Optional[str] = ..., enabled: _Optional[bool] = ...) -> None: ...
 
+class HealthPalette(_message.Message):
+    __slots__ = ("healthy", "attention", "failure")
+    HEALTHY_FIELD_NUMBER: _ClassVar[int]
+    ATTENTION_FIELD_NUMBER: _ClassVar[int]
+    FAILURE_FIELD_NUMBER: _ClassVar[int]
+    healthy: _control_pb2.Color
+    attention: _control_pb2.Color
+    failure: _control_pb2.Color
+    def __init__(self, healthy: _Optional[_Union[_control_pb2.Color, _Mapping]] = ..., attention: _Optional[_Union[_control_pb2.Color, _Mapping]] = ..., failure: _Optional[_Union[_control_pb2.Color, _Mapping]] = ...) -> None: ...
+
+class ActivityEffects(_message.Message):
+    __slots__ = ("active_effect_id", "busy_effect_id", "busy_agent_threshold")
+    ACTIVE_EFFECT_ID_FIELD_NUMBER: _ClassVar[int]
+    BUSY_EFFECT_ID_FIELD_NUMBER: _ClassVar[int]
+    BUSY_AGENT_THRESHOLD_FIELD_NUMBER: _ClassVar[int]
+    active_effect_id: str
+    busy_effect_id: str
+    busy_agent_threshold: int
+    def __init__(self, active_effect_id: _Optional[str] = ..., busy_effect_id: _Optional[str] = ..., busy_agent_threshold: _Optional[int] = ...) -> None: ...
+
 class PolicyConfig(_message.Message):
-    __slots__ = ("default_preset", "presets", "source_max_age_seconds", "load_enter_percent", "load_exit_percent", "debounce_seconds", "brightness_cap_percent", "stale_fallback_color", "stale_fallback_brightness_percent")
+    __slots__ = ("default_preset", "presets", "source_max_age_seconds", "load_enter_percent", "load_exit_percent", "debounce_seconds", "brightness_cap_percent", "stale_fallback_color", "stale_fallback_brightness_percent", "health_palette", "activity_effects")
     DEFAULT_PRESET_FIELD_NUMBER: _ClassVar[int]
     PRESETS_FIELD_NUMBER: _ClassVar[int]
     SOURCE_MAX_AGE_SECONDS_FIELD_NUMBER: _ClassVar[int]
@@ -69,6 +89,8 @@ class PolicyConfig(_message.Message):
     BRIGHTNESS_CAP_PERCENT_FIELD_NUMBER: _ClassVar[int]
     STALE_FALLBACK_COLOR_FIELD_NUMBER: _ClassVar[int]
     STALE_FALLBACK_BRIGHTNESS_PERCENT_FIELD_NUMBER: _ClassVar[int]
+    HEALTH_PALETTE_FIELD_NUMBER: _ClassVar[int]
+    ACTIVITY_EFFECTS_FIELD_NUMBER: _ClassVar[int]
     default_preset: PresetKind
     presets: _containers.RepeatedCompositeFieldContainer[Preset]
     source_max_age_seconds: int
@@ -78,7 +100,9 @@ class PolicyConfig(_message.Message):
     brightness_cap_percent: int
     stale_fallback_color: _control_pb2.Color
     stale_fallback_brightness_percent: int
-    def __init__(self, default_preset: _Optional[_Union[PresetKind, str]] = ..., presets: _Optional[_Iterable[_Union[Preset, _Mapping]]] = ..., source_max_age_seconds: _Optional[int] = ..., load_enter_percent: _Optional[int] = ..., load_exit_percent: _Optional[int] = ..., debounce_seconds: _Optional[int] = ..., brightness_cap_percent: _Optional[int] = ..., stale_fallback_color: _Optional[_Union[_control_pb2.Color, _Mapping]] = ..., stale_fallback_brightness_percent: _Optional[int] = ...) -> None: ...
+    health_palette: HealthPalette
+    activity_effects: ActivityEffects
+    def __init__(self, default_preset: _Optional[_Union[PresetKind, str]] = ..., presets: _Optional[_Iterable[_Union[Preset, _Mapping]]] = ..., source_max_age_seconds: _Optional[int] = ..., load_enter_percent: _Optional[int] = ..., load_exit_percent: _Optional[int] = ..., debounce_seconds: _Optional[int] = ..., brightness_cap_percent: _Optional[int] = ..., stale_fallback_color: _Optional[_Union[_control_pb2.Color, _Mapping]] = ..., stale_fallback_brightness_percent: _Optional[int] = ..., health_palette: _Optional[_Union[HealthPalette, _Mapping]] = ..., activity_effects: _Optional[_Union[ActivityEffects, _Mapping]] = ...) -> None: ...
 
 class EvidenceSource(_message.Message):
     __slots__ = ("source", "state", "observed_at", "source_timestamp", "reason", "measurements")

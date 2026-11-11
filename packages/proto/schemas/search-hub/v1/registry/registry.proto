@@ -401,6 +401,9 @@ message ExecuteEmbeddingMigrationResponse {
   int32 processed = 5;
   int32 total = 6;
   string error = 7;
+  // Populated for action="capabilities" after provider negotiation.
+  uint32 migration_protocol_version = 8;
+  repeated string supported_actions = 9;
 }
 
 message ListMaturityTargetsRequest {}

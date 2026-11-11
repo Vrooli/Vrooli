@@ -388,6 +388,12 @@ type CreateAndRunRehearsalRequest struct {
 	// Select exactly one trigger node when an export contains multiple trigger
 	// families; omitted is valid only when the imported workflow has one.
 	TriggerNodeId string `protobuf:"bytes,6,opt,name=trigger_node_id,json=triggerNodeId,proto3" json:"trigger_node_id,omitempty"`
+	// Require these bounded dotted JSON paths to exist in the synthetic final
+	// graph output. Only paths are recorded in assertion traces, never values.
+	RequiredOutputPaths []string `protobuf:"bytes,7,rep,name=required_output_paths,json=requiredOutputPaths,proto3" json:"required_output_paths,omitempty"`
+	// Link a changed workflow revision to the failed run whose required outputs
+	// it repairs. The simulator source and exact failed paths must match.
+	RepairOfId    string `protobuf:"bytes,8,opt,name=repair_of_id,json=repairOfId,proto3" json:"repair_of_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -460,6 +466,20 @@ func (x *CreateAndRunRehearsalRequest) GetSimulatorSourceJson() string {
 func (x *CreateAndRunRehearsalRequest) GetTriggerNodeId() string {
 	if x != nil {
 		return x.TriggerNodeId
+	}
+	return ""
+}
+
+func (x *CreateAndRunRehearsalRequest) GetRequiredOutputPaths() []string {
+	if x != nil {
+		return x.RequiredOutputPaths
+	}
+	return nil
+}
+
+func (x *CreateAndRunRehearsalRequest) GetRepairOfId() string {
+	if x != nil {
+		return x.RepairOfId
 	}
 	return ""
 }
@@ -822,14 +842,17 @@ const file_client_rehearsal_v1_rehearsals_rehearsals_proto_rawDesc = "" +
 	"\x10response_summary\x18\x04 \x01(\tR\x0fresponseSummary\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12;\n" +
 	"\voccurred_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"occurredAt\"\x92\x02\n" +
+	"occurredAt\"\xe8\x02\n" +
 	"\x1cCreateAndRunRehearsalRequest\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12#\n" +
 	"\rworkflow_json\x18\x02 \x01(\tR\fworkflowJson\x12+\n" +
 	"\x11simulator_profile\x18\x03 \x01(\tR\x10simulatorProfile\x12.\n" +
 	"\x13inject_seeded_fault\x18\x04 \x01(\bR\x11injectSeededFault\x122\n" +
 	"\x15simulator_source_json\x18\x05 \x01(\tR\x13simulatorSourceJson\x12&\n" +
-	"\x0ftrigger_node_id\x18\x06 \x01(\tR\rtriggerNodeId\"o\n" +
+	"\x0ftrigger_node_id\x18\x06 \x01(\tR\rtriggerNodeId\x122\n" +
+	"\x15required_output_paths\x18\a \x03(\tR\x13requiredOutputPaths\x12 \n" +
+	"\frepair_of_id\x18\b \x01(\tR\n" +
+	"repairOfId\"o\n" +
 	"\x1dCreateAndRunRehearsalResponse\x12N\n" +
 	"\trehearsal\x18\x01 \x01(\v20.vrooli.client_rehearsal.v1.rehearsals.RehearsalR\trehearsal\"-\n" +
 	"\x15ListRehearsalsRequest\x12\x14\n" +

@@ -50,6 +50,9 @@ service SessionsService {
   // DeliverNativePrompt routes text through the exact live provider owner bound
   // to this Web Console session. It never writes to the session PTY.
   rpc DeliverNativePrompt(DeliverNativePromptRequest) returns (DeliverNativePromptResponse);
+  // SetNativeGoal mutates Codex's provider-owned goal for the exact session
+  // generation. The request never enters a PTY.
+  rpc SetNativeGoal(SetNativeGoalRequest) returns (SetNativeGoalResponse);
   rpc Archive(ArchiveRequest) returns (ArchiveResponse);
   rpc Unarchive(UnarchiveRequest) returns (UnarchiveResponse);
   rpc Delete(DeleteRequest) returns (DeleteResponse);
@@ -97,12 +100,40 @@ message DeliverNativePromptRequest {
   // new turn and is accepted only when the owner has no active turn.
   string expected_turn_id = 4;
   string source = 5;
+  // Exact native-owner generation observed by the caller. The receiving
+  // session owner compares it while holding its registry generation fence.
+  string expected_native_owner = 6;
 }
 
 message DeliverNativePromptResponse {
   string thread_id = 1;
   string turn_id = 2;
   string delivery = 3;
+}
+
+// Mutation provenance is distinct from caller identity and operation authority.
+enum NativeGoalMutationOrigin {
+  NATIVE_GOAL_MUTATION_ORIGIN_UNSPECIFIED = 0;
+  NATIVE_GOAL_MUTATION_ORIGIN_USER_DIRECTED = 1;
+  NATIVE_GOAL_MUTATION_ORIGIN_AUTOMATIC = 2;
+}
+
+message SetNativeGoalRequest {
+  string session_id = 1;
+  string expected_native_owner = 2;
+  string expected_thread_id = 3;
+  string objective = 4;
+  string status = 5; // active | paused | blocked | complete
+  optional int64 token_budget = 6;
+  // User-directed intent is accepted only from a verified human or the
+  // Agent Manager service carrying its server-derived admission decision.
+  NativeGoalMutationOrigin origin = 7;
+}
+
+message SetNativeGoalResponse {
+  string thread_id = 1;
+  string status = 2;
+  string objective = 3;
 }
 
 // -----------------------------------------------------------------------------

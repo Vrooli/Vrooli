@@ -85,20 +85,24 @@ class TraceEvent(_message.Message):
     def __init__(self, sequence: _Optional[int] = ..., operation: _Optional[str] = ..., request_summary: _Optional[str] = ..., response_summary: _Optional[str] = ..., status: _Optional[str] = ..., occurred_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
 
 class CreateAndRunRehearsalRequest(_message.Message):
-    __slots__ = ("title", "workflow_json", "simulator_profile", "inject_seeded_fault", "simulator_source_json", "trigger_node_id")
+    __slots__ = ("title", "workflow_json", "simulator_profile", "inject_seeded_fault", "simulator_source_json", "trigger_node_id", "required_output_paths", "repair_of_id")
     TITLE_FIELD_NUMBER: _ClassVar[int]
     WORKFLOW_JSON_FIELD_NUMBER: _ClassVar[int]
     SIMULATOR_PROFILE_FIELD_NUMBER: _ClassVar[int]
     INJECT_SEEDED_FAULT_FIELD_NUMBER: _ClassVar[int]
     SIMULATOR_SOURCE_JSON_FIELD_NUMBER: _ClassVar[int]
     TRIGGER_NODE_ID_FIELD_NUMBER: _ClassVar[int]
+    REQUIRED_OUTPUT_PATHS_FIELD_NUMBER: _ClassVar[int]
+    REPAIR_OF_ID_FIELD_NUMBER: _ClassVar[int]
     title: str
     workflow_json: str
     simulator_profile: str
     inject_seeded_fault: bool
     simulator_source_json: str
     trigger_node_id: str
-    def __init__(self, title: _Optional[str] = ..., workflow_json: _Optional[str] = ..., simulator_profile: _Optional[str] = ..., inject_seeded_fault: _Optional[bool] = ..., simulator_source_json: _Optional[str] = ..., trigger_node_id: _Optional[str] = ...) -> None: ...
+    required_output_paths: _containers.RepeatedScalarFieldContainer[str]
+    repair_of_id: str
+    def __init__(self, title: _Optional[str] = ..., workflow_json: _Optional[str] = ..., simulator_profile: _Optional[str] = ..., inject_seeded_fault: _Optional[bool] = ..., simulator_source_json: _Optional[str] = ..., trigger_node_id: _Optional[str] = ..., required_output_paths: _Optional[_Iterable[str]] = ..., repair_of_id: _Optional[str] = ...) -> None: ...
 
 class CreateAndRunRehearsalResponse(_message.Message):
     __slots__ = ("rehearsal",)

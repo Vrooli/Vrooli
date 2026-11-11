@@ -193,7 +193,7 @@ class RecoveryReceipt(_message.Message):
     def __init__(self, attempt_reference: _Optional[str] = ..., state: _Optional[_Union[RecoveryReceiptState, str]] = ..., accounting_status: _Optional[str] = ..., charged_credits: _Optional[int] = ...) -> None: ...
 
 class RunRequest(_message.Message):
-    __slots__ = ("source", "schema_json", "instruction", "role", "turns", "attachments", "profile", "sampling", "max_output_tokens", "max_provider_calls", "spend_limit", "root_operation_id")
+    __slots__ = ("source", "schema_json", "instruction", "role", "turns", "attachments", "profile", "sampling", "max_output_tokens", "max_provider_calls", "spend_limit", "root_operation_id", "privacy_class")
     SOURCE_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_JSON_FIELD_NUMBER: _ClassVar[int]
     INSTRUCTION_FIELD_NUMBER: _ClassVar[int]
@@ -206,6 +206,7 @@ class RunRequest(_message.Message):
     MAX_PROVIDER_CALLS_FIELD_NUMBER: _ClassVar[int]
     SPEND_LIMIT_FIELD_NUMBER: _ClassVar[int]
     ROOT_OPERATION_ID_FIELD_NUMBER: _ClassVar[int]
+    PRIVACY_CLASS_FIELD_NUMBER: _ClassVar[int]
     source: str
     schema_json: str
     instruction: str
@@ -218,7 +219,8 @@ class RunRequest(_message.Message):
     max_provider_calls: int
     spend_limit: SpendLimit
     root_operation_id: str
-    def __init__(self, source: _Optional[str] = ..., schema_json: _Optional[str] = ..., instruction: _Optional[str] = ..., role: _Optional[str] = ..., turns: _Optional[_Iterable[_Union[Turn, _Mapping]]] = ..., attachments: _Optional[_Iterable[_Union[_gateway_pb2.Attachment, _Mapping]]] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., sampling: _Optional[_Union[_gateway_pb2.SamplingControls, _Mapping]] = ..., max_output_tokens: _Optional[int] = ..., max_provider_calls: _Optional[int] = ..., spend_limit: _Optional[_Union[SpendLimit, _Mapping]] = ..., root_operation_id: _Optional[str] = ...) -> None: ...
+    privacy_class: _gateway_pb2.PrivacyClass
+    def __init__(self, source: _Optional[str] = ..., schema_json: _Optional[str] = ..., instruction: _Optional[str] = ..., role: _Optional[str] = ..., turns: _Optional[_Iterable[_Union[Turn, _Mapping]]] = ..., attachments: _Optional[_Iterable[_Union[_gateway_pb2.Attachment, _Mapping]]] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., sampling: _Optional[_Union[_gateway_pb2.SamplingControls, _Mapping]] = ..., max_output_tokens: _Optional[int] = ..., max_provider_calls: _Optional[int] = ..., spend_limit: _Optional[_Union[SpendLimit, _Mapping]] = ..., root_operation_id: _Optional[str] = ..., privacy_class: _Optional[_Union[_gateway_pb2.PrivacyClass, str]] = ...) -> None: ...
 
 class RunResponse(_message.Message):
     __slots__ = ("value_json", "provider", "model", "validated", "usage", "error", "applied", "provider_calls_made", "spend_authorization", "recovery")
@@ -251,16 +253,20 @@ class RunBatchItem(_message.Message):
     def __init__(self, source: _Optional[str] = ...) -> None: ...
 
 class RunBatchRequest(_message.Message):
-    __slots__ = ("items", "schema_json", "instruction", "role")
+    __slots__ = ("items", "schema_json", "instruction", "role", "profile", "privacy_class")
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     SCHEMA_JSON_FIELD_NUMBER: _ClassVar[int]
     INSTRUCTION_FIELD_NUMBER: _ClassVar[int]
     ROLE_FIELD_NUMBER: _ClassVar[int]
+    PROFILE_FIELD_NUMBER: _ClassVar[int]
+    PRIVACY_CLASS_FIELD_NUMBER: _ClassVar[int]
     items: _containers.RepeatedCompositeFieldContainer[RunBatchItem]
     schema_json: str
     instruction: str
     role: str
-    def __init__(self, items: _Optional[_Iterable[_Union[RunBatchItem, _Mapping]]] = ..., schema_json: _Optional[str] = ..., instruction: _Optional[str] = ..., role: _Optional[str] = ...) -> None: ...
+    profile: _gateway_pb2.Profile
+    privacy_class: _gateway_pb2.PrivacyClass
+    def __init__(self, items: _Optional[_Iterable[_Union[RunBatchItem, _Mapping]]] = ..., schema_json: _Optional[str] = ..., instruction: _Optional[str] = ..., role: _Optional[str] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., privacy_class: _Optional[_Union[_gateway_pb2.PrivacyClass, str]] = ...) -> None: ...
 
 class RunBatchResponse(_message.Message):
     __slots__ = ("results", "usage")
@@ -329,18 +335,20 @@ class DecisionQuestion(_message.Message):
     def __init__(self, id: _Optional[str] = ..., type: _Optional[_Union[DecisionQuestionType, str]] = ..., instructions: _Optional[str] = ..., options: _Optional[_Iterable[_Union[DecisionOption, _Mapping]]] = ..., levels: _Optional[_Iterable[str]] = ..., true_description: _Optional[str] = ..., false_description: _Optional[str] = ...) -> None: ...
 
 class DecideRequest(_message.Message):
-    __slots__ = ("role", "state", "state_json", "questions", "profile")
+    __slots__ = ("role", "state", "state_json", "questions", "profile", "privacy_class")
     ROLE_FIELD_NUMBER: _ClassVar[int]
     STATE_FIELD_NUMBER: _ClassVar[int]
     STATE_JSON_FIELD_NUMBER: _ClassVar[int]
     QUESTIONS_FIELD_NUMBER: _ClassVar[int]
     PROFILE_FIELD_NUMBER: _ClassVar[int]
+    PRIVACY_CLASS_FIELD_NUMBER: _ClassVar[int]
     role: str
     state: str
     state_json: str
     questions: _containers.RepeatedCompositeFieldContainer[DecisionQuestion]
     profile: _gateway_pb2.Profile
-    def __init__(self, role: _Optional[str] = ..., state: _Optional[str] = ..., state_json: _Optional[str] = ..., questions: _Optional[_Iterable[_Union[DecisionQuestion, _Mapping]]] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ...) -> None: ...
+    privacy_class: _gateway_pb2.PrivacyClass
+    def __init__(self, role: _Optional[str] = ..., state: _Optional[str] = ..., state_json: _Optional[str] = ..., questions: _Optional[_Iterable[_Union[DecisionQuestion, _Mapping]]] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., privacy_class: _Optional[_Union[_gateway_pb2.PrivacyClass, str]] = ...) -> None: ...
 
 class DecisionProbability(_message.Message):
     __slots__ = ("option", "probability")
@@ -419,16 +427,18 @@ class DecideBatchItem(_message.Message):
     def __init__(self, state: _Optional[str] = ..., state_json: _Optional[str] = ...) -> None: ...
 
 class DecideBatchRequest(_message.Message):
-    __slots__ = ("role", "questions", "items", "profile")
+    __slots__ = ("role", "questions", "items", "profile", "privacy_class")
     ROLE_FIELD_NUMBER: _ClassVar[int]
     QUESTIONS_FIELD_NUMBER: _ClassVar[int]
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     PROFILE_FIELD_NUMBER: _ClassVar[int]
+    PRIVACY_CLASS_FIELD_NUMBER: _ClassVar[int]
     role: str
     questions: _containers.RepeatedCompositeFieldContainer[DecisionQuestion]
     items: _containers.RepeatedCompositeFieldContainer[DecideBatchItem]
     profile: _gateway_pb2.Profile
-    def __init__(self, role: _Optional[str] = ..., questions: _Optional[_Iterable[_Union[DecisionQuestion, _Mapping]]] = ..., items: _Optional[_Iterable[_Union[DecideBatchItem, _Mapping]]] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ...) -> None: ...
+    privacy_class: _gateway_pb2.PrivacyClass
+    def __init__(self, role: _Optional[str] = ..., questions: _Optional[_Iterable[_Union[DecisionQuestion, _Mapping]]] = ..., items: _Optional[_Iterable[_Union[DecideBatchItem, _Mapping]]] = ..., profile: _Optional[_Union[_gateway_pb2.Profile, str]] = ..., privacy_class: _Optional[_Union[_gateway_pb2.PrivacyClass, str]] = ...) -> None: ...
 
 class DecideBatchResponse(_message.Message):
     __slots__ = ("results", "usage")

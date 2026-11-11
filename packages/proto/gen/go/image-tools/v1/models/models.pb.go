@@ -1107,6 +1107,8 @@ type SelectModelRequest struct {
 	// model. Empty quality_policy keeps the historical "balanced" ordering.
 	QualityPolicy string `protobuf:"bytes,3,opt,name=quality_policy,json=qualityPolicy,proto3" json:"quality_policy,omitempty"`
 	AllowByok     bool   `protobuf:"varint,4,opt,name=allow_byok,json=allowByok,proto3" json:"allow_byok,omitempty"`
+	// force_cpu selects only a CPU-capable model and returns its CPU fit.
+	ForceCpu      bool `protobuf:"varint,5,opt,name=force_cpu,json=forceCpu,proto3" json:"force_cpu,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1165,6 +1167,13 @@ func (x *SelectModelRequest) GetQualityPolicy() string {
 func (x *SelectModelRequest) GetAllowByok() bool {
 	if x != nil {
 		return x.AllowByok
+	}
+	return false
+}
+
+func (x *SelectModelRequest) GetForceCpu() bool {
+	if x != nil {
+		return x.ForceCpu
 	}
 	return false
 }
@@ -3209,7 +3218,9 @@ func (x *GetHostSummaryResponse) GetHost() *HostSummary {
 type ListOperationModelsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Operation to list candidate models for (must be in the vocabulary).
-	Operation     string `protobuf:"bytes,1,opt,name=operation,proto3" json:"operation,omitempty"`
+	Operation string `protobuf:"bytes,1,opt,name=operation,proto3" json:"operation,omitempty"`
+	// force_cpu selects a CPU-capable candidate for the selected marker.
+	ForceCpu      bool `protobuf:"varint,2,opt,name=force_cpu,json=forceCpu,proto3" json:"force_cpu,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3249,6 +3260,13 @@ func (x *ListOperationModelsRequest) GetOperation() string {
 		return x.Operation
 	}
 	return ""
+}
+
+func (x *ListOperationModelsRequest) GetForceCpu() bool {
+	if x != nil {
+		return x.ForceCpu
+	}
+	return false
 }
 
 // Resolution is the explicit, inspectable answer to "what would run for this
@@ -3415,6 +3433,7 @@ type AdapterRef struct {
 	Scale                float64                `protobuf:"fixed64,2,opt,name=scale,proto3" json:"scale,omitempty"`
 	ConditioningImageKey string                 `protobuf:"bytes,3,opt,name=conditioning_image_key,json=conditioningImageKey,proto3" json:"conditioning_image_key,omitempty"`
 	PreprocessorOverride string                 `protobuf:"bytes,4,opt,name=preprocessor_override,json=preprocessorOverride,proto3" json:"preprocessor_override,omitempty"`
+	LicenseTermsAccepted bool                   `protobuf:"varint,5,opt,name=license_terms_accepted,json=licenseTermsAccepted,proto3" json:"license_terms_accepted,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -3477,6 +3496,13 @@ func (x *AdapterRef) GetPreprocessorOverride() string {
 	return ""
 }
 
+func (x *AdapterRef) GetLicenseTermsAccepted() bool {
+	if x != nil {
+		return x.LicenseTermsAccepted
+	}
+	return false
+}
+
 // ResolvedAdapter is one validated, execution-ready conditioning modifier in a
 // Resolution (mirrors internal/adapters.ResolvedAdapter).
 type ResolvedAdapter struct {
@@ -3492,6 +3518,8 @@ type ResolvedAdapter struct {
 	// preprocessor is the effective ControlNet preprocessor ("" for other kinds).
 	Preprocessor         string `protobuf:"bytes,7,opt,name=preprocessor,proto3" json:"preprocessor,omitempty"`
 	ConditioningImageKey string `protobuf:"bytes,8,opt,name=conditioning_image_key,json=conditioningImageKey,proto3" json:"conditioning_image_key,omitempty"`
+	LicenseTermsAccepted bool   `protobuf:"varint,9,opt,name=license_terms_accepted,json=licenseTermsAccepted,proto3" json:"license_terms_accepted,omitempty"`
+	LicenseTermsVersion  string `protobuf:"bytes,10,opt,name=license_terms_version,json=licenseTermsVersion,proto3" json:"license_terms_version,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -3582,6 +3610,20 @@ func (x *ResolvedAdapter) GetConditioningImageKey() string {
 	return ""
 }
 
+func (x *ResolvedAdapter) GetLicenseTermsAccepted() bool {
+	if x != nil {
+		return x.LicenseTermsAccepted
+	}
+	return false
+}
+
+func (x *ResolvedAdapter) GetLicenseTermsVersion() string {
+	if x != nil {
+		return x.LicenseTermsVersion
+	}
+	return ""
+}
+
 type ExplainResolutionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Operation to resolve (must be in the vocabulary).
@@ -3606,8 +3648,11 @@ type ExplainResolutionRequest struct {
 	// fallback_policy mirrors AIParams.fallback_policy: local_only forbids the
 	// cloud tier, cloud_allowed permits it, any leaves allow_byok as sent.
 	FallbackPolicy string `protobuf:"bytes,7,opt,name=fallback_policy,json=fallbackPolicy,proto3" json:"fallback_policy,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// force_cpu resolves only models with a declared CPU execution path and
+	// explains the resulting CPU provider/tier without submitting a job.
+	ForceCpu      bool `protobuf:"varint,8,opt,name=force_cpu,json=forceCpu,proto3" json:"force_cpu,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExplainResolutionRequest) Reset() {
@@ -3687,6 +3732,13 @@ func (x *ExplainResolutionRequest) GetFallbackPolicy() string {
 		return x.FallbackPolicy
 	}
 	return ""
+}
+
+func (x *ExplainResolutionRequest) GetForceCpu() bool {
+	if x != nil {
+		return x.ForceCpu
+	}
+	return false
 }
 
 type ExplainResolutionResponse struct {
@@ -4334,14 +4386,15 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\x16ListOperationsResponse\x12\x1e\n" +
 	"\n" +
 	"operations\x18\x01 \x03(\tR\n" +
-	"operations\"\x99\x01\n" +
+	"operations\"\xb6\x01\n" +
 	"\x12SelectModelRequest\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x12\x1f\n" +
 	"\voverride_id\x18\x02 \x01(\tR\n" +
 	"overrideId\x12%\n" +
 	"\x0equality_policy\x18\x03 \x01(\tR\rqualityPolicy\x12\x1d\n" +
 	"\n" +
-	"allow_byok\x18\x04 \x01(\bR\tallowByok\"\xa3\x01\n" +
+	"allow_byok\x18\x04 \x01(\bR\tallowByok\x12\x1b\n" +
+	"\tforce_cpu\x18\x05 \x01(\bR\bforceCpu\"\xa3\x01\n" +
 	"\x13SelectModelResponse\x129\n" +
 	"\x05model\x18\x01 \x01(\v2#.vrooli.image_tools.v1.models.ModelR\x05model\x12\x1d\n" +
 	"\n" +
@@ -4487,9 +4540,10 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\x06detail\x18\a \x01(\tR\x06detail\"\x17\n" +
 	"\x15GetHostSummaryRequest\"W\n" +
 	"\x16GetHostSummaryResponse\x12=\n" +
-	"\x04host\x18\x01 \x01(\v2).vrooli.image_tools.v1.models.HostSummaryR\x04host\":\n" +
+	"\x04host\x18\x01 \x01(\v2).vrooli.image_tools.v1.models.HostSummaryR\x04host\"W\n" +
 	"\x1aListOperationModelsRequest\x12\x1c\n" +
-	"\toperation\x18\x01 \x01(\tR\toperation\"\x8d\x03\n" +
+	"\toperation\x18\x01 \x01(\tR\toperation\x12\x1b\n" +
+	"\tforce_cpu\x18\x02 \x01(\bR\bforceCpu\"\x8d\x03\n" +
 	"\n" +
 	"Resolution\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x12\x19\n" +
@@ -4506,14 +4560,15 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"gpu_viable\x18\n" +
 	" \x01(\bR\tgpuViable\x12\x1a\n" +
 	"\bwarnings\x18\v \x03(\tR\bwarnings\x12I\n" +
-	"\badapters\x18\f \x03(\v2-.vrooli.image_tools.v1.models.ResolvedAdapterR\badapters\"\xac\x01\n" +
+	"\badapters\x18\f \x03(\v2-.vrooli.image_tools.v1.models.ResolvedAdapterR\badapters\"\xe2\x01\n" +
 	"\n" +
 	"AdapterRef\x12\x1d\n" +
 	"\n" +
 	"adapter_id\x18\x01 \x01(\tR\tadapterId\x12\x14\n" +
 	"\x05scale\x18\x02 \x01(\x01R\x05scale\x124\n" +
 	"\x16conditioning_image_key\x18\x03 \x01(\tR\x14conditioningImageKey\x123\n" +
-	"\x15preprocessor_override\x18\x04 \x01(\tR\x14preprocessorOverride\"\xf5\x01\n" +
+	"\x15preprocessor_override\x18\x04 \x01(\tR\x14preprocessorOverride\x124\n" +
+	"\x16license_terms_accepted\x18\x05 \x01(\bR\x14licenseTermsAccepted\"\xdf\x02\n" +
 	"\x0fResolvedAdapter\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -4522,7 +4577,10 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\x05scale\x18\x05 \x01(\x01R\x05scale\x12\x16\n" +
 	"\x06weight\x18\x06 \x01(\tR\x06weight\x12\"\n" +
 	"\fpreprocessor\x18\a \x01(\tR\fpreprocessor\x124\n" +
-	"\x16conditioning_image_key\x18\b \x01(\tR\x14conditioningImageKey\"\xb1\x02\n" +
+	"\x16conditioning_image_key\x18\b \x01(\tR\x14conditioningImageKey\x124\n" +
+	"\x16license_terms_accepted\x18\t \x01(\bR\x14licenseTermsAccepted\x122\n" +
+	"\x15license_terms_version\x18\n" +
+	" \x01(\tR\x13licenseTermsVersion\"\xce\x02\n" +
 	"\x18ExplainResolutionRequest\x12\x1c\n" +
 	"\toperation\x18\x01 \x01(\tR\toperation\x12\x19\n" +
 	"\bmodel_id\x18\x02 \x01(\tR\amodelId\x12\x1d\n" +
@@ -4531,7 +4589,8 @@ const file_image_tools_v1_models_models_proto_rawDesc = "" +
 	"\badapters\x18\x04 \x03(\v2(.vrooli.image_tools.v1.models.AdapterRefR\badapters\x12%\n" +
 	"\x0equality_policy\x18\x05 \x01(\tR\rqualityPolicy\x12'\n" +
 	"\x0fopenrouter_role\x18\x06 \x01(\tR\x0eopenrouterRole\x12'\n" +
-	"\x0ffallback_policy\x18\a \x01(\tR\x0efallbackPolicy\"e\n" +
+	"\x0ffallback_policy\x18\a \x01(\tR\x0efallbackPolicy\x12\x1b\n" +
+	"\tforce_cpu\x18\b \x01(\bR\bforceCpu\"e\n" +
 	"\x19ExplainResolutionResponse\x12H\n" +
 	"\n" +
 	"resolution\x18\x01 \x01(\v2(.vrooli.image_tools.v1.models.ResolutionR\n" +
