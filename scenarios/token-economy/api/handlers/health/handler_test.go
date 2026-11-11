@@ -9,12 +9,12 @@ import (
 	"testing"
 
 	"github.com/vrooli/api-core/apihttptest"
+	"github.com/vrooli/api-core/databasetest"
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"token-economy/handlers/health"
 	"token-economy/internal/module"
 	"token-economy/internal/server"
-	"token-economy/internal/testutil/mocks"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -75,7 +75,7 @@ func TestHealthHandler(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
+			pinger := &databasetest.FakePinger{PingErr: tc.pingErr}
 			h := health.NewHandler(health.Deps{
 				Pinger:  pinger,
 				Service: "react-vite-test",

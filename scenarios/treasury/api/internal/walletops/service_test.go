@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -18,8 +21,11 @@ import (
 	requestidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/schedule"
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
+	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/shared"
 	fundingpb "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"treasury/internal/authorization"
 	"treasury/internal/baseusdc"
@@ -29,6 +35,7 @@ import (
 	"treasury/internal/identity"
 	"treasury/internal/mandate"
 	"treasury/internal/nativeusdc"
+	"treasury/internal/receiptfunding"
 	"treasury/internal/wallet"
 )
 
@@ -167,6 +174,92 @@ func TestProvisionBudgetWalletRefusesIdentityReuseAndForeignReads(t *testing.T) 
 	require.Equal(t, first, readback)
 }
 
+func TestFundingWatcherRejectsAmbiguousTransfersAndAdvancesFinalizedCursor(t *testing.T) {
+	service, ctx := setupWalletOpsTest(t)
+	budgetWallet, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{
+		BudgetId: "research-budget", Network: baseusdc.Network, AgentSubject: "agent:research", AgentRunId: "run-42",
+	})
+	require.NoError(t, err)
+	intent := &fundingpb.CreateFundingIntentRequest{
+		Id: "watcher-intent", BudgetId: budgetWallet.GetBudgetId(), AtomicAmount: "1000000",
+		LedgerBookId: "research", LedgerAccountId: "cash", Valuation: &ingestpb.CryptoValuation{AmountMinor: 100, Currency: "USD"},
+	}
+	// The watcher persists only the intent identity and scan cursor here; no
+	// receipt can be credited until it resolves an unambiguous matching log.
+	encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(intent)
+	require.NoError(t, err)
+	now := service.Clock.Now().UTC().Format(time.RFC3339Nano)
+	_, err = service.DB.ExecContext(ctx, `INSERT INTO funding_intents(id,budget_id,operator_identity,atomic_amount,request_proto,start_block,state,created_at,updated_at) VALUES(?,?,?,?,?,?,'waiting',?,?)`, intent.GetId(), intent.GetBudgetId(), "local-operator", intent.GetAtomicAmount(), encoded, "5", now, now)
+	require.NoError(t, err)
+	transferTopic := gethcrypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
+	toTopic := common.BytesToHash(common.HexToAddress(budgetWallet.GetAddress()).Bytes())
+	logs := []map[string]any{
+		{"address": baseusdc.USDCAddress, "topics": []string{transferTopic.Hex(), common.Hash{}.Hex(), toTopic.Hex()}, "data": fmt.Sprintf("0x%064x", 1_000_000), "transactionHash": "0x" + strings.Repeat("1", 64)},
+		{"address": baseusdc.USDCAddress, "topics": []string{transferTopic.Hex(), common.Hash{}.Hex(), toTopic.Hex()}, "data": fmt.Sprintf("0x%064x", 1_000_000), "transactionHash": "0x" + strings.Repeat("2", 64)},
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			Method string `json:"method"`
+		}
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&request))
+		w.Header().Set("Content-Type", "application/json")
+		result := any(map[string]string{"number": "0x10"})
+		if request.Method == "eth_getLogs" {
+			result = logs
+		}
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": 1, "result": result}))
+	}))
+	defer server.Close()
+	service.Native, err = nativeusdc.New(service.DB, nil, server.URL, "local-fork")
+	require.NoError(t, err)
+	require.Error(t, service.WatchFundingIntents(ctx), "two exact transfers matching one intent must not be auto-credited")
+	var cursor string
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT next_block FROM funding_intent_watch_cursors WHERE intent_id=?`, intent.GetId()).Scan(&cursor))
+	require.Equal(t, "5", cursor, "ambiguous evidence must leave the cursor at the retry point")
+	logs = nil
+	require.NoError(t, service.WatchFundingIntents(ctx))
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT next_block FROM funding_intent_watch_cursors WHERE intent_id=?`, intent.GetId()).Scan(&cursor))
+	require.Equal(t, "17", cursor, "a completed finalized scan advances the durable cursor")
+}
+
+func TestCreateFundingIntentRecordsOperatorValuationEvidence(t *testing.T) {
+	service, ctx := setupWalletOpsTest(t)
+	service.Receipts = &baseusdc.Service{}
+	service.Funding = &receiptfunding.Service{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request struct {
+			ID json.RawMessage `json:"id"`
+		}
+		if json.NewDecoder(r.Body).Decode(&request) != nil || len(request.ID) == 0 {
+			http.Error(w, "invalid JSON-RPC request", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"jsonrpc":"2.0","id":%s,"result":"0x64"}`, request.ID)
+	}))
+	defer server.Close()
+	var err error
+	service.Native, err = nativeusdc.New(service.DB, nil, server.URL, "local-fork")
+	require.NoError(t, err)
+	wallet, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{BudgetId: "research-budget", Network: baseusdc.Network})
+	require.NoError(t, err)
+
+	intent, err := service.CreateFundingIntent(ctx, "local-operator", &fundingpb.CreateFundingIntentRequest{
+		Id: "operator-valued-intent", BudgetId: wallet.GetBudgetId(), AtomicAmount: "1000000",
+		LedgerBookId: "research", LedgerAccountId: "cash",
+		Valuation: &ingestpb.CryptoValuation{AmountMinor: 100, Currency: "USD", BasisReference: "operator declared local-fork value"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "operator-valued-intent", intent.GetId())
+
+	var encoded []byte
+	require.NoError(t, service.DB.QueryRowContext(ctx, `SELECT request_proto FROM funding_intents WHERE id=?`, intent.GetId()).Scan(&encoded))
+	var stored fundingpb.CreateFundingIntentRequest
+	require.NoError(t, proto.Unmarshal(encoded, &stored))
+	require.Equal(t, sharedpb.Basis_BASIS_OPERATOR_ASSERTED, stored.GetValuation().GetBasis())
+	require.True(t, stored.GetValuation().GetValuedAt().AsTime().Equal(service.Clock.Now()), "Treasury should timestamp the operator valuation at intent creation")
+}
+
 func TestProvisionBudgetWalletRejectsPartialRunBinding(t *testing.T) {
 	service, ctx := setupWalletOpsTest(t)
 	_, err := service.Provision(ctx, "local-operator", &fundingpb.ProvisionBudgetWalletRequest{
@@ -216,6 +309,41 @@ func TestMandateSessionWalletExpiresRotatesAndRevokesByGeneration(t *testing.T) 
 	require.NoError(t, service.RevokeMandateSession(ctx, "local-operator", session.MandateID))
 	_, err = service.GetMandateSessionForAgent(ctx, "research-budget", session.MandateID, claims)
 	require.Error(t, err)
+}
+
+func TestMandateRotationRejectsProofFromPreviousGeneration(t *testing.T) { // [REQ:TRS-P0-001]
+	service, ctx, now, session, privateKeyHex := provisionTestMandateSession(t)
+	request := sessionSignRequest(session, "auth-session-old-generation", "sha256:"+strings.Repeat("c", 64))
+	require.NoError(t, insertApprovedAuthorization(t, ctx, service, authorization.Record{
+		ID: request.AuthorizationID, IdempotencyKey: request.AuthorizationID, BookID: "research", MandateID: session.MandateID,
+		BudgetID: session.BudgetID, RequestingAgent: session.AgentSubject, AmountMinor: request.ValueMinor, Currency: request.Currency,
+		Counterparty: request.Recipient, Verdict: authorization.VerdictApproved, HoldMinor: request.ValueMinor,
+		CreatedAt: now, ExpiresAt: now.Add(time.Minute),
+	}))
+	oldIntent := intentForSession(session, request.AuthorizationID, "settlement-old-generation", "instrument-test", request.AuthorizationID, request.ValueMinor, request.Currency, request.Recipient)
+	oldSignature, err := signAgentIntent(privateKeyHex, oldIntent)
+	require.NoError(t, err)
+	claims := walletWriteClaims(t, now, session.AgentSubject, session.AgentRunID, session.BudgetID)
+
+	rotated, err := service.RotateMandateSession(ctx, "local-operator", session.MandateID)
+	require.NoError(t, err)
+	require.Equal(t, session.Generation+1, rotated.Generation)
+	require.Equal(t, session.Address, rotated.Address)
+	err = service.AuthorizeAgentSettlement(ctx, claims, oldIntent, oldSignature)
+	require.ErrorIs(t, err, ErrSessionInactive, "rotation retires the old generation before any new key binding")
+
+	publicKey, err := gethcrypto.HexToECDSA(strings.TrimPrefix(privateKeyHex, "0x"))
+	require.NoError(t, err)
+	claimsRead := walletReadClaims(t, now, session.AgentSubject, session.AgentRunID, session.BudgetID)
+	require.NoError(t, service.BindAgentSessionPublicKey(ctx, session.BudgetID, session.MandateID, claimsRead, "0x"+hex.EncodeToString(gethcrypto.FromECDSAPub(&publicKey.PublicKey))))
+	newIntent := oldIntent
+	newIntent.SettlementID = "settlement-new-generation"
+	newIntent.Generation = rotated.Generation
+	newIntent.ExpiresAt = rotated.ExpiresAt.UTC().Format(time.RFC3339Nano)
+	newSignature, err := signAgentIntent(privateKeyHex, newIntent)
+	require.NoError(t, err)
+	require.ErrorIs(t, service.AuthorizeAgentSettlement(ctx, claims, oldIntent, oldSignature), ErrAgentSessionProof, "a rebound key cannot replay the prior generation's signed intent")
+	require.NoError(t, service.AuthorizeAgentSettlement(ctx, claims, newIntent, newSignature), "a newly signed intent can use the new generation binding")
 }
 
 func TestMandateSessionSigningConsumesApprovedAuthOnlyAfterFreezeAndScopeChecks(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS-P0-002] [REQ:TRS-P1-006]

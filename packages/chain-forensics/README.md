@@ -4,11 +4,18 @@
 contract intended for scenario APIs and Crypto Infrastructure CI2. It contains
 exact decimal atomic quantities, chain-specific occurrence identities,
 provenance records, separate legal claims, typed evidence grades, strict case
-validation, Bitcoin transaction normalization, exact UTXO outpoint joins, and
-an explicit private packet serializer. Its read-only mempool.space client
+validation, Bitcoin transaction normalization, exact UTXO outpoint joins,
+Ethereum/Base ERC-20 Transfer-log normalization, and an explicit private packet serializer. Its read-only mempool.space client
 limits response size, spaces uncached requests, caches confirmed transactions
 by txid, and returns provider retry delays without automatic retries. It
 performs no identity resolution, transaction signing, or network writes.
+
+ERC-20 normalization consumes an already captured JSON-RPC log plus its
+containing block timestamp. It checks the canonical Transfer event signature,
+indexed-address padding, confirmed block position, transaction hash and source
+capture. Token contract and exact integer base units are retained; `scale: 0`
+means trusted token decimals have not yet been joined. This is a decoding
+primitive, not an RPC source client or a claim of address ownership.
 
 ## Offline public case
 

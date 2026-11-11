@@ -165,3 +165,57 @@ func TestQueryOutcomeRejectsChangedEndpointPathBeforeReplay(t *testing.T) {
 	require.Contains(t, err.Error(), "exact endpoint")
 	require.Equal(t, requestsBeforeQuery, attempts.Load(), "changed path must be rejected before replay HTTP")
 }
+
+func TestQueryOutcomeKeepsMismatchedFacilitatorIdentityUnknown(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		payer   string
+		network string
+	}{
+		{name: "different payer", payer: "0x9999999999999999999999999999999999999999", network: "eip155:8453"},
+		{name: "different network", payer: "0x1111111111111111111111111111111111111111", network: "eip155:84532"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var endpoint string
+			var attempts atomic.Int64
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				if request.Header.Get(paymentSignatureHeader) == "" {
+					writer.Header().Set(paymentRequiredHeader, paymentRequiredValue(t, endpoint, "10000"))
+					writer.WriteHeader(http.StatusPaymentRequired)
+					return
+				}
+				if attempts.Add(1) == 1 {
+					writer.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				receipt, err := json.Marshal(map[string]any{"success": true, "payer": tc.payer, "transaction": "0xabc123", "network": tc.network})
+				require.NoError(t, err)
+				writer.Header().Set(paymentResponseHeader, base64.StdEncoding.EncodeToString(receipt))
+				writer.WriteHeader(http.StatusOK)
+			}))
+			defer server.Close()
+			endpoint = server.URL + "/priced"
+
+			adapter, err := New(server.Client(), &fixtureSigner{})
+			require.NoError(t, err)
+			cmd := command(t, endpoint, 1)
+			first, err := adapter.Settle(context.Background(), cmd)
+			require.Error(t, err)
+			require.Equal(t, rail.OutcomeUnknown, first.Outcome)
+
+			credential, err := json.Marshal(Credential{
+				EndpointURL: endpoint, SignerURL: "http://127.0.0.1:8545",
+				Account: "0x1111111111111111111111111111111111111111", Networks: []string{"eip155:8453"},
+				Assets: map[string]AssetPolicy{"0x2222222222222222222222222222222222222222": {Decimals: 6, Currency: "USD"}},
+			})
+			require.NoError(t, err)
+			reconciled, err := adapter.QueryOutcome(context.Background(), rail.Query{
+				ExternalID: first.ExternalID, ReceiptReference: first.ReceiptReference,
+				IdempotencyKey: cmd.IdempotencyKey, Counterparty: cmd.Counterparty, Credential: string(credential),
+			})
+			require.NoError(t, err)
+			require.Equal(t, rail.OutcomeUnknown, reconciled.Outcome)
+			require.Equal(t, "x402_replay_inconclusive", reconciled.Basis)
+		})
+	}
+}

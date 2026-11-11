@@ -191,7 +191,43 @@ func (a *Adapter) QueryOutcome(ctx context.Context, query rail.Query) (rail.Resu
 	if err != nil || !settled.Success || settled.Transaction == "" {
 		return rail.Result{Outcome: rail.OutcomeUnknown, ExternalID: query.ExternalID, ReceiptReference: payload, Basis: "x402_replay_inconclusive", Detail: "paid replay lacked a conclusive settlement receipt"}, nil
 	}
+	expectedNetwork, expectedPayer, err := replayIdentity(payload)
+	if err != nil {
+		return rail.Result{}, fmt.Errorf("%w: retained payment identity is invalid: %v", ErrInvalid, err)
+	}
+	if !strings.EqualFold(settled.Network, expectedNetwork) || !strings.EqualFold(settled.Payer, expectedPayer) {
+		return rail.Result{Outcome: rail.OutcomeUnknown, ExternalID: query.ExternalID, ReceiptReference: payload, Basis: "x402_replay_inconclusive", Detail: "paid replay receipt does not match the retained payment network and payer"}, nil
+	}
 	return rail.Result{Outcome: rail.OutcomeSettled, ExternalID: settled.Transaction, ReceiptReference: paymentDigest(payload), Basis: "x402_facilitator_replay_confirmation", OccurredAt: a.now().UTC(), Detail: "exact signed payment replay returned a settlement receipt"}, nil
+}
+
+// replayIdentity extracts the payment identity from the exact retained v2
+// authorization. A facilitator receipt is useful for recovery only when it
+// agrees with both the network and signer that were originally authorized.
+func replayIdentity(payload string) (string, string, error) {
+	decoded, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil {
+		return "", "", fmt.Errorf("decode retained payment: %w", err)
+	}
+	var retained struct {
+		X402Version int `json:"x402Version"`
+		Accepted    struct {
+			Network string `json:"network"`
+		} `json:"accepted"`
+		Payload struct {
+			Authorization struct {
+				From string `json:"from"`
+			} `json:"authorization"`
+		} `json:"payload"`
+	}
+	decoder := json.NewDecoder(io.LimitReader(bytes.NewReader(decoded), maxResponseBytes))
+	if err := decoder.Decode(&retained); err != nil {
+		return "", "", fmt.Errorf("parse retained payment: %w", err)
+	}
+	if retained.X402Version != 2 || !strings.HasPrefix(strings.ToLower(retained.Accepted.Network), "eip155:") || !isEVMAddress(retained.Payload.Authorization.From) {
+		return "", "", errors.New("version 2 EVM network and signer are required")
+	}
+	return retained.Accepted.Network, retained.Payload.Authorization.From, nil
 }
 
 func validateReplayEndpoint(payload, endpoint string) error {

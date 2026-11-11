@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, Clipboard, ExternalLink, RefreshCw, ShieldCheck } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 
@@ -37,19 +37,88 @@ export function FundPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const withdrawalIdempotencyKeys = useRef(new Map<string, string>());
 
   async function refreshIntents() {
     if (!operatorToken || !form.budgetId.trim()) return;
     setBusy(true);
     setError("");
     try {
-      setIntents(await listFundingIntents(operatorToken, form.budgetId.trim()));
+      const updated = await listFundingIntents(operatorToken, form.budgetId.trim());
+      setIntents(updated);
+      setActiveIntent((current) => updated.find((item) => item.id === current?.id) ?? current);
     } catch (reason) {
       setError(errorText(reason, t(strings.fund.requestError)));
     } finally {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (!operatorToken || !form.budgetId.trim() || !activeIntent || !isFundingIntentPending(activeIntent.state)) return;
+
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const poll = async () => {
+      try {
+        const updated = await listFundingIntents(operatorToken, form.budgetId.trim());
+        if (stopped) return;
+        setIntents(updated);
+        const latest = updated.find((item) => item.id === activeIntent.id);
+        if (latest) setActiveIntent(latest);
+      } catch {
+        // Keep the last known receipt state visible; the next bounded poll can recover.
+      }
+      if (!stopped) timer = setTimeout(() => void poll(), 1_000);
+    };
+
+    timer = setTimeout(() => void poll(), 1_000);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [activeIntent, form.budgetId, operatorToken]);
+
+  useEffect(() => {
+    if (!quote || quote.executionMode !== "local-fork" || !withdrawal || withdrawal.state !== "pending_approval" || !operatorToken || !agentIdentityToken) return;
+    const idempotencyKey = withdrawalIdempotencyKeys.current.get(quote.id);
+    if (!idempotencyKey) return;
+
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let attempts = 0;
+    const retryApprovedExecution = async () => {
+      if (stopped || attempts >= 30) return;
+      attempts += 1;
+      try {
+        // Replaying the original local-fork request is idempotent. Once its
+        // explicit approval is resolved, Treasury returns the settled result.
+        const latest = await executeWithdrawal(operatorToken, agentIdentityToken, quote.id, idempotencyKey);
+        if (stopped) return;
+        setWithdrawal(latest);
+        if (latest.state === "settled") {
+          setError("");
+          setNotice(t(strings.fund.withdrawNotice, { state: latest.state }));
+          return;
+        }
+        if (latest.state !== "pending_approval") {
+          setError("");
+          setNotice(t(strings.fund.withdrawNotice, { state: latest.state }));
+          return;
+        }
+      } catch (reason) {
+        if (stopped) return;
+        setError(errorText(reason, t(strings.fund.requestError)));
+      }
+      if (!stopped && attempts < 30) timer = setTimeout(() => void retryApprovedExecution(), 1_000);
+    };
+
+    timer = setTimeout(() => void retryApprovedExecution(), 1_000);
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [agentIdentityToken, operatorToken, quote?.executionMode, quote?.id, t, withdrawal?.id, withdrawal?.state]);
 
   async function createIntent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -124,7 +193,12 @@ export function FundPage() {
     setBusy(true);
     setError("");
     try {
-      const result = await executeWithdrawal(operatorToken, agentIdentityToken, quote.id, crypto.randomUUID());
+      let idempotencyKey = withdrawalIdempotencyKeys.current.get(quote.id);
+      if (!idempotencyKey) {
+        idempotencyKey = crypto.randomUUID();
+        withdrawalIdempotencyKeys.current.set(quote.id, idempotencyKey);
+      }
+      const result = await executeWithdrawal(operatorToken, agentIdentityToken, quote.id, idempotencyKey);
       setWithdrawal(result);
       setNotice(t(strings.fund.withdrawNotice, { state: result.state }));
     } catch (reason) {
@@ -193,9 +267,9 @@ export function FundPage() {
             {activeIntent ? <div className="rounded-control border border-app-border p-3 text-sm">
               <dl className="grid gap-2 sm:grid-cols-2">
                 <Detail label={t(strings.fund.intent)} value={activeIntent.id} />
-                <Detail label={t(strings.fund.state)} value={activeIntent.state} />
+                <Detail testId={selectors.funding.activeIntentState} liveRegion label={t(strings.fund.state)} value={activeIntent.state} />
                 <Detail label={t(strings.fund.atomicAmount)} value={activeIntent.atomicAmount} />
-                <Detail label={t(strings.fund.notification)} value={activeIntent.notificationState || t(strings.fund.notAvailable)} />
+                <Detail testId={selectors.funding.notificationState} liveRegion label={t(strings.fund.notification)} value={activeIntent.notificationState || t(strings.fund.notAvailable)} />
               </dl>
               {activeIntent.paymentUri && <div className="mt-4 grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
                 <figure className="grid justify-items-center gap-2 rounded-control border border-app-border bg-app-card p-3">
@@ -207,17 +281,17 @@ export function FundPage() {
                   <textarea id="funding-payment-uri" data-testid={selectors.funding.paymentUri} readOnly value={activeIntent.paymentUri} className="min-h-20 w-full break-all rounded-control border border-app-border bg-app-card p-3 font-mono text-xs" />
                   <div className="flex flex-wrap gap-2">
                     <Button data-testid={selectors.funding.copyLinkButton} type="button" variant="secondary" onClick={() => void copyPaymentUri()}><Clipboard aria-hidden="true" className="size-4" /> {t(strings.fund.copyLink)}</Button>
-                    {activeIntent.paymentUri.startsWith("ethereum:") && <a href={activeIntent.paymentUri} className="inline-flex min-h-10 items-center gap-2 rounded-control border border-app-border px-3 text-sm font-medium text-app-foreground hover:bg-app-muted"><ExternalLink aria-hidden="true" className="size-4" /> {t(strings.fund.openWallet)}</a>}
+                    {activeIntent.paymentUri.startsWith("ethereum:") && <a data-testid={selectors.funding.openWalletLink} href={activeIntent.paymentUri} className="inline-flex min-h-10 items-center gap-2 rounded-control border border-app-border px-3 text-sm font-medium text-app-foreground hover:bg-app-muted"><ExternalLink aria-hidden="true" className="size-4" /> {t(strings.fund.openWallet)}</a>}
                   </div>
                 </div>
               </div>}
               <form className="mt-4 grid gap-3 border-t border-app-border pt-4" onSubmit={(event) => void confirmTransfer(event)}>
-                <Field label={t(strings.fund.transactionHash)} value={transactionHash} onChange={setTransactionHash} required />
-                <Button type="submit" variant="secondary" disabled={busy || !operatorToken}>{t(strings.fund.confirmAllocate)}</Button>
+                <Field testId={selectors.funding.transactionHash} label={t(strings.fund.transactionHash)} value={transactionHash} onChange={setTransactionHash} required />
+                <Button data-testid={selectors.funding.confirmTransferButton} type="submit" variant="secondary" disabled={busy || !operatorToken}>{t(strings.fund.confirmAllocate)}</Button>
                 <p className="text-xs text-app-muted-foreground">{t(strings.fund.confirmationHelp)}</p>
               </form>
             </div> : <p className="rounded-control border border-dashed border-app-border p-5 text-sm text-app-muted-foreground">{t(strings.fund.emptyIntent)}</p>}
-            {intents.length > 0 && <div><h3 className="mb-2 font-semibold">{t(strings.fund.recentIntents)}</h3><ul className="grid gap-2">{intents.map((item) => <li key={item.id}><button type="button" className="w-full rounded-control border border-app-border p-3 text-start hover:bg-app-muted" onClick={() => setActiveIntent(item)}><span className="block truncate font-mono text-xs">{item.id}</span><span className="mt-1 block text-sm">{t(strings.fund.atomicUnits, { state: item.state, amount: item.atomicAmount })}</span></button></li>)}</ul></div>}
+            {intents.length > 0 && <div><h3 className="mb-2 font-semibold">{t(strings.fund.recentIntents)}</h3><ul className="grid gap-2">{intents.map((item) => <li key={item.id}><button data-testid={selectors.funding.recentIntent} type="button" className="w-full rounded-control border border-app-border p-3 text-start hover:bg-app-muted" onClick={() => setActiveIntent(item)}><span className="block truncate font-mono text-xs">{item.id}</span><span className="mt-1 block text-sm">{t(strings.fund.atomicUnits, { state: item.state, amount: item.atomicAmount })}</span></button></li>)}</ul></div>}
           </CardContent>
         </Card>
       </div>
@@ -228,10 +302,10 @@ export function FundPage() {
           <form className="grid gap-4 sm:grid-cols-2" onSubmit={(event) => void requestQuote(event)}>
             <Field testId={selectors.funding.withdrawalDestination} label={t(strings.fund.destination)} value={destination} onChange={setDestination} required />
             <Field testId={selectors.funding.mandateId} label={t(strings.fund.mandateId)} value={mandateId} onChange={setMandateId} required />
-            <Field label={t(strings.fund.atomicAmount)} value={withdrawalAmount} onChange={setWithdrawalAmount} inputMode="numeric" pattern="[0-9]+" required />
-            <Field label={t(strings.fund.declaredValue)} value={withdrawalValue} onChange={setWithdrawalValue} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" required />
-            <Field label={t(strings.fund.maxFee)} value={feeWei} onChange={setFeeWei} inputMode="numeric" pattern="[0-9]+" required />
-            <Field label={t(strings.fund.feeValue)} value={feeValue} onChange={setFeeValue} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" required />
+            <Field testId={selectors.funding.withdrawalAmount} label={t(strings.fund.atomicAmount)} value={withdrawalAmount} onChange={setWithdrawalAmount} inputMode="numeric" pattern="[0-9]+" required />
+            <Field testId={selectors.funding.withdrawalValue} label={t(strings.fund.declaredValue)} value={withdrawalValue} onChange={setWithdrawalValue} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" required />
+            <Field testId={selectors.funding.withdrawalMaxFee} label={t(strings.fund.maxFee)} value={feeWei} onChange={setFeeWei} inputMode="numeric" pattern="[0-9]+" required />
+            <Field testId={selectors.funding.withdrawalFeeValue} label={t(strings.fund.feeValue)} value={feeValue} onChange={setFeeValue} inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" required />
             <div className="sm:col-span-2"><Button data-testid={selectors.funding.withdrawalPreviewButton} type="submit" variant="secondary" disabled={busy || !operatorToken || !form.budgetId.trim() || !mandateId.trim()}>{t(strings.fund.preview)}</Button></div>
           </form>
           {quote && <div className="mt-5 rounded-control border border-app-border p-4">
@@ -244,10 +318,10 @@ export function FundPage() {
               <Detail label={t(strings.fund.maxFeeValue)} value={quote.maxFeeWei} />
               <Detail label={t(strings.fund.quoteExpires)} value={formatTimestamp(quote.expiresAt?.seconds)} />
             </dl>
-            <Button type="button" className="mt-4" variant="danger" disabled={busy || !agentIdentityToken || quote.executionMode !== "local-fork"} onClick={() => void runWithdrawal()}>
+            <Button data-testid={selectors.funding.withdrawalExecuteButton} type="button" className="mt-4" variant="danger" disabled={busy || !agentIdentityToken || quote.executionMode !== "local-fork" || withdrawal?.state === "pending_approval"} onClick={() => void runWithdrawal()}>
               {quote.executionMode === "local-fork" ? t(strings.fund.executeFork) : t(strings.fund.executeDisabled)}
             </Button>
-            {withdrawal && <p role="status" className="mt-3 text-sm">{t(strings.fund.withdrawalStatus, { id: withdrawal.id, state: withdrawal.state })}{withdrawal.transactionHash ? ` · ${withdrawal.transactionHash}` : ""}</p>}
+            {withdrawal && <p data-testid={selectors.funding.withdrawalStatus} role="status" className="mt-3 text-sm">{t(strings.fund.withdrawalStatus, { id: withdrawal.id, state: withdrawal.state })}{withdrawal.transactionHash ? ` · ${withdrawal.transactionHash}` : ""}</p>}
           </div>}
         </CardContent>
       </Card>
@@ -262,8 +336,8 @@ function Field({ label, value, onChange, type = "text", testId, ...props }: { la
   return <div className="grid min-w-0 gap-2"><label htmlFor={id} className="text-sm font-medium">{label}</label><Input id={id} data-testid={testId} type={type} value={value} onChange={(event) => onChange(event.target.value)} {...props} /></div>;
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
-  return <div className="min-w-0"><dt className="text-app-muted-foreground">{label}</dt><dd className="break-all font-medium">{value || "—"}</dd></div>;
+function Detail({ label, value, testId, liveRegion = false }: { label: string; value: string; testId?: string; liveRegion?: boolean }) {
+  return <div className="min-w-0"><dt className="text-app-muted-foreground">{label}</dt><dd data-testid={testId} aria-live={liveRegion ? "polite" : undefined} className="break-all font-medium">{value || "—"}</dd></div>;
 }
 
 function toMinorUnits(value: string, errorMessage: string): bigint {
@@ -279,4 +353,8 @@ function errorText(reason: unknown, fallback: string): string {
 function formatTimestamp(seconds: bigint | undefined): string {
   if (seconds === undefined) return "—";
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(Number(seconds) * 1000);
+}
+
+function isFundingIntentPending(state: string): boolean {
+  return state === "waiting" || state === "observed" || state === "delivering" || state === "awaiting_transfer";
 }

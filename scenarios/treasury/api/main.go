@@ -348,7 +348,7 @@ func main() {
 		var notifier *walletops.NotificationHub
 		var notifyErr error
 		if os.Getenv("TREASURY_CF5_NOTIFICATION_TEST_MODE") == "1" {
-			notifier, notifyErr = walletops.NewLeasedTestNotificationHub(notificationHubURL)
+			notifier, notifyErr = walletops.NewLeasedTestNotificationHub(notificationHubURL, os.Getenv("TREASURY_CF5_NOTIFICATION_TEST_AGENT_IDENTITY_TOKEN"))
 		} else {
 			notifier, notifyErr = walletops.NewNotificationHub(notificationHubURL, &http.Client{Timeout: 5 * time.Second})
 		}
@@ -364,9 +364,14 @@ func main() {
 		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
 		for {
-			if err := walletOperations.RetryNotifications(ledgerCtx); err != nil {
+			bounded, cancel := context.WithTimeout(ledgerCtx, 10*time.Second)
+			if err := walletOperations.WatchFundingIntents(bounded); err != nil {
+				log.Printf("funding receipt watcher deferred: %v", err)
+			}
+			if err := walletOperations.RetryNotifications(bounded); err != nil {
 				log.Printf("funding notification retry incomplete: %v", err)
 			}
+			cancel()
 			select {
 			case <-ledgerCtx.Done():
 				return

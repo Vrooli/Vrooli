@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "treasury",
   "generator": "v1.0.0",
-  "manifest_hash": "1452fdce812726391e0315a71fcd8cd87dc6ca6219e1f18ca1f937574f6ad81a",
+  "manifest_hash": "01087698a3d1e1ed957ba6bb9c2da9c35cb7abf413e232897bf06aa7666ae75c",
   "commands": [
     {
       "path": "approval list",

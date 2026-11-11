@@ -72,6 +72,8 @@ func treasurySessionRequestHeadersWithKeySource(core *cliapp.ScenarioApp, keySou
 			operation, target = "treasury.read", "treasury:authorization/"+protoStringField(request, "id")
 		case "AgentSpend.GetBudgetWallet":
 			operation, target = "treasury.read", "treasury:budget/"+protoStringField(request, "budget_id")
+		case "AgentSpend.GetBudgetHeadroom":
+			operation, target = "treasury.read", "treasury:budget/"+protoStringField(request, "budget_id")
 		case "AgentSpend.ReportOutcome":
 			if keySource == nil {
 				return nil, fmt.Errorf("run-owned Treasury session-key source is unavailable")

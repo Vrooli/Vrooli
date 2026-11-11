@@ -14,7 +14,7 @@ import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
 import { FundPage } from "./FundPage";
 
-const paymentUri = "ethereum:8453/transfer?address=0x0000000000000000000000000000000000000001&uint256=2500000";
+const paymentUri = "ethereum:0x833589fcd6edb6e08f4c7c32d4f71b54bda02913@8453/transfer?address=0x0000000000000000000000000000000000000001&uint256=2500000";
 const intent = create(FundingIntentSchema, {
   id: "intent-1",
   budgetId: "research-budget",
@@ -25,7 +25,13 @@ const intent = create(FundingIntentSchema, {
 const acceptedIntent = create(FundingIntentSchema, {
   ...intent,
   state: "accepted",
+  notificationState: "sent",
   receiptDeliveryId: "receipt-delivery-1",
+});
+const deliveringIntent = create(FundingIntentSchema, {
+  ...intent,
+  state: "delivering",
+  transactionHash: "0xlocal-receipt",
 });
 const quote = create(WithdrawalQuoteSchema, {
   id: "quote-1",
@@ -97,7 +103,7 @@ describe("Fund page", () => {
     expect(await screen.findByRole("img", { name: en.fund.paymentQrLabel })).toBeVisible();
     expect(screen.getByTestId(selectors.funding.paymentQr)).toBeVisible();
     expect(screen.getByTestId(selectors.funding.paymentUri)).toHaveValue(paymentUri);
-    expect(screen.getByRole("link", { name: en.fund.openWallet })).toHaveAttribute("href", paymentUri);
+    expect(screen.getByTestId(selectors.funding.openWalletLink)).toHaveAttribute("href", paymentUri);
   });
 
   it("refreshes recent intents, selects one, and copies its exact wallet URI", async () => {
@@ -138,10 +144,36 @@ describe("Fund page", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("receipt-delivery-1");
   });
 
+  it("keeps the active receipt state current while the watcher delivers it", async () => {
+    const user = userEvent.setup();
+    mocks.createFundingIntent.mockResolvedValue(deliveringIntent);
+    mocks.listFundingIntents.mockResolvedValueOnce([deliveringIntent]).mockResolvedValue([acceptedIntent]);
+    renderWithProviders(<FundPage />);
+
+    await user.type(screen.getByTestId(selectors.funding.operatorToken), "operator-secret");
+    await user.type(screen.getByTestId(selectors.funding.budgetId), "research-budget");
+    await user.type(screen.getByTestId(selectors.funding.atomicAmount), "2500000");
+    await user.type(screen.getByTestId(selectors.funding.declaredValue), "2.50");
+    await user.type(screen.getByTestId(selectors.funding.ledgerBookId), "book-1");
+    await user.type(screen.getByTestId(selectors.funding.ledgerAccountId), "account-1");
+    await user.click(screen.getByTestId(selectors.funding.createIntentButton));
+
+    const state = await screen.findByTestId(selectors.funding.activeIntentState);
+    expect(state).toHaveTextContent("delivering");
+    await vi.waitFor(() => expect(state).toHaveTextContent("accepted"), { timeout: 4_000 });
+    expect(state).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByTestId(selectors.funding.notificationState)).toHaveTextContent("sent");
+    expect(screen.getByTestId(selectors.funding.notificationState)).toHaveAttribute("aria-live", "polite");
+    expect(mocks.listFundingIntents).toHaveBeenCalledTimes(2);
+  });
+
   it("previews a withdrawal, then executes only the explicit local-fork quote", async () => {
     const user = userEvent.setup();
     mocks.previewWithdrawal.mockResolvedValue(quote);
-    mocks.executeWithdrawal.mockResolvedValue(withdrawal);
+    mocks.executeWithdrawal
+      .mockResolvedValueOnce(create(WithdrawalSchema, { ...withdrawal, state: "pending_approval", transactionHash: "" }))
+      .mockResolvedValueOnce(create(WithdrawalSchema, { ...withdrawal, state: "pending_approval", transactionHash: "" }))
+      .mockResolvedValueOnce(withdrawal);
     renderWithProviders(<FundPage />);
 
     await user.type(screen.getByTestId(selectors.funding.operatorToken), "operator-secret");
@@ -167,7 +199,15 @@ describe("Fund page", () => {
       feeValuationMinor: 5n,
     });
     await user.click(await screen.findByRole("button", { name: en.fund.executeFork }));
-    expect(mocks.executeWithdrawal).toHaveBeenCalledWith("operator-secret", "agent-token", quote.id, expect.any(String));
+    expect(screen.getByTestId(selectors.funding.withdrawalExecuteButton)).toBeVisible();
+    const idempotencyKey = mocks.executeWithdrawal.mock.calls[0]?.[3];
+    expect(idempotencyKey).toBeTruthy();
+    expect(screen.getByTestId(selectors.funding.withdrawalExecuteButton)).toBeDisabled();
+    await vi.waitFor(() => expect(screen.getByTestId(selectors.funding.withdrawalStatus)).toHaveTextContent("settled"), { timeout: 5_000 });
+    expect(mocks.executeWithdrawal).toHaveBeenNthCalledWith(1, "operator-secret", "agent-token", quote.id, idempotencyKey);
+    expect(mocks.executeWithdrawal).toHaveBeenNthCalledWith(2, "operator-secret", "agent-token", quote.id, idempotencyKey);
+    expect(mocks.executeWithdrawal).toHaveBeenNthCalledWith(3, "operator-secret", "agent-token", quote.id, idempotencyKey);
+    expect(screen.getByTestId(selectors.funding.withdrawalStatus)).toHaveTextContent("settled");
     expect(await screen.findByText(en.fund.withdrawNotice.replace("{{state}}", "settled"))).toBeVisible();
   });
 

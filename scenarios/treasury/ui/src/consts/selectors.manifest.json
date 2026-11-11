@@ -121,6 +121,18 @@
       "testId": "funding-refresh-intents",
       "selector": "[data-testid=\"funding-refresh-intents\"]"
     },
+    "funding.recentIntent": {
+      "testId": "funding-recent-intent",
+      "selector": "[data-testid=\"funding-recent-intent\"]"
+    },
+    "funding.activeIntentState": {
+      "testId": "funding-intent-state",
+      "selector": "[data-testid=\"funding-intent-state\"]"
+    },
+    "funding.notificationState": {
+      "testId": "funding-notification-state",
+      "selector": "[data-testid=\"funding-notification-state\"]"
+    },
     "funding.atomicAmount": {
       "testId": "funding-atomic-amount",
       "selector": "[data-testid=\"funding-atomic-amount\"]"
@@ -149,6 +161,10 @@
       "testId": "funding-payment-qr",
       "selector": "[data-testid=\"funding-payment-qr\"]"
     },
+    "funding.openWalletLink": {
+      "testId": "funding-open-wallet-link",
+      "selector": "[data-testid=\"funding-open-wallet-link\"]"
+    },
     "funding.copyLinkButton": {
       "testId": "funding-copy-link",
       "selector": "[data-testid=\"funding-copy-link\"]"
@@ -169,9 +185,33 @@
       "testId": "funding-withdrawal-mandate-id",
       "selector": "[data-testid=\"funding-withdrawal-mandate-id\"]"
     },
+    "funding.withdrawalAmount": {
+      "testId": "funding-withdrawal-amount",
+      "selector": "[data-testid=\"funding-withdrawal-amount\"]"
+    },
+    "funding.withdrawalValue": {
+      "testId": "funding-withdrawal-value",
+      "selector": "[data-testid=\"funding-withdrawal-value\"]"
+    },
+    "funding.withdrawalMaxFee": {
+      "testId": "funding-withdrawal-max-fee",
+      "selector": "[data-testid=\"funding-withdrawal-max-fee\"]"
+    },
+    "funding.withdrawalFeeValue": {
+      "testId": "funding-withdrawal-fee-value",
+      "selector": "[data-testid=\"funding-withdrawal-fee-value\"]"
+    },
     "funding.withdrawalPreviewButton": {
       "testId": "funding-withdrawal-preview",
       "selector": "[data-testid=\"funding-withdrawal-preview\"]"
+    },
+    "funding.withdrawalExecuteButton": {
+      "testId": "funding-withdrawal-execute",
+      "selector": "[data-testid=\"funding-withdrawal-execute\"]"
+    },
+    "funding.withdrawalStatus": {
+      "testId": "funding-withdrawal-status",
+      "selector": "[data-testid=\"funding-withdrawal-status\"]"
     },
     "controls.panel": {
       "testId": "controls-panel",
@@ -371,7 +411,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "0317e60f9b44f46ba791f33d24ad9c624fb630defca459a591a1ccf4482bcebc",
-    "ui/src/consts/selectors.ts": "76c02ecc29dee3f2c6125d0e391989cee99b3a885cfd08431e377ac1863f89ad",
+    "ui/src/consts/selectors.ts": "b7032a03e9624dda306638529d02a9aeace188fe1b3afab752cb30e59af894a8",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

@@ -24,6 +24,11 @@ CREATE TABLE IF NOT EXISTS funding_intents (
  updated_at TEXT NOT NULL
 );
 CREATE UNIQUE INDEX IF NOT EXISTS funding_intents_one_active_budget ON funding_intents(budget_id) WHERE state<>'credited';
+CREATE TABLE IF NOT EXISTS funding_intent_watch_cursors (
+ intent_id TEXT PRIMARY KEY REFERENCES funding_intents(id),
+ next_block TEXT NOT NULL,
+ updated_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS withdrawal_destinations (
  budget_id TEXT NOT NULL REFERENCES budget_wallets(budget_id),
  address TEXT NOT NULL,

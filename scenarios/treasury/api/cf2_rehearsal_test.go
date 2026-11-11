@@ -19,7 +19,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -80,66 +82,110 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	}
 	readRehearsalJSON(t, filepath.Join(fixtureDir, "seed.json"), &seed)
 	require.True(t, strings.HasPrefix(seed.URL, "http://127.0.0.1:"))
-	fork := basefork.Start(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Minute)
 	defer cancel()
 	runDir := filepath.Join(filepath.Dir(fixtureDir), "cf2-"+time.Now().UTC().Format("20060102T150405Z"))
 	require.NoError(t, os.MkdirAll(runDir, 0o700))
 	t.Logf("rehearsal evidence=%s", runDir)
+	const cf2PeakBytes int64 = 4 * 1024 * 1024 * 1024
+	admitTreasuryRehearsalDisk(t, filepath.Dir(fixtureDir), runDir, "crypto-foundations:CF1-normal-agent-run-local-fork", "CF1/CF2 local-fork Agent Manager and receipt rehearsal", cf2PeakBytes)
+	fork := basefork.Start(t)
 	custodyDir := filepath.Join(runDir, "custody")
 	credentialPath := filepath.Join(custodyDir, "synthetic-custody.enc")
 	initializeCF2Credentials(t, credentialPath)
 	t.Cleanup(func() { _ = os.RemoveAll(custodyDir) })
 	token, jwksURL, exchangeURL, closeIdentity := startServiceIdentityFixture(t)
 	defer closeIdentity()
-	ledgerEnv := map[string]string{"GOFLAGS": ""}
+	restoreLedgerEnv := map[string]string{"GOFLAGS": ""}
 	for key, value := range seed.Runtime {
 		if strings.HasPrefix(key, "VROOLI_AUTH_") || key == "SCENARIO_DATA_DIR" || key == "SCENARIO_NAME" || key == "VROOLI_SCENARIO" || key == "VROOLI_STORAGE_NAMESPACE" {
-			ledgerEnv[key] = value
+			restoreLedgerEnv[key] = value
 		}
+	}
+	ledgerEnv := make(map[string]string, len(restoreLedgerEnv)+1)
+	for key, value := range restoreLedgerEnv {
+		ledgerEnv[key] = value
 	}
 	ledgerEnv["VROOLI_AUTH_SCENARIO_JWKS_URL"] = jwksURL
 	lifecycleRehearsal(t, ctx, runDir, "ledger-fixture-restart", ledgerEnv, "restart", "money-ledger@"+seed.Variant, "--path", seed.Source, "--json", "--timeout", "240")
+	t.Cleanup(func() {
+		restoreCtx, restoreCancel := context.WithTimeout(context.Background(), 4*time.Minute)
+		defer restoreCancel()
+		lifecycleRehearsal(t, restoreCtx, runDir, "ledger-fixture-restore", restoreLedgerEnv, "restart", "money-ledger@"+seed.Variant, "--path", seed.Source, "--json", "--timeout", "240")
+	})
 	cwd, err := os.Getwd()
 	require.NoError(t, err)
 	repo := filepath.Clean(filepath.Join(cwd, "../../.."))
 
+	var identityAuditMu sync.Mutex
+	var identityAudit []map[string]any
 	identityServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		started := time.Now()
+		tokenBytes, operationTokenBytes, decodeError, classification := 0, 0, "", ""
+		defer func() {
+			row := map[string]any{
+				"method": r.Method, "path": r.URL.Path, "content_length": r.ContentLength,
+				"remote": r.RemoteAddr, "token_bytes": tokenBytes,
+				"operation_token_bytes": operationTokenBytes, "decode_error": decodeError,
+				"classification": classification, "duration_ms": float64(time.Since(started).Microseconds()) / 1000,
+			}
+			identityAuditMu.Lock()
+			identityAudit = append(identityAudit, row)
+			identityAuditMu.Unlock()
+		}()
 		var in struct {
 			Token          string `json:"token"`
 			OperationToken string `json:"operation_token"`
 		}
-		if r.URL.Path != "/api/v1/identity/verify" || json.NewDecoder(r.Body).Decode(&in) != nil {
+		if r.URL.Path != "/api/v1/identity/verify" {
+			classification = "invalid_path"
+			http.Error(w, "invalid fixture identity", http.StatusUnauthorized)
+			return
+		}
+		decodeErr := json.NewDecoder(r.Body).Decode(&in)
+		tokenBytes, operationTokenBytes = len(in.Token), len(in.OperationToken)
+		if decodeErr != nil {
+			decodeError = decodeErr.Error()
+			classification = "body_decode_failed"
 			http.Error(w, "invalid fixture identity", http.StatusUnauthorized)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if in.Token == "cf2-local-agent" && in.OperationToken == "" {
+			classification = "static_agent_accepted"
 			_ = json.NewEncoder(w).Encode(map[string]any{"valid": true, "claims": agentclaims.For("cf2-agent")})
 			return
 		}
 		baseline, baselineOK := verifyCF1RunToken(in.Token)
 		if !baselineOK {
-			t.Logf("CF1 identity fixture rejected baseline token")
+			classification = "run_identity_rejected"
 			http.Error(w, "invalid local Agent Manager run identity", http.StatusUnauthorized)
 			return
 		}
 		if in.OperationToken == "" {
+			classification = "run_identity_accepted"
 			_ = json.NewEncoder(w).Encode(map[string]any{"valid": true, "claims": baseline})
 			return
 		}
 		operation, operationOK := verifyCF1RunToken(in.OperationToken)
 		if !operationOK || baseline.RunID != operation.RunID || baseline.TaskID != operation.TaskID || baseline.Subject != operation.Subject || operation.Meta["authorization_id"] == "" || operation.Meta["operation_grant"] == "" {
-			t.Logf("CF1 identity fixture rejected pair: operationValid=%t runMatches=%t taskMatches=%t subjectMatches=%t authorizationPresent=%t grantPresent=%t", operationOK, baseline.RunID == operation.RunID, baseline.TaskID == operation.TaskID, baseline.Subject == operation.Subject, operation.Meta["authorization_id"] != "", operation.Meta["operation_grant"] != "")
+			classification = "operation_pair_rejected"
 			http.Error(w, "invalid local Agent Manager identity pair", http.StatusUnauthorized)
 			return
 		}
+		classification = "operation_pair_accepted"
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"valid": true, "claims": baseline,
 			"operation": map[string]any{"valid": true, "claims": operation},
 		})
 	}))
 	defer identityServer.Close()
+	t.Cleanup(func() {
+		identityAuditMu.Lock()
+		snapshot := append([]map[string]any(nil), identityAudit...)
+		identityAuditMu.Unlock()
+		writeRehearsalJSON(t, filepath.Join(runDir, "cf1-identity-requests.json"), snapshot)
+	})
 	variant := "cf2-" + fmt.Sprint(time.Now().Unix())
 	lpbsVariant := "cf2-lpbs-" + fmt.Sprint(time.Now().UnixNano())
 	lpbsDatabase := "vrooli_landing_page_business_suite_" + strings.ReplaceAll(lpbsVariant, "-", "_")
@@ -223,7 +269,7 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	require.NoError(t, err)
 	_, err = client.SetBudgetCaps(ctx, operatorRequest(&authpb.SetBudgetCapsRequest{Budget: &budgetpb.Budget{Id: budgetID, BookId: bookID, Currency: "USD", TotalCapMinor: 10000, PeriodicCapMinor: 10000, PerTransactionCapMinor: 10000, PeriodSeconds: 3600}}))
 	require.NoError(t, err)
-	cf1AMRunID, cf1AMAuthorizationID, cf1AMSettlementID, err := runCF1AgentManagerCLIForkShowcase(t, ctx, repo, runDir, apiURL, source, name, client, notificationRequests, fork, bookID, variant)
+	cf1AMRunID, cf1AMAuthorizationID, cf1AMSettlementID, err := runCF1AgentManagerCLIForkShowcase(t, ctx, repo, runDir, apiURL, identityServer.URL, source, name, client, notificationRequests, fork, bookID, variant)
 	require.NoError(t, err)
 	writeRehearsalJSON(t, filepath.Join(runDir, "cf1-agent-manager-cli-result.json"), map[string]any{
 		"run_id": cf1AMRunID, "authorization_id": cf1AMAuthorizationID, "settlement_id": cf1AMSettlementID,
@@ -348,13 +394,14 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	require.NoError(t, err)
 	customerTx, err := fork.Transfer(ctx, fork.Accounts[1], budgetWallet.Address, "2500000")
 	require.NoError(t, err)
+	writeRehearsalJSON(t, filepath.Join(runDir, "customer-funding-transfer.json"), map[string]string{"intent_id": intentResponse.Msg.Intent.Id, "transaction_hash": customerTx, "chain": "local Base fork"})
 	// Anvil's finalized tag advances only after enough local blocks have been
-	// mined; a mined transaction alone remains merely included evidence.
+	// mined; the Treasury receipt watcher must only credit the finalized event.
 	require.NoError(t, fork.Call(ctx, "anvil_mine", []any{"0x80"}, nil))
-	customerResponse, err := client.ConfirmFundingTransfer(ctx, operatorRequest(&fundingpb.ConfirmFundingTransferRequest{Id: intentResponse.Msg.Intent.Id, TransactionHash: customerTx}))
-	require.NoError(t, err)
-	require.Equal(t, "credited", customerResponse.Msg.Intent.State)
-	customerDelivery, err := client.GetReceiptFunding(ctx, operatorRequest(&fundingpb.GetReceiptFundingRequest{Id: customerResponse.Msg.Intent.ReceiptDeliveryId}))
+	customerIntent := waitForCreditedFundingIntent(t, ctx, client, runDir, intentResponse.Msg.Intent.Id)
+	require.Equal(t, customerTx, customerIntent.GetTransactionHash())
+	require.Equal(t, "credited", customerIntent.GetState())
+	customerDelivery, err := client.GetReceiptFunding(ctx, operatorRequest(&fundingpb.GetReceiptFundingRequest{Id: customerIntent.GetReceiptDeliveryId()}))
 	require.NoError(t, err)
 	customer := customerDelivery.Msg.Delivery
 	require.Equal(t, fundingpb.ReceiptFundingState_RECEIPT_FUNDING_STATE_ACCEPTED, customer.State)
@@ -797,6 +844,27 @@ func TestCF2LocalForkThroughBothOwners(t *testing.T) { // [REQ:TRS-P0-001] [REQ:
 	t.Log("five exact-token receipt events, actual LPBS credit_funding_lots association, mandate-bound agent session signing, in-cap and human-approved over-cap settlements, freeze denial, exact receipt attribution and idempotent replay survived Treasury restart")
 }
 
+func waitForCreditedFundingIntent(t *testing.T, ctx context.Context, client authconnect.TreasuryAdminClient, runDir, id string) *fundingpb.FundingIntent {
+	t.Helper()
+	watchCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	for {
+		response, err := client.GetFundingIntent(watchCtx, operatorRequest(&fundingpb.FundingIntentRequest{Id: id}))
+		if err == nil && response.Msg.GetIntent().GetState() == "credited" {
+			writeRehearsalProto(t, filepath.Join(runDir, "customer-funding-watcher-credit.json"), response.Msg.GetIntent())
+			return response.Msg.GetIntent()
+		}
+		if err != nil && watchCtx.Err() == nil {
+			t.Fatalf("read funding intent while waiting for Treasury's receipt watcher: %v", err)
+		}
+		select {
+		case <-watchCtx.Done():
+			t.Fatalf("Treasury receipt watcher did not credit intent %s before timeout: %v", id, watchCtx.Err())
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
 type cf1RunIdentityClaims struct {
 	Purpose   string            `json:"purpose,omitempty"`
 	RunID     string            `json:"run_id"`
@@ -806,6 +874,97 @@ type cf1RunIdentityClaims struct {
 	IssuedAt  int64             `json:"iat"`
 	ExpiresAt int64             `json:"exp"`
 	Meta      map[string]string `json:"meta"`
+}
+
+type cf1RPCReceiptLog struct {
+	Address string   `json:"address"`
+	Topics  []string `json:"topics"`
+	Data    string   `json:"data"`
+}
+
+type cf1RPCReceipt struct {
+	TransactionHash string             `json:"transactionHash"`
+	BlockHash       string             `json:"blockHash"`
+	BlockNumber     string             `json:"blockNumber"`
+	Status          string             `json:"status"`
+	From            string             `json:"from"`
+	To              string             `json:"to"`
+	Logs            []cf1RPCReceiptLog `json:"logs"`
+}
+
+const cf1ERC20TransferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+
+func validateCF1RPCReceipt(raw []byte, transactionHash, walletAddress, counterparty string, amountMinor int64) (cf1RPCReceipt, error) {
+	var receipt cf1RPCReceipt
+	if err := json.Unmarshal(raw, &receipt); err != nil {
+		return receipt, fmt.Errorf("decode complete RPC response: %w", err)
+	}
+	if amountMinor <= 0 || receipt.Status != "0x1" || !strings.EqualFold(receipt.TransactionHash, transactionHash) || receipt.BlockHash == "" || receipt.BlockNumber == "" || !strings.EqualFold(receipt.From, walletAddress) || !strings.EqualFold(receipt.To, baseusdc.USDCAddress) {
+		return receipt, errors.New("RPC receipt does not match a successful transaction from the derived budget wallet to Base USDC")
+	}
+	expectedAtoms := new(big.Int).Mul(big.NewInt(amountMinor), big.NewInt(10_000))
+	for _, log := range receipt.Logs {
+		if !strings.EqualFold(log.Address, baseusdc.USDCAddress) || len(log.Topics) != 3 || !strings.EqualFold(log.Topics[0], cf1ERC20TransferTopic) || len(log.Topics[1]) != 66 || len(log.Topics[2]) != 66 {
+			continue
+		}
+		from := "0x" + strings.ToLower(log.Topics[1][26:])
+		to := "0x" + strings.ToLower(log.Topics[2][26:])
+		atoms, ok := new(big.Int).SetString(strings.TrimPrefix(log.Data, "0x"), 16)
+		if ok && len(log.Data) == 66 && strings.HasPrefix(log.Data, "0x") && strings.EqualFold(from, walletAddress) && strings.EqualFold(to, counterparty) && atoms.Cmp(expectedAtoms) == 0 {
+			return receipt, nil
+		}
+	}
+	return receipt, errors.New("complete RPC receipt lacks the exact run-wallet USDC Transfer event")
+}
+
+func TestCF1ReceiptProofRequiresExactRawUSDCTransfer(t *testing.T) {
+	walletAddress := "0x1111111111111111111111111111111111111111"
+	counterparty := "0x2222222222222222222222222222222222222222"
+	transactionHash := "0x" + strings.Repeat("a", 64)
+	addressTopic := func(address string) string {
+		return "0x" + strings.Repeat("0", 24) + strings.TrimPrefix(strings.ToLower(address), "0x")
+	}
+	makeReceipt := func() cf1RPCReceipt {
+		return cf1RPCReceipt{
+			TransactionHash: transactionHash, BlockHash: "0x" + strings.Repeat("b", 64), BlockNumber: "0x42",
+			Status: "0x1", From: walletAddress, To: baseusdc.USDCAddress,
+			Logs: []cf1RPCReceiptLog{{Address: baseusdc.USDCAddress, Topics: []string{cf1ERC20TransferTopic, addressTopic(walletAddress), addressTopic(counterparty)}, Data: fmt.Sprintf("0x%064x", 300_000)}},
+		}
+	}
+	cases := []struct {
+		name   string
+		mutate func(*cf1RPCReceipt)
+		valid  bool
+	}{
+		{name: "exact transfer", valid: true},
+		{name: "wrong transaction", mutate: func(r *cf1RPCReceipt) { r.TransactionHash = "0x" + strings.Repeat("c", 64) }},
+		{name: "wrong status", mutate: func(r *cf1RPCReceipt) { r.Status = "0x0" }},
+		{name: "wrong signer", mutate: func(r *cf1RPCReceipt) { r.From = counterparty }},
+		{name: "wrong token contract", mutate: func(r *cf1RPCReceipt) { r.Logs[0].Address = counterparty }},
+		{name: "wrong recipient", mutate: func(r *cf1RPCReceipt) { r.Logs[0].Topics[2] = addressTopic(walletAddress) }},
+		{name: "wrong amount", mutate: func(r *cf1RPCReceipt) { r.Logs[0].Data = fmt.Sprintf("0x%064x", 300_001) }},
+		{name: "short amount encoding", mutate: func(r *cf1RPCReceipt) { r.Logs[0].Data = "0x493e0" }},
+		{name: "no transfer", mutate: func(r *cf1RPCReceipt) { r.Logs = nil }},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			receipt := makeReceipt()
+			if tc.mutate != nil {
+				tc.mutate(&receipt)
+			}
+			raw, err := json.Marshal(receipt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = validateCF1RPCReceipt(raw, transactionHash, walletAddress, counterparty, 30)
+			if tc.valid && err != nil {
+				t.Fatalf("valid receipt rejected: %v", err)
+			}
+			if !tc.valid && err == nil {
+				t.Fatal("invalid receipt was accepted")
+			}
+		})
+	}
 }
 
 func verifyCF1RunToken(token string) (cf1RunIdentityClaims, bool) {
@@ -830,7 +989,7 @@ func verifyCF1RunToken(token string) (cf1RunIdentityClaims, bool) {
 	return claims, true
 }
 
-func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, runDir, apiURL, treasurySource, treasuryName string, client authconnect.TreasuryAdminClient, notificationRequests <-chan *notificationsv1.SendRequest, fork *basefork.Fork, bookID, variant string) (string, string, string, error) {
+func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, runDir, apiURL, identityAuthorityURL, treasurySource, treasuryName string, client authconnect.TreasuryAdminClient, notificationRequests <-chan *notificationsv1.SendRequest, fork *basefork.Fork, bookID, variant string) (string, string, string, error) {
 	t.Helper()
 	coord := filepath.Join(runDir, "agent-manager-cli")
 	if err := os.MkdirAll(coord, 0o700); err != nil {
@@ -838,6 +997,7 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	}
 	budgetID := "cf1-agent-manager-budget-" + variant
 	mandateID := "cf1-agent-manager-mandate-" + variant
+	expiryMandateID := "cf1-agent-manager-mandate-expiry-" + variant
 	authorizationID := "cf1-agent-manager-auth-in-cap-" + variant
 	settlementID := "cf1-agent-manager-settlement-in-cap-" + variant
 	idempotency := "cf1-agent-manager-idem-in-cap-" + variant
@@ -846,6 +1006,10 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	overCapSettlementID := "cf1-agent-manager-settlement-over-cap-" + variant
 	overCapIdempotency := "cf1-agent-manager-idem-over-cap-" + variant
 	overCapInstrumentID := "cf1-agent-manager-instrument-over-cap-" + variant
+	expiryAuthorizationID := "cf1-agent-manager-auth-expired-" + variant
+	expirySettlementID := "cf1-agent-manager-settlement-expired-" + variant
+	expiryIdempotency := "cf1-agent-manager-idem-expired-" + variant
+	expiryInstrumentID := "cf1-agent-manager-instrument-expired-" + variant
 	counterparty := strings.ToLower(fork.Accounts[1])
 	_, err := client.SetBudgetCaps(ctx, operatorRequest(&authpb.SetBudgetCapsRequest{Budget: &budgetpb.Budget{
 		Id: budgetID, BookId: bookID, Currency: "USD", TotalCapMinor: 1000,
@@ -879,6 +1043,11 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 		"TREASURY_CF1_OVER_CAP_SETTLEMENT_ID="+overCapSettlementID,
 		"TREASURY_CF1_OVER_CAP_INSTRUMENT_ID="+overCapInstrumentID,
 		"TREASURY_CF1_OVER_CAP_IDEMPOTENCY_KEY="+overCapIdempotency,
+		"TREASURY_CF1_EXPIRY_MANDATE_ID="+expiryMandateID,
+		"TREASURY_CF1_EXPIRY_AUTHORIZATION_ID="+expiryAuthorizationID,
+		"TREASURY_CF1_EXPIRY_SETTLEMENT_ID="+expirySettlementID,
+		"TREASURY_CF1_EXPIRY_INSTRUMENT_ID="+expiryInstrumentID,
+		"TREASURY_CF1_EXPIRY_IDEMPOTENCY_KEY="+expiryIdempotency,
 	)
 	amOutputPath := filepath.Join(coord, "agent-manager-go-test.log")
 	amOutput, err := os.Create(amOutputPath)
@@ -906,14 +1075,33 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	if strings.TrimSpace(runIdentity.RunID) == "" {
 		return "", "", "", errors.New("Agent Manager run receipt omitted its run ID")
 	}
-	_, err = client.CreateMandate(ctx, operatorRequest(&authpb.CreateMandateRequest{Mandate: &mandatepb.Mandate{
+	standingNextCharge := timestamppb.New(time.Now().Add(time.Minute))
+	createdMandate, err := client.CreateMandate(ctx, operatorRequest(&authpb.CreateMandateRequest{Mandate: &mandatepb.Mandate{
 		Id: mandateID, IdempotencyKey: idempotency + "-mandate", BookId: bookID, BudgetId: budgetID,
 		CapMinor: 300, Currency: "USD", AllowedCounterparties: []string{counterparty},
-		AgentSubject: "cf1-local-operator", AgentRunId: runIdentity.RunID, ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)),
+		AgentSubject: "cf1-local-operator", AgentRunId: runIdentity.RunID,
+		ExpiresAt: timestamppb.New(time.Now().Add(time.Hour)), RecurrenceSeconds: 3600, NextChargeAt: standingNextCharge,
 	}}))
 	if err != nil {
-		return "", "", "", fmt.Errorf("create run-bound Treasury mandate: %w", err)
+		return "", "", "", fmt.Errorf("create run-bound standing Treasury mandate: %w", err)
 	}
+	if createdMandate.Msg.GetMandate().GetRecurrenceSeconds() != 3600 || createdMandate.Msg.GetMandate().GetNextChargeAt() == nil || createdMandate.Msg.GetMandate().GetStatus() != mandatepb.MandateStatus_MANDATE_STATUS_LIVE {
+		return "", "", "", fmt.Errorf("ordinary Agent Manager run mandate is not live/standing: %+v", createdMandate.Msg.GetMandate())
+	}
+	writeRehearsalProto(t, filepath.Join(coord, "standing-mandate.json"), createdMandate.Msg.GetMandate())
+	expiryDeadline := time.Now().Add(30 * time.Second).UTC()
+	createdExpiryMandate, err := client.CreateMandate(ctx, operatorRequest(&authpb.CreateMandateRequest{Mandate: &mandatepb.Mandate{
+		Id: expiryMandateID, IdempotencyKey: expiryIdempotency + "-mandate", BookId: bookID, BudgetId: budgetID,
+		CapMinor: 10, Currency: "USD", AllowedCounterparties: []string{counterparty},
+		AgentSubject: "cf1-local-operator", AgentRunId: runIdentity.RunID, ExpiresAt: timestamppb.New(expiryDeadline),
+	}}))
+	if err != nil {
+		return "", "", "", fmt.Errorf("create short-lived run-bound expiry-test mandate: %w", err)
+	}
+	if createdExpiryMandate.Msg.GetMandate().GetStatus() != mandatepb.MandateStatus_MANDATE_STATUS_LIVE || !createdExpiryMandate.Msg.GetMandate().GetExpiresAt().AsTime().Equal(expiryDeadline) {
+		return "", "", "", fmt.Errorf("short-lived mandate did not preserve its live expiry: %+v", createdExpiryMandate.Msg.GetMandate())
+	}
+	writeRehearsalJSON(t, filepath.Join(coord, "expired-mandate-created.json"), map[string]any{"mandate_id": expiryMandateID, "expires_at": expiryDeadline})
 	walletResponse, err := client.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{
 		BudgetId: budgetID, Network: baseusdc.Network, AgentSubject: "cf1-local-operator", AgentRunId: runIdentity.RunID, MandateId: mandateID,
 	}))
@@ -935,7 +1123,7 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	if err != nil {
 		return "", "", "", fmt.Errorf("open local Treasury custody fixture: %w", err)
 	}
-	registerRunInstrument := func(id string, amountMinor int64) error {
+	registerRunInstrument := func(instrumentMandateID, id string, amountMinor int64) error {
 		atoms := new(big.Int).Mul(big.NewInt(amountMinor), big.NewInt(10000)).String()
 		quote, quoteErr := quoteAdapter.Preview(ctx, wallet.Wallet{ID: walletResponse.Msg.Wallet.WalletId, Network: baseusdc.Network, OperatorIdentity: "local-operator", Address: walletResponse.Msg.Wallet.Address}, counterparty, atoms, amountMinor, "USD", "")
 		if quoteErr != nil {
@@ -954,16 +1142,19 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 			return fmt.Errorf("retain only local-fork rail quote: %w", putErr)
 		}
 		if _, registerErr := client.RegisterInstrument(ctx, operatorRequest(&authpb.RegisterInstrumentRequest{Instrument: &instrumentpb.Instrument{
-			Id: id, MandateId: mandateID, Rail: "base-usdc", CredentialReference: credentialReference, Counterparty: counterparty,
+			Id: id, MandateId: instrumentMandateID, Rail: "base-usdc", CredentialReference: credentialReference, Counterparty: counterparty,
 		}})); registerErr != nil {
 			return fmt.Errorf("register local run rail instrument %s: %w", id, registerErr)
 		}
 		return nil
 	}
-	if err := registerRunInstrument(instrumentID, 30); err != nil {
+	if err := registerRunInstrument(mandateID, instrumentID, 30); err != nil {
 		return "", "", "", err
 	}
-	if err := registerRunInstrument(overCapInstrumentID, 110); err != nil {
+	if err := registerRunInstrument(mandateID, overCapInstrumentID, 110); err != nil {
+		return "", "", "", err
+	}
+	if err := registerRunInstrument(expiryMandateID, expiryInstrumentID, 10); err != nil {
 		return "", "", "", err
 	}
 	config := map[string]any{
@@ -973,6 +1164,8 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 		"in_cap_authorization_id": authorizationID, "in_cap_settlement_id": settlementID, "in_cap_idempotency_key": idempotency,
 		"over_cap_instrument_id": overCapInstrumentID, "over_cap_amount_minor": 110,
 		"over_cap_authorization_id": overCapAuthorizationID, "over_cap_settlement_id": overCapSettlementID, "over_cap_idempotency_key": overCapIdempotency,
+		"expiry_mandate_id": expiryMandateID, "expiry_authorization_id": expiryAuthorizationID,
+		"expiry_settlement_id": expirySettlementID, "expiry_instrument_id": expiryInstrumentID, "expiry_idempotency_key": expiryIdempotency,
 	}
 	writeRehearsalJSON(t, filepath.Join(coord, "treasury-config.json"), config)
 	var authorizationReady struct {
@@ -1022,6 +1215,27 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	if err := requireCLILocalSettlement(inCapSettlement, settlementID); err != nil {
 		return "", "", "", fmt.Errorf("validate ordinary-run in-cap settlement: %w", err)
 	}
+	initialSessionGeneration := walletResponse.Msg.GetWallet().GetSessionGeneration()
+	if initialSessionGeneration <= 0 {
+		return "", "", "", fmt.Errorf("ordinary Agent Manager run was provisioned without an active mandate session generation: %d", initialSessionGeneration)
+	}
+	rotatedWalletResponse, err := client.ProvisionBudgetWallet(ctx, operatorRequest(&fundingpb.ProvisionBudgetWalletRequest{
+		BudgetId: budgetID, Network: baseusdc.Network, AgentSubject: "cf1-local-operator", AgentRunId: runIdentity.RunID,
+		MandateId: mandateID, RotateSession: true,
+	}))
+	if err != nil {
+		return "", "", "", fmt.Errorf("rotate mandate session while ordinary Agent Manager run is active: %w", err)
+	}
+	rotatedWallet := rotatedWalletResponse.Msg.GetWallet()
+	if rotatedWallet.GetSessionGeneration() != initialSessionGeneration+1 || rotatedWallet.GetAddress() != walletResponse.Msg.GetWallet().GetAddress() {
+		return "", "", "", fmt.Errorf("mandate session rotation changed address or failed to advance generation: old=%d new=%d address=%q", initialSessionGeneration, rotatedWallet.GetSessionGeneration(), rotatedWallet.GetAddress())
+	}
+	writeRehearsalJSON(t, filepath.Join(coord, "mandate-session-rotated.json"), map[string]any{
+		"mandate_id": mandateID, "address": rotatedWallet.GetAddress(),
+		"old_generation":         strconv.FormatInt(initialSessionGeneration, 10),
+		"new_generation":         strconv.FormatInt(rotatedWallet.GetSessionGeneration(), 10),
+		"old_generation_retired": true, "same_derived_budget_address": true,
+	})
 	if err := waitForCF1FileOrChild(ctx, filepath.Join(coord, "over-cap-authorization-ready.json"), nil, childDone); err != nil {
 		return "", "", "", fmt.Errorf("wait for ordinary-run over-cap proposal: %w", err)
 	}
@@ -1072,6 +1286,13 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	// The CLI is pinned to the same isolated variant address; rebind outer clients
 	// through that address after the owner confirms its replacement process.
 	client = authconnect.NewTreasuryAdminClient(http.DefaultClient, apiURL)
+	// Prove the local identity authority fixture is still reachable before the
+	// active Agent Manager run retries through the restarted Treasury process.
+	identityCheck, identityCheckErr := http.Post(identityAuthorityURL+"/api/v1/identity/verify", "application/json", strings.NewReader(`{"token":"cf2-local-agent"}`))
+	if identityCheckErr != nil {
+		return "", "", "", fmt.Errorf("local identity fixture unavailable after Treasury restart: %w", identityCheckErr)
+	}
+	_ = identityCheck.Body.Close()
 	if err := os.WriteFile(filepath.Join(coord, "over-cap-retry-release"), []byte("retry same settlement after Treasury restart"), 0o600); err != nil {
 		return "", "", "", err
 	}
@@ -1127,10 +1348,19 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	if nonceBeforeFrozenRequest != nonceAfterFrozenRequest {
 		return "", "", "", fmt.Errorf("frozen request dispatched a transaction: nonce %s -> %s", nonceBeforeFrozenRequest, nonceAfterFrozenRequest)
 	}
+	var nonceBeforeExpiryAttempt string
+	if err := fork.Call(ctx, "eth_getTransactionCount", []any{frozenWallet.Wallet.Address, "latest"}, &nonceBeforeExpiryAttempt); err != nil {
+		return "", "", "", fmt.Errorf("read run wallet nonce before mandate-expiry denial: %w", err)
+	}
 	writeRehearsalJSON(t, filepath.Join(coord, "frozen-no-dispatch.json"), map[string]string{
 		"authorization_id": frozenProposal.GetAuthorization().GetId(), "violated_constraint": frozenProposal.GetAuthorization().GetViolatedConstraint(),
 		"nonce_before": nonceBeforeFrozenRequest, "nonce_after": nonceAfterFrozenRequest, "dispatch": "none",
 	})
+	unfrozen, err := client.UnfreezeBudget(ctx, operatorRequest(&authpb.UnfreezeBudgetRequest{BudgetId: budgetID}))
+	if err != nil || unfrozen.Msg.GetBudget().GetId() != budgetID || unfrozen.Msg.GetBudget().GetFrozen() {
+		return "", "", "", fmt.Errorf("release local budget freeze before independent expiry test: budget=%v err=%v", unfrozen, err)
+	}
+	writeRehearsalProto(t, filepath.Join(coord, "budget-unfrozen-for-expiry.json"), unfrozen.Msg.GetBudget())
 	select {
 	case childErr := <-childDone:
 		if childErr != nil {
@@ -1146,36 +1376,101 @@ func runCF1AgentManagerCLIForkShowcase(t *testing.T, ctx context.Context, repo, 
 	if runReceipt.RunID != runIdentity.RunID {
 		return "", "", "", errors.New("Agent Manager result run ID did not match CreateRun receipt")
 	}
-	writeCLIReceipt := func(label string, settlement *authpb.ReportOutcomeResponse) error {
-		var receipt struct {
-			TransactionHash string `json:"transactionHash"`
-			BlockHash       string `json:"blockHash"`
-			BlockNumber     string `json:"blockNumber"`
-			Status          string `json:"status"`
-		}
+	var expiryDecision struct {
+		MandateID          string `json:"mandate_id"`
+		AuthorizationID    string `json:"authorization_id"`
+		Verdict            string `json:"verdict"`
+		ViolatedConstraint string `json:"violated_constraint"`
+	}
+	readRehearsalJSON(t, filepath.Join(coord, "expired-mandate-decision.json"), &expiryDecision)
+	if expiryDecision.MandateID != expiryMandateID || expiryDecision.AuthorizationID != expiryAuthorizationID || expiryDecision.Verdict != "AUTHORIZATION_VERDICT_REFUSED" || expiryDecision.ViolatedConstraint != "mandate_live" {
+		return "", "", "", fmt.Errorf("expired mandate did not fail closed in the ordinary Agent Manager run: %+v", expiryDecision)
+	}
+	var nonceAfterExpiryAttempt string
+	if err := fork.Call(ctx, "eth_getTransactionCount", []any{frozenWallet.Wallet.Address, "latest"}, &nonceAfterExpiryAttempt); err != nil {
+		return "", "", "", fmt.Errorf("read run wallet nonce after mandate-expiry denial: %w", err)
+	}
+	if nonceBeforeExpiryAttempt != nonceAfterExpiryAttempt {
+		return "", "", "", fmt.Errorf("expired-mandate attempt dispatched a transaction: nonce %s -> %s", nonceBeforeExpiryAttempt, nonceAfterExpiryAttempt)
+	}
+	writeRehearsalJSON(t, filepath.Join(coord, "expired-mandate-no-dispatch.json"), map[string]any{
+		"mandate_id": expiryMandateID, "authorization_id": expiryAuthorizationID,
+		"violated_constraint": expiryDecision.ViolatedConstraint,
+		"nonce_before":        nonceBeforeExpiryAttempt, "nonce_after": nonceAfterExpiryAttempt, "dispatch": "none",
+	})
+	receiptContinuity := make(map[string]map[string]string)
+	writeCLIReceipt := func(label string, settlement *authpb.ReportOutcomeResponse, amountMinor int64) error {
 		rawReceipt, callErr := fork.CallRaw(ctx, "eth_getTransactionReceipt", []any{settlement.GetSettlement().GetExternalId()})
 		if callErr != nil {
 			return fmt.Errorf("read %s CLI settlement receipt: %w", label, callErr)
 		}
-		if decodeErr := json.Unmarshal(rawReceipt, &receipt); decodeErr != nil {
-			return fmt.Errorf("decode %s CLI settlement receipt: %w", label, decodeErr)
+		receipt, receiptErr := validateCF1RPCReceipt(rawReceipt, settlement.GetSettlement().GetExternalId(), walletResponse.Msg.GetWallet().GetAddress(), counterparty, amountMinor)
+		if receiptErr != nil {
+			return fmt.Errorf("validate %s CLI settlement receipt: %w", label, receiptErr)
 		}
-		if receipt.Status != "0x1" || !strings.EqualFold(receipt.TransactionHash, settlement.GetSettlement().GetExternalId()) || receipt.BlockHash == "" || receipt.BlockNumber == "" {
-			return fmt.Errorf("%s CLI transaction receipt is incomplete or unsuccessful: status=%q", label, receipt.Status)
+		expectedAtoms := new(big.Int).Mul(big.NewInt(amountMinor), big.NewInt(10_000))
+		rawDigest := sha256.Sum256(rawReceipt)
+		rawReceiptSHA256 := fmt.Sprintf("%x", rawDigest)
+		receiptContinuity[label] = map[string]string{
+			"transaction_hash":   receipt.TransactionHash,
+			"settlement_id":      settlement.GetSettlement().GetId(),
+			"raw_receipt_sha256": rawReceiptSHA256,
 		}
 		writeRehearsalJSON(t, filepath.Join(coord, label+"-chain-receipt.json"), map[string]any{
 			"transaction_hash": receipt.TransactionHash, "block_hash": receipt.BlockHash,
 			"block_number": receipt.BlockNumber, "status": receipt.Status,
-			"chain": "local-base-fork", "rpc_result": json.RawMessage(rawReceipt),
+			"chain": "local-base-fork", "run_id": runIdentity.RunID, "budget_id": budgetID,
+			"mandate_id": mandateID, "wallet_address": walletResponse.Msg.GetWallet().GetAddress(),
+			"authorization_id": settlement.GetSettlement().GetAuthorizationId(),
+			"settlement_id":    settlement.GetSettlement().GetId(), "counterparty": counterparty,
+			"amount_minor": amountMinor, "transfer_atoms": expectedAtoms.String(),
+			"rpc_result": json.RawMessage(rawReceipt), "rpc_result_sha256": rawReceiptSHA256,
 		})
 		return nil
 	}
-	if err := writeCLIReceipt("in-cap", inCapSettlement); err != nil {
+	if err := writeCLIReceipt("in-cap", inCapSettlement, 30); err != nil {
 		return "", "", "", err
 	}
-	if err := writeCLIReceipt("over-cap", overCapSettlement); err != nil {
+	if err := writeCLIReceipt("over-cap", overCapSettlement, 110); err != nil {
 		return "", "", "", err
 	}
+	var runCompletion struct {
+		RunID                  string   `json:"run_id"`
+		RunStatus              string   `json:"run_status"`
+		TerminalSessionRevoked bool     `json:"terminal_session_revoked"`
+		SpendGrantIDs          []string `json:"per_spend_operation_grant_ids"`
+	}
+	completionBytes, readErr := os.ReadFile(filepath.Join(coord, "agent-manager-result.json"))
+	if readErr != nil || json.Unmarshal(completionBytes, &runCompletion) != nil || runCompletion.RunID != runIdentity.RunID || runCompletion.RunStatus != "complete" || !runCompletion.TerminalSessionRevoked || len(runCompletion.SpendGrantIDs) != 4 {
+		return "", "", "", fmt.Errorf("ordinary Agent Manager completion/revocation evidence is incomplete: completion=%+v err=%v", runCompletion, readErr)
+	}
+	for _, grantID := range runCompletion.SpendGrantIDs {
+		if strings.TrimSpace(grantID) == "" {
+			return "", "", "", errors.New("ordinary run continuity receipt has an empty per-spend operation grant ID")
+		}
+	}
+	writeRehearsalJSON(t, filepath.Join(coord, "ordinary-run-continuity.json"), map[string]any{
+		"run_id": runIdentity.RunID, "budget_id": budgetID, "mandate_id": mandateID,
+		"wallet_address":                     walletResponse.Msg.GetWallet().GetAddress(),
+		"session_generation_before_rotation": initialSessionGeneration,
+		"session_generation_after_rotation":  rotatedWallet.GetSessionGeneration(),
+		"in_cap_authorization_id":            authorizationID, "in_cap_settlement_id": settlementID,
+		"in_cap_operation_grant_id": runCompletion.SpendGrantIDs[0], "in_cap_minor": 30, "remaining_minor_after_in_cap": 970,
+		"in_cap_receipt":            "in-cap-chain-receipt.json",
+		"in_cap_receipt_proof":      receiptContinuity["in-cap"],
+		"over_cap_authorization_id": overCapAuthorizationID, "over_cap_settlement_id": overCapSettlementID,
+		"over_cap_operation_grant_id": runCompletion.SpendGrantIDs[1], "over_cap_minor": 110, "remaining_minor_after_over_cap": 860,
+		"over_cap_receipt":       "over-cap-chain-receipt.json",
+		"over_cap_receipt_proof": receiptContinuity["over-cap"],
+		"over_cap_retry_after_treasury_restart_same_settlement":  overCapRetry.GetSettlement().GetId() == overCapSettlement.GetSettlement().GetId(),
+		"over_cap_retry_after_treasury_restart_same_transaction": overCapRetry.GetSettlement().GetExternalId() == overCapSettlement.GetSettlement().GetExternalId(),
+		"over_cap_human_approval_notification_record":            "over-cap-approval-notification.json",
+		"freeze_operation_grant_id":                              runCompletion.SpendGrantIDs[2], "expiry_operation_grant_id": runCompletion.SpendGrantIDs[3],
+		"freeze_denial_record": "frozen-no-dispatch.json", "expiry_denial_record": "expired-mandate-no-dispatch.json",
+		"terminal_run_record": "agent-manager-result.json", "terminal_session_revoked": runCompletion.TerminalSessionRevoked,
+		"in_cap_headroom_records":   []string{"budget-headroom-before.log", "budget-headroom-after-in-cap.log"},
+		"over_cap_headroom_records": []string{"budget-headroom-after-over-cap.log", "budget-headroom-after-over-cap-retry.log"},
+	})
 	return runIdentity.RunID, authorizationID, settlementID, nil
 }
 
@@ -1224,6 +1519,17 @@ func waitForCF1FileOrChild(ctx context.Context, path string, target any, childDo
 		}
 		select {
 		case err := <-childDone:
+			// The child can publish its final marker and complete its detached
+			// run between the first read above and this select. Re-read after the
+			// terminal notification so completion cannot mask a durable marker.
+			if data, readErr := os.ReadFile(path); readErr == nil {
+				if target == nil {
+					return nil
+				}
+				return json.Unmarshal(data, target)
+			} else if !errors.Is(readErr, os.ErrNotExist) {
+				return readErr
+			}
 			if err != nil {
 				return fmt.Errorf("Agent Manager child exited before writing %s: %w", filepath.Base(path), err)
 			}

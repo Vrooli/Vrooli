@@ -18,8 +18,10 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/vrooli/api-core/schedule"
 	ingestpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/ingest"
+	sharedpb "github.com/vrooli/vrooli/packages/proto/gen/go/money-ledger/v1/shared"
 	fundingpb "github.com/vrooli/vrooli/packages/proto/gen/go/treasury/v1/funding"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -277,11 +279,16 @@ func (s *Service) CreateFundingIntent(ctx context.Context, operator string, in *
 	}
 	copy := proto.Clone(in).(*fundingpb.CreateFundingIntentRequest)
 	copy.Id = id
+	// Funding-intent values come from the authenticated operator's declaration.
+	// Persist the basis explicitly and timestamp the declaration at the Treasury
+	// boundary so downstream receipt acceptance has complete valuation evidence.
+	now := s.now()
+	copy.Valuation.Basis = sharedpb.Basis_BASIS_OPERATOR_ASSERTED
+	copy.Valuation.ValuedAt = timestamppb.New(now)
 	encoded, err := proto.MarshalOptions{Deterministic: true}.Marshal(copy)
 	if err != nil {
 		return nil, err
 	}
-	now := s.now()
 	_, err = s.DB.ExecContext(ctx, `INSERT INTO funding_intents(id,budget_id,operator_identity,atomic_amount,request_proto,start_block,state,created_at,updated_at) VALUES(?,?,?,?,?,?,'waiting',?,?) ON CONFLICT(id) DO NOTHING`, id, b.budgetID, operator, in.AtomicAmount, encoded, start.String(), now.Format(time.RFC3339Nano), now.Format(time.RFC3339Nano))
 	if err != nil {
 		return nil, err
@@ -293,7 +300,165 @@ func (s *Service) CreateFundingIntent(ctx context.Context, operator string, in *
 	if v.budgetID != b.budgetID || v.atoms != in.AtomicAmount || !proto.Equal(v.request, copy) {
 		return nil, ErrConflict
 	}
+	if _, err = s.DB.ExecContext(ctx, `INSERT INTO funding_intent_watch_cursors(intent_id,next_block,updated_at) VALUES(?,?,?) ON CONFLICT(intent_id) DO NOTHING`, id, start.String(), now.Format(time.RFC3339Nano)); err != nil {
+		return nil, err
+	}
 	return s.publicIntent(ctx, v)
+}
+
+const (
+	fundingWatchChunkBlocks = 2048
+	fundingWatchMaxChunks   = 4
+)
+
+type fundingTransferLog struct {
+	Address         string   `json:"address"`
+	Topics          []string `json:"topics"`
+	Data            string   `json:"data"`
+	TransactionHash string   `json:"transactionHash"`
+}
+
+// WatchFundingIntents searches finalized local-fork Base blocks, then routes a
+// matching transfer through the existing receipt verification and credit path.
+func (s *Service) WatchFundingIntents(ctx context.Context) error {
+	if s == nil || s.DB == nil || s.Native == nil || s.Native.Mode() != "local-fork" {
+		return nil
+	}
+	var finalized struct {
+		Number string `json:"number"`
+	}
+	if err := s.Native.Call(ctx, "eth_getBlockByNumber", []any{"finalized", false}, &finalized); err != nil {
+		return fmt.Errorf("read finalized Base head for funding watcher: %w", err)
+	}
+	head, err := rpcUint(finalized.Number)
+	if err != nil {
+		return fmt.Errorf("decode finalized Base head for funding watcher: %w", err)
+	}
+	// New intents do not have a cursor until the first watcher pass. Keep them
+	// eligible here so the watcher can bootstrap that durable cursor from the
+	// intent's creation block instead of requiring a separate enrollment step.
+	rows, err := s.DB.QueryContext(ctx, `SELECT i.id,i.operator_identity,i.transaction_hash FROM funding_intents i LEFT JOIN funding_intent_watch_cursors c ON c.intent_id=i.id WHERE i.state IN ('waiting','observed','delivering') ORDER BY COALESCE(c.updated_at,i.created_at),i.created_at LIMIT 25`)
+	if err != nil {
+		return err
+	}
+	type pendingIntent struct{ id, operator, txHash string }
+	var intents []pendingIntent
+	for rows.Next() {
+		var pending pendingIntent
+		if err = rows.Scan(&pending.id, &pending.operator, &pending.txHash); err != nil {
+			rows.Close()
+			return err
+		}
+		intents = append(intents, pending)
+	}
+	if err = rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	if err = rows.Close(); err != nil {
+		return err
+	}
+	var failures []error
+	for _, pending := range intents {
+		if pending.txHash != "" {
+			_, err = s.ConfirmFundingTransfer(ctx, pending.operator, &fundingpb.ConfirmFundingTransferRequest{Id: pending.id, TransactionHash: pending.txHash})
+			if err != nil {
+				_, _ = s.DB.ExecContext(context.WithoutCancel(ctx), `UPDATE funding_intent_watch_cursors SET updated_at=? WHERE intent_id=?`, s.now().Format(time.RFC3339Nano), pending.id)
+			}
+		} else {
+			err = s.watchFundingIntent(ctx, pending.id, pending.operator, head)
+		}
+		if err != nil {
+			failures = append(failures, fmt.Errorf("watch funding intent %s: %w", pending.id, err))
+		}
+	}
+	return errors.Join(failures...)
+}
+
+func (s *Service) watchFundingIntent(ctx context.Context, id, operator string, finalizedHead *big.Int) error {
+	intent, err := s.loadIntent(ctx, operator, id)
+	if err != nil {
+		return err
+	}
+	if intent.state != "waiting" || intent.txHash != "" {
+		return nil
+	}
+	b, err := s.load(ctx, intent.budgetID)
+	if err != nil {
+		return err
+	}
+	w, err := s.Wallets.Get(ctx, b.walletID, b.network, operator)
+	if err != nil {
+		return err
+	}
+	var cursorText string
+	if err = s.DB.QueryRowContext(ctx, `SELECT next_block FROM funding_intent_watch_cursors WHERE intent_id=?`, id).Scan(&cursorText); err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+		if _, err = s.DB.ExecContext(ctx, `INSERT INTO funding_intent_watch_cursors(intent_id,next_block,updated_at) VALUES(?,?,?) ON CONFLICT(intent_id) DO NOTHING`, id, intent.startBlock, s.now().Format(time.RFC3339Nano)); err != nil {
+			return err
+		}
+		if err = s.DB.QueryRowContext(ctx, `SELECT next_block FROM funding_intent_watch_cursors WHERE intent_id=?`, id).Scan(&cursorText); err != nil {
+			return err
+		}
+	}
+	next, ok := new(big.Int).SetString(cursorText, 10)
+	if !ok || next.Sign() < 0 {
+		return ErrInvalid
+	}
+	if next.Cmp(finalizedHead) > 0 {
+		_, err = s.DB.ExecContext(ctx, `UPDATE funding_intent_watch_cursors SET updated_at=? WHERE intent_id=?`, s.now().Format(time.RFC3339Nano), id)
+		return err
+	}
+	transferTopic := gethcrypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
+	toTopic := common.BytesToHash(common.HexToAddress(w.Address).Bytes())
+	for chunk := 0; chunk < fundingWatchMaxChunks && next.Cmp(finalizedHead) <= 0; chunk++ {
+		end := new(big.Int).Add(next, big.NewInt(fundingWatchChunkBlocks-1))
+		if end.Cmp(finalizedHead) > 0 {
+			end.Set(finalizedHead)
+		}
+		filter := map[string]any{
+			"address": baseusdc.USDCAddress, "fromBlock": fmt.Sprintf("0x%x", next), "toBlock": fmt.Sprintf("0x%x", end),
+			"topics": []any{transferTopic.Hex(), nil, toTopic.Hex()},
+		}
+		var logs []fundingTransferLog
+		if err = s.Native.Call(ctx, "eth_getLogs", []any{filter}, &logs); err != nil {
+			return fmt.Errorf("read finalized USDC transfers: %w", err)
+		}
+		var matches []fundingTransferLog
+		for _, item := range logs {
+			if !strings.EqualFold(item.Address, baseusdc.USDCAddress) || len(item.Topics) != 3 || !strings.EqualFold(item.Topics[0], transferTopic.Hex()) || !strings.EqualFold(item.Topics[2], toTopic.Hex()) {
+				continue
+			}
+			amount, parsed := new(big.Int).SetString(strings.TrimPrefix(strings.TrimPrefix(item.Data, "0x"), "0X"), 16)
+			if parsed && amount.String() == intent.atoms {
+				matches = append(matches, item)
+			}
+		}
+		if len(matches) > 1 {
+			return fmt.Errorf("%w: multiple exact-amount Base transfers match one funding intent", ErrInvalid)
+		}
+		if len(matches) == 1 {
+			if _, err = s.ConfirmFundingTransfer(ctx, operator, &fundingpb.ConfirmFundingTransferRequest{Id: id, TransactionHash: matches[0].TransactionHash}); err != nil {
+				return err
+			}
+		}
+		advanced := new(big.Int).Add(end, big.NewInt(1))
+		result, updateErr := s.DB.ExecContext(ctx, `UPDATE funding_intent_watch_cursors SET next_block=?,updated_at=? WHERE intent_id=? AND next_block=?`, advanced.String(), s.now().Format(time.RFC3339Nano), id, next.String())
+		if updateErr != nil {
+			return updateErr
+		}
+		changed, updateErr := result.RowsAffected()
+		if updateErr != nil {
+			return updateErr
+		}
+		if changed == 0 {
+			return nil
+		}
+		next = advanced
+	}
+	return nil
 }
 
 func (s *Service) ConfirmFundingTransfer(ctx context.Context, operator string, in *fundingpb.ConfirmFundingTransferRequest) (*fundingpb.FundingIntent, error) {
@@ -714,11 +879,12 @@ func (s *Service) ExecuteWithdrawal(ctx context.Context, operator, identityToken
 	authorizationKey := stableID("withdrawal-authorization-key", operator, in.IdempotencyKey)
 	settlementID := stableID("withdrawal-settlement", operator, in.IdempotencyKey)
 	settlementKey := stableID("withdrawal-settlement-key", operator, in.IdempotencyKey)
+	instrumentID := stableID("withdrawal-instrument", operator, in.IdempotencyKey)
 	withdrawalID := stableID("withdrawal", operator, in.IdempotencyKey)
 	authRecord, err := s.Authorizations.Propose(ctx, authorization.ProposeInput{
 		ID: authorizationID, IdempotencyKey: authorizationKey, MandateID: grant.ID,
 		IdentityToken: identityToken, AmountMinor: amountMinor, Currency: quote.GetCurrency(), Counterparty: quote.GetDestination(),
-		SettlementID: settlementID, InstrumentID: b.walletID, SettlementIdempotencyKey: settlementKey,
+		SettlementID: settlementID, InstrumentID: instrumentID, SettlementIdempotencyKey: settlementKey,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("propose withdrawal through Treasury authorization: %w", err)
@@ -765,7 +931,6 @@ func (s *Service) ExecuteWithdrawal(ctx context.Context, operator, identityToken
 	// The mandate hold covers both the outgoing value and the operator's
 	// conservative fee valuation; settlement evidence records that full charge.
 	nativeQuote.AuthorizationValueMinor = amountMinor
-	instrumentID := stableID("withdrawal-instrument", operator, in.IdempotencyKey)
 	credentialReference := "vrooli/treasury/withdrawals/" + strings.TrimPrefix(instrumentID, "withdrawal-instrument-")
 	quoteBytes, err := json.Marshal(nativeQuote)
 	if err != nil {

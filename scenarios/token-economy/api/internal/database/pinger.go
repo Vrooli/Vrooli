@@ -10,7 +10,7 @@
 //
 // Production wires *database.RoutedDB (from packages/api-core/database)
 // which satisfies Pinger via its PingContext method. *sql.DB also
-// satisfies it; tests wire testutil/mocks.FakePinger or
+// satisfies it; tests wire api-core/databasetest.FakePinger or
 // testutil/db.NewSQLite for real-handle repository tests.
 package database
 
