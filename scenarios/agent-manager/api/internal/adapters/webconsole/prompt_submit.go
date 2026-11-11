@@ -30,6 +30,9 @@ var ErrCommandMustBeSingleLine = errors.New("command must be a single line")
 var (
 	ErrNativeAgentUnknown = errors.New("native agent liveness is unavailable")
 	ErrNativeAgentBusy    = errors.New("native agent is still busy")
+	// ErrNativePromptRefused proves no delivery RPC was attempted. Transport
+	// failures after DeliverNativePrompt starts must never use this sentinel.
+	ErrNativePromptRefused = errors.New("native prompt refused before delivery")
 )
 
 // PromptSubmission reports what SendPrompt could confirm about a submit.
@@ -124,6 +127,7 @@ func (c *Client) ObserveNativeAgent(ctx context.Context, webConsoleSessionID, na
 		unknown.Reason = "native liveness is unsupported or not established for this provider"
 		return unknown, nil
 	}
+	unknown.Generation = info.NativeOwner
 	unknown.Provider = "codex"
 	response, err := c.sessions.ReadNativeThreadState(ctx, connect.NewRequest(&sessionsv1.ReadNativeThreadStateRequest{
 		SessionId: webConsoleSessionID,
@@ -139,9 +143,9 @@ func (c *Client) ObserveNativeAgent(ctx context.Context, webConsoleSessionID, na
 		}
 		switch thread.GetStatus() {
 		case "idle":
-			return NativeAgentObservation{State: NativeAgentIdle, Provider: "codex", ActiveTurnID: thread.GetActiveTurnId()}, nil
+			return nativeObservation(info.NativeOwner, NativeAgentIdle, thread), nil
 		case "active":
-			return NativeAgentObservation{State: NativeAgentBusy, Provider: "codex", ActiveTurnID: thread.GetActiveTurnId()}, nil
+			return nativeObservation(info.NativeOwner, NativeAgentBusy, thread), nil
 		default:
 			unknown.Reason = "native owner did not establish a live thread state"
 			return unknown, nil
@@ -151,22 +155,43 @@ func (c *Client) ObserveNativeAgent(ctx context.Context, webConsoleSessionID, na
 	return unknown, nil
 }
 
+func nativeObservation(owner string, state NativeAgentState, thread *sessionsv1.NativeThreadState) NativeAgentObservation {
+	return NativeAgentObservation{
+		State: state, Provider: "codex", Generation: owner, ActiveTurnID: thread.GetActiveTurnId(),
+		GoalAvailable: thread.GetGoalAvailable(), HasGoal: thread.GetHasGoal(), GoalStatus: thread.GetGoalStatus(),
+	}
+}
+
 // SendPromptForNativeSession binds prompt delivery at Web Console's receiver.
 // The provider CAS below closes the liveness-check/submit race, and this path
 // never invokes TerminalService.SendInput.
 func (c *Client) SendPromptForNativeSession(ctx context.Context, webConsoleSessionID, nativeSessionID, prompt, source string) (PromptSubmission, error) {
+	return c.sendPromptForNativeOwner(ctx, webConsoleSessionID, nativeSessionID, "", prompt, source)
+}
+
+func (c *Client) SendPromptForNativeOwner(ctx context.Context, webConsoleSessionID, nativeSessionID, owner, prompt, source string) (PromptSubmission, error) {
+	if strings.TrimSpace(owner) == "" {
+		return PromptSubmission{}, fmt.Errorf("%w: %w: captured native owner generation is required", ErrNativePromptRefused, ErrNativeAgentUnknown)
+	}
+	return c.sendPromptForNativeOwner(ctx, webConsoleSessionID, nativeSessionID, owner, prompt, source)
+}
+
+func (c *Client) sendPromptForNativeOwner(ctx context.Context, webConsoleSessionID, nativeSessionID, owner, prompt, source string) (PromptSubmission, error) {
 	observation, err := c.ObserveNativeAgent(ctx, webConsoleSessionID, nativeSessionID)
 	if err != nil {
-		return PromptSubmission{}, err
+		return PromptSubmission{}, fmt.Errorf("%w: %w", ErrNativePromptRefused, err)
+	}
+	if owner != "" && observation.Generation != owner {
+		return PromptSubmission{}, fmt.Errorf("%w: %w: native owner generation changed before recovery delivery", ErrNativePromptRefused, ErrNativeAgentUnknown)
 	}
 	if observation.State != NativeAgentIdle && observation.State != NativeAgentBusy {
-		return PromptSubmission{}, fmt.Errorf("%w: %s", ErrNativeAgentUnknown, observation.Reason)
+		return PromptSubmission{}, fmt.Errorf("%w: %w: %s", ErrNativePromptRefused, ErrNativeAgentUnknown, observation.Reason)
 	}
 	if observation.State == NativeAgentBusy && strings.TrimSpace(observation.ActiveTurnID) == "" {
-		return PromptSubmission{}, fmt.Errorf("%w: active native turn identity is unavailable", ErrNativeAgentUnknown)
+		return PromptSubmission{}, fmt.Errorf("%w: %w: active native turn identity is unavailable", ErrNativePromptRefused, ErrNativeAgentUnknown)
 	}
 	response, err := c.sessions.DeliverNativePrompt(ctx, connect.NewRequest(&sessionsv1.DeliverNativePromptRequest{
-		SessionId: webConsoleSessionID, ExpectedThreadId: nativeSessionID,
+		SessionId: webConsoleSessionID, ExpectedNativeOwner: observation.Generation, ExpectedThreadId: nativeSessionID,
 		ExpectedTurnId: observation.ActiveTurnID, Text: prompt, Source: source,
 	}))
 	if err != nil {

@@ -5,6 +5,28 @@ import (
 	"time"
 )
 
+func TestCanStopTerminalRunOnlyRetiresRetainedInteractiveSession(t *testing.T) {
+	for _, status := range []RunStatus{RunStatusComplete, RunStatusFailed} {
+		for _, tc := range []struct {
+			mode    ExecutionMode
+			session string
+			allowed bool
+		}{
+			{ExecutionModeInteractive, "retained", true},
+			{ExecutionModeInteractive, "", false},
+			{ExecutionModeInteractive, "  ", false},
+			{ExecutionModeAttached, "retained", false},
+			{ExecutionModeImported, "retained", false},
+			{ExecutionModeCodecPipe, "", false},
+		} {
+			run := &Run{Status: status, ExecutionMode: tc.mode, WebConsoleSessionID: tc.session}
+			if got, _ := CanStopRun(run); got != tc.allowed {
+				t.Fatalf("status %s mode %s session %q: can stop = %t, want %t", status, tc.mode, tc.session, got, tc.allowed)
+			}
+		}
+	}
+}
+
 func TestRunActionsFor_DefaultAllowlist(t *testing.T) {
 	run := &Run{
 		Tag:    "scenario-to-cloud-investigation",

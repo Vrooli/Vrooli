@@ -52,6 +52,12 @@ const OriginProgrammatic = "SESSION_ORIGIN_PROGRAMMATIC"
 // Execute is true (the foundation recovery-paste seam, no readiness gate).
 type CreateSessionParams struct {
 	RequestedSessionID string
+	// AgentType, LaunchMode and LaunchDescriptorJSON identify a typed native
+	// session launch. Empty values retain the ordinary terminal-PTY create path.
+	AgentType            string
+	LaunchMode           string
+	LaunchDescriptorJSON string
+	WorkingDir           string
 	// LaunchCommand is the full shell command line the server pastes into the
 	// fresh session's stdin. For interactive runs this is the env-prefixed
 	// interactive agent CLI invocation.
@@ -110,10 +116,14 @@ const (
 // NativeAgentObservation reports evidence from the provider that owns the
 // exact native thread. PTY existence alone is never native-agent liveness.
 type NativeAgentObservation struct {
-	State        NativeAgentState
-	Provider     string
-	Reason       string
-	ActiveTurnID string
+	State         NativeAgentState
+	Provider      string
+	Generation    string
+	Reason        string
+	ActiveTurnID  string
+	GoalAvailable bool
+	HasGoal       bool
+	GoalStatus    string
 }
 
 // NativeAgentProbe is optional so portable adapters can report that their
@@ -123,11 +133,17 @@ type NativeAgentProbe interface {
 	ObserveNativeAgent(ctx context.Context, webConsoleSessionID, nativeSessionID string) (NativeAgentObservation, error)
 }
 
-// NativeBoundPromptSender delivers only after observing the exact session
-// generation and provider as live and idle.
+// NativeBoundPromptSender delivers only to the exact live session generation.
+// Busy delivery steers a verified current turn; it never falls back to a PTY.
 type NativeBoundPromptSender interface {
 	SendPromptForNativeSession(ctx context.Context, webConsoleSessionID, nativeSessionID, prompt, source string) (PromptSubmission, error)
 	SendCommandForNativeSession(ctx context.Context, webConsoleSessionID, nativeSessionID, command, source string) (PromptSubmission, error)
+}
+
+// NativeOwnerPromptSender retains an owner generation captured before a
+// delayed recovery. The receiver must reject replacement owners.
+type NativeOwnerPromptSender interface {
+	SendPromptForNativeOwner(ctx context.Context, webConsoleSessionID, nativeSessionID, owner, prompt, source string) (PromptSubmission, error)
 }
 
 // SessionController is the proto-free web-console seam the interactive
@@ -220,11 +236,15 @@ func (c *Client) CreateSession(ctx context.Context, params CreateSessionParams) 
 		Rows:                  rows,
 		Backend:               backend,
 		LaunchCommand:         params.LaunchCommand,
+		AgentType:             params.AgentType,
 		Origin:                sessionsv1.SessionOrigin_SESSION_ORIGIN_PROGRAMMATIC,
 		Owner:                 OwnerAgentManager,
 		DisplayLabel:          params.DisplayLabel,
 		ExecuteLaunchCommand:  params.Execute,
 		AgentRunIdentityToken: params.AgentRunIdentityToken,
+		LaunchMode:            params.LaunchMode,
+		LaunchDescriptorJson:  params.LaunchDescriptorJSON,
+		WorkingDir:            params.WorkingDir,
 	})
 	// A verified-human tunnel-UI spawn carries the operator subject on the
 	// header so web-console attributes the session's stable-create owner to the

@@ -14,6 +14,29 @@ This is an ownership boundary, not a complexity threshold. A one-turn,
 code-owned interaction is a workflow because its contract, prompt provenance,
 budget, and result validation must be reviewable before it runs.
 
+## Local draft start boundary
+
+The Connect workflow-start operation normally requires a verified caller under
+Agent Manager's operation middleware. Git Control Tower has one narrower
+fail-open fallback for staged-message drafting: `StartWorkflowExecution` with
+owner `git-control-tower` and workflow key `git-control-tower/staged-message` or
+`git-control-tower/staged-message-deep` can continue without a verified
+principal. The check is independent of peer IP because local proxies and
+container networking make it unreliable. Agent Manager removes caller-supplied
+human and agent attribution before dispatch. The workflow revision still checks
+the `programmatic` trigger policy, recursion bounds, budgets, and typed result;
+the exception cannot start another workflow or perform repository mutations.
+The classifier decodes both Connect `application/proto` and `application/json`
+requests; a JSON-only middleware test is insufficient because the generated Go
+client uses binary protobuf on the live service call.
+
+The initiator is derived from verified request identity or a presented agent
+identity token. A caller-controlled `X-Vrooli-Workflow-Initiator` header is not
+authority. Keep a regression at the HTTP middleware boundary for the exact
+workflow owner/key, malformed proof, and proxied-peer cases whenever this
+contract changes. Include a binary Connect request and an unverified agent-shaped
+principal so transport encoding and principal classification match production.
+
 ## What a consumer keeps
 
 A consumer scenario owns only its domain boundary:

@@ -134,10 +134,11 @@ type RunExecutor struct {
 	resultDeferred bool
 
 	// Caller-provided env vars
-	customEnv   map[string]string
-	sessionEnv  map[string]string
-	policyFiles []runner.PolicyFile
-	skillSource promptmanager.SourceClient
+	customEnv    map[string]string
+	sessionEnv   map[string]string
+	storeOwnerID string
+	policyFiles  []runner.PolicyFile
+	skillSource  promptmanager.SourceClient
 
 	// Identity token state
 	identitySecret      []byte
@@ -295,6 +296,11 @@ func (e *RunExecutor) WithAttachments(attachments []runner.Attachment) *RunExecu
 
 func (e *RunExecutor) WithCustomEnvironment(env map[string]string) *RunExecutor {
 	e.customEnv = env
+	return e
+}
+
+func (e *RunExecutor) WithStoreOwnerID(ownerID string) *RunExecutor {
+	e.storeOwnerID = strings.TrimSpace(ownerID)
 	return e
 }
 
@@ -624,6 +630,12 @@ func (e *RunExecutor) MergedEnvVars() map[string]string {
 			env = make(map[string]string)
 		}
 		env[key] = value
+	}
+	if e.storeOwnerID != "" {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		env[phases.AgentManagerStoreOwnerEnv] = e.storeOwnerID
 	}
 	delete(env, treasurySessionKeyEnv)
 	if e.treasurySessionKey != "" {

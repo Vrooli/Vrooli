@@ -11,6 +11,7 @@ import (
 	"agent-manager/internal/domain"
 	"agent-manager/internal/modules"
 
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
 	"github.com/sirupsen/logrus"
@@ -406,6 +407,12 @@ func (db *DB) initSchema() error {
 		}
 		return &domain.DatabaseError{Operation: "schema_init", EntityType: "Schema", Cause: err}
 	}
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS agent_manager_store_identity (
+		singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+		owner_id TEXT NOT NULL UNIQUE
+	)`); err != nil {
+		return &domain.DatabaseError{Operation: "schema_init", EntityType: "Schema", Cause: err}
+	}
 	if err := db.runOnceMigrations(ctx); err != nil {
 		return err
 	}
@@ -413,6 +420,30 @@ func (db *DB) initSchema() error {
 		db.log.Info("Database schema initialized successfully")
 	}
 	return nil
+}
+
+// StoreOwnerID returns the durable identity of this Agent Manager store. It is
+// generated once in the canonical database and remains stable across process
+// restarts; it is deliberately independent of the transient run-claim owner.
+func (db *DB) StoreOwnerID(ctx context.Context) (string, error) {
+	if _, err := db.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS agent_manager_store_identity (
+		singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+		owner_id TEXT NOT NULL UNIQUE
+	)`); err != nil {
+		return "", err
+	}
+	newID := uuid.NewString()
+	if _, err := db.ExecContext(ctx, `INSERT INTO agent_manager_store_identity(singleton, owner_id) VALUES (1, ?) ON CONFLICT(singleton) DO NOTHING`, newID); err != nil {
+		return "", err
+	}
+	var ownerID string
+	if err := db.GetContext(ctx, &ownerID, `SELECT owner_id FROM agent_manager_store_identity WHERE singleton = 1`); err != nil {
+		return "", err
+	}
+	if ownerID == "" {
+		return "", fmt.Errorf("Agent Manager store owner identity is empty")
+	}
+	return ownerID, nil
 }
 
 // InitializeSchema applies Agent Manager's additive SQLite schema contract to

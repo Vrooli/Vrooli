@@ -126,6 +126,8 @@ func CanDeleteRun(run *Run) (bool, string) {
 // still cancel the await-handle's waiter and move the run to a terminal state
 // (cancelled) rather than leaving it suspended forever. The orchestrator's
 // StopRun special-cases parked (no process to terminate).
+// A completed or failed interactive turn can still reference a retained
+// executor; stopping it retires that session and preserves its prior outcome.
 func CanStopRun(run *Run) (bool, string) {
 	if run == nil {
 		return false, "run not found"
@@ -133,6 +135,13 @@ func CanStopRun(run *Run) (bool, string) {
 	switch run.Status {
 	case RunStatusPending, RunStatusRunning, RunStatusStarting, RunStatusParked:
 		return true, ""
+	case RunStatusComplete, RunStatusFailed:
+		// A terminal turn may retain its interactive executor for continuation.
+		// Stop retires that session without rewriting the terminal outcome.
+		if run.ExecutionMode.Normalized() == ExecutionModeInteractive && strings.TrimSpace(run.WebConsoleSessionID) != "" {
+			return true, ""
+		}
+		return false, "terminal run has no retained interactive session to stop"
 	default:
 		return false, "can only stop running, starting, or parked runs"
 	}

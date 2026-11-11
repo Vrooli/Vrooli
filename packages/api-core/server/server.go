@@ -330,6 +330,17 @@ func recoverPanics(logf func(string, ...interface{}), next http.Handler) http.Ha
 	})
 }
 
+// RecoveryMiddleware exposes the standard server's panic response boundary
+// for composed handler stacks that are exercised outside server.Run.
+func RecoveryMiddleware(logger *log.Logger) func(http.Handler) http.Handler {
+	if logger == nil {
+		logger = log.Default()
+	}
+	return func(next http.Handler) http.Handler {
+		return recoverPanics(logger.Printf, next)
+	}
+}
+
 // runStandardServer runs a standard net/http server.
 func runStandardServer(cfg Config) error {
 	srv := &http.Server{

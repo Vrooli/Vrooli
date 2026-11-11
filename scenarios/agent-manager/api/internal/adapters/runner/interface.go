@@ -657,6 +657,22 @@ type AgentLaunchInfo interface {
 	ControlArgs(cfg *domain.RunConfig) ([]string, error)
 }
 
+// CodexLaunchSettings is the typed wire contract for managed app-server launches.
+// Permission selection remains codec-owned; consumers only render these controls.
+type CodexLaunchSettings struct {
+	ControlsVersion       int    `json:"controlsVersion"`
+	Model                 string `json:"model,omitempty"`
+	ReasoningEffort       string `json:"reasoningEffort,omitempty"`
+	ContextLimitTokens    int    `json:"contextLimitTokens,omitempty"`
+	ApprovalPolicy        string `json:"approvalPolicy"`
+	Sandbox               string `json:"sandbox"`
+	NetworkAccessDisabled bool   `json:"networkAccessDisabled,omitempty"`
+}
+
+type NativeCodexLaunchInfo interface {
+	NativeCodexSettings(*domain.RunConfig) (CodexLaunchSettings, error)
+}
+
 // RuntimeVersionReporter exposes the concrete CLI runtime version observed for
 // the resolved runner. It is the live-only runtime identity a run admission
 // persists as RuntimeVersion and a qualification receipt requires. Callers

@@ -92,7 +92,7 @@ func RequireIndependentHuman(ctx context.Context) (identity.Principal, error) {
 	if err != nil {
 		return p, err
 	}
-	if provenance.FromContext(ctx).IsAgent() {
+	if provenance.FromContext(ctx).IsAgent() && p.Source != identity.SourceUIFailOpen {
 		return identity.Principal{}, ErrHumanRequired
 	}
 	return p, nil

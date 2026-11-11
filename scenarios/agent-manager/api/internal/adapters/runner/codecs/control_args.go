@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/domain"
 )
 
@@ -48,7 +49,8 @@ func codexControlArgs(cfg *domain.RunConfig) ([]string, error) {
 		}
 		// The user's config may enable networking for workspace-write. Do
 		// not inherit it, or permit an approval to widen the owner's policy.
-		args = append(args, "--sandbox", "workspace-write",
+		permissions := codexHostPermissions(cfg.NetworkAccess)
+		args = append(args, "--sandbox", permissions.Sandbox,
 			"-c", "sandbox_workspace_write.network_access=false",
 			"-c", "sandbox_workspace_write.writable_roots=[]",
 			"-c", "approval_policy=never")
@@ -182,4 +184,49 @@ func openCodeVariantSupported(model string, effort domain.Effort) bool {
 	default:
 		return false
 	}
+}
+
+// NativeCodexSettings refuses controls the host-owned app-server cannot enforce.
+// In particular, a protected WSS run cannot become a Web Console host process.
+func (c *Codex) NativeCodexSettings(cfg *domain.RunConfig) (runner.CodexLaunchSettings, error) {
+	if cfg == nil {
+		cfg = &domain.RunConfig{}
+	}
+	var empty runner.CodexLaunchSettings
+	if sandbox := cfg.SandboxConfig; sandbox != nil {
+		mode := sandbox.Mode.Effective()
+		if mode != domain.SandboxModeOff && mode != domain.SandboxModeTracking || sandbox.WritePolicy != nil {
+			return empty, fmt.Errorf("native Codex launch cannot preserve protected outer sandbox or owner write grants")
+		}
+	}
+	if len(cfg.AllowedTools) > 0 || len(cfg.DeniedTools) > 0 || !cfg.Features.IsZero() || len(cfg.ExtraFlags[domain.RunnerTypeCodex]) > 0 || len(cfg.AllowedPaths) > 0 || len(cfg.DeniedPaths) > 0 || cfg.RequireEffectContainment {
+		return empty, fmt.Errorf("native Codex launch has unsupported tool, feature, path or extra flag controls")
+	}
+	if _, err := codexControlArgs(cfg); err != nil {
+		return empty, err
+	}
+	model, local := splitOllamaModel(strings.TrimSpace(cfg.Model))
+	if local {
+		return empty, fmt.Errorf("native Codex launch does not support local providers")
+	}
+	if cfg.NetworkAccess == "" || cfg.NetworkAccess.Effective() == domain.NetworkAccessLocalhost {
+		return empty, fmt.Errorf("native Codex launch cannot enforce localhost-only networking without an outer sandbox")
+	}
+	if !cfg.NetworkAccess.IsValid() || cfg.ContextLimitTokens < 0 {
+		return empty, fmt.Errorf("invalid native Codex network or context control")
+	}
+	settings := codexHostPermissions(cfg.NetworkAccess)
+	settings.Model, settings.ReasoningEffort, settings.ContextLimitTokens = model, string(cfg.Effort), cfg.ContextLimitTokens
+	return settings, nil
+}
+
+// codexHostPermissions is the host-launch permission mapping. Protected WSS
+// grants are handled separately by codexControlArgs and are never host controls.
+func codexHostPermissions(network domain.NetworkAccess) runner.CodexLaunchSettings {
+	settings := runner.CodexLaunchSettings{ControlsVersion: 1, ApprovalPolicy: "never", Sandbox: "danger-full-access"}
+	if network.Effective() == domain.NetworkAccessNone {
+		settings.Sandbox = "workspace-write"
+		settings.NetworkAccessDisabled = true
+	}
+	return settings
 }

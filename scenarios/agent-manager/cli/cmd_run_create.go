@@ -110,6 +110,7 @@ func (a *App) runDetach(args []string) error {
 func (a *App) runCreate(args []string) error {
 	fs := flag.NewFlagSet("run create", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
+	localOwner := fs.Bool("local-owner", false, "Explicit local human authentication; unavailable inside an agent session")
 	taskID := fs.String("task-id", "", "Task ID (required)")
 	profileID := fs.String("profile-id", "", "Agent profile ID (required)")
 	prompt := fs.String("prompt", "", "Optional override prompt")
@@ -278,7 +279,15 @@ func (a *App) runCreate(args []string) error {
 		}
 	}
 
-	body, run, err := a.services.Runs.Create(req)
+	service := a.services.Runs
+	if *localOwner {
+		ownerAPI, err := localOwnerAPIForResource(service.api, standingGrantResource)
+		if err != nil {
+			return err
+		}
+		service = &RunService{api: ownerAPI}
+	}
+	body, run, err := service.Create(req)
 	if err != nil {
 		return apiError(body, err)
 	}

@@ -10,8 +10,9 @@ import (
 	"time"
 )
 
-// Phase-2 goal-home file names (see
-// docs/internal/delivery-reliability-research/PHASE2-FORMAT-SPEC.md). The v2
+// Phase-2 goal-home file names are specified by PHASE2-FORMAT-SPEC.md in
+// research/topics/design-to-implementation/background/delivery-reliability-research.
+// The v2
 // reader produces the same internal Home/Goal/Epoch structs the supervision
 // board already consumes, so the proto/board layer is untouched: an accepted
 // unit in LOG.md becomes a synthetic accepted Epoch, STATUS's ## Active becomes

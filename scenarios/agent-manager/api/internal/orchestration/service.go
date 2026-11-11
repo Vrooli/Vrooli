@@ -139,6 +139,7 @@ type Orchestrator struct {
 	// ownerIdentity names this Agent Manager owner lifetime for durable run
 	// stream and finalization fencing.
 	runtimeOwnerIdentity string
+	storeOwnerID         string
 
 	// clock is the wall-clock seam for orchestration state transitions. It is
 	// injected by deterministic tests and defaults to time.Now in production.
@@ -949,6 +950,15 @@ func WithRuntimeOwnerIdentity(identity string) Option {
 		if strings.TrimSpace(identity) != "" {
 			o.runtimeOwnerIdentity = strings.TrimSpace(identity)
 		}
+	}
+}
+
+// WithStoreOwnerID installs the durable identity shared by processes launched
+// from this Agent Manager database. It is distinct from the per-process run
+// claim identity and is used only for host process ownership attribution.
+func WithStoreOwnerID(identity string) Option {
+	return func(o *Orchestrator) {
+		o.storeOwnerID = strings.TrimSpace(identity)
 	}
 }
 

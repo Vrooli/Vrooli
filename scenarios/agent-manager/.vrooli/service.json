@@ -122,6 +122,7 @@
         "ui": "/health"
       },
       "startup_grace_period": 90000,
+      "timeout": 180000,
       "checks": [
         {
           "name": "api_endpoint",

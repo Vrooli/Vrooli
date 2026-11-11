@@ -26,11 +26,9 @@
 //	}
 //
 // See `internal/notes/sqlite_test.go` for the worked example.
-// The helper is intentionally inline at the consumer rather than
-// exported from this package — `db` lives under `testutil` and the
-// domain package is the consumer, so an exported helper would invert
-// the dependency. Reach for it as a per-package convention; do not
-// generalise across packages.
+// Helpers that validate a scenario-owned system schema remain small wrappers
+// around the shared assertions in this package; domain schema setup stays local
+// to its owner.
 package databasetest
 
 import (

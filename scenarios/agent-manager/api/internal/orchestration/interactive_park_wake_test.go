@@ -3,6 +3,7 @@ package orchestration
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -10,9 +11,11 @@ import (
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
@@ -35,7 +38,7 @@ func (s *failNextRunStatusEventStore) Append(ctx context.Context, runID uuid.UUI
 func parkInteractiveRunForWake(t *testing.T) (*recordingSessions, *Orchestrator, *domain.Run) {
 	t.Helper()
 
-	runs, sessions, svc, run := setupNativeGoalContinuation(t, "finish the exact parked task", false)
+	runs, sessions, svc, run := setupNativeGoalContinuation(t, "finish the exact parked task", true)
 	svc.runStateRoot = t.TempDir()
 	run.Status = domain.RunStatusRunning
 	run.Phase = domain.RunPhaseExecuting
@@ -200,6 +203,118 @@ func TestWakeRunInteractiveMissingSessionRetainsParkedAwait(t *testing.T) {
 	}
 }
 
+func TestInteractiveWakeAmbiguityCannotBeAutomaticallyReplayed(t *testing.T) {
+	for _, beforeEffect := range []bool{false, true} {
+		name := "lost acknowledgement"
+		if beforeEffect {
+			name = "native pre-effect refusal"
+		}
+		t.Run(name, func(t *testing.T) {
+			ctx := t.Context()
+			sessions, svc, parked := parkInteractiveRunForWake(t)
+			sessions.promptErr = errors.New("receiver acknowledgement lost")
+			if beforeEffect {
+				sessions.promptErr = webconsole.ErrNativePromptRefused
+			}
+			_, err := svc.WakeRun(ctx, WakeRunInput{RunID: parked.ID, Result: "retained producer result"})
+			if err == nil || domain.IsPreEffectRefusal(err) != beforeEffect {
+				t.Fatalf("wake failure classification = %v", err)
+			}
+			stored, err := svc.GetStoredRun(ctx, parked.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stored.Status != domain.RunStatusParked || stored.AwaitHandle == nil || stored.LastAwaitResult != "retained producer result" || stored.WebConsoleSessionID != parked.WebConsoleSessionID || stored.SessionID != parked.SessionID {
+				t.Fatalf("delivery failure lost parked recovery evidence: %+v", stored)
+			}
+			receipt, err := svc.idempotency.(repository.ContinuationIdempotencyRepository).CheckContinuation(ctx, fmt.Sprintf("interactive-wake/%s/%d", parked.ID, parked.LifecycleVersion))
+			if err != nil || receipt == nil {
+				t.Fatalf("wake receipt absent: %+v %v", receipt, err)
+			}
+			if beforeEffect {
+				if receipt.Status != domain.IdempotencyStatusFailed {
+					t.Fatalf("pre-effect refusal was not retryable: %+v", receipt)
+				}
+				return
+			}
+			if receipt.Status != domain.IdempotencyStatusPending || !strings.Contains(stored.LastHandoff, "agent recovery") {
+				t.Fatalf("uncertain delivery lost pending reservation: %+v %q", receipt, stored.LastHandoff)
+			}
+			if _, err := svc.WakeRun(ctx, WakeRunInput{RunID: parked.ID, Result: "retained producer result"}); err == nil {
+				t.Fatal("unknown delivery reservation permitted replay")
+			}
+			if calls := sessions.callLog(); len(calls) != 1 || calls[0] != "sendprompt" {
+				t.Fatalf("unknown delivery was replayed or terminated executor: %v", calls)
+			}
+		})
+	}
+}
+
+type failInteractiveWakeCommit struct {
+	repository.RunRepository
+	fail bool
+}
+
+func (r *failInteractiveWakeCommit) UpdateInteractiveContinuation(ctx context.Context, run *domain.Run, status domain.RunStatus, prior *time.Time) error {
+	if r.fail {
+		r.fail = false
+		return domain.NewStateError("Run", "fixture CAS conflict", "continue", "injected post-delivery persistence failure")
+	}
+	return r.RunRepository.UpdateInteractiveContinuation(ctx, run, status, prior)
+}
+
+func TestVerifiedInteractiveWakeCommitFailureRetainsNonReplayReservation(t *testing.T) {
+	for _, canceled := range []bool{false, true} {
+		name := "CAS failure"
+		if canceled {
+			name = "caller canceled after verified delivery"
+		}
+		t.Run(name, func(t *testing.T) {
+			sessions, svc, parked := parkInteractiveRunForWake(t)
+			if !canceled {
+				svc.runs = &failInteractiveWakeCommit{RunRepository: svc.runs, fail: true}
+			}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if canceled {
+				sessions.onPrompt = cancel
+			}
+			_, err := svc.WakeRun(ctx, WakeRunInput{RunID: parked.ID, Result: "accepted provider result"})
+			if err == nil || domain.IsPreEffectRefusal(err) {
+				t.Fatalf("post-delivery failure classified as refusal: %v", err)
+			}
+			stored, err := svc.GetStoredRun(t.Context(), parked.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if stored.Status != domain.RunStatusParked || stored.AwaitHandle == nil || stored.LastAwaitResult != "accepted provider result" || stored.InteractiveInvocationStartedAt != nil || !strings.Contains(stored.LastHandoff, "do not resend") {
+				t.Fatalf("post-delivery failure lost durable recovery fence: %+v", stored)
+			}
+			if _, err := svc.WakeRun(t.Context(), WakeRunInput{RunID: parked.ID, Result: "accepted provider result"}); err == nil {
+				t.Fatal("verified but uncommitted wake was replayed")
+			}
+			if calls := sessions.callLog(); len(calls) != 1 || calls[0] != "sendprompt" {
+				t.Fatalf("provider received duplicate or termination effect: %v", calls)
+			}
+		})
+	}
+}
+
+func TestInteractiveWakeRequiresDurableReservationBeforeDelivery(t *testing.T) {
+	sessions, svc, parked := parkInteractiveRunForWake(t)
+	svc.idempotency = nil
+	if _, err := svc.WakeRun(t.Context(), WakeRunInput{RunID: parked.ID, Result: "do not submit without durable owner"}); err == nil || !domain.IsPreEffectRefusal(err) {
+		t.Fatalf("missing reservation owner did not refuse: %v", err)
+	}
+	stored, err := svc.GetStoredRun(t.Context(), parked.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.Status != domain.RunStatusParked || stored.AwaitHandle == nil || stored.LastAwaitResolvedAt != nil || len(sessions.callLog()) != 0 {
+		t.Fatalf("missing owner caused wake effects: run=%+v calls=%v", stored, sessions.callLog())
+	}
+}
+
 func TestWakeRunCodexRefusesMissingRunScopedTailContextBeforeEffects(t *testing.T) {
 	ctx := context.Background()
 	sessions, svc, parked := parkInteractiveRunForWake(t)
@@ -277,4 +392,74 @@ func TestWakeRunInteractiveStillFencesDifferentCurrentTaskOwner(t *testing.T) {
 	if codecContinues.Load() != 0 || len(sessions.callLog()) != 0 {
 		t.Fatalf("wrong-owner wake reached a runner or session: codec=%d calls=%v", codecContinues.Load(), sessions.callLog())
 	}
+}
+
+// Cancel only after the resolved result and reservation have been persisted,
+// immediately before the receiver is invoked. All storage is test-private.
+type cancelAfterWakeEvidenceUpdate struct {
+	repository.RunRepository
+	cancel context.CancelFunc
+}
+
+func (r *cancelAfterWakeEvidenceUpdate) Update(ctx context.Context, run *domain.Run) error {
+	if err := r.RunRepository.Update(ctx, run); err != nil {
+		return err
+	}
+	if run.Status == domain.RunStatusParked && run.LastAwaitResult != "" && r.cancel != nil {
+		cancel := r.cancel
+		r.cancel = nil
+		cancel()
+	}
+	return nil
+}
+
+type cancellationAwareNativeWakeSessions struct{ *recordingSessions }
+
+func (s *cancellationAwareNativeWakeSessions) SendPromptForNativeOwner(ctx context.Context, session, thread, owner, prompt, source string) (webconsole.PromptSubmission, error) {
+	if ctx.Err() != nil {
+		return webconsole.PromptSubmission{}, fmt.Errorf("%w: %v", webconsole.ErrNativePromptRefused, ctx.Err())
+	}
+	if owner != s.nativeOwner || thread != s.nativeThread {
+		return webconsole.PromptSubmission{}, webconsole.ErrNativePromptRefused
+	}
+	return s.SendPrompt(ctx, session, prompt, source)
+}
+func TestInteractiveWakeCanceledBeforeDeliveryReleasesProvenNoEffectReceipt(t *testing.T) {
+	sessions, svc, parked := parkInteractiveRunForWake(t)
+	if err := svc.runners.Register(mocks.NewTranscriptReplayRunner(domain.RunnerTypeCodex)); err != nil {
+		t.Fatal(err)
+	}
+	parked.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
+	if err := svc.runs.Update(t.Context(), parked); err != nil {
+		t.Fatal(err)
+	}
+	sessions.nativeOwner = "cancel-test-owner"
+	sessions.nativeThread = parked.SessionID
+	svc.interactiveSessions = &cancellationAwareNativeWakeSessions{sessions}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	svc.runs = &cancelAfterWakeEvidenceUpdate{RunRepository: svc.runs, cancel: cancel}
+	input := WakeRunInput{RunID: parked.ID, Result: "same durable producer result"}
+	if _, err := svc.WakeRun(ctx, input); err == nil || !domain.IsPreEffectRefusal(err) {
+		t.Fatalf("canceled delivery error=%v, want proven pre-effect refusal", err)
+	}
+	if calls := sessions.callLog(); len(calls) != 0 {
+		t.Fatalf("canceled attempt delivered input: %v", calls)
+	}
+	receipt, err := svc.idempotency.(repository.ContinuationIdempotencyRepository).CheckContinuation(t.Context(), fmt.Sprintf("interactive-wake/%s/%d", parked.ID, parked.LifecycleVersion))
+	if err != nil || receipt == nil || receipt.Status != domain.IdempotencyStatusFailed {
+		t.Fatalf("canceled no-effect attempt is not durably retryable: receipt=%+v err=%v", receipt, err)
+	}
+	stored, err := svc.GetStoredRun(t.Context(), parked.ID)
+	if err != nil || stored.Status != domain.RunStatusParked || stored.AwaitHandle == nil || stored.LastAwaitResult != input.Result {
+		t.Fatalf("canceled wake lost retained result/binding: run=%+v err=%v", stored, err)
+	}
+	resumed, err := svc.WakeRun(t.Context(), input)
+	if err != nil || resumed == nil || resumed.Status != domain.RunStatusRunning {
+		t.Fatalf("same wake cannot retry after proven no effect: run=%+v err=%v", resumed, err)
+	}
+	if calls := sessions.callLog(); len(calls) != 1 || calls[0] != "sendprompt" {
+		t.Fatalf("retry did not deliver exactly one prompt: %v", calls)
+	}
+	svc.interactiveDrivers.cancelAndWait(parked.ID)
 }

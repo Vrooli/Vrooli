@@ -160,14 +160,8 @@ func (h *AgentManagerConnectHandler) StartWorkflowExecution(ctx context.Context,
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
-	initiator := domain.WorkflowInitiatorProgrammatic
-	if req.Header().Get("X-Vrooli-Workflow-Initiator") == string(domain.WorkflowInitiatorHuman) {
-		initiator = domain.WorkflowInitiatorHuman
-	}
 	token := req.Header().Get(cliutil.HeaderAgentIdentityToken)
-	if token != "" {
-		initiator = domain.WorkflowInitiatorAgent
-	}
+	initiator := workflowInitiator(ctx, token)
 	grant := engagementGrantFromProto(req.Msg.EngagementGrant)
 	e, err := h.h.svc.StartWorkflowExecution(ctx, orchestration.StartWorkflowExecutionRequest{Owner: req.Msg.Owner, WorkflowKey: req.Msg.WorkflowKey, DefinitionDigest: req.Msg.DefinitionDigest, Input: input, IdempotencyKey: req.Msg.IdempotencyKey, Initiator: initiator, IdentityToken: token, EngagementGrant: grant, ApprovalDigest: req.Msg.ApprovalDigest, GrantDigest: req.Msg.GrantDigest, ExecutionPreferences: executionPreferencesFromProto(req.Msg.ExecutionPreferences)})
 	if err != nil {

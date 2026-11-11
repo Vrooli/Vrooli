@@ -43,13 +43,15 @@ type Invocation struct {
 // value with ActorAgent and VerificationVerified may be used as evidence that
 // an Agent Manager run performed an attributed mutation.
 type Provenance struct {
-	Actor               string                   `json:"actor"`
-	VerificationStatus  string                   `json:"verification_status"`
-	RunID               string                   `json:"run_id,omitempty"`
-	TaskID              string                   `json:"task_id,omitempty"`
-	Subject             string                   `json:"subject,omitempty"`
-	WorkspaceID         string                   `json:"workspace_id,omitempty"`
-	Scopes              []string                 `json:"scopes,omitempty"`
+	Actor              string   `json:"actor"`
+	VerificationStatus string   `json:"verification_status"`
+	RunID              string   `json:"run_id,omitempty"`
+	TaskID             string   `json:"task_id,omitempty"`
+	Subject            string   `json:"subject,omitempty"`
+	WorkspaceID        string   `json:"workspace_id,omitempty"`
+	Scopes             []string `json:"scopes,omitempty"`
+	// ExpiresAt is copied only from the verified baseline identity claims.
+	ExpiresAt           time.Time                `json:"-"`
 	ProfileKey          string                   `json:"profile_key,omitempty"`
 	ScopePath           string                   `json:"scope_path,omitempty"`
 	WorkflowExecutionID string                   `json:"workflow_execution_id,omitempty"`
@@ -177,6 +179,7 @@ type requestIdentity struct {
 	provenance        Provenance
 	token             string
 	operationToken    string
+	operationOffered  bool
 	operationVerifier PairVerifier
 }
 
@@ -291,6 +294,18 @@ func ForwardedOperationToken(ctx context.Context) string {
 		return ""
 	}
 	return identity.operationToken
+}
+
+// OperationProofOffered reports that the inbound request supplied a separate
+// operation credential, even when the middleware could not verify the pair.
+// Effect owners use this to refuse an invalid or revoked offered proof instead
+// of silently treating it as absent and falling back to another route.
+func OperationProofOffered(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	request, ok := ctx.Value(contextKey{}).(requestIdentity)
+	return ok && request.operationOffered
 }
 
 // CarryVerifiedIdentity copies only middleware-verified agent credentials to a
@@ -429,24 +444,24 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 			// The verification endpoint verifies its own caller in the handler.
 			// Verifying it here would re-enter this same endpoint without bound.
 			if token == "" || isVerificationEndpoint(r.URL.Path) {
-				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, requestIdentity{provenance: provenance})))
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, requestIdentity{provenance: provenance, operationOffered: operationToken != ""})))
 				return
 			}
 			if verifier == nil {
 				provenance.VerificationStatus = VerificationUnavailable
-				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, requestIdentity{provenance: provenance})))
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, requestIdentity{provenance: provenance, operationOffered: operationToken != ""})))
 				return
 			}
 			result, err := verifier.Verify(token)
 			if err != nil {
 				slog.Warn("agent identity verification unavailable", "error", err)
 				provenance.VerificationStatus = VerificationUnavailable
-				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, requestIdentity{provenance: provenance})))
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, requestIdentity{provenance: provenance, operationOffered: operationToken != ""})))
 				return
 			}
 			if result == nil || !result.Valid || result.Claims == nil {
 				provenance.VerificationStatus = VerificationInvalid
-				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, requestIdentity{provenance: provenance})))
+				next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), contextKey{}, requestIdentity{provenance: provenance, operationOffered: operationToken != ""})))
 				return
 			}
 			provenance.Actor = ActorAgent
@@ -456,6 +471,9 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 			provenance.Subject = strings.TrimSpace(result.Claims.Subject)
 			provenance.WorkspaceID = strings.TrimSpace(result.Claims.WorkspaceID)
 			provenance.Scopes = append([]string(nil), result.Claims.Scopes...)
+			if result.Claims.ExpiresAt > 0 {
+				provenance.ExpiresAt = time.Unix(result.Claims.ExpiresAt, 0).UTC()
+			}
 			provenance.Grant = OperationGrantFromMeta(result.Claims.Meta)
 			provenance.ProfileKey = strings.TrimSpace(result.Claims.ProfileKey)
 			provenance.ScopePath = strings.TrimSpace(result.Claims.ScopePath)
@@ -470,7 +488,7 @@ func Middleware(verifier Verifier) func(http.Handler) http.Handler {
 					provenance.Attempt = uint32(attempt)
 				}
 			}
-			request := requestIdentity{provenance: provenance, token: token}
+			request := requestIdentity{provenance: provenance, token: token, operationOffered: operationToken != ""}
 			if operationToken != "" {
 				if pairVerifier, ok := verifier.(PairVerifier); ok {
 					pair, pairErr := pairVerifier.VerifyPair(r.Context(), token, operationToken)

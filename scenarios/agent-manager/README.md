@@ -213,6 +213,7 @@ agent-manager task list
 # Run management
 agent-manager run create --task-id <id> --profile-id <id>
 agent-manager run create --task-id <id> --profile-id <id> --execution-mode interactive  # run inside a live web-console session
+agent-manager run create --task-id <id> --profile-id <id> --local-owner  # explicit human terminal only; agent sessions are refused
 agent-manager run events <id> [--follow]
 agent-manager run diff <id>
 agent-manager run approve <id>

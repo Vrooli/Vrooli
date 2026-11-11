@@ -24,6 +24,10 @@ func (codexGoalLaunchInfo) NewTranscriptParser() runner.TranscriptParser {
 	return codecs.NewCodexForTest().NewTranscriptParser()
 }
 
+func (codexGoalLaunchInfo) NativeCodexSettings(cfg *domain.RunConfig) (runner.CodexLaunchSettings, error) {
+	return codecs.NewCodexForTest().NativeCodexSettings(cfg)
+}
+
 type claudeGoalLaunchInfo struct{ fakeLaunchInfo }
 
 func (claudeGoalLaunchInfo) NewTranscriptParser() runner.TranscriptParser {
@@ -32,9 +36,39 @@ func (claudeGoalLaunchInfo) NewTranscriptParser() runner.TranscriptParser {
 
 type goalInstallSessions struct {
 	*fakeSessions
-	onLaunch    func()
-	onGoal      func()
-	goalCommand string
+	onLaunch            func()
+	onGoal              func()
+	goalCommand         string
+	nativeGoalInstalled bool
+}
+
+func (s *goalInstallSessions) GetSession(ctx context.Context, id string) (webconsole.SessionInfo, error) {
+	info, err := s.fakeSessions.GetSession(ctx, id)
+	info.LaunchMode = "codex_app_server"
+	info.ControlMode = "native_capable"
+	info.NativeOwner = "fixture-generation"
+	info.NativeThreadID = "native-thread-goal"
+	return info, err
+}
+func (s *goalInstallSessions) ObserveNativeAgent(context.Context, string, string) (webconsole.NativeAgentObservation, error) {
+	return webconsole.NativeAgentObservation{State: webconsole.NativeAgentIdle, Generation: "fixture-generation", GoalAvailable: s.nativeGoalInstalled, HasGoal: s.nativeGoalInstalled, GoalStatus: "active"}, nil
+}
+func (s *goalInstallSessions) SetNativeGoalForSession(_ context.Context, _, _, generation, objective, status string, origin webconsole.NativeGoalOrigin, _ *int64) (string, error) {
+	s.goalSendCommands++
+	if origin != webconsole.NativeGoalAutomatic && origin != webconsole.NativeGoalUserDirected {
+		return "", errors.New("fixture requires explicit goal origin")
+	}
+	if generation != "fixture-generation" {
+		return "", errors.New("fixture rejects changed generation")
+	}
+	if s.sendCommandErr != nil {
+		return "", s.sendCommandErr
+	}
+	s.nativeGoalInstalled = true
+	if s.onGoal != nil {
+		s.onGoal()
+	}
+	return status, nil
 }
 
 func (s *goalInstallSessions) SendText(ctx context.Context, sessionID, text, source string) error {
@@ -126,199 +160,118 @@ func appendGoalInstallMarker(t *testing.T, path, threadID, objective string) {
 	appendGoalInstallBytes(t, path, goalInstallMarkerLine(t, threadID, objective))
 }
 
-func TestSubstrateLaunch_WaitsForCurrentActiveGoalMarkerBeforePrompt(t *testing.T) {
+// Codex app-server goals use typed RPC. These parser tests retain the legacy
+// transcript watcher's independent freshness contract without pretending it is
+// the native app-server launch path.
+func TestGoalInstallWatcherRequiresFreshCurrentActiveMarker(t *testing.T) {
 	const objective = "finish the verified task"
 	runDir := t.TempDir()
 	transcript := filepath.Join(runDir, "codex", "sessions", "2026", "10", "17", "rollout-current.jsonl")
 	goalInstallTranscript(t, transcript, "native-thread-current", objective, runner.GoalStatusActive, "native-thread-current")
-	goalSent := make(chan struct{}, 1)
-	fs := &goalInstallSessions{fakeSessions: newFakeSessions("web-session"), onGoal: func() { goalSent <- struct{}{} }}
-	sub := NewSubstrate(fs, fakeResolver(codexGoalLaunchInfo{fakeLaunchInfo{
-		rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/usr/bin/codex",
-	}}), WithDiscoveryTimeout(time.Second), WithGoalInstallTimeout(time.Second), WithPollInterval(time.Millisecond), WithPromptBootDelay(0))
+	sub := NewSubstrate(newFakeSessions("unused"), nil, WithGoalInstallTimeout(time.Second), WithPollInterval(time.Millisecond))
+	params := DiscoverParams{RunnerType: domain.RunnerTypeCodex, RunDir: runDir}
+	watcher, err := sub.newGoalInstallWatcher(context.Background(), params, codexGoalLaunchInfo{}, uuid.New(), objective)
+	if err != nil {
+		t.Fatal(err)
+	}
 	result := make(chan error, 1)
-	go func() {
-		_, err := sub.Launch(context.Background(), LaunchParams{
-			RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex, Tag: "run-install-order",
-			WorkingDir: "/work", RunDir: runDir, Prompt: "perform the task", NativeObjective: objective,
-		})
-		result <- err
-	}()
-
+	go func() { result <- sub.awaitGoalInstalled(context.Background(), params, watcher) }()
 	select {
-	case <-goalSent:
 	case err := <-result:
-		t.Fatalf("Launch exited before sending the goal: %v", err)
-	case <-time.After(time.Second):
-		t.Fatal("Launch did not submit the native goal")
-	}
-	if fs.sendPrompts != 0 {
-		t.Fatalf("task prompt was submitted before the active goal marker: %d submissions", fs.sendPrompts)
-	}
-	if want := "/goal " + objective; fs.goalCommand != want || strings.Contains(fs.goalCommand, "\n") {
-		t.Fatalf("goal command = %q, want one literal line %q", fs.goalCommand, want)
+		t.Fatalf("stale prefix acknowledged: %v", err)
+	case <-time.After(20 * time.Millisecond):
 	}
 	appendGoalInstallMarker(t, transcript, "native-thread-current", objective)
-	select {
-	case err := <-result:
-		if err != nil {
-			t.Fatalf("Launch after matching active marker: %v", err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("Launch did not continue after the matching active goal marker")
-	}
-	if fs.sendPrompts != 1 {
-		t.Fatalf("prompt submissions = %d, want 1 after marker", fs.sendPrompts)
+	if err := <-result; err != nil {
+		t.Fatal(err)
 	}
 }
 
-func TestSubstrateLaunch_DoesNotSubmitPromptWithoutMatchingCurrentGoal(t *testing.T) {
+func TestGoalInstallWatcherRejectsWrongObjectiveOrThread(t *testing.T) {
 	const objective = "finish the verified task"
-	for _, tc := range []struct {
-		name            string
-		markerObjective string
-		markerThreadID  string
-	}{
-		{name: "wrong objective", markerObjective: "another task", markerThreadID: "native-thread-current"},
-		{name: "wrong current thread", markerObjective: objective, markerThreadID: "native-thread-other"},
-		{name: "no active marker", markerObjective: ""},
-	} {
+	for _, tc := range []struct{ name, objective, thread string }{{"wrong objective", "another task", "native-thread-current"}, {"wrong current thread", objective, "native-thread-other"}, {"no active marker", "", ""}} {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
 			transcript := filepath.Join(runDir, "codex", "sessions", "2026", "10", "17", "rollout-current.jsonl")
 			goalInstallTranscript(t, transcript, "native-thread-current", "", runner.GoalStatus(""), "")
-			fs := &goalInstallSessions{fakeSessions: newFakeSessions("web-session")}
-			if tc.markerObjective != "" {
-				fs.onGoal = func() { appendGoalInstallMarker(t, transcript, tc.markerThreadID, tc.markerObjective) }
+			sub := NewSubstrate(newFakeSessions("unused"), nil, WithGoalInstallTimeout(20*time.Millisecond), WithPollInterval(time.Millisecond))
+			params := DiscoverParams{RunnerType: domain.RunnerTypeCodex, RunDir: runDir}
+			watcher, err := sub.newGoalInstallWatcher(context.Background(), params, codexGoalLaunchInfo{}, uuid.New(), objective)
+			if err != nil {
+				t.Fatal(err)
 			}
-			sub := NewSubstrate(fs, fakeResolver(codexGoalLaunchInfo{fakeLaunchInfo{
-				rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/usr/bin/codex",
-			}}), WithDiscoveryTimeout(time.Second), WithGoalInstallTimeout(20*time.Millisecond), WithPollInterval(time.Millisecond), WithPromptBootDelay(0))
-			_, err := sub.Launch(context.Background(), LaunchParams{
-				RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex, Tag: "run-install-order",
-				WorkingDir: "/work", RunDir: runDir, Prompt: "perform the task", NativeObjective: objective,
-			})
-			if err == nil || !strings.Contains(err.Error(), "native objective was not acknowledged") {
-				t.Fatalf("Launch error = %v, want bounded objective-acknowledgement failure", err)
+			if tc.objective != "" {
+				appendGoalInstallMarker(t, transcript, tc.thread, tc.objective)
 			}
-			if fs.sendPrompts != 0 {
-				t.Fatalf("prompt submissions = %d, want none without an exact active marker", fs.sendPrompts)
+			if err := sub.awaitGoalInstalled(context.Background(), params, watcher); err == nil {
+				t.Fatal("accepted absent or mismatched fresh goal")
 			}
 		})
 	}
 }
 
-func TestSubstrateLaunch_DoesNotSendTaskWhenGoalCommandRemainsComposed(t *testing.T) {
+func TestSubstrateLaunch_DoesNotSendTaskWhenNativeGoalRefused(t *testing.T) {
 	base := newFakeSessions("web-session")
 	base.sendCommandErr = webconsole.ErrCommandNotSubmitted
 	fs := &goalInstallSessions{fakeSessions: base}
-	sub := NewSubstrate(fs, fakeResolver(codexGoalLaunchInfo{fakeLaunchInfo{
-		rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/usr/bin/codex",
-	}}), WithDiscoveryTimeout(time.Second), WithGoalInstallTimeout(20*time.Millisecond), WithPollInterval(time.Millisecond), WithPromptBootDelay(0))
-
-	_, err := sub.Launch(context.Background(), LaunchParams{
-		RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex, Tag: "goal-submit-failed",
-		WorkingDir: "/work", RunDir: t.TempDir(), Prompt: "perform the task", NativeObjective: "finish the verified task",
-	})
+	sub := NewSubstrate(fs, fakeResolver(codexGoalLaunchInfo{fakeLaunchInfo{rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/fixture/codex"}}), WithHomeDir(t.TempDir()))
+	_, err := sub.Launch(context.Background(), LaunchParams{RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex, WorkingDir: "/fixture/work", RunDir: t.TempDir(), Prompt: "perform the task", NativeObjective: "finish the verified task", NativeGoalOrigin: webconsole.NativeGoalAutomatic, Config: &domain.RunConfig{NetworkAccess: domain.NetworkAccessFull}})
 	if !errors.Is(err, webconsole.ErrCommandNotSubmitted) {
-		t.Fatalf("Launch error = %v, want ErrCommandNotSubmitted", err)
+		t.Fatalf("Launch error = %v", err)
 	}
 	if fs.goalSendCommands != 1 || fs.sendPrompts != 0 {
-		t.Fatalf("goal submissions=%d task submissions=%d; want goal attempt only", fs.goalSendCommands, fs.sendPrompts)
+		t.Fatalf("goal submissions=%d task submissions=%d", fs.goalSendCommands, fs.sendPrompts)
 	}
 }
 
-func TestSubstrateLaunch_CompletesPartialSessionPrefixBeforeFreshGoal(t *testing.T) {
+func TestGoalInstallWatcherCompletesPartialSessionPrefix(t *testing.T) {
 	const objective = "finish the verified task"
 	runDir := t.TempDir()
 	transcript := filepath.Join(runDir, "codex", "sessions", "2026", "10", "17", "rollout-current.jsonl")
 	if err := os.MkdirAll(filepath.Dir(transcript), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	partialMeta := `{"type":"session_meta","payload":{"id":"native-thread-current"}`
-	if err := os.WriteFile(transcript, []byte(partialMeta), 0o600); err != nil {
+	if err := os.WriteFile(transcript, []byte(`{"type":"session_meta","payload":{"id":"native-thread-current"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	fs := &goalInstallSessions{fakeSessions: newFakeSessions("web-session"), onGoal: func() {
-		appendGoalInstallBytes(t, transcript, []byte("}\n"))
-		appendGoalInstallMarker(t, transcript, "native-thread-current", objective)
-	}}
-	sub := NewSubstrate(fs, fakeResolver(codexGoalLaunchInfo{fakeLaunchInfo{
-		rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/usr/bin/codex",
-	}}), WithDiscoveryTimeout(time.Second), WithGoalInstallTimeout(time.Second), WithPollInterval(time.Millisecond), WithPromptBootDelay(0))
-	_, err := sub.Launch(context.Background(), LaunchParams{
-		RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex, Tag: "partial-session-prefix",
-		WorkingDir: "/work", RunDir: runDir, Prompt: "perform the task", NativeObjective: objective,
-	})
+	sub := NewSubstrate(newFakeSessions("unused"), nil, WithGoalInstallTimeout(time.Second), WithPollInterval(time.Millisecond))
+	params := DiscoverParams{RunnerType: domain.RunnerTypeCodex, RunDir: runDir}
+	watcher, err := sub.newGoalInstallWatcher(context.Background(), params, codexGoalLaunchInfo{}, uuid.New(), objective)
 	if err != nil {
-		t.Fatalf("Launch after partial session prefix and fresh marker: %v", err)
+		t.Fatal(err)
 	}
-	if fs.sendPrompts != 1 {
-		t.Fatalf("prompt submissions = %d, want 1 after fresh marker", fs.sendPrompts)
+	appendGoalInstallBytes(t, transcript, []byte("}\n"))
+	appendGoalInstallMarker(t, transcript, "native-thread-current", objective)
+	if err := sub.awaitGoalInstalled(context.Background(), params, watcher); err != nil {
+		t.Fatal(err)
 	}
 }
 
-func TestSubstrateLaunch_DoesNotAckPartialOldActiveMarker(t *testing.T) {
+func TestGoalInstallWatcherDoesNotAckCompletedOldPartialMarker(t *testing.T) {
 	const objective = "finish the verified task"
 	runDir := t.TempDir()
 	transcript := filepath.Join(runDir, "codex", "sessions", "2026", "10", "17", "rollout-current.jsonl")
 	goalInstallTranscript(t, transcript, "native-thread-current", "", runner.GoalStatus(""), "")
 	oldMarker := goalInstallMarkerLine(t, "native-thread-current", objective)
-	if err := os.WriteFile(transcript, append(mustReadFile(t, transcript), oldMarker[:len(oldMarker)-3]...), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	partialFinished := make(chan struct{})
-	fs := &goalInstallSessions{fakeSessions: newFakeSessions("web-session"), onGoal: func() {
-		appendGoalInstallBytes(t, transcript, oldMarker[len(oldMarker)-3:])
-		close(partialFinished)
-	}}
-	sub := NewSubstrate(fs, fakeResolver(codexGoalLaunchInfo{fakeLaunchInfo{
-		rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/usr/bin/codex",
-	}}), WithDiscoveryTimeout(time.Second), WithGoalInstallTimeout(500*time.Millisecond), WithPollInterval(time.Millisecond), WithPromptBootDelay(0))
-	result := make(chan error, 1)
-	go func() {
-		_, err := sub.Launch(context.Background(), LaunchParams{
-			RunID: uuid.New(), RunnerType: domain.RunnerTypeCodex, Tag: "partial-old-active",
-			WorkingDir: "/work", RunDir: runDir, Prompt: "perform the task", NativeObjective: objective,
-		})
-		result <- err
-	}()
-	select {
-	case <-partialFinished:
-	case err := <-result:
-		t.Fatalf("Launch exited before completing the old partial marker: %v", err)
-	case <-time.After(time.Second):
-		t.Fatal("Launch did not submit /goal")
-	}
-	select {
-	case err := <-result:
-		t.Fatalf("old partial active marker was treated as fresh: Launch returned %v", err)
-	case <-time.After(25 * time.Millisecond):
-	}
-	if fs.sendPrompts != 0 {
-		t.Fatalf("prompt submissions = %d, want none for old partial marker", fs.sendPrompts)
-	}
-	appendGoalInstallMarker(t, transcript, "native-thread-current", objective)
-	select {
-	case err := <-result:
-		if err != nil {
-			t.Fatalf("Launch after fresh marker: %v", err)
-		}
-	case <-time.After(time.Second):
-		t.Fatal("Launch did not continue after fresh active marker")
-	}
-	if fs.sendPrompts != 1 {
-		t.Fatalf("prompt submissions = %d, want 1 after fresh marker", fs.sendPrompts)
-	}
-}
-
-func mustReadFile(t *testing.T, path string) []byte {
-	t.Helper()
-	body, err := os.ReadFile(path)
+	appendGoalInstallBytes(t, transcript, oldMarker[:len(oldMarker)-3])
+	sub := NewSubstrate(newFakeSessions("unused"), nil, WithGoalInstallTimeout(time.Second), WithPollInterval(time.Millisecond))
+	params := DiscoverParams{RunnerType: domain.RunnerTypeCodex, RunDir: runDir}
+	watcher, err := sub.newGoalInstallWatcher(context.Background(), params, codexGoalLaunchInfo{}, uuid.New(), objective)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return body
+	appendGoalInstallBytes(t, transcript, oldMarker[len(oldMarker)-3:])
+	result := make(chan error, 1)
+	go func() { result <- sub.awaitGoalInstalled(context.Background(), params, watcher) }()
+	select {
+	case err := <-result:
+		t.Fatalf("completed old partial record acknowledged: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	appendGoalInstallMarker(t, transcript, "native-thread-current", objective)
+	if err := <-result; err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestSubstrateLaunch_ClaudeWaitsForCurrentActiveGoalBeforePrompt(t *testing.T) {

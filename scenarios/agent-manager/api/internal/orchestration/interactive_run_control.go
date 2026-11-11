@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/webconsole"
@@ -148,6 +149,9 @@ func (o *Orchestrator) revokeInteractiveRunIdentity(ctx context.Context, runID u
 // completion that won the race leaves the run already terminal (Stop is then a
 // no-op).
 func (o *Orchestrator) stopInteractiveRun(ctx context.Context, run *domain.Run) error {
+	if strings.TrimSpace(run.WebConsoleSessionID) != "" && o.interactiveSessions == nil {
+		return domain.NewConfigMissingError("interactive sessions", "cannot retire the retained executor without its session controller", nil)
+	}
 	// 1. Cancel + drain any live coordinator (Execute or Continue turn) so no
 	//    late tail cursor / heartbeat Update can resurrect the run after we
 	//    finalize it. Also cancel a recovery-reattached tailer (restart path).
@@ -250,16 +254,17 @@ func (o *Orchestrator) finalizeSandboxForTerminalRun(ctx context.Context, run *d
 	phases.Finalize(ctx, phases.FinalizeInput{Deps: deps, Run: run, SandboxID: run.SandboxID, Sandbox: o.sandbox})
 }
 
-// continueInteractiveRun continues an ExecutionMode=interactive run by typing the
-// follow-up prompt into the still-live web-console session and reattaching a
-// tailer to drive the new turn — never a process respawn (locked decision 6).
+// continueInteractiveRun submits a follow-up to the retained native owner (or
+// the legacy provider's session controller) and reattaches its transcript tail.
+// It never respawns a process (locked decision 6).
 // The caller (ContinueRun) has already run the CanContinueRun gate, which admits
 // only terminal runs (a mid-turn Continue is rejected there, mirroring pipe-mode).
 // The web-console session is kept alive after completion (Phase 4), so the
 // follow-up lands in the same CLI; if the session is gone, the run cannot be
 // continued in place and an actionable error is returned.
 func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.Run, message string, _ []string, reinstallGoal bool) (*domain.Run, error) {
-	if err := o.verifyInteractiveSession(ctx, run); err != nil {
+	expectedOwner, err := o.verifyInteractiveSessionOwner(ctx, run)
+	if err != nil {
 		return nil, domain.RefuseBeforeEffects(err)
 	}
 	tailContext, err := loadInteractiveTailContextForRun(ctx, run, o.resolveRunStateRoot)
@@ -270,7 +275,7 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 	if run.ResolvedConfig != nil && run.ResolvedConfig.RunnerType == domain.RunnerTypeCodex && strings.TrimSpace(tailContext.RunDir) == "" {
 		return nil, domain.RefuseBeforeEffects(err)
 	}
-	return o.continueInteractiveRunWithVerifiedSession(ctx, run, message, reinstallGoal, tailContext)
+	return o.continueInteractiveRunWithVerifiedSession(ctx, run, message, reinstallGoal, tailContext, expectedOwner)
 }
 
 // verifyInteractiveSession proves the exact retained session is available
@@ -278,52 +283,78 @@ func (o *Orchestrator) continueInteractiveRun(ctx context.Context, run *domain.R
 // its durable await bookkeeping; Continue uses it through
 // continueInteractiveRun.
 func (o *Orchestrator) verifyInteractiveSession(ctx context.Context, run *domain.Run) error {
+	_, err := o.verifyInteractiveSessionOwner(ctx, run)
+	return err
+}
+
+func (o *Orchestrator) verifyInteractiveSessionOwner(ctx context.Context, run *domain.Run) (string, error) {
 	if run == nil {
-		return domain.NewValidationError("run", "interactive run is required")
+		return "", domain.NewValidationError("run", "interactive run is required")
 	}
 	if o.interactiveSessions == nil {
-		return domain.NewConfigMissingError("interactiveSessions", "interactive execution mode is not configured", nil)
+		return "", domain.NewConfigMissingError("interactiveSessions", "interactive execution mode is not configured", nil)
 	}
 	if run.WebConsoleSessionID == "" {
-		return domain.NewStateError("Run", string(run.Status), "continue",
-			"interactive run has no web-console session to continue")
+		return "", domain.NewStateError("Run", string(run.Status), "continue", "interactive run has no web-console session to continue")
 	}
 	session, err := o.interactiveSessions.GetSession(ctx, run.WebConsoleSessionID)
 	if err != nil {
 		if errors.Is(err, webconsole.ErrSessionNotFound) {
-			return domain.NewStateError("Run", string(run.Status), "continue",
-				fmt.Sprintf("the live web-console session %s for this run no longer exists (ended runs keep their session only for the interactive session retention window); start a new interactive run to continue",
-					run.WebConsoleSessionID))
+			return "", domain.NewStateError("Run", string(run.Status), "continue", fmt.Sprintf("the live web-console session %s for this run no longer exists; start a new interactive run to continue", run.WebConsoleSessionID))
 		}
-		return err
+		return "", err
 	}
 	if session.ID != run.WebConsoleSessionID {
-		return domain.NewStateError("Run", string(run.Status), "continue",
-			fmt.Sprintf("web-console lookup returned session %s for retained session %s", session.ID, run.WebConsoleSessionID))
+		return "", domain.NewStateError("Run", string(run.Status), "continue", "retained Web Console session identity changed")
+	}
+	if run.ResolvedConfig != nil && run.ResolvedConfig.RunnerType != domain.RunnerTypeCodex {
+		if session.LaunchMode == "codex_app_server" {
+			return "", domain.RefuseBeforeEffects(fmt.Errorf("retained native provider does not match the run configuration"))
+		}
+		return "", nil
+	}
+	if session.LaunchMode != "codex_app_server" || session.ControlMode != "native_capable" || session.NativeOwner == "" || session.NativeThreadID != run.SessionID || strings.TrimSpace(run.SessionID) == "" {
+		return "", domain.RefuseBeforeEffects(fmt.Errorf("native agent binding is unavailable for the retained session"))
 	}
 	probe, ok := o.interactiveSessions.(webconsole.NativeAgentProbe)
 	if !ok {
-		return domain.RefuseBeforeEffects(fmt.Errorf("native agent liveness is unavailable for the interactive session"))
+		return "", domain.RefuseBeforeEffects(fmt.Errorf("native agent liveness is unavailable for the interactive session"))
 	}
 	observation, err := probe.ObserveNativeAgent(ctx, run.WebConsoleSessionID, run.SessionID)
 	if err != nil {
-		return domain.RefuseBeforeEffects(fmt.Errorf("read native agent liveness before prompt delivery: %w", err))
+		return "", domain.RefuseBeforeEffects(fmt.Errorf("read native agent liveness before prompt delivery: %w", err))
+	}
+	if observation.Generation != session.NativeOwner {
+		return "", domain.RefuseBeforeEffects(fmt.Errorf("native owner generation changed during verification"))
 	}
 	switch observation.State {
 	case webconsole.NativeAgentIdle:
-		return nil
+		return session.NativeOwner, nil
 	case webconsole.NativeAgentBusy:
-		return domain.RefuseBeforeEffects(fmt.Errorf("native agent is still busy; continuation was not submitted"))
-	default:
-		reason := observation.Reason
-		if reason == "" {
-			reason = "provider could not prove the exact native session is live"
+		if strings.TrimSpace(observation.ActiveTurnID) != "" {
+			return session.NativeOwner, nil
 		}
-		return domain.RefuseBeforeEffects(fmt.Errorf("native agent liveness is unknown: %s", reason))
+		return "", domain.RefuseBeforeEffects(fmt.Errorf("native agent is still busy; active turn identity is unavailable"))
+	default:
+		return "", domain.RefuseBeforeEffects(fmt.Errorf("native agent liveness is unknown: %s", observation.Reason))
 	}
 }
 
 func (o *Orchestrator) sendBoundInteractivePrompt(ctx context.Context, run *domain.Run, prompt string) (webconsole.PromptSubmission, error) {
+	return o.sendBoundInteractivePromptForOwner(ctx, run, prompt, "")
+}
+
+func (o *Orchestrator) sendBoundInteractivePromptForOwner(ctx context.Context, run *domain.Run, prompt, expectedOwner string) (webconsole.PromptSubmission, error) {
+	if run.ResolvedConfig != nil && run.ResolvedConfig.RunnerType != domain.RunnerTypeCodex {
+		return o.interactiveSessions.SendPrompt(ctx, run.WebConsoleSessionID, prompt, interactiveRunSource(run.ID))
+	}
+	if expectedOwner != "" {
+		sender, ok := o.interactiveSessions.(webconsole.NativeOwnerPromptSender)
+		if !ok {
+			return webconsole.PromptSubmission{}, fmt.Errorf("native owner-bound prompt delivery is unavailable")
+		}
+		return sender.SendPromptForNativeOwner(ctx, run.WebConsoleSessionID, run.SessionID, expectedOwner, prompt, interactiveRunSource(run.ID))
+	}
 	sender, ok := o.interactiveSessions.(webconsole.NativeBoundPromptSender)
 	if !ok {
 		return webconsole.PromptSubmission{}, fmt.Errorf("native-bound prompt delivery is unavailable")
@@ -332,6 +363,9 @@ func (o *Orchestrator) sendBoundInteractivePrompt(ctx context.Context, run *doma
 }
 
 func (o *Orchestrator) sendBoundInteractiveCommand(ctx context.Context, run *domain.Run, command string) (webconsole.PromptSubmission, error) {
+	if run.ResolvedConfig != nil && run.ResolvedConfig.RunnerType != domain.RunnerTypeCodex {
+		return o.interactiveSessions.SendCommand(ctx, run.WebConsoleSessionID, command, interactiveRunSource(run.ID))
+	}
 	sender, ok := o.interactiveSessions.(webconsole.NativeBoundPromptSender)
 	if !ok {
 		return webconsole.PromptSubmission{}, fmt.Errorf("native-bound command delivery is unavailable")
@@ -339,7 +373,8 @@ func (o *Orchestrator) sendBoundInteractiveCommand(ctx context.Context, run *dom
 	return sender.SendCommandForNativeSession(ctx, run.WebConsoleSessionID, run.SessionID, command, interactiveRunSource(run.ID))
 }
 
-func (o *Orchestrator) continueInteractiveRunWithVerifiedSession(ctx context.Context, run *domain.Run, message string, reinstallGoal bool, tailContext interactive.TailContext) (*domain.Run, error) {
+func (o *Orchestrator) continueInteractiveRunWithVerifiedSession(ctx context.Context, run *domain.Run, message string, reinstallGoal bool, tailContext interactive.TailContext, expectedOwner string) (*domain.Run, error) {
+	prior := *run
 	completeAfterFirstTurn := shouldCompleteAfterTerminalGoalContinuation(run, reinstallGoal)
 	// Defensive: a live driver means a turn is still in flight. ContinueRun's
 	// terminal-state gate and WakeRun's cancel-and-drain handoff normally ensure
@@ -349,11 +384,31 @@ func (o *Orchestrator) continueInteractiveRunWithVerifiedSession(ctx context.Con
 			"an interactive turn is already in progress for this run"))
 	}
 
-	// Reactivate the run (reset the heartbeat in the same transition) and record
-	// the follow-up as a user message, mirroring pipe-mode resumeConversation.
+	// Capture the invocation boundary before provider effects; a fast receiver
+	// can emit transcript activity before its delivery call returns.
 	now := o.now()
 	transcriptStartCursor := run.TranscriptCursor
 	priorInvocationStartedAt := run.InteractiveInvocationStartedAt
+	// Native delivery is receiver-bound. A request or an unverified legacy
+	// composer observation is not proof that a new invocation is running.
+	if reinstallGoal {
+		if err := o.reinstallNativeGoal(ctx, run, expectedOwner); err != nil {
+			return nil, o.retainUnverifiedInteractiveWake(ctx, run, domain.NewInternalError("failed to reinstall interactive goal before continuation", err))
+		}
+	}
+	submission, err := o.sendBoundInteractivePromptForOwner(ctx, run, message, expectedOwner)
+	if err != nil {
+		if !reinstallGoal && errors.Is(err, webconsole.ErrNativePromptRefused) {
+			return nil, domain.RefuseBeforeEffects(err)
+		}
+		return nil, o.retainUnverifiedInteractiveWake(ctx, run, domain.NewInternalError("interactive continuation delivery failed; prior run outcome retained", err))
+	}
+	if !submission.Verified {
+		return nil, o.retainUnverifiedInteractiveWake(ctx, run, domain.NewInternalError("interactive continuation delivery is unverified; prior run outcome retained", nil))
+	}
+
+	// Reactivate the run (reset the heartbeat in the same transition) and record
+	// the follow-up as a user message, mirroring pipe-mode resumeConversation.
 	var statusPublicationErr error
 	run.InteractiveInvocationStartedAt = &now
 	// Persist this exception with the invocation boundary itself so recovery
@@ -368,7 +423,7 @@ func (o *Orchestrator) continueInteractiveRunWithVerifiedSession(ctx context.Con
 			}
 		}
 	}
-	run, err := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
+	run, err = o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
 		Run:                                    run,
 		NewStatus:                              domain.RunStatusRunning,
 		Phase:                                  domain.RunPhaseExecuting,
@@ -379,7 +434,7 @@ func (o *Orchestrator) continueInteractiveRunWithVerifiedSession(ctx context.Con
 	})
 	if err != nil {
 		if run == nil {
-			return nil, err
+			return nil, o.retainUnverifiedInteractiveWake(ctx, &prior, fmt.Errorf("verified continuation delivery could not commit RUNNING; do not resend before reconciling its delivery reservation: %w", err))
 		}
 		statusPublicationErr = err
 		obs.Component("interactive").Error("interactive continuation status committed but event publication failed; proceeding with the retained session",
@@ -391,54 +446,32 @@ func (o *Orchestrator) continueInteractiveRunWithVerifiedSession(ctx context.Con
 		}
 	}
 
-	// Reinstall the harness-native goal in the same session before the follow-up
-	// when asked, so a resumed run still has its finish line installed.
-	if reinstallGoal {
-		if err := o.reinstallNativeGoal(ctx, run); err != nil {
-			endedAt := o.now()
-			if _, terr := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
-				Run:       run,
-				NewStatus: domain.RunStatusFailed,
-				Phase:     domain.RunPhaseCompleted,
-				Reason:    "Interactive continuation goal reinstall failed",
-				EndedAt:   &endedAt,
-				ErrorMsg:  err.Error(),
-			}); terr != nil {
-				obs.Component("interactive").Warn("interactive continue: failed to finalize after goal reinstall error",
-					obs.KeyRunID, run.ID.String(), obs.KeyError, terr.Error())
-			}
-			return nil, domain.NewInternalError("failed to reinstall interactive goal", err)
-		}
-	}
-
-	// Type the follow-up into the live session (paste + Enter submit). On failure
-	// finalize the run Failed rather than leaving it stuck Running.
-	submission, err := o.sendBoundInteractivePrompt(ctx, run, message)
-	if err != nil {
-		endedAt := o.now()
-		if _, terr := o.applyRunStatusTransition(ctx, RunStatusTransitionInput{
-			Run:       run,
-			NewStatus: domain.RunStatusFailed,
-			Phase:     domain.RunPhaseCompleted,
-			Reason:    "Interactive continuation prompt delivery failed",
-			EndedAt:   &endedAt,
-			ErrorMsg:  err.Error(),
-		}); terr != nil {
-			obs.Component("interactive").Warn("interactive continue: failed to finalize after send error",
-				obs.KeyRunID, run.ID.String(), obs.KeyError, terr.Error())
-		}
-		return nil, domain.NewInternalError("failed to deliver interactive continuation prompt", err)
-	}
-	if !submission.Verified {
-		o.appendRunLogEvent(ctx, run.ID, "warn", fmt.Sprintf("continuation typed into web-console session %s; submission unverified (the composer could not be observed)", run.WebConsoleSessionID))
-	}
-
 	// Reattach a live coordinator to drive the new turn to completion. Its
 	// turn-boundary debounce closes the follow-up turn exactly like the initial
 	// Execute turn.
 	o.driveInteractiveContinuation(ctx, run, completeAfterFirstTurn, tailContext)
 
 	return o.attachRunActions(ctx, run), statusPublicationErr
+}
+
+// The durable wake reservation prevents replay. Retain a recovery diagnosis
+// without repurposing the human sandbox-review state or terminating an owner.
+func (o *Orchestrator) retainUnverifiedInteractiveWake(ctx context.Context, run *domain.Run, deliveryErr error) error {
+	if run.Status != domain.RunStatusParked {
+		return deliveryErr
+	}
+	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	stored, err := o.runs.Get(writeCtx, run.ID)
+	if err != nil {
+		return errors.Join(deliveryErr, err)
+	}
+	if stored == nil || stored.Status != domain.RunStatusParked || stored.LifecycleVersion != run.LifecycleVersion || stored.SessionID != run.SessionID || stored.WebConsoleSessionID != run.WebConsoleSessionID {
+		return deliveryErr
+	}
+	stored.LastHandoff += "; native wake delivery outcome requires agent recovery; pending reservation prevents automatic replay: " + deliveryErr.Error()
+	err = o.runs.Update(writeCtx, stored)
+	return errors.Join(deliveryErr, err)
 }
 
 // shouldCompleteAfterTerminalGoalContinuation scopes the one-turn terminal
@@ -456,17 +489,18 @@ func shouldCompleteAfterTerminalGoalContinuation(run *domain.Run, reinstallGoal 
 		(run.ObservedGoalStatus == string(runner.GoalStatusComplete) || run.ObservedGoalStatus == string(runner.GoalStatusBlocked))
 }
 
-// reinstallNativeGoal re-sends the harness-native /goal objective into a live
-// interactive session. It is a no-op when the run has no completion objective,
-// the runner declares no native objective for the run's sandbox, or the session
-// controller is not configured. The objective is single-lined because native
-// slash commands must be typed as literal keystrokes and explicitly submitted.
-func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run) error {
+// reinstallNativeGoal uses Codex's exact receiving-owner goal API, or the
+// legacy provider's verified command path. Runs without a native objective
+// remain no-ops; missing capability/control owners are configuration failures.
+func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run, expectedOwner string) error {
 	if run == nil || run.ResolvedConfig == nil || strings.TrimSpace(run.ResolvedConfig.Until) == "" {
 		return nil
 	}
 	if o.interactiveSessions == nil {
 		return domain.NewConfigMissingError("interactiveSessions", "interactive execution mode is not configured", nil)
+	}
+	if o.runners == nil {
+		return domain.NewConfigMissingError("runners", "native goal reinstall requires its runner capability owner", nil)
 	}
 	selected, _ := o.runners.Get(run.ResolvedConfig.RunnerType)
 	if selected == nil {
@@ -475,6 +509,9 @@ func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run)
 	objective := nativeObjectiveFor(run, selected.Capabilities())
 	if strings.TrimSpace(objective) == "" {
 		return nil
+	}
+	if handled, err := o.setCodexNativeGoalStatusForOwner(ctx, run, "active", runner.NativeGoalObjective(objective), expectedOwner); handled {
+		return err
 	}
 	command := "/goal " + runner.NativeGoalObjective(objective)
 	submission, err := o.sendBoundInteractiveCommand(ctx, run, command)
@@ -490,6 +527,51 @@ func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run)
 	return nil
 }
 
+// setCodexNativeGoalStatus mutates only an exact live app-server thread. The
+// generation observed by Agent Manager is required at the Web Console receiver;
+// disappearance or replacement between observation and submit yields no input.
+func (o *Orchestrator) setCodexNativeGoalStatus(ctx context.Context, run *domain.Run, status, objective string) (bool, error) {
+	return o.setCodexNativeGoalStatusForOwner(ctx, run, status, objective, "")
+}
+func (o *Orchestrator) setCodexNativeGoalStatusForOwner(ctx context.Context, run *domain.Run, status, objective, expectedOwner string) (bool, error) {
+	if o == nil || run == nil || run.ResolvedConfig == nil || run.ResolvedConfig.RunnerType != domain.RunnerTypeCodex || strings.TrimSpace(run.WebConsoleSessionID) == "" || strings.TrimSpace(run.SessionID) == "" || o.interactiveSessions == nil {
+		return false, nil
+	}
+	info, err := o.interactiveSessions.GetSession(ctx, run.WebConsoleSessionID)
+	if err != nil {
+		return true, fmt.Errorf("read retained Codex session before native goal update: %w", err)
+	}
+	if info.ID != run.WebConsoleSessionID || info.LaunchMode != "codex_app_server" {
+		return false, nil
+	}
+	if (expectedOwner != "" && info.NativeOwner != expectedOwner) || info.NativeThreadID != run.SessionID || info.ControlMode != "native_capable" || info.NativeOwner == "" {
+		return true, errors.New("retained Codex session no longer matches the run's native thread binding")
+	}
+	probe, ok := o.interactiveSessions.(webconsole.NativeAgentProbe)
+	if !ok {
+		return true, errors.New("Codex native owner state reader is unavailable")
+	}
+	observation, err := probe.ObserveNativeAgent(ctx, run.WebConsoleSessionID, run.SessionID)
+	if err != nil || (observation.State != webconsole.NativeAgentIdle && observation.State != webconsole.NativeAgentBusy) || observation.Generation != info.NativeOwner {
+		if err == nil {
+			err = errors.New("native owner is unknown or changed generation")
+		}
+		return true, fmt.Errorf("verify Codex native owner before goal update: %w", err)
+	}
+	controller, ok := o.interactiveSessions.(webconsole.NativeGoalController)
+	if !ok {
+		return true, errors.New("Codex native goal controller is unavailable")
+	}
+	result, err := controller.SetNativeGoalForSession(ctx, run.WebConsoleSessionID, run.SessionID, observation.Generation, objective, status, webconsole.NativeGoalAutomatic, nil)
+	if err != nil {
+		return true, fmt.Errorf("set provider-owned Codex goal %s: %w", status, err)
+	}
+	if result != status {
+		return true, fmt.Errorf("provider-owned Codex goal status = %q, want %q", result, status)
+	}
+	return true, nil
+}
+
 // driveInteractiveContinuation reattaches a live interactive coordinator to a run
 // whose follow-up prompt has just been typed in, and drives the new turn to
 // completion in the background. It borrows the same TailToCompletion + Finalize
@@ -499,12 +581,13 @@ func (o *Orchestrator) reinstallNativeGoal(ctx context.Context, run *domain.Run)
 // source of truth.
 func (o *Orchestrator) driveInteractiveContinuation(parent context.Context, run *domain.Run, completeAfterFirstTurn bool, tailContext interactive.TailContext) {
 	coord := interactive.NewCoordinator(interactive.CoordinatorDeps{
-		Tailer:      interactive.NewTailer(interactive.RegistryParser(o.runners)),
-		Sessions:    o.interactiveSessions,
-		Runs:        o.runs,
-		Broadcaster: o.broadcaster,
-		NewSink:     o.runEventSink,
-		Result:      o.persistedResultBuilder,
+		RecoveryReceipts: o.idempotency,
+		Tailer:           interactive.NewTailer(interactive.RegistryParser(o.runners)),
+		Sessions:         o.interactiveSessions,
+		Runs:             o.runs,
+		Broadcaster:      o.broadcaster,
+		NewSink:          o.runEventSink,
+		Result:           o.persistedResultBuilder,
 	})
 
 	runCopy := *run

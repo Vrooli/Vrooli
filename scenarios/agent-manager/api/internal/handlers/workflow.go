@@ -34,14 +34,9 @@ func (h *Handler) StartWorkflowExecution(w http.ResponseWriter, r *http.Request)
 		writeSimpleError(w, r, "input", "invalid workflow input")
 		return
 	}
-	initiator := domain.WorkflowInitiatorProgrammatic
-	if r.Header.Get("X-Vrooli-Workflow-Initiator") == string(domain.WorkflowInitiatorHuman) {
-		initiator = domain.WorkflowInitiatorHuman
-	}
-	if r.Header.Get(cliutil.HeaderAgentIdentityToken) != "" {
-		initiator = domain.WorkflowInitiatorAgent
-	}
-	execution, err := h.svc.StartWorkflowExecution(r.Context(), orchestration.StartWorkflowExecutionRequest{Owner: req.Owner, WorkflowKey: req.WorkflowKey, DefinitionDigest: req.DefinitionDigest, Input: input, IdempotencyKey: req.IdempotencyKey, Initiator: initiator, IdentityToken: r.Header.Get(cliutil.HeaderAgentIdentityToken), EngagementGrant: engagementGrantFromProto(req.EngagementGrant), ApprovalDigest: req.ApprovalDigest, GrantDigest: req.GrantDigest, ExecutionPreferences: executionPreferencesFromProto(req.ExecutionPreferences)})
+	identityToken := r.Header.Get(cliutil.HeaderAgentIdentityToken)
+	initiator := workflowInitiator(r.Context(), identityToken)
+	execution, err := h.svc.StartWorkflowExecution(r.Context(), orchestration.StartWorkflowExecutionRequest{Owner: req.Owner, WorkflowKey: req.WorkflowKey, DefinitionDigest: req.DefinitionDigest, Input: input, IdempotencyKey: req.IdempotencyKey, Initiator: initiator, IdentityToken: identityToken, EngagementGrant: engagementGrantFromProto(req.EngagementGrant), ApprovalDigest: req.ApprovalDigest, GrantDigest: req.GrantDigest, ExecutionPreferences: executionPreferencesFromProto(req.ExecutionPreferences)})
 	if err != nil {
 		writeError(w, r, err)
 		return

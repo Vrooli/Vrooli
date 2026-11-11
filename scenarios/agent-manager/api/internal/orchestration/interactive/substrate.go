@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/phases"
 
 	"github.com/google/uuid"
 )
@@ -204,7 +205,10 @@ type LaunchParams struct {
 	RunID              uuid.UUID
 	RunnerType         domain.RunnerType
 	Tag                string
-	WorkingDir         string
+	// StoreOwnerID is the durable Agent Manager store identity used by the host
+	// reaper to distinguish this launch from workers owned by another instance.
+	StoreOwnerID string
+	WorkingDir   string
 	// RunDir is the agent-manager-owned per-run directory. codex/grok session
 	// homes are created under it; claude ignores it.
 	RunDir string
@@ -220,6 +224,7 @@ type LaunchParams struct {
 	// delivered before the task prompt only when the resolved runner capability
 	// explicitly supports it.
 	NativeObjective string
+	NativeGoalOrigin webconsole.NativeGoalOrigin
 	// PromptCarriedFallback is the same task prompt with the complete finish line
 	// included. If native objective acknowledgement fails after command submission
 	// and the launch context is still live, Launch delivers this prompt instead
@@ -339,16 +344,17 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	}
 
 	launchCmd, err := BuildLaunchCommand(LaunchCommandParams{
-		RunnerType:  p.RunnerType,
-		BinaryPath:  info.BinaryPath(),
-		TagEnvKey:   info.TagEnvKey(),
-		Tag:         p.Tag,
-		WorkingDir:  p.WorkingDir,
-		RunDir:      p.RunDir,
-		Model:       p.Model,
-		Effort:      p.Effort,
-		Config:      p.Config,
-		ControlArgs: info.ControlArgs,
+		RunnerType:   p.RunnerType,
+		BinaryPath:   info.BinaryPath(),
+		TagEnvKey:    info.TagEnvKey(),
+		Tag:          p.Tag,
+		StoreOwnerID: p.StoreOwnerID,
+		WorkingDir:   p.WorkingDir,
+		RunDir:       p.RunDir,
+		Model:        p.Model,
+		Effort:       p.Effort,
+		Config:       p.Config,
+		ControlArgs:  info.ControlArgs,
 	})
 	if err != nil {
 		return LaunchResult{}, err
@@ -358,9 +364,8 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 	if label == "" {
 		label = p.Tag
 	}
-
-	launchedAt := s.now()
-	sessionID, err := s.sessions.CreateSession(ctx, webconsole.CreateSessionParams{
+	nativeCodexGoal := p.RunnerType == domain.RunnerTypeCodex && strings.TrimSpace(p.NativeObjective) != ""
+	create := webconsole.CreateSessionParams{
 		RequestedSessionID: p.RequestedSessionID,
 		LaunchCommand:      launchCmd,
 		// Submit explicitly below after the shell boot window. Web Console's
@@ -371,7 +376,44 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 		Backend:               "persistent",
 		HumanOwnerSubject:     p.HumanOwnerSubject,
 		AgentRunIdentityToken: p.AgentRunIdentityToken,
-	})
+	}
+	if nativeCodexGoal {
+		provider, ok := info.(runner.NativeCodexLaunchInfo)
+		if !ok {
+			return LaunchResult{}, errors.New("native Codex launch has no typed settings provider")
+		}
+		cfg := p.Config
+		if cfg == nil {
+			cfg = &domain.RunConfig{Model: p.Model, Effort: p.Effort}
+		}
+		settings, settingsErr := provider.NativeCodexSettings(cfg)
+		if settingsErr != nil {
+			return LaunchResult{}, fmt.Errorf("translate native Codex controls: %w", settingsErr)
+		}
+		codexHome := filepath.Join(p.RunDir, "codex")
+		launchEnvironment := map[string]string{"CODEX_HOME": codexHome}
+		if strings.TrimSpace(p.StoreOwnerID) != "" {
+			launchEnvironment[phases.AgentManagerStoreOwnerEnv] = p.StoreOwnerID
+		}
+		descriptor, marshalErr := json.Marshal(struct {
+			runner.CodexLaunchSettings
+			Agent          string            `json:"agent"`
+			LaunchMode     string            `json:"launchMode"`
+			WorkspaceRoots []string          `json:"workspaceRoots"`
+			Environment    map[string]string `json:"environment"`
+		}{settings, "codex", "codex_app_server", []string{p.WorkingDir}, launchEnvironment})
+		if marshalErr != nil {
+			return LaunchResult{}, fmt.Errorf("encode managed Codex launch descriptor: %w", marshalErr)
+		}
+		create.LaunchCommand = ""
+		create.AgentType = "codex"
+		create.LaunchMode = "codex_app_server"
+		create.LaunchDescriptorJSON = string(descriptor)
+		create.WorkingDir = p.WorkingDir
+	}
+
+	launchedAt := s.now()
+	sessionID, err := s.sessions.CreateSession(ctx, create)
 	if err != nil {
 		return LaunchResult{}, fmt.Errorf("create interactive session for %s: %w", p.RunnerType, err)
 	}
@@ -383,6 +425,66 @@ func (s *Substrate) Launch(ctx context.Context, p LaunchParams) (LaunchResult, e
 		SessionID:     sessionID,
 		LaunchCommand: launchCmd,
 		ExecutionMode: domain.ExecutionModeInteractive,
+	}
+	if nativeCodexGoal {
+		controller, ok := s.sessions.(webconsole.NativeGoalController)
+		if !ok {
+			return result, errors.New("managed Codex session has no native goal controller")
+		}
+		sender, ok := s.sessions.(webconsole.NativeBoundPromptSender)
+		if !ok {
+			return result, errors.New("managed Codex session has no receiver-bound native prompt sender")
+		}
+		probe, ok := s.sessions.(webconsole.NativeAgentProbe)
+		if !ok {
+			return result, errors.New("managed Codex session has no native owner state reader")
+		}
+		info, err := s.sessions.GetSession(ctx, sessionID)
+		if err != nil {
+			return result, fmt.Errorf("read created managed Codex session: %w", err)
+		}
+		if info.ID != sessionID || info.LaunchMode != "codex_app_server" || info.ControlMode != "native_capable" || info.NativeOwner == "" || info.NativeThreadID == "" {
+			return result, errors.New("created Agent Manager Codex session did not establish its native owner binding")
+		}
+		observation, err := probe.ObserveNativeAgent(ctx, sessionID, info.NativeThreadID)
+		if err != nil || (observation.State != webconsole.NativeAgentIdle && observation.State != webconsole.NativeAgentBusy) || observation.Generation != info.NativeOwner {
+			if err == nil {
+				err = fmt.Errorf("native owner is not live in the created generation (state=%q generationMatch=%t)", observation.State, observation.Generation == info.NativeOwner)
+			}
+			return result, fmt.Errorf("verify created Codex native owner before goal installation: %w", err)
+		}
+		objective := runner.NativeGoalObjective(p.NativeObjective)
+		goalStatus, err := controller.SetNativeGoalForSession(ctx, sessionID, info.NativeThreadID, observation.Generation, objective, "active", p.NativeGoalOrigin, nil)
+		if err != nil {
+			return result, fmt.Errorf("install Codex provider-owned goal: %w", err)
+		}
+		if goalStatus != "active" {
+			return result, fmt.Errorf("Codex provider goal status = %q, want active", goalStatus)
+		}
+		observation, err = probe.ObserveNativeAgent(ctx, sessionID, info.NativeThreadID)
+		if err != nil || observation.State == webconsole.NativeAgentUnknown || observation.Generation != info.NativeOwner || !observation.GoalAvailable || !observation.HasGoal || observation.GoalStatus != "active" {
+			if err == nil {
+				err = fmt.Errorf("native owner did not confirm the exact active goal (state=%q goalAvailable=%t hasGoal=%t status=%q)", observation.State, observation.GoalAvailable, observation.HasGoal, observation.GoalStatus)
+			}
+			return result, fmt.Errorf("verify Codex provider-owned goal: %w", err)
+		}
+		if promptToDeliver != "" {
+			submission, submitErr := sender.SendPromptForNativeSession(ctx, sessionID, info.NativeThreadID, promptToDeliver, interactivePromptSource(p.RunID))
+			if submitErr != nil {
+				return result, fmt.Errorf("deliver initial task through Codex native owner: %w", submitErr)
+			}
+			if !submission.Verified {
+				return result, errors.New("initial Codex native prompt delivery was not verified")
+			}
+		}
+		result.GoalDelivery = GoalDeliveryNativeUnverified
+		result.LaunchCommand = ""
+		transcriptPath, err := s.discoverTranscript(ctx, DiscoverParams{RunnerType: p.RunnerType, WorkingDir: p.WorkingDir, RunDir: p.RunDir, LaunchedAt: launchedAt, HomeDir: s.homeDir}, nil)
+		if err != nil {
+			return result, err
+		}
+		result.TranscriptPath = transcriptPath
+		return result, nil
 	}
 	// Web Console's launch-command create option bracket-pastes the command but
 	// does not submit it. Stage the command at create time so it remains durable

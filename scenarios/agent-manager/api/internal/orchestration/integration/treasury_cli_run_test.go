@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -70,11 +71,14 @@ func (cf1TreasuryOperatorVerifier) Verify(_ context.Context, token string) (core
 }
 
 type cf1RunSessionKeys struct {
+	mu      sync.Mutex
 	keys    map[uuid.UUID]string
 	revoked map[uuid.UUID]bool
 }
 
 func (s *cf1RunSessionKeys) ResolveOrMint(_ context.Context, id uuid.UUID) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if id == uuid.Nil {
 		return "", errors.New("run ID is required")
 	}
@@ -89,12 +93,20 @@ func (s *cf1RunSessionKeys) ResolveOrMint(_ context.Context, id uuid.UUID) (stri
 }
 
 func (s *cf1RunSessionKeys) RevokeRunCredentialUse(_ context.Context, id uuid.UUID, _ string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.revoked == nil {
 		s.revoked = make(map[uuid.UUID]bool)
 	}
 	s.revoked[id] = true
 	delete(s.keys, id)
 	return nil
+}
+
+func (s *cf1RunSessionKeys) WasRevoked(id uuid.UUID) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.revoked[id]
 }
 
 type cf1TreasuryRunConfig struct {
@@ -113,6 +125,11 @@ type cf1TreasuryRunConfig struct {
 	OverCapAuthorization string `json:"over_cap_authorization_id"`
 	OverCapSettlement    string `json:"over_cap_settlement_id"`
 	OverCapIdempotency   string `json:"over_cap_idempotency_key"`
+	ExpiryMandateID      string `json:"expiry_mandate_id"`
+	ExpiryAuthorization  string `json:"expiry_authorization_id"`
+	ExpirySettlement     string `json:"expiry_settlement_id"`
+	ExpiryInstrumentID   string `json:"expiry_instrument_id"`
+	ExpiryIdempotency    string `json:"expiry_idempotency_key"`
 	InCapGrantID         string `json:"in_cap_operation_grant_id"`
 	OverCapGrantID       string `json:"over_cap_operation_grant_id"`
 }
@@ -172,7 +189,7 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		if err := waitForFile(execCtx, configPath, &config); err != nil {
 			return nil, err
 		}
-		if config.APIBaseURL == "" || config.CLIBinary == "" || config.MandateID == "" || config.InCapInstrumentID == "" || config.InCapAmountMinor <= 0 || config.OverCapInstrumentID == "" || config.OverCapAmountMinor <= 0 {
+		if config.APIBaseURL == "" || config.CLIBinary == "" || config.MandateID == "" || config.InCapInstrumentID == "" || config.InCapAmountMinor <= 0 || config.OverCapInstrumentID == "" || config.OverCapAmountMinor <= 0 || config.ExpiryMandateID == "" || config.ExpiryAuthorization == "" || config.ExpirySettlement == "" || config.ExpiryInstrumentID == "" {
 			return nil, errors.New("Treasury run config is incomplete")
 		}
 		if request.Environment["VROOLI_AGENT_IDENTITY_TOKEN"] == "" || request.Environment["VROOLI_TREASURY_SESSION_PRIVATE_KEY"] == "" {
@@ -277,6 +294,29 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		if err := write("in-cap-settled.json", map[string]any{"authorization_id": config.InCapAuthorization, "settlement_id": config.InCapSettlement}); err != nil {
 			return nil, err
 		}
+		var rotationReceipt struct {
+			Address       string `json:"address"`
+			NewGeneration string `json:"new_generation"`
+		}
+		if err := waitForFile(execCtx, filepath.Join(coord, "mandate-session-rotated.json"), &rotationReceipt); err != nil {
+			return nil, err
+		}
+		rotatedWalletOutput, err := runCLI("agent-wallet-after-rotation", "--api-base", config.APIBaseURL, "budget", "agent-wallet", "--budget-id", config.BudgetID, "--mandate-id", config.MandateID, "--json")
+		if err != nil {
+			return nil, err
+		}
+		var rotatedWallet struct {
+			Wallet struct {
+				Address           string `json:"address"`
+				SessionGeneration string `json:"session_generation"`
+			} `json:"wallet"`
+		}
+		if err := json.Unmarshal(rotatedWalletOutput, &rotatedWallet); err != nil || rotatedWallet.Wallet.Address == "" || rotatedWallet.Wallet.SessionGeneration == "" {
+			return nil, fmt.Errorf("decode mandate wallet after in-run rotation: %w", err)
+		}
+		if rotatedWallet.Wallet.Address != rotationReceipt.Address || rotatedWallet.Wallet.SessionGeneration != rotationReceipt.NewGeneration {
+			return nil, fmt.Errorf("ordinary run did not rebind its key to the rotated mandate generation: wallet=%+v receipt=%+v", rotatedWallet.Wallet, rotationReceipt)
+		}
 		if _, err := runCLI("budget-headroom-after-in-cap", "--api-base", config.APIBaseURL, "budget", "headroom", config.BudgetID, "--json"); err != nil {
 			return nil, err
 		}
@@ -344,6 +384,12 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		if err := write("over-cap-retry-after-restart.json", map[string]any{"authorization_id": config.OverCapAuthorization, "settlement_id": config.OverCapSettlement}); err != nil {
 			return nil, err
 		}
+		if _, err := runCLI("budget-headroom-after-over-cap-retry", "--api-base", config.APIBaseURL, "budget", "headroom", config.BudgetID, "--json"); err != nil {
+			return nil, err
+		}
+		if err := readHeadroom("budget-headroom-after-over-cap-retry", config.InCapAmountMinor+config.OverCapAmountMinor, 1000-config.InCapAmountMinor-config.OverCapAmountMinor); err != nil {
+			return nil, err
+		}
 		if err := waitForFile(execCtx, filepath.Join(coord, "freeze-next-auth-release"), nil); err != nil {
 			return nil, err
 		}
@@ -381,6 +427,58 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		if err := write("frozen-next-authorization.json", map[string]any{"authorization_id": config.InCapAuthorization + "-frozen"}); err != nil {
 			return nil, err
 		}
+		expiryTarget, expirySettlementTarget := (cliutil.TreasurySpendIntent{
+			AuthorizationID: config.ExpiryAuthorization, MandateID: config.ExpiryMandateID, AmountMinor: 10, Currency: "USD",
+			Counterparty: config.Counterparty, AuthorizationIdempotencyKey: config.ExpiryIdempotency,
+			SettlementID: config.ExpirySettlement, InstrumentID: config.ExpiryInstrumentID,
+			SettlementIdempotencyKey: config.ExpiryIdempotency + "-settlement",
+		}).Targets()
+		if err := write("expired-operation-grant-requested.json", map[string]any{
+			"authorization_id": config.ExpiryAuthorization, "amount_minor": 10,
+			"required_target": expiryTarget, "required_settlement_target": expirySettlementTarget,
+		}); err != nil {
+			return nil, err
+		}
+		var expiryGrantReceipt struct {
+			GrantID      string   `json:"grant_id"`
+			SpendTargets []string `json:"spend_targets"`
+		}
+		if err := waitForFile(execCtx, filepath.Join(coord, "expired-operation-approved.json"), &expiryGrantReceipt); err != nil {
+			return nil, err
+		}
+		if expiryGrantReceipt.GrantID == "" || expiryGrantReceipt.GrantID == config.InCapGrantID || expiryGrantReceipt.GrantID == overCapGrantReceipt.GrantID || expiryGrantReceipt.GrantID == frozenGrantReceipt.GrantID || len(expiryGrantReceipt.SpendTargets) != 2 || expiryGrantReceipt.SpendTargets[0] != expiryTarget || expiryGrantReceipt.SpendTargets[1] != expirySettlementTarget {
+			return nil, errors.New("expired-mandate authorization is missing its own exact Agent Manager operation grant")
+		}
+		var expiredMandate struct {
+			MandateID string    `json:"mandate_id"`
+			ExpiresAt time.Time `json:"expires_at"`
+		}
+		if err := waitForFile(execCtx, filepath.Join(coord, "expired-mandate-created.json"), &expiredMandate); err != nil {
+			return nil, err
+		}
+		if expiredMandate.MandateID != config.ExpiryMandateID || expiredMandate.ExpiresAt.IsZero() {
+			return nil, errors.New("expired-mandate receipt did not bind the expected mandate and expiry")
+		}
+		if delay := time.Until(expiredMandate.ExpiresAt.Add(50 * time.Millisecond)); delay > 0 {
+			timer := time.NewTimer(delay)
+			select {
+			case <-execCtx.Done():
+				timer.Stop()
+				return nil, execCtx.Err()
+			case <-timer.C:
+			}
+		}
+		if _, err := runCLI("authorization-propose-expired", "--api-base", config.APIBaseURL, "authorization", "propose",
+			"--id", config.ExpiryAuthorization, "--idempotency-key", config.ExpiryIdempotency,
+			"--mandate-id", config.ExpiryMandateID, "--amount-minor", "10",
+			"--currency", "USD", "--counterparty", config.Counterparty,
+			"--settlement-id", config.ExpirySettlement, "--instrument-id", config.ExpiryInstrumentID,
+			"--settlement-idempotency-key", config.ExpiryIdempotency+"-settlement", "--json"); err != nil {
+			return nil, err
+		}
+		if err := write("expired-mandate-authorization-ready.json", map[string]any{"authorization_id": config.ExpiryAuthorization, "mandate_id": config.ExpiryMandateID}); err != nil {
+			return nil, err
+		}
 		if request.EventSink == nil {
 			return nil, errors.New("Agent Manager run event sink is unavailable")
 		}
@@ -389,9 +487,9 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 		}
 		result := map[string]any{
 			"run_id": request.RunID.String(), "profile_id": request.Profile.ID.String(), "task_id": request.Task.ID.String(),
-			"runner": string(request.ResolvedConfig.RunnerType), "cli_commands": []string{"budget agent-wallet", "budget headroom before and after settlements", "authorization propose in-cap", "settlement report-outcome in-cap", "authorization propose over-cap", "settlement report-outcome over-cap", "same settlement retry after restart", "authorization propose while frozen"},
+			"runner": string(request.ResolvedConfig.RunnerType), "cli_commands": []string{"budget agent-wallet", "budget headroom before and after settlements", "authorization propose in-cap", "settlement report-outcome in-cap", "budget agent-wallet after mandate rotation", "authorization propose over-cap", "settlement report-outcome over-cap", "same settlement retry after restart", "headroom unchanged after retry", "authorization propose while frozen", "authorization propose after mandate expiry"},
 			"session_private_key_injected": true, "identity_token_injected": true,
-			"per_spend_operation_grant_ids": []string{config.InCapGrantID, overCapGrantReceipt.GrantID, frozenGrantReceipt.GrantID},
+			"per_spend_operation_grant_ids": []string{config.InCapGrantID, overCapGrantReceipt.GrantID, frozenGrantReceipt.GrantID, expiryGrantReceipt.GrantID},
 			"private_values_recorded":       false,
 		}
 		if err := write("run-result.json", result); err != nil {
@@ -576,6 +674,76 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	}); err != nil {
 		t.Fatal(err)
 	}
+	expiryMandateID := strings.TrimSpace(os.Getenv("TREASURY_CF1_EXPIRY_MANDATE_ID"))
+	expiryAuthorizationID := strings.TrimSpace(os.Getenv("TREASURY_CF1_EXPIRY_AUTHORIZATION_ID"))
+	expirySettlementID := strings.TrimSpace(os.Getenv("TREASURY_CF1_EXPIRY_SETTLEMENT_ID"))
+	expiryInstrumentID := strings.TrimSpace(os.Getenv("TREASURY_CF1_EXPIRY_INSTRUMENT_ID"))
+	expiryIdempotency := strings.TrimSpace(os.Getenv("TREASURY_CF1_EXPIRY_IDEMPOTENCY_KEY"))
+	if config.ExpiryMandateID != expiryMandateID || expiryAuthorizationID != config.ExpiryAuthorization || expirySettlementID != config.ExpirySettlement || expiryInstrumentID != config.ExpiryInstrumentID || expiryIdempotency != config.ExpiryIdempotency {
+		t.Fatal("expired-mandate identity was not preserved from the local-fork harness")
+	}
+	if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "expired-operation-grant-requested.json"), nil); err != nil {
+		t.Fatalf("run did not request the exact expired-mandate operation grant: %v", err)
+	}
+	expiryTarget, expirySettlementTarget := (cliutil.TreasurySpendIntent{
+		AuthorizationID: expiryAuthorizationID, MandateID: expiryMandateID, AmountMinor: 10, Currency: "USD", Counterparty: counterparty,
+		AuthorizationIdempotencyKey: expiryIdempotency, SettlementID: expirySettlementID,
+		InstrumentID: expiryInstrumentID, SettlementIdempotencyKey: expiryIdempotency + "-settlement",
+	}).Targets()
+	expiryGrant, err := service.RequestAuthorization(ctx, orchestration.AuthorizationRequest{
+		RunID: run.ID, PID: os.Getpid(), HarnessKind: "cf1-local-fork", HarnessSession: "commissioned-local-test",
+		Rules: []domain.AuthorizationRule{
+			{Policy: "treasury-spending", Targets: []string{expiryTarget, expirySettlementTarget}},
+			{Policy: "treasury-wallet-reading", Targets: []string{budgetTarget, "treasury:authorization/" + expiryAuthorizationID}},
+		}, DurationSeconds: 3600,
+		BigPicture:       "Authorize one exact Treasury attempt after its short-lived test mandate expires.",
+		TechnicalDetails: "One 10 USD minor-unit proposal under " + expiryMandateID + "; expected mandate_live refusal and no dispatch in the local fork.",
+	})
+	if err != nil {
+		t.Fatalf("request exact expired-mandate operation grant: %v", err)
+	}
+	expiryGrantApproval, err := service.ApproveAuthorization(ownerCtx, expiryGrant.ID)
+	if err != nil {
+		t.Fatalf("approve exact expired-mandate operation grant: %v", err)
+	}
+	var expiryMandate struct {
+		MandateID string    `json:"mandate_id"`
+		ExpiresAt time.Time `json:"expires_at"`
+	}
+	if err := waitForFile(ctx, filepath.Join(coord, "expired-mandate-created.json"), &expiryMandate); err != nil || expiryMandate.MandateID != expiryMandateID || expiryMandate.ExpiresAt.IsZero() {
+		t.Fatalf("read the short-lived Treasury mandate receipt: mandate=%+v err=%v", expiryMandate, err)
+	}
+	if err := writeJSON(filepath.Join(coord, "expired-operation-approved.json"), map[string]any{
+		"run_id": run.ID.String(), "grant_id": expiryGrant.ID.String(), "spend": "expired-mandate-denial",
+		"spend_targets": []string{expiryTarget, expirySettlementTarget}, "approved_at": expiryGrantApproval.ApprovedAt,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := waitForFileOrRunTerminal(ctx, service, run.ID, filepath.Join(coord, "expired-mandate-authorization-ready.json"), nil); err != nil {
+		t.Fatalf("expired-mandate attempt did not finish: %v", err)
+	}
+	var expiredDecision struct {
+		Authorization struct {
+			Verdict            string `json:"verdict"`
+			ViolatedConstraint string `json:"violated_constraint"`
+		} `json:"authorization"`
+	}
+	decisionBytes, err := os.ReadFile(filepath.Join(coord, "authorization-propose-expired.log"))
+	if err != nil {
+		t.Fatalf("decode expired-mandate decision: %v", err)
+	}
+	if err := json.Unmarshal(decisionBytes, &expiredDecision); err != nil {
+		t.Fatalf("decode expired-mandate decision: %v", err)
+	}
+	if expiredDecision.Authorization.Verdict != "AUTHORIZATION_VERDICT_REFUSED" || expiredDecision.Authorization.ViolatedConstraint != "mandate_live" {
+		t.Fatalf("expired mandate did not fail closed: %+v", expiredDecision.Authorization)
+	}
+	if err := writeJSON(filepath.Join(coord, "expired-mandate-decision.json"), map[string]any{
+		"mandate_id": expiryMandateID, "authorization_id": expiryAuthorizationID,
+		"verdict": expiredDecision.Authorization.Verdict, "violated_constraint": expiredDecision.Authorization.ViolatedConstraint,
+	}); err != nil {
+		t.Fatal(err)
+	}
 	finalRun, err := waitForTerminal(t, ctx, service, run.ID, 3*time.Minute)
 	if err != nil {
 		t.Fatalf("ordinary Treasury run did not reach terminal state: %v", err)
@@ -583,8 +751,8 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	if finalRun.Status != domain.RunStatusComplete {
 		t.Fatalf("ordinary Treasury run failed: status=%s error=%s", finalRun.Status, finalRun.ErrorMsg)
 	}
-	if !keys.revoked[run.ID] {
-		t.Fatal("run-owned Treasury signing session was not revoked at terminal cleanup")
+	if err := waitForCF1SessionRevocation(ctx, keys, run.ID); err != nil {
+		t.Fatal(err)
 	}
 	var outcome struct {
 		RunID       string   `json:"run_id"`
@@ -597,12 +765,12 @@ func TestTreasuryCLIFromOrdinaryRun(t *testing.T) { // [REQ:TRS-P0-001] [REQ:TRS
 	if err != nil || json.Unmarshal(data, &outcome) != nil {
 		t.Fatalf("read run result evidence: %v", err)
 	}
-	if outcome.RunID != run.ID.String() || !outcome.SessionKey || !outcome.Identity || len(outcome.CLICommands) != 8 || len(outcome.SpendGrants) != 3 || outcome.SpendGrants[0] != grant.ID.String() || outcome.SpendGrants[1] != secondSpendGrant.ID.String() || outcome.SpendGrants[2] != frozenGrant.ID.String() {
+	if outcome.RunID != run.ID.String() || !outcome.SessionKey || !outcome.Identity || len(outcome.CLICommands) != 11 || len(outcome.SpendGrants) != 4 || outcome.SpendGrants[0] != grant.ID.String() || outcome.SpendGrants[1] != secondSpendGrant.ID.String() || outcome.SpendGrants[2] != frozenGrant.ID.String() || outcome.SpendGrants[3] != expiryGrant.ID.String() {
 		t.Fatalf("incomplete Agent Manager CLI proof: %+v", outcome)
 	}
 	if err := writeJSON(filepath.Join(coord, "agent-manager-result.json"), map[string]any{
 		"run_id": run.ID.String(), "profile_id": profile.ID.String(), "task_id": task.ID.String(),
-		"run_status": finalRun.Status, "terminal_session_revoked": keys.revoked[run.ID],
+		"run_status": finalRun.Status, "terminal_session_revoked": keys.WasRevoked(run.ID),
 		"cli_commands": outcome.CLICommands, "per_spend_operation_grant_ids": outcome.SpendGrants, "private_values_recorded": false,
 	}); err != nil {
 		t.Fatal(err)
@@ -669,6 +837,21 @@ func waitForFileOrRunTerminal(ctx context.Context, service *orchestration.Orches
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-time.After(50 * time.Millisecond):
+		}
+	}
+}
+
+func waitForCF1SessionRevocation(ctx context.Context, keys *cf1RunSessionKeys, runID uuid.UUID) error {
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if keys.WasRevoked(runID) {
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("waiting for run-owned session revocation: %w", ctx.Err())
+		case <-ticker.C:
 		}
 	}
 }

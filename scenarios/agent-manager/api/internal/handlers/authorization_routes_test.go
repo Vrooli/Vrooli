@@ -1,22 +1,141 @@
 package handlers
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	"agent-manager/internal/domain"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/owneridentity"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
 	measureconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures/measures_v1connect"
 	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
+
+func TestUnverifiedLocalGitControlTowerDraftStartFailsOpenToProgrammatic(t *testing.T) {
+	input, err := structpb.NewValue(map[string]any{"snapshot_digest": "sha256:fixture"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name       string
+		peer       string
+		owner      string
+		workflow   string
+		path       string
+		wantStatus int
+	}{
+		{name: "staged draft", peer: "127.0.0.1:43122", owner: "git-control-tower", workflow: "git-control-tower/staged-message", path: apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure, wantStatus: http.StatusNoContent},
+		{name: "deep staged draft", peer: "[::1]:43122", owner: "git-control-tower", workflow: "git-control-tower/staged-message-deep", path: apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure, wantStatus: http.StatusNoContent},
+		{name: "other workflow", peer: "127.0.0.1:43122", owner: "git-control-tower", workflow: "git-control-tower/arbitrary", path: apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure, wantStatus: http.StatusUnauthorized},
+		{name: "other owner", peer: "127.0.0.1:43122", owner: "other", workflow: "git-control-tower/staged-message", path: apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure, wantStatus: http.StatusUnauthorized},
+		{name: "proxied peer", peer: "192.0.2.10:43122", owner: "git-control-tower", workflow: "git-control-tower/staged-message", path: apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure, wantStatus: http.StatusNoContent},
+		{name: "proxied peer other workflow", peer: "192.0.2.10:43122", owner: "git-control-tower", workflow: "git-control-tower/arbitrary", path: apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure, wantStatus: http.StatusUnauthorized},
+		{name: "other endpoint", peer: "127.0.0.1:43122", owner: "git-control-tower", workflow: "git-control-tower/staged-message", path: "/agent_manager.v1.AgentManagerService/CancelWorkflowExecution", wantStatus: http.StatusUnauthorized},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			body, err := protojson.Marshal(&apipb.StartWorkflowExecutionRequest{Owner: tc.owner, WorkflowKey: tc.workflow, Input: input, IdempotencyKey: "gct-fixture"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			request := httptest.NewRequest(http.MethodPost, tc.path, bytes.NewReader(body))
+			request.RemoteAddr = tc.peer
+			request.Header.Set("X-Agent-Identity-Token", "unverifiable-agent-proof")
+			request.Header.Set("X-Vrooli-Workflow-Initiator", "human")
+			reached := false
+			handler := AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				reached = true
+				if r.Header.Get("X-Agent-Identity-Token") != "" || r.Header.Get("X-Vrooli-Workflow-Initiator") != "" {
+					t.Errorf("unverified caller claims were forwarded: %v", r.Header)
+				}
+				if got := workflowInitiator(r.Context(), r.Header.Get("X-Agent-Identity-Token")); got != domain.WorkflowInitiatorProgrammatic {
+					t.Errorf("initiator = %q, want programmatic", got)
+				}
+				w.WriteHeader(http.StatusNoContent)
+			}))
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != tc.wantStatus || reached != (tc.wantStatus == http.StatusNoContent) {
+				t.Fatalf("status=%d reached=%t, want %d", response.Code, reached, tc.wantStatus)
+			}
+		})
+	}
+}
+
+func TestUnverifiedAgentShapedGitControlTowerDraftStartFailsOpenToProgrammatic(t *testing.T) {
+	body, err := protojson.Marshal(&apipb.StartWorkflowExecutionRequest{
+		Owner: "git-control-tower", WorkflowKey: "git-control-tower/staged-message",
+		IdempotencyKey: "gct-unverified-agent-fixture", Input: &structpb.Value{Kind: &structpb.Value_StructValue{StructValue: &structpb.Struct{}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure, bytes.NewReader(body))
+	request.RemoteAddr = "192.0.2.10:43122"
+	request.Header.Set("X-Agent-Identity-Token", "unverifiable-agent-proof")
+	request = request.WithContext(identity.WithPrincipal(request.Context(), identity.Principal{Kind: identity.ActorAgent, Subject: "unverified-run", Verified: false}))
+	var reached bool
+	handler := AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reached = true
+		if r.Header.Get("X-Agent-Identity-Token") != "" {
+			t.Errorf("unverified agent token was forwarded: %v", r.Header)
+		}
+		if got := workflowInitiator(r.Context(), r.Header.Get("X-Agent-Identity-Token")); got != domain.WorkflowInitiatorProgrammatic {
+			t.Errorf("initiator = %q, want programmatic", got)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if !reached || response.Code != http.StatusNoContent {
+		t.Fatalf("status=%d reached=%t, want admission", response.Code, reached)
+	}
+}
+
+func TestBinaryConnectGitControlTowerDraftStartFailsOpenToProgrammatic(t *testing.T) {
+	input, err := structpb.NewValue(map[string]any{"snapshot_digest": "sha256:fixture"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := proto.Marshal(&apipb.StartWorkflowExecutionRequest{
+		Owner: "git-control-tower", WorkflowKey: "git-control-tower/staged-message-deep",
+		IdempotencyKey: "gct-binary-connect-fixture", Input: input,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure, bytes.NewReader(body))
+	request.RemoteAddr = "192.0.2.10:43122"
+	request.Header.Set("Content-Type", "application/proto")
+	request.Header.Set("X-Agent-Identity-Token", "unverifiable-agent-proof")
+	request = request.WithContext(identity.WithPrincipal(request.Context(), identity.Principal{Kind: identity.ActorAgent, Subject: "unverified-run", Verified: false}))
+	reached := false
+	handler := AgentOperationMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reached = true
+		if r.Header.Get("X-Agent-Identity-Token") != "" {
+			t.Errorf("unverified caller token was forwarded: %v", r.Header)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent || !reached {
+		t.Fatalf("status=%d reached=%t, want binary Connect draft admission", response.Code, reached)
+	}
+}
 
 func TestNarrowWorkflowChildCanReadOwningExecutionWithoutManagementScope(t *testing.T) {
 	principal := identity.Principal{Kind: identity.ActorAgent, Subject: "child-run", Verified: true, Source: identity.SourceAgentProvenance, Scopes: []string{"git-control-tower:read"}}

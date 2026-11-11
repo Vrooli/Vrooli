@@ -821,8 +821,8 @@ identity. This requires the current single Web Console Manager lifecycle owner;
 a second independent manager sharing the database is outside that owner model.
 Agent Manager calls Web Console as its own verified service principal.
 `scenario-authenticator` issues the `agent-manager` principal from an
-operator-owned profile (audience `scenario-authenticator:web-console`, scope
-`web-console:write`, named issuer) and stores its credential in the credential
+operator-owned profile (audience `scenario-authenticator:web-console`, explicit
+`web-console:read` and `web-console:write` scopes, named issuer) and stores its credential in the credential
 authority at `scenario-authenticator/service-principal/agent-manager/web-console`
 (field `credential`). The Web Console client in `internal/adapters/webconsole`
 reads that credential, exchanges it for a short-lived service token
@@ -830,13 +830,24 @@ reads that credential, exchanges it for a short-lived service token
 It never forwards a caller's or run's identity. Web Console verifies the token
 through the shared `authn` scenario-authenticator provider, so its List pins
 `stable_create_owner=agent-manager`. If the credential is missing, revoked or
-fails exchange, the client calls anonymously. Read and drive calls keep working,
-and reserved Create is still refused before submission. The verified owner
+fails exchange, the client calls anonymously. Native reads and writes refuse
+without their required verified capability; reserved Create is refused before submission. Native
+thread and usage observation requires the distinct read scope: write does not imply read.
+The verified owner
 equals the `agent-manager` tag, so these sessions match the retention
 reconciler's owner filter. Rotation: rerun
 `scenario-authenticator auth issue-service-principal --name agent-manager`. To
 revoke, delete the credential entry. The 2026-10-14 receipt is in the identity
 migration ledger.
+
+Service profiles are loaded from Scenario Authenticator's process environment at
+startup. Adopting a scope correction requires its supported scenario restart;
+existing custody credentials exchange against the newly loaded profile without
+rotation or reissuance. Agent Manager caches exchanged tokens until two minutes
+before their expiry. A subsequent supported Agent Manager restart clears that
+cache immediately; restarting only Agent Manager before the authenticator adopts
+the profile still produces the old scopes. Verify the serving non-secret profile
+and token renewal before claiming native-consumer readiness.
 
 Profile reconciliation remains the pattern for workflow desired-state
 reconciliation, not a contract to overload: bounded scenario-local sources are

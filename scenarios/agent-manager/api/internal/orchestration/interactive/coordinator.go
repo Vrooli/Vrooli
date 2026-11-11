@@ -14,6 +14,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
@@ -116,6 +117,10 @@ type ResultBuilder func(ctx context.Context, runID uuid.UUID, success bool, exit
 
 // CoordinatorDeps bundles the collaborators an interactive Coordinator drives.
 type CoordinatorDeps struct {
+	// FailedLaunchCleanupTimeout bounds retirement after failed Create/initialization; zero uses10s.
+	FailedLaunchCleanupTimeout time.Duration
+	// RecoveryReceipts durably fences automatic native prompt retries across owner restarts.
+	RecoveryReceipts repository.IdempotencyRepository
 	// Substrate creates/tears down the web-console session and resolves the
 	// agent-owned transcript. Required for the live Execute path; may be nil for
 	// a recovery-only coordinator (reattach never launches).
@@ -332,19 +337,36 @@ func (c *Coordinator) Execute(ctx context.Context, run *domain.Run, p LaunchPara
 		p.AgentRunIdentityToken = token
 	}
 
+	launchInvocation := run.InteractiveInvocationStartedAt
 	res, err := c.deps.Substrate.Launch(ctx, p)
 	// Persist whatever the launch produced (session id at minimum) before acting
 	// on an error, so a discovery failure still leaves the session id durable.
 	ApplyToRun(run, res)
 	if err != nil {
-		if res.SessionID != "" {
-			// The session exists but is unusable (no transcript) — tear it down.
-			_ = c.deps.Substrate.Stop(context.WithoutCancel(ctx), res.SessionID, interactiveSource(run))
+		cleanupTimeout := c.deps.FailedLaunchCleanupTimeout
+		if cleanupTimeout <= 0 {
+			cleanupTimeout = 10 * time.Second
 		}
-		// Seeding may have already copied credentials into the run's relocated
-		// home before the launch failed; the CLI is dead, so remove them.
-		_ = c.deps.Substrate.CleanupCredentials(p.RunnerType, p.RunDir)
-		return c.finalizeFailed(ctx, run, fmt.Sprintf("interactive launch failed: %v", err))
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), cleanupTimeout)
+		defer cancel()
+		// Create may have taken effect even when its response is lost. The
+		// durably reserved exact ID is the cleanup target, never a discovered
+		// process or a replacement invocation. The shared owner check also
+		// keeps credentials intact when ownership changed or retirement fails.
+		cleanupErr := c.cleanupUnadmittedInitialSession(cleanupCtx, run, launchInvocation, expectedSessionID, p.RunnerType, p.RunDir)
+		failure := errors.Join(fmt.Errorf("interactive launch failed: %w", err), cleanupErr)
+		finalizeCtx, finalizeCancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer finalizeCancel()
+		current, ownerErr := c.deps.Runs.Get(finalizeCtx, run.ID)
+		if ownerErr != nil {
+			return errors.Join(failure, fmt.Errorf("verify failed-launch owner before finalization: %w", ownerErr))
+		}
+		if current == nil || current.Status != domain.RunStatusStarting || current.CancelRequestedAt != nil || current.TaskID != run.TaskID || current.WebConsoleSessionID != expectedSessionID || current.LifecycleVersion != run.LifecycleVersion || !nullableTimesEqual(current.InteractiveInvocationStartedAt, launchInvocation) {
+			return errors.Join(failure, fmt.Errorf("failed-launch finalization retained newer owner: %w", ErrRunOwnerChanged))
+		}
+		// This read avoids known-stale result extraction; the canonical
+		// repository version/invocation CAS remains the race authority.
+		return errors.Join(failure, c.finalizeFailed(finalizeCtx, run, failure.Error()))
 	}
 
 	var mu sync.Mutex
@@ -395,7 +417,11 @@ func (c *Coordinator) cleanupUnadmittedInitialSession(parent context.Context, ru
 	if run == nil || c.deps.Runs == nil || c.deps.Substrate == nil || sessionID == "" {
 		return nil
 	}
-	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(parent), 10*time.Second)
+	cleanupTimeout := c.deps.FailedLaunchCleanupTimeout
+	if cleanupTimeout <= 0 {
+		cleanupTimeout = 10 * time.Second
+	}
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(parent), cleanupTimeout)
 	defer cancel()
 	current, err := c.deps.Runs.Get(cleanupCtx, run.ID)
 	if err != nil {
@@ -839,7 +865,11 @@ func (c *Coordinator) watchSession(ctx, recoveryCtx context.Context, cancel cont
 	}
 	// Observe immutable session/run identifiers. The tail owns its mutable Run
 	// projection and can refresh it only after this watcher is canceled/drained.
-	observed := &domain.Run{ID: run.ID, WebConsoleSessionID: run.WebConsoleSessionID}
+	observed := &domain.Run{ID: run.ID, WebConsoleSessionID: run.WebConsoleSessionID, SessionID: run.SessionID, LifecycleVersion: run.LifecycleVersion, InteractiveInvocationStartedAt: run.InteractiveInvocationStartedAt}
+	if run.ResolvedConfig != nil {
+		config := *run.ResolvedConfig
+		observed.ResolvedConfig = &config
+	}
 	run = observed
 	var mu sync.Mutex
 	gone := false
@@ -919,10 +949,19 @@ func (c *Coordinator) scheduleInterruptionRecovery(parentCtx context.Context, ru
 	if parentCtx.Err() != nil || run == nil || run.WebConsoleSessionID == "" || c.deps.Sessions == nil || !c.recoveryScheduled.CompareAndSwap(false, true) {
 		return
 	}
-	runID := run.ID
-	sessionID := run.WebConsoleSessionID
+	// Capture the immutable invocation before the timer; the tail owns run's
+	// mutable projection and may refresh it while recovery waits.
+	binding := *run
+	if run.InteractiveInvocationStartedAt != nil {
+		at := *run.InteractiveInvocationStartedAt
+		binding.InteractiveInvocationStartedAt = &at
+	}
+	initialSession, initialErr := c.deps.Sessions.GetSession(parentCtx, binding.WebConsoleSessionID)
 	go func() {
 		defer close(c.recoveryReady)
+		if initialErr != nil || initialSession.ID != binding.WebConsoleSessionID {
+			return
+		}
 		timer := time.NewTimer(c.recoveryDelay)
 		defer timer.Stop()
 		select {
@@ -932,64 +971,13 @@ func (c *Coordinator) scheduleInterruptionRecovery(parentCtx context.Context, ru
 		}
 		ctx, cancel := context.WithTimeout(parentCtx, 30*time.Second)
 		defer cancel()
-		reader, ok := c.deps.Runs.(interface {
-			Get(context.Context, uuid.UUID) (*domain.Run, error)
-		})
-		if !ok {
-			return
-		}
-		current, err := reader.Get(ctx, runID)
-		if err != nil || current == nil || current.ID != runID || !current.Status.IsActive() ||
-			current.WebConsoleSessionID == "" || current.WebConsoleSessionID != sessionID {
-			return
-		}
-		session, err := c.deps.Sessions.GetSession(ctx, current.WebConsoleSessionID)
-		if err != nil || session.ID != current.WebConsoleSessionID {
-			return
-		}
-		screen, err := c.deps.Sessions.Screen(ctx, current.WebConsoleSessionID, true)
-		if err != nil || ctx.Err() != nil {
-			return
-		}
-		currentInterruption, detected := ClassifyScreenInterruption(screen)
-		if !detected || currentInterruption != interruption {
+		if c.recoverInterruptedSession(ctx, &binding, initialSession, interruption) {
 			c.recoveryCanReattach.Store(true)
-			return
+		} else if parentCtx.Err() == nil {
+			auditCtx, auditCancel := context.WithTimeout(parentCtx, 2*time.Second)
+			defer auditCancel()
+			c.recordInterruptionRecovery(auditCtx, binding.ID, "delayed interactive recovery was not verified; exact session retained for agent recovery; this cycle will not resend input")
 		}
-		hasNativeGoal := current.ResolvedConfig != nil && strings.TrimSpace(current.ResolvedConfig.Until) != ""
-		if interruption.Kind == "goal_stalled" && !hasNativeGoal {
-			return
-		}
-		if ctx.Err() != nil {
-			return
-		}
-		if c.deps.NewSink != nil {
-			if events := c.deps.NewSink(ctx, runID); events != nil {
-				_ = events.Emit(domain.NewLogEvent(runID, "warn", fmt.Sprintf(
-					"resumable interactive interruption detected (%s: %s); attempting delayed recovery",
-					interruption.Kind, interruption.Message)))
-				_ = events.Close()
-			}
-		}
-		if ctx.Err() != nil {
-			return
-		}
-		sender, supported := c.deps.Sessions.(webconsole.NativeBoundPromptSender)
-		if !supported || strings.TrimSpace(current.SessionID) == "" {
-			return
-		}
-		if hasNativeGoal {
-			submission, err := sender.SendCommandForNativeSession(ctx, current.WebConsoleSessionID, current.SessionID, "/goal resume", interactiveSource(current))
-			if err != nil || !submission.Verified {
-				return
-			}
-		} else {
-			submission, err := sender.SendPromptForNativeSession(ctx, current.WebConsoleSessionID, current.SessionID, "continue", interactiveSource(current))
-			if err != nil || !submission.Verified {
-				return
-			}
-		}
-		c.recoveryCanReattach.Store(true)
 	}()
 }
 

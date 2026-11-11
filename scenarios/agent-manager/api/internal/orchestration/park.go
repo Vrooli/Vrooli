@@ -143,6 +143,10 @@ func (o *Orchestrator) parkRun(ctx context.Context, in ParkRunInput, registerWai
 	if allowed, reason := domain.CanParkRun(run); !allowed {
 		return nil, domain.NewStateError("Run", string(run.Status), "park", reason)
 	}
+	nativeGoalPaused, nativeGoalErr := o.setCodexNativeGoalStatus(ctx, run, "paused", "")
+	if nativeGoalErr != nil {
+		return nil, domain.RefuseBeforeEffects(nativeGoalErr)
+	}
 
 	now := o.now()
 	deadline := in.Deadline
@@ -180,6 +184,12 @@ func (o *Orchestrator) parkRun(ctx context.Context, in ParkRunInput, registerWai
 			// Leave the run un-parked: clear the handle we speculatively set so
 			// the in-memory run matches its un-persisted status.
 			run.AwaitHandle = nil
+			if nativeGoalPaused {
+				if selected, getErr := o.runners.Get(run.ResolvedConfig.RunnerType); getErr == nil && selected != nil {
+					objective := nativeObjectiveFor(run, selected.Capabilities())
+					_, _ = o.setCodexNativeGoalStatus(context.Background(), run, "active", runner.NativeGoalObjective(objective))
+				}
+			}
 			return nil, err
 		}
 	}
@@ -271,6 +281,8 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 		return nil, err
 	}
 	interactiveWake := run.ExecutionMode.Normalized() == domain.ExecutionModeInteractive
+	var wakeReceipt *ContinueRunRequest
+	var expectedOwner string
 	var tailContext interactive.TailContext
 	if interactiveWake {
 		// Codex transcript discovery must remain scoped to this run's durable
@@ -291,7 +303,7 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 		// waiter or the prior interactive tail. Interactive runs continue in
 		// their existing session; they must never fall through to codec-pipe
 		// resumeConversation.
-		if err := o.verifyInteractiveSession(ctx, run); err != nil {
+		if expectedOwner, err = o.verifyInteractiveSessionOwner(ctx, run); err != nil {
 			return nil, domain.RefuseBeforeEffects(err)
 		}
 	}
@@ -325,6 +337,25 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 		run = current
 	}
 
+	message := withCharterReread(formatWakeMessage(run.ID, run.AwaitHandle, in.Result, in.TimedOut), run.CharterPath)
+	if interactiveWake {
+		// A provider may accept input before its acknowledgement or the RUNNING
+		// commit reaches us. Reserve this exact parked lifecycle durably first;
+		// pending receipts survive expiry and prevent automatic replay.
+		if o.idempotency == nil {
+			return nil, domain.RefuseBeforeEffects(domain.NewConfigMissingError("continuation receipts", "interactive wake requires durable delivery reservation", nil))
+		}
+		request := ContinueRunRequest{RunID: run.ID, Message: message, IdempotencyKey: fmt.Sprintf("interactive-wake/%s/%d", run.ID, run.LifecycleVersion)}
+		_, acquired, err := o.reserveContinuationReceipt(ctx, request)
+		if err != nil {
+			return nil, err
+		}
+		if !acquired {
+			return nil, domain.NewStateError("Run", "wake_delivery_unknown", "wake", "this parked invocation already has a delivery reservation; reconcile its retained native owner and receipt before retrying")
+		}
+		wakeReceipt = &request
+	}
+
 	// Cancel the background watcher before resuming. When wake is driven by the
 	// watcher itself this just clears the (already-resolved) entry; when driven
 	// externally (ops wake), it stops the still-blocked watcher so it cannot
@@ -332,8 +363,6 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 	if o.awaitRegistry != nil {
 		o.awaitRegistry.Cancel(in.RunID)
 	}
-
-	message := withCharterReread(formatWakeMessage(run.ID, run.AwaitHandle, in.Result, in.TimedOut), run.CharterPath)
 
 	// Record the resolved await as the re-fetch SSOT BEFORE clearing the handle:
 	// a woken agent that did not see — or wants to re-read — the result can
@@ -348,6 +377,15 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 	resolvedAt := o.now()
 	run.LastAwaitResolvedAt = &resolvedAt
 	run.LastWakeSeq = run.TranscriptLastSeq
+	if interactiveWake {
+		// Keep the parked handle until verified delivery commits RUNNING, while
+		// making the resolved producer result available after a lost receipt.
+		run.LastHandoff = fmt.Sprintf("await resolved; wake reservation %q awaits delivery verification for original native owner %q and thread %q", wakeReceipt.IdempotencyKey, expectedOwner, run.SessionID)
+		if err := o.runs.Update(ctx, run); err != nil {
+			o.markContinuationIdempotencyFailed(ctx, *wakeReceipt)
+			return nil, domain.RefuseBeforeEffects(err)
+		}
+	}
 
 	// Clear the handle before resuming so a crash mid-wake does not leave a
 	// resolved handle that restart recovery would re-spawn a waiter for.
@@ -359,7 +397,17 @@ func (o *Orchestrator) WakeRun(ctx context.Context, in WakeRunInput) (_ *domain.
 		reason = "Woken — await deadline elapsed (timed out)"
 	}
 	if interactiveWake {
-		return o.continueInteractiveRunWithVerifiedSession(ctx, run, message, false, tailContext)
+		continued, err := o.continueInteractiveRunWithVerifiedSession(ctx, run, message, false, tailContext, expectedOwner)
+		if err != nil {
+			if domain.IsPreEffectRefusal(err) {
+				o.markContinuationIdempotencyFailed(ctx, *wakeReceipt)
+			}
+			return continued, err
+		}
+		if err := o.completeContinuationReceipt(ctx, *wakeReceipt); err != nil {
+			return continued, err
+		}
+		return continued, nil
 	}
 	return o.resumeConversation(ctx, run, message, nil, reason, continuationOverrides{})
 }

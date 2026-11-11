@@ -3,6 +3,7 @@ package interactive
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +12,9 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/testutil"
 
 	"github.com/google/uuid"
 )
@@ -1111,5 +1114,165 @@ func TestCoordinatorPersistsSessionBindingBeforeIdentityMint(t *testing.T) {
 	}
 	if firstPersisted == "" || firstPersisted != mintedSession || run.WebConsoleSessionID != mintedSession {
 		t.Fatalf("reservation/mint ordering: persisted=%q minted=%q run=%q", firstPersisted, mintedSession, run.WebConsoleSessionID)
+	}
+}
+
+type failedNativeReadSessions struct{ *goalInstallSessions }
+
+func (s *failedNativeReadSessions) GetSession(context.Context, string) (webconsole.SessionInfo, error) {
+	return webconsole.SessionInfo{}, errors.New("native read denied")
+}
+func TestCoordinatorFailedNativeLaunchSurfacesRetirementFailure(t *testing.T) {
+	for _, failCleanup := range []bool{false, true} {
+		t.Run(fmt.Sprint(failCleanup), func(t *testing.T) {
+			base := newFakeSessions("created")
+			if failCleanup {
+				base.archiveErr = errors.New("native retirement unavailable")
+			}
+			sessions := &failedNativeReadSessions{&goalInstallSessions{fakeSessions: base}}
+			sub := NewSubstrate(sessions, fakeResolver(codexGoalLaunchInfo{fakeLaunchInfo{rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/fixture/codex"}}), WithHomeDir(t.TempDir()), WithStopGrace(0))
+			store := &fakeRunStore{}
+			c := NewCoordinator(CoordinatorDeps{Substrate: sub, Runs: store})
+			run := newInteractiveRun(domain.RunnerTypeCodex, "")
+			run.Status = domain.RunStatusStarting
+			err := c.Execute(t.Context(), run, LaunchParams{RunID: run.ID, RunnerType: domain.RunnerTypeCodex, WorkingDir: t.TempDir(), RunDir: t.TempDir(), Prompt: "do the task", NativeObjective: "finish the exact task", NativeGoalOrigin: webconsole.NativeGoalAutomatic, Config: &domain.RunConfig{NetworkAccess: domain.NetworkAccessFull}}, nil)
+			if err == nil || !strings.Contains(err.Error(), "native read denied") {
+				t.Fatalf("launch error=%v", err)
+			}
+			if strings.Contains(run.ErrorMsg, "native retirement unavailable") != failCleanup || strings.Contains(err.Error(), "native retirement unavailable") != failCleanup {
+				t.Fatalf("cleanup failure hidden: returned=%v stored=%q", err, run.ErrorMsg)
+			}
+			if run.Status != domain.RunStatusFailed || run.WebConsoleSessionID == "" || base.goalSendCommands != 0 || base.sendPrompts != 0 {
+				t.Fatalf("failed launch lost binding or sent work: %+v goals=%d prompts=%d", run, base.goalSendCommands, base.sendPrompts)
+			}
+			calls := base.Calls()
+			if len(calls) < 3 || calls[len(calls)-2] != "interrupt" || calls[len(calls)-1] != "archive" {
+				t.Fatalf("cleanup sequence=%v", calls)
+			}
+		})
+	}
+}
+
+type contextAwareFailureStore struct{ *fakeRunStore }
+
+func (s *contextAwareFailureStore) Update(ctx context.Context, run *domain.Run) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return s.fakeRunStore.Update(ctx, run)
+}
+
+type timedOutFailedLaunchSessions struct{ *failedNativeReadSessions }
+
+func (s *timedOutFailedLaunchSessions) ArchiveSession(ctx context.Context, id string) error {
+	<-ctx.Done()
+	return ctx.Err()
+}
+func TestCoordinatorFailedLaunchFinalizesAfterCleanupDeadline(t *testing.T) {
+	base := newFakeSessions("created")
+	sessions := &timedOutFailedLaunchSessions{&failedNativeReadSessions{&goalInstallSessions{fakeSessions: base}}}
+	sub := NewSubstrate(sessions, fakeResolver(codexGoalLaunchInfo{fakeLaunchInfo{rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/fixture/codex"}}), WithHomeDir(t.TempDir()), WithStopGrace(0))
+	store := &contextAwareFailureStore{&fakeRunStore{}}
+	c := NewCoordinator(CoordinatorDeps{Substrate: sub, Runs: store, FailedLaunchCleanupTimeout: time.Millisecond})
+	run := newInteractiveRun(domain.RunnerTypeCodex, "")
+	run.Status = domain.RunStatusStarting
+	err := c.Execute(t.Context(), run, LaunchParams{RunID: run.ID, RunnerType: domain.RunnerTypeCodex, WorkingDir: t.TempDir(), RunDir: t.TempDir(), Prompt: "do the task", NativeObjective: "finish the exact task", NativeGoalOrigin: webconsole.NativeGoalAutomatic, Config: &domain.RunConfig{NetworkAccess: domain.NetworkAccessFull}}, nil)
+	if err == nil || !strings.Contains(err.Error(), context.DeadlineExceeded.Error()) {
+		t.Fatalf("cleanup deadline missing from returned failure: %v", err)
+	}
+	saved, getErr := store.Get(t.Context(), run.ID)
+	if getErr != nil || saved.Status != domain.RunStatusFailed || !strings.Contains(saved.ErrorMsg, context.DeadlineExceeded.Error()) {
+		t.Fatalf("expired cleanup prevented durable finalization: saved=%+v err=%v", saved, getErr)
+	}
+}
+
+type changedFailedNativeReadSessions struct {
+	*failedNativeReadSessions
+	change func()
+}
+
+func (s *changedFailedNativeReadSessions) GetSession(ctx context.Context, id string) (webconsole.SessionInfo, error) {
+	s.change()
+	return s.failedNativeReadSessions.GetSession(ctx, id)
+}
+func TestFailedInitialLaunchPreservesNewerOwnerWithCanonicalRepository(t *testing.T) {
+	for _, newStatus := range []domain.RunStatus{domain.RunStatusRunning, domain.RunStatusCancelled} {
+		t.Run(string(newStatus), func(t *testing.T) {
+			repos, _, cleanup := testutil.SetupTestRepos(t)
+			defer cleanup()
+			task := &domain.Task{ID: uuid.New(), Title: "failed initial launch CAS", ScopePath: ".", Status: domain.TaskStatusQueued}
+			if err := repos.Tasks.Create(t.Context(), task); err != nil {
+				t.Fatal(err)
+			}
+			run := newInteractiveRun(domain.RunnerTypeCodex, "")
+			run.TaskID = task.ID
+			run.Status = domain.RunStatusStarting
+			run.InteractiveInvocationStartedAt = nil
+			if err := repos.Runs.Create(t.Context(), run); err != nil {
+				t.Fatal(err)
+			}
+			admitted, admitErr := repos.Runs.EnsureCurrentRun(t.Context(), task.ID, run.ID, time.Now().UTC())
+			if admitErr != nil || !admitted {
+				t.Fatalf("bind current initial attempt: admitted=%v err=%v", admitted, admitErr)
+			}
+			base := newFakeSessions("created")
+			sessions := &changedFailedNativeReadSessions{failedNativeReadSessions: &failedNativeReadSessions{&goalInstallSessions{fakeSessions: base}}}
+			var expected *domain.Run
+			sessions.change = func() {
+				current, err := repos.Runs.Get(t.Context(), run.ID)
+				if err != nil {
+					t.Fatal(err)
+				}
+				current.Status = newStatus
+				if newStatus == domain.RunStatusRunning {
+					stamp := time.Now().UTC()
+					begun, beginErr := repos.Runs.BeginInteractiveInvocation(t.Context(), current, domain.RunStatusStarting, nil, stamp)
+					if beginErr != nil || !begun {
+						t.Fatalf("newer invocation failed to acquire canonical owner: begun=%v err=%v", begun, beginErr)
+					}
+					current.Phase = domain.RunPhaseExecuting
+				} else {
+					current.Phase = domain.RunPhaseCompleted
+					end := time.Now().UTC()
+					current.EndedAt = &end
+					current.ErrorMsg = "operator cancellation retained"
+				}
+				if err := repos.Runs.Update(t.Context(), current); err != nil {
+					t.Fatal(err)
+				}
+				expected, err = repos.Runs.Get(t.Context(), run.ID)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			sub := NewSubstrate(sessions, fakeResolver(codexGoalLaunchInfo{fakeLaunchInfo{rt: domain.RunnerTypeCodex, tagKey: "CODEX_AGENT_TAG", binary: "/fixture/codex"}}), WithHomeDir(t.TempDir()), WithStopGrace(0))
+			resultCalls := 0
+			c := NewCoordinator(CoordinatorDeps{Substrate: sub, Runs: repos.Runs, Result: func(context.Context, uuid.UUID, bool, int, string) (*domain.RunResult, *domain.RunSummary) {
+				resultCalls++
+				return nil, nil
+			}})
+			err := c.Execute(t.Context(), run, LaunchParams{RunID: run.ID, RunnerType: domain.RunnerTypeCodex, WorkingDir: t.TempDir(), RunDir: t.TempDir(), Prompt: "do work", NativeObjective: "exact admitted goal", NativeGoalOrigin: webconsole.NativeGoalAutomatic, Config: &domain.RunConfig{NetworkAccess: domain.NetworkAccessFull}}, nil)
+			if !errors.Is(err, ErrRunOwnerChanged) {
+				t.Fatalf("late failure error=%v", err)
+			}
+			current, err := repos.Runs.Get(t.Context(), run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if current.Status != expected.Status || current.LifecycleVersion != expected.LifecycleVersion || current.Phase != expected.Phase || current.ErrorMsg != expected.ErrorMsg || !nullableTimesEqual(current.InteractiveInvocationStartedAt, expected.InteractiveInvocationStartedAt) || !nullableTimesEqual(current.EndedAt, expected.EndedAt) {
+				t.Fatalf("late initial failure rewrote newer owner: got=%+v expected=%+v", current, expected)
+			}
+			if resultCalls != 0 {
+				t.Fatalf("known stale finalization extracted current-owner result %d times", resultCalls)
+			}
+			// Canonical SQL CAS independently fences even a stale caller that bypasses
+			// the early read: nil initial stamp is exact, never an unrestricted match.
+			stale := *run
+			stale.Status = domain.RunStatusFailed
+			stale.InteractiveInvocationStartedAt = nil
+			if err := repos.Runs.Update(t.Context(), &stale); err == nil {
+				t.Fatal("canonical repository accepted late failed initial owner")
+			}
+		})
 	}
 }

@@ -39,6 +39,11 @@ type HandlerProvider interface {
 	Handler() http.Handler
 }
 
+// HandlerProviderFunc adapts a handler factory to the live-server test seam.
+type HandlerProviderFunc func() http.Handler
+
+func (f HandlerProviderFunc) Handler() http.Handler { return f() }
+
 // failer is the minimum surface NewLiveServer needs. It exists so the
 // nil-server guard can be exercised by this package's own tests with a
 // recording stub — testing.TB cannot be implemented externally because

@@ -128,6 +128,12 @@ func keepInherited(key string, relationship Relationship, platform Platform) boo
 }
 
 func isCallerSession(key string) bool {
+	// A provider reconciliation tag and run/session locators describe the
+	// caller's execution, not a new resource. Delegated launchers deliberately
+	// compose these markers for their child; independent owners use overlays.
+	if strings.HasSuffix(key, "_AGENT_TAG") {
+		return true
+	}
 	switch key {
 	// Terminal multiplexers and remote shells.
 	case "TMUX", "TMUX_PANE", "STY", "TERM_PROGRAM", "TERM_PROGRAM_VERSION",
@@ -145,7 +151,8 @@ func isCallerSession(key string) bool {
 		"CODEX_MANAGED_PACKAGE_ROOT":
 		return true
 	// Vrooli agent and web-console terminal session markers.
-	case "VROOLI_AGENT_SESSION", "WC_WEB_CONSOLE_SESSION_ID", "WC_SESSION_STATE_ROOT",
+	case "VROOLI_AGENT_SESSION", "VROOLI_RUN_ID", "VROOLI_HARNESS_SESSION_ID", "VROOLI_AGENT_MANAGER_STORE_ID",
+		"WC_WEB_CONSOLE_SESSION_ID", "WC_SESSION_STATE_ROOT",
 		"WC_CODEX_SESSIONS_DIR":
 		return true
 	default:
@@ -163,7 +170,18 @@ func isNonInheritableIdentity(key string) bool {
 }
 
 func isRelative(key string) bool {
-	return key == "API_PORT" || key == "UI_PORT" || strings.HasPrefix(key, "SCENARIO_") || strings.HasPrefix(key, "VROOLI_SCENARIO")
+	if strings.HasPrefix(key, "SCENARIO_") || strings.HasPrefix(key, "VROOLI_SCENARIO") {
+		return true
+	}
+	switch key {
+	case "API_PORT", "UI_PORT", "WS_PORT", "API_BASE", "API_BASE_URL", "VITE_API_BASE_URL",
+		"VROOLI_LIFECYCLE_MANAGED", "VROOLI_STEP", "VROOLI_PHASE", "LIFECYCLE_PHASE",
+		"VROOLI_VARIANT", "VROOLI_STORAGE_NAMESPACE", "VROOLI_RUNTIME_INSTANCE_ID",
+		"VROOLI_RUNTIME_GENERATION", "VROOLI_PROCESS_ID":
+		return true
+	default:
+		return false
+	}
 }
 
 func split(entry string) (string, string, bool) {

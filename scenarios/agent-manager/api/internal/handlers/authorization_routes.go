@@ -1,7 +1,11 @@
 package handlers
 
 import (
+	"bytes"
 	"errors"
+	"io"
+	"log"
+	"mime"
 	"net/http"
 	"strings"
 
@@ -15,9 +19,12 @@ import (
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/owneridentity"
+	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	apiconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
 	measurepb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/measures"
 	commonconnect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // defaultAskedStandingGrantConcurrency is the concurrency bound an operator is
@@ -185,6 +192,22 @@ func AgentOperationMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "service authority does not include this operation", http.StatusForbidden)
 			return
 		}
+		startEligible, startReason := isGitControlTowerWorkflowStart(r)
+		if r.URL.Path == apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure {
+			log.Printf("workflow-start admission principal_present=%t principal_kind=%s principal_verified=%t gct_fallback=%t reason=%s", ok, p.Kind, p.IsVerified(), startEligible, startReason)
+		}
+		if (!ok || !p.IsVerified() || p.Kind == identity.ActorConflict) && startEligible {
+			// This message-only path deliberately fails open to programmatic when
+			// identity verification is missing, invalid, or unavailable, including
+			// when middleware supplied an unverified agent-shaped principal. Proxies
+			// and container networking make peer addresses unreliable. Keep admission
+			// bounded to the exact workflow pair, strip identity claims, and retain
+			// trigger and input policy checks.
+			r.Header.Del("X-Vrooli-Workflow-Initiator")
+			r.Header.Del("X-Agent-Identity-Token")
+			next.ServeHTTP(w, r)
+			return
+		}
 		if !ok || p.Kind != identity.ActorAgent {
 			if !ok && r.Header.Get("X-Agent-Identity-Token") != "" {
 				http.Error(w, "verified agent caller required", http.StatusUnauthorized)
@@ -253,6 +276,65 @@ func isRunCreationPath(path string) bool {
 	return false
 }
 
+const localWorkflowStartBodyLimit = 128 << 10
+
+// isGitControlTowerWorkflowStart recognizes GCT's two message-only drafts.
+// Source IP is intentionally excluded: proxies and container networking make
+// it brittle. The fallback is limited to the exact owner/workflow pair and
+// remains subject to trigger policy, budgets, self-trigger checks, and input
+// validation in the workflow owner.
+func isGitControlTowerWorkflowStart(r *http.Request) (bool, string) {
+	if r == nil || r.Method != http.MethodPost || r.URL.Path != apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure {
+		return false, "wrong_method_or_path"
+	}
+	if r.Body == nil {
+		return false, "missing_body"
+	}
+	data, err := io.ReadAll(io.LimitReader(r.Body, localWorkflowStartBodyLimit+1))
+	r.Body = io.NopCloser(bytes.NewReader(data))
+	if err != nil {
+		return false, "body_read_error"
+	}
+	if len(data) == 0 {
+		return false, "empty_body"
+	}
+	if len(data) > localWorkflowStartBodyLimit {
+		return false, "body_too_large"
+	}
+	var request apipb.StartWorkflowExecutionRequest
+	if err := unmarshalWorkflowStartRequest(r.Header.Get("Content-Type"), data, &request); err != nil {
+		return false, "invalid_workflow_start_encoding"
+	}
+	if request.GetOwner() != "git-control-tower" {
+		return false, "wrong_workflow_owner"
+	}
+	switch request.GetWorkflowKey() {
+	case "git-control-tower/staged-message", "git-control-tower/staged-message-deep":
+		return true, "eligible"
+	default:
+		return false, "wrong_workflow_key"
+	}
+}
+
+func unmarshalWorkflowStartRequest(contentType string, data []byte, request *apipb.StartWorkflowExecutionRequest) error {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err == nil {
+		switch mediaType {
+		case "application/proto", "application/grpc+proto", "application/x-protobuf":
+			return proto.Unmarshal(data, request)
+		case "application/json", "application/proto+json":
+			return (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(data, request)
+		}
+	}
+	// Connect peers may vary their supported media type. Decode only the two
+	// protobuf wire formats; eligibility still requires the exact typed owner
+	// and workflow fields below.
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(data, request); err == nil {
+		return nil
+	}
+	return proto.Unmarshal(data, request)
+}
+
 func agentOperationRoute(r *http.Request, interactive bool) bool {
 	if r.Method == http.MethodDelete {
 		// Run and task deletion each have target-specific policy checks in their
@@ -275,6 +357,9 @@ func agentOperationRoute(r *http.Request, interactive bool) bool {
 		return false
 	}
 	switch r.URL.Path {
+	case apiconnect.AgentManagerServiceStartWorkflowExecutionProcedure:
+		// The revision's trigger policy is the admission authority for starts.
+		return true
 	case ExactChallengePath, ExactReadChallengePath, ExactReceiptPath, "/api/v1/runs", "/api/v1/runs/resume-from-failed", "/api/v1/investigations",
 		apiconnect.AgentManagerServiceCreateRunProcedure:
 		return true

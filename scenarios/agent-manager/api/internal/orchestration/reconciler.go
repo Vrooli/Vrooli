@@ -43,6 +43,10 @@ type ReconcilerConfig struct {
 	// OwnerIdentity is the process identity used when claiming recovered runs.
 	// It must be unique per Agent Manager owner lifetime.
 	OwnerIdentity string
+	// StoreOwnerID is the stable database identity embedded in launches. Host
+	// discovery uses it to keep this reconciler from touching another AM store's
+	// runner processes.
+	StoreOwnerID string
 
 	// Interval is how often to run reconciliation
 	Interval time.Duration
@@ -118,6 +122,7 @@ func DefaultReconcilerConfig() ReconcilerConfig {
 // Reconciler manages orphan detection and stale run recovery.
 type Reconciler struct {
 	runs              repository.RunRepository
+	recoveryReceipts  repository.IdempotencyRepository
 	ownerIdentity     string
 	events            event.Store
 	runners           runner.Registry
@@ -205,6 +210,7 @@ type Reconciler struct {
 	terminalAccounting        TerminalAccountingRecoverer
 	storageMaintainer         StorageMaintainer
 	sessionBindingProofReader SessionBindingProofReader
+	processEffects            reconcilerProcessEffects
 }
 
 // StorageMaintainer keeps the database file inside its declared budget. Each
@@ -283,6 +289,7 @@ func NewReconciler(
 		runners:               runners,
 		config:                DefaultReconcilerConfig(),
 		clock:                 time.Now,
+		processEffects:        inertReconcilerProcessEffects{},
 		levers:                cfgpkg.DefaultLevers(),
 		stopCh:                make(chan struct{}),
 		doneCh:                make(chan struct{}),
@@ -300,6 +307,50 @@ func NewReconciler(
 	}
 
 	return r
+}
+
+// ReconcilerProcessEffects owns host process observation/signaling and runner
+// resource cleanup. The constructor defaults to an inert implementation so
+// isolated repositories cannot accidentally act on the caller's host. The
+// production wiring explicitly opts into host effects.
+type reconcilerProcessEffects interface {
+	DiscoverRunnerProcesses(context.Context, string) ([]discoveredRunnerProcess, error)
+	ProcessStartTime(int) time.Time
+	ProcessTag(int) string
+	ProcessAlive(int) bool
+	AttachedIdentityAlive(string) bool
+	KillProcess(int) error
+	CleanupRunnerResources(context.Context) error
+}
+
+type discoveredRunnerProcess struct {
+	PID     int
+	Command string
+	OwnerID string
+}
+
+type inertReconcilerProcessEffects struct{}
+
+func (inertReconcilerProcessEffects) DiscoverRunnerProcesses(context.Context, string) ([]discoveredRunnerProcess, error) {
+	return nil, nil
+}
+func (inertReconcilerProcessEffects) ProcessStartTime(int) time.Time               { return time.Time{} }
+func (inertReconcilerProcessEffects) ProcessTag(int) string                        { return "" }
+func (inertReconcilerProcessEffects) ProcessAlive(int) bool                        { return false }
+func (inertReconcilerProcessEffects) KillProcess(int) error                        { return nil }
+func (inertReconcilerProcessEffects) AttachedIdentityAlive(string) bool            { return false }
+func (inertReconcilerProcessEffects) CleanupRunnerResources(context.Context) error { return nil }
+
+func withReconcilerProcessEffects(effects reconcilerProcessEffects) ReconcilerOption {
+	return func(r *Reconciler) {
+		if effects != nil {
+			r.processEffects = effects
+		}
+	}
+}
+
+func WithHostReconcilerProcessEffects() ReconcilerOption {
+	return withReconcilerProcessEffects(hostReconcilerProcessEffects{})
 }
 
 // ReconcilerOption configures the reconciler.
@@ -761,4 +812,9 @@ func (r *Reconciler) reconcile(ctx context.Context) ReconcileStats {
 
 	stats.Duration = time.Since(start)
 	return stats
+}
+
+// WithReconcilerRecoveryReceipts shares the durable continuation owner with recovered drivers.
+func WithReconcilerRecoveryReceipts(receipts repository.IdempotencyRepository) ReconcilerOption {
+	return func(r *Reconciler) { r.recoveryReceipts = receipts }
 }

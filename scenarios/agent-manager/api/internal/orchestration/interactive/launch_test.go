@@ -9,6 +9,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/runner/codecs"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/phases"
 )
 
 func testControlArgs(rt domain.RunnerType) func(*domain.RunConfig) ([]string, error) {
@@ -208,6 +209,25 @@ func TestBuildLaunchCommand_Claude_NoHomeRelocation(t *testing.T) {
 	}
 	if strings.Contains(cmd, "CLAUDE_CONFIG_DIR") {
 		t.Error("claude launch must NOT relocate CLAUDE_CONFIG_DIR (design §4)")
+	}
+}
+
+func TestBuildLaunchCommandCarriesStoreOwnerMarker(t *testing.T) {
+	cmd, err := BuildLaunchCommand(LaunchCommandParams{
+		RunnerType:   domain.RunnerTypeCodex,
+		BinaryPath:   "/usr/bin/codex",
+		TagEnvKey:    "CODEX_AGENT_TAG",
+		Tag:          "run-tag",
+		StoreOwnerID: "store-owner-a'quoted",
+		WorkingDir:   "/work",
+		RunDir:       "/runs/run",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := phases.AgentManagerStoreOwnerEnv + `='store-owner-a'\''quoted'`
+	if !strings.Contains(cmd, want) {
+		t.Fatalf("launch command missing safely quoted store owner marker %q: %s", want, cmd)
 	}
 }
 

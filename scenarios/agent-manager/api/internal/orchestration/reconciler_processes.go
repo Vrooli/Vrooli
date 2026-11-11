@@ -3,18 +3,25 @@ package orchestration
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration/obs"
+	"agent-manager/internal/orchestration/phases"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
+	platform "github.com/vrooli/platform-go"
 )
 
 // reconcilerProcessNames is the verified run-tag process subset shared by
@@ -46,7 +53,7 @@ func (r *Reconciler) isProcessAlive(ctx context.Context, run *domain.Run) bool {
 				// Existing continuations used a synthesized tag. Require both the
 				// recorded process and its exact codec tag; PID liveness alone
 				// could mistake an unrelated reused PID for this run.
-				if extractTagFromEnv(run.RunnerPID) == legacy.ContinuationTag(runner.ContinueRequest{RunID: run.ID}) {
+				if r.processEffects.ProcessTag(run.RunnerPID) == legacy.ContinuationTag(runner.ContinueRequest{RunID: run.ID}) {
 					return true
 				}
 			}
@@ -99,29 +106,18 @@ func (r *Reconciler) scanRunnerProcessesByTag(tag string) bool {
 
 // scanRunnerProcessByTag checks if a specific runner type has a process with the given tag.
 func (r *Reconciler) scanRunnerProcessByTag(runnerName, tag string) bool {
-	cmd := exec.Command("pgrep", "-af", runnerName)
-	output, err := cmd.Output()
+	processes, err := r.processEffects.DiscoverRunnerProcesses(context.Background(), runnerName)
 	if err != nil {
 		return false
 	}
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if line == "" {
+	for _, process := range processes {
+		pid, command := process.PID, process.Command
+		// Existing executors predate store markers. Their exact runner/tag
+		// evidence still establishes liveness; it never authorizes orphan
+		// termination. Explicit evidence of another store remains excluded.
+		if process.OwnerID != "" && process.OwnerID != r.config.StoreOwnerID {
 			continue
 		}
-
-		parts := strings.SplitN(line, " ", 2)
-		if len(parts) < 2 {
-			continue
-		}
-
-		pid, err := strconv.Atoi(parts[0])
-		if err != nil {
-			continue
-		}
-
-		command := parts[1]
 
 		// First check: does the command line have --tag with our specific tag?
 		if cmdTag := extractTagFromCommand(command); cmdTag == tag {
@@ -130,7 +126,7 @@ func (r *Reconciler) scanRunnerProcessByTag(runnerName, tag string) bool {
 		}
 
 		// Second check: does the process environment have the tag?
-		if extractTagFromEnv(pid) == tag {
+		if r.processEffects.ProcessTag(pid) == tag {
 			r.log().Debug("pid matched tag via env", "pid", pid, "tag", tag)
 			return true
 		}
@@ -152,10 +148,70 @@ func (r *Reconciler) detectOrphanProcesses(ctx context.Context, knownTags map[st
 	var orphans []OrphanProcess
 
 	for _, runnerName := range reconcilerProcessNames {
-		orphans = append(orphans, r.scanRunnerProcesses(runnerName, knownTags)...)
+		for _, candidate := range r.scanRunnerProcesses(runnerName, knownTags) {
+			retained, err := r.retainsInteractiveExecutor(ctx, candidate.Tag)
+			if err != nil {
+				r.log().Warn("orphan ownership lookup unavailable; process retained", "pid", candidate.PID, "tag", candidate.Tag, obs.KeyError, err.Error())
+				continue
+			}
+			if !retained {
+				orphans = append(orphans, candidate)
+			}
+		}
 	}
 
 	return orphans
+}
+
+// A terminal turn or a parked native goal can retain its provider for later
+// continuation. Absence from heartbeat scanning is not permission to reap it.
+func (r *Reconciler) retainsInteractiveExecutor(ctx context.Context, tag string) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	if r.runs == nil {
+		return false, fmt.Errorf("run ownership repository is unavailable")
+	}
+	// Prefix lookup is the repository's maintained tag surface. Bound the read;
+	// ambiguous/truncated results cannot prove absence of an exact owner.
+	runs, err := r.runs.List(ctx, repository.RunListFilter{TagPrefix: tag, ListFilter: repository.ListFilter{Limit: 2}})
+	if err != nil {
+		return false, err
+	}
+	for _, candidate := range runs {
+		if candidate.GetTag() != tag {
+			continue
+		}
+		stored, err := r.runs.Get(ctx, candidate.ID)
+		if err != nil {
+			return false, err
+		}
+		if stored == nil {
+			return false, fmt.Errorf("run owner disappeared during orphan classification")
+		}
+		if stored.ExecutionMode.Normalized() == domain.ExecutionModeInteractive && strings.TrimSpace(stored.WebConsoleSessionID) != "" && stored.Status != domain.RunStatusCancelled {
+			if r.sessions == nil {
+				return false, fmt.Errorf("retained interactive session owner is unavailable")
+			}
+			session, err := r.sessions.GetSession(ctx, stored.WebConsoleSessionID)
+			if errors.Is(err, webconsole.ErrSessionNotFound) {
+				continue
+			} // Positive retirement evidence.
+			if err != nil {
+				return false, err
+			}
+			if session.ID != stored.WebConsoleSessionID {
+				return false, fmt.Errorf("retained interactive session lookup changed identity")
+			}
+			if session.LaunchMode == "codex_app_server" && (session.NativeThreadID != stored.SessionID || session.NativeOwner == "" || session.ControlMode != "native_capable") {
+				return false, fmt.Errorf("retained native owner binding is unknown")
+			}
+			return true, nil
+		}
+	}
+	if len(runs) >= 2 {
+		return false, fmt.Errorf("bounded tag lookup cannot prove complete ownership inventory")
+	}
+	return false, nil
 }
 
 // scanRunnerProcesses scans for processes of a specific runner type.
@@ -164,30 +220,19 @@ func (r *Reconciler) scanRunnerProcesses(runnerName string, knownTags map[string
 
 	// Look for processes with agent-manager tags
 	// Tags are typically UUIDs or "scenario-taskid" format
-	cmd := exec.Command("pgrep", "-af", runnerName)
-	output, err := cmd.Output()
+	processes, err := r.processEffects.DiscoverRunnerProcesses(context.Background(), runnerName)
 	if err != nil {
 		return orphans
 	}
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if line == "" {
+	for _, process := range processes {
+		pid, command := process.PID, process.Command
+		// A matching tag or a missing row in this database is not ownership
+		// evidence. Separate Agent Manager stores share the host process space.
+		// Require the marker embedded by our launch owners before any other
+		// orphan classification or termination decision.
+		if r.config.StoreOwnerID == "" || process.OwnerID != r.config.StoreOwnerID {
 			continue
 		}
-
-		// Parse PID and command
-		parts := strings.SplitN(line, " ", 2)
-		if len(parts) < 2 {
-			continue
-		}
-
-		pid, err := strconv.Atoi(parts[0])
-		if err != nil {
-			continue
-		}
-
-		command := parts[1]
 
 		// Resolve the tag from the command line, then the environment. codex
 		// injects its tag only via CODEX_AGENT_TAG in the environment (never
@@ -196,7 +241,10 @@ func (r *Reconciler) scanRunnerProcesses(runnerName string, knownTags map[string
 		// and skips it forever (reconciler_processes.go history: 40+ codex
 		// processes survived weeks past their terminal runs). Mirror the
 		// liveness scan, which already consults both (scanRunnerProcessByTag).
-		tag := runnerProcessTag(command, pid)
+		tag := extractTagFromCommand(command)
+		if tag == "" {
+			tag = r.processEffects.ProcessTag(pid)
+		}
 		if tag == "" {
 			continue
 		}
@@ -282,6 +330,21 @@ func extractTagFromEnv(pid int) string {
 	return ""
 }
 
+func extractStoreOwnerIDFromEnv(pid int) string {
+	envPath := fmt.Sprintf("/proc/%d/environ", pid)
+	data, err := os.ReadFile(envPath)
+	if err != nil || len(data) == 0 {
+		return ""
+	}
+	prefix := phases.AgentManagerStoreOwnerEnv + "="
+	for _, entry := range strings.Split(string(data), "\x00") {
+		if strings.HasPrefix(entry, prefix) {
+			return strings.TrimPrefix(entry, prefix)
+		}
+	}
+	return ""
+}
+
 // runnerProcessTag resolves the agent-manager tag for a scanned runner process,
 // preferring the command line and falling back to the process environment.
 // Env-only-tagged runners (codex sets CODEX_AGENT_TAG in the environment, never
@@ -321,45 +384,7 @@ func looksLikeAgentManagerTag(tag string) bool {
 
 // getProcessStartTime gets the start time of a process.
 func (r *Reconciler) getProcessStartTime(pid int) time.Time {
-	// Read process start time from /proc/[pid]/stat
-	statPath := fmt.Sprintf("/proc/%d/stat", pid)
-	data, err := os.ReadFile(statPath)
-	if err != nil {
-		return time.Time{}
-	}
-
-	// The start time is field 22 (0-indexed: 21)
-	// It's in clock ticks since boot
-	fields := strings.Fields(string(data))
-	if len(fields) < 22 {
-		return time.Time{}
-	}
-
-	startTicks, err := strconv.ParseInt(fields[21], 10, 64)
-	if err != nil {
-		return time.Time{}
-	}
-
-	// Get system boot time
-	uptimeData, err := os.ReadFile("/proc/uptime")
-	if err != nil {
-		return time.Time{}
-	}
-	uptimeStr := strings.Fields(string(uptimeData))[0]
-	uptime, err := strconv.ParseFloat(uptimeStr, 64)
-	if err != nil {
-		return time.Time{}
-	}
-
-	// Get clock ticks per second (usually 100)
-	clkTck := int64(100) // Default, could read from sysconf
-
-	// Calculate process start time
-	processUptimeSeconds := float64(startTicks) / float64(clkTck)
-	bootTime := r.now().Add(-time.Duration(uptime * float64(time.Second)))
-	startTime := bootTime.Add(time.Duration(processUptimeSeconds * float64(time.Second)))
-
-	return startTime
+	return r.processEffects.ProcessStartTime(pid)
 }
 
 // handleOrphan handles an orphan process.
@@ -393,27 +418,16 @@ func (r *Reconciler) killRunProcesses(ctx context.Context, run *domain.Run) {
 
 	// Find PIDs matching the tag via runner process scan
 	for _, runnerName := range reconcilerProcessNames {
-		cmd := exec.Command("pgrep", "-af", runnerName)
-		output, err := cmd.Output()
+		processes, err := r.processEffects.DiscoverRunnerProcesses(ctx, runnerName)
 		if err != nil {
 			continue
 		}
-
-		for _, line := range strings.Split(string(output), "\n") {
-			if line == "" {
+		for _, process := range processes {
+			pid, command := process.PID, process.Command
+			if r.config.StoreOwnerID == "" || process.OwnerID != r.config.StoreOwnerID {
 				continue
 			}
-			parts := strings.SplitN(line, " ", 2)
-			if len(parts) < 2 {
-				continue
-			}
-			pid, err := strconv.Atoi(parts[0])
-			if err != nil {
-				continue
-			}
-
-			command := parts[1]
-			if extractTagFromCommand(command) == tag || extractTagFromEnv(pid) == tag {
+			if extractTagFromCommand(command) == tag || r.processEffects.ProcessTag(pid) == tag {
 				r.log().Info("killing run process", "pid", pid, "tag", tag)
 				if err := r.killProcess(pid); err != nil {
 					r.log().Warn("kill PID failed", "pid", pid, obs.KeyError, err.Error())
@@ -433,40 +447,117 @@ func (r *Reconciler) killRunProcesses(ctx context.Context, run *domain.Run) {
 // the residue observed behind reaped codex leaders — so the force step targets
 // the whole process group, matching the Terminator's KillProcessGroup behaviour.
 func (r *Reconciler) killProcess(pid int) error {
+	return r.processEffects.KillProcess(pid)
+}
+
+func killHostProcess(pid int) error {
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		return err
 	}
+	defer process.Release()
+	return terminateReconcilerProcess(pid, processTerminationEffects{
+		groupID:   processGroupID,
+		graceful:  func() error { return requestGracefulProcessStop(process) },
+		alive:     platform.IsPIDRunning,
+		wait:      time.Sleep,
+		killGroup: func(group int) error { return platform.SignalProcessGroup(group, true) },
+		confirmGroupExit: func(group int) error {
+			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+			defer cancel()
+			return platform.WaitProcessGroupContext(ctx, group, 25*time.Millisecond)
+		},
+		killPID: process.Kill,
+	})
+}
 
-	// Capture the group before the leader exits; once it is gone the pgid can no
-	// longer be read from /proc, but the group may still hold live children.
-	pgid := processGroupID(pid)
+type hostReconcilerProcessEffects struct{}
 
-	// Try SIGTERM on the leader first for a graceful shutdown.
-	if err := process.Signal(os.Interrupt); err != nil {
-		// Leader is already gone; sweep any surviving group members.
-		if pgid > 0 {
-			killProcessGroupID(pgid)
+func (hostReconcilerProcessEffects) DiscoverRunnerProcesses(_ context.Context, runnerName string) ([]discoveredRunnerProcess, error) {
+	cmd := exec.Command("pgrep", "-af", runnerName)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	var processes []discoveredRunnerProcess
+	for _, line := range strings.Split(string(output), "\n") {
+		parts := strings.SplitN(line, " ", 2)
+		if len(parts) != 2 {
+			continue
 		}
-		return nil
-	}
-
-	// Wait a short time for graceful shutdown
-	time.Sleep(500 * time.Millisecond)
-
-	// Check if the leader is still running.
-	if err := process.Signal(nil); err != nil {
-		// Leader is dead; still SIGKILL the group so orphaned children die too.
-		if pgid > 0 {
-			killProcessGroupID(pgid)
+		pid, err := strconv.Atoi(parts[0])
+		if err == nil {
+			processes = append(processes, discoveredRunnerProcess{PID: pid, Command: parts[1], OwnerID: extractStoreOwnerIDFromEnv(pid)})
 		}
-		return nil
 	}
+	return processes, nil
+}
+func (hostReconcilerProcessEffects) ProcessStartTime(pid int) time.Time {
+	return hostProcessStartTime(pid, time.Now())
+}
+func (hostReconcilerProcessEffects) ProcessTag(pid int) string { return extractTagFromEnv(pid) }
+func (hostReconcilerProcessEffects) ProcessAlive(pid int) bool {
+	return platform.IsPIDRunning(pid)
+}
+func (hostReconcilerProcessEffects) AttachedIdentityAlive(hash string) bool {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		if _, err := strconv.Atoi(entry.Name()); err != nil {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join("/proc", entry.Name(), "environ"))
+		if err != nil {
+			continue
+		}
+		for _, value := range strings.Split(string(data), "\x00") {
+			if strings.HasPrefix(value, "VROOLI_AGENT_IDENTITY_TOKEN=") {
+				token := strings.TrimPrefix(value, "VROOLI_AGENT_IDENTITY_TOKEN=")
+				if token != "" && identity.HashToken(token) == hash {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+func (hostReconcilerProcessEffects) KillProcess(pid int) error { return killHostProcess(pid) }
+func (hostReconcilerProcessEffects) CleanupRunnerResources(ctx context.Context) error {
+	return cleanupHostResourceRegistries(ctx)
+}
 
-	// Leader survived SIGTERM: force-kill the whole group, falling back to the
-	// leader alone if the group id is unavailable.
-	if pgid > 0 && killProcessGroupID(pgid) {
-		return nil
+func hostProcessStartTime(pid int, now time.Time) time.Time {
+	statPath := fmt.Sprintf("/proc/%d/stat", pid)
+	data, err := os.ReadFile(statPath)
+	if err != nil {
+		return time.Time{}
 	}
-	return process.Kill()
+	fields := strings.Fields(string(data))
+	if len(fields) < 22 {
+		return time.Time{}
+	}
+	startTicks, err := strconv.ParseInt(fields[21], 10, 64)
+	if err != nil {
+		return time.Time{}
+	}
+	uptimeData, err := os.ReadFile("/proc/uptime")
+	if err != nil {
+		return time.Time{}
+	}
+	uptimeFields := strings.Fields(string(uptimeData))
+	if len(uptimeFields) == 0 {
+		return time.Time{}
+	}
+	uptime, err := strconv.ParseFloat(uptimeFields[0], 64)
+	if err != nil {
+		return time.Time{}
+	}
+	processUptimeSeconds := float64(startTicks) / 100
+	bootTime := now.Add(-time.Duration(uptime * float64(time.Second)))
+	return bootTime.Add(time.Duration(processUptimeSeconds * float64(time.Second)))
 }

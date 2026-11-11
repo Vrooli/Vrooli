@@ -134,6 +134,10 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 	if err != nil {
 		return OrchestratorDependencies{}, err
 	}
+	storeOwnerID, err := db.StoreOwnerID(context.Background())
+	if err != nil {
+		return OrchestratorDependencies{}, fmt.Errorf("resolve durable Agent Manager store owner identity: %w", err)
+	}
 	if hub != nil {
 		hub.SetRunStatusReader(repos.Runs.Get)
 	}
@@ -208,6 +212,7 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 		orchestration.WithStandingGrants(database.NewStandingGrantRepository(db)),
 		orchestration.WithPendingAuthorizations(database.NewPendingAuthorizationRepository(db)),
 		orchestration.WithRuntimeOwnerIdentity(runtimeOwnerIdentity),
+		orchestration.WithStoreOwnerID(storeOwnerID),
 		// Weighted-token caps (DL-8) stay off unless AGENT_MANAGER_TOKEN_CAP_MODE
 		// selects report or enforce.
 		orchestration.WithTokenCapPolicy(orchestration.TokenCapPolicyFromEnv()),
@@ -244,7 +249,8 @@ func NewOrchestratorWithTerminalEvents(db *database.DB, hub *handlers.WebSocketH
 		reconcilerCfg = orchestration.ReconcilerConfigWithSettings(reconcilerCfg, settingsStore.Get())
 		reconcilerCfg.OwnerIdentity = runtimeOwnerIdentity
 	}
-	reconcilerOpts := []orchestration.ReconcilerOption{orchestration.WithReconcilerConfig(reconcilerCfg), orchestration.WithReconcilerEvents(eventStore), orchestration.WithReconcilerEventRetention(eventStore), orchestration.WithReconcilerArtifactRetention(artifactCollector), orchestration.WithReconcilerBroadcaster(hub), orchestration.WithReconcilerSandbox(sandboxProvider), orchestration.WithReconcilerWorkflowRecovery(orch), orchestration.WithReconcilerTerminalAccounting(orch), orchestration.WithReconcilerWorkflowWaitingLiveness(orch), orchestration.WithReconcilerPendingRunRecovery(orch), orchestration.WithReconcilerRunStateRootResolver(runStateResolver)}
+	reconcilerCfg.StoreOwnerID = storeOwnerID
+	reconcilerOpts := []orchestration.ReconcilerOption{orchestration.WithReconcilerRecoveryReceipts(repos.Idempotency), orchestration.WithHostReconcilerProcessEffects(), orchestration.WithReconcilerConfig(reconcilerCfg), orchestration.WithReconcilerEvents(eventStore), orchestration.WithReconcilerEventRetention(eventStore), orchestration.WithReconcilerArtifactRetention(artifactCollector), orchestration.WithReconcilerBroadcaster(hub), orchestration.WithReconcilerSandbox(sandboxProvider), orchestration.WithReconcilerWorkflowRecovery(orch), orchestration.WithReconcilerTerminalAccounting(orch), orchestration.WithReconcilerWorkflowWaitingLiveness(orch), orchestration.WithReconcilerPendingRunRecovery(orch), orchestration.WithReconcilerRunStateRootResolver(runStateResolver)}
 	if interactiveSessions != nil {
 		reconcilerOpts = append(reconcilerOpts, orchestration.WithReconcilerInteractive(interactiveSessions))
 	}

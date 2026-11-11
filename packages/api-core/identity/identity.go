@@ -30,6 +30,7 @@ const (
 	SourceScenarioAuthenticator AuthSource = "scenario_authenticator"
 	SourcePersonalLocal         AuthSource = "personal_local"
 	SourceAgentProvenance       AuthSource = "agent_provenance"
+	SourceUIFailOpen            AuthSource = "ui_fail_open"
 )
 
 type FailureClass string

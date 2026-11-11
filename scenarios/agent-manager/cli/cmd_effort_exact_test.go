@@ -450,11 +450,12 @@ type exactSetupOwnerFixture struct {
 	refusal    connect.Code
 	empty      bool
 	brokerMode string
+	resource   string
 }
 
 func (f *exactSetupOwnerFixture) ExchangeMachinePrincipal(_ context.Context, req *connect.Request[accountsv1.ExchangeMachinePrincipalRequest]) (*connect.Response[accountsv1.LoginResponse], error) {
 	f.calls.Add(1)
-	if req.Msg.MachineId == "" || req.Msg.Resource != "" {
+	if req.Msg.MachineId == "" || req.Msg.Resource != f.resource {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("existing binding contract changed"))
 	}
 	if f.refusal != 0 {

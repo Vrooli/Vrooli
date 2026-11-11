@@ -126,6 +126,34 @@ func TestAttachedRunLivenessSweepOnlyObservesHarmlessProcess(t *testing.T) {
 	}
 }
 
+func TestAttachedRunLivenessUsesInjectedPositiveAndNegativeEvidence(t *testing.T) {
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	processID := 4242
+	hash := "attached-identity-hash"
+	effects := &controlledProcessEffects{}
+	effects.setLiveness(processID, true, hash, true)
+	reconciler := NewReconciler(repos.Runs, nil, withReconcilerProcessEffects(effects))
+
+	pidRun := &domain.Run{RunnerPID: processID}
+	if !reconciler.attachedRunProcessAlive(pidRun) {
+		t.Fatal("attached runner PID with positive injected liveness was reported dead")
+	}
+	effects.setLiveness(processID, false, hash, false)
+	if reconciler.attachedRunProcessAlive(pidRun) {
+		t.Fatal("attached runner PID with negative injected liveness was reported alive")
+	}
+
+	tokenRun := &domain.Run{IdentityTokenHash: hash}
+	if reconciler.attachedRunProcessAlive(tokenRun) {
+		t.Fatal("attached identity with negative injected liveness was reported alive")
+	}
+	effects.setLiveness(0, false, hash, true)
+	if !reconciler.attachedRunProcessAlive(tokenRun) {
+		t.Fatal("attached identity with positive injected liveness was reported dead")
+	}
+}
+
 func TestAttachedIdentityProjectsOnlyItsPersistedSession(t *testing.T) {
 	ctx := context.Background()
 	repos, events, cleanup := testutil.SetupTestRepos(t)

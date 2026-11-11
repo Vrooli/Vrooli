@@ -375,6 +375,11 @@ func TestRecoverInteractiveRunningPromptFenceRejectsOldGoalWithoutTranscriptGrow
 	run.SessionID = "exact-running-session"
 	run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
 	run.ResolvedConfig.Until = "finish assignment"
+	// ContinueRun requires a retained native provider session to match both the
+	// persisted thread and owner generation. Model that valid binding here so
+	// the prompt-fence test reaches the recovery behavior it intends to cover.
+	sessions.nativeOwner = "test-native-owner-generation"
+	sessions.nativeThread = run.SessionID
 	oldInvocation := started.Add(500 * time.Millisecond)
 	persistInteractiveInvocation(t, repos.Runs, run, oldInvocation)
 	reconciler := NewReconciler(repos.Runs, runner.NewRegistry(),

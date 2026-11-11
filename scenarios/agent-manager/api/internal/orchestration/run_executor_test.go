@@ -15,6 +15,7 @@ import (
 	cfgpkg "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration"
+	"agent-manager/internal/orchestration/phases"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/orchestration/testutil/fixtures"
 	"agent-manager/internal/orchestration/testutil/mocks"
@@ -1267,6 +1268,16 @@ func TestMergedEnvVars_CustomOnly(t *testing.T) {
 	}
 	if got := vars["VROOLI_SPAWN_SOURCE"]; got != "research/my-research" {
 		t.Errorf("VROOLI_SPAWN_SOURCE = %q, want %q", got, "research/my-research")
+	}
+}
+
+func TestMergedEnvVarsProtectsStoreOwnerMarker(t *testing.T) {
+	executor := orchestration.NewRunExecutor(nil, nil, nil, nil, &domain.Run{ID: uuid.New()}, nil, nil, "", "")
+	executor.WithCustomEnvironment(map[string]string{phases.AgentManagerStoreOwnerEnv: "caller-value"})
+	executor.WithStoreOwnerID("store-owner-a")
+
+	if got := executor.MergedEnvVars()[phases.AgentManagerStoreOwnerEnv]; got != "store-owner-a" {
+		t.Fatalf("store owner marker = %q, want protected value store-owner-a", got)
 	}
 }
 

@@ -9,7 +9,11 @@ import (
 )
 
 func gracefulTerminateProcess(process *os.Process) bool {
-	return platform.GracefulStopProcess(process) == nil
+	return requestGracefulProcessStop(process) == nil
+}
+
+func requestGracefulProcessStop(process *os.Process) error {
+	return platform.GracefulStopProcess(process)
 }
 
 func processGroupID(pid int) int {

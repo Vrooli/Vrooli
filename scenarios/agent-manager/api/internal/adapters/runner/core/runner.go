@@ -219,6 +219,15 @@ func (r *Runner) ControlArgs(cfg *domain.RunConfig) ([]string, error) {
 	return r.codec.ControlArgs(cfg)
 }
 
+// NativeCodexSettings delegates native launch policy to the owning codec.
+func (r *Runner) NativeCodexSettings(cfg *domain.RunConfig) (runner.CodexLaunchSettings, error) {
+	provider, ok := r.codec.(runner.NativeCodexLaunchInfo)
+	if !ok {
+		return runner.CodexLaunchSettings{}, fmt.Errorf("runner %s has no native Codex settings provider", r.codec.Type())
+	}
+	return provider.NativeCodexSettings(cfg)
+}
+
 // CompactSession satisfies [runner.SessionCompactor] for codecs that can
 // compact their native session out of band; other codecs report
 // [runner.ErrCompactionNotSupported].

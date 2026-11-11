@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"agent-manager/internal/config"
+	"agent-manager/internal/domain"
 	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration"
 	"github.com/google/uuid"
@@ -74,6 +76,10 @@ func managementClaimsFixture(t *testing.T, runID uuid.UUID, scopes []string, gra
 }
 
 func managementGuardAllows(t *testing.T, baseline, operation *cliutil.VerifyResult, requestedOperation string, requestedTarget string, offerPair bool) bool {
+	return managementGuardAllowsWithPolicy(t, baseline, operation, requestedOperation, requestedTarget, offerPair, true)
+}
+
+func managementGuardAllowsWithPolicy(t *testing.T, baseline, operation *cliutil.VerifyResult, requestedOperation string, requestedTarget string, offerPair, approvalRequired bool) bool {
 	t.Helper()
 	verifier := managementGrantVerifier{baseline: baseline, operation: operation}
 	baselineClaims := baseline.Claims
@@ -88,6 +94,10 @@ func managementGuardAllows(t *testing.T, baseline, operation *cliutil.VerifyResu
 	router := mux.NewRouter()
 	router.Use(provenance.Middleware(verifier))
 	router.Use(authn.Middleware(authn.Config{}))
+	settings := config.DefaultOrchestrationSettings()
+	settings.OperationApprovals.RunManagement = approvalRequired
+	owned := map[uuid.UUID]*domain.Run{uuid.MustParse(requestedTarget): {OwnerSubject: baselineClaims.Subject}}
+	router.Use(OperationApprovalMiddleware(operationSettingsFixture{settings: settings, runs: owned}))
 	router.HandleFunc("/api/v1/runs/{id}", func(w http.ResponseWriter, r *http.Request) {
 		refused := h.denyRunInitiatedLifecycleOperation(w, r, requestedOperation)
 		if !refused {
@@ -102,6 +112,48 @@ func managementGuardAllows(t *testing.T, baseline, operation *cliutil.VerifyResu
 	rr := httptest.NewRecorder()
 	router.ServeHTTP(rr, req)
 	return rr.Code == http.StatusNoContent
+}
+
+func TestOptionalManagementApprovalStillAcceptsCoveringOperationProof(t *testing.T) {
+	now := time.Now()
+	runID, targetID := uuid.New(), uuid.NewString()
+	baseline := managementClaimsFixture(t, runID, []string{"agent-manager:read"}, nil, now.Add(time.Hour))
+	for _, required := range []bool{false, true} {
+		for _, tc := range []struct {
+			name       string
+			operations []string
+			target     string
+			expires    time.Time
+			allowed    bool
+		}{
+			{"exact", []string{"agent.manage"}, "agent-manager:run/" + targetID, now.Add(time.Hour), true},
+			{"wildcard", []string{"agent.manage"}, "agent-manager:*", now.Add(time.Hour), true},
+			{"uncovered target", []string{"agent.manage"}, "agent-manager:run/" + uuid.NewString(), now.Add(time.Hour), false},
+			{"uncovered operation", []string{"agent.investigate"}, "agent-manager:*", now.Add(time.Hour), false},
+			{"expired", []string{"agent.manage"}, "agent-manager:*", now.Add(-time.Hour), false},
+		} {
+			t.Run(fmt.Sprintf("approval_required_%t/%s", required, tc.name), func(t *testing.T) {
+				grant := managementGrantFixture(now, managementRuleFixture("agent-management", tc.operations, []string{tc.target}))
+				grant.ExpiresAt = tc.expires
+				proof := managementClaimsFixture(t, runID, []string{"agent-manager:write"}, grant, tc.expires)
+				if got := managementGuardAllowsWithPolicy(t, baseline, proof, "stop-run", targetID, true, required); got != tc.allowed {
+					t.Fatalf("allowed = %t, want %t", got, tc.allowed)
+				}
+			})
+		}
+		if managementGuardAllowsWithPolicy(t, baseline, nil, "stop-run", targetID, false, required) {
+			t.Fatalf("approval required %t: read-only identity without a grant was admitted", required)
+		}
+		invalid := &cliutil.VerifyResult{Valid: false, Error: "invalid_pair"}
+		if managementGuardAllowsWithPolicy(t, baseline, invalid, "stop-run", targetID, true, required) {
+			t.Fatalf("approval required %t: invalid offered proof was admitted", required)
+		}
+		grant := managementGrantFixture(now, managementRuleFixture("agent-management", []string{"agent.manage"}, []string{"agent-manager:*"}))
+		readOnlyProof := managementClaimsFixture(t, runID, []string{"agent-manager:read"}, grant, now.Add(time.Hour))
+		if managementGuardAllowsWithPolicy(t, baseline, readOnlyProof, "stop-run", targetID, true, required) {
+			t.Fatalf("approval required %t: supplemental proof without write capability was admitted", required)
+		}
+	}
 }
 
 func TestRunLifecycleOperationGrantUsesCanonicalAuthorization(t *testing.T) {

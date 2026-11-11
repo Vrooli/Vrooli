@@ -71,8 +71,12 @@ func (a configuredOperationAuthority) AuthorizeOperation(_ context.Context, p id
 		(p.ExpiresAt.IsZero() || time.Now().Before(p.ExpiresAt)) &&
 		a.ownsTarget(p, operation, target) &&
 		capability == "agent-manager:write" {
-		_, err := authn.RequireCapability(a.base, capability)
-		return err
+		if _, err := authn.RequireCapability(a.base, capability); err == nil {
+			return nil
+		}
+		// Disabling an approval requirement admits capable baseline callers;
+		// it must not discard an independently approved operation proof when
+		// the ordinary identity lacks the capability.
 	}
 	_, err := authn.RequireOperation(a.base, capability, operation, target)
 	return err

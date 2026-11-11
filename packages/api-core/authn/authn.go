@@ -407,6 +407,9 @@ func Middleware(cfg Config) func(http.Handler) http.Handler {
 						}
 					}
 					expires := principal.ExpiresAt
+					if !agent.ExpiresAt.IsZero() && (expires.IsZero() || agent.ExpiresAt.Before(expires)) {
+						expires = agent.ExpiresAt
+					}
 					if expires.IsZero() || agent.Grant.ExpiresAt.Before(expires) {
 						expires = agent.Grant.ExpiresAt
 					}
@@ -444,7 +447,7 @@ func Middleware(cfg Config) func(http.Handler) http.Handler {
 			// never turns that agent into a human principal.
 			if failure, ok := identity.FailureFromError(err); ok && failure.Class == identity.FailureMissing {
 				if agent := provenance.FromContext(ctx); agent.IsVerifiedAgent() {
-					principal := identity.Principal{Kind: identity.ActorAgent, Subject: agent.RunID, Owner: agent.Subject, Verified: true, Source: identity.SourceAgentProvenance, Scopes: append([]string(nil), agent.Scopes...), Grant: agent.Grant}
+					principal := identity.Principal{Kind: identity.ActorAgent, Subject: agent.RunID, Owner: agent.Subject, Verified: true, Source: identity.SourceAgentProvenance, Scopes: append([]string(nil), agent.Scopes...), Grant: agent.Grant, ExpiresAt: agent.ExpiresAt}
 					status.State = identity.StateAgent
 					status.Authenticated = true
 					status.Source = identity.SourceAgentProvenance

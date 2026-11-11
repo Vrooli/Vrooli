@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/webconsole"
 	agentconfig "agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/orchestration/interactive"
@@ -108,6 +109,7 @@ func (o *Orchestrator) newRunExecutor(ctx context.Context, run *domain.Run, task
 	executor.hooks = o
 	executor.WithClock(o.now)
 	executor.WithIdentitySecret(o.identitySecret)
+	executor.WithStoreOwnerID(o.storeOwnerID)
 	executor.WithTreasurySessionKeyStore(o.treasurySessionKeys)
 	executor.WithTerminalObserver(func(terminalCtx context.Context, terminalRun *domain.Run) {
 		o.projectTerminalInvocationReadModel(terminalCtx, terminalRun)
@@ -185,6 +187,30 @@ func nativeObjectiveFor(run *domain.Run, caps runner.Capabilities) string {
 		}
 	}
 	return ""
+}
+
+// initialNativeGoalOrigin uses only the immutable server-owned admission. An
+// explicitly requested completion contract accepted from an authorized caller
+// is user-directed even when that caller is delegated; this does not make the
+// caller human or grant a new operation. Defaults, inherited objectives and
+// historical rows without admission evidence never acquire that provenance.
+// A standing service grant alone proves authorization, not user-directed intent.
+func initialNativeGoalOrigin(run *domain.Run) webconsole.NativeGoalOrigin {
+	if run == nil || run.ResolvedConfig == nil || run.ResolvedConfig.Admission == nil {
+		return webconsole.NativeGoalAutomatic
+	}
+	config := run.ResolvedConfig
+	admission := config.Admission
+	caller := admission.CreateCaller
+	if admission.RequestedGoalMode != "until" || strings.TrimSpace(config.Until) == "" || admission.EffectiveUntil != config.Until || caller == nil || strings.TrimSpace(caller.Subject) == "" || caller.Subject != run.OwnerSubject {
+		return webconsole.NativeGoalAutomatic
+	}
+	switch caller.Kind {
+	case "human", "run", "agent-baseline", "operation-grant":
+		return webconsole.NativeGoalUserDirected
+	default:
+		return webconsole.NativeGoalAutomatic
+	}
 }
 
 // nativeGoalPointer avoids duplicating a completion contract the native goal
@@ -297,10 +323,11 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 	}
 
 	coord := interactive.NewCoordinator(interactive.CoordinatorDeps{
-		Substrate: interactive.NewSubstrate(o.interactiveSessions, interactive.RegistryLaunchInfo(o.runners)),
-		Tailer:    interactive.NewTailer(interactive.RegistryParser(o.runners)),
-		Sessions:  o.interactiveSessions,
-		Runs:      o.runs,
+		RecoveryReceipts: o.idempotency,
+		Substrate:        interactive.NewSubstrate(o.interactiveSessions, interactive.RegistryLaunchInfo(o.runners)),
+		Tailer:           interactive.NewTailer(interactive.RegistryParser(o.runners)),
+		Sessions:         o.interactiveSessions,
+		Runs:             o.runs,
 		MintIdentityToken: func(mintCtx context.Context, mintRun *domain.Run, sessionID string) (string, error) {
 			if len(o.identitySecret) == 0 {
 				return "", fmt.Errorf("agent identity signing is not configured")
@@ -372,11 +399,13 @@ func (o *Orchestrator) executeInteractiveRun(ctx context.Context, run *domain.Ru
 		RunID:                 run.ID,
 		RunnerType:            run.ResolvedConfig.RunnerType,
 		Tag:                   run.GetTag(),
+		StoreOwnerID:          o.storeOwnerID,
 		WorkingDir:            workDir,
 		RunDir:                runDir,
 		DisplayLabel:          run.GetTag(),
 		Prompt:                deliveredPrompt,
 		NativeObjective:       nativeObjective,
+		NativeGoalOrigin:      initialNativeGoalOrigin(run),
 		PromptCarriedFallback: promptCarriedFallback,
 		Model:                 run.ResolvedConfig.Model,
 		Effort:                run.ResolvedConfig.Effort,

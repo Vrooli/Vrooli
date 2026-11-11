@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"agent-manager/internal/adapters/runner"
+	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
 	"github.com/vrooli/vrooli/packages/proto/contracts"
 )
@@ -69,5 +70,50 @@ func TestMaximumCompletionContractStaysInTaskPromptAndDelegatesNativeObjective(t
 		if prompt := initialPromptWithUntil(run, "do the work"); !strings.HasSuffix(prompt, until) {
 			t.Fatalf("%s task prompt truncated the maximum-size completion contract", runnerType)
 		}
+	}
+}
+
+func TestInitialNativeGoalOriginUsesOnlyAdmittedExplicitIntent(t *testing.T) {
+	for _, kind := range []string{"human", "run", "agent-baseline", "operation-grant"} {
+		run := nativeObjectiveRun(domain.RunnerTypeCodex, "finish exact task")
+		run.OwnerSubject = "operator"
+		run.ResolvedConfig.Admission = &domain.RunAdmission{RequestedGoalMode: "until", EffectiveUntil: run.ResolvedConfig.Until, CreateCaller: &domain.CreateRunCaller{Kind: kind, Subject: "operator"}}
+		if got := initialNativeGoalOrigin(run); got != webconsole.NativeGoalUserDirected {
+			t.Fatalf("%s: origin=%v", kind, got)
+		}
+	}
+	for _, tc := range []struct {
+		name   string
+		change func(*domain.Run)
+	}{
+		{"historical", func(r *domain.Run) { r.ResolvedConfig.Admission = nil }},
+		{"inherited default", func(r *domain.Run) { r.ResolvedConfig.Admission.RequestedGoalMode = "" }},
+		{"changed objective", func(r *domain.Run) { r.ResolvedConfig.Until = "new objective" }},
+		{"missing caller", func(r *domain.Run) { r.ResolvedConfig.Admission.CreateCaller = nil }},
+		{"standing service", func(r *domain.Run) { r.ResolvedConfig.Admission.CreateCaller.Kind = "service-standing" }},
+		{"unknown caller", func(r *domain.Run) { r.ResolvedConfig.Admission.CreateCaller.Kind = "guessed" }},
+		{"owner mismatch", func(r *domain.Run) { r.ResolvedConfig.Admission.CreateCaller.Subject = "other" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			run := nativeObjectiveRun(domain.RunnerTypeCodex, "finish exact task")
+			run.OwnerSubject = "operator"
+			run.ResolvedConfig.Admission = &domain.RunAdmission{RequestedGoalMode: "until", EffectiveUntil: run.ResolvedConfig.Until, CreateCaller: &domain.CreateRunCaller{Kind: "human", Subject: "operator"}}
+			tc.change(run)
+			if got := initialNativeGoalOrigin(run); got != webconsole.NativeGoalAutomatic {
+				t.Fatalf("unknown intent upgraded to user: %v", got)
+			}
+		})
+	}
+}
+
+func TestInitialNativeGoalOriginSurvivesNativeObjectiveDelegation(t *testing.T) {
+	run := nativeObjectiveRun(domain.RunnerTypeCodex, strings.Repeat("complete the exact admitted contract; ", 100))
+	run.OwnerSubject = "operator"
+	run.ResolvedConfig.Admission = buildRunAdmission(CreateRunRequest{Until: run.ResolvedConfig.Until, caller: &domain.CreateRunCaller{Kind: "human", Subject: "operator"}}, run.ResolvedConfig)
+	if nativeObjectiveFor(run, trackingNativeCaps()) != runner.NativeGoalDelegation {
+		t.Fatal("fixture did not require native objective delegation")
+	}
+	if initialNativeGoalOrigin(run) != webconsole.NativeGoalUserDirected {
+		t.Fatal("provider objective transformation lost the frozen admitted source")
 	}
 }

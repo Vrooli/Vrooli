@@ -37,6 +37,11 @@ import (
 	"github.com/vrooli/cli-core/usagemode"
 )
 
+// AgentManagerStoreOwnerEnv tags launched processes with their stable owning
+// Agent Manager store so independent instances can safely reap only their own
+// orphaned runners.
+const AgentManagerStoreOwnerEnv = "VROOLI_AGENT_MANAGER_STORE_ID"
+
 const (
 	// Constructed to keep credential-scanners from confusing an environment-key
 	// name with an embedded credential. The value itself is still supplied only

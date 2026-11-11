@@ -109,7 +109,7 @@ func (f *fakeSessions) SendPrompt(_ context.Context, _, _, _ string) (webconsole
 }
 
 func (f *fakeSessions) SendPromptForNativeSession(ctx context.Context, sessionID, nativeID, prompt, source string) (webconsole.PromptSubmission, error) {
-	return f.SendPrompt(ctx, sessionID, nativeID, prompt, source)
+	return f.SendPrompt(ctx, sessionID, prompt, source)
 }
 
 func (f *fakeSessions) SendCommand(_ context.Context, _, _, _ string) (webconsole.PromptSubmission, error) {
@@ -119,7 +119,7 @@ func (f *fakeSessions) SendCommand(_ context.Context, _, _, _ string) (webconsol
 }
 
 func (f *fakeSessions) SendCommandForNativeSession(ctx context.Context, sessionID, nativeID, command, source string) (webconsole.PromptSubmission, error) {
-	return f.SendCommand(ctx, sessionID, nativeID, command, source)
+	return f.SendCommand(ctx, sessionID, command, source)
 }
 
 func (f *fakeSessions) ObserveNativeAgent(context.Context, string, string) (webconsole.NativeAgentObservation, error) {
@@ -281,13 +281,13 @@ func TestSubstrateLaunch_RecordsGoalDelivery(t *testing.T) {
 		{
 			name:                "native objective sent but unverified",
 			native:              "stop when the plan is complete",
-			config:              &domain.RunConfig{Until: "stop when the plan is complete"},
+			config:              &domain.RunConfig{Until: "stop when the plan is complete", NetworkAccess: domain.NetworkAccessFull},
 			wantDelivery:        GoalDeliveryNativeUnverified,
 			wantGoalSendCommand: 1,
 		},
 		{
 			name:                "no native support carries the finish line in the prompt",
-			config:              &domain.RunConfig{Until: "stop when the plan is complete"},
+			config:              &domain.RunConfig{Until: "stop when the plan is complete", NetworkAccess: domain.NetworkAccessFull},
 			wantDelivery:        GoalDeliveryPromptCarried,
 			wantGoalSendCommand: 0,
 		},
@@ -316,16 +316,17 @@ func TestSubstrateLaunch_RecordsGoalDelivery(t *testing.T) {
 				resolved = codexGoalLaunchInfo{launchInfo}
 				fs.onGoal = func() { appendGoalInstallMarker(t, rollout, "native-thread-goal", singleLine(tc.native)) }
 			}
-			sub := NewSubstrate(fs, fakeResolver(resolved), WithDiscoveryTimeout(2*time.Second), WithPollInterval(10*time.Millisecond), WithPromptBootDelay(0))
+			sub := NewSubstrate(fs, fakeResolver(resolved), WithHomeDir(t.TempDir()), WithDiscoveryTimeout(2*time.Second), WithPollInterval(10*time.Millisecond), WithPromptBootDelay(0))
 			res, err := sub.Launch(context.Background(), LaunchParams{
-				RunID:           uuid.New(),
-				RunnerType:      domain.RunnerTypeCodex,
-				Tag:             "run-goal",
-				WorkingDir:      "/work/dir",
-				RunDir:          runDir,
-				Prompt:          "do the work",
-				NativeObjective: tc.native,
-				Config:          tc.config,
+				RunID:            uuid.New(),
+				RunnerType:       domain.RunnerTypeCodex,
+				Tag:              "run-goal",
+				WorkingDir:       "/work/dir",
+				RunDir:           runDir,
+				Prompt:           "do the work",
+				NativeObjective:  tc.native,
+				NativeGoalOrigin: webconsole.NativeGoalAutomatic,
+				Config:           tc.config,
 			})
 			if err != nil {
 				t.Fatalf("Launch: %v", err)

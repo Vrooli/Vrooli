@@ -397,10 +397,11 @@ func (r *Reconciler) drainInteractiveTranscript(ctx context.Context, run *domain
 // live), and the recovery event sink + summary builder wired in.
 func (r *Reconciler) interactiveCoordinator(options interactive.TailCompletionOptions) *interactive.Coordinator {
 	return interactive.NewCoordinator(interactive.CoordinatorDeps{
-		Tailer:      interactive.NewTailer(interactive.RegistryParser(r.runners)),
-		Sessions:    r.sessions,
-		Runs:        r.runs,
-		Broadcaster: r.broadcaster,
+		RecoveryReceipts: r.recoveryReceipts,
+		Tailer:           interactive.NewTailer(interactive.RegistryParser(r.runners)),
+		Sessions:         r.sessions,
+		Runs:             r.runs,
+		Broadcaster:      r.broadcaster,
 		NewSink: func(ctx context.Context, runID uuid.UUID) runner.EventSink {
 			return r.recoveryEventSink(ctx, runID)
 		},

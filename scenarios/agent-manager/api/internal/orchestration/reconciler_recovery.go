@@ -5,17 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
 	"agent-manager/internal/adapters/event"
 	"agent-manager/internal/adapters/sandbox"
 	"agent-manager/internal/domain"
-	"agent-manager/internal/identity"
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/repository"
 
@@ -32,38 +28,9 @@ func (r *Reconciler) attachedRunProcessAlive(run *domain.Run) bool {
 		return false
 	}
 	if run.RunnerPID > 0 {
-		_, err := os.Stat(filepath.Join("/proc", strconv.Itoa(run.RunnerPID)))
-		return err == nil
+		return r.processEffects.ProcessAlive(run.RunnerPID)
 	}
-	if run.IdentityTokenHash == "" {
-		return false
-	}
-	entries, err := os.ReadDir("/proc")
-	if err != nil {
-		return false
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		if _, err := strconv.Atoi(entry.Name()); err != nil {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join("/proc", entry.Name(), "environ"))
-		if err != nil {
-			continue
-		}
-		for _, value := range strings.Split(string(data), "\x00") {
-			if !strings.HasPrefix(value, "VROOLI_AGENT_IDENTITY_TOKEN=") {
-				continue
-			}
-			token := strings.TrimPrefix(value, "VROOLI_AGENT_IDENTITY_TOKEN=")
-			if token != "" && identity.HashToken(token) == run.IdentityTokenHash {
-				return true
-			}
-		}
-	}
-	return false
+	return run.IdentityTokenHash != "" && r.processEffects.AttachedIdentityAlive(run.IdentityTokenHash)
 }
 
 const eventRetentionBatchSize = 1_000

@@ -13,6 +13,7 @@ import (
 	"agent-manager/internal/adapters/runner"
 	"agent-manager/internal/adapters/webconsole"
 	"agent-manager/internal/domain"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
@@ -61,6 +62,16 @@ type delayedRecoverySessions struct {
 	clearScreenOnCommand bool
 	sentCommands         []string
 	sentPrompts          []string
+	sentGoals            []string
+	nativeOwner          string
+	nativeThread         string
+	nativeState          webconsole.NativeAgentState
+	goalStatus           string
+	goalUnknown          bool
+	promptErr            error
+	legacyPromptCalls    int
+	nativePromptCalls    int
+	beforeNativeRead     func()
 }
 
 func (s *delayedRecoverySessions) GetSession(ctx context.Context, id string) (webconsole.SessionInfo, error) {
@@ -73,7 +84,72 @@ func (s *delayedRecoverySessions) GetSession(ctx context.Context, id string) (we
 	if id != activeID {
 		return webconsole.SessionInfo{}, errors.New("wrong session")
 	}
-	return s.fakeSessions.GetSession(ctx, id)
+	info, err := s.fakeSessions.GetSession(ctx, id)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.nativeOwner != "" {
+		info.LaunchMode, info.ControlMode = "codex_app_server", "native_capable"
+		info.NativeOwner, info.NativeThreadID = s.nativeOwner, s.nativeThread
+	}
+	return info, err
+}
+
+func (s *delayedRecoverySessions) ObserveNativeAgent(ctx context.Context, sessionID, threadID string) (webconsole.NativeAgentObservation, error) {
+	if s.beforeNativeRead != nil {
+		s.beforeNativeRead()
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ctx.Err() != nil {
+		return webconsole.NativeAgentObservation{}, ctx.Err()
+	}
+	if sessionID != s.activeSessionID || threadID != s.nativeThread {
+		return webconsole.NativeAgentObservation{}, errors.New("wrong native binding")
+	}
+	state := s.nativeState
+	if state == "" {
+		state = webconsole.NativeAgentIdle
+	}
+	status := s.goalStatus
+	if status == "" {
+		status = "paused"
+	}
+	return webconsole.NativeAgentObservation{State: state, Generation: s.nativeOwner, GoalAvailable: !s.goalUnknown, HasGoal: !s.goalUnknown, GoalStatus: status}, nil
+}
+
+func (s *delayedRecoverySessions) SetNativeGoalForSession(ctx context.Context, sessionID, threadID, owner, objective, status string, origin webconsole.NativeGoalOrigin, budget *int64) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ctx.Err() != nil {
+		return "", ctx.Err()
+	}
+	if sessionID != s.activeSessionID || threadID != s.nativeThread || owner != s.nativeOwner || origin != webconsole.NativeGoalAutomatic || objective == "" || status != "active" {
+		return "", errors.New("wrong native goal binding or provenance")
+	}
+	s.sentGoals = append(s.sentGoals, status)
+	if s.commandUnverified {
+		return "paused", nil
+	}
+	if s.clearScreenOnCommand {
+		s.screen = "› Ask Codex to do anything"
+		s.screens = nil
+	}
+	s.goalStatus = "active"
+	return "active", nil
+}
+
+func (s *delayedRecoverySessions) SendPromptForNativeOwner(ctx context.Context, sessionID, threadID, owner, prompt, source string) (webconsole.PromptSubmission, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if ctx.Err() != nil {
+		return webconsole.PromptSubmission{}, ctx.Err()
+	}
+	if sessionID != s.activeSessionID || threadID != s.nativeThread || owner != s.nativeOwner {
+		return webconsole.PromptSubmission{}, errors.New("native generation changed")
+	}
+	s.sentPrompts = append(s.sentPrompts, prompt)
+	s.nativePromptCalls++
+	return webconsole.PromptSubmission{Verified: !s.commandUnverified}, s.promptErr
 }
 
 func (s *delayedRecoverySessions) Screen(ctx context.Context, sessionID string, includeScrollback bool) (string, error) {
@@ -132,6 +208,7 @@ func (s *delayedRecoverySessions) SendCommand(ctx context.Context, sessionID, co
 
 func (s *delayedRecoverySessions) SendPrompt(ctx context.Context, sessionID, prompt, source string) (webconsole.PromptSubmission, error) {
 	s.mu.Lock()
+	s.legacyPromptCalls++
 	if sessionID != s.activeSessionID {
 		s.mu.Unlock()
 		return webconsole.PromptSubmission{}, errors.New("wrong session")
@@ -150,6 +227,7 @@ func newDelayedRecoveryFixture(screen string, delay time.Duration) (*Coordinator
 		Status:              domain.RunStatusRunning,
 		ExecutionMode:       domain.ExecutionModeInteractive,
 		WebConsoleSessionID: "session-current",
+		SessionID:           "native-current",
 		ResolvedConfig:      cfg,
 	}
 	persisted := *run
@@ -160,8 +238,11 @@ func newDelayedRecoveryFixture(screen string, delay time.Duration) (*Coordinator
 		fakeSessions:    newFakeSessions(run.WebConsoleSessionID),
 		activeSessionID: run.WebConsoleSessionID,
 		screen:          screen,
+		nativeOwner:     "native-owner",
+		nativeThread:    run.SessionID,
 	}
 	coord := NewCoordinator(CoordinatorDeps{
+		RecoveryReceipts:          &recoveryReceiptFake{},
 		Runs:                      store,
 		Sessions:                  sessions,
 		SessionPoll:               time.Millisecond,
@@ -301,16 +382,16 @@ func TestDelayedInterruptionRecoveryRevalidatesRunAndScreen(t *testing.T) {
 			sessions.mu.Lock()
 			defer sessions.mu.Unlock()
 			if tt.wantResume {
-				if len(sessions.sentCommands) != 1 || sessions.sentCommands[0] != "/goal resume" || len(sessions.sentPrompts) != 0 {
-					t.Fatalf("recovery sends = commands %q, prompts %q; want one verified native resume command", sessions.sentCommands, sessions.sentPrompts)
+				if len(sessions.sentGoals) != 1 || sessions.sentGoals[0] != "active" || len(sessions.sentPrompts) != 0 {
+					t.Fatalf("recovery sends = commands %q, prompts %q; want one verified native resume command", sessions.sentGoals, sessions.sentPrompts)
 				}
 				if !coord.recoveryCanReattach.Load() {
 					t.Fatal("verified recovery was not reported successful")
 				}
 				return
 			}
-			if len(sessions.sentCommands) != 0 || len(sessions.sentPrompts) != 0 {
-				t.Fatalf("stale recovery sent commands %q or prompts %q", sessions.sentCommands, sessions.sentPrompts)
+			if len(sessions.sentGoals) != 0 || len(sessions.sentPrompts) != 0 {
+				t.Fatalf("stale recovery sent commands %q or prompts %q", sessions.sentGoals, sessions.sentPrompts)
 			}
 		})
 	}
@@ -329,8 +410,8 @@ func TestDelayedInterruptionRecoveryUsesCapturedRunAndSessionIDs(t *testing.T) {
 
 	sessions.mu.Lock()
 	defer sessions.mu.Unlock()
-	if len(sessions.sentCommands) != 1 || sessions.sentCommands[0] != "/goal resume" {
-		t.Fatalf("recovery sends = %q, want one command for captured run/session", sessions.sentCommands)
+	if len(sessions.sentGoals) != 1 || sessions.sentGoals[0] != "active" {
+		t.Fatalf("recovery sends = %q, want one command for captured run/session", sessions.sentGoals)
 	}
 }
 
@@ -359,8 +440,8 @@ func TestDelayedInterruptionRecoveryRechecksCancellationAfterScreenRead(t *testi
 
 	sessions.mu.Lock()
 	defer sessions.mu.Unlock()
-	if len(sessions.sentCommands) != 0 || len(sessions.sentPrompts) != 0 {
-		t.Fatalf("cancelled run received input after screen read: commands %q prompts %q", sessions.sentCommands, sessions.sentPrompts)
+	if len(sessions.sentGoals) != 0 || len(sessions.sentPrompts) != 0 {
+		t.Fatalf("cancelled run received input after screen read: commands %q prompts %q", sessions.sentGoals, sessions.sentPrompts)
 	}
 }
 
@@ -388,6 +469,8 @@ func TestTailToCompletionReattachesAfterClearedInterruptionAndResetsForNextCycle
 	store := &delayedRecoveryRunStore{fakeRunStore: &fakeRunStore{}, run: &persisted}
 	sessions := &delayedRecoverySessions{
 		fakeSessions:         newFakeSessions(sessionID),
+		nativeOwner:          "native-owner",
+		nativeThread:         sessionID,
 		activeSessionID:      sessionID,
 		screen:               "› Ask Codex to do anything",
 		screens:              []string{stalledGoalScreen, "› Ask Codex to do anything", "› Ask Codex to do anything"},
@@ -395,6 +478,7 @@ func TestTailToCompletionReattachesAfterClearedInterruptionAndResetsForNextCycle
 		clearScreenOnCommand: true,
 	}
 	coord := NewCoordinator(CoordinatorDeps{
+		RecoveryReceipts:          &recoveryReceiptFake{},
 		Tailer:                    NewTailer(codecParserResolver, WithTailPollInterval(2*time.Millisecond)),
 		Sessions:                  sessions,
 		Runs:                      store,
@@ -420,7 +504,7 @@ func TestTailToCompletionReattachesAfterClearedInterruptionAndResetsForNextCycle
 	// resumed. A later interruption must get one fresh recovery cycle.
 	awaitScreenReads(t, sessions, 3)
 	sessions.mu.Lock()
-	initialSends := append([]string(nil), sessions.sentCommands...)
+	initialSends := append([]string(nil), sessions.sentGoals...)
 	if len(initialSends) != 0 {
 		sessions.mu.Unlock()
 		t.Fatalf("cleared interruption received stale input: %q", initialSends)
@@ -430,9 +514,9 @@ func TestTailToCompletionReattachesAfterClearedInterruptionAndResetsForNextCycle
 	awaitScreenReads(t, sessions, 5)
 	awaitScreenReads(t, sessions, 6)
 	sessions.mu.Lock()
-	sends := append([]string(nil), sessions.sentCommands...)
+	sends := append([]string(nil), sessions.sentGoals...)
 	sessions.mu.Unlock()
-	if len(sends) != 1 || sends[0] != "/goal resume" {
+	if len(sends) != 1 || sends[0] != "active" {
 		t.Fatalf("second interruption recovery sends = %q, want one fresh resume command", sends)
 	}
 
@@ -474,15 +558,15 @@ func TestDelayedInterruptionRecoveryKeepsCapacityPromptMode(t *testing.T) {
 
 	sessions.mu.Lock()
 	defer sessions.mu.Unlock()
-	if len(sessions.sentPrompts) != 1 || sessions.sentPrompts[0] != "continue" || len(sessions.sentCommands) != 0 {
-		t.Fatalf("capacity recovery sends commands=%q prompts=%q, want existing continue prompt", sessions.sentCommands, sessions.sentPrompts)
+	if len(sessions.sentPrompts) != 1 || sessions.sentPrompts[0] != "continue" || len(sessions.sentGoals) != 0 {
+		t.Fatalf("capacity recovery sends commands=%q prompts=%q, want existing continue prompt", sessions.sentGoals, sessions.sentPrompts)
 	}
 	if !coord.recoveryCanReattach.Load() {
 		t.Fatal("verified capacity prompt was not reported successful")
 	}
 }
 
-func TestDelayedInterruptionRecoveryDoesNotClaimUnverifiedCommandSuccess(t *testing.T) {
+func TestDelayedInterruptionRecoveryDoesNotClaimUnacceptedNativeGoalSuccess(t *testing.T) {
 	coord, run, _, sessions := newDelayedRecoveryFixture(stalledGoalScreen, time.Millisecond)
 	sessions.mu.Lock()
 	sessions.commandUnverified = true
@@ -496,8 +580,8 @@ func TestDelayedInterruptionRecoveryDoesNotClaimUnverifiedCommandSuccess(t *test
 
 	sessions.mu.Lock()
 	defer sessions.mu.Unlock()
-	if len(sessions.sentCommands) != 1 || sessions.sentCommands[0] != "/goal resume" {
-		t.Fatalf("unverified command attempts = %q, want one non-replayed native command attempt", sessions.sentCommands)
+	if len(sessions.sentGoals) != 1 || sessions.sentGoals[0] != "active" {
+		t.Fatalf("unverified command attempts = %q, want one non-replayed native command attempt", sessions.sentGoals)
 	}
 }
 
@@ -521,8 +605,8 @@ func TestDelayedInterruptionRecoveryUsesParentContextNotTailPollContext(t *testi
 
 	sessions.mu.Lock()
 	defer sessions.mu.Unlock()
-	if len(sessions.sentCommands) != 1 || sessions.sentCommands[0] != "/goal resume" || len(sessions.sentPrompts) != 0 {
-		t.Fatalf("delayed recovery sends commands=%q prompts=%q, want one verified native resume on the original session", sessions.sentCommands, sessions.sentPrompts)
+	if len(sessions.sentGoals) != 1 || sessions.sentGoals[0] != "active" || len(sessions.sentPrompts) != 0 {
+		t.Fatalf("delayed recovery sends commands=%q prompts=%q, want one verified native resume on the original session", sessions.sentGoals, sessions.sentPrompts)
 	}
 }
 
@@ -551,7 +635,202 @@ func TestDelayedInterruptionRecoveryStopsWhenParentRunIsCancelled(t *testing.T) 
 
 	sessions.mu.Lock()
 	defer sessions.mu.Unlock()
-	if len(sessions.sentCommands) != 0 || len(sessions.sentPrompts) != 0 {
-		t.Fatalf("cancelled parent run still received recovery input: commands %q prompts %q", sessions.sentCommands, sessions.sentPrompts)
+	if len(sessions.sentGoals) != 0 || len(sessions.sentPrompts) != 0 {
+		t.Fatalf("cancelled parent run still received recovery input: commands %q prompts %q", sessions.sentGoals, sessions.sentPrompts)
+	}
+}
+
+func TestDelayedNativeRecoveryRejectsChangedBindingAndPreservesBusyOwner(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		change       func(*delayedRecoveryRunStore, *delayedRecoverySessions)
+		wantReattach bool
+	}{
+		{name: "new thread", change: func(store *delayedRecoveryRunStore, _ *delayedRecoverySessions) {
+			store.mu.Lock()
+			defer store.mu.Unlock()
+			store.run.SessionID = "replacement-thread"
+		}},
+		{name: "new invocation", change: func(store *delayedRecoveryRunStore, _ *delayedRecoverySessions) {
+			store.mu.Lock()
+			defer store.mu.Unlock()
+			store.run.LifecycleVersion++
+		}},
+		{name: "parked", change: func(store *delayedRecoveryRunStore, _ *delayedRecoverySessions) {
+			store.mu.Lock()
+			defer store.mu.Unlock()
+			store.run.Status = domain.RunStatusParked
+		}},
+		{name: "replacement owner", change: func(_ *delayedRecoveryRunStore, sessions *delayedRecoverySessions) {
+			sessions.mu.Lock()
+			defer sessions.mu.Unlock()
+			sessions.nativeOwner = "replacement-owner"
+		}},
+		{name: "unknown native", change: func(_ *delayedRecoveryRunStore, sessions *delayedRecoverySessions) {
+			sessions.mu.Lock()
+			defer sessions.mu.Unlock()
+			sessions.nativeState = webconsole.NativeAgentUnknown
+		}},
+		{name: "cleared screen with unknown native", change: func(_ *delayedRecoveryRunStore, sessions *delayedRecoverySessions) {
+			sessions.mu.Lock()
+			defer sessions.mu.Unlock()
+			sessions.nativeState = webconsole.NativeAgentUnknown
+			sessions.screen = "shell ready"
+		}},
+		{name: "busy native keeps observing without duplicate input", wantReattach: true, change: func(_ *delayedRecoveryRunStore, sessions *delayedRecoverySessions) {
+			sessions.mu.Lock()
+			defer sessions.mu.Unlock()
+			sessions.nativeState = webconsole.NativeAgentBusy
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			coord, run, store, sessions := newDelayedRecoveryFixture(stalledGoalScreen, 20*time.Millisecond)
+			interruption, _ := ClassifyScreenInterruption(stalledGoalScreen)
+			coord.scheduleInterruptionRecovery(context.Background(), run, interruption)
+			tc.change(store, sessions)
+			awaitRecoveryFinished(t, coord)
+			if coord.recoveryCanReattach.Load() != tc.wantReattach {
+				t.Fatalf("reattach=%t, want %t", coord.recoveryCanReattach.Load(), tc.wantReattach)
+			}
+			sessions.mu.Lock()
+			defer sessions.mu.Unlock()
+			if len(sessions.sentGoals)+len(sessions.sentPrompts)+len(sessions.sentCommands) != 0 {
+				t.Fatalf("changed/unknown/busy owner received effects: goals=%v prompts=%v commands=%v", sessions.sentGoals, sessions.sentPrompts, sessions.sentCommands)
+			}
+		})
+	}
+}
+
+func TestDelayedRecoveryPreservesLegacyProviderPromptWithoutNativeFallback(t *testing.T) {
+	coord, run, store, sessions := newDelayedRecoveryFixture("Selected model is at capacity", time.Millisecond)
+	run.ResolvedConfig.RunnerType = domain.RunnerTypeClaudeCode
+	store.mu.Lock()
+	store.run.ResolvedConfig.RunnerType = domain.RunnerTypeClaudeCode
+	store.mu.Unlock()
+	sessions.mu.Lock()
+	sessions.nativeOwner = ""
+	sessions.mu.Unlock()
+	interruption, _ := ClassifyScreenInterruption("Selected model is at capacity")
+	coord.scheduleInterruptionRecovery(context.Background(), run, interruption)
+	awaitRecoveryFinished(t, coord)
+	sessions.mu.Lock()
+	defer sessions.mu.Unlock()
+	if !coord.recoveryCanReattach.Load() || sessions.legacyPromptCalls != 1 || sessions.nativePromptCalls != 0 || len(sessions.sentCommands) != 0 {
+		t.Fatalf("legacy recovery changed routes: reattach=%t legacy=%d native=%d", coord.recoveryCanReattach.Load(), sessions.legacyPromptCalls, sessions.nativePromptCalls)
+	}
+}
+
+func TestDelayedNativeRecoveryRechecksCancellationAfterNativeRead(t *testing.T) {
+	for _, cancelContext := range []bool{false, true} {
+		name := "durable cancellation"
+		if cancelContext {
+			name = "parent cancellation"
+		}
+		t.Run(name, func(t *testing.T) {
+			coord, run, store, sessions := newDelayedRecoveryFixture(stalledGoalScreen, time.Millisecond)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			sessions.beforeNativeRead = func() {
+				if cancelContext {
+					cancel()
+					return
+				}
+				store.mu.Lock()
+				store.run.Status = domain.RunStatusCancelled
+				store.mu.Unlock()
+			}
+			interruption, _ := ClassifyScreenInterruption(stalledGoalScreen)
+			coord.scheduleInterruptionRecovery(ctx, run, interruption)
+			awaitRecoveryFinished(t, coord)
+			sessions.mu.Lock()
+			defer sessions.mu.Unlock()
+			if coord.recoveryCanReattach.Load() || len(sessions.sentGoals)+len(sessions.sentPrompts)+len(sessions.sentCommands) != 0 {
+				t.Fatal("cancellation during native read allowed recovery")
+			}
+		})
+	}
+}
+
+// The receipt fake is deliberately persistent across Coordinator reconstruction.
+// No database, provider, subprocess or host discovery is used by these cases.
+type recoveryReceiptFake struct {
+	repository.IdempotencyRepository
+	mu     sync.Mutex
+	record *domain.IdempotencyRecord
+}
+
+func (r *recoveryReceiptFake) CheckContinuation(ctx context.Context, key string) (*domain.IdempotencyRecord, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.record == nil {
+		return nil, nil
+	}
+	copy := *r.record
+	return &copy, nil
+}
+func (r *recoveryReceiptFake) ReserveContinuation(ctx context.Context, key string, id uuid.UUID, hash []byte, ttl time.Duration) (*domain.IdempotencyRecord, bool, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.record != nil && r.record.Status != domain.IdempotencyStatusFailed {
+		copy := *r.record
+		return &copy, false, nil
+	}
+	r.record = &domain.IdempotencyRecord{Key: key, EntityID: &id, EntityType: "Continuation", Response: append([]byte(nil), hash...), Status: domain.IdempotencyStatusPending}
+	copy := *r.record
+	return &copy, true, nil
+}
+func (r *recoveryReceiptFake) CompleteContinuation(ctx context.Context, key string, id uuid.UUID, hash []byte) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.record.Status = domain.IdempotencyStatusComplete
+	return nil
+}
+func (r *recoveryReceiptFake) FailContinuation(ctx context.Context, key string, id uuid.UUID, hash []byte) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.record.Status = domain.IdempotencyStatusFailed
+	return nil
+}
+
+func TestDelayedNativeRecoveryUsesAuthoritativeGoalState(t *testing.T) {
+	for _, status := range []string{"active", "complete", "blocked", "unknown"} {
+		t.Run(status, func(t *testing.T) {
+			c, run, _, sessions := newDelayedRecoveryFixture(stalledGoalScreen, time.Millisecond)
+			sessions.goalStatus = status
+			initial, _ := sessions.GetSession(context.Background(), run.WebConsoleSessionID)
+			interruption, _ := ClassifyScreenInterruption(stalledGoalScreen)
+			got := c.recoverInterruptedSession(context.Background(), run, initial, interruption)
+			if got != (status != "unknown") || len(sessions.sentGoals) != 0 || sessions.nativePromptCalls != 0 {
+				t.Fatalf("status=%s recovered=%v mutations=%v prompts=%d", status, got, sessions.sentGoals, sessions.nativePromptCalls)
+			}
+		})
+	}
+}
+func TestDelayedNativePromptAmbiguitySurvivesCoordinatorReconstruction(t *testing.T) {
+	for _, outcome := range []string{"lost_ack", "verified", "pre_effect_refused"} {
+		t.Run(outcome, func(t *testing.T) {
+			c, run, store, sessions := newDelayedRecoveryFixture("Selected model is at capacity", time.Millisecond)
+			run.ResolvedConfig.Until = ""
+			store.run.ResolvedConfig.Until = ""
+			if outcome == "lost_ack" {
+				sessions.promptErr = errors.New("ack lost")
+			}
+			if outcome == "pre_effect_refused" {
+				sessions.promptErr = webconsole.ErrNativePromptRefused
+			}
+			initial, _ := sessions.GetSession(context.Background(), run.WebConsoleSessionID)
+			interruption, _ := ClassifyScreenInterruption("Selected model is at capacity")
+			_ = c.recoverInterruptedSession(context.Background(), run, initial, interruption)
+			sessions.promptErr = nil
+			rebuilt := NewCoordinator(c.deps)
+			got := rebuilt.recoverInterruptedSession(context.Background(), run, initial, interruption)
+			wantCalls := 1
+			if outcome == "pre_effect_refused" {
+				wantCalls = 2
+			}
+			if sessions.nativePromptCalls != wantCalls || got != (outcome != "lost_ack") {
+				t.Fatalf("outcome=%s resumed=%v prompts=%d", outcome, got, sessions.nativePromptCalls)
+			}
+		})
 	}
 }

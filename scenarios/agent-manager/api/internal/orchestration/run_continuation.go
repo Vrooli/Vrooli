@@ -370,7 +370,9 @@ func (o *Orchestrator) completeContinuationReceipt(ctx context.Context, req Cont
 	if !ok {
 		return fmt.Errorf("continuation idempotency is unavailable: configured repository does not support durable continuation receipts")
 	}
-	return receipts.CompleteContinuation(context.WithoutCancel(ctx), req.IdempotencyKey, req.RunID, continuationRequestHash(req))
+	receiptCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	return receipts.CompleteContinuation(receiptCtx, req.IdempotencyKey, req.RunID, continuationRequestHash(req))
 }
 
 func (o *Orchestrator) reserveContinuationReceipt(ctx context.Context, req ContinueRunRequest) (*domain.IdempotencyRecord, bool, error) {
@@ -390,7 +392,11 @@ func (o *Orchestrator) markContinuationIdempotencyFailed(ctx context.Context, re
 		obs.Component("orchestrator").Warn("continuation receipt repository unavailable while recording pre-effect failure", "idempotencyKey", req.IdempotencyKey)
 		return
 	}
-	if err := receipts.FailContinuation(ctx, req.IdempotencyKey, req.RunID, continuationRequestHash(req)); err != nil {
+	// The caller may be canceled after reservation but before any provider input.
+	// Persist that proven no-effect outcome independently, with a bounded write.
+	receiptCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := receipts.FailContinuation(receiptCtx, req.IdempotencyKey, req.RunID, continuationRequestHash(req)); err != nil {
 		obs.Component("orchestrator").Warn("failed to mark continuation receipt failed", "idempotencyKey", req.IdempotencyKey, obs.KeyError, err.Error())
 	}
 }

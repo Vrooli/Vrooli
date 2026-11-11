@@ -336,6 +336,18 @@ last 1,800 characters of a long prompt through compaction. Write a goal-bearing
 owner's `until` as a kernel of 600 characters or fewer and put the rest in the
 charter; `run tree` shows the delivery (`goal=`).
 
+Native Codex goal mutations distinguish user-directed admission from automatic
+lifecycle work. Initial explicit `until` intent derives from the frozen
+`RunAdmission`: its requested goal mode, exact effective completion contract,
+and server-verified human or delegated caller matching the run owner. Long
+objective delegation does not change that source evidence. Missing historical
+admission, inherited/profile defaults, and a standing service grant alone stay
+automatic. Park, wake, reinstall and delayed recovery always use automatic
+provenance. This classification neither creates operation authority nor changes
+an agent into a human; the existing admission and lifecycle gates still apply.
+Provider acknowledgments must confirm the exact thread, status and supplied
+objective before native installation is accepted.
+
 **Lineage header.** A child run's task prompt starts with a three-line header:
 its own run ID, depth, maximum depth and parent; its charter (when given) with
 the instruction to read it before substantive work and re-read it at every unit
@@ -368,6 +380,16 @@ token every turn) gives each child 24 hours from the child's creation. Each turn
 lasts at most 24 hours within that window. Create a long effort's root with an
 owner credential that covers the effort; `run tree` shows each live run's
 remaining `authority=` and marks `AUTHORITY EXPIRED`.
+
+An operator in an ordinary human terminal can create a new root with
+`agent-manager run create --task-id <id> --profile-id <id> --local-owner`.
+The CLI validates the request before using the existing local-machine human
+exchange for the Agent Manager audience. Identified agent sessions are refused;
+this flag never converts an agent credential into human authority. The new run
+receives only the verified owner's actual scope and expiry. It does not extend
+an existing owner window. For a successor orchestrator, first confirm the prior
+leader is terminal and preserve its complete handoff; this command alone does
+not prove leader reconciliation or completed product work.
 
 **Orphans.** Stopping or losing a parent never stops its children, so a
 scheduler crash cannot take its segment owners down. `run tree` marks a live

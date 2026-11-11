@@ -94,3 +94,21 @@ func TestRequireOperationRejectsUnavailablePairAndDoesNotUnionScopes(t *testing.
 		t.Fatalf("unavailable pair authorized or unioned scopes: status=%d operation=%v capability=%v", response.Code, baselineOperationErr, grantCapabilityErr)
 	}
 }
+
+// Ordinary capability admission retains the verified baseline token expiry.
+func TestBaselineAgentPrincipalPreservesVerifiedExpiry(t *testing.T) {
+	var principal identity.Principal
+	handler := provenance.Middleware(&pairedVerifier{})(authn.Middleware(authn.Config{})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		principal, _ = identity.PrincipalFromContext(r.Context())
+		if _, err := authn.RequireCapability(r.Context(), "prompt-manager:read"); err != nil {
+			t.Error(err)
+		}
+	})))
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/read", nil)
+	req.Header.Set(cliutil.HeaderAgentIdentityToken, "baseline-token")
+	before := time.Now().Add(59 * time.Minute)
+	handler.ServeHTTP(httptest.NewRecorder(), req)
+	if principal.Kind != identity.ActorAgent || !principal.IsVerified() || !principal.ExpiresAt.After(before) || principal.ExpiresAt.After(time.Now().Add(time.Hour)) {
+		t.Fatalf("baseline lost verified expiry: %+v", principal)
+	}
+}

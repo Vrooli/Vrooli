@@ -50,6 +50,8 @@ type recordingSessions struct {
 	nativeReason string
 	nativeErr    error
 	nativeReads  int
+	nativeThread string
+	nativeOwner  string
 }
 
 type legacyOnlyIdempotency struct {
@@ -96,7 +98,12 @@ func (r *recordingSessions) GetSession(_ context.Context, id string) (webconsole
 	if notFound {
 		return webconsole.SessionInfo{}, webconsole.ErrSessionNotFound
 	}
-	return webconsole.SessionInfo{ID: id, Owner: webconsole.OwnerAgentManager}, nil
+	info := webconsole.SessionInfo{ID: id, Owner: webconsole.OwnerAgentManager}
+	if r.nativeOwner != "" {
+		info.LaunchMode, info.ControlMode = "codex_app_server", "native_capable"
+		info.NativeOwner, info.NativeThreadID = r.nativeOwner, r.nativeThread
+	}
+	return info, nil
 }
 
 func (r *recordingSessions) ObserveNativeAgent(context.Context, string, string) (webconsole.NativeAgentObservation, error) {
@@ -107,7 +114,7 @@ func (r *recordingSessions) ObserveNativeAgent(context.Context, string, string) 
 	if state == "" {
 		state = webconsole.NativeAgentIdle
 	}
-	return webconsole.NativeAgentObservation{State: state, Reason: r.nativeReason}, r.nativeErr
+	return webconsole.NativeAgentObservation{State: state, Reason: r.nativeReason, Generation: r.nativeOwner}, r.nativeErr
 }
 
 func (r *recordingSessions) SendPromptForNativeSession(ctx context.Context, sessionID, _, prompt, source string) (webconsole.PromptSubmission, error) {
@@ -340,10 +347,12 @@ func TestContinueInteractiveCodexRefusesMissingRunScopedTailContextBeforeEffects
 	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions))
 	run := &domain.Run{
 		ID: uuid.New(), WebConsoleSessionID: "codex-session",
+		SessionID:     "native-thread",
 		ExecutionMode: domain.ExecutionModeInteractive, Status: domain.RunStatusComplete,
 		ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex},
 		TranscriptPath: "/retained/seed.jsonl", TranscriptCursor: 123,
 	}
+	sessions.nativeOwner, sessions.nativeThread = "fixture-owner", run.SessionID
 	_, err := svc.continueInteractiveRun(ctx, run, "continue the task", nil, false)
 	if err == nil || !domain.IsPreEffectRefusal(err) {
 		t.Fatalf("continue error = %v, want a pre-effect refusal without run-scoped Codex context", err)
@@ -665,6 +674,72 @@ func TestStopInteractiveRun_NaturalCompletionRaceNoDoubleFinalize(t *testing.T) 
 	}
 }
 
+func TestStopTerminalInteractiveRunRetiresSessionAndPreservesOutcome(t *testing.T) {
+	for _, status := range []domain.RunStatus{domain.RunStatusComplete, domain.RunStatusFailed} {
+		t.Run(string(status), func(t *testing.T) {
+			ctx := context.Background()
+			repos, _, cleanup := testutil.SetupTestRepos(t)
+			t.Cleanup(cleanup)
+			sessions := newRecordingSessions()
+			svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithRunStateRoot(t.TempDir()))
+			task := interactiveTestTask(t, svc)
+			run := persistInteractiveRun(t, repos.Runs, task.ID, status, "agent-sess", "retained-session")
+			ended := time.Now().UTC().Add(-time.Minute)
+			run.EndedAt = &ended
+			run.Phase = domain.RunPhaseCompleted
+			run.ErrorMsg = "retained outcome"
+			run.IdentityTokenHash = "retained-child-hash"
+			if err := repos.Runs.Update(ctx, run); err != nil {
+				t.Fatal(err)
+			}
+			sessions.archiveErr = errors.New("fixture archive failure")
+			if err := svc.StopRun(ctx, run.ID); err == nil || !strings.Contains(err.Error(), "fixture archive failure") {
+				t.Fatalf("failed retirement must remain retryable: %v", err)
+			}
+			sessions.archiveErr = nil
+			if err := svc.StopRun(ctx, run.ID); err != nil {
+				t.Fatalf("retry terminal retirement: %v", err)
+			}
+			got, err := repos.Runs.Get(ctx, run.ID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.Status != status || got.EndedAt == nil || !got.EndedAt.Equal(ended) || got.ErrorMsg != run.ErrorMsg || got.Phase != domain.RunPhaseCompleted {
+				t.Fatalf("session retirement rewrote terminal outcome: %#v", got)
+			}
+			if got.IdentityTokenRevokedAt == nil {
+				t.Fatal("retained executor identity was not revoked")
+			}
+			if calls := sessions.callLog(); strings.Join(calls, ",") != "interrupt,archive,interrupt,archive" {
+				t.Fatalf("retirement escalation = %v", calls)
+			}
+		})
+	}
+}
+
+func TestStopTerminalInteractiveRunRequiresSessionController(t *testing.T) {
+	ctx := context.Background()
+	repos, _, cleanup := testutil.SetupTestRepos(t)
+	t.Cleanup(cleanup)
+	svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithRunStateRoot(t.TempDir()))
+	task := interactiveTestTask(t, svc)
+	run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusComplete, "agent-sess", "retained-session")
+	run.IdentityTokenHash = "retained-child-hash"
+	if err := repos.Runs.Update(ctx, run); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.StopRun(ctx, run.ID); err == nil || !strings.Contains(err.Error(), "session controller") {
+		t.Fatalf("missing controller must refuse retirement: %v", err)
+	}
+	got, err := repos.Runs.Get(ctx, run.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != domain.RunStatusComplete || got.IdentityTokenRevokedAt != nil {
+		t.Fatalf("unavailable retirement owner changed the run: %#v", got)
+	}
+}
+
 // TestStopInteractiveRun_NoLiveDriver covers stopping an interactive run with no
 // live coordinator (e.g. recovered but not reattached): the session is still torn
 // down and the run finalized Cancelled.
@@ -724,16 +799,16 @@ func TestContinueInteractiveRun_RoutesToSendPromptNeverRespawn(t *testing.T) {
 	run.StartedAt = &originalStart
 	sessions.onPrompt = func() {
 		recovery, err := reconciler.RecoverRun(ctx, run.ID)
-		if err != nil || recovery == nil || !recovery.Idempotent || !strings.Contains(recovery.Message, "owner is in flight") {
-			t.Fatalf("recovery crossed in-flight invocation admission: %+v %v", recovery, err)
+		if err != nil || recovery == nil || !recovery.Idempotent || recovery.Run.Status != domain.RunStatusComplete {
+			t.Fatalf("recovery changed the prior terminal outcome during pending delivery: %+v %v", recovery, err)
 		}
 
 		admitted, err := repos.Runs.Get(ctx, run.ID)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if admitted.InteractiveInvocationStartedAt == nil || !admitted.InteractiveInvocationStartedAt.After(originalStart) || admitted.StartedAt == nil || !admitted.StartedAt.Equal(originalStart) || admitted.Status != domain.RunStatusRunning {
-			t.Fatal("continuation delivered before its invocation identity was durably admitted")
+		if admitted.InteractiveInvocationStartedAt != nil || admitted.StartedAt == nil || !admitted.StartedAt.Equal(originalStart) || admitted.Status != domain.RunStatusComplete {
+			t.Fatal("pending delivery changed the prior outcome")
 		}
 	}
 
@@ -800,6 +875,11 @@ func TestContinueInteractiveRunRefusesBeforeEffectsWithoutLiveIdleNativeAgent(t 
 			svc := New(repos.Profiles, repos.Tasks, repos.Runs, WithInteractiveSessions(sessions), WithRunStateRoot(t.TempDir()))
 			task := interactiveTestTask(t, svc)
 			run := persistInteractiveRun(t, repos.Runs, task.ID, domain.RunStatusComplete, "native-generation-1", "web-generation-1")
+			run.ResolvedConfig.RunnerType = domain.RunnerTypeCodex
+			sessions.nativeOwner, sessions.nativeThread = "fixture-owner", run.SessionID
+			if err := repos.Runs.Update(context.Background(), run); err != nil {
+				t.Fatal(err)
+			}
 			before := *run
 			_, err := svc.ContinueRun(context.Background(), ContinueRunRequest{RunID: run.ID, Message: "continue the existing goal", IdempotencyKey: "unknown-native-proof"})
 			if err == nil || !domain.IsPreEffectRefusal(err) {
@@ -1039,18 +1119,12 @@ func TestContinueInteractiveRunClearsPriorTerminalProjectionUntilCurrentInvocati
 	case <-time.After(3 * time.Second):
 		t.Fatal("continuation did not reach prompt delivery")
 	}
-	active, err := svc.GetRun(ctx, run.ID)
+	pending, err := runs.Get(ctx, run.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if active.Status != domain.RunStatusRunning || active.EndedAt != nil || active.Result != nil || active.Summary != nil || active.StopReason != "" || active.TerminalClass != "" {
-		t.Fatalf("new active invocation still carries prior terminal projection: status=%s ended=%v result=%+v summary=%+v stop=%q class=%q", active.Status, active.EndedAt, active.Result, active.Summary, active.StopReason, active.TerminalClass)
-	}
-	if active.InteractiveInvocationStartedAt == nil || !active.InteractiveInvocationStartedAt.After(priorEnd) {
-		t.Fatalf("new invocation fence was not advanced beyond prior terminal: %+v", active.InteractiveInvocationStartedAt)
-	}
-	if active.ObservedGoalStatus != string(runner.GoalStatusBlocked) {
-		t.Fatalf("historical goal verdict was erased instead of retained as history: %q", active.ObservedGoalStatus)
+	if pending.Status != domain.RunStatusComplete || pending.EndedAt == nil || !pending.EndedAt.Equal(priorEnd) || pending.Result == nil || pending.Result.FinalOutput != "pre-rebaseline blocked result" || pending.InteractiveInvocationStartedAt != nil {
+		t.Fatalf("unverified pending delivery changed prior outcome: %+v", pending)
 	}
 
 	file, err := os.OpenFile(run.TranscriptPath, os.O_APPEND|os.O_WRONLY, 0)
@@ -1204,8 +1278,8 @@ func TestContinueInteractiveRun_UnverifiedOrFailedGoalSubmissionWithholdsFollowu
 			}
 			if !tc.cancelDuringSend {
 				got, getErr := runs.Get(context.Background(), run.ID)
-				if getErr != nil || got.Status != domain.RunStatusFailed {
-					t.Fatalf("failed/uncertain reinstall status = %v err=%v", got, getErr)
+				if getErr != nil || got.Status != domain.RunStatusComplete {
+					t.Fatalf("uncertain reinstall changed prior terminal status = %v err=%v", got, getErr)
 				}
 			}
 			_, retryErr := svc.ContinueRun(context.Background(), ContinueRunRequest{RunID: run.ID, Message: "do not send before goal acknowledgement", ReinstallGoal: true, IdempotencyKey: "goal-reinstall-" + tc.name})

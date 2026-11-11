@@ -39,6 +39,8 @@ type sessionTestServer struct {
 	fingerprint          string
 	wrongFingerprint     bool
 	wrongOwner           bool
+	nativeGoalRequest    *sessionsv1.SetNativeGoalRequest
+	nativeGoalResponse   *sessionsv1.SetNativeGoalResponse
 	nativeThreadID       string
 	nativeControl        string
 	nativeLaunch         string
@@ -113,7 +115,10 @@ func (s *sessionTestServer) ReadNativeThreadState(_ context.Context, req *connec
 
 func (s *sessionTestServer) DeliverNativePrompt(_ context.Context, req *connect.Request[sessionsv1.DeliverNativePromptRequest]) (*connect.Response[sessionsv1.DeliverNativePromptResponse], error) {
 	s.nativeDeliveries = append(s.nativeDeliveries, req.Msg)
-	if s.changeBeforeDelivery || req.Msg.GetExpectedThreadId() != s.nativeThreadID {
+	if s.changeBeforeDelivery {
+		s.nativeOwner = "replacement-owner-generation"
+	}
+	if req.Msg.GetExpectedThreadId() != s.nativeThreadID || req.Msg.GetExpectedNativeOwner() != s.nativeOwner {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("native generation changed"))
 	}
 	if s.nativeDeliveryErr != nil {
@@ -292,6 +297,22 @@ func TestClientMaintainsInteractiveSessionContract(t *testing.T) {
 	}
 }
 
+func TestCreateSessionTransfersTypedNativeLaunchMetadata(t *testing.T) {
+	sessions := &sessionTestServer{}
+	client := newWebConsoleTestClient(t, sessions, &terminalTestServer{})
+	params := CreateSessionParams{
+		AgentType: "codex", LaunchMode: "codex_app_server",
+		LaunchDescriptorJSON: `{"agent":"codex","launchMode":"codex_app_server"}`,
+		WorkingDir:           "/workspace/goal", DisplayLabel: "interactive goal",
+	}
+	if _, err := client.CreateSession(t.Context(), params); err != nil {
+		t.Fatal(err)
+	}
+	if sessions.created.GetAgentType() != params.AgentType || sessions.created.GetLaunchMode() != params.LaunchMode || sessions.created.GetLaunchDescriptorJson() != params.LaunchDescriptorJSON || sessions.created.GetWorkingDir() != params.WorkingDir {
+		t.Fatalf("typed create metadata = %+v", sessions.created)
+	}
+}
+
 func TestBoundPromptUsesReceiverNativeOwnerAndNeverFallsBackToPTY(t *testing.T) {
 	const nativeSessionID = "550e8400-e29b-41d4-a716-446655440000"
 	for _, tc := range []struct {
@@ -311,7 +332,7 @@ func TestBoundPromptUsesReceiverNativeOwnerAndNeverFallsBackToPTY(t *testing.T) 
 		{name: "absent thread metadata", controlMode: "native_capable", launchMode: "codex_app_server"},
 		{name: "generation changed", nativeThreadID: "550e8400-e29b-41d4-a716-446655440001", controlMode: "native_capable", launchMode: "codex_app_server"},
 		{name: "unknown provider mode", nativeThreadID: nativeSessionID, controlMode: "unknown", launchMode: "terminal_pty"},
-		{name: "generation disappears at receiver", nativeThreadID: nativeSessionID, controlMode: "native_capable", launchMode: "codex_app_server", state: "idle", changeAtReceiver: true, wantStateRead: true},
+		{name: "generation disappears at receiver", nativeThreadID: nativeSessionID, controlMode: "native_capable", launchMode: "codex_app_server", state: "idle", changeAtReceiver: true, wantDelivery: true, wantStateRead: true},
 		{name: "unknown provider liveness", nativeThreadID: nativeSessionID, controlMode: "native_capable", launchMode: "codex_app_server", state: "unavailable", wantStateRead: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -343,8 +364,37 @@ func TestBoundPromptUsesReceiverNativeOwnerAndNeverFallsBackToPTY(t *testing.T) 
 			if tc.wantDelivery && tc.activeTurn != "" && sessions.nativeDeliveries[0].GetExpectedTurnId() != tc.activeTurn {
 				t.Fatalf("busy delivery expected turn=%q, want %q", sessions.nativeDeliveries[0].GetExpectedTurnId(), tc.activeTurn)
 			}
+			if tc.wantDelivery && sessions.nativeDeliveries[0].GetExpectedNativeOwner() != "web-console:codex:test" {
+				t.Fatalf("native delivery generation=%q, want observed owner web-console:codex:test", sessions.nativeDeliveries[0].GetExpectedNativeOwner())
+			}
 			if got := sessions.nativeStateReads > 0; got != tc.wantStateRead {
 				t.Fatalf("native state reads=%d, want-read=%t", sessions.nativeStateReads, tc.wantStateRead)
+			}
+		})
+	}
+}
+
+func TestDelayedNativePromptPinsCapturedOwnerGeneration(t *testing.T) {
+	const thread = "550e8400-e29b-41d4-a716-446655440000"
+	for _, tc := range []struct { name, actual, expected string; accepted bool }{
+		{name: "captured owner", actual: "captured-owner", expected: "captured-owner", accepted: true},
+		{name: "replacement owner", actual: "replacement-owner", expected: "captured-owner"},
+		{name: "missing captured owner", actual: "captured-owner"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sessions := &sessionTestServer{nativeThreadID: thread, nativeControl: "native_capable", nativeLaunch: "codex_app_server", nativeOwner: tc.actual, nativeState: "idle"}
+			terminal := &terminalTestServer{composer: &scriptedComposer{}}
+			client := newWebConsoleTestClient(t, sessions, terminal)
+			receipt, err := client.SendPromptForNativeOwner(t.Context(), "web-session", thread, tc.expected, "continue", "agent-manager:run-fixture")
+			if tc.accepted {
+				if err != nil || !receipt.Verified || len(sessions.nativeDeliveries) != 1 {
+					t.Fatalf("same-owner delivery = %+v %v attempts=%d", receipt, err, len(sessions.nativeDeliveries))
+				}
+			} else if !errors.Is(err, ErrNativePromptRefused) || len(sessions.nativeDeliveries) != 0 {
+				t.Fatalf("replacement owner received delayed input: err=%v attempts=%d", err, len(sessions.nativeDeliveries))
+			}
+			if len(terminal.inputs) != 0 {
+				t.Fatalf("native recovery fell back to PTY: %+v", terminal.inputs)
 			}
 		})
 	}
@@ -615,6 +665,37 @@ func TestReservedCreateOldPeerAndUncertainResponse(t *testing.T) {
 			}
 			if owner.createCalls > 0 && owner.created.GetAgentRunIdentityToken() != "test-only-child-bearer" {
 				t.Fatal("stable reserved Create did not carry its exact child identity")
+			}
+		})
+	}
+}
+
+func (s *sessionTestServer) SetNativeGoal(_ context.Context, req *connect.Request[sessionsv1.SetNativeGoalRequest]) (*connect.Response[sessionsv1.SetNativeGoalResponse], error) {
+	s.nativeGoalRequest = req.Msg
+	return connect.NewResponse(s.nativeGoalResponse), nil
+}
+
+func TestNativeGoalRejectsMismatchedProviderResult(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		response *sessionsv1.SetNativeGoalResponse
+		allowed  bool
+	}{
+		{"exact", &sessionsv1.SetNativeGoalResponse{ThreadId: "thread", Status: "active", Objective: "admitted objective"}, true},
+		{"other thread", &sessionsv1.SetNativeGoalResponse{ThreadId: "other", Status: "active", Objective: "admitted objective"}, false},
+		{"other objective", &sessionsv1.SetNativeGoalResponse{ThreadId: "thread", Status: "active", Objective: "changed"}, false},
+		{"other status", &sessionsv1.SetNativeGoalResponse{ThreadId: "thread", Status: "paused", Objective: "admitted objective"}, false},
+		{"missing objective", &sessionsv1.SetNativeGoalResponse{ThreadId: "thread", Status: "active"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			sessions := &sessionTestServer{nativeGoalResponse: tc.response}
+			client := newWebConsoleTestClient(t, sessions, &terminalTestServer{})
+			_, err := client.SetNativeGoalForSession(context.Background(), "session", "thread", "owner", "admitted objective", "active", NativeGoalUserDirected, nil)
+			if (err == nil) != tc.allowed {
+				t.Fatalf("err=%v allowed=%t", err, tc.allowed)
+			}
+			if sessions.nativeGoalRequest == nil || sessions.nativeGoalRequest.GetOrigin() != NativeGoalUserDirected {
+				t.Fatal("admission origin not passed")
 			}
 		})
 	}

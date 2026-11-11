@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/orchestration/phases"
 )
 
 // LaunchCommandParams is the input to BuildLaunchCommand.
@@ -17,8 +18,9 @@ type LaunchCommandParams struct {
 	// BinaryPath is the resolved interactive CLI binary (from AgentLaunchInfo).
 	BinaryPath string
 	// TagEnvKey / Tag carry the per-run reconciler tag (from AgentLaunchInfo).
-	TagEnvKey string
-	Tag       string
+	TagEnvKey    string
+	Tag          string
+	StoreOwnerID string
 	// WorkingDir is the agent's cwd; the command cd's into it first.
 	WorkingDir string
 	// RunDir is the agent-manager-owned per-run directory under which the
@@ -35,7 +37,7 @@ type LaunchCommandParams struct {
 // BuildLaunchCommand builds the shell command web-console pastes+executes to
 // start the real interactive agent CLI, per design §4. The shape is:
 //
-//	cd <workdir> && <TAG_KEY>=<tag> [<HOME_VAR>=<runDir>/<subdir>] <binary>
+//	cd <workdir> && <TAG_KEY>=<tag> <STORE_OWNER_KEY>=<store> [<HOME_VAR>=<runDir>/<subdir>] <binary>
 //
 // The inline env prefix wins over web-console's own per-session env for that
 // process (design §4), pinning the tag (so the reconciler attributes the
@@ -61,6 +63,9 @@ func BuildLaunchCommand(p LaunchCommandParams) (string, error) {
 
 	var envPrefix []string
 	envPrefix = append(envPrefix, fmt.Sprintf("%s=%s", p.TagEnvKey, shellQuote(p.Tag)))
+	if strings.TrimSpace(p.StoreOwnerID) != "" {
+		envPrefix = append(envPrefix, fmt.Sprintf("%s=%s", phases.AgentManagerStoreOwnerEnv, shellQuote(p.StoreOwnerID)))
+	}
 	if spec.relocatesHome() {
 		if strings.TrimSpace(p.RunDir) == "" {
 			return "", fmt.Errorf("interactive launch for %s: run dir is required to relocate %s", p.RunnerType, spec.homeEnvVar)

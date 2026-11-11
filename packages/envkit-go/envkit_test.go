@@ -134,3 +134,60 @@ func containsValue(env Env, key, value string) bool {
 	}
 	return false
 }
+
+func TestIndependentOwnersDoNotInheritExecutionAttribution(t *testing.T) {
+	parent := Env{
+		"CODEX_AGENT_TAG=parent-run", "CLAUDE_AGENT_TAG=other-parent", "FUTURE_PROVIDER_AGENT_TAG=future-parent",
+		"VROOLI_RUN_ID=parent-run", "VROOLI_HARNESS_SESSION_ID=parent-session", "VROOLI_AGENT_MANAGER_STORE_ID=parent-store",
+		"VROOLI_RUNTIME_INSTANCE_ID=serving-instance", "VROOLI_RUNTIME_GENERATION=serving-generation", "VROOLI_PROCESS_ID=serving-process",
+		"VROOLI_LIFECYCLE_MANAGED=true", "VROOLI_STEP=serve", "VROOLI_PHASE=develop", "LIFECYCLE_PHASE=develop",
+		"VROOLI_VARIANT=parent-variant", "VROOLI_STORAGE_NAMESPACE=parent-namespace",
+		"API_BASE_URL=http://parent", "API_BASE=http://parent", "WS_PORT=123", "VITE_API_BASE_URL=http://parent",
+		"PATH=/bin", "HOME=/home/operator", "VROOLI_ROOT=/repo", "VROOLI_HOME=/runtime", "POSTGRES_HOST=db", "OPENAI_API_KEY=fixture-oauth-availability",
+	}
+	for _, relationship := range []Relationship{Resource, ForeignScenario} {
+		got := ForChildWithPlatform(parent, relationship, Platform{})
+		for _, key := range []string{"CODEX_AGENT_TAG", "CLAUDE_AGENT_TAG", "FUTURE_PROVIDER_AGENT_TAG", "VROOLI_RUN_ID", "VROOLI_HARNESS_SESSION_ID", "VROOLI_AGENT_MANAGER_STORE_ID", "VROOLI_RUNTIME_INSTANCE_ID", "VROOLI_RUNTIME_GENERATION", "VROOLI_PROCESS_ID", "VROOLI_LIFECYCLE_MANAGED", "VROOLI_STEP", "VROOLI_PHASE", "LIFECYCLE_PHASE", "VROOLI_VARIANT", "VROOLI_STORAGE_NAMESPACE", "API_BASE_URL", "API_BASE", "WS_PORT", "VITE_API_BASE_URL"} {
+			if contains(got, key) {
+				t.Errorf("boundary %v inherited execution attribution %s", relationship, key)
+			}
+		}
+		for _, key := range []string{"PATH", "HOME", "VROOLI_ROOT", "VROOLI_HOME", "POSTGRES_HOST", "OPENAI_API_KEY"} {
+			if !contains(got, key) {
+				t.Errorf("boundary %v removed host routing/access %s", relationship, key)
+			}
+		}
+	}
+	same := ForChildWithPlatform(parent, SameScenario, Platform{})
+	for _, key := range []string{"CODEX_AGENT_TAG", "VROOLI_RUN_ID", "VROOLI_RUNTIME_INSTANCE_ID", "API_BASE_URL"} {
+		if !contains(same, key) {
+			t.Errorf("same owner lost %s", key)
+		}
+	}
+	delegated := ForChildWithPlatform(parent, DelegatedAgent, Platform{})
+	if !contains(delegated, "CODEX_AGENT_TAG") || !contains(delegated, "VROOLI_RUN_ID") || !contains(delegated, "VROOLI_HARNESS_SESSION_ID") || contains(delegated, "VROOLI_RUNTIME_INSTANCE_ID") {
+		t.Fatal("delegated launcher changed composed caller-session versus service ownership semantics")
+	}
+}
+
+func TestIndependentOwnerOverlayReplacesOnlyExplicitChildAttribution(t *testing.T) {
+	for _, platform := range []Platform{{}, {CaseInsensitive: true}} {
+		parent := Env{"CODEX_AGENT_TAG=parent", "VROOLI_RUN_ID=parent", "CODEX_HOME=/parent", "VROOLI_AGENT_IDENTITY_TOKEN=old", "VROOLI_AGENT_MANAGER_STORE_ID=old-store", "CODEX_THREAD_ID=old-thread"}
+		got := WithOverlayWithPlatform(parent, Resource, Env{"CODEX_AGENT_TAG=child", "VROOLI_RUN_ID=child", "CODEX_HOME=/child", "VROOLI_AGENT_IDENTITY_TOKEN=verified-child", "VROOLI_AGENT_MANAGER_STORE_ID=child-store"}, platform)
+		for _, pair := range [][2]string{{"CODEX_AGENT_TAG", "child"}, {"VROOLI_RUN_ID", "child"}, {"CODEX_HOME", "/child"}, {"VROOLI_AGENT_IDENTITY_TOKEN", "verified-child"}, {"VROOLI_AGENT_MANAGER_STORE_ID", "child-store"}} {
+			if !containsValue(got, pair[0], pair[1]) {
+				t.Errorf("platform %+v did not retain explicit child %s", platform, pair[0])
+			}
+		}
+		if contains(got, "CODEX_THREAD_ID") {
+			t.Fatal("new owner inherited old thread")
+		}
+	}
+}
+
+func TestWindowsIndependentOwnerFoldsAttributionAndChildOverlay(t *testing.T) {
+	got := WithOverlayWithPlatform(Env{"cOdEx_AgEnT_tAg=parent", "vrooli_run_id=parent", "wc_web_console_session_id=parent", "vrooli_runtime_instance_id=host", "scenario_path=/host", "vrooli_agent_identity_token=old", "CodeX_Home=/parent", "Path=parent"}, Resource, Env{"CODEX_HOME=C:\\child", "VROOLI_AGENT_IDENTITY_TOKEN=child", "PATH=child"}, Platform{CaseInsensitive: true})
+	if len(got) != 3 || !containsValue(got, "CODEX_HOME", "C:\\child") || !containsValue(got, "VROOLI_AGENT_IDENTITY_TOKEN", "child") || !containsValue(got, "PATH", "child") {
+		t.Fatal("Windows attribution was inherited or explicit child entries were duplicated/lost")
+	}
+}

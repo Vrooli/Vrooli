@@ -1,15 +1,11 @@
 // Package endpoints defines the canonical, scenario-agnostic types that
 // describe one entry under endpoints[] in a scenario's
-// .vrooli/endpoints.json. Every proto-first scenario's
-// api/internal/module package re-exports these as type aliases, so the
-// shape is defined exactly once across the fleet instead of being copied
-// (and drifting) per scenario.
+// .vrooli/endpoints.json. The shared api-core/module package re-exports
+// these as type aliases, so the shape is defined once across the fleet.
 //
-// These are data types only — no behaviour, no transport. The mux-coupled
-// Module seam stays in each scenario's internal/module package (it wires
-// handlers to the production router); only the machine-readable descriptor
-// shape lives here. The generator that emits endpoints.json lives in the
-// sibling endpoints/gen package.
+// These are data types only — no behavior and no transport. The mux-coupled
+// Module contract lives in api-core/module. The generator that emits
+// endpoints.json lives in the sibling endpoints/gen package.
 package endpoints
 
 // EndpointDescriptor mirrors one entry under endpoints[] in

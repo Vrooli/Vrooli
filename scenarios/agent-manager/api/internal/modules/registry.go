@@ -9,13 +9,14 @@ import (
 	"agent-manager/internal/eventlog"
 	"agent-manager/internal/findings"
 	"agent-manager/internal/interventions"
-	"agent-manager/internal/outcomeledger"
 	"agent-manager/internal/investigation"
 	"agent-manager/internal/maintenance"
 	"agent-manager/internal/modelhealth"
+	"agent-manager/internal/outcomeledger"
 	"agent-manager/internal/permissionpolicy"
 	"agent-manager/internal/policy"
 	"agent-manager/internal/pricing"
+	"agent-manager/internal/researchbudget"
 	"agent-manager/internal/runmodel"
 	"agent-manager/internal/runnerhealth"
 	"agent-manager/internal/supervision"
@@ -50,6 +51,7 @@ func AllSchemas() []database.SchemaProvider {
 		database.SchemaProviderFunc(artifact.Schema),
 		database.SchemaProviderFunc(workflowruntime.Schema),
 		database.SchemaProviderFunc(runmodel.Schema),
+		database.SchemaProviderFunc(researchbudget.Schema),
 		database.SchemaProviderFunc(eventlog.Schema),
 		database.SchemaProviderFunc(conversationsearch.Schema),
 		database.SchemaProviderFunc(findings.Schema),

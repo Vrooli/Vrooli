@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -16,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/authn"
 	coreidentity "github.com/vrooli/api-core/identity"
+	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
@@ -103,17 +105,18 @@ func (h *Handler) denyRunLifecycleOnTarget(w http.ResponseWriter, r *http.Reques
 		})
 		return true
 	}
+	var operationErr error
 	if operation == "create-run" {
 		// A top-level run.create grant is distinct from agent.manage lifecycle
 		// authority. The orchestration admission path re-verifies the same proof
 		// and records grant-bounded owner attribution before effects.
-		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); err == nil {
+		if _, operationErr = authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", RunCreationTarget); operationErr == nil {
 			return false
 		}
 	}
 	grantOperation, policy := lifecycleGrant(operation)
 	if target != "" && grantOperation != "" {
-		if _, err := authn.RequireOperation(r.Context(), "agent-manager:write", grantOperation, "agent-manager:run/"+target); err == nil {
+		if _, operationErr = authn.RequireOperation(r.Context(), "agent-manager:write", grantOperation, "agent-manager:run/"+target); operationErr == nil {
 			return false
 		}
 	}
@@ -123,7 +126,14 @@ func (h *Handler) denyRunLifecycleOnTarget(w http.ResponseWriter, r *http.Reques
 	if claims.IssuedAt != 0 {
 		mintTime = time.Unix(claims.IssuedAt, 0).UTC().Format(time.RFC3339)
 	}
-	log.Printf("agent-manager lifecycle refusal caller=%s run_id=%s operation=%s", r.RemoteAddr, claims.RunID, operation)
+	principal, _ := coreidentity.PrincipalFromContext(r.Context())
+	observed := provenance.FromContext(r.Context())
+	// Keep authority propagation failures diagnosable without exposing tokens,
+	// grant contents, or arbitrary verifier error text.
+	log.Printf("agent-manager lifecycle refusal caller=%s run_id=%s operation=%s target=%s principal=%s verified=%t provenance=%s operation_offered=%t operation_verified=%t operation_denied=%t capability_missing=%t",
+		r.RemoteAddr, claims.RunID, operation, target, principal.Kind, principal.IsVerified(), observed.VerificationStatus,
+		provenance.OperationProofOffered(r.Context()), observed.OperationGrant != nil,
+		errors.Is(operationErr, authn.ErrOperation), errors.Is(operationErr, authn.ErrCapability))
 
 	message := "run identity cannot perform lifecycle operation"
 	if operation == "create-run" && strings.TrimSpace(guidance) != "" {

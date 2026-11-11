@@ -38,6 +38,7 @@ func TestReconcilerRecognizesRecordedLegacyContinuationProcess(t *testing.T) {
 	}
 	rec.runners = registry
 	cmd := startTaggedLegacyExecutor(t, "OPENCODE_AGENT_TAG", native.ContinuationTag(runner.ContinueRequest{RunID: run.ID}), "10", false)
+	installTestProcess(rec, "opencode", cmd.Process.Pid, native.ContinuationTag(runner.ContinueRequest{RunID: run.ID}), "opencode")
 	run.RunnerPID = cmd.Process.Pid
 	if !rec.isProcessAlive(t.Context(), run) {
 		t.Fatal("recorded continuation declared dead because its tag differs from canonical tag")
@@ -76,6 +77,7 @@ func TestRestartRecoveryDoesNotTimeoutReattachedLegacyExecutor(t *testing.T) {
 	rec.clock = func() time.Time { return attachedAt }
 	run.TranscriptPath = writeRecoveryTranscript(t, "")
 	cmd := startTaggedLegacyExecutor(t, "OPENCODE_AGENT_TAG", native.ContinuationTag(runner.ContinueRequest{RunID: run.ID}), "30", false)
+	installTestProcess(rec, "opencode", cmd.Process.Pid, native.ContinuationTag(runner.ContinueRequest{RunID: run.ID}), "opencode")
 	run.RunnerPID = cmd.Process.Pid
 	if err := repos.Runs.Create(t.Context(), run); err != nil {
 		t.Fatal(err)
@@ -151,6 +153,7 @@ func TestRecoveryArtifactFailurePreservesLiveLegacyExecutor(t *testing.T) {
 			// PATH isolation proves exact /proc identity is sufficient; process
 			// startup waits for that identity before checking the recovery path.
 			cmd := startTaggedLegacyExecutor(t, "OPENCODE_AGENT_TAG", legacyTag, "30", true)
+			installTestProcess(rec, "opencode", cmd.Process.Pid, legacyTag, "opencode")
 			run.RunnerPID = cmd.Process.Pid
 			if err := repos.Runs.Create(t.Context(), run); err != nil {
 				t.Fatal(err)
@@ -712,6 +715,7 @@ func TestRecoverRun_LiveProcessTailsTranscriptUntilTerminal(t *testing.T) {
 	}
 
 	cmd := startTaggedRunnerProcess(t, "codex", run.Tag)
+	processEffects := installTestProcess(reconciler, "codex", cmd.Process.Pid, run.Tag, "codex --tag "+run.Tag)
 	defer func() {
 		_ = cmd.Process.Kill()
 		_ = cmd.Wait()
@@ -728,6 +732,7 @@ func TestRecoverRun_LiveProcessTailsTranscriptUntilTerminal(t *testing.T) {
 	appendRecoveryTranscript(t, transcriptPath, "message:tail completion\ndone:tail completion\n")
 	_ = cmd.Process.Kill()
 	_ = cmd.Wait()
+	processEffects.setSnapshot(nil, nil)
 
 	waitForRecoveryStatus(t, repos, run.ID, domain.RunStatusComplete)
 	got, err := repos.Runs.Get(context.Background(), run.ID)
@@ -1086,12 +1091,27 @@ func startTaggedRunnerProcess(t *testing.T, runnerName, tag string) *exec.Cmd {
 	}
 
 	cmd := exec.Command(scriptPath, "--tag", tag)
+	cmd.Env = envWithoutAgentMarkers(os.Environ())
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("start runner script: %v", err)
 	}
 
 	time.Sleep(150 * time.Millisecond)
 	return cmd
+}
+
+// envWithoutAgentMarkers prevents a fake child from inheriting the test
+// runner's executor identity and being mistaken for a real managed process.
+func envWithoutAgentMarkers(env []string) []string {
+	clean := make([]string, 0, len(env))
+	for _, entry := range env {
+		key, _, _ := strings.Cut(entry, "=")
+		if key == "VROOLI_RUN_ID" || key == "VROOLI_AGENT_IDENTITY_TOKEN" || strings.HasSuffix(key, "_AGENT_TAG") || key == "AGENT_TAG" {
+			continue
+		}
+		clean = append(clean, entry)
+	}
+	return clean
 }
 
 func waitForRecoveryStatus(t *testing.T, repos *database.Repositories, runID uuid.UUID, want domain.RunStatus) {
