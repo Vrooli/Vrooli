@@ -1,5 +1,9 @@
 # Status and Work Allocation
 
+> **RETIRED 2026-11-10 by the operator.** Do not resume this goal or its session. The research mission
+> `/home/matthalloran8/.vrooli/research/topics/tv-capabilities/MISSION.md` owns this work (TV1–TV9) and
+> staffs it directly. Everything below is history and input for that mission's owners.
+
 ## Current handoff — E7 and OF-2026-11-03-01 remain open
 
 - **Verified E7 outcomes:** Scenario-built apps have passed repeated temporary install, cold/warm BAS, and cleanup on the Moto G7; durable installs passed on the Moto G7 and API 36 emulator. Current-source API 36 emulator runs cover conformance, temporary cleanup, durable install, verify-without-reinstall, and two signer-matched higher-version updates that preserved the task app's saved-state sentinel. The current-source Moto durable app has now completed three chained signer-matched updates, code 1→4, with the saved-state sentinel preserved and cold/warm BAS checks at each update. A current-source Moto USB offline/online BAS journey passed twice on separate runs and restored connectivity, screen/lock state, and package identity. See the newest E7 and LOG entries for run IDs and evidence hashes.

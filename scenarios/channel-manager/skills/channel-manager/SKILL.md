@@ -1,12 +1,12 @@
 ---
 name: "channel-manager"
-description: "Operate Channel Manager as the durable account-operations floor: read identity and queue state, record manual warming actions and observations, and keep every write inside the operator's D-009 automation gate."
+description: "Release approved posts from the action queue and manage social and messaging accounts: see platform identities, account health and warming status, the queue of approved posts and actions waiting for release, and record manual warming actions. Operate Channel Manager as the durable account-operations floor: read identity and queue state, record manual warming actions and observations, and keep every write inside the operator's D-009 automation gate."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["channel", "identity", "warming", "queue", "manual-executor"]
+  tags: ["channel", "identity", "warming", "queue", "manual-executor", "social-media", "accounts", "posts", "account-health"]
   status: "active"
   revision: 1
   createdAt: "2026-09-12T00:00:00Z"

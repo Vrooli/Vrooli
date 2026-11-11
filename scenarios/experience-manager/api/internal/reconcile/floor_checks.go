@@ -101,8 +101,24 @@ func firstUnsafeAreaTapTarget(nodes []*AXNode, target CaptureTarget) *AXNode {
 }
 
 func firstMultilineChromeLabel(nodes []*AXNode, target CaptureTarget) *AXNode {
+	chromeDescendants := make(map[*AXNode]bool)
+	var markChrome func(*AXNode)
+	markChrome = func(node *AXNode) {
+		if node == nil || chromeDescendants[node] {
+			return
+		}
+		chromeDescendants[node] = true
+		for i := range node.Children {
+			markChrome(&node.Children[i])
+		}
+	}
 	for _, node := range nodes {
-		if !isChromeLabelNode(node, target) || node.Bounds == nil {
+		if isChromeNode(node) {
+			markChrome(node)
+		}
+	}
+	for _, node := range nodes {
+		if !isChromeLabelNode(node, chromeDescendants[node]) || node.Bounds == nil {
 			continue
 		}
 		if strings.Contains(node.Name, "\n") || node.Bounds.Height > 72 {
@@ -167,7 +183,7 @@ func isPreviewWorkspaceScrollNode(node *AXNode) bool {
 		strings.HasPrefix(testID, "components-editor-example-")
 }
 
-func isChromeLabelNode(node *AXNode, target CaptureTarget) bool {
+func isChromeLabelNode(node *AXNode, insideChrome bool) bool {
 	if node == nil || strings.TrimSpace(node.Name) == "" || node.Bounds == nil {
 		return false
 	}
@@ -176,7 +192,10 @@ func isChromeLabelNode(node *AXNode, target CaptureTarget) bool {
 	}
 	switch strings.ToLower(node.Role) {
 	case "button", "link", "tab", "menuitem":
-		return node.Bounds.Y <= 120
+		// Position alone does not establish chrome: content cards can be
+		// interactive and multiline even at the top of a page. Use semantic
+		// shell ancestry so navigation and toolbar actions remain floor targets.
+		return insideChrome
 	default:
 		return false
 	}

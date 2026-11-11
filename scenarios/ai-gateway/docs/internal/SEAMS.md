@@ -129,7 +129,7 @@ test or repair other ambient time, environment, or logger dependencies.
 | **Seam** | Database reachability probe |
 | **Interface** | `internal/database/pinger.go::Pinger` (`PingContext(ctx) error`) |
 | **Production wiring** | `main.go` opens `*sql.DB` via `database.Connect(...)` against `modernc.org/sqlite` (pure-Go, CGO-clean). `*sql.DB` satisfies `Pinger` directly — no wrapper. |
-| **Test fake** | `internal/testutil/mocks::FakePinger` (`PingErr error`, atomic `Calls` counter). |
+| **Test fake** | `github.com/vrooli/api-core/databasetest::FakePinger` (`PingErr error`, atomic `Calls` counter). |
 | **Why it exists** | The `/health` handler probes the database. Without the seam, every handler test would either open the on-disk SQLite file (slow at scale, parallel-test contention) or skip the database branch entirely (untested degradation path). With `FakePinger{PingErr: errors.New("connection refused")}`, the unhealthy branch is one line. See `handlers/health/handler_test.go`. |
 
 ### database.SchemaExecer (shared schema application)
@@ -336,7 +336,7 @@ sweep.
 never domain-specific interfaces.
 
 `internal/testutil/mocks/` retains only cross-domain fakes
-(`FakeClock`, `FakePinger`, `FakeDoer`).
+(`FakeClock`, `FakeDoer`).
 
 ### Mechanical steps
 
@@ -365,7 +365,7 @@ never domain-specific interfaces.
    Each method takes a per-method error knob (`CreateErr error`) plus
    any state it needs to return. Counters use `atomic.Int64`, not plain
    `int`, so race-detector tests don't flap. Cross-domain fakes
-   (`FakeClock`, `FakePinger`, `FakeDoer`) stay in
+   (`FakeClock`, `FakeDoer`) stay in
    `internal/testutil/mocks/`.
 5. **Update this document.** Add a row in the table above with the same
    schema as the existing rows. If you skip this step, the seam exists but isn't

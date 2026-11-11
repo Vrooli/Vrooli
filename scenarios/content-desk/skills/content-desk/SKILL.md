@@ -1,13 +1,13 @@
 ---
 name: "content-desk"
-description: "Use Content Desk as the durable editorial ledger for evidence-backed content workflows."
+description: "Track an article or other content from draft through review to a recorded publish: keep drafts, cited claims and review state, read the editorial board and the editorial history of what was written and published. Content Desk is the durable editorial ledger for evidence-backed content workflows; it does not write copy or post to platforms."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   status: "active"
   modes: []
-  tags: [content, editorial, publishing]
+  tags: [content, editorial, publishing, article, draft, publish, writing, blog, editorial-history]
   requires:
     scenarios: []
     commands: []

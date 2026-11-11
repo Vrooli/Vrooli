@@ -714,6 +714,44 @@ func TestZeroAreaAccessibilityNodesDoNotBecomePageOverflowFindings(t *testing.T)
 	}
 }
 
+func TestSingleLineChromeUsesSemanticScopeRatherThanPagePosition(t *testing.T) {
+	target := CaptureTarget{ViewportID: "mobile", ViewportWidth: 390, ViewportHeight: 844}
+	card := AXNode{Role: "button", Name: "Saved preset\nDescription of the saved preset", Bounds: &Bounds{X: 16, Y: 107, Width: 358, Height: 94.6}}
+	for _, container := range []AXNode{
+		{Role: "main"},
+		{Role: "list"},
+		{DOM: DOMNode{Tag: "header"}},
+	} {
+		container.Children = []AXNode{card}
+		snapshot := Snapshot{Root: container}
+		if got := firstMultilineChromeLabel(snapshot.Flatten(), target); got != nil {
+			t.Fatalf("multiline content card must remain valid inside %+v: %+v", container.DOM, got)
+		}
+	}
+	for _, container := range []AXNode{
+		{Role: "banner"},
+		{Role: "navigation"},
+		{Role: "toolbar"},
+		{Role: "menubar"},
+		{Role: "tablist"},
+		{DOM: DOMNode{Tag: "nav"}},
+		{DOM: DOMNode{TestID: "workspace-header"}},
+	} {
+		for _, y := range []float64{50, 700} {
+			control := AXNode{Role: "button", Name: "Wrapped\naction", Bounds: &Bounds{X: 16, Y: y, Width: 120, Height: 64}}
+			container.Children = []AXNode{{Role: "group", Children: []AXNode{control}}}
+			snapshot := Snapshot{Root: container}
+			if got := firstMultilineChromeLabel(snapshot.Flatten(), target); got == nil {
+				t.Fatalf("chrome action inside %s/%s at y=%v must fail", container.Role, container.DOM.TestID, y)
+			}
+			snapshot.Root.Children[0].Children[0].Name = "Action"
+			if got := firstMultilineChromeLabel(snapshot.Flatten(), target); got != nil {
+				t.Fatal("single-line chrome action should pass")
+			}
+		}
+	}
+}
+
 func TestChromeVocabularyIsFleetWideAndExcludesGenericHeaders(t *testing.T) {
 	tests := []struct {
 		name string
