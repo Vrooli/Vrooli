@@ -681,7 +681,7 @@ func TestWriteManagedServiceConfigRendersOnlyResourceRuntimePaths(t *testing.T) 
 		Content: "path = \"${RESOURCE_DATA_DIR}\"\n",
 	}
 	env := resourceEnvForResource(root, filepath.Join(root, "home"), manifest.Name)
-	if err := writeManagedServiceConfig(manifest, env); err != nil {
+	if err := writeManagedServiceConfig(&Controller{Root: root}, manifest, env); err != nil {
 		t.Fatal(err)
 	}
 	values := managedServiceEnvValues(env)
@@ -699,6 +699,48 @@ func TestWriteManagedServiceConfigRendersOnlyResourceRuntimePaths(t *testing.T) 
 	}
 	if info.Mode().Perm() != 0o600 {
 		t.Fatalf("config mode = %o, want 600", info.Mode().Perm())
+	}
+}
+
+func TestWriteManagedServiceConfigReadsContainedResourceAsset(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", filepath.Join(root, "runtime"))
+	manifest := managedServiceTestManifest(strings.Repeat("a", 64))
+	manifest.ManagedService.Config = &resourcedeployment.ServiceConfig{
+		Path:        "settings.json",
+		ContentFile: "config/settings.json",
+	}
+	resourceRoot := filepath.Join(root, "resources", manifest.Name)
+	if err := os.MkdirAll(filepath.Join(resourceRoot, "config"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(resourceRoot, "config", "settings.json"), []byte(`{"data":"${RESOURCE_DATA_DIR}"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	env := resourceEnvForResource(root, filepath.Join(root, "home"), manifest.Name)
+	if err := writeManagedServiceConfig(&Controller{Root: root}, manifest, env); err != nil {
+		t.Fatal(err)
+	}
+	values := managedServiceEnvValues(env)
+	body, err := os.ReadFile(filepath.Join(values["RESOURCE_CONFIG_DIR"], "settings.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := string(body), `{"data":"`+values["RESOURCE_DATA_DIR"]+`"}`; got != want {
+		t.Fatalf("rendered file asset = %q, want %q", got, want)
+	}
+
+	outside := filepath.Join(root, "outside.json")
+	if err := os.WriteFile(outside, []byte(`{"secret":"outside"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(resourceRoot, "config", "escape.json")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	manifest.ManagedService.Config.ContentFile = "config/escape.json"
+	if err := writeManagedServiceConfig(&Controller{Root: root}, manifest, env); err == nil {
+		t.Fatal("expected config asset symlink escape to fail")
 	}
 }
 

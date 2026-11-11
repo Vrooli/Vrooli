@@ -243,7 +243,7 @@ CREATE INDEX IF NOT EXISTS idx_runtime_demand_leases_scenario
   ON runtime_demand_leases(scenario, variant, status, expires_at);
 CREATE INDEX IF NOT EXISTS idx_runtime_demand_leases_consumer
   ON runtime_demand_leases(consumer_id, status);
-` + editorLeaseSchemaSQL + demandIdleSchemaSQL + demandStopSchemaSQL + agentSessionReapSchemaSQL
+` + editorLeaseSchemaSQL + demandIdleSchemaSQL + demandStopSchemaSQL + agentSessionReapSchemaSQL + editorLeaseProvenanceSchemaSQL
 
 func (s *SQLiteStore) ensureSchema(ctx context.Context) error {
 	current, err := readSchemaVersion(ctx, s.db)
@@ -341,6 +341,7 @@ var schemaMigrations = map[int]func(context.Context, *sql.DB) error{
 	},
 	13: addEditorLeaseOwner,
 	14: addStartOperationFenceLink,
+	15: addEditorLeaseProvenance,
 }
 
 func addStartOperationFenceLink(ctx context.Context, db *sql.DB) error {
@@ -426,7 +427,8 @@ CREATE TABLE IF NOT EXISTS runtime_editor_leases (
   owner_ref TEXT NOT NULL DEFAULT '',
   owner_evidence_json TEXT NOT NULL DEFAULT '',
   owner_source TEXT NOT NULL DEFAULT '',
-  owner_recorded_at TEXT
+  owner_recorded_at TEXT,
+  binding_id TEXT NOT NULL DEFAULT ''
 );
 CREATE INDEX IF NOT EXISTS idx_runtime_editor_leases_status ON runtime_editor_leases(status);
 CREATE INDEX IF NOT EXISTS idx_runtime_editor_leases_working_dir ON runtime_editor_leases(working_dir);

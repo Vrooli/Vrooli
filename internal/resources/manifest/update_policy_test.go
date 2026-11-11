@@ -68,6 +68,34 @@ func TestRollingUpdateManifestUsesCanonicalPortNames(t *testing.T) {
 	}
 }
 
+func TestExclusiveStopStartRequiresTheDeclaredOpenRGBSDKHandshake(t *testing.T) {
+	m, err := manifest.Load(filepath.Join(findRepoRoot(t), "resources", "openrgb", "resource.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.ManagedService.UpdatePolicy = &resourcedeployment.ServiceUpdatePolicy{Strategy: resourcedeployment.UpdateStrategyExclusiveStopStart, CandidatePort: "sdk"}
+	if err := manifest.Validate(m); err != nil {
+		t.Fatalf("valid exclusive OpenRGB update rejected: %v", err)
+	}
+	for name, mutate := range map[string]func(*manifest.ResourceManifest){
+		"wrong protocol": func(m *manifest.ResourceManifest) { m.HealthChecks[0].Type = "tcp" },
+		"wrong port":     func(m *manifest.ResourceManifest) { m.HealthChecks[0].Target = "127.0.0.1:6743" },
+		"remote target":  func(m *manifest.ResourceManifest) { m.HealthChecks[0].Target = "192.0.2.4:${RESOURCE_PORT_SDK}" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate, err := manifest.Load(filepath.Join(findRepoRoot(t), "resources", "openrgb", "resource.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			candidate.ManagedService.UpdatePolicy = &resourcedeployment.ServiceUpdatePolicy{Strategy: resourcedeployment.UpdateStrategyExclusiveStopStart, CandidatePort: "sdk"}
+			mutate(&candidate)
+			if err := manifest.Validate(candidate); err == nil {
+				t.Fatal("invalid exclusive readiness route accepted")
+			}
+		})
+	}
+}
+
 func TestResourceSchemaClosesTheUpdatePolicyContract(t *testing.T) {
 	schema := compileResourceSchema(t)
 	data, err := os.ReadFile(filepath.Join(findRepoRoot(t), "resources", "cloudflared", "resource.json"))
@@ -80,6 +108,7 @@ func TestResourceSchemaClosesTheUpdatePolicyContract(t *testing.T) {
 		valid  bool
 	}{
 		{"eligible", map[string]any{"strategy": "rolling-stateless", "candidate_port": "http"}, true},
+		{"exclusive", map[string]any{"strategy": "exclusive-stop-start", "candidate_port": "sdk"}, true},
 		{"missing strategy", map[string]any{"candidate_port": "http"}, false},
 		{"unknown strategy", map[string]any{"strategy": "replace", "candidate_port": "http"}, false},
 		{"invalid port", map[string]any{"strategy": "rolling-stateless", "candidate_port": "../http"}, false},

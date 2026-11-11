@@ -6,14 +6,29 @@ import (
 	"time"
 )
 
-// This worker is independent of fleet renewal. A resource operation may hold
-// its own lifecycle lock or wait for native readiness; it must never delay the
-// supervisor's scenario lease heartbeats. The durable owner handles process
-// replacement and recovers the same request after this worker is lost.
-func (s *Service) runManagedUpdateWorker(ctx context.Context) {
-	if s.cfg.ManagedUpdateReconcile == nil {
-		return
+// startReconcileWorker isolates a durable owner from fleet renewal and other
+// owners. A reconcile may hold a lifecycle lock or wait for native readiness.
+func (s *Service) startReconcileWorker(parent context.Context, name string, reconcile func(context.Context) error) func() {
+	if reconcile == nil {
+		return func() {}
 	}
+	ctx, cancel := context.WithCancel(parent)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.runReconcileWorker(ctx, name, reconcile)
+	}()
+	return func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			s.logf("%s worker shutdown remains unresolved; durable checkpoint retained", name)
+		}
+	}
+}
+
+func (s *Service) runReconcileWorker(ctx context.Context, name string, reconcile func(context.Context) error) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -21,10 +36,10 @@ func (s *Service) runManagedUpdateWorker(ctx context.Context) {
 			return
 		}
 		operation, cancel := context.WithTimeout(ctx, 4*time.Minute)
-		err := s.reconcileManagedUpdatesOnce(operation)
+		err := reconcileWorkerOnce(operation, name, reconcile)
 		cancel()
 		if err != nil && ctx.Err() == nil {
-			s.logf("managed update recovery degraded: %v", err)
+			s.logf("%s degraded: %v", name, err)
 		}
 		select {
 		case <-ctx.Done():
@@ -34,11 +49,11 @@ func (s *Service) runManagedUpdateWorker(ctx context.Context) {
 	}
 }
 
-func (s *Service) reconcileManagedUpdatesOnce(ctx context.Context) (err error) {
+func reconcileWorkerOnce(ctx context.Context, name string, reconcile func(context.Context) error) (err error) {
 	defer func() {
 		if problem := recover(); problem != nil {
-			err = fmt.Errorf("managed update recovery panic contained: %v", problem)
+			err = fmt.Errorf("%s panic contained: %v", name, problem)
 		}
 	}()
-	return s.cfg.ManagedUpdateReconcile(ctx)
+	return reconcile(ctx)
 }

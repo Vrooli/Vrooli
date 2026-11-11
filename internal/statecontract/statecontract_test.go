@@ -544,6 +544,39 @@ func TestStoredConstantsAndLayoutsParticipateAndAreNamed(t *testing.T) {
 	}
 }
 
+func TestManagedUpdateLedgerConstantsAreStored(t *testing.T) {
+	contains := func(values []string, want string) bool {
+		for _, value := range values {
+			if value == want {
+				return true
+			}
+		}
+		return false
+	}
+	for _, constant := range []string{"HealthCheckOpenRGBV6"} {
+		if !contains(StoredConstants["internal/resources/manifest"], constant) {
+			t.Errorf("%s is not classified as stored; managed-update ledger persists the frozen manifest", constant)
+		}
+		if contains(NotStoredConstants["internal/resources/manifest"], constant) {
+			t.Errorf("%s is incorrectly classified as not stored", constant)
+		}
+	}
+	for _, constant := range []string{"UpdateStrategyExclusiveStopStart", "UpdateStrategyRollingStateless"} {
+		if !contains(StoredConstants["packages/resource-deployment"], constant) {
+			t.Errorf("%s is not classified as stored; update ledgers retain the frozen policy", constant)
+		}
+		if contains(NotStoredConstants["packages/resource-deployment"], constant) {
+			t.Errorf("%s is incorrectly classified as not stored", constant)
+		}
+	}
+	if !contains(StoredConstants["internal/resources"], "openRGBResourceName") {
+		t.Error("openRGBResourceName is not classified as stored; managed-update ledger persists the resource identity")
+	}
+	if contains(NotStoredConstants["internal/resources"], "openRGBResourceName") {
+		t.Error("openRGBResourceName is incorrectly classified as not stored")
+	}
+}
+
 func testStampWithout(t *testing.T, owner string) string {
 	t.Helper()
 	layouts := fixtureLayouts()

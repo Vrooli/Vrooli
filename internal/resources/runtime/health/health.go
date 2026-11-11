@@ -1,15 +1,21 @@
 package health
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/vrooli/vrooli/internal/tuning"
 
@@ -38,6 +44,18 @@ type Config struct {
 	Runner     func(context.Context, *exec.Cmd) ([]byte, error)
 	HTTPClient *http.Client
 }
+
+const (
+	openRGBProtocolVersion       uint32 = 6
+	openRGBSDKPacketAck          uint32 = 10
+	openRGBProtocolRequest       uint32 = 40
+	openRGBServerNamePacket      uint32 = 51
+	openRGBControllerUpdate      uint32 = 1150
+	openRGBSDKHeaderSize                = 16
+	openRGBSDKMaxHandshakeBody          = 4096
+	openRGBSDKMaxUpdateBody             = 4 << 20
+	openRGBSDKMaxHandshakeFrames        = 32
+)
 
 // RunChecks runs both declared check kinds and combines them.
 //
@@ -122,6 +140,8 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 		}
 		_ = conn.Close()
 		return Result{Healthy: true, Message: "healthy"}, nil
+	case "openrgb-sdk-v6":
+		return runOpenRGBSDKV6Readiness(checkCtx, renderTarget(check.Target, cfg.Env))
 	case "postgresql":
 		return runPostgreSQLReadiness(checkCtx, renderTarget(check.Target, cfg.Env), cfg.Env), nil
 	case "redis":
@@ -162,12 +182,13 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 				return cmd.CombinedOutput()
 			}
 		}
-		cmd := shell.Command(shell.Spec{Context: checkCtx,
-			Name:  check.Command[0],
-			Args:  check.Command[1:],
-			Dir:   cfg.Root,
-			Env:   cfg.Env,
-			Stdin: nil,
+		cmd := shell.Command(shell.Spec{
+			Context: checkCtx,
+			Name:    check.Command[0],
+			Args:    check.Command[1:],
+			Dir:     cfg.Root,
+			Env:     cfg.Env,
+			Stdin:   nil,
 		})
 		if _, err := runner(checkCtx, cmd); err != nil {
 			return Result{Message: fmt.Sprintf("command check failed for %s", strings.Join(check.Command, " "))}, nil
@@ -176,6 +197,139 @@ func RunCheck(ctx context.Context, check manifestpkg.ResourceHealthCheck, cfg Co
 	default:
 		return Result{}, fmt.Errorf("unsupported health check type %q", check.Type)
 	}
+}
+
+func runOpenRGBSDKV6Readiness(ctx context.Context, target string) (Result, error) {
+	address, err := validateOpenRGBSDKAddress(target)
+	if err != nil {
+		return Result{}, err
+	}
+	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
+	if err != nil {
+		return Result{Message: fmt.Sprintf("OpenRGB SDK connection failed for %s", address)}, nil
+	}
+	defer conn.Close()
+	if deadline, ok := ctx.Deadline(); ok {
+		if err := conn.SetDeadline(deadline); err != nil {
+			return Result{Message: "OpenRGB SDK readiness deadline could not be set"}, nil
+		}
+	}
+
+	request := make([]byte, openRGBSDKHeaderSize+4)
+	copy(request[:4], "ORGB")
+	binary.LittleEndian.PutUint32(request[8:12], openRGBProtocolRequest)
+	binary.LittleEndian.PutUint32(request[12:16], 4)
+	binary.LittleEndian.PutUint32(request[16:], openRGBProtocolVersion)
+	if err := writeOpenRGBSDKBytes(conn, request); err != nil {
+		return Result{Message: "OpenRGB SDK protocol negotiation write failed"}, nil
+	}
+
+	var version uint32
+	var serverNameSeen bool
+	for frame := 0; frame < openRGBSDKMaxHandshakeFrames; frame++ {
+		packetID, deviceID, body, err := readOpenRGBSDKHandshakeFrame(conn)
+		if err != nil {
+			return Result{Message: fmt.Sprintf("OpenRGB SDK protocol negotiation failed: %v", err)}, nil
+		}
+		switch packetID {
+		case openRGBProtocolRequest:
+			if deviceID != 0 || len(body) != 4 || version != 0 {
+				return Result{Message: "OpenRGB SDK protocol reply is malformed"}, nil
+			}
+			version = binary.LittleEndian.Uint32(body)
+			if version < openRGBProtocolVersion {
+				return Result{Message: fmt.Sprintf("OpenRGB SDK protocol %d is below required version %d", version, openRGBProtocolVersion)}, nil
+			}
+		case openRGBServerNamePacket:
+			if deviceID != 0 || serverNameSeen || !validOpenRGBServerName(body) {
+				return Result{Message: "OpenRGB SDK server-name reply is malformed"}, nil
+			}
+			serverNameSeen = true
+		case openRGBSDKPacketAck:
+			// OpenRGB 1.1 sends the correlated ACK after its version and
+			// name replies. A TCP listener that only returns both replies
+			// has not completed the v6 negotiation.
+			if deviceID != 0 || len(body) != 8 || binary.LittleEndian.Uint32(body[:4]) != openRGBProtocolRequest {
+				return Result{Message: "OpenRGB SDK protocol negotiation ACK is malformed"}, nil
+			}
+			if version == 0 || !serverNameSeen {
+				return Result{Message: "OpenRGB SDK protocol negotiation ACK arrived before both replies"}, nil
+			}
+			if status := binary.LittleEndian.Uint32(body[4:]); status != 0 {
+				return Result{Message: fmt.Sprintf("OpenRGB SDK protocol negotiation ACK returned status %d", status)}, nil
+			}
+			return Result{Healthy: true, Message: "OpenRGB SDK protocol v6 ready"}, nil
+		}
+	}
+	return Result{Message: "OpenRGB SDK handshake exceeded the frame bound"}, nil
+}
+
+func validOpenRGBServerName(body []byte) bool {
+	if len(body) < 2 || body[len(body)-1] != 0 || bytes.IndexByte(body[:len(body)-1], 0) >= 0 || !utf8.Valid(body[:len(body)-1]) {
+		return false
+	}
+	return strings.TrimSpace(string(body[:len(body)-1])) != ""
+}
+
+func validateOpenRGBSDKAddress(target string) (string, error) {
+	host, port, err := net.SplitHostPort(strings.TrimSpace(target))
+	if err != nil {
+		return "", fmt.Errorf("OpenRGB SDK health target must be a loopback host:port: %w", err)
+	}
+	ip, err := netip.ParseAddr(strings.Trim(host, "[]"))
+	if err != nil || !ip.IsLoopback() {
+		return "", fmt.Errorf("OpenRGB SDK health target must use a literal loopback address")
+	}
+	portNumber, err := strconv.Atoi(port)
+	if err != nil || portNumber < 1 || portNumber > 65535 {
+		return "", fmt.Errorf("OpenRGB SDK health target has an invalid port")
+	}
+	return net.JoinHostPort(ip.String(), strconv.Itoa(portNumber)), nil
+}
+
+func writeOpenRGBSDKBytes(w io.Writer, data []byte) error {
+	for len(data) > 0 {
+		written, err := w.Write(data)
+		if err != nil {
+			return err
+		}
+		if written == 0 {
+			return io.ErrShortWrite
+		}
+		data = data[written:]
+	}
+	return nil
+}
+
+func readOpenRGBSDKHandshakeFrame(r io.Reader) (packetID, deviceID uint32, body []byte, err error) {
+	var header [openRGBSDKHeaderSize]byte
+	if _, err = io.ReadFull(r, header[:]); err != nil {
+		return 0, 0, nil, err
+	}
+	if string(header[:4]) != "ORGB" {
+		return 0, 0, nil, fmt.Errorf("invalid packet magic")
+	}
+	deviceID = binary.LittleEndian.Uint32(header[4:8])
+	packetID = binary.LittleEndian.Uint32(header[8:12])
+	bodySize := binary.LittleEndian.Uint32(header[12:16])
+	// OpenRGB broadcasts controller updates to v6 clients independently of
+	// request replies. These can exceed the small handshake body limit.
+	// Drain a bounded update without decoding or discovering any controller.
+	if packetID == openRGBControllerUpdate {
+		if bodySize > openRGBSDKMaxUpdateBody {
+			return 0, 0, nil, fmt.Errorf("controller update exceeds %d-byte bound", openRGBSDKMaxUpdateBody)
+		}
+		_, err = io.CopyN(io.Discard, r, int64(bodySize))
+		return packetID, deviceID, nil, err
+	}
+	if bodySize > openRGBSDKMaxHandshakeBody {
+		return 0, 0, nil, fmt.Errorf("packet body exceeds %d-byte bound", openRGBSDKMaxHandshakeBody)
+	}
+	body = make([]byte, int(bodySize))
+	if _, err = io.ReadFull(r, body); err != nil {
+		return 0, 0, nil, err
+	}
+	return packetID, deviceID, body, nil
 }
 
 func renderTarget(target string, env []string) string {

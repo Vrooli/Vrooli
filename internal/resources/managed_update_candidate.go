@@ -16,6 +16,8 @@ import (
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/network"
 	"github.com/vrooli/vrooli/internal/process"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	resourcehealth "github.com/vrooli/vrooli/internal/resources/runtime/health"
 )
 
 // AdvanceManagedUpdateCandidate advances only an already-admitted operation's
@@ -23,6 +25,15 @@ import (
 // launch reconciles the persisted intent; absence or caller loss never causes
 // redispatch. The complete promotion/recovery runner owns subsequent phases.
 func (c *Controller) AdvanceManagedUpdateCandidate(ctx context.Context, resource, request string) (ManagedServiceUpdate, error) {
+	if resource == openRGBResourceName {
+		return c.runOpenRGBPublicUpdate(ctx, func(ctx context.Context) (ManagedServiceUpdate, error) {
+			return c.advanceManagedUpdateCandidate(ctx, resource, request)
+		})
+	}
+	return c.advanceManagedUpdateCandidate(ctx, resource, request)
+}
+
+func (c *Controller) advanceManagedUpdateCandidate(ctx context.Context, resource, request string) (ManagedServiceUpdate, error) {
 	if !managedUpdateResource.MatchString(resource) || !managedUpdateKey.MatchString(request) {
 		return ManagedServiceUpdate{}, fmt.Errorf("invalid candidate selector")
 	}
@@ -42,6 +53,21 @@ func (c *Controller) AdvanceManagedUpdateCandidate(ctx context.Context, resource
 	u, err = s.Confirm(ctx, request, u.Revision)
 	if err != nil {
 		return ManagedServiceUpdate{}, err
+	}
+	if resource == openRGBResourceName {
+		if err := c.qualifyOpenRGBResumption(ctx, u); err != nil {
+			return u, err
+		}
+		if !exclusiveStopStart(u) {
+			return u, fmt.Errorf("OpenRGB profile requires exclusive native replacement")
+		}
+		if u.Phase != UpdatePrepared {
+			return u, fmt.Errorf("exclusive OpenRGB candidate preflight requires prepared admission; resume the update for %s", u.Phase)
+		}
+		// Hardware access cannot be duplicated by a parallel candidate. Prove
+		// retained original in place; the full runner repeats proof before stop.
+		_, err := c.managedUpdateEffectOwner().original(ctx, u)
+		return u, err
 	}
 	return c.advanceManagedUpdateCandidateLocked(ctx, u, s)
 }
@@ -153,18 +179,35 @@ func observeManagedUpdateProcess(ctx context.Context, u ManagedServiceUpdate, p 
 	if err != nil {
 		return p, err
 	}
+	executing := invocation
+	expectedImageSHA := c.Artifact.SHA256
+	var appImageStage *openRGBAppImageStage
+	if u.Resource == openRGBResourceName {
+		owner := &Controller{Root: i.Runtime.Root, Home: i.Runtime.Home}
+		appImageStage, err = owner.verifyOpenRGBRoleArtifact(ctx, c.Artifact)
+		if err != nil {
+			return p, err
+		}
+		if appImageStage != nil {
+			executing, err = appImageStage.servingInvocation(invocation, i.Runtime.Port)
+			if err != nil {
+				return p, err
+			}
+			expectedImageSHA = appImageStage.payloadSHA256
+		}
+	}
 	actualEnv, err := process.ReadEnvironment(ref.RootPID)
 	if err != nil {
 		return p, err
 	}
-	if !reflect.DeepEqual(actualEnv, managedServiceEnvValues(invocation.Env)) {
+	if !reflect.DeepEqual(actualEnv, managedServiceEnvValues(executing.Env)) {
 		return p, fmt.Errorf("running role environment differs from frozen inputs")
 	}
 	args, err := platform.ProcessArguments(ref.RootPID)
 	if err != nil {
 		return p, err
 	}
-	if !reflect.DeepEqual(args, append([]string{invocation.Path}, invocation.Args...)) {
+	if !reflect.DeepEqual(args, append([]string{executing.Path}, executing.Args...)) {
 		return p, fmt.Errorf("running role arguments differ from frozen inputs")
 	}
 	image, err := platform.OpenProcessExecutable(ref.RootPID)
@@ -181,39 +224,29 @@ func observeManagedUpdateProcess(ctx context.Context, u ManagedServiceUpdate, p 
 	if err != nil {
 		return p, err
 	}
-	if digest != c.Artifact.SHA256 {
+	if digest != expectedImageSHA {
 		return p, fmt.Errorf("running role image differs from frozen checksum")
 	}
 	if err := managedUpdateOwnedListener(i.Runtime.Port, ref.RootPID); err != nil {
 		return p, err
 	}
-	values := managedServiceEnvValues(invocation.Env)
-	ready := ""
-	for _, check := range c.Manifest.HealthChecks {
-		if check.Type == "http" && check.Kind == "readiness" {
-			ready = os.Expand(check.Target, func(k string) string { return values[k] })
-			break
+	var openRGBServing *openRGBServingObservation
+	if u.Resource == openRGBResourceName {
+		observation, err := newOpenRGBServingObservation(fence, i, c, invocation, ref, incarnation)
+		if err != nil {
+			return p, err
 		}
+		if err := observation.verifyRoleImage(ctx, appImageStage, imageInfo, digest); err != nil {
+			return p, fmt.Errorf("OpenRGB launch witness is not serving in its admitted context: %w", err)
+		}
+		openRGBServing = &observation
 	}
-	endpoint, err := url.Parse(ready)
-	if err != nil || endpoint.Scheme != "http" || endpoint.Host != "127.0.0.1:"+strconv.Itoa(i.Runtime.Port) || endpoint.User != nil {
-		return p, fmt.Errorf("readiness escaped the exact role loopback endpoint")
-	}
-	transport := &http.Transport{Proxy: nil, DisableKeepAlives: true}
-	defer transport.CloseIdleConnections()
-	client := &http.Client{Transport: transport, Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ready, nil)
+	values := managedServiceEnvValues(invocation.Env)
+	client, err := observeManagedUpdateReadiness(ctx, c, i.Runtime.Port, values, invocation.Env)
 	if err != nil {
 		return p, err
 	}
-	response, err := client.Do(req)
-	if err != nil {
-		return p, err
-	}
-	_ = response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return p, fmt.Errorf("role readiness returned HTTP %d", response.StatusCode)
-	}
+	defer client.CloseIdleConnections()
 	metrics, err := observeManagedUpdateMetrics(ctx, client, i.Runtime.Port, c)
 	if err != nil {
 		return p, err
@@ -244,14 +277,76 @@ func observeManagedUpdateProcess(ctx context.Context, u ManagedServiceUpdate, p 
 	if !os.SameFile(imageInfo, finalImageInfo) {
 		return p, fmt.Errorf("native role executed another image during readiness observation")
 	}
-	state := ManagedServiceState{InstanceID: i.InstanceID, OwnershipTokenHash: i.OwnershipTokenHash, PID: ref.RootPID, Incarnation: incarnation, ArtifactPath: c.Artifact.Path, ArtifactSHA256: digest, ArtifactVersion: c.Artifact.Version, StartedAt: *fence.ClaimedAt}
+	if openRGBServing != nil {
+		if err := openRGBServing.verifyRoleImage(ctx, appImageStage, finalImageInfo, digest); err != nil {
+			return p, fmt.Errorf("OpenRGB launch witness changed during readiness observation: %w", err)
+		}
+	}
+	state := ManagedServiceState{InstanceID: i.InstanceID, OwnershipTokenHash: i.OwnershipTokenHash, PID: ref.RootPID, Incarnation: incarnation, ArtifactPath: c.Artifact.Path, ArtifactSHA256: c.Artifact.SHA256, ArtifactVersion: c.Artifact.Version, StartedAt: *fence.ClaimedAt}
 	if p.State != nil && !reflect.DeepEqual(*p.State, state) {
 		return p, fmt.Errorf("recorded process identity differs from native observation")
 	}
 	p.State, p.NativeRef = &state, &ref
-	p.Proof = &ManagedUpdateProof{PID: state.PID, Incarnation: incarnation, InstanceID: i.InstanceID, ArtifactSHA256: digest, ObservedAt: time.Now().UTC(), OwnedListener: true, Ready: true}
+	p.Proof = &ManagedUpdateProof{PID: state.PID, Incarnation: incarnation, InstanceID: i.InstanceID, ArtifactSHA256: state.ArtifactSHA256, ObservedAt: time.Now().UTC(), OwnedListener: true, Ready: true}
 	p.Proof.Metrics = metrics
 	return p, nil
+}
+
+func observeManagedUpdateReadiness(ctx context.Context, c ManagedUpdateContract, port int, values map[string]string, env []string) (*http.Client, error) {
+	var ready *ResourceHealthCheck
+	for i := range c.Manifest.HealthChecks {
+		if c.Manifest.HealthChecks[i].Kind == manifestpkg.HealthCheckReadiness {
+			ready = &c.Manifest.HealthChecks[i]
+			break
+		}
+	}
+	if ready == nil {
+		return nil, fmt.Errorf("update contract has no readiness check")
+	}
+	isOpenRGB := c.Manifest.Name == openRGBResourceName
+	isOpenRGBSDKCheck := ready.Type == manifestpkg.HealthCheckOpenRGBV6
+	if isOpenRGB != isOpenRGBSDKCheck {
+		return nil, fmt.Errorf("managed update readiness type does not match its resource")
+	}
+	if isOpenRGB {
+		rendered := *ready
+		rendered.Target = os.Expand(rendered.Target, func(k string) string { return values[k] })
+		host, actualPort, err := net.SplitHostPort(rendered.Target)
+		if err != nil || host != "127.0.0.1" || actualPort != strconv.Itoa(port) {
+			return nil, fmt.Errorf("OpenRGB SDK readiness escaped the exact role loopback endpoint")
+		}
+		result, err := resourcehealth.RunCheck(ctx, rendered, resourcehealth.Config{Env: env})
+		if err != nil {
+			return nil, fmt.Errorf("managed update readiness check failed: %w", err)
+		}
+		if !result.Healthy {
+			return nil, fmt.Errorf("managed update readiness failed: %s", result.Message)
+		}
+		return &http.Client{Transport: &http.Transport{Proxy: nil, DisableKeepAlives: true}, Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, nil
+	}
+	readyURL := os.Expand(ready.Target, func(k string) string { return values[k] })
+	endpoint, err := url.Parse(readyURL)
+	if err != nil || endpoint.Scheme != "http" || endpoint.Host != "127.0.0.1:"+strconv.Itoa(port) || endpoint.User != nil {
+		return nil, fmt.Errorf("readiness escaped the exact role loopback endpoint")
+	}
+	transport := &http.Transport{Proxy: nil, DisableKeepAlives: true}
+	client := &http.Client{Transport: transport, Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, readyURL, nil)
+	if err != nil {
+		transport.CloseIdleConnections()
+		return nil, err
+	}
+	response, err := client.Do(req)
+	if err != nil {
+		transport.CloseIdleConnections()
+		return nil, err
+	}
+	_ = response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		transport.CloseIdleConnections()
+		return nil, fmt.Errorf("role readiness returned HTTP %d", response.StatusCode)
+	}
+	return client, nil
 }
 
 func managedUpdateOwnedListener(port, pid int) error {
@@ -313,6 +408,9 @@ func waitManagedUpdateProcess(ctx context.Context, u ManagedServiceUpdate, proce
 }
 
 func (c *Controller) advanceManagedUpdateRollbackProbe(ctx context.Context, u ManagedServiceUpdate, s *managedUpdateStore) (ManagedServiceUpdate, error) {
+	if exclusiveStopStart(u) {
+		return u, nil
+	}
 	if !u.RollbackQualificationRequired || u.RollbackQualifiedAt != nil {
 		return u, nil
 	}

@@ -148,6 +148,9 @@ type Config struct {
 	// ManagedUpdateReconcile resumes only durable, already-admitted operations.
 	// It runs in one separate bounded worker, never on the fleet renewal path.
 	ManagedUpdateReconcile func(context.Context) error
+	// LightingReconcile converges explicitly enabled host lighting independently
+	// of fleet renewal and managed-update work. Nil leaves the worker disabled.
+	LightingReconcile func(context.Context) error
 }
 
 type Service struct {
@@ -269,16 +272,13 @@ func Run(ctx context.Context, cfg Config) error {
 	}
 	svc.logf("supervisor started supervisor_id=%s pid=%d lease_ttl=%s renew_interval=%s",
 		svc.session.SupervisorID, os.Getpid(), normalizeLeaseTTL(cfg.LeaseTTL), normalizeRenewInterval(cfg.RenewInterval))
-	updatesCtx, stopUpdates := context.WithCancel(ctx)
-	updatesDone := make(chan struct{})
-	go func() { defer close(updatesDone); svc.runManagedUpdateWorker(updatesCtx) }()
+	workersCtx, cancelWorkers := context.WithCancel(ctx)
+	stopUpdates := svc.startReconcileWorker(workersCtx, "managed update recovery", cfg.ManagedUpdateReconcile)
+	stopLighting := svc.startReconcileWorker(workersCtx, "headless lighting", cfg.LightingReconcile)
 	defer func() {
+		cancelWorkers()
+		stopLighting()
 		stopUpdates()
-		select {
-		case <-updatesDone:
-		case <-time.After(5 * time.Second):
-			svc.logf("managed update worker shutdown remains unresolved; durable checkpoint retained")
-		}
 	}()
 	ticker := time.NewTicker(normalizeRenewInterval(cfg.RenewInterval))
 	defer ticker.Stop()

@@ -34,15 +34,28 @@ func validateManagedServiceUpdateReadiness(m ResourceManifest) error {
 		return fmt.Errorf("managed_service.update_policy requires exactly one port matching candidate_port")
 	}
 	token := "${" + resourcedeployment.ServicePortEnvironmentName(p.CandidatePort) + "}"
-	prefix := "http://127.0.0.1:" + token + "/"
 	ready := false
 	for _, check := range m.HealthChecks {
-		if check.Type == HealthCheckHTTP && check.Kind == HealthCheckReadiness && strings.HasPrefix(check.Target, prefix) && (len(check.ExpectedStatus) == 0 || (len(check.ExpectedStatus) == 1 && check.ExpectedStatus[0] == 200)) {
-			ready = true
+		if check.Kind != HealthCheckReadiness {
+			continue
+		}
+		switch p.Strategy {
+		case resourcedeployment.UpdateStrategyRollingStateless:
+			prefix := "http://127.0.0.1:" + token + "/"
+			if check.Type == HealthCheckHTTP && strings.HasPrefix(check.Target, prefix) && (len(check.ExpectedStatus) == 0 || (len(check.ExpectedStatus) == 1 && check.ExpectedStatus[0] == 200)) {
+				ready = true
+			}
+		case resourcedeployment.UpdateStrategyExclusiveStopStart:
+			if check.Type == HealthCheckOpenRGBV6 && check.Target == "127.0.0.1:"+token {
+				ready = true
+			}
 		}
 	}
 	if !ready {
-		return fmt.Errorf("managed_service.update_policy requires HTTP 200 readiness on the remapped loopback candidate port")
+		if p.Strategy == resourcedeployment.UpdateStrategyExclusiveStopStart {
+			return fmt.Errorf("exclusive managed_service.update_policy requires OpenRGB SDK v6 readiness on its loopback port")
+		}
+		return fmt.Errorf("rolling managed_service.update_policy requires HTTP 200 readiness on the remapped loopback candidate port")
 	}
 	var common []string
 	for _, v := range m.ManagedService.Environment {

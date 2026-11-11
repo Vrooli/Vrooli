@@ -39,6 +39,7 @@ const (
 	HealthCheckReadiness = "readiness"
 	HealthCheckLiveness  = "liveness"
 	HealthCheckHTTP      = "http"
+	HealthCheckOpenRGBV6 = "openrgb-sdk-v6"
 	DurableDataDir       = "dir"
 	DurableDataFile      = "file"
 	DurableDataSQLite    = "sqlite"
@@ -440,6 +441,16 @@ func Load(path string) (ResourceManifest, error) {
 	return validateLoadedManifest(path, manifest, false)
 }
 
+// Parse validates an already-read immutable manifest snapshot with the same
+// strict contract as Load, without reopening the path during admission.
+func Parse(path string, data []byte) (ResourceManifest, error) {
+	manifest, err := parseManifest(path, data)
+	if err != nil {
+		return ResourceManifest{}, err
+	}
+	return validateLoadedManifest(path, manifest, false)
+}
+
 // ParseForComposeCandidate permits only missing composed output digests. Its
 // caller owns safe bounded acquisition of these exact bytes; it never reopens
 // the manifest path or grants install authority.
@@ -471,6 +482,11 @@ func validateManifest(manifest ResourceManifest, candidate bool) error {
 	}
 	if err := validateProviderPolicy(manifest); err != nil {
 		return err
+	}
+	if strings.TrimSpace(manifest.Runtime.Image) != "" {
+		if err := ValidatePinnedImageRef(manifest.Runtime.Image); err != nil {
+			return fmt.Errorf("runtime.image: %w", err)
+		}
 	}
 	return validateDriverConfigurationForCandidate(manifest, candidate)
 }
@@ -524,7 +540,7 @@ func validateManifestFeatures(manifest ResourceManifest) error {
 		}
 	}
 	if manifest.Driver == manifestManagedService {
-		if err := validateManagedServiceHealthContract(manifest.HealthChecks); err != nil {
+		if err := validateManagedServiceHealthContract(manifest.HealthChecks, manifest.ManagedService != nil && manifest.ManagedService.TaskScopedContainer); err != nil {
 			return err
 		}
 	}
@@ -554,7 +570,13 @@ func validateManifestFeatures(manifest ResourceManifest) error {
 	return nil
 }
 
-func validateManagedServiceHealthContract(checks []ResourceHealthCheck) error {
+func validateManagedServiceHealthContract(checks []ResourceHealthCheck, taskScopedContainer bool) error {
+	if taskScopedContainer {
+		if len(checks) != 0 {
+			return fmt.Errorf("task-scoped managed-service health is owned by its runtime API; generic health_checks must be omitted")
+		}
+		return nil
+	}
 	seen := map[string]bool{}
 	for _, check := range checks {
 		kind := strings.TrimSpace(check.Kind)
@@ -609,7 +631,7 @@ func validateDriverConfigurationForCandidate(manifest ResourceManifest, candidat
 			return fmt.Errorf("endpoint is required for cloud-api resources")
 		}
 	case manifestManagedService:
-		return validateManagedServiceForCandidate(manifest.ManagedService, candidate)
+		return validateManagedServiceForCandidate(manifest, candidate)
 	}
 	if manifest.Acquisition != nil {
 		if err := manifest.Acquisition.Validate(); err != nil {
@@ -620,10 +642,11 @@ func validateDriverConfigurationForCandidate(manifest ResourceManifest, candidat
 }
 
 func validateManagedService(service *ResourceManagedService) error {
-	return validateManagedServiceForCandidate(service, false)
+	return validateManagedServiceForCandidate(ResourceManifest{ManagedService: service}, false)
 }
 
-func validateManagedServiceForCandidate(service *ResourceManagedService, candidate bool) error {
+func validateManagedServiceForCandidate(manifest ResourceManifest, candidate bool) error {
+	service := manifest.ManagedService
 	if service == nil {
 		return fmt.Errorf("managed_service is required for managed-service resources")
 	}
@@ -635,12 +658,29 @@ func validateManagedServiceForCandidate(service *ResourceManagedService, candida
 			return err
 		}
 	}
-	artifactErr := service.Artifact.Validate()
-	if candidate {
-		artifactErr = service.Artifact.ValidateForComposeCandidate()
+	if service.TaskScopedContainer {
+		if strings.TrimSpace(manifest.Runtime.Image) == "" {
+			return fmt.Errorf("managed_service.task_scoped_container requires runtime.image pinned by digest")
+		}
+		if service.UpdatePolicy != nil || service.Acquisition != nil || service.Artifact.Path != "" {
+			return fmt.Errorf("managed_service.task_scoped_container cannot declare a host-process artifact, acquisition, or update_policy")
+		}
+	} else {
+		artifactErr := service.Artifact.Validate()
+		if candidate {
+			artifactErr = service.Artifact.ValidateForComposeCandidate()
+		}
+		if artifactErr != nil {
+			return fmt.Errorf("managed_service.artifact: %w", artifactErr)
+		}
 	}
-	if artifactErr != nil {
-		return fmt.Errorf("managed_service.artifact: %w", artifactErr)
+	if service.SourceSelectionRequired || service.HostToolExecutable != "" || service.HostToolVersion != "" {
+		if service.Acquisition == nil || strings.TrimSpace(service.HostToolExecutable) == "" || strings.TrimSpace(service.HostToolVersion) == "" {
+			return fmt.Errorf("managed_service source selection requires acquisition plus host_tool_executable and host_tool_version")
+		}
+		if filepath.Base(service.HostToolExecutable) != service.HostToolExecutable || strings.ContainsAny(service.HostToolExecutable, `/\\`) {
+			return fmt.Errorf("managed_service.host_tool_executable must be a command name")
+		}
 	}
 	if candidate && service.Acquisition == nil {
 		return fmt.Errorf("compose candidate requires acquisition")
@@ -1176,7 +1216,7 @@ func validateRuntimeMemoryLimit(value string) error {
 
 func validateHealthCheck(check ResourceHealthCheck) error {
 	switch strings.TrimSpace(check.Type) {
-	case "tcp", "http", "postgresql", "redis":
+	case "tcp", "http", "postgresql", "redis", HealthCheckOpenRGBV6:
 		if strings.TrimSpace(check.Target) == "" {
 			return fmt.Errorf("health check target is required for %s checks", check.Type)
 		}

@@ -177,6 +177,9 @@ func (h toolHandler) capabilityGate(requirement hostreqspec.ResolvedRequirement,
 func (h toolHandler) inspectPackage(host hostreqkit.Host, requirement hostreqspec.ResolvedRequirement, status hostreqkit.ItemStatus) hostreqkit.ItemStatus {
 	status.PackageName = h.manifest.PackageNameForHost(host)
 	command, installed := hostreqkit.ResolveCommand(h.manifest.Commands)
+	if _, local := h.userLocalAPT(host); local {
+		command, installed = resolveFetchCommand(h.manifest.Commands)
+	}
 	status.Command = command
 	status.Installed = installed
 	status.SupportClass = hostreqkit.SupportSupported
@@ -201,6 +204,15 @@ func (h toolHandler) inspectPackage(host hostreqkit.Host, requirement hostreqspe
 	}
 
 	version, probeErr := hostreqkit.ReadVersionErr(command, h.manifest.VersionArgs)
+	if _, local := h.userLocalAPT(host); local {
+		version, probeErr = h.readFetchVersion(command)
+		if probeErr != nil {
+			status.Installed = false
+			status.ExecutionState = hostreqkit.ExecutionPending
+			status.Notes = append(status.Notes, fmt.Sprintf("managed package runtime probe failed: %v", probeErr))
+			return status
+		}
+	}
 	if version != "" {
 		status.Version = version
 	}
@@ -295,7 +307,8 @@ func (h toolHandler) unsupportedTargetNote(host hostreqkit.Host) string {
 
 func (h toolHandler) Apply(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
 	if status.Installed {
-		if status.PackageName != "" && host.PackageManager != "" {
+		_, local := h.userLocalAPT(host)
+		if !local && status.PackageName != "" && host.PackageManager != "" {
 			if err := recordAdoptedPackage(host, status); err != nil {
 				status.ExecutionState = hostreqkit.ExecutionFailed
 				status.Notes = append(status.Notes, err.Error())
@@ -336,6 +349,9 @@ func recordAdoptedPackage(host hostreqkit.Host, status hostreqkit.ItemStatus) er
 }
 
 func (h toolHandler) applyPackage(host hostreqkit.Host, status hostreqkit.ItemStatus, opts hostreqkit.EnsureOptions) (hostreqkit.ItemStatus, error) {
+	if payload, local := h.userLocalAPT(host); local {
+		return h.applyUserLocalAPT(host, status, opts, payload)
+	}
 	if !status.InstallSupported || strings.TrimSpace(status.PackageName) == "" {
 		status.SupportClass = hostreqkit.SupportUnsupported
 		status.ExecutionState = hostreqkit.ExecutionUnsupported

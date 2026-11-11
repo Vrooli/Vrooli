@@ -19,7 +19,7 @@ const (
 const editorLeaseSelectSQL = `
 SELECT session_id, harness, agent, pid, host_boot_id, working_dir, scope, containment_method, claims_json,
   status, created_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at, stop_reason,
-  owner_kind, owner_ref, owner_evidence_json, owner_source, owner_recorded_at
+  owner_kind, owner_ref, owner_evidence_json, owner_source, owner_recorded_at, binding_id
 FROM runtime_editor_leases`
 
 // CreateEditorLease records a live agent session. A session id that already
@@ -30,6 +30,17 @@ func (s *SQLiteStore) CreateEditorLease(ctx context.Context, lease EditorLease, 
 	if lease.SessionID == "" {
 		return EditorLease{}, fmt.Errorf("create editor lease: session_id is required")
 	}
+	lease.BindingID = ""
+	var out EditorLease
+	err := s.withTx(ctx, func(tx *sql.Tx) error {
+		var err error
+		out, err = s.createEditorLeaseTx(ctx, tx, lease, ttl)
+		return err
+	})
+	return out, err
+}
+
+func (s *SQLiteStore) createEditorLeaseTx(ctx context.Context, tx *sql.Tx, lease EditorLease, ttl time.Duration) (EditorLease, error) {
 	now := s.now()
 	deadline := now.Add(NormalizeHeartbeatTTL(ttl))
 	claims, err := json.Marshal(nonNil(lease.Claims))
@@ -41,15 +52,17 @@ func (s *SQLiteStore) CreateEditorLease(ctx context.Context, lease EditorLease, 
 	if owner.Kind != "" {
 		ownerRecordedAt = formatTime(now)
 	}
-	var out EditorLease
-	err = s.withTx(ctx, func(tx *sql.Tx) error {
+	if err := endEditorLeaseBindingTx(ctx, tx, lease.SessionID, EditorBindingSuperseded, now); err != nil {
+		return EditorLease{}, err
+	}
+	{
 		_, err := tx.ExecContext(ctx, `
 INSERT INTO runtime_editor_leases (session_id, harness, agent, pid, host_boot_id, working_dir, scope, containment_method, claims_json,
   status, created_at, last_heartbeat_at, heartbeat_deadline_at, stopped_at, stop_reason,
-  owner_kind, owner_ref, owner_evidence_json, owner_source, owner_recorded_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, '', ?, ?, ?, ?, ?)
+  owner_kind, owner_ref, owner_evidence_json, owner_source, owner_recorded_at, binding_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, '', ?, ?, ?, ?, ?, ?)
 ON CONFLICT(session_id) DO UPDATE SET
-  harness = excluded.harness, agent = excluded.agent, pid = excluded.pid, host_boot_id = excluded.host_boot_id,
+  binding_id = excluded.binding_id, harness = excluded.harness, agent = excluded.agent, pid = excluded.pid, host_boot_id = excluded.host_boot_id,
   working_dir = excluded.working_dir, scope = excluded.scope, containment_method = excluded.containment_method,
   claims_json = excluded.claims_json, status = excluded.status, last_heartbeat_at = excluded.last_heartbeat_at,
   heartbeat_deadline_at = excluded.heartbeat_deadline_at, stopped_at = NULL, stop_reason = '',
@@ -60,17 +73,12 @@ ON CONFLICT(session_id) DO UPDATE SET
   owner_recorded_at = CASE WHEN excluded.owner_kind <> '' THEN excluded.owner_recorded_at ELSE runtime_editor_leases.owner_recorded_at END`,
 			lease.SessionID, lease.Harness, lease.Agent, optionalPID(lease.PID), lease.HostBootID, lease.WorkingDir, lease.Scope,
 			lease.ContainmentMethod, string(claims), EditorLeaseActive, formatTime(now), formatTime(now), formatTime(deadline),
-			owner.Kind, owner.Ref, owner.EvidenceJSON, owner.Source, ownerRecordedAt)
+			owner.Kind, owner.Ref, owner.EvidenceJSON, owner.Source, ownerRecordedAt, lease.BindingID)
 		if err != nil {
-			return fmt.Errorf("create editor lease: %w", err)
+			return EditorLease{}, fmt.Errorf("create editor lease: %w", err)
 		}
-		out, err = getEditorLeaseTx(ctx, tx, lease.SessionID)
-		return err
-	})
-	if err != nil {
-		return EditorLease{}, err
 	}
-	return out, nil
+	return getEditorLeaseTx(ctx, tx, lease.SessionID)
 }
 
 // GetEditorLease reads one exact session lease without enumerating the registry.
@@ -89,7 +97,8 @@ func (s *SQLiteStore) GetEditorLease(ctx context.Context, sessionID string) (Edi
 	return lease, nil
 }
 
-// HeartbeatEditorLease renews an active lease's deadline.
+// HeartbeatEditorLease renews an unbound legacy lease. Bound attempts require
+// HeartbeatEditorLeaseBinding so delayed legacy writers cannot renew replacements.
 func (s *SQLiteStore) HeartbeatEditorLease(ctx context.Context, sessionID string, ttl time.Duration) (EditorLease, error) {
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
@@ -99,7 +108,7 @@ func (s *SQLiteStore) HeartbeatEditorLease(ctx context.Context, sessionID string
 	deadline := now.Add(NormalizeHeartbeatTTL(ttl))
 	var out EditorLease
 	err := s.withTx(ctx, func(tx *sql.Tx) error {
-		result, err := tx.ExecContext(ctx, `UPDATE runtime_editor_leases SET last_heartbeat_at = ?, heartbeat_deadline_at = ? WHERE session_id = ? AND status = ?`,
+		result, err := tx.ExecContext(ctx, `UPDATE runtime_editor_leases SET last_heartbeat_at = ?, heartbeat_deadline_at = ? WHERE session_id = ? AND status = ? AND binding_id = ''`,
 			formatTime(now), formatTime(deadline), sessionID, EditorLeaseActive)
 		if err != nil {
 			return fmt.Errorf("heartbeat editor lease: %w", err)
@@ -120,7 +129,8 @@ func (s *SQLiteStore) HeartbeatEditorLease(ctx context.Context, sessionID string
 	return out, nil
 }
 
-// StopEditorLease ends a session's lease with a reason.
+// StopEditorLease ends an unbound legacy lease. Bound attempts require
+// StopEditorLeaseBinding so delayed legacy writers cannot stop replacements.
 func (s *SQLiteStore) StopEditorLease(ctx context.Context, sessionID, reason string) (EditorLease, error) {
 	sessionID = strings.TrimSpace(sessionID)
 	if sessionID == "" {
@@ -129,7 +139,7 @@ func (s *SQLiteStore) StopEditorLease(ctx context.Context, sessionID, reason str
 	now := s.now()
 	var out EditorLease
 	err := s.withTx(ctx, func(tx *sql.Tx) error {
-		result, err := tx.ExecContext(ctx, `UPDATE runtime_editor_leases SET status = ?, stopped_at = ?, stop_reason = ? WHERE session_id = ? AND status = ?`,
+		result, err := tx.ExecContext(ctx, `UPDATE runtime_editor_leases SET status = ?, stopped_at = ?, stop_reason = ? WHERE session_id = ? AND status = ? AND binding_id = ''`,
 			EditorLeaseStopped, formatTime(now), strings.TrimSpace(reason), sessionID, EditorLeaseActive)
 		if err != nil {
 			return fmt.Errorf("stop editor lease: %w", err)
@@ -205,10 +215,22 @@ func (s *SQLiteStore) ExpireStaleEditorLeases(ctx context.Context, at time.Time,
 			if !dead {
 				continue
 			}
-			if _, err := tx.ExecContext(ctx, `UPDATE runtime_editor_leases SET status = ?, stopped_at = ?, stop_reason = ? WHERE session_id = ? AND status = ?`,
-				EditorLeaseExpired, formatTime(now), "stale editor lease: "+trigger, lease.SessionID, EditorLeaseActive); err != nil {
+			result, err := tx.ExecContext(ctx, `UPDATE runtime_editor_leases SET status = ?, stopped_at = ?, stop_reason = ? WHERE session_id = ? AND status = ? AND binding_id = ? AND pid IS ? AND host_boot_id = ? AND heartbeat_deadline_at = ?`,
+				EditorLeaseExpired, formatTime(now), "stale editor lease: "+trigger, lease.SessionID, EditorLeaseActive, lease.BindingID, optionalPID(lease.PID), lease.HostBootID, formatTime(lease.HeartbeatDeadlineAt))
+			if err != nil {
 				return fmt.Errorf("expire editor lease %s: %w", lease.SessionID, err)
 			}
+			n, err := result.RowsAffected()
+			if err != nil {
+				return err
+			}
+			if n == 0 {
+				continue
+			}
+			if err := endEditorLeaseBindingTx(ctx, tx, lease.SessionID, EditorBindingTerminal, now); err != nil {
+				return err
+			}
+			lease.StoppedAt = &now
 			lease.Status = EditorLeaseExpired
 			lease.StopReason = "stale editor lease: " + trigger
 			expired = append(expired, lease)
@@ -255,7 +277,7 @@ func scanEditorLease(row editorLeaseScanner) (EditorLease, error) {
 	var stoppedAt, ownerRecordedAt sql.NullString
 	if err := row.Scan(&lease.SessionID, &lease.Harness, &lease.Agent, &pid, &lease.HostBootID, &lease.WorkingDir, &lease.Scope, &lease.ContainmentMethod, &claims,
 		&lease.Status, &createdAt, &heartbeatAt, &deadlineAt, &stoppedAt, &lease.StopReason,
-		&lease.Owner.Kind, &lease.Owner.Ref, &lease.Owner.EvidenceJSON, &lease.Owner.Source, &ownerRecordedAt); err != nil {
+		&lease.Owner.Kind, &lease.Owner.Ref, &lease.Owner.EvidenceJSON, &lease.Owner.Source, &ownerRecordedAt, &lease.BindingID); err != nil {
 		return EditorLease{}, err
 	}
 	if pid.Valid {

@@ -25,6 +25,8 @@ var CodecPackages = []string{
 	"internal/coreactivation",
 	"internal/credentialspec",
 	"internal/hostreqspec",
+	"internal/hostwireless",
+	"internal/lightingruntime",
 	"internal/operatorcapability",
 	"internal/process",
 	"internal/recovery",
@@ -50,6 +52,12 @@ var CodecPackages = []string{
 // selects files by name prefix). Comments and layout do not participate;
 // every declaration and function body does.
 var WholeSources = map[string][]string{
+	// Wireless codecs recompute content-addressed publication/recovery identity;
+	// native journals interpret retained bytes and own rollback after interruption.
+	// Scope these exact machinery files, excluding ordinary preflight/reporting,
+	// CLI output, host discovery and unsigned build implementation. Embedded
+	// recipe identities and actual artifact vocabulary are explicit owner facts.
+	"host-wireless":               {"internal/hostwireless/activation.g*", "internal/hostwireless/artifact*", "internal/hostwireless/asus_bluetooth_artifact*", "internal/hostwireless/signed_bundle*", "internal/hostwireless/signed_copy*", "internal/hostwireless/recovery_proof*", "internal/hostwireless/durable_wireless*", "internal/hostwireless/live_root*", "internal/hostwireless/radio_transaction*", "internal/hostwireless/radio_observe*", "internal/hostwireless/operations_linux*", "internal/hostwireless/journal_operations*", "internal/tools/mt7927-source"},
 	"core-activation":             {"internal/coreactivation"},
 	"watchdog-publication":        {"internal/safeguards/emergency-watchdog"},
 	"coding-agent-recovery":       {"internal/recovery"},
@@ -99,6 +107,7 @@ var PreciseSources = map[string][]string{
 	"resource-artifact-cache": {"packages/resource-deployment"},
 	"installation-inventory":  {"internal/cliinstall"},
 	"supervisor-owner":        {"internal/runtimesupervisor"},
+	"host-lighting-intent":    {"internal/lightingruntime"},
 	"operator-state":          {"internal/operatorstate"},
 	"operator-capability":     {"internal/operatorcapability"},
 	"agent-catalogs":          {"packages/cli-core/agentcatalog", "packages/cli-core/agentcatalog/harness", "packages/cli-core/usagemode"},

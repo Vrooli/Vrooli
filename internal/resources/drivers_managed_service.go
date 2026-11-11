@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -112,6 +113,11 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 		status.ProbeError = err.Error()
 		return status, nil
 	}
+	if manifest.ManagedService != nil && manifest.ManagedService.TaskScopedContainer {
+		status.Installed = true
+		status.Message = "task-scoped runtime; no singleton resource process (use `vrooli resource n8n runtime status --sandbox-id <uuid> --json`)"
+		return status, nil
+	}
 	mode, err := managedServiceProvider(manifest, nil)
 	if err != nil {
 		status.StatusCode = StatusCodeUnavailable
@@ -173,7 +179,7 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 	if err != nil {
 		return status, err
 	}
-	artifact, err := managedServiceArtifactForLaunch(ctx, manifest, artifactPath)
+	artifact, err := managedServiceArtifactForLaunch(ctx, controller, manifest, artifactPath)
 	if err != nil {
 		var drift *FactDriftError
 		if errors.As(err, &drift) {
@@ -300,6 +306,26 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if manifest.Name == openRGBResourceName && (action == brokerTransportStart || action == brokerTransportRestart) {
+		return runOpenRGBNativeResourceAction(ctx, controller, action, args)
+	}
+	if manifest.ManagedService != nil && manifest.ManagedService.TaskScopedContainer {
+		if err := ensureSupportedPlatform(manifest); err != nil {
+			return managedServiceDriverError(item.Name, action, "Platform", err)
+		}
+		if action == "status" {
+			status, err := d.Status(ctx, controller, item, manifest, !slices.Contains(args, "--no-fast"))
+			if err != nil {
+				return err
+			}
+			if slices.Contains(args, "--format") && nextArgValue(args, "--format") == "json" {
+				return json.NewEncoder(stdout).Encode(map[string]any{"installed": status.Installed, "running": status.Running, "healthy": status.Healthy, "health": status.Health, "message": status.Message, "provider": "managed-private"})
+			}
+			_, err = fmt.Fprintf(stdout, "%s: %s\n", item.Name, status.Message)
+			return err
+		}
+		return managedServiceDriverError(item.Name, action, "Lifecycle", fmt.Errorf("task-scoped container lifecycle is available only through `vrooli resource n8n runtime ...`; generic singleton lifecycle is disabled"))
+	}
 	if err := ensureSupportedPlatform(manifest); err != nil {
 		return managedServiceDriverError(item.Name, action, "Platform", err)
 	}
@@ -387,6 +413,9 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 				_, _ = fmt.Fprintf(stderr, "warning: model-cache usage not recorded; cleanup remains protected: %s\n", err)
 			}
 		}
+		if runErr == nil && mode == resourcedeployment.ProviderManagedPrivate && action == driversDockerUninstall {
+			runErr = uninstallManagedServiceArtifact(ctx, controller, manifest)
+		}
 		return runErr
 	default:
 		return managedServiceDriverError(item.Name, action, "Driver", fmt.Errorf("action %q is not supported by driver %q", action, d.Name()))
@@ -398,6 +427,9 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 func (d managedServiceDriver) runUserHosted(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, stdout io.Writer, args ...string) error {
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if manifest.Name == openRGBResourceName && (action == brokerTransportStart || action == brokerTransportRestart) {
+		return ErrOpenRGBPreExecWitnessUnavailable
 	}
 	bootstrap, ok := managedSharedBootstrapperFor(manifest.Name)
 	if !ok {
@@ -552,6 +584,9 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if manifest.Name == openRGBResourceName && (action == brokerTransportStart || action == brokerTransportRestart) {
+		return ErrOpenRGBPreExecWitnessUnavailable
+	}
 	supervisor, _, err := managedServiceSupervisorFor(manifest.Name)
 	if err != nil {
 		return err
@@ -694,6 +729,9 @@ func (d managedServiceDriver) startPrivate(ctx context.Context, controller *Cont
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if manifest.Name == openRGBResourceName {
+		return ErrOpenRGBPreExecWitnessUnavailable
+	}
 	// Reconcile ownership before any port preflight. A service already running
 	// under this supervisor is an idempotent successful start; probing its port
 	// first incorrectly rejects that healthy owned process as a conflict.
@@ -776,13 +814,16 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	if manifest.Name == openRGBResourceName {
+		return ErrOpenRGBPreExecWitnessUnavailable
+	}
 	if err := verifyManagedServiceDataGroupAvailability(ctx, manifest); err != nil {
 		return err
 	}
-	if err := d.verifyArtifactAt(ctx, manifest, path); err != nil {
+	if err := d.verifyArtifactAt(ctx, controller, manifest, path); err != nil {
 		return err
 	}
-	artifact, err := managedServiceArtifactForLaunch(ctx, manifest, path)
+	artifact, err := managedServiceArtifactForLaunch(ctx, controller, manifest, path)
 	if err != nil {
 		return err
 	}
@@ -793,7 +834,7 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 	if err := ensureManagedServiceRunAsUser(ctx, manifest, env, path); err != nil {
 		return err
 	}
-	if err := writeManagedServiceConfig(manifest, env); err != nil {
+	if err := writeManagedServiceConfig(controller, manifest, env); err != nil {
 		return err
 	}
 	credentialFiles, err := materializeManagedServiceCredentialFiles(manifest, env)
@@ -805,7 +846,7 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 			_ = os.Remove(path)
 		}
 	}
-	if err := runManagedServiceBootstrap(ctx, manifest, path, env); err != nil {
+	if err := runManagedServiceBootstrap(ctx, controller, manifest, path, env); err != nil {
 		cleanupCredentials()
 		return err
 	}
@@ -944,10 +985,27 @@ func validManagedServiceEnvironmentKey(key string) bool {
 	return key != ""
 }
 
-func (d managedServiceDriver) verifyArtifactAt(ctx context.Context, manifest ResourceManifest, path string) error {
-	artifact, err := managedServiceArtifactForLaunch(ctx, manifest, path)
+func (d managedServiceDriver) verifyArtifactAt(ctx context.Context, controller *Controller, manifest ResourceManifest, path string) error {
+	artifact, err := managedServiceArtifactForLaunch(ctx, controller, manifest, path)
 	if err != nil {
 		return err
+	}
+	if strings.EqualFold(artifact.Verification, "host-tool") {
+		choice, selected, err := controller.ManagedServiceSource(ctx, manifest.Name)
+		if err != nil {
+			return err
+		}
+		if !selected || choice.Mode != "host" || choice.Executable != path {
+			return fmt.Errorf("resource %s adopted host executable identity is not selected", manifest.Name)
+		}
+		actual, err := managedFileSHA256(path)
+		if err != nil {
+			return err
+		}
+		if actual != choice.SHA256 {
+			return fmt.Errorf("resource %s adopted executable changed after source selection", manifest.Name)
+		}
+		return nil
 	}
 	return artifact.VerifyFileContext(ctx, path)
 }
@@ -957,6 +1015,9 @@ func (d managedServiceDriver) verifyArtifactAt(ctx context.Context, manifest Res
 // supervisor with Vrooli-owned configuration and state. It never discovers or
 // adopts a running endpoint.
 func (d managedServiceDriver) runDiscovered(ctx context.Context, controller *Controller, item Resource, manifest ResourceManifest, action string, args []string) error {
+	if manifest.Name == openRGBResourceName && (action == brokerTransportStart || action == brokerTransportRestart) {
+		return ErrOpenRGBPreExecWitnessUnavailable
+	}
 	path, err := managedDiscoveredExecutable(args)
 	if err != nil {
 		return managedServiceDriverError(item.Name, action, "Provider", err)
@@ -982,7 +1043,7 @@ func (d managedServiceDriver) runDiscovered(ctx context.Context, controller *Con
 		running = false
 	}
 	if !running {
-		if err := d.verifyArtifactAt(ctx, manifest, path); err != nil {
+		if err := d.verifyArtifactAt(ctx, controller, manifest, path); err != nil {
 			return managedServiceDriverError(item.Name, action, "Provider", err)
 		}
 		if err := verifyManagedDiscoveredVersion(ctx, path, manifest.ManagedService.Artifact.Version); err != nil {
@@ -1113,7 +1174,7 @@ func verifyManagedServiceRunning(supervisor *ManagedServiceSupervisor) error {
 	return nil
 }
 
-func writeManagedServiceConfig(manifest ResourceManifest, env []string) error {
+func writeManagedServiceConfig(controller *Controller, manifest ResourceManifest, env []string) error {
 	if manifest.ManagedService == nil || manifest.ManagedService.Config == nil {
 		return nil
 	}
@@ -1130,17 +1191,299 @@ func writeManagedServiceConfig(manifest ResourceManifest, env []string) error {
 	if rel, err := filepath.Rel(root, path); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return fmt.Errorf("managed-service config path escapes resource config root")
 	}
+	if manifest.Name == "openrgb" {
+		home := values["HOME"]
+		if strings.TrimSpace(home) == "" {
+			resolvedHome, homeErr := os.UserHomeDir()
+			if homeErr != nil {
+				return fmt.Errorf("resolve home directory for OpenRGB config isolation: %w", homeErr)
+			}
+			home = resolvedHome
+		}
+		if err := rejectOpenRGBAmbientConfigRoot(root, home); err != nil {
+			return err
+		}
+	}
 	if err := os.MkdirAll(filepath.Dir(path), tuning.PermPrivateDir); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte(renderManagedServiceValue(config.Content, values)), tuning.PermSecret)
+	if err := ensureManagedServiceConfigPath(root, path); err != nil {
+		return err
+	}
+	resourceRoot := ""
+	if controller != nil {
+		resourceRoot = filepath.Join(controller.Root, "resources", manifest.Name)
+	}
+	content, err := managedServiceConfigContent(resourceRoot, config)
+	if err != nil {
+		return err
+	}
+	content = renderManagedServiceValue(content, values)
+	if manifest.Name == "openrgb" {
+		selected := []string(nil)
+		if controller != nil {
+			selected, _, err = controller.selectedOpenRGBDetectors(manifest)
+			if err != nil {
+				return fmt.Errorf("load machine-local OpenRGB detector selection: %w", err)
+			}
+		}
+		content, err = mergeOpenRGBConfigWithSelection(path, content, selected)
+		if err != nil {
+			return err
+		}
+	}
+	return atomicWriteManagedServiceConfig(path, []byte(content), tuning.PermSecret)
 }
 
-func runManagedServiceBootstrap(ctx context.Context, manifest ResourceManifest, artifactPath string, env []string) error {
+func ensureManagedServiceConfigPath(root, path string) error {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return fmt.Errorf("resolve managed-service config root: %w", err)
+	}
+	pathAbs, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("resolve managed-service config path: %w", err)
+	}
+	if rel, err := filepath.Rel(rootAbs, pathAbs); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("managed-service config path escapes resource config root")
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(rootAbs)
+	if err != nil {
+		return fmt.Errorf("resolve managed-service config root: %w", err)
+	}
+	resolvedParent, err := filepath.EvalSymlinks(filepath.Dir(pathAbs))
+	if err != nil {
+		return fmt.Errorf("resolve managed-service config directory: %w", err)
+	}
+	if rel, err := filepath.Rel(resolvedRoot, resolvedParent); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("managed-service config directory resolves outside resource config root")
+	}
+	if info, err := os.Lstat(pathAbs); err == nil {
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("managed-service config destination must be a regular file")
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("inspect managed-service config destination: %w", err)
+	}
+	return nil
+}
+
+func rejectOpenRGBAmbientConfigRoot(root, home string) error {
+	resourceRoot, err := resolvedPathWithExistingPrefix(root)
+	if err != nil {
+		return fmt.Errorf("resolve OpenRGB resource config root: %w", err)
+	}
+	ambientRoot, err := resolvedPathWithExistingPrefix(filepath.Join(home, ".config"))
+	if err != nil {
+		return fmt.Errorf("resolve default OpenRGB config root: %w", err)
+	}
+	if filepath.Clean(resourceRoot) == filepath.Clean(ambientRoot) {
+		return fmt.Errorf("OpenRGB resource config root aliases the ambient ~/.config directory")
+	}
+	return nil
+}
+
+func resolvedPathWithExistingPrefix(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	missing := []string{}
+	for candidate := filepath.Clean(abs); ; candidate = filepath.Dir(candidate) {
+		resolved, err := filepath.EvalSymlinks(candidate)
+		if err == nil {
+			for i := len(missing) - 1; i >= 0; i-- {
+				resolved = filepath.Join(resolved, missing[i])
+			}
+			return filepath.Clean(resolved), nil
+		}
+		if !errors.Is(err, os.ErrNotExist) {
+			return "", err
+		}
+		parent := filepath.Dir(candidate)
+		if parent == candidate {
+			return "", err
+		}
+		missing = append(missing, filepath.Base(candidate))
+	}
+}
+
+// mergeOpenRGBConfig enforces the pinned static detector map and suppresses
+// user-configured dynamic HID registrations while retaining other settings.
+// A malformed existing config is left untouched for recovery.
+func mergeOpenRGBConfig(path, pinned string) (string, error) {
+	return mergeOpenRGBConfigWithSelection(path, pinned, nil)
+}
+
+func mergeOpenRGBConfigWithSelection(path, pinned string, selected []string) (string, error) {
+	current, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("read existing OpenRGB config: %w", err)
+	}
+	if len(current) > 8<<20 {
+		return "", fmt.Errorf("existing OpenRGB config exceeds 8 MiB safety limit")
+	}
+	return mergeOpenRGBConfigContentWithSelection(current, pinned, selected)
+}
+
+func mergeOpenRGBConfigContent(current []byte, pinned string) (string, error) {
+	return mergeOpenRGBConfigContentWithSelection(current, pinned, nil)
+}
+
+func mergeOpenRGBConfigContentWithSelection(current []byte, pinned string, selected []string) (string, error) {
+	var pinnedRoot map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(pinned), &pinnedRoot); err != nil {
+		return "", fmt.Errorf("decode pinned OpenRGB config: %w", err)
+	}
+	pinnedDetectors, ok := pinnedRoot["Detectors"]
+	if !ok || len(pinnedDetectors) == 0 || string(pinnedDetectors) == "null" {
+		return "", fmt.Errorf("pinned OpenRGB config has no detector policy")
+	}
+	var pinnedDetectorSettings map[string]json.RawMessage
+	if err := json.Unmarshal(pinnedDetectors, &pinnedDetectorSettings); err != nil || pinnedDetectorSettings == nil {
+		return "", fmt.Errorf("pinned OpenRGB config has invalid detector settings")
+	}
+	pinnedDetectorMap, ok := pinnedDetectorSettings["detectors"]
+	if !ok || len(pinnedDetectorMap) == 0 || string(pinnedDetectorMap) == "null" {
+		return "", fmt.Errorf("pinned OpenRGB config has no detector map")
+	}
+	var detectorPolicy map[string]bool
+	if err := json.Unmarshal(pinnedDetectorMap, &detectorPolicy); err != nil || len(detectorPolicy) == 0 {
+		return "", fmt.Errorf("pinned OpenRGB config has invalid detector map")
+	}
+	detectorPolicy = maps.Clone(detectorPolicy)
+	for _, name := range selected {
+		if _, exists := detectorPolicy[name]; !exists {
+			return "", fmt.Errorf("selected OpenRGB detector %q is absent from the pinned catalog", name)
+		}
+		detectorPolicy[name] = true
+	}
+	selectedDetectorMap, err := json.Marshal(detectorPolicy)
+	if err != nil {
+		return "", fmt.Errorf("encode selected OpenRGB detector map: %w", err)
+	}
+	pinnedDetectorMap = selectedDetectorMap
+
+	merged := make(map[string]json.RawMessage)
+	if len(current) > 0 {
+		if len(current) > 8<<20 {
+			return "", fmt.Errorf("existing OpenRGB config exceeds 8 MiB safety limit")
+		}
+		if err := json.Unmarshal(current, &merged); err != nil || merged == nil {
+			return "", fmt.Errorf("existing OpenRGB config is not a JSON object; refusing to replace it")
+		}
+	}
+	detectorSettings := pinnedDetectorSettings
+	if existing, ok := merged["Detectors"]; ok {
+		detectorSettings = make(map[string]json.RawMessage)
+		if err := json.Unmarshal(existing, &detectorSettings); err != nil || detectorSettings == nil {
+			return "", fmt.Errorf("existing OpenRGB detector settings are not a JSON object; refusing to replace them")
+		}
+	}
+	detectorSettings["detectors"] = pinnedDetectorMap
+	mergedDetectors, err := json.Marshal(detectorSettings)
+	if err != nil {
+		return "", fmt.Errorf("encode merged OpenRGB detector settings: %w", err)
+	}
+	merged["Detectors"] = mergedDetectors
+	for _, key := range []string{"QMKOpenRGBDevices", "QMKVialRGBDevices"} {
+		settingsJSON, exists := merged[key]
+		var settings map[string]json.RawMessage
+		if exists {
+			if err := json.Unmarshal(settingsJSON, &settings); err != nil || settings == nil {
+				return "", fmt.Errorf("existing OpenRGB dynamic detector settings %q are not a JSON object; refusing to replace them", key)
+			}
+		} else {
+			settings = make(map[string]json.RawMessage)
+		}
+		// OpenRGB 1.1 processes these manually configured dynamic HID
+		// registrations outside Detectors.detectors. Preserve their tuning
+		// settings, but prevent them from expanding the startup allowlist.
+		settings["devices"] = json.RawMessage("[]")
+		settingsJSON, err := json.Marshal(settings)
+		if err != nil {
+			return "", fmt.Errorf("encode OpenRGB dynamic detector settings %q: %w", key, err)
+		}
+		merged[key] = settingsJSON
+	}
+	if err := freezeOpenRGBLocalSettings(merged); err != nil {
+		return "", err
+	}
+	data, err := marshalOpenRGBSettings(merged)
+	if err != nil {
+		return "", fmt.Errorf("encode merged OpenRGB config: %w", err)
+	}
+	return string(data) + "\n", nil
+}
+
+func atomicWriteManagedServiceConfig(path string, data []byte, mode os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".managed-service-config-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create managed-service config temporary file: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if err := tmp.Chmod(mode); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("set managed-service config permissions: %w", err)
+	}
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write managed-service config: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("sync managed-service config: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close managed-service config: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return fmt.Errorf("atomically install managed-service config: %w", err)
+	}
+	return nil
+}
+
+func managedServiceConfigContent(resourceRoot string, config *resourcedeployment.ServiceConfig) (string, error) {
+	if config == nil {
+		return "", nil
+	}
+	content := config.Content
+	if config.ContentFile != "" {
+		if resourceRoot == "" {
+			return "", fmt.Errorf("managed-service config content_file requires a resource root")
+		}
+		base, err := filepath.EvalSymlinks(resourceRoot)
+		if err != nil {
+			return "", fmt.Errorf("resolve managed-service config asset root: %w", err)
+		}
+		asset := filepath.Join(base, filepath.FromSlash(config.ContentFile))
+		resolved, err := filepath.EvalSymlinks(asset)
+		if err != nil {
+			return "", fmt.Errorf("resolve managed-service config asset: %w", err)
+		}
+		rel, err := filepath.Rel(base, resolved)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return "", fmt.Errorf("managed-service config asset escapes resource root")
+		}
+		data, err := os.ReadFile(resolved)
+		if err != nil {
+			return "", fmt.Errorf("read managed-service config asset: %w", err)
+		}
+		content = string(data)
+	}
+	if strings.TrimSpace(content) == "" || strings.ContainsRune(content, '\x00') {
+		return "", fmt.Errorf("managed-service config source is empty or contains NUL")
+	}
+	return content, nil
+}
+
+func runManagedServiceBootstrap(ctx context.Context, controller *Controller, manifest ResourceManifest, artifactPath string, env []string) error {
 	if manifest.ManagedService == nil || manifest.ManagedService.Bootstrap == nil {
 		return nil
 	}
-	artifact, err := managedServiceArtifactForLaunch(ctx, manifest, artifactPath)
+	artifact, err := managedServiceArtifactForLaunch(ctx, controller, manifest, artifactPath)
 	if err != nil {
 		return err
 	}

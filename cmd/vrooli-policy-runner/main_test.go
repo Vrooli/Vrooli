@@ -37,18 +37,57 @@ func TestReadEventReadsNestedToolInput(t *testing.T) {
 	}
 }
 
-// TestHookDecidesRemovalWithoutProviders proves the runner enforces the
-// removal floor on its own: a deletion of the filesystem root is denied with
-// the deny exit class even when no provider has published anything.
-func TestHookDecidesRemovalWithoutProviders(t *testing.T) {
-	var output bytes.Buffer
-	err := run([]string{"hook", "--runner", "codex", "--snapshot-dir", t.TempDir()}, strings.NewReader(`{"tool_name":"Bash","cwd":"/","tool_input":{"command":"rm -rf /"}}`), &output, &output)
-	var decision exitError
-	if !errors.As(err, &decision) || decision.code != 20 {
-		t.Fatalf("hook error = %v, want deny exit 20; output %s", err, output.String())
+// TestHookVerdictFollowsTheCallingHarness proves the runner enforces the
+// removal floor on its own (no provider has published anything) and reports
+// the verdict the way each harness reads it: Codex blocks only on exit 2 with a
+// stderr reason and a silent stdout; other runners keep the decision document
+// and the stable exit classes.
+func TestHookVerdictFollowsTheCallingHarness(t *testing.T) {
+	const deny = `{"tool_name":"Bash","cwd":"/","tool_input":{"command":"rm -rf /"}}`
+	const allow = `{"tool_name":"Bash","cwd":"/tmp","tool_input":{"command":"echo hi"}}`
+	cases := []struct {
+		name, runner, input string
+		wantExit            int // 0 means the hook returns no exit error
+		wantStdoutJSON      bool
+		wantStderr          string
+	}{
+		{"codex deny blocks with exit 2 and a stderr reason", "codex", deny, 2, false, "Blocked by Vrooli agent policy: / is a filesystem root"},
+		{"codex allow is silent", "codex", allow, 0, false, ""},
+		{"opencode deny keeps the stable deny class", "opencode", deny, 20, true, ""},
+		{"grok deny keeps the stable deny class", "grok", deny, 20, true, ""},
+		{"opencode allow reports the decision", "opencode", allow, 0, true, ""},
 	}
-	if !strings.Contains(output.String(), `"risk": "filesystem_removal"`) {
-		t.Fatalf("decision output = %s", output.String())
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			err := run([]string{"hook", "--runner", tc.runner, "--snapshot-dir", t.TempDir()}, strings.NewReader(tc.input), &stdout, &stderr)
+			var decision exitError
+			switch {
+			case tc.wantExit == 0 && err != nil:
+				t.Fatalf("hook error = %v, want allow", err)
+			case tc.wantExit != 0 && (!errors.As(err, &decision) || decision.code != tc.wantExit):
+				t.Fatalf("hook error = %v, want exit %d", err, tc.wantExit)
+			}
+			if got := strings.Contains(stdout.String(), `"action"`); got != tc.wantStdoutJSON {
+				t.Fatalf("stdout carries a decision = %t, want %t: %q", got, tc.wantStdoutJSON, stdout.String())
+			}
+			if !strings.Contains(stderr.String(), tc.wantStderr) || (tc.wantStderr == "" && stderr.Len() != 0) {
+				t.Fatalf("stderr = %q, want %q", stderr.String(), tc.wantStderr)
+			}
+		})
+	}
+}
+
+// A hook that crashes must allow: a Go panic exits 2, which Codex reads as block.
+func TestHookPanicAllowsInsteadOfBlocking(t *testing.T) {
+	var stderr bytes.Buffer
+	err := errors.New("pending")
+	func() {
+		defer allowOnPanic(&stderr, &err)
+		panic("boom")
+	}()
+	if err != nil || !strings.Contains(stderr.String(), "allowed after internal error: boom") {
+		t.Fatalf("err = %v, stderr = %q", err, stderr.String())
 	}
 }
 

@@ -26,7 +26,20 @@ type ManagedServiceUpdateAdmission struct {
 // exact serving owner. It never stops or launches a service. Legacy launches
 // must qualify the retained image in isolation before target candidate launch.
 // Reusing the request reconciles the same operation, including after caller loss.
-func (c *Controller) AdmitManagedServiceUpdate(ctx context.Context, name string, opts ManagedServiceUpdateAdmission) (result ManagedServiceUpdate, replayed bool, returnErr error) {
+func (c *Controller) AdmitManagedServiceUpdate(ctx context.Context, name string, opts ManagedServiceUpdateAdmission) (ManagedServiceUpdate, bool, error) {
+	if name != openRGBResourceName {
+		return c.admitManagedServiceUpdate(ctx, name, opts)
+	}
+	var replayed bool
+	u, err := c.runOpenRGBPublicUpdate(ctx, func(ctx context.Context) (ManagedServiceUpdate, error) {
+		u, r, err := c.admitManagedServiceUpdate(ctx, name, opts)
+		replayed = r
+		return u, err
+	})
+	return u, replayed, err
+}
+
+func (c *Controller) admitManagedServiceUpdate(ctx context.Context, name string, opts ManagedServiceUpdateAdmission) (result ManagedServiceUpdate, replayed bool, returnErr error) {
 	if c == nil || ctx == nil || !managedUpdateResource.MatchString(name) || !managedUpdateKey.MatchString(opts.RequestID) || opts.ExpectedVersion == "" || !updateDigest(opts.ExpectedSHA256) {
 		return ManagedServiceUpdate{}, false, fmt.Errorf("update admission requires resource, request and exact release identity")
 	}
@@ -38,6 +51,11 @@ func (c *Controller) AdmitManagedServiceUpdate(ctx context.Context, name string,
 		return ManagedServiceUpdate{}, false, err
 	}
 	defer release()
+	if name == openRGBResourceName {
+		if err := c.requireOpenRGBEnabled(ctx); err != nil {
+			return ManagedServiceUpdate{}, false, err
+		}
+	}
 	store, err := newManagedUpdateStore(name)
 	if err != nil {
 		return ManagedServiceUpdate{}, false, err
@@ -64,7 +82,12 @@ func (c *Controller) AdmitManagedServiceUpdate(ctx context.Context, name string,
 	if err := manifestpkg.ValidateManagedServiceUpdate(m); err != nil {
 		return ManagedServiceUpdate{}, false, err
 	}
-	target, err := c.managedUpdateAdmissionTarget(ctx, m, store, opts)
+	var target ManagedUpdateContract
+	if name == openRGBResourceName {
+		target, err = c.openRGBPublicOwners().target(ctx, m, store, opts)
+	} else {
+		target, err = c.managedUpdateAdmissionTarget(ctx, m, store, opts)
+	}
 	if err != nil {
 		return ManagedServiceUpdate{}, false, err
 	}
@@ -72,12 +95,28 @@ func (c *Controller) AdmitManagedServiceUpdate(ctx context.Context, name string,
 	if artifact.Version != opts.ExpectedVersion || artifact.SHA256 != opts.ExpectedSHA256 {
 		return ManagedServiceUpdate{}, false, fmt.Errorf("declared staged release changed before update admission")
 	}
-	observed, err := c.observeManagedUpdateAdmissionSource(ctx, m)
+	var observed managedUpdateAdmissionSource
+	if name == openRGBResourceName {
+		if err := c.openRGBPublicOwners().profile(ctx, artifact); err != nil {
+			return ManagedServiceUpdate{}, false, err
+		}
+		observed, err = c.openRGBPublicOwners().source(ctx, m)
+	} else {
+		observed, err = c.observeManagedUpdateAdmissionSource(ctx, m)
+	}
 	if err != nil {
 		return ManagedServiceUpdate{}, false, err
 	}
 	if artifact.SHA256 == observed.Contract.Artifact.SHA256 {
 		return ManagedServiceUpdate{}, false, fmt.Errorf("target is already the serving image")
+	}
+	if name == openRGBResourceName {
+		target, err = c.mergeOpenRGBUpdateTarget(ctx, target, observed, opts.RollbackOf)
+	} else {
+		target, err = mergeManagedUpdateTargetConfig(target, observed.Contract)
+	}
+	if err != nil {
+		return ManagedServiceUpdate{}, false, err
 	}
 	var nonce [16]byte
 	if _, err := rand.Read(nonce[:]); err != nil {
@@ -86,6 +125,16 @@ func (c *Controller) AdmitManagedServiceUpdate(ctx context.Context, name string,
 	now := time.Now().UTC()
 	u := ManagedServiceUpdate{SchemaVersion: managedUpdateSchemaVersion, ID: "update-" + hex.EncodeToString(nonce[:]), RequestID: opts.RequestID, Resource: name, Revision: 1, Phase: UpdatePrepared, CreatedAt: now, UpdatedAt: now, SourceRevision: observed.SourceRevision, Target: target, Rollback: observed.Contract, Original: observed.Process, OriginalScope: observed.Scope, RollbackQualificationRequired: true}
 	u.RollbackOf = opts.RollbackOf
+	if name == openRGBResourceName {
+		u.OpenRGBPolicies, err = c.openRGBPublicOwners().snapshot(ctx, u)
+		if err != nil {
+			return ManagedServiceUpdate{}, false, err
+		}
+		if err := c.qualifyOpenRGBResumption(ctx, u); err != nil {
+			return ManagedServiceUpdate{}, false, err
+		}
+	}
+
 	budget := managedUpdateCapacityBudget(u)
 	budget.LedgerPath, err = capacity.DefaultLedgerReference(c.Home)
 	if err != nil {
@@ -105,7 +154,7 @@ func (c *Controller) AdmitManagedServiceUpdate(ctx context.Context, name string,
 		defer cancel()
 		returnErr = errors.Join(returnErr, cleanupManagedUpdateRejectedAdmission(cleanup, store, u, paths.StateDir))
 	}()
-	if err := reserveManagedUpdateCapacity(ctx, u); err != nil {
+	if err := c.managedUpdateEffectOwner().reserve(ctx, u); err != nil {
 		return ManagedServiceUpdate{}, false, err
 	}
 	credentials, err := newManagedUpdateCredentialStore(paths.StateDir, u.ID)
@@ -139,7 +188,12 @@ func (c *Controller) AdmitManagedServiceUpdate(ctx context.Context, name string,
 			return ManagedServiceUpdate{}, false, fmt.Errorf("pinned rollback credential no longer matches the serving launch: %w", err)
 		}
 	}
-	after, err := c.observeManagedUpdateAdmissionSource(ctx, m)
+	var after managedUpdateAdmissionSource
+	if name == openRGBResourceName {
+		after, err = c.openRGBPublicOwners().source(ctx, m)
+	} else {
+		after, err = c.observeManagedUpdateAdmissionSource(ctx, m)
+	}
 	if err != nil {
 		return ManagedServiceUpdate{}, false, err
 	}

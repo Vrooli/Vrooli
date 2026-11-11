@@ -47,11 +47,39 @@
       }
     },
     {
+      "id": "wait-notes-region",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/notes.surface",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Notes region is bound and visible"
+        }
+      }
+    },
+    {
+      "id": "wait-notes-loading",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/notes.loading",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Notes region entered loading state"
+        }
+      }
+    },
+    {
       "id": "wait-notes-terminal",
       "action": {
         "type": "ACTION_TYPE_WAIT",
         "wait": {
-          "selector": "[data-testid=\"notes-surface\"][data-experience-state=\"ready\"], [data-testid=\"notes-surface\"][data-experience-state=\"empty\"], [data-testid=\"notes-surface\"][data-experience-state=\"error\"]",
+          "selector": "@selector/notes.empty",
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },

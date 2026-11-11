@@ -2,6 +2,7 @@ package scenarioruntime
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"strings"
 )
@@ -190,8 +191,8 @@ func ParseInstanceKey(nameArg, flagVariant string) (InstanceKey, error) {
 	return InstanceKey{Scenario: scenario, Variant: variant}.Normalize(), nil
 }
 
-// ServiceScopeName returns the lifecycle service unit stem for a variant-aware
-// record slug and step. Placement and ownership verification share this identity.
+// ServiceScopeName returns the stable service unit stem for a variant-aware
+// record slug and step.
 func ServiceScopeName(slug, step string) string {
 	clean := func(value string) string {
 		var b strings.Builder
@@ -213,6 +214,19 @@ func ServiceScopeName(slug, step string) string {
 		name = name[:ServiceScopeNameLimit-len(suffix)]
 	}
 	return strings.TrimRight(name, "-") + suffix
+}
+
+// ServiceLaunchScopeName gives a replacement Agent Manager API a separate
+// scope while detached executors keep the previous scope occupied.
+func ServiceLaunchScopeName(slug, step, generation string) string {
+	name := ServiceScopeName(slug, step)
+	if slug != "agent-manager" || step != "start-api" || len(generation) != 32 || generation != strings.ToLower(generation) {
+		return name
+	}
+	if _, err := hex.DecodeString(generation); err != nil {
+		return name
+	}
+	return name + "-" + generation
 }
 
 // ServiceScopeNameLimit keeps the service unit inside systemd's bound.

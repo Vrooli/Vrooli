@@ -61,18 +61,19 @@ const managedServiceOwnershipTokenEnv = "VROOLI_MANAGED_SERVICE_INSTANCE_TOKEN"
 // identifies the process Vrooli started; it is never inferred from a port,
 // process name, or an arbitrary external endpoint.
 type ManagedServiceState struct {
-	UpdateLaunch            *ManagedUpdateServingLaunch `json:"update_launch,omitempty"`
-	InstanceID              string                      `json:"instance_id"`
-	OwnershipTokenHash      string                      `json:"ownership_token_hash"`
-	PID                     int                         `json:"pid"`
-	Incarnation             string                      `json:"incarnation,omitempty"`
-	ArtifactPath            string                      `json:"artifact_path"`
-	ArtifactSHA256          string                      `json:"artifact_sha256"`
-	ArtifactVersion         string                      `json:"artifact_version"`
-	PreviousArtifactSHA256  string                      `json:"previous_artifact_sha256,omitempty"`
-	PreviousArtifactVersion string                      `json:"previous_artifact_version,omitempty"`
-	StartedAt               time.Time                   `json:"started_at"`
-	StoppedAt               *time.Time                  `json:"stopped_at,omitempty"`
+	InitialLaunch           *ManagedInitialServingLaunch `json:"initial_launch,omitempty"`
+	UpdateLaunch            *ManagedUpdateServingLaunch  `json:"update_launch,omitempty"`
+	InstanceID              string                       `json:"instance_id"`
+	OwnershipTokenHash      string                       `json:"ownership_token_hash"`
+	PID                     int                          `json:"pid"`
+	Incarnation             string                       `json:"incarnation,omitempty"`
+	ArtifactPath            string                       `json:"artifact_path"`
+	ArtifactSHA256          string                       `json:"artifact_sha256"`
+	ArtifactVersion         string                       `json:"artifact_version"`
+	PreviousArtifactSHA256  string                       `json:"previous_artifact_sha256,omitempty"`
+	PreviousArtifactVersion string                       `json:"previous_artifact_version,omitempty"`
+	StartedAt               time.Time                    `json:"started_at"`
+	StoppedAt               *time.Time                   `json:"stopped_at,omitempty"`
 }
 
 // ManagedServiceRecord associates a durable state record with the resource
@@ -183,6 +184,11 @@ func (s *ManagedServiceSupervisor) Status() (ManagedServiceState, bool, error) {
 		}
 		return ManagedServiceState{}, false, err
 	}
+	// A confirmed initial-native stop is final. A later process reusing the
+	// numeric PID must not revive that publication or block a fresh enable.
+	if state.InitialLaunch != nil && state.StoppedAt != nil {
+		return state, false, nil
+	}
 	if state.PID <= 0 || !s.isRunning(state.PID) {
 		return state, false, nil
 	}
@@ -215,6 +221,11 @@ func (s *ManagedServiceSupervisor) StartContext(ctx context.Context, artifactPat
 	}
 	if running {
 		return existing, nil
+	}
+	if existing.InitialLaunch != nil {
+		if err := s.stopManagedInitialServing(ctx, existing); err != nil {
+			return ManagedServiceState{}, err
+		}
 	}
 	if existing.UpdateLaunch != nil {
 		// A dead root can leave a native unit or descendants behind. Retire the
@@ -340,6 +351,9 @@ func (s *ManagedServiceSupervisor) StopWithSignal(ctx context.Context, signal os
 
 func (s *ManagedServiceSupervisor) stop(ctx context.Context, signal os.Signal) error {
 	stored, readErr := s.readState()
+	if readErr == nil && stored.InitialLaunch != nil {
+		return s.stopManagedInitialServing(ctx, stored)
+	}
 	if readErr == nil && stored.UpdateLaunch != nil {
 		return s.stopManagedUpdateServing(ctx, stored)
 	}
@@ -541,6 +555,11 @@ func (s *ManagedServiceSupervisor) readState() (ManagedServiceState, error) {
 	if state.PID < 0 || strings.TrimSpace(state.InstanceID) == "" || strings.TrimSpace(state.OwnershipTokenHash) == "" || strings.TrimSpace(state.ArtifactSHA256) == "" || strings.TrimSpace(state.ArtifactVersion) == "" {
 		return ManagedServiceState{}, fmt.Errorf("managed-service state is incomplete")
 	}
+	if state.InitialLaunch != nil {
+		if err := validateManagedInitialServing(state); err != nil {
+			return ManagedServiceState{}, err
+		}
+	}
 	if state.UpdateLaunch != nil {
 		if err := validateManagedUpdateServing(state); err != nil {
 			return ManagedServiceState{}, err
@@ -626,6 +645,34 @@ func managedServiceArtifactPath(controller *Controller, manifest ResourceManifes
 		}
 		return filepath.Abs(path)
 	}
+	if manifest.ManagedService.SourceSelectionRequired || manifest.ManagedService.HostToolExecutable != "" {
+		choice, selected, err := controller.ManagedServiceSource(context.Background(), manifest.Name)
+		if err != nil {
+			return "", err
+		}
+		if manifest.ManagedService.SourceSelectionRequired && !selected {
+			return "", fmt.Errorf("resource %s requires an explicit source choice; run `vrooli resource source %s managed` or `vrooli resource source %s host`", manifest.Name, manifest.Name, manifest.Name)
+		}
+		if selected && choice.Mode == "host" {
+			if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+				return "", fmt.Errorf("resource %s host-tool adoption is only qualified for linux-amd64; this host is %s-%s", manifest.Name, runtime.GOOS, runtime.GOARCH)
+			}
+			if choice.Executable == "" || !filepath.IsAbs(choice.Executable) || choice.Version != manifest.ManagedService.HostToolVersion || choice.SHA256 == "" {
+				return "", fmt.Errorf("resource %s adopted host source record is incomplete or no longer matches its declaration", manifest.Name)
+			}
+			return choice.Executable, nil
+		}
+		if selected && choice.Mode != "managed" {
+			return "", fmt.Errorf("resource %s has unsupported source selection %q", manifest.Name, choice.Mode)
+		}
+	}
+	return managedServiceArtifactStorePath(controller, manifest)
+}
+
+// managedServiceArtifactStorePath resolves managed storage without consulting
+// mutable source-selection state. Admission uses it before acquiring a lease.
+func managedServiceArtifactStorePath(controller *Controller, manifest ResourceManifest) (string, error) {
+	artifact := manifest.ManagedService.Artifact
 	// Acquired servers live in the immutable per-user artifact store. This is
 	// also the default when a manifest does not need a separate desktop bundle
 	// filename; the resource checkout is never treated as an install location.

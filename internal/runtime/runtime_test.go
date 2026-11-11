@@ -618,7 +618,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	}
 	toolNames := reg.names(hostreqspec.KindTool)
 	expectedTools := []string{
-		"Xvfb", "agy", "akt", "apt-cache", "apt-get", "ast-grep", "bats", "blender-renderer", "buf", "claude", "cloud-localds", "cloudflared", "codex", "curl", "dnf", "docker", "dpkg-query", "ffmpeg", "ffmpeg-video", "git", "go", "google-chrome-stable", "grok", "helm", "hyperframes", "iopaint", "java", "journalctl", "jq", "k6", "kdump-tools", "kopia", "kubo", "launchctl", "llama-cpp", "log", "lychee", "mcelog", "node", "openbox", "opencode", "pacman", "pnpm", "powershell-test-runner", "powershell.exe", "protoc", "protoc-gen-connect-go", "protoc-gen-es", "protoc-gen-go", "python", "qemu", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "resolvectl", "rpm", "schtasks", "sd", "sd-gpu", "secret-tool", "smartctl", "stripe", "systemctl", "timedatectl", "tmux", "triposr-source", "uv", "vault", "vrooli", "webkit2gtk-driver", "webkitgtk", "websockify", "windows-terminal", "x11vnc", "xdotool", "yq",
+		"Xvfb", "agy", "akt", "apt-cache", "apt-get", "ast-grep", "bats", "blender-renderer", "buf", "claude", "cloud-localds", "cloudflared", "codex", "curl", "dnf", "docker", "dpkg-query", "ffmpeg", "ffmpeg-video", "git", "go", "google-chrome-stable", "grok", "helm", "hyperframes", "iopaint", "java", "journalctl", "jq", "k6", "kdump-tools", "kopia", "kubo", "launchctl", "llama-cpp", "log", "lychee", "mcelog", "node", "openbox", "opencode", "pacman", "pnpm", "powershell-test-runner", "powershell.exe", "protoc", "protoc-gen-connect-go", "protoc-gen-es", "protoc-gen-go", "python", "qemu", "quint", "rasdaemon", "realesrgan-ncnn-vulkan", "rembg", "resolvectl", "rpm", "schtasks", "sd", "sd-gpu", "secret-tool", "smartctl", "stripe", "systemctl", "tesseract", "timedatectl", "tmux", "triposr-source", "uv", "vault", "vrooli", "webkit2gtk-driver", "webkitgtk", "websockify", "windows-terminal", "x11vnc", "xdotool", "yq",
 	}
 	if len(toolNames) != len(expectedTools) {
 		t.Fatalf("tool count = %d, want %d; got %v", len(toolNames), len(expectedTools), toolNames)
@@ -635,7 +635,7 @@ func TestRegistryContainsUniqueToolAndSafeguardHandlers(t *testing.T) {
 	safeguardNames := reg.names(hostreqspec.KindSafeguard)
 	expectedSafeguards := []string{
 		"agent_session_containment", "autoheal_recovery_privileges", "autoheal_watchdog", "bubblewrap_userns", "clock", "coding_agent_shims", "crashkernel_reserve", "dns_resolution", "docker_host_firewall",
-		"edac_modules", "emergency_watchdog", "harness_file_ownership", "host_hardening", "kdump_observability", "kernel_config", "keyring_daemon_limits", "local_service_admission", "log_volume_bounds", "login_keyring_unlock", "model_policy_drift", "nat_protection", "netconsole", "onboarding_apply_privileges",
+		"edac_modules", "emergency_watchdog", "generated_tree_ownership", "harness_file_ownership", "host_hardening", "kdump_observability", "kernel_config", "keyring_daemon_limits", "local_service_admission", "log_volume_bounds", "login_keyring_unlock", "model_policy_drift", "nat_protection", "netconsole", "onboarding_apply_privileges",
 		"nvidia_driver",
 		"ollama_resource_controls",
 		"path_hygiene",

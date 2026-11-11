@@ -22,3 +22,12 @@ body {
   outline: var(--border-focus) solid var(--color-focus);
   outline-offset: 2px;
 }
+
+/* Keep the template's primary health action comfortably tappable on phones. */
+[data-testid="health-refresh-button"] {
+  min-height: 44px;
+}
+
+[data-testid="notes-create-button"] {
+  min-height: 44px;
+}

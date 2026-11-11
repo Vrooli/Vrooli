@@ -32,8 +32,9 @@ func TestManagedUpdateRecoveryDoesNotBlockFleetRenewal(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	entered := make(chan struct{})
+	lightingEntered := make(chan struct{})
 	heartbeats := make(chan struct{}, 32)
-	cfg := Config{DBPath: filepath.Join(t.TempDir(), "runtime.db"), RenewInterval: 10 * time.Millisecond, Stderr: io.Discard, HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot", SessionID: "session"}}, ManagedUpdateReconcile: func(ctx context.Context) error { close(entered); <-ctx.Done(); return ctx.Err() }, StoreFactory: func(ctx context.Context, c scenarioruntime.Config) (Store, error) {
+	cfg := Config{DBPath: filepath.Join(t.TempDir(), "runtime.db"), RenewInterval: 10 * time.Millisecond, Stderr: io.Discard, HostProvider: fakeHostProvider{snapshot: hostsession.Snapshot{BootID: "boot", SessionID: "session"}}, ManagedUpdateReconcile: func(ctx context.Context) error { close(entered); <-ctx.Done(); return ctx.Err() }, LightingReconcile: func(ctx context.Context) error { close(lightingEntered); <-ctx.Done(); return ctx.Err() }, StoreFactory: func(ctx context.Context, c scenarioruntime.Config) (Store, error) {
 		s, e := scenarioruntime.NewSQLiteStore(ctx, c)
 		return &updateHeartbeatStore{Store: s, heartbeats: heartbeats}, e
 	}}
@@ -45,6 +46,13 @@ func TestManagedUpdateRecoveryDoesNotBlockFleetRenewal(t *testing.T) {
 		t.Fatalf("supervisor exited before recovery worker: %v", err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("recovery worker did not start")
+	}
+	select {
+	case <-lightingEntered:
+	case err := <-done:
+		t.Fatalf("supervisor exited before lighting worker: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("managed update worker blocked lighting reconciliation")
 	}
 	for i := 0; i < 3; i++ {
 		select {
@@ -67,8 +75,7 @@ func TestManagedUpdateRecoveryDoesNotBlockFleetRenewal(t *testing.T) {
 }
 
 func TestManagedUpdateRecoveryContainsOwnerPanic(t *testing.T) {
-	s := New(Config{ManagedUpdateReconcile: func(context.Context) error { panic("fixture") }})
-	if err := s.reconcileManagedUpdatesOnce(context.Background()); err == nil {
+	if err := reconcileWorkerOnce(context.Background(), "managed update recovery", func(context.Context) error { panic("fixture") }); err == nil {
 		t.Fatal("recovery owner panic escaped containment")
 	}
 }

@@ -12,15 +12,17 @@ package statecontract
 // StoredConstants are untyped string constants whose values reach stored
 // state: statuses, kinds, file and directory names, format versions.
 var StoredConstants = map[string][]string{
+	"internal/hostreqkit":                    {"OpenRGBLinuxDeviceHIDRaw"},
 	"internal/agentsession":                  {"KindAgentManagerRun", "KindDesktopApp", "KindScenarioInstance", "KindTerminal", "KindUnknown", "KindWebConsoleSession", "OriginProgrammatic", "OriginRemote", "OriginUI", "OriginUnspecified", "RunIDSourceIdentityToken", "RunIDSourceInheritedIdentityToken", "SourceInferred"},
 	"internal/artifactlease":                 {"Schema", "Suffix"},
 	"internal/cliinstall":                    {"installationGoModule", "managerGoModule"},
 	"internal/hostsession":                   {"sessionFile"},
+	"internal/lightingruntime":               {"lightingStateDir", "lightingStateFile", "lightingLockFile"},
 	"internal/operatorcapability":            {"ContractVersion", "DecisionDeclined", "DecisionPending", "EvidenceSchemaVersion"},
 	"internal/operatorstate":                 {"AccelPreferenceAuto", "AccelPreferenceForceCPU", "AccelPreferencePreferGPU", "SchemaPath", "StateFile", "capacityPostureBalanced", "capacityPostureMinimal", "capacityPostureResponsive", "capacityPostureThroughput", "documentVersion", "hostWorkloadPostureVrooliOnly", "hostWorkloadPostureWholeHost", "profileSessionGuided", "profileSessionManual", "trustPostureHosted", "trustPosturePersonal", "trustPostureShared", "updateControlGuard", "updateControlObserve", "updateControlOwn"},
-	"internal/process":                       {"RecordStatusExitedVerified", "RecordStatusRunning"},
-	"internal/resources":                     {"ErrorCodeCommandUnavailable", "ErrorCodeOperationFailed", "StatusCodeCommandError", "StatusCodeInvalidStatusPayload", "StatusCodeOK", "StatusCodeTimeout", "StatusCodeUnavailable", "StatusCodeUnsupportedPlatform", "accelBridgeExternalCli", "accelBridgeManagedService", "accelBridgeNativeCli", "blueprintArchivedResourcesPath", "blueprintDirPath", "deprecatedResourcesPath", "driversCliCloudAPI", "installFactsFile", "managedComposeManifestSchemaVersion", "managedServiceAcquisitionDir", "managedServiceAcquisitionFile", "managedServiceHealthy", "managedServiceStateFile", "managedServiceUnhealthy", "managedUpdateCredentialDefaultField", "managedUpdateExecFenceClaimed", "managedUpdateExecFencePrepared", "managedUpdateExecFenceRevoked", "managedUpdateLedgerFile", "managedUpdateRolePrimary", "managedUpdateRoleRestored", "modelCacheEventInstalled", "modelCacheEventStarted", "modelCacheEventStopped", "qualificationObservationRelativePath", "resourceMetadataRootPath", "restoredResourcesDirPath", "userResourceHostID", "vaultBootstrapVault"},
-	"internal/resources/manifest":            {"BackendCPU", "BackendCUDA", "BackendMetal", "BackendROCm", "BackendVulkan", "DegradeVerb", "DurableDataDir", "DurableDataFile", "DurableDataJSON", "DurableDataSQLite", "HealthCheckHTTP", "HealthCheckLiveness", "HealthCheckReadiness", "RequireNone", "RequirePreferred", "RequireRequired", "TunableBoolean", "TunableInteger", "TunableString", "VerifyContainerDevice", "VerifyNone", "VerifyProcessDevice", "manifestCloudAPI", "manifestExternalCli", "manifestManagedService", "manifestNativeCli", "manifestUnsupported"},
+	"internal/process":                       {"RecordStatusExitedVerified", "RecordStatusRunning", "launchRefPrefix"},
+	"internal/resources":                     {"ErrorCodeCommandUnavailable", "ErrorCodeOperationFailed", "StatusCodeCommandError", "StatusCodeInvalidStatusPayload", "StatusCodeOK", "StatusCodeTimeout", "StatusCodeUnavailable", "StatusCodeUnsupportedPlatform", "accelBridgeExternalCli", "accelBridgeManagedService", "accelBridgeNativeCli", "blueprintArchivedResourcesPath", "blueprintDirPath", "deprecatedResourcesPath", "driversCliCloudAPI", "installFactsFile", "managedComposeManifestSchemaVersion", "managedServiceAcquisitionDir", "managedServiceAcquisitionFile", "managedServiceHealthy", "managedServiceStateFile", "managedServiceUnhealthy", "managedUpdateCredentialDefaultField", "managedUpdateExecFenceClaimed", "managedUpdateExecFencePrepared", "managedUpdateExecFenceRevoked", "managedUpdateLedgerFile", "managedUpdateRolePrimary", "managedUpdateRoleRestored", "modelCacheEventInstalled", "modelCacheEventStarted", "modelCacheEventStopped", "openRGBServerDefaultHost", "openRGBServerDefaultPort", "openRGBServerLegacy", "openRGBServerLoopback", "openRGBProfilesSettings", "openRGBProfileOpen", "openRGBProfileExit", "openRGBProfileResume", "openRGBProfileSuspend", "openRGBProfileServiceStart", "openRGBProfileServiceStop", "openRGBDisabledProfileJSON", "openRGBHIDSafeMode", "openRGBClientSettings", "openRGBSavedClients", "openRGBServerSettings", "openRGBExportAllControllers", "openRGBDevicePolicyFilename", "openRGBDeviceSetupPendingState", "openRGBDeviceSetupAppliedState", "openRGBDeviceSetupRolledBackState", "openRGBResourceName", "openRGBSealedAppDir", "openRGBSealedEnvelope", "openRGBSealedStagesDir", "qualificationObservationRelativePath", "resourceMetadataRootPath", "restoredResourcesDirPath", "userResourceHostID", "vaultBootstrapVault"},
+	"internal/resources/manifest":            {"BackendCPU", "BackendCUDA", "BackendMetal", "BackendROCm", "BackendVulkan", "DegradeVerb", "DurableDataDir", "DurableDataFile", "DurableDataJSON", "DurableDataSQLite", "HealthCheckHTTP", "HealthCheckLiveness", "HealthCheckOpenRGBV6", "HealthCheckReadiness", "RequireNone", "RequirePreferred", "RequireRequired", "TunableBoolean", "TunableInteger", "TunableString", "VerifyContainerDevice", "VerifyNone", "VerifyProcessDevice", "manifestCloudAPI", "manifestExternalCli", "manifestManagedService", "manifestNativeCli", "manifestUnsupported"},
 	"internal/runtimesupervisor":             {"LogFileName"},
 	"internal/scenario":                      {"CLIArtifactLocationSibling", "CLIDistributionPrebuiltArtifact", "CLIInvokeInstalledCommand", "CLIKindGoModule", "DependencyFreshnessPolicyRebuildOnly", "DependencyFreshnessPolicyRestartWhenStale", "DependencyFreshnessPolicyReuseRunning", "DependencyStartupPolicyIgnore", "DependencyStartupPolicyMustStart", "DependencyStartupPolicyTryStart", "DependencySupervisionPrecedenceRequired", "DependencySupervisionPrecedenceStartupPolicy", "authenticationProfileCloudflareAccess", "authenticationProfileHybrid", "authenticationProfileLocalReadOnly", "authenticationProfileNone", "authenticationProfileScenarioAuthenticator", "scenarioStatusRunning", "scenarioStatusUnhealthy"},
 	"internal/securestore":                   {"BackendNative", "adapterEncryptedFile", "aeadContext", "backendSelectionFile", "credentialCopyLaunchLabel", "credentialCopyTask", "credentialCopyTimer", "hostBoundTPM2Mode", "keyStoreDPAPI", "keyStoreHostKey", "keyStoreKeychain", "keyStorePassphrase", "keyStoreTPM2", "keyringEncryptedMagic", "keyringPlaintextPrefix", "providerHostBound", "providerNativeWrap", "providerPassphrase", "secureStoreFieldSecret", "secureStoreFieldValue", "systemdCredsName", "tpm2PCRPolicy", "unlockCacheDirName", "unlockCacheFileName", "unsafeValueBytes", "valueEncodingPrefix", "vrooliServicePrefix"},
@@ -28,7 +30,7 @@ var StoredConstants = map[string][]string{
 	"packages/cli-core/agentcatalog":         {"CodingRolePolicySchemaVersion", "LiveCatalogCurated", "ModelDiscoverySchemaVersion", "ModelSourceClaudeSubscription", "TokenWeightPolicyVersion"},
 	"packages/cli-core/agentcatalog/harness": {"WindowSourceClaudeStatusline", "WindowSourceCodexModelsCache"},
 	"packages/cli-core/usagemode":            {"ArmChallenger", "ArmIncumbent", "ExceptionExplicitModel", "ExceptionFullPower", "KindLearn", "KindSave", "UntilOff", "UntilTime", "UntilWindowReset", "markerFile"},
-	"packages/resource-deployment":           {"ActivationStateActivated", "ExternalManagementForbidden", "ServiceShutdownInterrupt", "ServiceShutdownTerminate", "UpdateStrategyRollingStateless", "activationCurrentEntry", "activationGenerations", "activationStagingDir", "artifactCacheManifestName", "artifactCacheSchemaVersion", "dataAcquisitionEager", "dataAcquisitionOnDemand", "deploymentLayoutDir", "deploymentLayoutFile", "deploymentTargetUnsupported", "deploymentVerificationChecksum", "deploymentVerificationHostTool", "releaseTrustSchemaVersion"},
+	"packages/resource-deployment":           {"ActivationStateActivated", "ExternalManagementForbidden", "ServiceShutdownInterrupt", "ServiceShutdownTerminate", "UpdateStrategyExclusiveStopStart", "UpdateStrategyRollingStateless", "activationCurrentEntry", "activationGenerations", "activationStagingDir", "artifactCacheManifestName", "artifactCacheSchemaVersion", "dataAcquisitionEager", "dataAcquisitionOnDemand", "deploymentLayoutDir", "deploymentLayoutFile", "deploymentTargetUnsupported", "deploymentVerificationChecksum", "deploymentVerificationHostTool", "releaseTrustSchemaVersion"},
 }
 
 // NotStoredConstants are constants that never reach stored state:
@@ -36,6 +38,7 @@ var StoredConstants = map[string][]string{
 // routes, schema paths in the repository, reasons printed rather than
 // recorded, and tunables of ConstantSources packages.
 var NotStoredConstants = map[string][]string{
+	"internal/hostreqkit": {"openRGBQualifiedDetectorCatalogSHA256"},
 	"internal/scenario": {
 		// environment variable name
 		"envPortValidation",
@@ -58,6 +61,9 @@ var NotStoredConstants = map[string][]string{
 		"DemandAuditRetention",
 	},
 	"internal/resources": {
+		// Pinned AppImage closure validation inputs. The durable launch contract
+		// retains the governed envelope; these constants are never serialized.
+		"openRGBAppDirPayload", "openRGBAppDirSHA256", "openRGBAppImageSHA256", "openRGBAppImageVersion", "openRGBPayloadSHA256",
 		// placement explanation text
 		"accelBridgeNoWorkload",
 		// broker and driver transport/command verbs
@@ -66,7 +72,7 @@ var NotStoredConstants = map[string][]string{
 		// fleet contract validation vocabulary (checks repository manifests)
 		"fleetContractDir", "fleetContractExternalCLIDriver", "fleetContractUnsupported",
 		// environment names and commands passed to children, not stored
-		"gpuOverrideEnvVar", "managedServiceOwnershipTokenEnv", "managedUpdateExecCommand", "modelCacheOwnerCommand",
+		"gpuOverrideEnvVar", "managedServiceOwnershipTokenEnv", "managedUpdateExecCommand", "openRGBInitialExecCommand", "modelCacheOwnerCommand",
 		// retention reasons printed by the artifact retention command
 		"ArtifactRetainActive", "ArtifactRetainInUse", "ArtifactRetainRemove", "ArtifactRetainRollback", "ArtifactRetainRunning", "ArtifactRetainUpdate",
 		// generated schema artifacts in the repository

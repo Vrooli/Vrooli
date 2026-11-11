@@ -27,11 +27,24 @@ func main() {
 	}
 }
 
-func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) (err error) {
 	if len(args) == 0 {
-		return errors.New("usage: vrooli-policy-runner hook|status|snapshot|canary|diagnose")
+		return errors.New("usage: vrooli-policy-runner hook|model-hook|status|snapshot|canary|diagnose")
 	}
 	command := args[0]
+	if command == "hook" {
+		// A hook is a guard, never a dependency: a crash here must not read as
+		// a verdict (a Go panic exits 2, which Codex treats as "block").
+		defer allowOnPanic(stderr, &err)
+	}
+	if command == "model-hook" {
+		// Before any store or profile setup: this guard must not depend on them.
+		runner := "codex"
+		if len(args) > 2 && args[1] == "--runner" {
+			runner = args[2]
+		}
+		return runModelHook(runner, stdin, stderr)
+	}
 	fs := flag.NewFlagSet(command, flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	runner := fs.String("runner", "unknown", "native coding-agent runner")
@@ -65,17 +78,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if err := writeJSON(stdout, decision); err != nil {
-			return err
+		if command == "canary" {
+			return writeJSON(stdout, decision)
 		}
-		if command == "hook" {
-			// Native adapters use these stable classes: zero means continue,
-			// ten means ask/confirm, and twenty means deny.
-			if code := agentharness.ExitCode(decision.Action); code != 0 {
-				return exitError{code: code}
-			}
-		}
-		return nil
+		return answerHook(*runner, decision, stdout, stderr)
 	case "status", "diagnose":
 		bundle, err := store.Load()
 		if err != nil {

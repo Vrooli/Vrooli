@@ -25,6 +25,8 @@ func PersistentState() statecontract.Owner {
 			reflect.TypeFor[StartOperationStep](),
 			reflect.TypeFor[ProcessRef](),
 			reflect.TypeFor[Event](),
+			reflect.TypeFor[EditorLease](),
+			reflect.TypeFor[EditorLeaseProvenance](),
 		},
 		Facts: map[string]any{
 			"SchemaVersion":                 SchemaVersion,

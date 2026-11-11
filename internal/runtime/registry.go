@@ -23,6 +23,7 @@ import (
 	dockerhostfirewall "github.com/vrooli/vrooli/internal/safeguards/docker-host-firewall"
 	edacmodules "github.com/vrooli/vrooli/internal/safeguards/edac-modules"
 	emergencywatchdog "github.com/vrooli/vrooli/internal/safeguards/emergency-watchdog"
+	generatedtreeownership "github.com/vrooli/vrooli/internal/safeguards/generated-tree-ownership"
 	graphicalsession "github.com/vrooli/vrooli/internal/safeguards/graphical-session"
 	harnessfileownership "github.com/vrooli/vrooli/internal/safeguards/harness-file-ownership"
 	hosthardening "github.com/vrooli/vrooli/internal/safeguards/host-hardening"
@@ -138,6 +139,7 @@ var customSafeguardHandlers = map[string]func(hostreqkit.SafeguardManifest) host
 	"tcp_tuning":                   tcptuning.NewHandler,
 	"vrooli_launcher":              vroolilauncher.NewHandler,
 	"coding_agent_shims":           codingagentshims.NewHandler,
+	"generated_tree_ownership":     generatedtreeownership.NewHandler,
 	"harness_file_ownership":       harnessfileownership.NewHandler,
 	"workspace_sandbox_userns":     workspacesandboxuserns.NewHandler,
 }

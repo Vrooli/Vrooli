@@ -16,7 +16,7 @@ const (
 	// shape and schemaMigrations carries additive upgrades for local registries.
 	// A version bump must update both the greenfield schema and its migration
 	// rung; destructive conversions remain operator-owned.
-	SchemaVersion = 15
+	SchemaVersion = 16
 
 	StatusStarting = "starting"
 	StatusRunning  = "running"
@@ -546,12 +546,15 @@ type ListenerObservation struct {
 // It is a projection of a process, not a lock: the row expires only on proof
 // of death (boot mismatch or the pid gone), never on a slow heartbeat.
 type EditorLease struct {
-	SessionID           string
-	Harness             string
-	Agent               string
-	PID                 int
-	HostBootID          string
-	WorkingDir          string
+	BindingID  string
+	SessionID  string
+	Harness    string
+	Agent      string
+	PID        int
+	HostBootID string
+	WorkingDir string
+	// Scope is the intended stable scope unit/name for legacy joins and diagnostics.
+	// It does not attest successful containment; consult binding provenance.
 	Scope               string
 	ContainmentMethod   string
 	Claims              []string
