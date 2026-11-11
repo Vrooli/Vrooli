@@ -3,6 +3,7 @@ package administration
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	credentialauthority "github.com/vrooli/vrooli/packages/credential-authority-go"
 	"landing-page-business-suite-api/internal/envx"
@@ -11,6 +12,31 @@ import (
 const credentialAuthorityIdentity = credentialauthority.Identity("vrooli/landing-page-business-suite")
 
 var credentialWitness credentialauthority.Witness
+
+var authorityProvider = struct {
+	sync.RWMutex
+	open func() (*credentialauthority.Authority, error)
+}{open: credentialauthority.Default}
+
+// SetCredentialAuthorityProvider replaces the default host authority only at
+// the composition boundary. Local rehearsal builds use this to share one
+// encrypted, synthetic authority with Treasury; normal builds retain Default.
+func SetCredentialAuthorityProvider(open func() (*credentialauthority.Authority, error)) {
+	authorityProvider.Lock()
+	defer authorityProvider.Unlock()
+	if open == nil {
+		authorityProvider.open = credentialauthority.Default
+		return
+	}
+	authorityProvider.open = open
+}
+
+func openCredentialAuthority() (*credentialauthority.Authority, error) {
+	authorityProvider.RLock()
+	open := authorityProvider.open
+	authorityProvider.RUnlock()
+	return open()
+}
 
 // SetCredentialWitness installs the data-owned witness used by generated
 // credential resolution. Composition owns the database-backed witness; this
@@ -65,7 +91,7 @@ func ResolveAuthorityCredential(key string) (string, error) {
 		}
 		return value, nil
 	}
-	authority, err := credentialauthority.Default()
+	authority, err := openCredentialAuthority()
 	if err != nil {
 		return "", fmt.Errorf("initialize credential authority: %w", err)
 	}
@@ -81,7 +107,7 @@ func ResolveAuthorityCredential(key string) (string, error) {
 // retain non-secret SMTP metadata, but the protected value always goes through
 // the shared authority.
 func PutAuthorityCredential(key, value string) error {
-	authority, err := credentialauthority.Default()
+	authority, err := openCredentialAuthority()
 	if err != nil {
 		return fmt.Errorf("initialize credential authority: %w", err)
 	}
@@ -91,7 +117,7 @@ func PutAuthorityCredential(key, value string) error {
 // DeleteAuthorityCredential removes an operator-supplied credential from the
 // same authority used for resolution.
 func DeleteAuthorityCredential(key string) error {
-	authority, err := credentialauthority.Default()
+	authority, err := openCredentialAuthority()
 	if err != nil {
 		return fmt.Errorf("initialize credential authority: %w", err)
 	}
@@ -126,7 +152,7 @@ func ResolveGeneratedSecret(key string, mint func() (string, error)) (string, er
 	if envx.Get("LPBS_TEST_CREDENTIAL_FALLBACK") == "1" {
 		return strings.TrimSpace(envx.Get(key)), nil
 	}
-	authority, err := credentialauthority.Default()
+	authority, err := openCredentialAuthority()
 	if err != nil {
 		return "", fmt.Errorf("initialize credential authority: %w", err)
 	}

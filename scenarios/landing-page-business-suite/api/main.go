@@ -10,6 +10,7 @@ import (
 	"crypto/x509"
 	"database/sql"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -72,6 +73,7 @@ type Server struct {
 	configStore              *experimentation.ConfigStore
 	metricsService           *domainmetrics.Service
 	stripeService            *StripeService
+	cryptoReceiptGrant       *commerce.CryptoReceiptGrantService
 	planService              *commerce.PlanService
 	downloadService          *delivery.CatalogService
 	downloadHosting          *delivery.Service
@@ -200,7 +202,27 @@ func NewServer() (*Server, error) {
 		if err := database.EnsureSchemas(ctx, testDB, database.SchemaProviderFunc(runtimeSchema)); err != nil {
 			return err
 		}
-		return seedDefaultData(testDB)
+		if err := seedDefaultData(testDB); err != nil {
+			return err
+		}
+		if !lpbsRehearsalBuild {
+			return nil
+		}
+		payerIdentity, payerAddress := strings.TrimSpace(os.Getenv("LPBS_REHEARSAL_PAYER_IDENTITY")), strings.ToLower(strings.TrimSpace(os.Getenv("LPBS_REHEARSAL_PAYER_ADDRESS")))
+		accountID, customerEmail := strings.TrimSpace(os.Getenv("LPBS_REHEARSAL_BUSINESS_ACCOUNT_ID")), strings.TrimSpace(os.Getenv("LPBS_REHEARSAL_CUSTOMER_EMAIL"))
+		if payerIdentity == "" && payerAddress == "" && accountID == "" && customerEmail == "" {
+			return nil
+		}
+		if payerIdentity == "" || payerAddress == "" || accountID == "" || customerEmail == "" {
+			return errors.New("LPBS rehearsal payer-to-customer binding is incomplete")
+		}
+		if _, err := testDB.ExecContext(ctx, `INSERT INTO business_accounts(id,display_name,billing_email) VALUES($1,$2,$3) ON CONFLICT(id) DO UPDATE SET display_name=EXCLUDED.display_name,billing_email=EXCLUDED.billing_email`, accountID, "CF2 Local Rehearsal", customerEmail); err != nil {
+			return fmt.Errorf("seed rehearsal business account: %w", err)
+		}
+		if _, err := testDB.ExecContext(ctx, `INSERT INTO crypto_payer_customer_bindings(payer_identity,payer_address,business_account_id,customer_email,enabled) VALUES($1,$2,$3,$4,TRUE) ON CONFLICT(payer_identity,payer_address) DO UPDATE SET business_account_id=EXCLUDED.business_account_id,customer_email=EXCLUDED.customer_email,enabled=TRUE`, payerIdentity, payerAddress, accountID, customerEmail); err != nil {
+			return fmt.Errorf("seed rehearsal payer binding on test lease: %w", err)
+		}
+		return nil
 	})
 
 	if err := seedDefaultData(db); err != nil {
@@ -480,6 +502,7 @@ func NewServer() (*Server, error) {
 		configStore:              configStore,
 		metricsService:           metricsService,
 		stripeService:            stripeService,
+		cryptoReceiptGrant:       &commerce.CryptoReceiptGrantService{DB: routedDB, Plans: planService, Wallet: commerce.NewCreditWalletService(routedDB), LiveMode: isProductionEnvironment()},
 		planService:              planService,
 		downloadService:          downloadService,
 		downloadHosting:          downloadHosting,

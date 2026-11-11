@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 
 	fundingstate "landing-page-business-suite-api/internal/commerce/fundinglot/flow/generated"
@@ -20,9 +21,16 @@ type CreditWallet interface {
 	BalanceForBusinessAccount(businessAccountID, customerEmail string) (int64, error)
 }
 
-type CreditWalletService struct{ db StripeStore }
+type creditWalletStore interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+	BeginTx(context.Context, *sql.TxOptions) (*sql.Tx, error)
+}
 
-func NewCreditWalletService(db StripeStore) *CreditWalletService { return &CreditWalletService{db: db} }
+type CreditWalletService struct{ db creditWalletStore }
+
+func NewCreditWalletService(db creditWalletStore) *CreditWalletService {
+	return &CreditWalletService{db: db}
+}
 
 var _ CreditWallet = (*CreditWalletService)(nil)
 
@@ -51,6 +59,16 @@ func sameGrantMetadata(stored []byte, expected []byte) bool {
 }
 
 func (s *CreditWalletService) AddCreditsForBusinessAccount(businessAccountID, customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error {
+	return s.AddCreditsForBusinessAccountContext(context.Background(), businessAccountID, customerEmail, amount, txnType, source, externalEventID, metadata)
+}
+
+// AddCreditsForBusinessAccountContext binds the entire funding transaction to
+// the request-selected database pool. In particular, test-mode requests must
+// never fall through to the primary customer ledger.
+func (s *CreditWalletService) AddCreditsForBusinessAccountContext(ctx context.Context, businessAccountID, customerEmail string, amount int64, txnType, source, externalEventID string, metadata map[string]interface{}) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	businessAccountID, customerEmail = strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail)
 	txnType, source, externalEventID = strings.TrimSpace(txnType), strings.TrimSpace(source), strings.TrimSpace(externalEventID)
 	if businessAccountID == "" || customerEmail == "" || amount <= 0 || txnType == "" || source == "" || externalEventID == "" {
@@ -67,7 +85,7 @@ func (s *CreditWalletService) AddCreditsForBusinessAccount(businessAccountID, cu
 	if s.db == nil {
 		return errors.New("account funding authority is unavailable")
 	}
-	tx, err := s.db.Begin()
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("begin account credit transaction: %w", err)
 	}
@@ -75,10 +93,10 @@ func (s *CreditWalletService) AddCreditsForBusinessAccount(businessAccountID, cu
 	if _, err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, businessAccountID); err != nil {
 		return err
 	}
-	if err := checkFundingPurchaseBlock(context.Background(), tx, businessAccountID); err != nil {
+	if err := checkFundingPurchaseBlock(ctx, tx, businessAccountID); err != nil {
 		return err
 	}
-	result, err := tx.Exec(`
+	result, err := tx.ExecContext(ctx, `
 		INSERT INTO business_account_credit_transactions (business_account_id, customer_email, amount_credits, transaction_type, source, external_event_id, metadata, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
 		ON CONFLICT (source, external_event_id) DO NOTHING
@@ -94,7 +112,7 @@ func (s *CreditWalletService) AddCreditsForBusinessAccount(businessAccountID, cu
 		var account, email, kind string
 		var previousAmount int64
 		var originalMetadata []byte
-		if err := tx.QueryRow(`SELECT business_account_id,customer_email,amount_credits,transaction_type,metadata FROM business_account_credit_transactions WHERE source=$1 AND external_event_id=$2`, source, externalEventID).Scan(&account, &email, &previousAmount, &kind, &originalMetadata); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT business_account_id,customer_email,amount_credits,transaction_type,metadata FROM business_account_credit_transactions WHERE source=$1 AND external_event_id=$2`, source, externalEventID).Scan(&account, &email, &previousAmount, &kind, &originalMetadata); err != nil {
 			return fmt.Errorf("load existing account grant: %w", err)
 		}
 		if account != businessAccountID || email != customerEmail || previousAmount != amount || kind != txnType || !sameGrantMetadata(originalMetadata, metadataJSON) {
@@ -105,21 +123,39 @@ func (s *CreditWalletService) AddCreditsForBusinessAccount(businessAccountID, cu
 	lotID := newReservationID()
 	providerRef := firstNonEmpty(metadataString(metadata, "payment_intent_id"), externalEventID)
 	providerRef2 := firstNonEmpty(metadataString(metadata, "charge_id"), metadataString(metadata, "session_id"))
-	if _, err := tx.Exec(`INSERT INTO credit_funding_lots (id,business_account_id,source_kind,provider,provider_ref,provider_ref2,external_event_id,livemode,settlement_state,granted,remaining,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'settled',$9,$9,'open',NOW())`, lotID, businessAccountID, txnType, source, providerRef, providerRef2, externalEventID, liveMode, amount); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO credit_funding_lots (id,business_account_id,source_kind,provider,provider_ref,provider_ref2,external_event_id,livemode,settlement_state,granted,remaining,status,created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'settled',$9,$9,'open',NOW())`, lotID, businessAccountID, txnType, source, providerRef, providerRef2, externalEventID, liveMode, amount); err != nil {
 		return fmt.Errorf("create account funding lot: %w", err)
 	}
+	if source == "money-ledger" {
+		atomicAmount := metadataString(metadata, "crypto_atomic_amount")
+		payerAddress := strings.ToLower(strings.TrimSpace(metadataString(metadata, "crypto_payer_address")))
+		payerIdentity := strings.TrimSpace(metadataString(metadata, "crypto_payer_identity"))
+		receiptID := strings.TrimSpace(metadataString(metadata, "money_ledger_receipt_id"))
+		network, assetID := strings.TrimSpace(metadataString(metadata, "crypto_network")), strings.TrimSpace(metadataString(metadata, "crypto_asset_id"))
+		noChargeback, _ := metadata["crypto_no_chargeback"].(bool)
+		if atomicAmount == "" || payerAddress == "" || payerIdentity == "" || receiptID == "" || network == "" || assetID == "" || !noChargeback {
+			return errors.New("accepted crypto lot requires exact receipt, asset and payer attribution")
+		}
+		atomic, ok := new(big.Int).SetString(atomicAmount, 10)
+		if !ok || atomic.Sign() <= 0 || atomic.String() != atomicAmount {
+			return errors.New("accepted crypto lot has invalid atomic amount")
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE credit_funding_lots SET crypto_network=$2,crypto_asset_id=$3,crypto_atomic_amount=$4,crypto_payer_address=$5,crypto_payer_identity=$6,money_ledger_receipt_id=$7,crypto_no_chargeback=$8 WHERE id=$1`, lotID, network, assetID, atomicAmount, payerAddress, payerIdentity, receiptID, noChargeback); err != nil {
+			return fmt.Errorf("persist accepted crypto attribution on lot: %w", err)
+		}
+	}
 	if paid, ok := metadata["paid_amount_minor"].(int64); ok {
-		if _, err := tx.Exec(`UPDATE credit_funding_lots SET paid_amount_minor=$2,paid_currency=$3 WHERE id=$1`, lotID, paid, metadataString(metadata, "paid_currency")); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE credit_funding_lots SET paid_amount_minor=$2,paid_currency=$3 WHERE id=$1`, lotID, paid, metadataString(metadata, "paid_currency")); err != nil {
 			return err
 		}
 	}
-	if err := applyFundingPolicy(context.Background(), tx, lotID, businessAccountID, source, txnType); err != nil {
+	if err := applyFundingPolicy(ctx, tx, lotID, businessAccountID, source, txnType); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`UPDATE business_account_credit_transactions SET lot_id=$1 WHERE source=$2 AND external_event_id=$3`, lotID, source, externalEventID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE business_account_credit_transactions SET lot_id=$1 WHERE source=$2 AND external_event_id=$3`, lotID, source, externalEventID); err != nil {
 		return fmt.Errorf("link account credit transaction to funding lot: %w", err)
 	}
-	if _, err := tx.Exec(`
+	if _, err := tx.ExecContext(ctx, `
 		INSERT INTO business_account_credit_wallets (business_account_id, customer_email, updated_at)
 		VALUES ($1, $2, NOW())
 		ON CONFLICT (business_account_id) DO UPDATE SET customer_email = EXCLUDED.customer_email, updated_at = NOW()
@@ -136,7 +172,7 @@ func (s *CreditWalletService) BalanceForBusinessAccount(businessAccountID, custo
 	var balance int64
 	// The wallet is an identity row. Only attributed, usable funding lots
 	// establish the displayed balance; an old cache amount has no provenance.
-	err := s.db.QueryRow(`SELECT COALESCE(SUM(l.remaining),0) FROM credit_funding_lots l JOIN business_account_credit_wallets w ON w.business_account_id=l.business_account_id WHERE w.business_account_id=$1 AND w.customer_email=$2 AND l.status=$3 AND l.settlement_state='settled' AND l.livemode IS NOT NULL AND (l.spendable_after IS NULL OR l.spendable_after<=CURRENT_TIMESTAMP) AND (l.expires_at IS NULL OR l.expires_at>CURRENT_TIMESTAMP)`, strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail), string(fundingstate.FundingLotOpen)).Scan(&balance)
+	err := s.db.QueryRowContext(context.Background(), `SELECT COALESCE(SUM(l.remaining),0) FROM credit_funding_lots l JOIN business_account_credit_wallets w ON w.business_account_id=l.business_account_id WHERE w.business_account_id=$1 AND w.customer_email=$2 AND l.status=$3 AND l.settlement_state='settled' AND l.livemode IS NOT NULL AND (l.spendable_after IS NULL OR l.spendable_after<=CURRENT_TIMESTAMP) AND (l.expires_at IS NULL OR l.expires_at>CURRENT_TIMESTAMP)`, strings.TrimSpace(businessAccountID), normalizeEmail(customerEmail), string(fundingstate.FundingLotOpen)).Scan(&balance)
 	if err == sql.ErrNoRows {
 		return 0, nil
 	}

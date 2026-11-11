@@ -96,6 +96,7 @@ func (s *Server) setupRoutes() {
 	registerFixtureRoutes(s)
 	registerAccountRoutes(s)
 	registerReceiptRoutes(s)
+	s.router.HandleFunc("/api/v1/internal/crypto-funding/accepted-receipts", s.requireTreasuryReceiptService(s.acceptTreasuryCryptoReceipt)).Methods(http.MethodPost)
 	registerBillingRoutes(s)
 	registerAdminCoreRoutes(s)
 	registerReaderTokenRoutes(s)

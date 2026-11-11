@@ -102,7 +102,32 @@ CREATE TABLE IF NOT EXISTS credit_funding_lots (
   funding_fingerprint TEXT,
   policy_id TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  -- Native crypto attribution is written only by the accepted-receipt owner path.
+  crypto_network TEXT,
+  crypto_asset_id TEXT,
+  crypto_atomic_amount NUMERIC(78,0),
+  crypto_payer_address TEXT,
+  crypto_payer_identity TEXT,
+  money_ledger_receipt_id TEXT,
+  crypto_no_chargeback BOOLEAN,
   UNIQUE (business_account_id, provider, provider_ref)
+);
+ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_network TEXT;
+ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_asset_id TEXT;
+ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_atomic_amount NUMERIC(78,0);
+ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_payer_address TEXT;
+ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_payer_identity TEXT;
+ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS money_ledger_receipt_id TEXT;
+ALTER TABLE credit_funding_lots ADD COLUMN IF NOT EXISTS crypto_no_chargeback BOOLEAN;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_credit_funding_lots_money_ledger_receipt ON credit_funding_lots(money_ledger_receipt_id) WHERE money_ledger_receipt_id IS NOT NULL;
+CREATE TABLE IF NOT EXISTS crypto_payer_customer_bindings (
+  payer_identity TEXT NOT NULL,
+  payer_address TEXT NOT NULL,
+  business_account_id TEXT NOT NULL,
+  customer_email TEXT NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (payer_identity, payer_address)
 );
 CREATE INDEX IF NOT EXISTS idx_credit_funding_lots_spendable ON credit_funding_lots(business_account_id, status, settlement_state, livemode, spendable_after, expires_at);
 CREATE TABLE IF NOT EXISTS credit_lot_allocations (
