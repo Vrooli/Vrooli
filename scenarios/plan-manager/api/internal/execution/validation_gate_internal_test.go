@@ -198,13 +198,15 @@ func TestTerminalFailedBaselineReceiptDoesNotRecommendAnotherWait(t *testing.T) 
 }
 
 func TestFailedBaselineReceiptPreservesAggregateCoverage(t *testing.T) {
-	execution := Execution{BaselineSet: BaselineSetState{ScenarioTargets: []string{"alpha", "beta", "gamma", "delta"}}}
+	execution := Execution{BaselineSet: BaselineSetState{Status: BaselineSetStatusRequired, ScenarioTargets: []string{"alpha", "beta", "gamma", "delta"}}}
 	receipt := &validationv1.ValidationReceipt{
 		State:  validationv1.ReceiptState_RECEIPT_STATE_FAILED,
 		Detail: "GCT collection before coverage required=4 ready=3 pending=0 failed=1 skipped=0 stale=0",
 	}
 
-	(&service{}).projectBaselineReceipt(&execution, receipt)
+	if err := (&service{}).projectBaselineReceipt(&execution, receipt); err != nil {
+		t.Fatalf("project failed receipt: %v", err)
+	}
 
 	if execution.BaselineSet.Required != 4 || execution.BaselineSet.Ready != 3 || execution.BaselineSet.Failed != 1 {
 		t.Fatalf("coverage = required=%d ready=%d failed=%d, want 4/3/1", execution.BaselineSet.Required, execution.BaselineSet.Ready, execution.BaselineSet.Failed)

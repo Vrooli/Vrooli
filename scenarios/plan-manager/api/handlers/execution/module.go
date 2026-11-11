@@ -111,8 +111,8 @@ func (a planStoreAdapter) GetPlan(ctx context.Context, idOrSlug string) (interna
 	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
 }
 
-func (a planStoreAdapter) UpdatePhase(ctx context.Context, planID, workspaceID, workspaceRoot string, phase internalplans.Phase) (internalplans.Plan, error) {
-	return a.svc.UpdatePhase(ctx, planID, internalplans.WorkspaceScope{ID: workspaceID, Root: workspaceRoot}, phase)
+func (a planStoreAdapter) TransitionPhaseStatus(ctx context.Context, planID, workspaceID, workspaceRoot, phaseID string, to internalplans.PhaseStatus) (internalplans.Plan, error) {
+	return a.svc.TransitionPhaseStatus(ctx, planID, internalplans.WorkspaceScope{ID: workspaceID, Root: workspaceRoot}, phaseID, to)
 }
 
 func (a planStoreAdapter) ExtendChangeBoundary(ctx context.Context, planID, workspaceID, workspaceRoot string, globs []string) (internalplans.Plan, []string, error) {

@@ -154,10 +154,9 @@ SELECT id, plan_id, expected_base_content_hash, proposal_provenance, workspace_i
 FROM candidate_revisions WHERE id = ? LIMIT 1`
 
 	listExecutionsForCandidateGuardSQL = `
-SELECT e.id, COALESCE(s.document, '')
+SELECT e.id
 FROM executions e
-LEFT JOIN execution_scope_states s ON s.execution_id = e.id
-WHERE e.plan_id = ? AND e.complete = 0
+WHERE e.plan_id = ? AND e.lifecycle_state IN ('active', 'ready')
 ORDER BY e.id`
 )
 
@@ -347,20 +346,9 @@ func (r *sqliteRepository) ActiveExecutionIDs(ctx context.Context, planID string
 	defer rows.Close()
 	ids := make([]string, 0)
 	for rows.Next() {
-		var (
-			id       string
-			document string
-		)
-		if err := rows.Scan(&id, &document); err != nil {
+		var id string
+		if err := rows.Scan(&id); err != nil {
 			return nil, fmt.Errorf("scan candidate execution guard: %w", err)
-		}
-		var state struct {
-			LifecycleState string `json:"lifecycle_state"`
-		}
-		if document != "" && json.Unmarshal([]byte(document), &state) == nil {
-			if state.LifecycleState == "completed" || state.LifecycleState == "abandoned" {
-				continue
-			}
 		}
 		ids = append(ids, id)
 	}

@@ -16,6 +16,7 @@ import (
 
 	planmodel "plan-manager/internal/planmodel"
 	"plan-manager/internal/plans"
+	phaseflow "plan-manager/internal/plans/phase/flow/generated"
 
 	db "github.com/vrooli/api-core/databasetest"
 
@@ -1352,15 +1353,17 @@ func TestStatusTransitionLegality(t *testing.T) {
 
 	// Move first phase to active => plan active.
 	ph0 := p.Phases[0]
-	ph0.Status = plans.PhaseStatusActive
-	p, err = svc.UpdatePhase(ctx, p.ID, plans.WorkspaceScope{}, ph0)
+	p, err = svc.TransitionPhaseStatus(ctx, p.ID, plans.WorkspaceScope{}, ph0.ID, plans.PhaseStatusActive)
 	require.NoError(t, err)
 	require.Equal(t, plans.PlanStatusActive, p.Status)
 
-	// All phases done => plan complete.
+	// All phases must pass through active before done => plan complete.
 	for _, ph := range p.Phases {
-		ph.Status = plans.PhaseStatusDone
-		p, err = svc.UpdatePhase(ctx, p.ID, plans.WorkspaceScope{}, ph)
+		if ph.Status == plans.PhaseStatusTodo {
+			p, err = svc.TransitionPhaseStatus(ctx, p.ID, plans.WorkspaceScope{}, ph.ID, plans.PhaseStatusActive)
+			require.NoError(t, err)
+		}
+		p, err = svc.TransitionPhaseStatus(ctx, p.ID, plans.WorkspaceScope{}, ph.ID, plans.PhaseStatusDone)
 		require.NoError(t, err)
 	}
 	require.Equal(t, plans.PlanStatusComplete, p.Status)
@@ -1371,9 +1374,65 @@ func TestStatusTransitionLegality(t *testing.T) {
 	require.Equal(t, plans.PlanStatusArchived, p.Status)
 	ph := p.Phases[0]
 	ph.Status = plans.PhaseStatusActive
-	p, err = svc.UpdatePhase(ctx, p.ID, plans.WorkspaceScope{}, ph)
+	p, _, err = svc.ReplacePhaseWithImpact(ctx, p.ID, plans.WorkspaceScope{}, ph, true)
 	require.NoError(t, err)
 	require.Equal(t, plans.PlanStatusArchived, p.Status, "archived is sticky")
+	require.Equal(t, plans.PhaseStatusDone, p.Phases[0].Status, "authored update cannot mutate lifecycle status")
+}
+
+func TestPhaseLifecycleRejectsInvalidTransitionsAndAuthoredBypasses(t *testing.T) {
+	svc, _ := newService(t)
+	ctx := context.Background()
+	p, err := svc.Create(ctx, samplePlan())
+	require.NoError(t, err)
+	phase := p.Phases[0]
+
+	_, err = svc.TransitionPhaseStatus(ctx, p.ID, plans.WorkspaceScope{}, phase.ID, plans.PhaseStatus("unknown"))
+	require.ErrorAs(t, err, new(plans.ErrPhaseTransition), "unknown states are rejected")
+
+	phase.Status = plans.PhaseStatusDone
+	p, _, err = svc.ReplacePhaseWithImpact(ctx, p.ID, plans.WorkspaceScope{}, phase, true)
+	require.NoError(t, err)
+	require.Equal(t, plans.PhaseStatusTodo, p.Phases[0].Status, "phase edits preserve lifecycle state")
+
+	p.Phases[0].Status = plans.PhaseStatusDone
+	p, err = svc.Update(ctx, p)
+	require.NoError(t, err)
+	require.Equal(t, plans.PhaseStatusTodo, p.Phases[0].Status, "full-plan edits preserve lifecycle state")
+
+	_, _, err = svc.PatchPhase(ctx, p.ID, plans.WorkspaceScope{}, plans.Phase{ID: phase.ID, Status: plans.PhaseStatusDone}, []string{"status"}, true)
+	require.Error(t, err, "masked status patches are not an alternate transition owner")
+}
+
+func TestPhaseLifecycleTransitionMatrix(t *testing.T) {
+	statuses := []plans.PhaseStatus{plans.PhaseStatusTodo, plans.PhaseStatusActive, plans.PhaseStatusBlocked, plans.PhaseStatusDone}
+	for _, from := range statuses {
+		for _, to := range statuses {
+			t.Run(string(from)+"_to_"+string(to), func(t *testing.T) {
+				svc, _ := newService(t)
+				ctx := context.Background()
+				p, err := svc.Create(ctx, samplePlan())
+				require.NoError(t, err)
+				phaseID := p.Phases[0].ID
+				if from != plans.PhaseStatusTodo {
+					p, err = svc.TransitionPhaseStatus(ctx, p.ID, plans.WorkspaceScope{}, phaseID, from)
+					require.NoError(t, err)
+				}
+
+				got, err := svc.TransitionPhaseStatus(ctx, p.ID, plans.WorkspaceScope{}, phaseID, to)
+				event := phaseflow.PhaseEvent("set_" + string(to))
+				if phaseflow.PhaseIsValidEvent(phaseflow.PhaseStatus(from), event) {
+					require.NoError(t, err)
+					require.Equal(t, to, got.Phases[0].Status)
+					return
+				}
+				require.ErrorAs(t, err, new(plans.ErrPhaseTransition))
+				current, getErr := svc.Get(ctx, p.ID, plans.WorkspaceScope{})
+				require.NoError(t, getErr)
+				require.Equal(t, from, current.Phases[0].Status, "rejected transitions preserve state")
+			})
+		}
+	}
 }
 
 // TestUpdatePreservesPhaseIdentityOnReKey pins the orphan guard: an Update whose
@@ -1461,7 +1520,7 @@ func TestUpdatePhasePartialEditPreservesOmittedAuthoredFields(t *testing.T) {
 	original.Intent = "Keep this intent"
 	original.Steps = []string{"keep step one", "keep step two"}
 	original.Acceptance = "Keep acceptance"
-	p, err = svc.UpdatePhase(ctx, p.ID, plans.WorkspaceScope{}, original)
+	p, _, err = svc.ReplacePhaseWithImpact(ctx, p.ID, plans.WorkspaceScope{}, original, true)
 	require.NoError(t, err)
 
 	updated, impact, err := svc.PatchPhase(ctx, p.ID, plans.WorkspaceScope{}, plans.Phase{
@@ -1486,7 +1545,7 @@ func TestPatchPhaseExplicitEmptyClearsOnlySelectedField(t *testing.T) {
 	original := p.Phases[0]
 	original.Intent = "intent remains"
 	original.HandoffNotes = "clear me"
-	p, err = svc.UpdatePhase(ctx, p.ID, plans.WorkspaceScope{}, original)
+	p, _, err = svc.ReplacePhaseWithImpact(ctx, p.ID, plans.WorkspaceScope{}, original, true)
 	require.NoError(t, err)
 
 	updated, _, err := svc.PatchPhase(ctx, p.ID, plans.WorkspaceScope{}, plans.Phase{ID: original.ID, HandoffNotes: ""}, []string{"handoff_notes"}, false)
@@ -1644,7 +1703,7 @@ func TestPhaseMutationsRespectWorkspaceScope(t *testing.T) {
 	require.ErrorIs(t, err, plans.ErrPlanNotFound{ID: p.ID})
 
 	p.Phases[0].Status = plans.PhaseStatusActive
-	_, err = svc.UpdatePhase(ctx, p.ID, workspaceB, p.Phases[0])
+	_, _, err = svc.ReplacePhaseWithImpact(ctx, p.ID, workspaceB, p.Phases[0], true)
 	require.ErrorIs(t, err, plans.ErrPlanNotFound{ID: p.ID})
 
 	updated, err := svc.AddPhase(ctx, p.ID, workspaceA, plans.Phase{Title: "Within workspace", Intent: "Must succeed"})

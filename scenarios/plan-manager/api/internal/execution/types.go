@@ -55,7 +55,6 @@ type Execution struct {
 	HarnessSessionID   string
 	HarnessKind        string
 	CurrentPhaseID     string
-	Complete           bool
 	StartedAt          string
 	UpdatedAt          string
 	InputsFreshenedAt  string
@@ -90,24 +89,6 @@ type Execution struct {
 	AbandonedReason    string
 	AbandonedAt        string
 	AbandonedBy        string
-}
-
-type ExecutionLifecycleState string
-
-const (
-	ExecutionLifecycleActive    ExecutionLifecycleState = "active"
-	ExecutionLifecycleCompleted ExecutionLifecycleState = "completed"
-	ExecutionLifecycleAbandoned ExecutionLifecycleState = "abandoned"
-)
-
-func (e Execution) EffectiveLifecycleState() ExecutionLifecycleState {
-	if e.LifecycleState != "" {
-		return e.LifecycleState
-	}
-	if e.Complete {
-		return ExecutionLifecycleCompleted
-	}
-	return ExecutionLifecycleActive
 }
 
 type BaselineSetStatus string

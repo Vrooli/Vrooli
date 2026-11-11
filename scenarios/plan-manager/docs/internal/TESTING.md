@@ -38,7 +38,7 @@ api/
 │       ├── db/                   # NewSQLite(t) — modernc.org/sqlite
 │       ├── fixtures/             # NewHealthResponse(opts...) — functional options
 │       ├── httpx/                # NewLiveServer(t, *Server) over real socket
-│       ├── mocks/                # FakeClock, FakePinger
+│       ├── mocks/                # FakeClock
 │       ├── no_prod_import_test.go  # AST guardrail (see below)
 │       └── testutil.go           # Package contract
 └── handlers/health/
@@ -52,9 +52,9 @@ api/
    `mocks.NewFakeClock(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))`,
    advance with `.Advance(d)`. Tests that touch duration logging or
    timestamp output start here.
-2. **`mocks.FakePinger`** — substitutes `database.Pinger` (cross-domain
-   mock under `internal/testutil/mocks/`). Construct with
-   `&mocks.FakePinger{PingErr: errors.New("connection refused")}` to
+2. **`github.com/vrooli/api-core/databasetest.FakePinger`** — substitutes `database.Pinger` (shared test helper from
+   `github.com/vrooli/api-core/databasetest`). Construct with
+   `&databasetest.FakePinger{PingErr: errors.New("connection refused")}` to
    exercise the unhealthy branch; default `PingErr: nil` is the happy
    path. Atomic `Calls` counter is for "the handler called Ping exactly
    once" assertions.

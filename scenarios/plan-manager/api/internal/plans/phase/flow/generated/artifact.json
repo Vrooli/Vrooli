@@ -1,0 +1,590 @@
+{
+  "schemaVersion": 6,
+  "flowId": "plan-manager.phase.api",
+  "source": {
+    "contractPath": "scenarios/plan-manager/api/internal/plans/phase/flow/flow.json",
+    "contractSha256": "a0c1f20c9001839fa03cc5d2081b74d0d69370ccf2949eb392c9287c09cc45d2",
+    "generatorPath": "flow-verifier",
+    "generatorSha256": "1737e2a389135a2c6b6ee2dcfa653680a67b7d237f2d701cc60af362864e3090",
+    "generatorVersion": 7,
+    "modelPath": "scenarios/plan-manager/api/internal/plans/phase/flow/generated/model.qnt",
+    "modelSha256": "09ce01d8924029a02b14128e54dec605a4d2ca28b8317c367a33bda94be81f87",
+    "quintVersion": "0.32.0",
+    "verificationBackend": "apalache"
+  },
+  "commands": {
+    "run": [
+      "quint",
+      "run",
+      "scenarios/plan-manager/api/internal/plans/phase/flow/generated/model.qnt",
+      "--mbt",
+      "--seed",
+      "2026110902",
+      "--max-samples",
+      "6",
+      "--n-traces",
+      "6",
+      "--max-steps",
+      "8",
+      "--out-itf",
+      "<temp-itf-pattern>"
+    ],
+    "test": [
+      "quint",
+      "test",
+      "scenarios/plan-manager/api/internal/plans/phase/flow/generated/model.qnt",
+      "--seed",
+      "2026110902"
+    ],
+    "typecheck": [
+      "quint",
+      "typecheck",
+      "scenarios/plan-manager/api/internal/plans/phase/flow/generated/model.qnt"
+    ],
+    "verify": [
+      "quint",
+      "verify",
+      "scenarios/plan-manager/api/internal/plans/phase/flow/generated/model.qnt",
+      "--invariants",
+      "TypeOK",
+      "IllegalTransitionsPreserveState",
+      "--max-steps",
+      "8"
+    ]
+  },
+  "states": [
+    "todo",
+    "active",
+    "blocked",
+    "done"
+  ],
+  "events": [
+    "set_todo",
+    "set_active",
+    "set_blocked",
+    "set_done"
+  ],
+  "transitions": [
+    {
+      "from": "todo",
+      "event": "set_todo",
+      "to": "todo",
+      "wantError": false
+    },
+    {
+      "from": "todo",
+      "event": "set_active",
+      "to": "active",
+      "wantError": false
+    },
+    {
+      "from": "todo",
+      "event": "set_blocked",
+      "to": "blocked",
+      "wantError": false
+    },
+    {
+      "from": "todo",
+      "event": "set_done",
+      "to": "done",
+      "wantError": false
+    },
+    {
+      "from": "active",
+      "event": "set_todo",
+      "to": "todo",
+      "wantError": false
+    },
+    {
+      "from": "active",
+      "event": "set_active",
+      "to": "active",
+      "wantError": false
+    },
+    {
+      "from": "active",
+      "event": "set_blocked",
+      "to": "blocked",
+      "wantError": false
+    },
+    {
+      "from": "active",
+      "event": "set_done",
+      "to": "done",
+      "wantError": false
+    },
+    {
+      "from": "blocked",
+      "event": "set_todo",
+      "to": "todo",
+      "wantError": false
+    },
+    {
+      "from": "blocked",
+      "event": "set_active",
+      "to": "active",
+      "wantError": false
+    },
+    {
+      "from": "blocked",
+      "event": "set_blocked",
+      "to": "blocked",
+      "wantError": false
+    },
+    {
+      "from": "blocked",
+      "event": "set_done",
+      "to": "blocked",
+      "wantError": true
+    },
+    {
+      "from": "done",
+      "event": "set_todo",
+      "to": "done",
+      "wantError": true
+    },
+    {
+      "from": "done",
+      "event": "set_active",
+      "to": "active",
+      "wantError": false
+    },
+    {
+      "from": "done",
+      "event": "set_blocked",
+      "to": "done",
+      "wantError": true
+    },
+    {
+      "from": "done",
+      "event": "set_done",
+      "to": "done",
+      "wantError": false
+    }
+  ],
+  "namedTraces": [
+    {
+      "name": "start_and_complete",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "blocked_retry",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_blocked",
+          "want": "blocked",
+          "wantError": false
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "validated_direct_completion",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "reopen_completed_phase",
+      "initial": "done",
+      "steps": [
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "blocked_cannot_complete",
+      "initial": "blocked",
+      "steps": [
+        {
+          "event": "set_done",
+          "want": "blocked",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "idempotent_todo",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_todo",
+          "want": "todo",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "generatedTraces": [
+    {
+      "name": "generated_model_001",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        },
+        {
+          "event": "set_todo",
+          "want": "done",
+          "wantError": true
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_blocked",
+          "want": "blocked",
+          "wantError": false
+        },
+        {
+          "event": "set_done",
+          "want": "blocked",
+          "wantError": true
+        },
+        {
+          "event": "set_blocked",
+          "want": "blocked",
+          "wantError": false
+        },
+        {
+          "event": "set_done",
+          "want": "blocked",
+          "wantError": true
+        }
+      ]
+    },
+    {
+      "name": "generated_model_002",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_blocked",
+          "want": "blocked",
+          "wantError": false
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_todo",
+          "want": "todo",
+          "wantError": false
+        },
+        {
+          "event": "set_todo",
+          "want": "todo",
+          "wantError": false
+        },
+        {
+          "event": "set_blocked",
+          "want": "blocked",
+          "wantError": false
+        },
+        {
+          "event": "set_done",
+          "want": "blocked",
+          "wantError": true
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_003",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        },
+        {
+          "event": "set_blocked",
+          "want": "done",
+          "wantError": true
+        },
+        {
+          "event": "set_todo",
+          "want": "done",
+          "wantError": true
+        },
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        },
+        {
+          "event": "set_todo",
+          "want": "done",
+          "wantError": true
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_todo",
+          "want": "todo",
+          "wantError": false
+        },
+        {
+          "event": "set_todo",
+          "want": "todo",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_004",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_todo",
+          "want": "todo",
+          "wantError": false
+        },
+        {
+          "event": "set_todo",
+          "want": "todo",
+          "wantError": false
+        },
+        {
+          "event": "set_blocked",
+          "want": "blocked",
+          "wantError": false
+        },
+        {
+          "event": "set_todo",
+          "want": "todo",
+          "wantError": false
+        },
+        {
+          "event": "set_blocked",
+          "want": "blocked",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_005",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        },
+        {
+          "event": "set_blocked",
+          "want": "done",
+          "wantError": true
+        },
+        {
+          "event": "set_blocked",
+          "want": "done",
+          "wantError": true
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        },
+        {
+          "event": "set_blocked",
+          "want": "done",
+          "wantError": true
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        }
+      ]
+    },
+    {
+      "name": "generated_model_006",
+      "initial": "todo",
+      "steps": [
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        },
+        {
+          "event": "set_active",
+          "want": "active",
+          "wantError": false
+        },
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        },
+        {
+          "event": "set_blocked",
+          "want": "done",
+          "wantError": true
+        },
+        {
+          "event": "set_blocked",
+          "want": "done",
+          "wantError": true
+        },
+        {
+          "event": "set_todo",
+          "want": "done",
+          "wantError": true
+        },
+        {
+          "event": "set_done",
+          "want": "done",
+          "wantError": false
+        }
+      ]
+    }
+  ],
+  "invariants": [
+    "TypeOK",
+    "IllegalTransitionsPreserveState"
+  ],
+  "generatedChecks": [
+    "transitionTable"
+  ],
+  "coverage": {
+    "transitionMatrixComplete": true,
+    "terminalTransitionsChecked": true,
+    "namedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "todo",
+        "active",
+        "blocked",
+        "done"
+      ],
+      "coveredEvents": [
+        "set_todo",
+        "set_active",
+        "set_blocked",
+        "set_done"
+      ]
+    },
+    "generatedTraces": {
+      "allStatesCovered": true,
+      "allEventsCovered": true,
+      "coveredStates": [
+        "todo",
+        "active",
+        "blocked",
+        "done"
+      ],
+      "coveredEvents": [
+        "set_todo",
+        "set_active",
+        "set_blocked",
+        "set_done"
+      ],
+      "coveredPairs": [
+        "todo/set_todo",
+        "todo/set_active",
+        "todo/set_blocked",
+        "todo/set_done",
+        "active/set_todo",
+        "active/set_active",
+        "active/set_blocked",
+        "active/set_done",
+        "blocked/set_todo",
+        "blocked/set_active",
+        "blocked/set_blocked",
+        "blocked/set_done",
+        "done/set_todo",
+        "done/set_active",
+        "done/set_blocked",
+        "done/set_done"
+      ],
+      "allPairsCovered": true
+    }
+  },
+  "checks": {
+    "typechecked": true,
+    "tested": true,
+    "verified": true,
+    "generatedFromContract": true,
+    "generatedFromModel": true
+  }
+}

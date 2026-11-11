@@ -4,11 +4,10 @@
 // The package is split into focused sub-packages so consumers import only
 // what they need and the surface area stays scannable as it grows:
 //
-//   - mocks/    canonical hand-written fakes for each interface (FakeClock,
-//     FakePinger). One implementation per seam; tests arrange via
-//     struct-field mutation, not method calls. Per-method error
-//     knobs (`PingErr`, future `CreateErr`) are the standard
-//     failure-injection idiom.
+//   - mocks/    canonical hand-written fakes for scenario-owned interfaces
+//     (FakeClock and domain dependencies). One implementation per seam;
+//     tests arrange via struct-field mutation, not method calls. Per-operation
+//     error fields are the standard failure-injection idiom.
 //   - fixtures/ domain factories using the functional-options pattern
 //     (NewHealthResponse(WithHealthStatus(...))). Default values
 //     are picked so the most common test path is `fixtures.NewX()`

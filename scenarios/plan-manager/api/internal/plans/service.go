@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"plan-manager/internal/planmodel"
+	phaseflow "plan-manager/internal/plans/phase/flow/generated"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -36,7 +37,7 @@ type Service interface {
 
 	AddPhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error)
 	AddPhaseWithImpact(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase, allowRegression bool) (Plan, MutationImpact, error)
-	UpdatePhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error)
+	TransitionPhaseStatus(ctx context.Context, planID string, workspace WorkspaceScope, phaseID string, to PhaseStatus) (Plan, error)
 	ReplacePhaseWithImpact(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase, allowRegression bool) (Plan, MutationImpact, error)
 	PatchPhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase, paths []string, allowRegression bool) (Plan, MutationImpact, error)
 	ListRelevantContext(ctx context.Context, idOrSlug string, workspace WorkspaceScope, phaseID string) ([]RelevantContextItem, error)
@@ -219,6 +220,17 @@ func (s *service) Update(ctx context.Context, p Plan) (Plan, error) {
 	}
 	planmodel.EnsureCurrentBaselineSet(&p)
 	p.Phases = normalizePhases(reconcilePhaseIDs(existing.Phases, p.Phases))
+	// Phase lifecycle is computed state. Preserve it by stable phase identity;
+	// full-plan authored updates cannot bypass the transition owner.
+	phaseStatuses := make(map[string]PhaseStatus, len(existing.Phases))
+	for _, phase := range existing.Phases {
+		phaseStatuses[phase.ID] = phase.Status
+	}
+	for i := range p.Phases {
+		if status, ok := phaseStatuses[p.Phases[i].ID]; ok {
+			p.Phases[i].Status = status
+		}
+	}
 	if existing.Status == PlanStatusArchived {
 		p.Status = PlanStatusArchived
 	} else {
@@ -333,7 +345,7 @@ func (s *service) AddPhase(ctx context.Context, planID string, workspace Workspa
 	if phase.ID == "" {
 		phase.ID = uuid.NewString()
 	}
-	phase.Status = defaultPhaseStatus(phase.Status)
+	phase.Status = PhaseStatusTodo
 	phase.Order = len(p.Phases) + 1
 	p.Phases = append(p.Phases, phase)
 	return s.saveRecomputed(ctx, p)
@@ -351,7 +363,7 @@ func (s *service) AddPhaseWithImpact(ctx context.Context, planID string, workspa
 	if phase.ID == "" {
 		phase.ID = uuid.NewString()
 	}
-	phase.Status = defaultPhaseStatus(phase.Status)
+	phase.Status = PhaseStatusTodo
 	phase.Order = len(p.Phases) + 1
 	p.Phases = append(p.Phases, phase)
 	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
@@ -446,25 +458,28 @@ func (s *service) ExtendChangeBoundary(ctx context.Context, planID string, works
 	return updated, added, nil
 }
 
-func (s *service) UpdatePhase(ctx context.Context, planID string, workspace WorkspaceScope, phase Phase) (Plan, error) {
+// TransitionPhaseStatus is the sole phase lifecycle writer. Execution performs
+// its validation and evidence checks before calling this typed persistence edge.
+// The transition table is generated from phase/flow/flow.json by Flow Verifier.
+func (s *service) TransitionPhaseStatus(ctx context.Context, planID string, workspace WorkspaceScope, phaseID string, to PhaseStatus) (Plan, error) {
 	p, err := s.Get(ctx, planID, workspace)
 	if err != nil {
 		return Plan{}, err
 	}
-	idx := -1
-	for i := range p.Phases {
-		if p.Phases[i].ID == phase.ID {
-			idx = i
-			break
-		}
-	}
+	idx := phaseIndex(p.Phases, phaseID)
 	if idx < 0 {
-		return Plan{}, ErrPhaseNotFound{PlanID: planID, PhaseID: phase.ID}
+		return Plan{}, ErrPhaseNotFound{PlanID: planID, PhaseID: phaseID}
 	}
-	// Preserve order + identity; the caller owns the authored/status fields.
-	phase.Order = p.Phases[idx].Order
-	phase.Status = defaultPhaseStatus(phase.Status)
-	p.Phases[idx] = phase
+	from := defaultPhaseStatus(p.Phases[idx].Status)
+	event := phaseflow.PhaseEvent("set_" + string(to))
+	next, transitionErr := phaseflow.TransitionPhaseStatus(phaseflow.PhaseStatus(from), event)
+	if transitionErr != nil || PhaseStatus(next) != to {
+		return Plan{}, ErrPhaseTransition{PlanID: planID, PhaseID: phaseID, From: from, To: to}
+	}
+	if from == to {
+		return p, nil
+	}
+	p.Phases[idx].Status = PhaseStatus(next)
 	return s.saveRecomputed(ctx, p)
 }
 
@@ -482,7 +497,7 @@ func (s *service) ReplacePhaseWithImpact(ctx context.Context, planID string, wor
 	beforeStatus := p.Status
 	beforeReport := planmodel.AssessPlanQuality(p, "")
 	phase.Order = p.Phases[idx].Order
-	phase.Status = defaultPhaseStatus(phase.Status)
+	phase.Status = p.Phases[idx].Status
 	p.Phases[idx] = phase
 	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
 	if err != nil {
@@ -502,7 +517,6 @@ var allowedPhasePatchPaths = map[string]func(*Phase, Phase){
 	"acceptance":       func(dst *Phase, src Phase) { dst.Acceptance = src.Acceptance },
 	"risks_hazards":    func(dst *Phase, src Phase) { dst.RisksHazards = append([]string(nil), src.RisksHazards...) },
 	"handoff_notes":    func(dst *Phase, src Phase) { dst.HandoffNotes = src.HandoffNotes },
-	"status":           func(dst *Phase, src Phase) { dst.Status = src.Status },
 	"references":       func(dst *Phase, src Phase) { dst.References = append([]Reference(nil), src.References...) },
 	"relevant_context": func(dst *Phase, src Phase) {
 		dst.RelevantContext = append([]RelevantContextItem(nil), src.RelevantContext...)
@@ -545,7 +559,7 @@ func (s *service) PatchPhase(ctx context.Context, planID string, workspace Works
 	}
 	patched.ID = p.Phases[idx].ID
 	patched.Order = p.Phases[idx].Order
-	patched.Status = defaultPhaseStatus(patched.Status)
+	patched.Status = p.Phases[idx].Status
 	p.Phases[idx] = patched
 	impact, err := assessMutationImpactFromReport(beforeStatus, beforeReport, p, allowRegression)
 	if err != nil {

@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS executions (
   harness_session_id  TEXT NOT NULL DEFAULT '',
   harness_kind        TEXT NOT NULL DEFAULT '',
   current_phase_id    TEXT NOT NULL DEFAULT '',
-  complete            INTEGER NOT NULL DEFAULT 0,
+  lifecycle_state     TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle_state IN ('active','ready','completed','abandoned')),
   started_at          TEXT NOT NULL,
   updated_at          TEXT NOT NULL,
   inputs_freshened_at TEXT NOT NULL DEFAULT '',

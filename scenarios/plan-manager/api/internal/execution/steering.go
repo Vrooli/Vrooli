@@ -327,7 +327,7 @@ func assessmentAction(executionID, phaseID string) NextAction {
 }
 
 func stepForTransition(e Execution) GuidedStep {
-	if e.Complete {
+	if e.PhasesComplete() {
 		return GuidedStep{
 			StepKind:     "final_dod_required",
 			Title:        "Final Definition of Done Required",

@@ -39,3 +39,10 @@ type ErrValidationRequired struct {
 func (e ErrValidationRequired) Error() string {
 	return fmt.Sprintf("phase %q cannot complete: %s", e.PhaseID, e.Reason)
 }
+
+// ErrInvalidTransition is state preserving and maps to failed_precondition.
+type ErrInvalidTransition struct{ ExecutionID, State, Event string }
+
+func (e ErrInvalidTransition) Error() string {
+	return fmt.Sprintf("execution %q cannot apply %s from %s", e.ExecutionID, e.Event, e.State)
+}

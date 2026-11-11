@@ -69,8 +69,8 @@ func (a planStore) GetPlan(ctx context.Context, idOrSlug string) (internalplans.
 	return a.svc.Get(ctx, idOrSlug, internalplans.WorkspaceScope{})
 }
 
-func (a planStore) UpdatePhase(ctx context.Context, planID, workspaceID, workspaceRoot string, phase internalplans.Phase) (internalplans.Plan, error) {
-	return a.svc.UpdatePhase(ctx, planID, internalplans.WorkspaceScope{ID: workspaceID, Root: workspaceRoot}, phase)
+func (a planStore) TransitionPhaseStatus(ctx context.Context, planID, workspaceID, workspaceRoot, phaseID string, to internalplans.PhaseStatus) (internalplans.Plan, error) {
+	return a.svc.TransitionPhaseStatus(ctx, planID, internalplans.WorkspaceScope{ID: workspaceID, Root: workspaceRoot}, phaseID, to)
 }
 
 func (a planStore) ExtendChangeBoundary(ctx context.Context, planID, workspaceID, workspaceRoot string, globs []string) (internalplans.Plan, []string, error) {

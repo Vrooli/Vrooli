@@ -174,6 +174,13 @@ func (f *fakePlansService) UpdatePhase(_ context.Context, planID string, workspa
 	return f.plan, f.err
 }
 
+func (f *fakePlansService) TransitionPhaseStatus(_ context.Context, planID string, workspace internalplans.WorkspaceScope, phaseID string, to internalplans.PhaseStatus) (internalplans.Plan, error) {
+	f.gotUpdatePhasePlanID = planID
+	f.gotUpdatePhaseWorkspace = workspace
+	f.gotUpdatePhase = internalplans.Phase{ID: phaseID, Status: to}
+	return f.plan, f.err
+}
+
 func (f *fakePlansService) ReplacePhaseWithImpact(ctx context.Context, planID string, workspace internalplans.WorkspaceScope, phase internalplans.Phase, _ bool) (internalplans.Plan, internalplans.MutationImpact, error) {
 	p, err := f.UpdatePhase(ctx, planID, workspace, phase)
 	return p, internalplans.MutationImpact{BeforeGrade: "pass", AfterGrade: "pass"}, err

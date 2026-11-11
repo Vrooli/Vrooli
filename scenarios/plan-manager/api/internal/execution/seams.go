@@ -15,9 +15,9 @@ import (
 // domain stays the single source of truth for the record.
 type PlanStore interface {
 	GetPlan(ctx context.Context, idOrSlug string) (planmodel.Plan, error)
-	// UpdatePhase applies an authored/status mutation to one phase and returns the
-	// recomputed plan (plan status is derived from the phase-status set there).
-	UpdatePhase(ctx context.Context, planID, workspaceID, workspaceRoot string, phase planmodel.Phase) (planmodel.Plan, error)
+	// TransitionPhaseStatus is the sole lifecycle write seam; authored phase edits
+	// preserve status in the plans domain.
+	TransitionPhaseStatus(ctx context.Context, planID, workspaceID, workspaceRoot, phaseID string, to planmodel.PhaseStatus) (planmodel.Plan, error)
 	// ExtendChangeBoundary appends allow globs to the plan's change boundary and
 	// returns the recomputed plan plus the globs that were actually new. The
 	// plans domain owns the append/deny/placeholder rules; execution only decides

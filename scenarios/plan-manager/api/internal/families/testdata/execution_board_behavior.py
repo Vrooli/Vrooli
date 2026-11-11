@@ -14,7 +14,8 @@ def evaluate(family_id='', graph_revision='7', foreign=False):
         return Handle({'receipt':{'receiptId':'receipt','state':'RECEIPT_STATE_QUEUED'}})
     owner=N(exec=N(status=lambda **kw:Handle({'execution':execution,'step':{'stepKind':'baseline_receipt_pending','nextActions':[{'id':'wait','argv':['test-genie','validation','wait','receipt']}]}})),families=N(get=lambda **kw:Handle({'family':family}),frontier=lambda **kw:Handle({'graphRevision':graph_revision,'batches':[]})))
     out=io.StringIO()
-    with contextlib.redirect_stdout(out):exec(compile(source,sys.argv[1],'exec'),{'inputs':{'execution_id':'execution','family_id':family_id},'plan_manager':owner,'test_genie':N(validation=N(get=receipt)),'gather':lambda *fs:tuple(f() for f in fs)})
+    program=N(inputs=lambda:{'execution_id':'execution','family_id':family_id})
+    with contextlib.redirect_stdout(out):exec(compile(source,sys.argv[1],'exec'),{'program':program,'plan_manager':owner,'test_genie':N(validation=N(get=receipt)),'gather':lambda *fs:tuple(f() for f in fs)})
     assert len(out.getvalue().encode())<=4096
     return json.loads(out.getvalue()),receipt_calls
 single,calls=evaluate()

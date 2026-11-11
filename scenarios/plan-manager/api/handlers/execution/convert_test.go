@@ -19,7 +19,7 @@ func TestExecutionToProto(t *testing.T) {
 		PlanID:         "p1",
 		RunID:          "run-1",
 		CurrentPhaseID: "ph-2",
-		Complete:       true,
+		LifecycleState: internalexecution.ExecutionLifecycleReady,
 		StartedAt:      "t0",
 		UpdatedAt:      "t1",
 		BaselineSet:    internalexecution.BaselineSetState{Version: 1, Name: "before", Status: internalexecution.BaselineSetStatusComplete, Required: 2, Ready: 2, CollectionBranch: "agi", Members: []internalexecution.BaselineSetMember{{Scenario: "git-control-tower", RunID: "run-gct", GitSHA: "abc123"}}, PathSnapshots: []internalexecution.BaselineSetPathSnapshot{{Name: "paths-before", Branch: "agi"}}, SourcePreflight: internalexecution.SourceEvidencePreflight{PolicyVersion: 1, EligibleFiles: 3, ExcludedIgnoredFiles: 2, RepairRequired: true, TopContributors: []internalexecution.SourceEvidenceContributor{{Path: "packages/proto", Files: 3, Bytes: 42}}, Issues: []internalexecution.SourceEvidenceIssue{{Code: "broad", Severity: "repair-required", Detail: "narrow it"}}}},

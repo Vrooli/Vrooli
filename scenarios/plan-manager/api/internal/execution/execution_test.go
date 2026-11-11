@@ -41,13 +41,13 @@ func (f *fakePlanStore) GetPlan(_ context.Context, _ string) (internalplans.Plan
 	return f.plan, f.err
 }
 
-func (f *fakePlanStore) UpdatePhase(_ context.Context, _, _, _ string, phase internalplans.Phase) (internalplans.Plan, error) {
+func (f *fakePlanStore) TransitionPhaseStatus(_ context.Context, _, _, _, phaseID string, to internalplans.PhaseStatus) (internalplans.Plan, error) {
 	if f.err != nil {
 		return internalplans.Plan{}, f.err
 	}
 	for i := range f.plan.Phases {
-		if f.plan.Phases[i].ID == phase.ID {
-			f.plan.Phases[i] = phase
+		if f.plan.Phases[i].ID == phaseID {
+			f.plan.Phases[i].Status = to
 			break
 		}
 	}
@@ -397,13 +397,13 @@ func TestStartLinksRunAndSetsResumePointer(t *testing.T) {
 	require.Equal(t, "run-abc", e.RunID)
 	require.Equal(t, provenance.VerificationVerified, e.VerificationStatus)
 	require.Equal(t, "ph-1", e.CurrentPhaseID, "current pointer starts at the earliest non-done phase")
-	require.False(t, e.Complete)
+	require.False(t, e.PhasesComplete())
 	require.True(t, pctx.HasCurrent)
 	require.Equal(t, "ph-1", pctx.CurrentPhase.ID)
 	require.Equal(t, []string{"ctx-global", "ctx-ph-1"}, contextIDs(pctx.RelevantContext))
 	require.Equal(t, "execution_started", step.StepKind)
 	require.Equal(t, []string{"exec", "status", e.ID}, step.NextActions[0].Argv)
-	require.Equal(t, execution.ExecutionLifecycleActive, e.EffectiveLifecycleState())
+	require.Equal(t, execution.ExecutionLifecycleActive, e.LifecycleState)
 }
 
 func TestStartPersistsHarnessObservationWithoutRunAttribution(t *testing.T) {
@@ -451,7 +451,7 @@ func TestAbandonExecutionIsTerminalIdempotentAndAllowsReplacement(t *testing.T) 
 	abandoned, replay, step, err := h.svc.AbandonExecution(context.Background(), started.ID, "created accidentally", "agent-7")
 	require.NoError(t, err)
 	require.False(t, replay)
-	require.Equal(t, execution.ExecutionLifecycleAbandoned, abandoned.EffectiveLifecycleState())
+	require.Equal(t, execution.ExecutionLifecycleAbandoned, abandoned.LifecycleState)
 	require.Equal(t, "created accidentally", abandoned.AbandonedReason)
 	require.Equal(t, "agent-7", abandoned.AbandonedBy)
 	require.NotEmpty(t, abandoned.AbandonedAt)
@@ -468,7 +468,7 @@ func TestAbandonExecutionIsTerminalIdempotentAndAllowsReplacement(t *testing.T) 
 
 	_, _, _, err = h.svc.Resume(context.Background(), started.ID, "", "")
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "cannot be resumed")
+	require.ErrorAs(t, err, new(execution.ErrInvalidTransition))
 
 	replacement, _, _, err := h.svc.Start(context.Background(), "plan-1", "run-replacement")
 	require.NoError(t, err)
@@ -875,7 +875,7 @@ func TestTransitionPhaseDoneAllowsFreshPassingValidationAndFeedbackCheckpoint(t 
 	require.NoError(t, err)
 	require.Equal(t, internalplans.PhaseStatusDone, plan.Phases[0].Status, "the plans domain owns the persisted status")
 	require.Equal(t, "ph-2", updatedE.CurrentPhaseID, "pointer advances to the next non-done phase")
-	require.False(t, updatedE.Complete)
+	require.False(t, updatedE.PhasesComplete())
 }
 
 func TestTransitionPhaseDoneAllowsExplicitValidationAndFeedbackOverrides(t *testing.T) {

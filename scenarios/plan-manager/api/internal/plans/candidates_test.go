@@ -90,11 +90,25 @@ func TestCandidateRevisionRejectsStaleBaseAndActiveExecution(t *testing.T) {
 		PlanID: base.ID, ExpectedBaseContentHash: base.ContentHash, ProposalProvenance: "workshop:active", CandidatePlan: next,
 	})
 	require.NoError(t, err)
-	_, err = d.ExecContext(ctx, `INSERT INTO executions (id, plan_id, run_id, complete, started_at, updated_at) VALUES ('active-execution', ?, '', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`, base.ID)
-	require.NoError(t, err)
+	for _, row := range []struct{ id, state string }{
+		{"active-execution", "active"},
+		{"ready-execution", "ready"},
+		{"completed-execution", "completed"},
+		{"abandoned-execution", "abandoned"},
+	} {
+		_, err = d.ExecContext(ctx, `INSERT INTO executions (id, plan_id, run_id, lifecycle_state, started_at, updated_at) VALUES (?, ?, '', ?, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`, row.id, base.ID, row.state)
+		require.NoError(t, err)
+	}
 	_, _, _, err = svc.ApplyCandidate(ctx, candidate.ID, base.ContentHash, true)
-	require.ErrorAs(t, err, new(plans.ErrCandidateExecutionActive))
+	var activeErr plans.ErrCandidateExecutionActive
+	require.ErrorAs(t, err, &activeErr)
+	require.Equal(t, []string{"active-execution", "ready-execution"}, activeErr.ExecutionIDs)
+	_, err = d.ExecContext(ctx, `DELETE FROM executions WHERE id IN ('active-execution', 'ready-execution')`)
+	require.NoError(t, err)
+	_, updated, _, err := svc.ApplyCandidate(ctx, candidate.ID, base.ContentHash, true)
+	require.NoError(t, err, "terminal executions must not block candidate application")
+	require.Equal(t, "Changed", updated.Purpose)
 	current, err := svc.Get(ctx, base.ID, plans.WorkspaceScope{})
 	require.NoError(t, err)
-	require.Equal(t, base.ContentHash, current.ContentHash)
+	require.Equal(t, updated.ContentHash, current.ContentHash)
 }

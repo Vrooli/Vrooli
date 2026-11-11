@@ -17,6 +17,19 @@ type ErrInvalidPlan = planmodel.ErrInvalidPlan
 // ErrPhaseNotFound is returned when a phase id is not on the named plan.
 type ErrPhaseNotFound = planmodel.ErrPhaseNotFound
 
+// ErrPhaseTransition reports a lifecycle edge that is absent from the phase
+// transition table.
+type ErrPhaseTransition struct {
+	PlanID  string
+	PhaseID string
+	From    PhaseStatus
+	To      PhaseStatus
+}
+
+func (e ErrPhaseTransition) Error() string {
+	return fmt.Sprintf("phase %q on plan %q cannot transition from %q to %q", e.PhaseID, e.PlanID, e.From, e.To)
+}
+
 // ErrTemplateNotFound is returned when a template id is unknown.
 type ErrTemplateNotFound struct{ ID string }
 

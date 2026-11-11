@@ -94,7 +94,6 @@ type executionScopeDocument struct {
 	ScopeAmendments            []ScopeAmendment             `json:"scope_amendments"`
 	BoundaryExtensions         []BoundaryExtension          `json:"boundary_extensions,omitempty"`
 	DegradedReason             string                       `json:"degraded_reason"`
-	LifecycleState             ExecutionLifecycleState      `json:"lifecycle_state,omitempty"`
 	AbandonedReason            string                       `json:"abandoned_reason,omitempty"`
 	AbandonedAt                string                       `json:"abandoned_at,omitempty"`
 	AbandonedBy                string                       `json:"abandoned_by,omitempty"`
@@ -102,7 +101,7 @@ type executionScopeDocument struct {
 
 const (
 	upsertExecutionSQL = `
-	INSERT INTO executions (id, plan_id, run_id, verification_status, harness_session_id, harness_kind, current_phase_id, complete, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail)
+	INSERT INTO executions (id, plan_id, run_id, verification_status, harness_session_id, harness_kind, current_phase_id, lifecycle_state, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
   plan_id=excluded.plan_id,
@@ -111,22 +110,22 @@ ON CONFLICT(id) DO UPDATE SET
 	harness_session_id=excluded.harness_session_id,
 	harness_kind=excluded.harness_kind,
   current_phase_id=excluded.current_phase_id,
-  complete=excluded.complete,
+  lifecycle_state=excluded.lifecycle_state,
   updated_at=excluded.updated_at,
   inputs_freshened_at=excluded.inputs_freshened_at,
   freshen_status=excluded.freshen_status,
   freshen_detail=excluded.freshen_detail`
 
 	getExecutionSQL = `
-	SELECT id, plan_id, run_id, verification_status, harness_session_id, harness_kind, current_phase_id, complete, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail
+	SELECT id, plan_id, run_id, verification_status, harness_session_id, harness_kind, current_phase_id, lifecycle_state, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail
 FROM executions WHERE id = ? LIMIT 1`
 
 	latestExecutionForPlanSQL = `
-	SELECT id, plan_id, run_id, verification_status, harness_session_id, harness_kind, current_phase_id, complete, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail
+	SELECT id, plan_id, run_id, verification_status, harness_session_id, harness_kind, current_phase_id, lifecycle_state, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail
 FROM executions WHERE plan_id = ? ORDER BY updated_at DESC, started_at DESC, id DESC LIMIT 1`
 
 	listExecutionsForPlanSQL = `
-	SELECT id, plan_id, run_id, verification_status, harness_session_id, harness_kind, current_phase_id, complete, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail
+	SELECT id, plan_id, run_id, verification_status, harness_session_id, harness_kind, current_phase_id, lifecycle_state, started_at, updated_at, inputs_freshened_at, freshen_status, freshen_detail
 FROM executions WHERE plan_id = ? ORDER BY updated_at DESC, started_at DESC, id DESC`
 
 	upsertBaselineSetSQL = `
@@ -177,6 +176,9 @@ FROM execution_telemetry WHERE plan_id = ? ORDER BY occurred_at, id`
 )
 
 func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error {
+	if err := e.BaselineSet.Validate(); err != nil {
+		return fmt.Errorf("validate execution baseline set %q: %w", e.ID, err)
+	}
 	prov := provenance.FromContext(ctx)
 	_, _, _, status, runID, _ := prov.WriteFields()
 	sessionID, sessionKind := prov.ObservationFields()
@@ -196,7 +198,7 @@ func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error
 		updated = r.now()
 	}
 	if _, err := r.db.ExecContext(ctx, upsertExecutionSQL,
-		e.ID, e.PlanID, e.RunID, e.VerificationStatus, e.HarnessSessionID, e.HarnessKind, e.CurrentPhaseID, boolToInt(e.Complete), started, updated,
+		e.ID, e.PlanID, e.RunID, e.VerificationStatus, e.HarnessSessionID, e.HarnessKind, e.CurrentPhaseID, e.LifecycleState, started, updated,
 		e.InputsFreshenedAt, e.FreshenStatus, e.FreshenDetail,
 	); err != nil {
 		return fmt.Errorf("upsert execution %q: %w", e.ID, err)
@@ -225,7 +227,6 @@ func (r *sqliteRepository) SaveExecution(ctx context.Context, e Execution) error
 		ScopeAmendments:            e.ScopeAmendments,
 		BoundaryExtensions:         e.BoundaryExtensions,
 		DegradedReason:             e.DegradedReason,
-		LifecycleState:             e.LifecycleState,
 		AbandonedReason:            e.AbandonedReason,
 		AbandonedAt:                e.AbandonedAt,
 		AbandonedBy:                e.AbandonedBy,
@@ -248,11 +249,9 @@ func (r *sqliteRepository) ListExecutionsForPlan(ctx context.Context, planID str
 	var out []Execution
 	for rows.Next() {
 		var e Execution
-		var complete int
-		if err := rows.Scan(&e.ID, &e.PlanID, &e.RunID, &e.VerificationStatus, &e.HarnessSessionID, &e.HarnessKind, &e.CurrentPhaseID, &complete, &e.StartedAt, &e.UpdatedAt, &e.InputsFreshenedAt, &e.FreshenStatus, &e.FreshenDetail); err != nil {
+		if err := rows.Scan(&e.ID, &e.PlanID, &e.RunID, &e.VerificationStatus, &e.HarnessSessionID, &e.HarnessKind, &e.CurrentPhaseID, &e.LifecycleState, &e.StartedAt, &e.UpdatedAt, &e.InputsFreshenedAt, &e.FreshenStatus, &e.FreshenDetail); err != nil {
 			return nil, fmt.Errorf("scan execution for plan %q: %w", planID, err)
 		}
-		e.Complete = complete != 0
 		out = append(out, e)
 	}
 	if err := rows.Err(); err != nil {
@@ -270,46 +269,22 @@ func (r *sqliteRepository) ListExecutionsForPlan(ctx context.Context, planID str
 }
 
 func (r *sqliteRepository) GetExecution(ctx context.Context, id string) (Execution, bool, error) {
-	var (
-		e        Execution
-		complete int
-	)
-	err := r.db.QueryRowContext(ctx, getExecutionSQL, id).Scan(
-		&e.ID, &e.PlanID, &e.RunID, &e.VerificationStatus, &e.HarnessSessionID, &e.HarnessKind, &e.CurrentPhaseID, &complete, &e.StartedAt, &e.UpdatedAt,
-		&e.InputsFreshenedAt, &e.FreshenStatus, &e.FreshenDetail,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return Execution{}, false, nil
-	}
-	if err != nil {
-		return Execution{}, false, fmt.Errorf("get execution %q: %w", id, err)
-	}
-	e.Complete = complete != 0
-	if err := r.loadBaselineSet(ctx, &e); err != nil {
-		return Execution{}, false, err
-	}
-	if err := r.loadScopeState(ctx, &e); err != nil {
-		return Execution{}, false, err
-	}
-	return e, true, nil
+	return r.queryExecution(ctx, getExecutionSQL, id)
 }
 
 func (r *sqliteRepository) LatestExecutionForPlan(ctx context.Context, planID string) (Execution, bool, error) {
-	var (
-		e        Execution
-		complete int
-	)
-	err := r.db.QueryRowContext(ctx, latestExecutionForPlanSQL, planID).Scan(
-		&e.ID, &e.PlanID, &e.RunID, &e.VerificationStatus, &e.HarnessSessionID, &e.HarnessKind, &e.CurrentPhaseID, &complete, &e.StartedAt, &e.UpdatedAt,
-		&e.InputsFreshenedAt, &e.FreshenStatus, &e.FreshenDetail,
-	)
+	return r.queryExecution(ctx, latestExecutionForPlanSQL, planID)
+}
+
+func (r *sqliteRepository) queryExecution(ctx context.Context, query string, key string) (Execution, bool, error) {
+	var e Execution
+	err := r.db.QueryRowContext(ctx, query, key).Scan(&e.ID, &e.PlanID, &e.RunID, &e.VerificationStatus, &e.HarnessSessionID, &e.HarnessKind, &e.CurrentPhaseID, &e.LifecycleState, &e.StartedAt, &e.UpdatedAt, &e.InputsFreshenedAt, &e.FreshenStatus, &e.FreshenDetail)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Execution{}, false, nil
 	}
 	if err != nil {
-		return Execution{}, false, fmt.Errorf("latest execution for plan %q: %w", planID, err)
+		return Execution{}, false, fmt.Errorf("get execution %q: %w", key, err)
 	}
-	e.Complete = complete != 0
 	if err := r.loadBaselineSet(ctx, &e); err != nil {
 		return Execution{}, false, err
 	}
@@ -330,6 +305,9 @@ func (r *sqliteRepository) loadBaselineSet(ctx context.Context, e *Execution) er
 	}
 	if err := json.Unmarshal([]byte(raw), &e.BaselineSet); err != nil {
 		return fmt.Errorf("unmarshal execution baseline set %q: %w", e.ID, err)
+	}
+	if err := e.BaselineSet.Validate(); err != nil {
+		return fmt.Errorf("validate execution baseline set %q: %w", e.ID, err)
 	}
 	return nil
 }
@@ -354,7 +332,6 @@ func (r *sqliteRepository) loadScopeState(ctx context.Context, e *Execution) err
 	e.ScopeAmendments = state.ScopeAmendments
 	e.BoundaryExtensions = state.BoundaryExtensions
 	e.DegradedReason = state.DegradedReason
-	e.LifecycleState = state.LifecycleState
 	e.AbandonedReason = state.AbandonedReason
 	e.AbandonedAt = state.AbandonedAt
 	e.AbandonedBy = state.AbandonedBy
@@ -500,15 +477,6 @@ func (r *sqliteRepository) ListTelemetry(ctx context.Context, planID string) ([]
 
 func (r *sqliteRepository) now() string { return r.clock.Now().UTC().Format(execTimeFormat) }
 
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
-// stalenessFromString rebuilds the plans StalenessTier from its stored string.
-// The empty string is the unknown/degraded tier (planmodel.StalenessUnknown).
 func stalenessFromString(s string) planmodel.StalenessTier {
 	return planmodel.StalenessTier(s)
 }

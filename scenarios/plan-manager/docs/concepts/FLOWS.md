@@ -13,7 +13,7 @@ determine whether a small/local model can drive plan work.
 | Flow | Trigger | Owning domain | Terminal states |
 |---|---|---|---|
 | Authoring | `plan new` / `plan author` | `authoring` | plan `draft` finalized → `active` |
-| Phase execution | `plan next` / `plan check` / phase transition | `execution` + `validation` | all phases `done` (or run ends partial) |
+| Phase execution | `plan next` / `plan check` / phase transition | `plans` owns status transitions; `execution` + `validation` own transition policy/evidence | all phases `done` (or run ends partial) |
 | Validation / staleness | on request, or on resume | `validation` | results + staleness tier returned |
 | Execution-log capture | `log decision-add` / `finding-add` / `bug-add` / `record-add` / `note-add` | `log` | typed entry persisted; bugs/records forwarded downstream or left `pending` |
 | Completion / handoff | `plan complete` | `execution` | canonical handoff assembled (with log summary); plan `complete` (full) or left resumable (partial) |
@@ -214,6 +214,17 @@ todo ──start──▶ active ──completion policy satisfied──▶ done
                   │
                   └──blocked (dependency/validation fails) ──▶ active (retry)
 ```
+
+The contract in `api/internal/plans/phase/flow/flow.json` owns the status/event
+table; Flow Verifier generates the runtime and replay helpers beside it.
+`TransitionPhaseStatus` in `api/internal/plans/service.go` is the single
+persistence owner. `api/internal/plans/phase/flow/flow_test.go` replays the
+generated formal matrix and traces; `api/internal/plans/plans_test.go` checks
+that service transitions follow the same table. Execution checks validation and
+completion evidence before delegating to the owner. Authored plan/phase edits
+cannot change computed status, and unknown or absent transitions fail without
+changing stored state. The table permits direct todo→done only after execution
+has accepted the required evidence; the plan store does not infer that evidence.
 
 **Staleness (recomputed on demand / resume):**
 

@@ -75,6 +75,9 @@ func main() {
 	if err := internalinvestigationpolicy.EnsureMigrations(context.Background(), db.Primary()); err != nil {
 		log.Fatalf("investigation storage migration failed: %v", err)
 	}
+	if err := internalexecution.EnsureMigrations(context.Background(), db.Primary()); err != nil {
+		log.Fatalf("execution lifecycle migration failed: %v", err)
+	}
 	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
 		log.Fatalf("schema initialization failed: %v", err)
 	}

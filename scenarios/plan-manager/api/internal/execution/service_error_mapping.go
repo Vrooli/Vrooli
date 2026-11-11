@@ -15,6 +15,10 @@ func ToConnectError(err error) error {
 	if err == nil {
 		return nil
 	}
+	var transition ErrInvalidTransition
+	if errors.As(err, &transition) {
+		return connect.NewError(connect.CodeFailedPrecondition, transition)
+	}
 	var invalid ErrInvalidExecution
 	if errors.As(err, &invalid) {
 		return connect.NewError(connect.CodeInvalidArgument, invalid)

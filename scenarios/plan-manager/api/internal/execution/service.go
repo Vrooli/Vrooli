@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	flow "plan-manager/internal/execution/flow/generated"
 	planmodel "plan-manager/internal/planmodel"
 
 	"github.com/vrooli/api-core/provenance"
@@ -213,6 +214,9 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 		CompletionPolicy:         plan.CompletionPolicy,
 		CompletionPolicyCaptured: true,
 	}
+	if err := e.movePhase(currentPhaseID); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
@@ -221,14 +225,14 @@ func (s *service) startAtPhase(ctx context.Context, plan planmodel.Plan, phaseID
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, mode)
 	s.applyFreshenContext(&pctx, e)
 	if pctx.AssessmentRequiredPhase != "" || e.BaselineSet.Status == BaselineSetStatusScopeRepairRequired || e.BaselineSet.PreflightUnavailable {
-		return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+		return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.PhasesComplete()), nil
 	}
 	return e, pctx, stepForStarted(e), nil
 }
 
 func (s *service) resumeExecution(ctx context.Context, e Execution, phaseID string) (Execution, PhaseContext, GuidedStep, error) {
-	if e.EffectiveLifecycleState() == ExecutionLifecycleAbandoned {
-		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: "abandoned execution cannot be resumed: " + e.ID}
+	if err := e.transition(flow.ExecutionEdit); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	plan, err := s.plans.GetPlan(ctx, e.PlanID)
 	if err != nil {
@@ -247,8 +251,9 @@ func (s *service) resumeExecutionWithPlan(ctx context.Context, e Execution, plan
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	e.CurrentPhaseID = currentPhaseID
-	e.Complete = currentPhaseID == ""
+	if err := e.movePhase(currentPhaseID); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, err
+	}
 	e.UpdatedAt = s.now()
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
@@ -257,7 +262,7 @@ func (s *service) resumeExecutionWithPlan(ctx context.Context, e Execution, plan
 	s.ensureBaselineTicket(ctx, &e, plan)
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeResume)
 	s.applyFreshenContext(&pctx, e)
-	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.PhasesComplete()), nil
 }
 
 func (s *service) GetStatus(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error) {
@@ -270,10 +275,12 @@ func (s *service) GetStatus(ctx context.Context, executionID string) (Execution,
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
 	plan = planForExecution(plan, e)
-	s.refreshBaselineReceipt(ctx, &e)
+	if e.IsActive() {
+		s.refreshBaselineReceipt(ctx, &e)
+	}
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
 	s.applyFreshenContext(&pctx, e)
-	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.PhasesComplete()), nil
 }
 
 func (s *service) GetContext(ctx context.Context, executionID, phaseID string) (Execution, PhaseContext, GuidedStep, error) {
@@ -292,7 +299,7 @@ func (s *service) GetContext(ctx context.Context, executionID, phaseID string) (
 	}
 	pctx := s.buildContext(ctx, plan, targetPhaseID, e.ID, contextModeContext)
 	s.applyFreshenContext(&pctx, e)
-	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.PhasesComplete()), nil
 }
 
 func (s *service) Resume(ctx context.Context, planOrExecution, phaseID, runID string) (Execution, PhaseContext, GuidedStep, error) {
@@ -339,11 +346,9 @@ func (s *service) AbandonExecution(ctx context.Context, executionID, reason, act
 	if err != nil {
 		return Execution{}, false, GuidedStep{}, err
 	}
-	switch e.EffectiveLifecycleState() {
+	switch e.LifecycleState {
 	case ExecutionLifecycleAbandoned:
 		return e, true, stepForAbandoned(e), nil
-	case ExecutionLifecycleCompleted:
-		return Execution{}, false, GuidedStep{}, ErrInvalidExecution{Reason: "completed execution cannot be abandoned: " + e.ID}
 	}
 	if actor == "" {
 		actor = strings.TrimSpace(e.RunID)
@@ -352,7 +357,9 @@ func (s *service) AbandonExecution(ctx context.Context, executionID, reason, act
 		actor = "operator"
 	}
 	now := s.now()
-	e.LifecycleState = ExecutionLifecycleAbandoned
+	if err := e.transition(flow.ExecutionAbandon); err != nil {
+		return Execution{}, false, GuidedStep{}, err
+	}
 	e.AbandonedReason = reason
 	e.AbandonedAt = now
 	e.AbandonedBy = actor
@@ -372,14 +379,14 @@ func (s *service) activeExecutionsForPlan(ctx context.Context, planID string) ([
 		}
 		active := make([]Execution, 0, len(all))
 		for _, e := range all {
-			if e.EffectiveLifecycleState() == ExecutionLifecycleActive {
+			if e.IsActive() {
 				active = append(active, e)
 			}
 		}
 		return active, nil
 	}
 	e, ok, err := s.repo.LatestExecutionForPlan(ctx, planID)
-	if err != nil || !ok || e.EffectiveLifecycleState() != ExecutionLifecycleActive {
+	if err != nil || !ok || !e.IsActive() {
 		return nil, err
 	}
 	return []Execution{e}, nil
@@ -398,12 +405,12 @@ func (s *service) ContinueExecution(ctx context.Context, planOrExecution, phaseI
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
-	step := stepForContext(e.ID, e.PlanID, pctx, e.Complete)
+	step := stepForContext(e.ID, e.PlanID, pctx, e.PhasesComplete())
 	return e, pctx, onlyRecommendedExecutionAction(step), nil
 }
 
 func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext, bool, GuidedStep, error) {
-	e, err := s.getExecution(ctx, executionID)
+	e, err := s.mutableExecution(ctx, executionID)
 	if err != nil {
 		return PhaseContext{}, false, GuidedStep{}, err
 	}
@@ -420,19 +427,20 @@ func (s *service) GetNext(ctx context.Context, executionID string) (PhaseContext
 	if next == "" {
 		next = resume
 	}
-	e.CurrentPhaseID = next
-	e.Complete = resume == ""
+	if err := e.movePhase(next); err != nil {
+		return PhaseContext{}, false, GuidedStep{}, err
+	}
 	e.UpdatedAt = s.now()
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return PhaseContext{}, false, GuidedStep{}, err
 	}
 	pctx := s.buildContext(ctx, plan, next, e.ID, contextModePhaseEntry)
 	s.applyFreshenContext(&pctx, e)
-	return pctx, e.Complete, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+	return pctx, e.PhasesComplete(), stepForContext(e.ID, plan.ID, pctx, e.PhasesComplete()), nil
 }
 
 func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID string, inputs PhaseTransitionInputs) (Execution, planmodel.Plan, GuidedStep, error) {
-	e, err := s.getExecution(ctx, executionID)
+	e, err := s.mutableExecution(ctx, executionID)
 	if err != nil {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 	}
@@ -479,18 +487,18 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 			}
 		}
 	}
-	// Delegate the phase-status change to the plans domain — it stays the single
-	// source of truth for the record (plan status is recomputed there).
-	target.Status = to
-	updated, err := s.plans.UpdatePhase(ctx, plan.ID, plan.WorkspaceID, plan.WorkspaceRoot, target)
+	// Delegate the phase-status change to the plans domain's typed transition
+	// owner. It stays the single source of truth for the record and plan status.
+	updated, err := s.plans.TransitionPhaseStatus(ctx, plan.ID, plan.WorkspaceID, plan.WorkspaceRoot, target.ID, to)
 	if err != nil {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
 	}
 	updated = planForExecution(updated, e)
 	// Move the runner's pointer to the next actionable phase and mark the
 	// execution complete when every phase is terminal.
-	e.CurrentPhaseID = resumePhaseID(updated.Phases)
-	e.Complete = e.CurrentPhaseID == ""
+	if err := e.movePhase(resumePhaseID(updated.Phases)); err != nil {
+		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
+	}
 	e.UpdatedAt = s.now()
 	if err := s.repo.SaveExecution(ctx, e); err != nil {
 		return Execution{}, planmodel.Plan{}, GuidedStep{}, err
@@ -498,7 +506,7 @@ func (s *service) TransitionPhase(ctx context.Context, executionID, phaseID stri
 	if !updated.CompletionPolicy.RequiresCertification() {
 		pctx := s.buildContext(ctx, updated, e.CurrentPhaseID, e.ID, contextModePhaseEntry)
 		s.applyFreshenContext(&pctx, e)
-		return e, updated, stepForContext(e.ID, updated.ID, pctx, e.Complete), nil
+		return e, updated, stepForContext(e.ID, updated.ID, pctx, e.PhasesComplete()), nil
 	}
 	return e, updated, stepForTransition(e), nil
 }
@@ -513,21 +521,20 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 		return Handoff{}, nil, GuidedStep{}, err
 	}
 	plan = planForExecution(plan, e)
-	// Idempotent completion: an execution that already produced a full handoff
-	// returns it again instead of re-running the completion gates. Without this a
-	// second `exec complete` (e.g. after a transient client error, or an operator
-	// retry) re-validated and could fail with a validation error even though the
-	// completion had already landed (knw-1784053356805823492). The last phase
-	// transitioning to done sets e.Complete=true but writes NO handoff, so the
-	// FIRST real completion still runs every gate below.
-	if e.Complete {
-		if h, ok, herr := s.repo.GetHandoff(ctx, e.ID); herr != nil {
-			return Handoff{}, nil, GuidedStep{}, herr
-		} else if ok && h.Completeness == CompletenessFull {
-			logSummary, _ := s.logLedger(ctx, e.ID)
-			nudges := s.completionNudges(plan, logSummary)
-			return h, nudges, stepForComplete(e.ID, nudges), nil
+	if e.LifecycleState == ExecutionLifecycleCompleted {
+		h, ok, err := s.repo.GetHandoff(ctx, e.ID)
+		if err != nil {
+			return Handoff{}, nil, GuidedStep{}, err
 		}
+		if !ok || h.Completeness != CompletenessFull {
+			return Handoff{}, nil, GuidedStep{}, ErrInvalidExecution{Reason: "completed execution lacks its final handoff"}
+		}
+		logSummary, _ := s.logLedger(ctx, e.ID)
+		nudges := s.completionNudges(plan, logSummary)
+		return h, nudges, stepForComplete(e.ID, nudges), nil
+	}
+	if !flow.ExecutionIsValidEvent(e.LifecycleState, flow.ExecutionFinalize) {
+		return Handoff{}, nil, GuidedStep{}, ErrInvalidTransition{ExecutionID: e.ID, State: string(e.LifecycleState), Event: string(flow.ExecutionFinalize)}
 	}
 	if computeCompleteness(plan.Phases) != CompletenessFull {
 		return Handoff{}, nil, GuidedStep{}, ErrInvalidExecution{Reason: "normal completion requires every phase done; use partial-handoff for an honest incomplete handoff"}
@@ -590,8 +597,9 @@ func (s *service) Complete(ctx context.Context, executionID string, inputs Compl
 		Completeness:    completeness,
 		RecordedAt:      now,
 	}
-	e.Complete = true
-	e.LifecycleState = ExecutionLifecycleCompleted
+	if err := e.transition(flow.ExecutionFinalize); err != nil {
+		return Handoff{}, nil, GuidedStep{}, err
+	}
 	e.UpdatedAt = now
 
 	// Persist the handoff, the velocity point, and the completed-execution state as
@@ -626,7 +634,7 @@ func (s *service) emitTelemetry(ctx context.Context, event ExecutionTelemetryEve
 // to complete. It is intentionally separate from Complete so automation cannot
 // turn missing full-inventory evidence into a normal completion.
 func (s *service) PartialHandoff(ctx context.Context, executionID string, inputs CompletionInputs) (Handoff, []CompletionNudge, GuidedStep, error) {
-	e, err := s.getExecution(ctx, executionID)
+	e, err := s.mutableExecution(ctx, executionID)
 	if err != nil {
 		return Handoff{}, nil, GuidedStep{}, err
 	}
@@ -645,7 +653,7 @@ func (s *service) PartialHandoff(ctx context.Context, executionID string, inputs
 		HasValidation: hasVal, Staleness: staleness, AssembledAt: now, ChangeBoundary: plan.ChangeBoundary,
 	}
 	point := VelocityPoint{ID: uuid.NewString(), PlanID: plan.ID, RunID: velocityRunKey(e), WallTimeSeconds: s.wallTime(e.StartedAt, now), Tokens: inputs.Tokens, Iterations: inputs.Iterations, Completeness: CompletenessPartial, RecordedAt: now}
-	e.Complete, e.UpdatedAt = false, now
+	e.UpdatedAt = now
 	if err := s.repo.WithTx(ctx, func(repo Repository) error {
 		if err := repo.SaveHandoff(ctx, handoff); err != nil {
 			return err
@@ -700,7 +708,7 @@ func (s *service) GetVelocity(ctx context.Context, planID string) ([]VelocityPoi
 		}
 		abandonedRuns := make(map[string]struct{})
 		for _, execution := range executions {
-			if execution.EffectiveLifecycleState() == ExecutionLifecycleAbandoned {
+			if execution.LifecycleState == ExecutionLifecycleAbandoned {
 				abandonedRuns[velocityRunKey(execution)] = struct{}{}
 			}
 		}
@@ -808,7 +816,9 @@ func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan p
 		return
 	}
 	if e.BaselineSet.Name != "" && e.BaselineSet.ReceiptID != "" {
-		s.refreshBaselineReceipt(ctx, e)
+		if err := s.refreshBaselineReceipt(ctx, e); err != nil {
+			e.BaselineSet.Detail = "receipt transition rejected: " + err.Error()
+		}
 		return
 	}
 	if e.BaselineSet.LegacyAdoptionRequired {
@@ -845,8 +855,10 @@ func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan p
 		} else {
 			state.SourcePreflight = preflight
 			if preflight.RepairRequired {
-				state.Status = BaselineSetStatusScopeRepairRequired
 				state.Detail = sourcePreflightDetail(preflight)
+				if err := state.TransitionTo(BaselineSetStatusScopeRepairRequired); err != nil {
+					state.Detail = "source-scope repair state could not be established: " + err.Error()
+				}
 			}
 		}
 	}
@@ -860,19 +872,19 @@ func (s *service) ensureBaselineTicket(ctx context.Context, e *Execution, plan p
 
 // Read the authoritative receipt before recommending another wait. The stored
 // execution is a projection, not evidence that its child is still active.
-func (s *service) refreshBaselineReceipt(ctx context.Context, e *Execution) {
+func (s *service) refreshBaselineReceipt(ctx context.Context, e *Execution) error {
 	if e.BaselineSet.Status == BaselineSetStatusDegraded {
-		return
+		return nil
 	}
 	if e.BaselineSet.ReceiptID == "" || s.receipts == nil {
-		return
+		return nil
 	}
 	receipt, err := s.receipts.GetValidation(ctx, e.BaselineSet.ReceiptID)
 	if err != nil {
 		e.BaselineSet.Detail = "receipt observation unavailable: " + err.Error()
-		return
+		return nil
 	}
-	s.projectBaselineReceipt(e, receipt)
+	return s.projectBaselineReceipt(e, receipt)
 }
 
 func (s *service) admitBaselineReceipt(ctx context.Context, e *Execution, plan planmodel.Plan) {
@@ -943,7 +955,7 @@ func sourcePreflightDetail(preflight SourceEvidencePreflight) string {
 // replacements must be strictly contained by the authored allow globs and are
 // immediately re-estimated by the authoritative provider.
 func (s *service) RepairSourceScope(ctx context.Context, executionID string, req SourceScopeRepairRequest) (Execution, PhaseContext, GuidedStep, error) {
-	e, err := s.getExecution(ctx, executionID)
+	e, err := s.mutableExecution(ctx, executionID)
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
@@ -978,9 +990,12 @@ func (s *service) RepairSourceScope(ctx context.Context, executionID string, req
 		s.saveExecutionBestEffort(ctx, e, "source_preflight_repair")
 		pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
 		s.applyFreshenContext(&pctx, e)
-		return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+		return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.PhasesComplete()), nil
 	}
-	e.BaselineSet.Status, e.BaselineSet.Detail = BaselineSetStatusRequired, "source scope repaired and re-estimated; admitting replacement receipt"
+	if err := e.BaselineSet.TransitionTo(BaselineSetStatusRequired); err != nil {
+		return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: err.Error()}
+	}
+	e.BaselineSet.Detail = "source scope repaired and re-estimated; admitting replacement receipt"
 	e.BaselineSet.CaptureArgv, e.BaselineSet.WaitArgv, e.BaselineSet.ReceiptID = nil, nil, ""
 	s.admitBaselineReceipt(ctx, &e, plan)
 	e.UpdatedAt = s.now()
@@ -989,7 +1004,7 @@ func (s *service) RepairSourceScope(ctx context.Context, executionID string, req
 	}
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
 	s.applyFreshenContext(&pctx, e)
-	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.PhasesComplete()), nil
 }
 
 func sourcePathWithinBoundary(path string, allows []string) bool {
@@ -1008,7 +1023,7 @@ func sourcePathWithinBoundary(path string, allows []string) bool {
 // receipt. Historical executions without a receipt retain the explicit GCT
 // migration adapter below; current executions never coordinate GCT directly.
 func (s *service) SyncBaseline(ctx context.Context, executionID string) (Execution, PhaseContext, GuidedStep, error) {
-	e, err := s.getExecution(ctx, executionID)
+	e, err := s.mutableExecution(ctx, executionID)
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
@@ -1026,14 +1041,31 @@ func (s *service) SyncBaseline(ctx context.Context, executionID string) (Executi
 		if receiptErr != nil {
 			e.BaselineSet.Detail = "receipt sync failed: " + receiptErr.Error()
 		} else {
-			s.projectBaselineReceipt(&e, receipt)
+			if err := s.projectBaselineReceipt(&e, receipt); err != nil {
+				return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: err.Error()}
+			}
 		}
 	} else if s.baseline == nil {
-		e.BaselineSet.Status, e.BaselineSet.Detail = BaselineSetStatusDegraded, "Git Control Tower baseline synchronization is unavailable"
+		if err := e.BaselineSet.TransitionTo(BaselineSetStatusDegraded); err != nil {
+			return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: err.Error()}
+		}
+		e.BaselineSet.Detail = "Git Control Tower baseline synchronization is unavailable"
 	} else if result, syncErr := s.baseline.SyncBaseline(ctx, plan.ID, e.BaselineSet.Name); syncErr != nil {
-		e.BaselineSet.Status, e.BaselineSet.Detail = BaselineSetStatusDegraded, "baseline sync failed: "+syncErr.Error()
+		if err := e.BaselineSet.TransitionTo(BaselineSetStatusDegraded); err != nil {
+			return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: err.Error()}
+		}
+		e.BaselineSet.Detail = "baseline sync failed: " + syncErr.Error()
 	} else {
 		state := result.BaselineSet
+		if state.Status == "" {
+			state.Status = BaselineSetStatusRequired
+		}
+		if err := e.BaselineSet.TransitionTo(state.Status); err != nil {
+			return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: err.Error()}
+		}
+		if err := state.TransitionTo(e.BaselineSet.Status); err != nil {
+			return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: err.Error()}
+		}
 		state.CaptureArgv, state.WaitArgv, state.SyncArgv = e.BaselineSet.CaptureArgv, e.BaselineSet.WaitArgv, e.BaselineSet.SyncArgv
 		state.LastSyncedAt = e.BaselineSet.LastSyncedAt
 		if state.CapturedAt == "" && state.Complete() {
@@ -1048,18 +1080,34 @@ func (s *service) SyncBaseline(ctx context.Context, executionID string) (Executi
 	}
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
 	s.applyFreshenContext(&pctx, e)
-	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.PhasesComplete()), nil
 }
 
-func (s *service) projectBaselineReceipt(e *Execution, receipt *validationv1.ValidationReceipt) {
+func (s *service) projectBaselineReceipt(e *Execution, receipt *validationv1.ValidationReceipt) error {
 	if receipt == nil {
 		e.BaselineSet.Detail = "Test Genie returned no behavioral-before receipt"
-		return
+		return nil
 	}
-	e.BaselineSet.Detail = receipt.GetDetail()
+	var next BaselineSetStatus
 	switch receipt.GetState() {
 	case validationv1.ReceiptState_RECEIPT_STATE_SUCCEEDED:
-		e.BaselineSet.Status = BaselineSetStatusComplete
+		next = BaselineSetStatusComplete
+	case validationv1.ReceiptState_RECEIPT_STATE_FAILED, validationv1.ReceiptState_RECEIPT_STATE_CANCELLED, validationv1.ReceiptState_RECEIPT_STATE_SUPERSEDED:
+		next = BaselineSetStatusPartial
+	case validationv1.ReceiptState_RECEIPT_STATE_DEGRADED:
+		next = BaselineSetStatusDegraded
+	default:
+		// Unknown and still-running provider states keep the current lifecycle
+		// checkpoint. A new provider enum must not revive a terminal receipt.
+		e.BaselineSet.Detail = receipt.GetDetail()
+		return nil
+	}
+	if err := e.BaselineSet.TransitionTo(next); err != nil {
+		return err
+	}
+	e.BaselineSet.Detail = receipt.GetDetail()
+	switch next {
+	case BaselineSetStatusComplete:
 		e.BaselineSet.Required = len(e.BaselineSet.ScenarioTargets)
 		e.BaselineSet.Ready = e.BaselineSet.Required
 		e.BaselineSet.Pending, e.BaselineSet.Failed, e.BaselineSet.Skipped, e.BaselineSet.Stale = 0, 0, 0, 0
@@ -1079,8 +1127,7 @@ func (s *service) projectBaselineReceipt(e *Execution, receipt *validationv1.Val
 			}
 		}
 		e.FreshenStatus, e.FreshenDetail = "baseline_synced", receipt.GetDetail()
-	case validationv1.ReceiptState_RECEIPT_STATE_FAILED, validationv1.ReceiptState_RECEIPT_STATE_CANCELLED, validationv1.ReceiptState_RECEIPT_STATE_SUPERSEDED:
-		e.BaselineSet.Status = BaselineSetStatusPartial
+	case BaselineSetStatusPartial:
 		e.BaselineSet.Required = len(e.BaselineSet.ScenarioTargets)
 		if required, ready, pending, failed, skipped, stale, ok := parseBaselineCoverage(receipt.GetDetail()); ok {
 			e.BaselineSet.Required, e.BaselineSet.Ready = required, ready
@@ -1092,11 +1139,8 @@ func (s *service) projectBaselineReceipt(e *Execution, receipt *validationv1.Val
 			// guidance remains actionable without overstating member coverage.
 			e.BaselineSet.Failed = 1
 		}
-	case validationv1.ReceiptState_RECEIPT_STATE_DEGRADED:
-		e.BaselineSet.Status = BaselineSetStatusDegraded
-	default:
-		e.BaselineSet.Status = BaselineSetStatusRequired
 	}
+	return nil
 }
 
 // parseBaselineCoverage recovers structured GCT coverage from the canonical
@@ -1137,7 +1181,7 @@ func parseBaselineCoverage(detail string) (required, ready, pending, failed, ski
 // GCT collection extend + its native wait + baseline-sync before naming a new
 // member here. Any amendment invalidates the phase's prior evidence generation.
 func (s *service) AmendScope(ctx context.Context, executionID string, req ScopeAmendmentRequest) (Execution, PhaseContext, GuidedStep, error) {
-	e, err := s.getExecution(ctx, executionID)
+	e, err := s.mutableExecution(ctx, executionID)
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
@@ -1195,7 +1239,7 @@ func (s *service) AmendScope(ctx context.Context, executionID string, req ScopeA
 	}
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
 	s.applyFreshenContext(&pctx, e)
-	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.PhasesComplete()), nil
 }
 
 // ExtendBoundary widens the plan's acceptance_allow mid-execution so validation
@@ -1221,7 +1265,7 @@ func (s *service) AmendScope(ctx context.Context, executionID string, req ScopeA
 // stay immutable during execution — those still require a candidate revision
 // against a terminal execution.
 func (s *service) ExtendBoundary(ctx context.Context, executionID string, req BoundaryExtensionRequest) (Execution, PhaseContext, GuidedStep, []string, error) {
-	e, err := s.getExecution(ctx, executionID)
+	e, err := s.mutableExecution(ctx, executionID)
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, nil, err
 	}
@@ -1230,7 +1274,7 @@ func (s *service) ExtendBoundary(ctx context.Context, executionID string, req Bo
 		return Execution{}, PhaseContext{}, GuidedStep{}, nil, err
 	}
 	plan = planForExecution(plan, e)
-	if e.EffectiveLifecycleState() != ExecutionLifecycleActive {
+	if !e.IsActive() {
 		return Execution{}, PhaseContext{}, GuidedStep{}, nil, ErrInvalidExecution{Reason: "boundary extension requires an active execution"}
 	}
 	if len(req.Paths) == 0 {
@@ -1250,7 +1294,7 @@ func (s *service) ExtendBoundary(ctx context.Context, executionID string, req Bo
 		// error: the agent was right to check, and the edit needs no widening.
 		pctx := s.buildContext(ctx, updated, e.CurrentPhaseID, e.ID, contextModeStatus)
 		s.applyFreshenContext(&pctx, e)
-		return e, pctx, stepForContext(e.ID, updated.ID, pctx, e.Complete), added, nil
+		return e, pctx, stepForContext(e.ID, updated.ID, pctx, e.PhasesComplete()), added, nil
 	}
 	phaseID := strings.TrimSpace(e.CurrentPhaseID)
 	now := s.now()
@@ -1277,14 +1321,14 @@ func (s *service) ExtendBoundary(ctx context.Context, executionID string, req Bo
 	}
 	pctx := s.buildContext(ctx, updated, e.CurrentPhaseID, e.ID, contextModeStatus)
 	s.applyFreshenContext(&pctx, e)
-	return e, pctx, stepForContext(e.ID, updated.ID, pctx, e.Complete), added, nil
+	return e, pctx, stepForContext(e.ID, updated.ID, pctx, e.PhasesComplete()), added, nil
 }
 
 // AdoptBaseline makes legacy handling explicit. It cannot infer whether edits
 // already happened: callers either create a fresh producer ticket before more
 // work or record a degraded reason that blocks normal completion.
 func (s *service) AdoptBaseline(ctx context.Context, executionID string, req BaselineAdoptionRequest) (Execution, PhaseContext, GuidedStep, error) {
-	e, err := s.getExecution(ctx, executionID)
+	e, err := s.mutableExecution(ctx, executionID)
 	if err != nil {
 		return Execution{}, PhaseContext{}, GuidedStep{}, err
 	}
@@ -1310,7 +1354,9 @@ func (s *service) AdoptBaseline(ctx context.Context, executionID string, req Bas
 		// the degraded disposition terminal for execution gating. The receipt
 		// is never silently reused as current evidence.
 		e.BaselineSet.Version = BaselineSetStateSchemaVersion
-		e.BaselineSet.Status = BaselineSetStatusDegraded
+		if err := e.BaselineSet.TransitionTo(BaselineSetStatusDegraded); err != nil {
+			return Execution{}, PhaseContext{}, GuidedStep{}, ErrInvalidExecution{Reason: err.Error()}
+		}
 		e.BaselineSet.LegacyAdoptionRequired = false
 		e.BaselineSet.Detail = e.DegradedReason
 	case BaselineAdoptionRecapture:
@@ -1341,7 +1387,7 @@ func (s *service) AdoptBaseline(ctx context.Context, executionID string, req Bas
 	}
 	pctx := s.buildContext(ctx, plan, e.CurrentPhaseID, e.ID, contextModeStatus)
 	s.applyFreshenContext(&pctx, e)
-	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.Complete), nil
+	return e, pctx, stepForContext(e.ID, plan.ID, pctx, e.PhasesComplete()), nil
 }
 
 func baselineTicket(executionID, name string, scenarios, paths []string, detail string) BaselineSetState {
@@ -2027,4 +2073,15 @@ func nextActionablePhaseID(phases []planmodel.Phase, currentID string) string {
 		return ""
 	}
 	return resumePhaseID(phases)
+}
+
+func (s *service) mutableExecution(ctx context.Context, id string) (Execution, error) {
+	e, err := s.getExecution(ctx, id)
+	if err != nil {
+		return Execution{}, err
+	}
+	if err := e.transition(flow.ExecutionEdit); err != nil {
+		return Execution{}, err
+	}
+	return e, nil
 }
