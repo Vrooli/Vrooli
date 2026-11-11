@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 // metricsAssertion represents a single metrics field assertion
@@ -78,6 +81,7 @@ type languageTestCase struct {
 	expectedFixme    int
 	expectedHack     int
 	minFunctionCount int
+	expectedImports  int
 	expectTestFile   bool
 }
 
@@ -124,6 +128,7 @@ func TestProcessData(t *testing.T) {
 			expectedHack:     1,
 			minFunctionCount: 2,
 			expectTestFile:   true,
+			expectedImports:  2,
 		},
 		{
 			name:      "TypeScript",
@@ -150,6 +155,7 @@ const helper = () => {
 			expectedFixme:    1,
 			expectedHack:     1,
 			minFunctionCount: 1,
+			expectedImports:  2,
 		},
 		{
 			name:      "JavaScript",
@@ -176,6 +182,7 @@ const util = (x) => x * 2;
 			expectedFixme:    1,
 			expectedHack:     1,
 			minFunctionCount: 2,
+			expectedImports:  1,
 		},
 	}
 
@@ -201,7 +208,7 @@ const util = (x) => x * 2;
 				expectedMetricCount = 2
 			}
 
-			metrics := collectAndValidateMetrics(t, tmpDir, files, expectedMetricCount)
+			metrics := collectAndValidateMetricsWithGraph(t, tmpDir, files, expectedMetricCount, Language(tc.language), files[0], tc.expectedImports, tc.minFunctionCount)
 			mainMetrics := requireMetricsByPath(t, metrics, files[0])
 
 			assertLanguageAndExtension(t, *mainMetrics, tc.language, tc.extension)
@@ -532,7 +539,7 @@ func TestCollectDetailedFileMetrics_DescriptiveGoTestFileDetection(t *testing.T)
 		}
 	}
 
-	aggregate, err := NewCodeMetricsAnalyzer(tmpDir).AnalyzeFiles(files, LanguageGo)
+	aggregate, err := NewCodeMetricsAnalyzer(tmpDir).AnalyzeFilesWithFacts(files, LanguageGo, nil)
 	if err != nil {
 		t.Fatalf("AnalyzeFiles returned error: %v", err)
 	}
@@ -572,7 +579,7 @@ func TestCollectDetailedFileMetrics_LargeFile(t *testing.T) {
 	writeTestFile(t, filepath.Join(apiDir, "large.go"), largeCode)
 
 	files := []string{"api/large.go"}
-	metrics := collectAndValidateMetrics(t, tmpDir, files, 1)
+	metrics := collectAndValidateMetricsWithGraph(t, tmpDir, files, 1, LanguageGo, files[0], 0, 1)
 	m := metrics[0]
 
 	if m.LineCount < 2000 {
@@ -712,7 +719,7 @@ func second() {
 	writeTestFile(t, filepath.Join(apiDir, "exact.go"), goCode)
 
 	files := []string{"api/exact.go"}
-	metrics := collectAndValidateMetrics(t, tmpDir, files, 1)
+	metrics := collectAndValidateMetricsWithGraph(t, tmpDir, files, 1, LanguageGo, files[0], 2, 2)
 	m := metrics[0]
 
 	if m.ImportCount != 2 {
@@ -799,5 +806,68 @@ func TestCollectDetailedFileMetrics_Concurrent(t *testing.T) {
 
 	for i := 0; i < 5; i++ {
 		<-done
+	}
+}
+
+func collectAndValidateMetricsWithGraph(t *testing.T, root string, files []string, expected int, lang Language, path string, imports, functions int) []DetailedFileMetrics {
+	t.Helper()
+	metrics, err := CollectDetailedFileMetricsWithLangMetrics(root, files, map[Language]*LanguageMetrics{
+		lang: {facts: testMetricsGraph(root, path, lang, imports, functions)},
+	})
+	if err != nil {
+		t.Fatalf("CollectDetailedFileMetricsWithLangMetrics() error = %v", err)
+	}
+	if len(metrics) != expected {
+		t.Fatalf("got %d metrics, want %d", len(metrics), expected)
+	}
+	return metrics
+}
+
+func testMetricsGraph(root, path string, lang Language, imports, functions int) *facts.CodeFactsReport {
+	language := string(lang)
+	importKind, functionKind := "go_import_spec", "go_func"
+	if lang == LanguageTypeScript || lang == LanguageJavaScript {
+		importKind, functionKind = "TS_NODE_KIND_IMPORT_BINDING", "TS_NODE_KIND_FUNCTION"
+	}
+	nodes := []*commonv1.CodeGraphNode{{
+		Id: "file:" + path, Kind: commonv1.NodeKind_NODE_KIND_FILE, Path: path,
+		Attributes: map[string]string{"language": language},
+	}}
+	var edges []*commonv1.CodeGraphEdge
+	for i := 0; i < imports; i++ {
+		if lang == LanguageGo {
+			nodes = append(nodes, &commonv1.CodeGraphNode{
+				Id: fmt.Sprintf("import:%s:%d", path, i+1), Path: path,
+				Attributes: map[string]string{"kind": importKind, "language": language, "start_line": fmt.Sprint(i + 1)},
+			})
+		} else {
+			moduleID := "ts_module:" + path
+			if i == 0 {
+				nodes = append(nodes, &commonv1.CodeGraphNode{Id: moduleID, Kind: commonv1.NodeKind_NODE_KIND_MODULE, Path: path, Attributes: map[string]string{"kind": "TS_NODE_KIND_MODULE", "language": language}})
+			}
+			edges = append(edges, &commonv1.CodeGraphEdge{
+				Id: fmt.Sprintf("import:%s:%d", path, i+1), Kind: commonv1.EdgeKind_EDGE_KIND_IMPORT,
+				FromNodeId: moduleID, ToNodeId: fmt.Sprintf("module:%s:%d", path, i+1),
+				Attributes: map[string]string{"specifier": fmt.Sprintf("./dependency-%d", i+1)},
+			})
+		}
+	}
+	for i := 0; i < functions; i++ {
+		attrs := map[string]string{"kind": functionKind, "language": language, "start_line": fmt.Sprint(i + 1), "end_line": fmt.Sprint(i + 1)}
+		if lang == LanguageGo {
+			attrs["signature"] = "func()"
+			attrs["cyclomatic_complexity"] = "1"
+		} else {
+			attrs["body_hash"] = fmt.Sprintf("hash-%d", i)
+			attrs["body_lines"] = "1"
+		}
+		nodes = append(nodes, &commonv1.CodeGraphNode{Id: fmt.Sprintf("function:%s:%d", path, i+1), Path: path, Attributes: attrs})
+	}
+	return &facts.CodeFactsReport{
+		Target: &facts.TargetContext{RootPath: root},
+		Graphs: []*facts.LanguageGraph{{
+			ParseUnit: &facts.ParseUnit{Id: language + ":" + root, Language: language, RootPath: root},
+			Graph:     &commonv1.CodeGraph{Nodes: nodes, Edges: edges},
+		}},
 	}
 }

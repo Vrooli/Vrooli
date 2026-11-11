@@ -10,37 +10,9 @@ import (
 
 // [REQ:TM-API-002] File-scoped issue query
 func TestAgentGetIssues_FileFilter(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
-	}
-
-	srv := setupTestServer(t)
-	if srv == nil {
-		return
-	}
-
-	// Insert issues for different files
-	insertTestIssue(t, srv.db, "test-scenario", "api/main.go", "length", "high", "Issue 1", "Desc 1")
-	insertTestIssue(t, srv.db, "test-scenario", "api/handlers.go", "length", "high", "Issue 2", "Desc 2")
-
-	req, err := http.NewRequest("GET", "/api/v1/agent/issues?scenario=test-scenario&file=api/main.go", nil)
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	rr := httptest.NewRecorder()
-	srv.router.ServeHTTP(rr, req)
-
-	var issues []AgentIssue
-	if err := json.Unmarshal(rr.Body.Bytes(), &issues); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
-
-	for _, issue := range issues {
-		if issue.FilePath != "api/main.go" {
-			t.Errorf("Expected only issues from api/main.go, got %s", issue.FilePath)
-		}
-	}
+	assertAgentGetIssuesFilter(t, "file=api/main.go", "file path", "api/main.go", func(issue AgentIssue) string {
+		return issue.FilePath
+	})
 }
 
 // [REQ:TM-API-002] Folder-scoped issue query
@@ -229,24 +201,27 @@ func TestAgentGetIssues_CombinedFilters(t *testing.T) {
 
 // [REQ:TM-API-003] Category-scoped issue query
 func TestAgentGetIssues_CategoryFilter(t *testing.T) {
+	assertAgentGetIssuesFilter(t, "category=length", "category", "length", func(issue AgentIssue) string {
+		return issue.Category
+	})
+}
+
+func assertAgentGetIssuesFilter(t *testing.T, filter, field, want string, value func(AgentIssue) string) {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
-
 	srv := setupTestServer(t)
 	if srv == nil {
 		return
 	}
-
-	// Insert issues with different categories
 	insertTestIssue(t, srv.db, "test-scenario", "api/main.go", "length", "high", "Long file", "Too many lines")
 	insertTestIssue(t, srv.db, "test-scenario", "api/handlers.go", "dead_code", "medium", "Unused function", "Remove unused")
 
-	req, err := http.NewRequest("GET", "/api/v1/agent/issues?scenario=test-scenario&category=length", nil)
+	req, err := http.NewRequest(http.MethodGet, "/api/v1/agent/issues?scenario=test-scenario&"+filter, nil)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
-
 	rr := httptest.NewRecorder()
 	srv.router.ServeHTTP(rr, req)
 
@@ -254,10 +229,12 @@ func TestAgentGetIssues_CategoryFilter(t *testing.T) {
 	if err := json.Unmarshal(rr.Body.Bytes(), &issues); err != nil {
 		t.Fatalf("Failed to parse response: %v", err)
 	}
-
+	if len(issues) == 0 {
+		t.Fatal("expected at least one matching issue")
+	}
 	for _, issue := range issues {
-		if issue.Category != "length" {
-			t.Errorf("Expected only 'length' category issues, got '%s'", issue.Category)
+		if got := value(issue); got != want {
+			t.Errorf("expected only %s %q, got %q", field, want, got)
 		}
 	}
 }

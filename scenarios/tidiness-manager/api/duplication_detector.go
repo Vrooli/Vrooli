@@ -1,20 +1,17 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"os/exec"
 	"path/filepath"
-	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
+
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	debt "tidiness-manager/internal/discovery"
 )
 
-// DuplicateResult contains code duplication analysis results
+// DuplicateResult adapts the shared body-identity detector to scan responses.
 type DuplicateResult struct {
 	TotalDuplicates int              `json:"total_duplicates"`
 	DuplicateBlocks []DuplicateBlock `json:"duplicate_blocks"`
@@ -22,406 +19,130 @@ type DuplicateResult struct {
 	Skipped         bool             `json:"skipped"`
 	SkipReason      string           `json:"skip_reason,omitempty"`
 	Tool            string           `json:"tool,omitempty"`
-	DroppedGroups   int              `json:"dropped_groups,omitempty"`
-	DroppedLines    int              `json:"dropped_lines,omitempty"`
 }
 
-// DuplicateMinimumLines is the fleet-wide physical-line floor for a useful
-// refactor opportunity. It matches jscpd's minimum and is applied after all
-// backends have been normalized and overlap-merged.
+// DuplicateMinimumLines is the physical-line floor used by both scan responses
+// and ranked refactor recommendations.
 const DuplicateMinimumLines = 5
 
-// DuplicateBlock represents a block of duplicated code
 type DuplicateBlock struct {
-	Files  []DuplicateLocation `json:"files"`
-	Lines  int                 `json:"lines"`
-	Tokens int                 `json:"tokens,omitempty"`
+	Files []DuplicateLocation `json:"files"`
+	Lines int                 `json:"lines"`
 }
 
-// DuplicateLocation represents a location where duplicate code appears
 type DuplicateLocation struct {
 	Path      string `json:"path"`
 	StartLine int    `json:"start_line"`
 	EndLine   int    `json:"end_line"`
 }
 
-// DuplicationDetector detects code duplication using external tools
+// DuplicationDetector projects Code Facts evidence into the legacy scan shape;
+// source parsing and duplicate grouping have one owner in Code Facts and the
+// discovery registry.
 type DuplicationDetector struct {
 	scenarioPath string
 	timeout      time.Duration
+	source       ReductionFacts
 }
 
-// NewDuplicationDetector creates a detector for the specified scenario
 func NewDuplicationDetector(scenarioPath string, timeout time.Duration) *DuplicationDetector {
 	if timeout == 0 {
 		timeout = 90 * time.Second
 	}
-	return &DuplicationDetector{
-		scenarioPath: scenarioPath,
-		timeout:      timeout,
-	}
+	return &DuplicationDetector{scenarioPath: scenarioPath, timeout: timeout}
 }
 
-// DetectDuplication runs duplication detection based on language
 func (dd *DuplicationDetector) DetectDuplication(ctx context.Context, lang Language, files []string) (*DuplicateResult, error) {
 	switch lang {
 	case LanguageGo:
-		return dd.detectGoDuplication(ctx, files)
-	case LanguageTypeScript, LanguageJavaScript:
-		return dd.detectJSDuplication(ctx, files)
+		return dd.detectGraphDuplication(ctx, files, "go", []string{"go"})
+	case LanguageTypeScript:
+		return dd.detectGraphDuplication(ctx, files, "typescript", []string{"typescript"})
+	case LanguageJavaScript:
+		// JavaScript in an established TypeScript project is emitted by that
+		// project graph; standalone JavaScript packages have their own Code Facts
+		// parse unit routed to the same TypeScript AST provider.
+		return dd.detectGraphDuplication(ctx, files, "javascript", []string{"javascript", "typescript"})
 	default:
-		return &DuplicateResult{
-			Skipped:    true,
-			SkipReason: fmt.Sprintf("duplication detection not implemented for %s", lang),
-		}, nil
+		return &DuplicateResult{Skipped: true, SkipReason: fmt.Sprintf("duplication detection not implemented for %s", lang)}, nil
 	}
 }
 
-// detectGoDuplication uses dupl to detect Go code duplication
-func (dd *DuplicationDetector) detectGoDuplication(ctx context.Context, files []string) (*DuplicateResult, error) {
-	// Check if dupl is installed
-	if !commandExists("dupl") {
-		return &DuplicateResult{
-			Skipped:    true,
-			SkipReason: "dupl not installed (install with: go install github.com/mibk/dupl@latest)",
-		}, nil
-	}
-
+func (dd *DuplicationDetector) detectGraphDuplication(ctx context.Context, files []string, language string, languageFilter []string) (*DuplicateResult, error) {
 	if len(files) == 0 {
-		return &DuplicateResult{
-			Skipped:    true,
-			SkipReason: "no files to analyze",
-		}, nil
+		return &DuplicateResult{Skipped: true, SkipReason: "no files to analyze"}, nil
+	}
+	if _, err := resolveScenarioFiles(dd.scenarioPath, files); err != nil {
+		return &DuplicateResult{Skipped: true, SkipReason: err.Error()}, nil
 	}
 
-	absPaths, err := resolveScenarioFiles(dd.scenarioPath, files)
-	if err != nil {
-		return &DuplicateResult{
-			Skipped:    true,
-			SkipReason: err.Error(),
-		}, nil
-	}
-
-	// Run dupl with threshold (25 tokens minimum for significant duplication)
 	cmdCtx, cancel := context.WithTimeout(ctx, dd.timeout)
 	defer cancel()
+	report, err := currentCodeFacts(cmdCtx, dd.source, &facts.CodeTarget{Kind: facts.TargetKind_TARGET_KIND_PATH, Path: dd.scenarioPath, LanguageFilter: languageFilter})
+	if err != nil {
+		return &DuplicateResult{Skipped: true, SkipReason: err.Error(), Tool: "code-facts"}, nil
+	}
+	return dd.DetectDuplicationFromFacts(files, language, report)
+}
 
-	// dupl -t 25 <files...>
-	args := append([]string{"-t", "25"}, absPaths...)
-	cmd := exec.CommandContext(cmdCtx, "dupl", args...) // #nosec G204 G702 -- executable is fixed and file args are constrained to scenario root.
+func (dd *DuplicationDetector) DetectDuplicationFromFacts(files []string, language string, report *facts.CodeFactsReport) (*DuplicateResult, error) {
+	if len(files) == 0 {
+		return &DuplicateResult{Skipped: true, SkipReason: "no files to analyze"}, nil
+	}
+	if _, err := resolveScenarioFiles(dd.scenarioPath, files); err != nil {
+		return &DuplicateResult{Skipped: true, SkipReason: err.Error()}, nil
+	}
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	allowed := make(map[string]bool, len(files))
+	for _, file := range files {
+		allowed[filepath.ToSlash(filepath.Clean(file))] = true
+	}
+	if !hasLanguageFile(report, language, allowed) {
+		return &DuplicateResult{Skipped: true, SkipReason: "Code Facts returned no " + language + " source evidence for the requested files", Tool: "code-facts"}, nil
+	}
 
-	// dupl returns non-zero if duplicates found (that's expected, not an error)
-	_ = cmd.Run()
-
-	// Parse output
-	output := stdout.String()
-
-	blocks, droppedGroups, droppedLines := normalizeDuplicateBlocks(dd.parseDuplOutput(output))
-
+	groups, warnings := debt.DuplicateFunctionBodiesForLanguage(report, DuplicateMinimumLines, language)
+	blocks := make([]DuplicateBlock, 0, len(groups))
 	totalLines := 0
-	for _, block := range blocks {
-		totalLines += block.Lines
+	for _, group := range groups {
+		block := DuplicateBlock{Lines: group.Lines}
+		for _, location := range group.Locations {
+			if allowed[filepath.ToSlash(filepath.Clean(location.Path))] {
+				block.Files = append(block.Files, DuplicateLocation{Path: location.Path, StartLine: location.StartLine, EndLine: location.EndLine})
+			}
+		}
+		if len(block.Files) > 1 {
+			blocks = append(blocks, block)
+			totalLines += block.Lines
+		}
 	}
 
 	return &DuplicateResult{
 		TotalDuplicates: len(blocks),
 		DuplicateBlocks: blocks,
 		TotalLines:      totalLines,
-		Skipped:         false,
-		Tool:            "dupl",
-		DroppedGroups:   droppedGroups,
-		DroppedLines:    droppedLines,
+		Skipped:         len(warnings) > 0,
+		SkipReason:      strings.Join(warnings, "; "),
+		Tool:            "code-facts",
 	}, nil
 }
 
-// parseDuplOutput parses dupl output into structured blocks
-// Format (blocks separated by "found N clones:" headers):
-// found 4 clones:
-//
-//	api/file1.go:10,25
-//	api/file2.go:30,45
-//
-// found 2 clones:
-//
-//	api/file3.go:5,10
-//	api/file4.go:15,20
-func (dd *DuplicationDetector) parseDuplOutput(output string) []DuplicateBlock {
-	var blocks []DuplicateBlock
-	var currentLocations []DuplicateLocation
-	var currentLines int
-
-	// Regex for line like: api/file.go:10,25 (dupl uses comma, not dash)
-	locationRe := regexp.MustCompile(`^\s*(.+?):(\d+),(\d+)`)
-	// Regex for header like: found 2 clones:
-	headerRe := regexp.MustCompile(`^found \d+ clones`)
-
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-		if trimmedLine == "" {
+func hasLanguageFile(report *facts.CodeFactsReport, language string, allowed map[string]bool) bool {
+	for _, envelope := range report.GetGraphs() {
+		unit := envelope.GetParseUnit()
+		prefix, err := filepath.Rel(report.GetTarget().GetRootPath(), unit.GetRootPath())
+		if err != nil || prefix == ".." || strings.HasPrefix(prefix, "../") {
 			continue
 		}
-
-		// Check for header line - starts a new block
-		if headerRe.MatchString(trimmedLine) {
-			// Save previous block if any
-			if len(currentLocations) > 0 {
-				blocks = append(blocks, DuplicateBlock{
-					Files: currentLocations,
-					Lines: currentLines,
-				})
+		for _, node := range envelope.GetGraph().GetNodes() {
+			if node.GetAttributes()["language"] != language || node.GetPath() == "" {
+				continue
 			}
-			// Reset for new block
-			currentLocations = []DuplicateLocation{}
-			currentLines = 0
-			continue
-		}
-
-		// Check for location line
-		if matches := locationRe.FindStringSubmatch(line); len(matches) == 4 {
-			filePath := matches[1]
-			startLine, _ := strconv.Atoi(matches[2])
-			endLine, _ := strconv.Atoi(matches[3])
-
-			// Convert to relative path
-			relPath, err := filepath.Rel(dd.scenarioPath, filePath)
-			if err != nil {
-				relPath = filePath
-			}
-
-			currentLocations = append(currentLocations, DuplicateLocation{
-				Path:      relPath,
-				StartLine: startLine,
-				EndLine:   endLine,
-			})
-
-			// Calculate lines (from first location in block)
-			if currentLines == 0 {
-				currentLines = endLine - startLine + 1
-			}
-		}
-	}
-
-	// Add final block if exists
-	if len(currentLocations) > 0 {
-		blocks = append(blocks, DuplicateBlock{
-			Files: currentLocations,
-			Lines: currentLines,
-		})
-	}
-
-	return blocks
-}
-
-// normalizeDuplicateBlocks merges clone groups that describe the same
-// overlapping physical ranges, deduplicates their locations, and removes
-// groups below DuplicateMinimumLines. Parsers deliberately remain lossless so
-// their backend formats can be tested independently.
-func normalizeDuplicateBlocks(blocks []DuplicateBlock) ([]DuplicateBlock, int, int) {
-	merged := make([]DuplicateBlock, 0, len(blocks))
-	for _, block := range blocks {
-		block = canonicalDuplicateBlock(block)
-		mergedIndex := -1
-		for i := range merged {
-			if duplicateBlocksOverlap(merged[i], block) {
-				mergedIndex = i
-				break
-			}
-		}
-		if mergedIndex < 0 {
-			merged = append(merged, block)
-			continue
-		}
-		merged[mergedIndex].Files = append(merged[mergedIndex].Files, block.Files...)
-		merged[mergedIndex] = canonicalDuplicateBlock(merged[mergedIndex])
-	}
-
-	kept := make([]DuplicateBlock, 0, len(merged))
-	droppedGroups, droppedLines := 0, 0
-	for _, block := range merged {
-		// A clone group needs at least two distinct physical locations. Merging
-		// overlapping detector ranges can collapse a noisy group to one range;
-		// that is diagnostic noise, not a duplication opportunity.
-		if len(block.Files) < 2 || block.Lines < DuplicateMinimumLines {
-			droppedGroups++
-			droppedLines += block.Lines
-			continue
-		}
-		kept = append(kept, block)
-	}
-	return kept, droppedGroups, droppedLines
-}
-
-func canonicalDuplicateBlock(block DuplicateBlock) DuplicateBlock {
-	locations := append([]DuplicateLocation(nil), block.Files...)
-	sort.Slice(locations, func(i, j int) bool {
-		if locations[i].Path != locations[j].Path {
-			return locations[i].Path < locations[j].Path
-		}
-		if locations[i].StartLine != locations[j].StartLine {
-			return locations[i].StartLine < locations[j].StartLine
-		}
-		return locations[i].EndLine < locations[j].EndLine
-	})
-	files := make([]DuplicateLocation, 0, len(locations))
-	maxLines := 0
-	for _, location := range locations {
-		if location.EndLine < location.StartLine {
-			continue
-		}
-		last := len(files) - 1
-		if last >= 0 && files[last].Path == location.Path && location.StartLine <= files[last].EndLine {
-			if location.EndLine > files[last].EndLine {
-				files[last].EndLine = location.EndLine
-			}
-			continue
-		}
-		files = append(files, location)
-	}
-	for _, location := range files {
-		if span := location.EndLine - location.StartLine + 1; span > maxLines {
-			maxLines = span
-		}
-	}
-	block.Files, block.Lines = files, maxLines
-	return block
-}
-
-func duplicateBlocksOverlap(left, right DuplicateBlock) bool {
-	for _, a := range left.Files {
-		for _, b := range right.Files {
-			if a.Path == b.Path && a.StartLine <= b.EndLine && b.StartLine <= a.EndLine {
+			path := filepath.ToSlash(filepath.Join(prefix, node.GetPath()))
+			if allowed[path] {
 				return true
 			}
 		}
 	}
 	return false
-}
-
-// detectJSDuplication uses jscpd to detect JavaScript/TypeScript duplication
-func (dd *DuplicationDetector) detectJSDuplication(ctx context.Context, files []string) (*DuplicateResult, error) {
-	// Check if npx is available (for running jscpd)
-	if !commandExists("npx") {
-		return &DuplicateResult{
-			Skipped:    true,
-			SkipReason: "npx not installed (required for jscpd)",
-		}, nil
-	}
-
-	if len(files) == 0 {
-		return &DuplicateResult{
-			Skipped:    true,
-			SkipReason: "no files to analyze",
-		}, nil
-	}
-
-	// Run jscpd with JSON output
-	cmdCtx, cancel := context.WithTimeout(ctx, dd.timeout)
-	defer cancel()
-
-	// jscpd --reporters json --output /tmp <dir>
-	// For simplicity, analyze the entire ui/src directory if TypeScript files present
-	uiSrcPath := filepath.Join(dd.scenarioPath, "ui", "src")
-
-	cmd := exec.CommandContext(cmdCtx, "npx", "jscpd", "--reporters", "json", "--min-lines", "5", "--min-tokens", "50", "--silent", uiSrcPath) // #nosec G204 G702 -- executable is fixed and target path is derived from scenario root.
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	err := cmd.Run()
-
-	// jscpd may exit with non-zero if duplicates found or if it's not installed
-	// Check stderr for "command not found" type errors
-	stderrStr := stderr.String()
-	if strings.Contains(stderrStr, "not found") || strings.Contains(stderrStr, "command not found") {
-		return &DuplicateResult{
-			Skipped:    true,
-			SkipReason: "jscpd not available (install with: npm install -g jscpd)",
-		}, nil
-	}
-
-	// If no output and error, skip
-	if err != nil && stdout.Len() == 0 {
-		return &DuplicateResult{
-			Skipped:    true,
-			SkipReason: fmt.Sprintf("jscpd failed: %v", err),
-		}, nil
-	}
-
-	// Parse JSON output
-	output := stdout.String()
-	blocks, droppedGroups, droppedLines := normalizeDuplicateBlocks(dd.parseJscpdOutput(output))
-
-	totalLines := 0
-	for _, block := range blocks {
-		totalLines += block.Lines
-	}
-
-	return &DuplicateResult{
-		TotalDuplicates: len(blocks),
-		DuplicateBlocks: blocks,
-		TotalLines:      totalLines,
-		Skipped:         false,
-		Tool:            "jscpd",
-		DroppedGroups:   droppedGroups,
-		DroppedLines:    droppedLines,
-	}, nil
-}
-
-// parseJscpdOutput parses jscpd JSON output
-func (dd *DuplicationDetector) parseJscpdOutput(output string) []DuplicateBlock {
-	// jscpd outputs complex JSON - for now, return empty if we can't parse
-	// A full implementation would parse the jscpd JSON structure
-	var result struct {
-		Duplicates []struct {
-			FirstFile struct {
-				Name  string `json:"name"`
-				Start int    `json:"start"`
-				End   int    `json:"end"`
-			} `json:"firstFile"`
-			SecondFile struct {
-				Name  string `json:"name"`
-				Start int    `json:"start"`
-				End   int    `json:"end"`
-			} `json:"secondFile"`
-			Lines  int `json:"lines"`
-			Tokens int `json:"tokens"`
-		} `json:"duplicates"`
-	}
-
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		// If JSON parsing fails, return empty
-		return []DuplicateBlock{}
-	}
-
-	var blocks []DuplicateBlock
-	for _, dup := range result.Duplicates {
-		relPath1, _ := filepath.Rel(dd.scenarioPath, dup.FirstFile.Name)
-		relPath2, _ := filepath.Rel(dd.scenarioPath, dup.SecondFile.Name)
-
-		block := DuplicateBlock{
-			Files: []DuplicateLocation{
-				{
-					Path:      relPath1,
-					StartLine: dup.FirstFile.Start,
-					EndLine:   dup.FirstFile.End,
-				},
-				{
-					Path:      relPath2,
-					StartLine: dup.SecondFile.Start,
-					EndLine:   dup.SecondFile.End,
-				},
-			},
-			Lines:  dup.Lines,
-			Tokens: dup.Tokens,
-		}
-		blocks = append(blocks, block)
-	}
-
-	return blocks
 }

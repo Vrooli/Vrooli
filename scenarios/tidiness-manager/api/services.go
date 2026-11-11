@@ -152,6 +152,7 @@ type ScanCoordinator struct {
 	resolveStaleIssues    func(ctx context.Context, scenario string, freshIssues []Issue) (int, error)
 	storeIssue            func(context.Context, string, AIIssue, string, *int) error
 	recordHistory         func(context.Context, string, string, *SmartScanResult, *int) error
+	codeFacts             ReductionFacts
 }
 
 // NewScanCoordinator wires dependencies required for scan flows.
@@ -165,8 +166,9 @@ func NewScanCoordinator(
 	resolveStaleIssues func(ctx context.Context, scenario string, freshIssues []Issue) (int, error),
 	storeIssue func(context.Context, string, AIIssue, string, *int) error,
 	recordHistory func(context.Context, string, string, *SmartScanResult, *int) error,
+	codeFacts ...ReductionFacts,
 ) *ScanCoordinator {
-	return &ScanCoordinator{
+	coordinator := &ScanCoordinator{
 		db:                    db,
 		scenarios:             scenarios,
 		logFn:                 logFn,
@@ -177,6 +179,10 @@ func NewScanCoordinator(
 		storeIssue:            storeIssue,
 		recordHistory:         recordHistory,
 	}
+	if len(codeFacts) > 0 {
+		coordinator.codeFacts = codeFacts[0]
+	}
+	return coordinator
 }
 
 // LightScan runs a full light scan, including persistence of metrics.
@@ -214,7 +220,7 @@ func (sc *ScanCoordinator) LightScan(ctx context.Context, req LightScanRequest) 
 		}
 	}
 
-	scanner := NewLightScanner(absPath, timeout)
+	scanner := NewLightScanner(absPath, timeout).withCodeFacts(sc.codeFacts)
 	scanOpts := ScanOptions{
 		Incremental: incremental,
 		DB:          sc.db,
@@ -460,7 +466,7 @@ func (sc *ScanCoordinator) EnsureFileMetrics(ctx context.Context, scenario strin
 		"scenario": scenarioName,
 	})
 
-	scanner := NewLightScanner(scenarioPath, 120*time.Second)
+	scanner := NewLightScanner(scenarioPath, 120*time.Second).withCodeFacts(sc.codeFacts)
 	result, err := scanner.Scan(ctx)
 	if err != nil {
 		return fmt.Errorf("light scan failed: %w", err)

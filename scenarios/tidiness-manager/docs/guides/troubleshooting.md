@@ -20,9 +20,9 @@ tidiness-manager scan tidiness-manager --type tidiness --json
 
 Then inspect the API logs and `docs/internal/SEAMS.md` to locate whether the failure is input normalization, scanner execution, persistence, or output mapping.
 
-## Optional Tool Is Missing
+## Code Facts Evidence Is Missing
 
-Complexity and duplication tools are optional enrichments. Missing tools should produce degraded findings or skipped metadata, not failed basic scans.
+Check Code Facts and the Go/TypeScript/JavaScript graph providers through their managed lifecycle. A missing provider or incomplete graph must surface as degraded/skipped evidence, never as a clean zero-duplicate result. JavaScript has one prompt-manager census whose rates bind to the authoritative source/config hashes from its fast Code Facts `parse_units` response; full graph recommendation serving remains unverified, and the frame is not a fleet estimate. TypeScript has no source-replayed census yet.
 
 ## UI Cannot Reach API
 

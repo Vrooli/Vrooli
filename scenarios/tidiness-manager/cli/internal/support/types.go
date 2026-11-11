@@ -57,16 +57,27 @@ type LongFile struct {
 }
 
 type LightScanResult struct {
-	Scenario        string      `json:"scenario"`
-	DurationMS      int64       `json:"duration_ms"`
-	LintOutput      *CommandRun `json:"lint_output,omitempty"`
-	TypeOutput      *CommandRun `json:"type_output,omitempty"`
-	LongFiles       []LongFile  `json:"long_files"`
-	TotalFiles      int         `json:"total_files"`
-	TotalLines      int         `json:"total_lines"`
-	LintIssuesCount int         `json:"lint_issues"`
-	TypeIssuesCount int         `json:"type_issues"`
-	LongFilesCount  int         `json:"long_files_count"`
+	Scenario        string                          `json:"scenario"`
+	DurationMS      int64                           `json:"duration_ms"`
+	LanguageMetrics map[string]LightLanguageMetrics `json:"language_metrics,omitempty"`
+	LintOutput      *CommandRun                     `json:"lint_output,omitempty"`
+	TypeOutput      *CommandRun                     `json:"type_output,omitempty"`
+	LongFiles       []LongFile                      `json:"long_files"`
+	TotalFiles      int                             `json:"total_files"`
+	TotalLines      int                             `json:"total_lines"`
+	Incremental     bool                            `json:"incremental"`
+	LintIssuesCount int                             `json:"lint_issues"`
+	TypeIssuesCount int                             `json:"type_issues"`
+	LongFilesCount  int                             `json:"long_files_count"`
+}
+
+type LightLanguageMetrics struct {
+	Language    string          `json:"language"`
+	FileCount   int             `json:"file_count"`
+	TotalLines  int             `json:"total_lines"`
+	CodeMetrics json.RawMessage `json:"code_metrics,omitempty"`
+	Complexity  json.RawMessage `json:"complexity,omitempty"`
+	Duplicates  json.RawMessage `json:"duplicates,omitempty"`
 }
 
 type Issue struct {
@@ -131,6 +142,8 @@ type Recommendation struct {
 	ExpectedNetLines *float64 `json:"expected_net_lines"`
 	Calibration      struct {
 		Basis              string   `json:"basis"`
+		ScopeFrameID       string   `json:"scope_frame_id"`
+		ScopeCases         int      `json:"scope_cases"`
 		HistoricalCases    int      `json:"historical_cases"`
 		RegressionCases    int      `json:"regression_cases"`
 		RegressionFailures int      `json:"regression_failures"`

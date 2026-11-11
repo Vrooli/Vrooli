@@ -1,8 +1,8 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpDown, Play, FileText, AlertTriangle, Eye, Sparkles, Info, Terminal } from "lucide-react";
 import { useState } from "react";
-import { fetchScenarioDetail } from "../lib/api";
+import { fetchScenarioDetail, lightScan, type ScanResult } from "../lib/api";
 import { useToast } from "../components/ui/toast";
 import { PageHeader } from "../components/layout/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
@@ -11,6 +11,7 @@ import { Button } from "../components/ui/button";
 import { Spinner } from "../components/ui/spinner";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { cn } from "../lib/utils";
+import { LanguageMetrics } from "../components/LanguageMetrics";
 
 type SortField = "path" | "lines" | "totalIssues" | "visit_count";
 
@@ -18,8 +19,12 @@ export default function ScenarioDetail() {
   const { scenarioName } = useParams<{ scenarioName: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const [sortField, setSortField] = useState<SortField>("totalIssues");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [lightScanResult, setLightScanResult] = useState<ScanResult | null>(null);
+  const [lightScanError, setLightScanError] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["scenario-detail", scenarioName],
@@ -38,6 +43,25 @@ export default function ScenarioDetail() {
     } else {
       setSortField(field);
       setSortDirection("desc");
+    }
+  };
+
+  const handleLightScan = async () => {
+    if (!scenarioName || isScanning) return;
+    setIsScanning(true);
+    setLightScanError(null);
+    try {
+      const result = await lightScan(scenarioName, 120);
+      setLightScanResult(result);
+      await queryClient.invalidateQueries({ queryKey: ["scenario-detail", scenarioName] });
+      const scope = result.incremental ? "changed" : "scanned";
+      showToast(`Light scan completed: ${result.total_files} ${scope} files and ${result.total_lines.toLocaleString()} ${result.incremental ? "changed-file " : ""}lines.`, "success");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setLightScanError(message);
+      showToast(`Light scan failed: ${message}`, "error");
+    } finally {
+      setIsScanning(false);
     }
   };
 
@@ -102,33 +126,15 @@ export default function ScenarioDetail() {
             <Button
               variant="primary"
               size="sm"
-              onClick={async () => {
-                console.log("Trigger light scan for", scenarioName);
-                // TODO: Wire to API endpoint POST /scan/light when backend ready
-                const cliCommand = `tidiness-manager scan ${scenarioName} --type light --wait`;
-
-                // Copy command to clipboard automatically
-                try {
-                  await navigator.clipboard.writeText(cliCommand);
-                  showToast(
-                    `CLI command copied to clipboard:\n\n${cliCommand}\n\nRun this command to trigger a light scan (completes in 60-120s).\nRefresh this page afterward to see results.\n\nNote: Direct UI triggering requires API wiring (POST /api/v1/scan/light).`,
-                    "info",
-                    8000
-                  );
-                } catch (err) {
-                  showToast(
-                    `To trigger a light scan:\n\n${cliCommand}\n\nAPI integration coming soon for direct UI triggering.`,
-                    "info",
-                    8000
-                  );
-                }
-              }}
-              title="Run make lint and make type, parse outputs into structured issues. Completes in 60-120 seconds for most scenarios. Click to copy CLI command."
+              onClick={handleLightScan}
+              disabled={isScanning}
+              data-testid="run-light-scan-button"
+              title="Run the Light Scan and show current language metrics."
               className="flex-1 sm:flex-none"
             >
-              <Play className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Run Light Scan</span>
-              <span className="sm:hidden ml-2">Scan</span>
+              {isScanning ? <Spinner size="sm" className="sm:mr-2" /> : <Play className="h-4 w-4 sm:mr-2" />}
+              <span className="hidden sm:inline">{isScanning ? "Scanning…" : "Run Light Scan"}</span>
+              <span className="sm:hidden ml-2">{isScanning ? "Scanning…" : "Scan"}</span>
             </Button>
           </div>
         }
@@ -185,6 +191,31 @@ export default function ScenarioDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {lightScanError && (
+        <Alert variant="destructive" className="mb-6" data-testid="light-scan-error">
+          <AlertDescription>Light scan failed: {lightScanError}</AlertDescription>
+        </Alert>
+      )}
+
+      {lightScanResult && (
+        <section className="mb-6 space-y-4" data-testid="light-scan-results">
+          <Card>
+            <CardHeader>
+              <CardTitle>Latest Light Scan</CardTitle>
+              <CardDescription>
+                {lightScanResult.total_files} {lightScanResult.incremental ? "changed files" : "files scanned"} · {lightScanResult.total_lines.toLocaleString()} {lightScanResult.incremental ? "changed-file lines" : "lines"} · {lightScanResult.duration_ms} ms
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-3">
+              <div><span className="text-slate-400">Lint issues</span><div className="font-semibold">{lightScanResult.lint_issues}</div></div>
+              <div><span className="text-slate-400">Type issues</span><div className="font-semibold">{lightScanResult.type_issues}</div></div>
+              <div><span className="text-slate-400">Long files</span><div className="font-semibold">{lightScanResult.long_files_count}</div></div>
+            </CardContent>
+          </Card>
+          <LanguageMetrics metrics={lightScanResult.language_metrics ?? {}} />
+        </section>
+      )}
 
       {/* Files Table */}
       <Card>

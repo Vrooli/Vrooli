@@ -2,27 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
-
-var allowedExternalCommands = map[string]struct{}{
-	"dupl": {},
-	"go":   {},
-	"make": {},
-	"npx":  {},
-}
-
-// commandExists only resolves the small set of tools Tidiness Manager is allowed
-// to invoke. Call sites still pass fixed executable names and bounded arguments.
-func commandExists(cmd string) bool {
-	if _, ok := allowedExternalCommands[cmd]; !ok {
-		return false
-	}
-	_, err := exec.LookPath(cmd)
-	return err == nil
-}
 
 func resolveScenarioFiles(scenarioPath string, files []string) ([]string, error) {
 	root, err := filepath.Abs(filepath.Clean(scenarioPath))

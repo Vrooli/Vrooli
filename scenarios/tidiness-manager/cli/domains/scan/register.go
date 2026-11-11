@@ -309,8 +309,8 @@ func runLight(core *cliapp.ScenarioApp, target string, timeout int, jsonOutput b
 		Status: []string{
 			fmt.Sprintf("Light scan completed for %s", result.Scenario),
 			fmt.Sprintf("Duration: %dms", result.DurationMS),
-			fmt.Sprintf("Files scanned: %d", result.TotalFiles),
-			fmt.Sprintf("Total lines: %d", result.TotalLines),
+			fmt.Sprintf("%s files: %d", scanFileLabel(result.Incremental), result.TotalFiles),
+			fmt.Sprintf("%s lines: %d", scanLineLabel(result.Incremental), result.TotalLines),
 		},
 		Triage: []cliapp.TriageGroup{
 			{Heading: "Static Analysis", Items: []string{
@@ -320,6 +320,7 @@ func runLight(core *cliapp.ScenarioApp, target string, timeout int, jsonOutput b
 				commandSummary("make type", result.TypeOutput),
 			}},
 			{Heading: "File Size", Items: longFileRows(result.LongFiles, result.LongFilesCount)},
+			{Heading: "Language Metrics", Items: languageMetricRows(result.LanguageMetrics)},
 		},
 		NextSteps: []string{
 			fmt.Sprintf("%s issues %s --limit 20", cliName, result.Scenario),
@@ -328,9 +329,86 @@ func runLight(core *cliapp.ScenarioApp, target string, timeout int, jsonOutput b
 	}
 
 	if jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, report)
+		return cliapp.PrintReportJSON(os.Stdout, result)
 	}
 	return cliapp.RenderOperationalReport(os.Stdout, report)
+}
+
+func scanFileLabel(incremental bool) string {
+	if incremental {
+		return "Changed files"
+	}
+	return "Files scanned"
+}
+
+func scanLineLabel(incremental bool) string {
+	if incremental {
+		return "Changed-file lines"
+	}
+	return "Total lines"
+}
+
+func languageMetricRows(metrics map[string]support.LightLanguageMetrics) []string {
+	languages := make([]string, 0, len(metrics))
+	for language := range metrics {
+		languages = append(languages, language)
+	}
+	sort.Strings(languages)
+	rows := make([]string, 0, len(languages))
+	for _, language := range languages {
+		metric := metrics[language]
+		row := fmt.Sprintf("%s: %d files, %d lines", language, metric.FileCount, metric.TotalLines)
+		if len(metric.CodeMetrics) > 0 {
+			var counts struct {
+				Todo         int     `json:"todo_count"`
+				Fixme        int     `json:"fixme_count"`
+				Hack         int     `json:"hack_count"`
+				AvgImports   float64 `json:"avg_imports_per_file"`
+				MaxImports   int     `json:"max_imports_in_file"`
+				AvgFunctions float64 `json:"avg_functions_per_file"`
+				MaxFunctions int     `json:"max_functions_in_file"`
+			}
+			if json.Unmarshal(metric.CodeMetrics, &counts) == nil {
+				row += fmt.Sprintf("; TODO/FIXME/HACK %d/%d/%d; imports avg/max %.1f/%d; functions avg/max %.1f/%d",
+					counts.Todo, counts.Fixme, counts.Hack,
+					counts.AvgImports, counts.MaxImports,
+					counts.AvgFunctions, counts.MaxFunctions)
+			}
+		}
+		var complexity struct {
+			AverageComplexity   float64 `json:"average_complexity"`
+			MaxComplexity       int     `json:"max_complexity"`
+			HighComplexityCount int     `json:"high_complexity_count"`
+			TotalFunctions      int     `json:"total_functions"`
+			Skipped             bool    `json:"skipped"`
+			SkipReason          string  `json:"skip_reason"`
+			Tool                string  `json:"tool"`
+		}
+		if len(metric.Complexity) > 0 && json.Unmarshal(metric.Complexity, &complexity) == nil {
+			if complexity.Skipped {
+				row += "; complexity skipped: " + complexity.SkipReason
+			} else {
+				row += fmt.Sprintf("; complexity functions/avg/max/high %d/%.1f/%d/%d via %s",
+					complexity.TotalFunctions, complexity.AverageComplexity, complexity.MaxComplexity, complexity.HighComplexityCount, complexity.Tool)
+			}
+		}
+		var duplicates struct {
+			TotalDuplicates int    `json:"total_duplicates"`
+			TotalLines      int    `json:"total_lines"`
+			Skipped         bool   `json:"skipped"`
+			SkipReason      string `json:"skip_reason"`
+			Tool            string `json:"tool"`
+		}
+		if len(metric.Duplicates) > 0 && json.Unmarshal(metric.Duplicates, &duplicates) == nil {
+			if duplicates.Skipped {
+				row += "; duplication skipped: " + duplicates.SkipReason
+			} else {
+				row += fmt.Sprintf("; %d duplicate groups / %d lines via %s", duplicates.TotalDuplicates, duplicates.TotalLines, duplicates.Tool)
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows
 }
 
 func runSmart(core *cliapp.ScenarioApp, target string, files []string, forceRescan bool, campaignID int, jsonOutput bool) error {

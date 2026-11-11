@@ -79,7 +79,7 @@ func (h *scenarioValidationHandler) ValidateTarget(ctx context.Context, req *con
 
 func (h *scenarioValidationHandler) validate(ctx context.Context, scenarioName, scenarioPath string, includeExecution bool, excludes []string) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	collector := metrics.Start(metrics.WithEnvironment(h.server.environment))
-	result, audit, err := buildTidinessScanWithAudit(WithMetrics(ctx, collector), scenarioName, scenarioPath, validationTimeout(includeExecution), excludes...)
+	result, audit, err := buildTidinessScanWithAudit(WithMetrics(ctx, collector), scenarioName, scenarioPath, validationTimeout(includeExecution), excludes, h.server.reductionFacts)
 	if err != nil {
 		collector.Stop()
 		h.server.log("tidiness validation failed", map[string]interface{}{

@@ -35,7 +35,6 @@ func TestComplexityUsesScopedSharedFacts(t *testing.T) {
 		t.Fatal(result)
 	}
 }
-
 func TestComplexityFailuresCannotLookLikeCleanSource(t *testing.T) {
 	analyzer := NewComplexityAnalyzer("/repo/demo", time.Second)
 	analyzer.source = reductionSourceFunc(func(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
@@ -63,23 +62,5 @@ func TestComplexityFailuresCannotLookLikeCleanSource(t *testing.T) {
 	result, _ := analyzer.AnalyzeComplexity(context.Background(), LanguageGo, []string{"a.go"})
 	if !result.Skipped || !strings.Contains(result.SkipReason, "no Go graph") {
 		t.Fatal(result)
-	}
-}
-
-func TestCommandExists(t *testing.T) {
-	// Test with a command that should exist
-	if !commandExists("go") {
-		t.Error("Expected 'go' command to exist")
-	}
-
-	// Test with a command that shouldn't exist
-	if commandExists("nonexistent-command-12345") {
-		t.Error("Expected 'nonexistent-command-12345' to not exist")
-	}
-}
-
-func TestCommandExists_RejectsDisallowedCommand(t *testing.T) {
-	if commandExists("sh") {
-		t.Error("Expected disallowed command 'sh' to be rejected even when present in PATH")
 	}
 }

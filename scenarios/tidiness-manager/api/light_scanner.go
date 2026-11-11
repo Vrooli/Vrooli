@@ -15,6 +15,7 @@ import (
 
 	"github.com/vrooli/api-core/pathfilter"
 	repocontract "github.com/vrooli/repo-contract-go"
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
 // LightScanner performs fast static analysis using Makefile integration
@@ -22,6 +23,7 @@ type LightScanner struct {
 	scenarioPath string
 	timeout      time.Duration
 	excludes     []string
+	codeFacts    ReductionFacts
 }
 
 // NewLightScanner creates a scanner for the specified scenario directory
@@ -36,6 +38,11 @@ func NewLightScanner(scenarioPath string, timeout time.Duration, excludes ...str
 	}
 }
 
+func (ls *LightScanner) withCodeFacts(source ReductionFacts) *LightScanner {
+	ls.codeFacts = source
+	return ls
+}
+
 // ScanResult contains all outputs from a light scan
 type ScanResult struct {
 	Scenario        string                        `json:"scenario"`
@@ -48,6 +55,7 @@ type ScanResult struct {
 	LongFiles       []LongFile                    `json:"long_files"`
 	TotalFiles      int                           `json:"total_files"`
 	TotalLines      int                           `json:"total_lines"`
+	Incremental     bool                          `json:"incremental"`
 	HasMakefile     bool                          `json:"has_makefile"`
 	LanguageMetrics map[Language]*LanguageMetrics `json:"language_metrics,omitempty"`
 	// Convenience counts for CLI consumption
@@ -64,6 +72,7 @@ type LanguageMetrics struct {
 	CodeMetrics *CodeMetrics      `json:"code_metrics,omitempty"`
 	Complexity  *ComplexityResult `json:"complexity,omitempty"`
 	Duplicates  *DuplicateResult  `json:"duplicates,omitempty"`
+	facts       *facts.CodeFactsReport
 }
 
 // CommandRun captures execution details
@@ -108,8 +117,9 @@ func (ls *LightScanner) ScanWithOptions(ctx context.Context, opts ScanOptions) (
 	startTime := time.Now()
 
 	result := &ScanResult{
-		Scenario:  filepath.Base(ls.scenarioPath),
-		StartedAt: startTime,
+		Scenario:    filepath.Base(ls.scenarioPath),
+		StartedAt:   startTime,
+		Incremental: opts.Incremental && opts.DB != nil,
 	}
 
 	// Check for Makefile
@@ -183,27 +193,57 @@ func (ls *LightScanner) collectLanguageMetrics(ctx context.Context, languages ma
 		if len(files) == 0 {
 			continue
 		}
+		// One graph response supplies every structural metric for this language.
+		// Python and Rust still use lexical fallbacks; JavaScript graph gaps are
+		// handled per file for config entrypoints outside TypeScript projects.
+		var report *facts.CodeFactsReport
+		var factsErr error
+		if filters := codeFactsLanguageFilters(lang); filters != nil {
+			factsCtx, cancel := context.WithTimeout(ctx, ls.timeout)
+			report, factsErr = currentCodeFacts(factsCtx, ls.codeFacts, &facts.CodeTarget{
+				Kind: facts.TargetKind_TARGET_KIND_PATH, Path: ls.scenarioPath,
+				LanguageFilter: filters,
+			})
+			cancel()
+		}
 		metrics := &LanguageMetrics{
 			Language: lang, FileCount: len(files), TotalLines: langInfo.TotalLines,
+			facts: report,
 		}
 
 		// Run code metrics (TODOs, imports, functions) - always available
 		codeMetricsAnalyzer := NewCodeMetricsAnalyzer(ls.scenarioPath)
-		codeMetrics, err := codeMetricsAnalyzer.AnalyzeFiles(files, lang)
+		codeMetrics, err := codeMetricsAnalyzer.AnalyzeFilesWithFacts(files, lang, report)
 		if err == nil {
 			metrics.CodeMetrics = codeMetrics
 		}
 
 		// Reuse current Code Facts syntax metrics.
 		complexityAnalyzer := NewComplexityAnalyzer(ls.scenarioPath, ls.timeout)
-		complexity, err := complexityAnalyzer.AnalyzeComplexity(ctx, lang, files)
+		var complexity *ComplexityResult
+		if factsErr != nil {
+			complexity = &ComplexityResult{Skipped: true, SkipReason: factsErr.Error()}
+		} else if lang != LanguageGo {
+			complexity, err = complexityAnalyzer.AnalyzeComplexity(ctx, lang, files)
+		} else if report != nil {
+			complexity, err = complexityAnalyzer.AnalyzeComplexityFromFacts(files, report)
+		} else {
+			complexity, err = complexityAnalyzer.AnalyzeComplexity(ctx, lang, files)
+		}
 		if err == nil {
 			metrics.Complexity = complexity
 		}
 
-		// Run duplication detection (requires external tools)
+		// Project shared Code Facts duplicate-body evidence into scan metrics.
 		duplicationDetector := NewDuplicationDetector(ls.scenarioPath, ls.timeout)
-		duplicates, err := duplicationDetector.DetectDuplication(ctx, lang, files)
+		var duplicates *DuplicateResult
+		if factsErr != nil {
+			duplicates = &DuplicateResult{Skipped: true, SkipReason: factsErr.Error(), Tool: "code-facts"}
+		} else if report != nil {
+			duplicates, err = duplicationDetector.DetectDuplicationFromFacts(files, string(lang), report)
+		} else {
+			duplicates, err = duplicationDetector.DetectDuplication(ctx, lang, files)
+		}
 		if err == nil {
 			metrics.Duplicates = duplicates
 		}
@@ -212,6 +252,19 @@ func (ls *LightScanner) collectLanguageMetrics(ctx context.Context, languages ma
 	}
 
 	return result
+}
+
+func codeFactsLanguageFilters(lang Language) []string {
+	switch lang {
+	case LanguageGo:
+		return []string{"go"}
+	case LanguageTypeScript:
+		return []string{"typescript"}
+	case LanguageJavaScript:
+		return []string{"javascript", "typescript"}
+	default:
+		return nil
+	}
 }
 
 // runMakeCommand executes a make target and captures output

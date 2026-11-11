@@ -33,6 +33,7 @@ type Config struct {
 // Server wires the HTTP router and database connection
 type Server struct {
 	reductionFacts       ReductionFacts
+	auditorFindings      AuditorFindingsSource
 	config               *Config
 	db                   *sql.DB
 	store                *TidinessStore
@@ -100,6 +101,7 @@ func NewServer() (*Server, error) {
 		store.ResolveStaleMetricIssues,
 		srv.storeAIIssue,
 		srv.recordScanHistory,
+		srv.reductionFacts,
 	)
 
 	// Best-effort creation; handlers will guard against nil orchestrator
@@ -310,6 +312,7 @@ func (s *Server) ensureScanCoordinator() error {
 		s.store.ResolveStaleMetricIssues,
 		s.storeAIIssue,
 		s.recordScanHistory,
+		s.reductionFacts,
 	)
 	return nil
 }

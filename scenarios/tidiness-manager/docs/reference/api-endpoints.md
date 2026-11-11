@@ -43,6 +43,13 @@ Returns service readiness and database dependency status.
 - `GET /api/v1/agent/staleness`
 - `GET /api/v1/agent/refactor-recommendations`
 
+The recommendation registry includes current Code Facts reduction candidates and
+cached Scenario Auditor standards findings. Auditor entries retain their rule ID,
+severity, standard, source, location, and remediation guidance; they are policy
+findings, so they carry no estimated line reduction or detector precision. If
+Scenario Auditor is unavailable, reduction recommendations still return with an
+explicit warning.
+
 These endpoints power the UI and CLI recommendations.
 
 ## Tidiness Score

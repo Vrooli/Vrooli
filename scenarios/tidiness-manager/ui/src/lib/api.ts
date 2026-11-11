@@ -149,8 +149,12 @@ export interface ScanResult {
   long_files: LongFile[];
   total_files: number;
   total_lines: number;
+  incremental?: boolean;
   has_makefile: boolean;
   language_metrics?: Record<string, LanguageMetrics>;
+  lint_issues: number;
+  type_issues: number;
+  long_files_count: number;
 }
 
 export interface Issue {
@@ -273,12 +277,12 @@ export async function fetchHealth(): Promise<HealthResponse> {
   return readJson<HealthResponse>(res);
 }
 
-export async function lightScan(scenarioPath: string, timeoutSec?: number): Promise<ScanResult> {
+export async function lightScan(scenario: string, timeoutSec?: number): Promise<ScanResult> {
   const apiBase = await getApiBase();
   const res = await fetch(buildApiUrl("/scan/light", { baseUrl: apiBase }), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scenario_path: scenarioPath, timeout_sec: timeoutSec }),
+    body: JSON.stringify({ scenario, timeout_sec: timeoutSec }),
   });
 
   if (!res.ok) {

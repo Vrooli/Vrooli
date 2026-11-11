@@ -2,8 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
@@ -18,12 +23,77 @@ type ReductionFacts interface {
 	DescribeCodeFacts(context.Context, *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error)
 }
 
+type AuditorFindingsSource interface {
+	ListStandardsFindings(context.Context, string) ([]debt.AuditorFinding, error)
+}
+
 func (s *Server) recommendReductions(ctx context.Context, scenario string, limit, minLines int) (debt.Report, error) {
-	report, err := currentCodeFacts(ctx, s.reductionFacts, &facts.CodeTarget{Kind: facts.TargetKind_TARGET_KIND_SCENARIO, Scenario: scenario, RepoRoot: s.scenarioLocator.repoRoot, LanguageFilter: []string{"go"}})
+	report, err := currentCodeFacts(ctx, s.reductionFacts, &facts.CodeTarget{Kind: facts.TargetKind_TARGET_KIND_SCENARIO, Scenario: scenario, RepoRoot: s.scenarioLocator.repoRoot, LanguageFilter: []string{"go", "typescript", "javascript"}})
 	if err != nil {
 		return debt.Report{}, err
 	}
-	return debt.New().Recommend(report, limit, minLines), nil
+	registry := debt.New()
+	findings, err := currentAuditorFindings(ctx, s.auditorFindings, scenario)
+	result := registry.RecommendWithAuditorFindings(report, findings, limit, minLines)
+	if err != nil {
+		result.Warnings = append(result.Warnings, "scenario-auditor findings unavailable: "+err.Error())
+	}
+	return result, nil
+}
+
+type scenarioAuditorHTTP struct {
+	baseURL string
+	client  *http.Client
+}
+
+func (c scenarioAuditorHTTP) ListStandardsFindings(ctx context.Context, scenario string) ([]debt.AuditorFinding, error) {
+	baseURL := c.baseURL
+	if baseURL == "" {
+		var err error
+		baseURL, err = discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURLDefault(ctx, "scenario-auditor")
+		if err != nil {
+			return nil, fmt.Errorf("resolve Scenario Auditor: %w", err)
+		}
+	}
+	requestURL := strings.TrimRight(baseURL, "/") + "/api/v1/standards/violations?scenario=" + url.QueryEscape(scenario)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	client := c.client
+	if client == nil {
+		client = &http.Client{Timeout: 10 * time.Second}
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Scenario Auditor returned HTTP %d", response.StatusCode)
+	}
+	var payload struct {
+		Violations []debt.AuditorFinding `json:"violations"`
+	}
+	if err := json.NewDecoder(io.LimitReader(response.Body, 4<<20)).Decode(&payload); err != nil {
+		return nil, fmt.Errorf("decode Scenario Auditor findings: %w", err)
+	}
+	for index := range payload.Violations {
+		finding := &payload.Violations[index]
+		if finding.RuleID == "" {
+			// Scenario Auditor's public violations DTO calls the originating rule
+			// `type`; RuleID remains accepted for forward-compatible responses.
+			finding.RuleID = finding.Type
+		}
+	}
+	return payload.Violations, nil
+}
+
+func currentAuditorFindings(ctx context.Context, source AuditorFindingsSource, scenario string) ([]debt.AuditorFinding, error) {
+	if source == nil {
+		source = scenarioAuditorHTTP{}
+	}
+	return source.ListStandardsFindings(ctx, scenario)
 }
 
 func currentCodeFacts(ctx context.Context, client ReductionFacts, target *facts.CodeTarget) (*facts.CodeFactsReport, error) {

@@ -148,6 +148,9 @@ describe('API Module', () => {
         total_files: 10,
         total_lines: 1000,
         has_makefile: true,
+        lint_issues: 2,
+        type_issues: 1,
+        long_files_count: 3,
       };
 
       (globalThis.fetch as any).mockResolvedValue({
@@ -163,7 +166,7 @@ describe('API Module', () => {
         expect.stringContaining('/scan/light'),
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ scenario_path: 'test-scenario', timeout_sec: 300 }),
+          body: JSON.stringify({ scenario: 'test-scenario', timeout_sec: 300 }),
         })
       );
     });

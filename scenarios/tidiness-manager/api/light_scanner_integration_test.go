@@ -469,6 +469,9 @@ func TestLightScannerIncrementalRetainsWholeLanguageInventory(t *testing.T) {
 	if len(result.FileMetrics) != 0 {
 		t.Fatalf("unchanged files returned as changed: %+v", result.FileMetrics)
 	}
+	if !result.Incremental || result.TotalFiles != 0 || result.TotalLines != 0 {
+		t.Fatalf("incremental response should identify changed-file totals: incremental=%v files=%d lines=%d", result.Incremental, result.TotalFiles, result.TotalLines)
+	}
 	language := result.LanguageMetrics[LanguageTypeScript]
 	if language == nil || language.FileCount != 2 {
 		t.Fatalf("incremental mode lost whole-language coverage: %+v", language)

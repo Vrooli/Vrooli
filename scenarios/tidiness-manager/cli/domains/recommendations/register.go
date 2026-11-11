@@ -105,7 +105,11 @@ func recommendationRows(recommendations []support.Recommendation) []string {
 		}
 		precision := "unknown precision"
 		if rec.Calibration.Precision != nil {
-			precision = fmt.Sprintf("historical precision %.0f%% (%d labelled cases)", 100**rec.Calibration.Precision, rec.Calibration.HistoricalCases)
+			if rec.Calibration.ScopeFrameID != "" {
+				precision = fmt.Sprintf("measured target precision %.0f%% (%d groups)", 100**rec.Calibration.Precision, rec.Calibration.ScopeCases)
+			} else {
+				precision = fmt.Sprintf("historical precision %.0f%% (%d labelled cases)", 100**rec.Calibration.Precision, rec.Calibration.HistoricalCases)
+			}
 		}
 		line := fmt.Sprintf("%s | %s | %s | estimated net %d | %s", rec.Title, expected, precision, rec.NetLines, rec.DetectorID)
 		rows = append(rows, line)

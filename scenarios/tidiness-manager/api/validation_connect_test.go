@@ -15,6 +15,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	scenariovalidationv1 "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1"
 	scenariovalidationconnect "github.com/vrooli/vrooli/packages/proto/gen/go/scenario-validation/v1/scenariovalidationv1connect"
@@ -218,10 +219,46 @@ func TestScenarioValidationIncludesMaintainedSidecarSource(t *testing.T) {
 	for _, dir := range []string{"playwright-driver/src", "automation-worker/src", "playwright-driver/node_modules/dependency", "playwright-driver/dist", "data"} {
 		createTestDir(t, root, dir, map[string]string{"source.ts": source.String()})
 	}
-	handler := newScenarioValidationHandler(&Server{})
+	calls := 0
+	var graphReport *facts.CodeFactsReport
+	server := &Server{reductionFacts: reductionSourceFunc(func(_ context.Context, request *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
+		calls++
+		if got := request.Msg.GetTarget().GetLanguageFilter(); len(got) != 1 || got[0] != "typescript" {
+			t.Fatalf("Code Facts language filter = %v, want [typescript]", got)
+		}
+		var nodes []*commonv1.CodeGraphNode
+		var edges []*commonv1.CodeGraphEdge
+		for _, path := range []string{"playwright-driver/src/source.ts", "automation-worker/src/source.ts"} {
+			nodes = append(nodes, &commonv1.CodeGraphNode{Id: "file:" + path, Kind: commonv1.NodeKind_NODE_KIND_FILE, Path: path, Attributes: map[string]string{"language": "typescript"}})
+			moduleID := "ts_module:" + path
+			nodes = append(nodes, &commonv1.CodeGraphNode{Id: moduleID, Kind: commonv1.NodeKind_NODE_KIND_MODULE, Path: path, Attributes: map[string]string{"kind": "TS_NODE_KIND_MODULE", "language": "typescript"}})
+			for line := 1; line <= 22; line++ {
+				edges = append(edges, &commonv1.CodeGraphEdge{
+					Id: fmt.Sprintf("import:%s:%d", path, line), Kind: commonv1.EdgeKind_EDGE_KIND_IMPORT,
+					FromNodeId: moduleID, ToNodeId: fmt.Sprintf("module:%s:%d", path, line),
+					Attributes: map[string]string{"specifier": fmt.Sprintf("./module-%d", line)},
+				})
+			}
+		}
+		graphReport = &facts.CodeFactsReport{
+			Target: &facts.TargetContext{RootPath: root},
+			Graphs: []*facts.LanguageGraph{{
+				ParseUnit: &facts.ParseUnit{Id: "typescript:" + root, Language: "typescript", RootPath: root},
+				Graph:     &commonv1.CodeGraph{Nodes: nodes, Edges: edges},
+			}},
+		}
+		return connect.NewResponse(graphReport), nil
+	})}
+	handler := newScenarioValidationHandler(server)
 	response, err := handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{Scenario: "sidecar-fixture", Path: root}))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("Code Facts requests = %d, want one shared language response", calls)
+	}
+	if imports, _, graphBacked := graphFileCounts(graphReport, "playwright-driver/src/source.ts", LanguageTypeScript); imports != 22 || !graphBacked {
+		t.Fatalf("shared graph import count = %d, want 22", imports)
 	}
 	var native validationv1.TidinessScanResponse
 	if err := response.Msg.GetNativeDetail().UnmarshalTo(&native); err != nil {

@@ -194,6 +194,61 @@ describe('ScenarioDetail', () => {
     });
   });
 
+  describe('Light Scan', () => {
+    it('runs through the API and shows the shared JavaScript graph metrics', async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.fetchScenarioDetail).mockResolvedValue(mockScenarioDetail);
+      vi.mocked(api.lightScan).mockResolvedValue({
+        scenario: 'test-scenario',
+        started_at: '2026-11-10T17:00:00Z',
+        completed_at: '2026-11-10T17:00:01Z',
+        duration_ms: 1000,
+        lint_output: { command: 'make lint', exit_code: 0, stdout: '', stderr: '', duration_ms: 10, success: true, skipped: false },
+        type_output: { command: 'make type', exit_code: 0, stdout: '', stderr: '', duration_ms: 10, success: true, skipped: false },
+        file_metrics: [],
+        long_files: [],
+        total_files: 0,
+        total_lines: 0,
+        incremental: true,
+        has_makefile: true,
+        lint_issues: 0,
+        type_issues: 0,
+        long_files_count: 0,
+        language_metrics: {
+          javascript: {
+            language: 'javascript',
+            file_count: 2,
+            total_lines: 80,
+            duplicates: { total_duplicates: 2, duplicate_blocks: [], total_lines: 17, skipped: false, tool: 'code-facts' },
+          },
+        },
+      });
+
+      renderScenarioDetail();
+      await screen.findByText(/Code tidiness overview for test-scenario/i);
+      await user.click(screen.getByTestId('run-light-scan-button'));
+
+      expect(api.lightScan).toHaveBeenCalledWith('test-scenario', 120);
+      const results = await screen.findByTestId('light-scan-results');
+      expect(within(results).getByText('Code Quality Metrics by Language')).toBeInTheDocument();
+      expect(within(results).getByText('javascript')).toBeInTheDocument();
+      expect(within(results).getByText('17')).toBeInTheDocument();
+      expect(within(results).getByText(/0 changed files · 0 changed-file lines/)).toBeInTheDocument();
+    });
+
+    it('shows a useful error if the light scan fails', async () => {
+      const user = userEvent.setup();
+      vi.mocked(api.fetchScenarioDetail).mockResolvedValue(mockScenarioDetail);
+      vi.mocked(api.lightScan).mockRejectedValue(new Error('source provider unavailable'));
+
+      renderScenarioDetail();
+      await screen.findByText(/Code tidiness overview for test-scenario/i);
+      await user.click(screen.getByTestId('run-light-scan-button'));
+
+      expect(await screen.findByTestId('light-scan-error')).toHaveTextContent('source provider unavailable');
+    });
+  });
+
   describe('[REQ:TM-UI-004] Interactive Sorting', () => {
     it('sorts by path when path header is clicked', async () => {
       const user = userEvent.setup();

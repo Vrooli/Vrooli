@@ -46,7 +46,7 @@ Missing or unsupported analyzer output remains distinct from a clean finding set
 
 - PostgreSQL stores issues, metrics, scan history, and campaign state.
 - Lifecycle assigns API and UI ports.
-- Optional analyzer tools enrich complexity and duplication results.
+- Code Facts supplies Go complexity and Go/TypeScript/JavaScript function-body graph evidence through its parser providers.
 - Optional resource-claude-code/resource-codes support smart scans.
 - Optional visited-tracker improves prioritization and campaign handoff.
 
@@ -78,7 +78,12 @@ Concept docs explain mental models, reference docs list stable interfaces, opera
 - `../internal/SEAMS.md`
 - `../internal/TESTING.md`
 
-Current qualification limit (BAS-RF-064): the JavaScript duplication adapter
-still ignores its supplied inventory and malformed output can become an empty
-result. TypeScript complexity is explicitly unsupported. Neither absence
-establishes clean source; retain analyzer coverage limits beside native totals.
+Current qualification limit: Go duplication and CLI migration have selected
+repository-beforeimage trigger examples, not representative candidate frames;
+their fleet precision and recall remain unknown. JavaScript body duplication
+has one complete prompt-manager census bound to the authoritative Code Facts
+source/config hashes from a fast `parse_units` response; full graph serving has
+not been verified, and those scoped rates do not generalize to other targets. TypeScript duplicate-body
+detection still has synthetic regressions but no source-replayed census.
+TypeScript complexity remains unsupported. These limits are surfaced per
+detector/provider; missing evidence does not establish clean source.

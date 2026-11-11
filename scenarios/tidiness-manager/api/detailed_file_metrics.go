@@ -100,6 +100,11 @@ func CollectDetailedFileMetricsWithLangMetrics(scenarioPath string, files []stri
 			// Skip files we can't analyze
 			continue
 		}
+		if languageMetrics := langMetrics[lang]; languageMetrics != nil {
+			if imports, functions, graphBacked := graphFileCounts(languageMetrics.facts, relPath, lang); graphBacked {
+				fileMetrics.ImportCount, fileMetrics.FunctionCount = imports, functions
+			}
+		}
 
 		// Build test file map for this language to check test coverage
 		allFilesForLang := languages[lang].Files

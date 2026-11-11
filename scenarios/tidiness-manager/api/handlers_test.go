@@ -514,109 +514,45 @@ func emittedTidinessRuleIDs() []string {
 
 // Test handleParseLint
 func TestHandleParseLint(t *testing.T) {
-	srv := &Server{
-		router: mux.NewRouter(),
-	}
-
-	tests := []struct {
-		name       string
-		body       interface{}
-		wantStatus int
-		wantError  string
-	}{
-		{
-			name: "valid lint parse request",
-			body: ParseRequest{
-				Scenario: "test-scenario",
-				Tool:     "eslint",
-				Output:   "src/main.ts:10:5: error: Unexpected token",
-			},
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "missing scenario",
-			body:       ParseRequest{Tool: "eslint", Output: "some output"},
-			wantStatus: http.StatusBadRequest,
-			wantError:  "scenario and tool are required",
-		},
-		{
-			name:       "missing tool",
-			body:       ParseRequest{Scenario: "test", Output: "some output"},
-			wantStatus: http.StatusBadRequest,
-			wantError:  "scenario and tool are required",
-		},
-		{
-			name:       "invalid JSON",
-			body:       "invalid json",
-			wantStatus: http.StatusBadRequest,
-			wantError:  "invalid request body",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rr := testHandlerRequest(t, "POST", "/api/v1/parse/lint", tt.body, srv.handleParseLint)
-			assertHandlerStatus(t, rr, tt.wantStatus, "handleParseLint()")
-
-			if tt.wantError != "" {
-				assertHandlerError(t, rr, tt.wantError, "handleParseLint()")
-			} else {
-				assertParseResponseFields(t, rr, "handleParseLint()")
-			}
-		})
-	}
+	srv := &Server{router: mux.NewRouter()}
+	assertParseHandler(t, "/api/v1/parse/lint", srv.handleParseLint, "handleParseLint()", ParseRequest{
+		Scenario: "test-scenario",
+		Tool:     "eslint",
+		Output:   "src/main.ts:10:5: error: Unexpected token",
+	})
 }
 
 // Test handleParseType
 func TestHandleParseType(t *testing.T) {
-	srv := &Server{
-		router: mux.NewRouter(),
-	}
+	srv := &Server{router: mux.NewRouter()}
+	assertParseHandler(t, "/api/v1/parse/type", srv.handleParseType, "handleParseType()", ParseRequest{
+		Scenario: "test-scenario",
+		Tool:     "tsc",
+		Output:   "src/main.ts(10,5): error TS2304: Cannot find name 'foo'",
+	})
+}
 
-	tests := []struct {
+func assertParseHandler(t *testing.T, path string, handler func(http.ResponseWriter, *http.Request), label string, validRequest ParseRequest) {
+	t.Helper()
+	cases := []struct {
 		name       string
-		body       interface{}
+		body       any
 		wantStatus int
 		wantError  string
 	}{
-		{
-			name: "valid type parse request",
-			body: ParseRequest{
-				Scenario: "test-scenario",
-				Tool:     "tsc",
-				Output:   "src/main.ts(10,5): error TS2304: Cannot find name 'foo'",
-			},
-			wantStatus: http.StatusOK,
-		},
-		{
-			name:       "missing scenario",
-			body:       ParseRequest{Tool: "tsc", Output: "some output"},
-			wantStatus: http.StatusBadRequest,
-			wantError:  "scenario and tool are required",
-		},
-		{
-			name:       "missing tool",
-			body:       ParseRequest{Scenario: "test", Output: "some output"},
-			wantStatus: http.StatusBadRequest,
-			wantError:  "scenario and tool are required",
-		},
-		{
-			name:       "invalid JSON",
-			body:       "invalid json",
-			wantStatus: http.StatusBadRequest,
-			wantError:  "invalid request body",
-		},
+		{name: "valid request", body: validRequest, wantStatus: http.StatusOK},
+		{name: "missing scenario", body: ParseRequest{Tool: validRequest.Tool, Output: "some output"}, wantStatus: http.StatusBadRequest, wantError: "scenario and tool are required"},
+		{name: "missing tool", body: ParseRequest{Scenario: "test", Output: "some output"}, wantStatus: http.StatusBadRequest, wantError: "scenario and tool are required"},
+		{name: "invalid JSON", body: "invalid json", wantStatus: http.StatusBadRequest, wantError: "invalid request body"},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rr := testHandlerRequest(t, "POST", "/api/v1/parse/type", tt.body, srv.handleParseType)
-			assertHandlerStatus(t, rr, tt.wantStatus, "handleParseType()")
-
-			if tt.wantError != "" {
-				assertHandlerError(t, rr, tt.wantError, "handleParseType()")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rr := testHandlerRequest(t, http.MethodPost, path, tc.body, handler)
+			assertHandlerStatus(t, rr, tc.wantStatus, label)
+			if tc.wantError != "" {
+				assertHandlerError(t, rr, tc.wantError, label)
 			} else {
-				assertParseResponseFields(t, rr, "handleParseType()")
+				assertParseResponseFields(t, rr, label)
 			}
 		})
 	}
@@ -639,7 +575,7 @@ func TestHandleLightScan(t *testing.T) {
 			name:       "missing scenario_path",
 			body:       LightScanRequest{},
 			wantStatus: http.StatusBadRequest,
-			wantError:  "scenario_path is required",
+			wantError:  "scenario or scenario_path is required",
 		},
 		{
 			name:       "invalid JSON",
@@ -658,6 +594,30 @@ func TestHandleLightScan(t *testing.T) {
 				assertHandlerError(t, rr, tt.wantError, "handleLightScan()")
 			}
 		})
+	}
+}
+
+func TestResolveLightScanPathUsesScenarioOwnership(t *testing.T) {
+	repoRoot := t.TempDir()
+	writeRepoContractFixture(t, repoRoot)
+	scenarioPath := filepath.Join(repoRoot, "scenarios", "demo")
+	if err := os.MkdirAll(scenarioPath, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	locator := &ScenarioLocator{repoRoot: repoRoot}
+
+	got, err := resolveLightScanPath(LightScanRequest{Scenario: "demo"}, locator)
+	if err != nil {
+		t.Fatalf("resolve scenario name: %v", err)
+	}
+	if got != scenarioPath {
+		t.Fatalf("resolved path = %q, want %q", got, scenarioPath)
+	}
+	if _, err := resolveLightScanPath(LightScanRequest{Scenario: "../outside"}, locator); err == nil {
+		t.Fatal("expected scenario traversal to be rejected")
+	}
+	if _, err := resolveLightScanPath(LightScanRequest{Scenario: "demo", ScenarioPath: scenarioPath}, locator); err == nil {
+		t.Fatal("expected conflicting scenario and scenario_path to be rejected")
 	}
 }
 

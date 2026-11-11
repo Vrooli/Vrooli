@@ -77,6 +77,13 @@ func (ca *ComplexityAnalyzer) AnalyzeComplexity(ctx context.Context, lang Langua
 	if err != nil {
 		return skipped(err.Error())
 	}
+	return ca.AnalyzeComplexityFromFacts(files, report)
+}
+
+func (ca *ComplexityAnalyzer) AnalyzeComplexityFromFacts(files []string, report *facts.CodeFactsReport) (*ComplexityResult, error) {
+	skipped := func(reason string) (*ComplexityResult, error) {
+		return &ComplexityResult{Skipped: true, SkipReason: reason}, nil
+	}
 	if len(report.GetGraphs()) == 0 {
 		return skipped("Code Facts returned no Go graph evidence")
 	}

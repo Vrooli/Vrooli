@@ -20,6 +20,7 @@ import (
 
 // LightScanRequest defines the request body for light scanning
 type LightScanRequest struct {
+	Scenario     string `json:"scenario,omitempty"`
 	ScenarioPath string `json:"scenario_path"`
 	TimeoutSec   int    `json:"timeout_sec,omitempty"`
 	Timeout      string `json:"timeout,omitempty"`     // backwards compatibility with tests sending string
@@ -66,10 +67,12 @@ func (s *Server) handleLightScan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.TrimSpace(req.ScenarioPath) == "" {
-		respondError(w, http.StatusBadRequest, "scenario_path is required")
+	scenarioPath, err := resolveLightScanPath(req, s.scenarioLocator)
+	if err != nil {
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	req.ScenarioPath = scenarioPath
 
 	// Support legacy "timeout" field encoded as string
 	if req.TimeoutSec == 0 && strings.TrimSpace(req.Timeout) != "" {
@@ -93,6 +96,28 @@ func (s *Server) handleLightScan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, result)
+}
+
+func resolveLightScanPath(req LightScanRequest, locator *ScenarioLocator) (string, error) {
+	requestedPath := strings.TrimSpace(req.ScenarioPath)
+	scenario := strings.TrimSpace(req.Scenario)
+	if scenario == "" {
+		if requestedPath == "" {
+			return "", fmt.Errorf("scenario or scenario_path is required")
+		}
+		return requestedPath, nil
+	}
+	if requestedPath != "" {
+		return "", fmt.Errorf("provide scenario or scenario_path, not both")
+	}
+	if locator == nil {
+		return "", fmt.Errorf("scenario locator not initialized")
+	}
+	name, err := locator.ValidateScenarioName(scenario)
+	if err != nil {
+		return "", err
+	}
+	return locator.ScenarioPath(name)
 }
 
 // handleParseLint parses lint output into structured issues
@@ -268,16 +293,14 @@ type TidinessScanResponse struct {
 }
 
 type TidinessScanSummary struct {
-	TotalFindings          int `json:"total_findings"`
-	LongFiles              int `json:"long_files"`
-	Complexity             int `json:"complexity"`
-	Duplication            int `json:"duplication"`
-	TechDebt               int `json:"tech_debt"`
-	Coupling               int `json:"coupling"`
-	BypassedSeams          int `json:"bypassed_seams"`
-	DroppedDuplicateGroups int `json:"dropped_duplicate_groups,omitempty"`
-	DroppedDuplicateLines  int `json:"dropped_duplicate_lines,omitempty"`
-	DuplicationLineDebt    int `json:"duplication_line_debt,omitempty"`
+	TotalFindings       int `json:"total_findings"`
+	LongFiles           int `json:"long_files"`
+	Complexity          int `json:"complexity"`
+	Duplication         int `json:"duplication"`
+	TechDebt            int `json:"tech_debt"`
+	Coupling            int `json:"coupling"`
+	BypassedSeams       int `json:"bypassed_seams"`
+	DuplicationLineDebt int `json:"duplication_line_debt,omitempty"`
 }
 
 type TidinessFinding struct {
@@ -299,15 +322,15 @@ type TidinessFinding struct {
 }
 
 func buildTidinessScan(ctx context.Context, scenarioName, scenarioPath string, timeout time.Duration, excludes ...string) (*TidinessScanResponse, error) {
-	response, _, err := buildTidinessScanWithAudit(ctx, scenarioName, scenarioPath, timeout, excludes...)
+	response, _, err := buildTidinessScanWithAudit(ctx, scenarioName, scenarioPath, timeout, excludes, nil)
 	return response, err
 }
 
-func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath string, timeout time.Duration, excludes ...string) (*TidinessScanResponse, *BudgetAuditReport, error) {
+func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath string, timeout time.Duration, excludes []string, codeFacts ReductionFacts) (*TidinessScanResponse, *BudgetAuditReport, error) {
 	collector := metricsFrom(ctx)
 
 	scanStage := collector.Stage("scan")
-	scanner := NewLightScanner(scenarioPath, timeout, excludes...)
+	scanner := NewLightScanner(scenarioPath, timeout, excludes...).withCodeFacts(codeFacts)
 	fileMetrics, err := scanner.collectFileMetrics()
 	if err != nil {
 		scanStage.End()
@@ -337,7 +360,6 @@ func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath 
 		return nil, nil, err
 	}
 	findings = append(findings, seamFindings(scenarioName, seams, seamHits)...)
-	droppedDuplicateGroups, droppedDuplicateLines := 0, 0
 	const longFileThreshold = 500
 	const longTestFileThreshold = 1250
 	for _, metric := range fileMetrics {
@@ -375,6 +397,9 @@ func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath 
 				continue
 			}
 			if codeMetrics, err := codeAnalyzer.analyzeFile(filepath.Join(scenarioPath, relPath), lang); err == nil {
+				if imports, functions, graphBacked := graphFileCounts(metrics.facts, relPath, lang); graphBacked {
+					codeMetrics.ImportCount, codeMetrics.FunctionCount = imports, functions
+				}
 				findings = append(findings, techDebtFindings(scenarioName, relPath, codeMetrics)...)
 				// Composition roots aggregate many collaborators by design;
 				// their high import count is structural, not coupling debt.
@@ -406,10 +431,6 @@ func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath 
 			}
 		}
 
-		if metrics.Duplicates != nil {
-			droppedDuplicateGroups += metrics.Duplicates.DroppedGroups
-			droppedDuplicateLines += metrics.Duplicates.DroppedLines
-		}
 		findings = append(findings, duplicationFindings(scenarioName, scenarioPath, roles, metrics.Duplicates)...)
 	}
 
@@ -424,13 +445,10 @@ func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath 
 	})
 
 	summary := summarizeTidinessFindings(findings)
-	summary.DroppedDuplicateGroups = droppedDuplicateGroups
-	summary.DroppedDuplicateLines = droppedDuplicateLines
 	audit := newBudgetAuditReport(scenarioName, scenarioPath, seams, seamHits, summary)
 	if budgetFinding := tidinessBudgetFinding(scenarioName, scenarioPath, summary); budgetFinding != nil {
 		findings = append(findings, *budgetFinding)
 		summary = summarizeTidinessFindings(findings)
-		summary.DroppedDuplicateGroups, summary.DroppedDuplicateLines = droppedDuplicateGroups, droppedDuplicateLines
 	}
 	status := "passed"
 	if len(findings) > 0 {
