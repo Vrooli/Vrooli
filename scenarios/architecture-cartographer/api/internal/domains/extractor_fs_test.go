@@ -34,7 +34,6 @@ func TestFolderExtractor(t *testing.T) {
 	mkdirs(t, dir,
 		"api/internal/graph",
 		"api/internal/conflicts",
-		"api/internal/server",   // non-domain
 		"api/internal/database", // non-domain
 		"api/handlers/graph",    // makes graph also own handlers path
 	)

@@ -1,7 +1,7 @@
 package analytics
 
 import (
-	"architecture-cartographer/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/analytics/analytics_v1connect"
 )

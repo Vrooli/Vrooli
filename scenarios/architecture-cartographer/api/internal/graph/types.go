@@ -1,7 +1,7 @@
 // Package graph is the domain-scoped home for graph snapshot
 // extraction, normalization, and caching. Parsing of source code lives
-// strictly in the language code-graph scenarios (go-code-graph,
-// typescript-code-graph) — graph delegates through CodeGraphAdapter.
+// strictly in Code Facts, which brokers the language code-graph providers —
+// graph delegates through CodeGraphAdapter.
 //
 // Layering mirrors the canonical Vrooli pattern (handler → Service →
 // Repository), with mocks/ co-located.
@@ -95,9 +95,9 @@ type GraphSnapshot struct {
 	Symbols           []SymbolNode
 	Imports           []ImportEdge
 	// SkippedAdapters records adapter names the service dropped during
-	// this extract — either because the producer scenario returned an
-	// `unimplemented` error (e.g., typescript-code-graph hitting a pnpm
-	// workspace) or because the caller passed an opt-out flag (today:
+	// this extract — either because Code Facts returned an `unimplemented`
+	// error (e.g., its TypeScript provider does not support a pnpm workspace)
+	// or because the caller passed an opt-out flag (today:
 	// --skip-ts). Excluded from ContentHash on purpose so cached
 	// snapshots remain reusable across SkipTS toggles; the audit layer
 	// consults this to mark `outcome=partial` when an adapter was
@@ -148,7 +148,7 @@ func (e ErrInvalidExtractRequest) Error() string {
 // code-graph scenario) was unreachable.
 type IntegrationError struct {
 	Kind     string // e.g., "scenario_unreachable", "timeout"
-	Scenario string // e.g., "go-code-graph"
+	Scenario string // e.g., "code-facts"
 	Cause    error
 }
 

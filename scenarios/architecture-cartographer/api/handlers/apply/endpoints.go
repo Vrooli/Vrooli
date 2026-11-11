@@ -1,7 +1,7 @@
 package apply
 
 import (
-	"architecture-cartographer/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/apply/apply_v1connect"
 )

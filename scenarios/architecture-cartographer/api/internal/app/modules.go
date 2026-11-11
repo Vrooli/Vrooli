@@ -8,7 +8,7 @@ import (
 	"architecture-cartographer/internal/config"
 	"architecture-cartographer/internal/conflicts"
 	"architecture-cartographer/internal/domains"
-	"architecture-cartographer/internal/module"
+	"github.com/vrooli/api-core/module"
 	"architecture-cartographer/internal/suppressions"
 
 	"github.com/vrooli/api-core/schedule"

@@ -68,7 +68,7 @@ func TestConverge_CoreFamilyNoDrift(t *testing.T) {
 	doc := "# A\n\n## Zone Map\n\n| Zone | Declared Layer | Path Convention |\n|---|---|---|\n| domain | Scenario core | `api/internal/<domain>/` |\n"
 	m := ParseDeclaredZoneMap(doc)
 	// Declared domain, derived substrate — both core family, not drift.
-	conv := Converge("api/internal/server", Info{Zone: Substrate}, m, nil)
+	conv := Converge("api/internal/database", Info{Zone: Substrate}, m, nil)
 	if conv.Drift {
 		t.Fatalf("same-family (core) should not drift: %+v", conv)
 	}

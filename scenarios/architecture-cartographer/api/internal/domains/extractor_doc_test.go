@@ -23,7 +23,6 @@ const goldenDoc = `# Domains — Example
 
 These are infrastructure, not product domains:
 
-- ` + "`api/internal/server/`" + ` — HTTP composition substrate.
 - ` + "`api/internal/database/`" + ` — cross-cutting database infrastructure.
 - ` + "`api/main.go`" + ` — composition root.
 
@@ -79,11 +78,11 @@ func TestDomainsDocExtractor_Golden(t *testing.T) {
 	}
 
 	// Non-Domains -> shared substrate + names.
-	wantShared := []string{"api/internal/database/", "api/internal/server/", "api/main.go"}
+	wantShared := []string{"api/internal/database/", "api/main.go"}
 	if !reflect.DeepEqual(ext.SharedSubstrate, wantShared) {
 		t.Fatalf("shared substrate = %v, want %v", ext.SharedSubstrate, wantShared)
 	}
-	wantNonDomNames := []string{"database", "main.go", "server"}
+	wantNonDomNames := []string{"database", "main.go"}
 	if !reflect.DeepEqual(ext.NonDomains, wantNonDomNames) {
 		t.Fatalf("non-domains = %v, want %v", ext.NonDomains, wantNonDomNames)
 	}

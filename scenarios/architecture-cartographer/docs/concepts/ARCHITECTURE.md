@@ -136,7 +136,7 @@ Use Connect-RPC by default:
 - API to API / inter-scenario calls with Vrooli-owned protos.
 
 REST is allowed only for enumerated reasons, defined as
-`RESTReason` constants in `api/internal/module/module.go`:
+`RESTReason` constants in `packages/api-core/module/module.go`:
 
 | Reason | When it applies |
 |---|---|
@@ -179,12 +179,12 @@ business-vocabulary-free and used by unrelated domains or surfaces.
 
 | Package/Folder | Purpose | Why Not Domain-Owned | Consumers |
 |---|---|---|---|
-| `api/internal/server/` | Compose modules and middleware into one HTTP server. | Server lifecycle is not a product capability. | API entrypoint and handler modules. |
-| `api/internal/module/` | Shared module and endpoint descriptor types. | Domain modules return this common shape. | Handler packages, server, endpoint codegen. |
-| `api/internal/modules/` | Thin registry for schemas and endpoints. | Boot/codegen need central lists; logic stays domain-owned. | `main.go`, `gen-endpoints`. |
-| `api/internal/database/` | System schema and DB reachability seam. | Cross-cutting DB infrastructure, not one domain's data. | API boot, health. |
-| `api/internal/clock/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Middleware, repositories. |
-| `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains; domain fakes stay domain-local. | API tests. |
+| `packages/api-core/apihttp/` | Mount modules with shared request logging and recovery. | HTTP request composition is a platform seam, not a product capability. | API composition roots. |
+| `packages/api-core/module/` | Shared module and endpoint descriptor types. | Domain modules return this common shape. | Handler packages, API composition, endpoint codegen. |
+| `api/internal/modules/` | Scenario-owned registry for schemas and endpoints. | Boot/codegen need central lists; logic stays domain-owned. | `main.go`, `gen-endpoints`. |
+| `packages/api-core/database/` | Shared database schema and reachability interfaces. | Cross-cutting DB infrastructure, not one domain's data. | API boot, health. |
+| `packages/api-core/schedule/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Request logging, repositories. |
+| `packages/api-core/*test/` | Shared database, scheduler, handler, and module test contracts. | Test behavior is reusable across scenarios. | API tests. |
 | `ui/src/test-utils/` | Cross-feature render helpers, a11y helpers, and model tests. | Used by unrelated UI features. | UI tests. |
 
 If shared infrastructure starts using product vocabulary, move that

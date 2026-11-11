@@ -2,7 +2,7 @@ package campaign
 
 import (
 	"architecture-cartographer/internal/campaign"
-	"architecture-cartographer/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/campaign/campaign_v1connect"

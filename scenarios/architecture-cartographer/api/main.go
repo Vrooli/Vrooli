@@ -14,10 +14,9 @@ import (
 	"architecture-cartographer/internal/audit"
 	"architecture-cartographer/internal/config"
 	"architecture-cartographer/internal/graph"
-	"architecture-cartographer/internal/module"
 	"architecture-cartographer/internal/modules"
 	"architecture-cartographer/internal/observability"
-	"architecture-cartographer/internal/server"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -114,8 +113,8 @@ func main() {
 	// derivation) rather than killing the API the cartographer's other domains need.
 	searchModules := searchModules(logger, clk, cfg, repoRoot)
 
-	srv := server.New(
-		server.Deps{Clock: clk, Logger: logger},
+	handler := apihttp.NewScenarioModuleHandler(
+		clk, logger,
 		append(app.Modules(db, repoRoot, cfg), searchModules.modules...)...,
 	)
 
@@ -125,12 +124,12 @@ func main() {
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
 	observability.RegisterPprof(rootMux, cfg.PprofEnabled)
-	rootMux.Handle("/", srv.Handler())
+	rootMux.Handle("/", handler)
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(rootMux)
+	handler = apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler:      handler,

@@ -21,7 +21,6 @@ func TestConfigClassify(t *testing.T) {
 		"api/internal/orders":       Domain,
 		"cli/domains/orders":        CLI,
 		"ui/src/features/orders":    UI,
-		"api/internal/server":       Substrate,
 		"api/internal/customkernel": Substrate,
 		"api/internal/app":          CompositionRoot,
 	}

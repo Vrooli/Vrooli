@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"architecture-cartographer/internal/audit"
-	"architecture-cartographer/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/maturity-go/assessment"

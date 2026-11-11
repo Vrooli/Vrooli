@@ -2,7 +2,7 @@ package conflicts
 
 import (
 	"architecture-cartographer/internal/conflicts"
-	"architecture-cartographer/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/architecture-cartographer/v1/conflicts/conflicts_v1connect"

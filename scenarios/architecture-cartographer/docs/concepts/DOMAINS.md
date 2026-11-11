@@ -401,11 +401,10 @@ zone.
 ## Shared Substrate
 
 Vocabulary-free infrastructure used across domains. These are important but must
-never become product domains:
+never become product domains. HTTP module composition, request logging and recovery
+are owned by the shared `packages/api-core/apihttp` package outside this scenario:
 
-- `api/internal/server/` — HTTP composition substrate.
 - `api/internal/app/` — production bootstrap and domain service wiring.
-- `api/internal/module/` — shared module descriptor type.
 - `api/internal/modules/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database infrastructure.
 - `api/internal/testutil/` — cross-domain test harnesses.
@@ -424,9 +423,7 @@ owning domain instead of growing infrastructure.
 Machine-readable compatibility section for the current `DomainsDocExtractor`.
 It mirrors the shared-substrate paths above until the v2 substrate reader ships.
 
-- `api/internal/server/` — HTTP composition substrate.
 - `api/internal/app/` — production bootstrap and domain service wiring.
-- `api/internal/module/` — shared module descriptor type.
 - `api/internal/modules/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database infrastructure.
 - `api/internal/testutil/` — cross-domain test harnesses.

@@ -3,7 +3,7 @@ package search
 import (
 	"log"
 
-	"architecture-cartographer/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/gorilla/mux"
 

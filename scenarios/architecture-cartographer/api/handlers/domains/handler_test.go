@@ -47,7 +47,7 @@ func TestHandler_ExtractDomains_Translates(t *testing.T) {
 				Provenance: []domains.Source{domains.SourceDomainsDoc, domains.SourceAPIFolders},
 			},
 		},
-		SharedSubstrate: []string{"api/internal/server/"},
+		SharedSubstrate: []string{"api/internal/database/"},
 		NonDomains:      []string{"server"},
 		Declarations: []domains.DomainDeclaration{
 			{Source: domains.SourceDomainsDoc, DomainNames: []string{"graph"}, Authoritative: true},

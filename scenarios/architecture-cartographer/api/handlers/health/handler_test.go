@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"architecture-cartographer/handlers/health"
-	"architecture-cartographer/internal/module"
-	"architecture-cartographer/internal/server"
-	"architecture-cartographer/internal/testutil/mocks"
+	"github.com/vrooli/api-core/apihttp"
+	"github.com/vrooli/api-core/databasetest"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/vrooli/api-core/apihttptest"
 	httpx "github.com/vrooli/api-core/servertest"
@@ -75,7 +75,7 @@ func TestHealthHandler(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
+			pinger := &databasetest.FakePinger{PingErr: tc.pingErr}
 			h := health.NewHandler(health.Deps{
 				Pinger:  pinger,
 				Service: "react-vite-test",
@@ -87,11 +87,8 @@ func TestHealthHandler(t *testing.T) {
 					r.HandleFunc("/health", h).Methods(http.MethodGet)
 				},
 			}
-			srv := server.New(
-				server.Deps{Clock: schedule.System(), Logger: log.New(io.Discard, "", 0)},
-				mod,
-			)
-			live := httpx.NewLiveServer(t, srv)
+			srv := apihttp.NewScenarioModuleHandler(schedule.System(), log.New(io.Discard, "", 0), mod)
+			live := httpx.NewLiveServer(t, httpx.HandlerProviderFunc(func() http.Handler { return srv }))
 
 			resp, body := live.Do(t, http.MethodGet, "/health", nil)
 			apihttptest.AssertStatus(t, resp, tc.wantStatusCode)

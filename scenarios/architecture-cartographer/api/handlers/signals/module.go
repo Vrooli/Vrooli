@@ -1,7 +1,7 @@
 package signals
 
 import (
-	"architecture-cartographer/internal/module"
+	"github.com/vrooli/api-core/module"
 	"architecture-cartographer/internal/signals"
 
 	"github.com/gorilla/mux"

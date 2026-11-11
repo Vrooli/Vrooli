@@ -75,14 +75,14 @@ func TestResolve_SharedSubstrateFromAnyRung(t *testing.T) {
 	docExt := Extraction{
 		Source:          SourceDomainsDoc,
 		Domains:         []ExtractedDomain{dom("graph", "g/")},
-		SharedSubstrate: []string{"api/internal/server/"},
+		SharedSubstrate: []string{"api/internal/database/"},
 		NonDomains:      []string{"server"},
 	}
 	m, err := Resolve("x", []Extraction{docExt, ext(SourceAPIFolders, dom("graph", "g/"))}, time.Time{})
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
-	if !reflect.DeepEqual(m.SharedSubstrate, []string{"api/internal/server/"}) {
+	if !reflect.DeepEqual(m.SharedSubstrate, []string{"api/internal/database/"}) {
 		t.Fatalf("shared substrate = %v", m.SharedSubstrate)
 	}
 }

@@ -5,8 +5,8 @@ import (
 	"log"
 	"sort"
 	"strings"
-	"unicode"
 
+	"architecture-cartographer/internal/conflicts/detectors/texttokens"
 	intent "intent-go"
 )
 
@@ -123,7 +123,7 @@ func glossaryTokens(domain intent.CapabilityClaim) []string {
 	}
 	out := map[string]struct{}{}
 	for _, part := range parts[1:] {
-		for _, token := range textTokens(part) {
+		for _, token := range texttokens.Extract(part, nil) {
 			out[token] = struct{}{}
 		}
 	}
@@ -131,7 +131,7 @@ func glossaryTokens(domain intent.CapabilityClaim) []string {
 }
 
 func addTokens(out map[string]struct{}, text string) {
-	for _, token := range textTokens(text) {
+	for _, token := range texttokens.Extract(text, nil) {
 		out[token] = struct{}{}
 	}
 }
@@ -147,42 +147,6 @@ func missingTokens(glossary []string, claimTokens map[string]struct{}) []string 
 	return out
 }
 
-func textTokens(s string) []string {
-	seen := map[string]struct{}{}
-	var current []rune
-	flush := func() {
-		if len(current) == 0 {
-			return
-		}
-		word := strings.ToLower(string(current))
-		current = current[:0]
-		if len(word) < 3 {
-			return
-		}
-		seen[word] = struct{}{}
-	}
-	for i, r := range s {
-		switch {
-		case r == '_' || r == '-' || r == '/' || r == '.' || unicode.IsSpace(r):
-			flush()
-		case unicode.IsUpper(r) && i > 0 && len(current) > 0 && !unicode.IsUpper(current[len(current)-1]):
-			flush()
-			current = append(current, unicode.ToLower(r))
-		case unicode.IsLetter(r) || unicode.IsDigit(r):
-			current = append(current, unicode.ToLower(r))
-		default:
-			flush()
-		}
-	}
-	flush()
-	return sortedKeys(seen)
-}
-
 func sortedKeys(values map[string]struct{}) []string {
-	out := make([]string, 0, len(values))
-	for value := range values {
-		out = append(out, value)
-	}
-	sort.Strings(out)
-	return out
+	return texttokens.SortedKeys(values)
 }

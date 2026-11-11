@@ -6,7 +6,7 @@
   "requirements": [
     {
       "category": "api",
-      "description": "All cartographer capabilities must be exposed through proto+Connect-RPC service definitions (AC-PROTO-FIRST). CLI commands must map 1:1 to proto methods with no intermediate REST/JSON translation layer (AC-CLI-PROTO-PARITY). The UI must consume only generated Connect clients (AC-UI-PROTO-PARITY). Proto files must be registered in a registry-driven registration system (AC-PROTO-REGISTRY). REST/JSON workarounds are forbidden. All cross-scenario calls to go-code-graph and typescript-code-graph also use Connect-RPC.",
+      "description": "All cartographer capabilities must be exposed through proto+Connect-RPC service definitions (AC-PROTO-FIRST). CLI commands must map 1:1 to proto methods with no intermediate REST/JSON translation layer (AC-CLI-PROTO-PARITY). The UI must consume only generated Connect clients (AC-UI-PROTO-PARITY). Proto files must be registered in a registry-driven registration system (AC-PROTO-REGISTRY). REST/JSON workarounds are forbidden. Cross-scenario graph requests go through Code Facts; its broker selects the language providers.",
       "id": "REQ-P0-010",
       "prd_ref": "OT-P0-010",
       "status": "draft",
@@ -48,14 +48,14 @@
           "type": "test"
         },
         {
-          "notes": "Cross-scenario Connect-RPC call from cartographer to go-code-graph fixture server returns a valid graph response",
+          "notes": "Cartographer's Code Facts graph adapter obtains a valid Go graph through DescribeCodeFacts; Code Facts routes the parse unit to the Go provider",
           "phase": "integration",
           "ref": "",
           "status": "pending",
           "type": "test"
         },
         {
-          "notes": "Cross-scenario Connect-RPC call from cartographer to typescript-code-graph fixture server returns a valid graph response",
+          "notes": "Cartographer's Code Facts graph adapter obtains a valid TypeScript graph through DescribeCodeFacts; Code Facts routes the parse unit to the TypeScript provider",
           "phase": "integration",
           "ref": "",
           "status": "pending",

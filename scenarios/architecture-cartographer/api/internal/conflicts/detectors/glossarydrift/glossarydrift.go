@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"unicode"
 
 	"architecture-cartographer/internal/conflicts"
+	"architecture-cartographer/internal/conflicts/detectors/texttokens"
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
 )
@@ -79,7 +79,7 @@ func glossaryTokenOwners(domainList []domains.DerivedDomain) map[string][]string
 	out := map[string][]string{}
 	for _, dom := range domainList {
 		for _, phrase := range append([]string{dom.Name}, dom.Glossary...) {
-			for _, token := range tokens(phrase) {
+			for _, token := range texttokens.Extract(phrase, ignoredTokens) {
 				out[token] = appendUnique(out[token], dom.Name)
 			}
 		}
@@ -96,7 +96,7 @@ func glossaryTokenOwners(domainList []domains.DerivedDomain) map[string][]string
 }
 
 func firstForeignGlossaryToken(symbolName, currentDomain string, ownerByToken map[string][]string) (string, []string) {
-	for _, token := range tokens(symbolName) {
+	for _, token := range texttokens.Extract(symbolName, ignoredTokens) {
 		owners := ownerByToken[token]
 		if len(owners) == 0 || contains(owners, currentDomain) {
 			continue
@@ -164,40 +164,6 @@ func isTransportPath(path string) bool {
 		strings.Contains(path, "/api/handlers/") ||
 		strings.HasPrefix(path, "handlers/") ||
 		strings.Contains(path, "/handlers/")
-}
-
-func tokens(s string) []string {
-	var words []string
-	var current []rune
-	flush := func() {
-		if len(current) == 0 {
-			return
-		}
-		word := strings.ToLower(string(current))
-		current = current[:0]
-		if len(word) < 3 {
-			return
-		}
-		if _, ignored := ignoredTokens[word]; ignored {
-			return
-		}
-		words = append(words, word)
-	}
-	for i, r := range s {
-		switch {
-		case r == '_' || r == '-' || r == '/' || r == '.' || unicode.IsSpace(r):
-			flush()
-		case unicode.IsUpper(r) && i > 0 && len(current) > 0 && !unicode.IsUpper(current[len(current)-1]):
-			flush()
-			current = append(current, unicode.ToLower(r))
-		case unicode.IsLetter(r) || unicode.IsDigit(r):
-			current = append(current, unicode.ToLower(r))
-		default:
-			flush()
-		}
-	}
-	flush()
-	return uniqueSorted(words)
 }
 
 func appendUnique(in []string, values ...string) []string {
