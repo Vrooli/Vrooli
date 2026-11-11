@@ -65,3 +65,18 @@ it("keeps manual commands disabled when the authoritative maximum is unavailable
   fireEvent.click(screen.getByRole("button"));
   expect(apply).not.toHaveBeenCalled();
 });
+
+it("requires a bounded explicit LED count before colors and keeps fixed zones unchanged", async () => {
+  const configure = vi.spyOn(lightingApi, "configureZone").mockResolvedValue({} as never);
+  const apply = vi.spyOn(lightingApi, "setStatic");
+  const configurable = create(ZoneCapabilitySchema, { ...zone, supportsLedCountConfiguration: true, minLedCount: 0, maxLedCount: 500, setupNeeded: true });
+  renderWithProviders(<ManualZoneEditor controllerId="terminal" zone={configurable} maxBrightness={35} disabled={false} act={act}/>);
+  expect(screen.getByRole("button", { name: strings.lightDesk.applyStatic })).toBeDisabled();
+  const length = screen.getByRole("spinbutton");
+  fireEvent.change(length, { target: { value: "501" } });
+  expect(screen.getByRole("button", { name: strings.lightDesk.manualUi.saveLength })).toBeDisabled();
+  fireEvent.change(length, { target: { value: "24" } });
+  fireEvent.click(screen.getByRole("button", { name: strings.lightDesk.manualUi.saveLength }));
+  await waitFor(() => expect(configure).toHaveBeenCalledWith("terminal", "main", 24));
+  expect(apply).not.toHaveBeenCalled();
+});

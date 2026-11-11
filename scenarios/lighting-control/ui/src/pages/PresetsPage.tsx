@@ -9,6 +9,8 @@ import { ColorSchema } from "@vrooli/proto-types/lighting-control/v1/control/con
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
+import { manualOffCoversAll } from "../features/lights/manualOff";
+import { useManualOffDescription } from "../features/lights/useManualOffDescription";
 import { lightingApi } from "../features/lights/api";
 import { useLightDesk } from "../features/lights/useLightDesk";
 
@@ -22,6 +24,7 @@ export function PresetsPage() {
   const copy = strings.lightDesk.presetsUi;
   const phone = useMediaQuery("(max-width: 720px)");
   const { desk, run, busy, refresh } = useLightDesk();
+  const offDescription = useManualOffDescription(desk.data?.manualOverride, desk.data?.controllers ?? []);
   const config = desk.data?.config;
   const [selected, setSelected] = useState<PresetKind>(PresetKind.COMBINED);
   const [draft, setDraft] = useState<Preset | null>(null);
@@ -145,13 +148,13 @@ export function PresetsPage() {
   if (desk.isLoading) return <section className="lightdesk-page"><PageHeader headingId="presets-heading" title={t(strings.pages.presets.title)} description={t(strings.pages.presets.description)}/><p role="status">{t(copy.loading)}</p></section>;
   if (desk.isError || !desk.data || !config) return <section className="lightdesk-page"><PageHeader headingId="presets-heading" title={t(strings.pages.presets.title)} description={t(strings.pages.presets.description)}/><div role="alert" className="lightdesk-alert"><AlertTriangle aria-hidden="true"/><span>{desk.error?.message ?? t(copy.unavailable)}</span></div></section>;
 
-  const manualOff = desk.data.manualOverride?.active && desk.data.manualOverride.allEnrolled;
+  const manualOff = manualOffCoversAll(desk.data.manualOverride);
   const activePreset = manualOff ? PresetKind.OFF : desk.data.effective?.preset;
   const offAction = <button data-testid={selectors.lightDesk.manualOff} className="lightdesk-button lightdesk-button--danger" disabled={busy || !desk.data.controllers.some((controller) => controller.enrolled) || manualOff} onClick={() => void turnOff()}><Power size={16} aria-hidden="true"/>{t(copy.keepOff)}</button>;
   const editorActions = current ? <div data-testid={selectors.lightDesk.presetActions} className="lightdesk-editor-actions"><button className="lightdesk-button" disabled={busy || !current.label.trim() || !validGuardrails} onClick={() => void save(false)}><Save size={16} aria-hidden="true"/>{t(copy.saveDraft)}</button><button className="lightdesk-button lightdesk-button--primary" disabled={busy || !current.label.trim() || !current.enabled || !validGuardrails} onClick={() => void save(true)}>{t(copy.saveUse)}</button></div> : null;
   return <section data-testid={selectors.pages.presets} aria-labelledby="presets-heading" className="lightdesk-page">
     <PageHeader headingId="presets-heading" title={t(strings.pages.presets.title)} description={t(strings.pages.presets.description)} />
-    {manualOff ? <div className="lightdesk-alert lightdesk-alert--off"><span>{t(copy.manualOff)}</span><Link className="lightdesk-link" to="/">{t(copy.reviewOverview)}</Link></div> : null}
+    {desk.data.manualOverride?.active ? <div className="lightdesk-alert lightdesk-alert--off"><span>{manualOff ? t(copy.manualOff) : offDescription}</span><Link className="lightdesk-link" to="/">{t(copy.reviewOverview)}</Link></div> : null}
     {!phone ? <div className="lightdesk-page-actions">{offAction}</div> : null}
     {error ? <p role="alert" className="lightdesk-warning">{error}</p> : null}
     {notice ? <p role="status" className="lightdesk-notice">{notice}</p> : null}

@@ -134,14 +134,17 @@ honors the limit. SDK acknowledgement never proves visible brightness.
 
 ## Operation truth and current limits
 
-`local_write_completed` means the complete `UpdateZoneLEDs` packet was written
-to the local SDK socket. For protocol v6, a correlated ACK contains the
-acknowledged packet ID and a backend status. `backend_acknowledged` means that
-ACK was received; status zero means OpenRGB processed the request successfully.
-This reports backend processing only. It does not prove cached controller state,
-device application, or visible output. A complete write without a valid ACK is
-reported as `command_sent` with backend processing unknown. Observation fields
-remain unset until a separate observer exists.
+`local_write_completed` means at least one complete mutation packet (zone
+resize, mode update, or zone colors) was written to the local SDK socket. It
+can remain true after a later step fails. The reason records completed resize
+acknowledgement and unconfirmed rendering when those facts differ. A correlated
+v6 ACK includes the packet ID and backend status. `backend_acknowledged` confirms
+the requested rendering operation; an earlier resize ACK alone cannot establish
+it. Nonzero rejection status is reported as failure. A completed local write
+without the required rendering ACK is `command_sent`, with backend processing
+of that render unknown. These facts do not prove cached state, device application,
+or visible output. Observation fields remain unset until a separate observer
+exists.
 
 Static and native effect requests use parsed SDK v6 mode descriptors and
 controller/zone scope checks. Controller-wide mode changes cannot overwrite
@@ -176,3 +179,29 @@ v6 IDs, zone capability parsing, correlated and failed ACKs, missing ACK after
 a complete write, truncated and oversized frames, timeouts, loopback
 enforcement, controller and zone writes. They do not qualify an operated SDK
 server, real devices, or physical output.
+
+## Explicit addressable zone lengths
+
+Addressable controllers can advertise zero LEDs until their physical wiring is configured. `ControlService.ConfigureZone` (`lighting-control control configure-zone --controller-id … --zone-id … --led-count …`) requires existing controller enrollment, authenticated write authority, an unambiguous stable zone, and finite SDK v6 normal-size capabilities. Zero, effects-only size flags, inverted/unbounded limits, values outside the fresh controller range, and aggregate lengths outside the SDK's 65535-LED controller capacity are refused. The ASUS Aura Terminal's pinned 1.1 implementation advertises 0–500 per addressable header; this is source applicability, not hardware qualification.
+
+The scenario stores the desired physical count separately from replaceable discovery rows. A configuration save preserves manual priority and manual Off; a new zone starts with durable Off. Existing policy-owned output continues through the normal policy tick rather than replaying a cached automatic output as manual intent. Per-zone `setup_needed`, current `led_count`, `configured_led_count`, and advertised limits distinguish selection, backend configuration, and output. Saving a count is not a physical output acknowledgement.
+
+Before rendering, the authenticated private backend resolves the controller and zone on the current SDK connection, checks live limits, sends packet1000 (two little-endian signed-positive32 values: transient zone index and requested count), waits for the correlated v6 ACK, then refreshes controller data and resolves stable identities again. A missing/mismatched length readback prevents color output. Desired lengths replay after backend reconnect/resume through the existing writer. OpenRGB may save its role-private configuration; this does not write controller firmware.
+
+Resizable zones use normalized name identity independent of current LED count. Fixed zones keep their original fingerprints. Discovery preserves an existing unambiguous legacy zone ID by normalized name before replacing its inventory row, retaining stored state/ownership/selection IDs verbatim. Ambiguous legacy names fail closed rather than silently binding another physical header. Renaming a header outside Light Desk requires deliberate identity review.
+
+A fresh already-active controller Direct/per-LED mode permits scoped static colors and software brightness. Selecting a global Direct mode is allowed only during an explicit whole-controller manual Off with every current zone count known; multi-zone native effects remain unavailable without a controller-wide effect contract. Unknown/empty zones cannot establish whole-controller mode authority. A failed zone or partial Off result remains visible and never becomes an applied/output claim.
+
+Current proof is hermetic SDK, database, public API/CLI and UI behavior only. Native access, actual SDK/controller behavior, observed static/Off light output, hardware reconnect and logged-out boot remain the parent delivery's separate physical qualification gates.
+
+## Inspecting saved inventory while offline
+
+`ListControllers(include_unavailable=true)` reads the existing canonical roster when SDK discovery fails, including after native quiescence. The response retains the unavailable/error backend status; enrollment, wiring, desired policy, manual Off and prior last-seen/capability observations are preserved without an inventory sync or a hardware command. The default current-only request still returns no controllers after failed discovery. A failed persisted-roster read is an error, not an empty successful inventory.
+
+The public CLI can inspect this response with `lighting-control control controllers --include-unavailable true --json`. Light Desk also requests unavailable inventory and treats failed discovery as authoritative even if a separate protocol probe succeeded. It identifies saved capability information as last known, disables controls that need a ready backend, and keeps durable manual Off available. Reconnect uses the existing fresh identity/capability checks and normal reconciler; saved inventory never authorizes a stale SDK handle or proves current hardware output.
+
+### Displaying manual Off scope
+
+The public manual override distinguishes `all_enrolled` from an explicit list of controller IDs. A listed controller is covered across all its zones, including zones returned after reconnect; other controllers retain their independent desired state. The UI names the scoped controllers (with stable IDs to disambiguate names), reports unknown scope explicitly and keeps requested Off separate from physical output evidence.
+
+Dashboard, Controller detail and Presets Off actions request **all enrolled controllers**. Only an active explicit all-enrolled override makes those actions redundant. A subset, an unknown scope, or even a list of every currently enrolled ID leaves the all-enrolled action available: future enrollment is a different scope. Expanding Off goes directly through `SetManualOff(all_enrolled=true)` without first clearing the existing protection. Backend availability does not block durable Off; editing and configuration still require current ready evidence. Controller desired-policy status applies Off only where that controller is covered. API scope evaluation remains authoritative.

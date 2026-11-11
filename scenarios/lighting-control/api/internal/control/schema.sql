@@ -71,3 +71,20 @@ CREATE TABLE IF NOT EXISTS lighting_override_order (
   revision INTEGER NOT NULL CHECK (typeof(revision) = 'integer' AND revision >= 0),
   selection_id TEXT NOT NULL
 );
+
+-- Physical length is desired configuration, independent of observed inventory.
+-- Separate from replaceable discovery rows so unplug/restart cannot erase it.
+CREATE TABLE IF NOT EXISTS lighting_zone_configuration (
+  controller_id TEXT NOT NULL,
+  zone_id TEXT NOT NULL,
+  led_count INTEGER NOT NULL CHECK (led_count > 0 AND led_count <= 65535),
+  PRIMARY KEY (controller_id, zone_id)
+);
+CREATE TABLE IF NOT EXISTS lighting_zone_capabilities (
+  controller_id TEXT NOT NULL,
+  zone_id TEXT NOT NULL,
+  min_led_count INTEGER NOT NULL,
+  max_led_count INTEGER NOT NULL,
+  supported_effects BLOB NOT NULL,
+  PRIMARY KEY (controller_id, zone_id)
+);

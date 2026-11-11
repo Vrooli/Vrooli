@@ -215,6 +215,42 @@
           "architecture": {
             "primitive": "proto_mutation"
           }
+        },
+        {
+          "name": "configure-zone",
+          "description": "Persist the connected LED count within observed zone limits and reconcile safely.",
+          "flags": [
+            {
+              "name": "controller-id",
+              "required": true,
+              "description": "Stable enrolled controller ID."
+            },
+            {
+              "name": "zone-id",
+              "required": true,
+              "description": "Stable zone ID."
+            },
+            {
+              "name": "led-count",
+              "required": true,
+              "description": "Connected physical LED count within advertised limits."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "ControlService",
+            "method": "ConfigureZone"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         }
       ]
     },

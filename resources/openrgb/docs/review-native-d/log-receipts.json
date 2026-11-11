@@ -1,0 +1,37 @@
+[
+  {
+    "path": "resources/openrgb/docs/review-native-d/d1-independent-repair.log",
+    "bytes": 387,
+    "sha256": "d37426706957fdb8e470b83e9969f00660ab3f371082c6a0adb357ec8e589706",
+    "top_level_passes": 2,
+    "top_level_failures": 0
+  },
+  {
+    "path": "resources/openrgb/docs/review-native-d/new-regressions.log",
+    "bytes": 1181,
+    "sha256": "15302fef87840f7a74a8faf7fdc936d979a886394cea2c1c36da6662aa072ceb",
+    "top_level_passes": 3,
+    "top_level_failures": 0
+  },
+  {
+    "path": "resources/openrgb/docs/review-native-d/resource-boundaries.log",
+    "bytes": 57752,
+    "sha256": "6a7c889917bca20c2bee81e911c980f954ddf51743ce2ad1a5d52b291149dbcd",
+    "top_level_passes": 174,
+    "top_level_failures": 0
+  },
+  {
+    "path": "resources/openrgb/docs/review-native-d/runtime-owners.log",
+    "bytes": 438,
+    "sha256": "dc9f66f334456a90e9d67ed57bc9a565f9b67af8effcce6d978c14f4d854b9c7",
+    "top_level_passes": 0,
+    "top_level_failures": 1
+  },
+  {
+    "path": "resources/openrgb/docs/review-native-d/scenario-boundaries.log",
+    "bytes": 244,
+    "sha256": "7c8b8eb391d817720658d00f157e38aac296165e673c384289b982f27b1a3ad1",
+    "top_level_passes": 0,
+    "top_level_failures": 0
+  }
+]

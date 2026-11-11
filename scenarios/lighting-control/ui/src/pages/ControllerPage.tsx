@@ -11,6 +11,8 @@ import { useTranslation } from "../i18n";
 import { lightingApi } from "../features/lights/api";
 import { hasStableControllerIdentity } from "../features/lights/identity";
 import { ManualZoneEditor } from "../features/lights/ManualZoneEditor";
+import { manualOffCoversAll, manualOffCoversController } from "../features/lights/manualOff";
+import { useManualOffDescription } from "../features/lights/useManualOffDescription";
 import { useLightDesk } from "../features/lights/useLightDesk";
 
 export function ControllerPage() {
@@ -21,6 +23,7 @@ export function ControllerPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const controller = desk.data?.controllers.find((item) => item.controllerId === controllerId);
+  const offDescription = useManualOffDescription(desk.data?.manualOverride, desk.data?.controllers ?? []);
   const zoneStatuses = desk.data?.zones ?? [];
   const maxBrightness = desk.data?.config?.brightnessCapPercent;
   const backendReady = !desk.isError && desk.data?.backend?.state === BackendState.READY;
@@ -61,12 +64,13 @@ export function ControllerPage() {
 
   const enrollmentLabel = controller.enrolled ? t(strings.lightDesk.controllerUi.enrolled) : t(strings.lightDesk.controllerUi.notEnrolled);
   const stableIdentity = hasStableControllerIdentity(controller);
-  const policyLabel = desk.data?.effective?.preset === undefined ? t(strings.lightDesk.controllerUi.backendUnknown) : t(presetLabelKey(desk.data.effective.preset));
+  const policyLabel = manualOffCoversController(desk.data?.manualOverride, controllerId) ? t(strings.lightDesk.presets.off) : desk.data?.effective?.preset === undefined ? t(strings.lightDesk.controllerUi.backendUnknown) : t(presetLabelKey(desk.data.effective.preset));
   const observations = zoneStatuses.filter((zone) => zone.desired?.controllerId === controllerId && zone.observation).length;
-  const offAction = <button className="lightdesk-button lightdesk-button--danger" disabled={busy || !stableIdentity || !controller.enrolled || desk.data?.manualOverride?.active} onClick={() => void turnOff()}><Power size={16} aria-hidden="true"/>{t(strings.lightDesk.controllerUi.keepOff)}</button>;
+  const offAction = <button className="lightdesk-button lightdesk-button--danger" disabled={busy || !stableIdentity || !controller.enrolled || manualOffCoversAll(desk.data?.manualOverride)} onClick={() => void turnOff()}><Power size={16} aria-hidden="true"/>{t(strings.lightDesk.controllerUi.keepOff)}</button>;
   return <section data-testid={selectors.pages.controller} aria-labelledby="controller-heading" className="lightdesk-page">
     <Link className="lightdesk-back-link" to="/"><ArrowLeft size={16} aria-hidden="true"/>{t(strings.lightDesk.controllerUi.back)}</Link>
     <PageHeader headingId="controller-heading" title={controller.name || controller.vendor || t(strings.lightDesk.controllerUi.unknownVendor)} description={t(strings.lightDesk.controllerUi.controllerSummary, { vendor: controller.vendor || t(strings.lightDesk.controllerUi.unknownVendor), count: controller.zones.length, status: enrollmentLabel })}/>
+    {!backendReady ? <p className="lightdesk-warning">{t(strings.lightDesk.desiredStateRetained)}</p> : null}
     <div className="lightdesk-controller-detail">
       <section className="lightdesk-panel">
         <div className="lightdesk-panel-heading"><Sun aria-hidden="true"/><h2>{t(strings.lightDesk.controllerUi.zoneControls)}</h2></div>
@@ -88,6 +92,7 @@ export function ControllerPage() {
           <div><dt>{t(strings.lightDesk.controllerUi.backend)}</dt><dd>{desk.data?.backend?.state === BackendState.READY ? t(strings.lightDesk.controllerUi.backendReady) : t(strings.lightDesk.controllerUi.backendUnavailable)}</dd></div>
           <div><dt>{t(strings.lightDesk.controllerUi.lastChecked)}</dt><dd>{desk.data?.backend?.checkedAt || t(strings.lightDesk.controllerUi.backendUnknown)}</dd></div>
           <div><dt>{t(strings.lightDesk.controllerUi.sdkProtocol)}</dt><dd>{desk.data?.backend?.sdkProtocolVersion || t(strings.lightDesk.controllerUi.sdkUnknown)}</dd></div>
+          <div><dt>{t(strings.lightDesk.manualPriority)}</dt><dd>{offDescription}</dd></div>
           <div><dt>{t(strings.lightDesk.controllerUi.desiredPolicy)}</dt><dd>{policyLabel}</dd></div>
           <div><dt>{t(strings.lightDesk.controllerUi.physicalOutput)}</dt><dd>{observations > 0 ? `${observations}/${controller.zones.length} · ${t(strings.lightDesk.observedOutput)}` : t(strings.lightDesk.controllerUi.physicalUnknown)}</dd></div>
         </dl>

@@ -16,7 +16,7 @@ func TestManifestCoversControlService(t *testing.T) {
 	require.NoError(t, err)
 	group, err := Register(app, manifest)
 	require.NoError(t, err)
-	require.Len(t, group.Subcommands, 8)
+	require.Len(t, group.Subcommands, 9)
 }
 
 func TestManifestControlBindingMatchesGeneratedService(t *testing.T) {

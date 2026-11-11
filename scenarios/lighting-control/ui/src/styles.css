@@ -77,7 +77,7 @@ body {
 .lightdesk-preview-dot--pulse { animation: lightdesk-preview-pulse 3s ease-in-out infinite; }
 @keyframes lightdesk-preview-pulse { 50% { opacity: .45; transform: scale(.85); } }
 .lightdesk-zone-controls { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; margin-top: .75rem; }
-.lightdesk-zone-controls > .lightdesk-preview-strip, .lightdesk-zone-controls > p { flex-basis: 100%; }
+.lightdesk-zone-controls > .lightdesk-preview-strip, .lightdesk-zone-controls > .lightdesk-zone-configuration, .lightdesk-zone-controls > p { flex-basis: 100%; }
 .lightdesk-zone-controls label, .lightdesk-field { display: grid; gap: .45rem; color: var(--color-foreground); font-size: .875rem; font-weight: 600; }
 .lightdesk-field { margin: .85rem 0; }
 .lightdesk-field input:not([type="range"]):not([type="color"]) { min-height: 2.75rem; padding: .5rem .7rem; border: 1px solid var(--color-border); border-radius: .55rem; background: var(--color-field); color: var(--color-foreground); }

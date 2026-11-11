@@ -3,8 +3,10 @@ package control
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/schedule"
@@ -48,12 +50,67 @@ ON CONFLICT(controller_id) DO UPDATE SET backend_id=excluded.backend_id,name=exc
 			return fmt.Errorf("upsert controller: %w", err)
 		}
 	}
+	// Only a unique fresh name may inherit a legacy ID. A new configurable
+	// header cannot consume an ID still owned by a fixed peer with that name.
+	freshNames := map[string]int{}
+	for _, z := range zones {
+		freshNames[z.ControllerID+"/"+strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(z.Name)), " "))]++
+	}
+	assignedIDs := map[string]bool{}
+	// Retain unambiguous legacy IDs before replacing mutable inventory.
+	for i := range zones {
+		z := &zones[i]
+		if z.LEDMax == 0 {
+			continue
+		}
+		rows, queryErr := tx.QueryContext(ctx, `SELECT zone_id,fingerprint,name FROM lighting_zones WHERE controller_id=?`, z.ControllerID)
+		if queryErr != nil {
+			return queryErr
+		}
+		var matches []string
+		for rows.Next() {
+			var id, fp, name string
+			if err := rows.Scan(&id, &fp, &name); err != nil {
+				rows.Close()
+				return err
+			}
+			normalized := strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(name)), " "))
+			if fp == z.Fingerprint || freshNames[z.ControllerID+"/"+normalized] == 1 && normalized == strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(z.Name)), " ")) {
+				matches = append(matches, id)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return err
+		}
+		rows.Close()
+		if len(matches) > 1 {
+			return ErrAmbiguousZone
+		}
+		if len(matches) == 1 {
+			z.ZoneID = matches[0]
+		}
+	}
+	for _, z := range zones {
+		key := z.ControllerID + "/" + z.ZoneID
+		if assignedIDs[key] {
+			return ErrAmbiguousZone
+		}
+		assignedIDs[key] = true
+	}
 	for _, c := range controllers {
 		if _, err = tx.ExecContext(ctx, `DELETE FROM lighting_zones WHERE controller_id=?`, c.ControllerId); err != nil {
 			return fmt.Errorf("replace zone mappings: %w", err)
 		}
 	}
 	for _, z := range zones {
+		effects, e := json.Marshal(z.Effects)
+		if e != nil {
+			return e
+		}
+		if _, err = tx.ExecContext(ctx, `INSERT INTO lighting_zone_capabilities(controller_id,zone_id,min_led_count,max_led_count,supported_effects) VALUES(?,?,?,?,?) ON CONFLICT(controller_id,zone_id) DO UPDATE SET min_led_count=excluded.min_led_count,max_led_count=excluded.max_led_count,supported_effects=excluded.supported_effects`, z.ControllerID, z.ZoneID, z.LEDMin, z.LEDMax, effects); err != nil {
+			return err
+		}
 		_, err = tx.ExecContext(ctx, `INSERT INTO lighting_zones(controller_id,zone_id,fingerprint,name,led_count,supports_static_color) VALUES(?,?,?,?,?,?)
 ON CONFLICT(controller_id,zone_id) DO UPDATE SET fingerprint=excluded.fingerprint,name=excluded.name,led_count=excluded.led_count,supports_static_color=excluded.supports_static_color`,
 			z.ControllerID, z.ZoneID, z.Fingerprint, z.Name, z.LEDCount, z.Static)
@@ -99,7 +156,7 @@ func (r *sqliteRepository) ListControllers(ctx context.Context) ([]*controlv1.Co
 			return nil, e
 		}
 		for _, z := range zones {
-			c.Zones = append(c.Zones, &controlv1.ZoneCapability{ZoneId: z.ZoneID, Name: z.Name, LedCount: z.LEDCount, SupportsStaticColor: z.Static, SupportsBrightness: z.Static})
+			c.Zones = append(c.Zones, mappingCapability(z))
 		}
 	}
 	return out, nil
@@ -130,7 +187,7 @@ func (r *sqliteRepository) SetEnrollment(ctx context.Context, id string, enrolle
 }
 
 func (r *sqliteRepository) ListZones(ctx context.Context, controllerID string) ([]ZoneMapping, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT controller_id,zone_id,fingerprint,name,led_count,supports_static_color FROM lighting_zones WHERE controller_id=? ORDER BY zone_id`, controllerID)
+	rows, err := r.db.QueryContext(ctx, `SELECT z.controller_id,z.zone_id,z.fingerprint,z.name,z.led_count,z.supports_static_color,COALESCE(c.min_led_count,0),COALESCE(c.max_led_count,0),COALESCE(d.led_count,0),COALESCE(c.supported_effects,'[]') FROM lighting_zones z LEFT JOIN lighting_zone_capabilities c ON z.controller_id=c.controller_id AND z.zone_id=c.zone_id LEFT JOIN lighting_zone_configuration d ON z.controller_id=d.controller_id AND z.zone_id=d.zone_id WHERE z.controller_id=? ORDER BY z.zone_id`, controllerID)
 	if err != nil {
 		return nil, err
 	}
@@ -140,8 +197,12 @@ func (r *sqliteRepository) ListZones(ctx context.Context, controllerID string) (
 		var z ZoneMapping
 		var count uint32
 		var supported int
-		if err := rows.Scan(&z.ControllerID, &z.ZoneID, &z.Fingerprint, &z.Name, &count, &supported); err != nil {
+		var effects []byte
+		if err := rows.Scan(&z.ControllerID, &z.ZoneID, &z.Fingerprint, &z.Name, &count, &supported, &z.LEDMin, &z.LEDMax, &z.ConfiguredLEDCount, &effects); err != nil {
 			return nil, err
+		}
+		if err := json.Unmarshal(effects, &z.Effects); err != nil {
+			return nil, fmt.Errorf("read zone effect capabilities: %w", err)
 		}
 		z.LEDCount = count
 		z.Static = supported != 0
@@ -443,5 +504,10 @@ func advanceOverrideOrder(ctx context.Context, db interface {
 }, selectionID string) error {
 	_, err := db.ExecContext(ctx, `INSERT INTO lighting_override_order(singleton,revision,selection_id) VALUES(1,1,?)
 ON CONFLICT(singleton) DO UPDATE SET revision=revision+1,selection_id=excluded.selection_id`, selectionID)
+	return err
+}
+
+func (r *sqliteRepository) SaveZoneConfiguration(ctx context.Context, controllerID, zoneID string, count uint32) error {
+	_, err := r.db.ExecContext(ctx, `INSERT INTO lighting_zone_configuration(controller_id,zone_id,led_count) VALUES(?,?,?) ON CONFLICT(controller_id,zone_id) DO UPDATE SET led_count=excluded.led_count`, controllerID, zoneID, count)
 	return err
 }

@@ -206,3 +206,26 @@ describe("ControllerPage", () => {
     await expectNoA11yViolations(container);
   });
 });
+
+it("inspects saved offline wiring with hardware controls disabled while durable Off remains available", async () => {
+  const controller = create(ControllerSchema, {
+    controllerId: "saved", name: "Saved strip", enrolled: true, identitySource: "openrgb_sdk_serial",
+    zones: [create(ZoneCapabilitySchema, { zoneId: "header", name: "Saved header", ledCount: 24, supportsStaticColor: true, supportsLedCountConfiguration: true, minLedCount: 0, maxLedCount: 500, configuredLedCount: 24 })],
+  });
+  vi.spyOn(lightingApi, "readDesk").mockResolvedValue({ backend: create(BackendStatusSchema, { state: BackendState.UNAVAILABLE, detail: "SDK disconnected" }), controllers: [controller], zones: [], manualOverride: undefined, effective: undefined, config: create(PolicyConfigSchema, { brightnessCapPercent: 35 }) });
+  const staticWrite = vi.spyOn(lightingApi, "setStatic");
+  const resize = vi.spyOn(lightingApi, "configureZone");
+  const off = vi.spyOn(lightingApi, "setOff").mockResolvedValue({} as never);
+  renderWithProviders(<MemoryRouter initialEntries={["/controllers/saved"]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><Routes><Route path="/controllers/:controllerId" element={<ControllerPage />}/></Routes></MemoryRouter>, { withoutRouter: true });
+  expect(await screen.findByRole("heading", { name: "Saved strip" })).toBeInTheDocument();
+  expect(screen.getByText(controller.zones[0]!.name)).toBeInTheDocument();
+  expect(screen.getByText(strings.lightDesk.desiredStateRetained)).toBeInTheDocument();
+  const apply = screen.getByRole("button", { name: /lightDesk\.controllerUi\.saveApply/ });
+  const length = screen.getByRole("button", { name: strings.lightDesk.manualUi.saveLength });
+  expect(apply).toBeDisabled(); expect(length).toBeDisabled();
+  fireEvent.click(apply); fireEvent.click(length);
+  expect(staticWrite).not.toHaveBeenCalled(); expect(resize).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: strings.lightDesk.controllerUi.keepOff }));
+  await waitFor(() => expect(off).toHaveBeenCalledOnce());
+  expect(await screen.findByRole("status")).toHaveTextContent(strings.lightDesk.controllerUi.offSaved);
+});

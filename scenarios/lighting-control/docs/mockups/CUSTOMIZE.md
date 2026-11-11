@@ -2,7 +2,7 @@
 
 ![Desktop and phone custom preset editor](light-desk-customize-concept-v1.png)
 
-Built-in image generation; illustrative data. The operator ratified this board with the full Light Desk design on 2026-11-10; implementation and operated proof remain open. Source: `/home/matthalloran8/.vrooli/state/vrooli/web-console/sessions/codex/f4662e51-fc9b-4456-b89b-7d06c65220e9/generated_images/01a1c5f8-1401-7c81-a868-db7d17d7a50b/exec-451cf3da-c195-44e0-8973-4b3c853955ef.png`.
+Built-in image generation; illustrative data. The operator ratified this board with the full Light Desk design on 2026-11-10; implementation and operated proof remain open. Source: `exec-451cf3da-c195-44e0-8973-4b3c853955ef.png` (original generation provenance retained in the delivery source receipt).
 
 Visual review: readable paired editor closes the preset customization omission in the first five boards. Implementation must clarify the generated footer: **Save draft** preserves the current policy; **Save & use** explicitly replaces it. The broad generated statement “Saving does not change the active Off policy” applies only to Save draft. Threshold and agent-band values are examples, not adopted defaults. Reduced motion must distinguish browser preview preference from explicit physical pulse configuration. Colors must render their actual hex values.
 

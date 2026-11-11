@@ -8,7 +8,7 @@ Status: concept and all six boards approved by the operator on 2026-11-10 in the
 
 ![overview proposed desktop and phone mockup](light-desk-overview-concept-v1.png)
 
-Source: `/home/matthalloran8/.vrooli/state/vrooli/web-console/sessions/codex/f4662e51-fc9b-4456-b89b-7d06c65220e9/generated_images/01a1c5f8-1401-7c81-a868-db7d17d7a50b/exec-32fe42a3-ef12-4a4c-a942-c8f16cf774fd.png`
+Source: `exec-32fe42a3-ef12-4a4c-a942-c8f16cf774fd.png` (original generation provenance retained in the delivery source receipt)
 
 ### Generation prompt
 
@@ -24,7 +24,7 @@ Phone: focused sequential overview rather than squeezed desktop columns. Header 
 
 ![controller proposed desktop and phone mockup](light-desk-controller-concept-v1.png)
 
-Source: `/home/matthalloran8/.vrooli/state/vrooli/web-console/sessions/codex/f4662e51-fc9b-4456-b89b-7d06c65220e9/generated_images/01a1c5f8-1401-7c81-a868-db7d17d7a50b/exec-ee6a10e3-a814-489f-8168-de135a1d0373.png`
+Source: `exec-ee6a10e3-a814-489f-8168-de135a1d0373.png` (original generation provenance retained in the delivery source receipt)
 
 ### Generation prompt
 
@@ -39,7 +39,7 @@ Phone detail view: back link Controllers, GPU title and small model subtitle; gr
 
 ![presets proposed desktop and phone mockup](light-desk-presets-concept-v1.png)
 
-Source: `/home/matthalloran8/.vrooli/state/vrooli/web-console/sessions/codex/f4662e51-fc9b-4456-b89b-7d06c65220e9/generated_images/01a1c5f8-1401-7c81-a868-db7d17d7a50b/exec-8b110904-bb77-4ad1-9f23-550012da14e1.png`
+Source: `exec-8b110904-bb77-4ad1-9f23-550012da14e1.png` (original generation provenance retained in the delivery source receipt)
 
 ### Generation prompt
 
@@ -54,7 +54,7 @@ Phone: Presets heading, active Off/manual-override strip, a vertical compact sta
 
 ![settings proposed desktop and phone mockup](light-desk-settings-concept-v1.png)
 
-Source: `/home/matthalloran8/.vrooli/state/vrooli/web-console/sessions/codex/f4662e51-fc9b-4456-b89b-7d06c65220e9/generated_images/01a1c5f8-1401-7c81-a868-db7d17d7a50b/exec-d7ba2af3-9380-4eeb-94d0-d13c5e8e53c9.png`
+Source: `exec-d7ba2af3-9380-4eeb-94d0-d13c5e8e53c9.png` (original generation provenance retained in the delivery source receipt)
 
 ### Generation prompt
 
@@ -69,7 +69,7 @@ Phone: Settings header, focused initial setup card and Enable lighting action ab
 
 ![states proposed desktop and phone mockup](light-desk-states-concept-v1.png)
 
-Source: `/home/matthalloran8/.vrooli/state/vrooli/web-console/sessions/codex/f4662e51-fc9b-4456-b89b-7d06c65220e9/generated_images/01a1c5f8-1401-7c81-a868-db7d17d7a50b/exec-5f81fcdc-0d7f-4dab-805f-0ae2f5edae84.png`
+Source: `exec-5f81fcdc-0d7f-4dab-805f-0ae2f5edae84.png` (original generation provenance retained in the delivery source receipt)
 
 ### Generation prompt
 

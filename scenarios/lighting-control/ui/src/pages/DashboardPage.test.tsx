@@ -62,6 +62,7 @@ describe("Light Desk", () => {
     await waitFor(() => expect(screen.getByTestId(selectors.pages.dashboard).querySelector(".lightdesk-status")).not.toBeNull());
     const backend = screen.getByRole("heading", { name: strings.lightDesk.backend }).closest("section")!;
     await waitFor(() => expect(backend.querySelector(".lightdesk-status")).toHaveTextContent(`${strings.lightDesk.backendReady} · READY`));
+    expect(within(backend).queryByText(strings.lightDesk.backendUnknown)).not.toBeInTheDocument();
     const evidence = screen.getByRole("heading", { name: strings.lightDesk.commandEvidence }).closest("section")!;
     expect(within(evidence).getByText(strings.lightDesk.acknowledgedNotObserved)).toBeInTheDocument();
     expect(within(evidence).getByText("0")).toBeInTheDocument();

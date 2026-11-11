@@ -12,7 +12,6 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	agentapiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	agentconnect "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api/apiconnect"
-	agentdomainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	conditionconnect "github.com/vrooli/vrooli/packages/proto/gen/go/infrastructure-manager/v1/condition/condition_v1connect"
 	policyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/policy"
 	metricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
@@ -23,8 +22,6 @@ import (
 
 const (
 	requestTimeout = 4 * time.Second
-	runPageSize    = 500
-	maxRunPages    = 10
 )
 
 type scenarioResolver func(context.Context, string) (string, error)
@@ -34,8 +31,8 @@ type metricsReader interface {
 	GetDetailedMetrics(context.Context, *connect.Request[metricsv1.GetDetailedMetricsRequest]) (*connect.Response[metricsv1.GetDetailedMetricsResponse], error)
 }
 
-type runsReader interface {
-	ListRuns(context.Context, *connect.Request[agentapiv1.ListRunsRequest]) (*connect.Response[agentapiv1.ListRunsResponse], error)
+type activityReader interface {
+	GetRuntimeActivity(context.Context, *connect.Request[agentapiv1.GetRuntimeActivityRequest]) (*connect.Response[agentapiv1.GetRuntimeActivityResponse], error)
 }
 
 // Sources reads the owner APIs on demand. Callers choose a bounded cadence;
@@ -45,7 +42,7 @@ type Sources struct {
 	client             *http.Client
 	now                func() time.Time
 	newMetricsReader   func(*http.Client, string) metricsReader
-	newRunsReader      func(*http.Client, string) runsReader
+	newActivityReader  func(*http.Client, string) activityReader
 	newConditionReader func(*http.Client, string) conditionReader
 }
 
@@ -57,8 +54,8 @@ func New() *Sources {
 		newMetricsReader: func(client *http.Client, base string) metricsReader {
 			return metricsconnect.NewMetricsServiceClient(client, base)
 		},
-		newRunsReader: func(client *http.Client, base string) runsReader {
-			return agentconnect.NewAgentManagerServiceClient(client, base)
+		newActivityReader: func(client *http.Client, base string) activityReader {
+			return agentconnect.NewAgentManagerServiceClient(client, base, connect.WithReadMaxBytes(256<<10))
 		},
 		newConditionReader: func(client *http.Client, base string) conditionReader {
 			return conditionconnect.NewConditionServiceClient(client, base)
@@ -66,8 +63,7 @@ func New() *Sources {
 	}
 }
 
-// Read fetches both sources concurrently and timestamps their receipt locally.
-// Agent Manager currently has no source-side snapshot timestamp.
+// Read fetches owner evidence concurrently, preserving source timestamps separately from local receipt.
 func (s *Sources) Read(ctx context.Context) policy.Inputs {
 	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
@@ -160,42 +156,39 @@ func (s *Sources) readAgentManager(ctx context.Context) policy.SourceInput {
 		input.Reason = fmt.Sprintf("resolve agent-manager: %v", err)
 		return input
 	}
-	client := s.newRunsReader(s.client, strings.TrimRight(base, "/"))
-	seen := map[string]bool{}
-	for _, status := range []agentdomainv1.RunStatus{
-		agentdomainv1.RunStatus_RUN_STATUS_PENDING,
-		agentdomainv1.RunStatus_RUN_STATUS_STARTING,
-		agentdomainv1.RunStatus_RUN_STATUS_RUNNING,
-	} {
-		for page := 0; page < maxRunPages; page++ {
-			limit := int32(runPageSize)
-			offset := int32(page * runPageSize)
-			response, err := client.ListRuns(ctx, connect.NewRequest(&agentapiv1.ListRunsRequest{Status: &status, Limit: &limit, Offset: &offset}))
-			if err != nil {
-				input.Reason = fmt.Sprintf("list %s runs: %v", status.String(), err)
-				return input
-			}
-			for _, run := range response.Msg.GetRuns() {
-				if run.GetId() == "" || run.GetImportedAt() != nil || run.GetImportSourceSessionId() != "" || run.GetStatus() != status {
-					continue
-				}
-				seen[run.GetId()] = true
-			}
-			if !response.Msg.GetHasMore() {
-				break
-			}
-			if page == maxRunPages-1 {
-				input.State = policyv1.EvidenceState_EVIDENCE_STATE_DEGRADED
-				input.Reason = "active run list exceeded the bounded 5000-record page limit"
-				input.Measurements["active_runs"] = float64(len(seen))
-				return input
-			}
-		}
-	}
-	input.Measurements["active_runs"] = float64(len(seen))
+	client := s.newActivityReader(s.client, strings.TrimRight(base, "/"))
+	response, err := client.GetRuntimeActivity(ctx, connect.NewRequest(&agentapiv1.GetRuntimeActivityRequest{}))
 	input.ObservedAt = s.now().UTC()
-	input.State = policyv1.EvidenceState_EVIDENCE_STATE_FRESH
-	input.Reason = "unique native pending, starting, and running records; historical imports excluded"
+	if err != nil {
+		input.Reason = fmt.Sprintf("read physical runtime activity: %v", err)
+		return input
+	}
+	if response == nil || response.Msg == nil {
+		input.Reason = "physical runtime activity response unavailable"
+		return input
+	}
+	snapshot := response.Msg
+	input.SourceTime = timeFromProto(snapshot.GetObservedAt())
+	input.State = policyv1.EvidenceState_EVIDENCE_STATE_DEGRADED
+	input.Reason = snapshot.GetReason()
+	input.Measurements["observed_executing_runs"] = float64(snapshot.GetObservedExecutingRuns())
+	input.Measurements["logical_queued_runs"] = float64(snapshot.GetLogicalQueuedRuns())
+	if snapshot.ExecutingRuns != nil && (!snapshot.GetComplete() || snapshot.GetExecutingRuns() != snapshot.GetObservedExecutingRuns()) {
+		delete(input.Measurements, "observed_executing_runs")
+		input.Reason = "physical activity response has contradictory count/coverage evidence"
+		return input
+	}
+	if input.SourceTime.IsZero() {
+		input.Reason = "physical activity has no valid source timestamp"
+		return input
+	}
+	if snapshot.GetComplete() && snapshot.ExecutingRuns != nil && len(snapshot.GetUnknownReasons()) == 0 && snapshot.GetExecutingRuns() == snapshot.GetObservedExecutingRuns() {
+		input.State = policyv1.EvidenceState_EVIDENCE_STATE_FRESH
+		input.Measurements["active_runs"] = float64(snapshot.GetExecutingRuns())
+	} else if input.Reason == "" {
+		input.Reason = "physical execution coverage incomplete; zero observed is not zero activity"
+	}
+
 	return input
 }
 

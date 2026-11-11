@@ -16,7 +16,7 @@ Use this document to answer:
 
 | Tier | Status | Requirements | Blockers |
 |---|---|---|---|
-| Local Vrooli stack | active | Vrooli lifecycle, Go, Node/pnpm, SQLite path | Replace template reference domains before product deployment. |
+| Local Vrooli stack | implemented; partially operated | Vrooli lifecycle, Go, Node/pnpm, owned SQLite namespace | Actual authenticated setup, selected-device access, headless persistence and physical output remain qualification work. |
 | Desktop/mobile app | deferred | Cross-platform runtime, packaged UI/API, storage resolver | Run cross-platform readiness before adoption. |
 | Managed cloud/SaaS | deferred | Hosted runtime, auth, observability, cost model | Requires deployment and monetization review. |
 | Enterprise/self-host | deferred | Install docs, backup/restore, support model | Requires operational hardening. |
@@ -26,7 +26,7 @@ Use this document to answer:
 - API port: assigned by lifecycle as `API_PORT`.
 - UI port: assigned by lifecycle as `UI_PORT`.
 - Storage: embedded SQLite, resolved from the scenario id by `api-core/storage`.
-- Resources: none external by default.
+- Resources: none external by default; host-native OpenRGB is an explicit machine opt-in. Its current native runtime supports Linux amd64. Other platforms remain unqualified/unsupported as stated in the [resource operations guide](../../../../resources/openrgb/docs/OPERATIONS.md).
 - Network: local API/UI communication.
 
 ## Packaging
@@ -43,16 +43,20 @@ Use this document to answer:
 - [ ] `make setup` passes.
 - [ ] `make test` passes.
 - [ ] PRD operational targets have linked requirements.
-- [ ] Template reference domain has been replaced or explicitly retained
-      with product justification.
+- [ ] Applicable platform and device qualification is recorded; cross-builds and SDK acknowledgements are not physical-output proof.
 - [ ] `docs/manifest.json` maturity reflects current docs.
 - [ ] `RUNBOOK.md`, `OBSERVABILITY.md`, `SECURITY.md`, and
       `MONETIZATION.md` are active or explicitly not-applicable.
 
 ## Rollback
 
-Local development rollback is source-control based. For deployed
-targets, document the deployment-specific rollback path before release.
+Use the normal scenario lifecycle to adopt or return to a reviewed application
+build. Source rollback does not restore machine-local SQLite policy or
+controller enrollment; follow the [runbook state recovery procedure](RUNBOOK.md#backup--restore)
+for a separately requested data restore. Keep lighting disabled until schema,
+stable identity and desired-state checks pass. OpenRGB artifact/update rollback
+and selected-device permission rollback stay with the [resource owner](../../../../resources/openrgb/docs/OPERATIONS.md);
+reverting this scenario does not revert host grants, root intent or firmware.
 
 ## Cross-References
 

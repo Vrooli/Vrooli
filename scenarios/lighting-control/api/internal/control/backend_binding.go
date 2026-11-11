@@ -145,3 +145,16 @@ func (b *BackendBinding) ApplyStableZone(ctx context.Context, controllerID, fing
 	}
 	return stable.ApplyStableZone(ctx, controllerID, fingerprint, desired)
 }
+
+func (b *BackendBinding) ApplyConfiguredStableZone(ctx context.Context, controllerID, fingerprint string, count uint32, controllerOff map[string]uint32, desired *controlv1.ZoneState) (SDKCommandResult, error) {
+	backend, done, err := b.acquire()
+	if err != nil {
+		return SDKCommandResult{}, err
+	}
+	defer done()
+	configured, ok := backend.(configuredZoneBackend)
+	if !ok {
+		return SDKCommandResult{}, ErrUnsupported
+	}
+	return configured.ApplyConfiguredStableZone(ctx, controllerID, fingerprint, count, controllerOff, desired)
+}

@@ -1,6 +1,7 @@
 import { AccountSession } from "../components/AccountSession";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Select } from "@vrooli/react-component-library/Select/1";
@@ -18,7 +19,7 @@ import { lightingApi } from "../features/lights/api";
 import { BackendState, ColorSchema, type BackendStatus } from "@vrooli/proto-types/lighting-control/v1/control/control_pb";
 import { PolicyConfigSchema, type PolicyConfig } from "@vrooli/proto-types/lighting-control/v1/policy/policy_pb";
 import { create } from "@bufbuild/protobuf";
-import { ConnectError } from "@connectrpc/connect";
+import { Code, ConnectError } from "@connectrpc/connect";
 
 const THEME_CHOICES: readonly ThemeChoice[] = ["light", "dark", "system"];
 // Literal references so the strings lint can see every catalog key in use.
@@ -28,11 +29,7 @@ const THEME_LABEL_KEY: Record<ThemeChoice, (typeof strings.theme.choice)[ThemeCh
   system: strings.theme.choice.system,
 };
 
-/**
- * Settings owns every preference; nothing else in the shell duplicates one.
- * Appearance and language are the two every scenario has. Add the rest of
- * yours as rows in the same list, grouped by what they change.
- */
+/** Account, native setup, policy guardrails and browser preferences. */
 export function SettingsPage() {
   const { t } = useTranslation();
   const copy = strings.lightDesk.settingsUi;
@@ -131,9 +128,21 @@ function colorHex(color?: { red: number; green: number; blue: number }) { return
 function fromHex(value: string) { return { red: parseInt(value.slice(1, 3), 16), green: parseInt(value.slice(3, 5), 16), blue: parseInt(value.slice(5, 7), 16) }; }
 
 
+function setupIdentityError(error: unknown): boolean {
+  const code = ConnectError.from(error).code;
+  return code === Code.PermissionDenied || code === Code.Unauthenticated;
+}
+
 const setupStatusKey = ["lighting-control", "native-setup"] as const;
 
 function NativeLightingSetup() {
+  const { pathname, search } = useLocation();
+  const revealAccount = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const heading = document.getElementById("account-heading");
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView({ block: "start" });
+  };
   const { t } = useTranslation();
   const copy = strings.lightDesk.settingsUi;
   const queryClient = useQueryClient();
@@ -187,7 +196,7 @@ function NativeLightingSetup() {
       setEdited(false);
       setUncertain(false);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : t(copy.ownerActionFailed));
+      setActionError(setupIdentityError(error) ? `${t(strings.errors.permission_denied)} ${t(strings.lightDesk.account.intro)}` : error instanceof Error ? error.message : t(copy.ownerActionFailed));
       setUncertain(true);
     } finally { setPending(false); }
   };
@@ -199,7 +208,7 @@ function NativeLightingSetup() {
   return <section className="lightdesk-panel" aria-labelledby="setup-heading" aria-busy={pending || status.isFetching}>
     <div className="lightdesk-panel-heading"><h2 id="setup-heading">{t(copy.setupTitle)}</h2><button className="lightdesk-button lightdesk-button--small" disabled={pending || status.isFetching} onClick={() => void refreshStatus()}><RefreshCw size={15} aria-hidden="true"/>{t(copy.ownerRefresh)}</button></div>
     <p className="lightdesk-muted">{t(copy.ownerIntro)}</p>
-    {status.isLoading ? <p role="status">{t(copy.ownerLoading)}</p> : status.isError ? <div role="alert" className="lightdesk-alert">{t(copy.ownerStatusFailed, { message: status.error.message })}<button className="lightdesk-button" onClick={() => void refreshStatus()}>{t(copy.ownerRetry)}</button></div> : observed && <>
+    {status.isLoading ? <p role="status">{t(copy.ownerLoading)}</p> : status.isError ? <div role="alert" className="lightdesk-alert">{setupIdentityError(status.error) ? <><p>{t(strings.errors.permission_denied)}</p><p>{t(strings.lightDesk.account.intro)}</p><Link className="lightdesk-link" to={{ pathname, search, hash: "#account-heading" }} onClick={revealAccount}>{t(strings.lightDesk.account.signIn)}</Link></> : t(copy.ownerStatusFailed, { message: status.error.message })}<button className="lightdesk-button" onClick={() => void refreshStatus()}>{t(copy.ownerRetry)}</button></div> : observed && <>
       <dl className="lightdesk-inspector-list">
         <div><dt>{t(copy.intentPhase)}</dt><dd>{observed.phase || t(copy.notReported)}</dd></div>
         <div><dt>{t(copy.ownerState)}</dt><dd>{observed.state || t(copy.notReported)}</dd></div>

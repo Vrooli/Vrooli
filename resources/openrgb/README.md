@@ -3,14 +3,17 @@
 OpenRGB is an opt-in host resource. Its manifest is not a project dependency,
 and default Vrooli setup does not install the OpenRGB artifact, launch its
 process, inspect controllers, or query its SDK. Operators who choose to use
-lighting must explicitly enable and install the resource, then start it through
-the resource lifecycle.
+lighting explicitly choose a source and prepare the resource, then enable it
+through the resource lifecycle.
 
-This initial implementation declares only the Linux amd64 OpenRGB 1.1
-AppImage. The managed process starts headless in Qt offscreen mode and binds
-the SDK to `127.0.0.1:6742`. Other operating systems and Linux arm64 are
-reported as unsupported until their service, permission, and startup paths are
-qualified.
+Exact OpenRGB 1.1 artifact profiles cover Linux amd64/arm64, macOS Intel/Apple
+Silicon and Windows x64. The managed process is configured headlessly with a
+loopback SDK endpoint. macOS and Windows remain `unqualified` until native
+service, permissions, startup and hardware behavior is observed; Linux arm64
+runtime proof is separate from the existing amd64 evidence. Windows ARM64 and
+desktop bundling remain unsupported.
 
 See [operations](docs/OPERATIONS.md) for lifecycle, compatibility, permissions,
 update and recovery limits.
+
+Native artifact and prerequisite contracts: [native release profiles](docs/NATIVE-RELEASE-PROFILES.md). Artifact/ABI proof does not imply native runtime or hardware qualification.

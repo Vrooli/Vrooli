@@ -32,7 +32,7 @@
       "title": "設定",
       "themeHeading": "外観",
       "localeHeading": "言語",
-      "description": "このブラウザーの設定です。シナリオに必要な設定をすべてここに追加します。シェルの他の場所で重複させません。",
+      "description": "アカウント、ネイティブ照明のセットアップ、ポリシーの制限、表示設定。",
       "preferences": "環境設定",
       "themeHint": "ライト、ダーク、またはシステムに従う。",
       "localeHint": "このコンソールにのみ適用されます。"
@@ -101,7 +101,7 @@
     "backendUnknown": "Backend status has not been reported.",
     "protocolVersion": "SDK protocol",
     "enrolledCount": "enrolled controllers",
-    "desiredStateRetained": "Desired state is retained and will reconcile after reconnect.",
+    "desiredStateRetained": "保存したコントローラー、前回確認した機能、希望するポリシーを保持しています。再接続するまで現在のハードウェアの利用可否は未確認です。",
     "controllers": "コントローラーとゾーン",
     "noControllers": "コントローラーが見つかりません",
     "noControllersHelp": "Check backend readiness and connect a supported controller. Existing desired policy remains saved while devices are unavailable.",
@@ -134,7 +134,6 @@
     "backendAccepted": "Backend acknowledged",
     "observedOutput": "Output observed",
     "manualPriority": "Manual Off priority",
-    "active": "Active",
     "inactive": "Inactive",
     "acknowledgedNotObserved": "Backend acknowledgement confirms processing only; visible output has not been independently observed.",
     "commandSent": "Command sent; backend acknowledgement not received.",
@@ -392,7 +391,14 @@
     "manualUi": {
       "mode": "モード",
       "unsupported": "保存されたモードはこのゾーンでは使用できません。対応するモードを選択してください。",
-      "ownership": "保存して適用すると、このゾーンが手動優先になります。再開するまでは手動オフが優先されます。プリセットを選択すると手動設定が置き換わります。"
-    }
+      "ownership": "保存して適用すると、このゾーンが手動優先になります。再開するまでは手動オフが優先されます。プリセットを選択すると手動設定が置き換わります。",
+      "ledCount": "接続したLEDの数",
+      "saveLength": "LED数を保存",
+      "lengthSaved": "LED数を保存しました。出力を確認する前に適用結果を確認してください。",
+      "setupNeeded": "色を適用する前に、このゾーンの物理的なLED数を設定してください。",
+      "lengthHelp": "このゾーンに実際に接続したLED数を入力してください。バックエンドの範囲：{{min}}～{{max}}。保存後も手動オフが優先されます。新しいゾーンはオフで開始します。"
+    },
+    "manualOffScope": "手動オフは次のコントローラーの全ゾーンに適用されます: {{controllers}}。",
+    "manualOffScopeUnknown": "手動オフは有効ですが、対象のコントローラーは不明です。"
   }
 }

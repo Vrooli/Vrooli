@@ -48,6 +48,17 @@ func (h *connectHandler) EnrollController(ctx context.Context, req *connect.Requ
 	return connect.NewResponse(&controlv1.EnrollControllerResponse{Controller: c}), nil
 }
 
+func (h *connectHandler) ConfigureZone(ctx context.Context, req *connect.Request[controlv1.ConfigureZoneRequest]) (*connect.Response[controlv1.ConfigureZoneResponse], error) {
+	if err := apiauth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
+	zone, results, err := h.service.ConfigureZone(ctx, req.Msg.ControllerId, req.Msg.ZoneId, req.Msg.LedCount)
+	if err != nil {
+		return nil, domainError(err)
+	}
+	return connect.NewResponse(&controlv1.ConfigureZoneResponse{Zone: zone, Results: results}), nil
+}
+
 func (h *connectHandler) SetZoneState(ctx context.Context, req *connect.Request[controlv1.SetZoneStateRequest]) (*connect.Response[controlv1.SetZoneStateResponse], error) {
 	if err := apiauth.RequireWrite(ctx); err != nil {
 		return nil, err

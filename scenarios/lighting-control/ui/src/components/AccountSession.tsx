@@ -50,7 +50,7 @@ export function AccountSession() {
     void perform(() => sessionApi.login({ email, password, mfaChallenge: challenge, ...(recovery ? { recoveryCode: factor } : { totpCode: factor }) }));
   };
   return <section className="lightdesk-panel" aria-labelledby="account-heading" aria-busy={busy}>
-    <h2 id="account-heading">{t(copy.title)}</h2>
+    <h2 id="account-heading" tabIndex={-1}>{t(copy.title)}</h2>
     <p className="lightdesk-muted">{t(copy.intro)}</p>
     {session?.authenticated ? <>
       <p role="status">{t(copy.signedIn, { account: session.email || session.subject })}</p>

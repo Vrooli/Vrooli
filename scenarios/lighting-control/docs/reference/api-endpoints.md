@@ -100,3 +100,5 @@ contract (every Connect endpoint is bound or omitted in `cli/manifest.json`).
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#proto-as-the-canonical-contract) — proto bridge details
 - [`../internal/SEAMS.md`](../internal/SEAMS.md) — handler/service/repository seams
 - [`../internal/TESTING.md`](../internal/TESTING.md) — endpoint test patterns
+
+`ControlService/ConfigureZone` requires `lighting-control:write` and an enrolled stable controller. Request fields are `controller_id`, `zone_id`, and positive `led_count` within fresh advertised SDK limits. The response returns `zone` configuration/readback facts and per-zone `results` from normal reconciliation. `configured_led_count` is durable intent; `led_count` is the backend observation; `setup_needed` remains true until they agree. A successful request can contain failed/deferred rendering results. This is never a physical-light acknowledgement.

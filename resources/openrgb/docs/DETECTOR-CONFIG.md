@@ -66,10 +66,19 @@ so no local selection is checked in. The GPU must be bound to physical PCI
 topology and the exact adapter name; `/dev/i2c-N` numbers are never identity.
 SMBus fallback requires separately qualified identity and is never inferred.
 
-The selected device policy lives under machine-local Vrooli state at
-`host-lighting/device-policy.json`. It binds detector-catalog and artifact
-digests, machine identity, static permission evidence, and exact per-device
-selectors. Resource startup reads this file only; its absence leaves all
+The Linux selected device policy lives under machine-local Vrooli state at
+`host-lighting/device-policy.json`. Native selected policies use the canonical
+OpenRGB resource root under `state/host-lighting/device-policy.json`, preserving
+their tagged machine/account/HID identity rather than Linux udev evidence.
+The source-qualified native detector set includes `ASUS Aura Motherboard` and
+the external `ASUS ROG AURA Terminal` (`0b05:1889`). Each enabled detector
+requires all matching present HID routes to be enrolled; disabled detector
+classes do not broaden access. Native startup also enforces one-shot
+`hid_safe_mode` so reconnect admission stays with the maintained owner. Actual
+native access and physical output remain unqualified.
+
+Both tagged policies bind detector-catalog and artifact digests, machine
+identity, permission evidence, and exact per-device selectors. Resource startup reads this file only; its absence leaves all
 detectors disabled and does no device-policy probe. Policy creation belongs to
 an explicit bounded host setup owner and does not itself grant permissions.
 OpenRGB still invokes I2C bus detector functions independently of this device

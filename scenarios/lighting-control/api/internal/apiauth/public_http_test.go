@@ -23,6 +23,7 @@ import (
 	controlconnect "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/control/controlconnect"
 	policyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/policy"
 	policyconnect "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/policy/policyconnect"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	controlH "lighting-control/handlers/control"
 	policyH "lighting-control/handlers/policy"
@@ -30,7 +31,14 @@ import (
 	internalpolicy "lighting-control/internal/policy"
 )
 
-type observedBackend struct{ calls atomic.Int64 }
+type observedBackend struct {
+	calls        atomic.Int64
+	writeCalls   atomic.Int64
+	discoverErr  error
+	configurable bool
+	count        uint32
+	emittedOff   bool
+}
 
 func (b *observedBackend) ProtocolVersion(context.Context) (uint32, error) {
 	b.calls.Add(1)
@@ -38,10 +46,21 @@ func (b *observedBackend) ProtocolVersion(context.Context) (uint32, error) {
 }
 func (b *observedBackend) Discover(context.Context) ([]internalcontrol.SDKController, error) {
 	b.calls.Add(1)
-	return []internalcontrol.SDKController{{ID: 7, Name: "Fixture board", Vendor: "Fixture", Serial: "private-http-fixture", Zones: []internalcontrol.SDKZone{{Name: "Fixture zone", LEDCount: 2, Index: 0, Static: true}}}}, nil
+	if b.discoverErr != nil {
+		return nil, b.discoverErr
+	}
+	zone := internalcontrol.SDKZone{Name: "Fixture zone", LEDCount: 2, Index: 0, Static: true}
+	if b.configurable {
+		zone.LEDCount = b.count
+		zone.LEDMin = 0
+		zone.LEDMax = 500
+		zone.Flags = 2
+	}
+	return []internalcontrol.SDKController{{ID: 7, Name: "Fixture board", Vendor: "Fixture", Serial: "private-http-fixture", Zones: []internalcontrol.SDKZone{zone}}}, nil
 }
 func (b *observedBackend) SendZoneColors(context.Context, uint32, uint32, []internalcontrol.RGB) (internalcontrol.SDKCommandResult, error) {
 	b.calls.Add(1)
+	b.writeCalls.Add(1)
 	return internalcontrol.SDKCommandResult{LocalWriteCompleted: true, BackendAcknowledged: true}, nil
 }
 
@@ -74,10 +93,15 @@ type fixture struct {
 	policy               policyconnect.PolicyServiceClient
 	controllerID, zoneID string
 	credential           bool
+	headers              http.Header
 	controlDomain        *internalcontrol.Service
 }
 
 func newFixture(t *testing.T, principal identity.Principal, credential, invalid bool, providers ...authn.Provider) *fixture {
+	return newFixtureWrapped(t, principal, credential, invalid, func(h http.Handler) http.Handler { return h }, providers...)
+}
+
+func newFixtureWrapped(t *testing.T, principal identity.Principal, credential, invalid bool, wrap func(http.Handler) http.Handler, providers ...authn.Provider) *fixture {
 	t.Helper()
 	ctx := context.Background()
 	db := dbtest.NewSQLite(t)
@@ -126,16 +150,24 @@ func newFixture(t *testing.T, principal identity.Principal, credential, invalid 
 	if len(providers) > 0 {
 		config.Providers = providers
 	}
-	server := httptest.NewServer(authn.Middleware(config)(mux))
+	server := httptest.NewServer(wrap(authn.Middleware(config)(mux)))
 	t.Cleanup(server.Close)
 	backend.calls.Store(0)
-	return &fixture{db, backend, controlconnect.NewControlServiceClient(http.DefaultClient, server.URL), policyconnect.NewPolicyServiceClient(http.DefaultClient, server.URL), id, zone, credential, controlService}
+	transport := &http.Transport{}
+	t.Cleanup(transport.CloseIdleConnections)
+	client := &http.Client{Transport: transport}
+	return &fixture{db, backend, controlconnect.NewControlServiceClient(client, server.URL), policyconnect.NewPolicyServiceClient(client, server.URL), id, zone, credential, nil, controlService}
 }
 func zoneState(id, zone string) *controlv1.ZoneState {
 	return &controlv1.ZoneState{ControllerId: id, ZoneId: zone, DesiredMode: &controlv1.ZoneState_StaticColor{StaticColor: &controlv1.StaticZoneState{Color: &controlv1.Color{Red: 11, Green: 22, Blue: 33}, BrightnessPercent: 80}}}
 }
 func request[T any](f *fixture, message *T) *connect.Request[T] {
 	r := connect.NewRequest(message)
+	for k, values := range f.headers {
+		for _, value := range values {
+			r.Header().Add(k, value)
+		}
+	}
 	if f.credential {
 		r.Header().Set("Authorization", "Bearer private-fixture")
 	}
@@ -148,6 +180,15 @@ type mutation struct {
 }
 
 var publicMutations = []mutation{
+	{"control", "ConfigureZone", func(ctx context.Context, f *fixture) error {
+		_, err := f.control.ConfigureZone(ctx, request(f, &controlv1.ConfigureZoneRequest{ControllerId: f.controllerID, ZoneId: f.zoneID, LedCount: 1}))
+		// The fixed-zone fixture has no size operation. Reaching its domain
+		// refusal proves admission; permission failures remain errors.
+		if connect.CodeOf(err) == connect.CodeUnimplemented {
+			return nil
+		}
+		return err
+	}},
 	{"control", "EnrollController", func(ctx context.Context, f *fixture) error {
 		_, err := f.control.EnrollController(ctx, request(f, &controlv1.EnrollControllerRequest{ControllerId: f.controllerID, Enrolled: false}))
 		return err
@@ -289,7 +330,6 @@ func TestEveryPublicMutationAcceptsExistingScopedAndWildcardOwnerAuthority(t *te
 		scopes []string
 	}{
 		{"human", identity.ActorHuman, []string{"lighting-control:write"}},
-		{"agent", identity.ActorAgent, []string{"lighting-control:write"}},
 		{"service", identity.ActorService, []string{"lighting-control:write"}},
 		{"canonical wildcard", identity.ActorHuman, []string{"lighting-control:*"}},
 	} {
@@ -351,5 +391,128 @@ func TestAnonymousManualOffDoesNotCreateDurableOverride(t *testing.T) {
 	}
 	if rows != 0 || databaseSnapshot(t, f.db) != before || f.backend.calls.Load() != 0 {
 		t.Fatalf("anonymous Manual Off left effects: overrides=%d backend=%d", rows, f.backend.calls.Load())
+	}
+}
+
+func (b *observedBackend) ApplyStableZone(ctx context.Context, _, _ string, d *controlv1.ZoneState) (internalcontrol.SDKCommandResult, error) {
+	return b.ApplyConfiguredStableZone(ctx, "", "", 0, nil, d)
+}
+func (b *observedBackend) ApplyConfiguredStableZone(_ context.Context, _, _ string, count uint32, _ map[string]uint32, d *controlv1.ZoneState) (internalcontrol.SDKCommandResult, error) {
+	b.calls.Add(1)
+	if b.discoverErr != nil {
+		return internalcontrol.SDKCommandResult{}, b.discoverErr
+	}
+	b.writeCalls.Add(1)
+	if b.configurable {
+		b.count = count
+	}
+	b.emittedOff = d.GetOff() != nil
+	return internalcontrol.SDKCommandResult{LocalWriteCompleted: true, BackendAcknowledged: true}, nil
+}
+
+func TestPublicZoneConfigurationPersistsLengthAndPreservesManualOff(t *testing.T) {
+	p := identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Owner: "operator", Verified: true, Source: identity.SourceScenarioAuthenticator, Scopes: []string{"lighting-control:write"}, ExpiresAt: time.Now().Add(time.Hour)}
+	f := newFixture(t, p, true, false)
+	f.backend.configurable = true
+	ctx := context.Background()
+	response, err := f.control.ConfigureZone(ctx, request(f, &controlv1.ConfigureZoneRequest{ControllerId: f.controllerID, ZoneId: f.zoneID, LedCount: 24}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.Zone.ConfiguredLedCount != 24 || response.Msg.Zone.SetupNeeded || len(response.Msg.Results) != 1 {
+		t.Fatalf("configuration result: %+v", response.Msg)
+	}
+	_, err = f.control.SetManualOff(ctx, request(f, &controlv1.SetManualOffRequest{AllEnrolled: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = f.control.ConfigureZone(ctx, request(f, &controlv1.ConfigureZoneRequest{ControllerId: f.controllerID, ZoneId: f.zoneID, LedCount: 32}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !f.backend.emittedOff || f.backend.count != 32 {
+		t.Fatalf("length update lost manual Off: %+v", f.backend)
+	}
+	inventory, err := f.control.ListControllers(ctx, request(f, &controlv1.ListControllersRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if inventory.Msg.Controllers[0].Zones[0].ZoneId != f.zoneID {
+		t.Fatal("configuration rebound legacy zone identity")
+	}
+}
+
+func TestPublicOfflineInventoryKeepsSavedWiringAndOffThroughReconnect(t *testing.T) {
+	principal := identity.Principal{Kind: identity.ActorHuman, Subject: "owner", Owner: "operator", Verified: true, Source: identity.SourceScenarioAuthenticator, Scopes: []string{"lighting-control:write"}, ExpiresAt: time.Now().Add(time.Hour)}
+	f := newFixture(t, principal, true, false)
+	ctx := context.Background()
+	before, err := f.control.ListControllers(ctx, request(f, &controlv1.ListControllersRequest{IncludeUnavailable: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := before.Msg.Controllers[0]
+	writes := f.backend.writeCalls.Load()
+	f.backend.discoverErr = internalcontrol.ErrTransport
+	// A failed probe must not publish a new inventory observation.
+	if _, err := f.db.Exec(`CREATE TRIGGER reject_offline_discovery BEFORE INSERT ON lighting_controllers BEGIN SELECT RAISE(ABORT,'offline discovery cannot sync'); END`); err != nil {
+		t.Fatal(err)
+	}
+	current, err := f.control.ListControllers(ctx, request(f, &controlv1.ListControllersRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(current.Msg.Controllers) != 0 {
+		t.Fatal("failed discovery presented current controllers")
+	}
+	offline, err := f.control.ListControllers(ctx, request(f, &controlv1.ListControllersRequest{IncludeUnavailable: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if offline.Msg.Backend.State == controlv1.BackendState_BACKEND_STATE_READY || offline.Msg.Backend.Detail != internalcontrol.ErrTransport.Error() {
+		t.Fatalf("discovery error hidden: %+v", offline.Msg.Backend)
+	}
+	if len(offline.Msg.Controllers) != 1 || !proto.Equal(saved, offline.Msg.Controllers[0]) {
+		t.Fatalf("saved roster changed during failure: %+v", offline.Msg.Controllers)
+	}
+	probe, err := f.control.GetBackendStatus(ctx, request(f, &controlv1.GetBackendStatusRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if probe.Msg.Backend.State != controlv1.BackendState_BACKEND_STATE_READY {
+		t.Fatal("fixture must distinguish protocol readiness from failed inventory")
+	}
+	off, err := f.control.SetManualOff(ctx, request(f, &controlv1.SetManualOffRequest{AllEnrolled: true}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !off.Msg.Override.Active {
+		t.Fatal("offline Off intent was not retained")
+	}
+	changed, err := f.control.SetZoneState(ctx, request(f, &controlv1.SetZoneStateRequest{Desired: zoneState(f.controllerID, f.zoneID)}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed.Msg.Result.Operation != controlv1.OperationState_OPERATION_STATE_DEFERRED || !strings.Contains(changed.Msg.Result.Reason, "higher priority") {
+		t.Fatal("saved Off lost manual priority")
+	}
+	if f.backend.writeCalls.Load() != writes {
+		t.Fatal("offline inspection or requests wrote stale capabilities")
+	}
+	if _, err := f.db.Exec(`DROP TRIGGER reject_offline_discovery`); err != nil {
+		t.Fatal(err)
+	}
+	f.backend.discoverErr = nil
+	if _, err := f.control.Reconcile(ctx, request(f, &controlv1.ReconcileRequest{})); err != nil {
+		t.Fatal(err)
+	}
+	if f.backend.writeCalls.Load() <= writes || !f.backend.emittedOff {
+		t.Fatal("reconnect did not reconcile saved Off")
+	}
+	desired, err := f.control.GetDesiredState(ctx, request(f, &controlv1.GetDesiredStateRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !desired.Msg.ManualOverride.Active {
+		t.Fatal("reconnect cleared durable Off")
 	}
 }

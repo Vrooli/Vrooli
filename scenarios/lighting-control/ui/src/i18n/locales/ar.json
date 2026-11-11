@@ -32,7 +32,7 @@
       "title": "الإعدادات",
       "themeHeading": "المظهر",
       "localeHeading": "اللغة",
-      "description": "تفضيلات هذا المتصفح. أضف كل إعداد يحتاجه سيناريوك فعلاً؛ لا يكرر أي جزء آخر من الهيكل إعداداً.",
+      "description": "الحساب وإعداد الإضاءة المحلية وضوابط السياسة وتفضيلات العرض.",
       "preferences": "التفضيلات",
       "themeHint": "فاتح أو داكن أو اتباع النظام.",
       "localeHint": "ينطبق على هذه اللوحة فقط."
@@ -104,7 +104,7 @@
     "backendUnknown": "Backend status has not been reported.",
     "protocolVersion": "SDK protocol",
     "enrolledCount": "enrolled controllers",
-    "desiredStateRetained": "Desired state is retained and will reconcile after reconnect.",
+    "desiredStateRetained": "تُحفظ وحدات التحكم والإمكانات المعروفة سابقًا والسياسة المطلوبة. لا يمكن تأكيد توفر الأجهزة حاليًا حتى إعادة الاتصال.",
     "controllers": "وحدات التحكم والمناطق",
     "noControllers": "لم يتم اكتشاف وحدات تحكم",
     "noControllersHelp": "Check backend readiness and connect a supported controller. Existing desired policy remains saved while devices are unavailable.",
@@ -137,7 +137,6 @@
     "backendAccepted": "Backend acknowledged",
     "observedOutput": "Output observed",
     "manualPriority": "Manual Off priority",
-    "active": "Active",
     "inactive": "Inactive",
     "acknowledgedNotObserved": "Backend acknowledgement confirms processing only; visible output has not been independently observed.",
     "commandSent": "Command sent; backend acknowledgement not received.",
@@ -395,7 +394,14 @@
     "manualUi": {
       "mode": "الوضع",
       "unsupported": "الوضع المحفوظ غير متاح لهذه المنطقة. اختر وضعًا مدعومًا قبل التطبيق.",
-      "ownership": "يمنح الحفظ والتطبيق هذه المنطقة أولوية يدوية. يظل الإيقاف اليدوي له الأولوية حتى الاستئناف. اختيار إعداد مسبق يستبدل إعدادات المناطق اليدوية."
-    }
+      "ownership": "يمنح الحفظ والتطبيق هذه المنطقة أولوية يدوية. يظل الإيقاف اليدوي له الأولوية حتى الاستئناف. اختيار إعداد مسبق يستبدل إعدادات المناطق اليدوية.",
+      "ledCount": "عدد مصابيح LED المتصلة",
+      "saveLength": "حفظ عدد LED",
+      "lengthSaved": "تم حفظ عدد LED. راجع نتيجة التطبيق قبل تأكيد الإضاءة.",
+      "setupNeeded": "حدد عدد مصابيح LED المتصلة بهذه المنطقة قبل تطبيق الألوان.",
+      "lengthHelp": "أدخل عدد مصابيح LED المتصلة فعليًا بهذه المنطقة. نطاق الخادم: {{min}}–{{max}}. يبقى الإيقاف اليدوي أولوية، وتبدأ المنطقة الجديدة مطفأة."
+    },
+    "manualOffScope": "ينطبق الإيقاف اليدوي على جميع المناطق في: {{controllers}}.",
+    "manualOffScopeUnknown": "الإيقاف اليدوي نشط؛ نطاق وحدات التحكم غير معروف."
   }
 }

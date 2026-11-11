@@ -160,12 +160,24 @@ func backendReason(err error) controlv1.BackendReason {
 }
 
 func (s *Service) ListControllers(ctx context.Context, includeUnavailable ...bool) (*controlv1.BackendStatus, []*controlv1.Controller, error) {
+	include := len(includeUnavailable) > 0 && includeUnavailable[0]
 	noDevice := false
+	ambiguousZoneCount := 0
 	availableIDs := make(map[string]bool)
 	if s.backend != nil {
 		found, err := s.discover(ctx, true)
 		if err != nil && !errors.Is(err, ErrNoDevice) {
-			return statusFromError(s.clock.Now(), err), nil, nil
+			status := statusFromError(s.clock.Now(), err)
+			if !include {
+				return status, nil, nil
+			}
+			// Failed discovery is not a new inventory observation. Preserve
+			// the canonical roster and last-seen/capability facts verbatim.
+			saved, readErr := s.repo.ListControllers(ctx)
+			if readErr != nil {
+				return nil, nil, fmt.Errorf("list persisted controllers: %w", readErr)
+			}
+			return status, saved, nil
 		}
 		noDevice = errors.Is(err, ErrNoDevice)
 		controllers, mappings, ambiguous := projectControllers(found, s.clock.Now())
@@ -175,6 +187,7 @@ func (s *Service) ListControllers(ctx context.Context, includeUnavailable ...boo
 		if err := s.repo.SyncControllers(ctx, controllers, mappings); err != nil {
 			return nil, nil, fmt.Errorf("persist controller discovery: %w", err)
 		}
+		ambiguousZoneCount = len(ambiguous)
 		if len(ambiguous) > 0 {
 			// Keep discovery visible but fail closed when an exact fingerprint
 			// collision prevents mapping a durable zone identity to one SDK zone.
@@ -185,11 +198,13 @@ func (s *Service) ListControllers(ctx context.Context, includeUnavailable ...boo
 		return nil, nil, fmt.Errorf("list persisted controllers: %w", err)
 	}
 	status := s.BackendStatus(ctx)
+	if ambiguousZoneCount > 0 {
+		status.Detail = fmt.Sprintf("%d ambiguous zone identities are unavailable for control; resolve duplicate header names before configuration", ambiguousZoneCount)
+	}
 	if noDevice {
 		status.Reason = controlv1.BackendReason_BACKEND_REASON_PROBE_FAILED
 		status.Detail = ErrNoDevice.Error()
 	}
-	include := len(includeUnavailable) > 0 && includeUnavailable[0]
 	if !include {
 		current := controllers[:0]
 		for _, c := range controllers {
@@ -212,6 +227,9 @@ func statusFromError(now time.Time, err error) *controlv1.BackendStatus {
 
 func zoneFingerprint(z SDKZone) string {
 	name := strings.ToLower(strings.Join(strings.Fields(strings.TrimSpace(z.Name)), " "))
+	if configurableZone(z) {
+		return fmt.Sprintf("%s|0", name)
+	}
 	return fmt.Sprintf("%s|%d", name, z.LEDCount)
 }
 
@@ -263,12 +281,18 @@ func projectControllers(found []SDKController, lastSeen time.Time) ([]*controlv1
 					}
 				}
 			}
+			for _, mode := range raw.Modes {
+				if mode.Name == "Direct" && mode.ColorMode == sdkModeColorsPerLED && mode.Flags&sdkModeHasPerLEDColor != 0 {
+					capability.SupportsStaticColor = true
+					capability.SupportsBrightness = true
+				}
+			}
 			c.Zones = append(c.Zones, capability)
 			if counts[fingerprint] > 1 {
 				ambiguous[id+"/"+zoneID] = true
 				continue
 			}
-			mappings = append(mappings, ZoneMapping{ControllerID: id, ZoneID: zoneID, Fingerprint: fingerprint, Name: z.Name, LEDCount: z.LEDCount, Static: z.Static})
+			mappings = append(mappings, ZoneMapping{ControllerID: id, ZoneID: zoneID, Fingerprint: fingerprint, Name: z.Name, LEDCount: z.LEDCount, Static: capability.SupportsStaticColor, Effects: capability.SupportedEffects, LEDMin: configurationMin(z), LEDMax: configurationMax(z)})
 		}
 		controllers = append(controllers, c)
 	}
@@ -401,19 +425,36 @@ func (s *Service) ApplyPolicyState(ctx context.Context, desired *controlv1.ZoneS
 	}
 	if base != nil {
 		desired = base
-	} else if err := s.repo.SavePolicyDesired(ctx, desired, nil); err != nil {
-		return nil, err
 	}
 	override, err := s.activeOverride(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if covers(override, desired.ControllerId) {
-		result := &controlv1.ZoneApplyResult{Desired: &controlv1.ZoneState{ControllerId: desired.ControllerId, ZoneId: desired.ZoneId, DesiredMode: &controlv1.ZoneState_Off{Off: &emptypb.Empty{}}}, Operation: controlv1.OperationState_OPERATION_STATE_DEFERRED, Reason: "manual Off override has higher priority", CompletedAt: timestamppb.New(s.clock.Now().UTC())}
-		if err := s.repo.SaveApply(ctx, desired, result); err != nil {
+		if base == nil {
+			// Keep the pending policy projection, but a suppressed tick made no SDK
+			// attempt and must not erase the last actual command receipt (including Off).
+			rows, err := s.repo.ListDesired(ctx)
+			if err != nil {
+				return nil, err
+			}
+			var lastApply *controlv1.ZoneApplyResult
+			for _, row := range rows {
+				if row != nil && row.Desired != nil && row.Desired.ControllerId == desired.ControllerId && row.Desired.ZoneId == desired.ZoneId {
+					lastApply = row.LastApply
+					break
+				}
+			}
+			if err := s.repo.SavePolicyDesired(ctx, desired, lastApply); err != nil {
+				return nil, err
+			}
+		}
+		return &controlv1.ZoneApplyResult{Desired: &controlv1.ZoneState{ControllerId: desired.ControllerId, ZoneId: desired.ZoneId, DesiredMode: &controlv1.ZoneState_Off{Off: &emptypb.Empty{}}}, Operation: controlv1.OperationState_OPERATION_STATE_DEFERRED, Reason: "manual Off override has higher priority", CompletedAt: timestamppb.New(s.clock.Now().UTC())}, nil
+	}
+	if base == nil {
+		if err := s.repo.SavePolicyDesired(ctx, desired, nil); err != nil {
 			return nil, err
 		}
-		return result, nil
 	}
 	result := s.apply(ctx, desired)
 	err = s.repo.SaveApply(ctx, desired, result)
@@ -838,8 +879,41 @@ func (s *Service) apply(ctx context.Context, d *controlv1.ZoneState) *controlv1.
 		result.Reason = ErrControllerNotFound.Error()
 		return result
 	}
+	if mapping.LEDMax > 0 && mapping.ConfiguredLEDCount == 0 {
+		result.Operation = controlv1.OperationState_OPERATION_STATE_DEFERRED
+		result.Reason = ErrZoneSetupNeeded.Error()
+		return result
+	}
 	if stable, ok := s.backend.(stableZoneBackend); ok {
-		command, commandErr := stable.ApplyStableZone(ctx, d.ControllerId, mapping.Fingerprint, d)
+		var command SDKCommandResult
+		var commandErr error
+		if configured, ok := s.backend.(configuredZoneBackend); ok {
+			override, overrideErr := s.activeOverride(ctx)
+			if overrideErr != nil {
+				commandErr = overrideErr
+			} else {
+				var wholeControllerOff map[string]uint32
+				if covers(override, d.ControllerId) {
+					wholeControllerOff = make(map[string]uint32, len(mappings))
+					for _, zone := range mappings {
+						if zone.LEDCount == 0 || zone.LEDMax > 0 && zone.ConfiguredLEDCount == 0 {
+							wholeControllerOff = nil
+							break
+						}
+						expectedCount := zone.LEDCount
+						if zone.LEDMax > 0 {
+							expectedCount = zone.ConfiguredLEDCount
+						}
+						wholeControllerOff[zone.Fingerprint] = expectedCount
+					}
+				}
+				command, commandErr = configured.ApplyConfiguredStableZone(ctx, d.ControllerId, mapping.Fingerprint, mapping.ConfiguredLEDCount, wholeControllerOff, d)
+			}
+		} else if mapping.ConfiguredLEDCount != 0 {
+			commandErr = ErrUnsupported
+		} else {
+			command, commandErr = stable.ApplyStableZone(ctx, d.ControllerId, mapping.Fingerprint, d)
+		}
 		result.LocalWriteCompleted = command.LocalWriteCompleted
 		result.BackendAcknowledged = command.BackendAcknowledged
 		result.BackendAckStatus = command.AckStatus
@@ -852,9 +926,11 @@ func (s *Service) apply(ctx context.Context, d *controlv1.ZoneState) *controlv1.
 				return result
 			}
 			switch {
+			case command.AckStatus != 0:
+				result.Operation = controlv1.OperationState_OPERATION_STATE_FAILED
 			case errors.Is(commandErr, ErrUnsupported), errors.Is(commandErr, ErrUnstableIdentity):
 				result.Operation = controlv1.OperationState_OPERATION_STATE_UNSUPPORTED
-			case errors.Is(commandErr, ErrControllerNotFound):
+			case errors.Is(commandErr, ErrControllerNotFound), errors.Is(commandErr, ErrZoneSetupNeeded):
 				result.Operation = controlv1.OperationState_OPERATION_STATE_DEFERRED
 			case command.LocalWriteCompleted && !command.BackendAcknowledged:
 				result.Operation = controlv1.OperationState_OPERATION_STATE_COMMAND_SENT
@@ -881,6 +957,11 @@ func (s *Service) apply(ctx context.Context, d *controlv1.ZoneState) *controlv1.
 			result.Operation = controlv1.OperationState_OPERATION_STATE_DEFERRED
 			result.Reason = "no command was sent"
 		}
+		return result
+	}
+	if mapping.ConfiguredLEDCount != 0 {
+		result.Operation = controlv1.OperationState_OPERATION_STATE_UNSUPPORTED
+		result.Reason = "backend cannot safely resize and render a stable zone"
 		return result
 	}
 	// A cached controller handle is useful for routine inventory reads, but may
@@ -1146,4 +1227,22 @@ func requestedBrightness(d *controlv1.ZoneState) float64 {
 		}
 	}
 	return 100
+}
+
+// Controller Direct changes are permitted only under an explicit whole-controller
+// Off override. An already-active per-LED mode needs no global mutation.
+func requestedModeWithControllerOff(desired *controlv1.ZoneState, c SDKController, z SDKZone, controllerOff bool) (SDKMode, SDKModeTarget, bool) {
+	for _, zone := range c.Zones {
+		if zone.LEDCount == 0 {
+			controllerOff = false
+		}
+	}
+	if desired.GetEffect() == nil {
+		for i, mode := range c.Modes {
+			if strings.EqualFold(strings.TrimSpace(mode.Name), "Direct") && mode.ColorMode == sdkModeColorsPerLED && mode.Flags&sdkModeHasPerLEDColor != 0 && (controllerOff && desired.GetOff() != nil || c.ActiveMode == int32(i)) {
+				return mode, SDKModeTarget{ModeIndex: uint32(i)}, true
+			}
+		}
+	}
+	return requestedMode(desired, c, z)
 }

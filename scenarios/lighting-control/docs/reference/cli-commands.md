@@ -245,24 +245,25 @@ After access enrollment, run explicit setup verification again before enabling. 
 
 ## Authenticated mutations
 
-All Control, Policy and Setup mutations require an existing verified principal
-with `lighting-control:write`. Reads remain available when signed out. A remote
-human or service token must be issued by the installation's configured identity
-provider for resource `lighting-control` (audience
-`scenario-authenticator:lighting-control`). Use the canonical authenticator's
-account lifecycle and capability administration; Light Desk does not create
-accounts or assign grants.
+Ordinary Control and Policy mutations accept a current verified, unexpired
+Agent Manager project-agent identity without lighting scopes, approval or an
+operation grant. The standard CLI supplies that identity through the existing
+live credential broker. It must remain bound to the current run and pass the
+canonical middleware verification; a claimed source label or borrowed
+credential does not suffice.
 
-The standard CLI's `configure token` setting supplies bearer authentication to
-its typed API client. Treat that value as a secret; use the existing secure
-operator credential workflow and never include it in logs or evidence. The CLI
-also supports Agent Manager's live credential broker automatically: an identified
-agent retains its verified run identity, capability ceiling and expiry. A
-read-only or empty-scope agent cannot mutate lighting, even if an unrelated
-operation grant exists. Do not exchange an identified agent for a local owner.
+Human and service callers retain their existing verified
+`lighting-control:write` capability requirement. Their issuer must be the
+installation's configured provider for resource `lighting-control`, audience
+`scenario-authenticator:lighting-control`. The standard CLI's `configure token`
+setting supplies bearer authentication for these callers. Treat it as a secret
+and never include it in logs or evidence. Signing in proves identity and does
+not assign capabilities. Provider outage, invalid audience and expired
+credentials remain explicit failures.
 
-A successful sign-in proves identity. An account still needs its existing
-`lighting-control:write` capability for a mutation. Provider unavailability,
-expired credentials and absent capability are explicit failures; they do not
-start an authenticator or alter lighting. Browser sign-in uses the same issuer
-through Settings and same-origin HttpOnly cookies.
+Setup, installation, enable/disable and device-permission changes retain their
+existing capability checks and native OS permissions. Ordinary project-agent
+lighting access does not broaden setup or unrelated domains. Public metadata
+reads remain available when signed out. Browser sign-in uses Settings and
+same-origin HttpOnly cookies; Light Desk does not create accounts or ask agents
+for lighting consent.

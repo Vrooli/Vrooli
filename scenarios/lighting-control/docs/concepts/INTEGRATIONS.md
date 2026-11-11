@@ -39,7 +39,7 @@ requires them.
 | Scenario | Status | Reason | Contract |
 |---|---|---|---|
 | system-monitor | optional | Existing owner provides metrics; no telemetry duplication. | Use `api-core/discovery.ResolveScenarioURLDefault`, metrics current/pressure contracts, and source quality metadata. |
-| agent-manager | optional | Existing owner provides active run records. | Use discovered Connect `ListRuns`; count pending/starting/running and apply client receipt freshness because the source response has no snapshot timestamp. |
+| agent-manager | optional | Existing owner provides bounded physical execution evidence. | Use discovered Connect `GetRuntimeActivity`; preserve source observation time, optional exact count, physical lower bound and incomplete coverage. Queued database records never establish executing work. |
 | infrastructure-manager | optional runtime-only reader | Existing host/substrate owner grades machine condition. | `.vrooli/service.json` declares `runtime_only: true`, `required: false`, `startup_policy: ignore` through SDA `deps declare-runtime`. Light Desk never starts the owner or enables its health team. |
 
 ## Third-Party Services
@@ -61,7 +61,7 @@ requires them.
 
 Health means the available host/substrate condition, not general scenario uptime. Light Desk preserves owner trust and band decisions for each in-scope substrate reading. Ghost, shelved, saturated and out-of-scope readings do not force a red lamp; unavailable or stale gradeable coverage remains visible. A healthy memory-pressure reading alone cannot establish healthy host coverage. Independent fresh memory pressure can still report attention/failure when other host evidence is incomplete. High CPU/GPU usage alone never makes Health unhealthy.
 
-Combined takes its color from that health assessment and requests a gentle activity pulse only with fresh active-run evidence and supported zone capability. Unknown/stale activity keeps a usable health color steady. Unknown health uses the configured static fallback and brightness cap. Active-run evidence excludes imported historical sessions and deduplicates IDs across bounded pages; source failure is unknown, not zero active work.
+Combined takes its color from that health assessment and requests a gentle activity pulse only with current physical execution evidence and supported zone capability. Unknown/stale activity keeps a usable health color steady. Unknown health uses the configured static fallback and brightness cap. Work and Combined consume the ordinary Agent Manager runtime projection backed by the existing canonical executor observer, independently of maintenance admission or lifecycle gates. Logical pending/starting/running records and historical imports never establish physical activity. A fresh positive lower bound may prove activity (or the configured busy threshold) while coverage stays visibly degraded and the exact total remains unknown. Partial zero, failed reads and missing, stale or future source timestamps do not establish idle or active work; Work uses its configured static fallback. Queue counts remain separate metadata.
 
 Each source retains its own freshness and reason in effective policy evidence. API service `/health` is not host-health input. The consumer performs no host repair, team activation, dependency installation, service startup or hardware scan to obtain these readings.
 

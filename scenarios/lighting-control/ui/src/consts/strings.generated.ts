@@ -149,7 +149,6 @@ export const strings = {
     backendAccepted: "lightDesk.backendAccepted",
     observedOutput: "lightDesk.observedOutput",
     manualPriority: "lightDesk.manualPriority",
-    active: "lightDesk.active",
     inactive: "lightDesk.inactive",
     acknowledgedNotObserved: "lightDesk.acknowledgedNotObserved",
     commandSent: "lightDesk.commandSent",
@@ -408,7 +407,14 @@ export const strings = {
       mode: "lightDesk.manualUi.mode",
       unsupported: "lightDesk.manualUi.unsupported",
       ownership: "lightDesk.manualUi.ownership",
+      ledCount: "lightDesk.manualUi.ledCount",
+      saveLength: "lightDesk.manualUi.saveLength",
+      lengthSaved: "lightDesk.manualUi.lengthSaved",
+      setupNeeded: "lightDesk.manualUi.setupNeeded",
+      lengthHelp: "lightDesk.manualUi.lengthHelp",
     },
+    manualOffScope: "lightDesk.manualOffScope",
+    manualOffScopeUnknown: "lightDesk.manualOffScopeUnknown",
   },
 } as const;
 

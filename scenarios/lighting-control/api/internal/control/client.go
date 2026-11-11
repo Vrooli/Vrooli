@@ -27,6 +27,7 @@ const (
 	requestProtocolVersion uint32 = 40
 	serverNamePacket       uint32 = 51
 	updateZoneLEDs         uint32 = 1051
+	resizeZone             uint32 = 1000
 )
 
 // SDKClient speaks only the OpenRGB SDK TCP protocol. It has no install,
@@ -51,12 +52,13 @@ type SDKController struct {
 }
 
 type SDKZone struct {
-	Name       string
-	LEDCount   uint32
-	Index      uint32 // transient SDK zone index; never persisted as identity
-	Static     bool
-	ActiveMode int32
-	Modes      []SDKMode
+	Type, LEDMin, LEDMax, Flags uint32
+	Name                        string
+	LEDCount                    uint32
+	Index                       uint32 // transient SDK zone index; never persisted as identity
+	Static                      bool
+	ActiveMode                  int32
+	Modes                       []SDKMode
 }
 
 type RGB struct{ R, G, B uint8 }
@@ -373,6 +375,20 @@ func (c SDKClient) SendMode(ctx context.Context, controllerID uint32, target SDK
 // ApplyStableZone resolves the transient SDK controller and zone handles from
 // a fresh controller-data snapshot immediately before issuing a mutation.
 func (c SDKClient) ApplyStableZone(ctx context.Context, controllerID, fingerprint string, desired *controlv1.ZoneState) (SDKCommandResult, error) {
+	return c.ApplyConfiguredStableZone(ctx, controllerID, fingerprint, 0, nil, desired)
+}
+
+func (c SDKClient) ApplyConfiguredStableZone(ctx context.Context, controllerID, fingerprint string, ledCount uint32, controllerOff map[string]uint32, desired *controlv1.ZoneState) (result SDKCommandResult, operationErr error) {
+	resizeWritten, resizeAcknowledged := false, false
+	defer func() {
+		if resizeWritten {
+			result.LocalWriteCompleted = true
+			if operationErr != nil {
+				result.BackendAcknowledged = false
+				operationErr = fmt.Errorf("zone configuration write completed (resize acknowledged=%t); rendering was not confirmed: %w", resizeAcknowledged, operationErr)
+			}
+		}
+	}()
 	conn, err := c.dial(ctx)
 	if err != nil {
 		return SDKCommandResult{}, err
@@ -389,7 +405,57 @@ func (c SDKClient) ApplyStableZone(ctx context.Context, controllerID, fingerprin
 	if err != nil {
 		return SDKCommandResult{}, err
 	}
-	mode, targetMode, ok := requestedMode(desired, *controller, *zone)
+	if configurableZone(*zone) {
+		if ledCount == 0 {
+			return SDKCommandResult{}, ErrZoneSetupNeeded
+		}
+		if err := validateZoneLength(*zone, ledCount); err != nil {
+			return SDKCommandResult{}, err
+		}
+		var total uint64
+		for _, current := range controller.Zones {
+			total += uint64(current.LEDCount)
+		}
+		if total < uint64(zone.LEDCount) || total-uint64(zone.LEDCount)+uint64(ledCount) > 65535 {
+			return SDKCommandResult{}, fmt.Errorf("%w: controller LED total exceeds SDK capacity", ErrInvalidState)
+		}
+		if zone.LEDCount != ledCount {
+			body := binary.LittleEndian.AppendUint32(nil, zone.Index)
+			body = binary.LittleEndian.AppendUint32(body, ledCount)
+			if err := writePacket(conn, controller.ID, resizeZone, body); err != nil {
+				return SDKCommandResult{}, fmt.Errorf("%w: resize zone: %v", ErrTransport, err)
+			}
+			resizeWritten = true
+			if err := readAck(conn, controller.ID, resizeZone); err != nil {
+				var nack *SDKAckError
+				if errors.As(err, &nack) {
+					return SDKCommandResult{AckStatus: nack.Status}, err
+				}
+				return SDKCommandResult{}, err
+			}
+			resizeAcknowledged = true
+			found, err = discoverOnConn(conn)
+			if err != nil {
+				return SDKCommandResult{}, err
+			}
+			controller, zone, err = resolveStableZoneFrom(found, controllerID, fingerprint)
+			if err != nil {
+				return SDKCommandResult{}, err
+			}
+			if err := validateZoneLength(*zone, ledCount); err != nil {
+				return SDKCommandResult{}, err
+			}
+			if zone.LEDCount != ledCount {
+				return SDKCommandResult{}, errors.New("OpenRGB resize ACK did not match fresh zone length readback")
+			}
+		}
+	} else if ledCount != 0 {
+		return SDKCommandResult{}, ErrUnsupported
+	}
+	if zone.LEDCount == 0 {
+		return SDKCommandResult{}, ErrZoneSetupNeeded
+	}
+	mode, targetMode, ok := requestedModeWithControllerOff(desired, *controller, *zone, completeControllerOffScope(*controller, controllerOff))
 	if !ok {
 		return SDKCommandResult{}, ErrUnsupported
 	}
@@ -425,6 +491,9 @@ func (c SDKClient) ApplyStableZone(ctx context.Context, controllerID, fingerprin
 		}
 	} else {
 		combined.CachedModeReadback = controlv1.CachedModeReadback_CACHED_MODE_READBACK_MATCHES
+	}
+	if zone.LEDCount == 0 || ledCount != 0 && zone.LEDCount != ledCount {
+		return combined, errors.New("zone length changed before render")
 	}
 	if wantsEffect && mode.ColorMode != sdkModeColorsPerLED {
 		return combined, nil
@@ -498,9 +567,6 @@ func resolveStableZoneFrom(found []SDKController, controllerID, fingerprint stri
 	}
 	if zone == nil {
 		return nil, nil, ErrControllerNotFound
-	}
-	if zone.LEDCount == 0 {
-		return nil, nil, ErrUnsupported
 	}
 	return controller, zone, nil
 }
@@ -783,9 +849,18 @@ func parseZoneV6(c *cursor) (SDKZone, error) {
 	if err != nil {
 		return SDKZone{}, err
 	}
-	if err = c.skip(12); err != nil {
+	zoneType, err := c.u32()
+	if err != nil {
 		return SDKZone{}, err
-	} // type and LED limits
+	}
+	ledMin, err := c.u32()
+	if err != nil {
+		return SDKZone{}, err
+	}
+	ledMax, err := c.u32()
+	if err != nil {
+		return SDKZone{}, err
+	}
 	count, err := c.u32()
 	if err != nil {
 		return SDKZone{}, err
@@ -843,5 +918,5 @@ func parseZoneV6(c *cursor) (SDKZone, error) {
 		return SDKZone{}, err
 	} // display name
 	_ = flags
-	return SDKZone{Name: name, LEDCount: count, Static: static, ActiveMode: int32(activeMode), Modes: modeDescriptors}, nil
+	return SDKZone{Type: zoneType, LEDMin: ledMin, LEDMax: ledMax, Flags: flags, Name: name, LEDCount: count, Static: static, ActiveMode: int32(activeMode), Modes: modeDescriptors}, nil
 }

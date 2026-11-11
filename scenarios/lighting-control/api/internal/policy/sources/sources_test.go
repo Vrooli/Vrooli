@@ -3,7 +3,6 @@ package sources
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
 	agentapiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
-	agentdomainv1 "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 	policyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/policy"
 	metricsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/system-monitor/v1/metrics"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -57,7 +55,7 @@ func TestReadPreservesFreshLoadMetricsWhenHealthDetailIsUnavailable(t *testing.T
 				detailedErr: errors.New("detailed endpoint unavailable"),
 			}
 		},
-		newRunsReader: func(*http.Client, string) runsReader { return &fakeRuns{} },
+		newActivityReader: func(*http.Client, string) activityReader { return &fakeActivity{} },
 	}
 
 	got := sources.Read(context.Background())
@@ -67,36 +65,26 @@ func TestReadPreservesFreshLoadMetricsWhenHealthDetailIsUnavailable(t *testing.T
 	require.Contains(t, got.SystemHealth.Reason, "read health detail")
 }
 
-type fakeRuns struct {
-	statuses []agentdomainv1.RunStatus
-	calls    []agentdomainv1.RunStatus
+type fakeActivity struct {
+	response *agentapiv1.GetRuntimeActivityResponse
 	err      error
 }
 
-func (f *fakeRuns) ListRuns(_ context.Context, req *connect.Request[agentapiv1.ListRunsRequest]) (*connect.Response[agentapiv1.ListRunsResponse], error) {
+func (f *fakeActivity) GetRuntimeActivity(context.Context, *connect.Request[agentapiv1.GetRuntimeActivityRequest]) (*connect.Response[agentapiv1.GetRuntimeActivityResponse], error) {
 	if f.err != nil {
 		return nil, f.err
 	}
-	status := req.Msg.GetStatus()
-	f.calls = append(f.calls, status)
-	var runs []*agentdomainv1.Run
-	for i, candidate := range f.statuses {
-		if candidate == status {
-			runs = append(runs, &agentdomainv1.Run{Id: fmt.Sprintf("run-%d", i), Status: candidate})
-		}
+	if f.response == nil {
+		return connect.NewResponse(&agentapiv1.GetRuntimeActivityResponse{}), nil
 	}
-	return connect.NewResponse(&agentapiv1.ListRunsResponse{Runs: runs}), nil
+	return connect.NewResponse(f.response), nil
 }
 
 func TestReadUsesOwnerFactsAndCountsOnlyActiveRuns(t *testing.T) {
 	now := time.Date(2026, 11, 10, 17, 0, 0, 0, time.UTC)
-	runs := &fakeRuns{statuses: []agentdomainv1.RunStatus{
-		agentdomainv1.RunStatus_RUN_STATUS_PENDING,
-		agentdomainv1.RunStatus_RUN_STATUS_STARTING,
-		agentdomainv1.RunStatus_RUN_STATUS_RUNNING,
-		agentdomainv1.RunStatus_RUN_STATUS_COMPLETE,
-		agentdomainv1.RunStatus_RUN_STATUS_FAILED,
-	}}
+	count := uint32(1)
+	activity := &fakeActivity{response: &agentapiv1.GetRuntimeActivityResponse{ObservedAt: timestamppb.New(now.Add(-time.Second)), Complete: true, ExecutingRuns: &count, ObservedExecutingRuns: count, LogicalQueuedRuns: 100}}
+
 	metricTime := timestamppb.New(now.Add(-2 * time.Second))
 	sources := &Sources{
 		resolve: func(_ context.Context, scenario string) (string, error) {
@@ -117,9 +105,9 @@ func TestReadUsesOwnerFactsAndCountsOnlyActiveRuns(t *testing.T) {
 				}}},
 			}
 		},
-		newRunsReader: func(_ *http.Client, base string) runsReader {
+		newActivityReader: func(_ *http.Client, base string) activityReader {
 			require.Equal(t, "http://127.0.0.1/agent-manager", base)
-			return runs
+			return activity
 		},
 	}
 
@@ -131,14 +119,11 @@ func TestReadUsesOwnerFactsAndCountsOnlyActiveRuns(t *testing.T) {
 	require.Equal(t, float64(49), got.SystemMonitor.Measurements["gpu_usage_percent"])
 	require.Equal(t, float64(2), got.SystemHealth.Measurements["memory_pressure_level"])
 	require.Equal(t, policyv1.EvidenceState_EVIDENCE_STATE_FRESH, got.AgentManager.State)
-	require.True(t, got.AgentManager.SourceTime.IsZero(), "Agent Manager does not return a snapshot timestamp")
+	require.Equal(t, now.Add(-time.Second), got.AgentManager.SourceTime)
 	require.Equal(t, now, got.AgentManager.ObservedAt)
-	require.Equal(t, float64(3), got.AgentManager.Measurements["active_runs"])
-	require.Equal(t, []agentdomainv1.RunStatus{
-		agentdomainv1.RunStatus_RUN_STATUS_PENDING,
-		agentdomainv1.RunStatus_RUN_STATUS_STARTING,
-		agentdomainv1.RunStatus_RUN_STATUS_RUNNING,
-	}, runs.calls)
+	require.Equal(t, float64(1), got.AgentManager.Measurements["active_runs"])
+	require.Equal(t, float64(100), got.AgentManager.Measurements["logical_queued_runs"])
+
 }
 
 func TestReadReportsUnavailableInsteadOfZeroWhenOwnerCannotResolve(t *testing.T) {
@@ -174,7 +159,7 @@ func TestReadDegradesWhenMetricsAreUnmeasuredOrPressureIsMissing(t *testing.T) {
 				detailed: &metricsv1.GetDetailedMetricsResponse{Metrics: &metricsv1.DetailedMetrics{}},
 			}
 		},
-		newRunsReader: func(*http.Client, string) runsReader { return &fakeRuns{} },
+		newActivityReader: func(*http.Client, string) activityReader { return &fakeActivity{} },
 	}
 
 	got := sources.Read(context.Background())
@@ -207,7 +192,7 @@ func TestLoadAndPressureKeepIndependentFreshness(t *testing.T) {
 						}}},
 					}
 				},
-				newRunsReader: func(*http.Client, string) runsReader { return &fakeRuns{} },
+				newActivityReader: func(*http.Client, string) activityReader { return &fakeActivity{} },
 			}
 			got := sources.Read(context.Background())
 			require.Equal(t, tt.wantHealth, got.SystemHealth.State)
@@ -223,38 +208,4 @@ func TestLoadAndPressureKeepIndependentFreshness(t *testing.T) {
 			}
 		})
 	}
-}
-
-type runsFunction func(context.Context, *connect.Request[agentapiv1.ListRunsRequest]) (*connect.Response[agentapiv1.ListRunsResponse], error)
-
-func (f runsFunction) ListRuns(ctx context.Context, req *connect.Request[agentapiv1.ListRunsRequest]) (*connect.Response[agentapiv1.ListRunsResponse], error) {
-	return f(ctx, req)
-}
-
-func TestActivityExcludesHistoricalImportsAndDeduplicatesAcrossPages(t *testing.T) {
-	now := time.Now().UTC()
-	reader := runsFunction(func(_ context.Context, req *connect.Request[agentapiv1.ListRunsRequest]) (*connect.Response[agentapiv1.ListRunsResponse], error) {
-		if req.Msg.GetStatus() != agentdomainv1.RunStatus_RUN_STATUS_RUNNING {
-			return connect.NewResponse(&agentapiv1.ListRunsResponse{}), nil
-		}
-		if req.Msg.GetOffset() == 0 {
-			return connect.NewResponse(&agentapiv1.ListRunsResponse{HasMore: true, Runs: []*agentdomainv1.Run{
-				{Id: "native", Status: agentdomainv1.RunStatus_RUN_STATUS_RUNNING},
-				{Id: "historical", Status: agentdomainv1.RunStatus_RUN_STATUS_RUNNING, ImportedAt: timestamppb.New(now)},
-				{Id: "old-source", Status: agentdomainv1.RunStatus_RUN_STATUS_RUNNING, ImportSourceSessionId: "old"},
-			}}), nil
-		}
-		return connect.NewResponse(&agentapiv1.ListRunsResponse{Runs: []*agentdomainv1.Run{
-			{Id: "native", Status: agentdomainv1.RunStatus_RUN_STATUS_RUNNING},
-			{Id: "changed-to-complete", Status: agentdomainv1.RunStatus_RUN_STATUS_COMPLETE},
-		}}), nil
-	})
-	s := &Sources{
-		resolve: func(context.Context, string) (string, error) { return "http://owner", nil },
-		client:  &http.Client{}, now: func() time.Time { return now },
-		newRunsReader: func(*http.Client, string) runsReader { return reader },
-	}
-	got := s.readAgentManager(context.Background())
-	require.Equal(t, policyv1.EvidenceState_EVIDENCE_STATE_FRESH, got.State)
-	require.Equal(t, float64(1), got.Measurements["active_runs"])
 }

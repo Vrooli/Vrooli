@@ -42,6 +42,7 @@ func TestSetupRequiresVerifiedUnexpiredScenarioCapability(t *testing.T) {
 		{"unverified", false, false, []string{"lighting-control:write"}, false},
 		{"other scenario", true, false, []string{"other-scenario:write"}, false},
 		{"read only", true, false, []string{"lighting-control:read"}, false},
+		{"unscoped project agent", true, false, nil, false},
 		{"expired", true, true, []string{"lighting-control:write"}, false},
 		{"scoped owner authority", true, false, []string{"lighting-control:write"}, true},
 		{"canonical wildcard", true, false, []string{"lighting-control:*"}, true},

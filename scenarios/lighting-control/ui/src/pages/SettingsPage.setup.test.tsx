@@ -1,6 +1,7 @@
+import { Code, ConnectError } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { InstallationSource, LightingRuntimeStatusSchema, LightingSelectionSchema } from "@vrooli/proto-types/lighting-control/v1/setup/setup_pb";
 import { PolicyConfigSchema } from "@vrooli/proto-types/lighting-control/v1/policy/policy_pb";
@@ -14,7 +15,7 @@ import { SettingsPage } from "./SettingsPage";
 const copy = strings.lightDesk.settingsUi;
 const selection = create(LightingSelectionSchema, { source: InstallationSource.MANAGED, version: "1.1", sha256: "a".repeat(64), devicePolicyId: "approved-policy" });
 const disabled = () => create(LightingRuntimeStatusSchema, { phase: "disabled", state: "disabled", pinnedSelection: selection, resourceObserved: false });
-const renderSettings = () => renderWithProviders(<MemoryRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><SettingsPage /></MemoryRouter>, { withoutRouter: true });
+const renderSettings = () => renderWithProviders(<MemoryRouter initialEntries={["/settings"]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><SettingsPage /></MemoryRouter>, { withoutRouter: true });
 
 describe("Settings native lighting owner actions", () => {
   beforeEach(() => {
@@ -124,4 +125,69 @@ describe("Settings native lighting owner actions", () => {
     expect(screen.getAllByText(copy.unobserved)).toHaveLength(2);
   });
 
+});
+
+
+it("guides a signed-out setup reader to the existing account without enabling protected actions", async () => {
+  await setLocale("en");
+  vi.spyOn(lightingApi, "readDesk").mockResolvedValue({ backend: undefined, controllers: [], zones: [], manualOverride: undefined, effective: undefined, config: create(PolicyConfigSchema, {}) });
+  vi.spyOn(lightingSetupApi, "status").mockRejectedValue(new ConnectError("permission_denied", Code.PermissionDenied));
+  const setup = vi.spyOn(lightingSetupApi, "setup");
+  const enable = vi.spyOn(lightingSetupApi, "enable");
+  renderSettings();
+  const link = await screen.findByRole("link", { name: i18n.t(strings.lightDesk.account.signIn) });
+  expect(link).toHaveAttribute("href", "/settings#account-heading");
+  const panel = screen.getByRole("heading", { name: i18n.t(copy.setupTitle) }).closest("section")!;
+  expect(within(panel).getByText(i18n.t(strings.lightDesk.account.intro))).toBeInTheDocument();
+  expect(within(panel).queryByText(/permission_denied/)).not.toBeInTheDocument();
+  expect(within(panel).queryByRole("button", { name: i18n.t(copy.prepareSetup) })).not.toBeInTheDocument();
+  expect(setup).not.toHaveBeenCalled();
+  expect(enable).not.toHaveBeenCalled();
+  vi.restoreAllMocks();
+});
+
+
+it("keeps setup Account navigation within its route and query under a router basename and root document base", async () => {
+  await setLocale("en");
+  vi.spyOn(lightingApi, "readDesk").mockResolvedValue({ backend: undefined, controllers: [], zones: [], manualOverride: undefined, effective: undefined, config: create(PolicyConfigSchema, {}) });
+  vi.spyOn(lightingSetupApi, "status").mockRejectedValue(new ConnectError("permission_denied", Code.PermissionDenied));
+  const setup = vi.spyOn(lightingSetupApi, "setup");
+  const enable = vi.spyOn(lightingSetupApi, "enable");
+  const base = document.createElement("base");
+  base.href = "/";
+  document.head.append(base);
+  function LocationProof() {
+    const { pathname, search, hash } = useLocation();
+    return <output aria-label="Current route">{pathname}{search}{hash}</output>;
+  }
+  try {
+    renderWithProviders(<MemoryRouter basename="/apps/lighting-control" initialEntries={["/apps/lighting-control/preferences/settings?panel=setup"]} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}><Routes><Route path="/preferences/settings" element={<><SettingsPage/><LocationProof/></>}/><Route path="/" element={<h1>Home destination</h1>}/></Routes></MemoryRouter>, { withoutRouter: true });
+    const link = await screen.findByRole("link", { name: i18n.t(strings.lightDesk.account.signIn) });
+    expect(link).toHaveAttribute("href", "/apps/lighting-control/preferences/settings?panel=setup#account-heading");
+    const account = screen.getByRole("heading", { name: i18n.t(strings.lightDesk.account.title) });
+    const scroll = vi.fn();
+    Object.defineProperty(account, "scrollIntoView", { configurable: true, value: scroll });
+    for (const modified of [{ metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { altKey: true }, { button: 1 }]) {
+      link.focus();
+      let preventedBeforeNativeDefault = true;
+      const suppressNativeNavigation = (event: globalThis.MouseEvent) => {
+        preventedBeforeNativeDefault = event.defaultPrevented;
+        event.preventDefault(); // Keep jsdom from attempting a new tab/navigation after React's handlers.
+      };
+      document.addEventListener("click", suppressNativeNavigation, { once: true });
+      fireEvent.click(link, { button: 0, ...modified });
+      expect(preventedBeforeNativeDefault).toBe(false);
+      expect(link).toHaveFocus();
+      expect(scroll).not.toHaveBeenCalled();
+      expect(screen.getByRole("status", { name: "Current route" })).toHaveTextContent("/preferences/settings?panel=setup");
+      expect(screen.getByRole("status", { name: "Current route" })).not.toHaveTextContent("#account-heading");
+    }
+    fireEvent.click(link);
+    expect(account).toHaveFocus();
+    expect(scroll).toHaveBeenCalledWith({ block: "start" });
+    expect(screen.getByRole("status", { name: "Current route" })).toHaveTextContent("/preferences/settings?panel=setup#account-heading");
+    expect(screen.queryByRole("heading", { name: "Home destination" })).not.toBeInTheDocument();
+    expect(setup).not.toHaveBeenCalled();
+    expect(enable).not.toHaveBeenCalled();
+  } finally { base.remove(); vi.restoreAllMocks(); }
 });

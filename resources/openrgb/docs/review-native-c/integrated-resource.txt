@@ -1,0 +1,1 @@
+ok  	github.com/vrooli/vrooli/internal/resources	107.169s

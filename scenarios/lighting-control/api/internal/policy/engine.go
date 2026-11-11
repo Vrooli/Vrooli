@@ -155,7 +155,7 @@ func (e Engine) Evaluate(state State, in Inputs) (State, *policyv1.EffectivePoli
 	}
 	load := assess(in.SystemMonitor, in.Now, e.Config.SourceMaxAgeSeconds)
 	health, healthEvidence := assessMachineHealth(in, e.Config.SourceMaxAgeSeconds)
-	agents := assess(in.AgentManager, in.Now, e.Config.SourceMaxAgeSeconds)
+	agents := assessActivity(in.AgentManager, in.Now, e.Config.SourceMaxAgeSeconds)
 	kind, reason, fallback := e.choose(&state, base, load, health, agents)
 	if state.ActivePreset == policyv1.PresetKind_PRESET_KIND_UNSPECIFIED {
 		state.ActivePreset = kind
@@ -196,16 +196,17 @@ func (e Engine) Evaluate(state State, in Inputs) (State, *policyv1.EffectivePoli
 	if manual {
 		reason = "manual preset selection; " + reason
 	}
-	if kind == policyv1.PresetKind_PRESET_KIND_COMBINED && (!agents.usable() || !validActivity(agents.input.Measurements)) {
+	if _, known := agents.activityCount(); kind == policyv1.PresetKind_PRESET_KIND_COMBINED && !known {
 		fallback = true
 	}
 	return state, e.effective(p, kind, reason, in.Now, evidence, manual, state.ManualExpiry, fallback), nil
 }
 
 type assessed struct {
-	input  SourceInput
-	state  policyv1.EvidenceState
-	reason string
+	input            SourceInput
+	state            policyv1.EvidenceState
+	reason           string
+	positiveActivity bool
 }
 
 func assess(s SourceInput, now time.Time, maxAge uint32) assessed {
@@ -234,6 +235,52 @@ func assess(s SourceInput, now time.Time, maxAge uint32) assessed {
 	}
 	return a
 }
+
+// Partial coverage does not negate fresh positive physical evidence. Keep the
+// degraded grade and unknown total, while allowing only its proven lower bound.
+func assessActivity(s SourceInput, now time.Time, maxAge uint32) assessed {
+	a := assess(s, now, maxAge)
+	// Physical activity requires owner time, and must never borrow a current
+	// HTTP receipt or the generic metrics clock-skew tolerance as execution proof.
+	if s.SourceTime.IsZero() || s.SourceTime.After(now) {
+		if s.State == policyv1.EvidenceState_EVIDENCE_STATE_FRESH || s.State == policyv1.EvidenceState_EVIDENCE_STATE_DEGRADED {
+			a.state = policyv1.EvidenceState_EVIDENCE_STATE_DEGRADED
+			a.reason = "physical activity source timestamp unavailable"
+			if s.SourceTime.After(now) {
+				a.reason = "physical activity source timestamp is in the future"
+			}
+		}
+		return a
+	}
+	if s.State != policyv1.EvidenceState_EVIDENCE_STATE_DEGRADED || s.SourceTime.IsZero() {
+		return a
+	}
+	count, ok := metric(s.Measurements, "observed_executing_runs")
+	if !ok || count <= 0 || math.Trunc(count) != count {
+		return a
+	}
+	timed := s
+	timed.State = policyv1.EvidenceState_EVIDENCE_STATE_FRESH
+	validity := assess(timed, now, maxAge)
+	if validity.usable() {
+		a.positiveActivity = true
+	} else {
+		a.state = validity.state
+		a.reason = validity.reason + "; " + s.Reason
+	}
+	return a
+}
+
+func (a assessed) activityCount() (float64, bool) {
+	if a.usable() && validActivity(a.input.Measurements) {
+		return metric(a.input.Measurements, "active_runs")
+	}
+	if a.positiveActivity {
+		return metric(a.input.Measurements, "observed_executing_runs")
+	}
+	return 0, false
+}
+
 func (a assessed) usable() bool { return a.state == policyv1.EvidenceState_EVIDENCE_STATE_FRESH }
 func (a assessed) proto() *policyv1.EvidenceSource {
 	out := &policyv1.EvidenceSource{Source: a.input.Name, State: a.state, Reason: a.reason, Measurements: a.input.Measurements}
@@ -319,17 +366,17 @@ func (e Engine) choose(s *State, base policyv1.PresetKind, load, health, agents 
 		return static, "measured utilization below load threshold", false
 	}
 	if base == policyv1.PresetKind_PRESET_KIND_WORK {
-		if !agents.usable() {
+		count, known := agents.activityCount()
+		if !known {
 			return static, "activity evidence is " + agents.state.String() + ": " + agents.reason, true
 		}
-		v, ok := metric(agents.input.Measurements, "active_runs")
-		if !ok || !validActivity(agents.input.Measurements) {
-			return static, "activity evidence lacks active run count", true
+		if count > 0 {
+			if agents.positiveActivity {
+				return policyv1.PresetKind_PRESET_KIND_WORK, "physical work is present; total coverage remains unknown: " + agents.reason, false
+			}
+			return policyv1.PresetKind_PRESET_KIND_WORK, "current physical execution is reported", false
 		}
-		if v > 0 {
-			return policyv1.PresetKind_PRESET_KIND_WORK, "active runs are reported", false
-		}
-		return static, "no active runs reported", false
+		return static, "complete observation reports no executing work", false
 	}
 	if base == policyv1.PresetKind_PRESET_KIND_HEALTH {
 		if !health.usable() {
@@ -348,7 +395,7 @@ func (e Engine) choose(s *State, base policyv1.PresetKind, load, health, agents 
 		if _, ok := healthClass(health.input.Measurements); !ok {
 			return static, "combined evidence lacks a known health signal", true
 		}
-		if !agents.usable() || !validActivity(agents.input.Measurements) {
+		if _, known := agents.activityCount(); !known {
 			return base, "health selects steady color; activity evidence unavailable: " + agents.reason, false
 		}
 		return policyv1.PresetKind_PRESET_KIND_COMBINED, "health selects color and active agents select a gentle effect when supported", false
@@ -373,7 +420,7 @@ func (e Engine) configuredPreset(kind policyv1.PresetKind, health, activity asse
 	}
 	if kind == policyv1.PresetKind_PRESET_KIND_WORK || kind == policyv1.PresetKind_PRESET_KIND_COMBINED {
 		copy.EffectId = ""
-		if count, ok := metric(activity.input.Measurements, "active_runs"); ok && activity.usable() && validActivity(activity.input.Measurements) && count > 0 && e.Config.ActivityEffects != nil {
+		if count, ok := activity.activityCount(); ok && count > 0 && e.Config.ActivityEffects != nil {
 			if count >= float64(e.Config.ActivityEffects.BusyAgentThreshold) {
 				copy.EffectId = e.Config.ActivityEffects.BusyEffectId
 			} else {

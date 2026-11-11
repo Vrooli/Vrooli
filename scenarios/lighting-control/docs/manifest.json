@@ -1,7 +1,7 @@
 {
   "version": "2.0.0",
   "title": "Lighting Control Documentation",
-  "description": "Documentation contract for the template-manager generated from the react-vite template",
+  "description": "Documentation contract for the Light Desk lighting control scenario.",
   "defaultDocument": "START-HERE.md",
   "contract": {
     "kind": "scenario-docs",
@@ -661,6 +661,78 @@
               "Cross-References"
             ]
           }
+        },
+        {
+          "path": "concepts/CONTROL.md",
+          "docType": "lighting-control-domain",
+          "title": "Lighting control domain",
+          "description": "Stable identities, SDK mutation boundaries, explicit zone lengths and durable manual Off.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "lighting-control-domain"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "mockups/README.md",
+          "docType": "lighting-design-boards",
+          "title": "Approved design boards",
+          "description": "Approved illustrative design references and generation prompts; physical state is unverified.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "lighting-design-boards"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "mockups/CUSTOMIZE.md",
+          "docType": "lighting-customization-design",
+          "title": "Preset customization design",
+          "description": "Approved customization reference and required truthful output semantics.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "lighting-customization-design"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
+        },
+        {
+          "path": "mockups/manifest-v1.json",
+          "docType": "lighting-design-asset-manifest",
+          "title": "Design asset provenance",
+          "description": "Retained approved design asset identities and content hashes.",
+          "audience": [
+            "developers",
+            "agents"
+          ],
+          "canonicalFor": [
+            "lighting-design-asset-manifest"
+          ],
+          "maturity": "active",
+          "requiredBy": [
+            "implemented"
+          ],
+          "completion": "required"
         }
       ]
     },

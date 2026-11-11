@@ -1,10 +1,12 @@
 import { createClient } from "@connectrpc/connect";
 import { create } from "@bufbuild/protobuf";
 
-import { ControlService, GetBackendStatusRequestSchema, GetDesiredStateRequestSchema, ListControllersRequestSchema, SetManualOffRequestSchema, ClearManualOverrideRequestSchema, ReconcileRequestSchema, EnrollControllerRequestSchema, SetZoneStateRequestSchema, ZoneStateSchema, ZoneStatusSchema, StaticZoneStateSchema, EffectZoneStateSchema, ColorSchema } from "@vrooli/proto-types/lighting-control/v1/control/control_pb";
+import { BackendState, ControlService, ConfigureZoneRequestSchema, GetBackendStatusRequestSchema, GetDesiredStateRequestSchema, ListControllersRequestSchema, SetManualOffRequestSchema, ClearManualOverrideRequestSchema, ReconcileRequestSchema, EnrollControllerRequestSchema, SetZoneStateRequestSchema, ZoneStateSchema, ZoneStatusSchema, StaticZoneStateSchema, EffectZoneStateSchema, ColorSchema } from "@vrooli/proto-types/lighting-control/v1/control/control_pb";
 import { PolicyService, GetPolicyRequestSchema, SetPolicyRequestSchema, PolicyConfigSchema, EvaluatePolicyRequestSchema, SetManualPresetRequestSchema, ClearManualPresetRequestSchema, PresetKind, type PolicyConfig } from "@vrooli/proto-types/lighting-control/v1/policy/policy_pb";
 
 import { transport } from "../../api/client";
+
+import { manualOffCoversController } from "./manualOff";
 
 const control = createClient(ControlService, transport);
 const policy = createClient(PolicyService, transport);
@@ -19,7 +21,7 @@ export const lightingApi = {
     ]);
     const override = desired.manualOverride;
     const zones = desired.zones.map((zone) => {
-      const coversController = override?.active && (override.allEnrolled || override.controllerIds.includes(zone.desired?.controllerId ?? ""));
+      const coversController = manualOffCoversController(override, zone.desired?.controllerId ?? "");
       if (!coversController || !zone.desired) return zone;
       return create(ZoneStatusSchema, {
         ...zone,
@@ -31,7 +33,10 @@ export const lightingApi = {
       });
     });
     return {
-      backend: backend.backend,
+      // A protocol probe cannot override failed discovery, and a later
+      // unavailable probe cannot be upgraded by an earlier inventory.
+      backend: backend.backend && backend.backend.state !== BackendState.READY
+        ? backend.backend : inventory.backend ?? backend.backend,
       controllers: inventory.controllers,
       zones,
       manualOverride: desired.manualOverride,
@@ -41,6 +46,9 @@ export const lightingApi = {
   },
   enroll(controllerId: string, enrolled: boolean) {
     return control.enrollController(create(EnrollControllerRequestSchema, { controllerId, enrolled }));
+  },
+  configureZone(controllerId: string, zoneId: string, ledCount: number) {
+    return control.configureZone(create(ConfigureZoneRequestSchema, { controllerId, zoneId, ledCount }));
   },
   setOff() {
     return control.setManualOff(create(SetManualOffRequestSchema, { allEnrolled: true }));

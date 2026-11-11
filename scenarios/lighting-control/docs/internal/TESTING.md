@@ -25,3 +25,9 @@ health identity in isolated storage, and check shutdown. Keep the expected
 service name in the scenario test. Shared process machinery and failure
 regressions live in `packages/api-core/boottest`; see its package README section
 for configuration and evidence limits. The existing E2E gate runs this test.
+
+## Independent addressable-zone review A — 2026-11-11
+
+The scoped W3 adversarial review found and rechecked three material defects: legacy name migration could overwrite a fixed peer's durable zone ID; boolean whole-controller Off authority omitted physical unmapped peers; and resize success followed by disconnect erased partial-write evidence. Production repairs preserve IDs transactionally, compare the exact complete physical fingerprint roster on the SDK connection before a global Direct transition, and retain resize write facts without claiming a completed render.
+
+Independent full control-package race tests with private desired-behavior overlays passed (6.136s); public authentication-package race tests passed (9.218s); governed protobuf freshness verification passed. Evidence, source digests, command failures and applicability limits: `.vrooli/work/reviews/native-zone-a/REVIEW.md` in the isolated native-lighting delivery checkout. This finding-bearing pass plus affected repair recheck does not count as a fresh clean maturation pass. Actual native runtime, physical output, boot/logout/resume and hardware reconnect remain separate unverified acceptance gates.

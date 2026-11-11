@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "lighting-control",
   "generator": "v1.0.0",
-  "manifest_hash": "9c778de3b162ff30fcaaab808eb4d4f833028727181b91df39fdb0f0374a8056",
+  "manifest_hash": "5b544735a9a0b727c0aa7f5167e1a8ed3793ce8e7d7fd8b870132eff749c141e",
   "commands": [
     {
       "path": "control backend-status",
@@ -13,6 +13,14 @@
       "binding": "ControlService.GetBackendStatus",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
+    },
+    {
+      "path": "control configure-zone",
+      "group": "control",
+      "command": "configure-zone",
+      "binding": "ControlService.ConfigureZone",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
     },
     {
       "path": "control controllers",

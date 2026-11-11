@@ -57,6 +57,21 @@
       }
     },
     {
+      "id": "control_configure_zone",
+      "path": "/vrooli.lighting_control.v1.control.ControlService/ConfigureZone",
+      "method": "POST",
+      "summary": "Configure connected zone LED count",
+      "description": "Persists explicit physical length within fresh advertised limits and reconciles through the normal desired-state writer, preserving manual Off.",
+      "category": "control",
+      "response": {
+        "type": "object",
+        "properties": {
+          "results": "array<ReconcileZoneResult>",
+          "zone": "ZoneCapability"
+        }
+      }
+    },
+    {
       "id": "control_backend_status",
       "path": "/vrooli.lighting_control.v1.control.ControlService/GetBackendStatus",
       "method": "POST",

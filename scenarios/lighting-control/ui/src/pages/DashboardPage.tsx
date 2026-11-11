@@ -13,6 +13,8 @@ import { useTranslation } from "../i18n";
 import { HealthCard } from "../features/health/HealthCard";
 import { lightingApi } from "../features/lights/api";
 import { hasStableControllerIdentity } from "../features/lights/identity";
+import { manualOffCoversAll } from "../features/lights/manualOff";
+import { useManualOffDescription } from "../features/lights/useManualOffDescription";
 import { useLightDesk } from "../features/lights/useLightDesk";
 import { ManualZoneEditor } from "../features/lights/ManualZoneEditor";
 import { Link } from "react-router-dom";
@@ -34,6 +36,8 @@ export function DashboardPage() {
   };
   const data = desk.data;
   const controllers = data?.controllers ?? [];
+  const offDescription = useManualOffDescription(data?.manualOverride, controllers);
+  const allOff = manualOffCoversAll(data?.manualOverride);
   const enrolled = controllers.filter((c) => c.enrolled);
   const statuses = new Map((data?.zones ?? []).map((zone) => [`${zone.desired?.controllerId}/${zone.desired?.zoneId}`, zone]));
   const backendReady = !desk.isError && data?.backend?.state === BackendState.READY;
@@ -51,17 +55,17 @@ export function DashboardPage() {
           <PolicyPanel effective={data.effective} evidence={data.effective?.evidence ?? []} maxAgeSeconds={data.config?.sourceMaxAgeSeconds ?? 60} busy={busy} onPreset={(kind) => void act(() => lightingApi.choosePreset(kind), t(strings.lightDesk.presetRequested))} onResume={() => void act(() => lightingApi.clearPreset(), t(strings.lightDesk.autoResumed))}/>
           <HealthCard/>
           {controllerPanel}
-          <Inspector controllers={controllers} statuses={statuses} offActive={Boolean(data.manualOverride?.active)}/>
+          <Inspector controllers={controllers} statuses={statuses} offDescription={offDescription}/>
         </> : <>
           <div className="lightdesk-column"><BackendPanel state={data.backend?.state} detail={data.backend?.detail ?? ""} protocol={data.backend?.sdkProtocolVersion ?? 0} count={enrolled.length} onCheck={() => void refresh()}/>{controllerPanel}</div>
           <div className="lightdesk-column"><PolicyPanel effective={data.effective} evidence={data.effective?.evidence ?? []} maxAgeSeconds={data.config?.sourceMaxAgeSeconds ?? 60} busy={busy} onPreset={(kind) => void act(() => lightingApi.choosePreset(kind), t(strings.lightDesk.presetRequested))} onResume={() => void act(() => lightingApi.clearPreset(), t(strings.lightDesk.autoResumed))}/><HealthCard/></div>
-          <div className="lightdesk-column"><Inspector controllers={controllers} statuses={statuses} offActive={Boolean(data.manualOverride?.active)}/></div>
+          <div className="lightdesk-column"><Inspector controllers={controllers} statuses={statuses} offDescription={offDescription}/></div>
         </>}
       </div>
       {notice ? <p role="status" className="lightdesk-notice">{notice}</p> : null}
       {actionError ? <p role="alert" className="lightdesk-alert">{actionError}</p> : null}
-      {data.manualOverride?.active ? <div className="lightdesk-alert lightdesk-alert--off" role="status"><Power aria-hidden="true"/><span>{t(strings.lightDesk.manualOffActive)}</span><button className="lightdesk-button" disabled={busy} onClick={() => void act(() => lightingApi.clearOff(), t(strings.lightDesk.offCleared))}>{t(strings.lightDesk.resumeLighting)}</button></div> : null}
-      <div className="lightdesk-mobile-action"><button data-testid={selectors.lightDesk.manualOff} className="lightdesk-button lightdesk-button--danger" disabled={busy || enrolled.length === 0 || data.manualOverride?.active} onClick={() => void act(() => lightingApi.setOff(), t(strings.lightDesk.offRequested))}><Power aria-hidden="true"/>{t(strings.lightDesk.turnOff)}</button></div>
+      {data.manualOverride?.active ? <div className="lightdesk-alert lightdesk-alert--off" role="status"><Power aria-hidden="true"/><span>{offDescription}</span><button className="lightdesk-button" disabled={busy} onClick={() => void act(() => lightingApi.clearOff(), t(strings.lightDesk.offCleared))}>{t(strings.lightDesk.resumeLighting)}</button></div> : null}
+      <div className="lightdesk-mobile-action"><button data-testid={selectors.lightDesk.manualOff} className="lightdesk-button lightdesk-button--danger" disabled={busy || enrolled.length === 0 || allOff} onClick={() => void act(() => lightingApi.setOff(), t(strings.lightDesk.offRequested))}><Power aria-hidden="true"/>{t(strings.lightDesk.turnOff)}</button></div>
     </> : null}
   </section>;
 }
@@ -72,7 +76,7 @@ function BackendPanel({ state, detail, protocol, count, onCheck }: { state?: Bac
   const stateLabel = state === undefined ? undefined : backendStateNames[state]?.replace("BACKEND_STATE_", "");
   return <section className="lightdesk-panel" aria-labelledby="backend-title"><div className="lightdesk-panel-heading"><Activity aria-hidden="true"/><h2 id="backend-title">{t(strings.lightDesk.backend)}</h2></div>
     <p className={`lightdesk-status ${ready ? "is-ready" : "is-unavailable"}`}><i/> {ready ? t(strings.lightDesk.backendReady) : t(strings.lightDesk.backendUnavailable)} · {stateLabel ?? t(strings.lightDesk.controllerUi.backendUnknown)}</p>
-    <p className="lightdesk-muted">{detail || t(strings.lightDesk.backendUnknown)}</p><p className="lightdesk-meta">{ready ? `${t(strings.lightDesk.protocolVersion)} ${protocol} · ${count} ${t(strings.lightDesk.enrolledCount)}` : t(strings.lightDesk.desiredStateRetained)}</p><button className="lightdesk-button lightdesk-button--small" onClick={onCheck}>{t(strings.lightDesk.checkBackend)}</button>
+    {detail || !ready ? <p className="lightdesk-muted">{detail || t(strings.lightDesk.backendUnknown)}</p> : null}<p className="lightdesk-meta">{ready ? `${t(strings.lightDesk.protocolVersion)} ${protocol} · ${count} ${t(strings.lightDesk.enrolledCount)}` : t(strings.lightDesk.desiredStateRetained)}</p><button className="lightdesk-button lightdesk-button--small" onClick={onCheck}>{t(strings.lightDesk.checkBackend)}</button>
   </section>;
 }
 
@@ -109,13 +113,13 @@ function PolicyPanel({ effective, evidence, maxAgeSeconds, busy, onPreset, onRes
   </section>;
 }
 
-function Inspector({ controllers, statuses, offActive }: { controllers: Controller[]; statuses: Map<string, ZoneStatus>; offActive: boolean }) {
+function Inspector({ controllers, statuses, offDescription }: { controllers: Controller[]; statuses: Map<string, ZoneStatus>; offDescription: string }) {
   const { t } = useTranslation();
   const zones = [...statuses.values()];
   const total = controllers.filter((controller) => controller.enrolled).reduce((n, controller) => n + controller.zones.length, 0);
   const acknowledgements = zones.filter((zone) => zone.lastApply?.backendAcknowledged).length;
   const observations = zones.filter((zone) => zone.observation).length;
-  return <section className="lightdesk-panel" aria-labelledby="evidence-title"><div className="lightdesk-panel-heading"><Check aria-hidden="true"/><h2 id="evidence-title">{t(strings.lightDesk.commandEvidence)}</h2></div><dl className="lightdesk-inspector-list"><div><dt>{t(strings.lightDesk.enrolledZones)}</dt><dd>{total}</dd></div><div><dt>{t(strings.lightDesk.backendAccepted)}</dt><dd>{acknowledgements}</dd></div><div><dt>{t(strings.lightDesk.observedOutput)}</dt><dd>{observations}</dd></div><div><dt>{t(strings.lightDesk.manualPriority)}</dt><dd>{offActive ? t(strings.lightDesk.active) : t(strings.lightDesk.inactive)}</dd></div></dl><p className="lightdesk-warning"><CircleHelp aria-hidden="true"/>{t(strings.lightDesk.acknowledgedNotObserved)}</p></section>;
+  return <section className="lightdesk-panel" aria-labelledby="evidence-title"><div className="lightdesk-panel-heading"><Check aria-hidden="true"/><h2 id="evidence-title">{t(strings.lightDesk.commandEvidence)}</h2></div><dl className="lightdesk-inspector-list"><div><dt>{t(strings.lightDesk.enrolledZones)}</dt><dd>{total}</dd></div><div><dt>{t(strings.lightDesk.backendAccepted)}</dt><dd>{acknowledgements}</dd></div><div><dt>{t(strings.lightDesk.observedOutput)}</dt><dd>{observations}</dd></div><div><dt>{t(strings.lightDesk.manualPriority)}</dt><dd>{offDescription}</dd></div></dl><p className="lightdesk-warning"><CircleHelp aria-hidden="true"/>{t(strings.lightDesk.acknowledgedNotObserved)}</p></section>;
 }
 
 function operationKey(value: OperationState | undefined) {

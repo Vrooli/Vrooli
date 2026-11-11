@@ -51,6 +51,15 @@ lighting intent and can be resumed by the reconciler. The low-level resource
 commands remain available for explicit maintenance; `resource disable openrgb`
 also persists its resource opt-out before stop effects.
 
+Permission changes also require retained update launches to be retired. If a
+retained role's exec record is missing, repeat the normal lighting disable
+command before retrying permission apply. The owner reconstructs only a revoked
+tombstone and verifies exact native absence or completes exact stop/release;
+it never recreates permission to execute. Revocation and completed native
+cleanup are acknowledged separately, so an interrupted cleanup remains a
+permission blocker. Do not remove the update ledger or edit fence records to
+clear this condition.
+
 Managed setup selects and acquires the pinned official1.1 envelope through SDA
 and the resource acquisition owner. Existing-source setup accepts declared1.1
 compatibility metadata but launch additionally requires an exact qualified
@@ -92,7 +101,12 @@ OpenRGB host update, rollback and reboot remain separately unverified.
 The `deployment.profiles.desktop` entry stays unsupported on every platform:
 this resource is declared `host-required` and has no signed desktop-bundle
 artifact contract. That declaration is separate from the control-plane
-resource lifecycle, which currently integrates Linux amd64 only.
+resource lifecycle. Maintained source paths cover Linux amd64/arm64, macOS
+Intel/Apple Silicon and Windows x64. Native macOS/Windows readiness remains
+`unqualified` until actual account, access, SDK and headless lifecycle evidence
+is observed. Windows ARM has no official native1.1 asset and is unsupported.
+See `NATIVE-PORTABILITY.md` and `NATIVE-RELEASE-PROFILES.md` for the exact native
+owner/transport/prerequisite boundary; cross-builds do not qualify hardware.
 
 ## Compatibility and permissions
 

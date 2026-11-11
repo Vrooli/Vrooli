@@ -27,21 +27,22 @@ OpenRGB's raw SDK is unauthenticated and must remain loopback-only; it is
 never exposed through a proxy, LAN bind, or browser. UI and CLI call the
 lighting-control API, never the SDK directly.
 
-Every public Control and Policy mutation requires a verified, unexpired
-identity with `lighting-control:write`. Setup uses the same boundary helper;
-read capabilities retain the shared resolver's wildcard rules. The passive
-identity middleware supplies verified attribution and does not itself authorize
-mutations. Missing, invalid, expired, unverified and read-only credentials are
-refused before storage or backend calls. Existing scoped human, agent and
-service identities remain supported without an added operation grant or
-human-only restriction. Background evaluation and direct domain calls remain
-inside their existing internal owner boundaries.
+Every public Control and Policy mutation admits a current verified, unexpired
+Agent Manager project-agent identity without approval, operation grants or
+lighting scopes. Admission requires both the middleware-derived
+`SourceAgentProvenance` principal and its matching verified request provenance,
+including run, owner and live expiry. A source label alone does not establish
+trust. Human and service callers retain the existing verified
+`lighting-control:write` capability policy. Setup retains separate capability
+checks and native OS permissions; ordinary lighting access does not widen it.
 
-Private HTTP regressions exercise every non-read Control/Policy RPC through
-the generated clients and shared passive middleware. They compare complete
-application-table snapshots and backend call counts on denial, and cover
-scoped and wildcard owner requests. This proves the source boundary; operated
-identity propagation and native hardware qualification remain separate checks.
+Anonymous, invalid, expired, unverified and foreign-source agents are refused
+before storage or backend calls. Private generated-client HTTP regressions
+exercise all ten Control/Policy mutations with an ordinary empty-scope project
+identity, and compare stored-state snapshots and backend call counts on denial.
+They also retain human/service scoped and wildcard authority tests. Background
+policy evaluation and private native runtime binding keep their existing owner
+boundaries. Source tests do not claim physical output or native OS qualification.
 
 
 ## Read-Only Policy Preview

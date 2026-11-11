@@ -5,7 +5,7 @@ the `.vrooli/service.json` manifest, and the per-user CLI config file.
 
 The lifecycle (`vrooli scenario start`, `make start`) sets every
 required variable automatically. You only need this reference when
-running a binary by hand or when a scenario adds a new variable.
+configuring lifecycle settings or supported deployment overrides.
 
 ## Environment variables
 
@@ -29,7 +29,7 @@ ports as outbound source ports. See the project-level port allocation reference
 | Variable | Default | Purpose |
 |---|---|---|
 | _(none)_ | — | The SQLite file location is **not** configurable through the environment. It is resolved from the scenario id by `api-core/storage`, so no inherited variable can point one scenario at another's database. Set `VROOLI_STORAGE_ROOT` to relocate the whole storage tree for a test run. |
-| `API_TOKEN` | unset | Shared bearer token for CLI ↔ API auth (only enforce in production deployments). |
+| `API_TOKEN` | unset | Optional deployment bearer credential; ordinary lighting writes require a verified project-agent identity or an existing standing capability; privileged setup retains separate checks. |
 | `UI_BASE_URL` | (resolved by `@vrooli/api-base`) | External UI URL when the scenario is iframe-embedded. |
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
@@ -198,7 +198,7 @@ governed by the policy profile.
 Light Desk uses the installation's existing `scenario-authenticator` realm.
 Configure that provider explicitly through its supported setup workflow; Light
 Desk never starts it or creates accounts. The scenario manifest declares the
-`lighting-control` resource with audience `scenario:lighting-control`. The
+`lighting-control` resource with audience `scenario-authenticator:lighting-control`. The
 account must already have `lighting-control:write` for lighting changes;
 signing in proves identity and does not grant capabilities.
 
@@ -234,3 +234,11 @@ Account bootstrap, password recovery, capability changes and realm administratio
 remain the authenticator's responsibility; this UI exposes none of those
 management operations. No desktop personal-local mode, external account linking,
 or offline identity fallback is implemented here.
+
+## Lighting authorization
+
+Ordinary lighting control, enrollment, colors, Off and presets do **not** require agent approval, an operation grant or lighting capability scopes. They accept the current verified, unexpired Agent Manager project-agent identity through the canonical request middleware. A claimed source label, anonymous request, invalid token, expired identity or foreign issuer cannot establish that identity. Identity and runtime binding verification remain in the shared middleware; no borrowed credential or direct SDK route is used.
+
+Human and service callers retain the existing verified `lighting-control:write` capability policy. Public metadata reads remain available for inspecting current controllers and desired state. Host setup, installation, enable/disable and device-permission changes retain their existing capability checks and native OS permissions; ordinary lighting access does not broaden those paths.
+
+Scenario Authenticator tokens use audience `scenario-authenticator:lighting-control`. Signing in proves identity and does not grant human or service capabilities. The CLI uses its existing ordinary Agent Manager identity transport; no lighting-specific consent or operation proof is needed.

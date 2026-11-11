@@ -6,6 +6,7 @@ const clients = vi.hoisted(() => ({
     listControllers: vi.fn(),
     getDesiredState: vi.fn(),
     enrollController: vi.fn(),
+    configureZone: vi.fn(),
     setManualOff: vi.fn(),
     clearManualOverride: vi.fn(),
     reconcile: vi.fn(),
@@ -148,4 +149,47 @@ describe("lightingApi", () => {
     expect(clients.policy.setManualPreset).not.toHaveBeenCalled();
   });
 
+});
+
+it("sends explicit LED length through the typed public configuration method", async () => {
+ clients.control.configureZone.mockResolvedValue({ zone: { configuredLedCount: 24 } });
+ await lightingApi.configureZone("terminal", "header", 24);
+ expect(clients.control.configureZone).toHaveBeenCalledWith(expect.objectContaining({ controllerId: "terminal", zoneId: "header", ledCount: 24 }));
+});
+
+it("keeps saved wiring and manual Off inspectable without upgrading a failed inventory probe", async () => {
+  const { BackendState } = await import("@vrooli/proto-types/lighting-control/v1/control/control_pb");
+  const unavailable = { state: BackendState.UNAVAILABLE, detail: "OpenRGB SDK transport failure" };
+  const controllers = [{ controllerId: "saved", enrolled: true, zones: [{ zoneId: "header", ledCount: 24 }] }];
+  clients.control.getBackendStatus.mockResolvedValue({ backend: { state: BackendState.READY } });
+  clients.control.listControllers.mockResolvedValue({ backend: unavailable, controllers });
+  clients.control.getDesiredState.mockResolvedValue({ zones: [], manualOverride: { active: true, allEnrolled: true, controllerIds: [] } });
+  clients.policy.getPolicy.mockResolvedValue({});
+  const snapshot = await lightingApi.readDesk();
+  expect(snapshot.backend).toEqual(unavailable);
+  expect(snapshot.controllers).toEqual(controllers);
+  expect(snapshot.manualOverride?.active).toBe(true);
+  expect(clients.control.listControllers).toHaveBeenCalledWith(expect.objectContaining({ includeUnavailable: true }));
+});
+
+it("does not upgrade an unavailable backend probe using an earlier ready inventory", async () => {
+  const { BackendState } = await import("@vrooli/proto-types/lighting-control/v1/control/control_pb");
+  const stopped = { state: BackendState.STOPPED };
+  clients.control.getBackendStatus.mockResolvedValue({ backend: stopped });
+  clients.control.listControllers.mockResolvedValue({ backend: { state: BackendState.READY }, controllers: [] });
+  clients.control.getDesiredState.mockResolvedValue({ zones: [] });
+  clients.policy.getPolicy.mockResolvedValue({});
+  expect((await lightingApi.readDesk()).backend).toEqual(stopped);
+});
+
+
+it("projects scoped Off onto every selected controller zone without altering other manual colors", async () => {
+  const base = (controllerId: string, zoneId: string) => ({ desired: { controllerId, zoneId, desiredMode: { case: "staticColor", value: { color: { red: 7, green: 8, blue: 9 } } } } });
+  clients.control.getBackendStatus.mockResolvedValue({});
+  clients.control.listControllers.mockResolvedValue({ controllers: [] });
+  clients.policy.getPolicy.mockResolvedValue({});
+  clients.control.getDesiredState.mockResolvedValue({ zones: [base("a", "one"), base("a", "two"), base("b", "one")], manualOverride: { active: true, allEnrolled: false, controllerIds: ["a"] } });
+  const snapshot = await lightingApi.readDesk();
+  expect(snapshot.zones.map((zone) => zone.desired?.desiredMode.case)).toEqual(["off", "off", "staticColor"]);
+  expect(snapshot.zones[2]?.desired?.desiredMode).toMatchObject({ value: { color: { red: 7, green: 8, blue: 9 } } });
 });
