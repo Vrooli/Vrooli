@@ -83,6 +83,7 @@ func pythonIndexSetsFromJSON(data []byte) map[string]pythonIndexSet {
 func updatePythonLocks(ctx context.Context, resolution Resolution) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
+	ctx = withInstallCacheEnvironment(ctx, resolution.PackageManager, resolution.DiskCachePath, resolution.DiskBuildCachePath)
 	if resolution.PythonBootstrap != nil {
 		return bootstrapPythonLock(ctx, resolution)
 	}
@@ -180,6 +181,7 @@ func compilePythonLock(ctx context.Context, root, input, output string, indexes 
 	args = append(args, "--output-file", output, input)
 	command := exec.CommandContext(ctx, "uv", args...)
 	command.Dir = root
+	command.Env = overlayInstallEnvironment(os.Environ(), installEnvironmentFromContext(ctx))
 	command.WaitDelay = 5 * time.Second
 	var diagnostic hostToolOutput
 	command.Stdout, command.Stderr = &diagnostic, &diagnostic

@@ -19,12 +19,11 @@ import (
 	"github.com/vrooli/vrooli/internal/artifactlock"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/config"
-	"github.com/vrooli/vrooli/internal/hostreqkit"
-	"github.com/vrooli/vrooli/internal/resources"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/tools/akt"
 	"github.com/vrooli/vrooli/internal/tools/hyperframes"
 	"github.com/vrooli/vrooli/internal/tools/kubo"
+	mt7927source "github.com/vrooli/vrooli/internal/tools/mt7927-source"
 	triposrsource "github.com/vrooli/vrooli/internal/tools/triposr-source"
 	"github.com/vrooli/vrooli/packages/harness-lifecycle"
 )
@@ -35,8 +34,8 @@ func resolveHostTool(root, name, ecosystem, pkg, version string) (Resolution, er
 	if ecosystem == "system" {
 		return resolveSystemHostTool(root, name, pkg, version)
 	}
-	if name == "cloudflared" {
-		return resolveCloudflaredResource(root, ecosystem, pkg, version)
+	if name == "cloudflared" || name == "openrgb" {
+		return resolveManagedServiceResource(root, name, ecosystem, pkg, version)
 	}
 	switch name {
 	case "codex", "claude-code", "opencode", "grok":
@@ -60,6 +59,12 @@ func resolveHostTool(root, name, ecosystem, pkg, version string) (Resolution, er
 	if name == triposrsource.ToolName && ecosystem == "source" && pkg == triposrsource.ToolName && version == triposrsource.Commit {
 		source := filepath.Join(root, "internal", "tools", triposrsource.ToolName)
 		return Resolution{HostSource: true, RepositoryRoot: root, SurfaceRoot: source, ManifestPath: filepath.Join(source, "tool.json"), PackageManager: "native-binaryfetch", PackageName: pkg, ExactVersion: true, Argv: []string{"native-acquire", pkg, version}, Profile: InstallProfile{Governance: "scenario-dependency-analyzer", LifecycleMode: "pinned-source-tree", FrozenLockfile: true}}, nil
+	}
+	if name == mt7927source.Name || name == mt7927source.NobleName || name == mt7927source.ASUSBluetoothName {
+		if pkg != name {
+			return Resolution{}, fmt.Errorf("MT7927 source package must match its owner %q", name)
+		}
+		return resolveMT7927Source(root, ecosystem, pkg, version)
 	}
 	if name != "hyperframes" || ecosystem != "npm" || pkg != "hyperframes" || version != hyperframes.Version {
 		return Resolution{}, fmt.Errorf("host-tool requires npm/hyperframes@%s and owner hyperframes", hyperframes.Version)
@@ -121,6 +126,7 @@ func refreshHostToolSource(ctx context.Context, r Resolution) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
+	ctx = withInstallCacheEnvironment(ctx, r.PackageManager, r.DiskCachePath, r.DiskBuildCachePath)
 	return hyperframes.RefreshSource(ctx, r.SurfaceRoot, r.HostToolTargetVersion, func(ctx context.Context, dir string) (string, error) { return hostToolInstall(ctx, dir, want.Argv) })
 }
 
@@ -129,7 +135,8 @@ func refreshHostToolSource(ctx context.Context, r Resolution) (string, error) {
 var hostToolInstall = func(ctx context.Context, dir string, argv []string) (string, error) {
 	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
 	cmd.Dir = dir
-	cmd.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
+	baseEnv := envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
+	cmd.Env = overlayInstallEnvironment(baseEnv, installEnvironmentFromContext(ctx))
 	cmd.WaitDelay = 5 * time.Second
 	var output hostToolOutput
 	cmd.Stdout, cmd.Stderr = &output, &output
@@ -148,6 +155,7 @@ func provisionHostTool(ctx context.Context, r Resolution) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
+	ctx = withInstallCacheEnvironment(ctx, r.PackageManager, r.DiskCachePath, r.DiskBuildCachePath)
 	return hyperframes.Provision(ctx, r.SurfaceRoot, func(ctx context.Context, dir string) (string, error) { return hostToolInstall(ctx, dir, want.Argv) })
 }
 
@@ -207,6 +215,7 @@ func provisionAgentResource(ctx context.Context, r Resolution) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
+	ctx = withInstallCacheEnvironment(ctx, r.PackageManager, r.DiskCachePath, r.DiskBuildCachePath)
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
@@ -503,49 +512,4 @@ func qualifyAgentBinary(ctx context.Context, name, binary, version, root string)
 		return fmt.Errorf("offline candidate version mismatch: %q", string(output))
 	}
 	return nil
-}
-
-// Cloudflared has one acquisition owner: the managed-service resource manifest.
-// This gateway only admits the exact committed target and delegates staging;
-// it cannot start/stop connectors or accept caller-selected paths/URLs.
-func resolveCloudflaredResource(root, ecosystem, pkg, version string) (Resolution, error) {
-	path := filepath.Join(root, "resources", "cloudflared", "resource.json")
-	m, err := manifestpkg.Load(path)
-	if err != nil {
-		return Resolution{}, err
-	}
-	if ecosystem != "source" || pkg != "cloudflared" || m.Name != "cloudflared" || m.Driver != "managed-service" || m.ManagedService == nil || m.ManagedService.Acquisition == nil || m.ManagedService.Artifact.Verification == "host-tool" || version != m.ManagedService.Artifact.Version {
-		return Resolution{}, fmt.Errorf("cloudflared requires its exact resource-owned checksum-pinned source release")
-	}
-	target, err := m.ManagedService.Acquisition.Resolve(binaryfetch.Facts{"os": runtime.GOOS, "arch": runtime.GOARCH})
-	if err != nil {
-		return Resolution{}, err
-	}
-	if target.Unsupported != "" || target.Executable != "" || m.ManagedService.Acquisition.EffectiveKind(target) != "url" {
-		return Resolution{}, fmt.Errorf("cloudflared has no pinned release on this platform")
-	}
-	return Resolution{RepositoryRoot: root, SurfaceRoot: filepath.Dir(path), ManifestPath: path, PackageManager: "native-binaryfetch", PackageName: pkg, HostToolTargetVersion: version, ExactVersion: true, Argv: []string{"native-acquire", pkg, version}, Profile: InstallProfile{Governance: "scenario-dependency-analyzer", LifecycleMode: "managed-service-artifact", FrozenLockfile: true, ScriptsDisabled: true}}, nil
-}
-
-func provisionManagedServiceArtifact(ctx context.Context, r Resolution) (string, error) {
-	want, err := resolveCloudflaredResource(r.RepositoryRoot, "source", r.PackageName, r.HostToolTargetVersion)
-	if err != nil {
-		return "", err
-	}
-	// Compare every field; an untrusted reconstructed resolution cannot widen the
-	// write from verified staging into an arbitrary install or lifecycle action.
-	a, _ := json.Marshal(r)
-	b, _ := json.Marshal(want)
-	if string(a) != string(b) {
-		return "", fmt.Errorf("managed-service artifact resolution changed before acquisition")
-	}
-	home, err := hostreqkit.InvokingUserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	info, err := resources.NewController(r.RepositoryRoot, home).StageManagedServiceArtifact(ctx, "cloudflared", r.HostToolTargetVersion)
-	if err != nil {
-		return "", err
-	}
-	return "Staged verified cloudflared " + info.Version + " at " + info.Path + "; serving connector unchanged", nil
 }

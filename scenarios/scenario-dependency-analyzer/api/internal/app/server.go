@@ -21,6 +21,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	searchregister "github.com/vrooli/searchregister-go"
 	vroolicli "github.com/vrooli/vrooli-cli-go"
+	"github.com/vrooli/vrooli/packages/capacity"
 
 	"github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/aisearch"
 	analysisapi "github.com/vrooli/vrooli/scenarios/scenario-dependency-analyzer/api/internal/analysis"
@@ -60,7 +61,10 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, dbConn)
 	rootMux.Handle("/", handler)
-	handler = analysisoperations.ClearWaitDeadline(apihttp.TestModeMiddleware(rootMux))
+	handler, err := dependencygovernanceapi.WithInstallTransport(analysisoperations.ClearWaitDeadline(apihttp.TestModeMiddleware(rootMux)))
+	if err != nil {
+		return fmt.Errorf("configure dependency install transport: %w", err)
+	}
 
 	h := newHandler(rt)
 	graphIngest := newGraphIngestService(rt)
@@ -100,6 +104,16 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 		SearchJSONPath: searchJSONPath,
 	})
 	log.Println("Scenario Dependency Analyzer semantic search initialized")
+	diskBroker, diskBrokerErr := capacity.NewBroker(context.Background(), "")
+	if diskBrokerErr != nil {
+		log.Printf("dependency-governance: shared disk admission unavailable; applied installs will be refused: %v", diskBrokerErr)
+	} else {
+		defer func() {
+			if err := diskBroker.Close(); err != nil {
+				log.Printf("dependency-governance: close shared disk admission broker: %v", err)
+			}
+		}()
+	}
 
 	// The control token gates the shared, token-gated reindex/config-write plane.
 	// search-hub mints it at registration and is its only holder, so the token
@@ -139,7 +153,8 @@ func Run(cfg appconfig.RuntimeConfig, dbConn *database.RoutedDB) error {
 	// The dependency-governance corpus is injected as the SearchApprovedDependencies
 	// ranker (searchService is the same multi-corpus service built above).
 	dependencygovernanceapi.RegisterConnectRoutes(router, h.scenariosDir,
-		dependencygovernanceapi.WithSemanticRanker(searchService))
+		dependencygovernanceapi.WithSemanticRanker(searchService),
+		dependencygovernanceapi.WithDiskJobBroker(diskBroker))
 
 	// Federate every SDA leaf into search-hub from the same .vrooli/search.json
 	// SSOT (dependencies, scenarios, resources). Best-effort: the hub being down is

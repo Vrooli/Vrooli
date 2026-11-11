@@ -91,3 +91,98 @@ func TestManagedServiceReleaseRevalidatesBeforeAcquisition(t *testing.T) {
 		t.Fatal("changed source admitted")
 	}
 }
+
+func openRGBResourceFixture(t *testing.T) string {
+	t.Helper()
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		t.Skip("exact OpenRGB envelope staging profile is linux-amd64")
+	}
+	root := t.TempDir()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "resources", "openrgb", "resource.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest map[string]any
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	// This fixture omits source-selection persistence so disk planning can be
+	// tested independently of the operator's source enrollment.
+	service := manifest["managed_service"].(map[string]any)
+	service["source_selection_required"] = false
+	delete(service, "host_tool_executable")
+	delete(service, "host_tool_version")
+	raw, err = json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "resources", "openrgb", "resource.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func TestOpenRGBManagedSourceFreezesManifestAndExactRelease(t *testing.T) {
+	root := openRGBResourceFixture(t)
+	resolution, err := Resolve(root, "openrgb", "host-tool", "source", "openrgb", "1.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolution.HostManifestSHA256 == "" || resolution.Profile.LifecycleMode != "managed-service-artifact" || !resolution.Profile.ScriptsDisabled || resolution.Command() != "native-acquire openrgb 1.1" {
+		t.Fatalf("unexpected source resolution %+v", resolution)
+	}
+	for _, version := range []string{"", "latest", "1.0"} {
+		if _, err := Resolve(root, "openrgb", "host-tool", "source", "openrgb", version); err == nil {
+			t.Fatalf("release %q admitted", version)
+		}
+	}
+	if _, err := Resolve(root, "openrgb", "host-tool", "source", "cloudflared", "1.1"); err == nil {
+		t.Fatal("cross-owner source admitted")
+	}
+	raw, err := os.ReadFile(resolution.ManifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An edited digest for the same named release must not inherit admission.
+	raw = []byte(strings.ReplaceAll(string(raw), "d556c2273b0ef863dbee7ffdb438304b382add5d685c93c60758b42de3b0268d", strings.Repeat("a", 64)))
+	if err := os.WriteFile(resolution.ManifestPath, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := (ExecInstaller{}).Install(context.Background(), resolution); err == nil || !strings.Contains(err.Error(), "resolution changed") {
+		t.Fatalf("changed manifest was not fenced before acquisition: %v", err)
+	}
+}
+
+func TestOpenRGBManagedSourceReservesAllCanonicalStagePaths(t *testing.T) {
+	root := openRGBResourceFixture(t)
+	artifacts := filepath.Join(root, "private-artifacts")
+	t.Setenv("HOME", filepath.Join(root, "operator-home"))
+	t.Setenv("VROOLI_RESOURCE_ARTIFACT_DIR", artifacts)
+	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", filepath.Join(root, "resource-state"))
+	resolution, err := Resolve(root, "openrgb", "host-tool", "source", "openrgb", "1.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := PlanDiskAdmission(context.Background(), resolution)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Unsupported != "" || plan.ProbeBytes != 37528768 || len(plan.Paths) != 8 {
+		t.Fatalf("unbounded or incomplete disk plan %+v", plan)
+	}
+	if plan.Paths[0].Path != filepath.Join(artifacts, "openrgb", "1.1") || plan.Paths[0].PeakBytes < 3*plan.ProbeBytes {
+		t.Fatalf("artifact path escaped capacity plan %+v", plan)
+	}
+	for _, requirement := range plan.Paths {
+		if !filepath.IsAbs(requirement.Path) || requirement.PeakBytes <= 0 {
+			t.Fatalf("uncovered stage path %+v", requirement)
+		}
+	}
+	if _, err := os.Stat(artifacts); !os.IsNotExist(err) {
+		t.Fatalf("planning created artifact storage: %v", err)
+	}
+}

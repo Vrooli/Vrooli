@@ -85,6 +85,23 @@ func TestControlTokenGate(t *testing.T) {
 	}
 }
 
+func TestReindexRejectsMigrationBeforeOrdinaryReconcile(t *testing.T) {
+	fake := &fakeReindexer{}
+	handler := newHandler("secret", fake, &fakeConfigWriter{})
+	for _, request := range []*controlv1.ReindexRequest{
+		{ControlToken: "secret", Action: "shadow", ShadowCollection: "candidate", EmbeddingModel: "m", EmbeddingRole: "r", EmbeddingDimensions: 3, EmbeddingPolicySchemaVersion: "v1"},
+		{ControlToken: "secret", EmbeddingModel: "m"},
+		{ControlToken: "secret", Action: "abort"},
+	} {
+		if _, err := handler.Reindex(context.Background(), connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("request %+v: code=%s err=%v, want invalid_argument", request, connect.CodeOf(err), err)
+		}
+	}
+	if fake.reindexed {
+		t.Fatal("unsupported migration request reached ordinary reconcile")
+	}
+}
+
 // TestEmptyCachedTokenAlwaysDenies confirms an un-minted (empty cached) token
 // denies even when the caller presents an empty token (no "" == "" admit).
 func TestEmptyCachedTokenAlwaysDenies(t *testing.T) {

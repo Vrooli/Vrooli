@@ -27,7 +27,7 @@ func TestExternalWorkspaceInstallGovernsRequestedAndExistingDependencies(t *test
 					t.Fatal(err)
 				}
 				installer := &recordingInstaller{}
-				h := &connectHandler{scenariosDir: func() string { return filepath.Join(repo, "scenarios") }, installer: installer}
+				h := withTestDiskAdmission(t, &connectHandler{scenariosDir: func() string { return filepath.Join(repo, "scenarios") }, installer: installer})
 				request := &governancev1.InstallDependencyRequest{WorkspacePath: workspace, Ecosystem: "npm", PackageName: "requested", Version: "1.0.0", Apply: apply}
 				resp, err := h.InstallDependency(context.Background(), connect.NewRequest(request))
 				if err != nil {
@@ -47,7 +47,7 @@ func TestExternalWorkspaceInstallGovernsRequestedAndExistingDependencies(t *test
 
 func TestExternalWorkspaceRejectsMixedTargetBeforeEffects(t *testing.T) {
 	installer := &recordingInstaller{}
-	h := &connectHandler{installer: installer}
+	h := withTestDiskAdmission(t, &connectHandler{installer: installer})
 	_, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{WorkspacePath: "/tmp/external", Scenario: "demo", Apply: true}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument || installer.called {
 		t.Fatalf("mixed target admitted: %v", err)

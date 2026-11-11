@@ -27,7 +27,7 @@ func TestDevelopmentInstallIsGovernedBeforeEffects(t *testing.T) {
 					}
 				}
 				installer := &recordingInstaller{}
-				h := &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer}
+				h := withTestDiskAdmission(t, &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer})
 				resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{
 					Scenario: "demo", Surface: "ui", Ecosystem: "npm", PackageName: "coverage-fixture", Version: "1.2.3", ExactVersion: true, Development: true, Apply: apply,
 				}))
@@ -88,7 +88,7 @@ func TestHostToolSourceRefreshOutcomeNeverClaimsRuntimeInstalled(t *testing.T) {
 					}
 				}
 				installer := &recordingInstaller{}
-				h := &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer}
+				h := withTestDiskAdmission(t, &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer})
 				resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{
 					Scenario: "hyperframes", Surface: "host-tool", Ecosystem: "npm", PackageName: "hyperframes", Version: "0.8.112", ExactVersion: true, RefreshLock: true, Apply: apply,
 				}))

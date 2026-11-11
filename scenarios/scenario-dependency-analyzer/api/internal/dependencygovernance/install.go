@@ -2,6 +2,7 @@ package dependencygovernance
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -106,6 +107,8 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 	}
 	if resolution.Profile.LifecycleMode == "managed-service-artifact" {
 		target = "resource-owned verified artifact " + msg.GetScenario() + " (staging only; serving process unchanged)"
+	} else if resolution.Profile.LifecycleMode == installgateway.MT7927SourceLifecycle {
+		target = "local pinned MT7927 build inputs"
 	} else if resolution.Profile.LifecycleMode == "resource-agent" {
 		target = "resource-owned harness " + msg.GetScenario() + " (exact user-prefix installation)"
 	} else if resolution.HostTool || resolution.HostToolRefresh {
@@ -124,22 +127,50 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		if resolution.Profile.LifecycleMode == "managed-service-artifact" {
 			action = "stage the verified artifact; serving process remains unchanged"
 		}
+		if resolution.Profile.LifecycleMode == installgateway.MT7927SourceLifecycle {
+			action = "stage verified data for exact-ABI build qualification"
+		}
 		if resolution.HostToolRefresh {
 			action = "refresh source dependency inputs only; no runtime will be installed"
 		}
 		resp.Message = fmt.Sprintf("Dry run (%s): would run `%s` in %s. Re-run with --apply to %s.",
 			verdict, resolution.Command(), target, action)
 	default:
-		if isNpmOverride {
-			if err := installgateway.SetNpmOverride(resolution.ManifestPath, msg.GetPackageName(), overrideVersion); err != nil {
-				return nil, connect.NewError(connect.CodeInternal, err)
-			}
+		lease, plan, admissionErr := reserveInstallDiskJob(ctx, h.diskBroker, h.diskPlanner, resolution)
+		if admissionErr != nil {
+			resp.Blocked = true
+			resp.Verdict = "disk_admission_denied"
+			resp.Message = fmt.Sprintf("Blocked (disk_admission_denied): %v. The install was NOT run and no manifest was changed.", admissionErr)
+			resp.NextSteps = append(resp.NextSteps, "Restore the shared capacity broker or resolve the uncovered path/size estimate, then retry the dry-run and apply request.")
+			return connect.NewResponse(resp), nil
 		}
+		resolution.DiskCachePath = plan.CachePath
+		resolution.DiskBuildCachePath = plan.BuildCachePath
+		resolution.DiskPythonExecutable = plan.PythonExecutable
+		resolution.DiskPythonWheelURL = plan.PythonWheelURL
+		resolution.DiskPythonWheelSHA256 = plan.PythonWheelSHA256
+		resolution.DiskPythonWheelBytes = plan.PythonWheelBytes
+		resolution.DiskPythonTarget = plan.PythonTarget
+		resolution.DiskPythonStage = plan.PythonStage
 		installer := h.installer
 		if installer == nil {
 			installer = installgateway.ExecInstaller{}
 		}
-		output, runErr := installer.Install(ctx, resolution)
+		job := runWithDiskJob(ctx, lease, resolution, func(installCtx context.Context) (string, error) {
+			if isNpmOverride {
+				if err := installgateway.SetNpmOverride(resolution.ManifestPath, msg.GetPackageName(), overrideVersion); err != nil {
+					return "", err
+				}
+			}
+			return installer.Install(installCtx, resolution)
+		})
+		output, runErr := job.Output, job.RunErr
+		if job.Receipt.ID != "" {
+			resp.SecurityNotes = append(resp.SecurityNotes, diskReceiptNote(job.Receipt))
+		}
+		if job.LifeErr != nil {
+			runErr = errors.Join(runErr, job.LifeErr)
+		}
 		if runErr != nil {
 			resp.Message = fmt.Sprintf("Install failed (%s): `%s` — %v\n%s", verdict, resolution.Command(), runErr, strings.TrimSpace(output))
 			resp.NextSteps = append(resp.NextSteps, "Fix the error above and re-run, or run the dry-run first to inspect the command.")
@@ -169,6 +200,12 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 			resp.NextSteps = append(resp.NextSteps, "Inspect desired, staged and running versions with vrooli resource status "+msg.GetScenario()+" --json; connector promotion and rollback are separate lifecycle operations.")
 			return connect.NewResponse(resp), nil
 		}
+		if resolution.Profile.LifecycleMode == installgateway.MT7927SourceLifecycle {
+			resp.Installed = true
+			resp.Message = strings.TrimSpace(output)
+			resp.NextSteps = append(resp.NextSteps, "Use the staged source inputs for an isolated build against the exact target kernel headers.")
+			return connect.NewResponse(resp), nil
+		}
 		resp.Installed = true
 		verb := "Installed"
 		if resolution.TemplateVersion != "" {
@@ -185,6 +222,10 @@ func (h *connectHandler) InstallDependency(ctx context.Context, req *connect.Req
 		}
 		if resolution.HostTool {
 			resp.NextSteps = append(resp.NextSteps, "Verify managed bytes: vrooli host install hyperframes --dry-run", "Qualify one bounded local composition before fresh-film production; no browser was downloaded.")
+			return connect.NewResponse(resp), nil
+		}
+		if resolution.PackageManager == "pip-local-wheel" {
+			resp.NextSteps = append(resp.NextSteps, "Run the local research tool with `PYTHONPATH="+resolution.DiskPythonTarget+" python3 -m yt_dlp` or the target's `bin/yt-dlp` entry point; keep the artifact labeled local-research-only.")
 			return connect.NewResponse(resp), nil
 		}
 		if resolution.ExternalWorkspace {

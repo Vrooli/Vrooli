@@ -44,6 +44,18 @@ profile so callers can distinguish lockfile reproduction from a manifest
 mutation. Protected build exceptions are explicit, owner-attributed, and
 limited to guided, guarded, or enforcing policy modes.
 
+Go install admission accepts only repository-local module targets whose
+complete target-manifest and added-module requirement closures can be bounded.
+It probes pinned `.mod` and `.zip` artifacts from the official module proxy,
+counts compressed and expanded bytes without writing them during planning, and
+rejects non-local/versioned replacements, custom proxy/checksum/workspace
+settings, linked local source, and closure limits. The executor pins the proxy,
+checksum database, local toolchain and cache paths used by the probe. The
+planner reserves the managed module cache, temporary space, and a
+policy-bounded build cache; the build-cache peak is a reservation bound, not a
+measured runtime peak. A successful size plan still requires a fresh
+per-operation shared capacity lease before any package-manager write.
+
 ## Cross-References
 
 - `../operations/RUNBOOK.md`

@@ -47,6 +47,14 @@ type Resolution struct {
 	PythonLockfiles       []string
 	PythonIndexSets       map[string]pythonIndexSet
 	PythonBootstrap       *PythonBootstrap
+	DiskCachePath         string `json:"-"`
+	DiskBuildCachePath    string `json:"-"`
+	DiskPythonExecutable  string `json:"-"`
+	DiskPythonWheelURL    string `json:"-"`
+	DiskPythonWheelSHA256 string `json:"-"`
+	DiskPythonWheelBytes  int64  `json:"-"`
+	DiskPythonTarget      string `json:"-"`
+	DiskPythonStage       string `json:"-"`
 	Argv                  []string
 	Profile               InstallProfile
 }
@@ -82,6 +90,9 @@ func ValidateProtectedBuildException(exception ProtectedBuildException) error {
 // always uses Argv with exec.CommandContext; callers must never feed this
 // string to a shell.
 func (r Resolution) Command() string {
+	if r.PackageManager == "pip-local-wheel" {
+		return "install exact yt-dlp wheel into " + filepath.Join(r.SurfaceRoot, ".sda-python-packages", "yt-dlp", "2026.10.26") + " with no dependencies or package cache"
+	}
 	if r.PythonBootstrap != nil {
 		return "uv pip compile --only-binary :all: --generate-hashes " + filepath.Base(r.PythonBootstrap.InputPath) + " into " + strings.Join(baseNames(r.PythonLockfiles), ", ")
 	}
@@ -124,12 +135,18 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 	if r.Profile.LifecycleMode == "pinned-release" {
 		return provisionHostRelease(ctx, r)
 	}
+	if r.Profile.LifecycleMode == MT7927SourceLifecycle {
+		return stageMT7927Source(ctx, r)
+	}
 	if r.HostToolRefresh {
 		return refreshHostToolSource(ctx, r)
 	}
 	if r.HostSource {
 		_, err := triposrsource.Provision(ctx)
 		return "Installed verified TripoSR source tree through binaryfetch native acquisition", err
+	}
+	if r.PackageManager == "pip-local-wheel" {
+		return installLocalYtDlpWheel(ctx, r)
 	}
 	if r.PackageManager == "native-binaryfetch" {
 		return "", fmt.Errorf("unsupported native acquisition profile")
@@ -160,10 +177,13 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 	}
 	cmd := exec.CommandContext(ctx, r.Argv[0], r.Argv[1:]...)
 	cmd.Dir = r.SurfaceRoot
+	cacheEnv := managerCacheEnvironment(r.PackageManager, r.DiskCachePath, r.DiskBuildCachePath)
 	if r.ExternalWorkspace {
 		// Retain the shared pnpm release-age policy without creating workspace
 		// membership/configuration that a later operation could execute.
-		cmd.Env = append(os.Environ(), "npm_config_minimum_release_age=10080", "npm_config_ignore_pnpmfile=true", "npm_config_manage_package_manager_versions=false")
+		cmd.Env = overlayInstallEnvironment(os.Environ(), append(cacheEnv, "npm_config_minimum_release_age=10080", "npm_config_ignore_pnpmfile=true", "npm_config_manage_package_manager_versions=false"))
+	} else {
+		cmd.Env = overlayInstallEnvironment(os.Environ(), cacheEnv)
 	}
 	out, err := cmd.CombinedOutput()
 	if err != nil && r.PackageManager == "pnpm" && !r.ExternalWorkspace && strings.Contains(string(out), "ERR_PNPM_UNEXPECTED_STORE") {
@@ -174,7 +194,7 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 		// retrying the requested governed mutation.
 		repair := exec.CommandContext(ctx, "pnpm", "install", "--frozen-lockfile", "--ignore-scripts", "--ignore-workspace")
 		repair.Dir = r.SurfaceRoot
-		repair.Env = envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{})
+		repair.Env = overlayInstallEnvironment(envkit.Toolchain(envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil), envkit.ToolchainOptions{}), cacheEnv)
 		repairOut, repairErr := repair.CombinedOutput()
 		out = append(out, repairOut...)
 		if repairErr != nil {
@@ -182,6 +202,7 @@ func (ExecInstaller) Install(ctx context.Context, r Resolution) (string, error) 
 		}
 		retry := exec.CommandContext(ctx, r.Argv[0], r.Argv[1:]...)
 		retry.Dir = r.SurfaceRoot
+		retry.Env = overlayInstallEnvironment(os.Environ(), cacheEnv)
 		retryOut, retryErr := retry.CombinedOutput()
 		out = append(out, retryOut...)
 		return string(out), retryErr
@@ -268,6 +289,7 @@ func Resolve(repoRoot, scenario, surface, ecosystem, packageName, version string
 		PackageManager:        manager,
 		ManifestPath:          manifest,
 		PackageName:           packageName,
+		ExactVersion:          manager == "pip-local-wheel",
 		Argv:                  argv,
 		Profile:               SafeProfileFor(manager, argv),
 	}
@@ -313,6 +335,13 @@ func ApplyExactVersion(r *Resolution, version string) error {
 		r.ExactVersion = true
 		return nil
 	}
+	if r.Profile.LifecycleMode == MT7927SourceLifecycle {
+		if version != r.HostToolTargetVersion {
+			return fmt.Errorf("MT7927 source version differs from the pinned profile")
+		}
+		_, err := validateMT7927Source(*r)
+		return err
+	}
 	if r.Profile.LifecycleMode == "managed-service-artifact" {
 		if version != r.HostToolTargetVersion {
 			return fmt.Errorf("managed-service exact version changed")
@@ -323,6 +352,13 @@ func ApplyExactVersion(r *Resolution, version string) error {
 	if r.HostSource {
 		if version != triposrsource.Commit {
 			return fmt.Errorf("TripoSR source commit differs from the pinned profile")
+		}
+		r.ExactVersion = true
+		return nil
+	}
+	if r.PackageManager == "pip-local-wheel" {
+		if r.PackageName != "yt-dlp" || version != "2026.10.26" {
+			return fmt.Errorf("surface-local yt-dlp install requires the approved exact version 2026.10.26")
 		}
 		r.ExactVersion = true
 		return nil
@@ -672,7 +708,11 @@ func planForEcosystem(surfaceRoot, ecosystem, packageName, version string) (mana
 		if v := strings.TrimSpace(version); v != "" {
 			spec = packageName + "==" + v
 		}
-		if fileExists(filepath.Join(surfaceRoot, "uv.lock")) {
+		if packageName == "yt-dlp" && strings.TrimSpace(version) == "2026.10.26" && fileExists(filepath.Join(surfaceRoot, "requirements.txt")) {
+			manager = "pip-local-wheel"
+			manifest = filepath.Join(surfaceRoot, "requirements.txt")
+			argv = []string{"pip-local-wheel", "install", "--no-deps", "--no-index", "--only-binary=:all:", spec}
+		} else if fileExists(filepath.Join(surfaceRoot, "uv.lock")) {
 			// A committed uv.lock is authoritative package-manager evidence.
 			// Keep uv projects on uv instead of routing pyproject.toml through
 			// Poetry and leaving the declared lockfile stale.

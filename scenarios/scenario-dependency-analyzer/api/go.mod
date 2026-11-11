@@ -29,6 +29,7 @@ require golang.org/x/mod v0.41.0
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1 // indirect
 	github.com/andybalholm/brotli v1.2.0 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/mikelolasagasti/xz v1.0.1 // indirect

@@ -181,6 +181,8 @@ type connectHandler struct {
 	scenariosDir func() string
 	ranker       SemanticRanker
 	installer    installgateway.PackageInstaller
+	diskBroker   diskJobBroker
+	diskPlanner  diskAdmissionPlanner
 }
 
 func (h *connectHandler) ListApprovedDependencies(_ context.Context, req *connect.Request[governancev1.ListApprovedDependenciesRequest]) (*connect.Response[governancev1.ApprovedDependencyListResponse], error) {

@@ -45,7 +45,7 @@ func TestPythonBootstrapGovernsEveryAuthoredDirectRequirement(t *testing.T) {
 				}
 			}
 			installer := &recordingInstaller{}
-			h := &connectHandler{scenariosDir: func() string { return filepath.Join(repo, "scenarios") }, installer: installer}
+			h := withTestDiskAdmission(t, &connectHandler{scenariosDir: func() string { return filepath.Join(repo, "scenarios") }, installer: installer})
 			resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{Scenario: "demo", Surface: "resource", Ecosystem: "pip", PackageName: "torch", Version: "2.7.1+cu126", Apply: true}))
 			if err != nil {
 				t.Fatal(err)
@@ -138,10 +138,10 @@ func TestInstallDependencyDryRunDoesNotInstall(t *testing.T) {
 	}
 
 	installer := &recordingInstaller{}
-	h := &connectHandler{
+	h := withTestDiskAdmission(t, &connectHandler{
 		scenariosDir: func() string { return filepath.Join(repoRoot, "scenarios") },
 		installer:    installer,
-	}
+	})
 
 	// Dry run (apply=false): the command is returned but the installer never runs.
 	resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{
@@ -189,10 +189,10 @@ func TestInstallDependencyBlockedNeverInstalls(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(uiDir, "pnpm-lock.yaml"), nil, 0o644)
 
 	installer := &recordingInstaller{}
-	h := &connectHandler{
+	h := withTestDiskAdmission(t, &connectHandler{
 		scenariosDir: func() string { return filepath.Join(repoRoot, "scenarios") },
 		installer:    installer,
-	}
+	})
 	// Even with apply=true, a denied package must never install (fail closed).
 	resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{
 		Scenario: "demo", Surface: "ui", Ecosystem: "npm", PackageName: "left-pad", Apply: true,
@@ -236,7 +236,7 @@ func TestInstallDependencyEnforcesScenarioScopeBeforeEffects(t *testing.T) {
 					t.Fatal(err)
 				}
 				installer := &recordingInstaller{}
-				h := &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer}
+				h := withTestDiskAdmission(t, &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer})
 				resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{
 					Scenario: "demo", Surface: "ui", Ecosystem: "npm", PackageName: "js-yaml", Version: version, Apply: true,
 				}))
@@ -275,7 +275,7 @@ func TestPythonLockUpdateDoesNotClaimRuntimeInstallation(t *testing.T) {
 		}
 	}
 	installer := &recordingInstaller{}
-	h := &connectHandler{scenariosDir: func() string { return filepath.Join(repo, "scenarios") }, installer: installer}
+	h := withTestDiskAdmission(t, &connectHandler{scenariosDir: func() string { return filepath.Join(repo, "scenarios") }, installer: installer})
 	result, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{Scenario: "demo", Surface: "api", Ecosystem: "pip", PackageName: "trimesh", Version: "4.7.4", Apply: true}))
 	if err != nil {
 		t.Fatal(err)
@@ -306,7 +306,7 @@ func TestHarnessInstallGovernanceBeforeEffects(t *testing.T) {
 				t.Fatal(err)
 			}
 			installer := &recordingInstaller{}
-			h := &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer}
+			h := withTestDiskAdmission(t, &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer})
 			resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{Scenario: "codex", Surface: "host-tool", Ecosystem: "npm", PackageName: "@openai/codex", Version: tc.version, ExactVersion: true, Apply: true}))
 			if err != nil {
 				t.Fatal(err)
@@ -350,7 +350,7 @@ func TestManagedServiceArtifactGovernanceStagesWithoutClaimingActivation(t *test
 			version := manifest.ManagedService.Artifact.Version
 			writeRegistry(t, root, fmt.Sprintf(`{"records":[{"ecosystem":"source","package_name":"cloudflared","state":"%s","rationale":"Reviewed fixture.","version_range":"%s","allowed_surfaces":["host-tool"]}]}`, tc.state, version))
 			installer := &recordingInstaller{}
-			h := &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer}
+			h := withTestDiskAdmission(t, &connectHandler{scenariosDir: func() string { return filepath.Join(root, "scenarios") }, installer: installer})
 			resp, err := h.InstallDependency(context.Background(), connect.NewRequest(&governancev1.InstallDependencyRequest{Scenario: "cloudflared", Surface: "host-tool", Ecosystem: "source", PackageName: "cloudflared", Version: version, ExactVersion: true, Apply: tc.apply}))
 			if err != nil {
 				t.Fatal(err)
