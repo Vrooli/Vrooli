@@ -9,6 +9,7 @@ import (
 	"connectrpc.com/connect"
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/control"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"lighting-control/internal/apiauth"
 	"lighting-control/internal/control"
 )
 
@@ -37,6 +38,9 @@ func (h *connectHandler) ListControllers(ctx context.Context, req *connect.Reque
 }
 
 func (h *connectHandler) EnrollController(ctx context.Context, req *connect.Request[controlv1.EnrollControllerRequest]) (*connect.Response[controlv1.EnrollControllerResponse], error) {
+	if err := apiauth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
 	c, err := h.service.Enroll(ctx, req.Msg.ControllerId, req.Msg.Enrolled)
 	if err != nil {
 		return nil, domainError(err)
@@ -45,6 +49,9 @@ func (h *connectHandler) EnrollController(ctx context.Context, req *connect.Requ
 }
 
 func (h *connectHandler) SetZoneState(ctx context.Context, req *connect.Request[controlv1.SetZoneStateRequest]) (*connect.Response[controlv1.SetZoneStateResponse], error) {
+	if err := apiauth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
 	r, err := h.service.SetZoneState(ctx, req.Msg.Desired)
 	if err != nil {
 		return nil, domainError(err)
@@ -53,6 +60,9 @@ func (h *connectHandler) SetZoneState(ctx context.Context, req *connect.Request[
 }
 
 func (h *connectHandler) SetManualOff(ctx context.Context, req *connect.Request[controlv1.SetManualOffRequest]) (*connect.Response[controlv1.SetManualOffResponse], error) {
+	if err := apiauth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
 	o, results, err := h.service.SetManualOff(ctx, req.Msg.AllEnrolled, req.Msg.ControllerIds, req.Msg.ExpiresAt)
 	if err != nil {
 		return nil, domainError(err)
@@ -69,6 +79,9 @@ func (h *connectHandler) GetDesiredState(ctx context.Context, _ *connect.Request
 }
 
 func (h *connectHandler) ClearManualOverride(ctx context.Context, _ *connect.Request[controlv1.ClearManualOverrideRequest]) (*connect.Response[controlv1.ClearManualOverrideResponse], error) {
+	if err := apiauth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
 	if err := h.service.ClearManualOverride(ctx); err != nil {
 		return nil, domainError(err)
 	}
@@ -76,6 +89,9 @@ func (h *connectHandler) ClearManualOverride(ctx context.Context, _ *connect.Req
 }
 
 func (h *connectHandler) Reconcile(ctx context.Context, req *connect.Request[controlv1.ReconcileRequest]) (*connect.Response[controlv1.ReconcileResponse], error) {
+	if err := apiauth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
 	zones, err := h.service.Reconcile(ctx)
 	if err != nil {
 		return nil, domainError(err)

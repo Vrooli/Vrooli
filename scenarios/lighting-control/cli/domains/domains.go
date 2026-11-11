@@ -3,6 +3,7 @@ package domains
 import (
 	"lighting-control/cli/domains/control"
 	"lighting-control/cli/domains/policy"
+	"lighting-control/cli/domains/setup"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -48,5 +49,10 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 		return nil, err
 	}
 	groups = append(groups, policyGroup)
+	setupGroup, err := setup.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	groups = append(groups, setupGroup)
 	return groups, nil
 }

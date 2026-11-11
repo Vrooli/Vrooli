@@ -39,8 +39,13 @@ const literalSelectors = {
   pages: {
     dashboard: "page-dashboard",
     dashboardHeader: "page-dashboard-header",
-    dashboardPlaceholder: "page-dashboard-placeholder",
     settings: "page-settings",
+    presets: "page-presets",
+    controller: "page-controller",
+  },
+  lightDesk: {
+    manualOff: "lightdesk-manual-off",
+    presetActions: "lightdesk-preset-actions",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -58,6 +63,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "presets",
             "settings",
           ] as const,
         },
@@ -71,6 +77,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "presets",
             "settings",
           ] as const,
         },

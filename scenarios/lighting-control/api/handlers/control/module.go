@@ -15,6 +15,7 @@ import (
 	controlconnect "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/control/controlconnect"
 	"lighting-control/internal/control"
 	"lighting-control/internal/module"
+	internalpolicy "lighting-control/internal/policy"
 )
 
 // Module wires the lighting control service to its durable store and the
@@ -59,7 +60,9 @@ func (invalidSDKConfiguration) SendZoneColors(context.Context, uint32, uint32, [
 
 func NewDomainService(db *database.RoutedDB, clock schedule.Clock, backend control.Backend) *control.Service {
 	repo := control.NewSQLiteRepository(db, clock)
-	return control.NewService(repo, backend, clock)
+	svc := control.NewService(repo, backend, clock)
+	svc.BindBrightnessPolicy(internalpolicy.NewSQLiteStore(db))
+	return svc
 }
 
 func ModuleWithDomainService(svc *control.Service, logger *log.Logger) module.Module {

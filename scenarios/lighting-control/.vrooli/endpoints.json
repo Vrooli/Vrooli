@@ -211,6 +211,70 @@
       "summary": "Evaluate and reconcile lighting policy",
       "description": "Reads current source evidence, persists evaluator state, and applies desired states to enrolled zones.",
       "category": "policy"
+    },
+    {
+      "id": "setup_devices",
+      "path": "/vrooli.lighting_control.v1.setup.SetupService/GetSetupDevices",
+      "method": "POST",
+      "summary": "Discover selectable lighting devices",
+      "description": "Explicit metadata discovery without permission changes.",
+      "category": "setup"
+    },
+    {
+      "id": "setup_devices_plan",
+      "path": "/vrooli.lighting_control.v1.setup.SetupService/PlanLightingDevices",
+      "method": "POST",
+      "summary": "Plan selected device access",
+      "description": "Reviews the exact maintained permission plan for selected opaque device identities.",
+      "category": "setup"
+    },
+    {
+      "id": "setup_devices_apply",
+      "path": "/vrooli.lighting_control.v1.setup.SetupService/ApplyLightingDevices",
+      "method": "POST",
+      "summary": "Apply reviewed selected device access",
+      "description": "Applies an exact canonical plan or reports required native privilege without retaining a credential.",
+      "category": "setup"
+    },
+    {
+      "id": "setup_devices_rollback",
+      "path": "/vrooli.lighting_control.v1.setup.SetupService/RollbackLightingDevices",
+      "method": "POST",
+      "summary": "Roll back selected device access",
+      "description": "Restores the exact prior maintained rule from the canonical permission receipt.",
+      "category": "setup"
+    },
+    {
+      "id": "setup_status",
+      "path": "/vrooli.lighting_control.v1.setup.SetupService/GetSetupStatus",
+      "method": "POST",
+      "summary": "Read lighting setup state",
+      "description": "Reads desired state without disabled hardware probes.",
+      "category": "setup"
+    },
+    {
+      "id": "setup_install",
+      "path": "/vrooli.lighting_control.v1.setup.SetupService/SetupLighting",
+      "method": "POST",
+      "summary": "Set up an exact installation",
+      "description": "Explicitly stages a governed installation or adopts a compatible existing executable.",
+      "category": "setup"
+    },
+    {
+      "id": "setup_enable",
+      "path": "/vrooli.lighting_control.v1.setup.SetupService/EnableLighting",
+      "method": "POST",
+      "summary": "Enable lighting",
+      "description": "Persists exact selected desired state and reconciles native owners.",
+      "category": "setup"
+    },
+    {
+      "id": "setup_disable",
+      "path": "/vrooli.lighting_control.v1.setup.SetupService/DisableLighting",
+      "method": "POST",
+      "summary": "Disable lighting",
+      "description": "Quiesces lighting before disabling the backend.",
+      "category": "setup"
     }
   ]
 }

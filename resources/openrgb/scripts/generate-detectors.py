@@ -16,10 +16,6 @@ PINNED_TAG = "release_1.1"
 PINNED_COMMIT = "8e16de27858cf2be6af54a33ce003df74cb9fd3e"
 EXPECTED_KEYS = 1948
 EXPECTED_STATIC_CALLS = 2160
-ENABLED_KEYS = {
-    "ASUS Aura SMBus Motherboard",
-    "ASUS TUF GeForce RTX 4070 Ti SUPER Gaming OC",
-}
 OUTPUT = Path(__file__).resolve().parents[1] / "config" / "detectors-release_1.1.json"
 
 STATIC_TYPES = (
@@ -282,15 +278,14 @@ def collect_names(source_root: Path) -> tuple[list[str], int]:
         )
     if len(names) != EXPECTED_KEYS:
         raise GenerationError(f"detector key count changed: expected {EXPECTED_KEYS}, got {len(names)}")
-    missing = ENABLED_KEYS - names
-    if missing:
-        raise GenerationError(f"enabled detector names absent from pinned source: {sorted(missing)}")
     return sorted(names), static_calls
 
 
 def expected_document(source_root: Path) -> tuple[bytes, int]:
     names, static_calls = collect_names(source_root)
-    document = {"Detectors": {"detectors": {name: name in ENABLED_KEYS for name in names}}}
+    # The checked-in catalog is host-neutral reference data. Only an explicit
+    # machine-local policy may enable a detector at resource launch.
+    document = {"Detectors": {"detectors": {name: False for name in names}}}
     return (json.dumps(document, ensure_ascii=False, indent=2) + "\n").encode(), static_calls
 
 
@@ -317,7 +312,7 @@ def main() -> int:
             raise GenerationError(f"cannot read generated map {args.output}: {exc}") from exc
         if actual != expected:
             raise GenerationError(f"generated map is stale: run {Path(__file__).name} --write --source <OpenRGB 1.1 source>")
-        print(f"verified {args.output} ({EXPECTED_KEYS} detector keys from {static_calls} active static registrations; exactly two enabled)")
+        print(f"verified {args.output} ({EXPECTED_KEYS} detector keys from {static_calls} active static registrations; none enabled)")
         return 0
     except GenerationError as exc:
         print(f"error: {exc}", file=sys.stderr)

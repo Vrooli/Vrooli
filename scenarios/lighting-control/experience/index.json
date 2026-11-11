@@ -7,12 +7,24 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "lighting-control",
-  "description": "Generated L0 experience contract for Lighting Control. Replace these route identities with product-specific priorities, claims, bindings, states, and journeys as the UI becomes real.",
+  "description": "Experience contract for the Light Desk desktop workbench and focused mobile workflows.",
   "pages": [
     {
       "id": "dashboard",
       "path": "pages/dashboard.json",
       "title": "Home",
+      "status": "active"
+    },
+    {
+      "id": "presets",
+      "path": "pages/presets.json",
+      "title": "Presets",
+      "status": "active"
+    },
+    {
+      "id": "controller",
+      "path": "pages/controller.json",
+      "title": "Controller",
       "status": "active"
     },
     {

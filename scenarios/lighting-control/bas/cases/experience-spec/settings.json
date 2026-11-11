@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "experience-settings-spec-smoke",
-    "description": "Generated observer smoke for active experience page settings.",
+    "description": "Given the optional backend remains disabled, when the operator opens Settings, then backend status, setup guidance, and saved policy controls are visible.",
     "requirement": "OT-P0-001",
     "version": "1",
     "labels": {
@@ -40,6 +40,20 @@
           "timeout_ms": 15000
         },
         "metadata": { "label": "Settings page visible" }
+      }
+    },
+    {
+      "id": "assert-backend-status-and-guidance",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.settings",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "Lighting backend setup" },
+          "case_sensitive": true,
+          "timeout_ms": 10000
+        },
+        "metadata": { "label": "Setup status visible" }
       }
     }
   ]

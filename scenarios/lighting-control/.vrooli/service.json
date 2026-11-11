@@ -105,6 +105,16 @@
         "description": "Supplies measured CPU/GPU usage and memory-pressure evidence for load and health lighting presets.",
         "startup_policy": "try_start",
         "degraded_behavior": "When unavailable, stale, or missing measured metrics, the policy records degraded evidence and uses its configured static fallback."
+      },
+      "infrastructure-manager": {
+        "degraded_behavior": "Expose unavailable or stale host evidence and use the configured static fallback; fresh independent memory pressure can still surface warning or failure.",
+        "description": "Reads trusted host/substrate condition evidence for optional Health and Combined presets.",
+        "enabled": true,
+        "required": false,
+        "runtime_only": true,
+        "runtime_only_rationale": "Read-only runtime discovery; never start Infrastructure Manager or enable its health team from Light Desk.",
+        "startup_policy": "ignore",
+        "type": "scenario"
       }
     }
   },
@@ -201,5 +211,35 @@
       "source": "skills/lighting-control/SKILL.md"
     }
   },
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "authentication": {
+    "version": 1,
+    "profile": "scenario_authenticator",
+    "default_mode": "remote_vrooli",
+    "supported_modes": [
+      "remote_vrooli",
+      "local_multi_user"
+    ],
+    "human_sign_in": "required",
+    "provider": "scenario-authenticator",
+    "resource": "lighting-control",
+    "audience": "scenario-authenticator:lighting-control",
+    "offline": false,
+    "public_routes": [
+      "/health"
+    ],
+    "capabilities": [
+      {
+        "id": "lighting-control:read",
+        "effect": "read",
+        "agent_eligible": true
+      },
+      {
+        "id": "lighting-control:write",
+        "effect": "write",
+        "agent_eligible": true
+      }
+    ],
+    "requires_authenticator": false
+  }
 }

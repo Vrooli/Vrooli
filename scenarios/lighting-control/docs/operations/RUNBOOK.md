@@ -36,6 +36,7 @@ naming, ports, health checks, and logs.
 | API unhealthy | `/health`, SQLite path, API logs | Run `make setup`, verify writable data dir | Check `INTEGRATIONS.md` for dependency expectations. |
 | UI blank or stale | UI port, browser console, `ui/dist` freshness | `make setup` then `make restart` | Add troubleshooting entry if recurring. |
 | CLI talks to old API | `lighting-control status`, configured API base | Reinstall via `make setup` | Update CLI reference if command changed. |
+| Backend stops during control | Read backend status, then request root owner status | Root owner rebinds only the verified current OpenRGB incarnation; desired state reconciles after binding | Never reuse a prior port/SDK handle; the internal bind endpoint is process-local and authentication-gated. |
 
 ## Backup / Restore
 

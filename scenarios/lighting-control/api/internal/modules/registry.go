@@ -19,9 +19,11 @@ package modules
 import (
 	"lighting-control/internal/module"
 
+	setupv1 "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/setup"
 	capsH "lighting-control/handlers/capabilities"
 	controlH "lighting-control/handlers/control"
 	policyH "lighting-control/handlers/policy"
+	setupH "lighting-control/handlers/setup"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -43,6 +45,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out = append(out, capsH.Endpoints...)
 	out = append(out, controlH.Endpoints...)
 	out = append(out, policyH.Endpoints...)
+	out = append(out, setupH.Endpoints...)
 	return out
 }
 
@@ -70,6 +73,7 @@ type ProtoFileEntry struct {
 func AllProtoFiles() []ProtoFileEntry {
 	return []ProtoFileEntry{
 		{Module: "control", File: controlv1.File_lighting_control_v1_control_control_proto},
+		{Module: "setup", File: setupv1.File_lighting_control_v1_setup_setup_proto},
 		{Module: "policy", File: policyv1.File_lighting_control_v1_policy_policy_proto},
 	}
 }

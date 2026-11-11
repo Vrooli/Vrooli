@@ -81,13 +81,25 @@
       "testId": "page-dashboard-header",
       "selector": "[data-testid=\"page-dashboard-header\"]"
     },
-    "pages.dashboardPlaceholder": {
-      "testId": "page-dashboard-placeholder",
-      "selector": "[data-testid=\"page-dashboard-placeholder\"]"
-    },
     "pages.settings": {
       "testId": "page-settings",
       "selector": "[data-testid=\"page-settings\"]"
+    },
+    "pages.presets": {
+      "testId": "page-presets",
+      "selector": "[data-testid=\"page-presets\"]"
+    },
+    "pages.controller": {
+      "testId": "page-controller",
+      "selector": "[data-testid=\"page-controller\"]"
+    },
+    "lightDesk.manualOff": {
+      "testId": "lightdesk-manual-off",
+      "selector": "[data-testid=\"lightdesk-manual-off\"]"
+    },
+    "lightDesk.presetActions": {
+      "testId": "lightdesk-preset-actions",
+      "selector": "[data-testid=\"lightdesk-preset-actions\"]"
     },
     "errorBoundary.root": {
       "testId": "error-boundary-root",
@@ -109,6 +121,7 @@
           "type": "enum",
           "values": [
             "dashboard",
+            "presets",
             "settings"
           ]
         }
@@ -124,6 +137,7 @@
           "type": "enum",
           "values": [
             "dashboard",
+            "presets",
             "settings"
           ]
         }
@@ -132,6 +146,6 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "b59c9936b32366ad576ac2f7b9f9690194df4834f034ef71efa4836e71883eda",
-    "ui/src/consts/selectors.ts": "3793c53e1a45090cddc4c49627f4aa9786a5af18fb26e3d6bb09ebd695c677d0"
+    "ui/src/consts/selectors.ts": "fb4ab81567534b0b6828463d5509987ed9dd5caacacca628dda582dbacedd9ad"
   }
 }

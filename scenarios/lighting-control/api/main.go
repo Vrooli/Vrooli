@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"lighting-control/internal/capabilities"
+	internalcontrol "lighting-control/internal/control"
 	"lighting-control/internal/modules"
 	internalpolicy "lighting-control/internal/policy"
 	"lighting-control/internal/policy/sources"
@@ -26,10 +28,13 @@ import (
 	"github.com/vrooli/api-core/storage"
 	_ "modernc.org/sqlite"
 
+	"lighting-control/handlers/browsersession"
 	capsH "lighting-control/handlers/capabilities"
 	controlH "lighting-control/handlers/control"
 	healthH "lighting-control/handlers/health"
 	policyH "lighting-control/handlers/policy"
+	runtimebindingH "lighting-control/handlers/runtimebinding"
+	setupH "lighting-control/handlers/setup"
 )
 
 // scenarioStorageRoots resolves all filesystem storage classes once at
@@ -50,6 +55,23 @@ func scenarioStorageRoots() (storage.Paths, error) {
 	return resolver.Resolve(storage.Options{ScenarioID: scenarioID})
 }
 
+// initializeDatabase gives every admitted pool the same domain schema before
+// requests can route to it. A leased database starts empty; primary bootstrap
+// alone does not prepare it for the real control and policy repositories.
+func initializeDatabase(ctx context.Context, db *database.RoutedDB) error {
+	initialize := func(ctx context.Context, pool *sql.DB) error {
+		if err := database.EnsureSchemas(ctx, pool, modules.AllSchemas()...); err != nil {
+			return fmt.Errorf("initialize lighting schemas: %w", err)
+		}
+		return internalcontrol.EnsureIdentitySource(ctx, pool)
+	}
+	if err := initialize(ctx, db.Primary()); err != nil {
+		return err
+	}
+	db.SetTestPoolInitializer(initialize)
+	return nil
+}
+
 func main() {
 	// Preflight checks must run first so the binary can re-exec itself
 	// after a stale-source rebuild before any listeners are opened.
@@ -67,8 +89,8 @@ func main() {
 		log.Fatalf("Database connection failed: %v", err)
 	}
 
-	if err := database.EnsureSchemas(context.Background(), db.Primary(), modules.AllSchemas()...); err != nil {
-		log.Fatalf("schema initialization failed: %v", err)
+	if err := initializeDatabase(context.Background(), db); err != nil {
+		log.Fatalf("database initialization failed: %v", err)
 	}
 	primaryFileRoots, err := scenarioStorageRoots()
 	if err != nil {
@@ -77,9 +99,15 @@ func main() {
 	fileRoots := filerouting.New(primaryFileRoots)
 
 	clock := schedule.System()
-	controlService := controlH.NewDomainService(db, clock, controlH.BackendFromEnvironment())
+	backendBinding := internalcontrol.NewBackendBinding()
+	controlService := controlH.NewDomainService(db, clock, backendBinding)
 	policyService := policyH.NewService(internalpolicy.NewSQLiteStore(db), sources.New(), controlService)
 	runtimeCtx, cancelRuntime := context.WithCancel(context.Background())
+	stopNativeBinding, err := runtimebindingH.StartNativeFromEnv(runtimeCtx, controlService, os.Getenv)
+	if err != nil {
+		log.Printf("native lighting binding unavailable: %v", err)
+		stopNativeBinding = func() {}
+	}
 	policyDone := make(chan struct{})
 	go func() {
 		defer close(policyDone)
@@ -91,22 +119,25 @@ func main() {
 		capsH.Module(capabilities.NewRegistry()),
 		controlH.ModuleWithDomainService(controlService, log.Default()),
 		policyH.ModuleWithService(policyService, log.Default()),
+		setupH.Module(),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development
 	// mode, the dev-only RoutingService used by test-genie to install a
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
+	browsersession.Register(rootMux)
 	devrouting.RegisterWithFileRoots(rootMux, db, fileRoots)
 
 	rootMux.Handle("/", srv.Handler())
+	// Native lifecycle launches have one private backend owner. Standalone
+	// launches retain the independently authenticated human maintenance route.
+	if os.Getenv("VROOLI_RUNTIME_DIAGNOSTICS_DIR") == "" {
+		runtimebindingH.Register(rootMux, controlService, os.Getenv("VROOLI_COMPONENT_GENERATION"))
+	}
 	authConfig, err := authn.FromEnvironment(os.Getenv)
 	if err != nil {
 		log.Fatalf("authentication configuration failed: %v", err)
-	}
-	var sharedAuth *authn.Config
-	if authConfig.Enabled() {
-		sharedAuth = &authConfig
 	}
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
@@ -116,10 +147,11 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler:        handler,
-		Authentication: sharedAuth,
+		Authentication: &authConfig,
 		Cleanup: func(ctx context.Context) error {
 			cancelRuntime()
 			<-policyDone
+			stopNativeBinding()
 			return db.Close()
 		},
 	}); err != nil {

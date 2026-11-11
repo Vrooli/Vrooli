@@ -10,17 +10,26 @@ interface ThemeContextValue {
   /** The currently-applied theme; `system` resolves to light or dark via media query. */
   resolved: "light" | "dark";
   setTheme: (choice: ThemeChoice) => void;
+  /** Whether the browser accepted access to durable preference storage. */
+  storageAvailable: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-const readStoredChoice = (): ThemeChoice => {
-  if (typeof window === "undefined") return "system";
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark" || stored === "system") {
-    return stored;
+interface ThemePreference {
+  choice: ThemeChoice;
+  storageAvailable: boolean;
+}
+
+const readStoredPreference = (): ThemePreference => {
+  if (typeof window === "undefined") return { choice: "system", storageAvailable: false };
+  try {
+    const stored = window.localStorage.getItem(STORAGE_KEY);
+    const choice = stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
+    return { choice, storageAvailable: true };
+  } catch {
+    return { choice: "system", storageAvailable: false };
   }
-  return "system";
 };
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
@@ -47,13 +56,15 @@ const applyTheme = (resolved: "light" | "dark", choice: ThemeChoice) => {
 
 interface ThemeProviderProps {
   children: ReactNode;
-  /** Test override — skips localStorage and media-query reads. */
+  /** Test override — skips stored preference reads. */
   initialChoice?: ThemeChoice;
 }
 
 export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
-  const [choice, setChoice] = useState<ThemeChoice>(() => initialChoice ?? readStoredChoice());
-  const [resolved, setResolved] = useState<"light" | "dark">(() => resolveChoice(initialChoice ?? readStoredChoice()));
+  const [{ choice, storageAvailable }, setPreference] = useState<ThemePreference>(() =>
+    initialChoice ? { choice: initialChoice, storageAvailable: true } : readStoredPreference(),
+  );
+  const [resolved, setResolved] = useState<"light" | "dark">(() => resolveChoice(choice));
 
   useEffect(() => {
     applyTheme(resolved, choice);
@@ -69,14 +80,20 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [choice]);
 
   const setTheme = useCallback((next: ThemeChoice) => {
-    setChoice(next);
     setResolved(resolveChoice(next));
+    let storageAvailable = false;
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, next);
+      try {
+        window.localStorage.setItem(STORAGE_KEY, next);
+        storageAvailable = true;
+      } catch {
+        // The in-memory choice remains usable in storage-restricted browsers.
+      }
     }
+    setPreference({ choice: next, storageAvailable });
   }, []);
 
-  const value = useMemo<ThemeContextValue>(() => ({ choice, resolved, setTheme }), [choice, resolved, setTheme]);
+  const value = useMemo<ThemeContextValue>(() => ({ choice, resolved, setTheme, storageAvailable }), [choice, resolved, setTheme, storageAvailable]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

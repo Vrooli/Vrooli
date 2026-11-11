@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "experience-dashboard-spec-smoke",
-    "description": "Generated observer smoke for active experience page dashboard.",
+    "description": "Given OpenRGB is disabled, when the operator opens Overview, then the saved Off policy and empty controller state are explicit.",
     "requirement": "OT-P0-001",
     "version": "1",
     "labels": {
@@ -40,6 +40,20 @@
           "timeout_ms": 15000
         },
         "metadata": { "label": "Dashboard page visible" }
+      }
+    },
+    {
+      "id": "assert-empty-controller-state",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.dashboard",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": { "stringValue": "No controllers have been discovered" },
+          "case_sensitive": true,
+          "timeout_ms": 10000
+        },
+        "metadata": { "label": "No-device state explained" }
       }
     }
   ]

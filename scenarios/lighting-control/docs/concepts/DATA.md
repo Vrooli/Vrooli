@@ -19,6 +19,10 @@ Use this document to answer:
 The template default is embedded SQLite through `modernc.org/sqlite`.
 The database path is resolved from the scenario id by `api-core/storage`, and
 the API applies schemas on startup through `api-core/database`.
+The same owned schema bootstrap and controller identity migration initialize
+each admitted routed test pool through `RoutedDB.SetTestPoolInitializer`.
+An empty test lease is initialized before requests can reach it; initialization
+failure rejects admission through the shared owner rather than using primary.
 
 External storage resources should be introduced only when a real
 domain needs them. Document those decisions in
@@ -37,8 +41,12 @@ such as BlobStore.
 
 | Data | Owning Domain | Storage | Source Of Truth | Retention | Notes |
 |---|---|---|---|---|---|
-| Enrolled controllers and stable zones | control | SQLite | `api/internal/control/schema.sql` | Until explicit unenrollment. | Backend indices are discovery-time addresses, never durable identity. |
+| Enrolled controllers and stable zones | control | SQLite | `api/internal/control/schema.sql` | Until explicit unenrollment. | Serial or reported device location forms durable identity. SDK handles and zone indexes are discovery-time addresses only. Controllers without unique stable identity remain read-only. |
 | Desired lighting state and reconciliation generation | control | SQLite | `api/internal/control/schema.sql` | Retained across restart until superseded or reset explicitly. | Manual Off is durable policy. Device firmware persistence is not assumed. |
+| Zone request ownership | control | SQLite | `lighting_zone_ownership` in `api/internal/control/schema.sql` | Follows the current desired row. | New explicit zone writes are manual; evaluated policy writes are automatic. Missing legacy provenance requires explicit adoption. |
+| Previous manual or legacy zone settings | control | SQLite | `lighting_previous_zone_state` in `api/internal/control/schema.sql` | Latest superseded manual/legacy state and last-apply bytes per zone, retained for recovery. | Archived atomically before explicit global preset selection releases manual ownership. Further policy selections preserve that archive. |
+| Completed policy selection receipt | control | SQLite | `lighting_policy_selection` in `api/internal/control/schema.sql` | Latest serialized selection identity and original request time; replaced by the next explicit selection. | Commits atomically with ownership, archive and Off mutation. A retried acknowledged transition cannot adopt a newer manual request. |
+| Causal override revision | control | SQLite | `lighting_override_order` in `api/internal/control/schema.sql` | Monotonic numeric revision and causing selection identity for the latest Off publication/release. | Advances in the same transaction as the override mutation. Pending policy requests persist the captured revision; wall-clock changes cannot reverse precedence. Missing legacy revision is unknown ordering, not proof that Off is older. |
 | Preset definitions and active request/expiry | policy | SQLite | `api/internal/policy/schema.sql` | Definitions persist; expired requests are cleared by deterministic reconciliation. | Telemetry samples are consumed from source APIs, not copied into a local history. |
 
 ## Schema Map

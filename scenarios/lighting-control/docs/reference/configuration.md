@@ -192,3 +192,45 @@ governed by the policy profile.
 - [`cli-commands.md`](cli-commands.md) — CLI command reference
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for env/port/lifecycle issues
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist
+
+## Browser sign-in (shipped)
+
+Light Desk uses the installation's existing `scenario-authenticator` realm.
+Configure that provider explicitly through its supported setup workflow; Light
+Desk never starts it or creates accounts. The scenario manifest declares the
+`lighting-control` resource with audience `scenario:lighting-control`. The
+account must already have `lighting-control:write` for lighting changes;
+signing in proves identity and does not grant capabilities.
+
+Open Settings → Account and enter the installation account's email and
+password. If the issuer requests MFA, enter the authenticator or recovery code
+before a session can be established. Status is derived from the API's verified,
+unexpired principal, not from the sign-in response. Access-token expiry returns
+the account panel to signed out; Renew session rotates the existing refresh
+cookie through the issuer. Sign out calls the issuer's canonical Logout operation
+and expires both local cookies. That operation currently revokes all issuer
+sessions for the account when the access token is valid; an already expired or
+invalid access token only clears this browser's cookies. Provider outage is
+reported explicitly. Sign out still clears this browser’s cookies and reports
+that server revocation was not confirmed; retry revocation through the identity
+provider when it is available.
+
+The browser calls only its same-origin `/api/session` status and
+`/api/session/login`, `/api/session/refresh`, `/api/session/logout` endpoints.
+The server uses typed AccountsService calls through shared discovery. Tokens
+stay in canonical `vrooli_access_token` and `vrooli_refresh_token` HttpOnly,
+SameSite=Lax cookies; browser responses never include token values. Use HTTPS
+for remote installations and set the provider's `VROOLI_AUTH_COOKIE_SECURE=true`
+when TLS terminates at a proxy. The API preserves issuer Secure cookie flags
+and enforces Secure on direct TLS or a validated same-origin HTTPS browser
+Origin through the loopback UI proxy. Proxy deployments must preserve the original
+browser authority through the shared UI proxy, which replaces
+`X-Forwarded-Host` from the incoming Host; only a loopback peer's forwarded
+host is accepted for the session Origin check. Other reverse-proxy topologies
+need an explicitly trusted ingress configuration and are not implied qualified.
+Cross-site session mutations fail before calling the provider.
+
+Account bootstrap, password recovery, capability changes and realm administration
+remain the authenticator's responsibility; this UI exposes none of those
+management operations. No desktop personal-local mode, external account linking,
+or offline identity fallback is implemented here.

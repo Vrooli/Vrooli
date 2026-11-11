@@ -1,6 +1,7 @@
 import {
   Home,
   Settings,
+  SlidersHorizontal,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -18,7 +19,8 @@ export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
     | "dashboard"
-    | "settings";
+    | "settings"
+    | "presets";
   /** Router path. */
   path: string;
   /** True when this is the index route (exact match for the active state). */
@@ -31,10 +33,12 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard, icon: <Home aria-hidden="true" /> },
+  { key: "presets", path: "/presets", labelKey: strings.layout.nav.presets, icon: <SlidersHorizontal aria-hidden="true" /> },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings, icon: <Settings aria-hidden="true" /> },
 ];
 
 /** True when `pathname` is inside this item's route (exact for the index route). */
 export function isNavItemActive(item: NavItem, pathname: string): boolean {
+  if (item.key === "dashboard" && pathname.startsWith("/controllers/")) return true;
   return item.end ? pathname === item.path : pathname === item.path || pathname.startsWith(`${item.path}/`);
 }

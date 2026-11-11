@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "lighting-control",
   "generator": "v1.0.0",
-  "manifest_hash": "7c3d434addf4475fea57074e6b641bb287cb184c285569c976a6d7fa7261fd34",
+  "manifest_hash": "9c778de3b162ff30fcaaab808eb4d4f833028727181b91df39fdb0f0374a8056",
   "commands": [
     {
       "path": "control backend-status",
@@ -109,6 +109,70 @@
       "binding": "PolicyService.SetManualPreset",
       "declared_primitive": "proto_mutation",
       "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup apply-devices",
+      "group": "setup",
+      "command": "apply-devices",
+      "binding": "SetupService.ApplyLightingDevices",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup devices",
+      "group": "setup",
+      "command": "devices",
+      "binding": "SetupService.GetSetupDevices",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "setup disable",
+      "group": "setup",
+      "command": "disable",
+      "binding": "SetupService.DisableLighting",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup enable",
+      "group": "setup",
+      "command": "enable",
+      "binding": "SetupService.EnableLighting",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup install",
+      "group": "setup",
+      "command": "install",
+      "binding": "SetupService.SetupLighting",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup plan-devices",
+      "group": "setup",
+      "command": "plan-devices",
+      "binding": "SetupService.PlanLightingDevices",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup rollback-devices",
+      "group": "setup",
+      "command": "rollback-devices",
+      "binding": "SetupService.RollbackLightingDevices",
+      "declared_primitive": "proto_mutation",
+      "observed_primitive": "proto_mutation"
+    },
+    {
+      "path": "setup status",
+      "group": "setup",
+      "command": "status",
+      "binding": "SetupService.GetSetupStatus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
     }
   ]
 }

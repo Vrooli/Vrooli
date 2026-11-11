@@ -25,6 +25,7 @@ describe("ThemeProvider", () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it("sets data-theme on the html element for an explicit light choice", () => {
@@ -76,4 +77,30 @@ describe("ThemeProvider", () => {
 
     matchMediaSpy.mockRestore();
   });
+  it("renders with an ephemeral system theme when storage reads are denied", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new DOMException("Storage denied", "SecurityError"); });
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    expect(result.current.choice).toBe("system");
+    expect(result.current.storageAvailable).toBe(false);
+    expect(document.documentElement.getAttribute("data-resolved-theme")).toBe("light");
+  });
+
+  it("applies an ephemeral choice when storage writes are denied", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new DOMException("Quota denied", "QuotaExceededError"); });
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper("light") });
+    act(() => result.current.setTheme("dark"));
+    expect(result.current.choice).toBe("dark");
+    expect(result.current.resolved).toBe("dark");
+    expect(result.current.storageAvailable).toBe(false);
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("survives a denied localStorage property getter", () => {
+    vi.spyOn(window, "localStorage", "get").mockImplementation(() => { throw new DOMException("Storage denied", "SecurityError"); });
+    const { result } = renderHook(() => useTheme(), { wrapper: wrapper() });
+    act(() => result.current.setTheme("dark"));
+    expect(result.current.choice).toBe("dark");
+    expect(result.current.storageAvailable).toBe(false);
+  });
+
 });

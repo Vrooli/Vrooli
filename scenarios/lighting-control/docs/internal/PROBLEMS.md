@@ -51,6 +51,13 @@ Use this shape so entries are scannable. Append newest at the bottom.
 
 _None yet._
 
+## Work ladder
+
+- Rung W3 for the bounded Light Desk UI regression pass on 2026-11-11.
+- Evidence came from the approved experience contract and focused page regressions. They identified cross-preset draft leakage, cached-policy mutation before persistence, missing failure handling for Off/enrollment, false save-failure feedback after local cleanup, and nested complementary landmarks in loaded pages.
+- The affected local gates now pass with 149 UI tests, all configured coverage metrics above 85%, type-check and scoped ESLint. The durable refinement and proof limits are recorded under `ui-regression-owner-20261111` in `../concepts/EXPERIENCE.md`.
+- Served desktop/phone comparison and Test Genie admission remain with the supervising delivery effort.
+
 ## Architecture Drift
 
 Use this section for deferred findings from `screaming-architecture-audit`.

@@ -15,13 +15,28 @@ type ZoneMapping struct {
 	Static       bool
 }
 
+// SelectionResult separates a superseded request from an already committed one.
+type SelectionResult int
+
+const (
+	SelectionSuperseded SelectionResult = iota
+	SelectionCompleted
+	SelectionCommitted
+)
+
 type Repository interface {
 	SyncControllers(context.Context, []*controlv1.Controller, []ZoneMapping) error
 	ListControllers(context.Context) ([]*controlv1.Controller, error)
 	SetEnrollment(context.Context, string, bool) (*controlv1.Controller, error)
 	ListZones(context.Context, string) ([]ZoneMapping, error)
 	SaveDesired(context.Context, *controlv1.ZoneState, *controlv1.ZoneApplyResult) error
+	SavePolicyDesired(context.Context, *controlv1.ZoneState, *controlv1.ZoneApplyResult) error
+	SaveApply(context.Context, *controlv1.ZoneState, *controlv1.ZoneApplyResult) error
 	ListDesired(context.Context) ([]*controlv1.ZoneStatus, error)
+	ListManualDesired(context.Context) ([]*controlv1.ZoneStatus, error)
+	DesiredSource(context.Context, string, string) (string, error)
+	PolicyRevision(context.Context) (int64, error)
+	SelectPolicy(context.Context, PolicySelection, *controlv1.ManualOverride) (SelectionResult, error)
 	SetManualOverride(context.Context, *controlv1.ManualOverride) error
 	GetManualOverride(context.Context) (*controlv1.ManualOverride, error)
 	ClearManualOverride(context.Context) error

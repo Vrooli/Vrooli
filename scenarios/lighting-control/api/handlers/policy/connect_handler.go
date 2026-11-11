@@ -8,6 +8,7 @@ import (
 
 	"connectrpc.com/connect"
 	policyv1 "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/policy"
+	"lighting-control/internal/apiauth"
 	internalpolicy "lighting-control/internal/policy"
 )
 
@@ -32,6 +33,9 @@ func (h *connectHandler) GetPolicy(ctx context.Context, _ *connect.Request[polic
 }
 
 func (h *connectHandler) SetPolicy(ctx context.Context, req *connect.Request[policyv1.SetPolicyRequest]) (*connect.Response[policyv1.SetPolicyResponse], error) {
+	if err := apiauth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
 	if err := (internalpolicy.Engine{Config: req.Msg.Config}).Validate(); err != nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, err)
 	}
@@ -43,6 +47,9 @@ func (h *connectHandler) SetPolicy(ctx context.Context, req *connect.Request[pol
 }
 
 func (h *connectHandler) SetManualPreset(ctx context.Context, req *connect.Request[policyv1.SetManualPresetRequest]) (*connect.Response[policyv1.SetManualPresetResponse], error) {
+	if err := apiauth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
 	expires := time.Time{}
 	var err error
 	if req.Msg.ExpiresAt != nil {
@@ -62,6 +69,9 @@ func (h *connectHandler) SetManualPreset(ctx context.Context, req *connect.Reque
 }
 
 func (h *connectHandler) ClearManualPreset(ctx context.Context, _ *connect.Request[policyv1.ClearManualPresetRequest]) (*connect.Response[policyv1.ClearManualPresetResponse], error) {
+	if err := apiauth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
 	cleared, _, _, err := h.service.ClearManual(ctx)
 	if err != nil {
 		return nil, policyError(err)
@@ -70,6 +80,9 @@ func (h *connectHandler) ClearManualPreset(ctx context.Context, _ *connect.Reque
 }
 
 func (h *connectHandler) EvaluatePolicy(ctx context.Context, _ *connect.Request[policyv1.EvaluatePolicyRequest]) (*connect.Response[policyv1.EvaluatePolicyResponse], error) {
+	if err := apiauth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
 	effective, results, err := h.service.Evaluate(ctx)
 	if err != nil {
 		return nil, policyError(err)

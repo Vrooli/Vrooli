@@ -217,3 +217,52 @@ For a command inside an existing domain:
 - [`configuration.md`](configuration.md) — env vars and config-file precedence
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — fixes for "API unreachable", auth, stale binary
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md#inside-the-cli-thin-wrapper-domain-organized) — CLI architecture
+
+## Explicit lighting setup
+
+Settings and these authenticated scenario commands share the typed SetupService:
+
+- `lighting-control setup status --json` reads desired state and the declared pinned selection.
+- `lighting-control setup install --selection '<LightingSelection JSON>' --json` explicitly selects a governed managed installation or a compatible existing executable.
+- `lighting-control setup enable --selection '<LightingSelection JSON>' --json` enables exactly that verified selection.
+- `lighting-control setup disable --json` fences new writes, quiesces the scenario and disables the owned backend.
+
+`LightingSelection` contains `source` (`INSTALLATION_SOURCE_MANAGED` or `INSTALLATION_SOURCE_EXISTING`), `version`, `sha256` and an optional enrolled machine-local `devicePolicyId` for installation. Read the pinned selection from status; do not guess artifact digests or policy IDs. Existing-source installation may omit `sha256` so the canonical resource owner resolves the compatible executable and returns its exact fingerprint. Enable always requires the resolved fingerprint and qualified machine-local device policy. Missing or mismatched policy leaves installation metadata verified but `setupVerified=false`, with a launch blocker. Changing installation requires disabled desired state.
+
+The owning root surface is `vrooli runtime lighting status|setup|enable|disable`. Root setup/enable use `--source managed|existing --version <release> --sha256 <digest> --device-policy-id <id>` and support `--json`. Root operations own host state; the scenario invokes only these fixed commands. Public API calls require a verified identity with the matching `lighting-control:read` or `lighting-control:write` capability. The shared capability evaluator preserves canonical wildcard coverage. Ordinary owner-authorized host setup does not require a new agent-only consent. Exact reviewed permission plans, maintained safeguard conditions and native root privilege remain separate execution proofs.
+
+Opening Settings or reading disabled status never installs, updates, starts or probes OpenRGB. `resourceObserved=false` means live resource facts are unobserved. An explicit successful setup reports installed metadata separately; `setupVerified` additionally requires matching machine-local policy metadata; native device access and background ownership remain launch prerequisites. A missing governed acquisition gateway, incompatible existing executable, missing machine policy or unsupported native platform is reported explicitly. Current source validation does not qualify physical lights, native service recovery or platform hardware support.
+
+## Selected-device access
+
+Device discovery is an explicit action: `lighting-control setup devices --json`. Opening Settings only requests setup status. Select the human-labelled candidates returned by discovery; do not construct physical selectors or policy IDs.
+
+`lighting-control setup plan-devices --device-ids '["<discovered-id>"]' --json` previews the maintained owner's exact changes. Apply or roll back that reviewed plan with `setup apply-devices --plan-id <id> --json` or `setup rollback-devices --plan-id <id> --json`. Public API calls never prompt for a password. `needs_sudo` reports a technical privilege requirement and returns the owner's exact supported local command; no additional agent-only approval is invented.
+
+The root equivalents are `vrooli runtime lighting devices`, `permissions plan --device-id <id>` (repeatable), and `permissions apply|rollback --plan-id <id> --sudo-mode error|ask`. The canonical native owner revalidates plan identity, caller ownership, device topology and the expected prior rule before applying or restoring access. The browser passes only opaque candidate/plan IDs. The retained applied-plan ID in setup status supports rollback after reload; previewing another plan does not replace that authority.
+
+After access enrollment, run explicit setup verification again before enabling. `setupVerified` is the retained last static setup qualification, bound to source/version/hash/policy metadata; it is invalidated when those inputs change. It does not establish current installed bytes, running processes, native pre-exec access or physical light behavior. Enable revalidates those current conditions through their native owners.
+
+## Authenticated mutations
+
+All Control, Policy and Setup mutations require an existing verified principal
+with `lighting-control:write`. Reads remain available when signed out. A remote
+human or service token must be issued by the installation's configured identity
+provider for resource `lighting-control` (audience
+`scenario-authenticator:lighting-control`). Use the canonical authenticator's
+account lifecycle and capability administration; Light Desk does not create
+accounts or assign grants.
+
+The standard CLI's `configure token` setting supplies bearer authentication to
+its typed API client. Treat that value as a secret; use the existing secure
+operator credential workflow and never include it in logs or evidence. The CLI
+also supports Agent Manager's live credential broker automatically: an identified
+agent retains its verified run identity, capability ceiling and expiry. A
+read-only or empty-scope agent cannot mutate lighting, even if an unrelated
+operation grant exists. Do not exchange an identified agent for a local owner.
+
+A successful sign-in proves identity. An account still needs its existing
+`lighting-control:write` capability for a mutation. Provider unavailability,
+expired credentials and absent capability are explicit failures; they do not
+start an authenticator or alter lighting. Browser sign-in uses the same issuer
+through Settings and same-origin HttpOnly cookies.

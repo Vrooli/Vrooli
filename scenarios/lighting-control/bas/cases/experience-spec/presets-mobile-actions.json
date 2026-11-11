@@ -1,0 +1,184 @@
+{
+  "metadata": {
+    "name": "experience-presets-mobile-actions",
+    "description": "Given a 390 by 844 phone viewport and a synthetic 34px safe area, when Presets loads and scrolls to guardrails, then Save draft, Save and use, and manual Off stay fully above navigation with 44px hit targets.",
+    "requirement": "OT-P0-001",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "presets",
+      "surface": "experience-presets",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "fixture": "browser-local-safe-area"
+    },
+    "execution_mode": "EXECUTION_MODE_MUTATING"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "open-presets",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "lighting-control",
+          "scenario_path": "/presets",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open the phone preset editor"
+        }
+      }
+    },
+    {
+      "id": "wait-actions",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/lightDesk.presetActions",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Wait for preset actions"
+        }
+      }
+    },
+    {
+      "id": "apply-synthetic-safe-area",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "document.documentElement.style.setProperty('--rcl-safe-bottom', '34px')"
+        },
+        "metadata": {
+          "label": "Apply a synthetic 34px phone safe area"
+        }
+      }
+    },
+    {
+      "id": "measure-initial-actions",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => {\n  await document.fonts.ready;\n  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));\n  const main = document.querySelector('@selector/layout.main');\n  const tabs = document.querySelector('@selector/layout.tabs');\n  const actions = document.querySelector('@selector/lightDesk.presetActions');\n  const off = document.querySelector('@selector/lightDesk.manualOff');\n  if (!main || !tabs || !actions || !off) throw new Error('Required phone action or shell region is missing');\n  const page = document.querySelector('@selector/pages.presets');\n  const viewport = { width: innerWidth, height: innerHeight };\n  const mainBounds = main.getBoundingClientRect();\n  const tabsBounds = tabs.getBoundingClientRect();\n  const controls = [...actions.querySelectorAll('button'), off];\n  const results = controls.map((button) => {\n    const bounds = button.getBoundingClientRect();\n    const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);\n    return { text: button.textContent.trim(), top: bounds.top, bottom: bounds.bottom, left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height, unobscured: Boolean(hit && button.contains(hit)) };\n  });\n  const navigation = [...tabs.querySelectorAll('a')].map((link) => { const b = link.getBoundingClientRect(); const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2); const style = getComputedStyle(link); return { text: link.textContent.trim(), top: b.top, bottom: b.bottom, height: b.height, width: b.width, visible: style.visibility === 'visible' && Number(style.opacity) > 0, unobscured: Boolean(hit && link.contains(hit)) }; });\n  const navClear = navigation.length === 3 && navigation.every((link) => link.text && link.visible && link.unobscured && link.height >= 44 && link.width >= 44 && link.top >= tabsBounds.top && link.bottom <= viewport.height);\n  const clear = navClear && viewport.width === 390 && results.length === 3 && tabsBounds.height >= 90 && results.every((button) => button.height >= 44 && button.width >= 44 && button.top >= mainBounds.top && button.bottom <= Math.min(mainBounds.bottom, tabsBounds.top) + 0.5 && button.left >= 0 && button.right <= viewport.width && button.unobscured);\n  page.dataset.lightdeskActionsClear = String(clear);\n  return { viewport, mainBottom: mainBounds.bottom, navTop: tabsBounds.top, navHeight: tabsBounds.height, scrollTop: main.scrollTop, controls: results, navigation, clear };\n})()",
+          "store_result": "initialActions"
+        },
+        "metadata": {
+          "label": "Measure initial action bounds and hit targets"
+        }
+      }
+    },
+    {
+      "id": "assert-initial-actions",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.presets",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-lightdesk-actions-clear",
+          "expected": {
+            "string_value": "true"
+          },
+          "failure_message": "Every preset action and manual Off must be fully above the actual phone navigation and receive its center hit target."
+        },
+        "metadata": {
+          "label": "Require fully visible initial actions"
+        }
+      }
+    },
+    {
+      "id": "scroll-guardrails",
+      "action": {
+        "type": "ACTION_TYPE_SCROLL",
+        "scroll": {
+          "selector": "@selector/layout.main",
+          "y": 100000
+        },
+        "metadata": {
+          "label": "Scroll to policy guardrails"
+        }
+      }
+    },
+    {
+      "id": "measure-scrolled-actions",
+      "action": {
+        "type": "ACTION_TYPE_EVALUATE",
+        "evaluate": {
+          "expression": "(async () => {\n  await document.fonts.ready;\n  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));\n  const main = document.querySelector('@selector/layout.main');\n  const tabs = document.querySelector('@selector/layout.tabs');\n  const actions = document.querySelector('@selector/lightDesk.presetActions');\n  const off = document.querySelector('@selector/lightDesk.manualOff');\n  if (!main || !tabs || !actions || !off) throw new Error('Required phone action or shell region is missing');\n  const page = document.querySelector('@selector/pages.presets');\n  const viewport = { width: innerWidth, height: innerHeight };\n  const mainBounds = main.getBoundingClientRect();\n  const tabsBounds = tabs.getBoundingClientRect();\n  const controls = [...actions.querySelectorAll('button'), off];\n  const results = controls.map((button) => {\n    const bounds = button.getBoundingClientRect();\n    const hit = document.elementFromPoint(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);\n    return { text: button.textContent.trim(), top: bounds.top, bottom: bounds.bottom, left: bounds.left, right: bounds.right, width: bounds.width, height: bounds.height, unobscured: Boolean(hit && button.contains(hit)) };\n  });\n  const navigation = [...tabs.querySelectorAll('a')].map((link) => { const b = link.getBoundingClientRect(); const hit = document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2); const style = getComputedStyle(link); return { text: link.textContent.trim(), top: b.top, bottom: b.bottom, height: b.height, width: b.width, visible: style.visibility === 'visible' && Number(style.opacity) > 0, unobscured: Boolean(hit && link.contains(hit)) }; });\n  const navClear = navigation.length === 3 && navigation.every((link) => link.text && link.visible && link.unobscured && link.height >= 44 && link.width >= 44 && link.top >= tabsBounds.top && link.bottom <= viewport.height);\n  const clear = navClear && main.scrollTop > 0 && viewport.width === 390 && results.length === 3 && tabsBounds.height >= 90 && results.every((button) => button.height >= 44 && button.width >= 44 && button.top >= mainBounds.top && button.bottom <= Math.min(mainBounds.bottom, tabsBounds.top) + 0.5 && button.left >= 0 && button.right <= viewport.width && button.unobscured);\n  page.dataset.lightdeskActionsClear = String(clear);\n  return { viewport, mainBottom: mainBounds.bottom, navTop: tabsBounds.top, navHeight: tabsBounds.height, scrollTop: main.scrollTop, controls: results, navigation, clear };\n})()",
+          "store_result": "scrolledActions"
+        },
+        "metadata": {
+          "label": "Measure action bounds after scrolling"
+        }
+      }
+    },
+    {
+      "id": "assert-scrolled-actions",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/pages.presets",
+          "mode": "ASSERTION_MODE_ATTRIBUTE_EQUALS",
+          "attribute_name": "data-lightdesk-actions-clear",
+          "expected": {
+            "string_value": "true"
+          },
+          "failure_message": "Scrolling to guardrails must preserve fully visible preset actions and manual Off above navigation."
+        },
+        "metadata": {
+          "label": "Require fully visible actions after scrolling"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-1",
+      "source": "open-presets",
+      "target": "wait-actions",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-2",
+      "source": "wait-actions",
+      "target": "apply-synthetic-safe-area",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-3",
+      "source": "apply-synthetic-safe-area",
+      "target": "measure-initial-actions",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-4",
+      "source": "measure-initial-actions",
+      "target": "assert-initial-actions",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-5",
+      "source": "assert-initial-actions",
+      "target": "scroll-guardrails",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-6",
+      "source": "scroll-guardrails",
+      "target": "measure-scrolled-actions",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "edge-7",
+      "source": "measure-scrolled-actions",
+      "target": "assert-scrolled-actions",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

@@ -56,7 +56,7 @@ export function AppShell() {
       mobileNav={SHELL.mobileNav}
       mainMode={SHELL.mainMode}
       renderLink={(item, { href, children, onClick, ...rest }) => (
-        <NavLink to={href} end={item.id === "brand" || NAV_ITEMS.find((entry) => entry.key === item.id)?.end === true} onClick={onClick} {...rest}>
+        <NavLink to={href} end={item.id === "brand" || (NAV_ITEMS.find((entry) => entry.key === item.id)?.end === true && pathname === href)} onClick={onClick} {...rest}>
           {children}
         </NavLink>
       )}

@@ -43,14 +43,14 @@
   ],
   "health_checks": [
     {
-      "type": "tcp",
+      "type": "openrgb-sdk-v6",
       "kind": "readiness",
       "target": "127.0.0.1:${RESOURCE_PORT_SDK}",
       "interval_seconds": 5,
       "timeout_seconds": 5
     },
     {
-      "type": "tcp",
+      "type": "openrgb-sdk-v6",
       "kind": "liveness",
       "target": "127.0.0.1:${RESOURCE_PORT_SDK}",
       "interval_seconds": 30,
@@ -126,6 +126,10 @@
         "desktop-bundle": "managed-private"
       }
     },
+    "update_policy": {
+      "strategy": "exclusive-stop-start",
+      "candidate_port": "sdk"
+    },
     "arguments": [
       "--server",
       "--server-host",
@@ -151,5 +155,26 @@
     "confidence": "low",
     "source": "estimated",
     "weight": 1
+  },
+  "deployment": {
+    "profiles": {
+      "desktop": {
+        "linux": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "OpenRGB remains a host-required optional resource and is not integrated as a desktop-bundled service. Its separate control-plane resource lifecycle is currently Linux amd64 only."
+        },
+        "macos": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "OpenRGB headless startup and narrow device permissions are not integrated or qualified on macOS."
+        },
+        "windows": {
+          "support": "unsupported",
+          "mode": "manual",
+          "reason": "OpenRGB headless startup, isolated configuration, and narrow device permissions are not integrated or qualified on Windows."
+        }
+      }
+    }
   }
 }

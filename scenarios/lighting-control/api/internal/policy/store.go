@@ -27,25 +27,59 @@ type Store interface {
 	Save(context.Context, *policyv1.PolicyConfig, State) error
 }
 
+// LoadForRead returns detached normalized configuration and replay state without
+// initializing or migrating persisted state. Read previews cannot commit policy.
+func LoadForRead(ctx context.Context, store Store) (*policyv1.PolicyConfig, State, error) {
+	config, state, _, err := loadNormalized(ctx, store)
+	return config, state, err
+}
+
 func LoadOrInitialize(ctx context.Context, store Store) (*policyv1.PolicyConfig, State, error) {
-	config, state, err := store.Load(ctx)
-	if err == nil {
-		return config, state, nil
-	}
-	if !errors.Is(err, ErrNotFound) {
+	config, state, changed, err := loadNormalized(ctx, store)
+	if err != nil {
 		return nil, State{}, err
 	}
-	config = DefaultConfig()
-	state = State{}
-	if err := store.Save(ctx, config, state); err != nil {
-		return nil, State{}, err
+	if changed {
+		if err := store.Save(ctx, config, state); err != nil {
+			return nil, State{}, err
+		}
 	}
 	return config, state, nil
 }
 
-type sqliteStore struct{ db SQLExecutor }
+func loadNormalized(ctx context.Context, store Store) (*policyv1.PolicyConfig, State, bool, error) {
+	config, state, err := store.Load(ctx)
+	if errors.Is(err, ErrNotFound) {
+		return DefaultConfig(), State{}, true, nil
+	}
+	if err != nil {
+		return nil, State{}, false, err
+	}
+	if config == nil {
+		return nil, State{}, false, errors.New("stored lighting policy config is required")
+	}
+	config = proto.Clone(config).(*policyv1.PolicyConfig)
+	defaults := DefaultConfig()
+	changed := false
+	if config.HealthPalette == nil {
+		config.HealthPalette = defaults.HealthPalette
+		changed = true
+	}
+	if config.ActivityEffects == nil || config.ActivityEffects.BusyAgentThreshold == 0 {
+		config.ActivityEffects = defaults.ActivityEffects
+		changed = true
+	}
+	return config, state, changed, nil
+}
 
-func NewSQLiteStore(db SQLExecutor) Store { return &sqliteStore{db: db} }
+type sqliteStore struct {
+	db  SQLExecutor
+	now func() time.Time
+}
+
+func NewSQLiteStore(db SQLExecutor) Store {
+	return &sqliteStore{db: db, now: time.Now}
+}
 
 func (s *sqliteStore) Load(ctx context.Context) (*policyv1.PolicyConfig, State, error) {
 	var configBytes []byte
@@ -93,7 +127,7 @@ ON CONFLICT(id) DO UPDATE SET
   config_proto = excluded.config_proto,
   evaluation_state = excluded.evaluation_state,
   updated_at = excluded.updated_at
-`, configBytes, string(stateBytes), time.Now().UTC().Format(time.RFC3339Nano))
+`, configBytes, string(stateBytes), s.now().UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("save lighting policy: %w", err)
 	}
@@ -120,5 +154,11 @@ func DefaultConfig() *policyv1.PolicyConfig {
 			{Kind: policyv1.PresetKind_PRESET_KIND_COMBINED, Label: "Combined", Color: &controlv1.Color{Red: 40, Green: 176, Blue: 120}, EffectId: "Breathing", Enabled: true, BrightnessCapPercent: 25},
 			{Kind: policyv1.PresetKind_PRESET_KIND_STATIC, Label: "Static", Color: &controlv1.Color{Red: 32, Green: 48, Blue: 64}, Enabled: true, BrightnessCapPercent: 20},
 		},
+		HealthPalette: &policyv1.HealthPalette{
+			Healthy:   &controlv1.Color{Red: 87, Green: 190, Blue: 138},
+			Attention: &controlv1.Color{Red: 217, Green: 154, Blue: 36},
+			Failure:   &controlv1.Color{Red: 217, Green: 77, Blue: 77},
+		},
+		ActivityEffects: &policyv1.ActivityEffects{ActiveEffectId: "Breathing", BusyEffectId: "Breathing", BusyAgentThreshold: 5},
 	}
 }

@@ -8,6 +8,8 @@ import {
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { PresetsPage } from "../pages/PresetsPage";
+import { ControllerPage } from "../pages/ControllerPage";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
 /**
@@ -22,6 +24,8 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "presets", element: <PresetsPage /> },
+      { path: "controllers/:controllerId", element: <ControllerPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },

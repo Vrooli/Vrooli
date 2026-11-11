@@ -225,43 +225,334 @@
         {
           "name": "get",
           "description": "Read persisted policy and effective evidence-backed preset.",
-          "binding": {"kind": "connect-rpc", "service": "PolicyService", "method": "GetPolicy"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "GetPolicy"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "set",
           "description": "Persist policy configuration from a proto JSON file.",
-          "flags": [{"name": "config", "required": true, "description": "Path to a JSON PolicyConfig message.", "bind": {"field": "config", "kind": "json_file"}}],
-          "binding": {"kind": "connect-rpc", "service": "PolicyService", "method": "SetPolicy"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "flags": [
+            {
+              "name": "config",
+              "required": true,
+              "description": "Path to a JSON PolicyConfig message.",
+              "bind": {
+                "field": "config",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "SetPolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "set-manual",
           "description": "Apply a preset manually until cleared or its optional expiry.",
           "flags": [
-            {"name": "preset", "required": true, "description": "Preset enum value (for example PRESET_KIND_OFF or PRESET_KIND_WORK)."},
-            {"name": "expires-at", "description": "Expiry as a protobuf Timestamp JSON object.", "bind": {"field": "expires_at", "kind": "json_inline"}}
+            {
+              "name": "preset",
+              "required": true,
+              "description": "Preset enum value (for example PRESET_KIND_OFF or PRESET_KIND_WORK)."
+            },
+            {
+              "name": "expires-at",
+              "description": "Expiry as a protobuf Timestamp JSON object.",
+              "bind": {
+                "field": "expires_at",
+                "kind": "json_inline"
+              }
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "PolicyService", "method": "SetManualPreset"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "SetManualPreset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "clear-manual",
           "description": "Clear the manual preset and resume configured policy.",
-          "binding": {"kind": "connect-rpc", "service": "PolicyService", "method": "ClearManualPreset"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "ClearManualPreset"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
         },
         {
           "name": "evaluate",
           "description": "Read current sources and reconcile the effective policy once.",
-          "flags": [{"name": "trigger", "description": "Reason for evaluation, such as operator or reconnect."}],
-          "binding": {"kind": "connect-rpc", "service": "PolicyService", "method": "EvaluatePolicy"},
-          "governance": {"effect": "write", "run_eligible": false, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_mutation"}
+          "flags": [
+            {
+              "name": "trigger",
+              "description": "Reason for evaluation, such as operator or reconnect."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "PolicyService",
+            "method": "EvaluatePolicy"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        }
+      ]
+    },
+    {
+      "name": "setup",
+      "description": "Authenticated explicit setup and runtime intent.",
+      "commands": [
+        {
+          "name": "status",
+          "description": "Status lighting setup.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "GetSetupStatus"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "install",
+          "description": "Install lighting setup.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "SetupLighting"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "selection",
+              "required": true,
+              "description": "Exact typed installation selection as JSON (source, version, sha256, devicePolicyId).",
+              "bind": {
+                "field": "selection",
+                "kind": "json_inline"
+              }
+            }
+          ]
+        },
+        {
+          "name": "enable",
+          "description": "Enable lighting setup.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "EnableLighting"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "selection",
+              "required": true,
+              "description": "Exact typed installation selection as JSON (source, version, sha256, devicePolicyId).",
+              "bind": {
+                "field": "selection",
+                "kind": "json_inline"
+              }
+            }
+          ]
+        },
+        {
+          "name": "disable",
+          "description": "Disable lighting setup.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "DisableLighting"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "devices",
+          "description": "Devices.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "GetSetupDevices"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "plan-devices",
+          "description": "Plan Devices.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "PlanLightingDevices"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "device-ids",
+              "required": true,
+              "description": "JSON array of selected opaque device identities.",
+              "bind": {
+                "field": "device_ids",
+                "kind": "json_inline"
+              }
+            }
+          ]
+        },
+        {
+          "name": "apply-devices",
+          "description": "Apply Devices.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "ApplyLightingDevices"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "plan-id",
+              "required": true,
+              "description": "Exact reviewed permission plan identity."
+            }
+          ]
+        },
+        {
+          "name": "rollback-devices",
+          "description": "Rollback Devices.",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "SetupService",
+            "method": "RollbackLightingDevices"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          },
+          "flags": [
+            {
+              "name": "plan-id",
+              "required": true,
+              "description": "Exact reviewed permission plan identity."
+            }
+          ]
         }
       ]
     }

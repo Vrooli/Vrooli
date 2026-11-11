@@ -8,5 +8,13 @@
     "routes": ["/settings"],
     "purpose": "Expose the minimum configuration surface needed to understand and operate Lighting Control safely.",
     "prd_refs": ["OT-P1-001"]
-  }
+  },
+  "states": [
+    { "id": "loading", "description": "Backend and saved policy status are being checked." },
+    { "id": "default", "description": "Shows explicit backend readiness, last check, and saved policy guardrails." },
+    { "id": "empty", "description": "Saved policy is not available; the page does not invent setup success." },
+    { "id": "partial", "description": "Backend status is available while one or more optional preferences are not configured." },
+    { "id": "request-error", "description": "Backend or policy errors are actionable and do not erase the last known values." },
+    { "id": "stale", "description": "Last check time remains visible so old readiness is not presented as current." }
+  ]
 }

@@ -1,17 +1,21 @@
 package control
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/netip"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
+
+	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/lighting-control/v1/control"
 )
 
 const (
@@ -34,17 +38,25 @@ type SDKClient struct {
 
 type SDKController struct {
 	ID          uint32
+	Type        uint32
 	Name        string
 	Vendor      string
 	Description string
+	Serial      string
+	Location    string
+	LEDCount    uint32
+	ActiveMode  int32
+	Modes       []SDKMode
 	Zones       []SDKZone
 }
 
 type SDKZone struct {
-	Name     string
-	LEDCount uint32
-	Index    uint32 // transient SDK zone index; never persisted as identity
-	Static   bool
+	Name       string
+	LEDCount   uint32
+	Index      uint32 // transient SDK zone index; never persisted as identity
+	Static     bool
+	ActiveMode int32
+	Modes      []SDKMode
 }
 
 type RGB struct{ R, G, B uint8 }
@@ -55,6 +67,7 @@ type SDKCommandResult struct {
 	LocalWriteCompleted bool
 	BackendAcknowledged bool
 	AckStatus           uint32
+	CachedModeReadback  controlv1.CachedModeReadback
 }
 
 type SDKAckError struct {
@@ -171,36 +184,31 @@ func readPacket(r io.Reader) (sdkPacket, error) {
 	}, nil
 }
 
-func (c SDKClient) negotiate(ctx context.Context, conn net.Conn) (uint32, error) {
-	data := make([]byte, 4)
-	binary.LittleEndian.PutUint32(data, openRGBProtocolVersion)
+func negotiate(conn net.Conn) (uint32, error) {
+	data := binary.LittleEndian.AppendUint32(nil, openRGBProtocolVersion)
 	if err := writePacket(conn, 0, requestProtocolVersion, data); err != nil {
 		return 0, fmt.Errorf("%w: negotiate SDK protocol: %v", ErrTransport, err)
 	}
-	var version uint32
-	var gotServerName bool
-	for version == 0 || !gotServerName {
-		packet, err := readPacket(conn)
-		if err != nil {
-			return 0, transportReadError("negotiate SDK protocol", err)
-		}
-		switch packet.packetID {
-		case requestProtocolVersion:
-			if packet.deviceID != 0 || len(packet.data) != 4 || version != 0 {
-				return 0, fmt.Errorf("%w: invalid protocol-version reply", ErrProtocolMismatch)
-			}
-			version = binary.LittleEndian.Uint32(packet.data)
-			if version < openRGBProtocolVersion {
-				return version, fmt.Errorf("%w: server supports SDK protocol %d; version %d is required for stable IDs and acknowledgements", ErrProtocolMismatch, version, openRGBProtocolVersion)
-			}
-		case serverNamePacket:
-			gotServerName = true
-		default:
-			// OpenRGB may publish asynchronous state notifications on this
-			// connection. They are not replies to the request being negotiated.
-		}
+	reply, err := readExpectedPacket(conn, 0, requestProtocolVersion)
+	if err != nil {
+		return 0, err
 	}
-	return version, nil
+	if len(reply.data) != 4 {
+		return 0, fmt.Errorf("%w: invalid protocol-version reply", ErrProtocolMismatch)
+	}
+	version := binary.LittleEndian.Uint32(reply.data)
+	if version < openRGBProtocolVersion {
+		return version, fmt.Errorf("%w: server supports SDK protocol %d; version %d is required for stable IDs and acknowledgements", ErrProtocolMismatch, version, openRGBProtocolVersion)
+	}
+	name, err := readExpectedPacket(conn, 0, serverNamePacket)
+	if err != nil {
+		return version, err
+	}
+	if !sdkCString(name.data) {
+		return version, fmt.Errorf("%w: invalid server-name reply", ErrProtocolMismatch)
+	}
+	// OpenRGB 1.1 sends this ACK from its listener after both replies.
+	return version, readAck(conn, 0, requestProtocolVersion)
 }
 
 func transportReadError(action string, err error) error {
@@ -212,7 +220,7 @@ func transportReadError(action string, err error) error {
 }
 
 func validateAck(packet sdkPacket, deviceID, packetID uint32) error {
-	if packet.deviceID != deviceID || len(packet.data) != 8 {
+	if packet.packetID != ackPacket || packet.deviceID != deviceID || len(packet.data) != 8 {
 		return fmt.Errorf("%w: malformed ACK for device %d packet %d", ErrProtocolMismatch, deviceID, packetID)
 	}
 	ackedPacketID := binary.LittleEndian.Uint32(packet.data[:4])
@@ -226,47 +234,85 @@ func validateAck(packet sdkPacket, deviceID, packetID uint32) error {
 	return nil
 }
 
-func (c SDKClient) request(ctx context.Context, deviceID, packetID uint32, data []byte) (sdkPacket, error) {
-	conn, err := c.dial(ctx)
+func requestOnConn(conn net.Conn, deviceID, packetID uint32, data []byte) (sdkPacket, error) {
+	if err := writePacket(conn, deviceID, packetID, data); err != nil {
+		return sdkPacket{}, fmt.Errorf("%w: write packet: %v", ErrTransport, err)
+	}
+	reply, err := readExpectedPacket(conn, deviceID, packetID)
 	if err != nil {
 		return sdkPacket{}, err
 	}
-	defer conn.Close()
-	if _, err = c.negotiate(ctx, conn); err != nil {
-		return sdkPacket{}, err
-	}
-	if err = writePacket(conn, deviceID, packetID, data); err != nil {
-		return sdkPacket{}, fmt.Errorf("%w: write packet: %v", ErrTransport, err)
-	}
-	return readOperation(conn, deviceID, packetID, true, packetID != requestControllerCount)
+	return reply, readAck(conn, deviceID, packetID)
 }
 
-func readOperation(conn net.Conn, deviceID, packetID uint32, hasReply, hasAck bool) (sdkPacket, error) {
-	var response sdkPacket
-	gotReply, gotAck := false, !hasAck
-	for !gotAck || hasReply && !gotReply {
+func readAck(conn net.Conn, deviceID, packetID uint32) error {
+	packet, err := readExpectedPacket(conn, deviceID, ackPacket)
+	if err != nil {
+		return err
+	}
+	return validateAck(packet, deviceID, packetID)
+}
+
+func readExpectedPacket(conn net.Conn, deviceID, packetID uint32) (sdkPacket, error) {
+	for {
 		packet, err := readPacket(conn)
 		if err != nil {
 			return sdkPacket{}, transportReadError("read SDK operation result", err)
 		}
-		if packet.packetID == ackPacket {
-			if err := validateAck(packet, deviceID, packetID); err != nil {
-				return sdkPacket{}, err
-			}
-			gotAck = true
-			continue
+		if packet.packetID == packetID && packet.deviceID == deviceID {
+			return packet, nil
 		}
-		if hasReply && packet.packetID == packetID {
-			if packet.deviceID != deviceID || gotReply {
-				return sdkPacket{}, fmt.Errorf("%w: unexpected duplicate or device ID in response to packet %d", ErrProtocolMismatch, packetID)
-			}
-			response = packet
-			gotReply = true
+		if !sdkNotification(packet) {
+			return sdkPacket{}, fmt.Errorf("%w: received packet %d for device %d, expected packet %d for device %d", ErrProtocolMismatch, packet.packetID, packet.deviceID, packetID, deviceID)
 		}
-		// Unrelated server notifications are drained, never mistaken for the
-		// expected reply or the next command's acknowledgement.
 	}
-	return response, nil
+}
+
+func sdkCString(data []byte) bool {
+	return len(data) > 0 && data[len(data)-1] == 0 && bytes.IndexByte(data[:len(data)-1], 0) < 0
+}
+
+// The pinned server can interleave these unsolicited broadcasts with a
+// request's replies and ACK. Only their native framing is accepted here.
+func sdkNotification(packet sdkPacket) bool {
+	data := packet.data
+	switch packet.packetID {
+	case 100, 101, 103: // Device list updated, detection started/completed.
+		return packet.deviceID == 0 && len(data) == 0
+	case 102: // Detection progress.
+		return packet.deviceID == 0 && sdkSizedNotification(data, 11) &&
+			int(binary.LittleEndian.Uint16(data[8:10])) == len(data)-10 && sdkCString(data[10:])
+	case 160: // Profile list updated.
+		return packet.deviceID == 0 && sdkProfileList(data)
+	case 1150: // Controller state changed.
+		return sdkSizedNotification(data, 10)
+	default:
+		return false
+	}
+}
+
+func sdkProfileList(data []byte) bool {
+	if !sdkSizedNotification(data, 6) {
+		return false
+	}
+	count := binary.LittleEndian.Uint16(data[4:6])
+	offset := 6
+	for i := uint16(0); i < count; i++ {
+		if offset+2 > len(data) {
+			return false
+		}
+		size := int(binary.LittleEndian.Uint16(data[offset : offset+2]))
+		offset += 2
+		if offset+size > len(data) || !sdkCString(data[offset:offset+size]) {
+			return false
+		}
+		offset += size
+	}
+	return offset == len(data)
+}
+
+func sdkSizedNotification(data []byte, minimum int) bool {
+	return len(data) >= minimum && binary.LittleEndian.Uint32(data[:4]) == uint32(len(data))
 }
 
 func (c SDKClient) ProtocolVersion(ctx context.Context) (uint32, error) {
@@ -275,15 +321,196 @@ func (c SDKClient) ProtocolVersion(ctx context.Context) (uint32, error) {
 		return 0, err
 	}
 	defer conn.Close()
-	return c.negotiate(ctx, conn)
+	return negotiate(conn)
 }
 
-// Discover negotiates each short-lived operation connection. OpenRGB stores
-// negotiated protocol version per connection, so controller-count and
-// controller-data requests each repeat the v6 handshake before sending their
-// operation. Protocol v6 unique controller IDs are used as identity.
+// Discover reads the controller roster over one negotiated connection.
+// SDK handles are transient; durable identity comes from serial or location.
 func (c SDKClient) Discover(ctx context.Context) ([]SDKController, error) {
-	countPacket, err := c.request(ctx, 0, requestControllerCount, nil)
+	conn, err := c.dial(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	if _, err := negotiate(conn); err != nil {
+		return nil, err
+	}
+	return discoverOnConn(conn)
+}
+
+// SendMode applies one descriptor at the exact controller or zone scope
+// already resolved from a fresh v6 controller snapshot. A successful result
+// means the backend ACKed the mode packet; it does not prove cached or physical
+// output.
+func (c SDKClient) SendMode(ctx context.Context, controllerID uint32, target SDKModeTarget, mode SDKMode) (SDKCommandResult, error) {
+	packetID, body, err := encodeSDKModeUpdateV6(target, mode)
+	if err != nil {
+		return SDKCommandResult{}, err
+	}
+	conn, err := c.dial(ctx)
+	if err != nil {
+		return SDKCommandResult{}, err
+	}
+	defer conn.Close()
+	if _, err := negotiate(conn); err != nil {
+		return SDKCommandResult{}, err
+	}
+	if err := writePacket(conn, controllerID, packetID, body); err != nil {
+		return SDKCommandResult{}, fmt.Errorf("%w: write OpenRGB mode update: %v", ErrTransport, err)
+	}
+	result := SDKCommandResult{LocalWriteCompleted: true}
+	err = readAck(conn, controllerID, packetID)
+	var ackErr *SDKAckError
+	if err == nil {
+		result.BackendAcknowledged = true
+	} else if errors.As(err, &ackErr) {
+		result.BackendAcknowledged = true
+		result.AckStatus = ackErr.Status
+	}
+	return result, err
+}
+
+// ApplyStableZone resolves the transient SDK controller and zone handles from
+// a fresh controller-data snapshot immediately before issuing a mutation.
+func (c SDKClient) ApplyStableZone(ctx context.Context, controllerID, fingerprint string, desired *controlv1.ZoneState) (SDKCommandResult, error) {
+	conn, err := c.dial(ctx)
+	if err != nil {
+		return SDKCommandResult{}, err
+	}
+	defer conn.Close()
+	if _, err = negotiate(conn); err != nil {
+		return SDKCommandResult{}, err
+	}
+	found, err := discoverOnConn(conn)
+	if err != nil {
+		return SDKCommandResult{}, err
+	}
+	controller, zone, err := resolveStableZoneFrom(found, controllerID, fingerprint)
+	if err != nil {
+		return SDKCommandResult{}, err
+	}
+	mode, targetMode, ok := requestedMode(desired, *controller, *zone)
+	if !ok {
+		return SDKCommandResult{}, ErrUnsupported
+	}
+	_, wantsEffect := desired.DesiredMode.(*controlv1.ZoneState_Effect)
+	if wantsEffect && !modeCanHonorBrightness(mode, desired) {
+		return SDKCommandResult{}, fmt.Errorf("%w: %w", ErrUnsupported, ErrBrightnessLimit)
+	}
+	var combined SDKCommandResult
+	modeSent := false
+	if wantsEffect || !modeAlreadyActive(targetMode, *controller, *zone) {
+		modeSent = true
+		mode = configureMode(mode, desired)
+		combined, err = sendModeOnConn(conn, controller.ID, targetMode, mode)
+		if err != nil {
+			return combined, err
+		}
+		// OpenRGB ACK and its subsequently returned controller cache are separate
+		// facts. Check the exact cached scope after the command, then resolve fresh
+		// transient handles again before any follow-up packet.
+		found, err = discoverOnConn(conn)
+		if err != nil {
+			return combined, err
+		}
+		controller, zone, err = resolveStableZoneFrom(found, controllerID, fingerprint)
+		if err != nil {
+			return combined, err
+		}
+		if modeReadbackMatches(targetMode, *controller, *zone, mode) {
+			combined.CachedModeReadback = controlv1.CachedModeReadback_CACHED_MODE_READBACK_MATCHES
+		} else {
+			combined.CachedModeReadback = controlv1.CachedModeReadback_CACHED_MODE_READBACK_MISMATCH
+			return combined, ErrModeReadbackMismatch
+		}
+	} else {
+		combined.CachedModeReadback = controlv1.CachedModeReadback_CACHED_MODE_READBACK_MATCHES
+	}
+	if wantsEffect && mode.ColorMode != sdkModeColorsPerLED {
+		return combined, nil
+	}
+	color, ok := requestedColor(desired)
+	if !ok {
+		return combined, ErrUnsupported
+	}
+	brightness := requestedBrightness(desired)
+	color.R = uint8(math.Round(float64(color.R) * brightness / 100))
+	color.G = uint8(math.Round(float64(color.G) * brightness / 100))
+	color.B = uint8(math.Round(float64(color.B) * brightness / 100))
+	colors := make([]RGB, zone.LEDCount)
+	for i := range colors {
+		colors[i] = color
+	}
+	command, colorErr := sendZoneColorsOnConn(conn, controller.ID, zone.Index, colors)
+	if colorErr != nil {
+		return mergeSDKCommandResults(combined, command, modeSent), colorErr
+	}
+	return mergeSDKCommandResults(combined, command, modeSent), nil
+}
+
+func mergeSDKCommandResults(first, second SDKCommandResult, bothRequired bool) SDKCommandResult {
+	out := second
+	out.LocalWriteCompleted = first.LocalWriteCompleted || second.LocalWriteCompleted
+	if bothRequired {
+		out.BackendAcknowledged = first.BackendAcknowledged && second.BackendAcknowledged
+	}
+	if second.AckStatus == 0 {
+		out.AckStatus = first.AckStatus
+	}
+	if out.CachedModeReadback == controlv1.CachedModeReadback_CACHED_MODE_READBACK_UNSPECIFIED {
+		out.CachedModeReadback = first.CachedModeReadback
+	}
+	return out
+}
+
+func (c SDKClient) resolveStableZone(ctx context.Context, controllerID, fingerprint string) (*SDKController, *SDKZone, error) {
+	found, err := c.Discover(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resolveStableZoneFrom(found, controllerID, fingerprint)
+}
+
+func resolveStableZoneFrom(found []SDKController, controllerID, fingerprint string) (*SDKController, *SDKZone, error) {
+	var controller *SDKController
+	for i := range found {
+		id, source := controllerIdentity(found[i])
+		if id != controllerID || !stableIdentitySource(source) {
+			continue
+		}
+		if controller != nil {
+			return nil, nil, ErrUnstableIdentity
+		}
+		controller = &found[i]
+	}
+	if controller == nil {
+		return nil, nil, ErrControllerNotFound
+	}
+	var zone *SDKZone
+	for i := range controller.Zones {
+		if zoneFingerprint(controller.Zones[i]) != fingerprint {
+			continue
+		}
+		if zone != nil {
+			return nil, nil, ErrAmbiguousZone
+		}
+		zone = &controller.Zones[i]
+	}
+	if zone == nil {
+		return nil, nil, ErrControllerNotFound
+	}
+	if zone.LEDCount == 0 {
+		return nil, nil, ErrUnsupported
+	}
+	return controller, zone, nil
+}
+
+// discoverOnConn refreshes controller count and descriptors over the same
+// negotiated socket that will carry the following mutation. This narrows the
+// transient-handle window and prevents a second SDK connection from applying
+// an ID resolved against a different server snapshot.
+func discoverOnConn(conn net.Conn) ([]SDKController, error) {
+	countPacket, err := requestOnConn(conn, 0, requestControllerCount, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -297,13 +524,10 @@ func (c SDKClient) Discover(ctx context.Context) ([]SDKController, error) {
 	if count == 0 {
 		return []SDKController{}, ErrNoDevice
 	}
-	ids := make([]uint32, count)
-	for i := range ids {
-		ids[i] = binary.LittleEndian.Uint32(countPacket.data[4+i*4:])
-	}
 	controllers := make([]SDKController, 0, count)
-	for _, id := range ids {
-		packet, requestErr := c.request(ctx, id, requestControllerData, nil)
+	for i := uint32(0); i < count; i++ {
+		id := binary.LittleEndian.Uint32(countPacket.data[4+i*4:])
+		packet, requestErr := requestOnConn(conn, id, requestControllerData, nil)
 		if requestErr != nil {
 			return nil, requestErr
 		}
@@ -316,12 +540,72 @@ func (c SDKClient) Discover(ctx context.Context) ([]SDKController, error) {
 	return controllers, nil
 }
 
+func sendModeOnConn(conn net.Conn, controllerID uint32, target SDKModeTarget, mode SDKMode) (SDKCommandResult, error) {
+	packetID, body, err := encodeSDKModeUpdateV6(target, mode)
+	if err != nil {
+		return SDKCommandResult{}, err
+	}
+	if err := writePacket(conn, controllerID, packetID, body); err != nil {
+		return SDKCommandResult{}, fmt.Errorf("%w: write OpenRGB mode update: %v", ErrTransport, err)
+	}
+	result := SDKCommandResult{LocalWriteCompleted: true}
+	err = readAck(conn, controllerID, packetID)
+	var ackErr *SDKAckError
+	if err == nil {
+		result.BackendAcknowledged = true
+	} else if errors.As(err, &ackErr) {
+		result.BackendAcknowledged = true
+		result.AckStatus = ackErr.Status
+	}
+	return result, err
+}
+
+func sendZoneColorsOnConn(conn net.Conn, controllerID, zoneIndex uint32, colors []RGB) (SDKCommandResult, error) {
+	data, err := encodeZoneColors(zoneIndex, colors)
+	if err != nil {
+		return SDKCommandResult{}, err
+	}
+	return sendZoneColorsBodyOnConn(conn, controllerID, data)
+}
+
+func sendZoneColorsBodyOnConn(conn net.Conn, controllerID uint32, data []byte) (SDKCommandResult, error) {
+	if err := writePacket(conn, controllerID, updateZoneLEDs, data); err != nil {
+		return SDKCommandResult{}, fmt.Errorf("%w: write UpdateZoneLEDs: %v", ErrTransport, err)
+	}
+	result := SDKCommandResult{LocalWriteCompleted: true}
+	err := readAck(conn, controllerID, updateZoneLEDs)
+	var ackErr *SDKAckError
+	if errors.As(err, &ackErr) {
+		result.BackendAcknowledged = true
+		result.AckStatus = ackErr.Status
+	} else if err == nil {
+		result.BackendAcknowledged = true
+	}
+	return result, err
+}
+
 // SendZoneColors performs a v6 handshake on this operation's connection and
 // waits for the correlated backend ACK. A successful ACK reports OpenRGB's
 // processing status, not controller state or visible output.
 func (c SDKClient) SendZoneColors(ctx context.Context, controllerID, zoneIndex uint32, colors []RGB) (SDKCommandResult, error) {
+	data, err := encodeZoneColors(zoneIndex, colors)
+	if err != nil {
+		return SDKCommandResult{}, err
+	}
+	conn, err := c.dial(ctx)
+	if err != nil {
+		return SDKCommandResult{}, err
+	}
+	defer conn.Close()
+	if _, err := negotiate(conn); err != nil {
+		return SDKCommandResult{}, err
+	}
+	return sendZoneColorsBodyOnConn(conn, controllerID, data)
+}
+
+func encodeZoneColors(zoneIndex uint32, colors []RGB) ([]byte, error) {
 	if len(colors) == 0 || len(colors) > 65535 {
-		return SDKCommandResult{}, fmt.Errorf("invalid LED color count %d", len(colors))
+		return nil, fmt.Errorf("invalid LED color count %d", len(colors))
 	}
 	data := make([]byte, 10+4*len(colors))
 	// OpenRGB's UpdateZoneLEDs parser compares this prefix with the full
@@ -335,27 +619,7 @@ func (c SDKClient) SendZoneColors(ctx context.Context, controllerID, zoneIndex u
 		data[12+i*4] = color.B
 		data[13+i*4] = 0
 	}
-	conn, err := c.dial(ctx)
-	if err != nil {
-		return SDKCommandResult{}, err
-	}
-	defer conn.Close()
-	if _, err := c.negotiate(ctx, conn); err != nil {
-		return SDKCommandResult{}, err
-	}
-	if err := writePacket(conn, controllerID, updateZoneLEDs, data); err != nil {
-		return SDKCommandResult{}, fmt.Errorf("%w: write UpdateZoneLEDs: %v", ErrTransport, err)
-	}
-	result := SDKCommandResult{LocalWriteCompleted: true}
-	_, err = readOperation(conn, controllerID, updateZoneLEDs, false, true)
-	var ackErr *SDKAckError
-	if errors.As(err, &ackErr) {
-		result.BackendAcknowledged = true
-		result.AckStatus = ackErr.Status
-	} else if err == nil {
-		result.BackendAcknowledged = true
-	}
-	return result, err
+	return data, nil
 }
 
 type cursor struct {
@@ -419,35 +683,22 @@ func parseController(id uint32, payload []byte) (SDKController, error) {
 	if err != nil || uint64(blockSize) != uint64(len(payload)) {
 		return SDKController{}, errors.New("invalid device data size")
 	}
-	if err = c.skip(4); err != nil {
-		return SDKController{}, err
-	} // controller type
-	name, err := c.str16()
+	identity, err := decodeSDKHardwareIdentityV6(&c)
 	if err != nil {
 		return SDKController{}, err
 	}
-	vendor, err := c.str16()
-	if err != nil {
-		return SDKController{}, err
-	}
-	description, err := c.str16()
-	if err != nil {
-		return SDKController{}, err
-	}
-	for i := 0; i < 3; i++ {
-		if _, err = c.str16(); err != nil {
-			return SDKController{}, err
-		}
-	} // version, serial, location
 	modes, err := c.u16()
 	if err != nil || modes > 4096 {
 		return SDKController{}, errors.New("invalid mode count")
 	}
-	if err = c.skip(4); err != nil {
+	activeMode, err := c.u32()
+	if err != nil {
 		return SDKController{}, err
-	} // active mode
+	}
+	controllerModes := make([]SDKMode, modes)
 	for i := uint16(0); i < modes; i++ {
-		if err = skipModeV6(&c); err != nil {
+		controllerModes[i], err = decodeSDKModeV6(&c)
+		if err != nil {
 			return SDKController{}, err
 		}
 	}
@@ -502,7 +753,7 @@ func parseController(id uint32, payload []byte) (SDKController, error) {
 	if c.at != len(c.data) {
 		return SDKController{}, errors.New("unexpected trailing controller data")
 	}
-	return SDKController{ID: id, Name: name, Vendor: vendor, Description: description, Zones: zones}, nil
+	return SDKController{ID: id, Type: identity.Type, Name: identity.Name, Vendor: identity.Vendor, Description: identity.Description, Serial: identity.Serial, Location: identity.Location, LEDCount: uint32(ledCount), ActiveMode: int32(activeMode), Modes: controllerModes, Zones: zones}, nil
 }
 
 func skipModeV6(c *cursor) error {
@@ -565,26 +816,32 @@ func parseZoneV6(c *cursor) (SDKZone, error) {
 			return SDKZone{}, err
 		}
 	}
-	if err = c.skip(8); err != nil {
+	flags, err := c.u32()
+	if err != nil {
 		return SDKZone{}, err
-	} // flags and active mode
+	}
+	activeMode, err := c.u32()
+	if err != nil {
+		return SDKZone{}, err
+	}
 	modes, err := c.u16()
 	if err != nil || modes > 4096 {
 		return SDKZone{}, errors.New("invalid zone mode count")
 	}
 	static := false
+	modeDescriptors := make([]SDKMode, modes)
 	for i := uint16(0); i < modes; i++ {
-		var mode string
-		mode, err = readModeV6(c)
+		modeDescriptors[i], err = decodeSDKModeV6(c)
 		if err != nil {
 			return SDKZone{}, err
 		}
-		if strings.EqualFold(strings.TrimSpace(mode), "static") {
+		if strings.EqualFold(strings.TrimSpace(modeDescriptors[i].Name), "static") {
 			static = true
 		}
 	}
 	if _, err = c.str16(); err != nil {
 		return SDKZone{}, err
 	} // display name
-	return SDKZone{Name: name, LEDCount: count, Static: static}, nil
+	_ = flags
+	return SDKZone{Name: name, LEDCount: count, Static: static, ActiveMode: int32(activeMode), Modes: modeDescriptors}, nil
 }

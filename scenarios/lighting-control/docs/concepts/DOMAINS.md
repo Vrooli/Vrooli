@@ -38,7 +38,7 @@ belong in [`DATA.md`](DATA.md).
 - Owns enrollment, stable identity mapping, capabilities, desired color/brightness/effect, reconciliation triggers, and command result truth.
 - Physical observation is an optional separate fact. A successful SDK acknowledgement is never converted into an observed-output claim.
 - Reconciliation is event/lifecycle driven and bounded; periodic work must not rescan devices per frame.
-- Stable identity uses backend/controller identifiers and zone identity/name, not controller indices or bus numbers.
+- Durable identity uses OpenRGB serials or reported device locations; transient SDK handles only route a write after resolving the durable identity at discovery. Missing or duplicate identity fails closed. Zone identity uses name/count fingerprints, not zone indexes.
 
 ### policy
 
