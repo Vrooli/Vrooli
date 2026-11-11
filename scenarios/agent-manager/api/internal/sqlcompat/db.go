@@ -5,9 +5,24 @@ package sqlcompat
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/jmoiron/sqlx"
 )
+
+// TransientError recognizes SQLite contention through the driver's code,
+// including extended BUSY/LOCKED codes, without parsing diagnostic messages.
+func TransientError(err error) bool {
+	if errors.Is(err, sql.ErrConnDone) {
+		return true
+	}
+	var coded interface{ Code() int }
+	if errors.As(err, &coded) {
+		code := coded.Code() & 0xff
+		return code == 5 || code == 6
+	}
+	return false
+}
 
 type DB interface {
 	Exec(string, ...any) (sql.Result, error)

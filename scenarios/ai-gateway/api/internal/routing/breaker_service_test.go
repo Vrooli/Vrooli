@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	ollamaGenerateCmd     = "resource-ollama gateway generate --role chat.default --json --prompt-stdin --max-tokens 64"
-	openRouterGenerateCmd = "resource-openrouter generate --role chat.default --json --max-tokens 64"
+	ollamaGenerateCmd          = "resource-ollama gateway generate --role chat.default --expected-model qwen3.5:9b --expected-artifact-digest cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc --json --prompt-stdin --max-tokens 64"
+	ollamaLocalOnlyGenerateCmd = "resource-ollama gateway generate --role chat.default --expected-model qwen3.5:9b --expected-artifact-digest cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc --json --prompt-stdin --require-loopback --max-tokens 64"
+	openRouterGenerateCmd      = "resource-openrouter generate --role chat.default --json --max-tokens 64"
 )
 
 func candidateByProvider(candidates []*routingv1.RouteCandidate, provider string) *routingv1.RouteCandidate {
@@ -34,7 +35,7 @@ func TestExecuteOpensBreakerAfterFailureAndFallsBackToHealthyProvider(t *testing
 
 	db := newSchemaDB(t)
 	clock := breakerBaseTime
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db),
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db),
 		routing.WithHealth(routing.NewSQLHealthRepository(db)),
 		routing.WithBreakerPolicy(routing.BreakerPolicy{FailureThreshold: 1, Cooldown: 30 * time.Second}),
 		routing.WithClock(func() time.Time { return clock }))
@@ -85,7 +86,7 @@ func TestBreakerIsolatesByRequestKind(t *testing.T) { // [REQ:AIGW-PROVIDER-BREA
 		UpdatedAt:     breakerBaseTime,
 	}))
 
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db),
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db),
 		routing.WithHealth(repo),
 		routing.WithClock(func() time.Time { return breakerBaseTime }))
 
@@ -110,7 +111,7 @@ func TestListProviderHealthReportsEffectiveState(t *testing.T) { // [REQ:AIGW-PR
 		CooldownUntil: breakerBaseTime, // elapsed at read time below
 		UpdatedAt:     breakerBaseTime,
 	}))
-	svc := routing.NewService(testAdapters(roleRunner()), routing.NewSQLRepository(db),
+	svc := newService(testAdapters(roleRunner()), routing.NewSQLRepository(db),
 		routing.WithHealth(repo),
 		routing.WithClock(func() time.Time { return breakerBaseTime.Add(time.Minute) }))
 
@@ -123,7 +124,7 @@ func TestListProviderHealthReportsEffectiveState(t *testing.T) { // [REQ:AIGW-PR
 }
 
 func TestListProviderHealthEmptyWhenDisabled(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
-	svc := routing.NewService(testAdapters(roleRunner()), nil)
+	svc := newService(testAdapters(roleRunner()), nil)
 	items, err := svc.ListProviderHealth(context.Background())
 	require.NoError(t, err)
 	require.Empty(t, items)
@@ -148,7 +149,7 @@ func TestHalfOpenProbeSuccessClosesBreaker(t *testing.T) { // [REQ:AIGW-PROVIDER
 	}))
 
 	probeTime := breakerBaseTime.Add(time.Second)
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db),
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db),
 		routing.WithHealth(repo),
 		routing.WithClock(func() time.Time { return probeTime }))
 

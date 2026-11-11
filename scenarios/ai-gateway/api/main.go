@@ -18,6 +18,7 @@ import (
 
 	"github.com/vrooli/api-core/schedule"
 
+	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
 	"github.com/vrooli/api-core/apihttp"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/devrouting"
@@ -108,6 +109,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("measures module init failed: %v", err)
 	}
+	rightsContextPath := filepath.Join(repoRoot(), "scenarios", "ai-gateway", "config", "model-rights-context.json")
+	rightsContextSource := func(context.Context) (sharedpolicy.RightsContext, error) {
+		return sharedpolicy.LoadRightsContextFile(rightsContextPath)
+	}
 
 	// A malformed inference catalog degrades typed inference to a stated
 	// reason; it does not take down routing, measures, or conformance. Those
@@ -135,7 +140,7 @@ func main() {
 		if endpoint := strings.TrimSpace(os.Getenv("LPBS_AI_DOOR_URL")); endpoint != "" {
 			adapters = append(adapters, providers.Adapter{Provider: providers.ProviderMetered, Locality: "remote", Door: &providers.HostedDoorClient{BaseURL: endpoint}})
 		}
-		if resourceRepository, repositoryErr := inference.NewResourceRepository(roleCatalog, adapters, inference.NewSQLAttemptLedger(db.Primary())); repositoryErr != nil {
+		if resourceRepository, repositoryErr := inference.NewResourceRepositoryWithRightsContextSource(roleCatalog, adapters, rightsContextSource, inference.NewSQLAttemptLedger(db.Primary())); repositoryErr != nil {
 			log.Printf("typed inference disabled: %v", repositoryErr)
 			inferenceRepository = inference.UnavailableRepository{Reason: repositoryErr.Error()}
 			roleCatalog = inference.RoleCatalog{}
@@ -154,6 +159,7 @@ func main() {
 		measuresModule,
 		routingH.Module(routingH.Deps{
 			DB:                  db.Primary(),
+			Service:             internalrouting.NewSQLService(db.Primary(), providers.NewDefaultAdapters(nil), internalrouting.WithRightsContextSource(internalrouting.RightsContextSource(rightsContextSource))),
 			MediaExecutor:       internalrouting.NewResourceOpenRouterMediaExecutor(nil),
 			ProviderDecisionHub: internalrouting.NewDefaultProviderDecisionHubClient(),
 			PrivatePolicy:       internalrouting.NewResourcePrivatePolicyService(db.Primary(), loadPrivateAIFeatures(repoRoot()), repoRoot(), internalrouting.NewDefaultProviderDecisionHubClient()),

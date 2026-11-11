@@ -844,8 +844,9 @@ var _ Store = (*SQLiteStore)(nil)
 
 func dbError(operation string, err error) error {
 	return &domain.DatabaseError{
-		Operation:  operation,
-		EntityType: "RunEvent",
-		Cause:      err,
+		Operation:   operation,
+		EntityType:  "RunEvent",
+		Cause:       err,
+		IsTransient: sqlcompat.TransientError(err),
 	}
 }

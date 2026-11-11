@@ -967,6 +967,7 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 		}
 		return err
 	}
+	persistedSessionID := run.SessionID
 	cfg := &runner.TranscriptConfig{
 		TranscriptPath: snap.TranscriptPath,
 		StderrPath:     snap.StderrPath,
@@ -999,7 +1000,7 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 			return nil
 		},
 		OnSessionID: func(sessionID string) error {
-			if sessionID == "" || run.SessionID == sessionID {
+			if sessionID == "" || persistedSessionID == sessionID {
 				return nil
 			}
 			run.SessionID = sessionID
@@ -1009,6 +1010,7 @@ func (o *Orchestrator) prepareRunTranscript(ctx context.Context, run *domain.Run
 			if err := state.PersistSessionID(sessionID); err != nil {
 				return err
 			}
+			persistedSessionID = sessionID
 			return nil
 		},
 	}

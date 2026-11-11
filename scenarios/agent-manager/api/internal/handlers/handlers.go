@@ -56,6 +56,7 @@ import (
 
 // Handler provides HTTP handlers for all API endpoints.
 type Handler struct {
+	runtimeActivity       RuntimeActivityReader
 	svc                   orchestration.HandlerServices
 	profiles              orchestration.ProfileService
 	hub                   *WebSocketHub

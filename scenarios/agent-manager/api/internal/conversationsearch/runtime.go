@@ -108,7 +108,12 @@ func BuildSemanticRuntime(ctx context.Context, options SemanticRuntimeOptions) (
 	// Qdrant is an optional dependency and may become available after this API
 	// starts. Keep the live retriever and indexing pipeline wired; their normal
 	// operations report transient Qdrant failures and can recover on later calls.
-	generationStore, err := aisearch.NewQdrantGenerationStore(aisearch.QdrantGenerationOptions{BaseURL: operational.QdrantURL, APIKey: operational.QdrantAPIKey, Alias: collection, Namespace: conversationCollectionDomain, Owner: ConversationSearchProviderID, Catalog: options.GenerationCatalog, Spec: engine.Spec})
+	aliasBoundary, _ := options.GenerationCatalog.(aisearch.FleetAliasMutationBoundary)
+	generationStore, err := aisearch.NewQdrantGenerationStore(aisearch.QdrantGenerationOptions{
+		BaseURL: operational.QdrantURL, APIKey: operational.QdrantAPIKey, Alias: collection,
+		Namespace: conversationCollectionDomain, Owner: ConversationSearchProviderID,
+		Catalog: options.GenerationCatalog, AliasBoundary: aliasBoundary, Spec: engine.Spec,
+	})
 	if err != nil {
 		return nil, err
 	}

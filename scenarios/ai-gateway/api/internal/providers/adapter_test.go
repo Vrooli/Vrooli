@@ -60,7 +60,7 @@ func TestAdapter_ListRoles_ParsesResourcePolicyOutput(t *testing.T) { // [REQ:AI
 	if role.PolicySchemaVersion != "2026-06-10" {
 		t.Fatalf("policy schema = %q", role.PolicySchemaVersion)
 	}
-	if len(runner.Commands) != 1 || runner.Commands[0].String() != "resource-ollama policy roles --json" {
+	if len(runner.Commands) != 2 || runner.Commands[0].String() != "resource-ollama policy roles --json" || runner.Commands[1].String() != "resource-ollama models inventory --json" {
 		t.Fatalf("commands = %+v", runner.Commands)
 	}
 }
@@ -82,6 +82,25 @@ func TestAdapter_ListRoles_MapsMalformedJSON(t *testing.T) { // [REQ:AIGW-PROVID
 	}
 	if cmdErr.Code != "malformed_json" {
 		t.Fatalf("code = %q", cmdErr.Code)
+	}
+}
+
+func TestOllamaRoleInventoryBindsRuntimeIdentityToCurrentDigest(t *testing.T) {
+	digest := strings.Repeat("c", 64)
+	runner := &fakeRunner{results: map[string]Result{
+		"resource-ollama policy roles --json":     {Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","model":"qwen3.5:9b","locality":"local","rights":{"artifact_id":"artifact-1","revision":"rev-1"},"runtime_identity":{"provider":"ollama","model":"qwen3.5:9b","artifact_id":"artifact-1","artifact_revision":"rev-1","digest_kind":"ollama_model_contents","digest":"` + digest + `","source":"ollama /api/tags","observed_at":"2026-11-11"},"required_capabilities":["generate"]}]}`},
+		"resource-ollama models inventory --json": {Stdout: `{"source":"ollama /api/tags","models":[{"name":"qwen3.5:9b","digest":"` + digest + `"}]}`},
+	}}
+	inventory, err := (Adapter{Provider: ProviderOllama, CommandName: "resource-ollama", Locality: "local", Runner: runner}).ListRoles(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(inventory.Roles) != 1 {
+		t.Fatalf("roles = %+v", inventory.Roles)
+	}
+	role := inventory.Roles[0]
+	if role.RuntimeIdentity == nil || role.ObservedRuntimeDigest != digest || role.RuntimeIdentity.Digest != digest {
+		t.Fatalf("runtime identity was not bound to observed inventory: %+v", role)
 	}
 }
 
@@ -130,6 +149,35 @@ func TestAdapterMultimodalUsesJSONStdinAndNeverArgv(t *testing.T) { // [REQ:AIGW
 	}
 	if envelope.Prompt != "describe" || len(envelope.Images) != 1 || envelope.Images[0].DataB64 != base64.StdEncoding.EncodeToString(image) {
 		t.Fatalf("envelope = %+v", envelope)
+	}
+}
+
+func TestOllamaExecutionBindsExactResolvedModel(t *testing.T) {
+	command, err := (Adapter{Provider: ProviderOllama, CommandName: "resource-ollama", Locality: "local"}).executionCommand(ExecutionRequest{
+		Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, Role: "chat.default", ExpectedModel: "qwen3.5:9b", ExpectedArtifactDigest: strings.Repeat("c", 64), Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, InputText: "hello",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(command.String(), "--expected-model qwen3.5:9b") ||
+		!strings.Contains(command.String(), "--expected-artifact-digest "+strings.Repeat("c", 64)) ||
+		!strings.Contains(command.String(), "--require-loopback") {
+		t.Fatalf("execution command did not bind resolved model: %q", command.String())
+	}
+}
+
+func TestOllamaLocalOnlyEmbeddingPassesLoopbackAndExpectedArtifactDigest(t *testing.T) {
+	command, err := (Adapter{Provider: ProviderOllama, CommandName: "resource-ollama", Locality: "local"}).executionCommand(ExecutionRequest{
+		Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING, Role: "embedding.default",
+		ExpectedModel: "nomic-embed-text:latest", ExpectedArtifactDigest: strings.Repeat("d", 64),
+		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, InputText: "text",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(command.String(), "gateway embed") || !strings.Contains(command.String(), "--require-loopback") ||
+		!strings.Contains(command.String(), "--expected-artifact-digest "+strings.Repeat("d", 64)) {
+		t.Fatalf("local-only embedding command is not artifact and endpoint bound: %q", command.String())
 	}
 }
 

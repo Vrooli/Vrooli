@@ -18,18 +18,21 @@ import (
 
 	"ai-gateway/internal/gateway"
 	"ai-gateway/internal/providers"
+	"github.com/vrooli/ai-provider-go/policy"
+	profilepolicy "github.com/vrooli/ai-provider-go/routing"
 )
 
 type Service struct {
-	validator *gateway.Service
-	adapters  map[string]providers.Adapter
-	order     []string
-	repo      Repository
-	health    HealthRepository
-	breaker   Breaker
-	capacity  CapacityAdapter
-	resolver  AttachmentResolver
-	clock     func() time.Time
+	validator     *gateway.Service
+	adapters      map[string]providers.Adapter
+	order         []string
+	repo          Repository
+	health        HealthRepository
+	breaker       Breaker
+	capacity      CapacityAdapter
+	resolver      AttachmentResolver
+	clock         func() time.Time
+	rightsContext RightsContextSource
 }
 
 // Option configures optional Service collaborators without breaking callers
@@ -73,6 +76,12 @@ func WithClock(clock func() time.Time) Option {
 	}
 }
 
+// WithRightsContextSource injects operator-controlled organization facts.
+// Nil or unreadable sources fail closed for local model candidates.
+func WithRightsContextSource(source RightsContextSource) Option {
+	return func(s *Service) { s.rightsContext = source }
+}
+
 func NewService(adapters []providers.Adapter, repo Repository, opts ...Option) *Service {
 	s := &Service{
 		validator: gateway.New(),
@@ -96,10 +105,12 @@ func NewService(adapters []providers.Adapter, repo Repository, opts ...Option) *
 	return s
 }
 
-func NewSQLService(db *sql.DB, adapters []providers.Adapter) *Service {
-	return NewService(adapters, NewSQLRepository(db),
+func NewSQLService(db *sql.DB, adapters []providers.Adapter, opts ...Option) *Service {
+	base := []Option{
 		WithHealth(NewSQLHealthRepository(db)),
-		WithCapacity(&CLICapacityAdapter{}))
+		WithCapacity(&CLICapacityAdapter{}),
+	}
+	return NewService(adapters, NewSQLRepository(db), append(base, opts...)...)
 }
 
 func (s *Service) now() time.Time {
@@ -298,6 +309,33 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			}
 			continue
 		}
+		_, hasPlannedRight := plan.rights[candidateKey(candidate.GetProvider(), candidate.GetRole())]
+		knownModelOwner := candidate.GetProvider() == providers.ProviderOllama || candidate.GetProvider() == providers.ProviderOllaya || candidate.GetProvider() == providers.ProviderPiiDetector
+		resolvedAsLocalModel := strings.EqualFold(resolvedRole.Locality, "local") && (strings.TrimSpace(resolvedRole.Model) != "" || resolvedRole.Rights != nil)
+		if (strings.EqualFold(candidate.GetLocality(), "local") || strings.EqualFold(resolvedRole.Locality, "local")) && (hasPlannedRight || knownModelOwner || resolvedAsLocalModel) {
+			planned, found := plan.rights[candidateKey(candidate.GetProvider(), candidate.GetRole())]
+			currentContext, contextErr := policy.RightsContext{}, errors.New("trusted context source unavailable")
+			if s.rightsContext != nil {
+				currentContext, contextErr = s.rightsContext(ctxExec)
+			}
+			currentModel := policy.Model{Rights: resolvedRole.Rights}
+			rightsErr := error(nil)
+			artifactIdentityValid := found && sameRuntimeArtifactIdentity(planned.runtimeIdentity, resolvedRole.RuntimeIdentity) &&
+				planned.runtimeDigest == resolvedRole.ObservedRuntimeDigest &&
+				RuntimeArtifactIdentityMatches(resolvedRole.RuntimeIdentity, resolvedRole.Rights, candidate.GetProvider(), resolvedRole.Model, resolvedRole.ObservedRuntimeDigest)
+			if found && contextErr == nil && resolvedRole.Model == planned.model && strings.EqualFold(resolvedRole.Locality, candidate.GetLocality()) && artifactIdentityValid {
+				rightsErr = RequireLocalRight(planned.decision, currentModel, policy.RightsUseLocalInference, currentContext)
+			}
+			if !found || contextErr != nil || resolvedRole.Model != planned.model || !strings.EqualFold(resolvedRole.Locality, candidate.GetLocality()) || !artifactIdentityValid || rightsErr != nil {
+				cancel()
+				lastFailureClass = FailurePolicyError
+				failures = append(failures, fmt.Sprintf("%s: local model rights, locality, context, or exact model identity changed after planning", candidate.GetProvider()))
+				if i == 0 && !plan.fallbackAllowed {
+					break
+				}
+				continue
+			}
+		}
 		// Routing takes a caller-supplied role string and has no gateway-side role
 		// catalog, so there is no role-declared sampling here — only the caller's
 		// explicit request, which is a promise the gateway keeps or refuses.
@@ -341,14 +379,17 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			}
 		}
 		result, err := adapter.Execute(ctxExec, providers.ExecutionRequest{
-			Kind:                 req.GetKind(),
-			Role:                 req.GetRole(),
-			InputText:            input,
-			MaxOutputTokens:      req.GetMaxOutputTokens(),
-			Timeout:              timeoutDuration(req.GetTimeoutMs()),
-			Temperature:          temperature,
-			Attachments:          req.GetAttachments(),
-			ExpectedWorkerDigest: strings.TrimSpace(req.GetMetadata()["expected_worker_digest"]),
+			Kind:                   req.GetKind(),
+			Role:                   req.GetRole(),
+			ExpectedModel:          resolvedRole.Model,
+			ExpectedArtifactDigest: plan.rights[candidateKey(candidate.GetProvider(), candidate.GetRole())].runtimeDigest,
+			Profile:                req.GetProfile(),
+			InputText:              input,
+			MaxOutputTokens:        req.GetMaxOutputTokens(),
+			Timeout:                timeoutDuration(req.GetTimeoutMs()),
+			Temperature:            temperature,
+			Attachments:            req.GetAttachments(),
+			ExpectedWorkerDigest:   strings.TrimSpace(req.GetMetadata()["expected_worker_digest"]),
 		})
 		s.releaseCapacity(ctxExec, capEval)
 		cancel()
@@ -513,6 +554,33 @@ type routePlan struct {
 	selectedLocality string
 	policyReasons    []string
 	fallbackAllowed  bool
+	rights           map[string]plannedLocalRight
+}
+
+type plannedLocalRight struct {
+	model           string
+	runtimeIdentity *policy.RuntimeArtifactIdentity
+	runtimeDigest   string
+	decision        policy.RightsDecision
+}
+
+func candidateKey(provider, role string) string { return provider + "\x00" + role }
+
+// requiresLocalModelRights covers known local model owners even while their
+// adapters lack artifact facts. Other local providers enter this path when
+// their policy exposes a concrete model identity or Rights facts.
+func requiresLocalModelRights(provider string, role providers.Role) bool {
+	if !strings.EqualFold(role.Locality, "local") {
+		return false
+	}
+	if provider == providers.ProviderOllama || provider == providers.ProviderOllaya || provider == providers.ProviderPiiDetector {
+		return true
+	}
+	return strings.TrimSpace(role.Model) != "" || role.Rights != nil
+}
+
+func hasVerifiedRuntimeArtifactIdentity(provider, model string, rights *policy.ArtifactRights, binding *policy.RuntimeArtifactIdentity, observedDigest string) bool {
+	return RuntimeArtifactIdentityMatches(binding, rights, provider, model, observedDigest)
 }
 
 // classifyCandidate resolves one provider into a route candidate and reports
@@ -530,6 +598,25 @@ func (s *Service) classifyCandidate(ctx context.Context, req *sharedv1.GatewayRe
 		Role:     role.Role,
 		Locality: role.Locality,
 		Reasons:  []string{"eligible by role capability and profile policy"},
+	}
+	if requiresLocalModelRights(providerName, role) {
+		if s.rightsContext == nil || role.Model == "" || role.Rights == nil || !hasVerifiedRuntimeArtifactIdentity(providerName, role.Model, role.Rights, role.RuntimeIdentity, role.ObservedRuntimeDigest) {
+			candidate.RejectionReason = "local_model_rights_unknown"
+			candidate.Reasons = append(candidate.Reasons, "local model identity, artifact rights, or trusted organization context is missing")
+			return candidate, false
+		}
+		currentContext, err := s.rightsContext(ctx)
+		if err != nil {
+			candidate.RejectionReason = "local_model_rights_context_unavailable"
+			candidate.Reasons = append(candidate.Reasons, "trusted organization context is unavailable")
+			return candidate, false
+		}
+		decision := EvaluateLocalModelRights(policy.Model{Rights: role.Rights}, policy.RightsUseLocalInference, currentContext, s.now())
+		candidate.Reasons = append(candidate.Reasons, "local model rights: "+string(decision.Status)+" ("+decision.Reason+")")
+		if decision.Status != policy.RightsAllowed {
+			candidate.RejectionReason = "local_model_rights_" + string(decision.Status)
+			return candidate, false
+		}
 	}
 	switch state := s.effectiveBreaker(ctx, providerName, role.Role, req.GetKind()); state {
 	case BreakerOpen:
@@ -612,10 +699,33 @@ func rejectedCandidate(provider, role, locality, reason, code string) *routingv1
 }
 
 func (s *Service) plan(ctx context.Context, req *sharedv1.GatewayRequest) routePlan {
-	plan := routePlan{id: newID("plan"), policyReasons: []string{profileReason(req.GetProfile())}}
+	plan := routePlan{id: newID("plan"), policyReasons: []string{profileReason(req.GetProfile())}, rights: map[string]plannedLocalRight{}}
 	var eligible []*routingv1.RouteCandidate
 	for _, providerName := range s.order {
 		candidate, ok := s.classifyCandidate(ctx, req, providerName)
+		if ok && strings.EqualFold(candidate.GetLocality(), "local") {
+			role, rejected := policyCandidate(ctx, req, providerName, s.adapters[providerName])
+			if rejected == nil && !requiresLocalModelRights(providerName, role) {
+				eligible = append(eligible, candidate)
+				continue
+			}
+			currentContext, contextErr := policy.RightsContext{}, errors.New("trusted context source unavailable")
+			if s.rightsContext != nil {
+				currentContext, contextErr = s.rightsContext(ctx)
+			}
+			decision := EvaluateLocalModelRights(policy.Model{Rights: role.Rights}, policy.RightsUseLocalInference, currentContext, s.now())
+			if rejected != nil || contextErr != nil || role.Model == "" || role.Rights == nil ||
+				!hasVerifiedRuntimeArtifactIdentity(providerName, role.Model, role.Rights, role.RuntimeIdentity, role.ObservedRuntimeDigest) || decision.Status != policy.RightsAllowed {
+				candidate.RejectionReason = "local_model_rights_unknown"
+				candidate.Reasons = append(candidate.Reasons, "local model rights or trusted context changed while planning")
+				ok = false
+			} else {
+				bindingCopy := *role.RuntimeIdentity
+				plan.rights[candidateKey(providerName, role.Role)] = plannedLocalRight{
+					model: role.Model, runtimeIdentity: &bindingCopy, runtimeDigest: role.ObservedRuntimeDigest, decision: decision,
+				}
+			}
+		}
 		if ok {
 			eligible = append(eligible, candidate)
 		} else {
@@ -900,55 +1010,12 @@ func hasAny(set map[string]struct{}, values ...string) bool {
 }
 
 func localityRejection(req *sharedv1.GatewayRequest, locality string) string {
-	locality = strings.ToLower(strings.TrimSpace(locality))
-	if req.GetPrivacyClass() == sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET && locality == "remote" {
-		return "secret requests cannot route to remote providers"
-	}
-	switch req.GetProfile() {
-	case sharedv1.Profile_PROFILE_LOCAL_ONLY:
-		if locality != "local" {
-			return "local-only profile forbids remote providers"
-		}
-	case sharedv1.Profile_PROFILE_REMOTE_ONLY:
-		if locality != "remote" {
-			return "remote-only profile forbids local providers"
-		}
-	case sharedv1.Profile_PROFILE_PRIVACY_SENSITIVE:
-		if req.GetPrivacyClass() >= sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL && locality != "local" {
-			return "privacy-sensitive confidential requests require local providers"
-		}
-	}
-	return ""
+	_, reason := profilepolicy.Admits(req.GetProfile().String(), req.GetPrivacyClass().String(), locality)
+	return reason
 }
 
 func rank(profile sharedv1.Profile, locality, provider string) int {
-	locality = strings.ToLower(strings.TrimSpace(locality))
-	base := 10
-	switch profile {
-	case sharedv1.Profile_PROFILE_REMOTE_ONLY:
-		if locality == "remote" {
-			base = 0
-		}
-	case sharedv1.Profile_PROFILE_QUALITY_FIRST:
-		if locality == "remote" {
-			base = 0
-		} else {
-			base = 5
-		}
-	case sharedv1.Profile_PROFILE_LOCAL_ONLY,
-		sharedv1.Profile_PROFILE_LOCAL_FIRST,
-		sharedv1.Profile_PROFILE_CHEAP_FIRST,
-		sharedv1.Profile_PROFILE_PRIVACY_SENSITIVE:
-		if locality == "local" {
-			base = 0
-		} else {
-			base = 5
-		}
-	}
-	if provider == providers.ProviderOllama {
-		return base
-	}
-	return base + 1
+	return profilepolicy.Rank(profile.String(), locality, provider)
 }
 
 func profileReason(profile sharedv1.Profile) string {

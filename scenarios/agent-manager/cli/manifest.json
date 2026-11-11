@@ -2929,12 +2929,49 @@
       "description": "Bounded run inspection and execution operations",
       "commands": [
         {
+          "name": "activity",
+          "description": "Read bounded physical execution activity and unknown coverage",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetRuntimeActivity"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
           "name": "accounting",
           "description": "Read one run's authoritative metered accounting",
-          "positionals": [{"name": "run_id", "required": true, "description": "Run UUID"}],
-          "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "GetRunAccounting"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "positionals": [
+            {
+              "name": "run_id",
+              "required": true,
+              "description": "Run UUID"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "GetRunAccounting"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "event-page",
@@ -3716,7 +3753,21 @@
             "permissions": [
               "network:internal"
             ]
-          }
+          },
+          "flags": [
+            {
+              "name": "transcript-from-byte",
+              "description": "Reconcile self-contained Codex command_execution tool facts from this complete-record boundary"
+            },
+            {
+              "name": "transcript-through-byte",
+              "description": "End within committed stdout; maximum selected range 1 MiB"
+            },
+            {
+              "name": "transcript-sha256",
+              "description": "SHA-256 of exact selected source bytes; both offsets required"
+            }
+          ]
         },
         {
           "name": "reject",
@@ -3880,13 +3931,39 @@
           "name": "decisions-page",
           "description": "Read one bounded page of decisions for an exact effort",
           "flags": [
-            {"name": "effort-ref", "required": true, "description": "Exact enrolled effort reference"},
-            {"name": "page-size", "bind": {"field": "limit"}, "description": "Maximum owner rows (1-100)", "bind_waiver": "Pagination is request data: the CLI validates 1-100 and sends it as ListEffortDecisionsRequest.limit; it does not control CLI execution."},
-            {"name": "page-token", "description": "Opaque continuation token from the previous page"}
+            {
+              "name": "effort-ref",
+              "required": true,
+              "description": "Exact enrolled effort reference"
+            },
+            {
+              "name": "page-size",
+              "bind": {
+                "field": "limit"
+              },
+              "description": "Maximum owner rows (1-100)",
+              "bind_waiver": "Pagination is request data: the CLI validates 1-100 and sends it as ListEffortDecisionsRequest.limit; it does not control CLI execution."
+            },
+            {
+              "name": "page-token",
+              "description": "Opaque continuation token from the previous page"
+            }
           ],
-          "binding": {"kind": "connect-rpc", "service": "AgentManagerService", "method": "ListEffortDecisions"},
-          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
-          "architecture": {"primitive": "proto_list"}
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "AgentManagerService",
+            "method": "ListEffortDecisions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
         },
         {
           "name": "board",

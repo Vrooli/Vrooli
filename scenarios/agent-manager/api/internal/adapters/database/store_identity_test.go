@@ -5,13 +5,18 @@ import (
 	"testing"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/vrooli/api-core/storage"
 )
 
 func TestStoreOwnerIDPersistsAcrossReopenAndIsUniquePerDatabase(t *testing.T) {
 	root := t.TempDir()
 	open := func(name string) *DB {
 		t.Helper()
-		raw, err := sqlx.Connect("sqlite", filepath.Join(root, name))
+		dsn, err := storage.SQLiteDSNAt(filepath.Join(root, "store space & plus+ ü", name), storage.SQLiteTuning{JournalSizeLimitBytes: walJournalSizeLimit})
+		if err != nil {
+			t.Fatal(err)
+		}
+		raw, err := sqlx.Connect("sqlite", dsn)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -154,6 +154,9 @@ func TestContinuationCallbacksCannotClobberNewLifecycle(t *testing.T) {
 	if err := stream.OnSessionID("old-session"); err == nil {
 		t.Error("stale session callback accepted")
 	}
+	if err := stream.OnSessionID("old-session"); err == nil {
+		t.Error("failed session persistence was mistaken for a committed value")
+	}
 	if err := stream.OnAdvance(100, 10); err == nil {
 		t.Error("stale cursor callback accepted")
 	}

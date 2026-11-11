@@ -65,6 +65,7 @@ import (
 // registration. Keeping this composition data in wiring prevents the entry
 // point from acquiring presentation or business logic.
 type RouteDependencies struct {
+	RuntimeActivityReader    handlers.RuntimeActivityReader
 	Recovery                 *maintenance.Recovery
 	CapabilityRegistry       *capabilities.Registry
 	DB                       *database.DB
@@ -193,6 +194,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 	handler := handlers.New(
 		orchestration.NewHandlerServices(deps.Orchestrator),
 		handlers.WithStorage(deps.Storage),
+		handlers.WithRuntimeActivityReader(deps.RuntimeActivityReader),
 		handlers.WithRolePolicyState(deps.RolePolicyState),
 		handlers.WithPermissionPolicy(deps.PermissionPolicyState, deps.PermissionPolicy),
 		handlers.WithObservedReceipts(eventbus.Client{BaseURL: eventsBaseURL}),
@@ -203,6 +205,7 @@ func SetupRoutes(router *mux.Router, deps RouteDependencies) {
 		handlers.WithFrictionBoard(frictionBoard),
 	)
 	handler.SetWebSocketHub(deps.WebSocketHub)
+	router.HandleFunc("/api/v1/runtime/activity", handler.GetRuntimeActivity).Methods(http.MethodGet)
 	connectHandler := handlers.NewAgentManagerConnectHandler(handler, deps.SupervisionService)
 	connectHandler.SetManagedTeamReader(promptmanager.NewHTTPClient())
 	exactVerifier := deps.ExactVerifier

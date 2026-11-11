@@ -294,7 +294,9 @@ func (s *Service) Embed(ctx context.Context, role string, texts []string, sampli
 	if !ok {
 		return embedError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, "embedding repository is unavailable", "embedding")
 	}
-	result, err := repository.Embed(ctx, role, texts)
+	result, err := repository.Embed(ctx, EmbeddingRequest{
+		Role: role, Texts: texts, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY,
+	})
 	if err != nil {
 		code := inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_PROVIDER_FAILED
 		if errors.Is(err, ErrUnavailable) {

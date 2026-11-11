@@ -152,6 +152,16 @@ func TestNewServerBuildsAndShutsDownTheRealCompositionRoot(t *testing.T) {
 	t.Setenv("UPLOAD_DIR", t.TempDir())
 	fixture := repocontracttest.NewRepoFixture(t)
 	fixture.WriteRepoContract(t)
+	// The real composition health contract requires both governed catalogs.
+	// Copy only these public scenario-owned inputs into the private project;
+	// production continues resolving them through its ordinary owner paths.
+	for _, name := range []string{"role-policy-catalog.json", "permission-policy-catalog.json"} {
+		contents, err := os.ReadFile(filepath.Join("..", "config", name))
+		if err != nil {
+			t.Fatalf("read canonical catalog %s: %v", name, err)
+		}
+		repocontracttest.WriteFile(t, filepath.Join(fixture.Root, "scenarios", "agent-manager", "config", name), string(contents))
+	}
 	t.Setenv("PROJECT_ROOT", fixture.Root)
 	// The composition root opens the scenario database and runs recovery; its
 	// storage must be private, or the test builds against the live install.

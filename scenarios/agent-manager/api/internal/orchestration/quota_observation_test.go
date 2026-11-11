@@ -291,7 +291,11 @@ func TestCodexWarningPersistencePrecedesCursorAndReplayContinues(t *testing.T) {
 				if readErr != nil {
 					t.Fatal(readErr)
 				}
-				if terminal != nil || localCursor != int64(len(line)) {
+				wantCursor := int64(len(line))
+				if failure != "none" {
+					wantCursor = 0
+				} // failed persistence never commits a source record
+				if terminal != nil || localCursor != wantCursor {
 					t.Fatalf("cursor=%d terminal=%+v", localCursor, terminal)
 				}
 				if failure != "none" {

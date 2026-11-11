@@ -28,6 +28,7 @@ type ProviderRequest struct {
 	Instruction       string
 	Role              string
 	Profile           sharedv1.Profile
+	PrivacyClass      sharedv1.PrivacyClass
 	Turns             []*inferencev1.Turn
 	Attachments       []*sharedv1.Attachment
 	// Temperature is the caller's explicit sampling request, or nil for "use
@@ -74,7 +75,7 @@ func canonicalRequestDigest(request ProviderRequest) string {
 	message := &inferencev1.RunRequest{
 		Source: request.Source, SchemaJson: request.SchemaJSON, Instruction: request.Instruction,
 		Role: request.Role, Turns: request.Turns, Attachments: request.Attachments,
-		Profile: request.Profile, MaxOutputTokens: request.MaxOutputTokens,
+		Profile: request.Profile, PrivacyClass: request.PrivacyClass, MaxOutputTokens: request.MaxOutputTokens,
 		MaxProviderCalls: request.MaxProviderCalls, SpendLimit: request.SpendLimit,
 	}
 	if request.Temperature != nil {
@@ -141,7 +142,17 @@ type Repository interface {
 }
 
 type EmbeddingRepository interface {
-	Embed(context.Context, string, []string) (EmbeddingResult, error)
+	Embed(context.Context, EmbeddingRequest) (EmbeddingResult, error)
+}
+
+// EmbeddingRequest carries the provider boundary for one typed embedding
+// operation. The public Embed API has no profile field, so Service currently
+// sets the contract to LOCAL_ONLY explicitly; adapters and resources must
+// preserve and enforce that constraint rather than infer locality from rights.
+type EmbeddingRequest struct {
+	Role    string
+	Texts   []string
+	Profile sharedv1.Profile
 }
 
 // UnavailableRepository is the degraded stance used when the role catalog

@@ -509,6 +509,7 @@ var agentReadPOSTRoute = withReadOnlyServiceRoutes(map[string]bool{
 	"/agent_manager.v1.AgentManagerService/ListInvestigations":               true,
 	"/agent_manager.v1.AgentManagerService/ListProfiles":                     true,
 	"/agent_manager.v1.AgentManagerService/ListRuns":                         true,
+	apiconnect.AgentManagerServiceGetRuntimeActivityProcedure:                true,
 	"/agent_manager.v1.AgentManagerService/ListSupervisionOutcomes":          true,
 	"/agent_manager.v1.AgentManagerService/ListWorkflowExecutionRuns":        true,
 	"/agent_manager.v1.AgentManagerService/ListWorkflowExecutions":           true,

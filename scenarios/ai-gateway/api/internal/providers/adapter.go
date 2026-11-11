@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	sharedpolicy "github.com/vrooli/ai-provider-go/policy"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
@@ -132,10 +133,14 @@ type Adapter struct {
 }
 
 type Role struct {
-	Provider        string
-	Role            string
-	Capabilities    []string
-	InputModalities []sharedv1.Modality
+	Provider              string
+	Role                  string
+	Model                 string
+	Rights                *sharedpolicy.ArtifactRights
+	RuntimeIdentity       *sharedpolicy.RuntimeArtifactIdentity
+	ObservedRuntimeDigest string
+	Capabilities          []string
+	InputModalities       []sharedv1.Modality
 	// Locality and Status are the resource's per-role declaration when it
 	// makes one, else the adapter's: one resource may serve local and hosted
 	// roles, and a hosted role may be unconfigured on this host.
@@ -159,12 +164,16 @@ type Inventory struct {
 }
 
 type ExecutionRequest struct {
-	Kind            sharedv1.RequestKind
-	Role            string
-	Profile         sharedv1.Profile
-	InputText       string
-	MaxOutputTokens int32
-	Timeout         time.Duration
+	Kind                         sharedv1.RequestKind
+	Role                         string
+	ExpectedModel                string
+	ExpectedArtifactDigest       string
+	ExpectedRightsDecisionSHA256 string
+	ExpectedRightsEvaluatedAt    string
+	Profile                      sharedv1.Profile
+	InputText                    string
+	MaxOutputTokens              int32
+	Timeout                      time.Duration
 	// Temperature requests a specific sampling temperature. It is a pointer so
 	// that an explicit 0 (deterministic) is distinguishable from "unset, use
 	// the resource default". Whether the resolved role's provider actually
@@ -191,12 +200,15 @@ type ExecutionResult struct {
 }
 
 type ResolvedRole struct {
-	Provider             string
-	Role                 string
-	Model                string
-	CanonicalModel       string
-	Capabilities         []string
-	CoordinateConvention string
+	Provider              string
+	Role                  string
+	Model                 string
+	CanonicalModel        string
+	Rights                *sharedpolicy.ArtifactRights
+	RuntimeIdentity       *sharedpolicy.RuntimeArtifactIdentity
+	ObservedRuntimeDigest string
+	Capabilities          []string
+	CoordinateConvention  string
 	// SamplingSupport is the resource role's per-parameter declaration of how
 	// its provider treats an explicit sampling control. An absent entry means
 	// SamplingUnknown.
@@ -264,10 +276,13 @@ type rolePolicyReport struct {
 }
 
 type rolePolicyEntry struct {
-	SchemaVersion        string   `json:"schema_version"`
-	Role                 string   `json:"role"`
-	RequiredCapabilities []string `json:"required_capabilities"`
-	Capabilities         []string `json:"capabilities"`
+	SchemaVersion        string                                `json:"schema_version"`
+	Role                 string                                `json:"role"`
+	Model                string                                `json:"model"`
+	Rights               *sharedpolicy.ArtifactRights          `json:"rights"`
+	RuntimeIdentity      *sharedpolicy.RuntimeArtifactIdentity `json:"runtime_identity"`
+	RequiredCapabilities []string                              `json:"required_capabilities"`
+	Capabilities         []string                              `json:"capabilities"`
 	Modalities           struct {
 		Input []string `json:"input"`
 	} `json:"modalities"`
@@ -331,8 +346,15 @@ func (a Adapter) ListRoles(ctx context.Context) (Inventory, error) {
 			Err:      err,
 		}
 	}
-
 	inventory := Inventory{Roles: make([]Role, 0, len(report.Roles))}
+	var currentDigests map[string]string
+	if a.Provider == ProviderOllama {
+		currentDigests, err = a.ollamaModelDigests(ctx)
+		if err != nil {
+			currentDigests = map[string]string{}
+			inventory.Warnings = append(inventory.Warnings, "Ollama runtime artifact inventory unavailable; local rights remain unknown")
+		}
+	}
 	for _, entry := range report.Roles {
 		roleName := strings.TrimSpace(entry.Role)
 		if roleName == "" {
@@ -347,13 +369,17 @@ func (a Adapter) ListRoles(ctx context.Context) (Inventory, error) {
 			inventory.Warnings = append(inventory.Warnings, fmt.Sprintf("%s role %q has no declared capabilities", a.Provider, roleName))
 		}
 		inventory.Roles = append(inventory.Roles, Role{
-			Provider:            a.Provider,
-			Role:                roleName,
-			Capabilities:        sortedUnique(capabilities),
-			InputModalities:     parseModalities(entry.Modalities.Input),
-			Locality:            firstNonEmpty(entry.Locality, a.Locality),
-			Status:              firstNonEmpty(entry.Status, "available"),
-			PolicySchemaVersion: strings.TrimSpace(entry.SchemaVersion),
+			Provider:              a.Provider,
+			Role:                  roleName,
+			Model:                 strings.TrimSpace(entry.Model),
+			Rights:                entry.Rights,
+			RuntimeIdentity:       entry.RuntimeIdentity,
+			ObservedRuntimeDigest: currentDigests[strings.TrimSpace(entry.Model)],
+			Capabilities:          sortedUnique(capabilities),
+			InputModalities:       parseModalities(entry.Modalities.Input),
+			Locality:              firstNonEmpty(entry.Locality, a.Locality),
+			Status:                firstNonEmpty(entry.Status, "available"),
+			PolicySchemaVersion:   strings.TrimSpace(entry.SchemaVersion),
 		})
 	}
 	sort.Slice(inventory.Roles, func(i, j int) bool {
@@ -400,14 +426,22 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 		RequestDefaults      *struct {
 			MaxTokens *int32 `json:"max_tokens"`
 		} `json:"request_defaults"`
-		ContextWindow *int32 `json:"context_window"`
-		Locality      string `json:"locality"`
+		ContextWindow   *int32                                `json:"context_window"`
+		Locality        string                                `json:"locality"`
+		Rights          *sharedpolicy.ArtifactRights          `json:"rights"`
+		RuntimeIdentity *sharedpolicy.RuntimeArtifactIdentity `json:"runtime_identity"`
 	}
 	if err := json.Unmarshal([]byte(result.Stdout), &response); err != nil {
 		return ResolvedRole{}, &CommandError{Code: "malformed_json", Command: a.command().String(), ExitCode: result.ExitCode, Stderr: result.Stderr, Err: err}
 	}
 	if strings.TrimSpace(response.Role) != role || strings.TrimSpace(response.Model) == "" {
 		return ResolvedRole{}, &CommandError{Code: "invalid_role_resolution", Command: a.command().String(), ExitCode: result.ExitCode, Err: fmt.Errorf("resource returned role %q and model %q for requested role %q", response.Role, response.Model, role)}
+	}
+	observedRuntimeDigest := ""
+	if a.Provider == ProviderOllama {
+		if digests, inventoryErr := a.ollamaModelDigests(ctx); inventoryErr == nil {
+			observedRuntimeDigest = digests[strings.TrimSpace(response.Model)]
+		}
 	}
 	var maxOutputTokens int32
 	switch {
@@ -417,16 +451,19 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 		maxOutputTokens = *response.RequestDefaults.MaxTokens
 	}
 	return ResolvedRole{
-		Provider:             a.Provider,
-		Role:                 role,
-		Model:                response.Model,
-		CanonicalModel:       response.Canonical,
-		Capabilities:         sortedUnique(response.Capabilities),
-		CoordinateConvention: strings.TrimSpace(response.CoordinateConvention),
-		SamplingSupport:      parseSamplingSupport(response.SamplingSupport),
-		MaxOutputTokens:      maxOutputTokens,
-		ContextWindow:        valueOrZero(response.ContextWindow),
-		Locality:             firstNonEmpty(response.Locality, a.Locality),
+		Provider:              a.Provider,
+		Role:                  role,
+		Model:                 response.Model,
+		CanonicalModel:        response.Canonical,
+		Rights:                response.Rights,
+		RuntimeIdentity:       response.RuntimeIdentity,
+		ObservedRuntimeDigest: observedRuntimeDigest,
+		Capabilities:          sortedUnique(response.Capabilities),
+		CoordinateConvention:  strings.TrimSpace(response.CoordinateConvention),
+		SamplingSupport:       parseSamplingSupport(response.SamplingSupport),
+		MaxOutputTokens:       maxOutputTokens,
+		ContextWindow:         valueOrZero(response.ContextWindow),
+		Locality:              firstNonEmpty(response.Locality, a.Locality),
 	}, nil
 }
 
@@ -568,6 +605,34 @@ func (a Adapter) runPolicyRoles(ctx context.Context) (Result, error) {
 	return a.runner().Run(ctx, a.command())
 }
 
+func (a Adapter) ollamaModelDigests(ctx context.Context) (map[string]string, error) {
+	result, err := a.runner().Run(ctx, Command{Name: a.CommandName, Args: []string{"models", "inventory", "--json"}, Timeout: DefaultCommandTimeout})
+	if err != nil {
+		return nil, mapCommandError(a.Provider, err)
+	}
+	var report struct {
+		Models []struct {
+			Name   string `json:"name"`
+			Digest string `json:"digest"`
+		} `json:"models"`
+	}
+	if err := json.Unmarshal([]byte(result.Stdout), &report); err != nil {
+		return nil, &CommandError{Code: "malformed_inventory", Command: a.command().String(), ExitCode: result.ExitCode, Stderr: result.Stderr, Err: err}
+	}
+	digests := make(map[string]string, len(report.Models))
+	for _, model := range report.Models {
+		name := strings.TrimSpace(model.Name)
+		if name == "" {
+			continue
+		}
+		if _, duplicate := digests[name]; duplicate {
+			return nil, &CommandError{Code: "malformed_inventory", Command: a.command().String(), ExitCode: result.ExitCode, Err: fmt.Errorf("duplicate model identity %q", name)}
+		}
+		digests[name] = strings.TrimSpace(model.Digest)
+	}
+	return digests, nil
+}
+
 func (a Adapter) command() Command {
 	return Command{Name: a.CommandName, Args: []string{"policy", "roles", "--json"}, Timeout: DefaultCommandTimeout}
 }
@@ -607,11 +672,28 @@ func (a Adapter) executionCommand(req ExecutionRequest) (Command, error) {
 }
 
 func (a Adapter) ollamaExecutionCommand(req ExecutionRequest, role string, input string, timeout time.Duration) (Command, error) {
+	modelArgs := []string{}
+	if expected := strings.TrimSpace(req.ExpectedModel); expected != "" {
+		modelArgs = append(modelArgs, "--expected-model", expected)
+	}
+	if digest := strings.TrimSpace(req.ExpectedArtifactDigest); digest != "" {
+		modelArgs = append(modelArgs, "--expected-artifact-digest", digest)
+	}
+	if decisionSHA := strings.TrimSpace(req.ExpectedRightsDecisionSHA256); decisionSHA != "" {
+		modelArgs = append(modelArgs, "--expected-rights-decision-sha256", decisionSHA)
+	}
+	if evaluatedAt := strings.TrimSpace(req.ExpectedRightsEvaluatedAt); evaluatedAt != "" {
+		modelArgs = append(modelArgs, "--expected-rights-evaluated-at", evaluatedAt)
+	}
+	localOnlyArgs := []string{}
+	if req.Profile == sharedv1.Profile_PROFILE_LOCAL_ONLY {
+		localOnlyArgs = append(localOnlyArgs, "--require-loopback")
+	}
 	switch req.Kind {
 	case sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING:
 		return Command{
 			Name:    a.CommandName,
-			Args:    []string{"gateway", "embed", "--role", role, "--json", "--input-stdin"},
+			Args:    append(append(append([]string{"gateway", "embed", "--role", role}, modelArgs...), localOnlyArgs...), "--json", "--input-stdin"),
 			Stdin:   input,
 			Timeout: timeout,
 		}, nil
@@ -621,13 +703,11 @@ func (a Adapter) ollamaExecutionCommand(req ExecutionRequest, role string, input
 		if err != nil {
 			return Command{}, err
 		}
-		args := []string{"gateway", "generate", "--role", role, "--json", "--prompt-stdin"}
+		args := append(append([]string{"gateway", "generate", "--role", role}, modelArgs...), "--json", "--prompt-stdin")
 		if jsonEnvelope {
-			args = []string{"gateway", "generate", "--role", role, "--json", "--input-json-stdin"}
+			args = append(append([]string{"gateway", "generate", "--role", role}, modelArgs...), "--json", "--input-json-stdin")
 		}
-		if req.Profile == sharedv1.Profile_PROFILE_LOCAL_ONLY {
-			args = append(args, "--require-loopback")
-		}
+		args = append(args, localOnlyArgs...)
 		if digest := strings.TrimSpace(req.ExpectedWorkerDigest); digest != "" {
 			args = append(args, "--require-worker-digest", digest)
 		}

@@ -28,8 +28,8 @@ func serviceWorld(t *testing.T, world *decisionWorld, ollamaValue string) *Servi
 		"classify.fast": {Sampling: deterministicRoleSampling(), Candidates: []Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "local"}}},
 	}}
 	repository, err := NewResourceRepository(catalog, []providers.Adapter{
-		{Provider: providers.ProviderOllaya, CommandName: "resource-ollaya", Locality: "local", Runner: world.runner},
-		{Provider: providers.ProviderOllama, CommandName: "resource-ollama", Locality: "local", Runner: world.runner},
+		{Provider: providers.ProviderOllaya, Locality: "local", CommandName: "resource-ollaya", Runner: world.runner},
+		{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: world.runner},
 	})
 	require.NoError(t, err)
 	return NewService(repository)

@@ -24,6 +24,37 @@ import (
 	eventpb "github.com/vrooli/vrooli/packages/proto/gen/go/vrooli-events/v1/domain"
 )
 
+type evidenceRecoverService struct {
+	orchestration.RunService
+	calls    int
+	selected []orchestration.TranscriptReplayRange
+}
+
+func (s *evidenceRecoverService) RecoverRun(_ context.Context, _ uuid.UUID, selected ...orchestration.TranscriptReplayRange) (*orchestration.RecoverResult, error) {
+	s.calls++
+	s.selected = selected
+	return &orchestration.RecoverResult{TranscriptReplay: &orchestration.TranscriptReplayReceipt{EventsInserted: 1}}, nil
+}
+
+func TestRecoverRunPreservesBoundedTranscriptSelectionAndRouteIdentity(t *testing.T) {
+	id := uuid.NewString()
+	service := &evidenceRecoverService{}
+	handler := New(orchestration.HandlerServices{RunService: service})
+	body := `{"runId":"` + id + `","transcriptFromByte":"0","transcriptThroughByte":"128","transcriptSha256":"` + strings.Repeat("a", 64) + `"}`
+	req := mux.SetURLVars(httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+id+"/recover", strings.NewReader(body)), map[string]string{"id": id})
+	out := httptest.NewRecorder()
+	handler.RecoverRun(out, req)
+	if out.Code != http.StatusOK || service.calls != 1 || len(service.selected) != 1 || service.selected[0].ThroughByte != 128 || !strings.Contains(out.Body.String(), "transcript_replay") {
+		t.Fatalf("selection not preserved: status%d service%+v body%s", out.Code, service, out.Body.String())
+	}
+	req = mux.SetURLVars(httptest.NewRequest(http.MethodPost, "/api/v1/runs/"+id+"/recover", strings.NewReader(strings.Replace(body, id, uuid.NewString(), 1))), map[string]string{"id": id})
+	out = httptest.NewRecorder()
+	handler.RecoverRun(out, req)
+	if out.Code == http.StatusOK || service.calls != 1 {
+		t.Fatal("body overrode authorized route target")
+	}
+}
+
 type guardIdentityService struct {
 	result *orchestration.IdentityVerifyResult
 }
@@ -63,7 +94,9 @@ type taggedRunService struct {
 	run *domain.Run
 }
 
-func (s taggedRunService) GetRunByTag(context.Context, string) (*domain.Run, error) { return s.run, nil }
+func (s taggedRunService) GetRunByTag(context.Context, string) (*domain.Run, error) {
+	return s.run, nil
+}
 
 func TestStopByTagRefusesARunIdentityAndNamesTheTaggedRun(t *testing.T) {
 	tagged := &domain.Run{ID: uuid.New()}

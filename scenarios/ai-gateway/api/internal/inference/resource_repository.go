@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"ai-gateway/internal/providers"
+	"github.com/vrooli/ai-provider-go/policy"
 
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
@@ -95,9 +97,10 @@ func resolveOutputCap(request ProviderRequest, resolved providers.ResolvedRole) 
 }
 
 type ResourceRepository struct {
-	catalog  RoleCatalog
-	adapters map[string]providers.Adapter
-	ledger   AttemptLedger
+	catalog       RoleCatalog
+	adapters      map[string]providers.Adapter
+	ledger        AttemptLedger
+	rightsContext func(context.Context) (policy.RightsContext, error)
 }
 
 func NewResourceRepository(catalog RoleCatalog, adapters []providers.Adapter, ledgers ...AttemptLedger) (*ResourceRepository, error) {
@@ -112,6 +115,78 @@ func NewResourceRepository(catalog RoleCatalog, adapters []providers.Adapter, le
 		repository.adapters[strings.ToLower(strings.TrimSpace(adapter.Provider))] = adapter
 	}
 	return repository, nil
+}
+
+// NewResourceRepositoryWithRightsContextSource composes the typed route with
+// the same operator-owned context source used by the general Gateway router.
+// Local model candidates fail closed if the source is absent or unreadable.
+func NewResourceRepositoryWithRightsContextSource(catalog RoleCatalog, adapters []providers.Adapter, source func(context.Context) (policy.RightsContext, error), ledgers ...AttemptLedger) (*ResourceRepository, error) {
+	repository, err := NewResourceRepository(catalog, adapters, ledgers...)
+	if err != nil {
+		return nil, err
+	}
+	repository.rightsContext = source
+	return repository, nil
+}
+
+func localModelRequiresRights(provider string, resolved providers.ResolvedRole) bool {
+	if !strings.EqualFold(strings.TrimSpace(resolved.Locality), "local") {
+		return false
+	}
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case providers.ProviderOllama, providers.ProviderOllaya, providers.ProviderPiiDetector:
+		return true
+	default:
+		return strings.TrimSpace(resolved.Model) != "" || resolved.Rights != nil
+	}
+}
+
+func sameRuntimeIdentity(left, right *policy.RuntimeArtifactIdentity) bool {
+	return left != nil && right != nil && *left == *right
+}
+
+// authorizeLocalCandidate binds one candidate's rights to its current role,
+// artifact identity, use and trusted context, then repeats the binding against
+// a fresh resource resolution immediately before command dispatch.
+func (r *ResourceRepository) authorizeLocalCandidate(ctx context.Context, adapter providers.Adapter, resourceRole string, resolved providers.ResolvedRole) (providers.ResolvedRole, string, policy.RightsDecision, error) {
+	if !localModelRequiresRights(adapter.Provider, resolved) {
+		return resolved, "", policy.RightsDecision{}, nil
+	}
+	if r.rightsContext == nil || strings.TrimSpace(resolved.Model) == "" || resolved.Rights == nil {
+		return providers.ResolvedRole{}, "", policy.RightsDecision{}, errors.New("local model rights, model identity, or trusted organization context is missing")
+	}
+	currentContext, err := r.rightsContext(ctx)
+	if err != nil {
+		return providers.ResolvedRole{}, "", policy.RightsDecision{}, fmt.Errorf("trusted rights context is unavailable: %w", err)
+	}
+	decision := policy.EvaluateRights(resolved.Rights, policy.RightsUseLocalInference, currentContext, time.Now())
+	if decision.Status != policy.RightsAllowed {
+		return providers.ResolvedRole{}, "", decision, fmt.Errorf("local model rights decision %s (%s)", decision.Status, decision.Reason)
+	}
+	if !policy.RuntimeArtifactIdentityMatches(resolved.RuntimeIdentity, resolved.Rights, adapter.Provider, resolved.Model, resolved.ObservedRuntimeDigest) {
+		return providers.ResolvedRole{}, "", decision, errors.New("local model runtime artifact identity is missing or differs from the observed digest")
+	}
+
+	refreshed, err := adapter.ResolveRole(ctx, resourceRole)
+	if err != nil {
+		return providers.ResolvedRole{}, "", decision, fmt.Errorf("re-resolve local model rights identity before execution: %w", err)
+	}
+	refreshedContext, err := r.rightsContext(ctx)
+	if err != nil {
+		return providers.ResolvedRole{}, "", decision, fmt.Errorf("trusted rights context is unavailable before execution: %w", err)
+	}
+	if refreshed.Provider != resolved.Provider || refreshed.Role != resolved.Role || refreshed.Model != resolved.Model ||
+		!strings.EqualFold(refreshed.Locality, resolved.Locality) || refreshed.ObservedRuntimeDigest != resolved.ObservedRuntimeDigest ||
+		!sameRuntimeIdentity(refreshed.RuntimeIdentity, resolved.RuntimeIdentity) {
+		return providers.ResolvedRole{}, "", decision, errors.New("local model policy or exact runtime artifact identity changed before execution")
+	}
+	if err := policy.RequireCurrentRightsDecision(decision, refreshed.Rights, policy.RightsUseLocalInference, refreshedContext); err != nil {
+		return providers.ResolvedRole{}, "", decision, err
+	}
+	if !policy.RuntimeArtifactIdentityMatches(refreshed.RuntimeIdentity, refreshed.Rights, adapter.Provider, refreshed.Model, refreshed.ObservedRuntimeDigest) {
+		return providers.ResolvedRole{}, "", decision, errors.New("local model runtime artifact identity changed before execution")
+	}
+	return refreshed, refreshed.RuntimeIdentity.Digest, decision, nil
 }
 
 func recoveryReceipt(record AttemptRecord, state inferencev1.RecoveryReceiptState) *inferencev1.RecoveryReceipt {
@@ -257,7 +332,7 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 	// "nothing here can sample the way you asked".
 	var samplingRefused bool
 	var rootRequired bool
-	for candidateIndex, candidate := range definition.Candidates {
+	for candidateIndex, candidate := range orderedCandidates(definition.Candidates, r.adapters, request.Profile) {
 		switch providers.Source(ctx) {
 		case "local":
 			if candidate.Provider != providers.ProviderOllama {
@@ -276,7 +351,7 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			return ProviderResult{}, fmt.Errorf("unsupported AI source")
 		}
 		adapter, ok := r.adapters[strings.ToLower(strings.TrimSpace(candidate.Provider))]
-		if ok && !profileAdmits(request.Profile, adapter.Locality) {
+		if ok && !profileAdmitsRequest(request.Profile, request.PrivacyClass, adapter.Locality) {
 			continue
 		}
 		if !ok {
@@ -286,6 +361,10 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 		resolved, err := adapter.ResolveRole(ctx, candidate.ResourceRole)
 		if err != nil {
 			failures = append(failures, candidate.Provider+": "+err.Error())
+			continue
+		}
+		if !profileAdmits(request.Profile, resolved.Locality) {
+			failures = append(failures, fmt.Sprintf("%s: resolved locality %q violates %s", candidate.Provider, resolved.Locality, request.Profile))
 			continue
 		}
 		support := resolved.TemperatureSupport()
@@ -307,6 +386,16 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 		}
 		if request.MaxProviderCalls > 0 && providerCallsMade >= request.MaxProviderCalls {
 			return ProviderResult{ProviderCallsMade: providerCallsMade}, fmt.Errorf("%w: request limit of %d provider calls exhausted", ErrUnavailable, request.MaxProviderCalls)
+		}
+		executionRole := resolved
+		expectedArtifactDigest := ""
+		rightsDecision := policy.RightsDecision{}
+		if localModelRequiresRights(candidate.Provider, resolved) {
+			executionRole, expectedArtifactDigest, rightsDecision, err = r.authorizeLocalCandidate(ctx, adapter, candidate.ResourceRole, resolved)
+			if err != nil {
+				failures = append(failures, candidate.Provider+": "+err.Error())
+				continue
+			}
 		}
 		applied := AppliedSettings{
 			TemperatureSent:       temperature,
@@ -353,11 +442,15 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 		// included and candidate fallback can never cross the caller's ceiling.
 		providerCallsMade++
 		execution, err := adapter.Execute(ctx, providers.ExecutionRequest{
-			Kind:      sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION,
-			Role:      candidate.ResourceRole,
-			Profile:   request.Profile,
-			InputText: prompt,
-			Timeout:   definition.Timeout(),
+			Kind:                         sharedv1.RequestKind_REQUEST_KIND_STRUCTURED_EXTRACTION,
+			Role:                         candidate.ResourceRole,
+			ExpectedModel:                executionRole.Model,
+			ExpectedArtifactDigest:       expectedArtifactDigest,
+			ExpectedRightsDecisionSHA256: rightsDecision.DecisionSHA256,
+			ExpectedRightsEvaluatedAt:    rightsDecision.EvaluatedAt,
+			Profile:                      request.Profile,
+			InputText:                    prompt,
+			Timeout:                      definition.Timeout(),
 			// Only a caller-supplied cap is transmitted. A role-declared cap is
 			// already the resource's own default, so re-sending it would turn a
 			// resource-owned decision into a gateway-owned one.
@@ -523,21 +616,25 @@ func validOperationID(value string) bool {
 	return true
 }
 
-func (r *ResourceRepository) Embed(ctx context.Context, role string, texts []string) (EmbeddingResult, error) {
-	definition, ok := r.catalog.Roles[strings.TrimSpace(role)]
+func (r *ResourceRepository) Embed(ctx context.Context, request EmbeddingRequest) (EmbeddingResult, error) {
+	role := strings.TrimSpace(request.Role)
+	if request.Profile != sharedv1.Profile_PROFILE_LOCAL_ONLY {
+		return EmbeddingResult{}, fmt.Errorf("%w: typed embeddings require an explicit local-only profile", ErrUnavailable)
+	}
+	definition, ok := r.catalog.Roles[role]
 	if !ok {
 		return EmbeddingResult{}, fmt.Errorf("%w: inference role %q is not declared", ErrUnavailable, role)
 	}
-	if len(texts) == 0 {
+	if len(request.Texts) == 0 {
 		return EmbeddingResult{}, errors.New("embedding texts are required")
 	}
 	var result EmbeddingResult
-	for _, text := range texts {
+	for _, text := range request.Texts {
 		var vector []float64
 		var providerName, model string
 		var inputTokens, costMicros int64
 		var failures []string
-		for _, candidate := range definition.Candidates {
+		for _, candidate := range orderedCandidates(definition.Candidates, r.adapters, request.Profile) {
 			adapter, available := r.adapters[strings.ToLower(strings.TrimSpace(candidate.Provider))]
 			if !available {
 				failures = append(failures, candidate.Provider+": adapter unavailable")
@@ -548,7 +645,26 @@ func (r *ResourceRepository) Embed(ctx context.Context, role string, texts []str
 				failures = append(failures, err.Error())
 				continue
 			}
-			execution, err := adapter.Execute(ctx, providers.ExecutionRequest{Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING, Role: candidate.ResourceRole, InputText: text, Timeout: definition.Timeout()})
+			if !profileAdmits(request.Profile, resolved.Locality) {
+				failures = append(failures, fmt.Sprintf("%s: resolved locality %q violates %s", candidate.Provider, resolved.Locality, request.Profile))
+				continue
+			}
+			executionRole, expectedArtifactDigest, rightsDecision, authorizationErr := r.authorizeLocalCandidate(ctx, adapter, candidate.ResourceRole, resolved)
+			if authorizationErr != nil {
+				failures = append(failures, candidate.Provider+": "+authorizationErr.Error())
+				continue
+			}
+			execution, err := adapter.Execute(ctx, providers.ExecutionRequest{
+				Kind:                         sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING,
+				Role:                         candidate.ResourceRole,
+				ExpectedModel:                executionRole.Model,
+				ExpectedArtifactDigest:       expectedArtifactDigest,
+				ExpectedRightsDecisionSHA256: rightsDecision.DecisionSHA256,
+				ExpectedRightsEvaluatedAt:    rightsDecision.EvaluatedAt,
+				Profile:                      request.Profile,
+				InputText:                    text,
+				Timeout:                      definition.Timeout(),
+			})
 			if err != nil {
 				failures = append(failures, err.Error())
 				continue

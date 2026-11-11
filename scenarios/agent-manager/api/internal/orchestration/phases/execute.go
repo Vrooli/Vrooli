@@ -642,6 +642,7 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 		}
 	}
 
+	persistedSessionID := in.Run.SessionID
 	cfg := &runner.TranscriptConfig{
 		TranscriptPath: in.Run.TranscriptPath,
 		StderrPath:     state.Snapshot().StderrPath,
@@ -652,14 +653,16 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 				in.Run.RunnerPID = pid
 				in.Run.RunnerPGID = pgid
 			})
-			if err := state.PersistProcess(pid, pgid); err != nil {
-				return err
-			}
 			if in.Deps.Runs != nil {
-				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), in.Run)
-				return err
+				updated, err := in.Deps.Runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), in.Run)
+				if err != nil {
+					return err
+				}
+				if !updated {
+					return domain.NewStateError("Run", "superseded", "persist process", "lifecycle writer changed")
+				}
 			}
-			return nil
+			return state.PersistProcess(pid, pgid)
 		},
 		OnAdvance: func(cursor, lastSeq int64) error {
 			lockedMutate(in.Mu, func() {
@@ -670,34 +673,37 @@ func PrepareTranscriptConfig(ctx context.Context, in PrepareTranscriptInput) (*r
 					in.Run.TranscriptLastSeq = lastSeq
 				}
 			})
-			if err := state.PersistCursor(in.Run.TranscriptCursor, in.Run.TranscriptLastSeq); err != nil {
-				return err
-			}
 			if in.Deps.Runs != nil {
-				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), in.Run)
-				return err
+				updated, err := in.Deps.Runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), in.Run)
+				if err != nil {
+					return err
+				}
+				if !updated {
+					return domain.NewStateError("Run", "superseded", "persist cursor", "lifecycle writer changed")
+				}
 			}
-			return nil
+			return state.PersistCursor(in.Run.TranscriptCursor, in.Run.TranscriptLastSeq)
 		},
 		OnSessionID: func(sessionID string) error {
-			same := false
+			if sessionID == "" || sessionID == persistedSessionID {
+				return nil
+			}
 			lockedMutate(in.Mu, func() {
-				if in.Run.SessionID == sessionID {
-					same = true
-					return
-				}
 				in.Run.SessionID = sessionID
 			})
-			if same {
-				return nil
+			if in.Deps.Runs != nil {
+				updated, err := in.Deps.Runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), in.Run)
+				if err != nil {
+					return err
+				}
+				if !updated {
+					return domain.NewStateError("Run", "superseded", "persist session", "lifecycle writer changed")
+				}
 			}
 			if err := state.PersistSessionID(sessionID); err != nil {
 				return err
 			}
-			if in.Deps.Runs != nil {
-				_, err := in.Deps.Runs.UpdateRunnerStreamState(context.WithoutCancel(ctx), in.Run)
-				return err
-			}
+			persistedSessionID = sessionID
 			return nil
 		},
 	}

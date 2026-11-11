@@ -3,6 +3,7 @@ package main
 import (
 	clitest "agent-manager/cli/internal/testutil"
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,6 +18,60 @@ import (
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	domainpb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
 )
+
+func TestRunRecoverPreservesHistoricalRangeWithoutChangingNormalRequest(t *testing.T) {
+	clitest.IsolateCredentialBroker(t)
+	t.Setenv(cliutil.EnvIdentityToken, "")
+	const id = "e13a9412-aec5-4aac-8125-1f6bd4b39052"
+	for _, selected := range []bool{false, true} {
+		t.Run(fmt.Sprint(selected), func(t *testing.T) {
+			calls := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/health" {
+					_, _ = w.Write([]byte(`{"status":"healthy"}`))
+					return
+				}
+				calls++
+				body := readAll(t, r)
+				if selected {
+					var request apipb.RecoverRunRequest
+					if err := protojson.Unmarshal(body, &request); err != nil {
+						t.Error(err)
+					}
+					if request.RunId != id || request.TranscriptFromByte == nil || request.GetTranscriptFromByte() != 0 || request.GetTranscriptThroughByte() != 128 || request.GetTranscriptSha256() != strings.Repeat("a", 64) {
+						t.Errorf("range changed: %+v", &request)
+					}
+				} else if len(body) != 0 {
+					t.Errorf("normal recover gained a body: %s", body)
+				}
+				_, _ = w.Write([]byte(`{"recovered":true}`))
+			}))
+			defer server.Close()
+			app, err := NewApp()
+			if err != nil {
+				t.Fatal(err)
+			}
+			api := cliutil.NewAPIClient(cliutil.NewHTTPClient(cliutil.HTTPClientOptions{}), func() cliutil.APIBaseOptions { return cliutil.APIBaseOptions{DefaultBase: server.URL} }, nil)
+			app.services = NewServices(api)
+			args := []string{"--api-base", server.URL, "run", "recover", id, "--json"}
+			if selected {
+				args = append(args, "--transcript-from-byte", "0", "--transcript-through-byte", "128", "--transcript-sha256", strings.Repeat("a", 64))
+			}
+			if err := app.Run(args); err != nil {
+				t.Fatal(err)
+			}
+			for _, invalid := range []string{"--transcript-from-byte=-1", "--transcript-through-byte=-1", "--transcript-sha256="} {
+				if err := app.Run([]string{"--api-base", server.URL, "run", "recover", id, invalid, "--json"}); err == nil {
+					t.Errorf("explicit invalid range selected ordinary recovery: %s", invalid)
+				}
+			}
+
+			if calls != 1 {
+				t.Fatalf("requests%d", calls)
+			}
+		})
+	}
+}
 
 func TestRunContinueAppRoutingPreservesRetainedRequest(t *testing.T) {
 	clitest.IsolateCredentialBroker(t)

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"agent-manager/internal/sqlcompat"
@@ -138,7 +139,61 @@ func (c *SQLiteQdrantCatalog) SaveGenerationCleanupReceipt(ctx context.Context, 
 	return err
 }
 
+type qdrantAliasMutationFence struct {
+	catalog   *SQLiteQdrantCatalog
+	operation aisearch.FleetAliasOperation
+}
+
+func (c *SQLiteQdrantCatalog) AcquireFleetAliasMutation(ctx context.Context, operation aisearch.FleetAliasOperation) (aisearch.FleetAliasMutationFence, error) {
+	if strings.TrimSpace(operation.EndpointID) == "" || strings.TrimSpace(operation.Alias) == "" || strings.TrimSpace(operation.OwnerID) == "" || strings.TrimSpace(operation.OperationID) == "" {
+		return nil, errors.New("Qdrant alias operation requires endpoint, alias, owner and operation identity")
+	}
+	record, err := json.Marshal(operation)
+	if err != nil {
+		return nil, err
+	}
+	result, err := c.db.ExecContext(ctx, `INSERT INTO conversation_search_qdrant_alias_operations(endpoint_id, alias_name, owner_id, operation_id, record_json)
+        VALUES (?, ?, ?, ?, ?) ON CONFLICT(endpoint_id, alias_name) DO NOTHING`, operation.EndpointID, operation.Alias, operation.OwnerID, operation.OperationID, string(record))
+	if err != nil {
+		return nil, err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if changed == 0 {
+		var existingRaw string
+		if err := c.db.GetContext(ctx, &existingRaw, `SELECT record_json FROM conversation_search_qdrant_alias_operations WHERE endpoint_id = ? AND alias_name = ?`, operation.EndpointID, operation.Alias); err != nil {
+			return nil, err
+		}
+		var existing aisearch.FleetAliasOperation
+		if err := json.Unmarshal([]byte(existingRaw), &existing); err != nil {
+			return nil, err
+		}
+		if existing.OperationID != operation.OperationID || existing.OwnerID != operation.OwnerID || existing.Target != operation.Target || existing.Kind != operation.Kind || existing.ArmID != operation.ArmID {
+			return nil, aisearch.ErrFleetStateConflict
+		}
+	}
+	return qdrantAliasMutationFence{catalog: c, operation: operation}, nil
+}
+
+func (f qdrantAliasMutationFence) Release(ctx context.Context) error {
+	result, err := f.catalog.db.ExecContext(ctx, `DELETE FROM conversation_search_qdrant_alias_operations WHERE endpoint_id = ? AND alias_name = ? AND owner_id = ? AND operation_id = ?`, f.operation.EndpointID, f.operation.Alias, f.operation.OwnerID, f.operation.OperationID)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return aisearch.ErrFleetStateConflict
+	}
+	return nil
+}
+
 var (
 	_ aisearch.GenerationCatalog             = (*SQLiteQdrantCatalog)(nil)
 	_ aisearch.GenerationCleanupReceiptStore = (*SQLiteQdrantCatalog)(nil)
+	_ aisearch.FleetAliasMutationBoundary    = (*SQLiteQdrantCatalog)(nil)
 )

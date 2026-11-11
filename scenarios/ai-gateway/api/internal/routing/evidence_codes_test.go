@@ -72,9 +72,9 @@ func TestEvidenceRoundTripPersistsStructuredCodes(t *testing.T) { // [REQ:AIGW-R
 
 func TestExecuteRecordsFailureClassAndRedactsOnFailure(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE-CODES]
 	runner := roleRunner()
-	runner.Errors[ollamaGenerateCmd] = &providers.CommandError{Code: "timeout", Command: "resource-ollama"}
+	runner.Errors[ollamaLocalOnlyGenerateCmd] = &providers.CommandError{Code: "timeout", Command: "resource-ollama"}
 	db := newSchemaDB(t)
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db),
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db),
 		routing.WithHealth(routing.NewSQLHealthRepository(db)),
 		routing.WithClock(func() time.Time { return breakerBaseTime }))
 
@@ -93,7 +93,7 @@ func TestExecuteRecordsFailureClassAndRedactsOnFailure(t *testing.T) { // [REQ:A
 func TestExecuteRecordsRejectionReasonWhenBlocked(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE-CODES]
 	runner := roleRunner()
 	db := newSchemaDB(t)
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db))
 
 	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_FIRST)
 	req.Role = "missing.role" // not exposed by any provider policy fixture
@@ -117,7 +117,7 @@ func TestExecuteRecordsBreakerStateOnHalfOpenSuccess(t *testing.T) { // [REQ:AIG
 		CooldownUntil: breakerBaseTime,
 		UpdatedAt:     breakerBaseTime,
 	}))
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db),
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db),
 		routing.WithHealth(repo),
 		routing.WithClock(func() time.Time { return breakerBaseTime.Add(time.Second) }))
 

@@ -929,7 +929,33 @@ func (h *Handler) RecoverRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.RecoverRun(r.Context(), id)
+	var request apipb.RecoverRunRequest
+	if r.Body != nil {
+		body, readErr := io.ReadAll(io.LimitReader(r.Body, 4097))
+		if readErr != nil || len(body) > 4096 {
+			writeSimpleError(w, r, "body", "bounded recovery request required")
+			return
+		}
+		if len(strings.TrimSpace(string(body))) > 0 {
+			if err := protoconv.UnmarshalJSON(body, &request); err != nil {
+				writeSimpleError(w, r, "body", "invalid recovery request: "+err.Error())
+				return
+			}
+		}
+	}
+	if request.RunId != "" && request.RunId != id.String() {
+		writeSimpleError(w, r, "run_id", "body and route run IDs must match")
+		return
+	}
+	var replay []orchestration.TranscriptReplayRange
+	if request.TranscriptFromByte != nil || request.TranscriptThroughByte != nil || request.TranscriptSha256 != "" {
+		if request.TranscriptFromByte == nil || request.TranscriptThroughByte == nil {
+			writeSimpleError(w, r, "transcriptRange", "both offsets are required")
+			return
+		}
+		replay = []orchestration.TranscriptReplayRange{{FromByte: request.GetTranscriptFromByte(), ThroughByte: request.GetTranscriptThroughByte(), SHA256: request.GetTranscriptSha256()}}
+	}
+	result, err := h.svc.RecoverRun(r.Context(), id, replay...)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -940,6 +966,9 @@ func (h *Handler) RecoverRun(w http.ResponseWriter, r *http.Request) {
 		resp.Recovered = result.Recovered
 		resp.Idempotent = result.Idempotent
 		resp.Message = result.Message
+		if receipt := result.TranscriptReplay; receipt != nil {
+			resp.TranscriptReplay = &apipb.TranscriptEvidenceReplayReceipt{FromByte: receipt.FromByte, ThroughByte: receipt.ThroughByte, SourceSha256: receipt.SourceSHA256, RecordsParsed: receipt.RecordsParsed, EventsInserted: receipt.EventsInserted, EventsReplayed: receipt.EventsReplayed, EventsIgnored: receipt.EventsIgnored, EventsWithPublicationTime: receipt.EventsWithPublicationTime, InsertedEventIds: receipt.InsertedEventIDs}
+		}
 		if result.Run != nil {
 			resp.Run = protoconv.RunToProto(result.Run)
 		}

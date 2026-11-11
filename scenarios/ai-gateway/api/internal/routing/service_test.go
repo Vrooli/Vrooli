@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/ai-provider-go/policy"
 	"github.com/vrooli/api-core/database"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 
@@ -20,9 +21,32 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+func newService(adapters []providers.Adapter, repo routing.Repository, opts ...routing.Option) *routing.Service {
+	ctx := policy.RightsContext{ID: "fixture-context", Version: "v1", EntityScope: "fixture", RevenueStatus: "pre_revenue", AsOf: "2026-11-11", Source: "test_fixture"}
+	opts = append(opts, routing.WithRightsContextSource(func(context.Context) (policy.RightsContext, error) { return ctx, nil }))
+	return routing.NewService(adapters, repo, opts...)
+}
+
+type inventoryMutatingRunner struct {
+	inner       *mocks.FakeRunner
+	mutateAt    int
+	calls       int
+	replacement providers.Result
+}
+
+func (r *inventoryMutatingRunner) Run(ctx context.Context, command providers.Command) (providers.Result, error) {
+	if strings.Contains(command.String(), " models inventory ") {
+		r.calls++
+		if r.calls == r.mutateAt {
+			r.inner.Results[command.String()] = r.replacement
+		}
+	}
+	return r.inner.Run(ctx, command)
+}
+
 func TestPreviewSelectsLocalFirstAndExplainsFallback(t *testing.T) { // [REQ:AIGW-ROUTE-PREVIEW] [REQ:AIGW-POLICY-CONSTRAINTS]
 	runner := roleRunner()
-	svc := routing.NewService(testAdapters(runner), nil)
+	svc := newService(testAdapters(runner), nil)
 
 	resp, err := svc.Preview(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_FIRST))
 	require.NoError(t, err)
@@ -35,9 +59,122 @@ func TestPreviewSelectsLocalFirstAndExplainsFallback(t *testing.T) { // [REQ:AIG
 	require.Contains(t, strings.Join(resp.GetPolicyReasons(), " "), "local-first")
 }
 
+func TestConditionalLocalRightsReevaluatedAfterPreviewBeforeExecution(t *testing.T) {
+	runner := roleRunner()
+	condition := `"classification":"conditional","conditions":[{"id":"revenue-v1","kind":"annual_revenue","comparator":"lt","threshold":10000000,"unit":"USD","entity_scope":"fixture","interpretation":"conservative fixture condition"}],"evidence":`
+	for key, result := range runner.Results {
+		if strings.Contains(key, "policy roles") || strings.Contains(key, "policy resolve") {
+			result.Stdout = strings.Replace(result.Stdout, `"classification":"unrestricted","evidence":`, condition, 1)
+			runner.Results[key] = result
+		}
+	}
+	ctx := policy.RightsContext{ID: "fixture-context", Version: "v1", EntityScope: "fixture", RevenueStatus: "pre_revenue", AsOf: "2026-11-11", Source: "test_fixture"}
+	source := func(context.Context) (policy.RightsContext, error) { return ctx, nil }
+	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(newSchemaDB(t)), routing.WithRightsContextSource(source))
+	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
+	preview, err := svc.Preview(context.Background(), req)
+	require.NoError(t, err)
+	require.Equal(t, "ollama", preview.GetSelectedProvider())
+
+	ctx.Version = "v2"
+	ctx.RevenueStatus = "at_or_above_threshold"
+	execution, err := svc.Execute(context.Background(), req, "hello")
+	require.NoError(t, err)
+	require.Equal(t, "blocked", execution.GetEvidence().GetStatus())
+	for _, command := range runner.Commands {
+		require.NotContains(t, command.String(), "gateway generate", "a changed current context must block before local inference")
+	}
+}
+
+func TestChangedOllamaRuntimeArtifactAfterPlanningBlocksExecution(t *testing.T) {
+	base := roleRunner()
+	runner := &inventoryMutatingRunner{inner: base, mutateAt: 3, replacement: providers.Result{Stdout: `{"source":"ollama /api/tags","models":[{"name":"qwen3.5:9b","digest":"eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"},{"name":"nomic-embed-text:latest","digest":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}]}`}}
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(newSchemaDB(t)))
+	resp, err := svc.Execute(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY), "hello")
+	require.NoError(t, err)
+	require.NotEqual(t, "succeeded", resp.GetEvidence().GetStatus())
+	for _, command := range base.Commands {
+		require.NotContains(t, command.String(), "gateway generate", "changed runtime digest must block before provider invocation")
+	}
+}
+
+func TestMissingCatalogRightsBlocksLocalCandidateAtPlanning(t *testing.T) {
+	runner := &mocks.FakeRunner{Results: map[string]providers.Result{
+		"resource-ollama policy roles --json": {Stdout: `{"roles":[{"role":"chat.default","model":"qwen3.5:9b","required_capabilities":["generate","chat"]}]}`},
+	}}
+	ctx := policy.RightsContext{ID: "fixture-context", Version: "v1", EntityScope: "fixture", RevenueStatus: "pre_revenue", AsOf: "2026-11-11", Source: "test_fixture"}
+	svc := routing.NewService(testAdapters(runner)[:1], nil, routing.WithRightsContextSource(func(context.Context) (policy.RightsContext, error) { return ctx, nil }))
+	preview, err := svc.Preview(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY))
+	require.NoError(t, err)
+	require.Empty(t, preview.GetSelectedProvider())
+	require.Equal(t, "local_model_rights_unknown", preview.GetCandidates()[0].GetRejectionReason())
+}
+
+func TestOtherLocalModelOwnersWithoutRightsAreBlocked(t *testing.T) {
+	tests := []struct {
+		name, provider, command, role, kind, capabilities string
+	}{
+		{"ollaya local decision model", providers.ProviderOllaya, "resource-ollaya", "decide.local", "text_generation", `"generate","chat"`},
+		{"pii detector model", providers.ProviderPiiDetector, "resource-pii-detector", "pii.small", "detect_pii", `"detect_pii"`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resolverOutput := `{"roles":[{"role":"` + tc.role + `","model":"fixture-model","locality":"local","required_capabilities":[` + tc.capabilities + `]}]}`
+			runner := &mocks.FakeRunner{Results: map[string]providers.Result{
+				tc.command + " policy roles --json": {Stdout: resolverOutput},
+			}}
+			adapter := providers.Adapter{Provider: tc.provider, CommandName: tc.command, Locality: "local", Runner: runner}
+			ctx := policy.RightsContext{ID: "fixture-context", Version: "v1", EntityScope: "fixture", RevenueStatus: "pre_revenue", AsOf: "2026-11-11", Source: "test_fixture"}
+			svc := routing.NewService([]providers.Adapter{adapter}, nil, routing.WithRightsContextSource(func(context.Context) (policy.RightsContext, error) { return ctx, nil }))
+			req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
+			req.Role = tc.role
+			if tc.kind == "detect_pii" {
+				req.Kind = sharedv1.RequestKind_REQUEST_KIND_DETECT_PII
+			}
+			preview, err := svc.Preview(context.Background(), req)
+			require.NoError(t, err)
+			require.Empty(t, preview.GetSelectedProvider())
+			require.Equal(t, "local_model_rights_unknown", preview.GetCandidates()[0].GetRejectionReason())
+		})
+	}
+}
+
+func TestPIIModelIdentityChangeAfterPlanningBlocksExecution(t *testing.T) {
+	rights := `{"artifact_id":"fixture/pii-model","revision":"fixture-rev","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","license_id":"fixture-license","classification":"unrestricted","evidence":{"url":"https://example.invalid/license","revision":"fixture-license-rev","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-11-11"}}`
+	roleJSON := `{"roles":[{"role":"pii.small","model":"fixture-pii-model","rights":` + rights + `,"locality":"local","required_capabilities":["detect_pii"],"modalities":{"input":["text"]}}]}`
+	runner := &mocks.FakeRunner{Results: map[string]providers.Result{
+		"resource-pii-detector policy roles --json":                    {Stdout: roleJSON},
+		"resource-pii-detector policy resolve --role pii.small --json": {Stdout: `{"role":"pii.small","model":"fixture-pii-model","rights":` + rights + `,"locality":"local","capabilities":["detect_pii"]}`},
+	}}
+	ctx := policy.RightsContext{ID: "fixture-context", Version: "v1", EntityScope: "fixture", RevenueStatus: "pre_revenue", AsOf: "2026-11-11", Source: "test_fixture"}
+	reads := 0
+	source := func(context.Context) (policy.RightsContext, error) {
+		reads++
+		if reads == 2 {
+			runner.Results["resource-pii-detector policy resolve --role pii.small --json"] = providers.Result{Stdout: `{"role":"pii.small","model":"changed-pii-model","rights":` + rights + `,"locality":"local","capabilities":["detect_pii"]}`}
+		}
+		return ctx, nil
+	}
+	adapter := providers.Adapter{Provider: providers.ProviderPiiDetector, CommandName: "resource-pii-detector", Locality: "local", Runner: runner}
+	svc := routing.NewService([]providers.Adapter{adapter}, routing.NewSQLRepository(newSchemaDB(t)), routing.WithRightsContextSource(source))
+	resp, err := svc.Execute(context.Background(), piiRequestForGatewayTest(), "mail me")
+	require.NoError(t, err)
+	require.Equal(t, "blocked", resp.GetEvidence().GetStatus())
+	for _, command := range runner.Commands {
+		require.NotContains(t, command.String(), "gateway detect", "changed model identity must be rejected before inference")
+	}
+}
+
+func piiRequestForGatewayTest() *sharedv1.GatewayRequest {
+	request := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
+	request.Kind = sharedv1.RequestKind_REQUEST_KIND_DETECT_PII
+	request.Role = "pii.small"
+	return request
+}
+
 func TestPreviewBlocksRemoteFallbackForSecretPrivacy(t *testing.T) { // [REQ:AIGW-POLICY-CONSTRAINTS]
 	runner := roleRunner()
-	svc := routing.NewService(testAdapters(runner), nil)
+	svc := newService(testAdapters(runner), nil)
 
 	req := baseRequest(sharedv1.Profile_PROFILE_PRIVACY_SENSITIVE)
 	req.PrivacyClass = sharedv1.PrivacyClass_PRIVACY_CLASS_SECRET
@@ -52,9 +189,9 @@ func TestPreviewBlocksRemoteFallbackForSecretPrivacy(t *testing.T) { // [REQ:AIG
 
 func TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE] [REQ:AIGW-PROVIDER-CLI-ONLY]
 	runner := roleRunner()
-	runner.Results["resource-ollama gateway generate --role chat.default --json --prompt-stdin --max-tokens 64"] = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
+	runner.Results["resource-ollama gateway generate --role chat.default --expected-model qwen3.5:9b --json --prompt-stdin --max-tokens 64"] = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
 	db := newSchemaDB(t)
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db))
 
 	resp, err := svc.Execute(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY), "sensitive prompt")
 	require.NoError(t, err)
@@ -72,7 +209,10 @@ func TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString(t *testi
 	require.NotContains(t, resp.GetOutputText(), "sensitive prompt")
 
 	require.NotEmpty(t, runner.Commands)
-	require.NotContains(t, runner.Commands[len(runner.Commands)-1].String(), "sensitive prompt")
+	command := runner.Commands[len(runner.Commands)-1].String()
+	require.NotContains(t, command, "sensitive prompt")
+	require.Contains(t, command, "--expected-artifact-digest cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+	require.Contains(t, command, "--require-loopback", "local-only profile must reach the resource boundary")
 
 	events, err := svc.ListEvidence(context.Background(), routing.EvidenceFilter{Limit: 10})
 	require.NoError(t, err)
@@ -81,10 +221,27 @@ func TestExecutePersistsRedactedEvidenceAndKeepsInputOutOfCommandString(t *testi
 	require.Equal(t, "succeeded", events[0].GetStatus())
 }
 
+func TestLocalOnlyProfileAndArtifactDigestReachOllamaEmbedding(t *testing.T) {
+	runner := roleRunner()
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(newSchemaDB(t)))
+	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
+	req.Kind = sharedv1.RequestKind_REQUEST_KIND_TEXT_EMBEDDING
+	req.Role = "embedding.default"
+	resp, err := svc.Execute(context.Background(), req, "embed this")
+	require.NoError(t, err)
+	require.True(t, resp.GetValid())
+	require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
+	require.NotEmpty(t, runner.Commands)
+	command := runner.Commands[len(runner.Commands)-1].String()
+	require.Contains(t, command, "gateway embed")
+	require.Contains(t, command, "--expected-artifact-digest dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")
+	require.Contains(t, command, "--require-loopback")
+}
+
 func TestExecuteFailsClosedWhenEvidenceCannotBePersisted(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE]
 	runner := roleRunner()
-	runner.Results["resource-ollama gateway generate --role chat.default --json --prompt-stdin --max-tokens 64"] = providers.Result{Stdout: `{"response":"ok"}`}
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(nil))
+	runner.Results["resource-ollama gateway generate --role chat.default --expected-model qwen3.5:9b --json --prompt-stdin --max-tokens 64"] = providers.Result{Stdout: `{"response":"ok"}`}
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(nil))
 
 	resp, err := svc.Execute(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY), "hello")
 	require.Nil(t, resp)
@@ -94,9 +251,9 @@ func TestExecuteFailsClosedWhenEvidenceCannotBePersisted(t *testing.T) { // [REQ
 
 func TestMultimodalRouteUsesDeclaredModalityAndRedactsAttachmentEvidence(t *testing.T) { // [REQ:AIGW-MULTIMODAL-CONTRACT]
 	runner := multimodalRoleRunner()
-	runner.Results["resource-ollama gateway generate --role chat.default --json --input-json-stdin"] = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
+	runner.Results["resource-ollama gateway generate --role chat.default --expected-model qwen3.5:9b --json --input-json-stdin"] = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
 	db := newSchemaDB(t)
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db))
 	image := []byte{137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 'I', 'H', 'D', 'R', 0, 0, 0, 1, 0, 0, 0, 1}
 	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
 	req.Attachments = []*sharedv1.Attachment{{
@@ -140,7 +297,7 @@ func TestMultimodalRouteUsesDeclaredModalityAndRedactsAttachmentEvidence(t *test
 
 func TestMultimodalRouteRejectsTextOnlyRoleBeforeProviderCall(t *testing.T) { // [REQ:AIGW-MULTIMODAL-CONTRACT]
 	runner := roleRunner()
-	svc := routing.NewService(testAdapters(runner), nil)
+	svc := newService(testAdapters(runner), nil)
 	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
 	req.Attachments = []*sharedv1.Attachment{{Modality: sharedv1.Modality_MODALITY_IMAGE, MediaType: "image/png", Width: 1, Height: 1, Payload: &sharedv1.Attachment_InlineBytes{InlineBytes: []byte{137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 'I', 'H', 'D', 'R', 0, 0, 0, 1, 0, 0, 0, 1}}}}
 	resp, err := svc.Preview(context.Background(), req)
@@ -153,16 +310,16 @@ func TestMultimodalRouteRejectsTextOnlyRoleBeforeProviderCall(t *testing.T) { //
 }
 
 func roleRunner() *mocks.FakeRunner {
-	return &mocks.FakeRunner{
+	runner := &mocks.FakeRunner{
 		Results: map[string]providers.Result{
 			"resource-ollama policy roles --json": {
-				Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","required_capabilities":["generate","chat"]}]}`,
+				Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","model":"qwen3.5:9b","rights":{"artifact_id":"fixture/qwen3.5:9b","revision":"fixture-rev1","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","license_id":"fixture-unrestricted","classification":"unrestricted","evidence":{"url":"https://example.invalid/fixture-license","revision":"fixture-license-v1","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-11-11"}},"required_capabilities":["generate","chat"]}]}`,
 			},
 			"resource-openrouter policy roles --json": {
-				Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","required_capabilities":["generate","chat"]}]}`,
+				Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","model":"qwen3.5:9b","rights":{"artifact_id":"fixture/qwen3.5:9b","revision":"fixture-rev1","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","license_id":"fixture-unrestricted","classification":"unrestricted","evidence":{"url":"https://example.invalid/fixture-license","revision":"fixture-license-v1","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-11-11"}},"required_capabilities":["generate","chat"]}]}`,
 			},
 			"resource-ollama policy resolve --role chat.default --json": {
-				Stdout: `{"role":"chat.default","model":"qwen3.5:9b"}`,
+				Stdout: `{"role":"chat.default","model":"qwen3.5:9b","rights":{"artifact_id":"fixture/qwen3.5:9b","revision":"fixture-rev1","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","license_id":"fixture-unrestricted","classification":"unrestricted","evidence":{"url":"https://example.invalid/fixture-license","revision":"fixture-license-v1","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-11-11"}}}`,
 			},
 			"resource-openrouter policy resolve --role chat.default --json": {
 				Stdout: `{"role":"chat.default","model":"google/gemini-3.1-flash-lite-preview"}`,
@@ -170,18 +327,57 @@ func roleRunner() *mocks.FakeRunner {
 		},
 		Errors: map[string]error{},
 	}
+	identity := `,"runtime_identity":{"provider":"ollama","model":"qwen3.5:9b","artifact_id":"fixture/qwen3.5:9b","artifact_revision":"fixture-rev1","digest_kind":"ollama_model_contents","digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","source":"ollama /api/tags","observed_at":"2026-11-11"}`
+	embedRights := `{"artifact_id":"fixture/nomic-embed-text:latest","revision":"fixture-rev1","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","license_id":"fixture-unrestricted","classification":"unrestricted","evidence":{"url":"https://example.invalid/fixture-license","revision":"fixture-license-v1","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-11-11"}}`
+	embedIdentity := `{"provider":"ollama","model":"nomic-embed-text:latest","artifact_id":"fixture/nomic-embed-text:latest","artifact_revision":"fixture-rev1","digest_kind":"ollama_model_contents","digest":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","source":"ollama /api/tags","observed_at":"2026-11-11"}`
+	for key, result := range runner.Results {
+		if key == "resource-ollama policy roles --json" {
+			result.Stdout = strings.Replace(result.Stdout, `,"required_capabilities"`, identity+`,"required_capabilities"`, 1)
+			result.Stdout = strings.TrimSuffix(result.Stdout, `]}`) + `,{"schema_version":"1","role":"embedding.default","model":"nomic-embed-text:latest","rights":` + embedRights + `,"runtime_identity":` + embedIdentity + `,"required_capabilities":["embedding"],"capabilities":["embedding"]}]}`
+			runner.Results[key] = result
+		}
+		if key == "resource-ollama policy resolve --role chat.default --json" {
+			result.Stdout = strings.Replace(result.Stdout, `,"rights":`, identity+`,"rights":`, 1)
+			runner.Results[key] = result
+		}
+	}
+	runner.Results["resource-ollama policy resolve --role embedding.default --json"] = providers.Result{Stdout: `{"role":"embedding.default","model":"nomic-embed-text:latest","rights":` + embedRights + `,"runtime_identity":` + embedIdentity + `,"capabilities":["embedding"],"locality":"local"}`}
+	runner.Results["resource-ollama models inventory --json"] = providers.Result{Stdout: `{"source":"ollama /api/tags","models":[{"name":"qwen3.5:9b","digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},{"name":"nomic-embed-text:latest","digest":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}]}`}
+	runner.DefaultOK = true
+	runner.Default = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
+	return runner
+}
+
+func withChatRuntimeIdentity(raw string) string {
+	identity := `,"runtime_identity":{"provider":"ollama","model":"qwen3.5:9b","artifact_id":"fixture/qwen3.5:9b","artifact_revision":"fixture-rev1","digest_kind":"ollama_model_contents","digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","source":"ollama /api/tags","observed_at":"2026-11-11"}`
+	return strings.Replace(raw, `,"rights":`, identity+`,"rights":`, 1)
 }
 
 func multimodalRoleRunner() *mocks.FakeRunner {
-	return &mocks.FakeRunner{
+	runner := &mocks.FakeRunner{
 		Results: map[string]providers.Result{
-			"resource-ollama policy roles --json":                           {Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","required_capabilities":["generate","chat"],"modalities":{"input":["text","image"],"output":["text"]}}]}`},
-			"resource-openrouter policy roles --json":                       {Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","required_capabilities":["generate","chat"],"modalities":{"input":["text","image"],"output":["text"]}}]}`},
-			"resource-ollama policy resolve --role chat.default --json":     {Stdout: `{"role":"chat.default","model":"qwen3.5:9b"}`},
+			"resource-ollama policy roles --json":                           {Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","model":"qwen3.5:9b","rights":{"artifact_id":"fixture/qwen3.5:9b","revision":"fixture-rev1","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","license_id":"fixture-unrestricted","classification":"unrestricted","evidence":{"url":"https://example.invalid/fixture-license","revision":"fixture-license-v1","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-11-11"}},"required_capabilities":["generate","chat"],"modalities":{"input":["text","image"],"output":["text"]}}]}`},
+			"resource-openrouter policy roles --json":                       {Stdout: `{"roles":[{"schema_version":"1","role":"chat.default","model":"qwen3.5:9b","rights":{"artifact_id":"fixture/qwen3.5:9b","revision":"fixture-rev1","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","license_id":"fixture-unrestricted","classification":"unrestricted","evidence":{"url":"https://example.invalid/fixture-license","revision":"fixture-license-v1","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-11-11"}},"required_capabilities":["generate","chat"],"modalities":{"input":["text","image"],"output":["text"]}}]}`},
+			"resource-ollama policy resolve --role chat.default --json":     {Stdout: `{"role":"chat.default","model":"qwen3.5:9b","rights":{"artifact_id":"fixture/qwen3.5:9b","revision":"fixture-rev1","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","license_id":"fixture-unrestricted","classification":"unrestricted","evidence":{"url":"https://example.invalid/fixture-license","revision":"fixture-license-v1","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-11-11"}}}`},
 			"resource-openrouter policy resolve --role chat.default --json": {Stdout: `{"role":"chat.default","model":"google/gemini-3.1-flash-lite-preview"}`},
 		},
 		Errors: map[string]error{},
 	}
+	identity := `,"runtime_identity":{"provider":"ollama","model":"qwen3.5:9b","artifact_id":"fixture/qwen3.5:9b","artifact_revision":"fixture-rev1","digest_kind":"ollama_model_contents","digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","source":"ollama /api/tags","observed_at":"2026-11-11"}`
+	for key, result := range runner.Results {
+		if key == "resource-ollama policy roles --json" {
+			result.Stdout = strings.Replace(result.Stdout, `,"required_capabilities"`, identity+`,"required_capabilities"`, 1)
+			runner.Results[key] = result
+		}
+		if key == "resource-ollama policy resolve --role chat.default --json" {
+			result.Stdout = strings.Replace(result.Stdout, `,"rights":`, identity+`,"rights":`, 1)
+			runner.Results[key] = result
+		}
+	}
+	runner.Results["resource-ollama models inventory --json"] = providers.Result{Stdout: `{"source":"ollama /api/tags","models":[{"name":"qwen3.5:9b","digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}]}`}
+	runner.DefaultOK = true
+	runner.Default = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
+	return runner
 }
 
 func testAdapters(runner providers.CommandRunner) []providers.Adapter {
@@ -214,11 +410,11 @@ func newSchemaDB(t *testing.T) *sql.DB {
 func TestExecuteSendsCallerTemperatureAndRecordsItInEvidence(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE]
 	runner := roleRunner()
 	runner.Results["resource-ollama policy resolve --role chat.default --json"] = providers.Result{
-		Stdout: `{"role":"chat.default","model":"qwen3.5:9b","sampling_support":{"temperature":"honored"}}`,
+		Stdout: withChatRuntimeIdentity(`{"role":"chat.default","model":"qwen3.5:9b","rights":{"artifact_id":"fixture/qwen3.5:9b","revision":"fixture-rev1","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","license_id":"fixture-unrestricted","classification":"unrestricted","evidence":{"url":"https://example.invalid/fixture-license","revision":"fixture-license-v1","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-11-11"}},"sampling_support":{"temperature":"honored"}}`),
 	}
-	runner.Results["resource-ollama gateway generate --role chat.default --json --prompt-stdin --max-tokens 64 --temperature 1.1"] = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
+	runner.Results["resource-ollama gateway generate --role chat.default --expected-model qwen3.5:9b --json --prompt-stdin --max-tokens 64 --temperature 1.1"] = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
 	db := newSchemaDB(t)
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db))
 
 	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
 	req.Sampling = &sharedv1.SamplingControls{Temperature: proto.Float64(1.1)}
@@ -243,9 +439,9 @@ func TestExecuteSendsCallerTemperatureAndRecordsItInEvidence(t *testing.T) { // 
 // omitted control reads as a deterministic one in every later query.
 func TestExecuteRecordsAbsentTemperatureAsNullNotZero(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE]
 	runner := roleRunner()
-	runner.Results["resource-ollama gateway generate --role chat.default --json --prompt-stdin --max-tokens 64"] = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
+	runner.Results["resource-ollama gateway generate --role chat.default --expected-model qwen3.5:9b --json --prompt-stdin --max-tokens 64"] = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
 	db := newSchemaDB(t)
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db))
 
 	resp, err := svc.Execute(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY), "hello")
 	require.NoError(t, err)
@@ -264,7 +460,7 @@ func TestExecuteRecordsAbsentTemperatureAsNullNotZero(t *testing.T) { // [REQ:AI
 func TestExecuteSkipsCandidateThatCannotHonorRequestedTemperature(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE]
 	runner := roleRunner()
 	runner.Results["resource-ollama policy resolve --role chat.default --json"] = providers.Result{
-		Stdout: `{"role":"chat.default","model":"qwen3.5:9b","sampling_support":{"temperature":"ignored"}}`,
+		Stdout: withChatRuntimeIdentity(`{"role":"chat.default","model":"qwen3.5:9b","rights":{"artifact_id":"fixture/qwen3.5:9b","revision":"fixture-rev1","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","license_id":"fixture-unrestricted","classification":"unrestricted","evidence":{"url":"https://example.invalid/fixture-license","revision":"fixture-license-v1","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-11-11"}},"sampling_support":{"temperature":"ignored"}}`),
 	}
 	runner.Results["resource-openrouter policy resolve --role chat.default --json"] = providers.Result{
 		Stdout: `{"role":"chat.default","model":"vendor/model","sampling_support":{"temperature":"honored"}}`,
@@ -273,7 +469,7 @@ func TestExecuteSkipsCandidateThatCannotHonorRequestedTemperature(t *testing.T) 
 		Stdout: `{"choices":[{"message":{"content":"ok"}}]}`,
 	}
 	db := newSchemaDB(t)
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db))
 
 	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_FIRST)
 	req.Sampling = &sharedv1.SamplingControls{Temperature: proto.Float64(1.1)}
@@ -294,10 +490,10 @@ func TestExecuteSkipsCandidateThatCannotHonorRequestedTemperature(t *testing.T) 
 func TestExecuteFailsWhenNoCandidateHonorsRequestedTemperature(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE]
 	runner := roleRunner()
 	runner.Results["resource-ollama policy resolve --role chat.default --json"] = providers.Result{
-		Stdout: `{"role":"chat.default","model":"qwen3.5:9b","sampling_support":{"temperature":"rejected"}}`,
+		Stdout: withChatRuntimeIdentity(`{"role":"chat.default","model":"qwen3.5:9b","rights":{"artifact_id":"fixture/qwen3.5:9b","revision":"fixture-rev1","sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","license_id":"fixture-unrestricted","classification":"unrestricted","evidence":{"url":"https://example.invalid/fixture-license","revision":"fixture-license-v1","sha256":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","observed_at":"2026-11-11"}},"sampling_support":{"temperature":"rejected"}}`),
 	}
 	db := newSchemaDB(t)
-	svc := routing.NewService(testAdapters(runner), routing.NewSQLRepository(db))
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(db))
 
 	req := baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY)
 	req.Sampling = &sharedv1.SamplingControls{Temperature: proto.Float64(1.1)}

@@ -78,7 +78,7 @@ func (w *decisionWorld) repository(t *testing.T) *ResourceRepository {
 		}},
 		"classify.fast": {Candidates: []Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "local"}}},
 	}}
-	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOllaya, CommandName: "resource-ollaya", Locality: "local", Runner: w.runner}})
+	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOllaya, Locality: "local", CommandName: "resource-ollaya", Runner: w.runner}})
 	require.NoError(t, err)
 	return repository
 }

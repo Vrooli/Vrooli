@@ -36,6 +36,7 @@ import (
 	"agent-manager/internal/pricing"
 	"agent-manager/internal/repository"
 	"agent-manager/internal/rolepolicy"
+	"agent-manager/internal/runtimeactivity"
 	"agent-manager/internal/storage"
 	"agent-manager/internal/supervision"
 	"agent-manager/internal/usageforecast"
@@ -90,6 +91,7 @@ type Server struct {
 	recovery                 *maintenance.Recovery
 	maintenance              *maintenance.Handler
 	lifecycleService         *maintenance.LifecycleService
+	runtimeActivity          *runtimeactivity.Reader
 	capabilityRegistry       *capabilities.Registry
 	db                       *database.DB
 	fileRoots                *filerouting.RoutedRoots
@@ -329,6 +331,7 @@ func NewServerWithTerminalEvents(terminal *wiring.TerminalEventsConfig) (*Server
 		return nil, err
 	}
 	inventory := wiring.NewMaintenanceInventory(db)
+	srv.runtimeActivity = runtimeactivity.New(inventory)
 	srv.lifecycleService, err = maintenance.NewLifecycleService(gate, func(ctx context.Context) (maintenance.Inventory, error) {
 		state, observeErr := inventory.Observe(ctx)
 		if recovery := srv.recovery.Snapshot(); !recovery.Readiness {
@@ -541,6 +544,7 @@ func (s *Server) setupRoutes() {
 		ConversationControlToken: func() string { return s.conversationTokens.get(conversationsearch.ConversationSearchProviderID) },
 		StorageHealth:            s.storageHealthHandler(),
 		LifecycleService:         s.lifecycleService,
+		RuntimeActivityReader:    s.runtimeActivity,
 		DecisionEffects:          s.decisionEffects(),
 	})
 	s.router.HandleFunc(UsageModeAskPath, s.handleUsageModeAsk).Methods(http.MethodPost)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 func TestSchemaGateSupportedSubset(t *testing.T) {
@@ -186,17 +187,17 @@ func TestServiceBatchRejectsTooManyItems(t *testing.T) {
 }
 
 type embeddingTestRepository struct {
-	result EmbeddingResult
-	role   string
-	texts  []string
+	result  EmbeddingResult
+	request EmbeddingRequest
 }
 
 func (r *embeddingTestRepository) Run(context.Context, ProviderRequest) (ProviderResult, error) {
 	return ProviderResult{}, nil
 }
 
-func (r *embeddingTestRepository) Embed(_ context.Context, role string, texts []string) (EmbeddingResult, error) {
-	r.role, r.texts = role, append([]string(nil), texts...)
+func (r *embeddingTestRepository) Embed(_ context.Context, request EmbeddingRequest) (EmbeddingResult, error) {
+	request.Texts = append([]string(nil), request.Texts...)
+	r.request = request
 	return r.result, nil
 }
 
@@ -204,7 +205,9 @@ func TestServiceEmbedPreservesTypedProviderEvidence(t *testing.T) {
 	repository := &embeddingTestRepository{result: EmbeddingResult{Vectors: [][]float64{{1, 0}, {0, 1}}, Provider: "ollama", Model: "nomic", Dimension: 2, InputTokens: 8, CostMicros: 12}}
 	response := NewService(repository).Embed(t.Context(), "embedding.default", []string{"one", "two"}, false)
 	require.Nil(t, response.GetError())
-	require.Equal(t, "embedding.default", repository.role)
+	require.Equal(t, "embedding.default", repository.request.Role)
+	require.Equal(t, []string{"one", "two"}, repository.request.Texts)
+	require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, repository.request.Profile, "typed embedding has an explicit local-only provider contract")
 	require.Equal(t, "ollama", response.GetProvider())
 	require.EqualValues(t, 2, response.GetDimension())
 	require.EqualValues(t, 12, response.GetUsage().GetCostMicros())

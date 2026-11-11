@@ -456,8 +456,19 @@ func (s *RunService) AwaitResult(id string) ([]byte, *domainpb.GetAwaitResultRes
 	return body, &resp, nil
 }
 
-func (s *RunService) Recover(id string) ([]byte, *apipb.RecoverRunResponse, error) {
-	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/recover", nil, nil)
+func (s *RunService) Recover(id string, selected ...*apipb.RecoverRunRequest) ([]byte, *apipb.RecoverRunResponse, error) {
+	var payload any
+	if len(selected) > 0 {
+		if len(selected) != 1 {
+			return nil, nil, fmt.Errorf("one recovery selection is required")
+		}
+		encoded, err := marshalProtoRequest(selected[0])
+		if err != nil {
+			return nil, nil, err
+		}
+		payload = encoded
+	}
+	body, err := s.api.Request("POST", "/api/v1/runs/"+id+"/recover", nil, payload)
 	if err != nil {
 		return body, nil, err
 	}

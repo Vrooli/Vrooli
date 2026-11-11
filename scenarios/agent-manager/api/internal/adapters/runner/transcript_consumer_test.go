@@ -2,6 +2,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,6 +14,157 @@ import (
 
 	"github.com/google/uuid"
 )
+
+type persistenceSinkFunc func(*domain.RunEvent) error
+
+func (f persistenceSinkFunc) Emit(event *domain.RunEvent) error { return f(event) }
+func (persistenceSinkFunc) Close() error                        { return nil }
+
+func TestConsumeRetriesOnlyFailedPersistenceStage(t *testing.T) {
+	for _, failAt := range []string{"session", "label", "goal", "event-2", "cursor"} {
+		t.Run(failAt, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "stdout")
+			if err := os.WriteFile(path, []byte("record\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			calls := map[string]int{}
+			stage := func(name string) error {
+				calls[name]++
+				if name == failAt && calls[name] == 1 {
+					return &domain.DatabaseError{IsTransient: true, Cause: errors.New("busy")}
+				}
+				return nil
+			}
+			parsed, accounted := 0, 0
+			cursor, _, err := Consume(t.Context(), ConsumeArgs{RunID: uuid.New(), Transcript: path, Live: true, PollInterval: time.Millisecond,
+				ParseFn: func(id uuid.UUID, _ string) TranscriptParseResult {
+					parsed++
+					return TranscriptParseResult{SessionID: "native", Label: "work", Goal: &GoalMarker{Status: GoalStatusActive}, Events: []*domain.RunEvent{domain.NewLogEvent(id, "info", "event-1"), domain.NewLogEvent(id, "info", "event-2")}}
+				},
+				OnSessionID: func(string) error { return stage("session") }, OnLabel: func(string, domain.RunLabelSource) error { return stage("label") },
+				OnGoalStatus: func(GoalMarker) error { return stage("goal") },
+				EventSink:    persistenceSinkFunc(func(e *domain.RunEvent) error { return stage(e.Data.(*domain.LogEventData).Message) }),
+				OnAdvance:    func(int64, int64) error { return stage("cursor") }, OnEvents: func([]*domain.RunEvent) { accounted++ },
+				StopAfterTranscriptResult: func(TranscriptParseResult) bool { return true },
+			})
+			if err != nil || cursor != int64(len("record\n")) || parsed != 1 || accounted != 1 {
+				t.Fatalf("cursor=%d parsed=%d accounted=%d err=%v", cursor, parsed, accounted, err)
+			}
+			for name, n := range calls {
+				want := 1
+				if name == failAt {
+					want = 2
+				}
+				if n != want {
+					t.Errorf("%s called %d want%d", name, n, want)
+				}
+			}
+		})
+	}
+}
+
+func TestConsumeCancelledPartialLineResumesWithoutReparseOrDuplicateEffects(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stdout")
+	if err := os.WriteFile(path, []byte("record\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	state := &TranscriptConsumeState{}
+	parsed, accounted, advances := 0, 0, 0
+	calls := map[string]int{}
+	args := ConsumeArgs{RunID: uuid.New(), Transcript: path, Live: true, State: state, PollInterval: time.Second,
+		ParseFn: func(id uuid.UUID, _ string) TranscriptParseResult {
+			parsed++
+			return TranscriptParseResult{Events: []*domain.RunEvent{domain.NewLogEvent(id, "info", "one"), domain.NewLogEvent(id, "info", "two")}}
+		},
+		EventSink: persistenceSinkFunc(func(e *domain.RunEvent) error {
+			name := e.Data.(*domain.LogEventData).Message
+			calls[name]++
+			if name == "two" && calls[name] == 1 {
+				cancel()
+				return &domain.DatabaseError{IsTransient: true, Cause: errors.New("busy")}
+			}
+			return nil
+		}),
+		OnAdvance: func(int64, int64) error { advances++; return nil }, OnEvents: func([]*domain.RunEvent) { accounted++ },
+	}
+	cursor, _, err := Consume(ctx, args)
+	if !errors.Is(err, context.Canceled) || cursor != 0 || accounted != 1 || advances != 0 {
+		t.Fatalf("failed line committed: cursor%d accounted%d advances%d err%v", cursor, accounted, advances, err)
+	}
+	args.Live = false
+	args.StartAt = cursor
+	cursor, _, err = Consume(t.Context(), args)
+	if err != nil || cursor != 7 || parsed != 1 || accounted != 1 || advances != 1 || calls["one"] != 1 || calls["two"] != 2 {
+		t.Fatalf("bad resume: cursor%d parsed%d accounted%d advances%d calls%v err%v", cursor, parsed, accounted, advances, calls, err)
+	}
+}
+
+func TestConsumePermanentFailureReturnsCommittedCursor(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stdout")
+	if err := os.WriteFile(path, []byte("first\nsecond\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	failure := domain.NewStateError("Run", "superseded", "publish", "new lifecycle")
+	accounted := 0
+	cursor, _, err := Consume(t.Context(), ConsumeArgs{RunID: uuid.New(), Transcript: path, Live: true,
+		ParseFn: func(id uuid.UUID, line string) TranscriptParseResult {
+			return TranscriptParseResult{Events: []*domain.RunEvent{domain.NewLogEvent(id, "info", line)}}
+		},
+		EventSink: persistenceSinkFunc(func(e *domain.RunEvent) error {
+			if e.Data.(*domain.LogEventData).Message == "second\n" {
+				return failure
+			}
+			return nil
+		}), OnEvents: func([]*domain.RunEvent) { accounted++ },
+	})
+	if !errors.Is(err, failure) || cursor != 6 || accounted != 2 {
+		t.Fatalf("permanent failure cursor%d accounted%d err%v", cursor, accounted, err)
+	}
+}
+
+func TestConsumeTerminalCallbackFailureDoesNotRetryOrCommit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "stdout")
+	if err := os.WriteFile(path, []byte("terminal\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	failure := domain.NewStateError("Run", "superseded", "terminal", "new lifecycle")
+	calls := 0
+	cursor, _, err := Consume(t.Context(), ConsumeArgs{RunID: uuid.New(), Transcript: path, Live: true, ParseFn: func(uuid.UUID, string) TranscriptParseResult {
+		return TranscriptParseResult{Terminal: &TranscriptTerminal{Success: true}}
+	}, OnTerminal: func(*TranscriptTerminal) error { calls++; return failure }})
+	if !errors.Is(err, failure) || cursor != 0 || calls != 1 {
+		t.Fatalf("terminal failure cursor%d calls%d err%v", cursor, calls, err)
+	}
+}
+
+func TestConsumePendingLineCannotDisappearDuringDrainHandoff(t *testing.T) {
+	for _, replacement := range []string{"", "partial"} {
+		t.Run(replacement, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "stdout")
+			if err := os.WriteFile(path, []byte("record\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			state := &TranscriptConsumeState{}
+			args := ConsumeArgs{RunID: uuid.New(), Transcript: path, Live: true, State: state, ParseFn: func(id uuid.UUID, _ string) TranscriptParseResult {
+				return TranscriptParseResult{Events: []*domain.RunEvent{domain.NewLogEvent(id, "info", "work")}}
+			}, EventSink: persistenceSinkFunc(func(*domain.RunEvent) error { cancel(); return &domain.DatabaseError{IsTransient: true} })}
+			if cursor, _, err := Consume(ctx, args); cursor != 0 || !errors.Is(err, context.Canceled) {
+				t.Fatalf("initial cancellation cursor%d err%v", cursor, err)
+			}
+			if err := os.WriteFile(path, []byte(replacement), 0600); err != nil {
+				t.Fatal(err)
+			}
+			args.Live = false
+			if cursor, _, err := Consume(t.Context(), args); cursor != 0 || err == nil {
+				t.Fatalf("missing pending source accepted cursor%d err%v", cursor, err)
+			}
+		})
+	}
+}
 
 type testSequencedSink struct {
 	mu     sync.Mutex

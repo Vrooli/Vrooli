@@ -28,6 +28,20 @@ The SQLite `runs` row mirrors the critical recovery fields:
 
 When a run starts, `agent-manager` allocates the state directory before the runner process is started. Runner stdout is redirected to `transcript.ndjson`, and a transcript consumer tails that file and feeds the normal event store / websocket broadcast path. As lines are consumed, the consumer advances the byte cursor and persists the first discovered runner session id immediately.
 
+Live consumption retains one parsed record and its completed persistence stages
+while retrying typed temporary database failures. Backoff is cancellable and
+capped at two seconds; retry diagnostics use the process log rather than the
+unavailable event sink. Successful stages, accounting and tool-limit effects
+are not repeated. The returned cursor advances only after the record's evidence
+and checkpoint commit. A cancelled live tail passes its pending record to the
+same owner's final drain without reparsing it. Missing or changed pending source,
+permanent storage errors and superseded lifecycle ownership remain failures.
+
+Recovery observers also retain observation through temporary run-row read
+failures. A fresh heartbeat alone does not establish event-publication freshness;
+compare the committed transcript cursor and new persisted events when diagnosing
+observation gaps.
+
 The state root is a startup prerequisite. It must be an absolute writable path
 outside process-ephemeral locations such as `/tmp`, `literal:/var/tmp`, `/run`, and
 `/dev/shm`; startup performs a synced write probe before admitting work. The
@@ -128,6 +142,25 @@ agent-manager run recover <run-id>
 ```
 
 That uses the same drain-and-finalize path as startup recovery and is idempotent.
+
+For an identified historical tool-event gap behind an already committed cursor,
+the same owner supports an explicit evidence-only request:
+
+```bash
+agent-manager run recover <run-id> --transcript-from-byte <start> --transcript-through-byte <end> --transcript-sha256 <sha256> --json
+```
+
+This mode accepts at most 1 MiB and 128 self-contained Codex
+`command_execution` records from the run's retained managed stdout, at complete
+record boundaries behind the committed cursor. Both offsets and the exact byte
+hash are required. Context-dependent message/partial-tool records and other
+providers are refused before append. The receipt identifies inserted event IDs,
+replayed facts and the selected source digest. Existing occurrence IDs preserve
+stored evidence on repeat calls. Missing source timestamps are explicitly counted:
+the inserted event records publication time, while original occurrence time stays
+unknown. This mode never rewinds metadata, changes execution/lifecycle/cursors,
+or reruns accounting, tool-budget or other execution hooks. It does not replace
+live observer reattachment. Ordinary recovery without these options is unchanged.
 
 ## Imported session corpus
 

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -51,6 +52,27 @@ type ConsumeArgs struct {
 	// at the provider turn boundary.
 	StopAfterTranscriptResult func(TranscriptParseResult) bool
 	PollInterval              time.Duration
+	// State retains a parsed, partially persisted line across a cancelled live
+	// tail and its final drain. The owner must reuse both State and its parser.
+	State *TranscriptConsumeState
+	// OnPersistenceRetry reports degraded observation outside the failing sink.
+	OnPersistenceRetry func(error, time.Duration)
+}
+
+type TranscriptConsumeState struct {
+	pending  *pendingTranscriptLine
+	terminal *TranscriptTerminal
+}
+
+type pendingTranscriptLine struct {
+	runID      uuid.UUID
+	source     string
+	offset     int64
+	line       string
+	result     TranscriptParseResult
+	operations []func() error
+	next       int
+	lastSeq    int64
 }
 
 // TranscriptEventID is the stable identity of the index-th event parsed from
@@ -137,20 +159,30 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 	}
 	reader := bufio.NewReader(source)
 	cursor := args.StartAt
-	var terminal *TranscriptTerminal
+	state := args.State
+	if state == nil {
+		state = &TranscriptConsumeState{}
+	}
+	sourcePath, err := filepath.Abs(args.Transcript)
+	if err != nil {
+		return cursor, state.terminal, err
+	}
 
 	for {
 		select {
 		case <-ctx.Done():
-			return cursor, terminal, ctx.Err()
+			return cursor, state.terminal, ctx.Err()
 		default:
 		}
 
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
+				if state.pending != nil {
+					return cursor, state.terminal, fmt.Errorf("pending transcript line disappeared or became incomplete")
+				}
 				if !args.Live {
-					return cursor, terminal, nil
+					return cursor, state.terminal, nil
 				}
 				// A non-empty EOF fragment is a half-written line whose
 				// terminating newline has not been flushed yet. Rewind to
@@ -160,140 +192,196 @@ func Consume(ctx context.Context, args ConsumeArgs) (int64, *TranscriptTerminal,
 				// emitted as a corrupt partial JSON line.
 				if len(line) > 0 {
 					if _, serr := file.Seek(cursor, io.SeekStart); serr != nil {
-						return cursor, terminal, serr
+						return cursor, state.terminal, serr
 					}
 					reader.Reset(file)
 				}
-				time.Sleep(poll)
+				if err := waitTranscriptRetry(ctx, poll); err != nil {
+					return cursor, state.terminal, err
+				}
 				continue
 			}
-			return cursor, terminal, err
+			return cursor, state.terminal, err
 		}
 
-		occurrenceOffset := cursor
+		pending := state.pending
+		if pending == nil {
+			result := args.ParseFn(args.RunID, line)
+			if args.StopBeforeTranscriptResult != nil && args.StopBeforeTranscriptResult(result) {
+				return cursor, state.terminal, nil
+			}
+			if result.Err != nil {
+				return cursor, state.terminal, result.Err
+			}
+			AssignTranscriptEventIDs(args.RunID, sourcePath, cursor, line, result.Events)
+			pending = prepareTranscriptLine(args, state, sourcePath, cursor, line, result)
+			state.pending = pending
+		} else if pending.runID != args.RunID || pending.source != sourcePath || pending.offset != cursor || pending.line != line {
+			return cursor, state.terminal, fmt.Errorf("pending transcript line no longer matches its source occurrence")
+		}
+		for pending.next < len(pending.operations) {
+			if err := persistTranscriptStage(ctx, args.Live, poll, args.OnPersistenceRetry, pending.operations[pending.next]); err != nil {
+				return cursor, state.terminal, err
+			}
+			pending.next++
+		}
 		cursor += int64(len(line))
-		result := args.ParseFn(args.RunID, line)
-		if args.StopBeforeTranscriptResult != nil && args.StopBeforeTranscriptResult(result) {
-			return occurrenceOffset, terminal, nil
+		result := pending.result
+		state.pending = nil
+
+		if args.StopAfterTranscriptResult != nil && args.StopAfterTranscriptResult(result) {
+			return cursor, state.terminal, nil
 		}
-		// Occurrence identity includes the real source location, so re-reading
-		// a range (a restart that lost its cursor, a replaced file) replays the
-		// same rows instead of appending a second copy, while identical records
-		// at distinct offsets stay distinct evidence.
-		source, err := filepath.Abs(args.Transcript)
-		if err != nil {
-			return cursor, terminal, err
-		}
-		AssignTranscriptEventIDs(args.RunID, source, occurrenceOffset, line, result.Events)
-		if result.Err != nil {
-			return cursor, terminal, result.Err
-		}
-		if result.UserTurnStarted {
-			// Boundary evidence does not require retaining or emitting private
-			// user content. Invalidate before callbacks can return an error.
-			terminal = nil
-		}
-		if result.SessionID != "" && args.OnSessionID != nil {
-			if err := args.OnSessionID(result.SessionID); err != nil {
-				return cursor, terminal, err
-			}
-		}
-		if result.Label != "" && args.OnLabel != nil {
-			if err := args.OnLabel(result.Label, result.LabelSource); err != nil {
-				return cursor, terminal, err
-			}
-		}
-		if !result.Timestamp.IsZero() {
-			for _, event := range result.Events {
-				if event != nil {
-					event.Timestamp = result.Timestamp
-				}
-			}
-		}
-		if len(result.Events) > 0 && args.OnEvents != nil {
-			args.OnEvents(result.Events)
-		}
+	}
+}
+
+// prepareTranscriptLine retains one parsed result and completed persistence stages.
+func prepareTranscriptLine(args ConsumeArgs, state *TranscriptConsumeState, source string, offset int64, line string, result TranscriptParseResult) *pendingTranscriptLine {
+	pending := &pendingTranscriptLine{runID: args.RunID, source: source, offset: offset, line: line, result: result}
+	terminal := state.terminal
+	if result.UserTurnStarted {
+		// Boundary evidence does not require retaining or emitting private
+		// user content. Invalidate before callbacks can return an error.
+		terminal = nil
+	}
+	if result.SessionID != "" && args.OnSessionID != nil {
+		pending.operations = append(pending.operations, func() error { return args.OnSessionID(result.SessionID) })
+	}
+	if result.Label != "" && args.OnLabel != nil {
+		pending.operations = append(pending.operations, func() error { return args.OnLabel(result.Label, result.LabelSource) })
+	}
+	if !result.Timestamp.IsZero() {
 		for _, event := range result.Events {
 			if event != nil {
-				if message, ok := event.Data.(*domain.MessageEventData); ok && message.Role == "user" {
-					terminal = nil // a later user turn supersedes the prior boundary
-				}
+				event.Timestamp = result.Timestamp
 			}
 		}
-		if result.Goal != nil && (result.Goal.Status == GoalStatusActive || result.Goal.Status == GoalStatusPaused) {
-			terminal = nil
-		}
-		// Provider turn completion follows a native goal terminal. It must not
-		// downgrade the accepted goal verdict to an ordinary idle boundary.
-		if result.Terminal != nil && !(result.Terminal.Success && terminal != nil && strings.HasPrefix(terminal.TerminalReason, "goal_")) {
-			terminal = result.Terminal
-			if args.OnTerminal != nil {
-				if err := args.OnTerminal(result.Terminal); err != nil {
-					return cursor, terminal, err
-				}
+	}
+	if len(result.Events) > 0 && args.OnEvents != nil {
+		// Preserve accounting/tool-limit enforcement before publication, once
+		// per parsed line even if persistence is retried or drain resumes it.
+		pending.operations = append(pending.operations, func() error {
+			args.OnEvents(result.Events)
+			return nil
+		})
+	}
+	for _, event := range result.Events {
+		if event != nil {
+			if message, ok := event.Data.(*domain.MessageEventData); ok && message.Role == "user" {
+				terminal = nil // a later user turn supersedes the prior boundary
 			}
 		}
-		if result.Goal != nil {
-			if args.OnGoalStatus != nil {
-				if err := args.OnGoalStatus(*result.Goal); err != nil {
-					return cursor, terminal, err
-				}
-			}
+	}
+	if result.Goal != nil && (result.Goal.Status == GoalStatusActive || result.Goal.Status == GoalStatusPaused) {
+		terminal = nil
+	}
+	// Provider turn completion follows a native goal terminal. It must not
+	// downgrade the accepted goal verdict to an ordinary idle boundary.
+	if result.Terminal != nil && !(result.Terminal.Success && terminal != nil && strings.HasPrefix(terminal.TerminalReason, "goal_")) {
+		terminal = result.Terminal
+		if args.OnTerminal != nil {
+			pending.operations = append(pending.operations, func() error { return args.OnTerminal(result.Terminal) })
 		}
-		if result.Goal != nil && result.Goal.Status != GoalStatusActive && result.Goal.Status != GoalStatusPaused {
-			// A non-active goal status is a deliberate harness terminal. A
-			// complete/blocked goal is a verdict; a usage/budget limit is an
-			// involuntary interruption and must never be reported as success.
-			terminal = &TranscriptTerminal{
-				Success:        true,
-				ExitCode:       0,
-				TerminalReason: "goal_" + string(result.Goal.Status),
-			}
-			switch result.Goal.Status {
-			case GoalStatusComplete:
-				terminal.TerminalClass = domain.RunTerminalClassVerdict
-				terminal.StopReason = domain.RunStopReasonComplete
-			case GoalStatusBlocked:
-				terminal.TerminalClass = domain.RunTerminalClassVerdict
-				terminal.StopReason = domain.RunStopReasonBlocked
-			case GoalStatusUsageLimited, GoalStatusBudgetLimited:
-				terminal.Success = false
-				terminal.TerminalClass = domain.RunTerminalClassInterruption
-				terminal.StopReason = domain.RunStopReasonUsageWindow
-			default:
-				terminal.Success = false
-				terminal.TerminalClass = domain.RunTerminalClassInterruption
-				terminal.StopReason = domain.RunStopReasonCrash
-			}
-			if args.OnTerminal != nil {
-				if err := args.OnTerminal(terminal); err != nil {
-					return cursor, terminal, err
-				}
-			}
+	}
+	if result.Goal != nil {
+		if args.OnGoalStatus != nil {
+			pending.operations = append(pending.operations, func() error { return args.OnGoalStatus(*result.Goal) })
 		}
+	}
+	if result.Goal != nil && result.Goal.Status != GoalStatusActive && result.Goal.Status != GoalStatusPaused {
+		// A non-active goal status is a deliberate harness terminal. A
+		// complete/blocked goal is a verdict; a usage/budget limit is an
+		// involuntary interruption and must never be reported as success.
+		terminal = &TranscriptTerminal{
+			Success:        true,
+			ExitCode:       0,
+			TerminalReason: "goal_" + string(result.Goal.Status),
+		}
+		switch result.Goal.Status {
+		case GoalStatusComplete:
+			terminal.TerminalClass = domain.RunTerminalClassVerdict
+			terminal.StopReason = domain.RunStopReasonComplete
+		case GoalStatusBlocked:
+			terminal.TerminalClass = domain.RunTerminalClassVerdict
+			terminal.StopReason = domain.RunStopReasonBlocked
+		case GoalStatusUsageLimited, GoalStatusBudgetLimited:
+			terminal.Success = false
+			terminal.TerminalClass = domain.RunTerminalClassInterruption
+			terminal.StopReason = domain.RunStopReasonUsageWindow
+		default:
+			terminal.Success = false
+			terminal.TerminalClass = domain.RunTerminalClassInterruption
+			terminal.StopReason = domain.RunStopReasonCrash
+		}
+		if args.OnTerminal != nil {
+			goalTerminal := terminal
+			pending.operations = append(pending.operations, func() error { return args.OnTerminal(goalTerminal) })
+		}
+	}
 
-		lastSeq := int64(0)
-		for _, evt := range result.Events {
-			if evt == nil || args.EventSink == nil {
-				continue
-			}
+	for _, evt := range result.Events {
+		if evt == nil || args.EventSink == nil {
+			continue
+		}
+		pending.operations = append(pending.operations, func() error {
 			if err := args.EventSink.Emit(evt); err != nil {
-				return cursor, terminal, err
+				return err
 			}
-			lastSeq = evt.Sequence
+			pending.lastSeq = evt.Sequence
 			if seqSink, ok := args.EventSink.(SequencedEventSink); ok {
-				lastSeq = seqSink.LastSequence()
+				pending.lastSeq = seqSink.LastSequence()
 			}
-		}
+			return nil
+		})
+	}
+	if args.OnAdvance != nil {
+		pending.operations = append(pending.operations, func() error {
+			if err := args.OnAdvance(pending.offset+int64(len(pending.line)), pending.lastSeq); err != nil {
+				return &TranscriptCursorAdvanceError{Err: err}
+			}
+			return nil
+		})
+	}
+	state.terminal = terminal
+	return pending
+}
 
-		if args.OnAdvance != nil {
-			if err := args.OnAdvance(cursor, lastSeq); err != nil {
-				return cursor, terminal, &TranscriptCursorAdvanceError{Err: err}
-			}
+// Live observers wait through transient persistence errors with bounded backoff.
+// Finite replay/drain callers retain their error contract and committed cursor.
+func persistTranscriptStage(ctx context.Context, live bool, delay time.Duration, onRetry func(error, time.Duration), operation func() error) error {
+	if delay <= 0 || delay > 2*time.Second {
+		delay = 250 * time.Millisecond
+	}
+	for {
+		if err := ctx.Err(); err != nil {
+			return err
 		}
-		if args.StopAfterTranscriptResult != nil && args.StopAfterTranscriptResult(result) {
-			return cursor, terminal, nil
+		err := operation()
+		var databaseError *domain.DatabaseError
+		if err == nil || !live || !errors.As(err, &databaseError) || !databaseError.IsTransient {
+			return err
 		}
+		if onRetry != nil {
+			onRetry(err, delay)
+		}
+		if err := waitTranscriptRetry(ctx, delay); err != nil {
+			return err
+		}
+		delay *= 2
+		if delay > 2*time.Second {
+			delay = 2 * time.Second
+		}
+	}
+}
+
+func waitTranscriptRetry(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
 	}
 }
 

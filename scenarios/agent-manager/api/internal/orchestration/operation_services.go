@@ -45,7 +45,7 @@ type RunService interface {
 	GetAwaitResult(context.Context, uuid.UUID) (*AwaitResult, error)
 	WakeRun(context.Context, WakeRunInput) (*domain.Run, error)
 	ParkedRunsOnHandle(context.Context, string, string) ([]*domain.Run, error)
-	RecoverRun(context.Context, uuid.UUID) (*RecoverResult, error)
+	RecoverRun(context.Context, uuid.UUID, ...TranscriptReplayRange) (*RecoverResult, error)
 	DeleteRunMessage(context.Context, uuid.UUID, uuid.UUID) (*domain.RunEvent, error)
 	ResumeRun(context.Context, uuid.UUID) (*domain.Run, error)
 	GetRunProgress(context.Context, uuid.UUID) (*domain.RunProgress, error)

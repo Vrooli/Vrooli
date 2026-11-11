@@ -58,7 +58,7 @@ func capReq(profile sharedv1.Profile) *sharedv1.GatewayRequest {
 func newCapService(t *testing.T, runner providers.CommandRunner, cap routing.CapacityAdapter) *routing.Service {
 	t.Helper()
 	db := newSchemaDB(t)
-	return routing.NewService(testAdapters(runner), routing.NewSQLRepository(db), routing.WithCapacity(cap))
+	return newService(testAdapters(runner), routing.NewSQLRepository(db), routing.WithCapacity(cap))
 }
 
 func requireNoGeneration(t *testing.T, runner *mocks.FakeRunner) {

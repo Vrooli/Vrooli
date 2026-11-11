@@ -168,6 +168,7 @@ Every run executes in one of two modes, orthogonal to sandboxed/in-place run mod
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check |
+| GET | `/api/v1/runtime/activity` | Bounded physical execution observation with optional exact count and explicit incomplete coverage |
 | POST | `/api/v1/profiles` | Create agent profile |
 | POST | `/api/v1/profiles/ensure` | Ensure profile by key (create if missing) |
 | GET | `/api/v1/profiles` | List agent profiles |
@@ -190,6 +191,8 @@ workflow catalog, workflow execution runs/advance/retry/resume and investigation
 [the transport inventory](docs/efforts/usage-intelligence/p2-transport-inventory.md).
 
 ## CLI Commands
+
+`agent-manager run activity --json` reads the ordinary typed `GetRuntimeActivity` projection. It reuses the canonical physical executor observer without opening or closing maintenance admission. `observed_at` is the source observation start; `executing_runs` is present only when coverage is complete. `observed_executing_runs` preserves a proven physical lower bound even when other scopes are unknown. Zero observed with incomplete coverage is unknown activity. `logical_queued_runs` counts pending/starting records separately and never proves executing work. Historical imported sessions are excluded. This read does not alter run states, reconcile executors or perform host repair.
 
 `agent-manager run import-identity --harness codex --session-id <session-id> --json`
 looks up imported run provenance directly, without scanning run-list pages. A

@@ -22,10 +22,11 @@ import (
 const missingRecoveryParser = "no transcript parser available; terminal outcome is unverified"
 
 type RecoverResult struct {
-	Run        *domain.Run
-	Recovered  bool
-	Idempotent bool
-	Message    string
+	Run              *domain.Run
+	Recovered        bool
+	Idempotent       bool
+	Message          string
+	TranscriptReplay *TranscriptReplayReceipt
 }
 
 func (r *Reconciler) RecoverInFlightRuns(ctx context.Context) error {
@@ -347,6 +348,7 @@ func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, trans
 	if setter, ok := transcriptParser.(runner.TranscriptSessionSetter); ok {
 		setter.SetTranscriptSession(run.SessionID, run.TranscriptCursor == 0)
 	}
+	persistedSessionID := run.SessionID
 	_, terminal, err := runner.Consume(ctx, runner.ConsumeArgs{
 		RunID:      run.ID,
 		Transcript: transcriptPath,
@@ -399,13 +401,16 @@ func (r *Reconciler) drainTranscript(ctx context.Context, run *domain.Run, trans
 			return nil
 		},
 		OnSessionID: func(sessionID string) error {
-			if sessionID == "" || run.SessionID == sessionID {
+			if sessionID == "" || persistedSessionID == sessionID {
 				return nil
 			}
 			run.SessionID = sessionID
 			updated, err := r.runs.UpdateRunnerStreamState(ctx, run)
 			if err == nil && !updated {
 				return domain.NewStateError("Run", "superseded", "recover transcript", "lifecycle writer changed")
+			}
+			if err == nil {
+				persistedSessionID = sessionID
 			}
 			return err
 		},
@@ -547,7 +552,21 @@ func (r *Reconciler) startTailer(ownerCtx context.Context, run *domain.Run, tran
 			// through a park or subsequent continuation.
 			current, err := r.runs.Get(ctx, run.ID)
 			if err != nil {
-				return
+				if ctx.Err() != nil {
+					return
+				}
+				var databaseError *domain.DatabaseError
+				if !errors.As(err, &databaseError) || !databaseError.IsTransient {
+					r.log().Warn("recovery transcript observation stopped", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+					return
+				}
+				r.log().Warn("recovery transcript observation retry scheduled", obs.KeyRunID, run.ID.String(), obs.KeyError, err.Error())
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					continue
+				}
 			}
 			if current.LifecycleVersion != run.LifecycleVersion || !current.Status.LivenessPolicy().ExpectsProcess {
 				return

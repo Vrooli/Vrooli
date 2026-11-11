@@ -2,9 +2,13 @@ package orchestration
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -19,11 +23,126 @@ import (
 	"agent-manager/internal/orchestration/obs"
 	"agent-manager/internal/orchestration/testutil"
 	"agent-manager/internal/orchestration/testutil/mocks"
+	"agent-manager/internal/repository"
 	"agent-manager/internal/runstate"
 
 	"github.com/google/uuid"
 	"github.com/vrooli/cli-core/cliutil"
 )
+
+func TestTranscriptEvidenceReplayRestoresOnlyMissingFactsWithoutAccounting(t *testing.T) {
+	rec, repos, events := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	native := core.NewRunner(codecs.NewCodexForTest(), nil, nil)
+	registry := runner.NewRegistry()
+	if err := registry.Register(native); err != nil {
+		t.Fatal(err)
+	}
+	rec.runners = registry
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	run.ExecutionMode = domain.ExecutionModeCodecPipe
+	state, err := runstate.Open(run.ID, runstate.OpenOptions{RootDir: rec.runStateRoot, RunnerType: domain.RunnerTypeCodex, WorkingDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer state.Close()
+	first := `{"type":"item.started","item":{"id":"retained-tool","type":"command_execution","command":"echo factual","status":"in_progress"}}` + "\n"
+	second := `{"type":"item.completed","item":{"id":"retained-tool","type":"command_execution","command":"echo factual","status":"completed","aggregated_output":"done","exit_code":0}}` + "\n"
+	usage := `{"type":"turn.completed","usage":{"input_tokens":123,"output_tokens":45}}` + "\n"
+	body := first + second + usage
+	if _, err = state.TranscriptWriter().WriteString(body); err != nil {
+		t.Fatal(err)
+	}
+	run.TranscriptPath = state.Snapshot().TranscriptPath
+	run.TranscriptCursor = int64(len(body))
+	if err = state.PersistCursor(run.TranscriptCursor, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err = repos.Runs.Update(t.Context(), run); err != nil {
+		t.Fatal(err)
+	}
+	parser := native.NewTranscriptParser()
+	parser.ParseTranscriptLine(run.ID, first)
+	result := parser.ParseTranscriptLine(run.ID, second)
+	runner.AssignTranscriptEventIDs(run.ID, run.TranscriptPath, int64(len(first)), second, result.Events)
+	if err = events.Append(t.Context(), run.ID, result.Events...); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := repos.Runs.Get(t.Context(), run.ID)
+	beforeState := state.Snapshot()
+	service := New(repos.Profiles, repos.Tasks, repos.Runs, WithEvents(events))
+	service.SetReconciler(rec)
+	digest := sha256.Sum256([]byte(first + second))
+	selection := TranscriptReplayRange{ThroughByte: int64(len(first + second)), SHA256: hex.EncodeToString(digest[:])}
+	for attempt := 0; attempt < 2; attempt++ {
+		result, err := service.RecoverRun(t.Context(), run.ID, selection)
+		if err != nil {
+			t.Fatal(err)
+		}
+		receipt := result.TranscriptReplay
+		wantInserted, wantReplayed := int64(1), int64(1)
+		if attempt == 1 {
+			wantInserted, wantReplayed = 0, 2
+		}
+		if receipt.EventsInserted != wantInserted || receipt.EventsReplayed != wantReplayed || receipt.EventsIgnored != 0 || int64(len(receipt.InsertedEventIDs)) != wantInserted || receipt.EventsWithPublicationTime != wantInserted {
+			t.Fatalf("replay receipt: %+v", receipt)
+		}
+	}
+	after, _ := repos.Runs.Get(t.Context(), run.ID)
+	if !reflect.DeepEqual(before, after) || !reflect.DeepEqual(beforeState, state.Snapshot()) {
+		t.Fatal("historical evidence changed execution/accounting/checkpoints")
+	}
+	if count, err := events.Count(t.Context(), run.ID); err != nil || count != 2 {
+		t.Fatalf("duplicate or accounting events: count%d err%v", count, err)
+	}
+	// Context-dependent usage/message records must fail instead of guessing state
+	// or recounting historical budgets.
+	usageHash := sha256.Sum256([]byte(usage))
+	if _, err := rec.replayTranscriptEvidence(t.Context(), run, TranscriptReplayRange{FromByte: int64(len(first + second)), ThroughByte: int64(len(body)), SHA256: hex.EncodeToString(usageHash[:])}); err == nil {
+		t.Fatal("context-dependent range accepted")
+	}
+	for _, bad := range []TranscriptReplayRange{{FromByte: 1, ThroughByte: int64(len(body)), SHA256: selection.SHA256}, {ThroughByte: int64(len(body) - 1), SHA256: selection.SHA256}, {ThroughByte: int64(len(body) + 1), SHA256: selection.SHA256}, {ThroughByte: 1<<20 + 1, SHA256: selection.SHA256}, {ThroughByte: int64(len(body)), SHA256: strings.Repeat("0", 64)}} {
+		if _, err := rec.replayTranscriptEvidence(t.Context(), run, bad); err == nil {
+			t.Fatalf("invalid source selection accepted %+v", bad)
+		}
+	}
+}
+
+type temporaryTailReadRuns struct {
+	repository.RunRepository
+	run      *domain.Run
+	reads    int
+	observed chan struct{}
+}
+
+func (*temporaryTailReadRuns) AttachRecovery(context.Context, uuid.UUID, int64, time.Time) (bool, error) {
+	return true, nil
+}
+func (r *temporaryTailReadRuns) Get(context.Context, uuid.UUID) (*domain.Run, error) {
+	r.reads++
+	if r.reads == 1 {
+		return nil, &domain.DatabaseError{IsTransient: true, Cause: errors.New("busy")}
+	}
+	next := *r.run
+	next.LifecycleVersion++
+	close(r.observed)
+	return &next, nil
+}
+
+func TestRecoveryTailRetainsObservationAcrossTemporaryRunReadFailure(t *testing.T) {
+	rec, repos, _ := newRecoveryTestReconciler(t, domain.RunnerTypeCodex)
+	run := createRecoveryTestRun(t, repos, domain.RunnerTypeCodex)
+	runs := &temporaryTailReadRuns{RunRepository: rec.runs, run: run, observed: make(chan struct{})}
+	rec.runs = runs
+	rec.levers.Recovery.TranscriptTailInterval = time.Millisecond
+	if err := rec.startTailer(t.Context(), run, "retained-transcript", nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-runs.observed:
+	case <-time.After(time.Second):
+		t.Fatal("temporary run read permanently retired observation")
+	}
+}
 
 type pendingRunRecoveryStub struct{ ids []uuid.UUID }
 

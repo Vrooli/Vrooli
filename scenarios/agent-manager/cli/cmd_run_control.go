@@ -619,6 +619,9 @@ func (a *App) runAwaitResult(args []string) error {
 func (a *App) runRecover(args []string) error {
 	fs := flag.NewFlagSet("run recover", flag.ContinueOnError)
 	jsonOutput := cliutil.JSONFlag(fs)
+	fromByte := fs.Int64("transcript-from-byte", -1, "Historical evidence range start (complete record boundary)")
+	throughByte := fs.Int64("transcript-through-byte", -1, "Historical evidence range end (within committed stdout, at most 1 MiB)")
+	sourceSHA := fs.String("transcript-sha256", "", "SHA-256 of exact selected source bytes")
 
 	var id string
 	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
@@ -632,7 +635,21 @@ func (a *App) runRecover(args []string) error {
 		return fmt.Errorf("usage: agent-manager run recover <id>")
 	}
 
-	body, resp, err := a.services.Runs.Recover(id)
+	var selected []*apipb.RecoverRunRequest
+	rangeOffered := false
+	fs.Visit(func(offered *flag.Flag) {
+		switch offered.Name {
+		case "transcript-from-byte", "transcript-through-byte", "transcript-sha256":
+			rangeOffered = true
+		}
+	})
+	if rangeOffered {
+		if *fromByte < 0 || *throughByte <= *fromByte || *sourceSHA == "" {
+			return fmt.Errorf("historical reconciliation requires both valid byte offsets and transcript-sha256")
+		}
+		selected = []*apipb.RecoverRunRequest{{RunId: id, TranscriptFromByte: fromByte, TranscriptThroughByte: throughByte, TranscriptSha256: *sourceSHA}}
+	}
+	body, resp, err := a.services.Runs.Recover(id, selected...)
 	if err != nil {
 		return err
 	}

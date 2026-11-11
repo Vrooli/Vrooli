@@ -103,6 +103,7 @@ type durableRun struct {
 	transcriptSessionID string
 
 	parser        runner.TranscriptParser
+	consumeState  runner.TranscriptConsumeState
 	liveCursor    int64
 	liveDone      chan struct{}
 	cancelConsume context.CancelFunc
@@ -268,6 +269,10 @@ func (d *durableRun) consumeArgs(startAt int64, live bool) runner.ConsumeArgs {
 		OnAdvance:   in.transcript.OnAdvance,
 		OnSessionID: d.onSessionID,
 		OnEvents:    d.onEvents,
+		State:       &d.consumeState,
+		OnPersistenceRetry: func(err error, delay time.Duration) {
+			d.r.runnerLog().Warn("transcript publication retry scheduled", obs.KeyRunID, in.runID.String(), "retryDelay", delay, obs.KeyError, err.Error())
+		},
 	}
 }
 

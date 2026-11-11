@@ -13,11 +13,17 @@ import (
 // Inventory is a bounded read projection, not a scheduler or process remediator.
 // A terminal database status never overrides positive physical executor evidence.
 type Inventory struct {
-	Remaining       *int               `json:"remaining"`
-	Work            []WorkRef          `json:"work"`
-	Executors       []ExecutorEvidence `json:"executors"`
-	Unknown         []string           `json:"unknown"`
-	ControlPlaneGap string             `json:"controlPlaneGap"`
+	// Runtime facts share the canonical observation but are not maintenance
+	// admission/remaining-work semantics or truncated display sample counts.
+	PhysicalComplete  bool               `json:"-"`
+	ObservedAt        time.Time          `json:"-"`
+	ObservedExecutors int                `json:"-"`
+	LogicalQueuedRuns int                `json:"-"`
+	Remaining         *int               `json:"remaining"`
+	Work              []WorkRef          `json:"work"`
+	Executors         []ExecutorEvidence `json:"executors"`
+	Unknown           []string           `json:"unknown"`
+	ControlPlaneGap   string             `json:"controlPlaneGap"`
 }
 
 type WorkRef struct {
@@ -47,6 +53,7 @@ type InventoryReader struct {
 	db            InventoryDatabase
 	physical      func(context.Context, ExecutorRef) (ExecutorEvidence, error)
 	batchPhysical func(context.Context, []ExecutorRef) ([]ExecutorEvidence, error)
+	now           func() time.Time
 }
 
 func NewInventory(db InventoryDatabase, physical func(context.Context, ExecutorRef) (ExecutorEvidence, error)) *InventoryReader {
@@ -93,7 +100,27 @@ func (r *InventoryReader) Remaining(ctx context.Context) (int, error) {
 }
 
 func (r *InventoryReader) Observe(parent context.Context) (Inventory, error) {
+	return r.observe(parent, false)
+}
+
+// ObserveActivity uses the same durable read, identity hydration and canonical
+// physical observer and references as maintenance. Logical records lacking
+// physical scope evidence keep total coverage unknown, never busy or idle.
+// Positive physical evidence remains useful independently of that uncertainty.
+func (r *InventoryReader) ObserveActivity(parent context.Context) (Inventory, error) {
+	return r.observe(parent, true)
+}
+
+func (r *InventoryReader) observe(parent context.Context, activity bool) (Inventory, error) {
 	state := Inventory{Work: []WorkRef{}, Executors: []ExecutorEvidence{}, Unknown: []string{}, ControlPlaneGap: "AM admission drain is not host lifecycle authorization. A runner or descendant can restart another scenario whose dependencies include AM or Plan Manager. The control plane must own dependency-impact exclusion and complete executor-scope evidence; this handler never stops or repairs host processes."}
+	// Start-of-observation time is conservative across the bounded SQL/host
+	// read. It is a source stamp, not a later consumer HTTP receipt timestamp.
+	if activity {
+		state.ObservedAt = time.Now().UTC()
+		if r != nil && r.now != nil {
+			state.ObservedAt = r.now().UTC()
+		}
+	}
 	ctx, cancel := context.WithTimeout(parent, 5*time.Second)
 	defer cancel()
 	if r == nil || r.db == nil || (r.physical == nil && r.batchPhysical == nil) {
@@ -131,6 +158,7 @@ func (r *InventoryReader) Observe(parent context.Context) (Inventory, error) {
 	var physicalRefs []ExecutorRef
 	logicalRefs := map[string]bool{}
 	physicalCount := 0
+	unobservedLogical := 0
 	for rows.Next() {
 		var c candidate
 		if err := rows.Scan(&c.ref.ID, &c.ref.Kind, &c.ref.Status, &c.ref.PID, &c.ref.PGID, &c.logical, &c.importedFinalization); err != nil {
@@ -148,6 +176,12 @@ func (r *InventoryReader) Observe(parent context.Context) (Inventory, error) {
 		if c.importedFinalization && len(state.Unknown) < 64 {
 			state.Unknown = append(state.Unknown, c.ref.ID+": imported read-only run claims active finalization; ownership reconciliation required")
 		}
+		if activity && !c.importedFinalization && c.ref.Kind == "run" && (c.ref.Status == "pending" || c.ref.Status == "starting") {
+			state.LogicalQueuedRuns++
+		}
+		if activity && !c.importedFinalization && c.logical && c.ref.Kind == "run" && c.ref.PID <= 0 && c.ref.PGID <= 0 {
+			unobservedLogical++
+		}
 		if !c.importedFinalization && (c.ref.PID > 0 || c.ref.PGID > 0) {
 			physicalCount++
 			if len(physicalRefs) < executorScopeMaxReferences {
@@ -161,6 +195,9 @@ func (r *InventoryReader) Observe(parent context.Context) (Inventory, error) {
 	}
 	if err := rows.Close(); err != nil {
 		return state, err
+	}
+	if activity && unobservedLogical > 0 {
+		state.Unknown = append(state.Unknown, fmt.Sprintf("%d logical native run records lack physical executor evidence; total activity is unknown", unobservedLogical))
 	}
 	// One host snapshot per inventory attachment, not one scan per row/page.
 	// A genuine protocol capacity limit is explicit and cannot become empty proof.
@@ -193,6 +230,9 @@ func (r *InventoryReader) Observe(parent context.Context) (Inventory, error) {
 			item, ok := batch[ref.ID]
 			item.ExecutorRef = ref
 			if item.Alive {
+				if activity {
+					state.ObservedExecutors++
+				}
 				if !logicalRefs[ref.ID] {
 					count++
 				}
@@ -214,6 +254,7 @@ func (r *InventoryReader) Observe(parent context.Context) (Inventory, error) {
 	if len(state.Unknown) != 0 {
 		return state, fmt.Errorf("physical executor inventory is incomplete")
 	}
+	state.PhysicalComplete = activity
 	state.Remaining = &count
 	return state, nil
 }

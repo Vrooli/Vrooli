@@ -36,3 +36,41 @@ func TestSQLiteQdrantCatalogPersistsLifecycleAndCleanupReceipt(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, found)
 }
+
+func TestSQLiteQdrantAliasBoundarySerializesReopenAndDisjointOwners(t *testing.T) {
+	ctx := context.Background()
+	db := openProjectionTestDB(t)
+	applyProjectionSchema(t, db)
+	catalog := NewSQLiteQdrantCatalog(db)
+	agentOperation := aisearch.FleetAliasOperation{
+		OwnerID: "agent-manager.runs", EndpointID: "http://qdrant:6333", Alias: "agent-manager_conversation-search",
+		OperationID: "legacy:promote:gen-2:agent-manager_conversation-search--generation--gen-2",
+		Kind:        aisearch.FleetPromote, ArmID: "gen-2", Target: "agent-manager_conversation-search--generation--gen-2",
+	}
+	fence, err := catalog.AcquireFleetAliasMutation(ctx, agentOperation)
+	require.NoError(t, err)
+
+	// The durable row remains held across a newly constructed catalog adapter,
+	// and conflicting alias effects cannot enter while recovery is pending.
+	reopened := NewSQLiteQdrantCatalog(db)
+	foreign := agentOperation
+	foreign.OperationID = "other-operation"
+	foreign.Target = "agent-manager_conversation-search--generation--foreign"
+	_, err = reopened.AcquireFleetAliasMutation(ctx, foreign)
+	require.ErrorIs(t, err, aisearch.ErrFleetStateConflict)
+
+	// The production owners derive different alias roots from their lifecycle
+	// namespaces. Even on one Qdrant endpoint their operations do not contend or
+	// address the same globally named alias.
+	searchHubOperation := aisearch.FleetAliasOperation{
+		OwnerID: "search-hub.embedding-fleet", EndpointID: agentOperation.EndpointID, Alias: "search-hub_embedding-fleet",
+		OperationID: "fleet:promote:arm-1", Kind: aisearch.FleetPromote, ArmID: "arm-1", Target: "search-hub_embedding-fleet--fleet--arm-1",
+	}
+	searchHubFence, err := reopened.AcquireFleetAliasMutation(ctx, searchHubOperation)
+	require.NoError(t, err)
+	require.NoError(t, searchHubFence.Release(ctx))
+
+	require.NoError(t, fence.Release(ctx))
+	_, err = reopened.AcquireFleetAliasMutation(ctx, foreign)
+	require.NoError(t, err)
+}

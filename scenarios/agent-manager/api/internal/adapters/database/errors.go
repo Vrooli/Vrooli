@@ -2,11 +2,10 @@
 package database
 
 import (
-	"database/sql"
-	"errors"
 	"strings"
 
 	"agent-manager/internal/domain"
+	"agent-manager/internal/sqlcompat"
 )
 
 func wrapDBError(operation, entityType, entityID string, err error) error {
@@ -37,11 +36,5 @@ func isUniqueConstraintViolation(err error) bool {
 }
 
 func isTransientDBError(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, sql.ErrConnDone) {
-		return true
-	}
-	return false
+	return sqlcompat.TransientError(err)
 }

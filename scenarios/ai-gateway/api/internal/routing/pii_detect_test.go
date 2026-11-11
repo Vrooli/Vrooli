@@ -49,23 +49,22 @@ func piiRequest() *sharedv1.GatewayRequest {
 	}
 }
 
-// A successful DETECT_PII request sets prompt_redacted (a detect pass ran) while
-// keeping response_redacted false (no response-redaction policy exists yet), and
-// returns the detector's span JSON without leaking the input into evidence.
-func TestExecuteDetectPIISetsPromptRedactedSeam(t *testing.T) {
+// The local PII model has no shared artifact-rights record yet, so the Gateway
+// must fail closed before invoking the detector rather than infer permission
+// from its resource-owned provenance fields.
+func TestExecuteDetectPIIBlocksUntilArtifactRightsQualified(t *testing.T) {
 	runner := piiDetectRunner()
 	db := newSchemaDB(t)
-	svc := routing.NewService(piiAdapters(runner), routing.NewSQLRepository(db))
+	svc := newService(piiAdapters(runner), routing.NewSQLRepository(db))
 
 	resp, err := svc.Execute(context.Background(), piiRequest(), "mail me at bob@example.com")
 	require.NoError(t, err)
 	require.True(t, resp.GetValid())
-	require.Equal(t, "succeeded", resp.GetEvidence().GetStatus())
-	require.Equal(t, "pii-detector", resp.GetEvidence().GetSelectedProvider())
-	require.True(t, resp.GetEvidence().GetPromptRedacted(), "a successful detect pass must set prompt_redacted")
-	require.False(t, resp.GetEvidence().GetResponseRedacted(), "response_redacted stays false until a response-redaction policy exists")
-	require.Contains(t, resp.GetOutputText(), "EMAIL_ADDRESS")
-	require.NotContains(t, resp.GetOutputText(), "mail me at")
+	require.Equal(t, "blocked", resp.GetEvidence().GetStatus())
+	require.Empty(t, resp.GetOutputText())
+	for _, command := range runner.Commands {
+		require.NotContains(t, command.String(), "gateway detect", "unqualified local model must not execute")
+	}
 }
 
 // roleSupportsKind must admit the detector role for DETECT_PII and reject it for
@@ -73,7 +72,7 @@ func TestExecuteDetectPIISetsPromptRedactedSeam(t *testing.T) {
 func TestDetectPIIRoleGating(t *testing.T) {
 	runner := piiDetectRunner()
 	db := newSchemaDB(t)
-	svc := routing.NewService(piiAdapters(runner), routing.NewSQLRepository(db))
+	svc := newService(piiAdapters(runner), routing.NewSQLRepository(db))
 
 	// A TEXT_GENERATION request against the detector-only inventory has no
 	// eligible provider and is blocked, proving the detector is not routed for a

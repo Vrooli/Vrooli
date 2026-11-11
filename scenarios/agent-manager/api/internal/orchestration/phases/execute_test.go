@@ -16,9 +16,75 @@ import (
 	"agent-manager/internal/config"
 	"agent-manager/internal/domain"
 	"agent-manager/internal/eventlog"
+	"agent-manager/internal/repository"
 
 	"github.com/google/uuid"
 )
+
+type sessionPersistenceRuns struct {
+	repository.RunRepository
+	attempts  int
+	persisted string
+	reject    bool
+}
+
+func (*sessionPersistenceRuns) Update(context.Context, *domain.Run) error { return nil }
+func (r *sessionPersistenceRuns) UpdateRunnerStreamState(_ context.Context, run *domain.Run) (bool, error) {
+	r.attempts++
+	if r.reject {
+		return false, nil
+	}
+	if r.attempts == 1 {
+		return false, &domain.DatabaseError{IsTransient: true, Cause: errors.New("busy")}
+	}
+	r.persisted = run.SessionID
+	return true, nil
+}
+
+func TestTranscriptSessionPersistenceRetriesAfterMemoryAlreadyChanged(t *testing.T) {
+	runs := &sessionPersistenceRuns{}
+	run := &domain.Run{ID: uuid.New(), ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex}}
+	stream, state, err := PrepareTranscriptConfig(t.Context(), PrepareTranscriptInput{Deps: Deps{Runs: runs}, Run: run, RunStateRoot: t.TempDir(), WorkingDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer state.Close()
+	if err = stream.OnSessionID("native-session"); err == nil {
+		t.Fatal("first persistence error was hidden")
+	}
+	if err = stream.OnSessionID("native-session"); err != nil {
+		t.Fatal(err)
+	}
+	if runs.attempts != 2 || runs.persisted != "native-session" {
+		t.Fatalf("retry skipped durable session: %+v", runs)
+	}
+	if err = stream.OnSessionID("native-session"); err != nil || runs.attempts != 2 {
+		t.Fatalf("committed session unnecessarily repeated: attempts%d err%v", runs.attempts, err)
+	}
+}
+
+func TestTranscriptCallbacksRespectOwnerFenceBeforeFileCheckpoint(t *testing.T) {
+	runs := &sessionPersistenceRuns{reject: true}
+	run := &domain.Run{ID: uuid.New(), ResolvedConfig: &domain.RunConfig{RunnerType: domain.RunnerTypeCodex}}
+	stream, state, err := PrepareTranscriptConfig(t.Context(), PrepareTranscriptInput{Deps: Deps{Runs: runs}, Run: run, RunStateRoot: t.TempDir(), WorkingDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer state.Close()
+	if err = stream.OnAdvance(123, 7); err == nil {
+		t.Fatal("fenced cursor accepted")
+	}
+	if err = stream.OnSessionID("foreign"); err == nil {
+		t.Fatal("fenced session accepted")
+	}
+	if err = stream.OnProcessStart(123, 123); err == nil {
+		t.Fatal("fenced process accepted")
+	}
+	snap := state.Snapshot()
+	if snap.Cursor.TranscriptCursor != 0 || snap.Meta.SessionID != "" || snap.Meta.RunnerPID != 0 {
+		t.Fatalf("fenced owner changed durable file checkpoint: %+v", snap)
+	}
+}
 
 func successResult() *runner.ExecuteResult {
 	return &runner.ExecuteResult{

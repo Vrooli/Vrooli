@@ -329,6 +329,7 @@ func TestBoundPromptUsesReceiverNativeOwnerAndNeverFallsBackToPTY(t *testing.T) 
 	}{
 		{name: "live idle exact generation", nativeThreadID: nativeSessionID, controlMode: "native_capable", launchMode: "codex_app_server", state: "idle", wantSend: true, wantDelivery: true, wantStateRead: true},
 		{name: "live busy harness steers exact turn", nativeThreadID: nativeSessionID, controlMode: "native_capable", launchMode: "codex_app_server", state: "active", activeTurn: "turn-live", wantSend: true, wantDelivery: true, wantStateRead: true},
+		{name: "active without authoritative turn refuses initial delivery", nativeThreadID: nativeSessionID, controlMode: "native_capable", launchMode: "codex_app_server", state: "active", wantStateRead: true},
 		{name: "absent thread metadata", controlMode: "native_capable", launchMode: "codex_app_server"},
 		{name: "generation changed", nativeThreadID: "550e8400-e29b-41d4-a716-446655440001", controlMode: "native_capable", launchMode: "codex_app_server"},
 		{name: "unknown provider mode", nativeThreadID: nativeSessionID, controlMode: "unknown", launchMode: "terminal_pty"},

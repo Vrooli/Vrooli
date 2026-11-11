@@ -11,6 +11,7 @@ import (
 
 	"ai-gateway/internal/providers"
 
+	profilepolicy "github.com/vrooli/ai-provider-go/routing"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
@@ -56,7 +57,7 @@ func (r *ResourceRepository) Decide(ctx context.Context, request DecisionRequest
 	if err != nil {
 		return decideError(response, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_INVALID_REQUEST, err.Error(), "questions")
 	}
-	for _, candidate := range definition.Candidates {
+	for _, candidate := range orderedCandidates(definition.Candidates, r.adapters, request.Profile) {
 		row := &inferencev1.DecisionCandidate{Provider: candidate.Provider, ResourceRole: candidate.ResourceRole}
 		response.Candidates = append(response.Candidates, row)
 		switch {
@@ -88,7 +89,7 @@ func (r *ResourceRepository) decideByModel(ctx context.Context, definition Infer
 		return
 	}
 	row.Locality = resolved.Locality
-	if !profileAdmits(request.Profile, resolved.Locality) {
+	if !profileAdmitsRequest(request.Profile, request.PrivacyClass, resolved.Locality) {
 		skip(row, reasonLocalityForbidden, fmt.Sprintf("profile %s forbids a %s candidate", request.Profile, resolved.Locality))
 		return
 	}
@@ -224,12 +225,10 @@ func decideError(response *inferencev1.DecideResponse, code inferencev1.Inferenc
 // declared locality: LOCAL_ONLY never leaves the host and REMOTE_ONLY never
 // runs locally. Other profiles rank candidates by catalog order.
 func profileAdmits(profile sharedv1.Profile, locality string) bool {
-	switch profile {
-	case sharedv1.Profile_PROFILE_LOCAL_ONLY:
-		return strings.EqualFold(locality, "local")
-	case sharedv1.Profile_PROFILE_REMOTE_ONLY:
-		return strings.EqualFold(locality, "remote")
-	default:
-		return true
-	}
+	return profileAdmitsRequest(profile, sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED, locality)
+}
+
+func profileAdmitsRequest(profile sharedv1.Profile, privacyClass sharedv1.PrivacyClass, locality string) bool {
+	allowed, _ := profilepolicy.Admits(profile.String(), privacyClass.String(), locality)
+	return allowed
 }

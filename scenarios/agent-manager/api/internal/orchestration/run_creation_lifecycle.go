@@ -429,13 +429,23 @@ func (o *Orchestrator) finalizeRunCancellation(ctx context.Context, id uuid.UUID
 	})
 }
 
-func (o *Orchestrator) RecoverRun(ctx context.Context, id uuid.UUID) (*RecoverResult, error) {
+func (o *Orchestrator) RecoverRun(ctx context.Context, id uuid.UUID, replay ...TranscriptReplayRange) (*RecoverResult, error) {
 	run, err := o.GetRun(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	if run.ExecutionMode.Normalized() == domain.ExecutionModeImported {
 		return nil, importedRunLifecycleError("recover")
+	}
+	if len(replay) > 0 {
+		if len(replay) != 1 || o.reconciler == nil {
+			return nil, domain.NewValidationError("transcriptRange", "one bounded range and the recovery owner are required")
+		}
+		receipt, err := o.reconciler.replayTranscriptEvidence(ctx, run, replay[0])
+		if err != nil {
+			return nil, err
+		}
+		return &RecoverResult{Run: run, Recovered: receipt.EventsInserted > 0, Idempotent: receipt.EventsInserted == 0, Message: transcriptReplayMessage(receipt), TranscriptReplay: receipt}, nil
 	}
 	if run.Status.IsTerminal() && run.FinalizationStatus == domain.RunFinalizationStatusFailed {
 		return o.recoverFinalization(ctx, run)

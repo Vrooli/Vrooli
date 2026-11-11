@@ -154,6 +154,7 @@ func (a *App) runCommands() []cliapp.Command {
 		run                      func([]string) error
 	}
 	entries := []entry{
+		{"activity", "Observe physical executing work and coverage", "agent-manager run activity [--json]", a.runActivity},
 		{"list", "List runs", "agent-manager run list [options]", a.runList},
 		{"get", "Get a run", "agent-manager run get <id> [--json]", a.runGet},
 		{"identity", "Show the current Agent Manager run identity", "agent-manager run identity [--json]", a.runIdentity},

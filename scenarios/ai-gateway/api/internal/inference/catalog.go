@@ -86,11 +86,9 @@ func (r InferenceRole) Timeout() time.Duration {
 }
 
 type Candidate struct {
-	Provider            string `json:"provider"`
-	ResourceRole        string `json:"resource_role"`
-	Model               string `json:"model"`
-	MinimumQuantization string `json:"minimum_quantization,omitempty"`
-	Reason              string `json:"reason"`
+	Provider     string `json:"provider"`
+	ResourceRole string `json:"resource_role"`
+	Reason       string `json:"reason"`
 }
 
 func LoadCatalog(path string) (RoleCatalog, error) {
@@ -99,7 +97,9 @@ func LoadCatalog(path string) (RoleCatalog, error) {
 		return RoleCatalog{}, fmt.Errorf("read inference role catalog %s: %w", path, err)
 	}
 	var catalog RoleCatalog
-	if err := json.Unmarshal(data, &catalog); err != nil {
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&catalog); err != nil {
 		return RoleCatalog{}, fmt.Errorf("parse inference role catalog: %w", err)
 	}
 	if catalog.SchemaVersion != 1 {

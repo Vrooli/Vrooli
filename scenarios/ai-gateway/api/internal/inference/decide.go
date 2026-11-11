@@ -37,11 +37,12 @@ var questionIDPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,100}$`)
 // DecisionRequest is the provider-neutral decision payload. Questions keep the
 // proto shape so their order and option order survive to every candidate.
 type DecisionRequest struct {
-	Role      string
-	State     string
-	StateJSON string
-	Questions []*inferencev1.DecisionQuestion
-	Profile   sharedv1.Profile
+	Role         string
+	State        string
+	StateJSON    string
+	Questions    []*inferencev1.DecisionQuestion
+	Profile      sharedv1.Profile
+	PrivacyClass sharedv1.PrivacyClass
 }
 
 // DecisionError is a request defect, reported with the construct to fix.
@@ -376,7 +377,7 @@ func enumFallback(request DecisionRequest) (ProviderRequest, bool) {
 	schema, _ := json.Marshal(map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false})
 	return ProviderRequest{
 		Source: firstNonBlank(request.State, request.StateJSON), SchemaJSON: string(schema),
-		Instruction: instruction.String(), Profile: request.Profile,
+		Instruction: instruction.String(), Profile: request.Profile, PrivacyClass: request.PrivacyClass,
 	}, true
 }
 

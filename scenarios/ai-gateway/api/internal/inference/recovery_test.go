@@ -15,6 +15,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	dbtest "github.com/vrooli/api-core/databasetest"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
 )
 
@@ -87,7 +88,7 @@ func TestResourceRepositoryRecoversExactAttemptRejectsChangedDigestAndFailsClose
 		{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner},
 	}, ledger)
 	require.NoError(t, err)
-	request := ProviderRequest{RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"}
+	request := ProviderRequest{RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_REMOTE_ONLY}
 	first, err := repository.Run(context.Background(), request)
 	require.NoError(t, err)
 	require.NotNil(t, first.Recovery)
