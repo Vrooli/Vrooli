@@ -808,7 +808,17 @@ func main() {
 	searchConnectPath, searchConnectHandler := search.NewConnectMount(searchHandlers)
 	aiSearchConnectPath, aiSearchConnectHandler := aisearch.NewConnectMount(aiSearchHandlers, budgetConfigStore, discoverFilterConfigStore)
 	discoveryConnectPath, discoveryConnectHandler := discoveryhandlers.NewConnectMount(aiSearchHandlers, skillHandlers, roots.RepoRoot)
-	skillSetValidationPath, skillSetValidationHandler := skillsetvalidation.NewConnectMount(roots.RepoRoot)
+	skillSetValidationPath, skillSetValidationHandler := skillsetvalidation.NewConnectMount(roots.RepoRoot, func(ctx context.Context, query string, limit int) ([]string, error) {
+		resp, err := aiSearchService.Search(ctx, query, limit)
+		if err != nil {
+			return nil, err
+		}
+		ids := make([]string, 0, len(resp.Results))
+		for _, result := range resp.Results {
+			ids = append(ids, result.ID)
+		}
+		return ids, nil
+	})
 	agentsConnectPath, agentsConnectHandler := agents.NewConnectMount(agentHandlers)
 	templatesConnectPath, templatesConnectHandler := templates.NewConnectMount(templateStore)
 	testingConnectPath, testingConnectHandler := testing.NewConnectMount(testingHandlers)

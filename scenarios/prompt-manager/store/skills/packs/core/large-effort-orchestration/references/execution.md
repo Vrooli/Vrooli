@@ -155,19 +155,54 @@ agreement between brief, acknowledged directives and installed objective; use th
 reference for uncertain or refused continuation. Orchestrate scope covers native children
 and established effort lineage, not arbitrary runs.
 
-After completing due independent planning/review, use `agent-manager effort park <home>
+Choose the wait from the worker's execution lifetime:
+
+| Observed worker lifetime | Wait |
+| --- | --- |
+| Durable owner survives the parent executor exiting | Use the native park below. |
+| Harness-local collaboration worker stops when the parent executor exits | Keep the parent executor alive. Use the harness's long collaboration wait through the worker's return. |
+| Lifetime or live owner is unknown | Qualify the actual owner handle and shutdown contract before choosing a wait. |
+
+Check all live fallback workers before native parking, including workers outside the native
+child list. A task-start marker or first tool call does not complete their work. If a fallback
+already stopped, use the recovery reference to resume it or transfer its retained context to
+a permitted durable owner. Preserve its source and evidence. Do not duplicate a live owner.
+
+Producer CLI waits can also park the inherited run. While executor-bound workers are live,
+run these waits with `VROOLI_ASYNC_WAIT_MODE=inline` (for example,
+`VROOLI_ASYNC_WAIT_MODE=inline vrooli scenario wait <scenario> --json`). This selects the
+normal blocking producer wait without changing identity or authorization. Keep the returned
+tool handle and wait on it once. The default `auto` retains native parking for durable workers.
+
+After completing due independent planning/review, and with no live executor-bound worker,
+use `agent-manager effort park <home>
 --json`. The default is the verified caller; an explicit `--run` must match it. Inspect
 the actual status and await handle. A child return, native timer or authorized wake resumes
 the same owner. A raw feedback edit does not wake it. A neutral signal check-in consumes
 its old wait; inspect the actual child/producer and re-park if still waiting. Do not poll.
 
-When all remaining work waits on human decisions/external repair, retain the outcomes and
-return conditions in STATUS. Raise genuine choices through `effort decision raise` using
-the owner reference's Decisions contract. Record decision ID, actual publication and answer
-states; STATUS text is not notification. Use one stable decision, viable options and an
-evidenced recommendation. Do not invent answers/defaults, duplicate asks or decisions for
-ordinary repair waits. Wake supervision once, then park with `--timeout 72h`. Native pressure
-and timed stopping still apply; a long park does not extend the commissioned budget.
+When a genuine operator choice gates work, record the exact outcome and return condition in
+STATUS, then raise one stable decision through `agent-manager effort decision raise` under
+the enrolled effort. Give viable options and an evidence-backed recommendation. Make the Hub
+question self-contained, with the absolute path to the current STATUS and a compact digest of
+other open choices; tell the operator to answer in Notification Hub. STATUS is a navigation
+projection, not the answer channel.
+
+After raising, retain the decision ID and exact event/publication state. Confirm that Notification
+Hub created the matching ask and that its delivery receipt exists before claiming it reached the
+operator. A published event without a Hub ask or delivery receipt is pending/unavailable, not
+sent. On every wake, read the canonical effort decision and matching Hub ask; after an answer or
+dismissal, run `agent-manager effort decision sync <home>` and verify the verbatim result in
+FEEDBACK.md and removal from `## Needs operator`. Do not solicit an answer in chat, duplicate an
+existing decision, or surface a terminal decision again after compaction.
+
+If the owner route cannot represent a required direct notification, use Notification Hub only
+after qualifying the exact operation and recipient. Direct sends need `notification-sending`;
+direct asks need `notification-decision-asking`. Request a missing exact grant through the
+canonical authorization owner before promising delivery. Do not treat an ordinary repair wait
+as a human decision. When all remaining work waits on human decisions/external repair, wake
+supervision once, then park with `--timeout 72h`. Native pressure and timed stopping still apply;
+a long park does not extend the commissioned budget.
 
 ## Validation targets and installs
 

@@ -23,7 +23,7 @@
       "agent-manager"
     ]
   },
-  "revision": 69,
+  "revision": 70,
   "schemaVersion": 1,
   "status": "active",
   "tags": [
@@ -34,5 +34,5 @@
     "continuity",
     "recovery"
   ],
-  "updatedAt": "2026-11-06T23:45:00Z"
+  "updatedAt": "2026-11-10T00:00:00Z"
 }

@@ -975,3 +975,11 @@ pending separately inspectable screenshot review.
 ### Service replay forwarded triggering-agent credentials
 
 A retained service-backed manual retry reached Agent Manager with a verified service bearer plus the triggering agent's identity and operation headers. Clearing only the heartbeat's private caller proof left the shared provenance transport able to forward those credentials. Native admission then rejected the mixed caller at run creation. Service proof qualification now reuses `provenance.NewContext` to preserve attribution and cancellation while removing forwardable inbound credentials before token exchange and owner I/O. Caller-backed dispatch keeps its original proof. A transport regression failed for both initial and retained service dispatch on task and run requests before the repair.
+
+## Work ladder — external operating-contract documents (2026-11-10)
+
+- Scoped W3 implementation defect. The backend accepts `external` document references and rejects external write declarations. The frontend rejected those documents and discarded canonical `hub`, `useFor`, `governance`, and `supersedesPrevious` fields during team parsing.
+- Extended the native path-base grammar for documents and excluded `external` from write declarations. Team reads and updates retain the canonical metadata. The focused schema regression reproduced the external-document failure before repair and passes afterward, including rejection of both allowed and forbidden external writes.
+- `make verify-committed-gen` in `packages/proto`, the focused `team.schema.test.ts` suite (16 tests), TypeScript, scoped ESLint, and whitespace checks pass.
+- Scoped Test Genie unit run `20261110-233244-b1a98f5e` failed after 212 seconds. Its retained findings report identifies `TestBundledProductLeadersReceiveTheirCurrentDestination` failures for nine teams and 17 UI failures in five world-test files. The corpus-cleanup owner received the team-guidance failures. The scenario unit gate remains failing.
+- Findings payload `artifact_dba60594f96e1705687b48a4b4433af1` is 1,419,201 bytes with SHA-256 `1d9c8e5b0923d54da769a0188716cf3509bb4d325633a127501b05eb32fe92b7`. Native team metadata application remains with its existing owner and authorization boundary.

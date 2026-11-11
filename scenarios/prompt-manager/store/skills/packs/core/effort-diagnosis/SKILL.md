@@ -9,9 +9,9 @@ metadata:
   tags: [goal, long-running, supervision, sub-agent, decay, diagnosis, orchestration, research]
   icon: activity
   status: active
-  revision: 4
+  revision: 6
   createdAt: "2026-11-06T00:00:00Z"
-  updatedAt: "2026-11-07T02:30:00Z"
+  updatedAt: "2026-11-10T03:00:00Z"
   requires:
     scenarios: [prompt-manager, vrooli-memory]
     commands: [prompt-manager skill read, prompt-manager skill show, vrooli-memory journal note]
@@ -28,7 +28,7 @@ wording alone is usually wrong: measure the structure first.
 Required reading:
 - `path:docs/agent-system/LONG_EFFORT_DESIGN.md` — the design rules, the effort structures,
   verified harness settings and the measured baselines.
-- `references/mechanisms.md` — the mechanism catalog (M1–M23) with signatures and fix owners.
+- `references/mechanisms.md` — the mechanism catalog (M1–M31) with signatures and fix owners.
 - `references/transcripts.md` — where transcripts, goals and records live and how to read them.
 
 Paths under `references/` and `scripts/` are relative to this skill's directory
@@ -52,9 +52,10 @@ early**, or **busy but hollow**. Each shape points at different mechanisms first
 | Shape | Check first |
 |---|---|
 | Never started big | M6 adverb ambition, M7 scope chosen by the cost-bearer, M8 short-worker cap, M11 bookkeeping; for research topics M17 epistemic framing, M18 mission erosion, M22 no denominator |
-| Started big and decayed | M1 objective loss, M2 precedent ratchet, M13 frame drift, M10 delegation collapse |
+| Started big and decayed | M1 objective loss, M2 precedent ratchet, M13 frame drift, M10 delegation collapse, M24 no heartbeat, M27 check-in capture, M28 charter bloat |
 | Stopped early | M3 exit ramps, M4 count destination |
-| Busy but hollow | M4, M5 asymmetric scrutiny, M12 evidence grain, M14 shared-tree avoidance, M19 tractability bias, M20 rigor theater, M21 correction residue, M23 missing approval loop |
+| Busy but hollow | M4, M5 asymmetric scrutiny, M12 evidence grain, M14 shared-tree avoidance, M19 tractability bias, M20 rigor theater, M21 correction residue, M23 missing approval loop, M25 hot loop, M26 review flood, M29 dead-end showcase, M31 self-set exam |
+| Waiting on the operator, who heard nothing | M30 silent operator queue, M23, M29 |
 
 ### 2. Measure
 
@@ -81,6 +82,9 @@ It fires on these patterns:
 - shrinking units (M2);
 - three no-change turns in a row (M3);
 - half or more workers active under 6 min (M8);
+- work dispatched while the native goal was paused (M24);
+- six or more goal turns with a median under 10 minutes in a thread that waits on sub-agents, and `wait_agent` timeouts with a median of 2 minutes or less (M25);
+- half or more of at least twelve descendants are reviewers, challengers or auditors (M26);
 - most spawns inheriting the full history (M9);
 - rising narrowing and stop narration.
 

@@ -21,7 +21,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 MODES = ("build", "propose-then-build", "gated-effect", "artifact", "evidence")
-STATUSES = ("open", "active", "landed", "proposed", "approved", "declined")
+STATUSES = ("open", "active", "waiting-operator", "waiting-time", "landed", "proposed", "approved", "declined")
+WAITING = ("waiting-operator", "waiting-time")  # open work that only the operator or elapsed time can move
 REQUIRED_SECTIONS = (
     "Operator intent (verbatim)",
     "End state",
@@ -220,14 +221,14 @@ def topics(home: Path, only: str | None) -> list[Path]:
 
 def render_markdown(reports: list[TopicReport]) -> str:
     lines = [
-        "| Topic | Mode | Open | Active | Landed | Proposed | Open hours (low) | Architect pass | Status |",
-        "|---|---|---|---|---|---|---|---|---|",
+        "| Topic | Mode | Open | Active | Waiting | Landed | Proposed | Open hours (low) | Architect pass | Status |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in reports:
         status = "errors" if r.errors else ("warnings" if r.warnings else "ok")
         lines.append(
             f"| [{r.topic}](topics/{r.topic}/MISSION.md) | {r.mode or '—'} | {r.count('open')} | {r.count('active')} "
-            f"| {r.count('landed')} | {r.count('proposed') + r.count('approved')} | {r.open_hours()} "
+            f"| {sum(r.count(w) for w in WAITING)} | {r.count('landed')} | {r.count('proposed') + r.count('approved')} | {r.open_hours()} "
             f"| {r.architect_pass or '—'} | {status} |"
         )
     return "\n".join(lines)

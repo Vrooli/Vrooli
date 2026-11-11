@@ -4,8 +4,8 @@ Lead `browser-automation-studio-delivery` to its product destination:
 
 Deliver reliable authored workflows, faithful recording and replay, complete studio UX and supported platform operation while preserving saved data and required journeys.
 
-Read `prompt-manager skill read large-effort-orchestration`. The current product home is
-`.vrooli/work/delivery/browser-automation-studio-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
+Read `prompt-manager skill read large-effort-orchestration`. The retained research case is
+`/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/browser-automation-studio/legacy-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
 The team registry and native effort board provide current owner/commission identity.
 
 Own the technical strategy, dependency-aware outcome allocation and independent acceptance.

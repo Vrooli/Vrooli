@@ -92,6 +92,18 @@ class MissionCheckTest(unittest.TestCase):
         mc.check_readme(rep, tdir / "README.md")
         return rep
 
+    def test_waiting_statuses_are_valid_and_do_not_count_as_staffable(self):
+        rows = [WORKSTREAM.format(id="A1", hours="40", status="waiting-operator 2026-11-10"),
+                WORKSTREAM.format(id="A2", hours="40", status="waiting-time 2026-11-16"),
+                WORKSTREAM.format(id="A3", hours="40", status="open")]
+        self.topic("waits", mission(rows=rows))
+        rep = self.report("waits")
+        self.assertFalse([e for e in rep.errors if "status" in e], rep.errors)
+        self.assertEqual((rep.count("waiting-operator"), rep.count("waiting-time")), (1, 1))
+        self.assertEqual(rep.open_hours(), 40)
+        self.assertTrue(any("at least three" in e for e in rep.errors), rep.errors)
+        self.assertIn("| 1 | 0 | 2 | 0 |", mc.render_markdown([rep]))
+
     def test_valid_mission_passes_and_counts_portfolio(self):
         self.topic("good", mission())
         rep = self.report("good")
@@ -159,7 +171,7 @@ class MissionCheckTest(unittest.TestCase):
         self.topic("b")
         self.assertEqual(self.run_check("--topic", "a"), 0)
         table = mc.render_markdown([self.report("a")])
-        self.assertIn("[a](topics/a/MISSION.md) | build | 1 | 1 | 1 | 1 |", table)
+        self.assertIn("[a](topics/a/MISSION.md) | build | 1 | 1 | 0 | 1 | 1 |", table)
 
     def test_write_readme_replaces_only_the_marked_block(self):
         self.topic("a", mission())

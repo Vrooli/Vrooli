@@ -1,6 +1,6 @@
 ## Task Loop
 
-Deliver the whole product destination in `.vrooli/work/delivery/external-knowledge-delivery/CHARTER.md`.
+Deliver the whole product destination in `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/mail/legacy-delivery/CHARTER.md`.
 Read `prompt-manager skill read large-effort-orchestration`; use its product delivery loop.
 Read current STATUS, open FEEDBACK, relevant LOG evidence and the native effort board.
 Reconcile retained owner/children before dispatch; parked or uncertain owners are retained.

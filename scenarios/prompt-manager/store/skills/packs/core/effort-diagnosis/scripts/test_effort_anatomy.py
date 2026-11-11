@@ -233,8 +233,111 @@ class GoalsAndClaude(unittest.TestCase):
             self.assertFalse(ea.is_review(rows[1]), "an implementer named check_* is not a reviewer")
 
 
-if __name__ == "__main__":
-    unittest.main()
+def call(name, **arguments):
+    return {"type": "function_call", "name": name, "namespace": "collaboration", "arguments": json.dumps(arguments)}
+
+
+def scheduler_rollout(directory, name, turns, extra=()):
+    """A root thread whose turns are (start, end, trigger, [payloads])."""
+    lines = [line("2026-11-09T00:00:00Z", "session_meta", {"id": "sched-1", "cli_version": "0.167.0", "source": "cli"})]
+    lines.extend(extra)
+    for start, end, trigger, payloads in turns:
+        lines.append(line(start, "event_msg", {"type": "task_started", "turn_trigger": trigger}))
+        for payload in payloads:
+            lines.append(line(start, "response_item", payload))
+        lines.append(line(end, "event_msg", {"type": "task_complete"}))
+    return write_rollout(directory, name, lines)
+
+
+class SchedulerTripwires(unittest.TestCase):
+    """A scheduler must block on its owners, keep a live goal, and review workstreams, not increments."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+
+    def findings(self, path, children=()):
+        units = ea.turn_units(path)
+        return {f["id"]: f for f in ea.drift_findings(units, list(children), 3.0)}
+
+    def test_goal_turns_of_a_few_minutes_fire_hot_loop_and_short_waits(self):
+        turns = [(f"2026-11-09T01:{m:02d}:00Z", f"2026-11-09T01:{m + 4:02d}:00Z", "goal",
+                  [call("wait_agent", timeout_ms=30000), call("wait_agent", timeout_ms=30000)]) for m in range(0, 50, 5)]
+        found = self.findings(scheduler_rollout(self.tmp.name, "hot.jsonl", turns))
+        self.assertIn("hot-loop", found)
+        self.assertIn("short-waits", found)
+        self.assertIn("3600000", found["hot-loop"]["fix"])
+
+    def test_a_scheduler_whose_turns_span_long_waits_fires_neither(self):
+        turns = [(f"2026-11-09T{h:02d}:00:00Z", f"2026-11-09T{h:02d}:55:00Z", "goal",
+                  [call("wait_agent", timeout_ms=3600000), call("followup_task", target="/root/owner")]) for h in range(1, 9)]
+        found = self.findings(scheduler_rollout(self.tmp.name, "calm.jsonl", turns))
+        self.assertNotIn("hot-loop", found)
+        self.assertNotIn("short-waits", found)
+        self.assertNotIn("paused-goal", found)
+
+    def test_work_dispatched_under_a_goal_the_agent_paused_fires_paused_goal(self):
+        pause = line("2026-11-09T00:30:00Z", "response_item",
+                     {"type": "custom_tool_call", "name": "exec", "input": 'const r=await tools.update_goal({status:"paused"}); text(r);'})
+        turns = [(f"2026-11-09T{h:02d}:00:00Z", f"2026-11-09T{h:02d}:05:00Z", "user",
+                  [call("followup_task", target="/root/owner")]) for h in range(1, 5)]
+        found = self.findings(scheduler_rollout(self.tmp.name, "paused.jsonl", turns, extra=[pause]))
+        self.assertIn("paused-goal", found)
+        self.assertIn("/goal resume", found["paused-goal"]["fix"])
+
+    def test_the_operator_reactivating_the_goal_clears_paused_goal(self):
+        pause = line("2026-11-09T00:30:00Z", "response_item",
+                     {"type": "custom_tool_call", "name": "exec", "input": 'await tools.update_goal({status:"paused"})'})
+        resume = line("2026-11-09T00:40:00Z", "response_item",
+                      user_message('<codex_internal_context source="user_goal"> User set goal status: "active". </codex_internal_context>'))
+        turns = [(f"2026-11-09T{h:02d}:00:00Z", f"2026-11-09T{h:02d}:05:00Z", "user",
+                  [call("followup_task", target="/root/owner")]) for h in range(1, 5)]
+        found = self.findings(scheduler_rollout(self.tmp.name, "resumed.jsonl", turns, extra=[pause, resume]))
+        self.assertNotIn("paused-goal", found)
+
+    def test_a_tree_of_mostly_reviewers_fires_review_flood(self):
+        path = scheduler_rollout(self.tmp.name, "tree.jsonl", [("2026-11-09T01:00:00Z", "2026-11-09T02:00:00Z", "goal", [])])
+        reviewers = [{"path": f"/root/owner/f2_challenger_{i}", "role": "", "lines_added": 0, "lines_removed": 0, "active_hours": 0.05} for i in range(8)]
+        builders = [{"path": f"/root/owner/kit_{i}", "role": "", "lines_added": 300, "lines_removed": 20, "active_hours": 0.6} for i in range(4)]
+        self.assertIn("review-flood", self.findings(path, reviewers + builders))
+        self.assertNotIn("review-flood", self.findings(path, reviewers[:2] + builders * 3))
+
+    def unit(self, hours, compactions):
+        return {"start": "2026-11-09T01:00:00Z", "end": "2026-11-09T11:00:00Z", "trigger": "", "hours": hours,
+                "active_minutes": hours * 60, "lines": 900, "compactions": compactions, "objective_omitted": 0,
+                "stance_lost": 0, "minutes_after_omission": 0.0, "goal_injected": False, "spawns": 0, "spawn_fork_all": 0,
+                "families": {}, "waits": 0, "wait_timeouts_ms": [], "dispatches": 0, "goal_paused": False}
+
+    def test_an_owner_inside_the_healthy_window_fires_nothing(self):
+        self.assertEqual(ea.drift_findings([self.unit(4.0, 5)], [], 3.0, is_child=True), [])
+
+    def test_an_owner_past_six_hours_or_eight_compactions_is_replaced_at_its_return(self):
+        for hours, compactions in ((10.0, 3), (2.0, 13)):
+            found = {f["id"]: f for f in ea.drift_findings([self.unit(hours, compactions)], [], 3.0, is_child=True)}
+            self.assertIn("owner-age", found)
+            self.assertNotIn("unit-per-turn", found)
+            self.assertIn("fresh owner", found["owner-age"]["fix"])
+
+    def test_a_root_thread_with_a_long_turn_is_told_to_end_its_turn(self):
+        found = {f["id"]: f for f in ea.drift_findings([self.unit(10.0, 13)], [], 3.0)}
+        self.assertIn("end the turn", found["unit-per-turn"]["fix"])
+
+    def test_tool_output_that_quotes_a_goal_event_does_not_change_the_goal_status(self):
+        quoted = 'recorded as <codex_internal_context source="user_goal"> User set goal status: "active". and tools.update_goal({status:"paused"})'
+        output = line("2026-11-09T00:35:00Z", "response_item", {"type": "function_call_output", "call_id": "c1", "output": quoted})
+        tool_message = line("2026-11-09T00:35:01Z", "response_item", {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "the doc says " + quoted}]})
+        self.assertIsNone(ea.goal_status_change(output))
+        self.assertIsNone(ea.goal_status_change(tool_message))
+
+    def test_goal_status_reads_the_operator_control_and_both_quote_styles_of_the_agent_call(self):
+        operator = line("2026-11-09T00:40:00Z", "response_item",
+                        user_message('<codex_internal_context source="user_goal"> User set goal status: "paused". </codex_internal_context>'))
+        single = line("2026-11-09T00:41:00Z", "response_item", {"type": "custom_tool_call", "name": "exec", "input": "await tools.update_goal({status:'paused'})"})
+        created = line("2026-11-09T00:42:00Z", "response_item", {"type": "custom_tool_call", "name": "exec", "input": 'await tools.create_goal({objective:"x"})'})
+        self.assertEqual(ea.goal_status_change(operator), "paused")
+        self.assertEqual(ea.goal_status_change(single), "paused")
+        self.assertEqual(ea.goal_status_change(created), "active")
+
 
 
 def minutes(start_hour, count, step=5):
@@ -435,3 +538,7 @@ class DriftLegacyPatches(unittest.TestCase):
             units = ea.turn_units(path)
             self.assertTrue(all(u["lines"] == 100 for u in units), [u["lines"] for u in units])
             self.assertEqual(ea.drift_findings(units, [], 3.0), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

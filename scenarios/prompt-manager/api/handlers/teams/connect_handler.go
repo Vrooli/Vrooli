@@ -199,6 +199,9 @@ func (h *connectHandler) DeleteTeam(ctx context.Context, req *connect.Request[te
 		if strings.Contains(err.Error(), "not found") {
 			code = connect.CodeNotFound
 		}
+		if errors.Is(err, authn.ErrOperation) {
+			code = connect.CodePermissionDenied
+		}
 		return nil, connect.NewError(code, err)
 	}
 	return connect.NewResponse(&teamsv1.DeleteTeamResponse{}), nil

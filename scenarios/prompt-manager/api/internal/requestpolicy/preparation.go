@@ -209,6 +209,7 @@ func PreparationBoundary(next http.Handler) http.Handler {
 		}
 		contract := contractForBoundedRoute(r.Method, r.URL.Path)
 		allowed := false
+		var refusal error
 		switch contract {
 		case verifiedIdentityRoute:
 			allowed = IsVerifiedIdentity(r.Context())
@@ -218,11 +219,17 @@ func PreparationBoundary(next http.Handler) http.Handler {
 		case ownerAuthorizedRoute:
 			allowed = true
 		case runCreateAuthorizedRoute:
-			_, err := authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", "agent-manager:*")
-			allowed = err == nil
+			_, refusal = authn.RequireOperation(r.Context(), "agent-manager:write", "run.create", "agent-manager:*")
+			allowed = refusal == nil
 		}
 		if !allowed {
+			// The refusal names the exact request that would let the operator
+			// approve this route's operation; the bare sentinel stays for routes
+			// that have no operation to request.
 			denial := authn.ErrOperation
+			if refusal != nil {
+				denial = refusal
+			}
 			if contract == denyBoundedRoute {
 				denial = ErrNoBoundedRouteContract
 			}

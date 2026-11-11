@@ -9,9 +9,9 @@ metadata:
   tags: [goal, harness, until, delegation, sub-agent, orchestration, prompt]
   icon: target
   status: active
-  revision: 28
+  revision: 29
   createdAt: "2026-09-11T00:00:00Z"
-  updatedAt: "2026-11-07T02:30:00Z"
+  updatedAt: "2026-11-10T03:00:00Z"
   requires:
     scenarios: [prompt-manager]
     commands: [prompt-manager skill read]
@@ -30,7 +30,7 @@ harness's actual limits; Agent Manager allows up to 1 MiB of UTF-8 bytes in
 
 Required reading:
 - `docs/agent-system/LONG_EFFORT_DESIGN.md` for any goal or sub-agent tree expected to run
-  for hours: the design rules (D1–D12), the effort structures and the verified Codex
+  for hours: the design rules (D1–D17), the effort structures and the verified Codex
   multi-agent settings. This skill applies them; it does not restate the evidence.
 - `docs/TESTING.md` — validation scope. A goal selects a posture; it does not
   redefine the scope rules.
@@ -302,25 +302,34 @@ For a bounded source question, a normal prompt may be cheaper than a native goal
 **F. Thin scheduler (root of a long effort; Codex).** The effort runs longer than one healthy
 session (about 6 hours) or needs several parallel owners: a long hunt, a research cohort, a
 multi-part migration. The root holds a native goal (or runs as an Agent Manager run with
-`until`) and a ledger, and does no domain work. Its unit is one segment return; its turn
-spans the wait, which is tolerable because its context barely grows.
+`until`) and a ledger, and does no domain work. Its unit is one segment return or one due
+review, and its turn spans the wait: it blocks on `wait_agent` at `timeout_ms: 3600000`, waits
+again when a wake brings nothing to review, and ends the turn only after a return is reviewed
+and recorded. A scheduler that ends its turn while owners are only working is re-injected at
+once and loops every few minutes (`effort-diagnosis` M25). The charter stays small because the
+state page and the ledger are separate files (`LONG_EFFORT_DESIGN.md` D15).
 Each unit it spawns or re-tasks a segment owner (G) from the charter template, waits, has a
-fresh challenger compare the return with the destination and the measured magnitude
-(`effort-diagnosis` `scripts/effort_anatomy.py drift <owner rollout> --scan <scan>`, which exits 3
-when a tripwire fires), records the result and ends its turn.
+fresh ambition reviewer judge each plan once and a fresh challenger judge each showcase claim
+once against the destination and the measured magnitude (`effort-diagnosis`
+`scripts/effort_anatomy.py drift <owner rollout> --scan <scan>`, which exits 3 when a tripwire
+fires), records the result and ends its turn. It does not review increments (D16).
 Its context stays small because owners return summaries. Check the concurrency slots first:
-every waiting ancestor holds one, so run at most slots − 2 owners at once, and on `agent
+the scheduler and each owner hold one, and the rest is shared by all workers and reviewers
+(with 8 slots, four owners leave three), and on `agent
 thread limit reached` do the work in-thread or wait instead of retrying (`LONG_EFFORT_DESIGN.md`
 §3–§4). In Claude Code use two tiers (`LONG_EFFORT_DESIGN.md` §3 "Harnesses").
 
 ```text
-/goal Work until this verified end state is true: <destination in one line, with its scale>. Stance: "<verbatim excerpt, about 150 characters>". Follow the scheduler procedure in <charter path>; re-read it at every unit start and after compaction. Do no domain work yourself. After each segment return is recorded, end your turn.
+/goal Work until this verified end state is true: <destination in one line, with its scale>. Stance: "<verbatim excerpt, about 150 characters>". Follow the scheduler procedure in <charter path>; re-read it at every unit start and after compaction. Do no domain work yourself. Block on wait_agent (timeout_ms 3600000) until a segment return or the hourly review; after it is recorded, end your turn.
 ```
 
-Send the §2a stance message first, and keep the filled kernel at 600 characters or fewer. The charter holds the scheduler procedure
+Send the §2a stance message first, ending with `The goal follows this message. Reply "ready"
+and wait for it.` Without that line the agent starts on the stance message and writes its own
+goal, a paraphrase that drops the stance excerpt and the turn rule. Keep the filled kernel at
+600 characters or fewer (pause and resume: `LONG_EFFORT_DESIGN.md` D4). The charter holds the scheduler procedure
 (start or re-task one owner per free slot from the brief template with `fork_turns=none`; have
-a fresh reviewer judge each return against the destination; record it in the ledger; use the
-§2a challenger brief before any closure), the full stance, proof, boundary, blocked, budget,
+a fresh reviewer judge each plan once and each showcase claim once against the destination,
+never each increment; record it in the ledger; use the §2a challenger brief before any closure), the full stance, proof, boundary, blocked, budget,
 non-goals, the ledger path and the brief template.
 
 **G. Segment owner brief.** One owner, one coherent outcome, hours of work: a study's next

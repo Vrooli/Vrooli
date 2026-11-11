@@ -76,6 +76,20 @@ Do not make a portfolio-wide decision from one row's uncertainty. Hold the
 affected action, continue independent rows, and escalate to the user only when
 the unresolved choice belongs to them and no safe path remains.
 
+## Record layout
+
+A cohort record is three files in the cohort folder (`LONG_EFFORT_DESIGN.md` D15):
+
+| File | Holds | Written | Read |
+|---|---|---|---|
+| `README.md` | The charter: state line, operator stance verbatim, destination, cards, scheduler procedure, owner brief template, commissioning messages. Stable, under about 25 KB. | When the commission or the operator's direction changes | By the scheduler at every unit start and after every compaction |
+| `STATE.md` | One page, overwritten: `Needs you` first; then per card the workstream statuses, the current owner and its start time, the last measured change, what it waits for, and the next review time; then the cohort fields below. | At each review | By the scheduler at every unit start, by a new coordinator, and by the operator in place of a status question |
+| `LEDGER.md` | Append-only dated entries, one per unit: what was reviewed, the verdict, the measured change, the dimensions moved. No-change verdicts in a separate list. | At each unit | On demand, by section; never in full |
+
+Owners do not read the cohort folder. Their brief carries their card, and they re-read their
+`MISSION.md`. Keep `STANCE-MESSAGE.txt` and `KERNEL.txt` beside the charter; the kernel is set
+verbatim.
+
 ## Minimum ledger fields
 
 For the cohort: state, commission source, cohort ID, `started_at`, cooperative

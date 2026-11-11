@@ -69,7 +69,7 @@ a client re-implements a server decision.
 ```bash
 rg -n -F '<distinctive literal>' scenarios packages internal docs   # every home of one value
 rg -N --no-filename -g '*.md' -g '!**/evidence/**' '^#{2,3} \S' docs scenarios/*/docs | sort | uniq -c | sort -rn | head -30   # repeated headings: boilerplate or copied rules
-tidiness-manager scan <scenario> --type tidiness                     # clone signals, as leads
+tidiness-manager recommend-refactors <scenario> --limit 10            # ranked reduction candidates
 ```
 
 **Fix**: choose the owner with `docs/agent-system/LAYERS.md` (truth in Plan of Record,

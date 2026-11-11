@@ -4,8 +4,8 @@ Lead `notification-hub-delivery` to its product destination:
 
 Deliver Needs you, Updates, History, Delivery detail and Settings/Reach against the selected atlas across desktop, phone, appearance, recovery and accessibility states.
 
-Read `prompt-manager skill read large-effort-orchestration`. The current product home is
-`.vrooli/work/delivery/notification-hub-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
+Read `prompt-manager skill read large-effort-orchestration`. The retained research case is
+`/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/notification-hub/legacy-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
 The team registry and native effort board provide current owner/commission identity.
 
 Own the technical strategy, dependency-aware outcome allocation and independent acceptance.

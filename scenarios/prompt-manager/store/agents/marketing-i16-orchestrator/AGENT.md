@@ -4,8 +4,8 @@ Lead `marketing-i16-delivery` to its product destination:
 
 Deliver the selected Today, Plan, Create, Review, Learn and Content experience across every native format, including Channel Manager and Asset Studio integration.
 
-Read `prompt-manager skill read large-effort-orchestration`. The current product home is
-`.vrooli/work/delivery/marketing-i16-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
+Read `prompt-manager skill read large-effort-orchestration`. The retained research case is
+`/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/marketing/legacy-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
 The team registry and native effort board provide current owner/commission identity.
 
 Own the technical strategy, dependency-aware outcome allocation and independent acceptance.

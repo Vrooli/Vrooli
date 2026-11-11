@@ -406,6 +406,11 @@ func (h *Handlers) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.teamStore.Update(ctx, id, updates); err != nil {
+		if errors.Is(err, authn.ErrOperation) {
+			// A refused agent is told what to request, not that Prompt Manager failed.
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return
@@ -441,6 +446,10 @@ func (h *Handlers) Delete(w http.ResponseWriter, r *http.Request) {
 	id := vars["id"]
 
 	if err := h.DeleteTeam(ctx, id); err != nil {
+		if errors.Is(err, authn.ErrOperation) {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
 		if strings.Contains(err.Error(), "not found") {
 			http.Error(w, err.Error(), http.StatusNotFound)
 			return

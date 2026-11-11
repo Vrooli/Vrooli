@@ -1,6 +1,6 @@
 ## Task Loop
 
-Deliver the whole destination in `.vrooli/work/delivery/vega-redesign-delivery/CHARTER.md` only after deliberate native commission and owner enablement.
+Deliver the whole destination in `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/vega/legacy-delivery/CHARTER.md` only after deliberate native commission and owner enablement.
 Read `prompt-manager skill read large-effort-orchestration`; then current STATUS, open FEEDBACK, relevant LOG evidence, the exact native effort board and decisions for `effort:vega-redesign`.
 Read the effective target in `scenarios/system-monitor/docs/internal/DESIGN-ADOPTION.md` and the commissioning source map; inspect the exact selected originals for each assigned task.
 

@@ -149,6 +149,72 @@ describe('TeamDetailsSchema', () => {
   })
 })
 
+describe('team operating-contract document references', () => {
+  const researchHub = {
+    base: 'external',
+    path: '/home/operator/.vrooli/research/design-to-implementation/MISSION.md',
+  }
+  const operatingContract = {
+    schemaVersion: 1,
+    governance: {},
+    documents: {
+      planOfRecord: [{
+        id: 'canonical-research',
+        hub: researchHub,
+        paths: [researchHub],
+        writePolicy: 'read-only',
+        useFor: 'Read canonical research before choosing implementation work.',
+      }],
+      sharedState: [{
+        id: 'research-evidence',
+        path: { ...researchHub, path: '/home/operator/.vrooli/research/design-to-implementation/EVIDENCE.md' },
+        kind: 'rolling-snapshot',
+        required: true,
+      }],
+    },
+    knowledgeTopics: {
+      findings: { ownerMemberId: 'researcher', supersedesPrevious: true },
+    },
+    members: {
+      researcher: {
+        lane: 'research',
+        allowedWrites: [{ base: 'team-shared', path: 'FINDINGS.md' }],
+        readOnlyModeBehavior: { stillWriteKnowledge: true, stillWriteHandoff: true },
+      },
+    },
+  }
+  const teamDetails = {
+    ...buildDefaultCreateTeamRequest('Research'),
+    id: 'research',
+    operatingContract,
+    createdAt: '2026-11-10T00:00:00Z',
+    updatedAt: '2026-11-10T00:00:00Z',
+  }
+
+  it('preserves external read-only documents and canonical metadata through team reads and updates', () => {
+    const result = TeamDetailsSchema.parse(teamDetails)
+
+    expect(result.operatingContract).toEqual(operatingContract)
+    expect(UpdateTeamRequestSchema.parse({ operatingContract: result.operatingContract }))
+      .toEqual({ operatingContract })
+  })
+
+  it.each(['allowedWrites', 'forbiddenWrites'])('rejects external %s in team reads and updates', (field) => {
+    const invalidContract = {
+      ...operatingContract,
+      members: {
+        researcher: {
+          ...operatingContract.members.researcher,
+          [field]: [researchHub],
+        },
+      },
+    }
+
+    expect(TeamDetailsSchema.safeParse({ ...teamDetails, operatingContract: invalidContract }).success).toBe(false)
+    expect(UpdateTeamRequestSchema.safeParse({ operatingContract: invalidContract }).success).toBe(false)
+  })
+})
+
 describe('TeamSharedFileListResponseSchema (proto int64 wire form)', () => {
   it('treats an omitted proto3 repeated files field as an empty directory', () => {
     expect(TeamSharedFileListResponseSchema.parse({ teamId: 'empty-team' }).files).toEqual([])

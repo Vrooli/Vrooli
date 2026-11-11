@@ -1,6 +1,7 @@
 package skillset
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,6 +15,10 @@ type (
 		Scenario, Status string
 		Roles            []Role
 		Findings         []string
+		// Warnings are advisory findings; they never change Status.
+		Warnings []string
+		// Intents is set when intent recall was measured.
+		Intents *IntentReport
 	}
 )
 
@@ -106,6 +111,15 @@ func Validate(root, scenario string) Result {
 	}
 	if len(r.Findings) > 0 {
 		r.Status = "findings"
+	}
+	return r
+}
+
+// ValidateWithIntents is Validate plus the advisory intent-recall check.
+func ValidateWithIntents(ctx context.Context, root, scenario string, recall Recaller) Result {
+	r := Validate(root, scenario)
+	if r.Status != "unavailable" {
+		CheckIntents(ctx, &r, root, recall)
 	}
 	return r
 }

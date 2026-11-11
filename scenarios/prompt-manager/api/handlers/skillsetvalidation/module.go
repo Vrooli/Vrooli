@@ -18,8 +18,11 @@ import (
 	"prompt-manager/internal/skillset"
 )
 
-func NewConnectMount(repoRoot string) (string, http.Handler) {
-	h := &handler{repoRoot: repoRoot}
+// NewConnectMount mounts the skill-set validator. recall is this scenario's own
+// skill search, used for the advisory intent-recall check; nil skips the
+// measurement (the missing-intent warning still applies).
+func NewConnectMount(repoRoot string, recall skillset.Recaller) (string, http.Handler) {
+	h := &handler{repoRoot: repoRoot, recall: recall}
 	path, endpoint := scenariovalidationconnect.NewScenarioValidationServiceHandler(h)
 	return path, endpoint
 }
@@ -27,9 +30,10 @@ func NewConnectMount(repoRoot string) (string, http.Handler) {
 type handler struct {
 	scenariovalidationconnect.UnimplementedScenarioValidationServiceHandler
 	repoRoot string
+	recall   skillset.Recaller
 }
 
-func (h *handler) ValidateScenario(_ context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
+func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[scenariovalidationv1.ValidateScenarioRequest]) (*connect.Response[scenariovalidationv1.ValidateScenarioResponse], error) {
 	scenario := req.Msg.GetScenario()
 	if scenario == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario is required"))
@@ -40,7 +44,7 @@ func (h *handler) ValidateScenario(_ context.Context, req *connect.Request[scena
 	if root == "" {
 		root = skillset.ScenarioRoot(h.repoRoot, scenario)
 	}
-	result := skillset.Validate(root, scenario)
+	result := skillset.ValidateWithIntents(ctx, root, scenario, h.recall)
 	clean := result.Status == "ok"
 	level := "L1"
 	if clean {
@@ -61,6 +65,7 @@ func (h *handler) ValidateScenario(_ context.Context, req *connect.Request[scena
 		return "L2"
 	}(), Clean: clean, BlockingFindingCodes: result.Findings, Levels: levels}
 	findings, bySeverity := skillSetFindings(result)
+	findings, bySeverity = appendIntentWarnings(findings, bySeverity, result)
 	assessment := &commonv1.MaturityAssessment{Scenario: scenario, Provider: "prompt-manager", Phase: "skill-set", Version: "2.0.0", Local: local, Findings: findings, FindingsBySeverity: bySeverity}
 	assessment.Presentation = maturityassessment.BuildPhasePresentation(assessment)
 	detail, _ := structpb.NewStruct(map[string]any{"roles": result.Roles, "findings": result.Findings})
@@ -72,6 +77,29 @@ func (h *handler) ValidateScenario(_ context.Context, req *connect.Request[scena
 	return connect.NewResponse(&scenariovalidationv1.ValidateScenarioResponse{Scenario: scenario, Status: status, Assessment: assessment, NativeDetail: native, Metrics: &commonv1.ExecutionMetrics{StartedAt: timestamppb.New(now), CompletedAt: timestamppb.Now()}}), nil
 }
 
+// findingMaturity attaches the maturity metadata every assessment finding must
+// carry. It mirrors the ladders declared in .vrooli/test-genie.json: advisory
+// intent findings sit on L2 and never block, structural ones block L0/L1.
+func findingMaturity(code string) *commonv1.FindingMaturity {
+	m := &commonv1.FindingMaturity{
+		CapabilityId: "declaration_integrity", LocalLevel: "L1", Dimension: "structure",
+		GlobalImpact:     commonv1.GlobalImpact_GLOBAL_IMPACT_ADVISORY,
+		CleanRequirement: commonv1.CleanRequirement_CLEAN_REQUIREMENT_REQUIRED,
+	}
+	switch code {
+	case "skill-set.service_missing", "skill-set.service_malformed":
+		m.LocalLevel = "L0"
+	case "skill-set.role_missing":
+		m.CapabilityId = "role_coverage"
+	case "skill-set.dialect_invalid":
+		m.CapabilityId, m.Dimension = "dialect_conformance", "standards"
+	case "skill-set.intent_missing", "skill-set.intent_recall":
+		m.CapabilityId, m.LocalLevel = "role_coverage", "L2"
+		m.CleanRequirement = commonv1.CleanRequirement_CLEAN_REQUIREMENT_ADVISORY
+	}
+	return m
+}
+
 // skillSetRemediation names the fix for each validator finding code.
 var skillSetRemediation = map[string]string{
 	"skill-set.role_missing":      "Declare the owed role in .vrooli/service.json skills with a source SKILL.md, or record skills.waivers.<role> with a reason and declared_at.",
@@ -79,6 +107,8 @@ var skillSetRemediation = map[string]string{
 	"skill-set.source_unreadable": "Make the declared SKILL.md readable by the prompt-manager API.",
 	"skill-set.dialect_invalid":   "Give the declared SKILL.md frontmatter metadata with kind and modes (see docs/agent-system/SKILL_AUTHORING.md).",
 	"skill-set.waiver_invalid":    "Give skills.waivers.<role> in .vrooli/service.json both a reason and a declared_at timestamp.",
+	"skill-set.intent_missing":    "Add .vrooli/intents.json (or a scenarios/search-hub/intents/<scenario>.json corpus) with the plain requests this scenario's skill should answer.",
+	"skill-set.intent_recall":     "Rewrite the skill description and tags in the words of the missed requests (see `search-hub intents run --scenario <name>`); the skill search returns nothing below its similarity floor.",
 	"skill-set.service_missing":   "Create .vrooli/service.json for the scenario.",
 	"skill-set.service_malformed": "Repair .vrooli/service.json so it parses as JSON.",
 }
@@ -122,7 +152,38 @@ func skillSetFindings(result skillset.Result) ([]*commonv1.AssessmentFinding, ma
 			Message:     message,
 			Location:    location,
 			Remediation: remediation,
+			Maturity:    findingMaturity(code),
 		})
 	}
 	return findings, map[string]int32{"SEVERITY_ERROR": int32(len(findings))}
+}
+
+// appendIntentWarnings adds the advisory intent findings. They carry
+// SEVERITY_WARNING and never affect pass/fail.
+func appendIntentWarnings(findings []*commonv1.AssessmentFinding, by map[string]int32, result skillset.Result) ([]*commonv1.AssessmentFinding, map[string]int32) {
+	if len(result.Warnings) == 0 {
+		return findings, by
+	}
+	if by == nil {
+		by = map[string]int32{}
+	}
+	for _, raw := range result.Warnings {
+		code, _, _ := strings.Cut(raw, ":")
+		message := "the scenario ships a skill but declares no intent cases, so nothing measures whether the skill can be found"
+		if code == "skill-set.intent_recall" && result.Intents != nil {
+			message = fmt.Sprintf("the scenario's own skill surfaced for %d of %d declared intents; missed: %s",
+				result.Intents.Passed, result.Intents.Cases, strings.Join(result.Intents.Missed, "; "))
+		}
+		findings = append(findings, &commonv1.AssessmentFinding{
+			Code:        code,
+			Severity:    "SEVERITY_WARNING",
+			Title:       code,
+			Message:     message,
+			Location:    "skills/",
+			Remediation: skillSetRemediation[code],
+			Maturity:    findingMaturity(code),
+		})
+		by["SEVERITY_WARNING"]++
+	}
+	return findings, by
 }

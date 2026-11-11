@@ -132,7 +132,7 @@ Verified 2026-11-04. Counts change; the commands are the point.
 | Swarm captures | `swarm-manager captures list` | Failed classifications are prey too. |
 | Test Genie | `test-genie fleet status`; `test-genie runs findings --scenario <s>` | High failure rates are first-class leads. |
 | Template debt | `template-manager debt list` | Inherited debt: fix the template (playbook §10). |
-| Tidiness and quality | `tidiness-manager scenarios list`; `tidiness-manager issues list --scenario <s>`; `quality-health audit run <s>` | Leads only. |
+| Tidiness and quality | `tidiness-manager scenarios list`; `tidiness-manager issues list --scenario <s>`; `tidiness-manager recommend-refactors <s> --limit 10`; `quality-health audit run <s>` | Tidiness recommendations use Code Facts source graphs and rank expected net lines with each detector's calibration. Treat missing precision as uncalibrated; sampled precision is only as broad as its labelled source-replayed cases. Confirm locations and ownership in source before consolidating. Quality Health remains the static-quality owner. |
 | Doc health | `knowledge-observatory knowledge-base health --scenario-name <s> --skip-external-links` | Per scenario. |
 | Readiness | `git-control-tower review summary <s>` | Code-quality violations per scenario. |
 | Prior work | `search-hub query "<territory> <lens>" --type record,library --limit 5`; `vrooli-memory recall recall "<query>" --scope agent-memory --limit 10` | Build on prior fixes and no-gos instead of repeating them. |

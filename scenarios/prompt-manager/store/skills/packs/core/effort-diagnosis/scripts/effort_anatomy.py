@@ -163,6 +163,43 @@ def retained_summary(line: str, stance_marker: Optional[str] = None) -> Optional
     }
 
 
+GOAL_STATUS_RE = re.compile(r'^\s*<codex_internal_context source="user_goal">\s*User set goal status: "(\w+)"')
+GOAL_TOOL_STATUS_RE = re.compile(r"""update_goal\(\{\s*status:\s*["'](\w+)["']""")
+
+
+def goal_status_change(line: str) -> Optional[str]:
+    """Return the native goal's new status when this line changes it, else None.
+
+    Three sources: the operator's goal control (a user message that starts with the
+    `user_goal` context, and a `thread_goal_updated` event), the agent's own `update_goal`
+    call (which writes no goal event), and `create_goal` (active). Tool output that merely
+    quotes these strings, such as a doc the agent printed, is not a status change.
+    """
+    if "goal" not in line:
+        return None
+    head = line[:400]
+    if '"type":"thread_goal_updated"' in head:
+        match = re.search(r'"status":"(\w+)"', line)
+        return match.group(1) if match else None
+    if '"type":"response_item"' not in head:
+        return None
+    if "user_goal" in line and '"role":"user"' in line:
+        payload = (loads(line) or {}).get("payload") or {}
+        if payload.get("type") == "message" and payload.get("role") == "user":
+            match = GOAL_STATUS_RE.search(message_text(payload))
+            return match.group(1) if match else None
+        return None
+    if '"type":"custom_tool_call"' in head or '"type":"function_call"' in head:
+        payload = (loads(line) or {}).get("payload") or {}
+        text = payload.get("input") if isinstance(payload.get("input"), str) else str(payload.get("arguments") or "")
+        match = GOAL_TOOL_STATUS_RE.search(text)
+        if match:
+            return match.group(1)
+        if "create_goal(" in text:
+            return "active"
+    return None
+
+
 def parse_call(line: str) -> Tuple[Optional[str], Dict[str, Any]]:
     """Return (tool name, decoded arguments) for a response_item function_call line."""
     data = loads(line)
@@ -674,6 +711,8 @@ def cmd_timeline(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------- drift tripwires
 
 DRIFT_EXIT = 3  # exit status when any tripwire fires, so a scheduler can branch on it
+OWNER_MAX_HOURS = 6.0  # healthy window for one long-lived sub-agent (LONG_EFFORT_DESIGN.md §3)
+OWNER_MAX_COMPACTIONS = 8
 
 
 def turn_units(path: str, stance_marker: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -683,12 +722,13 @@ def turn_units(path: str, stance_marker: Optional[str] = None) -> List[Dict[str,
     history_start = 0
     is_child = False  # a child keeps no user messages; its brief is an encrypted agent_message
     previous_ts: Optional[dt.datetime] = None
+    goal_paused = False  # the native goal's last known status; open_unit records it per turn
 
     def open_unit(ts: Optional[str], trigger: str) -> Dict[str, Any]:
         return {"start": ts, "end": ts, "trigger": trigger, "active_seconds": 0.0, "lines": 0,
                 "compactions": 0, "objective_omitted": 0, "stance_lost": 0, "minutes_after_omission": 0.0,
                 "goal_injected": False, "patch_lines": 0, "spawns": 0, "spawn_fork_all": 0, "families": collections.Counter(),
-                "_omitted_at": None}
+                "waits": 0, "wait_timeouts_ms": [], "dispatches": 0, "goal_paused": goal_paused, "_omitted_at": None}
 
     for index, line in enumerate(iter_lines(path)):
         if index == 0 and '"session_meta"' in line[:200]:
@@ -703,6 +743,9 @@ def turn_units(path: str, stance_marker: Optional[str] = None) -> List[Dict[str,
         ts_match = re.match(r'\{"timestamp":"([^"]+)"', line)
         ts = ts_match.group(1) if ts_match else None
         now = parse_ts(ts)
+        status = goal_status_change(line)
+        if status is not None:
+            goal_paused = status == "paused"
         if '"type":"task_started"' in line:
             trigger = re.search(r'"turn_trigger":"(\w+)"', line)
             current = open_unit(ts, trigger.group(1) if trigger else "")
@@ -752,8 +795,15 @@ def turn_units(path: str, stance_marker: Optional[str] = None) -> List[Dict[str,
             name, call = parse_call(line)
             if name == "spawn_agent":
                 current["spawns"] += 1
+                current["dispatches"] += 1
                 if call.get("fork_turns") != "none":
                     current["spawn_fork_all"] += 1
+            elif name in ("followup_task", "send_message"):
+                current["dispatches"] += 1
+            elif name == "wait_agent":
+                current["waits"] += 1
+                if isinstance(call.get("timeout_ms"), (int, float)):
+                    current["wait_timeouts_ms"].append(call["timeout_ms"])
         elif '"item":{"type":"AgentMessage"' in line and '"item_completed"' in line:
             data = loads(line) or {}
             item = (data.get("payload") or {}).get("item") or {}
@@ -769,6 +819,7 @@ def turn_units(path: str, stance_marker: Optional[str] = None) -> List[Dict[str,
         unit.pop("patch_lines", None)
         unit.pop("_omitted_at", None)
         unit["families"] = dict(unit["families"])
+        unit["wait_timeouts_ms"] = list(unit["wait_timeouts_ms"])
         unit["hours"] = round(hours_between(unit["start"], unit["end"]), 3)
         unit["active_minutes"] = round(unit.pop("active_seconds") / 60.0, 1)
         unit["minutes_after_omission"] = round(unit["minutes_after_omission"], 1)
@@ -789,7 +840,7 @@ def attribute_children(units: List[Dict[str, Any]], children: List[Dict[str, Any
                 break
 
 
-def drift_findings(units: List[Dict[str, Any]], children: List[Dict[str, Any]], max_turn_hours: float) -> List[Dict[str, str]]:
+def drift_findings(units: List[Dict[str, Any]], children: List[Dict[str, Any]], max_turn_hours: float, is_child: bool = False) -> List[Dict[str, str]]:
     findings: List[Dict[str, str]] = []
     work = [u for u in units if u["active_minutes"] >= 5]
 
@@ -808,7 +859,16 @@ def drift_findings(units: List[Dict[str, Any]], children: List[Dict[str, Any]], 
                          "detail": f"{stance_lost} compaction(s) kept no user message carrying the stance (with --stance-marker: none containing it; without: no operator message at all)",
                          "fix": "start the effort with a stance message of 3,500 characters or fewer and keep the stance in the charter, re-read after each compaction; an operator or scheduler that can message the agent resends the stance"})
     long_turns = [u for u in units if u["hours"] > max_turn_hours and u["compactions"] >= 2]
-    if long_turns:
+    if is_child:
+        # A native sub-agent has no goal to re-inject, and an owner is meant to hold one outcome
+        # for hours. What matters is its age against the healthy window, not the turn length.
+        total_hours = sum(u["hours"] for u in units)
+        total_compactions = sum(u["compactions"] for u in units)
+        if total_hours > OWNER_MAX_HOURS or total_compactions >= OWNER_MAX_COMPACTIONS:
+            findings.append({"id": "owner-age", "mechanism": "M1",
+                             "detail": f"this sub-agent has worked {total_hours:.1f} h through {total_compactions} compactions (healthy window: {OWNER_MAX_HOURS:g} h, {OWNER_MAX_COMPACTIONS} compactions)",
+                             "fix": "at its next return, start a fresh owner briefed from the charter and told to read this owner's checkpoint first; do not re-task this one"})
+    elif long_turns:
         findings.append({"id": "unit-per-turn", "mechanism": "M1",
                          "detail": f"{len(long_turns)} turn(s) longer than {max_turn_hours:g} h with 2+ compactions; longest {max(u['hours'] for u in long_turns):.1f} h",
                          "fix": "end the turn after each round, segment return or owner return"})
@@ -828,6 +888,28 @@ def drift_findings(units: List[Dict[str, Any]], children: List[Dict[str, Any]], 
         findings.append({"id": "no-change-streak", "mechanism": "M3",
                          "detail": f"{best} consecutive working turns changed no lines (own or children)",
                          "fix": "the next unit takes a large item or a new focus; a reviewer argues for change on no-change units"})
+    goal_turns = [u for u in units if u["trigger"] == "goal"]
+    if len(goal_turns) >= 6 and sum(u["waits"] for u in goal_turns) >= 3:
+        median_minutes = quantile([u["hours"] * 60 for u in goal_turns], .5)
+        if median_minutes < 10:
+            findings.append({"id": "hot-loop", "mechanism": "M25",
+                             "detail": f"{len(goal_turns)} goal turns with a median of {median_minutes:.1f} min in a thread that waits on sub-agents: each turn end re-injects the goal and repeats the unit-start reads",
+                             "fix": "a scheduler's turn spans the wait: block on wait_agent with timeout_ms 3600000, wait again when a wake brings no segment return, and end the turn only after a return is reviewed and recorded"})
+    timeouts = [t for u in units for t in u["wait_timeouts_ms"]]
+    if len(timeouts) >= 10 and quantile(timeouts, .5) <= 120000:
+        findings.append({"id": "short-waits", "mechanism": "M25",
+                         "detail": f"{len(timeouts)} wait_agent calls with a median timeout of {quantile(timeouts, .5) / 1000:.0f} s; each timed-out wait costs a full-context request and invites a status check",
+                         "fix": "wait_agent returns on the next sub-agent message whatever the timeout, so ask for 3600000 ms; polling is not work"})
+    orphaned = [u for u in units if u["goal_paused"] and u["trigger"] != "goal" and u["dispatches"] >= 1]
+    if len(orphaned) >= 2:
+        findings.append({"id": "paused-goal", "mechanism": "M24",
+                         "detail": f"{len(orphaned)} turn(s) dispatched work while the native goal was paused, from {(orphaned[0]['start'] or '?')[:16]} to {(orphaned[-1]['end'] or '?')[:16]}: nothing woke this thread between operator messages",
+                         "fix": "only the operator can re-activate a paused goal (`/goal resume`): say so in the first line of the reply, and hold the wait inside the turn until the goal is active"})
+    reviews = [c for c in children if is_review(c)]
+    if len(children) >= 12 and len(reviews) / len(children) >= 0.5:
+        findings.append({"id": "review-flood", "mechanism": "M26",
+                         "detail": f"{len(reviews)} of {len(children)} descendants were reviewers, challengers or auditors; they changed {sum(changed(c) for c in reviews)} lines",
+                         "fix": "one ambition review per workstream plan and one challenger per showcase claim; increments are verified by owner tests and the running showcase, not by a fresh agent"})
     workers = [c for c in children if not is_review(c)]
     if len(workers) >= 4:
         short = [c for c in workers if lifetime(c) < 0.1]
@@ -870,7 +952,9 @@ def cmd_drift(args: argparse.Namespace) -> int:
             stack.extend(by_parent.get(child.get("id"), []))
         direct = [c for c in children if c.get("parent") == own.get("id")]
         attribute_children(units, direct)
-    findings = drift_findings(units, children, args.max_turn_hours)
+    first = next(iter_lines(files[0]), "") if files else ""
+    is_child = '"session_meta"' in first[:200] and bool(read_session_meta(first)["parent"])
+    findings = drift_findings(units, children, args.max_turn_hours, is_child)
     if args.json:
         print(json.dumps({"rollout": args.rollout, "files": files, "turns": units, "findings": findings}, indent=2))
     else:
@@ -1043,7 +1127,7 @@ def build_parser() -> argparse.ArgumentParser:
     timeline.add_argument("--examples", type=int, default=3, help="narration examples per family")
     timeline.set_defaults(func=cmd_timeline)
 
-    drift = sub.add_parser("drift", help="tripwires for a live or finished effort: objective or stance loss, long turns, shrinking units, no-change streaks, short workers (exit 3 when any fires)")
+    drift = sub.add_parser("drift", help="tripwires for a live or finished effort: objective or stance loss, long turns, a paused goal, a hot scheduler loop, short waits, a review flood, shrinking units, no-change streaks, short workers (exit 3 when any fires)")
     drift.add_argument("rollout", help="the scheduler's or owner's rollout")
     drift.add_argument("--scan", help="a scan file covering its descendants, to credit child lines and check worker lifetimes")
     drift.add_argument("--max-turn-hours", type=float, default=3.0)

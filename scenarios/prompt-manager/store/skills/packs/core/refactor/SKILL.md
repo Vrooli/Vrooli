@@ -82,31 +82,18 @@ Required reading:
 
 ### **7. Memory Management with Tidiness Manager**
 
-To ensure **systematic coverage without repetition**, use `tidiness-manager` to get intelligent refactor recommendations combining visited-tracker data with code quality metrics.
+Use the current Code Facts-backed reduction ranking to choose a candidate. Inspect its source locations, replacement estimate and calibration provenance. Historical precision is a measured sample, not a guarantee; an uncalibrated detector has no expected-net estimate.
 
-**At the start of each iteration:**
 ```bash
-# Get 5 top-priority files (auto-scans if needed)
-# Priority score combines: staleness + length + complexity + tech debt + missing tests
-tidiness-manager recommend-refactors {{TARGET}} \
-  --limit 5 \
-  --sort-by priority \
-  --min-lines 50
-
-# For scripting (returns just file paths, one per line):
-tidiness-manager recommend-refactors {{TARGET}} \
-  --limit 5 \
-  --format paths
-
-# Alternative sort options for specific improvement targets:
-# --sort-by complexity  # For reducing cyclomatic complexity
-# --sort-by length      # For breaking down long files
-# --sort-by staleness   # For unvisited/stale files (equivalent to visited-tracker)
-# --sort-by duplication # For removing code duplication
+tidiness-manager recommend-refactors {{TARGET}} --limit 5 --min-lines 50
+# For a source-location list:
+tidiness-manager recommend-refactors {{TARGET}} --limit 5 --format paths
 ```
 
+Retain the selected detector ID and source hash with the reduction evidence. Measure production, test, documentation and generated changes separately after caller migration and owner validation. Visit tracking records coverage independently of this ranking.
+
 **Output formats:**
-- `--format detailed` (default): Human-readable with all metrics
+- `--format detailed` (default): Human-readable reduction estimates and calibration
 - `--format paths`: Just file paths, one per line (easy for shell loops)
 - `--format json`: Raw JSON for programmatic processing
 

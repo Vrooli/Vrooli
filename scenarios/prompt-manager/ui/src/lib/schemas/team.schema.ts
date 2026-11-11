@@ -55,8 +55,10 @@ export type MessagingMode = z.infer<typeof MessagingModeSchema>
 export const QueuePolicySchema = z.enum(['serialized', 'bounded-parallel'])
 export type QueuePolicy = z.infer<typeof QueuePolicySchema>
 
+const PathBaseSchema = z.enum(['repo-root', 'team-root', 'team-shared', 'team-member', 'agent-root', 'external'])
+
 const PathRefSchema = z.object({
-  base: z.enum(['repo-root', 'team-root', 'team-shared', 'team-member', 'agent-root']).optional(),
+  base: PathBaseSchema.optional(),
   path: z.string().optional(),
   memberId: z.string().optional(),
   agentId: z.string().optional(),
@@ -65,18 +67,22 @@ const PathRefSchema = z.object({
 })
 
 const WriteRefSchema = PathRefSchema.extend({
+  base: PathBaseSchema.exclude(['external']).optional(),
   kind: z.enum(['handoff', 'knowledge', 'task', 'inbox-message']).optional(),
 })
 
 export const OperatingContractSchema = z.object({
   schemaVersion: z.literal(1),
+  governance: z.object({}).optional(),
   documents: z.object({
     planOfRecord: z.array(z.object({
       id: z.string(),
+      hub: PathRefSchema.optional(),
       paths: z.array(PathRefSchema),
       writePolicy: z.string(),
       consumers: z.array(z.string()).optional(),
       rationale: z.string().optional(),
+      useFor: z.string().optional(),
       required: z.boolean().optional(),
       optionalReason: z.string().optional(),
     })).nullable().optional().transform((val) => val ?? []),
@@ -91,6 +97,7 @@ export const OperatingContractSchema = z.object({
   }),
   knowledgeTopics: z.record(z.string(), z.object({
     ownerMemberId: z.string(),
+    supersedesPrevious: z.boolean().optional(),
     retention: z.string().optional(),
   })),
   members: z.record(z.string(), z.object({

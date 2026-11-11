@@ -9,9 +9,9 @@ metadata:
   tags: ["research", "experiment", "evidence", "optimization"]
   icon: "search"
   status: "active"
-  revision: 17
+  revision: 20
   createdAt: "2026-10-21T00:00:00Z"
-  updatedAt: "2026-11-07T02:30:00Z"
+  updatedAt: "2026-11-10T03:00:00Z"
   requires:
     scenarios: ["prompt-manager"]
     commands: ["search-hub query", "prompt-manager skill read"]
@@ -25,6 +25,18 @@ Drive an uncertain direction to its destination by choosing each next step from 
 When the work belongs to a research topic, you own a workstream from its `MISSION.md` ([missions](../research-coordination/references/mission.md)): its destination, the scorecard dimensions it moves, its magnitude and its showcase are your target, and the operator's verbatim words in that file are the bar. You may enlarge the workstream; you may not shrink it without the ambition reviewer (`LONG_EFFORT_DESIGN.md` §2b). Each checkpoint states the dimensions moved, the workstream's progress toward its showcase and the measured change. A window that moved nothing is reported as under-delivery with its cause, never as a careful result; honesty rules govern what you claim, not how much you attempt.
 
 A sustained direction is a long effort under `path:docs/agent-system/LONG_EFFORT_DESIGN.md`: you own it for hours and are re-tasked while productive (D5), re-read the brief at every checkpoint and after every compaction (D3), end your turn at each checkpoint when a native goal carries the effort (D4), and leave closure to a fresh challenger (D2).
+
+As a segment owner under a scheduler (D15–D17):
+
+- **Build, then prove.** Verify increments with owner tests and the running showcase. Ask for a challenger once, when you claim a workstream's showcase; do not spawn a reviewer, challenger or re-check for an increment or for the repair of one. If a plan is rejected, build its larger first item; do not write a longer plan.
+- **Message the scheduler for four things only:** your plan, a showcase claim, an item that needs the operator, and a need you cannot meet yourself. Keep progress in your run folder checkpoint. Every message wakes the scheduler.
+- **Wait without polling.** Worker messages reach you while you work, so when you have work of your own, do it and do not call `wait_agent`. When you can only wait, call it with a long `timeout_ms` (up to 3600000); it returns when a worker messages or finishes. Do not call it when no worker is running: it blocks for at least two minutes.
+- **A showcase that waits is not a place to stay.** When the remaining routes need the operator's review, elapsed days or capacity you cannot free, hand the scheduler the one request in plain words, mark the workstream `waiting-operator` or `waiting-time`, and take the next open workstream ([showcases that wait](../research-coordination/references/mission.md#showcases-that-wait)).
+- **Stop what you start, and check it.** Stop every resource, service and model you start when its job ends. Do not trust your memory of what you started: list it in your checkpoint under `Started`, and run the footprint check your brief gives you (`footprint.py diff --baseline …`) before every return message, before any GPU work, and whenever admission is refused. It lists what is running now that was not running when the cohort began. Stop a line you or your workers started unless a job is using it this minute; report a line you did not start and never stop another owner's work. A refusal is usually something you started ([capacity and gates](../research-coordination/references/mission.md#capacity-and-gates)).
+- **Do not write your own exam.** A deliverable tested only on a target you made for it proves that it runs. Before building, ask what a real user's target looks like and what proving ground would test any tool of this kind from easy to very hard: real software run as a resource, a scenario that serves graded levels, real public material. Build or propose that proving ground as a reusable capability, build the deliverable on the mature open-source tool the trade uses, and prove it on real targets at real size, in the tool the user named. A category of work takes tens of hours; a deliverable finished in minutes has not been attempted ([proving grounds](../research-coordination/references/mission.md#proving-grounds)).
+- **A list workstream has a list file.** When your workstream delivers a list (capabilities, kits, detectors), keep the file beside the mission current: re-read it at each checkpoint, assess every new `Wanted` line in the unit that finds it, update a row's state the hour it changes ([list workstreams](../research-coordination/references/mission.md#list-workstreams)).
+- **A proposal says what is missing.** Name the resources and scenarios the build needs, including new ones, and say what your prototype faked ([proposal packets](../research-coordination/references/operator-attention.md#proposal-packets)).
+- **Read your card and mission, not the cohort ledger.**
 
 ### Scope
 
@@ -89,9 +101,10 @@ Before repeating a status, capacity, or diagnostic read, identify the changed co
 
 | Mistake | Consequence | Replacement |
 |---|---|---|
-| Build generic infrastructure before touching the question | Setup consumes the budget | Build the smallest end-to-end version of the destination capability first, then grow it |
+| Build infrastructure nobody will use before touching the question | Setup consumes the budget | Build the end-to-end path first, then grow it. A proving ground the deliverable is tested on is part of the destination, not setup |
 | Change evaluation after seeing a candidate | Invalid comparison | Freeze evaluation and confirm independently |
-| Turn every reusable fragment into a capability | Research drifts from its mission | Integrate when commissioned; otherwise retain the result and proposed adoption |
+| Keep a reusable piece as a private script in a run folder | The next task of that kind starts from nothing, and the operator never sees what Vrooli lacks | Name the resource or scenario it belongs in; build it when the mode allows, propose it when it does not |
+| Test a deliverable only on a target you wrote for it | It passes and means nothing; the operator defers it | A proving ground with graded levels and known answers, then real targets |
 | Restart work after a quiet screen | Duplicate effects | Reconcile the original owner operation |
 | A chain of small probes in place of the direction | Each check is accurate; the destination never moves | Ask what the 10× version would be; build toward the destination |
 | Close on a narrow proof | The supervisor reopens it, or the commission ends short | Hand the coordinator the candidate frontier; a fresh challenger decides closure |

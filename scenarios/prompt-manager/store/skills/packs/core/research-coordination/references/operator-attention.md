@@ -14,6 +14,34 @@ First discover supported routes and inspect the latest evidence, including super
 | Later evidence already removed the dependency | Mark the research item superseded. Do not send the stale request. |
 | The original allowance ended or no supervisor is running | Preserve the prepared request and pickup state. Do not imply that an answer restarts the commission. |
 
+## Needs you first
+
+The operator learns what needs them from one decision owner and its linked projections: Notification Hub owns decision asks, answers and delivery receipts; `ATTENTION.md` and cohort `STATE.md` are navigable status views. A chat reply is not a second answer channel for a Hub ask and must not be repeated as an unanswered decision after compaction.
+
+- Open every reply to the operator, and `STATE.md`, with a `Needs you` list. With nothing open,
+  write `Needs you: nothing.`
+- Each item is one or two plain sentences: the decision, your recommendation, and what it
+  unlocks, followed by the link or command that answers it. Put no hash, run identifier or
+  evidence path in the item; link the packet that holds them.
+- Order: a pending consent for the notification route first (with its approval link), then
+  decisions that gate a showcase, then proposals, then older actionable items.
+- An item stays in the list, in every reply, until the operator answers it or it is withdrawn.
+  A clause inside a status paragraph is not a delivery.
+- Review packets that gate a showcase are one item: what to open, how many there are and how
+  long the review takes. When a Notification Hub ask owns the choice, link its answer control.
+- For a decision delivered as a Notification Hub ask, direct the operator to the Hub ask's
+  answer control; do not ask for a chat reply. Read the canonical ask state before every
+  delivery and at the next supervision unit. Record the answer verbatim in `ATTENTION.md`
+  history and the topic's `MISSION.md`, update the current projection, and act on it in the
+  next unit. If an operator independently supplies an answer in chat, reconcile it immediately
+  with the existing canonical ask/owner when supported, then use that owner state as canonical;
+  never keep soliciting or re-presenting a decision already answered. A canonical authorization
+  grant still needs its own approval page.
+
+On 2026-11-08..10 a consent request was announced by one push and then listed for 30 hours
+under a heading that said nothing needed a response, and three proposals reached the operator
+only as "three proposals remain in ATTENTION" inside status reports.
+
 ## Keep one navigable view
 
 Use the research home's `ATTENTION.md` as the consolidated index, or the existing cohort record when work is not retained there. Keep one writer across concurrent studies. Workers report candidate requests with evidence; the supervisor deduplicates and validates them. Link the view from the research home, topic and checkpoint rather than duplicating the request in each.
@@ -30,18 +58,29 @@ Before dispatching a fresh commission and immediately before every delivery, rea
 
 A `propose-then-build` topic ([missions](mission.md#modes)) sends each new maintained
 capability, scenario or significant extension to the operator as a proposal, not as a question.
-A proposal is how exploration becomes building, so make it easy to say yes. Keep proposals in
+A proposal is how exploration becomes building, so make it easy to say yes: it opens with what gets built and the recommendation in plain words, and its hashes, run identifiers and challenge memos stay in the linked packet, never in `ATTENTION.md`. Dated updates go to the packet or `ATTENTION-HISTORY.md`, not under the proposal. Keep proposals in
 `ATTENTION.md` under exactly one `## Proposals awaiting approval` section, above `## Actionable
 now`, each headed `### PROPOSAL-<TOPIC>-<slug> — <title>`, with:
 
 | Field | Content |
 |---|---|
-| What gets built | The capability end state in two or three sentences, and where it would live. |
-| Why | The evidence from exploration: kits, prototypes, measured results and demand, with links. |
-| Magnitude | Agent-hours and owners touched, and the showcase that would prove it landed. |
+| In plain words | Two or three sentences a reader outside the programme understands: what the operator will be able to do afterwards that they cannot do today. |
+| What Vrooli lacks today | Each missing piece, named. For each one say whether an existing resource or scenario really owns it (name the command that proves it) or nothing does. Software the prototype installed for itself is missing from Vrooli until a resource or scenario owns it. |
+| What the prototype really did | What ran, on what inputs, and where its code and installed software live. Say what was real and what was hand-made or simulated: a stub that stood in for a client's services, workflows the kit wrote itself, synthetic data. |
+| What gets built | Every resource, scenario and extension by name, what each one owns, and the first showcase. |
+| Magnitude | Agent-hours per piece, and the showcase that would prove it landed. |
 | Recommendation | Build, build smaller, or do not build, with the reason. |
-| Alternatives | What else was considered, including using an existing capability. |
+| Options | Lettered choices the operator answers with: the recommended build, a smaller first step (say what it leaves out), defer and decline. Explain any product or term the operator may not know in its first sentence. |
 | Cost of waiting | What the topic does meanwhile; it never idles. |
+
+Size the build to what the work needs, not to what already exists. A new resource is the right
+home for vendor software Vrooli will keep running (the first Freelance runtime proposal kept n8n
+as a 2.3 GB private install in a research folder and called that "no new scenario"). A new
+scenario is the right home for state and operations that no owner has (client engagements, their
+rehearsal environments, simulated third-party services). "No new scenario" is a fact about a
+design, never a reason to prefer it: the operator rejected three proposals on 2026-11-10 because
+they shrank the build to wiring between existing owners and left out the parts that were
+missing. Run `ecosystem-fit` on the proposed shape before filing, and state its verdict.
 
 Deliver it as a Notification Hub decision ask with the options Approve, Approve with changes
 (the `other` answer), Decline and Defer. When the operator approves, move the packet to the
@@ -51,6 +90,25 @@ an approved proposal is implemented at the scale it was proposed. Record a decli
 topic's Not this or workstream table so it is not proposed again unchanged. A topic with nothing
 left to propose has an exploration lane that is not producing evidence, and needs an architect
 pass.
+
+## Review requests
+
+A request for the operator to judge finished work is one self-contained HTML file, named by its
+absolute path. The operator reads on a phone through the Web Console file drawer: no local
+server, no links to sibling files, nothing fetched. For each item the page shows:
+
+- what was asked for, in the requester's own words where they exist;
+- the deliverable itself, and its full source code in collapsible blocks, so the operator can
+  read the code without leaving the page;
+- what it was tested on: who made the test target, how big it is, and which real targets it ran
+  against;
+- the hours spent and the lines of the deliverable;
+- the weak points, and verdict buttons that open the linked Notification Hub decision ask.
+
+Before asking, apply the trade's own bar: would a professional in that field send this to a
+paying client? If not, it is not ready for review; finish it first ([proving
+grounds](mission.md#proving-grounds)). The first Freelance review page showed no code, and the
+operator deferred seven of its nine deliveries as too thin.
 
 ## Structure every operator delivery
 
@@ -88,7 +146,7 @@ operation and delivery receipt; report any missing link.
 
 Qualify the intended notification/decision producer when commissioning supervision, before promising alerts. If the commission expects operator notices or decisions, make this a startup action before worker dispatch: inspect the recipient, current session/run, existing grant requests and delivery route. Check current owner-issued authority through the canonical evaluator. Reuse valid coverage, including approved wildcard targets and a covering rule inside a multi-policy consent; do not ask again merely because another notification, worker check or reminder is due.
 
-When authority is missing and the exact reviewed policy is supported, submit one bounded request through the existing `vrooli agent authorize` flow for the actual session/run, policy, target, purpose and duration. Do this at startup, not only after the first operator decision appears. Present the owner-generated consent URL in the current conversation immediately so the operator can approve it. Do not rely on the unavailable notification channel to bootstrap its own permission. Record the request identity, pending/approved/refused state, expiry and scope in the supervision record. Continue independent work while it is pending. Reconcile that same request instead of creating another. An in-chat question, `request_user_input`, or `ATTENTION.md` entry is not a Notification Hub ask or delivery receipt.
+When authority is missing and the exact reviewed policy is supported, submit one bounded request through the existing `vrooli agent authorize` flow for the actual session/run, policy, target, purpose and duration. Do this at startup, not only after the first operator decision appears. Present the owner-generated consent URL in the current conversation immediately so the operator can approve it. Do not rely on the unavailable notification channel to bootstrap its own permission. Record the request identity, pending/approved/refused state, expiry and scope in the supervision record. Continue independent work while it is pending. While it is pending it is an actionable item, not an agent prerequisite: list it first under `## Actionable now` and in every `Needs you` list with its approval link, and read its state with `vrooli agent authorization <session-or-run>` at each review. Reconcile that same request instead of creating another. An in-chat question, `request_user_input`, or `ATTENTION.md` entry is not a Notification Hub ask or delivery receipt.
 
 Request again only when authority actually expired or was revoked, the approved target/operation changed, or the receiving identity cannot legitimately inherit the existing coverage. A routine token refresh within valid coverage is not a new consent. Session-bound authority can end with its session; "ask once" does not mean permanent authority for every future agent. A refusal is not a reason for unchanged repeated requests.
 

@@ -288,20 +288,20 @@ func GetResourcePath() string { return getResourcePathNew() }
 
 ### **7. Memory Management with Tidiness Manager**
 
-Use `tidiness-manager` to get intelligent cleanup recommendations combining code metrics with visit tracking.
+Use `tidiness-manager` to rank current source opportunities by expected net production reduction. Inspect the detector, replacement estimate and historical calibration before selecting a candidate. Visit tracking records coverage independently.
 
 **At the start of each iteration:**
 ```bash
-# Get files with highest cleanup potential
-# Priority combines: staleness + tech debt markers + complexity
+# Get opportunities with the highest expected net reduction
 tidiness-manager recommend-refactors {{TARGET}} \
   --limit 5 \
-  --sort-by priority \
   --min-lines 50
 
-# Alternative: Focus on files with most TODO/deprecated markers
-tidiness-manager issues {{TARGET}} --category lint --limit 10
 ```
+
+Use `tidiness-manager scan {{TARGET}} --type tidiness` to inspect current maintainability
+findings, including debt markers. Use the ranked recommendation command above when choosing a
+production reduction candidate; the issue queue is not a second refactor ranking surface.
 
 **After cleaning each file:**
 ```bash

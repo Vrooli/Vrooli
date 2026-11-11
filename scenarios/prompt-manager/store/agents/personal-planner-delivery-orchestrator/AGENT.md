@@ -4,8 +4,8 @@ Lead `personal-planner-delivery` to its product destination:
 
 Deliver calendar through goals, projects, accepted plans, actuals, capacity forecasting and honest review across UI, CLI and API, preserving Observatory and the approved read-only ingestion boundary.
 
-Read `prompt-manager skill read large-effort-orchestration`. The current product home is
-`.vrooli/work/delivery/personal-planner-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
+Read `prompt-manager skill read large-effort-orchestration`. The retained research case is
+`/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/personal-planner/legacy-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
 The team registry and native effort board provide current owner/commission identity.
 
 Own the technical strategy, dependency-aware outcome allocation and independent acceptance.

@@ -4,8 +4,8 @@ Lead `nooch-delivery` to its product destination:
 
 Deliver the complete selected nutrition product and connected journeys, including all approved P0/P1 and visual acceptance outcomes beyond the first useful plan.
 
-Read `prompt-manager skill read large-effort-orchestration`. The current product home is
-`.vrooli/work/delivery/nooch-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
+Read `prompt-manager skill read large-effort-orchestration`. The retained research case is
+`/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/nooch/legacy-delivery/`; read its CHARTER, STATUS, open FEEDBACK and applicable LOG evidence.
 The team registry and native effort board provide current owner/commission identity.
 
 Own the technical strategy, dependency-aware outcome allocation and independent acceptance.

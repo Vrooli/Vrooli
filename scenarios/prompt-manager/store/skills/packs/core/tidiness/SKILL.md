@@ -55,13 +55,13 @@ tidiness-manager issues list --scenario {{TARGET}} --json
 test-genie execute {{TARGET}} --phases tidiness --json
 ```
 
-Use recommendations to choose focused cleanup candidates:
+Use recommendations to choose reduction candidates from current shared graph evidence:
 
 ```bash
 tidiness-manager recommend-refactors {{TARGET}} --limit 10
 ```
 
-The scan output is the source of truth for this skill. Manual judgment decides which cleanup is worth doing now and which should be queued or documented.
+The scan output owns tidiness findings. Recommendations rank estimated net production reduction and expose detector calibration. Treat unknown calibration as unknown; synthetic regression cases are not historical precision. Verify caller migration, owner tests and the measured whole-boundary reduction before recording a successful approach.
 
 ---
 
@@ -72,7 +72,7 @@ The scan output is the source of truth for this skill. Manual judgment decides w
 - complexity hotspots, coupling, duplication, and repeated logic
 - TODO/FIXME/HACK debt that blocks maintainability
 - issue queue hygiene: list, resolve, ignore with notes, reopen
-- cleanup campaigns and visited-tracker-informed refactor sequencing
+- cleanup campaigns, expected-net reduction ranking and visit coverage
 - durable scenario docs for deferred cleanup debt
 
 **Out of scope:**

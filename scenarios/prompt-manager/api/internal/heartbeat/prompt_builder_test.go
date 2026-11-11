@@ -429,9 +429,11 @@ func TestBundledProductLeadersReceiveTheirCurrentDestination(t *testing.T) {
 					agentText.WriteString(section.Content)
 				}
 			}
-			if !strings.Contains(agentText.String(), team.HomePath) || !strings.Contains(agentText.String(), team.Mission) {
-				t.Fatal("leader standing guidance lost the declared current home or product mission")
+			if !strings.Contains(agentText.String(), team.Mission) {
+				t.Fatal("leader standing guidance lost the declared product mission")
 			}
+			// Native team metadata supplies the current home through shared doctrine.
+			// Role files can reference retained research without copying that location.
 			rules := promptSectionContent(sections, promptSectionKindSharedDoctrine)
 			if !strings.Contains(rules, team.HomePath+"/CHARTER.md") || !strings.Contains(rules, "whole approved destination") {
 				t.Fatal("runtime context lost the current destination or whole-product responsibility")

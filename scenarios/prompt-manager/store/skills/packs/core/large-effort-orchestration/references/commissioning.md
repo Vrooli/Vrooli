@@ -93,11 +93,21 @@ member heartbeat remain disabled:
    This reference grants no authority. Missing, unavailable or mismatched
    identity fails admission; if a prior run ID exists, preserve that owner
    obligation and do not start competing work. Keep the team and heartbeat
-   disabled until the fresh receiver's source and route receipt passes. Then
-   enable through the existing operator-supported team and heartbeat controls,
-   subject to native permissions, budgets and safeguards. These checks do not
-   copy the sender's tool restrictions or add a parent-release or accounting
-   layer.
+   disabled until the fresh receiver's source and route receipt passes. Complete
+   step 5 before enabling; these checks do not copy the sender's tool restrictions
+   or add a parent-release or accounting layer.
+5. **Qualify operator decision delivery.** Add the selected route and its current
+   evidence to `CHARTER.md` before activation. For an enrolled Agent Manager effort,
+   use the existing `effort decision raise` event path to create Notification Hub asks;
+   verify the configured recipient/channel and do not request an unrelated direct-Hub
+   grant for this owner route. For direct Notification Hub operations, qualify the exact
+   `notification.send` or `notification.ask` operation and recipient through the canonical
+   authorization owner; request only a missing grant before promising messages. If the
+   route is unavailable, retain the exact refusal and do not claim an ask was sent. Do not
+   create a test ask. The first real choice must be checked through Notification Hub for
+   both ask creation and a delivery receipt. Enable the team and heartbeat through the
+   existing operator-supported controls only after both the source/owner route (step 4) and
+   decision-delivery route (step 5) pass, subject to native permissions, budgets and safeguards.
 
 For visual delivery, selected governing images are implementation targets for
 their matching screens and states, not inspiration or semantic checklists. Use

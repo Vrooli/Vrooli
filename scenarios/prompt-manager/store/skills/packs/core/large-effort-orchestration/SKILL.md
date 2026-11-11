@@ -9,9 +9,9 @@ metadata:
   tags: [orchestration, multi-agent, effort, epochs, continuity, recovery]
   icon: network
   status: active
-  revision: 69
+  revision: 70
   createdAt: "2026-09-10T00:00:00Z"
-  updatedAt: "2026-11-06T23:45:00Z"
+  updatedAt: "2026-11-10T00:00:00Z"
   requires:
     scenarios: [prompt-manager, agent-manager]
     commands: [prompt-manager skill read, agent-manager]
@@ -53,6 +53,25 @@ operator answers continue to govern after relocation or archival; do not turn a 
 answer into a new human hold. Resolve new steering before relying on an old handoff. Acknowledge open feedback
 by ID without claiming it resolved. Reconcile retained owners; parked is not terminal.
 An uncertain dispatch does not authorize a replacement orchestrator.
+
+Before first worker dispatch, record the operator-decision delivery route in `CHARTER.md`
+and qualify it against current owner state. An enrolled Agent Manager effort uses
+`agent-manager effort decision raise`: its verified-run decision event is the supported
+Notification Hub ask path and does not require a separate direct `notification.ask` grant.
+Confirm the configured Notification Hub recipient/channel through its read owner. If this
+effort instead needs direct Notification Hub sends or asks, qualify the exact operation and
+recipient with the canonical authorization owner and request only the missing
+`notification-sending` or `notification-decision-asking` authority before promising delivery.
+Do not make a test ask. On the first real decision, verify the Hub ask and its delivery receipt;
+event publication alone is not proof of delivery.
+
+For every real operator choice, use one stable Agent Manager effort decision and let its
+Notification Hub ask own the answer. Make the question self-contained, state the recommendation
+and consequences, include the absolute path to the current `STATUS.md` and a compact digest of
+other open operator choices, and tell the operator to answer in Notification Hub. Do not ask for
+a chat answer or repeat an answered decision after compaction. On every wake, reconcile the exact
+Agent Manager decision and Hub ask/delivery state, then sync the canonical answer verbatim into
+`FEEDBACK.md` and remove it from the open `## Needs operator` projection.
 
 Inspect the current product and its governing sources. For visual work, open the
 selected original images for the actual screen/state. Compare the served product

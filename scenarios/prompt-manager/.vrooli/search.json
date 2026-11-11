@@ -55,6 +55,10 @@
         "cases": [
           {"id": "implementation-plan-guidance", "query": "how to write an implementation plan", "tags": ["strong", "planning"], "expect_ids": ["implementation-plan-authoring"], "expect_within_top_k": 5},
           {"id": "debugging-guidance", "query": "debug a non-obvious issue scientifically", "tags": ["strong", "debugging"], "expect_ids": ["scientific-debugging"], "expect_within_top_k": 5},
+          {"id": "device-tv-screenshot", "query": "take a screenshot of my TV", "tags": ["strong", "devices", "discoverability"], "expect_ids": ["device-control"], "expect_within_top_k": 5},
+          {"id": "device-phone-screenshot", "query": "screenshot my android phone", "tags": ["strong", "devices", "discoverability"], "expect_ids": ["device-control"], "expect_within_top_k": 5},
+          {"id": "device-open-app-on-tv", "query": "open an app on my TV", "tags": ["strong", "devices", "discoverability"], "expect_ids": ["device-control"], "expect_within_top_k": 5},
+          {"id": "device-test-app-on-phone", "query": "test my app on my android phone", "tags": ["strong", "devices", "discoverability"], "expect_ids": ["device-control"], "expect_within_top_k": 5},
           {"id": "skills-gibberish", "query": "qzvplm krxnt nonsense", "tags": ["gibberish"], "expect_no_strong_hit": true, "expect_max_score": 0.3}
         ]
       }

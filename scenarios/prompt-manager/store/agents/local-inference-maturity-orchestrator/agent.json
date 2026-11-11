@@ -1,0 +1,23 @@
+{
+  "kind": "agent",
+  "schemaVersion": 1,
+  "id": "local-inference-maturity-orchestrator",
+  "displayName": "local-inference-maturity-orchestrator",
+  "description": "Owns full local inference maturity delivery orchestration and independent acceptance under the charter; no product code implementation.",
+  "status": "active",
+  "appearance": {
+    "body": "#3B82F6",
+    "head": "#F59E0B",
+    "accent": "#10B981"
+  },
+  "tags": [
+    "delivery",
+    "local-inference"
+  ],
+  "fileOrder": [
+    "AGENT.md"
+  ],
+  "revision": 1,
+  "createdAt": "2026-11-11T06:39:12Z",
+  "updatedAt": "2026-11-11T06:39:12Z"
+}
