@@ -95,6 +95,49 @@ func TestWorkspaceSandboxProfileClientDeclaresStartsAndStopsExactProfile(t *test
 	}
 }
 
+func TestWorkspaceSandboxProfileReceiptPreservesDisjointInputSelectorsAndQueries(t *testing.T) {
+	profile := HTTPMockProfile{SchemaVersion: 1, Operations: []HTTPMockProfileOperation{
+		{Selector: HTTPMockProfileSelector{NodeType: "n8n-nodes-base.googleSheets", Resource: "sheet", Operation: "read", InputMatch: map[string]any{"sheetName": "products"}}, Route: HTTPMockRoute{Host: "sheets.synthetic.invalid", Method: http.MethodGet, Path: "/v1/spreadsheets", Query: "sheetName=products", Status: http.StatusOK, ContentType: "application/json", Body: `[]`}},
+		{Selector: HTTPMockProfileSelector{NodeType: "n8n-nodes-base.googleSheets", Resource: "sheet", Operation: "read", InputMatch: map[string]any{"sheetName": "recipients"}}, Route: HTTPMockRoute{Host: "sheets.synthetic.invalid", Method: http.MethodGet, Path: "/v1/spreadsheets", Query: "sheetName=recipients", Status: http.StatusOK, ContentType: "application/json", Body: `[]`}},
+	}}
+	if err := validateExportedHTTPMockProfile(profile); err != nil {
+		t.Fatalf("disjoint input-conditioned native operations must export: %v", err)
+	}
+	digest, err := httpMockProfileDigest(profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := WorkspaceSandboxProfileReceipt{Status: "running", ProfileSHA256: digest, Addresses: map[string]string{"sheets.synthetic.invalid": "http://sheets.synthetic.invalid:18080"}}
+	receipt.Spec.Name, receipt.Spec.Kind, receipt.Spec.Version = "workflow-apis", "http-mock", "1.0.0"
+	for _, operation := range profile.Operations {
+		receipt.OperationAddresses = append(receipt.OperationAddresses, HTTPMockOperationAddress{Selector: operation.Selector, Method: operation.Route.Method, URL: "http://" + operation.Route.Host + ":18080" + operation.Route.Path + "?" + operation.Route.Query})
+	}
+	if err := validateProfileReceipt("workflow-apis", "1.0.0", digest, profile, receipt); err != nil {
+		t.Fatalf("exact selector/address receipt was rejected: %v", err)
+	}
+	badReceipt := receipt
+	badReceipt.OperationAddresses = append([]HTTPMockOperationAddress(nil), receipt.OperationAddresses...)
+	badReceipt.OperationAddresses[0].URL = "http://sheets.synthetic.invalid:18080/v1/spreadsheets?sheetName=wrong"
+	if err := validateProfileReceipt("workflow-apis", "1.0.0", digest, profile, badReceipt); err == nil {
+		t.Fatal("mismatched selector query in Sandbox receipt must fail closed")
+	}
+}
+
+func TestWorkspaceSandboxProfileRejectsUnsafeSelectorAndQueryValues(t *testing.T) {
+	profile := HTTPMockProfile{SchemaVersion: 1, Operations: []HTTPMockProfileOperation{{
+		Selector: HTTPMockProfileSelector{NodeType: "n8n-nodes-base.googleSheets", Resource: "sheet", Operation: "read", InputMatch: map[string]any{"sheetName": "Bearer abcdefghijklmno"}},
+		Route:    HTTPMockRoute{Host: "sheets.synthetic.invalid", Method: http.MethodGet, Path: "/v1/spreadsheets", Query: "sheetName=Bearer+abcdefghijklmno", Status: http.StatusOK, ContentType: "application/json", Body: `[]`},
+	}}}
+	if err := validateExportedHTTPMockProfile(profile); err == nil {
+		t.Fatal("credential-shaped selector must be rejected before profile declaration")
+	}
+	profile.Operations[0].Selector.InputMatch = nil
+	profile.Operations[0].Route.Query = "sheetName=products&sheetName=other"
+	if err := validateExportedHTTPMockProfile(profile); err == nil {
+		t.Fatal("multi-valued query must be rejected before profile declaration")
+	}
+}
+
 func TestWorkspaceSandboxProfileClientRejectsRemoteOriginAndRedirect(t *testing.T) {
 	if _, err := NewWorkspaceSandboxProfileClient("https://sandbox.example.com", nil); err == nil {
 		t.Fatal("remote Sandbox origin must be rejected")

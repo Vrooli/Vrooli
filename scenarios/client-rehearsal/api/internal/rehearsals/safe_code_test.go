@@ -63,15 +63,12 @@ func TestSafeCodeSupportsBoundedPublicLoopExpressions(t *testing.T) {
 
 func TestSafeCodeSubsetRejectsUnboundedAndEffectfulSyntax(t *testing.T) {
 	for name, source := range map[string]string{
-		"property write":                 `const a = {}; a.x = 1; return [];`,
+		"unsafe property write":          `const a = {}; a.__proto__ = 1; return [];`,
 		"global access":                  `return process.env;`,
 		"network call":                   `return fetch('https://example.com');`,
 		"dynamic eval":                   `return eval('1+1');`,
 		"while loop":                     `while (true) { } return [];`,
-		"function recursion":             `function f(){ return f(); } return [];`,
 		"unsupported regex":              `const r = /x/g; return [];`,
-		"unbounded slice":                `const text = 'x'; return [{json:{text: text.slice(0, 999999)}}];`,
-		"slice computed bounds":          `const n = 2000; return [{json:{text: 'x'.slice(0, n)}}];`,
 		"input method on other receiver": `return [{json:{items: [].first()}}];`,
 		"arbitrary property call":        `return globalThis.require('fs');`,
 	} {
@@ -80,6 +77,17 @@ func TestSafeCodeSubsetRejectsUnboundedAndEffectfulSyntax(t *testing.T) {
 				t.Fatalf("unsafe or unsupported source was accepted: %s", source)
 			}
 		})
+	}
+}
+
+func TestSafeCodeSliceRejectsRuntimeBoundsBeyondLimit(t *testing.T) {
+	for _, source := range []string{
+		`const text='x'; return [{json:{text:text.slice(0, 5000)}}];`,
+		`const n=5000; return [{json:{text:'x'.slice(0,n)}}];`,
+	} {
+		if _, err := executeSafeCode(source, nil, time.Time{}); err == nil {
+			t.Fatalf("expected bounded slice check to reject source: %s", source)
+		}
 	}
 }
 
@@ -287,9 +295,23 @@ func TestCodeNodeUsesPinnedRunOnceForAllItemsDefault(t *testing.T) {
 	if codeEvents != 1 || doneEvents != 2 {
 		t.Fatalf("Code default mode must execute once on all inputs and forward both outputs: %#v", run.Trace)
 	}
-	perItem := strings.Replace(raw, `"parameters":{"jsCode":"return $input.all();"}`, `"parameters":{"mode":"runOnceForEachItem","jsCode":"return $input.all();"}`, 1)
-	if _, _, _, err := normalizeWorkflow(perItem); err == nil {
-		t.Fatal("unsupported per-item Code mode must fail closed")
+	perItem := strings.Replace(raw, `"parameters":{"jsCode":"return $input.all();"}`, `"parameters":{"mode":"runOnceForEachItem","jsCode":"return {json:{...$json, seen:true}};"}`, 1)
+	perWorkflow, _, _, err := normalizeWorkflow(perItem)
+	if err != nil {
+		t.Fatalf("normalize public per-item Code mode: %v", err)
+	}
+	perRun, err := executeDetailedWithInput(context.Background(), perWorkflow, perWorkflow.EntryNodeIDs[0], nil, false, time.Unix(0, 0), map[string]any{"records": []any{map[string]any{"id": "synthetic-1"}, map[string]any{"id": "synthetic-2"}}})
+	if err != nil {
+		t.Fatalf("execute per-item Code mode: %v", err)
+	}
+	perItemEvents := 0
+	for _, event := range perRun.Trace {
+		if event.Operation == "code-batch/Safe Code subset" && event.ResponseSummary == "safe Code interpreter emitted 2 synthetic items" {
+			perItemEvents++
+		}
+	}
+	if perItemEvents != 1 {
+		t.Fatalf("expected per-item Code to transform both split records, trace=%#v", perRun.Trace)
 	}
 }
 
@@ -380,6 +402,80 @@ func TestSafeCodeReadsBoundedPriorNodeOutputsButCannotReassignConst(t *testing.T
 	}
 }
 
+func TestSafeCodeAllowsFunctionParameterForNamedNodeLookup(t *testing.T) {
+	source := `function firstFrom(nodeName) { return $(nodeName).first().json; } const page=firstFrom('Fetch Static Pages'); return [{json:{id:page.id}}];`
+	prior := map[string][]map[string]any{"Fetch Static Pages": {{"id": float64(17), "title": "Synthetic page"}}}
+	got, err := executeSafeCodeWithNodeOutputs(source, nil, prior, time.Time{})
+	if err != nil {
+		t.Fatalf("execute bounded function parameter lookup: %v", err)
+	}
+	if len(got) != 1 || got[0]["json"].(map[string]any)["id"] != float64(17) {
+		t.Fatalf("dynamic named-node lookup = %#v", got)
+	}
+}
+
+func TestSafeCodeBoundsArrayIsArrayAndConcat(t *testing.T) {
+	source := `const isList=Array.isArray([1]); const joined=[1].concat([2]); return [{json:{isList:isList,joined:joined}}];`
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("execute bounded array helpers: %v", err)
+	}
+	output := got[0]["json"].(map[string]any)
+	if output["isList"] != true {
+		t.Fatalf("Array.isArray = %#v", output["isList"])
+	}
+	joined := output["joined"].(*safeArray).values
+	if len(joined) != 2 || joined[0] != float64(1) || joined[1] != float64(2) {
+		t.Fatalf("bounded concat result = %#v", joined)
+	}
+}
+
+func TestSafeCodeHTMLRegexSubsetHandlesBreakAndTags(t *testing.T) {
+	source := `const clean="<P>A<br/>B</P>".replace(/<br\s*\/?>/gi," ").replace(/<[^>]+>/g,""); return [{json:{clean:clean}}];`
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("execute bounded HTML regexes: %v", err)
+	}
+	if got[0]["json"].(map[string]any)["clean"] != "A B" {
+		t.Fatalf("HTML cleanup result = %#v", got)
+	}
+}
+
+func TestSafeCodeRegexReplacementSupportsBoundedCaptureCallback(t *testing.T) {
+	source := `const clean="Code: &#65;".replace(/&#(\d+);/g, (match, digits) => String.fromCodePoint(Number(digits))); return [{json:{clean:clean}}];`
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("execute bounded numeric-entity callback: %v", err)
+	}
+	if got[0]["json"].(map[string]any)["clean"] != "Code: A" {
+		t.Fatalf("decoded entity = %#v", got)
+	}
+}
+
+func TestSafeCodeBoundedSetSupportsMembership(t *testing.T) {
+	source := `const seen=new Set(["page_1","post_2"]); return [{json:{page:seen.has("page_1"),other:seen.has("page_3")}}];`
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("execute bounded Set membership: %v", err)
+	}
+	output := got[0]["json"].(map[string]any)
+	if output["page"] != true || output["other"] != false {
+		t.Fatalf("Set.has results = %#v", output)
+	}
+}
+
+func TestSafeCodeStringIndexOfSupportsPrefixGuards(t *testing.T) {
+	source := `const id="wc_page_42"; return [{json:{prefix:id.indexOf("wc_page_")===0,other:id.indexOf("wc_post_")}}];`
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("execute bounded string indexOf: %v", err)
+	}
+	output := got[0]["json"].(map[string]any)
+	if output["prefix"] != true || output["other"] != float64(-1) {
+		t.Fatalf("indexOf results = %#v", output)
+	}
+}
+
 func TestSyntheticEngineCarriesNamedNodeItemsIntoLaterCodeNodes(t *testing.T) {
 	workflow := Workflow{
 		ID:           "named-node-contract",
@@ -397,5 +493,45 @@ func TestSyntheticEngineCarriesNamedNodeItemsIntoLaterCodeNodes(t *testing.T) {
 	}
 	if result.Output["copied"] != float64(42) {
 		t.Fatalf("named prior-node output = %#v", result.Output)
+	}
+}
+
+func TestSafeSetExpressionNowToISOUsesInjectedClock(t *testing.T) {
+	now := time.Date(2026, 11, 11, 1, 2, 3, 0, time.UTC)
+	expression, err := normalizeSafeExpression("={{ $now.toISO() }}")
+	if err != nil {
+		t.Fatalf("normalize injected clock expression: %v", err)
+	}
+	got, err := executeSafeExpression(expression, map[string]any{}, now)
+	if err != nil {
+		t.Fatalf("evaluate injected clock expression: %v", err)
+	}
+	if got != now.Format(time.RFC3339Nano) {
+		t.Fatalf("$now.toISO() = %#v, want %q", got, now.Format(time.RFC3339Nano))
+	}
+}
+
+func TestSafeCodeObjectKeysIsBoundedAndDeterministic(t *testing.T) {
+	source := `const keys = Object.keys($json); return {json:{...$json, keys}};`
+	if _, err := parseSafeCodeMode(source, false, true); err != nil {
+		t.Fatalf("parse bounded Object.keys: %v", err)
+	}
+	got, err := executeSafeCodePerItemWithNodeOutputs(source, map[string]any{"z": 1, "a": 2}, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("execute bounded Object.keys: %v", err)
+	}
+	keys := got["json"].(map[string]any)["keys"].(*safeArray).values
+	if !reflect.DeepEqual(keys, []any{"a", "z"}) {
+		t.Fatalf("Object.keys order = %#v, want sorted keys", keys)
+	}
+}
+
+func TestSafeCodeBoundsRecursiveLocalFunctions(t *testing.T) {
+	source := `function descend(n) { if (n > 0) { return descend(n - 1); } return n; } return [{json:{value:descend(100)}}];`
+	if _, err := parseSafeCode(source); err != nil {
+		t.Fatalf("parse bounded local recursion: %v", err)
+	}
+	if _, err := executeSafeCode(source, nil, time.Time{}); err == nil || !strings.Contains(err.Error(), "call depth exceeds") {
+		t.Fatalf("deep recursion should stop at the interpreter bound, got %v", err)
 	}
 }

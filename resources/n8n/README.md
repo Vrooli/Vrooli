@@ -40,7 +40,9 @@ execution, the owner exports and validates the owner-derived workflow: exactly
 one enabled `n8n-nodes-base.manualTrigger`, no schedule/webhook/other trigger,
 and only the pinned synthetic action profile. `HTTP Request` nodes must target
 the fixed `.synthetic.invalid:18080` mock; arbitrary Code/custom nodes are
-rejected. The owner then invokes only `n8n execute --id <derived-id>
+rejected. Built-in Split Out is admitted only for a bounded dotted JSON field
+path, a modeled include mode, and empty options. The owner then invokes only
+`n8n execute --id <derived-id>
 --rawOutput` and returns aggregate evidence without the workflow ID or output
 values. n8n 2.48.0's Server CLI selects the built-in Manual Trigger. Schedule
 Trigger is not in the CLI start-node set; it requires activation and timer

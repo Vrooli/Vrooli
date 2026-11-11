@@ -1,0 +1,66 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "wordpress",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic WordPress REST API", "version": "1"},
+        "servers": [{"url": "https://wordpress.synthetic.invalid"}],
+        "paths": {
+          "/wp-json/wp/v2/pages": {
+            "get": {"responses": {"200": {"content": {"application/json": {"example": [
+              {"id": 17, "modified": "2026-11-09T12:00:00", "title": {"rendered": "Synthetic Page"}, "content": {"rendered": "A synthetic page with repeatable public demonstration text."}, "link": "https://wordpress.synthetic.invalid/pages/synthetic-page"}
+            ]}}}}}
+          },
+          "/wp-json/wp/v2/posts": {
+            "get": {"responses": {"200": {"content": {"application/json": {"example": [
+              {"id": 23, "modified": "2026-11-09T13:00:00", "title": {"rendered": "Synthetic Post"}, "content": {"rendered": "A synthetic post with repeatable public demonstration text."}, "link": "https://wordpress.synthetic.invalid/posts/synthetic-post"}
+            ]}}}}}
+          }
+        }
+      }
+    },
+    {
+      "id": "pinecone",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic Pinecone Vector API", "version": "1"},
+        "servers": [{"url": "https://pinecone.synthetic.invalid"}],
+        "paths": {
+          "/vectors/delete": {"post": {"responses": {"200": {"content": {"application/json": {"example": {"status": "synthetic deletion recorded"}}}}}}},
+          "/v1/vectors/upsert": {"post": {
+            "responses": {"200": {"content": {"application/json": {"example": {"upsertedCount": 1, "status": "synthetic upsert recorded"}}}}},
+            "x-n8n-node-type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+            "x-n8n-resource": "vector",
+            "x-n8n-operation": "upsert"
+          }}
+        }
+      }
+    },
+    {
+      "id": "data-table",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic n8n Data Table", "version": "1"},
+        "servers": [{"url": "https://data-table.synthetic.invalid"}],
+        "paths": {
+          "/v1/rows": {
+            "get": {
+              "responses": {"200": {"content": {"application/json": {"example": []}}}},
+              "x-n8n-node-type": "n8n-nodes-base.dataTable", "x-n8n-resource": "row", "x-n8n-operation": "get"
+            },
+            "post": {
+              "responses": {"200": {"content": {"application/json": {"example": {"status": "synthetic row upsert recorded"}}}}},
+              "x-n8n-node-type": "n8n-nodes-base.dataTable", "x-n8n-resource": "row", "x-n8n-operation": "upsert"
+            },
+            "delete": {
+              "responses": {"200": {"content": {"application/json": {"example": {"status": "synthetic row delete recorded"}}}}},
+              "x-n8n-node-type": "n8n-nodes-base.dataTable", "x-n8n-resource": "row", "x-n8n-operation": "delete"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

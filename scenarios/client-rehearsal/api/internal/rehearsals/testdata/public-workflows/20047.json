@@ -207,7 +207,7 @@
               "id": "pinecone-host",
               "name": "pineconeIndexHost",
               "type": "string",
-              "value": "pinecone_index_host_from_console"
+              "value": "pinecone.synthetic.invalid"
             },
             {
               "id": "pinecone-ns",

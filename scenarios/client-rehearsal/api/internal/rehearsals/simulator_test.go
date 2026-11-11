@@ -2,6 +2,7 @@ package rehearsals
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -31,6 +32,23 @@ func TestDescriptionSimulatorUsesOpenAPICatalogAndInjectedFault(t *testing.T) {
 	response, err = simulator.Invoke(context.Background(), Step{Method: "POST", Host: "sheets.synthetic.invalid", URL: "/v1/rows"}, 1, false)
 	if err != nil || response != `{"status":"active","updatedRange":"A2:B2"}` {
 		t.Fatalf("unexpected second service result %s, %v", response, err)
+	}
+}
+
+func TestSimulatorSourceFingerprintOrdersEqualNativeSelectorsByRouteAndInputMatch(t *testing.T) {
+	profile := `{"kind":"openapi","document":{"openapi":"3.0.3","info":{"title":"Synthetic routed operation","version":"1"},"servers":[{"url":"https://example.synthetic.invalid"}],"paths":{"/v1/a":{"post":{"x-n8n-node-type":"n8n-nodes-base.googleSheets","x-n8n-resource":"sheet","x-n8n-operation":"read","x-n8n-input-match":{"kind":"alpha"},"responses":{"200":{"content":{"application/json":{"example":{"status":"ok"}}}}}}},"/v1/b":{"post":{"x-n8n-node-type":"n8n-nodes-base.googleSheets","x-n8n-resource":"sheet","x-n8n-operation":"read","x-n8n-input-match":{"kind":"beta"},"responses":{"200":{"content":{"application/json":{"example":{"status":"ok"}}}}}}}}}}`
+	first, err := simulatorSourceSHA256(profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 50; i++ {
+		got, err := simulatorSourceSHA256(profile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != first {
+			t.Fatalf("equivalent simulator source fingerprint changed on rebuild %d: first=%s got=%s", i+1, first, got)
+		}
 	}
 }
 
@@ -241,6 +259,37 @@ func TestDescriptionSimulatorExportsBoundedSandboxHTTPProfile(t *testing.T) {
 	}
 }
 
+func TestDescriptionSimulatorExportsInputConditionedOperationsAsExactSandboxQueries(t *testing.T) {
+	simulator, err := NewDescriptionSimulator(readFixture(t, "public_workflow_16364_catalog.json"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := simulator.ExportHTTPMockProfile()
+	if err != nil {
+		t.Fatalf("export disjoint native selectors: %v", err)
+	}
+	if len(profile.Operations) != 4 {
+		t.Fatalf("expected two declared Sheets read selectors plus generic Sheets/Gmail operations, got %#v", profile.Operations)
+	}
+	seen := map[string]bool{}
+	for _, operation := range profile.Operations {
+		if operation.Selector.Operation != "read" {
+			continue
+		}
+		if operation.Selector.NodeType != "n8n-nodes-base.googleSheets" || operation.Selector.Resource != "sheet" || operation.Selector.Operation != "read" || len(operation.Selector.InputMatch) != 1 {
+			t.Fatalf("operation lost generic native selector identity: %#v", operation)
+		}
+		sheetName, ok := operation.Selector.InputMatch["sheetName"].(string)
+		if !ok || operation.Route.Query != "sheetName="+sheetName || operation.Route.Host != "sheets.synthetic.invalid" {
+			t.Fatalf("Sandbox route did not preserve exact selector query: %#v", operation)
+		}
+		seen[sheetName] = true
+	}
+	if !seen["products"] || !seen["recipients"] {
+		t.Fatalf("profile omitted an input-conditioned Sheets operation: %#v", seen)
+	}
+}
+
 func TestDescriptionSimulatorHTTPMockExportFailsClosedOnNonSyntheticOrDynamicRoute(t *testing.T) {
 	cases := []struct {
 		name string
@@ -261,5 +310,51 @@ func TestDescriptionSimulatorHTTPMockExportFailsClosedOnNonSyntheticOrDynamicRou
 				t.Fatal("unsafe or dynamic route must fail closed for Sandbox export")
 			}
 		})
+	}
+}
+
+func TestSyntheticizePreservesOnlyExplicitlySyntheticURLs(t *testing.T) {
+	got := syntheticize(map[string]any{
+		"synthetic": "https://feeds.synthetic.invalid/industry",
+		"public":    "https://example.com/feed",
+		"query":     "https://feeds.synthetic.invalid/feed?token=secret",
+	}, "").(map[string]any)
+	if got["synthetic"] != "https://feeds.synthetic.invalid/industry" {
+		t.Fatalf("deterministic synthetic URL should retain route semantics: %#v", got)
+	}
+	if got["public"] != "synthetic-value" || got["query"] != "synthetic-value" {
+		t.Fatalf("real or credential-bearing URLs must be replaced: %#v", got)
+	}
+}
+
+func TestSimulatorPreservesOnlySanitizedBoundedBase64JSONFixtures(t *testing.T) {
+	payload := map[string]any{"id": "real-secret-id", "name": "Client Person", "status": "open", "email": "client@example.com", "token": "private-token"}
+	plain, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profileValue := map[string]any{"encoding": "base64-json", "data": base64.StdEncoding.EncodeToString(plain)}
+	cleaned, ok := syntheticize(profileValue, "").(map[string]any)
+	if !ok || cleaned["encoding"] != "base64-json" {
+		t.Fatalf("encoded JSON marker was not preserved: %#v", cleaned)
+	}
+	encoded, ok := cleaned["data"].(string)
+	if !ok {
+		t.Fatalf("sanitized binary payload missing: %#v", cleaned)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatalf("sanitized output is not base64: %v", err)
+	}
+	var got map[string]any
+	if err = json.Unmarshal(decoded, &got); err != nil {
+		t.Fatalf("sanitized payload is not JSON: %v", err)
+	}
+	if got["id"] != "synthetic-id" || got["name"] != "synthetic-value" || got["status"] != "open" || got["email"] != "person@example.invalid" || got["token"] != "synthetic-value" {
+		t.Fatalf("binary JSON values were not safely syntheticized: %#v", got)
+	}
+	bad, _ := syntheticize(map[string]any{"encoding": "base64-json", "data": "not base64"}, "").(map[string]any)
+	if bad["data"] == "not base64" {
+		t.Fatal("invalid encoded source bytes were retained")
 	}
 }

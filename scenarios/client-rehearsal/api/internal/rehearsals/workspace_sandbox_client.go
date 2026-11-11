@@ -32,6 +32,9 @@ var (
 	sandboxOwnerPattern       = regexp.MustCompile(`^client-rehearsal:[A-Za-z0-9._-]{1,80}$`)
 	sandboxIdempotencyPattern = regexp.MustCompile(`^client-rehearsal:[A-Za-z0-9._-]{1,80}$`)
 	sandboxTagPattern         = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
+	sandboxProfileQueryKey    = regexp.MustCompile(`^[A-Za-z0-9_.~-]{1,128}$`)
+	sandboxProfileCredential  = regexp.MustCompile(`(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}|\b(?:sk-[A-Za-z0-9]{16,}|gh[pousr]_[A-Za-z0-9]{16,})\b`)
+	sandboxProfileEmail       = regexp.MustCompile(`(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}`)
 )
 
 // WorkspaceSandboxProfileClient declares and starts a synthetic profile on an
@@ -294,6 +297,30 @@ func normalizeExportedHTTPMockProfile(profile HTTPMockProfile) (HTTPMockProfile,
 		profile.Operations[index].Selector.NodeType = strings.TrimSpace(profile.Operations[index].Selector.NodeType)
 		profile.Operations[index].Selector.Resource = strings.TrimSpace(profile.Operations[index].Selector.Resource)
 		profile.Operations[index].Selector.Operation = strings.TrimSpace(profile.Operations[index].Selector.Operation)
+		var rawInputMatch any
+		if len(profile.Operations[index].Selector.InputMatch) > 0 {
+			rawInputMatch = profile.Operations[index].Selector.InputMatch
+		}
+		match, err := parseNativeInputMatch(rawInputMatch)
+		if err != nil {
+			return HTTPMockProfile{}, errors.New("Sandbox profile contains an invalid input selector")
+		}
+		for key, value := range match {
+			if secretKey(key) {
+				return HTTPMockProfile{}, errors.New("Sandbox profile contains a sensitive input selector")
+			}
+			if text, ok := value.(string); ok {
+				if sandboxProfileCredential.MatchString(text) {
+					return HTTPMockProfile{}, errors.New("Sandbox profile contains a credential-shaped selector")
+				}
+				for _, email := range sandboxProfileEmail.FindAllString(text, -1) {
+					if !strings.HasSuffix(strings.ToLower(email), ".invalid") {
+						return HTTPMockProfile{}, errors.New("Sandbox profile contains a non-synthetic email selector")
+					}
+				}
+			}
+		}
+		profile.Operations[index].Selector.InputMatch = match
 		profile.Operations[index].Route.Host = strings.ToLower(strings.TrimSpace(profile.Operations[index].Route.Host))
 		profile.Operations[index].Route.Method = strings.ToUpper(strings.TrimSpace(profile.Operations[index].Route.Method))
 	}
@@ -307,11 +334,12 @@ func normalizeExportedHTTPMockProfile(profile HTTPMockProfile) (HTTPMockProfile,
 }
 
 func workspaceProfileSelectorSortKey(selector HTTPMockProfileSelector) string {
-	return fmt.Sprintf("%d:%s%d:%s%d:%s", len(selector.NodeType), selector.NodeType, len(selector.Resource), selector.Resource, len(selector.Operation), selector.Operation)
+	return fmt.Sprintf("%d:%s%d:%s%d:%s%s", len(selector.NodeType), selector.NodeType, len(selector.Resource), selector.Resource, len(selector.Operation), selector.Operation, canonicalInputMatch(selector.InputMatch))
 }
 
 func validateExportedHTTPMockProfile(profile HTTPMockProfile) error {
 	selectors, routes := map[string]bool{}, map[string]bool{}
+	byOperation := map[string][]map[string]any{}
 	totalResponseBytes := 0
 	for _, operation := range profile.Operations {
 		selector := operation.Selector
@@ -323,8 +351,25 @@ func validateExportedHTTPMockProfile(profile HTTPMockProfile) error {
 		if !validSimulatorHost(route.Host) || !strings.HasSuffix(route.Host, ".synthetic.invalid") || !oneOfFold(route.Method, http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions) || !validSandboxProfilePath(route.Path) || route.Status < 200 || route.Status >= 300 || route.ContentType != "application/json" || len(route.Body) > maxSandboxProfileResponseBytes || totalResponseBytes > maxSandboxProfileTotalResponseBytes {
 			return errors.New("Sandbox profile contains an unsafe or unsupported exact route")
 		}
-		selectorKey := nativeOperationKey(selector.NodeType, selector.Resource, selector.Operation)
-		routeKey := route.Method + " " + route.Host + " " + route.Path
+		baseKey := nativeOperationKey(selector.NodeType, selector.Resource, selector.Operation)
+		for _, previous := range byOperation[baseKey] {
+			if inputMatchesOverlap(previous, selector.InputMatch) {
+				return errors.New("Sandbox profile input selectors overlap")
+			}
+		}
+		byOperation[baseKey] = append(byOperation[baseKey], selector.InputMatch)
+		selectorKey := baseKey + ":" + canonicalInputMatch(selector.InputMatch)
+		selectorQuery := url.Values{}
+		for key, value := range selector.InputMatch {
+			selectorQuery.Set(key, fmt.Sprint(value))
+		}
+		if len(selector.InputMatch) > 0 && selectorQuery.Encode() != route.Query {
+			return errors.New("Sandbox profile query must exactly encode its operation selector")
+		}
+		if err := validateSandboxProfileQuery(route.Query); err != nil {
+			return err
+		}
+		routeKey := route.Method + " " + route.Host + " " + route.Path + "?" + route.Query
 		if selectors[selectorKey] || routes[routeKey] {
 			return errors.New("Sandbox profile selectors and routes must be unique")
 		}
@@ -333,6 +378,30 @@ func validateExportedHTTPMockProfile(profile HTTPMockProfile) error {
 			return errors.New("Sandbox profile response must be safe JSON without credential-shaped fields")
 		}
 		selectors[selectorKey], routes[routeKey] = true, true
+	}
+	return nil
+}
+
+func validateSandboxProfileQuery(query string) error {
+	if query == "" {
+		return nil
+	}
+	if len(query) > 2048 {
+		return errors.New("Sandbox profile query exceeds its bound")
+	}
+	values, err := url.ParseQuery(query)
+	if err != nil || len(values) == 0 || len(values) > 32 || values.Encode() != query {
+		return errors.New("Sandbox profile query must be canonical and bounded")
+	}
+	for key, items := range values {
+		if !sandboxProfileQueryKey.MatchString(key) || secretKey(key) || len(items) != 1 || len(items[0]) > 512 || strings.ContainsAny(items[0], "\x00\r\n") || sandboxProfileCredential.MatchString(items[0]) {
+			return errors.New("Sandbox profile query contains an unsafe key or value")
+		}
+		for _, email := range sandboxProfileEmail.FindAllString(items[0], -1) {
+			if !strings.HasSuffix(strings.ToLower(email), ".invalid") {
+				return errors.New("Sandbox profile query contains a non-synthetic email")
+			}
+		}
 	}
 	return nil
 }
@@ -353,7 +422,7 @@ func validateProfileReceipt(name, version, expectedDigest string, profile HTTPMo
 	want := make(map[string]HTTPMockProfileOperation, len(profile.Operations))
 	wantHosts := make(map[string]bool, len(profile.Operations))
 	for _, operation := range profile.Operations {
-		want[nativeOperationKey(operation.Selector.NodeType, operation.Selector.Resource, operation.Selector.Operation)] = operation
+		want[nativeOperationKey(operation.Selector.NodeType, operation.Selector.Resource, operation.Selector.Operation)+":"+canonicalInputMatch(operation.Selector.InputMatch)] = operation
 		wantHosts[strings.ToLower(operation.Route.Host)] = true
 	}
 	for host, address := range receipt.Addresses {
@@ -371,13 +440,13 @@ func validateProfileReceipt(name, version, expectedDigest string, profile HTTPMo
 		return errors.New("Sandbox receipt omitted one or more synthetic host aliases")
 	}
 	for _, address := range receipt.OperationAddresses {
-		key := nativeOperationKey(address.Selector.NodeType, address.Selector.Resource, address.Selector.Operation)
+		key := nativeOperationKey(address.Selector.NodeType, address.Selector.Resource, address.Selector.Operation) + ":" + canonicalInputMatch(address.Selector.InputMatch)
 		operation, ok := want[key]
 		if !ok || strings.ToUpper(address.Method) != strings.ToUpper(operation.Route.Method) {
 			return errors.New("Sandbox receipt contains an unexpected operation address")
 		}
 		parsed, err := url.Parse(address.URL)
-		if err != nil || parsed.Scheme != "http" || strings.ToLower(parsed.Hostname()) != strings.ToLower(operation.Route.Host) || parsed.Port() != "18080" || parsed.Path != operation.Route.Path || parsed.RawQuery != "" {
+		if err != nil || parsed.Scheme != "http" || strings.ToLower(parsed.Hostname()) != strings.ToLower(operation.Route.Host) || parsed.Port() != "18080" || parsed.Path != operation.Route.Path || parsed.RawQuery != operation.Route.Query {
 			return errors.New("Sandbox receipt contains a non-synthetic or mismatched operation address")
 		}
 		delete(want, key)

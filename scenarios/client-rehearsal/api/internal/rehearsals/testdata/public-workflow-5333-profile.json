@@ -1,0 +1,174 @@
+{
+  "kind": "openapi",
+  "document": {
+    "openapi": "3.0.3",
+    "info": {
+      "title": "F7 deterministic synthetic RSS/Sheets/Slack services",
+      "version": "1"
+    },
+    "servers": [
+      {
+        "url": "https://f7.synthetic.invalid"
+      }
+    ],
+    "paths": {
+      "/v1/sheets/feeds": {
+        "get": {
+          "responses": {
+            "200": {
+              "description": "Synthetic deterministic response",
+              "content": {
+                "application/json": {
+                  "example": [
+                    {
+                      "title": "Industry feed",
+                      "link": "https://feeds.synthetic.invalid/industry"
+                    },
+                    {
+                      "title": "Product feed",
+                      "link": "https://feeds.synthetic.invalid/product"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+          "x-n8n-resource": "sheet",
+          "x-n8n-operation": "read",
+          "x-n8n-input-match": {
+            "sheetName": "synthetic-feeds"
+          }
+        }
+      },
+      "/v1/sheets/history": {
+        "get": {
+          "responses": {
+            "200": {
+              "description": "Synthetic deterministic response",
+              "content": {
+                "application/json": {
+                  "example": [
+                    {
+                      "title": "Previously posted article",
+                      "link": "https://news.synthetic.invalid/already-posted",
+                      "pubDate": "2026-11-09T07:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+          "x-n8n-resource": "sheet",
+          "x-n8n-operation": "read",
+          "x-n8n-input-match": {
+            "sheetName": "synthetic-posted-articles"
+          }
+        }
+      },
+      "/v1/rss/industry": {
+        "get": {
+          "responses": {
+            "200": {
+              "description": "Synthetic deterministic response",
+              "content": {
+                "application/json": {
+                  "example": [
+                    {
+                      "title": "Already posted story",
+                      "link": "https://news.synthetic.invalid/already-posted",
+                      "pubDate": "2026-11-09T07:00:00Z"
+                    },
+                    {
+                      "title": "Industry synthetic workflow story",
+                      "link": "https://news.synthetic.invalid/industry-new",
+                      "pubDate": "2026-11-10T07:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "x-n8n-node-type": "n8n-nodes-base.rssFeedRead",
+          "x-n8n-resource": "feed",
+          "x-n8n-operation": "read",
+          "x-n8n-input-match": {
+            "feedUrl": "https://feeds.synthetic.invalid/industry"
+          }
+        }
+      },
+      "/v1/rss/product": {
+        "get": {
+          "responses": {
+            "200": {
+              "description": "Synthetic deterministic response",
+              "content": {
+                "application/json": {
+                  "example": [
+                    {
+                      "title": "Already posted story",
+                      "link": "https://news.synthetic.invalid/already-posted",
+                      "pubDate": "2026-11-09T07:00:00Z"
+                    },
+                    {
+                      "title": "Product synthetic workflow story",
+                      "link": "https://news.synthetic.invalid/product-new",
+                      "pubDate": "2026-11-10T07:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "x-n8n-node-type": "n8n-nodes-base.rssFeedRead",
+          "x-n8n-resource": "feed",
+          "x-n8n-operation": "read",
+          "x-n8n-input-match": {
+            "feedUrl": "https://feeds.synthetic.invalid/product"
+          }
+        }
+      },
+      "/v1/sheets/append": {
+        "post": {
+          "responses": {
+            "200": {
+              "description": "Synthetic deterministic response",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "status": "recorded",
+                    "updatedRange": "synthetic-posted-articles!A2:C2"
+                  }
+                }
+              }
+            }
+          },
+          "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+          "x-n8n-resource": "sheet",
+          "x-n8n-operation": "append"
+        }
+      },
+      "/v1/slack/post": {
+        "post": {
+          "responses": {
+            "200": {
+              "description": "Synthetic deterministic response",
+              "content": {
+                "application/json": {
+                  "example": {
+                    "status": "recorded",
+                    "channel": "synthetic-news"
+                  }
+                }
+              }
+            }
+          },
+          "x-n8n-node-type": "n8n-nodes-base.slack",
+          "x-n8n-resource": "message",
+          "x-n8n-operation": "post"
+        }
+      }
+    }
+  }
+}

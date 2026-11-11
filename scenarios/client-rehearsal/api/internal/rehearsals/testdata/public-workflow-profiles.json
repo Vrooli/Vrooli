@@ -20,6 +20,9 @@
               "x-n8n-node-type": "n8n-nodes-base.supabase",
               "x-n8n-resource": "row",
               "x-n8n-operation": "get",
+              "x-n8n-input-match": {
+                "tableId": "demo_contacts"
+              },
               "responses": {
                 "200": {
                   "content": {

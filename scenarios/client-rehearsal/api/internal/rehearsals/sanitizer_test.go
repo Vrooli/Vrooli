@@ -182,3 +182,46 @@ func readFixture(t *testing.T, name string) string {
 	}
 	return string(data)
 }
+
+func TestPinnedNotionV2SelectsDatabasePageCreateAndPageResourceDefaults(t *testing.T) {
+	create, err := normalizeWorkflowNodeVersion("notion-create", "Create page", "n8n-nodes-base.notion", map[string]any{"resource": "databasePage"}, 2)
+	if err != nil {
+		t.Fatalf("normalize Notion v2 database page default: %v", err)
+	}
+	if create.Request == nil || create.Request.Resource != "databasePage" || create.Request.Action != "create" {
+		t.Fatalf("Notion v2 defaults = %#v", create.Request)
+	}
+	archive, err := normalizeWorkflowNodeVersion("notion-archive", "Archive page", "n8n-nodes-base.notion", map[string]any{"operation": "archive"}, 2)
+	if err != nil {
+		t.Fatalf("normalize Notion v2 page resource default: %v", err)
+	}
+	if archive.Request == nil || archive.Request.Resource != "page" || archive.Request.Action != "archive" {
+		t.Fatalf("Notion v2 defaults = %#v", archive.Request)
+	}
+}
+
+func TestPinnedGoogleSheetsV2Type47SelectsSheetReadDefault(t *testing.T) {
+	node, err := normalizeWorkflowNodeVersion("read-products", "Read products", "n8n-nodes-base.googleSheets", map[string]any{
+		"documentId": map[string]any{"mode": "id", "value": "synthetic-sheet"},
+		"sheetName":  map[string]any{"mode": "name", "value": "products"},
+	}, 4.7)
+	if err != nil {
+		t.Fatalf("normalize pinned Google Sheets v2.7 read default: %v", err)
+	}
+	if node.Request == nil || node.Request.Resource != "sheet" || node.Request.Action != "read" || node.Request.Input["sheetName"] != "products" {
+		t.Fatalf("Google Sheets v4.7 default = %#v", node.Request)
+	}
+}
+
+func TestGitLabVersionOneFileDefaultUsesCreateOperation(t *testing.T) {
+	node, err := normalizeWorkflowNodeVersion("gitlab-create", "Create file", "n8n-nodes-base.gitlab", map[string]any{"resource": "file"}, 1)
+	if err != nil {
+		t.Fatalf("normalize pinned GitLab file create default: %v", err)
+	}
+	if node.Request == nil || node.Request.Operation != "n8n-nodes-base.gitlab:file.create" {
+		t.Fatalf("normalized GitLab operation = %#v", node.Request)
+	}
+	if _, err = normalizeWorkflowNodeVersion("gitlab-unknown", "Unknown version", "n8n-nodes-base.gitlab", map[string]any{"resource": "file"}, 2); err == nil {
+		t.Fatal("unknown GitLab node version must not inherit the pinned operation default")
+	}
+}

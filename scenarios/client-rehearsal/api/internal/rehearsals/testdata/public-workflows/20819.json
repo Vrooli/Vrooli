@@ -1,0 +1,398 @@
+{
+  "name": "Log n8n workflow failures to Google Sheets and alert on Telegram (lead qualification companion)",
+  "nodes": [
+    {
+      "id": "35846fcf-0b4f-467a-b6a3-64241fe3d63e",
+      "name": "When Workflow Error Occurs",
+      "type": "n8n-nodes-base.errorTrigger",
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "493026a4-09c5-4b9f-b84e-e2471d13ef4d",
+      "name": "Prepare Error Record",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e-a",
+              "name": "template",
+              "type": "string",
+              "value": "synthetic-template"
+            },
+            {
+              "id": "e-b",
+              "name": "correlation_id",
+              "type": "string",
+              "value": "={{ \"synthetic_error_\" + String($json.execution?.id ?? \"unknown\") }}"
+            },
+            {
+              "id": "e-c",
+              "name": "status",
+              "type": "string",
+              "value": "handled_failure"
+            },
+            {
+              "id": "e-d",
+              "name": "stage",
+              "type": "string",
+              "value": "={{ String($json.execution?.lastNodeExecuted ?? \"unknown\") }}"
+            },
+            {
+              "id": "e-e",
+              "name": "summary",
+              "type": "string",
+              "value": "={{ \"Workflow-level failure in \" + String($json.workflow?.name ?? \"\") + \" (execution \" + String($json.execution?.id ?? \"\") + \")\" }}"
+            },
+            {
+              "id": "e-f",
+              "name": "entity_type",
+              "type": "string",
+              "value": "record"
+            },
+            {
+              "id": "e-g",
+              "name": "entity_id",
+              "type": "string",
+              "value": "={{ String($json.execution?.id ?? \"\") }}"
+            },
+            {
+              "id": "e-h",
+              "name": "error_code",
+              "type": "string",
+              "value": "={{ String($json.execution?.error?.name ?? \"error\") }}"
+            },
+            {
+              "id": "e-i",
+              "name": "error_message",
+              "type": "string",
+              "value": "={{ String($json.execution?.error?.message ?? \"unknown error\").slice(0, 500) }}"
+            },
+            {
+              "id": "e-j",
+              "name": "error_node",
+              "type": "string",
+              "value": "={{ String($json.execution?.error?.node?.name ?? $json.execution?.lastNodeExecuted ?? \"\") }}"
+            },
+            {
+              "id": "e-k",
+              "name": "execution_url",
+              "type": "string",
+              "value": "={{ String($json.execution?.url ?? \"\") }}"
+            },
+            {
+              "id": "e-l",
+              "name": "timestamp",
+              "type": "string",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "includeOtherFields": false
+      },
+      "typeVersion": 3.4
+    },
+    {
+      "id": "a15e9f8a-9450-4506-b091-bf3dc8aa66f8",
+      "name": "Append Error to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "onError": "continueErrorOutput",
+      "maxTries": 3,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "columns": {
+          "value": {},
+          "schema": [
+            {
+              "id": "template",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "template",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "correlation_id",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "correlation_id",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "status",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "stage",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "stage",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "summary",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "entity_type",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "entity_type",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "entity_id",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "entity_id",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error_code",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "error_code",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error_message",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "error_message",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "error_node",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "error_node",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "execution_url",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "execution_url",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp",
+              "type": "string",
+              "display": true,
+              "required": false,
+              "displayName": "timestamp",
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ],
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": []
+        },
+        "options": {
+          "cellFormat": "RAW"
+        },
+        "resource": "sheet",
+        "operation": "append",
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Error Log",
+          "cachedResultName": "Error Log"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "synthetic-sheet-document"
+        }
+      },
+      "retryOnFail": true,
+      "typeVersion": 4.7,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "ba5334cc-7b51-4d22-b8b7-71cea7d374ac",
+      "name": "Create Failure Alert Message",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Escape text so Telegram's HTML parse mode shows it literally\nconst h = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\n// The error record built just before the sheet write\nconst E = $('Prepare Error Record').item.json;\n\n// Alert lines, top to bottom\nconst text = [\n  '❌ <b>Synthetic</b> · Workflow-level failure at ' + h(E.error_node || E.stage),\n  h(E.summary),\n  'Error: ' + h(E.error_message),\n  'Next: open the execution and fix ' + h(E.error_node || 'the failing node') + '; if an item did not reach its destination, correct it and replay the synthetic fixture.',\n  '#synthetic · run <code>' + h(E.correlation_id) + '</code> · ' + h(E.execution_url),\n].join('\\n');\n\nreturn { json: { ...$json, text } };"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "263eb3dc-ce4c-40f6-8cb8-e6fa39f8556c",
+      "name": "Send Failure Alert to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "maxTries": 3,
+      "position": [
+        944,
+        0
+      ],
+      "parameters": {
+        "text": "={{ $json.text }}",
+        "chatId": "",
+        "resource": "message",
+        "operation": "sendMessage",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "retryOnFail": true,
+      "typeVersion": 1.2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "208dc4d4-e832-46fe-bb7b-6d3ee0f2347a",
+      "name": "Create Sheet Down Alert Message",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        720,
+        368
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Escape text so Telegram's HTML parse mode shows it literally\nconst h = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\n// The error record built just before the sheet write\nconst E = $('Prepare Error Record').item.json;\n\n// Same alert, plus a line saying the sheet write failed\nconst text = [\n  '❌ <b>Synthetic</b> · Workflow-level failure at ' + h(E.error_node || E.stage) + ' (Error Log row NOT written)',\n  h(E.summary),\n  'Error: ' + h(E.error_message),\n  '⚠️ Error Log row not written: ' + h($json.error?.message ?? $json.error),\n  'Next: open the execution and fix ' + h(E.error_node || 'the failing node') + '; if an item did not reach its destination, correct it and replay the synthetic fixture.',\n  '#synthetic · run <code>' + h(E.correlation_id) + '</code> · ' + h(E.execution_url),\n].join('\\n');\n\nreturn { json: { ...$json, text } };"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "2c2c70fe-09cb-4edb-8515-b9bd899d5e66",
+      "name": "Send Sheet Down Alert to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "maxTries": 3,
+      "position": [
+        944,
+        368
+      ],
+      "parameters": {
+        "text": "={{ $json.text }}",
+        "chatId": "",
+        "resource": "message",
+        "operation": "sendMessage",
+        "additionalFields": {
+          "parse_mode": "HTML",
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "retryOnFail": true,
+      "typeVersion": 1.2,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "Prepare Error Record": {
+      "main": [
+        [
+          {
+            "node": "Append Error to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Error to Sheets": {
+      "main": [
+        [
+          {
+            "node": "Create Failure Alert Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Sheet Down Alert Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Workflow Error Occurs": {
+      "main": [
+        [
+          {
+            "node": "Prepare Error Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Failure Alert Message": {
+      "main": [
+        [
+          {
+            "node": "Send Failure Alert to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Sheet Down Alert Message": {
+      "main": [
+        [
+          {
+            "node": "Send Sheet Down Alert to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false
+}

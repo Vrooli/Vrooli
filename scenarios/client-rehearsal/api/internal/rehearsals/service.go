@@ -64,8 +64,16 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 			return Rehearsal{}, ErrInvalid{Field: "repair_of_id", Reason: "must reference a failed run with the same simulator profile and a different workflow revision"}
 		}
 		priorPaths, ok := missingPathsFromFault(prior.FaultSummary)
-		if !ok || !sameStrings(priorPaths, requiredPaths) {
+		if ok && !sameStrings(priorPaths, requiredPaths) {
 			return Rehearsal{}, ErrInvalid{Field: "required_output_paths", Reason: "a repair must repeat the exact missing-output checks from its failed run"}
+		}
+		if !ok {
+			// Execution failures have no missing-output list to repeat. Permit a
+			// corrected revision only when the failed run had no output assertions
+			// and retained an explicit failed execution event.
+			if len(requiredPaths) != 0 || hasOutputAssertion(prior.Trace) || strings.TrimSpace(prior.FaultSummary) == "" {
+				return Rehearsal{}, ErrInvalid{Field: "required_output_paths", Reason: "a repair must repeat the exact missing-output checks or reference an execution failure without output assertions"}
+			}
 		}
 		repairedRun = &prior
 	}
@@ -116,8 +124,13 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 	if repairedRun != nil {
 		priorFault := repairedRun.FaultSummary
 		if len(missingPaths) == 0 && runErr == nil {
-			fault = "Prior run " + repairedRun.ID + " failed output checks: " + priorFault
-			repair = fmt.Sprintf("Changed workflow revision passed %d required output checks and repairs run %s.", len(requiredPaths), repairedRun.ID)
+			if _, hadOutputChecks := missingPathsFromFault(priorFault); hadOutputChecks {
+				fault = "Prior run " + repairedRun.ID + " failed output checks: " + priorFault
+				repair = fmt.Sprintf("Changed workflow revision passed %d required output checks and repairs run %s.", len(requiredPaths), repairedRun.ID)
+			} else {
+				fault = "Prior run " + repairedRun.ID + " failed during execution: " + priorFault
+				repair = "Corrected workflow revision completed the synthetic execution and repairs run " + repairedRun.ID + "; no output-path assertions were configured."
+			}
 		} else {
 			fault = "Repair of run " + repairedRun.ID + " still failed output checks: " + strings.Join(missingPaths, ",")
 			repair = "The changed revision still fails the required output checks."
@@ -131,6 +144,15 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 		return Rehearsal{}, err
 	}
 	return created, nil
+}
+
+func hasOutputAssertion(trace []TraceEvent) bool {
+	for _, event := range trace {
+		if event.Operation == "assert output path exists" {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeRequiredOutputPaths(paths []string) ([]string, error) {

@@ -3,6 +3,7 @@ package rehearsals
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -15,12 +16,15 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
-const maxSimulatorRequestBytes = 512 * 1024
-const maxSimulatorSourceBytes = 2 * 1024 * 1024
-const maxSandboxProfileResponseBytes = 64 * 1024
-const maxSandboxProfileTotalResponseBytes = 1024 * 1024
+const (
+	maxSimulatorRequestBytes            = 512 * 1024
+	maxSimulatorSourceBytes             = 2 * 1024 * 1024
+	maxSandboxProfileResponseBytes      = 64 * 1024
+	maxSandboxProfileTotalResponseBytes = 1024 * 1024
+)
 
 const defaultSimulatorSource = `{"kind":"openapi-catalog","services":[{"id":"crm","document":{"openapi":"3.0.3","info":{"title":"Synthetic CRM","version":"1"},"servers":[{"url":"https://crm.synthetic.invalid"}],"paths":{"/v1/contacts":{"post":{"responses":{"200":{"content":{"application/json":{"example":{"id":"contact_synthetic_001","status":"upserted"}}}}}}}}}},{"id":"sheets","document":{"openapi":"3.0.3","info":{"title":"Synthetic Sheets","version":"1"},"servers":[{"url":"https://sheets.synthetic.invalid"}],"paths":{"/v1/spreadsheets/{sheetId}/rows":{"post":{"responses":{"200":{"content":{"application/json":{"example":{"updatedRange":"A2:B2","status":"appended"}}}}}}}}}}]}`
 
@@ -68,15 +72,17 @@ type HTTPMockProfileOperation struct {
 }
 
 type HTTPMockProfileSelector struct {
-	NodeType  string `json:"nodeType"`
-	Resource  string `json:"resource"`
-	Operation string `json:"operation"`
+	NodeType   string         `json:"nodeType"`
+	Resource   string         `json:"resource"`
+	Operation  string         `json:"operation"`
+	InputMatch map[string]any `json:"inputMatch,omitempty"`
 }
 
 type HTTPMockRoute struct {
 	Host        string `json:"host"`
 	Method      string `json:"method"`
 	Path        string `json:"path"`
+	Query       string `json:"query,omitempty"`
 	Status      int    `json:"status"`
 	ContentType string `json:"contentType"`
 	Body        string `json:"body"`
@@ -212,9 +218,6 @@ func (s *DescriptionSimulator) ExportHTTPMockProfile() (HTTPMockProfile, error) 
 		}
 		for _, candidateBindings := range service.nativeOperations {
 			for _, binding := range candidateBindings {
-				if len(binding.InputMatch) > 0 {
-					return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.document.paths", Reason: "HTTP mock export does not yet preserve input-conditioned native selectors"}
-				}
 				if strings.ContainsAny(binding.URL, "{}?#%\\") || !strings.HasPrefix(binding.URL, "/") {
 					return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.paths", Reason: "HTTP mock export requires exact static paths"}
 				}
@@ -249,9 +252,13 @@ func (s *DescriptionSimulator) ExportHTTPMockProfile() (HTTPMockProfile, error) 
 				}
 				body := responseString(syntheticize(value, ""))
 				path := strings.TrimSuffix(service.basePaths[host], "/") + binding.URL
+				query := url.Values{}
+				for key, value := range binding.InputMatch {
+					query.Set(key, fmt.Sprint(value))
+				}
 				profile.Operations = append(profile.Operations, HTTPMockProfileOperation{
-					Selector: HTTPMockProfileSelector{NodeType: binding.NodeType, Resource: binding.Resource, Operation: binding.Action},
-					Route:    HTTPMockRoute{Host: host, Method: binding.Method, Path: path, Status: status, ContentType: "application/json", Body: body},
+					Selector: HTTPMockProfileSelector{NodeType: binding.NodeType, Resource: binding.Resource, Operation: binding.Action, InputMatch: binding.InputMatch},
+					Route:    HTTPMockRoute{Host: host, Method: binding.Method, Path: path, Query: query.Encode(), Status: status, ContentType: "application/json", Body: body},
 				})
 			}
 		}
@@ -275,8 +282,8 @@ func (s *DescriptionSimulator) ExportHTTPMockProfile() (HTTPMockProfile, error) 
 		if !validSandboxProfilePath(route.Path) || !oneOfFold(route.Method, http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions) || route.Status < 200 || route.Status >= 300 || len(route.Body) > maxSandboxProfileResponseBytes || totalResponseBytes > maxSandboxProfileTotalResponseBytes || route.ContentType != "application/json" {
 			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export contains an unsupported static route or response"}
 		}
-		selectorKey := nativeOperationKey(selector.NodeType, selector.Resource, selector.Operation)
-		routeKey := route.Method + " " + route.Host + " " + route.Path
+		selectorKey := nativeOperationKey(selector.NodeType, selector.Resource, selector.Operation) + ":" + canonicalInputMatch(selector.InputMatch)
+		routeKey := route.Method + " " + route.Host + " " + route.Path + "?" + route.Query
 		if selectors[selectorKey] || routes[routeKey] {
 			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export has duplicate selectors or exact routes"}
 		}
@@ -287,6 +294,11 @@ func (s *DescriptionSimulator) ExportHTTPMockProfile() (HTTPMockProfile, error) 
 		return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export exceeds the 2 MiB profile bound"}
 	}
 	return profile, nil
+}
+
+func canonicalInputMatch(match map[string]any) string {
+	encoded, _ := json.Marshal(match)
+	return string(encoded)
 }
 
 func validSandboxProfilePath(path string) bool {
@@ -658,9 +670,12 @@ func (s *DescriptionSimulator) sourceFingerprint() any {
 			}
 		}
 	}
+	operationKey := func(operation nativeOperationShape) string {
+		inputMatch, _ := json.Marshal(operation.InputMatch)
+		return strings.Join([]string{operation.Service, operation.NodeType, operation.Resource, operation.Action, operation.Method, operation.Path, string(inputMatch)}, "\x00")
+	}
 	sort.Slice(nativeOperations, func(i, j int) bool {
-		left, right := nativeOperations[i], nativeOperations[j]
-		return strings.Join([]string{left.Service, left.NodeType, left.Resource, left.Action}, "|") < strings.Join([]string{right.Service, right.NodeType, right.Resource, right.Action}, "|")
+		return operationKey(nativeOperations[i]) < operationKey(nativeOperations[j])
 	})
 	exchanges := make([]string, 0, len(s.exchanges))
 	for key, item := range s.exchanges {
@@ -683,6 +698,25 @@ func syntheticize(value any, key string) any {
 		for childKey, child := range typed {
 			result[childKey] = syntheticize(child, childKey)
 		}
+		if typed["encoding"] == "base64-json" {
+			encoded, _ := typed["data"].(string)
+			if len(encoded) <= ((1<<20)*4/3 + 8) {
+				if raw, err := base64.StdEncoding.DecodeString(encoded); err == nil && len(raw) <= 1<<20 {
+					var decoded any
+					decoder := json.NewDecoder(strings.NewReader(string(raw)))
+					decoder.UseNumber()
+					if decoder.Decode(&decoded) == nil {
+						if trailing := ensureJSONEnd(decoder); trailing == nil {
+							cleaned := syntheticize(decoded, "")
+							if safeJSON, err := json.Marshal(cleaned); err == nil && len(safeJSON) <= 1<<20 {
+								result["data"] = base64.StdEncoding.EncodeToString(safeJSON)
+							}
+						}
+					}
+				}
+			}
+			result["encoding"] = "base64-json"
+		}
 		return result
 	case []any:
 		result := make([]any, len(typed))
@@ -693,6 +727,17 @@ func syntheticize(value any, key string) any {
 	case string:
 		lower := strings.ToLower(key)
 		switch {
+		case safeSyntheticURL(typed):
+			// Synthetic URL values carry deterministic routing semantics (for
+			// example RSS feed links) and are safe only on explicitly synthetic
+			// domains. Real hosts are still replaced below.
+			return typed
+		case strings.Contains(lower, "date") && isSyntheticSafeISODate(typed) || (lower == "startedat" || lower == "timestamp") && isSyntheticSafeISODateTime(typed):
+			// Synthetic date/time values are behaviorally meaningful for time-window
+			// filters. Other unrecognized profile strings remain syntheticized.
+			return typed
+		case lower == "encoding" && typed == "base64-json":
+			return typed
 		case lower == "type" && (typed == "person" || typed == "bot"):
 			// Preserve these low-risk category enums so generic Switch nodes can
 			// exercise people-vs-automation paths without retaining identity data.
@@ -717,10 +762,37 @@ func syntheticize(value any, key string) any {
 	case json.Number:
 		return json.Number("1")
 	case bool:
-		return true
+		// Boolean values are low-risk and often carry workflow state. Preserving
+		// them lets generic filters and switches exercise both branches.
+		return typed
 	default:
 		return typed
 	}
+}
+
+func safeSyntheticURL(raw string) bool {
+	parsed, err := url.Parse(raw)
+	if err != nil || parsed.Scheme != "https" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return strings.HasSuffix(host, ".synthetic.invalid") || strings.HasSuffix(host, ".example.invalid")
+}
+
+func isSyntheticSafeISODate(value string) bool {
+	if len(value) != 10 || value[4] != '-' || value[7] != '-' {
+		return false
+	}
+	_, err := time.Parse("2006-01-02", value)
+	return err == nil
+}
+
+func isSyntheticSafeISODateTime(value string) bool {
+	if len(value) < len("2006-01-02T15:04:05Z") || len(value) > 40 {
+		return false
+	}
+	_, err := time.Parse(time.RFC3339Nano, value)
+	return err == nil
 }
 
 func oneOfFold(value string, candidates ...string) bool {

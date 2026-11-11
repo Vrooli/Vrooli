@@ -9,9 +9,11 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"math/rand"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -25,28 +27,54 @@ const (
 	maxSafeCodeInputBytes  = 1 << 20
 	maxSafeCodeOutputBytes = 1 << 20
 	maxSafeCodeNodeNames   = 64
+	maxSafeCodeEachItems   = 128
 )
 
-type codeToken struct{ text, kind string }
-type codeExpr struct {
-	op          string
-	value       any
-	left, right *codeExpr
-	args        []*codeExpr
-	fields      []string
-	body        []codeStmt
+type (
+	codeToken struct{ text, kind string }
+	codeExpr  struct {
+		op          string
+		value       any
+		left, right *codeExpr
+		args        []*codeExpr
+		params      []string
+		fields      []string
+		body        []codeStmt
+	}
+)
+
+type codeSwitchCase struct {
+	test      *codeExpr
+	isDefault bool
+	body      []codeStmt
 }
 type codeStmt struct {
 	kind, name, op  string
+	params, fields  []string
 	expr            *codeExpr
+	target          *codeExpr
+	cases           []codeSwitchCase
 	body, alternate []codeStmt
 	init            *codeStmt
 	test            *codeExpr
 	update          *codeExpr
 }
 type safeCodeProgram struct{ statements []codeStmt }
+type safeLocalFunction struct {
+	name   string
+	params []string
+	body   []codeStmt
+}
 
 func parseSafeCode(source string) (*safeCodeProgram, error) {
+	return parseSafeCodeMode(source, false, false)
+}
+
+func parseSafeLegacyFunction(source string) (*safeCodeProgram, error) {
+	return parseSafeCodeMode(source, true, false)
+}
+
+func parseSafeCodeMode(source string, legacyFunction, currentJSON bool) (*safeCodeProgram, error) {
 	if len(source) == 0 || len(source) > maxSafeCodeBytes {
 		return nil, fmt.Errorf("source must be 1..%d bytes", maxSafeCodeBytes)
 	}
@@ -57,7 +85,8 @@ func parseSafeCode(source string) (*safeCodeProgram, error) {
 	if len(tokens) > 4096 {
 		return nil, fmt.Errorf("token count exceeds 4096")
 	}
-	p := codeParser{tokens: tokens}
+	p := codeParser{tokens: tokens, allowPropertyWrites: true}
+	_ = currentJSON
 	program, err := p.statements("")
 	if err != nil {
 		return nil, err
@@ -65,10 +94,21 @@ func parseSafeCode(source string) (*safeCodeProgram, error) {
 	if p.peek().text != "" {
 		return nil, fmt.Errorf("unexpected token %q", p.peek().text)
 	}
-	if len(program) == 0 || program[len(program)-1].kind != "return" {
-		return nil, fmt.Errorf("program must end with return")
+	lastExecutable := -1
+	for i, statement := range program {
+		if statement.kind != "function" {
+			lastExecutable = i
+		}
 	}
-	if err := validateSafeStatements(program, map[string]bool{"$input": false, "$": false, "String": false, "Array": false, "Math": false, "parseInt": false}); err != nil {
+	if lastExecutable < 0 || program[lastExecutable].kind != "return" {
+		return nil, fmt.Errorf("program must end with return before optional function declarations")
+	}
+	scope := map[string]bool{"$input": false, "$json": false, "$now": false, "$execution": false, "$": false, "$items": false, "String": false, "Number": false, "Array": false, "Math": false, "DateTime": false, "JSON": false, "Object": false, "parseInt": false}
+	_ = currentJSON // $json is bounded to the current/first input item in either mode.
+	if legacyFunction {
+		scope["__legacy_function__"] = true
+	}
+	if err := validateSafeStatements(program, scope); err != nil {
 		return nil, err
 	}
 	return &safeCodeProgram{statements: program}, nil
@@ -91,21 +131,38 @@ func lexSafeCode(source string) ([]codeToken, error) {
 			}
 			continue
 		}
-		if c == '/' { // The only regex token is a bounded, literal email-shape predicate.
-			end := strings.IndexByte(source[i+1:], '/')
+		if c == '/' && i+1 < len(source) && source[i+1] == '*' {
+			end := strings.Index(source[i+2:], "*/")
+			if end < 0 {
+				return nil, fmt.Errorf("unterminated block comment")
+			}
+			i += end + 4
+			continue
+		}
+		if c == '`' {
+			end := safeTemplateLiteralEnd(source, i+1)
+			if end < 0 {
+				return nil, fmt.Errorf("unterminated or unsupported template literal")
+			}
+			out = append(out, codeToken{source[i+1 : end], "template"})
+			i = end + 1
+			continue
+		}
+		if c == '/' { // Regexes are an email predicate or one HTML-escape character.
+			end := safeRegexLiteralEnd(source, i+1)
 			if end < 0 {
 				return nil, fmt.Errorf("unterminated or unsupported regex")
 			}
-			end += i + 1
 			pattern := source[i+1 : end]
 			j := end + 1
 			for j < len(source) && ((source[j] >= 'a' && source[j] <= 'z') || (source[j] >= 'A' && source[j] <= 'Z')) {
 				j++
 			}
-			if !safeEmailRegex(pattern) || source[end+1:j] != "" {
-				return nil, fmt.Errorf("regex literal is outside the safe email-validation subset")
+			flags := source[end+1 : j]
+			if !safeCodeRegex(pattern, flags) {
+				return nil, fmt.Errorf("regex literal is outside the safe email or HTML-escaping subset")
 			}
-			out = append(out, codeToken{pattern, "regex"})
+			out = append(out, codeToken{pattern + "\x00" + flags, "regex"})
 			i = j
 			continue
 		}
@@ -161,7 +218,7 @@ func lexSafeCode(source string) ([]codeToken, error) {
 			continue
 		}
 		matched := ""
-		for _, op := range []string{"===", "!==", "...", "??", "||", "&&", "?.", "+=", "=>", "<=", ">=", "==", "!="} {
+		for _, op := range []string{"===", "!==", "...", "??", "||", "&&", "?.", "+=", "=>", "++", "<=", ">=", "==", "!="} {
 			if strings.HasPrefix(source[i:], op) {
 				matched = op
 				break
@@ -181,15 +238,126 @@ func lexSafeCode(source string) ([]codeToken, error) {
 	}
 	return out, nil
 }
+
+func safeTemplateLiteralEnd(source string, start int) int {
+	for index := start; index < len(source); index++ {
+		if source[index] == '\\' {
+			index++
+			continue
+		}
+		if source[index] == '`' {
+			return index
+		}
+	}
+	return -1
+}
+
+func parseSafeTemplate(source string) (*codeExpr, error) {
+	parts := make([]string, 0, 2)
+	values := make([]*codeExpr, 0, 1)
+	for offset := 0; offset < len(source); {
+		start := offset
+		for offset < len(source) {
+			if offset+1 < len(source) && source[offset] == '$' && source[offset+1] == '{' {
+				break
+			}
+			if source[offset] == '\\' && offset+1 < len(source) {
+				offset++
+			}
+			offset++
+		}
+		parts = append(parts, decodeSafeTemplateText(source[start:offset]))
+		if offset+1 >= len(source) {
+			break
+		}
+		expressionStart := offset + 2
+		end, err := safeTemplateExpressionEnd(source, expressionStart)
+		if err != nil {
+			return nil, err
+		}
+		tokens, err := lexSafeCode(source[expressionStart:end])
+		if err != nil {
+			return nil, err
+		}
+		parser := codeParser{tokens: tokens}
+		value, err := parser.expr(0)
+		if err != nil {
+			return nil, fmt.Errorf("template interpolation: %w", err)
+		}
+		if parser.peek().text != "" {
+			return nil, fmt.Errorf("template interpolation contains trailing token %q", parser.peek().text)
+		}
+		values = append(values, value)
+		offset = end + 1
+	}
+	if len(parts) == 0 {
+		parts = append(parts, "")
+	}
+	if len(parts) == len(values) {
+		parts = append(parts, "")
+	}
+	return &codeExpr{op: "template", value: parts, args: values}, nil
+}
+
+func safeTemplateExpressionEnd(source string, start int) (int, error) {
+	depth := 0
+	for index := start; index < len(source); index++ {
+		switch source[index] {
+		case '\'', '"':
+			quote := source[index]
+			for index++; index < len(source); index++ {
+				if source[index] == '\\' {
+					index++
+					continue
+				}
+				if source[index] == quote {
+					break
+				}
+			}
+		case '{':
+			depth++
+		case '}':
+			if depth == 0 {
+				return index, nil
+			}
+			depth--
+		}
+	}
+	return 0, fmt.Errorf("unterminated template interpolation")
+}
+
+func decodeSafeTemplateText(value string) string {
+	var decoded strings.Builder
+	for index := 0; index < len(value); index++ {
+		if value[index] != '\\' || index+1 >= len(value) {
+			decoded.WriteByte(value[index])
+			continue
+		}
+		index++
+		switch value[index] {
+		case 'n':
+			decoded.WriteByte('\n')
+		case 'r':
+			decoded.WriteByte('\r')
+		case 't':
+			decoded.WriteByte('\t')
+		default:
+			decoded.WriteByte(value[index])
+		}
+	}
+	return decoded.String()
+}
+
 func isIdentStart(c byte) bool {
 	return c == '_' || c == '$' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
 func isIdent(c byte) bool { return isIdentStart(c) || c >= '0' && c <= '9' }
 
 type codeParser struct {
-	tokens []codeToken
-	pos    int
-	depth  int
+	tokens              []codeToken
+	pos                 int
+	depth               int
+	allowPropertyWrites bool
 }
 
 func (p *codeParser) peek() codeToken {
@@ -198,6 +366,7 @@ func (p *codeParser) peek() codeToken {
 	}
 	return p.tokens[p.pos]
 }
+
 func (p *codeParser) take(s string) bool {
 	if p.peek().text == s {
 		p.pos++
@@ -205,12 +374,14 @@ func (p *codeParser) take(s string) bool {
 	}
 	return false
 }
+
 func (p *codeParser) need(s string) error {
 	if !p.take(s) {
 		return fmt.Errorf("expected %q near %q", s, p.peek().text)
 	}
 	return nil
 }
+
 func (p *codeParser) statements(stop string) ([]codeStmt, error) {
 	var out []codeStmt
 	for p.peek().text != "" && p.peek().text != stop {
@@ -231,13 +402,79 @@ func (p *codeParser) statements(stop string) ([]codeStmt, error) {
 	}
 	return out, nil
 }
+
 func (p *codeParser) statement() (codeStmt, error) {
 	p.depth++
 	defer func() { p.depth-- }()
 	if p.depth > 64 {
 		return codeStmt{}, fmt.Errorf("statement nesting exceeds 64")
 	}
+	if p.take("function") {
+		name := p.peek().text
+		if p.peek().kind != "ident" || !safeCodeIdentifier(name) {
+			return codeStmt{}, fmt.Errorf("function name must be a bounded local identifier")
+		}
+		p.pos++
+		if err := p.need("("); err != nil {
+			return codeStmt{}, err
+		}
+		var params []string
+		if !p.take(")") {
+			for {
+				param := p.peek().text
+				if p.peek().kind != "ident" || !safeCodeIdentifier(param) {
+					return codeStmt{}, fmt.Errorf("function parameter must be a bounded local identifier")
+				}
+				p.pos++
+				params = append(params, param)
+				if p.take(")") {
+					break
+				}
+				if err := p.need(","); err != nil {
+					return codeStmt{}, err
+				}
+			}
+		}
+		body, err := p.block()
+		return codeStmt{kind: "function", name: name, params: params, body: body}, err
+	}
 	if p.take("const") {
+		if p.take("{") {
+			var fields, names []string
+			if !p.take("}") {
+				for {
+					key := p.peek()
+					if key.kind != "ident" || !safeCodePropertyName(key.text) {
+						return codeStmt{}, fmt.Errorf("object destructuring requires safe static property names")
+					}
+					p.pos++
+					name := key.text
+					if p.take(":") {
+						name = p.peek().text
+						if p.peek().kind != "ident" || !safeCodeIdentifier(name) {
+							return codeStmt{}, fmt.Errorf("object destructuring alias must be a bounded local identifier")
+						}
+						p.pos++
+					}
+					fields = append(fields, key.text)
+					names = append(names, name)
+					if p.take("}") {
+						break
+					}
+					if err := p.need(","); err != nil {
+						return codeStmt{}, err
+					}
+				}
+			}
+			if len(names) == 0 || len(names) > 64 {
+				return codeStmt{}, fmt.Errorf("object destructuring requires 1..64 static fields")
+			}
+			if err := p.need("="); err != nil {
+				return codeStmt{}, err
+			}
+			expr, err := p.expr(0)
+			return codeStmt{kind: "objectdecl", params: names, fields: fields, expr: expr}, err
+		}
 		name := p.peek().text
 		if p.peek().kind != "ident" {
 			return codeStmt{}, fmt.Errorf("expected local variable")
@@ -260,6 +497,75 @@ func (p *codeParser) statement() (codeStmt, error) {
 			return codeStmt{kind: "letdecl", name: name, expr: e}, err
 		}
 		return codeStmt{kind: "letdecl", name: name}, nil
+	}
+	if p.take("var") {
+		name := p.peek().text
+		if p.peek().kind != "ident" {
+			return codeStmt{}, fmt.Errorf("expected local variable")
+		}
+		p.pos++
+		if p.take("=") {
+			e, err := p.expr(0)
+			return codeStmt{kind: "letdecl", name: name, expr: e}, err
+		}
+		return codeStmt{kind: "letdecl", name: name}, nil
+	}
+	if p.take("switch") {
+		if err := p.need("("); err != nil {
+			return codeStmt{}, err
+		}
+		test, err := p.expr(0)
+		if err != nil {
+			return codeStmt{}, err
+		}
+		if err = p.need(")"); err != nil {
+			return codeStmt{}, err
+		}
+		if err = p.need("{"); err != nil {
+			return codeStmt{}, err
+		}
+		var cases []codeSwitchCase
+		for p.peek().text != "}" && p.peek().text != "" {
+			item := codeSwitchCase{}
+			if p.take("case") {
+				item.test, err = p.expr(0)
+				if err != nil {
+					return codeStmt{}, err
+				}
+				if item.test.op != "lit" {
+					return codeStmt{}, fmt.Errorf("switch labels must be static literals")
+				}
+				if err = p.need(":"); err != nil {
+					return codeStmt{}, err
+				}
+			} else if p.take("default") {
+				item.isDefault = true
+				if err = p.need(":"); err != nil {
+					return codeStmt{}, err
+				}
+			} else {
+				return codeStmt{}, fmt.Errorf("switch body requires case or default")
+			}
+			for p.peek().text != "case" && p.peek().text != "default" && p.peek().text != "}" && p.peek().text != "" {
+				stmt, stmtErr := p.statement()
+				if stmtErr != nil {
+					return codeStmt{}, stmtErr
+				}
+				item.body = append(item.body, stmt)
+				p.take(";")
+			}
+			cases = append(cases, item)
+			if len(cases) > 64 {
+				return codeStmt{}, fmt.Errorf("switch case bound exceeded")
+			}
+		}
+		if err = p.need("}"); err != nil {
+			return codeStmt{}, err
+		}
+		return codeStmt{kind: "switch", expr: test, cases: cases}, nil
+	}
+	if p.take("break") {
+		return codeStmt{kind: "break"}, nil
 	}
 	if p.take("if") {
 		if err := p.need("("); err != nil {
@@ -286,10 +592,70 @@ func (p *codeParser) statement() (codeStmt, error) {
 		if err := p.need("("); err != nil {
 			return codeStmt{}, err
 		}
-		if err := p.need("const"); err != nil {
-			return codeStmt{}, err
+		if p.take("let") {
+			name := p.peek().text
+			if p.peek().kind != "ident" {
+				return codeStmt{}, fmt.Errorf("expected loop variable")
+			}
+			p.pos++
+			if err := p.need("="); err != nil {
+				return codeStmt{}, err
+			}
+			initial, err := p.expr(0)
+			if err != nil {
+				return codeStmt{}, err
+			}
+			if err = p.need(";"); err != nil {
+				return codeStmt{}, err
+			}
+			test, err := p.expr(0)
+			if err != nil {
+				return codeStmt{}, err
+			}
+			if err = p.need(";"); err != nil {
+				return codeStmt{}, err
+			}
+			if p.peek().kind != "ident" {
+				return codeStmt{}, fmt.Errorf("loop update must increment its local index")
+			}
+			updateName := p.peek().text
+			p.pos++
+			if updateName != name {
+				return codeStmt{}, fmt.Errorf("bounded for-loop update must increment its own index")
+			}
+			if err := p.need("++"); err != nil {
+				return codeStmt{}, err
+			}
+			update := &codeExpr{op: "post++", value: updateName}
+			if err = p.need(")"); err != nil {
+				return codeStmt{}, err
+			}
+			body, err := p.block()
+			return codeStmt{kind: "for", name: name, init: &codeStmt{kind: "letdecl", name: name, expr: initial}, test: test, update: update, body: body}, err
+		}
+		if p.take("const") || p.take("var") {
+			name := p.peek().text
+			if p.peek().kind != "ident" {
+				return codeStmt{}, fmt.Errorf("expected loop variable")
+			}
+			p.pos++
+			if err := p.need("of"); err != nil {
+				return codeStmt{}, err
+			}
+			collection, err := p.expr(0)
+			if err != nil {
+				return codeStmt{}, err
+			}
+			if err = p.need(")"); err != nil {
+				return codeStmt{}, err
+			}
+			body, err := p.block()
+			return codeStmt{kind: "forof", name: name, expr: collection, body: body}, err
 		}
 		name := p.peek().text
+		if p.peek().kind != "ident" {
+			return codeStmt{}, fmt.Errorf("expected loop variable")
+		}
 		p.pos++
 		if err := p.need("of"); err != nil {
 			return codeStmt{}, err
@@ -304,6 +670,29 @@ func (p *codeParser) statement() (codeStmt, error) {
 		body, err := p.block()
 		return codeStmt{kind: "forof", name: name, expr: collection, body: body}, err
 	}
+	if p.take("continue") {
+		return codeStmt{kind: "continue"}, nil
+	}
+	if p.take("try") {
+		body, err := p.block()
+		if err != nil {
+			return codeStmt{}, err
+		}
+		if err = p.need("catch"); err != nil {
+			return codeStmt{}, err
+		}
+		if p.take("(") {
+			if p.peek().kind != "ident" {
+				return codeStmt{}, fmt.Errorf("expected catch binding")
+			}
+			p.pos++
+			if err = p.need(")"); err != nil {
+				return codeStmt{}, err
+			}
+		}
+		alternate, err := p.block()
+		return codeStmt{kind: "try", body: body, alternate: alternate}, err
+	}
 	if p.take("return") {
 		e, err := p.expr(0)
 		return codeStmt{kind: "return", expr: e}, err
@@ -314,11 +703,33 @@ func (p *codeParser) statement() (codeStmt, error) {
 	}
 	if e.op == "var" && (p.take("=") || p.take("+=")) {
 		operator := p.tokens[p.pos-1].text
+		if operator == "=" {
+			names := []string{e.value.(string)}
+			for p.peek().kind == "ident" && p.pos+1 < len(p.tokens) && p.tokens[p.pos+1].text == "=" {
+				names = append(names, p.peek().text)
+				p.pos += 2
+				if len(names) > 16 {
+					return codeStmt{}, fmt.Errorf("chained assignment exceeds 16 local bindings")
+				}
+			}
+			if len(names) > 1 {
+				value, valueErr := p.expr(0)
+				return codeStmt{kind: "assignchain", params: names, expr: value}, valueErr
+			}
+		}
 		value, valueErr := p.expr(0)
 		return codeStmt{kind: "assign", name: e.value.(string), expr: value, op: operator}, valueErr
 	}
+	if (e.op == "prop" || e.op == "index") && p.take("=") {
+		if !p.allowPropertyWrites {
+			return codeStmt{}, fmt.Errorf("object property assignment is supported only in bounded legacy Function mode")
+		}
+		value, valueErr := p.expr(0)
+		return codeStmt{kind: "setprop", target: e, expr: value}, valueErr
+	}
 	return codeStmt{kind: "expr", expr: e}, nil
 }
+
 func (p *codeParser) blockOrStatement() ([]codeStmt, error) {
 	if p.take("{") {
 		return p.statements("}")
@@ -330,6 +741,7 @@ func (p *codeParser) blockOrStatement() ([]codeStmt, error) {
 	p.take(";")
 	return []codeStmt{s}, nil
 }
+
 func (p *codeParser) block() ([]codeStmt, error) {
 	if err := p.need("{"); err != nil {
 		return nil, err
@@ -339,12 +751,41 @@ func (p *codeParser) block() ([]codeStmt, error) {
 
 func validateSafeStatements(statements []codeStmt, scope map[string]bool) error {
 	for _, statement := range statements {
+		if statement.kind == "function" {
+			if _, exists := scope[statement.name]; exists {
+				return fmt.Errorf("redeclaration of %q is unsupported", statement.name)
+			}
+			scope[statement.name] = false
+		}
+	}
+	for _, statement := range statements {
 		switch statement.kind {
+		case "function":
+			inner := cloneBoolMap(scope)
+			for _, param := range statement.params {
+				if _, exists := inner[param]; exists {
+					return fmt.Errorf("duplicate or shadowed function parameter %q", param)
+				}
+				inner[param] = false
+			}
+			if err := validateSafeStatements(statement.body, inner); err != nil {
+				return err
+			}
 		case "decl":
 			if _, exists := scope[statement.name]; exists {
 				return fmt.Errorf("redeclaration of %q is unsupported", statement.name)
 			}
-			if err := validateSafeExpr(statement.expr, scope); err != nil {
+			if statement.expr.op == "lambda" {
+				inner := cloneBoolMap(scope)
+				inner[statement.expr.value.(string)] = false
+				if statement.expr.left != nil {
+					if err := validateSafeExpr(statement.expr.left, inner); err != nil {
+						return err
+					}
+				} else if err := validateSafeStatements(statement.expr.body, inner); err != nil {
+					return err
+				}
+			} else if err := validateSafeExpr(statement.expr, scope); err != nil {
 				return err
 			}
 			scope[statement.name] = false
@@ -358,10 +799,65 @@ func validateSafeStatements(statements []codeStmt, scope map[string]bool) error 
 				}
 			}
 			scope[statement.name] = true
+		case "objectdecl":
+			if err := validateSafeExpr(statement.expr, scope); err != nil {
+				return err
+			}
+			if len(statement.params) == 0 || len(statement.params) != len(statement.fields) {
+				return fmt.Errorf("object destructuring bindings are invalid")
+			}
+			for _, name := range statement.params {
+				if _, exists := scope[name]; exists {
+					return fmt.Errorf("redeclaration of %q is unsupported", name)
+				}
+				scope[name] = false
+			}
 		case "assign":
 			mutable, exists := scope[statement.name]
-			if !exists || !mutable {
+			if !exists && !scope["__legacy_function__"] {
+				return fmt.Errorf("assignment target %q must be declared with let", statement.name)
+			}
+			if exists && !mutable {
 				return fmt.Errorf("assignment requires a declared let variable")
+			}
+			if err := validateSafeExpr(statement.expr, scope); err != nil {
+				return err
+			}
+			// n8n's legacy Function node examples often use an undeclared
+			// temporary. Treat it as an isolated function-local binding; it can
+			// never write a process or host global.
+			scope[statement.name] = true
+		case "assignchain":
+			for _, name := range statement.params {
+				mutable, exists := scope[name]
+				if !exists || !mutable {
+					return fmt.Errorf("chained assignment requires declared mutable local %q", name)
+				}
+			}
+			if err := validateSafeExpr(statement.expr, scope); err != nil {
+				return err
+			}
+		case "setprop":
+			if statement.target == nil {
+				return fmt.Errorf("only static object property assignment is supported")
+			}
+			root, ok := rootSafeVariable(statement.target)
+			if !ok || strings.HasPrefix(root, "$") || !scopeHas(scope, root) {
+				return fmt.Errorf("property assignment requires a local object binding")
+			}
+			if statement.target.op == "prop" {
+				if err := validateSafeExpr(statement.target, scope); err != nil {
+					return err
+				}
+			} else if statement.target.op == "index" && statement.target.right != nil {
+				if err := validateSafeExpr(statement.target.left, scope); err != nil {
+					return err
+				}
+				if err := validateSafeExpr(statement.target.right, scope); err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("only static object property assignment is supported")
 			}
 			if err := validateSafeExpr(statement.expr, scope); err != nil {
 				return err
@@ -389,11 +885,64 @@ func validateSafeStatements(statements []codeStmt, scope map[string]bool) error 
 			if err := validateSafeStatements(statement.body, inner); err != nil {
 				return err
 			}
+		case "for":
+			inner := cloneBoolMap(scope)
+			if statement.init == nil || statement.init.kind != "letdecl" {
+				return fmt.Errorf("bounded for loop requires a let index")
+			}
+			if err := validateSafeExpr(statement.init.expr, scope); err != nil {
+				return err
+			}
+			inner[statement.name] = true
+			if err := validateSafeExpr(statement.test, inner); err != nil {
+				return err
+			}
+			if err := validateSafeExpr(statement.update, inner); err != nil {
+				return err
+			}
+			if err := validateSafeStatements(statement.body, inner); err != nil {
+				return err
+			}
+		case "switch":
+			if err := validateSafeExpr(statement.expr, scope); err != nil {
+				return err
+			}
+			for _, branch := range statement.cases {
+				if branch.test != nil {
+					if err := validateSafeExpr(branch.test, scope); err != nil {
+						return err
+					}
+				}
+				if err := validateSafeStatements(branch.body, cloneBoolMap(scope)); err != nil {
+					return err
+				}
+			}
+		case "break":
+		case "continue":
+			// Runtime only accepts this inside bounded loops.
+		case "try":
+			if err := validateSafeStatements(statement.body, cloneBoolMap(scope)); err != nil {
+				return err
+			}
+			if err := validateSafeStatements(statement.alternate, cloneBoolMap(scope)); err != nil {
+				return err
+			}
 		default:
 			return fmt.Errorf("statement %q is not allowed", statement.kind)
 		}
 	}
 	return nil
+}
+
+func rootSafeVariable(expr *codeExpr) (string, bool) {
+	for expr != nil && (expr.op == "prop" || expr.op == "index" || expr.op == "optprop" || expr.op == "optindex") {
+		expr = expr.left
+	}
+	if expr == nil || expr.op != "var" {
+		return "", false
+	}
+	name, ok := expr.value.(string)
+	return name, ok
 }
 
 func cloneBoolMap(in map[string]bool) map[string]bool {
@@ -412,17 +961,41 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 	case "lit":
 		return nil
 	case "regex":
-		if safeEmailRegex(expr.value.(string)) {
+		if regex, ok := expr.value.(safeRegex); ok && safeCodeRegex(regex.pattern, regex.flags()) {
 			return nil
 		}
 		return fmt.Errorf("regex outside allowlist")
+	case "template":
+		for _, child := range expr.args {
+			if err := validateSafeExpr(child, scope); err != nil {
+				return err
+			}
+		}
+		return nil
 	case "date":
+		if expr.left != nil {
+			return validateSafeExpr(expr.left, scope)
+		}
+		return nil
+	case "set":
+		if expr.left != nil {
+			return validateSafeExpr(expr.left, scope)
+		}
 		return nil
 	case "var":
+		if expr.value == "__legacy_function__" {
+			return fmt.Errorf("identifier %q is not allowed", expr.value)
+		}
 		if _, exists := scope[expr.value.(string)]; exists {
 			return nil
 		}
 		return fmt.Errorf("identifier %q is not allowed", expr.value)
+	case "post++":
+		name, _ := expr.value.(string)
+		if mutable, exists := scope[name]; exists && mutable {
+			return nil
+		}
+		return fmt.Errorf("loop increment requires a mutable local index")
 	case "array":
 		for _, child := range expr.args {
 			if err := validateSafeExpr(child, scope); err != nil {
@@ -452,7 +1025,7 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			return err
 		}
 		switch expr.value {
-		case "all", "first", "toISOString", "test", "trim", "toLowerCase", "slice", "split", "push", "join", "map", "filter", "includes", "from", "floor", "random":
+		case "all", "first", "toISOString", "toISO", "getDay", "getDate", "getMonth", "getFullYear", "test", "trim", "toLowerCase", "replace", "match", "slice", "split", "push", "join", "map", "filter", "forEach", "includes", "indexOf", "has", "concat", "from", "isArray", "fromCodePoint", "floor", "round", "random", "fromISO", "diff", "toFormat", "stringify", "parse", "keys":
 		default:
 			return fmt.Errorf("method %q is not allowed", expr.value)
 		}
@@ -477,13 +1050,37 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			}
 			return validateSafeStatements(callback.body, cloneBoolMap(scope))
 		}
+		if expr.value == "isArray" && (expr.left.op != "var" || expr.left.value != "Array" || len(expr.args) != 1) {
+			return fmt.Errorf("Array.isArray requires one bounded value")
+		}
 		for index, a := range expr.args {
-			if (expr.value == "map" || expr.value == "filter") && index == 0 {
-				if a.op != "lambda" {
+			if (expr.value == "map" || expr.value == "filter" || expr.value == "forEach") && index == 0 {
+				if a.op != "lambda" || len(safeLambdaParameters(a)) != 1 {
 					return fmt.Errorf("array %s requires one bounded arrow callback", expr.value)
 				}
 				inner := cloneBoolMap(scope)
-				inner[a.value.(string)] = true
+				inner[safeLambdaParameters(a)[0]] = true
+				if a.left != nil {
+					if err := validateSafeExpr(a.left, inner); err != nil {
+						return err
+					}
+				} else if err := validateSafeStatements(a.body, inner); err != nil {
+					return err
+				}
+				continue
+			}
+			if expr.value == "replace" && index == 1 && a.op == "lambda" {
+				params := safeLambdaParameters(a)
+				if len(params) < 1 || len(params) > 4 {
+					return fmt.Errorf("replace callback requires one to four bounded parameters")
+				}
+				inner := cloneBoolMap(scope)
+				for _, param := range params {
+					if !safeCodeIdentifier(param) {
+						return fmt.Errorf("replace callback parameter is invalid")
+					}
+					inner[param] = true
+				}
 				if a.left != nil {
 					if err := validateSafeExpr(a.left, inner); err != nil {
 						return err
@@ -499,12 +1096,12 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 		}
 		if expr.value == "all" || expr.value == "first" {
 			validInput := expr.left.op == "var" && expr.left.value == "$input"
-			validPriorNode := isStaticNamedNodeLookup(expr.left)
+			validPriorNode := isSafeNamedNodeLookup(expr.left, scope)
 			if (!validInput && !validPriorNode) || len(expr.args) != 0 {
 				return fmt.Errorf("%s requires a direct input or static prior-node receiver and no arguments", expr.value)
 			}
 		}
-		if expr.value == "map" || expr.value == "filter" {
+		if expr.value == "map" || expr.value == "filter" || expr.value == "forEach" {
 			if len(expr.args) != 1 || expr.args[0].op != "lambda" {
 				return fmt.Errorf("array %s supports one bounded arrow callback", expr.value)
 			}
@@ -518,13 +1115,12 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 		if expr.value == "includes" && len(expr.args) != 1 {
 			return fmt.Errorf("array includes supports one argument")
 		}
+		if expr.value == "concat" && len(expr.args) != 1 {
+			return fmt.Errorf("array concat supports one bounded argument")
+		}
 		if expr.value == "slice" {
-			if len(expr.args) != 2 || !isNumericLiteral(expr.args[0], 0) || expr.args[1].op != "lit" {
-				return fmt.Errorf("slice supports only static slice(0, boundedLength)")
-			}
-			end, ok := expr.args[1].value.(float64)
-			if !ok || end < 0 || end > maxSafeCodeSliceUnits || end != float64(int(end)) {
-				return fmt.Errorf("slice end must be a static integer within the %d-unit bound", maxSafeCodeSliceUnits)
+			if len(expr.args) < 1 || len(expr.args) > 2 {
+				return fmt.Errorf("slice supports one or two bounded integer arguments")
 			}
 		}
 		return nil
@@ -532,17 +1128,36 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 		return fmt.Errorf("arrow callback is allowed only as an array map/filter argument")
 	case "invoke":
 		if expr.left.op == "var" && expr.left.value == "$" {
-			if len(expr.args) != 1 || expr.args[0].op != "lit" {
-				return fmt.Errorf("named-node lookup requires one static node name")
+			if len(expr.args) != 1 {
+				return fmt.Errorf("named-node lookup requires one bounded node-name value")
 			}
-			name, ok := expr.args[0].value.(string)
-			if !ok || !safeCodeNodeName(name) {
-				return fmt.Errorf("named-node lookup requires a bounded static node name")
+			if expr.args[0].op == "lit" {
+				name, ok := expr.args[0].value.(string)
+				if !ok || !safeCodeNodeName(name) {
+					return fmt.Errorf("named-node lookup requires a bounded static node name")
+				}
+			} else if name, ok := expr.args[0].value.(string); expr.args[0].op != "var" || !ok || !scopeHas(scope, name) {
+				return fmt.Errorf("named-node lookup requires one bounded node-name value")
 			}
 			return nil
 		}
-		if expr.left.op != "var" || expr.left.value != "String" && expr.left.value != "parseInt" {
-			return fmt.Errorf("function invocation is not allowed")
+		if expr.left.op == "var" && expr.left.value == "$items" {
+			if len(expr.args) != 1 || expr.args[0].op != "lit" {
+				return fmt.Errorf("$items requires one static prior-node name")
+			}
+			name, ok := expr.args[0].value.(string)
+			if !ok || !safeCodeNodeName(name) {
+				return fmt.Errorf("$items requires a bounded prior-node name")
+			}
+			return nil
+		}
+		staticBuiltin := expr.left.op == "var" && (expr.left.value == "String" || expr.left.value == "parseInt" || expr.left.value == "Number")
+		staticStringCodePoint := expr.left.op == "prop" && expr.left.value == "fromCodePoint" && expr.left.left.op == "var" && expr.left.left.value == "String"
+		if !staticBuiltin && !staticStringCodePoint {
+			name, _ := expr.left.value.(string)
+			if expr.left.op != "var" || !scopeHas(scope, name) {
+				return fmt.Errorf("function invocation is not allowed")
+			}
 		}
 		for _, a := range expr.args {
 			if err := validateSafeExpr(a, scope); err != nil {
@@ -578,6 +1193,12 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 		return fmt.Errorf("operator %q is not allowed", expr.op)
 	}
 }
+
+func scopeHas(scope map[string]bool, name string) bool {
+	_, exists := scope[name]
+	return exists
+}
+
 func (p *codeParser) expr(min int) (*codeExpr, error) {
 	p.depth++
 	defer func() { p.depth-- }()
@@ -594,7 +1215,18 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 		n, _ := strconv.Atoi(t.text)
 		left = &codeExpr{op: "lit", value: float64(n)}
 	case "regex":
-		left = &codeExpr{op: "regex", value: t.text}
+		parts := strings.SplitN(t.text, "\x00", 2)
+		flags := ""
+		if len(parts) == 2 {
+			flags = parts[1]
+		}
+		left = &codeExpr{op: "regex", value: safeRegex{pattern: parts[0], global: strings.Contains(flags, "g"), ignoreCase: strings.Contains(flags, "i")}}
+	case "template":
+		expr, err := parseSafeTemplate(t.text)
+		if err != nil {
+			return nil, err
+		}
+		left = expr
 	case "ident":
 		switch t.text {
 		case "true":
@@ -610,17 +1242,44 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 				return nil, e
 			}
 		case "new":
+			if p.peek().text == "Set" {
+				p.pos++
+				if err := p.need("("); err != nil {
+					return nil, err
+				}
+				var values *codeExpr
+				if !p.take(")") {
+					var err error
+					values, err = p.expr(0)
+					if err != nil {
+						return nil, err
+					}
+					if err = p.need(")"); err != nil {
+						return nil, err
+					}
+				}
+				left = &codeExpr{op: "set", left: values}
+				break
+			}
 			if p.peek().text != "Date" {
-				return nil, fmt.Errorf("only synthetic Date() is supported")
+				return nil, fmt.Errorf("only synthetic Date() or bounded Set() is supported")
 			}
 			p.pos++
 			if err := p.need("("); err != nil {
 				return nil, err
 			}
-			if err := p.need(")"); err != nil {
-				return nil, err
+			var dateInput *codeExpr
+			if !p.take(")") {
+				var err error
+				dateInput, err = p.expr(0)
+				if err != nil {
+					return nil, err
+				}
+				if err = p.need(")"); err != nil {
+					return nil, err
+				}
 			}
-			left = &codeExpr{op: "date"}
+			left = &codeExpr{op: "date", left: dateInput}
 		default:
 			left = &codeExpr{op: "var", value: t.text}
 		}
@@ -649,14 +1308,51 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 				}
 			} else {
 				p.pos = start
-				x, e := p.expr(0)
-				if e != nil {
-					return nil, e
+				params := []string{}
+				parsedLambda := false
+				if p.peek().kind == "ident" {
+					for {
+						if p.peek().kind != "ident" {
+							params = nil
+							break
+						}
+						params = append(params, p.peek().text)
+						p.pos++
+						if !p.take(",") {
+							break
+						}
+					}
+					if params != nil && p.take(")") && p.take("=>") {
+						if len(params) > 4 {
+							return nil, fmt.Errorf("arrow functions support at most four bounded parameters")
+						}
+						if p.take("{") {
+							body, e := p.statements("}")
+							if e != nil {
+								return nil, e
+							}
+							left = &codeExpr{op: "lambda", value: params[0], params: params, body: body}
+						} else {
+							body, e := p.expr(0)
+							if e != nil {
+								return nil, e
+							}
+							left = &codeExpr{op: "lambda", value: params[0], params: params, left: body}
+						}
+						parsedLambda = true
+					}
 				}
-				if e = p.need(")"); e != nil {
-					return nil, e
+				if !parsedLambda {
+					p.pos = start
+					x, e := p.expr(0)
+					if e != nil {
+						return nil, e
+					}
+					if e = p.need(")"); e != nil {
+						return nil, e
+					}
+					left = x
 				}
-				left = x
 			}
 		} else if t.text == "[" {
 			var xs []*codeExpr
@@ -672,6 +1368,9 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 					}
 					if e = p.need(","); e != nil {
 						return nil, e
+					}
+					if p.take("]") {
+						break
 					}
 				}
 			}
@@ -890,7 +1589,14 @@ type safeCodeContext struct {
 	now         time.Time
 	rng         *rand.Rand
 	steps       int
+	callDepth   int
+	rootLocals  map[string]any
+	returnValue any
 }
+
+var errSafeContinue = fmt.Errorf("safe-code continue")
+var errSafeReturn = fmt.Errorf("safe-code return")
+var errSafeBreak = fmt.Errorf("safe-code break")
 
 func executeSafeCode(source string, input []map[string]any, now time.Time) ([]map[string]any, error) {
 	return executeSafeCodeWithNodeOutputs(source, input, nil, now)
@@ -913,8 +1619,12 @@ func normalizeSafeExpression(source string) (string, error) {
 }
 
 func executeSafeExpression(source string, input map[string]any, now time.Time) (any, error) {
+	return executeSafeExpressionWithNodeOutputs(source, input, nil, now)
+}
+
+func executeSafeExpressionWithNodeOutputs(source string, input map[string]any, nodeOutputs map[string][]map[string]any, now time.Time) (any, error) {
 	wrapped := "return [{json: {value: " + source + "}}];"
-	items, err := executeSafeCode(wrapped, []map[string]any{input}, now)
+	items, err := executeSafeCodeWithNodeOutputs(wrapped, []map[string]any{input}, nodeOutputs, now)
 	if err != nil {
 		return nil, err
 	}
@@ -929,7 +1639,26 @@ func executeSafeExpression(source string, input map[string]any, now time.Time) (
 }
 
 func executeSafeCodeWithNodeOutputs(source string, input []map[string]any, nodeOutputs map[string][]map[string]any, now time.Time) ([]map[string]any, error) {
-	program, err := parseSafeCode(source)
+	return executeSafeCodeWithNodeOutputsMode(source, input, nodeOutputs, now, false, false)
+}
+
+func executeSafeLegacyFunctionWithNodeOutputs(source string, input []map[string]any, nodeOutputs map[string][]map[string]any, now time.Time) ([]map[string]any, error) {
+	return executeSafeCodeWithNodeOutputsMode(source, input, nodeOutputs, now, true, false)
+}
+
+func executeSafeCodePerItemWithNodeOutputs(source string, input map[string]any, nodeOutputs map[string][]map[string]any, now time.Time) (map[string]any, error) {
+	output, err := executeSafeCodeWithNodeOutputsMode(source, []map[string]any{input}, nodeOutputs, now, false, true)
+	if err != nil {
+		return nil, err
+	}
+	if len(output) != 1 {
+		return nil, fmt.Errorf("runOnceForEachItem Code must return exactly one item")
+	}
+	return output[0], nil
+}
+
+func executeSafeCodeWithNodeOutputsMode(source string, input []map[string]any, nodeOutputs map[string][]map[string]any, now time.Time, legacyFunction, runOnceForEachItem bool) ([]map[string]any, error) {
+	program, err := parseSafeCodeMode(source, legacyFunction, runOnceForEachItem)
 	if err != nil {
 		return nil, err
 	}
@@ -989,10 +1718,55 @@ func executeSafeCodeWithNodeOutputs(source string, input []map[string]any, nodeO
 	}
 	seedInput := append(append([]byte(source), inputJSON...), []byte(now.UTC().Format(time.RFC3339Nano))...)
 	seed := sha256.Sum256(seedInput)
-	ctx := &safeCodeContext{locals: map[string]any{"__input": safeInput{items: items}}, nodeOutputs: named, now: now.UTC(), rng: rand.New(rand.NewSource(int64(binary.BigEndian.Uint64(seed[:8]))))}
+	ctx := &safeCodeContext{locals: map[string]any{"__input": safeInput{items: items}, "$now": safeDate{at: now.UTC()}}, nodeOutputs: named, now: now.UTC(), rng: rand.New(rand.NewSource(int64(binary.BigEndian.Uint64(seed[:8]))))}
 	returned, err := ctx.run(program.statements)
+	if err == errSafeReturn {
+		returned = ctx.returnValue
+		err = nil
+	}
 	if err != nil {
 		return nil, err
+	}
+	if runOnceForEachItem {
+		item, ok := returned.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("runOnceForEachItem Code must return one item object")
+		}
+		jsonValue, wrapped := item["json"].(map[string]any)
+		if !wrapped {
+			// n8n's pinned JS task runner accepts a raw object from each-item Code
+			// and wraps it as the output item's json, unless it already carries json.
+			// https://github.com/n8n-io/n8n/blob/n8n@2.48.0/packages/@n8n/task-runner/src/js-task-runner/js-task-runner.ts
+			jsonValue = item
+			item = map[string]any{"json": jsonValue}
+		}
+		if len(jsonValue) > 256 {
+			return nil, fmt.Errorf("runOnceForEachItem Code must return a bounded json object")
+		}
+		encoded, marshalErr := json.Marshal(item)
+		if marshalErr != nil || len(encoded) > maxSafeCodeItemBytes {
+			return nil, fmt.Errorf("runOnceForEachItem Code output item exceeds %d bytes", maxSafeCodeItemBytes)
+		}
+		return []map[string]any{item}, nil
+	}
+	if item, ok := returned.(map[string]any); ok {
+		// n8n 2.48.0's Code node accepts one normalized item object in all-items
+		// mode as well as an item array:
+		// https://github.com/n8n-io/n8n/blob/n8n@2.48.0/packages/nodes-base/nodes/Code/result-validation.ts
+		jsonValue, valid := item["json"].(map[string]any)
+		if !valid || len(jsonValue) > 256 || len(item) > 5 {
+			return nil, fmt.Errorf("single Code output must contain one bounded json object")
+		}
+		for key := range item {
+			if key != "json" && key != "binary" && key != "pairedItem" && key != "error" && key != "index" {
+				return nil, fmt.Errorf("single Code output contains unsupported top-level field %q", key)
+			}
+		}
+		encoded, marshalErr := json.Marshal(item)
+		if marshalErr != nil || len(encoded) > maxSafeCodeItemBytes {
+			return nil, fmt.Errorf("single Code output item exceeds %d bytes", maxSafeCodeItemBytes)
+		}
+		return []map[string]any{item}, nil
 	}
 	arr, ok := returned.(*safeArray)
 	if !ok || len(arr.values) > maxSyntheticItems {
@@ -1018,6 +1792,7 @@ func executeSafeCodeWithNodeOutputs(source string, input []map[string]any, nodeO
 	}
 	return out, nil
 }
+
 func (c *safeCodeContext) tick() error {
 	c.steps++
 	if c.steps > maxSafeCodeSteps {
@@ -1025,13 +1800,24 @@ func (c *safeCodeContext) tick() error {
 	}
 	return nil
 }
+
 func (c *safeCodeContext) run(ss []codeStmt) (any, error) {
+	if c.callDepth == 0 && c.rootLocals == nil {
+		c.rootLocals = c.locals
+	}
+	for _, statement := range ss {
+		if statement.kind == "function" {
+			c.locals[statement.name] = safeLocalFunction{name: statement.name, params: statement.params, body: statement.body}
+		}
+	}
 	var ret any
 	for _, s := range ss {
 		if e := c.tick(); e != nil {
 			return nil, e
 		}
 		switch s.kind {
+		case "function":
+			continue
 		case "decl":
 			if _, exists := c.locals[s.name]; exists {
 				return nil, fmt.Errorf("duplicate local %s", s.name)
@@ -1054,16 +1840,28 @@ func (c *safeCodeContext) run(ss []codeStmt) (any, error) {
 				}
 			}
 			c.locals[s.name] = v
+		case "objectdecl":
+			value, err := c.eval(s.expr)
+			if err != nil {
+				return nil, err
+			}
+			object, ok := value.(map[string]any)
+			if !ok || len(s.params) == 0 || len(s.params) != len(s.fields) {
+				return nil, fmt.Errorf("object destructuring requires a bounded plain object")
+			}
+			for index, name := range s.params {
+				c.locals[name] = object[s.fields[index]]
+			}
 		case "assign":
 			current, exists := c.locals[s.name]
-			if !exists {
-				return nil, fmt.Errorf("assignment target %q is unavailable", s.name)
-			}
 			v, e := c.eval(s.expr)
 			if e != nil {
 				return nil, e
 			}
 			if s.op == "+=" {
+				if !exists {
+					return nil, fmt.Errorf("+= assignment target %q is unavailable", s.name)
+				}
 				if a, ok := current.(float64); ok {
 					if b, ok := v.(float64); ok {
 						v = a + b
@@ -1077,6 +1875,45 @@ func (c *safeCodeContext) run(ss []codeStmt) (any, error) {
 				}
 			}
 			c.locals[s.name] = v
+		case "assignchain":
+			value, err := c.eval(s.expr)
+			if err != nil {
+				return nil, err
+			}
+			for _, name := range s.params {
+				c.locals[name] = value
+			}
+		case "setprop":
+			parent, e := c.eval(s.target.left)
+			if e != nil {
+				return nil, e
+			}
+			object, ok := parent.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("property assignment requires a local plain object")
+			}
+			var key string
+			if s.target.op == "prop" {
+				key = s.target.value.(string)
+			} else {
+				keyValue, keyErr := c.eval(s.target.right)
+				if keyErr != nil {
+					return nil, keyErr
+				}
+				var ok bool
+				key, ok = keyValue.(string)
+				if !ok {
+					return nil, fmt.Errorf("computed property assignment key must evaluate to a string")
+				}
+			}
+			if !safeCodePropertyName(key) {
+				return nil, fmt.Errorf("property %q is not safe to assign", key)
+			}
+			value, e := c.eval(s.expr)
+			if e != nil {
+				return nil, e
+			}
+			object[key] = value
 		case "expr":
 			if _, e := c.eval(s.expr); e != nil {
 				return nil, e
@@ -1090,8 +1927,66 @@ func (c *safeCodeContext) run(ss []codeStmt) (any, error) {
 			if truthy(v) {
 				branch = s.body
 			}
-			if _, e = c.run(branch); e != nil {
-				return nil, e
+			branchResult, branchErr := c.run(branch)
+			if branchErr == errSafeReturn {
+				return branchResult, errSafeReturn
+			}
+			if branchErr != nil {
+				return nil, branchErr
+			}
+		case "continue":
+			return nil, errSafeContinue
+		case "break":
+			return nil, errSafeBreak
+		case "switch":
+			value, err := c.eval(s.expr)
+			if err != nil {
+				return nil, err
+			}
+			selected := -1
+			fallback := -1
+			for i, branch := range s.cases {
+				if branch.isDefault {
+					fallback = i
+					continue
+				}
+				match, err := c.eval(branch.test)
+				if err != nil {
+					return nil, err
+				}
+				if sameSafePrimitive(value, match) {
+					selected = i
+					break
+				}
+			}
+			if selected < 0 {
+				selected = fallback
+			}
+			if selected >= 0 {
+				for _, branch := range s.cases[selected:] {
+					branchResult, branchErr := c.run(branch.body)
+					if branchErr == errSafeBreak {
+						break
+					}
+					if branchErr == errSafeReturn {
+						return branchResult, errSafeReturn
+					}
+					if branchErr != nil {
+						return nil, branchErr
+					}
+				}
+			}
+		case "try":
+			if value, e := c.run(s.body); e != nil {
+				if e == errSafeReturn {
+					return value, e
+				}
+				if e == errSafeContinue {
+					return nil, e
+				}
+				if value, e = c.run(s.alternate); e != nil {
+					return value, e
+				}
 			}
 		case "forof":
 			v, e := c.eval(s.expr)
@@ -1111,8 +2006,12 @@ func (c *safeCodeContext) run(ss []codeStmt) (any, error) {
 					before[key] = true
 				}
 				c.locals[s.name] = item
-				if _, e = c.run(s.body); e != nil {
-					return nil, e
+				bodyResult, bodyErr := c.run(s.body)
+				if bodyErr == errSafeReturn {
+					return bodyResult, errSafeReturn
+				}
+				if bodyErr != nil && bodyErr != errSafeContinue {
+					return nil, bodyErr
 				}
 				for key := range c.locals {
 					if !before[key] {
@@ -1121,9 +2020,56 @@ func (c *safeCodeContext) run(ss []codeStmt) (any, error) {
 				}
 			}
 			delete(c.locals, s.name)
+		case "for":
+			initial, e := c.eval(s.init.expr)
+			if e != nil {
+				return nil, e
+			}
+			c.locals[s.name] = initial
+			for iteration := 0; iteration < maxSyntheticItems; iteration++ {
+				condition, e := c.eval(s.test)
+				if e != nil {
+					return nil, e
+				}
+				if !truthy(condition) {
+					break
+				}
+				if e = c.tick(); e != nil {
+					return nil, e
+				}
+				before := make(map[string]bool, len(c.locals))
+				for key := range c.locals {
+					before[key] = true
+				}
+				bodyResult, bodyErr := c.run(s.body)
+				if bodyErr == errSafeReturn {
+					return bodyResult, errSafeReturn
+				}
+				if bodyErr != nil && bodyErr != errSafeContinue {
+					return nil, bodyErr
+				}
+				for key := range c.locals {
+					if !before[key] {
+						delete(c.locals, key)
+					}
+				}
+				index, ok := c.locals[s.name].(float64)
+				if !ok {
+					return nil, fmt.Errorf("bounded for-loop index must remain numeric")
+				}
+				c.locals[s.name] = index + 1
+				if iteration == maxSyntheticItems-1 {
+					return nil, fmt.Errorf("bounded for-loop exceeded item limit")
+				}
+			}
+			delete(c.locals, s.name)
 		case "return":
 			ret, e := c.eval(s.expr)
-			return ret, e
+			if e == nil {
+				c.returnValue = ret
+				return ret, errSafeReturn
+			}
+			return nil, e
 		default:
 			return nil, fmt.Errorf("unsupported statement %q", s.kind)
 		}
@@ -1142,9 +2088,70 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 	case "lit":
 		return e.value, nil
 	case "regex":
-		return safeRegex{pattern: e.value.(string)}, nil
+		return e.value.(safeRegex), nil
+	case "template":
+		parts, ok := e.value.([]string)
+		if !ok || len(parts) != len(e.args)+1 {
+			return nil, fmt.Errorf("template literal structure is invalid")
+		}
+		var output strings.Builder
+		for index, expression := range e.args {
+			output.WriteString(parts[index])
+			value, err := c.eval(expression)
+			if err != nil {
+				return nil, err
+			}
+			output.WriteString(jsString(value))
+			if output.Len() > maxSafeCodeItemBytes {
+				return nil, fmt.Errorf("template output item bound exceeded")
+			}
+		}
+		output.WriteString(parts[len(parts)-1])
+		if output.Len() > maxSafeCodeItemBytes {
+			return nil, fmt.Errorf("template output item bound exceeded")
+		}
+		return output.String(), nil
 	case "date":
-		return safeDate{at: c.now}, nil
+		if e.left == nil {
+			return safeDate{at: c.now}, nil
+		}
+		value, err := c.eval(e.left)
+		if err != nil {
+			return nil, err
+		}
+		raw, ok := value.(string)
+		if !ok {
+			return nil, fmt.Errorf("Date input must be an ISO date string")
+		}
+		for _, layout := range []string{time.RFC3339, "2006-01-02", "2006-01-02T15:04:05.000Z"} {
+			if parsed, parseErr := time.Parse(layout, raw); parseErr == nil {
+				return safeDate{at: parsed.UTC()}, nil
+			}
+		}
+		return nil, fmt.Errorf("Date input is not a valid ISO date")
+	case "set":
+		set := safeSet{values: map[string]any{}}
+		if e.left == nil {
+			return set, nil
+		}
+		value, err := c.eval(e.left)
+		if err != nil {
+			return nil, err
+		}
+		array, ok := value.(*safeArray)
+		if !ok || len(array.values) > maxSyntheticItems {
+			return nil, fmt.Errorf("Set constructor requires a bounded array")
+		}
+		for _, item := range array.values {
+			key, valid := safeSetKey(item)
+			if !valid {
+				return nil, fmt.Errorf("Set values must be bounded primitive scalars")
+			}
+			set.values[key] = item
+		}
+		return set, nil
+	case "post++":
+		return nil, fmt.Errorf("post-increment is allowed only as a bounded for-loop update")
 	case "typeof":
 		v, err := c.eval(e.left)
 		if err != nil {
@@ -1171,8 +2178,26 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			input, _ := c.locals["__input"].(safeInput)
 			return input, nil
 		}
+		if e.value == "$json" {
+			input, _ := c.locals["__input"].(safeInput)
+			if len(input.items) == 0 {
+				return nil, fmt.Errorf("$json requires one current item")
+			}
+			item, _ := input.items[0].(map[string]any)
+			jsonValue, _ := item["json"].(map[string]any)
+			return jsonValue, nil
+		}
+		if e.value == "$now" {
+			return safeDate{at: c.now}, nil
+		}
+		if e.value == "$execution" {
+			return safeExecution{resumeURL: "https://n8n.synthetic.invalid"}, nil
+		}
 		if e.value == "String" {
 			return safeBuiltin("String"), nil
+		}
+		if e.value == "Number" {
+			return safeBuiltin("Number"), nil
 		}
 		if e.value == "Array" {
 			return safeBuiltin("Array"), nil
@@ -1180,11 +2205,23 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		if e.value == "Math" {
 			return safeBuiltin("Math"), nil
 		}
+		if e.value == "DateTime" {
+			return safeBuiltin("DateTime"), nil
+		}
 		if e.value == "parseInt" {
 			return safeBuiltin("parseInt"), nil
 		}
 		if e.value == "$" {
 			return safeBuiltin("named-node"), nil
+		}
+		if e.value == "$items" {
+			return safeBuiltin("items"), nil
+		}
+		if e.value == "JSON" {
+			return safeBuiltin("JSON"), nil
+		}
+		if e.value == "Object" {
+			return safeBuiltin("Object"), nil
 		}
 		return nil, fmt.Errorf("identifier %q is not allowed", e.value)
 	case "array":
@@ -1393,19 +2430,19 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		case map[string]any:
 			return x[jsString(key)], nil
 		case []any:
-			n, ok := numberValue(key)
+			n, ok := safeIndexNumber(key)
 			if !ok || n < 0 || n >= float64(len(x)) || n != math.Trunc(n) {
 				return nil, nil
 			}
 			return x[int(n)], nil
 		case *safeArray:
-			n, ok := numberValue(key)
+			n, ok := safeIndexNumber(key)
 			if !ok || n < 0 || n >= float64(len(x.values)) || n != math.Trunc(n) {
 				return nil, nil
 			}
 			return x.values[int(n)], nil
 		case string:
-			n, ok := numberValue(key)
+			n, ok := safeIndexNumber(key)
 			if !ok || n < 0 || n >= float64(len(x)) || n != math.Trunc(n) {
 				return nil, nil
 			}
@@ -1419,13 +2456,36 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			return nil, er
 		}
 		method := e.value.(string)
-		if method == "map" || method == "filter" {
+		if method == "concat" {
+			array, ok := receiver.(*safeArray)
+			if !ok || len(e.args) != 1 || len(array.values) > maxSyntheticItems {
+				return nil, fmt.Errorf("array concat requires one bounded item array")
+			}
+			value, evalErr := c.eval(e.args[0])
+			if evalErr != nil {
+				return nil, evalErr
+			}
+			result := append([]any{}, array.values...)
+			if other, ok := value.(*safeArray); ok {
+				if len(result)+len(other.values) > maxSyntheticItems {
+					return nil, fmt.Errorf("array concat output item bound exceeded")
+				}
+				result = append(result, other.values...)
+			} else {
+				if len(result) >= maxSyntheticItems {
+					return nil, fmt.Errorf("array concat output item bound exceeded")
+				}
+				result = append(result, value)
+			}
+			return boundedSafeArray(result)
+		}
+		if method == "map" || method == "filter" || method == "forEach" {
 			if len(e.args) != 1 || e.args[0].op != "lambda" {
 				return nil, fmt.Errorf("array %s requires one bounded arrow callback", method)
 			}
 			array, ok := receiver.(*safeArray)
 			if !ok {
-				return nil, fmt.Errorf("array %s requires an item array", method)
+				return nil, fmt.Errorf("array %s requires an item array (got %T)", method, receiver)
 			}
 			if len(array.values) > maxSyntheticItems {
 				return nil, fmt.Errorf("array %s input item bound exceeded", method)
@@ -1438,9 +2498,12 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 				}
 				if method == "map" {
 					result = append(result, value)
-				} else if truthy(value) {
+				} else if method == "filter" && truthy(value) {
 					result = append(result, item)
 				}
+			}
+			if method == "forEach" {
+				return nil, nil
 			}
 			return boundedSafeArray(result)
 		}
@@ -1451,6 +2514,15 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 				return nil, ee
 			}
 			args = append(args, v)
+		}
+		if method == "slice" {
+			if array, ok := receiver.(*safeArray); ok {
+				return safeArraySlice(array, args)
+			}
+		}
+		if builtin, ok := receiver.(safeBuiltin); ok && builtin == "Array" && method == "isArray" && len(args) == 1 {
+			_, ok := args[0].(*safeArray)
+			return ok, nil
 		}
 		if array, ok := receiver.(safeBuiltin); ok && array == "Array" && method == "from" {
 			return c.safeArrayFrom(args)
@@ -1484,7 +2556,30 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 					return nil, fmt.Errorf("Math.random takes no arguments")
 				}
 				return c.rng.Float64(), nil
+			case "round":
+				if len(args) != 1 {
+					return nil, fmt.Errorf("Math.round requires one numeric argument")
+				}
+				n, ok := numberValue(args[0])
+				if !ok {
+					return nil, fmt.Errorf("Math.round requires a numeric argument")
+				}
+				return math.Round(n), nil
 			}
+		}
+		if receiver == safeBuiltin("DateTime") && method == "fromISO" {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("DateTime.fromISO requires one ISO date string")
+			}
+			raw, ok := args[0].(string)
+			if !ok || len(raw) > 256 {
+				return nil, fmt.Errorf("DateTime.fromISO requires one bounded ISO date string")
+			}
+			parsed, err := parseSafeISODate(raw)
+			if err != nil {
+				return nil, err
+			}
+			return safeDateTime{at: parsed}, nil
 		}
 		if namedNode, ok := receiver.(safeBuiltin); ok && namedNode == "named-node" {
 			if len(args) != 1 {
@@ -1506,7 +2601,7 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			}
 			return lookup.items[0], nil
 		}
-		return safeCall(receiver, method, args)
+		return safeCall(c, receiver, method, args)
 	case "invoke":
 		fn, er := c.eval(e.left)
 		if er != nil {
@@ -1520,8 +2615,59 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			}
 			args = append(args, v)
 		}
+		if local, ok := fn.(safeLocalFunction); ok {
+			return c.callLocalFunction(local, args)
+		}
+		if fn == safeBuiltin("Object.keys") && len(args) == 1 {
+			return safeObjectKeys(args[0])
+		}
+		if fn == safeBuiltin("Array.isArray") && len(args) == 1 {
+			_, ok := args[0].(*safeArray)
+			return ok, nil
+		}
 		if fn == safeBuiltin("String") && len(args) == 1 {
 			return jsString(args[0]), nil
+		}
+		if fn == safeBuiltin("Number") && len(args) == 1 {
+			switch value := args[0].(type) {
+			case nil:
+				return float64(0), nil
+			case float64:
+				return value, nil
+			case int:
+				return float64(value), nil
+			case json.Number:
+				number, err := value.Float64()
+				if err == nil {
+					return number, nil
+				}
+			case bool:
+				if value {
+					return float64(1), nil
+				}
+				return float64(0), nil
+			case string:
+				if strings.TrimSpace(value) == "" {
+					return float64(0), nil
+				}
+				number, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+				if err == nil {
+					return number, nil
+				}
+			}
+			return nil, fmt.Errorf("Number requires a safely parseable scalar")
+		}
+		if fn == safeBuiltin("String.fromCodePoint") && len(args) == 1 {
+			number, ok := numberValue(args[0])
+			if !ok || number < 0 || number > 0x10ffff || number != math.Trunc(number) || number >= 0xd800 && number <= 0xdfff {
+				return nil, fmt.Errorf("String.fromCodePoint requires one Unicode scalar")
+			}
+			var result strings.Builder
+			result.WriteRune(rune(number))
+			return result.String(), nil
+		}
+		if lambda, ok := fn.(*codeExpr); ok && lambda.op == "lambda" && len(args) == 1 {
+			return c.evalLambda(lambda, args[0])
 		}
 		if fn == safeBuiltin("parseInt") && len(args) >= 1 && len(args) <= 2 {
 			text := strings.TrimSpace(jsString(args[0]))
@@ -1552,20 +2698,201 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			}
 			return safeNodeLookup{items: items.items}, nil
 		}
+		if fn == safeBuiltin("items") && len(args) == 1 {
+			name, ok := args[0].(string)
+			if !ok || !safeCodeNodeName(name) {
+				return nil, fmt.Errorf("$items requires a bounded prior-node name")
+			}
+			items, exists := c.nodeOutputs[name]
+			if !exists {
+				return nil, fmt.Errorf("prior node %q has not executed or has no available output", name)
+			}
+			return boundedSafeArray(items.items)
+		}
 		return nil, fmt.Errorf("function invocation is not allowed")
 	default:
 		return nil, fmt.Errorf("operator %q is not allowed", e.op)
 	}
 }
 
-type safeInput struct{ items []any }
-type safeNodeLookup struct{ items []any }
-type safeDate struct{ at time.Time }
-type safeRegex struct{ pattern string }
-type safeBuiltin string
-type safeArray struct {
-	values []any
-	bytes  int
+func safeArraySlice(array *safeArray, args []any) (*safeArray, error) {
+	if array == nil || len(args) < 1 || len(args) > 2 || len(array.values) > maxSyntheticItems {
+		return nil, fmt.Errorf("array slice requires a bounded one- or two-index range")
+	}
+	toIndex := func(raw any, fallback int) (int, error) {
+		if raw == nil {
+			return fallback, nil
+		}
+		number, ok := numberValue(raw)
+		if !ok || math.IsNaN(number) || math.IsInf(number, 0) || math.Abs(number) > maxSafeCodeSliceUnits {
+			return 0, fmt.Errorf("array slice index is outside its bound")
+		}
+		index := int(math.Trunc(number))
+		if index < 0 {
+			index += len(array.values)
+		}
+		if index < 0 {
+			index = 0
+		}
+		if index > len(array.values) {
+			index = len(array.values)
+		}
+		return index, nil
+	}
+	start, err := toIndex(args[0], 0)
+	if err != nil {
+		return nil, err
+	}
+	end := len(array.values)
+	if len(args) == 2 {
+		end, err = toIndex(args[1], len(array.values))
+		if err != nil {
+			return nil, err
+		}
+	}
+	if end < start {
+		end = start
+	}
+	return boundedSafeArray(array.values[start:end])
+}
+
+func safeSetKey(value any) (string, bool) {
+	switch item := value.(type) {
+	case nil:
+		return "null", true
+	case string:
+		return "string:" + item, len(item) <= maxSafeCodeItemBytes
+	case bool:
+		return "bool:" + strconv.FormatBool(item), true
+	case float64:
+		if math.IsNaN(item) || math.IsInf(item, 0) {
+			return "", false
+		}
+		return "number:" + strconv.FormatFloat(item, 'g', -1, 64), true
+	case int:
+		return "number:" + strconv.Itoa(item), true
+	case json.Number:
+		return "number:" + item.String(), true
+	default:
+		return "", false
+	}
+}
+
+type (
+	safeInput      struct{ items []any }
+	safeNodeLookup struct{ items []any }
+	safeExecution  struct{ resumeURL string }
+	safeDate       struct{ at time.Time }
+	safeDateTime   struct{ at time.Time }
+	safeSet        struct{ values map[string]any }
+	safeRegex      struct {
+		pattern    string
+		global     bool
+		ignoreCase bool
+	}
+	safeBuiltin string
+	safeArray   struct {
+		values []any
+		bytes  int
+	}
+)
+
+func (r safeRegex) flags() string {
+	var flags string
+	if r.global {
+		flags += "g"
+	}
+	if r.ignoreCase {
+		flags += "i"
+	}
+	return flags
+}
+
+func safeRegexLiteralEnd(source string, start int) int {
+	inClass := false
+	for index := start; index < len(source); index++ {
+		switch source[index] {
+		case '\\':
+			index++
+		case '[':
+			inClass = true
+		case ']':
+			inClass = false
+		case '/':
+			if !inClass {
+				return index
+			}
+		}
+	}
+	return -1
+}
+
+func ensureJSONEnd(decoder *json.Decoder) error {
+	var extra any
+	if err := decoder.Decode(&extra); err != io.EOF {
+		return fmt.Errorf("JSON has trailing content")
+	}
+	return nil
+}
+
+func toSafeJSON(value any, depth int) (any, error) {
+	if depth > 32 {
+		return nil, fmt.Errorf("JSON nesting exceeds 32 levels")
+	}
+	switch typed := value.(type) {
+	case map[string]any:
+		result := make(map[string]any, len(typed))
+		for key, child := range typed {
+			if !safeJSONPropertyName(key) {
+				return nil, fmt.Errorf("JSON property %q is unsupported", key)
+			}
+			converted, err := toSafeJSON(child, depth+1)
+			if err != nil {
+				return nil, err
+			}
+			result[key] = converted
+		}
+		return result, nil
+	case []any:
+		if len(typed) > maxSyntheticItems {
+			return nil, fmt.Errorf("JSON array item bound exceeded")
+		}
+		values := make([]any, len(typed))
+		for index, child := range typed {
+			converted, err := toSafeJSON(child, depth+1)
+			if err != nil {
+				return nil, err
+			}
+			values[index] = converted
+		}
+		return boundedSafeArray(values)
+	case json.Number:
+		return typed, nil
+	case float64:
+		if math.IsNaN(typed) || math.IsInf(typed, 0) {
+			return nil, fmt.Errorf("JSON number must be finite")
+		}
+		return typed, nil
+	case int:
+		return typed, nil
+	case *safeArray:
+		if typed == nil || len(typed.values) > maxSyntheticItems {
+			return nil, fmt.Errorf("JSON array item bound exceeded")
+		}
+		values := make([]any, len(typed.values))
+		for index, child := range typed.values {
+			converted, err := toSafeJSON(child, depth+1)
+			if err != nil {
+				return nil, err
+			}
+			values[index] = converted
+		}
+		return boundedSafeArray(values)
+	case string, bool, nil:
+		return typed, nil
+	default:
+		return nil, fmt.Errorf("JSON value type %T is unsupported", typed)
+	}
 }
 
 func (a *safeArray) MarshalJSON() ([]byte, error) { return json.Marshal(a.values) }
@@ -1573,7 +2900,7 @@ func (a *safeArray) MarshalJSON() ([]byte, error) { return json.Marshal(a.values
 func safeProperty(v any, k string) (any, error) {
 	switch x := v.(type) {
 	case map[string]any:
-		return x[k], nil
+		return toSafeJSON(x[k], 0)
 	case *safeArray:
 		if k == "length" {
 			return float64(len(x.values)), nil
@@ -1582,25 +2909,68 @@ func safeProperty(v any, k string) (any, error) {
 		if k == "length" {
 			return float64(len(x)), nil
 		}
+		if k == "match" {
+			return safeBuiltin("string.match"), nil
+		}
 	case safeInput:
 		if k == "all" || k == "first" {
 			return safeBuiltin("input." + k), nil
 		}
+		if k == "item" {
+			if len(x.items) != 1 {
+				return nil, fmt.Errorf("$input.item requires exactly one current item")
+			}
+			item, _ := x.items[0].(map[string]any)
+			jsonValue, _ := item["json"].(map[string]any)
+			if jsonValue == nil {
+				return nil, fmt.Errorf("$input.item requires one JSON object")
+			}
+			return jsonValue, nil
+		}
 	case safeNodeLookup:
+		if k == "item" {
+			if len(x.items) != 1 {
+				return nil, fmt.Errorf("prior-node .item requires exactly one linked output item")
+			}
+			return x.items[0], nil
+		}
 		if k == "all" || k == "first" {
 			return safeBuiltin("node." + k), nil
 		}
+	case safeExecution:
+		if k == "resumeUrl" {
+			return x.resumeURL, nil
+		}
 	case safeDate:
-		if k == "toISOString" {
-			return safeBuiltin("date.toISOString"), nil
+		if k == "toISOString" || k == "toISO" {
+			return safeBuiltin("date." + k), nil
+		}
+		if k == "getDay" || k == "getDate" || k == "getMonth" || k == "getFullYear" {
+			return safeBuiltin("date." + k), nil
+		}
+	case safeSet:
+		if k == "has" {
+			return safeBuiltin("set.has"), nil
 		}
 	case safeRegex:
 		if k == "test" {
 			return safeBuiltin("regex.test:" + x.pattern), nil
 		}
 	case safeBuiltin:
+		if x == "String" && k == "fromCodePoint" {
+			return safeBuiltin("String.fromCodePoint"), nil
+		}
+		if x == "Object" && k == "keys" {
+			return safeBuiltin("Object.keys"), nil
+		}
+		if x == "JSON" && (k == "stringify" || k == "parse") {
+			return safeBuiltin("JSON." + k), nil
+		}
 		if x == "Array" && k == "from" {
 			return safeBuiltin("Array"), nil
+		}
+		if x == "Array" && k == "isArray" {
+			return safeBuiltin("Array.isArray"), nil
 		}
 		if x == "Math" && (k == "floor" || k == "random") {
 			return safeBuiltin("Math"), nil
@@ -1608,15 +2978,51 @@ func safeProperty(v any, k string) (any, error) {
 	}
 	return nil, fmt.Errorf("property %q is not allowed on %T", k, v)
 }
-func safeCall(receiver any, method string, args []any) (any, error) {
+
+func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any, error) {
 	b, ok := receiver.(safeBuiltin)
 	if ok {
+		if b == "Object" && method == "keys" && len(args) == 1 {
+			return safeObjectKeys(args[0])
+		}
+		if b == "JSON" {
+			return safeJSONCall(method, args)
+		}
 		switch string(b) {
-		case "String":
+		case "JSON.stringify":
 			if len(args) != 1 {
-				return nil, fmt.Errorf("String requires one argument")
+				return nil, fmt.Errorf("JSON.stringify requires one value")
 			}
-			return fmt.Sprint(args[0]), nil
+			encoded, err := json.Marshal(args[0])
+			if err != nil || len(encoded) > maxSafeCodeItemBytes {
+				return nil, fmt.Errorf("JSON.stringify value exceeds the bounded JSON size")
+			}
+			return string(encoded), nil
+		case "JSON.parse":
+			if len(args) != 1 {
+				return nil, fmt.Errorf("JSON.parse requires one string")
+			}
+			raw, ok := args[0].(string)
+			if !ok || len(raw) > maxSafeCodeItemBytes {
+				return nil, fmt.Errorf("JSON.parse requires a bounded JSON string")
+			}
+			var decoded any
+			decoder := json.NewDecoder(strings.NewReader(raw))
+			decoder.UseNumber()
+			if err := decoder.Decode(&decoded); err != nil {
+				return nil, err
+			}
+			if err := ensureJSONEnd(decoder); err != nil {
+				return nil, err
+			}
+			return toSafeJSON(decoded, 0)
+		case "String":
+			if method == "call" {
+				if len(args) != 1 {
+					return nil, fmt.Errorf("String requires one argument")
+				}
+				return fmt.Sprint(args[0]), nil
+			}
 		case "input.all":
 			if len(args) != 0 {
 				return nil, fmt.Errorf("$input.all takes no arguments")
@@ -1646,6 +3052,51 @@ func safeCall(receiver any, method string, args []any) (any, error) {
 		if method == "toISOString" && len(args) == 0 {
 			return x.at.Format("2006-01-02T15:04:05.000Z"), nil
 		}
+		if method == "toISO" && len(args) == 0 {
+			return x.at.UTC().Format(time.RFC3339Nano), nil
+		}
+		if len(args) == 0 {
+			switch method {
+			case "getDay":
+				return float64(x.at.Weekday()), nil
+			case "getDate":
+				return float64(x.at.Day()), nil
+			case "getMonth":
+				return float64(x.at.Month() - 1), nil
+			case "getFullYear":
+				return float64(x.at.Year()), nil
+			}
+		}
+	case safeDateTime:
+		if method == "toFormat" && len(args) == 1 {
+			format, ok := args[0].(string)
+			if !ok || format != "yyyy-MM-dd HH:mm:ss" {
+				return nil, fmt.Errorf("DateTime.toFormat supports only the bounded yyyy-MM-dd HH:mm:ss format")
+			}
+			return x.at.UTC().Format("2006-01-02 15:04:05"), nil
+		}
+		if method == "diff" && len(args) == 2 {
+			other, ok := args[0].(safeDateTime)
+			units, unitsOK := args[1].(*safeArray)
+			if !ok || !unitsOK || len(units.values) != 3 || units.values[0] != "hours" || units.values[1] != "minutes" || units.values[2] != "seconds" {
+				return nil, fmt.Errorf("DateTime.diff supports only another ISO date and ordered hours, minutes, seconds units")
+			}
+			seconds := x.at.Sub(other.at).Seconds()
+			hours := math.Trunc(seconds / 3600)
+			seconds -= hours * 3600
+			minutes := math.Trunc(seconds / 60)
+			seconds -= minutes * 60
+			return map[string]any{"hours": hours, "minutes": minutes, "seconds": seconds}, nil
+		}
+	case safeSet:
+		if method == "has" && len(args) == 1 {
+			key, ok := safeSetKey(args[0])
+			if !ok {
+				return false, nil
+			}
+			_, exists := x.values[key]
+			return exists, nil
+		}
 	case safeInput:
 		if method == "all" && len(args) == 0 {
 			return &safeArray{values: x.items}, nil
@@ -1660,15 +3111,81 @@ func safeCall(receiver any, method string, args []any) (any, error) {
 		if method == "all" && len(args) == 0 {
 			return boundedSafeArray(x.items)
 		}
+		if method == "item" && len(args) == 0 {
+			if len(x.items) != 1 {
+				return nil, fmt.Errorf("prior-node .item requires exactly one linked output item")
+			}
+			return x.items[0], nil
+		}
 	case safeRegex:
 		if method == "test" && len(args) == 1 {
-			r, e := regexp.Compile(x.pattern)
+			r, e := compileSafeRegex(x)
 			if e != nil {
 				return nil, e
 			}
 			return r.MatchString(fmt.Sprint(args[0])), nil
 		}
 	case string:
+		if method == "match" && len(args) == 1 {
+			pattern, ok := args[0].(safeRegex)
+			if !ok || pattern.global {
+				return nil, fmt.Errorf("match requires one bounded non-global approved regex")
+			}
+			regex, err := compileSafeRegex(pattern)
+			if err != nil {
+				return nil, err
+			}
+			matched := regex.FindString(x)
+			if matched == "" {
+				return nil, nil
+			}
+			return boundedSafeArray([]any{matched})
+		}
+		if method == "indexOf" && len(args) == 1 {
+			needle, ok := args[0].(string)
+			if !ok {
+				return float64(-1), nil
+			}
+			return float64(strings.Index(x, needle)), nil
+		}
+		if method == "replace" && len(args) == 2 {
+			if callback, ok := args[1].(*codeExpr); ok && callback.op == "lambda" {
+				pattern, ok := args[0].(safeRegex)
+				if !ok {
+					return nil, fmt.Errorf("replace callback requires an approved bounded regex")
+				}
+				return safeRegexReplaceCallback(x, pattern, callback, c)
+			}
+			replacement, ok := args[1].(string)
+			if !ok || len(replacement) > maxSafeCodeItemBytes {
+				return nil, fmt.Errorf("replace requires one bounded string replacement")
+			}
+			switch pattern := args[0].(type) {
+			case string:
+				if pattern == "" || len(pattern) > 256 {
+					return nil, fmt.Errorf("replace requires a nonempty bounded literal search")
+				}
+				if index := strings.Index(x, pattern); index >= 0 {
+					x = x[:index] + replacement + x[index+len(pattern):]
+				}
+			case safeRegex:
+				re, err := compileSafeRegex(pattern)
+				if err != nil {
+					return nil, err
+				}
+				if pattern.global {
+					x = re.ReplaceAllString(x, replacement)
+				} else if index := re.FindStringIndex(x); index != nil {
+					x = x[:index[0]] + replacement + x[index[1]:]
+				}
+			default:
+				return nil, fmt.Errorf("replace search must be a bounded literal or approved regex")
+			}
+			if len(x) > maxSafeCodeItemBytes {
+				return nil, fmt.Errorf("replace output item bound exceeded")
+			}
+			return x, nil
+		}
 		if len(args) == 0 {
 			switch method {
 			case "trim":
@@ -1739,6 +3256,15 @@ func safeCall(receiver any, method string, args []any) (any, error) {
 			return strings.Join(anyStrings(x.values), fmt.Sprint(args[0])), nil
 		}
 	case safeBuiltin:
+		if x == "String" && method == "fromCodePoint" && len(args) == 1 {
+			number, ok := numberValue(args[0])
+			if !ok || number < 0 || number > 0x10ffff || number != math.Trunc(number) || number >= 0xd800 && number <= 0xdfff {
+				return nil, fmt.Errorf("String.fromCodePoint requires one Unicode scalar")
+			}
+			var result strings.Builder
+			result.WriteRune(rune(number))
+			return result.String(), nil
+		}
 		if x == "String" && method == "call" && len(args) == 1 {
 			return fmt.Sprint(args[0]), nil
 		}
@@ -1746,31 +3272,187 @@ func safeCall(receiver any, method string, args []any) (any, error) {
 	return nil, fmt.Errorf("call %q on %T is not allowed", method, receiver)
 }
 
+func safeRegexReplaceCallback(input string, pattern safeRegex, callback *codeExpr, context *safeCodeContext) (string, error) {
+	regex, err := compileSafeRegex(pattern)
+	if err != nil {
+		return "", err
+	}
+	limit := -1
+	if pattern.global {
+		limit = maxSyntheticItems
+	}
+	matches := regex.FindAllStringSubmatchIndex(input, limit)
+	if len(matches) > maxSyntheticItems {
+		return "", fmt.Errorf("regex replacement match bound exceeded")
+	}
+	var output strings.Builder
+	position := 0
+	params := safeLambdaParameters(callback)
+	for _, match := range matches {
+		if len(match) < 2 || match[0] < position {
+			continue
+		}
+		output.WriteString(input[position:match[0]])
+		callbackArgs := make([]any, len(params))
+		for index := range params {
+			switch {
+			case index == 0:
+				callbackArgs[index] = input[match[0]:match[1]]
+			case index*2 < len(match):
+				start, end := match[index*2], match[index*2+1]
+				if start < 0 || end < 0 {
+					callbackArgs[index] = ""
+				} else {
+					callbackArgs[index] = input[start:end]
+				}
+			case index == len(match)/2:
+				callbackArgs[index] = float64(match[0])
+			case index == len(match)/2+1:
+				callbackArgs[index] = input
+			default:
+				callbackArgs[index] = nil
+			}
+		}
+		replacement, callbackErr := context.evalLambdaArguments(callback, callbackArgs)
+		if callbackErr != nil {
+			return "", callbackErr
+		}
+		output.WriteString(jsString(replacement))
+		position = match[1]
+		if output.Len() > maxSafeCodeItemBytes {
+			return "", fmt.Errorf("replace output item bound exceeded")
+		}
+	}
+	output.WriteString(input[position:])
+	if output.Len() > maxSafeCodeItemBytes {
+		return "", fmt.Errorf("replace output item bound exceeded")
+	}
+	return output.String(), nil
+}
+
+func safeJSONCall(method string, args []any) (any, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("JSON.%s requires one argument", method)
+	}
+	switch method {
+	case "stringify":
+		encoded, err := json.Marshal(args[0])
+		if err != nil || len(encoded) > maxSafeCodeItemBytes {
+			return nil, fmt.Errorf("JSON.stringify value exceeds the bounded JSON size")
+		}
+		return string(encoded), nil
+	case "parse":
+		raw, ok := args[0].(string)
+		if !ok || len(raw) > maxSafeCodeItemBytes {
+			return nil, fmt.Errorf("JSON.parse requires a bounded JSON string")
+		}
+		var decoded any
+		decoder := json.NewDecoder(strings.NewReader(raw))
+		decoder.UseNumber()
+		if err := decoder.Decode(&decoded); err != nil {
+			return nil, err
+		}
+		if err := ensureJSONEnd(decoder); err != nil {
+			return nil, err
+		}
+		return toSafeJSON(decoded, 0)
+	default:
+		return nil, fmt.Errorf("JSON method %q is not allowed", method)
+	}
+}
+
 type safeInputItems struct{}
 
+func (c *safeCodeContext) callLocalFunction(fn safeLocalFunction, args []any) (any, error) {
+	if len(args) != len(fn.params) {
+		return nil, fmt.Errorf("function %s requires %d arguments", fn.name, len(fn.params))
+	}
+	if c.callDepth >= 64 {
+		return nil, fmt.Errorf("local function call depth exceeds 64")
+	}
+	previous := c.locals
+	previousReturnValue := c.returnValue
+	c.returnValue = nil
+	base := c.rootLocals
+	if base == nil {
+		base = previous
+	}
+	next := make(map[string]any, len(base)+len(args))
+	for k, v := range base {
+		next[k] = v
+	}
+	c.locals = next
+	c.callDepth++
+	defer func() { c.callDepth--; c.locals = previous }()
+	for i, name := range fn.params {
+		c.locals[name] = args[i]
+	}
+	value, err := c.run(fn.body)
+	if err == errSafeReturn {
+		value = c.returnValue
+		err = nil
+	}
+	c.returnValue = previousReturnValue
+	return value, err
+}
+
 func (c *safeCodeContext) evalLambda(lambda *codeExpr, value any) (any, error) {
+	return c.evalLambdaArguments(lambda, []any{value})
+}
+
+func (c *safeCodeContext) evalLambdaArguments(lambda *codeExpr, values []any) (any, error) {
 	if lambda == nil || lambda.op != "lambda" {
 		return nil, fmt.Errorf("callback is not a bounded arrow expression")
 	}
-	name, ok := lambda.value.(string)
-	if !ok || !safeCodeIdentifier(name) {
-		return nil, fmt.Errorf("callback parameter is invalid")
+	params := safeLambdaParameters(lambda)
+	if len(params) != len(values) {
+		return nil, fmt.Errorf("callback argument count does not match bounded parameters")
 	}
-	previous, existed := c.locals[name]
-	c.locals[name] = value
+	previousLocals := c.locals
+	previousReturn := c.returnValue
+	nextLocals := make(map[string]any, len(previousLocals)+len(params))
+	for key, value := range previousLocals {
+		nextLocals[key] = value
+	}
+	c.locals = nextLocals
+	for index, name := range params {
+		if !safeCodeIdentifier(name) {
+			c.locals = previousLocals
+			return nil, fmt.Errorf("callback parameter is invalid")
+		}
+		c.locals[name] = values[index]
+	}
+	defer func() {
+		c.locals = previousLocals
+		c.returnValue = previousReturn
+	}()
 	var result any
 	var err error
 	if lambda.left != nil {
 		result, err = c.eval(lambda.left)
 	} else {
+		c.returnValue = nil
 		result, err = c.run(lambda.body)
-	}
-	if existed {
-		c.locals[name] = previous
-	} else {
-		delete(c.locals, name)
+		if err == errSafeReturn {
+			result = c.returnValue
+			err = nil
+		}
 	}
 	return result, err
+}
+
+func safeLambdaParameters(lambda *codeExpr) []string {
+	if lambda == nil || lambda.op != "lambda" {
+		return nil
+	}
+	if len(lambda.params) > 0 {
+		return lambda.params
+	}
+	name, ok := lambda.value.(string)
+	if !ok {
+		return nil
+	}
+	return []string{name}
 }
 
 func (c *safeCodeContext) safeArrayFrom(args []any) (*safeArray, error) {
@@ -1820,6 +3502,15 @@ func numberValue(value any) (float64, bool) {
 	}
 }
 
+func parseSafeISODate(value string) (time.Time, error) {
+	for _, layout := range []string{time.RFC3339Nano, "2006-01-02"} {
+		if parsed, err := time.Parse(layout, value); err == nil {
+			return parsed.UTC(), nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("DateTime.fromISO value is not a bounded ISO timestamp")
+}
+
 func boundedSafeArray(values []any) (*safeArray, error) {
 	if len(values) > maxSyntheticItems {
 		return nil, fmt.Errorf("array item bound exceeded")
@@ -1860,6 +3551,17 @@ func isStaticNamedNodeLookup(expr *codeExpr) bool {
 	return ok && safeCodeNodeName(name)
 }
 
+func isSafeNamedNodeLookup(expr *codeExpr, scope map[string]bool) bool {
+	if isStaticNamedNodeLookup(expr) {
+		return true
+	}
+	if expr == nil || expr.op != "invoke" || expr.left.op != "var" || expr.left.value != "$" || len(expr.args) != 1 || expr.args[0].op != "var" {
+		return false
+	}
+	name, ok := expr.args[0].value.(string)
+	return ok && scopeHas(scope, name)
+}
+
 func safeCodeNodeName(name string) bool {
 	return len(name) > 0 && len(name) <= 128 && !strings.ContainsAny(name, "\x00\r\n")
 }
@@ -1888,6 +3590,18 @@ func safeCodePropertyName(name string) bool {
 	}
 }
 
+func safeJSONPropertyName(name string) bool {
+	if name == "" || len(name) > 128 || strings.ContainsAny(name, "\x00\r\n") {
+		return false
+	}
+	switch name {
+	case "__proto__", "prototype", "constructor", "caller", "callee", "arguments":
+		return false
+	default:
+		return true
+	}
+}
+
 func anyStrings(a []any) []string {
 	r := make([]string, len(a))
 	for i, v := range a {
@@ -1895,12 +3609,14 @@ func anyStrings(a []any) []string {
 	}
 	return r
 }
+
 func jsString(v any) string {
 	if v == nil {
 		return ""
 	}
 	return fmt.Sprint(v)
 }
+
 func truthy(v any) bool {
 	if v == nil || v == false {
 		return false
@@ -1920,10 +3636,97 @@ func safeEmailRegex(pattern string) bool {
 	return pattern == "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$" || pattern == "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
 }
 
+func safeCodeRegex(pattern, flags string) bool {
+	if safeEmailRegex(pattern) {
+		return flags == ""
+	}
+	if pattern == `^https?:\/\/[^/]+` {
+		return flags == ""
+	}
+	if pattern == "&" || pattern == "<" || pattern == ">" {
+		return flags == "" || flags == "g"
+	}
+	if pattern == "-" {
+		return flags == "g"
+	}
+	switch pattern {
+	case `<!--[\s\S]*?-->`, `<[^>]+>`, `&nbsp;`, `&lt;`, `&gt;`, `&quot;`, `&amp;`, `&#(\d+);`, `&#8217;`, `&#8211;`:
+		return flags == "g" || flags == ""
+	case `<(script|style)[\s\S]*?<\/\1>`, `<br\s*\/?>`, `<\/?(p|div|li|ul|ol|h[1-6]|tr|td|th|table|blockquote|section|article|figure|figcaption)(\s[^>]*)?>`, `&#x([0-9a-f]+);`:
+		return flags == "gi"
+	case `\s+`:
+		return flags == "g"
+	default:
+		return false
+	}
+}
+
+func compileSafeRegex(pattern safeRegex) (*regexp.Regexp, error) {
+	goPattern := strings.ReplaceAll(pattern.pattern, `\/`, `/`)
+	switch pattern.pattern {
+	case `<(script|style)[\s\S]*?<\/\1>`:
+		goPattern = `<script[\s\S]*?</script>|<style[\s\S]*?</style>`
+	case `<br\s*\/?>`:
+		goPattern = `<br\s*/?>`
+	case `<\/?(p|div|li|ul|ol|h[1-6]|tr|td|th|table|blockquote|section|article|figure|figcaption)(\s[^>]*)?>`:
+		goPattern = `</?(p|div|li|ul|ol|h[1-6]|tr|td|th|table|blockquote|section|article|figure|figcaption)(\s[^>]*)?>`
+	}
+	if pattern.ignoreCase {
+		goPattern = "(?i)" + goPattern
+	}
+	return regexp.Compile(goPattern)
+}
+
 func isNumericLiteral(expr *codeExpr, expected float64) bool {
 	if expr == nil || expr.op != "lit" {
 		return false
 	}
 	value, ok := expr.value.(float64)
 	return ok && value == expected
+}
+
+func safeObjectKeys(value any) (*safeArray, error) {
+	keys := make([]string, 0, 16)
+	switch object := value.(type) {
+	case map[string]any:
+		if len(object) > 4096 {
+			return nil, fmt.Errorf("Object.keys input exceeds the 4096-property bound")
+		}
+		for key := range object {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+	case []any:
+		if len(object) > maxSyntheticItems {
+			return nil, fmt.Errorf("Object.keys array exceeds the item bound")
+		}
+		for i := range object {
+			keys = append(keys, strconv.Itoa(i))
+		}
+	case *safeArray:
+		if len(object.values) > maxSyntheticItems {
+			return nil, fmt.Errorf("Object.keys array exceeds the item bound")
+		}
+		for i := range object.values {
+			keys = append(keys, strconv.Itoa(i))
+		}
+	default:
+		return nil, fmt.Errorf("Object.keys requires a bounded object or array, got %T", value)
+	}
+	values := make([]any, len(keys))
+	for i, key := range keys {
+		values[i] = key
+	}
+	return boundedSafeArray(values)
+}
+
+func safeIndexNumber(value any) (float64, bool) {
+	if text, ok := value.(string); ok {
+		if text == "" || strings.Trim(text, "0123456789") != "" {
+			return 0, false
+		}
+		parsed, err := strconv.ParseFloat(text, 64)
+		return parsed, err == nil
+	}
+	return numberValue(value)
 }

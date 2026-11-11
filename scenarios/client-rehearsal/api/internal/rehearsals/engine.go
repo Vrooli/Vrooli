@@ -2,8 +2,10 @@ package rehearsals
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,10 +43,10 @@ func executeWorkflowEntry(ctx context.Context, workflow Workflow, entryID string
 }
 
 func executeGraph(ctx context.Context, workflow Workflow, entryID string, initial map[string]any, simulator Simulator, injectFault bool, now time.Time, trace *[]TraceEvent, stack map[string]bool, depth int) (map[string]any, error) {
-	return executeGraphMany(ctx, workflow, entryID, []map[string]any{initial}, simulator, injectFault, now, trace, stack, depth, "", nil)
+	return executeGraphMany(ctx, workflow, entryID, []map[string]any{initial}, simulator, injectFault, now, trace, stack, depth, "", nil, nil)
 }
 
-func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, initial []map[string]any, simulator Simulator, injectFault bool, now time.Time, trace *[]TraceEvent, stack map[string]bool, depth int, captureNode string, captured *[]map[string]any) (map[string]any, error) {
+func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, initial []map[string]any, simulator Simulator, injectFault bool, now time.Time, trace *[]TraceEvent, stack map[string]bool, depth int, captureNode string, captured *[]map[string]any, seedNodeOutputs map[string][]map[string]any) (map[string]any, error) {
 	if depth > maxSubworkflowDepth {
 		return nil, fmt.Errorf("subworkflow nesting exceeds %d", maxSubworkflowDepth)
 	}
@@ -66,7 +68,11 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 		initialItems = append(initialItems, cloneMap(item))
 	}
 	inputs := map[string][]map[string]any{entryID: initialItems}
-	priorNodeOutputs := map[string][]map[string]any{}
+	inputsByPort := map[string]map[int][]map[string]any{entryID: {0: initialItems}}
+	priorNodeOutputs := make(map[string][]map[string]any, len(seedNodeOutputs)+len(workflow.Nodes))
+	for name, outputs := range seedNodeOutputs {
+		priorNodeOutputs[name] = cloneMapSlice(outputs)
+	}
 	incomingSources := map[string]map[string]bool{}
 	feedbackEdges, err := loopFeedbackEdges(workflow)
 	if err != nil {
@@ -96,10 +102,18 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 			priorNodeOutputs[node.Name] = cloneMapSlice(contexts)
 		} else {
 			incoming := inputs[id]
+			if node.MergeUseDataOfInput > 0 {
+				incoming = inputsByPort[id][node.MergeUseDataOfInput-1]
+			}
+			if node.ExecuteOnce && len(incoming) > 1 {
+				incoming = incoming[:1]
+			}
 			if len(incoming) == 0 {
 				continue
 			}
-			if len(incomingSources[id]) > 1 {
+			if node.MergeUseDataOfInput > 0 {
+				contexts = incoming
+			} else if len(incomingSources[id]) > 1 {
 				contexts = []map[string]any{mergeMaps(incoming)}
 			} else {
 				contexts = incoming
@@ -128,7 +142,7 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 				bodyStack := cloneSet(stack)
 				delete(bodyStack, workflow.ID)
 				batchOutputs := []map[string]any{}
-				batchOutput, err := executeGraphMany(ctx, body, bodyEntry, batch, simulator, injectFault, batchNow, trace, bodyStack, depth, loopFeedbackSource(workflow, node.ID), &batchOutputs)
+				batchOutput, err := executeGraphMany(ctx, body, bodyEntry, batch, simulator, injectFault, batchNow, trace, bodyStack, depth, loopFeedbackSource(workflow, node.ID), &batchOutputs, priorNodeOutputs)
 				if err != nil {
 					return last, fmt.Errorf("Loop Over Items %s batch %d: %w", node.Name, start/batchSize+1, err)
 				}
@@ -145,7 +159,97 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 			for _, edge := range workflow.Connections {
 				if edge.From == id && edge.OutputPort == 0 {
 					for _, item := range loopResults {
-						inputs[edge.To] = append(inputs[edge.To], cloneMap(item))
+						appendRoutedInput(inputs, inputsByPort, edge, item)
+					}
+				}
+			}
+			continue
+		}
+		if node.ExtractFromFilePropertyName != "" {
+			outputs := make([]map[string]any, 0, len(contexts))
+			for _, item := range contexts {
+				binaryData, ok := item["binary"].(map[string]any)
+				if !ok {
+					return last, fmt.Errorf("Extract From File %s input has no binary object", node.Name)
+				}
+				file, ok := binaryData[node.ExtractFromFilePropertyName].(map[string]any)
+				if !ok {
+					return last, fmt.Errorf("Extract From File %s binary property %s is missing", node.Name, node.ExtractFromFilePropertyName)
+				}
+				encoded, ok := file["data"].(string)
+				if !ok || len(encoded) > ((1<<20)*4/3+8) {
+					return last, fmt.Errorf("Extract From File %s requires bounded base64 data", node.Name)
+				}
+				raw, err := base64.StdEncoding.DecodeString(encoded)
+				if err != nil || len(raw) > 1<<20 {
+					return last, fmt.Errorf("Extract From File %s base64 payload is invalid or oversized", node.Name)
+				}
+				decoder := json.NewDecoder(strings.NewReader(string(raw)))
+				decoder.UseNumber()
+				var decoded any
+				if err = decoder.Decode(&decoded); err != nil {
+					return last, fmt.Errorf("Extract From File %s JSON is invalid: %w", node.Name, err)
+				}
+				if err = ensureJSONEnd(decoder); err != nil {
+					return last, fmt.Errorf("Extract From File %s JSON has trailing data", node.Name)
+				}
+				value, err := toSafeJSON(decoded, 0)
+				if err != nil {
+					return last, fmt.Errorf("Extract From File %s JSON exceeds safe structure bounds: %w", node.Name, err)
+				}
+				out := cloneMap(item)
+				out[node.ExtractFromFileDestination] = value
+				outputs = append(outputs, out)
+			}
+			if len(outputs) > 0 {
+				last = mergeMaps(outputs)
+			}
+			priorNodeOutputs[node.Name] = cloneMapSlice(outputs)
+			if captured != nil && id == captureNode {
+				*captured = cloneMapSlice(outputs)
+			}
+			*trace = append(*trace, TraceEvent{Sequence: uint32(len(*trace) + 1), Operation: workflow.ID + "/Extract bounded JSON file", RequestSummary: node.Name, ResponseSummary: fmt.Sprintf("decoded %d synthetic JSON files", len(outputs)), Status: "succeeded", OccurredAt: now.UTC()})
+			for _, edge := range workflow.Connections {
+				if edge.From == id && edge.OutputPort == 0 {
+					for _, item := range outputs {
+						appendRoutedInput(inputs, inputsByPort, edge, item)
+					}
+				}
+			}
+			continue
+		}
+		if len(node.SortFields) > 0 {
+			outputs := sortWorkflowItems(contexts, node.SortFields)
+			*trace = append(*trace, TraceEvent{Sequence: uint32(len(*trace) + 1), Operation: workflow.ID + "/Sort bounded fields", RequestSummary: node.Name, ResponseSummary: fmt.Sprintf("sorted %d synthetic items", len(outputs)), Status: "succeeded", OccurredAt: now.UTC()})
+			last = mergeMaps(outputs)
+			priorNodeOutputs[node.Name] = cloneMapSlice(outputs)
+			if captured != nil && id == captureNode {
+				*captured = cloneMapSlice(outputs)
+			}
+			for _, edge := range workflow.Connections {
+				if edge.From == id && edge.OutputPort == 0 {
+					for _, item := range outputs {
+						appendRoutedInput(inputs, inputsByPort, edge, item)
+					}
+				}
+			}
+			continue
+		}
+		if len(node.SummarizeCountFields) > 0 {
+			outputs, err := summarizeItems(contexts, node)
+			if err != nil {
+				return last, fmt.Errorf("Summarize node %s: %w", node.Name, err)
+			}
+			*trace = append(*trace, TraceEvent{Sequence: uint32(len(*trace) + 1), Operation: workflow.ID + "/Summarize grouped counts", RequestSummary: node.Name, ResponseSummary: fmt.Sprintf("summarized %d synthetic items into %d groups", len(contexts), len(outputs)), Status: "succeeded", OccurredAt: now.UTC()})
+			last = mergeMaps(outputs)
+			priorNodeOutputs[node.Name] = cloneMapSlice(outputs)
+			if captured != nil && id == captureNode {
+				*captured = cloneMapSlice(outputs)
+			}
+			for _, edge := range workflow.Connections {
+				if edge.From == id && edge.OutputPort == 0 {
+					for _, item := range outputs {
+						appendRoutedInput(inputs, inputsByPort, edge, item)
 					}
 				}
 			}
@@ -164,15 +268,34 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 			}
 			for _, edge := range workflow.Connections {
 				if edge.From == id && edge.OutputPort == 0 {
-					inputs[edge.To] = append(inputs[edge.To], cloneMap(aggregated))
+					appendRoutedInput(inputs, inputsByPort, edge, aggregated)
 				}
 			}
 			continue
 		}
 		if node.SafeCode != "" {
-			codeOutput, err := executeSafeCodeWithNodeOutputs(node.SafeCode, contexts, priorNodeOutputs, now)
-			if err != nil {
-				return last, fmt.Errorf("Code node %s rejected or failed in safe interpreter: %w", node.Name, err)
+			var codeOutput []map[string]any
+			if node.SafeCodeRunOnceForEachItem {
+				if len(contexts) > maxSafeCodeEachItems {
+					return last, fmt.Errorf("Code node %s input exceeds the %d per-item execution bound", node.Name, maxSafeCodeEachItems)
+				}
+				for _, contextItem := range contexts {
+					itemOutput, err := executeSafeCodePerItemWithNodeOutputs(node.SafeCode, contextItem, priorNodeOutputs, now)
+					if err != nil {
+						return last, fmt.Errorf("Code node %s rejected or failed in safe per-item interpreter: %w", node.Name, err)
+					}
+					codeOutput = append(codeOutput, itemOutput)
+				}
+			} else {
+				runSafeCode := executeSafeCodeWithNodeOutputs
+				if node.SafeCodeLegacyFunction {
+					runSafeCode = executeSafeLegacyFunctionWithNodeOutputs
+				}
+				var err error
+				codeOutput, err = runSafeCode(node.SafeCode, contexts, priorNodeOutputs, now)
+				if err != nil {
+					return last, fmt.Errorf("Code node %s rejected or failed in safe interpreter: %w", node.Name, err)
+				}
 			}
 			outputs := make([]map[string]any, 0, len(codeOutput))
 			for _, item := range codeOutput {
@@ -193,7 +316,7 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 			for _, edge := range workflow.Connections {
 				if edge.From == id && edge.OutputPort == 0 {
 					for _, item := range outputs {
-						inputs[edge.To] = append(inputs[edge.To], cloneMap(item))
+						appendRoutedInput(inputs, inputsByPort, edge, item)
 					}
 				}
 			}
@@ -207,6 +330,13 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 			operation := node.Name
 			responseSummary := "synthetic dataflow"
 			switch {
+			case node.LangChain != nil && node.LangChain.Kind == "pinecone_vector_store":
+				chunks, payloadBytes, response, err := executePineconeInsert(ctx, workflow, node, priorNodeOutputs, simulator, injectFault, now, trace)
+				if err != nil {
+					return last, fmt.Errorf("LangChain Pinecone operation %s: %w", node.Name, err)
+				}
+				responseSummary = fmt.Sprintf("simulated Pinecone insert of %d chunk(s), %d-byte payload; %s", chunks, payloadBytes, response)
+				operation = "LangChain Pinecone vector upsert"
 			case node.WaitSeconds > 0 || node.WaitAmountPath != "":
 				// Rehearsal uses virtual time: it proves the bounded continuation
 				// edge without sleeping or persisting a deferred execution.
@@ -224,30 +354,87 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 				responseSummary = fmt.Sprintf("virtual resume after %d seconds", seconds)
 				operation = "Wait / virtual resume"
 			case node.Request != nil:
-				response, err := invokeWithRetry(ctx, simulator, *node.Request, injectFault, now, trace, workflow.ID, node.Name)
-				if err != nil {
-					return last, err
+				request := *node.Request
+				if node.RSSURLPath != "" {
+					feedValue, ok := jsonPathValue(input, node.RSSURLPath)
+					feedURL, valid := feedValue.(string)
+					parsed, parseErr := url.Parse(feedURL)
+					if !ok || !valid || len(feedURL) > 2048 || parseErr != nil || parsed.Scheme != "https" || !strings.HasSuffix(strings.ToLower(parsed.Hostname()), ".synthetic.invalid") {
+						return last, fmt.Errorf("RSS node %s requires a bounded HTTPS *.synthetic.invalid feed URL", node.Name)
+					}
+					request.Input = map[string]any{"feedUrl": feedURL}
+					requestSummary := "bounded synthetic feed input"
+					response, err := invokeWithRetry(ctx, simulator, request, injectFault, now, trace, workflow.ID, node.Name)
+					if err != nil {
+						return last, err
+					}
+					responseItems, err := decodeSimulatorItems(response)
+					if err != nil {
+						return last, fmt.Errorf("synthetic RSS response for %s: %w", node.Name, err)
+					}
+					outputs = make([]map[string]any, 0, len(responseItems))
+					for _, responseItem := range responseItems {
+						outputs = append(outputs, cloneMap(responseItem))
+					}
+					if len(outputs) > 0 {
+						output = mergeMaps(outputs)
+					}
+					responseSummary = fmt.Sprintf("%s: %d deterministic synthetic articles", requestSummary, len(outputs))
+					operation = "RSS Feed Read / synthetic profile"
+				} else if node.RequestURLExpression != "" {
+					request, err = requestWithSafeURLExpression(request, node.RequestURLExpression, priorNodeOutputs)
+					if err != nil {
+						return last, fmt.Errorf("resolve synthetic URL for %s: %w", node.Name, err)
+					}
 				}
-				responseItems, err := decodeSimulatorItems(response)
-				if err != nil {
-					return last, fmt.Errorf("simulated response for %s: %w", node.Name, err)
+				if node.RSSURLPath != "" {
+					// The branch above already invoked the fixed synthetic RSS adapter.
+				} else {
+					response, err := invokeWithRetry(ctx, simulator, request, injectFault, now, trace, workflow.ID, node.Name)
+					if err != nil {
+						if !node.ErrorOutput {
+							return last, err
+						}
+						outputPort = 1
+						output = mergeMaps([]map[string]any{input, {"error": map[string]any{"message": "synthetic service operation failed"}}})
+						outputs = []map[string]any{cloneMap(output)}
+						responseSummary = "continued through synthetic error output"
+					} else {
+						responseItems, decodeErr := decodeSimulatorItems(response)
+						if decodeErr != nil {
+							return last, fmt.Errorf("simulated response for %s: %w", node.Name, decodeErr)
+						}
+						outputs = make([]map[string]any, 0, len(responseItems))
+						for _, responseItem := range responseItems {
+							if node.RequestReplacesInput {
+								outputs = append(outputs, cloneMap(responseItem))
+							} else {
+								outputs = append(outputs, mergeMaps([]map[string]any{input, responseItem}))
+							}
+						}
+						if len(outputs) > 0 {
+							output = mergeMaps(outputs)
+						}
+					}
+					operation = node.Request.Operation
 				}
-				outputs = make([]map[string]any, 0, len(responseItems))
-				for _, responseItem := range responseItems {
-					outputs = append(outputs, mergeMaps([]map[string]any{input, responseItem}))
-				}
-				if len(outputs) > 0 {
-					output = mergeMaps(outputs)
-				}
-				operation = node.Request.Operation
 			case node.Condition != nil:
-				matches := evaluateCondition(*node.Condition, input)
+				matches := evaluateGraphCondition(*node.Condition, input, priorNodeOutputs)
 				if !matches {
 					outputPort = 1
 				}
 				operation = "If " + node.Condition.Path + " " + node.Condition.Operator
+			case len(node.FilterConditions) > 0:
+				matches := evaluateFilterConditions(node.FilterConditions, node.FilterCombinator, input, priorNodeOutputs)
+				if !matches {
+					outputPort = 1
+					responseSummary = "sent item to discarded output"
+				} else {
+					responseSummary = "kept matching item"
+				}
+				operation = "Filter " + node.FilterConditions[0].Path + " " + node.FilterConditions[0].Operator
 			case node.FilterCondition != nil:
-				matches := evaluateCondition(*node.FilterCondition, input)
+				matches := evaluateGraphCondition(*node.FilterCondition, input, priorNodeOutputs)
 				if !matches {
 					outputPort = 1
 					responseSummary = "sent item to discarded output"
@@ -267,7 +454,7 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 					}
 				}
 				for key, expression := range node.SetExpressions {
-					value, expressionErr := executeSafeExpression(expression, input, now)
+					value, expressionErr := executeSafeExpressionWithNodeOutputs(expression, input, priorNodeOutputs, now)
 					if expressionErr != nil {
 						return last, fmt.Errorf("Set expression %s failed in safe interpreter: %w", key, expressionErr)
 					}
@@ -299,10 +486,17 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 			case len(node.SwitchRules) > 0:
 				outputPort = -1
 				for _, rule := range node.SwitchRules {
-					if evaluateCondition(rule.Condition, input) {
+					if evaluateGraphCondition(rule.Condition, input, priorNodeOutputs) {
 						outputPort = rule.OutputPort
 						break
 					}
+				}
+				if outputPort < 0 && node.SwitchFallbackOutput {
+					outputPort = len(node.SwitchRules)
+				}
+				responseSummary = fmt.Sprintf("selected output %d", outputPort)
+				if status, ok := input["status"].(string); ok {
+					responseSummary += " for status " + status
 				}
 				operation = "Switch"
 			case node.SubworkflowID != "":
@@ -334,6 +528,10 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 			case node.Type == "n8n-nodes-base.noOp":
 				operation = "No Operation"
 			}
+			if node.AlwaysOutputData && len(outputs) == 0 {
+				outputs = []map[string]any{{}}
+				output = outputs[0]
+			}
 			*trace = append(*trace, TraceEvent{Sequence: uint32(len(*trace) + 1), Operation: workflow.ID + "/" + operation, RequestSummary: node.Name, ResponseSummary: responseSummary, Status: "succeeded", OccurredAt: now.UTC()})
 			last = output
 			nodeOutputs = append(nodeOutputs, cloneMapSlice(outputs)...)
@@ -343,7 +541,7 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 			for _, edge := range workflow.Connections {
 				if edge.From == id && edge.OutputPort == outputPort {
 					for _, item := range outputs {
-						inputs[edge.To] = append(inputs[edge.To], cloneMap(item))
+						appendRoutedInput(inputs, inputsByPort, edge, item)
 					}
 				}
 			}
@@ -403,6 +601,105 @@ func aggregateItems(items []map[string]any, node WorkflowNode) (map[string]any, 
 		return nil, fmt.Errorf("output byte bound exceeded")
 	}
 	return result, nil
+}
+
+func summarizeItems(items []map[string]any, node WorkflowNode) ([]map[string]any, error) {
+	if len(items) > maxSyntheticItems || len(node.SummarizeCountFields) == 0 || len(node.SummarizeCountFields) > 32 {
+		return nil, fmt.Errorf("input or summarize field count exceeds its bound")
+	}
+	groups := make(map[string]map[string]any)
+	order := make([]string, 0, len(items))
+	for _, item := range items {
+		group := make(map[string]any, len(node.SummarizeGroupBy)+len(node.SummarizeCountFields))
+		keyParts := make([]any, 0, len(node.SummarizeGroupBy))
+		for _, path := range node.SummarizeGroupBy {
+			value, ok := jsonPathValue(item, path)
+			if !ok {
+				value = nil
+			}
+			group[path] = value
+			keyParts = append(keyParts, value)
+		}
+		encodedKey, err := json.Marshal(keyParts)
+		if err != nil {
+			return nil, err
+		}
+		key := string(encodedKey)
+		acc, exists := groups[key]
+		if !exists {
+			acc = group
+			for _, field := range node.SummarizeCountFields {
+				acc["count_"+field] = float64(0)
+			}
+			groups[key] = acc
+			order = append(order, key)
+		}
+		for _, field := range node.SummarizeCountFields {
+			if value, ok := jsonPathValue(item, field); ok && value != nil {
+				acc["count_"+field] = acc["count_"+field].(float64) + 1
+			}
+		}
+	}
+	result := make([]map[string]any, 0, len(order))
+	for _, key := range order {
+		result = append(result, groups[key])
+	}
+	return result, nil
+}
+
+func sortWorkflowItems(items []map[string]any, fields []SortField) []map[string]any {
+	result := cloneMapSlice(items)
+	if len(result) > maxSyntheticItems {
+		return nil
+	}
+	sort.SliceStable(result, func(i, j int) bool {
+		for _, field := range fields {
+			left, leftOK := jsonPathValue(result[i], field.Path)
+			right, rightOK := jsonPathValue(result[j], field.Path)
+			comparison := compareSortValues(left, leftOK, right, rightOK)
+			if comparison == 0 {
+				continue
+			}
+			if field.Descending {
+				return comparison > 0
+			}
+			return comparison < 0
+		}
+		return false
+	})
+	return result
+}
+
+func compareSortValues(left any, leftOK bool, right any, rightOK bool) int {
+	if !leftOK && !rightOK {
+		return 0
+	}
+	if !leftOK {
+		return -1
+	}
+	if !rightOK {
+		return 1
+	}
+	leftNumber, leftNumeric := left.(float64)
+	rightNumber, rightNumeric := right.(float64)
+	if leftNumeric && rightNumeric {
+		switch {
+		case leftNumber < rightNumber:
+			return -1
+		case leftNumber > rightNumber:
+			return 1
+		default:
+			return 0
+		}
+	}
+	leftText, rightText := fmt.Sprint(left), fmt.Sprint(right)
+	if leftText < rightText {
+		return -1
+	}
+	if leftText > rightText {
+		return 1
+	}
+	return 0
 }
 
 func jsonPathValue(input map[string]any, path string) (any, bool) {
@@ -523,7 +820,15 @@ func syntheticTriggerInput(kind TriggerKind) map[string]any {
 		// A synthetic list event is a bounded, read-only sample for webhook APIs.
 		action = "list"
 	}
-	input := map[string]any{"id": "synthetic-001", "status": "active", "source": string(kind), "email": "avery@example.invalid", "body": map[string]any{"action": action, "id": "synthetic-001"}}
+	input := map[string]any{"id": "synthetic-001", "status": "active", "source": string(kind), "email": "avery@example.invalid", "body": map[string]any{
+		"action": action,
+		"id":     "synthetic-001",
+		"issue": map[string]any{
+			"id":       float64(1),
+			"title":    "Synthetic issue",
+			"html_url": "https://github.com/synthetic-owner/synthetic-repo/issues/1",
+		},
+	}}
 	if kind == TriggerPolling {
 		// A generic row sample lets polling-trigger workflows exercise their
 		// dataflow using synthetic values, independent of a particular template.
@@ -536,6 +841,24 @@ func syntheticTriggerInput(kind TriggerKind) map[string]any {
 }
 
 func evaluateCondition(condition Condition, input map[string]any) bool {
+	if condition.Path == "$input.length" {
+		// Nodes are invoked once per input item; an invocation proves the input
+		// collection is nonempty. This is sufficient for comparisons against zero.
+		left, leftErr := strconv.ParseFloat("1", 64)
+		right, rightErr := strconv.ParseFloat(fmt.Sprint(condition.Value), 64)
+		if leftErr != nil || rightErr != nil {
+			return false
+		}
+		switch condition.Operator {
+		case "gt":
+			return left > right
+		case "gte":
+			return left >= right
+		case "equals":
+			return left == right
+		}
+		return false
+	}
 	value, ok := jsonPathValue(input, condition.Path)
 	if !ok {
 		return false
@@ -574,6 +897,79 @@ func evaluateCondition(condition Condition, input map[string]any) bool {
 	}
 }
 
+func evaluateGraphCondition(condition Condition, input map[string]any, prior map[string][]map[string]any) bool {
+	if condition.Operator == "dateAfterOrEquals" {
+		left, ok := conditionValue(condition.NodeName, condition.Path, input, prior)
+		if !ok {
+			return false
+		}
+		base, ok := conditionValue(condition.RightNodeName, condition.RightPath, input, prior)
+		if !ok {
+			return false
+		}
+		duration, ok := conditionValue(condition.SubtractNodeName, condition.SubtractPath, input, prior)
+		if !ok {
+			return false
+		}
+		minutes, err := strconv.ParseFloat(fmt.Sprint(duration), 64)
+		if err != nil || minutes < 0 || minutes > 30*24*60 {
+			return false
+		}
+		leftTime, leftOK := parseWorkflowTime(left)
+		baseTime, baseOK := parseWorkflowTime(base)
+		return leftOK && baseOK && !leftTime.Before(baseTime.Add(-time.Duration(minutes*float64(time.Minute))))
+	}
+	if condition.NodeName == "" {
+		return evaluateCondition(condition, input)
+	}
+	outputs, exists := prior[condition.NodeName]
+	if !exists || len(outputs) == 0 {
+		return false
+	}
+	return evaluateCondition(condition, outputs[0])
+}
+
+func evaluateFilterConditions(conditions []Condition, combinator string, input map[string]any, prior map[string][]map[string]any) bool {
+	if len(conditions) == 0 || len(conditions) > 8 {
+		return false
+	}
+	if combinator == "or" {
+		for _, condition := range conditions {
+			if evaluateGraphCondition(condition, input, prior) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, condition := range conditions {
+		if !evaluateGraphCondition(condition, input, prior) {
+			return false
+		}
+	}
+	return true
+}
+
+func conditionValue(nodeName, path string, input map[string]any, prior map[string][]map[string]any) (any, bool) {
+	if nodeName == "" {
+		return jsonPathValue(input, path)
+	}
+	outputs, ok := prior[nodeName]
+	if !ok || len(outputs) == 0 {
+		return nil, false
+	}
+	return jsonPathValue(outputs[0], path)
+}
+
+func parseWorkflowTime(value any) (time.Time, bool) {
+	text := fmt.Sprint(value)
+	for _, layout := range []string{time.RFC3339Nano, "2006-01-02T15:04:05.000Z07:00", "2006-01-02 15:04:05"} {
+		if parsed, err := time.Parse(layout, text); err == nil {
+			return parsed, true
+		}
+	}
+	return time.Time{}, false
+}
+
 func mergeMaps(items []map[string]any) map[string]any {
 	result := map[string]any{}
 	for _, item := range items {
@@ -582,6 +978,15 @@ func mergeMaps(items []map[string]any) map[string]any {
 		}
 	}
 	return result
+}
+
+func appendRoutedInput(inputs map[string][]map[string]any, byPort map[string]map[int][]map[string]any, edge Connection, item map[string]any) {
+	copy := cloneMap(item)
+	inputs[edge.To] = append(inputs[edge.To], copy)
+	if byPort[edge.To] == nil {
+		byPort[edge.To] = map[int][]map[string]any{}
+	}
+	byPort[edge.To][edge.InputPort] = append(byPort[edge.To][edge.InputPort], cloneMap(item))
 }
 
 func cloneMap(input map[string]any) map[string]any {

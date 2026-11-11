@@ -1,0 +1,66 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "n8n",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic n8n executions", "version": "1"},
+        "servers": [{"url": "https://n8n.synthetic.invalid"}],
+        "paths": {"/api/v1/executions": {"get": {
+          "x-n8n-node-type": "n8n-nodes-base.n8n",
+          "x-n8n-resource": "execution",
+          "x-n8n-operation": "getAll",
+          "responses": {"200": {"content": {"application/json": {"example": [
+            {"id": "exec-synth-1", "workflowId": "wf-synth-a", "startedAt": "2026-11-11T11:50:00.000Z", "finished": false},
+            {"id": "exec-synth-2", "workflowId": "wf-synth-a", "startedAt": "2026-11-11T11:40:00.000Z", "finished": false},
+            {"id": "exec-synth-3", "workflowId": "wf-synth-b", "startedAt": "2026-11-11T11:35:00.000Z", "finished": true},
+            {"id": "exec-synth-4", "workflowId": "wf-synth-c", "startedAt": "2026-11-11T06:00:00.000Z", "finished": false}
+          ]}}}}
+        }}}
+      }
+    },
+    {
+      "id": "discord",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic Discord webhook", "version": "1"},
+        "servers": [{"url": "https://discord.synthetic.invalid"}],
+        "paths": {"/v1/webhook/messages": {"post": {
+          "x-n8n-node-type": "n8n-nodes-base.discord",
+          "x-n8n-resource": "webhook",
+          "x-n8n-operation": "sendLegacy",
+          "responses": {"200": {"content": {"application/json": {"example": {"id": "discord-synth-1", "status": "sent"}}}}}
+        }}}
+      }
+    },
+    {
+      "id": "telegram",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic Telegram messages", "version": "1"},
+        "servers": [{"url": "https://telegram.synthetic.invalid"}],
+        "paths": {"/v1/messages": {"post": {
+          "x-n8n-node-type": "n8n-nodes-base.telegram",
+          "x-n8n-resource": "message",
+          "x-n8n-operation": "sendMessage",
+          "responses": {"200": {"content": {"application/json": {"example": {"id": "telegram-synth-1", "status": "sent"}}}}}
+        }}}
+      }
+    },
+    {
+      "id": "slack",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {"title": "Synthetic Slack messages", "version": "1"},
+        "servers": [{"url": "https://slack.synthetic.invalid"}],
+        "paths": {"/v1/messages": {"post": {
+          "x-n8n-node-type": "n8n-nodes-base.slack",
+          "x-n8n-resource": "message",
+          "x-n8n-operation": "post",
+          "responses": {"200": {"content": {"application/json": {"example": {"id": "slack-synth-1", "status": "sent"}}}}}
+        }}}
+      }
+    }
+  ]
+}

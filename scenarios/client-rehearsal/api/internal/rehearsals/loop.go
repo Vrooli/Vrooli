@@ -85,58 +85,111 @@ func linearLoopBody(workflow Workflow, loop WorkflowNode) (Workflow, string, err
 	if feedback.From == "" {
 		return Workflow{}, "", fmt.Errorf("Loop Over Items %s has no feedback edge", loop.Name)
 	}
-	var start string
+	start := ""
 	for _, edge := range workflow.Connections {
 		if edge.From == loop.ID && edge.OutputPort == 1 {
+			if start != "" {
+				return Workflow{}, "", fmt.Errorf("Loop Over Items %s has multiple loop-body entries", loop.Name)
+			}
 			start = edge.To
-			break
 		}
 	}
 	if start == "" {
 		return Workflow{}, "", fmt.Errorf("Loop Over Items %s has no loop body", loop.Name)
 	}
-	nodesByID := workflow.NodesByID()
-	selected := []WorkflowNode{}
-	selectedIDs := map[string]bool{}
-	current := start
-	for steps := 0; ; steps++ {
-		if steps >= len(workflow.Nodes) || selectedIDs[current] {
-			return Workflow{}, "", fmt.Errorf("Loop Over Items %s body is not a bounded linear path", loop.Name)
+	nodes := workflow.NodesByID()
+	if nodes[start].ID == "" || nodes[feedback.From].ID == "" {
+		return Workflow{}, "", fmt.Errorf("Loop Over Items %s references a missing body node", loop.Name)
+	}
+	seenEdges := map[Connection]bool{}
+	reachable := map[string]bool{start: true}
+	queue := []string{start}
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+		if len(reachable) > len(workflow.Nodes) {
+			return Workflow{}, "", fmt.Errorf("Loop Over Items %s body exceeds graph bounds", loop.Name)
 		}
-		node, ok := nodesByID[current]
-		if !ok {
-			return Workflow{}, "", fmt.Errorf("Loop Over Items %s body references missing node %s", loop.Name, current)
-		}
-		selected = append(selected, node)
-		selectedIDs[current] = true
-		if current == feedback.From {
-			break
-		}
-		var next []Connection
+		out := 0
 		for _, edge := range workflow.Connections {
 			if feedbackEdges[edge] || edge.From != current {
 				continue
 			}
-			next = append(next, edge)
+			if seenEdges[edge] {
+				return Workflow{}, "", fmt.Errorf("Loop Over Items %s body contains a duplicate edge", loop.Name)
+			}
+			seenEdges[edge] = true
+			if current == feedback.From {
+				return Workflow{}, "", fmt.Errorf("Loop Over Items %s feedback target has an unmodeled outgoing edge", loop.Name)
+			}
+			if edge.To == loop.ID {
+				return Workflow{}, "", fmt.Errorf("Loop Over Items %s body contains an unowned cycle", loop.Name)
+			}
+			out++
+			if !reachable[edge.To] {
+				reachable[edge.To] = true
+				queue = append(queue, edge.To)
+			}
 		}
-		if len(next) != 1 || next[0].OutputPort != 0 || next[0].InputPort != 0 {
-			return Workflow{}, "", fmt.Errorf("Loop Over Items %s supports a single linear body path; node %s branches or uses an unmodeled port", loop.Name, node.Name)
+		if out == 0 && current != feedback.From {
+			return Workflow{}, "", fmt.Errorf("Loop Over Items %s has a body branch that does not reach End Loop (%s)", loop.Name, nodes[current].Name)
 		}
-		current = next[0].To
+	}
+	if !reachable[feedback.From] {
+		return Workflow{}, "", fmt.Errorf("Loop Over Items %s body does not reach its feedback source", loop.Name)
+	}
+	reaches := map[string]bool{feedback.From: true}
+	changed := true
+	for changed {
+		changed = false
+		for _, edge := range workflow.Connections {
+			if !feedbackEdges[edge] && reaches[edge.To] && reachable[edge.From] && !reaches[edge.From] {
+				reaches[edge.From] = true
+				changed = true
+			}
+		}
+	}
+	for id := range reachable {
+		if !reaches[id] {
+			return Workflow{}, "", fmt.Errorf("Loop Over Items %s branch from %s does not converge on End Loop", loop.Name, nodes[id].Name)
+		}
 	}
 	for _, edge := range workflow.Connections {
 		if feedbackEdges[edge] {
 			continue
 		}
-		if selectedIDs[edge.To] && edge.To != start && !selectedIDs[edge.From] {
-			return Workflow{}, "", fmt.Errorf("Loop Over Items %s body node %s has an external input", loop.Name, nodesByID[edge.To].Name)
+		if reachable[edge.To] && !reachable[edge.From] && !(edge.From == loop.ID && edge.To == start) {
+			return Workflow{}, "", fmt.Errorf("Loop Over Items %s body node %s has an external input", loop.Name, nodes[edge.To].Name)
+		}
+	}
+	for changed := true; changed; {
+		changed = false
+		for _, edge := range workflow.AIConnections {
+			if reachable[edge.To] && !reachable[edge.From] {
+				reachable[edge.From] = true
+				changed = true
+			}
+		}
+	}
+	selected := make([]WorkflowNode, 0, len(reachable))
+	for _, node := range workflow.Nodes {
+		if reachable[node.ID] {
+			selected = append(selected, node)
 		}
 	}
 	body := Workflow{ID: workflow.ID, Name: workflow.Name, Nodes: selected}
 	for _, edge := range workflow.Connections {
-		if !feedbackEdges[edge] && selectedIDs[edge.From] && selectedIDs[edge.To] {
+		if !feedbackEdges[edge] && reachable[edge.From] && reachable[edge.To] {
 			body.Connections = append(body.Connections, edge)
 		}
+	}
+	for _, edge := range workflow.AIConnections {
+		if reachable[edge.From] && reachable[edge.To] {
+			body.AIConnections = append(body.AIConnections, edge)
+		}
+	}
+	if _, err := topologicalOrder(body); err != nil {
+		return Workflow{}, "", fmt.Errorf("Loop Over Items %s body is not a bounded DAG: %w", loop.Name, err)
 	}
 	return body, start, nil
 }

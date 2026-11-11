@@ -1,0 +1,172 @@
+{
+  "name": "Lead form -> Google Sheets + instant auto-reply (template)",
+  "nodes": [
+    {
+      "id": "a1",
+      "name": "Form Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "synthetic-lead-intake",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "a2",
+      "name": "Clean & Validate",
+      "type": "n8n-nodes-base.code",
+      "parameters": {
+        "jsCode": "// Normalise and validate incoming form data (works with JSON or form-encoded posts)\nconst out = [];\nfor (const item of $input.all()) {\n  const b = item.json.body ?? item.json;\n  const name = String(b.name ?? '').trim();\n  const email = String(b.email ?? '').trim().toLowerCase();\n  const message = String(b.message ?? '').trim();\n  const errors = [];\n  if (!name) errors.push('name is missing');\n  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) errors.push('email looks invalid');\n  if (message.length > 5000) errors.push('message is too long');\n  out.push({ json: {\n    received_at: new Date().toISOString(),\n    name, email,\n    phone: String(b.phone ?? '').trim(),\n    message,\n    source: String(b.source ?? 'website form'),\n    // seeded omission: valid\n    errors: errors.join('; '),\n  }});\n}\nreturn out;"
+      }
+    },
+    {
+      "id": "a3",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "a4",
+      "name": "Respond OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        },
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: true, message: 'Thanks ' + $json.name + ', we got your message.' }) }}"
+      }
+    },
+    {
+      "id": "a5",
+      "name": "Save to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "parameters": {
+        "columns": {
+          "value": {},
+          "mappingMode": "autoMapInputData"
+        },
+        "options": {},
+        "operation": "append",
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "synthetic-sheet-id"
+        }
+      }
+    },
+    {
+      "id": "a6",
+      "name": "Auto-reply (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "parameters": {
+        "resource": "message",
+        "operation": "send"
+      }
+    },
+    {
+      "id": "a7",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "parameters": {
+        "options": {
+          "responseCode": 400
+        },
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ ok: false, errors: $json.errors }) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Valid?": {
+      "main": [
+        [
+          {
+            "node": "Respond OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond OK": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Form Webhook": {
+      "main": [
+        [
+          {
+            "node": "Clean & Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean & Validate": {
+      "main": [
+        [
+          {
+            "node": "Valid?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Auto-reply (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

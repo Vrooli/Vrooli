@@ -71,7 +71,7 @@ func TestPublic14745RunsBoundedScheduledAndManualLoopAgainstSyntheticSupabase(t 
 	}
 }
 
-func TestSplitInBatchesKeepsOnlyTheOwnedLinearFeedbackCycle(t *testing.T) {
+func TestSplitInBatchesKeepsOwnedFeedbackAndBoundedLoopBody(t *testing.T) {
 	workflow, _, _, err := normalizeWorkflow(readFixture(t, "public-workflows/14745.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -98,8 +98,8 @@ func TestSplitInBatchesKeepsOnlyTheOwnedLinearFeedbackCycle(t *testing.T) {
 
 	branched := workflow
 	branched.Connections = append(append([]Connection(nil), workflow.Connections...), Connection{From: codeID, To: waitID, OutputPort: 0, InputPort: 0})
-	if _, _, err := linearLoopBody(branched, loop); err == nil || !strings.Contains(err.Error(), "branches") {
-		t.Fatalf("loop executor must fail closed when a body node branches: %v", err)
+	if _, _, err := linearLoopBody(branched, loop); err == nil || !strings.Contains(err.Error(), "duplicate edge") {
+		t.Fatalf("loop executor must reject a duplicate edge rather than execute it twice: %v", err)
 	}
 
 	foreignCycle := workflow
