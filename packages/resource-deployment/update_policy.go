@@ -10,13 +10,17 @@ import (
 	"strings"
 )
 
-const UpdateStrategyRollingStateless = "rolling-stateless"
+const (
+	UpdateStrategyRollingStateless   = "rolling-stateless"
+	UpdateStrategyExclusiveStopStart = "exclusive-stop-start"
+)
 
 var serviceUpdatePortName = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 
-// ServiceUpdatePolicy opts a reviewed stateless service into candidate-based
-// replacement. It is eligibility, not automatic-update enrollment or authority.
-// CandidatePort names the manifest port remapped for the parallel instance.
+// ServiceUpdatePolicy opts a reviewed service into a managed replacement
+// strategy. It is eligibility, not automatic-update enrollment or authority.
+// CandidatePort names the manifest port remapped for rolling candidates and
+// the canonical serving port for exclusive stop/start updates.
 type ServiceUpdatePolicy struct {
 	Strategy         string                `json:"strategy"`
 	CandidatePort    string                `json:"candidate_port"`
@@ -42,7 +46,7 @@ func (m ManagedService) ValidateUpdatePolicy() error {
 	if p == nil {
 		return nil
 	}
-	if p.Strategy != UpdateStrategyRollingStateless {
+	if p.Strategy != UpdateStrategyRollingStateless && p.Strategy != UpdateStrategyExclusiveStopStart {
 		return fmt.Errorf("unsupported update strategy %q", p.Strategy)
 	}
 	if !serviceUpdatePortName.MatchString(p.CandidatePort) {
@@ -61,23 +65,26 @@ func (m ManagedService) ValidateUpdatePolicy() error {
 		seen[key] = true
 	}
 	if layout := strings.ToLower(strings.TrimSpace(m.Artifact.Layout)); layout != "" && layout != "file" {
-		return fmt.Errorf("rolling-stateless updates initially require a single native executable file")
+		return fmt.Errorf("managed updates initially require a single native executable file")
 	}
 	if strings.EqualFold(strings.TrimSpace(m.Artifact.Verification), "host-tool") || m.Acquisition == nil || !strings.EqualFold(strings.TrimSpace(m.Acquisition.Kind), "url") {
-		return fmt.Errorf("rolling updates require resource-owned checksum-pinned URL acquisition")
+		return fmt.Errorf("managed updates require resource-owned checksum-pinned URL acquisition")
 	}
 	if m.Bootstrap != nil || len(m.DataArtifacts) > 0 || m.MinimumDataGroups > 0 || m.EnvironmentFile != "" || m.RunAsUser != "" || m.ProcessLimits != nil {
-		return fmt.Errorf("rolling-stateless updates do not support bootstrap, data artifacts, environment files, account switching or legacy process limits")
+		return fmt.Errorf("managed updates do not support bootstrap, data artifacts, environment files, account switching or legacy process limits")
+	}
+	if p.Strategy == UpdateStrategyRollingStateless && m.Config != nil && m.Config.ContentFile != "" {
+		return fmt.Errorf("rolling-stateless updates do not support file-backed service configuration")
 	}
 	if len(m.ProviderPolicy.AllowedModes) != 1 || m.ProviderPolicy.AllowedModes[0] != ProviderManagedPrivate {
-		return fmt.Errorf("rolling-stateless updates require only the managed-private provider")
+		return fmt.Errorf("managed updates require only the managed-private provider")
 	}
 	for _, target := range m.Acquisition.Targets {
 		if target.Unsupported != "" {
 			continue
 		}
 		if (target.Kind != "" && !strings.EqualFold(strings.TrimSpace(target.Kind), "url")) || target.Executable != "" || len(target.RuntimeEnv) != 0 {
-			return fmt.Errorf("rolling-stateless targets require static URL artifacts without adopted executables or runtime environment overrides")
+			return fmt.Errorf("managed update targets require static URL artifacts without adopted executables or runtime environment overrides")
 		}
 	}
 	// A policy cannot make a declared durable-data path safe to share with a
@@ -97,7 +104,7 @@ func (m ManagedService) ValidateUpdatePolicy() error {
 	}
 	for key, v := range m.Environment {
 		if key == "HOME" || key == "ROOT" || key == "PATH" || strings.HasPrefix(key, "RESOURCE_") || strings.HasPrefix(key, "VROOLI_") {
-			return fmt.Errorf("rolling-stateless environment cannot override owner runtime variables")
+			return fmt.Errorf("managed update environment cannot override owner runtime variables")
 		}
 		known[key] = true
 		templates = append(templates, v)
@@ -113,10 +120,10 @@ func (m ManagedService) ValidateUpdatePolicy() error {
 			return ""
 		})
 		if data {
-			return fmt.Errorf("rolling-stateless launch contract references durable resource data")
+			return fmt.Errorf("managed update launch contract references durable resource data")
 		}
 		if unknown {
-			return fmt.Errorf("rolling-stateless launch contract depends on undeclared caller environment")
+			return fmt.Errorf("managed update launch contract depends on undeclared caller environment")
 		}
 	}
 	return nil

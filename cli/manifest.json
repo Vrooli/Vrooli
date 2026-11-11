@@ -5,7 +5,7 @@
   "groups": [
     {
       "name": "agent",
-      "description": "Run an interactive coding-agent CLI through the governed project surface.",
+      "description": "Run coding-agent sessions and bounded scenario recovery through the governed project surface.",
       "commands": [
         {
           "name": "launch",
@@ -126,6 +126,112 @@
               "admin"
             ]
           }
+        },
+        {
+          "name": "recover",
+          "description": "Attempt budgeted mechanical lifecycle recovery of a scenario.",
+          "flags": [
+            {
+              "name": "scenario",
+              "description": "Scenario to recover."
+            },
+            {
+              "name": "reason",
+              "description": "Reason for recovery."
+            },
+            {
+              "name": "requester",
+              "description": "Requesting component."
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        }
+      ],
+      "groups": [
+        {
+          "name": "recover",
+          "description": "Inspect recovery receipts and admit bounded native coding-agent investigations.",
+          "commands": [
+            {
+              "name": "list",
+              "description": "Read lifecycle and coding-agent recovery receipts.",
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "reconcile",
+              "description": "Mark bounded unverified historical execution claims uncertain without execution effects.",
+              "flags": [
+                {
+                  "name": "limit",
+                  "description": "Maximum claims to inspect, from 1 to 128."
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "investigate",
+              "description": "Admit one bounded native coding-agent investigation with shared Autoheal budgets and duplicate suppression.",
+              "flags": [
+                {
+                  "name": "scenario",
+                  "description": "Scenario to investigate."
+                },
+                {
+                  "name": "reason",
+                  "description": "Explicit bounded failure or path to evidence."
+                }
+              ],
+              "binding": {
+                "kind": "local"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write",
+                  "network:internal",
+                  "network:external"
+                ]
+              },
+              "architecture": {
+                "exception": {
+                  "class": "external_delegation",
+                  "reason": "Uses the control-plane native recovery owner and its fixed allowlisted coding runners, durable admission budgets and native deadline."
+                }
+              }
+            }
+          ]
         }
       ]
     },
@@ -133,6 +239,57 @@
       "name": "scenario",
       "description": "Inspect and manage the Vrooli scenario fleet.",
       "commands": [
+        {
+          "name": "profile",
+          "description": "Collect a bounded CPU profile from an exact local component launch over its owner-only diagnostic socket.",
+          "positionals": [
+            {
+              "name": "name",
+              "required": true,
+              "description": "Local scenario name, optionally with @variant."
+            }
+          ],
+          "flags": [
+            {
+              "name": "instance",
+              "local_only": true,
+              "description": "Named scenario instance."
+            },
+            {
+              "name": "node",
+              "local_only": true,
+              "description": "Explicit node selector; remote profiling is currently unsupported."
+            },
+            {
+              "name": "step",
+              "local_only": true,
+              "description": "Exact component step; defaults to start-api."
+            },
+            {
+              "name": "seconds",
+              "local_only": true,
+              "description": "Collection duration from 1 to 30 seconds; defaults to 10."
+            },
+            {
+              "name": "out",
+              "local_only": true,
+              "description": "Required new owner-only profile file; never overwrites."
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "profile"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "network:internal"
+            ]
+          }
+        },
         {
           "name": "validate",
           "description": "Validate every scenario manifest and derived supervision intent.",
@@ -183,7 +340,7 @@
         },
         {
           "name": "status",
-          "description": "Read one scenario's runtime and manifest status.",
+          "description": "Snapshot one scenario's runtime and manifest status. After start/restart, call `vrooli scenario wait <name>` once; do not poll status.",
           "positionals": [
             {
               "name": "name",
@@ -240,15 +397,18 @@
             {
               "name": "explain",
               "bool": true,
+              "local_only": true,
               "description": "Print every check (fresh and stale) plus resolved dependency policies."
             },
             {
               "name": "inputs",
               "bool": true,
+              "local_only": true,
               "description": "Resolve declared build input closure and keys without evaluating artifacts."
             },
             {
               "name": "path",
+              "local_only": true,
               "description": "Resolve freshness for a scenario started from this physical scenario directory."
             }
           ],
@@ -490,6 +650,14 @@
             }
           ],
           "flags": [
+            {
+              "name": "runtime-release",
+              "description": "Select a verified retained runtime ID or source"
+            },
+            {
+              "name": "expected-runtime-release",
+              "description": "Required current runtime selection ID or source"
+            },
             {
               "name": "path"
             },
@@ -772,7 +940,20 @@
                   "filesystem:read"
                 ]
               },
-              "semantics": {"kind": "verify", "blocks": {"after": ["vrooli scenario start", "vrooli scenario restart", "make start", "make restart"], "replaces": ["vrooli scenario status"]}}
+              "semantics": {
+                "kind": "verify",
+                "blocks": {
+                  "after": [
+                    "vrooli scenario start",
+                    "vrooli scenario restart",
+                    "make start",
+                    "make restart"
+                  ],
+                  "replaces": [
+                    "vrooli scenario status"
+                  ]
+                }
+              }
             },
             {
               "name": "stop-all",
@@ -1743,7 +1924,35 @@
         },
         {
           "name": "status",
-          "description": "Resource management command: status.",
+          "description": "Observe resource status; current artifact verification is default, health-only is explicit.",
+          "positionals": [
+            {
+              "name": "name",
+              "description": "Optional resource name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "fast",
+              "description": "Skip expensive readiness probes",
+              "bool": true
+            },
+            {
+              "name": "no-fast",
+              "description": "Run readiness probes",
+              "bool": true
+            },
+            {
+              "name": "health-only",
+              "description": "Observe health without a current artifact-byte audit",
+              "bool": true
+            },
+            {
+              "name": "json",
+              "description": "Output typed JSON",
+              "bool": true
+            }
+          ],
           "binding": {
             "kind": "local"
           },
@@ -2541,6 +2750,165 @@
       ],
       "groups": [
         {
+          "name": "update",
+          "description": "Verified root CLI and native supervisor updates with retained recovery. Apply/retry accept one candidate path.",
+          "commands": [
+            {
+              "name": "status",
+              "description": "Inspect durable root update and enrollment state without initialization.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit JSON output.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "status"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "apply",
+              "description": "Qualify and activate a candidate root executable with independent rollback.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit JSON output.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "apply"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "retry",
+              "description": "Explicitly retry a suppressed root release.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit JSON output.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "retry"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "enroll",
+              "description": "Enable verified automatic canonical root updates after recovery qualification.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit JSON output.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "enroll"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "disable",
+              "description": "Disable automatic root updates while retaining update receipts.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit JSON output.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "disable"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "reconcile",
+              "description": "Reconcile the retained root update through the independent watchdog.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit JSON output.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "reconcile"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "rebaseline",
+              "description": "Operator transition that makes a candidate changing the persistent-state contract the new root baseline (interactive; no automatic rollback).",
+              "binding": {
+                "kind": "local",
+                "handler": "rebaseline"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "supervisor",
           "description": "Runtime supervisor command (formerly runtime-supervisor).",
           "commands": [
@@ -2723,6 +3091,276 @@
                     "run_eligible": true,
                     "permissions": [
                       "filesystem:read"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "lighting",
+          "description": "Explicit governed Light Desk setup and desired runtime state.",
+          "commands": [
+            {
+              "name": "status",
+              "description": "Status the selected lighting runtime.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit typed JSON.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "status"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            },
+            {
+              "name": "setup",
+              "description": "Setup the selected lighting runtime.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit typed JSON.",
+                  "bool": true
+                },
+                {
+                  "name": "source",
+                  "description": "Exact selected installation source.",
+                  "required": true
+                },
+                {
+                  "name": "version",
+                  "description": "Exact selected installation version.",
+                  "required": true
+                },
+                {
+                  "name": "sha256",
+                  "description": "Exact selected installation sha256.",
+                  "required": false
+                },
+                {
+                  "name": "device-policy-id",
+                  "description": "Exact selected installation device-policy-id.",
+                  "required": false
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "setup"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "enable",
+              "description": "Enable the selected lighting runtime.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit typed JSON.",
+                  "bool": true
+                },
+                {
+                  "name": "source",
+                  "description": "Exact selected installation source.",
+                  "required": true
+                },
+                {
+                  "name": "version",
+                  "description": "Exact selected installation version.",
+                  "required": true
+                },
+                {
+                  "name": "sha256",
+                  "description": "Exact selected installation sha256.",
+                  "required": false
+                },
+                {
+                  "name": "device-policy-id",
+                  "description": "Exact selected installation device-policy-id.",
+                  "required": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "enable"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "disable",
+              "description": "Disable the selected lighting runtime.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit typed JSON.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "disable"
+              },
+              "governance": {
+                "effect": "write",
+                "run_eligible": false,
+                "permissions": [
+                  "filesystem:read",
+                  "filesystem:write"
+                ]
+              }
+            },
+            {
+              "name": "devices",
+              "description": "Explicitly discover selectable lighting device metadata.",
+              "flags": [
+                {
+                  "name": "json",
+                  "description": "Emit typed JSON.",
+                  "bool": true
+                }
+              ],
+              "binding": {
+                "kind": "local",
+                "handler": "devices"
+              },
+              "governance": {
+                "effect": "read",
+                "run_eligible": true,
+                "permissions": [
+                  "filesystem:read"
+                ]
+              }
+            }
+          ],
+          "groups": [
+            {
+              "name": "permissions",
+              "description": "Review and execute maintained selected-device permission plans.",
+              "commands": [
+                {
+                  "name": "plan",
+                  "description": "Plan exact selected-device access.",
+                  "flags": [
+                    {
+                      "name": "json",
+                      "bool": true,
+                      "description": "Emit typed JSON."
+                    },
+                    {
+                      "name": "device-id",
+                      "repeated": true,
+                      "required": true,
+                      "description": "Opaque identity returned by explicit device discovery."
+                    }
+                  ],
+                  "binding": {
+                    "kind": "local",
+                    "handler": "plan"
+                  },
+                  "governance": {
+                    "effect": "write",
+                    "run_eligible": false,
+                    "permissions": [
+                      "filesystem:read",
+                      "filesystem:write"
+                    ]
+                  }
+                },
+                {
+                  "name": "apply",
+                  "description": "Apply exact selected-device access.",
+                  "flags": [
+                    {
+                      "name": "json",
+                      "bool": true,
+                      "description": "Emit typed JSON."
+                    },
+                    {
+                      "name": "plan-id",
+                      "required": true,
+                      "description": "Exact reviewed permission plan identity."
+                    },
+                    {
+                      "name": "sudo-mode",
+                      "default": "error",
+                      "values": [
+                        "error",
+                        "ask"
+                      ],
+                      "description": "Report required privilege or explicitly use the canonical terminal elevation flow."
+                    }
+                  ],
+                  "binding": {
+                    "kind": "local",
+                    "handler": "apply"
+                  },
+                  "governance": {
+                    "effect": "write",
+                    "run_eligible": false,
+                    "permissions": [
+                      "filesystem:read",
+                      "filesystem:write"
+                    ]
+                  }
+                },
+                {
+                  "name": "rollback",
+                  "description": "Rollback exact selected-device access.",
+                  "flags": [
+                    {
+                      "name": "json",
+                      "bool": true,
+                      "description": "Emit typed JSON."
+                    },
+                    {
+                      "name": "plan-id",
+                      "required": true,
+                      "description": "Exact reviewed permission plan identity."
+                    },
+                    {
+                      "name": "sudo-mode",
+                      "default": "error",
+                      "values": [
+                        "error",
+                        "ask"
+                      ],
+                      "description": "Report required privilege or explicitly use the canonical terminal elevation flow."
+                    }
+                  ],
+                  "binding": {
+                    "kind": "local",
+                    "handler": "rollback"
+                  },
+                  "governance": {
+                    "effect": "write",
+                    "run_eligible": false,
+                    "permissions": [
+                      "filesystem:read",
+                      "filesystem:write"
                     ]
                   }
                 }
@@ -3225,6 +3863,48 @@
           }
         },
         {
+          "name": "kernel-memory",
+          "description": "Read bounded kernel slab allocation through the setup-managed privilege broker.",
+          "binding": {
+            "kind": "local",
+            "handler": "kernel-memory"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read"
+            ]
+          }
+        },
+        {
+          "name": "service",
+          "description": "Recover an allowlisted host service through the setup-managed privilege broker.",
+          "positionals": [
+            {
+              "name": "operation",
+              "description": "start or restart",
+              "required": true
+            },
+            {
+              "name": "unit",
+              "description": "Exact managed recovery service",
+              "required": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "service"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "admin"
+            ]
+          }
+        },
+        {
           "name": "inventory",
           "description": "Host inventory command: inventory.",
           "flags": [
@@ -3486,6 +4166,11 @@
               "name": "out",
               "description": "New output bundle directory, or exact reusable bundle.",
               "required": true
+            },
+            {
+              "name": "disk-lease-file",
+              "description": "Join an existing parent disk job lease from a private credential file.",
+              "required": false
             }
           ],
           "binding": {
@@ -3565,6 +4250,78 @@
           "binding": {
             "kind": "local",
             "handler": "renderer-cache-repair"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "filesystem:read",
+              "filesystem:write",
+              "process:spawn"
+            ]
+          }
+        },
+        {
+          "name": "wireless",
+          "description": "Prepare, sign and publish reviewed wireless artifacts, or preview and apply exact recoverable wireless transactions.",
+          "positionals": [
+            {
+              "name": "action",
+              "description": "Use prepare, activation-plan, activation-preflight, verify-signed-copy, qualify-firmware, sign, publish-signed, stage, activate, recover, rollback, status or record-recovery.",
+              "required": true
+            }
+          ],
+          "flags": [
+            {
+              "name": "profile",
+              "description": "Exact preparation profile (noble-mt7927 for Wi-Fi or noble-mt6639 for Bluetooth)."
+            },
+            {
+              "name": "apply",
+              "description": "Explicitly apply the selected preparation, publication, signing, recovery or transaction operation. Omit for a read-only preview; status never accepts it.",
+              "bool": true
+            },
+            {
+              "name": "bundle",
+              "description": "Exact canonical unsigned preparation generation ID."
+            },
+            {
+              "name": "recovery-kernel",
+              "description": "Distinct installed stock kernel release selected for recovery inspection or proof."
+            },
+            {
+              "name": "signed-dir",
+              "description": "Directory containing exactly the reviewed module names as signed copies."
+            },
+            {
+              "name": "cert",
+              "description": "Exact public X.509 certificate in PEM or DER format for signature or trust inspection."
+            },
+            {
+              "name": "signed-bundle",
+              "description": "Exact SHA-256 identity of a retained authenticated signed bundle for stage."
+            },
+            {
+              "name": "receipt-sha256",
+              "description": "Independently reviewed unsigned preparation receipt SHA-256; required for sign --apply and stage --apply."
+            },
+            {
+              "name": "recovery-entry",
+              "description": "Exact stock recovery boot menu entry identity for stage or record-recovery."
+            },
+            {
+              "name": "transaction",
+              "description": "Exact retained root wireless transaction ID for activate, recover, rollback or status."
+            },
+            {
+              "name": "maintenance-window",
+              "description": "Explicitly coordinate the selected transaction effect; does not substitute for native recovery or safety checks.",
+              "bool": true
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "wireless"
           },
           "governance": {
             "effect": "write",

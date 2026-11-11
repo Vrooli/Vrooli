@@ -34,6 +34,27 @@ func TestStatelessUpdateMetricsRequireBoundedLocalCurrentGauges(t *testing.T) {
 	}
 }
 
+func TestServiceConfigRequiresOneSafeSource(t *testing.T) {
+	for _, config := range []ServiceConfig{
+		{Path: "settings.json"},
+		{Path: "settings.json", Content: `{"ok":true}`, ContentFile: "config/settings.json"},
+		{Path: "settings.json", ContentFile: "../outside.json"},
+		{Path: "settings.json", ContentFile: `config\outside.json`},
+	} {
+		if err := config.Validate(); err == nil {
+			t.Errorf("unsafe or ambiguous service config accepted: %+v", config)
+		}
+	}
+	for _, config := range []ServiceConfig{
+		{Path: "settings.json", Content: `{"ok":true}`},
+		{Path: "settings.json", ContentFile: "config/settings.json"},
+	} {
+		if err := config.Validate(); err != nil {
+			t.Errorf("valid service config source rejected: %+v: %v", config, err)
+		}
+	}
+}
+
 func statelessUpdateFixture() ManagedService {
 	return ManagedService{UpdatePolicy: &ServiceUpdatePolicy{Strategy: "rolling-stateless", CandidatePort: "http"}, ProviderPolicy: ProviderPolicy{AllowedModes: []ProviderMode{ProviderManagedPrivate}}, Artifact: ServiceArtifact{Path: "service", Version: "1.0.0", SHA256: strings.Repeat("a", 64)}, Acquisition: &binaryfetch.Acquisition{Kind: "url", Targets: []binaryfetch.AcquisitionTarget{{URL: "https://example.invalid/service", SHA256: strings.Repeat("a", 64), Archive: "none", Layout: "file"}}}}
 }
@@ -76,12 +97,41 @@ func TestStatelessUpdatePolicyRequiresRecoverableLaunchContract(t *testing.T) {
 		"data config": func(m *ManagedService) {
 			m.Config = &ServiceConfig{Path: "service.cfg", Content: "data=${RESOURCE_DATA_DIR}"}
 		},
+		"file-backed config": func(m *ManagedService) {
+			m.Config = &ServiceConfig{Path: "service.cfg", ContentFile: "config/service.cfg"}
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			m := statelessUpdateFixture()
 			change(&m)
 			if err := m.ValidateUpdatePolicy(); err == nil {
 				t.Fatal("unsafe rolling-update contract accepted")
+			}
+		})
+	}
+}
+
+func TestExclusiveStopStartAllowsFrozenFileBackedConfig(t *testing.T) {
+	m := statelessUpdateFixture()
+	m.UpdatePolicy.Strategy = UpdateStrategyExclusiveStopStart
+	m.Config = &ServiceConfig{Path: "OpenRGB/OpenRGB.json", ContentFile: "config/detectors.json"}
+	if err := m.ValidateUpdatePolicy(); err != nil {
+		t.Fatalf("exclusive stop/start rejected file-backed configuration: %v", err)
+	}
+}
+
+func TestExclusiveStopStartRetainsManagedArtifactAndPortRequirements(t *testing.T) {
+	for name, change := range map[string]func(*ManagedService){
+		"host executable":     func(m *ManagedService) { m.Artifact.Verification = "host-tool" },
+		"missing acquisition": func(m *ManagedService) { m.Acquisition = nil },
+		"durable data":        func(m *ManagedService) { m.Arguments = append(m.Arguments, "${RESOURCE_DATA_DIR}") },
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := statelessUpdateFixture()
+			m.UpdatePolicy.Strategy = UpdateStrategyExclusiveStopStart
+			change(&m)
+			if err := m.ValidateUpdatePolicy(); err == nil {
+				t.Fatal("exclusive policy accepted unsafe launch contract")
 			}
 		})
 	}

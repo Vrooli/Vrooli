@@ -84,3 +84,34 @@ func TestScopeSuccessfulReleaseDoesNotCancelConsumer(t *testing.T) {
 		t.Fatalf("successful cleanup canceled consumer: %v", err)
 	}
 }
+
+func TestScopeCanStopRenewalWhileRetainingClaimForVerifiedCleanup(t *testing.T) {
+	var heartbeats atomic.Int32
+	lease := &scopeLease{
+		heartbeat: func(context.Context) error { heartbeats.Add(1); return nil },
+		release:   func(context.Context) error { return nil },
+	}
+	s := maintain(context.Background(), lease, time.Millisecond)
+	deadline := time.Now().Add(time.Second)
+	for heartbeats.Load() == 0 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if heartbeats.Load() == 0 {
+		t.Fatal("renewal loop did not heartbeat")
+	}
+	s.StopRenew()
+	if lease.released.Load() != 0 {
+		t.Fatal("stopping renewal released the retained claim")
+	}
+	stoppedAt := heartbeats.Load()
+	time.Sleep(10 * time.Millisecond)
+	if got := heartbeats.Load(); got != stoppedAt {
+		t.Fatalf("heartbeat continued after StopRenew: before=%d after=%d", stoppedAt, got)
+	}
+	if err := s.Release(context.Background()); err != nil {
+		t.Fatalf("release after verified cleanup: %v", err)
+	}
+	if lease.released.Load() != 1 {
+		t.Fatalf("release count=%d, want 1", lease.released.Load())
+	}
+}

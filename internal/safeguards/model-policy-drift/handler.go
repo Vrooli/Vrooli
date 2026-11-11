@@ -40,6 +40,8 @@ type catalog struct {
 	} `json:"provenance"`
 	Roles               map[string]agentcatalog.CodingRole `json:"roles"`
 	ExcludedModels      []string                           `json:"excluded_models"`
+	InteractiveDefault  *agentcatalog.InteractiveDefault   `json:"interactive_default"`
+	UsageTiers          *agentcatalog.UsageTiers           `json:"usage_tiers"`
 	LiveCatalogMode     string                             `json:"live_catalog_mode"`
 	StalenessBudgetDays int                                `json:"staleness_budget_days"`
 }
@@ -110,7 +112,10 @@ func validateAgainstLive(ctx context.Context, runner, path string, config ...map
 	}
 	var policy catalog
 	if err := json.Unmarshal(data, &policy); err != nil {
-		return nil, err
+		// An unusable policy is the finding itself, not a missing measurement:
+		// launches do not read it this way and carry on, so this is where the
+		// operator learns of it.
+		return []finding{{Type: "policy_invalid", Message: fmt.Sprintf("%s is not valid JSON for a model policy: %v; launches ignore it and use the harness default", path, err), Severity: "error"}}, nil
 	}
 	liveCatalog, err := discoverCatalog(ctx, runner, config...)
 	if err != nil {
@@ -138,31 +143,19 @@ func validateAgainstLive(ctx context.Context, runner, path string, config ...map
 			findings = append(findings, finding{Type: "catalog_stale", Message: fmt.Sprintf("catalog age is %d days; staleness budget is %d days", age, budget), Severity: "warning"})
 		}
 	}
-	policyCatalog := agentcatalog.CodingRoleCatalog{Roles: policy.Roles, ExcludedModels: policy.ExcludedModels, LiveCatalogMode: policy.LiveCatalogMode}
+	policyCatalog := agentcatalog.CodingRoleCatalog{Roles: policy.Roles, ExcludedModels: policy.ExcludedModels, InteractiveDefault: policy.InteractiveDefault, UsageTiers: policy.UsageTiers, LiveCatalogMode: policy.LiveCatalogMode}
 	for _, modelFinding := range agentcatalog.LiveCatalogFindings(policyCatalog, liveCatalog) {
 		findings = append(findings, finding{Type: modelFinding.Type, Role: modelFinding.Role, Model: modelFinding.Model, Message: modelFinding.Message, Severity: modelFinding.Severity})
 	}
 	return findings, nil
 }
 
-// discover is intentionally a thin adapter over the shared agent catalog.
-// Keeping model discovery in one package prevents safeguards from silently
-// falling back to a stale runner cache while the installed CLI accepts newer
-// model slugs (for example gpt-6-luna and gpt-6-sol). The shared comparator
-// treats an unlisted model as unconfirmed unless the runner proves its catalog
-// is exhaustive, so a partial listing cannot trigger a policy downgrade.
-func discover(ctx context.Context, runner string, config ...map[string]any) (map[string]bool, error) {
-	catalog, err := discoverCatalog(ctx, runner, config...)
-	if err != nil {
-		return nil, err
-	}
-	models := make(map[string]bool, len(catalog.Models))
-	for _, model := range catalog.Models {
-		models[model] = true
-	}
-	return models, nil
-}
-
+// discoverCatalog is intentionally a thin adapter over the shared agent
+// catalog. Keeping model discovery in one package prevents safeguards from
+// silently falling back to a stale runner cache while the installed CLI accepts
+// newer model slugs. The shared comparator treats an unlisted model as
+// unconfirmed unless the runner proves its catalog is exhaustive, so a partial
+// listing cannot trigger a policy downgrade.
 func discoverCatalog(ctx context.Context, runner string, config ...map[string]any) (agentcatalog.LiveModelCatalog, error) {
 	if len(config) > 0 {
 		if models, ok := configuredModels(config[0], runner); ok {

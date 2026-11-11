@@ -94,3 +94,31 @@ func DiagnosePort(port, scenario string) []string {
 func VersionJSON() []string {
 	return []string{"version", "--json"}
 }
+
+// RuntimeLightingStatus reads typed lighting state without provisioning.
+func RuntimeLightingStatus() []string  { return []string{"runtime", "lighting", "status", "--json"} }
+func RuntimeLightingDisable() []string { return []string{"runtime", "lighting", "disable", "--json"} }
+func RuntimeLightingSetup(source, version, digest, policy string) []string {
+	return runtimeLightingSelection("setup", source, version, digest, policy)
+}
+func RuntimeLightingEnable(source, version, digest, policy string) []string {
+	return runtimeLightingSelection("enable", source, version, digest, policy)
+}
+func runtimeLightingSelection(action, source, version, digest, policy string) []string {
+	return []string{"runtime", "lighting", action, "--source", source, "--version", version, "--sha256", digest, "--device-policy-id", policy, "--json"}
+}
+
+func RuntimeLightingDevices() []string { return []string{"runtime", "lighting", "devices", "--json"} }
+func RuntimeLightingPermissionPlan(ids []string) []string {
+	argv := []string{"runtime", "lighting", "permissions", "plan"}
+	for _, id := range ids {
+		argv = append(argv, "--device-id", id)
+	}
+	return append(argv, "--json")
+}
+func RuntimeLightingPermissionApply(planID string) []string {
+	return []string{"runtime", "lighting", "permissions", "apply", "--plan-id", planID, "--sudo-mode", "error", "--json"}
+}
+func RuntimeLightingPermissionRollback(planID string) []string {
+	return []string{"runtime", "lighting", "permissions", "rollback", "--plan-id", planID, "--sudo-mode", "error", "--json"}
+}

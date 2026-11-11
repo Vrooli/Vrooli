@@ -10,10 +10,12 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +24,116 @@ import (
 func sha256hex(b []byte) string {
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:])
+}
+
+func TestDownloadExactEnforcesSizeChecksumAndNoOverwrite(t *testing.T) {
+	ctx := context.Background()
+	body := []byte("pinned data")
+	for _, tc := range []struct {
+		name string
+		size int64
+		sum  string
+		want string
+	}{
+		{"exact", int64(len(body)), sha256hex(body), ""},
+		{"short", int64(len(body)) + 1, sha256hex(body), "of 12 bytes"},
+		{"oversized", int64(len(body)) - 1, sha256hex(body), "exceeds 10 bytes"},
+		{"checksum", int64(len(body)), sha256hex([]byte("other")), "checksum mismatch"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.(http.Flusher).Flush() // Force streamed, unknown content length.
+				_, _ = w.Write(body)
+			}))
+			defer server.Close()
+			dir := t.TempDir()
+			path := filepath.Join(dir, "input")
+			target := Target{URL: server.URL, SHA256: tc.sum}
+			err := DownloadExact(ctx, target, path, tc.size)
+			if tc.want != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.want) {
+					t.Fatalf("DownloadExact error = %v, want %q", err, tc.want)
+				}
+				entries, err := os.ReadDir(dir)
+				if err != nil || len(entries) != 0 {
+					t.Fatalf("failed download left files: %v, %v", entries, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(path, []byte("original"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if err := DownloadExact(ctx, target, path, tc.size); !errors.Is(err, os.ErrExist) {
+				t.Fatalf("second download error = %v, want destination conflict", err)
+			}
+			got, err := os.ReadFile(path)
+			if err != nil || string(got) != "original" {
+				t.Fatalf("existing data = %q, err = %v", got, err)
+			}
+		})
+	}
+}
+
+func TestDownloadExactPreservesGzipArtifactBytes(t *testing.T) {
+	plain := bytes.Repeat([]byte("Ubuntu source delta fixture\n"), 256)
+	var compressed bytes.Buffer
+	encoder := gzip.NewWriter(&compressed)
+	if _, err := encoder.Write(plain); err != nil {
+		t.Fatal(err)
+	}
+	if err := encoder.Close(); err != nil {
+		t.Fatal(err)
+	}
+	raw := compressed.Bytes()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		wantEncoding := "identity"
+		if r.URL.Path == "/control" {
+			wantEncoding = "gzip"
+		}
+		if got := r.Header.Get("Accept-Encoding"); got != wantEncoding {
+			t.Errorf("Accept-Encoding = %q, want %q", got, wantEncoding)
+		}
+		// Ubuntu Snapshot labels the .diff.gz itself as HTTP gzip, even when
+		// the client requested identity.
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Content-Length", strconv.Itoa(len(raw)))
+		_, _ = w.Write(raw)
+	}))
+	defer server.Close()
+	useAuthClient(t, server.Client())
+
+	ordinary, err := downloadResponse(t.Context(), server.URL+"/control", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := io.ReadAll(ordinary.Body)
+	ordinary.Body.Close()
+	if err != nil || !ordinary.Uncompressed || ordinary.ContentLength != -1 || !bytes.Equal(decoded, plain) {
+		t.Fatalf("ordinary transport failed to reproduce transparent decoding: bytes=%d uncompressed=%t length=%d error=%v",
+			len(decoded), ordinary.Uncompressed, ordinary.ContentLength, err)
+	}
+
+	path := filepath.Join(t.TempDir(), "source.diff.gz")
+	spec := Target{URL: server.URL + "/exact", SHA256: sha256hex(raw)}
+	if err := DownloadExact(t.Context(), spec, path, int64(len(raw))); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(got, raw) {
+		t.Fatalf("staged bytes do not match upstream gzip: bytes=%d error=%v", len(got), err)
+	}
+	decodedPath := filepath.Join(t.TempDir(), "decoded.diff")
+	spec.SHA256 = sha256hex(plain)
+	if err := DownloadExact(t.Context(), spec, decodedPath, int64(len(plain))); err == nil {
+		t.Fatal("accepted decoded bytes instead of the exact upstream artifact")
+	}
+	if _, err := os.Lstat(decodedPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("decoded output published: %v", err)
+	}
 }
 
 // bigBinary returns a payload comfortably above the size floor that does not

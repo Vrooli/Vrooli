@@ -50,6 +50,10 @@ func FindRepoRootFromEnvOrCWD() (string, error) {
 		}
 	}
 
+	return findRepoRootFromProcess()
+}
+
+func findRepoRootFromProcess() (string, error) {
 	if root, err := FindRepoRootFromCWD(); err == nil {
 		return root, nil
 	}

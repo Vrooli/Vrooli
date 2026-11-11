@@ -143,7 +143,12 @@ func (s ServiceShutdown) Validate() error {
 // nesting here makes the JSON contract shared by resource manifests, the
 // control plane, and deployment consumers.
 type ManagedService struct {
-	UpdatePolicy *ServiceUpdatePolicy `json:"update_policy,omitempty"`
+	// TaskScopedContainer marks a service whose runtime is an explicitly
+	// sandbox-scoped container, not a singleton host process. Its lifecycle is
+	// owned by the resource-specific runtime API and must never fall through to
+	// the ordinary managed-service process supervisor.
+	TaskScopedContainer bool                 `json:"task_scoped_container,omitempty"`
+	UpdatePolicy        *ServiceUpdatePolicy `json:"update_policy,omitempty"`
 	// MinimumDataGroups fails startup promptly until enough declared data bundles exist.
 	MinimumDataGroups int            `json:"minimum_data_groups,omitempty"`
 	ProviderPolicy    ProviderPolicy `json:"provider_policy"`
@@ -153,6 +158,12 @@ type ManagedService struct {
 	ArtifactRole    string          `json:"artifact_role,omitempty"`
 	ProvenanceClass string          `json:"provenance_class,omitempty"`
 	Artifact        ServiceArtifact `json:"artifact,omitempty"`
+	// HostToolExecutable and HostToolVersion define an optional, exact host
+	// executable that an operator may explicitly adopt for this service.
+	// They do not cause discovery, installation, or execution by themselves.
+	HostToolExecutable      string `json:"host_tool_executable,omitempty"`
+	HostToolVersion         string `json:"host_tool_version,omitempty"`
+	SourceSelectionRequired bool   `json:"source_selection_required,omitempty"`
 	// Acquisition is the one declared source contract used to stage this
 	// service for control-plane and desktop deployments. Artifact remains the
 	// launch-time verification contract for the staged result.
@@ -425,16 +436,26 @@ func (m ManagedService) ValidateDataArtifacts() error {
 // ServiceConfig is a non-secret, template-rendered configuration file written
 // beneath the resource configuration root before a private service starts.
 type ServiceConfig struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
+	Path        string `json:"path"`
+	Content     string `json:"content,omitempty"`
+	ContentFile string `json:"content_file,omitempty"`
 }
 
 func (c ServiceConfig) Validate() error {
 	if path := strings.TrimSpace(c.Path); path == "" || filepath.IsAbs(path) || filepath.Clean(path) == "." || filepath.Clean(path) == ".." || strings.HasPrefix(filepath.Clean(path), ".."+string(filepath.Separator)) {
 		return fmt.Errorf("service config path must be a non-empty relative path")
 	}
-	if strings.TrimSpace(c.Content) == "" || strings.ContainsRune(c.Content, '\x00') {
-		return fmt.Errorf("service config content must be non-empty and contain no NUL")
+	if (strings.TrimSpace(c.Content) == "") == (strings.TrimSpace(c.ContentFile) == "") {
+		return fmt.Errorf("service config requires exactly one of content or content_file")
+	}
+	if strings.ContainsRune(c.Content, '\x00') {
+		return fmt.Errorf("service config content must contain no NUL")
+	}
+	if c.ContentFile != "" {
+		file := filepath.Clean(filepath.FromSlash(c.ContentFile))
+		if strings.ContainsRune(c.ContentFile, '\\') || filepath.IsAbs(file) || file == "." || file == ".." || strings.HasPrefix(file, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("service config content_file must be a non-empty relative path")
+		}
 	}
 	return nil
 }

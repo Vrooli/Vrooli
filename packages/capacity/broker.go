@@ -72,6 +72,26 @@ type GPULease interface {
 	Identity() GPUIdentity
 }
 
+// DiskLease reserves a measured peak on one filesystem for a complete job.
+// Owners must heartbeat while the job is active and release on every exit.
+type DiskLease interface {
+	Heartbeat(context.Context) error
+	Release(context.Context) error
+	Reservation() DiskReservation
+}
+
+type DiskReservation struct {
+	ID                 string    `json:"id"`
+	OwnerID            string    `json:"ownerId"`
+	FilesystemID       string    `json:"filesystemId"`
+	Path               string    `json:"path"`
+	PeakBytes          int64     `json:"peakBytes"`
+	FloorBytes         int64     `json:"floorBytes"`
+	AvailableBytes     int64     `json:"availableBytes"`
+	OtherReservedBytes int64     `json:"otherReservedBytes"`
+	ExpiresAt          time.Time `json:"expiresAt"`
+}
+
 // snapshotTTL bounds how long one host-capacity reading is reused across
 // admissions.
 //
@@ -188,6 +208,38 @@ func NewBrokerWithSource(store *internalcapacity.SQLiteStore, source internalcap
 		source = internalcapacity.HostInventorySource{}
 	}
 	return &Broker{store: store, source: source}
+}
+
+// ReserveDisk admits a full-job disk peak through the shared host capacity
+// ledger. The directory must already exist on the target filesystem.
+func (b *Broker) ReserveDisk(ctx context.Context, ownerID, dir string, peakBytes, floorBytes int64) (DiskLease, error) {
+	if b == nil || b.store == nil {
+		return nil, errors.New("capacity broker is unavailable")
+	}
+	lease, err := b.ReserveDiskJob(ctx, DiskJobRequest{OwnerID: ownerID, JobID: "legacy-" + time.Now().UTC().Format("20060102T150405.000000000"), Paths: []DiskJobPath{{Path: dir, Role: "write", PeakBytes: peakBytes}}, FloorBytes: floorBytes})
+	if err != nil {
+		return nil, err
+	}
+	r := lease.Reservation()
+	if len(r.Filesystems) == 0 || len(r.Paths) == 0 {
+		return nil, errors.New("capacity disk job lease returned no filesystem receipt")
+	}
+	f := r.Filesystems[0]
+	return &diskLease{job: lease, reservation: DiskReservation{ID: r.ID, OwnerID: r.OwnerID, FilesystemID: f.FilesystemID, Path: r.Paths[0].Path, PeakBytes: f.PeakBytes, FloorBytes: f.FloorBytes, AvailableBytes: f.AvailableBytes, OtherReservedBytes: f.OtherReservedBytes, ExpiresAt: r.HeartbeatDeadline}}, nil
+}
+
+type diskLease struct {
+	job         DiskJobLease
+	reservation DiskReservation
+}
+
+func (l *diskLease) Reservation() DiskReservation { return l.reservation }
+func (l *diskLease) Heartbeat(ctx context.Context) error {
+	return l.job.Heartbeat(ctx)
+}
+func (l *diskLease) Release(ctx context.Context) error {
+	_, err := l.job.Complete(ctx)
+	return err
 }
 
 // Close closes the underlying ledger.

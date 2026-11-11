@@ -61,6 +61,27 @@ A `Scope` cancels work on renewal loss, but retains its claims until the caller
 has reaped the worker and explicitly calls `Release`; cleanup is independent of
 request cancellation and failed releases may be retried.
 
+Disk-producing scenarios use `DiskJobAdmitter.ReserveDiskJob` to atomically
+reserve each canonical filesystem peak for the full durable job lifetime. The
+owner can read `GetDiskJob` and `ListDiskJobs` receipts scoped to its owner ID.
+After a crash, `ReconcileDiskJob` accepts explicit process-stop and cleanup
+evidence, then the shared store independently checks that the recorded process
+identity is gone before releasing the reservation. This receipt path does not
+grant admission; new work still requires `ReserveDiskJob`.
+
+Terminal `actualDeltaBytes` reports the filesystem available-byte decrease
+since reservation and may include unrelated host activity. Receipts label this
+as `filesystem_available_bytes_decrease`; use the owner-supplied monotonic path
+samples for job-attributed evidence, and report both measurements separately.
+
+`DiskJobPath.DockerRootDir` binds a pre-provision reservation to the Docker
+daemon's authoritative storage root, before a volume or container exists.
+Callers can type-assert the optional `DiskDockerPathSampler` interface to use
+`SampleDockerPath` with the same selector when they have a repeatable byte-count
+method for that root. Prefer exact Docker mount and upperdir selectors for
+per-path samples once those paths exist. Ordinary `DiskJobLease` implementers
+do not need Docker-specific methods.
+
 `UseGate{Root: collectionRoot}` protects model artifacts independently of RAM
 accounting. Readers call `Acquire(id)` and installers/removers call
 `AcquireExclusive(id)`. All processes must use the same collection root and ID.

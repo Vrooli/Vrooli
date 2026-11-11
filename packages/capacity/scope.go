@@ -99,16 +99,31 @@ func maintain(ctx context.Context, lease RenewableLease, interval time.Duration)
 
 func (s *Scope) Context() context.Context { return s.ctx }
 
+// StopRenew stops and joins the heartbeat loop without releasing the claim.
+// It is useful when a producer has exited but cleanup cannot be verified: the
+// lease remains retained in the ledger while no caller goroutine is leaked.
+// Release may still be called later after owner-verified cleanup.
+func (s *Scope) StopRenew() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.stopRenewLocked()
+}
+
+func (s *Scope) stopRenewLocked() {
+	if s.done == nil {
+		return
+	}
+	close(s.stop)
+	<-s.done
+	s.done = nil
+}
+
 // Release stops and joins renewal, then releases using bounded cleanup that
 // survives caller cancellation. It is safe to retry after a ledger failure.
 func (s *Scope) Release(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.done != nil {
-		close(s.stop)
-		<-s.done
-		s.done = nil
-	}
+	s.stopRenewLocked()
 	cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
 	if s.lease != nil {

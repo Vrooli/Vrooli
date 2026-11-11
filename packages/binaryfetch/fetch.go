@@ -235,6 +235,63 @@ func Download(ctx context.Context, rawURL, destination string, onProgress Progre
 	return download(ctx, rawURL, destination, onProgress)
 }
 
+// DownloadExact stages a checksum-pinned file in the destination's directory.
+// The declared size is a hard disk-write limit. The destination must be absent.
+func DownloadExact(ctx context.Context, spec Target, destination string, size int64) error {
+	if size <= 0 || !isDigest(spec.SHA256) {
+		return fmt.Errorf("binaryfetch: exact download requires a positive size and SHA-256")
+	}
+	staged, err := os.CreateTemp(filepath.Dir(destination), ".binaryfetch-exact-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(staged.Name())
+
+	err = streamExact(ctx, spec, staged, size)
+	closeErr := staged.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if err := verifyChecksum(ctx, staged.Name(), spec.SHA256); err != nil {
+		return err
+	}
+	return os.Link(staged.Name(), destination)
+}
+
+func streamExact(ctx context.Context, spec Target, out io.Writer, size int64) error {
+	// Explicit identity prevents net/http from transparently decoding a response
+	// that marks an already-compressed upstream artifact as gzip encoded.
+	response, err := downloadResponseWithEncoding(ctx, spec.URL, spec.Authorization, "identity")
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("binaryfetch: exact download refused with HTTP %d", response.StatusCode)
+	}
+	if response.Uncompressed {
+		return fmt.Errorf("binaryfetch: exact download received a transparently decoded response")
+	}
+	if response.ContentLength >= 0 && response.ContentLength != size {
+		return fmt.Errorf("binaryfetch: expected %d download bytes, got Content-Length %d", size, response.ContentLength)
+	}
+	if n, err := io.CopyN(out, response.Body, size); err != nil {
+		return safeDownloadError(spec.Authorization, fmt.Errorf("binaryfetch: read exact download: got %d of %d bytes: %w", n, size, err))
+	}
+	var extra [1]byte
+	n, err := io.ReadFull(response.Body, extra[:])
+	if n != 0 {
+		return fmt.Errorf("binaryfetch: download exceeds %d bytes", size)
+	}
+	if err != io.EOF {
+		return safeDownloadError(spec.Authorization, fmt.Errorf("binaryfetch: verify end of exact download: %w", err))
+	}
+	return nil
+}
+
 // FetchDir downloads + sha256-verifies the target archive and extracts its
 // ENTIRE tree into optDir (cleaning optDir first so reinstalls are idempotent).
 // It validates that the entry binary at <optDir>/<spec.BinPath> exists, is not an

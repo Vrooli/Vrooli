@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -64,6 +65,151 @@ func TestAcquireGPURequiresExactUUIDAndCreatesBoundActiveLease(t *testing.T) {
 	}
 	if err := lease.Release(ctx); err != nil {
 		t.Fatalf("release: %v", err)
+	}
+}
+
+func TestReserveDiskPublishesSharedLeaseReceipt(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	zeroFloor := int64(0)
+	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(dir, "capacity.db"), MinimumDiskFloorBytes: &zeroFloor})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	broker := NewBrokerWithSource(store, nil)
+	lease, err := broker.ReserveDisk(ctx, "image-tools:test-job", dir, 4096, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := lease.Reservation()
+	if receipt.ID == "" || receipt.OwnerID != "image-tools:test-job" || receipt.PeakBytes != 4096 || receipt.FloorBytes != 1024 || receipt.FilesystemID == "" {
+		t.Fatalf("disk reservation receipt = %+v", receipt)
+	}
+	if err := lease.Heartbeat(ctx); err != nil {
+		t.Fatalf("heartbeat: %v", err)
+	}
+	rows, err := store.ListDiskJobs(ctx, true)
+	if err != nil || len(rows) != 1 || rows[0].ID != receipt.ID || rows[0].Status != "active" {
+		t.Fatalf("reservation rows = %+v, err %v", rows, err)
+	}
+	if err := lease.Release(ctx); err != nil {
+		t.Fatalf("release: %v", err)
+	}
+	rows, err = store.ListDiskJobs(ctx, false)
+	if err != nil || len(rows) != 1 || rows[0].Status != "completed" {
+		t.Fatalf("released reservation rows = %+v, err %v", rows, err)
+	}
+}
+
+func TestDiskJobBrokerIntegratesAliasContentionExtensionAndGrowthReceipt(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	target := filepath.Join(root, "output")
+	if err := os.Mkdir(target, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(root, "output-alias")
+	if err := os.Symlink(target, alias); err != nil {
+		t.Fatal(err)
+	}
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(root, &stat); err != nil {
+		t.Fatal(err)
+	}
+	free := int64(stat.Bavail) * int64(stat.Bsize)
+	firstPeak := free * 3 / 5
+	zeroFloor := int64(0)
+	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(root, "capacity.db"), MinimumDiskFloorBytes: &zeroFloor})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	broker := NewBrokerWithSource(store, nil)
+	lease, err := broker.ReserveDiskJob(ctx, DiskJobRequest{OwnerID: "image-tools", JobID: "integrated-output", FloorBytes: 0, Paths: []DiskJobPath{{Path: target, Role: "output", PeakBytes: firstPeak / 2}, {Path: alias, Role: "output-alias", PeakBytes: firstPeak}}})
+	if err != nil {
+		t.Fatalf("first job admission: %v", err)
+	}
+	reservation := lease.Reservation()
+	if len(reservation.Paths) != 1 || len(reservation.Filesystems) != 1 || reservation.Filesystems[0].PeakBytes != firstPeak {
+		t.Fatalf("alias-deduplicated receipt=%+v", reservation)
+	}
+	if _, err := broker.ReserveDiskJob(ctx, DiskJobRequest{OwnerID: "book", JobID: "contending-output", FloorBytes: 0, Paths: []DiskJobPath{{Path: root, Role: "second-output", PeakBytes: firstPeak}}}); !errors.Is(err, internalcapacity.ErrDiskAdmissionDenied) {
+		t.Fatalf("contending same-filesystem job error=%v", err)
+	}
+	headroom, err := lease.Observe(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(headroom.Filesystems) != 1 || headroom.Filesystems[0].SafeAdditionalPeakBytes <= 0 {
+		t.Fatalf("observed lease headroom=%+v", headroom)
+	}
+	newPeak := free * 2 / 3
+	if _, err := lease.Extend(ctx, []DiskJobPath{{Path: target, Role: "output", PeakBytes: newPeak}}); err != nil {
+		t.Fatalf("safe extension failed: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(target, "showcase-proof.bin"), []byte("verified local growth"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	completed, err := lease.Complete(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if completed.Status != "completed" || !completed.CleanupVerified || len(completed.Filesystems) != 1 || completed.Filesystems[0].ActualDeltaBytes == nil || completed.Filesystems[0].ActualDeltaBasis != "filesystem_available_bytes_decrease" {
+		t.Fatalf("completed growth receipt=%+v", completed)
+	}
+	second, err := broker.ReserveDiskJob(ctx, DiskJobRequest{OwnerID: "book", JobID: "after-release", FloorBytes: 0, Paths: []DiskJobPath{{Path: root, Role: "second-output", PeakBytes: firstPeak}}})
+	if err != nil {
+		t.Fatalf("released capacity was not reusable: %v", err)
+	}
+	if _, err := second.Complete(ctx); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDiskJobBrokerExposesOwnerScopedReceiptsAndGuardedRecovery(t *testing.T) {
+	ctx := context.Background()
+	root := t.TempDir()
+	zeroFloor := int64(0)
+	store, err := internalcapacity.NewSQLiteStore(ctx, internalcapacity.Config{DBPath: filepath.Join(root, "capacity.db"), MinimumDiskFloorBytes: &zeroFloor})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	broker := NewBrokerWithSource(store, nil)
+	lease, err := broker.ReserveDiskJob(ctx, DiskJobRequest{OwnerID: "image-tools", JobID: "receipt-owner-test", Paths: []DiskJobPath{{Path: root, Role: "output", PeakBytes: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := lease.Reservation().ID
+	got, err := broker.GetDiskJob(ctx, "image-tools", id)
+	if err != nil || got.ID != id || got.OwnerID != "image-tools" {
+		t.Fatalf("owner receipt = %+v, err %v", got, err)
+	}
+	if _, err := broker.GetDiskJob(ctx, "device-studio", id); err == nil {
+		t.Fatal("cross-owner receipt read succeeded")
+	}
+	rows, err := broker.ListDiskJobs(ctx, "image-tools", true)
+	if err != nil || len(rows) != 1 || rows[0].ID != id {
+		t.Fatalf("scoped active receipts = %+v, err %v", rows, err)
+	}
+	if rows, err := broker.ListDiskJobs(ctx, "device-studio", true); err != nil || len(rows) != 0 {
+		t.Fatalf("other-owner receipts = %+v, err %v", rows, err)
+	}
+	if _, err := broker.ListDiskJobs(ctx, "", true); err == nil {
+		t.Fatal("unscoped receipt listing succeeded")
+	}
+	if _, err := broker.ReconcileDiskJob(ctx, id, DiskJobRecoveryEvidence{OwnerID: "image-tools", ProcessStoppedVerified: true}); err == nil {
+		t.Fatal("reconciliation succeeded without cleanup evidence")
+	}
+	if _, err := broker.ReconcileDiskJob(ctx, id, DiskJobRecoveryEvidence{OwnerID: "device-studio", ProcessStoppedVerified: true, CleanupVerified: true}); err == nil {
+		t.Fatal("cross-owner reconciliation succeeded")
+	}
+	if receipt, err := broker.GetDiskJob(ctx, "image-tools", id); err != nil || receipt.Status != "active" {
+		t.Fatalf("failed recovery attempt changed receipt: %+v, err %v", receipt, err)
+	}
+	if _, err := lease.Complete(ctx); err != nil {
+		t.Fatal(err)
 	}
 }
 

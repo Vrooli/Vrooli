@@ -20,6 +20,10 @@ func (*BearerAuthorization) String() string     { return "[redacted bearer autho
 func (a *BearerAuthorization) GoString() string { return a.String() }
 
 func downloadResponse(ctx context.Context, rawURL string, auth *BearerAuthorization) (*http.Response, error) {
+	return downloadResponseWithEncoding(ctx, rawURL, auth, "")
+}
+
+func downloadResponseWithEncoding(ctx context.Context, rawURL string, auth *BearerAuthorization, encoding string) (*http.Response, error) {
 	if auth != nil {
 		if err := (AcquisitionAuth{Scheme: "bearer", LogicalID: "transport", Field: "token"}).ValidateURL(rawURL); err != nil {
 			return nil, err
@@ -28,6 +32,9 @@ func downloadResponse(ctx context.Context, rawURL string, auth *BearerAuthorizat
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("binaryfetch: build download request: %w", err)
+	}
+	if encoding != "" {
+		req.Header.Set("Accept-Encoding", encoding)
 	}
 	client := HTTPClient
 	if auth != nil {
