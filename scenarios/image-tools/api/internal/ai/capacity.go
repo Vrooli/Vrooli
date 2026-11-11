@@ -152,6 +152,44 @@ type MemoryLease interface {
 
 type MemoryAdmission func(context.Context, string, int64) (MemoryLease, error)
 
+// DiskAdmission reserves the full estimated peak for one destination path.
+// Owners heartbeat throughout work and release every returned lease on all exits.
+type DiskAdmission interface {
+	ReserveDiskJob(context.Context, sharedcapacity.DiskJobRequest) (sharedcapacity.DiskJobLease, error)
+}
+
+func (b *CLICapacityBroker) ReserveDiskJob(ctx context.Context, request sharedcapacity.DiskJobRequest) (sharedcapacity.DiskJobLease, error) {
+	broker, err := sharedcapacity.NewBroker(ctx, "")
+	if err != nil {
+		return nil, fmt.Errorf("open shared disk capacity broker: %w", err)
+	}
+	lease, err := broker.ReserveDiskJob(ctx, request)
+	if err != nil {
+		return nil, errors.Join(err, broker.Close())
+	}
+	return &diskJobLeaseWithBroker{DiskJobLease: lease, broker: broker}, nil
+}
+
+type diskJobLeaseWithBroker struct {
+	sharedcapacity.DiskJobLease
+	broker *sharedcapacity.Broker
+}
+
+func (l *diskJobLeaseWithBroker) Complete(ctx context.Context) (sharedcapacity.DiskJobReceipt, error) {
+	receipt, err := l.DiskJobLease.Complete(ctx)
+	if err != nil {
+		return receipt, err
+	}
+	return receipt, l.broker.Close()
+}
+
+func (l *diskJobLeaseWithBroker) Release(ctx context.Context) error {
+	if _, err := l.Complete(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
 type localMemoryLease struct {
 	sharedcapacity.RenewableLease
 	broker *sharedcapacity.Broker

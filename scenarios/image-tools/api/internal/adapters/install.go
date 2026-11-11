@@ -111,6 +111,8 @@ type Installer struct {
 	RepoFetch RepoFetcher
 	// DiskAvail reports free space at Root (fetch.DefaultDiskAvail).
 	DiskAvail DiskSpaceFunc
+	// DiskAdmission reserves the complete remote install across every write filesystem.
+	DiskAdmission capacity.DiskJobAdmitter
 	// Now sources timestamps (defaults to time.Now).
 	Now func() time.Time
 }
@@ -172,6 +174,11 @@ func (in *Installer) useGate() *capacity.UseGate {
 }
 
 func (in *Installer) Install(ctx context.Context, id string, emit func(int, string)) (InstallRecord, error) {
+	return in.InstallForJob(ctx, id, "", emit)
+}
+
+// InstallForJob binds the admission receipt to the durable adapter install job.
+func (in *Installer) InstallForJob(ctx context.Context, id, jobID string, emit func(int, string)) (rec InstallRecord, installErr error) {
 	release, err := in.useGate().AcquireExclusive(id)
 	if err != nil {
 		return InstallRecord{}, err
@@ -198,11 +205,55 @@ func (in *Installer) Install(ctx context.Context, id string, emit func(int, stri
 			return rec, nil
 		}
 	}
+	var diskProgress func(context.Context, string, int64, int64) error
+	if jobID == "" {
+		jobID = fmt.Sprintf("%s-%d", id, in.now().UnixNano())
+	}
+	if a.Source.LocalPath == "" {
+		if in.DiskAdmission == nil {
+			return InstallRecord{}, fmt.Errorf("adapters: shared host disk admission is unavailable; refusing acquisition")
+		}
+		request, planErr := fetch.PlanInstallDiskJob(ctx, "image-tools:adapter-install", jobID, in.Root, a.SizeMBApprox, a.Source, 1)
+		if planErr != nil {
+			return InstallRecord{}, fmt.Errorf("adapters: disk peak planning failed before acquisition: %w", planErr)
+		}
+		acquirer.RepoFetch = fetch.PinHuggingFaceCache(acquirer.RepoFetch, fetch.HuggingFaceCachePath(request))
+		lease, reserveErr := in.DiskAdmission.ReserveDiskJob(ctx, request)
+		if reserveErr != nil {
+			return InstallRecord{}, fmt.Errorf("adapters: reserve complete install disk peak: %w", reserveErr)
+		}
+		if lease == nil {
+			return InstallRecord{}, fmt.Errorf("adapters: shared host disk admission returned no lease")
+		}
+		growthGuard, growthErr := fetch.NewDiskGrowthGuard(lease, request, 1, fetch.InstallOwnerCeilingBytes)
+		if growthErr != nil {
+			return InstallRecord{}, fmt.Errorf("adapters: create bounded disk growth observer: %w", growthErr)
+		}
+		diskProgress = fetch.DiskGrowthObserver(growthGuard)
+		acquirer.DiskProgressObserver = diskProgress
+		ctx, guard := fetch.MaintainDiskLease(ctx, lease, 45*time.Second)
+		defer func() {
+			if heartbeatErr := guard.Stop(); heartbeatErr != nil {
+				installErr = errors.Join(installErr, heartbeatErr)
+				return
+			}
+			if errors.Is(installErr, fetch.ErrCleanupUnverified) {
+				installErr = errors.Join(installErr, fmt.Errorf("adapters: disk lease %s remains active because staging cleanup is unverified", lease.Reservation().ID))
+				return
+			}
+			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			defer cancel()
+			receipt, completeErr := lease.Complete(cleanup)
+			if completeErr != nil {
+				installErr = errors.Join(installErr, fmt.Errorf("adapters: complete disk lease %s after install stopped: %w", receipt.ID, completeErr))
+			}
+		}()
+	}
 	acquired, err := acquirer.Acquire(ctx, a.Source, in.adapterDir(id), in.pinnedChecksum(ctx, id), a.SizeMBApprox, emit)
 	if err != nil {
 		return InstallRecord{}, fmt.Errorf("adapters: acquire %q: %w", id, err)
 	}
-	rec := InstallRecord{ID: id, Installed: true, Path: acquired.Path, Checksum: acquired.Checksum, SizeBytes: acquired.SizeBytes, InstalledAt: in.now()}
+	rec = InstallRecord{ID: id, Installed: true, Path: acquired.Path, Checksum: acquired.Checksum, SizeBytes: acquired.SizeBytes, InstalledAt: in.now()}
 	if in.State != nil {
 		if err := in.State.Set(ctx, rec); err != nil {
 			return InstallRecord{}, err

@@ -23,20 +23,21 @@ type adapterView struct {
 // install state reflects on-disk weight presence.
 func domainToProto(a internaladapters.Adapter, v adapterView) *adaptersv1.Adapter {
 	return &adaptersv1.Adapter{
-		Id:               a.ID,
-		Name:             a.Name,
-		Kind:             string(a.Kind),
-		Architecture:     string(a.Architecture),
-		Weight:           string(a.Weight),
-		Preprocessor:     string(a.Preprocessor),
-		ScaleRange:       scaleRangeToProto(a.ScaleRange),
-		SizeMbApprox:     int32(a.SizeMBApprox),
-		CapabilityLabels: labelsToProto(a.CapabilityLabels),
-		Ready:            a.Ready,
-		Pending:          a.Pending,
-		Enabled:          v.enabled,
-		Install:          installToProto(v.install),
-		Custom:           v.custom,
+		Id:                  a.ID,
+		Name:                a.Name,
+		Kind:                string(a.Kind),
+		Architecture:        string(a.Architecture),
+		Weight:              string(a.Weight),
+		Preprocessor:        string(a.Preprocessor),
+		ScaleRange:          scaleRangeToProto(a.ScaleRange),
+		SizeMbApprox:        int32(a.SizeMBApprox),
+		CapabilityLabels:    labelsToProto(a.CapabilityLabels),
+		Ready:               a.Ready,
+		Pending:             a.Pending,
+		Enabled:             v.enabled,
+		Install:             installToProto(v.install),
+		Custom:              v.custom,
+		LicenseTermsVersion: a.LicenseTermsVersion,
 	}
 }
 

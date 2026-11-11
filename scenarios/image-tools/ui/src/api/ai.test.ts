@@ -102,6 +102,38 @@ describe("api/ai", () => {
     expect(paramsText).toContain("4");
   });
 
+  it("submitAI sends a typed pose adapter request with the staged source image", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      makeResponse({ json: { job_id: "pose-job", model_id: "sd-1.5", tier: "local-cpu" } }),
+    );
+
+    await submitAI(
+      "text_to_image",
+      {
+        prompt: "a synthetic stick figure in a running pose",
+        adapters: [{
+          adapterId: "controlnet-openpose-sd15",
+          scale: 1,
+          preprocessorOverride: "pose",
+          licenseTermsAccepted: true,
+        }],
+      },
+      { image: PNG },
+    );
+
+    const body = vi.mocked(fetch).mock.calls[0]?.[1]?.body as FormData;
+    expect(body.get("file")).toBe(PNG);
+    expect(JSON.parse(String(body.get("params")))).toMatchObject({
+      prompt: "a synthetic stick figure in a running pose",
+      adapters: [{
+        adapterId: "controlnet-openpose-sd15",
+        scale: 1,
+        preprocessorOverride: "pose",
+        licenseTermsAccepted: true,
+      }],
+    });
+  });
+
   it("submitAI throws a typed ApiError on a non-2xx response (e.g. model not installed)", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       makeResponse({

@@ -60,7 +60,7 @@
         "repo": {
           "repo_id": "h94/IP-Adapter",
           "revision": "018e402774aeeddd60609b4ecdb7e298259dc729",
-          "allow_patterns": ["models/ip-adapter_sd15.safetensors", "models/image_encoder/*"]
+          "allow_patterns": ["models/ip-adapter_sd15.safetensors", "models/image_encoder/config.json", "models/image_encoder/model.safetensors"]
         },
         "checksum": { "algo": "sha256", "value": "", "status": "unverified-capture-on-download" }
       },
@@ -88,7 +88,7 @@
       "source": {
         "source_repo": "https://huggingface.co/lllyasviel/sd-controlnet-canny",
         "docs_url": "https://huggingface.co/lllyasviel/sd-controlnet-canny",
-        "repo": { "repo_id": "lllyasviel/sd-controlnet-canny", "revision": "7f2f69197050967007f6bbd23ab5e52f0384162a" },
+        "repo": { "repo_id": "lllyasviel/sd-controlnet-canny", "revision": "7f2f69197050967007f6bbd23ab5e52f0384162a", "allow_patterns": ["config.json", "diffusion_pytorch_model.safetensors"] },
         "checksum": { "algo": "sha256", "value": "", "status": "unverified-capture-on-download" }
       },
       "capability_labels": {
@@ -138,23 +138,25 @@
       "weight": "none",
       "preprocessor": "pose",
       "scale_range": { "min": 0.0, "max": 2.0, "default": 1.0 },
-      "size_mb_approx": 1450,
+      "size_mb_approx": 1455,
       "source": {
         "source_repo": "https://huggingface.co/lllyasviel/sd-controlnet-openpose",
         "docs_url": "https://huggingface.co/lllyasviel/sd-controlnet-openpose",
-        "repo": { "repo_id": "lllyasviel/sd-controlnet-openpose", "revision": "" },
+        "repo": { "repo_id": "lllyasviel/sd-controlnet-openpose", "revision": "df796456519d1ac5dbe674caa0653fcc9673bca8", "allow_patterns": ["config.json", "diffusion_pytorch_model.safetensors"], "file_sha256": {"config.json": "dbeca6e56d9319a78d6a63758887334a6143bd270e590864b8182b0139d1a18c", "diffusion_pytorch_model.safetensors": "a3ca16220ebd7220d37a67d68329b4290f2c72a854955fd35f84b97c85596e5b"} },
+        "assets": [{"url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task", "filename": "pose/pose_landmarker_full.task", "min_bytes": 9398198}, {"url": "https://huggingface.co/spaces/CompVis/stable-diffusion-license/resolve/14d42d09bffd871b1666a084fc954a50cff72ac0/license.txt", "filename": "LICENSE.OpenRAIL-M.txt", "kind": "config", "sha256": "be351ebe7ac01bcdbb018639aadcfd38f136b7dc3f2a3d4d3a24db51d1b210ef", "min_bytes": 14385}],
         "checksum": { "algo": "sha256", "value": "", "status": "unverified-capture-on-download" }
       },
       "capability_labels": {
         "nsfw_capable": false,
         "license": "CreativeML OpenRAIL-M",
         "commercial_use": "conditional",
-        "commercial_use_notes": "OpenRAIL-M permits commercial use under use-based restrictions; pin a revision and confirm terms before enabling.",
+        "commercial_use_notes": "Commercial use is permitted under CreativeML OpenRAIL-M only with the versioned user agreement, enforced use-based restrictions, and license pass-through notice.",
         "base_model_lineage": "Stable Diffusion 1.5",
         "known_risks": "structural conditioner driven by an OpenPose skeleton (pose_estimate)"
       },
+      "license_terms_version": "creativeml-openrail-m-2022-08-22",
       "ready": false,
-      "pending": "ControlNet conditioning + pose preprocess are proven runnable in plan Phase 5 (attended SD1.5 GPU run); pin a repo revision and flip Ready then.",
+      "pending": "Pinned weights, Full pose task and license notice are governed; install only after a fresh complete-job disk admission, then prove admitted end-to-end output quality before enabling.",
       "enabled": false
     },
     {

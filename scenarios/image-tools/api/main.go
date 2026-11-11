@@ -343,15 +343,17 @@ func main() {
 	// (fetch → env → smoke) through the venv interpreter so an installed-but-broken
 	// model fails the install instead of surfacing as a late job crash.
 	modelUseGate := internalmodels.NewModelUseGate(modelsRoot)
+	imageCapacity := &internalai.CLICapacityBroker{}
 	installer := &internalmodels.Installer{
-		Root:      modelsRoot,
-		Reg:       registry,
-		Custom:    internalmodels.NewCustomStore(db),
-		State:     internalmodels.NewInstallStore(db),
-		UseGate:   modelUseGate,
-		Download:  fetch.HTTPDownloader{},
-		RepoFetch: &fetch.HFSnapshotFetcher{Python: pythonInterpreter},
-		DiskAvail: fetch.DefaultDiskAvail,
+		Root:          modelsRoot,
+		Reg:           registry,
+		Custom:        internalmodels.NewCustomStore(db),
+		State:         internalmodels.NewInstallStore(db),
+		UseGate:       modelUseGate,
+		Download:      fetch.HTTPDownloader{},
+		RepoFetch:     &fetch.HFSnapshotFetcher{Python: pythonInterpreter},
+		DiskAvail:     fetch.DefaultDiskAvail,
+		DiskAdmission: imageCapacity,
 		Smoke: &internalmodels.SmokeConfig{
 			Python:     pythonInterpreter,
 			PythonPath: sidecarPath,
@@ -371,6 +373,7 @@ func main() {
 	modelInstalled := func(id string) bool {
 		return installer.Installed(context.Background(), id)
 	}
+	modelRuntimeReady := hostModelRuntimeReadiness(installer)
 
 	// The model-download runner: a durable CPU-lane job that fetches + verifies a
 	// model's weights, emitting progress. ModelsService.InstallModel submits it.
@@ -392,14 +395,15 @@ func main() {
 	// is DB-backed (adapter_install).
 	adapterUseGate := &sharedcapacity.UseGate{Root: filepath.Join(modelsRoot, "adapters")}
 	adapterInstaller := &internaladapters.Installer{
-		UseGate:   adapterUseGate,
-		Root:      modelsRoot,
-		Reg:       adapterRegistry,
-		Custom:    internaladapters.NewCustomStore(db),
-		State:     internaladapters.NewInstallStore(db),
-		Download:  fetch.HTTPDownloader{},
-		RepoFetch: &fetch.HFSnapshotFetcher{Python: pythonInterpreter},
-		DiskAvail: fetch.DefaultDiskAvail,
+		UseGate:       adapterUseGate,
+		Root:          modelsRoot,
+		Reg:           adapterRegistry,
+		Custom:        internaladapters.NewCustomStore(db),
+		State:         internaladapters.NewInstallStore(db),
+		Download:      fetch.HTTPDownloader{},
+		RepoFetch:     &fetch.HFSnapshotFetcher{Python: pythonInterpreter},
+		DiskAvail:     fetch.DefaultDiskAvail,
+		DiskAdmission: imageCapacity,
 	}
 
 	// Conditioning seams the AI engine resolver uses to validate an adapter stack
@@ -436,7 +440,7 @@ func main() {
 		if err := json.Unmarshal(job.Payload, &p); err != nil {
 			return internaljobs.Result{}, fmt.Errorf("decode adapter install payload: %w", err)
 		}
-		rec, err := adapterInstaller.Install(jobCtx, p.AdapterID, emit)
+		rec, err := adapterInstaller.InstallForJob(jobCtx, p.AdapterID, job.ID, emit)
 		if err != nil {
 			return internaljobs.Result{}, err
 		}
@@ -558,29 +562,29 @@ func main() {
 	// AI engine: probe → hardware-fit model select → backend select → execute →
 	// persist, with the optional NSFW auto-scan on generated output.
 	aiEngine, err := internalai.NewEngine(internalai.Deps{
-		Registry:        registry,
-		Backends:        backendReg,
-		Probe:           probe,
-		Store:           blobStore,
-		Enabled:         enabled,
-		DefaultOverride: opDefaults.Get,
-		ModelInstalled:  modelInstalled,
-		ModelRuntimeReadiness: func(ctx context.Context, id string) (bool, string) {
-			return installer.RuntimeReadiness(ctx, id)
-		},
-		AcquireModelUse:   modelUseGate.Acquire,
-		CustomModels:      installer.Custom.List,
-		ModelsRoot:        modelsRoot,
-		AdapterByID:       adapterByID,
-		AdapterEnabled:    adapterEnabled,
-		AdapterInstalled:  adapterInstalled,
-		AcquireAdapterUse: adapterUseGate.Acquire,
-		AdaptersRoot:      modelsRoot,
-		AutoScan:          analysisService.ScanNSFW,
-		Capacity:          &internalai.CLICapacityBroker{},
-		Memory:            internalai.AcquireLocalRAM,
-		CPU:               internalai.AcquireLocalCPU,
-		Logger:            log.Default(),
+		Registry:              registry,
+		Backends:              backendReg,
+		Probe:                 probe,
+		Store:                 blobStore,
+		Enabled:               enabled,
+		DefaultOverride:       opDefaults.Get,
+		ModelInstalled:        modelInstalled,
+		ModelRuntimeReadiness: modelRuntimeReady,
+		AcquireModelUse:       modelUseGate.Acquire,
+		CustomModels:          installer.Custom.List,
+		ModelsRoot:            modelsRoot,
+		AdapterByID:           adapterByID,
+		AdapterEnabled:        adapterEnabled,
+		AdapterInstalled:      adapterInstalled,
+		AcquireAdapterUse:     adapterUseGate.Acquire,
+		PosePreprocessor:      analysisService.PoseMap,
+		AdaptersRoot:          modelsRoot,
+		AutoScan:              analysisService.ScanNSFW,
+		Capacity:              imageCapacity,
+		Disk:                  imageCapacity,
+		Memory:                internalai.AcquireLocalRAM,
+		CPU:                   internalai.AcquireLocalCPU,
+		Logger:                log.Default(),
 	})
 	if err != nil {
 		log.Fatalf("ai engine init failed: %v", err)
@@ -650,7 +654,7 @@ func main() {
 			Enabled:   adapterEnabled,
 			Installed: adapterInstalled,
 		}, log.Default()),
-		opsH.Module(blobStore, jobManager, log.Default()),
+		opsH.Module(blobStore, jobManager, imageCapacity, log.Default()),
 		safetyH.Module(deployTier),
 		selectionH.Module(blobStore, jobManager, log.Default()),
 	)
@@ -692,4 +696,14 @@ func configureTestPoolSchemas(db *database.RoutedDB) {
 	db.SetTestPoolInitializer(func(ctx context.Context, pool *sql.DB) error {
 		return database.EnsureSchemas(ctx, pool, modules.AllSchemas()...)
 	})
+}
+
+// hostModelRuntimeReadiness reads lifecycle evidence from the host catalog.
+// The model weights, their smoke verdicts and runtime readiness are shared
+// host artifacts; a routed test database must isolate user/job rows without
+// making installed host models appear absent during a test-mode request.
+func hostModelRuntimeReadiness(installer *internalmodels.Installer) func(context.Context, string) (bool, string) {
+	return func(_ context.Context, id string) (bool, string) {
+		return installer.RuntimeReadiness(context.Background(), id)
+	}
 }

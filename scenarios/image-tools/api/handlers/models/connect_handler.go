@@ -106,12 +106,16 @@ func (h *connectHandler) overlay(ctx context.Context) (map[string]bool, error) {
 }
 
 // installStates returns the install record per model id (empty when no Installer).
-func (h *connectHandler) installStates(ctx context.Context) (map[string]internalmodels.InstallRecord, error) {
+// Weight installs are host-wide artifacts, not user data: a routed test DB must
+// not hide a real installed model and send an isolated UI into a false install
+// gate. Read this inventory from the host's primary catalog; mutations remain
+// owned by the installer lifecycle and job admission.
+func (h *connectHandler) installStates(_ context.Context) (map[string]internalmodels.InstallRecord, error) {
 	out := map[string]internalmodels.InstallRecord{}
 	if h.deps.Installer == nil || h.deps.Installer.State == nil {
 		return out, nil
 	}
-	recs, err := h.deps.Installer.State.List(ctx)
+	recs, err := h.deps.Installer.State.List(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -292,6 +296,7 @@ func (h *connectHandler) SelectModel(ctx context.Context, req *connect.Request[m
 		QualityPolicy: req.Msg.GetQualityPolicy(),
 		AllowBYOK:     req.Msg.GetAllowByok(),
 		OverrideID:    override,
+		ForceCPU:      req.Msg.GetForceCpu(),
 	}, registry.EnabledWithOverlay(overlay))
 	if err != nil {
 		return nil, selectError(err)

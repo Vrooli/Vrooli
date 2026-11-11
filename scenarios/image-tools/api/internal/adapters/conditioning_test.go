@@ -123,6 +123,22 @@ func TestResolveConditioningControlNetAutoPreprocessWarns(t *testing.T) {
 	}
 }
 
+func TestResolveConditioningRequiresAndRecordsVersionedLicenseAcceptance(t *testing.T) {
+	adapter := readyAdapter("controlnet-openpose-sd15", KindControlNet, models.ArchSD15, safety.WeightNone)
+	adapter.LicenseTermsVersion = OpenRAILMTermsVersion
+	byID := lookup(adapter)
+	if _, _, err := ResolveConditioning(models.ArchSD15, []AdapterRequest{{ID: adapter.ID}}, byID, nil, alwaysInstalled); err == nil {
+		t.Fatal("accepted a restricted adapter without affirmative terms acceptance")
+	}
+	resolved, _, err := ResolveConditioning(models.ArchSD15, []AdapterRequest{{ID: adapter.ID, LicenseTermsAccepted: true}}, byID, nil, alwaysInstalled)
+	if err != nil {
+		t.Fatalf("resolve with acceptance: %v", err)
+	}
+	if len(resolved) != 1 || !resolved[0].LicenseTermsAccepted || resolved[0].LicenseTermsVersion != OpenRAILMTermsVersion {
+		t.Fatalf("resolved adapter lost license receipt: %+v", resolved)
+	}
+}
+
 func TestResolveConditioningNilCatalogRejects(t *testing.T) {
 	if _, _, err := ResolveConditioning(models.ArchSD15, []AdapterRequest{{ID: "x"}}, nil, nil, alwaysInstalled); err == nil {
 		t.Fatal("expected rejection when no catalog lookup is supplied")

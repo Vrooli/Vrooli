@@ -5,7 +5,7 @@ import { listOperationModels, modelsClient, type CandidateModel, type HostSummar
 
 /** The narrow seam the picker drives; tests inject a fake to run offline. */
 export interface ModelPickerClient {
-  list: (operation: string) => Promise<{
+  list: (operation: string, forceCpu: boolean) => Promise<{
     candidates: CandidateModel[];
     host?: HostSummary;
     selectedId: string;
@@ -19,8 +19,8 @@ export interface ModelPickerClient {
 
 /** Production client: the Models + Jobs Connect clients. */
 export const liveModelPickerClient: ModelPickerClient = {
-  async list(operation) {
-    const resp = await listOperationModels(operation);
+  async list(operation, forceCpu) {
+    const resp = await listOperationModels(operation, forceCpu);
     return {
       candidates: resp.candidates,
       host: resp.host,
@@ -72,6 +72,7 @@ export interface UseModelPicker {
 
 export interface UseModelPickerArgs {
   operation: string;
+  forceCpu?: boolean;
   /** Whether to actively load (the picker is open). Avoids fetching while closed. */
   active: boolean;
   client?: ModelPickerClient;
@@ -87,6 +88,7 @@ const errorText = (err: unknown): string => (err instanceof Error ? err.message 
  */
 export function useModelPicker({
   operation,
+  forceCpu = false,
   active,
   client = liveModelPickerClient,
 }: UseModelPickerArgs): UseModelPicker {
@@ -116,7 +118,7 @@ export function useModelPicker({
     setLoading(true);
     setError(null);
     try {
-      const res = await client.list(operation);
+      const res = await client.list(operation, forceCpu);
       if (!mounted.current || loadId.current !== id) {
         return;
       }
@@ -133,7 +135,7 @@ export function useModelPicker({
         setLoading(false);
       }
     }
-  }, [client, operation]);
+  }, [client, forceCpu, operation]);
 
   useEffect(() => {
     if (active) {

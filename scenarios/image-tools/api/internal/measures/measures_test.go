@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	apidb "github.com/vrooli/api-core/database"
 
@@ -81,6 +82,39 @@ func TestStatsFilterByOperation(t *testing.T) {
 	}
 	if len(stats) != 1 || stats[0].Operation != "crop" {
 		t.Fatalf("expected only crop, got %+v", stats)
+	}
+}
+
+func TestModelUsageSummaryUsesOnlySuccessfulDurableTraces(t *testing.T) {
+	ctx := context.Background()
+	r := newRecorder(t)
+	times := []string{"2026-11-10T10:00:00Z", "2026-11-10T11:00:00Z", "2026-11-10T12:00:00Z"}
+	index := 0
+	r.now = func() time.Time {
+		value, _ := time.Parse(time.RFC3339, times[index])
+		index++
+		return value
+	}
+	traces := []JobTrace{
+		{JobID: "sd1", Operation: "text_to_image", ModelID: "sd-1.5", Tier: "local-cpu", State: "succeeded"},
+		{JobID: "sd2", Operation: "text_to_image", ModelID: "sd-1.5", Tier: "local-gpu", State: "failed"},
+		{JobID: "sd3", Operation: "image_to_image", ModelID: "sd-1.5", Tier: "local-gpu", State: "succeeded"},
+	}
+	for _, trace := range traces {
+		if err := r.RecordJobTrace(ctx, trace); err != nil {
+			t.Fatalf("RecordJobTrace(%s): %v", trace.JobID, err)
+		}
+	}
+	all, err := r.ModelUsageSummary(ctx, "")
+	if err != nil {
+		t.Fatalf("ModelUsageSummary(): %v", err)
+	}
+	if len(all) != 1 || all[0].ModelID != "sd-1.5" || all[0].SuccessfulJobs != 2 || all[0].LastOperation != "image_to_image" || all[0].LastTier != "local-gpu" || all[0].LastSuccessfulAt != times[2] {
+		t.Fatalf("ModelUsageSummary() = %+v", all)
+	}
+	missing, err := r.ModelUsageSummary(ctx, "model-without-traces")
+	if err != nil || len(missing) != 0 {
+		t.Fatalf("missing-model usage = %+v, err=%v; want absent/unknown", missing, err)
 	}
 }
 

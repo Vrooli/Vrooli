@@ -128,7 +128,10 @@ func addFilePart(mw *multipart.Writer, field, path string) error {
 // which differs from outPath when the result's format does not match its
 // extension (for example an SVG from a vector model requested as out.png).
 func waitAndDownload(core *cliapp.ScenarioApp, jobID, outPath string) (*jobsv1.Job, string, error) {
-	httpClient, baseURL := cliapp.NewConnectHTTPClient(core)
+	// CPU model inference can outlast the CLI's ordinary request timeout.
+	// WaitJob is the server-owned terminal wait, so keep one request open until
+	// the job reaches a final state rather than returning while inference runs on.
+	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
 	client := jobsconnect.NewJobsServiceClient(httpClient, baseURL)
 	resp, err := client.WaitJob(context.Background(), connect.NewRequest(&jobsv1.WaitJobRequest{Id: jobID}))
 	if err != nil {

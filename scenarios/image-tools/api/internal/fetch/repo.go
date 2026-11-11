@@ -1,12 +1,17 @@
 package fetch
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io/fs"
+	"math"
 	"os"
 	"os/exec"
-
+	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/vrooli/envkit-go"
 )
@@ -27,6 +32,9 @@ type RepoSpec struct {
 	// AllowPatterns optionally restricts which files are fetched (e.g. skip the
 	// original/ fp32 mirror). Empty fetches the whole repo.
 	AllowPatterns []string `json:"allow_patterns,omitempty"`
+	// FileSHA256 pins selected high-value files independently of the computed
+	// installed-tree receipt. Paths are relative to the repository root.
+	FileSHA256 map[string]string `json:"file_sha256,omitempty"`
 }
 
 // RepoFetcher fetches a whole multi-file model repository (a HuggingFace
@@ -36,6 +44,10 @@ type RepoSpec struct {
 // emit reports byte progress (total may be -1 if unknown).
 type RepoFetcher interface {
 	Snapshot(ctx context.Context, repo RepoSpec, destDir string, emit func(done, total int64)) error
+}
+
+type ObservedRepoFetcher interface {
+	SnapshotObserved(ctx context.Context, repo RepoSpec, destDir string, observe func(done, total int64) error) error
 }
 
 // HFSnapshotFetcher is the production RepoFetcher: it fetches a HuggingFace repo
@@ -65,6 +77,15 @@ snapshot_download(repo_id=repo, revision=revision, local_dir=dest, allow_pattern
 // streams its own progress to stderr); emit is called once at completion so the
 // job layer advances. A non-zero exit surfaces the captured stderr.
 func (f *HFSnapshotFetcher) Snapshot(ctx context.Context, repo RepoSpec, destDir string, emit func(done, total int64)) error {
+	return f.SnapshotObserved(ctx, repo, destDir, func(done, total int64) error {
+		if emit != nil {
+			emit(done, total)
+		}
+		return nil
+	})
+}
+
+func (f *HFSnapshotFetcher) SnapshotObserved(ctx context.Context, repo RepoSpec, destDir string, observe func(done, total int64) error) error {
 	if strings.TrimSpace(repo.RepoID) == "" {
 		return fmt.Errorf("hf snapshot: empty repo_id")
 	}
@@ -76,20 +97,121 @@ func (f *HFSnapshotFetcher) Snapshot(ctx context.Context, repo RepoSpec, destDir
 		python = "python3"
 	}
 	args := append([]string{"-c", snapshotScript, repo.RepoID, repo.Revision, destDir}, repo.AllowPatterns...)
-	cmd := exec.CommandContext(ctx, python, args...)
+	workCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	cmd := exec.CommandContext(workCtx, python, args...)
 	if f.Env != nil {
 		cmd.Env = f.Env
 	} else {
 		cmd.Env = envkit.WithOverlay(envkit.Env(os.Environ()), envkit.SameScenario, nil)
 	}
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("hf snapshot_download %s@%s: %w: %s", repo.RepoID, ShortRev(repo.Revision), err, strings.TrimSpace(string(out)))
+	if err := cmd.Start(); err != nil {
+		return err
 	}
-	if emit != nil {
-		emit(1, 1)
+	watchErr := make(chan error, 1)
+	watchDone := make(chan struct{})
+	go func() {
+		defer close(watchDone)
+		ticker := time.NewTicker(100 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-workCtx.Done():
+				watchErr <- nil
+				return
+			case <-ticker.C:
+				size, sizeErr := directoryBytes(destDir)
+				if sizeErr != nil {
+					watchErr <- sizeErr
+					cancel()
+					return
+				}
+				if observe != nil {
+					if err := observe(size, -1); err != nil {
+						watchErr <- err
+						cancel()
+						return
+					}
+				}
+			}
+		}
+	}()
+	output := &boundedCommandOutput{limit: 1 << 20}
+	cmd.Stdout, cmd.Stderr = output, output
+	waitErr := cmd.Wait()
+	cancel()
+	<-watchDone
+	observedErr := <-watchErr
+	if observedErr != nil {
+		return fmt.Errorf("disk progress observer: %w", observedErr)
+	}
+	if waitErr != nil {
+		return fmt.Errorf("hf snapshot_download %s@%s: %w: %s", repo.RepoID, ShortRev(repo.Revision), waitErr, strings.TrimSpace(output.String()))
+	}
+	if observe != nil {
+		if err := observe(1, 1); err != nil {
+			return err
+		}
 	}
 	return nil
+}
+
+type boundedCommandOutput struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+	limit  int
+}
+
+func (w *boundedCommandOutput) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	remaining := w.limit - w.buffer.Len()
+	if remaining > len(p) {
+		remaining = len(p)
+	}
+	if remaining > 0 {
+		_, _ = w.buffer.Write(p[:remaining])
+	}
+	return len(p), nil
+}
+
+func (w *boundedCommandOutput) String() string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buffer.String()
+}
+
+func directoryBytes(root string) (int64, error) {
+	var total int64
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		if entry.Type()&fs.ModeSymlink != 0 {
+			info, err = os.Stat(path) // HF local_dir can point at cache blobs with file symlinks.
+			if err != nil {
+				return err
+			}
+		}
+		if info.Mode().IsRegular() {
+			if total > math.MaxInt64-info.Size() {
+				return fmt.Errorf("snapshot size overflow")
+			}
+			total += info.Size()
+		}
+		return nil
+	})
+	if os.IsNotExist(err) {
+		return 0, nil
+	}
+	return total, err
 }
 
 // ShortRev truncates a commit SHA for human-readable progress messages.

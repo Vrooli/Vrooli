@@ -64,6 +64,19 @@ func TestResolveSkipsGPUOnlyModelWhenBackendCanOnlyUseCPU(t *testing.T) {
 	}
 }
 
+func TestResolveForceCPUOnGPUHost(t *testing.T) {
+	r, defID := newResolver(t, "edit_instruct")
+	host := cpuHost()
+	host.GPUs = []capabilities.GPU{{VRAMBytes: 16 << 30}}
+	got, err := r.Resolve(context.Background(), Request{Operation: "edit_instruct", Host: host, ForceCPU: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Model.ID != defID || got.Tier != "local-cpu" || got.GPUViable {
+		t.Fatalf("forced CPU resolution = model:%s tier:%s gpu:%t; want %s/local-cpu/false", got.Model.ID, got.Tier, got.GPUViable, defID)
+	}
+}
+
 func (p fakeCloudProvider) IsCloud() bool { return true }
 
 // newResolver builds a resolver over the real registry and a backend registry

@@ -16,10 +16,12 @@ import (
 
 const MaxCases = 64
 
-type Loader func(context.Context, string) ([]byte, error)
-type Judge interface {
-	Score(context.Context, JudgeRequest) (*qualityv1.JudgeResult, error)
-}
+type (
+	Loader func(context.Context, string) ([]byte, error)
+	Judge  interface {
+		Score(context.Context, JudgeRequest) (*qualityv1.JudgeResult, error)
+	}
+)
 type JudgeRequest struct {
 	Profile, Rubric, Instruction, ReferenceText, OutputText, ExpectedModel string
 	Input, Reference, Output                                               []byte
@@ -62,8 +64,18 @@ func Validate(m *qualityv1.EvaluationManifest) error {
 			if len(c.ReferenceText) > 100_000 || len(c.OutputText) > 100_000 {
 				return fmt.Errorf("case %s: text exceeds 100000 bytes", c.Id)
 			}
-		} else if c.Reference == "" || c.Output == "" {
-			return fmt.Errorf("case %s: reference and output images are required", c.Id)
+		} else if c.Output == "" {
+			return fmt.Errorf("case %s: output image is required", c.Id)
+		} else if c.Reference == "" {
+			if c.ReferenceSha256 != "" {
+				return fmt.Errorf("case %s: reference hash provided without a reference image", c.Id)
+			}
+			if m.Judge == "disabled" {
+				return fmt.Errorf("case %s: image output without a pixel reference requires the local judge", c.Id)
+			}
+			if m.Operation != "text_to_image" && c.Input == "" {
+				return fmt.Errorf("case %s: source image is required when scoring %s without a pixel reference", c.Id, m.Operation)
+			}
 		}
 		if len(c.Instruction) > 16000 {
 			return fmt.Errorf("case %s: instruction exceeds 16000 bytes", c.Id)
@@ -141,7 +153,9 @@ func (e *Evaluator) Evaluate(ctx context.Context, m *qualityv1.EvaluationManifes
 		input := readAsset(ctx, load, c.Input, c.InputSha256, "input", s)
 		var ref, out []byte
 		if m.Profile != "text" && m.Profile != "json" {
-			ref = readAsset(ctx, load, c.Reference, c.ReferenceSha256, "reference", s)
+			if c.Reference != "" {
+				ref = readAsset(ctx, load, c.Reference, c.ReferenceSha256, "reference", s)
+			}
 			out = readAsset(ctx, load, c.Output, c.OutputSha256, "output", s)
 		}
 		s.InputSha256, s.ReferenceSha256, s.OutputSha256 = hashOptional(input), hashOptional(ref), hashOptional(out)
@@ -165,6 +179,12 @@ func (e *Evaluator) Evaluate(ctx context.Context, m *qualityv1.EvaluationManifes
 			var err error
 			if m.Profile == "text" || m.Profile == "json" {
 				s.Metrics, err = textMetrics(m.Profile, c.ReferenceText, c.OutputText)
+			} else if len(ref) == 0 {
+				if m.Operation == "text_to_image" {
+					s.Warnings = append(s.Warnings, "reference-image metrics omitted: text-to-image has no canonical pixel reference")
+				} else {
+					s.Warnings = append(s.Warnings, "reference-image metrics omitted: no canonical pixel reference; the local judge uses the supplied source image and instruction")
+				}
 			} else {
 				s.Metrics, s.Warnings, err = imageMetrics(m.Profile, ref, out)
 			}
@@ -263,6 +283,7 @@ func readAsset(ctx context.Context, load Loader, key, expected, label string, s 
 	}
 	return b
 }
+
 func validateJudge(j *qualityv1.JudgeResult, model string) error {
 	if j == nil || !j.Validated || j.Provider != "ollama" || j.Model != model || strings.TrimSpace(j.Rationale) == "" {
 		return fmt.Errorf("judge result is unvalidated, incomplete, nonlocal or model identity differs")
@@ -288,6 +309,7 @@ func hashOptional(b []byte) string {
 	}
 	return hash(b)
 }
+
 func hashMessage(m proto.Message) string {
 	b, _ := proto.MarshalOptions{Deterministic: true}.Marshal(m)
 	return hash(b)
@@ -296,6 +318,7 @@ func hashMessage(m proto.Message) string {
 // SealReport binds all evidence and presentation fields. The handler seals
 // again after it assigns the durable job/result identity.
 func SealReport(r *qualityv1.EvaluationReport) { r.ReportSha256 = ""; r.ReportSha256 = hashMessage(r) }
+
 func VerifyReport(r *qualityv1.EvaluationReport) error {
 	if r == nil || r.ReportSha256 == "" {
 		return fmt.Errorf("report has no content identity")
@@ -341,6 +364,7 @@ func applyBudgets(r, baseline *qualityv1.EvaluationReport, budgets []*qualityv1.
 		}
 	}
 }
+
 func checkBudget(r *qualityv1.EvaluationReport, id string, b *qualityv1.MetricBudget, v float64, ok bool, baseline *float64) {
 	add := func(reason string, observed, limit *float64) {
 		r.Violations = append(r.Violations, &qualityv1.GateViolation{CaseId: id, Metric: b.Metric, Reason: reason, Observed: observed, Limit: limit})

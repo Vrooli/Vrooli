@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	"image-tools/internal/catalogstate"
 	"image-tools/internal/fetch"
 )
@@ -134,6 +135,9 @@ type Installer struct {
 	RepoFetch RepoFetcher
 	// DiskAvail reports free space at Root (diskAvail in production).
 	DiskAvail DiskSpaceFunc
+	// DiskAdmission is the shared host owner used for full model job peaks.
+	// A nil owner refuses weight acquisition; snapshot checks are not admission.
+	DiskAdmission sharedcapacity.DiskJobAdmitter
 	// Now sources timestamps (defaults to time.Now).
 	Now func() time.Time
 	// Smoke, when set, runs an install-time load-smoke after a successful fetch
@@ -273,6 +277,57 @@ func (in *Installer) install(ctx context.Context, id, jobID string, emit func(in
 	if m.CapabilityLabels.CommercialUse != CommercialUseYes {
 		return rec, fmt.Errorf("models: %q cannot be installed until its commercial rights are verified", id)
 	}
+	if jobID == "" {
+		jobID = fmt.Sprintf("%s-%d", id, in.now().UnixNano())
+	}
+	var diskLease sharedcapacity.DiskJobLease
+	var diskGuard *fetch.DiskLeaseGuard
+	repoFetch := in.RepoFetch
+	var diskProgress func(context.Context, string, int64, int64) error
+	if m.RequiresWeights() && m.Source.LocalPath == "" {
+		if in.DiskAdmission == nil {
+			return rec, fmt.Errorf("models: shared host disk admission is unavailable; refusing acquisition")
+		}
+		buildExpansion := 1
+		if m.BuildProfile != nil {
+			buildExpansion = 2
+		}
+		request, planErr := fetch.PlanInstallDiskJob(ctx, "image-tools:model-install", jobID, in.Root, m.SizeMBApprox, m.Source, buildExpansion)
+		if planErr != nil {
+			return rec, fmt.Errorf("models: disk peak planning failed before acquisition: %w", planErr)
+		}
+		repoFetch = fetch.PinHuggingFaceCache(repoFetch, fetch.HuggingFaceCachePath(request))
+		diskLease, err = in.DiskAdmission.ReserveDiskJob(ctx, request)
+		if err != nil {
+			return rec, fmt.Errorf("models: reserve complete install disk peak: %w", err)
+		}
+		if diskLease == nil {
+			return rec, fmt.Errorf("models: shared host disk admission returned no lease")
+		}
+		growthGuard, growthErr := fetch.NewDiskGrowthGuard(diskLease, request, buildExpansion, fetch.InstallOwnerCeilingBytes)
+		if growthErr != nil {
+			return rec, fmt.Errorf("models: create bounded disk growth observer: %w", growthErr)
+		}
+		diskProgress = fetch.DiskGrowthObserver(growthGuard)
+		ctx, diskGuard = fetch.MaintainDiskLease(ctx, diskLease, 45*time.Second)
+		defer func() {
+			heartbeatErr := diskGuard.Stop()
+			if heartbeatErr != nil {
+				installErr = errors.Join(installErr, heartbeatErr)
+				return // preserve the lease for owner-verified reconciliation
+			}
+			if errors.Is(installErr, fetch.ErrCleanupUnverified) {
+				installErr = errors.Join(installErr, fmt.Errorf("models: disk lease %s remains active because acquisition cleanup is unverified", diskLease.Reservation().ID))
+				return
+			}
+			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			defer cancel()
+			receipt, completeErr := diskLease.Complete(cleanup)
+			if completeErr != nil {
+				installErr = errors.Join(installErr, fmt.Errorf("models: complete disk lease %s after install stopped: %w", receipt.ID, completeErr))
+			}
+		}()
+	}
 	current, err := in.lifecycleForModel(ctx, m)
 	if err != nil {
 		return rec, err
@@ -291,7 +346,7 @@ func (in *Installer) install(ctx context.Context, id, jobID string, emit func(in
 		installErr = errors.Join(installErr, in.advance(cleanup, &current, ModelFailed, "install_failed"))
 	}()
 
-	rec, err = in.acquireArtifacts(ctx, m, emit)
+	rec, err = in.acquireArtifacts(ctx, m, repoFetch, diskProgress, emit)
 	if err != nil {
 		return rec, err
 	}
@@ -337,9 +392,9 @@ func (in *Installer) install(ctx context.Context, id, jobID string, emit func(in
 
 // acquireArtifacts has one publication boundary for downloaded, repo and local
 // artifacts. Every path then passes the same build/smoke/lifecycle completion.
-func (in *Installer) acquireArtifacts(ctx context.Context, m Model, emit func(int, string)) (InstallRecord, error) {
+func (in *Installer) acquireArtifacts(ctx context.Context, m Model, repoFetch fetch.RepoFetcher, diskProgress func(context.Context, string, int64, int64) error, emit func(int, string)) (InstallRecord, error) {
 	id := m.ID
-	acquirer := fetch.Acquirer{Root: in.Root, Download: in.Download, RepoFetch: in.RepoFetch, DiskAvail: in.DiskAvail}
+	acquirer := fetch.Acquirer{Root: in.Root, Download: in.Download, RepoFetch: repoFetch, DiskAvail: in.DiskAvail, DiskProgressObserver: diskProgress}
 	if !m.RequiresWeights() {
 		rec, _ := in.installedRecord(ctx, id)
 		return rec, nil

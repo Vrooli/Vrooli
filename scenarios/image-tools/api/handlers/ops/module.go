@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 	internaljobs "image-tools/internal/jobs"
 	"image-tools/internal/module"
 	"image-tools/internal/storage"
@@ -20,7 +21,7 @@ import (
 // (POST /api/v1/ops/{operation}) and the result-blob serve (GET
 // /api/v1/blobs/{key}). Single-view operations run synchronously and record a
 // terminal job. Parallax sequences submit to the existing durable CPU lane.
-func Module(store *storage.Store, jobs *internaljobs.Manager, logger *log.Logger) module.Module {
+func Module(store *storage.Store, jobs *internaljobs.Manager, disk sharedcapacity.DiskJobAdmitter, logger *log.Logger) module.Module {
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -37,7 +38,7 @@ func Module(store *storage.Store, jobs *internaljobs.Manager, logger *log.Logger
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
 			r.HandleFunc("/api/v1/ops/{operation}", rest.runHandler).Methods(http.MethodPost)
 			r.HandleFunc("/api/v1/blobs/{key:.*}", rest.blobHandler).Methods(http.MethodGet)
-			r.Handle("/api/v1/import/link", importLinkHandler(store, fetch.RemoteImage{}, storage.DefaultGuard())).Methods(http.MethodPost)
+			r.Handle("/api/v1/import/link", importLinkHandler(store, fetch.RemoteImage{}, storage.DefaultGuard(), disk, store.ImportReservationRoot)).Methods(http.MethodPost)
 		},
 		Endpoints: Endpoints,
 	}

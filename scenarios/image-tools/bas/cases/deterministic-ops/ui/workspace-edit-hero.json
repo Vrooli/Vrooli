@@ -6,9 +6,11 @@
     "version": "1",
     "labels": {
       "reset": "none",
-      "purpose": "workspace-edit-hero"
+      "purpose": "workspace-edit-hero",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1280,
@@ -26,7 +28,9 @@
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Navigate to the Workspace" }
+        "metadata": {
+          "label": "Navigate to the Workspace"
+        }
       }
     },
     {
@@ -38,7 +42,9 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Edit-mode operation picker visible" }
+        "metadata": {
+          "label": "Edit-mode operation picker visible"
+        }
       }
     },
     {
@@ -49,7 +55,9 @@
           "expression": "(() => { const c = document.createElement('canvas'); c.width = 240; c.height = 160; const g = c.getContext('2d'); g.fillStyle = '#3b6ea5'; g.fillRect(0, 0, 240, 160); g.fillStyle = '#f0c419'; g.fillRect(40, 30, 160, 100); return new Promise((resolve) => { c.toBlob((blob) => { const file = new File([blob], 'sample.png', { type: 'image/png' }); const input = document.querySelector('[data-testid=\"workspace-file-input\"]'); const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true })); resolve('loaded'); }, 'image/png'); }); })()",
           "store_result": "imageLoaded"
         },
-        "metadata": { "label": "Load a generated sample image into the canvas" }
+        "metadata": {
+          "label": "Load a generated sample image into the canvas"
+        }
       }
     },
     {
@@ -61,23 +69,33 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Loaded image renders in the canvas" }
+        "metadata": {
+          "label": "Loaded image renders in the canvas"
+        }
       }
     },
     {
       "id": "select-crop",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/workspace.opOption(name=\"crop\")" },
-        "metadata": { "label": "Select the Crop operation" }
+        "click": {
+          "selector": "@selector/workspace.opOption(name=\"crop\")"
+        },
+        "metadata": {
+          "label": "Select the Crop operation"
+        }
       }
     },
     {
       "id": "open-crop-advanced",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/workspace.crop.advanced" },
-        "metadata": { "label": "Open the Advanced numeric-crop disclosure (accessible fallback)" }
+        "click": {
+          "selector": "@selector/workspace.crop.advanced"
+        },
+        "metadata": {
+          "label": "Open the Advanced numeric-crop disclosure (accessible fallback)"
+        }
       }
     },
     {
@@ -89,7 +107,9 @@
           "value": "20",
           "clear_first": true
         },
-        "metadata": { "label": "Set crop X via the numeric fallback" }
+        "metadata": {
+          "label": "Set crop X via the numeric fallback"
+        }
       }
     },
     {
@@ -101,7 +121,9 @@
           "value": "15",
           "clear_first": true
         },
-        "metadata": { "label": "Set crop Y via the numeric fallback" }
+        "metadata": {
+          "label": "Set crop Y via the numeric fallback"
+        }
       }
     },
     {
@@ -113,7 +135,9 @@
           "value": "120",
           "clear_first": true
         },
-        "metadata": { "label": "Set crop width via the numeric fallback" }
+        "metadata": {
+          "label": "Set crop width via the numeric fallback"
+        }
       }
     },
     {
@@ -125,15 +149,21 @@
           "value": "80",
           "clear_first": true
         },
-        "metadata": { "label": "Set crop height via the numeric fallback" }
+        "metadata": {
+          "label": "Set crop height via the numeric fallback"
+        }
       }
     },
     {
       "id": "apply-crop",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/workspace.applyButton" },
-        "metadata": { "label": "Apply the crop" }
+        "click": {
+          "selector": "@selector/workspace.applyButton"
+        },
+        "metadata": {
+          "label": "Apply the crop"
+        }
       }
     },
     {
@@ -146,15 +176,21 @@
           "timeout_ms": 15000,
           "failure_message": "History did not gain a first step after applying crop — the apply edge or the unified history rail regressed."
         },
-        "metadata": { "label": "History shows the crop step" }
+        "metadata": {
+          "label": "History shows the crop step"
+        }
       }
     },
     {
       "id": "select-adjust",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/workspace.opOption(name=\"adjust\")" },
-        "metadata": { "label": "Select the Adjust operation" }
+        "click": {
+          "selector": "@selector/workspace.opOption(name=\"adjust\")"
+        },
+        "metadata": {
+          "label": "Select the Adjust operation"
+        }
       }
     },
     {
@@ -165,15 +201,21 @@
           "selector": "@selector/workspace.fieldInput(name=\"brightness\")",
           "value": "20"
         },
-        "metadata": { "label": "Raise brightness via the slider" }
+        "metadata": {
+          "label": "Raise brightness via the slider"
+        }
       }
     },
     {
       "id": "apply-adjust",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/workspace.applyButton" },
-        "metadata": { "label": "Apply the adjustment" }
+        "click": {
+          "selector": "@selector/workspace.applyButton"
+        },
+        "metadata": {
+          "label": "Apply the adjustment"
+        }
       }
     },
     {
@@ -186,15 +228,21 @@
           "timeout_ms": 15000,
           "failure_message": "History did not advance to a second step after Adjust — the slider control did not wire into the params form, or apply regressed."
         },
-        "metadata": { "label": "History shows the adjust step" }
+        "metadata": {
+          "label": "History shows the adjust step"
+        }
       }
     },
     {
       "id": "select-convert",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/workspace.opOption(name=\"convert\")" },
-        "metadata": { "label": "Select the Convert operation" }
+        "click": {
+          "selector": "@selector/workspace.opOption(name=\"convert\")"
+        },
+        "metadata": {
+          "label": "Select the Convert operation"
+        }
       }
     },
     {
@@ -205,15 +253,21 @@
           "expression": "(() => { const group = document.querySelector('[data-testid=\"workspace-field-format\"]'); const pill = Array.from(group.querySelectorAll('[role=\"radio\"]')).find((b) => b.textContent.trim() === 'WEBP'); pill.click(); return pill.getAttribute('aria-checked'); })()",
           "store_result": "webpChecked"
         },
-        "metadata": { "label": "Choose the WEBP format pill" }
+        "metadata": {
+          "label": "Choose the WEBP format pill"
+        }
       }
     },
     {
       "id": "apply-convert",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/workspace.applyButton" },
-        "metadata": { "label": "Apply the conversion" }
+        "click": {
+          "selector": "@selector/workspace.applyButton"
+        },
+        "metadata": {
+          "label": "Apply the conversion"
+        }
       }
     },
     {
@@ -226,15 +280,21 @@
           "timeout_ms": 15000,
           "failure_message": "History did not advance to a third step after Convert — the format pills did not wire into the params form, or apply regressed."
         },
-        "metadata": { "label": "History shows the convert step" }
+        "metadata": {
+          "label": "History shows the convert step"
+        }
       }
     },
     {
       "id": "select-compress",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/workspace.opOption(name=\"compress\")" },
-        "metadata": { "label": "Select the Compress operation" }
+        "click": {
+          "selector": "@selector/workspace.opOption(name=\"compress\")"
+        },
+        "metadata": {
+          "label": "Select the Compress operation"
+        }
       }
     },
     {
@@ -246,15 +306,21 @@
           "value": "30",
           "clear_first": true
         },
-        "metadata": { "label": "Set a 30 KB target via the target-size field" }
+        "metadata": {
+          "label": "Set a 30 KB target via the target-size field"
+        }
       }
     },
     {
       "id": "apply-compress",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/workspace.applyButton" },
-        "metadata": { "label": "Apply the compression toward the target size" }
+        "click": {
+          "selector": "@selector/workspace.applyButton"
+        },
+        "metadata": {
+          "label": "Apply the compression toward the target size"
+        }
       }
     },
     {
@@ -267,7 +333,9 @@
           "timeout_ms": 15000,
           "failure_message": "History did not advance to a fourth step after Compress — the target-size field did not wire into the params form, or apply regressed."
         },
-        "metadata": { "label": "History shows the compress step (four-op chain complete)" }
+        "metadata": {
+          "label": "History shows the compress step (four-op chain complete)"
+        }
       }
     },
     {
@@ -280,34 +348,156 @@
           "timeout_ms": 15000,
           "failure_message": "No result image is rendered in the canvas after the four-op chain — the in-canvas result pipeline regressed."
         },
-        "metadata": { "label": "A result image renders in the canvas" }
+        "metadata": {
+          "label": "A result image renders in the canvas"
+        }
       }
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-workspace", "target": "wait-operation-select", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e2", "source": "wait-operation-select", "target": "load-sample-image", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e3", "source": "load-sample-image", "target": "wait-canvas-image", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e4", "source": "wait-canvas-image", "target": "select-crop", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e5", "source": "select-crop", "target": "open-crop-advanced", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e6", "source": "open-crop-advanced", "target": "set-crop-x", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e7", "source": "set-crop-x", "target": "set-crop-y", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e8", "source": "set-crop-y", "target": "set-crop-width", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e9", "source": "set-crop-width", "target": "set-crop-height", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e10", "source": "set-crop-height", "target": "apply-crop", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e11", "source": "apply-crop", "target": "assert-history-step-1", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e12", "source": "assert-history-step-1", "target": "select-adjust", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e13", "source": "select-adjust", "target": "set-brightness", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e14", "source": "set-brightness", "target": "apply-adjust", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e15", "source": "apply-adjust", "target": "assert-history-step-2", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e16", "source": "assert-history-step-2", "target": "select-convert", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e17", "source": "select-convert", "target": "pick-webp-format", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e18", "source": "pick-webp-format", "target": "apply-convert", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e19", "source": "apply-convert", "target": "assert-history-step-3", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e20", "source": "assert-history-step-3", "target": "select-compress", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e21", "source": "select-compress", "target": "set-target-size", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e22", "source": "set-target-size", "target": "apply-compress", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e23", "source": "apply-compress", "target": "assert-history-step-4", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e24", "source": "assert-history-step-4", "target": "assert-result-rendered", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    {
+      "id": "e1",
+      "source": "navigate-workspace",
+      "target": "wait-operation-select",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-operation-select",
+      "target": "load-sample-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "load-sample-image",
+      "target": "wait-canvas-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-canvas-image",
+      "target": "select-crop",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "select-crop",
+      "target": "open-crop-advanced",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "open-crop-advanced",
+      "target": "set-crop-x",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "set-crop-x",
+      "target": "set-crop-y",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "set-crop-y",
+      "target": "set-crop-width",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e9",
+      "source": "set-crop-width",
+      "target": "set-crop-height",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e10",
+      "source": "set-crop-height",
+      "target": "apply-crop",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "apply-crop",
+      "target": "assert-history-step-1",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "assert-history-step-1",
+      "target": "select-adjust",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "select-adjust",
+      "target": "set-brightness",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "set-brightness",
+      "target": "apply-adjust",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e15",
+      "source": "apply-adjust",
+      "target": "assert-history-step-2",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e16",
+      "source": "assert-history-step-2",
+      "target": "select-convert",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e17",
+      "source": "select-convert",
+      "target": "pick-webp-format",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e18",
+      "source": "pick-webp-format",
+      "target": "apply-convert",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e19",
+      "source": "apply-convert",
+      "target": "assert-history-step-3",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e20",
+      "source": "assert-history-step-3",
+      "target": "select-compress",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e21",
+      "source": "select-compress",
+      "target": "set-target-size",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e22",
+      "source": "set-target-size",
+      "target": "apply-compress",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e23",
+      "source": "apply-compress",
+      "target": "assert-history-step-4",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e24",
+      "source": "assert-history-step-4",
+      "target": "assert-result-rendered",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

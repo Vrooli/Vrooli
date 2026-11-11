@@ -37,6 +37,9 @@ type AdapterRequest struct {
 	// PreprocessorOverride forces a specific ControlNet preprocessor instead of the
 	// adapter's declared one (ignored for non-ControlNet kinds).
 	PreprocessorOverride Preprocessor `json:"preprocessor_override,omitempty"`
+	// LicenseTermsAccepted records the caller's affirmative acceptance of the
+	// versioned model agreement displayed for this adapter.
+	LicenseTermsAccepted bool `json:"license_terms_accepted,omitempty"`
 }
 
 // ResolvedAdapter is a validated, execution-ready conditioning modifier: the
@@ -51,6 +54,8 @@ type ResolvedAdapter struct {
 	Weight               safety.Weight       `json:"weight"`
 	Preprocessor         Preprocessor        `json:"preprocessor,omitempty"`
 	ConditioningImageKey string              `json:"conditioning_image_key,omitempty"`
+	LicenseTermsAccepted bool                `json:"license_terms_accepted,omitempty"`
+	LicenseTermsVersion  string              `json:"license_terms_version,omitempty"`
 	// Dir is the absolute directory the adapter's weights live in; empty until the
 	// engine fills it from the adapters root at execution time.
 	Dir string `json:"dir,omitempty"`
@@ -113,6 +118,9 @@ func ResolveConditioning(
 		if !a.CompatibleWith(modelArch) {
 			return nil, nil, fmt.Errorf("conditioning: adapter %q targets architecture %q, incompatible with the chosen model's architecture %q", a.ID, a.Architecture, modelArch)
 		}
+		if a.LicenseTermsVersion != "" && !rq.LicenseTermsAccepted {
+			return nil, nil, fmt.Errorf("conditioning: adapter %q requires acceptance of license terms %q", a.ID, a.LicenseTermsVersion)
+		}
 		if enabled != nil && !enabled(a.ID) {
 			return nil, nil, fmt.Errorf("conditioning: adapter %q is disabled — enable it with `image-tools adapters enable %s`", a.ID, a.ID)
 		}
@@ -163,6 +171,8 @@ func ResolveConditioning(
 			Weight:               a.Weight,
 			Preprocessor:         pre,
 			ConditioningImageKey: rq.ConditioningImageKey,
+			LicenseTermsAccepted: rq.LicenseTermsAccepted,
+			LicenseTermsVersion:  a.LicenseTermsVersion,
 		})
 	}
 

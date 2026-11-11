@@ -25,9 +25,11 @@ func number(v float64) *float64 { return &v }
 func qualifiedJudge(model string, fidelity float64) *qualityv1.JudgeResult {
 	return &qualityv1.JudgeResult{Provider: "ollama", Model: model, Fidelity: fidelity, Instruction: 1, Artifacts: 1, Rationale: "Visible kettle matches reference.", Validated: true, RubricSha256: strings.Repeat("a", 64), RouteEventId: "route-event", CapacityClaimId: "capacity-claim", CapacityOwnership: "resource:ollama"}
 }
+
 func manifest() *qualityv1.EvaluationManifest {
 	return &qualityv1.EvaluationManifest{SchemaVersion: 1, Operation: "caption", Profile: "text", DatasetId: "owned-products-v1", CandidateModel: "candidate", CandidateRevision: "sha256:weights-a", Judge: "disabled", Cases: []*qualityv1.EvaluationCase{{Id: "kettle", ReferenceText: "A blue kettle on a wooden table.", OutputText: "A blue kettle on a wooden table.", Instruction: "Describe the visible object."}}, Budgets: []*qualityv1.MetricBudget{{Metric: "text.similarity", Minimum: number(.95)}}}
 }
+
 func score(t *testing.T, e *Evaluator, m *qualityv1.EvaluationManifest, base *qualityv1.EvaluationReport) *qualityv1.EvaluationReport {
 	t.Helper()
 	r, err := e.Evaluate(context.Background(), m, nil, base, nil)
@@ -210,6 +212,80 @@ func TestImageHashAssertionAndCancellation(t *testing.T) {
 	cancel()
 	_, err = (&Evaluator{}).Evaluate(ctx, m, nil, nil, nil)
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestTextToImageUsesJudgeWithoutMisleadingPixelReferenceMetrics(t *testing.T) {
+	var output bytes.Buffer
+	require.NoError(t, png.Encode(&output, image.NewNRGBA(image.Rect(0, 0, 16, 16))))
+	m := &qualityv1.EvaluationManifest{
+		SchemaVersion: 1, Operation: "text_to_image", Profile: "image", DatasetId: "generated-prompts-v1",
+		CandidateModel: "sd-1.5", CandidateRevision: "sha256:sd15-host-weights", Judge: "required", JudgeModel: "qwen3-vl:4b",
+		Rubric:  "No canonical reference exists; judge prompt adherence, composition and visible artifacts.",
+		Cases:   []*qualityv1.EvaluationCase{{Id: "mountain-lake", Output: "generated.png", Instruction: "a serene mountain lake at golden hour"}},
+		Budgets: []*qualityv1.MetricBudget{{Metric: "judge.instruction", Minimum: number(.7)}, {Metric: "judge.artifacts", Minimum: number(.7)}},
+	}
+	var got JudgeRequest
+	e := &Evaluator{Judge: judgeFunc(func(_ context.Context, req JudgeRequest) (*qualityv1.JudgeResult, error) {
+		got = req
+		return qualifiedJudge("qwen3-vl:4b", .9), nil
+	})}
+	r, err := e.Evaluate(context.Background(), m, func(_ context.Context, key string) ([]byte, error) {
+		require.Equal(t, "generated.png", key)
+		return output.Bytes(), nil
+	}, nil, nil)
+	require.NoError(t, err)
+	require.True(t, r.Passed)
+	require.Equal(t, .9, r.Means["judge.fidelity"])
+	require.NotContains(t, r.Means, "reference.ssim")
+	require.Contains(t, r.Cases[0].Warnings, "reference-image metrics omitted: text-to-image has no canonical pixel reference")
+	require.Empty(t, got.Reference)
+	require.Equal(t, "a serene mountain lake at golden hour", got.Instruction)
+	require.Len(t, got.Output, output.Len())
+
+	m.Judge = "disabled"
+	require.ErrorContains(t, Validate(m), "requires the local judge")
+}
+
+func TestInstructionEditUsesJudgeAgainstSourceWithoutPixelReference(t *testing.T) {
+	var source, output bytes.Buffer
+	require.NoError(t, png.Encode(&source, image.NewNRGBA(image.Rect(0, 0, 16, 16))))
+	require.NoError(t, png.Encode(&output, image.NewNRGBA(image.Rect(0, 0, 16, 16))))
+	m := &qualityv1.EvaluationManifest{
+		SchemaVersion: 1, Operation: "edit_instruct", Profile: "image", DatasetId: "instruction-edit-source-v1",
+		CandidateModel: "instruct-pix2pix", CandidateRevision: "sha256:instruct-pix2pix-host-weights", Judge: "required", JudgeModel: "qwen3-vl:4b",
+		Rubric:  "Change the blue star accents to warm coral while preserving the eagle linework and dark background.",
+		Cases:   []*qualityv1.EvaluationCase{{Id: "aquila-stars", Input: "aquila-source.png", Output: "aquila-edited.png", Instruction: "Change the bright blue stars to warm coral."}},
+		Budgets: []*qualityv1.MetricBudget{{Metric: "judge.fidelity", Minimum: number(.7)}, {Metric: "judge.instruction", Minimum: number(.75)}, {Metric: "judge.artifacts", Minimum: number(.7)}},
+	}
+	var got JudgeRequest
+	e := &Evaluator{Judge: judgeFunc(func(_ context.Context, req JudgeRequest) (*qualityv1.JudgeResult, error) {
+		got = req
+		return qualifiedJudge("qwen3-vl:4b", .9), nil
+	})}
+	r, err := e.Evaluate(context.Background(), m, func(_ context.Context, key string) ([]byte, error) {
+		switch key {
+		case "aquila-source.png":
+			return source.Bytes(), nil
+		case "aquila-edited.png":
+			return output.Bytes(), nil
+		default:
+			return nil, fmt.Errorf("unexpected asset %q", key)
+		}
+	}, nil, nil)
+	require.NoError(t, err)
+	require.True(t, r.Passed)
+	require.NotContains(t, r.Means, "reference.ssim")
+	require.Contains(t, r.Cases[0].Warnings, "reference-image metrics omitted: no canonical pixel reference; the local judge uses the supplied source image and instruction")
+	require.Len(t, got.Input, source.Len())
+	require.Empty(t, got.Reference)
+	require.Len(t, got.Output, output.Len())
+	require.Equal(t, "Change the bright blue stars to warm coral.", got.Instruction)
+
+	m.Judge = "disabled"
+	require.ErrorContains(t, Validate(m), "requires the local judge")
+	m.Judge = "required"
+	m.Cases[0].Input = ""
+	require.ErrorContains(t, Validate(m), "source image is required")
 }
 
 func TestManifestRejectsUnscorableOrVacuousGate(t *testing.T) {

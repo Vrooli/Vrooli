@@ -3,6 +3,9 @@ package adapters
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"strings"
 
 	"connectrpc.com/connect"
@@ -70,6 +73,28 @@ func (h *handlers) get(ctx cliapp.RunContext) error {
 		ResultsHeading: "Adapter",
 		Results:        []string{formatAdapterDetail(resp.Msg.Adapter)},
 	})
+}
+
+func (h *handlers) terms(ctx cliapp.RunContext) error {
+	license := strings.TrimSpace(ctx.Positional("license"))
+	if license != "openrail-m" {
+		return fmt.Errorf("unknown adapter license %q (available: openrail-m)", license)
+	}
+	httpClient, baseURL := cliapp.NewConnectHTTPClient(h.core)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, strings.TrimRight(baseURL, "/")+"/api/v1/adapters/"+url.PathEscape("controlnet-openpose-sd15")+"/license-terms", nil)
+	if err != nil {
+		return err
+	}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("read OpenRAIL-M terms: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("read OpenRAIL-M terms: API returned HTTP %d", resp.StatusCode)
+	}
+	_, err = io.Copy(ctx.Stdout(), resp.Body)
+	return err
 }
 
 func (h *handlers) setEnabled(ctx cliapp.RunContext) error {

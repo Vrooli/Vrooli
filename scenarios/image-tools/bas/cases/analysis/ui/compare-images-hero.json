@@ -6,9 +6,11 @@
     "version": "1",
     "labels": {
       "reset": "none",
-      "purpose": "compare-images-hero"
+      "purpose": "compare-images-hero",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
-    "execution_mode": "observer"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1280,
@@ -26,7 +28,9 @@
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Navigate to the Compare surface" }
+        "metadata": {
+          "label": "Navigate to the Compare surface"
+        }
       }
     },
     {
@@ -38,7 +42,9 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Compare view composes" }
+        "metadata": {
+          "label": "Compare view composes"
+        }
       }
     },
     {
@@ -49,7 +55,9 @@
           "expression": "(() => { const c = document.createElement('canvas'); c.width = 200; c.height = 200; const g = c.getContext('2d'); g.fillStyle = '#1a1a1a'; g.fillRect(0,0,200,200); return new Promise((resolve) => { c.toBlob((blob) => { const file = new File([blob], 'base.png', { type: 'image/png' }); const input = document.querySelector('[data-testid=\"compare-base-file-input\"]'); const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true })); resolve('base'); }, 'image/png'); }); })()",
           "store_result": "baseLoaded"
         },
-        "metadata": { "label": "Load the base image (dark) via the file input" }
+        "metadata": {
+          "label": "Load the base image (dark) via the file input"
+        }
       }
     },
     {
@@ -60,15 +68,21 @@
           "expression": "(() => { const c = document.createElement('canvas'); c.width = 200; c.height = 200; const g = c.getContext('2d'); g.fillStyle = '#f0f0f0'; g.fillRect(0,0,200,200); g.fillStyle = '#c0392b'; g.fillRect(60,60,80,80); return new Promise((resolve) => { c.toBlob((blob) => { const file = new File([blob], 'compare.png', { type: 'image/png' }); const input = document.querySelector('[data-testid=\"compare-compare-file-input\"]'); const dt = new DataTransfer(); dt.items.add(file); input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true })); resolve('compare'); }, 'image/png'); }); })()",
           "store_result": "compareLoaded"
         },
-        "metadata": { "label": "Load the compare image (light + box) via the file input" }
+        "metadata": {
+          "label": "Load the compare image (light + box) via the file input"
+        }
       }
     },
     {
       "id": "run-compare",
       "action": {
         "type": "ACTION_TYPE_CLICK",
-        "click": { "selector": "@selector/compare.runButton" },
-        "metadata": { "label": "Run the comparison" }
+        "click": {
+          "selector": "@selector/compare.runButton"
+        },
+        "metadata": {
+          "label": "Run the comparison"
+        }
       }
     },
     {
@@ -81,7 +95,9 @@
           "timeout_ms": 20000,
           "failure_message": "The comparison verdict did not render after running compare — the multipart compare edge (POST /api/v1/diff/compare), the DiffResult parse, or the result view regressed. (diff is pure-Go and needs no model, so this path must succeed headless.)"
         },
-        "metadata": { "label": "Verdict renders (real sync result, no model gate)" }
+        "metadata": {
+          "label": "Verdict renders (real sync result, no model gate)"
+        }
       }
     },
     {
@@ -94,16 +110,48 @@
           "timeout_ms": 20000,
           "failure_message": "The metrics readout did not render — the pixel/perceptual metric translation regressed."
         },
-        "metadata": { "label": "Metrics readout renders" }
+        "metadata": {
+          "label": "Metrics readout renders"
+        }
       }
     }
   ],
   "edges": [
-    { "id": "e1", "source": "navigate-compare", "target": "wait-compare-root", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e2", "source": "wait-compare-root", "target": "load-base-image", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e3", "source": "load-base-image", "target": "load-compare-image", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e4", "source": "load-compare-image", "target": "run-compare", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e5", "source": "run-compare", "target": "assert-verdict", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" },
-    { "id": "e6", "source": "assert-verdict", "target": "assert-metrics", "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP" }
+    {
+      "id": "e1",
+      "source": "navigate-compare",
+      "target": "wait-compare-root",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-compare-root",
+      "target": "load-base-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "load-base-image",
+      "target": "load-compare-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "load-compare-image",
+      "target": "run-compare",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "run-compare",
+      "target": "assert-verdict",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e6",
+      "source": "assert-verdict",
+      "target": "assert-metrics",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
   ]
 }

@@ -18,6 +18,8 @@ export interface ModelPickerButtonProps {
   value: string;
   /** Set the model override ("" clears it back to auto). */
   onChange: (id: string) => void;
+  /** Resolve and display CPU-only execution when the request forces CPU. */
+  forceCpu?: boolean;
 }
 
 /**
@@ -28,16 +30,16 @@ export interface ModelPickerButtonProps {
  * SelectModel query (honoring the override); the menu loads its full candidate
  * set lazily when opened.
  */
-export function ModelPickerButton({ operation, operationLabel, value, onChange }: ModelPickerButtonProps) {
+export function ModelPickerButton({ operation, operationLabel, value, onChange, forceCpu = false }: ModelPickerButtonProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
-  const picker = useModelPicker({ operation, active: open });
+  const picker = useModelPicker({ operation, active: open, forceCpu });
 
   const selection = useQuery({
-    queryKey: ["model-select", operation, value],
+    queryKey: ["model-select", operation, value, forceCpu],
     enabled: !!operation,
     retry: false,
-    queryFn: () => modelsClient.selectModel({ operation, overrideId: value }),
+    queryFn: () => modelsClient.selectModel({ operation, overrideId: value, forceCpu }),
   });
 
   // How the effective model serves THIS op (native vs derived) + the quality
@@ -45,24 +47,32 @@ export function ModelPickerButton({ operation, operationLabel, value, onChange }
   // choice before submit, not a silent one. Reuses the Phase-4 ExplainResolution
   // RPC (read-only); failures just hide the note.
   const resolution = useQuery({
-    queryKey: ["model-explain", operation, value],
+    queryKey: ["model-explain", operation, value, forceCpu],
     enabled: !!operation,
     retry: false,
-    queryFn: () => modelsClient.explainResolution({ operation, modelId: value }),
+    queryFn: () => modelsClient.explainResolution({ operation, modelId: value, forceCpu }),
   });
   const resolved = resolution.data?.resolution;
   const derivedCaveat = resolved?.support === "derived" ? resolved.caveat : "";
 
   const model = selection.data?.model;
   const gpuViable = selection.data?.gpuViable ?? false;
-  const fitKey = model
-    ? gpuViable
+  // SelectModel reports whether the model's VRAM requirement fits the host;
+  // ExplainResolution reports the backend that will actually execute it. A
+  // CPU-only backend can be selected even when the model would fit the GPU.
+  const effectiveTier = resolved?.tier;
+  const fitKey = !model
+    ? ""
+    : forceCpu && effectiveTier === "local-cpu"
+      ? strings.models.picker.fit.cpuRequested
+      : effectiveTier === "local-gpu"
       ? strings.models.picker.fit.gpu
-      : model.hardware?.cpuCapable
-        ? strings.models.picker.fit.cpu
-        : strings.models.picker.state.needsBackend
-    : "";
-  const FitIcon = gpuViable ? Sparkles : Cpu;
+      : effectiveTier === "local-cpu"
+        ? gpuViable
+          ? strings.models.picker.fit.cpuBackend
+          : strings.models.picker.fit.cpu
+        : "";
+  const FitIcon = effectiveTier === "local-gpu" ? Sparkles : Cpu;
 
   return (
     <div className="flex flex-col gap-1">

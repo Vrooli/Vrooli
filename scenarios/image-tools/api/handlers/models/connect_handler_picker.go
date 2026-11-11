@@ -85,6 +85,7 @@ func (h *connectHandler) ListOperationModels(ctx context.Context, req *connect.R
 	if sel, serr := registry.Select(internalmodels.SelectRequest{
 		Operation: op,
 		Host:      host,
+		ForceCPU:  req.Msg.GetForceCpu(),
 	}, registry.EnabledWithOverlay(overlay)); serr == nil {
 		selectedID, selectedReason = sel.Model.ID, sel.Reason
 	}
@@ -194,6 +195,7 @@ func (h *connectHandler) ExplainResolution(ctx context.Context, req *connect.Req
 		FallbackPolicy:   strings.ToLower(strings.TrimSpace(req.Msg.GetFallbackPolicy())),
 		QualityPolicy:    strings.TrimSpace(req.Msg.GetQualityPolicy()),
 		PreferRemote:     strings.TrimSpace(req.Msg.GetOpenrouterRole()) != "",
+		ForceCPU:         req.Msg.GetForceCpu(),
 		IsEnabled:        h.deps.Registry.EnabledWithOverlay(overlay),
 		Adapters:         adapterReqs,
 		AdapterByID:      h.deps.AdapterByID,
@@ -219,6 +221,7 @@ func explainAdapterRequests(refs []*modelsv1.AdapterRef) []internaladapters.Adap
 			Scale:                r.GetScale(),
 			ConditioningImageKey: r.GetConditioningImageKey(),
 			PreprocessorOverride: internaladapters.Preprocessor(r.GetPreprocessorOverride()),
+			LicenseTermsAccepted: r.GetLicenseTermsAccepted(),
 		})
 	}
 	return out
@@ -256,6 +259,8 @@ func resolvedAdaptersToProto(in []internaladapters.ResolvedAdapter) []*modelsv1.
 			Weight:               string(a.Weight),
 			Preprocessor:         string(a.Preprocessor),
 			ConditioningImageKey: a.ConditioningImageKey,
+			LicenseTermsAccepted: a.LicenseTermsAccepted,
+			LicenseTermsVersion:  a.LicenseTermsVersion,
 		})
 	}
 	return out

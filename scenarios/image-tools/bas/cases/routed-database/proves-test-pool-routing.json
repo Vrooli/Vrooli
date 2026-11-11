@@ -6,7 +6,9 @@
     "version": "1",
     "labels": {
       "reset": "none",
-      "purpose": "routed-test-db-proof"
+      "purpose": "routed-test-db-proof",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
     "execution_mode": "mutating"
   },

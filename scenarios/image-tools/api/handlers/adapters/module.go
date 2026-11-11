@@ -2,6 +2,7 @@ package adapters
 
 import (
 	"log"
+	"net/http"
 
 	internaladapters "image-tools/internal/adapters"
 	internalmodels "image-tools/internal/models"
@@ -33,6 +34,7 @@ func Module(db *database.RoutedDB, reg *internaladapters.Registry, models *inter
 		Name: "adapters",
 		Mount: func(r *mux.Router) {
 			connectx.RegisterServices(r, connectx.ServiceMount{Path: connectPath, Handler: connectHandler})
+			r.HandleFunc("/api/v1/adapters/{id}/license-terms", licenseTermsHandler(reg)).Methods(http.MethodGet)
 		},
 		Endpoints: Endpoints,
 	}
@@ -288,5 +290,16 @@ var Endpoints = []module.EndpointDescriptor{
 		Examples: []module.Example{
 			{Name: "Doctor catalog", Curl: "curl http://localhost:${API_PORT}/vrooli.image_tools.v1.adapters.AdaptersService/DoctorCatalog -H 'Content-Type: application/json' -d '{}'"},
 		},
+	},
+	{
+		ID:          "adapter_license_terms",
+		Path:        "/api/v1/adapters/{id}/license-terms",
+		Method:      "GET",
+		Summary:     "Read an adapter's immutable model license terms",
+		Description: "Returns the exact embedded license text for the versioned adapter agreement; for OpenPose ControlNet this is CreativeML OpenRAIL-M dated 2022-08-22.",
+		Category:    "adapters",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"id": "adapter id with declared license terms"}},
+		Response:    &module.Schema{Type: "text/plain", Properties: map[string]string{"terms": "full immutable license text"}},
+		Errors:      []module.ErrorDesc{{Status: 404, Code: "not_found", Description: "Adapter has no published versioned license terms"}},
 	},
 }

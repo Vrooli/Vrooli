@@ -140,6 +140,9 @@ type Adapter struct {
 	SizeMBApprox     int                     `json:"size_mb_approx"`
 	Source           Source                  `json:"source"`
 	CapabilityLabels models.CapabilityLabels `json:"capability_labels"`
+	// LicenseTermsVersion is a stable agreement identifier displayed and accepted
+	// before use when the adapter carries downstream use-based restrictions.
+	LicenseTermsVersion string `json:"license_terms_version,omitempty"`
 	// Ready reports the adapter's execution is proven on its architecture (no
 	// vaporware). False until the attended GPU run flips it; an un-Ready adapter is
 	// never offered for execution.
@@ -256,8 +259,16 @@ func validateAdapter(a Adapter) error {
 	if !a.CapabilityLabels.CommercialUse.Valid() {
 		return fmt.Errorf("invalid commercial_use %q", a.CapabilityLabels.CommercialUse)
 	}
-	if len(a.Source.Assets) > 0 && a.Source.HasRepo() {
-		return fmt.Errorf("source declares both assets and repo (mutually exclusive fetch strategies)")
+	if a.LicenseTermsVersion != "" {
+		if a.LicenseTermsVersion != OpenRAILMTermsVersion {
+			return fmt.Errorf("unsupported license terms version %q", a.LicenseTermsVersion)
+		}
+		if a.CapabilityLabels.License != "CreativeML OpenRAIL-M" {
+			return fmt.Errorf("license terms version %q conflicts with declared license %q", a.LicenseTermsVersion, a.CapabilityLabels.License)
+		}
+	}
+	if a.Source.HasRepo() && len(a.Source.Assets) > 0 && a.Source.Checksum.Value != "" {
+		return fmt.Errorf("combined repo+asset source uses per-asset hashes; source checksum must be empty")
 	}
 	return nil
 }

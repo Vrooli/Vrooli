@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	aiv1 "github.com/vrooli/vrooli/packages/proto/gen/go/image-tools/v1/ai"
+	"image-tools/internal/adapters"
 	internalai "image-tools/internal/ai"
 	"image-tools/internal/backends"
 	"image-tools/internal/httpx"
@@ -103,9 +104,12 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 			return nil, rejectAdmission(http.StatusServiceUnavailable, httpx.CodeInternal, "failed to inspect retained operation")
 		}
 	}
-	plan, err := h.Engine.Plan(ctx, internalai.PlanRequest{Operation: op, ModelOverride: params.GetModelOverride(), AllowBYOK: allowBYOKForParams(params), QualityPolicy: qualityPolicyForParams(params), FallbackPolicy: fallbackPolicyForParams(params), Priority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), RequireGPU: params.GetRequireGpu(), Role: params.GetOpenrouterRole(), Adapters: adapterRequests(params)})
+	plan, err := h.Engine.Plan(ctx, internalai.PlanRequest{Operation: op, ModelOverride: params.GetModelOverride(), AllowBYOK: allowBYOKForParams(params), QualityPolicy: qualityPolicyForParams(params), FallbackPolicy: fallbackPolicyForParams(params), Priority: priorityForParams(params), AllowReclaim: allowReclaimForParams(params), RequireGPU: params.GetRequireGpu(), ForceCPU: params.GetForceCpu(), Role: params.GetOpenrouterRole(), Adapters: adapterRequests(params)})
 	if err != nil {
 		return nil, planAdmissionError(err)
+	}
+	if err := bindPosePreprocessorInput(plan.Adapters, inputKey); err != nil {
+		return nil, rejectAdmission(http.StatusBadRequest, httpx.CodeInvalidRequest, err.Error())
 	}
 	if params.GetInpaint() != nil && h.modelBackend(plan.ModelID) != "diffusers" {
 		return nil, rejectAdmission(http.StatusUnprocessableEntity, httpx.CodeInvalidRequest, "contextual inpainting requires a native diffusers inpaint model; choose one explicitly")
@@ -144,6 +148,25 @@ func (h *Deps) admitStored(ctx context.Context, op string, params *aiv1.AIParams
 		return nil, rejectAdmission(http.StatusServiceUnavailable, httpx.CodeInternal, "failed to enqueue job")
 	}
 	return savedAdmission(job, plan.Warnings)
+}
+
+// bindPosePreprocessorInput links a multipart source image to a ControlNet pose
+// preprocessor when the caller requested it without a separately stored image
+// key. This lets the UI and CLI submit one durable job containing both the raw
+// pose source and the generated image request. A supplied conditioning key is
+// preserved, and a missing source fails before a job is queued.
+func bindPosePreprocessorInput(resolved []adapters.ResolvedAdapter, inputKey string) error {
+	for i := range resolved {
+		a := &resolved[i]
+		if a.Kind != adapters.KindControlNet || a.Preprocessor != adapters.PreprocessorPose || a.ConditioningImageKey != "" {
+			continue
+		}
+		if inputKey == "" {
+			return fmt.Errorf("pose-conditioned generation requires a source image")
+		}
+		a.ConditioningImageKey = inputKey
+	}
+	return nil
 }
 
 func savedAdmission(job internaljobs.Job, warnings []string) (*aiv1.SubmitAIResponse, error) {

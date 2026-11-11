@@ -1,0 +1,459 @@
+{
+  "metadata": {
+    "name": "workspace-instruction-edit-c02",
+    "description": "C02 instruction-edit showcase through the served Create workspace. It loads the repository's non-person Aquila emblem fixture, discovers and selects edit_instruct, submits a concrete color edit, waits for one completed variation, renders the actual result, and returns it to the canvas. The installed default is instruct-pix2pix (CreativeML OpenRAIL-M, commercial use yes). Full run performs real inference and requires safe capacity admission.",
+    "requirement": "IMAGE-TOOLS-C02",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "purpose": "instruction-edit-c02",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
+    },
+    "execution_mode": "mutating"
+  },
+  "settings": {
+    "viewport_width": 1280,
+    "viewport_height": 800
+  },
+  "nodes": [
+    {
+      "id": "navigate-workspace",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "@scenario/self",
+          "scenario_path": "/workspace",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Navigate to the Workspace"
+        }
+      }
+    },
+    {
+      "id": "wait-mode-switcher",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.modeSwitcher",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Mode switcher visible"
+        }
+      }
+    },
+    {
+      "id": "switch-to-create",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.modeOption(mode=\"create\")"
+        },
+        "metadata": {
+          "label": "Switch to Create mode"
+        }
+      }
+    },
+    {
+      "id": "wait-create-panel",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.create.panel",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Create panel composes"
+        }
+      }
+    },
+    {
+      "id": "load-aquila-source-image",
+      "action": {
+        "type": "ACTION_TYPE_UPLOAD_FILE",
+        "upload_file": {
+          "selector": "@selector/workspace.fileInput",
+          "file_paths": [
+            "/home/matthalloran8/Vrooli/scenarios/image-tools/api/internal/ai/testdata/aquila-clean-512.png"
+          ]
+        },
+        "metadata": {
+          "label": "Load the non-person Aquila emblem image"
+        }
+      }
+    },
+    {
+      "id": "wait-aquila-canvas-image",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.canvas.image",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Confirm the edit source is loaded on the canvas"
+        }
+      }
+    },
+    {
+      "id": "assert-edit-instruct-action",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.createAction(name=\"edit_instruct\")",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeout_ms": 15000,
+          "failure_message": "The instruction-edit action did not render from the live generation-operation catalog."
+        },
+        "metadata": {
+          "label": "Discover the instruction-edit action"
+        }
+      }
+    },
+    {
+      "id": "select-edit-instruct-action",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.createAction(name=\"edit_instruct\")"
+        },
+        "metadata": {
+          "label": "Select instruction editing"
+        }
+      }
+    },
+    {
+      "id": "fill-prompt",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.create.prompt",
+          "value": "Change the bright blue stars to warm coral. Preserve the eagle linework, emblem shape, and dark background.",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Describe the specific edit and preserved elements"
+        }
+      }
+    },
+    {
+      "id": "open-advanced-execution-settings",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.create.advanced"
+        },
+        "metadata": {
+          "label": "Open execution settings"
+        }
+      }
+    },
+    {
+      "id": "set-instruction-guidance",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.create.cfgScale",
+          "value": "10",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Set instruction guidance"
+        }
+      }
+    },
+    {
+      "id": "set-image-guidance",
+      "action": {
+        "type": "ACTION_TYPE_INPUT",
+        "input": {
+          "selector": "@selector/workspace.create.imageGuidance",
+          "value": "2",
+          "clear_first": true
+        },
+        "metadata": {
+          "label": "Set image guidance"
+        }
+      }
+    },
+    {
+      "id": "request-cpu-only",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.create.forceCpu"
+        },
+        "metadata": {
+          "label": "Choose CPU-only inference for this edit"
+        }
+      }
+    },
+    {
+      "id": "assert-cpu-tier-selected",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/models.pickerTrigger",
+          "mode": "ASSERTION_MODE_TEXT_CONTAINS",
+          "expected": {
+            "stringValue": "Runs on CPU (requested)"
+          },
+          "timeout_ms": 15000,
+          "failure_message": "The model picker must show the requested CPU tier."
+        },
+        "metadata": {
+          "label": "Confirm CPU-only execution is selected"
+        }
+      }
+    },
+    {
+      "id": "run-create",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.create.run"
+        },
+        "metadata": {
+          "label": "Run the generation"
+        }
+      }
+    },
+    {
+      "id": "choose-installed-or-clean-host",
+      "action": {
+        "type": "ACTION_TYPE_CONDITIONAL",
+        "conditional": {
+          "conditionType": "CONDITIONAL_TYPE_ELEMENT",
+          "selector": "@selector/workspace.create.installGate",
+          "timeoutMs": 1000
+        },
+        "metadata": {
+          "label": "Check whether this host needs model installation"
+        }
+      }
+    },
+    {
+      "id": "assert-install-gate-on-clean-host",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.create.installGate",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "A host without generation weights should offer the install gate after model selection."
+        },
+        "metadata": {
+          "label": "Clean host offers model install"
+        }
+      }
+    },
+    {
+      "id": "wait-for-generated-result",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/workspace.create.succeeded",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeoutMs": 300000
+        },
+        "metadata": {
+          "label": "Wait for the local instruction edit"
+        }
+      }
+    },
+    {
+      "id": "assert-generated-variation-grid",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.create.results",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "A completed instruction edit must render its result grid."
+        },
+        "metadata": {
+          "label": "Edited result renders"
+        }
+      }
+    },
+    {
+      "id": "assert-first-generated-variation",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.createVariation(index=1)",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "The completed edit result grid must contain the edited image, not only an empty container."
+        },
+        "metadata": {
+          "label": "Verify the first generated image is present"
+        }
+      }
+    },
+    {
+      "id": "send-generated-variation-to-canvas",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/workspace.createSend(index=1)"
+        },
+        "metadata": {
+          "label": "Open the generated image on the canvas"
+        }
+      }
+    },
+    {
+      "id": "assert-generated-canvas-image",
+      "action": {
+        "type": "ACTION_TYPE_ASSERT",
+        "assert": {
+          "selector": "@selector/workspace.canvas.image",
+          "mode": "ASSERTION_MODE_VISIBLE",
+          "timeoutMs": 15000,
+          "failureMessage": "A generated variation must load as the current canvas image."
+        },
+        "metadata": {
+          "label": "Verify the generated pixels load in the canvas"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "navigate-workspace",
+      "target": "wait-mode-switcher",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e2",
+      "source": "wait-mode-switcher",
+      "target": "switch-to-create",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e3",
+      "source": "switch-to-create",
+      "target": "wait-create-panel",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4",
+      "source": "wait-create-panel",
+      "target": "load-aquila-source-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e5",
+      "source": "assert-edit-instruct-action",
+      "target": "select-edit-instruct-action",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e11",
+      "source": "select-edit-instruct-action",
+      "target": "fill-prompt",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e7",
+      "source": "run-create",
+      "target": "choose-installed-or-clean-host",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e8",
+      "source": "choose-installed-or-clean-host",
+      "target": "assert-install-gate-on-clean-host",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+      "label": "true"
+    },
+    {
+      "id": "e9",
+      "source": "choose-installed-or-clean-host",
+      "target": "wait-for-generated-result",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP",
+      "label": "false"
+    },
+    {
+      "id": "e10",
+      "source": "wait-for-generated-result",
+      "target": "assert-generated-variation-grid",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e12",
+      "source": "assert-generated-variation-grid",
+      "target": "assert-first-generated-variation",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e13",
+      "source": "assert-first-generated-variation",
+      "target": "send-generated-variation-to-canvas",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e14",
+      "source": "send-generated-variation-to-canvas",
+      "target": "assert-generated-canvas-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4a",
+      "source": "load-aquila-source-image",
+      "target": "wait-aquila-canvas-image",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "e4b",
+      "source": "wait-aquila-canvas-image",
+      "target": "assert-edit-instruct-action",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c02-e4",
+      "source": "fill-prompt",
+      "target": "open-advanced-execution-settings",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c02-e5",
+      "source": "open-advanced-execution-settings",
+      "target": "set-instruction-guidance",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c02-e6",
+      "source": "set-instruction-guidance",
+      "target": "set-image-guidance",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c02-e7",
+      "source": "set-image-guidance",
+      "target": "request-cpu-only",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c02-e8",
+      "source": "request-cpu-only",
+      "target": "assert-cpu-tier-selected",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    },
+    {
+      "id": "c02-e9",
+      "source": "assert-cpu-tier-selected",
+      "target": "run-create",
+      "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+    }
+  ]
+}

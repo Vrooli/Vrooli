@@ -85,6 +85,17 @@ type ModelProfileStat struct {
 	LastRecordedAt string `json:"last_recorded_at"`
 }
 
+// ModelUsage is derived only from successful, durable model-backed job traces.
+// Models with no row are intentionally absent so callers can report use as
+// unknown instead of guessing that an unobserved model is unused.
+type ModelUsage struct {
+	ModelID          string `json:"model_id"`
+	SuccessfulJobs   int64  `json:"successful_jobs"`
+	LastSuccessfulAt string `json:"last_successful_at"`
+	LastOperation    string `json:"last_operation"`
+	LastTier         string `json:"last_tier"`
+}
+
 // Recorder persists samples and answers aggregate queries.
 type Recorder struct {
 	db  SQLExecutor
@@ -394,6 +405,38 @@ func (r *Recorder) ModelProfiles(ctx context.Context, modelID, operation string)
 		a.stat.LatencyP50MS = percentile(a.durations, 50)
 		a.stat.LatencyP95MS = percentile(a.durations, 95)
 		out = append(out, a.stat)
+	}
+	return out, nil
+}
+
+// ModelUsageSummary returns successful durable use counts and the latest
+// success for each model. It never converts missing trace rows into zero-use.
+func (r *Recorder) ModelUsageSummary(ctx context.Context, modelID string) ([]ModelUsage, error) {
+	query := `SELECT t.model_id, COUNT(*), MAX(t.recorded_at),
+ (SELECT operation FROM job_trace l WHERE l.model_id=t.model_id AND l.state='succeeded' ORDER BY l.recorded_at DESC, l.job_id DESC LIMIT 1),
+ (SELECT tier FROM job_trace l WHERE l.model_id=t.model_id AND l.state='succeeded' ORDER BY l.recorded_at DESC, l.job_id DESC LIMIT 1)
+ FROM job_trace t WHERE t.state='succeeded' AND t.model_id<>''`
+	args := []any{}
+	if modelID != "" {
+		query += ` AND t.model_id=?`
+		args = append(args, modelID)
+	}
+	query += ` GROUP BY t.model_id ORDER BY t.model_id`
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("measures: query model usage: %w", err)
+	}
+	defer rows.Close()
+	var out []ModelUsage
+	for rows.Next() {
+		var usage ModelUsage
+		if err := rows.Scan(&usage.ModelID, &usage.SuccessfulJobs, &usage.LastSuccessfulAt, &usage.LastOperation, &usage.LastTier); err != nil {
+			return nil, fmt.Errorf("measures: scan model usage: %w", err)
+		}
+		out = append(out, usage)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("measures: iterate model usage: %w", err)
 	}
 	return out, nil
 }

@@ -42,10 +42,13 @@ func commonFlags() []cliapp.Flag {
 		{Name: "priority", Description: "Capacity priority: service, interactive, or batch"},
 		{Name: "no-reclaim", Bool: true, Description: "Do not reclaim cold-idle local resources for this job"},
 		{Name: "require-gpu", Bool: true, Description: "Require local GPU execution; fail if capacity would degrade this job to CPU"},
+		{Name: "force-cpu", Bool: true, Description: "Force a declared CPU model/backend even when a GPU is available"},
 		{Name: "explain", Bool: true, Description: "Print which model/technique would run (native-vs-derived) and exit without submitting"},
 		{Name: "consent", Bool: true, Description: "Affirm you have the right to edit the people in this image (required for identity-altering ops on a public deployment)"},
 		{Name: "lora", Description: "Conditioning LoRA to apply: id[:scale] (repeatable)"},
 		{Name: "controlnet", Description: "Conditioning ControlNet: id[:scale[:conditioning_image_key]] (repeatable)"},
+		{Name: "pose-control", Bool: true, Description: "Use the input image's detected pose with controlnet-openpose-sd15 (requires that adapter to be enabled and installed)"},
+		{Name: "accept-openrail-m", Bool: true, Description: "Affirm acceptance of CreativeML OpenRAIL-M v2022-08-22 use restrictions and pass-through duties for the OpenPose adapter; read adapters terms openrail-m first"},
 		{Name: "ip-adapter", Description: "Conditioning IP-Adapter: id[:scale]:reference_image_key (repeatable)"},
 	}
 }

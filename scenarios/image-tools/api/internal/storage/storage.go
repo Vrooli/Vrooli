@@ -87,6 +87,33 @@ func NewWithBlobStore(bs blobstore.BlobStore, root string) *Store {
 // Root returns the absolute blob root (diagnostics only).
 func (s *Store) Root() string { return s.root }
 
+// ReservationRoot returns the currently routed directory for derived outputs.
+// It prepares the directory so the shared capacity owner can measure its
+// filesystem before a job writes. Reserve the job's full peak before execution.
+func (s *Store) ReservationRoot(ctx context.Context) (string, error) {
+	root, err := s.blobRoot(ctx, "out/.capacity-reservation")
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return "", fmt.Errorf("storage: prepare output reservation root: %w", err)
+	}
+	return root, nil
+}
+
+// ImportReservationRoot returns the routed directory for imported input blobs.
+// Import jobs reserve this filesystem before downloading or persisting bytes.
+func (s *Store) ImportReservationRoot(ctx context.Context) (string, error) {
+	root, err := s.blobRoot(ctx, "input/.capacity-reservation")
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		return "", fmt.Errorf("storage: prepare input reservation root: %w", err)
+	}
+	return root, nil
+}
+
 // PathForKey returns the filesystem path for a managed blob key. It is a
 // read-only diagnostics seam for the owner cleanup provider; deletion still
 // goes through Store.Delete so the blob-store abstraction remains authoritative.

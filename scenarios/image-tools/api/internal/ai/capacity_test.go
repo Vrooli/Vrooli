@@ -144,6 +144,7 @@ func newCapacityTestEngine(t *testing.T, op string, fp *fakeProvider, broker Cap
 		ModelInstalled: func(string) bool { return true },
 		ModelsRoot:     t.TempDir(),
 		Capacity:       broker,
+		Disk:           &fakeDiskAdmission{},
 	})
 	if err != nil {
 		t.Fatalf("new engine: %v", err)

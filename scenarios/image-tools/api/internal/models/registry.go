@@ -533,9 +533,10 @@ func (r *Registry) validateModel(m Model) error {
 	// can't drift from the executor. The doctor (DoctorCatalog) additionally
 	// REQUIRES the family on enabled diffusers models; here we only validate what
 	// is declared so non-diffusers entries stay unaffected.
-	// Assets and Repo are mutually exclusive fetch strategies.
-	if len(m.Source.Assets) > 0 && m.Source.HasRepo() {
-		return fmt.Errorf("source declares both assets and repo (mutually exclusive fetch strategies)")
+	// Combined repo+asset sources have no pre-known tree checksum; each asset is
+	// individually pinned and the installer captures the complete tree receipt.
+	if m.Source.HasRepo() && len(m.Source.Assets) > 0 && m.Source.Checksum.Value != "" {
+		return fmt.Errorf("combined repo+asset source uses per-asset hashes; source checksum must be empty")
 	}
 	if profile := m.BuildProfile; profile != nil {
 		if m.ID != "big-lama-1024-export" || profile.Kind != "lama-onnx-fixed" || profile.SourceAsset != "lama-source.zip" || profile.CheckpointAsset != "big-lama.safetensors" || profile.Resolution != 1024 || profile.Opset != 17 || profile.OutputFilename != "lama_1024.onnx" {

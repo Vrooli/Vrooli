@@ -55,6 +55,12 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		},
 		RunCtx: h.search,
 	})
+	group.Subcommands = append(group.Subcommands, cliapp.Command{
+		Name:        "inventory",
+		Description: "Reconcile installed model and adapter receipts with physical storage and recorded successful use",
+		NeedsAPI:    true,
+		RunCtx:      h.inventory,
+	})
 	return group, nil
 }
 

@@ -44,6 +44,7 @@ func TestInstall_MultiAssetValidatesEach(t *testing.T) {
 		Operations:       []string{"upscale"},
 		Tier:             TierNiceToHave,
 		Backend:          "realesrgan-ncnn-vulkan",
+		SizeMBApprox:     1,
 		Hardware:         Hardware{CPUCapable: true},
 		CapabilityLabels: CapabilityLabels{License: "MIT", CommercialUse: CommercialUseYes},
 		Source: Source{Assets: []Asset{

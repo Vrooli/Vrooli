@@ -175,6 +175,7 @@ func TestNaturalize_EngineVertical(t *testing.T) {
 		Store:          store,
 		ModelInstalled: func(string) bool { return true },
 		ModelsRoot:     t.TempDir(),
+		Disk:           &fakeDiskAdmission{},
 	})
 	if err != nil {
 		t.Fatalf("new engine: %v", err)

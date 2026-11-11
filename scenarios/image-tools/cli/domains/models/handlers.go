@@ -126,6 +126,7 @@ func (h *handlers) explain(ctx cliapp.RunContext) error {
 		ModelId:       strings.TrimSpace(ctx.Flag("model")),
 		AllowByok:     ctx.BoolFlag("byok"),
 		QualityPolicy: strings.TrimSpace(ctx.Flag("quality-policy")),
+		ForceCpu:      ctx.BoolFlag("force-cpu"),
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError(fmt.Sprintf("explain resolution for %q", op), err, nil)

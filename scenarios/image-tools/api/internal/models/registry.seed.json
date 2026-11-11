@@ -1407,10 +1407,7 @@
         "face_restore",
         "old_photo_restore"
       ],
-      "default_for": [
-        "face_restore",
-        "old_photo_restore"
-      ],
+      "default_for": [],
       "tier": "default",
       "backend": "python-sidecar",
       "alt_backends": [],
@@ -1428,7 +1425,7 @@
           "linux/amd64",
           "windows/amd64"
         ],
-        "speed_note": "The ONLY cleanly-licensed face restorer. PyTorch-only (no ONNX/ncnn), GPU-oriented, CPU slow."
+        "speed_note": "Apache-2.0 repository code; commercial rights for the released checkpoint are unresolved because the upstream paper/repository says training used FFHQ, whose image collection includes CC-BY-NC material and whose dataset is CC-BY-NC-SA. PyTorch-only (no ONNX/ncnn), CPU slow. Keep disabled pending rights review."
       },
       "io": {
         "notes": "Used standalone for face_restore and as the face stage of the old_photo_restore pipeline (with real-esrgan + ddcolor)."
@@ -1436,10 +1433,10 @@
       "capability_labels": {
         "nsfw_capable": false,
         "license": "Apache-2.0",
-        "commercial_use": "yes",
-        "commercial_use_notes": "Verified Apache-2.0. Chosen specifically because CodeFormer (S-Lab NC) and GFPGAN (StyleGAN2/DFDNet NC) are NOT commercial-safe.",
+        "commercial_use": "conditional",
+        "commercial_use_notes": "The repository code is Apache-2.0, but its README says the released model was trained on FFHQ. The official FFHQ README says image licenses include CC-BY-NC and that the dataset itself is CC-BY-NC-SA 4.0. No reviewed source explicitly grants commercial use for this checkpoint or resolves the training-data rights chain. Keep disabled until an explicit weight/provenance grant or operator decision: https://github.com/wzhouxiff/RestoreFormerPlusPlus https://github.com/NVlabs/ffhq-dataset",
         "base_model_lineage": "RestoreFormer++ (wzhouxiff)",
-        "known_risks": "Heavier to self-host (PyTorch). No ONNX path yet."
+        "known_risks": "Unclear checkpoint/training-data commercial rights; heavier to self-host (PyTorch); no ONNX path yet."
       },
       "source": {
         "download_url": "https://github.com/wzhouxiff/RestoreFormerPlusPlus",
@@ -1460,7 +1457,7 @@
           "status": "unverified-capture-on-download"
         }
       },
-      "enabled": true
+      "enabled": false
     },
     {
       "id": "ms-bringing-old-photos",

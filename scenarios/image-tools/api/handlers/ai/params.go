@@ -28,6 +28,7 @@ func adapterRequests(p *aiv1.AIParams) []adapters.AdapterRequest {
 			Scale:                r.GetScale(),
 			ConditioningImageKey: r.GetConditioningImageKey(),
 			PreprocessorOverride: adapters.Preprocessor(r.GetPreprocessorOverride()),
+			LicenseTermsAccepted: r.GetLicenseTermsAccepted(),
 		})
 	}
 	return out

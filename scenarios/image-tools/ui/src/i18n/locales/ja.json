@@ -346,7 +346,9 @@
       "fit": {
         "gpu": "GPU で実行できます",
         "cpu": "CPU で実行できます",
+        "cpuBackend": "CPU で実行（選択したバックエンドは GPU に対応していません）",
         "cpuFallback": "CPU で実行（現在 GPU には収まりません）",
+        "cpuRequested": "指定により CPU で実行します",
         "insufficientVram": "空き VRAM が約 {{gb}} GB 不足",
         "noGpu": "GPU が必要です（未検出）",
         "unsupportedOs": "{{os}}/{{arch}} 向けビルドがありません"
@@ -646,6 +648,11 @@
       "seedRandomize": "シードをランダム化",
       "variationsLabel": "バリエーション",
       "byokLabel": "有料クラウドを許可（BYOK）",
+      "forceCpuLabel": "CPU のみで実行（遅くなりますが GPU は使いません）",
+      "instructionGuidanceLabel": "指示の強さ",
+      "imageGuidanceLabel": "画像の保持度",
+      "cropToMaskLabel": "マスク範囲に切り抜いて推論",
+      "cropContextPixelsLabel": "マスク周囲の余白（ピクセル）",
       "advanced": "詳細設定",
       "usesCurrent": "現在のキャンバス画像を使用します。",
       "needsImage": "先に変換する画像を追加してください。",

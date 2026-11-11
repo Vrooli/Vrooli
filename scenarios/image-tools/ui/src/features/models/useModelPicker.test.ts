@@ -47,7 +47,7 @@ describe("useModelPicker", () => {
 
     rerender({ active: true });
     await waitFor(() => expect(result.current.candidates).toHaveLength(1));
-    expect(client.list).toHaveBeenCalledWith("upscale");
+    expect(client.list).toHaveBeenCalledWith("upscale", false);
     expect(result.current.host?.hasGpu).toBe(true);
     expect(result.current.selectedId).toBe("cand-1");
     expect(result.current.loading).toBe(false);
@@ -61,6 +61,15 @@ describe("useModelPicker", () => {
     );
     await waitFor(() => expect(result.current.error).toBe("models down"));
     expect(result.current.loading).toBe(false);
+  });
+
+  it("loads the candidate menu using the requested CPU-only policy", async () => {
+    const client = makeClient();
+    const { result } = renderHook(() =>
+      useModelPicker({ operation: "edit_instruct", active: true, forceCpu: true, client }),
+    );
+    await waitFor(() => expect(result.current.candidates).toHaveLength(1));
+    expect(client.list).toHaveBeenCalledWith("edit_instruct", true);
   });
 
   it("does nothing when there is no operation", () => {

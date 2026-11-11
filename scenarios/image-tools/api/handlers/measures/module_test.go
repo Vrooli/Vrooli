@@ -36,8 +36,29 @@ func TestModelProfilesEndpointServesRecorderData(t *testing.T) {
 	}
 }
 
+func TestModelUsageEndpointServesSuccessfulModelUse(t *testing.T) {
+	store := db.NewSQLite(t)
+	if err := apidb.EnsureSchemas(context.Background(), store, apidb.SchemaProviderFunc(internalmeasures.Schema)); err != nil {
+		t.Fatal(err)
+	}
+	recorder := internalmeasures.NewRecorder(store)
+	if err := recorder.RecordJobTrace(context.Background(), internalmeasures.JobTrace{JobID: "job-1", Operation: "caption", ModelID: "smolvlm-256m", Tier: "local-cpu", State: "succeeded"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := recorder.RecordJobTrace(context.Background(), internalmeasures.JobTrace{JobID: "job-2", Operation: "caption", ModelID: "smolvlm-256m", Tier: "local-cpu", State: "failed"}); err != nil {
+		t.Fatal(err)
+	}
+	router := mux.NewRouter()
+	Module(recorder).Mount(router)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/measures/usage?model_id=smolvlm-256m", nil))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"successful_jobs":1`) || !strings.Contains(response.Body.String(), `"last_operation":"caption"`) {
+		t.Fatalf("response %d: %s", response.Code, response.Body.String())
+	}
+}
+
 func TestModuleDeclaresQueryEndpoint(t *testing.T) {
-	if len(Endpoints) != 1 || Endpoints[0].ID != "model_profiles" || Endpoints[0].Path != "/api/v1/measures/models" {
+	if len(Endpoints) != 2 || Endpoints[0].ID != "model_usage" || Endpoints[0].Path != "/api/v1/measures/usage" || Endpoints[1].ID != "model_profiles" || Endpoints[1].Path != "/api/v1/measures/models" {
 		t.Fatalf("unexpected endpoint descriptors: %+v", Endpoints)
 	}
 	endpoint := Endpoints[0]

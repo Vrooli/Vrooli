@@ -47,6 +47,9 @@ func (h *handlers) list(ctx cliapp.RunContext) error {
 // positional/flag the op reads (empty when the op needs none).
 func (h *handlers) submit(operation string, needsInput, needsMask bool) func(cliapp.RunContext) error {
 	return func(ctx cliapp.RunContext) error {
+		if boolOr(ctx, "pose-control") && !needsInput {
+			return fmt.Errorf("--pose-control requires an input-image command such as ai img2img or ai edit")
+		}
 		// --explain is a read-only dry-run: resolve which model/technique would run
 		// and exit 0 without submitting (or requiring an input image/mask).
 		if boolOr(ctx, "explain") {
@@ -258,6 +261,7 @@ func (h *handlers) explainResolution(ctx cliapp.RunContext, operation string) er
 		QualityPolicy:  flagOr(ctx, "quality-policy"),
 		OpenrouterRole: flagOr(ctx, "role"),
 		FallbackPolicy: flagOr(ctx, "fallback-policy"),
+		ForceCpu:       boolOr(ctx, "force-cpu"),
 	})
 	if err != nil {
 		return err
@@ -318,6 +322,7 @@ func buildParams(ctx cliapp.RunContext) *aiv1.AIParams {
 		Priority:        flagOr(ctx, "priority"),
 		AllowReclaim:    optionalReclaim(ctx),
 		RequireGpu:      boolOr(ctx, "require-gpu"),
+		ForceCpu:        boolOr(ctx, "force-cpu"),
 		AutoScanNsfw:    boolOr(ctx, "auto-scan"),
 		ConsentAffirmed: boolOr(ctx, "consent"),
 		Adapters:        adapterRefs(ctx),
@@ -390,24 +395,42 @@ func parseAdapterSpec(spec string) adapterSpec {
 
 func adapterRefs(ctx cliapp.RunContext) []*aiv1.AdapterRef {
 	specs := collectAdapterSpecs(ctx)
-	if len(specs) == 0 {
+	poseControl := boolOr(ctx, "pose-control")
+	if len(specs) == 0 && !poseControl {
 		return nil
 	}
-	out := make([]*aiv1.AdapterRef, 0, len(specs))
+	out := make([]*aiv1.AdapterRef, 0, len(specs)+1)
 	for _, s := range specs {
-		out = append(out, &aiv1.AdapterRef{AdapterId: s.id, Scale: s.scale, ConditioningImageKey: s.key})
+		out = append(out, &aiv1.AdapterRef{AdapterId: s.id, Scale: s.scale, ConditioningImageKey: s.key, LicenseTermsAccepted: boolOr(ctx, "accept-openrail-m")})
+	}
+	if poseControl {
+		out = append(out, &aiv1.AdapterRef{
+			AdapterId:            "controlnet-openpose-sd15",
+			Scale:                1,
+			PreprocessorOverride: "pose",
+			LicenseTermsAccepted: boolOr(ctx, "accept-openrail-m"),
+		})
 	}
 	return out
 }
 
 func explainAdapterRefs(ctx cliapp.RunContext) []*modelsv1.AdapterRef {
 	specs := collectAdapterSpecs(ctx)
-	if len(specs) == 0 {
+	poseControl := boolOr(ctx, "pose-control")
+	if len(specs) == 0 && !poseControl {
 		return nil
 	}
-	out := make([]*modelsv1.AdapterRef, 0, len(specs))
+	out := make([]*modelsv1.AdapterRef, 0, len(specs)+1)
 	for _, s := range specs {
-		out = append(out, &modelsv1.AdapterRef{AdapterId: s.id, Scale: s.scale, ConditioningImageKey: s.key})
+		out = append(out, &modelsv1.AdapterRef{AdapterId: s.id, Scale: s.scale, ConditioningImageKey: s.key, LicenseTermsAccepted: boolOr(ctx, "accept-openrail-m")})
+	}
+	if poseControl {
+		out = append(out, &modelsv1.AdapterRef{
+			AdapterId:            "controlnet-openpose-sd15",
+			Scale:                1,
+			PreprocessorOverride: "pose",
+			LicenseTermsAccepted: boolOr(ctx, "accept-openrail-m"),
+		})
 	}
 	return out
 }

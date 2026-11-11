@@ -45,10 +45,11 @@ func newInstallFixture(t *testing.T) *installFixture {
 	// not HTML, so it passes artifact validation (the fake downloader writes it).
 	f := &installFixture{root: root, payload: bytes.Repeat([]byte("fake-model-weights\n"), 128), avail: int64(50) << 30}
 	f.in = &Installer{
-		Root:   root,
-		Reg:    reg,
-		Custom: NewCustomStore(d),
-		State:  NewInstallStore(d),
+		Root:          root,
+		Reg:           reg,
+		DiskAdmission: testDiskAdmitter{},
+		Custom:        NewCustomStore(d),
+		State:         NewInstallStore(d),
 		Download: downloaderFunc(func(_ context.Context, _, dest string, _ func(int64, int64)) error {
 			f.downloads++
 			return os.WriteFile(dest, f.payload, 0o644)
@@ -78,6 +79,17 @@ type downloaderFunc func(ctx context.Context, rawURL, dest string, emit func(int
 
 func (fn downloaderFunc) Download(ctx context.Context, rawURL, dest string, emit func(int64, int64)) error {
 	return fn(ctx, rawURL, dest, emit)
+}
+
+func (fn downloaderFunc) DownloadObserved(ctx context.Context, rawURL, dest string, observe func(int64, int64) error) error {
+	if err := fn(ctx, rawURL, dest, func(int64, int64) {}); err != nil {
+		return err
+	}
+	info, err := os.Stat(dest)
+	if err != nil {
+		return err
+	}
+	return observe(info.Size(), info.Size())
 }
 
 func sha256Hex(b []byte) string {
@@ -326,7 +338,7 @@ func TestAcquireInstalledArtifactsReadsRecordOnce(t *testing.T) {
 	counting := &countingModelSQL{SQLExecutor: f.in.State.db}
 	f.in.State = NewInstallStore(counting)
 
-	rec, err := f.in.acquireArtifacts(ctx, m, nil)
+	rec, err := f.in.acquireArtifacts(ctx, m, f.in.RepoFetch, nil, nil)
 	if err != nil {
 		t.Fatalf("reuse installed artifacts: %v", err)
 	}

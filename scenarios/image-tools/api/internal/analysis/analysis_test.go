@@ -3,6 +3,7 @@ package analysis
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -10,10 +11,12 @@ import (
 	"image/png"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"image-tools/internal/models"
+	"image-tools/internal/posemap"
 )
 
 // makePNG renders a small solid-color PNG for probe tests.
@@ -245,6 +248,65 @@ func TestCommandFailureHelper(t *testing.T) {
 	}
 	_, _ = fmt.Fprintln(os.Stderr, "session initialization detail")
 	os.Exit(5)
+}
+
+func TestPoseMapRunsPinnedCPUAdapterAndWritesOpenPosePNG(t *testing.T) {
+	tmp := t.TempDir()
+	modelPath := filepath.Join(tmp, "pose_landmarker_full.task")
+	inputPath := filepath.Join(tmp, "source.png")
+	outputPath := filepath.Join(tmp, "pose.png")
+	for _, path := range []string{modelPath, inputPath} {
+		if err := os.WriteFile(path, []byte("fixture"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	landmarks := make([]posemap.Landmark, posemap.MediaPipeLandmarkCount)
+	for i := range landmarks {
+		landmarks[i] = posemap.Landmark{X: 0.5, Y: 0.5, Visibility: 1}
+	}
+	encoded, err := json.Marshal(poseLandmarkerOutput{Landmarks: landmarks})
+	if err != nil {
+		t.Fatal(err)
+	}
+	runCalled := false
+	svc := mustService(t, Config{
+		ModelInstalled: func(string) bool { return true },
+		PythonProgram:  "/managed/pyenv/bin/python",
+		LookPath: func(path string) (string, error) {
+			if path != "/managed/pyenv/bin/python" {
+				t.Fatalf("looked up %q", path)
+			}
+			return path, nil
+		},
+		Run: func(ctx context.Context, name string, args []string) ([]byte, error) {
+			runCalled = true
+			if name != "/managed/pyenv/bin/python" || len(args) != 4 || args[0] != "-c" || args[2] != modelPath || args[3] != inputPath {
+				t.Fatalf("command = %q %#v", name, args)
+			}
+			if _, ok := ctx.Deadline(); ok {
+				t.Fatal("test unexpectedly has a command deadline")
+			}
+			return encoded, nil
+		},
+	})
+	if err := svc.PoseMap(context.Background(), modelPath, inputPath, outputPath, 96, 64); err != nil {
+		t.Fatalf("PoseMap: %v", err)
+	}
+	if !runCalled {
+		t.Fatal("pose detector was not called")
+	}
+	file, err := os.Open(outputPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	img, err := png.Decode(file)
+	if err != nil {
+		t.Fatalf("decode pose map: %v", err)
+	}
+	if got := img.Bounds(); got.Dx() != 96 || got.Dy() != 64 {
+		t.Fatalf("pose bounds = %v, want 96x64", got)
+	}
 }
 
 func mustService(t *testing.T, cfg Config) *Service {

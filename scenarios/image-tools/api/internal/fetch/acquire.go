@@ -17,6 +17,7 @@ var (
 	ErrNoDownloadSource     = errors.New("fetch: no download source")
 	ErrLocalPathMissing     = errors.New("fetch: local artifact path does not exist")
 	ErrRepoRevisionUnpinned = errors.New("fetch: repository revision must be pinned")
+	ErrCleanupUnverified    = errors.New("fetch: acquisition staging cleanup could not be verified")
 )
 
 // Source is shared by weight and conditioning catalogs. Documentation URLs are
@@ -51,6 +52,10 @@ type Acquirer struct {
 	Download  Downloader
 	RepoFetch RepoFetcher
 	DiskAvail DiskSpaceFunc
+	removeAll func(string) error
+	// DiskProgressObserver must extend or refuse before an over-plan response
+	// chunk is written. It is used only by the shared host-admitted install path.
+	DiskProgressObserver func(context.Context, string, int64, int64) error
 }
 
 type Acquisition struct {
@@ -91,8 +96,29 @@ func (a Acquirer) Acquire(ctx context.Context, source Source, destination, pinne
 	if err != nil {
 		return out, err
 	}
-	defer os.RemoveAll(stage)
-	if source.HasRepo() {
+	defer func() {
+		if cleanupErr := a.removeOwnedTree(stage); cleanupErr != nil {
+			err = errors.Join(err, fmt.Errorf("%w: %s: %v", ErrCleanupUnverified, stage, cleanupErr))
+		}
+	}()
+	if source.HasRepo() && len(source.Assets) > 0 {
+		// Some capabilities combine a pinned upstream directory with separately
+		// versioned auxiliary assets (for example a ControlNet weight snapshot,
+		// pose task bundle and license notice). Verify each asset at fetch time,
+		// then pin the complete published tree as one installed capability.
+		if source.Checksum.Value != "" {
+			return out, fmt.Errorf("fetch: combined repo+asset sources use per-asset hashes and a captured tree receipt; source checksum must be empty")
+		}
+		if _, _, err = a.repo(ctx, source, stage, "", emit); err == nil {
+			_, _, err = a.assets(ctx, source, stage, "", emit)
+		}
+		if err == nil {
+			out.Checksum, out.SizeBytes, err = TreeManifestHash(stage)
+			if err == nil && pinned != "" {
+				err = verifyChecksum(pinned, out.Checksum)
+			}
+		}
+	} else if source.HasRepo() {
 		out.Checksum, out.SizeBytes, err = a.repo(ctx, source, stage, pinned, emit)
 	} else {
 		out.Checksum, out.SizeBytes, err = a.assets(ctx, source, stage, pinned, emit)
@@ -116,7 +142,23 @@ func (a Acquirer) Acquire(ctx context.Context, source Source, destination, pinne
 		return out, err
 	}
 	out.Path = destination
-	return out, os.RemoveAll(previous)
+	if err := a.removeOwnedTree(previous); err != nil {
+		return out, errors.Join(fmt.Errorf("%w: previous artifact cleanup failed: %s", ErrCleanupUnverified, previous), err)
+	}
+	if _, err := os.Lstat(previous); !os.IsNotExist(err) {
+		if err == nil {
+			err = fmt.Errorf("previous artifact still exists")
+		}
+		return out, fmt.Errorf("%w: verify previous artifact cleanup at %s: %v", ErrCleanupUnverified, previous, err)
+	}
+	return out, nil
+}
+
+func (a Acquirer) removeOwnedTree(path string) error {
+	if a.removeAll != nil {
+		return a.removeAll(path)
+	}
+	return os.RemoveAll(path)
 }
 
 // ValidateInstalled rechecks an existing installation against the current
@@ -141,11 +183,19 @@ func (a Acquirer) ValidateInstalled(source Source, installed, pinned string) err
 		return verifyChecksum(firstNonEmpty(source.Checksum.Value, pinned), sum)
 	}
 	if source.HasRepo() {
+		if err := verifyRepoFiles(installed, source.Repo); err != nil {
+			return err
+		}
 		sum, _, err := TreeManifestHash(installed)
 		if err != nil {
 			return err
 		}
-		return verifyChecksum(firstNonEmpty(source.Checksum.Value, pinned), sum)
+		if err := verifyChecksum(firstNonEmpty(source.Checksum.Value, pinned), sum); err != nil {
+			return err
+		}
+		if len(source.Assets) == 0 {
+			return nil
+		}
 	}
 	assets, err := source.ResolvedAssets()
 	if err != nil {
@@ -188,11 +238,28 @@ func (a Acquirer) repo(ctx context.Context, source Source, dir, pinned string, e
 		return "", 0, ErrRepoRevisionUnpinned
 	}
 	emit(5, "fetching "+source.Repo.RepoID+"@"+ShortRev(source.Repo.Revision))
-	if err := a.RepoFetch.Snapshot(ctx, source.Repo, dir, func(done, total int64) {
+	progress := func(done, total int64) {
 		if total > 0 {
 			emit(5+int(80*done/total), "fetching "+source.Repo.RepoID)
 		}
-	}); err != nil {
+	}
+	var fetchErr error
+	if a.DiskProgressObserver != nil {
+		observed, ok := a.RepoFetch.(ObservedRepoFetcher)
+		if !ok {
+			return "", 0, fmt.Errorf("fetch: configured repository fetcher cannot enforce bounded disk progress")
+		}
+		fetchErr = observed.SnapshotObserved(ctx, source.Repo, dir, func(done, total int64) error {
+			progress(done, total)
+			return a.DiskProgressObserver(ctx, dir, done, total)
+		})
+	} else {
+		fetchErr = a.RepoFetch.Snapshot(ctx, source.Repo, dir, progress)
+	}
+	if fetchErr != nil {
+		return "", 0, fetchErr
+	}
+	if err := verifyRepoFiles(dir, source.Repo); err != nil {
 		return "", 0, err
 	}
 	emit(88, "verifying snapshot")
@@ -202,6 +269,25 @@ func (a Acquirer) repo(ctx context.Context, source Source, dir, pinned string, e
 	}
 	expected := firstNonEmpty(source.Checksum.Value, pinned)
 	return sum, size, verifyChecksum(expected, sum)
+}
+
+func verifyRepoFiles(root string, repo RepoSpec) error {
+	for name, expected := range repo.FileSHA256 {
+		if !filepath.IsLocal(name) || strings.Contains(name, "\\") || filepath.ToSlash(filepath.Clean(name)) != name || name == "." {
+			return fmt.Errorf("fetch: invalid pinned repository path %q", name)
+		}
+		if !ValidSHA256(expected) {
+			return fmt.Errorf("fetch: invalid SHA-256 pin for repository file %q", name)
+		}
+		actual, _, err := HashFile(filepath.Join(root, filepath.FromSlash(name)))
+		if err != nil {
+			return fmt.Errorf("fetch: verify pinned repository file %q: %w", name, err)
+		}
+		if err := verifyChecksum(expected, actual); err != nil {
+			return fmt.Errorf("fetch: repository file %q failed checksum validation: %w", name, err)
+		}
+	}
+	return nil
 }
 
 func (a Acquirer) assets(ctx context.Context, source Source, dir, pinned string, emit func(int, string)) (primary string, total int64, err error) {
@@ -222,12 +308,26 @@ func (a Acquirer) assets(ctx context.Context, source Source, dir, pinned string,
 		}
 		base, span := 5+80*i/len(assets), 80/len(assets)
 		emit(base, "downloading "+asset.Filename)
-		if err := a.Download.Download(ctx, asset.URL, dest, func(done, total int64) {
+		progress := func(done, total int64) {
 			if total > 0 {
 				emit(base+int(int64(span)*done/total), "downloading "+asset.Filename)
 			}
-		}); err != nil {
-			return "", 0, err
+		}
+		var downloadErr error
+		if a.DiskProgressObserver != nil {
+			observed, ok := a.Download.(ObservedDownloader)
+			if !ok {
+				return "", 0, fmt.Errorf("fetch: configured downloader cannot enforce bounded disk progress")
+			}
+			downloadErr = observed.DownloadObserved(ctx, asset.URL, dest, func(done, total int64) error {
+				progress(done, total)
+				return a.DiskProgressObserver(ctx, dest, done, total)
+			})
+		} else {
+			downloadErr = a.Download.Download(ctx, asset.URL, dest, progress)
+		}
+		if downloadErr != nil {
+			return "", 0, downloadErr
 		}
 		emit(base+span, "validating "+asset.Filename)
 		if err := ValidateArtifact(dest, asset); err != nil {

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	apidb "github.com/vrooli/api-core/database"
+	"image-tools/internal/fetch"
 
 	db "github.com/vrooli/api-core/databasetest"
 )
@@ -17,6 +18,17 @@ type fetcherFunc func(ctx context.Context, repo RepoSource, dest string, emit fu
 
 func (fn fetcherFunc) Snapshot(ctx context.Context, repo RepoSource, dest string, emit func(int64, int64)) error {
 	return fn(ctx, repo, dest, emit)
+}
+
+func (fn fetcherFunc) SnapshotObserved(ctx context.Context, repo RepoSource, dest string, observe func(int64, int64) error) error {
+	if err := fn(ctx, repo, dest, func(int64, int64) {}); err != nil {
+		return err
+	}
+	_, size, err := fetch.TreeManifestHash(dest)
+	if err != nil {
+		return err
+	}
+	return observe(size, size)
 }
 
 // writeTree materializes a small diffusers-like file tree under dir.
@@ -52,12 +64,13 @@ func newRepoInstaller(t *testing.T, fetch RepoFetcher) (*Installer, string) {
 		t.Fatalf("load registry: %v", err)
 	}
 	in := &Installer{
-		Root:      t.TempDir(),
-		Reg:       reg,
-		Custom:    NewCustomStore(d),
-		State:     NewInstallStore(d),
-		RepoFetch: fetch,
-		DiskAvail: func(string) (int64, error) { return int64(80) << 30, nil },
+		Root:          t.TempDir(),
+		Reg:           reg,
+		DiskAdmission: testDiskAdmitter{},
+		Custom:        NewCustomStore(d),
+		State:         NewInstallStore(d),
+		RepoFetch:     fetch,
+		DiskAvail:     func(string) (int64, error) { return int64(80) << 30, nil },
 	}
 	const id = "repo-test-model"
 	if err := in.AddCustom(context.Background(), Model{

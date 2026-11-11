@@ -46,6 +46,9 @@ type SelectRequest struct {
 	// CapacityManagedGPU defers transient free-memory admission to the host
 	// broker. Total hardware capacity must still fit; this never grants GPU use.
 	CapacityManagedGPU bool
+	// ForceCPU excludes models without a CPU path and resolves CPU execution even
+	// when the host has a fitting GPU.
+	ForceCPU bool
 }
 
 // Selection is the selector's verdict for one operation.
@@ -82,7 +85,13 @@ func Fit(m Model, h capabilities.Host) HardwareFit {
 }
 
 func (req SelectRequest) fit(m Model) HardwareFit {
-	return fitGPU(m, req.Host, req.CapacityManagedGPU)
+	fit := fitGPU(m, req.Host, req.CapacityManagedGPU)
+	if req.ForceCPU {
+		fit.GPUViable = false
+		fit.Runnable = m.Hardware.CPUCapable
+		fit.VRAMShortfallGB = 0
+	}
+	return fit
 }
 
 func fitGPU(m Model, h capabilities.Host, capacityManaged bool) HardwareFit {
@@ -225,6 +234,9 @@ func (r *Registry) SelectCandidates(req SelectRequest, isEnabled EnabledFunc) ([
 		return nil, fmt.Errorf("%w: %q", ErrNoEnabledModel, req.Operation)
 	}
 	if len(runnable) == 0 {
+		if req.ForceCPU {
+			return nil, fmt.Errorf("%w: no enabled CPU-capable model for %q", ErrNotRunnable, req.Operation)
+		}
 		if supportedHostCount == 0 && unsupportedOSArch {
 			return nil, fmt.Errorf("%w: %q has no enabled model declared for host %s/%s", ErrNotRunnable, req.Operation, req.Host.OS, req.Host.Arch)
 		}

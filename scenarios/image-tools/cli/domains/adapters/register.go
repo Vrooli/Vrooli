@@ -36,5 +36,12 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("adapters: load from manifest: %w", err)
 	}
+	group.Subcommands = append(group.Subcommands, cliapp.Command{
+		Name:        "terms",
+		Description: "Print an adapter's full versioned model license terms",
+		NeedsAPI:    true,
+		Args:        cliapp.ArgSchema{Positionals: []cliapp.Positional{{Name: "license", Required: true, Description: "License id, e.g. openrail-m"}}},
+		RunCtx:      h.terms,
+	})
 	return group, nil
 }

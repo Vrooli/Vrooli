@@ -8,7 +8,7 @@
       "reset": "none",
       "purpose": "workspace-edit-smoke"
     },
-    "execution_mode": "read_only"
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1280,
@@ -26,7 +26,9 @@
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Navigate to the Workspace" }
+        "metadata": {
+          "label": "Navigate to the Workspace"
+        }
       }
     },
     {
@@ -38,7 +40,9 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Mode switcher visible (Workspace shell composed)" }
+        "metadata": {
+          "label": "Mode switcher visible (Workspace shell composed)"
+        }
       }
     },
     {
@@ -50,7 +54,9 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Canvas upload dropzone visible" }
+        "metadata": {
+          "label": "Canvas upload dropzone visible"
+        }
       }
     },
     {
@@ -62,7 +68,9 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Edit-mode operation picker visible" }
+        "metadata": {
+          "label": "Edit-mode operation picker visible"
+        }
       }
     },
     {
@@ -72,12 +80,16 @@
         "assert": {
           "selector": "@selector/workspace.operationSelect",
           "mode": "ASSERTION_MODE_TEXT_CONTAINS",
-          "expected": { "stringValue": "Resize" },
+          "expected": {
+            "stringValue": "Resize"
+          },
           "case_sensitive": true,
           "timeout_ms": 10000,
           "failure_message": "Operation picker does not list 'Resize' — OpsService.ListOperations did not reach the Workspace (check the ops module is mounted in main.go, the OpsService handler is registered, and ui/src/api/ops.ts targets the right transport)."
         },
-        "metadata": { "label": "Assert the deterministic op catalog renders in the Inspector (proves discovery end-to-end)" }
+        "metadata": {
+          "label": "Assert the deterministic op catalog renders in the Inspector (proves discovery end-to-end)"
+        }
       }
     }
   ]

@@ -76,7 +76,14 @@ export function CreatePanel({
   const [variations, setVariations] = useState<string>(VARIATION_OPTIONS[0]);
   const [modelOverride, setModelOverride] = useState("");
   const [allowByok, setAllowByok] = useState(false);
+  const [forceCpu, setForceCpu] = useState(false);
+  const [cfgScale, setCfgScale] = useState("");
+  const [imageGuidance, setImageGuidance] = useState("");
+  const [cropToMask, setCropToMask] = useState(false);
+  const [cropContextPixels, setCropContextPixels] = useState("96");
   const [mask, setMask] = useState<File | null>(null);
+  const [poseSource, setPoseSource] = useState<File | null>(null);
+  const [openRailMAccepted, setOpenRailMAccepted] = useState(false);
 
   const generationOps = useMemo(
     () => (aiOpsQuery.data?.operations ?? []).filter((op) => op.category === "generation"),
@@ -110,7 +117,13 @@ export function CreatePanel({
   // A new op means a new input contract; drop a stale mask and re-affirm consent.
   useEffect(() => {
     setMask(null);
+    setPoseSource(null);
+    setOpenRailMAccepted(false);
     setConsentAffirmed(false);
+    setCfgScale("");
+    setImageGuidance("");
+    setCropToMask(false);
+    setCropContextPixels("96");
   }, [operation]);
 
   const requiresImage = opInfo?.requiresImage ?? false;
@@ -155,6 +168,37 @@ export function CreatePanel({
     if (allowByok) {
       out.allowByok = true;
     }
+    if (forceCpu) {
+      out.forceCpu = true;
+    }
+    if (operation === "edit_instruct" && cfgScale.trim()) {
+      const value = Number(cfgScale);
+      if (Number.isFinite(value)) out.cfgScale = value;
+    }
+    if (operation === "edit_instruct" && imageGuidance.trim()) {
+      const value = Number(imageGuidance);
+      if (Number.isFinite(value)) out.strength = value;
+    }
+    if (operation === "inpaint" && cropToMask) {
+      const context = Number(cropContextPixels);
+      out.inpaint = {
+        cropToMask: true,
+        contextPixels: Number.isInteger(context) && context >= 0 && context <= 512 ? context : 96,
+        maxEdgePx: 0,
+        neutralizeMaskedPixels: false,
+      };
+    }
+    if (operation === "text_to_image" && poseSource) {
+      out.adapters = [
+        {
+          adapterId: "controlnet-openpose-sd15",
+          scale: 1,
+          conditioningImageKey: "",
+          preprocessorOverride: "pose",
+          licenseTermsAccepted: openRailMAccepted,
+        },
+      ];
+    }
     if (consentAffirmed) {
       out.consentAffirmed = true;
     }
@@ -171,15 +215,26 @@ export function CreatePanel({
     seed,
     modelOverride,
     allowByok,
+    forceCpu,
+    cfgScale,
+    imageGuidance,
+    cropToMask,
+    cropContextPixels,
     consentAffirmed,
+    poseSource,
+    openRailMAccepted,
   ]);
 
   const missingImage = requiresImage && !input;
   const missingMask = requiresMask && !mask;
   const missingPrompt = promptDriven && !prompt.trim();
   const missingConsent = requiresConsent && !consentAffirmed;
+  // Keep this route staged while the adapter and its pinned pose runtime are
+  // not installed and output-quality-qualified. Terms acceptance is captured
+  // in the typed request for any future submission.
+  const poseRouteUnavailable = operation === "text_to_image" && !!poseSource;
   const canRun =
-    !busy && !!operation && !missingImage && !missingMask && !missingPrompt && !missingConsent;
+    !busy && !!operation && !missingImage && !missingMask && !missingPrompt && !missingConsent && !poseRouteUnavailable;
 
   const randomizeSeed = () => {
     setSeed(String(Math.floor(Math.random() * 1_000_000_000)));
@@ -193,7 +248,7 @@ export function CreatePanel({
     create.start(
       operation,
       params,
-      requiresImage ? input ?? undefined : undefined,
+      requiresImage ? input ?? undefined : operation === "text_to_image" ? poseSource ?? undefined : undefined,
       requiresMask ? mask ?? undefined : undefined,
     );
   };
@@ -271,6 +326,40 @@ export function CreatePanel({
                 onChange={(e) => setPrompt(e.target.value)}
               />
             </label>
+          )}
+
+          {showSize && (
+            <fieldset className="flex flex-col gap-2 rounded-control border border-app-border bg-app-surface-muted p-3">
+              <legend className="px-1 text-xs font-medium text-app-foreground">Pose control · setup pending</legend>
+              <p className="text-xs text-app-muted-foreground">
+                The operator approved this exact ControlNet under CreativeML OpenRAIL-M. The adapter and pinned pose runtime still need safe installation and output-quality qualification. You can stage a synthetic pose source; generation remains disabled until those checks complete.
+              </p>
+              <label className="flex flex-col gap-1 text-xs text-app-muted-foreground">
+                <span>Stage a pose source image (synthetic images only)</span>
+                <input
+                  data-testid="create-pose-source"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => setPoseSource(event.currentTarget.files?.[0] ?? null)}
+                />
+              </label>
+              {poseSource && <span className="text-xs text-app-muted-foreground">Staged: {poseSource.name}</span>}
+              <label className="flex items-start gap-2 text-xs text-app-muted-foreground">
+                <input
+                  data-testid="create-pose-license-acceptance"
+                  type="checkbox"
+                  checked={openRailMAccepted}
+                  onChange={(event) => setOpenRailMAccepted(event.currentTarget.checked)}
+                />
+                <span>
+                  I accept the{" "}
+                  <a className="underline" href="/api/v1/adapters/controlnet-openpose-sd15/license-terms" target="_blank" rel="noreferrer">
+                    CreativeML OpenRAIL-M license
+                  </a>{" "}
+                  and agree to its use restrictions, including Attachment A, and to pass the license and restrictions to recipients if I redistribute the model or a derivative.
+                </span>
+              </label>
+            </fieldset>
           )}
 
           {requiresImage &&
@@ -393,6 +482,72 @@ export function CreatePanel({
                 onChange={setAllowByok}
                 data-testid={selectors.workspace.create.byok}
               />
+              <Toggle
+                label={t(strings.workspace.create.forceCpuLabel)}
+                checked={forceCpu}
+                onChange={setForceCpu}
+                data-testid={selectors.workspace.create.forceCpu}
+              />
+              {operation === "edit_instruct" && (
+                <>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-app-muted-foreground">
+                      {t(strings.workspace.create.instructionGuidanceLabel)}
+                    </span>
+                    <Input
+                      data-testid={selectors.workspace.create.cfgScale}
+                      type="number"
+                      min={0}
+                      max={20}
+                      step={0.5}
+                      value={cfgScale}
+                      placeholder="7.5"
+                      onChange={(e) => setCfgScale(e.target.value)}
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className="text-xs text-app-muted-foreground">
+                      {t(strings.workspace.create.imageGuidanceLabel)}
+                    </span>
+                    <Input
+                      data-testid={selectors.workspace.create.imageGuidance}
+                      type="number"
+                      min={0}
+                      max={4}
+                      step={0.1}
+                      value={imageGuidance}
+                      placeholder="1.5"
+                      onChange={(e) => setImageGuidance(e.target.value)}
+                    />
+                  </label>
+                </>
+              )}
+              {operation === "inpaint" && (
+                <>
+                  <Toggle
+                    label={t(strings.workspace.create.cropToMaskLabel)}
+                    checked={cropToMask}
+                    onChange={setCropToMask}
+                    data-testid={selectors.workspace.create.cropToMask}
+                  />
+                  {cropToMask && (
+                    <label className="flex flex-col gap-1">
+                      <span className="text-xs text-app-muted-foreground">
+                        {t(strings.workspace.create.cropContextPixelsLabel)}
+                      </span>
+                      <Input
+                        data-testid={selectors.workspace.create.cropContextPixels}
+                        type="number"
+                        min={0}
+                        max={512}
+                        step={16}
+                        value={cropContextPixels}
+                        onChange={(e) => setCropContextPixels(e.target.value)}
+                      />
+                    </label>
+                  )}
+                </>
+              )}
             </div>
           </details>
 
@@ -422,6 +577,7 @@ export function CreatePanel({
                 operationLabel={operationLabel}
                 value={modelOverride}
                 onChange={setModelOverride}
+                forceCpu={forceCpu}
               />
             </div>
           )}

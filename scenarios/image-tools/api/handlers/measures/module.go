@@ -17,6 +17,22 @@ func Module(recorder *internalmeasures.Recorder) module.Module {
 	return module.Module{
 		Name: "measures",
 		Mount: func(r *mux.Router) {
+			r.HandleFunc("/api/v1/measures/usage", func(w http.ResponseWriter, req *http.Request) {
+				if req.Method != http.MethodGet {
+					w.Header().Set("Allow", http.MethodGet)
+					httpx.WriteError(w, http.StatusMethodNotAllowed, httpx.CodeInvalidRequest, "method not allowed")
+					return
+				}
+				usage, err := recorder.ModelUsageSummary(req.Context(), req.URL.Query().Get("model_id"))
+				if err != nil {
+					httpx.WriteError(w, http.StatusInternalServerError, httpx.CodeInternal, "model usage query failed")
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				if err := json.NewEncoder(w).Encode(usage); err != nil {
+					return
+				}
+			}).Methods(http.MethodGet)
 			r.HandleFunc("/api/v1/measures/models", func(w http.ResponseWriter, req *http.Request) {
 				if req.Method != http.MethodGet {
 					w.Header().Set("Allow", http.MethodGet)
@@ -42,6 +58,25 @@ func Module(recorder *internalmeasures.Recorder) module.Module {
 func Schema() string { return internalmeasures.Schema() }
 
 var Endpoints = []module.EndpointDescriptor{{
+	ID:          "model_usage",
+	Path:        "/api/v1/measures/usage",
+	Method:      http.MethodGet,
+	Summary:     "Report each model's successful durable job use",
+	Description: "Returns only recorded successful model-backed job counts and last-success identity; missing models remain unknown.",
+	Category:    "measures",
+	Request:     &module.Schema{Type: "object", Properties: map[string]string{"model_id": "string query parameter (optional)"}},
+	Response:    &module.Schema{Type: "array", Properties: map[string]string{"model_id": "string", "successful_jobs": "integer", "last_successful_at": "string", "last_operation": "string", "last_tier": "string"}},
+	Errors:      []module.ErrorDesc{{Status: http.StatusInternalServerError, Code: httpx.CodeInternal, Description: "The successful model-use query could not be read"}},
+	RESTException: &module.RESTException{
+		Reason: module.RESTReasonOpsProbe,
+		Note:   "Read-only model-use accounting from durable job traces; absent model rows mean use history is unknown.",
+		ProtoPayloads: &module.RESTProtoPayloads{
+			Request:  module.RESTPayload{Transport: "none", Conformance: "none"},
+			Response: module.RESTPayload{Transport: "json", Conformance: "external_shape"},
+			Error:    module.RESTPayload{ProtoFullName: "vrooli.image_tools.v1.shared.ErrorEnvelope", Transport: "json", Conformance: "protojson"},
+		},
+	},
+}, {
 	ID:          "model_profiles",
 	Path:        "/api/v1/measures/models",
 	Method:      http.MethodGet,

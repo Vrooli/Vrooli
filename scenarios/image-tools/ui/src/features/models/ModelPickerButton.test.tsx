@@ -38,6 +38,7 @@ const renderButton = (props: Partial<Parameters<typeof ModelPickerButton>[0]> = 
       operationLabel={props.operationLabel ?? "Upscale"}
       value={props.value ?? ""}
       onChange={props.onChange ?? vi.fn()}
+      forceCpu={props.forceCpu}
     />,
   );
 
@@ -59,7 +60,7 @@ describe("ModelPickerButton", () => {
     renderButton();
     const trigger = await screen.findByTestId(selectors.models.pickerTrigger);
     await waitFor(() => expect(trigger.textContent).toContain("Real-ESRGAN x4"));
-    expect(modelsClient.selectModel).toHaveBeenCalledWith({ operation: "upscale", overrideId: "" });
+    expect(modelsClient.selectModel).toHaveBeenCalledWith({ operation: "upscale", overrideId: "", forceCpu: false });
   });
 
   it("renders a 'none' label when select returns no model", async () => {
@@ -70,14 +71,66 @@ describe("ModelPickerButton", () => {
     expect(await screen.findByTestId(selectors.models.pickerTrigger)).toBeInTheDocument();
   });
 
+  it("shows the effective CPU backend when the model fits the GPU but cannot use it", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.selectModel).mockResolvedValue(
+      makeSelectModelResponse({ model: makeModel({ id: "sd-1.5", name: "Stable Diffusion 1.5" }), gpuViable: true }),
+    );
+    vi.mocked(modelsClient.explainResolution).mockResolvedValue(
+      makeExplainResolutionResponse({
+        resolution: makeResolution({
+          operation: "text_to_image",
+          tier: "local-cpu",
+          gpuViable: true,
+          warnings: ['backend "stable-diffusion.cpp" is CPU-only; running on CPU despite an available GPU'],
+        }),
+      }),
+    );
+
+    renderButton({ operation: "text_to_image", operationLabel: "Generate" });
+    const trigger = await screen.findByTestId(selectors.models.pickerTrigger);
+    await waitFor(() => expect(trigger.textContent).toContain("selected backend has no GPU support"));
+    expect(trigger.textContent).not.toContain("Runs on your GPU");
+  });
+
+  it("resolves and labels an explicitly requested CPU-only run", async () => {
+    const { modelsClient } = await import("../../api/models");
+    vi.mocked(modelsClient.selectModel).mockResolvedValue(
+      makeSelectModelResponse({
+        model: makeModel({ id: "instruct-pix2pix", name: "InstructPix2Pix" }),
+        gpuViable: true,
+      }),
+    );
+    vi.mocked(modelsClient.explainResolution).mockResolvedValue(
+      makeExplainResolutionResponse({
+        resolution: makeResolution({ operation: "edit_instruct", tier: "local-cpu", gpuViable: false }),
+      }),
+    );
+
+    renderButton({ operation: "edit_instruct", operationLabel: "Edit", forceCpu: true });
+    const trigger = await screen.findByTestId(selectors.models.pickerTrigger);
+    await waitFor(() => expect(trigger.textContent).toContain("Runs on CPU (requested)"));
+    expect(modelsClient.selectModel).toHaveBeenCalledWith({
+      operation: "edit_instruct",
+      overrideId: "",
+      forceCpu: true,
+    });
+    expect(modelsClient.explainResolution).toHaveBeenCalledWith({
+      operation: "edit_instruct",
+      modelId: "",
+      forceCpu: true,
+    });
+  });
+
   it("threads the override id into the select query", async () => {
     const { modelsClient } = await import("../../api/models");
     renderButton({ value: "override-x" });
     await screen.findByTestId(selectors.models.pickerTrigger);
     await waitFor(() =>
-      expect(modelsClient.selectModel).toHaveBeenCalledWith({
+    expect(modelsClient.selectModel).toHaveBeenCalledWith({
         operation: "upscale",
         overrideId: "override-x",
+        forceCpu: false,
       }),
     );
   });
@@ -100,7 +153,7 @@ describe("ModelPickerButton", () => {
 
     await user.click(await screen.findByTestId(selectors.models.pickerTrigger));
     expect(screen.getByTestId(selectors.models.picker.sheet)).toBeInTheDocument();
-    await waitFor(() => expect(listOperationModels).toHaveBeenCalledWith("upscale"));
+    await waitFor(() => expect(listOperationModels).toHaveBeenCalledWith("upscale", false));
     await waitFor(() =>
       expect(screen.getByTestId(selectors.models.pickerRow({ id: "m1" }))).toBeInTheDocument(),
     );

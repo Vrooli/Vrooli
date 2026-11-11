@@ -1,0 +1,635 @@
+{
+  "schema": "vrooli.image-tools.platform-matrix/v1",
+  "generated_at": "2026-11-10T22:10:14.523793601Z",
+  "capability_source": "../../../../.vrooli/research/topics/image-tools-foundation/CAPABILITIES.md",
+  "fleet_observed_at": "2026-11-10T22:07:14Z",
+  "receipt_count": 0,
+  "platforms": [
+    {
+      "target_id": "linux-amd64",
+      "goos": "linux",
+      "goarch": "amd64",
+      "capabilities": [
+        {
+          "capability_id": "C01",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C02",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C03",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C04",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C05",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C06",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C07",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C08",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C09",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C10",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C11",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C12",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C13",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C14",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C15",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C16",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C17",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C18",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C19",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C20",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C21",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C22",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C23",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C24",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C25",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        },
+        {
+          "capability_id": "C26",
+          "status": "unqualified",
+          "reason": "no passing per-capability receipt",
+          "node_ids": [
+            "697b6224-6283-4a31-90e2-73724e424c05"
+          ]
+        }
+      ]
+    },
+    {
+      "target_id": "linux-arm64",
+      "goos": "linux",
+      "goarch": "arm64",
+      "capabilities": [
+        {
+          "capability_id": "C01",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C02",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C03",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C04",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C05",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C06",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C07",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C08",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C09",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C10",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C11",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C12",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C13",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C14",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C15",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C16",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C17",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C18",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C19",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C20",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C21",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C22",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C23",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C24",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C25",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C26",
+          "status": "unqualified",
+          "reason": "no node"
+        }
+      ]
+    },
+    {
+      "target_id": "darwin-arm64-metal",
+      "goos": "darwin",
+      "goarch": "arm64",
+      "capabilities": [
+        {
+          "capability_id": "C01",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C02",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C03",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C04",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C05",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C06",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C07",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C08",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C09",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C10",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C11",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C12",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C13",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C14",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C15",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C16",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C17",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C18",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C19",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C20",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C21",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C22",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C23",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C24",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C25",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C26",
+          "status": "unqualified",
+          "reason": "no node"
+        }
+      ]
+    },
+    {
+      "target_id": "windows-amd64",
+      "goos": "windows",
+      "goarch": "amd64",
+      "capabilities": [
+        {
+          "capability_id": "C01",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C02",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C03",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C04",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C05",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C06",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C07",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C08",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C09",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C10",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C11",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C12",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C13",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C14",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C15",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C16",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C17",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C18",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C19",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C20",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C21",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C22",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C23",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C24",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C25",
+          "status": "unqualified",
+          "reason": "no node"
+        },
+        {
+          "capability_id": "C26",
+          "status": "unqualified",
+          "reason": "no node"
+        }
+      ]
+    }
+  ]
+}

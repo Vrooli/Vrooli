@@ -38,8 +38,8 @@ export const modelsClient = createClient(ModelsService, transport);
  * the data source for the model picker — the host-aware menu behind every AI
  * action — where `selectModel` only returns the one model that would run.
  */
-export async function listOperationModels(operation: string): Promise<ListOperationModelsResponse> {
-  return modelsClient.listOperationModels({ operation });
+export async function listOperationModels(operation: string, forceCpu = false): Promise<ListOperationModelsResponse> {
+  return modelsClient.listOperationModels({ operation, forceCpu });
 }
 
 /**

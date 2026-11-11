@@ -3,13 +3,17 @@ package quality
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
@@ -20,7 +24,9 @@ import (
 )
 
 func evaluateCommand(core *cliapp.ScenarioApp, ctx cliapp.RunContext) error {
-	report, err := evaluate(core, ctx.Positional("manifest"), ctx.Flag("baseline"))
+	commandCtx, stopOnSignal := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopOnSignal()
+	report, err := evaluate(commandCtx, core, ctx.Positional("manifest"), ctx.Flag("baseline"))
 	if err != nil {
 		return err
 	}
@@ -46,7 +52,7 @@ func evaluateCommand(core *cliapp.ScenarioApp, ctx cliapp.RunContext) error {
 	return nil
 }
 
-func evaluate(core *cliapp.ScenarioApp, manifestPath, baselinePath string) (*qualityv1.EvaluationReport, error) {
+func evaluate(ctx context.Context, core *cliapp.ScenarioApp, manifestPath, baselinePath string) (*qualityv1.EvaluationReport, error) {
 	body, contentType, err := buildUpload(manifestPath, baselinePath)
 	if err != nil {
 		return nil, err
@@ -55,7 +61,7 @@ func evaluate(core *cliapp.ScenarioApp, manifestPath, baselinePath string) (*qua
 	defer os.Remove(body.Name())
 	hc, base := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
 	base = strings.TrimRight(base, "/")
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, base+"/api/v1/quality/evaluate", body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/api/v1/quality/evaluate", body)
 	if err != nil {
 		return nil, err
 	}
@@ -79,15 +85,21 @@ func evaluate(core *cliapp.ScenarioApp, manifestPath, baselinePath string) (*qua
 	if sub.JobId == "" {
 		return nil, fmt.Errorf("quality submission omitted job identity")
 	}
-	finished, err := jobsconnect.NewJobsServiceClient(hc, base).WaitJob(context.Background(), connect.NewRequest(&jobsv1.WaitJobRequest{Id: sub.JobId}))
+	finished, err := jobsconnect.NewJobsServiceClient(hc, base).WaitJob(ctx, connect.NewRequest(&jobsv1.WaitJobRequest{Id: sub.JobId}))
 	if err != nil {
+		if ctx.Err() != nil {
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			job, cancelErr := cancelCaptionJob(cleanupCtx, core, sub.JobId)
+			cancel()
+			return nil, fmt.Errorf("quality job %s interrupted; cancellation cleanup state=%s: %w", sub.JobId, jobState(job), errors.Join(err, cancelErr))
+		}
 		return nil, fmt.Errorf("wait quality job %s: %w (resume with image-tools jobs wait %s)", sub.JobId, err, sub.JobId)
 	}
 	job := finished.Msg.GetJob()
 	if job.GetState() != jobsv1.JobState_JOB_STATE_SUCCEEDED {
 		return nil, fmt.Errorf("quality job %s: %s", sub.JobId, job.GetError())
 	}
-	req, err = http.NewRequestWithContext(context.Background(), http.MethodGet, base+"/api/v1/blobs/"+job.GetResultRef(), nil)
+	req, err = http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/blobs/"+job.GetResultRef(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -108,6 +120,13 @@ func evaluate(core *cliapp.ScenarioApp, manifestPath, baselinePath string) (*qua
 		return nil, err
 	}
 	return report, nil
+}
+
+func jobState(job *jobsv1.Job) string {
+	if job == nil {
+		return "unknown"
+	}
+	return job.GetState().String()
 }
 
 // Use a bounded temporary upload spool rather than retaining a 64-image set

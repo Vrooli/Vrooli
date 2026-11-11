@@ -6,9 +6,11 @@
     "version": "1",
     "labels": {
       "reset": "none",
-      "purpose": "home-launchpad-smoke"
+      "purpose": "home-launchpad-smoke",
+      "requires_confirmation": "true",
+      "routed_isolation": "true"
     },
-    "execution_mode": "read_only"
+    "execution_mode": "mutating"
   },
   "settings": {
     "viewport_width": 1280,
@@ -26,7 +28,9 @@
           "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
           "timeout_ms": 30000
         },
-        "metadata": { "label": "Navigate to Home" }
+        "metadata": {
+          "label": "Navigate to Home"
+        }
       }
     },
     {
@@ -38,7 +42,9 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Home launchpad composed" }
+        "metadata": {
+          "label": "Home launchpad composed"
+        }
       }
     },
     {
@@ -50,7 +56,9 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Universal entry dropzone visible" }
+        "metadata": {
+          "label": "Universal entry dropzone visible"
+        }
       }
     },
     {
@@ -62,7 +70,9 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Intent-tile groups visible" }
+        "metadata": {
+          "label": "Intent-tile groups visible"
+        }
       }
     },
     {
@@ -72,7 +82,9 @@
         "click": {
           "selector": "@selector/home.tile(name=\"crop\")"
         },
-        "metadata": { "label": "Open the Crop quick-edit task" }
+        "metadata": {
+          "label": "Open the Crop quick-edit task"
+        }
       }
     },
     {
@@ -84,7 +96,9 @@
           "state": "WAIT_STATE_VISIBLE",
           "timeout_ms": 15000
         },
-        "metadata": { "label": "Routed into the Workspace (mode switcher visible)" }
+        "metadata": {
+          "label": "Routed into the Workspace (mode switcher visible)"
+        }
       }
     },
     {
@@ -97,7 +111,9 @@
           "timeout_ms": 10000,
           "failure_message": "Workspace canvas dropzone not visible after a Home tile click — the Home->Workspace intent handoff did not land on a working Workspace (check setWorkspaceIntent/takeWorkspaceIntent and the Workspace mount effect)."
         },
-        "metadata": { "label": "Assert the Workspace canvas composed (intent handoff complete)" }
+        "metadata": {
+          "label": "Assert the Workspace canvas composed (intent handoff complete)"
+        }
       }
     }
   ]

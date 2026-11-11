@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -290,6 +291,7 @@ func newTestEngine(t *testing.T, op string, fp *fakeProvider) (*Engine, *storage
 		Store:          store,
 		ModelInstalled: func(string) bool { return true },
 		ModelsRoot:     t.TempDir(),
+		Disk:           &fakeDiskAdmission{},
 	})
 	if err != nil {
 		t.Fatalf("new engine: %v", err)
@@ -471,6 +473,14 @@ func TestPlan_RequireGPURejectsCPUResolution(t *testing.T) {
 	_, err := eng.Plan(context.Background(), PlanRequest{Operation: "naturalize", RequireGPU: true})
 	if !errors.Is(err, ErrGPURequired) {
 		t.Fatalf("GPU-required CPU plan error = %v, want ErrGPURequired", err)
+	}
+}
+
+func TestPlan_ForceCPURejectsRequireGPU(t *testing.T) {
+	eng, _, _ := newTestEngine(t, "naturalize", &fakeProvider{})
+	_, err := eng.Plan(context.Background(), PlanRequest{Operation: "naturalize", RequireGPU: true, ForceCPU: true})
+	if err == nil || !strings.Contains(err.Error(), "cannot both") {
+		t.Fatalf("conflicting execution tier request error = %v, want a clear conflict", err)
 	}
 }
 
@@ -759,6 +769,80 @@ func TestMaterializeAdapterImages(t *testing.T) {
 	// A missing blob fails closed.
 	if _, err := eng.materializeAdapterImages(ctx, dir, []adapters.ResolvedAdapter{{ID: "x", Kind: adapters.KindIPAdapter, ConditioningImageKey: "blob/missing.png"}}); err == nil {
 		t.Fatal("expected error for a missing conditioning blob")
+	}
+}
+
+func TestMaterializeConditioningImagesDerivesPoseMapWithinJob(t *testing.T) {
+	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
+	ctx := context.Background()
+	if err := store.Put(ctx, "blob/source.png", bytes.NewReader([]byte("synthetic source")), "image/png"); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	registry, err := models.Load()
+	if err != nil {
+		t.Fatalf("load registry: %v", err)
+	}
+	var gotSource string
+	var gotModel string
+	var gotWidth, gotHeight int
+	eng, err := NewEngine(Deps{
+		Registry:       registry,
+		Backends:       backends.New(),
+		Probe:          capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}},
+		Store:          store,
+		ModelInstalled: func(string) bool { return true },
+		PosePreprocessor: func(_ context.Context, model, source, output string, width, height int) error {
+			gotModel = model
+			gotSource = source
+			gotWidth, gotHeight = width, height
+			return os.WriteFile(output, []byte("synthetic OpenPose map"), 0o600)
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	dir := t.TempDir()
+	input := filepath.Join(dir, "input.png")
+	if err := os.WriteFile(input, []byte("already materialized source"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	resolved, err := eng.materializeConditioningImages(ctx, dir, Payload{
+		InputKey: "blob/source.png",
+		Params:   map[string]string{"width": "640", "height": "480"},
+		Adapters: []adapters.ResolvedAdapter{{ID: "controlnet-openpose-sd15", Kind: adapters.KindControlNet, Dir: filepath.Join("/models", "adapters", "controlnet-openpose-sd15"), Preprocessor: adapters.PreprocessorPose, ConditioningImageKey: "blob/source.png"}},
+	}, input)
+	if err != nil {
+		t.Fatalf("materializeConditioningImages: %v", err)
+	}
+	wantModel := filepath.Join("/models", "adapters", "controlnet-openpose-sd15", "pose", "pose_landmarker_full.task")
+	if gotModel != wantModel || gotSource != input || gotWidth != 640 || gotHeight != 480 {
+		t.Fatalf("pose model=%q input=%q size=%dx%d; want model=%q and source 640x480", gotModel, gotSource, gotWidth, gotHeight, wantModel)
+	}
+	if !strings.HasPrefix(resolved[0].ConditioningImageKey, dir) {
+		t.Fatalf("pose map not retained in job temp: %q", resolved[0].ConditioningImageKey)
+	}
+	if data, err := os.ReadFile(resolved[0].ConditioningImageKey); err != nil || string(data) != "synthetic OpenPose map" {
+		t.Fatalf("pose output=%q, err=%v", data, err)
+	}
+}
+
+func TestMaterializeConditioningImagesFailsClosedWithoutPoseRuntime(t *testing.T) {
+	store := storage.NewWithBlobStore(blobstore.NewMemoryBlobStore(), t.TempDir())
+	ctx := context.Background()
+	if err := store.Put(ctx, "blob/source.png", bytes.NewReader([]byte("synthetic source")), "image/png"); err != nil {
+		t.Fatalf("put: %v", err)
+	}
+	registry, err := models.Load()
+	if err != nil {
+		t.Fatalf("load registry: %v", err)
+	}
+	eng, err := NewEngine(Deps{Registry: registry, Backends: backends.New(), Probe: capabilities.FakeProbe{Host: capabilities.Host{OS: "linux", Arch: "amd64", Cores: 8}}, Store: store, ModelInstalled: func(string) bool { return true }})
+	if err != nil {
+		t.Fatalf("NewEngine: %v", err)
+	}
+	_, err = eng.materializeConditioningImages(ctx, t.TempDir(), Payload{InputKey: "blob/source.png", Adapters: []adapters.ResolvedAdapter{{ID: "controlnet-openpose-sd15", Kind: adapters.KindControlNet, Preprocessor: adapters.PreprocessorPose, ConditioningImageKey: "blob/source.png"}}}, "")
+	if err == nil || !strings.Contains(err.Error(), "pose preprocessor is unavailable") {
+		t.Fatalf("error=%v, want unavailable pose preprocessor", err)
 	}
 }
 

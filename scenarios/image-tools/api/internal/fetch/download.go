@@ -15,6 +15,12 @@ type Downloader interface {
 	Download(ctx context.Context, rawURL, destPath string, emit func(done, total int64)) error
 }
 
+// ObservedDownloader can stop a streaming write before the next response chunk
+// is persisted when an admission owner cannot extend its peak.
+type ObservedDownloader interface {
+	DownloadObserved(ctx context.Context, rawURL, destPath string, observe func(done, total int64) error) error
+}
+
 // HTTPDownloader is the production Downloader: a streaming HTTP GET.
 type HTTPDownloader struct {
 	Client *http.Client
@@ -22,6 +28,15 @@ type HTTPDownloader struct {
 
 // Download streams rawURL to destPath, reporting byte progress.
 func (d HTTPDownloader) Download(ctx context.Context, rawURL, destPath string, emit func(done, total int64)) error {
+	return d.DownloadObserved(ctx, rawURL, destPath, func(done, total int64) error {
+		if emit != nil {
+			emit(done, total)
+		}
+		return nil
+	})
+}
+
+func (d HTTPDownloader) DownloadObserved(ctx context.Context, rawURL, destPath string, observe func(done, total int64) error) error {
 	client := d.Client
 	if client == nil {
 		client = http.DefaultClient
@@ -46,7 +61,7 @@ func (d HTTPDownloader) Download(ctx context.Context, rawURL, destPath string, e
 	defer f.Close()
 
 	total := resp.ContentLength
-	src := &progressReader{r: resp.Body, total: total, emit: emit}
+	src := &progressReader{r: resp.Body, total: total, observe: observe}
 	if _, err := io.Copy(f, src); err != nil {
 		return err
 	}
@@ -54,16 +69,21 @@ func (d HTTPDownloader) Download(ctx context.Context, rawURL, destPath string, e
 }
 
 type progressReader struct {
-	r     io.Reader
-	done  int64
-	total int64
-	emit  func(done, total int64)
+	r       io.Reader
+	done    int64
+	total   int64
+	emit    func(done, total int64)
+	observe func(done, total int64) error
 }
 
 func (pr *progressReader) Read(p []byte) (int, error) {
 	n, err := pr.r.Read(p)
 	pr.done += int64(n)
-	if pr.emit != nil {
+	if pr.observe != nil {
+		if observeErr := pr.observe(pr.done, pr.total); observeErr != nil {
+			return 0, observeErr
+		}
+	} else if pr.emit != nil {
 		pr.emit(pr.done, pr.total)
 	}
 	return n, err

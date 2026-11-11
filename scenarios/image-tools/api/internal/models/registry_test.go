@@ -122,6 +122,26 @@ func TestSwinIRWeightsRequireSeparateRightsConfirmation(t *testing.T) {
 	}
 }
 
+func TestRestoreFormerPlusPlusWeightsRequireRightsConfirmation(t *testing.T) {
+	r, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, ok := r.ByID("restoreformer-plus-plus")
+	if !ok {
+		t.Fatal("RestoreFormer++ model not found")
+	}
+	if model.Enabled || model.CapabilityLabels.CommercialUse != CommercialUseConditional {
+		t.Errorf("RestoreFormer++ rights = enabled:%t commercial_use:%q, want disabled/conditional until checkpoint rights are clear", model.Enabled, model.CapabilityLabels.CommercialUse)
+	}
+	notes := strings.ToLower(model.CapabilityLabels.CommercialUseNotes)
+	for _, want := range []string{"ffhq", "cc-by-nc", "cc-by-nc-sa", "restoreformerplusplus", "nvlabs/ffhq-dataset"} {
+		if !strings.Contains(notes, want) {
+			t.Errorf("RestoreFormer++ rights notes = %q, want %q", model.CapabilityLabels.CommercialUseNotes, want)
+		}
+	}
+}
+
 func TestDefaultNSFWModelUsesPinnedRunnableONNXArtifact(t *testing.T) {
 	r, err := Load()
 	if err != nil {

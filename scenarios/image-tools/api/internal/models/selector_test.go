@@ -98,6 +98,23 @@ func TestSelectPrefersEnabledQualityOnGPU(t *testing.T) {
 	}
 }
 
+func TestForceCPUSelectsCPUCapableDefaultEvenOnGpuHost(t *testing.T) {
+	r := testRegistry(t)
+	sel, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12), ForceCPU: true}, func(string) bool { return true })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sel.Model.ID != "cpu-default" || sel.GPUViable {
+		t.Fatalf("forced CPU selection = %+v, want cpu-default on CPU", sel)
+	}
+	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12), OverrideID: "gpu-quality", ForceCPU: true}, func(string) bool { return true }); !errors.Is(err, ErrOverrideInvalid) {
+		t.Fatalf("GPU-only override under forced CPU = %v, want ErrOverrideInvalid", err)
+	}
+	if _, err := r.Select(SelectRequest{Operation: "upscale", Host: gpuHost(12), ForceCPU: true}, func(id string) bool { return id == "gpu-quality" }); !errors.Is(err, ErrNotRunnable) || !strings.Contains(err.Error(), "CPU-capable") {
+		t.Fatalf("no CPU model error = %v, want actionable CPU-capability error", err)
+	}
+}
+
 // A GPU with enough total VRAM but insufficient free VRAM must not be treated as
 // GPU-viable; the selector should fall back to a CPU-capable default instead of
 // risking OOM on a busy shared host.

@@ -234,6 +234,14 @@
             {
               "name": "quality-policy",
               "description": "Candidate ordering policy: fast, balanced, or quality"
+            },
+            {
+              "name": "force-cpu",
+              "bool": true,
+              "description": "Resolve only CPU-capable models and show the CPU execution path",
+              "bind": {
+                "field": "force_cpu"
+              }
             }
           ],
           "binding": {
@@ -1483,6 +1491,28 @@
           "binding": {
             "kind": "local",
             "handler": "model_profiles"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          }
+        },
+        {
+          "name": "usage",
+          "description": "Report recorded successful model-backed jobs and each model's latest successful use",
+          "needs_api": true,
+          "flags": [
+            {
+              "name": "model",
+              "description": "Filter by model id"
+            }
+          ],
+          "binding": {
+            "kind": "local",
+            "handler": "model_usage"
           },
           "governance": {
             "effect": "read",

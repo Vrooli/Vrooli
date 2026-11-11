@@ -53,6 +53,7 @@ import { CreatePanel } from "./CreatePanel";
 import type { UseCreate } from "./useCreate";
 
 const PNG = new File(["bytes"], "in.png", { type: "image/png" });
+const MASK = new File(["mask"], "mask.png", { type: "image/png" });
 
 const fakeCreate = (overrides: Partial<UseCreate> = {}): UseCreate => ({
   phase: "idle",
@@ -124,6 +125,27 @@ describe("CreatePanel", () => {
     expect(screen.getByTestId(selectors.workspace.create.prompt)).toBeInTheDocument();
   });
 
+  it("stages a synthetic pose source and requires the versioned license acceptance while runtime gates stay closed", async () => {
+    const user = userEvent.setup();
+    const create = fakeCreate();
+    renderPanel(create);
+    const prompt = await screen.findByTestId(selectors.workspace.create.prompt);
+    await user.type(prompt, "a synthetic stick figure running");
+    const run = screen.getByTestId(selectors.workspace.create.run);
+    expect(run).toBeEnabled();
+
+    const poseSource = new File(["synthetic pose"], "synthetic-pose.png", { type: "image/png" });
+    await user.upload(screen.getByTestId("create-pose-source"), poseSource);
+
+    expect(screen.getByText(/operator approved this exact ControlNet under CreativeML OpenRAIL-M/i)).toBeInTheDocument();
+    expect(screen.getByText("Staged: synthetic-pose.png")).toBeInTheDocument();
+    expect(screen.getByTestId("create-pose-license-acceptance")).not.toBeChecked();
+    await user.click(screen.getByTestId("create-pose-license-acceptance"));
+    expect(screen.getByTestId("create-pose-license-acceptance")).toBeChecked();
+    expect(run).toBeDisabled();
+    expect(create.start).not.toHaveBeenCalled();
+  });
+
   it("gates run on a non-empty prompt, then starts text-to-image with the prompt", async () => {
     const user = userEvent.setup();
     const create = fakeCreate();
@@ -177,7 +199,7 @@ describe("CreatePanel", () => {
     await expectNoA11yViolations(container);
   });
 
-  it("threads size, seed, variations, negative and BYOK into the params", async () => {
+  it("threads size, seed, variations, negative, BYOK and CPU-only execution into the params", async () => {
     const user = userEvent.setup();
     const create = fakeCreate();
     renderPanel(create);
@@ -200,6 +222,7 @@ describe("CreatePanel", () => {
     // a free-text input and into the host-aware ModelPickerButton — covered there.)
     await user.type(screen.getByTestId(selectors.workspace.create.negative), "blurry");
     await user.click(screen.getByTestId(selectors.workspace.create.byok));
+    await user.click(screen.getByTestId(selectors.workspace.create.forceCpu));
 
     await user.click(screen.getByTestId(selectors.workspace.create.run));
 
@@ -213,9 +236,56 @@ describe("CreatePanel", () => {
         variations: 3,
         seed: 42n,
         allowByok: true,
+        forceCpu: true,
       }),
       undefined,
       undefined,
+    );
+  });
+
+  it("threads instruction and image guidance for instruction edits", async () => {
+    const user = userEvent.setup();
+    const create = fakeCreate();
+    renderPanel(create, PNG);
+
+    await user.click(await screen.findByTestId(selectors.workspace.createAction({ name: "edit_instruct" })));
+    await user.type(screen.getByTestId(selectors.workspace.create.prompt), "recolor the stars");
+    await user.click(screen.getByTestId(selectors.workspace.create.advanced));
+    await user.type(screen.getByTestId(selectors.workspace.create.cfgScale), "10");
+    await user.type(screen.getByTestId(selectors.workspace.create.imageGuidance), "2");
+    await user.click(screen.getByTestId(selectors.workspace.create.forceCpu));
+    await user.click(screen.getByTestId(selectors.workspace.create.run));
+
+    expect(create.start).toHaveBeenCalledWith(
+      "edit_instruct",
+      expect.objectContaining({ prompt: "recolor the stars", cfgScale: 10, strength: 2, forceCpu: true }),
+      PNG,
+      undefined,
+    );
+  });
+
+  it("sends explicit contextual crop settings with an inpaint mask", async () => {
+    const user = userEvent.setup();
+    const create = fakeCreate();
+    renderPanel(create, PNG);
+
+    await user.click(await screen.findByTestId(selectors.workspace.createAction({ name: "inpaint" })));
+    await user.upload(screen.getByTestId(selectors.workspace.mask.upload), MASK);
+    await user.type(screen.getByTestId(selectors.workspace.create.prompt), "fill the masked area");
+    await user.click(screen.getByTestId(selectors.workspace.create.advanced));
+    await user.click(screen.getByTestId(selectors.workspace.create.cropToMask));
+    await user.clear(screen.getByTestId(selectors.workspace.create.cropContextPixels));
+    await user.type(screen.getByTestId(selectors.workspace.create.cropContextPixels), "128");
+    await user.click(screen.getByTestId(selectors.workspace.create.run));
+
+    expect(create.start).toHaveBeenCalledWith(
+      "inpaint",
+      expect.objectContaining({
+        prompt: "fill the masked area",
+        inpaint: { cropToMask: true, contextPixels: 128, maxEdgePx: 0, neutralizeMaskedPixels: false },
+      }),
+      PNG,
+      MASK,
     );
   });
 

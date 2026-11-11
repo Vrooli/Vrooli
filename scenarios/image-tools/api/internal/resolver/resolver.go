@@ -87,6 +87,9 @@ type Request struct {
 	Host               capabilities.Host
 	AllowBYOK          bool
 	CapacityManagedGPU bool
+	// ForceCPU selects only models with a declared CPU path and resolves their
+	// local CPU backend even when the host has a fitting GPU.
+	ForceCPU bool
 	// FallbackPolicy resolves the tier ladder: local_only forbids a remote tier,
 	// cloud_allowed permits it, any prefers local and allows cloud as fallback.
 	// Empty leaves AllowBYOK as the caller set it.
@@ -148,6 +151,7 @@ func (r *Resolver) Resolve(ctx context.Context, req Request) (Resolution, error)
 		AllowBYOK:          allowBYOK,
 		PreferRemote:       req.PreferRemote,
 		CapacityManagedGPU: req.CapacityManagedGPU,
+		ForceCPU:          req.ForceCPU,
 	}, req.IsEnabled)
 	if err != nil {
 		return Resolution{}, err

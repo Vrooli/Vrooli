@@ -8,7 +8,7 @@
       "reset": "none",
       "purpose": "library-gallery-smoke"
     },
-    "execution_mode": "read_only"
+    "execution_mode": "observer"
   },
   "settings": {
     "viewport_width": 1280,

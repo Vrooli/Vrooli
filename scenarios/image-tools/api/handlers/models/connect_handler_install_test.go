@@ -14,6 +14,7 @@ import (
 	"connectrpc.com/connect"
 	apidb "github.com/vrooli/api-core/database"
 
+	"github.com/vrooli/vrooli/packages/capacity"
 	"image-tools/internal/capabilities"
 	internaljobs "image-tools/internal/jobs"
 	internalmodels "image-tools/internal/models"
@@ -51,10 +52,11 @@ func newInstallHandler(t *testing.T) (*connectHandler, *internalmodels.Installer
 		t.Fatalf("ensure schemas: %v", err)
 	}
 	installer := &internalmodels.Installer{
-		Root:   t.TempDir(),
-		Reg:    reg,
-		Custom: internalmodels.NewCustomStore(d),
-		State:  internalmodels.NewInstallStore(d),
+		Root:          t.TempDir(),
+		Reg:           reg,
+		DiskAdmission: handlerDiskAdmitter{},
+		Custom:        internalmodels.NewCustomStore(d),
+		State:         internalmodels.NewInstallStore(d),
 		Download: downloaderTo(func(dest string) error {
 			// Above the installer's 1 KiB artifact-validation floor and not HTML,
 			// so it passes validation (the bytes stand in for a real weight).
@@ -91,10 +93,61 @@ func newInstallHandler(t *testing.T) (*connectHandler, *internalmodels.Installer
 	return h, installer, sub
 }
 
+type handlerDiskAdmitter struct{}
+
+func (handlerDiskAdmitter) ReserveDiskJob(_ context.Context, request capacity.DiskJobRequest) (capacity.DiskJobLease, error) {
+	return &handlerDiskLease{receipt: capacity.DiskJobReceipt{ID: request.JobID, OwnerID: request.OwnerID, JobID: request.JobID, Status: "active"}}, nil
+}
+
+type handlerDiskLease struct{ receipt capacity.DiskJobReceipt }
+
+func (l *handlerDiskLease) Heartbeat(context.Context) error { return nil }
+func (l *handlerDiskLease) Observe(context.Context) (capacity.DiskJobHeadroom, error) {
+	return capacity.DiskJobHeadroom{LeaseID: l.receipt.ID, Status: "active"}, nil
+}
+func (l *handlerDiskLease) Extend(context.Context, []capacity.DiskJobPath) (capacity.DiskJobReceipt, error) {
+	return l.receipt, nil
+}
+func (l *handlerDiskLease) SamplePath(context.Context, string, int64, int64) (capacity.DiskJobReceipt, error) {
+	return l.receipt, nil
+}
+func (l *handlerDiskLease) Complete(context.Context) (capacity.DiskJobReceipt, error) {
+	l.receipt.Status = "completed"
+	return l.receipt, nil
+}
+func (l *handlerDiskLease) Release(ctx context.Context) error    { _, err := l.Complete(ctx); return err }
+func (l *handlerDiskLease) Reservation() capacity.DiskJobReceipt { return l.receipt }
+
 type installListQueryCounter struct {
 	internalmodels.SQLExecutor
 	listReads int
 	rowReads  int
+}
+
+type installStateRouteContextKey struct{}
+
+type installStateSQLRoute struct {
+	primary *sql.DB
+	test    *sql.DB
+}
+
+func (r installStateSQLRoute) db(ctx context.Context) *sql.DB {
+	if ctx.Value(installStateRouteContextKey{}) == "test" {
+		return r.test
+	}
+	return r.primary
+}
+
+func (r installStateSQLRoute) ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error) {
+	return r.db(ctx).ExecContext(ctx, query, args...)
+}
+
+func (r installStateSQLRoute) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
+	return r.db(ctx).QueryContext(ctx, query, args...)
+}
+
+func (r installStateSQLRoute) QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row {
+	return r.db(ctx).QueryRowContext(ctx, query, args...)
 }
 
 func (c *installListQueryCounter) QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error) {
@@ -150,6 +203,33 @@ func TestInstallStatesProjectsBuildReadinessFromListedRecord(t *testing.T) {
 	}
 	if counter.listReads != 1 || counter.rowReads != 0 {
 		t.Fatalf("install state reads = list:%d row:%d, want one bulk list and no repeated per-model lookup", counter.listReads, counter.rowReads)
+	}
+}
+
+func TestInstallStatesReadsHostModelInventoryOutsideRoutedTestDatabase(t *testing.T) {
+	h, installer, _ := newInstallHandler(t)
+	primary := db.NewSQLite(t)
+	testPool := db.NewSQLite(t)
+	for _, store := range []*sql.DB{primary, testPool} {
+		if err := apidb.EnsureSchemas(context.Background(), store, apidb.SchemaProviderFunc(internalmodels.Schema)); err != nil {
+			t.Fatalf("ensure model schema: %v", err)
+		}
+	}
+	state := internalmodels.NewInstallStore(installStateSQLRoute{primary: primary, test: testPool})
+	if err := state.Set(context.Background(), internalmodels.InstallRecord{
+		ID: "sd-1.5", Installed: true, Path: "/host/models/sd-1.5", SizeBytes: 4_265_146_304,
+	}); err != nil {
+		t.Fatalf("write host install inventory: %v", err)
+	}
+	installer.State = state
+
+	routedRequest := context.WithValue(context.Background(), installStateRouteContextKey{}, "test")
+	states, err := h.installStates(routedRequest)
+	if err != nil {
+		t.Fatalf("read host install inventory: %v", err)
+	}
+	if record, ok := states["sd-1.5"]; !ok || !record.Installed {
+		t.Fatalf("install state for sd-1.5 = %+v, found=%t; want host-installed model visible in isolated workflow", record, ok)
 	}
 }
 
@@ -214,6 +294,17 @@ type downloaderTo func(dest string) error
 
 func (fn downloaderTo) Download(_ context.Context, _, dest string, _ func(int64, int64)) error {
 	return fn(dest)
+}
+
+func (fn downloaderTo) DownloadObserved(_ context.Context, _, dest string, observe func(int64, int64) error) error {
+	if err := fn(dest); err != nil {
+		return err
+	}
+	info, err := os.Stat(dest)
+	if err != nil {
+		return err
+	}
+	return observe(info.Size(), info.Size())
 }
 
 func TestInstallModelSubmitsJob(t *testing.T) {

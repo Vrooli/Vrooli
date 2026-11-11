@@ -11,6 +11,7 @@ import (
 
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/packages/capacity"
+	"image-tools/internal/fetch"
 )
 
 type buildCapacityStub struct {
@@ -220,6 +221,24 @@ func TestBuildUsesExactNoReclaimRAMAdmissionAndReleases(t *testing.T) {
 	}
 	if !lease.released || !broker.closed || !owner.released {
 		t.Fatalf("capacity lifecycle incomplete: lease released=%v broker closed=%v owner released=%v", lease.released, broker.closed, owner.released)
+	}
+}
+
+func TestBuildTempCleanupFailureIsMarkedUnverified(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".lama-export-in-progress.onnx")
+	if err := os.WriteFile(path, []byte("partial export"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	removeErr := errors.New("simulated filesystem refusal")
+	err := removeBuildTempPaths([]string{path}, func(string) error { return removeErr })
+	if !errors.Is(err, fetch.ErrCleanupUnverified) || !errors.Is(err, removeErr) {
+		t.Fatalf("cleanup error=%v, want cleanup sentinel and underlying failure", err)
+	}
+	if _, statErr := os.Stat(path); statErr != nil {
+		t.Fatalf("injected cleanup failure removed fixture: %v", statErr)
+	}
+	if err := removeBuildTempPaths([]string{path}, os.RemoveAll); err != nil {
+		t.Fatalf("verified cleanup: %v", err)
 	}
 }
 

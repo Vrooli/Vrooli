@@ -147,6 +147,44 @@ func TestRoutedStoreWritesOnlyToLeasedRoot(t *testing.T) {
 	}
 }
 
+func TestReservationRootUsesDerivedOutputPlacement(t *testing.T) {
+	paths := corestorage.Paths{CacheDir: t.TempDir(), DataDir: t.TempDir()}
+	store, err := NewWithRoutedRoots(paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := store.ReservationRoot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(paths.CacheDir, "blobs")
+	if root != want {
+		t.Fatalf("reservation root=%q, want %q", root, want)
+	}
+	if info, err := os.Stat(root); err != nil || !info.IsDir() {
+		t.Fatalf("reservation root not prepared: info=%v err=%v", info, err)
+	}
+}
+
+func TestImportReservationRootUsesInputPlacement(t *testing.T) {
+	paths := corestorage.Paths{CacheDir: t.TempDir(), DataDir: t.TempDir()}
+	store, err := NewWithRoutedRoots(paths, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := store.ImportReservationRoot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(paths.DataDir, "blobs")
+	if root != want {
+		t.Fatalf("reservation root=%q, want %q", root, want)
+	}
+	if info, err := os.Stat(root); err != nil || !info.IsDir() {
+		t.Fatalf("reservation root not prepared: info=%v err=%v", info, err)
+	}
+}
+
 func TestRoutedStoreFailsClosedWithoutLease(t *testing.T) {
 	primary := corestorage.Paths{ConfigDir: t.TempDir(), DataDir: t.TempDir(), CacheDir: t.TempDir(), LogsDir: t.TempDir(), StateDir: t.TempDir()}
 	routes := filerouting.New(primary)

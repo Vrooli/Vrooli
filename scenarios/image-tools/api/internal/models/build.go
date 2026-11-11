@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/envkit-go"
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/packages/capacity"
+	"image-tools/internal/fetch"
 )
 
 const (
@@ -461,10 +462,16 @@ func (in *Installer) ensureBuild(ctx context.Context, m Model, dir, jobID string
 
 	outputStage := filepath.Join(dir, ".lama-export-in-progress.onnx")
 	receiptStage := filepath.Join(dir, ".lama-export-in-progress.json")
-	_ = os.Remove(outputStage)
-	_ = os.Remove(receiptStage)
-	defer os.Remove(outputStage)
-	defer os.Remove(receiptStage)
+	failurePath := filepath.Join(dir, ".lama-export-failure.json")
+	stagePaths := []string{outputStage, receiptStage, failurePath}
+	if err := removeBuildTempPaths(stagePaths, os.RemoveAll); err != nil {
+		return "", fmt.Errorf("models: remove stale exporter temporary files: %w", err)
+	}
+	defer func() {
+		if err := removeBuildTempPaths(stagePaths, os.RemoveAll); err != nil {
+			buildErr = errors.Join(buildErr, fmt.Errorf("models: exporter temporary-file cleanup: %w", err))
+		}
+	}()
 	args := []string{"--source-archive", sourcePath, "--checkpoint", checkpointPath, "--reference-onnx", in.Build.ReferenceONNX, "--output", outputStage, "--receipt", receiptStage, "--capacity-claim-bytes", fmt.Sprint(lamaBuildRAMBytes), "--cpu-claim-millicores", fmt.Sprint(lamaBuildCPUMillicores)}
 	extraEnv := []string{"OMP_NUM_THREADS=" + lamaBuildTorchThreads, "MKL_NUM_THREADS=" + lamaBuildTorchThreads, "OPENBLAS_NUM_THREADS=" + lamaBuildTorchThreads, "NUMEXPR_NUM_THREADS=" + lamaBuildTorchThreads, "VECLIB_MAXIMUM_THREADS=" + lamaBuildTorchThreads}
 	if in.Build.PythonPath != "" {
@@ -479,8 +486,6 @@ func (in *Installer) ensureBuild(ctx context.Context, m Model, dir, jobID string
 	if strings.TrimSpace(jobID) == "" || in.State == nil {
 		return "", errors.New("models: native exporter operation requires a durable install job identity and operation store")
 	}
-	failurePath := filepath.Join(dir, ".lama-export-failure.json")
-	_ = os.Remove(failurePath)
 	fullArgs = append(fullArgs, "--failure-report", failurePath)
 	output, runErr, retainRAMClaim = in.runOwnedBuild(buildCtx, jobID, m.ID, dir, in.Build.Python, fullArgs, extraEnv)
 	if runErr != nil {
@@ -488,7 +493,6 @@ func (in *Installer) ensureBuild(ctx context.Context, m Model, dir, jobID string
 			output = data
 		}
 	}
-	_ = os.Remove(failurePath)
 	if runErr != nil {
 		detail := strings.TrimSpace(string(output))
 		if len(detail) > 2048 {
@@ -517,10 +521,33 @@ func (in *Installer) ensureBuild(ctx context.Context, m Model, dir, jobID string
 		return "", fmt.Errorf("models: publish built ONNX: %w", err)
 	}
 	if err := os.Rename(receiptStage, receiptPath); err != nil {
-		_ = os.Remove(outputPath)
-		return "", fmt.Errorf("models: publish build receipt: %w", err)
+		cleanupErr := removeBuildTempPaths([]string{outputPath}, os.RemoveAll)
+		return "", errors.Join(fmt.Errorf("models: publish build receipt: %w", err), cleanupErr)
 	}
 	return sum, nil
+}
+
+func removeBuildTempPaths(paths []string, removeAll func(string) error) error {
+	if removeAll == nil {
+		removeAll = os.RemoveAll
+	}
+	var errs []error
+	for _, path := range paths {
+		if err := removeAll(path); err != nil {
+			errs = append(errs, fmt.Errorf("remove %s: %w", path, err))
+			continue
+		}
+		if _, err := os.Lstat(path); !os.IsNotExist(err) {
+			if err == nil {
+				err = errors.New("path remains after removal")
+			}
+			errs = append(errs, fmt.Errorf("verify absence of %s: %w", path, err))
+		}
+	}
+	if err := errors.Join(errs...); err != nil {
+		return errors.Join(fetch.ErrCleanupUnverified, err)
+	}
+	return nil
 }
 
 // BuildReadyForRecord reports whether an already-installed build-profile record

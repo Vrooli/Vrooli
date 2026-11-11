@@ -109,6 +109,7 @@ path before release.
 
 ## Cross-References
 
+- [`../reference/platform-support.md`](../reference/platform-support.md) — generated cross-platform support matrix and receipt rules
 - [`RUNBOOK.md`](RUNBOOK.md) — operator procedures
 - [`OBSERVABILITY.md`](OBSERVABILITY.md) — health and telemetry
 - [`../concepts/INTEGRATIONS.md`](../concepts/INTEGRATIONS.md) — dependencies (palette-gen, text-tools; host facts via the root `vrooli` CLI)

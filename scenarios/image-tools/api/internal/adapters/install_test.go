@@ -20,6 +20,17 @@ func (fn downloaderFunc) Download(ctx context.Context, rawURL, dest string, emit
 	return fn(ctx, rawURL, dest, emit)
 }
 
+func (fn downloaderFunc) DownloadObserved(ctx context.Context, rawURL, dest string, observe func(int64, int64) error) error {
+	if err := fn(ctx, rawURL, dest, func(int64, int64) {}); err != nil {
+		return err
+	}
+	info, err := os.Stat(dest)
+	if err != nil {
+		return err
+	}
+	return observe(info.Size(), info.Size())
+}
+
 const installTestAdapterID = "install-test-adapter"
 
 func newInstaller(t *testing.T) (*Installer, *int) {
@@ -35,10 +46,11 @@ func newInstaller(t *testing.T) (*Installer, *int) {
 	downloads := 0
 	payload := bytes.Repeat([]byte("fake-adapter-weights\n"), 128)
 	in := &Installer{
-		Root:   t.TempDir(),
-		Reg:    reg,
-		Custom: NewCustomStore(d),
-		State:  NewInstallStore(d),
+		Root:          t.TempDir(),
+		Reg:           reg,
+		DiskAdmission: testDiskAdmitter{},
+		Custom:        NewCustomStore(d),
+		State:         NewInstallStore(d),
 		Download: downloaderFunc(func(_ context.Context, _, dest string, _ func(int64, int64)) error {
 			downloads++
 			return os.WriteFile(dest, payload, 0o644)
@@ -126,4 +138,15 @@ type repoFetcherFunc func(ctx context.Context, repo fetch.RepoSpec, destDir stri
 
 func (fn repoFetcherFunc) Snapshot(ctx context.Context, repo fetch.RepoSpec, destDir string, emit func(int64, int64)) error {
 	return fn(ctx, repo, destDir, emit)
+}
+
+func (fn repoFetcherFunc) SnapshotObserved(ctx context.Context, repo fetch.RepoSpec, destDir string, observe func(int64, int64) error) error {
+	if err := fn(ctx, repo, destDir, func(int64, int64) {}); err != nil {
+		return err
+	}
+	_, size, err := fetch.TreeManifestHash(destDir)
+	if err != nil {
+		return err
+	}
+	return observe(size, size)
 }

@@ -2,6 +2,7 @@ package ai
 
 import (
 	"bytes"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -99,6 +100,45 @@ func TestSegment_SubmitsExplicitNegativePointAndBox(t *testing.T) {
 	}
 }
 
+func TestEdit_SubmitsForceCPU(t *testing.T) {
+	server := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/ai/edit_instruct" {
+			t.Errorf("wrong operation: %s", r.URL.Path)
+		}
+		if err := r.ParseMultipartForm(1 << 20); err != nil {
+			t.Fatal(err)
+		}
+		defer r.MultipartForm.RemoveAll()
+		var p aiv1.AIParams
+		if err := protojson.Unmarshal([]byte(r.FormValue("params")), &p); err != nil {
+			t.Fatal(err)
+		}
+		if !p.GetForceCpu() {
+			t.Errorf("force_cpu was not sent: %s", r.FormValue("params"))
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusAccepted)
+		_, _ = w.Write([]byte(`{"jobId":"cpu-edit-job","modelId":"instruct-pix2pix","tier":"local-cpu"}`))
+	})
+	core := testutil.NewTestApp(t, server)
+	cmd := findCommand(t, newHandlers(core).submitCommands(), "edit")
+	in := filepath.Join(t.TempDir(), "source.png")
+	if err := os.WriteFile(in, []byte("input"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
+		Schema: cmd.Args, Flags: map[string]string{"force-cpu": "true", "prompt": "Recolor the stars coral"},
+		Positionals: map[string]string{"input": in}, Core: core, Stdout: &output, Stderr: &output,
+	})
+	if err := cmd.RunCtx(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(output.Bytes(), []byte("cpu-edit-job")) {
+		t.Fatalf("missing job identity: %s", output.String())
+	}
+}
+
 func TestGeometry_SubmitsTypedSupportROI(t *testing.T) {
 	server := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v1/ai/scene_geometry" {
@@ -149,6 +189,20 @@ func TestInpaint_SubmitsTypedMaskCrop(t *testing.T) {
 		if err := protojson.Unmarshal([]byte(r.FormValue("params")), &p); err != nil {
 			t.Fatal(err)
 		}
+		if !p.GetForceCpu() {
+			t.Errorf("force_cpu was not sent: %s", r.FormValue("params"))
+		}
+		for field, want := range map[string]string{"file": "input", "mask": "mask"} {
+			part, _, err := r.FormFile(field)
+			if err != nil {
+				t.Fatalf("missing %s multipart part: %v", field, err)
+			}
+			data, readErr := io.ReadAll(part)
+			_ = part.Close()
+			if readErr != nil || string(data) != want {
+				t.Errorf("%s bytes=%q, want %q (read err %v)", field, data, want, readErr)
+			}
+		}
 		crop := p.GetInpaint()
 		if crop == nil || !crop.GetCropToMask() || crop.GetContextPixels() != 96 || crop.GetMaxEdgePx() != 1024 || !crop.GetNeutralizeMaskedPixels() {
 			t.Errorf("inpaint crop controls lost: %s", r.FormValue("params"))
@@ -166,7 +220,7 @@ func TestInpaint_SubmitsTypedMaskCrop(t *testing.T) {
 	var output bytes.Buffer
 	ctx := cliapp.NewTestRunContext(cliapp.TestRunContextOptions{
 		Schema:      cmd.Args,
-		Flags:       map[string]string{"mask": mask, "crop-to-mask": "true", "crop-context-pixels": "96", "crop-max-edge-px": "1024", "neutralize-masked-pixels": "true", "prompt": "empty tabletop"},
+		Flags:       map[string]string{"mask": mask, "crop-to-mask": "true", "crop-context-pixels": "96", "crop-max-edge-px": "1024", "neutralize-masked-pixels": "true", "prompt": "empty tabletop", "force-cpu": "true"},
 		Positionals: map[string]string{"input": in}, Core: core, Stdout: &output, Stderr: &output,
 	})
 	if err := cmd.RunCtx(ctx); err != nil {

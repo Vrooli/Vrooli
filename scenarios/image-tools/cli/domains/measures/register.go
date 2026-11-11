@@ -29,6 +29,14 @@ type modelProfile struct {
 	LastRecordedAt string `json:"last_recorded_at"`
 }
 
+type modelUsage struct {
+	ModelID          string `json:"model_id"`
+	SuccessfulJobs   int64  `json:"successful_jobs"`
+	LastSuccessfulAt string `json:"last_successful_at"`
+	LastOperation    string `json:"last_operation"`
+	LastTier         string `json:"last_tier"`
+}
+
 type httpDoer interface {
 	Do(*http.Request) (*http.Response, error)
 }
@@ -53,11 +61,66 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			}
 			return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("%d model profile(s)", len(profiles))}, ResultsHeading: "Model profiles", Results: rows})
 		},
+		"model_usage": func(ctx cliapp.RunContext) error {
+			client, baseURL := cliapp.NewConnectHTTPClient(core)
+			usage, err := queryUsage(context.Background(), client, baseURL, ctx.Flag("model"))
+			if err != nil {
+				return err
+			}
+			if ctx.JSON() {
+				return json.NewEncoder(ctx.Stdout()).Encode(usage)
+			}
+			rows := make([]string, 0, len(usage))
+			for _, item := range usage {
+				rows = append(rows, fmt.Sprintf("%s: %d successful job(s); last %s on %s at %s", item.ModelID, item.SuccessfulJobs, item.LastOperation, item.LastTier, item.LastSuccessfulAt))
+			}
+			if len(rows) == 0 {
+				rows = []string{"No successful model-backed job trace is recorded; usage is unknown."}
+			}
+			return ctx.RenderList(cliapp.ListReport{Summary: []string{fmt.Sprintf("%d model(s) with recorded successful use", len(usage))}, ResultsHeading: "Model use", Results: rows})
+		},
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("measures: load from manifest: %w", err)
 	}
 	return group, nil
+}
+
+func queryUsage(ctx context.Context, client httpDoer, baseURL, modelID string) ([]modelUsage, error) {
+	endpoint := strings.TrimRight(baseURL, "/") + "/api/v1/measures/usage"
+	parsed, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("measures: build model usage query: %w", err)
+	}
+	query := parsed.Query()
+	if modelID != "" {
+		query.Set("model_id", modelID)
+	}
+	parsed.RawQuery = query.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("measures: build model usage query: %w", err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("measures: query model usage: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20+1))
+	if err != nil {
+		return nil, fmt.Errorf("measures: read model usage response: %w", err)
+	}
+	if len(body) > 4<<20 {
+		return nil, fmt.Errorf("measures: model usage response exceeds 4 MiB")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("measures: API returned HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+	var usage []modelUsage
+	if err := json.Unmarshal(body, &usage); err != nil {
+		return nil, fmt.Errorf("measures: decode model usage: %w", err)
+	}
+	return usage, nil
 }
 
 func queryProfiles(ctx context.Context, client httpDoer, baseURL, modelID, operation string) ([]modelProfile, error) {

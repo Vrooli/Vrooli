@@ -40,6 +40,12 @@ type BlobStore interface {
 // on analysis and stays unit-testable with a fake.
 type NSFWScanner func(ctx context.Context, img []byte) (nsfw bool, score float64, err error)
 
+// PosePreprocessor derives an OpenPose bone image from a source image. It runs
+// inside the already-admitted AI job and writes a concrete PNG under that job's
+// temporary directory. The model-backed implementation is injected by the
+// analysis owner; nil fails closed for pose-conditioned jobs.
+type PosePreprocessor func(ctx context.Context, modelPath, inputPath, outputPath string, width, height int) error
+
 // Deps wires the AI engine's seams.
 type Deps struct {
 	// Registry is the validated model registry (hardware-fit source of truth).
@@ -95,6 +101,9 @@ type Deps struct {
 	// AutoScan classifies generated output when a job requests it. Optional; nil
 	// disables the hook.
 	AutoScan NSFWScanner
+	// PosePreprocessor derives OpenPose maps for ControlNet under the same AI job
+	// admission. Optional until the governed CPU runtime and pinned model are ready.
+	PosePreprocessor PosePreprocessor
 	// Capacity arbitrates op-scoped GPU VRAM against the host capacity broker
 	// before a GPU generation (plan §7 Phase 7). Optional; nil disables
 	// arbitration. Production always wires it; admission/renewal failures stop
@@ -106,6 +115,9 @@ type Deps struct {
 	// CPU reserves the bounded inference thread budget independently of warm
 	// model residency. It is released after each job, including cancellation.
 	CPU MemoryAdmission
+	// Disk reserves measured output and temporary peak bytes on their actual
+	// filesystems through the shared host capacity owner for the full job.
+	Disk DiskAdmission
 	// Logger for diagnostics. Defaults to log.Default().
 	Logger *log.Logger
 }
@@ -213,6 +225,7 @@ type PlanRequest struct {
 	Priority       string
 	AllowReclaim   bool
 	RequireGPU     bool
+	ForceCPU       bool
 	// Role is the caller's OpenRouter role, if any. A named role ranks the gateway
 	// model first when the cloud tier is permitted.
 	Role string
@@ -237,6 +250,9 @@ var (
 func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 	if !Has(req.Operation) {
 		return Plan{}, fmt.Errorf("ai: unknown operation %q", req.Operation)
+	}
+	if req.RequireGPU && req.ForceCPU {
+		return Plan{}, errors.New("ai: require_gpu and force_cpu cannot both be set")
 	}
 	host, err := e.deps.Probe.Inventory(ctx)
 	if err != nil {
@@ -273,6 +289,7 @@ func (e *Engine) Plan(ctx context.Context, req PlanRequest) (Plan, error) {
 		QualityPolicy:      req.QualityPolicy,
 		PreferRemote:       strings.TrimSpace(req.Role) != "",
 		CapacityManagedGPU: e.deps.Capacity != nil,
+		ForceCPU:           req.ForceCPU,
 		IsEnabled:          enabled,
 		Adapters:           req.Adapters,
 		AdapterByID:        e.deps.AdapterByID,
@@ -475,7 +492,21 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	if err != nil {
 		return internaljobs.Result{}, fmt.Errorf("ai: temp dir: %w", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	if prepared.markDiskCleanupVerified != nil {
+		prepared.markDiskCleanupVerified(false)
+	}
+	defer func() {
+		if cleanupErr := removeVerifiedAITempDir(tmpDir, os.RemoveAll); cleanupErr != nil {
+			if prepared.markDiskCleanupVerified != nil {
+				prepared.markDiskCleanupVerified(false)
+			}
+			runErr = errors.Join(runErr, cleanupErr)
+			return
+		}
+		if prepared.markDiskCleanupVerified != nil {
+			prepared.markDiskCleanupVerified(true)
+		}
+	}()
 
 	inputs, err := e.materializeInputs(ctx, tmpDir, pl)
 	if err != nil {
@@ -485,7 +516,7 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	// IP-Adapter) from its blob key to a local file, rewriting the key in place so
 	// the technique arg-builders hand the sidecar concrete paths. LoRAs carry no
 	// image and pass through untouched.
-	pl.Adapters, err = e.materializeAdapterImages(ctx, tmpDir, pl.Adapters)
+	pl.Adapters, err = e.materializeConditioningImages(ctx, tmpDir, pl, inputs.image)
 	if err != nil {
 		return internaljobs.Result{}, err
 	}
@@ -606,6 +637,22 @@ func (e *Engine) run(ctx context.Context, op string, job internaljobs.Job, emit 
 	return internaljobs.Result{Ref: primary, Meta: meta}, nil
 }
 
+func removeVerifiedAITempDir(path string, removeAll func(string) error) error {
+	if removeAll == nil {
+		removeAll = os.RemoveAll
+	}
+	if err := removeAll(path); err != nil {
+		return fmt.Errorf("%w: remove %s: %w", ErrDiskOutputCleanupUnverified, path, err)
+	}
+	if _, err := os.Lstat(path); !os.IsNotExist(err) {
+		if err == nil {
+			err = errors.New("temporary directory still exists after removal")
+		}
+		return fmt.Errorf("%w: verify removal of %s: %w", ErrDiskOutputCleanupUnverified, path, err)
+	}
+	return nil
+}
+
 func modelVRAMClaimBytes(model models.Model) int64 {
 	if model.Hardware.MinVRAMGB > 0 {
 		return int64(model.Hardware.MinVRAMGB) << 30
@@ -660,6 +707,64 @@ func (e *Engine) materializeAdapterImages(ctx context.Context, tmpDir string, in
 		out[i].ConditioningImageKey = p
 	}
 	return out, nil
+}
+
+func (e *Engine) materializeConditioningImages(ctx context.Context, tmpDir string, pl Payload, inputImage string) ([]adapters.ResolvedAdapter, error) {
+	if len(pl.Adapters) == 0 {
+		return pl.Adapters, nil
+	}
+	out := make([]adapters.ResolvedAdapter, len(pl.Adapters))
+	for i, adapter := range pl.Adapters {
+		out[i] = adapter
+		if adapter.Kind == adapters.KindControlNet && adapter.Preprocessor == adapters.PreprocessorPose {
+			if adapter.ConditioningImageKey == "" {
+				return nil, fmt.Errorf("ai: pose control %q requires a source image", adapter.ID)
+			}
+			if e.deps.PosePreprocessor == nil {
+				return nil, fmt.Errorf("ai: pose preprocessor is unavailable; install the governed MediaPipe runtime and pinned Full model")
+			}
+			modelPath := filepath.Join(adapter.Dir, "pose", "pose_landmarker_full.task")
+			source := inputImage
+			if source == "" || adapter.ConditioningImageKey != pl.InputKey {
+				var err error
+				source, err = e.fetchToFile(ctx, tmpDir, fmt.Sprintf("pose-source-%d", i), adapter.ConditioningImageKey)
+				if err != nil {
+					return nil, fmt.Errorf("ai: materialize pose source for adapter %q: %w", adapter.ID, err)
+				}
+			}
+			width, height := generationDimensions(pl.Params)
+			output := filepath.Join(tmpDir, fmt.Sprintf("pose-map-%d.png", i))
+			if err := e.deps.PosePreprocessor(ctx, modelPath, source, output, width, height); err != nil {
+				return nil, fmt.Errorf("ai: derive OpenPose map for adapter %q: %w", adapter.ID, err)
+			}
+			info, err := os.Stat(output)
+			if err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+				return nil, fmt.Errorf("ai: pose preprocessor for adapter %q produced no PNG", adapter.ID)
+			}
+			out[i].ConditioningImageKey = output
+			continue
+		}
+		if adapter.ConditioningImageKey == "" {
+			continue
+		}
+		path, err := e.fetchToFile(ctx, tmpDir, fmt.Sprintf("cond-%d", i), adapter.ConditioningImageKey)
+		if err != nil {
+			return nil, fmt.Errorf("ai: materialize conditioning image for adapter %q: %w", adapter.ID, err)
+		}
+		out[i].ConditioningImageKey = path
+	}
+	return out, nil
+}
+
+func generationDimensions(params map[string]string) (int, int) {
+	parse := func(key string) int {
+		value, err := strconv.Atoi(params[key])
+		if err != nil || value < 1 || value > 4096 {
+			return 512
+		}
+		return value
+	}
+	return parse("width"), parse("height")
 }
 
 func (e *Engine) fetchToFile(ctx context.Context, dir, name, key string) (string, error) {
