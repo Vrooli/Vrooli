@@ -110,10 +110,8 @@ The four domains map one-to-one onto the operational targets in [`../../PRD.md`]
 
 ## Non-Domains
 
-These are important but should not become product domains:
+These are important but should not become product domains: Shared HTTP composition and module contracts live upstream in `packages/api-core/apihttp` and `packages/api-core/module`, not in this scenario.
 
-- `api/internal/server/` — HTTP composition substrate.
-- `api/internal/module/` — shared module descriptor type.
 - `api/internal/modules/` — thin registry for boot/codegen.
 - `api/internal/database/` — cross-cutting database infrastructure (only relevant if/when REQ-P1-002 lands).
 - `api/internal/testutil/` — cross-domain test harnesses.

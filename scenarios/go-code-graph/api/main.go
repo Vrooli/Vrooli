@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"go-code-graph/internal/modules"
-	"go-code-graph/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -69,8 +68,8 @@ func main() {
 	planStore := intrewrite.NewSQLiteStore(db.Primary(), schedule.System())
 	rewriteSvc := intrewrite.NewServiceWithLog(planStore, executor, pathMutex, planStore)
 
-	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+	handler := apihttp.NewScenarioModuleHandler(
+		schedule.System(), log.Default(),
 		healthH.Module(db, "go-code-graph-api", "1.0.0"),
 		graphH.Module(graphSvc, rewriteSvc, log.Default()),
 		validationH.Module(),
@@ -82,12 +81,12 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
-	rootMux.Handle("/", srv.Handler())
+	rootMux.Handle("/", handler)
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(rootMux)
+	handler = apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,

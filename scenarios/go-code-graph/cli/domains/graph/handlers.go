@@ -3,10 +3,10 @@ package graph
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/cli-core/graphreport"
 
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
@@ -60,40 +60,18 @@ func (h *handlers) extract(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no extract response")
 	}
 
-	nodes := 0
-	edges := 0
 	var packages []string
 	if g := resp.Msg.GetGraph(); g != nil {
-		nodes = len(g.GetNodes())
-		edges = len(g.GetEdges())
-		for _, n := range g.GetNodes() {
-			if n.GetKind() == commonv1.NodeKind_NODE_KIND_PACKAGE {
-				packages = append(packages, n.GetName())
+		for _, node := range g.GetNodes() {
+			if node.GetKind() == commonv1.NodeKind_NODE_KIND_PACKAGE {
+				packages = append(packages, node.GetName())
 			}
 		}
 	}
-	sort.Strings(packages)
-	if len(packages) > 10 {
-		packages = packages[:10]
-	}
-
-	summary := []string{
-		fmt.Sprintf(
-			"Extracted %d node(s), %d edge(s) in %dms (hash=%s).",
-			nodes, edges, resp.Msg.GetExtractionMs(), resp.Msg.GetGraphHash(),
-		),
-	}
-	if w := len(resp.Msg.GetWarnings()); w > 0 {
-		summary = append(summary, fmt.Sprintf("%d warning(s) returned.", w))
-	}
-
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        summary,
-		ResultsHeading: "Top-level packages",
-		Results:        packages,
-		RetrievalHints: []string{
-			fmt.Sprintf("`rewrite plan <ops.json> --module-path %s` — plan a rewrite for this module", path),
-		},
+	return graphreport.RenderExtraction(ctx, resp.Msg, graphreport.Extraction{
+		Nodes: len(resp.Msg.GetGraph().GetNodes()), Edges: len(resp.Msg.GetGraph().GetEdges()),
+		Warnings: len(resp.Msg.GetWarnings()), ElapsedMS: int(resp.Msg.GetExtractionMs()), GraphHash: resp.Msg.GetGraphHash(),
+		Path: path, RewriteFlag: "module-path", RewriteTarget: "module", Packages: packages, ShowWarningsAlways: false,
 	})
 }
 
@@ -120,24 +98,11 @@ func (h *handlers) listFixtures(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no list-fixtures response")
 	}
 
-	var results []string
-	for _, f := range resp.Msg.GetFixtures() {
-		status := "no expected graph"
-		if f.GetHasExpected() {
-			status = "expected graph present"
-		}
-		results = append(results, fmt.Sprintf("%s (%s) — %s", f.GetName(), f.GetPath(), status))
+	fixtures := make([]graphreport.Fixture, 0, len(resp.Msg.GetFixtures()))
+	for _, fixture := range resp.Msg.GetFixtures() {
+		fixtures = append(fixtures, graphreport.Fixture{Name: fixture.GetName(), Path: fixture.GetPath(), HasExpected: fixture.GetHasExpected()})
 	}
-	sort.Strings(results)
-
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("%d fixture(s) available.", len(resp.Msg.GetFixtures()))},
-		ResultsHeading: "Fixtures",
-		Results:        results,
-		RetrievalHints: []string{
-			"`graph validate-fixture <name>` — re-extract and byte-compare a fixture",
-		},
-	})
+	return graphreport.RenderFixtures(ctx, resp.Msg, fixtures)
 }
 
 // validateFixture calls GoCodeGraphService.ValidateFixture and reports
@@ -156,30 +121,8 @@ func (h *handlers) validateFixture(ctx cliapp.RunContext) error {
 		return fmt.Errorf("server returned no validate-fixture response")
 	}
 
-	verdict := "PASS"
-	if !resp.Msg.GetPassed() {
-		verdict = "FAIL"
-	}
-	summary := []string{
-		fmt.Sprintf(
-			"%s — fixture %q (expected %d bytes, actual %d bytes, hash=%s)",
-			verdict, name, resp.Msg.GetExpectedBytes(), resp.Msg.GetActualBytes(), resp.Msg.GetGraphHash(),
-		),
-	}
-	var results []string
-	if !resp.Msg.GetPassed() && resp.Msg.GetDiff() != "" {
-		results = append(results, resp.Msg.GetDiff())
-	}
-
-	if renderErr := cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        summary,
-		ResultsHeading: "Diff (expected vs actual)",
-		Results:        results,
-	}); renderErr != nil {
-		return renderErr
-	}
-	if !resp.Msg.GetPassed() {
-		return fmt.Errorf("fixture %q does not match its expected graph", name)
-	}
-	return nil
+	return graphreport.RenderValidation(ctx, resp.Msg, graphreport.Validation{
+		Name: name, Passed: resp.Msg.GetPassed(), Diff: resp.Msg.GetDiff(),
+		ExpectedBytes: resp.Msg.GetExpectedBytes(), ActualBytes: resp.Msg.GetActualBytes(), GraphHash: resp.Msg.GetGraphHash(),
+	})
 }

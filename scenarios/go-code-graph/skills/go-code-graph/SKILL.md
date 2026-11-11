@@ -1,6 +1,6 @@
 ---
 name: "go-code-graph"
-description: "Understand and refactor Go code mechanically: extract the file, package, symbol and import graph of a Go module (who imports this package, who calls it), then plan and apply deterministic refactors such as moving a symbol."
+description: "Use Code Facts as the shared Go facts and graph surface, then use Go Code Graph for provider diagnostics and deterministic Go refactors."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -9,19 +9,21 @@ metadata:
   modes: ["tools"]
   tags: ["go-code-graph", "go", "golang", "imports", "callers", "dependency-graph", "refactor", "symbols"]
   requires:
-    scenarios: ["go-code-graph"]
-    commands: ["go-code-graph graph extract"]
+    scenarios: ["code-facts", "go-code-graph", "tidiness-manager"]
+    commands: ["code-facts facts describe", "tidiness-manager recommend-refactors", "go-code-graph rewrite plan", "go-code-graph rewrite apply"]
   origin:
     kind: "authored"
 ---
 
 ## go-code-graph
 
-Deterministic extraction; rewrites are planned first, then applied.
+Code Facts brokers language facts and normalized graphs through one shared surface. Use it first when you need graph or fact evidence that another scenario can consume. Go Code Graph remains the Go parser provider and owns Go-specific graph diagnostics and mechanical rewrites; rewrites are planned first, then applied.
 
 | You want | Command |
 |---|---|
-| Graph of a Go module | `go-code-graph graph extract` |
+| Shared facts and graph for a scenario | `code-facts facts describe scenario:<name> --graphs --include parse_units --json` |
+| Rank measured reduction opportunities across shared graph evidence | `tidiness-manager recommend-refactors <name> --limit 10` |
+| Provider-specific Go graph diagnostics | `go-code-graph graph extract` |
 | Plan a refactor | `go-code-graph rewrite plan` |
 | Apply it | `go-code-graph rewrite apply` |
 | Check determinism fixtures | `go-code-graph graph validate-fixture` |

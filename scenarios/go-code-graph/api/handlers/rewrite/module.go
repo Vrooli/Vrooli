@@ -5,7 +5,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"go-code-graph/internal/module"
+	"github.com/vrooli/api-core/module"
 	intrewrite "go-code-graph/internal/rewrite"
 )
 
@@ -21,7 +21,7 @@ import (
 // wiring.
 //
 // We keep this Module() constructor so main.go's registration shape
-// (`server.New(..., graphH.Module(...), rewriteH.Module(...))`) is
+// (`apihttp.NewScenarioModuleHandler(..., graphH.Module(...), rewriteH.Module(...))`) is
 // uniform across domains. The `svc` parameter is unused at the
 // handler layer — it's accepted so callers don't have to remember
 // the asymmetry — but main.go must still pass the same *Service it

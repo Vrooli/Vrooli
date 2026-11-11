@@ -55,13 +55,7 @@ func TestListFixtures(t *testing.T) {
 			t.Errorf("fixture %q: want has_expected=true", want)
 		}
 	}
-	// Stable name-sorted order.
-	fixtures := resp.Msg.GetFixtures()
-	for i := 1; i < len(fixtures); i++ {
-		if fixtures[i-1].GetName() > fixtures[i].GetName() {
-			t.Fatalf("fixtures not sorted: %q before %q", fixtures[i-1].GetName(), fixtures[i].GetName())
-		}
-	}
+
 }
 
 func TestValidateFixturePasses(t *testing.T) {
@@ -109,27 +103,4 @@ func TestValidateFixtureNotFound(t *testing.T) {
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("want NotFound, got %v", connect.CodeOf(err))
 	}
-}
-
-func TestLineDiffFocusesOnChange(t *testing.T) {
-	expected := "a\nb\nc\nd\ne"
-	actual := "a\nb\nX\nd\ne"
-	diff := lineDiff(expected, actual)
-	if !contains(diff, "- c") || !contains(diff, "+ X") {
-		t.Fatalf("diff did not isolate the changed line:\n%s", diff)
-	}
-	if contains(diff, "- a") || contains(diff, "+ a") {
-		t.Fatalf("common prefix line leaked into diff body:\n%s", diff)
-	}
-}
-
-func contains(haystack, needle string) bool {
-	return len(haystack) >= len(needle) && (func() bool {
-		for i := 0; i+len(needle) <= len(haystack); i++ {
-			if haystack[i:i+len(needle)] == needle {
-				return true
-			}
-		}
-		return false
-	})()
 }

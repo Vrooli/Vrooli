@@ -16,7 +16,7 @@
 package rewrite
 
 import (
-	"go-code-graph/internal/module"
+	"github.com/vrooli/api-core/module"
 	intrewrite "go-code-graph/internal/rewrite"
 
 	"github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph/graph_v1connect"

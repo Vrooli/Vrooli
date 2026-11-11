@@ -2,7 +2,7 @@
 //
 // Built on api-core/health for the standardized response schema
 // (status / dependencies / metrics) but plumbed through the local
-// database.Pinger seam so handler tests can substitute a fake without
+// api-core/database.Pinger seam so handler tests can substitute a fake without
 // opening the on-disk SQLite file.
 package health
 
@@ -10,7 +10,7 @@ import (
 	"context"
 	"net/http"
 
-	"go-code-graph/internal/database"
+	apidb "github.com/vrooli/api-core/database"
 
 	apihealth "github.com/vrooli/api-core/health"
 )
@@ -19,7 +19,7 @@ import (
 // are reported in the response envelope; Pinger backs the "database"
 // dependency check.
 type Deps struct {
-	Pinger  database.Pinger
+	Pinger  apidb.Pinger
 	Service string
 	Version string
 }

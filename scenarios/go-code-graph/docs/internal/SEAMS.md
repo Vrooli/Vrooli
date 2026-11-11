@@ -87,7 +87,7 @@ between these generic graph facts and Vrooli endpoint declarations.
 | **Seam** | Short name used to refer to the boundary in conversation. |
 | **Interface** | Go file & symbol that defines the contract. |
 | **Production wiring** | Where the real implementation is constructed. |
-| **Test fake** | The fake under `internal/testutil/mocks/` (cross-domain) or `internal/<dom>/mocks/` (per-domain) that substitutes. |
+| **Test fake** | The fake under `packages/api-core/*test` (cross-domain) or `internal/<dom>/mocks/` (per-domain) that substitutes. |
 | **Why it exists** | The class of bug it prevents or the test ergonomic it enables. |
 
 ## Seam Registry
@@ -96,8 +96,8 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 
 | Seam | Interface | Production wiring | Test wiring | Owner package |
 |---|---|---|---|---|
-| `clock.Clock` | `internal/clock/clock.go::Clock` (`Now() time.Time`) | `clock.System{}` constructed in `api/main.go`; passed via `server.Deps`. | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). | `internal/clock` |
-| `httpc.Doer` | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) | Production `*http.Client` (satisfies `Doer` directly); first outbound consumer wires it from `main.go`. | `internal/testutil/mocks::FakeDoer` (canned response queue, recorded request log). | `internal/httpc` |
+| `schedule.Clock` | `packages/api-core/schedule.Clock` (`Now() time.Time`) | `schedule.System()` constructed in `api/main.go`; passed to `apihttp.NewScenarioModuleHandler`. | `packages/api-core/scheduletest::FakeClock` (`Now`, `Advance`, `SetNow`). | `packages/api-core/schedule` |
+| `httpc.Doer` | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) | Production `*http.Client` (satisfies `Doer` directly); first outbound consumer wires it from `main.go`. | `packages/api-core/apihttptest::FakeDoer` (canned response queue, recorded request log). | `internal/httpc` |
 | `graph.PackagesLoader` | `internal/graph/loader.go::PackagesLoader` (`Load(ctx, modulePath string, opts LoadOptions) ([]*packages.Package, error)`) | `PackagesLoaderImpl` constructed via `graph.NewPackagesLoader()` in `main.go` with the fixed load mode `NeedFiles \| NeedImports \| NeedTypes \| NeedSyntax \| NeedTypesInfo \| NeedName \| NeedDeps`. | `internal/graph/mocks::FakeLoader` (canned `[]*packages.Package` from `bas/fixtures/`). | `internal/graph` |
 | `rewrite.RewriteExecutor` | `internal/rewrite/executor.go::RewriteExecutor` (`Execute(ctx context.Context, moduleRoot string, op Operation) error`) | `FSExecutor` constructed via `rewrite.NewFSExecutor()` in `main.go`; uses `os.Rename` for `FileMove` and `go/parser` + `go/printer` for `ImportRewrite`. | `internal/rewrite/mocks::FakeExecutor` (records ops, optional panic-after-N for partial-failure tests). | `internal/rewrite` |
 | `rewrite.PlanStore` | `internal/rewrite/store.go::PlanStore` (`Save(ctx, Plan) error`, `Load(ctx, PlanID) (Plan, bool, error)`) | `MemoryStore` constructed via `rewrite.NewMemoryStore()` in `main.go`. In-memory `sync.Map`; plans do not persist across restarts (see [`PROBLEMS.md`](PROBLEMS.md)). | `internal/rewrite/mocks::FakeStore` (deterministic, no TTL). | `internal/rewrite` |
@@ -109,19 +109,19 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 | | |
 |---|---|
 | **Seam** | Wall-clock time |
-| **Interface** | `internal/clock/clock.go::Clock` (`Now() time.Time`) |
-| **Production wiring** | `main.go` constructs `clock.System{}` and passes it via `server.Deps`. |
-| **Test fake** | `internal/testutil/mocks::FakeClock` (`Now`, `Advance`, `SetNow`). |
-| **Why it exists** | Middleware computes request-duration log lines from two `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `internal/middleware/logging_test.go::TestLoggingMiddleware_LogsDuration`. |
+| **Interface** | `packages/api-core/schedule.Clock` (`Now() time.Time`) |
+| **Production wiring** | `main.go` constructs `schedule.System()` and passes it to `apihttp.NewScenarioModuleHandler`. |
+| **Test fake** | `packages/api-core/scheduletest::FakeClock` (`Now`, `Advance`, `SetNow`). |
+| **Why it exists** | Middleware computes request-duration log lines from two `Now()` calls. With `time.Now()` direct, duration assertions are flaky on loaded CI and undefined on fast hardware. With `FakeClock.Advance(150 * time.Millisecond)` inside the inner handler, the duration string is bit-for-bit deterministic. See `packages/api-core/apihttp/requestlog_test.go::TestLoggingMiddleware_LogsDuration`. |
 
 ### Pinger (database reachability)
 
 | | |
 |---|---|
 | **Seam** | Database reachability probe |
-| **Interface** | `internal/database/pinger.go::Pinger` (`PingContext(ctx) error`) |
+| **Interface** | `packages/api-core/database.Pinger` (`PingContext(ctx) error`) |
 | **Production wiring** | `main.go` opens `*sql.DB` via `database.Connect(...)` against `modernc.org/sqlite` (pure-Go, CGO-clean). `*sql.DB` satisfies `Pinger` directly — no wrapper. |
-| **Test fake** | `internal/testutil/mocks::FakePinger` (`PingErr error`, atomic `Calls` counter). |
+| **Test fake** | `packages/api-core/databasetest::FakePinger` (`PingErr error`, atomic `Calls` counter). |
 | **Why it exists** | The `/health` handler probes the database. Without the seam, every handler test would either open the on-disk SQLite file (slow at scale, parallel-test contention) or skip the database branch entirely (untested degradation path). With `FakePinger{PingErr: errors.New("connection refused")}`, the unhealthy branch is one line. See `handlers/health/handler_test.go`. |
 
 ### database.SchemaExecer (shared schema application)
@@ -140,7 +140,7 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 |---|---|
 | **Seam** | Generated Connect services mounted on the scenario's existing mux router |
 | **Interface** | `api-core/connectx::RegisterServices(router, mounts...)`, where each mount is `{Path, Handler}` returned by generated `New<Domain>Handler(...)` |
-| **Production wiring** | `handlers/<domain>/module.go` constructs the domain service, passes it to `NewConnectHandler`, then mounts the generated handler with `connectx.RegisterServices`. The server's existing middleware still wraps the handler because Connect is standard `http.Handler`. |
+| **Production wiring** | `handlers/<domain>/module.go` constructs the domain service, passes it to `NewConnectHandler`, then mounts the generated handler with `connectx.RegisterServices`. `apihttp.NewScenarioModuleHandler` applies the shared logging and recovery boundary around the mounted handler because Connect returns a standard `http.Handler`. |
 | **Test fake** | `api-core/connectxtest::StartTestServer` is the canonical in-process server harness for handler tests. `connectxtest.NewLogger` is the canonical logger capture helper. Module tests can still mount the module on a mux router and issue real HTTP requests. No hand-written request JSON ribbon is needed in tests. |
 | **Why it exists** | The proto service descriptor becomes the single wire contract for UI, CLI, and API. Handler path, method, request type, response type, and Connect error envelope all come from generated code instead of parallel route tables. |
 
@@ -179,10 +179,10 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 | | |
 |---|---|
 | **Seam** | Domain-to-server composition; the contract every handler package returns from its `Module(...)` constructor. |
-| **Interface** | `internal/module/module.go::Module` (`Name string`, `Mount func(r *mux.Router)`, `Endpoints []EndpointDescriptor`). Data type, not behaviour — modules don't have methods. |
-| **Production wiring** | `main.go` calls `healthH.Module(...)`, `graphH.Module(...)`, `rewriteH.Module(...)`, and passes the slice to `server.New(deps, modules...)`. The server iterates `m.Mount(s.router)` after registering the logging middleware. |
-| **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `internal/server/server_test.go` proves the iteration; per-domain `module_test.go` files (`handlers/graph/module_test.go`, `handlers/rewrite/module_test.go`, `handlers/health/module_test.go`) exercise the real constructors against in-memory fixtures. |
-| **Why it exists** | Eliminates the central registry that would otherwise grow per-domain fields on `server.Deps` and per-domain wiring lines in `routes.go`. Adding a domain means creating files; deleting one means removing files. The endpoint descriptors travel with the module, so `.vrooli/endpoints.json` codegen has a single source per domain (no manual JSON editing). |
+| **Interface** | `packages/api-core/module/module.go::Module` (`Name string`, `Mount func(r *mux.Router)`, `Endpoints []EndpointDescriptor`). Data type, not behaviour — modules don't have methods. |
+| **Production wiring** | `main.go` calls `healthH.Module(...)`, `graphH.Module(...)`, `rewriteH.Module(...)`, and passes the slice to `apihttp.NewScenarioModuleHandler(clock, logger, modules...)`. API Core iterates `Mount` while composing the shared request logging and recovery middleware. |
+| **Test fake** | A literal `module.Module{Name: "stub", Mount: func(r){...}}` in `packages/api-core/apihttp/module_handler_test.go` proves the iteration; per-domain `module_test.go` files (`handlers/graph/module_test.go`, `handlers/rewrite/module_test.go`, `handlers/health/module_test.go`) exercise the real constructors against in-memory fixtures. |
+| **Why it exists** | Eliminates the central registry that would otherwise grow per-domain fields on the scenario composition root and per-domain wiring lines in `routes.go`. Adding a domain means creating files; deleting one means removing files. The endpoint descriptors travel with the module, so `.vrooli/endpoints.json` codegen has a single source per domain (no manual JSON editing). |
 
 ### Endpoints codegen (manifest source-of-truth)
 
@@ -210,8 +210,8 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 |---|---|
 | **Seam** | Outbound HTTP request boundary |
 | **Interface** | `internal/httpc/doer.go::Doer` (`Do(*http.Request) (*http.Response, error)`) |
-| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to `server.Deps` and wires `&http.Client{Timeout: …}` from `main.go`. |
-| **Test fake** | `internal/testutil/mocks::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
+| **Production wiring** | Ships unwired in production by intent (no consumer until a real outbound call lands). `*http.Client` satisfies `Doer` directly via the compile-time assertion in `doer.go`; the first scenario to need an outbound call adds the field to the scenario composition root and wires `&http.Client{Timeout: …}` from `main.go`. |
+| **Test fake** | `packages/api-core/apihttptest::FakeDoer` (canned `*http.Response` queue, recorded `*http.Request` log, atomic `Calls` counter). |
 | **Why it exists** | Network calls in handler tests would be flaky and slow. Defining the seam *before* the first consumer means the first scenario to call outward doesn't reinvent ad-hoc mocking. Pattern proven in `scenarios/agent-manager/api/internal/promptmanager/client.go`. See `internal/httpc/doer_test.go` for the substitution reference. |
 
 ### PackagesLoader (Go parser delegation)
@@ -248,7 +248,7 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 
 | | |
 |---|---|
-| **Seam** | The registry of per-path mutexes that serializes concurrent extraction and apply on the same `module_path`. Lives inside the `graph` package; both `graph.Service` and `rewrite.Service` consume the same instance via `server.Deps` so cross-domain calls for the same path serialize. |
+| **Seam** | The registry of per-path mutexes that serializes concurrent extraction and apply on the same `module_path`. Lives inside the `graph` package; both `graph.Service` and `rewrite.Service` consume the same `PathMutex` instance from the scenario composition root so calls for the same path serialize. |
 | **Interface** | `internal/graph/mutex.go::PathMutex` (concrete type, not interface — `Lock(path string) (unlock func())`). Substitution happens at the consumer level: tests construct their own `*PathMutex` (or no mutex at all) per case rather than mocking the type. |
 | **Production wiring** | `main.go` constructs a single `graph.NewPathMutex()` and passes it into both `graph.NewService(...)` and `rewrite.NewService(...)`. Keyed by `filepath.Abs(modulePath)`. |
 | **Test fake** | None. Concurrency tests (`internal/graph/mutex_test.go`) drive the real type with controlled goroutine interleavings via `testing.T.Parallel()` + channel sync. |
@@ -269,7 +269,7 @@ why a boundary lives where it does and what still needs follow-up.
 
 | Area | Drift | Decision | Follow-up |
 |---|---|---|---|
-| Domain-specific fakes | Earlier templates often put every fake under shared testutil. | One-domain fakes live under `api/internal/<domain>/mocks/`; cross-domain fakes stay under `api/internal/testutil/mocks/`. | Preserve this split when adding new domains. |
+| Domain-specific fakes | Earlier templates often put every fake under shared testutil. | One-domain fakes live under `api/internal/<domain>/mocks/`; cross-domain fakes use `packages/api-core/*test`. | Preserve this split when adding new domains. |
 | Temporal workflow side effects | Async flows can bury transition rules inside handlers/components. | Pure workflow transitions are domain policy; side effects remain behind seams. | See [`FLOWS.md`](../concepts/FLOWS.md) for modeled flows. |
 | Domain schemas | Central schema files make domain deletion and ownership harder. | Domain tables live beside domain code; `internal/database/system.sql` is only for genuinely cross-cutting DB infrastructure. | If a table is added to system schema, document why it is not domain-owned. |
 
@@ -286,7 +286,7 @@ service, and `mocks/` directory all sit together. Deleting
 (`Pinger`, `SystemSchema` for the empty/cross-cutting SQL home) —
 never domain-specific interfaces.
 
-`internal/testutil/mocks/` retains only cross-domain fakes
+`packages/api-core/*test` retains only cross-domain fakes
 (`FakeClock`, `FakePinger`, `FakeDoer`).
 
 ### Mechanical steps
@@ -317,7 +317,7 @@ never domain-specific interfaces.
    any state it needs to return. Counters use `atomic.Int64`, not plain
    `int`, so race-detector tests don't flap. Cross-domain fakes
    (`FakeClock`, `FakePinger`, `FakeDoer`) stay in
-   `internal/testutil/mocks/`.
+   `packages/api-core/*test`.
 5. **Update this document.** A row in the table above with the same
    five columns. If you skip this step, the seam exists but isn't
    discoverable — future readers will reinvent it parallel.

@@ -118,7 +118,7 @@ Use Connect-RPC by default:
 - API to API / inter-scenario calls with Vrooli-owned protos.
 
 REST is allowed only for four enumerated reasons, defined as
-`RESTReason` constants in `api/internal/module/module.go`:
+`RESTReason` constants in `packages/api-core/module/module.go`:
 
 | Reason | When it applies |
 |---|---|
@@ -150,12 +150,12 @@ business-vocabulary-free and used by unrelated domains or surfaces.
 
 | Package/Folder | Purpose | Why Not Domain-Owned | Consumers |
 |---|---|---|---|
-| `api/internal/server/` | Compose modules and middleware into one HTTP server. | Server lifecycle is not a product capability. | API entrypoint and handler modules. |
-| `api/internal/module/` | Shared module and endpoint descriptor types. | Domain modules return this common shape. | Handler packages, server, endpoint codegen. |
-| `api/internal/modules/` | Thin registry for schemas and endpoints. | Boot/codegen need central lists; logic stays domain-owned. | `main.go`, `gen-endpoints`. |
-| `api/internal/database/` | System schema and DB reachability seam. | Cross-cutting DB infrastructure, not one domain's data. | API boot, health. |
-| `api/internal/clock/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Middleware, repositories. |
-| `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains; domain fakes stay domain-local. | API tests. |
+| `packages/api-core/apihttp/` | Mount modules with shared request logging and recovery. | HTTP request composition is a platform seam, not a product capability. | API composition roots. |
+| `packages/api-core/module/` | Shared module and endpoint descriptor types. | Domain modules return this common shape. | Handler packages, API composition, endpoint codegen. |
+| `api/internal/modules/` | Scenario-owned registry of schemas and endpoints. | Boot/codegen need central lists; logic stays domain-owned. | `main.go`, `gen-endpoints`. |
+| `packages/api-core/database/` | Shared database schema and reachability interfaces. | Cross-cutting DB infrastructure, not one domain's data. | API boot, health. |
+| `packages/api-core/schedule/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Request logging, repositories. |
+| `packages/api-core/*test/` | Shared database, scheduler, handler, and module test contracts. | Test behavior is reusable across scenarios. | API tests. |
 | `ui/src/test-utils/` | Cross-feature render helpers, a11y helpers, and model tests. | Used by unrelated UI features. | UI tests. |
 
 If shared infrastructure starts using product vocabulary, move that
@@ -195,15 +195,11 @@ Every product path lives in exactly one of these layers. Add a row when a new di
 | `api/handlers/rewrite` | Registry | rewrite | EndpointDescriptors only; no Connect handler is mounted here. The rewrite RPCs live on the graph handler because the proto service is shared. |
 | `api/internal/graph` | Domain logic | graph | Extract orchestration, package-loader seam, deterministic normalization, graph hashing, per-path mutex, warning aggregation. |
 | `api/internal/rewrite` | Domain logic | rewrite | Plan/apply orchestration, operation normalization, plan store seam, executor seam. |
-| `api/internal/clock` | Infrastructure | shared | `clock.Clock` seam; deterministic time. |
+| `packages/api-core/schedule` | Infrastructure | shared | Injectable deterministic time seam. |
 | `api/internal/httpc` | Infrastructure | shared | `httpc.Doer` seam; outbound HTTP boundary. |
-| `api/internal/database` | Infrastructure | shared | DB reachability probe + cross-cutting `SystemSchema`. |
-| `api/internal/httpx` | Infrastructure | shared | Shared HTTP helpers (status writer, content negotiation). |
-| `api/internal/middleware` | Infrastructure | shared | Logging middleware composed by the server. |
-| `api/internal/module` | Infrastructure | shared | Shared module + endpoint descriptor types. |
+| `api/internal/database` | Infrastructure | shared | Cross-cutting `SystemSchema`; database reachability is `packages/api-core/database.Pinger`. |
 | `api/internal/modules` | Infrastructure | shared | Registry: schemas, endpoints, proto file entries. |
-| `api/internal/server` | Infrastructure | shared | Compose modules + middleware into one HTTP server. |
-| `api/internal/testutil` | Infrastructure | shared | Cross-domain test harnesses, fakes (`FakeClock`, `FakePinger`, `FakeDoer`), no-prod-import quarantine. |
+| `api/internal/testutil` | Infrastructure | shared | Scenario-specific repo/fixture helpers and no-prod-import quarantine; reusable fakes live in `packages/api-core/*test`. |
 | `cli/domains/graph` | CLI thin wrapper | graph | `graph extract` command; wires generated Connect client; default human output. |
 | `cli/domains/rewrite` | CLI thin wrapper | rewrite | `rewrite plan` and `rewrite apply` commands; honors `--dry-run` via `X-Dry-Run`. |
 | `cli/internal/...` | CLI infrastructure | shared | Manifest embed, dispatcher glue, testutil. |
@@ -221,7 +217,7 @@ Every public method on `GoCodeGraphService`. Maturity follows the standard scale
 | `RewritePlan` | rewrite | L3 | Validate + normalize operations and return a deterministic `plan_id`. No disk mutation. |
 | `RewriteApply` | rewrite | L3 | Execute a previously planned set of operations. Honors `X-Dry-Run: true` (mapped to `apply: false`-style synthetic result). Never invokes `git` or `go build`. |
 
-**No REST exceptions.** Every product surface is Connect-RPC. The only non-Connect endpoint is the template-inherited `GET /health` ops probe, which carries `RESTReasonOpsProbe` per `api/internal/module/module.go`. `cmd/gen-endpoints --check` enforces this.
+**No REST exceptions.** Every product surface is Connect-RPC. The only non-Connect endpoint is the template-inherited `GET /health` ops probe, which carries `RESTReasonOpsProbe` per `packages/api-core/module/module.go`. `cmd/gen-endpoints --check` enforces this.
 
 ## Architecture Maturity
 

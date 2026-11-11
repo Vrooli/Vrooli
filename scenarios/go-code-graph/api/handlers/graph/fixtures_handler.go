@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"connectrpc.com/connect"
 
 	intgraph "go-code-graph/internal/graph"
 
+	"github.com/vrooli/api-core/graphfixtures"
+	"github.com/vrooli/api-core/textdiff"
 	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/go-code-graph/v1/graph"
 )
 
@@ -22,11 +23,7 @@ import (
 const defaultFixturesDir = "bas/fixtures"
 
 const (
-	expectedGraphFile = "expected-graph.json"
-	goModFile         = "go.mod"
-	// maxDiffLines caps the per-side diff payload so a wildly divergent graph
-	// can't return a multi-megabyte response.
-	maxDiffLines = 400
+	goModFile = "go.mod"
 )
 
 func (h *connectHandler) fixturesDir() string {
@@ -52,34 +49,17 @@ func (h *connectHandler) fixturesDir() string {
 // baseline exists. A missing fixtures root is not an error — it yields an empty
 // list so the UI can show its empty state.
 func (h *connectHandler) ListFixtures(_ context.Context, _ *connect.Request[graphv1.ListFixturesRequest]) (*connect.Response[graphv1.ListFixturesResponse], error) {
-	root := h.fixturesDir()
-	entries, err := os.ReadDir(root)
+	items, err := graphfixtures.List(h.fixturesDir(), goModFile)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return connect.NewResponse(&graphv1.ListFixturesResponse{}), nil
-		}
-		h.deps.Logger.Printf("graph.ListFixtures(%q): %v", root, err)
+		h.deps.Logger.Printf("graph.ListFixtures(%q): %v", h.fixturesDir(), err)
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read fixtures dir: %w", err))
 	}
-
-	fixtures := make([]*graphv1.FixtureInfo, 0, len(entries))
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		dir := filepath.Join(root, entry.Name())
-		if _, err := os.Stat(filepath.Join(dir, goModFile)); err != nil {
-			continue // not a Go module fixture
-		}
-		_, expErr := os.Stat(filepath.Join(dir, expectedGraphFile))
+	fixtures := make([]*graphv1.FixtureInfo, 0, len(items))
+	for _, item := range items {
 		fixtures = append(fixtures, &graphv1.FixtureInfo{
-			Name:        entry.Name(),
-			Path:        filepath.ToSlash(dir),
-			HasExpected: expErr == nil,
+			Name: item.Name, Path: item.Path, HasExpected: item.HasExpected,
 		})
 	}
-	sort.Slice(fixtures, func(i, j int) bool { return fixtures[i].GetName() < fixtures[j].GetName() })
-
 	return connect.NewResponse(&graphv1.ListFixturesResponse{Fixtures: fixtures}), nil
 }
 
@@ -122,13 +102,13 @@ func (h *connectHandler) ValidateFixture(ctx context.Context, req *connect.Reque
 		GraphHash:   intgraph.GraphHash(g),
 	}
 
-	expected, err := os.ReadFile(filepath.Join(dir, expectedGraphFile))
+	expected, err := os.ReadFile(filepath.Join(dir, graphfixtures.ExpectedGraphFile))
 	if err != nil {
 		if os.IsNotExist(err) {
 			// No baseline to compare against; surface as a failed precondition
 			// so the UI can prompt to bootstrap it rather than reporting a pass.
 			return nil, connect.NewError(connect.CodeFailedPrecondition,
-				fmt.Errorf("fixture %q has no %s baseline", name, expectedGraphFile))
+				fmt.Errorf("fixture %q has no %s baseline", name, graphfixtures.ExpectedGraphFile))
 		}
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read expected graph: %w", err))
 	}
@@ -139,56 +119,6 @@ func (h *connectHandler) ValidateFixture(ctx context.Context, req *connect.Reque
 		return connect.NewResponse(resp), nil
 	}
 	resp.Passed = false
-	resp.Diff = lineDiff(string(expected), string(actual))
+	resp.Diff = textdiff.LineDiff(string(expected), string(actual))
 	return connect.NewResponse(resp), nil
-}
-
-// lineDiff produces a compact, focused line diff: it trims the common prefix
-// and suffix lines and renders only the differing middle region with a couple
-// of context lines, marking removed lines with "-" and added lines with "+".
-// Deterministic and dependency-free.
-func lineDiff(expected, actual string) string {
-	e := strings.Split(expected, "\n")
-	a := strings.Split(actual, "\n")
-
-	prefix := 0
-	for prefix < len(e) && prefix < len(a) && e[prefix] == a[prefix] {
-		prefix++
-	}
-	suffix := 0
-	for suffix < len(e)-prefix && suffix < len(a)-prefix &&
-		e[len(e)-1-suffix] == a[len(a)-1-suffix] {
-		suffix++
-	}
-
-	const ctx = 2
-	var b strings.Builder
-	start := prefix - ctx
-	if start < 0 {
-		start = 0
-	}
-	for i := start; i < prefix; i++ {
-		fmt.Fprintf(&b, "  %s\n", e[i])
-	}
-
-	emitted := 0
-	for i := prefix; i < len(e)-suffix && emitted < maxDiffLines; i++ {
-		fmt.Fprintf(&b, "- %s\n", e[i])
-		emitted++
-	}
-	emitted = 0
-	for i := prefix; i < len(a)-suffix && emitted < maxDiffLines; i++ {
-		fmt.Fprintf(&b, "+ %s\n", a[i])
-		emitted++
-	}
-
-	end := len(e) - suffix + ctx
-	if end > len(e) {
-		end = len(e)
-	}
-	for i := len(e) - suffix; i < end; i++ {
-		fmt.Fprintf(&b, "  %s\n", e[i])
-	}
-
-	return b.String()
 }

@@ -3,7 +3,7 @@ package graph
 import (
 	"log"
 
-	"go-code-graph/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/gorilla/mux"
 	"github.com/vrooli/api-core/connectx"

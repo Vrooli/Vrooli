@@ -4,7 +4,7 @@
 // domains uniformly.
 //
 // The runtime Module(...) constructors stay inline in main.go's
-// server.New(...) call — they need live deps (db handle, clock, logger)
+// apihttp.NewScenarioModuleHandler(...) call — they need live deps (db handle, clock, logger)
 // and abstracting them is needless ceremony. This package only handles
 // the static side: the Endpoints slice each handler exports for
 // codegen, and the Schema() function each handler re-exports for
@@ -12,7 +12,7 @@
 package modules
 
 import (
-	"go-code-graph/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	apidb "github.com/vrooli/api-core/database"
 	"google.golang.org/protobuf/reflect/protoreflect"

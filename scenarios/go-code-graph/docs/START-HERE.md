@@ -313,7 +313,7 @@ deferred, or explicitly not-applicable for a reason.
       `*Service` clients. If you find yourself writing `Path:` as a
       literal string in an `EndpointDescriptor`, stop — codegen will
       reject it. The only exceptions are the four `RESTReason` values
-      in `api/internal/module/module.go`.
+      in `packages/api-core/module/module.go`.
 - [ ] **Register the proto file** in `api/internal/modules/registry.go`
       by appending a `ProtoFileEntry` to `AllProtoFiles()`. The global
       parity test (`TestProtoConnectParity`) then covers the new
