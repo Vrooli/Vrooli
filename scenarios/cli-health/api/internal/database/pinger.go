@@ -11,7 +11,7 @@
 //
 // Production wires *sql.DB opened against modernc.org/sqlite (which
 // already satisfies Pinger via its PingContext method). Tests wire
-// testutil/mocks.FakePinger or testutil/db.NewSQLite for real-handle
+// api-core/databasetest.FakePinger or testutil/db.NewSQLite for real-handle
 // repository tests.
 package database
 

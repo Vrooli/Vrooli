@@ -1,12 +1,12 @@
 ---
 name: "performance-health"
-description: "Run bounded packaged-launch experiments and inspect comparable performance evidence through Performance Health."
+description: "Find out why a scenario is slow: measure build time, startup and runtime performance and browser page performance (Lighthouse), compare against budgets and trends, and run bounded packaged-launch experiments. Inspect comparable performance evidence through Performance Health."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["performance", "packaged-launch", "experiments", "reporting"]
+  tags: ["performance", "packaged-launch", "experiments", "reporting", "slow", "startup", "lighthouse", "page-performance", "build-time", "budgets"]
   icon: "activity"
   status: "active"
   revision: 3

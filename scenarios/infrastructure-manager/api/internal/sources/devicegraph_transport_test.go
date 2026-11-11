@@ -51,8 +51,14 @@ func TestConnectTransportPreservesEveryRungGrade(t *testing.T) {
 		Devices: []*devicegraphpb.Device{{
 			Id: "block:nvme0n1", Class: "block-device", ParentId: "pci:0000:01:00.0",
 			Vendor: "ACME", Model: "SSD", Driver: "nvme", SysPath: "/sys/block/nvme0n1",
-			Attributes: map[string]string{"transport": "nvme", "kernel_name": "nvme0n1"},
-			Readings:   map[string]float64{"capacity_bytes": 1024},
+			Attributes: map[string]string{
+				"transport": "nvme", "kernel_name": "nvme0n1",
+				"readiness_firmware_state": "unknown", "readiness_interface_state": "absent",
+				"readiness_interface_names": `["wlan0"]`, "readiness_interface_status": `{"wlan0":"down"}`,
+				"readiness_function_state": "unverified",
+				"native_functions_json":    `[{"id":"usb:1-6:1.0","bindingState":"unbound"}]`,
+			},
+			Readings: map[string]float64{"capacity_bytes": 1024},
 			Rungs: []*devicegraphpb.RungState{
 				{Rung: devicegraphpb.Rung_RUNG_IDENTITY, Grade: devicegraphpb.RungGrade_RUNG_GRADE_MEASURED, Mechanism: "sysfs", ObservedAt: timestamppb.New(observed)},
 				{Rung: devicegraphpb.Rung_RUNG_TELEMETRY, Grade: devicegraphpb.RungGrade_RUNG_GRADE_MEASURED, Mechanism: "sysfs", ObservedAt: timestamppb.New(observed)},
@@ -94,6 +100,18 @@ func TestConnectTransportPreservesEveryRungGrade(t *testing.T) {
 	}
 	if device.Attributes["kernel_name"] != "nvme0n1" {
 		t.Errorf("kernel node name was dropped: %v", device.Attributes)
+	}
+	for key, want := range map[string]string{
+		"readiness_firmware_state":   "unknown",
+		"readiness_interface_state":  "absent",
+		"readiness_interface_names":  `["wlan0"]`,
+		"readiness_interface_status": `{"wlan0":"down"}`,
+		"readiness_function_state":   "unverified",
+		"native_functions_json":      `[{"id":"usb:1-6:1.0","bindingState":"unbound"}]`,
+	} {
+		if got := device.Attributes[key]; got != want {
+			t.Errorf("shared readiness attribute %s = %q, want %q", key, got, want)
+		}
 	}
 	if device.Readings["capacity_bytes"] != 1024 {
 		t.Errorf("readings were dropped: %v", device.Readings)

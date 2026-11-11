@@ -13,9 +13,9 @@ import (
 	"proto-health/handlers/health"
 	"proto-health/internal/module"
 	"proto-health/internal/server"
-	"proto-health/internal/testutil/mocks"
 
 	"github.com/vrooli/api-core/apihttptest"
+	"github.com/vrooli/api-core/databasetest"
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
@@ -80,7 +80,7 @@ func TestHealthHandler(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
+			pinger := &databasetest.FakePinger{PingErr: tc.pingErr}
 			h := health.NewHandler(health.Deps{
 				Pinger:  pinger,
 				Service: "react-vite-test",
@@ -125,7 +125,7 @@ func TestHealthHandlerRefreshesDescriptorWithoutRestart(t *testing.T) {
 	writeDescriptorForHealth(t, descriptorPath, "health-refresh/v1/first.proto")
 	source, err := descriptorimage.New(descriptorimage.Config{DescriptorPath: descriptorPath})
 	require.NoError(t, err)
-	pinger := &mocks.FakePinger{}
+	pinger := &databasetest.FakePinger{}
 	h := health.NewHandler(health.Deps{
 		Pinger:           pinger,
 		Service:          "proto-health-test",

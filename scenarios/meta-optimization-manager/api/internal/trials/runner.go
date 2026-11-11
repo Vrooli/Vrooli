@@ -16,6 +16,7 @@ import (
 // degradation that fails one run, never a fabricated pass and never the suite.
 type RunResult struct {
 	Verdict        Verdict // VerdictError on a dispatch/collection failure; else VerdictUnspecified
+	Model          string  // actual_model from Agent Manager's immutable run record; empty when unreported
 	Tokens         int64   // summary.tokens_used
 	DurationMs     int64   // ended_at - started_at
 	ChangedFiles   int     // run.changed_files — the abstention signal for negative cases
@@ -133,6 +134,7 @@ func (r *execTrialRunner) RunTask(ctx context.Context, task TrialTask, fixture F
 		return res
 	}
 	res.SandboxDiffRef = run.sandboxRef()
+	res.Model = strings.TrimSpace(run.ActualModel)
 	res.Tokens = run.tokens()
 	res.DurationMs = run.durationMs()
 	res.ChangedFiles = run.ChangedFiles
@@ -174,8 +176,10 @@ type amRunSummary struct {
 }
 
 type amRun struct {
-	ID           string        `json:"id"`
-	Status       string        `json:"status"`
+	ID            string        `json:"id"`
+	Status        string        `json:"status"`
+	RequestedModel string       `json:"requested_model"`
+	ActualModel   string        `json:"actual_model"`
 	SandboxID    string        `json:"sandbox_id"`
 	DiffPath     string        `json:"diff_path"`
 	ChangedFiles int           `json:"changed_files"`

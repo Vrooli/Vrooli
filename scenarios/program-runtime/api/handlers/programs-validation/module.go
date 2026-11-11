@@ -77,7 +77,8 @@ func (h *handler) ValidateScenario(ctx context.Context, req *connect.Request[sce
 		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("scenario is required"))
 	}
 	var diagnostics []any
-	findings := validateScenario(h.repoRoot, scenario, h.registry, req.Msg.GetIncludeExecution(), &diagnostics)
+	scenarioRoot := scenarioPath(h.repoRoot, scenario, req.Msg.GetPath())
+	findings := validateScenarioAt(h.repoRoot, scenarioRoot, scenario, h.registry, req.Msg.GetIncludeExecution(), &diagnostics)
 	// Historical portfolio debt is still a qualification finding, but cannot
 	// suppress the fresh evidence needed to assess a repair. Only the current
 	// static contract gates fixture execution.
@@ -249,7 +250,20 @@ func portfolioFindings(contractList []contracts.Contract, response *programsv1.P
 // submitted programs, keeping the phase's definition of "callable" aligned
 // with production execution.
 func validateScenario(repoRoot, scenario string, registry *bindings.Registry, includeExecution bool, details ...*[]any) []string {
-	root := filepath.Join(repoRoot, "scenarios", scenario)
+	return validateScenarioAt(repoRoot, filepath.Join(repoRoot, "scenarios", scenario), scenario, registry, includeExecution, details...)
+}
+
+func scenarioPath(repoRoot, scenario, explicitPath string) string {
+	if explicitPath = strings.TrimSpace(explicitPath); explicitPath != "" {
+		if filepath.IsAbs(explicitPath) {
+			return filepath.Clean(explicitPath)
+		}
+		return filepath.Join(repoRoot, filepath.Clean(explicitPath))
+	}
+	return filepath.Join(repoRoot, "scenarios", scenario)
+}
+
+func validateScenarioAt(repoRoot, root, scenario string, registry *bindings.Registry, includeExecution bool, details ...*[]any) []string {
 	if _, err := os.Stat(root); err != nil {
 		return []string{"programs.scenario_missing"}
 	}

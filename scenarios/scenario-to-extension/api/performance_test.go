@@ -475,7 +475,7 @@ func BenchmarkCountBuildsByStatus(b *testing.B) {
 		} else if i%3 == 1 {
 			status = "failed"
 		}
-		buildManager.Add(&ExtensionBuild{BuildID: fmt.Sprintf("build-%d", i), Status: status})
+		buildManager.Add(&ExtensionBuild{BuildID: fmt.Sprintf("build-%d", i), Status: ExtensionBuildStatus(status)})
 	}
 
 	b.ResetTimer()

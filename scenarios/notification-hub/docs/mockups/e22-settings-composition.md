@@ -6,12 +6,12 @@ active editor as the page's main content. Returning to Settings restores the bro
 
 | Desktop editor | Phone editor |
 | --- | --- |
-| ![Quiet Monday editor, dark desktop](../../../../docs/internal/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/quiet-monday-editor-dark-desktop-p1-r3.png) | ![Quiet Monday editor, dark phone](../../../../docs/internal/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/quiet-monday-editor-dark-phone-p1-r3.png) |
-| ![Order channel editor, dark desktop](../../../../docs/internal/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/order-channel-editor-dark-desktop-p1-r3.png) | ![Order channel editor, dark phone](../../../../docs/internal/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/order-channel-editor-dark-phone-p1-r3.png) |
+| ![Quiet Monday editor, dark desktop](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/quiet-monday-editor-dark-desktop-p1-r3.png) | ![Quiet Monday editor, dark phone](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/quiet-monday-editor-dark-phone-p1-r3.png) |
+| ![Order channel editor, dark desktop](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/order-channel-editor-dark-desktop-p1-r3.png) | ![Order channel editor, dark phone](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/order-channel-editor-dark-phone-p1-r3.png) |
 
 | Desktop staged review | Phone uncertain-save recovery |
 | --- | --- |
-| ![Five-day quiet hours review, light desktop](../../../../docs/internal/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/quiet-five-day-review-light-desktop-p1-r3.png) | ![Unknown order save, light phone](../../../../docs/internal/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/order-save-unknown-light-phone-p1-r3.png) |
+| Selected desktop original unavailable in the retained corpus. Expected filename `quiet-five-day-review-light-desktop-p1-r3.png`. | ![Unknown order save, light phone](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/order-save-unknown-light-phone-p1-r3.png) |
 
 ## Composition contract
 

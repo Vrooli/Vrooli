@@ -1384,38 +1384,11 @@ func isSubpath(base, target string) bool {
 }
 
 func filterVulnerabilitiesBySeverity(scenario string, allowed map[string]struct{}) []StoredVulnerability {
-	vulnerabilities := vulnStore.GetVulnerabilities(scenario)
-	if len(vulnerabilities) == 0 {
-		return nil
-	}
-	var filtered []StoredVulnerability
-	for _, vuln := range vulnerabilities {
-		severity := strings.ToLower(strings.TrimSpace(vuln.Severity))
-		if len(allowed) > 0 {
-			if _, ok := allowed[severity]; !ok {
-				continue
-			}
-		}
-		filtered = append(filtered, vuln)
-	}
-	return filtered
+	return filterFindingsBySeverity(vulnStore.GetVulnerabilities(scenario), allowed, func(v StoredVulnerability) string { return v.Severity })
 }
 
 func collectVulnerabilityIDs(vulnerabilities []StoredVulnerability) []string {
-	ids := make([]string, 0, len(vulnerabilities))
-	seen := make(map[string]struct{}, len(vulnerabilities))
-	for _, vuln := range vulnerabilities {
-		id := strings.TrimSpace(vuln.ID)
-		if id == "" {
-			continue
-		}
-		if _, exists := seen[id]; exists {
-			continue
-		}
-		seen[id] = struct{}{}
-		ids = append(ids, id)
-	}
-	return ids
+	return uniqueFindingIDs(vulnerabilities, func(v StoredVulnerability) string { return v.ID })
 }
 
 func extractVulnerabilitySeverities(vulnerabilities []StoredVulnerability) []string {
@@ -1430,38 +1403,11 @@ func extractVulnerabilitySeverities(vulnerabilities []StoredVulnerability) []str
 }
 
 func filterStandardsBySeverity(scenario string, allowed map[string]struct{}) []StandardsViolation {
-	violations := standardsStore.GetViolations(scenario)
-	if len(violations) == 0 {
-		return nil
-	}
-	var filtered []StandardsViolation
-	for _, violation := range violations {
-		severity := strings.ToLower(strings.TrimSpace(violation.Severity))
-		if len(allowed) > 0 {
-			if _, ok := allowed[severity]; !ok {
-				continue
-			}
-		}
-		filtered = append(filtered, violation)
-	}
-	return filtered
+	return filterFindingsBySeverity(standardsStore.GetViolations(scenario), allowed, func(v StandardsViolation) string { return v.Severity })
 }
 
 func collectStandardsIDs(violations []StandardsViolation) []string {
-	ids := make([]string, 0, len(violations))
-	seen := make(map[string]struct{}, len(violations))
-	for _, violation := range violations {
-		id := strings.TrimSpace(violation.ID)
-		if id == "" {
-			continue
-		}
-		if _, exists := seen[id]; exists {
-			continue
-		}
-		seen[id] = struct{}{}
-		ids = append(ids, id)
-	}
-	return ids
+	return uniqueFindingIDs(violations, func(v StandardsViolation) string { return v.ID })
 }
 
 func extractStandardsSeverities(violations []StandardsViolation) []string {

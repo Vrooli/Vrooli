@@ -50,7 +50,7 @@ func (f *fakeCmd) run(_ context.Context, name string, args ...string) ([]byte, e
 
 func completeRunJSON() string {
 	return `{"run":{"id":"run-1","status":"RUN_STATUS_COMPLETE","sandbox_id":"sbx-9",` +
-		`"changed_files":2,"started_at":"2026-06-24T12:00:00Z","ended_at":"2026-06-24T12:00:05Z",` +
+		`"actual_model":"ollama/test-model","changed_files":2,"started_at":"2026-06-24T12:00:00Z","ended_at":"2026-06-24T12:00:05Z",` +
 		`"summary":{"tokens_used":1234,"cost_estimate":0.01},"extra_unknown_field":"ignored"}}`
 }
 
@@ -76,7 +76,7 @@ func TestRunnerHappyPathCollectsEvidence(t *testing.T) {
 	if res.Verdict != VerdictUnspecified {
 		t.Fatalf("runner must NOT decide a verdict on success, got %v (detail=%q)", res.Verdict, res.Detail)
 	}
-	if res.Tokens != 1234 || res.DurationMs != 5000 || res.ChangedFiles != 2 {
+	if res.Tokens != 1234 || res.DurationMs != 5000 || res.ChangedFiles != 2 || res.Model != "ollama/test-model" {
 		t.Fatalf("metrics parsed wrong: %+v", res)
 	}
 	if res.SandboxDiffRef != "sbx-9" || res.RunID != "run-1" {

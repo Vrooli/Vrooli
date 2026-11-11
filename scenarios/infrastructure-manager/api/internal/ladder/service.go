@@ -333,11 +333,14 @@ func (s *Service) applyDeviceJoin(cell *Cell, join SubstrateJoin, class, hostOS 
 	matching := devices[class]
 	cell.DeviceCount = len(matching)
 	if len(matching) == 0 {
-		// A live read that found no device of this class is a real fact about
-		// the host, not a gap in the instrument.
-		cell.Observation = ObservationNotApplicable
-		cell.Reason = fmt.Sprintf("the device graph enumerated no %s on this host", class)
-		cell.Trust = internalcondition.TrustValid
+		// An empty class is evidence of absence only when the owning bus or
+		// subsystem was successfully enumerated. A partial graph can contain
+		// useful devices while still failing to see this class.
+		coverage := emptyClassCoverage([]string{class}, graph.Value)
+		cell.Observation = coverage.Observation
+		cell.Reason = coverage.Reason
+		cell.Mechanism = coverage.Mechanism
+		cell.Trust = trustFor(coverage.Observation)
 		cell.StatusSource = "live device-graph join"
 		cell.ObservedAt = graph.Value.CollectedAt
 		return
@@ -356,6 +359,16 @@ func (s *Service) applyDeviceJoin(cell *Cell, join SubstrateJoin, class, hostOS 
 			worst, worstCause = reading, causeOf(ordered, reading)
 		}
 	}
+	coverage := emptyClassCoverage([]string{class}, graph.Value)
+	if coverage.Observation != ObservationMeasured && coverage.Observation != ObservationNotApplicable &&
+		observationRank(coverage.Observation) > observationRank(worst.Observation) {
+		worst = RungReading{
+			Rung: join.Rung, Observation: coverage.Observation,
+			Reason: coverage.Reason, Mechanism: coverage.Mechanism,
+		}
+		worstCause = coverage.Observation
+		cell.ReasonCode = "device_inventory_incomplete"
+	}
 	cell.BlindDevices = blind
 	cell.Observation = worst.Observation
 	cell.Reason = worst.Reason
@@ -372,10 +385,58 @@ func (s *Service) applyDeviceJoin(cell *Cell, join SubstrateJoin, class, hostOS 
 			cell.Reason = fmt.Sprintf("%d of %d %s could not be graded at the %s rung", blind, cell.DeviceCount, class, join.Rung)
 		}
 	}
-	if blind == 0 && cell.Trust == internalcondition.TrustValid {
+	if blind == 0 && cell.Observation == ObservationMeasured && cell.Trust == internalcondition.TrustValid {
 		cell.Status = spacedoc.StatusNow
 		cell.StatusSource = "live device-graph join: the sensor is joined and grading"
 	}
+}
+
+type emptyCoverage struct {
+	Observation Observation
+	Reason      string
+	Mechanism   string
+}
+
+func emptyClassCoverage(classes []string, graph sources.DeviceGraph) emptyCoverage {
+	classSubsystem := map[string]string{
+		"pci-device": "pci-bus", "graphics-device": "pci-bus",
+		"usb-device": "usb-bus", "block-device": "block-storage",
+		"network-interface": "network-interfaces", "thermal-sensor": "thermal",
+		"memory-controller": "memory-errors", "memory-module": "memory-errors",
+	}
+	byName := make(map[string]sources.GraphSubsystem, len(graph.Subsystems))
+	for _, subsystem := range graph.Subsystems {
+		byName[subsystem.Name] = subsystem
+	}
+	worst := emptyCoverage{Observation: ObservationMeasured}
+	for _, class := range classes {
+		name, known := classSubsystem[class]
+		if !known {
+			return emptyCoverage{Observation: ObservationUnread, Reason: fmt.Sprintf("no coverage mapping exists for empty device class %s", class)}
+		}
+		subsystem, found := byName[name]
+		if !found {
+			return emptyCoverage{Observation: ObservationUnread, Reason: fmt.Sprintf("the device graph has no %s coverage record for empty class %s", name, class)}
+		}
+		identity, found := subsystem.Rungs[string(RungIdentity)]
+		if !found {
+			return emptyCoverage{Observation: ObservationUnread, Reason: fmt.Sprintf("the %s coverage record has no identity grade", name)}
+		}
+		candidate := emptyCoverage{Observation: Observation(identity.State), Reason: identity.Reason, Mechanism: identity.Mechanism}
+		if candidate.Observation == ObservationMeasured {
+			continue
+		}
+		if observationRank(candidate.Observation) > observationRank(worst.Observation) || worst.Observation == ObservationMeasured {
+			worst = candidate
+		}
+	}
+	if worst.Observation == ObservationMeasured {
+		return emptyCoverage{Observation: ObservationNotApplicable, Reason: "the device graph successfully enumerated the relevant subsystems and found no matching device"}
+	}
+	if worst.Reason == "" {
+		worst.Reason = "one or more relevant device classes could not be conclusively enumerated"
+	}
+	return worst
 }
 
 // causeOf resolves what actually blinded a rung. A blocked rung says nothing

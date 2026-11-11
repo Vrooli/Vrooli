@@ -16,9 +16,9 @@ designed for rather than discovered.
 This section is the current product amendment record. The selected design remains
 Direction D, Night signal, with desktop working queues and mobile focused decisions,
 across Needs you, Updates, History, Delivery detail and Settings/Reach. Read the
-[selected atlas](../../../../docs/internal/delivery-operations/2026-10-12/sources/notification-hub-atlas.md),
-[dossier](../../../../docs/internal/delivery-operations/2026-10-12/sources/notification-hub-dossier.md)
-and [original-image manifest](../../../../docs/internal/delivery-operations/2026-10-12/sources/notification-hub-revision/selected-image-manifest.json)
+[selected atlas](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/2026-10-12/sources/notification-hub-atlas.md),
+[dossier](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/2026-10-12/sources/notification-hub-dossier.md)
+and [original-image manifest](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/2026-10-12/sources/notification-hub-revision/selected-image-manifest.json)
 alongside these amendments, the PRD and the flows below. These links resolve from this
 document; the dated atlas remains original evidence rather than a competing current record.
 
@@ -35,7 +35,7 @@ expected differences; missing behavior, unverified changes and genuine defects r
 - **Source and authority:** User instruction on 25 October 2026: “I do in fact want the
   bottom nav.” This is an explicit product amendment, not an agent preference.
 - **Disposition:** User-approved requirement, implemented in the shared shell with focused and
-  representative browser proof in `../../../../.vrooli/work/delivery/notification-hub-delivery/evidence/design-amendments-20261025/`. E43 acknowledged D4; whole-surface acceptance remains separate. It supersedes interpreting selected screenshots without bottom navigation
+  representative browser proof in `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/notification-hub/legacy-delivery/evidence/design-amendments-20261025/`. E43 acknowledged D4; whole-surface acceptance remains separate. It supersedes interpreting selected screenshots without bottom navigation
   as authority to remove it.
 - **Scope:** Persistent primary navigation on mobile primary destination views, including
   History, Delivery and Settings/Reach. Keep all five destinations reachable and identify
@@ -90,10 +90,10 @@ expected differences; missing behavior, unverified changes and genuine defects r
   attempted draft, show exact owner readback, and never send later weekdays after an
   uncertain write.
 - **Before/after and operation:** Before captures are in
-  `../../../../docs/internal/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/`
+  `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/2026-10-12/assets/notification-hub-revised/originals/`
   (`quiet-partial-still-unknown-{light,dark}-phone-p1-r3.png`). Current captures and
   source/build identities are in
-  `../../../../.vrooli/work/delivery/notification-hub-delivery/evidence/E43-source-baseline-20261025/addendum-quiet-contextual-result-header/`.
+  `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/notification-hub/legacy-delivery/evidence/E43-source-baseline-20261025/addendum-quiet-contextual-result-header/`.
   Light and dark owner journeys passed on the current managed source (Workflow Health
   runs `a8027c7a-4f03-4eb3-8ad6-2abe525774c0` and
   `2a1a4a69-0d09-47de-8485-485a707b8d13`; 150 test-pool requests each, zero primary
@@ -106,7 +106,7 @@ expected differences; missing behavior, unverified changes and genuine defects r
 #### Current surface-level disposition — 2026-10-26
 
 The earlier mismatch note is superseded for the six selected quiet partial recovery rows
-after current-serving review. On managed build `sha256:ab71b93e81a3ca37584e08530db771b6cb3a3b14d283c02105a32e52f3e864e7`, the light and dark owner journeys re-captured all four `quiet-partial-save` parts and both `quiet-partial-still-unknown` rows. The guidance rail now matches the selected theme colors; the per-day status/readback and visible no-retry/draft-retention explanations are verified against the recovery behavior. The persistent Chimesail header/navigation follows NH-DESIGN-20261025-01. Treat these six rows as **expected differences**, not pixel matches, under NH-DESIGN-20261025-01/-03. Exact identities, current captures, run/isolation receipts and row dispositions are in `.vrooli/work/delivery/notification-hub-delivery/evidence/E43-source-baseline-20261025/addendum-partial-save-density-current-20261026/capture-review.json`. This disposition does not resolve the 46 unavailable selected Reach rows or accept the Settings/Reach surface.
+after current-serving review. On managed build `sha256:ab71b93e81a3ca37584e08530db771b6cb3a3b14d283c02105a32e52f3e864e7`, the light and dark owner journeys re-captured all four `quiet-partial-save` parts and both `quiet-partial-still-unknown` rows. The guidance rail now matches the selected theme colors; the per-day status/readback and visible no-retry/draft-retention explanations are verified against the recovery behavior. The persistent Chimesail header/navigation follows NH-DESIGN-20261025-01. Treat these six rows as **expected differences**, not pixel matches, under NH-DESIGN-20261025-01/-03. Exact identities, current captures, run/isolation receipts and row dispositions are in `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/notification-hub/legacy-delivery/evidence/E43-source-baseline-20261025/addendum-partial-save-density-current-20261026/capture-review.json`. This disposition does not resolve the 46 unavailable selected Reach rows or accept the Settings/Reach surface.
 
 ### NH-DESIGN-20261026-REACH-01 — contextual Reach recovery and validation
 
@@ -127,7 +127,7 @@ after current-serving review. On managed build `sha256:ab71b93e81a3ca37584e08530
   action; browser permission and device registration remain distinct.
 - **Evidence:** Current managed build, exact original identities, five before/after row
   captures and the isolated ten-case run are recorded in
-  `.vrooli/work/delivery/notification-hub-delivery/evidence/E43-source-baseline-20261025/addendum-reach-capture-expansion-20261026/capture-review.json`.
+  `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/notification-hub/legacy-delivery/evidence/E43-source-baseline-20261025/addendum-reach-capture-expansion-20261026/capture-review.json`.
 - **Disposition:** Verified current visual differences are expected under this refinement
   and NH-DESIGN-20261025-01; these rows are not pixel matches. This does not close the
   remaining selected Reach rows or accept Settings/Reach.
@@ -151,7 +151,7 @@ after current-serving review. On managed build `sha256:ab71b93e81a3ca37584e08530
   each 44 CSS px tall. Selection and inspection do not enroll, remove or prompt.
 - **Evidence:** Exact original identities, current captures, current managed serving
   identity and per-row dispositions are in
-  `.vrooli/work/delivery/notification-hub-delivery/evidence/E43-source-baseline-20261025/addendum-channel-read-gap-20261026/readiness-unknown-capture-review.json`.
+  `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/notification-hub/legacy-delivery/evidence/E43-source-baseline-20261025/addendum-channel-read-gap-20261026/readiness-unknown-capture-review.json`.
   The selected-device owner case is `workflow-health` run
   `8332869d-8183-4e4e-8ef1-d1159d5daccc` (1/1 passed, 44 test-pool requests, zero primary
   requests/writes, zero test-root writes and zero lease waits).
@@ -207,7 +207,7 @@ after current-serving review. On managed build `sha256:ab71b93e81a3ca37584e08530
   FormActions and Dialog do not fit the existing review/discard recovery contract. These
   choices preserve native keyboard behavior and the transactional save/readback flow.
   Preflight and adoption evidence is in
-  `.vrooli/work/delivery/notification-hub-delivery/evidence/E43-source-baseline-20261025/addendum-settings-rcl-adoption/`.
+  `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/notification-hub/legacy-delivery/evidence/E43-source-baseline-20261025/addendum-settings-rcl-adoption/`.
 
 - **NH-DESIGN-20261025-04 — focused saved-email review:** When editing an existing
   owner-scoped email row, focus the current device/channel and destination task instead of
@@ -220,13 +220,13 @@ after current-serving review. On managed build `sha256:ab71b93e81a3ca37584e08530
   unchanged-destination warning; the global Chimesail header and persistent destination
   navigation are expected differences under NH-DESIGN-20261025-ICONS/-BRAND/-01. Full
   atlas coverage and surface acceptance remain open. Evidence is in
-  `.vrooli/work/delivery/notification-hub-delivery/evidence/E43-source-baseline-20261025/addendum-address-validation-focused/`.
+  `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/notification-hub/legacy-delivery/evidence/E43-source-baseline-20261025/addendum-address-validation-focused/`.
 
 ### NH-DESIGN-20261025-05 — align the Add channel guidance and return action
 
 - **Owner and scope:** E43 implementation refinement for the selected E22 `order-add-channel` light/dark phone states.
 - **Change:** Reuse the existing `--reach-guidance-rail` token for the availability disclosure, set the Back to order footer spacing to the selected composition, and keep its target at 44px. This aligns the light/dark rail colors and the selected action placement without changing channel eligibility, draft state, persistence, or navigation.
-- **Evidence:** Focused Settings/Reach suite passes 79/79; UI type/string and selector freshness pass. Managed restart `startop-b2fcca9f94c0acaef0c4a93f8e8fd76b` is healthy with build `sha256:6e004cb17ade0963e5a6147a991960c18935cb723a8ef556b866517b4ce9e049`; served index/JS/CSS match `ui/dist`. Current selected run `88d580e9-09ea-4d4b-8731-b93d70d12aef` passed both zero-inset phone captures without saving. Before/after captures and source hashes are in `.vrooli/work/delivery/notification-hub-delivery/evidence/E43-source-baseline-20261025/addendum-order-add-channel-current/` and `addendum-dark-warning-rail/`.
+- **Evidence:** Focused Settings/Reach suite passes 79/79; UI type/string and selector freshness pass. Managed restart `startop-b2fcca9f94c0acaef0c4a93f8e8fd76b` is healthy with build `sha256:6e004cb17ade0963e5a6147a991960c18935cb723a8ef556b866517b4ce9e049`; served index/JS/CSS match `ui/dist`. Current selected run `88d580e9-09ea-4d4b-8731-b93d70d12aef` passed both zero-inset phone captures without saving. Before/after captures and source hashes are in `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/notification-hub/legacy-delivery/evidence/E43-source-baseline-20261025/addendum-order-add-channel-current/` and `addendum-dark-warning-rail/`.
 - **Disposition:** Implemented and requalified. Both rows remain expected differences only for adopted shell/brand/menu/bottom-navigation changes. This does not qualify the other 95 unavailable assigned rows or accept the Settings/Reach surface.
 
 ### NH-DESIGN-20261025-HISTORY-COMPLETE — searchable request lifecycle and composed History
@@ -271,7 +271,7 @@ after current-serving review. On managed build `sha256:ab71b93e81a3ca37584e08530
   test-root writes. Both traverse beyond 200 and find `Archived review 30` directly through
   the server query. Current phone/desktop light/dark captures verify safe areas, meaningful
   selection, 44px filters, one search focus outline and no document/inner-pane overflow.
-  Evidence and comparison: `../../../../.vrooli/work/delivery/notification-hub-delivery/evidence/history-completeness-20261025/index.html`.
+  Evidence and comparison: `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/notification-hub/legacy-delivery/evidence/history-completeness-20261025/index.html`.
 - **Disposition:** Implemented and verified within the user-approved bounded amendment.
   Existing independent destination acceptance remains with the delivery owner.
   This amendment reopens affected History/Needs you behavior and comparison evidence; no

@@ -1,6 +1,11 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "skills": {
+    "usage": {
+      "source": "skills/scenario-to-ios/SKILL.md"
+    }
+  },
   "service": {
     "parent": "vrooli",
     "name": "scenario-to-ios",

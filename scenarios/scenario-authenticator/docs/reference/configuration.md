@@ -299,3 +299,20 @@ the doc viewer) — keep them in sync with the code they describe.
 - [`../concepts/DOMAINS.md`](../concepts/DOMAINS.md) — which domain owns each config knob
 - [`../internal/SECURITY.md`](../internal/SECURITY.md) — RS256/JWKS/Argon2id posture and secret handling
 - [`../concepts/ARCHITECTURE.md`](../concepts/ARCHITECTURE.md) — why these surfaces exist
+
+## Light Desk relying-party registration
+
+The maintained service manifest registers
+`lighting-control=scenario-authenticator:lighting-control` in the existing
+explicit resource allowlist. Normal managed lifecycle binds that non-secret
+configuration into the issuer. An Authenticator process started before this
+registration must adopt the updated configuration through its normal lifecycle
+before Light Desk sign-in can issue the required resource audience.
+
+Registration does not create an account, issue a service credential, or assign
+scopes or roles. Existing accounts keep their authority. Light Desk checks the
+issued token's scopes for `lighting-control:write` using the canonical wildcard
+resolver. Account owners use the existing sign-in, scope inspection, renewal
+and logout flows. A missing account capability remains an identity-owner
+administration decision; a default-realm token does not replace the required
+relying-party audience.

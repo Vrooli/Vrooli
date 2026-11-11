@@ -100,9 +100,8 @@ type StandardsScanStatus struct {
 }
 
 type StandardsScanJob struct {
-	mu     sync.RWMutex
-	status StandardsScanStatus
-	cancel context.CancelFunc
+	lifecycle *scanJobLifecycle[StandardsScanStatus]
+	cancel    context.CancelFunc
 }
 
 type StandardsScanManager struct {
@@ -156,7 +155,7 @@ func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standard
 
 	job := &StandardsScanJob{
 		cancel: cancel,
-		status: StandardsScanStatus{
+		lifecycle: newStandardsScanLifecycle(StandardsScanStatus{
 			ID:             jobID,
 			Scenario:       scenarioName,
 			ScanType:       scanType,
@@ -165,7 +164,7 @@ func (m *StandardsScanManager) StartScan(scenarioName, scanType string, standard
 			ElapsedSeconds: 0,
 			TotalScenarios: len(targets),
 			Message:        "Standards scan started",
-		},
+		}),
 	}
 
 	m.mu.Lock()
@@ -195,52 +194,20 @@ func (m *StandardsScanManager) Cancel(jobID string) (StandardsScanStatus, error)
 }
 
 func (job *StandardsScanJob) update(fn func(*StandardsScanStatus)) {
-	job.mu.Lock()
-	defer job.mu.Unlock()
-	fn(&job.status)
-	if !job.status.StartedAt.IsZero() {
-		job.status.ElapsedSeconds = time.Since(job.status.StartedAt).Seconds()
-	}
+	job.lifecycle.update(fn)
 }
 
 func (job *StandardsScanJob) snapshot() StandardsScanStatus {
-	job.mu.RLock()
-	defer job.mu.RUnlock()
-	copy := job.status
-	if !copy.StartedAt.IsZero() && copy.Status != "pending" {
-		copy.ElapsedSeconds = time.Since(copy.StartedAt).Seconds()
-	}
-	return copy
+	return job.lifecycle.snapshot()
 }
 
 func (job *StandardsScanJob) requestCancel() error {
-	job.mu.Lock()
-	status := job.status.Status
-	if status == "completed" || status == "failed" || status == "cancelled" {
-		job.mu.Unlock()
-		return errStandardsScanFinished
-	}
-	if status == "cancelling" {
-		job.mu.Unlock()
-		return nil
-	}
-	job.status.Status = "cancelling"
-	job.status.Message = "Cancellation requested"
-	if !job.status.StartedAt.IsZero() {
-		job.status.ElapsedSeconds = time.Since(job.status.StartedAt).Seconds()
-	}
-	cancel := job.cancel
-	job.mu.Unlock()
-
-	if cancel != nil {
-		cancel()
-	}
-	return nil
+	return job.lifecycle.requestCancel(job.cancel, errStandardsScanFinished)
 }
 
 func (job *StandardsScanJob) markCancelled() {
 	completedAt := time.Now()
-	job.update(func(status *StandardsScanStatus) {
+	job.lifecycle.finish("cancelled", func(status *StandardsScanStatus) {
 		status.Status = "cancelled"
 		status.CompletedAt = &completedAt
 		status.Message = "Standards scan cancelled"
@@ -251,7 +218,7 @@ func (job *StandardsScanJob) markCancelled() {
 
 func (job *StandardsScanJob) markFailed(err error) {
 	completedAt := time.Now()
-	job.update(func(status *StandardsScanStatus) {
+	job.lifecycle.finish("failed", func(status *StandardsScanStatus) {
 		status.Status = "failed"
 		status.CompletedAt = &completedAt
 		status.Error = err.Error()
@@ -263,7 +230,7 @@ func (job *StandardsScanJob) markFailed(err error) {
 
 func (job *StandardsScanJob) markCompleted(result StandardsCheckResult, processedFiles int) {
 	completedAt := time.Now()
-	job.update(func(status *StandardsScanStatus) {
+	job.lifecycle.finish("completed", func(status *StandardsScanStatus) {
 		status.Status = "completed"
 		status.CompletedAt = &completedAt
 		status.Message = result.Message
@@ -276,45 +243,17 @@ func (job *StandardsScanJob) markCompleted(result StandardsCheckResult, processe
 }
 
 func getStandardsScanSummaryHandler(w http.ResponseWriter, r *http.Request) {
-	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
-	if jobID == "" {
-		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
-		return
-	}
-
-	job, ok := standardsScanManager.Get(jobID)
-	if !ok {
-		HTTPError(w, "Standards scan not found", http.StatusNotFound, errStandardsScanNotFound)
-		return
-	}
-
-	limit, minSeverity, groupBy := parseSummaryFilters(r)
-	status := job.snapshot()
-	if status.Result == nil || status.Result.Summary == nil {
-		HTTPError(w, "Summary not available; scan still running", http.StatusAccepted, nil)
-		return
-	}
-
-	summary := cloneSummary(status.Result.Summary, limit, minSeverity)
-	if summary == nil {
-		HTTPError(w, "Summary unavailable", http.StatusInternalServerError, nil)
-		return
-	}
-
-	resp := map[string]any{
-		"summary": summary,
-		"filters": map[string]any{
-			"limit":        limit,
-			"min_severity": minSeverity,
-			"group_by":     groupBy,
-		},
-	}
-	if groupBy == "rule" {
-		resp["groups"] = summary.ByRule
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	serveScanSummary(w, r, "Standards scan", errStandardsScanNotFound, func(jobID string) (*ViolationSummary, bool) {
+		job, ok := standardsScanManager.Get(jobID)
+		if !ok {
+			return nil, false
+		}
+		status := job.snapshot()
+		if status.Result == nil {
+			return nil, true
+		}
+		return status.Result.Summary, true
+	})
 }
 
 // getStandardsViolationsSummaryHandler returns an aggregated summary for cached violations
@@ -355,42 +294,17 @@ func getStandardsViolationsSummaryHandler(w http.ResponseWriter, r *http.Request
 }
 
 func downloadStandardsScanArtifactHandler(w http.ResponseWriter, r *http.Request) {
-	jobID := strings.TrimSpace(mux.Vars(r)["jobId"])
-	if jobID == "" {
-		HTTPError(w, "Job ID is required", http.StatusBadRequest, nil)
-		return
-	}
-	job, ok := standardsScanManager.Get(jobID)
-	if !ok {
-		HTTPError(w, "Standards scan not found", http.StatusNotFound, errStandardsScanNotFound)
-		return
-	}
-	status := job.snapshot()
-	if status.Result == nil || status.Result.Summary == nil || status.Result.Summary.Artifact == nil {
-		HTTPError(w, "No artifact recorded for this scan", http.StatusNotFound, nil)
-		return
-	}
-	artifactPath, err := resolveArtifactAbsolutePath(status.Result.Summary.Artifact.Path)
-	if err != nil {
-		HTTPError(w, "Artifact path invalid", http.StatusBadRequest, err)
-		return
-	}
-	file, err := os.Open(artifactPath)
-	if err != nil {
-		HTTPError(w, "Artifact not found", http.StatusNotFound, err)
-		return
-	}
-	defer file.Close()
-
-	info, err := file.Stat()
-	if err != nil {
-		HTTPError(w, "Unable to read artifact", http.StatusInternalServerError, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=standards-%s.json", jobID))
-	http.ServeContent(w, r, filepath.Base(artifactPath), info.ModTime(), file)
+	serveScanArtifact(w, r, "standards", "Standards scan not found", errStandardsScanNotFound, func(jobID string) (string, bool, bool) {
+		job, ok := standardsScanManager.Get(jobID)
+		if !ok {
+			return "", false, false
+		}
+		status := job.snapshot()
+		if status.Result == nil || status.Result.Summary == nil || status.Result.Summary.Artifact == nil {
+			return "", true, false
+		}
+		return status.Result.Summary.Artifact.Path, true, true
+	})
 }
 
 func (job *StandardsScanJob) run(ctx context.Context, targets []standardsScanTarget, scenarioName, scanType string, specificStandards []string, forceDisabled bool) {

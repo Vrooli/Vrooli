@@ -477,53 +477,23 @@ func (job *automatedFixJob) refreshQueues() error {
 }
 
 func (job *automatedFixJob) collectSecurityIssues() ([]string, map[string]string, error) {
-	allowed := job.severityAllow
-	vulnerabilities := filterVulnerabilitiesBySeverity(job.scenario, allowed)
-	if len(vulnerabilities) == 0 {
-		return nil, map[string]string{}, nil
-	}
-	sort.SliceStable(vulnerabilities, func(i, j int) bool {
-		return compareSeverities(vulnerabilities[i].Severity, vulnerabilities[j].Severity, job.strategy) < 0
-	})
-	severities := make(map[string]string, len(vulnerabilities))
-	ordered := make([]string, 0, len(vulnerabilities))
-	for _, vuln := range vulnerabilities {
-		id := strings.TrimSpace(vuln.ID)
-		if id == "" {
-			continue
-		}
-		if _, exists := severities[id]; exists {
-			continue
-		}
-		severities[id] = strings.ToLower(strings.TrimSpace(vuln.Severity))
-		ordered = append(ordered, id)
-	}
-	return ordered, severities, nil
+	ids, severities := orderedUniqueFindings(
+		filterVulnerabilitiesBySeverity(job.scenario, job.severityAllow),
+		job.strategy,
+		func(v StoredVulnerability) string { return v.ID },
+		func(v StoredVulnerability) string { return v.Severity },
+	)
+	return ids, severities, nil
 }
 
 func (job *automatedFixJob) collectStandardsIssues() ([]string, map[string]string, error) {
-	allowed := job.severityAllow
-	violations := filterStandardsBySeverity(job.scenario, allowed)
-	if len(violations) == 0 {
-		return nil, map[string]string{}, nil
-	}
-	sort.SliceStable(violations, func(i, j int) bool {
-		return compareSeverities(violations[i].Severity, violations[j].Severity, job.strategy) < 0
-	})
-	severities := make(map[string]string, len(violations))
-	ordered := make([]string, 0, len(violations))
-	for _, violation := range violations {
-		id := strings.TrimSpace(violation.ID)
-		if id == "" {
-			continue
-		}
-		if _, exists := severities[id]; exists {
-			continue
-		}
-		severities[id] = strings.ToLower(strings.TrimSpace(violation.Severity))
-		ordered = append(ordered, id)
-	}
-	return ordered, severities, nil
+	ids, severities := orderedUniqueFindings(
+		filterStandardsBySeverity(job.scenario, job.severityAllow),
+		job.strategy,
+		func(v StandardsViolation) string { return v.ID },
+		func(v StandardsViolation) string { return v.Severity },
+	)
+	return ids, severities, nil
 }
 
 func compareSeverities(a, b, strategy string) int {
@@ -767,43 +737,11 @@ func (job *automatedFixJob) launchSecurityAgents(targets []claudeFixTarget, mode
 		return nil, err
 	}
 	totalFindings := countVulnerabilityFindings(multiTargets)
-	requestedAgents := clampAgentCount(0, totalFindings)
-	groups := splitVulnerabilityTargets(multiTargets, requestedAgents)
+	groups := splitVulnerabilityTargets(multiTargets, clampAgentCount(0, totalFindings))
 	if len(groups) == 0 {
 		return nil, errors.New("no vulnerabilities matched for automation batch")
 	}
-	var agents []*AgentInfo
-	for idx, group := range groups {
-		prompt, label, promptMetadata, err := buildMultiVulnerabilityFixPrompt(group, "")
-		if err != nil {
-			return nil, err
-		}
-		combinedMetadata := cloneStringMap(metadata)
-		for key, value := range promptMetadata {
-			combinedMetadata[key] = value
-		}
-		combinedMetadata["batch_index"] = fmt.Sprintf("%d/%d", idx+1, len(groups))
-		combinedMetadata["issue_kind"] = "vulnerabilities"
-
-		issueIDs := collectVulnerabilityIssueIDs(group)
-		agentInfo, err := agentManager.StartAgent(AgentStartConfig{
-			Label:    label,
-			Name:     fmt.Sprintf("%s (automated)", label),
-			Action:   agentActionVulnerabilityFix,
-			Scenario: job.scenario,
-			IssueIDs: issueIDs,
-			Prompt:   prompt,
-			Model:    model,
-			Metadata: combinedMetadata,
-		})
-		if err != nil {
-			return nil, err
-		}
-		severityLabel := job.highestSeverityLabel(issueIDs, job.securitySeverity)
-		automatedFixStore.RecordStart(job.scenario, "security", severityLabel, agentInfo.ID, len(issueIDs), job.automationRunID)
-		agents = append(agents, agentInfo)
-	}
-	return agents, nil
+	return launchAutomatedFixGroups(job, groups, "security", "vulnerabilities", agentActionVulnerabilityFix, model, metadata, job.securitySeverity, buildMultiVulnerabilityFixPrompt, collectVulnerabilityIssueIDs, agentManager.StartAgent, automatedFixStore.RecordStart)
 }
 
 func (job *automatedFixJob) launchStandardsAgents(targets []claudeFixTarget, model string, metadata map[string]string) ([]*AgentInfo, error) {
@@ -812,14 +750,22 @@ func (job *automatedFixJob) launchStandardsAgents(targets []claudeFixTarget, mod
 		return nil, err
 	}
 	totalViolations := countStandardsViolations(multiTargets)
-	requestedAgents := clampAgentCount(0, totalViolations)
-	groups := splitStandardsTargets(multiTargets, requestedAgents)
+	groups := splitStandardsTargets(multiTargets, clampAgentCount(0, totalViolations))
 	if len(groups) == 0 {
 		return nil, errors.New("no standards violations matched for automation batch")
 	}
+	return launchAutomatedFixGroups(job, groups, "standards", "standards", agentActionStandardsFix, model, metadata, job.standardsSeverity, buildMultiStandardsFixPrompt, collectStandardsIssueIDs, agentManager.StartAgent, automatedFixStore.RecordStart)
+}
+
+type automatedFixPromptBuilder[T any] func([]T, string) (string, string, map[string]string, error)
+type automatedFixIssueIDCollector[T any] func([]T) []string
+type automatedFixAgentStarter func(AgentStartConfig) (*AgentInfo, error)
+type automatedFixStartRecorder func(string, string, string, string, int, string) AutomatedFixRecord
+
+func launchAutomatedFixGroups[T any](job *automatedFixJob, groups [][]T, violationType, issueKind, action, model string, metadata, severityByID map[string]string, buildPrompt automatedFixPromptBuilder[T], collectIDs automatedFixIssueIDCollector[T], startAgent automatedFixAgentStarter, recordStart automatedFixStartRecorder) ([]*AgentInfo, error) {
 	var agents []*AgentInfo
-	for idx, group := range groups {
-		prompt, label, promptMetadata, err := buildMultiStandardsFixPrompt(group, "")
+	for index, group := range groups {
+		prompt, label, promptMetadata, err := buildPrompt(group, "")
 		if err != nil {
 			return nil, err
 		}
@@ -827,14 +773,14 @@ func (job *automatedFixJob) launchStandardsAgents(targets []claudeFixTarget, mod
 		for key, value := range promptMetadata {
 			combinedMetadata[key] = value
 		}
-		combinedMetadata["batch_index"] = fmt.Sprintf("%d/%d", idx+1, len(groups))
-		combinedMetadata["issue_kind"] = "standards"
+		combinedMetadata["batch_index"] = fmt.Sprintf("%d/%d", index+1, len(groups))
+		combinedMetadata["issue_kind"] = issueKind
 
-		issueIDs := collectStandardsIssueIDs(group)
-		agentInfo, err := agentManager.StartAgent(AgentStartConfig{
+		issueIDs := collectIDs(group)
+		agentInfo, err := startAgent(AgentStartConfig{
 			Label:    label,
 			Name:     fmt.Sprintf("%s (automated)", label),
-			Action:   agentActionStandardsFix,
+			Action:   action,
 			Scenario: job.scenario,
 			IssueIDs: issueIDs,
 			Prompt:   prompt,
@@ -844,8 +790,8 @@ func (job *automatedFixJob) launchStandardsAgents(targets []claudeFixTarget, mod
 		if err != nil {
 			return nil, err
 		}
-		severityLabel := job.highestSeverityLabel(issueIDs, job.standardsSeverity)
-		automatedFixStore.RecordStart(job.scenario, "standards", severityLabel, agentInfo.ID, len(issueIDs), job.automationRunID)
+		severityLabel := job.highestSeverityLabel(issueIDs, severityByID)
+		recordStart(job.scenario, violationType, severityLabel, agentInfo.ID, len(issueIDs), job.automationRunID)
 		agents = append(agents, agentInfo)
 	}
 	return agents, nil

@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -271,61 +269,26 @@ func (ss *StandardsStore) GetStats() map[string]any {
 
 // saveToFile persists the current data to disk
 func (ss *StandardsStore) saveToFile() error {
-	// Skip persistence if no file path (in-memory mode)
-	if ss.filePath == "" {
-		return nil
-	}
-
-	data := StandardsData{
+	return saveJSONStore(ss.filePath, "standards", StandardsData{
 		Violations: ss.violations,
 		LastCheck:  ss.lastCheck,
 		LastUpdate: time.Now(),
-	}
-
-	jsonData, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal standards data: %w", err)
-	}
-
-	if err := storage.WriteFileAtomic(ss.filePath, jsonData, storage.DefaultFilePerm); err != nil {
-		return fmt.Errorf("failed to write standards data to %s: %w", ss.filePath, err)
-	}
-
-	return nil
+	})
 }
 
 // loadFromFile loads persisted data from disk
 func (ss *StandardsStore) loadFromFile() error {
-	// Skip loading if no file path (in-memory mode)
-	if ss.filePath == "" {
-		return nil
-	}
-
-	data, err := os.ReadFile(ss.filePath)
+	data, err := loadJSONStore[StandardsData](ss.filePath, "standards")
 	if err != nil {
-		if os.IsNotExist(err) {
-			// File doesn't exist yet, that's okay
-			return nil
-		}
-		return fmt.Errorf("failed to read standards data from %s: %w", ss.filePath, err)
+		return err
 	}
-
-	var standardsData StandardsData
-	if err := json.Unmarshal(data, &standardsData); err != nil {
-		return fmt.Errorf("failed to unmarshal standards data from %s: %w", ss.filePath, err)
-	}
-
-	// Load the data
-	ss.violations = standardsData.Violations
-	ss.lastCheck = standardsData.LastCheck
-
-	// Initialize maps if they're nil
+	ss.violations = data.Violations
+	ss.lastCheck = data.LastCheck
 	if ss.violations == nil {
 		ss.violations = make(map[string][]StandardsViolation)
 	}
 	if ss.lastCheck == nil {
 		ss.lastCheck = make(map[string]time.Time)
 	}
-
 	return nil
 }

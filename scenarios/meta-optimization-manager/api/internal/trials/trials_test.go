@@ -177,7 +177,7 @@ func TestListTrialTasksFilters(t *testing.T) {
 
 func TestRunTrialsDispatchesAndRecords(t *testing.T) {
 	gen := &fakeGen{tasks: tasksFixture()}
-	runner := &fakeRunner{result: RunResult{Verdict: VerdictPass, Tokens: 1000, DurationMs: 5000, SandboxDiffRef: "sbx-1"}}
+	runner := &fakeRunner{result: RunResult{Verdict: VerdictPass, Model: "ollama/test-model", Tokens: 1000, DurationMs: 5000, SandboxDiffRef: "sbx-1"}}
 	repo := &fakeRepo{}
 	svc := newSvc(gen, runner, repo)
 
@@ -199,8 +199,8 @@ func TestRunTrialsDispatchesAndRecords(t *testing.T) {
 	// Run a whole suite.
 	runner.calls = 0
 	runs, err = svc.RunTrials(context.Background(), SuiteAddFeature, "")
-	if err != nil || len(runs) != 1 || runner.calls != 0 {
-		t.Fatalf("suite run should reuse the just-recorded matching task: runs=%d calls=%d err=%v", len(runs), runner.calls, err)
+	if err != nil || len(runs) != 1 || runner.calls != 1 {
+		t.Fatalf("run without pre-dispatch model identity must dispatch again: runs=%d calls=%d err=%v", len(runs), runner.calls, err)
 	}
 }
 
@@ -271,7 +271,7 @@ func TestHistoryAggregation(t *testing.T) {
 
 func TestRunTrialsEvaluatorDecidesVerdict(t *testing.T) {
 	// The runner returns EVIDENCE (no verdict); the evaluator decides.
-	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified, Tokens: 900, DurationMs: 3000, SandboxDiffRef: "sbx"}}
+	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified, Model: "ollama/test-model", Tokens: 900, DurationMs: 3000, SandboxDiffRef: "sbx"}}
 	ev := &fakeEvaluator{verdict: VerdictFail}
 	repo := &fakeRepo{}
 	svc := newSvcFull(&fakeGen{tasks: tasksFixture()}, runner, repo,
@@ -328,9 +328,9 @@ func TestRunTrialsMissingFixtureRecordsError(t *testing.T) {
 	}
 }
 
-func TestRunTrialsIdempotencyReuse(t *testing.T) {
+func TestRunTrialsDoesNotReuseWithoutPreDispatchModelIdentity(t *testing.T) {
 	clk := scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
-	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified, Tokens: 100}}
+	runner := &fakeRunner{result: RunResult{Verdict: VerdictUnspecified, Model: "ollama/test-model", Tokens: 100}}
 	ev := &fakeEvaluator{verdict: VerdictPass}
 	repo := &fakeRepo{}
 	fx := &fakeFixtures{fixture: Fixture{Family: "f", Rev: "rev1"}}
@@ -344,17 +344,17 @@ func TestRunTrialsIdempotencyReuse(t *testing.T) {
 		t.Fatalf("first run should dispatch+record: calls=%d recorded=%d", runner.calls, len(repo.runs))
 	}
 
-	// Immediate identical re-run (same task and fixture revision) REUSES — no new
-	// dispatch, no new record.
+	// The effective model is reported only after dispatch, so a task and fixture
+	// match alone cannot safely reuse a run from an unknown model.
 	runs, err := svc.RunTrials(context.Background(), "", "trial/g1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if runner.calls != 1 {
-		t.Fatalf("identical re-run must not dispatch again, calls=%d", runner.calls)
+	if runner.calls != 2 {
+		t.Fatalf("model-unbound prior run must not suppress dispatch, calls=%d", runner.calls)
 	}
-	if len(repo.runs) != 1 || runs[0].ID != repo.runs[0].ID {
-		t.Fatalf("re-run should reuse the prior run, got %+v", runs[0])
+	if len(repo.runs) != 2 || runs[0].ID == repo.runs[0].ID {
+		t.Fatalf("run should be independently recorded, got %+v", runs[0])
 	}
 
 	// A changed fixture revision is a different key → dispatches.
@@ -362,8 +362,26 @@ func TestRunTrialsIdempotencyReuse(t *testing.T) {
 	if _, err := svc.RunTrials(context.Background(), "", "trial/g1"); err != nil {
 		t.Fatal(err)
 	}
-	if runner.calls != 2 {
+	if runner.calls != 3 {
 		t.Fatalf("changed fixture revision must dispatch, calls=%d", runner.calls)
+	}
+}
+
+func TestReusableRunRequiresExactModel(t *testing.T) {
+	clk := scheduletest.New(time.Date(2026, 6, 24, 12, 0, 0, 0, time.UTC))
+	repo := &fakeRepo{runs: []TrialRun{{
+		ID: "known", TaskID: "trial/g1", Model: "ollama/model-a", FixtureRev: "rev1",
+		Verdict: VerdictPass, At: clk.Now(),
+	}}}
+	s := &service{repo: repo, clock: clk}
+	if _, found := s.reusableRun(context.Background(), "trial/g1", "", "rev1"); found {
+		t.Fatal("empty model must not act as a wildcard")
+	}
+	if _, found := s.reusableRun(context.Background(), "trial/g1", "ollama/model-b", "rev1"); found {
+		t.Fatal("a different exact model must not reuse the run")
+	}
+	if run, found := s.reusableRun(context.Background(), "trial/g1", "ollama/model-a", "rev1"); !found || run.ID != "known" {
+		t.Fatalf("same exact model should reuse eligible run: found=%v run=%+v", found, run)
 	}
 }
 

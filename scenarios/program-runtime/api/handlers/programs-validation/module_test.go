@@ -30,6 +30,32 @@ func TestValidateScenarioAllowsNoDeclaredPrograms(t *testing.T) {
 	}
 }
 
+func TestValidateScenarioAcceptsExplicitTemporaryScenarioPath(t *testing.T) {
+	repoRoot, err := filepath.Abs("../../../../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	temporaryScenario := t.TempDir()
+	h := &handler{repoRoot: repoRoot}
+	response, err := h.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
+		Scenario: "template-validation",
+		Path:     temporaryScenario,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Msg.GetStatus() != scenariovalidationv1.ValidationStatus_VALIDATION_STATUS_PASSED {
+		t.Fatalf("status = %s, want PASSED when an existing explicit temporary scenario has no program declarations", response.Msg.GetStatus())
+	}
+	var detail structpb.Struct
+	if err := response.Msg.GetNativeDetail().UnmarshalTo(&detail); err != nil {
+		t.Fatal(err)
+	}
+	if findings := detail.GetFields()["findings"].GetListValue().GetValues(); len(findings) != 0 {
+		t.Fatalf("findings = %v, want no findings for an existing explicit temporary scenario", findings)
+	}
+}
+
 func TestValidationRecognizesRuntimeTaskNamespace(t *testing.T) {
 	for _, name := range knownBindingNames(nil) {
 		if name == "tasks" {

@@ -59,11 +59,18 @@ cannot read or game the oracle.
    hermetic (only the tools you can rely on: bash + coreutils + git). Make it
    robust to reasonable solution variation (assert behaviour, not exact text).
 5. Add `fixture.json`.
-6. The fixture **revision** is a content hash of `spec.md` + the oracle command
-   + every file under `target/`. Editing any of them changes the rev, which
-   invalidates the `(task, model, fixture-rev)` idempotency key so the trend
-   never compares runs across incompatible fixture versions. This is automatic —
-   nothing to maintain by hand.
+6. The fixture **revision** hashes the complete fixture directory: manifest,
+   prompt, oracle scripts, target files, relative paths and permission bits.
+   Editing any input changes the revision, so history never compares results
+   across incompatible evaluation substrates. Symlinks are rejected because
+   they can point outside the captured fixture.
+
+The effective model is reported by Agent Manager after execution. Until a
+model can be resolved before dispatch, a recent result is not reused to skip a
+trial: doing so could silently suppress evaluation on a different model. Every
+recorded result stores the reported `actual_model`; an absent model makes the
+trial an error and cannot satisfy the empirical gate. Exact model + fixture
+reuse is safe only on a path that resolves the model before dispatch.
 
 ## Invariants
 

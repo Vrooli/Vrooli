@@ -62,20 +62,20 @@ type ExtensionConfig struct {
 
 // Extension build info
 type ExtensionBuild struct {
-	BuildID        string          `json:"build_id"`
-	ScenarioName   string          `json:"scenario_name"`
-	TemplateType   string          `json:"template_type"`
-	Config         ExtensionConfig `json:"config"`
-	Status         string          `json:"status"` // building, ready, failed
-	ExtensionPath  string          `json:"extension_path"`
-	ArtifactPath   string          `json:"artifact_path,omitempty"`
-	ArtifactSHA256 string          `json:"artifact_sha256,omitempty"`
-	ArtifactBytes  int64           `json:"artifact_bytes,omitempty"`
-	ManifestSHA256 string          `json:"manifest_sha256,omitempty"`
-	BuildLog       []string        `json:"build_log"`
-	ErrorLog       []string        `json:"error_log"`
-	CreatedAt      time.Time       `json:"created_at"`
-	CompletedAt    *time.Time      `json:"completed_at"`
+	BuildID        string               `json:"build_id"`
+	ScenarioName   string               `json:"scenario_name"`
+	TemplateType   string               `json:"template_type"`
+	Config         ExtensionConfig      `json:"config"`
+	Status         ExtensionBuildStatus `json:"status"`
+	ExtensionPath  string               `json:"extension_path"`
+	ArtifactPath   string               `json:"artifact_path,omitempty"`
+	ArtifactSHA256 string               `json:"artifact_sha256,omitempty"`
+	ArtifactBytes  int64                `json:"artifact_bytes,omitempty"`
+	ManifestSHA256 string               `json:"manifest_sha256,omitempty"`
+	BuildLog       []string             `json:"build_log"`
+	ErrorLog       []string             `json:"error_log"`
+	CreatedAt      time.Time            `json:"created_at"`
+	CompletedAt    *time.Time           `json:"completed_at"`
 }
 
 // Extension test request
@@ -140,18 +140,33 @@ func NewBuildManager(statePaths ...string) *BuildManager {
 }
 
 // Add adds a build to the manager
-func (bm *BuildManager) Add(build *ExtensionBuild) {
+func (bm *BuildManager) Add(build *ExtensionBuild) error {
+	if build == nil || strings.TrimSpace(build.BuildID) == "" || !build.Status.Valid() {
+		return ErrInvalidBuildTransition
+	}
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 	bm.builds[build.BuildID] = build
 	bm.persistLocked()
+	return nil
 }
 
-func (bm *BuildManager) Replace(buildID string, build *ExtensionBuild) {
+func (bm *BuildManager) Replace(buildID string, build *ExtensionBuild) error {
+	if build == nil || build.BuildID != buildID || !build.Status.Valid() {
+		return ErrInvalidBuildTransition
+	}
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
+	current, exists := bm.builds[buildID]
+	if !exists {
+		return ErrBuildNotFound
+	}
+	if !current.Status.CanTransition(build.Status) {
+		return fmt.Errorf("%w: %s -> %s", ErrInvalidBuildTransition, current.Status, build.Status)
+	}
 	bm.builds[buildID] = build
 	bm.persistLocked()
+	return nil
 }
 
 func (bm *BuildManager) RegisterCancel(buildID string, cancel context.CancelFunc) {
@@ -169,13 +184,15 @@ func (bm *BuildManager) UnregisterCancel(buildID string) {
 func (bm *BuildManager) Cancel(buildID string) bool {
 	bm.mu.Lock()
 	build, exists := bm.builds[buildID]
-	if !exists || build.Status != "building" {
+	if !exists || build.Status != ExtensionBuildBuilding {
 		bm.mu.Unlock()
 		return false
 	}
 	completedAt := time.Now()
-	build.Status = "canceled"
-	build.CompletedAt = &completedAt
+	if err := build.Finish(ExtensionBuildCanceled, completedAt); err != nil {
+		bm.mu.Unlock()
+		return false
+	}
 	build.BuildLog = append(build.BuildLog, "Generation canceled by request")
 	cancel := bm.cancelFuncs[buildID]
 	bm.persistLocked()
@@ -201,6 +218,15 @@ func (bm *BuildManager) load() {
 	if err := json.Unmarshal(raw, &builds); err != nil {
 		log.Printf("Warning: failed to decode build state %s: %v", bm.statePath, err)
 		return
+	}
+	for _, build := range builds {
+		if build == nil || build.BuildID == "" {
+			continue
+		}
+		if !build.Status.Valid() {
+			log.Printf("Warning: refusing to load build state %s with unknown status %q", bm.statePath, build.Status)
+			return
+		}
 	}
 	for _, build := range builds {
 		if build == nil || build.BuildID == "" {
@@ -266,7 +292,7 @@ func (bm *BuildManager) CountByStatus(status string) int {
 
 	count := 0
 	for _, build := range bm.builds {
-		if build.Status == status {
+		if string(build.Status) == status {
 			count++
 		}
 	}
@@ -292,7 +318,7 @@ func (bm *BuildManager) Cleanup() {
 	if buildCount <= maxBuilds {
 		allRecent := true
 		for _, build := range bm.builds {
-			if build.Status != "building" && build.CompletedAt != nil {
+			if !build.Status.Active() && build.CompletedAt != nil {
 				age := now.Sub(*build.CompletedAt).Seconds()
 				if age > float64(completedBuildRetention) {
 					allRecent = false
@@ -310,7 +336,7 @@ func (bm *BuildManager) Cleanup() {
 
 	// First pass: Remove old completed/failed builds
 	for buildID, build := range bm.builds {
-		if build.Status == "building" {
+		if build.Status.Active() {
 			continue // Never remove in-progress builds
 		}
 
@@ -331,7 +357,7 @@ func (bm *BuildManager) Cleanup() {
 		var completedBuilds []buildWithTime
 
 		for buildID, build := range bm.builds {
-			if build.Status != "building" && build.CompletedAt != nil {
+			if !build.Status.Active() && build.CompletedAt != nil {
 				// Skip if already marked for removal
 				alreadyMarked := false
 				for _, id := range toRemove {
@@ -557,14 +583,17 @@ func generateExtensionHandler(w http.ResponseWriter, r *http.Request) {
 		ScenarioName:  req.ScenarioName,
 		TemplateType:  req.TemplateType,
 		Config:        req.Config,
-		Status:        "building",
+		Status:        ExtensionBuildBuilding,
 		ExtensionPath: filepath.Join(config.OutputPath, req.ScenarioName, "platforms", "extension"),
 		BuildLog:      []string{},
 		ErrorLog:      []string{},
 		CreatedAt:     time.Now(),
 	}
 
-	buildManager.Add(build)
+	if err := buildManager.Add(build); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Unable to register extension build")
+		return
+	}
 	startBuild(build)
 
 	// Return immediate response
@@ -590,17 +619,22 @@ func startBuild(build *ExtensionBuild) {
 	go func() {
 		defer manager.UnregisterCancel(worker.BuildID)
 		generateExtensionWithContext(ctx, worker, &generationConfig)
-		manager.Replace(worker.BuildID, worker)
+		if err := manager.Replace(worker.BuildID, worker); err != nil {
+			log.Printf("Unable to publish extension build %s transition: %v", worker.BuildID, err)
+		}
 	}()
 }
 
 func resumePendingBuilds() {
 	for _, build := range buildManager.List() {
-		if build.Status != "building" {
+		if build.Status != ExtensionBuildBuilding {
 			continue
 		}
 		build.BuildLog = append(build.BuildLog, "Resuming generation after API restart")
-		buildManager.Replace(build.BuildID, build)
+		if err := buildManager.Replace(build.BuildID, build); err != nil {
+			log.Printf("Unable to resume extension build %s: %v", build.BuildID, err)
+			continue
+		}
 		startBuild(build)
 	}
 }
@@ -644,7 +678,7 @@ func cancelExtensionHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusNotFound, "Build not found")
 		return
 	}
-	if build.Status != "building" {
+	if build.Status != ExtensionBuildBuilding {
 		respondWithError(w, http.StatusConflict, "Build is not running")
 		return
 	}
@@ -825,18 +859,16 @@ func generateExtensionWithContext(ctx context.Context, build *ExtensionBuild, ru
 		return
 	}
 	if runtimeConfig == nil {
-		build.Status = "failed"
-		build.ErrorLog = append(build.ErrorLog, "generation configuration is unavailable")
-		completedAt := time.Now()
-		build.CompletedAt = &completedAt
+		if err := build.Fail("generation configuration is unavailable", time.Now()); err != nil {
+			log.Printf("Unable to fail extension build %s: %v", build.BuildID, err)
+		}
 		return
 	}
 	defer func() {
 		if r := recover(); r != nil {
-			build.Status = "failed"
-			build.ErrorLog = append(build.ErrorLog, fmt.Sprintf("Panic during generation: %v", r))
-			completedAt := time.Now()
-			build.CompletedAt = &completedAt
+			if err := build.Fail(fmt.Sprintf("Panic during generation: %v", r), time.Now()); err != nil {
+				log.Printf("Unable to fail extension build %s after panic: %v", build.BuildID, err)
+			}
 		}
 	}()
 
@@ -844,10 +876,9 @@ func generateExtensionWithContext(ctx context.Context, build *ExtensionBuild, ru
 
 	// Create output directory
 	if err := os.MkdirAll(build.ExtensionPath, 0o755); err != nil {
-		build.Status = "failed"
-		build.ErrorLog = append(build.ErrorLog, fmt.Sprintf("Failed to create output directory: %v", err))
-		completedAt := time.Now()
-		build.CompletedAt = &completedAt
+		if failErr := build.Fail(fmt.Sprintf("Failed to create output directory: %v", err), time.Now()); failErr != nil {
+			log.Printf("Unable to fail extension build %s: %v", build.BuildID, failErr)
+		}
 		return
 	}
 	if generationCanceled(ctx, build) {
@@ -860,18 +891,16 @@ func generateExtensionWithContext(ctx context.Context, build *ExtensionBuild, ru
 	templatePath := filepath.Join(runtimeConfig.TemplatesPath, "vanilla")
 	if build.Config.SourcePath != "" {
 		if !filepath.IsAbs(build.Config.SourcePath) {
-			build.Status = "failed"
-			build.ErrorLog = append(build.ErrorLog, "Custom extension source_path must be absolute")
-			completedAt := time.Now()
-			build.CompletedAt = &completedAt
+			if err := build.Fail("Custom extension source_path must be absolute", time.Now()); err != nil {
+				log.Printf("Unable to fail extension build %s: %v", build.BuildID, err)
+			}
 			return
 		}
 		info, err := os.Stat(build.Config.SourcePath)
 		if err != nil || !info.IsDir() {
-			build.Status = "failed"
-			build.ErrorLog = append(build.ErrorLog, fmt.Sprintf("Custom extension source_path is not a readable directory: %s", build.Config.SourcePath))
-			completedAt := time.Now()
-			build.CompletedAt = &completedAt
+			if failErr := build.Fail(fmt.Sprintf("Custom extension source_path is not a readable directory: %s", build.Config.SourcePath), time.Now()); failErr != nil {
+				log.Printf("Unable to fail extension build %s: %v", build.BuildID, failErr)
+			}
 			return
 		}
 		templatePath = build.Config.SourcePath
@@ -883,10 +912,9 @@ func generateExtensionWithContext(ctx context.Context, build *ExtensionBuild, ru
 	}
 
 	if err := copyAndProcessTemplates(templatePath, build.ExtensionPath, build); err != nil {
-		build.Status = "failed"
-		build.ErrorLog = append(build.ErrorLog, fmt.Sprintf("Template processing failed: %v", err))
-		completedAt := time.Now()
-		build.CompletedAt = &completedAt
+		if failErr := build.Fail(fmt.Sprintf("Template processing failed: %v", err), time.Now()); failErr != nil {
+			log.Printf("Unable to fail extension build %s: %v", build.BuildID, failErr)
+		}
 		return
 	}
 	if generationCanceled(ctx, build) {
@@ -897,10 +925,9 @@ func generateExtensionWithContext(ctx context.Context, build *ExtensionBuild, ru
 
 	// Generate package.json for the extension
 	if err := generatePackageJSON(build); err != nil {
-		build.Status = "failed"
-		build.ErrorLog = append(build.ErrorLog, fmt.Sprintf("Package.json generation failed: %v", err))
-		completedAt := time.Now()
-		build.CompletedAt = &completedAt
+		if failErr := build.Fail(fmt.Sprintf("Package.json generation failed: %v", err), time.Now()); failErr != nil {
+			log.Printf("Unable to fail extension build %s: %v", build.BuildID, failErr)
+		}
 		return
 	}
 	if generationCanceled(ctx, build) {
@@ -911,10 +938,9 @@ func generateExtensionWithContext(ctx context.Context, build *ExtensionBuild, ru
 
 	// Create README
 	if err := generateREADME(build); err != nil {
-		build.Status = "failed"
-		build.ErrorLog = append(build.ErrorLog, fmt.Sprintf("README generation failed: %v", err))
-		completedAt := time.Now()
-		build.CompletedAt = &completedAt
+		if failErr := build.Fail(fmt.Sprintf("README generation failed: %v", err), time.Now()); failErr != nil {
+			log.Printf("Unable to fail extension build %s: %v", build.BuildID, failErr)
+		}
 		return
 	}
 	if generationCanceled(ctx, build) {
@@ -924,10 +950,9 @@ func generateExtensionWithContext(ctx context.Context, build *ExtensionBuild, ru
 	build.BuildLog = append(build.BuildLog, "README.md generated")
 
 	if err := materializeArtifact(build); err != nil {
-		build.Status = "failed"
-		build.ErrorLog = append(build.ErrorLog, fmt.Sprintf("Artifact validation failed: %v", err))
-		completedAt := time.Now()
-		build.CompletedAt = &completedAt
+		if failErr := build.Fail(fmt.Sprintf("Artifact validation failed: %v", err), time.Now()); failErr != nil {
+			log.Printf("Unable to fail extension build %s: %v", build.BuildID, failErr)
+		}
 		return
 	}
 	if generationCanceled(ctx, build) {
@@ -935,17 +960,17 @@ func generateExtensionWithContext(ctx context.Context, build *ExtensionBuild, ru
 	}
 
 	build.BuildLog = append(build.BuildLog, fmt.Sprintf("Validated release artifact (%s, %d bytes)", build.ArtifactSHA256, build.ArtifactBytes))
-	build.Status = "ready"
-	completedAt := time.Now()
-	build.CompletedAt = &completedAt
+	if err := build.Finish(ExtensionBuildReady, time.Now()); err != nil {
+		log.Printf("Unable to complete extension build %s: %v", build.BuildID, err)
+	}
 }
 
 func generationCanceled(ctx context.Context, build *ExtensionBuild) bool {
 	select {
 	case <-ctx.Done():
-		build.Status = "canceled"
-		completedAt := time.Now()
-		build.CompletedAt = &completedAt
+		if err := build.Finish(ExtensionBuildCanceled, time.Now()); err != nil {
+			log.Printf("Unable to cancel extension build %s: %v", build.BuildID, err)
+		}
 		if len(build.BuildLog) == 0 || build.BuildLog[len(build.BuildLog)-1] != "Generation canceled by request" {
 			build.BuildLog = append(build.BuildLog, "Generation canceled by request")
 		}

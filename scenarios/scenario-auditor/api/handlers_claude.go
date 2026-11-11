@@ -255,7 +255,7 @@ func buildFixPlan(req *claudeFixRequest, fixType string, issueIDs []string, extr
 	switch fixType {
 	case "standards":
 		violations := standardsStore.GetViolations(scenarioName)
-		selected, collectedIDs := selectStandardsViolations(violations, issueIDs)
+		selected, collectedIDs := selectStoredFindings(violations, issueIDs, func(v StandardsViolation) string { return v.ID })
 		if len(selected) == 0 {
 			return nil, newPlanError(http.StatusBadRequest, "No matching standards violations found to fix", nil)
 		}
@@ -269,7 +269,7 @@ func buildFixPlan(req *claudeFixRequest, fixType string, issueIDs []string, extr
 		action = agentActionStandardsFix
 	case "vulnerabilities":
 		available := vulnStore.GetVulnerabilities(scenarioName)
-		selected, collectedIDs := selectStoredVulnerabilities(available, issueIDs)
+		selected, collectedIDs := selectStoredFindings(available, issueIDs, func(v StoredVulnerability) string { return v.ID })
 		if len(selected) == 0 {
 			return nil, newPlanError(http.StatusBadRequest, "No matching vulnerabilities found to fix", nil)
 		}
@@ -330,132 +330,77 @@ func buildFixPlan(req *claudeFixRequest, fixType string, issueIDs []string, extr
 }
 
 func buildStandardsPlan(req *claudeFixRequest, plan *fixPlan, extraPrompt, selectedModel string) (*fixPlan, error) {
-	multiTargets, _, err := prepareBulkStandardsTargets(req.Targets)
-	if err != nil {
-		return nil, newPlanError(http.StatusBadRequest, err.Error(), err)
-	}
-
-	totalViolations := countStandardsViolations(multiTargets)
-	if totalViolations == 0 {
-		return nil, newPlanError(http.StatusBadRequest, "No matching standards violations found to fix", nil)
-	}
-
-	scenarioNames := extractStandardsScenarioNames(multiTargets)
-	plan.Scenarios = scenarioNames
-	plan.IssueCount = totalViolations
-
-	requestedAgents := clampAgentCount(req.AgentCount, totalViolations)
-	if requestedAgents > 1 {
-		groups := splitStandardsTargets(multiTargets, requestedAgents)
-		if len(groups) == 0 {
-			return nil, newPlanError(http.StatusInternalServerError, "Failed to partition standards violations for multi-agent fix", nil)
-		}
-		for idx, group := range groups {
-			prompt, groupLabel, metadata, err := buildMultiStandardsFixPrompt(group, extraPrompt)
-			if err != nil {
-				return nil, newPlanError(http.StatusInternalServerError, "Failed to build agent prompt", err)
-			}
-			metadata = ensureMetadata(metadata)
-			groupScenarios := extractStandardsScenarioNames(group)
-			metadata["fix_type"] = plan.FixType
-			metadata["scenarios"] = strings.Join(groupScenarios, ",")
-			metadata["batch_index"] = fmt.Sprintf("%d/%d", idx+1, len(groups))
-			metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
-			metadata["model"] = selectedModel
-			if extraPrompt != "" {
-				metadata["user_instructions"] = extraPrompt
-			}
-			batchIDs := collectStandardsIssueIDs(group)
-			metadata["issue_count"] = fmt.Sprintf("%d", len(batchIDs))
-
-			labelWithBatch := groupLabel
-			if len(groups) > 1 {
-				labelWithBatch = fmt.Sprintf("%s (batch %d/%d)", groupLabel, idx+1, len(groups))
-			}
-
-			entry := fixAgentEntry{
-				Config: AgentStartConfig{
-					Label:    labelWithBatch,
-					Name:     labelWithBatch,
-					Action:   agentActionStandardsFix,
-					Scenario: "multi",
-					IssueIDs: batchIDs,
-					Prompt:   prompt,
-					Model:    selectedModel,
-					Metadata: metadata,
-				},
-				ErrorLabel:  fmt.Sprintf("Failed to start agent batch %d", idx+1),
-				ScenarioSet: groupScenarios,
-			}
-			plan.AgentEntries = append(plan.AgentEntries, entry)
-		}
-
-		plan.Message = fmt.Sprintf("Started %d agents to address %d violations across %d scenario(s)", len(plan.AgentEntries), totalViolations, len(scenarioNames))
-		return plan, nil
-	}
-
-	prompt, label, metadata, err := buildMultiStandardsFixPrompt(multiTargets, extraPrompt)
-	if err != nil {
-		return nil, newPlanError(http.StatusInternalServerError, "Failed to build agent prompt", err)
-	}
-
-	metadata = ensureMetadata(metadata)
-	metadata["fix_type"] = plan.FixType
-	metadata["scenarios"] = strings.Join(scenarioNames, ",")
-	metadata["issues_per_agent_cap"] = fmt.Sprintf("%d", maxIssuesPerAgent)
-	metadata["model"] = selectedModel
-	if extraPrompt != "" {
-		metadata["user_instructions"] = extraPrompt
-	}
-	metadata["issue_count"] = fmt.Sprintf("%d", totalViolations)
-
-	entry := fixAgentEntry{
-		Config: AgentStartConfig{
-			Label:    label,
-			Name:     fmt.Sprintf("%s (multi)", label),
-			Action:   agentActionStandardsFix,
-			Scenario: "multi",
-			IssueIDs: collectStandardsIssueIDs(multiTargets),
-			Prompt:   prompt,
-			Model:    selectedModel,
-			Metadata: metadata,
-		},
-		ScenarioSet: scenarioNames,
-	}
-
-	plan.AgentEntries = append(plan.AgentEntries, entry)
-	plan.Message = fmt.Sprintf("Started %s across %d scenario(s)", label, len(scenarioNames))
-	return plan, nil
+	return buildBulkFixPlan(req, plan, extraPrompt, selectedModel, standardsPlanAdapter)
 }
 
 func buildVulnerabilityPlan(req *claudeFixRequest, plan *fixPlan, extraPrompt, selectedModel string) (*fixPlan, error) {
-	multiTargets, _, err := prepareBulkVulnerabilityTargets(req.Targets)
+	return buildBulkFixPlan(req, plan, extraPrompt, selectedModel, vulnerabilityPlanAdapter)
+}
+
+type bulkFixPlanAdapter[T any] struct {
+	prepare   func([]claudeFixTarget) ([]T, []string, error)
+	count     func([]T) int
+	scenarios func([]T) []string
+	split     func([]T, int) [][]T
+	prompt    func([]T, string) (string, string, map[string]string, error)
+	issueIDs  func([]T) []string
+	action    string
+	noun      string
+}
+
+var standardsPlanAdapter = bulkFixPlanAdapter[standardsFixMultiScenario]{
+	prepare:   prepareBulkStandardsTargets,
+	count:     countStandardsViolations,
+	scenarios: extractStandardsScenarioNames,
+	split:     splitStandardsTargets,
+	prompt:    buildMultiStandardsFixPrompt,
+	issueIDs:  collectStandardsIssueIDs,
+	action:    agentActionStandardsFix,
+	noun:      "standards violations",
+}
+
+var vulnerabilityPlanAdapter = bulkFixPlanAdapter[vulnerabilityFixMultiScenario]{
+	prepare:   prepareBulkVulnerabilityTargets,
+	count:     countVulnerabilityFindings,
+	scenarios: extractVulnerabilityScenarioNames,
+	split:     splitVulnerabilityTargets,
+	prompt:    buildMultiVulnerabilityFixPrompt,
+	issueIDs:  collectVulnerabilityIssueIDs,
+	action:    agentActionVulnerabilityFix,
+	noun:      "vulnerabilities",
+}
+
+func buildBulkFixPlan[T any](
+	req *claudeFixRequest,
+	plan *fixPlan,
+	extraPrompt string,
+	selectedModel string,
+	adapter bulkFixPlanAdapter[T],
+) (*fixPlan, error) {
+	targets, _, err := adapter.prepare(req.Targets)
 	if err != nil {
 		return nil, newPlanError(http.StatusBadRequest, err.Error(), err)
 	}
-
-	totalFindings := countVulnerabilityFindings(multiTargets)
-	if totalFindings == 0 {
-		return nil, newPlanError(http.StatusBadRequest, "No matching vulnerabilities found to fix", nil)
+	total := adapter.count(targets)
+	if total == 0 {
+		return nil, newPlanError(http.StatusBadRequest, fmt.Sprintf("No matching %s found to fix", adapter.noun), nil)
 	}
-
-	scenarioNames := extractVulnerabilityScenarioNames(multiTargets)
+	scenarioNames := adapter.scenarios(targets)
 	plan.Scenarios = scenarioNames
-	plan.IssueCount = totalFindings
-
-	requestedAgents := clampAgentCount(req.AgentCount, totalFindings)
+	plan.IssueCount = total
+	requestedAgents := clampAgentCount(req.AgentCount, total)
 	if requestedAgents > 1 {
-		groups := splitVulnerabilityTargets(multiTargets, requestedAgents)
+		groups := adapter.split(targets, requestedAgents)
 		if len(groups) == 0 {
-			return nil, newPlanError(http.StatusInternalServerError, "Failed to partition vulnerabilities for multi-agent fix", nil)
+			return nil, newPlanError(http.StatusInternalServerError, fmt.Sprintf("Failed to partition %s for multi-agent fix", adapter.noun), nil)
 		}
 		for idx, group := range groups {
-			prompt, groupLabel, metadata, err := buildMultiVulnerabilityFixPrompt(group, extraPrompt)
+			prompt, groupLabel, metadata, err := adapter.prompt(group, extraPrompt)
 			if err != nil {
 				return nil, newPlanError(http.StatusInternalServerError, "Failed to build agent prompt", err)
 			}
 			metadata = ensureMetadata(metadata)
-			groupScenarios := extractVulnerabilityScenarioNames(group)
+			groupScenarios := adapter.scenarios(group)
 			metadata["fix_type"] = plan.FixType
 			metadata["scenarios"] = strings.Join(groupScenarios, ",")
 			metadata["batch_index"] = fmt.Sprintf("%d/%d", idx+1, len(groups))
@@ -464,40 +409,28 @@ func buildVulnerabilityPlan(req *claudeFixRequest, plan *fixPlan, extraPrompt, s
 			if extraPrompt != "" {
 				metadata["user_instructions"] = extraPrompt
 			}
-			batchIDs := collectVulnerabilityIssueIDs(group)
+			batchIDs := adapter.issueIDs(group)
 			metadata["issue_count"] = fmt.Sprintf("%d", len(batchIDs))
-
-			labelWithBatch := groupLabel
+			label := groupLabel
 			if len(groups) > 1 {
-				labelWithBatch = fmt.Sprintf("%s (batch %d/%d)", groupLabel, idx+1, len(groups))
+				label = fmt.Sprintf("%s (batch %d/%d)", groupLabel, idx+1, len(groups))
 			}
-
-			entry := fixAgentEntry{
+			plan.AgentEntries = append(plan.AgentEntries, fixAgentEntry{
 				Config: AgentStartConfig{
-					Label:    labelWithBatch,
-					Name:     labelWithBatch,
-					Action:   agentActionVulnerabilityFix,
-					Scenario: "multi",
-					IssueIDs: batchIDs,
-					Prompt:   prompt,
-					Model:    selectedModel,
-					Metadata: metadata,
+					Label: label, Name: label, Action: adapter.action, Scenario: "multi",
+					IssueIDs: batchIDs, Prompt: prompt, Model: selectedModel, Metadata: metadata,
 				},
-				ErrorLabel:  fmt.Sprintf("Failed to start agent batch %d", idx+1),
-				ScenarioSet: groupScenarios,
-			}
-			plan.AgentEntries = append(plan.AgentEntries, entry)
+				ErrorLabel: fmt.Sprintf("Failed to start agent batch %d", idx+1), ScenarioSet: groupScenarios,
+			})
 		}
-
-		plan.Message = fmt.Sprintf("Started %d agents to address %d vulnerabilities across %d scenario(s)", len(plan.AgentEntries), totalFindings, len(scenarioNames))
+		plan.Message = fmt.Sprintf("Started %d agents to address %d %s across %d scenario(s)", len(plan.AgentEntries), total, adapter.noun, len(scenarioNames))
 		return plan, nil
 	}
 
-	prompt, label, metadata, err := buildMultiVulnerabilityFixPrompt(multiTargets, extraPrompt)
+	prompt, label, metadata, err := adapter.prompt(targets, extraPrompt)
 	if err != nil {
 		return nil, newPlanError(http.StatusInternalServerError, "Failed to build agent prompt", err)
 	}
-
 	metadata = ensureMetadata(metadata)
 	metadata["fix_type"] = plan.FixType
 	metadata["scenarios"] = strings.Join(scenarioNames, ",")
@@ -506,23 +439,14 @@ func buildVulnerabilityPlan(req *claudeFixRequest, plan *fixPlan, extraPrompt, s
 	if extraPrompt != "" {
 		metadata["user_instructions"] = extraPrompt
 	}
-	metadata["issue_count"] = fmt.Sprintf("%d", totalFindings)
-
-	entry := fixAgentEntry{
+	metadata["issue_count"] = fmt.Sprintf("%d", total)
+	plan.AgentEntries = append(plan.AgentEntries, fixAgentEntry{
 		Config: AgentStartConfig{
-			Label:    label,
-			Name:     fmt.Sprintf("%s (multi)", label),
-			Action:   agentActionVulnerabilityFix,
-			Scenario: "multi",
-			IssueIDs: collectVulnerabilityIssueIDs(multiTargets),
-			Prompt:   prompt,
-			Model:    selectedModel,
-			Metadata: metadata,
+			Label: label, Name: fmt.Sprintf("%s (multi)", label), Action: adapter.action,
+			Scenario: "multi", IssueIDs: adapter.issueIDs(targets), Prompt: prompt, Model: selectedModel, Metadata: metadata,
 		},
 		ScenarioSet: scenarioNames,
-	}
-
-	plan.AgentEntries = append(plan.AgentEntries, entry)
+	})
 	plan.Message = fmt.Sprintf("Started %s across %d scenario(s)", label, len(scenarioNames))
 	return plan, nil
 }
@@ -605,16 +529,16 @@ func findMissingIDs(requested, found []string) []string {
 	return missing
 }
 
-func selectStandardsViolations(all []StandardsViolation, ids []string) ([]StandardsViolation, []string) {
+func selectStoredFindings[T any](all []T, ids []string, idOf func(T) string) ([]T, []string) {
 	if len(all) == 0 {
 		return nil, nil
 	}
 	if len(ids) == 0 {
-		result := append([]StandardsViolation(nil), all...)
+		result := append([]T(nil), all...)
 		collected := make([]string, 0, len(result))
-		for _, v := range result {
-			if v.ID != "" {
-				collected = append(collected, v.ID)
+		for _, item := range result {
+			if id := idOf(item); id != "" {
+				collected = append(collected, id)
 			}
 		}
 		return result, collected
@@ -623,44 +547,14 @@ func selectStandardsViolations(all []StandardsViolation, ids []string) ([]Standa
 	for _, id := range ids {
 		allowed[id] = struct{}{}
 	}
-	var filtered []StandardsViolation
+	var filtered []T
 	var collected []string
-	for _, v := range all {
-		if _, ok := allowed[v.ID]; ok {
-			filtered = append(filtered, v)
-			if v.ID != "" {
-				collected = append(collected, v.ID)
-			}
-		}
-	}
-	return filtered, collected
-}
-
-func selectStoredVulnerabilities(all []StoredVulnerability, ids []string) ([]StoredVulnerability, []string) {
-	if len(all) == 0 {
-		return nil, nil
-	}
-	if len(ids) == 0 {
-		result := append([]StoredVulnerability(nil), all...)
-		collected := make([]string, 0, len(result))
-		for _, v := range result {
-			if v.ID != "" {
-				collected = append(collected, v.ID)
-			}
-		}
-		return result, collected
-	}
-	allowed := make(map[string]struct{}, len(ids))
-	for _, id := range ids {
-		allowed[id] = struct{}{}
-	}
-	var filtered []StoredVulnerability
-	var collected []string
-	for _, v := range all {
-		if _, ok := allowed[v.ID]; ok {
-			filtered = append(filtered, v)
-			if v.ID != "" {
-				collected = append(collected, v.ID)
+	for _, item := range all {
+		id := idOf(item)
+		if _, ok := allowed[id]; ok {
+			filtered = append(filtered, item)
+			if id != "" {
+				collected = append(collected, id)
 			}
 		}
 	}
@@ -668,67 +562,50 @@ func selectStoredVulnerabilities(all []StoredVulnerability, ids []string) ([]Sto
 }
 
 func prepareBulkStandardsTargets(targets []claudeFixTarget) ([]standardsFixMultiScenario, []string, error) {
-	var result []standardsFixMultiScenario
-	seenIssues := make(map[string]struct{})
-	var collectedIDs []string
-
-	indexByScenario := make(map[string]int)
-
-	for _, target := range targets {
-		scenario := strings.TrimSpace(target.Scenario)
-		if scenario == "" {
-			continue
-		}
-
-		scenarioPath, err := resolveScenarioPath(scenario)
-		if err != nil {
-			return nil, nil, fmt.Errorf("scenario %s not found", scenario)
-		}
-
-		available := standardsStore.GetViolations(scenario)
-		issueIDs := normaliseIDs(target.IssueIDs)
-		selected, ids := selectStandardsViolations(available, issueIDs)
-		if len(selected) == 0 {
-			continue
-		}
-
-		if idx, exists := indexByScenario[scenario]; exists {
-			existing := result[idx].Violations
-			existing = append(existing, selected...)
-			result[idx].Violations = existing
-		} else {
-			indexByScenario[scenario] = len(result)
-			result = append(result, standardsFixMultiScenario{
-				Scenario:     scenario,
-				ScenarioPath: scenarioPath,
-				Violations:   selected,
-			})
-		}
-
-		for _, id := range ids {
-			if id == "" {
-				continue
-			}
-			if _, exists := seenIssues[id]; !exists {
-				seenIssues[id] = struct{}{}
-				collectedIDs = append(collectedIDs, id)
-			}
-		}
-	}
-
-	if len(result) == 0 {
-		return nil, nil, fmt.Errorf("no matching standards violations found for provided targets")
-	}
-
-	sort.Strings(collectedIDs)
-	return result, collectedIDs, nil
+	return prepareBulkTargets[StandardsViolation, standardsFixMultiScenario](
+		targets,
+		standardsStore.GetViolations,
+		func(all []StandardsViolation, ids []string) ([]StandardsViolation, []string) {
+			return selectStoredFindings(all, ids, func(v StandardsViolation) string { return v.ID })
+		},
+		func(scenario, path string, findings []StandardsViolation) standardsFixMultiScenario {
+			return standardsFixMultiScenario{Scenario: scenario, ScenarioPath: path, Violations: findings}
+		},
+		func(group *standardsFixMultiScenario, findings []StandardsViolation) {
+			group.Violations = append(group.Violations, findings...)
+		},
+		"standards violations",
+	)
 }
 
 func prepareBulkVulnerabilityTargets(targets []claudeFixTarget) ([]vulnerabilityFixMultiScenario, []string, error) {
-	var result []vulnerabilityFixMultiScenario
+	return prepareBulkTargets[StoredVulnerability, vulnerabilityFixMultiScenario](
+		targets,
+		vulnStore.GetVulnerabilities,
+		func(all []StoredVulnerability, ids []string) ([]StoredVulnerability, []string) {
+			return selectStoredFindings(all, ids, func(v StoredVulnerability) string { return v.ID })
+		},
+		func(scenario, path string, findings []StoredVulnerability) vulnerabilityFixMultiScenario {
+			return vulnerabilityFixMultiScenario{Scenario: scenario, ScenarioPath: path, Findings: findings}
+		},
+		func(group *vulnerabilityFixMultiScenario, findings []StoredVulnerability) {
+			group.Findings = append(group.Findings, findings...)
+		},
+		"vulnerabilities",
+	)
+}
+
+func prepareBulkTargets[T any, R any](
+	targets []claudeFixTarget,
+	load func(string) []T,
+	selectFindings func([]T, []string) ([]T, []string),
+	newGroup func(scenario, scenarioPath string, findings []T) R,
+	appendFindings func(*R, []T),
+	label string,
+) ([]R, []string, error) {
+	var result []R
 	seenIssues := make(map[string]struct{})
 	var collectedIDs []string
-
 	indexByScenario := make(map[string]int)
 
 	for _, target := range targets {
@@ -736,32 +613,20 @@ func prepareBulkVulnerabilityTargets(targets []claudeFixTarget) ([]vulnerability
 		if scenario == "" {
 			continue
 		}
-
 		scenarioPath, err := resolveScenarioPath(scenario)
 		if err != nil {
 			return nil, nil, fmt.Errorf("scenario %s not found", scenario)
 		}
-
-		available := vulnStore.GetVulnerabilities(scenario)
-		issueIDs := normaliseIDs(target.IssueIDs)
-		selected, ids := selectStoredVulnerabilities(available, issueIDs)
+		selected, ids := selectFindings(load(scenario), normaliseIDs(target.IssueIDs))
 		if len(selected) == 0 {
 			continue
 		}
-
 		if idx, exists := indexByScenario[scenario]; exists {
-			existing := result[idx].Findings
-			existing = append(existing, selected...)
-			result[idx].Findings = existing
+			appendFindings(&result[idx], selected)
 		} else {
 			indexByScenario[scenario] = len(result)
-			result = append(result, vulnerabilityFixMultiScenario{
-				Scenario:     scenario,
-				ScenarioPath: scenarioPath,
-				Findings:     selected,
-			})
+			result = append(result, newGroup(scenario, scenarioPath, selected))
 		}
-
 		for _, id := range ids {
 			if id == "" {
 				continue
@@ -772,11 +637,9 @@ func prepareBulkVulnerabilityTargets(targets []claudeFixTarget) ([]vulnerability
 			}
 		}
 	}
-
 	if len(result) == 0 {
-		return nil, nil, fmt.Errorf("no matching vulnerabilities found for provided targets")
+		return nil, nil, fmt.Errorf("no matching %s found for provided targets", label)
 	}
-
 	sort.Strings(collectedIDs)
 	return result, collectedIDs, nil
 }
@@ -828,161 +691,111 @@ func clampAgentCount(requested, total int) int {
 }
 
 func countStandardsViolations(targets []standardsFixMultiScenario) int {
-	total := 0
-	for _, target := range targets {
-		total += len(target.Violations)
-	}
-	return total
+	return countFixTargets(targets, standardsFixTargetOps)
 }
 
 func collectStandardsIssueIDs(targets []standardsFixMultiScenario) []string {
-	seen := make(map[string]struct{})
-	var ids []string
-	for _, target := range targets {
-		for _, violation := range target.Violations {
-			if violation.ID == "" {
-				continue
-			}
-			if _, exists := seen[violation.ID]; exists {
-				continue
-			}
-			seen[violation.ID] = struct{}{}
-			ids = append(ids, violation.ID)
-		}
-	}
-	sort.Strings(ids)
-	return ids
-}
-
-func cloneStandardsTargets(targets []standardsFixMultiScenario) []standardsFixMultiScenario {
-	cloned := make([]standardsFixMultiScenario, 0, len(targets))
-	for _, target := range targets {
-		copyTarget := standardsFixMultiScenario{
-			Scenario:     target.Scenario,
-			ScenarioPath: target.ScenarioPath,
-			Violations:   append([]StandardsViolation(nil), target.Violations...),
-		}
-		cloned = append(cloned, copyTarget)
-	}
-	return cloned
+	return collectFixTargetIssueIDs(targets, standardsFixTargetOps)
 }
 
 func splitStandardsTargets(targets []standardsFixMultiScenario, agentCount int) [][]standardsFixMultiScenario {
-	total := countStandardsViolations(targets)
-	if total == 0 {
-		return nil
-	}
-	if agentCount <= 1 {
-		return [][]standardsFixMultiScenario{cloneStandardsTargets(targets)}
-	}
-	if agentCount > maxBulkFixAgents {
-		agentCount = maxBulkFixAgents
-	}
-	if agentCount > total {
-		agentCount = total
-	}
-	chunkSize := (total + agentCount - 1) / agentCount
-	if chunkSize < 1 {
-		chunkSize = 1
-	}
-	if chunkSize > maxIssuesPerAgent {
-		chunkSize = maxIssuesPerAgent
-	}
-
-	var groups [][]standardsFixMultiScenario
-	current := make(map[string]*standardsFixMultiScenario)
-	order := make([]string, 0)
-	countInGroup := 0
-
-	flushGroup := func() {
-		if len(current) == 0 {
-			return
-		}
-		group := make([]standardsFixMultiScenario, 0, len(order))
-		for _, scenario := range order {
-			entry := current[scenario]
-			group = append(group, standardsFixMultiScenario{
-				Scenario:     entry.Scenario,
-				ScenarioPath: entry.ScenarioPath,
-				Violations:   append([]StandardsViolation(nil), entry.Violations...),
-			})
-		}
-		groups = append(groups, group)
-		current = make(map[string]*standardsFixMultiScenario)
-		order = make([]string, 0)
-		countInGroup = 0
-	}
-
-	for _, target := range targets {
-		for _, violation := range target.Violations {
-			if countInGroup >= chunkSize && len(groups)+1 < agentCount {
-				flushGroup()
-			}
-			entry, exists := current[target.Scenario]
-			if !exists {
-				entry = &standardsFixMultiScenario{
-					Scenario:     target.Scenario,
-					ScenarioPath: target.ScenarioPath,
-					Violations:   []StandardsViolation{},
-				}
-				current[target.Scenario] = entry
-				order = append(order, target.Scenario)
-			}
-			entry.Violations = append(entry.Violations, violation)
-			countInGroup++
-		}
-	}
-	flushGroup()
-	return groups
+	return splitFixTargets(targets, agentCount, standardsFixTargetOps)
 }
 
 func countVulnerabilityFindings(targets []vulnerabilityFixMultiScenario) int {
+	return countFixTargets(targets, vulnerabilityFixTargetOps)
+}
+
+func collectVulnerabilityIssueIDs(targets []vulnerabilityFixMultiScenario) []string {
+	return collectFixTargetIssueIDs(targets, vulnerabilityFixTargetOps)
+}
+
+func splitVulnerabilityTargets(targets []vulnerabilityFixMultiScenario, agentCount int) [][]vulnerabilityFixMultiScenario {
+	return splitFixTargets(targets, agentCount, vulnerabilityFixTargetOps)
+}
+
+type fixTargetOps[T any, G any] struct {
+	items    func(G) []T
+	scenario func(G) string
+	path     func(G) string
+	id       func(T) string
+	make     func(scenario, path string, items []T) G
+	append   func(*G, T)
+}
+
+var standardsFixTargetOps = fixTargetOps[StandardsViolation, standardsFixMultiScenario]{
+	items:    func(target standardsFixMultiScenario) []StandardsViolation { return target.Violations },
+	scenario: func(target standardsFixMultiScenario) string { return target.Scenario },
+	path:     func(target standardsFixMultiScenario) string { return target.ScenarioPath },
+	id:       func(item StandardsViolation) string { return item.ID },
+	make: func(scenario, path string, items []StandardsViolation) standardsFixMultiScenario {
+		return standardsFixMultiScenario{Scenario: scenario, ScenarioPath: path, Violations: items}
+	},
+	append: func(target *standardsFixMultiScenario, item StandardsViolation) {
+		target.Violations = append(target.Violations, item)
+	},
+}
+
+var vulnerabilityFixTargetOps = fixTargetOps[StoredVulnerability, vulnerabilityFixMultiScenario]{
+	items:    func(target vulnerabilityFixMultiScenario) []StoredVulnerability { return target.Findings },
+	scenario: func(target vulnerabilityFixMultiScenario) string { return target.Scenario },
+	path:     func(target vulnerabilityFixMultiScenario) string { return target.ScenarioPath },
+	id:       func(item StoredVulnerability) string { return item.ID },
+	make: func(scenario, path string, items []StoredVulnerability) vulnerabilityFixMultiScenario {
+		return vulnerabilityFixMultiScenario{Scenario: scenario, ScenarioPath: path, Findings: items}
+	},
+	append: func(target *vulnerabilityFixMultiScenario, item StoredVulnerability) {
+		target.Findings = append(target.Findings, item)
+	},
+}
+
+func countFixTargets[T any, G any](targets []G, ops fixTargetOps[T, G]) int {
 	total := 0
 	for _, target := range targets {
-		total += len(target.Findings)
+		total += len(ops.items(target))
 	}
 	return total
 }
 
-func collectVulnerabilityIssueIDs(targets []vulnerabilityFixMultiScenario) []string {
+func collectFixTargetIssueIDs[T any, G any](targets []G, ops fixTargetOps[T, G]) []string {
 	seen := make(map[string]struct{})
 	var ids []string
 	for _, target := range targets {
-		for _, finding := range target.Findings {
-			if finding.ID == "" {
+		for _, item := range ops.items(target) {
+			id := ops.id(item)
+			if id == "" {
 				continue
 			}
-			if _, exists := seen[finding.ID]; exists {
+			if _, exists := seen[id]; exists {
 				continue
 			}
-			seen[finding.ID] = struct{}{}
-			ids = append(ids, finding.ID)
+			seen[id] = struct{}{}
+			ids = append(ids, id)
 		}
 	}
 	sort.Strings(ids)
 	return ids
 }
 
-func cloneVulnerabilityTargets(targets []vulnerabilityFixMultiScenario) []vulnerabilityFixMultiScenario {
-	cloned := make([]vulnerabilityFixMultiScenario, 0, len(targets))
+func extractFixTargetScenarios[G any](targets []G, scenario func(G) string) []string {
+	set := make(map[string]struct{}, len(targets))
 	for _, target := range targets {
-		copyTarget := vulnerabilityFixMultiScenario{
-			Scenario:     target.Scenario,
-			ScenarioPath: target.ScenarioPath,
-			Findings:     append([]StoredVulnerability(nil), target.Findings...),
-		}
-		cloned = append(cloned, copyTarget)
+		set[scenario(target)] = struct{}{}
 	}
-	return cloned
+	return sortedKeys(set)
 }
 
-func splitVulnerabilityTargets(targets []vulnerabilityFixMultiScenario, agentCount int) [][]vulnerabilityFixMultiScenario {
-	total := countVulnerabilityFindings(targets)
+func splitFixTargets[T any, G any](targets []G, agentCount int, ops fixTargetOps[T, G]) [][]G {
+	total := countFixTargets(targets, ops)
 	if total == 0 {
 		return nil
 	}
 	if agentCount <= 1 {
-		return [][]vulnerabilityFixMultiScenario{cloneVulnerabilityTargets(targets)}
+		cloned := make([]G, 0, len(targets))
+		for _, target := range targets {
+			cloned = append(cloned, ops.make(ops.scenario(target), ops.path(target), append([]T(nil), ops.items(target)...)))
+		}
+		return [][]G{cloned}
 	}
 	if agentCount > maxBulkFixAgents {
 		agentCount = maxBulkFixAgents
@@ -998,46 +811,39 @@ func splitVulnerabilityTargets(targets []vulnerabilityFixMultiScenario, agentCou
 		chunkSize = maxIssuesPerAgent
 	}
 
-	var groups [][]vulnerabilityFixMultiScenario
-	current := make(map[string]*vulnerabilityFixMultiScenario)
+	var groups [][]G
+	current := make(map[string]*G)
 	order := make([]string, 0)
 	countInGroup := 0
-
 	flushGroup := func() {
 		if len(current) == 0 {
 			return
 		}
-		group := make([]vulnerabilityFixMultiScenario, 0, len(order))
+		group := make([]G, 0, len(order))
 		for _, scenario := range order {
 			entry := current[scenario]
-			group = append(group, vulnerabilityFixMultiScenario{
-				Scenario:     entry.Scenario,
-				ScenarioPath: entry.ScenarioPath,
-				Findings:     append([]StoredVulnerability(nil), entry.Findings...),
-			})
+			group = append(group, ops.make(scenario, ops.path(*entry), append([]T(nil), ops.items(*entry)...)))
 		}
 		groups = append(groups, group)
-		current = make(map[string]*vulnerabilityFixMultiScenario)
+		current = make(map[string]*G)
 		order = make([]string, 0)
 		countInGroup = 0
 	}
 
 	for _, target := range targets {
-		for _, finding := range target.Findings {
+		for _, item := range ops.items(target) {
 			if countInGroup >= chunkSize && len(groups)+1 < agentCount {
 				flushGroup()
 			}
-			entry, exists := current[target.Scenario]
+			scenario := ops.scenario(target)
+			entry, exists := current[scenario]
 			if !exists {
-				entry = &vulnerabilityFixMultiScenario{
-					Scenario:     target.Scenario,
-					ScenarioPath: target.ScenarioPath,
-					Findings:     []StoredVulnerability{},
-				}
-				current[target.Scenario] = entry
-				order = append(order, target.Scenario)
+				group := ops.make(scenario, ops.path(target), nil)
+				entry = &group
+				current[scenario] = entry
+				order = append(order, scenario)
 			}
-			entry.Findings = append(entry.Findings, finding)
+			ops.append(entry, item)
 			countInGroup++
 		}
 	}
@@ -1046,19 +852,11 @@ func splitVulnerabilityTargets(targets []vulnerabilityFixMultiScenario, agentCou
 }
 
 func extractStandardsScenarioNames(targets []standardsFixMultiScenario) []string {
-	set := make(map[string]struct{}, len(targets))
-	for _, target := range targets {
-		set[target.Scenario] = struct{}{}
-	}
-	return sortedKeys(set)
+	return extractFixTargetScenarios(targets, standardsFixTargetOps.scenario)
 }
 
 func extractVulnerabilityScenarioNames(targets []vulnerabilityFixMultiScenario) []string {
-	set := make(map[string]struct{}, len(targets))
-	for _, target := range targets {
-		set[target.Scenario] = struct{}{}
-	}
-	return sortedKeys(set)
+	return extractFixTargetScenarios(targets, vulnerabilityFixTargetOps.scenario)
 }
 
 func sortedKeys(set map[string]struct{}) []string {

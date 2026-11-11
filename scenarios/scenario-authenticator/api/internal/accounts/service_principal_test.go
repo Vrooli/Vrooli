@@ -2,7 +2,9 @@ package accounts
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -173,6 +175,48 @@ func TestServicePrincipalIssueAndExchange(t *testing.T) {
 	delete(f.custody.values, "agent-manager/web-console")
 	if _, err := f.service.ExchangeServiceCredential(ctx, rotated, RequestMeta{}); !errors.Is(err, ErrServiceCredentialRejected) {
 		t.Fatal("revoked credential still exchanged")
+	}
+}
+
+// Exercise the deployed profile source, rather than duplicating its scopes in
+// a fixture. Existing custody survives profile adoption: exchange uses the
+// current operator profile, not scopes frozen into the long-lived credential.
+func TestAgentManagerManifestProfileAuthorizesNativeObservationAndControl(t *testing.T) {
+	raw, err := os.ReadFile("../../../.vrooli/service.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		Environment map[string]string `json:"environment"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	profiles, err := ParseServicePrincipalProfiles(manifest.Environment["VROOLI_AUTH_SERVICE_PRINCIPALS"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := newServicePrincipalFixture(t)
+	ctx := context.Background()
+	if _, err := f.service.IssueServicePrincipal(ctx, f.admin, "agent-manager", RequestMeta{}); err != nil {
+		t.Fatal(err)
+	}
+	credential := f.custody.values["agent-manager/web-console"]
+	f.service.servicePrincipals = indexServicePrincipals(profiles)
+	access, err := f.service.ExchangeServiceCredential(ctx, credential, RequestMeta{})
+	if err != nil {
+		t.Fatal("existing credential failed exchange after profile adoption")
+	}
+	claims, err := f.signer.Validate(access.AccessToken, "scenario-authenticator:web-console")
+	if err != nil {
+		t.Fatal("service token failed verification at Web Console audience")
+	}
+	if claims.ActorKind != ServiceActorKind || claims.Subject != "agent-manager" ||
+		!slices.Equal(claims.Scopes, []string{"web-console:read", "web-console:write"}) {
+		t.Fatal("Agent Manager must receive exactly native observation and control capabilities")
+	}
+	if _, err := f.signer.Validate(access.AccessToken, "scenario-authenticator:agent-manager"); err == nil {
+		t.Fatal("Web Console service token verified at another resource audience")
 	}
 }
 

@@ -1146,8 +1146,8 @@ func TestVerbalizedSetFallsBackToADirectDraw(t *testing.T) {
 }
 
 func TestFailedSummarisationDegradesRatherThanDiscardingTheDocument(t *testing.T) {
-	s, _ := newFlakyService(t, func(_ int, req GatewayRequest) error {
-		if req.Role == "extract.structured" {
+	s, gw := newFlakyService(t, func(_ int, req GatewayRequest) error {
+		if req.Role == "summarize.faithful" {
 			return errors.New("ai-gateway embedding: typed inference is unavailable")
 		}
 		return nil
@@ -1165,6 +1165,19 @@ func TestFailedSummarisationDegradesRatherThanDiscardingTheDocument(t *testing.T
 	doc, err := s.CreateDocument(ctx, Document{Title: "A document whose summariser was down", ProfileKey: "degraded"}, nil)
 	require.NoError(t, err, "a support call that cannot complete must not cost the whole article")
 	require.Len(t, doc.SectionIDs, 3)
+	var summaryCalls []GatewayRequest
+	for _, request := range gw.seen {
+		if strings.Contains(request.Query, "HARD SECTION LENGTH") {
+			continue
+		}
+		if request.Role == "summarize.faithful" {
+			summaryCalls = append(summaryCalls, request)
+		}
+	}
+	require.NotEmpty(t, summaryCalls, "context compression should attempt the dedicated summary task")
+	for _, request := range summaryCalls {
+		require.Equal(t, "local_only", request.Locality, "private draft text must not fall back to a hosted route")
+	}
 
 	var last Section
 	require.NoError(t, s.loadJSON(ctx, "prose_sections", doc.SectionIDs[2], &last))

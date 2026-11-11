@@ -1,6 +1,6 @@
 ---
 name: "portal"
-description: "Use Portal as the governed front door for chat, context, surface discovery, integrations, and Assistant migration."
+description: "Open the chat front door to Vrooli: talk to the ecosystem, see which apps and surfaces are available, bring context into a conversation, and manage integrations and Assistant migration. Use Portal as the governed front door for chat, context, surface discovery, integrations, and Assistant migration."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
@@ -8,7 +8,7 @@ metadata:
   status: "active"
   revision: 1
   modes: ["tools"]
-  tags: ["portal", "chat", "context", "surfaces", "migration"]
+  tags: ["portal", "chat", "context", "surfaces", "migration", "front-door", "apps", "assistant"]
   requires:
     scenarios: ["portal"]
     commands: ["portal"]

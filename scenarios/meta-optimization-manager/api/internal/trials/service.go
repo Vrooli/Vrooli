@@ -3,6 +3,7 @@ package trials
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vrooli/api-core/schedule"
@@ -13,10 +14,9 @@ import (
 // recentRunsLimit bounds the recent-runs list returned alongside the trend.
 const recentRunsLimit = 20
 
-// idempotencyWindow is how recently an identical (task, fixture-rev) run
-// must have completed for a re-run to reuse it instead of dispatching again.
-// Trials are expensive and operator-invoked; this stops an accidental immediate
-// re-run from double-spending while still letting the trend grow over time.
+// idempotencyWindow bounds reuse only when the exact model identity is known
+// before dispatch. Agent Manager currently reports actual_model after execution,
+// so live service calls fail closed and do not reuse a model-unbound run.
 const idempotencyWindow = 15 * time.Minute
 
 // Service is the trials application surface.
@@ -87,11 +87,12 @@ func (s *service) ListTrialTasks(ctx context.Context, suite string) ([]TrialTask
 // always sandboxed. A single task (task_id) takes precedence over a suite
 // filter; with neither, the whole generated suite runs.
 //
-// Per task the flow is: resolve the fixture (defines success + supplies the
-// idempotency rev) → reuse a recent identical run if one exists (no double
-// spend) → Runner collects evidence via agent-manager's sandboxed primitive →
-// Evaluator decides the verdict → record. Every failure mode degrades that one
-// run to an honest VerdictError and is still recorded; the suite never blocks.
+// Per task the flow is: resolve the complete fixture substrate → Runner collects
+// evidence via agent-manager's sandboxed primitive → verify actual model identity
+// → Evaluator decides the verdict → record. Agent Manager reports the model after
+// dispatch, so model-unbound historical records cannot safely suppress a trial.
+// Every failure mode degrades that one run to an honest VerdictError and is still
+// recorded; the suite never blocks.
 func (s *service) RunTrials(ctx context.Context, suite, taskID string) ([]TrialRun, error) {
 	tasks, err := s.resolveTasks(ctx, suite, taskID)
 	if err != nil {
@@ -125,21 +126,28 @@ func (s *service) runOne(ctx context.Context, t TrialTask) TrialRun {
 		})
 	}
 
-	// Idempotency: reuse a recent, identical, non-error run rather than spend
-	// another local-model dispatch on it.
-	if reused, found := s.reusableRun(ctx, t.ID, fixture.Rev); found {
+	// Agent Manager resolves the actual model during execution, not before it.
+	// Therefore there is no safe pre-dispatch model key today. Keep the exact-key
+	// helper for a future resolver-backed path, but do not reuse a result by
+	// querying the repository with an empty model string.
+	if reused, found := s.reusableRun(ctx, t.ID, "", fixture.Rev); found {
 		return reused
 	}
 
 	res := s.runner.RunTask(ctx, t, fixture)
 	verdict := res.Verdict
 	if verdict != VerdictError {
-		verdict = s.evaluator.Judge(ctx, t, fixture, res)
+		if res.Model == "" {
+			verdict = VerdictError
+		} else {
+			verdict = s.evaluator.Judge(ctx, t, fixture, res)
+		}
 	}
 	return s.record(ctx, TrialRun{
 		ID:             uuid.NewString(),
 		TaskID:         t.ID,
 		Suite:          t.Suite,
+		Model:          res.Model,
 		GuideTaskID:    t.GuideTaskID,
 		FixtureRev:     fixture.Rev,
 		Verdict:        verdict,
@@ -162,13 +170,13 @@ func (s *service) record(ctx context.Context, run TrialRun) TrialRun {
 	return run
 }
 
-// reusableRun returns a recent identical (task, fixture-rev) run if one
-// exists within the idempotency window and did not itself error.
-func (s *service) reusableRun(ctx context.Context, taskID, fixtureRev string) (TrialRun, bool) {
-	if s.repo == nil || fixtureRev == "" {
+// reusableRun returns a recent run only for an exact non-empty model identity
+// and fixture revision. Empty model never means a wildcard.
+func (s *service) reusableRun(ctx context.Context, taskID, model, fixtureRev string) (TrialRun, bool) {
+	if s.repo == nil || strings.TrimSpace(model) == "" || fixtureRev == "" {
 		return TrialRun{}, false
 	}
-	prev, ok, err := s.repo.LatestRun(ctx, taskID, "", fixtureRev)
+	prev, ok, err := s.repo.LatestRun(ctx, taskID, model, fixtureRev)
 	if err != nil || !ok {
 		return TrialRun{}, false
 	}

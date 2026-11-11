@@ -2306,7 +2306,11 @@ func (s *Service) prepareContextSnapshot(ctx context.Context, doc Document, prio
 // support call did not return is a worse outcome than carrying a weaker summary
 // into the sections that follow.
 func (s *Service) summarizeSection(ctx context.Context, text string) (string, bool) {
-	responses, err := s.gateway.Generate(ctx, GatewayRequest{Role: "extract.structured", Instruction: "Summarize the supplied prose faithfully in two or three sentences. Return only the summary.", Query: text, Strategy: samplerDirect, K: 1, MaxOutputTokens: 256})
+	responses, err := s.gateway.Generate(ctx, GatewayRequest{
+		Role: "summarize.faithful", Locality: "local_only",
+		Instruction: "Summarize the supplied prose faithfully in two or three sentences. Return only the summary.",
+		Query:       text, Strategy: samplerDirect, K: 1, MaxOutputTokens: 256,
+	})
 	if err != nil || len(responses) == 0 || strings.TrimSpace(responses[0].Text) == "" {
 		return deterministicExcerpt(text), true
 	}

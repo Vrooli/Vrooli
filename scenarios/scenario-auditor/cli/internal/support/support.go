@@ -62,6 +62,44 @@ func PrintMutation(jsonOutput bool, report cliapp.MutationReport) error {
 	return cliapp.RenderMutationReport(os.Stdout, report)
 }
 
+// ScanJobStatusReport renders the common progress surface shared by security
+// and standards scans while retaining their owner-specific progress field.
+func ScanJobStatusReport(label, command, currentDetailKey string, resp map[string]any) cliapp.OperationalReport {
+	return cliapp.OperationalReport{
+		Status: []string{
+			fmt.Sprintf("%s job: %s", label, StringValue(resp["id"])),
+			fmt.Sprintf("Status: %s", StringValue(resp["status"])),
+			fmt.Sprintf("Scenario: %s", StringValue(resp["scenario"])),
+			fmt.Sprintf("Processed scenarios: %d/%d", IntValue(resp["processed_scenarios"]), IntValue(resp["total_scenarios"])),
+		},
+		Triage: []cliapp.TriageGroup{{
+			Heading: "Progress",
+			Items:   FormatKV(resp, "scan_type", "processed_files", "total_files", "current_scenario", currentDetailKey, "message", "error"),
+		}},
+		NextSteps: []string{
+			"scenario-auditor " + command + " summary " + StringValue(resp["id"]),
+			"scenario-auditor " + command + " cancel " + StringValue(resp["id"]),
+		},
+	}
+}
+
+// CancelScan sends the common scan cancellation request and reports its result.
+func CancelScan(core *cliapp.ScenarioApp, domain, endpoint, label, jobID string, jsonOutput bool) error {
+	var resp map[string]any
+	if err := RequestJSON(core, "POST", endpoint, nil, map[string]any{}, &resp); err != nil {
+		return err
+	}
+	report := cliapp.MutationReport{
+		Result:      []string{label + " scan cancellation requested"},
+		Changes:     PrettifyMapLines(resp),
+		NextCommand: []string{"scenario-auditor " + domain + " status " + jobID},
+	}
+	if jsonOutput {
+		return cliapp.PrintReportJSON(os.Stdout, resp)
+	}
+	return PrintMutation(false, report)
+}
+
 func StringValue(v any) string {
 	switch value := v.(type) {
 	case string:

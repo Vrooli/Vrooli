@@ -56,6 +56,17 @@ func TestFixtureResolverReadsCorpusAndRevisions(t *testing.T) {
 	if fx2.Rev == rev1 {
 		t.Fatalf("revision must change when a target file changes")
 	}
+
+	// Oracle contents are part of the immutable evaluation substrate too.
+	rev2 := fx2.Rev
+	mustWrite(t, filepath.Join(root, SuiteAddFeature, "check.sh"), "#!/usr/bin/env bash\nexit 1\n")
+	fx3, _, err := r.Resolve(context.Background(), TrialTask{ID: "trial/g1", Suite: SuiteAddFeature})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fx3.Rev == rev2 {
+		t.Fatal("revision must change when oracle contents change")
+	}
 }
 
 func TestFixtureResolverNegativeAndMissing(t *testing.T) {

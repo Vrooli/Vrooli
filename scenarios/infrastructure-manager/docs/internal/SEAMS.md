@@ -96,7 +96,7 @@ and use matrix/trace helpers from the relevant testutil package.
 | **Seam** | Database reachability probe |
 | **Interface** | `internal/database/pinger.go::Pinger` (`PingContext(ctx) error`) |
 | **Production wiring** | `main.go` opens `*sql.DB` via `database.Connect(...)` against `modernc.org/sqlite` (pure-Go, CGO-clean). `*sql.DB` satisfies `Pinger` directly — no wrapper. |
-| **Test fake** | `internal/testutil/mocks::FakePinger` (`PingErr error`, atomic `Calls` counter). |
+| **Test fake** | `github.com/vrooli/api-core/databasetest::FakePinger` (`PingErr error`, atomic `Calls` counter). |
 | **Why it exists** | The `/health` handler probes the database. Without the seam, every handler test would either open the on-disk SQLite file (slow at scale, parallel-test contention) or skip the database branch entirely (untested degradation path). With `FakePinger{PingErr: errors.New("connection refused")}`, the unhealthy branch is one line. See `handlers/health/handler_test.go`. |
 
 ### database.SchemaExecer (shared schema application)
@@ -253,7 +253,7 @@ sweep.
 never domain-specific interfaces.
 
 `internal/testutil/mocks/` retains only cross-domain fakes
-(`FakeClock`, `FakePinger`, `FakeDoer`).
+(`FakeClock`, `FakeDoer`).
 
 ### Mechanical steps
 
@@ -282,7 +282,7 @@ never domain-specific interfaces.
    Each method takes a per-method error knob (`CreateErr error`) plus
    any state it needs to return. Counters use `atomic.Int64`, not plain
    `int`, so race-detector tests don't flap. Cross-domain fakes
-   (`FakeClock`, `FakePinger`, `FakeDoer`) stay in
+   (`FakeClock`, `FakeDoer`) stay in
    `internal/testutil/mocks/`.
 5. **Update this document.** A row in the table above with the same
    five columns. If you skip this step, the seam exists but isn't
@@ -395,6 +395,15 @@ an actionable diff showing exactly which entries diverged.
 | **Production wiring** | The portability service and commissioning condition reader pass the repository root to the read-only control-plane boundary; the CLI list command uses the same runtime reader. |
 | **Test fake** | `packages/hostreq` has a live metadata invariant test; scenario source tests can substitute the owning `sources.Reader` at the condition fan-out boundary. |
 | **Why it exists** | Host safeguard state must be observed through the control plane without giving a scenario a remediation path or shelling out to a potentially stale CLI binary. Failed inspections remain explicit failed observations rather than disappearing from the denominator. |
+
+### System Monitor device coverage grading
+
+| | |
+|---|---|
+| **Seam** | Infrastructure-manager substrate ladder ↔ System Monitor device graph |
+| **Production wiring** | The typed graph carries device rung grades plus bus/subsystem identity grades. Empty device classes become `not_applicable` only when every relevant subsystem reports successful enumeration. |
+| **Test fake** | Ladder fixtures inject complete, empty, partial, failed and unavailable subsystem grades independently of device rows. |
+| **Why it exists** | A useful partial graph must not turn a failed PCI/USB enumeration into trusted absence. System Monitor owns collection; Infrastructure Manager consumes its coverage and never probes hardware again. |
 
 ## Cross-references
 

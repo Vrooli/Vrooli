@@ -187,6 +187,23 @@ func TestReindexAuthorizedPassesThrough(t *testing.T) {
 	}
 }
 
+func TestReindexRejectsMigrationBeforeLiveReconcile(t *testing.T) {
+	fr := &fakeReindexer{jobID: "job-1"}
+	h := newHandler(enabledGate(), fr, &fakeConfigWriter{})
+	for _, request := range []*controlv1.ReindexRequest{
+		{ControlToken: testToken, Action: "shadow", ShadowCollection: "candidate", EmbeddingModel: "m", EmbeddingRole: "r", EmbeddingDimensions: 3, EmbeddingPolicySchemaVersion: "v1"},
+		{ControlToken: testToken, EmbeddingModel: "m"},
+		{ControlToken: testToken, Action: "abort"},
+	} {
+		if _, err := h.Reindex(context.Background(), connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("request %+v: code=%s err=%v, want invalid_argument", request, connect.CodeOf(err), err)
+		}
+	}
+	if fr.reindexN != 0 {
+		t.Fatalf("unsupported migration requests reached live reindex %d times", fr.reindexN)
+	}
+}
+
 func TestReindexStatusNotFound(t *testing.T) {
 	h := newHandler(enabledGate(), &fakeReindexer{statusOK: false}, &fakeConfigWriter{})
 	_, err := h.ReindexStatus(context.Background(), connect.NewRequest(&controlv1.ReindexStatusRequest{

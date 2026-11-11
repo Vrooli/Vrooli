@@ -142,7 +142,7 @@ func buildFixture(dir, family string, m fixtureManifest) (Fixture, bool, error) 
 		return Fixture{}, false, fmt.Errorf("trials: read fixture prompt %s/%s: %w", family, promptFile, err)
 	}
 	targetDir := filepath.Join(dir, targetSub)
-	rev, err := fixtureRev(dir, promptFile, targetSub, m.Oracle)
+	rev, err := fixtureRev(dir)
 	if err != nil {
 		return Fixture{}, false, fmt.Errorf("trials: revision %s: %w", family, err)
 	}
@@ -158,29 +158,23 @@ func buildFixture(dir, family string, m fixtureManifest) (Fixture, bool, error) 
 	}, true, nil
 }
 
-// fixtureRev is a stable content hash over the fixture inputs (prompt + oracle
-// command + every file under target/). Editing any of them changes the rev,
+// fixtureRev is a stable content hash over the complete fixture directory,
+// including its manifest, prompt, oracle scripts and target tree. Editing any
+// input changes the rev,
 // which invalidates the (task, model, fixture-rev) idempotency key so the trend
 // never compares runs across incompatible fixture versions.
-func fixtureRev(dir, promptFile, targetSub string, oracle []string) (string, error) {
+func fixtureRev(dir string) (string, error) {
 	h := sha256.New()
-	// Prompt + oracle command participate in the revision.
-	promptBytes, err := os.ReadFile(filepath.Join(dir, promptFile))
-	if err != nil {
-		return "", err
-	}
-	fmt.Fprintf(h, "prompt:%x\n", sha256.Sum256(promptBytes))
-	fmt.Fprintf(h, "oracle:%s\n", strings.Join(oracle, "\x00"))
-
-	// Every file under target/, in a deterministic order.
-	targetDir := filepath.Join(dir, targetSub)
 	var files []string
-	walkErr := filepath.WalkDir(targetDir, func(p string, d fs.DirEntry, err error) error {
+	walkErr := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() {
 			return nil
+		}
+		if d.Type()&fs.ModeSymlink != 0 {
+			return fmt.Errorf("fixture contains unsupported symlink %s", p)
 		}
 		files = append(files, p)
 		return nil
@@ -194,11 +188,15 @@ func fixtureRev(dir, promptFile, targetSub string, oracle []string) (string, err
 		if err != nil {
 			return "", err
 		}
-		rel, _ := filepath.Rel(targetDir, p)
-		fmt.Fprintf(h, "file:%s:%x\n", filepath.ToSlash(rel), sha256.Sum256(b))
+		info, err := os.Stat(p)
+		if err != nil {
+			return "", err
+		}
+		rel, _ := filepath.Rel(dir, p)
+		fmt.Fprintf(h, "file:%s:%04o:%x\n", filepath.ToSlash(rel), info.Mode().Perm(), sha256.Sum256(b))
 	}
 	sum := h.Sum(nil)
-	return hex.EncodeToString(sum[:12]), nil // 24 hex chars — short but collision-safe here
+	return hex.EncodeToString(sum), nil
 }
 
 // isNotExist is a tiny helper so callers read cleanly without importing

@@ -636,6 +636,93 @@ func TestBlockedRungInheritsItsCauseRatherThanItsOwnGrade(t *testing.T) {
 	}
 }
 
+func TestEmptyDeviceClassRequiresSuccessfulSubsystemEnumeration(t *testing.T) {
+	classes := []string{"block-device", "graphics-device", "network-interface", "pci-device", "usb-device"}
+	coverage := func(state, reason string) sources.GraphSubsystem {
+		return sources.GraphSubsystem{Name: "pci-bus", Rungs: map[string]sources.RungState{
+			"identity": {Rung: "identity", State: state, Reason: reason, Mechanism: "fixture inventory"},
+		}}
+	}
+	graph := sources.DeviceGraph{
+		Subsystems: []sources.GraphSubsystem{
+			coverage("unmeasurable", "PCI enumeration failed: permission denied"),
+			{Name: "usb-bus", Rungs: map[string]sources.RungState{"identity": {Rung: "identity", State: "measured"}}},
+			{Name: "block-storage", Rungs: map[string]sources.RungState{"identity": {Rung: "identity", State: "measured"}}},
+			{Name: "network-interfaces", Rungs: map[string]sources.RungState{"identity": {Rung: "identity", State: "measured"}}},
+		},
+	}
+	got := emptyClassCoverage(classes, graph)
+	if got.Observation != ObservationUnmeasurable || !strings.Contains(got.Reason, "permission denied") {
+		t.Fatalf("partial failed graph coverage = %+v, want unmeasurable with probe reason", got)
+	}
+
+	graph.Subsystems[0] = coverage("measured", "")
+	got = emptyClassCoverage(classes, graph)
+	if got.Observation != ObservationNotApplicable {
+		t.Fatalf("successfully empty graph coverage = %+v, want not applicable", got)
+	}
+}
+
+func TestPopulatedDeviceClassRetainsPartialEnumerationBlindness(t *testing.T) {
+	join := SubstrateJoins[0]
+	graph := sources.DeviceGraph{CollectedAt: time.Now().UTC(), Devices: []sources.GraphDevice{{
+		ID: "pnp:PCI\\VEN_F00D&DEV_0001", Class: "pci-device",
+		Rungs: map[string]sources.RungState{
+			"identity":     {Rung: "identity", State: "measured"},
+			"telemetry":    {Rung: "telemetry", State: "measured"},
+			"evidence":     {Rung: "evidence", State: "measured"},
+			"control":      {Rung: "control", State: "measured"},
+			"anticipation": {Rung: "anticipation", State: "measured"},
+		},
+	}}}
+	classSubsystem := map[string]string{
+		"block-device": "block-storage", "graphics-device": "pci-bus",
+		"network-interface": "network-interfaces", "pci-device": "pci-bus", "usb-device": "usb-bus",
+	}
+	for _, class := range join.Classes {
+		name := classSubsystem[class]
+		state, reason := "measured", ""
+		if name == "pci-bus" {
+			state, reason = "unmeasurable", "PnP enumeration stopped after a partial result"
+		}
+		graph.Subsystems = append(graph.Subsystems, sources.GraphSubsystem{Name: name, Rungs: map[string]sources.RungState{
+			"identity": {Rung: "identity", State: state, Reason: reason, Mechanism: "fixture PnP"},
+		}})
+	}
+	service := Service{HostOS: "windows"}
+	cell := Cell{Key: CellKey{DeviceClass: "pci-device", Rung: join.Rung, HostOS: "windows"}}
+	service.applyDeviceJoin(&cell, join, "pci-device", "windows", map[string][]sources.GraphDevice{
+		"pci-device": graph.Devices,
+	}, sources.TypedResult[sources.DeviceGraph]{Available: true, Value: graph})
+	if cell.Observation != ObservationUnmeasurable || cell.Trust != internalcondition.TrustUntrusted ||
+		cell.ReasonCode != "device_inventory_incomplete" || !strings.Contains(cell.Reason, "partial result") {
+		t.Fatalf("populated class hid partial subsystem coverage: %+v", cell)
+	}
+}
+
+func TestPerClassDeviceJoinUsesOnlyOwningSubsystemCoverage(t *testing.T) {
+	join := SubstrateJoins[0]
+	graph := sources.DeviceGraph{CollectedAt: time.Now().UTC(), Subsystems: []sources.GraphSubsystem{
+		{Name: "pci-bus", Rungs: map[string]sources.RungState{"identity": {Rung: "identity", State: "measured"}}},
+		{Name: "usb-bus", Rungs: map[string]sources.RungState{"identity": {Rung: "identity", State: "unmeasurable", Reason: "USB probe failed"}}},
+		{Name: "block-storage", Rungs: map[string]sources.RungState{"identity": {Rung: "identity", State: "unmeasurable", Reason: "storage probe failed"}}},
+		{Name: "network-interfaces", Rungs: map[string]sources.RungState{"identity": {Rung: "identity", State: "measured"}}},
+	}}
+	service := Service{HostOS: "windows"}
+	for _, class := range []string{"pci-device", "network-interface"} {
+		cell := Cell{Key: CellKey{DeviceClass: class, Rung: join.Rung, HostOS: "windows"}}
+		service.applyDeviceJoin(&cell, join, class, "windows", map[string][]sources.GraphDevice{}, sources.TypedResult[sources.DeviceGraph]{Available: true, Value: graph})
+		if cell.Observation != ObservationNotApplicable {
+			t.Errorf("empty %s class was affected by unrelated failed enumeration: %+v", class, cell)
+		}
+	}
+	usb := Cell{Key: CellKey{DeviceClass: "usb-device", Rung: join.Rung, HostOS: "windows"}}
+	service.applyDeviceJoin(&usb, join, "usb-device", "windows", map[string][]sources.GraphDevice{}, sources.TypedResult[sources.DeviceGraph]{Available: true, Value: graph})
+	if usb.Observation != ObservationUnmeasurable || !strings.Contains(usb.Reason, "USB probe failed") {
+		t.Fatalf("empty USB class did not retain its own probe failure: %+v", usb)
+	}
+}
+
 // TestBlindnessAgeDistinguishesUndatedFromZeroDay is the board's differentiator.
 // gap_open_days is 0 both for a gap opened today and for a gap nobody ever
 // dated, so an undated gap must be reported as undated rather than as a
@@ -723,6 +810,37 @@ func TestDeviceInventoryCarriesBothGrades(t *testing.T) {
 	if telemetry.BlockedBy != RungIdentity {
 		t.Errorf("telemetry reports blocked by %q, want identity", telemetry.BlockedBy)
 	}
+}
+
+func TestUnboundDeviceRepairRouteSurvivesInfrastructureManagerAggregation(t *testing.T) {
+	device := fullyMeasured("pci:0000:03:00.0", "pci-device")
+	device.Rungs[string(RungControl)] = sources.RungState{
+		Rung:        string(RungControl),
+		State:       string(ObservationUnmeasurable),
+		Reason:      "no kernel driver is bound to this PCI function",
+		Remediation: "Run `vrooli setup status` and inspect the matching supported safeguard.",
+	}
+	service := newService(t,
+		stubGraph{graph: sources.DeviceGraph{Devices: []sources.GraphDevice{device}}},
+		stubGrid{}, stubChecks{})
+	snapshot := service.Snapshot(context.Background())
+
+	for _, aggregated := range snapshot.Devices {
+		if aggregated.ID != device.ID {
+			continue
+		}
+		for _, rung := range aggregated.Rungs {
+			if rung.Rung != RungControl {
+				continue
+			}
+			if rung.Observation != ObservationUnmeasurable || rung.Remediation != device.Rungs[string(RungControl)].Remediation {
+				t.Fatalf("aggregated control evidence = %#v, want source grade and remediation preserved", rung)
+			}
+			return
+		}
+		t.Fatalf("device %s has no aggregated control rung", aggregated.ID)
+	}
+	t.Fatalf("device %s missing from infrastructure-manager inventory", device.ID)
 }
 
 // TestDeviceInventoryIsEmptyOnlyWhenTheSourceWasRead guards the claim an empty

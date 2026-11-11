@@ -15,9 +15,9 @@ import (
 	"program-runtime/handlers/health"
 	"program-runtime/internal/bindings"
 	"program-runtime/internal/programs"
-	"program-runtime/internal/testutil/mocks"
 
 	"github.com/gorilla/mux"
+	"github.com/vrooli/api-core/databasetest"
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/packages/proto/descriptorimage"
 	"google.golang.org/protobuf/proto"
@@ -56,7 +56,7 @@ func TestProgramRuntimeDescriptorRefreshUpdatesRegistryKernelAndHealth(t *testin
 		t.Fatal(err)
 	}
 
-	pinger := &mocks.FakePinger{}
+	pinger := &databasetest.FakePinger{}
 	router := mux.NewRouter()
 	health.ModuleWithDescriptor(pinger, "program-runtime-api", "1.0.0", registry.SkippedManifestCount, registry.SnapshotMetadata).Mount(router)
 	healthServer := httptest.NewServer(router)

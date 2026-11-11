@@ -12,9 +12,9 @@ import (
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/health"
 
 	"data-backup-manager/handlers/health"
-	"data-backup-manager/internal/testutil/mocks"
 
 	"github.com/vrooli/api-core/apihttptest"
+	"github.com/vrooli/api-core/databasetest"
 )
 
 // fakePosture implements health.BackupPosture with canned output.
@@ -50,7 +50,7 @@ func serve(t *testing.T, h http.HandlerFunc) *healthv1.Response {
 func TestHealth_DegradedOnOverdue(t *testing.T) {
 	sink := &fakePostureSink{}
 	resp := serve(t, health.NewHandler(health.Deps{
-		Pinger:  &mocks.FakePinger{}, // healthy DB
+		Pinger:  &databasetest.FakePinger{}, // healthy DB
 		Service: "data-backup-manager-api",
 		Version: "1.0.0",
 		Posture: fakePosture{degraded: true, detail: "1 of 2 target(s) overdue or last run failed"},
@@ -69,7 +69,7 @@ func TestHealth_DegradedOnOverdue(t *testing.T) {
 func TestHealth_HealthyWhenBackupsOK(t *testing.T) {
 	sink := &fakePostureSink{}
 	resp := serve(t, health.NewHandler(health.Deps{
-		Pinger:  &mocks.FakePinger{},
+		Pinger:  &databasetest.FakePinger{},
 		Service: "data-backup-manager-api",
 		Version: "1.0.0",
 		Posture: fakePosture{degraded: false},
@@ -83,7 +83,7 @@ func TestHealth_HealthyWhenBackupsOK(t *testing.T) {
 // the status rather than crashing the probe.
 func TestHealth_PostureErrorDegrades(t *testing.T) {
 	resp := serve(t, health.NewHandler(health.Deps{
-		Pinger:  &mocks.FakePinger{},
+		Pinger:  &databasetest.FakePinger{},
 		Service: "s",
 		Version: "1",
 		Posture: fakePosture{err: errors.New("runs unavailable")},

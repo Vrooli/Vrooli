@@ -96,7 +96,7 @@ func runScan(core *cliapp.ScenarioApp, args []string) error {
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, finalResp)
 	}
-	return support.PrintOperational(false, jobStatusReport("Standards scan", finalResp))
+	return support.PrintOperational(false, support.ScanJobStatusReport("Standards scan", "standards", "current_file", finalResp))
 }
 
 func runStatus(core *cliapp.ScenarioApp, args []string) error {
@@ -116,7 +116,7 @@ func runStatus(core *cliapp.ScenarioApp, args []string) error {
 	if *jsonOutput {
 		return cliapp.PrintReportJSON(os.Stdout, resp)
 	}
-	return support.PrintOperational(false, jobStatusReport("Standards scan", resp))
+	return support.PrintOperational(false, support.ScanJobStatusReport("Standards scan", "standards", "current_file", resp))
 }
 
 func runSummary(core *cliapp.ScenarioApp, args []string) error {
@@ -180,20 +180,7 @@ func runCancel(core *cliapp.ScenarioApp, args []string) error {
 		return fmt.Errorf("usage: standards cancel <job-id> [--json]")
 	}
 
-	var resp map[string]any
-	if err := support.RequestJSON(core, "POST", "/standards/check/jobs/"+fs.Arg(0)+"/cancel", nil, map[string]any{}, &resp); err != nil {
-		return err
-	}
-
-	report := cliapp.MutationReport{
-		Result:      []string{"Standards scan cancellation requested"},
-		Changes:     support.PrettifyMapLines(resp),
-		NextCommand: []string{"scenario-auditor standards status " + fs.Arg(0)},
-	}
-	if *jsonOutput {
-		return cliapp.PrintReportJSON(os.Stdout, resp)
-	}
-	return support.PrintMutation(false, report)
+	return support.CancelScan(core, "standards", "/standards/check/jobs/"+fs.Arg(0)+"/cancel", "Standards", fs.Arg(0), *jsonOutput)
 }
 
 func runViolations(core *cliapp.ScenarioApp, args []string) error {
@@ -229,33 +216,4 @@ func runViolations(core *cliapp.ScenarioApp, args []string) error {
 		return cliapp.PrintReportJSON(os.Stdout, resp)
 	}
 	return support.PrintList(false, report)
-}
-
-func jobStatusReport(label string, resp map[string]any) cliapp.OperationalReport {
-	return cliapp.OperationalReport{
-		Status: []string{
-			fmt.Sprintf("%s job: %s", label, support.StringValue(resp["id"])),
-			fmt.Sprintf("Status: %s", support.StringValue(resp["status"])),
-			fmt.Sprintf("Scenario: %s", support.StringValue(resp["scenario"])),
-			fmt.Sprintf("Processed scenarios: %d/%d", support.IntValue(resp["processed_scenarios"]), support.IntValue(resp["total_scenarios"])),
-		},
-		Triage: []cliapp.TriageGroup{
-			{
-				Heading: "Progress",
-				Items: support.FormatKV(resp,
-					"scan_type",
-					"processed_files",
-					"total_files",
-					"current_scenario",
-					"current_file",
-					"message",
-					"error",
-				),
-			},
-		},
-		NextSteps: []string{
-			"scenario-auditor standards summary " + support.StringValue(resp["id"]),
-			"scenario-auditor standards cancel " + support.StringValue(resp["id"]),
-		},
-	}
 }

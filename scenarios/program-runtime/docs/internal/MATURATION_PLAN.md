@@ -8,7 +8,7 @@ driven by the control agent's own tooling: scoped sub-agents, a `/goal` loop, fo
 
 This is a durable strategy document. It extends the existing debt ledgers
 (`PROBLEMS.md`, `SEAMS.md`, `DECISIONS.md`, `ERROR-HANDLING.md`); it does not replace them.
-Dated window snapshots belong under `docs/internal/delivery-operations/<date>/`.
+Retained dated window snapshots are under `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/<date>/`.
 
 ---
 

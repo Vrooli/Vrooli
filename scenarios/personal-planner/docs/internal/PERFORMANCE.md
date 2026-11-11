@@ -53,7 +53,7 @@ read calls took21.6ms,103.9ms and21.5ms respectively; Goals recorded one54ms
 Long Task. Focus useful-data cues preceded the reads, so the reads cannot be
 called the cause of every visible delay. These are single local-browser
 observations, not phone measurements or a release-budget verdict. See
-[raw measurements](../../../../docs/internal/delivery-reliability-research/sources/A243logs/planner-performance/warm-return/runtime/measurements.json).
+[raw measurements](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A243logs/planner-performance/warm-return/runtime/measurements.json).
 
 A244 adopted successful sample reuse for the two fixed scene URLs, including
 in-flight concurrent requests. Incomplete samples remain retryable. Cache values
@@ -79,8 +79,8 @@ that fixture declaration was removed. Native unit run
 UI reported272 passed/one existing conditional parity skip; truncated output does
 not independently enumerate each sampler case. Normal restart
 `startop-34375120b1ea8be849ca06a5e0a6fce2` was healthy16:35:41Z.
-[Independent browser review](../../../../docs/internal/delivery-reliability-research/sources/A244logs/planner-cache-probe/after-v3/independent-review.md),
-[unit review](../../../../docs/internal/delivery-reliability-research/sources/A244logs/planner-cache-adoption/unit-v2-independent-review.md).
+[Independent browser review](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A244logs/planner-cache-probe/after-v3/independent-review.md),
+[unit review](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A244logs/planner-cache-adoption/unit-v2-independent-review.md).
 
 This is one local headless comparison. Readiness includes visible data plus
 stable scene CSS and cannot be compared to the earlier data-only metric. No
@@ -141,9 +141,9 @@ service-worker observations remain hypotheses, not established bottlenecks.
 The new trace records first-visit route resources and waits for Review's linked
 data cue, but this one pass does not establish a repeatable bottleneck or public
 network behavior. See the
-[A206 report](../../../../docs/internal/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/report.md),
-[exact run summary](../../../../docs/internal/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/targeted-run-repair-20261018-0715/result-summary.json),
-and [fixture/probe definition](../../../../docs/internal/delivery-reliability-research/sources/A206logs/reference-fixture-candidate/review.md).
+[A206 report](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/report.md),
+[exact run summary](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/targeted-run-repair-20261018-0715/result-summary.json),
+and [fixture/probe definition](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A206logs/reference-fixture-candidate/review.md).
 
 The bounded mobile scroll/frame experiment then completed in Workflow Health run
 `51796559-a29b-4713-aa9c-0a9b0c6139bc` (2026-10-18). Both selected cases passed
@@ -167,9 +167,9 @@ observer overhead can perturb timing, and the sample cannot qualify a physical
 phone or public-origin path. The workflow assessment passed; 32 static selector
 registry findings were advisory warnings, separate from the executed-case
 result. Keep these findings distinct from a performance budget pass: no
-optimization is selected and no budget is certified. See the [v7 result](../../../../docs/internal/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/scroll-frame-experiment/v7-final-result.md),
-[sanitized phase observations](../../../../docs/internal/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/scroll-frame-experiment/v7-case-observation.json),
-and [durable provider receipt](../../../../docs/internal/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/scroll-frame-experiment/workflow-provider-wait.receipt-v7.json).
+optimization is selected and no budget is certified. See the [v7 result](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/scroll-frame-experiment/v7-final-result.md),
+[sanitized phase observations](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/scroll-frame-experiment/v7-case-observation.json),
+and [durable provider receipt](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/scroll-frame-experiment/workflow-provider-wait.receipt-v7.json).
 
 The final mobile screenshot exposed a separate visual defect that the timing
 and accessible-name assertions did not qualify: full-width Today timeline cards
@@ -190,18 +190,18 @@ The run used 101 routed test-pool requests and recorded zero primary requests
 or writes and zero test-root writes. The run’s earlier v4 attempt is retained
 as an ordering failure because the setup case ran after the assertions; the
 corrected owner-generated registry placed setup first. See the
-[A230 qualification packet](../../../../docs/internal/delivery-reliability-research/sources/A230logs/review-packet.md)
-and [captured mobile image](../../../../docs/internal/delivery-reliability-research/sources/A230logs/browser-candidate/final-run-65f1530e/mobile-title.png).
+[A230 qualification packet](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A230logs/review-packet.md)
+and [captured mobile image](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A230logs/browser-candidate/final-run-65f1530e/mobile-title.png).
 This is local routed-browser evidence, not public-origin or physical-device
 qualification, and it fixes readable labels rather than proving an app-wide
 performance improvement.
 
 | Measurement | Value | Source | Date |
 |---|---|---|---|
-| Today→Focus→Today small-fixture exploratory trace | Focus 37.8 ms; Today 18.5 ms; no Long Tasks | [A206 report](../../../../docs/internal/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/report.md), run `c575c7a8-538e-4924-9774-8aadca288155` | 2026-10-18 |
-| Six-route small-fixture functional/timing baseline | 6/6 cases, 18/18 nodes; `networkidle` 1.3–2.1 s; FCP 120–228 ms | [A206 v2 results](../../../../docs/internal/delivery-reliability-research/sources/A206logs/planner-route-baseline-v2/results-v2.md), run `4e168c41-5d8c-4436-8400-ec5150ee1664` | 2026-10-18 |
-| Six-route reference-scale local trace | 2/2 cases, 38/38 sequence nodes; 50.1/77.0/34.7/71.2/23.3/22.7 ms for Plan/Goals/Focus/Review/Settings/warm Today; one cold Today 56 ms Long Task | [A206 exact run summary](../../../../docs/internal/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/targeted-run-repair-20261018-0715/result-summary.json), run `6f1d4ec7-b5cc-43b8-8342-60b7f74517df` | 2026-10-18 |
-| Mobile Today scroll/frame A/B sample | 2/2 cases; 220px scroll each; idle RAF p95 16.7/16.7ms; moving RAF p95 16.7/16.8ms; no observed Long Task/LAF entries | [A206 v7 result](../../../../docs/internal/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/scroll-frame-experiment/v7-final-result.md), run `51796559-a29b-4713-aa9c-0a9b0c6139bc` | 2026-10-18 |
+| Today→Focus→Today small-fixture exploratory trace | Focus 37.8 ms; Today 18.5 ms; no Long Tasks | [A206 report](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/report.md), run `c575c7a8-538e-4924-9774-8aadca288155` | 2026-10-18 |
+| Six-route small-fixture functional/timing baseline | 6/6 cases, 18/18 nodes; `networkidle` 1.3–2.1 s; FCP 120–228 ms | [A206 v2 results](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A206logs/planner-route-baseline-v2/results-v2.md), run `4e168c41-5d8c-4436-8400-ec5150ee1664` | 2026-10-18 |
+| Six-route reference-scale local trace | 2/2 cases, 38/38 sequence nodes; 50.1/77.0/34.7/71.2/23.3/22.7 ms for Plan/Goals/Focus/Review/Settings/warm Today; one cold Today 56 ms Long Task | [A206 exact run summary](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/targeted-run-repair-20261018-0715/result-summary.json), run `6f1d4ec7-b5cc-43b8-8342-60b7f74517df` | 2026-10-18 |
+| Mobile Today scroll/frame A/B sample | 2/2 cases; 220px scroll each; idle RAF p95 16.7/16.7ms; moving RAF p95 16.7/16.8ms; no observed Long Task/LAF entries | [A206 v7 result](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A206logs/planner-interaction-mobile/scroll-frame-experiment/v7-final-result.md), run `51796559-a29b-4713-aa9c-0a9b0c6139bc` | 2026-10-18 |
 
 ## Next bounded interaction experiment
 
@@ -307,7 +307,7 @@ The actual finalization expression was then exercised by focused UI tests in
 tests passed, including delayed input timestamp matching and unavailable
 profiler results. UI type-check passed, and Test Genie unit run
 `20261019-053938-fd4d0ed2` passed 1/1 phase with zero skips. The durable gate
-summary is `docs/internal/delivery-reliability-research/sources/A248logs/planner-r27-owner-amendment-20261019/vitest-candidate-v4/gates/validation-summary.json`.
+summary is `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A248logs/planner-r27-owner-amendment-20261019/vitest-candidate-v4/gates/validation-summary.json`.
 This qualifies the measurement logic only. No post-correction BAS/browser trace
 or product-performance result exists.
 
@@ -384,7 +384,7 @@ The first repeatability attempt, Workflow Health run
 `95b1b913-ef5e-4c51-bb70-a8215774db68`, ended with provider state SUCCEEDED but
 terminal validation FAILED: setup passed and the route case failed at step 110.
 Its terminal execution evidence is retained in
-`../../../../docs/internal/delivery-reliability-research/sources/A248logs/planner-r27-owner-amendment-20261019/repeatability-receiving/workflow-root-get.stdout.json`.
+`/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A248logs/planner-r27-owner-amendment-20261019/repeatability-receiving/workflow-root-get.stdout.json`.
 The route timeline showed zero captured transitions despite the click path and
 ready-state assertions running.
 
@@ -412,7 +412,7 @@ For this run the routed lease recorded 450 test-pool requests, zero primary
 requests, zero primary-root writes and zero test-root writes; install,
 heartbeat and clear errors were empty. Raw start/wait stdout, stderr and exit
 codes are retained under
-`../../../../docs/internal/delivery-reliability-research/sources/A248logs/planner-r27-owner-amendment-20261019/repeatability-receiving/correction-20261019/`;
+`/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A248logs/planner-r27-owner-amendment-20261019/repeatability-receiving/correction-20261019/`;
 route timeline SHA-256 is
 `e53578500061a61b549d85fc01910cf5c8cff7f49fe417868ce96e2d6644c0dd`. The
 separate earlier wrong-target run `2cd94566-7c58-4101-b6d7-6a1d9e59aff8`
@@ -456,7 +456,7 @@ Lease evidence for that correctly targeted run: 453 test-pool requests, zero
 primary requests, zero primary-root writes and zero test-root writes; lease
 install, heartbeat and clear errors were empty. The raw full terminal JSON,
 start/wait stdout, stderr and exit codes are retained under
-`../../../../docs/internal/delivery-reliability-research/sources/A248logs/planner-r27-owner-amendment-20261019/repeatability-receiving/observer-interpolation-correction-20261019/`.
+`/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A248logs/planner-r27-owner-amendment-20261019/repeatability-receiving/observer-interpolation-correction-20261019/`.
 The route timeline SHA-256 is
 `a68f2190543a7fd655581d5d20d64a518964b95c63a1db4dd6cf9fc0d5b5fa5f`.
 
@@ -517,7 +517,7 @@ install, heartbeat, and clear error strings were empty. Full provider terminal
 JSON, start/wait stdout/stderr/exit codes, per-case summaries, shadow status,
 setup and responsiveness timelines, and normalized measurements are retained
 under
-`../../../../docs/internal/delivery-reliability-research/sources/A248logs/planner-r27-owner-amendment-20261019/repeatability-receiving/backtick-successor-20261019/`.
+`/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A248logs/planner-r27-owner-amendment-20261019/repeatability-receiving/backtick-successor-20261019/`.
 The wait JSON SHA-256 is `3fe02c00b57af28f263147b555f0cab19c5ac37e5827321a9efdcd0b51db4568`;
 the responsiveness timeline SHA-256 is
 `d6b839d10b4b4e206635b3fba631a5f31abf61cdaf7b90c417ea4ddcc713a4ff`.
@@ -581,13 +581,13 @@ had empty install/heartbeat/clear errors. Current Workflow Health acquires the
 lease and forwards both `X-Vrooli-Test-Mode: 1` and
 `X-Vrooli-Test-Lease-ID` as BAS browser ExtraHeaders; the fixture setup uses a
 browser `fetch`. Raw terminal JSON and empty stderr are retained under
-`../../../../docs/internal/delivery-reliability-research/sources/A249logs/planner-primary-record-containment-20261019/r27-postsql-receiving/`.
+`/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A249logs/planner-primary-record-containment-20261019/r27-postsql-receiving/`.
 
 Admission included an incorrect `parent_run_id` (`58257550-40d8-40d8-aa7d-ffa4f01d279f`)
 instead of the owner's actual parent (`58257550-4062-40d8-aa7d-ffa4f01d279f`).
 The run was not canceled or replayed; do not claim its native parent link is
 qualified. Full measurement data and this lineage limitation are in the
-[A249 measurement summary](../../../../docs/internal/delivery-reliability-research/sources/A249logs/planner-primary-record-containment-20261019/r27-postsql-receiving/measurement-summary.json).
+[A249 measurement summary](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-reliability-research/sources/A249logs/planner-primary-record-containment-20261019/r27-postsql-receiving/measurement-summary.json).
 The original E1/Q1/F8 criteria and reviewer disposition are unchanged.
 
 ## Known Constraints
