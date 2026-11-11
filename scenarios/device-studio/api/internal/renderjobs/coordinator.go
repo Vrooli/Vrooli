@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"device-studio/internal/geometry"
@@ -144,7 +145,8 @@ type Dependencies struct {
 	GeneratedIntake   interface {
 		PersistGenerated(context.Context, library.IntakeClaims, string, library.CreationLineage, []byte) (library.IntakeCandidate, error)
 	}
-	Now func() time.Time
+	DiskJobs DiskJobAdmitter
+	Now      func() time.Time
 }
 
 type Coordinator struct {
@@ -165,6 +167,10 @@ type Coordinator struct {
 	generatedIntake   interface {
 		PersistGenerated(context.Context, library.IntakeClaims, string, library.CreationLineage, []byte) (library.IntakeCandidate, error)
 	}
+	diskJobs    DiskJobAdmitter
+	diskLeaseMu sync.Mutex
+	diskLeases  map[string]diskLeaseEntry
+	dispatchMu  sync.Mutex
 }
 
 type operationMode string
@@ -243,7 +249,7 @@ func New(d Dependencies) (*Coordinator, error) {
 	if d.PhysicalAdapter == nil {
 		d.PhysicalAdapter = rendering.PhysicalAdapterBytes
 	}
-	c := &Coordinator{shots: d.Shots, media: d.Media, jobs: d.Jobs, scopes: d.Scopes, blobs: d.Blobs, roots: d.Roots, ops: d.Ops, exe: d.Exe, now: d.Now, inspectionProfile: d.InspectionProfile, physicalArtifacts: d.PhysicalArtifacts, physicalProfile: d.PhysicalProfile, physicalAdapter: d.PhysicalAdapter, generatedIntake: d.GeneratedIntake}
+	c := &Coordinator{shots: d.Shots, media: d.Media, jobs: d.Jobs, scopes: d.Scopes, blobs: d.Blobs, roots: d.Roots, ops: d.Ops, exe: d.Exe, now: d.Now, inspectionProfile: d.InspectionProfile, physicalArtifacts: d.PhysicalArtifacts, physicalProfile: d.PhysicalProfile, physicalAdapter: d.PhysicalAdapter, generatedIntake: d.GeneratedIntake, diskJobs: d.DiskJobs, diskLeases: make(map[string]diskLeaseEntry)}
 	c.adapters = map[jobs.SubjectKind]subjectAdapter{jobs.SubjectStillRender: stillSubjectAdapter{}, jobs.SubjectSourceInspection: sourceInspectionAdapter{}, jobs.SubjectVideoRender: videoSubjectAdapter{}, jobs.SubjectPhysicalRender: physicalSubjectAdapter{}, jobs.SubjectGeometryCreate: geometryCreationAdapter{}}
 	return c, nil
 }
@@ -597,6 +603,11 @@ func (c *Coordinator) ListProjectJobs(ctx context.Context, projectID string, cur
 }
 
 func (c *Coordinator) dispatch(ctx context.Context, route routePin, j jobs.Job) (jobs.Job, error) {
+	// Multiple explicit Advance calls can race the local pump. Keep reservation
+	// ownership and the queued-to-running CAS in one dispatch lane, while native
+	// operations continue concurrently after this method returns.
+	c.dispatchMu.Lock()
+	defer c.dispatchMu.Unlock()
 	a, ok := currentAttempt(j)
 	if !ok || a.State != jobs.AttemptQueued || a.Execution != nil {
 		return j, ErrUnknownOutcome
@@ -676,15 +687,19 @@ func (c *Coordinator) dispatch(ctx context.Context, route routePin, j jobs.Job) 
 	}
 	intentSHA := digestBytes(intentBytes)
 	intentKey := intentBlobPrefix + j.ID + "/" + a.ID + "/" + intentSHA + ".json"
+	_, _, err = c.reserveDiskJob(ctx, route, j)
+	if err != nil {
+		return j, err
+	}
 	if err := c.putVerified(ctx, route, intentKey, intentBytes, "application/json", intentSHA); err != nil {
-		return j, fmt.Errorf("persist operation intent: %w", err)
+		return j, errors.Join(fmt.Errorf("persist operation intent: %w", err), c.completeDiskJobDetached(ctx, j.ID))
 	}
 	if err := c.requireRoute(ctx, route); err != nil {
-		return j, err
+		return j, errors.Join(err, c.completeDiskJobDetached(ctx, j.ID))
 	}
 	started, err := c.jobs.Start(ctx, j.ID, jobs.ExecutionClaimInput{AttemptID: a.ID, AttemptNumber: a.Number, OwnerID: OwnerID, ScopeID: intent.InvocationID, ArtifactID: intentKey, SHA256: intentSHA}, j.Version)
 	if err != nil {
-		return j, err
+		return j, errors.Join(err, c.completeDiskJobDetached(ctx, j.ID))
 	}
 	// Only the caller that won the durable queued-to-running CAS may mutate the
 	// attempt workspace. A competing Advance can leave immutable intent blobs,
@@ -796,6 +811,17 @@ func (c *Coordinator) rejectQueuedPreparation(ctx context.Context, route routePi
 }
 
 func (c *Coordinator) reconcile(ctx context.Context, route routePin, j jobs.Job) (jobs.Job, error) {
+	if err := c.heartbeatDiskJob(ctx, j.ID); err != nil {
+		latest, getErr := c.jobs.Get(ctx, j.ID)
+		if getErr != nil {
+			return j, errors.Join(err, getErr)
+		}
+		if latest.State == jobs.Running || latest.State == jobs.CancelRequested {
+			cancelled, cancelErr := c.Cancel(ctx, latest.ID, latest.Version)
+			return cancelled, errors.Join(err, cancelErr)
+		}
+		return latest, err
+	}
 	a, ok := currentAttempt(j)
 	if !ok || a.Execution == nil {
 		return j, ErrUnknownOutcome
@@ -814,13 +840,21 @@ func (c *Coordinator) reconcile(ctx context.Context, route routePin, j jobs.Job)
 			if cancelErr != nil {
 				return j, cancelErr
 			}
-			return c.jobs.RecordReleased(ctx, cancelled.ID, a.ID, cancelled.Version, proof.ObservedAt)
+			cancelled, cancelErr = c.jobs.RecordReleased(ctx, cancelled.ID, a.ID, cancelled.Version, proof.ObservedAt)
+			if cancelErr != nil {
+				return cancelled, cancelErr
+			}
+			return cancelled, c.completeDiskJobDetached(ctx, cancelled.ID)
 		}
 		failed, failErr := c.jobs.Fail(ctx, j.ID, a.ID, failure, j.Version)
 		if failErr != nil {
 			return j, failErr
 		}
-		return c.jobs.RecordReleased(ctx, failed.ID, a.ID, failed.Version, proof.ObservedAt)
+		failed, failErr = c.jobs.RecordReleased(ctx, failed.ID, a.ID, failed.Version, proof.ObservedAt)
+		if failErr != nil {
+			return failed, failErr
+		}
+		return failed, c.completeDiskJobDetached(ctx, failed.ID)
 	} else if !isMissingNotDispatchedProof(proofErr) {
 		return j, proofErr
 	}
@@ -993,7 +1027,7 @@ func (c *Coordinator) cancelBeforeNativeStart(ctx context.Context, route routePi
 	if err != nil {
 		return cancelled, err
 	}
-	return cancelled, nil
+	return cancelled, c.completeDiskJobDetached(ctx, cancelled.ID)
 }
 
 // failBeforeNativeStart terminalizes only a failure observed by the live
@@ -1046,7 +1080,7 @@ func (c *Coordinator) failBeforeNativeStart(ctx context.Context, route routePin,
 	if releaseErr != nil {
 		return failed, errors.Join(cause, fmt.Errorf("record not-dispatched attempt release (%s): %w", proofKey, releaseErr))
 	}
-	return released, cause
+	return released, errors.Join(cause, c.completeDiskJobDetached(ctx, released.ID))
 }
 
 const notDispatchedSuffix = "not-dispatched.json"
@@ -1136,7 +1170,11 @@ func (c *Coordinator) releaseAttempt(ctx context.Context, route routePin, j jobs
 	if err := c.release(ctx, route, ref); err != nil {
 		return j, err
 	}
-	return c.jobs.RecordReleased(ctx, j.ID, a.ID, j.Version, c.now().UTC())
+	released, err := c.jobs.RecordReleased(ctx, j.ID, a.ID, j.Version, c.now().UTC())
+	if err != nil {
+		return released, err
+	}
+	return released, c.completeDiskJobDetached(ctx, j.ID)
 }
 
 func (c *Coordinator) releaseTerminal(ctx context.Context, route routePin, j jobs.Job) (jobs.Job, error) {
@@ -1154,7 +1192,10 @@ func (c *Coordinator) releaseTerminal(ctx context.Context, route routePin, j job
 					if releaseErr != nil {
 						return j, releaseErr
 					}
-					return j, c.finalizeTerminal(ctx, route, j)
+					if err := c.finalizeTerminal(ctx, route, j); err != nil {
+						return j, err
+					}
+					return j, c.completeDiskJobDetached(ctx, j.ID)
 				}
 				if !isMissingNotDispatchedProof(proofErr) {
 					return j, fmt.Errorf("failed execution lacks verified dispatch-owned no-launch proof: %w", proofErr)
@@ -1171,7 +1212,11 @@ func (c *Coordinator) releaseTerminal(ctx context.Context, route routePin, j job
 	}
 	// Subject projection is an independent retryable obligation. A native
 	// release failure must not prevent known terminal media state from settling.
-	return j, errors.Join(releaseErr, c.finalizeTerminal(ctx, route, j))
+	finalizeErr := c.finalizeTerminal(ctx, route, j)
+	if releaseErr == nil && finalizeErr == nil && (j.State == jobs.Succeeded || j.State == jobs.Failed || j.State == jobs.Cancelled) {
+		releaseErr = c.completeDiskJobDetached(ctx, j.ID)
+	}
+	return j, errors.Join(releaseErr, finalizeErr)
 }
 
 type preparedAttempt = preparedOperation

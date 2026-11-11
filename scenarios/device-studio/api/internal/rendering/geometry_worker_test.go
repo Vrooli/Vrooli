@@ -62,6 +62,9 @@ func TestGeometryWorkerCallsGatewayOnceLocalOnlyAndWritesInspectedGLB(t *testing
 	if fake.request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || fake.request.GetRole() != "extract.structured" || fake.request.GetMaxProviderCalls() != 1 || fake.request.GetMaxOutputTokens() != 4096 {
 		t.Fatalf("unsafe or unbounded Gateway request: %+v", fake.request)
 	}
+	if fake.request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
+		t.Fatalf("privacy class = %s, want UNSPECIFIED because Device Studio has no source", fake.request.GetPrivacyClass())
+	}
 	if !strings.Contains(fake.request.GetInstruction(), "[-W/2,+W/2]") || !strings.Contains(fake.request.GetInstruction(), "flat box display face") || !strings.Contains(fake.request.GetInstruction(), "stand-off") {
 		t.Fatalf("fixed geometry instruction must state the locked envelope and flat screen face: %s", fake.request.GetInstruction())
 	}
@@ -191,6 +194,31 @@ func TestGeometryWorkerFundingRoutesSelectOneProviderAndRejectProviderDrift(t *t
 	}
 	if fake.request.GetRole() != "extract.structured" || fake.request.GetProfile() != sharedv1.Profile_PROFILE_LOCAL_ONLY || fake.request.GetMaxProviderCalls() != 1 {
 		t.Fatalf("unexpected route request: %+v", fake.request)
+	}
+	if fake.request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
+		t.Fatalf("privacy class = %s, want UNSPECIFIED because funding route does not classify data", fake.request.GetPrivacyClass())
+	}
+
+	m.FundingRoute = "byok"
+	m.MaxCostMicros = 100
+	manifest, _ = json.Marshal(m)
+	remoteWorkspace := t.TempDir()
+	if err := os.WriteFile(filepath.Join(remoteWorkspace, "ref.png"), image, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(remoteWorkspace, GeometryManifestName), append(manifest, '\n'), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	fake = &geometryGatewayFake{response: &inferencev1.RunResponse{Error: &inferencev1.InferenceError{
+		Code:    inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE,
+		Message: "remote providers require an explicit privacy classification",
+	}}}
+	err = runGeometryManifestForTest(context.Background(), filepath.Join(remoteWorkspace, GeometryManifestName), fake)
+	if err == nil || !strings.Contains(err.Error(), "could not return one validated bounded recipe") {
+		t.Fatalf("remote route without privacy class should surface the gateway refusal: %v", err)
+	}
+	if fake.request.GetProfile() != sharedv1.Profile_PROFILE_REMOTE_ONLY || fake.request.GetPrivacyClass() != sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
+		t.Fatalf("remote funding request must retain its route and unknown privacy class: %+v", fake.request)
 	}
 }
 

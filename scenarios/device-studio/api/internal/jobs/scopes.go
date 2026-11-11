@@ -62,7 +62,7 @@ func (s *runScopeService) Children(ctx context.Context, id string) ([]RunScopeCh
 }
 
 func (s *runScopeService) Finalize(ctx context.Context, id string, state RunScopeState, expected int64) (RunScope, error) {
-	if state != RunScopeCancelled && state != RunScopeCompleted {
+	if !state.Valid() || !state.Terminal() {
 		return RunScope{}, ErrInvalid
 	}
 	return s.repo.FinalizeRunScope(ctx, strings.TrimSpace(id), state, expected, s.now().UTC())
@@ -71,6 +71,9 @@ func (s *runScopeService) Finalize(ctx context.Context, id string, state RunScop
 var _ RunScopeRepository = (*sqliteRepository)(nil)
 
 func (r *sqliteRepository) CreateRunScope(ctx context.Context, s RunScope) error {
+	if !s.State.Valid() || s.State != RunScopeActive {
+		return ErrInvalidTransition
+	}
 	policy := string(s.Policy)
 	// Use the same serialized connection boundary as job admission.
 	return r.withImmediate(ctx, func(c *sql.Conn) error {
@@ -92,6 +95,9 @@ func (r *sqliteRepository) GetRunScope(ctx context.Context, id string) (RunScope
 		return RunScope{}, err
 	}
 	s.State, s.Policy = RunScopeState(state), json.RawMessage(policy)
+	if !s.State.Valid() {
+		return RunScope{}, fmt.Errorf("workflow scope %q has unknown state %q", id, s.State)
+	}
 	s.CreatedAt, s.UpdatedAt = time.Unix(0, created).UTC(), time.Unix(0, updated).UTC()
 	return s, nil
 }
@@ -107,9 +113,21 @@ func (r *sqliteRepository) CloseRunScope(ctx context.Context, id string, expecte
 		if s.Version != expected {
 			return ErrConcurrentTransition
 		}
+		if s.State.Terminal() {
+			return ErrAlreadyTerminal
+		}
 		if s.State == RunScopeActive {
-			if _, e = c.ExecContext(ctx, `UPDATE render_job_scopes SET state='closing',version=version+1,updated_at=? WHERE id=? AND version=? AND state='active'`, at.UnixNano(), id, expected); e != nil {
+			if e = s.Transition(RunScopeClosing); e != nil {
 				return e
+			}
+			var result sql.Result
+			if result, e = c.ExecContext(ctx, `UPDATE render_job_scopes SET state=?,version=version+1,updated_at=? WHERE id=? AND version=? AND state=?`, string(s.State), at.UnixNano(), id, expected, string(RunScopeActive)); e != nil {
+				return e
+			}
+			if affected, rowsErr := result.RowsAffected(); rowsErr != nil {
+				return rowsErr
+			} else if affected != 1 {
+				return ErrConcurrentTransition
 			}
 		} else if s.State != RunScopeClosing {
 			return ErrAlreadyTerminal
@@ -143,8 +161,12 @@ func (r *sqliteRepository) FinalizeRunScope(ctx context.Context, id string, stat
 		if s.Version != expected {
 			return ErrConcurrentTransition
 		}
-		if s.State != RunScopeClosing && s.State != RunScopeActive {
+		if s.State.Terminal() {
 			return ErrAlreadyTerminal
+		}
+		next := s
+		if e = next.Transition(state); e != nil {
+			return e
 		}
 		var active int
 		if e = c.QueryRowContext(ctx, `SELECT COUNT(*) FROM render_job_scope_children sc JOIN render_jobs j ON j.id=sc.job_id WHERE sc.scope_id=? AND json_extract(j.record_json,'$.state') IN ('queued','running','checkpointed','cancel_requested')`, id).Scan(&active); e != nil {
@@ -153,11 +175,14 @@ func (r *sqliteRepository) FinalizeRunScope(ctx context.Context, id string, stat
 		if active != 0 {
 			return fmt.Errorf("%w: workflow scope still has %d active child jobs", ErrInvalidTransition, active)
 		}
-		if state == RunScopeCompleted && s.State != RunScopeActive {
-			return ErrInvalidTransition
-		}
-		if _, e = c.ExecContext(ctx, `UPDATE render_job_scopes SET state=?,version=version+1,updated_at=? WHERE id=? AND version=?`, state, at.UnixNano(), id, expected); e != nil {
+		var result sql.Result
+		if result, e = c.ExecContext(ctx, `UPDATE render_job_scopes SET state=?,version=version+1,updated_at=? WHERE id=? AND version=? AND state=?`, string(next.State), at.UnixNano(), id, expected, string(s.State)); e != nil {
 			return e
+		}
+		if affected, rowsErr := result.RowsAffected(); rowsErr != nil {
+			return rowsErr
+		} else if affected != 1 {
+			return ErrConcurrentTransition
 		}
 		out, e = loadRunScope(ctx, c, id)
 		return e
@@ -177,6 +202,9 @@ func loadRunScope(ctx context.Context, c *sql.Conn, id string) (RunScope, error)
 		return RunScope{}, err
 	}
 	s.State, s.Policy = RunScopeState(state), json.RawMessage(policy)
+	if !s.State.Valid() {
+		return RunScope{}, fmt.Errorf("workflow scope %q has unknown state %q", id, s.State)
+	}
 	s.CreatedAt, s.UpdatedAt = time.Unix(0, created).UTC(), time.Unix(0, updated).UTC()
 	return s, nil
 }

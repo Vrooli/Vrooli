@@ -310,19 +310,21 @@ func (r *sqliteRepository) Start(ctx context.Context, claim ExecutionClaim, now,
 			current := len(j.Attempts) - 1
 			for i := 0; i < current; i++ {
 				previous := j.Attempts[i]
-				if (previous.State != AttemptSucceeded && previous.State != AttemptFailed && previous.State != AttemptCancelled) || (previous.Execution != nil && previous.ExecutionReleasedAt == nil) {
+				if !previous.State.Terminal() || (previous.Execution != nil && previous.ExecutionReleasedAt == nil) {
 					return ErrInvalidTransition
 				}
 			}
 			a := &j.Attempts[current]
-			if a.State != AttemptQueued || a.Execution != nil || a.Number != current+1 {
+			if a.Execution != nil || a.Number != current+1 {
 				return ErrInvalidTransition
 			}
 			if e := validateExecutionClaim(*j, *a, claim); e != nil {
 				return e
 			}
 			a.Execution = &claim
-			a.State = AttemptRunning
+			if err := a.Transition(AttemptStarted); err != nil {
+				return err
+			}
 			x := t
 			a.StartedAt = &x
 			a.HeartbeatAt = &x
@@ -340,11 +342,16 @@ func (r *sqliteRepository) Start(ctx context.Context, claim ExecutionClaim, now,
 			if attemptIDExists(*j, claim.AttemptID) || executionScopeExists(*j, claim.ScopeID) || claim.AttemptNumber != prev.Number+1 || prev.Execution == nil {
 				return ErrInvalidTransition
 			}
-			a := Attempt{ID: claim.AttemptID, Number: claim.AttemptNumber, State: AttemptRunning, CreatedAt: t, StartedAt: &t, HeartbeatAt: &t, ResumeFrom: prev.Checkpoint}
+			a := Attempt{ID: claim.AttemptID, Number: claim.AttemptNumber, State: AttemptQueued, CreatedAt: t, ResumeFrom: prev.Checkpoint}
 			if e := validateExecutionClaim(*j, a, claim); e != nil {
 				return e
 			}
 			a.Execution = &claim
+			if e := a.Transition(AttemptStarted); e != nil {
+				return e
+			}
+			a.StartedAt = &t
+			a.HeartbeatAt = &t
 			j.Attempts = append(j.Attempts, a)
 		}
 		j.State = Running
@@ -391,7 +398,9 @@ func (r *sqliteRepository) Checkpoint(ctx context.Context, id, attempt string, c
 		}
 		a.Checkpoint = &cp
 		a.CheckpointQuiescence = &proof
-		a.State = AttemptCheckpointed
+		if e = a.Transition(AttemptCheckpointedEvent); e != nil {
+			return e
+		}
 		t := cp.CreatedAt.UTC()
 		a.HeartbeatAt = &t
 		j.State = Checkpointed
@@ -412,7 +421,9 @@ func (r *sqliteRepository) Complete(ctx context.Context, id, attempt string, c C
 			return e
 		}
 		a.Completion = &c
-		a.State = AttemptSucceeded
+		if e = a.Transition(AttemptSucceededEvent); e != nil {
+			return e
+		}
 		t := c.CompletedAt.UTC()
 		a.FinishedAt = &t
 		j.State = Succeeded
@@ -429,7 +440,9 @@ func (r *sqliteRepository) Fail(ctx context.Context, id, attempt, reason string,
 		if e != nil {
 			return e
 		}
-		a.State = AttemptFailed
+		if err := a.Transition(AttemptFailedEvent); err != nil {
+			return err
+		}
 		a.Failure = reason
 		t := time.Unix(0, now).UTC()
 		a.FinishedAt = &t
@@ -448,10 +461,12 @@ func (r *sqliteRepository) FailBeforeDispatch(ctx context.Context, id, attempt, 
 		if err != nil {
 			return err
 		}
-		if a.State != AttemptQueued || a.Execution != nil {
+		if a.Execution != nil {
 			return ErrInvalidTransition
 		}
-		a.State = AttemptFailed
+		if err := a.Transition(AttemptFailedEvent); err != nil {
+			return err
+		}
 		a.Failure = reason
 		finished := time.Unix(0, now).UTC()
 		a.FinishedAt = &finished
@@ -480,7 +495,9 @@ func (r *sqliteRepository) RequestCancel(ctx context.Context, id string, now, ex
 			if e := validateQuiescence(*j, *a, proof); e != nil {
 				return e
 			}
-			a.State = AttemptCancelled
+			if e := a.Transition(AttemptCancelledEvent); e != nil {
+				return e
+			}
 			a.FinishedAt = &t
 			j.State = Cancelled
 			j.Quiescence = &proof
@@ -492,7 +509,9 @@ func (r *sqliteRepository) RequestCancel(ctx context.Context, id string, now, ex
 			}
 			j.State = Cancelled
 			j.Quiescence = a.CheckpointQuiescence
-			a.State = AttemptCancelled
+			if e := a.Transition(AttemptCancelledEvent); e != nil {
+				return e
+			}
 			a.FinishedAt = &t
 			return nil
 		}
@@ -521,7 +540,9 @@ func (r *sqliteRepository) ConfirmCancelled(ctx context.Context, id, attempt str
 		}
 		j.State = Cancelled
 		j.Quiescence = &p
-		a.State = AttemptCancelled
+		if e = a.Transition(AttemptCancelledEvent); e != nil {
+			return e
+		}
 		t := p.ObservedAt.UTC()
 		a.FinishedAt = &t
 		return nil
@@ -793,6 +814,9 @@ func saveJob(ctx context.Context, c *sql.Conn, j Job, old State, version int64) 
 
 func persistAttempts(ctx context.Context, c *sql.Conn, j Job) error {
 	for _, a := range j.Attempts {
+		if !a.State.Valid() {
+			return fmt.Errorf("persist attempt %s: %w", a.ID, ErrInvalidTransition)
+		}
 		rec, e := encode(a)
 		if e != nil {
 			return e
@@ -838,6 +862,9 @@ func loadJob(ctx context.Context, q queryer, id string) (Job, error) {
 		}
 		if e = json.Unmarshal([]byte(ar), &a); e != nil {
 			return Job{}, e
+		}
+		if !a.State.Valid() {
+			return Job{}, fmt.Errorf("decode attempt %s: %w", a.ID, ErrInvalidTransition)
 		}
 		j.Attempts = append(j.Attempts, a)
 	}

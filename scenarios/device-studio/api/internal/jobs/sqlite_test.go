@@ -100,6 +100,32 @@ func TestSubmitIsDurableAndIdempotentAcrossRepositoryReopen(t *testing.T) { // [
 	}
 }
 
+func TestAttemptReadRejectsUnknownPersistedState(t *testing.T) {
+	db, repo := openRepo(t, filepath.Join(t.TempDir(), "attempt-invalid-state.db"))
+	svc := newService(repo)
+	job := submit(t, svc)
+	attempt := job.Attempts[0]
+	var raw string
+	if err := db.QueryRow(`SELECT record_json FROM render_job_attempts WHERE id=?`, attempt.ID).Scan(&raw); err != nil {
+		t.Fatal(err)
+	}
+	var stored jobs.Attempt
+	if err := json.Unmarshal([]byte(raw), &stored); err != nil {
+		t.Fatal(err)
+	}
+	stored.State = jobs.AttemptState("unknown-legacy-state")
+	corrupt, err := json.Marshal(stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`UPDATE render_job_attempts SET record_json=? WHERE id=?`, string(corrupt), attempt.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repo.Get(context.Background(), job.ID); !errors.Is(err, jobs.ErrInvalidTransition) {
+		t.Fatalf("read accepted unknown attempt state: %v", err)
+	}
+}
+
 func TestCacheIdempotencyAliasSurvivesReopenAndRejectsChangedInput(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "cache-alias.db")
 	db, repo := openRepo(t, path)

@@ -155,7 +155,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("library intake owner failed: %v", err)
 	}
-	renderModule, renderPump, renderCoordinator, err := renderjobsH.BuildWithCoordinatorAndCreationOwners(db, fileRoots, log.Default(), physicalOwners.Shots, physicalOwners.Library, rendering.ResolvePhysicalBlenderProfile, rendering.PhysicalAdapterBytes, intakeOwner)
+	renderModule, renderPump, renderCoordinator, err := renderjobsH.BuildWithCoordinatorAndCreationOwnersAndDiskAdmitter(db, fileRoots, log.Default(), physicalOwners.Shots, physicalOwners.Library, rendering.ResolvePhysicalBlenderProfile, rendering.PhysicalAdapterBytes, intakeOwner, renderjobs.NewSharedDiskAdmitter())
 	if err != nil {
 		log.Fatalf("render jobs initialization failed: %v", err)
 	}

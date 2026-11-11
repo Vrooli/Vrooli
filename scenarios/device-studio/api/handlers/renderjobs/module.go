@@ -53,6 +53,12 @@ func BuildWithCoordinatorAndPhysicalOwners(db *database.RoutedDB, roots *filerou
 func BuildWithCoordinatorAndCreationOwners(db *database.RoutedDB, roots *filerouting.RoutedRoots, logger *log.Logger, physical shots.PhysicalResolver, artifacts renderjobs.PhysicalArtifactResolver, profile func(context.Context) ([]byte, *cliv1.BlenderToolProfile, error), adapter func() []byte, generatedIntake interface {
 	PersistGenerated(context.Context, library.IntakeClaims, string, library.CreationLineage, []byte) (library.IntakeCandidate, error)
 }) (module.Module, *renderjobs.Pump, *renderjobs.Coordinator, error) {
+	return BuildWithCoordinatorAndCreationOwnersAndDiskAdmitter(db, roots, logger, physical, artifacts, profile, adapter, generatedIntake, renderjobs.NewSharedDiskAdmitter())
+}
+
+func BuildWithCoordinatorAndCreationOwnersAndDiskAdmitter(db *database.RoutedDB, roots *filerouting.RoutedRoots, logger *log.Logger, physical shots.PhysicalResolver, artifacts renderjobs.PhysicalArtifactResolver, profile func(context.Context) ([]byte, *cliv1.BlenderToolProfile, error), adapter func() []byte, generatedIntake interface {
+	PersistGenerated(context.Context, library.IntakeClaims, string, library.CreationLineage, []byte) (library.IntakeCandidate, error)
+}, diskJobs renderjobs.DiskJobAdmitter) (module.Module, *renderjobs.Pump, *renderjobs.Coordinator, error) {
 	if logger == nil {
 		logger = log.Default()
 	}
@@ -76,7 +82,7 @@ func BuildWithCoordinatorAndCreationOwners(db *database.RoutedDB, roots *filerou
 	if err != nil {
 		return module.Module{}, nil, nil, fmt.Errorf("render output storage: %w", err)
 	}
-	coordinator, err := renderjobs.New(renderjobs.Dependencies{Shots: shotService, Media: media, Jobs: jobService, Scopes: scopeService, Blobs: blobs, Roots: roots, InspectionProfile: rendering.ResolveInspectionProfile, PhysicalArtifacts: artifacts, PhysicalProfile: profile, PhysicalAdapter: adapter, GeneratedIntake: generatedIntake})
+	coordinator, err := renderjobs.New(renderjobs.Dependencies{Shots: shotService, Media: media, Jobs: jobService, Scopes: scopeService, Blobs: blobs, Roots: roots, InspectionProfile: rendering.ResolveInspectionProfile, PhysicalArtifacts: artifacts, PhysicalProfile: profile, PhysicalAdapter: adapter, GeneratedIntake: generatedIntake, DiskJobs: diskJobs})
 	if err != nil {
 		return module.Module{}, nil, nil, fmt.Errorf("render jobs coordinator: %w", err)
 	}

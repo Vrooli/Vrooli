@@ -528,7 +528,7 @@ func (o *integrationOps) Lookup(_ context.Context, intent platform.OperationInte
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	o.lookups++
-	if intent != o.intent || !o.terminal {
+	if intent != o.intent || (!o.terminal && !o.deferRun) {
 		return platform.OperationRef{}, platform.ErrOperationNotFound
 	}
 	return o.ref, nil
@@ -537,6 +537,9 @@ func (o *integrationOps) Lookup(_ context.Context, intent platform.OperationInte
 func (o *integrationOps) Inspect(_ context.Context, ref platform.OperationRef) (platform.OperationObservation, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	if o.deferRun && !o.terminal {
+		return platform.OperationObservation{Ref: ref, State: platform.OperationRunning}, nil
+	}
 	result := "success"
 	if o.exitStatus != 0 {
 		result = "failure"
