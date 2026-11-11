@@ -115,7 +115,7 @@ func TestNativeUsageRetainedAudit(t *testing.T) {
 	root := filepath.Dir(filepath.Dir(home))
 	t.Setenv("WC_SESSION_STATE_ROOT", root)
 	store := sessionstore.NewInMemory()
-	if err = store.Save(t.Context(), sessionstore.Metadata{ID: id}); err != nil {
+	if err = store.Save(t.Context(), sessionstore.Metadata{ID: id, AgentType: sessionstore.AgentCodex, LaunchMode: sessionstore.LaunchModeTerminalPTY}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := (&Server{sessionStore: store}).readSessionNativeUsage(t.Context(), &sessionsv1.ReadNativeUsageRequest{SessionId: id, ThreadIds: ids, Start: start.Format(time.RFC3339), End: time.Date(2026, 10, 27, 12, 32, 0, 0, time.UTC).Format(time.RFC3339)})
@@ -152,7 +152,7 @@ func TestNativeUsageHandlerSelectsOnlyExistingSession(t *testing.T) {
 	}
 	_ = db.Close()
 	store := sessionstore.NewInMemory()
-	if err = store.Save(t.Context(), sessionstore.Metadata{ID: id}); err != nil {
+	if err = store.Save(t.Context(), sessionstore.Metadata{ID: id, AgentType: sessionstore.AgentCodex, LaunchMode: sessionstore.LaunchModeTerminalPTY}); err != nil {
 		t.Fatal(err)
 	}
 	server := &Server{sessionStore: store}

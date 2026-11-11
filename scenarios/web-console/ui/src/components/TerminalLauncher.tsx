@@ -271,6 +271,24 @@ export default function TerminalLauncher({
   const [billingAccountId, setBillingAccountId] = useState("");
   const model = useModelPolicy(agentModeOpen, selectedAgentId, selected.id, selectedCard?.command ?? "", billingAccountId);
   const billing = useBillingAccount(model.billingProbeReady, billingAccountId, setBillingAccountId);
+  // Refresh stale catalogs as soon as the selected local harness is known. The
+  // control plane admits this derived-data refresh through the same-origin UI;
+  // failures leave cached choices visible and the explicit retry available.
+  const autoRefreshIdentity = useRef("");
+  const autoRefreshWasOpen = useRef(false);
+  const autoRefreshSession = useRef(0);
+  if (agentModeOpen && !autoRefreshWasOpen.current) autoRefreshSession.current += 1;
+  autoRefreshWasOpen.current = agentModeOpen;
+  useEffect(() => {
+    const policy = model.policy;
+    if (!agentModeOpen || !selected.available || selected.kind !== "local" || !selectedAgentId
+      || !policy?.catalogStale || model.literal || policy.operatorCommand
+      || updateState.runs[selectedAgentId]?.phase === "running") return;
+    const identity = JSON.stringify([autoRefreshSession.current, selected.id, selectedAgentId]);
+    if (autoRefreshIdentity.current === identity) return;
+    autoRefreshIdentity.current = identity;
+    void updateState.run(selectedAgentId, "refresh_catalog").then(model.reload);
+  }, [agentModeOpen, model.literal, model.policy, model.reload, selected.available, selected.id, selected.kind, selectedAgentId, updateState.run, updateState.runs]);
   const currentModelSettings = modelSettings?.identity === model.identity ? modelSettings : undefined;
   const contextLimit = currentModelSettings?.contextLimit ?? null;
   const fullPower = currentModelSettings?.fullPower ?? false;

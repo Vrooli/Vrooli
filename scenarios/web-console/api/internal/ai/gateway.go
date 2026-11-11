@@ -13,6 +13,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 // GatewayProvider keeps source consent in Web Console while Gateway owns the
@@ -21,12 +22,23 @@ import (
 type GatewayProvider struct {
 	Source       string
 	ProviderName string
+	PrivacyClass sharedv1.PrivacyClass
 	ResolveURL   func(context.Context) (string, error)
 	Client       *http.Client
 }
 
 func (g *GatewayProvider) Name() string { return g.ProviderName }
 func (g *GatewayProvider) Generate(ctx context.Context, system, user string) (string, error) {
+	profile, err := gatewaySourceProfile(g.Source)
+	if err != nil {
+		return "", err
+	}
+	if profile == sharedv1.Profile_PROFILE_REMOTE_ONLY && !remotePrivacyClass(g.PrivacyClass) {
+		return "", errors.New("remote Web Console generation requires a sourced non-secret privacy classification")
+	}
+	if strings.EqualFold(strings.TrimSpace(g.Source), "vrooli-credits") && consumerToken(ctx) == "" {
+		return "", fmt.Errorf("%w: Vrooli credits require a signed-in subscription session", ErrCreditsRequired)
+	}
 	resolve := g.ResolveURL
 	if resolve == nil {
 		resolve = func(ctx context.Context) (string, error) {
@@ -41,10 +53,19 @@ func (g *GatewayProvider) Generate(ctx context.Context, system, user string) (st
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Minute}
 	}
-	request := connect.NewRequest(&inferencev1.RunRequest{Source: system + "\n\nUser request:\n" + user, Instruction: "Return only the shell command as a JSON string.", SchemaJson: `{"type":"string"}`, Role: "extract.structured"})
+	request := connect.NewRequest(&inferencev1.RunRequest{
+		Source: system + "\n\nUser request:\n" + user, Instruction: "Return only the shell command as a JSON string.",
+		SchemaJson: `{"type":"string"}`, Role: "author.generator", Profile: profile, PrivacyClass: g.PrivacyClass,
+	})
 	request.Header().Set("X-Vrooli-AI-Source", g.Source)
+	if strings.EqualFold(strings.TrimSpace(g.Source), "vrooli-credits") {
+		request.Header().Set("Authorization", "Bearer "+consumerToken(ctx))
+	}
 	response, err := inferenceconnect.NewInferenceServiceClient(client, base).Run(ctx, request)
 	if err != nil {
+		if connect.CodeOf(err) == connect.CodeResourceExhausted {
+			return "", fmt.Errorf("%w: %v", ErrCreditsRequired, err)
+		}
 		return "", err
 	}
 	if response.Msg.GetError() != nil {
@@ -58,6 +79,28 @@ func (g *GatewayProvider) Generate(ctx context.Context, system, user string) (st
 		return "", errors.New("AI gateway returned no command")
 	}
 	return result, nil
+}
+
+func remotePrivacyClass(class sharedv1.PrivacyClass) bool {
+	switch class {
+	case sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
+		sharedv1.PrivacyClass_PRIVACY_CLASS_INTERNAL,
+		sharedv1.PrivacyClass_PRIVACY_CLASS_CONFIDENTIAL:
+		return true
+	default:
+		return false
+	}
+}
+
+func gatewaySourceProfile(source string) (sharedv1.Profile, error) {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case "local":
+		return sharedv1.Profile_PROFILE_LOCAL_ONLY, nil
+	case "own-key", "vrooli-credits":
+		return sharedv1.Profile_PROFILE_REMOTE_ONLY, nil
+	default:
+		return sharedv1.Profile_PROFILE_UNSPECIFIED, fmt.Errorf("unsupported AI source %q", source)
+	}
 }
 
 func NewGatewayChain() *Chain {

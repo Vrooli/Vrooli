@@ -25,6 +25,13 @@ func putSessionRunIdentity(sessionID, token string) bool {
 	return true
 }
 
+// StageSessionRunIdentity exposes the same one-use credential boundary to the
+// Web Console's managed native owner. It is an internal cross-package handoff,
+// not an RPC or persistence API.
+func StageSessionRunIdentity(sessionID, token string) bool {
+	return putSessionRunIdentity(sessionID, token)
+}
+
 func deleteSessionRunIdentity(sessionID string) {
 	if sessionID == "" {
 		return

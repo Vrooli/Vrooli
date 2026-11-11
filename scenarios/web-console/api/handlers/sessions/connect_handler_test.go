@@ -65,7 +65,7 @@ func request[T any](msg *T) *connect.Request[T] { return connect.NewRequest(msg)
 
 func TestConnectHandlerOperations(t *testing.T) {
 	h := NewConnectHandler(Deps{Service: fakeSessionsService{}})
-	ctx := context.Background()
+	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "fixture-human", Source: identity.SourcePersonalLocal, Verified: true, Scopes: []string{"web-console:write"}})
 
 	createReq := request(&sessionsv1.CreateRequest{Shell: "/bin/bash", Cols: 100, Rows: 40, HasPolicy: true, Policy: &sessionsv1.ExpirationPolicy{Mode: "ttl", Duration: "1h"}, Origin: sessionsv1.SessionOrigin_SESSION_ORIGIN_UI})
 	createReq.Header().Set(idempotencyHeader, "key")
@@ -285,5 +285,156 @@ func TestReadNativeThreadStateUsesSameSessionAuthorization(t *testing.T) {
 	_, err := withoutVerifier.ReadNativeThreadState(verified, connect.NewRequest(&sessionsv1.ReadNativeThreadStateRequest{SessionId: "own"}))
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("missing verifier must fail closed: %v", err)
+	}
+}
+
+func TestNativeReadsRequireExplicitServiceReadCapability(t *testing.T) {
+	for _, method := range []string{"thread state", "usage"} {
+		t.Run(method, func(t *testing.T) {
+			for _, tc := range []struct {
+				name      string
+				principal identity.Principal
+				want      connect.Code
+			}{
+				{"configured manager", identity.Principal{Verified: true, Kind: identity.ActorService, Subject: "agent-manager", Scopes: []string{"web-console:read", "web-console:write"}}, 0},
+				{"manager write alone", identity.Principal{Verified: true, Kind: identity.ActorService, Subject: "agent-manager", Scopes: []string{"web-console:write"}}, connect.CodePermissionDenied},
+				{"other service write", identity.Principal{Verified: true, Kind: identity.ActorService, Subject: "other-service", Scopes: []string{"web-console:write"}}, connect.CodePermissionDenied},
+				{"unverified manager claims", identity.Principal{Kind: identity.ActorService, Subject: "agent-manager", Scopes: []string{"web-console:read", "web-console:write"}}, connect.CodeUnauthenticated},
+				{"wrong resource", identity.Principal{Verified: true, Kind: identity.ActorService, Subject: "agent-manager", Scopes: []string{"agent-manager:read"}}, connect.CodePermissionDenied},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					calls := 0
+					h := NewConnectHandler(Deps{Service: &Adapter{
+						NativeThreadState: func(context.Context, *sessionsv1.ReadNativeThreadStateRequest) (*sessionsv1.ReadNativeThreadStateResponse, error) {
+							calls++
+							return &sessionsv1.ReadNativeThreadStateResponse{}, nil
+						},
+						NativeUsage: func(context.Context, *sessionsv1.ReadNativeUsageRequest) (*sessionsv1.ReadNativeUsageResponse, error) {
+							calls++
+							return &sessionsv1.ReadNativeUsageResponse{}, nil
+						},
+					}})
+					ctx := identity.WithPrincipal(context.Background(), tc.principal)
+					var err error
+					if method == "thread state" {
+						_, err = h.ReadNativeThreadState(ctx, connect.NewRequest(&sessionsv1.ReadNativeThreadStateRequest{SessionId: "managed-session"}))
+					} else {
+						_, err = h.ReadNativeUsage(ctx, connect.NewRequest(&sessionsv1.ReadNativeUsageRequest{SessionId: "managed-session"}))
+					}
+					if tc.want == 0 && err != nil || tc.want != 0 && connect.CodeOf(err) != tc.want {
+						t.Fatalf("unexpected authorization result: %v", err)
+					}
+					if (tc.want == 0 && calls != 1) || (tc.want != 0 && calls != 0) {
+						t.Fatalf("owner calls=%d", calls)
+					}
+				})
+			}
+		})
+	}
+}
+
+type nativeGoalServiceFixture struct {
+	fakeSessionsService
+	calls int
+}
+
+func (f *nativeGoalServiceFixture) SetNativeGoal(_ context.Context, req *sessionsv1.SetNativeGoalRequest) (*sessionsv1.SetNativeGoalResponse, error) {
+	f.calls++
+	return &sessionsv1.SetNativeGoalResponse{ThreadId: req.GetExpectedThreadId(), Status: req.GetStatus(), Objective: req.GetObjective()}, nil
+}
+
+func TestNativeGoalOriginCannotBeForgedByPublicAgentOrService(t *testing.T) {
+	user := sessionsv1.NativeGoalMutationOrigin_NATIVE_GOAL_MUTATION_ORIGIN_USER_DIRECTED
+	automatic := sessionsv1.NativeGoalMutationOrigin_NATIVE_GOAL_MUTATION_ORIGIN_AUTOMATIC
+	for _, tc := range []struct {
+		name    string
+		kind    identity.ActorKind
+		source  identity.AuthSource
+		subject string
+		origin  sessionsv1.NativeGoalMutationOrigin
+		allowed bool
+	}{
+		{"human explicit", identity.ActorHuman, identity.SourceScenarioAuthenticator, "operator", user, true},
+		{"admitted AM", identity.ActorService, identity.SourceScenarioAuthenticator, "agent-manager", user, true},
+		{"agent assertion", identity.ActorAgent, identity.SourceScenarioAuthenticator, "agent", user, false},
+		{"other service assertion", identity.ActorService, identity.SourceScenarioAuthenticator, "other-service", user, false},
+		{"AM unverified source", identity.ActorService, identity.SourcePersonalLocal, "agent-manager", user, false},
+		{"agent automatic", identity.ActorAgent, identity.SourceScenarioAuthenticator, "agent", automatic, true},
+		{"missing origin", identity.ActorHuman, identity.SourceScenarioAuthenticator, "operator", 0, false},
+		{"unknown origin", identity.ActorHuman, identity.SourceScenarioAuthenticator, "operator", 999, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &nativeGoalServiceFixture{}
+			h := NewConnectHandler(Deps{Service: svc})
+			ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: tc.kind, Source: tc.source, Subject: tc.subject, Verified: true, Scopes: []string{"web-console:write"}})
+			_, err := h.SetNativeGoal(ctx, connect.NewRequest(&sessionsv1.SetNativeGoalRequest{SessionId: "session", ExpectedNativeOwner: "owner", ExpectedThreadId: "thread", Objective: "exact admitted task", Status: "active", Origin: tc.origin}))
+			if (err == nil) != tc.allowed {
+				t.Fatalf("err=%v allowed=%t", err, tc.allowed)
+			}
+			if (svc.calls > 0) != tc.allowed {
+				t.Fatalf("owner calls=%d allowed=%t", svc.calls, tc.allowed)
+			}
+		})
+	}
+}
+
+type retirementAuthorityFixture struct {
+	fakeSessionsService
+	calls int
+}
+
+func (f *retirementAuthorityFixture) Archive(context.Context, string) error { f.calls++; return nil }
+func (f *retirementAuthorityFixture) Delete(context.Context, string) error  { f.calls++; return nil }
+func TestSessionArchiveFailsOpenAndPermanentDeleteKeepsGuards(t *testing.T) {
+	for _, method := range []string{"archive", "delete"} {
+		t.Run(method, func(t *testing.T) {
+			for _, tc := range []struct {
+				name      string
+				principal *identity.Principal
+				want      connect.Code
+				ownAgent  bool
+			}{
+				{name: "anonymous", want: connect.CodeUnauthenticated},
+				{name: "unverified claims", principal: &identity.Principal{Kind: identity.ActorService, Subject: "agent-manager", Scopes: []string{"web-console:write"}}, want: connect.CodeUnauthenticated},
+				{name: "read only", principal: &identity.Principal{Verified: true, Kind: identity.ActorService, Subject: "agent-manager", Scopes: []string{"web-console:read"}}, want: connect.CodePermissionDenied},
+				{name: "wrong resource", principal: &identity.Principal{Verified: true, Kind: identity.ActorService, Subject: "agent-manager", Scopes: []string{"agent-manager:write"}}, want: connect.CodePermissionDenied},
+				{name: "AM service write", principal: &identity.Principal{Verified: true, Kind: identity.ActorService, Subject: "agent-manager", Source: identity.SourceScenarioAuthenticator, Scopes: []string{"web-console:write"}}},
+				{name: "human write", principal: &identity.Principal{Verified: true, Kind: identity.ActorHuman, Subject: "fixture-human", Source: identity.SourcePersonalLocal, Scopes: []string{"web-console:write"}}},
+				{name: "human without scenario scope", principal: &identity.Principal{Verified: true, Kind: identity.ActorHuman, Subject: "fixture-human", Source: identity.SourcePersonalLocal}},
+				{name: "verified agent own session", principal: &identity.Principal{Verified: true, Kind: identity.ActorAgent, Subject: "fixture-agent"}, want: connect.CodePermissionDenied, ownAgent: true},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					svc := &retirementAuthorityFixture{}
+					h := NewConnectHandler(Deps{Service: svc, VerifyOwnSession: func(context.Context) (string, error) { return "exact-session", nil }})
+					ctx := t.Context()
+					if tc.principal != nil {
+						ctx = identity.WithPrincipal(ctx, *tc.principal)
+					}
+					if tc.ownAgent {
+						ctx = provenance.NewContext(ctx, provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-a", SessionID: "exact-session"})
+					}
+					var err error
+					if method == "archive" {
+						_, err = h.Archive(ctx, request(&sessionsv1.ArchiveRequest{Id: "exact-session"}))
+					} else {
+						_, err = h.Delete(ctx, request(&sessionsv1.DeleteRequest{Id: "exact-session", Confirmation: "DELETE:exact-session"}))
+					}
+					wantCode := tc.want
+					if method == "archive" {
+						wantCode = 0
+					}
+					if wantCode == 0 && err != nil || wantCode != 0 && connect.CodeOf(err) != wantCode {
+						t.Fatalf("error=%v wantCode=%v", err, wantCode)
+					}
+					wantCalls := 0
+					if wantCode == 0 {
+						wantCalls = 1
+					}
+					if svc.calls != wantCalls {
+						t.Fatalf("retirement calls=%d want%d", svc.calls, wantCalls)
+					}
+				})
+			}
+		})
 	}
 }

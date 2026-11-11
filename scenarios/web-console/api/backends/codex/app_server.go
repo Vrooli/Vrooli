@@ -14,8 +14,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/vrooli/envkit-go"
 )
 
 var ErrClosed = errors.New("codex app-server client is closed")
@@ -86,9 +89,7 @@ func StartInDirWithEnv(ctx context.Context, executable, dir string, env []string
 	if dir != "" {
 		cmd.Dir = dir
 	}
-	if len(env) > 0 {
-		cmd.Env = append(os.Environ(), env...)
-	}
+	cmd.Env = appServerEnvironment(os.Environ(), env, envkit.DefaultPlatform())
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("app-server stdin: %w", err)
@@ -106,6 +107,13 @@ func StartInDirWithEnv(ctx context.Context, executable, dir string, env []string
 	c := NewClient(stdin, stdout)
 	c.cmd = cmd
 	return c, nil
+}
+
+// The provider is a separate resource owner, not a continuation of the Web
+// Console service or its launcher session. Only the reserved child handoff
+// supplies its identity, home and store after the canonical ownership filter.
+func appServerEnvironment(base, child []string, platform envkit.Platform) []string {
+	return []string(envkit.WithOverlayWithPlatform(envkit.Env(base), envkit.Resource, envkit.Env(child), platform))
 }
 
 func (c *Client) Call(ctx context.Context, method string, params any, result any) error {
@@ -374,6 +382,12 @@ type TurnStartResult struct {
 	Turn   TurnRef `json:"turn"`
 }
 
+type TurnSteerResult struct {
+	TurnID string `json:"turnId"`
+}
+
+func (r TurnSteerResult) ID() string { return r.TurnID }
+
 func (r TurnStartResult) ID() string {
 	if r.TurnID != "" {
 		return r.TurnID
@@ -406,6 +420,29 @@ func (c *Client) ReadThread(ctx context.Context, threadID string) (ThreadReadRes
 	return out, err
 }
 
+// ReadGoal reads the provider-owned goal, independently of transcript or UI
+// projections. A nil result means no goal exists, never an empty objective.
+func (c *Client) ReadGoal(ctx context.Context, threadID string) (*GoalResult, error) {
+	var out struct {
+		Goal *GoalResult `json:"goal"`
+	}
+	if err := c.Call(ctx, "thread/goal/get", map[string]string{"threadId": threadID}, &out); err != nil {
+		return nil, err
+	}
+	if out.Goal == nil {
+		return nil, nil
+	}
+	if out.Goal.ThreadID != threadID || strings.TrimSpace(out.Goal.Objective) == "" {
+		return nil, errors.New("Codex native goal read returned an invalid thread or objective")
+	}
+	switch out.Goal.Status {
+	case "active", "paused", "blocked", "usageLimited", "budgetLimited", "complete":
+		return out.Goal, nil
+	default:
+		return nil, errors.New("Codex native goal read returned an unknown status")
+	}
+}
+
 func (c *Client) ForkThread(ctx context.Context, threadID, lastTurnID string) (ForkResult, error) {
 	var out ForkResult
 	err := c.Call(ctx, "thread/fork", map[string]any{"threadId": threadID, "lastTurnId": lastTurnID}, &out)
@@ -421,6 +458,19 @@ func (c *Client) StartTurn(ctx context.Context, threadID, text string) (TurnStar
 	err := c.Call(ctx, "turn/start", map[string]any{
 		"threadId": threadID,
 		"input":    []map[string]string{{"type": "text", "text": text}},
+	}, &out)
+	return out, err
+}
+
+// SteerTurn adds input to the exact currently active turn. The provider checks
+// expectedTurnID atomically, so a turn that completes or changes between the
+// caller's observation and this request is refused by the native owner.
+func (c *Client) SteerTurn(ctx context.Context, threadID, expectedTurnID, text string) (TurnSteerResult, error) {
+	var out TurnSteerResult
+	err := c.Call(ctx, "turn/steer", map[string]any{
+		"threadId":       threadID,
+		"expectedTurnId": expectedTurnID,
+		"input":          []map[string]string{{"type": "text", "text": text}},
 	}, &out)
 	return out, err
 }

@@ -15,7 +15,9 @@
 package capabilities
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"log"
 	"net/http"
 
@@ -23,7 +25,9 @@ import (
 	"github.com/vrooli/api-core/connectx"
 	capreg "github.com/vrooli/vrooli/packages/capability-registry-go"
 
+	capabilitiesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities"
 	capabilitiesconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/capabilities/capabilities_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	"web-console/internal/module"
 )
@@ -182,7 +186,7 @@ func Module(svc Service, logger *log.Logger) module.Module {
 }
 
 type agentUpdateActionGuard interface {
-	GuardAgentUpdateAction(http.ResponseWriter, *http.Request) bool
+	GuardAgentUpdateAction(http.ResponseWriter, *http.Request, string) bool
 }
 
 // guardAgentUpdateActions decides admission where the request still exists:
@@ -192,17 +196,40 @@ type agentUpdateActionGuard interface {
 func guardAgentUpdateActions(svc Service, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == capabilitiesconnect.CapabilitiesServiceRunAgentUpdateActionProcedure {
+			action, ok := readAgentUpdateAction(r)
+			if !ok {
+				http.Error(w, "invalid agent update action request", http.StatusBadRequest)
+				return
+			}
 			guard, ok := svc.(agentUpdateActionGuard)
 			if !ok {
 				http.Error(w, "agent update actions are not available", http.StatusForbidden)
 				return
 			}
-			if !guard.GuardAgentUpdateAction(w, r) {
+			if !guard.GuardAgentUpdateAction(w, r, action) {
 				return
 			}
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+const agentUpdateActionBodyLimit = 16 << 10
+
+func readAgentUpdateAction(r *http.Request) (string, bool) {
+	if r.Body == nil {
+		return "", false
+	}
+	data, err := io.ReadAll(io.LimitReader(r.Body, agentUpdateActionBodyLimit+1))
+	r.Body = io.NopCloser(bytes.NewReader(data))
+	if err != nil || len(data) == 0 || len(data) > agentUpdateActionBodyLimit {
+		return "", false
+	}
+	var request capabilitiesv1.RunAgentUpdateActionRequest
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(data, &request); err != nil {
+		return "", false
+	}
+	return request.GetAction(), true
 }
 
 type registryDescriber interface {

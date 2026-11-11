@@ -91,6 +91,27 @@ beforeEach(() => {
 });
 
 describe("useFilePreviewController", () => {
+  it("keeps HTML in history when a clicked file hits closed lifecycle admission and can retry", async () => {
+    const report = model({ previewId: "report", resolvedPath: "/research/REVIEW.html", basename: "REVIEW.html" });
+    const content = { resolvedPath: report.resolvedPath, kind: "code", mimeType: "text/html", content: '<a href="script.md">Script</a>', truncated: false };
+    mockResolve.mockResolvedValueOnce(report);
+    mockGetText.mockResolvedValueOnce(content);
+    const { result } = renderHook(() => useFilePreviewController("s"));
+    await act(async () => { await result.current.openPreview(report.resolvedPath); });
+    mockResolve.mockRejectedValueOnce(new Error("service unavailable: lifecycle admission closed"));
+    act(() => { result.current.navigateTo("/research/script.md"); });
+    await waitFor(() => { expect(result.current.state.status).toBe("error"); });
+    expect(result.current.state.error).toContain("lifecycle admission closed");
+    expect(result.current.state.stack[0]?.text?.content).toBe(content.content);
+    mockResolve.mockResolvedValueOnce(model({ resolvedPath: "/research/script.md", kind: "markdown" }));
+    mockGetText.mockResolvedValueOnce({ ...content, kind: "markdown", content: "# Script" });
+    act(() => { result.current.reopen(); });
+    await waitFor(() => { expect(result.current.state.status).toBe("ready"); });
+    expect(result.current.state.model?.kind).toBe("markdown");
+    act(() => { result.current.navigateBack(); });
+    expect(result.current.state.model?.previewId).toBe("report");
+    expect(result.current.state.text?.content).toBe(content.content);
+  });
   it("walks resolving → loadingText → ready for text kinds", async () => {
     mockResolve.mockResolvedValueOnce(model());
     mockGetText.mockResolvedValueOnce({

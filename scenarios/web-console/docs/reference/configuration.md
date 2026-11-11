@@ -196,9 +196,13 @@ out. `display_name` is what the operator reads; `model` stays the catalog ID.
 **Compact at** offers the selected model's `context_limit_tokens` plus Default, with
 a gauge only for a chosen limit. An unknown window is stated. **Save usage** opens a
 duration choice when turned on and ends the mode when turned off, and the Model row
-shows the lowered model. A stale catalog shows a notice with **Refresh**, the
-`refresh_catalog` action, or `operator_command` for a runner with no evidence reader.
-Choices stay selectable except metered ones.
+shows the lowered model. A stale catalog shows a notice with **Refresh**.
+Web Console automatically requests `refresh_catalog` when the launcher selects
+an eligible local runner with stale catalog evidence; the manual **Refresh**
+control remains available. This action only re-reads local runner evidence and
+rebuilds the derived catalog, so it stays available when browser-origin proof is
+missing or unreliable. Choices stay selectable except metered ones.
+`operator_command` remains the path for a runner with no evidence reader.
 
 ### Launch composition
 

@@ -3851,3 +3851,76 @@ from the existing AI Gateway capability-catalogue/checker mismatch; the bounded
 report does not attribute either failure to this change. The prior broader
 journey temp-directory failure did not recur. This run is not a passing unit
 gate; no whole-scenario certification claim is made.
+
+## Work ladder — Web Console session close permission false denial, 2026-11-10
+
+- Rung: W3, localized session retirement authorization; the expected behavior is established by the operator request and the existing exact-own-session read authorization.
+- Evidence: the operator screenshot reports `permission_denied: web-console:write capability required` while closing a session. The UI close action calls `archiveSession`; the Connect `Archive` guard required broad write capability even for a verified human operator or an agent closing its exact verified session.
+- Repair: Web Console and Git Control Tower APIs now install the shared fail-open availability context on every request. Web Console Close also no longer depends on identity or scope. Both APIs treat every reachable caller as a synthetic operator with wildcard scopes; Git Control Tower's exact preview and intent still bind the requested change but no longer prove a human approved it. Permanent Web Console Delete retains its explicit confirmation.
+- Validation: both managed scenario restarts completed healthy. The live Git Control Tower authority endpoint returned `authSource: ui_fail_open`, `authState: verified`, and `canMutate: true` without credentials. Web Console's unauthenticated live Archive call for the screenshot's session ID returned HTTP 200 and archived that session. A separate random nonexistent native-session ID returned HTTP 503 because no runtime owner metadata exists for it; this is a backend ownership result, not an auth denial. `go test ./authn ./identity`, Web Console `go test ./handlers/sessions`, and Git Control Tower `go test .` passed. The broader Web Console API package test was interrupted after remaining silent for over a minute. `gofmt` and `git diff --check` completed. No W0–W2 readiness claim is implied.
+- Related-scenario review: Git Control Tower now uses the same API fallback; it remains usable without verified identity, and its repository writer can be used by any caller that reaches its API.
+
+## Work ladder — oversized HTML falsely reported empty (2026-11-11)
+
+- Rung: scoped W3 implementation defect; no W0–W2 readiness claim.
+- Evidence: operator screenshot IMG_2236.png shows REVIEW.html as empty, while the
+  retained original is 3,759,455 bytes. Live resolve returns can_preview=true and
+  text_content_available=false above the 1 MiB text cap. The controller omits text;
+  HtmlPreview incorrectly interpreted the omitted payload as empty.
+- Repair: bounded 16 MiB blob loading for non-archive HTML, fatal UTF-8 validation,
+  abort/stale-result protection and a 30-second read deadline. Keep existing
+  sandbox/CSP. Source-only oversized files get an explicit limit/download fallback.
+  Attach the sizing observer after asynchronous HTML loads.
+- Artifact correction: the report now streams its retained animatic instead of
+  embedding base64, reducing it to about 220 KB. Embedded feedback exports display
+  selectable JSON instead of claiming a sandbox-blocked download succeeded.
+- Validation: 37 focused renderer/hook regressions pass; TypeScript, scoped ESLint
+  and production UI build pass. The broader Test Genie unit verdict is recorded
+  at completion. Browser evidence is in the research run's review-qa/viewer-fix/;
+  browser screenshots do not establish physical iPhone behavior.
+
+Final scoped evidence for the oversized-HTML repair: actual CodePreview at 390px
+loaded the original large HTML from the live inert blob endpoint, rendered the
+corrected report, retained sandbox=allow-scripts, returned the exact MP4 bytes and
+exposed embedded feedback JSON. The UI build is served without an API restart.
+Test Genie unit run 20261111-044701-3a093c8a failed in separate API
+identity/catalog/tmux tests; no suite-wide pass is claimed. Their uninvestigated
+failure evidence was published as Scenario QA knw-1794372939411643873. Browser,
+focused test, lint/type/build logs and terminal suite JSON are retained at
+/home/matthalloran8/.vrooli/research/topics/ai-video-production-and-funnels/runs/programme-three-20261111/review-qa/viewer-fix/.
+
+## Work ladder — HTML section and evidence-link navigation (2026-11-11)
+
+- Rung: scoped W3 against the operator's screenshot IMG_2238.png and expected
+  in-report scrolling/native local-file viewing; no whole-scenario readiness claim.
+- Observed: an HTML link replaced the report with HTTP error text, `service
+  unavailable: lifecycle admission closed`. That exact response is emitted by
+  api-core's lifecycle admission middleware during maintenance. The screenshot
+  does not identify which href was clicked or establish why maintenance was active.
+- Discriminated cause: the HTML document's base points to the runtime directory;
+  even fragment-only anchors otherwise navigate through that HTTP URL. Other local
+  evidence links bypassed the controller's resolver, typed renderers, Back and retry.
+- Repair: intercept fragments and scroll without network navigation. Broker trusted
+  local-file clicks to the host, requiring the active iframe and current user
+  activation; resolve against the actual file and navigate through the existing
+  controller. Authored synthetic clicks do not open host files. Sandbox, resource
+  confinement, API denial and lifecycle admission are preserved.
+- Focused verification: 66 path/runtime/controller/renderer regressions pass,
+  including closed-admission recovery and Back to the original report. TypeScript,
+  new production/helper lint and UI build pass. The older controller test file has
+  26 lint errors outside the added case; these were retained, not silently fixed.
+- Browser verification and current Test Genie receipt are retained under the
+  AI-video run's review-qa/link-navigation-fix/ directory when terminal.
+
+Final link-navigation evidence: actual 390px trusted clicks scrolled locally,
+opened a script through the live resolver into the production Markdown reader,
+returned with Back, and opened the native MP4 reader at 480x854. Sibling-topic
+path handoff also passed. The running server serves index-Wuev1Qmg.js. The current
+Test Genie unit run 20261111-050314-1481d4fa finished FAIL after 402 seconds,
+with the same nine API identity/catalog/tmux failures reported previously as
+Scenario QA knw-1794372939411643873. Only the API workspace has a blocking execution
+finding; no whole-scenario unit pass is claimed. Terminal JSON, browser results,
+source harnesses, screenshots and focused logs are retained in the existing
+research run's review-qa/link-navigation-fix/. Findings artifact:
+artifact_e781165955e2fa6a4f2dced8196f7bc4; SHA-256
+47087e58b1a115b28d776b718f6cf652e5203e0bd973a470d0d67c9c629f5edc.

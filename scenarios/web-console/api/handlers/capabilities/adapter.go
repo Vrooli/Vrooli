@@ -36,7 +36,7 @@ type Adapter struct {
 	RunUpdateAction func(ctx context.Context, targetID, agentID, action, cleanupPlanID string) (AgentUpdateActionResult, error)
 	// GuardUpdateAction admits one action request or writes its refusal. Nil
 	// refuses every action.
-	GuardUpdateAction func(http.ResponseWriter, *http.Request) bool
+	GuardUpdateAction func(http.ResponseWriter, *http.Request, string) bool
 	ListHarnessesOn   func(context.Context, string) ([]HarnessDescriptor, error)
 	// ConfirmInstall asks the target itself whether a capability is now
 	// present, after an install has run. It is the only evidence this package
@@ -68,12 +68,12 @@ func (a *Adapter) AgentUpdate(ctx context.Context, targetID, agentID string) (Ag
 }
 
 // GuardAgentUpdateAction applies the configured admission rule.
-func (a *Adapter) GuardAgentUpdateAction(w http.ResponseWriter, r *http.Request) bool {
+func (a *Adapter) GuardAgentUpdateAction(w http.ResponseWriter, r *http.Request, action string) bool {
 	if a.GuardUpdateAction == nil {
 		http.Error(w, "agent update actions are not available", http.StatusForbidden)
 		return false
 	}
-	return a.GuardUpdateAction(w, r)
+	return a.GuardUpdateAction(w, r, action)
 }
 
 func (a *Adapter) RunAgentUpdateAction(ctx context.Context, targetID, agentID, action, cleanupPlanID string) (AgentUpdateActionResult, error) {

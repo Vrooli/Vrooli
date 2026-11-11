@@ -16,6 +16,14 @@ func TestValidateAgentRunIdentityCreateRequiresExactLocalReservedServiceShape(t 
 	if err := validateAgentRunIdentityCreate(ctx, base); err != nil {
 		t.Fatalf("valid service shape rejected: %v", err)
 	}
+	native := base
+	native.AgentType = "codex"
+	native.LaunchMode = "codex_app_server"
+	native.LaunchDescriptorJSON = `{"agent":"codex","launchMode":"codex_app_server"}`
+	native.WorkingDir = "/workspace/goal"
+	if err := validateAgentRunIdentityCreate(ctx, native); err != nil {
+		t.Fatalf("typed reserved Codex native create rejected: %v", err)
+	}
 	// Existing independently verified human attribution remains a label and
 	// does not replace the service identity required for the child token.
 	base.HumanOwnerSubject = "operator@example.test"
@@ -35,7 +43,35 @@ func TestValidateAgentRunIdentityCreateRequiresExactLocalReservedServiceShape(t 
 		{name: "remote", principal: service, edit: func(in *CreateInput) { in.TargetID = "node" }},
 		{name: "ui origin", principal: service, edit: func(in *CreateInput) { in.Origin = "ui" }},
 		{name: "server executed launch", principal: service, edit: func(in *CreateInput) { in.ExecuteLaunchCommand = true }},
-		{name: "managed launch", principal: service, edit: func(in *CreateInput) { in.LaunchMode = "codex_app_server" }},
+		{name: "managed launch without descriptor", principal: service, edit: func(in *CreateInput) { in.LaunchMode = "codex_app_server" }},
+		{name: "non-Codex native launch", principal: service, edit: func(in *CreateInput) {
+			in.AgentType = "claude"
+			in.LaunchMode = "codex_app_server"
+			in.LaunchDescriptorJSON = `{"agent":"codex","launchMode":"codex_app_server"}`
+		}},
+		{name: "shell command with native launch", principal: service, edit: func(in *CreateInput) {
+			in.AgentType = "codex"
+			in.LaunchMode = "codex_app_server"
+			in.LaunchDescriptorJSON = `{"agent":"codex","launchMode":"codex_app_server"}`
+			in.LaunchCommand = "echo unsafe"
+		}},
+		{name: "native launch with shell execution", principal: service, edit: func(in *CreateInput) {
+			in.AgentType = "codex"
+			in.LaunchMode = "codex_app_server"
+			in.LaunchDescriptorJSON = `{"agent":"codex","launchMode":"codex_app_server"}`
+			in.ExecuteLaunchCommand = true
+		}},
+		{name: "native launch with ephemeral backend", principal: service, edit: func(in *CreateInput) {
+			in.AgentType = "codex"
+			in.LaunchMode = "codex_app_server"
+			in.LaunchDescriptorJSON = `{"agent":"codex","launchMode":"codex_app_server"}`
+			in.Backend = "ephemeral"
+		}},
+		{name: "identity credential in descriptor", principal: service, edit: func(in *CreateInput) {
+			in.AgentType = "codex"
+			in.LaunchMode = "codex_app_server"
+			in.LaunchDescriptorJSON = `{"agent":"codex","launchMode":"codex_app_server","environment":{"VROOLI_AGENT_IDENTITY_TOKEN":"forged"}}`
+		}},
 		{name: "padded token", principal: service, edit: func(in *CreateInput) { in.AgentRunIdentityToken = " token" }},
 		{name: "oversize token", principal: service, edit: func(in *CreateInput) { in.AgentRunIdentityToken = strings.Repeat("x", 16385) }},
 	} {
@@ -47,6 +83,9 @@ func TestValidateAgentRunIdentityCreateRequiresExactLocalReservedServiceShape(t 
 			in.TargetID = ""
 			in.ExecuteLaunchCommand = false
 			in.LaunchMode = ""
+			in.AgentType = ""
+			in.LaunchDescriptorJSON = ""
+			in.LaunchCommand = ""
 			if tc.edit != nil {
 				tc.edit(&in)
 			}

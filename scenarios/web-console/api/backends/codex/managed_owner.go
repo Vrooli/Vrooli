@@ -7,12 +7,16 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 var (
-	ErrMissingThread = errors.New("codex native thread is missing")
-	ErrMissingTurn   = errors.New("codex completed turn boundary is missing")
-	ErrInvalidFork   = errors.New("codex app-server returned an invalid fork")
+	ErrMissingThread     = errors.New("codex native thread is missing")
+	ErrMissingTurn       = errors.New("codex completed turn boundary is missing")
+	ErrInvalidFork       = errors.New("codex app-server returned an invalid fork")
+	ErrGenerationChanged = errors.New("codex native session generation changed")
+	ErrTurnChanged       = errors.New("codex active turn changed")
+	ErrTurnBusy          = errors.New("codex native thread is busy")
 )
 
 // ManagedOwner is the single live owner for one Web Console-managed Codex
@@ -26,6 +30,10 @@ type ManagedOwner struct {
 	originalThreadID   string
 	lastVerifiedTurnID string
 	activeTurnID       string
+	closeOnce          sync.Once
+	closing            atomic.Bool
+	closeDone          chan struct{}
+	closeErr           error
 }
 
 func NewManagedOwner(client *Client, ownerID, threadID string) (*ManagedOwner, error) {
@@ -105,11 +113,36 @@ func ResumeManagedInDirWithEnv(ctx context.Context, executable, cwd, ownerID, cl
 	return NewManagedOwner(client, ownerID, threadID)
 }
 
-func (o *ManagedOwner) Close() error {
+func (o *ManagedOwner) Close() error { return o.CloseContext(context.Background()) }
+
+// BeginRetirement synchronously fences raw owner references before starting
+// the single transport retirement. Registries use it when marking an owner
+// retiring so stale rewind/control adapters cannot admit fresh work.
+func (o *ManagedOwner) BeginRetirement() {
+	if o == nil || o.client == nil {
+		return
+	}
+	o.closeOnce.Do(func() {
+		o.closing.Store(true)
+		o.closeDone = make(chan struct{})
+		go func() { o.closeErr = o.client.Close(); close(o.closeDone) }()
+	})
+}
+
+// CloseContext waits for the owned transport/process retirement. A canceled
+// caller does not discard that owner or start another close; a later call can
+// observe the same retirement result. It never reports success before Close ends.
+func (o *ManagedOwner) CloseContext(ctx context.Context) error {
 	if o == nil || o.client == nil {
 		return nil
 	}
-	return o.client.Close()
+	o.BeginRetirement()
+	select {
+	case <-o.closeDone:
+		return o.closeErr
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (o *ManagedOwner) OwnerID() string  { o.mu.RLock(); defer o.mu.RUnlock(); return o.ownerID }
@@ -159,12 +192,12 @@ func (o *ManagedOwner) ProviderVersion() string {
 }
 
 func (o *ManagedOwner) MarkTurnCompleted(threadID, turnID string) bool {
-	if o == nil || strings.TrimSpace(turnID) == "" {
+	if o == nil || o.closing.Load() || strings.TrimSpace(turnID) == "" {
 		return false
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if threadID != "" && threadID != o.threadID && threadID != o.originalThreadID {
+	if o.closing.Load() || threadID != o.threadID || (o.activeTurnID != "" && o.activeTurnID != turnID) {
 		return false
 	}
 	o.activeTurnID = ""
@@ -172,8 +205,24 @@ func (o *ManagedOwner) MarkTurnCompleted(threadID, turnID string) bool {
 	return true
 }
 
+// MarkTurnStarted records provider-originated turns, including goal
+// continuations. A delayed start for an already completed turn must not
+// resurrect it; an authoritative read reconciles any otherwise stale cache.
+func (o *ManagedOwner) MarkTurnStarted(threadID, turnID string) bool {
+	if o == nil || o.closing.Load() || strings.TrimSpace(turnID) == "" {
+		return false
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.closing.Load() || threadID != o.threadID || turnID == o.lastVerifiedTurnID {
+		return false
+	}
+	o.activeTurnID = turnID
+	return true
+}
+
 func (o *ManagedOwner) VerifyThread(ctx context.Context, expected, requiredTurnID string) (bool, error) {
-	if o == nil || o.client == nil {
+	if o == nil || o.client == nil || o.closing.Load() {
 		return false, ErrClosed
 	}
 	if strings.TrimSpace(expected) == "" {
@@ -222,7 +271,7 @@ func (o *ManagedOwner) Done() <-chan struct{} {
 }
 
 func (o *ManagedOwner) RejectRequest(id json.RawMessage, reason string) error {
-	if o == nil || o.client == nil {
+	if o == nil || o.client == nil || o.closing.Load() {
 		return ErrClosed
 	}
 	return o.client.Respond(id, nil, &RPCError{Code: -32001, Message: reason})
@@ -231,7 +280,7 @@ func (o *ManagedOwner) RejectRequest(id json.RawMessage, reason string) error {
 // ForkThrough changes the active branch only after app-server returns a new
 // thread. The source thread is never discarded.
 func (o *ManagedOwner) ForkThrough(ctx context.Context, completedTurnID string) (string, error) {
-	if o == nil || o.client == nil {
+	if o == nil || o.client == nil || o.closing.Load() {
 		return "", ErrClosed
 	}
 	if strings.TrimSpace(completedTurnID) == "" {
@@ -239,6 +288,9 @@ func (o *ManagedOwner) ForkThrough(ctx context.Context, completedTurnID string) 
 	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
+	if o.closing.Load() {
+		return "", ErrClosed
+	}
 	result, err := o.client.ForkThread(ctx, o.threadID, completedTurnID)
 	if err != nil {
 		return "", fmt.Errorf("fork through %s: %w", completedTurnID, err)
@@ -252,7 +304,7 @@ func (o *ManagedOwner) ForkThrough(ctx context.Context, completedTurnID string) 
 }
 
 func (o *ManagedOwner) Interrupt(ctx context.Context, turnID string) error {
-	if o == nil || o.client == nil {
+	if o == nil || o.client == nil || o.closing.Load() {
 		return ErrClosed
 	}
 	o.mu.RLock()
@@ -282,7 +334,7 @@ func (o *ManagedOwner) InterruptActive(ctx context.Context) error {
 // returned ID is provider-owned and is the only valid boundary for later
 // control operations.
 func (o *ManagedOwner) StartTurn(ctx context.Context, text string) (string, error) {
-	if o == nil || o.client == nil {
+	if o == nil || o.client == nil || o.closing.Load() {
 		return "", ErrClosed
 	}
 	if strings.TrimSpace(text) == "" {
@@ -302,4 +354,128 @@ func (o *ManagedOwner) StartTurn(ctx context.Context, text string) (string, erro
 	o.activeTurnID = result.ID()
 	o.mu.Unlock()
 	return result.ID(), nil
+}
+
+// DeliverPrompt binds delivery to this live owner while holding the generation
+// lock across the native RPC. Idle delivery starts a turn; busy delivery uses
+// Codex's expected-turn CAS steering operation. If the owner exits or its turn
+// changes, the native request fails and no terminal input path is involved.
+func (o *ManagedOwner) DeliverPrompt(ctx context.Context, expectedThreadID, expectedTurnID, text string) (turnID, delivery string, err error) {
+	if o == nil || o.client == nil || o.closing.Load() {
+		return "", "", ErrClosed
+	}
+	if strings.TrimSpace(text) == "" {
+		return "", "", errors.New("codex prompt text is required")
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.closing.Load() {
+		return "", "", ErrClosed
+	}
+	if expectedThreadID == "" || expectedThreadID != o.threadID {
+		return "", "", ErrGenerationChanged
+	}
+	if expectedTurnID == "" {
+		// A delayed notification cannot veto an idle observation. Recheck the
+		// same provider thread at dispatch; only a live idle thread may start.
+		state := readNativeThreadStatus(ctx, o.client, o.threadID)
+		if state.Status == "active" {
+			return "", "", ErrTurnBusy
+		}
+		if state.Status != "idle" {
+			return "", "", errors.New("native Codex thread is not confirmed idle")
+		}
+		result, callErr := o.client.StartTurn(ctx, o.threadID, text)
+		if callErr != nil {
+			return "", "", fmt.Errorf("start native Codex turn: %w", callErr)
+		}
+		turnID = result.ID()
+		delivery = "started"
+	} else {
+		// Provider-originated notifications can lag the authoritative state read.
+		// The provider's expected-turn CAS decides steering, not that cache.
+		result, callErr := o.client.SteerTurn(ctx, o.threadID, expectedTurnID, text)
+		if callErr != nil {
+			return "", "", fmt.Errorf("steer native Codex turn: %w", callErr)
+		}
+		turnID = result.ID()
+		delivery = "steered"
+	}
+	if strings.TrimSpace(turnID) == "" {
+		return "", "", ErrMissingTurn
+	}
+	if delivery == "started" {
+		o.activeTurnID = turnID
+	}
+	return turnID, delivery, nil
+}
+
+type GoalMutationOrigin string
+
+const (
+	GoalOriginUserDirected GoalMutationOrigin = "user"
+	GoalOriginAutomatic    GoalMutationOrigin = "automatic"
+)
+
+type GoalResult struct {
+	ThreadID  string `json:"threadId"`
+	Objective string `json:"objective"`
+	Status    string `json:"status"`
+}
+
+// SetGoal updates Codex's native thread goal while holding the same owner
+// generation lock used for turn delivery. It has no terminal input fallback.
+func (o *ManagedOwner) SetGoal(ctx context.Context, expectedThreadID, objective, status string, origin GoalMutationOrigin, tokenBudget *int64) (GoalResult, error) {
+	if o == nil || o.client == nil || o.closing.Load() {
+		return GoalResult{}, ErrClosed
+	}
+	if origin != GoalOriginUserDirected && origin != GoalOriginAutomatic {
+		return GoalResult{}, errors.New("native goal mutation origin is required")
+	}
+	if strings.TrimSpace(status) == "" || (status != "active" && status != "paused" && status != "blocked" && status != "complete") {
+		return GoalResult{}, errors.New("native goal status is invalid")
+	}
+	if status == "active" && strings.TrimSpace(objective) == "" {
+		return GoalResult{}, errors.New("active native goal objective is required")
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.closing.Load() {
+		return GoalResult{}, ErrClosed
+	}
+	if expectedThreadID == "" || expectedThreadID != o.threadID {
+		return GoalResult{}, ErrGenerationChanged
+	}
+	expectedObjective := objective
+	if origin == GoalOriginAutomatic {
+		current, err := o.client.ReadGoal(ctx, expectedThreadID)
+		if err != nil {
+			return GoalResult{}, fmt.Errorf("read existing native goal before automatic mutation: %w", err)
+		}
+		if current == nil || (objective != "" && current.Objective != objective) {
+			return GoalResult{}, errors.New("automatic native goal mutation requires the unchanged existing objective")
+		}
+		expectedObjective = current.Objective
+	}
+	params := map[string]any{"threadId": o.threadID, "status": status, "origin": origin}
+	// Automatic lifecycle work never sends replacement text. The native owner
+	// lock serializes our mutations, while omission also preserves a goal edited
+	// by another provider actor between this read and set. Such a race fails the
+	// returned-objective check instead of overwriting the user's newer intent.
+	if objective != "" && origin == GoalOriginUserDirected {
+		params["objective"] = objective
+	}
+	if tokenBudget != nil {
+		params["tokenBudget"] = *tokenBudget
+	}
+	var result struct {
+		Goal GoalResult `json:"goal"`
+	}
+	if err := o.client.Call(ctx, "thread/goal/set", params, &result); err != nil {
+		return GoalResult{}, fmt.Errorf("set native Codex goal: %w", err)
+	}
+	if result.Goal.ThreadID != expectedThreadID || result.Goal.Status != status || strings.TrimSpace(result.Goal.Objective) == "" || (expectedObjective != "" && result.Goal.Objective != expectedObjective) {
+		return GoalResult{}, errors.New("Codex native goal response did not confirm the requested thread, status and objective")
+	}
+	return result.Goal, nil
 }

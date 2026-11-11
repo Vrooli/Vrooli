@@ -47,7 +47,9 @@ These Connect-RPC methods are defined by `SessionsService` and `ConversationServ
 | `ConversationService.SearchArchived` | Uses the FTS5 index to return message hits across archived lineages. |
 | `ConversationService.GetRange` | Returns a bounded conversation range for the read-only archive reader and export. |
 
-`SessionsService.Delete` remains the explicit permanent-delete operation. UI callers expose it only through a destructive confirmation.
+`SessionsService.Archive` and `SessionsService.Delete` require a verified principal with canonical `web-console:write` capability before any retirement effect. A verified Agent Manager service carrying that capability remains supported; anonymous, unverified, read-only and wrong-resource identities refuse. `SessionsService.Delete` remains the explicit permanent-delete operation. UI callers expose it only through a destructive confirmation.
+
+Native Codex archive retires the actual managed app-server owner while preserving session metadata, conversation and transcript artifacts. Retirement failures or caller cancellation retain the exact owner for retry; archived metadata or an old successful receipt alone does not prove runtime exit. A retiring owner rejects new prompt/goal delivery. An unknown runtime after restart remains an error rather than a successful archive.
 
 ### Continuity RPCs
 
@@ -337,6 +339,29 @@ transcript-only and use the terminal fallback. If a restart cannot re-establish
 the app-server owner, the session becomes `recovery_only` instead of attaching
 to an unverified rollout or second writer.
 
+Managed app-server processes receive an independent `envkit.Resource`
+environment boundary. Serving scenario/instance labels and the host's agent
+tags, run IDs and session plumbing are removed before the explicit child home,
+store and one-use verified identity handoff are overlaid. Host installation
+paths and provider authentication availability remain available. Child values
+replace inherited values with platform-correct environment-name folding.
+
+`SessionsService/SetNativeGoal` requires the exact session, native owner
+generation and thread plus typed mutation provenance. User-directed provenance
+is accepted only from a verified human or the Agent Manager service, which
+derives it from the frozen admission of an explicitly requested objective.
+Automatic park, wake and recovery retain automatic provenance; a standing
+service grant alone does not imply a user-directed objective. Provenance does
+not replace ordinary operation authorization. The response carries the
+provider-returned thread, objective and status; mismatches or omitted fields
+fail verification rather than echoing the request as successful evidence.
+Automatic lifecycle updates first read the authoritative existing goal under
+the same native owner lock. An absent, unreadable or changed objective refuses
+the update. Automatic writes omit objective text entirely, so another provider
+actor's intervening edit cannot be overwritten by stale admitted text; a
+changed returned objective still fails the postcondition. User-directed initial
+installation retains its separately verified provenance.
+
 ### Native interactive usage
 
 `SessionsService.ReadNativeUsage` (also `web-console session native-usage`) reads a bounded selection of Codex native
@@ -362,6 +387,12 @@ per-response model attribution, a history of model changes, or billing data.
 the requested interval, grouped by model and effort. These records can reveal
 observed changes but are not response counts or a complete billing attribution;
 missing contexts remain unknown.
+Managed `codex_app_server` sessions read only their persisted launch descriptor's
+absolute `CODEX_HOME` and active/original thread lineage. Archived sessions retain
+this audit path without requiring a live provider. Unknown transport, missing
+audit home, or a foreign thread is unavailable; requested launch settings never
+stand in for observed settings. Recognized legacy terminal sessions retain their
+session-owned native home.
 Response IDs are deduplicated within each thread, and conflicting duplicates
 fail that thread's read. Totals split cache-read from uncached input; cache
 creation, incomplete/in-flight calls, pricing, quota and billing are not
@@ -369,6 +400,13 @@ measured. This is separate from Agent Manager's managed-run efficiency cohort.
 Each selected rollout is limited to 256 MiB, so a larger source is unknown; 16 selected threads permit up to 4 GiB of input in a single request. Response and duplicate counters cover successfully read records; incomplete counts cover observed incomplete records, not omitted threads or requests.
 
 `SessionsService.ReadNativeThreadState` (CLI `web-console session native-thread-state`) observes up to 16 explicitly selected threads through an existing session's native owner. It returns the native thread status, active flags, and, when available, native goal status and counters. `goal_available=false` means the goal read failed; `goal_available=true` with `has_goal=false` means the owner reported no goal. An unavailable thread is not inferred to be idle or complete. The call does not control threads, enforce deadlines, verify cleanup, or establish billing, and it returns no goal text or transcript. The same verified-session or `web-console:read` authorization applies as for native usage.
+
+Managed sessions use the retained stdio owner with the captured session,
+generation and active/original thread binding. A missing or retiring managed
+owner is unavailable. Only recognized legacy terminal sessions use their
+session-owned daemon socket. Neither path starts or resumes a provider or falls
+back to PTY input. Known goal absence requires an explicit `goal: null` provider
+response; a missing or malformed goal envelope remains unknown.
 
 ## Usage modes
 

@@ -231,7 +231,7 @@ func TestRecoverKeepsTheOriginalSettingsAndNeverAppliesTheCurrentMode(t *testing
 	descriptor := `{"agent":"codex","launchMode":"codex_app_server","model":"gpt-6.1-terra"}`
 	var got []string
 	r := &managedCodexRegistry{
-		store:   recoverStore{rows: []sessionstore.Metadata{{ID: "s1", LaunchMode: sessionstore.LaunchModeCodexAppServer, NativeThreadID: "thr", LaunchDescriptorJSON: descriptor}}},
+		store:   recoverStore{rows: []sessionstore.Metadata{{ID: "s1", Status: sessionstore.StatusLive, LaunchMode: sessionstore.LaunchModeCodexAppServer, NativeThreadID: "thr", LaunchDescriptorJSON: descriptor}}},
 		entries: map[string]managedCodexEntry{},
 		resume: func(_ context.Context, _, _, _, _, _, _ string, _ []string, args []string) (*codex.ManagedOwner, error) {
 			got = args

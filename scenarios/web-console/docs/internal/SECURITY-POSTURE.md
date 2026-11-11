@@ -4,7 +4,7 @@
 2026-02-19
 
 ## Trust Model
-Web console is designed for single-operator use on a personal Vrooli server. It runs behind an authenticated parent scenario's proxy — the console itself performs **no authentication or authorization**. This is by design ([CODE: api/main.go], PRD non-goals).
+Web Console is designed for single-operator use on a personal Vrooli server. Its API applies `authn.UIAvailabilityFallback` to every request and treats each caller as an operator when the request reaches the scenario. The API does not enforce effective identity or capability restrictions. This keeps UI actions available during identity-provider or scope failures and intentionally allows any caller that can reach the API to use operator-level features.
 
 ## Hardening Status by Category
 
@@ -16,10 +16,9 @@ Web console is designed for single-operator use on a personal Vrooli server. It 
 Status: **hardened** (for single-operator model)
 
 ### Authentication & Authorization
-- [ ] No auth middleware — delegated to parent proxy
-- [ ] No session ownership enforcement (single operator)
-- [ ] No RBAC or permission checks
-Status: **by-design** — auth is parent's responsibility. If web-console is ever exposed directly, auth must be added.
+- [x] API records provider identity status, then applies a synthetic `ui_fail_open` operator principal with wildcard scopes to every request.
+- [ ] No effective session ownership or role restriction at the API boundary; any caller that reaches the API can perform operator-level actions.
+Status: **fail-open by operator preference**. The parent proxy is the remaining access boundary. Exposing Web Console outside that boundary grants callers full operator access.
 
 ### Input Validation
 - [x] All JSON request bodies decoded with size limits (1MB default via api-core)

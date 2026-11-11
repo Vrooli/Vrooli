@@ -96,3 +96,24 @@ func TestNativeThreadStatesTreatMalformedGoalAsUnavailable(t *testing.T) {
 		t.Fatalf("malformed goal should be unavailable: %+v", row)
 	}
 }
+
+func TestNativeThreadStatesRequireExplicitGoalEnvelope(t *testing.T) {
+	for _, tc := range []struct {
+		name, payload string
+		known         bool
+	}{{"explicit no goal", `{"goal":null}`, true}, {"omitted goal", `{}`, false}, {"null envelope", `null`, false}, {"invalid goal", `{"goal":[]}`, false}, {"unknown status", `{"goal":{"threadId":"a","status":"future"}}`, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			caller := stateCaller(func(_ context.Context, method string, _ any, out any) error {
+				payload := tc.payload
+				if method == "thread/read" {
+					payload = `{"thread":{"id":"a","status":{"type":"idle"}}}`
+				}
+				return json.Unmarshal([]byte(payload), out)
+			})
+			row := readNativeThreadStates(t.Context(), caller, []string{"a"}).GetThreads()[0]
+			if row.GetGoalAvailable() != tc.known || row.GetHasGoal() {
+				t.Fatalf("unverified goal envelope became known absence: %+v", row)
+			}
+		})
+	}
+}

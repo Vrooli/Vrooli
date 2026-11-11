@@ -204,6 +204,28 @@ describe("TerminalLauncher", () => {
     expect(onLaunch).toHaveBeenLastCalledWith(expect.objectContaining({ command: "opencode", agentLaunch: expect.objectContaining({ agent_id: "opencode", model: "gemma4:12b", provider: "ollama" }) }));
   });
 
+  it("refreshes a stale local model catalog automatically when the agent is selected", async () => {
+    const stale = policyOf({ runner: "codex", catalogStale: true, policyStatus: "stale", detail: "Model list is old" });
+    const fresh = policyOf({ runner: "codex", catalogStale: false, policyStatus: "ready", choices: [roleChoice({ model: "gpt-6-codex", launchModel: "gpt-6-codex", isDefault: true })] });
+    let codexReads = 0;
+    modelSelectionClient.getRoleModelChoices.mockImplementation(((request: { agentId: string }) => Promise.resolve(
+      request.agentId === "codex" && codexReads++ === 0 ? stale : fresh,
+    )) as never);
+    capabilitiesClient.runAgentUpdateAction.mockResolvedValue({ success: true, message: "Model list refreshed" } as never);
+
+    renderAgentMode(<TerminalLauncher open={true} onClose={onClose} onLaunch={onLaunch} shortcuts={testShortcuts} />);
+    fireEvent.click(screen.getByTestId("launcher-agent-codex"));
+
+    await waitFor(() => {
+      expect(capabilitiesClient.runAgentUpdateAction).toHaveBeenCalledWith(
+        { targetId: "local", agentId: "codex", action: "refresh_catalog" },
+        expect.anything(),
+      );
+    });
+    await waitFor(() => expect(modelSelectionClient.getRoleModelChoices.mock.calls.length).toBeGreaterThan(1));
+    expect(screen.queryByTestId("launcher-catalog-stale")).not.toBeInTheDocument();
+  });
+
   it("requires an explicit business account for the qualified Vrooli credits source", async () => {
     getBusinessAccounts.mockResolvedValue({ accounts: [
       { id: "acct-one", display_name: "Studio", role: "owner", created_at: "2026-10-30" },

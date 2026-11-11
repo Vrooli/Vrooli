@@ -1,6 +1,6 @@
 import { renderWithProviders as render } from "../../../test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 
 import { strings } from "../../../consts/strings";
 import { renderers, rendererForKind } from "../renderers";
@@ -206,12 +206,14 @@ describe("unsupported renderer", () => {
 describe("HTML text preview", () => {
   let resizeStage: (width: number, height: number) => void;
   const disconnect = vi.fn();
+  const observe = vi.fn();
   beforeEach(() => {
+    observe.mockClear();
     vi.stubGlobal("ResizeObserver", class {
       constructor(callback: ResizeObserverCallback) {
         resizeStage = (width, height) => { act(() => { callback([{ contentRect: { width, height } } as ResizeObserverEntry], this as unknown as ResizeObserver); }); };
       }
-      observe = vi.fn();
+      observe = observe;
       disconnect = disconnect;
     });
   });
@@ -286,6 +288,38 @@ describe("HTML text preview", () => {
     expect(screen.queryByTitle(strings.messagesFileViewer.htmlPreview)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.htmlRendered }));
     expect(screen.getByTitle(strings.messagesFileViewer.htmlPreview)).toBeInTheDocument();
+  });
+
+  it("shows a download fallback rather than an empty file for unavailable code text", () => {
+    const Renderer = renderers.code;
+    render(<Renderer model={model({ kind: "code", sizeBytes: 3_759_455, textContentAvailable: false })} text={null} onError={() => {}} {...navProps} />);
+    expect(screen.queryByTestId("file-preview-empty")).not.toBeInTheDocument();
+    expect(screen.getByText(strings.messagesFileViewer.textUnavailable)).toBeInTheDocument();
+    expect(screen.getByTestId("file-preview-download")).toHaveAttribute("href", "/api/v1/sessions/s/file-previews/pv-1/blob");
+  });
+
+  it("renders HTML above the inline-text limit from bounded blob bytes and keeps source inspection", async () => {
+    const content = "<h1>Research review</h1>";
+    const fetch = vi.fn().mockResolvedValueOnce(new Response(content));
+    vi.stubGlobal("fetch", fetch);
+    const Renderer = renderers.code;
+    render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/report.html", sizeBytes: 3_759_455, textContentAvailable: false })} text={null} onError={() => {}} {...navProps} />);
+    expect(screen.queryByTestId("file-preview-empty")).not.toBeInTheDocument();
+    await waitFor(() => { expect(screen.getByTitle(strings.messagesFileViewer.htmlPreview).getAttribute("srcdoc")).toContain(content); });
+    await waitFor(() => { expect(observe).toHaveBeenCalled(); });
+    resizeStage(390, 600);
+    expect(screen.getByTitle(strings.messagesFileViewer.htmlPreview)).toHaveStyle({ width: "390px", height: "600px" });
+    expect(fetch).toHaveBeenCalledWith("/api/v1/sessions/s/file-previews/pv-1/blob", expect.objectContaining({ credentials: "same-origin" }));
+    fireEvent.click(screen.getByRole("button", { name: strings.messagesFileViewer.htmlSource }));
+    expect(screen.getByTestId("file-preview-code")).toBeInTheDocument();
+  });
+
+  it("does not call an oversize HTML document empty or execute a partial preview", () => {
+    const Renderer = renderers.code;
+    render(<Renderer model={model({ kind: "code", resolvedPath: "/tmp/report.html", sizeBytes: 17 * 1024 * 1024, textContentAvailable: false })} text={null} onError={() => {}} {...navProps} />);
+    expect(screen.queryByTestId("file-preview-empty")).not.toBeInTheDocument();
+    expect(screen.queryByTitle(strings.messagesFileViewer.htmlPreview)).not.toBeInTheDocument();
+    expect(screen.getByText(strings.messagesFileViewer.textUnavailable)).toBeInTheDocument();
   });
 
   it("installs local pinch handling inside the isolated HTML document", () => {

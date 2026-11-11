@@ -569,17 +569,18 @@ describe("settings", () => {
     expect(screen.getByTestId("launcher-context-gauge")).toHaveAttribute("data-gauge-percent", "30");
   });
 
-  it("refreshes a stale list from its notice, reads it again, and shows a failure in the server's words", async () => {
+  it("automatically refreshes a stale list, shows failures, and keeps explicit retry available", async () => {
     models.getRoleModelChoices.mockResolvedValue(policy({ catalogStale: true, policyStatus: "stale", choices: [limited] }) as never);
     capabilities.runAgentUpdateAction.mockResolvedValueOnce({ success: false, message: "The installed runner reported no models." } as never);
     drawer();
-    fireEvent.click(await screen.findByTestId("launcher-catalog-refresh"));
+    await waitFor(() => { expect(capabilities.runAgentUpdateAction).toHaveBeenCalledTimes(1); });
     expect(capabilities.runAgentUpdateAction).toHaveBeenCalledWith({ targetId: "local", agentId: "claude", action: "refresh_catalog" }, expect.anything());
     expect(await screen.findByTestId("launcher-catalog-refresh-error")).toHaveTextContent("The installed runner reported no models.");
     const reads = models.getRoleModelChoices.mock.calls.length;
     capabilities.runAgentUpdateAction.mockResolvedValueOnce({ success: true, message: "Refreshed." } as never);
     models.getRoleModelChoices.mockResolvedValue(policy({ choices: [limited] }) as never);
     fireEvent.click(await screen.findByTestId("launcher-catalog-refresh"));
+    await waitFor(() => { expect(capabilities.runAgentUpdateAction).toHaveBeenCalledTimes(2); });
     await waitFor(() => { expect(models.getRoleModelChoices.mock.calls.length).toBeGreaterThan(reads); });
     await waitFor(() => { expect(screen.queryByTestId("launcher-catalog-stale")).toBeNull(); });
   });

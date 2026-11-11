@@ -1370,6 +1370,7 @@ export const strings = {
     disableWordWrap: "messagesFileViewer.disableWordWrap",
     download: "messagesFileViewer.download",
     emptyFile: "messagesFileViewer.emptyFile",
+    textUnavailable: "messagesFileViewer.textUnavailable",
     enableWordWrap: "messagesFileViewer.enableWordWrap",
     filePreviewFallback: "messagesFileViewer.filePreviewFallback",
     handOff: "messagesFileViewer.handOff",

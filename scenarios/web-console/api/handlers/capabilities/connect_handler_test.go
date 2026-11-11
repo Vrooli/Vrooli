@@ -403,15 +403,18 @@ func TestIntegrationSurfaceProjectsTheRealKnownCatalogue(t *testing.T) {
 type updateActionService struct {
 	*fakeService
 	guardAdmits bool
+	guardAction string
+	denyAction  string
 	calls       int
 	err         error
 }
 
-func (s *updateActionService) GuardAgentUpdateAction(w http.ResponseWriter, _ *http.Request) bool {
-	if !s.guardAdmits {
+func (s *updateActionService) GuardAgentUpdateAction(w http.ResponseWriter, _ *http.Request, action string) bool {
+	s.guardAction = action
+	if !s.guardAdmits || action == s.denyAction {
 		http.Error(w, "operator only", http.StatusForbidden)
 	}
-	return s.guardAdmits
+	return s.guardAdmits && action != s.denyAction
 }
 
 func (s *updateActionService) AgentUpdate(_ context.Context, target, agent string) (AgentUpdateResult, error) {
@@ -430,12 +433,16 @@ func (s *updateActionService) RunAgentUpdateAction(_ context.Context, target, ag
 }
 
 func actionClientRequest(t *testing.T, service Service) *http.Response {
+	return actionClientRequestBody(t, service, `{"targetId":"local","agentId":"codex","action":"update"}`)
+}
+
+func actionClientRequestBody(t *testing.T, service Service, body string) *http.Response {
 	t.Helper()
 	router := mux.NewRouter()
 	Module(service, log.New(io.Discard, "", 0)).Mount(router)
 	server := httptest.NewServer(router)
 	t.Cleanup(server.Close)
-	response, err := http.Post(server.URL+capabilitiesconnect.CapabilitiesServiceRunAgentUpdateActionProcedure, "application/json", strings.NewReader(`{"targetId":"local","agentId":"codex","action":"update"}`))
+	response, err := http.Post(server.URL+capabilitiesconnect.CapabilitiesServiceRunAgentUpdateActionProcedure, "application/json", strings.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -456,11 +463,26 @@ func TestRunAgentUpdateActionIsGuardedBeforeItRuns(t *testing.T) {
 	if response.StatusCode != http.StatusOK || admitted.calls != 1 {
 		t.Fatalf("status %d, calls %d", response.StatusCode, admitted.calls)
 	}
+	if admitted.guardAction != "update" {
+		t.Fatalf("guard saw action %q, want update", admitted.guardAction)
+	}
+}
+
+func TestRunAgentUpdateActionGuardReceivesActionBeforeAdmission(t *testing.T) {
+	service := &updateActionService{fakeService: &fakeService{}, guardAdmits: true, denyAction: "update"}
+	response := actionClientRequestBody(t, service, `{"targetId":"local","agentId":"codex","action":"refresh_catalog"}`)
+	if response.StatusCode != http.StatusOK || service.calls != 1 || service.guardAction != "refresh_catalog" {
+		t.Fatalf("refresh status=%d calls=%d guardAction=%q", response.StatusCode, service.calls, service.guardAction)
+	}
+	response = actionClientRequest(t, service)
+	if response.StatusCode != http.StatusForbidden || service.calls != 1 || service.guardAction != "update" {
+		t.Fatalf("update status=%d calls=%d guardAction=%q", response.StatusCode, service.calls, service.guardAction)
+	}
 }
 
 func TestAdapterRefusesActionsWithoutAConfiguredGuard(t *testing.T) {
 	recorder := httptest.NewRecorder()
-	if (&Adapter{}).GuardAgentUpdateAction(recorder, httptest.NewRequest(http.MethodPost, "/", nil)) || recorder.Code != http.StatusForbidden {
+	if (&Adapter{}).GuardAgentUpdateAction(recorder, httptest.NewRequest(http.MethodPost, "/", nil), "update") || recorder.Code != http.StatusForbidden {
 		t.Fatalf("an adapter with no guard admitted: %d", recorder.Code)
 	}
 }

@@ -29,7 +29,7 @@ var Endpoints = []module.EndpointDescriptor{
 	{
 		ID: "capabilities_run_agent_update_action", Path: capabilitiesconnect.CapabilitiesServiceRunAgentUpdateActionProcedure,
 		Method: "POST", Summary: "Run one action on a target's agent install",
-		Description: "Runs install, update, use_managed_copy, link_managed_copy, rollback or retry through the control plane, for the signed-in operator only, and returns a fresh observation. May run for minutes; repeating the request rejoins a running action.", Category: "capabilities",
+		Description: "Runs install, update, use_managed_copy, link_managed_copy, rollback or retry through the control plane for the signed-in operator, or refreshes the local model catalog from runner evidence through the same-origin UI. Returns a fresh observation. May run for minutes; repeating the request rejoins a running action.", Category: "capabilities",
 	},
 	{
 		ID:          "capabilities_get",

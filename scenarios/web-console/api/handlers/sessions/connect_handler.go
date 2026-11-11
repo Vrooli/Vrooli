@@ -243,6 +243,9 @@ func (h *connectHandler) Delete(ctx context.Context, req *connect.Request[sessio
 	if got, want := strings.TrimSpace(req.Msg.GetConfirmation()), "DELETE:"+id; got != want {
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("permanent deletion requires confirmation %q", want))
 	}
+	if err := h.authorizeNativeWrite(ctx); err != nil {
+		return nil, err
+	}
 	ctx = WithOperationID(ctx, req.Header().Get(idempotencyHeader))
 	if err := h.deps.Service.Delete(ctx, id); err != nil {
 		return nil, h.classify(err, "sessions.Delete")
@@ -255,6 +258,10 @@ func (h *connectHandler) Archive(ctx context.Context, req *connect.Request[sessi
 	if id == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("id is required"))
 	}
+	// Archive is the UI's ordinary Close action. Keep it independent of optional
+	// identity providers and scenario-scope setup so a verification gap cannot
+	// strand an operator's session in the UI. Permanent deletion remains guarded
+	// separately by Delete and its explicit confirmation.
 	ctx = WithOperationID(ctx, req.Header().Get(idempotencyHeader))
 	if err := h.deps.Service.Archive(ctx, id); err != nil {
 		return nil, h.classify(err, "sessions.Archive")
@@ -644,4 +651,77 @@ func (h *connectHandler) ReadNativeThreadState(ctx context.Context, req *connect
 		return nil, err
 	}
 	return connect.NewResponse(result), nil
+}
+
+func (h *connectHandler) DeliverNativePrompt(ctx context.Context, req *connect.Request[sessionsv1.DeliverNativePromptRequest]) (*connect.Response[sessionsv1.DeliverNativePromptResponse], error) {
+	if err := h.authorizeNativeWrite(ctx); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.Msg.GetSessionId()) == "" || strings.TrimSpace(req.Msg.GetExpectedNativeOwner()) == "" || strings.TrimSpace(req.Msg.GetExpectedThreadId()) == "" || strings.TrimSpace(req.Msg.GetText()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id, expected_native_owner, expected_thread_id and text are required"))
+	}
+	deliverer, ok := h.deps.Service.(interface {
+		DeliverNativePrompt(context.Context, *sessionsv1.DeliverNativePromptRequest) (*sessionsv1.DeliverNativePromptResponse, error)
+	})
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, ErrUnavailable)
+	}
+	result, err := deliverer.DeliverNativePrompt(ctx, req.Msg)
+	if err != nil {
+		return nil, h.classify(err, "sessions.DeliverNativePrompt")
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (h *connectHandler) SetNativeGoal(ctx context.Context, req *connect.Request[sessionsv1.SetNativeGoalRequest]) (*connect.Response[sessionsv1.SetNativeGoalResponse], error) {
+	if err := h.authorizeNativeWrite(ctx); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(req.Msg.GetSessionId()) == "" || strings.TrimSpace(req.Msg.GetExpectedNativeOwner()) == "" || strings.TrimSpace(req.Msg.GetExpectedThreadId()) == "" || strings.TrimSpace(req.Msg.GetStatus()) == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("session_id, expected_native_owner, expected_thread_id and status are required"))
+	}
+	switch req.Msg.GetOrigin() {
+	case sessionsv1.NativeGoalMutationOrigin_NATIVE_GOAL_MUTATION_ORIGIN_USER_DIRECTED:
+		p, _ := identity.PrincipalFromContext(ctx)
+		// Only the admitted-run owner may attest delegated user intent. A public
+		// request field cannot turn arbitrary agent/service work into user intent.
+		if !p.IsHuman() && !(p.IsVerified() && p.Kind == identity.ActorService && p.Source == identity.SourceScenarioAuthenticator && p.Subject == "agent-manager") {
+			return nil, connect.NewError(connect.CodePermissionDenied, errors.New("user-directed goal provenance requires a verified human or Agent Manager admission"))
+		}
+	case sessionsv1.NativeGoalMutationOrigin_NATIVE_GOAL_MUTATION_ORIGIN_AUTOMATIC:
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("native goal mutation origin is required"))
+	}
+	setter, ok := h.deps.Service.(interface {
+		SetNativeGoal(context.Context, *sessionsv1.SetNativeGoalRequest) (*sessionsv1.SetNativeGoalResponse, error)
+	})
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnavailable, ErrUnavailable)
+	}
+	result, err := setter.SetNativeGoal(ctx, req.Msg)
+	if err != nil {
+		return nil, h.classify(err, "sessions.SetNativeGoal")
+	}
+	return connect.NewResponse(result), nil
+}
+
+func (h *connectHandler) authorizeNativeWrite(ctx context.Context) error {
+	principal, ok := identity.PrincipalFromContext(ctx)
+	if !ok || !principal.IsVerified() {
+		return connect.NewError(connect.CodeUnauthenticated, errors.New("verified identity required"))
+	}
+	// A verified human using the scenario UI is the accountable operator. Scenario
+	// capability scopes attenuate machine and agent access; requiring one again
+	// for the human's own UI mutations creates false denials when the provider
+	// authenticates the operator but omits a scenario scope.
+	if principal.IsHuman() {
+		if _, err := authn.RequireIndependentHuman(ctx); err != nil {
+			return connect.NewError(connect.CodePermissionDenied, errors.New("independent human identity required"))
+		}
+		return nil
+	}
+	if _, err := authn.RequireCapability(ctx, "web-console:write"); err != nil {
+		return connect.NewError(connect.CodePermissionDenied, errors.New("web-console:write capability required"))
+	}
+	return nil
 }

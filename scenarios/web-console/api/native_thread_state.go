@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 	"web-console/backends/codex"
+	"web-console/internal/sessionstore"
 )
 
 // The caller is the existing, session-owned daemon connection. It is read-only
@@ -30,18 +31,23 @@ func (s *Server) readSessionNativeThreadState(ctx context.Context, req *sessions
 		}
 		seen[id] = true
 	}
-	if s.sessionStore == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("session store unavailable"))
+	meta, err := s.nativeObservationMetadata(ctx, req.GetSessionId())
+	if err != nil {
+		return nil, err
 	}
-	if _, err := s.sessionStore.Get(ctx, req.GetSessionId()); err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("session unavailable"))
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if meta.LaunchMode == sessionstore.LaunchModeCodexAppServer {
+		states, err := s.managedCodex.ReadThreadStates(ctx, meta, req.GetThreadIds())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("managed native session owner binding unavailable"))
+		}
+		return nativeThreadStatesProto(states), nil
 	}
 	path := filepath.Join(codex.SessionHomePath(resolveSessionStateRoot(), req.GetSessionId()), "app-server-control", "app-server-control.sock")
 	if info, err := os.Stat(path); err != nil || info.Mode()&os.ModeSocket == 0 {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("native session owner unavailable"))
 	}
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
 	client, err := codex.DialSessionDaemon(ctx, path)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("native session owner unavailable"))
@@ -51,49 +57,25 @@ func (s *Server) readSessionNativeThreadState(ctx context.Context, req *sessions
 }
 
 func readNativeThreadStates(ctx context.Context, client nativeThreadCaller, ids []string) *sessionsv1.ReadNativeThreadStateResponse {
-	out := &sessionsv1.ReadNativeThreadStateResponse{}
+	states := make([]codex.NativeThreadState, 0, len(ids))
 	for _, id := range ids {
-		row := &sessionsv1.NativeThreadState{ThreadId: id, Status: "unavailable"}
-		out.Threads = append(out.Threads, row)
-		if ctx.Err() != nil {
-			continue
-		}
-		var read struct {
-			Thread struct {
-				ID     string `json:"id"`
-				Status struct {
-					Type        string   `json:"type"`
-					ActiveFlags []string `json:"activeFlags"`
-				} `json:"status"`
-			} `json:"thread"`
-		}
-		if err := client.Call(ctx, "thread/read", map[string]any{"threadId": id, "includeTurns": false}, &read); err != nil || read.Thread.ID != id {
-			continue
-		}
-		if read.Thread.Status.Type != "" {
-			row.Status = read.Thread.Status.Type
-			row.ActiveFlags = read.Thread.Status.ActiveFlags
-		}
-		var result struct {
-			Goal *struct {
-				ThreadID        string `json:"threadId"`
-				Status          string `json:"status"`
-				TokensUsed      int64  `json:"tokensUsed"`
-				TimeUsedSeconds int64  `json:"timeUsedSeconds"`
-				TokenBudget     *int64 `json:"tokenBudget"`
-			} `json:"goal"`
-		}
-		if err := client.Call(ctx, "thread/goal/get", map[string]any{"threadId": id}, &result); err != nil || (result.Goal != nil && (result.Goal.ThreadID != id || result.Goal.Status == "")) {
-			continue
-		}
-		row.GoalAvailable = true
-		if result.Goal != nil {
+		states = append(states, codex.ReadNativeThreadState(ctx, client, id))
+	}
+	return nativeThreadStatesProto(states)
+}
+
+func nativeThreadStatesProto(states []codex.NativeThreadState) *sessionsv1.ReadNativeThreadStateResponse {
+	out := &sessionsv1.ReadNativeThreadStateResponse{}
+	for _, state := range states {
+		row := &sessionsv1.NativeThreadState{ThreadId: state.ThreadID, Status: state.Status, ActiveFlags: state.ActiveFlags, ActiveTurnId: state.ActiveTurnID, GoalAvailable: state.GoalAvailable}
+		if state.Goal != nil {
 			row.HasGoal = true
-			row.GoalStatus = result.Goal.Status
-			row.TokensUsed = result.Goal.TokensUsed
-			row.TimeUsedSeconds = result.Goal.TimeUsedSeconds
-			row.TokenBudget = result.Goal.TokenBudget
+			row.GoalStatus = state.Goal.Status
+			row.TokensUsed = state.Goal.TokensUsed
+			row.TimeUsedSeconds = state.Goal.TimeUsedSeconds
+			row.TokenBudget = state.Goal.TokenBudget
 		}
+		out.Threads = append(out.Threads, row)
 	}
 	return out
 }

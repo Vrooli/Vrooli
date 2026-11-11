@@ -8,8 +8,10 @@ import { isStructuredPath } from "../structuredData";
 import { strings } from "../../../consts/strings";
 import { cn } from "../../../lib/classnames";
 
-import { PreviewNotice } from "./shared";
+import { PreviewActions, PreviewMetaLine, PreviewNotice } from "./shared";
+import { useHtmlPreview } from "../useHtmlPreview";
 import { attachHtmlPreviewInspection, htmlPreviewPinchScript } from "../htmlPreviewPinch";
+import { attachHtmlPreviewLinks, htmlPreviewLinksScript } from "../htmlPreviewLinks";
 import { CodeLinePreview } from "./CodeLinePreview";
 export { CodeLinePreview } from "./CodeLinePreview";
 import { ArtifactFrame, ArtifactFooter } from "./ArtifactChrome";
@@ -22,22 +24,23 @@ export { MarkdownPreview } from "./MarkdownPreview";
 // syntax highlighting, font sizing, wrap toggle, and target-line scroll.
 export function CodePreview(props: PreviewRendererProps) {
   const { model } = props;
-  // HTML uses the existing bounded text transport. Keep API downloads inert;
-  // only this isolated renderer interprets the markup.
+  // Keep API downloads inert; only this isolated renderer interprets markup.
   if (!model.archiveMember && (/\.html?$/i.test(model.resolvedPath) || model.mimeType.split(";")[0]?.trim().toLowerCase() === "text/html")) {
     return <HtmlPreview key={model.previewId} {...props} />;
   }
+  if (props.text === null) return <UnavailableText model={model} />;
   if (isStructuredPath(model.resolvedPath)) return <StructuredPreview {...props} />;
   return <ArtifactFrame testId="file-preview-source"><SourcePreview key={model.previewId} {...props} /><ArtifactFooter model={model} metadata={formatBytes(model.sizeBytes)} /></ArtifactFrame>;
 }
 
 function SourcePreview({ model, text }: PreviewRendererProps) {
-  const content = text?.content ?? "";
+  if (text === null) return <UnavailableText model={model} />;
+  const content = text.content;
   if (content === "") {
     return <EmptyText />;
   }
   return (
-    <CodeLinePreview content={content} path={model.resolvedPath} highlightLine={model.line ?? null} truncated={!!text?.truncated} plainText={model.kind === "text"} />
+    <CodeLinePreview content={content} path={model.resolvedPath} highlightLine={model.line ?? null} truncated={text.truncated} plainText={model.kind === "text"} />
   );
 }
 
@@ -64,7 +67,7 @@ function htmlPreviewDocument(content: string, runtimeHref?: string): string {
   const resourceOrigin = runtimeOrigin || "about:srcdoc";
   const framePolicy = runtimeOrigin ? runtimeOrigin : "'none'";
   const documentPolicy = `default-src 'none'; script-src 'unsafe-inline' ${runtimeOrigin}; style-src 'unsafe-inline' ${runtimeOrigin}; img-src ${resourceOrigin} data: blob:; font-src ${resourceOrigin} data:; media-src ${resourceOrigin} data: blob:; base-uri ${resourceOrigin}; connect-src 'none'; form-action 'none'; frame-src ${framePolicy}; navigate-to ${framePolicy}; object-src 'none'`;
-  return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${documentPolicy}"><base href="${escapeHtmlAttribute(baseHref)}"><meta name="referrer" content="no-referrer">${htmlPreviewPinchScript()}${content}`;
+  return `<!doctype html><meta http-equiv="Content-Security-Policy" content="${documentPolicy}"><base href="${escapeHtmlAttribute(baseHref)}"><meta name="referrer" content="no-referrer">${htmlPreviewPinchScript()}${htmlPreviewLinksScript()}${content}`;
 }
 
 const HTML_VIEWPORTS = [
@@ -76,8 +79,9 @@ const HTML_VIEWPORTS = [
 const HTML_ZOOM_STEPS = [0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 
 function HtmlPreview(props: PreviewRendererProps) {
-  const { model, text } = props;
+  const { model, text, onNavigate } = props;
   const { t } = useTranslation();
+  const { content, error } = useHtmlPreview(model, text);
   const [source, setSource] = useState(!!model.line || !!text?.truncated);
   const [viewport, setViewport] = useState("responsive");
   const [zoom, setZoom] = useState<number | "fit">("fit");
@@ -85,6 +89,12 @@ function HtmlPreview(props: PreviewRendererProps) {
   const inspectionRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    return attachHtmlPreviewLinks(frame, model.resolvedPath, onNavigate);
+  }, [content, source, model.resolvedPath, onNavigate]);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -96,7 +106,7 @@ function HtmlPreview(props: PreviewRendererProps) {
     });
     observer.observe(stage);
     return () => { observer.disconnect(); };
-  }, [source]);
+  }, [source, content]);
 
   const viewportWidth = HTML_VIEWPORTS.find((preset) => preset.value === viewport)?.width || stageSize.width;
   const fitScale = viewportWidth > 0 && stageSize.width > 0 ? Math.min(1, stageSize.width / viewportWidth) : 1;
@@ -114,7 +124,10 @@ function HtmlPreview(props: PreviewRendererProps) {
   const toggleLabel = t(source ? strings.messagesFileViewer.htmlRendered : strings.messagesFileViewer.htmlSource);
   const selectClass = "h-11 min-w-0 rounded-lg border-0 bg-transparent px-1 text-xs text-wc-text-secondary outline-none hover:bg-wc-surface-input focus-visible:ring-2 focus-visible:ring-wc-accent disabled:opacity-40";
 
-  if (!text?.content) return <EmptyText />;
+  if (error) return <UnavailableText model={model} failed={error === "fetch"} />;
+  if (content === null) return <div role="status" className="p-6 text-sm text-wc-text-muted">{t(strings.messagesFileViewer.loadingPreview)}</div>;
+  if (content === "") return <EmptyText />;
+  const sourceProps = { ...props, text: text ?? { resolvedPath: model.resolvedPath, kind: model.kind, mimeType: model.mimeType, content, truncated: false } };
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col" data-testid="file-preview-html">
       <div role="toolbar" aria-label={t(strings.messagesFileViewer.htmlControls)} className="flex shrink-0 items-center gap-1 border-b border-wc-default px-2 py-1 sm:px-3">
@@ -170,9 +183,9 @@ function HtmlPreview(props: PreviewRendererProps) {
           ><Plus /></IconButton>
         </div>
       </div>
-      {source ? <div className="min-h-0 flex-1"><SourcePreview {...props} /></div> : <>
+      {source ? <div className="min-h-0 flex-1"><SourcePreview {...sourceProps} /></div> : <>
         <p className="shrink-0 px-3 py-2 text-xs text-wc-text-muted">{t(strings.messagesFileViewer.htmlLimitations)}</p>
-        {text.truncated && <PreviewNotice message={t(strings.messagesFileViewer.truncatedNotice)} tone="info" />}
+        {text?.truncated && <PreviewNotice message={t(strings.messagesFileViewer.truncatedNotice)} tone="info" />}
         <div ref={stageRef} className="min-h-0 min-w-0 flex-1 overflow-auto bg-wc-surface-base">
           <div ref={inspectionRef} className="relative mx-auto overflow-hidden" style={{ contain: "paint", width: viewportWidth * scale || "100%", height: stageSize.height || "100%" }}>
             <iframe
@@ -180,7 +193,7 @@ function HtmlPreview(props: PreviewRendererProps) {
               title={t(strings.messagesFileViewer.htmlPreview, { name: model.basename })}
               sandbox="allow-scripts"
               referrerPolicy="no-referrer"
-              srcDoc={htmlPreviewDocument(text.content, model.runtimeHref)}
+              srcDoc={htmlPreviewDocument(content, model.runtimeHref)}
               className="absolute left-0 top-0 max-w-none origin-top-left border-0 bg-white [color-scheme:light]"
               style={{ willChange: "transform", width: viewportWidth || "100%", height: stageSize.height ? stageSize.height / scale : "100%", transform: `scale(${String(scale)})` }}
             />
@@ -189,6 +202,15 @@ function HtmlPreview(props: PreviewRendererProps) {
       </>}
     </div>
   );
+}
+
+function UnavailableText({ model, failed = false }: { model: PreviewRendererProps["model"]; failed?: boolean }) {
+  const { t } = useTranslation();
+  return <div className="flex h-full flex-col items-center justify-center gap-4 overflow-auto p-6 text-center" data-testid="file-preview-text-unavailable">
+    <PreviewNotice message={t(failed ? strings.messagesFileViewer.mediaLoadError : strings.messagesFileViewer.textUnavailable)} />
+    <PreviewMetaLine model={model} />
+    <PreviewActions model={model} className="justify-center" />
+  </div>;
 }
 
 function EmptyText() {

@@ -869,6 +869,47 @@ func TestAdapterReservedCreateUsesDurableIdentityAndLiveRuntime(t *testing.T) {
 	}
 }
 
+type reservedNativeCreateCapture struct {
+	input CreateInput
+	token string
+}
+
+func (c *reservedNativeCreateCapture) Create(_ context.Context, in CreateInput) (Session, error) {
+	c.input = in
+	c.token, _ = TakeSessionRunIdentity(in.RequestedSessionID)
+	return Session{ID: in.RequestedSessionID, CreateFingerprint: in.RequestFingerprint, Owner: in.Owner, Origin: in.Origin}, nil
+}
+func (*reservedNativeCreateCapture) List(context.Context) ([]Session, error) { return nil, nil }
+func (*reservedNativeCreateCapture) Get(context.Context, string) (Session, error) {
+	return Session{}, ErrNotFound
+}
+func (*reservedNativeCreateCapture) Delete(context.Context, string) error  { return nil }
+func (*reservedNativeCreateCapture) Archive(context.Context, string) error { return nil }
+
+func TestAdapterReservedNativeCreateRoutesTypedIdentityToManagedOwner(t *testing.T) {
+	store := sessionstore.NewInMemory()
+	managed := &reservedNativeCreateCapture{}
+	a := &Adapter{Manager: session.NewManagerWithFactory(ptyfake.NewFactory()), Store: store, ManagedCodex: managed}
+	service := identity.Principal{Kind: identity.ActorService, Subject: "agent-manager", Verified: true, Source: identity.SourceScenarioAuthenticator}
+	ctx := identity.WithPrincipal(t.Context(), service)
+	in := CreateInput{
+		RequestedSessionID: "c06dce6e-c663-4898-bf98-d66f13013197", RequestFingerprint: "request-fingerprint-digest",
+		AgentRunIdentityToken: "signed-child-token", AgentType: "codex", LaunchMode: "codex_app_server",
+		LaunchDescriptorJSON: `{"agent":"codex","launchMode":"codex_app_server"}`, WorkingDir: "/workspace/goal",
+		Backend: "persistent", Origin: "programmatic", DisplayLabel: "interactive goal",
+	}
+	created, err := a.Create(ctx, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.ID != in.RequestedSessionID || managed.input.LaunchMode != in.LaunchMode || managed.input.LaunchDescriptorJSON != in.LaunchDescriptorJSON || managed.input.WorkingDir != in.WorkingDir || managed.token != in.AgentRunIdentityToken {
+		t.Fatalf("managed native create did not receive typed reserved identity: created=%+v input=%+v token=%q", created, managed.input, managed.token)
+	}
+	if len(a.Manager.List()) != 0 {
+		t.Fatalf("native create unexpectedly opened %d PTY sessions", len(a.Manager.List()))
+	}
+}
+
 type refusedReservedSave struct{ sessionstore.Store }
 
 func (s refusedReservedSave) Save(context.Context, sessionstore.Metadata) error {
@@ -930,5 +971,102 @@ func TestStableCreateCapabilityPinsCanonicalVerifiedOwner(t *testing.T) {
 	anonymous, err := h.List(t.Context(), connect.NewRequest(&sessionsv1.ListRequest{}))
 	if err != nil || anonymous.Msg.StableCreateOwner != "" {
 		t.Fatalf("anonymous capability=%+v err=%v", anonymous, err)
+	}
+}
+
+type nativeArchiveFixture struct {
+	ManagedCodexService
+	calls int
+	err   error
+}
+
+func (f *nativeArchiveFixture) Archive(context.Context, string) error { f.calls++; return f.err }
+func TestAdapterNativeArchivePreservesArtifactsAndRetriesRuntimeFailure(t *testing.T) {
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE session_lifecycle_receipts (operation_id TEXT PRIMARY KEY, session_id TEXT NOT NULL, actor_kind TEXT NOT NULL, actor_id TEXT NOT NULL, command TEXT NOT NULL, from_state TEXT NOT NULL, to_state TEXT NOT NULL, reason_code TEXT NOT NULL, status TEXT NOT NULL, error_code TEXT NOT NULL, created_at TEXT NOT NULL, completed_at TEXT)`); err != nil {
+		t.Fatal(err)
+	}
+	store := sessionstore.NewInMemory()
+	id := "native-archive"
+	meta := sessionstore.Metadata{ID: id, Backend: backend.Persistent, Created: time.Now().UTC(), Owner: "agent-manager", LaunchMode: sessionstore.LaunchModeCodexAppServer, NativeOwner: "original-generation", NativeThreadID: "original-thread"}
+	if err := store.Save(t.Context(), meta); err != nil {
+		t.Fatal(err)
+	}
+	native := &nativeArchiveFixture{err: errors.New("retirement unknown")}
+	ledger := continuity.NewSQLLedger(db)
+	a := &Adapter{Store: store, ManagedCodex: native, LifecycleLedger: ledger}
+	ctx := WithOperationID(t.Context(), "archive:"+id)
+	if err := a.Archive(ctx, id); err == nil {
+		t.Fatal("runtime failure reported archive success")
+	}
+	receipt, err := ledger.Get(t.Context(), "archive:"+id)
+	if err != nil || receipt.Status != "failed" {
+		t.Fatalf("receipt=%+v err=%v", receipt, err)
+	}
+	native.err = nil
+	if err := a.Archive(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if native.calls != 2 {
+		t.Fatalf("retirement retry count=%d", native.calls)
+	}
+	saved, err := store.Get(t.Context(), id)
+	if err != nil || saved.ArchivedAt.IsZero() || saved.NativeOwner != meta.NativeOwner || saved.NativeThreadID != meta.NativeThreadID {
+		t.Fatalf("archive discarded artifacts: saved=%+v err=%v", saved, err)
+	}
+	if err := a.Archive(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if native.calls != 3 {
+		t.Fatalf("successful receipt replay did not reconfirm native retirement: %d", native.calls)
+	}
+	native.err = errors.New("retirement proof lost")
+	if err := a.Archive(ctx, id); err == nil {
+		t.Fatal("historical successful receipt hid unknown native retirement")
+	}
+}
+func TestAdapterNativeArchiveRequiresRuntimeOwner(t *testing.T) {
+	store := sessionstore.NewInMemory()
+	if err := store.Save(t.Context(), sessionstore.Metadata{ID: "unknown-native", LaunchMode: sessionstore.LaunchModeCodexAppServer, Created: time.Now().UTC()}); err != nil {
+		t.Fatal(err)
+	}
+	a := &Adapter{Store: store}
+	if err := a.Archive(t.Context(), "unknown-native"); !errors.Is(err, ErrUnavailable) {
+		t.Fatalf("missing native runtime owner error=%v", err)
+	}
+}
+
+type unknownArchiveMetadata struct{ sessionstore.Store }
+
+func (unknownArchiveMetadata) Get(context.Context, string) (sessionstore.Metadata, error) {
+	return sessionstore.Metadata{}, errors.New("metadata read unavailable")
+}
+func TestAdapterNativeArchiveMetadataFailureIsNotAbsence(t *testing.T) {
+	native := &nativeArchiveFixture{}
+	adapter := &Adapter{Store: unknownArchiveMetadata{sessionstore.NewInMemory()}, ManagedCodex: native}
+	err := adapter.Archive(t.Context(), "retained-native")
+	if !errors.Is(err, ErrUnavailable) || errors.Is(err, ErrNotFound) || native.calls != 0 {
+		t.Fatalf("metadata unknown became absent/retired: err=%v calls=%d", err, native.calls)
+	}
+}
+
+type retainedNativeWithoutRow struct{ nativeArchiveFixture }
+
+func (*retainedNativeWithoutRow) Get(context.Context, string) (Session, error) {
+	return Session{ID: "native-without-row", LaunchMode: "codex_app_server", NativeOwner: "original-owner", NativeThreadID: "original-thread"}, nil
+}
+func TestAdapterNativeArchiveMissingMetadataDoesNotClaimRetirement(t *testing.T) {
+	native := &retainedNativeWithoutRow{}
+	adapter := &Adapter{Store: sessionstore.NewInMemory(), ManagedCodex: native}
+	err := adapter.Archive(t.Context(), "native-without-row")
+	if !errors.Is(err, ErrUnavailable) || errors.Is(err, ErrNotFound) || native.calls != 0 {
+		t.Fatalf("retained native runtime became absent/retired: err=%v calls=%d", err, native.calls)
+	}
+	if _, err := native.Get(t.Context(), "native-without-row"); err != nil {
+		t.Fatalf("unknown archive discarded retained native owner: %v", err)
 	}
 }

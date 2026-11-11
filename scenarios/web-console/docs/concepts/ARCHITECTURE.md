@@ -304,6 +304,19 @@ Flow: message link/chip → `openPreview(path)` → `Resolve` issues a session-b
 
 Resolution preserves literal Unicode filenames. After literal candidates are absent, a path beginning with a full-width slash and containing no ASCII slashes gets one absolute-path fallback with full-width separators replaced; successful recovery returns a warning. This also covers percent-encoded Markdown hrefs without applying general Unicode normalization. HTML runtime audio/video admission uses the same extension registry as standalone previews, including `.m4a`, rather than a separate subset.
 
+HTML documents above the 1 MiB inline-text RPC budget load complete UTF-8 bytes from the existing inert blob route, bounded to 16 MiB with cancellation and a 30-second read deadline. Missing or rejected content shows a loading/error/download state, never an empty-file claim. Only a successfully read empty payload is empty. Execution still occurs exclusively in the opaque-origin, CSP-limited iframe; API downloads remain inert.
+
+HTML section links scroll within the authored document without following the runtime
+base URL. Trusted clicks on local file links are handed to the native file viewer:
+the host validates the source frame and transient user activation, resolves the href
+against the actual document path, and uses the normal session resolver, renderer,
+history and retry state. Relative parent paths can therefore open sibling research
+artifacts without allowing the authored page to fetch outside its runtime directory.
+No file contents are returned to the iframe. Synthetic clicks and messages from
+inactive or foreign frames do not open host files. A temporary lifecycle admission
+failure appears in the native viewer with retry/Back, rather than replacing the
+report with an HTTP error document.
+
 HTML previews load relative presentation assets through `GET|HEAD /api/v1/sessions/{id}/file-previews/{previewId}/runtime/{resource}`. The route confines resources to the HTML document's directory, rejects escaping symlinks, and preserves the script-only iframe sandbox. Allowed audio/video resources stream directly from disk without a total-file-size cap; other presentation assets retain a 16 MiB bound. Both byte routes support native HEAD, suffix ranges, 64-bit offsets, and 206/416 responses. Preview writes renew the server's 150-second write deadline per chunk, allowing active transfers to outlast the ordinary response budget while bounding stalled writes. This does not change the preview ID's 30-minute lifetime; reopening an expired preview obtains a fresh ID.
 
 HTML viewing controls follow the drawer header surface: one shared `IconButton`

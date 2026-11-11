@@ -667,7 +667,7 @@ func (s *Server) Handler() http.Handler {
 	// Handle returns *mux.Route and so does not satisfy devrouting.Mux.
 	rootMux := http.NewServeMux()
 	devrouting.RegisterWithFileRoots(rootMux, s.db, s.roots)
-	rootMux.Handle("/", securityHeadersMiddleware(handlers.RecoveryHandler()(cors(s.router))))
+	rootMux.Handle("/", securityHeadersMiddleware(handlers.RecoveryHandler()(cors(webConsoleUIAvailabilityFallback(s.router)))))
 
 	// TestModeMiddleware marks requests carrying X-Vrooli-Test-Mode: 1 so
 	// RoutedDB and RoutedRoots send them to the leased test pool/roots. It is

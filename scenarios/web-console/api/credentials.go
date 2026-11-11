@@ -301,25 +301,37 @@ func (s *Server) credentialTestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func webConsoleSameOrigin(w http.ResponseWriter, r *http.Request) bool {
-	// Loopback is necessary for the internal probe, but an explicit browser
-	// Origin must still match the local host to prevent local cross-origin use.
-	if rawOrigin := strings.TrimSpace(r.Header.Get("Origin")); rawOrigin != "" {
-		origin, err := url.Parse(rawOrigin)
-		if err != nil || origin.Host == "" || origin.Host != strings.TrimSpace(r.Host) {
-			http.Error(w, "same-origin credential request required", http.StatusForbidden)
-			return false
-		}
-	}
 	peer := strings.TrimSpace(r.RemoteAddr)
 	if host, _, err := net.SplitHostPort(peer); err == nil {
 		peer = host
 	} else {
 		peer = strings.Trim(peer, "[]")
 	}
-	if ip := net.ParseIP(peer); ip != nil && ip.IsLoopback() {
-		return true
+	loopback := false
+	if ip := net.ParseIP(peer); ip != nil {
+		loopback = ip.IsLoopback()
 	}
-	if strings.TrimSpace(r.Header.Get("Origin")) == "" {
+
+	// The UI server is a same-origin reverse proxy. At the API hop, Host names
+	// the API port while Origin names the UI authority; the proxy preserves the
+	// browser-facing authority in X-Forwarded-Host. Trust that header only on a
+	// loopback hop, where it was supplied by our own colocated UI server.
+	authority := strings.TrimSpace(r.Host)
+	if loopback {
+		if forwarded := strings.TrimSpace(r.Header.Get("X-Forwarded-Host")); forwarded != "" && !strings.ContainsAny(forwarded, ",/\\") {
+			authority = forwarded
+		}
+	}
+	rawOrigin := strings.TrimSpace(r.Header.Get("Origin"))
+	if rawOrigin == "" {
+		if loopback {
+			return true
+		}
+		http.Error(w, "same-origin credential request required", http.StatusForbidden)
+		return false
+	}
+	origin, err := url.Parse(rawOrigin)
+	if err != nil || (origin.Scheme != "http" && origin.Scheme != "https") || origin.Host == "" || origin.User != nil || origin.Host != authority || origin.Path != "" || origin.RawQuery != "" || origin.Fragment != "" {
 		http.Error(w, "same-origin credential request required", http.StatusForbidden)
 		return false
 	}

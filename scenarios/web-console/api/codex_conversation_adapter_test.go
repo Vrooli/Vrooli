@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -126,22 +127,82 @@ func TestManagedCodexRegistryCreatesAndPersistsNativeSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	registry.start = func(context.Context, string, string, string, string, string, []string, []string) (*codex.ManagedOwner, error) {
+	var launchEnv []string
+	registry.start = func(_ context.Context, _, _, _, _, _ string, env, _ []string) (*codex.ManagedOwner, error) {
+		launchEnv = append([]string(nil), env...)
 		return owner, nil
 	}
-	s, err := registry.Create(context.Background(), sessionsCreateInputForManagedTest())
+	input := sessionsCreateInputForManagedTest()
+	input.RequestedSessionID = "c06dce6e-c663-4898-bf98-d66f13013197"
+	input.RequestFingerprint = "request-fingerprint-digest"
+	input.AgentRunIdentityToken = "signed-child-token"
+	input.Origin = "programmatic"
+	input.Owner = "agent-manager"
+	input.DisplayLabel = "interactive goal"
+	input.LaunchDescriptorJSON = `{"agent":"codex","launchMode":"codex_app_server"}`
+	if !sessionsH.StageSessionRunIdentity(input.RequestedSessionID, input.AgentRunIdentityToken) {
+		t.Fatal("could not stage test child identity")
+	}
+	s, err := registry.Create(context.Background(), input)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if s.LaunchMode != "codex_app_server" || s.NativeThreadID != "thread-1" {
+	if s.ID != input.RequestedSessionID || s.CreateFingerprint != input.RequestFingerprint || s.LaunchMode != "codex_app_server" || s.NativeThreadID != "thread-1" {
 		t.Fatalf("created session = %+v", s)
+	}
+	identityCount := 0
+	for _, value := range launchEnv {
+		if value == "VROOLI_AGENT_IDENTITY_TOKEN=signed-child-token" {
+			identityCount++
+		}
+	}
+	if identityCount != 1 {
+		t.Fatalf("native owner launch env omitted reserved child identity: %v", launchEnv)
 	}
 	meta, err := store.Get(context.Background(), s.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if meta.LaunchMode != sessionstore.LaunchModeCodexAppServer || meta.ControlMode != sessionstore.ControlModeNativeCapable {
+	if meta.LaunchMode != sessionstore.LaunchModeCodexAppServer || meta.ControlMode != sessionstore.ControlModeNativeCapable || meta.CreateFingerprint != input.RequestFingerprint || strings.Contains(meta.LaunchDescriptorJSON, input.AgentRunIdentityToken) || meta.Owner != input.Owner || meta.DisplayLabel != input.DisplayLabel || meta.Origin != sessionstore.OriginProgrammatic {
 		t.Fatalf("stored managed mode = %+v", meta)
+	}
+}
+
+func TestManagedCodexRegistryRejectsIdentityCredentialInDescriptor(t *testing.T) {
+	store := sessionstore.NewInMemory()
+	registry := newManagedCodexRegistry(store)
+	starts := 0
+	registry.start = func(context.Context, string, string, string, string, string, []string, []string) (*codex.ManagedOwner, error) {
+		starts++
+		return nil, nil
+	}
+	in := sessionsCreateInputForManagedTest()
+	in.LaunchDescriptorJSON = `{"agent":"codex","launchMode":"codex_app_server","environment":{"VROOLI_AGENT_IDENTITY_TOKEN":"descriptor-injected"}}`
+	if _, err := registry.Create(context.Background(), in); err == nil {
+		t.Fatal("managed Codex accepted an identity credential in its durable descriptor")
+	}
+	rows, err := store.List(context.Background())
+	if err != nil || starts != 0 || len(rows) != 0 {
+		t.Fatalf("invalid descriptor side effects: starts=%d rows=%d err=%v", starts, len(rows), err)
+	}
+}
+
+func TestManagedCodexRegistryRejectsStaleReceiverGenerationWithoutNativeInput(t *testing.T) {
+	var wire strings.Builder
+	owner, err := codex.NewManagedOwner(codex.NewClient(testWriteCloser{&wire}, strings.NewReader("")), "owner-generation-2", "thread-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	registry := newManagedCodexRegistry(nil)
+	registry.entries["session-1"] = managedCodexEntry{
+		session: sessionsH.Session{ID: "session-1", LaunchMode: "codex_app_server", ControlMode: "native_capable", NativeOwner: "owner-generation-2", NativeThreadID: "thread-1"},
+		owner:   owner,
+	}
+	if _, _, err := registry.DeliverPrompt(context.Background(), "session-1", "owner-generation-1", "thread-1", "", "stale request"); err != codex.ErrGenerationChanged {
+		t.Fatalf("stale receiver generation error = %v", err)
+	}
+	if wire.Len() != 0 {
+		t.Fatalf("stale receiver generation reached native transport: %s", wire.String())
 	}
 }
 
@@ -168,31 +229,36 @@ type testWriteCloser struct{ io.Writer }
 
 func (testWriteCloser) Close() error { return nil }
 
-func TestManagedCodexRecoveryRestoresLiveStatus(t *testing.T) {
+func TestManagedCodexRecoveryKeepsOrphanAwaitingExplicitRecovery(t *testing.T) {
 	ctx := context.Background()
 	store := sessionstore.NewInMemory()
-	if err := store.Save(ctx, sessionstore.Metadata{ID: "session-1", AgentType: sessionstore.AgentCodex, LaunchMode: sessionstore.LaunchModeCodexAppServer, NativeThreadID: "thread-1", LaunchDescriptorJSON: `{"agent":"codex","launchMode":"codex_app_server"}`}); err != nil {
+	original := sessionstore.Metadata{ID: "session-1", AgentType: sessionstore.AgentCodex, LaunchMode: sessionstore.LaunchModeCodexAppServer, NativeThreadID: "thread-1", LaunchDescriptorJSON: `{"agent":"codex","launchMode":"codex_app_server"}`, CreateFingerprint: "persisted-create-digest", Origin: sessionstore.OriginProgrammatic, Owner: "agent-manager", DisplayLabel: "interactive goal"}
+	if err := store.Save(ctx, original); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.MarkOrphaned(ctx, "session-1", time.Now()); err != nil {
+	if err := store.MarkOrphaned(ctx, original.ID, time.Now()); err != nil {
 		t.Fatal(err)
 	}
 	registry := newManagedCodexRegistry(store)
-	owner, err := codex.NewManagedOwner(codex.NewClient(testWriteCloser{io.Discard}, strings.NewReader("")), "owner", "thread-1")
-	if err != nil {
-		t.Fatal(err)
-	}
+	resumed := false
 	registry.resume = func(context.Context, string, string, string, string, string, string, []string, []string) (*codex.ManagedOwner, error) {
-		return owner, nil
+		resumed = true
+		return nil, errors.New("must not auto-resume orphan")
 	}
 	if err := registry.Recover(ctx); err != nil {
 		t.Fatal(err)
 	}
-	meta, _ := store.Get(ctx, "session-1")
-	if meta.Status != sessionstore.StatusLive {
-		t.Fatalf("status = %s", meta.Status)
-	}
-	if _, err := registry.Get(ctx, "session-1"); err != nil {
+	meta, err := store.Get(ctx, original.ID)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if resumed || meta.Status != sessionstore.StatusAwaitingRecovery {
+		t.Fatalf("orphan was automatically revived: resumed=%v status=%s", resumed, meta.Status)
+	}
+	if _, err := registry.Get(ctx, original.ID); err == nil {
+		t.Fatal("orphan registered a live native owner")
+	}
+	if meta.CreateFingerprint != original.CreateFingerprint || meta.Owner != original.Owner || meta.DisplayLabel != original.DisplayLabel || meta.NativeThreadID != original.NativeThreadID || meta.LaunchDescriptorJSON != original.LaunchDescriptorJSON {
+		t.Fatalf("orphan recovery evidence lost: %+v", meta)
 	}
 }

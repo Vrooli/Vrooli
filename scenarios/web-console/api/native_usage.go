@@ -15,6 +15,7 @@ import (
 	codexrollout "github.com/vrooli/vrooli/packages/codex-rollout"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 	"web-console/backends/codex"
+	"web-console/internal/sessionstore"
 )
 
 const (
@@ -59,13 +60,20 @@ func (s *Server) readSessionNativeUsage(ctx context.Context, in *sessionsv1.Read
 		}
 		seen[id] = true
 	}
-	if s.sessionStore == nil {
-		return nil, connect.NewError(connect.CodeUnavailable, errors.New("session store unavailable"))
+	meta, err := s.nativeObservationMetadata(ctx, req.SessionID)
+	if err != nil {
+		return nil, err
 	}
-	if _, err := s.sessionStore.Get(ctx, req.SessionID); err != nil {
-		return nil, connect.NewError(connect.CodeNotFound, errors.New("session unavailable"))
+	var home string
+	if meta.LaunchMode == sessionstore.LaunchModeCodexAppServer {
+		home, err = nativeUsageHome(meta, req.ThreadIDs)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeUnavailable, errors.New("managed native audit binding unavailable"))
+		}
+	} else {
+		home = codex.SessionHomePath(resolveSessionStateRoot(), req.SessionID)
 	}
-	result, err := readNativeUsage(ctx, codex.SessionHomePath(resolveSessionStateRoot(), req.SessionID), req)
+	result, err := readNativeUsage(ctx, home, req)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("native session unavailable"))
 	}

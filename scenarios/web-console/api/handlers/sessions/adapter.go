@@ -21,6 +21,7 @@ import (
 
 	"github.com/vrooli/api-core/nodereach"
 	"github.com/vrooli/api-core/scopecatalog"
+	"web-console/backends/codex"
 	"web-console/internal/backend"
 	"web-console/internal/config"
 	"web-console/internal/continuity"
@@ -52,6 +53,7 @@ type ManagedCodexService interface {
 	List(context.Context) ([]Session, error)
 	Get(context.Context, string) (Session, error)
 	Delete(context.Context, string) error
+	Archive(context.Context, string) error
 }
 
 // ConversationsStore is the minimal seam for moving/clearing conversation
@@ -424,11 +426,12 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 	if in.RequestFingerprint != "" {
 		fingerprint = in.RequestFingerprint
 	}
+	reservedNativeCreate := reservedCodexIdentityCreate(in)
 	if in.RequestedSessionID != "" {
 		if _, err := uuid.Parse(in.RequestedSessionID); err != nil {
 			return Session{}, fmt.Errorf("%w: requested session id must be a UUID", ErrInvalidArgument)
 		}
-		if a.Store == nil || in.TargetID != "" && in.TargetID != "local" || in.LaunchMode != "" || in.ExecuteLaunchCommand {
+		if a.Store == nil || in.TargetID != "" && in.TargetID != "local" || hasNativeLaunchIntent(in) && !reservedNativeCreate || in.ExecuteLaunchCommand {
 			return Session{}, fmt.Errorf("%w: reserved creation requires local durable terminal and client launch", ErrFailedPrecondition)
 		}
 		a.createMu.Lock()
@@ -469,6 +472,12 @@ func (a *Adapter) Create(ctx context.Context, in CreateInput) (Session, error) {
 		return Session{}, fmt.Errorf("%w: launch mode does not match launch descriptor", ErrInvalidArgument)
 	}
 	if in.LaunchMode == string(sessionstore.LaunchModeCodexAppServer) || descriptor.LaunchMode == string(sessionstore.LaunchModeCodexAppServer) {
+		if in.AgentRunIdentityToken != "" {
+			if !putSessionRunIdentity(in.RequestedSessionID, in.AgentRunIdentityToken) {
+				return Session{}, fmt.Errorf("%w: child identity already staged for reserved session", ErrFailedPrecondition)
+			}
+			defer deleteSessionRunIdentity(in.RequestedSessionID)
+		}
 		if a.ManagedCodex == nil {
 			return Session{}, fmt.Errorf("%w: Codex app-server managed owner is not configured", session.ErrBackendUnavailable)
 		}
@@ -1250,6 +1259,24 @@ func (a *Adapter) Archive(ctx context.Context, id string) error {
 		return fmt.Errorf("begin archive receipt: %v: %w", err, ErrInternal)
 	}
 	if replay {
+		// Older archive receipts only marked native metadata; they did not
+		// retire its runtime. Reconfirm that owner even when replaying a
+		// successful receipt, rather than converting historical success into
+		// false process-exit proof. The native owner makes this idempotent.
+		if receipt.Status == "succeeded" && a.Store != nil {
+			meta, getErr := a.Store.Get(ctx, id)
+			if getErr != nil {
+				return fmt.Errorf("verify archived runtime metadata: %v: %w", getErr, ErrUnavailable)
+			}
+			if meta.LaunchMode == sessionstore.LaunchModeCodexAppServer {
+				if a.ManagedCodex == nil {
+					return fmt.Errorf("native runtime owner unavailable: %w", ErrUnavailable)
+				}
+				if err := a.ManagedCodex.Archive(ctx, id); err != nil {
+					return fmt.Errorf("verify native archive retirement: %v: %w", err, ErrUnavailable)
+				}
+			}
+		}
 		return replayLifecycleResult(receipt, "archive")
 	}
 	if a.Store == nil {
@@ -1266,7 +1293,19 @@ func (a *Adapter) Archive(ctx context.Context, id string) error {
 	// lands in the archive view and can be unarchived) rather than a silent
 	// stop with no durable trace.
 	if _, err := a.Store.Get(ctx, id); err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return a.finishLifecycleResult(ctx, receipt, fmt.Errorf("read archive runtime metadata: %v: %w", err, ErrUnavailable), "archive")
+		}
 		if !a.persistLiveSessionRow(ctx, id) {
+			// Missing metadata cannot prove that a separately managed native
+			// runtime is gone. Preserve the owner and make cleanup retryable;
+			// AM deliberately treats true NotFound as successful retirement.
+			if a.ManagedCodex != nil {
+				_, nativeErr := a.ManagedCodex.Get(ctx, id)
+				if nativeErr == nil || !errors.Is(nativeErr, ErrNotFound) {
+					return a.finishLifecycleResult(ctx, receipt, fmt.Errorf("native runtime metadata absent or ownership unverified: %w", ErrUnavailable), "archive")
+				}
+			}
 			operationErr := fmt.Errorf("no session row with id %q: %w", sanitizeID(id), ErrNotFound)
 			return a.finishLifecycleResult(ctx, receipt, operationErr, "archive")
 		}
@@ -1276,6 +1315,14 @@ func (a *Adapter) Archive(ctx context.Context, id string) error {
 		operationErr = fmt.Errorf("mark archived: %v: %w", err, ErrInternal)
 	} else if err := a.updateCatalogLifecycle(ctx, id, continuity.StateArchived); err != nil {
 		operationErr = fmt.Errorf("mark continuity catalog archived: %v: %w", err, ErrInternal)
+	} else if meta, err := a.Store.Get(ctx, id); err != nil {
+		operationErr = fmt.Errorf("read archived session runtime owner: %v: %w", err, ErrInternal)
+	} else if meta.LaunchMode == sessionstore.LaunchModeCodexAppServer {
+		if a.ManagedCodex == nil {
+			operationErr = fmt.Errorf("native runtime owner unavailable: %w", ErrUnavailable)
+		} else if err := a.ManagedCodex.Archive(ctx, id); err != nil {
+			operationErr = fmt.Errorf("retire archived native session %q: %v: %w", sanitizeID(id), err, ErrInternal)
+		}
 	} else if a.Manager != nil {
 		if _, managed := a.Manager.Get(id); managed {
 			if err := a.Manager.Archive(ctx, id); err != nil {
@@ -1781,10 +1828,41 @@ func validateAgentRunIdentityCreate(ctx context.Context, in CreateInput) error {
 	if !ok || !principal.IsVerified() || principal.Kind != identity.ActorService || principal.Source != identity.SourceScenarioAuthenticator || principal.Subject != "agent-manager" {
 		return fmt.Errorf("%w: child identity requires the verified agent-manager service", ErrFailedPrecondition)
 	}
-	if len(in.AgentRunIdentityToken) > 16384 || strings.TrimSpace(in.AgentRunIdentityToken) != in.AgentRunIdentityToken || in.RequestedSessionID == "" || in.TargetID != "" && in.TargetID != "local" || intsessions.NormalizeOrigin(in.Origin) != sessionstore.OriginProgrammatic || in.ExecuteLaunchCommand || in.LaunchMode != "" {
+	if len(in.AgentRunIdentityToken) > 16384 || strings.TrimSpace(in.AgentRunIdentityToken) != in.AgentRunIdentityToken || in.RequestedSessionID == "" || in.TargetID != "" && in.TargetID != "local" || intsessions.NormalizeOrigin(in.Origin) != sessionstore.OriginProgrammatic || in.ExecuteLaunchCommand {
 		return fmt.Errorf("%w: child identity requires a bounded local reserved programmatic create", ErrFailedPrecondition)
 	}
+	if hasNativeLaunchIntent(in) && !reservedCodexIdentityCreate(in) {
+		return fmt.Errorf("%w: child identity native launch requires a typed Codex app-server descriptor", ErrFailedPrecondition)
+	}
 	return nil
+}
+
+func hasNativeLaunchIntent(in CreateInput) bool {
+	if in.LaunchMode != "" {
+		return true
+	}
+	raw := strings.TrimSpace(in.LaunchDescriptorJSON)
+	if raw == "" {
+		return false
+	}
+	descriptor, err := sessionstore.ParseLaunchDescriptor(raw)
+	return err == nil && descriptor.LaunchMode != string(sessionstore.LaunchModeTerminalPTY)
+}
+
+// reservedCodexIdentityCreate is the sole native-mode exception for reserved
+// child-identity creation. The child token cannot authorize arbitrary native
+// providers or a shell command: Web Console owns the Codex app-server launch
+// from its typed descriptor, and the request must not execute a PTY command.
+func reservedCodexIdentityCreate(in CreateInput) bool {
+	if in.AgentRunIdentityToken == "" || in.RequestedSessionID == "" || in.ExecuteLaunchCommand || in.LaunchCommand != "" || in.Backend != "" && in.Backend != string(backend.Persistent) || in.TargetID != "" && in.TargetID != "local" || intsessions.NormalizeOrigin(in.Origin) != sessionstore.OriginProgrammatic || !strings.EqualFold(strings.TrimSpace(in.AgentType), string(sessionstore.AgentCodex)) || in.LaunchMode != string(sessionstore.LaunchModeCodexAppServer) {
+		return false
+	}
+	descriptor, err := sessionstore.ParseLaunchDescriptor(in.LaunchDescriptorJSON)
+	if err != nil || !strings.EqualFold(descriptor.Agent, string(sessionstore.AgentCodex)) || descriptor.LaunchMode != string(sessionstore.LaunchModeCodexAppServer) {
+		return false
+	}
+	_, identityInDescriptor := descriptor.Environment["VROOLI_AGENT_IDENTITY_TOKEN"]
+	return !identityInDescriptor
 }
 
 func createFingerprint(in CreateInput) string {
@@ -1912,4 +1990,52 @@ func (a *Adapter) ReadNativeThreadState(ctx context.Context, req *sessionsv1.Rea
 		return nil, ErrUnavailable
 	}
 	return a.NativeThreadState(ctx, req)
+}
+
+func (a *Adapter) DeliverNativePrompt(ctx context.Context, req *sessionsv1.DeliverNativePromptRequest) (*sessionsv1.DeliverNativePromptResponse, error) {
+	if a.ManagedCodex == nil {
+		return nil, errors.New("managed native prompt delivery unavailable")
+	}
+	deliverer, ok := a.ManagedCodex.(interface {
+		DeliverPrompt(context.Context, string, string, string, string, string) (string, string, error)
+	})
+	if !ok {
+		return nil, errors.New("managed native prompt delivery unavailable")
+	}
+	turnID, delivery, err := deliverer.DeliverPrompt(ctx, req.GetSessionId(), req.GetExpectedNativeOwner(), req.GetExpectedThreadId(), req.GetExpectedTurnId(), req.GetText())
+	if err != nil {
+		return nil, err
+	}
+	return &sessionsv1.DeliverNativePromptResponse{ThreadId: req.GetExpectedThreadId(), TurnId: turnID, Delivery: delivery}, nil
+}
+
+func (a *Adapter) SetNativeGoal(ctx context.Context, req *sessionsv1.SetNativeGoalRequest) (*sessionsv1.SetNativeGoalResponse, error) {
+	if a.ManagedCodex == nil {
+		return nil, errors.New("managed native goal control unavailable")
+	}
+	controller, ok := a.ManagedCodex.(interface {
+		SetGoal(context.Context, string, string, string, string, string, codex.GoalMutationOrigin, *int64) (codex.GoalResult, error)
+	})
+	if !ok {
+		return nil, errors.New("managed native goal control unavailable")
+	}
+	var budget *int64
+	if req.TokenBudget != nil {
+		value := req.GetTokenBudget()
+		budget = &value
+	}
+	var origin codex.GoalMutationOrigin
+	switch req.GetOrigin() {
+	case sessionsv1.NativeGoalMutationOrigin_NATIVE_GOAL_MUTATION_ORIGIN_USER_DIRECTED:
+		origin = codex.GoalOriginUserDirected
+	case sessionsv1.NativeGoalMutationOrigin_NATIVE_GOAL_MUTATION_ORIGIN_AUTOMATIC:
+		origin = codex.GoalOriginAutomatic
+	default:
+		return nil, errors.New("native goal mutation origin is required")
+	}
+	goal, err := controller.SetGoal(ctx, req.GetSessionId(), req.GetExpectedNativeOwner(), req.GetExpectedThreadId(), req.GetObjective(), req.GetStatus(), origin, budget)
+	if err != nil {
+		return nil, err
+	}
+	return &sessionsv1.SetNativeGoalResponse{ThreadId: goal.ThreadID, Status: goal.Status, Objective: goal.Objective}, nil
 }

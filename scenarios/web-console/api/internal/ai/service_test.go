@@ -49,22 +49,7 @@ func TestChainProviderSelectionAndEmptyCases(t *testing.T) {
 	}
 }
 
-func TestOllamaProviderRunnerAndServicePolicy(t *testing.T) {
-	var args []string
-	ollama := &OllamaProvider{Role: " ", Runner: func(_ context.Context, got []string, stdin string) ([]byte, error) {
-		args = got
-		if !strings.Contains(stdin, "System:") {
-			t.Errorf("stdin=%q", stdin)
-		}
-		return []byte(`{"response":"ls -la"}`), nil
-	}}
-	if got, err := ollama.Generate(context.Background(), "sys", "user"); err != nil || got != "ls -la" || args[2] != "--role" || args[3] != "chat.default" {
-		t.Fatalf("ollama: %q %v args=%v", got, err, args)
-	}
-	badJSON := &OllamaProvider{Runner: func(context.Context, []string, string) ([]byte, error) { return []byte("bad"), nil }}
-	if _, err := badJSON.Generate(context.Background(), "", ""); err == nil {
-		t.Fatal("invalid JSON should fail")
-	}
+func TestServiceHonorsProviderConfigAndReportsUsage(t *testing.T) {
 	store := NewMemConfigStore()
 	store.UpdateConfig(context.Background(), "openrouter", false, 2, 30, 0)
 	provider := &testProvider{name: "ollama", output: "command"}

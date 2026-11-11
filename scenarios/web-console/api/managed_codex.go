@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -20,14 +21,16 @@ import (
 )
 
 type managedCodexEntry struct {
-	session sessionsH.Session
-	owner   *codex.ManagedOwner
+	session  sessionsH.Session
+	owner    *codex.ManagedOwner
+	retiring bool
 }
 
 type managedCodexRegistry struct {
 	mu        sync.RWMutex
 	store     sessionstore.Store
 	entries   map[string]managedCodexEntry
+	retired   map[string]bool
 	register  func(context.Context, string, *codex.ManagedOwner, string, string, string) error
 	eventSink func(string, codex.NativeEvent)
 	start     func(context.Context, string, string, string, string, string, []string, []string) (*codex.ManagedOwner, error)
@@ -49,11 +52,19 @@ func codexLaunchArgs(d sessionstore.LaunchDescriptor) []string {
 	args := []string{"app-server", "--stdio"}
 	config := func(key, value string) {
 		if strings.TrimSpace(value) != "" {
-			args = append(args, "-c", key+"=\""+strings.ReplaceAll(value, "\"", "\\\"")+"\"")
+			encoded, _ := json.Marshal(value) // JSON basic strings are valid TOML basic strings.
+			args = append(args, "-c", key+"="+string(encoded))
 		}
 	}
 	config("model", d.Model)
 	config("profile", d.Profile)
+	config("model_reasoning_effort", d.ReasoningEffort)
+	if d.ContextLimitTokens > 0 {
+		args = append(args, "-c", fmt.Sprintf("model_auto_compact_token_limit=%d", d.ContextLimitTokens))
+	}
+	if d.NetworkAccessDisabled {
+		args = append(args, "-c", "sandbox_workspace_write.network_access=false", "-c", "sandbox_workspace_write.writable_roots=[]")
+	}
 	config("approval_policy", d.ApprovalPolicy)
 	config("sandbox_mode", d.Sandbox)
 	if strings.TrimSpace(d.ApprovalPolicy) == "" {
@@ -76,7 +87,7 @@ func codexModeSettings() (usagemode.RunnerSettings, bool) {
 // when it would lower the harness's own default. Create stores this descriptor,
 // so a later Recover replays exactly what the thread started on.
 func codexCreateDescriptor(d sessionstore.LaunchDescriptor) sessionstore.LaunchDescriptor {
-	if strings.TrimSpace(d.Model) != "" {
+	if d.ControlsVersion == 1 || strings.TrimSpace(d.Model) != "" {
 		return d
 	}
 	if settings, ok := codexModeSettings(); ok && usagemode.SessionModelAllowed("codex", settings) {
@@ -89,7 +100,7 @@ func codexCreateDescriptor(d sessionstore.LaunchDescriptor) sessionstore.LaunchD
 // with the mode's model, plus the mode's context limit for this launch.
 func codexCreateArgs(d sessionstore.LaunchDescriptor) []string {
 	args := codexLaunchArgs(codexCreateDescriptor(d))
-	if settings, ok := codexModeSettings(); ok && settings.ContextLimitTokens > 0 {
+	if settings, ok := codexModeSettings(); ok && d.ControlsVersion == 0 && d.ContextLimitTokens == 0 && settings.ContextLimitTokens > 0 {
 		args = append(args, "-c", fmt.Sprintf("model_auto_compact_token_limit=%d", settings.ContextLimitTokens))
 	}
 	return args
@@ -103,6 +114,9 @@ func codexLaunchEnv(d sessionstore.LaunchDescriptor) []string {
 	sort.Strings(keys)
 	env := make([]string, 0, len(keys))
 	for _, key := range keys {
+		if key == "VROOLI_AGENT_IDENTITY_TOKEN" {
+			continue
+		}
 		env = append(env, key+"="+d.Environment[key])
 	}
 	return env
@@ -133,6 +147,9 @@ func (r *managedCodexRegistry) watch(id string, owner *codex.ManagedOwner) {
 				}
 				event, mapped := codex.MapNotification(message)
 				if mapped {
+					if event.Kind == "turn/started" {
+						owner.MarkTurnStarted(event.ThreadID, event.TurnID)
+					}
 					if event.Kind == "turn/completed" && owner.MarkTurnCompleted(event.ThreadID, event.TurnID) && r.store != nil {
 						_ = r.store.UpdateAgentInfo(context.Background(), id, sessionstore.AgentInfo{NativeThreadID: owner.ThreadID(), LastVerifiedTurnID: owner.LastVerifiedTurnID()})
 					}
@@ -152,12 +169,18 @@ func (r *managedCodexRegistry) watch(id string, owner *codex.ManagedOwner) {
 func (r *managedCodexRegistry) markUnavailable(id string, owner *codex.ManagedOwner) {
 	r.mu.Lock()
 	entry, ok := r.entries[id]
-	if ok && entry.owner == owner {
-		delete(r.entries, id)
+	changed := ok && entry.owner == owner && !entry.retiring
+	if changed {
+		// Stream EOF is not process-exit proof. Keep its exact runtime owner for
+		// retirement while removing its ability to receive work or auto-recover.
+		entry.retiring = true
+		owner.BeginRetirement()
+		entry.session.ControlMode = string(sessionstore.ControlModeRecoveryOnly)
+		r.entries[id] = entry
 	}
 	r.mu.Unlock()
-	if ok && entry.owner == owner && r.store != nil {
-		_ = r.store.UpdateAgentInfo(context.Background(), id, sessionstore.AgentInfo{ControlMode: sessionstore.ControlModeRecoveryOnly, NativeOwner: ""})
+	if changed && r.store != nil {
+		_ = r.store.UpdateAgentInfo(context.Background(), id, sessionstore.AgentInfo{ControlMode: sessionstore.ControlModeRecoveryOnly, ClearNativeOwner: true})
 	}
 }
 
@@ -170,8 +193,14 @@ func (r *managedCodexRegistry) Create(ctx context.Context, in sessionsH.CreateIn
 		raw = fmt.Sprintf(`{"agent":"codex","launchMode":"codex_app_server"}`)
 	}
 	d, err := sessionstore.ParseLaunchDescriptor(raw)
-	if err != nil || d.LaunchMode != string(sessionstore.LaunchModeCodexAppServer) {
+	if err != nil {
 		return sessionsH.Session{}, fmt.Errorf("invalid managed Codex launch descriptor: %w", err)
+	}
+	if d.LaunchMode != string(sessionstore.LaunchModeCodexAppServer) {
+		return sessionsH.Session{}, fmt.Errorf("invalid managed Codex launch mode %q", d.LaunchMode)
+	}
+	if _, exists := d.Environment["VROOLI_AGENT_IDENTITY_TOKEN"]; exists {
+		return sessionsH.Session{}, fmt.Errorf("managed Codex identity must use the reserved one-use credential handoff")
 	}
 	cwd := strings.TrimSpace(in.WorkingDir)
 	if cwd == "" {
@@ -180,8 +209,11 @@ func (r *managedCodexRegistry) Create(ctx context.Context, in sessionsH.CreateIn
 	if len(d.WorkspaceRoots) > 0 && (len(d.WorkspaceRoots) != 1 || strings.TrimSpace(d.WorkspaceRoots[0]) != cwd) {
 		return sessionsH.Session{}, fmt.Errorf("managed Codex supports one workspace root matching working_dir")
 	}
-	id := uuid.NewString()
-	ownerID := "web-console:" + id
+	id := strings.TrimSpace(in.RequestedSessionID)
+	if id == "" {
+		id = uuid.NewString()
+	}
+	ownerID := "web-console:" + id + ":" + uuid.NewString()
 	executable := strings.TrimSpace(os.Getenv("CODEX_EXECUTABLE"))
 	if executable == "" {
 		executable = "codex"
@@ -197,7 +229,15 @@ func (r *managedCodexRegistry) Create(ctx context.Context, in sessionsH.CreateIn
 			raw = string(stored)
 		}
 	}
-	owner, err := start(ctx, executable, ownerID, "web-console", "1.0.0", cwd, codexLaunchEnv(d), codexCreateArgs(d))
+	launchEnv := codexLaunchEnv(d)
+	if in.AgentRunIdentityToken != "" {
+		token, ok := sessionsH.TakeSessionRunIdentity(id)
+		if !ok || token == "" || token != in.AgentRunIdentityToken {
+			return sessionsH.Session{}, fmt.Errorf("reserved Codex child identity handoff missing or mismatched")
+		}
+		launchEnv = append(launchEnv, "VROOLI_AGENT_IDENTITY_TOKEN="+token)
+	}
+	owner, err := start(ctx, executable, ownerID, "web-console", "1.0.0", cwd, launchEnv, codexCreateArgs(d))
 	if err != nil {
 		return sessionsH.Session{}, fmt.Errorf("start managed Codex: %w", err)
 	}
@@ -210,7 +250,7 @@ func (r *managedCodexRegistry) Create(ctx context.Context, in sessionsH.CreateIn
 	}
 	createdAt := time.Now().UTC()
 	if r.store != nil {
-		if err := r.store.Save(ctx, sessionstore.Metadata{ID: id, Backend: backend.Persistent, Cols: uint16(in.Cols), Rows: uint16(in.Rows), Created: createdAt, Detached: true, AgentType: sessionstore.AgentCodex, LaunchMode: sessionstore.LaunchModeCodexAppServer, ControlMode: sessionstore.ControlModeUnknown, LaunchDescriptorJSON: raw, CWD: cwd}); err != nil {
+		if err := r.store.Save(ctx, sessionstore.Metadata{ID: id, Backend: backend.Persistent, Cols: uint16(in.Cols), Rows: uint16(in.Rows), Created: createdAt, Detached: true, AgentType: sessionstore.AgentCodex, LaunchMode: sessionstore.LaunchModeCodexAppServer, ControlMode: sessionstore.ControlModeUnknown, LaunchDescriptorJSON: raw, CWD: cwd, CreateFingerprint: in.RequestFingerprint}); err != nil {
 			_ = owner.Close()
 			return sessionsH.Session{}, err
 		}
@@ -237,7 +277,7 @@ func (r *managedCodexRegistry) Create(ctx context.Context, in sessionsH.CreateIn
 			return sessionsH.Session{}, err
 		}
 	}
-	s := sessionsH.Session{ID: id, CreatedAt: createdAt.Format(time.RFC3339), Cols: in.Cols, Rows: in.Rows, Backend: string(backend.Persistent), SurvivesRestart: true, Origin: in.Origin, Owner: in.Owner, DisplayLabel: in.DisplayLabel, LaunchMode: string(sessionstore.LaunchModeCodexAppServer), ControlMode: string(sessionstore.ControlModeNativeCapable), NativeOwner: owner.OwnerID(), NativeTransport: "stdio", ProviderVersion: version, NativeThreadID: owner.ThreadID()}
+	s := sessionsH.Session{ID: id, CreateFingerprint: in.RequestFingerprint, CreatedAt: createdAt.Format(time.RFC3339), Cols: in.Cols, Rows: in.Rows, Backend: string(backend.Persistent), SurvivesRestart: true, Origin: in.Origin, Owner: in.Owner, DisplayLabel: in.DisplayLabel, LaunchMode: string(sessionstore.LaunchModeCodexAppServer), ControlMode: string(sessionstore.ControlModeNativeCapable), NativeOwner: owner.OwnerID(), NativeTransport: "stdio", ProviderVersion: version, NativeThreadID: owner.ThreadID()}
 	r.mu.Lock()
 	r.entries[id] = managedCodexEntry{session: s, owner: owner}
 	r.mu.Unlock()
@@ -269,7 +309,59 @@ func (r *managedCodexRegistry) owner(id string) (*codex.ManagedOwner, bool) {
 	r.mu.RLock()
 	entry, ok := r.entries[id]
 	r.mu.RUnlock()
-	return entry.owner, ok && entry.owner != nil
+	return entry.owner, ok && entry.owner != nil && !entry.retiring
+}
+
+// ReadThreadStates uses only the captured managed transport. Persisted generation
+// and active thread must still match before any provider request is admitted.
+func (r *managedCodexRegistry) ReadThreadStates(ctx context.Context, meta sessionstore.Metadata, ids []string) ([]codex.NativeThreadState, error) {
+	if r == nil {
+		return nil, errors.New("managed native registry unavailable")
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	entry, ok := r.entries[meta.ID]
+	if !ok || entry.owner == nil || entry.retiring || meta.ControlMode != sessionstore.ControlModeNativeCapable || meta.NativeOwner == "" || meta.NativeOwner != entry.session.NativeOwner || meta.NativeThreadID == "" || meta.NativeThreadID != entry.session.NativeThreadID || entry.session.ID != meta.ID || entry.session.LaunchMode != string(sessionstore.LaunchModeCodexAppServer) || entry.session.ControlMode != string(sessionstore.ControlModeNativeCapable) {
+		return nil, codex.ErrGenerationChanged
+	}
+	return entry.owner.ReadNativeThreadStates(ctx, ids)
+}
+
+// DeliverPrompt pins the current session registry generation while dispatching
+// directly through its managed native owner. This path has no PTY fallback.
+func (r *managedCodexRegistry) DeliverPrompt(ctx context.Context, sessionID, expectedOwnerID, expectedThreadID, expectedTurnID, text string) (string, string, error) {
+	if r == nil {
+		return "", "", errors.New("managed Codex registry unavailable")
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	entry, ok := r.entries[sessionID]
+	if !ok || entry.owner == nil || entry.retiring {
+		return "", "", errors.New("live native owner unavailable")
+	}
+	if entry.session.ID != sessionID || entry.session.NativeThreadID == "" || entry.session.NativeThreadID != expectedThreadID || entry.session.ControlMode != string(sessionstore.ControlModeNativeCapable) || entry.session.LaunchMode != string(sessionstore.LaunchModeCodexAppServer) {
+		return "", "", codex.ErrGenerationChanged
+	}
+	if expectedOwnerID == "" || entry.session.NativeOwner != expectedOwnerID {
+		return "", "", codex.ErrGenerationChanged
+	}
+	return entry.owner.DeliverPrompt(ctx, expectedThreadID, expectedTurnID, text)
+}
+
+func (r *managedCodexRegistry) SetGoal(ctx context.Context, sessionID, expectedOwnerID, expectedThreadID, objective, status string, origin codex.GoalMutationOrigin, tokenBudget *int64) (codex.GoalResult, error) {
+	if r == nil {
+		return codex.GoalResult{}, errors.New("managed Codex registry unavailable")
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	entry, ok := r.entries[sessionID]
+	if !ok || entry.owner == nil || entry.retiring {
+		return codex.GoalResult{}, errors.New("live native owner unavailable")
+	}
+	if entry.session.ID != sessionID || entry.session.NativeThreadID == "" || entry.session.NativeThreadID != expectedThreadID || entry.session.ControlMode != string(sessionstore.ControlModeNativeCapable) || entry.session.LaunchMode != string(sessionstore.LaunchModeCodexAppServer) || expectedOwnerID == "" || entry.session.NativeOwner != expectedOwnerID {
+		return codex.GoalResult{}, codex.ErrGenerationChanged
+	}
+	return entry.owner.SetGoal(ctx, expectedThreadID, objective, status, origin, tokenBudget)
 }
 
 func (r *managedCodexRegistry) recordFork(ctx context.Context, id, originalThreadID, activeThreadID, turnID string) error {
@@ -289,21 +381,52 @@ func (r *managedCodexRegistry) recordFork(ctx context.Context, id, originalThrea
 	return nil
 }
 
-func (r *managedCodexRegistry) Delete(ctx context.Context, id string) error {
+// Archive retires only the runtime. Metadata, conversation and transcript
+// artifacts remain owned by the archive lifecycle. Failed/unknown retirement
+// retains the exact entry so an archive retry can observe its original owner.
+func (r *managedCodexRegistry) Archive(ctx context.Context, id string) error {
 	r.mu.Lock()
-	e, ok := r.entries[id]
-	if ok {
+	entry, ok := r.entries[id]
+	if !ok {
+		retired := r.retired[id]
+		r.mu.Unlock()
+		if retired {
+			return nil
+		}
+		return fmt.Errorf("managed Codex runtime retirement is unverified for %q", id)
+	}
+	entry.retiring = true
+	if entry.owner != nil {
+		entry.owner.BeginRetirement()
+	}
+	r.entries[id] = entry
+	r.mu.Unlock()
+	if entry.owner == nil {
+		return fmt.Errorf("managed Codex runtime owner unavailable for %q", id)
+	}
+	if err := entry.owner.CloseContext(ctx); err != nil {
+		return fmt.Errorf("retire managed Codex session %q: %w", id, err)
+	}
+	r.mu.Lock()
+	if current, ok := r.entries[id]; ok && current.owner == entry.owner {
 		delete(r.entries, id)
+		if r.retired == nil {
+			r.retired = make(map[string]bool)
+		}
+		r.retired[id] = true
 	}
 	r.mu.Unlock()
-	if !ok {
-		return fmt.Errorf("managed Codex session %q not found", id)
-	}
-	if err := e.owner.Close(); err != nil {
+	return nil
+}
+
+func (r *managedCodexRegistry) Delete(ctx context.Context, id string) error {
+	if err := r.Archive(ctx, id); err != nil {
 		return err
 	}
 	if r.store != nil {
-		_ = r.store.Delete(ctx, id)
+		if err := r.store.Delete(ctx, id); err != nil {
+			return fmt.Errorf("delete retired managed Codex metadata: %w", err)
+		}
 	}
 	return nil
 }
@@ -315,7 +438,7 @@ func (s *Server) captureManagedCodexEvent(sessionID string, native codex.NativeE
 	s.managedCodex.mu.RLock()
 	entry, ok := s.managedCodex.entries[sessionID]
 	s.managedCodex.mu.RUnlock()
-	if !ok || entry.owner == nil {
+	if !ok || entry.owner == nil || entry.retiring {
 		return
 	}
 	threadID := native.ThreadID
@@ -356,38 +479,76 @@ func (r *managedCodexRegistry) Recover(ctx context.Context) error {
 	if executable == "" {
 		executable = "codex"
 	}
+	invalidate := func(id string, recoveryErr error) error {
+		if err := r.store.UpdateAgentInfo(ctx, id, sessionstore.AgentInfo{ControlMode: sessionstore.ControlModeRecoveryOnly, ClearNativeOwner: true}); err != nil {
+			return fmt.Errorf("persist failed native recovery for %s: %w", id, errors.Join(recoveryErr, err))
+		}
+		return nil
+	}
 	for _, meta := range rows {
-		if meta.LaunchMode != sessionstore.LaunchModeCodexAppServer || meta.NativeThreadID == "" {
+		// Runtime exits awaiting explicit recovery and deliberate retirement must
+		// never be undone by a service restart. Canonical stores normalize legacy
+		// blank statuses on read; an unclassified raw row is not authority.
+		if meta.LaunchMode != sessionstore.LaunchModeCodexAppServer || meta.NativeThreadID == "" ||
+			meta.Status != sessionstore.StatusLive ||
+			!meta.ArchivedAt.IsZero() || meta.RecoveredInto != "" {
 			continue
 		}
 		descriptor, descriptorErr := sessionstore.ParseLaunchDescriptor(meta.LaunchDescriptorJSON)
 		if descriptorErr != nil {
-			_ = r.store.UpdateAgentInfo(ctx, meta.ID, sessionstore.AgentInfo{ControlMode: sessionstore.ControlModeRecoveryOnly})
+			if err := invalidate(meta.ID, descriptorErr); err != nil {
+				return err
+			}
 			continue
 		}
-		owner, resumeErr := r.resume(ctx, executable, "web-console:"+meta.ID, "web-console", meta.ProviderVersion, meta.NativeThreadID, meta.CWD, codexLaunchEnv(descriptor), codexLaunchArgs(descriptor))
+		// AM's signed child credential is a one-use Create handoff, never a
+		// persisted launch environment. Until a supported recovery handshake
+		// exists, a restart cannot truthfully restore that agent identity.
+		// Owner is the verified service subject; the exact store marker also
+		// covers the service's human-labelled tunnel launches (AM phases/env.go).
+		if meta.Owner == "agent-manager" || strings.TrimSpace(descriptor.Environment["VROOLI_AGENT_MANAGER_STORE_ID"]) != "" {
+			if err := invalidate(meta.ID, errors.New("managed child identity has no authorized recovery handshake")); err != nil {
+				return err
+			}
+			continue
+		}
+		ownerID := "web-console:" + meta.ID + ":" + uuid.NewString()
+		owner, resumeErr := r.resume(ctx, executable, ownerID, "web-console", meta.ProviderVersion, meta.NativeThreadID, meta.CWD, codexLaunchEnv(descriptor), codexLaunchArgs(descriptor))
 		if resumeErr != nil {
-			_ = r.store.UpdateAgentInfo(ctx, meta.ID, sessionstore.AgentInfo{ControlMode: sessionstore.ControlModeRecoveryOnly, NativeOwner: ""})
+			if err := invalidate(meta.ID, resumeErr); err != nil {
+				return err
+			}
 			continue
 		}
 		if err := owner.RestoreLineage(meta.ForkedFromNativeSession, meta.LastVerifiedTurnID); err != nil {
 			_ = owner.Close()
-			_ = r.store.UpdateAgentInfo(ctx, meta.ID, sessionstore.AgentInfo{ControlMode: sessionstore.ControlModeRecoveryOnly, NativeOwner: ""})
+			if invalidationErr := invalidate(meta.ID, err); invalidationErr != nil {
+				return invalidationErr
+			}
 			continue
 		}
 		version := meta.ProviderVersion
 		if ownerVersion := strings.TrimSpace(owner.ProviderVersion()); ownerVersion != "" {
 			version = ownerVersion
 		}
-		if r.register != nil && r.register(ctx, meta.ID, owner, version, meta.NativeTransport, meta.LaunchDescriptorJSON) != nil {
-			_ = owner.Close()
-			continue
-		}
+		// Confirm storage eligibility before publishing the candidate owner.
 		if err := r.store.MarkLive(ctx, meta.ID); err != nil {
 			_ = owner.Close()
+			if invalidationErr := invalidate(meta.ID, err); invalidationErr != nil {
+				return invalidationErr
+			}
 			continue
 		}
-		s := sessionsH.Session{ID: meta.ID, CreatedAt: meta.Created.UTC().Format(time.RFC3339), Cols: int(meta.Cols), Rows: int(meta.Rows), Backend: string(backend.Persistent), SurvivesRestart: true, Origin: string(meta.Origin), Owner: meta.Owner, DisplayLabel: meta.DisplayLabel, LaunchMode: string(meta.LaunchMode), ControlMode: string(sessionstore.ControlModeNativeCapable), NativeOwner: owner.OwnerID(), NativeTransport: meta.NativeTransport, ProviderVersion: version, NativeThreadID: owner.ThreadID()}
+		if r.register != nil {
+			if err := r.register(ctx, meta.ID, owner, version, meta.NativeTransport, meta.LaunchDescriptorJSON); err != nil {
+				_ = owner.Close()
+				if invalidationErr := invalidate(meta.ID, err); invalidationErr != nil {
+					return invalidationErr
+				}
+				continue
+			}
+		}
+		s := sessionsH.Session{ID: meta.ID, CreateFingerprint: meta.CreateFingerprint, CreatedAt: meta.Created.UTC().Format(time.RFC3339), Cols: int(meta.Cols), Rows: int(meta.Rows), Backend: string(backend.Persistent), SurvivesRestart: true, Origin: string(meta.Origin), Owner: meta.Owner, DisplayLabel: meta.DisplayLabel, LaunchMode: string(meta.LaunchMode), ControlMode: string(sessionstore.ControlModeNativeCapable), NativeOwner: owner.OwnerID(), NativeTransport: meta.NativeTransport, ProviderVersion: version, NativeThreadID: owner.ThreadID()}
 		r.mu.Lock()
 		r.entries[meta.ID] = managedCodexEntry{session: s, owner: owner}
 		r.mu.Unlock()

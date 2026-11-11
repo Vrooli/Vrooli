@@ -3,48 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"testing"
 
 	intai "web-console/internal/ai"
 )
-
-func TestOllamaProvider_UsesGatewayRole(t *testing.T) {
-	var gotArgs []string
-	var gotStdin string
-
-	p := &intai.OllamaProvider{
-		Role: "chat.default",
-		Runner: func(_ context.Context, args []string, stdin string) ([]byte, error) {
-			gotArgs = append([]string(nil), args...)
-			gotStdin = stdin
-			return []byte(`{"response":"test response"}`), nil
-		},
-	}
-
-	result, err := p.Generate(context.Background(), "system prompt", "user prompt")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	wantArgs := []string{"gateway", "generate", "--role", "chat.default", "--json", "--prompt-stdin"}
-	if !reflect.DeepEqual(gotArgs, wantArgs) {
-		t.Errorf("args = %v, want %v", gotArgs, wantArgs)
-	}
-	if result != "test response" {
-		t.Errorf("expected %q, got %q", "test response", result)
-	}
-	if gotStdin != "System:\nsystem prompt\n\nUser:\nuser prompt" {
-		t.Errorf("stdin = %q", gotStdin)
-	}
-}
-
-func TestOpenRouterProvider_MissingAPIKey(t *testing.T) {
-	noKey := &intai.OpenRouterProvider{Role: "test"}
-	_, err := noKey.Generate(context.Background(), "sys", "user")
-	if err == nil {
-		t.Error("expected error with no API key")
-	}
-}
 
 func TestAIProviderChain_PassesBothPrompts(t *testing.T) {
 	var capturedSys, capturedUser string

@@ -118,14 +118,16 @@ type Metadata struct {
 // claude hook, launch-command save) learns more about a session's agent
 // identity. Empty fields mean "leave unchanged".
 type AgentInfo struct {
-	AgentType               Agent
-	LaunchCommand           string
-	AgentSessionID          string
-	CWD                     string
-	LastRolloutPath         string
-	LastActivityAt          time.Time
-	LaunchMode              LaunchMode
-	ControlMode             ControlMode
+	AgentType       Agent
+	LaunchCommand   string
+	AgentSessionID  string
+	CWD             string
+	LastRolloutPath string
+	LastActivityAt  time.Time
+	LaunchMode      LaunchMode
+	ControlMode     ControlMode
+	// ClearNativeOwner explicitly removes a stale live-generation claim.
+	ClearNativeOwner        bool
 	NativeOwner             string
 	NativeTransport         string
 	ProviderVersion         string
@@ -366,9 +368,13 @@ func (s *SQLStore) UpdateAgentInfo(ctx context.Context, id string, info AgentInf
 		sets = append(sets, "control_mode = ?")
 		args = append(args, string(info.ControlMode))
 	}
-	if info.NativeOwner != "" {
+	if info.ClearNativeOwner || info.NativeOwner != "" {
+		owner := info.NativeOwner
+		if info.ClearNativeOwner {
+			owner = ""
+		}
 		sets = append(sets, "native_owner = ?")
-		args = append(args, info.NativeOwner)
+		args = append(args, owner)
 	}
 	if info.NativeTransport != "" {
 		sets = append(sets, "native_transport = ?")
@@ -734,7 +740,9 @@ func (s *InMemoryStore) UpdateAgentInfo(_ context.Context, id string, info Agent
 	if info.ControlMode != "" {
 		meta.ControlMode = info.ControlMode
 	}
-	if info.NativeOwner != "" {
+	if info.ClearNativeOwner {
+		meta.NativeOwner = ""
+	} else if info.NativeOwner != "" {
 		meta.NativeOwner = info.NativeOwner
 	}
 	if info.NativeTransport != "" {

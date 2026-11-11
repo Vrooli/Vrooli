@@ -103,17 +103,16 @@ func (a *agentUpdateActions) join(key, action string, run func() (capsH.AgentUpd
 	return flight, nil
 }
 
-// guardAgentUpdateAction admits only a verified independent human on a
-// same-origin request: the rule usage modes apply. A human credential forwarded
-// by an agent inside a terminal carries agent provenance and is refused, so an
-// agent can read this state and cannot change a machine through the console.
-func guardAgentUpdateAction(w http.ResponseWriter, r *http.Request) bool {
-	if !webConsoleSameOrigin(w, r) {
-		return false
-	}
-	principal, err := authn.RequireIndependentHuman(r.Context())
-	if err != nil || !principal.IsHuman() {
-		http.Error(w, "agent updates can only be changed by the signed-in operator", http.StatusForbidden)
+// guardAgentUpdateAction admits only same-origin browser requests. The action
+// handler makes the stronger independent-human check for machine-changing
+// actions. A catalog refresh is a local evidence read whose only write is the
+// derived model list, so it remains available through the UI fail-open path.
+func guardAgentUpdateAction(w http.ResponseWriter, r *http.Request, action string) bool {
+	// Refresh reads local runner evidence and only rebuilds a derived catalog.
+	// Keep that recovery path available even when a tunnel/proxy cannot provide
+	// enough origin metadata. The operation cannot install, update, or remove an
+	// agent, and the API's same-origin UI caller is intentionally fail-open.
+	if action != agentActionRefreshCatalog && !webConsoleSameOrigin(w, r) {
 		return false
 	}
 	// The default bounds every response; this one is allowed a real install.
@@ -125,9 +124,13 @@ func guardAgentUpdateAction(w http.ResponseWriter, r *http.Request) bool {
 
 func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, action, cleanupPlanID string) (capsH.AgentUpdateActionResult, error) {
 	targetID, agentID, action = strings.TrimSpace(targetID), strings.TrimSpace(agentID), strings.TrimSpace(action)
-	principal, err := authn.RequireIndependentHuman(ctx)
-	if err != nil || !principal.IsHuman() {
-		return capsH.AgentUpdateActionResult{}, fmt.Errorf("%w: agent updates can only be changed by the signed-in operator", capsH.ErrPermissionDenied)
+	actor := ""
+	if action != agentActionRefreshCatalog {
+		principal, err := authn.RequireIndependentHuman(ctx)
+		if err != nil || !principal.IsHuman() {
+			return capsH.AgentUpdateActionResult{}, fmt.Errorf("%w: agent updates can only be changed by the signed-in operator", capsH.ErrPermissionDenied)
+		}
+		actor = principal.OwnerSubject()
 	}
 	resource, ok := agentResource(agentID)
 	if !ok || targetID == "" {
@@ -159,7 +162,6 @@ func (s *Server) runAgentUpdateAction(ctx context.Context, targetID, agentID, ac
 	if !target.Available {
 		return capsH.AgentUpdateActionResult{}, fmt.Errorf("%w: the selected machine is unavailable", capsH.ErrUnavailable)
 	}
-	actor := principal.OwnerSubject()
 	// Detached: closing a tab or losing a tunnel must not kill an install midway.
 	detached := context.WithoutCancel(ctx)
 	flight, err := s.agentUpdateActions.join(agentUpdateActionKey(targetID, agentID), action+"\x00"+cleanupPlanID, func() (capsH.AgentUpdateActionResult, error) {

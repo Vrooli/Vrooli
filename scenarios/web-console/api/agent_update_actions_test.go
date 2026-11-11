@@ -146,32 +146,75 @@ func TestAgentsAreRefusedTheActionEvenWithAForwardedHumanCredential(t *testing.T
 				t.Fatalf("the verb ran: %s", data)
 			}
 		})
-		r := httptest.NewRequest(http.MethodPost, "/rpc", nil).WithContext(ctx)
-		r.RemoteAddr = "127.0.0.1:1000"
-		recorder := httptest.NewRecorder()
-		if guardAgentUpdateAction(recorder, r) || recorder.Code != http.StatusForbidden {
-			t.Fatalf("%s passed the guard: %d", name, recorder.Code)
-		}
+	}
+}
+
+func TestModelCatalogRefreshWorksWithBrowserFailOpenIdentity(t *testing.T) {
+	s, log, _ := fakeHarnessLifecycle(t)
+	human := identity.Principal{Kind: identity.ActorHuman, Subject: "op@example.com", Verified: true, ExpiresAt: time.Now().Add(time.Hour)}
+	ctx := provenance.NewContext(identity.WithPrincipal(context.Background(), human), provenance.Provenance{Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-1"})
+	result, err := s.runAgentUpdateAction(ctx, "local", "codex", agentActionRefreshCatalog, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Success {
+		t.Fatalf("catalog refresh failed: %+v", result)
+	}
+	if data, _ := os.ReadFile(log); string(data) != "codex refresh_catalog " {
+		t.Fatalf("refresh action/actor = %q", data)
 	}
 }
 
 func TestGuardRefusesCrossOriginAndAdmitsTheOperator(t *testing.T) {
-	request := func(origin string) *http.Request {
-		r := httptest.NewRequest(http.MethodPost, "http://console.example/rpc", nil).WithContext(operatorContext())
+	request := func(origin string, ctx context.Context) *http.Request {
+		r := httptest.NewRequest(http.MethodPost, "http://console.example/rpc", nil).WithContext(ctx)
 		r.Host, r.RemoteAddr = "console.example", "10.0.0.8:1000"
 		if origin != "" {
 			r.Header.Set("Origin", origin)
 		}
 		return r
 	}
-	if recorder := httptest.NewRecorder(); guardAgentUpdateAction(recorder, request("https://evil.example")) || recorder.Code != http.StatusForbidden {
+	if recorder := httptest.NewRecorder(); guardAgentUpdateAction(recorder, request("https://evil.example", operatorContext()), "update") || recorder.Code != http.StatusForbidden {
 		t.Fatalf("cross-origin admitted: %d", recorder.Code)
 	}
-	if recorder := httptest.NewRecorder(); guardAgentUpdateAction(recorder, request("")) || recorder.Code != http.StatusForbidden {
+	if recorder := httptest.NewRecorder(); guardAgentUpdateAction(recorder, request("", operatorContext()), "update") || recorder.Code != http.StatusForbidden {
 		t.Fatalf("remote request without an Origin admitted: %d", recorder.Code)
 	}
-	if !guardAgentUpdateAction(httptest.NewRecorder(), request("http://console.example")) {
-		t.Fatal("the operator's same-origin request must pass")
+	if !guardAgentUpdateAction(httptest.NewRecorder(), request("http://console.example", context.Background()), "update") {
+		t.Fatal("the same-origin browser request must pass through to action-specific authorization")
+	}
+}
+
+func TestGuardAcceptsSameOriginThroughLocalUIProxy(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:16382/rpc", nil)
+	r.Host = "127.0.0.1:16382"
+	r.RemoteAddr = "127.0.0.1:43122"
+	r.Header.Set("Origin", "http://localhost:21233")
+	r.Header.Set("X-Forwarded-Host", "localhost:21233")
+
+	if !guardAgentUpdateAction(httptest.NewRecorder(), r, "update") {
+		t.Fatal("same-origin UI request was refused at the loopback API proxy")
+	}
+}
+
+func TestGuardDoesNotTrustForwardedHostFromRemotePeer(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "http://api.example/rpc", nil)
+	r.Host = "api.example"
+	r.RemoteAddr = "198.51.100.20:43122"
+	r.Header.Set("Origin", "https://console.example")
+	r.Header.Set("X-Forwarded-Host", "console.example")
+
+	if guardAgentUpdateAction(httptest.NewRecorder(), r, "update") {
+		t.Fatal("a remote caller must not choose the authority used by the origin check")
+	}
+}
+
+func TestCatalogRefreshGuardFailsOpenWhenOriginCannotBeVerified(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "http://console.example/rpc", nil)
+	r.Host, r.RemoteAddr = "console.example", "198.51.100.20:43122"
+	r.Header.Set("Origin", "https://unavailable-tunnel.example")
+	if !guardAgentUpdateAction(httptest.NewRecorder(), r, agentActionRefreshCatalog) {
+		t.Fatal("non-mutating local catalog refresh must remain available when origin metadata cannot be verified")
 	}
 }
 
