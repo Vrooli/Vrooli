@@ -10,8 +10,8 @@ type CPUSignal struct {
 }
 
 var cpuSignalCatalog = []CPUSignal{
-	{"usage_percent", "percent", 1, "/proc/stat", "kern.cp_time", "GetSystemTimes", "no native CPU backend"},
-	{"mode_breakdown", "percent by mode", 1, "/proc/stat", "kern.cp_time", "GetSystemTimes", "no native CPU backend"},
+	{"usage_percent", "percent", 1, "/proc/stat", "Mach host_processor_info (CGO required)", "GetSystemTimes", "no native CPU backend"},
+	{"mode_breakdown", "percent by mode", 1, "/proc/stat", "Mach host_processor_info (CGO required)", "GetSystemTimes", "no native CPU backend"},
 	{"load_average", "load", 1, "/proc/loadavg", "vm.loadavg", "refuse: no Unix load average", "no load backend"},
 	{"normalized_load_1", "load/core", 1, "derived from /proc/loadavg", "derived from vm.loadavg", "refuse: no load source", "no load backend"},
 	{"normalized_load_5", "load/core", 1, "derived from /proc/loadavg", "derived from vm.loadavg", "refuse: no load source", "no load backend"},
@@ -20,8 +20,8 @@ var cpuSignalCatalog = []CPUSignal{
 	{"interrupts_per_second", "per second", 1, "/proc/stat intr", "refuse: no public counter", "refuse: PDH backend not enabled", "no counter backend"},
 	{"cpu_psi_some_avg10", "percent", 1, "/proc/pressure/cpu", "refuse: PSI is Linux-specific", "refuse: PSI is Linux-specific", "no PSI backend"},
 	{"cpu_psi_full_avg10", "percent", 1, "/proc/pressure/cpu", "refuse: PSI is Linux-specific", "refuse: PSI is Linux-specific", "no PSI backend"},
-	{"per_core_utilization", "percent/core", 2, "/proc/stat cpuN", "host_processor_info", "PDH processor instances", "no per-core backend"},
-	{"core_imbalance_index", "percentage points", 2, "derived from cpuN", "derived from processor info", "derived from PDH instances", "no per-core backend"},
+	{"per_core_utilization", "percent/core", 2, "/proc/stat cpuN", "host_processor_info (CGO required)", "PDH processor instances", "no per-core backend"},
+	{"core_imbalance_index", "percentage points", 2, "derived from cpuN", "derived from host_processor_info (CGO required)", "derived from PDH instances", "no per-core backend"},
 	{"quota_throttling", "per second, percent", 2, "cgroup v2 cpu.stat/cpu.max", "refuse: no cgroup backend", "refuse: job-object backend not enabled", "no quota backend"},
 	{"frequency_derate_ratio", "ratio", 2, "sysfs scaling frequency", "refuse: no public frequency backend", "refuse: performance counter backend not enabled", "no frequency backend"},
 	{"thermal_throttle_evidence", "count, celsius", 2, "hwmon and thermal zones", "refuse: thermal join not enabled", "refuse: thermal backend not enabled", "no thermal backend"},

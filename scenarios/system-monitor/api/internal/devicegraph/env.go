@@ -2,6 +2,7 @@ package devicegraph
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 // CommandRunner runs one host probe and returns its combined stdout. It is the
@@ -34,6 +37,10 @@ type Env struct {
 	LookPath func(string) (string, error)
 	// Now supplies the observation timestamp. Defaults to time.Now.
 	Now func() time.Time
+	// NativeDevices supplies shared control-plane device identity and binding
+	// facts on platforms without the Linux sysfs collector. Telemetry remains
+	// owned by this graph's platform probes.
+	NativeDevices func(context.Context) hostinventory.NativeDeviceObservation
 }
 
 const defaultProbeTimeout = 5 * time.Second
@@ -56,6 +63,11 @@ func (e Env) normalized() Env {
 	}
 	if e.Now == nil {
 		e.Now = time.Now
+	}
+	if e.NativeDevices == nil {
+		e.NativeDevices = func(ctx context.Context) hostinventory.NativeDeviceObservation {
+			return hostinventory.CollectNativeDevices(ctx, nil)
+		}
 	}
 	return e
 }
@@ -123,6 +135,17 @@ func (e Env) linkBase(path string) (string, bool) {
 		return "", false
 	}
 	return base, true
+}
+
+func (e Env) driverBinding(path string) (string, string) {
+	target, err := os.Readlink(path)
+	if err == nil {
+		return filepath.Base(strings.TrimSuffix(target, "/")), "bound"
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return "", "unbound"
+	}
+	return "", "unknown"
 }
 
 // resolve follows a sysfs class symlink to the real device path. Fixtures use

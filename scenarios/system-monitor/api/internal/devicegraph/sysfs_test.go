@@ -2,12 +2,15 @@ package devicegraph
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 func TestGraphIsStructurallyValid(t *testing.T) {
@@ -173,6 +176,79 @@ func TestGraphicsDevicesAreClassifiedFromPCIClassCode(t *testing.T) {
 	}
 }
 
+func TestUnboundPCIFunctionCarriesControlPlaneRepairRoute(t *testing.T) {
+	graph := collectFixture(t, referenceEnv(t, buildReferenceHost(t)))
+	device := deviceByID(t, graph, "pci:0000:00:18.3")
+	control := assertRung(t, device.Rungs, RungControl, StateUnmeasurable)
+	if control.Remediation != hostinventory.DriverBindingRepairRoute {
+		t.Fatalf("control remediation = %q, want the shared control-plane repair route", control.Remediation)
+	}
+}
+
+func TestLinuxBusReadinessPreservesFirmwareInterfaceAndUSBFunctionEvidence(t *testing.T) {
+	fixture := newFakeSys(t)
+	fixture.pciDevice("0000:09:00.0", "0x14c3", "0x7927", "0x028000", "")
+	const usbDevice = "pci0000:00/usb1/1-6"
+	const usbFunction = "1-6:1.0"
+	fixture.write("devices/"+usbDevice+"/idVendor", "13d3")
+	fixture.write("devices/"+usbDevice+"/idProduct", "3604")
+	fixture.write("devices/"+usbDevice+"/"+usbFunction+"/bInterfaceClass", "e0")
+	fixture.write("devices/"+usbDevice+"/"+usbFunction+"/modalias", "usb:v0489pE13AicE0isc01ip01in00")
+	fixture.busLink("usb", "1-6", usbDevice)
+	fixture.busLink("usb", usbFunction, usbDevice+"/"+usbFunction)
+
+	for _, tc := range []struct {
+		name         string
+		journalErr   error
+		wantFirmware string
+	}{
+		{name: "correlated firmware failure", wantFirmware: hostinventory.DeviceReadinessMissing},
+		{name: "unreadable journal", journalErr: errors.New("journal unavailable"), wantFirmware: hostinventory.DeviceReadinessUnknown},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			journalReads := 0
+			env := fixture.env(func(_ context.Context, _ time.Duration, name string, _ ...string) ([]byte, error) {
+				if name != "journalctl" {
+					t.Fatalf("unexpected probe %q", name)
+				}
+				journalReads++
+				return []byte("mt7925e 0000:09:00.0: Direct firmware load for mediatek/mt7927.bin failed with error -2"), tc.journalErr
+			}, fixtureNow(t))
+			graph := collectFixture(t, env)
+			if journalReads != 1 {
+				t.Fatalf("kernel journal reads = %d, want one for the graph", journalReads)
+			}
+			wifi := deviceByID(t, graph, "pci:0000:09:00.0")
+			for key, want := range map[string]string{
+				"readiness_firmware_state":  tc.wantFirmware,
+				"readiness_interface_state": hostinventory.DeviceReadinessAbsent,
+				"readiness_function_state":  hostinventory.DeviceReadinessUnverified,
+			} {
+				if got := wifi.Attributes[key]; got != want {
+					t.Errorf("Wi-Fi %s = %q, want %q", key, got, want)
+				}
+			}
+			if tc.journalErr == nil && !strings.Contains(wifi.Attributes["readiness_firmware_reason"], "mt7927.bin") {
+				t.Errorf("Wi-Fi firmware reason lacks correlated kernel evidence: %q", wifi.Attributes["readiness_firmware_reason"])
+			}
+			bluetooth := deviceByID(t, graph, "usb:1-6")
+			for key, want := range map[string]string{
+				"readiness_firmware_state":  hostinventory.DeviceReadinessUnknown,
+				"readiness_interface_state": hostinventory.DeviceReadinessAbsent,
+				"readiness_function_state":  hostinventory.DeviceReadinessUnverified,
+			} {
+				if got := bluetooth.Attributes[key]; got != want {
+					t.Errorf("Bluetooth %s = %q, want %q", key, got, want)
+				}
+			}
+			want := hostinventory.DeviceFunction{ID: usbFunction, Class: "e0", Modalias: "usb:v0489pE13AicE0isc01ip01in00", BindingState: hostinventory.DeviceBindingUnbound}
+			if len(bluetooth.Functions) != 1 || bluetooth.Functions[0] != want {
+				t.Errorf("Bluetooth USB functions = %+v, want %+v", bluetooth.Functions, want)
+			}
+		})
+	}
+}
+
 func TestPCIIdentityDegradesToRawIDsWithoutADatabase(t *testing.T) {
 	fixture := buildReferenceHost(t)
 	env := referenceEnv(t, fixture)
@@ -210,6 +286,30 @@ func TestUSBInterfaceNodesAreNotGradedAsDevices(t *testing.T) {
 	}
 	if hub.ParentID != "usb:usb2" {
 		t.Errorf("USB parent = %q, want the root hub", hub.ParentID)
+	}
+	if !usbFunctionsFullyBound(hub.Functions) || len(hub.Functions) != 1 || hub.Functions[0].BoundDriver != "usb-storage" {
+		t.Fatalf("USB functions = %#v, want the bound storage interface function", hub.Functions)
+	}
+	assertRung(t, hub.Rungs, RungControl, StateMeasured)
+}
+
+func TestUSBGenericParentDriverDoesNotHideAnUnboundFunction(t *testing.T) {
+	fixture := buildReferenceHost(t)
+	functionDriver := filepath.Join(fixture.root, "devices", "pci0000:00", "0000:03:00.0", "usb2", "2-4", "2-4:1.0", "driver")
+	if err := os.Remove(functionDriver); err != nil {
+		t.Fatalf("remove USB function driver fixture: %v", err)
+	}
+	graph := collectFixture(t, referenceEnv(t, fixture))
+	device := deviceByID(t, graph, "usb:2-4")
+	if device.Driver != "usb" {
+		t.Fatalf("parent driver = %q, want generic usb driver fixture", device.Driver)
+	}
+	if len(device.Functions) != 1 || device.Functions[0].BindingState != hostinventory.DeviceBindingUnbound {
+		t.Fatalf("USB functions = %#v, want the interface to remain explicitly unbound", device.Functions)
+	}
+	control := assertRung(t, device.Rungs, RungControl, StateUnmeasurable)
+	if !strings.Contains(control.Reason, "USB function") {
+		t.Fatalf("control reason = %q, want the unbound function identified", control.Reason)
 	}
 }
 
@@ -470,5 +570,38 @@ func TestPCIIdentityMatchesTheSharedAddressScheme(t *testing.T) {
 	}
 	if seen == 0 {
 		t.Fatal("no PCI devices were enumerated")
+	}
+}
+
+func TestLinuxRegisteredHCIPreservesMissingOSControllerInNormalGraph(t *testing.T) {
+	fixture := newFakeSys(t)
+	const parent = "pci0000:00/usb1/1-6"
+	const function = "1-6:1.0"
+	fixture.write("devices/"+parent+"/idVendor", "0489")
+	fixture.write("devices/"+parent+"/idProduct", "e13a")
+	fixture.write("devices/"+parent+"/"+function+"/modalias", "usb:v0489pE13AicE0isc01ip01in00")
+	fixture.write("devices/"+parent+"/"+function+"/bluetooth/hci0/rfkill0/soft", "0")
+	fixture.write("devices/"+parent+"/"+function+"/bluetooth/hci0/rfkill0/hard", "0")
+	fixture.busLink("usb", "1-6", parent)
+	fixture.busLink("usb", function, parent+"/"+function)
+	bluezCalls := 0
+	env := fixture.env(func(_ context.Context, _ time.Duration, name string, args ...string) ([]byte, error) {
+		switch name {
+		case "/usr/bin/busctl":
+			bluezCalls++
+			if !strings.Contains(strings.Join(args, " "), "--auto-start=no --allow-interactive-authorization=no") {
+				t.Fatalf("unsafe controller query: %v", args)
+			}
+			return []byte(`{"type":"a{oa{sa{sv}}}","data":[{}]}`), nil
+		case "journalctl":
+			return nil, nil
+		default:
+			t.Fatalf("unexpected query %s", name)
+			return nil, nil
+		}
+	}, fixtureNow(t))
+	device := deviceByID(t, collectFixture(t, env), "usb:1-6")
+	if bluezCalls != 1 || device.Attributes["readiness_interface_state"] != hostinventory.DeviceReadinessInitialized || !strings.Contains(device.Attributes["readiness_interface_status"], "controller_absent") || !strings.Contains(device.Attributes["readiness_function_reason"], "BlueZ reports no OS controller") || device.Attributes["readiness_function_state"] != hostinventory.DeviceReadinessUnverified {
+		t.Fatalf("normal Bluetooth graph lost unavailable OS controller: %+v calls=%d", device.Attributes, bluezCalls)
 	}
 }

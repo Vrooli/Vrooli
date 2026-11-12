@@ -7,12 +7,13 @@
   "pdf_view": {
     "url": "https://drive.google.com/file/d/1nwgKBHGV67YnysSQy0r6Ar2Fekhdpc18/view",
     "path": "scenarios/system-monitor/docs/mockups/vega-redesign/assets/vega-full-resolution-design-atlas.pdf",
-    "sha256": "7703fc140cd5da08e27c9f3b8f207821c26bbe19421f32daf91080f0ffa68df9"
+    "sha256": "7703fc140cd5da08e27c9f3b8f207821c26bbe19421f32daf91080f0ffa68df9",
+    "path_root": "repository"
   },
   "items": [
     {
       "id": "VEGA-PDF-001",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1ySpQRzhOtxJSKlsA4xVd2ulEx7fHafHb/Vega \u2014 Optical observatory paired styling study v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1ySpQRzhOtxJSKlsA4xVd2ulEx7fHafHb/Vega \u2014 Optical observatory paired styling study v2.png",
       "group": "01",
       "title": "Optical Observatory A / selected atmosphere study",
       "version": "Art study v2",
@@ -39,7 +40,7 @@
     },
     {
       "id": "VEGA-PDF-002",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-overview-desktop-dark-v2-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-overview-desktop-dark-v2-navbar-v1.png",
       "group": "02",
       "title": "Overview / desktop / dark",
       "version": "Graph navbar parity v2",
@@ -66,7 +67,7 @@
     },
     {
       "id": "VEGA-PDF-003",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-overview-desktop-light-v2-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-overview-desktop-light-v2-navbar-v1.png",
       "group": "02",
       "title": "Overview / desktop / light",
       "version": "Graph navbar parity v2",
@@ -93,7 +94,7 @@
     },
     {
       "id": "VEGA-PDF-004",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-overview-mobile-full-dark-v2-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-overview-mobile-full-dark-v2-navbar-v1.png",
       "group": "02",
       "title": "Overview / mobile full / dark",
       "version": "Graph navbar parity v2",
@@ -120,7 +121,7 @@
     },
     {
       "id": "VEGA-PDF-005",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-overview-mobile-full-light-v2-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-overview-mobile-full-light-v2-navbar-v1.png",
       "group": "02",
       "title": "Overview / mobile full / light",
       "version": "Graph navbar parity v2",
@@ -147,7 +148,7 @@
     },
     {
       "id": "VEGA-PDF-006",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-cpu-desktop-dark-v2-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-cpu-desktop-dark-v2-navbar-v1.png",
       "group": "02",
       "title": "Cpu / desktop / dark",
       "version": "Graph navbar parity v2",
@@ -174,7 +175,7 @@
     },
     {
       "id": "VEGA-PDF-007",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-cpu-desktop-light-v2-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-cpu-desktop-light-v2-navbar-v1.png",
       "group": "02",
       "title": "Cpu / desktop / light",
       "version": "Graph navbar parity v2",
@@ -201,7 +202,7 @@
     },
     {
       "id": "VEGA-PDF-008",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-cpu-mobile-full-dark-v2-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-cpu-mobile-full-dark-v2-navbar-v1.png",
       "group": "02",
       "title": "Cpu / mobile full / dark",
       "version": "Graph navbar parity v2",
@@ -228,7 +229,7 @@
     },
     {
       "id": "VEGA-PDF-009",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-cpu-mobile-full-light-v2-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-cpu-mobile-full-light-v2-navbar-v1.png",
       "group": "02",
       "title": "Cpu / mobile full / light",
       "version": "Graph navbar parity v2",
@@ -255,7 +256,7 @@
     },
     {
       "id": "VEGA-PDF-010",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-memory-desktop-dark-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-memory-desktop-dark-v1-navbar-v1.png",
       "group": "02",
       "title": "Memory / desktop / dark",
       "version": "Graph navbar parity v2",
@@ -282,7 +283,7 @@
     },
     {
       "id": "VEGA-PDF-011",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-memory-desktop-light-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-memory-desktop-light-v1-navbar-v1.png",
       "group": "02",
       "title": "Memory / desktop / light",
       "version": "Graph navbar parity v2",
@@ -309,7 +310,7 @@
     },
     {
       "id": "VEGA-PDF-012",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-memory-mobile-full-dark-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-memory-mobile-full-dark-v1-navbar-v1.png",
       "group": "02",
       "title": "Memory / mobile full / dark",
       "version": "Graph navbar parity v2",
@@ -336,7 +337,7 @@
     },
     {
       "id": "VEGA-PDF-013",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-memory-mobile-full-light-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-memory-mobile-full-light-v1-navbar-v1.png",
       "group": "02",
       "title": "Memory / mobile full / light",
       "version": "Graph navbar parity v2",
@@ -363,7 +364,7 @@
     },
     {
       "id": "VEGA-PDF-014",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-disk-desktop-dark-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-disk-desktop-dark-v1-navbar-v1.png",
       "group": "02",
       "title": "Disk / desktop / dark",
       "version": "Graph navbar parity v2",
@@ -390,7 +391,7 @@
     },
     {
       "id": "VEGA-PDF-015",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-disk-desktop-light-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-disk-desktop-light-v1-navbar-v1.png",
       "group": "02",
       "title": "Disk / desktop / light",
       "version": "Graph navbar parity v2",
@@ -417,7 +418,7 @@
     },
     {
       "id": "VEGA-PDF-016",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-disk-mobile-full-dark-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-disk-mobile-full-dark-v1-navbar-v1.png",
       "group": "02",
       "title": "Disk / mobile full / dark",
       "version": "Graph navbar parity v2",
@@ -444,7 +445,7 @@
     },
     {
       "id": "VEGA-PDF-017",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-disk-mobile-full-light-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-disk-mobile-full-light-v1-navbar-v1.png",
       "group": "02",
       "title": "Disk / mobile full / light",
       "version": "Graph navbar parity v2",
@@ -471,7 +472,7 @@
     },
     {
       "id": "VEGA-PDF-018",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-network-desktop-dark-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-network-desktop-dark-v1-navbar-v1.png",
       "group": "02",
       "title": "Network / desktop / dark",
       "version": "Graph navbar parity v2",
@@ -498,7 +499,7 @@
     },
     {
       "id": "VEGA-PDF-019",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-network-desktop-light-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-network-desktop-light-v1-navbar-v1.png",
       "group": "02",
       "title": "Network / desktop / light",
       "version": "Graph navbar parity v2",
@@ -525,7 +526,7 @@
     },
     {
       "id": "VEGA-PDF-020",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-network-mobile-full-dark-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-network-mobile-full-dark-v1-navbar-v1.png",
       "group": "02",
       "title": "Network / mobile full / dark",
       "version": "Graph navbar parity v2",
@@ -552,7 +553,7 @@
     },
     {
       "id": "VEGA-PDF-021",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-network-mobile-full-light-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-network-mobile-full-light-v1-navbar-v1.png",
       "group": "02",
       "title": "Network / mobile full / light",
       "version": "Graph navbar parity v2",
@@ -579,7 +580,7 @@
     },
     {
       "id": "VEGA-PDF-022",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-gpu-desktop-dark-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-gpu-desktop-dark-v1-navbar-v1.png",
       "group": "02",
       "title": "Gpu / desktop / dark",
       "version": "Graph navbar parity v2",
@@ -606,7 +607,7 @@
     },
     {
       "id": "VEGA-PDF-023",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-gpu-desktop-light-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-gpu-desktop-light-v1-navbar-v1.png",
       "group": "02",
       "title": "Gpu / desktop / light",
       "version": "Graph navbar parity v2",
@@ -633,7 +634,7 @@
     },
     {
       "id": "VEGA-PDF-024",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-gpu-mobile-full-dark-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-gpu-mobile-full-dark-v1-navbar-v1.png",
       "group": "02",
       "title": "Gpu / mobile full / dark",
       "version": "Graph navbar parity v2",
@@ -660,7 +661,7 @@
     },
     {
       "id": "VEGA-PDF-025",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-gpu-mobile-full-light-v1-navbar-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-gpu-mobile-full-light-v1-navbar-v1.png",
       "group": "02",
       "title": "Gpu / mobile full / light",
       "version": "Graph navbar parity v2",
@@ -687,7 +688,7 @@
     },
     {
       "id": "VEGA-PDF-026",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/1-53LEfnn06hwn8rOGW3xxjMtIWbQzMko/v7-5-1-close-corrected-phone-dark.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/1-53LEfnn06hwn8rOGW3xxjMtIWbQzMko/v7-5-1-close-corrected-phone-dark.png",
       "group": "03",
       "title": "Close corrected phone dark",
       "version": "v7.5.1 corrected chrome",
@@ -714,7 +715,7 @@
     },
     {
       "id": "VEGA-PDF-027",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/11K7HZDVp0VsOliICEzkGpQ-yuFcH_Gho/Vega editor v7.5 script-source-desktop-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/11K7HZDVp0VsOliICEzkGpQ-yuFcH_Gho/Vega editor v7.5 script-source-desktop-light.png",
       "group": "03",
       "title": "Editor v7.5 script source desktop light",
       "version": "v7.5 current base original",
@@ -741,7 +742,7 @@
     },
     {
       "id": "VEGA-PDF-028",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/11pJh8-2CHmaS1Tq9vxAAYNbg7WF0GXkq/v7-5-1-close-corrected-phone-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/11pJh8-2CHmaS1Tq9vxAAYNbg7WF0GXkq/v7-5-1-close-corrected-phone-light.png",
       "group": "03",
       "title": "Close corrected phone light",
       "version": "v7.5.1 corrected chrome",
@@ -768,7 +769,7 @@
     },
     {
       "id": "VEGA-PDF-029",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/13F9ORy7nVI0Wq0hBcMzigjoB0zFasw5s/Vega editor \u2014 memory-return-phone-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/13F9ORy7nVI0Wq0hBcMzigjoB0zFasw5s/Vega editor \u2014 memory-return-phone-light.png",
       "group": "03",
       "title": "Editor \u2014 memory return phone light",
       "version": "v7.4 caller return context",
@@ -795,7 +796,7 @@
     },
     {
       "id": "VEGA-PDF-030",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/1NG3mevAzYXkr3I7ptXYaLk0RkpCFOcTV/v7-5-1-more-open-corrected-phone-dark.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/1NG3mevAzYXkr3I7ptXYaLk0RkpCFOcTV/v7-5-1-more-open-corrected-phone-dark.png",
       "group": "03",
       "title": "More open corrected phone dark",
       "version": "v7.5.1 corrected chrome",
@@ -822,7 +823,7 @@
     },
     {
       "id": "VEGA-PDF-031",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/1Ro7AYX1hN28_B0HVqjc2qM-1aDTUd0_r/Vega editor v7.5 script-source-phone-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/1Ro7AYX1hN28_B0HVqjc2qM-1aDTUd0_r/Vega editor v7.5 script-source-phone-light.png",
       "group": "03",
       "title": "Editor v7.5 script source phone light",
       "version": "v7.5 current base original",
@@ -849,7 +850,7 @@
     },
     {
       "id": "VEGA-PDF-032",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/1ZxfeNSEASHCmUvmNZnw885LbJ_bi-kRL/Vega editor v7.5 memory-raw-phone-dark.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/1ZxfeNSEASHCmUvmNZnw885LbJ_bi-kRL/Vega editor v7.5 memory-raw-phone-dark.png",
       "group": "03",
       "title": "Editor v7.5 memory raw phone dark",
       "version": "v7.5 current base original",
@@ -876,7 +877,7 @@
     },
     {
       "id": "VEGA-PDF-033",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/1flwQhUiPykHM3VozGobBLs3zrJS0urcu/Vega editor v7.5 unknown-newer-unsent-phone-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/1flwQhUiPykHM3VozGobBLs3zrJS0urcu/Vega editor v7.5 unknown-newer-unsent-phone-light.png",
       "group": "03",
       "title": "Editor v7.5 unknown newer unsent phone light",
       "version": "v7.5 current base original",
@@ -903,7 +904,7 @@
     },
     {
       "id": "VEGA-PDF-034",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/1lwXKjfQumN90ickjqLjm_NbWsEIPRI0d/Vega editor v7.5 script-source-desktop-dark.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/1lwXKjfQumN90ickjqLjm_NbWsEIPRI0d/Vega editor v7.5 script-source-desktop-dark.png",
       "group": "03",
       "title": "Editor v7.5 script source desktop dark",
       "version": "v7.5 current base original",
@@ -930,7 +931,7 @@
     },
     {
       "id": "VEGA-PDF-035",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/1ukfB_dC6Y1Q36-BLYPwNeH5k9MrTsRdS/Vega editor \u2014 report-return-phone-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/1ukfB_dC6Y1Q36-BLYPwNeH5k9MrTsRdS/Vega editor \u2014 report-return-phone-light.png",
       "group": "03",
       "title": "Editor \u2014 report return phone light",
       "version": "v7.4 caller return context",
@@ -957,7 +958,7 @@
     },
     {
       "id": "VEGA-PDF-036",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/1xbQ_y_872Wqr0bldE4_FseBpUcD09nKu/Vega editor v7.5 report-evidence-phone-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/1xbQ_y_872Wqr0bldE4_FseBpUcD09nKu/Vega editor v7.5 report-evidence-phone-light.png",
       "group": "03",
       "title": "Editor v7.5 report evidence phone light",
       "version": "v7.5 current base original",
@@ -984,7 +985,7 @@
     },
     {
       "id": "VEGA-PDF-037",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-settings-index.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-settings-index.png",
       "group": "04",
       "title": "01 settings index",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1011,7 +1012,7 @@
     },
     {
       "id": "VEGA-PDF-038",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-collection-draft.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-collection-draft.png",
       "group": "04",
       "title": "01 collection draft",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1038,7 +1039,7 @@
     },
     {
       "id": "VEGA-PDF-039",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-review.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-review.png",
       "group": "04",
       "title": "01 review",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1065,7 +1066,7 @@
     },
     {
       "id": "VEGA-PDF-040",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-browser-list.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-browser-list.png",
       "group": "04",
       "title": "01 browser list",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1092,7 +1093,7 @@
     },
     {
       "id": "VEGA-PDF-041",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-browser-detail.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-browser-detail.png",
       "group": "04",
       "title": "01 browser detail",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1119,7 +1120,7 @@
     },
     {
       "id": "VEGA-PDF-042",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-browser-returned.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/01-browser-returned.png",
       "group": "04",
       "title": "01 browser returned",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1146,7 +1147,7 @@
     },
     {
       "id": "VEGA-PDF-043",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/02-390-dark-logs.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/02-390-dark-logs.png",
       "group": "04",
       "title": "02 390 dark logs",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1173,7 +1174,7 @@
     },
     {
       "id": "VEGA-PDF-044",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/02-390-dark-collection.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/02-390-dark-collection.png",
       "group": "04",
       "title": "02 390 dark collection",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1200,7 +1201,7 @@
     },
     {
       "id": "VEGA-PDF-045",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/05-pending-save-dialog.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/05-pending-save-dialog.png",
       "group": "04",
       "title": "05 pending save dialog",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1227,7 +1228,7 @@
     },
     {
       "id": "VEGA-PDF-046",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/05-remote-before-local-response.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/05-remote-before-local-response.png",
       "group": "04",
       "title": "05 remote before local response",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1254,7 +1255,7 @@
     },
     {
       "id": "VEGA-PDF-047",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/05-remote-after-local-response.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/v3-regression/05-remote-after-local-response.png",
       "group": "04",
       "title": "05 remote after local response",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1281,7 +1282,7 @@
     },
     {
       "id": "VEGA-PDF-048",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-capacity.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-capacity.png",
       "group": "04",
       "title": "390 light capacity",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1308,7 +1309,7 @@
     },
     {
       "id": "VEGA-PDF-049",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-capacity-claims.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-capacity-claims.png",
       "group": "04",
       "title": "390 light capacity claims",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1335,7 +1336,7 @@
     },
     {
       "id": "VEGA-PDF-050",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-capacity-claim.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-capacity-claim.png",
       "group": "04",
       "title": "390 light capacity claim",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1362,7 +1363,7 @@
     },
     {
       "id": "VEGA-PDF-051",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-capacity-findings.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-capacity-findings.png",
       "group": "04",
       "title": "390 light capacity findings",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1389,7 +1390,7 @@
     },
     {
       "id": "VEGA-PDF-052",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics.png",
       "group": "04",
       "title": "390 light forensics",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1416,7 +1417,7 @@
     },
     {
       "id": "VEGA-PDF-053",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics-boots.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics-boots.png",
       "group": "04",
       "title": "390 light forensics boots",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1443,7 +1444,7 @@
     },
     {
       "id": "VEGA-PDF-054",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics-boot.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics-boot.png",
       "group": "04",
       "title": "390 light forensics boot",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1470,7 +1471,7 @@
     },
     {
       "id": "VEGA-PDF-055",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics-pstore.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics-pstore.png",
       "group": "04",
       "title": "390 light forensics pstore",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1497,7 +1498,7 @@
     },
     {
       "id": "VEGA-PDF-056",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics-checks.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics-checks.png",
       "group": "04",
       "title": "390 light forensics checks",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1524,7 +1525,7 @@
     },
     {
       "id": "VEGA-PDF-057",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics-check.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-forensics-check.png",
       "group": "04",
       "title": "390 light forensics check",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1551,7 +1552,7 @@
     },
     {
       "id": "VEGA-PDF-058",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-cpu-layout.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-light-cpu-layout.png",
       "group": "04",
       "title": "390 light cpu layout",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1578,7 +1579,7 @@
     },
     {
       "id": "VEGA-PDF-059",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-light-policy-index.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-light-policy-index.png",
       "group": "04",
       "title": "390 light policy index",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1605,7 +1606,7 @@
     },
     {
       "id": "VEGA-PDF-060",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-light-policy-edit.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-light-policy-edit.png",
       "group": "04",
       "title": "390 light policy edit",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1632,7 +1633,7 @@
     },
     {
       "id": "VEGA-PDF-061",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-light-policy-review.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-light-policy-review.png",
       "group": "04",
       "title": "390 light policy review",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1659,7 +1660,7 @@
     },
     {
       "id": "VEGA-PDF-062",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-light-triggers-index.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-light-triggers-index.png",
       "group": "04",
       "title": "390 light triggers index",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1686,7 +1687,7 @@
     },
     {
       "id": "VEGA-PDF-063",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-light-trigger-detail.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-light-trigger-detail.png",
       "group": "04",
       "title": "390 light trigger detail",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1713,7 +1714,7 @@
     },
     {
       "id": "VEGA-PDF-064",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-capacity.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-capacity.png",
       "group": "04",
       "title": "390 dark capacity",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1740,7 +1741,7 @@
     },
     {
       "id": "VEGA-PDF-065",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-capacity-claims.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-capacity-claims.png",
       "group": "04",
       "title": "390 dark capacity claims",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1767,7 +1768,7 @@
     },
     {
       "id": "VEGA-PDF-066",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-capacity-claim.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-capacity-claim.png",
       "group": "04",
       "title": "390 dark capacity claim",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1794,7 +1795,7 @@
     },
     {
       "id": "VEGA-PDF-067",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-capacity-findings.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-capacity-findings.png",
       "group": "04",
       "title": "390 dark capacity findings",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1821,7 +1822,7 @@
     },
     {
       "id": "VEGA-PDF-068",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics.png",
       "group": "04",
       "title": "390 dark forensics",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1848,7 +1849,7 @@
     },
     {
       "id": "VEGA-PDF-069",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics-boots.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics-boots.png",
       "group": "04",
       "title": "390 dark forensics boots",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1875,7 +1876,7 @@
     },
     {
       "id": "VEGA-PDF-070",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics-boot.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics-boot.png",
       "group": "04",
       "title": "390 dark forensics boot",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1902,7 +1903,7 @@
     },
     {
       "id": "VEGA-PDF-071",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics-pstore.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics-pstore.png",
       "group": "04",
       "title": "390 dark forensics pstore",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1929,7 +1930,7 @@
     },
     {
       "id": "VEGA-PDF-072",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics-checks.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics-checks.png",
       "group": "04",
       "title": "390 dark forensics checks",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1956,7 +1957,7 @@
     },
     {
       "id": "VEGA-PDF-073",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics-check.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-forensics-check.png",
       "group": "04",
       "title": "390 dark forensics check",
       "version": "v5 task evidence / v3 foundation where named",
@@ -1983,7 +1984,7 @@
     },
     {
       "id": "VEGA-PDF-074",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-cpu-layout.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/evidence/390-dark-cpu-layout.png",
       "group": "04",
       "title": "390 dark cpu layout",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2010,7 +2011,7 @@
     },
     {
       "id": "VEGA-PDF-075",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-dark-policy-index.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-dark-policy-index.png",
       "group": "04",
       "title": "390 dark policy index",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2037,7 +2038,7 @@
     },
     {
       "id": "VEGA-PDF-076",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-dark-policy-edit.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-dark-policy-edit.png",
       "group": "04",
       "title": "390 dark policy edit",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2064,7 +2065,7 @@
     },
     {
       "id": "VEGA-PDF-077",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-dark-policy-review.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-dark-policy-review.png",
       "group": "04",
       "title": "390 dark policy review",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2091,7 +2092,7 @@
     },
     {
       "id": "VEGA-PDF-078",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-dark-triggers-index.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-dark-triggers-index.png",
       "group": "04",
       "title": "390 dark triggers index",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2118,7 +2119,7 @@
     },
     {
       "id": "VEGA-PDF-079",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-dark-trigger-detail.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/supplement/390-dark-trigger-detail.png",
       "group": "04",
       "title": "390 dark trigger detail",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2145,7 +2146,7 @@
     },
     {
       "id": "VEGA-PDF-080",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/readers-and-shared/view-controls-390-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/readers-and-shared/view-controls-390-light.png",
       "group": "04",
       "title": "View controls 390 light",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2172,7 +2173,7 @@
     },
     {
       "id": "VEGA-PDF-081",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/readers-and-shared/remote-shared-boundary-390-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/readers-and-shared/remote-shared-boundary-390-light.png",
       "group": "04",
       "title": "Remote shared boundary 390 light",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2199,7 +2200,7 @@
     },
     {
       "id": "VEGA-PDF-082",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/readers-and-shared/forensics-retained-error-390-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/readers-and-shared/forensics-retained-error-390-light.png",
       "group": "04",
       "title": "Forensics retained error 390 light",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2226,7 +2227,7 @@
     },
     {
       "id": "VEGA-PDF-083",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/readers-and-shared/capacity-retained-error-390-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/readers-and-shared/capacity-retained-error-390-light.png",
       "group": "04",
       "title": "Capacity retained error 390 light",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2253,7 +2254,7 @@
     },
     {
       "id": "VEGA-PDF-084",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-light-investigation-launch.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-light-investigation-launch.png",
       "group": "04",
       "title": "390 light investigation launch",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2280,7 +2281,7 @@
     },
     {
       "id": "VEGA-PDF-085",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-light-investigations.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-light-investigations.png",
       "group": "04",
       "title": "390 light investigations",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2307,7 +2308,7 @@
     },
     {
       "id": "VEGA-PDF-086",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-light-reports.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-light-reports.png",
       "group": "04",
       "title": "390 light reports",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2334,7 +2335,7 @@
     },
     {
       "id": "VEGA-PDF-087",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-light-scripts.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-light-scripts.png",
       "group": "04",
       "title": "390 light scripts",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2361,7 +2362,7 @@
     },
     {
       "id": "VEGA-PDF-088",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-dark-investigation-launch.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-dark-investigation-launch.png",
       "group": "04",
       "title": "390 dark investigation launch",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2388,7 +2389,7 @@
     },
     {
       "id": "VEGA-PDF-089",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-dark-investigations.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-dark-investigations.png",
       "group": "04",
       "title": "390 dark investigations",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2415,7 +2416,7 @@
     },
     {
       "id": "VEGA-PDF-090",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-dark-reports.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-dark-reports.png",
       "group": "04",
       "title": "390 dark reports",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2442,7 +2443,7 @@
     },
     {
       "id": "VEGA-PDF-091",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-dark-scripts.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/vega-v5-native-review/evidence/expansion/390-dark-scripts.png",
       "group": "04",
       "title": "390 dark scripts",
       "version": "v5 task evidence / v3 foundation where named",
@@ -2469,7 +2470,7 @@
     },
     {
       "id": "VEGA-PDF-092",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-process-focus-360-dark.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-process-focus-360-dark.png",
       "group": "04",
       "title": "V6 process focus 360 dark",
       "version": "v6 targeted correction",
@@ -2496,7 +2497,7 @@
     },
     {
       "id": "VEGA-PDF-093",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-process-focus-360-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-process-focus-360-light.png",
       "group": "04",
       "title": "V6 process focus 360 light",
       "version": "v6 targeted correction",
@@ -2523,7 +2524,7 @@
     },
     {
       "id": "VEGA-PDF-094",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-process-focus-390-dark.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-process-focus-390-dark.png",
       "group": "04",
       "title": "V6 process focus 390 dark",
       "version": "v6 targeted correction",
@@ -2550,7 +2551,7 @@
     },
     {
       "id": "VEGA-PDF-095",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-process-focus-390-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-process-focus-390-light.png",
       "group": "04",
       "title": "V6 process focus 390 light",
       "version": "v6 targeted correction",
@@ -2577,7 +2578,7 @@
     },
     {
       "id": "VEGA-PDF-096",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-settings-read15-draft20.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-settings-read15-draft20.png",
       "group": "04",
       "title": "V6 settings read15 draft20",
       "version": "v6 targeted correction",
@@ -2604,7 +2605,7 @@
     },
     {
       "id": "VEGA-PDF-097",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-settings-retained-360-dark.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-settings-retained-360-dark.png",
       "group": "04",
       "title": "V6 settings retained 360 dark",
       "version": "v6 targeted correction",
@@ -2631,7 +2632,7 @@
     },
     {
       "id": "VEGA-PDF-098",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-settings-retained-360-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-settings-retained-360-light.png",
       "group": "04",
       "title": "V6 settings retained 360 light",
       "version": "v6 targeted correction",
@@ -2658,7 +2659,7 @@
     },
     {
       "id": "VEGA-PDF-099",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-settings-retained-390-dark.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-settings-retained-390-dark.png",
       "group": "04",
       "title": "V6 settings retained 390 dark",
       "version": "v6 targeted correction",
@@ -2685,7 +2686,7 @@
     },
     {
       "id": "VEGA-PDF-100",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-settings-retained-390-light.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/vega-v6-test/evidence/v6-settings-retained-390-light.png",
       "group": "04",
       "title": "V6 settings retained 390 light",
       "version": "v6 targeted correction",
@@ -2712,7 +2713,7 @@
     },
     {
       "id": "VEGA-PDF-101",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/14AKgqcbhXXRf47fBrTvmjvM2wo1D8HSn/visuals/capacity-ledger-v1/vega-capacity-desktop-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/14AKgqcbhXXRf47fBrTvmjvM2wo1D8HSn/visuals/capacity-ledger-v1/vega-capacity-desktop-dark-v1.png",
       "group": "05",
       "title": "Capacity desktop dark v1",
       "version": "capacity-ledger-v1",
@@ -2739,7 +2740,7 @@
     },
     {
       "id": "VEGA-PDF-102",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/14AKgqcbhXXRf47fBrTvmjvM2wo1D8HSn/visuals/capacity-ledger-v1/vega-capacity-desktop-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/14AKgqcbhXXRf47fBrTvmjvM2wo1D8HSn/visuals/capacity-ledger-v1/vega-capacity-desktop-light-v1.png",
       "group": "05",
       "title": "Capacity desktop light v1",
       "version": "capacity-ledger-v1",
@@ -2766,7 +2767,7 @@
     },
     {
       "id": "VEGA-PDF-103",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-desktop-dark-v2.png",
       "group": "05",
       "title": "Forensics desktop dark v2",
       "version": "forensics-evidence-v2",
@@ -2793,7 +2794,7 @@
     },
     {
       "id": "VEGA-PDF-104",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-desktop-light-v2.png",
       "group": "05",
       "title": "Forensics desktop light v2",
       "version": "forensics-evidence-v2",
@@ -2820,7 +2821,7 @@
     },
     {
       "id": "VEGA-PDF-105",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-states-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-states-desktop-dark-v2.png",
       "group": "05",
       "title": "Forensics states desktop dark v2",
       "version": "forensics-evidence-v2",
@@ -2847,7 +2848,7 @@
     },
     {
       "id": "VEGA-PDF-106",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-states-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-states-desktop-light-v2.png",
       "group": "05",
       "title": "Forensics states desktop light v2",
       "version": "forensics-evidence-v2",
@@ -2874,7 +2875,7 @@
     },
     {
       "id": "VEGA-PDF-107",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-desktop-dark-v2.png",
       "group": "05",
       "title": "Logs desktop dark v2",
       "version": "logs-evidence-v2",
@@ -2901,7 +2902,7 @@
     },
     {
       "id": "VEGA-PDF-108",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-desktop-light-v2.png",
       "group": "05",
       "title": "Logs desktop light v2",
       "version": "logs-evidence-v2",
@@ -2928,7 +2929,7 @@
     },
     {
       "id": "VEGA-PDF-109",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-states-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-states-desktop-dark-v2.png",
       "group": "05",
       "title": "Logs states desktop dark v2",
       "version": "logs-evidence-v2",
@@ -2955,7 +2956,7 @@
     },
     {
       "id": "VEGA-PDF-110",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-states-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-states-desktop-light-v2.png",
       "group": "05",
       "title": "Logs states desktop light v2",
       "version": "logs-evidence-v2",
@@ -2982,7 +2983,7 @@
     },
     {
       "id": "VEGA-PDF-111",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-result-desktop-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-result-desktop-dark-v1.png",
       "group": "05",
       "title": "Script result desktop dark v1",
       "version": "script-execution-v1",
@@ -3009,7 +3010,7 @@
     },
     {
       "id": "VEGA-PDF-112",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-result-desktop-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-result-desktop-light-v1.png",
       "group": "05",
       "title": "Script result desktop light v1",
       "version": "script-execution-v1",
@@ -3036,7 +3037,7 @@
     },
     {
       "id": "VEGA-PDF-113",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-review-desktop-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-review-desktop-dark-v1.png",
       "group": "05",
       "title": "Script review desktop dark v1",
       "version": "script-execution-v1",
@@ -3063,7 +3064,7 @@
     },
     {
       "id": "VEGA-PDF-114",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-review-desktop-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-review-desktop-light-v1.png",
       "group": "05",
       "title": "Script review desktop light v1",
       "version": "script-execution-v1",
@@ -3090,7 +3091,7 @@
     },
     {
       "id": "VEGA-PDF-115",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-script-source-desktop-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-script-source-desktop-dark-v1.png",
       "group": "05",
       "title": "Script source desktop dark v1",
       "version": "scripts-library-v1",
@@ -3117,7 +3118,7 @@
     },
     {
       "id": "VEGA-PDF-116",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-script-source-desktop-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-script-source-desktop-light-v1.png",
       "group": "05",
       "title": "Script source desktop light v1",
       "version": "scripts-library-v1",
@@ -3144,7 +3145,7 @@
     },
     {
       "id": "VEGA-PDF-117",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-scripts-desktop-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-scripts-desktop-dark-v1.png",
       "group": "05",
       "title": "Scripts desktop dark v1",
       "version": "scripts-library-v1",
@@ -3171,7 +3172,7 @@
     },
     {
       "id": "VEGA-PDF-118",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-scripts-desktop-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-scripts-desktop-light-v1.png",
       "group": "05",
       "title": "Scripts desktop light v1",
       "version": "scripts-library-v1",
@@ -3198,7 +3199,7 @@
     },
     {
       "id": "VEGA-PDF-119",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-automatic-triggers-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-automatic-triggers-desktop-dark-v2.png",
       "group": "05",
       "title": "Automatic triggers desktop dark v2",
       "version": "device-infrastructure-v2",
@@ -3225,7 +3226,7 @@
     },
     {
       "id": "VEGA-PDF-120",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-automatic-triggers-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-automatic-triggers-desktop-light-v2.png",
       "group": "05",
       "title": "Automatic triggers desktop light v2",
       "version": "device-infrastructure-v2",
@@ -3252,7 +3253,7 @@
     },
     {
       "id": "VEGA-PDF-121",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-automatic-triggers-mobile-full-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-automatic-triggers-mobile-full-dark-v2.png",
       "group": "05",
       "title": "Automatic triggers mobile full dark v2",
       "version": "device-infrastructure-v2",
@@ -3279,7 +3280,7 @@
     },
     {
       "id": "VEGA-PDF-122",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-automatic-triggers-mobile-full-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-automatic-triggers-mobile-full-light-v2.png",
       "group": "05",
       "title": "Automatic triggers mobile full light v2",
       "version": "device-infrastructure-v2",
@@ -3306,7 +3307,7 @@
     },
     {
       "id": "VEGA-PDF-123",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-infrastructure-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-infrastructure-desktop-dark-v2.png",
       "group": "05",
       "title": "Device infrastructure desktop dark v2",
       "version": "device-infrastructure-v2",
@@ -3333,7 +3334,7 @@
     },
     {
       "id": "VEGA-PDF-124",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-infrastructure-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-infrastructure-desktop-light-v2.png",
       "group": "05",
       "title": "Device infrastructure desktop light v2",
       "version": "device-infrastructure-v2",
@@ -3360,7 +3361,7 @@
     },
     {
       "id": "VEGA-PDF-125",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-infrastructure-mobile-full-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-infrastructure-mobile-full-dark-v2.png",
       "group": "05",
       "title": "Device infrastructure mobile full dark v2",
       "version": "device-infrastructure-v2",
@@ -3387,7 +3388,7 @@
     },
     {
       "id": "VEGA-PDF-126",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-infrastructure-mobile-full-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-infrastructure-mobile-full-light-v2.png",
       "group": "05",
       "title": "Device infrastructure mobile full light v2",
       "version": "device-infrastructure-v2",
@@ -3414,7 +3415,7 @@
     },
     {
       "id": "VEGA-PDF-127",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-services-mobile-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-services-mobile-dark-v2.png",
       "group": "05",
       "title": "Device services mobile dark v2",
       "version": "device-infrastructure-v2",
@@ -3441,7 +3442,7 @@
     },
     {
       "id": "VEGA-PDF-128",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-services-mobile-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/device-infrastructure-v2/vega-device-services-mobile-light-v2.png",
       "group": "05",
       "title": "Device services mobile light v2",
       "version": "device-infrastructure-v2",
@@ -3468,7 +3469,7 @@
     },
     {
       "id": "VEGA-PDF-129",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-investigation-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-investigation-desktop-dark-v2.png",
       "group": "05",
       "title": "Investigation desktop dark v2",
       "version": "investigation-report-v2",
@@ -3495,7 +3496,7 @@
     },
     {
       "id": "VEGA-PDF-130",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-investigation-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-investigation-desktop-light-v2.png",
       "group": "05",
       "title": "Investigation desktop light v2",
       "version": "investigation-report-v2",
@@ -3522,7 +3523,7 @@
     },
     {
       "id": "VEGA-PDF-131",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-report-reader-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-report-reader-desktop-dark-v2.png",
       "group": "05",
       "title": "Report reader desktop dark v2",
       "version": "investigation-report-v2",
@@ -3549,7 +3550,7 @@
     },
     {
       "id": "VEGA-PDF-132",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-report-reader-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-report-reader-desktop-light-v2.png",
       "group": "05",
       "title": "Report reader desktop light v2",
       "version": "investigation-report-v2",
@@ -3576,7 +3577,7 @@
     },
     {
       "id": "VEGA-PDF-133",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-desktop-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-desktop-dark-v1.png",
       "group": "05",
       "title": "Settings desktop dark v1",
       "version": "shared-controls-v1",
@@ -3603,7 +3604,7 @@
     },
     {
       "id": "VEGA-PDF-134",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-desktop-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-desktop-light-v1.png",
       "group": "05",
       "title": "Settings desktop light v1",
       "version": "shared-controls-v1",
@@ -3630,7 +3631,7 @@
     },
     {
       "id": "VEGA-PDF-135",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-transitions-desktop-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-transitions-desktop-dark-v1.png",
       "group": "05",
       "title": "Settings transitions desktop dark v1",
       "version": "shared-controls-v1",
@@ -3657,7 +3658,7 @@
     },
     {
       "id": "VEGA-PDF-136",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-transitions-desktop-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-transitions-desktop-light-v1.png",
       "group": "05",
       "title": "Settings transitions desktop light v1",
       "version": "shared-controls-v1",
@@ -3684,7 +3685,7 @@
     },
     {
       "id": "VEGA-PDF-137",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-shared-states-desktop-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-shared-states-desktop-dark-v1.png",
       "group": "05",
       "title": "Shared states desktop dark v1",
       "version": "shared-controls-v1",
@@ -3711,7 +3712,7 @@
     },
     {
       "id": "VEGA-PDF-138",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-shared-states-desktop-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-shared-states-desktop-light-v1.png",
       "group": "05",
       "title": "Shared states desktop light v1",
       "version": "shared-controls-v1",
@@ -3738,7 +3739,7 @@
     },
     {
       "id": "VEGA-PDF-139",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-detail-layout-desktop-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-detail-layout-desktop-dark-v1.png",
       "group": "06",
       "title": "Detail layout desktop dark v1",
       "version": "detail-controls-evidence-v1",
@@ -3765,7 +3766,7 @@
     },
     {
       "id": "VEGA-PDF-140",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-detail-layout-desktop-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-detail-layout-desktop-light-v1.png",
       "group": "06",
       "title": "Detail layout desktop light v1",
       "version": "detail-controls-evidence-v1",
@@ -3792,7 +3793,7 @@
     },
     {
       "id": "VEGA-PDF-141",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-detail-layout-mobile-full-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-detail-layout-mobile-full-dark-v1.png",
       "group": "06",
       "title": "Detail layout mobile full dark v1",
       "version": "detail-controls-evidence-v1",
@@ -3819,7 +3820,7 @@
     },
     {
       "id": "VEGA-PDF-142",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-detail-layout-mobile-full-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-detail-layout-mobile-full-light-v1.png",
       "group": "06",
       "title": "Detail layout mobile full light v1",
       "version": "detail-controls-evidence-v1",
@@ -3846,7 +3847,7 @@
     },
     {
       "id": "VEGA-PDF-143",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-memory-raw-zones-desktop-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-memory-raw-zones-desktop-dark-v1.png",
       "group": "06",
       "title": "Memory raw zones desktop dark v1",
       "version": "detail-controls-evidence-v1",
@@ -3873,7 +3874,7 @@
     },
     {
       "id": "VEGA-PDF-144",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-memory-raw-zones-desktop-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-memory-raw-zones-desktop-light-v1.png",
       "group": "06",
       "title": "Memory raw zones desktop light v1",
       "version": "detail-controls-evidence-v1",
@@ -3900,7 +3901,7 @@
     },
     {
       "id": "VEGA-PDF-145",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-memory-raw-zones-mobile-full-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-memory-raw-zones-mobile-full-dark-v1.png",
       "group": "06",
       "title": "Memory raw zones mobile full dark v1",
       "version": "detail-controls-evidence-v1",
@@ -3927,7 +3928,7 @@
     },
     {
       "id": "VEGA-PDF-146",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-memory-raw-zones-mobile-full-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/detail-controls-evidence-v1/vega-memory-raw-zones-mobile-full-light-v1.png",
       "group": "06",
       "title": "Memory raw zones mobile full light v1",
       "version": "detail-controls-evidence-v1",
@@ -3954,7 +3955,7 @@
     },
     {
       "id": "VEGA-PDF-147",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-context-v1/vega-shared-context-desktop-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-context-v1/vega-shared-context-desktop-dark-v1.png",
       "group": "06",
       "title": "Shared context desktop dark v1",
       "version": "shared-context-v1",
@@ -3981,7 +3982,7 @@
     },
     {
       "id": "VEGA-PDF-148",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-context-v1/vega-shared-context-desktop-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-context-v1/vega-shared-context-desktop-light-v1.png",
       "group": "06",
       "title": "Shared context desktop light v1",
       "version": "shared-context-v1",
@@ -4008,7 +4009,7 @@
     },
     {
       "id": "VEGA-PDF-149",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-context-v1/vega-shared-context-mobile-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-context-v1/vega-shared-context-mobile-dark-v1.png",
       "group": "06",
       "title": "Shared context mobile dark v1",
       "version": "shared-context-v1",
@@ -4035,7 +4036,7 @@
     },
     {
       "id": "VEGA-PDF-150",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-context-v1/vega-shared-context-mobile-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-context-v1/vega-shared-context-mobile-light-v1.png",
       "group": "06",
       "title": "Shared context mobile light v1",
       "version": "shared-context-v1",
@@ -4062,7 +4063,7 @@
     },
     {
       "id": "VEGA-PDF-151",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-capacity-investigation-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-capacity-investigation-desktop-dark-v2.png",
       "group": "06",
       "title": "Capacity investigation desktop dark v2",
       "version": "behavior-companions-v2",
@@ -4089,7 +4090,7 @@
     },
     {
       "id": "VEGA-PDF-152",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-capacity-investigation-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-capacity-investigation-desktop-light-v2.png",
       "group": "06",
       "title": "Capacity investigation desktop light v2",
       "version": "behavior-companions-v2",
@@ -4116,7 +4117,7 @@
     },
     {
       "id": "VEGA-PDF-153",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-capacity-investigation-mobile-full-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-capacity-investigation-mobile-full-dark-v2.png",
       "group": "06",
       "title": "Capacity investigation mobile full dark v2",
       "version": "behavior-companions-v2",
@@ -4143,7 +4144,7 @@
     },
     {
       "id": "VEGA-PDF-154",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-capacity-investigation-mobile-full-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-capacity-investigation-mobile-full-light-v2.png",
       "group": "06",
       "title": "Capacity investigation mobile full light v2",
       "version": "behavior-companions-v2",
@@ -4170,7 +4171,7 @@
     },
     {
       "id": "VEGA-PDF-155",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-overview-status-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-overview-status-desktop-dark-v2.png",
       "group": "06",
       "title": "Overview status desktop dark v2",
       "version": "behavior-companions-v2",
@@ -4197,7 +4198,7 @@
     },
     {
       "id": "VEGA-PDF-156",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-overview-status-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-overview-status-desktop-light-v2.png",
       "group": "06",
       "title": "Overview status desktop light v2",
       "version": "behavior-companions-v2",
@@ -4224,7 +4225,7 @@
     },
     {
       "id": "VEGA-PDF-157",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-overview-status-mobile-full-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-overview-status-mobile-full-dark-v2.png",
       "group": "06",
       "title": "Overview status mobile full dark v2",
       "version": "behavior-companions-v2",
@@ -4251,7 +4252,7 @@
     },
     {
       "id": "VEGA-PDF-158",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-overview-status-mobile-full-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-overview-status-mobile-full-light-v2.png",
       "group": "06",
       "title": "Overview status mobile full light v2",
       "version": "behavior-companions-v2",
@@ -4278,7 +4279,7 @@
     },
     {
       "id": "VEGA-PDF-159",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-resource-evidence-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-resource-evidence-desktop-dark-v2.png",
       "group": "06",
       "title": "Resource evidence desktop dark v2",
       "version": "behavior-companions-v2",
@@ -4305,7 +4306,7 @@
     },
     {
       "id": "VEGA-PDF-160",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-resource-evidence-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-resource-evidence-desktop-light-v2.png",
       "group": "06",
       "title": "Resource evidence desktop light v2",
       "version": "behavior-companions-v2",
@@ -4332,7 +4333,7 @@
     },
     {
       "id": "VEGA-PDF-161",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-resource-evidence-mobile-full-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-resource-evidence-mobile-full-dark-v2.png",
       "group": "06",
       "title": "Resource evidence mobile full dark v2",
       "version": "behavior-companions-v2",
@@ -4359,7 +4360,7 @@
     },
     {
       "id": "VEGA-PDF-162",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-resource-evidence-mobile-full-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-resource-evidence-mobile-full-light-v2.png",
       "group": "06",
       "title": "Resource evidence mobile full light v2",
       "version": "behavior-companions-v2",
@@ -4386,7 +4387,7 @@
     },
     {
       "id": "VEGA-PDF-163",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-script-storage-actions-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-script-storage-actions-desktop-dark-v2.png",
       "group": "06",
       "title": "Script storage actions desktop dark v2",
       "version": "behavior-companions-v2",
@@ -4413,7 +4414,7 @@
     },
     {
       "id": "VEGA-PDF-164",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-script-storage-actions-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-script-storage-actions-desktop-light-v2.png",
       "group": "06",
       "title": "Script storage actions desktop light v2",
       "version": "behavior-companions-v2",
@@ -4440,7 +4441,7 @@
     },
     {
       "id": "VEGA-PDF-165",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-script-storage-actions-mobile-full-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-script-storage-actions-mobile-full-dark-v2.png",
       "group": "06",
       "title": "Script storage actions mobile full dark v2",
       "version": "behavior-companions-v2",
@@ -4467,7 +4468,7 @@
     },
     {
       "id": "VEGA-PDF-166",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-script-storage-actions-mobile-full-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/behavior-companions-v2/vega-script-storage-actions-mobile-full-light-v2.png",
       "group": "06",
       "title": "Script storage actions mobile full light v2",
       "version": "behavior-companions-v2",
@@ -4494,7 +4495,7 @@
     },
     {
       "id": "VEGA-PDF-167",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/capacity-policy-v2/vega-capacity-policy-desktop-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/capacity-policy-v2/vega-capacity-policy-desktop-dark-v2.png",
       "group": "06",
       "title": "Capacity policy desktop dark v2",
       "version": "capacity-policy-v2",
@@ -4521,7 +4522,7 @@
     },
     {
       "id": "VEGA-PDF-168",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/capacity-policy-v2/vega-capacity-policy-desktop-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/capacity-policy-v2/vega-capacity-policy-desktop-light-v2.png",
       "group": "06",
       "title": "Capacity policy desktop light v2",
       "version": "capacity-policy-v2",
@@ -4548,7 +4549,7 @@
     },
     {
       "id": "VEGA-PDF-169",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/capacity-policy-v2/vega-capacity-policy-mobile-full-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/capacity-policy-v2/vega-capacity-policy-mobile-full-dark-v2.png",
       "group": "06",
       "title": "Capacity policy mobile full dark v2",
       "version": "capacity-policy-v2",
@@ -4575,7 +4576,7 @@
     },
     {
       "id": "VEGA-PDF-170",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/capacity-policy-v2/vega-capacity-policy-mobile-full-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/visuals/capacity-policy-v2/vega-capacity-policy-mobile-full-light-v2.png",
       "group": "06",
       "title": "Capacity policy mobile full light v2",
       "version": "capacity-policy-v2",
@@ -4602,7 +4603,7 @@
     },
     {
       "id": "VEGA-PDF-171",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/14AKgqcbhXXRf47fBrTvmjvM2wo1D8HSn/visuals/capacity-ledger-v1/vega-capacity-mobile-full-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/14AKgqcbhXXRf47fBrTvmjvM2wo1D8HSn/visuals/capacity-ledger-v1/vega-capacity-mobile-full-dark-v1.png",
       "group": "07",
       "title": "Capacity mobile full dark v1",
       "version": "capacity-ledger-v1",
@@ -4629,7 +4630,7 @@
     },
     {
       "id": "VEGA-PDF-172",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/14AKgqcbhXXRf47fBrTvmjvM2wo1D8HSn/visuals/capacity-ledger-v1/vega-capacity-mobile-full-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/14AKgqcbhXXRf47fBrTvmjvM2wo1D8HSn/visuals/capacity-ledger-v1/vega-capacity-mobile-full-light-v1.png",
       "group": "07",
       "title": "Capacity mobile full light v1",
       "version": "capacity-ledger-v1",
@@ -4656,7 +4657,7 @@
     },
     {
       "id": "VEGA-PDF-173",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-mobile-full-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-mobile-full-dark-v2.png",
       "group": "07",
       "title": "Forensics mobile full dark v2",
       "version": "forensics-evidence-v2",
@@ -4683,7 +4684,7 @@
     },
     {
       "id": "VEGA-PDF-174",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-mobile-full-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-mobile-full-light-v2.png",
       "group": "07",
       "title": "Forensics mobile full light v2",
       "version": "forensics-evidence-v2",
@@ -4710,7 +4711,7 @@
     },
     {
       "id": "VEGA-PDF-175",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-states-mobile-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-states-mobile-dark-v2.png",
       "group": "07",
       "title": "Forensics states mobile dark v2",
       "version": "forensics-evidence-v2",
@@ -4737,7 +4738,7 @@
     },
     {
       "id": "VEGA-PDF-176",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-states-mobile-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/forensics-evidence-v2/vega-forensics-states-mobile-light-v2.png",
       "group": "07",
       "title": "Forensics states mobile light v2",
       "version": "forensics-evidence-v2",
@@ -4764,7 +4765,7 @@
     },
     {
       "id": "VEGA-PDF-177",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-mobile-filters-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-mobile-filters-dark-v2.png",
       "group": "07",
       "title": "Logs mobile filters dark v2",
       "version": "logs-evidence-v2",
@@ -4791,7 +4792,7 @@
     },
     {
       "id": "VEGA-PDF-178",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-mobile-filters-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-mobile-filters-light-v2.png",
       "group": "07",
       "title": "Logs mobile filters light v2",
       "version": "logs-evidence-v2",
@@ -4818,7 +4819,7 @@
     },
     {
       "id": "VEGA-PDF-179",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-mobile-full-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-mobile-full-dark-v2.png",
       "group": "07",
       "title": "Logs mobile full dark v2",
       "version": "logs-evidence-v2",
@@ -4845,7 +4846,7 @@
     },
     {
       "id": "VEGA-PDF-180",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-mobile-full-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-mobile-full-light-v2.png",
       "group": "07",
       "title": "Logs mobile full light v2",
       "version": "logs-evidence-v2",
@@ -4872,7 +4873,7 @@
     },
     {
       "id": "VEGA-PDF-181",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-states-mobile-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-states-mobile-dark-v2.png",
       "group": "07",
       "title": "Logs states mobile dark v2",
       "version": "logs-evidence-v2",
@@ -4899,7 +4900,7 @@
     },
     {
       "id": "VEGA-PDF-182",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-states-mobile-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/logs-evidence-v2/vega-logs-states-mobile-light-v2.png",
       "group": "07",
       "title": "Logs states mobile light v2",
       "version": "logs-evidence-v2",
@@ -4926,7 +4927,7 @@
     },
     {
       "id": "VEGA-PDF-183",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-result-mobile-full-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-result-mobile-full-dark-v1.png",
       "group": "07",
       "title": "Script result mobile full dark v1",
       "version": "script-execution-v1",
@@ -4953,7 +4954,7 @@
     },
     {
       "id": "VEGA-PDF-184",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-result-mobile-full-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-result-mobile-full-light-v1.png",
       "group": "07",
       "title": "Script result mobile full light v1",
       "version": "script-execution-v1",
@@ -4980,7 +4981,7 @@
     },
     {
       "id": "VEGA-PDF-185",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-review-mobile-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-review-mobile-dark-v1.png",
       "group": "07",
       "title": "Script review mobile dark v1",
       "version": "script-execution-v1",
@@ -5007,7 +5008,7 @@
     },
     {
       "id": "VEGA-PDF-186",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-review-mobile-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-review-mobile-light-v1.png",
       "group": "07",
       "title": "Script review mobile light v1",
       "version": "script-execution-v1",
@@ -5034,7 +5035,7 @@
     },
     {
       "id": "VEGA-PDF-187",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-selected-mobile-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-selected-mobile-dark-v1.png",
       "group": "07",
       "title": "Script selected mobile dark v1",
       "version": "script-execution-v1",
@@ -5061,7 +5062,7 @@
     },
     {
       "id": "VEGA-PDF-188",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-selected-mobile-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/script-execution-v1/vega-script-selected-mobile-light-v1.png",
       "group": "07",
       "title": "Script selected mobile light v1",
       "version": "script-execution-v1",
@@ -5088,7 +5089,7 @@
     },
     {
       "id": "VEGA-PDF-189",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-script-source-mobile-full-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-script-source-mobile-full-dark-v1.png",
       "group": "07",
       "title": "Script source mobile full dark v1",
       "version": "scripts-library-v1",
@@ -5115,7 +5116,7 @@
     },
     {
       "id": "VEGA-PDF-190",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-script-source-mobile-full-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-script-source-mobile-full-light-v1.png",
       "group": "07",
       "title": "Script source mobile full light v1",
       "version": "scripts-library-v1",
@@ -5142,7 +5143,7 @@
     },
     {
       "id": "VEGA-PDF-191",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-scripts-mobile-full-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-scripts-mobile-full-dark-v1.png",
       "group": "07",
       "title": "Scripts mobile full dark v1",
       "version": "scripts-library-v1",
@@ -5169,7 +5170,7 @@
     },
     {
       "id": "VEGA-PDF-192",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-scripts-mobile-full-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/visuals/scripts-library-v1/vega-scripts-mobile-full-light-v1.png",
       "group": "07",
       "title": "Scripts mobile full light v1",
       "version": "scripts-library-v1",
@@ -5196,7 +5197,7 @@
     },
     {
       "id": "VEGA-PDF-193",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-investigation-mobile-full-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-investigation-mobile-full-dark-v2.png",
       "group": "07",
       "title": "Investigation mobile full dark v2",
       "version": "investigation-report-v2",
@@ -5223,7 +5224,7 @@
     },
     {
       "id": "VEGA-PDF-194",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-investigation-mobile-full-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-investigation-mobile-full-light-v2.png",
       "group": "07",
       "title": "Investigation mobile full light v2",
       "version": "investigation-report-v2",
@@ -5250,7 +5251,7 @@
     },
     {
       "id": "VEGA-PDF-195",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-report-reader-mobile-dark-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-report-reader-mobile-dark-v2.png",
       "group": "07",
       "title": "Report reader mobile dark v2",
       "version": "investigation-report-v2",
@@ -5277,7 +5278,7 @@
     },
     {
       "id": "VEGA-PDF-196",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-report-reader-mobile-light-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/visuals/investigation-report-v2/vega-report-reader-mobile-light-v2.png",
       "group": "07",
       "title": "Report reader mobile light v2",
       "version": "investigation-report-v2",
@@ -5304,7 +5305,7 @@
     },
     {
       "id": "VEGA-PDF-197",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-mobile-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-mobile-dark-v1.png",
       "group": "07",
       "title": "Settings mobile dark v1",
       "version": "shared-controls-v1",
@@ -5331,7 +5332,7 @@
     },
     {
       "id": "VEGA-PDF-198",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-mobile-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-mobile-light-v1.png",
       "group": "07",
       "title": "Settings mobile light v1",
       "version": "shared-controls-v1",
@@ -5358,7 +5359,7 @@
     },
     {
       "id": "VEGA-PDF-199",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-transitions-mobile-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-transitions-mobile-dark-v1.png",
       "group": "07",
       "title": "Settings transitions mobile dark v1",
       "version": "shared-controls-v1",
@@ -5385,7 +5386,7 @@
     },
     {
       "id": "VEGA-PDF-200",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-transitions-mobile-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-settings-transitions-mobile-light-v1.png",
       "group": "07",
       "title": "Settings transitions mobile light v1",
       "version": "shared-controls-v1",
@@ -5412,7 +5413,7 @@
     },
     {
       "id": "VEGA-PDF-201",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-shared-states-mobile-dark-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-shared-states-mobile-dark-v1.png",
       "group": "07",
       "title": "Shared states mobile dark v1",
       "version": "shared-controls-v1",
@@ -5439,7 +5440,7 @@
     },
     {
       "id": "VEGA-PDF-202",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-shared-states-mobile-light-v1.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/visuals/shared-controls-v1/vega-shared-states-mobile-light-v1.png",
       "group": "07",
       "title": "Shared states mobile light v1",
       "version": "shared-controls-v1",
@@ -5466,7 +5467,7 @@
     },
     {
       "id": "VEGA-PDF-203",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1nSJJxYLj0o7VtMUDvAEvFlj6juowvf4T/visuals/motion-overview-disk-v2/vega-desktop-disk-settled-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1nSJJxYLj0o7VtMUDvAEvFlj6juowvf4T/visuals/motion-overview-disk-v2/vega-desktop-disk-settled-v2.png",
       "group": "08",
       "title": "Desktop disk settled v2",
       "version": "motion-overview-disk-v2",
@@ -5493,7 +5494,7 @@
     },
     {
       "id": "VEGA-PDF-204",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1nSJJxYLj0o7VtMUDvAEvFlj6juowvf4T/visuals/motion-overview-disk-v2/vega-desktop-overview-start-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1nSJJxYLj0o7VtMUDvAEvFlj6juowvf4T/visuals/motion-overview-disk-v2/vega-desktop-overview-start-v2.png",
       "group": "08",
       "title": "Desktop overview start v2",
       "version": "motion-overview-disk-v2",
@@ -5520,7 +5521,7 @@
     },
     {
       "id": "VEGA-PDF-205",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1nSJJxYLj0o7VtMUDvAEvFlj6juowvf4T/visuals/motion-overview-disk-v2/vega-mobile-disk-settled-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1nSJJxYLj0o7VtMUDvAEvFlj6juowvf4T/visuals/motion-overview-disk-v2/vega-mobile-disk-settled-v2.png",
       "group": "08",
       "title": "Mobile disk settled v2",
       "version": "motion-overview-disk-v2",
@@ -5547,7 +5548,7 @@
     },
     {
       "id": "VEGA-PDF-206",
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/extracted-media/1nSJJxYLj0o7VtMUDvAEvFlj6juowvf4T/visuals/motion-overview-disk-v2/vega-mobile-overview-start-v2.png",
+      "path": "background/delivery-operations/2026-10-12/assets/extracted-media/1nSJJxYLj0o7VtMUDvAEvFlj6juowvf4T/visuals/motion-overview-disk-v2/vega-mobile-overview-start-v2.png",
       "group": "08",
       "title": "Mobile overview start v2",
       "version": "motion-overview-disk-v2",
@@ -5575,7 +5576,7 @@
   ],
   "source_archives": [
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/vega-controls-and-layout-sources-v1.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/vega-controls-and-layout-sources-v1.zip",
       "source_url": "https://drive.google.com/file/d/102JN7j1aX2fZ2kpUg58cy5pu5rPLC0fH/view",
       "sha256": "0ffc88f6beda1dc2a3085ddf5be44b8fee43565fc656299491d49dcbd5ba92cb",
       "bytes": 20148202,
@@ -5583,7 +5584,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/14AKgqcbhXXRf47fBrTvmjvM2wo1D8HSn/vega-resources-b-sources-v1.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/14AKgqcbhXXRf47fBrTvmjvM2wo1D8HSn/vega-resources-b-sources-v1.zip",
       "source_url": "https://drive.google.com/file/d/14AKgqcbhXXRf47fBrTvmjvM2wo1D8HSn/view",
       "sha256": "8cf7547b9741e17c37ab921a50a3612544a06e2de812dae7f6194651363f8dac",
       "bytes": 28418366,
@@ -5591,7 +5592,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/vega-state-policy-sources-v2.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/vega-state-policy-sources-v2.zip",
       "source_url": "https://drive.google.com/file/d/16Tqo8wdB6K-7T8q1YDEY5te3jLZGK39r/view",
       "sha256": "31f9d0c60eb5d224b9a4a32b26a538bd67e0cdf4c1cc75644d66288f87829ac5",
       "bytes": 18717381,
@@ -5599,7 +5600,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/18gMKvgf0QEcaPE8i7F262p9aC9fwueSp/editors-v74.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/18gMKvgf0QEcaPE8i7F262p9aC9fwueSp/editors-v74.zip",
       "source_url": "https://drive.google.com/file/d/18gMKvgf0QEcaPE8i7F262p9aC9fwueSp/view",
       "sha256": "53d40c9cc94bc94122e7ca6736afc3427a2ee7cfca032a74e80193b4d60e1dc1",
       "bytes": 3175107,
@@ -5607,7 +5608,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/vega-evidence-workspaces-sources-v1.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/vega-evidence-workspaces-sources-v1.zip",
       "source_url": "https://drive.google.com/file/d/1BtgP-5jYrdF3GYACqDC6BSlunQM72h0D/view",
       "sha256": "4873e2bd55cd7b6ea198dc6ebc3c6ecaa3ce531b1d9982b490ee1c67f51fb8e0",
       "bytes": 26497662,
@@ -5615,7 +5616,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1I-rFk6wz_yD7Lj6_NumWwPJ2SUksZ9jJ/mobile-v3.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1I-rFk6wz_yD7Lj6_NumWwPJ2SUksZ9jJ/mobile-v3.zip",
       "source_url": "https://drive.google.com/file/d/1I-rFk6wz_yD7Lj6_NumWwPJ2SUksZ9jJ/view",
       "sha256": "6439fdf7f5cff081c50207c609a91b7875932c3639c9a5164b2f37b8a7d5dd36",
       "bytes": 18173403,
@@ -5623,7 +5624,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/Vega mobile v6 targeted native evidence \u2014 four fixes verified.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/Vega mobile v6 targeted native evidence \u2014 four fixes verified.zip",
       "source_url": "https://drive.google.com/file/d/1NAYbwftVRQMhuxs2mmEjkoizIFV35ZfY/view",
       "sha256": "f36f0cac3cbe1a1e5ad35d5e44499de675e709ecfaef5a46831fd943927cacc6",
       "bytes": 2966365,
@@ -5631,7 +5632,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/vega-actions-and-infrastructure-sources-v1.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/vega-actions-and-infrastructure-sources-v1.zip",
       "source_url": "https://drive.google.com/file/d/1OH5gljoX4oBSyH9Ox2Ssu26nXVwWlyC5/view",
       "sha256": "eaa6605f10b803b86588848a9512b50852149a827dc48757409a207d546512f5",
       "bytes": 17688300,
@@ -5639,7 +5640,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1OKsArOZFGLR0KOhyYmRMHfhi5rkyxM1Y/vega-resources-a-sources-v1.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1OKsArOZFGLR0KOhyYmRMHfhi5rkyxM1Y/vega-resources-a-sources-v1.zip",
       "source_url": "https://drive.google.com/file/d/1OKsArOZFGLR0KOhyYmRMHfhi5rkyxM1Y/view",
       "sha256": "7ec571a354021e1b532cdfc6faf5ef1642193cf9261bd9af7b982f1af1d5f2a2",
       "bytes": 31855248,
@@ -5647,7 +5648,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1Pu1YTRIHWzGB-1g1cMaYLAS_f3K8m4kQ/vega-specification-and-native-evidence-v1.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1Pu1YTRIHWzGB-1g1cMaYLAS_f3K8m4kQ/vega-specification-and-native-evidence-v1.zip",
       "source_url": "https://drive.google.com/file/d/1Pu1YTRIHWzGB-1g1cMaYLAS_f3K8m4kQ/view",
       "sha256": "20317157ad131ca11ad3e794450ee3c3d4f2b4f8e09ad601032578cd550a1cd2",
       "bytes": 1804917,
@@ -5655,7 +5656,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1buRvLP-_HpZEoAf9tSbzg8spoRwxc3nP/Vega editor chrome v7.5.1 source.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1buRvLP-_HpZEoAf9tSbzg8spoRwxc3nP/Vega editor chrome v7.5.1 source.zip",
       "source_url": "https://drive.google.com/file/d/1buRvLP-_HpZEoAf9tSbzg8spoRwxc3nP/view",
       "sha256": "3abc974fd4063f7cdf3ced2382c15a52de10459c08ba7f55a38571cbb9229910",
       "bytes": 3243086,
@@ -5663,7 +5664,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/mobile-v5.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/mobile-v5.zip",
       "source_url": "https://drive.google.com/file/d/1i-7S9dq66BerPvNA_w-SvytgrPmtqj7I/view",
       "sha256": "56f5794848147e9bd24d12c39c0f13502eef9ddc514a65318983fade6200d217",
       "bytes": 36019291,
@@ -5671,7 +5672,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-graph-navbar-parity-v2.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/vega-graph-navbar-parity-v2.zip",
       "source_url": "https://drive.google.com/file/d/1l5Rup78pOWWWQRmwusBUiIkOTceAGngZ/view",
       "sha256": "623e5c017dca3790efde6702f31326c23b61ec2a39e0ad1a28e8dbce362930df",
       "bytes": 23558653,
@@ -5679,7 +5680,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1nSJJxYLj0o7VtMUDvAEvFlj6juowvf4T/vega-motion-sources-v1.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1nSJJxYLj0o7VtMUDvAEvFlj6juowvf4T/vega-motion-sources-v1.zip",
       "source_url": "https://drive.google.com/file/d/1nSJJxYLj0o7VtMUDvAEvFlj6juowvf4T/view",
       "sha256": "d949d121e17e13fc7ba2f28056b8b4a8648f2da7a209a0a32aebb680da2f831a",
       "bytes": 24094867,
@@ -5687,7 +5688,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1qSqtAm-cd1XqAoAEzQKFZBDWRgxfKb8Y/Vega editor chrome evidence and history.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1qSqtAm-cd1XqAoAEzQKFZBDWRgxfKb8Y/Vega editor chrome evidence and history.zip",
       "source_url": "https://drive.google.com/file/d/1qSqtAm-cd1XqAoAEzQKFZBDWRgxfKb8Y/view",
       "sha256": "fb48cd2b74e5e5977df4ea2f911816e14bd2829e50d0c959036b626f3cd0bdf5",
       "bytes": 3906103,
@@ -5695,7 +5696,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega/1x9BXgA7-Lm_CHK8yKXJ7hX5E_nuOc-FY/Vega mobile compact tasks v6 \u2014 full reproducible design source.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega/1x9BXgA7-Lm_CHK8yKXJ7hX5E_nuOc-FY/Vega mobile compact tasks v6 \u2014 full reproducible design source.zip",
       "source_url": "https://drive.google.com/file/d/1x9BXgA7-Lm_CHK8yKXJ7hX5E_nuOc-FY/view",
       "sha256": "d75be283f109ad7e50bff870a86e434a62bd184d439d83851bb9d948ce7776c1",
       "bytes": 1230950,
@@ -5703,7 +5704,7 @@
       "scope": "Source, originals, fonts/logo/fixtures, reproduction and versioned evidence; internal history retains its status."
     },
     {
-      "path": "docs/internal/delivery-operations/2026-10-12/assets/vega-current-editors/1ZZg9E-9Bs9p2eN5GmyJyn-u6abiH1IUb/Vega editor source references and preserved v7\u2013v7.3 history.zip",
+      "path": "background/delivery-operations/2026-10-12/assets/vega-current-editors/1ZZg9E-9Bs9p2eN5GmyJyn-u6abiH1IUb/Vega editor source references and preserved v7\u2013v7.3 history.zip",
       "source_url": "https://drive.google.com/file/d/1ZZg9E-9Bs9p2eN5GmyJyn-u6abiH1IUb/view",
       "sha256": "eee5f5a855090fac0f84d573e7cb0ccaa1117add04d466d069e3e974f06754a8",
       "bytes": 23011665,
@@ -5717,7 +5718,12 @@
       "sha256": "1038a1c690d0ef85743ad010f0ed37b36fb421d62bf00c7eb1a67764d980b384",
       "bytes": 35485,
       "format": "image/svg+xml",
-      "usage": "Original Vega mark; use unchanged. Receiver verified byte identity with graph-navbar-v2, editor-v7.5.1 and compact-task-v6 source archive members."
+      "usage": "Original Vega mark; use unchanged. Receiver verified byte identity with graph-navbar-v2, editor-v7.5.1 and compact-task-v6 source archive members.",
+      "path_root": "repository"
     }
-  ]
+  ],
+  "asset_root": {
+    "runtime_home_entry": "research",
+    "path": "topics/design-to-implementation"
+  }
 }

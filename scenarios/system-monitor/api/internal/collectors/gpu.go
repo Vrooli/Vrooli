@@ -52,6 +52,11 @@ func (c *GPUCollector) Collect(ctx context.Context) (*MetricData, error) {
 		return nil, err
 	}
 	devices, summary, driverVersion, primaryModel := adaptGPUInventory(snapshot)
+	if len(devices) == 0 {
+		data := unsupportedMetricData(c.GetName(), "gpu")
+		data.Values["reason"] = "native device identity does not provide GPU utilization or dedicated memory telemetry"
+		return data, nil
+	}
 	warnings := append([]string{}, snapshot.Warnings...)
 	if snapshot.ProbeStatuses["nvidia_gpu"] == "not_present" {
 		warnings = append(warnings, "nvidia-smi binary not found")
@@ -98,14 +103,18 @@ func adaptGPUInventory(snapshot hostinventory.Snapshot) ([]models.GPUDeviceMetri
 	}
 
 	for _, gpu := range snapshot.GPUs {
+		// Identity-only and historical estimated rows carry no measurements.
+		if gpu.Source == hostinventory.SourceNativeDevice || gpu.Source == hostinventory.SourceDarwinUnifiedMemory || gpu.Source == hostinventory.SourceSystemProfiler || gpu.Source == hostinventory.SourceWMIC {
+			continue
+		}
 		device := models.GPUDeviceMetrics{
 			Index:             gpu.Index,
 			UUID:              gpu.UUID,
 			Name:              gpu.Name,
 			Utilization:       gpu.UtilizationPercent,
 			MemoryUtilization: gpu.MemoryUtilizationPercent,
-			MemoryUsedMB:      float64(gpu.VRAMUsedBytes) / 1024 / 1024,
-			MemoryTotalMB:     float64(gpu.VRAMBytes) / 1024 / 1024,
+			MemoryUsedMB:      float64(gpu.DedicatedVRAMUsedBytes()) / 1024 / 1024,
+			MemoryTotalMB:     float64(gpu.DedicatedVRAMBytes()) / 1024 / 1024,
 			TemperatureC:      gpu.TemperatureC,
 			FanSpeedPercent:   gpu.FanSpeedPercent,
 			PowerDrawW:        gpu.PowerDrawW,

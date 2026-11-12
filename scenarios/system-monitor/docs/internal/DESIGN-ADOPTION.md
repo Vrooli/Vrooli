@@ -10,14 +10,16 @@ The selected direction is **Signal Workbench composition with Optical Observator
 
 The redesign preserves operational requirements, truthful metric semantics, accessibility protections, working integrations, user data, and owner-controlled effects. The PRD, REQ-P0-007 and experience inventory use this current target.
 
-Canonical inputs, relative to the repository root:
+Canonical inputs use repository paths for product contracts and absolute research paths for retained design sources.
 
 - Product contract: `scenarios/system-monitor/PRD.md` and its imported requirements.
-- Full behavior/design dossier: `docs/internal/delivery-operations/2026-10-12/sources/vega-ux-dossier.md` (operator journey, route/action contracts, D1-D10, and acceptance scenarios).
-- Version context: `docs/internal/delivery-operations/2026-10-12/sources/vega-design-atlas.md`.
-- Exact images, source archives, logo/font/fixture custody and per-requirement coverage: `scenarios/system-monitor/docs/mockups/vega-redesign/assets-manifest.json` and `.vrooli/work/delivery/vega-redesign-delivery/sources/commissioning-source-map.json`.
+- Full behavior/design dossier: `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/2026-10-12/sources/vega-ux-dossier.md` (operator journey, route/action contracts, D1-D10, and acceptance scenarios).
+- Version context: `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/background/delivery-operations/2026-10-12/sources/vega-design-atlas.md`.
+- Exact images, source archives, logo/font/fixture custody and per-requirement coverage: `scenarios/system-monitor/docs/mockups/vega-redesign/assets-manifest.json` and `/home/matthalloran8/.vrooli/research/topics/design-to-implementation/cases/vega/legacy-delivery/sources/commissioning-source-map.json`.
 - Owner review companion: [full-resolution PDF](https://drive.google.com/file/d/1nwgKBHGV67YnysSQy0r6Ar2Fekhdpc18/view). It is a browsable view of originals; it does not select every historical image or replace the dossier and source bytes.
 - Current metric semantics: `scenarios/system-monitor/docs/internal/METRIC_CONTRACT.md`; platform availability: `scenarios/system-monitor/docs/reference/platform-capabilities.md`.
+
+The asset manifest declares its source root through the runtime `research` entry and `topics/design-to-implementation`. Item and source-archive paths are relative to that topic. The PDF and brand-asset entries explicitly use repository paths. Local atlas generation and verification use the maintained research tools. [Atlas tools](/home/matthalloran8/.vrooli/research/topics/design-to-implementation/tools/vega/README.md)
 
 ## Effective design and improvement policy
 

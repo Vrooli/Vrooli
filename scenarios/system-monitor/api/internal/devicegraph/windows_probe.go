@@ -25,12 +25,16 @@ const (
 // rung-five signal without smartctl; thermal and ECC do not have an
 // unprivileged equivalent and say so.
 func collectWindowsGraph(ctx context.Context, b *builder) {
+	collectNativeBusDevices(ctx, b)
 	shell, err := b.env.LookPath(windowsShell)
 	if err != nil {
-		unsupportedPlatform(b, fmt.Sprintf("%s is not on PATH, so no Windows device probe can run: %v", windowsShell, err))
+		reason := fmt.Sprintf("%s is not on PATH: %v", windowsShell, err)
+		b.graph.addSubsystem(unavailableSubsystem(b, "block-storage", reason, windowsShell))
+		b.graph.addSubsystem(unavailableSubsystem(b, "network-interfaces", reason, windowsShell))
+		b.graph.addSubsystem(unavailableSubsystem(b, "thermal", reason, windowsShell))
+		b.graph.addSubsystem(unavailableSubsystem(b, SubsystemMemoryErrors, reason, windowsShell))
 		return
 	}
-	collectWindowsPnP(ctx, b, shell)
 	collectWindowsStorage(ctx, b, shell)
 	collectWindowsNetwork(ctx, b, shell)
 	collectWindowsThermal(ctx, b, shell)
@@ -42,95 +46,28 @@ func collectWindowsGraph(ctx context.Context, b *builder) {
 // otherwise, so both shapes are accepted.
 func runWindowsJSON(ctx context.Context, env Env, shell, script string) ([]map[string]any, error) {
 	output, runErr := env.Run(ctx, windowsProbeTimeout, shell, "-NoProfile", "-NonInteractive", "-Command", script)
+	if runErr != nil {
+		return nil, fmt.Errorf("probe failed: %w", runErr)
+	}
 	trimmed := strings.TrimSpace(string(output))
 	if trimmed == "" {
-		if runErr != nil {
-			return nil, fmt.Errorf("probe produced no output: %w", runErr)
-		}
 		return nil, fmt.Errorf("probe produced no output")
 	}
 	return decodeJSONObjects([]byte(trimmed))
 }
 
-func collectWindowsPnP(ctx context.Context, b *builder, shell string) {
-	const script = `Get-PnpDevice -PresentOnly | Select-Object InstanceId,FriendlyName,Class,Manufacturer,Service,Status | ConvertTo-Json -Compress -Depth 3`
-	mechanism := "powershell Get-PnpDevice -PresentOnly"
-	items, err := runWindowsJSON(ctx, b.env, shell, script)
-	if err != nil {
-		b.graph.addSubsystem(unavailableSubsystem(b, "pci-bus", err.Error(), mechanism))
-		b.graph.addSubsystem(unavailableSubsystem(b, "usb-bus", err.Error(), mechanism))
-		return
-	}
-	pci, usb := 0, 0
-	for _, item := range items {
-		instance := jsonString(item, "InstanceId")
-		if instance == "" {
-			continue
-		}
-		prefix, _, _ := strings.Cut(instance, `\`)
-		class := ClassPCIDevice
-		switch strings.ToUpper(prefix) {
-		case "PCI":
-			pci++
-		case "USB":
-			class = ClassUSBDevice
-			usb++
-		default:
-			continue
-		}
-		// The identity is the PnP instance id verbatim, which is the same
-		// platform-durable address the shared host inventory uses on Windows,
-		// so the two enumerations join without a translation table.
-		identity := "pnp:" + instance
-		device := Device{
-			ID:     identity,
-			Class:  class,
-			Vendor: jsonString(item, "Manufacturer"),
-			Model:  jsonString(item, "FriendlyName"),
-			Driver: jsonString(item, "Service"),
-			Rungs:  map[Rung]RungState{},
-		}
-		setAttribute(&device, "instance_id", instance)
-		setAttribute(&device, "pnp_class", jsonString(item, "Class"))
-		setAttribute(&device, "pnp_status", jsonString(item, "Status"))
-		if strings.EqualFold(jsonString(item, "Class"), "Display") {
-			device.Class = ClassGraphicsDevice
-		}
-		enumerationRungs(b, &device, mechanism)
-		b.add(device)
-	}
-	b.graph.addSubsystem(Subsystem{
-		Name:       "pci-bus",
-		Attributes: map[string]string{"enumerated_devices": strconv.Itoa(pci)},
-		Rungs:      windowsEnumerationSubsystem(b, mechanism),
-	})
-	b.graph.addSubsystem(Subsystem{
-		Name:       "usb-bus",
-		Attributes: map[string]string{"enumerated_devices": strconv.Itoa(usb)},
-		Rungs:      windowsEnumerationSubsystem(b, mechanism),
-	})
-}
-
-func windowsEnumerationSubsystem(b *builder, mechanism string) map[Rung]RungState {
-	return rungSet(
-		b.grader.measured(RungIdentity, mechanism),
-		b.grader.notApplicable(RungTelemetry, "bus enumeration reports configuration, not a live measurement"),
-		b.grader.notApplicable(RungEvidence, "bus enumeration is retained per device"),
-		b.grader.notApplicable(RungControl, "driver binding is graded per device"),
-		b.grader.notApplicable(RungAnticipation, "bus enumeration carries no forward-looking signal"),
-	)
-}
-
 func collectWindowsStorage(ctx context.Context, b *builder, shell string) {
-	const script = `Get-PhysicalDisk | Select-Object DeviceId,SerialNumber,FriendlyName,Manufacturer,Model,MediaType,BusType,Size,HealthStatus | ConvertTo-Json -Compress -Depth 3`
-	const reliabilityScript = `Get-PhysicalDisk | ForEach-Object { $c = $_ | Get-StorageReliabilityCounter; ` +
+	const script = `$items = @(Get-PhysicalDisk | Select-Object DeviceId,SerialNumber,FriendlyName,Manufacturer,Model,MediaType,BusType,Size,HealthStatus); ` +
+		`ConvertTo-Json -InputObject $items -Compress -Depth 3`
+	const reliabilityScript = `$items = @(Get-PhysicalDisk | ForEach-Object { $c = $_ | Get-StorageReliabilityCounter; ` +
 		`[pscustomobject]@{DeviceId=$_.DeviceId;Wear=$c.Wear;PowerOnHours=$c.PowerOnHours;Temperature=$c.Temperature;` +
-		`ReadErrorsTotal=$c.ReadErrorsTotal;WriteErrorsTotal=$c.WriteErrorsTotal} } | ConvertTo-Json -Compress -Depth 3`
+		`ReadErrorsTotal=$c.ReadErrorsTotal;WriteErrorsTotal=$c.WriteErrorsTotal}); ` +
+		`ConvertTo-Json -InputObject $items -Compress -Depth 3`
 	mechanism := "powershell Get-PhysicalDisk"
 
 	items, err := runWindowsJSON(ctx, b.env, shell, script)
 	if err != nil {
-		b.graph.addSubsystem(unavailableSubsystem(b, "block-storage", err.Error(), mechanism))
+		b.graph.addSubsystem(unmeasurableEnumerationSubsystem(b, "block-storage", err.Error(), mechanism))
 		return
 	}
 
@@ -234,13 +171,15 @@ func applyWindowsReliability(b *builder, device *Device, counters map[string]any
 // adapter's own HardwareInterface and Virtual properties, which is Windows'
 // structural statement about what is real.
 func collectWindowsNetwork(ctx context.Context, b *builder, shell string) {
-	const script = `Get-NetAdapter | Select-Object Name,ifIndex,InterfaceDescription,DriverName,Status,LinkSpeed,Speed,Virtual,HardwareInterface,MacAddress | ConvertTo-Json -Compress -Depth 3`
-	const statsScript = `Get-NetAdapterStatistics | Select-Object Name,ReceivedBytes,SentBytes,ReceivedPackets,SentPackets,ReceivedDiscardedPackets,OutboundDiscardedPackets,ReceivedPacketErrors,OutboundPacketErrors | ConvertTo-Json -Compress -Depth 3`
+	const script = `$items = @(Get-NetAdapter | Select-Object Name,ifIndex,InterfaceDescription,DriverName,Status,LinkSpeed,Speed,Virtual,HardwareInterface,MacAddress); ` +
+		`ConvertTo-Json -InputObject $items -Compress -Depth 3`
+	const statsScript = `$items = @(Get-NetAdapterStatistics | Select-Object Name,ReceivedBytes,SentBytes,ReceivedPackets,SentPackets,ReceivedDiscardedPackets,OutboundDiscardedPackets,ReceivedPacketErrors,OutboundPacketErrors); ` +
+		`ConvertTo-Json -InputObject $items -Compress -Depth 3`
 	mechanism := "powershell Get-NetAdapter"
 
 	items, err := runWindowsJSON(ctx, b.env, shell, script)
 	if err != nil {
-		b.graph.addSubsystem(unavailableSubsystem(b, "network-interfaces", err.Error(), mechanism))
+		b.graph.addSubsystem(unmeasurableEnumerationSubsystem(b, "network-interfaces", err.Error(), mechanism))
 		return
 	}
 	stats := map[string]map[string]any{}

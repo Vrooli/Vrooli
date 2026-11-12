@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 // Rung names one step of the capability ladder.
@@ -76,6 +78,7 @@ type Class string
 
 const (
 	ClassPCIDevice        Class = "pci-device"
+	ClassPlatformDevice   Class = "platform-device"
 	ClassUSBDevice        Class = "usb-device"
 	ClassBlockDevice      Class = "block-device"
 	ClassGraphicsDevice   Class = "graphics-device"
@@ -98,10 +101,11 @@ type Device struct {
 	// SysPath is the resolved platform path the device was enumerated from.
 	// It is provenance, not identity, and is used to attach sensors to the
 	// device they measure.
-	SysPath    string             `json:"sys_path,omitempty"`
-	Attributes map[string]string  `json:"attributes,omitempty"`
-	Readings   map[string]float64 `json:"readings,omitempty"`
-	Rungs      map[Rung]RungState `json:"rungs"`
+	SysPath    string                         `json:"sys_path,omitempty"`
+	Attributes map[string]string              `json:"attributes,omitempty"`
+	Readings   map[string]float64             `json:"readings,omitempty"`
+	Functions  []hostinventory.DeviceFunction `json:"functions,omitempty"`
+	Rungs      map[Rung]RungState             `json:"rungs"`
 }
 
 // Subsystem records a host-wide fact that is not attached to a single device,

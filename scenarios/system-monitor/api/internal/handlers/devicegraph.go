@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"sort"
@@ -150,7 +151,7 @@ func protoGraph(graph devicegraph.Graph) *devicegraphpb.Graph {
 			Model:      device.Model,
 			Driver:     device.Driver,
 			SysPath:    device.SysPath,
-			Attributes: copyAttributes(device.Attributes),
+			Attributes: deviceAttributes(device),
 			Readings:   copyReadings(device.Readings),
 			Rungs:      protoRungs(device.Rungs),
 		})
@@ -163,6 +164,28 @@ func protoGraph(graph devicegraph.Graph) *devicegraphpb.Graph {
 		})
 	}
 	return out
+}
+
+// deviceAttributes preserves graph facts that the generated graph message
+// does not yet model as dedicated fields. The extensible map is the existing
+// wire contract shared with Infra Manager, so composite function evidence
+// must survive this boundary on every platform.
+func deviceAttributes(device devicegraph.Device) map[string]string {
+	attributes := copyAttributes(device.Attributes)
+	if len(device.Functions) == 0 {
+		return attributes
+	}
+	functions := append(device.Functions[:0:0], device.Functions...)
+	sort.Slice(functions, func(i, j int) bool { return functions[i].ID < functions[j].ID })
+	encoded, err := json.Marshal(functions)
+	if err != nil {
+		return attributes
+	}
+	if attributes == nil {
+		attributes = make(map[string]string)
+	}
+	attributes["native_functions_json"] = string(encoded)
+	return attributes
 }
 
 // protoRungs emits the ladder in dependency order rather than in map order, so

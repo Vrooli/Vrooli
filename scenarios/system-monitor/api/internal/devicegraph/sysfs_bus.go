@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/vrooli/vrooli/internal/hostinventory"
 )
 
 // PCI base classes the graph names explicitly. Everything else keeps its raw
@@ -63,7 +65,7 @@ func collectPCIDevices(b *builder) {
 			continue
 		}
 		device := Device{
-			ID:      "pci:" + name,
+			ID:      hostinventory.CanonicalPCIIdentity(name),
 			Class:   ClassPCIDevice,
 			SysPath: resolved,
 			Rungs:   map[Rung]RungState{},
@@ -104,9 +106,9 @@ func collectPCIDevices(b *builder) {
 		device.Rungs[RungTelemetry] = telemetry
 		device.Rungs[RungEvidence] = b.grader.evidenceFor(telemetry)
 		if device.Driver == "" {
-			device.Rungs[RungControl] = b.grader.unmeasurable(RungControl,
+			device.Rungs[RungControl] = remediated(b.grader.unmeasurable(RungControl,
 				"no kernel driver is bound to this PCI function, so the host cannot act on it",
-				"sysfs /bus/pci/devices/*/driver")
+				"sysfs /bus/pci/devices/*/driver"), hostinventory.DriverBindingRepairRoute)
 		} else {
 			device.Rungs[RungControl] = b.grader.measured(RungControl, "sysfs /bus/pci/devices/*/driver")
 		}
@@ -186,24 +188,74 @@ func collectUSBDevices(b *builder) {
 		if speed, ok := b.env.readText(filepath.Join(resolved, "speed")); ok {
 			setAttribute(&device, "speed_mbps", speed)
 		}
+		device.Functions = collectUSBFunctions(b.env, root, name, names)
 
 		device.Rungs[RungIdentity] = b.grader.measured(RungIdentity, "sysfs /bus/usb/devices")
 		telemetry := b.grader.notApplicable(RungTelemetry,
 			"USB enumeration reports configuration, not a live measurement")
 		device.Rungs[RungTelemetry] = telemetry
 		device.Rungs[RungEvidence] = b.grader.evidenceFor(telemetry)
-		if device.Driver == "" {
-			device.Rungs[RungControl] = b.grader.unmeasurable(RungControl,
-				"no kernel driver is bound to this USB device, so the host cannot act on it",
-				"sysfs /bus/usb/devices/*/driver")
-		} else {
+		if usbFunctionsFullyBound(device.Functions) {
+			device.Rungs[RungControl] = b.grader.measured(RungControl, "sysfs /bus/usb/devices/*:*/driver")
+		} else if device.Driver != "" && device.Driver != "usb" && len(device.Functions) == 0 {
 			device.Rungs[RungControl] = b.grader.measured(RungControl, "sysfs /bus/usb/devices/*/driver")
+		} else {
+			device.Rungs[RungControl] = b.grader.unmeasurable(RungControl,
+				usbFunctionBindingReason(device),
+				"sysfs /bus/usb/devices/*:*/driver")
 		}
 		device.Rungs[RungAnticipation] = b.grader.notApplicable(RungAnticipation,
 			"bus enumeration carries no forward-looking signal")
 
 		b.add(device)
 	}
+}
+
+func collectUSBFunctions(env Env, root, deviceName string, entries []string) []hostinventory.DeviceFunction {
+	prefix := deviceName + ":"
+	functions := make([]hostinventory.DeviceFunction, 0)
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry, prefix) {
+			continue
+		}
+		functionRoot := filepath.Join(root, entry)
+		function := hostinventory.DeviceFunction{ID: entry, BindingState: hostinventory.DeviceBindingUnknown}
+		function.Class, _ = env.readText(filepath.Join(functionRoot, "bInterfaceClass"))
+		function.Modalias, _ = env.readText(filepath.Join(functionRoot, "modalias"))
+		function.BoundDriver, function.BindingState = env.driverBinding(filepath.Join(functionRoot, "driver"))
+		functions = append(functions, function)
+	}
+	return functions
+}
+
+func usbFunctionsFullyBound(functions []hostinventory.DeviceFunction) bool {
+	if len(functions) == 0 {
+		return false
+	}
+	for _, function := range functions {
+		if function.BindingState != hostinventory.DeviceBindingBound {
+			return false
+		}
+	}
+	return true
+}
+
+func usbFunctionBindingReason(device Device) string {
+	for _, function := range device.Functions {
+		if function.BindingState == hostinventory.DeviceBindingUnknown {
+			return "a USB function driver binding could not be read; device control is unmeasurable"
+		}
+		if function.BindingState == hostinventory.DeviceBindingUnbound {
+			return fmt.Sprintf("USB function %s has no bound kernel driver; the parent device driver %q does not prove the function is controlled", function.ID, device.Driver)
+		}
+	}
+	if len(device.Functions) == 0 {
+		if device.Driver == "usb" {
+			return fmt.Sprintf("only the generic USB parent driver %q is visible; no functional interface binding was observed", device.Driver)
+		}
+		return "no functional USB interface driver was observed"
+	}
+	return "USB interface driver binding is incomplete"
 }
 
 func rungSet(states ...RungState) map[Rung]RungState {

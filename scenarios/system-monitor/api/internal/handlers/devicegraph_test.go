@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/scenarios/system-monitor/api/internal/devicegraph"
 )
 
@@ -46,5 +47,40 @@ func TestHandleGetDeviceGraphUsesLowerCamelRESTContract(t *testing.T) {
 	}
 	if strings.Contains(body, `"collected_at"`) {
 		t.Fatalf("response used proto field names: %s", body)
+	}
+}
+
+func TestProtoGraphPreservesCompositeFunctionsInStableDeviceAttributes(t *testing.T) {
+	rungs := make(map[devicegraph.Rung]devicegraph.RungState, len(devicegraph.Rungs))
+	for _, rung := range devicegraph.Rungs {
+		rungs[rung] = devicegraph.RungState{Rung: rung, State: devicegraph.StateMeasured, ObservedAt: time.Now().UTC()}
+	}
+	graph := devicegraph.Graph{Platform: "linux", Devices: []devicegraph.Device{{
+		ID: "usb:1-6", Class: devicegraph.ClassUSBDevice, Rungs: rungs,
+		Attributes: map[string]string{
+			"readiness_firmware_state":  hostinventory.DeviceReadinessUnknown,
+			"readiness_interface_state": hostinventory.DeviceReadinessNotApplicable,
+			"readiness_function_state":  hostinventory.DeviceReadinessUnverified,
+		},
+		Functions: []hostinventory.DeviceFunction{
+			{ID: "usb:1-6:1.1", Class: "storage", BoundDriver: "usb-storage", BindingState: hostinventory.DeviceBindingBound},
+			{ID: "usb:1-6:1.0", Class: "wireless", BindingState: hostinventory.DeviceBindingUnbound},
+		},
+	}}}
+	wire := protoGraph(graph)
+	if !wire.GetAvailable() || len(wire.GetDevices()) != 1 {
+		t.Fatalf("device graph was not published: %+v", wire)
+	}
+	want := `[{"id":"usb:1-6:1.0","class":"wireless","bindingState":"unbound"},{"id":"usb:1-6:1.1","class":"storage","boundDriver":"usb-storage","bindingState":"bound"}]`
+	if got := wire.GetDevices()[0].GetAttributes()["native_functions_json"]; got != want {
+		t.Fatalf("published composite functions = %q, want stable ordered JSON %q", got, want)
+	}
+	for key, expected := range graph.Devices[0].Attributes {
+		if got := wire.GetDevices()[0].GetAttributes()[key]; got != expected {
+			t.Errorf("published %s = %q, want %q", key, got, expected)
+		}
+	}
+	if graph.Devices[0].Functions[0].ID != "usb:1-6:1.1" {
+		t.Fatalf("serialization mutated source function order: %+v", graph.Devices[0].Functions)
 	}
 }

@@ -256,10 +256,13 @@ func buildReferenceHost(t *testing.T) *fakeSys {
 	f.write(filepath.Join("devices", enclosure, "manufacturer"), "Western Digital")
 	f.write(filepath.Join("devices", enclosure, "product"), "Elements 25EE")
 	f.link(filepath.Join("devices", enclosure, "subsystem"), "../../../../bus/usb")
-	f.link(filepath.Join("devices", enclosure, "driver"), "../../../../bus/usb/drivers/usb-storage")
+	f.link(filepath.Join("devices", enclosure, "driver"), "../../../../bus/usb/drivers/usb")
 	f.busLink("usb", "2-4", enclosure)
 	// A USB interface node, which must not be graded as a device.
-	f.mkdir(filepath.Join("devices", enclosure, "2-4:1.0"))
+	usbStorageFunction := filepath.Join("devices", enclosure, "2-4:1.0")
+	f.mkdir(usbStorageFunction)
+	f.write(filepath.Join(usbStorageFunction, "bInterfaceClass"), "08")
+	f.link(filepath.Join(usbStorageFunction, "driver"), "../../../../../bus/usb/drivers/usb-storage")
 	f.busLink("usb", "2-4:1.0", filepath.Join(enclosure, "2-4:1.0"))
 
 	// NVMe namespace: block device beneath its controller.

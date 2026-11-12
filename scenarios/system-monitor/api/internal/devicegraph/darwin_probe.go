@@ -3,6 +3,7 @@ package devicegraph
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strconv"
@@ -25,7 +26,7 @@ const darwinProbeTimeout = 15 * time.Second
 // one: macOS exposes no unprivileged thermal interface and no ECC counters, and
 // both of those absences are reported rather than skipped.
 func collectDarwinGraph(ctx context.Context, b *builder) {
-	collectDarwinBuses(ctx, b)
+	collectNativeBusDevices(ctx, b)
 	collectDarwinStorage(ctx, b)
 	collectDarwinNetwork(ctx, b)
 	darwinThermal(b)
@@ -37,13 +38,13 @@ func collectDarwinGraph(ctx context.Context, b *builder) {
 func runDarwinProfiler(ctx context.Context, env Env, dataType string) ([]map[string]any, error) {
 	binary, err := env.LookPath(darwinProfilerTool)
 	if err != nil {
-		return nil, fmt.Errorf("%s is not on PATH: %w", darwinProfilerTool, err)
+		return nil, fmt.Errorf("%w: %s is not on PATH: %w", errProbeMechanismUnavailable, darwinProfilerTool, err)
 	}
 	output, runErr := env.Run(ctx, darwinProbeTimeout, binary, "-json", dataType)
+	if runErr != nil {
+		return nil, fmt.Errorf("%s %s failed: %w", darwinProfilerTool, dataType, runErr)
+	}
 	if len(strings.TrimSpace(string(output))) == 0 {
-		if runErr != nil {
-			return nil, fmt.Errorf("%s %s produced no output: %w", darwinProfilerTool, dataType, runErr)
-		}
 		return nil, fmt.Errorf("%s %s produced no output", darwinProfilerTool, dataType)
 	}
 	var document map[string]json.RawMessage
@@ -61,82 +62,33 @@ func runDarwinProfiler(ctx context.Context, env Env, dataType string) ([]map[str
 	return flattenProfilerItems(roots), nil
 }
 
-func collectDarwinBuses(ctx context.Context, b *builder) {
-	pciItems, pciErr := runDarwinProfiler(ctx, b.env, "SPPCIDataType")
-	if pciErr != nil {
-		b.graph.addSubsystem(unavailableSubsystem(b, "pci-bus", pciErr.Error(), darwinProfilerTool+" -json SPPCIDataType"))
-	} else {
-		for _, item := range pciItems {
-			name := jsonString(item, "_name")
-			slot := jsonString(item, "sppci_slot_name")
-			identity := slot
-			if identity == "" {
-				identity = name
-			}
-			if identity == "" {
-				continue
-			}
-			device := Device{
-				ID:     "pci-slot:" + sanitizeIdentity(identity),
-				Class:  ClassPCIDevice,
-				Vendor: jsonString(item, "sppci_vendor"),
-				Model:  name,
-				Driver: jsonString(item, "sppci_driver_installed"),
-				Rungs:  map[Rung]RungState{},
-			}
-			deviceType := jsonString(item, "sppci_device_type")
-			setAttribute(&device, "device_type", deviceType)
-			setAttribute(&device, "slot", slot)
-			if strings.Contains(strings.ToLower(deviceType), "display") {
-				device.Class = ClassGraphicsDevice
-			}
-			enumerationRungs(b, &device, darwinProfilerTool+" -json SPPCIDataType")
-			b.add(device)
-		}
-	}
-
-	usbItems, usbErr := runDarwinProfiler(ctx, b.env, "SPUSBDataType")
-	if usbErr != nil {
-		b.graph.addSubsystem(unavailableSubsystem(b, "usb-bus", usbErr.Error(), darwinProfilerTool+" -json SPUSBDataType"))
-		return
-	}
-	for _, item := range usbItems {
-		location := jsonString(item, "location_id")
-		if location == "" {
-			continue
-		}
-		device := Device{
-			ID:     "usb-location:" + sanitizeIdentity(location),
-			Class:  ClassUSBDevice,
-			Vendor: jsonString(item, "manufacturer"),
-			Model:  jsonString(item, "_name"),
-			Rungs:  map[Rung]RungState{},
-		}
-		setAttribute(&device, "vendor_id", normalizeHexID(firstField(jsonString(item, "vendor_id"))))
-		setAttribute(&device, "product_id", normalizeHexID(firstField(jsonString(item, "product_id"))))
-		enumerationRungs(b, &device, darwinProfilerTool+" -json SPUSBDataType")
-		b.add(device)
-	}
-}
-
 func collectDarwinStorage(ctx context.Context, b *builder) {
 	mechanism := darwinProfilerTool + " -json SPNVMeDataType/SPSerialATADataType"
 	items := make([]map[string]any, 0, 4)
-	failures := make([]string, 0, 2)
+	failures := make([]error, 0, 2)
 	for _, dataType := range []string{"SPNVMeDataType", "SPSerialATADataType"} {
 		found, err := runDarwinProfiler(ctx, b.env, dataType)
 		if err != nil {
-			failures = append(failures, err.Error())
+			failures = append(failures, err)
 			continue
 		}
 		items = append(items, found...)
 	}
+	if len(items) == 0 && len(failures) > 0 {
+		b.graph.addSubsystem(probeFailureSubsystem(b, "block-storage", errors.Join(failures...), mechanism))
+		return
+	}
 	if len(items) == 0 {
-		reason := "macOS reported no storage devices"
-		if len(failures) > 0 {
-			reason = strings.Join(failures, "; ")
-		}
-		b.graph.addSubsystem(unavailableSubsystem(b, "block-storage", reason, mechanism))
+		b.graph.addSubsystem(Subsystem{
+			Name: "block-storage", Attributes: map[string]string{"enumerated_disks": "0", "enumeration": "ok"},
+			Rungs: rungSet(
+				b.grader.measured(RungIdentity, mechanism),
+				b.grader.notApplicable(RungTelemetry, "storage telemetry is graded per device"),
+				b.grader.notApplicable(RungEvidence, "storage telemetry is retained per device"),
+				b.grader.notApplicable(RungControl, "SMART access is graded per device"),
+				b.grader.notApplicable(RungAnticipation, "wear and error accrual are graded per device"),
+			),
+		})
 		return
 	}
 
@@ -168,6 +120,11 @@ func collectDarwinStorage(ctx context.Context, b *builder) {
 		applySMART(b, &device, smart)
 		b.add(device)
 		disks++
+	}
+	if len(failures) > 0 {
+		b.graph.addSubsystem(unmeasurableEnumerationSubsystem(b, "block-storage",
+			fmt.Sprintf("%s returned partial storage inventory: %v", mechanism, errors.Join(failures...)), mechanism))
+		return
 	}
 	b.graph.addSubsystem(Subsystem{
 		Name:       "block-storage",
@@ -206,16 +163,13 @@ func collectDarwinNetwork(ctx context.Context, b *builder) {
 	}
 	output, runErr := b.env.Run(ctx, darwinProbeTimeout, binary, "-listallhardwareports")
 	ports := parseDarwinHardwarePorts(string(output))
-	if len(ports) == 0 {
-		reason := "macOS reported no hardware network ports"
-		if runErr != nil {
-			reason = fmt.Sprintf("%s failed: %v", darwinNetworkTool, runErr)
-		}
-		b.graph.addSubsystem(unavailableSubsystem(b, "network-interfaces", reason, mechanism))
+	if runErr != nil && len(ports) == 0 {
+		b.graph.addSubsystem(unmeasurableEnumerationSubsystem(b, "network-interfaces",
+			fmt.Sprintf("%s failed before a complete hardware-port enumeration: %v", darwinNetworkTool, runErr), mechanism))
 		return
 	}
 
-	counters := darwinInterfaceCounters(ctx, b.env)
+	counters, counterToolAvailable, counterErr := darwinInterfaceCounters(ctx, b.env)
 	for _, port := range ports {
 		device := Device{
 			ID:    "net:" + port.device,
@@ -232,6 +186,13 @@ func collectDarwinNetwork(ctx context.Context, b *builder) {
 			}
 			setReading(&device, readingInterfaceErrors, stats["rx_errors"]+stats["tx_errors"])
 			device.Rungs[RungTelemetry] = b.grader.measured(RungTelemetry, darwinNetstatTool+" -ibn")
+		} else if !counterToolAvailable {
+			device.Rungs[RungTelemetry] = b.grader.unavailable(RungTelemetry,
+				fmt.Sprintf("%s is unavailable: %v", darwinNetstatTool, counterErr), darwinNetstatTool+" -ibn")
+		} else if counterErr != nil {
+			device.Rungs[RungTelemetry] = b.grader.unmeasurable(RungTelemetry,
+				fmt.Sprintf("%s failed before a complete interface-counter sample: %v", darwinNetstatTool, counterErr),
+				darwinNetstatTool+" -ibn")
 		} else {
 			device.Rungs[RungTelemetry] = b.grader.unmeasurable(RungTelemetry,
 				fmt.Sprintf("%s -ibn reported no counters for %s", darwinNetstatTool, port.device),
@@ -244,9 +205,14 @@ func collectDarwinNetwork(ctx context.Context, b *builder) {
 		device.Rungs[RungAnticipation] = b.pendingTrend(device.Rungs[RungTelemetry], "interface error")
 		b.add(device)
 	}
+	if runErr != nil {
+		b.graph.addSubsystem(unmeasurableEnumerationSubsystem(b, "network-interfaces",
+			fmt.Sprintf("%s returned partial hardware-port output before failing: %v", darwinNetworkTool, runErr), mechanism))
+		return
+	}
 	b.graph.addSubsystem(Subsystem{
 		Name:       "network-interfaces",
-		Attributes: map[string]string{"physical_interfaces": strconv.Itoa(len(ports))},
+		Attributes: map[string]string{"physical_interfaces": strconv.Itoa(len(ports)), "enumeration": "ok"},
 		Rungs: rungSet(
 			b.grader.measured(RungIdentity, mechanism),
 			b.grader.notApplicable(RungTelemetry, "counters are graded on each interface"),
@@ -283,13 +249,16 @@ func parseDarwinHardwarePorts(output string) []darwinHardwarePort {
 
 // darwinInterfaceCounters parses `netstat -ibn`, whose first row per interface
 // carries the cumulative packet, error and byte counters.
-func darwinInterfaceCounters(ctx context.Context, env Env) map[string]map[string]float64 {
+func darwinInterfaceCounters(ctx context.Context, env Env) (map[string]map[string]float64, bool, error) {
 	counters := map[string]map[string]float64{}
 	binary, err := env.LookPath(darwinNetstatTool)
 	if err != nil {
-		return counters
+		return nil, false, err
 	}
-	output, _ := env.Run(ctx, darwinProbeTimeout, binary, "-ibn")
+	output, runErr := env.Run(ctx, darwinProbeTimeout, binary, "-ibn")
+	if runErr != nil {
+		return nil, true, runErr
+	}
 	for index, line := range strings.Split(string(output), "\n") {
 		if index == 0 {
 			continue
@@ -318,7 +287,7 @@ func darwinInterfaceCounters(ctx context.Context, env Env) map[string]map[string
 			counters[name] = parsed
 		}
 	}
-	return counters
+	return counters, true, nil
 }
 
 func darwinThermal(b *builder) {

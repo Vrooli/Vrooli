@@ -2,10 +2,20 @@ package devicegraph
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 )
+
+var errProbeMechanismUnavailable = errors.New("probe mechanism unavailable")
+
+func probeFailureSubsystem(b *builder, name string, err error, mechanism string) Subsystem {
+	if errors.Is(err, errProbeMechanismUnavailable) {
+		return unavailableSubsystem(b, name, err.Error(), mechanism)
+	}
+	return unmeasurableEnumerationSubsystem(b, name, err.Error(), mechanism)
+}
 
 // Shared helpers for the command-driven macOS and Windows backends. Both
 // platforms answer in JSON and both grade an absent probe the same way, so
@@ -105,6 +115,20 @@ func unavailableSubsystem(b *builder, name, reason, mechanism string) Subsystem 
 			b.grader.unavailable(RungEvidence, "nothing to retain: "+reason, evidenceMechanism),
 			b.grader.unavailable(RungControl, reason, mechanism),
 			b.grader.unavailable(RungAnticipation, "no forward-looking signal: "+reason, trendMechanism),
+		),
+	}
+}
+
+func unmeasurableEnumerationSubsystem(b *builder, name, reason, mechanism string) Subsystem {
+	return Subsystem{
+		Name:       name,
+		Attributes: map[string]string{"enumeration": "partial"},
+		Rungs: rungSet(
+			b.grader.unmeasurable(RungIdentity, reason, mechanism),
+			b.grader.notApplicable(RungTelemetry, "subsystem enumeration does not sample per-device telemetry"),
+			b.grader.notApplicable(RungEvidence, "subsystem enumeration does not create a telemetry record"),
+			b.grader.notApplicable(RungControl, "subsystem enumeration performs no host control action"),
+			b.grader.notApplicable(RungAnticipation, "subsystem enumeration carries no forward-looking signal"),
 		),
 	}
 }
