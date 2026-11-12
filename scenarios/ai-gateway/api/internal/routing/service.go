@@ -142,16 +142,22 @@ func (s *Service) recordOutcome(ctx context.Context, provider, role string, kind
 		return
 	}
 	key := HealthKey{Provider: provider, Role: role, Kind: kind}
-	h, _, err := s.health.Get(ctx, key)
+	h, found, err := s.health.Get(ctx, key)
 	if err != nil {
 		return
 	}
 	h.Provider, h.Role, h.Kind = provider, role, kind
+	if !found {
+		h = ProviderHealth{Provider: provider, Role: role, Kind: kind, State: BreakerClosed}
+	}
 	now := s.now()
 	if success {
-		h = s.breaker.OnSuccess(h, now)
+		h, err = s.breaker.OnSuccess(h, now)
 	} else {
-		h = s.breaker.OnProviderFailure(h, failure, now)
+		h, err = s.breaker.OnProviderFailure(h, failure, now)
+	}
+	if err != nil {
+		return
 	}
 	_ = s.health.Upsert(ctx, h)
 }
@@ -322,9 +328,29 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			rightsErr := error(nil)
 			artifactIdentityValid := found && sameRuntimeArtifactIdentity(planned.runtimeIdentity, resolvedRole.RuntimeIdentity) &&
 				planned.runtimeDigest == resolvedRole.ObservedRuntimeDigest &&
+				planned.policySchemaVersion == resolvedRole.PolicySchemaVersion && planned.policyFileSHA256 == resolvedRole.PolicyFileSHA256 &&
 				RuntimeArtifactIdentityMatches(resolvedRole.RuntimeIdentity, resolvedRole.Rights, candidate.GetProvider(), resolvedRole.Model, resolvedRole.ObservedRuntimeDigest)
 			if found && contextErr == nil && resolvedRole.Model == planned.model && strings.EqualFold(resolvedRole.Locality, candidate.GetLocality()) && artifactIdentityValid {
 				rightsErr = RequireLocalRight(planned.decision, currentModel, policy.RightsUseLocalInference, currentContext)
+				if rightsErr == nil {
+					evaluatedAt, parseErr := time.Parse(time.RFC3339Nano, planned.decision.EvaluatedAt)
+					if parseErr != nil {
+						rightsErr = parseErr
+					} else {
+						receipt := policy.NewRightsDecisionReceipt(policy.RightsDecisionReceiptExpectation{
+							Role: resolvedRole.Role, Provider: candidate.GetProvider(), Model: resolvedRole.Model,
+							Use: policy.RightsUseLocalInference, PolicySchemaVersion: resolvedRole.PolicySchemaVersion,
+							ArtifactRights: resolvedRole.Rights, RuntimeIdentity: resolvedRole.RuntimeIdentity, Context: currentContext,
+						}, evaluatedAt)
+						if err := policy.VerifyRightsDecisionReceipt(receipt, policy.RightsDecisionReceiptExpectation{
+							Role: resolvedRole.Role, Provider: candidate.GetProvider(), Model: resolvedRole.Model,
+							Use: policy.RightsUseLocalInference, PolicySchemaVersion: planned.policySchemaVersion,
+							ArtifactRights: resolvedRole.Rights, RuntimeIdentity: resolvedRole.RuntimeIdentity, Context: currentContext,
+						}); err != nil || receipt.ReceiptSHA256 != planned.receiptSHA256 {
+							rightsErr = errors.New("local model rights receipt changed after planning")
+						}
+					}
+				}
 			}
 			if !found || contextErr != nil || resolvedRole.Model != planned.model || !strings.EqualFold(resolvedRole.Locality, candidate.GetLocality()) || !artifactIdentityValid || rightsErr != nil {
 				cancel()
@@ -379,17 +405,21 @@ func (s *Service) Execute(ctx context.Context, req *sharedv1.GatewayRequest, inp
 			}
 		}
 		result, err := adapter.Execute(ctxExec, providers.ExecutionRequest{
-			Kind:                   req.GetKind(),
-			Role:                   req.GetRole(),
-			ExpectedModel:          resolvedRole.Model,
-			ExpectedArtifactDigest: plan.rights[candidateKey(candidate.GetProvider(), candidate.GetRole())].runtimeDigest,
-			Profile:                req.GetProfile(),
-			InputText:              input,
-			MaxOutputTokens:        req.GetMaxOutputTokens(),
-			Timeout:                timeoutDuration(req.GetTimeoutMs()),
-			Temperature:            temperature,
-			Attachments:            req.GetAttachments(),
-			ExpectedWorkerDigest:   strings.TrimSpace(req.GetMetadata()["expected_worker_digest"]),
+			Kind:                         req.GetKind(),
+			Role:                         req.GetRole(),
+			ExpectedModel:                resolvedRole.Model,
+			ExpectedArtifactDigest:       plan.rights[candidateKey(candidate.GetProvider(), candidate.GetRole())].runtimeDigest,
+			ExpectedRightsDecisionSHA256: plan.rights[candidateKey(candidate.GetProvider(), candidate.GetRole())].decision.DecisionSHA256,
+			ExpectedRightsEvaluatedAt:    plan.rights[candidateKey(candidate.GetProvider(), candidate.GetRole())].decision.EvaluatedAt,
+			ExpectedRightsReceiptSHA256:  plan.rights[candidateKey(candidate.GetProvider(), candidate.GetRole())].receiptSHA256,
+			ExpectedPolicyFileSHA256:     plan.rights[candidateKey(candidate.GetProvider(), candidate.GetRole())].policyFileSHA256,
+			Profile:                      req.GetProfile(),
+			InputText:                    input,
+			MaxOutputTokens:              req.GetMaxOutputTokens(),
+			Timeout:                      timeoutDuration(req.GetTimeoutMs()),
+			Temperature:                  temperature,
+			Attachments:                  req.GetAttachments(),
+			ExpectedWorkerDigest:         strings.TrimSpace(req.GetMetadata()["expected_worker_digest"]),
 		})
 		s.releaseCapacity(ctxExec, capEval)
 		cancel()
@@ -558,10 +588,13 @@ type routePlan struct {
 }
 
 type plannedLocalRight struct {
-	model           string
-	runtimeIdentity *policy.RuntimeArtifactIdentity
-	runtimeDigest   string
-	decision        policy.RightsDecision
+	model               string
+	runtimeIdentity     *policy.RuntimeArtifactIdentity
+	runtimeDigest       string
+	decision            policy.RightsDecision
+	policySchemaVersion string
+	policyFileSHA256    string
+	receiptSHA256       string
 }
 
 func candidateKey(provider, role string) string { return provider + "\x00" + role }
@@ -720,9 +753,34 @@ func (s *Service) plan(ctx context.Context, req *sharedv1.GatewayRequest) routeP
 				candidate.Reasons = append(candidate.Reasons, "local model rights or trusted context changed while planning")
 				ok = false
 			} else {
-				bindingCopy := *role.RuntimeIdentity
-				plan.rights[candidateKey(providerName, role.Role)] = plannedLocalRight{
-					model: role.Model, runtimeIdentity: &bindingCopy, runtimeDigest: role.ObservedRuntimeDigest, decision: decision,
+				if role.PolicySchemaVersion == "" || role.PolicyFileSHA256 == "" {
+					candidate.RejectionReason = "local_model_policy_identity_unknown"
+					candidate.Reasons = append(candidate.Reasons, "local model policy revision is missing")
+					ok = false
+				} else {
+					evaluatedAt, parseErr := time.Parse(time.RFC3339Nano, decision.EvaluatedAt)
+					if parseErr != nil {
+						candidate.RejectionReason = "local_model_rights_unknown"
+						candidate.Reasons = append(candidate.Reasons, "local model rights evaluation timestamp is invalid")
+						ok = false
+					} else {
+						receipt := policy.NewRightsDecisionReceipt(policy.RightsDecisionReceiptExpectation{
+							Role: role.Role, Provider: providerName, Model: role.Model,
+							Use: policy.RightsUseLocalInference, PolicySchemaVersion: role.PolicySchemaVersion,
+							ArtifactRights: role.Rights, RuntimeIdentity: role.RuntimeIdentity, Context: currentContext,
+						}, evaluatedAt)
+						if receipt.Decision.DecisionSHA256 != decision.DecisionSHA256 || policy.RequireAllowedRightsDecisionReceipt(receipt) != nil {
+							candidate.RejectionReason = "local_model_rights_unknown"
+							candidate.Reasons = append(candidate.Reasons, "local model rights receipt is not allowed")
+							ok = false
+						} else {
+							bindingCopy := *role.RuntimeIdentity
+							plan.rights[candidateKey(providerName, role.Role)] = plannedLocalRight{
+								model: role.Model, runtimeIdentity: &bindingCopy, runtimeDigest: role.ObservedRuntimeDigest, decision: decision,
+								policySchemaVersion: role.PolicySchemaVersion, policyFileSHA256: role.PolicyFileSHA256, receiptSHA256: receipt.ReceiptSHA256,
+							}
+						}
+					}
 				}
 			}
 		}

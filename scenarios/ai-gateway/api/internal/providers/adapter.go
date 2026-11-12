@@ -147,6 +147,7 @@ type Role struct {
 	Locality            string
 	Status              string
 	PolicySchemaVersion string
+	PolicyFileSHA256    string
 }
 
 type SmokeResult struct {
@@ -170,6 +171,8 @@ type ExecutionRequest struct {
 	ExpectedArtifactDigest       string
 	ExpectedRightsDecisionSHA256 string
 	ExpectedRightsEvaluatedAt    string
+	ExpectedRightsReceiptSHA256  string
+	ExpectedPolicyFileSHA256     string
 	Profile                      sharedv1.Profile
 	InputText                    string
 	MaxOutputTokens              int32
@@ -222,7 +225,13 @@ type ResolvedRole struct {
 	ContextWindow int32
 	// Locality is where the resolved role executes: the resource's per-role
 	// declaration, else the adapter's locality.
-	Locality string
+	Locality             string
+	PolicySchemaVersion  string
+	PolicyFileSHA256     string
+	RightsDecisionSHA256 string
+	RightsEvaluatedAt    string
+	RightsReceiptSHA256  string
+	RightsContextSHA256  string
 }
 
 // SamplingSupport states how a resolved role's provider treats an explicit
@@ -277,6 +286,7 @@ type rolePolicyReport struct {
 
 type rolePolicyEntry struct {
 	SchemaVersion        string                                `json:"schema_version"`
+	PolicySHA256         string                                `json:"policy_sha256"`
 	Role                 string                                `json:"role"`
 	Model                string                                `json:"model"`
 	Rights               *sharedpolicy.ArtifactRights          `json:"rights"`
@@ -380,6 +390,7 @@ func (a Adapter) ListRoles(ctx context.Context) (Inventory, error) {
 			Locality:              firstNonEmpty(entry.Locality, a.Locality),
 			Status:                firstNonEmpty(entry.Status, "available"),
 			PolicySchemaVersion:   strings.TrimSpace(entry.SchemaVersion),
+			PolicyFileSHA256:      strings.TrimSpace(entry.PolicySHA256),
 		})
 	}
 	sort.Slice(inventory.Roles, func(i, j int) bool {
@@ -426,10 +437,14 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 		RequestDefaults      *struct {
 			MaxTokens *int32 `json:"max_tokens"`
 		} `json:"request_defaults"`
-		ContextWindow   *int32                                `json:"context_window"`
-		Locality        string                                `json:"locality"`
-		Rights          *sharedpolicy.ArtifactRights          `json:"rights"`
-		RuntimeIdentity *sharedpolicy.RuntimeArtifactIdentity `json:"runtime_identity"`
+		ContextWindow          *int32                                `json:"context_window"`
+		Locality               string                                `json:"locality"`
+		SchemaVersion          string                                `json:"schema_version"`
+		PolicySHA256           string                                `json:"policy_sha256"`
+		Rights                 *sharedpolicy.ArtifactRights          `json:"rights"`
+		RuntimeIdentity        *sharedpolicy.RuntimeArtifactIdentity `json:"runtime_identity"`
+		ObservedRuntimeDigest  string                                `json:"observed_runtime_digest"`
+		ExpectedArtifactDigest string                                `json:"expected_artifact_digest"`
 	}
 	if err := json.Unmarshal([]byte(result.Stdout), &response); err != nil {
 		return ResolvedRole{}, &CommandError{Code: "malformed_json", Command: a.command().String(), ExitCode: result.ExitCode, Stderr: result.Stderr, Err: err}
@@ -441,6 +456,14 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 	if a.Provider == ProviderOllama {
 		if digests, inventoryErr := a.ollamaModelDigests(ctx); inventoryErr == nil {
 			observedRuntimeDigest = digests[strings.TrimSpace(response.Model)]
+		}
+	} else if a.Provider == ProviderOllaya {
+		observedRuntimeDigest = strings.TrimSpace(response.ObservedRuntimeDigest)
+		if response.RuntimeIdentity != nil && (response.RuntimeIdentity.Provider != ProviderOllaya ||
+			response.RuntimeIdentity.Model != strings.TrimSpace(response.Model) ||
+			response.RuntimeIdentity.Digest != observedRuntimeDigest ||
+			strings.TrimSpace(response.ExpectedArtifactDigest) != observedRuntimeDigest) {
+			return ResolvedRole{}, &CommandError{Code: "invalid_role_resolution", Command: a.command().String(), ExitCode: result.ExitCode, Err: errors.New("resource returned an inconsistent Ollaya manifest identity")}
 		}
 	}
 	var maxOutputTokens int32
@@ -464,6 +487,8 @@ func (a Adapter) ResolveRole(ctx context.Context, role string) (ResolvedRole, er
 		MaxOutputTokens:       maxOutputTokens,
 		ContextWindow:         valueOrZero(response.ContextWindow),
 		Locality:              firstNonEmpty(response.Locality, a.Locality),
+		PolicySchemaVersion:   strings.TrimSpace(response.SchemaVersion),
+		PolicyFileSHA256:      strings.TrimSpace(response.PolicySHA256),
 	}, nil
 }
 
@@ -685,6 +710,12 @@ func (a Adapter) ollamaExecutionCommand(req ExecutionRequest, role string, input
 	if evaluatedAt := strings.TrimSpace(req.ExpectedRightsEvaluatedAt); evaluatedAt != "" {
 		modelArgs = append(modelArgs, "--expected-rights-evaluated-at", evaluatedAt)
 	}
+	if receiptSHA := strings.TrimSpace(req.ExpectedRightsReceiptSHA256); receiptSHA != "" {
+		modelArgs = append(modelArgs, "--expected-rights-receipt-sha256", receiptSHA)
+	}
+	if policySHA := strings.TrimSpace(req.ExpectedPolicyFileSHA256); policySHA != "" {
+		modelArgs = append(modelArgs, "--expected-policy-file-sha256", policySHA)
+	}
 	localOnlyArgs := []string{}
 	if req.Profile == sharedv1.Profile_PROFILE_LOCAL_ONLY {
 		localOnlyArgs = append(localOnlyArgs, "--require-loopback")
@@ -806,9 +837,30 @@ func (a Adapter) ollayaExecutionCommand(req ExecutionRequest, role string, input
 	if req.Kind != sharedv1.RequestKind_REQUEST_KIND_DECISION {
 		return Command{}, &CommandError{Code: "unsupported_kind", Command: a.Provider, ExitCode: -1, Err: fmt.Errorf("request kind %s is not executable by ollaya", req.Kind.String())}
 	}
+	args := []string{"gateway", "decide", "--role", role, "--input-stdin", "--json", "--timeout", timeout.String()}
+	if strings.TrimSpace(req.ExpectedArtifactDigest) != "" || strings.TrimSpace(req.ExpectedRightsDecisionSHA256) != "" || strings.TrimSpace(req.ExpectedRightsEvaluatedAt) != "" || strings.TrimSpace(req.ExpectedRightsReceiptSHA256) != "" || strings.TrimSpace(req.ExpectedPolicyFileSHA256) != "" {
+		if expected := strings.TrimSpace(req.ExpectedModel); expected != "" {
+			args = append(args, "--expected-model", expected)
+		}
+		if digest := strings.TrimSpace(req.ExpectedArtifactDigest); digest != "" {
+			args = append(args, "--expected-artifact-digest", digest)
+		}
+		if decisionSHA := strings.TrimSpace(req.ExpectedRightsDecisionSHA256); decisionSHA != "" {
+			args = append(args, "--expected-rights-decision-sha256", decisionSHA)
+		}
+		if evaluatedAt := strings.TrimSpace(req.ExpectedRightsEvaluatedAt); evaluatedAt != "" {
+			args = append(args, "--expected-rights-evaluated-at", evaluatedAt)
+		}
+		if receiptSHA := strings.TrimSpace(req.ExpectedRightsReceiptSHA256); receiptSHA != "" {
+			args = append(args, "--expected-rights-receipt-sha256", receiptSHA)
+		}
+		if policySHA := strings.TrimSpace(req.ExpectedPolicyFileSHA256); policySHA != "" {
+			args = append(args, "--expected-policy-file-sha256", policySHA)
+		}
+	}
 	return Command{
 		Name:    a.CommandName,
-		Args:    []string{"gateway", "decide", "--role", role, "--input-stdin", "--json", "--timeout", timeout.String()},
+		Args:    args,
 		Stdin:   input,
 		Timeout: timeout + resourceCommandGrace,
 	}, nil

@@ -166,6 +166,24 @@ func (r *ResourceRepository) authorizeLocalCandidate(ctx context.Context, adapte
 	if !policy.RuntimeArtifactIdentityMatches(resolved.RuntimeIdentity, resolved.Rights, adapter.Provider, resolved.Model, resolved.ObservedRuntimeDigest) {
 		return providers.ResolvedRole{}, "", decision, errors.New("local model runtime artifact identity is missing or differs from the observed digest")
 	}
+	if strings.TrimSpace(resolved.PolicyFileSHA256) == "" || strings.TrimSpace(resolved.PolicySchemaVersion) == "" {
+		return providers.ResolvedRole{}, "", decision, errors.New("local model policy file identity is missing")
+	}
+	evaluatedAt, err := time.Parse(time.RFC3339Nano, decision.EvaluatedAt)
+	if err != nil {
+		return providers.ResolvedRole{}, "", decision, errors.New("local model rights decision timestamp is invalid")
+	}
+	receipt := policy.NewRightsDecisionReceipt(policy.RightsDecisionReceiptExpectation{
+		Role: resolved.Role, Provider: adapter.Provider, Model: resolved.Model,
+		Use: policy.RightsUseLocalInference, PolicySchemaVersion: resolved.PolicySchemaVersion,
+		ArtifactRights: resolved.Rights, RuntimeIdentity: resolved.RuntimeIdentity, Context: currentContext,
+	}, evaluatedAt)
+	if receipt.Decision.DecisionSHA256 != decision.DecisionSHA256 || receipt.Decision.EvaluatedAt != decision.EvaluatedAt {
+		return providers.ResolvedRole{}, "", decision, errors.New("local model rights receipt does not match the evaluated decision")
+	}
+	if err := policy.RequireAllowedRightsDecisionReceipt(receipt); err != nil {
+		return providers.ResolvedRole{}, "", decision, err
+	}
 
 	refreshed, err := adapter.ResolveRole(ctx, resourceRole)
 	if err != nil {
@@ -177,7 +195,8 @@ func (r *ResourceRepository) authorizeLocalCandidate(ctx context.Context, adapte
 	}
 	if refreshed.Provider != resolved.Provider || refreshed.Role != resolved.Role || refreshed.Model != resolved.Model ||
 		!strings.EqualFold(refreshed.Locality, resolved.Locality) || refreshed.ObservedRuntimeDigest != resolved.ObservedRuntimeDigest ||
-		!sameRuntimeIdentity(refreshed.RuntimeIdentity, resolved.RuntimeIdentity) {
+		!sameRuntimeIdentity(refreshed.RuntimeIdentity, resolved.RuntimeIdentity) ||
+		refreshed.PolicyFileSHA256 != resolved.PolicyFileSHA256 || refreshed.PolicySchemaVersion != resolved.PolicySchemaVersion {
 		return providers.ResolvedRole{}, "", decision, errors.New("local model policy or exact runtime artifact identity changed before execution")
 	}
 	if err := policy.RequireCurrentRightsDecision(decision, refreshed.Rights, policy.RightsUseLocalInference, refreshedContext); err != nil {
@@ -186,6 +205,25 @@ func (r *ResourceRepository) authorizeLocalCandidate(ctx context.Context, adapte
 	if !policy.RuntimeArtifactIdentityMatches(refreshed.RuntimeIdentity, refreshed.Rights, adapter.Provider, refreshed.Model, refreshed.ObservedRuntimeDigest) {
 		return providers.ResolvedRole{}, "", decision, errors.New("local model runtime artifact identity changed before execution")
 	}
+	currentReceipt := policy.NewRightsDecisionReceipt(policy.RightsDecisionReceiptExpectation{
+		Role: refreshed.Role, Provider: adapter.Provider, Model: refreshed.Model,
+		Use: policy.RightsUseLocalInference, PolicySchemaVersion: refreshed.PolicySchemaVersion,
+		ArtifactRights: refreshed.Rights, RuntimeIdentity: refreshed.RuntimeIdentity, Context: refreshedContext,
+	}, evaluatedAt)
+	if err := policy.VerifyRightsDecisionReceipt(currentReceipt, policy.RightsDecisionReceiptExpectation{
+		Role: resolved.Role, Provider: adapter.Provider, Model: resolved.Model,
+		Use: policy.RightsUseLocalInference, PolicySchemaVersion: resolved.PolicySchemaVersion,
+		ArtifactRights: resolved.Rights, RuntimeIdentity: resolved.RuntimeIdentity, Context: currentContext,
+	}); err != nil {
+		return providers.ResolvedRole{}, "", decision, fmt.Errorf("local model rights receipt changed before execution: %w", err)
+	}
+	if _, err := currentReceipt.MarshalCanonical(); err != nil {
+		return providers.ResolvedRole{}, "", decision, err
+	}
+	refreshed.RightsDecisionSHA256 = currentReceipt.Decision.DecisionSHA256
+	refreshed.RightsEvaluatedAt = currentReceipt.Decision.EvaluatedAt
+	refreshed.RightsReceiptSHA256 = currentReceipt.ReceiptSHA256
+	refreshed.RightsContextSHA256 = currentReceipt.Decision.ContextSHA256
 	return refreshed, refreshed.RuntimeIdentity.Digest, decision, nil
 }
 
@@ -363,7 +401,7 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			failures = append(failures, candidate.Provider+": "+err.Error())
 			continue
 		}
-		if !profileAdmits(request.Profile, resolved.Locality) {
+		if !profileAdmitsRequest(request.Profile, request.PrivacyClass, resolved.Locality) {
 			failures = append(failures, fmt.Sprintf("%s: resolved locality %q violates %s", candidate.Provider, resolved.Locality, request.Profile))
 			continue
 		}
@@ -389,11 +427,16 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 		}
 		executionRole := resolved
 		expectedArtifactDigest := ""
-		rightsDecision := policy.RightsDecision{}
 		if localModelRequiresRights(candidate.Provider, resolved) {
-			executionRole, expectedArtifactDigest, rightsDecision, err = r.authorizeLocalCandidate(ctx, adapter, candidate.ResourceRole, resolved)
+			executionRole, expectedArtifactDigest, _, err = r.authorizeLocalCandidate(ctx, adapter, candidate.ResourceRole, resolved)
 			if err != nil {
 				failures = append(failures, candidate.Provider+": "+err.Error())
+				continue
+			}
+			if strings.EqualFold(request.PriorRightsProvider, executionRole.Provider) &&
+				request.PriorRightsModel == executionRole.Model && request.PriorRightsContextSHA256 != "" &&
+				executionRole.RightsContextSHA256 != request.PriorRightsContextSHA256 {
+				failures = append(failures, candidate.Provider+": local model rights changed between schema-repair attempts")
 				continue
 			}
 		}
@@ -446,8 +489,10 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			Role:                         candidate.ResourceRole,
 			ExpectedModel:                executionRole.Model,
 			ExpectedArtifactDigest:       expectedArtifactDigest,
-			ExpectedRightsDecisionSHA256: rightsDecision.DecisionSHA256,
-			ExpectedRightsEvaluatedAt:    rightsDecision.EvaluatedAt,
+			ExpectedRightsDecisionSHA256: executionRole.RightsDecisionSHA256,
+			ExpectedRightsEvaluatedAt:    executionRole.RightsEvaluatedAt,
+			ExpectedRightsReceiptSHA256:  executionRole.RightsReceiptSHA256,
+			ExpectedPolicyFileSHA256:     executionRole.PolicyFileSHA256,
 			Profile:                      request.Profile,
 			InputText:                    prompt,
 			Timeout:                      definition.Timeout(),
@@ -515,6 +560,8 @@ func (r *ResourceRepository) Run(ctx context.Context, request ProviderRequest) (
 			Applied:            applied,
 			SpendAuthorization: execution.SpendAuthorization,
 			ContextWindow:      resolved.ContextWindow, ProviderCallsMade: providerCallsMade,
+			RightsReceiptSHA256: executionRole.RightsReceiptSHA256,
+			RightsContextSHA256: executionRole.RightsContextSHA256,
 		}, nil
 	}
 	if samplingRefused {
@@ -649,7 +696,7 @@ func (r *ResourceRepository) Embed(ctx context.Context, request EmbeddingRequest
 				failures = append(failures, fmt.Sprintf("%s: resolved locality %q violates %s", candidate.Provider, resolved.Locality, request.Profile))
 				continue
 			}
-			executionRole, expectedArtifactDigest, rightsDecision, authorizationErr := r.authorizeLocalCandidate(ctx, adapter, candidate.ResourceRole, resolved)
+			executionRole, expectedArtifactDigest, _, authorizationErr := r.authorizeLocalCandidate(ctx, adapter, candidate.ResourceRole, resolved)
 			if authorizationErr != nil {
 				failures = append(failures, candidate.Provider+": "+authorizationErr.Error())
 				continue
@@ -659,8 +706,10 @@ func (r *ResourceRepository) Embed(ctx context.Context, request EmbeddingRequest
 				Role:                         candidate.ResourceRole,
 				ExpectedModel:                executionRole.Model,
 				ExpectedArtifactDigest:       expectedArtifactDigest,
-				ExpectedRightsDecisionSHA256: rightsDecision.DecisionSHA256,
-				ExpectedRightsEvaluatedAt:    rightsDecision.EvaluatedAt,
+				ExpectedRightsDecisionSHA256: executionRole.RightsDecisionSHA256,
+				ExpectedRightsEvaluatedAt:    executionRole.RightsEvaluatedAt,
+				ExpectedRightsReceiptSHA256:  executionRole.RightsReceiptSHA256,
+				ExpectedPolicyFileSHA256:     executionRole.PolicyFileSHA256,
 				Profile:                      request.Profile,
 				InputText:                    text,
 				Timeout:                      definition.Timeout(),

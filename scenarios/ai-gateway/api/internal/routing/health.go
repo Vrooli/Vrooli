@@ -25,6 +25,26 @@ const (
 	BreakerHalfOpen BreakerState = "half_open"
 )
 
+var ErrInvalidBreakerStateTransition = errors.New("invalid provider breaker state transition")
+
+var breakerStateTransitions = map[BreakerState]map[BreakerState]struct{}{
+	BreakerClosed:   {BreakerClosed: {}, BreakerOpen: {}},
+	BreakerOpen:     {BreakerOpen: {}, BreakerClosed: {}},
+	BreakerHalfOpen: {BreakerHalfOpen: {}, BreakerOpen: {}, BreakerClosed: {}},
+}
+
+// validBreakerState reports whether a state can be stored in provider health.
+// Half-open is accepted for forward compatibility with persisted records, even
+// though the current policy derives it from an open record and its cooldown.
+func validBreakerState(state BreakerState) bool {
+	switch state {
+	case BreakerClosed, BreakerOpen, BreakerHalfOpen:
+		return true
+	default:
+		return false
+	}
+}
+
 // FailureClass is the stable, provider-neutral classification of a provider
 // execution failure. These codes are durable: they are persisted in provider
 // health and (from Phase 3) route evidence, and are surfaced to operators.
@@ -193,6 +213,22 @@ type ProviderHealth struct {
 	UpdatedAt           time.Time
 }
 
+// TransitionState is the sole owner for persisted breaker-state changes.
+// Half-open remains a readable legacy value; current cooldown policy derives
+// it from an open record and does not persist it on its own.
+func (health ProviderHealth) TransitionState(next BreakerState) (ProviderHealth, error) {
+	if !validBreakerState(health.State) || !validBreakerState(next) {
+		return health, fmt.Errorf("%w: unknown state %q -> %q", ErrInvalidBreakerStateTransition, health.State, next)
+	}
+	if health.State != next {
+		if _, allowed := breakerStateTransitions[health.State][next]; !allowed {
+			return health, fmt.Errorf("%w: %q -> %q", ErrInvalidBreakerStateTransition, health.State, next)
+		}
+	}
+	health.State = next
+	return health, nil
+}
+
 // BreakerPolicy carries the deterministic thresholds that govern transitions.
 type BreakerPolicy struct {
 	// FailureThreshold is the number of consecutive failures that opens a
@@ -247,31 +283,44 @@ func (b Breaker) Effective(h ProviderHealth, now time.Time) BreakerState {
 }
 
 // OnSuccess records a successful execution, closing the breaker.
-func (b Breaker) OnSuccess(h ProviderHealth, now time.Time) ProviderHealth {
-	h.State = BreakerClosed
+func (b Breaker) OnSuccess(h ProviderHealth, now time.Time) (ProviderHealth, error) {
+	var err error
+	h, err = h.TransitionState(BreakerClosed)
+	if err != nil {
+		return h, err
+	}
 	h.ConsecutiveFailures = 0
 	h.LastSuccessAt = now
 	h.CooldownUntil = time.Time{}
 	h.OpenedAt = time.Time{}
 	h.UpdatedAt = now
-	return h
+	return h, nil
 }
 
 // OnFailure records a typed failure and opens (or reopens) the breaker when the
 // consecutive-failure threshold is crossed or a half-open probe fails.
-func (b Breaker) OnFailure(h ProviderHealth, class FailureClass, now time.Time) ProviderHealth {
+func (b Breaker) OnFailure(h ProviderHealth, class FailureClass, now time.Time) (ProviderHealth, error) {
 	prevEffective := b.Effective(h, now)
-	h.ConsecutiveFailures++
+	nextFailureCount := h.ConsecutiveFailures + 1
+	nextState := h.State
+	if prevEffective == BreakerHalfOpen || nextFailureCount >= b.policy.FailureThreshold {
+		nextState = BreakerOpen
+	}
+	var err error
+	h, err = h.TransitionState(nextState)
+	if err != nil {
+		return h, err
+	}
+	h.ConsecutiveFailures = nextFailureCount
 	h.LastFailureClass = class
 	h.LastFailureAt = now
 	h.UpdatedAt = now
-	if prevEffective == BreakerHalfOpen || h.ConsecutiveFailures >= b.policy.FailureThreshold {
-		h.State = BreakerOpen
+	if nextState == BreakerOpen && (prevEffective == BreakerHalfOpen || nextFailureCount >= b.policy.FailureThreshold) {
 		h.OpenedAt = now
 		h.CooldownUntil = now.Add(b.policy.Cooldown)
 		h.Generation++
 	}
-	return h
+	return h, nil
 }
 
 // OnProviderFailure records a typed failure together with the observed
@@ -281,11 +330,15 @@ func (b Breaker) OnFailure(h ProviderHealth, class FailureClass, now time.Time) 
 // on the provider's own recovery window instead of the breaker's default
 // cooldown. The provenance is previous-failure state, so it is cleared when a
 // later observation supplies none rather than lingering with a stale window.
-func (b Breaker) OnProviderFailure(h ProviderHealth, failure ProviderFailure, now time.Time) ProviderHealth {
-	h = b.OnFailure(h, failure.Class, now)
+func (b Breaker) OnProviderFailure(h ProviderHealth, failure ProviderFailure, now time.Time) (ProviderHealth, error) {
+	var err error
+	h, err = b.OnFailure(h, failure.Class, now)
+	if err != nil {
+		return h, err
+	}
 	h.HTTPStatus = failure.HTTPStatus
 	h.RetryAfter = strings.TrimSpace(failure.RetryAfter)
 	h.ResetAt = strings.TrimSpace(failure.ResetAt)
 	h.FailureSource = strings.TrimSpace(failure.Source)
-	return h
+	return h, nil
 }

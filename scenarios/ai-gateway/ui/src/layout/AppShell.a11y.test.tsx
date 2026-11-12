@@ -4,12 +4,19 @@
  * (header + landmark nav + main + bottom landmark nav). Feature cards keep
  * their own a11y tests.
  */
-import { afterEach, beforeEach, describe, it } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
+import { cleanup, screen } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
+import { selectors } from "../consts/selectors";
+
+vi.mock("../api/gateway", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/gateway")>();
+  const { makeGatewayApiMocks } = await import("../test-utils/mocks/gateway");
+  return { ...actual, ...makeGatewayApiMocks() };
+});
 
 describe("AppShell accessibility", () => {
   beforeEach(async () => {
@@ -25,6 +32,8 @@ describe("AppShell accessibility", () => {
       <TestAppRouter initialEntries={["/"]} />,
       { withoutRouter: true },
     );
+    await screen.findByTestId(selectors.dashboard.routeEvents);
+    await screen.findByTestId(selectors.dashboard.conformanceDebt);
     await expectNoA11yViolations(container);
   });
 });

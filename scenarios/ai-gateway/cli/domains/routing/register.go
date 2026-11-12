@@ -33,6 +33,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	bindings["RoutingService.ListRouteEvidence"] = h.evidenceList
 	bindings["RoutingService.GetRouteEvidence"] = h.evidenceShow
 	bindings["RoutingService.ListProviderHealth"] = h.health
+	bindings["replay"] = h.replay
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, bindings)
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("routing: load from manifest: %w", err)

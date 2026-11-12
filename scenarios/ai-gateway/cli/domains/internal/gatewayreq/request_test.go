@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/cli-core/cliapp"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 func requestTestContext(flags map[string]string) cliapp.RunContext {
@@ -33,6 +34,34 @@ func requestTestContext(flags map[string]string) cliapp.RunContext {
 		Schema: cliapp.ArgSchema{Flags: flagSchema},
 		Flags:  values,
 	})
+}
+
+func TestInferenceContractKeepsMissingPrivacyUnknownAndBlocksRemote(t *testing.T) {
+	ctx := requestTestContext(map[string]string{"profile": "remote-only", "privacy-class": ""})
+	profile, privacy, err := InferenceContract(ctx)
+	require.NoError(t, err)
+	require.Equal(t, sharedv1.Profile_PROFILE_REMOTE_ONLY, profile)
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED, privacy)
+	// The request contract intentionally leaves the enforcement to the shared
+	// routing policy; this caller test proves it does not invent a class.
+}
+
+func TestInferenceContractAcceptsOnlyRecognizedExplicitProfileAndPrivacy(t *testing.T) {
+	ctx := requestTestContext(map[string]string{"profile": "remote-only", "privacy-class": "public"})
+	profile, privacy, err := InferenceContract(ctx)
+	require.NoError(t, err)
+	require.Equal(t, sharedv1.Profile_PROFILE_REMOTE_ONLY, profile)
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC, privacy)
+	require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC, privacy)
+
+	for _, test := range []struct{ profile, privacy string }{
+		{"future-profile", "public"},
+		{"remote-only", "future-class"},
+	} {
+		ctx := requestTestContext(map[string]string{"profile": test.profile, "privacy-class": test.privacy})
+		_, _, err := InferenceContract(ctx)
+		require.Error(t, err)
+	}
 }
 
 func TestFromContextCarriesNoReclaimFootprintAndExpectedWorker(t *testing.T) {

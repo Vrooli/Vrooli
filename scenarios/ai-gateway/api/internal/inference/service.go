@@ -87,6 +87,11 @@ func (s *Service) runWithSchema(ctx context.Context, request ProviderRequest, sc
 		}
 		result, err := s.repository.Run(ctx, attemptRequest)
 		response.ProviderCallsMade += result.ProviderCallsMade
+		if result.RightsContextSHA256 != "" {
+			request.PriorRightsProvider = result.Provider
+			request.PriorRightsModel = result.Model
+			request.PriorRightsContextSHA256 = result.RightsContextSHA256
+		}
 		if result.Recovery != nil {
 			response.Recovery = result.Recovery
 			response.ValueJson = ""

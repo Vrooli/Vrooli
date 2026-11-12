@@ -34,6 +34,18 @@ type inventoryMutatingRunner struct {
 	replacement providers.Result
 }
 
+type policyRevisionMutatingRunner struct {
+	inner *mocks.FakeRunner
+}
+
+func (r policyRevisionMutatingRunner) Run(ctx context.Context, command providers.Command) (providers.Result, error) {
+	result, err := r.inner.Run(ctx, command)
+	if err == nil && strings.Contains(command.String(), " policy resolve ") && strings.HasPrefix(command.Name, "resource-ollama") {
+		result.Stdout = strings.Replace(result.Stdout, strings.Repeat("f", 64), strings.Repeat("e", 64), 1)
+	}
+	return result, err
+}
+
 func (r *inventoryMutatingRunner) Run(ctx context.Context, command providers.Command) (providers.Result, error) {
 	if strings.Contains(command.String(), " models inventory ") {
 		r.calls++
@@ -95,6 +107,18 @@ func TestChangedOllamaRuntimeArtifactAfterPlanningBlocksExecution(t *testing.T) 
 	require.NotEqual(t, "succeeded", resp.GetEvidence().GetStatus())
 	for _, command := range base.Commands {
 		require.NotContains(t, command.String(), "gateway generate", "changed runtime digest must block before provider invocation")
+	}
+}
+
+func TestChangedOllamaPolicyRevisionAfterPlanningBlocksExecution(t *testing.T) {
+	base := roleRunner()
+	runner := policyRevisionMutatingRunner{inner: base}
+	svc := newService(testAdapters(runner), routing.NewSQLRepository(newSchemaDB(t)))
+	resp, err := svc.Execute(context.Background(), baseRequest(sharedv1.Profile_PROFILE_LOCAL_ONLY), "hello")
+	require.NoError(t, err)
+	require.NotEqual(t, "succeeded", resp.GetEvidence().GetStatus())
+	for _, command := range base.Commands {
+		require.NotContains(t, command.String(), "gateway generate", "a changed provider policy file must refuse before model invocation")
 	}
 }
 
@@ -235,6 +259,10 @@ func TestLocalOnlyProfileAndArtifactDigestReachOllamaEmbedding(t *testing.T) {
 	command := runner.Commands[len(runner.Commands)-1].String()
 	require.Contains(t, command, "gateway embed")
 	require.Contains(t, command, "--expected-artifact-digest dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")
+	require.Contains(t, command, "--expected-rights-decision-sha256")
+	require.Contains(t, command, "--expected-rights-evaluated-at")
+	require.Contains(t, command, "--expected-rights-receipt-sha256")
+	require.Contains(t, command, "--expected-policy-file-sha256")
 	require.Contains(t, command, "--require-loopback")
 }
 
@@ -332,16 +360,18 @@ func roleRunner() *mocks.FakeRunner {
 	embedIdentity := `{"provider":"ollama","model":"nomic-embed-text:latest","artifact_id":"fixture/nomic-embed-text:latest","artifact_revision":"fixture-rev1","digest_kind":"ollama_model_contents","digest":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd","source":"ollama /api/tags","observed_at":"2026-11-11"}`
 	for key, result := range runner.Results {
 		if key == "resource-ollama policy roles --json" {
+			result.Stdout = strings.ReplaceAll(result.Stdout, `"schema_version":"1"`, `"schema_version":"1","policy_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"`)
 			result.Stdout = strings.Replace(result.Stdout, `,"required_capabilities"`, identity+`,"required_capabilities"`, 1)
-			result.Stdout = strings.TrimSuffix(result.Stdout, `]}`) + `,{"schema_version":"1","role":"embedding.default","model":"nomic-embed-text:latest","rights":` + embedRights + `,"runtime_identity":` + embedIdentity + `,"required_capabilities":["embedding"],"capabilities":["embedding"]}]}`
+			result.Stdout = strings.TrimSuffix(result.Stdout, `]}`) + `,{"schema_version":"1","policy_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","role":"embedding.default","model":"nomic-embed-text:latest","rights":` + embedRights + `,"runtime_identity":` + embedIdentity + `,"required_capabilities":["embedding"],"capabilities":["embedding"]}]}`
 			runner.Results[key] = result
 		}
 		if key == "resource-ollama policy resolve --role chat.default --json" {
+			result.Stdout = strings.Replace(result.Stdout, `{"role":`, `{"schema_version":"1","policy_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","role":`, 1)
 			result.Stdout = strings.Replace(result.Stdout, `,"rights":`, identity+`,"rights":`, 1)
 			runner.Results[key] = result
 		}
 	}
-	runner.Results["resource-ollama policy resolve --role embedding.default --json"] = providers.Result{Stdout: `{"role":"embedding.default","model":"nomic-embed-text:latest","rights":` + embedRights + `,"runtime_identity":` + embedIdentity + `,"capabilities":["embedding"],"locality":"local"}`}
+	runner.Results["resource-ollama policy resolve --role embedding.default --json"] = providers.Result{Stdout: `{"role":"embedding.default","model":"nomic-embed-text:latest","rights":` + embedRights + `,"runtime_identity":` + embedIdentity + `,"capabilities":["embedding"],"locality":"local","schema_version":"1","policy_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}`}
 	runner.Results["resource-ollama models inventory --json"] = providers.Result{Stdout: `{"source":"ollama /api/tags","models":[{"name":"qwen3.5:9b","digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},{"name":"nomic-embed-text:latest","digest":"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}]}`}
 	runner.DefaultOK = true
 	runner.Default = providers.Result{Stdout: `{"response":"ok","eval_count":1}`}
@@ -350,6 +380,7 @@ func roleRunner() *mocks.FakeRunner {
 
 func withChatRuntimeIdentity(raw string) string {
 	identity := `,"runtime_identity":{"provider":"ollama","model":"qwen3.5:9b","artifact_id":"fixture/qwen3.5:9b","artifact_revision":"fixture-rev1","digest_kind":"ollama_model_contents","digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","source":"ollama /api/tags","observed_at":"2026-11-11"}`
+	raw = strings.Replace(raw, `{"role":`, `{"schema_version":"1","policy_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","role":`, 1)
 	return strings.Replace(raw, `,"rights":`, identity+`,"rights":`, 1)
 }
 
@@ -366,10 +397,12 @@ func multimodalRoleRunner() *mocks.FakeRunner {
 	identity := `,"runtime_identity":{"provider":"ollama","model":"qwen3.5:9b","artifact_id":"fixture/qwen3.5:9b","artifact_revision":"fixture-rev1","digest_kind":"ollama_model_contents","digest":"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","source":"ollama /api/tags","observed_at":"2026-11-11"}`
 	for key, result := range runner.Results {
 		if key == "resource-ollama policy roles --json" {
+			result.Stdout = strings.ReplaceAll(result.Stdout, `"schema_version":"1"`, `"schema_version":"1","policy_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"`)
 			result.Stdout = strings.Replace(result.Stdout, `,"required_capabilities"`, identity+`,"required_capabilities"`, 1)
 			runner.Results[key] = result
 		}
 		if key == "resource-ollama policy resolve --role chat.default --json" {
+			result.Stdout = strings.Replace(result.Stdout, `{"role":`, `{"schema_version":"1","policy_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","role":`, 1)
 			result.Stdout = strings.Replace(result.Stdout, `,"rights":`, identity+`,"rights":`, 1)
 			runner.Results[key] = result
 		}

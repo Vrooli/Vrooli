@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"ai-gateway/internal/providers"
-
 	profilepolicy "github.com/vrooli/ai-provider-go/routing"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
@@ -93,10 +92,27 @@ func (r *ResourceRepository) decideByModel(ctx context.Context, definition Infer
 		skip(row, reasonLocalityForbidden, fmt.Sprintf("profile %s forbids a %s candidate", request.Profile, resolved.Locality))
 		return
 	}
+	executionRole, expectedArtifactDigest := resolved, ""
+	if localModelRequiresRights(candidate.Provider, resolved) {
+		executionRole, expectedArtifactDigest, _, err = r.authorizeLocalCandidate(ctx, adapter, candidate.ResourceRole, resolved)
+		if err != nil {
+			skip(row, providers.CodeUnconfigured, "local model rights or exact runtime identity could not be qualified: "+err.Error())
+			return
+		}
+	}
 	started := time.Now()
 	execution, err := adapter.Execute(ctx, providers.ExecutionRequest{
-		Kind: sharedv1.RequestKind_REQUEST_KIND_DECISION, Role: candidate.ResourceRole,
-		Profile: request.Profile, InputText: body, Timeout: definition.Timeout(),
+		Kind:                         sharedv1.RequestKind_REQUEST_KIND_DECISION,
+		Role:                         candidate.ResourceRole,
+		ExpectedModel:                executionRole.Model,
+		ExpectedArtifactDigest:       expectedArtifactDigest,
+		ExpectedRightsDecisionSHA256: executionRole.RightsDecisionSHA256,
+		ExpectedRightsEvaluatedAt:    executionRole.RightsEvaluatedAt,
+		ExpectedRightsReceiptSHA256:  executionRole.RightsReceiptSHA256,
+		ExpectedPolicyFileSHA256:     executionRole.PolicyFileSHA256,
+		Profile:                      request.Profile,
+		InputText:                    body,
+		Timeout:                      definition.Timeout(),
 	})
 	row.LatencyMs = time.Since(started).Milliseconds()
 	if err != nil {

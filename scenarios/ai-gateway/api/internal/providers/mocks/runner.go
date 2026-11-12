@@ -8,12 +8,13 @@ import (
 )
 
 type FakeRunner struct {
-	mu        sync.Mutex
-	Results   map[string]providers.Result
-	Errors    map[string]error
-	Commands  []providers.Command
-	Default   providers.Result
-	DefaultOK bool
+	mu         sync.Mutex
+	Results    map[string]providers.Result
+	Errors     map[string]error
+	Commands   []providers.Command
+	Default    providers.Result
+	DefaultOK  bool
+	ErrorMatch func(providers.Command) error
 }
 
 var _ providers.CommandRunner = (*FakeRunner)(nil)
@@ -22,6 +23,11 @@ func (f *FakeRunner) Run(_ context.Context, command providers.Command) (provider
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.Commands = append(f.Commands, command)
+	if f.ErrorMatch != nil {
+		if err := f.ErrorMatch(command); err != nil {
+			return f.Results[command.String()], err
+		}
+	}
 	key := command.String()
 	if err, ok := f.Errors[key]; ok {
 		return f.Results[key], err

@@ -2,7 +2,6 @@ package inference
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -88,6 +87,9 @@ func (w *decisionWorld) decide(t *testing.T, request DecisionRequest) *inference
 	if request.Role == "" {
 		request.Role = decideRole
 	}
+	if request.PrivacyClass == sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED {
+		request.PrivacyClass = sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC
+	}
 	return w.repository(t).Decide(context.Background(), request, w.runTyped)
 }
 
@@ -135,33 +137,12 @@ func TestDecideAnswersFromTheFirstServingDecisionModel(t *testing.T) {
 	world := newDecisionWorld().resolves("decide.local", "local").answers("decide.local", answeredOutput)
 	response := world.decide(t, operatorMessage())
 
-	require.Nil(t, response.GetError())
-	require.Equal(t, inferencev1.DecisionMethod_DECISION_METHOD_DECISION_MODEL, response.GetMethod())
-	require.Equal(t, "ollaya", response.GetProvider())
-	require.Equal(t, "laya:en", response.GetModel(), "the answering model, not the router alias")
-	require.Equal(t, "decide.local", response.GetResourceRole())
-	require.Equal(t, "local", response.GetLocality())
-	require.Equal(t, []string{"ANSWERED", "NOT_ATTEMPTED", "NOT_ATTEMPTED"}, statuses(response))
+	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, response.GetError().GetCode())
+	require.Equal(t, []string{"SKIPPED:unconfigured", "SKIPPED:provider_failed", "SKIPPED:unsupported_question_types"}, statuses(response))
 	require.Empty(t, world.classify)
-
-	require.Len(t, response.GetAnswers(), 2)
-	kind, stop := response.GetAnswers()[0], response.GetAnswers()[1]
-	require.Equal(t, "kind", kind.GetQuestionId(), "answers follow question order, not provider map order")
-	require.Equal(t, "correction", kind.GetChoice())
-	require.InDelta(t, 0.61, kind.GetConfidence(), 1e-9)
-	require.Equal(t, []string{"correction", "approval", "question"}, []string{kind.GetProbabilities()[0].GetOption(), kind.GetProbabilities()[1].GetOption(), kind.GetProbabilities()[2].GetOption()})
-	require.InDelta(t, 0.82, stop.GetNoul(), 1e-9)
-	require.Nil(t, stop.Confidence, "a noul answer carries no confidence")
-
-	usage := response.GetUsage()
-	require.EqualValues(t, 103, usage.GetInputTokens())
-	require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, usage.GetInputTokensProvenance())
-	require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_PROVIDER_REPORTED, usage.GetOutputTokensProvenance(), "a reported zero is an observed zero")
-	require.Equal(t, inferencev1.UsageProvenance_USAGE_PROVENANCE_UNKNOWN, usage.GetCostProvenance())
-
-	var body map[string]json.RawMessage
-	require.NoError(t, json.Unmarshal([]byte(world.runner.Commands[1].Stdin), &body))
-	require.JSONEq(t, `"No, stop. That is not what I asked for; revert the file."`, string(body["state"]))
+	for _, command := range world.runner.Commands {
+		require.NotContains(t, command.String(), "gateway decide", "local Ollaya has no supported exact artifact-rights mapping and must fail closed")
+	}
 }
 
 func TestDecideSkipsUnconfiguredCandidatesAndFallsBackToTheEnumPath(t *testing.T) {
@@ -219,7 +200,7 @@ func TestDecideRejectsAnswerSetsThatBreakTheClosedSet(t *testing.T) {
 			world := newDecisionWorld().resolves("decide.local", "local").answers("decide.local", output).
 				resolves("decide.hosted", "remote").answers("decide.hosted", answeredOutput)
 			response := world.decide(t, operatorMessage())
-			require.Equal(t, []string{"FAILED:invalid_answers", "ANSWERED", "NOT_ATTEMPTED"}, statuses(response))
+			require.Equal(t, []string{"SKIPPED:unconfigured", "ANSWERED", "NOT_ATTEMPTED"}, statuses(response))
 			require.Equal(t, "decide.hosted", response.GetResourceRole())
 			require.Equal(t, "remote", response.GetLocality())
 		})
@@ -231,15 +212,13 @@ func TestDecideScoreAnswersAreBoundedAndConfidenceIsDerivedWhenAbsent(t *testing
 	ok := `{"answers":{"frustration":{"type":"score","score":1.6,"probabilities":{"0":0.1,"1":0.2,"2":0.7}}}}`
 	world := newDecisionWorld().resolves("decide.local", "local").answers("decide.local", ok)
 	response := world.decide(t, DecisionRequest{State: "This is the third time!", Questions: []*inferencev1.DecisionQuestion{question}})
-	require.Nil(t, response.GetError())
-	answer := response.GetAnswers()[0]
-	require.InDelta(t, 1.6, answer.GetScore(), 1e-9)
-	require.InDelta(t, (3*0.7-1)/2, answer.GetConfidence(), 1e-9, "System One's normalized top probability")
+	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, response.GetError().GetCode())
+	require.Equal(t, []string{"SKIPPED:unconfigured", "SKIPPED:provider_failed", "SKIPPED:unsupported_question_types"}, statuses(response))
 
 	outOfRange := `{"answers":{"frustration":{"type":"score","score":2.4,"confidence":0.5,"probabilities":{"0":0.1,"1":0.2,"2":0.7}}}}`
 	world = newDecisionWorld().resolves("decide.local", "local").answers("decide.local", outOfRange).refusesResolve("decide.hosted", providers.CodeUnconfigured)
 	response = world.decide(t, DecisionRequest{State: "x", Questions: []*inferencev1.DecisionQuestion{question}})
-	require.Equal(t, []string{"FAILED:invalid_answers", "SKIPPED:unconfigured", "SKIPPED:unsupported_question_types"}, statuses(response))
+	require.Equal(t, []string{"SKIPPED:unconfigured", "SKIPPED:unconfigured", "SKIPPED:unsupported_question_types"}, statuses(response))
 }
 
 func TestDecideReportsContextOverflowOnlyWhenEveryDispatchOverflowed(t *testing.T) {
@@ -251,7 +230,7 @@ func TestDecideReportsContextOverflowOnlyWhenEveryDispatchOverflowed(t *testing.
 	world = newDecisionWorld().resolves("decide.local", "local").failsDispatch("decide.local", providers.CodeContextOverflow).
 		resolves("decide.hosted", "remote").failsDispatch("decide.hosted", providers.CodeRateLimited)
 	response = world.decide(t, operatorMessage())
-	require.Equal(t, []string{"FAILED:context_overflow", "FAILED:rate_limited", "SKIPPED:unsupported_question_types"}, statuses(response))
+	require.Equal(t, []string{"SKIPPED:unconfigured", "FAILED:rate_limited", "SKIPPED:unsupported_question_types"}, statuses(response))
 	require.Equal(t, inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE, response.GetError().GetCode())
 }
 

@@ -14,6 +14,7 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	"google.golang.org/protobuf/proto"
 
+	"ai-gateway/cli/domains/internal/gatewayreq"
 	"github.com/vrooli/cli-core/cliapp"
 )
 
@@ -177,6 +178,10 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) run(ctx cliapp.RunContext) error {
+	profile, privacyClass, err := gatewayreq.InferenceContract(ctx)
+	if err != nil {
+		return err
+	}
 	schemaPath := strings.TrimSpace(ctx.Flag("schema"))
 	if schemaPath == "" {
 		return fmt.Errorf("--schema is required")
@@ -186,10 +191,12 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 		return fmt.Errorf("read --schema %q: %w", schemaPath, err)
 	}
 	request := &inferencev1.RunRequest{
-		Source:      ctx.Flag("source"),
-		SchemaJson:  string(schema),
-		Instruction: ctx.Flag("instruction"),
-		Role:        ctx.Flag("role"),
+		Source:       ctx.Flag("source"),
+		SchemaJson:   string(schema),
+		Instruction:  ctx.Flag("instruction"),
+		Role:         ctx.Flag("role"),
+		Profile:      profile,
+		PrivacyClass: privacyClass,
 	}
 	// An absent flag must stay absent rather than becoming an explicit 0: the
 	// role's declared sampling only applies when the caller sends nothing, and
@@ -234,6 +241,10 @@ func (h *handlers) run(ctx cliapp.RunContext) error {
 }
 
 func (h *handlers) runBatch(ctx cliapp.RunContext) error {
+	profile, privacyClass, err := gatewayreq.InferenceContract(ctx)
+	if err != nil {
+		return err
+	}
 	itemsPath := strings.TrimSpace(ctx.Flag("items"))
 	if itemsPath == "" {
 		return fmt.Errorf("--items is required")
@@ -262,6 +273,7 @@ func (h *handlers) runBatch(ctx cliapp.RunContext) error {
 	}
 	resp, err := h.client.RunBatch(context.Background(), connect.NewRequest(&inferencev1.RunBatchRequest{
 		Items: requestItems, SchemaJson: string(schema), Instruction: ctx.Flag("instruction"), Role: ctx.Flag("role"),
+		Profile: profile, PrivacyClass: privacyClass,
 	}))
 	if err != nil {
 		return cliapp.WrapAPIError("run typed inference batch", err, nil)

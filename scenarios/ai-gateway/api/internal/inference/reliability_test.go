@@ -160,7 +160,10 @@ func TestRoleTimeoutReachesTheProviderCommand(t *testing.T) {
 	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
 		"classify.fast": {TimeoutMS: 45000, Sampling: deterministicRoleSampling(), Candidates: []Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "test"}}},
 	}}
-	repository, err := NewResourceRepository(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner}})
+	configureQualifiedLocalRole(runner, "classify.routing", "qwen3.5:4b", "local")
+	runner.DefaultOK = true
+	runner.Default = providers.Result{Stdout: `{"response":"\"infra\"","eval_count":2}`}
+	repository, err := NewResourceRepositoryWithRightsContextSource(catalog, []providers.Adapter{{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner}}, fixtureRightsContext)
 	require.NoError(t, err)
 
 	_, err = repository.Run(context.Background(), ProviderRequest{Source: "s", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"})

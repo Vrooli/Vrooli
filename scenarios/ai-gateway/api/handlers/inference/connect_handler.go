@@ -58,6 +58,8 @@ func (h *connectHandler) RunBatch(ctx context.Context, req *connect.Request[infe
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
 	}
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
+	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))
 	requests := make([]internalinference.ProviderRequest, 0, len(req.Msg.GetItems()))
 	for _, item := range req.Msg.GetItems() {
 		requests = append(requests, internalinference.ProviderRequest{
@@ -84,6 +86,8 @@ func (h *connectHandler) Decide(ctx context.Context, req *connect.Request[infere
 	// The enum fallback runs the typed path, which may reach the metered
 	// provider on the caller's behalf.
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
+	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))
 	return connect.NewResponse(h.service.Decide(ctx, internalinference.DecisionRequest{
 		Role: req.Msg.GetRole(), State: req.Msg.GetState(), StateJSON: req.Msg.GetStateJson(),
 		Questions: req.Msg.GetQuestions(), Profile: req.Msg.GetProfile(), PrivacyClass: req.Msg.GetPrivacyClass(),
@@ -95,6 +99,8 @@ func (h *connectHandler) DecideBatch(ctx context.Context, req *connect.Request[i
 		return nil, connect.NewError(connect.CodeInvalidArgument, internalinference.ErrUnavailable)
 	}
 	ctx = providers.WithAccessToken(ctx, req.Header().Get("Authorization"))
+	ctx = providers.WithSource(ctx, req.Header().Get("X-Vrooli-AI-Source"))
+	ctx = providers.WithGatewayHop(ctx, req.Header().Get("X-Vrooli-Gateway-Hop"))
 	items := make([]internalinference.DecisionRequest, 0, len(req.Msg.GetItems()))
 	for _, item := range req.Msg.GetItems() {
 		items = append(items, internalinference.DecisionRequest{State: item.GetState(), StateJSON: item.GetStateJson()})

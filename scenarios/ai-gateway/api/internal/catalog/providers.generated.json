@@ -120,8 +120,8 @@
           ]
         },
         "code.default": {
-          "model": "sonnet",
-          "canonical_model": "anthropic/claude-sonnet-5-5",
+          "model": "fable",
+          "canonical_model": "anthropic/claude-fable-5-2",
           "fallbacks": [
             "claude-sonnet-5-5"
           ],
@@ -131,6 +131,11 @@
             "tools"
           ],
           "models": [
+            {
+              "model": "fable",
+              "source": "claude-subscription",
+              "effort": "low"
+            },
             {
               "model": "sonnet",
               "source": "claude-subscription",
@@ -212,8 +217,8 @@
           ]
         },
         "code.judgment": {
-          "model": "opus",
-          "canonical_model": "anthropic/claude-opus-5-5",
+          "model": "fable",
+          "canonical_model": "anthropic/claude-fable-5-2",
           "fallbacks": [
             "claude-opus-5-5"
           ],
@@ -232,7 +237,7 @@
             {
               "model": "opus",
               "source": "claude-subscription",
-              "effort": "high"
+              "effort": "xhigh"
             },
             {
               "model": "openrouter/deepseek/deepseek-v4.1-flash",
@@ -243,9 +248,9 @@
         },
         "code.longrun": {
           "model": "fable",
-          "canonical_model": "anthropic/claude-fable-5-1",
+          "canonical_model": "anthropic/claude-fable-5-2",
           "fallbacks": [
-            "claude-fable-5-1"
+            "claude-opus-5-5"
           ],
           "description": "Long-horizon autonomous coding work with multi-source fallback chain.",
           "capabilities": [
@@ -262,7 +267,7 @@
             {
               "model": "opus",
               "source": "claude-subscription",
-              "effort": "high"
+              "effort": "xhigh"
             },
             {
               "model": "opencode-go/deepseek-v4.1-flash",
@@ -278,9 +283,8 @@
         },
         "code.smart": {
           "model": "fable",
-          "canonical_model": "anthropic/claude-fable-5-1",
+          "canonical_model": "anthropic/claude-fable-5-2",
           "fallbacks": [
-            "claude-fable-5-1",
             "claude-opus-5-5"
           ],
           "description": "Highest-capability Claude Code reasoning and long-horizon agentic work.",
@@ -298,7 +302,7 @@
             {
               "model": "opus",
               "source": "claude-subscription",
-              "effort": "high"
+              "effort": "xhigh"
             },
             {
               "model": "openrouter/deepseek/deepseek-v4.1-flash",
@@ -308,8 +312,8 @@
           ]
         },
         "code.ux": {
-          "model": "opus",
-          "canonical_model": "anthropic/claude-opus-5-5",
+          "model": "fable",
+          "canonical_model": "anthropic/claude-fable-5-2",
           "fallbacks": [
             "claude-opus-5-5"
           ],
@@ -321,12 +325,12 @@
           ],
           "models": [
             {
-              "model": "opus",
+              "model": "fable",
               "source": "claude-subscription",
-              "effort": "high"
+              "effort": "medium"
             },
             {
-              "model": "sonnet",
+              "model": "opus",
               "source": "claude-subscription",
               "effort": "high"
             },
@@ -338,8 +342,8 @@
           ]
         },
         "write.default": {
-          "model": "opus",
-          "canonical_model": "anthropic/claude-opus-5-5",
+          "model": "fable",
+          "canonical_model": "anthropic/claude-fable-5-2",
           "fallbacks": [
             "claude-opus-5-5"
           ],
@@ -350,14 +354,14 @@
           ],
           "models": [
             {
+              "model": "fable",
+              "source": "claude-subscription",
+              "effort": "medium"
+            },
+            {
               "model": "opus",
               "source": "claude-subscription",
               "effort": "high"
-            },
-            {
-              "model": "sonnet",
-              "source": "claude-subscription",
-              "effort": null
             },
             {
               "model": "openrouter/deepseek/deepseek-v4.1-flash",
@@ -378,6 +382,10 @@
         },
         "claude-fable-5-1": {
           "canonical_model": "anthropic/claude-fable-5-1",
+          "provider": "anthropic"
+        },
+        "claude-fable-5-2": {
+          "canonical_model": "anthropic/claude-fable-5-2",
           "provider": "anthropic"
         },
         "claude-haiku-4-5-20251001": {
@@ -405,7 +413,7 @@
           "provider": "anthropic"
         },
         "fable": {
-          "canonical_model": "anthropic/claude-fable-5-1",
+          "canonical_model": "anthropic/claude-fable-5-2",
           "provider": "anthropic"
         },
         "haiku": {
@@ -437,6 +445,7 @@
         "model_map": {
           "claude-fable-5": "claude-opus-5-5",
           "claude-fable-5-1": "claude-opus-5-5",
+          "claude-fable-5-2": "claude-opus-5-5",
           "claude-opus-5": "claude-sonnet-5-5",
           "claude-opus-5-5": "claude-sonnet-5-5",
           "fable": "opus",
@@ -451,8 +460,8 @@
         ]
       },
       "provenance": {
-        "source": "policy refresh from Claude Code 2.1.312 built-in model catalog",
-        "observed_at": "2026-10-31"
+        "source": "policy refresh by agent agent-manager run from Claude Code 2.1.321 built-in model catalog",
+        "observed_at": "2026-11-09"
       },
       "billing": {
         "mode": "subscription",
@@ -485,6 +494,273 @@
     "codex": {
       "schema_version": "v1",
       "runner": "codex",
+      "roles": {
+        "code.cheap": {
+          "model": "gpt-6-luna",
+          "canonical_model": "codex/gpt-6-luna",
+          "description": "Research and evidence gathering with the latest verified Luna model.",
+          "capabilities": [
+            "code",
+            "tools"
+          ],
+          "models": [
+            {
+              "model": "gpt-6-luna",
+              "source": "codex-subscription",
+              "effort": "medium"
+            }
+          ]
+        },
+        "code.default": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "code",
+            "tools"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "high"
+            }
+          ]
+        },
+        "code.delivery": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "code",
+            "tools",
+            "reasoning"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "medium"
+            }
+          ]
+        },
+        "code.fallback": {
+          "model": "gpt-6.1-sol",
+          "canonical_model": "codex/gpt-6.1-sol",
+          "description": "Explicit fallback after a recorded native or managed harness failure; Agent Manager requires VROOLI_MODEL_FALLBACK_REASON at admission.",
+          "capabilities": [
+            "code",
+            "tools",
+            "reasoning"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-sol",
+              "source": "codex-subscription",
+              "effort": "medium"
+            }
+          ]
+        },
+        "code.fast": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "code",
+            "tools"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "medium"
+            }
+          ]
+        },
+        "code.inspection": {
+          "model": "gpt-6-luna",
+          "canonical_model": "codex/gpt-6-luna",
+          "description": "Research and evidence gathering with the latest verified Luna model.",
+          "capabilities": [
+            "code",
+            "tools"
+          ],
+          "models": [
+            {
+              "model": "gpt-6-luna",
+              "source": "codex-subscription",
+              "effort": "high"
+            }
+          ]
+        },
+        "code.judgment": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "code",
+            "tools",
+            "reasoning"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "medium"
+            }
+          ]
+        },
+        "code.longrun": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "code",
+            "tools",
+            "reasoning"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "high"
+            }
+          ]
+        },
+        "code.research": {
+          "model": "gpt-6-luna",
+          "canonical_model": "codex/gpt-6-luna",
+          "description": "Research with the latest verified Luna model.",
+          "capabilities": [
+            "code",
+            "tools",
+            "reasoning"
+          ],
+          "models": [
+            {
+              "model": "gpt-6-luna",
+              "source": "codex-subscription",
+              "effort": "medium"
+            }
+          ]
+        },
+        "code.reserve": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "code",
+            "tools"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "medium"
+            }
+          ]
+        },
+        "code.review": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "code",
+            "tools"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "high"
+            }
+          ]
+        },
+        "code.smart": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "code",
+            "tools",
+            "reasoning"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "high"
+            }
+          ]
+        },
+        "code.terra": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "code",
+            "tools",
+            "reasoning"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "high"
+            }
+          ]
+        },
+        "code.ux": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "code",
+            "tools",
+            "ux"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "high"
+            }
+          ]
+        },
+        "judgment.supervision": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "code",
+            "tools",
+            "reasoning"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "medium"
+            }
+          ]
+        },
+        "write.default": {
+          "model": "gpt-6.1-terra",
+          "canonical_model": "codex/gpt-6.1-terra",
+          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
+          "capabilities": [
+            "writing",
+            "tools"
+          ],
+          "models": [
+            {
+              "model": "gpt-6.1-terra",
+              "source": "codex-subscription",
+              "effort": "high"
+            }
+          ]
+        }
+      },
       "excluded_models": [
         "gpt-6-astra",
         "gpt-6-sol",
@@ -500,54 +776,9 @@
           "code.fallback"
         ]
       },
-      "provenance": {
-        "source": "Operator policy 2026-10-27: GPT-6.1 Terra capable default, live-discovered GPT-6 Luna research, GPT-6.1 Sol only explicit recorded failure fallback. Live Codex 0.162.1 catalog verified before migration; discovery, updates and launches share the PATH resolver. No automatic provider fallback.",
-        "observed_at": "2026-10-27"
-      },
-      "billing": {
-        "mode": "subscription",
-        "source": "operator-declared-codex-cli-subscription",
-        "sources": [
-          {
-            "id": "codex-subscription",
-            "label": "Codex Subscription",
-            "billing_mode": "subscription",
-            "credential_key": "CODEX_API_KEY",
-            "endpoint": "https://api.openai.com/v1"
-          }
-        ]
-      },
-      "usage_tiers": {
-        "model_map": {
-          "gpt-6.1-terra": "gpt-6-luna"
-        },
-        "session_model": "gpt-6-luna",
-        "exempt_roles": [
-          "code.fallback",
-          "code.review",
-          "judgment.supervision",
-          "code.judgment"
-        ]
-      },
       "model_aliases": {
-        "gpt-6-luna": {
-          "canonical_model": "codex/gpt-6-luna",
-          "provider": "codex"
-        },
-        "gpt-6.1-terra": {
-          "canonical_model": "codex/gpt-6.1-terra",
-          "provider": "codex"
-        },
-        "gpt-6.1-sol": {
-          "canonical_model": "codex/gpt-6.1-sol",
-          "provider": "codex"
-        },
-        "gpt-6-astra": {
-          "canonical_model": "codex/gpt-6-astra",
-          "provider": "codex"
-        },
-        "gpt-6-sol": {
-          "canonical_model": "codex/gpt-6-sol",
+        "codex-auto-review": {
+          "canonical_model": "codex/codex-auto-review",
           "provider": "codex"
         },
         "gpt-5.5": {
@@ -566,8 +797,24 @@
           "canonical_model": "codex/gpt-5.6-terra",
           "provider": "codex"
         },
-        "codex-auto-review": {
-          "canonical_model": "codex/codex-auto-review",
+        "gpt-6-astra": {
+          "canonical_model": "codex/gpt-6-astra",
+          "provider": "codex"
+        },
+        "gpt-6-luna": {
+          "canonical_model": "codex/gpt-6-luna",
+          "provider": "codex"
+        },
+        "gpt-6-sol": {
+          "canonical_model": "codex/gpt-6-sol",
+          "provider": "codex"
+        },
+        "gpt-6.1-sol": {
+          "canonical_model": "codex/gpt-6.1-sol",
+          "provider": "codex"
+        },
+        "gpt-6.1-terra": {
+          "canonical_model": "codex/gpt-6.1-terra",
           "provider": "codex"
         },
         "gpt-reserve": {
@@ -575,288 +822,39 @@
           "provider": "codex"
         }
       },
-      "roles": {
-        "code.delivery": {
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "medium"
-            }
-          ],
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "code",
-            "tools",
-            "reasoning"
-          ]
+      "usage_tiers": {
+        "model_map": {
+          "gpt-6.1-sol": "gpt-6-luna",
+          "gpt-6.1-terra": "gpt-6-luna"
         },
-        "judgment.supervision": {
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "medium"
-            }
-          ],
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "code",
-            "tools",
-            "reasoning"
-          ]
-        },
-        "code.default": {
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "high"
-            }
-          ],
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "code",
-            "tools"
-          ]
-        },
-        "code.fast": {
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "medium"
-            }
-          ],
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "code",
-            "tools"
-          ]
-        },
-        "code.smart": {
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "high"
-            }
-          ],
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "code",
-            "tools",
-            "reasoning"
-          ]
-        },
-        "code.cheap": {
-          "models": [
-            {
-              "model": "gpt-6-luna",
-              "source": "codex-subscription",
-              "effort": "medium"
-            }
-          ],
-          "model": "gpt-6-luna",
-          "canonical_model": "codex/gpt-6-luna",
-          "fallbacks": [],
-          "description": "Research and evidence gathering with the latest verified Luna model.",
-          "capabilities": [
-            "code",
-            "tools"
-          ]
-        },
-        "code.ux": {
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "high"
-            }
-          ],
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "code",
-            "tools",
-            "ux"
-          ]
-        },
-        "code.judgment": {
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "medium"
-            }
-          ],
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "code",
-            "tools",
-            "reasoning"
-          ]
-        },
-        "code.inspection": {
-          "models": [
-            {
-              "model": "gpt-6-luna",
-              "source": "codex-subscription",
-              "effort": "high"
-            }
-          ],
-          "model": "gpt-6-luna",
-          "canonical_model": "codex/gpt-6-luna",
-          "fallbacks": [],
-          "description": "Research and evidence gathering with the latest verified Luna model.",
-          "capabilities": [
-            "code",
-            "tools"
-          ]
-        },
-        "code.longrun": {
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "high"
-            }
-          ],
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "code",
-            "tools",
-            "reasoning"
-          ]
-        },
-        "write.default": {
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "high"
-            }
-          ],
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "writing",
-            "tools"
-          ]
-        },
-        "code.review": {
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "code",
-            "tools"
-          ],
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "high"
-            }
-          ]
-        },
-        "code.terra": {
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "code",
-            "tools",
-            "reasoning"
-          ],
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "high"
-            }
-          ]
-        },
-        "code.reserve": {
-          "model": "gpt-6.1-terra",
-          "canonical_model": "codex/gpt-6.1-terra",
-          "fallbacks": [],
-          "description": "Capable implementation and judgment with operator-selected GPT-6.1 Terra; no automatic model or provider fallback.",
-          "capabilities": [
-            "code",
-            "tools"
-          ],
-          "models": [
-            {
-              "model": "gpt-6.1-terra",
-              "source": "codex-subscription",
-              "effort": "medium"
-            }
-          ]
-        },
-        "code.research": {
-          "model": "gpt-6-luna",
-          "canonical_model": "codex/gpt-6-luna",
-          "models": [
-            {
-              "model": "gpt-6-luna",
-              "source": "codex-subscription",
-              "effort": "medium"
-            }
-          ],
-          "fallbacks": [],
-          "description": "Research with the latest verified Luna model.",
-          "capabilities": [
-            "code",
-            "tools",
-            "reasoning"
-          ]
-        },
-        "code.fallback": {
-          "model": "gpt-6.1-sol",
-          "canonical_model": "codex/gpt-6.1-sol",
-          "models": [
-            {
-              "model": "gpt-6.1-sol",
-              "source": "codex-subscription",
-              "effort": "medium"
-            }
-          ],
-          "fallbacks": [],
-          "description": "Explicit fallback after a recorded native or managed harness failure; Agent Manager requires VROOLI_MODEL_FALLBACK_REASON at admission.",
-          "capabilities": [
-            "code",
-            "tools",
-            "reasoning"
-          ]
-        }
+        "session_model": "gpt-6-luna",
+        "exempt_roles": [
+          "code.fallback",
+          "code.review",
+          "judgment.supervision",
+          "code.judgment"
+        ]
+      },
+      "interactive_default": {
+        "model": "gpt-6.1-sol",
+        "effort": "high"
+      },
+      "provenance": {
+        "source": "policy refresh by local user matthalloran8 (no agent signal) from codex-cli 0.167.0 codex debug models; earlier: Operator policy 2026-10-27: GPT-6.1 Terra capable default, live-discovered GPT-6 Luna research, GPT-6.1 Sol only explicit recorded failure fallback. Live Codex 0.162.1 catalog verified before migration; discovery, updates and launches share the PATH resolver. No automatic provider fallback.",
+        "observed_at": "2026-11-11"
+      },
+      "billing": {
+        "mode": "subscription",
+        "source": "operator-declared-codex-cli-subscription",
+        "sources": [
+          {
+            "id": "codex-subscription",
+            "label": "Codex Subscription",
+            "billing_mode": "subscription",
+            "credential_key": "CODEX_API_KEY",
+            "endpoint": "https://api.openai.com/v1"
+          }
+        ]
       }
     },
     "grok": {
@@ -2030,11 +2028,62 @@
               "sample_count": 1,
               "ollama_version": "live daemon"
             }
+          },
+          "image.quality.judge": {
+            "model": "qwen3-vl:4b",
+            "fallbacks": [],
+            "required_capabilities": [
+              "generate",
+              "chat",
+              "vision"
+            ],
+            "description": "Fixed local Apache-2.0 visual judge for Image Tools reference evaluation; no hosted or model fallback.",
+            "preference": 66,
+            "sampling_defaults": {
+              "temperature": 0.0
+            },
+            "sampling_support": {
+              "temperature": "honored"
+            },
+            "max_tokens": 768,
+            "provenance": {
+              "source_kind": "manual_policy",
+              "confidence": "medium",
+              "source": "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct (Apache-2.0); Image Tools IT7 evaluator role",
+              "observed_at": "2026-11-09",
+              "sample_count": 0
+            }
           }
         },
         "models": {
           "nomic-embed-text:latest": {
             "family": "nomic-embed-text",
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/nomic-embed-text:latest",
+              "revision": "ollama-manifest:sha256:0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
+              "sha256": "0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
+              "license_id": "Apache-2.0",
+              "classification": "unrestricted",
+              "evidence": {
+                "url": "https://ollama.com/library/nomic-embed-text:latest",
+                "revision": "0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
+                "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+                "observed_at": "2026-11-12"
+              },
+              "obligations": [
+                "retain the supplied Apache License 2.0 text and any supplied NOTICE when redistributing the artifact"
+              ]
+            },
+            "runtime_identity": {
+              "provider": "ollama",
+              "model": "nomic-embed-text:latest",
+              "artifact_id": "registry.ollama.ai/library/nomic-embed-text:latest",
+              "artifact_revision": "ollama-manifest:sha256:0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
+              "digest_kind": "ollama_model_contents",
+              "digest": "0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
+              "source": "ollama /api/tags",
+              "observed_at": "2026-11-12"
+            },
             "tags": [
               "latest"
             ],
@@ -2185,6 +2234,32 @@
           },
           "qwen3.5:9b": {
             "family": "qwen",
+            "rights": {
+              "artifact_id": "registry.ollama.ai/library/qwen3.5:9b",
+              "revision": "ollama-manifest:sha256:6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+              "sha256": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+              "license_id": "Apache-2.0",
+              "classification": "unrestricted",
+              "evidence": {
+                "url": "https://ollama.com/library/qwen3.5:9b",
+                "revision": "ollama-manifest:sha256:6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+                "sha256": "7339fa418c9ad3e8e12e74ad0fd26a9cc4be8703f9c110728a992b193be85cb2",
+                "observed_at": "2026-11-12"
+              },
+              "obligations": [
+                "retain the supplied Apache License 2.0 text and any supplied NOTICE when redistributing the artifact"
+              ]
+            },
+            "runtime_identity": {
+              "provider": "ollama",
+              "model": "qwen3.5:9b",
+              "artifact_id": "registry.ollama.ai/library/qwen3.5:9b",
+              "artifact_revision": "ollama-manifest:sha256:6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+              "digest_kind": "ollama_model_contents",
+              "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+              "source": "ollama /api/tags",
+              "observed_at": "2026-11-12"
+            },
             "tags": [
               "3.5",
               "9b"
@@ -5227,7 +5302,6 @@
           {
             "provider": "ollama",
             "resource_role": "embedding.default",
-            "model": "policy-resolved",
             "reason": "The resource owns the embedding model and its declared vector dimension."
           }
         ]
@@ -5243,7 +5317,6 @@
           {
             "provider": "pii-detector",
             "resource_role": "pii.small",
-            "model": "policy-resolved",
             "reason": "The pii-detector resource owns the tiered PII model policy (pii.small default -\u003e pii.default -\u003e pii.large) and always runs the deterministic regex/checksum pass."
           }
         ]
@@ -5256,31 +5329,26 @@
           {
             "provider": "ollaya",
             "resource_role": "decide.local",
-            "model": "policy-resolved",
             "reason": "Local Laya answers in milliseconds on the GPU and keeps the state on the host."
           },
           {
             "provider": "ollaya",
             "resource_role": "decide.jev.edenai",
-            "model": "policy-resolved",
             "reason": "Hosted TypeSafe Jev through Eden AI; skipped until vrooli/edenai is provisioned."
           },
           {
             "provider": "ollaya",
             "resource_role": "decide.jev.typesafe",
-            "model": "policy-resolved",
             "reason": "Hosted TypeSafe Jev direct; skipped until vrooli/typesafe is provisioned."
           },
           {
             "provider": "ollaya",
             "resource_role": "decide.clef.cloudflare",
-            "model": "policy-resolved",
             "reason": "Hosted Cloudflare Clef-flash; skipped until vrooli/cloudflare-workers-ai is provisioned."
           },
           {
             "provider": "ai-gateway",
             "resource_role": "classify.fast",
-            "model": "policy-resolved",
             "reason": "Last resort for choice-only questions: the enum-constrained LLM path, which returns labels without calibrated probabilities."
           }
         ]
@@ -5293,37 +5361,31 @@
           {
             "provider": "ollaya",
             "resource_role": "decide.local.accurate",
-            "model": "policy-resolved",
             "reason": "Winnow-E4B is the most accurate open decision model; skipped until it is pulled (8 GB, ~9 GB VRAM for GPU)."
           },
           {
             "provider": "ollaya",
             "resource_role": "decide.jev.edenai",
-            "model": "policy-resolved",
             "reason": "Hosted TypeSafe Jev through Eden AI."
           },
           {
             "provider": "ollaya",
             "resource_role": "decide.jev.typesafe",
-            "model": "policy-resolved",
             "reason": "Hosted TypeSafe Jev direct."
           },
           {
             "provider": "ollaya",
             "resource_role": "decide.clef.cloudflare",
-            "model": "policy-resolved",
             "reason": "Hosted Cloudflare Clef-flash."
           },
           {
             "provider": "ollaya",
             "resource_role": "decide.local",
-            "model": "policy-resolved",
             "reason": "Local Laya keeps decisions available when no accurate candidate can serve."
           },
           {
             "provider": "ai-gateway",
             "resource_role": "classify.fast",
-            "model": "policy-resolved",
             "reason": "Last resort for choice-only questions through the enum-constrained LLM path."
           }
         ]
@@ -5339,26 +5401,21 @@
           {
             "provider": "ollama",
             "resource_role": "classify.routing",
-            "model": "qwen3.5:4b",
-            "minimum_quantization": "Q4_K_M",
             "reason": "Small local classification role; the enum grammar carries most of the constraint."
           },
           {
             "provider": "openrouter",
             "resource_role": "classify.routing",
-            "model": "policy-resolved",
             "reason": "Hosted classification fallback when the local resource is unavailable."
           },
           {
             "provider": "orcarouter",
             "resource_role": "classify.routing",
-            "model": "policy-resolved",
             "reason": "Hosted OrcaRouter classification fallback when the local resource is unavailable and OpenRouter is not preferred."
           },
           {
             "provider": "lpbs",
             "resource_role": "classify.fast",
-            "model": "policy-resolved",
             "reason": "Subscription-backed metered fallback when local and operator BYOK routes are unavailable."
           }
         ]
@@ -5374,26 +5431,21 @@
           {
             "provider": "ollama",
             "resource_role": "chat.default",
-            "model": "qwen3.5:9b",
-            "minimum_quantization": "Q4_K_M",
             "reason": "Mid-size local generation role; the gateway validates every returned value locally."
           },
           {
             "provider": "openrouter",
             "resource_role": "extract.structured",
-            "model": "policy-resolved",
             "reason": "Hosted structured-output fallback for schemas the local resource cannot reliably produce."
           },
           {
             "provider": "orcarouter",
             "resource_role": "extract.structured",
-            "model": "policy-resolved",
             "reason": "Hosted OrcaRouter structured-output fallback."
           },
           {
             "provider": "lpbs",
             "resource_role": "extract.structured",
-            "model": "policy-resolved",
             "reason": "Subscription-backed metered structured-output fallback."
           }
         ]
@@ -5409,7 +5461,6 @@
           {
             "provider": "openrouter",
             "resource_role": "extract.structured",
-            "model": "policy-resolved",
             "reason": "The caller explicitly selected its owner-managed OpenRouter credential."
           }
         ]
@@ -5425,7 +5476,6 @@
           {
             "provider": "lpbs",
             "resource_role": "extract.structured",
-            "model": "policy-resolved",
             "reason": "The caller explicitly selected LPBS metered inference and credit accounting."
           }
         ]
@@ -5441,27 +5491,37 @@
           {
             "provider": "ollama",
             "resource_role": "classify.routing",
-            "model": "qwen3.5:4b",
-            "minimum_quantization": "Q4_K_M",
             "reason": "Local judge keeps rubric decisions available without a network dependency."
           },
           {
             "provider": "openrouter",
             "resource_role": "extract.structured",
-            "model": "policy-resolved",
             "reason": "Hosted structured-output fallback when the local judge is unavailable."
           },
           {
             "provider": "orcarouter",
             "resource_role": "extract.structured",
-            "model": "policy-resolved",
             "reason": "Hosted OrcaRouter structured-output judge fallback."
           },
           {
             "provider": "lpbs",
             "resource_role": "judge.default",
-            "model": "policy-resolved",
             "reason": "Subscription-backed metered judge fallback."
+          }
+        ]
+      },
+      "summarize.faithful": {
+        "description": "Compress source into a short summary while preserving its supported facts, numbers, dates, and attribution. The role routes to the resource-owned summary policy; callers remain responsible for validating task-specific fidelity.",
+        "timeout_ms": 120000,
+        "sampling": {
+          "temperature": 0.0,
+          "overridable": false
+        },
+        "candidates": [
+          {
+            "provider": "ollama",
+            "resource_role": "summarize.default",
+            "reason": "Resource-owned summarization policy; concrete model and fallback remain governed by resource policy."
           }
         ]
       },
@@ -5476,25 +5536,21 @@
           {
             "provider": "ollama",
             "resource_role": "vision.default",
-            "model": "policy-resolved",
             "reason": "Local-first grounding keeps captured frames on the device and uses the measured vision model ladder."
           },
           {
             "provider": "openrouter",
             "resource_role": "vision.default",
-            "model": "policy-resolved",
             "reason": "Hosted multimodal grounding fallback for hosts without an available local vision rung."
           },
           {
             "provider": "orcarouter",
             "resource_role": "vision.default",
-            "model": "policy-resolved",
             "reason": "Hosted OrcaRouter visual grounding fallback."
           },
           {
             "provider": "lpbs",
             "resource_role": "vision.default",
-            "model": "policy-resolved",
             "reason": "Subscription-backed metered visual grounding fallback."
           }
         ]
@@ -5510,25 +5566,21 @@
           {
             "provider": "ollama",
             "resource_role": "chat.default",
-            "model": "policy-resolved",
             "reason": "Use Ollama's existing local generation role with gateway schema validation; the dedicated resource extraction role is not yet available."
           },
           {
             "provider": "openrouter",
             "resource_role": "extract.structured",
-            "model": "policy-resolved",
             "reason": "Hosted structured-output fallback when the local planning resource is unavailable."
           },
           {
             "provider": "orcarouter",
             "resource_role": "extract.structured",
-            "model": "policy-resolved",
             "reason": "Hosted OrcaRouter structured planning fallback."
           },
           {
             "provider": "lpbs",
             "resource_role": "extract.structured",
-            "model": "policy-resolved",
             "reason": "Subscription-backed structured planning fallback when local and operator BYOK routes are unavailable."
           }
         ]
@@ -5544,26 +5596,21 @@
           {
             "provider": "ollama",
             "resource_role": "write.default",
-            "model": "policy-resolved",
-            "minimum_quantization": "Q4_K_M",
             "reason": "Local prose keeps drafts on the host and is the BYOK path a self-hoster gets with no credential."
           },
           {
             "provider": "openrouter",
             "resource_role": "write.default",
-            "model": "policy-resolved",
             "reason": "Hosted fallback where prose quality is the binding constraint; the model stays a resource policy decision."
           },
           {
             "provider": "orcarouter",
             "resource_role": "write.default",
-            "model": "policy-resolved",
             "reason": "Hosted OrcaRouter prose fallback."
           },
           {
             "provider": "lpbs",
             "resource_role": "write.default",
-            "model": "policy-resolved",
             "reason": "Subscription-backed metered fallback when local and operator BYOK routes are unavailable."
           }
         ]
@@ -5579,26 +5626,21 @@
           {
             "provider": "openrouter",
             "resource_role": "write.diverse",
-            "model": "policy-resolved",
             "reason": "A k-candidate response is neither short nor cheap, and diversity gain scales with model capability; this is the rung the technique is designed for."
           },
           {
             "provider": "orcarouter",
             "resource_role": "write.default",
-            "model": "policy-resolved",
             "reason": "Hosted OrcaRouter diversity fallback at a different gateway."
           },
           {
             "provider": "lpbs",
             "resource_role": "write.diverse",
-            "model": "policy-resolved",
             "reason": "Subscription-backed metered fallback, ordered ahead of the local rung because capability matters more than locality for this role specifically."
           },
           {
             "provider": "ollama",
             "resource_role": "write.default",
-            "model": "policy-resolved",
-            "minimum_quantization": "Q4_K_M",
             "reason": "Local last resort so a host with no credential still gets candidates rather than a failure. Expect measurably lower diversity here; the role's own description says so."
           }
         ]
@@ -5614,19 +5656,16 @@
           {
             "provider": "openrouter",
             "resource_role": "code.default",
-            "model": "policy-resolved",
             "reason": "A generator is a program: it must stay internally consistent across a few hundred lines. code.default is the provider's exposed code-authoring role, so the concrete model stays a policy decision rather than a slug in a runtime surface."
           },
           {
             "provider": "orcarouter",
             "resource_role": "code.default",
-            "model": "policy-resolved",
             "reason": "Hosted OrcaRouter code-authoring fallback."
           },
           {
             "provider": "ollama",
             "resource_role": "code.local",
-            "model": "policy-resolved",
             "reason": "Local fallback for a host with no hosted credential. Every authored generator is validated before storage \u2014 determinism, declared parameters, no active content, composition at two sizes \u2014 so a weaker candidate costs a rejection rather than a bad artifact."
           }
         ]
@@ -5642,7 +5681,6 @@
           {
             "provider": "ollama",
             "resource_role": "chat.uncensored",
-            "model": "policy-resolved",
             "reason": "Local-only by design: unrestricted generation stays on the host and is reachable only through explicit role selection."
           }
         ]
@@ -5658,7 +5696,6 @@
           {
             "provider": "abliteration",
             "resource_role": "research.unrestricted.default",
-            "model": "policy-resolved",
             "reason": "Abliteration.ai is an explicit research/red-team provider, never a fleet default. Selecting this role is the authorization signal; the credential still gates the call."
           }
         ]
@@ -5674,7 +5711,6 @@
           {
             "provider": "abliteration",
             "resource_role": "research.unrestricted.flash",
-            "model": "policy-resolved",
             "reason": "Explicit research/red-team route. Never selected unless the caller names this role."
           }
         ]
@@ -5690,7 +5726,6 @@
           {
             "provider": "abliteration",
             "resource_role": "research.unrestricted.large",
-            "model": "policy-resolved",
             "reason": "Explicit research/red-team route. Never selected unless the caller names this role."
           }
         ]

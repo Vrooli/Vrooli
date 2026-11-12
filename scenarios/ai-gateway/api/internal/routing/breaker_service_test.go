@@ -2,6 +2,7 @@ package routing_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,7 +31,12 @@ func candidateByProvider(candidates []*routingv1.RouteCandidate, provider string
 
 func TestExecuteOpensBreakerAfterFailureAndFallsBackToHealthyProvider(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
 	runner := roleRunner()
-	runner.Errors[ollamaGenerateCmd] = &providers.CommandError{Code: "timeout", Command: "resource-ollama"}
+	runner.ErrorMatch = func(command providers.Command) error {
+		if strings.HasPrefix(command.String(), "resource-ollama gateway generate --role chat.default ") {
+			return &providers.CommandError{Code: "timeout", Command: "resource-ollama"}
+		}
+		return nil
+	}
 	runner.Results[openRouterGenerateCmd] = providers.Result{Stdout: `{"response":"ok"}`}
 
 	db := newSchemaDB(t)

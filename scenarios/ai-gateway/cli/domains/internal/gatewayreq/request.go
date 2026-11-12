@@ -90,6 +90,26 @@ func FromContext(ctx cliapp.RunContext) (*sharedv1.GatewayRequest, error) {
 	}, nil
 }
 
+// InferenceContract resolves the profile and optional privacy class carried by
+// typed inference commands. Omitted privacy stays UNSPECIFIED so the shared
+// routing policy can keep remote candidates ineligible without inventing a
+// classification. Generic GatewayRequest commands use FromContext, whose
+// manifest supplies an explicit privacy default.
+func InferenceContract(ctx cliapp.RunContext) (sharedv1.Profile, sharedv1.PrivacyClass, error) {
+	profile, err := parseProfile(ctx.Flag("profile"))
+	if err != nil {
+		return sharedv1.Profile_PROFILE_UNSPECIFIED, sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED, err
+	}
+	privacy := sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED
+	if value := strings.TrimSpace(ctx.Flag("privacy-class")); value != "" {
+		privacy, err = parsePrivacy(value)
+		if err != nil {
+			return sharedv1.Profile_PROFILE_UNSPECIFIED, sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED, err
+		}
+	}
+	return profile, privacy, nil
+}
+
 func parseKind(value string) (sharedv1.RequestKind, error) {
 	switch normalize(value) {
 	case "", "text", "text_generation", "generation":

@@ -28,6 +28,9 @@
     "tags": [
       "react-ui",
       "go-api"
+    ],
+    "capabilities": [
+      "model-eval"
     ]
   },
   "generation": {

@@ -17,7 +17,8 @@ import (
 )
 
 type handlers struct {
-	client routingconnect.RoutingServiceClient
+	client     routingconnect.RoutingServiceClient
+	sourceHTTP connect.HTTPClient
 }
 
 func renderPreview(ctx cliapp.RunContext, message proto.Message) error {
@@ -138,7 +139,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 	// transport from imposing a shorter, invisible deadline than that explicit
 	// execution contract (notably for local-model cold starts).
 	httpClient, baseURL := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
-	return &handlers{client: routingconnect.NewRoutingServiceClient(httpClient, baseURL)}
+	return &handlers{client: routingconnect.NewRoutingServiceClient(httpClient, baseURL), sourceHTTP: httpClient}
 }
 
 func (h *handlers) preview(ctx cliapp.RunContext) error {

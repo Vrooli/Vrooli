@@ -2,6 +2,7 @@ package routing_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -72,7 +73,12 @@ func TestEvidenceRoundTripPersistsStructuredCodes(t *testing.T) { // [REQ:AIGW-R
 
 func TestExecuteRecordsFailureClassAndRedactsOnFailure(t *testing.T) { // [REQ:AIGW-ROUTE-EVIDENCE-CODES]
 	runner := roleRunner()
-	runner.Errors[ollamaLocalOnlyGenerateCmd] = &providers.CommandError{Code: "timeout", Command: "resource-ollama"}
+	runner.ErrorMatch = func(command providers.Command) error {
+		if strings.HasPrefix(command.String(), "resource-ollama gateway generate --role chat.default ") {
+			return &providers.CommandError{Code: "timeout", Command: "resource-ollama"}
+		}
+		return nil
+	}
 	db := newSchemaDB(t)
 	svc := newService(testAdapters(runner), routing.NewSQLRepository(db),
 		routing.WithHealth(routing.NewSQLHealthRepository(db)),

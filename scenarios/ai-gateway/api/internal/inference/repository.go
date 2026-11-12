@@ -23,14 +23,20 @@ type ProviderRequest struct {
 	RootOperationID   string
 	RequestDigest     string
 	ValidationAttempt int
-	Source            string
-	SchemaJSON        string
-	Instruction       string
-	Role              string
-	Profile           sharedv1.Profile
-	PrivacyClass      sharedv1.PrivacyClass
-	Turns             []*inferencev1.Turn
-	Attachments       []*sharedv1.Attachment
+	// PriorRights* binds a schema-repair retry to the semantic local rights
+	// context that produced the previous response. It is execution continuity
+	// metadata, not part of the caller's canonical request digest.
+	PriorRightsProvider      string
+	PriorRightsModel         string
+	PriorRightsContextSHA256 string
+	Source                   string
+	SchemaJSON               string
+	Instruction              string
+	Role                     string
+	Profile                  sharedv1.Profile
+	PrivacyClass             sharedv1.PrivacyClass
+	Turns                    []*inferencev1.Turn
+	Attachments              []*sharedv1.Attachment
 	// Temperature is the caller's explicit sampling request, or nil for "use
 	// the role's declared sampling". It is a plain pointer rather than the
 	// proto message so this package does not depend on proto shape for one
@@ -69,6 +75,11 @@ type ProviderResult struct {
 	// ProviderCallsMade counts adapter Execute attempts, including failures.
 	// It is not a receipt of provider HTTP requests completed.
 	ProviderCallsMade int32
+	// RightsReceiptSHA256 is present when a local model produced this response;
+	// the schema-repair loop carries semantic context identity forward. Receipt
+	// hashes include evaluation time and are unsuitable for continuity checks.
+	RightsReceiptSHA256 string
+	RightsContextSHA256 string
 }
 
 func canonicalRequestDigest(request ProviderRequest) string {

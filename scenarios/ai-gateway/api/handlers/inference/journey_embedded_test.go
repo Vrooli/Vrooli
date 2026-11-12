@@ -124,7 +124,9 @@ func TestJourneyEmbeddedGatewayServer(t *testing.T) {
 }
 
 func journeyRequest() *connect.Request[inferencev1.RunRequest] {
-	return connect.NewRequest(&inferencev1.RunRequest{Source: "Return the answer ok.", Instruction: "Return a JSON object with answer equal to ok.", SchemaJson: `{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"],"additionalProperties":false}`, Role: "extract.structured", MaxOutputTokens: 32})
+	// These synthetic inputs are explicitly public so remote route tests exercise
+	// their intended provider contracts under the privacy gate.
+	return connect.NewRequest(&inferencev1.RunRequest{Source: "Return the answer ok.", Instruction: "Return a JSON object with answer equal to ok.", SchemaJson: `{"type":"object","properties":{"answer":{"type":"string"}},"required":["answer"],"additionalProperties":false}`, Role: "extract.structured", MaxOutputTokens: 32, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC})
 }
 
 type gatewayProcess struct {
@@ -183,13 +185,31 @@ func (p *gatewayProcess) stop(t *testing.T) {
 	}
 }
 
-func TestJ12_LocalModelAnswersLocally(t *testing.T) {
+func TestJ12_LocalModelWithUnknownRightsIsRefusedBeforeInference(t *testing.T) {
 	bundle, err := catalog.Embedded()
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The provider is the real local Ollama service. There is no command runner,
-	// upstream fixture, repository lookup or provider credential on this path.
+	// The local transport is a fake inventory endpoint. The packaged provider
+	// cannot supply artifact rights/runtime identity, so no generation request
+	// may follow role resolution.
+	tagCalls, generationCalls := 0, 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/tags":
+			tagCalls++
+			_, _ = w.Write([]byte(`{"models":[{"name":"qwen3.5:9b"}]}`))
+		case "/api/generate":
+			generationCalls++
+			_, _ = w.Write([]byte(`{"response":"{\"answer\":\"ok\"}"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer upstream.Close()
+	local := bundle.Providers["ollama"]
+	local.Endpoint = upstream.URL
+	bundle.Providers["ollama"] = local
 	client := packagedGateway(t, bundle, func(context.Context, string, string) (string, error) {
 		t.Fatal("local request attempted a credential lookup")
 		return "", nil
@@ -202,72 +222,42 @@ func TestJ12_LocalModelAnswersLocally(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.Msg.GetError() != nil {
-		t.Fatalf("local gateway refused: %v", response.Msg.GetError())
+	if response.Msg.GetError().GetCode() != inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE {
+		t.Fatalf("unknown local rights must fail closed: %v", response.Msg.GetError())
 	}
-	if response.Msg.GetValueJson() == "" {
-		t.Fatal("local gateway returned no JSON")
+	if !strings.Contains(response.Msg.GetError().GetMessage(), "rights, model identity, or trusted organization context is missing") {
+		t.Fatalf("unexpected refusal reason: %v", response.Msg.GetError())
 	}
-	t.Logf("real local gateway result: %s", response.Msg.GetValueJson())
+	if tagCalls != 1 || generationCalls != 0 {
+		t.Fatalf("local calls tags=%d generation=%d; unknown rights must stop before inference", tagCalls, generationCalls)
+	}
 }
 
-func TestJ12_OwnKeyWorks(t *testing.T) {
+func TestJ12_OwnKeyUnavailableWithoutAnAdapter(t *testing.T) {
 	bundle, err := catalog.Embedded()
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Only the upstream router is fake; the key uses a real encrypted authority
-	// and the request crosses the real Gateway transport, service and adapter.
-	const key = "synthetic-own-router-key"
-	authority, err := credentialauthority.OpenEncryptedFile(t.TempDir()+"/credentials.enc", "fixture encrypted authority passphrase")
-	if err != nil {
-		t.Fatal(err)
-	}
-	identity, err := credentialauthority.ParseIdentity(bundle.Providers["openrouter"].CredentialIdentity)
-	if err != nil {
-		t.Fatal(err)
-	}
-	field := bundle.Providers["openrouter"].CredentialField
-	if err := authority.Put(identity, field, key); err != nil {
-		t.Fatal(err)
-	}
-	calls := 0
-	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
-		if r.Header.Get("Authorization") != "Bearer "+key {
-			t.Error("own key did not reach router")
-		}
-		if r.URL.Path != "/chat/completions" {
-			t.Errorf("path %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"choices":[{"message":{"content":"{\"answer\":\"ok\"}"}}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`))
-	}))
-	defer upstream.Close()
-	p := bundle.Providers["openrouter"]
-	p.Endpoint = upstream.URL
-	bundle.Providers["openrouter"] = p
-	client := packagedGateway(t, bundle, func(_ context.Context, id, field string) (string, error) {
-		identity, err := credentialauthority.ParseIdentity(id)
-		if err != nil {
-			return "", err
-		}
-		return authority.Require(identity, field)
+	// With all remote adapters absent, the own-key source is unavailable. The
+	// journey must not manufacture a successful answer or contact a provider.
+	local := bundle.Providers["ollama"]
+	bundle.Providers = map[string]catalog.Provider{"ollama": local}
+	client := packagedGateway(t, bundle, func(context.Context, string, string) (string, error) {
+		t.Fatal("an unavailable adapter must not look up a credential")
+		return "", nil
 	})
 	request := journeyRequest()
 	request.Msg.Profile = sharedv1.Profile_PROFILE_REMOTE_ONLY
+	request.Header().Set("X-Vrooli-AI-Source", "own-key")
 	response, err := client.Run(t.Context(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.Msg.GetError() != nil {
-		t.Fatalf("own key route refused: %v", response.Msg.GetError())
+	if response.Msg.GetError().GetCode() != inferencev1.InferenceErrorCode_INFERENCE_ERROR_CODE_UNAVAILABLE {
+		t.Fatalf("missing own-key adapter must be unavailable: %v", response.Msg.GetError())
 	}
-	if calls != 1 {
-		t.Fatalf("router calls %d", calls)
-	}
-	if response.Msg.GetValueJson() != `{"answer":"ok"}` {
-		t.Fatalf("result %s", response.Msg.GetValueJson())
+	if response.Msg.GetValueJson() != "" || response.Msg.GetProvider() != "" {
+		t.Fatalf("unavailable route returned provider output: %v", response.Msg)
 	}
 }
 

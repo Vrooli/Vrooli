@@ -153,16 +153,22 @@ func TestAdapterMultimodalUsesJSONStdinAndNeverArgv(t *testing.T) { // [REQ:AIGW
 }
 
 func TestOllamaExecutionBindsExactResolvedModel(t *testing.T) {
+	rightsSHA := strings.Repeat("e", 64)
+	evaluatedAt := "2026-11-11T12:00:00Z"
 	command, err := (Adapter{Provider: ProviderOllama, CommandName: "resource-ollama", Locality: "local"}).executionCommand(ExecutionRequest{
-		Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, Role: "chat.default", ExpectedModel: "qwen3.5:9b", ExpectedArtifactDigest: strings.Repeat("c", 64), Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, InputText: "hello",
+		Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, Role: "chat.default", ExpectedModel: "qwen3.5:9b", ExpectedArtifactDigest: strings.Repeat("c", 64),
+		ExpectedRightsDecisionSHA256: rightsSHA, ExpectedRightsEvaluatedAt: evaluatedAt,
+		Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, InputText: "hello",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(command.String(), "--expected-model qwen3.5:9b") ||
 		!strings.Contains(command.String(), "--expected-artifact-digest "+strings.Repeat("c", 64)) ||
+		!strings.Contains(command.String(), "--expected-rights-decision-sha256 "+rightsSHA) ||
+		!strings.Contains(command.String(), "--expected-rights-evaluated-at "+evaluatedAt) ||
 		!strings.Contains(command.String(), "--require-loopback") {
-		t.Fatalf("execution command did not bind resolved model: %q", command.String())
+		t.Fatalf("execution command did not bind resolved model and rights receipt: %q", command.String())
 	}
 }
 
@@ -253,13 +259,35 @@ func TestAdapterOllayaDecisionCommandCarriesBodyOnStdinAndDeadline(t *testing.T)
 	}
 }
 
+func TestAdapterOllayaExecutionCarriesExpectedRightsAndManifestIdentity(t *testing.T) {
+	adapter := Adapter{Provider: ProviderOllaya, CommandName: "resource-ollaya", Locality: "local"}
+	command, err := adapter.executionCommand(ExecutionRequest{
+		Kind: sharedv1.RequestKind_REQUEST_KIND_DECISION, Role: "decide.local.accurate", InputText: `{"state":"x"}`,
+		Timeout: 30 * time.Second, ExpectedModel: "winnow:e4b", ExpectedArtifactDigest: strings.Repeat("d", 64),
+		ExpectedRightsDecisionSHA256: strings.Repeat("e", 64), ExpectedRightsEvaluatedAt: "2026-11-11T20:00:00Z",
+		ExpectedRightsReceiptSHA256: strings.Repeat("f", 64), ExpectedPolicyFileSHA256: strings.Repeat("a", 64),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, expected := range []string{
+		"--expected-model winnow:e4b", "--expected-artifact-digest " + strings.Repeat("d", 64),
+		"--expected-rights-decision-sha256 " + strings.Repeat("e", 64), "--expected-rights-evaluated-at 2026-11-11T20:00:00Z",
+		"--expected-rights-receipt-sha256 " + strings.Repeat("f", 64), "--expected-policy-file-sha256 " + strings.Repeat("a", 64),
+	} {
+		if !strings.Contains(command.String(), expected) {
+			t.Fatalf("command %q is missing %q", command.String(), expected)
+		}
+	}
+}
+
 // One resource can serve a local role and a hosted role; the per-role
 // declaration wins over the adapter default, for routing and for resolution.
 func TestAdapterHonorsPerRoleLocalityAndStatus(t *testing.T) { // [REQ:AIGW-INVENTORY-ROLES]
 	runner := &fakeRunner{results: map[string]Result{
-		"resource-ollaya policy roles --json":                            {Stdout: `{"roles":[{"role":"decide.local","capabilities":["decide"]},{"role":"decide.jev.edenai","capabilities":["decide"],"locality":"remote","status":"unconfigured"}]}`},
-		"resource-ollaya policy resolve --role decide.jev.edenai --json": {Stdout: `{"role":"decide.jev.edenai","model":"typesafe/jev-latest","locality":"remote"}`},
-		"resource-ollaya policy resolve --role decide.local --json":      {Stdout: `{"role":"decide.local","model":"laya"}`},
+		"resource-ollaya policy roles --json":                            {Stdout: `{"roles":[{"schema_version":"1","policy_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","role":"decide.local","capabilities":["decide"]},{"schema_version":"1","policy_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff","role":"decide.jev.edenai","capabilities":["decide"],"locality":"remote","status":"unconfigured"}]}`},
+		"resource-ollaya policy resolve --role decide.jev.edenai --json": {Stdout: `{"role":"decide.jev.edenai","model":"typesafe/jev-latest","locality":"remote","schema_version":"1","policy_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}`},
+		"resource-ollaya policy resolve --role decide.local --json":      {Stdout: `{"role":"decide.local","model":"laya","schema_version":"1","policy_sha256":"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"}`},
 	}}
 	adapter := Adapter{Provider: ProviderOllaya, CommandName: "resource-ollaya", Locality: "local", Runner: runner}
 	inventory, err := adapter.ListRoles(context.Background())
@@ -277,6 +305,9 @@ func TestAdapterHonorsPerRoleLocalityAndStatus(t *testing.T) { // [REQ:AIGW-INVE
 		resolved, err := adapter.ResolveRole(context.Background(), role)
 		if err != nil || resolved.Locality != locality {
 			t.Fatalf("ResolveRole(%s) = %+v, %v; want locality %s", role, resolved, err, locality)
+		}
+		if locality == "local" && (resolved.PolicySchemaVersion != "1" || resolved.PolicyFileSHA256 != strings.Repeat("f", 64)) {
+			t.Fatalf("ResolveRole(%s) policy identity = %q/%q", role, resolved.PolicySchemaVersion, resolved.PolicyFileSHA256)
 		}
 	}
 }

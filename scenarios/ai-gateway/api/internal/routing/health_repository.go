@@ -51,6 +51,9 @@ func (r *SQLHealthRepository) Upsert(ctx context.Context, h ProviderHealth) erro
 	if r == nil || r.db == nil {
 		return fmt.Errorf("provider health repository is not configured")
 	}
+	if !validBreakerState(h.State) {
+		return fmt.Errorf("invalid provider breaker state %q", h.State)
+	}
 	key := normalizeHealthKey(HealthKey{Provider: h.Provider, Role: h.Role, Kind: h.Kind})
 	_, err := r.db.ExecContext(ctx, `INSERT INTO provider_health (
 provider, role, kind, state, consecutive_failures, last_failure_class,
@@ -74,7 +77,7 @@ updated_at = excluded.updated_at`,
 		key.Provider,
 		key.Role,
 		int32(key.Kind),
-		string(stateOrClosed(h.State)),
+		string(h.State),
 		h.ConsecutiveFailures,
 		string(h.LastFailureClass),
 		h.HTTPStatus,
@@ -143,7 +146,10 @@ func scanHealth(s scanner) (ProviderHealth, error) {
 		return ProviderHealth{}, err
 	}
 	h.Kind = sharedv1.RequestKind(kind)
-	h.State = stateOrClosed(BreakerState(state))
+	h.State = BreakerState(state)
+	if !validBreakerState(h.State) {
+		return ProviderHealth{}, fmt.Errorf("stored provider breaker state %q is invalid", state)
+	}
 	h.LastFailureClass = FailureClass(failureClass)
 	h.LastSuccessAt = parseTime(lastSuccess)
 	h.LastFailureAt = parseTime(lastFailure)

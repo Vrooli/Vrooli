@@ -88,7 +88,7 @@ func TestResourceRepositoryRecoversExactAttemptRejectsChangedDigestAndFailsClose
 		{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner},
 	}, ledger)
 	require.NoError(t, err)
-	request := ProviderRequest{RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_REMOTE_ONLY}
+	request := ProviderRequest{RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", Profile: sharedv1.Profile_PROFILE_REMOTE_ONLY, PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC}
 	first, err := repository.Run(context.Background(), request)
 	require.NoError(t, err)
 	require.NotNil(t, first.Recovery)
@@ -145,19 +145,20 @@ func TestResourceRepositoryPreDispatchFailureKeepsFallbackEligible(t *testing.T)
 		DefaultOK: true,
 		Default:   providers.Result{Stdout: `{"response":"\"local-result\""}`},
 	}
+	configureQualifiedLocalRole(runner, "chat.default", "local-test", "local")
 	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
 		"classify.fast": {Candidates: []Candidate{
 			{Provider: providers.ProviderMetered, ResourceRole: "metered", Reason: "hosted"},
 			{Provider: providers.ProviderOllama, ResourceRole: "chat.default", Reason: "local"},
 		}},
 	}}
-	repository, err := NewResourceRepository(catalog, []providers.Adapter{
+	repository, err := NewResourceRepositoryWithRightsContextSource(catalog, []providers.Adapter{
 		{Provider: providers.ProviderMetered, Locality: "remote", Door: &providers.HostedDoorClient{BaseURL: server.URL, ResolveDeviceKey: func(context.Context) (string, error) { return "test-device-key", nil }}},
 		{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: runner},
-	}, newTestAttemptLedger(t))
+	}, fixtureRightsContext, newTestAttemptLedger(t))
 	require.NoError(t, err)
 	result, err := repository.Run(context.Background(), ProviderRequest{
-		RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast",
+		RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
 	})
 	require.NoError(t, err)
 	require.Equal(t, providers.ProviderOllama, result.Provider)
@@ -202,7 +203,7 @@ func TestServiceSchemaRepairCreatesDistinctHostedAttempt(t *testing.T) {
 	request := ProviderRequest{
 		RootOperationID: root, Source: "source",
 		SchemaJSON: `{"type":"object","required":["kind"],"properties":{"kind":{"enum":["ok"]}}}`,
-		Role:       "classify.fast",
+		Role:       "classify.fast", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC,
 	}
 	response := service.Run(context.Background(), request)
 	require.True(t, response.GetValidated(), "one locally rejected response gets one new repair attempt")
@@ -267,7 +268,7 @@ func TestResourceRepositoryReceiptRecoveryRemainsExactKeyWhenLedgerStateWriteFai
 
 	ledger := &failAtSetAttemptLedger{AttemptLedger: newTestAttemptLedger(t), failAt: 2}
 	repository := hostedTestRepository(t, server.URL, func() string { return "test-device-key" }, ledger, Candidate{Provider: providers.ProviderMetered, ResourceRole: "metered", Reason: "hosted"})
-	request := ProviderRequest{RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast"}
+	request := ProviderRequest{RootOperationID: root, Source: "source", SchemaJSON: `{"type":"string"}`, Role: "classify.fast", PrivacyClass: sharedv1.PrivacyClass_PRIVACY_CLASS_PUBLIC}
 
 	first, err := repository.Run(context.Background(), request)
 	require.NoError(t, err)

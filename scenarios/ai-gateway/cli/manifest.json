@@ -627,6 +627,49 @@
           }
         },
         {
+          "name": "replay",
+          "description": "Replay authenticated caller cases through route preview by default; explicit execute mode invokes local inference",
+          "flags": [
+            {
+              "name": "input-file",
+              "required": true,
+              "description": "JSONL caller cases with exact Agent Manager run/event sequence provenance"
+            },
+            {
+              "name": "agent-manager-url",
+              "description": "Optional loopback Agent Manager API URL (defaults to AGENT_MANAGER_API_URL)"
+            },
+            {
+              "name": "parallel",
+              "description": "Maximum concurrent gateway requests (1-16)",
+              "default": "4"
+            },
+            {
+              "name": "mode",
+              "description": "preview verifies route decisions without model inference; execute invokes local inference",
+              "default": "preview"
+            },
+            {
+              "name": "receipt-file",
+              "description": "Optional path for a metadata-only replay receipt; prompts and outputs are omitted"
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "operational"
+          }
+        },
+        {
           "name": "evidence-list",
           "description": "List route evidence metadata",
           "flags": [
@@ -1055,6 +1098,15 @@
               "description": "Inference role, such as classify.fast, extract.structured, or write.default"
             },
             {
+              "name": "profile",
+              "description": "Routing profile for candidate eligibility and order",
+              "default": "local-first"
+            },
+            {
+              "name": "privacy-class",
+              "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
+            },
+            {
               "name": "temperature",
               "description": "Explicit sampling temperature. Only roles that declare themselves overridable accept it; a deterministic role refuses with construct sampling.temperature. Absent, the role's declared sampling applies.",
               "bind_waiver": "temperature maps onto the nested sampling.temperature field; bind.field accepts only a top-level snake_case name, so the handler builds the SamplingControls message"
@@ -1108,6 +1160,15 @@
               "name": "role",
               "required": true,
               "description": "Inference role, such as classify.fast, extract.structured, or write.default"
+            },
+            {
+              "name": "profile",
+              "description": "Routing profile for candidate eligibility and order",
+              "default": "local-first"
+            },
+            {
+              "name": "privacy-class",
+              "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
             }
           ],
           "binding": {
@@ -1165,6 +1226,15 @@
               "default": "decide.fast"
             },
             {
+              "name": "profile",
+              "description": "Routing profile for candidate eligibility and order",
+              "default": "local-first"
+            },
+            {
+              "name": "privacy-class",
+              "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
+            },
+            {
               "name": "state",
               "description": "Plain-text state the questions are about; use --state-json for structured state"
             },
@@ -1208,6 +1278,15 @@
               "name": "role",
               "description": "Decision role from the inference role catalog",
               "default": "decide.fast"
+            },
+            {
+              "name": "profile",
+              "description": "Routing profile for candidate eligibility and order",
+              "default": "local-first"
+            },
+            {
+              "name": "privacy-class",
+              "description": "Explicit privacy class: public, internal, confidential, or secret. Omit only when the source is unclassified; remote candidates then remain ineligible"
             },
             {
               "name": "questions",

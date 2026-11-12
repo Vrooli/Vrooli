@@ -19,7 +19,7 @@ func serviceWorld(t *testing.T, world *decisionWorld, ollamaValue string) *Servi
 	t.Helper()
 	world.runner.DefaultOK = true
 	world.runner.Default = providers.Result{Stdout: `{"response":` + ollamaValue + `,"prompt_eval_count":250,"eval_count":7}`}
-	world.runner.Results["resource-ollama policy resolve --role classify.routing --json"] = providers.Result{Stdout: resolveStdout("classify.routing", "qwen3.5:4b", providers.SamplingHonored)}
+	configureQualifiedLocalRole(world.runner, "classify.routing", "qwen3.5:4b", "local")
 	catalog := RoleCatalog{SchemaVersion: 1, Roles: map[string]InferenceRole{
 		decideRole: {Kind: RoleKindDecision, TimeoutMS: 30000, Candidates: []Candidate{
 			{Provider: "ollaya", ResourceRole: "decide.local", Reason: "local"},
@@ -27,10 +27,10 @@ func serviceWorld(t *testing.T, world *decisionWorld, ollamaValue string) *Servi
 		}},
 		"classify.fast": {Sampling: deterministicRoleSampling(), Candidates: []Candidate{{Provider: "ollama", ResourceRole: "classify.routing", Reason: "local"}}},
 	}}
-	repository, err := NewResourceRepository(catalog, []providers.Adapter{
+	repository, err := NewResourceRepositoryWithRightsContextSource(catalog, []providers.Adapter{
 		{Provider: providers.ProviderOllaya, Locality: "local", CommandName: "resource-ollaya", Runner: world.runner},
 		{Provider: providers.ProviderOllama, Locality: "local", CommandName: "resource-ollama", Runner: world.runner},
-	})
+	}, fixtureRightsContext)
 	require.NoError(t, err)
 	return NewService(repository)
 }
@@ -71,9 +71,14 @@ func TestDecideFallbackRejectsALabelOutsideTheEnum(t *testing.T) {
 
 func TestDecideBatchPreservesOrderAndIsolatesBadItems(t *testing.T) {
 	world := newDecisionWorld().resolves("decide.local", "local").answers("decide.local", answeredOutput)
-	service := serviceWorld(t, world, `"{}"`)
+	service := serviceWorld(t, world, `"{\"kind\":\"correction\"}"`)
 	template := operatorMessage()
 	template.Role = decideRole
+	// The local decision model has no qualified rights/runtime mapping in this
+	// fixture. Exercise the supported typed enum fallback with its supported
+	// choice question, while retaining the separate authorization tests for the
+	// unknown local candidate.
+	template.Questions = []*inferencev1.DecisionQuestion{choice("kind", "correction", "approval", "question")}
 	response := service.DecideBatch(context.Background(), template, []DecisionRequest{
 		{State: "Stop."}, {State: "", StateJSON: `"scalar"`}, {StateJSON: `{"operator":"revert it"}`},
 	})
@@ -81,7 +86,7 @@ func TestDecideBatchPreservesOrderAndIsolatesBadItems(t *testing.T) {
 	require.Nil(t, response.GetResults()[0].GetError())
 	require.Equal(t, "state_json", response.GetResults()[1].GetError().GetConstruct(), "a bad item fails alone")
 	require.Nil(t, response.GetResults()[2].GetError())
-	require.EqualValues(t, 206, response.GetUsage().GetInputTokens(), "usage aggregates answered items only")
+	require.EqualValues(t, 500, response.GetUsage().GetInputTokens(), "two successful typed enum fallbacks aggregate their provider-reported usage")
 
 	refused := service.DecideBatch(context.Background(), DecisionRequest{Role: decideRole}, []DecisionRequest{{State: "a"}, {State: "b"}})
 	require.Len(t, refused.GetResults(), 1, "a bad question set fails the batch once")

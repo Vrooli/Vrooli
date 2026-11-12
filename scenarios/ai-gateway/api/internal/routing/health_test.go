@@ -15,15 +15,75 @@ import (
 
 var breakerBaseTime = time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
 
+func mustBreakerFailure(t *testing.T, breaker routing.Breaker, health routing.ProviderHealth, class routing.FailureClass, now time.Time) routing.ProviderHealth {
+	t.Helper()
+	updated, err := breaker.OnFailure(health, class, now)
+	require.NoError(t, err)
+	return updated
+}
+
+func mustBreakerSuccess(t *testing.T, breaker routing.Breaker, health routing.ProviderHealth, now time.Time) routing.ProviderHealth {
+	t.Helper()
+	updated, err := breaker.OnSuccess(health, now)
+	require.NoError(t, err)
+	return updated
+}
+
+func mustProviderFailure(t *testing.T, breaker routing.Breaker, health routing.ProviderHealth, failure routing.ProviderFailure, now time.Time) routing.ProviderHealth {
+	t.Helper()
+	updated, err := breaker.OnProviderFailure(health, failure, now)
+	require.NoError(t, err)
+	return updated
+}
+
+func TestProviderHealthStateTransitionGraph(t *testing.T) {
+	statuses := []routing.BreakerState{routing.BreakerClosed, routing.BreakerOpen, routing.BreakerHalfOpen}
+	allowed := map[routing.BreakerState]map[routing.BreakerState]bool{
+		routing.BreakerClosed:   {routing.BreakerClosed: true, routing.BreakerOpen: true},
+		routing.BreakerOpen:     {routing.BreakerOpen: true, routing.BreakerClosed: true},
+		routing.BreakerHalfOpen: {routing.BreakerHalfOpen: true, routing.BreakerOpen: true, routing.BreakerClosed: true},
+	}
+	for _, from := range statuses {
+		for _, to := range statuses {
+			t.Run(string(from)+"-to-"+string(to), func(t *testing.T) {
+				health := routing.ProviderHealth{State: from}
+				updated, err := health.TransitionState(to)
+				if allowed[from][to] {
+					require.NoError(t, err)
+					require.Equal(t, to, updated.State)
+					return
+				}
+				require.ErrorIs(t, err, routing.ErrInvalidBreakerStateTransition)
+				require.Equal(t, from, updated.State)
+			})
+		}
+	}
+	for _, test := range []struct {
+		name string
+		from routing.BreakerState
+		to   routing.BreakerState
+	}{
+		{name: "unknown current", from: "corrupt", to: routing.BreakerClosed},
+		{name: "unknown next", from: routing.BreakerClosed, to: "corrupt"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			health := routing.ProviderHealth{State: test.from}
+			updated, err := health.TransitionState(test.to)
+			require.ErrorIs(t, err, routing.ErrInvalidBreakerStateTransition)
+			require.Equal(t, test.from, updated.State)
+		})
+	}
+}
+
 func TestBreakerOpensAfterConsecutiveFailures(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
 	b := routing.NewBreaker(routing.BreakerPolicy{FailureThreshold: 3, Cooldown: 30 * time.Second})
-	h := routing.ProviderHealth{Provider: "ollama", Role: "chat.default", Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION}
+	h := routing.ProviderHealth{Provider: "ollama", Role: "chat.default", Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION, State: routing.BreakerClosed}
 
-	h = b.OnFailure(h, routing.FailureTimeout, breakerBaseTime)
+	h = mustBreakerFailure(t, b, h, routing.FailureTimeout, breakerBaseTime)
 	require.Equal(t, routing.BreakerClosed, b.Effective(h, breakerBaseTime), "one failure must not open")
-	h = b.OnFailure(h, routing.FailureTimeout, breakerBaseTime)
+	h = mustBreakerFailure(t, b, h, routing.FailureTimeout, breakerBaseTime)
 	require.Equal(t, routing.BreakerClosed, b.Effective(h, breakerBaseTime), "two failures must not open")
-	h = b.OnFailure(h, routing.FailureExecution, breakerBaseTime)
+	h = mustBreakerFailure(t, b, h, routing.FailureExecution, breakerBaseTime)
 	require.Equal(t, routing.BreakerOpen, b.Effective(h, breakerBaseTime), "threshold failure opens breaker")
 	require.Equal(t, 3, h.ConsecutiveFailures)
 	require.Equal(t, routing.FailureExecution, h.LastFailureClass)
@@ -32,21 +92,21 @@ func TestBreakerOpensAfterConsecutiveFailures(t *testing.T) { // [REQ:AIGW-PROVI
 
 func TestBreakerSuccessResetsBeforeThreshold(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
 	b := routing.NewBreaker(routing.BreakerPolicy{FailureThreshold: 3, Cooldown: 30 * time.Second})
-	h := routing.ProviderHealth{Provider: "ollama", Role: "chat.default"}
-	h = b.OnFailure(h, routing.FailureTimeout, breakerBaseTime)
-	h = b.OnFailure(h, routing.FailureTimeout, breakerBaseTime)
-	h = b.OnSuccess(h, breakerBaseTime)
+	h := routing.ProviderHealth{Provider: "ollama", Role: "chat.default", State: routing.BreakerClosed}
+	h = mustBreakerFailure(t, b, h, routing.FailureTimeout, breakerBaseTime)
+	h = mustBreakerFailure(t, b, h, routing.FailureTimeout, breakerBaseTime)
+	h = mustBreakerSuccess(t, b, h, breakerBaseTime)
 	require.Equal(t, 0, h.ConsecutiveFailures)
 	require.Equal(t, routing.BreakerClosed, b.Effective(h, breakerBaseTime))
 
-	h = b.OnFailure(h, routing.FailureTimeout, breakerBaseTime)
+	h = mustBreakerFailure(t, b, h, routing.FailureTimeout, breakerBaseTime)
 	require.Equal(t, routing.BreakerClosed, b.Effective(h, breakerBaseTime), "counter reset means a single new failure stays closed")
 }
 
 func TestBreakerCooldownSurfacesHalfOpen(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
 	b := routing.NewBreaker(routing.BreakerPolicy{FailureThreshold: 1, Cooldown: 30 * time.Second})
-	h := routing.ProviderHealth{Provider: "ollama", Role: "chat.default"}
-	h = b.OnFailure(h, routing.FailureUnavailable, breakerBaseTime)
+	h := routing.ProviderHealth{Provider: "ollama", Role: "chat.default", State: routing.BreakerClosed}
+	h = mustBreakerFailure(t, b, h, routing.FailureUnavailable, breakerBaseTime)
 	require.Equal(t, routing.BreakerOpen, b.Effective(h, breakerBaseTime))
 	require.Equal(t, routing.BreakerOpen, b.Effective(h, breakerBaseTime.Add(29*time.Second)), "still open before cooldown elapses")
 	require.Equal(t, routing.BreakerHalfOpen, b.Effective(h, breakerBaseTime.Add(30*time.Second)), "cooldown elapsed surfaces half-open")
@@ -54,11 +114,11 @@ func TestBreakerCooldownSurfacesHalfOpen(t *testing.T) { // [REQ:AIGW-PROVIDER-B
 
 func TestBreakerHalfOpenSuccessCloses(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
 	b := routing.NewBreaker(routing.BreakerPolicy{FailureThreshold: 1, Cooldown: 30 * time.Second})
-	h := routing.ProviderHealth{Provider: "ollama", Role: "chat.default"}
-	h = b.OnFailure(h, routing.FailureExecution, breakerBaseTime)
+	h := routing.ProviderHealth{Provider: "ollama", Role: "chat.default", State: routing.BreakerClosed}
+	h = mustBreakerFailure(t, b, h, routing.FailureExecution, breakerBaseTime)
 	probeAt := breakerBaseTime.Add(31 * time.Second)
 	require.Equal(t, routing.BreakerHalfOpen, b.Effective(h, probeAt))
-	h = b.OnSuccess(h, probeAt)
+	h = mustBreakerSuccess(t, b, h, probeAt)
 	require.Equal(t, routing.BreakerClosed, b.Effective(h, probeAt))
 	require.Equal(t, 0, h.ConsecutiveFailures)
 	require.True(t, h.CooldownUntil.IsZero())
@@ -66,11 +126,11 @@ func TestBreakerHalfOpenSuccessCloses(t *testing.T) { // [REQ:AIGW-PROVIDER-BREA
 
 func TestBreakerHalfOpenFailureReopens(t *testing.T) { // [REQ:AIGW-PROVIDER-BREAKER]
 	b := routing.NewBreaker(routing.BreakerPolicy{FailureThreshold: 1, Cooldown: 30 * time.Second})
-	h := routing.ProviderHealth{Provider: "ollama", Role: "chat.default"}
-	h = b.OnFailure(h, routing.FailureExecution, breakerBaseTime)
+	h := routing.ProviderHealth{Provider: "ollama", Role: "chat.default", State: routing.BreakerClosed}
+	h = mustBreakerFailure(t, b, h, routing.FailureExecution, breakerBaseTime)
 	probeAt := breakerBaseTime.Add(31 * time.Second)
 	require.Equal(t, routing.BreakerHalfOpen, b.Effective(h, probeAt))
-	h = b.OnFailure(h, routing.FailureTimeout, probeAt)
+	h = mustBreakerFailure(t, b, h, routing.FailureTimeout, probeAt)
 	require.Equal(t, routing.BreakerOpen, b.Effective(h, probeAt), "half-open failure reopens immediately")
 	require.Equal(t, probeAt.Add(30*time.Second), h.CooldownUntil, "cooldown extends from the probe failure")
 	require.Equal(t, int64(2), h.Generation, "reopen bumps generation")
@@ -177,9 +237,9 @@ func TestClassifyProviderErrorUnchangedForLegacyCodes(t *testing.T) {
 
 func TestBreakerOnProviderFailureRecordsObservedProvenance(t *testing.T) {
 	b := routing.NewBreaker(routing.BreakerPolicy{FailureThreshold: 1, Cooldown: 30 * time.Second})
-	h := routing.ProviderHealth{Provider: "openrouter", Role: "code.flatrate"}
+	h := routing.ProviderHealth{Provider: "openrouter", Role: "code.flatrate", State: routing.BreakerClosed}
 
-	h = b.OnProviderFailure(h, routing.ProviderFailure{
+	h = mustProviderFailure(t, b, h, routing.ProviderFailure{
 		Class:      routing.FailureRateLimited,
 		HTTPStatus: 429,
 		RetryAfter: "45",
@@ -195,7 +255,7 @@ func TestBreakerOnProviderFailureRecordsObservedProvenance(t *testing.T) {
 
 	// A later failure with no observed window clears the previous provenance
 	// rather than leaving a stale recovery window attached to the new class.
-	h = b.OnProviderFailure(h, routing.ProviderFailure{
+	h = mustProviderFailure(t, b, h, routing.ProviderFailure{
 		Class:  routing.FailureExecution,
 		Source: "provider-command",
 	}, breakerBaseTime.Add(time.Minute))
@@ -257,4 +317,29 @@ func TestSQLHealthRepositoryRoundTrip(t *testing.T) { // [REQ:AIGW-PROVIDER-BREA
 	require.NoError(t, err)
 	require.Len(t, all, 1)
 	require.Equal(t, routing.BreakerClosed, all[0].State)
+}
+
+func TestSQLHealthRepositoryRejectsInvalidBreakerStates(t *testing.T) {
+	db := newSchemaDB(t)
+	repo := routing.NewSQLHealthRepository(db)
+	ctx := context.Background()
+	key := routing.HealthKey{Provider: "ollama", Role: "chat.default", Kind: sharedv1.RequestKind_REQUEST_KIND_TEXT_GENERATION}
+
+	err := repo.Upsert(ctx, routing.ProviderHealth{
+		Provider: key.Provider,
+		Role:     key.Role,
+		Kind:     key.Kind,
+		State:    routing.BreakerState("degraded"),
+	})
+	require.ErrorContains(t, err, `invalid provider breaker state "degraded"`)
+	_, found, err := repo.Get(ctx, key)
+	require.NoError(t, err)
+	require.False(t, found, "invalid state must not create a row")
+
+	valid := routing.ProviderHealth{Provider: key.Provider, Role: key.Role, Kind: key.Kind, State: routing.BreakerClosed}
+	require.NoError(t, repo.Upsert(ctx, valid))
+	_, err = db.ExecContext(ctx, `UPDATE provider_health SET state = 'degraded' WHERE provider = ? AND role = ? AND kind = ?`, key.Provider, key.Role, int32(key.Kind))
+	require.NoError(t, err)
+	_, _, err = repo.Get(ctx, key)
+	require.ErrorContains(t, err, `stored provider breaker state "degraded" is invalid`)
 }
