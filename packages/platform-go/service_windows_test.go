@@ -2,27 +2,31 @@
 
 package platform
 
-import "testing"
+import (
+	"errors"
+	"fmt"
+	"testing"
+)
 
-func TestParseSchtasksCSVFixture(t *testing.T) {
-	// Fixture shape captured from `schtasks /Query /FO CSV /NH`: the localized
-	// table renderer is avoided and the third CSV field is the state column.
-	raw := `"\\VrooliAutoheal","N/A","Running"` + "\r\n"
-	if got := parseSchtasksState(raw, nil); got != ServiceStateRunning {
-		t.Fatalf("state = %q, want running", got)
+func TestTaskHRESULTAbsenceIsTypedAndWrapped(t *testing.T) {
+	for _, code := range []windowsTaskHRESULT{0x80070002} {
+		if !taskNativeErrorMissing(fmt.Errorf("native query: %w", code)) {
+			t.Fatal("missing task not recognized")
+		}
 	}
-	ready := `"\\VrooliAutoheal","N/A","Ready"` + "\r\n"
-	if got := parseSchtasksState(ready, nil); got != ServiceStateStopped {
-		t.Fatalf("ready state = %q, want stopped", got)
+	if taskNativeErrorMissing(errors.New("text 0x80070002")) || taskNativeErrorMissing(windowsTaskHRESULT(0x80070005)) || taskNativeErrorMissing(fmt.Errorf("account: %w", windowsTaskHRESULT(0x8004130f))) {
+		t.Fatal("unproven absence accepted")
 	}
 }
 
-func TestParseSchtasksNumericStateWithLocalizedFixture(t *testing.T) {
-	// Fixture shape captured from `schtasks /Query /FO LIST /V` on a
-	// non-English Windows host: the field labels and state text are localized,
-	// but the numeric STATE code remains stable.
-	raw := "Nom de la tâche : \\VrooliAutoheal\r\nÉTAT : 4 (en cours d’exécution)\r\n"
-	if got := parseSchtasksState(raw, nil); got != ServiceStateRunning {
-		t.Fatalf("localized running state = %q, want running", got)
+func TestWindowsUserModeNeverFallsBackToLocalSystem(t *testing.T) {
+	if _, e := installService(ServiceInstallOptions{User: true}); !errors.Is(e, ErrUnsupported) {
+		t.Fatalf("user install reached system path: %v", e)
+	}
+	if _, e := startInstalledService(ServiceInstallOptions{User: true}); !errors.Is(e, ErrUnsupported) {
+		t.Fatalf("user start reached system path: %v", e)
+	}
+	if _, e := uninstallService(ServiceInstallOptions{User: true}); !errors.Is(e, ErrUnsupported) {
+		t.Fatalf("user removal reached system path: %v", e)
 	}
 }

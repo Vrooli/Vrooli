@@ -28,6 +28,7 @@ import (
 
 // Scope kinds name the native tree primitive a ScopeRef points at.
 const (
+	ScopeKindNative       = "native" // Versioned launchd/SCM owner identity; not a numeric process group.
 	ScopeKindCgroup       = "cgroup" // Linux: a cgroup v2 path under /sys/fs/cgroup
 	ScopeKindProcessGroup = "pgid"   // macOS: a process group id
 	ScopeKindJob          = "job"    // Windows: a Job Object, identified by its root pid
@@ -56,8 +57,8 @@ type ScopeRef struct {
 // String renders the ref as "<kind>:<identity>"; ParseScopeRef reads it back.
 func (r ScopeRef) String() string {
 	switch r.Kind {
-	case ScopeKindCgroup:
-		return ScopeKindCgroup + ":" + r.Path
+	case ScopeKindCgroup, ScopeKindNative:
+		return r.Kind + ":" + r.Path
 	case ScopeKindProcessGroup, ScopeKindJob:
 		return r.Kind + ":" + strconv.Itoa(r.PID)
 	default:
@@ -76,6 +77,21 @@ func ParseScopeRef(value string) (ScopeRef, error) {
 		return ScopeRef{}, fmt.Errorf("platform: scope ref %q has no kind", value)
 	}
 	switch kind {
+	case ScopeKindNative:
+		cut := strings.LastIndex(rest, "/")
+		if cut < 1 {
+			return ScopeRef{}, fmt.Errorf("platform: invalid native scope %q", rest)
+		}
+		domain, name := rest[:cut], rest[cut+1:]
+		validDomain := domain == "system" || domain == "scm" || domain == "operator"
+		if uid, ok := strings.CutPrefix(domain, "user/"); ok {
+			id, err := strconv.ParseUint(uid, 10, 32)
+			validDomain = err == nil && id > 0 && strconv.FormatUint(id, 10) == uid
+		}
+		if !validDomain || name == "" || len(name) > 256 || strings.ContainsAny(name, "/\\\x00\r\n\t ") {
+			return ScopeRef{}, fmt.Errorf("platform: invalid native scope %q", rest)
+		}
+		return ScopeRef{Kind: kind, Path: rest}, nil
 	case ScopeKindCgroup:
 		if !strings.HasPrefix(rest, "/") {
 			return ScopeRef{}, fmt.Errorf("platform: cgroup scope %q is not an absolute path", rest)

@@ -1,0 +1,40 @@
+package platform
+
+import (
+ "strings"
+ "testing"
+)
+
+func TestIndependentSubmissionSchedulerFailuresNeverProveAbsence(t *testing.T) {
+ if !windowsTaskHRESULTMissing(0x80070002) { t.Fatal("documented file-not-found refused") }
+ for hr := uint32(0x80041300); hr <= 0x800413ff; hr++ {
+  if windowsTaskHRESULTMissing(hr) { t.Fatalf("scheduler failure %#x became native task absence", hr) }
+ }
+ for _, hr := range []uint32{0, 0x00041325, 0x80070005, 0x800706ba, 0x80004005} {
+  if windowsTaskHRESULTMissing(hr) { t.Fatalf("unknown/nonabsence %#x became absence", hr) }
+ }
+}
+
+func TestIndependentSubmissionTaskCannotAcquireAdditionalLifetimePolicy(t *testing.T) {
+ p := windowsOwnedFixture(t)
+ base := windowsOwnedTaskXML(p)
+ for name, raw := range map[string]string{
+  "baseline": base,
+  "finite lifetime": strings.Replace(base, "PT0S", "PT72H", 1),
+  "battery stop": strings.Replace(base, "<StopIfGoingOnBatteries>false", "<StopIfGoingOnBatteries>true", 1),
+  "battery gate": strings.Replace(base, "<DisallowStartIfOnBatteries>false", "<DisallowStartIfOnBatteries>true", 1),
+  "network gate": strings.Replace(base, "<RunOnlyIfNetworkAvailable>false", "<RunOnlyIfNetworkAvailable>true", 1),
+  "idle gate": strings.Replace(base, "<RunOnlyIfIdle>false", "<RunOnlyIfIdle>true", 1),
+  "restart": strings.Replace(base, "</Settings>", "<RestartOnFailure><Interval>PT1M</Interval><Count>1</Count></RestartOnFailure></Settings>", 1),
+  "boot trigger": strings.Replace(base, "<Triggers/>", "<Triggers><BootTrigger><Enabled>true</Enabled></BootTrigger></Triggers>", 1),
+  "logon trigger": strings.Replace(base, "<Triggers/>", "<Triggers><LogonTrigger><Enabled>true</Enabled></LogonTrigger></Triggers>", 1),
+  "extra action": strings.Replace(base, "</Actions>", "<Exec><Command>other.exe</Command></Exec></Actions>", 1),
+  "elevated": strings.Replace(base, "LeastPrivilege", "HighestAvailable", 1),
+  "alternate image": strings.Replace(base, "<Command>", "<Command>other", 1),
+ } {
+  t.Run(name, func(t *testing.T) {
+   err := windowsOwnedTaskDefinitionMatches(p, WindowsTaskSnapshot{Name: windowsOwnedTaskName(p.Intent), XML: raw})
+   if (err == nil) != (name == "baseline") { t.Fatalf("task policy accepted=%v, err=%v", err == nil, err) }
+  })
+ }
+}

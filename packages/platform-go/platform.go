@@ -293,6 +293,19 @@ func LockFile(file *os.File, nonBlocking bool) (func(), error) {
 	return lockFile(file, nonBlocking)
 }
 
+// ReadLockFile retains shared ownership of an already-open lock inode. Other
+// readers may coexist; an exclusive LockFile is excluded until all readers
+// release. The kernel releases ownership when the process closes or exits.
+func ReadLockFile(file *os.File, nonBlocking bool) (func(), error) {
+	if file == nil {
+		return nil, fmt.Errorf("platform: nil lock file")
+	}
+	if err := validateLockFile(file); err != nil {
+		return nil, err
+	}
+	return lockFileMode(file, nonBlocking, true)
+}
+
 // HomeDir resolves the current user's home directory.
 func HomeDir() (string, error) { return os.UserHomeDir() }
 
@@ -322,8 +335,25 @@ func ResolveHomePath(home, relative string) (string, error) {
 	return cleanResolved, nil
 }
 
-// ServiceInstallOptions describes a per-user lifecycle supervisor service.
+// NativeSystemServiceBrokerOptions selects the actual operator for explicit
+// native boot publication. It is never a vendor/resource payload. The installer
+// seals the checksum-bound supervisor image outside user-writable directories.
+type NativeSystemServiceBrokerOptions struct {
+	ExecutableSHA256  string
+	OperatorPrincipal string
+	OperatorUsername  string
+	OperatorHome      string
+	OperatorUID       uint32
+	OperatorGID       uint32
+	// GlobalResourceStorageRoot freezes the optional whole-resource override.
+	GlobalResourceStorageRoot string `json:",omitempty"`
+}
+
+// ServiceInstallOptions selects a user supervisor or an explicitly provisioned
+// native operator boot manager. SystemBroker is never a vendor account.
 type ServiceInstallOptions struct {
+	SystemBroker *NativeSystemServiceBrokerOptions
+
 	HomeDir    string
 	Executable string
 	SourceRoot string
@@ -340,11 +370,14 @@ type ServiceInstallOptions struct {
 // what the native validator said about the rendered unit before it was
 // enabled; a rejected unit is never enabled and the install fails instead.
 type ServiceInstallResult struct {
-	UnitName string  `json:"unit_name"`
-	UnitPath string  `json:"unit_path"`
-	Scope    string  `json:"scope"`
-	Active   bool    `json:"active"`
-	Verdict  Verdict `json:"verdict"`
+	SealedExecutablePath string  `json:"sealed_executable_path,omitempty"`
+	StateRoot            string  `json:"state_root,omitempty"`
+	LogPath              string  `json:"log_path,omitempty"`
+	UnitName             string  `json:"unit_name"`
+	UnitPath             string  `json:"unit_path"`
+	Scope                string  `json:"scope"`
+	Active               bool    `json:"active"`
+	Verdict              Verdict `json:"verdict"`
 }
 
 // InstallService installs and starts the native runtime supervisor service.

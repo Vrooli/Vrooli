@@ -35,7 +35,14 @@ func validateLockFile(f *os.File) error {
 }
 
 func lockFile(f *os.File, nonBlocking bool) (func(), error) {
+	return lockFileMode(f, nonBlocking, false)
+}
+
+func lockFileMode(f *os.File, nonBlocking, shared bool) (func(), error) {
 	flags := syscall.LOCK_EX
+	if shared {
+		flags = syscall.LOCK_SH
+	}
 	if nonBlocking {
 		flags |= syscall.LOCK_NB
 	}

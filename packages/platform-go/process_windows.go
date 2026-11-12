@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
+	"path/filepath"
 	"syscall"
 	"unsafe"
 
@@ -118,31 +118,32 @@ func pidIsAlive(pid int) bool {
 	return err == nil && state == uint32(windows.WAIT_TIMEOUT)
 }
 
-func readProcessEnvironment(int) (map[string]string, error) {
-	return nil, fmt.Errorf("platform: process environment inspection is not supported on Windows: %w", ErrUnsupported)
-}
-
-func processExecutablePath(int) (string, error) { return "", ErrUnsupported }
-
-// processCommandLine asks WMI through PowerShell, the supported way to read
-// another process's command line on Windows without a native query.
-func processCommandLine(pid int) (string, error) {
-	if pid <= 0 {
-		return "", fmt.Errorf("platform: invalid pid %d", pid)
-	}
-	query := fmt.Sprintf("(Get-CimInstance Win32_Process -Filter 'ProcessId = %d').CommandLine", pid)
-	output, err := exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", query).Output()
+func processExecutablePath(pid int) (string, error) {
+	h, err := openProcessForObservation(pid, windows.PROCESS_QUERY_LIMITED_INFORMATION)
 	if err != nil {
-		return "", fmt.Errorf("platform: read command line for pid %d: %w", pid, err)
+		return "", err
 	}
-	command := strings.TrimSpace(string(output))
-	if command == "" {
-		return "", fmt.Errorf("platform: pid %d exposes no command line", pid)
+	defer windows.CloseHandle(h)
+	buf := make([]uint16, 32768)
+	n := uint32(len(buf))
+	if err := windows.QueryFullProcessImageName(h, 0, &buf[0], &n); err != nil {
+		return "", err
 	}
-	return command, nil
+	if n == 0 {
+		return "", fmt.Errorf("platform: empty process image path")
+	}
+	return windows.UTF16ToString(buf[:n]), nil
 }
 
-func processWorkingDir(int) (string, error) { return "", ErrUnsupported }
+func processCommandLine(pid int) (string, error) {
+	return readWindowsProcessString(pid, func(p *windows.RTL_USER_PROCESS_PARAMETERS) windows.NTUnicodeString { return p.CommandLine })
+}
+
+func processWorkingDir(pid int) (string, error) {
+	return readWindowsProcessString(pid, func(p *windows.RTL_USER_PROCESS_PARAMETERS) windows.NTUnicodeString {
+		return p.CurrentDirectory.DosPath
+	})
+}
 
 func processHasChildren(pid int) (bool, error) {
 	if pid <= 0 {
@@ -173,4 +174,10 @@ func processHasChildren(pid int) (bool, error) {
 // processScope reports empty: a Job Object has no stable name to record.
 func processScope(int) (string, error) { return "", nil }
 
-func processName(int) (string, error) { return "", ErrUnsupported }
+func processName(pid int) (string, error) {
+	path, err := processExecutablePath(pid)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Base(path), nil
+}

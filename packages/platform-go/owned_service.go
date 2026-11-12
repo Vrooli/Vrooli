@@ -15,9 +15,10 @@ const ownedServiceKind = "service"
 // ServiceLimits bound resource use without imposing a job deadline on the
 // serving process. Services stop only through their owner or native failure.
 type ServiceLimits struct {
-	MemoryMaxBytes int64 `json:"memory_max_bytes"`
-	TasksMax       int   `json:"tasks_max"`
-	CPUWeight      int   `json:"cpu_weight"`
+	MemoryMaxBytes int64  `json:"memory_max_bytes"`
+	TasksMax       int    `json:"tasks_max"`
+	CPUWeight      int    `json:"cpu_weight"`
+	Enforcement    string `json:"enforcement,omitempty"`
 }
 
 // OwnedServiceSpec is an explicit, fixed invocation. It never inherits a
@@ -27,9 +28,12 @@ type ServiceLimits struct {
 // Env is for non-secret settings and credential-file references: native
 // manager properties and command arguments are visible to the same user.
 type OwnedServiceSpec struct {
-	Path, Dir string
-	Args, Env []string
-	Limits    ServiceLimits
+	Path, Dir         string
+	Args, Env         []string
+	Limits            ServiceLimits
+	NativeAccount     string               `json:"native_account,omitempty"`
+	ObserverPrincipal string               `json:"observer_principal,omitempty"`
+	NativeLauncher    *NativeLauncherProof `json:"native_launcher,omitempty"`
 }
 
 // ServiceIntent and ServiceRef retain the same exact native identity facts as
@@ -64,11 +68,11 @@ func (r ServiceRef) ValidateIdentity() error {
 	if err := validateOperationRefIdentity(OperationRef(r)); err != nil {
 		return err
 	}
-	// The first owned-service backend records a Linux cgroup identity. This
-	// validates that record on any inspection host without claiming support
-	// for native effects there.
+	if r.Native != nil {
+		return validatePortableNativeIdentity(OperationRef(r))
+	}
 	if r.Scope.Kind != ScopeKindCgroup || r.Scope.PID != 0 || !validCgroupServicePath(r.Scope.Path, r.Unit, ServicesSlice) || !operationInvocation.MatchString(r.NativeInvocationID) || (r.ScopeDevice == 0) != (r.ScopeInode == 0) {
-		return fmt.Errorf("%w: malformed owned service native identity", ErrOperationIdentity)
+		return ErrOperationIdentity
 	}
 	return nil
 }
@@ -78,8 +82,8 @@ func validCgroupServicePath(scopePath, unit, slice string) bool {
 }
 
 func (s OwnedServiceSpec) processSpec() OperationSpec {
-	return OperationSpec{Path: s.Path, Dir: s.Dir, Args: s.Args, Env: s.Env, Limits: OperationLimits{
-		MemoryMaxBytes: s.Limits.MemoryMaxBytes, TasksMax: s.Limits.TasksMax, CPUWeight: s.Limits.CPUWeight,
+	return OperationSpec{Path: s.Path, Dir: s.Dir, Args: s.Args, Env: s.Env, NativeAccount: s.NativeAccount, ObserverPrincipal: s.ObserverPrincipal, NativeLauncher: s.NativeLauncher, Limits: OperationLimits{
+		MemoryMaxBytes: s.Limits.MemoryMaxBytes, TasksMax: s.Limits.TasksMax, CPUWeight: s.Limits.CPUWeight, Enforcement: s.Limits.Enforcement,
 	}}
 }
 
@@ -91,6 +95,7 @@ func NewServiceIntent(owner, attemptID string, spec OwnedServiceSpec) (ServiceIn
 		return ServiceIntent{}, err
 	}
 	intent, err := newOwnedWorkloadIntent(owner, attemptID, operationSpecDigest(process), ownedServiceKind)
+	intent.NativeAccount = spec.NativeAccount
 	return ServiceIntent(intent), err
 }
 
@@ -102,6 +107,9 @@ func validateServiceIntentShape(intent ServiceIntent) error {
 }
 
 func validateServiceIntent(intent ServiceIntent, spec OwnedServiceSpec) error {
+	if intent.NativeAccount != spec.NativeAccount {
+		return ErrOperationIdentity
+	}
 	if err := validateServiceIntentShape(intent); err != nil {
 		return err
 	}
@@ -171,19 +179,25 @@ func ReleaseOwnedService(ctx context.Context, ref ServiceRef) error {
 	return ReleaseOwnedOperation(ctx, OperationRef(ref))
 }
 
-// OwnedServiceReleased observes native unit/cgroup absence and the recorded
+// OwnedServiceReleased observes native manager/containment absence and the recorded
 // root's absence. It does not recover exit outcome or fence a future dispatch;
 // the domain owner must retain its durable exec fence and prior stop receipt.
 func OwnedServiceReleased(ctx context.Context, ref ServiceRef) (bool, error) {
 	return observeServiceRelease(ctx, ref, "")
 }
 
-// OwnedServiceReleasedForIncarnation additionally binds the root to the
-// boot-id:start-ticks incarnation retained by its domain owner. A different
-// boot excludes that root even if its PID and start ticks have been reused.
-// Native unit and cgroup absence remain mandatory. This is observation only;
+// OwnedServiceReleasedForIncarnation additionally binds the root to the exact
+// platform incarnation retained by its domain owner (boot-id:start-ticks on
+// Linux). A different boot excludes that root even if PID/start facts repeat.
+// Native manager and containment absence remain mandatory. This is observation only;
 // it neither authorizes redispatch nor recovers an exit outcome.
 func OwnedServiceReleasedForIncarnation(ctx context.Context, ref ServiceRef, incarnation string) (bool, error) {
+	if ref.Native != nil {
+		if !ref.MatchesIncarnation(incarnation) {
+			return false, ErrOperationIdentity
+		}
+		return observeServiceRelease(ctx, ref, ref.Native.BootID)
+	}
 	boot, ticks, ok := strings.Cut(incarnation, ":")
 	start, startErr := strconv.ParseUint(ticks, 10, 64)
 	if !ok || !serviceBootIDPattern.MatchString(boot) || startErr != nil || start == 0 || ticks != ref.RootStartTime || ref.RootPID <= 0 {
@@ -207,7 +221,7 @@ func observeServiceRelease(ctx context.Context, ref ServiceRef, boot string) (bo
 	return ownedServiceReleased(ctx, ref, boot)
 }
 
-// OwnedServiceIntentAbsent observes the deterministic native unit and cgroup
+// OwnedServiceIntentAbsent observes the deterministic native manager slot and containment
 // for an intent whose submission may not have returned a process receipt. It
 // supplies no future-exec fence; the domain owner must revoke that separately.
 func OwnedServiceIntentAbsent(ctx context.Context, intent ServiceIntent) (bool, error) {

@@ -110,7 +110,7 @@ func readHostLogs(options HostLogOptions) (HostLogResult, error) {
 
 func installService(options ServiceInstallOptions) (ServiceInstallResult, error) {
 	if !options.User {
-		return ServiceInstallResult{}, fmt.Errorf("platform: system service install requires explicit broker support")
+		return installDarwinSystemBroker(options)
 	}
 	home, err := resolvedHome(options.HomeDir)
 	if err != nil {
@@ -183,6 +183,9 @@ func awaitLaunchdRunning(target string) ServiceState {
 }
 
 func uninstallService(options ServiceInstallOptions) (ServiceInstallResult, error) {
+	if !options.User {
+		return uninstallDarwinSystemBroker(options)
+	}
 	home, err := resolvedHome(options.HomeDir)
 	if err != nil {
 		return ServiceInstallResult{}, err
@@ -197,6 +200,9 @@ func uninstallService(options ServiceInstallOptions) (ServiceInstallResult, erro
 }
 
 func startInstalledService(options ServiceInstallOptions) (bool, error) {
+	if !options.User {
+		return startDarwinSystemBroker(options)
+	}
 	home, err := resolvedHome(options.HomeDir)
 	if err != nil {
 		return false, err

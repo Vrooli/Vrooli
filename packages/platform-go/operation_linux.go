@@ -48,6 +48,18 @@ var (
 )
 
 func startOwnedOperation(ctx context.Context, intent OperationIntent, spec OperationSpec) (*OwnedOperation, error) {
+	if spec.NativeLauncher != nil {
+		return nil, fmt.Errorf("%w: native published launcher admission is not a Linux operation", ErrUnsupported)
+	}
+	if spec.ObserverPrincipal != "" {
+		return nil, fmt.Errorf("%w: Linux observer delegation is not supported", ErrUnsupported)
+	}
+	if spec.Limits.Enforcement != "" {
+		return nil, fmt.Errorf("%w: Linux requires hard native limit enforcement", ErrUnsupported)
+	}
+	if spec.NativeAccount != "" {
+		return nil, fmt.Errorf("%w: Linux owned workloads do not support native account switching", ErrUnsupported)
+	}
 	unit := operationUnitName(intent)
 	prior, err := queryOwnedUnit(ctx, unit)
 	if err != nil {

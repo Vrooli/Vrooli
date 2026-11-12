@@ -16,7 +16,7 @@
     <Principal id="Author">
       <UserId>alice</UserId>
       <LogonType>S4U</LogonType>
-      <RunLevel>HighestAvailable</RunLevel>
+      <RunLevel>LeastPrivilege</RunLevel>
     </Principal>
   </Principals>
   <Settings>

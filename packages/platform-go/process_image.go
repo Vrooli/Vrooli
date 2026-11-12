@@ -5,10 +5,12 @@ import (
 	"os"
 )
 
-// ReplaceProcessImage executes the already-open native executable. Replacing
-// its pathname after verification cannot select different bytes. This initial
-// backend accepts ELF binaries only; scripts require an interpreter contract.
-// Unsupported hosts return ErrUnsupported without a pathname fallback.
+// ReplaceProcessImage hands off a verified native executable with exact argv
+// and environment. Linux executes the open ELF descriptor. Darwin admits only
+// a matching read-only Mach-O vnode under fully root-sealed ancestry; its
+// privileged publishing owner must never mutate an admitted version in place.
+// Callers own the verified loader/dependency closure. Scripts are refused;
+// unsupported hosts return ErrUnsupported without an unowned launch fallback.
 func ReplaceProcessImage(file *os.File, argv, env []string) error {
 	if file == nil || len(argv) == 0 {
 		return fmt.Errorf("platform: executable image and argv are required")

@@ -39,11 +39,18 @@ func validateLockFile(f *os.File) error {
 }
 
 func lockFile(f *os.File, nonBlocking bool) (func(), error) {
-	flags := uint32(0)
+	return lockFileMode(f, nonBlocking, false)
+}
+
+func lockFileMode(f *os.File, nonBlocking, shared bool) (func(), error) {
+	flags := uint32(windows.LOCKFILE_EXCLUSIVE_LOCK)
+	if shared {
+		flags = 0
+	}
 	if nonBlocking {
 		flags |= windows.LOCKFILE_FAIL_IMMEDIATELY
 	}
-	if err := windows.LockFileEx(windows.Handle(f.Fd()), windows.LOCKFILE_EXCLUSIVE_LOCK|flags, 0, 1, 0, &windows.Overlapped{}); err != nil {
+	if err := windows.LockFileEx(windows.Handle(f.Fd()), flags, 0, 1, 0, &windows.Overlapped{}); err != nil {
 		if nonBlocking && errors.Is(err, windows.ERROR_LOCK_VIOLATION) {
 			return nil, ErrLockUnavailable
 		}

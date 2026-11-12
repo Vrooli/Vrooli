@@ -12,4 +12,4 @@ func processArguments(pid int) ([]string, error) {
 	return block.Args, nil
 }
 
-func openProcessExecutable(int) (*os.File, error) { return nil, ErrUnsupported }
+func openProcessExecutable(pid int) (*os.File, error) { return darwinOpenProcessExecutable(pid) }

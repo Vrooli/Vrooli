@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -79,6 +80,17 @@ func terminationSignals() []os.Signal { return []os.Signal{os.Interrupt, syscall
 // process's argv on BSD-family hosts. Own-process callers should prefer
 // os.Args; this is for naming somebody else.
 func processCommandLine(pid int) (string, error) {
+	if runtime.GOOS == "darwin" {
+		args, err := processArguments(pid)
+		if err != nil {
+			return "", err
+		}
+		if len(args) == 0 {
+			return "", fmt.Errorf("platform: pid %d exposes no command line", pid)
+		}
+		return strings.Join(args, " "), nil
+	}
+
 	if pid <= 0 {
 		return "", fmt.Errorf("platform: invalid pid %d", pid)
 	}

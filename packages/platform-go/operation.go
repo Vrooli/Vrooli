@@ -49,18 +49,22 @@ type OperationLimits struct {
 	TasksMax       int           `json:"tasks_max"`
 	CPUWeight      int           `json:"cpu_weight"`
 	WallTime       time.Duration `json:"wall_time_ns"`
+	Enforcement    string        `json:"enforcement,omitempty"`
 }
 
 // OperationSpec is an already-resolved, fixed executable invocation. Callers
 // must build argv from typed domain inputs; this type never invokes a shell.
 // Env must be non-nil to make inherited environment use an explicit choice.
 type OperationSpec struct {
-	Path   string
-	Args   []string
-	Env    []string
-	Dir    string
-	Limits OperationLimits
-	Gate   *OperationGate
+	Path              string
+	Args              []string
+	Env               []string
+	Dir               string
+	Limits            OperationLimits
+	Gate              *OperationGate
+	NativeAccount     string               `json:"native_account,omitempty"`
+	ObserverPrincipal string               `json:"observer_principal,omitempty"`
+	NativeLauncher    *NativeLauncherProof `json:"native_launcher,omitempty"`
 }
 
 // OperationIntent is the caller-persisted, pre-dispatch identity. Persist it
@@ -70,11 +74,12 @@ type OperationIntent struct {
 	// Kind is empty for bounded operations. Long-lived resource services use
 	// a separate admission API and native namespace; their identities are not
 	// interchangeable with deadline-bound jobs.
-	Kind         string `json:"kind,omitempty"`
-	Owner        string `json:"owner"`
-	AttemptID    string `json:"attempt_id"`
-	InvocationID string `json:"invocation_id"`
-	SpecDigest   string `json:"spec_digest"`
+	Kind          string `json:"kind,omitempty"`
+	NativeAccount string `json:"native_account,omitempty"`
+	Owner         string `json:"owner"`
+	AttemptID     string `json:"attempt_id"`
+	InvocationID  string `json:"invocation_id"`
+	SpecDigest    string `json:"spec_digest"`
 }
 
 // OperationRef is the exact native operation returned by the owner. Methods
@@ -82,20 +87,24 @@ type OperationIntent struct {
 // the same unit. NativeInvocationID is required; cgroup inode identity is
 // additional evidence when the service still has a cgroup.
 type OperationRef struct {
-	Intent             OperationIntent `json:"intent"`
-	Unit               string          `json:"unit"`
-	Scope              ScopeRef        `json:"scope"`
-	RootPID            int             `json:"root_pid,omitempty"`
-	RootStartTime      string          `json:"root_start_time,omitempty"`
-	NativeInvocationID string          `json:"native_invocation_id"`
-	ScopeDevice        uint64          `json:"scope_device,omitempty"`
-	ScopeInode         uint64          `json:"scope_inode,omitempty"`
+	Intent             OperationIntent         `json:"intent"`
+	Unit               string                  `json:"unit"`
+	Scope              ScopeRef                `json:"scope"`
+	RootPID            int                     `json:"root_pid,omitempty"`
+	RootStartTime      string                  `json:"root_start_time,omitempty"`
+	NativeInvocationID string                  `json:"native_invocation_id"`
+	ScopeDevice        uint64                  `json:"scope_device,omitempty"`
+	ScopeInode         uint64                  `json:"scope_inode,omitempty"`
+	Native             *NativeWorkloadIdentity `json:"native,omitempty"`
 }
 
 // ValidateIdentity checks persisted operation metadata without native effects.
 func (r OperationRef) ValidateIdentity() error {
 	if err := validateOperationRefIdentity(r); err != nil {
 		return err
+	}
+	if r.Native != nil {
+		return validatePortableNativeIdentity(r)
 	}
 	slice := OperationsSlice
 	if r.Intent.Kind == ownedServiceKind {
@@ -177,7 +186,9 @@ func NewOperationIntent(owner, attemptID string, spec OperationSpec) (OperationI
 	if err := validateOperationSpec(spec); err != nil {
 		return OperationIntent{}, err
 	}
-	return newOwnedWorkloadIntent(owner, attemptID, operationSpecDigest(spec), "")
+	intent, err := newOwnedWorkloadIntent(owner, attemptID, operationSpecDigest(spec), "")
+	intent.NativeAccount = spec.NativeAccount
+	return intent, err
 }
 
 func newOwnedWorkloadIntent(owner, attemptID, digest, kind string) (OperationIntent, error) {
@@ -198,6 +209,9 @@ func newOwnedWorkloadIntent(owner, attemptID, digest, kind string) (OperationInt
 }
 
 func validateOperationIntent(intent OperationIntent, spec OperationSpec) error {
+	if intent.NativeAccount != spec.NativeAccount {
+		return ErrOperationIdentity
+	}
 	if intent.Kind != "" {
 		return fmt.Errorf("%w: bounded operation cannot dispatch a service intent", ErrOperationIdentity)
 	}
@@ -217,6 +231,9 @@ func validateOperationIntent(intent OperationIntent, spec OperationSpec) error {
 }
 
 func validateOperationSpec(spec OperationSpec) error {
+	if spec.Limits.Enforcement != "" {
+		return errors.New("platform: bounded operations require hard limit enforcement")
+	}
 	if err := validateOwnedProcessSpec(spec); err != nil {
 		return err
 	}
@@ -232,6 +249,23 @@ func validateOperationSpec(spec OperationSpec) error {
 }
 
 func validateOwnedProcessSpec(spec OperationSpec) error {
+	if spec.NativeLauncher != nil {
+		if err := spec.NativeLauncher.Validate(); err != nil {
+			return err
+		}
+		if spec.NativeAccount == "" {
+			return fmt.Errorf("%w: native launcher requires its runtime account", ErrOperationIdentity)
+		}
+	}
+	if spec.Limits.Enforcement != "" && spec.Limits.Enforcement != "native-advisory" && spec.Limits.Enforcement != "native-process-limits" {
+		return errors.New("platform: unknown native limit enforcement policy")
+	}
+	if len(spec.ObserverPrincipal) > 256 || strings.ContainsAny(spec.ObserverPrincipal, "\x00\r\n") {
+		return errors.New("platform: malformed native observer principal")
+	}
+	if len(spec.NativeAccount) > 256 || strings.ContainsAny(spec.NativeAccount, "\x00\r\n") {
+		return errors.New("platform: malformed native account")
+	}
 	if !filepath.IsAbs(spec.Path) || filepath.Clean(spec.Path) != spec.Path || strings.ContainsRune(spec.Path, '\x00') {
 		return errors.New("platform: operation executable must be an absolute, clean path")
 	}
@@ -285,13 +319,16 @@ func validateOwnedProcessSpec(spec OperationSpec) error {
 
 func operationSpecDigest(spec OperationSpec) string {
 	canonical := struct {
-		Path   string          `json:"path"`
-		Args   []string        `json:"args"`
-		Env    []string        `json:"env"`
-		Dir    string          `json:"dir"`
-		Limits OperationLimits `json:"limits"`
-		Gate   *OperationGate  `json:"gate,omitempty"`
-	}{spec.Path, spec.Args, spec.Env, spec.Dir, spec.Limits, spec.Gate}
+		Path              string               `json:"path"`
+		Args              []string             `json:"args"`
+		Env               []string             `json:"env"`
+		Dir               string               `json:"dir"`
+		Limits            OperationLimits      `json:"limits"`
+		Gate              *OperationGate       `json:"gate,omitempty"`
+		NativeAccount     string               `json:"native_account,omitempty"`
+		ObserverPrincipal string               `json:"observer_principal,omitempty"`
+		NativeLauncher    *NativeLauncherProof `json:"native_launcher,omitempty"`
+	}{spec.Path, spec.Args, spec.Env, spec.Dir, spec.Limits, spec.Gate, spec.NativeAccount, spec.ObserverPrincipal, spec.NativeLauncher}
 	data, _ := json.Marshal(canonical)
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
@@ -375,6 +412,9 @@ func ReleaseOwnedOperation(ctx context.Context, expected OperationRef) error {
 }
 
 func validateOperationIntentShape(intent OperationIntent) error {
+	if len(intent.NativeAccount) > 256 || strings.ContainsAny(intent.NativeAccount, "\x00\r\n") {
+		return ErrOperationIdentity
+	}
 	if intent.Kind != "" && intent.Kind != ownedServiceKind {
 		return fmt.Errorf("%w: unknown native workload kind", ErrOperationIdentity)
 	}

@@ -39,6 +39,12 @@ func OwnedOperationReleasedForIncarnation(ctx context.Context, ref OperationRef,
 	if err := ref.ValidateIdentity(); err != nil {
 		return false, err
 	}
+	if ref.Native != nil {
+		if ref.Intent.Kind != "" || !ref.MatchesIncarnation(incarnation) {
+			return false, ErrOperationIdentity
+		}
+		return ownedWorkloadReleased(ctx, ref, ref.Native.BootID)
+	}
 	boot, ticks, ok := strings.Cut(incarnation, ":")
 	n, err := strconv.ParseUint(ticks, 10, 64)
 	if ref.Intent.Kind != "" || !ok || !serviceBootIDPattern.MatchString(boot) || err != nil || n == 0 || ticks != ref.RootStartTime || ref.RootPID <= 0 {

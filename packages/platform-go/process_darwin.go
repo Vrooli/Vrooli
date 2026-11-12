@@ -5,10 +5,7 @@ package platform
 import (
 	"errors"
 	"fmt"
-	"os/exec"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"syscall"
 
 	"golang.org/x/sys/unix"
@@ -41,9 +38,17 @@ func readProcArgs(pid int) (procArgs, error) {
 	if pid <= 0 {
 		return procArgs{}, fmt.Errorf("platform: invalid pid %d", pid)
 	}
+	before, err := darwinObservationStamp(pid)
+	if err != nil {
+		return procArgs{}, err
+	}
 	data, err := unix.SysctlRaw("kern.procargs2", pid)
 	if err != nil {
 		return procArgs{}, fmt.Errorf("platform: read process arguments for pid %d: %w", pid, err)
+	}
+	after, err := darwinObservationStamp(pid)
+	if err != nil || before != after {
+		return procArgs{}, ErrOperationIdentity
 	}
 	return parseProcArgs2(data)
 }
@@ -52,6 +57,9 @@ func readProcessEnvironment(pid int) (map[string]string, error) {
 	args, err := readProcArgs(pid)
 	if err != nil {
 		return nil, err
+	}
+	if args.environmentErr != nil {
+		return nil, args.environmentErr
 	}
 	return args.Env, nil
 }
@@ -64,55 +72,28 @@ func processExecutablePath(pid int) (string, error) {
 	return args.Executable, nil
 }
 
-// processName asks ps for the executable name alone.
 func processName(pid int) (string, error) {
-	if pid <= 0 {
-		return "", fmt.Errorf("platform: invalid pid %d", pid)
-	}
-	output, err := exec.Command("ps", "-o", "comm=", "-p", strconv.Itoa(pid)).Output()
+	path, err := processExecutablePath(pid)
 	if err != nil {
-		return "", fmt.Errorf("platform: read program name for pid %d: %w", pid, err)
+		return "", err
 	}
-	name := strings.TrimSpace(string(output))
-	if name == "" {
-		return "", fmt.Errorf("platform: pid %d exposes no program name", pid)
-	}
-	return filepath.Base(name), nil
+	return filepath.Base(path), nil
 }
 
-func processWorkingDir(pid int) (string, error) {
-	if pid <= 0 {
-		return "", fmt.Errorf("platform: invalid pid %d", pid)
-	}
-	if _, err := exec.LookPath("lsof"); err != nil {
-		return "", ErrUnsupported
-	}
-	output, err := exec.Command("lsof", "-a", "-p", strconv.Itoa(pid), "-d", "cwd", "-Fn").Output()
-	if err != nil {
-		return "", fmt.Errorf("platform: read working directory for pid %d: %w", pid, err)
-	}
-	for _, line := range strings.Split(string(output), "\n") {
-		if path, ok := strings.CutPrefix(line, "n"); ok && strings.TrimSpace(path) != "" {
-			return strings.TrimSpace(path), nil
-		}
-	}
-	return "", fmt.Errorf("platform: pid %d exposes no working directory", pid)
-}
+func processWorkingDir(pid int) (string, error) { return darwinWorkingDir(pid) }
 
 func processHasChildren(pid int) (bool, error) {
 	if pid <= 0 {
 		return false, fmt.Errorf("platform: invalid pid %d", pid)
 	}
-	if _, err := exec.LookPath("pgrep"); err != nil {
-		return false, ErrUnsupported
-	}
-	output, err := exec.Command("pgrep", "-P", strconv.Itoa(pid)).Output()
+	processes, err := unix.SysctlKinfoProcSlice("kern.proc.all")
 	if err != nil {
-		// pgrep uses exit status 1 for "no matching processes".
-		if len(output) == 0 {
-			return false, nil
-		}
-		return false, fmt.Errorf("platform: inspect children for pid %d: %w", pid, err)
+		return false, err
 	}
-	return strings.TrimSpace(string(output)) != "", nil
+	for _, p := range processes {
+		if int(p.Eproc.Ppid) == pid {
+			return true, nil
+		}
+	}
+	return false, nil
 }

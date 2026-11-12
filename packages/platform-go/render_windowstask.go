@@ -44,7 +44,7 @@ func RenderWindowsTaskXML(d ServiceDefinition) (RenderedArtifact, error) {
 		fmt.Fprintf(&b, "    <TimeTrigger>\n      <Enabled>true</Enabled>\n      <StartBoundary>2026-01-01T00:00:00</StartBoundary>\n      <Repetition>\n        <Interval>%s</Interval>\n        <StopAtDurationEnd>false</StopAtDurationEnd>\n      </Repetition>\n    </TimeTrigger>\n", iso8601Duration(d.Schedule.Every))
 	}
 	b.WriteString("  </Triggers>\n")
-	fmt.Fprintf(&b, "  <Principals>\n    <Principal id=\"Author\">\n      <UserId>%s</UserId>\n      <LogonType>S4U</LogonType>\n      <RunLevel>HighestAvailable</RunLevel>\n    </Principal>\n  </Principals>\n", xmlText(d.Username))
+	fmt.Fprintf(&b, "  <Principals>\n    <Principal id=\"Author\">\n      <UserId>%s</UserId>\n      <LogonType>S4U</LogonType>\n      <RunLevel>LeastPrivilege</RunLevel>\n    </Principal>\n  </Principals>\n", xmlText(d.Username))
 	b.WriteString("  <Settings>\n")
 	b.WriteString("    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>\n")
 	b.WriteString("    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>\n")
@@ -94,10 +94,30 @@ func WindowsServiceCommandLine(d ServiceDefinition) string {
 func windowsArguments(args []string) string {
 	quoted := make([]string, 0, len(args))
 	for _, arg := range args {
-		if arg == "" || strings.ContainsAny(arg, " \t\"") {
-			arg = `"` + strings.ReplaceAll(arg, `"`, `\"`) + `"`
+		if arg != "" && !strings.ContainsAny(arg, " \t\"") {
+			quoted = append(quoted, arg)
+			continue
 		}
-		quoted = append(quoted, arg)
+		var b strings.Builder
+		b.WriteByte('"')
+		slashes := 0
+		for n := 0; n < len(arg); n++ {
+			switch arg[n] {
+			case '\\':
+				slashes++
+			case '"':
+				b.WriteString(strings.Repeat(`\`, slashes*2+1))
+				b.WriteByte('"')
+				slashes = 0
+			default:
+				b.WriteString(strings.Repeat(`\`, slashes))
+				slashes = 0
+				b.WriteByte(arg[n])
+			}
+		}
+		b.WriteString(strings.Repeat(`\`, slashes*2))
+		b.WriteByte('"')
+		quoted = append(quoted, b.String())
 	}
 	return strings.Join(quoted, " ")
 }

@@ -51,6 +51,9 @@ func RenderLaunchd(d ServiceDefinition) (RenderedArtifact, error) {
 	if d.Logs.Stderr != "" {
 		fmt.Fprintf(&b, "  <key>StandardErrorPath</key>\n  <string>%s</string>\n", xmlText(d.Logs.Stderr))
 	}
+	if d.Scope == ScopeSystem && d.Label == "com.vrooli.runtime-supervisor" && len(d.Args) == 2 && d.Args[0] == NativeSystemSupervisorVerb {
+		b.WriteString("  <key>AbandonProcessGroup</key>\n  <false/>\n")
+	}
 	b.WriteString("  <key>RunAtLoad</key>\n  <true/>\n")
 	switch d.Kind {
 	case KindDaemon:

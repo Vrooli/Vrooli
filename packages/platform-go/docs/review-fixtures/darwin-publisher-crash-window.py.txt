@@ -1,0 +1,28 @@
+"""Hermetic filesystem counterexample for link-then-unlink publication.
+
+This demonstrates the crash state identified by source review. It does not run
+Darwin APIs or assert that a later repaired publisher still uses this sequence.
+The native verifier separately requires regular-file link count == 1.
+"""
+
+import errno
+import os
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+with TemporaryDirectory(prefix="darwin-publisher-crash-model-") as temporary:
+    directory = Path(temporary)
+    stage = directory / ".native-publish-fixture"
+    target = directory / "sealed-payload"
+    stage.write_bytes(b"verified bytes")
+    stage.chmod(0o555)
+    os.link(stage, target)  # publisher crashes before unlink(stage)
+    assert target.stat().st_nlink == 2
+    assert target.read_bytes() == b"verified bytes"
+    try:
+        os.link(stage, target)  # no-replace retry cannot repair this state
+    except OSError as error:
+        assert error.errno == errno.EEXIST
+    else:
+        raise AssertionError("no-replace publication unexpectedly replaced target")
+    print("COUNTEREXAMPLE: committed target has nlink=2; no-replace retry is EEXIST")
