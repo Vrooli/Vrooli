@@ -84,6 +84,53 @@ func TestGPUAdmissionLeaseCoversSuccessAndMergesMetadata(t *testing.T) {
 	}
 }
 
+func TestGPUCompletionWaitsForSharedLeaseCleanup(t *testing.T) {
+	cleaning, finish := make(chan struct{}), make(chan struct{})
+	m := startManager(t, Config{
+		Admit: func(context.Context, context.CancelCauseFunc, Job) (func(), map[string]string, error) {
+			return func() { close(cleaning); <-finish }, nil, nil
+		},
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) { return Result{}, nil },
+	})
+	job, err := m.Submit(t.Context(), Spec{Operation: "compose", Lane: LaneGPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-cleaning
+	current, err := m.Get(t.Context(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current.State.Terminal() {
+		close(finish)
+		t.Fatal("terminal job still holds capacity")
+	}
+	close(finish)
+	final, err := m.Wait(t.Context(), job.ID)
+	if err != nil || final.State != StateSucceeded {
+		t.Fatalf("final=%+v err=%v", final, err)
+	}
+}
+
+func TestGPUCleanupFailureCannotPublishSuccess(t *testing.T) {
+	m := startManager(t, Config{
+		Admit: func(_ context.Context, cancel context.CancelCauseFunc, _ Job) (func(), map[string]string, error) {
+			return func() { cancel(errors.New("lease cleanup failed")) }, nil, nil
+		},
+		Runner: func(context.Context, Job, func(int, string)) (Result, error) {
+			return Result{Ref: "unused-output"}, nil
+		},
+	})
+	job, err := m.Submit(t.Context(), Spec{Operation: "compose", Lane: LaneGPU})
+	if err != nil {
+		t.Fatal(err)
+	}
+	final, err := m.Wait(t.Context(), job.ID)
+	if err != nil || final.State != StateFailed || final.ResultRef != "" || !strings.Contains(final.Error, "lease cleanup failed") {
+		t.Fatalf("final=%+v err=%v", final, err)
+	}
+}
+
 func TestSubmitWaitFailure(t *testing.T) {
 	m := startManager(t, Config{
 		Runner: func(ctx context.Context, j Job, emit func(int, string)) (Result, error) {
@@ -901,6 +948,7 @@ func (d rowsErrorDB) ExecContext(ctx context.Context, q string, args ...any) (sq
 	}
 	return r, e
 }
+
 func TestStoreUpdateDoesNotHideRowsAffectedFailure(t *testing.T) {
 	db := newJobsDB(t)
 	s := newStore(rowsErrorDB{db})

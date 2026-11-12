@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
+	"net/http"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -116,7 +118,9 @@ func validateProviderInput(provider string, c styles.Compiled, r composeRequest,
 			return fmt.Errorf("guidance outside supported model controls")
 		}
 		encoded, err := json.Marshal(songRequestFor(model, c, r, math.MaxUint32))
-		if err != nil || len(encoded) > 65536 { return fmt.Errorf("song request exceeds bounded 64KiB JSON") }
+		if err != nil || len(encoded) > 65536 {
+			return fmt.Errorf("song request exceeds bounded 64KiB JSON")
+		}
 	}
 	return nil
 }
@@ -150,6 +154,50 @@ func (s *ModuleState) sa3Admission(ctx context.Context) (func(), map[string]stri
 		return nil, nil, e
 	}
 	return nil, map[string]string{"composition_provider": providerSA3, "capacity_ownership": "resource:stable-audio-3"}, nil
+}
+
+// aceAdmission relies on the managed ACE-Step resource's persistent capacity
+// claim. A second per-job claim would count the model residency twice and can
+// deny work even though the resource has already secured the memory needed to
+// serve it. The resource health check is the admission gate; the job retains
+// durable ownership metadata and cancellation stays in the shared job manager.
+func (s *ModuleState) aceAdmission(ctx context.Context, payload composeJobPayload) (func(), map[string]string, error) {
+	if payload.ResolvedStyle == nil {
+		return nil, nil, fmt.Errorf("ACE job lacks immutable style admission input")
+	}
+	compiled := *payload.ResolvedStyle
+	model, err := declaredCompositionModel(providerACE, compiled.Params.Variant)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := validateProviderInput(providerACE, compiled, payload.composeRequest, s.PermissiveOnly); err != nil {
+		return nil, nil, err
+	}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, s.ResourceURL+"/health", nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	response, err := s.HTTP.Do(request)
+	if err != nil {
+		return nil, nil, fmt.Errorf("ACE-Step resource unavailable; use normal lifecycle to activate ace-step: %w", err)
+	}
+	defer response.Body.Close()
+	var health struct {
+		ModelLoaded   bool   `json:"model_loaded"`
+		Variant       string `json:"variant"`
+		LoadedVariant string `json:"loaded_variant"`
+	}
+	if err := json.NewDecoder(io.LimitReader(response.Body, 65536)).Decode(&health); err != nil {
+		return nil, nil, fmt.Errorf("read ACE-Step resource health: %w", err)
+	}
+	loadedVariant := health.LoadedVariant
+	if loadedVariant == "" {
+		loadedVariant = health.Variant
+	}
+	if response.StatusCode != http.StatusOK || !health.ModelLoaded || loadedVariant != model.Variant {
+		return nil, nil, fmt.Errorf("ACE-Step resource is unavailable or loaded model %q does not match selected variant %q", loadedVariant, model.Variant)
+	}
+	return nil, map[string]string{"composition_provider": providerACE, "capacity_ownership": "resource:ace-step"}, nil
 }
 
 func snapshotStyle(provider string, c styles.Compiled) *styles.Compiled {

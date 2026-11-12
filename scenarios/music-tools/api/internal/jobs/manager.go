@@ -234,7 +234,7 @@ func (m *Manager) recover() error {
 	}
 	now := m.clock.Now()
 	for _, j := range orphans {
-		j.State = StateFailed
+		mustTransition(&j, StateFailed)
 		j.Error = "interrupted by server restart"
 		j.FinishedAt = &now
 		if err := m.st.update(m.baseCtx, j); err != nil {
@@ -286,7 +286,7 @@ func (m *Manager) Submit(ctx context.Context, spec Spec) (Job, error) {
 	default:
 		// Lane saturated: fail the job rather than block Submit.
 		failed := job
-		failed.State = StateFailed
+		mustTransition(&failed, StateFailed)
 		failed.Error = "lane queue is full"
 		failed.FinishedAt = &now
 		m.persistFinal(entry, failed)
@@ -322,11 +322,11 @@ func (m *Manager) Record(spec Spec, resultRef string, runErr error) (Job, error)
 		Progress:         100,
 	}
 	if runErr != nil {
-		job.State = StateFailed
+		job.State = StateFailed // Initial terminal state for synchronous work.
 		job.Error = runErr.Error()
 		job.Progress = 0
 	} else {
-		job.State = StateSucceeded
+		job.State = StateSucceeded // Initial terminal state for synchronous work.
 		job.ResultRef = resultRef
 	}
 	if err := m.st.insert(m.baseCtx, job); err != nil {
@@ -361,7 +361,7 @@ func (m *Manager) execute(entry *jobEntry) {
 	cancel := func() { cancelCause(context.Canceled) }
 	entry.cancel = cancel
 	now := m.clock.Now()
-	entry.job.State = StateRunning
+	mustTransition(&entry.job, StateRunning)
 	entry.job.StartedAt = &now
 	snapshot := entry.job
 	entry.mu.Unlock()
@@ -371,7 +371,7 @@ func (m *Manager) execute(entry *jobEntry) {
 		if m.adoptTerminal(entry, err) {
 			return
 		}
-		snapshot.State = StateFailed
+		mustTransition(&snapshot, StateFailed)
 		snapshot.Error = "persist running: " + err.Error()
 		m.persistFinal(entry, snapshot)
 		return
@@ -388,16 +388,20 @@ func (m *Manager) execute(entry *jobEntry) {
 		entry.mu.Lock()
 		fin := m.clock.Now()
 		final := entry.job
-		final.State = StateFailed
+		mustTransition(&final, StateFailed)
 		final.Error = admissionErr.Error()
 		final.FinishedAt = &fin
 		entry.mu.Unlock()
 		m.persistFinal(entry, final)
 		return
 	}
-	if release != nil {
-		defer release()
+	cleanup := func() {
+		if release != nil {
+			release()
+			release = nil
+		}
 	}
+	defer cleanup()
 	if len(admissionMeta) > 0 {
 		entry.mu.Lock()
 		if entry.job.Meta == nil {
@@ -409,10 +413,11 @@ func (m *Manager) execute(entry *jobEntry) {
 		snapshot = entry.job
 		entry.mu.Unlock()
 		if err := m.st.update(m.baseCtx, snapshot); err != nil {
+			cleanup()
 			if m.adoptTerminal(entry, err) {
 				return
 			}
-			snapshot.State = StateFailed
+			mustTransition(&snapshot, StateFailed)
 			snapshot.Error = "persist admission: " + err.Error()
 			m.persistFinal(entry, snapshot)
 			return
@@ -444,9 +449,18 @@ func (m *Manager) execute(entry *jobEntry) {
 	}
 
 	result, err := m.runner(jobCtx, snapshot, emit)
+	// Terminal observers must never see success/cancellation while the shared
+	// claim is still held. Cleanup failures cancel with a cause and become failed.
+	cleanup()
 
 	entry.mu.Lock()
 	final := entry.job
+	if final.State.Terminal() {
+		// A persistence conflict may already have adopted another terminal
+		// winner while the runner was finishing. Preserve that durable winner.
+		entry.mu.Unlock()
+		return
+	}
 	final.Meta = maps.Clone(entry.job.Meta)
 	fin := m.clock.Now()
 	final.FinishedAt = &fin
@@ -459,17 +473,17 @@ func (m *Manager) execute(entry *jobEntry) {
 	switch {
 	case jobCtx.Err() != nil:
 		if cause := context.Cause(jobCtx); cause != context.Canceled {
-			final.State = StateFailed
+			mustTransition(&final, StateFailed)
 			final.Error = cause.Error()
 		} else {
-			final.State = StateCanceled
+			mustTransition(&final, StateCanceled)
 			final.Message = "canceled"
 		}
 	case err != nil:
-		final.State = StateFailed
+		mustTransition(&final, StateFailed)
 		final.Error = err.Error()
 	default:
-		final.State = StateSucceeded
+		mustTransition(&final, StateSucceeded)
 		final.Progress = 100
 		final.ResultRef = result.Ref
 
@@ -677,7 +691,7 @@ func (m *Manager) Cancel(id string) error {
 	}
 	final := entry.job
 	now := m.clock.Now()
-	final.State = StateCanceled
+	mustTransition(&final, StateCanceled)
 	final.FinishedAt = &now
 	final.Message = "canceled"
 	if err := m.st.update(m.baseCtx, final); err != nil {

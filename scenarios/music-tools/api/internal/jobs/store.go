@@ -41,6 +41,9 @@ INSERT INTO jobs (id, operation, lane, state, progress, message, error, result_r
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 func (s *store) insert(ctx context.Context, j Job) error {
+	if !j.State.Valid() {
+		return fmt.Errorf("jobs: insert: unknown state %q", j.State)
+	}
 	_, err := s.db.ExecContext(ctx, insertJobSQL,
 		j.ID, j.Operation, string(j.Lane), string(j.State), j.Progress, j.Message, j.Error, j.ResultRef, encodeMeta(j.Meta),
 		j.Payload, j.EstimatedSeconds, j.CreatedAt.Format(jobTimeFormat), formatTimePtr(j.StartedAt), formatTimePtr(j.FinishedAt),
@@ -56,6 +59,9 @@ UPDATE jobs SET state=?, progress=?, message=?, error=?, result_ref=?, meta=?, s
 WHERE id=? AND state IN ('queued','running')`
 
 func (s *store) update(ctx context.Context, j Job) error {
+	if !j.State.Valid() {
+		return fmt.Errorf("jobs: update: unknown state %q", j.State)
+	}
 	result, err := s.db.ExecContext(ctx, updateJobSQL,
 		string(j.State), j.Progress, j.Message, j.Error, j.ResultRef, encodeMeta(j.Meta),
 		formatTimePtr(j.StartedAt), formatTimePtr(j.FinishedAt), j.ID,
@@ -211,6 +217,9 @@ func scanJob(sc scanner) (Job, error) {
 	}
 	j.Lane = Lane(lane)
 	j.State = State(state)
+	if !j.State.Valid() {
+		return Job{}, fmt.Errorf("jobs: scan: unknown state %q for job %q", j.State, j.ID)
+	}
 	j.Meta = decodeMeta(meta)
 	j.Payload = payload
 	t, err := time.Parse(jobTimeFormat, createdAt)

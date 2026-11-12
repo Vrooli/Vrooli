@@ -327,6 +327,45 @@ func TestSA3RealJobAdmissionBypassesACEClaimsAndRetainsDurableProvenance(t *test
 	}
 }
 
+func TestACEResourceAdmissionUsesResourceLeaseWithoutDoubleClaiming(t *testing.T) {
+	broker := &forbiddenACEBroker{}
+	s, _ := testStateWithBrokerDB(t, broker)
+	resource := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			w.Write([]byte(`{"status":"ok","model_loaded":true,"variant":"acestep-v15-turbo","loaded_variant":"acestep-v15-turbo"}`))
+			return
+		}
+		fakeGenerationProfile(t, w, r)
+		w.Header().Set("X-ACE-Step-Profile-Rung", "full")
+		w.Header().Set("X-ACE-Step-Model-ID", "ACE-Step/Ace-Step1.5:acestep-v15-turbo")
+		w.Header().Set("X-ACE-Step-License-Lane", "permissive")
+		w.Write(wavFixture())
+	}))
+	defer resource.Close()
+	s.ResourceURL, s.HTTP = resource.URL, resource.Client()
+	rec := httptest.NewRecorder()
+	s.compose(rec, httptest.NewRequest(http.MethodPost, "/api/v1/compose", strings.NewReader(`{"style_id":"launch-trap","takes":1,"duration":1,"seed":0}`)))
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("submit %d %s", rec.Code, rec.Body.String())
+	}
+	var accepted struct {
+		ID string `json:"job_id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &accepted); err != nil {
+		t.Fatal(err)
+	}
+	job, err := s.JobManager.Wait(t.Context(), accepted.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.State != jobs.StateSucceeded || broker.calls.Load() != 0 {
+		t.Fatalf("ACE job did not use the managed resource lease: %+v broker_calls=%d", job, broker.calls.Load())
+	}
+	if job.Meta["composition_provider"] != providerACE || job.Meta["capacity_ownership"] != "resource:ace-step" || job.Meta["capacity_claim_id"] != "" {
+		t.Fatalf("wrong ACE capacity ownership metadata: %+v", job.Meta)
+	}
+}
+
 func TestSA3ReadinessAndPermissiveRefusalsDoNotFallBack(t *testing.T) {
 	for _, permissive := range []bool{false, true} {
 		t.Run(fmt.Sprint(permissive), func(t *testing.T) {

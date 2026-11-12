@@ -10,8 +10,9 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
+
+	sharedcapacity "github.com/vrooli/vrooli/packages/capacity"
 )
 
 type ClaimRef struct {
@@ -42,7 +43,7 @@ func (b CLICapacityBroker) Claim(ctx context.Context, ownerID string, preferred,
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	profile := fmt.Sprintf(`{"steps":[{"label":"full","amount_bytes":%d},{"label":"offload-dit","amount_bytes":%d}],"apply":{"verb":"capacity","argv":["degrade","--to","{label}"]},"upshift":false}`, preferred, floor)
-	out, err := b.output(ctx, "claim", "--owner-kind", "op", "--owner-id", "music-tools:"+ownerID, "--resource-kind", "vram", "--preferred", fmt.Sprint(preferred), "--floor", fmt.Sprint(floor), "--priority", "batch", "--ttl", "10m", "--profile", profile, "--json")
+	out, err := b.output(ctx, "claim", "--owner-kind", "op", "--owner-id", "music-tools:"+ownerID, "--resource-kind", "vram", "--preferred", fmt.Sprint(preferred), "--floor", fmt.Sprint(floor), "--priority", "batch", "--no-reclaim", "--ttl", "10m", "--profile", profile, "--json")
 	if err != nil {
 		return Verdict{}, err
 	}
@@ -187,33 +188,31 @@ func releaseClaim(broker Broker, ref ClaimRef) {
 	}
 }
 
+// brokerLease adapts the captured claim to the shared lease lifecycle. It
+// never resolves a new claim or substitutes another generation on retry.
+type brokerLease struct {
+	broker Broker
+	ref    ClaimRef
+}
+
+func (l brokerLease) Heartbeat(ctx context.Context) error { return l.broker.Heartbeat(ctx, l.ref) }
+func (l brokerLease) Release(ctx context.Context) error   { return l.broker.Release(ctx, l.ref) }
+
 func maintain(ctx context.Context, cancel context.CancelCauseFunc, broker Broker, ref ClaimRef, interval time.Duration) func() {
 	if !ref.valid() {
 		return func() {}
 	}
-	leaseCtx, stop := context.WithCancel(ctx)
-	done := make(chan struct{})
-	var once sync.Once
-	go func() {
-		defer close(done)
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-leaseCtx.Done():
-				return
-			case <-ticker.C:
-				request, end := context.WithTimeout(leaseCtx, 5*time.Second)
-				err := broker.Heartbeat(request, ref)
-				end()
-				if err != nil {
-					if leaseCtx.Err() == nil {
-						cancel(fmt.Errorf("capacity lease renewal failed: %w", err))
-					}
-					return
-				}
-			}
+	scope := sharedcapacity.MaintainWithInterval(ctx, brokerLease{broker: broker, ref: ref}, interval)
+	stop := context.AfterFunc(scope.Context(), func() {
+		if ctx.Err() == nil {
+			cancel(fmt.Errorf("capacity lease renewal failed: %w", context.Cause(scope.Context())))
 		}
-	}()
-	return func() { once.Do(func() { stop(); <-done; releaseClaim(broker, ref) }) }
+	})
+	return func() {
+		if err := scope.Release(context.Background()); err != nil {
+			log.Printf("music capacity release %s generation %d failed: %v", ref.ClaimID, ref.Generation, err)
+			cancel(fmt.Errorf("capacity lease cleanup failed: %w", err))
+		}
+		stop()
+	}
 }

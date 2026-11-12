@@ -99,6 +99,9 @@
         {
           "name": "get",
           "description": "Get a job",
+          "positionals": [
+            {"name": "id", "required": true, "description": "Job id"}
+          ],
           "binding": {
             "kind": "local"
           },
@@ -121,6 +124,9 @@
         {
           "name": "wait",
           "description": "Wait for a job",
+          "positionals": [
+            {"name": "id", "required": true, "description": "Job id"}
+          ],
           "binding": {
             "kind": "local"
           },
@@ -133,6 +139,9 @@
         {
           "name": "cancel",
           "description": "Cancel a queued or running job",
+          "positionals": [
+            {"name": "id", "required": true, "description": "Job id"}
+          ],
           "binding": {
             "kind": "local"
           },

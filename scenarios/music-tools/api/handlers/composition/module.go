@@ -87,6 +87,9 @@ func NewStateWithCapacityAndStorage(db jobs.SQLExecutor, broker capacity.Broker,
 		if input.ModelSnapshot != nil {
 			return state.songAdmission(ctx, input)
 		}
+		if provider == providerACE && input.ResolvedStyle != nil && broker != nil {
+			return state.aceAdmission(ctx, input)
+		}
 		release, meta, err := capacity.Admit(ctx, cancel, broker, job.ID, 7516192768, 6442450944)
 		if err != nil || meta["capacity_degrade"] == "" {
 			return release, meta, err
