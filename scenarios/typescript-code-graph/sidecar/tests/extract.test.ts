@@ -10,11 +10,72 @@ import { extract } from "../src/extract.js";
 function inMemoryProject(): Project {
   return new Project({
     useInMemoryFileSystem: true,
-    compilerOptions: { jsx: 2 /* React */, target: 99, allowJs: false },
+    compilerOptions: { jsx: 2 /* React */, target: 99, allowJs: true, checkJs: false },
   });
 }
 
 describe("extract", () => {
+  it("emits normalized function-body identity for shared detector consumers", () => {
+    const project = inMemoryProject();
+    project.createSourceFile(
+      "/proj/src/duplicates.ts",
+      `
+export function first() { const value = 1; return value; }
+export function second() {
+  // comments and formatting do not change the body identity
+  const value=1;
+  return value;
+}
+export const arrow = () => { return 3; };
+export const named = function () { return 3; };
+export function different() { return 4; }
+      `,
+    );
+
+    const nodes = extract({ projectPath: "/proj", _project: project, _rootDirOverride: "/proj" }).graph.nodes;
+    const declaration = (name: string) => nodes.find((node) => node.name === name && node.attributes.body_hash);
+    const first = declaration("first");
+    const second = declaration("second");
+    const arrow = declaration("arrow");
+    const named = declaration("named");
+    const different = declaration("different");
+
+    expect(first?.attributes.body_hash).toBeTruthy();
+    expect(first?.attributes.body_hash).toBe(second?.attributes.body_hash);
+    expect(arrow?.attributes.body_hash).toBe(named?.attributes.body_hash);
+    expect(first?.attributes.body_hash).not.toBe(different?.attributes.body_hash);
+    expect(first?.attributes.body_lines).toMatch(/^\d+$/);
+  });
+
+  it("keeps imported workspace declarations outside the graph unit boundary", () => {
+    const project = inMemoryProject();
+    project.createSourceFile("/proj/src/owned.ts", "export function owned() { return 1; }");
+    project.createSourceFile("/workspace/dist/index.d.ts", "export declare function generated(): void;");
+    project.createSourceFile("/workspace/src/implementation.ts", "export function external() { return 1; }");
+
+    const nodes = extract({ projectPath: "/proj", _project: project, _rootDirOverride: "/proj" }).graph.nodes;
+    expect(nodes.some((node) => node.path === "src/owned.ts")).toBe(true);
+    expect(nodes.some((node) => node.path?.includes("workspace"))).toBe(false);
+    expect(nodes.some((node) => node.name === "generated" || node.name === "external")).toBe(false);
+  });
+
+  it("extracts duplicate function bodies from a JavaScript-only project", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "ts-graph-js-"));
+    try {
+      fs.mkdirSync(path.join(root, "src"));
+      fs.writeFileSync(path.join(root, "src", "first.js"), "export function first() { const n = 1; return n; }\n");
+      fs.writeFileSync(path.join(root, "src", "second.js"), "export function second() { const n = 1; return n; }\n");
+
+      const graph = extract({ projectPath: root }).graph;
+      const functions = graph.nodes.filter((node) => node.attributes.body_hash);
+      expect(functions).toHaveLength(2);
+      expect(functions.map((node) => node.attributes.language)).toEqual(["javascript", "javascript"]);
+      expect(functions[0]?.attributes.body_hash).toBe(functions[1]?.attributes.body_hash);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("emits file + module nodes and classifies hook, component, class, interface, type", () => {
     const project = inMemoryProject();
     project.createSourceFile(

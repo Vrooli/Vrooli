@@ -118,7 +118,7 @@ Use Connect-RPC by default:
 - API to API / inter-scenario calls with Vrooli-owned protos.
 
 REST is allowed only for four enumerated reasons, defined as
-`RESTReason` constants in `api/internal/module/module.go`:
+`RESTReason` constants in `packages/api-core/module/module.go`:
 
 | Reason | When it applies |
 |---|---|
@@ -150,12 +150,12 @@ business-vocabulary-free and used by unrelated domains or surfaces.
 
 | Package/Folder | Purpose | Why Not Domain-Owned | Consumers |
 |---|---|---|---|
-| `api/internal/server/` | Compose modules and middleware into one HTTP server. | Server lifecycle is not a product capability. | API entrypoint and handler modules. |
-| `api/internal/module/` | Shared module and endpoint descriptor types. | Domain modules return this common shape. | Handler packages, server, endpoint codegen. |
-| `api/internal/modules/` | Thin registry for schemas and endpoints. | Boot/codegen need central lists; logic stays domain-owned. | `main.go`, `gen-endpoints`. |
-| `api/internal/database/` | System schema and DB reachability seam. | Cross-cutting DB infrastructure, not one domain's data. | API boot, health. |
-| `api/internal/clock/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Middleware, repositories. |
-| `api/internal/testutil/` | Cross-domain test harnesses and fakes. | Used by unrelated domains; domain fakes stay domain-local. | API tests. |
+| `packages/api-core/apihttp/` | Mount modules with shared request logging and recovery. | HTTP request composition is a platform seam, not a product capability. | API composition roots. |
+| `packages/api-core/module/` | Shared module and endpoint descriptor types. | Domain modules return this common shape. | Handler packages, API composition, endpoint codegen. |
+| `api/internal/modules/` | Scenario-owned registry of schemas and endpoints. | Boot/codegen need central lists; logic stays domain-owned. | `main.go`, `gen-endpoints`. |
+| `packages/api-core/database/` | Shared database schema and reachability interfaces. | Cross-cutting DB infrastructure, not one domain's data. | API boot, health. |
+| `packages/api-core/schedule/` | Deterministic time seam. | Time is cross-cutting and test-substitutable. | Request logging, repositories. |
+| `packages/api-core/*test/` | Shared database, scheduler, handler, and module test contracts. | Test behavior is reusable across scenarios. | API tests. |
 | `ui/src/test-utils/` | Cross-feature render helpers, a11y helpers, and model tests. | Used by unrelated UI features. | UI tests. |
 
 If shared infrastructure starts using product vocabulary, move that
@@ -250,7 +250,7 @@ Every top-level directory under the scenario root has exactly one owner and one 
 | `api/` | API service | Go HTTP/Connect-RPC server; business logic; per-path serialization; sidecar supervision. | Module root. Subdirectory rules below. |
 | `api/cmd/gen-endpoints/` | Codegen | Generates `.vrooli/endpoints.json` from the modules registry. | Pure tool; not imported by production code. |
 | `api/handlers/{graph,health,rewrite}/` | Transport edge | Connect handler factories, proto<->domain translation, error-code mapping. | Imports `internal/<domain>` for the service interface; never the repository or persistence directly. |
-| `api/internal/graph/` | Graph domain | Extract orchestration, NodeID/EdgeID derivation, hashing, normalization, error mapping, leading-comment passthrough. | Forbidden imports: `os/exec` (sidecar only), `time` for wall-clock (use `clock.Clock`), `net/http` (use `httpc.Doer`), sibling product domains. |
+| `api/internal/graph/` | Graph domain | Extract orchestration, NodeID/EdgeID derivation, hashing, normalization, error mapping, leading-comment passthrough. | Forbidden imports: `os/exec` (sidecar only), `time` for wall-clock (use `schedule.Clock`), `net/http` (use `httpc.Doer`), sibling product domains. |
 | `api/internal/rewrite/` | Rewrite domain | RewritePlan/Apply orchestration, PlanID stability, in-memory PlanStore, dry-run short-circuit. | Same import-quarantine as `graph/`. `no_external_command_test.go` asserts no `exec.Command` to git/tsc/pnpm/node from this package. |
 | `api/internal/sidecar/` | Sidecar substrate | **Only** package allowed to `import "os/exec"`. Owns spawn, framing, handshake, heartbeat, restart-with-backoff, cancellation, and the `SidecarClient`/`Supervisor` types. | Importable by `main.go` (wiring) and test packages. Not importable by `graph`/`rewrite` (they take `SidecarClient` via constructor). |
 | `api/internal/{clock,httpc,httpx,middleware,module,modules,server,database,testutil}/` | Template substrate | Cross-cutting infrastructure inherited from the react-vite template. | See react-vite template docs. |

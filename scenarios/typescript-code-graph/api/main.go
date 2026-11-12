@@ -13,7 +13,6 @@ import (
 	intgraph "typescript-code-graph/internal/graph"
 	"typescript-code-graph/internal/modules"
 	intrewrite "typescript-code-graph/internal/rewrite"
-	"typescript-code-graph/internal/server"
 	"typescript-code-graph/internal/sidecar"
 
 	"github.com/vrooli/api-core/schedule"
@@ -119,8 +118,8 @@ func main() {
 	rewriteStore := intrewrite.NewMemoryPlanStore()
 	rewriteSvc := intrewrite.NewService(rewriteStore, supervisor, pathMu)
 
-	srv := server.New(
-		server.Deps{Clock: schedule.System(), Logger: log.Default()},
+	handler := apihttp.NewScenarioModuleHandler(
+		schedule.System(), log.Default(),
 		healthH.Module(db, "typescript-code-graph-api", "1.0.0",
 			healthH.FuncProvider(func() string { return string(supervisor.Status()) })),
 		graphH.Module(graphSvc, rewriteSvc, log.Default()),
@@ -132,12 +131,12 @@ func main() {
 	// runtime test DB pool without restarting this scenario.
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
-	rootMux.Handle("/", srv.Handler())
+	rootMux.Handle("/", handler)
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
 	// installed test pool. Self-disables in production mode.
-	handler := apihttp.TestModeMiddleware(rootMux)
+	handler = apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,

@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/vrooli/api-core/databasetest"
 	"typescript-code-graph/handlers/health"
-	"typescript-code-graph/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +20,7 @@ import (
 // the first thing they see.
 func TestHandler_AugmentsResponseWithSidecarStatus(t *testing.T) {
 	h := health.NewHandler(health.Deps{
-		Pinger:  &mocks.FakePinger{},
+		Pinger:  &databasetest.FakePinger{},
 		Service: "tcg-test",
 		Version: "1.0.0",
 		Sidecar: health.FuncProvider(func() string { return "STATUS_READY" }),
@@ -47,7 +47,7 @@ func TestHandler_AugmentsResponseWithSidecarStatus(t *testing.T) {
 // the template-inherited handler_test.go passing without changes.
 func TestHandler_OmitsSidecarFieldWhenNotWired(t *testing.T) {
 	h := health.NewHandler(health.Deps{
-		Pinger:  &mocks.FakePinger{},
+		Pinger:  &databasetest.FakePinger{},
 		Service: "tcg-test",
 		Version: "1.0.0",
 	})

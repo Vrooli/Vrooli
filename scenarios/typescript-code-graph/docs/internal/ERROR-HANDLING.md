@@ -40,7 +40,7 @@ When you add a domain, keep the mapping file next to that domain's service layer
 
 TypeScript Code Graph has **no multipart REST endpoints**. All operations are pure proto-RPC. There is no opaque-bytes upload path in v1.
 
-If a future capability needs file upload, use the standard multipart pattern documented in the react-vite template's `notes` example: REST multipart for bytes, proto metadata response, `internal/httpx.WriteError` for errors.
+If a future capability needs file upload, use the standard multipart pattern documented in the react-vite template's `notes` example: REST multipart for bytes, proto metadata response, `connect.NewError` for errors.
 
 Use this split:
 

@@ -2,7 +2,7 @@
 //
 // Built on api-core/health for the standardized response schema
 // (status / dependencies / metrics) but plumbed through the local
-// database.Pinger seam so handler tests can substitute a fake without
+// api-core/database.Pinger seam so handler tests can substitute a fake without
 // opening the on-disk SQLite file.
 //
 // In typescript-code-graph the response is also augmented with the
@@ -19,7 +19,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"typescript-code-graph/internal/database"
+	apidb "github.com/vrooli/api-core/database"
 
 	apihealth "github.com/vrooli/api-core/health"
 )
@@ -47,7 +47,7 @@ func FuncProvider(f func() string) SidecarStatusProvider { return statusOnly(f) 
 // are reported in the response envelope; Pinger backs the "database"
 // dependency check; Sidecar (optional) backs the sidecar_status field.
 type Deps struct {
-	Pinger  database.Pinger
+	Pinger  apidb.Pinger
 	Service string
 	Version string
 	// Sidecar is optional — when nil, the response omits sidecar_status

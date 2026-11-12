@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http/httptest"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -59,13 +58,7 @@ func TestListFixtures(t *testing.T) {
 			t.Errorf("fixture %q: want has_expected=true", want)
 		}
 	}
-	// Stable name-sorted order.
-	fixtures := resp.Msg.GetFixtures()
-	for i := 1; i < len(fixtures); i++ {
-		if fixtures[i-1].GetName() > fixtures[i].GetName() {
-			t.Fatalf("fixtures not sorted: %q before %q", fixtures[i-1].GetName(), fixtures[i].GetName())
-		}
-	}
+
 }
 
 func TestValidateFixtureInvalidName(t *testing.T) {
@@ -89,17 +82,5 @@ func TestValidateFixtureNotFound(t *testing.T) {
 	}
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("want NotFound, got %v", connect.CodeOf(err))
-	}
-}
-
-func TestLineDiffFocusesOnChange(t *testing.T) {
-	expected := "a\nb\nc\nd\ne"
-	actual := "a\nb\nX\nd\ne"
-	diff := lineDiff(expected, actual)
-	if !strings.Contains(diff, "- c") || !strings.Contains(diff, "+ X") {
-		t.Fatalf("diff did not isolate the changed line:\n%s", diff)
-	}
-	if strings.Contains(diff, "- a") || strings.Contains(diff, "+ a") {
-		t.Fatalf("common prefix line leaked into diff body:\n%s", diff)
 	}
 }

@@ -1,7 +1,7 @@
 package graph
 
 import (
-	"typescript-code-graph/internal/module"
+	"github.com/vrooli/api-core/module"
 
 	"github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph/graph_v1connect"
 )

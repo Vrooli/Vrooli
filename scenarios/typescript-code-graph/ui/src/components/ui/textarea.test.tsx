@@ -8,21 +8,22 @@
  */
 import { useRef } from "react";
 import { describe, expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderWithProviders } from "../../test-utils";
 
 import { Textarea } from "./textarea";
 
 describe("Textarea", () => {
   it("emits the base className chunk so the cn() merge contract holds", () => {
-    render(<Textarea data-testid="t" />);
+    renderWithProviders(<Textarea data-testid="t" />);
     const el = screen.getByTestId("t");
     expect(el.className).toMatch(/rounded-md/);
     expect(el.className).toMatch(/border/);
   });
 
   it("merges a custom className with the base classes via cn()", () => {
-    render(<Textarea data-testid="t" className="custom-extra" />);
+    renderWithProviders(<Textarea data-testid="t" className="custom-extra" />);
     const el = screen.getByTestId("t");
     expect(el.className).toMatch(/custom-extra/);
     expect(el.className).toMatch(/rounded-md/);
@@ -48,14 +49,14 @@ describe("Textarea", () => {
         </>
       );
     };
-    render(<Capture />);
+    renderWithProviders(<Capture />);
     screen.getByTestId("probe").click();
     expect(screen.getByTestId("t")).toHaveAttribute("data-ref-ok", "true");
   });
 
   it("registers user typing through the native textarea value", async () => {
     const user = userEvent.setup();
-    render(<Textarea data-testid="t" />);
+    renderWithProviders(<Textarea data-testid="t" />);
     const el = screen.getByTestId<HTMLTextAreaElement>("t");
 
     await user.type(el, "hello\nworld");

@@ -7,7 +7,7 @@ import (
 	"github.com/vrooli/api-core/connectx"
 
 	intgraph "typescript-code-graph/internal/graph"
-	"typescript-code-graph/internal/module"
+	"github.com/vrooli/api-core/module"
 	intrewrite "typescript-code-graph/internal/rewrite"
 
 	"github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph/graph_v1connect"

@@ -2,24 +2,28 @@ package sidecar
 
 import (
 	"context"
+	_ "embed"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
-// fakeSidecarPath returns the absolute path to testdata/fake_sidecar.js.
-// runtime.Caller(0) anchors us to this test file so we don't depend on
-// the test working directory.
+//go:embed testdata/fake_sidecar.js
+var fakeSidecarScript []byte
+
+// fakeSidecarPath materializes the embedded fixture outside the source tree.
+// This is stable when Test Genie uses -trimpath and the binary cannot recover
+// the original filesystem path from runtime.Caller.
 func fakeSidecarPath(t *testing.T) string {
 	t.Helper()
-	_, file, _, ok := runtime.Caller(0)
-	require.True(t, ok)
-	return filepath.Join(filepath.Dir(file), "testdata", "fake_sidecar.js")
+	path := filepath.Join(t.TempDir(), "fake_sidecar.js")
+	require.NoError(t, os.WriteFile(path, fakeSidecarScript, 0o600))
+	return path
 }
 
 // requireNode skips the test when the `node` binary is not on PATH.

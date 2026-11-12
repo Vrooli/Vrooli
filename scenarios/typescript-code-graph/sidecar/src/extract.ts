@@ -19,6 +19,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { createHash } from "node:crypto";
 import {
   Node,
   Project,
@@ -158,9 +159,20 @@ export function extract(input: ExtractInput): ExtractOutput {
   const project = resolved.project;
   const rootDir = input._rootDirOverride ?? resolved.rootDir;
 
-  const sourceFiles = [...project.getSourceFiles()].sort((a, b) =>
-    a.getFilePath().localeCompare(b.getFilePath()),
-  );
+  // ts-morph includes files reached through imports, including generated
+  // declaration bundles from linked workspace packages and dependencies.
+  // Those are useful to the compiler for type resolution, but they are not
+  // source owned by this parse unit. Emitting them first can crowd the graph
+  // with tens of thousands of package nodes and omit the project's own
+  // declarations. Keep graph identity bounded to non-declaration files under
+  // the selected project root.
+  const sourceFiles = [...project.getSourceFiles()]
+    .filter((sf) => {
+      if (sf.isDeclarationFile()) return false;
+      const relPath = path.relative(path.resolve(rootDir), path.resolve(sf.getFilePath()));
+      return relPath !== ".." && !relPath.startsWith(`..${path.sep}`) && !path.isAbsolute(relPath);
+    })
+    .sort((a, b) => a.getFilePath().localeCompare(b.getFilePath()));
 
   const nodes: CodeGraphNode[] = [];
   const edges: CodeGraphEdge[] = [];
@@ -168,6 +180,7 @@ export function extract(input: ExtractInput): ExtractOutput {
 
   for (const sf of sourceFiles) {
     const relPath = relativize(rootDir, sf.getFilePath());
+    const sourceLanguage = languageForPath(relPath);
     const isTest = isTestPath(relPath);
     const lineCount = sf.getFullText().split(/\r\n|\r|\n/).length;
 
@@ -178,7 +191,7 @@ export function extract(input: ExtractInput): ExtractOutput {
       kind: NK_FILE,
       name: path.basename(relPath),
       path: relPath,
-      attributes: { language: "typescript", is_test: String(isTest), lines: String(lineCount) },
+      attributes: { language: sourceLanguage, is_test: String(isTest), lines: String(lineCount) },
       is_test: isTest,
       lines: lineCount,
       leading_comments: [],
@@ -192,7 +205,7 @@ export function extract(input: ExtractInput): ExtractOutput {
       name: path.basename(relPath),
       path: relPath,
       attributes: {
-        language: "typescript",
+        language: sourceLanguage,
         kind: KIND_ATTR[TS_NODE_KIND_MODULE]!,
       },
       leading_comments: [],
@@ -211,11 +224,14 @@ export function extract(input: ExtractInput): ExtractOutput {
         kind: tsKind,
         name: d.name,
         path: relPath,
+        is_test: isTest,
         attributes: {
-          language: "typescript",
+          language: sourceLanguage,
           kind: KIND_ATTR[tsKind] ?? KIND_ATTR[TS_NODE_KIND_FUNCTION]!,
+          is_test: String(isTest),
           exported: d.exported ? "true" : "false",
           ...sourceRangeAttrs(d.node),
+          ...bodySyntaxAttrs(d.node),
         },
         leading_comments: d.leadingComments,
       });
@@ -321,7 +337,7 @@ export function extract(input: ExtractInput): ExtractOutput {
 }
 
 function isTestPath(relPath: string): boolean {
-  return /\.(test|spec)\.(tsx?|jsx?)$/.test(relPath);
+	return /\.(test|spec)\.(tsx?|jsx?|mjs|cjs)$/.test(relPath);
 }
 
 function shouldSuppressDiagnostic(code: number, message: string): boolean {
@@ -377,7 +393,16 @@ function buildProject(projectPath: string): ResolvedProject {
     throw new PathUnreadableError(`cannot read project_path: ${(err as Error).message}`);
   }
   if (matches.length === 0) {
-    throw new NoTsConfigError(`no tsconfig.json found at ${projectPath}`);
+    const javascriptFiles = javascriptSourceFiles(projectRoot);
+    if (javascriptFiles.length === 0) {
+      throw new NoTsConfigError(`no tsconfig.json or JavaScript source files found at ${projectPath}`);
+    }
+    const project = new Project({
+      compilerOptions: { allowJs: true, checkJs: false, noEmit: true },
+      skipAddingFilesFromTsConfig: true,
+    });
+    for (const file of javascriptFiles) project.addSourceFileAtPath(file);
+    return { project, rootDir: projectRoot };
   }
   if (matches.length > 1) {
     throw new MultipleTsConfigError(
@@ -400,6 +425,9 @@ function buildProject(projectPath: string): ResolvedProject {
   try {
     const project = new Project({
       tsConfigFilePath: tsconfigPath,
+      // Include owned JavaScript alongside TypeScript when the project config
+      // excludes JS by default. The graph reports source language per file.
+      compilerOptions: { allowJs: true, checkJs: false },
       skipAddingFilesFromTsConfig: false,
     });
     return { project, rootDir: tsconfigDir };
@@ -408,6 +436,36 @@ function buildProject(projectPath: string): ResolvedProject {
       `ts-morph project construction failed: ${(err as Error).message}`,
     );
   }
+}
+
+function javascriptSourceFiles(rootDir: string): string[] {
+  const found: string[] = [];
+  const visit = (dir: string) => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      if (entry.isDirectory()) {
+        if ([".git", "node_modules", "dist", "build", "coverage", ".cache"].includes(entry.name)) continue;
+        visit(path.join(dir, entry.name));
+        continue;
+      }
+      if (entry.isFile() && isJavaScriptPath(entry.name)) found.push(path.join(dir, entry.name));
+    }
+  };
+  visit(rootDir);
+  return found;
+}
+
+function isJavaScriptPath(filePath: string): boolean {
+  return [".js", ".jsx", ".mjs", ".cjs"].includes(path.extname(filePath).toLowerCase());
+}
+
+function languageForPath(filePath: string): string {
+  return isJavaScriptPath(filePath) ? "javascript" : "typescript";
 }
 
 function isSingleProjectWorkspaceBoundary(workspacePath: string, tsconfigDir: string): boolean {
@@ -962,6 +1020,29 @@ function sourceRangeAttrs(node: Node): Record<string, string> {
     start_column: String(start.column),
     end_line: String(end.line),
     end_column: String(end.column),
+  };
+}
+
+function bodySyntaxAttrs(declaration: Node): Record<string, string> {
+  let body: Node | undefined;
+  if (Node.isFunctionDeclaration(declaration) || Node.isMethodDeclaration(declaration)) {
+    body = declaration.getBody();
+  } else if (Node.isVariableDeclaration(declaration)) {
+    const initializer = declaration.getInitializer();
+    if (initializer && (Node.isArrowFunction(initializer) || Node.isFunctionExpression(initializer))) {
+      body = initializer.getBody();
+    }
+  }
+  if (!body) return {};
+
+  const normalized = ts
+    .createPrinter({ removeComments: true })
+    .printNode(ts.EmitHint.Unspecified, body.compilerNode, declaration.getSourceFile().compilerNode);
+  const start = body.getSourceFile().getLineAndColumnAtPos(body.getStart());
+  const end = body.getSourceFile().getLineAndColumnAtPos(body.getEnd());
+  return {
+    body_hash: createHash("sha256").update(normalized).digest("hex"),
+    body_lines: String(end.line - start.line + 1),
   };
 }
 

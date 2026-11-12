@@ -210,9 +210,12 @@
     },
     {
       "attributes": {
+        "body_hash": "767578f2c80bf31d59e9f77243e85823d82c2c65e20fbffb000731ec924c39a2",
+        "body_lines": "3",
         "end_column": "2",
         "end_line": "17",
         "exported": "true",
+        "is_test": "false",
         "kind": "TS_NODE_KIND_COMPONENT",
         "language": "typescript",
         "start_column": "1",
@@ -228,9 +231,12 @@
     },
     {
       "attributes": {
+        "body_hash": "388c90bf1117c0778997fb2aa7ac39694a3191f56f5ea1a25d8b97101df66a82",
+        "body_lines": "7",
         "end_column": "2",
         "end_line": "12",
         "exported": "true",
+        "is_test": "false",
         "kind": "TS_NODE_KIND_COMPONENT",
         "language": "typescript",
         "start_column": "1",
@@ -249,6 +255,7 @@
         "end_column": "2",
         "end_line": "11",
         "exported": "true",
+        "is_test": "false",
         "kind": "TS_NODE_KIND_CONST",
         "language": "typescript",
         "start_column": "14",
@@ -419,9 +426,12 @@
     },
     {
       "attributes": {
+        "body_hash": "6df18d2459ae23a992fc8de63c9b69629e520a8ae0980cdbaa54d904666c9691",
+        "body_lines": "7",
         "end_column": "2",
         "end_line": "15",
         "exported": "true",
+        "is_test": "false",
         "kind": "TS_NODE_KIND_FUNCTION",
         "language": "typescript",
         "start_column": "1",
@@ -435,9 +445,12 @@
     },
     {
       "attributes": {
+        "body_hash": "b16515b8e390dbf0752a0cc7f67848a95ac89552ae40e85a5b1e79965dcf97fd",
+        "body_lines": "3",
         "end_column": "2",
         "end_line": "3",
         "exported": "true",
+        "is_test": "false",
         "kind": "TS_NODE_KIND_FUNCTION",
         "language": "typescript",
         "start_column": "1",
@@ -451,9 +464,12 @@
     },
     {
       "attributes": {
+        "body_hash": "8d493a1f1d03706136fd24f561d1759823d2d51e5cfea640b44b8b57c341e09c",
+        "body_lines": "3",
         "end_column": "2",
         "end_line": "7",
         "exported": "true",
+        "is_test": "false",
         "kind": "TS_NODE_KIND_HOOK",
         "language": "typescript",
         "start_column": "1",
@@ -570,6 +586,7 @@
         "end_column": "2",
         "end_line": "3",
         "exported": "true",
+        "is_test": "false",
         "kind": "TS_NODE_KIND_INTERFACE",
         "language": "typescript",
         "start_column": "1",
@@ -586,6 +603,7 @@
         "end_column": "2",
         "end_line": "7",
         "exported": "true",
+        "is_test": "false",
         "kind": "TS_NODE_KIND_INTERFACE",
         "language": "typescript",
         "start_column": "1",
@@ -1279,6 +1297,7 @@
         "end_column": "32",
         "end_line": "13",
         "exported": "true",
+        "is_test": "false",
         "kind": "TS_NODE_KIND_TYPE",
         "language": "typescript",
         "start_column": "1",
