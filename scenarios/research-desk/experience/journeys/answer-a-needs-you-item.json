@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "answer-a-needs-you-item",
+    "title": "Answer what a supervisor is waiting on",
+    "purpose": "From the Now titles to the item itself, opened in place, answered with the recommended option already shown, the exact entry from the API's dry run confirmed before anything is written, and the answer read back once the supervisor has seen it.",
+    "prd_refs": [
+      "OT-P0-006",
+      "OT-P0-005"
+    ]
+  },
+  "steps": [
+    {
+      "page": "now",
+      "state": "default",
+      "intent": "See the count and the first titles of what needs the operator.",
+      "via": "needs-you titles"
+    },
+    {
+      "page": "needs-you",
+      "state": "default",
+      "intent": "Land on that item, scrolled to and opened; read where it came from, its delivery state and the recommended answer.",
+      "via": "item title"
+    },
+    {
+      "page": "needs-you",
+      "state": "submitting",
+      "intent": "Confirm the exact entry and where it is appended before it is written.",
+      "via": "an option or own words"
+    },
+    {
+      "page": "needs-you",
+      "state": "default",
+      "intent": "See the answer and whether the supervisor has seen it; a global item without a commission instead says where it is answered.",
+      "via": "after confirming"
+    }
+  ]
+}

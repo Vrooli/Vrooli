@@ -1,0 +1,776 @@
+{
+  "$schema": "../../../../scripts/scenarios/schemas/endpoints.schema.json",
+  "version": "1.0.0",
+  "endpoints": [
+    {
+      "id": "health",
+      "path": "/health",
+      "method": "GET",
+      "summary": "Service health check",
+      "description": "Returns API readiness plus dependency status (also mounted at /api/v1/health for client callers).",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "dependencies": "object",
+          "readiness": "boolean",
+          "status": "string"
+        }
+      },
+      "examples": [
+        {
+          "name": "Check health",
+          "curl": "curl http://localhost:${API_PORT}/health"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain GET /health for lifecycle systems, load balancers, and curl probes that cannot use a generated Connect client.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "proto_full_name": "vrooli.research_desk.v1.shared.Response",
+            "transport": "json",
+            "conformance": "protojson"
+          },
+          "error": {
+            "proto_full_name": "vrooli.research_desk.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    },
+    {
+      "id": "capabilities_describe",
+      "path": "/api/v1/capabilities/describe",
+      "method": "GET",
+      "summary": "Describe declared scenario dependencies and their current recovery actions.",
+      "description": "",
+      "category": "capabilities",
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Plain JSON from the shared capability registry, read by lifecycle and operator tooling: which optional services the desk can reach and how to start them.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "activity_overview",
+      "path": "/vrooli.research_desk.v1.activity.ActivityService/GetOverview",
+      "method": "POST",
+      "summary": "What is moving",
+      "description": "State counts (live, paused and limited apart), commissions with a supervisor window open, overlapping commissions and the lenses read, derived from the research home, Codex session records and the process table.",
+      "category": "activity",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The research home cannot be read; the message names the path"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Overview",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.activity.ActivityService/GetOverview -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "activity_commissions",
+      "path": "/vrooli.research_desk.v1.activity.ActivityService/ListCommissions",
+      "method": "POST",
+      "summary": "List commissions",
+      "description": "Every commission folder with its derived state, topics, times and claim, newest last write first; optionally filtered by state.",
+      "category": "activity",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The research home cannot be read; the message names the path"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Running commissions",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.activity.ActivityService/ListCommissions -H 'Content-Type: application/json' -d '{\"states\":[\"COMMISSION_STATE_LIVE\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "activity_commission",
+      "path": "/vrooli.research_desk.v1.activity.ActivityService/GetCommission",
+      "method": "POST",
+      "summary": "One commission",
+      "description": "One commission with every session match, its files, run folders and the read sets of its scheduler and owners measured against limits.json.",
+      "category": "activity",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The research home cannot be read; the message names the path"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No commission folder with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Programme three",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.activity.ActivityService/GetCommission -H 'Content-Type: application/json' -d '{\"id\":\"programme-three-20261111\"}'"
+        }
+      ]
+    },
+    {
+      "id": "activity_topics",
+      "path": "/vrooli.research_desk.v1.activity.ActivityService/ListTopics",
+      "method": "POST",
+      "summary": "List topics",
+      "description": "Every topic with its last activity, the commissions naming it and mission_check.py's workstream summary.",
+      "category": "activity",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The research home cannot be read; the message names the path"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Topics",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.activity.ActivityService/ListTopics -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "activity_changes",
+      "path": "/vrooli.research_desk.v1.activity.ActivityService/GetChanges",
+      "method": "POST",
+      "summary": "Changes since the last look or a time",
+      "description": "New ledger text, changed checkpoints, showcase lines, workstream status changes and files written since the operator's previous look (OperatorService.MarkSeen) at a commission or topic; with since, files and checkpoints written after that time. with neither, the last 24 hours. baseline and baseline_kind say which.",
+      "category": "activity",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The research home cannot be read; the message names the path"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No commission or topic with that id"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Commission changes",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.activity.ActivityService/GetChanges -H 'Content-Type: application/json' -d '{\"subject\":\"CHANGE_SUBJECT_COMMISSION\",\"id\":\"programme-three-20261111\"}'"
+        }
+      ]
+    },
+    {
+      "id": "launch_options",
+      "path": "/vrooli.research_desk.v1.launch.LaunchService/GetLaunchOptions",
+      "method": "POST",
+      "summary": "Launch defaults and choices",
+      "description": "Supervisor model, effort and owner tier defaults and allowed values, and the packet gates, from the skill's limits.json; whether Web Console is reachable for an automatic launch. For the topics named: suggested stance quotes with their source (the newest commission's PACKET.json, else the quoted lines of its STANCE-MESSAGE.txt) and each topic's workstreams with title and showcase line.",
+      "category": "launch",
+      "errors": [
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "packet.py, Web Console or a Codex file could not be reached or read; the message quotes the cause"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Options",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/GetLaunchOptions -H 'Content-Type: application/json' -d '{\"topics\":[\"niche-book-production\"]}'"
+        }
+      ]
+    },
+    {
+      "id": "launch_preflight",
+      "path": "/vrooli.research_desk.v1.launch.LaunchService/Preflight",
+      "method": "POST",
+      "summary": "Preflight a spec or a prepared packet",
+      "description": "Runs packet.py preview on a spec (or check on a commission), and says for every earlier commission on the same topics whether it blocks the launch, the choices that clear it (supersede or run alongside) with the desk's recommendation, and which checkpoint to read first. Resolutions and the never-started assertion are judged as a launch would judge them.",
+      "category": "launch",
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Neither a spec nor a commission was given, or the action is unknown"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission under cohorts/"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "packet.py, Web Console or a Codex file could not be reached or read; the message quotes the cause"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Spec",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/Preflight -H 'Content-Type: application/json' -d '{\"spec_json\":\"{\\\"topics\\\":[\\\"niche-book-production\\\"],\\\"allowance_hours\\\":12,\\\"stance_quotes\\\":[\\\"Books first.\\\"]}\"}'"
+        }
+      ]
+    },
+    {
+      "id": "launch_build",
+      "path": "/vrooli.research_desk.v1.launch.LaunchService/Build",
+      "method": "POST",
+      "summary": "Build a packet",
+      "description": "Runs packet.py build to write a new commission folder from a spec, or from an earlier commission's PACKET.json with supersedes and carry_baseline_from set (a relaunch is a new commission). resolutions are written into the spec first, so the charter names the commission it supersedes (one) and each it runs alongside.",
+      "category": "launch",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, the research home cannot be read, or the commission's state refuses this; the message says which and what to do"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Neither a spec nor a commission was given, or the action is unknown"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission under cohorts/"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "packet.py, Web Console or a Codex file could not be reached or read; the message quotes the cause"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Relaunch",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/Build -H 'Content-Type: application/json' -d '{\"relaunch_of\":\"programme-five-20261112\"}'"
+        }
+      ]
+    },
+    {
+      "id": "launch_start",
+      "path": "/vrooli.research_desk.v1.launch.LaunchService/Launch",
+      "method": "POST",
+      "summary": "Launch a commission",
+      "description": "Refuses unless the packet passes, every blocker is resolved (supersede or run alongside) and the commission is prepared, or unknown with the operator's assertion that it never started and no session or goal found for it. Writes LAUNCH.json with the choices, then in the background stops each superseded supervisor through its own session and records it, creates the Web Console session, sends the stance, waits for ready, sets the goal and verifies it.",
+      "category": "launch",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, the research home cannot be read, or the commission's state refuses this; the message says which and what to do"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission under cohorts/"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "packet.py, Web Console or a Codex file could not be reached or read; the message quotes the cause"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Supersede",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/Launch -H 'Content-Type: application/json' -d '{\"commission_id\":\"programme-five-20261112\",\"resolutions\":[{\"commission_id\":\"programme-four-20261110\",\"choice\":\"RESOLUTION_SUPERSEDE\"}]}'"
+        }
+      ]
+    },
+    {
+      "id": "launch_messages",
+      "path": "/vrooli.research_desk.v1.launch.LaunchService/GetLaunchMessages",
+      "method": "POST",
+      "summary": "The two launch messages",
+      "description": "A built packet's charter path, stance message and kernel, read from its folder, for a launch by hand; writes nothing.",
+      "category": "launch",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission under cohorts/"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Messages",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/GetLaunchMessages -H 'Content-Type: application/json' -d '{\"commission_id\":\"programme-five-20261112\"}'"
+        }
+      ]
+    },
+    {
+      "id": "launch_get",
+      "path": "/vrooli.research_desk.v1.launch.LaunchService/GetLaunch",
+      "method": "POST",
+      "summary": "Launch record",
+      "description": "The commission's LAUNCH.json steps, failure, discard and controls, and whether an attempt is running in this instance.",
+      "category": "launch",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission under cohorts/"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Record",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/GetLaunch -H 'Content-Type: application/json' -d '{\"commission_id\":\"programme-five-20261112\"}'"
+        }
+      ]
+    },
+    {
+      "id": "launch_control",
+      "path": "/vrooli.research_desk.v1.launch.LaunchService/Control",
+      "method": "POST",
+      "summary": "Pause, resume, stop, discard, re-send stance",
+      "description": "Types /goal pause or /goal resume, pastes the stance message again, or pauses the goal and quits Codex and its app-server; discard also records the operator's reason. The goal status is read back from goals_1.sqlite and the control is recorded in LAUNCH.json. Sessions are never deleted.",
+      "category": "launch",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, the research home cannot be read, or the commission's state refuses this; the message says which and what to do"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Neither a spec nor a commission was given, or the action is unknown"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission under cohorts/"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "packet.py, Web Console or a Codex file could not be reached or read; the message quotes the cause"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Pause",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/Control -H 'Content-Type: application/json' -d '{\"commission_id\":\"programme-five-20261112\",\"action\":\"CONTROL_ACTION_PAUSE\"}'"
+        }
+      ]
+    },
+    {
+      "id": "launch_test",
+      "path": "/vrooli.research_desk.v1.launch.LaunchService/TestLaunch",
+      "method": "POST",
+      "summary": "Start a launch test",
+      "description": "Starts, in the background, one throwaway labelled session with a harmless stance and a kernel of about 600 characters that completes at once, then pauses, resumes and stops it. Writes nothing in the research home; the session row stays. Read the outcome with launch_test_get.",
+      "category": "launch",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, the research home cannot be read, or the commission's state refuses this; the message says which and what to do"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "packet.py, Web Console or a Codex file could not be reached or read; the message quotes the cause"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Test",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/TestLaunch -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "launch_test_get",
+      "path": "/vrooli.research_desk.v1.launch.LaunchService/GetLaunchTest",
+      "method": "POST",
+      "summary": "Newest launch test",
+      "description": "Each step and the goal status read back after the goal, pause, resume and at the end; whether the session's Codex processes were stopped; where it failed.",
+      "category": "launch",
+      "errors": [
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "packet.py, Web Console or a Codex file could not be reached or read; the message quotes the cause"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Newest",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/GetLaunchTest -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "operator_needs_you",
+      "path": "/vrooli.research_desk.v1.operator.OperatorService/ListNeedsYou",
+      "method": "POST",
+      "summary": "What needs the operator",
+      "description": "Needs-you items of every commission that has not ended and of ATTENTION.md, merged by commission and ID, with answers, whether a unit has run since, and what the courier would do for each (the dry run).",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, or the research home cannot be read; the message says which"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Feed",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/ListNeedsYou -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "operator_answer",
+      "path": "/vrooli.research_desk.v1.operator.OperatorService/Answer",
+      "method": "POST",
+      "summary": "Answer an item",
+      "description": "Appends `answer <ID> · via desk` to the commission's OPERATOR.md with the chosen option, or `other` and the operator's words. dry_run returns the exact text without writing; every answer says when the supervisor will read it.",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, or the research home cannot be read; the message says which"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The request names an option, kind or text the file grammar refuses; the message says what is allowed"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission, item, review or topic"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "The item is a secret or has no commission to read an answer; the message says where to act"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Keep",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/Answer -H 'Content-Type: application/json' -d '{\"commission_id\":\"programme-five-20261112\",\"item_id\":\"AV4\",\"option_key\":\"keep\"}'"
+        }
+      ]
+    },
+    {
+      "id": "operator_entry",
+      "path": "/vrooli.research_desk.v1.operator.OperatorService/AddEntry",
+      "method": "POST",
+      "summary": "Give direction or wind down",
+      "description": "Appends a direction or wind-down entry, in the operator's words, to the commission's OPERATOR.md; nothing is typed into the supervisor's conversation. dry_run returns the exact text without writing; every answer says when the supervisor will read it.",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, or the research home cannot be read; the message says which"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The request names an option, kind or text the file grammar refuses; the message says what is allowed"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission, item, review or topic"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Direction",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/AddEntry -H 'Content-Type: application/json' -d '{\"commission_id\":\"programme-five-20261112\",\"kind\":\"ENTRY_KIND_DIRECTION\",\"text\":\"Put AV6 first.\"}'"
+        }
+      ]
+    },
+    {
+      "id": "operator_steering",
+      "path": "/vrooli.research_desk.v1.operator.OperatorService/EnableSteering",
+      "method": "POST",
+      "summary": "Enable steering on an older charter",
+      "description": "Appends the Steering section to a charter that does not tell the scheduler to read OPERATOR.md; changes nothing when it already does.",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, or the research home cannot be read; the message says which"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission, item, review or topic"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Enable",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/EnableSteering -H 'Content-Type: application/json' -d '{\"commission_id\":\"programme-four-20261110\"}'"
+        }
+      ]
+    },
+    {
+      "id": "operator_reviews",
+      "path": "/vrooli.research_desk.v1.operator.OperatorService/ListReviews",
+      "method": "POST",
+      "summary": "List reviews",
+      "description": "Every reviews/<id>/ folder: REVIEW.md, REVIEW.html, proposals with file-route URLs, the topics reviewed and the verdicts recorded.",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, or the research home cannot be read; the message says which"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Reviews",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/ListReviews -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "operator_verdict",
+      "path": "/vrooli.research_desk.v1.operator.OperatorService/AddVerdict",
+      "method": "POST",
+      "summary": "Record a verdict",
+      "description": "Appends the operator's verdict on one topic, verbatim, to reviews/<id>/VERDICTS.md. dry_run returns the exact text without writing.",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, or the research home cannot be read; the message says which"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The request names an option, kind or text the file grammar refuses; the message says what is allowed"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission, item, review or topic"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Verdict",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/AddVerdict -H 'Content-Type: application/json' -d '{\"review_id\":\"ai-video-20261112\",\"topic\":\"ai-video-production-and-funnels\",\"text\":\"Films first.\"}'"
+        }
+      ]
+    },
+    {
+      "id": "operator_courier_set",
+      "path": "/vrooli.research_desk.v1.operator.OperatorService/SetCourier",
+      "method": "POST",
+      "summary": "Turn the courier on or off",
+      "description": "Records the operator's courier switch for one commission or for global ATTENTION.md items in the desk's state folder.",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, or the research home cannot be read; the message says which"
+        },
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "The request names an option, kind or text the file grammar refuses; the message says what is allowed"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission, item, review or topic"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+        }
+      ],
+      "examples": [
+        {
+          "name": "On",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/SetCourier -H 'Content-Type: application/json' -d '{\"commission_id\":\"programme-five-20261112\",\"on\":true}'"
+        }
+      ]
+    },
+    {
+      "id": "operator_courier_test",
+      "path": "/vrooli.research_desk.v1.operator.OperatorService/TestCourier",
+      "method": "POST",
+      "summary": "Test delivery",
+      "description": "Raises one research-desk delivery-test ask through Vrooli Events and waits up to a minute for a device to receive it. Nothing is answered; the ask expires 15 minutes later.",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, or the research home cannot be read; the message says which"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Notification Hub refused or could not be reached; the message quotes its answer"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Test",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/TestCourier -H 'Content-Type: application/json' -d '{}'"
+        }
+      ]
+    },
+    {
+      "id": "operator_mark_seen",
+      "path": "/vrooli.research_desk.v1.operator.OperatorService/MarkSeen",
+      "method": "POST",
+      "summary": "Record a look",
+      "description": "Records the operator's look at a commission or topic (ledger sizes, checkpoint times, workstream statuses) in the desk state folder, or with all at every commission and topic (caught up), so GetChanges reports from now.",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Another instance holds the write lock, or the research home cannot be read; the message says which"
+        },
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such commission, item, review or topic"
+        },
+        {
+          "status": 403,
+          "code": "permission_denied",
+          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+        }
+      ],
+      "examples": [
+        {
+          "name": "Look",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/MarkSeen -H 'Content-Type: application/json' -d '{\"subject\":\"CHANGE_SUBJECT_COMMISSION\",\"id\":\"programme-four-20261110\"}'"
+        },
+        {
+          "name": "Caught up",
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.operator.OperatorService/MarkSeen -H 'Content-Type: application/json' -d '{\"all\":true}'"
+        }
+      ]
+    },
+    {
+      "id": "operator_home_file",
+      "path": "/api/v1/home/{path}",
+      "method": "GET",
+      "summary": "Read a research-home file",
+      "description": "Serves one file under the research home read-only (range requests for media), so REVIEW.html and the media it links open in the browser. HTML is sandboxed: no scripts.",
+      "category": "operator",
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "No such file, a hidden path, or a link outside the research home"
+        }
+      ],
+      "examples": [
+        {
+          "name": "A review page",
+          "curl": "curl http://localhost:${API_PORT}/api/v1/home/reviews/<id>/REVIEW.html"
+        }
+      ],
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Raw file bytes for <video>, <img> and an iframe; a browser element cannot call a Connect procedure.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "binary",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "proto_full_name": "vrooli.research_desk.v1.shared.ErrorEnvelope",
+            "transport": "json",
+            "conformance": "protojson"
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "metadata": {
+    "name": "experience-file-spec-smoke",
+    "description": "Observer smoke: the File page renders at phone width for a real, retained research-home record (folders are never deleted, only marked).",
+    "requirement": "OT-P0-011",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "spec_entry_id": "file",
+      "surface": "experience-file"
+    },
+    "execution_mode": "observer"
+  },
+  "settings": {
+    "viewport_width": 390,
+    "viewport_height": 844
+  },
+  "nodes": [
+    {
+      "id": "navigate-file",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "research-desk",
+          "scenario_path": "/files/topics/local-model-performance/MISSION.md",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open File"
+        }
+      }
+    },
+    {
+      "id": "wait-file-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.file",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "File page visible"
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-file",
+      "source": "navigate-file",
+      "target": "wait-file-page"
+    }
+  ]
+}

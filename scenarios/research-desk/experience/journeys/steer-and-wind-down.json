@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "steer-and-wind-down",
+    "title": "Steer a commission and wind it down without chat",
+    "purpose": "Direction and wind-down go into the operator file the supervisor re-reads, with the API saying when it will be read; controls act on the session only after a confirmation; nothing is typed into the supervisor's conversation.",
+    "prd_refs": [
+      "OT-P0-005",
+      "OT-P0-012"
+    ]
+  },
+  "steps": [
+    {
+      "page": "commission",
+      "state": "default",
+      "intent": "Open a commission from Now and move to its Steer tab.",
+      "via": "supervisor row"
+    },
+    {
+      "page": "commission",
+      "state": "steering-off",
+      "intent": "On an older charter, see that it does not read the operator file and enable steering with the exact sentence it adds.",
+      "via": "Enable steering"
+    },
+    {
+      "page": "commission",
+      "state": "submitting",
+      "intent": "Say a direction or wind down; confirm the dry run's exact entry and when it is read, as a warning when it waits for resume or steering.",
+      "via": "Say or Wind down"
+    },
+    {
+      "page": "commission",
+      "state": "submitting",
+      "intent": "Pause, resume or stop the session after confirming what is typed; a refused control shows the API's reason and offers Wind down instead.",
+      "via": "controls"
+    }
+  ]
+}

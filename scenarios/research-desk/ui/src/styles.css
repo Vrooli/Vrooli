@@ -1,0 +1,234 @@
+@import "./design-tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * `design-tokens.css` is generated: the shared `_base` vocabulary plus the
+ * selected design kit's overlay, written by `template-manager lifecycle
+ * generate`. It owns colours, type, spacing, dark mode, safe-area utilities
+ * and reduced motion. Only rules that belong to this scenario's document
+ * live here.
+ */
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  margin: 0;
+}
+
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: var(--border-focus) solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/*
+ * The desk's own document rules. Phone first: nothing may scroll sideways,
+ * long ids and paths wrap anywhere, every control is at least 44 px tall, and
+ * wide content (tables, code) scrolls inside its own box.
+ */
+.rd-page { display: flex; flex-direction: column; gap: var(--space-md); max-inline-size: 60rem; min-inline-size: 0; margin-inline: auto; }
+.rd-section { display: flex; flex-direction: column; gap: var(--space-xs); min-inline-size: 0; }
+.rd-h3 { font: var(--text-heading-sm); margin-block-end: var(--space-3xs); }
+/* The one sentence a section leads with: how many supervisors are live, paused, limited. */
+.rd-lede { margin: 0; font: var(--text-heading-sm); }
+/* Now's first line: what is open, and when research last wrote (rulings V5). */
+.rd-status { display: flex; flex-direction: column; gap: var(--space-3xs); margin: 0; }
+.rd-status-counts { font: var(--text-heading-sm); }
+.rd-status-write { font: var(--text-body-sm); color: var(--color-muted-foreground); }
+.rd-status-write a { color: var(--color-primary); }
+/* A warning in one line of the phone screen: a coloured edge, the sentence and its link (rulings V3). */
+.rd-warn-line { display: flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-xs); margin: 0; padding: 0 var(--space-xs); border-inline-start: 3px solid var(--color-warning); background: var(--color-warning-subtle); border-radius: var(--radius-control); font: var(--text-body-sm); }
+.rd-warn-line > .rd-more { min-block-size: 44px; }
+/* Characters used against the entry limit; past it, the counter turns to the danger colour and says what to do. */
+.rd-count { font: var(--text-caption); color: var(--color-muted-foreground); text-align: end; }
+.rd-count-over { color: var(--color-danger); text-align: start; }
+.rd-back, .rd-more { display: inline-flex; align-items: center; min-block-size: 44px; color: var(--color-primary); font: var(--text-label); text-decoration: none; }
+.rd-back::before { content: "‹"; margin-inline-end: var(--space-3xs); font-size: 1.25em; }
+.rd-more::after { content: "›"; margin-inline-start: var(--space-3xs); font-size: 1.25em; }
+.rd-back:hover, .rd-more:hover { text-decoration: underline; }
+
+/* Ids and paths: monospace, wrap anywhere so they never widen a phone screen. */
+.rd-id, .rd-path { font-family: var(--font-mono); font-size: 0.8125rem; overflow-wrap: anywhere; word-break: break-word; min-inline-size: 0; }
+.rd-id { color: var(--color-muted-foreground); }
+
+/* Rows: one bordered list per collection. */
+.rd-rows { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); }
+.rd-row { display: flex; flex-direction: column; gap: var(--space-2xs); min-inline-size: 0; padding: var(--space-sm); }
+.rd-row + .rd-row { border-block-start: var(--border-hairline) solid var(--color-border); }
+.rd-row-link { color: inherit; text-decoration: none; min-block-size: 44px; display: block; }
+.rd-row-link:hover .font-semibold { color: var(--color-primary); }
+.rd-list { margin: 0; padding-inline-start: 1.25rem; display: flex; flex-direction: column; gap: var(--space-3xs); min-inline-size: 0; overflow-wrap: anywhere; }
+ol.rd-list { list-style: decimal; }
+ul.rd-list { list-style: disc; }
+
+.rd-chips { display: flex; flex-wrap: wrap; gap: var(--space-3xs); margin: 0; padding: 0; list-style: none; min-inline-size: 0; }
+.rd-chip { display: inline-flex; align-items: center; min-block-size: 32px; padding: 0 var(--space-2xs); border-radius: var(--radius-pill); background: var(--color-surface-muted); color: var(--color-foreground); font: var(--text-label); text-decoration: none; overflow-wrap: anywhere; }
+a.rd-chip { min-block-size: 44px; }
+a.rd-chip:hover { background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface)); }
+
+.rd-stat-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: var(--space-2xs); margin: 0; padding: 0; list-style: none; }
+.rd-stat { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3xs); min-block-size: 44px; padding: var(--space-xs); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); color: inherit; text-decoration: none; }
+.rd-stat:hover { border-color: var(--color-primary); }
+.rd-stat-value { font: var(--text-heading-lg); font-variant-numeric: tabular-nums; }
+
+/* Facts: label over value on a phone, side by side when there is room. */
+.rd-facts { display: grid; gap: var(--space-xs); margin: 0; min-inline-size: 0; }
+.rd-fact { display: grid; gap: var(--space-4xs); min-inline-size: 0; }
+.rd-fact dt { font: var(--text-label); }
+.rd-fact dd { margin: 0; overflow-wrap: anywhere; }
+@media (min-width: 48rem) {
+  .rd-fact { grid-template-columns: 11rem minmax(0, 1fr); gap: var(--space-sm); }
+}
+.rd-why { min-block-size: 44px; min-inline-size: 44px; margin-inline-start: var(--space-2xs); padding: 0 var(--space-2xs); border: 0; background: none; color: var(--color-primary); font: var(--text-label); cursor: pointer; }
+.rd-why:hover { text-decoration: underline; }
+.rd-evidence { display: flex; flex-direction: column; gap: var(--space-2xs); margin: var(--space-3xs) 0 0; padding: var(--space-xs); list-style: none; border-radius: var(--radius-control); background: var(--color-surface-muted); font: var(--text-body-sm); }
+.rd-unknown { color: var(--color-muted-foreground); font-style: italic; }
+.rd-claim { font-style: italic; }
+.rd-claim::before, .rd-claim::after { content: none; }
+.rd-claim { quotes: "“" "”"; }
+.rd-claim::before { content: open-quote; }
+.rd-claim::after { content: close-quote; }
+
+.rd-quote { padding-inline-start: var(--space-xs); border-inline-start: 3px solid var(--color-border); }
+.rd-answer { display: flex; flex-direction: column; gap: var(--space-3xs); padding: var(--space-xs); border-radius: var(--radius-control); background: color-mix(in srgb, var(--color-success) 8%, var(--color-surface)); }
+.rd-not-sent { padding: var(--space-xs); border-radius: var(--radius-control); background: var(--color-surface-muted); font: var(--text-body-sm); }
+.rd-seen { color: var(--color-success); font: var(--text-label); }
+.rd-unseen { color: var(--color-warning); font: var(--text-label); }
+/* A research write under a paused or ended commission: a fact the operator needs (rulings P8). */
+.rd-write-note { color: var(--color-warning-foreground); font: var(--text-body-sm); }
+/* When the supervisor will read a new entry (rulings V4); a reading that waits is a warning. */
+.rd-reading { margin: 0; padding: var(--space-xs); border-radius: var(--radius-control); background: var(--color-surface-muted); font: var(--text-body-sm); }
+.rd-reading-waits { background: var(--color-warning-subtle); color: var(--color-warning-foreground); }
+
+.rd-actions { display: flex; flex-wrap: wrap; gap: var(--space-2xs); }
+.rd-actions > * { min-block-size: 44px; }
+.rd-choice { display: flex; flex-wrap: wrap; gap: var(--space-2xs); margin: 0; padding: 0; border: 0; }
+.rd-choice label { display: inline-flex; align-items: center; gap: var(--space-2xs); min-block-size: 44px; padding: 0 var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-pill); cursor: pointer; }
+.rd-choice label:has(input:checked) { border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)); }
+
+/* Literal text the desk will write or type: shown exactly, wrapped, never wider than the screen. */
+.rd-exact { margin: 0; max-block-size: 24rem; overflow: auto; padding: var(--space-xs); border-radius: var(--radius-control); background: var(--color-surface-muted); font: var(--text-code); white-space: pre-wrap; overflow-wrap: anywhere; }
+.rd-message { display: flex; flex-direction: column; gap: var(--space-3xs); min-inline-size: 0; }
+
+.rd-fold { border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); }
+.rd-fold > summary { display: flex; align-items: center; min-block-size: 44px; padding: 0 var(--space-sm); cursor: pointer; font: var(--text-label); }
+.rd-fold[open] > summary { border-block-end: var(--border-hairline) solid var(--color-border); }
+.rd-fold > :not(summary) { margin: var(--space-xs); }
+.rd-fold > .rd-rows { border: 0; margin: 0; }
+
+.rd-bar { block-size: 6px; border-radius: var(--radius-pill); background: var(--color-surface-muted); overflow: hidden; }
+.rd-bar > span { display: block; block-size: 100%; background: var(--color-primary); }
+.rd-bar-over > span { background: var(--color-warning); }
+
+.rd-gates { display: flex; flex-direction: column; gap: var(--space-3xs); margin: 0; padding: 0; list-style: none; }
+.rd-gates > li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2xs); min-block-size: 32px; }
+.rd-gate-fail { color: var(--color-danger); }
+.rd-num { font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 0.8125rem; }
+
+/* The topic list is part of the page scroll, never a scroll box inside it (rulings V1). */
+.rd-pick { display: flex; flex-direction: column; margin: 0; padding: var(--space-3xs) var(--space-xs); list-style: none; border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); }
+.rd-pick > li { padding-block: var(--space-3xs); overflow-wrap: anywhere; }
+.rd-order { display: flex; flex-direction: column; gap: var(--space-3xs); margin: 0; padding: 0; list-style: none; }
+.rd-order > li { display: flex; align-items: center; gap: var(--space-2xs); }
+.rd-order .rd-num { inline-size: 1.5rem; text-align: center; }
+.rd-form-grid { display: grid; gap: var(--space-sm); }
+@media (min-width: 48rem) { .rd-form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.rd-form-grid > [role="alert"], .rd-form-grid > div:not(label) { grid-column: 1 / -1; }
+
+/* The single launch action stays reachable at the bottom of a long form. */
+/*
+ * One compact row above the phone tabs: the review measured the old bar plus
+ * the tabs at a third of the screen (rulings V1). No wrapping, no caption; what
+ * blocks the launch is said in the check.
+ */
+.rd-launch-bar { position: sticky; inset-block-end: 0; z-index: 1; display: flex; flex-wrap: nowrap; align-items: center; gap: var(--space-xs); padding-block: var(--space-2xs); background: var(--color-background); border-block-start: var(--border-hairline) solid var(--color-border); }
+.rd-launch-bar > :first-child { flex: 1 1 auto; }
+
+.rd-steps, .rd-timeline { display: flex; flex-direction: column; gap: var(--space-2xs); margin: 0; padding: 0; list-style: none; }
+.rd-steps > li { display: flex; align-items: center; gap: var(--space-xs); min-block-size: 32px; }
+.rd-step-dot { inline-size: 12px; block-size: 12px; border-radius: 50%; border: 2px solid var(--color-border); flex: none; }
+.rd-steps > li[data-state="done"] .rd-step-dot { background: var(--color-success); border-color: var(--color-success); }
+.rd-steps > li[data-state="now"] .rd-step-dot { border-color: var(--color-primary); animation: rd-pulse 1.2s ease-in-out infinite; }
+.rd-steps > li[data-state="failed"] .rd-step-dot { background: var(--color-danger); border-color: var(--color-danger); }
+.rd-timeline > li { display: flex; flex-wrap: wrap; gap: var(--space-2xs); font: var(--text-body-sm); }
+@keyframes rd-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .rd-steps > li[data-state="now"] .rd-step-dot { animation: none; } }
+
+.rd-open { display: flex; align-items: center; gap: var(--space-xs); min-block-size: 44px; padding: var(--space-sm); border: var(--border-hairline) solid var(--color-border); border-radius: var(--radius-panel); background: var(--color-surface); color: var(--color-primary); text-decoration: none; }
+.rd-open:hover { border-color: var(--color-primary); }
+.rd-image { max-inline-size: 100%; block-size: auto; border-radius: var(--radius-panel); }
+
+/* Research-home Markdown, read on a phone. */
+.rd-prose { display: flex; flex-direction: column; gap: var(--space-xs); min-inline-size: 0; font: var(--text-body); overflow-wrap: anywhere; }
+.rd-prose :is(h2, h3, h4, h5, h6, p, ul, ol, pre, blockquote) { margin: 0; }
+.rd-prose h2 { font: var(--text-heading); }
+.rd-prose h3 { font: var(--text-heading-sm); }
+.rd-prose :is(h4, h5, h6) { font: var(--text-label); }
+.rd-prose ul { list-style: disc; padding-inline-start: 1.25rem; }
+.rd-prose ol { list-style: decimal; padding-inline-start: 1.25rem; }
+.rd-prose li + li { margin-block-start: var(--space-4xs); }
+.rd-prose a { color: var(--color-primary); text-decoration: underline; text-underline-offset: 2px; }
+.rd-prose code { font: var(--text-code); padding: 0 0.2em; border-radius: 4px; background: var(--color-surface-muted); }
+.rd-prose pre { overflow-x: auto; padding: var(--space-xs); border-radius: var(--radius-control); background: var(--color-surface-muted); }
+.rd-prose pre code { padding: 0; background: none; white-space: pre; }
+.rd-prose blockquote { padding-inline-start: var(--space-xs); border-inline-start: 3px solid var(--color-border); color: var(--color-muted-foreground); }
+.rd-prose hr { border: 0; border-block-start: var(--border-hairline) solid var(--color-border); }
+.rd-dead-link { text-decoration: underline dotted; }
+.rd-table-scroll { max-inline-size: 100%; overflow-x: auto; }
+.rd-table-scroll table { border-collapse: collapse; font: var(--text-body-sm); }
+.rd-table-scroll :is(th, td) { padding: var(--space-3xs) var(--space-2xs); border: var(--border-hairline) solid var(--color-border); text-align: start; vertical-align: top; min-inline-size: 6rem; overflow-wrap: normal; }
+.rd-table-scroll th { background: var(--color-surface-muted); }
+
+/* A row's title and its badges: side by side when the title has room, badges below on a phone. */
+.rd-row-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-2xs) var(--space-xs); }
+.rd-row-head > :first-child { flex: 1 1 15rem; min-inline-size: 0; }
+
+/* iOS zooms the page when a focused field's text is under 16 px; phone fields stay at 16 px. */
+@media (max-width: 48rem) {
+  :where(input, textarea, select, [data-rcl-select-trigger]) { font-size: 16px; }
+}
+
+/*
+ * Library shell floors (recorded in docs/reference/component-library-gaps.md):
+ * the phone menu button is 40 px, and on a landscape phone the sidebar's
+ * navigation runs past the bottom edge. The nav scrolls inside the column.
+ */
+[data-rcl-app-shell-menu] { min-block-size: 44px; min-inline-size: 44px; }
+[data-rcl-app-shell-column] { display: flex; flex-direction: column; max-block-size: 100dvh; }
+[data-rcl-app-shell-column] > nav { min-block-size: 0; overflow-y: auto; }
+
+/*
+ * Phone-width tap floor. The library grows buttons to 44 px only for a coarse
+ * pointer; the desk is read on a phone, so at phone width every control, path
+ * link and in-text link reaches 44 px whatever the pointer reports. Inline
+ * links grow by padding, which widens the target without moving the text.
+ */
+@media (max-width: 48rem) {
+  /* Doubled so it outranks any later :root token sheet. */
+  :root:root { --control-size-md: 2.75rem; }
+  :where([data-rcl-icon-button]) { min-block-size: 44px; min-inline-size: 44px; }
+  :where(a.rd-path, .rd-prose a) { padding-block: 13px; }
+}
+
+/*
+ * A checkbox or switch row is its tap target (44 px or more), but the library
+ * shrinks the native input to 1 px, so tools that measure the control see 1 px.
+ * The invisible input is stretched over its row instead: the same tap, now
+ * measured where it lands. Recorded in docs/reference/component-library-gaps.md.
+ */
+[data-rcl-selection-input] { inset: 0; inline-size: 100%; block-size: 100%; margin: 0; clip: auto; clip-path: none; opacity: 0; cursor: inherit; }
+
+/* A needs-you item is one collapsed row; its body opens on tap (rulings V2). */
+.rd-item > details > summary { display: flex; flex-direction: column; gap: var(--space-3xs); min-block-size: 44px; cursor: pointer; list-style: none; }
+.rd-item > details > summary::-webkit-details-marker { display: none; }
+.rd-item > details > summary .font-semibold::before { content: "\25B8"; display: inline-block; margin-inline-end: var(--space-2xs); color: var(--color-muted-foreground); transition: transform var(--dur-fast); }
+.rd-item > details[open] > summary .font-semibold::before { transform: rotate(90deg); }
+.rd-item-body { display: flex; flex-direction: column; gap: var(--space-xs); margin-block-start: var(--space-sm); }
+.rd-rows-tight > .rd-row { padding-block: var(--space-xs); }
+/* A workstream to add: its ID and status, then its title or showcase line, two lines at most. */
+.rd-pick-row { display: flex; flex-direction: column; gap: var(--space-3xs); inline-size: 100%; min-block-size: 44px; padding: var(--space-xs) var(--space-sm); border: 0; background: transparent; color: inherit; text-align: start; cursor: pointer; }
+.rd-pick-row:hover { background: var(--color-surface-muted); }
+li + li > .rd-pick-row { border-block-start: var(--border-hairline) solid var(--color-border); }
+.rd-clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }

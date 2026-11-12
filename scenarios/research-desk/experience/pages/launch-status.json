@@ -1,0 +1,52 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "launch-status",
+    "title": "Launch progress",
+    "routes": [
+      "/launch/:id"
+    ],
+    "purpose": "Follow a launch step by step, or start a packet as it is: prepared, or unknown once the operator asserts it was never started; a failed start offers discard with a reason and relaunch as a new commission.",
+    "prd_refs": [
+      "OT-P0-001",
+      "OT-P0-003",
+      "OT-P0-010"
+    ]
+  },
+  "states": [
+    {
+      "id": "default",
+      "description": "Created, composer ready, stance sent, ready seen, goal sent, goal verified."
+    },
+    {
+      "id": "retry",
+      "description": "A step failed: the failure, Discard with a required reason, and Relaunch."
+    },
+    {
+      "id": "manual",
+      "description": "The stance message and the goal line, read from the API, with the order to paste them; hidden while the commission is unknown until the never-started assertion is made."
+    },
+    {
+      "id": "request-error",
+      "description": "The API cannot be reached or refused the read; the page names which and offers retry, and nothing else on the page pretends to know."
+    },
+    {
+      "id": "loading",
+      "description": "The page announces that it is reading the research home; nothing is shown as known until it is."
+    },
+    {
+      "id": "empty",
+      "description": "The packet has no launch record yet: the page offers Launch (behind the never-started assertion when it is unknown), or Relaunch as a new commission when the API cannot assert it."
+    },
+    {
+      "id": "partial",
+      "description": "An optional scenario is down: only the values it feeds read unknown, each with the reason; everything read from files is still shown."
+    },
+    {
+      "id": "stale",
+      "description": "A refresh failed after a good read: the earlier read stays on screen under a 'Not current' notice with its time and the reason."
+    }
+  ]
+}

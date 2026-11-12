@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-journey",
+  "schemaVersion": "1.0.0",
+  "journey": {
+    "id": "review-a-topic",
+    "title": "Review a topic and record a verdict",
+    "purpose": "An operator review session: read the review's evidence and media on the phone, record a verdict per topic in the operator's own words, and see the topic's mission realigned only by that explicit action.",
+    "prd_refs": [
+      "OT-P0-008"
+    ]
+  },
+  "steps": [
+    {
+      "page": "reviews",
+      "state": "default",
+      "intent": "Pick a review session from the list.",
+      "via": "Reviews in the menu"
+    },
+    {
+      "page": "review",
+      "state": "default",
+      "intent": "Read REVIEW.md and its media, or open REVIEW.html in its own tab.",
+      "via": "review row"
+    },
+    {
+      "page": "review",
+      "state": "submitting",
+      "intent": "Record a verdict on a topic after confirming the exact entry.",
+      "via": "verdict field"
+    },
+    {
+      "page": "topic",
+      "state": "default",
+      "intent": "See the topic's last review linked beside its research write and mission edit.",
+      "via": "topic link"
+    }
+  ]
+}

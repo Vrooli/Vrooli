@@ -1,0 +1,123 @@
+{
+  "$schema": "../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-index",
+  "contract": {
+    "kind": "scenario-experience",
+    "schema": "scenario-experience-spec/v1"
+  },
+  "schemaVersion": "1.0.0",
+  "scenario": "research-desk",
+  "description": "Experience contract for Research Desk: a phone-first lens, launcher and courier over the research home. Pages declare identity, purpose and states (L3); journeys connect them for the operator's six recurring tasks (L4).",
+  "pages": [
+    {
+      "id": "now",
+      "path": "pages/now.json",
+      "title": "Now",
+      "status": "active"
+    },
+    {
+      "id": "needs-you",
+      "path": "pages/needs-you.json",
+      "title": "Needs you",
+      "status": "active"
+    },
+    {
+      "id": "topics",
+      "path": "pages/topics.json",
+      "title": "Topics",
+      "status": "active"
+    },
+    {
+      "id": "topic",
+      "path": "pages/topic.json",
+      "title": "Topic",
+      "status": "active"
+    },
+    {
+      "id": "commissions",
+      "path": "pages/commissions.json",
+      "title": "Commissions",
+      "status": "active"
+    },
+    {
+      "id": "commission",
+      "path": "pages/commission.json",
+      "title": "Commission",
+      "status": "active"
+    },
+    {
+      "id": "launch",
+      "path": "pages/launch.json",
+      "title": "Launch",
+      "status": "active"
+    },
+    {
+      "id": "launch-status",
+      "path": "pages/launch-status.json",
+      "title": "Launch progress",
+      "status": "active"
+    },
+    {
+      "id": "reviews",
+      "path": "pages/reviews.json",
+      "title": "Reviews",
+      "status": "active"
+    },
+    {
+      "id": "review",
+      "path": "pages/review.json",
+      "title": "Review",
+      "status": "active"
+    },
+    {
+      "id": "file",
+      "path": "pages/file.json",
+      "title": "File",
+      "status": "active"
+    },
+    {
+      "id": "desk",
+      "path": "pages/desk.json",
+      "title": "Desk",
+      "status": "active"
+    }
+  ],
+  "journeys": [
+    {
+      "id": "see-what-is-moving",
+      "path": "journeys/see-what-is-moving.json",
+      "title": "See what is moving and what changed since the last look",
+      "status": "active"
+    },
+    {
+      "id": "launch-three-topics",
+      "path": "journeys/launch-three-topics.json",
+      "title": "Launch three topics with the desk's defaults",
+      "status": "active"
+    },
+    {
+      "id": "start-an-unknown-packet",
+      "path": "journeys/start-an-unknown-packet.json",
+      "title": "Start a packet the desk cannot classify, or relaunch it",
+      "status": "active"
+    },
+    {
+      "id": "answer-a-needs-you-item",
+      "path": "journeys/answer-a-needs-you-item.json",
+      "title": "Answer what a supervisor is waiting on",
+      "status": "active"
+    },
+    {
+      "id": "steer-and-wind-down",
+      "path": "journeys/steer-and-wind-down.json",
+      "title": "Steer a commission and wind it down without chat",
+      "status": "active"
+    },
+    {
+      "id": "review-a-topic",
+      "path": "journeys/review-a-topic.json",
+      "title": "Review a topic and record a verdict",
+      "status": "active"
+    }
+  ]
+}

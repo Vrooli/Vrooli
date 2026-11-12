@@ -1,0 +1,70 @@
+{
+  "_metadata": {
+    "description": "Requirement stubs scaffolded from the P1 operational targets.",
+    "module": "P1-targets",
+    "priority": "P1",
+    "schema_version": "1.0.0"
+  },
+  "requirements": [
+    {
+      "criticality": "P1",
+      "description": "A time-axis view of commissions and owner threads that makes overlap, stalls and idle topics visible over the last days.",
+      "id": "RD-P1-001",
+      "prd_ref": "OT-P1-001",
+      "status": "planned",
+      "title": "Commission timeline",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:RD-P1-001] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "When a commission the desk can map shows no rollout writes past its stall threshold, raise one informational Notification Hub item (deduplicated by commission).",
+      "id": "RD-P1-002",
+      "prd_ref": "OT-P1-002",
+      "status": "planned",
+      "title": "Stall notice",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:RD-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Show what changed between a new packet and the previous packet for the same topics (procedure version, cards, operator words) before launch.",
+      "id": "RD-P1-003",
+      "prd_ref": "OT-P1-003",
+      "status": "planned",
+      "title": "Packet diff",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:RD-P1-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P1",
+      "description": "Track start-up read-set size per commission over successive units so growth in charter, state or mission files is visible before it hurts.",
+      "id": "RD-P1-004",
+      "prd_ref": "OT-P1-004",
+      "status": "planned",
+      "title": "Focus trend",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:RD-P1-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    }
+  ]
+}

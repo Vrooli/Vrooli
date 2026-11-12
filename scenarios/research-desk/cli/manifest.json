@@ -1,0 +1,741 @@
+{
+  "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
+  "name": "research-desk",
+  "description": "Research Desk CLI: launch, watch, steer and review supervised research. Commands dispatch at the top level; each group is one API domain.",
+  "groups": [
+    {
+      "name": "activity",
+      "description": "What is moving: commissions, topics, sessions and read sets, derived from the research home",
+      "flat": true,
+      "commands": [
+        {
+          "name": "now",
+          "description": "State counts (live, paused and limited apart), open supervisor windows, overlaps and unavailable lenses",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.activity.ActivityService",
+            "method": "GetOverview"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "commissions",
+          "description": "Every commission with its derived state, newest last write first",
+          "flags": [
+            {
+              "name": "state",
+              "description": "Only commissions in this state; repeatable",
+              "repeatable": true,
+              "values": [
+                "live",
+                "paused",
+                "limited",
+                "stopped",
+                "prepared",
+                "unknown",
+                "ended"
+              ],
+              "bind_waiver": "The CLI maps state words to CommissionState enum values for the repeated states field."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.activity.ActivityService",
+            "method": "ListCommissions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "commission",
+          "description": "One commission with every derived field's source, its sessions and read sets",
+          "positionals": [
+            {
+              "name": "id",
+              "required": true,
+              "description": "Commission folder name under cohorts/"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.activity.ActivityService",
+            "method": "GetCommission"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "topics",
+          "description": "Every topic with its last activity, commissions and mission check",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.activity.ActivityService",
+            "method": "ListTopics"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "changes",
+          "description": "What changed in a commission or topic since the last recorded look, or since a time",
+          "positionals": [
+            {
+              "name": "subject",
+              "required": true,
+              "description": "commission or topic",
+              "bind_waiver": "The CLI maps the word to the ChangeSubject enum."
+            },
+            {
+              "name": "id",
+              "required": true,
+              "description": "Commission folder name or topic slug"
+            }
+          ],
+          "flags": [
+            {
+              "name": "since",
+              "description": "Compare with this UTC time (RFC 3339, e.g. 2026-11-11T19:00:00Z) instead of the recorded look; lists files and checkpoints only"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.activity.ActivityService",
+            "method": "GetChanges"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "launch",
+      "description": "Packets through packet.py, launch through Web Console or by hand, and controls typed only on the operator's command; writes a commission folder only by packet.py build and LAUNCH.json",
+      "flat": true,
+      "commands": [
+        {
+          "name": "launch-options",
+          "description": "Supervisor model, effort and owner tier defaults and choices from limits.json, the packet gates, whether an automatic launch can reach Web Console, and for the topics given the suggested stance quotes with their source and each workstream's title and showcase line",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.launch.LaunchService",
+            "method": "GetLaunchOptions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "flags": [
+            {
+              "name": "topics",
+              "description": "Comma-separated topic slugs: suggest stance quotes and list their workstreams"
+            }
+          ]
+        },
+        {
+          "name": "preflight",
+          "description": "Gate a spec (packet.py preview) or a commission (packet.py check) and say what every earlier commission on its topics means for a launch: the blockers, their choices and the desk's recommendation",
+          "positionals": [
+            {
+              "name": "target",
+              "required": true,
+              "description": "A spec JSON file (FILE-CONTRACT §2), or a prepared commission folder name",
+              "bind_waiver": "The CLI reads a file into spec_json, else sends the word as commission_id."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.launch.LaunchService",
+            "method": "Preflight"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "flags": [
+            {
+              "name": "supersede",
+              "description": "Comma-separated blocking commissions this launch supersedes: each is stopped through its own session first and recorded as superseded"
+            },
+            {
+              "name": "alongside",
+              "description": "Comma-separated blocking commissions this launch runs alongside"
+            },
+            {
+              "name": "assert-never-started",
+              "bool": true,
+              "description": "The operator's word that this unknown commission was never started; refused when the desk finds any session or goal for it"
+            }
+          ]
+        },
+        {
+          "name": "build",
+          "description": "Write a new commission folder with packet.py build, from a spec JSON file or, with --relaunch-of, from an earlier commission's PACKET.json (superseding it and carrying its baseline)",
+          "positionals": [
+            {
+              "name": "spec-file",
+              "description": "A spec JSON file (FILE-CONTRACT §2); omit with --relaunch-of",
+              "bind_waiver": "The CLI reads the file into spec_json."
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.launch.LaunchService",
+            "method": "Build"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "flags": [
+            {
+              "name": "relaunch-of",
+              "description": "Relaunch this earlier commission as a new one"
+            },
+            {
+              "name": "supersede",
+              "description": "Comma-separated blocking commissions this packet supersedes: its charter names each, and the launch stops their supervisors first"
+            },
+            {
+              "name": "alongside",
+              "description": "Comma-separated blocking commissions this packet runs alongside: its charter names each"
+            }
+          ]
+        },
+        {
+          "name": "launch",
+          "description": "Launch a prepared commission (or an unknown one the operator asserts never started) through Web Console in the background, resolving each blocker; follow with launch-status",
+          "positionals": [
+            {
+              "name": "commission-id",
+              "required": true,
+              "description": "Commission folder name"
+            }
+          ],
+          "flags": [
+            {
+              "name": "supersede",
+              "description": "Comma-separated blocking commissions this launch supersedes: each is stopped through its own session first and recorded as superseded"
+            },
+            {
+              "name": "alongside",
+              "description": "Comma-separated blocking commissions this launch runs alongside"
+            },
+            {
+              "name": "assert-never-started",
+              "bool": true,
+              "description": "The operator's word that this unknown commission was never started; refused when the desk finds any session or goal for it"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.launch.LaunchService",
+            "method": "Launch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "launch-messages",
+          "description": "Print a built packet's charter path, stance and kernel to paste by hand; writes nothing",
+          "positionals": [
+            {
+              "name": "commission-id",
+              "required": true,
+              "description": "Commission folder name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.launch.LaunchService",
+            "method": "GetLaunchMessages"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "launch-status",
+          "description": "A commission's LAUNCH.json: steps, failure, controls and discard, and whether an attempt is running",
+          "positionals": [
+            {
+              "name": "commission-id",
+              "required": true,
+              "description": "Commission folder name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.launch.LaunchService",
+            "method": "GetLaunch"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "control",
+          "description": "Pause, resume, stop or discard a commission, or paste its stance again; the goal status is read back and the control recorded in LAUNCH.json",
+          "positionals": [
+            {
+              "name": "commission-id",
+              "required": true,
+              "description": "Commission folder name"
+            },
+            {
+              "name": "action",
+              "required": true,
+              "description": "pause, resume, stop, discard or resend-stance",
+              "bind_waiver": "The CLI maps the word to the ControlAction enum."
+            }
+          ],
+          "flags": [
+            {
+              "name": "reason",
+              "description": "The operator's words; required for discard"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.launch.LaunchService",
+            "method": "Control"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "launch-test",
+          "description": "Start one throwaway, labelled session with a harmless stance and a kernel that completes at once, then pause, resume and stop it; follow with launch-test-status",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.launch.LaunchService",
+            "method": "TestLaunch"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ],
+            "requires_confirmation": true
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "launch-test-status",
+          "description": "The newest launch test: each step, the goal status after the goal, pause and resume, and whether the session was stopped",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.launch.LaunchService",
+            "method": "GetLaunchTest"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    },
+    {
+      "name": "operator",
+      "description": "The operator's words, answers, verdicts and the courier to Notification Hub; writes only OPERATOR.md, VERDICTS.md, a charter's Steering section and the courier switches",
+      "flat": true,
+      "commands": [
+        {
+          "name": "needs-you",
+          "description": "Everything that needs the operator, with answers, whether a unit has run since, and what the courier would send (dry run)",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.operator.OperatorService",
+            "method": "ListNeedsYou"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "answer",
+          "description": "Answer a needs-you item into the commission's OPERATOR.md",
+          "positionals": [
+            {
+              "name": "commission-id",
+              "required": true,
+              "description": "Commission folder name"
+            },
+            {
+              "name": "item-id",
+              "required": true,
+              "description": "The item's ID, e.g. AV4"
+            },
+            {
+              "name": "option-key",
+              "required": true,
+              "description": "One of the item's option keys, or other with --note"
+            }
+          ],
+          "flags": [
+            {
+              "name": "note",
+              "description": "The operator's words: a note on the option, or the whole answer for other"
+            },
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Print the exact text that would be appended; writes nothing"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.operator.OperatorService",
+            "method": "Answer"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "say",
+          "description": "Give direction or wind down, in the operator's words, through OPERATOR.md",
+          "positionals": [
+            {
+              "name": "commission-id",
+              "required": true,
+              "description": "Commission folder name"
+            },
+            {
+              "name": "kind",
+              "required": true,
+              "description": "direction or wind-down",
+              "bind_waiver": "The CLI maps the word to the EntryKind enum."
+            },
+            {
+              "name": "text",
+              "description": "The operator's words, quoted; a wind-down without words uses the standard sentence"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.operator.OperatorService",
+            "method": "AddEntry"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Print the exact text that would be appended; writes nothing"
+            }
+          ]
+        },
+        {
+          "name": "enable-steering",
+          "description": "Append the Steering section to an older charter so its scheduler reads OPERATOR.md",
+          "positionals": [
+            {
+              "name": "commission-id",
+              "required": true,
+              "description": "Commission folder name"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.operator.OperatorService",
+            "method": "EnableSteering"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "reviews",
+          "description": "Reviews with their REVIEW.md, REVIEW.html, proposals and verdicts",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.operator.OperatorService",
+            "method": "ListReviews"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "verdict",
+          "description": "Record the operator's verdict on one topic of a review, verbatim",
+          "positionals": [
+            {
+              "name": "review-id",
+              "required": true,
+              "description": "Review folder name under reviews/"
+            },
+            {
+              "name": "topic",
+              "required": true,
+              "description": "Topic slug"
+            },
+            {
+              "name": "text",
+              "required": true,
+              "description": "The operator's words, quoted"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.operator.OperatorService",
+            "method": "AddVerdict"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          },
+          "flags": [
+            {
+              "name": "dry-run",
+              "bool": true,
+              "description": "Print the exact text that would be appended; writes nothing"
+            }
+          ]
+        },
+        {
+          "name": "courier",
+          "description": "Turn the courier to Notification Hub on or off for a commission, or for global ATTENTION.md items",
+          "positionals": [
+            {
+              "name": "switch",
+              "required": true,
+              "description": "on or off",
+              "bind_waiver": "The CLI maps the word to the on field."
+            },
+            {
+              "name": "commission-id",
+              "description": "Commission folder name; omit with --global"
+            }
+          ],
+          "flags": [
+            {
+              "name": "global",
+              "bool": true,
+              "description": "Switch global ATTENTION.md items instead of a commission"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.operator.OperatorService",
+            "method": "SetCourier"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "courier-test",
+          "description": "Raise one delivery-test ask through Vrooli Events and wait for delivery; it expires unanswered after 15 minutes",
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.operator.OperatorService",
+            "method": "TestCourier"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "mark-seen",
+          "description": "Record the operator's look at a commission or topic, or with --all at every one (caught up), so `changes` reports from now",
+          "positionals": [
+            {
+              "name": "subject",
+              "description": "commission or topic; omit with --all",
+              "bind_waiver": "The CLI maps the word to the ChangeSubject enum."
+            },
+            {
+              "name": "id",
+              "description": "Commission folder name or topic slug; omit with --all"
+            }
+          ],
+          "flags": [
+            {
+              "name": "all",
+              "bool": true,
+              "description": "Record a look at every commission and topic at once"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.research_desk.v1.operator.OperatorService",
+            "method": "MarkSeen"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        }
+      ]
+    }
+  ],
+  "measures": {
+    "domains": []
+  },
+  "exceptions": [],
+  "omitted": []
+}

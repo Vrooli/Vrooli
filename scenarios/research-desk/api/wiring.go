@@ -1,0 +1,308 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/vrooli/api-core/preflight"
+	"github.com/vrooli/api-core/schedule"
+	"github.com/vrooli/api-core/storage"
+	repocontract "github.com/vrooli/repo-contract-go"
+
+	"research-desk/internal/capabilities"
+	"research-desk/internal/courier"
+	"research-desk/internal/home"
+	"research-desk/internal/launch"
+	"research-desk/internal/peer"
+	"research-desk/internal/skillscripts"
+	"research-desk/internal/writer"
+)
+
+// scenarioName is this scenario; scenarioRel its folder in the repository.
+const (
+	scenarioName = "research-desk"
+	scenarioRel  = "scenarios/" + scenarioName
+)
+
+// wiring holds the production seams, resolved once at start.
+type wiring struct {
+	// scenarioDir is <repo>/scenarios/research-desk; empty when the
+	// repository root cannot be resolved.
+	scenarioDir string
+	homeConfig  home.Config
+	reader      *home.Reader
+	writer      *writer.Writer
+	courier     *courier.Courier
+	launch      *launch.Service
+	webConsole  *peer.Peer
+	// registry is the one table of whether each optional scenario can be
+	// reached (rulings E5); nil when service.json cannot be read.
+	registry *capabilities.Registry
+	// version is service.version from .vrooli/service.json, the one place
+	// the version is kept (rulings E9); "unknown" when it cannot be read.
+	version string
+}
+
+// Locations a test or a second instance overrides (F7). Unset means the
+// production location under the user's home.
+const (
+	envResearchDir = "RESEARCH_DESK_RESEARCH_DIR"
+	envStateDir    = "RESEARCH_DESK_STATE_DIR"
+	envCodexDir    = "RESEARCH_DESK_CODEX_DIR"
+	// envOtherCodexHomes is a path list of glob patterns, each naming a Codex
+	// home outside Web Console's session folder (F8).
+	envOtherCodexHomes = "RESEARCH_DESK_OTHER_CODEX_HOMES"
+)
+
+// newWiring resolves the locations and the scenario folder and builds the
+// one reader of the research home. A missing skills folder leaves mission
+// checks and ceilings unknown; it never stops the projection (charter I5).
+// Only the lifecycle-managed live instance may write.
+func newWiring(getenv func(string) string) *wiring {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatalf("resolve the user's home directory for ~/.vrooli/research: %v", err)
+	}
+	w := &wiring{homeConfig: home.DefaultConfig(userHome), version: "unknown"}
+	if dir := getenv(envResearchDir); dir != "" {
+		w.homeConfig.ResearchDir = dir
+	}
+	if dir := getenv(envCodexDir); dir != "" {
+		w.homeConfig.CodexDir = dir
+	}
+	if homes := getenv(envOtherCodexHomes); homes != "" {
+		w.homeConfig.OtherCodexHomes = filepath.SplitList(homes)
+	}
+	stateDir := writer.DefaultStateDir(userHome)
+	if dir := getenv(envStateDir); dir != "" {
+		stateDir = dir
+	}
+	deps := home.Deps{Clock: schedule.System(), Procs: home.ProcTable{}}
+	var paths skillscripts.Paths
+	var repoRoot string
+	if root, err := repocontract.ResolveRepoRoot(); err != nil {
+		log.Printf("Vrooli repository root not resolved (set VROOLI_ROOT); mission checks, ceilings and capabilities will read unknown: %v", err)
+	} else {
+		repoRoot = root
+		w.scenarioDir = filepath.Join(root, filepath.FromSlash(scenarioRel))
+		paths = skillscripts.Paths{Skills: filepath.Join(w.scenarioDir, "skills")}
+		w.version = serviceVersion(filepath.Join(w.scenarioDir, ".vrooli", "service.json"))
+		deps.Missions = skillscripts.MissionChecker{Paths: paths, Runner: skillscripts.NewPython()}
+		deps.Ceilings = paths.Ceilings
+	}
+	w.reader = home.NewReader(w.homeConfig, deps)
+	w.writer = writer.New(w.homeConfig.ResearchDir, stateDir)
+	if err := liveInstance(getenv); err != nil {
+		w.writer.ReadOnly(err.Error())
+	}
+	resolver := capabilities.DefaultResolver()
+	w.registry = w.loadRegistry(resolver)
+	w.courier = &courier.Courier{
+		Reader: w.reader,
+		Writer: w.writer,
+		Hub: &courier.EventHub{
+			Events: capabilities.Reach(w.registry, resolver, "vrooli-events"),
+			Hub:    &peer.Peer{Name: "notification-hub", BaseURL: capabilities.Reach(w.registry, resolver, "notification-hub")},
+		},
+		Clock:  deps.Clock,
+		Logger: log.Default(),
+	}
+	w.webConsole = &peer.Peer{Name: "web-console", BaseURL: capabilities.Reach(w.registry, resolver, "web-console"), Credential: webConsoleCredential}
+	w.launch = &launch.Service{
+		Reader:  w.reader,
+		Writer:  w.writer,
+		Packets: skillscripts.Packets{Paths: paths, Runner: skillscripts.NewPython(), ResearchDir: w.homeConfig.ResearchDir},
+		Limits: func() (*skillscripts.Limits, error) {
+			if paths.Skills == "" {
+				return nil, errors.New("the Vrooli repository root is not resolved (set VROOLI_ROOT), so limits.json cannot be read")
+			}
+			return skillscripts.LoadLimits(paths.Limits())
+		},
+		Launcher: &launch.Launcher{
+			Terminal:   &launch.WebConsole{Peer: w.webConsole},
+			Sessions:   w.reader,
+			WorkingDir: repoRoot,
+		},
+		Access: w.webConsole.Access,
+		Clock:  deps.Clock,
+		Logger: log.Default(),
+	}
+	return w
+}
+
+// liveInstance is nil when this process is the lifecycle-managed live
+// instance: the control plane started it with a runtime instance identity and
+// the live storage namespace. A test, a boot check or a shadow variant is not,
+// and only reads (rulings A10, F7).
+func liveInstance(getenv func(string) string) error {
+	switch {
+	case getenv(preflight.LifecycleManagedEnvVar) != "true":
+		return errors.New("not started by the Vrooli lifecycle")
+	case getenv(runtimeInstanceEnv) == "":
+		return errors.New("the lifecycle gave no runtime instance identity (" + runtimeInstanceEnv + ")")
+	case getenv(storage.EnvStorageNamespace) != scenarioName:
+		return fmt.Errorf("storage namespace %q is not the live instance's %q", getenv(storage.EnvStorageNamespace), scenarioName)
+	}
+	return nil
+}
+
+// runtimeInstanceEnv is the lifecycle identity the control plane installs.
+const runtimeInstanceEnv = "VROOLI_RUNTIME_INSTANCE_ID"
+
+// start runs serve in the background with a context of its own. The returned
+// stop, given to the server's shutdown cleanup, cancels it, waits for the
+// courier's current pass to end (bounded by ctx) and releases the write lock
+// (rulings E9).
+func (w *wiring) start() (stop func(ctx context.Context) error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		w.serve(ctx)
+	}()
+	return func(shutdown context.Context) error {
+		cancel()
+		select {
+		case <-done:
+		case <-shutdown.Done():
+			return fmt.Errorf("the courier did not stop before shutdown ended: %w", shutdown.Err())
+		}
+		return w.writer.Close()
+	}
+}
+
+// serviceVersion reads service.version from service.json.
+func serviceVersion(path string) string {
+	data, err := os.ReadFile(filepath.Clean(path))
+	if err != nil {
+		return "unknown"
+	}
+	var manifest struct {
+		Service struct {
+			Version string `json:"version"`
+		} `json:"service"`
+	}
+	if json.Unmarshal(data, &manifest) != nil || manifest.Service.Version == "" {
+		return "unknown"
+	}
+	return manifest.Service.Version
+}
+
+// serve becomes the writer once the lock is free (a restart overlaps the old
+// process briefly), marks launches the last stop interrupted, then runs the
+// courier until ctx ends. An instance that is not the writer does nothing.
+func (w *wiring) serve(ctx context.Context) {
+	if err := w.writer.Role(); err != nil {
+		log.Printf("research-desk reads only: %v", err)
+		return
+	}
+	for {
+		err := w.writer.Held()
+		if err == nil {
+			break
+		}
+		log.Printf("research-desk waits for the write lock: %v", err)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(10 * time.Second):
+		}
+	}
+	if err := w.launch.MarkInterrupted(ctx); err != nil {
+		log.Printf("launches interrupted by the last stop were not marked: %v", err)
+	}
+	w.courier.Run(ctx, time.Minute)
+}
+
+// webConsoleCredential is the desk's own Web Console credential. The desk has
+// none yet: the service principal is prepared by
+// scripts/issue-service-principal.sh, which the operator runs, and the client
+// that reads it waits on a dependency install (DECISIONS D20). Until then the
+// desk sends no credential and Web Console's documented availability policy
+// decides (rulings F14); with agents refused at the desk (F13) that gives the
+// desk nothing a local operator process does not already have.
+func webConsoleCredential(context.Context) (string, error) { return "", nil }
+
+// automaticLaunch says how an automatic launch reaches Web Console, or why it
+// cannot: Web Console is not running, or refused the desk's last call.
+func (w *wiring) automaticLaunch(ctx context.Context) (string, error) {
+	access, err := w.webConsole.Access(ctx)
+	if err != nil {
+		return "", err
+	}
+	if _, _, _, err := w.webConsole.Dial(ctx); err != nil {
+		return access, err
+	}
+	return access, w.webConsole.Refused()
+}
+
+// Route names in the overview's lenses.
+const (
+	webConsoleRoute = "web-console access"
+	courierRoute    = "courier"
+)
+
+// webConsoleAccess is the access line health and the overview show (F14).
+func (w *wiring) webConsoleAccess(ctx context.Context) (bool, string) {
+	access, err := w.automaticLaunch(ctx)
+	switch {
+	case access == "":
+		return false, "Web Console access: unknown (" + err.Error() + "); automatic launch is off and manual launch is the whole flow"
+	case err != nil:
+		return false, "Web Console access: " + access + "; automatic launch is off and manual launch is the whole flow: " + err.Error()
+	}
+	return true, "Web Console access: " + access
+}
+
+// routes are the overview's lenses for what lies outside the home: each
+// optional scenario as the capability registry reports it (E5), Web Console
+// access (F14) and the courier's health (E6, F15).
+func (w *wiring) routes(ctx context.Context) []home.Lens {
+	var out []home.Lens
+	if w.registry == nil {
+		out = append(out, home.Lens{Name: "capability registry", Reason: "not loaded: .vrooli/service.json not found (set VROOLI_ROOT); no optional scenario is reached"})
+	} else {
+		for _, state := range w.registry.Resolve(ctx) {
+			out = append(out, home.Lens{Name: state.DependencySlug, Available: state.Status == capabilities.StatusAvailable, Reason: state.Message})
+		}
+	}
+	ok, said := w.webConsoleAccess(ctx)
+	out = append(out, home.Lens{Name: webConsoleRoute, Available: ok, Reason: said})
+	if err := w.writer.Role(); err != nil {
+		return append(out, home.Lens{Name: courierRoute, Reason: "this instance only reads (" + err.Error() + "); the live instance runs the courier"})
+	}
+	ok, said = w.courier.Health().Say()
+	return append(out, home.Lens{Name: courierRoute, Available: ok, Reason: said})
+}
+
+// loadRegistry projects .vrooli/service.json; nil when it cannot be read,
+// which every peer and the capabilities route then report.
+func (w *wiring) loadRegistry(resolver capabilities.PortResolver) *capabilities.Registry {
+	if w.scenarioDir == "" {
+		return nil
+	}
+	defs, err := capabilities.Load(filepath.Join(w.scenarioDir, ".vrooli", "service.json"))
+	if err != nil {
+		log.Printf("capabilities unavailable: %v", err)
+		return nil
+	}
+	return capabilities.NewRegistry(defs, resolver)
+}
+
+// researchHomeReadable is the health check: the research home is a folder.
+func (w *wiring) researchHomeReadable(context.Context) error {
+	info, err := os.Stat(w.homeConfig.ResearchDir)
+	if err != nil {
+		return fmt.Errorf("research home %s is not readable: %w", w.homeConfig.ResearchDir, err)
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("research home %s is not a folder", w.homeConfig.ResearchDir)
+	}
+	return nil
+}
