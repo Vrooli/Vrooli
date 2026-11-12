@@ -66,6 +66,12 @@ type runner func(context.Context, string, []string, string, []string, io.Writer,
 // Execute reads a bounded request and publishes a verified local output bundle.
 // It never provisions tools or downloads a browser.
 func Execute(ctx context.Context, requestFile, out string) (result Receipt, err error) {
+	return ExecuteWithDiskLease(ctx, requestFile, out, "")
+}
+
+// ExecuteWithDiskLease joins a caller-owned disk job when leaseFile is set.
+// The caller retains completion responsibility for that outer job.
+func ExecuteWithDiskLease(ctx context.Context, requestFile, out, leaseFile string) (result Receipt, err error) {
 	defer func() {
 		if err != nil {
 			result.Version = 1
@@ -97,9 +103,89 @@ func Execute(ctx context.Context, requestFile, out string) (result Receipt, err 
 	if err != nil {
 		return Receipt{}, fmt.Errorf("managed tool required: %w", err)
 	}
-	return withRenderAdmission(ctx, req.MemoryMiB, newRenderBroker, capacity.RecommendedLeaseHeartbeatInterval(), func(workCtx context.Context) (Receipt, error) {
+	diskPaths, err := renderDiskPaths(req, out)
+	if err != nil {
+		return Receipt{}, err
+	}
+	return withRenderAdmissionAndDisk(ctx, req.MemoryMiB, newRenderBroker, capacity.RecommendedLeaseHeartbeatInterval(), diskPaths, leaseFile, func(workCtx context.Context) (Receipt, error) {
 		return execute(workCtx, req, out, dir, installation, runContained)
 	})
+}
+
+type privateDiskJobCredential struct {
+	ID           string `json:"id"`
+	Capability   string `json:"capability"`
+	ProcessID    int    `json:"process_id"`
+	ProcessStart string `json:"process_start"`
+}
+
+func readDiskJobCredential(ctx context.Context, path string) (capacity.DiskJobCredential, error) {
+	if strings.TrimSpace(path) == "" {
+		return capacity.DiskJobCredential{}, errors.New("lease file path is empty")
+	}
+	f, err := openRegularContext(ctx, path, 4096)
+	if err != nil {
+		return capacity.DiskJobCredential{}, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return capacity.DiskJobCredential{}, err
+	}
+	if info.Mode().Perm() != 0o600 {
+		return capacity.DiskJobCredential{}, errors.New("lease credential file must be a regular private file with mode 0600")
+	}
+	raw, err := io.ReadAll(contextReader{ctx: ctx, reader: io.LimitReader(f, 4097)})
+	if err != nil {
+		return capacity.DiskJobCredential{}, err
+	}
+	if len(raw) > 4096 {
+		return capacity.DiskJobCredential{}, errors.New("lease credential file exceeds byte budget")
+	}
+	infoAfter, err := f.Stat()
+	if err != nil {
+		return capacity.DiskJobCredential{}, err
+	}
+	if !os.SameFile(info, infoAfter) || infoAfter.Mode().Perm() != 0o600 {
+		return capacity.DiskJobCredential{}, errors.New("lease credential file identity or permissions changed while reading")
+	}
+	var file privateDiskJobCredential
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&file); err != nil {
+		return capacity.DiskJobCredential{}, err
+	}
+	if err := d.Decode(new(any)); err != io.EOF {
+		return capacity.DiskJobCredential{}, errors.New("lease credential file must contain one JSON value")
+	}
+	if strings.TrimSpace(file.ID) == "" || strings.TrimSpace(file.Capability) == "" || file.ProcessID <= 0 || strings.TrimSpace(file.ProcessStart) == "" {
+		return capacity.DiskJobCredential{}, errors.New("lease credential file is incomplete")
+	}
+	return capacity.DiskJobCredential{ID: file.ID, Capability: file.Capability, ProcessID: file.ProcessID, ProcessStart: file.ProcessStart}, nil
+}
+
+// renderDiskPaths reserves every filesystem this invocation may grow. The
+// source tree is already acquired by its producer; one byte records that its
+// filesystem participates in the shared floor calculation without pretending
+// HyperFrames owns that earlier download. Candidate HOME/TMP, browser/runtime
+// caches, copied inputs, temporary frames, logs, and the final bundle all live
+// beneath a private candidate beside out. The candidate's sampled 4 GiB cap is
+// retained, with 2 GiB additional headroom reserved for peak copy/publication
+// overhead.
+func renderDiskPaths(req Request, out string) ([]capacity.DiskJobPath, error) {
+	if !filepath.IsAbs(req.InputDir) {
+		return nil, errors.New("input_dir must be absolute before disk admission")
+	}
+	absOut, err := filepath.Abs(out)
+	if err != nil {
+		return nil, fmt.Errorf("resolve render output for disk admission: %w", err)
+	}
+	parent := filepath.Dir(absOut)
+	const candidatePeak = int64(6 << 30)
+	return []capacity.DiskJobPath{
+		{Path: req.InputDir, Role: "acquired-source-read", PeakBytes: 1},
+		{Path: parent, Role: "candidate-snapshot-runtime-cache-temp-frames-final-output", PeakBytes: candidatePeak},
+	}, nil
 }
 
 func validateRequest(req Request) error {
@@ -360,10 +446,16 @@ func execute(ctx context.Context, req Request, out, toolDir string, installation
 		}
 		// Preserve bounded diagnostics without retaining source snapshots or a
 		// partial media file under a success-shaped destination.
-		_ = os.RemoveAll(filepath.Join(candidate, "inputs"))
-		_ = os.Remove(filepath.Join(candidate, "render.mp4"))
-		_ = os.RemoveAll(filepath.Join(candidate, "tmp"))
-		_ = os.RemoveAll(filepath.Join(candidate, "home"))
+		cleanupErr := errors.Join(
+			os.RemoveAll(filepath.Join(candidate, "inputs")),
+			removeOwnedFile(filepath.Join(candidate, "render.mp4")),
+			os.RemoveAll(filepath.Join(candidate, "tmp")),
+			os.RemoveAll(filepath.Join(candidate, "home")),
+			os.RemoveAll(filepath.Join(candidate, "runtime")),
+		)
+		if cleanupErr != nil {
+			err = errors.Join(errOwnedCleanup, err, fmt.Errorf("render candidate cleanup unverified: %w", cleanupErr))
+		}
 		receipt.Version = 1
 		receipt.Status = "failed"
 		receipt.Error = err.Error()
@@ -393,8 +485,13 @@ func execute(ctx context.Context, req Request, out, toolDir string, installation
 	if err = verifyInputsContext(ctx, snapshot); err != nil {
 		return receipt, err
 	}
-	for _, name := range []string{"tmp", "home"} {
+	for _, name := range []string{"tmp", "home", "runtime"} {
 		if err = os.Mkdir(filepath.Join(candidate, name), 0o700); err != nil {
+			return receipt, err
+		}
+	}
+	for _, name := range []string{"cache", "config", "data"} {
+		if err = os.Mkdir(filepath.Join(candidate, "home", name), 0o700); err != nil {
 			return receipt, err
 		}
 	}
@@ -441,7 +538,7 @@ func execute(ctx context.Context, req Request, out, toolDir string, installation
 	defer logFile.Close()
 	log := &boundedWriter{Writer: logFile, remaining: profile.LogBytes}
 	ctx = context.WithValue(ctx, taskObservationWriterKey{}, log)
-	env := renderEnv(req)
+	env := renderEnv(req, candidate)
 	env = append(env, "HOME="+filepath.Join(candidate, "home"), "TMPDIR="+filepath.Join(candidate, "tmp"), "TMP="+filepath.Join(candidate, "tmp"), "TEMP="+filepath.Join(candidate, "tmp"))
 	for name, spec := range map[string]Executable{"node": req.Node, "browser": req.Browser, "ffmpeg": req.FFmpeg, "ffprobe": req.FFprobe} {
 		args := []string{"--version"}
@@ -520,7 +617,7 @@ func execute(ctx context.Context, req Request, out, toolDir string, installation
 	if err = ctx.Err(); err != nil {
 		return receipt, err
 	}
-	for _, name := range []string{"tmp", "home"} {
+	for _, name := range []string{"tmp", "home", "runtime"} {
 		if err = os.RemoveAll(filepath.Join(candidate, name)); err != nil {
 			return receipt, err
 		}
@@ -534,6 +631,14 @@ func execute(ctx context.Context, req Request, out, toolDir string, installation
 		return receipt, err
 	}
 	return receipt, nil
+}
+
+func removeOwnedFile(path string) error {
+	err := os.Remove(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
 }
 
 func copyInput(source, dest, want string) error {
@@ -579,13 +684,14 @@ func supportedNode(v string) bool {
 	return major > 22 || major == 22 && minor >= 12
 }
 
-func renderEnv(req Request) []string {
+func renderEnv(req Request, candidate string) []string {
 	profile := fixedRenderProfile()
 	// Fixed environment avoids ambient Node options, HF browser overrides,
 	// cloud credentials, proxy and dotenv-driven process changes.
 	path := strings.Join([]string{filepath.Dir(req.Node.Path), filepath.Dir(req.FFmpeg.Path), filepath.Dir(req.FFprobe.Path), "/usr/bin", "/bin"}, string(os.PathListSeparator))
-	env := []string{"PATH=" + path, "HYPERFRAMES_NO_TELEMETRY=1", "DO_NOT_TRACK=1", "HYPERFRAMES_NO_CAPTURE_DOTENV=1", "HYPERFRAMES_BROWSER_PATH=" + req.Browser.Path, "HYPERFRAMES_FFMPEG_PATH=" + req.FFmpeg.Path, "HYPERFRAMES_FFPROBE_PATH=" + req.FFprobe.Path, fmt.Sprintf("OMP_NUM_THREADS=%d", profile.OMPThreads), fmt.Sprintf("OPENBLAS_NUM_THREADS=%d", profile.BLASThreads), "LANG=C.UTF-8", "TZ=UTC"}
-	for _, key := range []string{"XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"} {
+	home := filepath.Join(candidate, "home")
+	env := []string{"PATH=" + path, "HYPERFRAMES_NO_TELEMETRY=1", "DO_NOT_TRACK=1", "HYPERFRAMES_NO_CAPTURE_DOTENV=1", "HYPERFRAMES_BROWSER_PATH=" + req.Browser.Path, "HYPERFRAMES_FFMPEG_PATH=" + req.FFmpeg.Path, "HYPERFRAMES_FFPROBE_PATH=" + req.FFprobe.Path, "XDG_CACHE_HOME=" + filepath.Join(home, "cache"), "XDG_CONFIG_HOME=" + filepath.Join(home, "config"), "XDG_DATA_HOME=" + filepath.Join(home, "data"), "XDG_RUNTIME_DIR=" + filepath.Join(candidate, "runtime"), fmt.Sprintf("OMP_NUM_THREADS=%d", profile.OMPThreads), fmt.Sprintf("OPENBLAS_NUM_THREADS=%d", profile.BLASThreads), "LANG=C.UTF-8", "TZ=UTC"}
+	for _, key := range []string{"DBUS_SESSION_BUS_ADDRESS"} {
 		if v := os.Getenv(key); v != "" {
 			env = append(env, key+"="+v)
 		}

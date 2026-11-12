@@ -29,6 +29,13 @@ Portable browser acquisition and non-Linux rendering remain unqualified.
 vrooli host hyperframes --request render-request.json --out render-bundle --json
 ```
 
+An AV2 owner that already holds one outer disk job across acquisition and paired
+landscape/vertical renders may pass `--disk-lease-file <private-0600-file>`.
+HyperFrames verifies and attaches that credential, observes and extends the
+declared render paths before writing, and heartbeats it through render cleanup.
+The outer owner remains responsible for completion after both outputs and source
+cleanup; a renderer invocation never completes or releases a delegated lease.
+
 The version-1 request identifies an input directory and every regular input
 file by relative name and SHA-256, composition subdirectory, and explicit Node,
 browser, FFmpeg and FFprobe executable paths and SHA-256 values. It declares a
@@ -69,10 +76,16 @@ establish aesthetic quality or listening.
 
 Each invocation acquires its requested RAM ceiling and 2000 CPU millicores through
 `packages/capacity.NewBroker` before snapshotting or starting renderer processes.
-This uses the existing serialized ledger, fresh memory PSI and CPU pressure rules.
-It does not reclaim other workloads or change policy. Queue, deny, sensing failure,
-and a lease that cannot renew stop the invocation. Retry after capacity becomes
-available; do not force a render through a refusal.
+It also atomically reserves 6 GiB on the output/candidate filesystem and records
+the already-acquired source filesystem in the same disk job. The source entry is
+read-only participation in the shared 120 GiB free-space floor; AV2 acquisition
+must hold its own disk lease before downloading. Candidate HOME, XDG caches,
+runtime directory, TMPDIR, copied inputs, temporary frames, logs and final bundle
+are confined beneath the candidate/output parent covered by that reservation.
+The existing 4 GiB sampled candidate cap remains active; the extra 2 GiB is
+admission headroom for transient snapshot and publication growth. Queue, deny,
+sensing failure, and a lease that cannot renew stop the invocation. Retry after
+capacity becomes available; do not force a render through a refusal.
 
 The lease covers snapshot, check, render, decode, probe and owned-process cleanup.
 Renewal failure cancels that work. Cleanup uses a separate five-second release
@@ -81,8 +94,10 @@ claim until its existing expiry and reports recovery required. CPU reservation i
 an admission estimate, not a two-core execution quota; the existing scope profile
 still controls process limits and priority.
 
-The command result includes `capacity_admission` with owner, budget, verdict and
-release state. Retain that result beside the immutable render bundle. On exact
+The command result includes `capacity_admission` with owner, RAM/CPU budget,
+verdict, and the completed shared disk-job receipt, including per-filesystem
+estimated peak and actual free-space delta. Retain that result beside the
+immutable render bundle. On exact
 reuse, the bundle remains the original render receipt, while admission describes
 the new invocation. A release failure is an invocation failure even if a verified
 bundle was already published; reconcile that bundle before resubmitting.

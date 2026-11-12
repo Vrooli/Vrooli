@@ -3,6 +3,8 @@ package hyperframes
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -39,6 +41,12 @@ func (b *admissionBroker) Acquire(_ context.Context, owner string, ram, cpu int6
 	b.owner, b.ram, b.cpu = owner, ram, cpu
 	return b.lease, b.verdict, b.err
 }
+func (b *admissionBroker) ReserveDiskJob(context.Context, capacity.DiskJobRequest) (capacity.DiskJobLease, error) {
+	return nil, errors.New("unexpected disk reservation in RAM/CPU-only admission test")
+}
+func (b *admissionBroker) AttachDiskJobLease(context.Context, capacity.DiskJobCredential) (capacity.DiskJobLease, error) {
+	return nil, errors.New("unexpected delegated disk lease in RAM/CPU-only admission test")
+}
 func (b *admissionBroker) Close() error { b.closed = true; return nil }
 func factory(b *admissionBroker) renderBrokerFactory {
 	return func(context.Context) (renderBroker, error) { return b, nil }
@@ -61,6 +69,32 @@ func TestRenderAdmissionRefusesUnavailableDeniedAndQueuedBeforeWork(t *testing.T
 	})
 	if err == nil || !strings.Contains(err.Error(), "sensor offline") {
 		t.Fatalf("missing refusal: %v", err)
+	}
+}
+
+func TestReadDiskJobCredentialRequiresStablePrivateRegularFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "lease.json")
+	contents := `{"id":"dsk-example","capability":"secret","process_id":123,"process_start":"456"}`
+	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	credential, err := readDiskJobCredential(context.Background(), path)
+	if err != nil || credential.ID != "dsk-example" || credential.Capability != "secret" || credential.ProcessID != 123 || credential.ProcessStart != "456" {
+		t.Fatalf("private lease credential read = %+v, %v", credential, err)
+	}
+	if err := os.Chmod(path, 0o604); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readDiskJobCredential(context.Background(), path); err == nil {
+		t.Fatal("accepted a group/world-readable lease credential")
+	}
+	alias := filepath.Join(dir, "lease-alias.json")
+	if err := os.Symlink(path, alias); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readDiskJobCredential(context.Background(), alias); err == nil {
+		t.Fatal("accepted a symlink lease credential")
 	}
 }
 
