@@ -51,19 +51,14 @@ answering it. Ask answers, subscription/credential operations, and the
 recipient/device/preferences writes covered here retain their existing checks.
 Other endpoints are unchanged by this read rule.
 
-**Interactive operations are recipient-bound and distinct.** Agent Manager's
-reviewed `notification-sending` policy delegates only `notification.send`, and
-`notification-decision-asking` delegates only `notification.ask`; both require
-`notification-hub:write` and the exact configured
-`notification-hub:recipient/<subject>` target. Send, relay and decision asks
-use `authn.RequireOperation`; supplemental proofs are reverified at that
-boundary. A send grant does not authorize an ask, and an ask grant does not
-authorize informational sends. Their scopes are not merged into the baseline
-identity. Existing managed profiles retain their scoped send contract but do
-not receive decision-ask authority. Neither policy grants owner identity,
-answers, preference changes or subscription management. The human approves
-through Agent Manager's native consent page; the requesting agent cannot
-approve its own request.
+**Agents notify without a grant; volume is bounded per producer.** Send, relay
+and decision asks admit any server-verified agent run or the verified owner
+(`identity.ProducerFor`). A presented agent token that does not verify is refused
+and never falls back to another credential. Agent ingress always targets the
+configured recipient. The per-producer cooldown (`VROOLI_NOTIFICATION_PRODUCER_*`,
+see `path:docs/reference/configuration.md`) refuses a flooding producer with a
+retry time instead of storing its requests. Producer admission never grants owner
+identity: answers, dismissals, preferences and subscriptions require the owner.
 
 **Trust posture selects the recipient model.** `trust_posture` in
 `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` is `personal`, `shared`, or `hosted`.

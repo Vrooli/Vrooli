@@ -33,3 +33,14 @@ func TestParseDeadlineAcceptsTimeOrDuration(t *testing.T) {
 	_, err = parseDeadline("tomorrow", now)
 	require.Error(t, err)
 }
+
+func TestWaitContextOutlivesDefaultTimeoutUntilDeadline(t *testing.T) {
+	deadline := time.Now().Add(2 * time.Hour).UTC().Format(time.RFC3339)
+	ctx, cancel := waitContext(deadline)
+	defer cancel()
+	got, ok := ctx.Deadline()
+	want, _ := time.Parse(time.RFC3339, deadline)
+	if !ok || !got.Equal(want.Add(waitGrace)) {
+		t.Fatalf("wait context deadline = %v (set=%v), want %v", got, ok, want.Add(waitGrace))
+	}
+}

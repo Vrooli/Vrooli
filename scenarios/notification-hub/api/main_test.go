@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
+	"time"
 
 	notificationH "notification-hub/handlers/notifications"
 	"notification-hub/internal/hub"
@@ -1194,3 +1195,23 @@ func TestE21ReachEmptyFixtureTakesPrecedenceOverSettingsSeed(t *testing.T) {
 		t.Fatal("explicit leased Reach empty selector must take precedence over Settings seed")
 	}
 }
+
+func TestConfigureProducerCooldownReadsLimitsAndKeepsDefaultsOnInvalidValues(t *testing.T) {
+	service := cooldownSettings{hub.ProducerNotification: hub.DefaultNotificationCooldown, hub.ProducerAsk: hub.DefaultAskCooldown}
+	configureProducerCooldown(service, func(key string) string {
+		return map[string]string{
+			"VROOLI_NOTIFICATION_PRODUCER_SEND_LIMIT": "10/1h",
+			"VROOLI_NOTIFICATION_PRODUCER_ASK_LIMIT":  "often",
+		}[key]
+	})
+	require.Equal(t, hub.CooldownLimit{Count: 10, Window: time.Hour}, service.ProducerCooldown(hub.ProducerNotification))
+	require.Equal(t, hub.DefaultAskCooldown, service.ProducerCooldown(hub.ProducerAsk))
+}
+
+type cooldownSettings map[hub.ProducerKind]hub.CooldownLimit
+
+func (c cooldownSettings) SetProducerCooldown(kind hub.ProducerKind, limit hub.CooldownLimit) {
+	c[kind] = limit
+}
+
+func (c cooldownSettings) ProducerCooldown(kind hub.ProducerKind) hub.CooldownLimit { return c[kind] }

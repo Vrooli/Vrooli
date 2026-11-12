@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/provenance"
@@ -32,56 +31,48 @@ func WithLeasedTestOwner(ctx context.Context, subject string) context.Context {
 	return context.WithValue(ctx, ownerContextKey{}, ownerContext{identity: owneridentity.Identity{Subject: strings.TrimSpace(subject)}})
 }
 
-// ProducerSubject accepts a scoped, server-verified run for notification ingress.
-// It never makes that run an owner or authorizes recipient decisions.
-func ProducerSubject(ctx context.Context, headers http.Header, verifier Verifier, recipient string) (string, error) {
-	if owner, ok := ownerFromContext(ctx); ok && owner.refused {
-		return "", owneridentity.ErrUnauthenticated
-	}
-	agent := provenance.FromContext(ctx)
-	if headers.Get(cliutil.HeaderAgentIdentityToken) != "" || agent.IsAgent() {
-		if !agent.IsVerifiedAgent() {
-			return "", owneridentity.ErrUnauthenticated
-		}
-		// requested_by is the hub's recipient partition, not the acting run.
-		// Keep verified run attribution in canonical request provenance.
-		if strings.TrimSpace(recipient) == "" {
-			return "", owneridentity.ErrUnauthenticated
-		}
-		if agent.Grant != nil || agent.OperationGrant != nil {
-			// Interactive authority is operation/target bounded, including when
-			// supplied beside an existing zero-scope run. RequireOperation verifies
-			// the live pair and matches each rule through the canonical evaluator.
-			if _, err := authn.RequireOperation(ctx, "notification-hub:write", "notification.send", "notification-hub:recipient/"+recipient); err != nil {
-				return "", err
-			}
-		} else if err := agent.RequireScope("notification-hub:write"); err != nil {
-			// Managed profiles retain their existing scoped producer contract.
-			return "", err
-		}
-		return recipient, nil
-	}
-	return Subject(ctx, headers, verifier)
+// Producer is the admitted sender of a direct notification or decision ask.
+type Producer struct {
+	// Recipient is the hub's recipient partition (requested_by). An agent
+	// always reaches the configured recipient; it cannot choose another one.
+	Recipient string
+	// Key names the producer for the per-producer cooldown: one key per
+	// verified agent run, and one for the verified owner.
+	Key string
 }
 
-// DecisionSubject admits an owner or a verified agent with an explicit,
-// recipient-bound notification.ask grant. A send grant or managed producer
-// scope is not sufficient to create a human decision request.
-func DecisionSubject(ctx context.Context, headers http.Header, verifier Verifier, recipient string) (string, error) {
+// ProducerFor admits the sender of a direct notification, relay or decision
+// ask. Two callers are admitted:
+//
+//   - a server-verified agent run (an Agent Manager run, or an interactive
+//     Codex, Claude or Web Console session attached to a run). It needs no
+//     scope and no operation grant; the per-producer cooldown bounds volume.
+//   - the verified owner (Cloudflare Access login, loopback owner in
+//     personal_local mode, or a scenario-authenticator bearer or cookie).
+//
+// A presented agent token that does not verify is refused and never falls back
+// to another credential. Admission as a producer never makes a run the owner:
+// answers, dismissals, preferences and subscriptions keep the owner check in
+// Subject.
+func ProducerFor(ctx context.Context, headers http.Header, verifier Verifier, recipient string) (Producer, error) {
 	if owner, ok := ownerFromContext(ctx); ok && owner.refused {
-		return "", owneridentity.ErrUnauthenticated
+		return Producer{}, owneridentity.ErrUnauthenticated
 	}
 	agent := provenance.FromContext(ctx)
 	if headers.Get(cliutil.HeaderAgentIdentityToken) != "" || agent.IsAgent() {
-		if !agent.IsVerifiedAgent() || strings.TrimSpace(recipient) == "" {
-			return "", owneridentity.ErrUnauthenticated
+		recipient = strings.TrimSpace(recipient)
+		if !agent.IsVerifiedAgent() || recipient == "" {
+			return Producer{}, owneridentity.ErrUnauthenticated
 		}
-		if _, err := authn.RequireOperation(ctx, "notification-hub:write", "notification.ask", "notification-hub:recipient/"+recipient); err != nil {
-			return "", err
-		}
-		return recipient, nil
+		// requested_by is the hub's recipient partition, not the acting run.
+		// Verified run attribution stays in canonical request provenance.
+		return Producer{Recipient: recipient, Key: "run:" + strings.TrimSpace(agent.RunID)}, nil
 	}
-	return Subject(ctx, headers, verifier)
+	subject, err := Subject(ctx, headers, verifier)
+	if err != nil {
+		return Producer{}, err
+	}
+	return Producer{Recipient: subject, Key: "owner:" + subject}, nil
 }
 
 // Subject verifies the owner: a Cloudflare Access login first, then the

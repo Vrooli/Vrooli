@@ -309,6 +309,7 @@ func main() {
 	slog.Info("vrooli-events webhook secret", "resolved", webhookSecret() != "")
 	service.SetResolutionPublisher(integrations.EventsPublisher{BaseURL: func() string { return eventsBase(context.Background()) }})
 	configureAskDefaultFloor(service)
+	configureProducerCooldown(service, os.Getenv)
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
@@ -358,9 +359,6 @@ func main() {
 
 	if err := apiserver.Run(apiserver.Config{
 		Handler: handler,
-		// Map verified producer provenance to the canonical agent principal for
-		// operation grants. OwnerAuthenticator retains the Hub's owner contract.
-		Authentication: &authn.Config{},
 		LifecycleHooks: apilifecycle.Hooks{
 			Quiesce: stopSubscriptionRetry,
 			Resume: func(context.Context) error {
@@ -1474,6 +1472,34 @@ func configureAskDefaultFloor(service *hub.Service) {
 	}
 	service.SetAskDefaultFloor(floor)
 	slog.Info("ask default floor configured", "floor", floor.String())
+}
+
+type producerCooldownSetter interface {
+	SetProducerCooldown(hub.ProducerKind, hub.CooldownLimit)
+	ProducerCooldown(hub.ProducerKind) hub.CooldownLimit
+}
+
+// configureProducerCooldown reads the per-producer limits for direct
+// notifications and decision asks ("<count>/<Go duration>" or "off"). An
+// invalid value keeps the default and logs a warning.
+func configureProducerCooldown(service producerCooldownSetter, getenv func(string) string) {
+	for _, setting := range []struct {
+		env  string
+		kind hub.ProducerKind
+	}{
+		{"VROOLI_NOTIFICATION_PRODUCER_SEND_LIMIT", hub.ProducerNotification},
+		{"VROOLI_NOTIFICATION_PRODUCER_ASK_LIMIT", hub.ProducerAsk},
+	} {
+		if value := strings.TrimSpace(getenv(setting.env)); value != "" {
+			limit, err := hub.ParseCooldownLimit(value)
+			if err != nil {
+				slog.Warn("ignoring invalid producer cooldown; using the default", "env", setting.env, "value", value, "error", err)
+			} else {
+				service.SetProducerCooldown(setting.kind, limit)
+			}
+		}
+		slog.Info("producer cooldown configured", "kind", setting.kind, "limit", service.ProducerCooldown(setting.kind).String())
+	}
 }
 
 func configureWebPush(service *hub.Service, fileRoots *filerouting.RoutedRoots) {

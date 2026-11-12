@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
 
 	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/authn"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/shared"
@@ -36,6 +36,16 @@ func ModuleWithVerifier(service *hub.Service, verifier identity.Verifier) module
 	}, Endpoints: Endpoints}
 }
 
+// producer admits a direct ask or withdrawal from a verified agent run or the
+// verified owner. It never admits an answer or a dismissal: those use owner.
+func (h *handler) producer(ctx context.Context, headers http.Header) (identity.Producer, error) {
+	producer, err := identity.ProducerFor(ctx, headers, h.verifier, h.service.ResolveRecipient(ctx))
+	if err != nil {
+		return identity.Producer{}, connect.NewError(connect.CodeUnauthenticated, errors.New("a verified agent run or verified owner identity is required"))
+	}
+	return producer, nil
+}
+
 func (h *handler) owner(ctx context.Context, headers http.Header) (string, error) {
 	subject, err := identity.Subject(ctx, headers, h.verifier)
 	if err != nil {
@@ -45,12 +55,9 @@ func (h *handler) owner(ctx context.Context, headers http.Header) (string, error
 }
 
 func (h *handler) Ask(ctx context.Context, req *connect.Request[v1.AskRequest]) (*connect.Response[v1.AskResponse], error) {
-	subject, err := identity.DecisionSubject(ctx, req.Header(), h.verifier, h.service.ResolveRecipient(ctx))
+	producer, err := h.producer(ctx, req.Header())
 	if err != nil {
-		if errors.Is(err, authn.ErrOperation) || errors.Is(err, authn.ErrCapability) {
-			return nil, connect.NewError(connect.CodePermissionDenied, err)
-		}
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner or approved decision-asking grant is required"))
+		return nil, err
 	}
 	deadline, err := time.Parse(time.RFC3339, req.Msg.GetDeadline())
 	if err != nil {
@@ -65,8 +72,8 @@ func (h *handler) Ask(ctx context.Context, req *connect.Request[v1.AskRequest]) 
 			options = append(options, hub.AskOption{Key: key, Label: key})
 		}
 	}
-	ask, notification, err := h.service.AskWithSpec(ctx, hub.AskSpec{
-		Recipient:               subject,
+	ask, notification, err := h.service.AskFrom(ctx, producer.Key, hub.AskSpec{
+		Recipient:               producer.Recipient,
 		Question:                req.Msg.GetQuestion(),
 		Options:                 options,
 		Recommended:             req.Msg.GetRecommended(),
@@ -142,14 +149,11 @@ func (h *handler) Dismiss(ctx context.Context, req *connect.Request[v1.DismissRe
 }
 
 func (h *handler) Withdraw(ctx context.Context, req *connect.Request[v1.WithdrawRequest]) (*connect.Response[v1.WithdrawResponse], error) {
-	requester, err := identity.DecisionSubject(ctx, req.Header(), h.verifier, h.service.ResolveRecipient(ctx))
+	requester, err := h.producer(ctx, req.Header())
 	if err != nil {
-		if errors.Is(err, authn.ErrOperation) || errors.Is(err, authn.ErrCapability) {
-			return nil, connect.NewError(connect.CodePermissionDenied, err)
-		}
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner or approved decision-asking grant is required"))
+		return nil, err
 	}
-	ask, err := h.service.WithdrawDirectAsk(ctx, req.Msg.GetAskId(), requester, req.Msg.GetReason())
+	ask, err := h.service.WithdrawDirectAsk(ctx, req.Msg.GetAskId(), requester.Recipient, req.Msg.GetReason())
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -262,7 +266,12 @@ func providerDecisionContextToProto(value *hub.ProviderDecisionContext) *v1.Prov
 }
 
 func connectError(err error) error {
+	var cooldown *hub.CooldownError
 	switch {
+	case errors.As(err, &cooldown):
+		refusal := connect.NewError(connect.CodeResourceExhausted, err)
+		refusal.Meta().Set("Retry-After", strconv.Itoa(int(cooldown.RetryAfter/time.Second)))
+		return refusal
 	case errors.Is(err, hub.ErrNotFound):
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, hub.ErrAskResolved):

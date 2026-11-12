@@ -1,6 +1,7 @@
 package conversations
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -46,4 +47,18 @@ func parseDeadline(value string, now time.Time) (string, error) {
 		return now.Add(duration).UTC().Format(time.RFC3339), nil
 	}
 	return "", fmt.Errorf("--deadline %q must be an RFC 3339 time or a positive duration such as 24h", value)
+}
+
+// waitGrace lets the server answer its own deadline before the client gives up.
+const waitGrace = time.Minute
+
+// waitContext bounds a Wait call by the parsed RFC 3339 deadline plus a short
+// grace, so the long-poll is never cut off by a fixed client timeout and never
+// outlives the deadline the caller asked for.
+func waitContext(deadline string) (context.Context, context.CancelFunc) {
+	at, err := time.Parse(time.RFC3339, deadline)
+	if err != nil {
+		return context.WithCancel(context.Background())
+	}
+	return context.WithDeadline(context.Background(), at.Add(waitGrace))
 }

@@ -35,47 +35,31 @@ ports as outbound source ports. See the project-level port allocation reference
 | `VROOLI_AUTH_COOKIE_SECURE` | `true` behind HTTPS (`X-Forwarded-Proto: https`) | Forces the `Secure` flag on the owner session cookies on or off. Leave unset. |
 | `VROOLI_NOTIFICATION_ASK_DEFAULT_FLOOR` | `12h` | Minimum time between an ask's first delivered receipt and applying its default (Go duration). Lower it only for fixtures such as the delivery canary. |
 
-Direct `notifications send` and `relay` accept verified owner credentials or an
-Agent Manager run identity with `notification-hub:write` scope (including canonical
-wildcard coverage). Interactive `notification-sending` grants require
-`notification.send`; the separate `notification-decision-asking` grant requires
-`notification.ask`. Both target
-`notification-hub:recipient/<configured-subject>`. The canonical evaluator accepts
-covering wildcard targets and multi-policy rules; supplemental grants are
-reverified against their live baseline at the operation boundary. Agent ingress
-uses the configured recipient; neither grant authorizes answers, preferences or
-subscriptions. Channel readiness does not prove sender
-authorization or delivery. Verified run attribution remains request provenance;
-per-notification actor persistence is not guaranteed by this contract.
+Direct `notifications send`, `relay` and `conversations ask` accept two callers:
 
-Request recipient-bound authority through the existing consent owner. Include
-only the policies the commission needs; a new approval replaces the session's
-previous grant.
+- Any verified agent run or session (the CLI sends `VROOLI_AGENT_IDENTITY_TOKEN`).
+  No scope, grant or consent is needed.
+- The verified owner: a Cloudflare Access login, or a scenario-authenticator token
+  set with `notification-hub configure token` or `NOTIFICATION_HUB_API_TOKEN`.
 
-```bash
-notification-hub recipients get --json
-vrooli agent list --json
-vrooli agent authorization <session-or-run>
-vrooli agent authorize <session-or-run> \
-  --policy notification-sending \
-  --target notification-hub:recipient/<subject> \
-  --policy notification-decision-asking \
-  --target notification-hub:recipient/<subject> --expires-in 8h \
-  --reason 'Send updates and create operator decision asks during this session.' \
-  --technical-details 'Only notification.send and notification.ask to this recipient. Answers, preferences and subscriptions remain owner-only.' \
-  --approval-base https://<authenticated-agent-manager-host>
-```
+A caller with no credential, or with an agent token that does not verify, is refused
+with `unauthenticated`. Agent sends always go to the configured recipient. Answers,
+dismissals, preferences and subscriptions stay owner-only: an agent cannot answer
+or dismiss an ask, including its own.
 
-Use the returned recipient `subject` and the current live session selector.
-The command returns the native consent URL; approval requires an independent
-human whose verified policy includes `agent-manager:write` and
-`notification-hub:write`. A pending request supplies no authority. After approval,
-the existing session obtains the grant automatically on later CLI calls. Include
-other still-needed policies in the same request: a new approval replaces the
-session's previous grant. Use `vrooli agent authorization` to reconcile the request
-instead of submitting it again. Direct owner asks remain available. Agent asks
-require the separate `notification-decision-asking` grant; sender consent does
-not authorize decision asks or change delivery settings.
+Each producer (one agent run, or the owner) has a cooldown:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `VROOLI_NOTIFICATION_PRODUCER_SEND_LIMIT` | `6/10m` | Most direct sends and relays per producer in a sliding window (`<count>/<Go duration>`, or `off`). |
+| `VROOLI_NOTIFICATION_PRODUCER_ASK_LIMIT` | `3/10m` | Most decision asks per producer in a sliding window. |
+
+A request over the limit is refused with `resource_exhausted`, a `Retry-After`
+header in seconds, and a message that names the retry time. Nothing is stored, so
+a refused ask is never dropped without the producer knowing. A replay of an
+existing idempotency key uses no budget. The window is in memory and restarts
+with the API. Signed `*.notification.v1` and `*.decision_requested.v1` events use
+their own dedupe rules and are not counted.
 
 The browser UI does not read `API_PORT` directly. It resolves API calls through
 the UI origin, and `ui/server.js` proxies `/api/*` plus the scenario's Connect

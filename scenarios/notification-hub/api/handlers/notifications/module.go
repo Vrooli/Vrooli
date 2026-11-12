@@ -15,8 +15,6 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
-	"github.com/vrooli/api-core/authn"
-	"github.com/vrooli/api-core/provenance"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications"
 	connectv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/notifications/notifications_v1connect"
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/shared"
@@ -69,7 +67,7 @@ func (h *handler) readAttempts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) Send(ctx context.Context, req *connect.Request[v1.SendRequest]) (*connect.Response[v1.SendResponse], error) {
-	subject, err := h.producer(ctx, req.Header())
+	producer, err := h.producer(ctx, req.Header())
 	if err != nil {
 		return nil, err
 	}
@@ -83,9 +81,9 @@ func (h *handler) Send(ctx context.Context, req *connect.Request[v1.SendRequest]
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scheduled_at must be RFC3339"))
 		}
 	}
-	n, err := h.service.Send(ctx, hub.SendInput{RequestedBy: subject, Title: req.Msg.GetTitle(), Body: req.Msg.GetBody(), Urgency: req.Msg.GetUrgency(), SensitivityLabel: req.Msg.GetSensitivityLabel(), IdempotencyKey: req.Msg.GetIdempotencyKey(), DedupeKey: req.Msg.GetDedupeKey(), ScheduledAt: scheduled, DigestWindow: time.Duration(req.Msg.GetDigestWindowSeconds()) * time.Second})
+	n, err := h.service.SendFrom(ctx, producer.Key, hub.SendInput{RequestedBy: producer.Recipient, Title: req.Msg.GetTitle(), Body: req.Msg.GetBody(), Urgency: req.Msg.GetUrgency(), SensitivityLabel: req.Msg.GetSensitivityLabel(), IdempotencyKey: req.Msg.GetIdempotencyKey(), DedupeKey: req.Msg.GetDedupeKey(), ScheduledAt: scheduled, DigestWindow: time.Duration(req.Msg.GetDigestWindowSeconds()) * time.Second})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, SendError(err)
 	}
 	return connect.NewResponse(&v1.SendResponse{Notification: ToProto(n)}), nil
 }
@@ -105,7 +103,7 @@ type relayPayload struct {
 // content. The remote node authenticates the request and resolves its local
 // recipient projection before accepting the durable notification.
 func (h *handler) Relay(ctx context.Context, req *connect.Request[v1.RelayRequest]) (*connect.Response[v1.RelayResponse], error) {
-	subject, err := h.producer(ctx, req.Header())
+	producer, err := h.producer(ctx, req.Header())
 	if err != nil {
 		return nil, err
 	}
@@ -117,23 +115,32 @@ func (h *handler) Relay(ctx context.Context, req *connect.Request[v1.RelayReques
 	if err := json.Unmarshal(raw, &payload); err != nil || payload.Body == "" || payload.SensitivityLabel == "" || payload.IdempotencyKey == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("relay payload is invalid"))
 	}
-	n, err := h.service.Send(ctx, hub.SendInput{RequestedBy: subject, Title: payload.Title, Body: payload.Body, Urgency: payload.Urgency, SensitivityLabel: payload.SensitivityLabel, IdempotencyKey: payload.IdempotencyKey, DedupeKey: payload.DedupeKey, DedupeWindow: time.Duration(payload.DedupeWindowSecs) * time.Second})
+	n, err := h.service.SendFrom(ctx, producer.Key, hub.SendInput{RequestedBy: producer.Recipient, Title: payload.Title, Body: payload.Body, Urgency: payload.Urgency, SensitivityLabel: payload.SensitivityLabel, IdempotencyKey: payload.IdempotencyKey, DedupeKey: payload.DedupeKey, DedupeWindow: time.Duration(payload.DedupeWindowSecs) * time.Second})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, SendError(err)
 	}
 	return connect.NewResponse(&v1.RelayResponse{Notification: ToProto(n)}), nil
 }
 
-func (h *handler) producer(ctx context.Context, headers http.Header) (string, error) {
-	subject, err := identity.ProducerSubject(ctx, headers, h.verifier, h.service.ResolveRecipient(ctx))
-	if err == nil {
-		return subject, nil
+func (h *handler) producer(ctx context.Context, headers http.Header) (identity.Producer, error) {
+	producer, err := identity.ProducerFor(ctx, headers, h.verifier, h.service.ResolveRecipient(ctx))
+	if err != nil {
+		return identity.Producer{}, connect.NewError(connect.CodeUnauthenticated, errors.New("a verified agent run or verified owner identity is required"))
 	}
-	var denied provenance.ScopeDeniedError
-	if errors.As(err, &denied) || errors.Is(err, authn.ErrOperation) || errors.Is(err, authn.ErrCapability) {
-		return "", connect.NewError(connect.CodePermissionDenied, err)
+	return producer, nil
+}
+
+// SendError maps a refused direct send. A cooldown refusal is
+// ResourceExhausted and carries Retry-After (seconds) so the producer knows
+// when to retry.
+func SendError(err error) error {
+	var cooldown *hub.CooldownError
+	if errors.As(err, &cooldown) {
+		refusal := connect.NewError(connect.CodeResourceExhausted, err)
+		refusal.Meta().Set("Retry-After", strconv.Itoa(int(cooldown.RetryAfter/time.Second)))
+		return refusal
 	}
-	return "", connect.NewError(connect.CodeUnauthenticated, errors.New("verified owner or scoped producer identity is required"))
+	return connect.NewError(connect.CodeInvalidArgument, err)
 }
 
 func (h *handler) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {

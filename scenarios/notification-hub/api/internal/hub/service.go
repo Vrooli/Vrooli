@@ -144,6 +144,9 @@ type Service struct {
 	// delivery (app_delivery.go). Nil keeps every device on Chimesail.
 	appEligibility      AppEligibility
 	appEligibilityCache *appEligibilityCache
+	// cooldown bounds direct notifications and asks per producer
+	// (producer_cooldown.go).
+	cooldown *producerCooldown
 }
 
 // BrandResolver is the optional capability the preferences seam exposes to
@@ -318,7 +321,7 @@ func New(db *database.RoutedDB, clock Clock, logger *log.Logger) *Service {
 	if logger == nil {
 		logger = log.Default()
 	}
-	s := &Service{db: db, clock: newSwappableClock(clock), log: logger, push: unavailablePush{}, email: unavailableEmail{}, desktop: unavailableDesktop{}, worker: make(chan string, 128), iconBaseByID: map[string]string{}}
+	s := &Service{db: db, clock: newSwappableClock(clock), log: logger, push: unavailablePush{}, email: unavailableEmail{}, desktop: unavailableDesktop{}, worker: make(chan string, 128), iconBaseByID: map[string]string{}, cooldown: newProducerCooldown()}
 	s.iconURL = s.defaultIconURL
 	s.ensureAdditiveColumns(context.Background())
 	go s.runWorker()

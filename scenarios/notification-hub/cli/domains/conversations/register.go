@@ -18,6 +18,11 @@ const GroupName = "conversations"
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
 	h, base := cliapp.NewConnectHTTPClient(core)
 	client := connectv1.NewConversationsServiceClient(h, base)
+	// Wait is a server-owned long-poll that blocks until an answer or the
+	// requested deadline, so the scenario's short default client timeout would
+	// abort it long before either. Its context is bounded by that deadline.
+	waitHTTP, waitBase := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
+	waitClient := connectv1.NewConversationsServiceClient(waitHTTP, waitBase)
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
 		"ConversationsService.Ask": func(ctx cliapp.RunContext) error {
 			options, err := parseOptions(ctx.FlagValues("option"))
@@ -86,7 +91,9 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			if err != nil {
 				return err
 			}
-			resp, callErr := client.Wait(context.Background(), connect.NewRequest(&v1.WaitRequest{AskId: ctx.Flag("ask-id"), Deadline: deadline}))
+			waitCtx, cancel := waitContext(deadline)
+			defer cancel()
+			resp, callErr := waitClient.Wait(waitCtx, connect.NewRequest(&v1.WaitRequest{AskId: ctx.Flag("ask-id"), Deadline: deadline}))
 			if callErr != nil {
 				return cliapp.WrapAPIError("wait for notification answer", callErr, nil)
 			}

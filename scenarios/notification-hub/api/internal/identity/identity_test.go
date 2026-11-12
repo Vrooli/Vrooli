@@ -58,22 +58,50 @@ func TestProducerIdentityDoesNotGrantOwnerAuthority(t *testing.T) {
 	headers := http.Header{}
 	headers.Set(cliutil.HeaderAgentIdentityToken, "presented-run-token")
 	headers.Set("Authorization", "Bearer verified-human-token")
-	if _, err := ProducerSubject(context.Background(), headers, verifier, "recipient"); err == nil {
+	if _, err := ProducerFor(context.Background(), headers, verifier, "recipient"); err == nil {
 		t.Fatal("unverified run header must not fall back to a valid human credential")
 	}
 	ctx := provenance.NewContext(context.Background(), provenance.Provenance{
-		Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified,
-		RunID: "verified-run", Scopes: []string{"notification-hub:write"},
+		Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "verified-run",
 	})
 	headers.Del("Authorization")
 	if _, err := Subject(ctx, headers, verifier); err == nil {
 		t.Fatal("a producer run must not authorize owner-only decisions")
 	}
-	if _, err := ProducerSubject(ctx, headers, verifier, ""); err == nil {
+	if _, err := ProducerFor(ctx, headers, verifier, ""); err == nil {
 		t.Fatal("a producer cannot choose a recipient when none is configured")
 	}
 	refused := context.WithValue(ctx, ownerContextKey{}, ownerContext{refused: true})
-	if _, err := ProducerSubject(refused, headers, verifier, "recipient"); err == nil {
+	if _, err := ProducerFor(refused, headers, verifier, "recipient"); err == nil {
 		t.Fatal("a refused owner credential cannot be rescued by producer identity")
+	}
+}
+
+// A verified run without scopes or grants is a producer for the configured
+// recipient, keyed by its run for the cooldown. The owner is keyed separately.
+func TestProducerForAdmitsVerifiedRunsAndTheOwner(t *testing.T) {
+	verifier := verifierFunc(func(_ context.Context, token string) (owneridentity.Identity, error) {
+		if token != "owner-token" {
+			return owneridentity.Identity{}, errors.New("invalid token")
+		}
+		return owneridentity.Identity{Subject: "owner-1"}, nil
+	})
+	headers := http.Header{}
+	headers.Set(cliutil.HeaderAgentIdentityToken, "run-token")
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{
+		Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified, RunID: "run-7",
+	})
+	producer, err := ProducerFor(ctx, headers, verifier, "configured-owner")
+	if err != nil || producer != (Producer{Recipient: "configured-owner", Key: "run:run-7"}) {
+		t.Fatalf("zero-scope verified run = %+v, err=%v", producer, err)
+	}
+	owner := http.Header{}
+	owner.Set("Authorization", "Bearer owner-token")
+	producer, err = ProducerFor(context.Background(), owner, verifier, "configured-owner")
+	if err != nil || producer != (Producer{Recipient: "owner-1", Key: "owner:owner-1"}) {
+		t.Fatalf("verified owner = %+v, err=%v", producer, err)
+	}
+	if _, err := ProducerFor(context.Background(), http.Header{}, verifier, "configured-owner"); err == nil {
+		t.Fatal("an anonymous caller must be refused")
 	}
 }
