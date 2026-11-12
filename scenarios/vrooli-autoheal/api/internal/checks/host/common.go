@@ -159,12 +159,51 @@ func summarizeEvidence(prefix string, critical, warning int) string {
 }
 
 func capabilityDevice(device hostinventory.DeviceInfo) bool {
+	if isUSBRootHub(device) {
+		return false
+	}
 	class := strings.ToLower(device.Class)
 	name := strings.ToLower(device.DeviceName)
 	return strings.Contains(class, "vga") ||
 		strings.Contains(class, "3d") ||
 		strings.Contains(class, "network") ||
 		strings.Contains(class, "storage") ||
+		strings.Contains(name, "bluetooth") ||
+		strings.Contains(name, "wireless") ||
+		strings.Contains(name, "wi-fi") ||
+		strings.Contains(name, "wifi") ||
 		strings.Contains(name, "accelerator") ||
 		strings.Contains(name, "controller")
+}
+
+func isUSBRootHub(device hostinventory.DeviceInfo) bool {
+	if device.BusType != "usb" {
+		return false
+	}
+	address := strings.TrimPrefix(device.ID, "usb:")
+	if !strings.HasPrefix(address, "usb") || len(address) == len("usb") {
+		return false
+	}
+	for _, digit := range address[len("usb"):] {
+		if digit < '0' || digit > '9' {
+			return false
+		}
+	}
+	return true
+}
+
+func deviceInventoryEvidence(inv hostinventory.HostInventory) map[string]any {
+	state := inv.ProbeStatus["devices"]
+	if state == hostinventory.IntegrityProbeOK {
+		return nil
+	}
+	reason := inv.ProbeErrors["devices"]
+	if reason == "" {
+		if state == "" {
+			reason = "the inventory did not report a device probe result"
+		} else {
+			reason = "the device inventory probe reported " + string(state)
+		}
+	}
+	return map[string]any{"kind": "device_inventory_unavailable", "status": state, "reason": reason}
 }

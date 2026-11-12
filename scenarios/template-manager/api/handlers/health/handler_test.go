@@ -9,12 +9,12 @@ import (
 	"testing"
 
 	"github.com/vrooli/api-core/apihttptest"
+	"github.com/vrooli/api-core/databasetest"
 	"github.com/vrooli/api-core/schedule"
 	httpx "github.com/vrooli/api-core/servertest"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/handlers/health"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/module"
 	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/server"
-	"github.com/vrooli/vrooli/scenarios/template-manager/api/internal/testutil/mocks"
 
 	"github.com/stretchr/testify/require"
 	healthv1 "github.com/vrooli/vrooli/packages/proto/gen/go/template-manager/v1/shared"
@@ -73,7 +73,7 @@ func TestHealthHandler(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
+			pinger := &databasetest.FakePinger{PingErr: tc.pingErr}
 			h := health.NewHandler(health.Deps{
 				Pinger:  pinger,
 				Service: "react-vite-test",

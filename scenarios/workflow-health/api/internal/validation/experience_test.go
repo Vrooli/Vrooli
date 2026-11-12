@@ -60,6 +60,25 @@ func TestExperienceCoverageRequiresAsyncLoadingAndTerminalStateEvidence(t *testi
 	require.Empty(t, experienceCoverageFindings(&workflows.ScenarioWorkflowCatalog{Scenario: "demo", Assets: []workflows.WorkflowAsset{asset}}, profile))
 }
 
+func TestExperienceCoverageResolvesRegisteredSelectorKeysForRegionAndLifecycle(t *testing.T) {
+	region := readinessRegion{ID: "notes", Required: true}
+	region.Binding.TestID = "notes-surface"
+	region.Lifecycle.Kind = "async"
+	region.Lifecycle.States = []string{"loading", "ready", "empty", "error"}
+	profile := &readinessProfile{Pages: []readinessPage{{Routes: []string{"/notes"}, Regions: []readinessRegion{region}}}}
+	asset := workflows.WorkflowAsset{
+		ID:     "notes",
+		Path:   "bas/cases/experience-spec/notes.json",
+		Routes: []workflows.RouteRef{{Path: "/notes"}},
+		Selectors: []workflows.SelectorRef{
+			{Key: "notes.surface", Raw: "@selector/notes.surface"},
+			{Key: "notes.loading", Raw: "@selector/notes.loading"},
+			{Key: "notes.empty", Raw: "@selector/notes.empty"},
+		},
+	}
+	require.Empty(t, experienceCoverageFindings(&workflows.ScenarioWorkflowCatalog{Scenario: "demo", Assets: []workflows.WorkflowAsset{asset}}, profile))
+}
+
 func TestExperienceCoverageAggregatesAsyncLifecycleAcrossRouteWorkflows(t *testing.T) {
 	region := readinessRegion{ID: "results", Required: true}
 	region.Binding.TestID = "results"

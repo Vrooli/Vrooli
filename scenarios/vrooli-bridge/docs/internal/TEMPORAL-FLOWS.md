@@ -28,7 +28,7 @@ parsing a human diagnostic or discovering identity from a locator.
 | After Registry Node, credential, or code write | correlation identifies partial saga | reconciler converges or exposes repair; no duplicate current Node |
 | After pairing, before service install/Presence | Machine + attempt + Node lineage | typed paired-but-not-ready repair/retry |
 | Host-key mismatch | trust review required | fail closed; no automatic retry |
-| Remote cleanup fails after local revoke | cleanup tombstone pending | retry or explicit acknowledgement |
+| Remote cleanup fails after local revoke | cleanup tombstone pending | cleanup evidence may confirm removal, mark it not applicable, or record explicit operator acknowledgement; terminal history cannot return to pending |
 
 ## Concurrency Rules
 

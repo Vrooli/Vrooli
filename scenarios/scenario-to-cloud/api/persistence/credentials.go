@@ -305,6 +305,9 @@ func (r *Repository) SaveRotation(ctx context.Context, rotation *domain.Credenti
 	if rotation == nil || strings.TrimSpace(rotation.ID) == "" || strings.TrimSpace(rotation.DeploymentID) == "" {
 		return fmt.Errorf("credential rotation id and deployment id are required")
 	}
+	if !domain.ValidCredentialRotationState(rotation.State) {
+		return fmt.Errorf("credential rotation %q has unknown state %q", rotation.ID, rotation.State)
+	}
 	now := time.Now().UTC()
 	if rotation.CreatedAt.IsZero() {
 		rotation.CreatedAt = now
@@ -372,6 +375,9 @@ func decodeRotation(data []byte) (*domain.CredentialRotation, error) {
 	var rotation domain.CredentialRotation
 	if err := json.Unmarshal(data, &rotation); err != nil {
 		return nil, fmt.Errorf("decode credential rotation: %w", err)
+	}
+	if !domain.ValidCredentialRotationState(rotation.State) {
+		return nil, fmt.Errorf("decode credential rotation: %q has unknown state %q", rotation.ID, rotation.State)
 	}
 	if rotation.Consumers == nil {
 		rotation.Consumers = []domain.CredentialConsumerProgress{}

@@ -11,15 +11,15 @@ import (
 	"vrooli-memory/internal/maintenance"
 
 	"vrooli-memory/handlers/health"
-	"vrooli-memory/internal/testutil/mocks"
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/databasetest"
 )
 
 // TestModule_Shape pins the public contract.
 func TestModule_Shape(t *testing.T) {
-	m := health.Module(&mocks.FakePinger{}, "react-vite-test", "1.0.0", nil)
+	m := health.Module(&databasetest.FakePinger{}, "react-vite-test", "1.0.0", nil)
 
 	require.Equal(t, "health", m.Name)
 	require.NotNil(t, m.Mount)
@@ -32,7 +32,7 @@ func TestModule_Shape(t *testing.T) {
 // paths both route to the same handler. A regression that drops one
 // alias (forgot to register, typo) fails here, not in the e2e gate.
 func TestModule_BothAliasesReachable(t *testing.T) {
-	m := health.Module(&mocks.FakePinger{}, "react-vite-test", "1.0.0", nil)
+	m := health.Module(&databasetest.FakePinger{}, "react-vite-test", "1.0.0", nil)
 	r := mux.NewRouter()
 	m.Mount(r)
 
@@ -108,7 +108,7 @@ func TestCanopyReportsRecordedFrontierWithoutRecomputing(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			h := health.NewHandler(health.Deps{
-				Pinger: &mocks.FakePinger{}, Service: "s", Version: "1",
+				Pinger: &databasetest.FakePinger{}, Service: "s", Version: "1",
 				Canopy: stubCanopy{run: maintenance.Run{Compaction: tc.compaction}},
 			})
 			rec := httptest.NewRecorder()

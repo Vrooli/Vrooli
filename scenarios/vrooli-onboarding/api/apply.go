@@ -298,15 +298,9 @@ const (
 	applyStateUnknown   = "unknown"
 )
 
-// applyOutcomeApplying marks the item a runner is executing right now. It is
-// the only non-terminal outcome: every other value means the item is done.
-// Completion assessment never sees it, because a run is only assessed once it
-// has reached a terminal status.
-const applyOutcomeApplying = "applying"
-
 type applyItemResult struct {
 	applyItem
-	Outcome string `json:"outcome"`
+	Outcome applyItemOutcome `json:"outcome"`
 	// Disposition is the stable operator-facing vocabulary. Outcome remains
 	// for compatibility with existing clients and carries execution detail.
 	Disposition string `json:"disposition,omitempty"`
@@ -321,7 +315,7 @@ type applyItemResult struct {
 type applyRun struct {
 	ID              string            `json:"run_id"`
 	Target          string            `json:"target"`
-	Status          string            `json:"status"`
+	Status          applyRunStatus    `json:"status"`
 	SelectionDigest string            `json:"selection_digest"`
 	StartedAt       string            `json:"started_at"`
 	CompletedAt     string            `json:"completed_at,omitempty"`
@@ -343,9 +337,11 @@ type applyRun struct {
 	// these two fields to distinguish a run that is still working from one
 	// whose executor died -- neither of which is visible from status alone,
 	// because a killed executor leaves "applying" behind forever.
-	RunnerPID       int    `json:"runner_pid,omitempty"`
-	Heartbeat       string `json:"heartbeat,omitempty"`
-	CancelRequested bool   `json:"cancel_requested,omitempty"`
+	RunnerPID int    `json:"runner_pid,omitempty"`
+	Heartbeat string `json:"heartbeat,omitempty"`
+	// CancelRequested is an asynchronous control request, not another lifecycle
+	// state: the detached runner commits cancellation only between host mutations.
+	CancelRequested bool `json:"cancel_requested,omitempty"`
 }
 
 // applyHeartbeatInterval is how often an executing runner restamps its
@@ -410,6 +406,14 @@ func applyRunPath(id string) (string, error) {
 }
 
 func persistApplyRun(run applyRun) error {
+	if !run.Status.Persistable() {
+		return fmt.Errorf("refusing to persist invalid apply run status %q", run.Status)
+	}
+	for index, item := range run.Items {
+		if !item.Outcome.Valid() {
+			return fmt.Errorf("refusing to persist apply run with invalid item outcome at index %d: %q", index, item.Outcome)
+		}
+	}
 	path, err := applyRunPath(run.ID)
 	if err != nil {
 		return err
@@ -455,11 +459,14 @@ func updateApplyRun(run applyRun) error {
 		run.Items[index].Disposition = applyDisposition(run.Items[index].Outcome)
 	}
 	if err := persistApplyRun(run); err != nil {
-		run.Status = "indeterminate"
+		transitionErr := run.TransitionStatus(applyRunIndeterminate)
 		run.Error = fmt.Sprintf("durable apply state could not be persisted: %v", err)
 		applyRuns.Lock()
 		applyRuns.items[run.ID] = run
 		applyRuns.Unlock()
+		if transitionErr != nil {
+			return errors.Join(err, transitionErr)
+		}
 		return err
 	}
 	applyRuns.Lock()
@@ -468,7 +475,7 @@ func updateApplyRun(run applyRun) error {
 	return nil
 }
 
-func applyDisposition(outcome string) string {
+func applyDisposition(outcome applyItemOutcome) string {
 	switch outcome {
 	case "applied":
 		return "applied"
@@ -508,12 +515,14 @@ func applyRunSnapshot(id string) (applyRun, bool) {
 
 func (s *Server) buildApplyRun(ctx context.Context, plan applydomain.Plan) (applyRun, error) {
 	now := operatorStateNow()
-	run := applyRun{ID: fmt.Sprintf("apply-%d", now.UnixNano()), Target: plan.Target, Status: "pending", SelectionDigest: plan.Digest, StartedAt: now.UTC().Format(time.RFC3339), Items: make([]applyItemResult, 0, len(plan.Items))}
+	run := applyRun{ID: fmt.Sprintf("apply-%d", now.UnixNano()), Target: plan.Target, Status: applyRunPending, SelectionDigest: plan.Digest, StartedAt: now.UTC().Format(time.RFC3339), Items: make([]applyItemResult, 0, len(plan.Items))}
 	for _, planned := range plan.Items {
 		item := applyItem{ID: planned.ID, Kind: planned.Kind, Name: planned.Name, Dependencies: planned.Dependencies, Required: planned.Required, Privileged: planned.Privileged, State: planned.ObservedState}
-		run.Items = append(run.Items, applyItemResult{applyItem: item, Outcome: "pending"})
+		run.Items = append(run.Items, applyItemResult{applyItem: item, Outcome: applyItemPending})
 		if item.State == "not_applicable" {
-			run.Items[len(run.Items)-1].Outcome = "not_applicable"
+			if err := run.Items[len(run.Items)-1].TransitionOutcome(applyItemNotApplicable); err != nil {
+				return applyRun{}, fmt.Errorf("mark item %s not applicable: %w", item.ID, err)
+			}
 		}
 	}
 	state, err := loadOperatorStateFor(ctx)
@@ -521,11 +530,15 @@ func (s *Server) buildApplyRun(ctx context.Context, plan applydomain.Plan) (appl
 		return applyRun{}, err
 	}
 	if state.Completion != nil && state.Completion.SelectionDigest == run.SelectionDigest {
-		run.Status = "already_satisfied"
+		if err := run.TransitionStatus(applyRunAlreadySatisfied); err != nil {
+			return applyRun{}, fmt.Errorf("mark apply run already satisfied: %w", err)
+		}
 		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
 		for i := range run.Items {
-			if run.Items[i].Outcome != "not_applicable" {
-				run.Items[i].Outcome = "already_satisfied"
+			if run.Items[i].Outcome != applyItemNotApplicable {
+				if err := run.Items[i].TransitionOutcome(applyItemAlreadySatisfied); err != nil {
+					return applyRun{}, fmt.Errorf("mark item %s already satisfied: %w", run.Items[i].ID, err)
+				}
 				run.Items[i].CompletedAt = run.CompletedAt
 			}
 		}
@@ -582,45 +595,53 @@ func executeApplyItem(ctx context.Context, item applyItem) error {
 	return err
 }
 
-func executeApplyRun(ctx context.Context, run applyRun) {
-	if run.Status == "already_satisfied" {
-		updateApplyRun(run)
-		return
+func executeApplyRun(ctx context.Context, run applyRun) error {
+	if run.Status == applyRunAlreadySatisfied {
+		return updateApplyRun(run)
 	}
 	lockPath, err := applyTargetLockPath(run.Target)
 	if err != nil {
-		run.Status = "indeterminate"
+		if transitionErr := run.TransitionStatus(applyRunIndeterminate); transitionErr != nil {
+			return transitionErr
+		}
 		run.Error = err.Error()
-		_ = updateApplyRun(run)
-		return
+		return errors.Join(err, updateApplyRun(run))
 	}
 	release, err := platform.AcquireFileLockContext(ctx, lockPath)
 	if err != nil {
-		run.Status = "indeterminate"
+		if transitionErr := run.TransitionStatus(applyRunIndeterminate); transitionErr != nil {
+			return transitionErr
+		}
 		run.Error = fmt.Sprintf("acquire target apply ownership: %v", err)
-		_ = updateApplyRun(run)
-		return
+		return errors.Join(err, updateApplyRun(run))
 	}
 	defer release()
-	run.Status = "applying"
-	updateApplyRun(run)
+	if err := run.TransitionStatus(applyRunApplying); err != nil {
+		return err
+	}
+	if err := updateApplyRun(run); err != nil {
+		return err
+	}
 	failed := map[string]error{}
 	for i := range run.Items {
 		if current, ok := applyRunSnapshot(run.ID); ok && current.CancelRequested {
-			run.Status = "cancelled"
+			if err := run.TransitionStatus(applyRunCancelled); err != nil {
+				return err
+			}
 			run.Error = "apply cancellation requested; no further items were started"
 			run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
-			_ = updateApplyRun(run)
-			return
+			return updateApplyRun(run)
 		}
 		item := run.Items[i].applyItem
-		if run.Items[i].Outcome == "not_applicable" {
+		if run.Items[i].Outcome == applyItemNotApplicable {
 			updateApplyRun(run)
 			continue
 		}
 		for _, dependency := range item.Dependencies {
 			if dependencyErr, ok := failed[dependency]; ok {
-				run.Items[i].Outcome = "blocked"
+				if err := run.Items[i].TransitionOutcome(applyItemBlocked); err != nil {
+					return err
+				}
 				run.Items[i].BlockedBy = dependency
 				run.Items[i].Error = dependencyErr.Error()
 				run.Items[i].Remediation = "resolve the blocking dependency, then re-run setup"
@@ -629,7 +650,7 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 				continue
 			}
 		}
-		if run.Items[i].Outcome == "blocked" {
+		if run.Items[i].Outcome == applyItemBlocked {
 			continue
 		}
 		// Starting this scenario means stopping it first, and this code is
@@ -639,7 +660,9 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 		// not a compromise here -- the scenario is demonstrably already running,
 		// because it is answering this request.
 		if item.Kind == "scenario" && item.Name == onboardingScenarioName {
-			run.Items[i].Outcome = "skipped_self"
+			if err := run.Items[i].TransitionOutcome(applyItemSkippedSelf); err != nil {
+				return err
+			}
 			run.Items[i].Remediation = "already running; onboarding does not restart itself mid-apply, because that would stop the process serving this run"
 			updateApplyRun(run)
 			continue
@@ -648,18 +671,20 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 		// record only ever carried finished work, so a client polling a long
 		// step could not tell "still working" from "wedged": a five-minute
 		// scenario start and a hang produced byte-identical output.
-		run.Items[i].Outcome = applyOutcomeApplying
+		if err := run.Items[i].TransitionOutcome(applyItemApplying); err != nil {
+			return err
+		}
 		run.Items[i].StartedAt = operatorStateNow().UTC().Format(time.RFC3339)
 		updateApplyRun(run)
 
 		if err := executeApplyItem(ctx, item); err != nil {
-			run.Items[i].Outcome = "timed_out"
+			nextOutcome := applyItemTimedOut
 			if !strings.Contains(err.Error(), "timed out") {
-				run.Items[i].Outcome = "failed"
+				nextOutcome = applyItemFailed
 			}
 			var elevationErr *needsElevationError
 			if errors.As(err, &elevationErr) {
-				run.Items[i].Outcome = "needs_elevation"
+				nextOutcome = applyItemNeedsElevation
 				run.Items[i].ErrorCode = "needs_elevation"
 				run.Items[i].Remediation = "run `vrooli setup --sudo-mode=ask` to provision the exact grant, then re-run onboarding apply"
 			}
@@ -668,27 +693,34 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 			if run.Items[i].Remediation == "" {
 				run.Items[i].Remediation = "inspect the control-plane error, correct the host, then re-run setup"
 			}
+			if err := run.Items[i].TransitionOutcome(nextOutcome); err != nil {
+				return err
+			}
 			failed[item.ID] = err
 		} else {
-			run.Items[i].Outcome = "applied"
+			if err := run.Items[i].TransitionOutcome(applyItemApplied); err != nil {
+				return err
+			}
 			run.Items[i].CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
 		}
 		updateApplyRun(run)
 	}
 	if len(failed) > 0 {
-		run.Status = "partially_applied"
+		if err := run.TransitionStatus(applyRunPartiallyApplied); err != nil {
+			return err
+		}
 		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
-		updateApplyRun(run)
-		return
+		return updateApplyRun(run)
 	}
-	run.Status = "applied"
 	// Completion is a consequence of verified readiness, not a side effect of
 	// apply. Every item succeeding says the host changes were made; it says
 	// nothing about whether a required credential is present or a required
 	// safeguard is in place, and the marker is the flow's claim that both are.
 	readiness, readinessErr := buildApplyReadiness(ctx, run.Target)
 	if readinessErr != nil {
-		run.Status = "configuration_incomplete"
+		if err := run.TransitionStatus(applyRunConfigurationIncomplete); err != nil {
+			return err
+		}
 		run.Error = readinessErr.Error()
 		run.Blockers = []completionBlocker{{
 			Kind:        "readiness",
@@ -697,36 +729,43 @@ func executeApplyRun(ctx context.Context, run applyRun) {
 			Remediation: "Resolve the reported condition, then apply the selection again.",
 		}}
 		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
-		updateApplyRun(run)
-		return
+		return updateApplyRun(run)
 	}
 	assessment := assessCompletion(readiness, &run)
 	state, stateErr := loadOperatorStateFor(ctx)
 	if stateErr != nil {
-		run.Status = "configuration_incomplete"
+		if err := run.TransitionStatus(applyRunConfigurationIncomplete); err != nil {
+			return err
+		}
 		run.Error = stateErr.Error()
 		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
-		updateApplyRun(run)
-		return
+		return updateApplyRun(run)
 	}
 	run.Blockers = assessment.Blockers
 	run.Degraded = assessment.Degraded
 	run.DegradedDigest = assessment.DegradedDigest
 	if !configurationMayComplete(assessment, state) {
-		run.Status = "configuration_incomplete"
+		if err := run.TransitionStatus(applyRunConfigurationIncomplete); err != nil {
+			return err
+		}
 		run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
-		updateApplyRun(run)
-		return
+		return updateApplyRun(run)
 	}
 	if _, err := operatorStateService().MarkApplied(ctx, run.SelectionDigest, operatorStateNow()); err != nil {
-		run.Status = "partially_applied"
+		if transitionErr := run.TransitionStatus(applyRunPartiallyApplied); transitionErr != nil {
+			return transitionErr
+		}
 		run.Error = err.Error()
 	} else if err := markConfigurationComplete(run.SelectionDigest); err != nil {
-		run.Status = "partially_applied"
+		if transitionErr := run.TransitionStatus(applyRunPartiallyApplied); transitionErr != nil {
+			return transitionErr
+		}
 		run.Error = err.Error()
+	} else if err := run.TransitionStatus(applyRunApplied); err != nil {
+		return err
 	}
 	run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
-	updateApplyRun(run)
+	return updateApplyRun(run)
 }
 
 const applyReadinessInventoryWait = 10 * time.Second
@@ -789,15 +828,17 @@ func (s *Server) startApply(ctx context.Context, request applydomain.StartReques
 	if err := storeApplyRun(run); err != nil {
 		return applydomain.Run{}, fmt.Errorf("persist admitted apply: %w", err)
 	}
-	if run.Status != "pending" {
+	if run.Status != applyRunPending {
 		return toApplyDomainRun(run), nil
 	}
-	if run.Status == "pending" {
+	if run.Status == applyRunPending {
 		// The run is handed to a process of its own. Executing it here would
 		// tie it to this API's lifetime, and applying a selection restarts
 		// scenarios -- including, transitively, this one. See apply_runner.go.
 		if err := spawnApplyRunner(context.WithoutCancel(ctx), run); err != nil {
-			run.Status = "failed"
+			if transitionErr := run.TransitionStatus(applyRunFailed); transitionErr != nil {
+				return applydomain.Run{}, errors.Join(err, transitionErr)
+			}
 			run.Error = err.Error()
 			run.CompletedAt = operatorStateNow().UTC().Format(time.RFC3339)
 			run.Blockers = []completionBlocker{{
@@ -828,7 +869,7 @@ func (s *Server) cancelApply(_ context.Context, id string) (applydomain.Run, err
 	if !ok {
 		return applydomain.Run{}, fmt.Errorf("apply run %s not found", id)
 	}
-	if isTerminalApplyStatus(run.Status) {
+	if run.Status.Terminal() {
 		return toApplyDomainRun(run), nil
 	}
 	run.CancelRequested = true
@@ -843,10 +884,10 @@ func toApplyDomainItem(item applyItem) applydomain.Item {
 }
 
 func toApplyDomainRun(run applyRun) applydomain.Run {
-	result := applydomain.Run{ID: run.ID, Status: run.Status, SelectionDigest: run.SelectionDigest, StartedAt: run.StartedAt, CompletedAt: run.CompletedAt, Error: run.Error, DegradedDigest: run.DegradedDigest, RunnerPID: run.RunnerPID, Heartbeat: run.Heartbeat}
+	result := applydomain.Run{ID: run.ID, Status: string(run.Status), SelectionDigest: run.SelectionDigest, StartedAt: run.StartedAt, CompletedAt: run.CompletedAt, Error: run.Error, DegradedDigest: run.DegradedDigest, RunnerPID: run.RunnerPID, Heartbeat: run.Heartbeat}
 	result.Steps = make([]applydomain.Step, 0, len(run.Items))
 	for _, item := range run.Items {
-		result.Steps = append(result.Steps, applydomain.Step{Item: toApplyDomainItem(item.applyItem), State: item.Outcome, LegacyOutcome: item.Outcome, Disposition: item.Disposition, Error: item.Error, Remediation: item.Remediation, BlockedBy: item.BlockedBy, ErrorCode: item.ErrorCode, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt})
+		result.Steps = append(result.Steps, applydomain.Step{Item: toApplyDomainItem(item.applyItem), State: string(item.Outcome), LegacyOutcome: string(item.Outcome), Disposition: item.Disposition, Error: item.Error, Remediation: item.Remediation, BlockedBy: item.BlockedBy, ErrorCode: item.ErrorCode, StartedAt: item.StartedAt, CompletedAt: item.CompletedAt})
 	}
 	result.Blockers = make([]applydomain.Blocker, 0, len(run.Blockers))
 	for _, blocker := range run.Blockers {

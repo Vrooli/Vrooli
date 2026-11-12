@@ -113,6 +113,14 @@ func (r *Repository) AcquireWorker(ctx context.Context, opID, workerID string, l
 		return 0, apierrors.New(apierrors.CodeOperationConflict, "Operation is waiting for input; resolve the handoff first").
 			WithDetail("operation_id", op.ID).WithDetail("state", string(op.State))
 	}
+	if op.State == domain.OperationAdmitted {
+		from := op.State
+		if err := op.TransitionTo(domain.OperationRunning); err != nil {
+			return 0, apierrors.New(apierrors.CodeOperationConflict, err.Error()).
+				WithDetail("operation_id", op.ID).WithDetail("state", string(from)).
+				WithDetail("requested", string(domain.OperationRunning))
+		}
+	}
 	if leaseLive(op, now) && op.WorkerID != workerID {
 		return 0, apierrors.New(apierrors.CodeOperationConflict, "Another worker holds a live lease on this operation").
 			WithDetail("operation_id", op.ID).WithDetail("worker_id", op.WorkerID).WithDetail("lease_expires_at", op.LeaseExpiresAt.Format(time.RFC3339Nano))
@@ -360,6 +368,22 @@ type StatePatch struct {
 // atomicity (state = from AND fence = current in the WHERE clause) and the
 // terminal bookkeeping.
 func (r *Repository) SetState(ctx context.Context, opID string, fence uint64, from, to domain.OperationState, patch StatePatch) error {
+	current, err := r.requireOperation(ctx, opID)
+	if err != nil {
+		return err
+	}
+	if current.Fence != fence {
+		return fenceStale(current, fence)
+	}
+	if current.State != from {
+		return apierrors.New(apierrors.CodeOperationConflict, fmt.Sprintf("operation is %s, not %s", current.State, from)).
+			WithDetail("operation_id", opID).WithDetail("state", string(current.State)).WithDetail("expected", string(from))
+	}
+	if err := current.TransitionTo(to); err != nil {
+		return apierrors.New(apierrors.CodeOperationConflict, err.Error()).
+			WithDetail("operation_id", opID).WithDetail("state", string(from)).
+			WithDetail("requested", string(to))
+	}
 	now := time.Now().UTC()
 	var resultRaw, errorRaw any
 	if patch.Result != nil {
@@ -431,6 +455,12 @@ func (r *Repository) RequestCancel(ctx context.Context, opID string) (*domain.Cl
 	now := time.Now().UTC()
 	switch op.State {
 	case domain.OperationAdmitted, domain.OperationWaitingInput:
+		from := op.State
+		if err := op.TransitionTo(domain.OperationCancelled); err != nil {
+			return nil, apierrors.New(apierrors.CodeOperationConflict, err.Error()).
+				WithDetail("operation_id", opID).WithDetail("state", string(from)).
+				WithDetail("requested", string(domain.OperationCancelled))
+		}
 		const q = `
 			UPDATE cloud_operations SET cancel_requested = $2, state = 'cancelled', terminal_at = $3, updated_at = $3,
 				worker_id = NULL, lease_expires_at = NULL, active_step = NULL,
@@ -441,6 +471,12 @@ func (r *Repository) RequestCancel(ctx context.Context, opID string) (*domain.Cl
 			return nil, fmt.Errorf("cancel admitted operation: %w", err)
 		}
 	case domain.OperationRunning, domain.OperationVerifying:
+		from := op.State
+		if err := op.TransitionTo(domain.OperationCancelRequested); err != nil {
+			return nil, apierrors.New(apierrors.CodeOperationConflict, err.Error()).
+				WithDetail("operation_id", opID).WithDetail("state", string(from)).
+				WithDetail("requested", string(domain.OperationCancelRequested))
+		}
 		const q = `
 			UPDATE cloud_operations SET cancel_requested = $2, state = 'cancel_requested', updated_at = $3
 			WHERE id = $1 AND state IN ('running', 'verifying')`

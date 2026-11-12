@@ -17,21 +17,56 @@ func NewDeviceDriverBindingCheck(collector hostinventory.IntegrityCollector) che
 }
 
 func runDeviceDriverBinding(inv hostinventory.HostInventory) checks.Result {
-	if inv.ProbeStatus["host"] == hostinventory.IntegrityProbeUnsupported {
+	if inv.ProbeStatus["host"] == hostinventory.IntegrityProbeUnsupported &&
+		(inv.ProbeStatus["devices"] == "" || inv.ProbeStatus["devices"] == hostinventory.IntegrityProbeUnsupported) {
 		return naResult("Host device-driver binding is not applicable on this platform", "native device and driver inventory", inv)
 	}
 	var evidence []map[string]any
 	warning := 0
+	if probe := deviceInventoryEvidence(inv); probe != nil {
+		warning++
+		evidence = append(evidence, probe)
+	} else if len(inv.Devices) == 0 {
+		warning++
+		evidence = append(evidence, map[string]any{
+			"kind":   "empty_device_inventory",
+			"status": inv.ProbeStatus["devices"],
+			"reason": "device enumeration succeeded but returned no devices; verify this is an intentionally empty host inventory",
+		})
+	}
 	for _, device := range inv.Devices {
 		if !capabilityDevice(device) {
 			continue
 		}
-		if device.BoundDriver == "" && len(device.AvailableModules) > 0 {
+		switch device.BindingState {
+		case hostinventory.DeviceBindingBound:
+			continue
+		case hostinventory.DeviceBindingUnknown:
+			warning++
+			evidence = append(evidence, map[string]any{
+				"kind":   "device_binding_unavailable",
+				"device": device,
+			})
+		case hostinventory.DeviceBindingPartial:
+			warning++
+			evidence = append(evidence, map[string]any{
+				"kind":   "partially_bound_capability_device",
+				"device": device,
+			})
+		case hostinventory.DeviceBindingUnbound:
 			warning++
 			evidence = append(evidence, map[string]any{
 				"kind":   "unbound_capability_device",
 				"device": device,
 			})
+		default:
+			if device.BoundDriver == "" {
+				warning++
+				evidence = append(evidence, map[string]any{
+					"kind":   "unbound_capability_device",
+					"device": device,
+				})
+			}
 		}
 	}
 	if len(evidence) == 0 {
@@ -43,6 +78,7 @@ func runDeviceDriverBinding(inv hostinventory.HostInventory) checks.Result {
 		Details: baseDetails(inv, evidence, []string{
 			"Inspect unbound devices and compare available kernel modules with loaded modules.",
 			"Treat vendor and model names as evidence; resolve at the capability or driver-package layer.",
+			hostinventory.DriverBindingRepairRoute,
 		}),
 	}
 }

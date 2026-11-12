@@ -302,6 +302,79 @@ func (c *fakeClock) Advance() {}
 	}
 }
 
+func TestStructuralMatchRecognizesDelegatingDomainAdapter(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		listBody   string
+		createBody string
+		wantMatch  bool
+	}{
+		{
+			name:       "delegates storage through SliceRepo",
+			listBody:   "return f.repo.List(ctx, 100)",
+			createBody: "return f.repo.Create(ctx, Grant{})",
+		},
+		{
+			name:       "one method reimplements storage",
+			listBody:   "return []Grant{}, nil",
+			createBody: "return f.repo.Create(ctx, Grant{})",
+			wantMatch:  true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeFile(t, filepath.Join(root, ".vrooli", "test-companions.json"), `{
+  "schema_version": "1.0.0",
+  "companions": [{
+    "owner": "api-core/database",
+    "owner_import_path": "github.com/vrooli/api-core/database",
+    "import_path": "github.com/vrooli/api-core/databasetest",
+    "symbols": [{"name": "SliceRepo", "kind": "type", "methods": ["Create", "Get", "List"]}]
+  }],
+  "seams": []
+}
+`)
+			writeFile(t, filepath.Join(root, "go.mod"), "module fixture\n\ngo 1.25\n\nrequire github.com/vrooli/api-core v0.0.0\n")
+			writeFile(t, filepath.Join(root, "adapter_test.go"), `package fixture
+
+import (
+	"context"
+	"github.com/vrooli/api-core/databasetest"
+)
+
+type Grant struct{}
+type Input struct{}
+type grantAdapter struct { repo *databasetest.SliceRepo[Grant] }
+func (f *grantAdapter) List(ctx context.Context, node string) ([]Grant, error) { `+tc.listBody+` }
+func (f *grantAdapter) Create(ctx context.Context, input Input) (Grant, error) { `+tc.createBody+` }
+`)
+			ws := Workspace{ID: "api", Language: "go", RootPath: root}
+			registry, ok := loadCompanionRegistry(root)
+			if !ok || len(registry.Companions) != 1 || len(registry.Companions[0].Symbols) != 1 {
+				t.Fatal("companion fixture did not load")
+			}
+			var adapter localDeclaration
+			for _, declaration := range collectLocalDeclarations(root) {
+				if declaration.Name == "grantAdapter" {
+					adapter = declaration
+					break
+				}
+			}
+			if adapter.Name == "" {
+				t.Fatal("grant adapter declaration was not inspected")
+			}
+			if !tc.wantMatch && !companionSymbolReimplemented(adapter, registry.Companions[0].Symbols[0]) {
+				t.Fatal("legacy shape-only matcher must demonstrate the false positive this adapter guard prevents")
+			}
+			findings := analyzeGoCompanionDeclarations("demo", ws, fixedNowStr, DependencyClosure{})
+			finding, matched := findingByCode(findings, codeCompanionReimplemented)
+			if matched != tc.wantMatch {
+				t.Fatalf("adapter finding = %+v, want match %v", finding, tc.wantMatch)
+			}
+		})
+	}
+}
+
 // TestAdaptedHelperMatchSurvivesSignatureDrift covers the tier between exact
 // and structural matching: the same named helper rebuilt around a different
 // input. vrooli-autoheal's MustDecodeJSON reads the recorder where the

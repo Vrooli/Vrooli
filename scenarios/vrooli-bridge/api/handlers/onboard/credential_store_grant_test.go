@@ -3,35 +3,46 @@ package onboard
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/databasetest"
 	internalgrant "vrooli-bridge/internal/credentialgrant"
 	internalonboard "vrooli-bridge/internal/onboard"
 )
 
 type fakeGrants struct {
-	grants  []internalgrant.Grant
+	repo    *databasetest.SliceRepo[internalgrant.Grant]
 	creates []internalgrant.CreateInput
 }
 
-func (f *fakeGrants) List(context.Context, string) ([]internalgrant.Grant, error) {
-	return append([]internalgrant.Grant(nil), f.grants...), nil
+func newFakeGrants(initial ...internalgrant.Grant) *fakeGrants {
+	repo := databasetest.NewSliceRepo(
+		func(grant internalgrant.Grant) string { return grant.ID },
+		func(grant *internalgrant.Grant, id string) { grant.ID = id },
+		func(id string) error { return fmt.Errorf("grant %s not found", id) },
+	)
+	repo.Items = append(repo.Items, initial...)
+	return &fakeGrants{repo: repo}
 }
 
-func (f *fakeGrants) Create(_ context.Context, in internalgrant.CreateInput) (internalgrant.Grant, error) {
+func (f *fakeGrants) List(ctx context.Context, _ string) ([]internalgrant.Grant, error) {
+	return f.repo.List(ctx, int(^uint(0)>>1))
+}
+
+func (f *fakeGrants) Create(ctx context.Context, in internalgrant.CreateInput) (internalgrant.Grant, error) {
 	f.creates = append(f.creates, in)
 	grant := internalgrant.Grant{ID: "grant-1", NodeID: in.NodeID, LogicalID: in.LogicalID, Field: in.Field, Class: in.Class, Retention: in.Retention, Generation: 1, GrantedAt: time.Now()}
-	f.grants = append(f.grants, grant)
-	return grant, nil
+	return f.repo.Create(ctx, grant)
 }
 
 // The node's unlock grant is created once, as an ephemeral infrastructure
 // grant for exactly the escrow address, and delivered on every ensure. The
 // grant record is metadata; the passphrase never appears in it.
 func TestNodeStoreGrantIsCreatedOnceAsEphemeralInfrastructure(t *testing.T) {
-	grants := &fakeGrants{}
+	grants := newFakeGrants()
 	deliveries := 0
 	ensurer := NewNodeStoreGrantEnsurer(grants, func(context.Context, string) error { deliveries++; return nil })
 	logicalID := internalonboard.CredentialStoreLogicalID("451ea636-a80f-4080-82b7-fa65d0e3289a")
@@ -54,7 +65,11 @@ func TestNodeStoreGrantIsCreatedOnceAsEphemeralInfrastructure(t *testing.T) {
 	if deliveries != 2 {
 		t.Fatalf("deliveries = %d, want a delivery on every ensure", deliveries)
 	}
-	record, _ := json.Marshal(grants.grants)
+	stored, err := grants.repo.List(context.Background(), int(^uint(0)>>1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, _ := json.Marshal(stored)
 	if strings.Contains(string(record), "escrowed-secret") {
 		t.Fatal("the grant record must not carry the passphrase")
 	}
@@ -63,10 +78,10 @@ func TestNodeStoreGrantIsCreatedOnceAsEphemeralInfrastructure(t *testing.T) {
 // A revoked grant does not count as held; a fresh one is issued.
 func TestNodeStoreGrantReplacesARevokedGrant(t *testing.T) {
 	logicalID := internalonboard.CredentialStoreLogicalID("m1")
-	grants := &fakeGrants{grants: []internalgrant.Grant{{
+	grants := newFakeGrants(internalgrant.Grant{
 		NodeID: "node-1", LogicalID: logicalID, Field: "passphrase",
 		Class: internalgrant.ClassInfrastructure, Retention: internalgrant.RetentionEphemeral, RevokedAt: time.Now(),
-	}}}
+	})
 	if err := NewNodeStoreGrantEnsurer(grants, nil).EnsureNodeStoreGrant(context.Background(), "node-1", logicalID, "passphrase"); err != nil {
 		t.Fatal(err)
 	}

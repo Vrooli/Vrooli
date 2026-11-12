@@ -1,12 +1,12 @@
 ---
 name: "ui-health"
-description: "Single steer authority for Vrooli UI validation — manifest, interop, project-UI standards (i18n/tokens/a11y/favicon/strict), runtime render, and deterministic auto-fix — driven off the ui-health provider CLI"
+description: "Audit and fix a scenario's web UI: check page layout on desktop and mobile, accessibility, translations, design tokens, favicon and runtime rendering, then auto-fix what is mechanical. Single steer authority for UI validation (manifest, interop, project-UI standards), driven off the ui-health provider CLI."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["steer","react","ui"]
-  tags: ["skill","audit-technique"]
+  tags: ["skill","audit-technique","ui-audit","page-layout","mobile","accessibility","a11y","i18n","ui-validation"]
   icon: "monitor-check"
   status: "active"
   defaultScope: "architecture-scope"

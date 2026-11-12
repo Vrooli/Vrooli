@@ -64,6 +64,42 @@ const (
 	CleanupAbandoned     CleanupStatus = "abandoned_with_acknowledgement"
 )
 
+var cleanupTransitions = map[CleanupStatus][]CleanupStatus{
+	CleanupPending:       {CleanupConfirmed, CleanupNotApplicable, CleanupAbandoned},
+	CleanupConfirmed:     {},
+	CleanupNotApplicable: {},
+	CleanupAbandoned:     {},
+}
+
+func (s CleanupStatus) IsValid() bool {
+	_, exists := cleanupTransitions[s]
+	return exists
+}
+
+func (s CleanupStatus) CanTransitionTo(next CleanupStatus) bool {
+	if !s.IsValid() || !next.IsValid() {
+		return false
+	}
+	if s == next {
+		return true // Same-state updates may correct the operator-facing detail.
+	}
+	for _, allowed := range cleanupTransitions[s] {
+		if allowed == next {
+			return true
+		}
+	}
+	return false
+}
+
+type InvalidCleanupTransitionError struct {
+	Current   CleanupStatus
+	Attempted CleanupStatus
+}
+
+func (e *InvalidCleanupTransitionError) Error() string {
+	return fmt.Sprintf("invalid cleanup tombstone transition %q → %q", e.Current, e.Attempted)
+}
+
 type CleanupTombstone struct {
 	ID             string
 	MachineID      string
@@ -73,6 +109,18 @@ type CleanupTombstone struct {
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	AcknowledgedAt time.Time
+}
+
+// TransitionStatus is the single mutation owner for cleanup tombstone state.
+func (t *CleanupTombstone) TransitionStatus(next CleanupStatus) error {
+	if t == nil {
+		return fmt.Errorf("cannot transition a nil cleanup tombstone")
+	}
+	if !t.Status.CanTransitionTo(next) {
+		return &InvalidCleanupTransitionError{Current: t.Status, Attempted: next}
+	}
+	t.Status = next
+	return nil
 }
 
 // AuditEvent is append-only evidence for an operator-visible Machine effect.

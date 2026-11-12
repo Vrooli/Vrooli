@@ -142,6 +142,43 @@ func TestSetStateIsAtomicOnExpectedState(t *testing.T) {
 	}
 }
 
+func TestSetStateRejectsIllegalTransitionWithoutMutation(t *testing.T) {
+	repo := operationsTestRepo(t, "ops-illegal-transition")
+	ctx := context.Background()
+	admit(t, repo, "op-1", "k1", "sha256:a")
+	fence, err := repo.AcquireWorker(ctx, "op-1", "w", time.Second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SetState(ctx, "op-1", fence, domain.OperationRunning, domain.OperationSucceeded, StatePatch{
+		Result: &domain.OperationResult{Outcome: string(domain.OperationSucceeded)},
+	}); !apierrors.Is(err, apierrors.CodeOperationConflict) {
+		t.Fatalf("running→succeeded must be refused by repository: %v", err)
+	}
+	op, err := repo.GetOperation(ctx, "op-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if op.State != domain.OperationRunning || op.TerminalAt != nil || op.Result != nil {
+		t.Fatalf("illegal transition mutated durable operation: %+v", op)
+	}
+}
+
+func TestGetOperationRejectsUnknownPersistedState(t *testing.T) {
+	repo := operationsTestRepo(t, "ops-unknown-state")
+	ctx := context.Background()
+	admit(t, repo, "op-1", "k1", "sha256:a")
+	if _, err := repo.db.ExecContext(ctx, `PRAGMA ignore_check_constraints = ON`); err != nil {
+		t.Fatalf("disable check constraint for malformed persistence fixture: %v", err)
+	}
+	if _, err := repo.db.ExecContext(ctx, `UPDATE cloud_operations SET state = 'mystery' WHERE id = 'op-1'`); err != nil {
+		t.Fatalf("write malformed state fixture: %v", err)
+	}
+	if _, err := repo.GetOperation(ctx, "op-1"); err == nil {
+		t.Fatal("GetOperation accepted unknown persisted state")
+	}
+}
+
 // TestCompetingOperationsSerialise [REQ:STC-P0-018] proves RUN-08: a second
 // operation on the same deployment cannot acquire while the first holds a
 // live lease, and can once the first is terminal.
@@ -344,7 +381,10 @@ func TestPruneTerminalOperationsKeepsProtectedAndLiveRecords(t *testing.T) {
 		if err != nil {
 			t.Fatalf("acquire %s: %v", id, err)
 		}
-		if err := repo.SetState(ctx, id, fence, domain.OperationRunning, domain.OperationSucceeded, StatePatch{}); err != nil {
+		if err := repo.SetState(ctx, id, fence, domain.OperationRunning, domain.OperationVerifying, StatePatch{}); err != nil {
+			t.Fatalf("begin verification %s: %v", id, err)
+		}
+		if err := repo.SetState(ctx, id, fence, domain.OperationVerifying, domain.OperationSucceeded, StatePatch{}); err != nil {
 			t.Fatalf("finish %s: %v", id, err)
 		}
 		if _, err := repo.db.ExecContext(ctx, `UPDATE cloud_operations SET terminal_at = $1 WHERE id = $2`, at, id); err != nil {

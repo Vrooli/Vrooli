@@ -27,6 +27,70 @@ const (
 	OperationCancelled       OperationState = "cancelled"
 )
 
+var operationTransitions = map[OperationState][]OperationState{
+	OperationAdmitted:        {OperationWaitingInput, OperationRunning, OperationCancelled},
+	OperationWaitingInput:    {OperationAdmitted, OperationCancelled},
+	OperationRunning:         {OperationVerifying, OperationReconciling, OperationRecovering, OperationCancelRequested, OperationWaitingInput, OperationFailed},
+	OperationVerifying:       {OperationSucceeded, OperationReconciling, OperationFailed, OperationCancelRequested},
+	OperationReconciling:     {OperationRunning, OperationRecovering, OperationWaitingInput, OperationFailed},
+	OperationRecovering:      {OperationFailed, OperationFailedRecovery},
+	OperationCancelRequested: {OperationCancelled, OperationReconciling, OperationVerifying, OperationRecovering, OperationFailed, OperationWaitingInput},
+	OperationSucceeded:       {},
+	OperationFailed:          {},
+	OperationFailedRecovery:  {},
+	OperationCancelled:       {},
+}
+
+// OperationStates returns every durable operation state in stable order.
+func OperationStates() []OperationState {
+	return []OperationState{
+		OperationAdmitted, OperationWaitingInput, OperationRunning, OperationVerifying,
+		OperationReconciling, OperationRecovering, OperationCancelRequested,
+		OperationSucceeded, OperationFailed, OperationFailedRecovery, OperationCancelled,
+	}
+}
+
+// IsValid reports whether s belongs to the durable operation lifecycle.
+func (s OperationState) IsValid() bool {
+	_, exists := operationTransitions[s]
+	return exists
+}
+
+// CanTransitionTo reports whether the durable lifecycle permits s → next.
+func (s OperationState) CanTransitionTo(next OperationState) bool {
+	for _, allowed := range operationTransitions[s] {
+		if allowed == next {
+			return true
+		}
+	}
+	return false
+}
+
+// InvalidOperationTransitionError describes a rejected durable state change.
+type InvalidOperationTransitionError struct {
+	From OperationState
+	To   OperationState
+}
+
+func (e *InvalidOperationTransitionError) Error() string {
+	if !e.From.IsValid() || !e.To.IsValid() {
+		return fmt.Sprintf("unknown operation state transition %q → %q", e.From, e.To)
+	}
+	return fmt.Sprintf("illegal operation transition %s → %s", e.From, e.To)
+}
+
+// TransitionTo is the single mutation owner for a CloudOperation's state.
+func (o *CloudOperation) TransitionTo(next OperationState) error {
+	if o == nil {
+		return fmt.Errorf("cannot transition a nil cloud operation")
+	}
+	if !o.State.IsValid() || !next.IsValid() || !o.State.CanTransitionTo(next) {
+		return &InvalidOperationTransitionError{From: o.State, To: next}
+	}
+	o.State = next
+	return nil
+}
+
 // IsTerminal reports whether the state admits no further transitions.
 func (s OperationState) IsTerminal() bool {
 	switch s {

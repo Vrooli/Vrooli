@@ -131,7 +131,12 @@ func TestCredentialLedgerRoundTrip(t *testing.T) {
 		t.Fatalf("rotation round trip = %+v", loaded)
 	}
 	done := created.Add(time.Hour)
-	loaded.State = domain.RotationComplete
+	if err := loaded.TransitionTo(domain.RotationOldVersionRevoked); err != nil {
+		t.Fatal(err)
+	}
+	if err := loaded.TransitionTo(domain.RotationComplete); err != nil {
+		t.Fatal(err)
+	}
 	loaded.CompletedAt = &done
 	if err := store.SaveRotation(ctx, loaded); err != nil {
 		t.Fatal(err)
@@ -149,5 +154,20 @@ func TestCredentialLedgerRoundTrip(t *testing.T) {
 	}
 	if err := store.UpsertBinding(ctx, &domain.CredentialBinding{ID: "x", DeploymentID: "dep-1"}); err == nil {
 		t.Fatal("binding without descriptor accepted")
+	}
+}
+
+func TestCredentialRotationRejectsUnknownStateOnSaveAndLoad(t *testing.T) {
+	db := openIdentityTestDB(t, "credential-rotation-state")
+	ctx := context.Background()
+	repo := NewRepository(db)
+	if err := repo.InitSchemaOnDialect(ctx, db, "sqlite"); err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.SaveRotation(ctx, &domain.CredentialRotation{ID: "bad", DeploymentID: "dep", State: "future"}); err == nil {
+		t.Fatal("unknown rotation state was persisted")
+	}
+	if _, err := decodeRotation([]byte(`{"id":"bad","state":"future"}`)); err == nil {
+		t.Fatal("unknown persisted rotation state was loaded")
 	}
 }

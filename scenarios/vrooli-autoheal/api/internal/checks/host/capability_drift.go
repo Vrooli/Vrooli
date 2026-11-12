@@ -23,6 +23,10 @@ func runCapabilityDrift(inv hostinventory.HostInventory) checks.Result {
 	var evidence []map[string]any
 	critical := 0
 	warning := 0
+	if probe := deviceInventoryEvidence(inv); probe != nil {
+		warning++
+		evidence = append(evidence, probe)
+	}
 	if inv.Kernel.Release != "" && !inv.Kernel.ModuleTreePresent {
 		critical++
 		evidence = append(evidence, map[string]any{"kind": "missing_module_tree", "kernelRelease": inv.Kernel.Release})
@@ -52,6 +56,7 @@ func runCapabilityDrift(inv hostinventory.HostInventory) checks.Result {
 		Details: baseDetails(inv, evidence, []string{
 			"Use host inventory, package state, and recent kernel signals together when triaging crashes.",
 			"Treat this as an early warning before attempting workload-specific fixes.",
+			hostinventory.DriverBindingRepairRoute,
 		}),
 	}
 }

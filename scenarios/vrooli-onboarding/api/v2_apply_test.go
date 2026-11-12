@@ -102,12 +102,12 @@ func getApplyStatusRequest(t *testing.T, server *Server, id string) (*httptest.R
 }
 
 func applyRunFromProto(response *applyv1.GetApplyRunResponse) applyRun {
-	result := applyRun{ID: response.GetRunId(), Status: response.GetLegacyStatus(), SelectionDigest: response.GetSelectionDigest(), Error: response.GetError(), DegradedDigest: response.GetDegradedDigest()}
+	result := applyRun{ID: response.GetRunId(), Status: applyRunStatus(response.GetLegacyStatus()), SelectionDigest: response.GetSelectionDigest(), Error: response.GetError(), DegradedDigest: response.GetDegradedDigest()}
 	if result.Status == "" {
-		result.Status = response.GetStatus().String()
+		result.Status = applyRunStatus(response.GetStatus().String())
 	}
 	for _, step := range response.GetSteps() {
-		result.Items = append(result.Items, applyItemResult{applyItem: applyItem{ID: step.GetId(), Kind: step.GetKind(), Name: step.GetName(), Dependencies: step.GetDependencies(), Required: step.GetRequired(), Privileged: step.GetPrivileged(), State: step.GetObservedState()}, Outcome: step.GetLegacyOutcome(), Disposition: step.GetDisposition(), Error: step.GetError(), Remediation: step.GetRemediation(), BlockedBy: step.GetBlockedBy(), ErrorCode: step.GetErrorCode()})
+		result.Items = append(result.Items, applyItemResult{applyItem: applyItem{ID: step.GetId(), Kind: step.GetKind(), Name: step.GetName(), Dependencies: step.GetDependencies(), Required: step.GetRequired(), Privileged: step.GetPrivileged(), State: step.GetObservedState()}, Outcome: applyItemOutcome(step.GetLegacyOutcome()), Disposition: step.GetDisposition(), Error: step.GetError(), Remediation: step.GetRemediation(), BlockedBy: step.GetBlockedBy(), ErrorCode: step.GetErrorCode()})
 	}
 	for _, blocker := range response.GetBlockers() {
 		result.Blockers = append(result.Blockers, completionBlocker{Kind: blocker.GetKind(), Name: blocker.GetName(), Reason: blocker.GetReason(), Remediation: blocker.GetRemediation()})

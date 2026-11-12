@@ -47,6 +47,7 @@ type mockStore struct {
 	outageSummary    *persistence.OutageSummary
 	outageErr        error
 	outageObserved   []checks.Result
+	hostInventory    *hostinventory.SnapshotRecord
 }
 
 func (m *mockStore) ObserveSupervisedAvailability(_ context.Context, result checks.Result) error {
@@ -184,7 +185,7 @@ func (m *mockStore) SaveHostInventorySnapshot(ctx context.Context, inv hostinven
 }
 
 func (m *mockStore) GetLatestHostInventorySnapshot(ctx context.Context) (*hostinventory.SnapshotRecord, error) {
-	return nil, nil
+	return m.hostInventory, nil
 }
 
 func (m *mockStore) GetRecentHostInventoryChanges(ctx context.Context, limit int) ([]hostinventory.Change, error) {

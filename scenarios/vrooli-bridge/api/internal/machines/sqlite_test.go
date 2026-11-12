@@ -306,6 +306,64 @@ func TestCleanupTombstonePendingEffectIsIdempotent(t *testing.T) {
 	require.NotEqual(t, first.ID, next.ID, "a later distinct cleanup effect remains historical")
 }
 
+func TestCleanupTombstoneTransitionOwnerRejectsInvalidEdgesWithoutMutation(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		from machines.CleanupStatus
+		to   machines.CleanupStatus
+		want bool
+	}{
+		{name: "pending confirmed", from: machines.CleanupPending, to: machines.CleanupConfirmed, want: true},
+		{name: "pending not applicable", from: machines.CleanupPending, to: machines.CleanupNotApplicable, want: true},
+		{name: "pending acknowledged", from: machines.CleanupPending, to: machines.CleanupAbandoned, want: true},
+		{name: "same state detail correction", from: machines.CleanupConfirmed, to: machines.CleanupConfirmed, want: true},
+		{name: "terminal cannot return to pending", from: machines.CleanupConfirmed, to: machines.CleanupPending},
+		{name: "terminal cannot become abandoned", from: machines.CleanupNotApplicable, to: machines.CleanupAbandoned},
+		{name: "unknown source", from: machines.CleanupStatus("mystery"), to: machines.CleanupConfirmed},
+		{name: "unknown target", from: machines.CleanupPending, to: machines.CleanupStatus("mystery")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tombstone := machines.CleanupTombstone{Status: tc.from}
+			err := tombstone.TransitionStatus(tc.to)
+			if tc.want {
+				require.NoError(t, err)
+				require.Equal(t, tc.to, tombstone.Status)
+				return
+			}
+			require.Error(t, err)
+			require.Equal(t, tc.from, tombstone.Status, "rejected transition must not mutate status")
+		})
+	}
+}
+
+func TestCleanupTombstoneRepositoryRejectsTerminalRevivalAndUnknownState(t *testing.T) {
+	d, clk := newDB(t)
+	repo := machines.NewSQLiteRepository(d, clk)
+	ctx := context.Background()
+	machine, err := repo.Create(ctx, machines.CreateInput{Locators: []machines.Locator{{Kind: "hostname", Value: "cleanup-state.example"}}})
+	require.NoError(t, err)
+	tombstone, err := repo.CreateCleanupTombstone(ctx, machines.CleanupTombstone{MachineID: machine.ID, Action: "remove_ssh_access"})
+	require.NoError(t, err)
+	confirmed, err := repo.UpdateCleanupTombstone(ctx, tombstone.ID, machines.CleanupConfirmed, "remote access removed")
+	require.NoError(t, err)
+	_, err = repo.UpdateCleanupTombstone(ctx, tombstone.ID, machines.CleanupAbandoned, "cannot abandon confirmed cleanup")
+	var transitionErr *machines.InvalidCleanupTransitionError
+	require.ErrorAs(t, err, &transitionErr)
+	history, err := repo.ListCleanupTombstones(ctx, machine.ID)
+	require.NoError(t, err)
+	require.Len(t, history, 1)
+	require.Equal(t, machines.CleanupConfirmed, history[0].Status)
+	require.Equal(t, confirmed.Detail, history[0].Detail)
+
+	unknown, err := repo.CreateCleanupTombstone(ctx, machines.CleanupTombstone{MachineID: machine.ID, Action: "unknown-status", Status: "mystery"})
+	require.Error(t, err)
+	require.Empty(t, unknown.ID)
+	_, err = d.ExecContext(ctx, `UPDATE machine_cleanup_tombstones SET status='mystery' WHERE id=?`, tombstone.ID)
+	require.NoError(t, err)
+	_, err = repo.ListCleanupTombstones(ctx, machine.ID)
+	require.Error(t, err, "unknown persisted states must fail closed")
+}
+
 func TestMachineAuditIsAppendOnlyAndExcludesSensitiveMaterial(t *testing.T) {
 	d, clk := newDB(t)
 	repo := machines.NewSQLiteRepository(d, clk).(interface {

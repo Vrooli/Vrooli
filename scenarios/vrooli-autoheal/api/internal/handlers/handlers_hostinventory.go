@@ -20,7 +20,15 @@ func (h *Handlers) HostInventory(w http.ResponseWriter, r *http.Request) {
 	}
 	resp := hostinventory.InventoryResponse{Snapshot: record, Fresh: false, ProbeStatus: map[string]hostinventory.IntegrityProbeState{}}
 	if record != nil {
-		resp.AgeSeconds = int64(time.Since(record.CollectedAt) / time.Second)
+		lastSeenAt := record.LastSeenAt
+		if lastSeenAt.IsZero() {
+			lastSeenAt = record.CollectedAt
+		}
+		age := time.Since(lastSeenAt)
+		if age < 0 {
+			age = 0
+		}
+		resp.AgeSeconds = int64(age / time.Second)
 		resp.Fresh = resp.AgeSeconds <= 300
 		resp.ProbeStatus = record.Inventory.ProbeStatus
 	}

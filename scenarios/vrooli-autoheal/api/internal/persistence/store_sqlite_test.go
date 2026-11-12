@@ -303,7 +303,7 @@ func TestSQLiteStore_HostInventorySnapshotRoundTrip(t *testing.T) {
 	store := NewStore(db)
 	ctx := context.Background()
 
-	_, _, err := store.SaveHostInventorySnapshot(ctx, hostinventory.HostInventory{
+	first, _, err := store.SaveHostInventorySnapshot(ctx, hostinventory.HostInventory{
 		CollectedAt: time.Date(2026, 5, 8, 12, 0, 0, 0, time.UTC),
 		Platform:    "linux",
 		OS:          "linux",
@@ -328,7 +328,10 @@ func TestSQLiteStore_HostInventorySnapshotRoundTrip(t *testing.T) {
 	if latest.KernelRelease != "1.2.3-test" {
 		t.Fatalf("kernel release = %q, want 1.2.3-test", latest.KernelRelease)
 	}
-	if _, _, err := store.SaveHostInventorySnapshot(ctx, hostinventory.HostInventory{
+	if !latest.LastSeenAt.Equal(latest.CollectedAt) {
+		t.Fatalf("initial lastSeenAt = %s, want initial collection time %s", latest.LastSeenAt, latest.CollectedAt)
+	}
+	refreshed, _, err := store.SaveHostInventorySnapshot(ctx, hostinventory.HostInventory{
 		CollectedAt: time.Date(2026, 5, 8, 12, 1, 0, 0, time.UTC),
 		Platform:    "linux",
 		OS:          "linux",
@@ -336,8 +339,22 @@ func TestSQLiteStore_HostInventorySnapshotRoundTrip(t *testing.T) {
 		BootID:      "boot-a",
 		Kernel:      hostinventory.KernelInfo{Release: "1.2.3-test", ModuleTreePresent: true},
 		ProbeStatus: map[string]hostinventory.IntegrityProbeState{"kernel": hostinventory.IntegrityProbeOK},
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("repeated SaveHostInventorySnapshot() error = %v", err)
+	}
+	if first == nil || refreshed == nil || refreshed.ID != first.ID {
+		t.Fatalf("repeated observation changed snapshot identity: first=%#v refreshed=%#v", first, refreshed)
+	}
+	if refreshed.LastSeenAt.Before(time.Now().UTC().Add(-time.Minute)) {
+		t.Fatalf("repeated observation lastSeenAt = %s, want a fresh timestamp", refreshed.LastSeenAt)
+	}
+	latest, err = store.GetLatestHostInventorySnapshot(ctx)
+	if err != nil {
+		t.Fatalf("GetLatestHostInventorySnapshot() after repeat error = %v", err)
+	}
+	if latest == nil || latest.LastSeenAt.Before(time.Now().UTC().Add(-time.Minute)) {
+		t.Fatalf("stored repeated observation lastSeenAt = %#v, want a fresh timestamp", latest)
 	}
 	var count int
 	if err := db.QueryRowContext(ctx, `SELECT COUNT(*) FROM host_inventory_snapshots`).Scan(&count); err != nil {
@@ -345,6 +362,42 @@ func TestSQLiteStore_HostInventorySnapshotRoundTrip(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("snapshot count = %d, want deduplicated count 1", count)
+	}
+}
+
+func TestSQLiteStore_HostInventoryProbeFailureIsNotDeduplicatedAsFreshSuccess(t *testing.T) {
+	store := NewStore(openSQLiteTestDB(t))
+	ctx := context.Background()
+	collectedAt := time.Now().UTC()
+	base := hostinventory.HostInventory{
+		CollectedAt: collectedAt,
+		Platform:    "linux",
+		OS:          "linux",
+		Arch:        "amd64",
+		Devices:     []hostinventory.DeviceInfo{},
+		ProbeStatus: map[string]hostinventory.IntegrityProbeState{"devices": hostinventory.IntegrityProbeOK},
+	}
+	success, _, err := store.SaveHostInventorySnapshot(ctx, base)
+	if err != nil {
+		t.Fatalf("save successful empty inventory: %v", err)
+	}
+	failed := base
+	failed.CollectedAt = collectedAt.Add(time.Second)
+	failed.ProbeStatus = map[string]hostinventory.IntegrityProbeState{"devices": hostinventory.IntegrityProbeDegraded}
+	failed.ProbeErrors = map[string]string{"devices": "PCI enumeration: permission denied"}
+	degraded, _, err := store.SaveHostInventorySnapshot(ctx, failed)
+	if err != nil {
+		t.Fatalf("save failed empty inventory: %v", err)
+	}
+	if success == nil || degraded == nil || success.Fingerprint == degraded.Fingerprint {
+		t.Fatalf("probe quality change was deduplicated: success=%#v degraded=%#v", success, degraded)
+	}
+	latest, err := store.GetLatestHostInventorySnapshot(ctx)
+	if err != nil {
+		t.Fatalf("get latest inventory: %v", err)
+	}
+	if latest == nil || latest.Inventory.ProbeStatus["devices"] != hostinventory.IntegrityProbeDegraded {
+		t.Fatalf("latest snapshot = %#v, want the degraded current probe", latest)
 	}
 }
 

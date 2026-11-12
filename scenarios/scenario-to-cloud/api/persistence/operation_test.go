@@ -103,3 +103,24 @@ func TestCreateOperationRequiresIdentity(t *testing.T) {
 		t.Fatalf("nil operation must fail")
 	}
 }
+
+func TestCreateOperationRejectsUnknownInitialState(t *testing.T) {
+	db := openIdentityTestDB(t, "operation-unknown-initial-state")
+	ctx := context.Background()
+	repo := NewRepository(db)
+	if err := repo.InitSchemaOnDialect(ctx, db, "sqlite"); err != nil {
+		t.Fatalf("init schema: %v", err)
+	}
+	if err := repo.CreateDeployment(ctx, newDeployment("dep-a", "demo-app", "production", "203.0.113.10", "demo.example")); err != nil {
+		t.Fatalf("create deployment: %v", err)
+	}
+	_, err := repo.CreateOperation(ctx, &domain.CloudOperation{
+		ID: "op-1", DeploymentID: "dep-a", RequestKey: "k1", PlanDigest: "sha256:a", State: "mystery",
+	})
+	if !apierrors.Is(err, apierrors.CodeInvalidRequest) {
+		t.Fatalf("unknown initial state error = %v, want invalid request", err)
+	}
+	if op, err := repo.GetOperation(ctx, "op-1"); err != nil || op != nil {
+		t.Fatalf("unknown initial state was persisted: operation=%+v err=%v", op, err)
+	}
+}

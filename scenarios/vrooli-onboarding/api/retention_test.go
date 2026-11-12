@@ -34,6 +34,7 @@ func TestCleanupOnboardingArtifactsUsesControlledClockAndProtectsActiveRuns(t *t
 
 	writeRetentionFixture(t, filepath.Join(runs, "old.json"), applyRun{ID: "old", Status: "applied", CompletedAt: old})
 	writeRetentionFixture(t, filepath.Join(runs, "active.json"), applyRun{ID: "active", Status: "applying", StartedAt: old})
+	writeRetentionFixture(t, filepath.Join(runs, "unknown.json"), applyRun{ID: "unknown", Status: "future_status", CompletedAt: old})
 	writeRetentionFixture(t, filepath.Join(runs, "recent.json"), applyRun{ID: "recent", Status: "applied", CompletedAt: now.Add(-time.Hour).Format(time.RFC3339)})
 	if err := os.WriteFile(filepath.Join(runs, "old.log"), []byte("old"), 0o600); err != nil {
 		t.Fatal(err)
@@ -72,6 +73,7 @@ func TestCleanupOnboardingArtifactsUsesControlledClockAndProtectsActiveRuns(t *t
 		filepath.Join(reviews, "active.json"),
 		filepath.Join(reviews, "corrupt.json"),
 		filepath.Join(runs, "active.json"),
+		filepath.Join(runs, "unknown.json"),
 		filepath.Join(runs, "recent.json"),
 		filepath.Join(admissions, "active.json"),
 	} {

@@ -11,9 +11,9 @@ import (
 	"source-ledger/handlers/health"
 	"source-ledger/internal/module"
 	"source-ledger/internal/server"
-	"source-ledger/internal/testutil/mocks"
 
 	"github.com/vrooli/api-core/apihttptest"
+	"github.com/vrooli/api-core/databasetest"
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
@@ -75,7 +75,7 @@ func TestHealthHandler(t *testing.T) { // [REQ:SL-P0-004]
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
+			pinger := &databasetest.FakePinger{PingErr: tc.pingErr}
 			h := health.NewHandler(health.Deps{
 				Pinger:  pinger,
 				Service: "react-vite-test",

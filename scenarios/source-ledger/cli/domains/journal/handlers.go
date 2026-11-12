@@ -2,17 +2,26 @@ package journal
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/cli-core/cliapp"
 	journalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal"
 	journalconnect "github.com/vrooli/vrooli/packages/proto/gen/go/source-ledger/v1/journal/journal_v1connect"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 type handlers struct {
-	client journalconnect.JournalServiceClient
+	client journalLister
+}
+
+type journalLister interface {
+	ListEntries(context.Context, *connect.Request[journalv1.ListEntriesRequest]) (*connect.Response[journalv1.ListEntriesResponse], error)
+	GetEntry(context.Context, *connect.Request[journalv1.GetEntryRequest]) (*connect.Response[journalv1.GetEntryResponse], error)
+	AppendEntry(context.Context, *connect.Request[journalv1.AppendEntryRequest]) (*connect.Response[journalv1.AppendEntryResponse], error)
 }
 
 func newHandlers(core *cliapp.ScenarioApp) *handlers {
@@ -60,6 +69,101 @@ func (h *handlers) listReport(_ cliapp.OperationContext, msg *journalv1.ListEntr
 		lines = append(lines, fmt.Sprintf("%s [%s] %s", e.GetId(), e.GetKind(), e.GetBody()))
 	}
 	return cliapp.ListReport{Summary: []string{fmt.Sprintf("%d journal entries", len(lines))}, Results: lines}
+}
+
+const exportPageSize = 500
+
+type journalExport struct {
+	Source            string            `json:"source"`
+	Scope             string            `json:"scope"`
+	SnapshotAt        string            `json:"snapshot_at"`
+	Complete          bool              `json:"complete"`
+	Degraded          bool              `json:"degraded"`
+	DegradationReason string            `json:"degradation_reason,omitempty"`
+	EntryCount        int               `json:"entry_count"`
+	PageCount         int               `json:"page_count"`
+	Entries           []json.RawMessage `json:"entries"`
+}
+
+func (h *handlers) export(ctx context.Context, scope string, pageSize int, snapshotTime time.Time) (out journalExport) {
+	out = journalExport{
+		Source:     "source-ledger.journal.list",
+		Scope:      scope,
+		SnapshotAt: snapshotTime.UTC().Format(time.RFC3339Nano),
+		Entries:    []json.RawMessage{},
+	}
+	defer func() { out.EntryCount = len(out.Entries) }()
+	seenCursors := map[string]struct{}{}
+	seenIDs := map[string]struct{}{}
+	cursor := ""
+	for {
+		response, err := h.client.ListEntries(ctx, connect.NewRequest(&journalv1.ListEntriesRequest{
+			Scope:  scope,
+			Limit:  int32(pageSize),
+			Cursor: cursor,
+		}))
+		if err != nil {
+			out.Degraded = true
+			out.DegradationReason = fmt.Sprintf("page %d failed: %v", out.PageCount+1, err)
+			return out
+		}
+		if response == nil || response.Msg == nil {
+			out.Degraded = true
+			out.DegradationReason = fmt.Sprintf("page %d returned no response", out.PageCount+1)
+			return out
+		}
+		page := response.Msg
+		out.PageCount++
+		for _, entry := range page.GetEntries() {
+			if entry == nil || entry.GetId() == "" {
+				out.Degraded = true
+				out.DegradationReason = fmt.Sprintf("page %d contained an entry without an ID", out.PageCount)
+				return out
+			}
+			if _, exists := seenIDs[entry.GetId()]; exists {
+				out.Degraded = true
+				out.DegradationReason = fmt.Sprintf("page %d repeated entry ID %q", out.PageCount, entry.GetId())
+				return out
+			}
+			encoded, err := protojson.Marshal(entry)
+			if err != nil {
+				out.Degraded = true
+				out.DegradationReason = fmt.Sprintf("page %d entry %q could not be encoded: %v", out.PageCount, entry.GetId(), err)
+				return out
+			}
+			seenIDs[entry.GetId()] = struct{}{}
+			out.Entries = append(out.Entries, encoded)
+		}
+		if next := page.GetNextCursor(); next == "" {
+			out.Complete = true
+			out.EntryCount = len(out.Entries)
+			return out
+		} else {
+			if next == cursor {
+				out.Degraded = true
+				out.DegradationReason = fmt.Sprintf("page %d returned a non-advancing cursor", out.PageCount)
+				return out
+			}
+			if _, exists := seenCursors[next]; exists {
+				out.Degraded = true
+				out.DegradationReason = fmt.Sprintf("page %d returned a previously seen cursor", out.PageCount)
+				return out
+			}
+			seenCursors[next] = struct{}{}
+			cursor = next
+		}
+	}
+}
+
+func (h *handlers) exportRun(ctx cliapp.RunContext) error {
+	result := h.export(context.Background(), ctx.Flag("scope"), exportPageSize, time.Now())
+	if err := json.NewEncoder(ctx.Stdout()).Encode(result); err != nil {
+		return fmt.Errorf("write journal export: %w", err)
+	}
+	if result.Degraded {
+		return fmt.Errorf("journal export incomplete: %s", result.DegradationReason)
+	}
+	return nil
 }
 
 func (h *handlers) getCall(ctx cliapp.OperationContext) (*journalv1.GetEntryResponse, error) {

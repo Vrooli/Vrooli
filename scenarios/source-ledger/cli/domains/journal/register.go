@@ -14,6 +14,7 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		"JournalService.ListEntries": cliapp.ProtoList(h.listCall, h.listReport),
 		"JournalService.GetEntry":    cliapp.ProtoList(h.getCall, h.getReport),
 		"JournalService.AppendEntry": cliapp.ProtoMutation(h.noteCall, h.noteReport),
+		"export":                     cliapp.ContentAction(h.exportRun),
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("journal: load manifest: %w", err)

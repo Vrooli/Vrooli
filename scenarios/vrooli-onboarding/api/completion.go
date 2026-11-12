@@ -160,7 +160,7 @@ func assessCompletion(readiness readinessResponse, run *applyRun) completionAsse
 			assessment.Blockers = append(assessment.Blockers, completionBlocker{
 				Kind:        "apply",
 				Name:        item.Kind + ":" + item.Name,
-				Reason:      "the apply item reported " + item.Outcome,
+				Reason:      "the apply item reported " + string(item.Outcome),
 				Remediation: firstNonEmptyString(item.Remediation, retryApplyRemediation),
 			})
 		}

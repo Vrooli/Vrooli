@@ -364,7 +364,9 @@ func initialConsumers(binding *domain.CredentialBinding, now time.Time) []domain
 
 func (s *Service) record(ctx context.Context, rotation *domain.CredentialRotation, step string, state domain.CredentialRotationState, outcome string, ref string, details map[string]any, limitations ...string) error {
 	now := s.now()
-	rotation.State = state
+	if err := rotation.TransitionTo(state); err != nil {
+		return err
+	}
 	rotation.UpdatedAt = now
 	rotation.Receipts = append(rotation.Receipts, domain.CredentialReceipt{Step: step, State: string(state), Outcome: outcome, At: now, TargetReceiptRef: ref, Details: details, Limitations: limitations})
 	if state.Terminal() {

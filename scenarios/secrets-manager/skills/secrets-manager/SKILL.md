@@ -1,12 +1,12 @@
 ---
 name: "secrets-manager"
-description: "Use Secrets Manager as the authority for metadata-safe vault operations, fresh human assurance, bounded grants, agent identity verification, and brokered credential use."
+description: "Store, look up and use API keys, passwords and other secrets securely: request time-boxed access to a credential, run a command with a brokered secret, and revoke it, without printing secret values. Secrets Manager is the authority for metadata-safe vault operations, fresh human assurance, bounded grants, agent identity verification and brokered credential use."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["secrets-manager", "password-manager", "credential-authority", "grants", "broker"]
+  tags: ["secrets-manager", "secrets", "api-key", "password", "password-manager", "credentials", "vault", "credential-authority", "grants", "broker"]
   status: "active"
   revision: 1
   learning:

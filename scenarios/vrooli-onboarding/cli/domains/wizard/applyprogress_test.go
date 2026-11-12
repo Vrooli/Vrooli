@@ -214,18 +214,14 @@ func TestApplyProgressTreatsPendingItemsAsNotStarted(t *testing.T) {
 // against the API source. If that constant is renamed, every heartbeat above
 // silently stops firing while the tests still pass.
 func TestApplyingOutcomeMatchesTheAPIContract(t *testing.T) {
-	source, err := os.ReadFile(filepath.Join("..", "..", "..", "api", "apply.go"))
+	source, err := os.ReadFile(filepath.Join("..", "..", "..", "api", "apply_lifecycle.go"))
 	if err != nil {
-		t.Fatalf("read the API apply source: %v", err)
+		t.Fatalf("read the API lifecycle source: %v", err)
 	}
-	want := `applyOutcomeApplying = "` + applyOutcomeApplying + `"`
-	if !strings.Contains(string(source), want) {
-		t.Fatalf("the API no longer declares %s; the wizard's progress markers are reading a value nothing writes", want)
+	if !strings.Contains(string(source), "applyItemApplying") || !strings.Contains(string(source), `applyItemOutcome = "`+applyOutcomeApplying+`"`) {
+		t.Fatalf("the API lifecycle no longer declares the applying outcome; the wizard's progress markers are reading a value nothing writes")
 	}
-	// The pending marker has no constant on the API side; it is written as a
-	// literal when the run is built. Pin the literal so a rename there cannot
-	// silently turn every unstarted item into a reported failure here.
-	if !strings.Contains(string(source), `Outcome: "`+applyOutcomePending+`"`) {
-		t.Fatalf("the API no longer writes %q as the initial item outcome", applyOutcomePending)
+	if !strings.Contains(string(source), "applyItemPending") || !strings.Contains(string(source), `applyItemOutcome = "`+applyOutcomePending+`"`) {
+		t.Fatalf("the API lifecycle no longer declares %q as the initial item outcome", applyOutcomePending)
 	}
 }

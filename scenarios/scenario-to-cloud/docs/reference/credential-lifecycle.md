@@ -64,20 +64,40 @@ pinned per descriptor.
 
 ## Rotation state machine
 
+`domain.CredentialRotation.TransitionTo` enforces the transition graph. The
+repository rejects unknown persisted states; the state table beside that owner
+is authoritative for resume, revoke, recovery and break-glass paths.
+
 ```mermaid
 stateDiagram-v2
     [*] --> planned
+    planned --> planned: break-glass receipt
     planned --> new_version_created
+    planned --> provider_prepared: recovery
+    planned --> old_version_revoked: revoke
+    planned --> revocation_incomplete: unreachable revoke target
+    planned --> failed
     new_version_created --> provider_prepared
+    new_version_created --> recovering
+    new_version_created --> failed: provider rejects (predecessor retained)
     provider_prepared --> consumers_updated
+    provider_prepared --> recovering: distribution fails
+    provider_prepared --> failed
     consumers_updated --> verified
+    consumers_updated --> consumers_updated: incomplete verification receipt
+    consumers_updated --> recovering: verification fails
+    consumers_updated --> failed
     verified --> old_version_revoked
     verified --> pending_operator_input: provider has no revoke API
+    verified --> verified: overlap wait or incomplete purge
+    verified --> complete: bundle recovery
+    verified --> failed
+    pending_operator_input --> pending_operator_input: handoff receipt
+    pending_operator_input --> verified: operator confirms
     pending_operator_input --> old_version_revoked: operator_confirmed
+    pending_operator_input --> failed
     old_version_revoked --> complete
-    new_version_created --> failed: provider rejects (predecessor retained)
-    provider_prepared --> recovering: distribution fails
-    consumers_updated --> recovering: verification fails
+    revocation_incomplete --> old_version_revoked: resume after reachability returns
     recovering --> failed
     complete --> [*]
     failed --> [*]

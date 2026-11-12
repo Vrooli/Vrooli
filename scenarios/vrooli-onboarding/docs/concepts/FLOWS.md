@@ -81,6 +81,29 @@ probe — a tool present but not on `PATH`, a safeguard written but not loaded, 
 resource enabled but not reachable. Keeping the two states distinct is what lets
 validation be a real gate rather than an echo of apply.
 
+### Detached apply-run lifecycle
+
+The host apply run is a durable JSON record owned by a detached runner. The API
+accepts it as `pending`; the runner claims it as `applying`, and only the
+transition owner in `api/apply_lifecycle.go` may change the run status. The
+terminal outcomes are `already_satisfied`, `cancelled`, `partially_applied`,
+`applied`, `configuration_incomplete`, `failed`, and `indeterminate`. An
+`applying` run with a dead executor is returned as `interrupted`; that is a
+read-time projection, not a persisted write. The lifecycle tests enumerate the
+legal edges and reject invalid transitions without mutating the record.
+
+`cancel_requested` remains an orthogonal command request. The detached runner
+honors it between host mutations, so the durable status remains `applying`
+until it can safely publish `cancelled`. Runner PID and heartbeat remain
+liveness evidence. Unknown persisted statuses are not treated as terminal and
+are retained for recovery instead of being eligible for routine cleanup.
+
+Each persisted run item also has an explicit outcome lifecycle: `pending` may
+become `applying`, `blocked`, `not_applicable`, `already_satisfied`, or
+`skipped_self`; `applying` may finish as `applied`, `failed`, `timed_out`, or
+`needs_elevation`. Its own transition owner prevents terminal item outcomes
+from being overwritten, and run persistence rejects unknown item outcomes.
+
 ## Re-entry
 
 Re-entry reads the completion marker and the committed selection, then resumes

@@ -26,14 +26,17 @@ func (s *Store) saveHostInventorySnapshotSQLite(ctx context.Context, inv hostinv
 	}
 	previous, _ := s.getLatestHostInventorySnapshotSQLite(ctx)
 	if previous != nil && previous.Fingerprint == inv.Fingerprint {
-		seenAt := time.Now().UTC().Format(time.RFC3339Nano)
+		lastSeenAt := time.Now().UTC()
+		seenAt := lastSeenAt.Format(time.RFC3339Nano)
 		if _, err := s.db.ExecContext(ctx, `
 			UPDATE host_inventory_snapshots SET last_seen_at = ? WHERE id = ?
 		`, seenAt, previous.ID); err != nil {
 			return nil, nil, fmt.Errorf("update repeated host inventory snapshot: %w", err)
 		}
+		previous.LastSeenAt = lastSeenAt
 		return previous, nil, nil
 	}
+	lastSeenAt := inv.CollectedAt.UTC()
 	_, err = s.db.ExecContext(ctx, `
 		INSERT INTO host_inventory_snapshots (id, collected_at, platform, os, arch, boot_id, kernel_release, fingerprint, last_seen_at, inventory_json)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -44,6 +47,7 @@ func (s *Store) saveHostInventorySnapshotSQLite(ctx context.Context, inv hostinv
 	record := &hostinventory.SnapshotRecord{
 		ID:            id,
 		CollectedAt:   inv.CollectedAt.UTC(),
+		LastSeenAt:    lastSeenAt,
 		Platform:      inv.Platform,
 		OS:            inv.OS,
 		Arch:          inv.Arch,
@@ -107,7 +111,7 @@ func (s *Store) ensureHostInventorySnapshotColumns(ctx context.Context) error {
 
 func (s *Store) getLatestHostInventorySnapshotSQLite(ctx context.Context) (*hostinventory.SnapshotRecord, error) {
 	row := s.db.QueryRowContext(ctx, `
-		SELECT id, collected_at, platform, os, arch, COALESCE(boot_id, ''), COALESCE(kernel_release, ''), fingerprint, inventory_json
+		SELECT id, collected_at, COALESCE(last_seen_at, collected_at), platform, os, arch, COALESCE(boot_id, ''), COALESCE(kernel_release, ''), fingerprint, inventory_json
 		FROM host_inventory_snapshots
 		ORDER BY collected_at DESC
 		LIMIT 1
@@ -156,8 +160,9 @@ type rowScanner interface {
 func scanHostInventorySnapshot(row rowScanner) (*hostinventory.SnapshotRecord, error) {
 	var record hostinventory.SnapshotRecord
 	var collectedRaw any
+	var lastSeenRaw any
 	var inventoryJSON []byte
-	if err := row.Scan(&record.ID, &collectedRaw, &record.Platform, &record.OS, &record.Arch, &record.BootID, &record.KernelRelease, &record.Fingerprint, &inventoryJSON); err != nil {
+	if err := row.Scan(&record.ID, &collectedRaw, &lastSeenRaw, &record.Platform, &record.OS, &record.Arch, &record.BootID, &record.KernelRelease, &record.Fingerprint, &inventoryJSON); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
@@ -168,6 +173,11 @@ func scanHostInventorySnapshot(row rowScanner) (*hostinventory.SnapshotRecord, e
 		return nil, fmt.Errorf("parse host inventory snapshot time: %w", err)
 	}
 	record.CollectedAt = collectedAt.UTC()
+	lastSeenAt, err := parseDBTime(lastSeenRaw)
+	if err != nil {
+		return nil, fmt.Errorf("parse host inventory last-seen time: %w", err)
+	}
+	record.LastSeenAt = lastSeenAt.UTC()
 	if err := json.Unmarshal(inventoryJSON, &record.Inventory); err != nil {
 		return nil, fmt.Errorf("unmarshal host inventory snapshot: %w", err)
 	}

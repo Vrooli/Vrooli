@@ -300,6 +300,32 @@
           }
         },
         {
+          "name": "export",
+          "description": "Export a complete ascending journal scope snapshot",
+          "needs_api": true,
+          "flags": [
+            {
+              "name": "scope",
+              "description": "Ledger scope to export",
+              "default": "agent-memory"
+            }
+          ],
+          "positionals": [],
+          "binding": {
+            "kind": "local"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
+          }
+        },
+        {
           "name": "get",
           "description": "Read one immutable journal entry",
           "flags": [

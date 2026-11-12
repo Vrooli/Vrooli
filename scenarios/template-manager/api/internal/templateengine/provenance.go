@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	scenariomodel "github.com/vrooli/vrooli/internal/scenario"
 	templatecontracts "github.com/vrooli/vrooli/scenarios/template-manager/api/internal/templatecontracts"
 )
 
@@ -42,24 +41,33 @@ func injectScenarioProvenance(destination string, provenance templatecontracts.G
 		}
 		return fmt.Errorf("read service manifest: %w", err)
 	}
-	var manifest scenariomodel.ServiceManifest
+	// Preserve fields owned by other schema consumers (such as skills and
+	// operator_capabilities) when injecting generation metadata. The runtime
+	// Scenario model intentionally does not need to understand every authored
+	// service contract field, so a typed round trip here would silently drop
+	// otherwise valid top-level declarations.
+	var manifest map[string]json.RawMessage
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return fmt.Errorf("parse service manifest: %w", err)
 	}
-	manifest.Generation = &scenariomodel.GenerationMetadata{
-		Template: scenariomodel.GenerationTemplate{
-			ID:      provenance.Template.ID,
-			Version: provenance.Template.Version,
+	generation, err := json.Marshal(map[string]any{
+		"template": map[string]string{
+			"id":      provenance.Template.ID,
+			"version": provenance.Template.Version,
 		},
-		GeneratedAt: provenance.GeneratedAt,
-		Design: scenariomodel.GenerationDesign{
-			ID:      provenance.Design.ID,
-			Version: provenance.Design.Version,
-			Adapter: provenance.Design.Adapter,
+		"generated_at": provenance.GeneratedAt,
+		"design": map[string]string{
+			"id":      provenance.Design.ID,
+			"version": provenance.Design.Version,
+			"adapter": provenance.Design.Adapter,
 		},
-		ManifestSha: provenance.ManifestSha,
-		ContentSha:  provenance.ContentSha,
+		"manifest_sha": provenance.ManifestSha,
+		"content_sha":  provenance.ContentSha,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal generation metadata: %w", err)
 	}
+	manifest["generation"] = generation
 	rendered, err := json.MarshalIndent(manifest, "", "  ")
 	if err != nil {
 		return fmt.Errorf("render service manifest: %w", err)

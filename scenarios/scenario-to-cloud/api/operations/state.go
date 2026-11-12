@@ -8,8 +8,6 @@
 package operations
 
 import (
-	"fmt"
-
 	"scenario-to-cloud/apierrors"
 	"scenario-to-cloud/domain"
 )
@@ -35,47 +33,20 @@ const (
 
 // States lists every state in a stable order.
 func States() []State {
-	return []State{Admitted, WaitingInput, Running, Verifying, Reconciling, Recovering, CancelRequested, Succeeded, Failed, FailedRecovery, Cancelled}
-}
-
-// legal is the transition table. It is the single place the lifecycle is
-// declared; Transition refuses anything not listed here.
-var legal = map[State][]State{
-	Admitted:     {WaitingInput, Running, Cancelled},
-	WaitingInput: {Admitted, Cancelled},
-	Running:      {Verifying, Reconciling, Recovering, CancelRequested, WaitingInput, Failed},
-	Verifying:    {Succeeded, Reconciling, Failed, CancelRequested},
-	Reconciling:  {Running, Recovering, WaitingInput, Failed},
-	Recovering:   {Failed, FailedRecovery},
-	// cancel_requested keeps every exit of running: the request is honoured
-	// at the next declared cancel point, and until then a step may still
-	// finish, fail, or lose its reply.
-	CancelRequested: {Cancelled, Reconciling, Verifying, Recovering, Failed, WaitingInput},
+	return domain.OperationStates()
 }
 
 // Legal reports whether from → to is an allowed transition.
 func Legal(from, to State) bool {
-	for _, next := range legal[from] {
-		if next == to {
-			return true
-		}
-	}
-	return false
+	return from.CanTransitionTo(to)
 }
 
 // Transition validates from → to and returns a typed operation_conflict when
 // the move is not in the table. A terminal state admits no transition.
 func Transition(from, to State) error {
-	if from == to {
-		return apierrors.New(apierrors.CodeOperationConflict, fmt.Sprintf("operation is already %s", from)).
-			WithDetail("state", string(from))
-	}
-	if from.IsTerminal() {
-		return apierrors.New(apierrors.CodeOperationConflict, fmt.Sprintf("operation is terminal (%s); no transition to %s", from, to)).
-			WithDetail("state", string(from)).WithDetail("requested", string(to))
-	}
-	if !Legal(from, to) {
-		return apierrors.New(apierrors.CodeOperationConflict, fmt.Sprintf("illegal operation transition %s → %s", from, to)).
+	op := &domain.CloudOperation{State: from}
+	if err := op.TransitionTo(to); err != nil {
+		return apierrors.New(apierrors.CodeOperationConflict, err.Error()).
 			WithDetail("state", string(from)).WithDetail("requested", string(to))
 	}
 	return nil

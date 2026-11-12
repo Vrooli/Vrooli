@@ -175,14 +175,12 @@ func assetsCoverLifecycle(assets []workflows.WorkflowAsset, region readinessRegi
 	for _, asset := range assets {
 		for _, ref := range asset.Selectors {
 			raw := ref.Raw
-			if !strings.Contains(raw, "data-experience-state") {
-				continue
-			}
-			if strings.Contains(raw, "loading") {
+			if strings.Contains(raw, "data-experience-state") && strings.Contains(raw, "loading") || selectorKeyCoversState(ref.Key, region.ID, "loading") {
 				loading = true
 			}
 			for _, state := range region.Lifecycle.States {
-				if state != "loading" && state != "static" && strings.Contains(raw, state) {
+				if state != "loading" && state != "static" &&
+					(strings.Contains(raw, "data-experience-state") && strings.Contains(raw, state) || selectorKeyCoversState(ref.Key, region.ID, state)) {
 					terminal = true
 				}
 			}
@@ -196,14 +194,12 @@ func assetCoversLifecycle(asset workflows.WorkflowAsset, region readinessRegion)
 	terminal := false
 	for _, ref := range asset.Selectors {
 		raw := ref.Raw
-		if !strings.Contains(raw, "data-experience-state") {
-			continue
-		}
-		if strings.Contains(raw, "loading") {
+		if strings.Contains(raw, "data-experience-state") && strings.Contains(raw, "loading") || selectorKeyCoversState(ref.Key, region.ID, "loading") {
 			loading = true
 		}
 		for _, state := range region.Lifecycle.States {
-			if state != "loading" && state != "static" && strings.Contains(raw, state) {
+			if state != "loading" && state != "static" &&
+				(strings.Contains(raw, "data-experience-state") && strings.Contains(raw, state) || selectorKeyCoversState(ref.Key, region.ID, state)) {
 				terminal = true
 			}
 		}
@@ -214,6 +210,13 @@ func assetCoversLifecycle(asset workflows.WorkflowAsset, region readinessRegion)
 func assetCoversRegion(asset workflows.WorkflowAsset, region readinessRegion) bool {
 	for _, ref := range asset.Selectors {
 		raw := ref.Raw
+		// A registered selector is an explicit UI contract reference. Require
+		// its semantic key to name this region (or one of its descendants),
+		// because the token itself intentionally does not repeat the resolved
+		// CSS selector or test ID.
+		if selectorKeyCoversRegion(ref.Key, region.ID) {
+			return true
+		}
 		if region.Binding.Selector != "" && strings.Contains(raw, region.Binding.Selector) {
 			return true
 		}
@@ -222,4 +225,14 @@ func assetCoversRegion(asset workflows.WorkflowAsset, region readinessRegion) bo
 		}
 	}
 	return false
+}
+
+func selectorKeyCoversRegion(key, regionID string) bool {
+	key = strings.TrimSpace(key)
+	regionID = strings.TrimSpace(regionID)
+	return key == regionID || (regionID != "" && strings.HasPrefix(key, regionID+"."))
+}
+
+func selectorKeyCoversState(key, regionID, state string) bool {
+	return strings.TrimSpace(key) == strings.TrimSpace(regionID)+"."+strings.TrimSpace(state)
 }

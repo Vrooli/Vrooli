@@ -1,12 +1,12 @@
 ---
 name: "vrooli-onboarding"
-description: "Operate Vrooli Onboarding through capability selection, control-plane-owned apply, composed readiness, explicit degradation, and typed handoff."
+description: "Set up Vrooli on a new machine or first run: choose which capabilities to enable, apply the setup, check readiness, see what is degraded and why, and hand off to the operator. Operate Vrooli Onboarding through capability selection, control-plane-owned apply, composed readiness, explicit degradation and typed handoff."
 license: "CC-BY-4.0"
 metadata:
   kind: "skill"
   schemaVersion: 1
   modes: ["tools"]
-  tags: ["onboarding","setup","readiness","degradation","handoff"]
+  tags: ["onboarding","setup","install","new-machine","first-run","getting-started","readiness","degradation","handoff"]
   icon: "rocket"
   status: "active"
   revision: 1

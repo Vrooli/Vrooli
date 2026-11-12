@@ -65,7 +65,7 @@ func runApplyRunner(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("load apply run %s: %w", id, err)
 	}
-	if run.Status != "pending" {
+	if run.Status != applyRunPending {
 		// Re-running a terminal run would repeat host mutations that already
 		// happened. Claiming the run is what makes the handoff single-shot.
 		return fmt.Errorf("apply run %s is %q, not pending", id, run.Status)
@@ -78,8 +78,7 @@ func runApplyRunner(ctx context.Context, id string) error {
 	stop := startApplyHeartbeat(id)
 	defer stop()
 
-	executeApplyRun(ctx, run)
-	return nil
+	return executeApplyRun(ctx, run)
 }
 
 // startApplyHeartbeat restamps the run's liveness until the returned function
@@ -109,14 +108,7 @@ func startApplyHeartbeat(id string) func() {
 	return func() { once.Do(func() { close(done) }) }
 }
 
-func isTerminalApplyStatus(status string) bool {
-	switch status {
-	case "pending", "applying":
-		return false
-	default:
-		return true
-	}
-}
+func isTerminalApplyStatus(status applyRunStatus) bool { return status.Terminal() }
 
 var applyRunnerExecutablePath string
 
@@ -246,7 +238,9 @@ func observedApplyRun(run applyRun) applyRun {
 	if applyRunnerAlive(run) {
 		return run
 	}
-	run.Status = "interrupted"
+	if err := run.TransitionStatus(applyRunInterrupted); err != nil {
+		return run
+	}
 	if run.Error == "" {
 		run.Error = "the process executing this apply is no longer running, so the remaining items were not attempted"
 	}

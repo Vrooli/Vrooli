@@ -590,6 +590,9 @@ func (s *sqliteRepository) CreateCleanupTombstone(ctx context.Context, tombstone
 	if tombstone.Status == "" {
 		tombstone.Status = CleanupPending
 	}
+	if !tombstone.Status.IsValid() {
+		return CleanupTombstone{}, ErrInvalid{"cleanup.status", "invalid"}
+	}
 	if tombstone.Status == CleanupPending {
 		existing, found, err := s.pendingCleanupTombstone(ctx, tombstone.MachineID, tombstone.Action)
 		if err != nil {
@@ -676,23 +679,29 @@ func (s *sqliteRepository) ListAudit(ctx context.Context, machineID string) ([]A
 }
 
 func (s *sqliteRepository) UpdateCleanupTombstone(ctx context.Context, id string, status CleanupStatus, detail string) (CleanupTombstone, error) {
-	switch status {
-	case CleanupPending, CleanupConfirmed, CleanupNotApplicable, CleanupAbandoned:
-	default:
-		return CleanupTombstone{}, ErrInvalid{"cleanup.status", "invalid"}
+	tombstone, err := s.getCleanupTombstone(ctx, id)
+	if err != nil {
+		return CleanupTombstone{}, err
+	}
+	from := tombstone.Status
+	if err := tombstone.TransitionStatus(status); err != nil {
+		return CleanupTombstone{}, err
 	}
 	now := s.clock.Now().UTC()
 	acknowledged := ""
 	if status == CleanupAbandoned {
 		acknowledged = now.Format(machineTimeFormat)
 	}
-	result, err := s.db.ExecContext(ctx, "UPDATE machine_cleanup_tombstones SET status=?,detail=?,updated_at=?,acknowledged_at=CASE WHEN ?<>'' THEN ? ELSE acknowledged_at END WHERE id=?", string(status), detail, now.Format(machineTimeFormat), acknowledged, acknowledged, id)
+	result, err := s.db.ExecContext(ctx, "UPDATE machine_cleanup_tombstones SET status=?,detail=?,updated_at=?,acknowledged_at=CASE WHEN ?<>'' THEN ? ELSE acknowledged_at END WHERE id=? AND status=?", string(tombstone.Status), detail, now.Format(machineTimeFormat), acknowledged, acknowledged, id, string(from))
 	if err != nil {
 		return CleanupTombstone{}, err
 	}
-	changed, _ := result.RowsAffected()
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return CleanupTombstone{}, fmt.Errorf("count cleanup tombstone update: %w", err)
+	}
 	if changed == 0 {
-		return CleanupTombstone{}, ErrNotFound{id}
+		return CleanupTombstone{}, ErrConflict{ID: id}
 	}
 	return s.getCleanupTombstone(ctx, id)
 }
@@ -708,6 +717,9 @@ func (s *sqliteRepository) getCleanupTombstone(ctx context.Context, id string) (
 		return CleanupTombstone{}, err
 	}
 	t.Status = CleanupStatus(status)
+	if !t.Status.IsValid() {
+		return CleanupTombstone{}, ErrInvalid{"cleanup.status", "unknown persisted value"}
+	}
 	var parseErr error
 	if t.CreatedAt, parseErr = time.Parse(machineTimeFormat, created); parseErr != nil {
 		return CleanupTombstone{}, parseErr
@@ -735,6 +747,9 @@ func (s *sqliteRepository) ListCleanupTombstones(ctx context.Context, machineID 
 			return nil, err
 		}
 		tombstone.Status = CleanupStatus(status)
+		if !tombstone.Status.IsValid() {
+			return nil, ErrInvalid{"cleanup.status", "unknown persisted value"}
+		}
 		if tombstone.CreatedAt, err = time.Parse(machineTimeFormat, created); err != nil {
 			return nil, err
 		}

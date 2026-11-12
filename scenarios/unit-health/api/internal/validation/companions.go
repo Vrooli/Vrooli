@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	apiDiscovery "github.com/vrooli/api-core/discovery"
@@ -659,12 +660,143 @@ func bestCompanionMatch(local localDeclaration, registry companionRegistry, inde
 			continue
 		}
 		for _, symbol := range export.Symbols {
+			if isDelegatingCompanionAdapter(local, export, symbol) {
+				continue
+			}
 			if companionSymbolReimplemented(local, symbol) {
 				return companionMatch{Export: export, Symbol: symbol, Reason: matchByShape}, true
 			}
 		}
 	}
 	return companionMatch{}, false
+}
+
+// isDelegatingCompanionAdapter excludes a domain adapter from shape-based
+// duplicate findings when it stores through the registered companion and each
+// companion-shaped method returns that companion's corresponding method. The
+// adapter can still translate domain inputs or outputs; storage ownership and
+// generic CRUD behavior remain with the shared companion.
+func isDelegatingCompanionAdapter(local localDeclaration, export companionExport, symbol companionSymbol) bool {
+	if local.Kind != "type" || symbol.Kind != "type" || len(local.Methods) < 2 {
+		return false
+	}
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, local.File, nil, 0)
+	if err != nil || file == nil {
+		return false
+	}
+	aliases := importAliases(file, export.ImportPath)
+	if len(aliases) == 0 {
+		return false
+	}
+	companionFields := map[string]bool{}
+	for _, declaration := range file.Decls {
+		general, ok := declaration.(*ast.GenDecl)
+		if !ok || general.Tok != token.TYPE {
+			continue
+		}
+		for _, spec := range general.Specs {
+			typ, ok := spec.(*ast.TypeSpec)
+			if !ok || typ.Name.Name != local.Name {
+				continue
+			}
+			structure, ok := typ.Type.(*ast.StructType)
+			if !ok || structure.Fields == nil {
+				return false
+			}
+			for _, field := range structure.Fields.List {
+				if !containsQualifiedType(field.Type, aliases, symbol.Name) {
+					continue
+				}
+				if len(field.Names) == 0 {
+					companionFields[receiverName(field.Type)] = true
+					continue
+				}
+				for _, name := range field.Names {
+					companionFields[name.Name] = true
+				}
+			}
+		}
+	}
+	if len(companionFields) == 0 {
+		return false
+	}
+	owned := make(map[string]bool, len(symbol.Methods))
+	for _, method := range symbol.Methods {
+		owned[method] = true
+	}
+	forwarded := map[string]bool{}
+	for _, declaration := range file.Decls {
+		fn, ok := declaration.(*ast.FuncDecl)
+		if !ok || fn.Recv == nil || len(fn.Recv.List) == 0 || receiverName(fn.Recv.List[0].Type) != local.Name || !ast.IsExported(fn.Name.Name) {
+			continue
+		}
+		if !owned[fn.Name.Name] || fn.Body == nil || len(fn.Body.List) == 0 {
+			return false
+		}
+		returned, ok := fn.Body.List[len(fn.Body.List)-1].(*ast.ReturnStmt)
+		if !ok || len(returned.Results) != 1 {
+			return false
+		}
+		call, ok := returned.Results[0].(*ast.CallExpr)
+		if !ok {
+			return false
+		}
+		method, ok := call.Fun.(*ast.SelectorExpr)
+		if !ok || method.Sel.Name != fn.Name.Name {
+			return false
+		}
+		field, ok := method.X.(*ast.SelectorExpr)
+		if !ok || !companionFields[field.Sel.Name] || len(fn.Recv.List[0].Names) != 1 {
+			return false
+		}
+		receiver, ok := field.X.(*ast.Ident)
+		if !ok || receiver.Name != fn.Recv.List[0].Names[0].Name {
+			return false
+		}
+		forwarded[fn.Name.Name] = true
+	}
+	if len(forwarded) != len(local.Methods) {
+		return false
+	}
+	for method := range local.Methods {
+		if !forwarded[method] {
+			return false
+		}
+	}
+	return true
+}
+
+func importAliases(file *ast.File, importPath string) map[string]bool {
+	aliases := map[string]bool{}
+	for _, imported := range file.Imports {
+		path, err := strconv.Unquote(imported.Path.Value)
+		if err != nil || path != importPath {
+			continue
+		}
+		alias := filepath.Base(path)
+		if imported.Name != nil {
+			alias = imported.Name.Name
+		}
+		aliases[alias] = true
+	}
+	return aliases
+}
+
+func containsQualifiedType(expression ast.Expr, aliases map[string]bool, name string) bool {
+	switch typed := expression.(type) {
+	case *ast.StarExpr:
+		return containsQualifiedType(typed.X, aliases, name)
+	case *ast.IndexExpr:
+		return containsQualifiedType(typed.X, aliases, name)
+	case *ast.IndexListExpr:
+		return containsQualifiedType(typed.X, aliases, name)
+	case *ast.SelectorExpr:
+		packageName, ok := typed.X.(*ast.Ident)
+		return ok && aliases[packageName.Name] && typed.Sel.Name == name
+	default:
+		return false
+	}
 }
 
 // registryExports lists seams before companions so seam ownership wins ties.

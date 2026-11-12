@@ -89,6 +89,9 @@ func scanCloudOperation(row rowScanner) (*domain.CloudOperation, error) {
 	); err != nil {
 		return nil, err
 	}
+	if !op.State.IsValid() {
+		return nil, fmt.Errorf("scan cloud operation %s: unknown persisted state %q", op.ID, op.State)
+	}
 	op.WorkerID = workerID.String
 	op.Plan = plan.Data
 	op.UnknownEffects = unknownEffects.Data
@@ -143,6 +146,10 @@ func (r *Repository) CreateOperation(ctx context.Context, op *domain.CloudOperat
 	op.UpdatedAt = op.CreatedAt
 	if op.State == "" {
 		op.State = domain.OperationAdmitted
+	}
+	if !op.State.IsValid() {
+		return nil, apierrors.New(apierrors.CodeInvalidRequest, "Operation state is unknown").
+			WithDetail("state", string(op.State))
 	}
 	const q = `
 		INSERT INTO cloud_operations (

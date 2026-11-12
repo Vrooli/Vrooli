@@ -12,9 +12,9 @@ import (
 	"vrooli-bridge/handlers/health"
 	"vrooli-bridge/internal/module"
 	"vrooli-bridge/internal/server"
-	"vrooli-bridge/internal/testutil/mocks"
 
 	"github.com/vrooli/api-core/apihttptest"
+	"github.com/vrooli/api-core/databasetest"
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
@@ -76,7 +76,7 @@ func TestHealthHandler(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
+			pinger := &databasetest.FakePinger{PingErr: tc.pingErr}
 			h := health.NewHandler(health.Deps{
 				Pinger:  pinger,
 				Service: "react-vite-test",
@@ -118,7 +118,7 @@ func TestHealthHandler(t *testing.T) {
 func TestHealthHandlerReportsLifecycleBuildIdentity(t *testing.T) {
 	t.Setenv("VROOLI_BUILD_IDENTITY", "sha256:test-build")
 	h := health.NewHandler(health.Deps{
-		Pinger:  &mocks.FakePinger{},
+		Pinger:  &databasetest.FakePinger{},
 		Service: "vrooli-bridge-api",
 		Version: "1.0.0",
 	})

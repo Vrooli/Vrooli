@@ -239,41 +239,29 @@ func TestTransitionTableRefusesIllegalMoves(t *testing.T) {
 			}
 		}
 	}
-	for _, tc := range []struct {
-		from, to State
-		ok       bool
-	}{
-		{Admitted, Running, true},
-		{Admitted, Succeeded, false},
-		{Running, Verifying, true},
-		{Verifying, Succeeded, true},
-		{Running, Succeeded, false},
-		{Running, Reconciling, true},
-		{Reconciling, Running, true},
-		{Reconciling, Recovering, true},
-		{Recovering, Failed, true},
-		{Recovering, FailedRecovery, true},
-		{Recovering, Succeeded, false},
-		{Running, CancelRequested, true},
-		{CancelRequested, Cancelled, true},
-		{CancelRequested, Succeeded, false},
-		{Succeeded, Running, false},
-		{Failed, Running, false},
-		{Cancelled, Admitted, false},
-		{WaitingInput, Admitted, true},
-		{WaitingInput, Running, false},
-	} {
-		err := Transition(tc.from, tc.to)
-		if tc.ok && err != nil {
-			t.Errorf("%s→%s should be legal: %v", tc.from, tc.to, err)
-		}
-		if !tc.ok && !apierrors.Is(err, apierrors.CodeOperationConflict) {
-			t.Errorf("%s→%s should be refused, got %v", tc.from, tc.to, err)
-		}
+	allowed := map[[2]State]struct{}{
+		{Admitted, WaitingInput}: {}, {Admitted, Running}: {}, {Admitted, Cancelled}: {},
+		{WaitingInput, Admitted}: {}, {WaitingInput, Cancelled}: {},
+		{Running, Verifying}: {}, {Running, Reconciling}: {}, {Running, Recovering}: {},
+		{Running, CancelRequested}: {}, {Running, WaitingInput}: {}, {Running, Failed}: {},
+		{Verifying, Succeeded}: {}, {Verifying, Reconciling}: {}, {Verifying, Failed}: {},
+		{Verifying, CancelRequested}: {},
+		{Reconciling, Running}:       {}, {Reconciling, Recovering}: {}, {Reconciling, WaitingInput}: {}, {Reconciling, Failed}: {},
+		{Recovering, Failed}: {}, {Recovering, FailedRecovery}: {},
+		{CancelRequested, Cancelled}: {}, {CancelRequested, Reconciling}: {},
+		{CancelRequested, Verifying}: {}, {CancelRequested, Recovering}: {},
+		{CancelRequested, Failed}: {}, {CancelRequested, WaitingInput}: {},
 	}
-	for _, terminal := range []State{Succeeded, Failed, FailedRecovery, Cancelled} {
-		if len(legal[terminal]) != 0 {
-			t.Errorf("terminal %s has outgoing edges", terminal)
+	for _, from := range States() {
+		for _, to := range States() {
+			_, wantLegal := allowed[[2]State{from, to}]
+			err := Transition(from, to)
+			if wantLegal && err != nil {
+				t.Errorf("%s→%s should be legal: %v", from, to, err)
+			}
+			if !wantLegal && !apierrors.Is(err, apierrors.CodeOperationConflict) {
+				t.Errorf("%s→%s should be refused, got %v", from, to, err)
+			}
 		}
 	}
 }
