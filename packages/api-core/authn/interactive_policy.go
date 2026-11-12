@@ -52,14 +52,6 @@ var interactivePolicies = []struct {
 	// domain preserves enrollment authority and owns clock, revision and
 	// retained-run checks.
 	{"delivery-management", Policy{[]string{"agent-manager:read", "agent-manager:write"}, []string{"effort.delivery"}, []string{"agent-manager"}}},
-	// notification-sending sends to an explicitly approved recipient only.
-	// Notification Hub retains its separate decision, answer, preference and
-	// subscription rules.
-	{"notification-sending", Policy{[]string{"notification-hub:write"}, []string{"notification.send"}, []string{"notification-hub"}}},
-	// notification-decision-asking creates a decision for the explicitly
-	// approved recipient only. It does not authorize informational sends,
-	// answers, preferences or subscriptions.
-	{"notification-decision-asking", Policy{[]string{"notification-hub:write"}, []string{"notification.ask"}, []string{"notification-hub"}}},
 	{"deployment-operations", Policy{[]string{"deployment-manager:read", "deployment-manager:write", "deployment-manager:destructive", "scenario-to-cloud:read", "scenario-to-cloud:write", "scenario-to-cloud:destructive"}, []string{"deployment.manage"}, []string{"deployment-manager", "scenario-to-cloud"}}},
 	{"nutrition-management", Policy{[]string{"nutrition-planner:read", "nutrition-planner:write", "nutrition-planner:destructive"}, []string{"nutrition.manage"}, []string{"nutrition-planner"}}},
 	// Treasury still evaluates its signed mandate, exact amount, recipient,

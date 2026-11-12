@@ -51,7 +51,7 @@ func TestClassifyExpectID(t *testing.T) {
 	}{
 		{"live", []string{"b"}, ReferentialLive},
 		{"hard", []string{"d"}, ReferentialHard},
-		{"stale", []string{"z"}, ReferentialStale},
+		{"absent is not proof of stale membership", []string{"z"}, ReferentialUnknown},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -63,7 +63,7 @@ func TestClassifyExpectID(t *testing.T) {
 	}
 }
 
-func TestGradeSuiteExcludesCandidateAndStaleFromDenominator(t *testing.T) {
+func TestGradeSuiteUsesFixedReviewedPositiveDenominator(t *testing.T) {
 	suite := TestSuite{Cases: []TestCase{
 		{ID: "hit", Query: "hit", ExpectIDs: []string{"a"}},
 		{ID: "hard", Query: "hard", ExpectIDs: []string{"a"}, ExpectWithinTopK: 1},
@@ -82,20 +82,47 @@ func TestGradeSuiteExcludesCandidateAndStaleFromDenominator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GradeSuite: %v", err)
 	}
-	if report.GradeablePositives != 2 {
-		t.Fatalf("gradeable positives = %d, want 2", report.GradeablePositives)
+	if report.GradeablePositives != 3 {
+		t.Fatalf("gradeable positives = %d, want 3; missing expected IDs remain misses", report.GradeablePositives)
 	}
-	if report.Hits != 1 || report.Recall != 0.5 {
-		t.Fatalf("recall = %.3f hits=%d, want .5 and 1", report.Recall, report.Hits)
+	if report.Hits != 1 || report.Recall != 1.0/3.0 {
+		t.Fatalf("recall = %.3f hits=%d, want 1/3 and 1", report.Recall, report.Hits)
 	}
-	if len(report.Stale) != 1 || report.Stale[0].CaseID != "stale" {
-		t.Fatalf("stale cases = %+v", report.Stale)
+	if len(report.Stale) != 0 {
+		t.Fatalf("candidate retrieval results cannot establish stale corpus labels: %+v", report.Stale)
 	}
 	if len(report.ExcludedCandidate) != 1 || report.ExcludedCandidate[0].ID != "candidate" {
 		t.Fatalf("candidate cases = %+v", report.ExcludedCandidate)
 	}
-	if len(report.Misses) != 1 || report.Misses[0].CaseID != "hard" {
+	if len(report.Misses) != 2 || report.Misses[0].CaseID != "hard" || report.Misses[1].CaseID != "stale" {
 		t.Fatalf("misses = %+v", report.Misses)
+	}
+}
+
+func TestWeakArmCannotImproveByOmittingKnownPositive(t *testing.T) {
+	suite := TestSuite{Cases: []TestCase{
+		{ID: "ordinary", Query: "ordinary", ExpectIDs: []string{"ordinary-id"}},
+		{ID: "difficult", Query: "difficult", ExpectIDs: []string{"difficult-id"}},
+	}}
+	strong, err := GradeSuite(context.Background(), fakeSuiteSearcher{
+		"ordinary":  {{ID: "ordinary-id", Score: 0.9}},
+		"difficult": {{ID: "difficult-id", Score: 0.8}},
+	}, suite, ScoringPolicy{GateK: 1, DeepK: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	weak, err := GradeSuite(context.Background(), fakeSuiteSearcher{
+		"ordinary":  {{ID: "ordinary-id", Score: 0.9}},
+		"difficult": {{ID: "unrelated", Score: 0.99}},
+	}, suite, ScoringPolicy{GateK: 1, DeepK: 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strong.GradeablePositives != 2 || weak.GradeablePositives != 2 {
+		t.Fatalf("arm denominators differ: strong=%d weak=%d", strong.GradeablePositives, weak.GradeablePositives)
+	}
+	if weak.Recall >= strong.Recall {
+		t.Fatalf("weak arm improved by omitting a known positive: strong=%.3f weak=%.3f", strong.Recall, weak.Recall)
 	}
 }
 

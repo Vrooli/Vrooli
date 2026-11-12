@@ -4,17 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 )
 
 // Durable park/resume — producer-side park primitive.
 //
-// When a producer CLI (test-genie `runs wait`, git-control-tower `baseline
-// diff`, …) is invoked INSIDE an agent-manager run, it cannot reliably block on
-// externally-owned async work: an LLM agentic loop has no native blocking
-// primitive and the harness's tool-timeout / background semantics are outside
-// our control. Instead the producer asks agent-manager to PARK the run — the
+// By default, a producer CLI (test-genie `runs wait`, git-control-tower
+// `baseline diff`, …) inside an agent-manager run asks agent-manager to PARK it. The
 // agent process exits (zero tokens), agent-manager performs the blocking wait
 // on the agent's behalf via its per-producer Waiter, and WAKES the run by
 // resuming the conversation with the result injected as the next turn.
@@ -24,6 +22,12 @@ import (
 // clean tool-result message and exits 0. Outside an agent-manager run the
 // primitive is a no-op (parked=false) and the producer falls back to its normal
 // blocking behaviour — so raw-terminal / human callers are unchanged.
+
+// EnvAsyncWaitMode selects auto (the default) or inline producer waits.
+// An executor hosting non-durable collaboration workers must stay alive while
+// those workers run. Inline waits preserve that executor and all ordinary
+// identity/producer authorization; they only suppress the self-park request.
+const EnvAsyncWaitMode = "VROOLI_ASYNC_WAIT_MODE"
 
 // Park producer keys. These MUST match the producer keys agent-manager registers
 // for its Waiters (scenarios/agent-manager/api/internal/orchestration/waiter.go:
@@ -87,9 +91,9 @@ type parkResponse struct {
 // ParkForAwait asks agent-manager to park the current run on the given async
 // work. Return contract:
 //
-//   - (nil, false, nil): the caller is NOT inside an agent-manager run (no
-//     identity token present). The caller must fall back to its normal blocking
-//     wait — behaviour for human / raw-terminal / non-AM callers is unchanged.
+//   - (nil, false, nil): use the producer's normal blocking wait. This applies
+//     outside agent-manager, for attached sessions, and for explicit inline mode.
+//     The producer's ordinary authorization remains in force.
 //   - (result, true, nil): agent-manager handled the call. The caller should
 //     print result.Message and exit 0 WITHOUT doing its blocking work. When
 //     result.Refused is false the run was parked (agent-manager ends the turn and
@@ -108,6 +112,14 @@ func ParkForAwait(in ParkRequest) (*ParkResult, bool, error) {
 		// Not an agent-manager run (the strict signal park depends on). The
 		// caller blocks normally.
 		return nil, false, nil
+	}
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(EnvAsyncWaitMode))) {
+	case "inline":
+		return nil, false, nil
+	case "", "auto":
+		// Durable managed workers retain the existing park/resume protocol.
+	default:
+		return nil, true, fmt.Errorf("park: %s must be auto or inline", EnvAsyncWaitMode)
 	}
 
 	// Resolve the current ordinary baseline through the purpose-specific local

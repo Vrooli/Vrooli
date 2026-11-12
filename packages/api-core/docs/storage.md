@@ -6,6 +6,12 @@
 
 It avoids leaking OS-specific path decisions into scenario code and keeps mutable data out of source trees.
 
+SQLite connections use `SQLiteDSN` for scenario-owned paths or `SQLiteDSNAt` for
+an explicit test/diagnostic path. Configure pragmas through `SQLiteTuning` rather
+than appending DSN text. `JournalSizeLimitBytes` sets a positive retained journal
+or WAL limit after a reset; zero preserves the existing SQLite default. This
+does not bound the WAL while readers prevent a checkpoint.
+
 ## Architecture Boundaries
 
 1. `Resolver`

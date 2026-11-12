@@ -2,7 +2,9 @@ package aisearch
 
 import (
 	"context"
+	"errors"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -335,6 +337,38 @@ func (b *blockingStore) ScrollIDs(ctx context.Context) (map[string]ScrollItem, e
 	}
 }
 
+func TestServiceReindexPlanningReadFailuresFailJob(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		source Source
+		store  VectorStore
+		want   string
+	}{
+		{name: "LoadAll error", source: planningFailureSource{err: errors.New("source unavailable")}, store: newMemStore(), want: "source unavailable"},
+		{name: "ScrollIDs error", source: &sliceSource{docs: []SourceDoc{doc("README.md", "strict plan")}}, store: planningFailureStore{memStore: newMemStore(), err: errors.New("store unavailable")}, want: "store unavailable"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := NewReconciler(&countingEmbedder{}, []SourceBinding{{Kind: "doc", Source: tc.source, Store: tc.store}}, 1)
+			svc := NewService(ServiceOptions{Reconciler: rec})
+			job, err := svc.Reindex(context.Background(), "", false)
+			if err != nil {
+				t.Fatalf("Reindex: %v", err)
+			}
+			waitJob(t, svc, job.ID)
+			got, ok := svc.ReindexStatus(job.ID)
+			if !ok {
+				t.Fatal("reindex job disappeared")
+			}
+			if got.State != "failed" {
+				t.Fatalf("planning read failure state=%q, want failed", got.State)
+			}
+			if got.Apply != nil || !strings.Contains(got.Err, tc.want) {
+				t.Fatalf("planning read failure was not surfaced before Apply: apply=%+v error=%q", got.Apply, got.Err)
+			}
+		})
+	}
+}
+
 func TestServiceReindexCancel(t *testing.T) {
 	// Use a source with one doc so Plan has real work (LoadAll succeeds, then
 	// ScrollIDs blocks so the job stays "running" long enough to cancel).
@@ -379,19 +413,15 @@ func TestServiceReindexCancel(t *testing.T) {
 		t.Fatalf("ReindexCancel must return false for a terminal job")
 	}
 
-	// The job must reach a terminal state (not hang). State is implementation-
-	// defined when the context is cancelled mid-Plan (the reconciler swallows
-	// LoadAll/ScrollIDs errors in planBinding, so the plan comes back empty and
-	// Apply succeeds with zero work — the job ends as "succeeded" not
-	// "cancelled"). The important invariants are: it terminates, and the cancel
-	// signal propagated (verified by ScrollIDs returning ctx.Err()).
+	// A planning read interrupted by cancellation must not be mistaken for an
+	// empty successful plan. The job terminates as cancelled and the signal is
+	// observed by ScrollIDs returning ctx.Err().
 	got, ok := svc.ReindexStatus(job.ID)
 	if !ok {
 		t.Fatalf("job not found after cancel")
 	}
-	terminal := got.State == "succeeded" || got.State == "failed" || got.State == "cancelled"
-	if !terminal {
-		t.Fatalf("job must reach a terminal state after cancel, got %q", got.State)
+	if got.State != "cancelled" {
+		t.Fatalf("cancelled planning read must end as cancelled, got %q", got.State)
 	}
 }
 

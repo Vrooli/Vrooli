@@ -120,6 +120,7 @@ func (r Role) SupportFor(parameter string) SamplingSupportState {
 // Model is one concrete provider model and its catalog metadata.
 type Model struct {
 	Licence              *ModelLicence         `json:"licence,omitempty"`
+	Rights               *ArtifactRights       `json:"rights,omitempty"`
 	Provider             string                `json:"provider,omitempty"`
 	DisplayName          string                `json:"display_name,omitempty"`
 	Family               string                `json:"family"`
@@ -350,6 +351,7 @@ type ResolvedPolicyModel struct {
 	Preference            int                             `json:"preference,omitempty"`
 	RoleProvenance        *Provenance                     `json:"role_provenance,omitempty"`
 	Provenance            map[string]Provenance           `json:"provenance,omitempty"`
+	Rights                *ArtifactRights                 `json:"rights,omitempty"`
 }
 
 // RoleNames returns sorted role names.

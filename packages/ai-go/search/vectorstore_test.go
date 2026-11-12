@@ -94,12 +94,12 @@ func TestQdrantGenerationStoreRefusesPhysicalCollectionAliasConflict(t *testing.
 		if strings.HasSuffix(req.url, "/aliases") {
 			return http.StatusOK, `{"result":{"aliases":[]}}`
 		}
-		if strings.HasSuffix(req.url, "/collections/conversations") {
+		if strings.HasSuffix(req.url, "/collections/agent-manager_conversations") {
 			return http.StatusOK, `{"result":{}}`
 		}
 		return http.StatusOK, `{}`
 	}}
-	store, err := NewQdrantGenerationStore(QdrantGenerationOptions{BaseURL: "http://q", Alias: "conversations", Spec: CollectionSpec{DenseSize: fixtureDenseSize}, Client: doer})
+	store, err := NewQdrantGenerationStore(QdrantGenerationOptions{BaseURL: "http://q", Alias: "agent-manager_conversations", Owner: "agent-manager.runs", AliasBoundary: &fleetTestAliasBoundary{}, Spec: CollectionSpec{DenseSize: fixtureDenseSize}, Client: doer})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,28 +115,79 @@ func TestQdrantGenerationStoreRefusesPhysicalCollectionAliasConflict(t *testing.
 }
 
 func TestQdrantGenerationPromotionUsesOneAtomicAliasUpdate(t *testing.T) {
+	active := "agent-manager_conversations--generation--old"
 	doer := &capturingDoer{respond: func(req capturedReq) (int, string) {
 		if req.method == http.MethodGet && strings.HasSuffix(req.url, "/aliases") {
-			return http.StatusOK, `{"result":{"aliases":[{"alias_name":"conversations","collection_name":"conversations--generation--old"}]}}`
+			return http.StatusOK, `{"result":{"aliases":[{"alias_name":"agent-manager_conversations","collection_name":"` + active + `"}]}}`
+		}
+		if req.method == http.MethodPost && strings.HasSuffix(req.url, "/collections/aliases") {
+			active = "agent-manager_conversations--generation--next"
 		}
 		return http.StatusOK, `{}`
 	}}
-	created, err := NewQdrantGenerationStore(QdrantGenerationOptions{BaseURL: "http://q", Alias: "conversations", Spec: CollectionSpec{DenseSize: fixtureDenseSize}, Client: doer})
+	created, err := NewQdrantGenerationStore(QdrantGenerationOptions{BaseURL: "http://q", Alias: "agent-manager_conversations", Owner: "agent-manager.runs", AliasBoundary: &fleetTestAliasBoundary{}, Spec: CollectionSpec{DenseSize: fixtureDenseSize}, Client: doer})
 	if err != nil {
 		t.Fatal(err)
 	}
 	store := created.(*qdrantGenerationStore)
-	store.candidates["next"] = "conversations--generation--next"
+	store.candidates["next"] = "agent-manager_conversations--generation--next"
 	if err := store.PromoteGeneration(context.Background(), "next"); err != nil {
 		t.Fatal(err)
 	}
-	request := doer.last()
-	if request.method != http.MethodPost || !strings.HasSuffix(request.url, "/collections/aliases") {
-		t.Fatalf("expected alias update, got %+v", request)
+	var request capturedReq
+	for _, candidate := range doer.requests {
+		if candidate.method == http.MethodPost && strings.HasSuffix(candidate.url, "/collections/aliases") {
+			request = candidate
+			break
+		}
+	}
+	if request.method != http.MethodPost {
+		t.Fatalf("expected alias update, requests=%+v", doer.requests)
 	}
 	actions, ok := request.body["actions"].([]any)
 	if !ok || len(actions) != 2 {
 		t.Fatalf("expected delete+create in one request, got %#v", request.body)
+	}
+}
+
+func TestQdrantGenerationPromotionRefusesStaleAliasAndMissingBoundary(t *testing.T) {
+	alias := "agent-manager_conversations"
+	previous := alias + "--generation--old"
+	foreign := alias + "--generation--foreign"
+	reads := 0
+	doer := &capturingDoer{respond: func(req capturedReq) (int, string) {
+		if req.method == http.MethodGet && strings.HasSuffix(req.url, "/aliases") {
+			reads++
+			current := previous
+			if reads > 1 {
+				current = foreign // an out-of-band writer moved it after the first read
+			}
+			return http.StatusOK, `{"result":{"aliases":[{"alias_name":"` + alias + `","collection_name":"` + current + `"}]}}`
+		}
+		return http.StatusOK, `{}`
+	}}
+	created, err := NewQdrantGenerationStore(QdrantGenerationOptions{BaseURL: "HTTP://Q:80/", Alias: alias, Owner: "agent-manager.runs", AliasBoundary: &fleetTestAliasBoundary{}, Spec: CollectionSpec{DenseSize: fixtureDenseSize}, Client: doer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := created.(*qdrantGenerationStore)
+	store.candidates["next"] = alias + "--generation--next"
+	if err := store.PromoteGeneration(context.Background(), "next"); err == nil || !strings.Contains(err.Error(), "expected") {
+		t.Fatalf("promotion should reject the out-of-band alias target, got %v", err)
+	}
+	for _, request := range doer.requests {
+		if request.method == http.MethodPost && strings.HasSuffix(request.url, "/collections/aliases") {
+			t.Fatalf("stale alias observation must be rejected before mutation: %+v", request)
+		}
+	}
+
+	withoutBoundary, err := NewQdrantGenerationStore(QdrantGenerationOptions{BaseURL: "http://q", Alias: alias, Owner: "agent-manager.runs", Spec: CollectionSpec{DenseSize: fixtureDenseSize}, Client: doer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	withoutBoundary.(*qdrantGenerationStore).candidates["next"] = alias + "--generation--next"
+	if err := withoutBoundary.PromoteGeneration(context.Background(), "next"); !errors.Is(err, ErrFleetAliasBoundaryRequired) {
+		t.Fatalf("promotion without the shared owner boundary should fail closed, got %v", err)
 	}
 }
 

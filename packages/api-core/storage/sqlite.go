@@ -114,6 +114,10 @@ type SQLiteTuning struct {
 	// memory map instead of the page cache. It suits large read-mostly
 	// databases. Zero omits it.
 	MMapSizeBytes int64
+	// JournalSizeLimitBytes caps the journal or WAL retained after a reset.
+	// Zero omits the pragma, preserving SQLite's default unlimited retention.
+	// Negative values are rejected; state a positive byte limit when needed.
+	JournalSizeLimitBytes int64
 	// TimeFormat sets the driver's _time_format parameter. This is a modernc
 	// driver parameter rather than a SQLite pragma. Empty omits it.
 	TimeFormat string
@@ -536,6 +540,12 @@ func sqliteDSNParams(tuning SQLiteTuning) (string, error) {
 			return "", &Error{Kind: ErrInvalidInput, Message: "sqlite mmap size must not be negative", Details: strconv.FormatInt(tuning.MMapSizeBytes, 10)}
 		}
 		pragma("mmap_size(" + strconv.FormatInt(tuning.MMapSizeBytes, 10) + ")")
+	}
+	if tuning.JournalSizeLimitBytes != 0 {
+		if tuning.JournalSizeLimitBytes < 0 {
+			return "", &Error{Kind: ErrInvalidInput, Message: "sqlite journal size limit must not be negative", Details: strconv.FormatInt(tuning.JournalSizeLimitBytes, 10)}
+		}
+		pragma("journal_size_limit(" + strconv.FormatInt(tuning.JournalSizeLimitBytes, 10) + ")")
 	}
 	// Driver parameters, not pragmas. They are emitted last so the pragma run
 	// stays contiguous and byte-comparable with the pre-consolidation string.

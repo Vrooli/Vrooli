@@ -37,5 +37,23 @@ func peer(conn *net.UnixConn) (Principal, error) {
 
 func current() (Principal, error) { return UnixUID(uint32(os.Getuid())), nil }
 
-// PeerPID is unavailable until this platform has a verified process credential adapter.
-func PeerPID(*net.UnixConn) (uint32, error) { return 0, ErrUnsupported }
+// PeerPID reads the process identity captured by the kernel for the connected
+// local socket. An unavailable kernel credential never becomes a caller PID.
+func PeerPID(conn *net.UnixConn) (uint32, error) {
+	if conn == nil {
+		return 0, fmt.Errorf("local peer PID unavailable")
+	}
+	raw, err := conn.SyscallConn()
+	if err != nil {
+		return 0, err
+	}
+	var pid int
+	var peerErr error
+	err = raw.Control(func(fd uintptr) {
+		pid, peerErr = unix.GetsockoptInt(int(fd), unix.SOL_LOCAL, unix.LOCAL_PEERPID)
+	})
+	if err != nil || peerErr != nil || pid <= 0 {
+		return 0, fmt.Errorf("local peer PID unavailable")
+	}
+	return uint32(pid), nil
+}

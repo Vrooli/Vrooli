@@ -366,11 +366,10 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 		return runInheritedSession(ctx, request, path, binary, environment, inherited)
 	}
 
-	// Deciding this before attaching matters: a launch that replaces its own
-	// process image has no "after" in which to detach, so it reports its pid at
-	// attach time instead. Because exec keeps the pid, the pid reported here is
-	// the agent's pid, and agent-manager's reconciler closes the run by
-	// process liveness (see attachedRunProcessAlive).
+	// A launch that replaces its own process image has no "after" in which to
+	// detach. Because exec keeps the pid, the pid reported at attach is the
+	// agent's pid, and agent-manager's reconciler closes the run by process
+	// liveness (see attachedRunProcessAlive).
 	// Replacing this process would discard a caller's deadline/cancellation.
 	// A cancellable launch must retain its waiting wrapper.
 	willExec := command == "" && canExecReplace(ctx, request)
@@ -394,7 +393,7 @@ func launchNativeSession(ctx context.Context, request AgentLaunchRequest, comman
 	if request.RequireNativeIdentity && protectedToken != "" {
 		attach = codingAgentAttachment{token: protectedToken}
 	} else {
-		attach = attachCodingAgent(ctx, request, harnessKind, hostSessionID, willExec || command != "")
+		attach = attachCodingAgent(ctx, request, harnessKind, hostSessionID)
 	}
 	if request.RequireNativeIdentity {
 		if attach.token == "" {
@@ -690,11 +689,14 @@ func codingAgentSpec(agent string) (harnessKind, binary string, err error) {
 // failure path returns a zero attachment: attribution is observability and must
 // never decide whether an agent starts.
 //
-// reportPID says the caller is about to replace its process image, so this
-// process's pid will still be the agent's pid afterwards. Sending it turns
-// agent-manager's liveness check into a single stat of /proc/<pid> instead of a
-// scan of every process environment.
-func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harnessKind, sessionID string, reportPID bool) codingAgentAttachment {
+// It always reports this process's pid. After an exec replacement that pid is
+// the agent's; otherwise it is the waiting launcher, which outlives the agent
+// and is the pid the editor lease records. Either way the run, the lease and
+// every operation grant bound to that lease name one process: agent-manager
+// pairs a session's baseline identity with an approved grant only when the
+// baseline run's runner pid equals the grant's bound pid, and the liveness
+// check becomes a single stat of /proc/<pid>.
+func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harnessKind, sessionID string) codingAgentAttachment {
 	// An identity already in the environment means something else already owns a
 	// run for this work. agent-manager mints one per run and scrubs inherited
 	// ones precisely so ownership is unambiguous, so the right move here is to
@@ -718,9 +720,7 @@ func attachCodingAgent(parent context.Context, request AgentLaunchRequest, harne
 	if taskID := strings.TrimSpace(request.TaskID); taskID != "" {
 		body["task_id"] = taskID
 	}
-	if reportPID {
-		body["process_id"] = os.Getpid()
-	}
+	body["process_id"] = os.Getpid()
 	// Tree and containment metadata belong to the editor lease. The attach API
 	// accepts only harness identity, optional task, PID and title; adding lease
 	// fields here causes strict request decoding to reject the entire attach.

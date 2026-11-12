@@ -679,3 +679,40 @@ func TestStreamingCleanupFailureDoesNotFailPromotedRun(t *testing.T) {
 		t.Fatalf("cleanup failure must be surfaced on the promoted result, got %+v", result)
 	}
 }
+
+type planningFailureSource struct{ err error }
+
+func (s planningFailureSource) LoadAll(context.Context) ([]SourceDoc, error) {
+	return nil, s.err
+}
+
+type planningFailureStore struct {
+	*memStore
+	err error
+}
+
+func (s planningFailureStore) ScrollIDs(context.Context) (map[string]ScrollItem, error) {
+	return nil, s.err
+}
+
+func TestPlanInspectionRetainsBestEffortReadFailureBehavior(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		source Source
+		store  VectorStore
+	}{
+		{name: "source", source: planningFailureSource{err: errors.New("source unavailable")}, store: newMemStore()},
+		{name: "vector store", source: &sliceSource{docs: []SourceDoc{doc("README.md", "read failure")}}, store: planningFailureStore{memStore: newMemStore(), err: errors.New("store unavailable")}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := NewReconciler(&countingEmbedder{}, []SourceBinding{{Kind: "doc", Source: tc.source, Store: tc.store}}, 1)
+			report, err := rec.Plan(context.Background())
+			if err != nil {
+				t.Fatalf("best-effort Plan returned error: %v", err)
+			}
+			if report == nil || len(report.Collections) != 1 || report.Collections[0].Kind != "doc" || report.HasWork() {
+				t.Fatalf("best-effort Plan report=%+v, want one empty collection report", report)
+			}
+		})
+	}
+}

@@ -305,8 +305,9 @@ type CoverageTagGroup struct {
 // across score regimes (dense cosine, cross-encoder, RRF-blend) where a shared
 // absolute band would mislabel a rank-correct hit as a miss. ExpectMinScore /
 // ExpectMaxScore stay available for a single-regime corpus but are not the
-// default. Provenance rides Tags ("generated" is the load-bearing marker the
-// sweep holds out of the tuning fold).
+// default. Provenance rides Tags. "generated" excludes a case from every
+// evaluation denominator until owner-authored "heldout" membership reviews it;
+// untagged ordinary positives remain in tuning.
 type TestCase struct {
 	ID                string   `json:"id"`
 	Query             string   `json:"query"`
@@ -321,10 +322,14 @@ type TestCase struct {
 	Note              string   `json:"note,omitempty"`
 }
 
-// TagGenerated marks a machine-generated (corpus-gen) case. The sweep ALWAYS
-// holds these out of the tuning fold (overfit guard #2) — a tuning can never be
-// selected on cases a machine wrote for it.
+// TagGenerated marks a machine-generated (corpus-gen) case. It is excluded
+// from evaluation calls, denominators, and metrics until the owner reviews it
+// and adds TagHeldout. Generated labels alone are not independent evidence.
 const TagGenerated = "generated"
+
+// TagHeldout marks an owner-reviewed case assigned to the frozen validation
+// fold. Membership must be authored by the dataset owner, not hash-assigned.
+const TagHeldout = "heldout"
 
 const (
 	CaseStatusReviewed  = "reviewed"

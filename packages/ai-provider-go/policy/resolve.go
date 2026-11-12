@@ -222,6 +222,7 @@ func resolvedPolicyModel(c Catalog, source, modelRef string, model Model) Resolv
 		DisplayName:          model.DisplayName,
 		Family:               model.Family,
 		Provenance:           copyProvenanceMap(model.Provenance),
+		Rights:               model.Rights,
 	}
 }
 

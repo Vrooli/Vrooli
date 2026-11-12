@@ -35,24 +35,26 @@ const (
 // the stable collection name used by query traffic; immutable physical
 // collections are created beneath it and switched with one Qdrant alias update.
 type QdrantGenerationOptions struct {
-	BaseURL   string
-	APIKey    string
-	Alias     string
-	Spec      CollectionSpec
-	Owner     string
-	Namespace string
-	Catalog   GenerationCatalog
-	Client    interface {
+	BaseURL       string
+	APIKey        string
+	Alias         string
+	Spec          CollectionSpec
+	Owner         string
+	Namespace     string
+	Catalog       GenerationCatalog
+	AliasBoundary FleetAliasMutationBoundary
+	Client        interface {
 		Do(*http.Request) (*http.Response, error)
 	}
 }
 
 type qdrantGenerationStore struct {
-	baseURL string
-	apiKey  string
-	alias   string
-	spec    CollectionSpec
-	client  interface {
+	baseURL    string
+	endpointID string
+	apiKey     string
+	alias      string
+	spec       CollectionSpec
+	client     interface {
 		Do(*http.Request) (*http.Response, error)
 	}
 	mu         sync.Mutex
@@ -63,14 +65,15 @@ type qdrantGenerationStore struct {
 	// candidates-minus-promoted from the retirement set.
 	promoted map[string]struct{}
 	// seedTimeout bounds awaitSeeded; tests shorten it.
-	seedTimeout time.Duration
-	owner       string
-	namespace   string
-	catalog     GenerationCatalog
-	now         func() time.Time
-	metricsMu   sync.Mutex
-	metrics     GenerationLifecycleMetrics
-	cleanupErrs uint64
+	seedTimeout   time.Duration
+	owner         string
+	namespace     string
+	catalog       GenerationCatalog
+	aliasBoundary FleetAliasMutationBoundary
+	now           func() time.Time
+	metricsMu     sync.Mutex
+	metrics       GenerationLifecycleMetrics
+	cleanupErrs   uint64
 }
 
 func NewQdrantGenerationStore(options QdrantGenerationOptions) (GenerationStore, error) {
@@ -80,6 +83,11 @@ func NewQdrantGenerationStore(options QdrantGenerationOptions) (GenerationStore,
 	if strings.TrimSpace(options.BaseURL) == "" {
 		options.BaseURL = DefaultQdrantURL
 	}
+	endpointID, err := CanonicalQdrantEndpointID(options.BaseURL)
+	if err != nil {
+		return nil, err
+	}
+	options.BaseURL = endpointID
 	if options.Spec.DenseSize <= 0 {
 		return nil, errors.New("qdrant generation collection spec is required")
 	}
@@ -90,11 +98,15 @@ func NewQdrantGenerationStore(options QdrantGenerationOptions) (GenerationStore,
 	if owner == "" {
 		owner = "agent-manager"
 	}
+	ownerNamespace := strings.SplitN(owner, ".", 2)[0] + "_"
+	if !strings.HasPrefix(options.Alias, ownerNamespace) {
+		return nil, fmt.Errorf("Qdrant generation alias %q must be namespaced beneath owner %q", options.Alias, ownerNamespace)
+	}
 	namespace := strings.TrimSpace(options.Namespace)
 	if namespace == "" {
 		namespace = options.Alias
 	}
-	return &qdrantGenerationStore{baseURL: strings.TrimRight(options.BaseURL, "/"), apiKey: options.APIKey, alias: options.Alias, spec: options.Spec, client: options.Client, candidates: map[string]string{}, promoted: map[string]struct{}{}, seedTimeout: initFromCommitTimeout, owner: owner, namespace: namespace, catalog: options.Catalog, now: time.Now}, nil
+	return &qdrantGenerationStore{baseURL: strings.TrimRight(options.BaseURL, "/"), endpointID: endpointID, apiKey: options.APIKey, alias: options.Alias, spec: options.Spec, client: options.Client, candidates: map[string]string{}, promoted: map[string]struct{}{}, seedTimeout: initFromCommitTimeout, owner: owner, namespace: namespace, catalog: options.Catalog, aliasBoundary: options.AliasBoundary, now: time.Now}, nil
 }
 
 func (s *qdrantGenerationStore) BeginGeneration(ctx context.Context, metadata GenerationMetadata) error {
@@ -372,8 +384,38 @@ func (s *qdrantGenerationStore) ValidateGeneration(ctx context.Context, generati
 	return GenerationValidation{SourceCount: len(sources), PointCount: len(items), Valid: true}, nil
 }
 
+func (s *qdrantGenerationStore) acquireAliasMutation(ctx context.Context, kind FleetOperation, generationID, target string) (FleetAliasOperation, FleetAliasMutationFence, error) {
+	if s.aliasBoundary == nil {
+		return FleetAliasOperation{}, nil, ErrFleetAliasBoundaryRequired
+	}
+	operation := FleetAliasOperation{
+		OwnerID: s.owner, EndpointID: s.endpointID, Alias: s.alias,
+		OperationID: "legacy:" + string(kind) + ":" + generationID + ":" + target,
+		Kind:        kind, ArmID: generationID, Target: target, StartedAt: s.clock().UTC(),
+	}
+	fence, err := s.aliasBoundary.AcquireFleetAliasMutation(ctx, operation)
+	if err != nil {
+		return FleetAliasOperation{}, nil, fmt.Errorf("acquire shared Qdrant alias boundary: %w", err)
+	}
+	if fence == nil {
+		return FleetAliasOperation{}, nil, ErrFleetAliasBoundaryRequired
+	}
+	return operation, fence, nil
+}
+
+func releaseAliasMutation(ctx context.Context, fence FleetAliasMutationFence, operation FleetAliasOperation) error {
+	if err := fence.Release(ctx); err != nil {
+		return fmt.Errorf("release shared Qdrant alias boundary for operation %q: %w", operation.OperationID, err)
+	}
+	return nil
+}
+
 func (s *qdrantGenerationStore) PromoteGeneration(ctx context.Context, generationID string) error {
 	candidate, err := s.candidate(generationID)
+	if err != nil {
+		return err
+	}
+	operation, fence, err := s.acquireAliasMutation(ctx, FleetPromote, generationID, candidate)
 	if err != nil {
 		return err
 	}
@@ -381,12 +423,7 @@ func (s *qdrantGenerationStore) PromoteGeneration(ctx context.Context, generatio
 	if err != nil {
 		return err
 	}
-	actions := make([]map[string]any, 0, 2)
-	if hasAlias {
-		actions = append(actions, map[string]any{"delete_alias": map[string]any{"alias_name": s.alias}})
-	}
-	actions = append(actions, map[string]any{"create_alias": map[string]any{"collection_name": candidate, "alias_name": s.alias}})
-	if err := s.writeJSON(ctx, http.MethodPost, s.baseURL+"/collections/aliases", map[string]any{"actions": actions}, http.StatusOK); err != nil {
+	if err := s.switchAlias(ctx, candidate, previous, hasAlias); err != nil {
 		return err
 	}
 	s.mu.Lock()
@@ -404,7 +441,7 @@ func (s *qdrantGenerationStore) PromoteGeneration(ctx context.Context, generatio
 			}
 		}
 	}
-	return nil
+	return releaseAliasMutation(context.WithoutCancel(ctx), fence, operation)
 }
 
 func (s *qdrantGenerationStore) RollbackGeneration(ctx context.Context, generationID string) error {
@@ -412,12 +449,16 @@ func (s *qdrantGenerationStore) RollbackGeneration(ctx context.Context, generati
 	if err != nil {
 		return nil
 	}
+	operation, fence, err := s.acquireAliasMutation(ctx, FleetRollback, generationID, candidate)
+	if err != nil {
+		return err
+	}
 	active, _, activeErr := s.activeCollection(ctx)
 	if activeErr != nil {
 		return activeErr
 	}
 	if candidate == active {
-		return nil
+		return releaseAliasMutation(context.WithoutCancel(ctx), fence, operation)
 	}
 	err = s.writeJSON(ctx, http.MethodDelete, s.baseURL+"/collections/"+url.PathEscape(candidate), nil, http.StatusOK)
 	if err == nil {
@@ -431,7 +472,10 @@ func (s *qdrantGenerationStore) RollbackGeneration(ctx context.Context, generati
 			_ = s.saveRecord(ctx, record)
 		}
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return releaseAliasMutation(context.WithoutCancel(ctx), fence, operation)
 }
 
 // CleanupGenerations deletes retired generations beyond the newest keep,
@@ -462,8 +506,7 @@ func (s *qdrantGenerationStore) CleanupGenerations(ctx context.Context, keep int
 		if err := ctx.Err(); err != nil {
 			return errors.Join(append(failures, err)...)
 		}
-		endpoint := s.baseURL + "/collections/" + url.PathEscape(name)
-		if err := s.writeJSON(ctx, http.MethodDelete, endpoint, nil, http.StatusOK); err != nil {
+		if err := s.deleteGenerationCollection(ctx, name); err != nil {
 			failures = append(failures, fmt.Errorf("delete retired generation %q: %w", name, err))
 		}
 	}
@@ -980,6 +1023,18 @@ func (s *qdrantGenerationStore) ApplyGenerationCleanup(ctx context.Context, plan
 }
 
 func (s *qdrantGenerationStore) deleteGenerationCollection(ctx context.Context, collection string) error {
+	generationID := generationIDFromCollection(collection)
+	operation, fence, err := s.acquireAliasMutation(ctx, FleetCollect, generationID, collection)
+	if err != nil {
+		return err
+	}
+	active, exists, err := s.activeCollection(ctx)
+	if err != nil {
+		return err
+	}
+	if exists && active == collection {
+		return errors.New("refusing to delete active Qdrant generation")
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, s.baseURL+"/collections/"+url.PathEscape(collection), nil)
 	if err != nil {
 		return err
@@ -990,10 +1045,69 @@ func (s *qdrantGenerationStore) deleteGenerationCollection(ctx context.Context, 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusOK {
-		return nil
+		return releaseAliasMutation(context.WithoutCancel(ctx), fence, operation)
 	}
 	raw, _ := io.ReadAll(resp.Body)
-	return fmt.Errorf("delete qdrant collection %q returned status %d: %s", collection, resp.StatusCode, strings.TrimSpace(string(raw)))
+	deleteErr := fmt.Errorf("delete qdrant collection %q returned status %d: %s", collection, resp.StatusCode, strings.TrimSpace(string(raw)))
+	// A failed response may arrive after Qdrant applied the delete. Release the
+	// endpoint+alias fence only after an authoritative read proves the alias no
+	// longer targets this collection and the collection's existence is known.
+	active, activeExists, inspectErr := s.activeCollection(ctx)
+	if inspectErr != nil {
+		return errors.Join(deleteErr, fmt.Errorf("reconcile alias after failed delete: %w", inspectErr))
+	}
+	if activeExists && active == collection {
+		return deleteErr
+	}
+	checkReq, checkErr := http.NewRequestWithContext(ctx, http.MethodGet, s.baseURL+"/collections/"+url.PathEscape(collection), nil)
+	if checkErr != nil {
+		return errors.Join(deleteErr, checkErr)
+	}
+	checkResp, checkErr := s.do(checkReq)
+	if checkErr != nil {
+		return errors.Join(deleteErr, checkErr)
+	}
+	checkResp.Body.Close()
+	if checkResp.StatusCode != http.StatusOK && checkResp.StatusCode != http.StatusNotFound {
+		return deleteErr
+	}
+	if err := releaseAliasMutation(context.WithoutCancel(ctx), fence, operation); err != nil {
+		return errors.Join(deleteErr, err)
+	}
+	if checkResp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+	return deleteErr
+}
+
+func (s *qdrantGenerationStore) switchAlias(ctx context.Context, target, previous string, hasPrevious bool) error {
+	current, exists, err := s.activeCollection(ctx)
+	if err != nil {
+		return err
+	}
+	if hasPrevious {
+		if !exists || current != previous {
+			return fmt.Errorf("refusing Qdrant alias switch: alias %q maps to %q, expected %q", s.alias, current, previous)
+		}
+	} else if exists {
+		return fmt.Errorf("refusing Qdrant alias creation: alias %q already maps to %q", s.alias, current)
+	}
+	actions := make([]map[string]any, 0, 2)
+	if hasPrevious {
+		actions = append(actions, map[string]any{"delete_alias": map[string]any{"alias_name": s.alias}})
+	}
+	actions = append(actions, map[string]any{"create_alias": map[string]any{"collection_name": target, "alias_name": s.alias}})
+	if err := s.writeJSON(ctx, http.MethodPost, s.baseURL+"/collections/aliases", map[string]any{"actions": actions}, http.StatusOK); err != nil {
+		return err
+	}
+	current, exists, err = s.activeCollection(ctx)
+	if err != nil {
+		return err
+	}
+	if !exists || current != target {
+		return fmt.Errorf("Qdrant alias switch outcome is ambiguous: alias %q maps to %q, expected %q", s.alias, current, target)
+	}
+	return nil
 }
 
 func (s *qdrantGenerationStore) markGenerationState(ctx context.Context, generationID string, state GenerationLifecycleState, outcome string) error {

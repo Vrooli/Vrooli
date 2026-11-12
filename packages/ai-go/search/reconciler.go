@@ -87,6 +87,17 @@ func NewReconciler(embedder Embedder, bindings []SourceBinding, parallelism int)
 
 // Plan walks every binding and reports drift. Read-only.
 func (r *Reconciler) Plan(ctx context.Context) (*DriftReport, error) {
+	return r.plan(ctx, false)
+}
+
+// planForReindex requires complete source and vector-store reads before an
+// asynchronous reindex job can claim success. The public read-only Plan keeps
+// its historical best-effort behavior for existing inspection callers.
+func (r *Reconciler) planForReindex(ctx context.Context) (*DriftReport, error) {
+	return r.plan(ctx, true)
+}
+
+func (r *Reconciler) plan(ctx context.Context, failOnReadError bool) (*DriftReport, error) {
 	report := &DriftReport{
 		PlannedAt:   r.now(),
 		Collections: make([]CollectionDriftReport, 0, len(r.Bindings)),
@@ -95,24 +106,34 @@ func (r *Reconciler) Plan(ctx context.Context) (*DriftReport, error) {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		report.Collections = append(report.Collections, r.planBinding(ctx, b))
+		collection, err := r.planBinding(ctx, b, failOnReadError)
+		if err != nil {
+			return nil, err
+		}
+		report.Collections = append(report.Collections, collection)
 	}
 	return report, nil
 }
 
-func (r *Reconciler) planBinding(ctx context.Context, b SourceBinding) CollectionDriftReport {
+func (r *Reconciler) planBinding(ctx context.Context, b SourceBinding, failOnReadError bool) (CollectionDriftReport, error) {
 	col := CollectionDriftReport{Kind: b.Kind}
 	recipe := embedderRecipe(r.Embedder)
 
 	docs, err := b.Source.LoadAll(ctx)
 	if err != nil {
+		if failOnReadError {
+			return col, fmt.Errorf("plan %s: load source: %w", b.Kind, err)
+		}
 		log.Printf("[aisearch] reconciler: LoadAll(%s) failed: %v", b.Kind, err)
-		return col
+		return col, nil
 	}
 	stored, err := b.Store.ScrollIDs(ctx)
 	if err != nil {
+		if failOnReadError {
+			return col, fmt.Errorf("plan %s: scroll vector store: %w", b.Kind, err)
+		}
 		log.Printf("[aisearch] reconciler: ScrollIDs(%s) failed: %v", b.Kind, err)
-		return col
+		return col, nil
 	}
 
 	// Group stored points by their source for the source-level skip and ghosts.
@@ -182,7 +203,7 @@ func (r *Reconciler) planBinding(ctx context.Context, b SourceBinding) Collectio
 	}
 	sort.Strings(ghosts)
 	col.ToDelete = ghosts
-	return col
+	return col, nil
 }
 
 func upsertRef(kind, pid string, chunk Chunk, total int, hash, sourceHash string) ItemRef {

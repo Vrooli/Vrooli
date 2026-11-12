@@ -144,15 +144,43 @@ func treeDigestContext(ctx context.Context, root string, workerCount int, digest
 			return "", fmt.Errorf("binaryfetch: walk tree: %w", item.err)
 		}
 	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].path < entries[j].path })
+
+	leaves := make([]treeLeafDigest, len(entries))
+	for i, item := range entries {
+		leaves[i] = treeLeafDigest{Path: item.path, SHA256: item.sum}
+	}
+	return hashTreeLeafDigestsContext(ctx, leaves)
+}
+
+// treeLeafDigest is a canonical tree-format record, not filesystem evidence.
+// SHA256 represents actual regular-file bytes or the canonical symlink record.
+type treeLeafDigest struct {
+	Path   string
+	SHA256 string
+}
+
+// hashTreeLeafDigestsContext serializes the content/safe-link digests already
+// read by TreeDigest, preserving its canonical sorted record format.
+
+func hashTreeLeafDigestsContext(ctx context.Context, leaves []treeLeafDigest) (string, error) {
+	records := append([]treeLeafDigest(nil), leaves...)
+	sort.Slice(records, func(i, j int) bool { return records[i].Path < records[j].Path })
 	hash := sha256.New()
-	for _, item := range entries {
+	previous := ""
+	for _, item := range records {
 		if err := ctx.Err(); err != nil {
 			return "", err
 		}
-		_, _ = io.WriteString(hash, item.path)
+		if item.Path == "" || strings.ContainsRune(item.Path, 0) || item.Path == previous {
+			return "", fmt.Errorf("binaryfetch: invalid or duplicate tree leaf path")
+		}
+		if err := validateDigest(item.SHA256); err != nil {
+			return "", err
+		}
+		previous = item.Path
+		_, _ = io.WriteString(hash, item.Path)
 		_, _ = hash.Write([]byte{0})
-		_, _ = io.WriteString(hash, item.sum)
+		_, _ = io.WriteString(hash, strings.ToLower(strings.TrimSpace(item.SHA256)))
 		_, _ = io.WriteString(hash, "\n")
 	}
 	return hex.EncodeToString(hash.Sum(nil)), nil

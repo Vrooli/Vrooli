@@ -63,6 +63,35 @@ func TestParkForAwaitSkipsAttachedSessionBeforeParkRequest(t *testing.T) {
 	}
 }
 
+func TestParkForAwaitInlinePreservesInheritedRun(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("inline wait must not request run identity or park: %s", r.URL.Path)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	baseline := credentialRoleTestToken(map[string]string{})
+	t.Setenv("AGENT_MANAGER_API_BASE", server.URL)
+	t.Setenv(EnvIdentityToken, baseline)
+	t.Setenv(EnvAsyncWaitMode, "inline")
+
+	result, handled, err := ParkForAwait(ParkRequest{Producer: ParkProducerLifecycle, Key: "storage-manager/live"})
+	if err != nil || handled || result != nil {
+		t.Fatalf("inline ParkForAwait() = (%+v, %v, %v), want normal producer wait", result, handled, err)
+	}
+	if got := DetectIdentity().Token; got != baseline {
+		t.Fatal("inline wait changed the inherited identity")
+	}
+}
+
+func TestParkForAwaitInvalidWaitModeDoesNotPark(t *testing.T) {
+	t.Setenv(EnvIdentityToken, credentialRoleTestToken(map[string]string{}))
+	t.Setenv(EnvAsyncWaitMode, "inlien")
+	result, handled, err := ParkForAwait(ParkRequest{Producer: ParkProducerTestGenie, Key: "demo/R1"})
+	if err == nil || !handled || result != nil || !strings.Contains(err.Error(), EnvAsyncWaitMode) {
+		t.Fatalf("invalid mode = (%+v, %v, %v), want explicit park error", result, handled, err)
+	}
+}
+
 func TestParkForAwait_NotAgentControlled(t *testing.T) {
 	t.Setenv(EnvIdentityToken, "")
 
@@ -79,6 +108,7 @@ func TestParkForAwait_NotAgentControlled(t *testing.T) {
 }
 
 func TestParkForAwait_Success(t *testing.T) {
+	t.Setenv(EnvAsyncWaitMode, "auto")
 	const runID = "run-uuid-abc"
 	var gotBody map[string]any
 	server := parkTestServer(t, runID, func(body map[string]any) (int, map[string]any) {

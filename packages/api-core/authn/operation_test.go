@@ -91,37 +91,6 @@ func TestDeliveryManagementPolicyControlsOnlyTheNamedEffort(t *testing.T) {
 	}
 }
 
-func TestNotificationSendingPolicyIsRecipientBound(t *testing.T) {
-	policy, ok := InteractivePolicy("notification-sending")
-	if !ok || len(policy.Scopes) != 1 || policy.Scopes[0] != "notification-hub:write" || len(policy.Operations) != 1 || policy.Operations[0] != "notification.send" || len(policy.Domains) != 1 || policy.Domains[0] != "notification-hub" {
-		t.Fatalf("missing bounded notification policy: %+v", policy)
-	}
-	grant := &identity.OperationGrant{
-		ID: "notification-consent", Approver: "owner", ExpiresAt: time.Now().Add(time.Hour),
-		Rules: []identity.OperationRule{
-			{Policy: "notification-sending", Operations: policy.Operations, Targets: []string{"notification-hub:recipient/operator"}},
-			{Policy: "team-management", Operations: []string{"team.manage"}, Targets: []string{"prompt-manager:team/research"}},
-		},
-	}
-	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorAgent, Subject: "run", Verified: true, Scopes: policy.Scopes, Grant: grant})
-	if _, err := RequireOperation(ctx, "notification-hub:write", "notification.send", "notification-hub:recipient/operator"); err != nil {
-		t.Fatalf("covered send refused in a multi-policy consent: %v", err)
-	}
-	for _, pair := range [][2]string{
-		{"notification.send", "notification-hub:recipient/other"},
-		{"notification.send", "prompt-manager:team/research"},
-		{"conversation.answer", "notification-hub:recipient/operator"},
-		{"preferences.update", "notification-hub:recipient/operator"},
-	} {
-		if _, err := RequireOperation(ctx, "notification-hub:write", pair[0], pair[1]); err == nil {
-			t.Fatalf("sender consent escaped its operation/recipient: %v", pair)
-		}
-	}
-	if _, err := RequireIndependentHuman(ctx); err == nil {
-		t.Fatal("sender consent supplied independent human authority")
-	}
-}
-
 func TestPromptAgentCreationPolicyIsExactAndCreationOnly(t *testing.T) {
 	p, ok := InteractivePolicy("prompt-agent-creation")
 	if !ok || len(p.Operations) != 1 || p.Operations[0] != "agent.create" || len(p.Domains) != 1 || p.Domains[0] != "prompt-manager" {

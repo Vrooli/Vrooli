@@ -27,7 +27,8 @@ func TestIsTranscription(t *testing.T) {
 	}{
 		{http.MethodPost, "/asr", true},
 		{http.MethodPost, "/asr?task=transcribe", true},
-		{http.MethodPost, "/detect-language", true},
+		{http.MethodPost, "/detect-language", false},
+		{http.MethodPost, "/asr/segment", true},
 		{http.MethodGet, "/asr", false}, // GET is not work
 		{http.MethodGet, "/", false},    // health/docs
 		{http.MethodPost, "/", false},
@@ -36,6 +37,33 @@ func TestIsTranscription(t *testing.T) {
 		r, _ := http.NewRequest(c.method, "http://x"+c.path, nil)
 		if got := isTranscription(r); got != c.want {
 			t.Errorf("isTranscription(%s %s) = %v, want %v", c.method, c.path, got, c.want)
+		}
+	}
+}
+
+func TestReportAcceptsDemandSignalsButCannotReportPlacementOrRelease(t *testing.T) {
+	var calls [][]string
+	h := &Handlers{
+		Stdout: io.Discard, Stderr: io.Discard,
+		Exec: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+			calls = append(calls, append([]string(nil), args...))
+			if len(args) > 1 && args[0] == "capacity" && args[1] == "list" {
+				return []byte(`{"claims":[{"claim_id":"claim-1","owner_id":"whisper","owner_kind":"resource","resource_kind":"vram","gpu_index":0,"status":"granted","generation":2}]}`), nil
+			}
+			return []byte(`{}`), nil
+		},
+	}
+	h.report("whisper", "unloaded")
+	if len(calls) != 0 {
+		t.Fatalf("placement/release state reached capacity CLI: %v", calls)
+	}
+	h.report("whisper", "active")
+	if len(calls) != 2 || calls[1][0] != "capacity" || calls[1][1] != "activity" {
+		t.Fatalf("active demand signal calls = %v, want claim lookup then activity", calls)
+	}
+	for _, arg := range calls[1] {
+		if arg == "unloaded" || arg == "release" || arg == "placement" {
+			t.Fatalf("activity report contains placement/release claim: %v", calls[1])
 		}
 	}
 }
@@ -156,6 +184,140 @@ func TestOllayaBoundaryDistinguishesDecisionsFromObservation(t *testing.T) {
 		if got := h.Match(httptest.NewRequest(tc.method, tc.path, nil)); got != tc.work {
 			t.Errorf("%s %s work=%t, want %t", tc.method, tc.path, got, tc.work)
 		}
+	}
+}
+
+func TestOllamaBoundaryTracksInferenceAndModelMutationsForDrain(t *testing.T) {
+	h, err := ForResource("ollama")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h.DefaultListen != "127.0.0.1:11434" || h.DefaultUpstream != "127.0.0.1:21434" {
+		t.Fatalf("wrong Ollama binding: %+v", h)
+	}
+	for _, path := range []string{
+		"/api/generate", "/api/chat", "/api/embed", "/api/embeddings",
+		"/api/delete", "/api/create", "/api/copy", "/api/push",
+	} {
+		if !h.Match(httptest.NewRequest(http.MethodPost, path, nil)) {
+			t.Errorf("POST %s did not enter the managed work fence", path)
+		}
+	}
+	if h.Match(httptest.NewRequest(http.MethodPost, "/api/pull", nil)) {
+		t.Fatal("public pull was classified as supported work")
+	}
+	if h.Reject == nil || !h.Reject(httptest.NewRequest(http.MethodPost, "/api/pull", nil)) {
+		t.Fatal("public pull did not enter the fail-closed rejection boundary")
+	}
+	for _, path := range []string{"/api/tags", "/api/ps", "/api/show"} {
+		if h.Match(httptest.NewRequest(http.MethodGet, path, nil)) {
+			t.Errorf("GET %s was classified as mutating or inference work", path)
+		}
+	}
+}
+
+func TestOllamaDrainWaitsForActiveInferenceAndRejectsDeleteWithoutForwarding(t *testing.T) {
+	started := make(chan struct{}, 1)
+	release := make(chan struct{})
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		started <- struct{}{}
+		<-release
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	h, err := ForResource("ollama")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.Debounce = 0
+	h.Exec = func(context.Context, string, ...string) ([]byte, error) { return nil, nil }
+	server, _, err := h.serverWithTrackerMode("127.0.0.1:0", upstream.URL, 0, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edge := httptest.NewServer(server.Handler)
+	defer edge.Close()
+
+	firstDone := make(chan error, 1)
+	go func() {
+		resp, err := http.Post(edge.URL+"/api/generate", "application/json", strings.NewReader(`{"model":"fixture"}`))
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		firstDone <- err
+	}()
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("active pull did not reach the upstream")
+	}
+
+	drainDone := make(chan error, 1)
+	go func() { drainDone <- h.Drain(context.Background()) }()
+	select {
+	case err := <-drainDone:
+		t.Fatalf("drain returned while pull was active: %v", err)
+	case <-time.After(20 * time.Millisecond):
+	}
+	resp, err := http.Post(edge.URL+"/api/delete", "application/json", strings.NewReader(`{"name":"fixture"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("delete during drain returned %s, want 503", resp.Status)
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("upstream calls during drained delete=%d, want only the active pull", got)
+	}
+	close(release)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("active pull: %v", err)
+	}
+	if err := <-drainDone; err != nil {
+		t.Fatalf("drain after active pull completed: %v", err)
+	}
+}
+
+func TestOllamaPublicPullIsRejectedWithoutForwarding(t *testing.T) {
+	var calls atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer upstream.Close()
+
+	h, err := ForResource("ollama")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, _, err := h.serverWithTrackerMode("127.0.0.1:0", upstream.URL, 0, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	edge := httptest.NewServer(server.Handler)
+	defer edge.Close()
+
+	resp, err := http.Post(edge.URL+"/api/pull", "application/json", strings.NewReader(`{"name":"fixture","stream":false}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, readErr := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("public pull status = %s, want 403; body=%s", resp.Status, body)
+	}
+	if !strings.Contains(string(body), "resource-ollama ensure") || !strings.Contains(string(body), "shared disk admission") {
+		t.Fatalf("public pull refusal lacks managed admission guidance: %s", body)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("upstream received %d direct pull requests, want zero", got)
 	}
 }
 
@@ -436,6 +598,104 @@ func TestNativeAdapterMapsDetectLanguageResponse(t *testing.T) {
 	if got := payload["confidence"]; got != 0.97 {
 		t.Fatalf("confidence=%v, want 0.97", got)
 	}
+}
+
+func TestWhisperDetectLanguageIsAdaptedButNotCapacityDemand(t *testing.T) {
+	h, err := ForResource("whisper")
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest(http.MethodPost, "/detect-language", strings.NewReader("audio"))
+	if h.Match(request) {
+		t.Fatal("/detect-language counted as transcription demand")
+	}
+	if !isNativeWhisperRequest(request) {
+		t.Fatal("/detect-language lost native API adaptation")
+	}
+}
+
+func TestWhisperWakeUsesOrdinaryResourceStartOwner(t *testing.T) {
+	h, err := ForResource("whisper")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var gotName string
+	var gotArgs []string
+	h.Exec = func(_ context.Context, name string, args ...string) ([]byte, error) {
+		gotName, gotArgs = name, append([]string(nil), args...)
+		return nil, nil
+	}
+	if h.Wake == nil {
+		t.Fatal("Whisper production edge has no governed wake callback")
+	}
+	if err := h.Wake(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if gotName != "vrooli" || strings.Join(gotArgs, " ") != "resource start whisper" {
+		t.Fatalf("wake owner command = %q %v", gotName, gotArgs)
+	}
+}
+
+func TestTrackerReportsConcurrentActiveThenIdleInSequenceOrder(t *testing.T) {
+	activeStarted := make(chan struct{})
+	releaseActive := make(chan struct{})
+	var mu sync.Mutex
+	var states []string
+	appendState := func(state string) {
+		mu.Lock()
+		states = append(states, state)
+		mu.Unlock()
+	}
+	tr := &tracker{
+		debounce:   time.Millisecond,
+		markActive: func() { close(activeStarted); <-releaseActive; appendState(activityActive) },
+		markIdle:   func() { appendState(activityIdle) },
+	}
+	tr.begin()
+	<-activeStarted
+	tr.end()
+	time.Sleep(5 * time.Millisecond)
+	close(releaseActive)
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		mu.Lock()
+		complete := len(states) == 2
+		mu.Unlock()
+		if complete {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(states) != 2 || states[0] != activityActive || states[1] != activityIdle {
+		t.Fatalf("activity report order = %v, want active then idle", states)
+	}
+}
+
+func TestTrackerDrainRejectsNewWorkAndWaitsForInflightWork(t *testing.T) {
+	tr := &tracker{drained: make(chan struct{})}
+	close(tr.drained)
+	if !tr.begin() {
+		t.Fatal("initial work was rejected")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+	if err := tr.drain(ctx); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("drain with active work = %v, want deadline", err)
+	}
+	if tr.begin() {
+		t.Fatal("new work entered while draining")
+	}
+	tr.end()
+	if err := tr.drain(context.Background()); err != nil {
+		t.Fatalf("drain after active work completed = %v", err)
+	}
+	tr.resume()
+	if !tr.begin() {
+		t.Fatal("work remained blocked after resume")
+	}
+	tr.end()
 }
 
 // Fail-open: when every capacity call errors, transcription still forwards.

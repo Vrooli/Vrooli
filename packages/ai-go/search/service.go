@@ -732,14 +732,18 @@ func (s *Service) runReindex(ctx context.Context, job *ReindexJob) {
 		s.mu.Unlock()
 	}()
 
-	plan, err := s.reconciler.Plan(ctx)
+	plan, err := s.reconciler.planForReindex(ctx)
 	s.mu.Lock()
 	job.Plan = plan
 	s.mu.Unlock()
 	if err != nil {
 		s.mu.Lock()
-		job.State = "failed"
-		job.Err = err.Error()
+		if ctx.Err() != nil {
+			job.State = "cancelled"
+		} else {
+			job.State = "failed"
+			job.Err = err.Error()
+		}
 		s.mu.Unlock()
 		return
 	}

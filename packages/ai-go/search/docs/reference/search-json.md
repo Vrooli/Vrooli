@@ -215,9 +215,11 @@ One labelled corpus per provider, in **one canonical rank-centric shape** that i
   writes the reviewed state back to the provider's `search.json`.
 - **Negatives** are cases with `expect_no_strong_hit` (+ `expect_max_score`) — the
   junk-rejection guards the sweep validates stay rejected, never optimizes against.
-- **Provenance rides `tags`.** `"generated"` is the load-bearing marker the sweep
-  **always holds out of the tuning fold** (overfit guard #2): a tuning can never be
-  selected on cases a machine wrote for it. There is no separate `source` field.
+- **Provenance rides `tags`.** `"generated"` excludes a case from evaluation
+  calls, denominators, and metrics until its owner reviews it. Only owner-authored
+  `"heldout"` membership admits a generated case and places it in the fixed
+  validation fold; untagged ordinary positives remain in tuning. Preserve both
+  tags during suite import, dedupe, and merge. There is no separate `source` field.
 - **Coverage is provider-owned.** `coverage.required_tags` and
   `coverage.required_tag_groups` declare the question families this provider must
   prove for production maturity. Only reviewed positive cases satisfy coverage;

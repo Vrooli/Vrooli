@@ -55,8 +55,10 @@ func (r SuiteReport) MeetsTarget() bool {
 	return r.Recall+1e-9 >= r.Policy.RecallTarget
 }
 
-// GradeSuite runs every suite case at policy.DeepK and applies the shared
-// acceptance denominator: reviewed, non-stale positives only.
+// GradeSuite runs every suite case at policy.DeepK and applies the fixed
+// acceptance denominator: every reviewed positive label is scored in every
+// arm. Retrieval absence is a miss, not evidence that the label is stale. Only
+// provider-owned corpus review may remove a label from a comparison.
 func GradeSuite(ctx context.Context, searcher SuiteSearcher, suite TestSuite, policy ScoringPolicy) (SuiteReport, error) {
 	if searcher == nil {
 		return SuiteReport{}, fmt.Errorf("nil searcher")
@@ -101,10 +103,6 @@ func GradeSuite(ctx context.Context, searcher SuiteSearcher, suite TestSuite, po
 		if !isPositiveCase(c) {
 			continue
 		}
-		if cr.Referential == ReferentialStale {
-			report.Stale = append(report.Stale, cr)
-			continue
-		}
 		report.GradeablePositives++
 		if cr.Outcome == CaseOutcomeHit {
 			report.Hits++
@@ -144,15 +142,16 @@ func GradeCase(results []SearchResult, c TestCase, policy ScoringPolicy) CaseOut
 	return CaseOutcomeHit
 }
 
-// ClassifyExpectID classifies whether a positive label still points at a result
-// discoverable by the provider at the probed depth.
+// ClassifyExpectID reports ranking evidence for a positive label. A miss at the
+// queried depth is inconclusive about corpus membership: retrieval output is
+// candidate-dependent and cannot prove a label stale.
 func ClassifyExpectID(deepResults []SearchResult, c TestCase, policy ScoringPolicy) Referential {
 	if len(c.ExpectIDs) == 0 || c.ExpectNoStrongHit {
 		return ReferentialUnknown
 	}
 	rank := ExpectedRank(deepResults, c.ExpectIDs)
 	if rank == 0 {
-		return ReferentialStale
+		return ReferentialUnknown
 	}
 	if rank <= effectiveGateK(c, policy) {
 		return ReferentialLive

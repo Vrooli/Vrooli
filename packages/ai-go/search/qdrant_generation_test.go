@@ -139,7 +139,8 @@ func newTestGenerationStore(t *testing.T, fake *fakeQdrant, alias string) (Gener
 	t.Helper()
 	server := httptest.NewServer(fake.handler())
 	t.Cleanup(server.Close)
-	store, err := NewQdrantGenerationStore(QdrantGenerationOptions{BaseURL: server.URL, Alias: alias, Spec: CollectionSpec{DenseSize: 4, DenseDistance: "Cosine"}})
+	owner := strings.SplitN(alias, "_", 2)[0] + ".test"
+	store, err := NewQdrantGenerationStore(QdrantGenerationOptions{BaseURL: server.URL, Alias: alias, Owner: owner, AliasBoundary: &fleetTestAliasBoundary{}, Spec: CollectionSpec{DenseSize: 4, DenseDistance: "Cosine"}})
 	if err != nil {
 		t.Fatal(err)
 	}

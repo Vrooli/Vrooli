@@ -187,7 +187,7 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 		t.Fatal(err)
 	}
 	var mu sync.Mutex
-	var attachBody map[string]string
+	var attachBody map[string]any
 	var childPath string
 	var childArgs []string
 	var childEnvironment []string
@@ -255,7 +255,7 @@ func TestLaunchCodingAgentAttachesAddsOnlyTokenAndDetaches(t *testing.T) {
 	defer mu.Unlock()
 	// The attach carries only fields admitted by the API. Tree and containment
 	// metadata remain on the editor lease, independently of attachment.
-	if !reflect.DeepEqual(attachBody, map[string]string{"task_id": "safe-task-id", "harness_kind": "codex", "harness_session_id": attachBody["harness_session_id"]}) || attachBody["harness_session_id"] == "" {
+	if !reflect.DeepEqual(attachBody, map[string]any{"task_id": "safe-task-id", "harness_kind": "codex", "harness_session_id": attachBody["harness_session_id"], "process_id": float64(os.Getpid())}) || attachBody["harness_session_id"] == "" {
 		t.Fatalf("attach body = %#v", attachBody)
 	}
 	if childPath != "/safe/fixture/codex" || !reflect.DeepEqual(childArgs, []string{"--unchanged", "literal value"}) {

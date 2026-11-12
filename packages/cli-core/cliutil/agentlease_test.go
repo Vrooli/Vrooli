@@ -53,7 +53,7 @@ func withLeaseRecorder(t *testing.T, recorder EditorLeaseRecorder) {
 }
 
 // [REQ:STORM-002] The session's editor lease records the tree and containment
-// scope with the launcher's pid, independently of the narrower attach API.
+// scope with the launcher's pid, and the attach reports that same pid.
 func TestLauncherRecordsWorkingDirAndScope(t *testing.T) {
 	for _, hostID := range []string{"", "existing-host-session"} {
 		t.Run("host="+hostID, func(t *testing.T) {
@@ -96,8 +96,11 @@ func TestLauncherRecordsWorkingDirAndScope(t *testing.T) {
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			if len(attachBody) != 2 || attachBody["harness_kind"] != "codex" || attachBody["harness_session_id"] == "" {
-				t.Fatalf("attach body = %v, want only harness identity", attachBody)
+			// A waiting launcher reports its own pid: the same pid the lease records
+			// and every operation grant binds to, so the baseline run can pair with an
+			// approved grant (agent-manager VerifyIdentityPair requires equality).
+			if len(attachBody) != 3 || attachBody["harness_kind"] != "codex" || attachBody["harness_session_id"] == "" || attachBody["process_id"] != float64(os.Getpid()) {
+				t.Fatalf("attach body = %v, want harness identity and the launcher pid", attachBody)
 			}
 			if !result.LeaseRecorded || len(recorder.created) != 1 {
 				t.Fatalf("lease not recorded: result=%+v created=%v", result, recorder.created)

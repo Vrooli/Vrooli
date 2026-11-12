@@ -101,6 +101,7 @@ func TestSQLiteTuningRejectsUnsafeValues(t *testing.T) {
 		"negative cache size":          {CacheSizeKiB: -1},
 		"negative page size":           {PageSizeBytes: -1},
 		"negative mmap size":           {MMapSizeBytes: -1},
+		"negative journal size limit":  {JournalSizeLimitBytes: -1},
 		"unknown synchronous mode":     {Synchronous: "SOMETIMES"},
 	}
 	for name, tuning := range cases {
@@ -578,5 +579,23 @@ func TestSQLiteDSNRejectsDSNTerminatingCharacters(t *testing.T) {
 		if _, err := SQLiteReadOnlyDSNAt(path); err == nil {
 			t.Fatalf("expected %q to be rejected for read-only too", path)
 		}
+	}
+}
+
+func TestSQLiteDSNJournalSizeLimitIsOptionalAndBeforeDriverParameters(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "retained.db")
+	dsn, err := SQLiteDSNAt(path, SQLiteTuning{JournalSizeLimitBytes: 64 << 20, TxLock: "immediate"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(dsn, "&_pragma=journal_size_limit(67108864)&_txlock=immediate") {
+		t.Fatalf("journal retention tuning missing or misplaced: %s", dsn)
+	}
+	defaults, err := SQLiteDSNAt(path, SQLiteTuning{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(defaults, "journal_size_limit") {
+		t.Fatalf("default DSN unexpectedly changed: %s", defaults)
 	}
 }

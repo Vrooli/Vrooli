@@ -20,8 +20,11 @@
 //
 // The edge owns the canonical client port (8090). The native server listens on
 // the internal host port (18090), so "server healthy but 8090 down" means the
-// companion is down: STT is unavailable and whisper capacity activity is not
-// being reported until the companion is respawned.
+// companion is down: STT is unavailable and Whisper capacity demand is not
+// being reported until the companion is respawned. Whisper's resource owner
+// keeps this edge alive across model-server restart and controls its drain state
+// through the private companion socket; the edge can wake a stopped model only
+// by invoking ordinary resource start through current capacity admission.
 package activityedge
 
 import (
@@ -59,6 +62,8 @@ const (
 	defaultResource    = "whisper"
 	defaultListenEnv   = "WHISPER_PROXY_LISTEN"
 	defaultUpstreamEnv = "WHISPER_PROXY_UPSTREAM"
+	activityActive     = "active"
+	activityIdle       = "idle"
 )
 
 // RequestMatcher identifies work at a resource's public request boundary. A
@@ -75,23 +80,29 @@ type resourceSpec struct {
 }
 
 var resourceSpecs = map[string]resourceSpec{
-	"whisper":              {listen: "127.0.0.1:8090", upstream: "127.0.0.1:18090", methods: []string{http.MethodPost}, paths: []string{"/asr", "/detect-language"}, native: true},
+	"whisper":              {listen: "127.0.0.1:8090", upstream: "127.0.0.1:18090", methods: []string{http.MethodPost}, paths: []string{"/asr"}, native: true},
 	"kokoro":               {listen: "127.0.0.1:8880", upstream: "127.0.0.1:18880", methods: []string{http.MethodPost}, paths: []string{"/v1/audio/speech"}},
 	"kyutai-stt":           {listen: "127.0.0.1:8094", upstream: "127.0.0.1:18094", methods: []string{http.MethodGet}, paths: []string{"/v1/stream"}},
 	"ace-step":             {listen: "127.0.0.1:8895", upstream: "127.0.0.1:18895", methods: []string{http.MethodPost}, paths: []string{"/v1/compose", "/v1/capacity/degrade"}},
 	"stable-audio-3":       {listen: "127.0.0.1:8896", upstream: "127.0.0.1:18896", methods: []string{http.MethodPost}, paths: []string{"/v1/compose"}},
 	"songgen":              {listen: "127.0.0.1:8897", upstream: "127.0.0.1:18897", methods: []string{http.MethodPost}, paths: []string{"/v1/compose"}},
 	"speaker-verification": {listen: "127.0.0.1:11452", upstream: "127.0.0.1:21452", methods: []string{http.MethodPost}, paths: []string{"/v1/profiles", "/v1/verify", "/v1/extract"}},
-	"ollama":               {listen: "127.0.0.1:11434", upstream: "127.0.0.1:21434", methods: []string{http.MethodPost}, paths: []string{"/api/generate", "/api/chat", "/api/embed", "/api/embeddings"}},
-	"ollaya":               {listen: "127.0.0.1:11435", upstream: "127.0.0.1:21435", methods: []string{http.MethodPost}, paths: []string{"/api/decide"}},
-	"reranker":             {listen: "127.0.0.1:11453", upstream: "127.0.0.1:21453", methods: []string{http.MethodPost}, paths: []string{"/rerank", "/v1/rerank"}},
-	"pii-detector":         {listen: "127.0.0.1:11460", upstream: "127.0.0.1:21460", methods: []string{http.MethodPost}, paths: []string{"/detect"}},
+	// Track supported API operations that can use or mutate model state. Direct
+	// pulls are rejected separately until the edge can provide disk admission;
+	// the admitted ensure owner reaches the private daemon under its disk lease.
+	"ollama":       {listen: "127.0.0.1:11434", upstream: "127.0.0.1:21434", methods: []string{http.MethodPost}, paths: []string{"/api/generate", "/api/chat", "/api/embed", "/api/embeddings", "/api/delete", "/api/create", "/api/copy", "/api/push"}},
+	"ollaya":       {listen: "127.0.0.1:11435", upstream: "127.0.0.1:21435", methods: []string{http.MethodPost}, paths: []string{"/api/decide"}},
+	"reranker":     {listen: "127.0.0.1:11453", upstream: "127.0.0.1:21453", methods: []string{http.MethodPost}, paths: []string{"/rerank", "/v1/rerank"}},
+	"pii-detector": {listen: "127.0.0.1:11460", upstream: "127.0.0.1:21460", methods: []string{http.MethodPost}, paths: []string{"/detect"}},
 }
 
 // Handlers owns the proxy's dependencies. Tests inject the seams so no real
 // server, exec, or clock is needed.
 type Handlers struct {
 	diagnosticMu sync.Mutex
+	trackerMu    sync.Mutex
+	wakeMu       sync.Mutex
+	tracker      *tracker
 	Stdout       io.Writer
 	Stderr       io.Writer
 	GetEnv       func(string) string
@@ -127,6 +138,18 @@ type Handlers struct {
 	UpstreamEnv     string
 	// Match selects requests or streams that represent real resource work.
 	Match RequestMatcher
+	// Reject stops unsupported public mutations before activity tracking or
+	// proxying. Resource owners use this when an operation needs stronger
+	// admission than the transparent edge can provide.
+	Reject        RequestMatcher
+	RejectMessage string
+	// ControlSocket enables the private Unix-socket drain/resume API used by the
+	// owning resource lifecycle. The socket is filesystem-protected and is not
+	// exposed on the public request listener.
+	ControlSocket string
+	// Wake is invoked only when a matched work request cannot connect to the
+	// upstream. A successful owner lifecycle call is followed by one retry.
+	Wake func(context.Context) error
 }
 
 // Default returns Handlers wired to the real shell.
@@ -172,6 +195,25 @@ func ForResource(resource string) (*Handlers, error) {
 	}
 	h := New(name, spec.listen, spec.upstream, MatchPaths(spec.methods, spec.paths...))
 	h.Native = spec.native
+	if name == "ollama" {
+		// Missing-model acquisition must use resource-ollama ensure, which
+		// preflights an immutable manifest and holds a shared disk-job lease.
+		// The public transparent edge cannot provide those guarantees itself.
+		h.Reject = MatchPaths([]string{http.MethodPost}, "/api/pull")
+		h.RejectMessage = "direct Ollama model pulls are unsupported on the public edge; use resource-ollama ensure for shared disk admission"
+	}
+	if name == "whisper" {
+		// Wake through the ordinary resource lifecycle owner. That command owns
+		// current admission and placement recovery; the edge never starts the
+		// server or bypasses the resource's lifecycle gates itself.
+		h.Wake = func(ctx context.Context) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			_, err := h.Exec(ctx, "vrooli", "resource", "start", name)
+			return err
+		}
+	}
 	return h, nil
 }
 
@@ -213,7 +255,7 @@ func Command(h *Handlers) cliapp.Command {
 	return cliapp.Command{
 		Name:        "activity-edge",
 		Description: "Run the fail-open reverse proxy that brackets resource work and reports capacity activity",
-		Usage:       "activity-edge [--listen host:port] [--upstream host:port] [--debounce 5s] --parent-pid pid",
+		Usage:       "activity-edge [--listen host:port] [--upstream host:port] [--debounce 5s] (--parent-pid pid | --control-socket path)",
 		Run:         h.Run,
 	}
 }
@@ -226,13 +268,14 @@ func (h *Handlers) Run(args []string) error {
 	upstream := fs.String("upstream", h.env(h.upstreamEnv(), h.defaultUpstream()), "private host:port of the managed resource server")
 	debounce := fs.Duration("debounce", h.debounce(), "idle debounce after the last in-flight /asr completes")
 	native := fs.Bool("native", h.Native, "adapt the historical /asr multipart contract to whisper.cpp")
-	parent := fs.Int("parent-pid", h.ParentPID, "PID of the supervised whisper resource process")
+	parent := fs.Int("parent-pid", h.ParentPID, "PID of the supervised resource process; omit only with --control-socket")
+	controlSocket := fs.String("control-socket", h.ControlSocket, "private Unix socket for resource lifecycle drain/resume")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 	parentPID := *parent
-	if parentPID <= 1 {
-		return fmt.Errorf("activity edge: parent PID is required (start with --parent-pid <resource-pid>)")
+	if parentPID <= 1 && strings.TrimSpace(*controlSocket) == "" {
+		return fmt.Errorf("activity edge: an owning parent PID or private control socket is required")
 	}
 
 	started := h.now()
@@ -240,6 +283,20 @@ func (h *Handlers) Run(args []string) error {
 	if err != nil {
 		h.errorf("activity-edge exit: reason=server-build err=%v\n", err)
 		return err
+	}
+	controlServer, controlListener, err := serveControlSocket(*controlSocket, h)
+	if err != nil {
+		return fmt.Errorf("activity edge control socket: %w", err)
+	}
+	if controlServer != nil {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_ = controlServer.Shutdown(ctx)
+			_ = controlListener.Close()
+			_ = os.Remove(*controlSocket)
+		}()
+		go func() { _ = controlServer.Serve(controlListener) }()
 	}
 
 	ln, err := h.listen("tcp", *listen)
@@ -321,6 +378,20 @@ func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.
 		return nil, nil, fmt.Errorf("parse upstream %q: %w", upstream, err)
 	}
 	proxy := httputil.NewSingleHostReverseProxy(target)
+	if h.Wake != nil {
+		proxy.Transport = wakeRoundTripper{
+			Base: http.DefaultTransport, Wake: h.Wake,
+			WakeContext: func(parent context.Context) (context.Context, func(), bool) {
+				h.trackerMu.Lock()
+				tr := h.tracker
+				h.trackerMu.Unlock()
+				if tr == nil {
+					return parent, func() {}, true
+				}
+				return tr.beginWake(parent)
+			},
+		}
+	}
 	// FlushInterval -1 streams responses (and SSE/chunked) through immediately
 	// rather than buffering — transparency for any streaming transcription.
 	proxy.FlushInterval = -1
@@ -331,17 +402,40 @@ func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.
 
 	tr := &tracker{
 		debounce:   debounce,
+		drained:    make(chan struct{}),
 		markActive: func() { h.report(h.resource(), "active") },
 		markIdle:   func() { h.report(h.resource(), "idle") },
 	}
+	close(tr.drained)
+	h.trackerMu.Lock()
+	h.tracker = tr
+	h.trackerMu.Unlock()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if h.isWork(r) {
-			tr.begin()
-			defer tr.end()
+		if h.Reject != nil && h.Reject(r) {
+			message := strings.TrimSpace(h.RejectMessage)
+			if message == "" {
+				message = "operation is not supported on this resource edge"
+			}
+			http.Error(w, message, http.StatusForbidden)
+			return
 		}
-		if native && h.isWork(r) {
+		if h.isWork(r) {
+			if !tr.begin() {
+				if err := h.recoverDrainedDemand(r.Context()); err != nil {
+					http.Error(w, "resource is draining and wake recovery did not complete", http.StatusServiceUnavailable)
+					return
+				}
+				if !tr.begin() {
+					http.Error(w, "resource remains unavailable after placement recovery", http.StatusServiceUnavailable)
+					return
+				}
+			}
+			defer tr.end()
+			r = r.WithContext(context.WithValue(r.Context(), wakeRequestKey{}, true))
+		}
+		if native && isNativeWhisperRequest(r) {
 			adapted, err := adaptNativeRequest(r)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -361,12 +455,52 @@ func (h *Handlers) serverWithTrackerMode(listen, upstream string, debounce time.
 	return &http.Server{Handler: mux, ReadHeaderTimeout: tuning.ActivityReadHeaderTimeout()}, tr, nil
 }
 
+func (h *Handlers) recoverDrainedDemand(parent context.Context) error {
+	h.wakeMu.Lock()
+	defer h.wakeMu.Unlock()
+	h.trackerMu.Lock()
+	tr := h.tracker
+	h.trackerMu.Unlock()
+	if tr == nil || !tr.isDraining() {
+		return nil
+	}
+	if h.Wake == nil {
+		return fmt.Errorf("drained resource has no governed wake owner")
+	}
+	ctx, cancel := context.WithTimeout(parent, 2*time.Minute)
+	defer cancel()
+	return h.Wake(ctx)
+}
+
+// Drain rejects new work and waits for in-flight work to finish. The caller
+// must persist a transition before changing placement and call Resume after
+// either a successful or failed placement attempt.
+func (h *Handlers) Drain(ctx context.Context) error {
+	h.trackerMu.Lock()
+	tr := h.tracker
+	h.trackerMu.Unlock()
+	if tr == nil {
+		return fmt.Errorf("activity edge is not serving")
+	}
+	return tr.drain(ctx)
+}
+
+// Resume reopens the work boundary after placement has been reconciled.
+func (h *Handlers) Resume() {
+	h.trackerMu.Lock()
+	tr := h.tracker
+	h.trackerMu.Unlock()
+	if tr != nil {
+		tr.resume()
+	}
+}
+
 // adaptNativeRequest preserves the public audio_file multipart field and
 // /asr path while translating to whisper.cpp's /inference endpoint. Query
 // controls from the historical API are promoted into the native multipart
 // fields because whisper.cpp does not consume them from the query string.
 func adaptNativeRequest(r *http.Request) (*http.Request, error) {
-	if r.Method != http.MethodPost || !isTranscription(r) {
+	if !isNativeWhisperRequest(r) {
 		return r, nil
 	}
 	if err := r.ParseMultipartForm(64 << 20); err != nil {
@@ -432,11 +566,15 @@ func adaptNativeRequest(r *http.Request) (*http.Request, error) {
 	adapted.URL.Path = "/inference"
 	adapted.URL.RawPath = ""
 	adapted.URL.RawQuery = ""
-	adapted.Body = io.NopCloser(bytes.NewReader(body.Bytes()))
-	adapted.ContentLength = int64(body.Len())
+	bodyBytes := append([]byte(nil), body.Bytes()...)
+	adapted.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	adapted.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(bodyBytes)), nil
+	}
+	adapted.ContentLength = int64(len(bodyBytes))
 	adapted.Header = adapted.Header.Clone()
 	adapted.Header.Set("Content-Type", writer.FormDataContentType())
-	adapted.Header.Set("Content-Length", fmt.Sprintf("%d", body.Len()))
+	adapted.Header.Set("Content-Length", fmt.Sprintf("%d", len(bodyBytes)))
 	return adapted, nil
 }
 
@@ -520,12 +658,25 @@ func isTranscription(r *http.Request) bool {
 		return false
 	}
 	p := strings.ToLower(r.URL.Path)
-	return strings.Contains(p, "/asr") || strings.Contains(p, "detect-language")
+	return p == "/asr" || strings.HasPrefix(p, "/asr/")
 }
 
-// report resolves whisper's active capacity claim and reports the given activity
-// state. Best-effort: a missing vrooli binary, no live claim, or any CLI error is
-// swallowed — the edge never lets capacity reporting affect transcription.
+// isNativeWhisperRequest includes language detection for API compatibility.
+// It is deliberately broader than isTranscription: language-detection probes
+// are adapted and served but do not renew real transcription demand.
+func isNativeWhisperRequest(r *http.Request) bool {
+	if r == nil || r.Method != http.MethodPost {
+		return false
+	}
+	p := strings.ToLower(strings.TrimSuffix(r.URL.Path, "/"))
+	return p == "/asr" || strings.HasPrefix(p, "/asr/") || p == "/detect-language" || strings.HasPrefix(p, "/detect-language/")
+}
+
+// report emits only a demand signal (active/idle) for the current claim. These
+// request-boundary observations do not prove placement, transition completion,
+// model identity, or released footprint. Best-effort: a missing vrooli binary,
+// no live claim, or any CLI error is swallowed — the edge never lets capacity
+// reporting affect transcription.
 // report tells the broker this resource started or stopped working.
 //
 // Finding the active claim and setting its state is the half every capacity
@@ -534,6 +685,10 @@ func isTranscription(r *http.Request) bool {
 // the request path, and every failure is swallowed so a broker outage can never
 // affect a transcription.
 func (h *Handlers) report(resource, state string) {
+	if state != "active" && state != "idle" {
+		h.errorf("activity-edge capacity report ignored: unsupported demand state %q\n", state)
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	companion.Reporter{Resource: resource, Exec: h.Exec}.ReportActivity(ctx, state)
@@ -701,6 +856,8 @@ func (h *Handlers) logHeartbeat(tr *tracker, since time.Time) {
 type tracker struct {
 	mu        sync.Mutex
 	inflight  int
+	draining  bool
+	drained   chan struct{}
 	active    bool
 	requests  uint64
 	idleTimer *time.Timer
@@ -708,11 +865,23 @@ type tracker struct {
 
 	markActive func()
 	markIdle   func()
+	sequence   uint64
+	reportMu   sync.Mutex
+	reportCond *sync.Cond
+	nextReport uint64
+	wakeSeq    uint64
+	wakeCancel map[uint64]context.CancelFunc
 }
 
-func (t *tracker) begin() {
+func (t *tracker) begin() bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	if t.draining {
+		return false
+	}
+	if t.inflight == 0 {
+		t.drained = make(chan struct{})
+	}
 	if t.idleTimer != nil {
 		t.idleTimer.Stop()
 		t.idleTimer = nil
@@ -721,8 +890,11 @@ func (t *tracker) begin() {
 	t.inflight++
 	if !t.active {
 		t.active = true
-		go t.markActive()
+		t.sequence++
+		seq := t.sequence
+		go t.report(seq, activityActive)
 	}
+	return true
 }
 
 func (t *tracker) end() {
@@ -730,6 +902,13 @@ func (t *tracker) end() {
 	defer t.mu.Unlock()
 	if t.inflight > 0 {
 		t.inflight--
+	}
+	if t.inflight == 0 && t.drained != nil {
+		select {
+		case <-t.drained:
+		default:
+			close(t.drained)
+		}
 	}
 	if t.inflight > 0 {
 		return
@@ -744,9 +923,131 @@ func (t *tracker) end() {
 			return
 		}
 		t.active = false
+		t.sequence++
+		seq := t.sequence
 		t.mu.Unlock()
-		t.markIdle()
+		go t.report(seq, activityIdle)
 	})
+}
+
+func (t *tracker) drain(ctx context.Context) error {
+	t.mu.Lock()
+	t.draining = true
+	drained := t.drained
+	cancelWake := make([]context.CancelFunc, 0, len(t.wakeCancel))
+	for _, cancel := range t.wakeCancel {
+		cancelWake = append(cancelWake, cancel)
+	}
+	t.mu.Unlock()
+	for _, cancel := range cancelWake {
+		cancel()
+	}
+	select {
+	case <-drained:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	t.mu.Lock()
+	if t.idleTimer != nil {
+		t.idleTimer.Stop()
+		t.idleTimer = nil
+	}
+	var reportSequence uint64
+	if t.active && t.inflight == 0 {
+		t.active = false
+		t.sequence++
+		reportSequence = t.sequence
+	}
+	t.mu.Unlock()
+	if reportSequence == 0 {
+		return nil
+	}
+	go t.report(reportSequence, activityIdle)
+	return t.waitForReport(ctx, reportSequence)
+}
+
+// beginWake reserves a context-bound wake attempt. Drain cancels every
+// outstanding permit after closing the gate, so a wake waiting on the
+// resource lifecycle lock cannot hold the drain open indefinitely.
+func (t *tracker) beginWake(parent context.Context) (context.Context, func(), bool) {
+	t.mu.Lock()
+	if t.draining || parent.Err() != nil {
+		t.mu.Unlock()
+		return nil, func() {}, false
+	}
+	if t.wakeCancel == nil {
+		t.wakeCancel = make(map[uint64]context.CancelFunc)
+	}
+	t.wakeSeq++
+	sequence := t.wakeSeq
+	ctx, cancel := context.WithCancel(parent)
+	t.wakeCancel[sequence] = cancel
+	t.mu.Unlock()
+	var once sync.Once
+	release := func() {
+		once.Do(func() {
+			cancel()
+			t.mu.Lock()
+			delete(t.wakeCancel, sequence)
+			t.mu.Unlock()
+		})
+	}
+	return ctx, release, true
+}
+
+func (t *tracker) waitForReport(ctx context.Context, sequence uint64) error {
+	t.reportMu.Lock()
+	if t.reportCond == nil {
+		t.reportCond = sync.NewCond(&t.reportMu)
+	}
+	stopWake := context.AfterFunc(ctx, func() {
+		t.reportMu.Lock()
+		t.reportCond.Broadcast()
+		t.reportMu.Unlock()
+	})
+	defer stopWake()
+	for t.nextReport < sequence && ctx.Err() == nil {
+		t.reportCond.Wait()
+	}
+	t.reportMu.Unlock()
+	return ctx.Err()
+}
+
+func (t *tracker) resume() {
+	t.mu.Lock()
+	t.draining = false
+	t.mu.Unlock()
+}
+
+func (t *tracker) isDraining() bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.draining
+}
+
+// report serializes asynchronous edge events by their tracker sequence. The
+// report callbacks remain off the request/timer path, while a delayed active
+// callback cannot land after the newer idle callback.
+func (t *tracker) report(sequence uint64, state string) {
+	t.reportMu.Lock()
+	if t.reportCond == nil {
+		t.reportCond = sync.NewCond(&t.reportMu)
+	}
+	for sequence != t.nextReport+1 {
+		t.reportCond.Wait()
+	}
+	callback := t.markIdle
+	if state == activityActive {
+		callback = t.markActive
+	}
+	t.reportMu.Unlock()
+	if callback != nil {
+		callback()
+	}
+	t.reportMu.Lock()
+	t.nextReport = sequence
+	t.reportCond.Broadcast()
+	t.reportMu.Unlock()
 }
 
 func (t *tracker) snapshot() (uint64, bool) {
