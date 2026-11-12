@@ -5,6 +5,7 @@ package reviewjobs
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -96,6 +97,9 @@ func (s *Store) Create(ctx context.Context, job Job) (Job, bool, error) {
 	if job.State == "" {
 		job.State = Queued
 	}
+	if !job.State.Valid() {
+		return Job{}, false, fmt.Errorf("unknown review-job state %q", job.State)
+	}
 	if job.CreatedAt.IsZero() {
 		job.CreatedAt = time.Now().UTC()
 	}
@@ -130,6 +134,9 @@ func (s *Store) get(ctx context.Context, clause string, arg string) (Job, error)
 	err := s.db.QueryRowContext(ctx, `SELECT id,idempotency_key,input_digest,policy_version,state,checks_json,result_ref,result_json,error,created_at,updated_at,scenario_name,detail_count,thresholds_json,operation,repository_id,input_json,execution_id,cancel_requested FROM gct_review_jobs `+clause, arg).Scan(&j.ID, &j.IdempotencyKey, &j.InputDigest, &j.PolicyVersion, &j.State, &checks, &j.ResultRef, &j.ResultJSON, &j.Error, &created, &updated, &j.ScenarioName, &j.DetailCount, &j.ThresholdsJSON, &j.Operation, &j.RepositoryID, &j.InputJSON, &j.ExecutionID, &j.CancelRequested)
 	if err != nil {
 		return Job{}, err
+	}
+	if !j.State.Valid() {
+		return Job{}, fmt.Errorf("decode review job %q: unknown state %q", j.ID, j.State)
 	}
 	if err := json.Unmarshal([]byte(checks), &j.Checks); err != nil {
 		return Job{}, fmt.Errorf("decode checks: %w", err)
@@ -176,12 +183,16 @@ func (s *Store) List(ctx context.Context) ([]Job, error) {
 }
 
 func (s *Store) Transition(ctx context.Context, id string, from []State, to State, resultRef, message string) error {
-	if to == "" {
-		return fmt.Errorf("target state is required")
+	if !to.Valid() {
+		return fmt.Errorf("unknown target state %q", to)
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	allowed := make([]string, len(from))
 	for i, state := range from {
+		candidate := Job{State: state}
+		if err := candidate.Transition(to); err != nil {
+			return fmt.Errorf("transition from %q: %w", state, err)
+		}
 		allowed[i] = string(state)
 	}
 	sort.Strings(allowed)
@@ -259,7 +270,9 @@ func (s *Store) UpdateAdvisory(ctx context.Context, previous Job, next Job) (boo
 func (s *Store) ClaimAdvisoryDispatch(ctx context.Context, previous Job) (Job, bool, error) {
 	next := previous
 	if next.State == Queued {
-		next.State = Running
+		if err := next.Transition(Running); err != nil {
+			return Job{}, false, err
+		}
 	}
 	next.UpdatedAt = time.Now().UTC()
 	if !next.UpdatedAt.After(previous.UpdatedAt) {
@@ -270,6 +283,13 @@ func (s *Store) ClaimAdvisoryDispatch(ctx context.Context, previous Job) (Job, b
 }
 
 func (s *Store) updateAdvisory(ctx context.Context, previous Job, next Job, updatedAt time.Time) (bool, error) {
+	transition := previous
+	if !transition.State.Valid() {
+		return false, fmt.Errorf("unknown previous review-job state %q", transition.State)
+	}
+	if err := transition.Transition(next.State); err != nil {
+		return false, err
+	}
 	res, err := s.db.ExecContext(ctx, `UPDATE gct_review_jobs SET state=?,execution_id=?,cancel_requested=?,result_json=?,error=?,updated_at=? WHERE id=? AND operation=? AND repository_id=? AND state=? AND updated_at=?`, next.State, next.ExecutionID, next.CancelRequested, next.ResultJSON, next.Error, updatedAt.Format(time.RFC3339Nano), previous.ID, previous.Operation, previous.RepositoryID, previous.State, previous.UpdatedAt.Format(time.RFC3339Nano))
 	if err != nil {
 		return false, err
@@ -284,7 +304,7 @@ func (s *Store) updateAdvisory(ctx context.Context, previous Job, next Job, upda
 func (s *Store) RecordAdvisoryEvidence(ctx context.Context, id, repo, execution string, check Check) error {
 	for attempt := 0; attempt < 8; attempt++ {
 		var raw string
-		if err := s.db.QueryRowContext(ctx, `SELECT checks_json FROM gct_review_jobs WHERE id=? AND operation='staged-message' AND repository_id=? AND state IN ('running','cancelling') AND (execution_id='' OR execution_id=?)`, id, repo, execution).Scan(&raw); err != nil {
+		if err := s.db.QueryRowContext(ctx, `SELECT checks_json FROM gct_review_jobs WHERE id=? AND operation='staged-message' AND repository_id=? AND state IN (?,?) AND (execution_id='' OR execution_id=?)`, id, repo, string(Running), string(Cancelling), execution).Scan(&raw); err != nil {
 			return err
 		}
 		var checks []Check
@@ -304,7 +324,7 @@ func (s *Store) RecordAdvisoryEvidence(ctx context.Context, id, repo, execution 
 		if err != nil {
 			return err
 		}
-		res, err := s.db.ExecContext(ctx, `UPDATE gct_review_jobs SET checks_json=? WHERE id=? AND operation='staged-message' AND repository_id=? AND checks_json=? AND state IN ('running','cancelling') AND (execution_id='' OR execution_id=?)`, string(data), id, repo, raw, execution)
+		res, err := s.db.ExecContext(ctx, `UPDATE gct_review_jobs SET checks_json=? WHERE id=? AND operation='staged-message' AND repository_id=? AND checks_json=? AND state IN (?,?) AND (execution_id='' OR execution_id=?)`, string(data), id, repo, raw, string(Running), string(Cancelling), execution)
 		if err != nil {
 			return err
 		}
@@ -334,6 +354,41 @@ func (s *Store) PruneAdvisoryCollections(ctx context.Context, repositoryID strin
 // caller's stale read. Dispatch must move queued->running before calling its
 // owner, so a queued cancellation can safely finish without launching work.
 func (s *Store) RequestAdvisoryCancel(ctx context.Context, id, repositoryID string) error {
-	_, err := s.db.ExecContext(ctx, `UPDATE gct_review_jobs SET cancel_requested=1,state=CASE WHEN state='queued' AND execution_id='' THEN 'cancelled' ELSE 'cancelling' END,updated_at=? WHERE id=? AND operation='staged-message' AND repository_id=? AND state NOT IN ('succeeded','failed','cancelled')`, time.Now().UTC().Format(time.RFC3339Nano), id, repositoryID)
-	return err
+	for attempt := 0; attempt < 8; attempt++ {
+		job, err := s.Get(ctx, id)
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if job.Operation != "staged-message" || job.RepositoryID != repositoryID || job.State.Terminal() {
+			return nil
+		}
+		next := job
+		target := Cancelling
+		if job.State == Queued && job.ExecutionID == "" {
+			target = Cancelled
+		}
+		if err := next.Transition(target); err != nil {
+			return err
+		}
+		next.CancelRequested = true
+		updatedAt := time.Now().UTC()
+		if !updatedAt.After(job.UpdatedAt) {
+			updatedAt = job.UpdatedAt.Add(time.Nanosecond)
+		}
+		res, err := s.db.ExecContext(ctx, `UPDATE gct_review_jobs SET state=?,cancel_requested=1,updated_at=? WHERE id=? AND operation='staged-message' AND repository_id=? AND state=? AND updated_at=?`, string(next.State), updatedAt.Format(time.RFC3339Nano), id, repositoryID, string(job.State), job.UpdatedAt.Format(time.RFC3339Nano))
+		if err != nil {
+			return err
+		}
+		count, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count == 1 {
+			return nil
+		}
+	}
+	return fmt.Errorf("job %q changed repeatedly while requesting cancellation", id)
 }

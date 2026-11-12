@@ -175,13 +175,17 @@ NotFound after a lost response does not authorize a new identity: reconnect or
 retry the same frozen request. Late observer responses cannot clear an observed
 cancellation request or revive a confirmed terminal job.
 
-GCT verifies managed Cloudflare or sign-in proof before forwarding that immediate
-caller to Agent Manager, which independently checks its own capabilities. An
-explicit invalid credential never falls back to local OS authority. The personal
-OS provider abstains for verified agents so shared middleware retains their
-bounded capabilities; it must not reject those agent proofs as invalid. A proofless
-local OS principal cannot be delegated; starting requires a trusted signed-in
-browser session. This is an identity requirement, not an additional agent grant.
+GCT forwards managed Cloudflare or sign-in proof to Agent Manager when present.
+Without verified proof, the caller is programmatic; it is never labeled human.
+Agent Manager permits this fallback only for Connect starts of the two GCT
+staged-message workflow keys. It does not rely on peer IP because proxies and
+container networking can change that address. It strips caller-supplied
+initiator and agent claims, then applies the workflow revision's trigger policy,
+input validation, budget, and self-trigger checks. Other Agent Manager
+operations remain under their regular identity policy. The workflow only drafts
+message text; applying it fills the editor and committing remains a separate
+operator action. The personal OS provider abstains for verified agents so
+shared middleware retains their bounded capabilities.
 
 Agent Manager owns the declared `git-control-tower/staged-message` workflow and
 its configured model. The protected draft profile cannot publish repository

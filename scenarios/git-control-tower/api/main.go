@@ -340,7 +340,7 @@ func (s *Server) Router() http.Handler {
 	} else {
 		devrouting.RegisterWithFileRoots(rootMux, s.db, s.fileRoots)
 	}
-	rootMux.Handle("/", s.router)
+	rootMux.Handle("/", authn.UIAvailabilityFallback(s.router))
 	return gorillahandlers.RecoveryHandler()(securityHeadersMiddleware(apihttp.TestModeMiddleware(rootMux)))
 }
 

@@ -104,7 +104,10 @@ func TestTransitionRequiresExpectedSourceAndPreservesFailedCheck(t *testing.T) {
 	if err := s.UpdateCheck(ctx, "job-1", Check{Name: "tests", ExecutionID: "run-1", Availability: "available", Verdict: "failed", Detail: "assertion failed"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.Transition(ctx, "job-1", []State{Queued}, Succeeded, "result-1", ""); err != nil {
+	if err := s.Transition(ctx, "job-1", []State{Queued}, Running, "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Transition(ctx, "job-1", []State{Running}, Succeeded, "result-1", ""); err != nil {
 		t.Fatal(err)
 	}
 	job, err := s.Get(ctx, "job-1")
@@ -164,11 +167,10 @@ func TestCancelRequestSurvivesStaleQueuedReadDuringDispatch(t *testing.T) {
 		t.Fatal(e)
 	}
 	got, e := s.Get(ctx, stale.ID)
-	if e != nil || !got.CancelRequested || got.State != State("cancelling") {
+	if e != nil || !got.CancelRequested || got.State != Cancelling {
 		t.Fatalf("lost cancellation %#v %v", got, e)
 	}
 	// An old provider completion cannot clear the monotonic request.
-	running.State = Succeeded
 	if changed, e := s.UpdateAdvisory(ctx, stale, running); e != nil || changed {
 		t.Fatal("stale result overwrote cancel", changed, e)
 	}
@@ -201,7 +203,7 @@ func TestAdmissionClaimReceiptCannotBorrowLaterRetryOrCancellationRevision(t *te
 		t.Fatalf("stale dispatch overwrote cancellation: %v %v", changed, err)
 	}
 	got, err := s.Get(ctx, second.ID)
-	if err != nil || !got.CancelRequested || got.State != State("cancelling") {
+	if err != nil || !got.CancelRequested || got.State != Cancelling {
 		t.Fatalf("cancellation lost: %v %v", got, err)
 	}
 }

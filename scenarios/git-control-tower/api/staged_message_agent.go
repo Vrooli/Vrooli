@@ -123,9 +123,10 @@ func (p *stagedMessageAgent) Start(ctx context.Context, in stagedmessages.DraftI
 	if len(in.Contexts) > stagedmessages.MaxSelectedContexts || len(in.OperatorNote) > stagedmessages.MaxOperatorNoteBytes {
 		return stagedmessages.Execution{}, connect.NewError(connect.CodeInvalidArgument, errors.New("draft input exceeds context or note bounds"))
 	}
-	if len(policygate.VerifiedOwnerHeaders(ctx)) == 0 && provenance.ForwardedIdentityToken(ctx) == "" {
-		return stagedmessages.Execution{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("Sign in through a trusted browser session before starting a drafting agent"))
-	}
+	// Agent Manager owns the workflow's trigger policy. When GCT has no
+	// forwardable browser or agent proof, this request remains programmatic;
+	// it is never promoted to a human initiator. The owner may admit or refuse
+	// that initiator according to the workflow definition.
 	if p.repository == nil {
 		return stagedmessages.Execution{}, connect.NewError(connect.CodeFailedPrecondition, errors.New("registered repository resolver unavailable"))
 	}
@@ -149,9 +150,6 @@ func (p *stagedMessageAgent) Start(ctx context.Context, in stagedmessages.DraftI
 		return stagedmessages.Execution{}, err
 	}
 	req := stagedMessageRequest(ctx, &apipb.StartWorkflowExecutionRequest{Owner: "git-control-tower", WorkflowKey: stagedMessageInputWorkflowKey(in), Input: value, IdempotencyKey: key})
-	if len(policygate.VerifiedOwnerHeaders(ctx)) > 0 {
-		req.Header().Set("X-Vrooli-Workflow-Initiator", "human")
-	}
 	response, err := p.workflow(base).StartWorkflowExecution(ctx, req)
 	if err != nil {
 		invalidInput := connect.CodeOf(err) == connect.CodeInvalidArgument || (connect.CodeOf(err) == connect.CodeInternal && strings.Contains(err.Error(), "workflow input:"))

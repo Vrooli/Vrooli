@@ -144,10 +144,41 @@ func (r *ExecGitRunner) Stage(ctx context.Context, repoDir string, paths []strin
 		return stderr.Bytes(), e
 	}
 	stderrBytes, err := execWithIndexLockRetry(ctx, build, run)
+	stderrStr := strings.TrimSpace(string(stderrBytes))
+	var warnings []string
+
+	// Git cannot add a path below a symlink. When the selected path was
+	// previously tracked, Git reports it as deleted from this worktree, so
+	// stage that exact deletion from the index rather than traversing the link
+	// or reading anything from its target. Retry each requested path
+	// individually so unaffected paths in a mixed selection still use git add.
+	if err != nil && strings.Contains(stderrStr, "beyond a symbolic link") {
+		for _, path := range paths {
+			addBuild := func() *exec.Cmd {
+				args := []string{"-C", repoDir, "add", "--", path}
+				return exec.CommandContext(ctx, r.gitPath(), args...)
+			}
+			addOutput, addErr := execWithIndexLockRetry(ctx, addBuild, runCombined)
+			if addErr == nil {
+				continue
+			}
+			if !strings.Contains(string(addOutput), "beyond a symbolic link") {
+				return warnings, fmt.Errorf("git add failed: %w (%s)", addErr, strings.TrimSpace(string(addOutput)))
+			}
+
+			removeBuild := func() *exec.Cmd {
+				args := []string{"-C", repoDir, "update-index", "--force-remove", "--", path}
+				return exec.CommandContext(ctx, r.gitPath(), args...)
+			}
+			removeOutput, removeErr := execWithIndexLockRetry(ctx, removeBuild, runCombined)
+			if removeErr != nil {
+				return warnings, fmt.Errorf("git could not stage the deletion for %q beneath a symbolic link: %w (%s)", path, removeErr, strings.TrimSpace(string(removeOutput)))
+			}
+		}
+		return warnings, nil
+	}
 
 	// Parse stderr for warnings even if command succeeded
-	var warnings []string
-	stderrStr := strings.TrimSpace(string(stderrBytes))
 	if stderrStr != "" {
 		// Check for known warning patterns that aren't fatal errors
 		if strings.Contains(stderrStr, "ignored by one of your .gitignore files") ||

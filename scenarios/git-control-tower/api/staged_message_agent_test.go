@@ -16,7 +16,6 @@ import (
 	"git-control-tower/internal/policygate"
 	"git-control-tower/internal/stagedmessages"
 	"github.com/vrooli/api-core/identity"
-	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
 	apipb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/api"
 	ampb "github.com/vrooli/vrooli/packages/proto/gen/go/agent-manager/v1/domain"
@@ -123,7 +122,7 @@ func TestStagedMessageStartPinsInputAndIdempotencyWithoutMutations(t *testing.T)
 	if got.Status != "queued" || w.starts != 1 || w.start.GetIdempotencyKey() != "request-1" || w.start.GetWorkflowKey() != stagedMessageWorkflowKey {
 		t.Fatalf("unbound start: %+v %+v", got, w.start)
 	}
-	if w.startHeaders.Get("Authorization") != "Bearer owner-fixture" || w.startHeaders.Get("X-Vrooli-Workflow-Initiator") != "human" {
+	if w.startHeaders.Get("Authorization") != "Bearer owner-fixture" || w.startHeaders.Get("X-Vrooli-Workflow-Initiator") != "" {
 		t.Fatalf("verified caller proof lost: %v", w.startHeaders)
 	}
 	fields := w.start.GetInput().GetStructValue().GetFields()
@@ -139,35 +138,22 @@ func TestStagedMessageStartPinsInputAndIdempotencyWithoutMutations(t *testing.T)
 	}
 }
 
-func TestStagedMessageStartRequiresForwardableCallerProof(t *testing.T) {
+func TestStagedMessageStartWithoutCallerProofStaysProgrammatic(t *testing.T) {
 	t.Setenv("VROOLI_AGENT_IDENTITY_TOKEN", "ambient-server-identity-is-not-browser-proof")
 	for _, test := range []struct {
-		name  string
-		valid bool
-	}{{"missing", false}, {"personal local", false}, {"invalid agent", false}, {"verified agent", true}} {
+		name string
+		ctx  func() context.Context
+	}{{"missing", func() context.Context { return context.Background() }}, {"personal local", func() context.Context {
+		return identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorHuman, Subject: "osuser:1001", Source: identity.SourcePersonalLocal, Verified: true})
+	}}} {
 		t.Run(test.name, func(t *testing.T) {
 			w := &stagedWorkflowFake{execution: stagedAgentExecution(ampb.WorkflowExecutionStatus_WORKFLOW_EXECUTION_STATUS_PENDING)}
 			p := stagedAgentFixture(w, nil)
-			req := httptest.NewRequest(http.MethodPost, "/start", nil)
-			if test.name == "personal local" {
-				req = req.WithContext(identity.WithPrincipal(req.Context(), identity.Principal{Kind: identity.ActorHuman, Subject: "osuser:1001", Source: identity.SourcePersonalLocal, Verified: true}))
+			if _, err := p.Start(test.ctx(), stagedmessages.DraftInput{Snapshot: stagedAgentSnapshot()}, "request-programmatic"); err != nil || w.starts != 1 {
+				t.Fatalf("programmatic draft was blocked: starts=%d err=%v", w.starts, err)
 			}
-			if test.name == "invalid agent" || test.name == "verified agent" {
-				req.Header.Set(cliutil.HeaderAgentIdentityToken, "inbound-agent")
-			}
-			var startErr error
-			h := provenance.Middleware(provenance.VerifierFunc(func(string) (*cliutil.VerifyResult, error) {
-				return &cliutil.VerifyResult{Valid: test.valid, Claims: &cliutil.VerifiedClaims{RunID: "verified-parent"}}, nil
-			}))(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-				_, startErr = p.Start(r.Context(), stagedmessages.DraftInput{Snapshot: stagedAgentSnapshot()}, "request-proof")
-			}))
-			h.ServeHTTP(httptest.NewRecorder(), req)
-			if test.valid {
-				if startErr != nil || w.starts != 1 || w.startHeaders.Get("X-Vrooli-Workflow-Initiator") == "human" {
-					t.Fatalf("verified agent incorrectly rejected or promoted: %v", startErr)
-				}
-			} else if connect.CodeOf(startErr) != connect.CodeFailedPrecondition || !strings.Contains(startErr.Error(), "Sign in through a trusted browser session") || w.starts != 0 {
-				t.Fatalf("missing proof reached execution owner or lacks recovery: starts=%d err=%v", w.starts, startErr)
+			if w.startHeaders.Get("Authorization") != "" || w.startHeaders.Get(cliutil.HeaderAgentIdentityToken) != "" || w.startHeaders.Get("X-Vrooli-Workflow-Initiator") != "" {
+				t.Fatalf("proofless request was promoted or server identity substituted: %v", w.startHeaders)
 			}
 		})
 	}

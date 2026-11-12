@@ -398,9 +398,7 @@ func (s *Service) Job(ctx context.Context, repo, dir, jobID, requestKey, action 
 	return s.read(ctx, repo, dir, job, action, timeout)
 }
 
-func terminal(state reviewjobs.State) bool {
-	return state == reviewjobs.Succeeded || state == reviewjobs.Failed || state == reviewjobs.Cancelled
-}
+func terminal(state reviewjobs.State) bool { return state.Terminal() }
 
 func (s *Service) read(ctx context.Context, repo, dir string, job reviewjobs.Job, action string, timeout time.Duration) (*v1.StagedMessageJob, error) {
 	var input DraftInput
@@ -444,7 +442,7 @@ func (s *Service) read(ctx context.Context, repo, dir string, job reviewjobs.Job
 // reconcile owns exactly one persisted/provider lifecycle step. Projection and
 // applicability checks run once in read, even after a CAS or cancelled admission.
 func (s *Service) reconcile(ctx context.Context, repo string, job reviewjobs.Job, input DraftInput, action string, timeout time.Duration) (reviewjobs.Job, error) {
-	if !terminal(job.State) {
+	if !job.State.Terminal() {
 		if action == "cancel" && !job.CancelRequested {
 			if e := s.store.RequestAdvisoryCancel(ctx, job.ID, repo); e != nil {
 				return reviewjobs.Job{}, e
@@ -455,13 +453,15 @@ func (s *Service) reconcile(ctx context.Context, repo string, job reviewjobs.Job
 				return reviewjobs.Job{}, e
 			}
 		}
-		if terminal(job.State) {
+		if job.State.Terminal() {
 			return job, nil
 		}
 		if s.provider == nil {
 			next := job
 			if job.State == reviewjobs.Queued && job.ExecutionID == "" {
-				next.State = reviewjobs.Failed
+				if e := next.Transition(reviewjobs.Failed); e != nil {
+					return reviewjobs.Job{}, e
+				}
 			}
 			next.Error = "Agent Manager message execution unavailable"
 			if _, e := s.store.UpdateAdvisory(ctx, job, next); e != nil {
@@ -489,7 +489,7 @@ func (s *Service) reconcile(ctx context.Context, repo string, job reviewjobs.Job
 			if e != nil {
 				return reviewjobs.Job{}, e
 			}
-			if !changed || terminal(current.State) || current.ExecutionID != "" || !current.UpdatedAt.Equal(claimed.UpdatedAt) {
+			if !changed || current.State.Terminal() || current.ExecutionID != "" || !current.UpdatedAt.Equal(claimed.UpdatedAt) {
 				return current, nil
 			}
 			// Retain this exact claim for the response CAS; a reload must never
@@ -512,14 +512,16 @@ func (s *Service) reconcile(ctx context.Context, repo string, job reviewjobs.Job
 			switch connect.CodeOf(err) {
 			case connect.CodeInvalidArgument, connect.CodePermissionDenied, connect.CodeUnauthenticated, connect.CodeFailedPrecondition, connect.CodeUnimplemented:
 				if firstDispatch && job.ExecutionID == "" {
-					next.State = reviewjobs.Failed
+					if e := next.Transition(reviewjobs.Failed); e != nil {
+						return reviewjobs.Job{}, e
+					}
 				}
 			}
 			// Only the first dispatch can establish a definitive admission refusal.
 			// Once Running is durable, a prior lost acknowledgement may conceal an
 			// accepted owner execution. Later auth/outage errors retain its key so
 			// restored credentials can recover that execution rather than replace it.
-			if action == "wait" && !terminal(next.State) {
+			if action == "wait" && !next.State.Terminal() {
 				if e := waitAttachment(ctx, attachedAt, timeout); e != nil {
 					return reviewjobs.Job{}, e
 				}
@@ -535,26 +537,35 @@ func (s *Service) reconcile(ctx context.Context, repo string, job reviewjobs.Job
 			}
 			next.Error = ex.Error
 			if next.ExecutionID == "" {
-				next.State = reviewjobs.Failed
+				if e := next.Transition(reviewjobs.Failed); e != nil {
+					return reviewjobs.Job{}, e
+				}
 				next.Error = "execution owner returned no handle"
 			} else {
-				switch ex.Status {
-				case "queued", "running", "cancelling", "succeeded", "failed", "cancelled":
-					next.State = reviewjobs.State(ex.Status)
-				default:
-					next.State = reviewjobs.Failed
-					next.Error = "invalid execution-owner state"
-				}
+				var target reviewjobs.State
 				if job.CancelRequested {
-					if ex.Status == "succeeded" {
-						next.State = reviewjobs.Cancelled
+					switch ex.Status {
+					case "succeeded":
+						target = reviewjobs.Cancelled
 						next.Error = "Execution completed after cancellation request; result discarded"
 						next.ResultJSON = ""
-					} else if ex.Status != "cancelled" && ex.Status != "failed" {
-						next.State = reviewjobs.State("cancelling")
+					case "failed":
+						target = reviewjobs.Failed
+					case "cancelled":
+						target = reviewjobs.Cancelled
+					default:
+						target = reviewjobs.Cancelling
+					}
+				} else {
+					switch ex.Status {
+					case "queued", "running", string(reviewjobs.Cancelling), "succeeded", "failed", "cancelled":
+						target = reviewjobs.State(ex.Status)
+					default:
+						target = reviewjobs.Failed
+						next.Error = "invalid execution-owner state"
 					}
 				}
-				if ex.Status == "succeeded" && !job.CancelRequested {
+				if target == reviewjobs.Succeeded {
 					if input.FormatVersion >= 3 {
 						current, e := s.store.Get(ctx, job.ID)
 						if e != nil {
@@ -564,12 +575,15 @@ func (s *Service) reconcile(ctx context.Context, repo string, job reviewjobs.Job
 						input.InventoryEligibility = suppliedInventory(current.Checks, input.Snapshot.Digest, ex.ID)
 					}
 					if e := validateResult(input, ex.Result); e != nil {
-						next.State = reviewjobs.Failed
+						target = reviewjobs.Failed
 						next.Error = e.Error()
 					} else {
 						data, _ := protojson.Marshal(ex.Result)
 						next.ResultJSON = string(data)
 					}
+				}
+				if e := next.Transition(target); e != nil {
+					return reviewjobs.Job{}, e
 				}
 			}
 			if _, e := s.store.UpdateAdvisory(ctx, job, next); e != nil {

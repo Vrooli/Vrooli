@@ -3,6 +3,15 @@
 This is the current transport inventory for the advisory maturity work. A
 request header is never evidence of identity or human intent.
 
+**Availability override (2026-11-10):** the API applies
+`authn.UIAvailabilityFallback` to every request. The fallback replaces the
+principal with a synthetic operator and wildcard scopes, including for missing
+or invalid credentials and verified agent callers. The rows below describe
+domain validation and exact-intent checks; they do not provide a human-only
+boundary while the fallback is enabled. Any caller that can reach the API can
+prepare, confirm, and perform repository operations. This is an explicit
+operator availability tradeoff, not proof of a human decision.
+
 | Surface | Examples | Effect | Current boundary |
 |---|---|---|---|
 | Read REST | fallback repository resolution and remaining migration reads | pure read | allowed only during migration; typed RepoService owns status, diff, history, approved changes, and provenance |

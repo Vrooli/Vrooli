@@ -2023,3 +2023,16 @@ This is the same scenario/behavior and does not change the mutation boundary.
   `browser-automation-studio`. Local UI results are retained; Test Genie status
   remains unknown and is not claimed as passing. Catalog panic filed with
   Scenario QA as `knw-1793754405769719578`.
+
+### Operator follow-up — staging tracked paths beneath a symlink (2026-11-11)
+
+- Rung: W3. The supplied Git error names a tracked path below
+  `.vrooli/work/delivery/browser-automation-studio-delivery`, which is a
+  symlink to the design-to-implementation corpus repository. Git rejects
+  `git add` on a nested path because it cannot traverse that symbolic link.
+- Repair: when this specific error occurs, Git Control Tower retries requested
+  paths individually and removes only the selected nested path from the index
+  with `git update-index --force-remove`. It does not read the symlink target.
+- Validation: Go formatting and scoped `git diff --check` pass. The scenario
+  was restarted through the lifecycle and reported healthy. Tests and a real
+  staging mutation were not run in this repair turn.

@@ -45,6 +45,9 @@ func (s *Store) ListAdvisory(ctx context.Context, operation string, states []Sta
 		if err := rows.Scan(&row.ID, &row.RepositoryID, &row.ExecutionID, &row.State, &row.CancelRequested, &row.Error, &row.ResultJSON, &updated); err != nil {
 			return nil, err
 		}
+		if !row.State.Valid() {
+			return nil, fmt.Errorf("decode advisory job %q: unknown state %q", row.ID, row.State)
+		}
 		if row.UpdatedAt, err = time.Parse(time.RFC3339Nano, updated); err != nil {
 			return nil, err
 		}

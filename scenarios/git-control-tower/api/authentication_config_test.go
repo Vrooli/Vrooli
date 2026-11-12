@@ -129,7 +129,7 @@ func TestStagedMessagePersonalLocalProxyForwardsSignedCloudflareOwner(t *testing
 			if _, e := stagedAgentFixture(w, nil).Start(ctx, stagedmessages.DraftInput{Snapshot: stagedAgentSnapshot()}, "explicit-browser-start"); e != nil {
 				t.Fatal(e)
 			}
-			if w.startHeaders.Get("Cf-Access-Jwt-Assertion") != token || w.startHeaders.Get("X-Vrooli-Workflow-Initiator") != "human" || w.startHeaders.Get("X-Agent-Identity-Token") != "" {
+			if w.startHeaders.Get("Cf-Access-Jwt-Assertion") != token || w.startHeaders.Get("X-Vrooli-Workflow-Initiator") != "" || w.startHeaders.Get("X-Agent-Identity-Token") != "" {
 				t.Fatal("verified browser proof lost or replaced at execution owner boundary")
 			}
 			// The destination independently verifies the same configured audience and
