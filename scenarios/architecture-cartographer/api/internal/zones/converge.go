@@ -82,8 +82,19 @@ func Converge(repoPath string, derived Info, dzm DeclaredZoneMap, importConsiste
 		}
 	}
 
-	out.Confidence = clamp01(confidence)
+	out.Confidence = ClampUnitInterval(confidence)
 	return out
+}
+
+// ClampUnitInterval bounds normalized confidence and coverage scores to [0, 1].
+func ClampUnitInterval(value float64) float64 {
+	if value < 0 {
+		return 0
+	}
+	if value > 1 {
+		return 1
+	}
+	return value
 }
 
 // sameZoneFamily reports whether two canonical zones share a responsibility
@@ -103,16 +114,5 @@ func zoneFamily(zone string) string {
 		return "core"
 	default:
 		return zone
-	}
-}
-
-func clamp01(v float64) float64 {
-	switch {
-	case v < 0:
-		return 0
-	case v > 1:
-		return 1
-	default:
-		return v
 	}
 }

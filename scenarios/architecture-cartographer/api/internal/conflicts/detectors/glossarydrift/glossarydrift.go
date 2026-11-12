@@ -44,14 +44,13 @@ func (Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts
 	if len(ownerByToken) == 0 {
 		return nil, nil
 	}
-	files := filesByID(in.Snapshot.Files)
-	packages := packagesByID(in.Snapshot.Packages)
+	index := graph.IndexSnapshot(in.Snapshot)
 	var out []conflicts.Conflict
 	for _, sym := range in.Snapshot.Symbols {
 		if !sym.Exported || strings.TrimSpace(sym.Name) == "" {
 			continue
 		}
-		filePath := symbolPath(sym, files, packages)
+		filePath := index.SymbolPath(sym)
 		if filePath == "" {
 			continue
 		}
@@ -127,32 +126,6 @@ func conflictFor(scenario, currentDomain string, sym graph.SymbolNode, filePath,
 			Confidence: 0.6,
 		}},
 	}
-}
-
-func filesByID(files []graph.FileNode) map[string]graph.FileNode {
-	out := make(map[string]graph.FileNode, len(files))
-	for _, f := range files {
-		out[f.ID] = f
-	}
-	return out
-}
-
-func packagesByID(packages []graph.PackageNode) map[string]graph.PackageNode {
-	out := make(map[string]graph.PackageNode, len(packages))
-	for _, p := range packages {
-		out[p.ID] = p
-	}
-	return out
-}
-
-func symbolPath(sym graph.SymbolNode, files map[string]graph.FileNode, packages map[string]graph.PackageNode) string {
-	if f, ok := files[sym.FileID]; ok {
-		return f.Path
-	}
-	if p, ok := packages[sym.PackageID]; ok {
-		return p.RepoPath
-	}
-	return ""
 }
 
 func isTransportPath(path string) bool {

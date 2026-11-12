@@ -11,6 +11,7 @@ import (
 
 	"architecture-cartographer/internal/graph"
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/factgraph"
 	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 	"github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts/facts_v1connect"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -72,68 +73,74 @@ func project(report *factsv1.CodeFactsReport, language graph.Language) (graph.Ra
 			out.SkippedAdapters = append(out.SkippedAdapters, warning.GetCode())
 		}
 	}
-	for _, parsed := range report.GetGraphs() {
-		if parsed.GetGraph() == nil {
-			continue
+	if (report.GetTarget() == nil || report.GetTarget().GetRootPath() == "") && len(report.GetGraphs()) > 0 {
+		return graph.RawGraph{}, fmt.Errorf("Code Facts graph requires target root")
+	}
+	index := factgraph.NewIndex(report)
+	for _, warning := range index.Warnings() {
+		if strings.Contains(warning, "outside target") || (warning == "missing target root" && len(report.GetGraphs()) > 0) {
+			return graph.RawGraph{}, fmt.Errorf("invalid Code Facts graph projection: %s", warning)
 		}
-		unit := parsed.GetParseUnit()
-		if !filepath.IsAbs(report.GetTarget().GetRootPath()) || !filepath.IsAbs(unit.GetRootPath()) {
-			return graph.RawGraph{}, fmt.Errorf("Code Facts graph requires absolute target and parse-unit roots")
-		}
-		rel, err := filepath.Rel(report.GetTarget().GetRootPath(), unit.GetRootPath())
-		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-			return graph.RawGraph{}, fmt.Errorf("Code Facts parse unit %q is outside target root", unit.GetRootPath())
-		}
-		rel = filepath.ToSlash(rel)
+	}
+	for _, parsed := range index.Units() {
+		rel := parsed.Root()
 		// File IDs are local to a parse unit. Qualify all identity references so
 		// api/main.go and cli/main.go cannot collapse into one file or symbol.
-		prefix := unit.GetLanguage() + ":" + rel + ":"
+		prefix := parsed.Language() + ":" + rel + ":"
 		qualify := func(id string) string {
 			if id == "" {
 				return ""
 			}
 			return prefix + id
 		}
-		out.Languages = append(out.Languages, language)
-		out.ExtractionMS += parsed.GetExtractionMs()
-		if profile := parsed.GetExtractionProfile(); profile != "" {
+		unitLanguage := language
+		if parsed.Language() == "typescript" {
+			unitLanguage = graph.LanguageTypeScript
+		} else if parsed.Language() != "" {
+			unitLanguage = graph.Language(parsed.Language())
+		}
+		out.Languages = append(out.Languages, unitLanguage)
+		out.ExtractionMS += parsed.ExtractionMS()
+		if profile := parsed.Profile(); profile != "" {
 			out.ExtractionProfiles = append(out.ExtractionProfiles, profile)
 		}
-		for _, omission := range parsed.GetOmittedInformation() {
-			out.OmittedInformation = append(out.OmittedInformation, graph.InformationOmission{Capability: omission.GetCapability(), Reason: omission.GetReason()})
+		for _, omission := range parsed.Omissions() {
+			out.OmittedInformation = append(out.OmittedInformation, graph.InformationOmission{Capability: omission.Capability, Reason: omission.Reason})
 		}
-		for _, node := range parsed.GetGraph().GetNodes() {
-			if node == nil {
-				continue
+		for _, node := range parsed.Nodes() {
+			attrs, kind := map[string]string{}, node.Attribute("kind")
+			for _, key := range []string{"package_id", "file_id", "import_path", "lines", "is_test", "exported"} {
+				if value := node.Attribute(key); value != "" {
+					attrs[key] = value
+				}
 			}
-			attrs, kind := node.GetAttributes(), node.GetAttributes()["kind"]
 			switch {
-			case node.GetKind() == commonv1.NodeKind_NODE_KIND_FILE:
-				file := graph.FileNodeFromProto(node, language)
+			case node.Kind() == commonv1.NodeKind_NODE_KIND_FILE.String():
+				file := graph.FileNode{ID: node.ID(), Path: node.Path(), PackageID: attrs["package_id"], Language: unitLanguage, Lines: graph.ParseNonNegativeIntAttr(attrs["lines"]), IsTest: attrs["is_test"] == "true"}
 				file.ID, file.PackageID = qualify(file.ID), qualify(file.PackageID)
 				file.Path = filepath.ToSlash(filepath.Join(rel, file.Path))
 				out.Files = append(out.Files, file)
-			case node.GetKind() == commonv1.NodeKind_NODE_KIND_MODULE || (node.GetKind() == commonv1.NodeKind_NODE_KIND_PACKAGE && (kind == "" || kind == "package")):
-				name := node.GetName()
-				if language == graph.LanguageGo && node.GetKind() == commonv1.NodeKind_NODE_KIND_PACKAGE {
+			case node.Kind() == commonv1.NodeKind_NODE_KIND_MODULE.String() || (node.Kind() == commonv1.NodeKind_NODE_KIND_PACKAGE.String() && (kind == "" || kind == "package")):
+				name := node.Name()
+				if unitLanguage == graph.LanguageGo && node.Kind() == commonv1.NodeKind_NODE_KIND_PACKAGE.String() {
 					name = attrs["import_path"]
 					if name == "" {
-						name = node.GetPath()
+						name = node.Path()
 					}
 				}
-				out.Packages = append(out.Packages, graph.PackageNode{ID: qualify(node.GetId()), ImportPath: name, Language: language})
+				out.Packages = append(out.Packages, graph.PackageNode{ID: qualify(node.ID()), ImportPath: name, Language: unitLanguage})
 			default:
 				if kind == "" {
-					kind = node.GetKind().String()
+					kind = node.Kind()
 				}
-				out.Symbols = append(out.Symbols, graph.SymbolNode{ID: qualify(node.GetId()), Name: node.GetName(), PackageID: qualify(attrs["package_id"]), FileID: qualify(attrs["file_id"]), Kind: kind, Exported: attrs["exported"] == "true"})
+				out.Symbols = append(out.Symbols, graph.SymbolNode{ID: qualify(node.ID()), Name: node.Name(), PackageID: qualify(attrs["package_id"]), FileID: qualify(attrs["file_id"]), Kind: kind, Exported: attrs["exported"] == "true"})
 			}
 		}
-		for _, edge := range parsed.GetGraph().GetEdges() {
-			if edge == nil || (language == graph.LanguageGo && edge.GetKind() != commonv1.EdgeKind_EDGE_KIND_IMPORT) {
+		for _, edge := range parsed.Edges() {
+			if edge.Kind() != commonv1.EdgeKind_EDGE_KIND_IMPORT.String() {
 				continue
 			}
-			item := graph.ImportEdgeFromProto(edge)
+			item := graph.ImportEdge{From: edge.From(), ToPackageID: edge.To(), SymbolIDs: graph.SplitCSV(edge.Attribute("symbol_ids")), SymbolKinds: graph.SplitCSV(edge.Attribute("symbol_kinds")), TestOnly: edge.Attribute("test_only") == "true"}
 			item.From, item.ToPackageID = qualify(item.From), qualify(item.ToPackageID)
 			for i, id := range item.SymbolIDs {
 				item.SymbolIDs[i] = qualify(id)

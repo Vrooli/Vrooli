@@ -114,10 +114,27 @@ func (h *connectHandler) Reindex(ctx context.Context, req *connect.Request[contr
 	if err := h.deps.Gate.authorize(h.deps.Logger, r.GetControlToken()); err != nil {
 		return nil, err
 	}
+	action := aisearchpkg.NormalizeReindexMigrationAction(r.GetAction())
+	if err := aisearchpkg.ValidateReindexMigrationRequest(&aisearchpkg.ReindexMigrationRequest{
+		Action: action, ShadowCollection: r.GetShadowCollection(), RollbackCollection: r.GetRollbackCollection(),
+		EmbeddingModel: r.GetEmbeddingModel(), EmbeddingRole: r.GetEmbeddingRole(), EmbeddingDimensions: r.GetEmbeddingDimensions(),
+		EmbeddingPolicySchemaVersion: r.GetEmbeddingPolicySchemaVersion(), DryRun: r.GetDryRun(),
+	}, "capabilities", "shadow", "cutover", "rollback"); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if h.deps.Reindexer == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("reindex backend not configured"))
 	}
-	if action := r.GetAction(); action != "" {
+	if action == "capabilities" {
+		if _, ok := h.deps.Reindexer.(MigrationReindexer); !ok {
+			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("embedding migration is not implemented by this provider"))
+		}
+		return connect.NewResponse(&controlv1.ReindexResponse{
+			MigrationProtocolVersion:  aisearchpkg.ReindexMigrationProtocolVersion,
+			SupportedMigrationActions: []string{"shadow", "cutover", "rollback"},
+		}), nil
+	}
+	if action != "" {
 		migration, ok := h.deps.Reindexer.(MigrationReindexer)
 		if !ok {
 			return nil, connect.NewError(connect.CodeUnimplemented, errors.New("embedding migration is not implemented by this provider"))

@@ -13,6 +13,7 @@ import (
 	"architecture-cartographer/internal/domains"
 	"architecture-cartographer/internal/graph"
 	"architecture-cartographer/internal/suppressions"
+	"architecture-cartographer/internal/zones"
 
 	"github.com/vrooli/api-core/schedule"
 )
@@ -523,7 +524,7 @@ func placementScore(coverage CoverageSummary) float64 {
 	if coverage.TotalFiles == 0 {
 		return 1
 	}
-	return clamp01((coverage.AutoPlace.Percent + coverage.Suggest.Percent) / 100)
+	return zones.ClampUnitInterval((coverage.AutoPlace.Percent + coverage.Suggest.Percent) / 100)
 }
 
 func penaltyScore(findings []conflicts.Conflict, types ...string) float64 {
@@ -549,7 +550,7 @@ func penaltyScore(findings []conflicts.Conflict, types ...string) float64 {
 			penalty += 0.05
 		}
 	}
-	return clamp01(1 - penalty)
+	return zones.ClampUnitInterval(1 - penalty)
 }
 
 func authorityScore(confidence string) float64 {
@@ -592,7 +593,7 @@ func topItemsFor(findings []conflicts.Conflict, limit int, types ...string) []Ca
 			Severity:     finding.Severity,
 			FindingClass: finding.FindingClass,
 			Locations:    append([]string(nil), finding.Locations...),
-			Headline:     headlineForCategory(finding),
+			Headline:     HeadlineForConflict(finding),
 		})
 	}
 	return out
@@ -614,22 +615,12 @@ func sortConflicts(findings []conflicts.Conflict) {
 	})
 }
 
-func headlineForCategory(c conflicts.Conflict) string {
+// HeadlineForConflict returns the compact label shared by audit and conflict views.
+func HeadlineForConflict(c conflicts.Conflict) string {
 	if len(c.Locations) == 0 {
 		return c.Type
 	}
 	return c.Type + " @ " + c.Locations[0]
-}
-
-func clamp01(v float64) float64 {
-	switch {
-	case v < 0:
-		return 0
-	case v > 1:
-		return 1
-	default:
-		return v
-	}
 }
 
 // severityRank orders severities; higher rank = more blocking.

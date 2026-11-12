@@ -9,35 +9,10 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/vrooli/api-core/discovery"
-
-	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 type ScenarioURLResolver interface {
 	ResolveScenarioURLDefault(ctx context.Context, scenarioSlug string) (string, error)
-}
-
-func FileNodeFromProto(n *commonv1.CodeGraphNode, language Language) FileNode {
-	attrs := n.GetAttributes()
-	return FileNode{
-		ID:        n.GetId(),
-		Path:      n.GetPath(),
-		PackageID: attrs["package_id"],
-		Language:  language,
-		Lines:     ParseNonNegativeIntAttr(attrs["lines"]),
-		IsTest:    attrs["is_test"] == "true",
-	}
-}
-
-func ImportEdgeFromProto(e *commonv1.CodeGraphEdge) ImportEdge {
-	attrs := e.GetAttributes()
-	return ImportEdge{
-		From:        e.GetFromNodeId(),
-		ToPackageID: e.GetToNodeId(),
-		SymbolIDs:   SplitCSV(attrs["symbol_ids"]),
-		SymbolKinds: SplitCSV(attrs["symbol_kinds"]),
-		TestOnly:    attrs["test_only"] == "true",
-	}
 }
 
 func ParseNonNegativeIntAttr(s string) int {

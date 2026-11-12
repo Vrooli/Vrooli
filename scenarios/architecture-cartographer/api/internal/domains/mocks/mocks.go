@@ -65,12 +65,8 @@ type FakeService struct {
 
 var _ domains.Service = (*FakeService)(nil)
 
-func (f *FakeService) ExtractDomains(_ context.Context, _ string) (domains.DerivedDomainMap, error) {
-	f.GetCalls.Add(1)
-	if f.Err != nil {
-		return domains.DerivedDomainMap{}, f.Err
-	}
-	return f.Map, nil
+func (f *FakeService) ExtractDomains(ctx context.Context, scenario string) (domains.DerivedDomainMap, error) {
+	return f.GetDomainMap(ctx, scenario)
 }
 
 func (f *FakeService) GetDomainMap(_ context.Context, _ string) (domains.DerivedDomainMap, error) {

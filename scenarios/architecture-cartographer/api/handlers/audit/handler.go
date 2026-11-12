@@ -288,7 +288,7 @@ func reportToProto(r audit.Report, spec *assessment.Spec) *auditv1.AuditRunRespo
 			FindingClass: conflictshandler.FindingClassToProto(c.FindingClass),
 			Locations:    append([]string(nil), c.Locations...),
 			Domains:      append([]string(nil), c.Domains...),
-			Headline:     headlineFor(c),
+			Headline:     audit.HeadlineForConflict(c),
 		})
 	}
 	if maturity, err := buildMaturityAssessment(r, spec); err == nil {
@@ -378,7 +378,7 @@ func buildMaturityAssessment(r audit.Report, spec *assessment.Spec) (*commonv1.M
 		findings = append(findings, assessment.Finding{
 			Code:        architectureFindingCode(c),
 			Severity:    conflictshandler.SeverityToProto(c.Severity).String(),
-			Title:       headlineFor(c),
+			Title:       audit.HeadlineForConflict(c),
 			Location:    strings.Join(c.Locations, ", "),
 			Remediation: "Use Architecture Cartographer campaign guidance to resolve the drift or add a deliberate suppression.",
 			Source:      architecturev1.FindingSource_FINDING_SOURCE_ARCHITECTURE,
@@ -440,11 +440,4 @@ func intMap(in map[string]int) map[string]int32 {
 		out[k] = int32(v)
 	}
 	return out
-}
-
-func headlineFor(c conflicts.Conflict) string {
-	if len(c.Locations) == 0 {
-		return c.Type
-	}
-	return c.Type + " @ " + c.Locations[0]
 }

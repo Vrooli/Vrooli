@@ -94,13 +94,13 @@ func (c Config) Classify(repoPath string, m domains.DerivedDomainMap) Info {
 	declared := domain != ""
 
 	if zone, owner, ok := c.matchDomainPattern(path, Transport, domain); ok {
-		return Info{Path: path, Zone: zone, Domain: firstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
+		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
 	}
 	if zone, owner, ok := c.matchDomainPattern(path, CLI, domain); ok {
-		return Info{Path: path, Zone: zone, Domain: firstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
+		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
 	}
 	if zone, owner, ok := c.matchDomainPattern(path, UI, domain); ok {
-		return Info{Path: path, Zone: zone, Domain: firstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
+		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
 	}
 	if c.isCompositionRoot(path) {
 		return Info{Path: path, Zone: CompositionRoot, Archetype: CompositionRoot, Declared: true}
@@ -109,7 +109,7 @@ func (c Config) Classify(repoPath string, m domains.DerivedDomainMap) Info {
 		return Info{Path: path, Zone: Substrate, Declared: true}
 	}
 	if zone, owner, ok := c.matchDomainPattern(path, Domain, domain); ok {
-		return Info{Path: path, Zone: zone, Domain: firstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
+		return Info{Path: path, Zone: zone, Domain: FirstNonEmpty(domain, owner), Archetype: archetype, Declared: declared}
 	}
 	return Info{Path: path, Zone: Unknown, Domain: domain, Archetype: archetype, Declared: declared}
 }
@@ -412,7 +412,8 @@ func segment(path string) string {
 	return path
 }
 
-func firstNonEmpty(parts ...string) string {
+// FirstNonEmpty returns the first non-blank value after trimming whitespace.
+func FirstNonEmpty(parts ...string) string {
 	for _, part := range parts {
 		if part = strings.TrimSpace(part); part != "" {
 			return part

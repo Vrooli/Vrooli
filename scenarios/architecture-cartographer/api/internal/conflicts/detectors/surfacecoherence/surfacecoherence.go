@@ -85,11 +85,11 @@ func actualSurfaces(in conflicts.DetectInput, zoneConfig zones.Config) map[strin
 	}
 	for _, f := range in.Snapshot.Files {
 		info := zoneConfig.Classify(f.Path, in.DomainMap)
-		add(firstNonEmpty(info.Domain, in.DomainMap.DomainFor(f.Path)), surfaceForZone(info.Zone))
+		add(zones.FirstNonEmpty(info.Domain, in.DomainMap.DomainFor(f.Path)), surfaceForZone(info.Zone))
 	}
 	for _, p := range in.Snapshot.Packages {
 		info := zoneConfig.Classify(p.RepoPath, in.DomainMap)
-		add(firstNonEmpty(info.Domain, in.DomainMap.DomainFor(p.RepoPath)), surfaceForZone(info.Zone))
+		add(zones.FirstNonEmpty(info.Domain, in.DomainMap.DomainFor(p.RepoPath)), surfaceForZone(info.Zone))
 	}
 	return out
 }
@@ -192,15 +192,6 @@ func surfaceForZone(zone string) string {
 	default:
 		return ""
 	}
-}
-
-func firstNonEmpty(parts ...string) string {
-	for _, part := range parts {
-		if part = strings.TrimSpace(part); part != "" {
-			return part
-		}
-	}
-	return ""
 }
 
 var _ conflicts.Detector = (*Detector)(nil)

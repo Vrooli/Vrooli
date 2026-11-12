@@ -190,6 +190,9 @@ func searchModules(logger *log.Logger, clk schedule.Clock, cfg config.Config, re
 		MaxEmbedsPerTick: searchCfg.MaxEmbedsPerTick,
 		EngineDeps:       engineDeps,
 	})
+	for _, generation := range aiService.GenerationCensus() {
+		logger.Printf("[architecture-cartographer] owner vector-generation census: collection=%s generation=%s state=%s pointer_epoch=%d activation_epoch=%d build_job=%s build_state=%s model=%s role=%s dimensions=%d policy_schema=%s recipe=%s recipe_identity=%s durability=%s restart_recovery=%s physical_state=%s", generation.Collection, generation.GenerationID, generation.LifecycleState, generation.PointerEpoch, generation.ActivationEpoch, generation.BuildJobID, generation.BuildJobState, generation.Model, generation.Role, generation.Dimensions, generation.PolicySchemaVersion, generation.RecipeID, generation.RecipeIdentityState, generation.Durability, generation.RestartRecovery, generation.PhysicalState)
+	}
 
 	// EnsureCollection is best-effort: if qdrant is unreachable at boot, the
 	// scenario still serves text-fallback search and a degraded status.

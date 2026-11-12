@@ -34,15 +34,14 @@ func (Detector) Class() conflicts.FindingClass {
 }
 
 func (d Detector) Detect(_ context.Context, in conflicts.DetectInput) ([]conflicts.Conflict, error) {
-	packages := packageIndex(in.Snapshot)
-	files := fileIndex(in.Snapshot)
+	index := graph.IndexSnapshot(in.Snapshot)
 	var out []conflicts.Conflict
 	for _, edge := range in.Snapshot.Imports {
 		if edge.TestOnly {
 			continue
 		}
-		fromPkg := resolvePackage(edge.From, packages, files)
-		toPkg := packages[edge.ToPackageID]
+		fromPkg := index.ResolvePackage(edge.From)
+		toPkg := index.Package(edge.ToPackageID)
 		if fromPkg.ID == "" || toPkg.ID == "" {
 			continue
 		}
@@ -92,32 +91,6 @@ func internalScenarioImport(path string) (scenario string, targetPath string, ok
 		return parts[i+1], strings.Join(parts[i:], "/"), true
 	}
 	return "", "", false
-}
-
-func packageIndex(snap graph.GraphSnapshot) map[string]graph.PackageNode {
-	out := make(map[string]graph.PackageNode, len(snap.Packages))
-	for _, p := range snap.Packages {
-		out[p.ID] = p
-	}
-	return out
-}
-
-func fileIndex(snap graph.GraphSnapshot) map[string]graph.FileNode {
-	out := make(map[string]graph.FileNode, len(snap.Files))
-	for _, f := range snap.Files {
-		out[f.ID] = f
-	}
-	return out
-}
-
-func resolvePackage(id string, packages map[string]graph.PackageNode, files map[string]graph.FileNode) graph.PackageNode {
-	if p, ok := packages[id]; ok {
-		return p
-	}
-	if f, ok := files[id]; ok {
-		return packages[f.PackageID]
-	}
-	return graph.PackageNode{}
 }
 
 func domainList(domain string) []string {

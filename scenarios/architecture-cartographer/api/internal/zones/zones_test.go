@@ -8,6 +8,17 @@ import (
 	"architecture-cartographer/internal/domains"
 )
 
+func TestClampUnitInterval(t *testing.T) {
+	for _, test := range []struct {
+		value float64
+		want  float64
+	}{{-1, 0}, {0, 0}, {0.5, 0.5}, {1, 1}, {2, 1}} {
+		if got := ClampUnitInterval(test.value); got != test.want {
+			t.Errorf("ClampUnitInterval(%v) = %v, want %v", test.value, got, test.want)
+		}
+	}
+}
+
 func TestConfigClassify(t *testing.T) {
 	cfg := defaultConfig()
 	m := domains.DerivedDomainMap{
