@@ -92,6 +92,16 @@ class MissionCheckTest(unittest.TestCase):
         mc.check_readme(rep, tdir / "README.md")
         return rep
 
+    def test_a_mission_over_the_owner_reading_ceiling_is_a_warning_not_an_error(self):
+        self.topic("big", mission(end_state="Everything works end to end at full scale. " * 1200))
+        rep = self.report("big")
+        ceiling = mc.mission_ceiling()
+        self.assertTrue(ceiling and len((self.home / "topics/big/MISSION.md").read_bytes()) > ceiling)
+        self.assertEqual(rep.errors, [])
+        self.assertTrue(any(f"over the {ceiling:,} an owner should read at start" in w for w in rep.warnings))
+        self.topic("small", mission())
+        self.assertFalse(any("owner should read" in w for w in self.report("small").warnings))
+
     def test_waiting_statuses_are_valid_and_do_not_count_as_staffable(self):
         rows = [WORKSTREAM.format(id="A1", hours="40", status="waiting-operator 2026-11-10"),
                 WORKSTREAM.format(id="A2", hours="40", status="waiting-time 2026-11-16"),

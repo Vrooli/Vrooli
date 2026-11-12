@@ -18,13 +18,13 @@ import (
 	"connectrpc.com/connect"
 )
 
-// How the desk reaches a peer, in the words the operator sees (rulings F14).
+// How the desk reaches a peer, in the words the operator sees.
 const (
 	AccessCredential   = "service credential"
 	AccessAvailability = "local availability policy (no desk credential)"
 )
 
-// CallTimeout bounds every call the desk makes to a peer (rulings E5).
+// CallTimeout bounds every call the desk makes to a peer.
 const CallTimeout = 20 * time.Second
 
 // Client is the HTTP client for peer calls.

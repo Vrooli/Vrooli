@@ -22,12 +22,13 @@ import (
 	"research-desk/internal/testutil"
 	"research-desk/internal/writer"
 
+	activityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/activity"
 	sessionsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions"
 	sessionsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/web-console/v1/sessions/sessions_v1connect"
 )
 
 // [REQ:RD-P0-010]
-// F7: only the lifecycle-managed live instance writes. The environment is the
+// Only the lifecycle-managed live instance writes. The environment is the
 // control plane's (a live research-desk process, 2026-11-12); a boot check
 // sets VROOLI_LIFECYCLE_MANAGED but no instance identity, and a shadow variant
 // has its own namespace.
@@ -60,7 +61,7 @@ func TestOnlyTheLiveLifecycleInstanceWrites(t *testing.T) {
 	}
 
 	root := t.TempDir()
-	w := writer.New(root, root+"/state")
+	w := writer.New(root, root+"/state", testutil.EntryChars)
 	w.ReadOnly("boot check")
 	if err := w.Held(); !errors.Is(err, writer.ErrReadOnly) {
 		t.Fatalf("a read-only instance took the lock: %v", err)
@@ -70,7 +71,7 @@ func TestOnlyTheLiveLifecycleInstanceWrites(t *testing.T) {
 	}
 }
 
-// F14, E6: the overview shows how the desk reaches Web Console and that a
+// The overview shows how the desk reaches Web Console and that a
 // refusal turns automatic launch off; a read-only instance says it runs no
 // courier.
 func TestRoutesShowTheWebConsoleAccessAndARefusal(t *testing.T) {
@@ -83,40 +84,40 @@ func TestRoutesShowTheWebConsoleAccessAndARefusal(t *testing.T) {
 	root := t.TempDir()
 	w := &wiring{
 		webConsole: &peer.Peer{Name: "web-console", BaseURL: func(context.Context) (string, error) { return server.URL, nil }, Credential: webConsoleCredential},
-		writer:     writer.New(root, root+"/state"),
+		writer:     writer.New(root, root+"/state", testutil.EntryChars),
 	}
 	w.writer.ReadOnly("boot check")
 	ctx := context.Background()
-	if ok, said := w.webConsoleAccess(ctx); !ok || said != "Web Console access: "+peer.AccessAvailability {
-		t.Fatalf("before any refusal: %v %q", ok, said)
+	if a := w.webConsoleAccess(ctx); !a.Automatic || a.Said != "Web Console access: "+peer.AccessAvailability || a.Kind != activityv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_AVAILABILITY_POLICY {
+		t.Fatalf("before any refusal: %+v", a)
 	}
 	client, base, opt, err := w.webConsole.Dial(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, _ = sessionsconnect.NewSessionsServiceClient(client, base, opt).List(ctx, connect.NewRequest(&sessionsv1.ListRequest{}))
+	if a := w.webConsoleAccess(ctx); a.Automatic || a.Kind != activityv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_AVAILABILITY_POLICY || !strings.Contains(a.Said, "manual launch is the whole flow") || !strings.Contains(a.Said, "missing web-console:write") {
+		t.Fatalf("a refusal turns automatic launch off and says so: %+v", a)
+	}
 	routes := map[string]home.Lens{}
 	for _, l := range w.routes(ctx) {
 		routes[l.Name] = l
 	}
-	if access := routes[webConsoleRoute]; access.Available || !strings.Contains(access.Reason, "manual launch is the whole flow") || !strings.Contains(access.Reason, "missing web-console:write") {
-		t.Fatalf("a refusal turns automatic launch off and says so: %+v", routes)
-	}
 	if c := routes[courierRoute]; c.Available || !strings.Contains(c.Reason, "only reads") {
 		t.Fatalf("a read-only instance runs no courier: %+v", c)
 	}
-	if r := routes["capability registry"]; r.Available || !strings.Contains(r.Reason, "no optional scenario is reached") {
+	if r := routes["capability registry"]; r.Available || !strings.Contains(r.Reason, "no optional scenario is reached") || strings.Contains(r.Reason, "VROOLI_ROOT") || !strings.Contains(r.Command, "VROOLI_ROOT") {
 		t.Fatalf("without service.json the overview says nothing is reached: %+v", routes)
 	}
 }
 
-// E9: the courier runs on a context the server's shutdown cancels; stop
+// The courier runs on a context the server's shutdown cancels; stop
 // ends a pass in progress and releases the write lock for the next instance.
 func TestShutdownStopsTheCourierAndReleasesTheLock(t *testing.T) {
 	h := testutil.NewHome(t)
 	clock := schedule.NewFake(testutil.Base)
 	reader := home.NewReader(home.Config{ResearchDir: h.Research, CodexDir: h.Codex}, home.Deps{Clock: clock, Procs: home.FixedProcs{}})
-	w := &wiring{writer: writer.New(h.Research, h.State)}
+	w := &wiring{writer: writer.New(h.Research, h.State, testutil.EntryChars)}
 	quiet := log.New(io.Discard, "", 0)
 	hub := &blockingHub{entered: make(chan struct{}, 1)}
 	w.courier = &courier.Courier{Reader: reader, Writer: w.writer, Hub: hub, Clock: clock, Logger: quiet}
@@ -139,7 +140,7 @@ func TestShutdownStopsTheCourierAndReleasesTheLock(t *testing.T) {
 	if err := stop(ctx); err != nil {
 		t.Fatalf("stop: %v", err)
 	}
-	next := writer.New(h.Research, h.State)
+	next := writer.New(h.Research, h.State, testutil.EntryChars)
 	defer next.Close()
 	if err := next.Held(); err != nil {
 		t.Fatalf("the next instance cannot take the lock: %v", err)
@@ -169,7 +170,7 @@ func (b *blockingHub) Notices(ctx context.Context) (map[string]courier.Notice, e
 	return nil, b.wait(ctx)
 }
 
-// E9: one version, service.version in .vrooli/service.json.
+// One version, service.version in .vrooli/service.json.
 func TestTheVersionIsServiceJSONs(t *testing.T) {
 	if v := serviceVersion("../.vrooli/service.json"); v == "unknown" || v == "" || v == "1.0.0" {
 		t.Fatalf("version = %q", v)

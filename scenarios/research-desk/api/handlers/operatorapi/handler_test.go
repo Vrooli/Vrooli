@@ -20,8 +20,8 @@ import (
 	"research-desk/internal/testutil"
 	"research-desk/internal/writer"
 
-	activityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/activity"
 	operatorv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/operator"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared"
 )
 
 // Handlers run over the testutil archive of real research-home excerpts. local-models is a real
@@ -51,7 +51,7 @@ func newHandler(t *testing.T) (*handler, string) {
 	}
 	clock := schedule.NewFake(time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC))
 	reader := home.NewReader(home.Config{ResearchDir: research, CodexDir: h.Codex}, home.Deps{Clock: clock, Procs: home.FixedProcs{}})
-	w := writer.New(research, h.State)
+	w := writer.New(research, h.State, testutil.EntryChars)
 	t.Cleanup(func() { w.Close() })
 	c := &courier.Courier{Reader: reader, Writer: w, Clock: clock, Logger: log.New(io.Discard, "", 0)}
 	return NewHandler(Deps{ResearchDir: research, Reader: reader, Writer: w, Courier: c, Clock: clock}), research
@@ -83,7 +83,7 @@ func TestAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	if resp.Msg.Warning == "" {
-		t.Error("the real local-models charter predates steering, so the answer warns it will not be seen")
+		t.Error("the real local-models charter predates steering, so the answer warns it will not be read")
 	}
 	data, _ := os.ReadFile(filepath.Join(research, "cohorts", commission, home.OperatorFile))
 	if !strings.Contains(string(data), "· answer AV4 · via desk\nkeep — Keep it uninstalled\nNote: tell me if AV6 needs it\n") {
@@ -98,6 +98,9 @@ func TestAnswer(t *testing.T) {
 		if it.Id == "AV4" && (it.Answer == nil || it.Delivery != operatorv1.Delivery_DELIVERY_NONE) {
 			t.Errorf("AV4 shows its answer and is no longer sent: %+v", it)
 		}
+	}
+	if max, _ := testutil.EntryChars(); max == 0 || feed.Msg.EntryCharsMax != int32(max) {
+		t.Errorf("the entry limit comes from limits.json: %d, want %d", feed.Msg.EntryCharsMax, max)
 	}
 	if feed.Msg.Courier.HubRead || !strings.Contains(feed.Msg.Courier.HubReason, "no courier switch is on") {
 		t.Errorf("no switch is on, so the Hub is not read: %+v", feed.Msg.Courier)
@@ -177,7 +180,7 @@ func TestFileRoute(t *testing.T) {
 }
 
 // [REQ:RD-P0-008]
-// G7: a review lists the topics REVIEW.md has a section for and its
+// A review lists the topics REVIEW.md has a section for and its
 // proposals; a verdict is appended verbatim to the review's VERDICTS.md and
 // read back; the desk never writes the topic's MISSION.md.
 func TestAReviewListsItsTopicsAndRecordsAVerdictVerbatim(t *testing.T) {
@@ -215,8 +218,11 @@ func TestAReviewListsItsTopicsAndRecordsAVerdictVerbatim(t *testing.T) {
 		t.Fatalf("one review: %+v %v", list, err)
 	}
 	r := list.Msg.Reviews[0]
-	if r.Title.Value != "Books review" || len(r.Topics) != 1 || r.Topics[0] != "niche-book-production" || len(r.Proposals) != 1 {
+	if r.Title.Value != "Books review" || len(r.Topics) != 1 || r.Topics[0] != "niche-book-production" || len(r.Proposals) != 1 || !r.TopicsEvidence.GetKnown() {
 		t.Errorf("title, existing topics only and proposals: %+v", r)
+	}
+	if max, _ := testutil.EntryChars(); list.Msg.EntryCharsMax != int32(max) {
+		t.Errorf("the verdict limit comes from limits.json: %d, want %d", list.Msg.EntryCharsMax, max)
 	}
 	if len(r.Verdicts) != 1 || r.Verdicts[0].Body != words || r.Verdicts[0].Subject != "niche-book-production" {
 		t.Errorf("the verdict reads back verbatim: %+v", r.Verdicts)
@@ -226,7 +232,7 @@ func TestAReviewListsItsTopicsAndRecordsAVerdictVerbatim(t *testing.T) {
 	}
 }
 
-// P5: a dry run returns the exact text a write would append and writes
+// A dry run returns the exact text a write would append and writes
 // nothing; every answer says when the supervisor will read it.
 func TestADryRunShowsTheExactTextAndWhenItIsRead(t *testing.T) {
 	h, research := newHandler(t)
@@ -242,7 +248,7 @@ func TestADryRunShowsTheExactTextAndWhenItIsRead(t *testing.T) {
 	if _, err := os.Stat(operator); !os.IsNotExist(err) {
 		t.Fatalf("a dry run wrote OPERATOR.md: %v", err)
 	}
-	if r := dry.Msg.Reading; r.GetWhen() != activityv1.ReadWhen_READ_WHEN_NOT_UNTIL_STEERING || r.GetMessage() == "" || r.GetReadSince() == nil {
+	if r := dry.Msg.Reading; r.GetWhen() != sharedv1.ReadWhen_READ_WHEN_NOT_UNTIL_STEERING || r.GetMessage() == "" || r.GetReadSince() == nil {
 		t.Fatalf("the pre-steering charter is not read until steering is enabled: %+v", r)
 	}
 	real, err := h.Answer(ctx, connect.NewRequest(&operatorv1.AnswerRequest{CommissionId: commission, ItemId: "AV4", OptionKey: "keep"}))
@@ -266,7 +272,7 @@ func TestADryRunShowsTheExactTextAndWhenItIsRead(t *testing.T) {
 	}
 	// The items appended to STATE.md after the build leave the commission
 	// unknown, so when the entry is read is unknown too, and says so.
-	if r := entry.Msg.Reading; r.GetWhen() != activityv1.ReadWhen_READ_WHEN_UNKNOWN || !strings.Contains(r.GetMessage(), "unknown") {
+	if r := entry.Msg.Reading; r.GetWhen() != sharedv1.ReadWhen_READ_WHEN_UNKNOWN || !strings.Contains(r.GetMessage(), "unknown") {
 		t.Fatalf("with steering, an unknown commission's reading is unknown: %+v", r)
 	}
 
@@ -283,7 +289,7 @@ func TestADryRunShowsTheExactTextAndWhenItIsRead(t *testing.T) {
 	}
 }
 
-// P5 and P6: delivery reasons are codes, and a global item says what it
+// Delivery reasons are codes, and a global item says what it
 // asks and where, instead of being answerable.
 func TestAGlobalItemCarriesItsInstructionAndEveryReasonIsACode(t *testing.T) {
 	h, _ := newHandler(t)
@@ -318,7 +324,7 @@ func TestAGlobalItemCarriesItsInstructionAndEveryReasonIsACode(t *testing.T) {
 	}
 }
 
-// P7: one call records a look at everything.
+// One call records a look at everything.
 func TestCaughtUpMarksEverythingSeen(t *testing.T) {
 	h, _ := newHandler(t)
 	ctx := context.Background()
@@ -336,4 +342,110 @@ func TestCaughtUpMarksEverythingSeen(t *testing.T) {
 	if found, err := h.deps.Writer.ReadState(home.LookName(home.LookTopic, "niche-book-production"), &look); err != nil || !found || !look.At.Equal(resp.Msg.At.AsTime()) {
 		t.Fatalf("the topic's look: %v %v %+v", found, err, look)
 	}
+}
+
+// An older numbered needs-you list is one row of the feed, readable in place,
+// never sent and never answerable. The item count is the items still waiting:
+// an answered item is listed but not counted.
+func TestOlderListsAreFeedRows(t *testing.T) {
+	h, _ := newHandler(t)
+	ctx := context.Background()
+	if _, err := h.Answer(ctx, connect.NewRequest(&operatorv1.AnswerRequest{CommissionId: commission, ItemId: "AV4", OptionKey: "keep"})); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := h.ListNeedsYou(ctx, connect.NewRequest(&operatorv1.ListNeedsYouRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var items, waiting, older int
+	answered := false
+	var hostDisk *operatorv1.NeedsYouItem
+	for _, it := range resp.Msg.Items {
+		switch it.Kind {
+		case operatorv1.NeedsYouKind_NEEDS_YOU_KIND_ITEM:
+			if older > 0 {
+				t.Errorf("items come before older lists: %s after an older list", it.Id)
+			}
+			items++
+			if it.Answer == nil {
+				waiting++
+			} else if it.Id == "AV4" {
+				answered = true
+			}
+		case operatorv1.NeedsYouKind_NEEDS_YOU_KIND_OLDER_LIST:
+			older++
+			if it.Answerable || it.DeliveryReasonCode != operatorv1.DeliveryReason_DELIVERY_REASON_OLDER_LIST || it.Courier.GetAction() != "none" || it.Body == "" || len(it.Sources) != 1 || it.Instruction == "" {
+				t.Errorf("an older list is shown in place, never sent or answered, and says where to act: %+v", it)
+			}
+			if strings.HasPrefix(it.Body, "1. **HOST-DISK") {
+				hostDisk = it
+			}
+		default:
+			t.Errorf("every row has a kind: %+v", it)
+		}
+	}
+	if !answered || waiting == 0 || waiting >= items || int(resp.Msg.ItemCount) != waiting || int(resp.Msg.OlderListCount) != older {
+		t.Errorf("counts: %d items (%d waiting, AV4 answered %v) and %d older lists, response says %d and %d", items, waiting, answered, older, resp.Msg.ItemCount, resp.Msg.OlderListCount)
+	}
+	if hostDisk == nil || hostDisk.CommissionId != "programme-three-20261111" || !strings.Contains(hostDisk.Instruction, "programme-three-20261111") {
+		t.Errorf("programme-three's real numbered list is a row naming its commission: %+v", hostDisk)
+	}
+}
+
+// Enabling steering has the same dry run as the other writes: the exact text
+// and the charter it would be appended to, with nothing written.
+func TestEnableSteeringDryRunShowsTheExactText(t *testing.T) {
+	h, research := newHandler(t)
+	ctx := context.Background()
+	charter := filepath.Join(research, "cohorts", commission, home.CharterFile)
+	before, _ := os.ReadFile(charter)
+	dry, err := h.EnableSteering(ctx, connect.NewRequest(&operatorv1.EnableSteeringRequest{CommissionId: commission, DryRun: true}))
+	if err != nil || dry.Msg.Written || dry.Msg.Path != charter || !strings.Contains(dry.Msg.Text, "## Steering\n\n"+home.SteeringSentence) {
+		t.Fatalf("dry run: %+v %v", dry, err)
+	}
+	if now, _ := os.ReadFile(charter); string(now) != string(before) {
+		t.Fatal("a dry run writes nothing")
+	}
+	real, err := h.EnableSteering(ctx, connect.NewRequest(&operatorv1.EnableSteeringRequest{CommissionId: commission}))
+	if err != nil || !real.Msg.Written || real.Msg.Text != dry.Msg.Text {
+		t.Fatalf("the write appends what the dry run showed: %+v %v", real, err)
+	}
+	if after, _ := os.ReadFile(charter); string(after) != string(before)+dry.Msg.Text {
+		t.Error("the charter gains exactly the shown text")
+	}
+}
+
+// Verdicts written by hand with any RFC 3339 time are listed (the real
+// local-models review has two such); a heading that does not parse is
+// reported with its line.
+func TestHandWrittenVerdictsAreListed(t *testing.T) {
+	h, research := newHandler(t)
+	dir := filepath.Join(research, home.ReviewsDir, "local-models-20261111")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	verdicts := "# Verdicts — local-models-20261111\n\n" +
+		"### 2026-11-12T00:42:22.604567+00:00 · verdict local-model-performance · via hand\nKeep the bench.\n\n" +
+		"### 2026-11-12T01:06:43.347461+00:00 · verdict local-model-performance · via hand\nThen tidy.\n\n" +
+		"### yesterday · verdict local-model-performance · via hand\nLost?\n"
+	if err := os.WriteFile(filepath.Join(dir, home.VerdictsFile), []byte(verdicts), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := h.ListReviews(context.Background(), connect.NewRequest(&operatorv1.ListReviewsRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range resp.Msg.Reviews {
+		if r.Id != "local-models-20261111" {
+			continue
+		}
+		if len(r.Verdicts) != 2 || r.Verdicts[1].Body != "Then tidy." {
+			t.Errorf("both verdicts are listed: %+v", r.Verdicts)
+		}
+		if len(r.UnparsedHeadings) != 1 || r.UnparsedHeadings[0].Line != 9 {
+			t.Errorf("the unreadable heading is reported with its line: %+v", r.UnparsedHeadings)
+		}
+		return
+	}
+	t.Fatal("the review is listed")
 }

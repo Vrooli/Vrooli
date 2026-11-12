@@ -8,8 +8,8 @@ import (
 
 	"research-desk/cli/domains/render"
 
-	activityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/activity"
 	operatorv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/operator"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared"
 )
 
 func needsYouReport(_ cliapp.OperationContext, msg *operatorv1.ListNeedsYouResponse) cliapp.ListReport {
@@ -34,7 +34,7 @@ func needsYouReport(_ cliapp.OperationContext, msg *operatorv1.ListNeedsYouRespo
 	}
 	report := cliapp.ListReport{
 		Summary: []string{
-			fmt.Sprintf("%d item(s) need you; %d legacy section(s) are shown, never sent.", len(msg.Items), len(msg.Legacy)),
+			fmt.Sprintf("%d item(s) wait for an answer (answered items are listed, not counted) and %d older list(s) are shown, never sent.", msg.ItemCount, msg.OlderListCount),
 			fmt.Sprintf("Courier on for: %s; global ATTENTION.md items %s. %s %s", orNone(on), global, hub, writer),
 		},
 		ResultsHeading: "Needs you",
@@ -46,6 +46,10 @@ func needsYouReport(_ cliapp.OperationContext, msg *operatorv1.ListNeedsYouRespo
 		owner := it.CommissionId
 		if owner == "" {
 			owner = "global"
+		}
+		if it.Kind == operatorv1.NeedsYouKind_NEEDS_YOU_KIND_OLDER_LIST {
+			report.Results = append(report.Results, fmt.Sprintf("%s · %s", owner, it.Title), "    "+strings.ReplaceAll(it.Body, "\n", "\n    "), "    "+it.Instruction, "    in: "+strings.Join(it.Sources, ", "))
+			continue
 		}
 		report.Results = append(report.Results, fmt.Sprintf("%s · %s — %s", owner, it.Id, it.Title))
 		if it.Recommended != nil {
@@ -67,7 +71,7 @@ func needsYouReport(_ cliapp.OperationContext, msg *operatorv1.ListNeedsYouRespo
 			}
 		}
 		if it.Answer != nil {
-			report.Results = append(report.Results, "    answered: "+render.Entry(it.Answer)+" · seen: "+render.Flag(it.Seen, "a unit has run since", "no unit has run since"))
+			report.Results = append(report.Results, "    answered: "+render.Entry(it.Answer)+" · read: "+render.Flag(it.Read, "a unit has run since", "no unit has run since"))
 		}
 		step := it.GetCourier()
 		courier := fmt.Sprintf("    courier: %s", step.GetAction())
@@ -81,9 +85,6 @@ func needsYouReport(_ cliapp.OperationContext, msg *operatorv1.ListNeedsYouRespo
 	}
 	for _, o := range c.GetOrphans() {
 		report.Results = append(report.Results, fmt.Sprintf("hub ask %s (%s): %s — %s", o.AskId, o.Key, o.Action, o.Why))
-	}
-	for _, l := range msg.Legacy {
-		report.Results = append(report.Results, "legacy, not sent: "+l.Source)
 	}
 	if len(msg.Unreadable) > 0 {
 		report.Summary = append(report.Summary, fmt.Sprintf("%d file(s) cannot be read: their items and answers are unknown, and the courier sends nothing for them meanwhile.", len(msg.Unreadable)))
@@ -101,7 +102,7 @@ func orNone(list []string) string {
 
 // written reports an append, or with written false the exact text a dry run
 // would append; reading says when the supervisor reads it.
-func written(path string, done bool, text, warning string, reading *activityv1.EntryReading) cliapp.ListReport {
+func written(path string, done bool, text, warning string, reading *sharedv1.EntryReading) cliapp.ListReport {
 	summary := "Written to " + path + "."
 	if !done {
 		summary = "Dry run: nothing written. This text would be appended to " + path + ":"
@@ -150,7 +151,9 @@ func reviewsReport(_ cliapp.OperationContext, msg *operatorv1.ListReviewsRespons
 				report.Results = append(report.Results, fmt.Sprintf("    %s %s · %s", f.GetFile().GetName(), render.When(f.GetFile().GetModified()), f.Url))
 			}
 		}
-		if len(r.Topics) > 0 {
+		if !r.GetTopicsEvidence().GetKnown() {
+			report.Results = append(report.Results, "    topics: "+render.Evidence(r.GetTopicsEvidence()))
+		} else if len(r.Topics) > 0 {
 			report.Results = append(report.Results, "    topics: "+strings.Join(r.Topics, ", "))
 		}
 		report.Results = append(report.Results, fmt.Sprintf("    %d proposal(s), %d verdict(s)", len(r.Proposals), len(r.Verdicts)))

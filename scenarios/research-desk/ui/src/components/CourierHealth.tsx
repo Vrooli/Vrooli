@@ -9,7 +9,7 @@ import { deliveryOn } from "../lib/needsYou";
 /**
  * How the courier is actually doing, in the API's words: its last pass, the
  * last delivery and the last read-back. A courier with every switch off is
- * "off", never a green light (rulings V3).
+ * "off", never a green light.
  */
 export function CourierHealth() {
   const { t } = useTranslation();

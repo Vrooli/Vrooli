@@ -13,7 +13,6 @@ import (
 
 	"research-desk/internal/home"
 	"research-desk/internal/launch"
-	"research-desk/internal/peer"
 	"research-desk/internal/skillscripts"
 	"research-desk/internal/wire"
 
@@ -47,7 +46,7 @@ func (h *handler) fail(op string, err error) error {
 }
 
 func (h *handler) GetLaunchOptions(ctx context.Context, req *connect.Request[launchv1.GetLaunchOptionsRequest]) (*connect.Response[launchv1.GetLaunchOptionsResponse], error) {
-	limits, err := h.deps.Service.Options()
+	limits, err := h.deps.Service.Limits()
 	if err != nil {
 		return nil, h.fail("options", err)
 	}
@@ -63,9 +62,16 @@ func (h *handler) GetLaunchOptions(ctx context.Context, req *connect.Request[lau
 		StanceCharsLimit:        int32(limits.Gates.StanceChars),
 		KernelCharsLimit:        int32(limits.Gates.KernelChars),
 		AutomaticAvailable:      true,
+		PacketLimits: &launchv1.PacketLimits{
+			TopicsMax:             int32(limits.Packet.TopicsMax),
+			AllowanceHoursMin:     int32(limits.Packet.AllowanceHoursMin),
+			AllowanceHoursMax:     int32(limits.Packet.AllowanceHoursMax),
+			AllowanceHoursDefault: int32(limits.Packet.AllowanceHoursDefault),
+			OrderedWorkstreamsMax: int32(limits.Packet.OrderedWorkstreamsMax),
+		},
 	}
 	access, err := h.deps.Automatic(ctx)
-	resp.WebConsoleAccess, resp.WebConsoleAccessKind = access, accessKind(access)
+	resp.WebConsoleAccess, resp.WebConsoleAccessKind = access, wire.AccessKind(access)
 	if err != nil {
 		resp.AutomaticAvailable, resp.AutomaticReason = false, err.Error()+"; launch by hand with the two messages"
 	}
@@ -88,7 +94,7 @@ var resolutionWire = map[launch.Resolution]launchv1.Resolution{
 	launch.RunAlongside: launchv1.Resolution_RESOLUTION_RUN_ALONGSIDE,
 }
 
-// choices reads a request's per-blocker resolutions and P1 assertion.
+// choices reads a request's per-blocker resolutions and its assertion that the packet never started.
 func choices(list []*launchv1.BlockerResolution, assert bool) (launch.Choices, error) {
 	out := launch.Choices{AssertNeverStarted: assert, Resolutions: map[string]launch.Resolution{}}
 	for _, r := range list {
@@ -123,7 +129,10 @@ func (h *handler) Preflight(ctx context.Context, req *connect.Request[launchv1.P
 	if err != nil {
 		return nil, h.fail("preflight", err)
 	}
-	resp := &launchv1.PreflightResponse{Packet: packet(p.Packet), Topics: verdicts(p.Verdicts), Launchable: p.Launchable(), Blockers: p.Blockers}
+	resp := &launchv1.PreflightResponse{Packet: packet(p.Packet), Topics: verdicts(p.Verdicts), Launchable: p.Launchable(), Blockers: p.Blockers, OwnerReading: wire.ReadSets(p.OwnerReading)}
+	if e := p.PacketState; e != nil {
+		resp.PacketState = &launchv1.StateExcerpt{Path: e.Path, Text: e.Text, Truncated: e.Truncated, Reason: e.Reason}
+	}
 	if p.NeverStarted != (home.NeverStarted{}) {
 		resp.NeverStarted = wire.NeverStarted(p.NeverStarted)
 	}
@@ -152,6 +161,9 @@ func (h *handler) Build(ctx context.Context, req *connect.Request[launchv1.Build
 
 func (h *handler) Launch(ctx context.Context, req *connect.Request[launchv1.LaunchRequest]) (*connect.Response[launchv1.LaunchResponse], error) {
 	id := req.Msg.GetCommissionId()
+	if err := wire.ResearchOperation(ctx, "research.launch", id); err != nil {
+		return nil, h.fail("authorize launch", err)
+	}
 	ch, err := choices(req.Msg.GetResolutions(), req.Msg.GetAssertNeverStarted())
 	if err != nil {
 		return nil, h.fail("launch", err)
@@ -188,6 +200,9 @@ var actions = map[launchv1.ControlAction]string{
 }
 
 func (h *handler) Control(ctx context.Context, req *connect.Request[launchv1.ControlRequest]) (*connect.Response[launchv1.ControlResponse], error) {
+	if err := wire.ResearchOperation(ctx, "research.control", req.Msg.GetCommissionId()); err != nil {
+		return nil, h.fail("authorize control", err)
+	}
 	action, ok := actions[req.Msg.GetAction()]
 	if !ok {
 		return nil, h.fail("control", home.Cause(home.ErrInvalid, errors.New("action must be pause, resume, stop, discard or resend-stance")))
@@ -279,7 +294,7 @@ func (h *handler) record(id string, r *home.LaunchRecord, running bool) *launchv
 		out.DiscardedAt, out.DiscardedReason = wire.Timestamp(r.Discarded.At), r.Discarded.Reason
 	}
 	for _, c := range r.Controls {
-		out.Controls = append(out.Controls, &launchv1.ControlRecord{Action: c.Action, At: wire.Timestamp(c.At)})
+		out.Controls = append(out.Controls, &launchv1.ControlRecord{Action: c.Action, At: wire.Timestamp(c.At), Outcome: c.Outcome})
 	}
 	out.Supersedes, out.RunAlongside, out.SupersededBy = r.Supersedes, r.RunAlongside, r.SupersededBy
 	if r.NeverStarted != nil {
@@ -294,15 +309,4 @@ func steps(in []home.LaunchStep) []*launchv1.LaunchStep {
 		out = append(out, &launchv1.LaunchStep{Step: s.Step, At: wire.Timestamp(s.At)})
 	}
 	return out
-}
-
-// accessKind is the access phrase as its enum (rulings F14).
-func accessKind(access string) launchv1.WebConsoleAccess {
-	switch access {
-	case peer.AccessCredential:
-		return launchv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_SERVICE_CREDENTIAL
-	case peer.AccessAvailability:
-		return launchv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_AVAILABILITY_POLICY
-	}
-	return launchv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_UNSPECIFIED
 }

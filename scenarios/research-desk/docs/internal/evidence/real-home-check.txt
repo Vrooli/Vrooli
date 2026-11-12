@@ -1,8 +1,8 @@
-# make real-home-check: the one read-only invariant run over the real research home (rulings E7), 2026-11-12T01:35Z
-# Command: make real-home-check  (go test -tags realhome ./internal/realhome/); skips loudly when the home is absent.
+# make real-home-check: the one read-only invariant run over the real research home, 2026-11-12T01:35Z
+# Command: make real-home-check  (go test -tags realhome ./internal/realhome/); at that time an absent home was a skip, now it fails unless REAL_HOME_CHECK_SKIP=1.
 # Asserts: every commission folder and MISSION.md topic listed, every state in the enum with a rule, every
 # derived field known with a source or unknown with a reason, desk-written files unchanged, and turning every
-# courier switch on sends none of the items already there (F6). Home path shown as ~.
+# courier switch on sends none of the items already there. Home path shown as ~.
 
     realhome_test.go:102: standing-teams-w1-20261110: unknown (packet complete, but not proven unstarted: STATE.md was written at 2026-11-10T03:38:25Z, after the packet was built at 2026-11-10T03:24:41Z)
     realhome_test.go:102: local-models-w1-20261111: unknown (packet complete, but not proven unstarted: STATE.md was written at 2026-11-11T23:06:31Z, after the packet was built at 2026-11-11T21:26:11Z)

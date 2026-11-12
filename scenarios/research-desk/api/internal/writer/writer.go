@@ -1,7 +1,7 @@
 // Package writer is the desk's only way to change a file. Each method names
 // one allow-listed file of FILE-CONTRACT.md §1; there is no general write.
 // Only the lifecycle-managed live instance writes, and only while it holds
-// the lock; every other instance is read-only and says so (rulings A10, F7).
+// the lock; every other instance is read-only and says so.
 package writer
 
 import (
@@ -28,6 +28,8 @@ var ErrReadOnly = home.Cause(home.ErrRefused, errors.New("this research-desk ins
 type Writer struct {
 	researchDir string
 	stateDir    string
+	// entryChars is limits.json's entry_chars_max, read at each write.
+	entryChars func() (int, error)
 	// notWriter is why this instance never writes; empty for the writer.
 	notWriter string
 
@@ -44,8 +46,29 @@ func DefaultStateDir(userHome string) string {
 }
 
 // New returns a Writer. Nothing is touched until the first write.
-func New(researchDir, stateDir string) *Writer {
-	return &Writer{researchDir: researchDir, stateDir: stateDir}
+// entryChars bounds one entry's text (limits.json entry_chars_max).
+func New(researchDir, stateDir string, entryChars func() (int, error)) *Writer {
+	return &Writer{researchDir: researchDir, stateDir: stateDir, entryChars: entryChars}
+}
+
+// EntryChars is the most characters one entry may hold, 0 when limits.json
+// cannot be read (a write then says why).
+func (w *Writer) EntryChars() int {
+	max, err := w.entryChars()
+	if err != nil {
+		return 0
+	}
+	return max
+}
+
+// FitEntry makes text from elsewhere (an answer note typed on the phone) fit
+// an entry; when the limit cannot be read the text is unchanged and the
+// append then says why.
+func (w *Writer) FitEntry(text string) string {
+	if max, err := w.entryChars(); err == nil {
+		return home.FitEntryText(text, max)
+	}
+	return text
 }
 
 // ReadOnly makes this instance a reader for good: it never takes the lock or
@@ -128,7 +151,7 @@ func (w *Writer) AppendOperator(commissionID string, e home.Entry) (string, erro
 }
 
 // RenderOperator returns the exact text AppendOperator would append now, and
-// the file; it writes nothing and needs no writer role (rulings P5).
+// the file; it writes nothing and needs no writer role.
 func (w *Writer) RenderOperator(commissionID string, e home.Entry) (path, text string, err error) {
 	path, title, err := w.operatorFile(commissionID, e)
 	if err != nil {
@@ -161,7 +184,7 @@ func (w *Writer) AppendVerdict(reviewID string, e home.Entry) (string, error) {
 }
 
 // RenderVerdict returns the exact text AppendVerdict would append now, and
-// the file; it writes nothing and needs no writer role (rulings P5).
+// the file; it writes nothing and needs no writer role.
 func (w *Writer) RenderVerdict(reviewID string, e home.Entry) (path, text string, err error) {
 	path, title, err := w.verdictFile(reviewID, e)
 	if err != nil {
@@ -182,28 +205,39 @@ func (w *Writer) verdictFile(reviewID string, e home.Entry) (path, title string,
 	return filepath.Join(dir, home.VerdictsFile), "# Verdicts — " + reviewID, nil
 }
 
-// EnableSteering appends the Steering section to an older charter that does
-// not carry the Steering sentence (rulings B4). It changes nothing when the
-// sentence is already there and reports whether it wrote.
-func (w *Writer) EnableSteering(commissionID string) (string, bool, error) {
+// RenderSteering returns the charter path and the exact text EnableSteering
+// would append to it; the text is empty when the charter already carries the
+// Steering sentence.
+func (w *Writer) RenderSteering(commissionID string) (path, text string, err error) {
 	dir, err := w.folder("cohorts", commissionID)
 	if err != nil {
-		return "", false, err
+		return "", "", err
 	}
-	path := filepath.Join(dir, home.CharterFile)
+	path = filepath.Join(dir, home.CharterFile)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return path, "", fmt.Errorf("read the charter %s: %w", path, err)
+	}
+	if bytes.Contains(data, []byte(home.SteeringSentence)) {
+		return path, "", nil
+	}
+	return path, separator(data) + "## Steering\n\n" + home.SteeringSentence + "\n", nil
+}
+
+// EnableSteering appends the Steering section to an older charter that does
+// not carry the Steering sentence: the text RenderSteering returns, rendered
+// again under the lock. It changes nothing when the sentence is already
+// there.
+func (w *Writer) EnableSteering(commissionID string) (path, text string, err error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	if err := w.held(); err != nil {
-		return path, false, err
+		return "", "", err
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return path, false, fmt.Errorf("read the charter %s: %w", path, err)
+	if path, text, err = w.RenderSteering(commissionID); err != nil || text == "" {
+		return path, "", err
 	}
-	if bytes.Contains(data, []byte(home.SteeringSentence)) {
-		return path, false, nil
-	}
-	return path, true, appendBytes(path, separator(data)+"## Steering\n\n"+home.SteeringSentence+"\n")
+	return path, text, appendBytes(path, text)
 }
 
 // WriteLaunch replaces cohorts/<id>/LAUNCH.json atomically.
@@ -241,6 +275,24 @@ func (w *Writer) WriteState(name string, v any) (string, error) {
 		return path, err
 	}
 	return path, writeJSON(path, v)
+}
+
+// RemoveState removes one JSON file of the desk state folder that a newer
+// file replaced; a missing file is not an error.
+func (w *Writer) RemoveState(name string) error {
+	path, err := w.statePath(name)
+	if err != nil {
+		return err
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if err := w.held(); err != nil {
+		return err
+	}
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return nil
 }
 
 // ReadState decodes one JSON file of the desk state folder; found is false
@@ -317,7 +369,11 @@ func (w *Writer) checkEntry(e home.Entry) error {
 	if body == "" {
 		return fmt.Errorf("%w: an entry needs words", home.ErrInvalid)
 	}
-	if err := home.CheckEntryText(body, w.researchDir); err != nil {
+	max, err := w.entryChars()
+	if err != nil {
+		return fmt.Errorf("%w: the entry limit is unknown: %v", home.ErrUnavailable, err)
+	}
+	if err := home.CheckEntryText(body, w.researchDir, max); err != nil {
 		return fmt.Errorf("%w: %v", home.ErrInvalid, err)
 	}
 	for _, line := range strings.Split(body, "\n") {

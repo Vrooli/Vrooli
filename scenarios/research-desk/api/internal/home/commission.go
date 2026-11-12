@@ -20,7 +20,7 @@ type TopicRef struct {
 
 // RunFolder is one topic's run folder: topics/<t>/runs/<name>. It belongs to
 // the commission whose id is <name> or a prefix of it followed by "-"; the
-// longest such id wins (rulings F3).
+// longest such id wins.
 type RunFolder struct {
 	Topic      string
 	Path       string
@@ -52,7 +52,7 @@ type Commission struct {
 	TopicsEvidence Evidence
 	Runs           []RunFolder
 	PacketComplete bool
-	// notStartedEv is the F8 evidence for a complete packet with no session.
+	// notStartedEv is the never-started evidence for a complete packet with no session.
 	notStartedEv Evidence
 	Packet       *PacketRecord
 	Spec         *PacketSpec
@@ -71,7 +71,7 @@ type Commission struct {
 	// cannot be read; the folder still displays.
 	RecordErrors []string
 	// Unreadable lists the folder, STATE.md, OPERATOR.md, the charter or the
-	// kernel when they exist but cannot be read (rulings E1): what they hold
+	// kernel when they exist but cannot be read: what they hold
 	// is unknown, and the courier sends nothing for this commission meanwhile.
 	Unreadable []Evidence
 
@@ -94,7 +94,7 @@ type Commission struct {
 	StateEvidence   []Evidence
 	Stalled         bool
 	// NeverStarted says, for an unknown commission, whether the operator may
-	// assert it never started (rulings P1); zero for every other state.
+	// assert it never started; zero for every other state.
 	NeverStarted NeverStarted
 }
 
@@ -129,8 +129,8 @@ var (
 	cardHeading   = regexp.MustCompile(`(?m)^### Card `)
 	cardTopicLink = regexp.MustCompile(`topics/(` + NamePattern + `)/`)
 	// charterTopicLink is a charter link that names a topic: to its
-	// MISSION.md, to an older layout's README.md, or to the folder itself
-	// (rulings F12). A deeper path (a run folder, a background file) does not.
+	// MISSION.md, to an older layout's README.md, or to the folder itself.
+	// A deeper path (a run folder, a background file) does not.
 	charterTopicLink = regexp.MustCompile("topics/(" + NamePattern + ")/(?:(MISSION\\.md|README\\.md)|[\\s)`\"'>\\]#,;:.]|$)")
 	kernelHours      = regexp.MustCompile(`(\d+)\s*h(?:ours?)?\s+allowance`)
 )
@@ -196,7 +196,7 @@ func readClaim(dir string) Text {
 // commissionTopics derives topics from, in order of strength, the packet
 // spec, the first topic link in each card, any topic MISSION.md the charter
 // names, and the topics' run folders. The union is returned; each topic keeps
-// its strongest basis. Looser mentions are not evidence (charter I6).
+// its strongest basis. Looser mentions are not evidence.
 func commissionTopics(c *Commission, topicOf func(string) (string, bool)) ([]TopicRef, Evidence) {
 	var refs []TopicRef
 	seen := map[string]bool{}
@@ -340,7 +340,7 @@ func (c *Commission) derive(env deriveEnv) {
 
 // notStarted is the evidence that nothing started a complete packet: no goal
 // in any readable Codex home names its charter, and neither STATE.md nor
-// LEDGER.md was written after the packet was built (rulings F8). Known only
+// LEDGER.md was written after the packet was built. Known only
 // when every home was read.
 func (c *Commission) notStarted(env deriveEnv) Evidence {
 	switch {
@@ -386,7 +386,7 @@ func (c *Commission) goalNaming(env deriveEnv, other OtherGoals) string {
 }
 
 // neverStarted says whether the operator may assert that this unknown
-// commission never started (rulings P1), and why. A session or goal found
+// commission never started, and why. A session or goal found
 // anywhere the desk can read refuses it; homes it cannot read are named.
 func (c *Commission) neverStarted(env deriveEnv) NeverStarted {
 	refuse := func(why string) NeverStarted { return NeverStarted{Reason: why} }
@@ -500,7 +500,7 @@ func (c *Commission) end(now time.Time) Time {
 // writes splits the commission's writes (its folder's files, its run
 // folders and its exact session's transcript) at the interval end: the
 // newest up to the end is activity, the newest after it is "touched after
-// end" (rulings F3).
+// end".
 func (c *Commission) writes(env deriveEnv) (Time, Time) {
 	var cutoff time.Time
 	if c.Ended.Known {
@@ -546,7 +546,7 @@ type deriveEnv struct {
 	// walk finds a folder's newest file, split at a cutoff (walk.go).
 	walk func(dir string, cutoff time.Time) newestWrite
 	// others reads the goals of the Codex homes outside Web Console's
-	// session folder, once per snapshot and only when needed (F8).
+	// session folder, once per snapshot and only when needed.
 	others func() OtherGoals
 }
 

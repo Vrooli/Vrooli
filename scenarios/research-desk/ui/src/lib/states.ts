@@ -18,7 +18,7 @@ export const STATE_META: Record<CommissionState, { label: (typeof strings.state)
 
 /**
  * The states with a supervisor window open, in the order Now shows them.
- * Only live is working: paused and limited are open but idle (rulings F4).
+ * Only live is working: paused and limited are open but idle.
  */
 export const WINDOW_OPEN: CommissionState[] = [CommissionState.LIVE, CommissionState.LIMITED, CommissionState.PAUSED];
 
@@ -26,7 +26,7 @@ export function windowOpen(state: CommissionState): boolean {
   return WINDOW_OPEN.includes(state);
 }
 
-/** A window still open after the allowance it was given has passed: worth saying out loud (rulings F4). */
+/** A window still open after the allowance it was given has passed: worth saying out loud. */
 export function pastAllowance(c: CommissionSummary, now: Date = new Date()): boolean {
   const end = toDate(c.allowanceEnd?.value);
   return windowOpen(c.state) && end !== null && end <= now;
@@ -46,7 +46,7 @@ export const STATE_ORDER: CommissionState[] = [
 /**
  * A packet that can be launched as it is: prepared, or unknown and the desk
  * found no session or goal for it, so the operator may say it never started
- * (rulings P1, V1).
+ *.
  */
 export function launchableAsIs(c: CommissionSummary): boolean {
   return c.state === CommissionState.PREPARED || (c.state === CommissionState.UNKNOWN && c.neverStarted?.assertable === true);

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Give research-desk its own Web Console credential (rulings F14, DECISIONS D20).
+# Give research-desk its own Web Console credential, so automatic launch stops
+# depending on Web Console's local availability policy (docs/DECISIONS.md).
 #
 # The operator runs this; no agent does. It is safe to run again:
 #   1. adds the `research-desk` service-principal profile (resource web-console,

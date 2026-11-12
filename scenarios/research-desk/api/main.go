@@ -29,7 +29,7 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthapi.Module(healthapi.Deps{ResearchHome: w.researchHomeReadable, WebConsoleAccess: w.webConsoleAccess, Service: "research-desk-api", Version: w.version}),
 		capabilitiesapi.Module(w.registry),
-		activityapi.Module(activityapi.Deps{Reader: w.reader, Looks: w.writer, Routes: w.routes, Logger: log.Default()}),
+		activityapi.Module(activityapi.Deps{Reader: w.reader, Looks: w.writer, Routes: w.routes, WebConsoleAccess: w.webConsoleAccess, EntryChars: w.entryChars, Logger: log.Default()}),
 		operatorapi.Module(operatorapi.Deps{ResearchDir: w.homeConfig.ResearchDir, Reader: w.reader, Writer: w.writer, Courier: w.courier, Clock: schedule.System()}),
 		launchapi.Module(launchapi.Deps{ResearchDir: w.homeConfig.ResearchDir, Service: w.launch, Automatic: w.automaticLaunch, Logger: log.Default()}),
 	)
@@ -40,11 +40,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("authentication configuration failed: %v", err)
 	}
-	var sharedAuth *authn.Config
-	if authConfig.Enabled() {
-		sharedAuth = &authConfig
-	}
-	if err := apiserver.Run(apiserver.Config{Handler: srv.Handler(), Authentication: sharedAuth, Cleanup: stop}); err != nil {
+	// Even without external providers, the passive middleware converts the
+	// verified agent provenance and its separate operation proof to the shared
+	// principal contract. Skipping it makes approved agent grants unusable.
+	if err := apiserver.Run(apiserver.Config{Handler: srv.Handler(), Authentication: &authConfig, Cleanup: stop}); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }

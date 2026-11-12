@@ -41,7 +41,7 @@ func Text(t home.Text) *sharedv1.DerivedText {
 
 // Time converts a derived time value; the value is unset when unknown.
 func Time(t home.Time) *sharedv1.DerivedTime {
-	out := &sharedv1.DerivedTime{Evidence: Evidence(t.Evidence)}
+	out := &sharedv1.DerivedTime{Evidence: Evidence(t.Evidence), AtLeast: t.AtLeast}
 	if t.Known {
 		out.Value = Timestamp(t.Value)
 	}
@@ -86,6 +86,16 @@ func Entries(log *home.OperatorLog) []*sharedv1.OperatorEntry {
 	out := make([]*sharedv1.OperatorEntry, 0, len(log.Entries))
 	for i := range log.Entries {
 		out = append(out, Entry(&log.Entries[i]))
+	}
+	return out
+}
+
+// UnparsedHeadings converts the `### ` lines of an operator file that are not
+// entry headings.
+func UnparsedHeadings(list []home.UnparsedHeading) []*sharedv1.UnparsedHeading {
+	out := make([]*sharedv1.UnparsedHeading, 0, len(list))
+	for _, u := range list {
+		out = append(out, &sharedv1.UnparsedHeading{Line: int32(u.Line), Text: u.Text})
 	}
 	return out
 }

@@ -15,3 +15,8 @@ export function dirname(path: string): string {
 export function basename(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
+
+/** A path as the operator reads it: `~research/...` inside the research home, else as it is. */
+export function shownPath(path: string, researchHome: string | undefined): string {
+  return researchHome && path.startsWith(`${researchHome}/`) ? `~research/${path.slice(researchHome.length + 1)}` : path;
+}

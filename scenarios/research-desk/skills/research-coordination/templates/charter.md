@@ -6,7 +6,7 @@ Re-read this charter at every unit start and after every compaction. Records go 
 and current state to `STATE.md` beside it, never here. Each topic's `MISSION.md` holds the
 operator's words, end state, scorecard, workstreams and real boundaries; it wins over this charter.
 {{alongside_line}}{{supersedes_line}}
-## Operator stance (verbatim; carry all of it into every brief)
+## Operator stance ({{stance_label}}; carry all of it into every brief)
 
 {{stance_block}}
 {{emphasis_block}}
@@ -81,7 +81,10 @@ each review; unknown stays unknown. Stop repeated unchanged retries.
 
 ## Cards
 
-A card's `Not this` and `Real boundaries` are its mission's sections.
+A card carries what its mission states (owners get the sections whole). An owner's plan names
+what it starts in the first hour, and it starts before review. Results stay in the card's run
+folder, written by its owner and listed in `STATE.md` by absolute path, unless the card has a
+Return line. When an owner reports an output another card's mission names, tell that owner.
 
 {{cards}}
 ## Scheduler procedure
@@ -91,10 +94,12 @@ domain work and changes no code. `research-coordination` (scheduler) and `adapti
 (owners) win over any other skill's stop or threshold rule.
 
 1. **Start.** Read `{{long_effort}}` §2–§3 and `STATE.md` (create it if missing). Do not write
-   a goal; if you must, copy `KERNEL.txt` verbatim. Record this session's model and reasoning
-   effort in `STATE.md`. If the model is not `{{supervisor_model}}`, record it, write one
-   needs-you item recommending a restart on it, and still start the owners, with `model` set to
-   `{{owner_model}}`; an effort other than `{{supervisor_effort}}` is recorded, not a stop.
+   a goal; if you must, copy `KERNEL.txt` verbatim. Record this session's model and effort
+   in `STATE.md` from its launch command, never from your self-description:
+   `p=$$; until [ ${p:-1} = 1 ] || ps -o args= $p | grep -qE '^\S*codex .*(-m|--model)[ =]'; do p=$(ps -o ppid= $p); done; [ ${p:-1} != 1 ] && ps -o args= $p`
+   No output: record `unknown`, no item. A model there other than `{{supervisor_model}}` gets
+   one needs-you item recommending a restart on it. Start the owners either way, with `model`
+   set to `{{owner_model}}`; an effort other than `{{supervisor_effort}}` is recorded, not a stop.
    Record the commission ID, `started_at` and the allowance end ({{allowance_hours}} hours
    later). Take the footprint baseline (step 8). A mission whose ambition review is pending gets
    one (§2b, fresh, verbatim brief) while owners start; write its verdict and date on the mode

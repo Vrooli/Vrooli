@@ -54,7 +54,7 @@ const maxObjectiveFile = 64 * 1024
 
 // codexIndex caches the parsed goals and prompts of every Codex home, keyed
 // by file path, size and modification time, so a refresh rereads only the
-// files that changed. The cache can be dropped at any time (charter I2).
+// files that changed. The cache can be dropped at any time.
 type codexIndex struct {
 	mu    sync.Mutex
 	files map[string]cachedCodexFile
@@ -143,7 +143,7 @@ func (x *codexIndex) read(ctx context.Context, codexDir string) CodexRecords {
 
 // OtherGoals are the goals of the Codex homes outside Web Console's session
 // folder: the operator's own ~/.codex and Agent Manager's run homes. They are
-// read only to prove that no goal names a prepared packet (rulings F8).
+// read only to prove that no goal names a prepared packet.
 type OtherGoals struct {
 	Goals []Goal
 	// Homes is how many Codex homes were read.
@@ -247,8 +247,7 @@ func readGoals(ctx context.Context, path, sessionID string) ([]Goal, error) {
 
 // resolveObjectiveFile replaces an attachment pointer with the attachment's
 // text when the attachment lies inside the same Codex home. An attachment
-// that exists but cannot be read is an error: the goal's words are unknown
-// (rulings E1).
+// that exists but cannot be read is an error: the goal's words are unknown.
 func resolveObjectiveFile(goal *Goal, codexHome string) error {
 	sub := objectiveAttachment.FindStringSubmatch(strings.TrimSpace(goal.Objective))
 	if sub == nil {

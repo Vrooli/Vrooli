@@ -12,7 +12,7 @@ import (
 )
 
 // [REQ:RD-P0-004]
-// F3: the run folder names and the 1108/1110 sequence of the real home's
+// The run folder names and the 1108/1110 sequence of the real home's
 // freelance-workflow-readiness topic. Programme four of 11-08 ended at its
 // allowance; its delivery-kits run folder (2.8 million files on the real
 // home) was written again during programme four of 11-10.
@@ -73,7 +73,7 @@ func TestRunFoldersBelongToTheirCommissionAndALaterEditIsNotActivity(t *testing.
 		t.Fatalf("the topic's last research write is the newest file in any of its run folders, with its owner: %+v", got)
 	}
 	if got.Note != "written after the commission ended: an owner may still be running" {
-		t.Fatalf("a write after its commission ended says so (rulings P8): %q", got.Note)
+		t.Fatalf("a write after its commission ended says so: %q", got.Note)
 	}
 }
 
@@ -107,7 +107,7 @@ func TestACutWalkSaysAtLeast(t *testing.T) {
 		t.Fatalf("a whole walk: %+v", whole.All)
 	}
 	cut := walkNewest(dir, "", time.Time{}, 4, time.Now().Add(time.Minute))
-	if !cut.All.Known || !strings.HasPrefix(cut.All.Reason, "at least") || !strings.HasSuffix(cut.All.Source, "(walk cut short)") {
+	if !cut.All.Known || !cut.All.AtLeast || !strings.HasPrefix(cut.All.Reason, "at least") || !strings.HasSuffix(cut.All.Source, "(walk cut short)") {
 		t.Fatalf("a cut walk reports at least what it saw and says so: %+v", cut.All)
 	}
 }

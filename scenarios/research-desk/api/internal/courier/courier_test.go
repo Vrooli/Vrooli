@@ -105,7 +105,7 @@ func newRig(t *testing.T, launchedBy string) *rig {
 	state, _ := os.ReadFile(filepath.Join(dir, home.StateFile))
 	clock := schedule.NewFake(time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC))
 	reader := home.NewReader(home.Config{ResearchDir: research, CodexDir: h.Codex}, home.Deps{Clock: clock, Procs: home.FixedProcs{}})
-	w := writer.New(research, h.State)
+	w := writer.New(research, h.State, testutil.EntryChars)
 	t.Cleanup(func() { w.Close() })
 	if launchedBy == "desk" {
 		// The desk launches from templates/charter.md, which carries both
@@ -149,7 +149,7 @@ func (r *rig) pass(t *testing.T) Plan {
 		t.Fatal(err)
 	}
 	// Every step says why as a code a client matches on, never as prose
-	// alone (rulings P5).
+	// alone.
 	for _, s := range plan.Steps {
 		if s.Reason == "" || s.Why == "" {
 			t.Fatalf("a step without its reason code and sentence: %+v", s)
@@ -323,7 +323,7 @@ func TestSwitches(t *testing.T) {
 	}
 }
 
-// F6: turning the courier on never sends an item that was already there.
+// Turning the courier on never sends an item that was already there.
 func TestTurningTheCourierOnNeverSendsTheItemsAlreadyThere(t *testing.T) {
 	r := newRig(t, "")
 	ctx := context.Background()
@@ -360,6 +360,8 @@ func TestAnOlderCharterIsLeftToItsSchedulerForTwoHours(t *testing.T) {
 	if _, err := r.courier.Set(context.Background(), commission, true); err != nil {
 		t.Fatal(err)
 	}
+	// The items appear after the switch was turned on.
+	r.clock.Advance(time.Minute)
 	r.setItems(t, items)
 	plan := r.pass(t)
 	if len(r.hub.raised)+len(r.hub.sent) != 0 {
@@ -409,7 +411,7 @@ func TestKeysReadBackFromQuestions(t *testing.T) {
 	}
 }
 
-// E6, F15: the courier's health is its real state, and it says that an ask
+// The courier's health is its real state, and it says that an ask
 // cannot be withdrawn.
 func TestHealthIsTheLastPassAndSaysAnAskCannotBeWithdrawn(t *testing.T) {
 	if ok, said := (Health{}).Say(); ok || !strings.Contains(said, "no pass yet") {
@@ -426,6 +428,20 @@ func TestHealthIsTheLastPassAndSaysAnAskCannotBeWithdrawn(t *testing.T) {
 	if ok, said := h.Say(); !ok || h.LastDelivery.IsZero() || h.LastReadBack.IsZero() || !strings.Contains(said, Withdraw) {
 		t.Fatalf("after a delivery: %+v %q", h, said)
 	}
+	// A restarted courier remembers nothing it sent, but a delivery recorded
+	// in OPERATOR.md is still a delivery: never "never".
+	at := r.clock.Now().Add(-time.Hour).Truncate(time.Second)
+	if _, err := r.courier.Writer.AppendOperator(commission, home.Entry{At: at, Kind: home.EntryDelivered, Subject: "DISK-HEADROOM", Via: "desk", Body: "hub notice n-1"}); err != nil {
+		t.Fatal(err)
+	}
+	restarted := &Courier{Reader: r.courier.Reader, Writer: r.courier.Writer, Hub: r.hub, Clock: r.clock, Logger: r.courier.Logger}
+	r.pass(t)
+	if _, err := restarted.Pass(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if ok, said := restarted.Health().Say(); !ok || strings.Contains(said, "last delivery never") || restarted.Health().LastDelivery.Before(at) {
+		t.Fatalf("a recorded delivery survives a restart: %q", said)
+	}
 	r.hub.readErr = errors.New("unauthenticated: verified identity required")
 	r.clock.Advance(time.Minute)
 	r.pass(t)
@@ -434,7 +450,7 @@ func TestHealthIsTheLastPassAndSaysAnAskCannotBeWithdrawn(t *testing.T) {
 	}
 }
 
-// F11: an ID the supervisor reuses for a new decision after the earlier one
+// An ID the supervisor reuses for a new decision after the earlier one
 // was answered is shown as reused, never taken as answered or left unsent.
 func TestAReusedIDIsShownNotDelivered(t *testing.T) {
 	r := newRig(t, "desk")
@@ -497,7 +513,7 @@ func lock(t *testing.T, path string) func() {
 }
 
 // [REQ:RD-P0-006]
-// E1: while the courier cannot read a commission's answers it sends,
+// While the courier cannot read a commission's answers it sends,
 // records and forgets nothing for it, and says why; once readable, a Hub
 // answer given meanwhile is recorded once.
 func TestNothingIsDeliveredWhileAnswersCannotBeRead(t *testing.T) {
@@ -506,7 +522,7 @@ func TestNothingIsDeliveredWhileAnswersCannotBeRead(t *testing.T) {
 	if len(r.hub.raised) != 1 {
 		t.Fatalf("AV4 is asked first: %+v", r.hub.raised)
 	}
-	seenBefore, _ := os.ReadFile(filepath.Join(r.courier.Writer.StateDir(), SeenFile))
+	sightedBefore, _ := os.ReadFile(filepath.Join(r.courier.Writer.StateDir(), SightingsFile))
 	operator := filepath.Join(r.research, "cohorts", commission, home.OperatorFile)
 	if err := os.WriteFile(operator, []byte("# Operator — "+commission+"\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -531,8 +547,8 @@ func TestNothingIsDeliveredWhileAnswersCannotBeRead(t *testing.T) {
 	if _, err := r.courier.Set(context.Background(), commission, true); !errors.Is(err, home.ErrRefused) {
 		t.Errorf("turning the switch on needs the items readable: %v", err)
 	}
-	if after, _ := os.ReadFile(filepath.Join(r.courier.Writer.StateDir(), SeenFile)); string(after) != string(seenBefore) {
-		t.Errorf("first sights are kept, not forgotten:\nbefore %s\nafter  %s", seenBefore, after)
+	if after, _ := os.ReadFile(filepath.Join(r.courier.Writer.StateDir(), SightingsFile)); string(after) != string(sightedBefore) {
+		t.Errorf("first sightings are kept, not forgotten:\nbefore %s\nafter  %s", sightedBefore, after)
 	}
 
 	unlock()
@@ -544,7 +560,7 @@ func TestNothingIsDeliveredWhileAnswersCannotBeRead(t *testing.T) {
 	}
 }
 
-// E1: an unreadable STATE.md hides its items; they are not taken as gone,
+// An unreadable STATE.md hides its items; they are not taken as gone,
 // so the two-hour wait for an older charter's scheduler runs from when the
 // item first appeared, not from when STATE.md could be read again.
 func TestAnUnreadableStateIsNotTakenAsNoItems(t *testing.T) {
@@ -552,6 +568,7 @@ func TestAnUnreadableStateIsNotTakenAsNoItems(t *testing.T) {
 	if _, err := r.courier.Set(context.Background(), commission, true); err != nil {
 		t.Fatal(err)
 	}
+	r.clock.Advance(time.Minute)
 	r.setItems(t, items+"\n### AV9 — a new item\nRecommended: go — Go.\nOptions: go — Go; wait — Wait.\n")
 	r.pass(t)
 	unlock := lock(t, filepath.Join(r.research, "cohorts", commission, home.StateFile))
@@ -565,5 +582,86 @@ func TestAnUnreadableStateIsNotTakenAsNoItems(t *testing.T) {
 	// The older charter does not read OPERATOR.md, so AV9 goes as a notice.
 	if len(r.hub.raised) != 0 || len(r.hub.sent) != 1 || r.hub.sent[0].Key != NoticePrefix+commission+"/AV9" {
 		t.Fatalf("AV9 is sent once its scheduler's two hours from first sight are over; AV4 and AV5 were there when the switch was turned on: %+v %+v", r.hub.raised, r.hub.sent)
+	}
+}
+
+// A record of the earlier form (each switch's list of the items present when
+// it was turned on, first sightings and first holds in two more files) is read
+// once and replaced: the listed items stay unsent, a later item keeps its
+// first sighting and its two-hour wait, and the earlier files are gone.
+func TestTheEarlierRecordIsHonouredAndReplaced(t *testing.T) {
+	r := newRig(t, "")
+	state := r.courier.Writer.StateDir()
+	on := r.clock.Now().Add(-time.Hour)
+	held := r.clock.Now().Add(-30 * time.Minute)
+	files := map[string]string{
+		SwitchFile:       `{"global":{"on":false,"at":"0001-01-01T00:00:00Z","baseline":null},"commissions":{"` + commission + `":{"on":true,"at":"` + stamp(on) + `","baseline":["` + commission + `/AV4","` + commission + `/AV5"]}}}`,
+		oldSightingsFile: `{"` + commission + `/AV4":"0001-01-01T00:00:00Z","` + commission + `/AV9":"` + stamp(held) + `"}`,
+		oldHoldsFile:     `{"` + commission + `/AV9":"` + stamp(held) + `"}`,
+	}
+	if err := os.MkdirAll(state, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, text := range files {
+		if err := os.WriteFile(filepath.Join(state, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	r.setItems(t, items+"\n### AV9 — A question that came after the switch\nRecommended: go — Go ahead.\n")
+
+	plan := r.pass(t)
+	for _, s := range plan.Steps {
+		if s.Item == nil || s.Item.CommissionID != commission {
+			continue
+		}
+		want := home.ReasonBaseline
+		if s.Item.Item.ID == "AV9" {
+			want = home.ReasonSchedulerGrace
+		}
+		if s.Reason != want {
+			t.Errorf("%s: %s %q, want %s", s.Item.Item.ID, s.Reason, s.Why, want)
+		}
+	}
+	for _, name := range []string{oldSightingsFile, oldHoldsFile} {
+		if _, err := os.Stat(filepath.Join(state, name)); !errors.Is(err, os.ErrNotExist) {
+			t.Errorf("%s is replaced by %s: %v", name, SightingsFile, err)
+		}
+	}
+	if data, _ := os.ReadFile(filepath.Join(state, SwitchFile)); strings.Contains(string(data), "baseline") {
+		t.Errorf("the switches are written again without their item lists: %s", data)
+	}
+	sightings, err := r.courier.sightings()
+	if err != nil || !sightings.First[commission+"/AV9"].Equal(held) || !sightings.First[commission+"/AV5"].IsZero() {
+		t.Fatalf("first sightings: %+v %v", sightings.First, err)
+	}
+
+	r.clock.Advance(SchedulerGrace - 30*time.Minute)
+	r.pass(t)
+	if len(r.hub.raised) != 0 || len(r.hub.sent) != 1 || r.hub.sent[0].Key != NoticePrefix+commission+"/AV9" {
+		t.Fatalf("only AV9 is sent, two hours after its first sighting: %+v %+v", r.hub.raised, r.hub.sent)
+	}
+}
+
+// An item waits on the operator until it has its own answer or its Hub ask is
+// answered; an expired ask still waits, to be answered in the desk.
+func TestAnItemWaitsUntilAnswered(t *testing.T) {
+	answer := &home.Entry{Kind: home.EntryAnswer, Subject: "X"}
+	cases := []struct {
+		name string
+		step Step
+		want bool
+	}{
+		{"no answer, no ask", Step{Item: &home.FeedItem{}}, true},
+		{"answered in OPERATOR.md", Step{Item: &home.FeedItem{Answer: answer}}, false},
+		{"answered in the Hub", Step{Item: &home.FeedItem{}, Ask: &Ask{State: "answered"}}, false},
+		{"ask pending", Step{Item: &home.FeedItem{}, Ask: &Ask{State: "pending"}}, true},
+		{"ask expired", Step{Item: &home.FeedItem{}, Ask: &Ask{State: "expired"}}, true},
+		{"the answer belongs to an earlier item", Step{Item: &home.FeedItem{Answer: answer}, Reused: true}, true},
+		{"an orphaned ask", Step{Ask: &Ask{State: "pending"}}, false},
+	}
+	for _, tc := range cases {
+		if got := tc.step.Waiting(); got != tc.want {
+			t.Errorf("%s: waiting = %v", tc.name, got)
+		}
 	}
 }

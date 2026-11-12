@@ -18,6 +18,7 @@ import (
 	"research-desk/internal/writer"
 
 	activityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/activity"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -32,9 +33,9 @@ func newHandler(t *testing.T) (*handler, string, *schedule.Fake) {
 	research := h.Research
 	clock := schedule.NewFake(time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC))
 	reader := home.NewReader(home.Config{ResearchDir: research, CodexDir: h.Codex}, home.Deps{Clock: clock, Procs: home.FixedProcs{}})
-	w := writer.New(research, h.State)
+	w := writer.New(research, h.State, testutil.EntryChars)
 	t.Cleanup(func() { w.Close() })
-	return NewHandler(Deps{Reader: reader, Looks: w, Logger: log.New(io.Discard, "", 0)}), research, clock
+	return NewHandler(Deps{Reader: reader, Looks: w, EntryChars: testutil.EntryChars, Logger: log.New(io.Discard, "", 0)}), research, clock
 }
 
 // [REQ:RD-P0-013]
@@ -44,7 +45,7 @@ func TestChangesSinceTheRecordedLook(t *testing.T) {
 	req := &activityv1.GetChangesRequest{Subject: activityv1.ChangeSubject_CHANGE_SUBJECT_COMMISSION, Id: commission}
 	first, err := h.GetChanges(ctx, connect.NewRequest(req))
 	if err != nil || !first.Msg.Since.AsTime().Equal(clock.Now().Add(-24*time.Hour)) || first.Msg.BaselineKind != activityv1.Baseline_BASELINE_LAST_DAY || !strings.HasPrefix(first.Msg.Baseline, "no look recorded; the last 24 hours") {
-		t.Fatalf("with no look recorded the changes are the last 24 hours' and say so (rulings P7): %+v %v", first, err)
+		t.Fatalf("with no look recorded the changes are the last 24 hours' and say so: %+v %v", first, err)
 	}
 	// The look OperatorService.MarkSeen records.
 	snap, err := h.deps.Reader.Snapshot(ctx, home.Options{MissionCheck: true})
@@ -78,7 +79,7 @@ func TestChangesSinceTheRecordedLook(t *testing.T) {
 		t.Fatalf("changes since the recorded look: %+v", second.Msg)
 	}
 
-	// F10: --since compares with a time instead.
+	// --since compares with a time instead.
 	since := &activityv1.GetChangesRequest{Subject: req.Subject, Id: commission, Since: timestamppb.New(time.Now().Add(30 * time.Minute))}
 	third, err := h.GetChanges(ctx, connect.NewRequest(since))
 	if err != nil || len(third.Msg.Files) != 1 || third.Msg.Files[0].Path != ledger || len(third.Msg.Ledger) != 0 || !third.Msg.Since.AsTime().Equal(since.Since.AsTime()) {
@@ -104,12 +105,15 @@ func TestCommissionShowsSteeringAndEntries(t *testing.T) {
 	if m.Steering.Value || !m.Steering.Evidence.Known {
 		t.Errorf("the real local-models charter has no Steering sentence, and that is known from the charter: %+v", m.Steering)
 	}
-	if len(m.OperatorEntries) != 1 || m.OperatorEntries[0].Via != "hand" || m.OperatorUnparsed != 1 {
-		t.Errorf("entries written by hand are read: %+v unparsed=%d", m.OperatorEntries, m.OperatorUnparsed)
+	if len(m.OperatorEntries) != 1 || m.OperatorEntries[0].Via != "hand" || len(m.OperatorUnparsedHeadings) != 1 || m.OperatorUnparsedHeadings[0].Line == 0 || m.OperatorUnparsedHeadings[0].Text == "" {
+		t.Errorf("entries written by hand are read, and a heading that is not one is reported with its line: %+v unparsed=%+v", m.OperatorEntries, m.OperatorUnparsedHeadings)
+	}
+	if max, _ := testutil.EntryChars(); max == 0 || m.EntryCharsMax != int32(max) {
+		t.Errorf("the entry limit comes from limits.json: %d, want %d", m.EntryCharsMax, max)
 	}
 }
 
-// F14, E6: the overview shows the desk's own routes beside the lenses it read.
+// The overview shows the desk's own routes beside the lenses it read.
 func TestOverviewShowsTheDesksRoutes(t *testing.T) {
 	h, _, _ := newHandler(t)
 	h.deps.Routes = func(context.Context) []home.Lens {
@@ -125,7 +129,7 @@ func TestOverviewShowsTheDesksRoutes(t *testing.T) {
 	}
 }
 
-// P1, P5, P8 on the wire: an unknown commission says whether the operator
+// An unknown commission says whether the operator
 // may assert it never started; every commission says when an entry is read;
 // topics carry their last research write apart from mission edits.
 func TestTheWireCarriesAssertionReadingAndResearchWrites(t *testing.T) {
@@ -142,7 +146,7 @@ func TestTheWireCarriesAssertionReadingAndResearchWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, c := range list.Msg.Commissions {
-		if c.EntryReading.GetWhen() == activityv1.ReadWhen_READ_WHEN_UNSPECIFIED || c.EntryReading.GetMessage() == "" {
+		if c.EntryReading.GetWhen() == sharedv1.ReadWhen_READ_WHEN_UNSPECIFIED || c.EntryReading.GetMessage() == "" {
 			t.Errorf("%s: no entry reading", c.Id)
 		}
 		if c.Id == commission && (c.State != activityv1.CommissionState_COMMISSION_STATE_UNKNOWN || !c.NeverStarted.GetAssertable() || !strings.HasPrefix(c.NeverStarted.GetReason(), "no session or goal names this charter")) {

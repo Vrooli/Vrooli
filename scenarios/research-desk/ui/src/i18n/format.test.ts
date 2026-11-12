@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { i18n } from "./index";
 import { strings } from "../consts/strings";
+import { needsYouCount } from "../lib/needsYou";
 import {
   formatCurrency,
   formatDate,
@@ -22,6 +23,17 @@ describe("locale-aware Intl formatters", () => {
     expect(i18n.t(strings.now.needsYou, { count: 0 })).toBe("Nothing needs you");
     expect(i18n.t(strings.now.needsYou, { count: 1 })).toBe("1 needs you");
     expect(i18n.t(strings.now.needsYou, { count: 3 })).toBe("3 need you");
+  });
+
+  it("words the API's counts of waiting items and older lists apart once an older list waits", async () => {
+    await i18n.changeLanguage("en");
+    const rows = (itemCount: number, olderListCount: number) => ({ itemCount, olderListCount });
+    const t = i18n.t.bind(i18n);
+    expect(needsYouCount(t, rows(7, 0))).toBe("7 need you");
+    expect(needsYouCount(t, rows(7, 4))).toBe("7 items and 4 older lists need you");
+    expect(needsYouCount(t, rows(1, 1))).toBe("1 item and 1 older list need you");
+    expect(needsYouCount(t, rows(0, 2))).toBe("2 older lists need you");
+    expect(needsYouCount(t, rows(0, 1))).toBe("1 older list needs you");
   });
 
   it("returns a missing key rather than silently rendering an empty label", async () => {

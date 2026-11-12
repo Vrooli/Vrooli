@@ -25,7 +25,7 @@ func (s State) Running() bool {
 }
 
 // stateInput is everything the state rules read.
-// StallAfter flags a live commission with no write for this long (D16). It
+// StallAfter flags a live commission with no write for this long. It
 // is fixed, not a setting.
 const StallAfter = 70 * time.Minute
 
@@ -43,10 +43,14 @@ type stateInput struct {
 	ProcsReason    string
 	WindowOpen     bool
 	AllowanceEnd   Time
-	// NotStarted is the evidence that nothing started a complete packet
-	// (rulings F8); read only for a packet with no session and no launch.
+	// NotStarted is the evidence that nothing started a complete packet;
+	// read only for a packet with no session and no launch.
 	NotStarted Evidence
 }
+
+// StoppedOrEnded opens the rule of a commission with no window open and no
+// known allowance: whether it stopped early or ran its course cannot be told.
+const StoppedOrEnded = "stopped or ended (allowance unknown)"
 
 // notStartedRule opens the rule of a complete packet whose absence of a
 // start cannot be proven.
@@ -78,11 +82,11 @@ func deriveState(in stateInput) (State, string) {
 		return StateUnknown, in.ProcsReason
 	case !in.WindowOpen:
 		if !in.AllowanceEnd.Known {
-			return StateStopped, "no supervisor window is open; allowance end unknown"
+			return StateStopped, StoppedOrEnded + ": no supervisor window is open"
 		}
 		return StateStopped, "no supervisor window is open; goal not complete; allowance not ended"
 	}
-	// A window open past the allowance says so (rulings F4).
+	// A window open past the allowance says so.
 	past := ""
 	if in.AllowanceEnd.Known && in.Now.After(in.AllowanceEnd.Value) {
 		past = "; allowance ended " + in.AllowanceEnd.Value.UTC().Format("2006-01-02 15:04Z")
@@ -101,8 +105,7 @@ func deriveState(in stateInput) (State, string) {
 	}
 }
 
-// ReadWhen is when the supervisor will read a new OPERATOR.md entry
-// (rulings P5).
+// ReadWhen is when the supervisor will read a new OPERATOR.md entry.
 type ReadWhen string
 
 // When a new entry is read.

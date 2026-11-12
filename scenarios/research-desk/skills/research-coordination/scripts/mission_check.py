@@ -44,6 +44,7 @@ SHRINKING = (
     "if justified",
 )
 MIN_WORKSTREAM_HOURS = 20
+LIMITS = Path(__file__).resolve().parent.parent / "templates" / "limits.json"
 RECEIPT_HEADING = re.compile(
     r"^#{2,3} .*(cohort update|hourly|delta screen|probe|datapoint|\b20\d\d-\d\d-\d\d\b)",
     re.IGNORECASE,
@@ -194,7 +195,19 @@ def check_mission(topic: str, path: Path) -> TopicReport:
     traps = [l for l in sections.get("Not this", "").splitlines() if l.strip().startswith("- ")]
     if sections.get("Not this") and len(traps) < 2:
         rep.warnings.append("Not this names fewer than two traps")
+    size, ceiling = len(text.encode("utf-8")), mission_ceiling()
+    if ceiling and size > ceiling:
+        rep.warnings.append(f"MISSION.md is {size:,} bytes, over the {ceiling:,} an owner should read at start; "
+                            "the next architect pass tidies it: receipts and evidence go to the topic LEDGER.md, operator words stay")
     return rep
+
+
+def mission_ceiling() -> int | None:
+    """templates/limits.json ceilings.mission_bytes; None when the file is absent (the script runs alone)."""
+    try:
+        return json.loads(LIMITS.read_text(encoding="utf-8"))["ceilings"]["mission_bytes"]
+    except (OSError, ValueError, KeyError):
+        return None
 
 
 def check_readme(rep: TopicReport, readme: Path) -> None:

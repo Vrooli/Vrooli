@@ -32,7 +32,7 @@ help: ## Show the supported scenario entrypoints
 	@printf "  make status                     Show scenario runtime status\n"
 	@printf "  make logs                       Show scenario logs\n"
 	@printf "  make test                       Run scenario tests\n"
-	@printf "  make real-home-check            Check invariants read-only over the real research home\n"
+	@printf "  make real-home-check            Check the real research home read-only (fails when absent)\n"
 	@printf "  make open                       Open the scenario in a browser\n"
 	@printf "  make endpoints                  Regenerate .vrooli/endpoints.json from API modules\n"
 	@printf "  make run                        Alias for make start\n"
@@ -71,8 +71,9 @@ check: fmt lint test ## Run full quality gates
 setup: ## Run scenario setup lifecycle
 	@vrooli scenario setup "$(SCENARIO_NAME)"
 
-real-home-check: ## Check invariants read-only over the real research home; skips loudly when absent (rulings E7)
-	@cd api && go test -tags realhome -count=1 -v ./internal/realhome/
+real-home-check: ## Check invariants read-only over the real research home; an absent home fails unless REAL_HOME_CHECK_SKIP=1
+	@if [ -n "$(REAL_HOME_CHECK_SKIP)" ]; then printf '\n*** real-home-check: REAL_HOME_CHECK_SKIP is set; an absent research home is SKIPPED, NOT CHECKED ***\n\n'; fi
+	@cd api && REAL_HOME_CHECK_SKIP="$(REAL_HOME_CHECK_SKIP)" go test -tags realhome -count=1 -v ./internal/realhome/
 
 open: ## Open the scenario in a browser
 	@vrooli scenario open "$(SCENARIO_NAME)"

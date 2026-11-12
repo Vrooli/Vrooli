@@ -61,7 +61,7 @@ func TestLoggingMiddleware_NilLoggerDefaults(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 }
 
-// E9: health probes are served but not logged.
+// Health probes are served but not logged.
 func TestLoggingMiddleware_SkipsHealthProbes(t *testing.T) {
 	buf := &bytes.Buffer{}
 	mw := middleware.NewLoggingMiddleware(scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)), log.New(buf, "", 0))

@@ -71,6 +71,9 @@
     "needsYou": "{{count}} need you",
     "needsYou_one": "1 needs you",
     "needsYou_zero": "Nothing needs you",
+    "needsYouWithOlder": "{{items}} and {{lists}} need you",
+    "olderListsNeedYou": "{{count}} older lists need you",
+    "olderListsNeedYou_one": "1 older list needs you",
     "nothingNeedsYou": "No supervisor is waiting on you.",
     "openFeed": "Open the feed",
     "overlaps": "{{count}} pairs of open commissions overlap",
@@ -171,6 +174,7 @@
     "statusLine": "{{topic}} {{workstream}}: {{before}} → {{after}}",
     "showcase": "Showcase lines",
     "ledger": "New in the ledger",
+    "fromDatedHeadings": "The sections under headings dated after this time.",
     "truncatedText": "Shortened; open the file for the rest.",
     "checkpoints": "Checkpoints rewritten",
     "files": "{{count}} files changed",
@@ -198,7 +202,7 @@
     "review": "Review and add",
     "confirmTitle": "Add this direction?",
     "confirmWindDownTitle": "Ask the supervisor to wind down?",
-    "confirmDescription": "This entry is appended to the commission's operator file. It is read at the next unit; nothing is typed into the session.",
+    "confirmDescription": "This entry is appended to the commission's operator file; nothing is typed into the session. Below: the exact entry and when the supervisor reads it.",
     "confirm": "Add entry",
     "appendsTo": "Appended to {{path}}",
     "writtenWithWarning": "Written, with a warning",
@@ -208,14 +212,13 @@
     "enableSteering": "Enable steering",
     "enableSteeringTitle": "Enable steering for this charter?",
     "enableSteeringDescription": "Adds one Steering section to the charter README.md so the supervisor reads OPERATOR.md at each unit. Nothing else in the charter changes.",
+    "steeringPresent": "The charter already has the steering line; nothing would be written.",
     "ended": "This commission has ended; its supervisor reads nothing more.",
     "entries": "Operator file",
     "noEntries": "No entries yet.",
-    "unparsed": "{{count}} headings in OPERATOR.md do not follow the entry format and are not shown",
-    "unparsed_one": "1 heading in OPERATOR.md does not follow the entry format and is not shown",
     "via": "via {{via}}",
-    "seen": "a unit has run since",
-    "notSeen": "not read yet"
+    "read": "a unit has run since",
+    "notRead": "not read yet"
   },
   "control": {
     "title": "Controls",
@@ -247,7 +250,7 @@
     "goalStatus": "goal now {{status}}",
     "refusedTitle": "{{action}} was not typed",
     "byHand": "To do it by hand, type this in session {{session}}",
-    "windDownAlways": "Winding down through the operator file always works: the supervisor reads it at its next unit, whatever its window shows.",
+    "windDownAlways": "Winding down through the operator file needs nothing from the supervisor's window: it is read with the next entry the supervisor reads.",
     "windDownInstead": "Wind down instead"
   },
   "courier": {
@@ -286,15 +289,15 @@
   },
   "needsYou": {
     "title": "Needs you",
-    "description": "Everything a supervisor is waiting on. Your answer goes to the commission's OPERATOR.md and is read at its next unit.",
+    "description": "Everything a supervisor is waiting on. Your answer goes to the commission's OPERATOR.md; the confirmation says when its supervisor reads it.",
     "emptyTitle": "Nothing needs you",
     "empty": "No supervisor is waiting on a decision.",
     "global": "global (ATTENTION.md)",
     "recommended": "Recommended:",
     "packet": "Details:",
     "yourAnswer": "Your answer",
-    "seen": "A unit has run since you answered.",
-    "notSeen": "Not read by the supervisor yet.",
+    "read": "A unit has run since you answered.",
+    "notRead": "Not read by the supervisor yet.",
     "secretTitle": "This needs a secret",
     "secret": "Put it here, not in the desk: {{where}}",
     "deliveredByScheduler": "Delivered by its supervisor: {{line}}",
@@ -308,15 +311,17 @@
     "ownWordsRequired": "Write your answer first.",
     "noteLabel": "Add a note (optional)",
     "confirmTitle": "Answer {{id}}?",
-    "confirmDescription": "Appended to the commission's OPERATOR.md; the supervisor reads it at its next unit. Nothing is typed into its chat.",
+    "confirmDescription": "Appended to the commission's OPERATOR.md. Nothing is typed into its chat. Below: the exact entry and when it is read.",
     "confirm": "Send answer",
     "appendsTo": "Appended to OPERATOR.md of {{id}}",
     "answered": "{{count}} answered",
     "sources": "{{count}} files hold this item",
     "sources_one": "1 file holds this item",
-    "legacy": "{{count}} older-format lists",
-    "legacy_one": "1 older-format list",
-    "legacyNote": "Needs-you sections written before the item format. Shown as written; answer them where they say.",
+    "itemCount": "{{count}} items",
+    "itemCount_one": "1 item",
+    "olderCount": "{{count}} older lists",
+    "olderCount_one": "1 older list",
+    "olderBadge": "never sent",
     "orphans": "{{count}} open asks with no item",
     "orphans_one": "1 open ask with no item",
     "orphansNote": "The item left its file, but the desk cannot withdraw an ask; it stays open until its deadline and an answer to it is ignored.",
@@ -410,7 +415,12 @@
     "readFirstOn": "Have the {{topic}} owner read its newest checkpoint first",
     "nothingToDo": "{{count}} earlier commissions need nothing",
     "nothingToDo_one": "1 earlier commission needs nothing",
-    "recommendedBecause": "Recommended: {{reason}}."
+    "recommendedBecause": "Recommended: {{reason}}.",
+    "packetState": "What its STATE.md says",
+    "packetStateNote": "The start of the packet's own STATE.md, as written, so advice there is seen before launching. It never blocks.",
+    "packetStateTruncated": "The first lines only; the rest is in the file.",
+    "ownerReading": "What each owner reads to start",
+    "ownerReadingNote": "Measured, never blocking. A flag says what to do about it."
   },
   "launch": {
     "title": "Launch",
@@ -445,7 +455,7 @@
     "addQuote": "Add a quote",
     "stepRun": "4. Allowance and models",
     "allowance": "Allowance in hours",
-    "allowanceHint": "From 1 to 72. The supervisor winds down when it runs out.",
+    "allowanceHint": "From {{min}} to {{max}}. The supervisor winds down when it runs out.",
     "supervisorModel": "Supervisor model",
     "supervisorEffort": "Supervisor effort",
     "ownerTier": "Owner model",
@@ -462,7 +472,7 @@
     "stepCheckNote": "Rebuilt in memory as you change anything above. Nothing is written until you launch.",
     "needTopics": "Choose at least one topic.",
     "needQuotes": "Write at least one stance quote.",
-    "needAllowance": "Set an allowance from 1 to 72 hours.",
+    "needAllowance": "Set an allowance from {{min}} to {{max}} hours.",
     "checkFailed": "The check could not run",
     "checking": "Checking…",
     "messages": "The two messages",
@@ -492,7 +502,8 @@
     "willSupersede": "Supersedes {{id}}: it is stopped as part of this launch.",
     "willRunAlongside": "Runs alongside {{id}}.",
     "showAllTopics": "Show all {{count}} topics",
-    "quotesFrom": "Suggested from"
+    "quotesFrom": "Suggested from",
+    "limitsUnknown": "The packet limits could not be read, so a launch cannot be prepared here."
   },
   "launchStatus": {
     "back": "Launch",
@@ -545,9 +556,11 @@
     "back": "All reviews",
     "missing": "No review named {{id}}.",
     "summary": "{{topics}} topics · {{verdicts}} verdicts",
+    "summaryTopicsUnknown": "topics not known · {{verdicts}} verdicts",
     "verdicts": "Your verdicts",
     "verdictsNote": "Recorded verbatim in VERDICTS.md. Missions change only when you realign them.",
     "noTopics": "This review names no topics.",
+    "topicsUnknown": "Which topics this review covers is not known: {{reason}} Choose a topic below to record a verdict.",
     "verdictLabel": "Your verdict, in your words",
     "record": "Record verdict",
     "confirmTitle": "Record your verdict on {{topic}}?",
@@ -617,11 +630,16 @@
   "unreadable": {
     "title": "{{count}} files cannot be read",
     "title_one": "1 file cannot be read",
-    "note": "What they hold is unknown, not empty. Everything else on this screen is read as usual."
+    "note": "What they hold is unknown, not empty. Everything else on this screen is read as usual.",
+    "headings": "{{count}} headings in {{file}} cannot be read",
+    "headings_one": "1 heading in {{file}} cannot be read",
+    "headingsNote": "They do not follow the file's format, so what they hold is not shown here. Read them in the file at these lines.",
+    "line": "line {{line}}"
   },
   "entry": {
     "theHome": "the research home",
     "count": "{{used}} of {{limit}} characters",
+    "countNoLimit": "{{used}} characters (the entry limit could not be read; the desk will refuse the write)",
     "tooLong": "Too long for one entry. Put the material in a file under {{home}} and write its path here instead.",
     "refused": "Too long for one entry. Put the material in a file under the research home and write its path instead.",
     "preparing": "Asking the desk for the exact text…",
@@ -630,6 +648,7 @@
   "access": {
     "credential": "The desk starts sessions in Web Console with its own service credential.",
     "availability": "The desk has no credential of its own: it starts sessions the way any program on this computer can, because Web Console lets anyone who reaches it act.",
-    "unknown": "How the desk reaches Web Console is not known: {{said}}"
+    "unknown": "How the desk reaches Web Console is not known: {{said}}",
+    "unavailable": "The desk cannot read its Web Console credential, so it does not start or steer sessions there."
   }
 }

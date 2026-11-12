@@ -8,7 +8,7 @@ import { Exact } from "./Confirm";
 
 /**
  * The exact text a write would append, as the API's dry run returned it
- * (rulings P5), and when the supervisor will read it (V4). The desk never
+ *, and when the supervisor will read it. The desk never
  * rebuilds the file's grammar itself; while the dry run is pending or refused
  * the confirmation says so instead of guessing.
  */

@@ -44,7 +44,9 @@
                 "unknown",
                 "ended"
               ],
-              "bind_waiver": "The CLI maps state words to CommissionState enum values for the repeated states field."
+              "bind": {
+                "field": "states"
+              }
             }
           ],
           "binding": {
@@ -184,9 +186,12 @@
           "positionals": [
             {
               "name": "target",
-              "required": true,
-              "description": "A spec JSON file (FILE-CONTRACT §2), or a prepared commission folder name",
-              "bind_waiver": "The CLI reads a file into spec_json, else sends the word as commission_id."
+              "required": false,
+              "description": "A prepared commission folder name, or (from the command line) a spec JSON file; give a spec with --spec-file otherwise",
+              "bind": {
+                "field": "commission_id"
+              },
+              "bind_waiver": "From the command line a path to an existing file is read and sent as spec_json instead."
             }
           ],
           "binding": {
@@ -205,6 +210,14 @@
             "primitive": "proto_list"
           },
           "flags": [
+            {
+              "name": "spec-file",
+              "description": "A spec JSON file (FILE-CONTRACT §2) to gate instead of a commission",
+              "bind": {
+                "field": "spec_json",
+                "kind": "json_file"
+              }
+            },
             {
               "name": "supersede",
               "description": "Comma-separated blocking commissions this launch supersedes: each is stopped through its own session first and recorded as superseded"
@@ -227,7 +240,10 @@
             {
               "name": "spec-file",
               "description": "A spec JSON file (FILE-CONTRACT §2); omit with --relaunch-of",
-              "bind_waiver": "The CLI reads the file into spec_json."
+              "bind": {
+                "field": "spec_json",
+                "kind": "json_file"
+              }
             }
           ],
           "binding": {

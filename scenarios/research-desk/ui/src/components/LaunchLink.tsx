@@ -6,7 +6,7 @@ import { useTranslation } from "../i18n";
 
 /**
  * Launch for a packet that is already built: opens its launch page, where its
- * check runs and one confirmation starts it (rulings V1). Never launches here.
+ * check runs and one confirmation starts it. Never launches here.
  */
 export function LaunchLink({ id }: { id: string }) {
   const { t } = useTranslation();

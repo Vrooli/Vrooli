@@ -134,6 +134,7 @@ type Limits struct {
 		SchedulerStartBytes int            `json:"scheduler_start_bytes"`
 		SchedulerUnitBytes  int            `json:"scheduler_unit_bytes"`
 		OwnerStartBytes     int            `json:"owner_start_bytes"`
+		MissionBytes        int            `json:"mission_bytes"`
 		SkillBytes          map[string]int `json:"skill_bytes"`
 		LongEffortBytes     int            `json:"long_effort_s2_s3_bytes"`
 	} `json:"ceilings"`
@@ -143,7 +144,20 @@ type Limits struct {
 		SchedulerStart []string `json:"scheduler_start"`
 		SchedulerUnit  []string `json:"scheduler_unit"`
 		OwnerStart     []string `json:"owner_start"`
+		// OwnerTopic names files in topics/<topic>/ each owner also reads.
+		OwnerTopic []string `json:"owner_topic"`
 	} `json:"read_sets"`
+	// Packet bounds a spec; packet.py reads the same values.
+	Packet struct {
+		TopicsMax             int `json:"topics_max"`
+		AllowanceHoursMin     int `json:"allowance_hours_min"`
+		AllowanceHoursMax     int `json:"allowance_hours_max"`
+		AllowanceHoursDefault int `json:"allowance_hours_default"`
+		OrderedWorkstreamsMax int `json:"ordered_workstreams_max"`
+	} `json:"packet"`
+	// EntryCharsMax bounds one OPERATOR.md or VERDICTS.md entry: the
+	// operator's words, not material, which belongs in a file named by path.
+	EntryCharsMax int `json:"entry_chars_max"`
 	// Path is where the limits were read from.
 	Path string `json:"-"`
 }
@@ -161,6 +175,10 @@ func LoadLimits(path string) (*Limits, error) {
 	if limits.Gates.CharterBytes <= 0 || limits.Ceilings.SchedulerUnitBytes <= 0 {
 		return nil, fmt.Errorf("%s has no charter_bytes gate or scheduler_unit_bytes ceiling", path)
 	}
+	p := limits.Packet
+	if p.TopicsMax <= 0 || p.AllowanceHoursMin <= 0 || p.AllowanceHoursMax < p.AllowanceHoursMin || p.AllowanceHoursDefault < p.AllowanceHoursMin || p.AllowanceHoursDefault > p.AllowanceHoursMax || p.OrderedWorkstreamsMax <= 0 || limits.EntryCharsMax <= 0 {
+		return nil, fmt.Errorf("%s needs packet.topics_max, an allowance_hours min ≤ default ≤ max, packet.ordered_workstreams_max and entry_chars_max, all positive", path)
+	}
 	limits.Path = path
 	return &limits, nil
 }
@@ -174,7 +192,7 @@ func firstLine(b []byte) string {
 }
 
 // Ceilings reads limits.json's read sets and ceilings and measures each
-// skill-text item they name (rulings E2: limits.json is the only list).
+// skill-text item they name (limits.json is the only list).
 func (p Paths) Ceilings() (*home.Ceilings, error) {
 	limits, err := LoadLimits(p.Limits())
 	if err != nil {
@@ -187,9 +205,11 @@ func (p Paths) Ceilings() (*home.Ceilings, error) {
 			{Key: "scheduler_unit", Items: limits.ReadSets.SchedulerUnit, CeilingBytes: int64(limits.Ceilings.SchedulerUnitBytes)},
 			{Key: home.OwnerStartKey, Items: limits.ReadSets.OwnerStart, CeilingBytes: int64(limits.Ceilings.OwnerStartBytes)},
 		},
-		Fixed:      map[string]home.FileFact{},
-		Unmeasured: map[string]string{},
-		Source:     limits.Path,
+		Fixed:        map[string]home.FileFact{},
+		Unmeasured:   map[string]string{},
+		OwnerTopic:   limits.ReadSets.OwnerTopic,
+		MissionBytes: int64(limits.Ceilings.MissionBytes),
+		Source:       limits.Path,
 	}
 	for _, role := range c.Roles {
 		for _, item := range role.Items {

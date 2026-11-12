@@ -30,6 +30,14 @@ export function Markdown({ content, baseDir, className }: { content: string; bas
   return <div className={`rd-prose ${className ?? ""}`}>{blocks(content.replace(/\r\n/g, "\n"), resolve)}</div>;
 }
 
+/**
+ * One line of a research file (a workstream title, say) with its inline
+ * emphasis and code, and links as plain text, so it can sit inside a button.
+ */
+export function InlineMarkdown({ text }: { text: string }) {
+  return <>{inline(text, () => null)}</>;
+}
+
 type Resolve = (href: string) => { to: string; external: boolean } | null;
 
 function normalise(path: string): string {

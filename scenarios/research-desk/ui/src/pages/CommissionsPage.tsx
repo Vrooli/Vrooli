@@ -16,7 +16,7 @@ const FOLDED = new Set([CommissionState.ENDED, CommissionState.UNKNOWN, Commissi
 
 /**
  * Every commission the desk recognises, grouped by derived state. Unknown is
- * a state, not an error: older layouts show what can be read (I6).
+ * a state, not an error: older layouts show what can be read.
  */
 export function CommissionsPage() {
   const { t } = useTranslation();

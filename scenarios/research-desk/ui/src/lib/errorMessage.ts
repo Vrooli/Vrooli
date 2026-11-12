@@ -33,7 +33,7 @@ export function failureKind(err: unknown): FailureKind {
 
 export function errorMessage(err: unknown, t: TFunction): string {
   const kind = failureKind(err);
-  // A refusal of an operator action names the caller it refused (rulings F13); show those words.
+  // A refusal of an operator action names the caller it refused; show those words.
   if (kind === "unauthorized") return err instanceof ConnectError && err.code === Code.PermissionDenied && apiAnswered(err) ? err.rawMessage : t(strings.errors.unauthorized);
   if (kind === "unreachable") return t(strings.errors.unreachable);
   if (err instanceof ConnectError) return err.rawMessage;

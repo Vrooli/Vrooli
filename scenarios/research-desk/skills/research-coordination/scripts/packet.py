@@ -44,12 +44,11 @@ SPEC_KEYS = {
     "owner_model_tier", "run_alongside", "read_first", "supersedes", "carry_baseline_from", "slug", "window",
     "order", "card_notes",
 }
-MAX_CARD_WORKSTREAMS = 4  # references/direction.md: a card names two to four workstreams
 
 
-def default_count(topics: int) -> int:
-    """Workstreams on a card without an operator order: four, fewer as topics grow (12 in all)."""
-    return max(2, min(MAX_CARD_WORKSTREAMS, 12 // topics))
+def default_count(topics: int, most: int) -> int:
+    """Workstreams on a card without an operator order: `most`, fewer as topics grow (12 in all)."""
+    return min(most, max(2, 12 // topics))
 NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}")  # topic folder or commission id
 SLUG = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")
 PLACEHOLDER = re.compile(r"\{\{([a-z_]+)\}\}")
@@ -101,17 +100,19 @@ def normalize_spec(raw: object, home: Path, limits: dict) -> dict:
     if unknown:
         raise bad(f"unknown spec fields: {', '.join(unknown)}")
     spec = {k: raw.get(k) for k in sorted(SPEC_KEYS)}
+    lim = limits["packet"]
     topics = spec["topics"]
-    if not isinstance(topics, list) or not 1 <= len(topics) <= 6 or not all(isinstance(t, str) for t in topics):
-        raise bad("topics must be a list of 1-6 topic names")
+    if not isinstance(topics, list) or not 1 <= len(topics) <= lim["topics_max"] or not all(isinstance(t, str) for t in topics):
+        raise bad(f"topics must be a list of 1-{lim['topics_max']} topic names")
     if len(set(topics)) != len(topics):
         raise bad("topics repeat")
     for t in topics:
         if not NAME.fullmatch(t) or not (home / "topics" / t / "MISSION.md").is_file():
             raise bad(f"topic {t!r} has no topics/{t}/MISSION.md", "unknown_topic")
     hours = spec["allowance_hours"]
-    if not isinstance(hours, int) or isinstance(hours, bool) or not 1 <= hours <= 72:
-        raise bad("allowance_hours must be an integer from 1 to 72")
+    low, high = lim["allowance_hours_min"], lim["allowance_hours_max"]
+    if not isinstance(hours, int) or isinstance(hours, bool) or not low <= hours <= high:
+        raise bad(f"allowance_hours must be an integer from {low} to {high}")
     quotes = spec["stance_quotes"]
     if not isinstance(quotes, list) or not quotes or not all(isinstance(q, str) and q.strip() for q in quotes):
         raise bad("stance_quotes must hold at least one non-empty quote")
@@ -141,8 +142,8 @@ def normalize_spec(raw: object, home: Path, limits: dict) -> dict:
     for t, ids in spec["order"].items():
         if t not in topics:
             raise bad(f"order names {t!r}, which is not a selected topic")
-        if not isinstance(ids, list) or not 1 <= len(ids) <= MAX_CARD_WORKSTREAMS or len(set(ids)) != len(ids):
-            raise bad(f"order for {t} must list 1-{MAX_CARD_WORKSTREAMS} distinct workstream ids")
+        if not isinstance(ids, list) or not 1 <= len(ids) <= lim["ordered_workstreams_max"] or len(set(ids)) != len(ids):
+            raise bad(f"order for {t} must list 1-{lim['ordered_workstreams_max']} distinct workstream ids")
         live = [w.ident for w in mc.check_mission(t, home / "topics" / t / "MISSION.md").workstreams if w.status in mc.LIVE]
         for i in ids:
             if i not in live:
@@ -212,10 +213,64 @@ def list_files(topic_dir: Path) -> list[Path]:
     return out
 
 
-def read_mission(home: Path, topic: str) -> tuple[mc.TopicReport, str]:
+def read_mission(home: Path, topic: str) -> tuple[mc.TopicReport, str, str]:
     path = home / "topics" / topic / "MISSION.md"
     text = path.read_text(encoding="utf-8")
-    return mc.check_mission(topic, path), mission_title(text, topic)
+    return mc.check_mission(topic, path), mission_title(text, topic), text
+
+
+def first_clauses(section: str, cap: int) -> str:
+    """Each bullet of a mission section cut to its first clause, at most `cap` characters."""
+    out = []
+    for item in re.findall(r"^- (.+(?:\n(?![-#\s]).+)*)", section, re.MULTILINE):
+        item = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", " ".join(item.replace("**", "").split()))
+        item = re.sub(r"\s*\([^()]*\)", "", item)
+        clause = ""
+        for part in re.split(r"(?<=[.;:])\s+|\s+—\s+", item):
+            clause = f"{clause} {part}".strip()
+            if len(clause) >= cap * 2 // 5:
+                break
+        clause = clause.rstrip(".;:, ")
+        if len(clause) > cap:
+            clause = clause[:cap].rsplit(" ", 1)[0].rstrip(",;: ") + "…"
+        out.append(clause)
+    return "; ".join(out)
+
+
+RETURN_HEAD = re.compile(r"^(?:## (.*\breturn\b.*)|\*\*(Return[^*]*)\*\*)", re.IGNORECASE | re.MULTILINE)
+
+
+# Clause caps tried in turn until the charter fits its gate; 0 leaves the two sections in the mission.
+CLAUSE_CAPS = (100, 60, 0)
+
+
+def mission_facts(rep: mc.TopicReport, text: str, chosen: list, others: dict[str, int], cap: int) -> list[str]:
+    """What the mission states that the scheduler checks a card against, carried onto the card."""
+    picked = {w.ident for w in chosen}
+    later = [w for w in rep.workstreams if w.status in mc.LIVE and w.ident not in picked]
+    lines = []
+    if later:
+        lines.append("- **Also open** (taken when the card's workstreams land or wait): "
+                     + ", ".join(f"**{w.ident}** ({w.magnitude.split('·')[0].strip()})" for w in later))
+    asks = [f"{w.ident} ({w.status})" for w in rep.workstreams if w.status in ("waiting-operator", "proposed")]
+    waits = [f"{w.ident} ({w.status})" for w in rep.workstreams if w.status == "waiting-time"]
+    lines.append(f"- **Waits on the operator:** {', '.join(asks) or 'no workstream'}"
+                 + (f"; waiting on time: {', '.join(waits)}" if waits else "")
+                 + "; the rest is in the mission's Approval flow.")
+    ret = RETURN_HEAD.search(text)
+    if ret:
+        lines.append(f"- **Return:** the mission's \"{(ret.group(1) or ret.group(2)).strip(' .')}\".")
+    named = [f"Card {n} (`{t}`)" for t, n in others.items()
+             if re.search(rf"(?<![\w-]){re.escape(t)}(?![\w-])", text)]
+    if named:
+        lines.append(f"- **Hand-off:** the mission names {and_join(named)}.")
+    if not cap:
+        lines.append("- **Not this, Boundaries:** in the mission; the charter gate left no room for them here.")
+    sections = mc.split_sections(text)
+    for name, label in (("Not this", "Not this"), ("Real boundaries", "Boundaries")):
+        if cap and (clauses := first_clauses(sections.get(name, ""), cap)):
+            lines.append(f"- **{label}** (first clauses): {clauses}.")
+    return lines
 
 
 def and_join(items: list[str]) -> str:
@@ -223,7 +278,7 @@ def and_join(items: list[str]) -> str:
 
 
 def card_workstreams(rep: mc.TopicReport, order: list[str] | None, count: int) -> list:
-    """The operator's order, else active, then approved, then open rows, capped (S1)."""
+    """The operator's order, else active, then approved, then open rows, capped."""
     rows = {w.ident: w for w in rep.workstreams}
     if order:
         return [rows[i] for i in order]
@@ -235,8 +290,9 @@ ORDER_LABEL = "- **Order** (the operator's; land in this order):"
 CHOICE_LABEL = "- **Workstreams** (active, approved, then open; not a priority order: choose by scorecard movement):"
 
 
-def render_card(n: int, home: Path, cid: str, topic: str, rep: mc.TopicReport, title: str,
-                read_first: str | None, order: list[str] | None, notes: str | None, count: int) -> tuple[str, dict]:
+def render_card(n: int, home: Path, cid: str, topic: str, rep: mc.TopicReport, title: str, text: str,
+                others: dict[str, int], read_first: str | None, order: list[str] | None, notes: str | None,
+                count: int, cap: int) -> tuple[str, dict]:
     tdir = home / "topics" / topic
     chosen = card_workstreams(rep, order, count)
     lists = ", ".join(f"`{p.name}`" for p in list_files(tdir))
@@ -250,10 +306,11 @@ def render_card(n: int, home: Path, cid: str, topic: str, rep: mc.TopicReport, t
     lines.append(ORDER_LABEL if order else CHOICE_LABEL)
     lines += [f"  {i}. **{w.ident}** ({' '.join(w.magnitude.split())}): {' '.join(w.showcase.split())}"
               for i, w in enumerate(chosen, 1)]
+    lines += mission_facts(rep, text, chosen, others, cap)
     if notes:
         lines += ["", "Operator's notes for this card, verbatim:", "", notes.strip("\n")]
     card = {"topic": topic, "mode": rep.mode, "order": [w.ident for w in chosen],
-            "order_source": "operator" if order else "mission", "read_first": read_first}
+            "order_source": "operator" if order else "mission", "read_first": read_first, "clause_cap": cap}
     return "\n".join(lines) + "\n", card
 
 
@@ -280,17 +337,18 @@ def kernel_excerpt(source: str, budget: int) -> str:
     return cut + "..."
 
 
-def compose(home: Path, spec: dict, cid: str) -> tuple[dict[str, str], list[dict], list[dict]]:
+def compose(home: Path, spec: dict, cid: str, cap: int) -> tuple[dict[str, str], list[dict], list[dict]]:
     """Render charter, stance and kernel. Returns texts, cards and mission errors."""
     limits = load_limits()
     errors: list[dict] = []
     cards_md, cards, titles, open_hours = [], [], [], []
     for n, topic in enumerate(spec["topics"], 1):
-        rep, title = read_mission(home, topic)
+        rep, title, text = read_mission(home, topic)
         errors += [{"code": "mission_error", "message": f"{topic}: {e}"} for e in rep.errors]
-        md, card = render_card(n, home, cid, topic, rep, title, spec["read_first"].get(topic),
+        others = {t: i for i, t in enumerate(spec["topics"], 1) if t != topic}
+        md, card = render_card(n, home, cid, topic, rep, title, text, others, spec["read_first"].get(topic),
                                spec["order"].get(topic), spec["card_notes"].get(topic),
-                               default_count(len(spec["topics"])))
+                               default_count(len(spec["topics"]), limits["packet"]["ordered_workstreams_max"]), cap)
         cards_md.append(md)
         cards.append(card)
         titles.append(title)
@@ -313,6 +371,9 @@ def compose(home: Path, spec: dict, cid: str) -> tuple[dict[str, str], list[dict
         "window_phrase": f", {spec['window']} window" if spec["window"] else "",
         "stance_block": "\n\n".join("> " + q.replace("\n", "\n> ") for q in quotes) + "\n",
         "stance_quotes": "\n\n".join(quotes),
+        # A quote carrying an ellipsis was shortened by someone; it is never called verbatim.
+        "stance_label": ("shortened where an ellipsis marks a cut" if any("…" in q or "..." in q for q in quotes)
+                         else "verbatim"),
         "emphasis_block": f"\n## Emphasis for this window (operator's words)\n\n> {quote_text(emphasis)}\n" if emphasis else "",
         "emphasis_paragraph": f"\nThis window's emphasis, in my words: {quote_text(emphasis)}\n" if emphasis else "",
         "alongside_line": (f"Runs alongside {', '.join(f'`{c}`' for c in spec['run_alongside'])} by the operator's choice; "
@@ -369,7 +430,7 @@ NOTES_LABEL = "Operator's notes for this card, verbatim:"
 
 
 def largest_parts(name: str, text: str) -> list[tuple[str, int]]:
-    """Name the biggest parts of an oversized text, biggest first (S6)."""
+    """Name the biggest parts of an oversized text, biggest first."""
     parts: list[tuple[str, int]] = []
     if name == "charter":
         fences = [m.start() for m in re.finditer(r"^```", text, re.MULTILINE)]
@@ -467,7 +528,10 @@ def prepare(home: Path, spec_arg: str) -> tuple[dict, str, dict, list, list, lis
     limits = load_limits()
     spec = normalize_spec(read_spec(spec_arg), home, limits)
     cid = commission_id(home, spec["slug"])
-    texts, cards, mission_errors = compose(home, spec, cid)
+    for cap in CLAUSE_CAPS:  # the longest mission excerpts that let the charter fit
+        texts, cards, mission_errors = compose(home, spec, cid, cap)
+        if len(texts["charter"].encode("utf-8")) <= limits["gates"]["charter_bytes"]:
+            break
     gates, gate_errors = gate(texts, limits, home, cid)
     gates.append({"name": "missions", "value": len({e["message"].split(":", 1)[0] for e in mission_errors}),
                   "limit": 0, "ok": not mission_errors})

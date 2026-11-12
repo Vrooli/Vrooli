@@ -19,8 +19,8 @@ import (
 	"research-desk/internal/testutil"
 )
 
-// The layouts come from internal/testutil's archive of excerpts (rulings
-// E7): programme-three (hand-launched, dated amendments, numbered needs list),
+// The layouts come from internal/testutil's archive of real-home excerpts:
+// programme-three (hand-launched, dated amendments, numbered needs list),
 // local-models (prepared), standing-teams (prepared, one MISSION.md link) and
 // research-night (an older layout with STATUS.md). Codex records are written
 // per test with the real thread_goals schema, because their objectives must
@@ -326,7 +326,7 @@ func TestObjectiveAttachmentIsRead(t *testing.T) {
 
 func TestRecognitionWindowIgnoresOlderGoals(t *testing.T) {
 	f := newFixture(t)
-	// A11: the window starts at local midnight one day before the folder's
+	// The window starts at local midnight one day before the folder's
 	// earliest file time.
 	f.codexHome(t, "s", []goalRow{{"t", f.programmeThreeGoal(), "active", base.Add(-72 * time.Hour)}}, nil)
 	c := f.snapshot(t, Options{}).Commission("programme-three-20261111")
@@ -429,7 +429,7 @@ func TestMissionCheck(t *testing.T) {
 }
 
 // [REQ:RD-P0-007]
-// E2: the read sets are limits.json's lists, with the commission's own files
+// The read sets are limits.json's lists, with the commission's own files
 // in place of its commission items and the measured skill text for the rest.
 func TestReadSetsFollowTheLimitsLists(t *testing.T) {
 	f := newFixture(t)
@@ -452,9 +452,11 @@ func TestReadSetsFollowTheLimitsLists(t *testing.T) {
 				{Key: "scheduler_unit", Items: []string{"charter", "STATE.md"}, CeilingBytes: charter + state - 1},
 				{Key: OwnerStartKey, Items: []string{"brief"}, CeilingBytes: 1 << 20},
 			},
-			Fixed:      map[string]FileFact{"brief": brief},
-			Unmeasured: map[string]string{"gone.md-skill/x.md": "not in the skills folder"},
-			Source:     "limits.json",
+			Fixed:        map[string]FileFact{"brief": brief},
+			Unmeasured:   map[string]string{"gone.md-skill/x.md": "not in the skills folder"},
+			OwnerTopic:   []string{MissionFile},
+			MissionBytes: 100,
+			Source:       "limits.json",
 		}, nil
 	}
 	snap := f.snapshot(t, Options{})
@@ -473,8 +475,36 @@ func TestReadSetsFollowTheLimitsLists(t *testing.T) {
 	if unit.Role != "scheduler-unit" || len(unit.Flags) != 1 || !strings.Contains(unit.Flags[0], fmt.Sprintf("%d bytes is over the %d-byte scheduler_unit ceiling", charter+state, charter+state-1)) {
 		t.Errorf("the unit set is flagged over its ceiling and only that, got %+v", unit)
 	}
-	if len(sets) != 2+len(c.Topics) || sets[2].Role != "owner-start:"+c.Topics[0].Topic || sets[2].Bytes != brief.Bytes {
-		t.Errorf("want the owner set once per topic, got %+v", sets)
+	if len(sets) != 2+len(c.Topics) || sets[2].Role != "owner-start:"+c.Topics[0].Topic {
+		t.Fatalf("want the owner set once per topic, got %+v", sets)
+	}
+	// Each owner also reads its own topic's mission: added to its total,
+	// never to the skill-text ceiling, and flagged with the tidy when large.
+	withMission := 0
+	for i, ref := range c.Topics {
+		owner := sets[2+i]
+		mission, err := os.Stat(filepath.Join(f.research, "topics", ref.Topic, MissionFile))
+		if err != nil {
+			if len(owner.Files) != 1 || !strings.Contains(strings.Join(owner.Flags, " "), MissionFile+" not counted") {
+				t.Errorf("%s: a missing mission is said, not counted as zero: %+v", owner.Role, owner)
+			}
+			continue
+		}
+		withMission++
+		if len(owner.Files) != 2 || owner.Files[1].Bytes != mission.Size() || owner.Bytes != brief.Bytes+mission.Size() {
+			t.Errorf("%s reads the brief and its own mission, got %+v", owner.Role, owner)
+		}
+		flags := strings.Join(owner.Flags, "\n")
+		if strings.Contains(flags, "owner_start ceiling") || !strings.Contains(flags, "the next architect pass tidies the mission") || !strings.Contains(flags, ref.Topic+" mission is") {
+			t.Errorf("%s: the mission is flagged with the tidy and never held to the skill ceiling, got %q", owner.Role, flags)
+		}
+	}
+	if withMission == 0 {
+		t.Fatal("the fixture needs a topic with a mission")
+	}
+	reading := snap.OwnerReading([]string{c.Topics[0].Topic, "no-such-topic"})
+	if len(reading) != 2 || reading[0].Bytes != sets[2].Bytes || !strings.Contains(strings.Join(reading[1].Flags, " "), "no topic no-such-topic") {
+		t.Errorf("a spec's topics get the same owner reading, an unknown topic says so: %+v", reading)
 	}
 
 	f.ceilings = func() (*Ceilings, error) { return nil, errors.New("limits.json missing") }
@@ -495,6 +525,36 @@ func TestOverlaps(t *testing.T) {
 	overlaps := snap.Overlaps()
 	if len(overlaps) != 1 || overlaps[0].Topic != "niche-book-production" || len(overlaps[0].CommissionIDs) != 2 {
 		t.Fatalf("want one overlap on niche-book-production, got %+v", overlaps)
+	}
+}
+
+// A commission whose end is not known ends at its last write, never now, so
+// old stopped commissions do not overlap everything after them; "open now"
+// keeps only pairs that both have a window open.
+func TestAnUnknownEndIsTheLastWriteNotNow(t *testing.T) {
+	known := func(at time.Time) Time { return Time{Value: at, Evidence: Evidence{Known: true}} }
+	topic := []TopicRef{{Topic: "t"}}
+	commission := func(id string, state State, start, last time.Time) *Commission {
+		return &Commission{ID: id, State: state, Topics: topic, Started: known(start), LastWrite: known(last)}
+	}
+	now := base.Add(10 * 24 * time.Hour)
+	snap := &Snapshot{Now: now, Commissions: []*Commission{
+		commission("old", StateStopped, base, base.Add(5*time.Hour)),
+		commission("later", StateStopped, base.Add(24*time.Hour), base.Add(30*time.Hour)),
+		commission("live-a", StateLive, base.Add(9*24*time.Hour), now),
+		commission("live-b", StatePaused, base.Add(9*24*time.Hour+time.Hour), now),
+	}}
+	all := snap.Overlaps()
+	if len(all) != 1 || strings.Join(all[0].CommissionIDs, " ") != "live-a live-b" {
+		t.Errorf("stopped commissions end at their last write, so only the two open ones overlap: %+v", all)
+	}
+	open := snap.OpenOverlaps()
+	if len(open) != 1 || strings.Join(open[0].CommissionIDs, " ") != "live-a live-b" {
+		t.Errorf("open now: %+v", open)
+	}
+	snap.Commissions[1].Started = known(base.Add(4 * time.Hour))
+	if got := snap.Overlaps(); len(got) != 2 || len(snap.OpenOverlaps()) != 1 {
+		t.Errorf("a real overlap of two stopped commissions is history, not open now: %+v", got)
 	}
 }
 
@@ -549,7 +609,7 @@ func writeFile(t *testing.T, path, body string) {
 }
 
 // [REQ:RD-P0-002]
-// F8: a complete packet is `prepared` only on evidence that nothing started
+// A complete packet is `prepared` only on evidence that nothing started
 // it; otherwise `unknown` with the reason.
 func TestPreparedNeedsEvidenceOfAbsence(t *testing.T) {
 	const id = "local-models-w1-20261111"
@@ -582,7 +642,7 @@ func TestPreparedNeedsEvidenceOfAbsence(t *testing.T) {
 	if c := state(f); c.State != StateUnknown || !strings.Contains(c.StateRule, "run-2/codex/goals_1.sqlite (thread t2, active) names this charter") {
 		t.Fatalf("a goal elsewhere: %s (%s)", c.State, c.StateRule)
 	} else if c.NeverStarted.Assertable || !strings.Contains(c.NeverStarted.Reason, "names this charter") {
-		t.Fatalf("a goal found anywhere refuses the never-started assertion (rulings P1): %+v", c.NeverStarted)
+		t.Fatalf("a goal found anywhere refuses the never-started assertion: %+v", c.NeverStarted)
 	}
 
 	// A goal database that cannot be read proves nothing.
@@ -616,7 +676,7 @@ func TestPreparedNeedsEvidenceOfAbsence(t *testing.T) {
 	}
 }
 
-// E3: one name rule, equal to packet.py's NAME, read from packet.py itself.
+// One name rule, equal to packet.py's NAME, read from packet.py itself.
 func TestTheNameRuleIsPacketPys(t *testing.T) {
 	data, err := os.ReadFile("../../../skills/research-coordination/scripts/packet.py")
 	if err != nil {
@@ -641,7 +701,7 @@ func TestTheNameRuleIsPacketPys(t *testing.T) {
 	}
 }
 
-// F12: an older charter that links a topic's README.md or its folder names
+// An older charter that links a topic's README.md or its folder names
 // the topic; a deeper path does not.
 func TestOlderCharterLinksNameTheTopic(t *testing.T) {
 	f := newFixture(t)
@@ -678,9 +738,9 @@ func TestASupersedesListAndAnOlderSingleIDBothRead(t *testing.T) {
 		want []string
 	}{
 		"older single id": {`"supersedes":"programme-three-20261111"`, []string{"programme-three-20261111"}},
-		"older null":       {`"supersedes":null`, nil},
-		"list of two":      {`"supersedes":["programme-three-20261111","programme-four-20261110"]`, []string{"programme-three-20261111", "programme-four-20261110"}},
-		"empty list":       {`"supersedes":[]`, []string{}},
+		"older null":      {`"supersedes":null`, nil},
+		"list of two":     {`"supersedes":["programme-three-20261111","programme-four-20261110"]`, []string{"programme-three-20261111", "programme-four-20261110"}},
+		"empty list":      {`"supersedes":[]`, []string{}},
 	} {
 		path := filepath.Join(dir, strings.ReplaceAll(name, " ", "-")+".json")
 		record := `{"schema":"` + PacketSchema + `","commission_id":"c","spec":{"topics":["t"],` + tc.spec + `}}`
@@ -698,5 +758,29 @@ func TestASupersedesListAndAnOlderSingleIDBothRead(t *testing.T) {
 	}
 	if _, _, err := ReadPacket(path); err == nil || !strings.Contains(err.Error(), "neither a commission id nor a list") {
 		t.Fatalf("a number: err = %v", err)
+	}
+}
+
+// A review's topics come from its per-topic headings, else its links into
+// topics/; a review that names none either way has unknown topics, never
+// an empty list that reads as none.
+func TestAReviewsTopicsAreKnownOrSaidUnknown(t *testing.T) {
+	topicOf := func(name string) (string, bool) {
+		return name, name == "local-model-performance" || name == "debt-reduction"
+	}
+	for name, tc := range map[string]struct {
+		text  string
+		want  []string
+		known bool
+	}{
+		"headings":     {"# R\n\n## debt-reduction\n\nSee topics/local-model-performance/STATE.md.\n", []string{"debt-reduction"}, true},
+		"links only":   {"# R\n\n## Open\n\nSee topics/local-model-performance/STATE.md and topics/local-model-performance/MISSION.md.\n", []string{"local-model-performance"}, true},
+		"neither":      {"# R\n\n## Open\n\nAll fifteen workstreams remain.\n", nil, false},
+		"unknown link": {"# R\n\nSee topics/not-a-topic/.\n", nil, false},
+	} {
+		got, ev := reviewTopics("REVIEW.md", []byte(tc.text), topicOf)
+		if !slices.Equal(got, tc.want) || ev.Known != tc.known || (!ev.Known && ev.Reason == "") {
+			t.Errorf("%s: topics %v, evidence %+v", name, got, ev)
+		}
 	}
 }

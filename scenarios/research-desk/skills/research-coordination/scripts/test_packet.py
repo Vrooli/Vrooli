@@ -7,9 +7,12 @@ import contextlib
 import datetime as dt
 import io
 import json
+import re
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -98,7 +101,7 @@ class PacketTest(unittest.TestCase):
     def test_without_an_order_cards_take_active_approved_then_open_and_say_it_is_not_priority(self):
         _, res = self.preview()
         self.assertEqual(res["cards"][0], {"topic": "alpha", "mode": "build", "order": ["A2", "A4", "A1"],
-                                           "order_source": "mission", "read_first": None})
+                                           "order_source": "mission", "read_first": None, "clause_cap": 100})
         self.assertEqual(res["cards"][1]["order"], ["B5", "B2", "B4"])
         charter, kernel = res["texts"]["charter"], res["texts"]["kernel"]
         self.assertIn(packet.CHOICE_LABEL, charter)
@@ -126,6 +129,48 @@ class PacketTest(unittest.TestCase):
         self.assertIn("listed for it below, in order,", res["texts"]["charter"])
         self.assertIn("showcases in order,", res["texts"]["kernel"])
 
+    def test_cards_carry_what_the_mission_states(self):
+        alpha = self.home / "topics" / "alpha" / "MISSION.md"
+        alpha.write_text(alpha.read_text()
+                         .replace("Build directly.", "Build directly; the beta owner leaves a demo asset.\n\n"
+                                  "**Return in this window.** Results stay local.")
+                         .replace("- Trap one.", "- **Reports instead of films**: a catalogue (of tools) is not a film. More words follow here.")
+                         .replace("- No money.", "- [Spend](https://example.com) and tools: free and local tools only; Matt owns any purchase."))
+        _, res = self.preview(order={"alpha": ["A1"]})
+        charter = res["texts"]["charter"]
+        alpha_card, beta_card = charter.split("### Card 1", 1)[1].split("### Card 2", 1)
+        beta_card = beta_card.split("## Scheduler procedure", 1)[0]
+        self.assertIn("- **Also open** (taken when the card's workstreams land or wait): **A2** (30–60 h), **A4** (25 h)", alpha_card)
+        self.assertNotIn("Also open", beta_card)  # B5, B2, B4 are every live row
+        self.assertIn("- **Waits on the operator:** B3 (waiting-operator); the rest is in the mission's Approval flow.", beta_card)
+        self.assertIn("- **Return:** the mission's \"Return in this window\".", alpha_card)
+        self.assertIn("- **Hand-off:** the mission names Card 2 (`beta`).", alpha_card)
+        self.assertNotIn("Hand-off", beta_card)
+        self.assertIn("- **Not this** (first clauses): Reports instead of films: a catalogue is not a film; Trap two.", alpha_card)
+        self.assertIn("- **Boundaries** (first clauses): Spend and tools: free and local tools only.", alpha_card)
+
+    def test_mission_excerpts_shrink_until_the_charter_fits_and_say_so(self):
+        _, full = self.preview()
+        limits = packet.load_limits()
+        limits["gates"]["charter_bytes"] = len(full["texts"]["charter"].encode()) - 1
+        with mock.patch.object(packet, "load_limits", return_value=limits):
+            code, res = self.preview()
+        self.assertEqual(code, 0, res["errors"])
+        self.assertEqual({c["clause_cap"] for c in res["cards"]}, {0})
+        self.assertEqual(res["texts"]["charter"].count("the charter gate left no room for them here"), 2)
+        self.assertNotIn("(first clauses)", res["texts"]["charter"])
+
+    def test_a_quote_with_an_ellipsis_is_never_called_verbatim(self):
+        _, res = self.preview()
+        self.assertIn("## Operator stance (verbatim;", res["texts"]["charter"])
+        self.assertIn("My words, verbatim:", res["texts"]["stance"])
+        for cut in ("Make it big … and bold.", "Make it big... and bold."):
+            _, res = self.preview(stance_quotes=["Finish the films first.", cut])
+            self.assertNotIn("verbatim", res["texts"]["stance"])
+            self.assertIn("## Operator stance (shortened where an ellipsis marks a cut;", res["texts"]["charter"])
+            self.assertIn("My words, shortened where an ellipsis marks a cut:", res["texts"]["stance"])
+            self.assertIn(cut, res["texts"]["stance"])  # offered exactly as written
+
     def test_six_topics_fit_with_two_workstreams_per_card(self):
         names = ["alpha", "beta"] + [f"t{i}" for i in range(4)]
         long = "A showcase sentence that a reviewer can replay end to end on real material. " * 6
@@ -138,7 +183,20 @@ class PacketTest(unittest.TestCase):
         code, res = self.preview(topics=names, supersedes=superseded, run_alongside=["programme-two-20261101"])
         self.assertEqual(code, 0, res["errors"])
         self.assertEqual({len(c["order"]) for c in res["cards"]}, {2})
-        self.assertEqual([packet.default_count(n) for n in range(1, 7)], [4, 4, 4, 3, 2, 2])
+        self.assertEqual({c["clause_cap"] for c in res["cards"]}, {100})
+        self.assertEqual([packet.default_count(n, 4) for n in range(1, 7)], [4, 4, 4, 3, 2, 2])
+
+    def test_packet_limits_come_from_limits_json(self):
+        limits = packet.load_limits()
+        limits["packet"].update(topics_max=1, allowance_hours_max=6, ordered_workstreams_max=1)
+        with mock.patch.object(packet, "load_limits", return_value=limits):
+            for over, words in (({}, "1-1 topic names"), ({"topics": ["alpha"]}, "from 1 to 6"),
+                                ({"topics": ["alpha"], "allowance_hours": 6, "order": {"alpha": ["A1", "A2"]}}, "1-1 distinct")):
+                code, res = self.preview(**over)
+                self.assertEqual(code, 2, over)
+                self.assertIn(words, res["errors"][0]["message"])
+            code, res = self.preview(topics=["alpha"], allowance_hours=6)
+            self.assertEqual((code, [len(c["order"]) for c in res["cards"]]), (0, [1]))
 
     def test_build_writes_once_and_never_replaces_a_folder(self):
         code, res = self.build(carry_baseline_from=None, owner_model_tier="gpt-6-astra")
@@ -260,11 +318,40 @@ class PacketTest(unittest.TestCase):
         for rel, ceiling in limits["ceilings"]["skill_bytes"].items():
             self.assertLessEqual((skills / rel).stat().st_size, ceiling, rel)
 
-    def test_the_model_mismatch_rule_still_starts_owners_with_a_named_model(self):
+    def test_the_model_check_rests_on_the_launch_command_and_still_starts_owners(self):
         _, res = self.preview()
         start = res["texts"]["charter"].split("1. **Start.**", 1)[1].split("2. **The unit loop**", 1)[0]
-        self.assertIn("still start the owners, with `model` set to\n   `gpt-6-luna`", start)
+        self.assertIn("never from your self-description", start)
+        self.assertIn("No output: record `unknown`, no item.", start)
+        self.assertIn("Start the owners either way, with `model`\n   set to `gpt-6-luna`", start)
         self.assertNotIn("start no owner", start)
+        probe = re.search(r"^   `(p=\$\$; .+)`$", start, re.MULTILINE).group(1)
+        # A plain shell has no codex ancestor: nothing is printed, so the model is unknown.
+        plain = subprocess.run(["sh", "-c", probe], capture_output=True, text=True, timeout=10)
+        self.assertEqual(plain.stdout, "")
+        # Under a process launched as `codex ... --model X`, the probe prints that launch command.
+        codex = subprocess.run(["codex", "-c", probe, "--model", "gpt-test"], executable="/bin/sh",
+                               capture_output=True, text=True, timeout=10)
+        self.assertRegex(codex.stdout, r"^codex .*--model gpt-test$")
+
+
+class NeedsYouGrammarTest(unittest.TestCase):
+    """The grammar is stated where each reader looks: the reference (an agent without the desk),
+    the charter template (the supervisor) and the file contract (the desk). They must agree."""
+
+    def test_every_copy_names_the_same_heading_and_lines(self):
+        contract = (packet.REPO / "scenarios/research-desk/docs/reference/FILE-CONTRACT.md").read_text(encoding="utf-8")
+        copies = {
+            "operator-attention.md": (packet.SKILL / "references/operator-attention.md").read_text(encoding="utf-8"),
+            "charter.md": (packet.TEMPLATES / "charter.md").read_text(encoding="utf-8"),
+            "FILE-CONTRACT.md §5": contract[contract.index("## 5. Needs-you grammar"):],
+        }
+        for name, text in copies.items():
+            for needle in ("[A-Z0-9][A-Z0-9_-]{0,127}", "[a-z0-9-]{1,32}", "No actionable items are recorded."):
+                self.assertIn(needle, text, name)
+            self.assertRegex(text, r"(?m)^### [A-Z0-9][A-Z0-9_-]{0,127} — \S", name)
+            for line in ("Recommended", "Options", "Packet", "Secret", "Commission", "Delivered"):
+                self.assertRegex(text, rf"(?m)(^|`){line}: \S", f"{name} lacks {line}:")
 
 
 if __name__ == "__main__":

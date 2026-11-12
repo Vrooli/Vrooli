@@ -2,7 +2,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { renderWithProviders, stubWire } from "../test-utils";
-import { Markdown } from "./Markdown";
+import { InlineMarkdown, Markdown } from "./Markdown";
 
 const HOME = "/home/u/.vrooli/research";
 const UNSAFE_LABEL = "secret";
@@ -69,5 +69,12 @@ describe("Markdown", () => {
     show("Back to [the topic](../../topics/t/MISSION.md) or https://example.org/b", `${HOME}/cohorts/c1`);
     await waitFor(() => expect(screen.getByRole("link", { name: "the topic" })).toHaveAttribute("href", "/files/topics/t/MISSION.md"));
     expect(screen.getByRole("link", { name: "https://example.org/b" })).toHaveAttribute("href", "https://example.org/b");
+  });
+
+  it("renders one line's emphasis without its markers and its links as text, so it can sit in a button", () => {
+    const { container } = renderWithProviders(<InlineMarkdown text="**Category capabilities.** For every [category](cats.md)" />);
+    expect(container.querySelector("strong")?.textContent).toBe("Category capabilities.");
+    expect(container.textContent).not.toContain("**");
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 });

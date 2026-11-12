@@ -1,7 +1,6 @@
 package launch
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -19,6 +18,7 @@ import (
 
 	"research-desk/internal/home"
 	"research-desk/internal/skillscripts"
+	"research-desk/internal/wire"
 	"research-desk/internal/writer"
 )
 
@@ -39,8 +39,8 @@ type Service struct {
 	Packets  Packets
 	Limits   func() (*skillscripts.Limits, error)
 	Launcher *Launcher
-	// Access says how the desk reaches Web Console, recorded in LAUNCH.json
-	// (rulings F14); nil records nothing.
+	// Access says how the desk reaches Web Console, recorded in LAUNCH.json;
+	// nil records nothing.
 	Access func(ctx context.Context) (string, error)
 	Clock  schedule.NowSource
 	Logger *log.Logger
@@ -51,8 +51,8 @@ type Service struct {
 }
 
 // Choices are what a preflight or launch request decides that the desk
-// cannot: how each blocker is resolved (rulings P2) and the operator's
-// assertion that an unknown commission was never started (rulings P1).
+// cannot: how each blocker is resolved and the operator's
+// assertion that an unknown commission was never started.
 type Choices struct {
 	// Resolutions resolve blockers by commission id; a spec's supersedes and
 	// run_alongside count as choices the request may override.
@@ -67,10 +67,16 @@ type Preflight struct {
 	Packet   *skillscripts.PacketResult
 	Verdicts []Verdict
 	Blockers []string
-	// NeverStarted is the commission's P1 answer when it is unknown; Asserted
+	// NeverStarted is the commission's never-started answer when it is unknown; Asserted
 	// says the request's assertion was accepted.
 	NeverStarted home.NeverStarted
 	Asserted     bool
+	// OwnerReading is what each topic's owner reads at start; its flags never
+	// block.
+	OwnerReading []home.ReadSet
+	// PacketState is the start of an existing packet's own STATE.md, nil for
+	// a spec.
+	PacketState *StateExcerpt
 }
 
 // Launchable reports whether the packet passes and nothing blocks.
@@ -78,9 +84,26 @@ func (p Preflight) Launchable() bool { return len(p.Blockers) == 0 }
 
 // specChoices is the part of a spec the desk reads; packet.py validates all of it.
 type specChoices struct {
-	Topics       []string `json:"topics"`
-	RunAlongside []string `json:"run_alongside"`
-	Supersedes   home.IDs `json:"supersedes"`
+	Topics       []string
+	RunAlongside []string
+	Supersedes   []string
+}
+
+// readSpec parses a spec once: its fields, kept raw so the rest passes
+// through unchanged, and the choices the desk reads. A spec that is not a
+// JSON object gives nil fields and no choices; packet.py reports it.
+func readSpec(spec []byte) (map[string]json.RawMessage, specChoices) {
+	var fields map[string]json.RawMessage
+	var sc specChoices
+	if json.Unmarshal(spec, &fields) != nil || fields == nil {
+		return nil, sc
+	}
+	var supersedes home.IDs
+	_ = json.Unmarshal(fields["topics"], &sc.Topics)
+	_ = json.Unmarshal(fields["run_alongside"], &sc.RunAlongside)
+	_ = json.Unmarshal(fields["supersedes"], &supersedes)
+	sc.Supersedes = supersedes
+	return fields, sc
 }
 
 // resolutions merges a spec's choices with the request's; the request wins.
@@ -106,28 +129,45 @@ func (s *Service) PreflightSpec(ctx context.Context, spec []byte, ch Choices) (P
 	if err != nil {
 		return Preflight{}, home.Cause(home.ErrUnavailable, err)
 	}
-	var sc specChoices
-	_ = json.Unmarshal(spec, &sc) // packet.py reports a bad spec in result.Errors
-	return s.judge(ctx, result, sc, ch.Resolutions, "")
+	snap, err := s.Reader.Snapshot(ctx, home.Options{})
+	if err != nil {
+		return Preflight{}, err
+	}
+	_, sc := readSpec(spec)
+	return judge(snap, result, sc, ch.Resolutions, ""), nil
 }
 
 // PreflightCommission gates a commission folder and judges its topics. A
 // prepared folder passes; an unknown one passes only on the operator's
 // assertion that it never started, and only when the desk found no session
-// or goal for it (rulings P1).
+// or goal for it.
 func (s *Service) PreflightCommission(ctx context.Context, id string, ch Choices) (Preflight, error) {
 	snap, c, err := s.find(ctx, id)
 	if err != nil {
 		return Preflight{}, err
 	}
+	return s.preflightCommission(ctx, snap, c, ch)
+}
+
+func (s *Service) preflightCommission(ctx context.Context, snap *home.Snapshot, c *home.Commission, ch Choices) (Preflight, error) {
+	id := c.ID
 	result, err := s.Packets.Check(ctx, id)
 	if err != nil {
 		return Preflight{}, home.Cause(home.ErrUnavailable, err)
 	}
-	p := s.verdicts(snap, result, c, ch)
+	sc := specChoices{}
+	for _, t := range c.Topics {
+		sc.Topics = append(sc.Topics, t.Topic)
+	}
+	if c.Spec != nil {
+		sc.RunAlongside, sc.Supersedes = c.Spec.RunAlongside, c.Spec.Supersedes
+	}
+	p := judge(snap, result, sc, ch.Resolutions, id)
 	switch c.State {
 	case home.StatePrepared:
+		p.PacketState = stateExcerpt(c)
 	case home.StateUnknown:
+		p.PacketState = stateExcerpt(c)
 		p.NeverStarted = c.NeverStarted
 		switch {
 		case !c.NeverStarted.Assertable:
@@ -143,25 +183,10 @@ func (s *Service) PreflightCommission(ctx context.Context, id string, ch Choices
 	return p, nil
 }
 
-func (s *Service) judge(ctx context.Context, result *skillscripts.PacketResult, sc specChoices, req map[string]Resolution, self string) (Preflight, error) {
-	snap, err := s.Reader.Snapshot(ctx, home.Options{})
-	if err != nil {
-		return Preflight{}, err
-	}
-	p := Preflight{Packet: result, Verdicts: Verdicts(snap, sc.Topics, resolutions(sc.RunAlongside, sc.Supersedes, req), self)}
-	p.Blockers = blockers(p)
-	return p, nil
-}
-
-func (s *Service) verdicts(snap *home.Snapshot, result *skillscripts.PacketResult, c *home.Commission, ch Choices) Preflight {
-	var topics, alongside, supersedes []string
-	for _, t := range c.Topics {
-		topics = append(topics, t.Topic)
-	}
-	if c.Spec != nil {
-		alongside, supersedes = c.Spec.RunAlongside, c.Spec.Supersedes
-	}
-	p := Preflight{Packet: result, Verdicts: Verdicts(snap, topics, resolutions(alongside, supersedes, ch.Resolutions), c.ID)}
+// judge gives a packet result its topic verdicts and blockers; self is the
+// commission being judged, which never blocks itself.
+func judge(snap *home.Snapshot, result *skillscripts.PacketResult, sc specChoices, req map[string]Resolution, self string) Preflight {
+	p := Preflight{Packet: result, Verdicts: Verdicts(snap, sc.Topics, resolutions(sc.RunAlongside, sc.Supersedes, req), self), OwnerReading: snap.OwnerReading(sc.Topics)}
 	p.Blockers = blockers(p)
 	return p
 }
@@ -193,7 +218,7 @@ func (s *Service) Build(ctx context.Context, spec []byte, req map[string]Resolut
 	if err := s.Writer.Held(); err != nil {
 		return Preflight{}, err
 	}
-	spec, err := withChoices(spec, req)
+	spec, sc, err := withChoices(spec, req)
 	if err != nil {
 		return Preflight{}, err
 	}
@@ -201,28 +226,24 @@ func (s *Service) Build(ctx context.Context, spec []byte, req map[string]Resolut
 	if err != nil {
 		return Preflight{}, home.Cause(home.ErrUnavailable, err)
 	}
-	var sc specChoices
-	_ = json.Unmarshal(spec, &sc)
-	return s.judge(ctx, result, sc, nil, result.CommissionID)
+	snap, err := s.Reader.Snapshot(ctx, home.Options{})
+	if err != nil {
+		return Preflight{}, err
+	}
+	return judge(snap, result, sc, nil, result.CommissionID), nil
 }
 
 // withChoices writes the request's resolutions into a spec: run_alongside
 // lists every commission run alongside, supersedes every superseded one, so
-// the charter packet.py renders names each. Without resolutions the spec
-// passes through verbatim (D17).
-func withChoices(spec []byte, req map[string]Resolution) ([]byte, error) {
-	if len(req) == 0 {
-		return spec, nil
+// the charter packet.py renders names each. Without resolutions, or when the
+// spec is not a JSON object, the spec passes through verbatim. It returns the
+// choices the desk reads from the result.
+func withChoices(spec []byte, req map[string]Resolution) ([]byte, specChoices, error) {
+	fields, sc := readSpec(spec)
+	if len(req) == 0 || fields == nil {
+		return spec, sc, nil
 	}
-	var m map[string]any
-	dec := json.NewDecoder(bytes.NewReader(spec))
-	dec.UseNumber()
-	if err := dec.Decode(&m); err != nil || m == nil {
-		return spec, nil // packet.py reports a bad spec in result.Errors
-	}
-	var sc specChoices
-	_ = json.Unmarshal(spec, &sc)
-	alongside, supersedes := sc.RunAlongside, []string(sc.Supersedes)
+	alongside, supersedes := sc.RunAlongside, sc.Supersedes
 	chosen := make([]string, 0, len(req))
 	for id := range req {
 		chosen = append(chosen, id)
@@ -240,8 +261,16 @@ func withChoices(spec []byte, req map[string]Resolution) ([]byte, error) {
 			*into = append(*into, id)
 		}
 	}
-	m["run_alongside"], m["supersedes"] = nonNil(alongside), nonNil(supersedes)
-	return json.Marshal(m)
+	sc.RunAlongside, sc.Supersedes = alongside, supersedes
+	var err error
+	if fields["run_alongside"], err = json.Marshal(nonNil(alongside)); err != nil {
+		return nil, sc, err
+	}
+	if fields["supersedes"], err = json.Marshal(nonNil(supersedes)); err != nil {
+		return nil, sc, err
+	}
+	out, err := json.Marshal(fields)
+	return out, sc, err
 }
 
 func nonNil(list []string) []string {
@@ -252,7 +281,7 @@ func nonNil(list []string) []string {
 }
 
 // Relaunch builds a new commission from an earlier one's PACKET.json with
-// supersedes and carry_baseline_from set to it (D8).
+// supersedes and carry_baseline_from set to it.
 func (s *Service) Relaunch(ctx context.Context, id string, req map[string]Resolution) (Preflight, error) {
 	_, c, err := s.find(ctx, id)
 	if err != nil {
@@ -266,7 +295,7 @@ func (s *Service) Relaunch(ctx context.Context, id string, req map[string]Resolu
 		return Preflight{}, fmt.Errorf("%s PACKET.json spec: %w", id, err)
 	}
 	// A bad start often never wrote BASELINE.json; the new commission then
-	// records its own baseline instead of carrying one (G2).
+	// records its own baseline instead of carrying one.
 	spec["supersedes"], spec["carry_baseline_from"] = []string{id}, nil
 	if _, ok := c.File(home.BaselineFile); ok {
 		spec["carry_baseline_from"] = id
@@ -278,20 +307,22 @@ func (s *Service) Relaunch(ctx context.Context, id string, req map[string]Resolu
 	return s.Build(ctx, data, req)
 }
 
-// Options are the launch defaults and allowed values.
-func (s *Service) Options() (*skillscripts.Limits, error) { return s.Limits() }
-
 // Messages are a built packet's charter path and its two messages.
 type Messages struct {
 	CharterPath, Stance, Kernel string
 }
 
-// Messages reads a packet's two messages; it writes nothing (rulings P4).
+// Messages reads a packet's two messages; it writes nothing.
 func (s *Service) Messages(ctx context.Context, id string) (Messages, error) {
 	_, c, err := s.find(ctx, id)
 	if err != nil {
 		return Messages{}, err
 	}
+	return messages(c)
+}
+
+func messages(c *home.Commission) (Messages, error) {
+	id := c.ID
 	stanceText, err1 := os.ReadFile(filepath.Join(c.Dir, home.StanceFile))
 	kernelText, err2 := os.ReadFile(filepath.Join(c.Dir, home.KernelFile))
 	if err := errors.Join(err1, err2); err != nil {
@@ -318,7 +349,7 @@ type supersession struct {
 
 // supersessions checks, before anything is launched, that every superseded
 // commission with a supervisor can be stopped through its own thread and
-// session (F5); any that cannot refuses the whole launch.
+// session; any that cannot refuses the whole launch.
 func (s *Service) supersessions(ctx context.Context, snap *home.Snapshot, verdicts []Verdict) ([]supersession, error) {
 	var out []supersession
 	seen := map[string]bool{}
@@ -359,7 +390,7 @@ func (s *Service) supersessions(ctx context.Context, snap *home.Snapshot, verdic
 }
 
 // targetOf is a commission's own conversation: the session and thread
-// LAUNCH.json recorded, else the exact match's (F5).
+// LAUNCH.json recorded, else the exact match's.
 func targetOf(c *home.Commission) Target {
 	var t Target
 	if c.Launch != nil {
@@ -378,21 +409,24 @@ func targetOf(c *home.Commission) Target {
 // first record. Superseded supervisors are stopped first, in the background
 // run; a supersession that cannot be stopped refuses the launch here.
 func (s *Service) Launch(ctx context.Context, id string, ch Choices) (*home.LaunchRecord, error) {
+	if err := wire.ResearchOperation(ctx, "research.launch", id); err != nil {
+		return nil, err
+	}
 	if err := s.Writer.Held(); err != nil {
 		return nil, err
 	}
-	p, err := s.PreflightCommission(ctx, id, ch)
+	snap, c, err := s.find(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	p, err := s.preflightCommission(ctx, snap, c, ch)
 	if err != nil {
 		return nil, err
 	}
 	if !p.Launchable() {
 		return nil, fmt.Errorf("%w: %s", home.ErrRefused, strings.Join(p.Blockers, "; "))
 	}
-	snap, c, err := s.find(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	msgs, err := s.Messages(ctx, id)
+	msgs, err := messages(c)
 	if err != nil {
 		return nil, err
 	}
@@ -403,6 +437,13 @@ func (s *Service) Launch(ctx context.Context, id string, ch Choices) (*home.Laun
 	sups, err := s.supersessions(ctx, snap, p.Verdicts)
 	if err != nil {
 		return nil, err
+	}
+	// All affected targets must be covered before any supervisor is stopped
+	// or any launch record is written. The packet cannot expand its grant.
+	for _, sup := range sups {
+		if err := wire.ResearchOperation(ctx, "research.control", sup.ID); err != nil {
+			return nil, err
+		}
 	}
 	claimed := []string{}
 	for _, cid := range append([]string{id}, ids(sups)...) {
@@ -419,7 +460,7 @@ func (s *Service) Launch(ctx context.Context, id string, ch Choices) (*home.Laun
 	}
 	record := &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: id, LaunchedBy: "desk", IdempotencyKey: id + "#1", WebConsoleAccess: access, Steps: []home.LaunchStep{}, Controls: []home.ControlEntry{}, Supersedes: ids(sups)}
 	for _, v := range p.Verdicts {
-		if v.Chosen == RunAlongside && !contains(record.RunAlongside, v.CommissionID) {
+		if v.Chosen == RunAlongside && !slices.Contains(record.RunAlongside, v.CommissionID) {
 			record.RunAlongside = append(record.RunAlongside, v.CommissionID)
 		}
 	}
@@ -431,7 +472,7 @@ func (s *Service) Launch(ctx context.Context, id string, ch Choices) (*home.Laun
 		return nil, err
 	}
 	snapshot := *record
-	go s.run(id, msgs.CharterPath, record, Texts{Stance: msgs.Stance, Kernel: msgs.Kernel}, settings, sups, claimed)
+	go s.run(context.WithoutCancel(ctx), id, msgs.CharterPath, record, Texts{Stance: msgs.Stance, Kernel: msgs.Kernel}, settings, sups, claimed)
 	return &snapshot, nil
 }
 
@@ -443,33 +484,34 @@ func ids(sups []supersession) []string {
 	return out
 }
 
-func contains(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
-}
-
 // StepSupersede is the failure step when a superseded supervisor could not
 // be stopped; nothing was launched.
 const StepSupersede = "supersede"
 
-func (s *Service) run(id, charter string, record *home.LaunchRecord, texts Texts, settings Settings, sups []supersession, claimed []string) {
+func (s *Service) run(ctx context.Context, id, charter string, record *home.LaunchRecord, texts Texts, settings Settings, sups []supersession, claimed []string) {
 	defer s.release(claimed...)
-	ctx := context.Background()
 	for _, sup := range sups {
+		if err := wire.ResearchOperation(ctx, "research.control", sup.ID); err != nil {
+			s.fail(id, record, StepSupersede, err.Error())
+			return
+		}
+		outcome := "no window found; no session is known for it, so nothing could still be running under the desk's control"
 		if sup.Stop {
-			if err := s.Launcher.Stop(ctx, sup.Target, sup.Open); err != nil {
+			stopped, err := s.Launcher.Stop(ctx, sup.Target, sup.Open)
+			if err != nil {
 				s.fail(id, record, StepSupersede, "stop "+sup.ID+": "+err.Error()+"; nothing was launched")
 				return
 			}
+			outcome = stopped.Outcome()
 		}
-		if err := s.markSuperseded(ctx, sup, id); err != nil {
+		if err := s.markSuperseded(ctx, sup, id, outcome); err != nil {
 			s.fail(id, record, StepSupersede, "record "+sup.ID+" as superseded: "+err.Error()+"; nothing was launched")
 			return
 		}
+	}
+	if err := wire.ResearchOperation(ctx, "research.launch", id); err != nil {
+		s.fail(id, record, StepCreated, err.Error())
+		return
 	}
 	spec := SessionSpec{IdempotencyKey: record.IdempotencyKey, Label: "research · " + id}
 	err := s.Launcher.Run(ctx, spec, texts, settings, func(step, sessionID, threadID string) error {
@@ -500,148 +542,21 @@ func (s *Service) fail(id string, record *home.LaunchRecord, step, reason string
 
 // markSuperseded records in the earlier commission's LAUNCH.json that it was
 // superseded by the new one, at the operator's choice; this ends it.
-func (s *Service) markSuperseded(ctx context.Context, sup supersession, by string) error {
+func (s *Service) markSuperseded(ctx context.Context, sup supersession, by, outcome string) error {
 	_, c, err := s.find(ctx, sup.ID)
 	if err != nil {
 		return err
 	}
-	record := c.Launch
-	if record == nil {
-		record = &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: sup.ID, LaunchedBy: "hand", Steps: []home.LaunchStep{}, Controls: []home.ControlEntry{}}
-	}
+	record := launchRecord(c)
+	fillTarget(record, sup.Target)
 	now := s.Clock.Now().UTC()
-	if record.WebConsoleSessionID == "" {
-		record.WebConsoleSessionID, record.ThreadID = sup.Target.Session, sup.Target.Thread
-	}
 	record.SupersededBy = by
-	record.Controls = append(record.Controls, home.ControlEntry{Action: ActSupersede, At: now})
+	record.Controls = append(record.Controls, home.ControlEntry{Action: ActSupersede, At: now, Outcome: outcome})
 	if record.Discarded == nil {
 		record.Discarded = &home.Discard{At: now, Reason: "superseded by " + by + " (the operator's choice at launch)"}
 	}
 	_, err = s.Writer.WriteLaunch(sup.ID, record)
 	return err
-}
-
-// SuggestedQuote is one stance quote offered for a launch, with its source.
-type SuggestedQuote struct {
-	Text, Source, CommissionID string
-}
-
-// Suggestions are a launch's defaults for the selected topics (rulings P3).
-type Suggestions struct {
-	// Quotes come from the newest commission naming any of the topics: its
-	// PACKET.json stance_quotes, else the quoted lines of its
-	// STANCE-MESSAGE.txt; QuotesReason says where they came from or why
-	// there are none (only then is typing required).
-	Quotes       []SuggestedQuote
-	QuotesReason string
-	Topics       []TopicWorkstreams
-}
-
-// TopicWorkstreams is one selected topic's workstreams from mission_check.py.
-type TopicWorkstreams struct {
-	Topic       string
-	Workstreams []home.Workstream
-	Evidence    home.Evidence
-}
-
-// Suggest returns the stance quotes and workstreams for the topics.
-func (s *Service) Suggest(ctx context.Context, topics []string) (Suggestions, error) {
-	var out Suggestions
-	if len(topics) == 0 {
-		return out, nil
-	}
-	snap, err := s.Reader.Snapshot(ctx, home.Options{MissionCheck: true})
-	if err != nil {
-		return out, err
-	}
-	for _, name := range topics {
-		tw := TopicWorkstreams{Topic: name}
-		if t := snap.Topic(name); t == nil {
-			tw.Evidence = home.Unknown("no topic " + name)
-		} else {
-			tw.Workstreams, tw.Evidence = t.Check.Workstreams, t.Check.Evidence
-		}
-		out.Topics = append(out.Topics, tw)
-	}
-	var newest *home.Commission
-	var newestAt time.Time
-	for _, c := range snap.Commissions {
-		named := false
-		for _, t := range topics {
-			named = named || names(c, t)
-		}
-		built := c.Built()
-		if !named || !built.Known {
-			continue
-		}
-		if newest == nil || built.Value.After(newestAt) || (built.Value.Equal(newestAt) && c.ID > newest.ID) {
-			newest, newestAt = c, built.Value
-		}
-	}
-	if newest == nil {
-		out.QuotesReason = "no earlier commission with a known build time names these topics; type the stance quotes"
-		return out, nil
-	}
-	out.Quotes, out.QuotesReason = quotes(newest)
-	return out, nil
-}
-
-// quotes reads a commission's stance quotes: PACKET.json's spec first, else
-// the whole quoted lines of STANCE-MESSAGE.txt.
-func quotes(c *home.Commission) ([]SuggestedQuote, string) {
-	if c.Packet != nil {
-		var spec struct {
-			StanceQuotes []string `json:"stance_quotes"`
-		}
-		path := filepath.Join(c.Dir, home.PacketFile)
-		if err := json.Unmarshal(c.Packet.Spec, &spec); err == nil && len(spec.StanceQuotes) > 0 {
-			var out []SuggestedQuote
-			for _, q := range spec.StanceQuotes {
-				if q = unquote(q); q != "" {
-					out = append(out, SuggestedQuote{Text: q, Source: path, CommissionID: c.ID})
-				}
-			}
-			if len(out) > 0 {
-				return out, "from " + c.ID + "'s " + home.PacketFile + " (the newest commission on these topics)"
-			}
-		}
-	}
-	path := filepath.Join(c.Dir, home.StanceFile)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, "the newest commission on these topics, " + c.ID + ", has no readable stance quotes (" + home.PacketFile + " has none; " + home.StanceFile + ": " + err.Error() + "); type the stance quotes"
-	}
-	var out []SuggestedQuote
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if quoted(line) {
-			if q := unquote(line); q != "" {
-				out = append(out, SuggestedQuote{Text: q, Source: path, CommissionID: c.ID})
-			}
-		}
-	}
-	if len(out) == 0 {
-		return nil, "the newest commission on these topics, " + c.ID + ", has no quoted lines in " + home.StanceFile + "; type the stance quotes"
-	}
-	return out, "from the quoted lines of " + c.ID + "'s " + home.StanceFile + " (the newest commission on these topics)"
-}
-
-func quoted(line string) bool {
-	r := []rune(line)
-	if len(r) < 2 {
-		return false
-	}
-	return strings.ContainsRune("\"“", r[0]) && strings.ContainsRune("\"”", r[len(r)-1])
-}
-
-func unquote(q string) string {
-	q = strings.TrimSpace(q)
-	if quoted(q) {
-		r := []rune(q)
-		q = string(r[1 : len(r)-1])
-	}
-	return strings.TrimSpace(q)
 }
 
 // settings are the packet's supervisor model and effort, else the defaults.
@@ -740,6 +655,9 @@ const controlTime = 2 * time.Minute
 
 // Control carries out one operator control on a commission's session.
 func (s *Service) Control(ctx context.Context, id, action, reason string) (ControlResult, error) {
+	if err := wire.ResearchOperation(ctx, "research.control", id); err != nil {
+		return ControlResult{}, err
+	}
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), controlTime)
 	defer cancel()
 	if err := s.Writer.Held(); err != nil {
@@ -757,14 +675,11 @@ func (s *Service) Control(ctx context.Context, id, action, reason string) (Contr
 	}
 	defer s.release(id)
 
-	record := c.Launch
-	if record == nil {
-		record = &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: id, LaunchedBy: "hand", Steps: []home.LaunchStep{}, Controls: []home.ControlEntry{}}
-	}
+	record := launchRecord(c)
 	if record.Discarded != nil {
 		return ControlResult{}, fmt.Errorf("%w: %s was discarded at %s", home.ErrRefused, id, record.Discarded.At.Format(time.RFC3339))
 	}
-	// The commission's own conversation (F5). Nothing else is ever typed into.
+	// The commission's own conversation. Nothing else is ever typed into.
 	t := targetOf(c)
 	open := c.State.Running()
 	out := ControlResult{Record: record}
@@ -787,6 +702,7 @@ func (s *Service) Control(ctx context.Context, id, action, reason string) (Contr
 			return out, fmt.Errorf("%w: %s only applies to a goal that is %s; this goal is %q", home.ErrRefused, action, want, status)
 		}
 	}
+	var outcome string // what a stop found and left
 	switch action {
 	case ActPause:
 		out.GoalStatus, err = s.Launcher.Pause(ctx, t)
@@ -798,10 +714,14 @@ func (s *Service) Control(ctx context.Context, id, action, reason string) (Contr
 			err = s.Launcher.ResendStance(ctx, t, msgs.Stance)
 		}
 	case ActStop:
-		err = s.Launcher.Stop(ctx, t, open)
+		var stopped Stopped
+		stopped, err = s.Launcher.Stop(ctx, t, open)
+		outcome = stopped.Outcome()
 	case ActDiscard:
 		if open {
-			err = s.Launcher.Stop(ctx, t, true)
+			var stopped Stopped
+			stopped, err = s.Launcher.Stop(ctx, t, true)
+			outcome = stopped.Outcome()
 		}
 	default:
 		return out, fmt.Errorf("%w: unknown control %q", home.ErrRefused, action)
@@ -820,13 +740,8 @@ func (s *Service) Control(ctx context.Context, id, action, reason string) (Contr
 		}
 	}
 	now := s.Clock.Now().UTC()
-	if record.WebConsoleSessionID == "" {
-		record.WebConsoleSessionID = t.Session
-	}
-	if record.ThreadID == "" && record.WebConsoleSessionID == t.Session {
-		record.ThreadID = t.Thread
-	}
-	record.Controls = append(record.Controls, home.ControlEntry{Action: action, At: now})
+	fillTarget(record, t)
+	record.Controls = append(record.Controls, home.ControlEntry{Action: action, At: now, Outcome: outcome})
 	if action == ActDiscard {
 		record.Discarded = &home.Discard{At: now, Reason: strings.TrimSpace(reason)}
 	}
@@ -842,6 +757,27 @@ func (s *Service) Control(ctx context.Context, id, action, reason string) (Contr
 		out.Message = action + " done; goal status unknown"
 	}
 	return out, nil
+}
+
+// launchRecord is a commission's LAUNCH.json, or the record a hand-launched
+// commission gets at its first control or supersession.
+func launchRecord(c *home.Commission) *home.LaunchRecord {
+	if c.Launch != nil {
+		return c.Launch
+	}
+	return &home.LaunchRecord{Schema: home.LaunchSchema, CommissionID: c.ID, LaunchedBy: "hand", Steps: []home.LaunchStep{}, Controls: []home.ControlEntry{}}
+}
+
+// fillTarget records the session and thread a control or supersession acted
+// on when LAUNCH.json does not have them yet; a thread is recorded only for
+// the session already on record.
+func fillTarget(record *home.LaunchRecord, t Target) {
+	if record.WebConsoleSessionID == "" {
+		record.WebConsoleSessionID = t.Session
+	}
+	if record.ThreadID == "" && record.WebConsoleSessionID == t.Session {
+		record.ThreadID = t.Thread
+	}
 }
 
 func (s *Service) find(ctx context.Context, id string) (*home.Snapshot, *home.Commission, error) {

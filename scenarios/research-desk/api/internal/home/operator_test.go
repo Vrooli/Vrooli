@@ -45,6 +45,27 @@ Finish the current unit, write the closeout, then end.
 ### not an entry
 `
 
+// A hand-written heading may carry any RFC 3339 time, as the real
+// reviews/local-models-20261111/VERDICTS.md does; a heading that still does
+// not parse is reported with its line, never dropped.
+func TestAnyRFC3339HeadingTimeIsAnEntry(t *testing.T) {
+	text := "# Verdicts\n\n### 2026-11-12T00:42:22.604567+00:00 · verdict local-model-performance · via hand\nKeep.\n\n" +
+		"### 2026-11-12T01:06:43-05:00 · verdict local-model-performance · via hand\nDrop.\n\n### 2026-13-40T99:00:00Z · verdict x · via hand\nlost?\n"
+	entries, unparsed := ParseEntries(text)
+	if len(entries) != 2 {
+		t.Fatalf("both verdicts must be read, got %+v", entries)
+	}
+	if want := time.Date(2026, 11, 12, 0, 42, 22, 604567000, time.UTC); !entries[0].At.Equal(want) || entries[0].Body != "Keep." {
+		t.Errorf("fractional UTC heading: %+v", entries[0])
+	}
+	if want := time.Date(2026, 11, 12, 6, 6, 43, 0, time.UTC); !entries[1].At.Equal(want) {
+		t.Errorf("an offset is converted to UTC: %v", entries[1].At)
+	}
+	if len(unparsed) != 1 || unparsed[0].Line != 9 {
+		t.Errorf("an impossible time is reported with its line: %+v", unparsed)
+	}
+}
+
 func TestRealAttentionItemsAreGlobalNotices(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(testutil.NewHome(t).Research, "ATTENTION.md"))
 	if err != nil {
@@ -69,10 +90,10 @@ func TestRealAttentionItemsAreGlobalNotices(t *testing.T) {
 			t.Errorf("%s: no commission would read an answer to a global item", it.ID)
 		}
 		if it.Instruction() == "" {
-			t.Errorf("%s: a global item carries what it says to do (rulings P6)", it.ID)
+			t.Errorf("%s: a global item carries what it says to do", it.ID)
 		}
 	}
-	// P6: the instruction is the item's own words; links resolve beside the file.
+	// The instruction is the item's own words; links resolve beside the file.
 	if got := items[0].Instruction(); !strings.HasPrefix(got, "The approved HOST-DISK build has a candidate CLI") {
 		t.Errorf("the Needs you line is the instruction: %q", got)
 	}
@@ -132,8 +153,8 @@ func TestContractItemFields(t *testing.T) {
 
 func TestContractEntries(t *testing.T) {
 	entries, unparsed := ParseEntries(contractEntries)
-	if len(entries) != 4 || unparsed != 1 {
-		t.Fatalf("want 4 entries and 1 unparsed heading, got %d and %d", len(entries), unparsed)
+	if len(entries) != 4 || len(unparsed) != 1 || unparsed[0] != (UnparsedHeading{Line: 15, Text: "### not an entry"}) {
+		t.Fatalf("want 4 entries and the unparsed heading on line 15, got %d and %+v", len(entries), unparsed)
 	}
 	if a := entries[1]; a.Subject != "AV4" || a.Via != ViaHub || !strings.HasPrefix(a.Body, "keep — ") || !strings.HasSuffix(a.Body, "\nNote: fine, but tell me if AV6 needs it") {
 		t.Errorf("answer entry: %+v", a)
@@ -194,8 +215,8 @@ func TestFeedIdentityIsCommissionAndID(t *testing.T) {
 	if c.CommissionID != "local-models-w1-20261111" || len(c.Sources) != 2 || c.Answer == nil || c.Answer.Via != ViaHub {
 		t.Errorf("commission item: %+v", c)
 	}
-	if !c.Seen.Value || c.Seen.Source == "" {
-		t.Errorf("STATE.md was rewritten after the answer, so a unit has run since: %+v", c.Seen)
+	if !c.Read.Value || c.Read.Source == "" {
+		t.Errorf("STATE.md was rewritten after the answer, so a unit has run since: %+v", c.Read)
 	}
 	if d, _, why := c.Delivery(); d != DeliverNone || !strings.Contains(why, "answered") {
 		t.Errorf("an answered item is not sent: %s %s", d, why)
@@ -244,21 +265,67 @@ func TestChangesSinceLastLook(t *testing.T) {
 		t.Error("an unknown topic is not found")
 	}
 
-	// F10: a time instead of a look lists the files written after it, and
-	// says ledger text needs a recorded look.
+	// A time instead of a look lists the files written after it, shows the
+	// ledger sections under headings dated after it, and says plainly that
+	// workstream status changes need a recorded look.
 	since := base.Add(150 * time.Minute)
 	changes, err = f.snapshot(t, Options{}).Changes(nil, since, LookCommission, id)
-	if err != nil || !changes.Since.Equal(since) || changes.BaselineKind != BaselineAsked || len(changes.Ledger) != 0 || len(changes.Files) != 1 || !strings.Contains(changes.Baseline, "as asked") {
+	if err != nil || !changes.Since.Equal(since) || changes.BaselineKind != BaselineAsked || len(changes.Files) != 1 || !strings.Contains(changes.Baseline, "as asked") {
 		t.Fatalf("since a time: %+v %v", changes, err)
+	}
+	if len(changes.NotShown) != 1 || !strings.Contains(changes.NotShown[0], "Workstream status changes need a recorded look") {
+		t.Errorf("what cannot be shown is said: %q", changes.NotShown)
+	}
+	if len(changes.Ledger) != 1 || !changes.Ledger[0].FromDatedHeadings || !strings.HasPrefix(changes.Ledger[0].Text, "## 2026-11-11 — prepared") || strings.Contains(changes.Ledger[0].Text, "Unit 4") {
+		t.Fatalf("the section under the heading dated after the time, up to the next heading at its level: %+v", changes.Ledger)
+	}
+
+	// A heading's own time and offset decide; sections dated before are left out.
+	dated := "# Ledger\n\n## Entries\n\n### 2026-11-10T15:29:59.5+01:00 — before\nold\n\n### 2026-11-10T14:40Z — after\nnew\n#### detail\nkept\n"
+	f.writeRel(t, "cohorts/"+id+"/"+LedgerFile, dated, base.Add(3*time.Hour))
+	changes, _ = f.snapshot(t, Options{}).Changes(nil, since, LookCommission, id)
+	if len(changes.Ledger) != 1 || changes.Ledger[0].Text != "### 2026-11-10T14:40Z — after\nnew\n#### detail\nkept\n" {
+		t.Fatalf("only the later entry: %+v", changes.Ledger)
+	}
+	f.writeRel(t, "cohorts/"+id+"/"+LedgerFile, "# Ledger\n\n## Unit 4\nnew text\n", base.Add(3*time.Hour))
+	changes, _ = f.snapshot(t, Options{}).Changes(nil, since, LookCommission, id)
+	if len(changes.Ledger) != 0 || len(changes.NotShown) != 2 || !strings.Contains(changes.NotShown[1], ledger+" has no dated headings") {
+		t.Errorf("a ledger with no dated headings is named, not guessed at: %+v %q", changes.Ledger, changes.NotShown)
 	}
 }
 
-// F6: an older item's `- **Delivered…**` bullet counts as delivered.
+// An older item's `- **Delivered…**` bullet counts as delivered.
 func TestAnOlderDeliveredBulletCountsAsDelivered(t *testing.T) {
 	text := "## Actionable now\n\n### OLD-ITEM-20261101 — Older item\n\n- **Needs you:** choose.\n- **Delivered 2026-11-02:** Hub ask abc, pending.\n\n### NEW-ITEM — Newer item\n\n- **Delivery:** no Hub ask exists.\n"
 	items, _ := ParseNeedsYou(text, AttentionNeedsSection, "ATTENTION.md")
 	if len(items) != 2 || items[0].Delivered == "" || items[1].Delivered != "" {
 		t.Fatalf("items = %+v", items)
+	}
+}
+
+// A scheduler copies the desk's receipt into its `Delivered:` line; that is
+// the desk's delivery, not the scheduler's.
+func TestADeliveredLineCopiedFromTheDeskIsTheDesks(t *testing.T) {
+	at := time.Date(2026, 11, 12, 6, 5, 16, 0, time.UTC)
+	receipt := &Entry{At: at, Kind: EntryDelivered, Subject: "SCHEDULER-MODEL", Via: "desk", Body: "hub notice 7a723ac5-0bbe"}
+	cases := []struct {
+		name, line string
+		receipt    *Entry
+		reason     DeliveryReason
+		want       string
+	}{
+		{"names the receipt's notice", "hub notice 7a723ac5-0bbe 2026-11-12T06:05:16Z", receipt, ReasonHubDelivered, "delivered by the desk at 2026-11-12T06:05:16Z (hub notice 7a723ac5-0bbe)"},
+		{"desk route with a receipt", "research-desk hub notice 7a723ac5-0bbe 2026-11-12T06:05:16Z", receipt, ReasonHubDelivered, "delivered by the desk at 2026-11-12T06:05:16Z"},
+		{"desk route, no receipt", "research-desk hub notice 99 2026-11-12T06:05:16Z", nil, ReasonHubDelivered, "its OPERATOR.md holds no receipt for it"},
+		{"another route, a receipt for another notice", "hub 2026-11-12T14:00:00Z", receipt, ReasonSchedulerDelivered, "the scheduler delivered it itself (Delivered: hub 2026-11-12T14:00:00Z)"},
+		{"another route, no receipt", "hub 2026-11-12T14:00:00Z", nil, ReasonSchedulerDelivered, "the scheduler delivered it itself"},
+	}
+	for _, tc := range cases {
+		f := FeedItem{Item: NeedsYouItem{ID: "SCHEDULER-MODEL", Delivered: tc.line}, Delivered: tc.receipt}
+		delivery, reason, why := f.Delivery()
+		if delivery != DeliverNone || reason != tc.reason || !strings.Contains(why, tc.want) {
+			t.Errorf("%s: %s %s %q", tc.name, delivery, reason, why)
+		}
 	}
 }
 
@@ -277,7 +344,7 @@ func (f *fixture) unreadable(t *testing.T, rel string) string {
 }
 
 // [REQ:RD-P0-004]
-// E1: a STATE.md that exists but cannot be read is unknown, not "no items",
+// A STATE.md that exists but cannot be read is unknown, not "no items",
 // and its owner's needs-you items are blocked.
 func TestAnUnreadableStateIsUnknownNotNoItems(t *testing.T) {
 	f := newFixture(t)
@@ -301,7 +368,7 @@ func TestAnUnreadableStateIsUnknownNotNoItems(t *testing.T) {
 	}
 }
 
-// E1: an OPERATOR.md that exists but cannot be read is unknown, not "no
+// An OPERATOR.md that exists but cannot be read is unknown, not "no
 // entries"; an unreadable ATTENTION.md blocks every owner.
 func TestAnUnreadableOperatorFileIsUnknownNotNoEntries(t *testing.T) {
 	f := newFixture(t)
@@ -324,7 +391,7 @@ func TestAnUnreadableOperatorFileIsUnknownNotNoEntries(t *testing.T) {
 	}
 }
 
-// P5: each commission says when a new operator entry will be read, as a code
+// Each commission says when a new operator entry will be read, as a code
 // a client matches on, and since when entries have been read.
 func TestEachCommissionSaysWhenANewEntryIsRead(t *testing.T) {
 	steering := Flag{Value: true, Evidence: Evidence{Known: true}}

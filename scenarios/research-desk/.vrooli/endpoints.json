@@ -299,7 +299,7 @@
         {
           "status": 403,
           "code": "permission_denied",
-          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+          "description": "The caller needs an approved research-management operation grant for the named commission; the refusal includes the canonical approval request"
         }
       ],
       "examples": [
@@ -382,7 +382,7 @@
         {
           "status": 403,
           "code": "permission_denied",
-          "description": "The caller is an agent or a service: this is the operator's action; write a needs-you item instead"
+          "description": "The caller needs an approved research-management operation grant for the named commission; the refusal includes the canonical approval request"
         }
       ],
       "examples": [

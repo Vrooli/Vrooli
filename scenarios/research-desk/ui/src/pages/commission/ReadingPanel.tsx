@@ -10,14 +10,13 @@ import { useTranslation } from "../../i18n";
 import { kb, tokens } from "../../lib/format";
 
 /**
- * What each agent must read to start (G6): the supervisor at start and at
+ * What each agent must read to start: the supervisor at start and at
  * each unit, and every owner. Sizes in KB and estimated tokens; flags in the
  * API's own words when a set is over its ceiling or the charter has grown.
  */
 export function ReadingPanel({ data }: { data: GetCommissionResponse }) {
   const { t } = useTranslation();
   if (data.readSets.length === 0) return <p className="text-body-sm">{t(strings.reading.none)}</p>;
-  const largest = Math.max(...data.readSets.map((set) => Number(set.bytes)), 1);
   return (
     <div className="flex flex-col gap-space-lg">
       <Facts>
@@ -25,10 +24,20 @@ export function ReadingPanel({ data }: { data: GetCommissionResponse }) {
           {data.ceilings?.known ? t(strings.reading.ceilingsKnown) : t(strings.reading.ceilingsUnknown)}
         </Fact>
       </Facts>
-      {data.readSets.map((set) => (
+      <ReadSets sets={data.readSets} />
+    </div>
+  );
+}
+
+/** Each read set with its size, a bar against the largest, its flags and its files; also used by Preflight for owners. */
+export function ReadSets({ sets }: { sets: ReadSet[] }) {
+  const largest = Math.max(...sets.map((set) => Number(set.bytes)), 1);
+  return (
+    <>
+      {sets.map((set) => (
         <ReadSetView key={set.role} set={set} largest={largest} />
       ))}
-    </div>
+    </>
   );
 }
 

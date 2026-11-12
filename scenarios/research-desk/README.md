@@ -29,31 +29,24 @@ without a chat message.
 
 ## Reading order
 
-1. [`docs/concepts/SYSTEM.md`](docs/concepts/SYSTEM.md) — domains, surface, states, launch,
-   control, courier, proofs.
-2. [`docs/reference/FILE-CONTRACT.md`](docs/reference/FILE-CONTRACT.md) — the files,
-   `packet.py`, the two grammars and the launch record.
-3. [`docs/DECISIONS.md`](docs/DECISIONS.md) — why, when you need it.
-4. [`docs/guides/skills-move.md`](docs/guides/skills-move.md) — for the research skills.
-5. [`docs/internal/SEAMS.md`](docs/internal/SEAMS.md) — test boundaries.
+This file, then [`docs/concepts/SYSTEM.md`](docs/concepts/SYSTEM.md) (how it works),
+[`docs/reference/FILE-CONTRACT.md`](docs/reference/FILE-CONTRACT.md) (the files and
+grammars) and [`docs/DECISIONS.md`](docs/DECISIONS.md) (why). What is not built or not
+proven: [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md). Requirements:
+`requirements/01-must-ship/module.json`.
 
-Charter and operator words: `.vrooli/work/research-desk/` at the repository root. PRD and
-requirements: `PRD.md`, `requirements/`. Pointer documents in `docs/` (marked
-`not-applicable` in `docs/manifest.json`) only link to these.
+Outside the reading order: why the research method works, [`docs/concepts/METHOD.md`](docs/concepts/METHOD.md).
 
 ## Running
 
 ```bash
 make setup && make start     # lifecycle; never run binaries directly
-make status
 vrooli scenario test research-desk --phases structure,unit,docs
 make real-home-check         # read-only invariants over ~/.vrooli/research
 ```
 
 ## Status
 
-2026-11-12: API and CLI built for all three domains (activity, launch, operator) and the
-courier, after review 3 (`.vrooli/work/research-desk/REVIEW-3-RULINGS.md`). The phone UI is
-built by its own owner. Not built: the remaining-quota lens (B3) and the desk's own Web
-Console credential client (D20). Requirements and how each is validated:
-`requirements/01-must-ship/module.json`.
+2026-11-12: seen live once: automatic launch, notice delivery and a supersede stop.
+Not yet seen live: a decision ask with its answer, operator actions on a real commission, a
+relaunch. Details and what is not built: [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md).

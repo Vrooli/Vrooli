@@ -7,12 +7,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 )
 
-// What changed since the operator last looked (SYSTEM.md §8, rulings B2).
+// What changed since the operator last looked (SYSTEM.md §8).
 
 // Look is the snapshot recorded when the operator looks at a commission or
 // topic. Deleting it only resets "since".
@@ -26,11 +27,14 @@ type Look struct {
 	Statuses map[string]map[string]string `json:"statuses"`
 }
 
-// LedgerAddition is text appended to a ledger since the last look.
+// LedgerAddition is text appended to a ledger since the last look, or,
+// with no look, the sections under its headings dated after the time
+// compared with (FromDatedHeadings).
 type LedgerAddition struct {
-	Path      string
-	Text      string
-	Truncated bool
+	Path              string
+	Text              string
+	Truncated         bool
+	FromDatedHeadings bool
 }
 
 // StatusChange is one workstream whose status moved.
@@ -42,7 +46,7 @@ type StatusChange struct {
 type Changes struct {
 	// Since is the time compared with; zero when there is none.
 	Since time.Time
-	// Baseline says what Since is, in words (rulings F10); BaselineKind is
+	// Baseline says what Since is, in words; BaselineKind is
 	// the same as a code.
 	Baseline      string
 	BaselineKind  BaselineKind
@@ -54,8 +58,10 @@ type Changes struct {
 	// Truncated is set when the file walk stopped at its cap.
 	Truncated bool
 	// Unreadable lists ledgers and folders under the subject that exist but
-	// could not be read (rulings E1): changes there are unknown, not none.
+	// could not be read: changes there are unknown, not none.
 	Unreadable []Evidence
+	// NotShown says, in plain words, what this comparison cannot show.
+	NotShown []string
 }
 
 // BaselineKind is what Changes.Since is.
@@ -69,7 +75,7 @@ const (
 )
 
 // DefaultWindow is how far back changes go when no look is recorded and no
-// time is given (rulings P7).
+// time is given.
 const DefaultWindow = 24 * time.Hour
 
 // Look subjects.
@@ -101,7 +107,7 @@ func (s *Snapshot) scope(subject, id string) (scope, error) {
 	case LookCommission:
 		c := s.Commission(id)
 		if c == nil {
-			return scope{}, fmt.Errorf("%w: no commission %q; list them with `research-desk commissions`", ErrNotFound, id)
+			return scope{}, WithCommand(fmt.Errorf("%w: no commission %q", ErrNotFound, id), "research-desk commissions")
 		}
 		sc := scope{ledgers: []string{filepath.Join(c.Dir, LedgerFile)}, roots: []string{c.Dir}}
 		for _, run := range c.Runs {
@@ -115,7 +121,7 @@ func (s *Snapshot) scope(subject, id string) (scope, error) {
 	case LookTopic:
 		t := s.Topic(id)
 		if t == nil {
-			return scope{}, fmt.Errorf("%w: no topic %q; list them with `research-desk topics`", ErrNotFound, id)
+			return scope{}, WithCommand(fmt.Errorf("%w: no topic %q", ErrNotFound, id), "research-desk topics")
 		}
 		checkpoints, _ := filepath.Glob(filepath.Join(t.Dir, "runs", "*", "CHECKPOINT.md"))
 		return scope{ledgers: []string{filepath.Join(t.Dir, LedgerFile)}, checkpoints: checkpoints, topics: []string{t.Slug}, roots: []string{t.Dir}}, nil
@@ -156,9 +162,9 @@ func (s *Snapshot) Look(subject, id string) (Look, error) {
 }
 
 // Changes compares the present with a given time, else with the previous
-// look, else with 24 hours ago. A time gives files and checkpoints only:
-// ledger text and workstream statuses need the sizes and statuses a look
-// records.
+// look, else with 24 hours ago. A time gives files, checkpoints and the
+// ledger sections under headings dated after it; workstream status changes
+// need the statuses a look records, and NotShown says so.
 func (s *Snapshot) Changes(prev *Look, since time.Time, subject, id string) (Changes, error) {
 	now, err := s.Look(subject, id)
 	if err != nil {
@@ -172,7 +178,11 @@ func (s *Snapshot) Changes(prev *Look, since time.Time, subject, id string) (Cha
 	}
 	switch {
 	case !since.IsZero():
-		out := Changes{Since: since, BaselineKind: kind, Baseline: baseline + "; ledger text and workstream status changes need a recorded look"}
+		out := Changes{Since: since, BaselineKind: kind, Baseline: baseline}
+		out.NotShown = append(out.NotShown, "Workstream status changes need a recorded look; mark this seen to start one.")
+		for _, path := range sc.ledgers {
+			out.datedLedger(path, since)
+		}
 		for _, path := range sc.checkpoints {
 			if mod, ok := now.Checkpoints[path]; ok && mod.After(since) {
 				if fact, ok := stat(path); ok {
@@ -198,12 +208,7 @@ func (s *Snapshot) Changes(prev *Look, since time.Time, subject, id string) (Cha
 			out.Unreadable = append(out.Unreadable, Unreadable(path, err))
 			continue
 		}
-		out.Ledger = append(out.Ledger, add)
-		for _, line := range strings.Split(add.Text, "\n") {
-			if strings.Contains(strings.ToLower(line), "showcase") {
-				out.ShowcaseLines = append(out.ShowcaseLines, strings.TrimSpace(line))
-			}
-		}
+		out.addLedger(add)
 	}
 	for _, path := range sc.checkpoints {
 		mod, ok := now.Checkpoints[path]
@@ -231,6 +236,112 @@ func (s *Snapshot) Changes(prev *Look, since time.Time, subject, id string) (Cha
 	files, truncated, unreadable := modifiedSince(sc.roots, prev.At)
 	out.Files, out.Truncated, out.Unreadable = files, truncated, append(out.Unreadable, unreadable...)
 	return out, nil
+}
+
+// addLedger keeps a ledger addition and its showcase lines.
+func (c *Changes) addLedger(add LedgerAddition) {
+	c.Ledger = append(c.Ledger, add)
+	for _, line := range strings.Split(add.Text, "\n") {
+		if strings.Contains(strings.ToLower(line), "showcase") {
+			c.ShowcaseLines = append(c.ShowcaseLines, strings.TrimSpace(line))
+		}
+	}
+}
+
+// ledgerDate is a date in a ledger heading, with an optional time and zone
+// (UTC when none is given).
+var ledgerDate = regexp.MustCompile(`\b(20\d\d-\d\d-\d\d)(?:[T ](\d\d:\d\d)(:\d\d(?:\.\d+)?)?(Z|[+-]\d\d:\d\d)?)?`)
+
+// datedLedger adds, with no recorded look, the sections of a ledger under
+// headings dated after since: a heading with only a date counts when that
+// day reaches past since. A ledger without dated headings is named in
+// NotShown, since its new text cannot be told from its old.
+func (c *Changes) datedLedger(path string, since time.Time) {
+	data, err := os.ReadFile(path)
+	switch {
+	case absent(err):
+		return
+	case err != nil:
+		c.Unreadable = append(c.Unreadable, Unreadable(path, err))
+		return
+	}
+	var (
+		kept    []string
+		dated   int
+		level   int // the open section's heading level; 0 when none is kept
+		include bool
+	)
+	for _, line := range strings.Split(strings.ToValidUTF8(string(data), ""), "\n") {
+		if n := headingLevel(line); n > 0 {
+			at, ok := headingTime(line)
+			switch {
+			case ok:
+				dated++
+				level, include = n, laterThan(at, since)
+			case level > 0 && n <= level:
+				level, include = 0, false
+			}
+		}
+		if include {
+			kept = append(kept, line)
+		}
+	}
+	if dated == 0 {
+		c.NotShown = append(c.NotShown, path+" has no dated headings, so what was added to it cannot be told apart; mark this seen to start a look.")
+		return
+	}
+	if len(kept) == 0 {
+		return
+	}
+	add := LedgerAddition{Path: path, Text: strings.Join(kept, "\n"), FromDatedHeadings: true}
+	if len(add.Text) > ledgerTextCap {
+		add.Text, add.Truncated = strings.ToValidUTF8(add.Text[:ledgerTextCap], ""), true
+	}
+	c.addLedger(add)
+}
+
+// datedAt is a heading's time; Day is set when it gave a date only.
+type datedAt struct {
+	At  time.Time
+	Day bool
+}
+
+func headingLevel(line string) int {
+	n := 0
+	for n < len(line) && n < 6 && line[n] == '#' {
+		n++
+	}
+	if n == 0 || n >= len(line) || line[n] != ' ' {
+		return 0
+	}
+	return n
+}
+
+func headingTime(line string) (datedAt, bool) {
+	m := ledgerDate.FindStringSubmatch(line)
+	if m == nil {
+		return datedAt{}, false
+	}
+	if m[2] == "" {
+		day, err := time.Parse(time.DateOnly, m[1])
+		return datedAt{At: day, Day: true}, err == nil
+	}
+	sec, zone := m[3], m[4]
+	if sec == "" {
+		sec = ":00"
+	}
+	if zone == "" {
+		zone = "Z"
+	}
+	at, err := time.Parse(time.RFC3339, m[1]+"T"+m[2]+sec+zone)
+	return datedAt{At: at}, err == nil
+}
+
+func laterThan(d datedAt, since time.Time) bool {
+	if d.Day {
+		return d.At.Add(24 * time.Hour).After(since)
+	}
+	return d.At.After(since)
 }
 
 func readRange(path string, from, to int64) (LedgerAddition, error) {

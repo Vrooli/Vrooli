@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 )
 
 // FeedItem is one needs-you item (FILE-CONTRACT.md §5). Its identity is the
@@ -24,9 +25,9 @@ type FeedItem struct {
 	// Answer is the newest answer entry for the ID in the commission's
 	// OPERATOR.md.
 	Answer *Entry
-	// Seen is whether STATE.md was rewritten after the answer ("a unit has
-	// completed since").
-	Seen Flag
+	// Read is whether the supervisor has read the answer: STATE.md was
+	// rewritten after it ("a unit has completed since").
+	Read Flag
 	// Delivered is the desk's newest `delivered <ID>` entry.
 	Delivered *Entry
 }
@@ -63,7 +64,7 @@ const (
 )
 
 // DeliveryReason is why an item is or is not carried, as a code; the
-// sentence beside it says the same for a reader (rulings P5).
+// sentence beside it says the same for a reader.
 type DeliveryReason string
 
 // Delivery reasons. The first group is the item's own; the courier adds the
@@ -94,6 +95,10 @@ const (
 // why in words.
 func (f FeedItem) Delivery() (Delivery, DeliveryReason, string) {
 	switch {
+	case f.Item.Delivered != "" && f.Delivered != nil && f.deskReceipt():
+		return DeliverNone, ReasonHubDelivered, "delivered by the desk at " + f.Delivered.At.UTC().Format(time.RFC3339) + " (" + f.Delivered.Body + ")"
+	case f.Item.Delivered != "" && f.deskReceipt():
+		return DeliverNone, ReasonHubDelivered, "delivered by the desk (Delivered: " + f.Item.Delivered + "); its OPERATOR.md holds no receipt for it"
 	case f.Item.Delivered != "":
 		return DeliverNone, ReasonSchedulerDelivered, "the scheduler delivered it itself (Delivered: " + f.Item.Delivered + ")"
 	case f.Answer != nil:
@@ -107,10 +112,29 @@ func (f FeedItem) Delivery() (Delivery, DeliveryReason, string) {
 	case f.Item.Recommended == nil && f.Item.RecommendedProblem != "":
 		return DeliverNotice, ReasonNoRecommendation, f.Item.RecommendedProblem + "; sent as a notice without options"
 	case f.Item.Recommended == nil:
-		return DeliverNotice, ReasonNoRecommendation, "no `Recommended: <key> — <label>` line; sent as a notice without options"
+		return DeliverNotice, ReasonNoRecommendation, `no "Recommended: <key> — <label>" line; sent as a notice without options`
 	default:
 		return DeliverAsk, ReasonAsk, "sent as a Notification Hub decision with the item's options"
 	}
+}
+
+// DeskRoute begins a `Delivered:` line copied from one of the desk's own
+// deliveries.
+const DeskRoute = "research-desk"
+
+// deskReceipt reports whether the item's `Delivered:` line is the desk's own
+// delivery: it names the Hub ask or notice of the desk's receipt in
+// OPERATOR.md, or its route is the desk. A scheduler copies the desk's
+// receipt into that line, so the line alone does not mean it delivered.
+func (f FeedItem) deskReceipt() bool {
+	line := strings.TrimSpace(f.Item.Delivered)
+	if f.Delivered != nil {
+		if fields := strings.Fields(f.Delivered.Body); len(fields) > 0 && strings.Contains(line, fields[len(fields)-1]) {
+			return true
+		}
+	}
+	route, _, _ := strings.Cut(line, " ")
+	return strings.EqualFold(route, DeskRoute)
 }
 
 // Feed is the merged needs-you feed and what could not be read for it.
@@ -119,7 +143,7 @@ type Feed struct {
 	// Legacy is text in a needs-you section that is not an item.
 	Legacy []Legacy
 	// Unreadable lists the files behind the feed that exist but cannot be
-	// read (rulings E1): their items and answers are unknown, not absent.
+	// read: their items and answers are unknown, not absent.
 	Unreadable []Evidence
 	// blocked maps an owner to the reasons its items are unknown; the ""
 	// owner is ATTENTION.md, whose items may name any commission.
@@ -154,7 +178,7 @@ func (s *Snapshot) NeedsYou() Feed {
 			f.Answer = c.Operator.Newest(EntryAnswer, item.ID)
 			f.Delivered = c.Operator.Newest(EntryDelivered, item.ID)
 			if f.Answer != nil {
-				f.Seen = c.SeenSince(f.Answer)
+				f.Read = c.ReadSince(f.Answer)
 			}
 		}
 		out.Items = append(out.Items, f)
@@ -167,7 +191,10 @@ func (s *Snapshot) NeedsYou() Feed {
 			out.Unreadable = append(out.Unreadable, e)
 			out.blocked[c.ID] = append(out.blocked[c.ID], e.Reason)
 		}
-		out.Legacy = append(out.Legacy, c.Legacy...)
+		for _, l := range c.Legacy {
+			l.CommissionID = c.ID
+			out.Legacy = append(out.Legacy, l)
+		}
 		for _, item := range c.NeedsYou {
 			add(c.ID, c, item)
 		}
@@ -206,8 +233,9 @@ func (s *Snapshot) AllUnreadable() []Evidence {
 	return out
 }
 
-// SeenSince is whether the scheduler rewrote STATE.md after an entry.
-func (c *Commission) SeenSince(e *Entry) Flag {
+// ReadSince is whether the scheduler rewrote STATE.md after an entry, so it
+// has read it.
+func (c *Commission) ReadSince(e *Entry) Flag {
 	fact, ok := stat(filepath.Join(c.Dir, StateFile))
 	if !ok {
 		return Flag{Evidence: Unknown("no STATE.md")}

@@ -30,3 +30,9 @@ nothing for supervisors or owners. File grammar: `docs/reference/FILE-CONTRACT.m
 Use each command's `--help` for its flags and JSON output. A field the desk cannot derive reads
 `unknown`; do not replace it with a guess. Never send messages into a supervisor's chat to
 steer it: use `OPERATOR.md`.
+
+Launch and control can be delegated through the shared `research-management` policy.
+Use the exact `vrooli agent authorize` request in a refusal; targets are
+`research-desk:commission/<id>`. Superseding an older commission also requires control
+coverage for that commission. Preserve caller identity; never strip credentials to
+imitate an operator shell. Answers and review verdicts remain operator decisions.

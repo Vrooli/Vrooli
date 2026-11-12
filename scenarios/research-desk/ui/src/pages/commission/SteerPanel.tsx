@@ -14,6 +14,7 @@ import { Unknown } from "../../components/Fact";
 import { Markdown } from "../../components/Markdown";
 import { PathText } from "../../components/PathText";
 import { Section } from "../../components/Section";
+import { UnparsedHeadings } from "../../components/Unreadable";
 import { When } from "../../components/When";
 import { WouldWrite } from "../../components/WouldWrite";
 import { strings } from "../../consts/strings";
@@ -23,12 +24,8 @@ import { toDate } from "../../lib/format";
 import { windowOpen } from "../../lib/states";
 import { useDebounced } from "../../lib/useDebounced";
 
-/** The sentence enable-steering adds to an older charter (FILE-CONTRACT §3). */
-export const STEERING_SENTENCE =
-  "Read entries of `OPERATOR.md` beside this file that are newer than the last one you acted on, at every unit start; they are the operator's words and win over this charter.";
-
 /**
- * Steering without chat (G4, G12): the operator's words go to OPERATOR.md,
+ * Steering without chat: the operator's words go to OPERATOR.md,
  * which the supervisor re-reads at each unit; the controls are the only
  * actions that type into the supervisor's window, and each says exactly what.
  */
@@ -44,12 +41,12 @@ export function SteerPanel({ data }: { data: GetCommissionResponse }) {
   );
 }
 
-/** Entries written before this were read: the API's read-since (STATE.md rewritten after reading OPERATOR.md; rulings P5). */
+/** Entries written before this were read: the API's read-since (STATE.md rewritten after reading OPERATOR.md). */
 function readSince(data: GetCommissionResponse): Date | null {
   return toDate(data.commission?.entryReading?.readSince?.value);
 }
 
-/** Readings that are not "at its next unit": the operator must know the entry waits (rulings V4). */
+/** Readings that are not "at its next unit": the operator must know the entry waits. */
 const WAITS = new Set([ReadWhen.AFTER_RESUME, ReadWhen.NOT_UNTIL_STEERING, ReadWhen.NEVER, ReadWhen.UNKNOWN, ReadWhen.AT_START]);
 
 function Say({ data, windDown }: { data: GetCommissionResponse; windDown: number }) {
@@ -69,6 +66,7 @@ function Say({ data, windDown }: { data: GetCommissionResponse; windDown: number
   }, [windDown]);
   const words = useDebounced(text.trim(), 400);
   const preview = useDryRun(["entry", c?.id, kind, words], () => operatorApi.addEntry(c?.id ?? "", kind, words, true), confirming === "say" && Boolean(words));
+  const steeringPreview = useDryRun(["steering", c?.id], () => operatorApi.enableSteering(c?.id ?? "", true), confirming === "steering");
   if (!c) return null;
   const operatorFile = `${c.folder}/OPERATOR.md`;
   const steeringOn = data.steering?.value === true;
@@ -101,7 +99,7 @@ function Say({ data, windDown }: { data: GetCommissionResponse; windDown: number
           className="flex flex-col gap-space-sm"
           onSubmit={(event) => {
             event.preventDefault();
-            if (text.trim() && !entryTooLong(text)) setConfirming("say");
+            if (text.trim() && !entryTooLong(text, data.entryCharsMax)) setConfirming("say");
           }}
         >
           <fieldset className="rd-choice">
@@ -115,9 +113,9 @@ function Say({ data, windDown }: { data: GetCommissionResponse; windDown: number
               <span>{t(strings.say.windDown)}</span>
             </label>
           </fieldset>
-          <EntryField ref={field} label={t(kind === EntryKind.WIND_DOWN ? strings.say.windDownLabel : strings.say.directionLabel)} value={text} onChange={setText} />
+          <EntryField ref={field} label={t(kind === EntryKind.WIND_DOWN ? strings.say.windDownLabel : strings.say.directionLabel)} value={text} limit={data.entryCharsMax} onChange={setText} />
           <div>
-            <Button type="submit" variant="primary" disabled={!text.trim() || entryTooLong(text)}>{t(strings.say.review)}</Button>
+            <Button type="submit" variant="primary" disabled={!text.trim() || entryTooLong(text, data.entryCharsMax)}>{t(strings.say.review)}</Button>
           </div>
         </form>
       )}
@@ -150,7 +148,11 @@ function Say({ data, windDown }: { data: GetCommissionResponse; windDown: number
           await refresh();
         }}
       >
-        <Exact label={t(strings.say.appendsTo, { path: `${c.folder}/README.md` })} text={`## Steering\n\n${STEERING_SENTENCE}`} />
+        {steeringPreview.data && !steeringPreview.data.text ? (
+          <p className="text-body-sm">{t(strings.say.steeringPresent)}</p>
+        ) : (
+          <WouldWrite label={t(strings.say.appendsTo, { path: steeringPreview.data?.path ?? "" })} query={steeringPreview} />
+        )}
       </Confirm>
     </Section>
   );
@@ -160,23 +162,23 @@ function Say({ data, windDown }: { data: GetCommissionResponse; windDown: number
 function Entries({ data, stateAt }: { data: GetCommissionResponse; stateAt: Date | null }) {
   const { t } = useTranslation();
   const entries = [...data.operatorEntries].reverse();
-  if (entries.length === 0 && data.operatorUnparsed === 0) return <p className="text-body-sm text-app-muted-foreground">{t(strings.say.noEntries)}</p>;
+  if (entries.length === 0 && data.operatorUnparsedHeadings.length === 0) return <p className="text-body-sm text-app-muted-foreground">{t(strings.say.noEntries)}</p>;
   return (
     <div className="flex flex-col gap-space-xs">
       <h3 className="rd-h3">{t(strings.say.entries)}</h3>
-      {data.operatorUnparsed > 0 ? <Alert tone="warning" title={t(strings.say.unparsed, { count: data.operatorUnparsed })} /> : null}
+      <UnparsedHeadings file="OPERATOR.md" headings={data.operatorUnparsedHeadings} />
       <ul className="rd-rows">
         {entries.map((entry, n) => {
           const at = toDate(entry.at);
-          const seen = at && stateAt ? stateAt > at : null;
+          const read = at && stateAt ? stateAt > at : null;
           return (
             <li key={n} className="rd-row">
               <span className="flex flex-wrap items-center gap-space-xs text-body-sm">
                 <span className="font-semibold">{entry.subject ? `${entry.kind} ${entry.subject}` : entry.kind}</span>
                 <span className="text-app-muted-foreground">{t(strings.say.via, { via: entry.via })}</span>
                 {at ? <When date={at} /> : null}
-                <span className={seen ? "rd-seen" : "rd-unseen"}>
-                  {seen === null ? <Unknown /> : t(seen ? strings.say.seen : strings.say.notSeen)}
+                <span className={read ? "rd-read" : "rd-unread"}>
+                  {read === null ? <Unknown /> : t(read ? strings.say.read : strings.say.notRead)}
                 </span>
               </span>
               <Markdown content={entry.body} className="rd-quote" />
@@ -206,7 +208,7 @@ const ACTION: Record<ControlKey, ControlAction> = {
   discard: ControlAction.DISCARD,
 };
 
-/** A control the desk declined to type because the terminal was not safe to type into (rulings F5). */
+/** A control the desk declined to type because the terminal was not safe to type into. */
 interface Refusal {
   key: ControlKey;
   reason: string;

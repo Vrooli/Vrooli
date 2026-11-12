@@ -18,7 +18,13 @@ const ITEM = { id: "AV4", title: "Choose how AV4 handles yt-dlp", commissionId: 
 
 describe("AppShell", () => {
   beforeEach(() => {
-    stubWire((path) => (path.endsWith("/ListNeedsYou") ? { items: [ITEM, { ...ITEM, id: "AV5" }] } : {}));
+    // HUB was answered through its Hub ask: listed, but the API does not count it as waiting.
+    const feed = {
+      items: [ITEM, { ...ITEM, id: "AV5" }, { ...ITEM, id: "HUB" }, { ...ITEM, id: "OLD", kind: "NEEDS_YOU_KIND_OLDER_LIST" }],
+      itemCount: 2,
+      olderListCount: 1,
+    };
+    stubWire((path) => (path.endsWith("/ListNeedsYou") ? feed : {}));
   });
   afterEach(() => {
     cleanup();
@@ -52,10 +58,10 @@ describe("AppShell", () => {
     expect(screen.getByTestId(selectors.layout.navLink({ key: "now" }))).not.toHaveAttribute("aria-current");
   });
 
-  it("shows how many items wait for the operator on the Needs-you destination", async () => {
+  it("shows the API's count of waiting items and older lists on the Needs-you destination", async () => {
     await setLocale("en");
     renderShell();
-    await waitFor(() => expect(screen.getByTestId(selectors.layout.navLink({ key: "needsYou" }))).toHaveTextContent("2"));
+    await waitFor(() => expect(screen.getByTestId(selectors.layout.navLink({ key: "needsYou" }))).toHaveTextContent("3"));
     expect(screen.getAllByText(en.layout.nav.needsYou).length).toBeGreaterThan(0);
   });
 

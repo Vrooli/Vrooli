@@ -22,15 +22,16 @@ func Module(deps Deps) module.Module {
 	}
 }
 
-// OperatorProcedures act for the operator; a caller verified as an agent or
-// a service is refused them (rulings F13). Build and Preflight stay open.
+// OperatorProcedures retain human-only self-tests. Launch and Control use
+// shared research-management operation grants at their effect boundaries.
 var OperatorProcedures = []string{
-	launchconnect.LaunchServiceLaunchProcedure,
-	launchconnect.LaunchServiceControlProcedure,
 	launchconnect.LaunchServiceTestLaunchProcedure,
 }
 
-var notOperator = module.ErrorDesc{Status: 403, Code: "permission_denied", Description: "The caller is an agent or a service: " + wire.OperatorAction}
+var (
+	notOperator  = module.ErrorDesc{Status: 403, Code: "permission_denied", Description: "The caller is an agent or a service: " + wire.OperatorAction}
+	missingGrant = module.ErrorDesc{Status: 403, Code: "permission_denied", Description: "The caller needs an approved research-management operation grant for the named commission; the refusal includes the canonical approval request"}
+)
 
 const curlBase = "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/"
 
@@ -73,7 +74,7 @@ var Endpoints = []module.EndpointDescriptor{
 		ID: "launch_start", Path: launchconnect.LaunchServiceLaunchProcedure, Method: "POST", Category: "launch",
 		Summary:     "Launch a commission",
 		Description: "Refuses unless the packet passes, every blocker is resolved (supersede or run alongside) and the commission is prepared, or unknown with the operator's assertion that it never started and no session or goal found for it. Writes LAUNCH.json with the choices, then in the background stops each superseded supervisor through its own session and records it, creates the Web Console session, sends the stance, waits for ready, sets the goal and verifies it.",
-		Errors:      []module.ErrorDesc{readOnly, noSuch, unavailable, notOperator},
+		Errors:      []module.ErrorDesc{readOnly, noSuch, unavailable, missingGrant},
 		Examples:    example("Supersede", "Launch", `{"commission_id":"programme-five-20261112","resolutions":[{"commission_id":"programme-four-20261110","choice":"RESOLUTION_SUPERSEDE"}]}`),
 	},
 	{
@@ -94,7 +95,7 @@ var Endpoints = []module.EndpointDescriptor{
 		ID: "launch_control", Path: launchconnect.LaunchServiceControlProcedure, Method: "POST", Category: "launch",
 		Summary:     "Pause, resume, stop, discard, re-send stance",
 		Description: "Types /goal pause or /goal resume, pastes the stance message again, or pauses the goal and quits Codex and its app-server; discard also records the operator's reason. The goal status is read back from goals_1.sqlite and the control is recorded in LAUNCH.json. Sessions are never deleted.",
-		Errors:      []module.ErrorDesc{readOnly, invalid, noSuch, unavailable, notOperator},
+		Errors:      []module.ErrorDesc{readOnly, invalid, noSuch, unavailable, missingGrant},
 		Examples:    example("Pause", "Control", `{"commission_id":"programme-five-20261112","action":"CONTROL_ACTION_PAUSE"}`),
 	},
 	{

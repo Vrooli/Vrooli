@@ -1,18 +1,19 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
+    "last_validated_at": "2026-11-12T02:17:32-05:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
   },
   "requirements": [
     {
-      "criticality": "P0",
-      "description": "Choose topics, allowance and emphasis and receive a complete packet (charter, stance message, goal kernel) with size gates, launched into a Web Console Codex session automatically or shown as two messages to paste (G1).",
       "id": "RD-P0-001",
-      "prd_ref": "OT-P0-001",
-      "status": "in_progress",
       "title": "One-action launch",
+      "status": "complete",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "Choose topics, allowance and emphasis and receive a complete packet (charter, stance message, goal kernel) with size gates, launched into a Web Console Codex session automatically or shown as two messages to paste.",
       "validation": [
         {
           "type": "test",
@@ -50,12 +51,12 @@
       ]
     },
     {
-      "criticality": "P0",
-      "description": "Before launch, state per selected topic whether an earlier commission touches it, its observed state (live, paused, limited, stopped, ended, prepared, unknown), and what this launch does about it; refuse to double-supervise a live topic unless the operator explicitly runs alongside (G2).",
       "id": "RD-P0-002",
-      "prd_ref": "OT-P0-002",
-      "status": "in_progress",
       "title": "Clean-start verdict",
+      "status": "complete",
+      "prd_ref": "OT-P0-002",
+      "criticality": "P0",
+      "description": "Before launch, state per selected topic whether an earlier commission touches it, its observed state (live, paused, limited, stopped, ended, prepared, unknown), and what this launch does about it; refuse to double-supervise a live topic unless the operator explicitly runs alongside.",
       "validation": [
         {
           "type": "test",
@@ -81,12 +82,12 @@
       ]
     },
     {
-      "criticality": "P0",
-      "description": "A bad start is stopped (never deleted), verified inactive, marked discarded with the operator's reason, and relaunched as a new commission rebuilt from the same packet inputs, superseding the old one (G2).",
       "id": "RD-P0-003",
-      "prd_ref": "OT-P0-003",
-      "status": "in_progress",
       "title": "Discard and relaunch",
+      "status": "complete",
+      "prd_ref": "OT-P0-003",
+      "criticality": "P0",
+      "description": "A bad start is stopped (never deleted), verified inactive, marked discarded with the operator's reason, and relaunched as a new commission rebuilt from the same packet inputs, superseding the old one.",
       "validation": [
         {
           "type": "test",
@@ -112,12 +113,12 @@
       ]
     },
     {
-      "criticality": "P0",
-      "description": "Show active research, last activity per topic, running supervisors, the topics each supervises and commissions overlapping in time, derived only from research-home files and harness session records, with unknown where a value cannot be derived (G3, I6).",
       "id": "RD-P0-004",
-      "prd_ref": "OT-P0-004",
-      "status": "in_progress",
       "title": "Activity projection",
+      "status": "complete",
+      "prd_ref": "OT-P0-004",
+      "criticality": "P0",
+      "description": "Show active research, last activity per topic, running supervisors, the topics each supervises and commissions overlapping in time, derived only from research-home files and harness session records, with unknown where a value cannot be derived.",
       "validation": [
         {
           "type": "test",
@@ -150,17 +151,17 @@
         {
           "type": "manual",
           "status": "implemented",
-          "notes": "`make real-home-check`: read-only invariants over the real research home (docs/internal/evidence/real-home-check.txt)"
+          "notes": "Re-run with `make real-home-check` on the machine that holds the research home; it reads the home only, and fails when the home is absent (REAL_HOME_CHECK_SKIP=1 skips it, loudly). docs/internal/evidence/real-home-check.txt is one frozen run from 2026-11-12, not a live result."
         }
       ]
     },
     {
-      "criticality": "P0",
-      "description": "Operator direction is appended verbatim to a desk-owned operator file the supervisor already re-reads at unit start; nothing is sent into a supervisor conversation (G4, I4).",
       "id": "RD-P0-005",
-      "prd_ref": "OT-P0-005",
-      "status": "in_progress",
       "title": "File-only steering",
+      "status": "complete",
+      "prd_ref": "OT-P0-005",
+      "criticality": "P0",
+      "description": "Operator direction is appended verbatim to a desk-owned operator file the supervisor already re-reads at unit start; nothing is sent into a supervisor conversation.",
       "validation": [
         {
           "type": "test",
@@ -186,12 +187,12 @@
       ]
     },
     {
-      "criticality": "P0",
-      "description": "Needs-you items written by supervisors become one feed, are delivered to Notification Hub as decisions, and answers are read back from the Hub into the operator file, so a desk or webhook outage loses no answer; the UI answers directly when the Hub is down (G5, I5).",
       "id": "RD-P0-006",
-      "prd_ref": "OT-P0-006",
-      "status": "in_progress",
       "title": "Decision courier",
+      "status": "complete",
+      "prd_ref": "OT-P0-006",
+      "criticality": "P0",
+      "description": "Needs-you items written by supervisors become one feed, are delivered to Notification Hub as decisions, and answers are read back from the Hub into the operator file, so a desk or webhook outage loses no answer; the UI answers directly when the Hub is down.",
       "validation": [
         {
           "type": "test",
@@ -224,12 +225,12 @@
       ]
     },
     {
-      "criticality": "P0",
-      "description": "Measure and display each supervisor and owner role's read set, as listed in the research-coordination skill's limits.json, in bytes and estimated tokens, and flag sets over their ceilings, an oversized charter and appended amendments (G6, I7).",
       "id": "RD-P0-007",
-      "prd_ref": "OT-P0-007",
-      "status": "in_progress",
       "title": "Focus measurement",
+      "status": "complete",
+      "prd_ref": "OT-P0-007",
+      "criticality": "P0",
+      "description": "Measure and display each supervisor and owner role's read set, as listed in the research-coordination skill's limits.json, in bytes and estimated tokens, and flag sets over their ceilings, an oversized charter and appended amendments.",
       "validation": [
         {
           "type": "test",
@@ -248,12 +249,12 @@
       ]
     },
     {
-      "criticality": "P0",
-      "description": "A research-review skill and desk support for an operator review session over selected topics: evidence of accomplishment, tidy-up proposals, verdicts recorded verbatim and missions realigned only by explicit operator action (G7).",
       "id": "RD-P0-008",
-      "prd_ref": "OT-P0-008",
-      "status": "in_progress",
       "title": "Review support",
+      "status": "complete",
+      "prd_ref": "OT-P0-008",
+      "criticality": "P0",
+      "description": "A research-review skill and desk support for an operator review session over selected topics: evidence of accomplishment, tidy-up proposals, verdicts recorded verbatim and missions realigned only by explicit operator action.",
       "validation": [
         {
           "type": "test",
@@ -265,32 +266,48 @@
       ]
     },
     {
-      "criticality": "P0",
-      "description": "Research skills move into scenarios/research-desk/skills through the supported ownership route with prompt-manager skill read and the direct-file fallback still working, and the supervisor procedure gains written route discipline for failing optional routes (G8, G9).",
       "id": "RD-P0-009",
-      "prd_ref": "OT-P0-009",
-      "status": "planned",
       "title": "Scenario-owned research skills",
+      "status": "planned",
+      "prd_ref": "OT-P0-009",
+      "criticality": "P0",
+      "description": "Research skills move into scenarios/research-desk/skills through the supported ownership route with prompt-manager skill read and the direct-file fallback still working, and the supervisor procedure gains written route discipline for failing optional routes.",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
-          "notes": "skill-set: prompt-manager skill-set validate research-desk passes; each moved id listed exactly once; old pack path resolves through the link (docs/guides/skills-move.md §1) (proof: docs/concepts/SYSTEM.md §12)"
+          "type": "test",
+          "ref": "api/internal/skillscripts/packet_test.go::TestTheScenarioOwnedSkillsRenderRouteDiscipline",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "the five skills live in this scenario; the rendered charter carries route discipline and the needs-you decision line"
+        },
+        {
+          "type": "test",
+          "ref": "skills/research-coordination/scripts/test_packet.py",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "packet.py renders the contract lines, holds skill files to their ceilings, and the three needs-you grammar copies agree"
+        },
+        {
+          "type": "test",
+          "phase": "skill-set",
+          "status": "implemented",
+          "notes": "prompt-manager skill-set validation of research-desk passes"
         },
         {
           "type": "manual",
-          "status": "planned",
-          "notes": "unit: rendered charter contains the route-discipline procedure and the Decisions override line (proof: docs/concepts/SYSTEM.md §12)"
+          "ref": "docs/internal/evidence/stop-test.txt",
+          "status": "implemented",
+          "notes": "with the desk stopped, all five skills read through prompt-manager and by path, and packet.py and mission_check.py ran (2026-11-12)"
         }
       ]
     },
     {
-      "criticality": "P0",
-      "description": "Stopping the desk mid-commission changes nothing for supervisors or owners; every packet launches by hand from its folder; commissions launched by hand are recognised (I1, I3).",
       "id": "RD-P0-010",
-      "prd_ref": "OT-P0-010",
-      "status": "in_progress",
       "title": "Detached by construction",
+      "status": "complete",
+      "prd_ref": "OT-P0-010",
+      "criticality": "P0",
+      "description": "Stopping the desk mid-commission changes nothing for supervisors or owners; every packet launches by hand from its folder; commissions launched by hand are recognised.",
       "validation": [
         {
           "type": "test",
@@ -316,32 +333,35 @@
       ]
     },
     {
-      "criticality": "P0",
-      "description": "API and CLI first, then a UI designed for phone width on the tunnel hostname that replaces the generated placeholder completely (G10).",
       "id": "RD-P0-011",
-      "prd_ref": "OT-P0-011",
-      "status": "planned",
       "title": "Phone-first interface",
+      "status": "planned",
+      "prd_ref": "OT-P0-011",
+      "criticality": "P0",
+      "description": "API and CLI first, then a UI designed for phone width on the tunnel hostname that replaces the generated placeholder completely.",
       "validation": [
         {
-          "type": "manual",
-          "status": "planned",
-          "notes": "ui: 390 px screenshots on the tunnel hostname of Now, Commission, Launch, Review; detemplate leaves no notes example (proof: docs/concepts/SYSTEM.md §12)"
+          "type": "test",
+          "ref": "ui/src/pages/flows.test.tsx",
+          "phase": "unit",
+          "status": "implemented",
+          "notes": "the phone UI's outward flows: Needs you, commission controls and steering, review verdicts and launch, each through its confirmation"
         },
         {
-          "type": "manual",
-          "status": "planned",
-          "notes": "a11y: 44 px targets; state as words, never colour alone (proof: docs/concepts/SYSTEM.md §12)"
+          "type": "test",
+          "phase": "ui-health",
+          "status": "implemented",
+          "notes": "the served UI renders its pages without runtime errors"
         }
       ]
     },
     {
-      "criticality": "P0",
       "id": "RD-P0-012",
-      "prd_ref": "OT-P0-012",
-      "status": "in_progress",
       "title": "Control without chat",
-      "description": "Pause, resume, wind down, stop and discard a commission from the desk without writing a message in its conversation; wind down is an operator-file entry, the others act on the session only on an operator tap and are recorded (G12).",
+      "status": "complete",
+      "prd_ref": "OT-P0-012",
+      "criticality": "P0",
+      "description": "Pause, resume, wind down, stop and discard a commission from the desk without writing a message in its conversation; wind down is an operator-file entry, the others act on the session only on an operator tap and are recorded.",
       "validation": [
         {
           "type": "test",
@@ -367,12 +387,12 @@
       ]
     },
     {
-      "criticality": "P0",
       "id": "RD-P0-013",
-      "prd_ref": "OT-P0-013",
-      "status": "in_progress",
       "title": "Since last look",
-      "description": "Per commission and per topic, show what changed since the operator last looked: new ledger text, changed checkpoints, showcase lines and workstream status changes (G13).",
+      "status": "complete",
+      "prd_ref": "OT-P0-013",
+      "criticality": "P0",
+      "description": "Per commission and per topic, show what changed since the operator last looked: new ledger text, changed checkpoints, showcase lines and workstream status changes.",
       "validation": [
         {
           "type": "test",

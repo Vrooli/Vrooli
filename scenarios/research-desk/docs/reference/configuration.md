@@ -89,7 +89,7 @@ Fixed from the user's home; no database and no storage root.
 | `~/.vrooli/research` | the research home (authoritative; `docs/reference/FILE-CONTRACT.md`) |
 | `~/.vrooli/state/vrooli/web-console/sessions/codex/<session>/` | Codex homes: `goals_1.sqlite` (opened read-only), `history.jsonl`, rollouts |
 | `scenarios/research-desk/skills/research-coordination/` | `scripts/mission_check.py`, `scripts/packet.py`, `templates/limits.json` |
-| `~/.vrooli/state/vrooli/research-desk/` | the desk's own state, a deletable cache of choices: `instance.lock`, `courier.json`, `courier-wait.json`, `looks/` (FILE-CONTRACT §1) |
+| `~/.vrooli/state/vrooli/research-desk/` | the desk's own state, a deletable cache of choices: `instance.lock`, `courier.json`, `first-sightings.json`, `looks/`, `launch-tests/` (FILE-CONTRACT §1) |
 
 ## CLI config file
 

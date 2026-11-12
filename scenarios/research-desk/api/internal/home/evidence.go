@@ -1,7 +1,7 @@
 // Package home is the one reader of the research home (~/.vrooli/research)
 // and of the Codex session records Web Console keeps. Every derived value it
 // returns names its source; a value that cannot be derived is unknown, never
-// guessed (charter I6). Nothing outside this package parses research files.
+// guessed. Nothing outside this package parses research files.
 //
 // Design: scenarios/research-desk/docs/concepts/SYSTEM.md §1, §3, §4, §9.
 // File shapes: scenarios/research-desk/docs/reference/FILE-CONTRACT.md.
@@ -36,6 +36,9 @@ type Text struct {
 // Time is a derived time value.
 type Time struct {
 	Value time.Time
+	// AtLeast marks a lower bound: the walk that found Value stopped early,
+	// so a newer file may exist.
+	AtLeast bool
 	Evidence
 }
 

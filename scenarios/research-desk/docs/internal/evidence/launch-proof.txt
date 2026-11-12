@@ -48,8 +48,8 @@ Goal status: after the goal complete; after /goal pause paused; after /goal resu
   and Pause unless it is active: api/internal/launch/service.go Control.)
 Stopped: no Codex process with this CODEX_HOME; only Web Console's tmux attach clients remain.
 Row kept: Label "research-desk launch test 20261112T000748Z (stopped; keep)", Policy never,
-  Owner ui-fail-open (the fallback again). Automatic launch was then turned off; rulings F14
-  turned it back on through whichever access exists, shown (DECISIONS D20).
+  Owner ui-fail-open (the fallback again). Automatic launch was then turned off; the lead
+  turned it back on through whichever access exists, shown (DECISIONS.md, "Automatic launch").
 history.jsonl: stance (300), "/goal <kernel>" (597), "/goal pause" (11), "/goal resume" (12).
 
 # Retention: do /goal pause and /goal resume count among the user messages kept at compaction?
@@ -72,7 +72,7 @@ real session, 2cf9ccfd-..., keeps every typed operator message across seven comp
 # pause, resume, stop, row kept). Sessions 1 and 2 above; session 3 below measured controls during a turn.
 
 
-# Session 3: 7551d9c3-6561-472a-9e94-fcbe6f856de2, the last approved throwaway session (rulings F5):
+# Session 3: 7551d9c3-6561-472a-9e94-fcbe6f856de2, the last approved throwaway session (do pause and resume act during a running turn):
 # /goal pause and /goal resume typed while a turn is running. Driven by a temporary Go test through
 # the same Launcher (create, stance, ready, goal; then the steps below), deleted afterwards.
 # Label "research-desk control measurement <UTC stamp of 02:05> (stopped; keep)", created 02:05:43;

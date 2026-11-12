@@ -7,6 +7,7 @@ import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { BrandMark } from "./BrandMark";
 import { useNeedsYou } from "../api/operator";
+import { waitingCount } from "../lib/needsYou";
 import { NAV_ITEMS, isNavItemActive } from "./navItems";
 
 /**
@@ -26,7 +27,8 @@ export function AppShell() {
   const { t } = useTranslation();
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const waiting = useNeedsYou().data?.items.filter((item) => !item.answer).length ?? 0;
+  const feed = useNeedsYou().data;
+  const count = feed ? waitingCount(feed) : 0;
 
   const items: AppShellNavItem[] = NAV_ITEMS.map((item) => ({
     id: item.key,
@@ -35,7 +37,7 @@ export function AppShell() {
     icon: item.icon,
     current: isNavItemActive(item, pathname),
     mobile: item.mobile,
-    badge: item.key === "needsYou" && waiting > 0 ? { value: waiting, tone: "warning", label: t(strings.layout.waiting, { count: waiting }) } : undefined,
+    badge: item.key === "needsYou" && count > 0 ? { value: count, tone: "warning", label: t(strings.layout.waiting, { count }) } : undefined,
     testId: selectors.layout.navLink({ key: item.key }),
   }));
 

@@ -1,4 +1,4 @@
-import type { BlockerChoice } from "../api/launch";
+import type { BlockerChoice, PacketLimits } from "../api/launch";
 
 /**
  * The launch form as the packet builder's spec (packet.py SPEC_KEYS). Pure, so
@@ -22,26 +22,25 @@ export interface LaunchForm {
   readFirstDeclined: string[];
   /**
    * Per earlier commission: what this launch does about it ("" = undecided).
-   * Carried by the preflight and launch requests, not the spec (rulings P2).
+   * Carried by the preflight and launch requests, not the spec.
    */
   choices: Record<string, BlockerChoice | "">;
   slug: string;
 }
 
-export const MAX_TOPICS = 6;
-export const MAX_ORDERED = 4;
 export const LIVE_WORKSTREAM = new Set(["open", "active", "approved"]);
 
-export function emptyForm(defaults: { supervisorModel: string; supervisorEffort: string; ownerModelTier: string }): LaunchForm {
-  return { topics: [], order: {}, notes: {}, emphasis: "", quotes: [""], quotesFrom: "", allowanceHours: 24, readFirst: {}, readFirstDeclined: [], choices: {}, slug: "", ...defaults };
+/** The form's starting values: the models and the allowance the launch options name. */
+export function emptyForm(defaults: { supervisorModel: string; supervisorEffort: string; ownerModelTier: string; allowanceHours: number }): LaunchForm {
+  return { topics: [], order: {}, notes: {}, emphasis: "", quotes: [""], quotesFrom: "", readFirst: {}, readFirstDeclined: [], choices: {}, slug: "", ...defaults };
 }
 
 /** What still has to be filled in before a preview makes sense. */
-export function missing(form: LaunchForm): ("topics" | "quotes" | "allowance")[] {
+export function missing(form: LaunchForm, limits: Pick<PacketLimits, "allowanceHoursMin" | "allowanceHoursMax">): ("topics" | "quotes" | "allowance")[] {
   const out: ("topics" | "quotes" | "allowance")[] = [];
   if (form.topics.length === 0) out.push("topics");
   if (!form.quotes.some((q) => q.trim())) out.push("quotes");
-  if (!Number.isInteger(form.allowanceHours) || form.allowanceHours < 1 || form.allowanceHours > 72) out.push("allowance");
+  if (!Number.isInteger(form.allowanceHours) || form.allowanceHours < limits.allowanceHoursMin || form.allowanceHours > limits.allowanceHoursMax) out.push("allowance");
   return out;
 }
 
@@ -76,7 +75,7 @@ export function move<T>(list: T[], index: number, by: -1 | 1): T[] {
   return out;
 }
 
-/** Where the form waits while the operator looks elsewhere (rulings V1): this tab only. */
+/** Where the form waits while the operator looks elsewhere: this tab only. */
 const STORE_KEY = "research-desk.launch-form";
 
 export function saveForm(form: LaunchForm): void {

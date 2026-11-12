@@ -23,7 +23,7 @@
     },
     {
       "id": "steering-off",
-      "description": "An older charter does not read the operator file; Enable steering is offered with the exact sentence it adds."
+      "description": "An older charter does not read the operator file; Enable steering is offered with the exact line the API's dry run says it adds, or that it is already there."
     },
     {
       "id": "submitting",

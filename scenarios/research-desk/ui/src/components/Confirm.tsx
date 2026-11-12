@@ -86,7 +86,7 @@ export function Confirm({ open, title, description, children, confirmLabel, dest
 export function Exact({ label, text }: { label: string; text: string }) {
   return (
     <div className="flex flex-col gap-space-3xs">
-      <span className="text-caption text-app-muted-foreground">{label}</span>
+      <span className="rd-exact-label text-caption text-app-muted-foreground">{label}</span>
       <pre className="rd-exact">{text}</pre>
     </div>
   );

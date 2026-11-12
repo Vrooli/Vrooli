@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Bounds of the walk that finds a run folder's newest file (rulings F3). One
+// Bounds of the walk that finds a run folder's newest file. One
 // run folder on the real home holds 2.8 million files; the walk stops at
 // whichever bound it meets first and says so.
 const (
@@ -116,6 +116,7 @@ func walkNewest(dir, skip string, cutoff time.Time, maxEntries int, deadline tim
 	if errors.Is(err, errWalkCut) {
 		for _, t := range []*Time{&out.All, &out.Before, &out.After} {
 			if t.Known {
+				t.AtLeast = true
 				t.Reason = fmt.Sprintf("at least: the walk stopped after %d entries or %s; newest file seen %s", min(visited, maxEntries), walkTime, t.Source)
 				t.Source = dir + " (walk cut short)"
 			}

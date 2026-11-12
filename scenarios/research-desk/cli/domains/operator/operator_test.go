@@ -48,8 +48,10 @@ func (s *service) SetCourier(_ context.Context, req *connect.Request[operatorv1.
 
 func (s *service) ListNeedsYou(context.Context, *connect.Request[operatorv1.ListNeedsYouRequest]) (*connect.Response[operatorv1.ListNeedsYouResponse], error) {
 	return connect.NewResponse(&operatorv1.ListNeedsYouResponse{
-		Courier:    &operatorv1.CourierStatus{HubRead: true, Writer: true},
-		Unreadable: []*sharedv1.Evidence{{Source: "/r/cohorts/c/OPERATOR.md", Reason: "cannot read /r/cohorts/c/OPERATOR.md: permission denied"}},
+		Courier:        &operatorv1.CourierStatus{HubRead: true, Writer: true},
+		Unreadable:     []*sharedv1.Evidence{{Source: "/r/cohorts/c/OPERATOR.md", Reason: "cannot read /r/cohorts/c/OPERATOR.md: permission denied"}},
+		ItemCount:      2,
+		OlderListCount: 1,
 	}), nil
 }
 
@@ -89,7 +91,7 @@ func TestSayMapsKindsAndShowsTheWarning(t *testing.T) {
 	require.Contains(t, out, "### 2026-11-12T10:14:03Z · direction · via desk")
 }
 
-// P7: one command records a look at everything; it is mark-seen --all.
+// One command records a look at everything; it is mark-seen --all.
 func TestMarkSeenAllIsCaughtUp(t *testing.T) {
 	svc := &service{}
 	cmd, core := command(t, svc, "mark-seen")
@@ -116,11 +118,13 @@ func TestCourierSwitchWords(t *testing.T) {
 	require.ErrorContains(t, err, `"on" or "off"`)
 }
 
-// API rulings E1: an unreadable file is said, never shown as no items.
+// An unreadable file is said, never shown as no items.
 func TestNeedsYouSaysAnUnreadableFile(t *testing.T) {
 	cmd, core := command(t, &service{}, "needs-you")
 	out, err := cliapptest.RunCommand(t, cmd, core)
 	require.NoError(t, err)
 	require.Contains(t, out, "1 file(s) cannot be read")
 	require.Contains(t, out, "unreadable, so unknown: cannot read /r/cohorts/c/OPERATOR.md: permission denied")
+	// The count is what still waits; an answered item is listed, not counted.
+	require.Contains(t, out, "2 item(s) wait for an answer (answered items are listed, not counted) and 1 older list(s)")
 }

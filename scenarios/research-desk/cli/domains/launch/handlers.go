@@ -42,7 +42,7 @@ func list(flag string) []string {
 }
 
 // resolutions reads --supersede and --alongside: the operator's choice for
-// each blocking commission (rulings P2).
+// each blocking commission.
 func resolutions(ctx cliapp.OperationContext) ([]*launchv1.BlockerResolution, error) {
 	var out []*launchv1.BlockerResolution
 	seen := map[string]bool{}
@@ -58,9 +58,18 @@ func resolutions(ctx cliapp.OperationContext) ([]*launchv1.BlockerResolution, er
 	return out, nil
 }
 
-// preflightCall sends a file as a spec and anything else as a commission.
+// preflightCall sends --spec-file, or a target naming a file, as a spec and
+// any other target as a commission.
 func (h *handlers) preflightCall(ctx cliapp.OperationContext) (*launchv1.PreflightResponse, error) {
-	target := ctx.Positional("target")
+	target, file := ctx.Positional("target"), ctx.Flag("spec-file")
+	switch {
+	case target != "" && file != "":
+		return nil, fmt.Errorf("give a commission or --spec-file, not both")
+	case file != "":
+		target = file
+	case target == "":
+		return nil, fmt.Errorf("give a prepared commission's folder name, or a spec JSON file (docs/reference/FILE-CONTRACT.md §2)")
+	}
 	res, err := resolutions(ctx)
 	if err != nil {
 		return nil, err

@@ -13,7 +13,7 @@ import (
 // Verify this API entry point serves its own healthy response and terminates.
 // boottest owns process setup, isolated storage, deadlines, and diagnostics.
 // The boot reads an empty research home of its own, never the operator's,
-// and is not the live instance, so it writes nothing (F7).
+// and is not the live instance, so it writes nothing.
 func TestE2E_BinaryBootsAndServesHealth(t *testing.T) {
 	root := t.TempDir()
 	research := filepath.Join(root, "research")

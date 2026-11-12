@@ -7,7 +7,7 @@ import { DerivedWhen } from "./When";
  * When research was last written, and, when its owner was paused, limited,
  * stopped or ended at the time, the API's note saying so ("written while
  * paused: an owner may still be running"), since the operator needs that
- * fact (rulings P8).
+ * fact.
  */
 export function ResearchWriteWhen({ write }: { write?: ResearchWrite }) {
   if (!toDate(write?.at?.value)) return <Unknown />;

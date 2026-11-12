@@ -47,7 +47,7 @@ func (s *service) GetChanges(_ context.Context, req *connect.Request[activityv1.
 	s.changes = req.Msg
 	if req.Msg.Since == nil {
 		since := timestamppb.New(time.Date(2026, 11, 11, 9, 0, 0, 0, time.UTC))
-		return connect.NewResponse(&activityv1.GetChangesResponse{Since: since, BaselineKind: activityv1.Baseline_BASELINE_LAST_DAY, Baseline: "no look recorded; the last 24 hours, since 2026-11-11T09:00:00Z"}), nil
+		return connect.NewResponse(&activityv1.GetChangesResponse{Since: since, BaselineKind: activityv1.Baseline_BASELINE_LAST_DAY, Baseline: "no look recorded; the last 24 hours, since 2026-11-11T09:00:00Z", NotShown: []string{"Workstream status changes need a recorded look; mark this seen to start one."}}), nil
 	}
 	return connect.NewResponse(&activityv1.GetChangesResponse{Since: req.Msg.Since, Baseline: "since 2026-11-11T19:00:00Z as asked"}), nil
 }
@@ -93,7 +93,7 @@ func TestCommissionShowsSourcesAndUnknowns(t *testing.T) {
 			TopicsEvidence: &sharedv1.Evidence{Reason: "no topic evidence"},
 		},
 		Ceilings: &sharedv1.Evidence{Reason: "limits.json missing"},
-		ReadSets: []*activityv1.ReadSet{{Role: "scheduler-start", Bytes: 42677, EstimatedTokens: 10669, Flags: []string{"charter 36128 bytes is over the 25000-byte gate"}}},
+		ReadSets: []*sharedv1.ReadSet{{Role: "scheduler-start", Bytes: 42677, EstimatedTokens: 10669, Flags: []string{"charter 36128 bytes is over the 25000-byte gate"}}},
 	}}
 	cmd, core := command(t, svc, "commission")
 	out, err := cliapptest.RunCommand(t, cmd, core, "programme-three-20261111")
@@ -113,7 +113,8 @@ func TestChangesSubject(t *testing.T) {
 	out, err := cliapptest.RunCommand(t, cmd, core, "topic", "niche-book-production")
 	require.NoError(t, err)
 	require.Equal(t, activityv1.ChangeSubject_CHANGE_SUBJECT_TOPIC, svc.changes.Subject)
-	require.Contains(t, out, "no look recorded; the last 24 hours", "with no look and no time the last day is reported and says so (P7)")
+	require.Contains(t, out, "no look recorded; the last 24 hours", "with no look and no time the last day is reported and says so")
+	require.Contains(t, out, "not shown: Workstream status changes need a recorded look", "what cannot be shown without a look is said")
 
 	out, err = cliapptest.RunCommand(t, cmd, core, "commission", "programme-four-20261110", "--since", "2026-11-11T19:00:00Z")
 	require.NoError(t, err)
@@ -127,13 +128,14 @@ func TestChangesSubject(t *testing.T) {
 	require.ErrorContains(t, err, `"commission" or "topic"`)
 }
 
-// F14, E6, F15: `now` always says how the desk reaches Web Console and how the
+// `now` always says how the desk reaches Web Console and how the
 // courier is, available or not.
 func TestNowSaysTheWebConsoleAccessAndTheCourier(t *testing.T) {
 	svc := &service{overview: &activityv1.GetOverviewResponse{Lenses: []*activityv1.Lens{
 		{Name: "codex sessions", Available: true, Reason: "/codex"},
 		{Name: "web-console access", Available: true, Reason: "Web Console access: local availability policy (no desk credential)"},
 		{Name: "courier", Available: false, Reason: "no pass yet; the desk cannot withdraw an ask once sent"},
+		{Name: "notification-hub", Available: false, Reason: "notification-hub is not running: no port", Command: "vrooli scenario start notification-hub"},
 	}}}
 	cmd, core := command(t, svc, "now")
 	out, err := cliapptest.RunCommand(t, cmd, core)
@@ -141,4 +143,6 @@ func TestNowSaysTheWebConsoleAccessAndTheCourier(t *testing.T) {
 	require.Contains(t, out, "Web Console access: local availability policy (no desk credential)")
 	require.Contains(t, out, "Courier: no pass yet; the desk cannot withdraw an ask once sent")
 	require.NotContains(t, out, "codex sessions")
+	// The reason names no command; the CLI prints the lens's command beside it.
+	require.Contains(t, out, "lens notification-hub unavailable: notification-hub is not running: no port (next: vrooli scenario start notification-hub)")
 }

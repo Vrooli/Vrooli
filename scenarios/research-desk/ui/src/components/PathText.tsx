@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { strings } from "../consts/strings";
 import { useResearchHome } from "../hooks/useResearchHome";
 import { useTranslation } from "../i18n";
-import { filePageHref } from "../lib/paths";
+import { filePageHref, shownPath } from "../lib/paths";
 
 /**
  * A path that wraps on a phone. Inside the research home it opens the file
@@ -14,7 +14,7 @@ export function PathText({ path, label }: { path: string; label?: string }) {
   const { t } = useTranslation();
   const home = useResearchHome();
   const href = filePageHref(path, home);
-  const shown = label ?? (home && path.startsWith(`${home}/`) ? `~research/${path.slice(home.length + 1)}` : path);
+  const shown = label ?? shownPath(path, home);
   return (
     <span className="inline-flex max-w-full items-start gap-space-3xs align-top">
       {href ? (

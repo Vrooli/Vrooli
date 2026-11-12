@@ -20,11 +20,13 @@ import {
   usePreflightSpec,
   workstreamWords,
   type GetLaunchOptionsResponse,
+  type PacketLimits,
 } from "../api/launch";
 import { AccessWords } from "../components/AccessWords";
 import { CommissionRow } from "../components/CommissionRow";
 import { Confirm } from "../components/Confirm";
 import { LaunchLink } from "../components/LaunchLink";
+import { InlineMarkdown } from "../components/Markdown";
 import { PathText } from "../components/PathText";
 import { QueryView } from "../components/QueryView";
 import { Section } from "../components/Section";
@@ -33,13 +35,13 @@ import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { withRecommendations } from "../lib/choices";
 import { launchableAsIs } from "../lib/states";
-import { clearSavedForm, emptyForm, LIVE_WORKSTREAM, loadForm, MAX_ORDERED, MAX_TOPICS, missing, move, saveForm, toSpec, type LaunchForm } from "../lib/spec";
+import { clearSavedForm, emptyForm, LIVE_WORKSTREAM, loadForm, missing, move, saveForm, toSpec, type LaunchForm } from "../lib/spec";
 import { matching, sortByResearchWrite } from "../lib/topics";
 import { useDebounced } from "../lib/useDebounced";
 import { ChoiceSummary, MessageText, PreflightResult } from "./launch/Preflight";
 
 /**
- * Launch (G1, G2): choose topics and their cards, give your words, allowance
+ * Launch: choose topics and their cards, give your words, allowance
  * and models, and see the packet's gates, the verdict on earlier commissions,
  * and the two messages before one Launch. When automatic launch is not
  * available the same screen ends in a manual start instead.
@@ -51,7 +53,9 @@ export function LaunchPage() {
     <div data-testid={selectors.pages.launch} className="rd-page">
       <PageHeader headingId="launch-heading" title={t(strings.launch.title)} description={t(strings.launch.description)} />
       <PreparedPackets />
-      <QueryView query={options}>{(o) => <Builder options={o} />}</QueryView>
+      <QueryView query={options}>
+        {(o) => (o.packetLimits ? <Builder options={o} limits={o.packetLimits} /> : <Alert tone="danger" title={t(strings.launch.limitsUnknown)} />)}
+      </QueryView>
     </div>
   );
 }
@@ -73,17 +77,17 @@ function PreparedPackets() {
   );
 }
 
-function Builder({ options }: { options: GetLaunchOptionsResponse }) {
+function Builder({ options, limits }: { options: GetLaunchOptionsResponse; limits: PacketLimits }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const topics = useTopics();
-  const defaults = { supervisorModel: options.defaultSupervisorModel, supervisorEffort: options.defaultSupervisorEffort, ownerModelTier: options.defaultOwnerModelTier };
+  const defaults = { supervisorModel: options.defaultSupervisorModel, supervisorEffort: options.defaultSupervisorEffort, ownerModelTier: options.defaultOwnerModelTier, allowanceHours: limits.allowanceHoursDefault };
   const [form, setForm] = useState<LaunchForm>(() => loadForm(defaults, options));
   useEffect(() => saveForm(form), [form]);
   const [confirm, setConfirm] = useState<"auto" | "manual" | null>(null);
   const update = (patch: Partial<LaunchForm>) => setForm((prev) => ({ ...prev, ...patch }));
 
-  // The desk's suggested quotes fill the list until the operator edits one (rulings P3).
+  // The desk's suggested quotes fill the list until the operator edits one.
   const suggestions = useLaunchSuggestions(form.topics);
   const suggested = suggestedQuotes(suggestions.data);
   const first = suggested.quotes[0]?.source ?? "";
@@ -98,7 +102,7 @@ function Builder({ options }: { options: GetLaunchOptionsResponse }) {
   }, [texts, first]);
   const titled = new Map((suggestions.data?.topicWorkstreams ?? []).map((x) => [x.topic, x.workstreams]));
 
-  const gaps = missing(form);
+  const gaps = missing(form, limits);
   const specJson = useMemo(() => (gaps.length === 0 ? JSON.stringify(toSpec(form)) : null), [form, gaps.length]);
   const checkedSpec = useDebounced(specJson, 600);
   const preflight = usePreflightSpec(checkedSpec, form.choices);
@@ -141,12 +145,12 @@ function Builder({ options }: { options: GetLaunchOptionsResponse }) {
       {!options.automaticAvailable ? (
         <Alert tone="info" title={t(strings.launch.manualModeTitle)} description={t(strings.launch.manualMode, { reason: options.automaticReason || t(strings.common.unknown) })} />
       ) : null}
-      <Section id="step-topics" title={t(strings.launch.stepTopics)} note={t(strings.launch.stepTopicsNote, { max: MAX_TOPICS })}>
+      <Section id="step-topics" title={t(strings.launch.stepTopics)} note={t(strings.launch.stepTopicsNote, { max: limits.topicsMax })}>
         <QueryView query={topics}>
-          {({ topics: all }) => <TopicPicker all={all} chosen={form.topics} onChange={(next) => update({ topics: next })} />}
+          {({ topics: all }) => <TopicPicker all={all} max={limits.topicsMax} chosen={form.topics} onChange={(next) => update({ topics: next })} />}
         </QueryView>
       </Section>
-      <Section id="step-cards" title={t(strings.launch.stepCards)} note={t(strings.launch.stepCardsNote, { max: MAX_ORDERED })}>
+      <Section id="step-cards" title={t(strings.launch.stepCards)} note={t(strings.launch.stepCardsNote, { max: limits.orderedWorkstreamsMax })}>
         {form.topics.length === 0 ? (
           <p className="text-body-sm text-app-muted-foreground">{t(strings.launch.cardsAfterTopics)}</p>
         ) : (
@@ -156,6 +160,7 @@ function Builder({ options }: { options: GetLaunchOptionsResponse }) {
                 key={name}
                 topic={byName.get(name)}
                 titled={titled.get(name)}
+                max={limits.orderedWorkstreamsMax}
                 name={name}
                 order={form.order[name] ?? []}
                 note={form.notes[name] ?? ""}
@@ -171,13 +176,13 @@ function Builder({ options }: { options: GetLaunchOptionsResponse }) {
         <Words form={form} update={update} reason={suggested.reason} />
       </Section>
       <Section id="step-run" title={t(strings.launch.stepRun)}>
-        <RunSettings form={form} update={update} options={options} />
+        <RunSettings form={form} update={update} options={options} limits={limits} />
       </Section>
       <Section id="step-check" title={t(strings.launch.stepCheck)} note={t(strings.launch.stepCheckNote)}>
         {gaps.length > 0 ? (
           <ul className="rd-list text-body-sm">
             {gaps.map((gap) => (
-              <li key={gap}>{t(GAP[gap])}</li>
+              <li key={gap}>{t(GAP[gap], { min: limits.allowanceHoursMin, max: limits.allowanceHoursMax })}</li>
             ))}
           </ul>
         ) : preflight.isError ? (
@@ -218,7 +223,7 @@ function Builder({ options }: { options: GetLaunchOptionsResponse }) {
           <Button variant="ghost" onClick={() => setForm(emptyForm(defaults))}>{t(strings.launch.startOver)}</Button>
         </div>
       </Section>
-      <div className="rd-launch-bar">
+      <div className={form.topics.length > 0 ? "rd-launch-bar rd-launch-bar-sticky" : "rd-launch-bar"}>
         {options.automaticAvailable ? (
           <>
             <Button variant="primary" disabled={!ready} onClick={() => setConfirm("auto")} data-testid={selectors.launch.launchButton}>
@@ -255,7 +260,7 @@ function Builder({ options }: { options: GetLaunchOptionsResponse }) {
         </ol>
         <ChoiceSummary choices={form.choices} />
         <p className="text-body-sm">
-          <span className="font-semibold">{t(strings.launch.access)}</span> <AccessWords said={options.webConsoleAccess} />
+          <span className="font-semibold">{t(strings.launch.access)}</span> <AccessWords kind={options.webConsoleAccessKind} said={options.webConsoleAccess} />
         </p>
       </Confirm>
       <Confirm
@@ -284,7 +289,7 @@ const GAP = {
 /** How many topics show before "Show all": the most recently written first. */
 const PICK_SHOWN = 8;
 
-function TopicPicker({ all, chosen, onChange }: { all: TopicSummary[]; chosen: string[]; onChange: (next: string[]) => void }) {
+function TopicPicker({ all, max, chosen, onChange }: { all: TopicSummary[]; max: number; chosen: string[]; onChange: (next: string[]) => void }) {
   const { t } = useTranslation();
   const [filter, setFilter] = useState("");
   const [all_, setAll] = useState(false);
@@ -304,7 +309,7 @@ function TopicPicker({ all, chosen, onChange }: { all: TopicSummary[]; chosen: s
                 label={x.title?.value || x.topic}
                 description={[x.topic, x.missionCheck?.mode, windowOpen(x) ? t(strings.launch.topicRunning) : ""].filter(Boolean).join(" · ")}
                 checked={on}
-                disabled={!on && chosen.length >= MAX_TOPICS}
+                disabled={!on && chosen.length >= max}
                 onCheckedChange={(value) => onChange(value ? [...chosen, x.topic] : chosen.filter((c) => c !== x.topic))}
               />
             </li>
@@ -323,8 +328,10 @@ function TopicPicker({ all, chosen, onChange }: { all: TopicSummary[]; chosen: s
 function CardEditor(props: {
   name: string;
   topic: TopicSummary | undefined;
-  /** The workstreams with their titles, from the launch options (rulings P3); the topic list's own until they arrive. */
+  /** The workstreams with their titles, from the launch options; the topic list's own until they arrive. */
   titled: Workstream[] | undefined;
+  /** How many workstreams an order may hold. */
+  max: number;
   order: string[];
   note: string;
   missionOrder: string[];
@@ -335,8 +342,9 @@ function CardEditor(props: {
   const noteId = useId();
   const live = (props.titled ?? props.topic?.missionCheck?.workstreams ?? []).filter((w) => LIVE_WORKSTREAM.has(w.status));
   const unpicked = live.filter((w) => !props.order.includes(w.id));
+  const all = props.titled ?? props.topic?.missionCheck?.workstreams ?? [];
   const titleOf = (id: string) => {
-    const w = live.find((x) => x.id === id);
+    const w = all.find((x) => x.id === id);
     return w ? workstreamWords(w).title : "";
   };
   return (
@@ -353,8 +361,10 @@ function CardEditor(props: {
             <li key={id}>
               <span className="rd-num">{n + 1}</span>
               <span className="min-w-0 flex-1">
-                <span className="font-medium">{id}</span>
-                <span className="rd-clamp block text-caption text-app-muted-foreground">{titleOf(id)}</span>
+                <span className="rd-clamp font-medium">
+                  <InlineMarkdown text={titleOf(id) || id} />
+                </span>
+                <span className="rd-id block text-caption text-app-muted-foreground">{id}</span>
               </span>
               <IconButton aria-label={t(strings.launch.moveUp, { id })} disabled={n === 0} onClick={() => props.onOrder(move(props.order, n, -1))}>
                 <ArrowUp aria-hidden="true" />
@@ -369,7 +379,7 @@ function CardEditor(props: {
           ))}
         </ol>
       ) : null}
-      {unpicked.length > 0 && props.order.length < MAX_ORDERED ? (
+      {unpicked.length > 0 && props.order.length < props.max ? (
         <details className="rd-fold">
           <summary>{t(strings.launch.addWorkstream)}</summary>
           <ul className="rd-rows" aria-label={t(strings.launch.addWorkstream)}>
@@ -378,10 +388,12 @@ function CardEditor(props: {
               return (
                 <li key={w.id}>
                   <button type="button" className="rd-pick-row" onClick={() => props.onOrder([...props.order, w.id])} aria-label={t(strings.launch.addId, { id: w.id, status: w.status })}>
-                    <span className="font-semibold">
-                      {w.id} <span className="font-normal text-app-muted-foreground">· {w.status}</span>
+                    <span className="rd-clamp font-semibold">
+                      <InlineMarkdown text={words.title || w.id} />
                     </span>
-                    <span className="rd-clamp text-body-sm">{words.title}</span>
+                    <span className="text-caption text-app-muted-foreground">
+                      <span className="rd-id">{w.id}</span> · {w.status}
+                    </span>
                   </button>
                 </li>
               );
@@ -437,7 +449,7 @@ function Words({ form, update, reason }: { form: LaunchForm; update: (patch: Par
   );
 }
 
-function RunSettings({ form, update, options }: { form: LaunchForm; update: (patch: Partial<LaunchForm>) => void; options: GetLaunchOptionsResponse }) {
+function RunSettings({ form, update, options, limits }: { form: LaunchForm; update: (patch: Partial<LaunchForm>) => void; options: GetLaunchOptionsResponse; limits: PacketLimits }) {
   const { t } = useTranslation();
   const hoursId = useId();
   const slugId = useId();
@@ -452,8 +464,8 @@ function RunSettings({ form, update, options }: { form: LaunchForm; update: (pat
     <div className="rd-form-grid">
       <label htmlFor={hoursId} className="flex flex-col gap-space-2xs text-body-sm">
         <span className="font-medium">{t(strings.launch.allowance)}</span>
-        <Input id={hoursId} type="number" inputMode="numeric" min={1} max={72} value={String(form.allowanceHours)} onChange={(e) => update({ allowanceHours: Number(e.target.value) })} />
-        <span className="text-caption text-app-muted-foreground">{t(strings.launch.allowanceHint)}</span>
+        <Input id={hoursId} type="number" inputMode="numeric" min={limits.allowanceHoursMin} max={limits.allowanceHoursMax} value={String(form.allowanceHours)} onChange={(e) => update({ allowanceHours: Number(e.target.value) })} />
+        <span className="text-caption text-app-muted-foreground">{t(strings.launch.allowanceHint, { min: limits.allowanceHoursMin, max: limits.allowanceHoursMax })}</span>
       </label>
       <label className="flex flex-col gap-space-2xs text-body-sm">
         <span className="font-medium">{t(strings.launch.supervisorModel)}</span>

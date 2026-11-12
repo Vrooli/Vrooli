@@ -16,7 +16,7 @@
   "states": [
     {
       "id": "default",
-      "description": "Collapsed rows (title, where it came from, delivery state, recommended answer) that open on tap; a link to commission plus ID scrolls to the item and opens it; answered items show the answer and whether the supervisor has seen it; an item whose ID was already answered or delivered reads 'ID reused, not delivered' and offers no answer; a global item without a commission says what to do and links where it is answered; files that cannot be read are listed, never shown as an empty feed; the courier's real state and its confirmed self-test; with items open and nothing delivered, one warning line."
+      "description": "Collapsed rows (title, where it came from, delivery state, recommended answer) that open on tap; a link to commission plus ID scrolls to the item and opens it; answered items show the answer and whether the supervisor has read it; an item whose ID was already answered or delivered reads 'ID reused, not delivered' and offers no answer; a global item without a commission says what to do and links where it is answered; an older-format list is a row in the same feed, readable on tap, never sent or answerable, and counted with the items; files that cannot be read are listed, never shown as an empty feed; the courier's real state and its confirmed self-test; with items open and nothing delivered, one warning line."
     },
     {
       "id": "empty",

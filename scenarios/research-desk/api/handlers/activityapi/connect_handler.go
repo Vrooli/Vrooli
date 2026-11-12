@@ -24,17 +24,27 @@ type Snapshotter interface {
 	Snapshot(ctx context.Context, opts home.Options) (*home.Snapshot, error)
 }
 
+// WebConsoleLens is the overview lens for Web Console access.
+const WebConsoleLens = "web-console access"
+
 // Deps wires the activity handler.
 type Deps struct {
 	Reader Snapshotter
 	// Looks reads the look snapshots OperatorService.MarkSeen records in the
 	// desk state folder; nil refuses GetChanges (failed_precondition).
 	Looks Looks
-	// Routes reports the desk's own routes to other scenarios (how it
-	// reaches Web Console, the courier's health), shown with the overview's
-	// lenses; nil shows none.
+	// Routes reports the desk's own routes to other scenarios (optional
+	// scenarios, the courier's health), shown with the overview's lenses;
+	// nil shows none.
 	Routes func(context.Context) []home.Lens
-	Logger *log.Logger
+	// WebConsoleAccess says how the desk reaches Web Console:
+	// the overview's kind and sentence, and its WebConsoleLens. Nil shows
+	// neither.
+	WebConsoleAccess func(context.Context) wire.Access
+	// EntryChars is limits.json's entry_chars_max, shown beside the
+	// commission's entry fields; nil or an error leaves it 0.
+	EntryChars func() (int, error)
+	Logger     *log.Logger
 }
 
 // Looks reads the desk's look snapshots (internal/writer).
@@ -83,9 +93,17 @@ func (h *handler) GetOverview(ctx context.Context, _ *connect.Request[activityv1
 	for _, o := range snap.Overlaps() {
 		resp.Overlaps = append(resp.Overlaps, &activityv1.Overlap{Topic: o.Topic, CommissionIds: o.CommissionIDs})
 	}
+	for _, o := range snap.OpenOverlaps() {
+		resp.OpenOverlaps = append(resp.OpenOverlaps, &activityv1.Overlap{Topic: o.Topic, CommissionIds: o.CommissionIDs})
+	}
 	resp.Lenses = lenses(snap.Lenses)
 	if h.deps.Routes != nil {
 		resp.Lenses = append(resp.Lenses, lenses(h.deps.Routes(ctx))...)
+	}
+	if h.deps.WebConsoleAccess != nil {
+		a := h.deps.WebConsoleAccess(ctx)
+		resp.WebConsoleAccessKind, resp.WebConsoleAccess = a.Kind, a.Said
+		resp.Lenses = append(resp.Lenses, &activityv1.Lens{Name: WebConsoleLens, Available: a.Automatic, Reason: a.Said})
 	}
 	resp.Unreadable = wire.EvidenceList(snap.AllUnreadable())
 	resp.LatestResearchWrite = wire.ResearchWrite(snap.LatestResearchWrite())
@@ -125,7 +143,7 @@ func (h *handler) GetCommission(ctx context.Context, req *connect.Request[activi
 		Unreadable:      wire.EvidenceList(c.Unreadable),
 	}
 	if c.Operator != nil {
-		resp.OperatorUnparsed = int32(c.Operator.Unparsed)
+		resp.OperatorUnparsedHeadings = wire.UnparsedHeadings(c.Operator.Unparsed)
 	}
 	for i := range c.Matches {
 		resp.Matches = append(resp.Matches, match(&c.Matches[i]))
@@ -133,10 +151,13 @@ func (h *handler) GetCommission(ctx context.Context, req *connect.Request[activi
 	for _, run := range c.Runs {
 		resp.Runs = append(resp.Runs, &activityv1.RunFolder{Topic: run.Topic, Path: run.Path, LastWrite: wire.Time(run.LastWrite), Checkpoint: wire.File(run.Checkpoint)})
 	}
-	for _, set := range snap.ReadSets(c) {
-		resp.ReadSets = append(resp.ReadSets, &activityv1.ReadSet{Role: set.Role, Files: wire.Files(set.Files), Bytes: set.Bytes, EstimatedTokens: set.EstimatedTokens, Flags: set.Flags})
-	}
+	resp.ReadSets = wire.ReadSets(snap.ReadSets(c))
 	resp.Ceilings = ceilingsEvidence(snap)
+	if h.deps.EntryChars != nil {
+		if max, err := h.deps.EntryChars(); err == nil {
+			resp.EntryCharsMax = int32(max)
+		}
+	}
 	return connect.NewResponse(resp), nil
 }
 
@@ -208,9 +229,10 @@ func (h *handler) GetChanges(ctx context.Context, req *connect.Request[activityv
 		Since: wire.Timestamp(changes.Since), Checkpoints: wire.Files(changes.Checkpoints), ShowcaseLines: changes.ShowcaseLines,
 		Files: wire.Files(changes.Files), Truncated: changes.Truncated, Baseline: changes.Baseline,
 		Unreadable: wire.EvidenceList(changes.Unreadable), BaselineKind: baselines[changes.BaselineKind],
+		NotShown: changes.NotShown,
 	}
 	for _, l := range changes.Ledger {
-		resp.Ledger = append(resp.Ledger, &activityv1.LedgerAddition{Path: l.Path, Text: l.Text, Truncated: l.Truncated})
+		resp.Ledger = append(resp.Ledger, &activityv1.LedgerAddition{Path: l.Path, Text: l.Text, Truncated: l.Truncated, FromDatedHeadings: l.FromDatedHeadings})
 	}
 	for _, c := range changes.StatusChanges {
 		resp.StatusChanges = append(resp.StatusChanges, &activityv1.StatusChange{Topic: c.Topic, Workstream: c.Workstream, Before: c.Before, After: c.After})
@@ -276,7 +298,7 @@ func match(m *home.Match) *activityv1.SessionMatch {
 func lenses(list []home.Lens) []*activityv1.Lens {
 	out := make([]*activityv1.Lens, 0, len(list))
 	for _, l := range list {
-		out = append(out, &activityv1.Lens{Name: l.Name, Available: l.Available, Reason: l.Reason})
+		out = append(out, &activityv1.Lens{Name: l.Name, Available: l.Available, Reason: l.Reason, Command: l.Command})
 	}
 	return out
 }

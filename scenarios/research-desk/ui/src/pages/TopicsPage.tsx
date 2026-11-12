@@ -18,8 +18,7 @@ import { kb, tokens } from "../lib/format";
 import { matching, sortByResearchWrite } from "../lib/topics";
 
 /**
- * Every research topic, newest research write first, with a filter (rulings
- * V6): when research last wrote (its source one tap away), its mode, its open
+ * Every research topic, newest research write first, with a filter: when research last wrote (its source one tap away), its mode, its open
  * work, who is on it, and how much an owner reads to start.
  */
 export function TopicsPage() {

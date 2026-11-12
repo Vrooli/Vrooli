@@ -166,11 +166,11 @@ function Failed({ id, launch }: { id: string; launch: LaunchRecord }) {
 /**
  * A built packet launched as it is: its check with what to do about earlier
  * commissions (the desk's recommendation selected), then one Launch, with the
- * manual start (the two messages, a read) beside it (I3). A packet the desk
+ * manual start (the two messages, a read) beside it. A packet the desk
  * cannot place (`unknown`) launches only on the operator's word that it never
  * started, and only when the desk found no session or goal for it; its two
  * messages stay hidden until then, since pasting them could start a second
- * supervisor (rulings V1, P1). "Relaunch as a new commission" stays offered.
+ * supervisor. "Relaunch as a new commission" stays offered.
  */
 function PreparedLaunch({ id, manualFirst, uncertain }: { id: string; manualFirst: boolean; uncertain: boolean }) {
   const { t } = useTranslation();
@@ -259,7 +259,7 @@ function PreparedLaunch({ id, manualFirst, uncertain }: { id: string; manualFirs
         {decisions.assertNeverStarted ? <p className="text-body-sm">{t(strings.launchStatus.assertRecorded)}</p> : null}
         {options.data ? (
           <p className="text-body-sm">
-            <span className="font-semibold">{t(strings.launch.access)}</span> <AccessWords said={options.data.webConsoleAccess} />
+            <span className="font-semibold">{t(strings.launch.access)}</span> <AccessWords kind={options.data.webConsoleAccessKind} said={options.data.webConsoleAccess} />
           </p>
         ) : null}
       </Confirm>

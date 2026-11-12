@@ -20,18 +20,18 @@ type Topic struct {
 	Title   Text
 	Mission *FileFact
 	// LastResearchWrite is the newest write in the topic's run folders;
-	// mission edits (Mission) and reviews (LastReview) are separate
-	// (rulings P8). Topics sort by it.
+	// mission edits (Mission) and reviews (LastReview) are separate.
+	// Topics sort by it.
 	LastResearchWrite ResearchWrite
 	// LastReview is the newest review with a section for this topic.
 	LastReview    *ReviewTouch
 	CommissionIDs []string // newest last write first
 	// Live, Paused and Limited are the commissions with a supervisor window
-	// open, by state; never summed into one "running" (rulings F4).
+	// open, by state; never summed into one "running".
 	Live, Paused, Limited []string
 	Check                 MissionCheck
 	// Unreadable lists the runs folder when it exists but cannot be read
-	// (rulings E1): the topic's run folders, and so their commissions' runs,
+	//: the topic's run folders, and so their commissions' runs,
 	// are then unknown.
 	Unreadable []Evidence
 }
@@ -80,7 +80,7 @@ type ReviewTouch struct {
 }
 
 // writeNote is what a run-folder write at `at` under a commission means, or
-// "" (rulings P8). A write before an ended commission's end is ordinary.
+// "". A write before an ended commission's end is ordinary.
 func writeNote(c *Commission, at time.Time) string {
 	switch c.State {
 	case StatePaused:
@@ -122,8 +122,8 @@ func (x topicIndex) of(name string) (string, bool) {
 	return slug, ok
 }
 
-// readTopics lists every folder under topics/ whose name follows NamePattern
-// (rulings E3), and their run folders keyed by folder name. A symbolic link
+// readTopics lists every folder under topics/ whose name follows NamePattern,
+// and their run folders keyed by folder name. A symbolic link
 // to another listed topic folder is that topic's alias, not a second topic.
 // Run folders are walked later, once their owner's interval end is known.
 func readTopics(researchDir string) (topicIndex, map[string][]RunFolder, error) {

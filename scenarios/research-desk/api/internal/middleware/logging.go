@@ -11,8 +11,8 @@ import (
 )
 
 // NewLoggingMiddleware returns a middleware that logs each request's
-// method, URI, and elapsed duration, except the lifecycle's /health probes
-// (rulings E9), which would bury every other line. Time is read from the injected
+// method, URI, and elapsed duration, except the lifecycle's /health probes,
+// which would bury every other line. Time is read from the injected
 // Clock so tests using scheduletest.FakeClock can assert exact durations
 // without depending on the wall schedule. Logger defaults to log.Default()
 // when nil; tests inject a buffer-backed *log.Logger to capture output.

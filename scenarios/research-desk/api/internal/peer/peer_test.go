@@ -14,7 +14,7 @@ import (
 	operatorconnect "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/operator/operator_v1connect"
 )
 
-// F14: the access is said, nothing is sent without a desk credential, and a
+// The access is said, nothing is sent without a desk credential, and a
 // refusal is remembered until a call succeeds.
 func TestAccessIsShownAndARefusalIsRemembered(t *testing.T) {
 	refuse := true

@@ -24,7 +24,7 @@ func Module(deps Deps) module.Module {
 }
 
 // OperatorProcedures act for the operator; a caller verified as an agent or
-// a service is refused them (rulings F13). The reads stay open.
+// a service is refused them. The reads stay open.
 var OperatorProcedures = []string{
 	operatorconnect.OperatorServiceAnswerProcedure,
 	operatorconnect.OperatorServiceAddEntryProcedure,

@@ -10,15 +10,17 @@ import (
 	"time"
 
 	apihealth "github.com/vrooli/api-core/health"
+
+	"research-desk/internal/wire"
 )
 
 // Deps wires the health handler. ResearchHome reports whether the research
 // home can be read; nil means it can.
 type Deps struct {
 	ResearchHome func(context.Context) error
-	// WebConsoleAccess says how automatic launch reaches Web Console
-	// (rulings F14); nil omits it.
-	WebConsoleAccess func(context.Context) (bool, string)
+	// WebConsoleAccess says how automatic launch reaches Web Console;
+	// nil omits it.
+	WebConsoleAccess func(context.Context) wire.Access
 	Service          string
 	Version          string
 }
@@ -35,8 +37,8 @@ func NewHandler(d Deps) http.HandlerFunc {
 		b = b.Metric("web_console_access", func(time.Time) any {
 			ctx, cancel := context.WithTimeout(context.Background(), accessTimeout)
 			defer cancel()
-			_, said := d.WebConsoleAccess(ctx)
-			return said
+			a := d.WebConsoleAccess(ctx)
+			return map[string]string{"kind": a.Kind.String(), "said": a.Said}
 		})
 	}
 	return b.Handler()

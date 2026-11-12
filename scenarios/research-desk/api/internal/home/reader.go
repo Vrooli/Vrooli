@@ -23,7 +23,7 @@ type Config struct {
 	CodexDir string
 	// OtherCodexHomes are glob patterns naming the other Codex homes the desk
 	// can read (the operator's ~/.codex, Agent Manager run homes). Their goals
-	// are read only to prove a packet was never started (rulings F8).
+	// are read only to prove a packet was never started.
 	OtherCodexHomes []string
 	// UserHome expands "~/" spellings of the charter path; may be empty.
 	UserHome string
@@ -78,7 +78,11 @@ const LimitsLens = "limits.json"
 type Lens struct {
 	Name      string
 	Available bool
-	Reason    string
+	// Reason says what is wrong in words, never a command.
+	Reason string
+	// Command is a command-line step that would make it available, for the
+	// CLI; the UI ignores it.
+	Command string
 }
 
 // Snapshot is one consistent read of the research home.
@@ -95,7 +99,7 @@ type Snapshot struct {
 	AttentionLegacy []Legacy
 	Reviews         []*Review
 	// Unreadable lists ATTENTION.md and the reviews folder when they exist
-	// but cannot be read (rulings E1); every commission, topic and review
+	// but cannot be read; every commission, topic and review
 	// keeps its own list too, and AllUnreadable gathers them.
 	Unreadable []Evidence
 }
@@ -235,11 +239,8 @@ func (s *Snapshot) Find(id string) (*Commission, error) {
 	if c := s.Commission(id); c != nil {
 		return c, nil
 	}
-	return nil, Cause(ErrNotFound, fmt.Errorf("no commission folder %q under %s/cohorts; list them with `research-desk commissions`", id, s.ResearchDir))
+	return nil, WithCommand(Cause(ErrNotFound, fmt.Errorf("no commission folder %q under %s/cohorts", id, s.ResearchDir)), "research-desk commissions")
 }
-
-// ReadSets measures one commission's limits.json read sets.
-func (s *Snapshot) ReadSets(c *Commission) []ReadSet { return c.ReadSets(s.Ceilings) }
 
 // Review returns one review by id, or nil.
 func (s *Snapshot) Review(id string) *Review {
@@ -269,25 +270,44 @@ type Overlap struct {
 }
 
 // Overlaps finds the pairs of commissions on one topic whose intervals
-// (session start to the interval end, or now while not ended) intersect. A
-// write after the end never extends an interval. Commissions without a known
-// start are not placed in time.
+// intersect. Commissions without a known start are not placed in time.
 func (s *Snapshot) Overlaps() []Overlap {
+	return s.overlaps(func(*Commission) bool { return true })
+}
+
+// OpenOverlaps are the overlaps whose commissions both have a supervisor
+// window open now: what overlaps today.
+func (s *Snapshot) OpenOverlaps() []Overlap {
+	return s.overlaps(func(c *Commission) bool { return c.State.Running() })
+}
+
+// intervalEnd is where a commission's interval ends: now while a window is
+// open, else its known end, else its last write (an end that is not known is
+// never stretched to now), else its start.
+func (s *Snapshot) intervalEnd(c *Commission) time.Time {
+	switch {
+	case c.State.Running():
+		return s.Now
+	case c.Ended.Known:
+		return c.Ended.Value
+	case c.LastWrite.Known && c.LastWrite.Value.After(c.Started.Value):
+		return c.LastWrite.Value
+	}
+	return c.Started.Value
+}
+
+func (s *Snapshot) overlaps(keep func(*Commission) bool) []Overlap {
 	type interval struct {
 		id         string
 		start, end time.Time
 	}
 	byTopic := map[string][]interval{}
 	for _, c := range s.Commissions {
-		if !c.Started.Known {
+		if !c.Started.Known || !keep(c) {
 			continue
 		}
-		end := s.Now
-		if c.Ended.Known {
-			end = c.Ended.Value
-		}
 		for _, ref := range c.Topics {
-			byTopic[ref.Topic] = append(byTopic[ref.Topic], interval{c.ID, c.Started.Value, end})
+			byTopic[ref.Topic] = append(byTopic[ref.Topic], interval{c.ID, c.Started.Value, s.intervalEnd(c)})
 		}
 	}
 	var out []Overlap

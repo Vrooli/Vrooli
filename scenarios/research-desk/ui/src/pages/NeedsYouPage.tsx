@@ -26,14 +26,14 @@ import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { entryTooLong } from "../lib/entry";
 import { toDate } from "../lib/format";
-import { itemKey, keyFromHash } from "../lib/needsYou";
+import { isOlderList, itemKey, keyFromHash, needsYouCount, waiting } from "../lib/needsYou";
 import { useDebounced } from "../lib/useDebounced";
 
 /**
- * Needs you (G5): one feed of what supervisors are waiting on. Each item is
+ * Needs you: one feed of what supervisors are waiting on. Each item is
  * one collapsed row (title, where it came from, delivery state, the
  * recommended answer); its body opens on tap, and a link from Now opens it
- * (rulings V2). Answer with an offered option or your own words; the answer
+ *. Answer with an offered option or your own words; the answer
  * goes to the commission's OPERATOR.md. A secret is never typed here.
  */
 export function NeedsYouPage() {
@@ -50,33 +50,27 @@ export function NeedsYouPage() {
       <PageHeader headingId="needs-you-heading" title={t(strings.needsYou.title)} description={t(strings.needsYou.description)} />
       {query.isError ? <DeliveryBanner error={query.error} /> : null}
       <QueryView query={query}>
-        {({ items, legacy, courier, unreadable }) => {
-          const open = items.filter((item) => !item.answer);
+        {(feed) => {
+          const { items, courier, unreadable } = feed;
+          const open = waiting(items);
           const answered = items.filter((item) => item.answer);
           return (
             <>
-              <DeliveryBanner courier={courier} open={open.length} switchAt="#delivery" />
+              <DeliveryBanner courier={courier} open={feed.itemCount} switchAt="#delivery" />
               <Unreadable evidence={unreadable} />
               {open.length === 0 && unreadable.length === 0 ? (
                 <EmptyState title={t(strings.needsYou.emptyTitle)} description={t(strings.needsYou.empty)} />
               ) : (
-                <ul className="rd-rows">{open.map((item) => <Item key={itemKey(item)} item={item} focus={target === itemKey(item)} />)}</ul>
+                <>
+                  <p className="rd-lede">{needsYouCount(t, feed)}</p>
+                  <ul className="rd-rows">
+                    {open.map((item) => <Item key={itemKey(item)} item={item} focus={target === itemKey(item)} />)}
+                  </ul>
+                </>
               )}
               {answered.length > 0 ? (
                 <Section id="answered" title={t(strings.needsYou.answered, { count: answered.length })}>
                   <ul className="rd-rows">{answered.map((item) => <Item key={itemKey(item)} item={item} focus={target === itemKey(item)} />)}</ul>
-                </Section>
-              ) : null}
-              {legacy.length > 0 ? (
-                <Section id="legacy" title={t(strings.needsYou.legacy, { count: legacy.length })} note={t(strings.needsYou.legacyNote)}>
-                  <ul className="rd-rows">
-                    {legacy.map((entry) => (
-                      <li key={entry.source} className="rd-row">
-                        <PathText path={entry.source} />
-                        <Markdown content={entry.text} className="rd-quote" />
-                      </li>
-                    ))}
-                  </ul>
                 </Section>
               ) : null}
               {courier && courier.orphans.length > 0 ? (
@@ -102,7 +96,10 @@ export function NeedsYouPage() {
   );
 }
 
-/** One item: a row that names it, opening to its body and its answer. */
+/**
+ * One row that names it, opening to its body and its answer. An older list
+ * is the same row: its text read in place and where it is answered.
+ */
 function Item({ item, focus }: { item: NeedsYouItem; focus: boolean }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(focus);
@@ -114,11 +111,11 @@ function Item({ item, focus }: { item: NeedsYouItem; focus: boolean }) {
     <li className="rd-row rd-item" id={itemKey(item)}>
       <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
         <summary className="rd-item-summary">
-          <span className="rd-row-head">
-            <span className="font-semibold">{item.title || item.id}</span>
+          <span className="font-semibold">{item.title || item.id}</span>
+          <span className="rd-item-meta">
             <DeliveryBadge item={item} />
+            <span className="rd-id text-app-muted-foreground">{item.commissionId || t(strings.needsYou.global)}</span>
           </span>
-          <span className="rd-id block text-app-muted-foreground">{item.commissionId || t(strings.needsYou.global)}</span>
           {item.recommended ? (
             <span className="block text-body-sm">
               <span className="font-semibold">{t(strings.needsYou.recommended)}</span> {item.recommended.label || item.recommended.key}
@@ -127,10 +124,10 @@ function Item({ item, focus }: { item: NeedsYouItem; focus: boolean }) {
         </summary>
         <div className="rd-item-body">
           <p className="text-body-sm text-app-muted-foreground">
-            <span className="rd-id">{item.id}</span>
+            {item.id ? <span className="rd-id">{item.id}</span> : null}
+            {item.id && item.commissionId ? " · " : null}
             {item.commissionId ? (
               <>
-                {" · "}
                 <Link to={`/commissions/${encodeURIComponent(item.commissionId)}?tab=steer`} className="rd-id">{item.commissionId}</Link>
               </>
             ) : null}
@@ -149,7 +146,7 @@ function Item({ item, focus }: { item: NeedsYouItem; focus: boolean }) {
               </span>
               <Markdown content={item.answer.body} />
               <span className="text-body-sm text-app-muted-foreground">
-                {item.seen?.value ? t(strings.needsYou.seen) : item.seen?.evidence?.known === false ? item.seen.evidence.reason : t(strings.needsYou.notSeen)}
+                {item.read?.value ? t(strings.needsYou.read) : item.read?.evidence?.known === false ? item.read.evidence.reason : t(strings.needsYou.notRead)}
               </span>
             </div>
           ) : isReused(item) ? (
@@ -181,18 +178,20 @@ function Item({ item, focus }: { item: NeedsYouItem; focus: boolean }) {
 
 function deliveryWords(item: NeedsYouItem, t: TFunction): string {
   const parts = [item.deliveryReason, item.courier?.why].filter((part, n, all) => part && all.indexOf(part) === n);
-  if (item.deliveredByScheduler) parts.unshift(t(strings.needsYou.deliveredByScheduler, { line: item.deliveredByScheduler }));
+  // The item's own Delivered: line is the supervisor's only when the API says the scheduler sent it;
+  // a line naming the desk's own notice is already worded by the reason ("delivered by the desk at …").
+  if (item.deliveredByScheduler && item.deliveryReasonCode === DeliveryReason.SCHEDULER_DELIVERED) parts.unshift(t(strings.needsYou.deliveredByScheduler, { line: item.deliveredByScheduler }));
   return parts.join(" · ");
 }
 
-/** The courier found this ID already answered or delivered before the item appeared (rulings F11, P5). */
+/** The courier found this ID already answered or delivered before the item appeared. */
 function isReused(item: NeedsYouItem): boolean {
   return item.deliveryReasonCode === DeliveryReason.ID_REUSED;
 }
 
 /**
  * An item the desk cannot answer: what the item itself says to do and its
- * links, so the operator knows where it is answered (rulings V2, P6).
+ * links, so the operator knows where it is answered.
  */
 function AnsweredElsewhere({ item }: { item: NeedsYouItem }) {
   const { t } = useTranslation();
@@ -221,6 +220,7 @@ function AnsweredElsewhere({ item }: { item: NeedsYouItem }) {
 function DeliveryBadge({ item }: { item: NeedsYouItem }) {
   const { t } = useTranslation();
   if (isReused(item)) return <StatusBadge tone="warning">{t(strings.needsYou.badgeReused)}</StatusBadge>;
+  if (isOlderList(item)) return <StatusBadge tone="neutral">{t(strings.needsYou.olderBadge)}</StatusBadge>;
   if (item.delivered) return <StatusBadge tone="success">{t(strings.needsYou.badgeDelivered)}</StatusBadge>;
   if (item.courier?.on) return <StatusBadge tone="info">{t(strings.needsYou.badgeQueued)}</StatusBadge>;
   if (item.delivery === Delivery.NONE) return <StatusBadge tone="neutral">{t(strings.needsYou.badgeHere)}</StatusBadge>;
@@ -234,8 +234,10 @@ function AnswerForm({ item }: { item: NeedsYouItem }) {
   const [choice, setChoice] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [warning, setWarning] = useState("");
+  // The page's own needs-you query: the limit arrives with the list.
+  const limit = useNeedsYou().data?.entryCharsMax ?? 0;
   const words = useDebounced(note.trim(), 400);
-  const preview = useDryRun(["answer", item.commissionId, item.id, choice, words], () => operatorApi.answer(item.commissionId, item.id, choice ?? "", words, true), choice !== null && !(choice === "other" && !words) && !entryTooLong(words));
+  const preview = useDryRun(["answer", item.commissionId, item.id, choice, words], () => operatorApi.answer(item.commissionId, item.id, choice ?? "", words, true), choice !== null && !(choice === "other" && !words) && !entryTooLong(words, limit));
   return (
     <div className="flex flex-col gap-space-sm">
       <div className="rd-actions" role="group" aria-label={t(strings.needsYou.options)}>
@@ -258,13 +260,13 @@ function AnswerForm({ item }: { item: NeedsYouItem }) {
         }}
         onConfirm={async () => {
           if (choice === "other" && !note.trim()) throw new Error(t(strings.needsYou.ownWordsRequired));
-          if (entryTooLong(note)) throw new Error(t(strings.entry.refused));
+          if (entryTooLong(note, limit)) throw new Error(t(strings.entry.refused));
           const res = await operatorApi.answer(item.commissionId, item.id, choice ?? "", note.trim());
           setWarning(res.warning);
           await client.invalidateQueries({ queryKey: ["operator", "needs-you"] });
         }}
       >
-        <EntryField label={t(choice === "other" ? strings.needsYou.ownWordsLabel : strings.needsYou.noteLabel)} rows={3} value={note} onChange={setNote} />
+        <EntryField label={t(choice === "other" ? strings.needsYou.ownWordsLabel : strings.needsYou.noteLabel)} rows={3} value={note} limit={limit} onChange={setNote} />
         {choice === "other" && !words ? null : <WouldWrite label={t(strings.needsYou.appendsTo, { id: item.commissionId })} query={preview} />}
         {item.courier?.askId ? <p className="text-body-sm">{t(strings.needsYou.askStaysOpen)}</p> : null}
       </Confirm>

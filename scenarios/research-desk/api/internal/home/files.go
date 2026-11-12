@@ -30,7 +30,7 @@ func stat(path string) (FileFact, bool) {
 }
 
 // Unreadable is the evidence for a file or folder that exists but could not
-// be read: what it holds is unknown, never empty (rulings E1).
+// be read: what it holds is unknown, never empty.
 func Unreadable(path string, err error) Evidence {
 	return Evidence{Source: path, Reason: "cannot read " + path + ": " + err.Error()}
 }

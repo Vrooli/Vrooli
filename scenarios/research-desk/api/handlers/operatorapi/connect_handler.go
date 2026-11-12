@@ -1,5 +1,5 @@
 // Package operator serves the operator's side of the desk: the needs-you
-// feed, answers, direction, verdicts and the courier (SYSTEM.md §7, §10).
+// feed, answers, direction, verdicts and the courier (SYSTEM.md §7, §9).
 // Every write goes through internal/writer.
 package operatorapi
 
@@ -80,7 +80,7 @@ func steeringWarning(c *home.Commission) string {
 	if c.Steering.Value {
 		return ""
 	}
-	return "this charter does not tell the scheduler to read OPERATOR.md, so the entry will not be seen until steering is enabled"
+	return "this charter does not tell the scheduler to read OPERATOR.md, so the entry will not be read until steering is enabled"
 }
 
 func (h *handler) ListNeedsYou(ctx context.Context, _ *connect.Request[operatorv1.ListNeedsYouRequest]) (*connect.Response[operatorv1.ListNeedsYouResponse], error) {
@@ -88,7 +88,7 @@ func (h *handler) ListNeedsYou(ctx context.Context, _ *connect.Request[operatorv
 	if err != nil {
 		return nil, h.fail("plan", err)
 	}
-	resp := &operatorv1.ListNeedsYouResponse{Courier: &operatorv1.CourierStatus{
+	resp := &operatorv1.ListNeedsYouResponse{EntryCharsMax: int32(h.deps.Writer.EntryChars()), Courier: &operatorv1.CourierStatus{
 		GlobalOn:     plan.Switches.Global.On,
 		HubRead:      !plan.HubSkipped && plan.HubRead == nil,
 		SwitchesFile: filepath.Join(h.deps.Writer.StateDir(), courier.SwitchFile),
@@ -99,7 +99,7 @@ func (h *handler) ListNeedsYou(ctx context.Context, _ *connect.Request[operatorv
 	case plan.HubRead != nil:
 		resp.Courier.HubReason = plan.HubRead.Error()
 	}
-	// A read never takes the lock (A10): it only asks which role this has.
+	// A read never takes the lock: it only asks which role this has.
 	if err := h.deps.Writer.Role(); err != nil {
 		resp.Courier.WriterReason = err.Error()
 	} else {
@@ -119,11 +119,15 @@ func (h *handler) ListNeedsYou(ctx context.Context, _ *connect.Request[operatorv
 			continue
 		}
 		resp.Items = append(resp.Items, item(s))
+		if s.Waiting() {
+			resp.ItemCount++
+		}
 	}
 	feed := snap.NeedsYou()
 	for _, l := range feed.Legacy {
-		resp.Legacy = append(resp.Legacy, &operatorv1.LegacyText{Source: l.Source, Text: l.Text})
+		resp.Items = append(resp.Items, olderList(l))
 	}
+	resp.OlderListCount = int32(len(feed.Legacy))
 	resp.Unreadable = wire.EvidenceList(feed.Unreadable)
 	return connect.NewResponse(resp), nil
 }
@@ -162,7 +166,7 @@ func item(s *courier.Step) *operatorv1.NeedsYouItem {
 	answerable, why := f.Answerable()
 	delivery, deliveryCode, deliveryWhy := f.Delivery()
 	out := &operatorv1.NeedsYouItem{
-		Id: f.Item.ID, Title: f.Item.Title, Body: f.Item.Body, CommissionId: f.CommissionID, Sources: f.Sources,
+		Kind: operatorv1.NeedsYouKind_NEEDS_YOU_KIND_ITEM, Id: f.Item.ID, Title: f.Item.Title, Body: f.Item.Body, CommissionId: f.CommissionID, Sources: f.Sources,
 		RecommendedProblem: f.Item.RecommendedProblem, Options: options(f.Item.Choices()),
 		Packet: f.Item.Packet, Secret: f.Item.Secret, DeliveredByScheduler: f.Item.Delivered,
 		Answerable: answerable, NotAnswerableReason: why,
@@ -170,8 +174,7 @@ func item(s *courier.Step) *operatorv1.NeedsYouItem {
 		Delivery: deliveryProto(delivery), DeliveryReason: deliveryWhy, DeliveryReasonCode: reasonWire[deliveryCode], Courier: step(s),
 	}
 	if !answerable {
-		// What the item itself says to do, so it is acted on where it says
-		// (rulings P6).
+		// What the item itself says to do, so it is acted on where it says.
 		out.Instruction = f.Item.Instruction()
 		for _, l := range f.Item.Links() {
 			out.Links = append(out.Links, &operatorv1.Link{Label: l.Label, Target: l.Target})
@@ -181,12 +184,35 @@ func item(s *courier.Step) *operatorv1.NeedsYouItem {
 		out.Recommended = &operatorv1.Option{Key: f.Item.Recommended.Key, Label: f.Item.Recommended.Label}
 	}
 	if f.Answer != nil {
-		out.Seen = wire.Flag(f.Seen)
+		out.Read = wire.Flag(f.Read)
 	}
 	if s.Reused {
-		// The answer and delivery on record belong to an earlier item (F11).
-		out.Answer, out.Seen, out.Delivered = nil, nil, nil
+		// The answer and delivery on record belong to an earlier item.
+		out.Answer, out.Read, out.Delivered = nil, nil, nil
 		out.Delivery, out.DeliveryReason, out.DeliveryReasonCode = operatorv1.Delivery_DELIVERY_NONE, s.Why, operatorv1.DeliveryReason_DELIVERY_REASON_ID_REUSED
+	}
+	return out
+}
+
+// olderList is an older needs-you list as one feed row: readable in place,
+// never sent and never answerable here.
+func olderList(l home.Legacy) *operatorv1.NeedsYouItem {
+	const why = "an older list, not in the item format: shown, never sent"
+	where := "Act where each line says."
+	if l.CommissionID != "" {
+		where = "Act where each line says; direction for " + l.CommissionID + " goes in its OPERATOR.md (Say)."
+	}
+	out := &operatorv1.NeedsYouItem{
+		Kind: operatorv1.NeedsYouKind_NEEDS_YOU_KIND_OLDER_LIST, Title: "Older list in " + filepath.Base(l.Source),
+		Body: l.Text, CommissionId: l.CommissionID, Sources: []string{l.Source},
+		NotAnswerableReason: "an older list has no item IDs or options, so it cannot be answered here",
+		Instruction:         where,
+		Delivery:            operatorv1.Delivery_DELIVERY_NONE, DeliveryReason: why,
+		DeliveryReasonCode: operatorv1.DeliveryReason_DELIVERY_REASON_OLDER_LIST,
+		Courier:            &operatorv1.CourierStep{Action: "none", Why: why, Reason: operatorv1.DeliveryReason_DELIVERY_REASON_OLDER_LIST},
+	}
+	for _, link := range l.Links() {
+		out.Links = append(out.Links, &operatorv1.Link{Label: link.Label, Target: link.Target})
 	}
 	return out
 }
@@ -232,7 +258,7 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[operatorv1.An
 		}
 	}
 	if f == nil {
-		return nil, h.fail("answer", home.Cause(home.ErrNotFound, fmt.Errorf("commission %s has no needs-you item %q (an ended commission's items are not answerable); list them with `research-desk needs-you`", c.ID, msg.ItemId)))
+		return nil, h.fail("answer", home.WithCommand(home.Cause(home.ErrNotFound, fmt.Errorf("commission %s has no needs-you item %q (an ended commission's items are not answerable)", c.ID, msg.ItemId)), "research-desk needs-you"))
 	}
 	if ok, why := f.Answerable(); !ok {
 		return nil, h.fail("answer", home.Cause(home.ErrRefused, errors.New(why)))
@@ -241,12 +267,12 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[operatorv1.An
 	label := ""
 	if key == "other" {
 		if note == "" {
-			return nil, h.fail("answer", home.Cause(home.ErrInvalid, errors.New("an `other` answer needs the operator's words in the note")))
+			return nil, h.fail("answer", home.Cause(home.ErrInvalid, errors.New(`an "other" answer needs the operator's words in the note`)))
 		}
 	} else {
 		choice, ok := f.Item.Choice(key)
 		if !ok {
-			return nil, h.fail("answer", home.Cause(home.ErrInvalid, fmt.Errorf("item %s offers %s, or `other` with a note; not %q", f.Item.ID, optionKeys(f.Item.Choices()), key)))
+			return nil, h.fail("answer", home.Cause(home.ErrInvalid, fmt.Errorf(`item %s offers %s, or "other" with a note; not %q`, f.Item.ID, optionKeys(f.Item.Choices()), key)))
 		}
 		label = choice.Label
 	}
@@ -259,7 +285,7 @@ func (h *handler) Answer(ctx context.Context, req *connect.Request[operatorv1.An
 }
 
 // operatorEntry renders the exact text of an OPERATOR.md entry and, unless
-// dryRun, appends it (rulings P5). The text is rendered first, so a write
+// dryRun, appends it. The text is rendered first, so a write
 // appends what a dry run just showed when the file has not changed.
 func (h *handler) operatorEntry(id string, e home.Entry, dryRun bool) (path, text string, written bool, err error) {
 	path, text, err = h.deps.Writer.RenderOperator(id, e)
@@ -321,11 +347,18 @@ func (h *handler) EnableSteering(ctx context.Context, req *connect.Request[opera
 	if err != nil {
 		return nil, err
 	}
-	path, written, err := h.deps.Writer.EnableSteering(c.ID)
+	if req.Msg.DryRun {
+		path, text, err := h.deps.Writer.RenderSteering(c.ID)
+		if err != nil {
+			return nil, h.fail("enable steering", err)
+		}
+		return connect.NewResponse(&operatorv1.EnableSteeringResponse{Path: path, Text: text}), nil
+	}
+	path, text, err := h.deps.Writer.EnableSteering(c.ID)
 	if err != nil {
 		return nil, h.fail("enable steering", err)
 	}
-	return connect.NewResponse(&operatorv1.EnableSteeringResponse{Path: path, Written: written}), nil
+	return connect.NewResponse(&operatorv1.EnableSteeringResponse{Path: path, Written: text != "", Text: text}), nil
 }
 
 func (h *handler) ListReviews(ctx context.Context, _ *connect.Request[operatorv1.ListReviewsRequest]) (*connect.Response[operatorv1.ListReviewsResponse], error) {
@@ -333,7 +366,7 @@ func (h *handler) ListReviews(ctx context.Context, _ *connect.Request[operatorv1
 	if err != nil {
 		return nil, err
 	}
-	resp := &operatorv1.ListReviewsResponse{}
+	resp := &operatorv1.ListReviewsResponse{EntryCharsMax: int32(h.deps.Writer.EntryChars())}
 	for _, e := range snap.Unreadable {
 		if filepath.Base(e.Source) == home.ReviewsDir {
 			resp.Unreadable = append(resp.Unreadable, wire.Evidence(e))
@@ -341,9 +374,12 @@ func (h *handler) ListReviews(ctx context.Context, _ *connect.Request[operatorv1
 	}
 	for _, r := range snap.Reviews {
 		out := &operatorv1.Review{
-			Id: r.ID, Folder: r.Dir, Title: wire.Text(r.Title), Topics: r.Topics,
+			Id: r.ID, Folder: r.Dir, Title: wire.Text(r.Title), Topics: r.Topics, TopicsEvidence: wire.Evidence(r.TopicsEvidence),
 			Review: reviewFile(snap.ResearchDir, r.Review), ReviewHtml: reviewFile(snap.ResearchDir, r.HTML),
 			Verdicts: wire.Entries(r.Verdicts), Unreadable: wire.EvidenceList(r.Unreadable),
+		}
+		if r.Verdicts != nil {
+			out.UnparsedHeadings = wire.UnparsedHeadings(r.Verdicts.Unparsed)
 		}
 		for i := range r.Proposals {
 			out.Proposals = append(out.Proposals, reviewFile(snap.ResearchDir, &r.Proposals[i]))
@@ -372,11 +408,11 @@ func (h *handler) AddVerdict(ctx context.Context, req *connect.Request[operatorv
 	}
 	r := snap.Review(msg.ReviewId)
 	if r == nil {
-		return nil, h.fail("add verdict", home.Cause(home.ErrNotFound, fmt.Errorf("no review folder %q under %s/reviews; list them with `research-desk reviews`", msg.ReviewId, snap.ResearchDir)))
+		return nil, h.fail("add verdict", home.WithCommand(home.Cause(home.ErrNotFound, fmt.Errorf("no review folder %q under %s/reviews", msg.ReviewId, snap.ResearchDir)), "research-desk reviews"))
 	}
 	topic := snap.Topic(msg.Topic)
 	if topic == nil {
-		return nil, h.fail("add verdict", home.Cause(home.ErrNotFound, fmt.Errorf("no topic %q under %s/topics; list them with `research-desk topics`", msg.Topic, snap.ResearchDir)))
+		return nil, h.fail("add verdict", home.WithCommand(home.Cause(home.ErrNotFound, fmt.Errorf("no topic %q under %s/topics", msg.Topic, snap.ResearchDir)), "research-desk topics"))
 	}
 	entry := home.Entry{At: h.deps.Clock.Now().UTC(), Kind: home.EntryVerdict, Subject: topic.Slug, Via: home.ViaDesk, Body: strings.TrimSpace(msg.Text)}
 	path, text, err := h.deps.Writer.RenderVerdict(r.ID, entry)
@@ -431,7 +467,7 @@ func (h *handler) TestCourier(ctx context.Context, _ *connect.Request[operatorv1
 }
 
 // MarkSeen records a look at one commission or topic, or with all at every
-// commission and every topic (rulings P7), so the next changes are reported
+// commission and every topic, so the next changes are reported
 // from now.
 func (h *handler) MarkSeen(ctx context.Context, req *connect.Request[operatorv1.MarkSeenRequest]) (*connect.Response[operatorv1.MarkSeenResponse], error) {
 	msg := req.Msg

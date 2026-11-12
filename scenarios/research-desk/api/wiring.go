@@ -21,6 +21,7 @@ import (
 	"research-desk/internal/launch"
 	"research-desk/internal/peer"
 	"research-desk/internal/skillscripts"
+	"research-desk/internal/wire"
 	"research-desk/internal/writer"
 )
 
@@ -41,28 +42,32 @@ type wiring struct {
 	courier     *courier.Courier
 	launch      *launch.Service
 	webConsole  *peer.Peer
+	// entryChars is limits.json's entry_chars_max, read on each call.
+	entryChars func() (int, error)
 	// registry is the one table of whether each optional scenario can be
-	// reached (rulings E5); nil when service.json cannot be read.
+	// reached; nil when service.json cannot be read.
 	registry *capabilities.Registry
+	// resolver finds a scenario's port through its lifecycle record.
+	resolver capabilities.PortResolver
 	// version is service.version from .vrooli/service.json, the one place
-	// the version is kept (rulings E9); "unknown" when it cannot be read.
+	// the version is kept; "unknown" when it cannot be read.
 	version string
 }
 
-// Locations a test or a second instance overrides (F7). Unset means the
+// Locations a test or a second instance overrides. Unset means the
 // production location under the user's home.
 const (
 	envResearchDir = "RESEARCH_DESK_RESEARCH_DIR"
 	envStateDir    = "RESEARCH_DESK_STATE_DIR"
 	envCodexDir    = "RESEARCH_DESK_CODEX_DIR"
 	// envOtherCodexHomes is a path list of glob patterns, each naming a Codex
-	// home outside Web Console's session folder (F8).
+	// home outside Web Console's session folder.
 	envOtherCodexHomes = "RESEARCH_DESK_OTHER_CODEX_HOMES"
 )
 
 // newWiring resolves the locations and the scenario folder and builds the
 // one reader of the research home. A missing skills folder leaves mission
-// checks and ceilings unknown; it never stops the projection (charter I5).
+// checks and ceilings unknown; it never stops the projection.
 // Only the lifecycle-managed live instance may write.
 func newWiring(getenv func(string) string) *wiring {
 	userHome, err := os.UserHomeDir()
@@ -97,11 +102,25 @@ func newWiring(getenv func(string) string) *wiring {
 		deps.Ceilings = paths.Ceilings
 	}
 	w.reader = home.NewReader(w.homeConfig, deps)
-	w.writer = writer.New(w.homeConfig.ResearchDir, stateDir)
+	limits := func() (*skillscripts.Limits, error) {
+		if paths.Skills == "" {
+			return nil, errors.New("the Vrooli repository root is not resolved (set VROOLI_ROOT), so limits.json cannot be read")
+		}
+		return skillscripts.LoadLimits(paths.Limits())
+	}
+	w.entryChars = func() (int, error) {
+		l, err := limits()
+		if err != nil {
+			return 0, err
+		}
+		return l.EntryCharsMax, nil
+	}
+	w.writer = writer.New(w.homeConfig.ResearchDir, stateDir, w.entryChars)
 	if err := liveInstance(getenv); err != nil {
 		w.writer.ReadOnly(err.Error())
 	}
 	resolver := capabilities.DefaultResolver()
+	w.resolver = resolver
 	w.registry = w.loadRegistry(resolver)
 	w.courier = &courier.Courier{
 		Reader: w.reader,
@@ -118,12 +137,7 @@ func newWiring(getenv func(string) string) *wiring {
 		Reader:  w.reader,
 		Writer:  w.writer,
 		Packets: skillscripts.Packets{Paths: paths, Runner: skillscripts.NewPython(), ResearchDir: w.homeConfig.ResearchDir},
-		Limits: func() (*skillscripts.Limits, error) {
-			if paths.Skills == "" {
-				return nil, errors.New("the Vrooli repository root is not resolved (set VROOLI_ROOT), so limits.json cannot be read")
-			}
-			return skillscripts.LoadLimits(paths.Limits())
-		},
+		Limits:  limits,
 		Launcher: &launch.Launcher{
 			Terminal:   &launch.WebConsole{Peer: w.webConsole},
 			Sessions:   w.reader,
@@ -139,7 +153,7 @@ func newWiring(getenv func(string) string) *wiring {
 // liveInstance is nil when this process is the lifecycle-managed live
 // instance: the control plane started it with a runtime instance identity and
 // the live storage namespace. A test, a boot check or a shadow variant is not,
-// and only reads (rulings A10, F7).
+// and only reads.
 func liveInstance(getenv func(string) string) error {
 	switch {
 	case getenv(preflight.LifecycleManagedEnvVar) != "true":
@@ -157,8 +171,7 @@ const runtimeInstanceEnv = "VROOLI_RUNTIME_INSTANCE_ID"
 
 // start runs serve in the background with a context of its own. The returned
 // stop, given to the server's shutdown cleanup, cancels it, waits for the
-// courier's current pass to end (bounded by ctx) and releases the write lock
-// (rulings E9).
+// courier's current pass to end (bounded by ctx) and releases the write lock.
 func (w *wiring) start() (stop func(ctx context.Context) error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -223,9 +236,9 @@ func (w *wiring) serve(ctx context.Context) {
 // webConsoleCredential is the desk's own Web Console credential. The desk has
 // none yet: the service principal is prepared by
 // scripts/issue-service-principal.sh, which the operator runs, and the client
-// that reads it waits on a dependency install (DECISIONS D20). Until then the
+// that reads it waits on a dependency install. Until then the
 // desk sends no credential and Web Console's documented availability policy
-// decides (rulings F14); with agents refused at the desk (F13) that gives the
+// decides; with agents refused at the desk that gives the
 // desk nothing a local operator process does not already have.
 func webConsoleCredential(context.Context) (string, error) { return "", nil }
 
@@ -242,42 +255,48 @@ func (w *wiring) automaticLaunch(ctx context.Context) (string, error) {
 	return access, w.webConsole.Refused()
 }
 
-// Route names in the overview's lenses.
-const (
-	webConsoleRoute = "web-console access"
-	courierRoute    = "courier"
-)
+// courierRoute is the courier's lens in the overview.
+const courierRoute = "courier"
 
-// webConsoleAccess is the access line health and the overview show (F14).
-func (w *wiring) webConsoleAccess(ctx context.Context) (bool, string) {
+// webConsoleAccess is how the desk reaches Web Console, for health and the
+// overview: the kind and a plain sentence.
+func (w *wiring) webConsoleAccess(ctx context.Context) wire.Access {
 	access, err := w.automaticLaunch(ctx)
+	a := wire.Access{Kind: wire.AccessKind(access), Automatic: err == nil}
 	switch {
+	case errors.Is(err, capabilities.ErrNotReached):
+		a.Said = "Web Console access: " + access + "; Web Console was not reached just now (timed out), so whether automatic launch works is unknown until it answers; manual launch works"
 	case access == "":
-		return false, "Web Console access: unknown (" + err.Error() + "); automatic launch is off and manual launch is the whole flow"
+		a.Said = "Web Console access: unknown (" + err.Error() + "); automatic launch is off and manual launch is the whole flow"
 	case err != nil:
-		return false, "Web Console access: " + access + "; automatic launch is off and manual launch is the whole flow: " + err.Error()
+		a.Said = "Web Console access: " + access + "; automatic launch is off and manual launch is the whole flow: " + err.Error()
+	default:
+		a.Said = "Web Console access: " + access
 	}
-	return true, "Web Console access: " + access
+	return a
 }
 
 // routes are the overview's lenses for what lies outside the home: each
-// optional scenario as the capability registry reports it (E5), Web Console
-// access (F14) and the courier's health (E6, F15).
+// optional scenario as the capability registry reports it, with the
+// command that starts it for the CLI, and the courier's health.
+// Web Console access is its own dependency of the overview.
 func (w *wiring) routes(ctx context.Context) []home.Lens {
 	var out []home.Lens
 	if w.registry == nil {
-		out = append(out, home.Lens{Name: "capability registry", Reason: "not loaded: .vrooli/service.json not found (set VROOLI_ROOT); no optional scenario is reached"})
+		out = append(out, home.Lens{Name: "capability registry", Reason: "not loaded: .vrooli/service.json not found, so no optional scenario is reached", Command: "set VROOLI_ROOT to the Vrooli checkout and restart research-desk"})
 	} else {
 		for _, state := range w.registry.Resolve(ctx) {
-			out = append(out, home.Lens{Name: state.DependencySlug, Available: state.Status == capabilities.StatusAvailable, Reason: state.Message})
+			lens := home.Lens{Name: state.DependencySlug, Available: state.Status == capabilities.StatusAvailable, Reason: state.Message}
+			if !lens.Available && state.Status != capabilities.StatusUnknown {
+				lens.Command = capabilities.StartHint(ctx, w.resolver, state.DependencySlug)
+			}
+			out = append(out, lens)
 		}
 	}
-	ok, said := w.webConsoleAccess(ctx)
-	out = append(out, home.Lens{Name: webConsoleRoute, Available: ok, Reason: said})
 	if err := w.writer.Role(); err != nil {
 		return append(out, home.Lens{Name: courierRoute, Reason: "this instance only reads (" + err.Error() + "); the live instance runs the courier"})
 	}
-	ok, said = w.courier.Health().Say()
+	ok, said := w.courier.Health().Say()
 	return append(out, home.Lens{Name: courierRoute, Available: ok, Reason: said})
 }
 

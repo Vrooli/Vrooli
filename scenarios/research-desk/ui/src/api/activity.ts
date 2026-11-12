@@ -6,10 +6,11 @@ import {
   ChangeSubject,
   CommissionState,
   MatchKind,
-  ReadWhen,
+  WebConsoleAccess,
   type ResearchWrite,
   type TopicSummary,
 } from "@vrooli/proto-types/research-desk/v1/activity/activity_pb";
+import { ReadWhen } from "@vrooli/proto-types/research-desk/v1/shared/commission_pb";
 
 import { serviceClient } from "./client";
 
@@ -42,7 +43,7 @@ export function useTopics() {
 
 /**
  * Reads what changed since the last recorded look, or since `since` when
- * given (rulings F10); recording a look is operatorApi.markSeen.
+ * given; recording a look is operatorApi.markSeen.
  */
 export function useChanges(subject: ChangeSubject, id: string, since?: Date) {
   return useQuery({
@@ -52,29 +53,27 @@ export function useChanges(subject: ChangeSubject, id: string, since?: Date) {
   });
 }
 
-/** Overview lenses the UI shows in its own words rather than as a raw row (rulings E6, F14). */
+/** Overview lenses the UI shows in its own words rather than as a raw row. */
 export const LENS = { courier: "courier", webConsoleAccess: "web-console access" } as const;
 
 /**
  * A topic's last research write: the newest file in its run folders, apart
  * from mission edits and review files, with its source and, when its owner is
- * paused or ended, a note saying so (rulings P8).
+ * paused or ended, a note saying so.
  */
 export function lastResearchWrite(topic: TopicSummary): ResearchWrite | undefined {
   return topic.lastResearchWrite;
 }
 
-export { Baseline, ChangeSubject, CommissionState, MatchKind, ReadWhen };
+export { Baseline, ChangeSubject, CommissionState, MatchKind, ReadWhen, WebConsoleAccess };
 export type {
   CommissionSummary,
-  EntryReading,
   GetCommissionResponse,
   GetChangesResponse,
   GetOverviewResponse,
   Overlap,
-  ReadSet,
   ResearchWrite,
   SessionMatch,
   TopicSummary,
-  Workstream,
 } from "@vrooli/proto-types/research-desk/v1/activity/activity_pb";
+export type { EntryReading, ReadSet, Workstream } from "@vrooli/proto-types/research-desk/v1/shared/commission_pb";

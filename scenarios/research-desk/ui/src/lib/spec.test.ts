@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { clearSavedForm, emptyForm, loadForm, missing, move, saveForm, toSpec } from "./spec";
 
-const defaults = { supervisorModel: "gpt-6-luna", supervisorEffort: "medium", ownerModelTier: "inherit" };
+const defaults = { supervisorModel: "gpt-6-luna", supervisorEffort: "medium", ownerModelTier: "inherit", allowanceHours: 24 };
+const hours = { allowanceHoursMin: 2, allowanceHoursMax: 48 };
 
 describe("toSpec", () => {
   it("sends exactly the packet builder's keys, leaving unused options out", () => {
@@ -35,7 +36,7 @@ describe("toSpec", () => {
       read_first: { a: "/home/x/research/topics/a/runs/c/CHECKPOINT.md" },
       slug: "focus",
     });
-    // Choices about earlier commissions travel in the request, never in the packet (rulings P2).
+    // Choices about earlier commissions travel in the request, never in the packet.
     expect(toSpec(form)).not.toHaveProperty("run_alongside");
     expect(toSpec(form)).not.toHaveProperty("supersedes");
   });
@@ -43,7 +44,14 @@ describe("toSpec", () => {
 
 describe("missing", () => {
   it("names what blocks a preview", () => {
-    expect(missing({ ...emptyForm(defaults), quotes: [" "], allowanceHours: 0 })).toEqual(["topics", "quotes", "allowance"]);
+    expect(missing({ ...emptyForm(defaults), quotes: [" "], allowanceHours: 0 }, hours)).toEqual(["topics", "quotes", "allowance"]);
+  });
+
+  it("holds the allowance to the range the launch options give", () => {
+    const ready = { ...emptyForm(defaults), topics: ["a"], quotes: ["go"] };
+    expect(missing({ ...ready, allowanceHours: 1 }, hours)).toEqual(["allowance"]);
+    expect(missing({ ...ready, allowanceHours: 49 }, hours)).toEqual(["allowance"]);
+    expect(missing({ ...ready, allowanceHours: 48 }, hours)).toEqual([]);
   });
 });
 

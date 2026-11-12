@@ -6,21 +6,41 @@ import (
 	"fmt"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/provenance"
 )
 
-// OperatorAction is the refusal's instruction to an agent (rulings F13).
+// OperatorAction is the refusal's instruction to an agent.
 const OperatorAction = "this is the operator's action; write a needs-you item instead"
 
 // ErrNotOperator is returned when a caller that proved it is an agent or a
 // service calls a procedure that acts for the operator.
 var ErrNotOperator = errors.New(OperatorAction)
 
+// ResearchOperation preserves local operator access while routing delegated
+// launch/control through the shared, live operation-grant evaluator. Agent
+// attribution must never fall back to an ambient human availability principal.
+func ResearchOperation(ctx context.Context, operation, id string) error {
+	attribution := provenance.FromContext(ctx)
+	if attribution.VerificationStatus == provenance.VerificationInvalid || attribution.VerificationStatus == provenance.VerificationUnavailable {
+		return ErrNotOperator
+	}
+	if err := Caller(ctx); err == nil {
+		return nil
+	}
+	p, ok := identity.PrincipalFromContext(ctx)
+	if !ok || !p.IsVerified() || p.IsHuman() {
+		return authn.NewOperationRefusal(operation, "research-desk:commission/"+id)
+	}
+	_, err := authn.RequireOperation(ctx, "research-desk:write", operation, "research-desk:commission/"+id)
+	return err
+}
+
 // Caller is nil when the request may act for the operator: it carries no
 // verified agent or service identity and no agent identity that failed
 // verification. A local caller with no token is indistinguishable from the
-// operator's shell (SYSTEM.md §2); the desk keeps a verified caller's own
+// operator's shell (SYSTEM.md §10); the desk keeps a verified caller's own
 // identity and never replaces it with a broader one.
 func Caller(ctx context.Context) error {
 	agent := provenance.FromContext(ctx)

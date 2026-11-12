@@ -33,7 +33,7 @@ type NeedsYouItem struct {
 	// delivered the item itself, so the courier never sends it.
 	Delivered string
 	// Commission is an ATTENTION.md item's `Commission: <id>` line; empty
-	// means a global item (rulings S4d).
+	// means a global item.
 	Commission string
 	// Source is the file the item was read from.
 	Source string
@@ -43,7 +43,12 @@ type NeedsYouItem struct {
 type Legacy struct {
 	Source string
 	Text   string
+	// CommissionID owns the STATE.md the text is in; empty for ATTENTION.md.
+	CommissionID string
 }
+
+// Links are the markdown links in the text, resolved as an item's are.
+func (l Legacy) Links() []Link { return NeedsYouItem{Body: l.Text, Source: l.Source}.Links() }
 
 // Section names that hold needs-you items.
 const (
@@ -117,7 +122,7 @@ func ParseNeedsYou(text, section, source string) ([]NeedsYouItem, []Legacy) {
 }
 
 // field reads one optional `Name:` line of an item body. An older item's
-// `- **Delivered…**` bullet counts as a `Delivered:` line (F6).
+// `- **Delivered…**` bullet counts as a `Delivered:` line.
 func (it *NeedsYouItem) field(line string) {
 	if rest, ok := strings.CutPrefix(strings.TrimSpace(line), "- **Delivered"); ok {
 		it.Delivered = strings.TrimSpace(strings.Trim(strings.TrimSpace(rest), "*:"))
@@ -176,7 +181,7 @@ func (it *NeedsYouItem) Choice(key string) (Option, bool) {
 }
 
 // readNeedsYou parses one file's section. A missing file has no items; a
-// file that exists but cannot be read is an error, never "no items" (E1).
+// file that exists but cannot be read is an error, never "no items".
 func readNeedsYou(path, section string) ([]NeedsYouItem, []Legacy, error) {
 	data, err := os.ReadFile(path)
 	if absent(err) {
@@ -204,8 +209,7 @@ var (
 
 // Instruction is what the item itself says to do: the text of its first
 // labelled line whose label names the operator's part ("Needs you",
-// "Still needed from you", "Decision", "What"), else its first line
-// (rulings P6).
+// "Still needed from you", "Decision", "What"), else its first line.
 func (i NeedsYouItem) Instruction() string {
 	first := ""
 	for _, line := range strings.Split(i.Body, "\n") {

@@ -23,7 +23,7 @@ describe("DeliveryBanner", () => {
     expect(screen.getByText(new RegExp(title))).toBeInTheDocument();
   });
 
-  it("warns in one line, linking to where delivery is switched, when open items reach no phone (rulings V3)", () => {
+  it("warns in one line, linking to where delivery is switched, when open items reach no phone", () => {
     renderWithProviders(<DeliveryBanner courier={courier({ globalOn: false })} open={7} switchAt="/needs-you#delivery" />);
     expect(screen.getByRole("status")).toHaveAttribute("data-tone", "warning");
     expect(screen.getByRole("link", { name: strings.delivery.switch })).toHaveAttribute("href", "/needs-you#delivery");

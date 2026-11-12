@@ -18,19 +18,19 @@
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | One-action launch | Choose topics, allowance and emphasis and receive a complete packet (charter, stance message, goal kernel) with size gates, launched into a Web Console Codex session automatically or shown as two messages to paste (G1).
-- [ ] OT-P0-002 | Clean-start verdict | Before launch, state per selected topic whether an earlier commission touches it, its observed state (live, paused, limited, stopped, ended, prepared, unknown), and what this launch does about it; refuse to double-supervise a live topic unless the operator explicitly runs alongside (G2).
-- [ ] OT-P0-003 | Discard and relaunch | A bad start is stopped (never deleted), verified inactive, marked discarded with the operator's reason, and relaunched as a new commission rebuilt from the same packet inputs, superseding the old one (G2).
-- [ ] OT-P0-004 | Activity projection | Show active research, last activity per topic, running supervisors, the topics each supervises and commissions overlapping in time, derived only from research-home files and harness session records, with unknown where a value cannot be derived (G3, I6).
-- [ ] OT-P0-005 | File-only steering | Operator direction is appended verbatim to a desk-owned operator file the supervisor already re-reads at unit start; nothing is sent into a supervisor conversation (G4, I4).
-- [ ] OT-P0-006 | Decision courier | Needs-you items written by supervisors become one feed, are delivered to Notification Hub as decisions or notices once the operator turns the courier on (on by default only for desk-launched commissions), and answers are read back from the Hub into the operator file, so a desk outage loses no answer; the UI answers directly when the Hub is down (G5, I5).
-- [ ] OT-P0-007 | Focus measurement | Measure and display each supervisor and owner role's read set, as listed in the research-coordination skill's limits.json, in bytes and estimated tokens, and flag sets over their ceilings, an oversized charter and appended amendments (G6, I7).
-- [ ] OT-P0-008 | Review support | A research-review skill and desk support for an operator review session over selected topics: evidence of accomplishment, tidy-up proposals, verdicts recorded verbatim and missions realigned only by explicit operator action (G7).
-- [ ] OT-P0-009 | Scenario-owned research skills | Research skills move into scenarios/research-desk/skills through the supported ownership route with prompt-manager skill read and the direct-file fallback still working, and the supervisor procedure gains written route discipline for failing optional routes (G8, G9).
-- [ ] OT-P0-010 | Detached by construction | Stopping the desk mid-commission changes nothing for supervisors or owners; every packet launches by hand from its folder; commissions launched by hand are recognised (I1, I3).
-- [ ] OT-P0-011 | Phone-first interface | API and CLI first, then a UI designed for phone width on the tunnel hostname that replaces the generated placeholder completely (G10).
-- [ ] OT-P0-012 | Control without chat | Pause, resume, wind down, stop and discard a commission from the desk without writing a message in its conversation; wind down is an operator-file entry, the others act on the session only on an operator tap and are recorded (G12).
-- [ ] OT-P0-013 | Since last look | Per commission and per topic, show what changed since the operator last looked: new ledger text, changed checkpoints, showcase lines and workstream status changes (G13).
+- [x] OT-P0-001 | One-action launch | Choose topics, allowance and emphasis and receive a complete packet (charter, stance message, goal kernel) with size gates, launched into a Web Console Codex session automatically or shown as two messages to paste.
+- [x] OT-P0-002 | Clean-start verdict | Before launch, state per selected topic whether an earlier commission touches it, its observed state (live, paused, limited, stopped, ended, prepared, unknown), and what this launch does about it; refuse to double-supervise a live topic unless the operator explicitly runs alongside.
+- [x] OT-P0-003 | Discard and relaunch | A bad start is stopped (never deleted), verified inactive, marked discarded with the operator's reason, and relaunched as a new commission rebuilt from the same packet inputs, superseding the old one.
+- [x] OT-P0-004 | Activity projection | Show active research, last activity per topic, running supervisors, the topics each supervises and commissions overlapping in time, derived only from research-home files and harness session records, with unknown where a value cannot be derived.
+- [x] OT-P0-005 | File-only steering | Operator direction is appended verbatim to a desk-owned operator file the supervisor already re-reads at unit start; nothing is sent into a supervisor conversation.
+- [x] OT-P0-006 | Decision courier | Needs-you items written by supervisors become one feed, are delivered to Notification Hub as decisions or notices once the operator turns the courier on (on by default only for desk-launched commissions), and answers are read back from the Hub into the operator file, so a desk outage loses no answer; the UI answers directly when the Hub is down.
+- [x] OT-P0-007 | Focus measurement | Measure and display each supervisor and owner role's read set, as listed in the research-coordination skill's limits.json, in bytes and estimated tokens, and flag sets over their ceilings, an oversized charter and appended amendments.
+- [x] OT-P0-008 | Review support | A research-review skill and desk support for an operator review session over selected topics: evidence of accomplishment, tidy-up proposals, verdicts recorded verbatim and missions realigned only by explicit operator action.
+- [ ] OT-P0-009 | Scenario-owned research skills | Research skills move into scenarios/research-desk/skills through the supported ownership route with prompt-manager skill read and the direct-file fallback still working, and the supervisor procedure gains written route discipline for failing optional routes.
+- [x] OT-P0-010 | Detached by construction | Stopping the desk mid-commission changes nothing for supervisors or owners; every packet launches by hand from its folder; commissions launched by hand are recognised.
+- [ ] OT-P0-011 | Phone-first interface | API and CLI first, then a UI designed for phone width on the tunnel hostname that replaces the generated placeholder completely.
+- [x] OT-P0-012 | Control without chat | Pause, resume, wind down, stop and discard a commission from the desk without writing a message in its conversation; wind down is an operator-file entry, the others act on the session only on an operator tap and are recorded.
+- [x] OT-P0-013 | Since last look | Per commission and per topic, show what changed since the operator last looked: new ledger text, changed checkpoints, showcase lines and workstream status changes.
 
 ### 🟠 P1 – Should have post-launch
 
@@ -68,7 +68,5 @@
 
 ## 📎 Appendix
 
-- Charter and operator words: `.vrooli/work/research-desk/CHARTER.md`, `.vrooli/work/research-desk/OPERATOR-WORDS.md`.
-- Review rulings: `.vrooli/work/research-desk/REVIEW-1-RULINGS.md`.
-- Design: `docs/concepts/SYSTEM.md` (proofs in §12), `docs/reference/FILE-CONTRACT.md`, `docs/DECISIONS.md`, `docs/guides/skills-move.md`, `docs/concepts/EXPERIENCE.md`.
-- Method sources: `docs/agent-system/LONG_EFFORT_DESIGN.md` (D3, D15, D17, section 4a compaction).
+- Design: `docs/concepts/SYSTEM.md` (proofs in §11), `docs/reference/FILE-CONTRACT.md`, `docs/DECISIONS.md`, `docs/concepts/EXPERIENCE.md`.
+- Method sources: `docs/agent-system/LONG_EFFORT_DESIGN.md` (its sections on stance messages, goal kernels and compaction, §4a).

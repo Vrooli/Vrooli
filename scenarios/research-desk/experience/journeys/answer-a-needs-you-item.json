@@ -5,7 +5,7 @@
   "journey": {
     "id": "answer-a-needs-you-item",
     "title": "Answer what a supervisor is waiting on",
-    "purpose": "From the Now titles to the item itself, opened in place, answered with the recommended option already shown, the exact entry from the API's dry run confirmed before anything is written, and the answer read back once the supervisor has seen it.",
+    "purpose": "From the Now titles to the item itself, opened in place, answered with the recommended option already shown, the exact entry from the API's dry run confirmed before anything is written, and the answer shown as read once the supervisor has read it.",
     "prd_refs": [
       "OT-P0-006",
       "OT-P0-005"
@@ -33,7 +33,7 @@
     {
       "page": "needs-you",
       "state": "default",
-      "intent": "See the answer and whether the supervisor has seen it; a global item without a commission instead says where it is answered.",
+      "intent": "See the answer and whether the supervisor has read it; a global item without a commission instead says where it is answered.",
       "via": "after confirming"
     }
   ]

@@ -12,7 +12,7 @@ import { DerivedWhen, When } from "./When";
 /**
  * One commission in a list: what it is, its state, what it holds, when it
  * last wrote ("at least" when the walk was cut short), and any edit after
- * its end, which is never counted as activity (rulings F3).
+ * its end, which is never counted as activity.
  */
 export function CommissionRow({ commission, children }: { commission: CommissionSummary; children?: ReactNode }) {
   const { t } = useTranslation();

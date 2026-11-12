@@ -2,6 +2,7 @@
  * Outward flows driven through the real screens up to and through their
  * confirmation, with the API stubbed at the wire: what the operator is shown
  * before confirming, and exactly what is sent after.
+ * [REQ:RD-P0-011]
  */
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -20,9 +21,18 @@ const LAUNCH = "/vrooli.research_desk.v1.launch.LaunchService";
 const WIRE = {
   recommendedProblem: "no Recommended: line",
   courierWhy: "courier on for c1",
-  seenReason: "STATE.md not found",
+  readReason: "STATE.md not found",
   orphan: "AV9",
-  legacyAsk: "pick a model",
+  olderAsk: "pick a model",
+  deskDelivered: "delivered by the desk at 2026-11-12T06:05:16Z (hub notice n1)",
+  olderTitle: "Older list in STATE.md",
+  olderInstruction: "Act where each line says.",
+  olderReason: "an older list has no item IDs or options, so it cannot be answered here",
+  olderDelivery: "an older list is never sent",
+  unparsedHeading: "### yesterday evening",
+  charter: "/home/u/.vrooli/research/cohorts/c1/README.md",
+  packetAdvice: "Nothing is running. Set a weekly quota ceiling first.",
+  missionFlag: "MISSION.md is 71,041 B, over its 40,000 B ceiling. Recommended: the next architect pass tidies the mission.",
   entrySubject: "AV4",
   kernelGoal: "Run the charter.",
   answerWarning: "STATE.md is busy",
@@ -43,8 +53,7 @@ const WIRE = {
   first: "First",
   twin: "Same ID elsewhere",
   globalTitle: "Global one",
-  unknownBlocker: "p1 is unknown, not prepared; a relaunch is a new commission (`research-desk build --relaunch-of p1`)",
-  unknownBlockerWords: "p1 is unknown, not prepared; a relaunch is a new commission",
+  unknownBlocker: "p1 is unknown, not prepared; a relaunch is a new commission",
   dryText: "### 2026-11-12T08:00:00Z · exact text from the API's dry run",
   readNext: "It is read at the start of the next unit.",
   readAfterResume: "Paused: it is read at the next unit after the supervisor is resumed.",
@@ -62,7 +71,7 @@ const WIRE = {
 type Resolutions = { commissionId: string; choice: string }[];
 const chosenIn = (body: unknown, id: string) => ((body as { resolutions?: Resolutions } | undefined)?.resolutions ?? []).find((r) => r.commissionId === id)?.choice;
 
-/** An earlier commission's verdict as the API judges it with the request's choice (rulings P2). */
+/** An earlier commission's verdict as the API judges it with the request's choice. */
 function verdict(topic: string, commissionId: string, state: string, body: unknown, recommended = "", recommendedReason = "") {
   const chosen = chosenIn(body, commissionId);
   return {
@@ -78,7 +87,7 @@ function verdict(topic: string, commissionId: string, state: string, body: unkno
   };
 }
 
-/** The API's dry run: the exact text it would append and when it is read (rulings P5). */
+/** The API's dry run: the exact text it would append and when it is read. */
 const dryRun = (body: unknown) => ((body as { dryRun?: boolean } | undefined)?.dryRun ? { text: WIRE.dryText, written: false, reading: { message: WIRE.readNext } } : undefined);
 
 /** Requests that change something; a dry run writes nothing. */
@@ -89,7 +98,7 @@ const render = (path: string) => renderWithProviders(<TestAppRouter initialEntri
 
 afterEach(() => {
   cleanup();
-  // The launch form waits in session storage between visits (rulings V1); each test starts empty.
+  // The launch form waits in session storage between visits; each test starts empty.
   sessionStorage.clear();
 });
 
@@ -146,61 +155,105 @@ describe("Needs you", () => {
 
 describe("Needs you feed", () => {
   const base = { commissionId: "c1", options: [], sources: [] };
+  // An older-format STATE.md list: a row after the items, as the API orders them.
+  const olderList = {
+    ...base,
+    commissionId: "old",
+    id: "",
+    kind: "NEEDS_YOU_KIND_OLDER_LIST",
+    title: WIRE.olderTitle,
+    body: `**Needs you:** ${WIRE.olderAsk}`,
+    sources: ["/home/u/.vrooli/research/cohorts/old/STATE.md"],
+    instruction: WIRE.olderInstruction,
+    notAnswerableReason: WIRE.olderReason,
+    delivery: "DELIVERY_NONE",
+    deliveryReason: WIRE.olderDelivery,
+    deliveryReasonCode: "DELIVERY_REASON_OLDER_LIST",
+  };
   const feed = {
     items: [
-      { ...base, id: "Q1", title: "Delivered ask", delivered: { body: "sent" }, recommendedProblem: WIRE.recommendedProblem, packet: "/home/u/.vrooli/research/cohorts/c1/Q1.md", sources: ["/home/u/.vrooli/research/cohorts/c1/STATE.md"] },
-      { ...base, id: "Q2", title: "Queued ask", courier: { on: true, why: WIRE.courierWhy }, deliveryReason: WIRE.courierWhy },
-      { ...base, id: "Q3", title: "Local only", delivery: "DELIVERY_NONE", deliveredByScheduler: "sent at 09:30" },
-      { ...base, commissionId: "", id: "Q4", title: "Not sent", notAnswerableReason: "no commission folder", instruction: WIRE.instruction, links: [{ label: WIRE.linkLabel, target: "/home/u/.vrooli/research/ATTENTION.md" }] },
-      { ...base, id: "A1", title: "Seen answer", answer: { at: "2026-11-11T09:30:00Z", body: "keep" }, seen: { value: true } },
-      { ...base, id: "A2", title: "Unplaceable answer", answer: { body: "drop" }, seen: { evidence: { known: false, reason: WIRE.seenReason } } },
-      { ...base, id: "A3", title: "Unseen answer", answer: { body: "wait" } },
+      { ...base, id: "ASK1", title: "Delivered ask", delivered: { body: "sent" }, recommendedProblem: WIRE.recommendedProblem, packet: "/home/u/.vrooli/research/cohorts/c1/ASK1.md", sources: ["/home/u/.vrooli/research/cohorts/c1/STATE.md"] },
+      { ...base, id: "ASK2", title: "Queued ask", courier: { on: true, why: WIRE.courierWhy }, deliveryReason: WIRE.courierWhy },
+      { ...base, id: "ASK3", title: "Local only", delivery: "DELIVERY_NONE", deliveryReasonCode: "DELIVERY_REASON_SCHEDULER_DELIVERED", deliveredByScheduler: "sent at 09:30" },
+      { ...base, id: "ASK5", title: "Sent by the desk", delivered: { body: "sent" }, delivery: "DELIVERY_NONE", deliveryReasonCode: "DELIVERY_REASON_HUB_DELIVERED", deliveryReason: WIRE.deskDelivered, deliveredByScheduler: "research-desk hub notice n1" },
+      { ...base, commissionId: "", id: "ASK4", title: "Not sent", notAnswerableReason: "no commission folder", instruction: WIRE.instruction, links: [{ label: WIRE.linkLabel, target: "/home/u/.vrooli/research/ATTENTION.md" }] },
+      { ...base, id: "A1", title: "Read answer", answer: { at: "2026-11-11T09:30:00Z", body: "keep" }, read: { value: true } },
+      { ...base, id: "A2", title: "Unplaceable answer", answer: { body: "drop" }, read: { evidence: { known: false, reason: WIRE.readReason } } },
+      { ...base, id: "A3", title: "Unread answer", answer: { body: "wait" } },
+      olderList,
     ],
-    legacy: [{ source: "/home/u/.vrooli/research/cohorts/old/STATE.md", text: `**Needs you:** ${WIRE.legacyAsk}` }],
+    // The API's counts: five items still wait (the three answered are not counted), and one older list.
+    itemCount: 5,
+    olderListCount: 1,
     courier: { writer: true, globalOn: true, hubRead: true, orphans: [{ key: WIRE.orphan, askState: "open", why: "item gone" }], switchesFile: "/home/u/.vrooli/research/.desk/courier.json" },
   };
 
-  it("shows each item's delivery, answer and whether the supervisor has seen it", async () => {
+  it("shows each item's delivery, answer and whether the supervisor has read it", async () => {
     stubWire((path) => (path === `${OPERATOR}/ListNeedsYou` ? feed : {}));
     render("/needs-you");
-    expect(await screen.findByText(strings.needsYou.badgeDelivered)).toBeInTheDocument();
+    expect((await screen.findAllByText(strings.needsYou.badgeDelivered)).length).toBe(2);
     expect(screen.getByText(strings.needsYou.badgeQueued)).toBeInTheDocument();
     expect(screen.getByText(strings.needsYou.badgeHere)).toBeInTheDocument();
     expect(screen.getAllByText(strings.needsYou.badgeNotSent).length).toBeGreaterThan(0);
     expect(screen.getByText(WIRE.recommendedProblem)).toBeInTheDocument();
-    // Items the desk cannot answer say where they are answered, in the item's own words and links (rulings V2, P6).
-    expect(screen.getAllByText(strings.needsYou.answeredWhere)).toHaveLength(4);
+    // Items the desk cannot answer say where they are answered, in the item's own words and links.
+    expect(screen.getAllByText(strings.needsYou.answeredWhere)).toHaveLength(6);
     expect(screen.getByText(WIRE.instruction)).toBeInTheDocument();
     expect(screen.getByText(WIRE.linkLabel)).toBeInTheDocument();
     // The same reason from two places is said once.
     expect(screen.getByText(WIRE.courierWhy)).toBeInTheDocument();
-    expect(screen.getByText(strings.needsYou.deliveredByScheduler)).toBeInTheDocument();
-    expect(screen.getByText(strings.needsYou.seen)).toBeInTheDocument();
-    expect(screen.getByText(WIRE.seenReason)).toBeInTheDocument();
-    expect(screen.getByText(strings.needsYou.notSeen)).toBeInTheDocument();
-    expect(screen.getByText(WIRE.legacyAsk, { exact: false })).toBeInTheDocument();
+    // Only the scheduler's own line is called the supervisor's; the desk's notice is worded by the API's reason.
+    expect(screen.getAllByText(strings.needsYou.deliveredByScheduler)).toHaveLength(1);
+    expect(screen.getByText(WIRE.deskDelivered)).toBeInTheDocument();
+    expect(screen.getByText(strings.needsYou.read)).toBeInTheDocument();
+    expect(screen.getByText(WIRE.readReason)).toBeInTheDocument();
+    expect(screen.getByText(strings.needsYou.notRead)).toBeInTheDocument();
     expect(screen.getByText(WIRE.orphan)).toBeInTheDocument();
   });
 
-  it("shows each item as one collapsed row, and opens the one a link names by commission plus ID (rulings V2)", async () => {
+  it("lists an older-format list as one row after the items, readable in place, never sent or answerable, and counts it", async () => {
+    const user = userEvent.setup();
+    stubWire((path) => (path === `${OPERATOR}/ListNeedsYou` ? feed : {}));
+    render("/needs-you");
+    // Five open items and one older list, counted apart in words.
+    expect(await screen.findByText(strings.now.needsYouWithOlder)).toBeInTheDocument();
+    const row = screen.getByText(WIRE.olderTitle).closest("li") as HTMLElement;
+    const rows = row.parentElement as HTMLElement;
+    expect(rows).toBe(screen.getAllByText(strings.needsYou.badgeDelivered)[0]?.closest("ul"));
+    expect(rows.lastElementChild).toBe(row);
+    expect(within(row).getByText(strings.needsYou.olderBadge)).toBeInTheDocument();
+    expect(within(row).getByText(WIRE.olderAsk, { exact: false })).not.toBeVisible();
+    await user.click(screen.getByText(WIRE.olderTitle));
+    expect(within(row).getByText(WIRE.olderAsk, { exact: false })).toBeVisible();
+    // Where it is answered, in the API's words, and why not here.
+    expect(within(row).getByText(strings.needsYou.answeredWhere)).toBeInTheDocument();
+    expect(within(row).getByText(WIRE.olderInstruction)).toBeInTheDocument();
+    expect(within(row).getByText(WIRE.olderReason)).toBeInTheDocument();
+    expect(within(row).getByText(WIRE.olderDelivery)).toBeInTheDocument();
+    expect(within(row).queryByRole("group", { name: strings.needsYou.options })).not.toBeInTheDocument();
+    expect(within(row).queryByRole("button", { name: strings.needsYou.ownWords })).not.toBeInTheDocument();
+    expect(within(row).queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("shows each item as one collapsed row, and opens the one a link names by commission plus ID", async () => {
     const twins = {
       items: [
-        { ...base, id: "Q1", title: WIRE.first, recommended: { key: "keep", label: WIRE.recommendedLabel } },
-        { ...base, commissionId: "c2", id: "Q1", title: WIRE.twin },
-        { ...base, commissionId: "", id: "G1", title: WIRE.globalTitle },
+        { ...base, id: "ASK1", title: WIRE.first, recommended: { key: "keep", label: WIRE.recommendedLabel } },
+        { ...base, commissionId: "c2", id: "ASK1", title: WIRE.twin },
+        { ...base, commissionId: "", id: "GLOBAL1", title: WIRE.globalTitle },
       ],
       courier: feed.courier,
     };
     stubWire((path) => (path === `${OPERATOR}/ListNeedsYou` ? twins : {}));
     const scrolled = vi.fn();
     Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: scrolled });
-    render("/needs-you#c2%2FQ1");
+    render("/needs-you#c2%2FASK1");
     const target = await screen.findByText(WIRE.twin);
     const row = (title: HTMLElement) => title.closest("li") as HTMLElement;
     const first = row(screen.getByText(WIRE.first));
-    expect(row(target).id).toBe("c2/Q1");
-    expect(first.id).toBe("c1/Q1");
-    expect(row(screen.getByText(WIRE.globalTitle)).id).toBe("global/G1");
+    expect(row(target).id).toBe("c2/ASK1");
+    expect(first.id).toBe("c1/ASK1");
+    expect(row(screen.getByText(WIRE.globalTitle)).id).toBe("global/GLOBAL1");
     // Collapsed, with the recommended answer on the row; only the linked one is open, and it is scrolled to.
     expect(first.querySelector("details")?.open).toBe(false);
     expect(within(first).getByText(WIRE.recommendedLabel).closest("summary")).not.toBeNull();
@@ -317,14 +370,14 @@ describe("Commission controls", () => {
     expect(screen.queryByText(strings.control.refusedTitle)).not.toBeInTheDocument();
   });
 
-  it("counts an entry against the 4,000-character limit and holds one that is over it", async () => {
+  it("counts an entry against the limit the desk sends and holds one that is over it", async () => {
     const user = userEvent.setup();
-    const calls = stubWire((path) => (path === `${ACTIVITY}/GetCommission` ? commission("COMMISSION_STATE_LIVE", true) : {}));
+    const calls = stubWire((path) => (path === `${ACTIVITY}/GetCommission` ? { ...commission("COMMISSION_STATE_LIVE", true), entryCharsMax: 40 } : {}));
     render("/commissions/c1?tab=steer");
     const field = await screen.findByLabelText(strings.say.directionLabel);
     expect(screen.getByText(strings.entry.count)).toBeInTheDocument();
     await user.click(field);
-    await user.paste("x".repeat(4001));
+    await user.paste("x".repeat(41));
     expect(await screen.findByText(strings.entry.tooLong)).toBeInTheDocument();
     expect(field).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByRole("button", { name: strings.say.review })).toBeDisabled();
@@ -332,6 +385,18 @@ describe("Commission controls", () => {
     expect(screen.queryByText(strings.entry.tooLong)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: strings.say.review })).toBeEnabled();
     expect(writes(calls)).toHaveLength(0);
+  });
+
+  it("leaves the length to the desk when it could not read the entry limit", async () => {
+    const user = userEvent.setup();
+    stubWire((path) => (path === `${ACTIVITY}/GetCommission` ? commission("COMMISSION_STATE_LIVE", true) : {}));
+    render("/commissions/c1?tab=steer");
+    const field = await screen.findByLabelText(strings.say.directionLabel);
+    expect(screen.getByText(strings.entry.countNoLimit)).toBeInTheDocument();
+    await user.click(field);
+    await user.paste("x".repeat(5000));
+    expect(screen.queryByText(strings.entry.tooLong)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: strings.say.review })).toBeEnabled();
   });
 
   it("offers no keystroke control without an open exactly-matched window", async () => {
@@ -382,21 +447,23 @@ describe("Commission steering", () => {
       { at: "2026-11-11T11:00:00Z", kind: "answer", subject: WIRE.entrySubject, via: "hub", body: "keep" },
       { kind: "direction", via: "hand", body: "undated" },
     ],
-    operatorUnparsed: 1,
+    operatorUnparsedHeadings: [{ line: 7, text: WIRE.unparsedHeading }],
     ...extra,
   });
 
   it("marks each entry read once the API's read-since passed it, and unknown without a time", async () => {
     stubWire((path) => (path === `${ACTIVITY}/GetCommission` ? detail() : {}));
     render("/commissions/c1?tab=steer");
-    expect(await screen.findByText(strings.say.seen)).toBeInTheDocument();
+    expect(await screen.findByText(strings.say.read)).toBeInTheDocument();
     expect(screen.getByText(WIRE.readNext)).toBeInTheDocument();
-    expect(screen.getByText(strings.say.notSeen)).toBeInTheDocument();
+    expect(screen.getByText(strings.say.notRead)).toBeInTheDocument();
     expect(screen.getByText(WIRE.entrySubject, { exact: false })).toBeInTheDocument();
-    expect(screen.getByText(strings.say.unparsed)).toBeInTheDocument();
+    // A heading the API could not read is shown with its line, never dropped.
+    expect(screen.getByText(strings.unreadable.headings)).toBeInTheDocument();
+    expect(screen.getByText(WIRE.unparsedHeading)).toBeInTheDocument();
   });
 
-  it("says a paused supervisor reads a new entry only after it is resumed (rulings V4)", async () => {
+  it("says a paused supervisor reads a new entry only after it is resumed", async () => {
     const paused = { id: "c1", folder, state: "COMMISSION_STATE_PAUSED", entryReading: { when: "READ_WHEN_AFTER_RESUME", message: WIRE.readAfterResume } };
     stubWire((path) => (path === `${ACTIVITY}/GetCommission` ? detail({ commission: paused, steering: { value: true } }) : {}));
     render("/commissions/c1?tab=steer");
@@ -405,16 +472,29 @@ describe("Commission steering", () => {
     expect(screen.queryByText(WIRE.readNext)).not.toBeInTheDocument();
   });
 
-  it("adds the steering sentence to an older charter only after showing it", async () => {
+  it("adds the steering line to an older charter only after showing the API's exact text", async () => {
     const user = userEvent.setup();
-    const calls = stubWire((path) => (path === `${ACTIVITY}/GetCommission` ? detail() : {}));
+    const calls = stubWire((path, body) =>
+      path === `${ACTIVITY}/GetCommission` ? detail() : path === `${OPERATOR}/EnableSteering` && (body as { dryRun?: boolean }).dryRun ? { text: WIRE.dryText, path: WIRE.charter, written: false } : {},
+    );
     render("/commissions/c1?tab=steer");
     await user.click(await screen.findByRole("button", { name: strings.say.enableSteering }));
     const dialog = await screen.findByRole("alertdialog");
-    expect(dialog.querySelector("pre")?.textContent).toMatch(/^## Steering\n\nRead entries of `OPERATOR.md`/);
+    await waitFor(() => expect(dialog.querySelector("pre")?.textContent).toBe(WIRE.dryText));
+    expect(calls).toContainEqual({ path: `${OPERATOR}/EnableSteering`, body: { commissionId: "c1", dryRun: true } });
     expect(writes(calls)).toHaveLength(0);
     await user.click(within(dialog).getByRole("button", { name: strings.say.enableSteering }));
     await waitFor(() => expect(writes(calls)).toEqual([{ path: `${OPERATOR}/EnableSteering`, body: { commissionId: "c1" } }]));
+  });
+
+  it("says nothing would be written when the charter already has the steering line", async () => {
+    const user = userEvent.setup();
+    stubWire((path) => (path === `${ACTIVITY}/GetCommission` ? detail() : path === `${OPERATOR}/EnableSteering` ? { text: "", path: WIRE.charter, written: false } : {}));
+    render("/commissions/c1?tab=steer");
+    await user.click(await screen.findByRole("button", { name: strings.say.enableSteering }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(await within(dialog).findByText(strings.say.steeringPresent)).toBeInTheDocument();
+    expect(dialog.querySelector("pre")).toBeNull();
   });
 
   it("writes a wind-down entry and shows the API's warning", async () => {
@@ -465,7 +545,7 @@ describe("Commission steering", () => {
   });
 
   it("offers no new words once a commission has ended", async () => {
-    stubWire((path) => (path === `${ACTIVITY}/GetCommission` ? detail({ commission: { id: "c1", folder, state: "COMMISSION_STATE_ENDED" }, operatorEntries: [], operatorUnparsed: 0 }) : {}));
+    stubWire((path) => (path === `${ACTIVITY}/GetCommission` ? detail({ commission: { id: "c1", folder, state: "COMMISSION_STATE_ENDED" }, operatorEntries: [], operatorUnparsedHeadings: [] }) : {}));
     render("/commissions/c1?tab=steer");
     expect(await screen.findByText(strings.say.ended)).toBeInTheDocument();
     expect(screen.getByText(strings.say.noEntries)).toBeInTheDocument();
@@ -514,7 +594,9 @@ describe("Launch", () => {
       },
     ],
   };
-  const options = { automaticAvailable: true, defaultSupervisorModel: "gpt-5", defaultSupervisorEffort: "high", defaultOwnerModelTier: "inherit", supervisorModels: ["gpt-5"], supervisorEfforts: ["high"], ownerModelTiers: ["inherit"] };
+  // Limits unlike limits.json's own, so a copy in the UI would show.
+  const packetLimits = { topicsMax: 3, allowanceHoursMin: 2, allowanceHoursMax: 30, allowanceHoursDefault: 18, orderedWorkstreamsMax: 1 };
+  const options = { automaticAvailable: true, defaultSupervisorModel: "gpt-5", defaultSupervisorEffort: "high", defaultOwnerModelTier: "inherit", supervisorModels: ["gpt-5"], supervisorEfforts: ["high"], ownerModelTiers: ["inherit"], packetLimits };
   const preflight = (ok: boolean, body?: unknown) => {
     const old = verdict("local-model-performance", "old-1", "live", body, "", WIRE.liveReason);
     return {
@@ -569,7 +651,7 @@ describe("Launch", () => {
     expect(asked.resolutions).toEqual([{ commissionId: "old-1", choice: "RESOLUTION_RUN_ALONGSIDE" }]);
     // The choice travels in the request; the spec holds only the operator's packet.
     const spec = JSON.parse(asked.specJson);
-    expect(spec).toMatchObject({ topics: ["local-model-performance"], order: { "local-model-performance": ["IT6"] }, stance_quotes: ["make it reliable"], allowance_hours: 24 });
+    expect(spec).toMatchObject({ topics: ["local-model-performance"], order: { "local-model-performance": ["IT6"] }, stance_quotes: ["make it reliable"], allowance_hours: 18 });
     expect(spec).not.toHaveProperty("run_alongside");
     expect(writes(calls)).toHaveLength(0);
     await user.click(launch);
@@ -582,6 +664,33 @@ describe("Launch", () => {
     await waitFor(() => expect(writes(calls).map((c) => c.path)).toEqual([`${LAUNCH}/Build`, `${LAUNCH}/Launch`]));
     expect(writes(calls)[0]?.body).toMatchObject({ resolutions: [{ commissionId: "old-1", choice: "RESOLUTION_RUN_ALONGSIDE" }] });
     expect(writes(calls)[1]?.body).toEqual({ commissionId: "local-models-w1-20261112" });
+  });
+
+  it("takes the topic, workstream and allowance limits from the launch options", async () => {
+    const user = userEvent.setup();
+    const three = {
+      topics: ["a", "b", "c", "d"].map((name) => ({
+        ...topics.topics[0],
+        topic: `topic-${name}`,
+        title: { value: `Topic ${name.toUpperCase()}` },
+        missionCheck: { mode: "research", workstreams: [{ id: `${name}1`, status: "active", title: `First ${name}` }, { id: `${name}2`, status: "open", title: `Second ${name}` }] },
+      })),
+    };
+    stubWire((path) => (path === `${LAUNCH}/GetLaunchOptions` ? options : path === `${ACTIVITY}/ListTopics` ? three : {}));
+    render("/launch");
+    const allowance = await screen.findByLabelText(new RegExp(`^${strings.launch.allowance}`));
+    expect(allowance).toHaveValue(18);
+    expect(allowance).toHaveAttribute("min", "2");
+    expect(allowance).toHaveAttribute("max", "30");
+    await user.click(await screen.findByRole("checkbox", { name: /Topic A/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Topic B/ }));
+    await user.click(screen.getByRole("checkbox", { name: /Topic C/ }));
+    // Three topics is the limit sent; the fourth cannot be ticked.
+    expect(screen.getByRole("checkbox", { name: /Topic D/ })).toBeDisabled();
+    const firstCard = within(screen.getAllByRole("list", { name: strings.launch.addWorkstream })[0] as HTMLElement);
+    await user.click(firstCard.getAllByRole("button")[0] as HTMLElement);
+    // One ordered workstream is the limit sent; that card offers no more.
+    expect(screen.getAllByRole("list", { name: strings.launch.addWorkstream })).toHaveLength(2);
   });
 
   it("holds the launch while a gate fails, and says what to cut", async () => {
@@ -603,7 +712,7 @@ describe("Launch", () => {
     const two = { topics: [{ ...topics.topics[0], missionCheck: { mode: "research", workstreams: [{ id: "IT6", status: "active", title: WIRE.workstreamTitle }, { id: "IT8", status: "open" }] } }] };
     const calls = stubWire((path) =>
       path === `${LAUNCH}/GetLaunchOptions`
-        ? { ...options, supervisorModels: ["gpt-5", "gpt-5-pro"] }
+        ? { ...options, supervisorModels: ["gpt-5", "gpt-5-pro"], packetLimits: { ...packetLimits, orderedWorkstreamsMax: 4 } }
         : path === `${ACTIVITY}/ListTopics`
           ? two
           : path === `${LAUNCH}/Preflight`
@@ -615,9 +724,11 @@ describe("Launch", () => {
     render("/launch");
     await user.click(await screen.findByRole("checkbox", { name: /Local models/ }));
     const add = within(screen.getByRole("list", { name: strings.launch.addWorkstream }));
-    // Workstreams read by their titles, not bare IDs (rulings P3).
+    // Workstreams read by their titles, not bare IDs.
     expect(add.getByText(WIRE.workstreamTitle)).toBeInTheDocument();
     await user.click(add.getAllByRole("button")[0] as HTMLElement);
+    // The chosen workstream keeps its title in the order, with the ID beneath it.
+    expect(screen.getByText(WIRE.workstreamTitle).closest("ol")).not.toBeNull();
     await user.click(screen.getByRole("button", { name: strings.launch.addId }));
     // IT8 was added second; moving it up puts it first, then IT6 is removed.
     await user.click(screen.getAllByRole("button", { name: strings.launch.moveUp })[1] as HTMLElement);
@@ -644,7 +755,7 @@ describe("Launch", () => {
           card_notes: { "local-model-performance": "measure first" },
           emphasis: "reliability",
           stance_quotes: ["first words"],
-          allowance_hours: 24,
+          allowance_hours: 18,
           supervisor_model: "gpt-5-pro",
           supervisor_effort: "high",
           owner_model_tier: "inherit",
@@ -663,12 +774,12 @@ describe("Launch", () => {
     await waitFor(() => expect(writes(calls).map((c) => c.path)).toEqual([`${LAUNCH}/Build`]));
   });
 
-  it("launches three topics with the desk's defaults in five taps: tick, tick, tick, Launch, Confirm (rulings V1)", async () => {
+  it("launches three topics with the desk's defaults in five taps: tick, tick, tick, Launch, Confirm", async () => {
     const user = userEvent.setup();
     const three = { topics: ["a", "b", "c"].map((name) => ({ ...topics.topics[0], topic: name, title: { value: `Topic ${name}` }, liveCommissionIds: [] })) };
     const calls = stubWire((path, body) => {
       if (path === `${LAUNCH}/GetLaunchOptions`) {
-        // Suggestions come for the topics asked about (rulings P3).
+        // Suggestions come for the topics asked about.
         const asked = (body as { topics?: string[] }).topics ?? [];
         return asked.length > 0 ? { ...options, stanceQuotes: [{ text: WIRE.suggestedQuote, source: WIRE.quoteSource, commissionId: "old-1" }] } : options;
       }
@@ -707,7 +818,7 @@ describe("Launch", () => {
     expect(build.resolutions).toEqual([{ commissionId: "p-4", choice: "RESOLUTION_SUPERSEDE" }]);
   });
 
-  it("supersedes both paused commissions by default and sends both choices with Build (rulings P2)", async () => {
+  it("supersedes both paused commissions by default and sends both choices with Build", async () => {
     const user = userEvent.setup();
     const three = { topics: ["a", "b", "c"].map((name) => ({ ...topics.topics[0], topic: name, title: { value: `Topic ${name}` }, liveCommissionIds: [] })) };
     const calls = stubWire((path, body) => {
@@ -745,7 +856,7 @@ describe("Launch", () => {
     ]);
   });
 
-  it("keeps the form when the operator leaves and returns, until it is cleared (rulings V1)", async () => {
+  it("keeps the form when the operator leaves and returns, until it is cleared", async () => {
     const user = userEvent.setup();
     stubWire((path, body) => (path === `${LAUNCH}/GetLaunchOptions` ? options : path === `${ACTIVITY}/ListTopics` ? topics : path === `${LAUNCH}/Preflight` ? preflight(true, body) : {}));
     render("/launch");
@@ -774,7 +885,7 @@ describe("Launch status", () => {
   const messages = { stance: "Stance. Reply \"ready\" and wait", kernel: WIRE.kernelGoal, charterPath: "/home/u/.vrooli/research/cohorts/p1/CHARTER.md" };
   const check = { packet: { ok: true, gates: [{ name: "kernel_chars", value: "480", limit: "600", ok: true }] }, topics: [], launchable: true };
 
-  it("launches a prepared packet as it is only after confirming, with the manual messages beside it (a read, rulings P4)", async () => {
+  it("launches a prepared packet as it is only after confirming, with the manual messages beside it, which are a read, never a launch", async () => {
     const user = userEvent.setup();
     const calls = stubWire((path) =>
       path === `${ACTIVITY}/GetCommission`
@@ -799,7 +910,7 @@ describe("Launch status", () => {
     await waitFor(() => expect(writes(calls)).toEqual([{ path: `${LAUNCH}/Launch`, body: { commissionId: "p1" } }]));
   });
 
-  it("says why an unknown packet cannot be launched on the operator's word, hides its two messages and offers a relaunch as a new commission (rulings V1, P1)", async () => {
+  it("says why an unknown packet cannot be launched on the operator's word, hides its two messages and offers a relaunch as a new commission", async () => {
     const calls = stubWire((path) =>
       path === `${ACTIVITY}/GetCommission`
         ? prepared("COMMISSION_STATE_UNKNOWN")
@@ -816,13 +927,13 @@ describe("Launch status", () => {
     expect(await screen.findByText(WIRE.neverRefused)).toBeInTheDocument();
     expect(screen.queryByRole("checkbox", { name: strings.launchStatus.neverStarted })).not.toBeInTheDocument();
     expect(screen.queryByText(strings.launchStatus.manualTitle)).not.toBeInTheDocument();
-    // The API's line, without the command it quotes.
-    expect(await screen.findByText(WIRE.unknownBlockerWords)).toBeInTheDocument();
+    // The API's own line, beside the relaunch it names.
+    expect(await screen.findByText(WIRE.unknownBlocker)).toBeInTheDocument();
     expect(calls.some((c) => c.path === `${LAUNCH}/Launch` || c.path === `${LAUNCH}/GetLaunchMessages`)).toBe(false);
     expect(screen.getAllByRole("button", { name: strings.launchStatus.relaunchNew }).length).toBeGreaterThan(0);
   });
 
-  it("launches an unknown packet once the operator says it never started, and records that they said so (rulings P1)", async () => {
+  it("launches an unknown packet once the operator says it never started, and records that they said so", async () => {
     const user = userEvent.setup();
     const calls = stubWire((path, body) => {
       if (path === `${ACTIVITY}/GetCommission`) return prepared("COMMISSION_STATE_UNKNOWN");
@@ -851,6 +962,46 @@ describe("Launch status", () => {
     expect(writes(calls)).toHaveLength(0);
     await user.click(within(dialog).getByRole("button", { name: strings.launch.launch }));
     await waitFor(() => expect(writes(calls)).toEqual([{ path: `${LAUNCH}/Launch`, body: { commissionId: "p1", assertNeverStarted: true } }]));
+  });
+
+  it("shows a packet's own STATE.md as written and flags an owner's oversized mission, without blocking", async () => {
+    const ownerReading = [
+      { role: "owner-start:t1", bytes: "92000", flags: [WIRE.missionFlag], files: [{ path: "/home/u/.vrooli/research/topics/t1/MISSION.md", bytes: "71041" }] },
+      { role: "owner-start:t2", bytes: "21000", flags: [], files: [] },
+    ];
+    const packetState = { path: "/home/u/.vrooli/research/cohorts/p1/STATE.md", text: `# State\n\n${WIRE.packetAdvice}`, truncated: true };
+    stubWire((path) =>
+      path === `${ACTIVITY}/GetCommission`
+        ? prepared("COMMISSION_STATE_PREPARED")
+        : path === `${LAUNCH}/GetLaunchOptions`
+          ? { automaticAvailable: true }
+          : path === `${LAUNCH}/GetLaunchMessages`
+            ? messages
+            : path === `${LAUNCH}/Preflight`
+              ? { ...check, packetState, ownerReading }
+              : {},
+    );
+    render("/launch/p1");
+    expect(await screen.findByText(WIRE.packetAdvice, { exact: false })).toBeInTheDocument();
+    expect(screen.getByText(strings.preflight.packetStateTruncated)).toBeInTheDocument();
+    // Owner reading is open because one owner is flagged; the flag is the API's words, with its recommended action.
+    expect(screen.getByText(WIRE.missionFlag)).toBeVisible();
+    expect(screen.getAllByText(strings.reading.ownerStart)).toHaveLength(2);
+    expect(screen.getByRole("button", { name: strings.launch.launch })).toBeEnabled();
+  });
+
+  it("says why a packet has no STATE.md excerpt", async () => {
+    stubWire((path) =>
+      path === `${ACTIVITY}/GetCommission`
+        ? prepared("COMMISSION_STATE_PREPARED")
+        : path === `${LAUNCH}/GetLaunchMessages`
+          ? messages
+          : path === `${LAUNCH}/Preflight`
+            ? { ...check, packetState: { path: "/home/u/.vrooli/research/cohorts/p1/STATE.md", reason: WIRE.readReason } }
+            : {},
+    );
+    render("/launch/p1");
+    expect(await screen.findByText(WIRE.readReason)).toBeInTheDocument();
   });
 
   it("shows each step of a start in progress", async () => {

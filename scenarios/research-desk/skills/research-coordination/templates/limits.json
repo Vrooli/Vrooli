@@ -6,6 +6,14 @@
     "kernel_chars": 600,
     "stance_ending": "Reply \"ready\" and wait for it."
   },
+  "packet": {
+    "topics_max": 6,
+    "allowance_hours_min": 1,
+    "allowance_hours_max": 72,
+    "allowance_hours_default": 24,
+    "ordered_workstreams_max": 4
+  },
+  "entry_chars_max": 4000,
   "defaults": {
     "supervisor_model": "gpt-6-luna",
     "supervisor_effort": "medium",
@@ -20,8 +28,9 @@
     "scheduler_start_bytes": 63816,
     "scheduler_unit_bytes": 42677,
     "owner_start_bytes": 21517,
+    "mission_bytes": 40000,
     "skill_bytes": {
-      "research-coordination/SKILL.md": 30548,
+      "research-coordination/SKILL.md": 30027,
       "research-coordination/references/operator-attention.md": 28043,
       "research-coordination/references/cohort-lifecycle.md": 7667,
       "research-coordination/references/direction.md": 22712,
@@ -51,6 +60,10 @@
       "research-coordination/templates/owner-brief.md",
       "adaptive-research/SKILL.md"
     ],
+    "owner_topic": [
+      "MISSION.md"
+    ],
+    "owner_topic_note": "Each owner also reads its topic's files named here, in topics/<topic>/. They are operator-authored, so they are measured per topic against ceilings.mission_bytes as a flag with a recommended tidy (mission_check.py warns), never a launch gate, and never summed into owner_start_bytes, which bounds skill text only. mission_bytes 40000 is the real spread on 2026-11-12: 25 missions, median 23,266, three-quarters at or under 33,480, two over (local-model-performance 49,806; ai-video-production-and-funnels 71,041).",
     "measured_before": {
       "programme-three-20261111": {
         "charter": 36128,

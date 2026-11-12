@@ -9,7 +9,7 @@ import { PathText } from "./PathText";
 
 /**
  * One derived value with its source one tap away, so "why does it say this"
- * is always answerable (charter G3, I6). A value that could not be derived
+ * is always answerable: every value is derived from files or says why not. A value that could not be derived
  * reads `unknown` with the reason, never a guess.
  */
 export function Fact({ label, evidence, children }: { label: ReactNode; evidence?: Evidence | Evidence[]; children: ReactNode }) {

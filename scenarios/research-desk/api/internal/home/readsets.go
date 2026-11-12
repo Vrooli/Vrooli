@@ -6,11 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
 // Ceilings is what the skill's templates/limits.json says each role reads and
-// may read (rulings E2). limits.json is the only list; the desk measures it.
+// may read. limits.json is the only list; the desk measures it.
 type Ceilings struct {
 	CharterBytes int
 	Roles        []RoleReads
@@ -19,8 +20,18 @@ type Ceilings struct {
 	Fixed map[string]FileFact
 	// Unmeasured says why a fixed item could not be measured.
 	Unmeasured map[string]string
-	Source     string
+	// OwnerTopic names the files in topics/<topic>/ each owner also reads
+	// (its MISSION.md). They are operator-authored: measured per topic and
+	// added to the owner's total, never held to the owner_start ceiling.
+	OwnerTopic []string
+	// MissionBytes is the size past which a topic's MISSION.md is flagged
+	// for tidying; never a launch gate.
+	MissionBytes int64
+	Source       string
 }
+
+// MissionFile is a topic's mission, the owner's charter.
+const MissionFile = "MISSION.md"
 
 // RoleReads is one read_sets list and its ceiling.
 type RoleReads struct {
@@ -61,9 +72,66 @@ type ReadSet struct {
 // to the charter rather than folded into it.
 var datedHeading = regexp.MustCompile(`^#{2,6} .*\b20\d\d-\d\d-\d\d\b`)
 
-// ReadSets measures each limits.json read set for this commission. Without
-// limits.json there is no list, so none (the caller says why).
-func (c *Commission) ReadSets(ceilings *Ceilings) []ReadSet {
+// ReadSets measures each limits.json read set for this commission, an
+// owner's with its topic's files added after the skill text is held to its
+// ceiling. Without limits.json there is no list, so none (the caller says
+// why).
+func (s *Snapshot) ReadSets(c *Commission) []ReadSet {
+	sets := c.readSets(s.Ceilings)
+	for i := range sets {
+		if topic, ok := strings.CutPrefix(sets[i].Role, ownerRole+":"); ok {
+			s.addOwnerTopic(&sets[i], topic)
+		}
+	}
+	return sets
+}
+
+// OwnerReading is what the owner of each topic reads at start, for topics
+// not yet in a commission (a spec's preflight).
+func (s *Snapshot) OwnerReading(topics []string) []ReadSet {
+	c := &Commission{}
+	for _, t := range topics {
+		c.Topics = append(c.Topics, TopicRef{Topic: t})
+	}
+	var out []ReadSet
+	for _, set := range s.ReadSets(c) {
+		if strings.HasPrefix(set.Role, ownerRole+":") {
+			out = append(out, set)
+		}
+	}
+	return out
+}
+
+// ownerRole is the owner read set's role name.
+var ownerRole = strings.ReplaceAll(OwnerStartKey, "_", "-")
+
+// addOwnerTopic adds the topic files an owner reads to its set and flags a
+// mission past MissionBytes with the recommended tidy.
+func (s *Snapshot) addOwnerTopic(set *ReadSet, topic string) {
+	set.Files, set.Flags = slices.Clone(set.Files), slices.Clone(set.Flags)
+	t := s.Topic(topic)
+	for _, item := range s.Ceilings.OwnerTopic {
+		if t == nil {
+			set.Flags = append(set.Flags, fmt.Sprintf("topics/%s/%s not counted: no topic %s", topic, item, topic))
+			continue
+		}
+		path := filepath.Join(t.Dir, item)
+		fact, ok := stat(path)
+		if !ok {
+			set.Flags = append(set.Flags, fmt.Sprintf("%s not counted: no such file", path))
+			continue
+		}
+		set.Files = append(set.Files, fact)
+		set.Bytes += fact.Bytes
+		if item == MissionFile && s.Ceilings.MissionBytes > 0 && fact.Bytes > s.Ceilings.MissionBytes {
+			set.Flags = append(set.Flags, fmt.Sprintf("the %s mission is %d bytes, over the %d bytes a mission should stay under (%s); the owner reads all of it at start. Recommended: the next architect pass tidies the mission.", topic, fact.Bytes, s.Ceilings.MissionBytes, s.Ceilings.Source))
+		}
+	}
+	set.EstimatedTokens = set.Bytes / 4
+}
+
+// readSets measures the read sets without topic files.
+func (c *Commission) readSets(ceilings *Ceilings) []ReadSet {
 	if ceilings == nil {
 		return nil
 	}

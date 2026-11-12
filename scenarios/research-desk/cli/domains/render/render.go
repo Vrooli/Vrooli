@@ -4,6 +4,7 @@ package render
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"connectrpc.com/connect"
@@ -13,16 +14,38 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared"
 )
 
-// Call runs one RPC and turns transport errors into the CLI's API error.
+// Call runs one RPC and turns transport errors into the CLI's API error. A
+// refusal's command-line next step (a CommandHint detail; the message names
+// none) follows the message.
 func Call[Req, Resp any](what string, fn func(context.Context, *connect.Request[Req]) (*connect.Response[Resp], error), req *Req) (*Resp, error) {
 	resp, err := fn(context.Background(), connect.NewRequest(req))
 	if err != nil {
-		return nil, cliapp.WrapAPIError(what, err, nil)
+		wrapped := cliapp.WrapAPIError(what, err, nil)
+		if hint := Hint(err); hint != "" {
+			return nil, fmt.Errorf("%w (next: %s)", wrapped, hint)
+		}
+		return nil, wrapped
 	}
 	if resp == nil || resp.Msg == nil {
 		return nil, fmt.Errorf("%s: the server returned no response", what)
 	}
 	return resp.Msg, nil
+}
+
+// Hint is the command-line next step a desk refusal carries, or "".
+func Hint(err error) string {
+	var cerr *connect.Error
+	if !errors.As(err, &cerr) {
+		return ""
+	}
+	for _, d := range cerr.Details() {
+		if v, derr := d.Value(); derr == nil {
+			if h, ok := v.(*sharedv1.CommandHint); ok {
+				return h.GetCommand()
+			}
+		}
+	}
+	return ""
 }
 
 // When prints a time in local time, or "-".
@@ -48,7 +71,7 @@ func Evidence(e *sharedv1.Evidence) string {
 }
 
 // Unreadable renders files and folders that exist but could not be read:
-// what they hold is unknown, not empty (API rulings E1).
+// what they hold is unknown, not empty.
 func Unreadable(list []*sharedv1.Evidence) []string {
 	out := make([]string, 0, len(list))
 	for _, e := range list {

@@ -8,13 +8,14 @@ import (
 
 	"research-desk/cli/domains/render"
 
+	activityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/activity"
 	launchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/launch"
 )
 
 func optionsReport(_ cliapp.OperationContext, msg *launchv1.GetLaunchOptionsResponse) cliapp.ListReport {
-	automatic := "Automatic launch: Web Console reachable with a credential (whether it accepts it shows at launch)."
-	if !msg.AutomaticAvailable {
-		automatic = "Automatic launch unavailable: " + msg.AutomaticReason + "."
+	automatic := "Automatic launch unavailable: " + msg.AutomaticReason + "."
+	if msg.AutomaticAvailable {
+		automatic = "Automatic launch: Web Console reachable " + accessWords(msg.WebConsoleAccessKind) + "; whether it accepts the launch shows at launch."
 	}
 	results := []string{
 		fmt.Sprintf("supervisor model: %s (choices %s)", msg.DefaultSupervisorModel, strings.Join(msg.SupervisorModels, ", ")),
@@ -116,10 +117,31 @@ func preflightReport(_ cliapp.OperationContext, msg *launchv1.PreflightResponse)
 			summary = append(summary, "Unknown, and it cannot be asserted never started: "+n.Reason+".")
 		}
 	}
+	results := append(packetLines(msg.Packet), verdictLines(msg.Topics)...)
+	for _, set := range msg.OwnerReading {
+		results = append(results, fmt.Sprintf("%s reads %d bytes at start, about %d tokens, %d file(s)", set.Role, set.Bytes, set.EstimatedTokens, len(set.Files)))
+		for _, flag := range set.Flags {
+			results = append(results, "    flag: "+flag)
+		}
+	}
+	if e := msg.PacketState; e != nil {
+		if e.Text == "" {
+			results = append(results, "its own "+e.Path+": "+e.Reason)
+		} else {
+			more := ""
+			if e.Truncated {
+				more = " (start only)"
+			}
+			results = append(results, "its own "+e.Path+more+", verbatim:")
+			for _, line := range strings.Split(strings.TrimRight(e.Text, "\n"), "\n") {
+				results = append(results, "    | "+line)
+			}
+		}
+	}
 	return cliapp.ListReport{
 		Summary:        summary,
 		ResultsHeading: "Packet and topics",
-		Results:        append(packetLines(msg.Packet), verdictLines(msg.Topics)...),
+		Results:        results,
 		RetrievalHints: []string{"`build <spec-file>` — write the packet", "`launch <commission-id>` — launch a prepared packet"},
 	}
 }
@@ -170,7 +192,11 @@ func recordLines(r *launchv1.LaunchRecord) []string {
 		out = append(out, "FAILED at "+r.FailedStep+": "+r.FailedReason)
 	}
 	for _, c := range r.Controls {
-		out = append(out, render.When(c.At)+"  control "+c.Action)
+		line := render.When(c.At) + "  control " + c.Action
+		if c.Outcome != "" {
+			line += ": " + c.Outcome
+		}
+		out = append(out, line)
 	}
 	if r.DiscardedAt != nil {
 		out = append(out, render.When(r.DiscardedAt)+"  discarded: "+r.DiscardedReason)
@@ -243,4 +269,15 @@ func orDash(s string) string {
 		return "-"
 	}
 	return s
+}
+
+// accessWords says how the desk reaches Web Console, from the access kind.
+func accessWords(kind activityv1.WebConsoleAccess) string {
+	switch kind {
+	case activityv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_SERVICE_CREDENTIAL:
+		return "with the desk's service credential"
+	case activityv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_AVAILABILITY_POLICY:
+		return "under its local availability policy, the desk having no credential"
+	}
+	return "by an access the desk could not settle"
 }

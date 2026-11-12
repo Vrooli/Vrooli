@@ -1,8 +1,7 @@
 # File Contract
 
-The whole contract between the desk's Go code and the research skills: the packet script
-(§2), the launch record (§3), the operator file grammar (§4) and the needs-you grammar (§5).
-Everything here works with a text editor and no desk. Research home: `~/.vrooli/research`.
+The contract between the desk and the research skills, usable with a text editor and no desk.
+Research home: `~/.vrooli/research`.
 
 ## 1. Writers
 
@@ -16,150 +15,88 @@ Everything here works with a text editor and no desk. Research home: `~/.vrooli/
 | `topics/<t>/runs/<cohort>/CHECKPOINT.md` | the owner |
 | `reviews/<id>/{REVIEW.md,REVIEW.html,proposals/}` | the `research-review` agent (the operator saves the exported feedback JSON beside `REVIEW.html`) |
 
-Desk writes: only the live instance writes, holding an exclusive `flock` on
-`~/.vrooli/state/vrooli/research-desk/instance.lock`; other instances are read-only. JSON is
-written to a temp file in the same directory and renamed. Markdown appends are one
-`O_APPEND` write. The desk's own state lives in that folder, outside the research home:
-`courier.json` (the operator's courier switches), `courier-wait.json` (when the courier first
-held an item for its scheduler), `looks/<commission|topic>-<id>.json` (since-last-look) and
-`launch-tests/<UTC stamp>.json` (one report per `launch-test`, never in the research home).
-Deleting the folder resets "since" and returns the switches to their safe defaults.
+Only the live instance writes, holding an exclusive `flock` on
+`~/.vrooli/state/vrooli/research-desk/instance.lock` (retried while a restart overlaps the old
+process; reads never take it). JSON is written to a temp file and renamed; a Markdown append
+is one `O_APPEND` write. The desk's own state, in that folder outside the research home:
+`courier.json` (the operator's courier switches, `{on, at}`), `first-sightings.json` (when
+the courier first found each needs-you item), `looks/<commission|topic>-<id>.json` (the
+operator's last look), `launch-tests/<UTC stamp>.json` (one per `launch-test`) and
+`retention/` (the shared retention sweep's receipt; the desk sets no budgets). Deleting the folder resets "since" and the sightings and
+returns the switches to their defaults.
 
-The desk serves research-home files read-only at GET `route[example]:/api/v1/home/<path>` (no hidden
-parts; symlinks only when they resolve inside the home; sandboxed). `REVIEW.html` links its
-media by paths relative to itself that resolve inside the research home, so it renders the
-same from disk and from the desk.
+The desk serves the home read-only at GET `route[example]:/api/v1/home/<path>` (no hidden
+parts, symbolic links only inside the home), so `REVIEW.html` and its relative media links
+render the same from disk and from the desk.
 
 ## 2. `packet.py`
 
-`scenarios/research-desk/skills/research-coordination/scripts/packet.py` (stdlib Python)
-renders `../templates/{charter.md,stance.txt,kernel.txt}` with `limits.json`; an unknown or
-unfilled `{{name}}` placeholder is an error.
+`skills/research-coordination/scripts/packet.py` (stdlib Python) renders
+`templates/{charter.md,stance.txt,kernel.txt}` with `limits.json`. `preview --home DIR --spec
+FILE|-` renders in memory and prints the texts; `build` gates and writes the folder through
+`cohorts/.<id>.tmp/` and a rename, never replacing a folder; `check --home DIR COMMISSION_ID`
+gates an existing folder.
 
-| Subcommand | Effect |
-|---|---|
-| `preview --home DIR --spec FILE\|-` | render in memory; print result with texts; write nothing |
-| `build --home DIR --spec FILE\|-` | render, gate, write the folder atomically; print result without texts |
-| `check --home DIR COMMISSION_ID` | gate an existing folder (prepared or older packet); write nothing |
+Spec (JSON; operator words verbatim): `topics` (each with `topics/<t>/MISSION.md`),
+`allowance_hours`, `emphasis`, `stance_quotes` (at least one), `supervisor_model`,
+`supervisor_effort`, `owner_model_tier` (defaults from `limits.json` `defaults`, values from
+its `models`; `inherit` omits model and effort), `run_alongside` and `supersedes` (lists of
+ids; `supersedes` also one id or null, as older packets carry), `read_first` (`{topic: path}`
+under the home), `order` (`{topic: [workstream ids]}`), `card_notes` (`{topic: words}`, no
+line starting `#`), `carry_baseline_from` (copies that commission's `BASELINE.json`), `slug`
+(`[a-z0-9][a-z0-9-]{0,63}`, default `research`), `window`. Counts and hours are bounded by
+`limits.json` `packet`; topics and ids match `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`; any violation
+or unknown field is `invalid_spec`. Cards are `mission_check.py --json` workstreams with
+status `open`, `active` or `approved`, in the operator's order, else `active`, `approved`,
+`open` up to `max(2, min(4, 12 // topics))`. Commission id: `<slug>-<YYYYMMDD>` (local date),
+then `-2`, `-3`.
 
-Spec (JSON): `{"topics": ["ai-video-production-and-funnels"], "allowance_hours": 12,
-"emphasis": "", "stance_quotes": ["operator words"], "supervisor_model": "gpt-6-luna",
-"supervisor_effort": "medium", "owner_model_tier": "inherit", "run_alongside": [],
-"read_first": {"<topic>": "/abs/CHECKPOINT.md"}, "order": {"<topic>": ["AV6", "AV4"]},
-"card_notes": {"<topic>": "operator words"}, "supersedes": [],
-"carry_baseline_from": null, "slug": "programme-five", "window": "fifth"}`. Operator
-words are verbatim.
+Gates, in order, with limits from `limits.json`: `charter_bytes`, `stance_chars` (code
+points), `stance_ending` (`Reply "ready" and wait for it.`), `kernel_chars`, `paths_exist`
+(every absolute path under the home, the repository or the user's home, except ones
+containing the commission id or followed by `*`, `{`, `$`, `<`, `[`), `missions` (no
+`mission_check.py` error). A missing file fails its gate with a `null` value; an oversized
+text also gives `gate_overflow` naming its largest parts.
 
-Rules: 1–6 topics, each with `topics/<t>/MISSION.md`; `allowance_hours` 1–72; at least
-one quote; unknown fields are `invalid_spec`. `slug` matches `[a-z0-9][a-z0-9-]{0,63}`;
-topics and commission ids match `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`. Missing model fields
-take `limits.json` `defaults` (the research defaults;
-`owner_model_tier: inherit` renders "omit `model` and `reasoning_effort`" in the brief).
-`run_alongside` and `supersedes` are lists of commission ids (`supersedes` also accepts one id
-or null, as packets built before lists carry), recorded and rendered as one line each in the
-charter ("Supersedes `a` and `b`.");
-`read_first` values must be existing files under the research home and become `Read first:`
-on the card; `carry_baseline_from` copies that commission's `BASELINE.json`.
-`supervisor_model`, `supervisor_effort` and `owner_model_tier` must be in `limits.json`
-`models.<same key>`. Cards: the `workstream_rows` of `mission_check.py --json` (`{id,
-destination, magnitude, showcase, status}` in table order) whose status is `open`, `active`
-or `approved`; `order.<topic>` (1–4 distinct such IDs, topic selected) chooses and orders
-them; without it a card lists `active`, then `approved`, then `open` rows, up to
-`max(2, min(4, 12 // topics))`. `card_notes.<topic>` (non-empty, no line starting `#`) is
-rendered verbatim under "Operator's notes for this card, verbatim:". `Not this` and
-`Boundaries` cite the mission sections by path. Each violation is `invalid_spec`.
+Result, one JSON object on stdout: `{"schema": "research-packet-result/v1", "ok",
+"commission_id", "folder", "written", "gates": [{"name", "value", "limit", "ok"}], "cards":
+[{"topic", "mode", "order", "order_source", "read_first"}], "texts": {"charter", "stance",
+"kernel"} | null, "errors": [{"code", "message"}]}`; `texts` only for `preview`;
+`order_source` is `operator`, `mission` or `null`. Error codes: `invalid_spec`,
+`gate_overflow`, `unknown_topic`, `mission_error`, `unknown_placeholder`,
+`unfilled_placeholder`, `missing_path`, `missing_file`, `invalid_packet`, `filesystem`,
+`folder_exists`, `not_found`. Exit `0` success, `1` a gate failed (nothing written), `2` bad
+spec, topic or mission, `3` filesystem or folder exists. `PACKET.json` is `{"schema":
+"research-desk.packet/v1", "commission_id", "built_at", "template_version", "spec"}`, the spec
+after defaults, so a relaunch rebuilds from it.
 
-Commission id: `<slug>-<YYYYMMDD>` (local date; slug default `research`), then `-2`, `-3`
-if taken. Build writes `cohorts/.<id>.tmp/` and renames it; it never replaces a folder.
-
-Gates (values in `limits.json`): charter ≤ 25,000 bytes; stance ≤ 3,500 code points and
-ending `Reply "ready" and wait for it.`; kernel ≤ 600 code points; every absolute path in
-the texts under the research home, the repository or the user's home exists (except paths
-containing the commission id and patterns followed by `*`, `{`, `$`, `<` or `[`); no
-`mission_check.py` error for a selected topic. Gate names, in order: `charter_bytes`,
-`stance_chars`, `stance_ending` (value: the actual ending), `kernel_chars`, `paths_exist`
-(value: count missing), `missions` (value: topics with errors); a missing file gives a
-`null` value and a failed gate. Each oversized text also gives a `gate_overflow` error naming
-the overflow and the largest parts, e.g. "charter is 25,230 bytes, 230 over 25,000; largest
-parts: <section or card> <bytes> (notes <bytes>); …".
-
-Result (stdout, one JSON object, all subcommands):
-
-```json
-{
-  "schema": "research-packet-result/v1",
-  "ok": true,
-  "commission_id": "programme-five-20261112",
-  "folder": "<research home>/cohorts/programme-five-20261112",
-  "written": false,
-  "gates": [{"name": "charter_bytes", "value": 21034, "limit": 25000, "ok": true}],
-  "cards": [{"topic": "...", "mode": "build", "order": ["AV1", "AV2"], "order_source": "mission", "read_first": null}],
-  "texts": {"charter": "...", "stance": "...", "kernel": "..."},
-  "errors": [{"code": "unknown_topic", "message": "..."}]
-}
-```
-
-`texts` is `null` for `build` and `check`. `check` derives cards from `### Card` headings
-and the mission's workstream IDs in first-mention order; `order` is `null` when no card
-names a mission. `order_source` is `"operator"`, `"mission"`, or `null` (`check` on an older
-layout). Error codes: `invalid_spec`, `gate_overflow`, `unknown_topic`, `mission_error`,
-`unknown_placeholder`, `unfilled_placeholder`, `missing_path`, `missing_file`,
-`invalid_packet`, `filesystem`, `folder_exists`, `not_found`. Exit codes: `0` success; `1` a
-gate failed (nothing written); `2` invalid spec, unknown topic or mission error; `3`
-filesystem error or folder exists.
-
-`PACKET.json` (written by build): `{"schema": "research-desk.packet/v1",
-"commission_id", "built_at", "template_version", "spec"}`; `spec` is the full input after
-defaults, so a relaunch rebuilds from the same inputs.
-
-The rendered charter must contain: the stance quotes; `State: see STATE.md beside this
-file.`; a Steering section ("Read entries of `OPERATOR.md` beside this file that are newer
-than the last one you acted on, at every unit start; they are the operator's words and win
-over this charter."); a Decisions section ("Write each decision as a needs-you item in
-`STATE.md` (grammar in the research-coordination skill); research-desk delivers it, or you do
-by the fallback below. This overrides research-coordination step 9 and LONG_EFFORT_DESIGN D17
-on delivery."), which also tells the scheduler to copy each item to `ATTENTION.md` with
-`Commission: <id>` and gives the fallback: an item with no `delivered <ID>` entry by the
-second review after it was written is delivered once by the scheduler, which then adds
-`Delivered: <route> <UTC>`; the route-discipline procedure; the scheduler procedure and a
-pointer to `templates/owner-brief.md`. The desk searches both sentences literally, each on
-one line.
+The charter carries the stance quotes, `State: see STATE.md beside this file.`, the scheduler
+procedure, and two sentences the desk searches literally, each on one line. Steering: "Read
+entries of `OPERATOR.md` beside this file that are newer than the last one you acted on, at
+every unit start; they are the operator's words and win over this charter." Decisions: "Write
+each decision as a needs-you item in `STATE.md` (grammar in the research-coordination skill);
+research-desk delivers it, or you do by the fallback below." The fallback: the scheduler copies
+each item to `ATTENTION.md` with `Commission: <id>`, and delivers once by itself an item with
+no `delivered <ID>` entry by the second review after it was written, adding `Delivered:
+<route> <UTC>`.
 
 ## 3. `LAUNCH.json`
 
-Only what cannot be derived:
-
-```json
-{
-  "schema": "research-desk.launch/v1",
-  "commission_id": "programme-five-20261112",
-  "launched_by": "desk",
-  "idempotency_key": "programme-five-20261112#1",
-  "web_console_session_id": "4a72d7a3-...",
-  "thread_id": "01a1cc78-...",
-  "steps": [{"step": "created", "at": "2026-11-12T09:01:10Z"}],
-  "failed": null,
-  "discarded": null,
-  "controls": [{"action": "pause", "at": "..."}],
-  "supersedes": ["programme-three-20261111"],
-  "run_alongside": ["programme-four-20261110"],
-  "never_started": {"at": "2026-11-12T09:00:58Z", "evidence": "no session or goal names this charter in ..."}
-}
-```
-
-Steps in order: `created`, `composer_ready`, `stance_sent`, `ready_seen`, `goal_sent`,
-`goal_verified`. `failed` is `{"step", "reason"}`; an attempt the desk was running when it
-restarted is written `failed` with reason `interrupted` and never resumed. `discarded` is
-`{"at", "reason"}` with the operator's words. `controls` records `pause`, `resume`, `stop`,
-`discard`, `resend-stance` and `supersede`.
-`supersedes` and `run_alongside` are the operator's choices for blocking commissions (SYSTEM
-§5); `failed.step` is `supersede` when stopping one of them failed and nothing new started.
-A superseded commission's own file gets `superseded_by` (the new commission), `discarded` and
-the `supersede` control. `never_started` is the operator's assertion that an `unknown`
-commission was never started, with the sentence saying what the desk searched. The optional
-fields are omitted when empty.
-For a hand-launched commission the file exists only after an operator control or discard,
-with `launched_by: "hand"`. One commission has one attempt; a relaunch is a new commission.
+Only what cannot be derived: `{"schema": "research-desk.launch/v1", "commission_id",
+"launched_by": "desk"|"hand", "idempotency_key": "<id>#1", "web_console_session_id",
+"thread_id", "web_console_access", "steps": [{"step", "at"}], "failed": {"step", "reason"},
+"discarded": {"at", "reason"}, "controls": [{"action", "at", "outcome"}], "supersedes": [ids],
+"superseded_by", "run_alongside": [ids], "never_started": {"at", "evidence"}}`; `steps`,
+`failed`, `discarded` and `controls` are always present, other empty fields omitted. Steps in order: `created`, `composer_ready`, `stance_sent`, `ready_seen`,
+`goal_sent`, `goal_verified`. An attempt cut by a desk restart is `failed` with reason
+`interrupted` and never resumed. `discarded.reason` is the operator's words. Controls:
+`pause`, `resume`, `stop`, `discard`, `resend-stance`, `supersede`. `supersedes`,
+`run_alongside` and `superseded_by` record the operator's choices for blockers (SYSTEM §5);
+`failed.step` is `supersede` when stopping one failed. A `stop`, `discard` or `supersede`
+control's `outcome` says whether a window was found ("window stopped" or "no window found")
+and that none of the session's Codex processes still runs. `never_started` holds the operator's
+word and what the desk searched. A hand-launched commission gets the file at its first
+control, discard or supersession.
 
 ## 4. Operator file grammar (`OPERATOR.md`, `VERDICTS.md`)
 
@@ -180,15 +117,16 @@ Note: fine, but tell me if AV6 needs it
 Finish the current unit, write the closeout, then end.
 ```
 
-Entry heading regex:
-`^### (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ) · (direction|wind-down|(?:answer|delivered) [A-Z0-9][A-Z0-9_-]{0,127}|verdict [a-z0-9-]+) · via (desk|hub|hand)$`.
+Entry heading regex (the time is any RFC 3339 time; the desk writes UTC seconds):
+`^### (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)) · (direction|wind-down|(?:answer|delivered) [A-Z0-9][A-Z0-9_-]{0,127}|verdict [a-z0-9-]+) · via (desk|hub|hand)$`.
 The body runs to the next entry heading. An answer body's first line is
 `<option key> — <option label>` or `other — <operator text>`; an optional `Note:` line
 follows. Nothing is edited or removed; a correction is a new entry. Secret-type items are
 never answered into a file. `delivered <ID>` is the desk's record that the Hub delivered the
 item (an ask reached a device, or a notice was delivered); the scheduler uses it only to skip
 the fallback. `verdict <topic>` is used only in `reviews/<id>/VERDICTS.md`. A line in a body
-that matches the heading regex is refused, so the file always parses back.
+that matches the heading regex is refused, so the file always parses back. A `### ` line
+that does not match is reported with its line number as unreadable, never dropped silently.
 
 ## 5. Needs-you grammar
 
@@ -211,13 +149,15 @@ Commission: programme-five-20261112
   they are `accept — Accept the recommendation` and `hold — Hold this for now`.
 - An empty section's only line is `No actionable items are recorded.`
 - IDs name the decision, never a workstream. `Delivered: <route> <UTC>` is written by a
-  scheduler that delivered the item itself. `Commission: <id>` appears only on
-  `ATTENTION.md` copies.
+  scheduler that delivered the item itself, or that copied the desk's receipt; a line whose
+  route is `research-desk` or that names the Hub ask or notice of the desk's `delivered`
+  entry is the desk's delivery. `Commission: <id>` appears only on `ATTENTION.md` copies.
 - An item's identity is its commission plus its ID; an `ATTENTION.md` item without
-  `Commission:` is global and never merged with a commission's item. Items of an ended
-  commission are not shown.
-- Text in the section that is not an item (older numbered lists) is shown as "legacy, not
-  sent".
+  `Commission:` is global. Items of an ended commission are not shown.
+- Text in the section that is not an item (an older numbered list) is one feed row per file,
+  readable in place with where to act, counted apart from items ("2 items wait for an
+  answer and 4 older lists"; an answered item is listed but not counted); never sent, never
+  answerable.
 - The scheduler removes an item after acting on its answer.
 
 ### Courier
@@ -225,40 +165,37 @@ Commission: programme-five-20261112
 The courier (`api/internal/courier`) is the one route by which items leave the files; these
 are its rules, stated only here.
 
-- **Switches.** Off for every commission the desk did not launch and for global items until
+- **Switches.** Off for every commission the desk did not launch, and for global items, until
   the operator turns it on (`courier on <id>` / `--global`); on by default only when
-  `LAUNCH.json` says `launched_by: desk`. Switches live in the desk state folder
-  (`courier.json`, entries `{on, at, baseline}`). Turning one on records the items present
-  then as its baseline; those are never sent, only items first seen afterwards. With no
-  switch on, the Hub is not read.
+  `LAUNCH.json` says `launched_by: desk`. With no switch on, the Hub is not read.
+- **First sightings.** `first-sightings.json` holds when each item was first found in the
+  files (the zero time: already there when the record began). Turning a switch on records a
+  sighting of every item present at that moment, and an item first sighted at or before its
+  switch was turned on is never sent. An item that leaves the files is forgotten.
 - **What is sent.** An item with `Delivered:` or an answer is not sent. An item with
   `Recommended:` whose charter has the Steering sentence goes as a decision ask with its
   options and the Hub's default deadline; every other item (no `Recommended:`, any
   `Secret:`, a global item, a charter without Steering) as a plain notice pointing at the
   item. Items of a charter without the Decisions sentence, and global items, are sent only if
-  they still have no `Delivered:` line two hours after the courier first held them
-  (`courier-wait.json`), because their scheduler delivers by itself.
-- **Reused IDs.** First sightings are kept in `courier-seen.json`. An item whose ID already
-  has an answer or delivery from before it first appeared is not delivered and says "ID
-  reused, not delivered"; the earlier answer is not shown as its answer.
+  they still have no `Delivered:` line two hours after their first sighting, because their
+  scheduler delivers by itself.
+- **Reused IDs.** An item whose ID already has an answer, closed ask or delivery from before
+  its first sighting is not delivered and says "ID reused, not delivered"; the earlier answer
+  is not shown as its answer.
 - **Unreadable files.** While a commission's `STATE.md` or `OPERATOR.md` (or `ATTENTION.md`,
   for every commission) exists but cannot be read, nothing is sent for it, its records are
   kept as they were, and answering it and turning its switch on are refused.
-- **A pass**, every 60 seconds in the instance holding the write lock: read the items of
-  non-ended commissions and `ATTENTION.md`; if Vrooli Events cannot be reached, send nothing
-  and say why per item; otherwise read the Hub's asks from source `research-desk` (each found
-  again by its question `<commission> · <ID> — <title>`) and the desk's notices (dedupe key
-  `research-desk-notice/<owner>/<ID>`); a failed read sends nothing. Then per item, first
-  match wins: answered in the Hub and not in `OPERATOR.md` → append `answer <ID> · via hub`;
-  an open ask for an item answered in the desk or carrying `Delivered:` → shown as still open
-  until its deadline; an ask that reached a device with no `delivered` entry → append
-  `delivered <ID> · via desk`; any other ask → shown with its state (an expired ask leaves
-  the item answerable in the desk); otherwise send, per the rules above. A notice the Hub
-  reports delivered gets a `delivered` entry on the next pass. An open ask whose item left
-  the files is listed with its deadline.
-- An unchanged item is the same event (its id hashes the content), so a repeat is
-  deduplicated and a desk outage loses nothing. The desk cannot withdraw an ask: one it no
-  longer needs stays open until its deadline, and a later answer to it is ignored.
-- `needs-you` shows each item's planned action without acting. `courier-test` (self-test)
-  raises one ask titled as a delivery test with a 15-minute deadline, only when the operator
-  asks.
+- **A pass**, every 60 seconds in the lock holder, reads the items of non-ended commissions
+  and `ATTENTION.md`, and the Hub's asks (source `research-desk`, matched by the question
+  `<commission> · <ID> — <title>`) and notices (dedupe key `research-desk-notice/<owner>/<ID>`).
+  If Vrooli Events or the Hub cannot be read, it sends nothing and says why. Per item, first
+  match wins: answered in the Hub, not in `OPERATOR.md` → append `answer <ID> · via hub`; an
+  open ask for an item answered in the desk or delivered → shown open until its deadline; an
+  ask that reached a device, or a notice the Hub reports delivered → append `delivered <ID> ·
+  via desk`; any other ask → shown with its state (an expired one leaves the item answerable
+  in the desk); otherwise send. An open ask whose item left the files is listed with its
+  deadline.
+- An unchanged item is the same event, so a repeat is deduplicated and an outage loses
+  nothing. The desk cannot withdraw an ask: an unneeded one stays open until its deadline,
+  and a later answer to it is ignored. `needs-you` shows each item's planned action without
+  acting; `courier-test` raises one 15-minute test ask, only when the operator asks.

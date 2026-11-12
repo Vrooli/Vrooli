@@ -22,19 +22,19 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 import { toDate } from "../lib/format";
-import { itemAnchor, itemKey } from "../lib/needsYou";
+import { itemAnchor, itemKey, needsYouCount, waiting } from "../lib/needsYou";
 import { overlapPairs, type OverlapPair } from "../lib/overlaps";
 import { PERIODS, periodStart, type Period } from "../lib/period";
 import { launchableAsIs, STATE_ORDER, WINDOW_OPEN } from "../lib/states";
 
 /**
- * Now (rulings V5): the first screen says what is moving, in this order. One
+ * Now: the first screen says what is moving, in this order. One
  * status line (live, paused and limited, and the newest research write); what
  * needs the operator, at most three titles with the count; then the open
  * supervisors with their topics and what changed in each. Then what changed
- * since the last look or a chosen period, with one "Caught up" (V7). Below:
+ * since the last look or a chosen period, with one "Caught up". Below:
  * unreadable sources, what overlaps now, prepared packets and every
- * commission by state (G3, G5, G13).
+ * commission by state.
  */
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -69,7 +69,6 @@ function Moving({ overview: o }: { overview: GetOverviewResponse }) {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<Period>("look");
   const since = periodStart(period);
-  const open = new Set(o.running.map((c) => c.id));
   return (
     <>
       <Supervisors overview={o} since={since} />
@@ -80,14 +79,14 @@ function Moving({ overview: o }: { overview: GetOverviewResponse }) {
           <Alert key={lens.name} tone="warning" title={t(strings.now.lensDown, { name: lens.name })} description={lens.reason || t(strings.now.lensDownHint)} />
         ))}
       <Unreadable evidence={o.unreadable} />
-      <Overlaps pairs={overlapPairs(o.overlaps, open)} />
+      <Overlaps pairs={overlapPairs(o.openOverlaps)} />
       <Prepared />
       <AllStates counts={o.stateCounts} />
     </>
   );
 }
 
-/** Live, paused and limited counts, and the newest research write anywhere (rulings F4, P8). */
+/** Live, paused and limited counts, and the newest research write anywhere. */
 function StatusLine({ overview: o }: { overview: GetOverviewResponse }) {
   const { t } = useTranslation();
   const count = (state: CommissionState) => o.stateCounts.find((c) => c.state === state)?.count ?? 0;
@@ -114,7 +113,7 @@ function StatusLine({ overview: o }: { overview: GetOverviewResponse }) {
 }
 
 /**
- * What changed (rulings V7, P7): since the operator's last look (the last 24
+ * What changed: since the operator's last look (the last 24
  * hours when none is recorded) or a chosen period, for each topic with
  * research written in it, and one "Caught up" that records a look at
  * everything, after a confirmation.
@@ -197,7 +196,7 @@ const OPEN_NOTE = {
 
 /**
  * Supervisors with a window open, split the way the operator needs to read
- * them (rulings F4): live is working; limited and paused are open but idle,
+ * them: live is working; limited and paused are open but idle,
  * and each group says so, so "nothing live, two paused" never reads as an
  * empty page. Each row carries its topics; claim and state rule are on the
  * commission page.
@@ -286,20 +285,20 @@ function AllStates({ counts }: { counts: GetOverviewResponse["stateCounts"] }) {
   );
 }
 
-/** What needs the operator: the count and at most three titles, each one tap from its item (rulings V2). */
+/** What needs the operator: the count and at most three titles, each one tap from its item. */
 function NeedsYouSummary() {
   const { t } = useTranslation();
   const query = useNeedsYou();
   if (query.isError) return <DeliveryBanner error={query.error} />;
   if (!query.data) return null;
-  const open = query.data.items.filter((item) => !item.answer);
+  const open = waiting(query.data.items);
   return (
     <Section
       id="needs-you"
-      title={t(strings.now.needsYou, { count: open.length })}
+      title={needsYouCount(t, query.data)}
       actions={open.length > 0 ? <Link to="/needs-you" className="rd-more">{t(strings.now.openFeed)}</Link> : undefined}
     >
-      <DeliveryBanner courier={query.data.courier} open={open.length} switchAt="/needs-you#delivery" />
+      <DeliveryBanner courier={query.data.courier} open={query.data.itemCount} switchAt="/needs-you#delivery" />
       {open.length === 0 ? (
         <p className="text-body-sm">{t(strings.now.nothingNeedsYou)}</p>
       ) : (

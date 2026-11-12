@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import type { Workstream } from "@vrooli/proto-types/research-desk/v1/activity/activity_pb";
+import type { Workstream } from "@vrooli/proto-types/research-desk/v1/shared/commission_pb";
 import {
   ControlAction,
   LaunchService,
@@ -19,7 +19,7 @@ export function useLaunchOptions() {
 
 /**
  * Suggested stance quotes and each workstream's title for the chosen topics
- * (rulings P3). Kept while the topics change, so the form does not flicker.
+ *. Kept while the topics change, so the form does not flicker.
  */
 export function useLaunchSuggestions(topics: readonly string[]) {
   return useQuery({
@@ -62,7 +62,7 @@ export function usePreflightPrepared(commissionId: string, decisions: Decisions,
   });
 }
 
-/** The charter path and the two texts to paste for a manual launch: a read (rulings P4). */
+/** The charter path and the two texts to paste for a manual launch: a read. */
 export function useLaunchMessages(commissionId: string, enabled: boolean) {
   return useQuery({
     queryKey: ["launch", "messages", commissionId],
@@ -84,20 +84,20 @@ export function useLaunchTest() {
 }
 
 export const launchApi = {
-  /** Builds a packet; the choices are written into its charter ("Supersedes …", "Runs alongside …"), so its launch needs none (rulings P2). */
+  /** Builds a packet; the choices are written into its charter ("Supersedes …", "Runs alongside …"), so its launch needs none. */
   buildFromSpec: (specJson: string, choices: Decisions["choices"] = {}) => client.build({ source: { case: "specJson", value: specJson }, resolutions: resolutions(choices) }),
   relaunch: (commissionId: string) => client.build({ source: { case: "relaunchOf", value: commissionId } }),
   /**
    * Starts the automatic launch. A packet built with its choices needs none;
    * one launched as it is carries them here, with the never-started
-   * assertion for an unknown packet (rulings P1, P2).
+   * assertion for an unknown packet.
    */
   launch: (commissionId: string, decisions: Decisions = { choices: {} }) => client.launch({ commissionId, ...decided(decisions) }),
   control: (commissionId: string, action: ControlAction, reason = "") => client.control({ commissionId, action, reason }),
   testLaunch: () => client.testLaunch({}),
 };
 
-/** What a launch does about an earlier commission still holding one of its topics (rulings P2). */
+/** What a launch does about an earlier commission still holding one of its topics. */
 export type BlockerChoice = "supersede" | "alongside";
 
 const TO_RESOLUTION = { supersede: Resolution.SUPERSEDE, alongside: Resolution.RUN_ALONGSIDE } as const;
@@ -131,7 +131,7 @@ export interface Blocker {
 
 /**
  * The earlier commissions this launch decides about: every verdict that
- * offers choices (rulings P2), once per commission with the topics it shares.
+ * offers choices, once per commission with the topics it shares.
  * A commission already decided stays listed, so the choice can be changed;
  * a quiet one offers no choices and is not listed here.
  */
@@ -158,7 +158,7 @@ export function blockersOf(result: PreflightResponse): Blocker[] {
   return [...out.values()];
 }
 
-/** A stance quote the desk suggests, with the file it came from (rulings P3). */
+/** A stance quote the desk suggests, with the file it came from. */
 export interface SuggestedQuote {
   text: string;
   source: string;
@@ -172,23 +172,9 @@ export function suggestedQuotes(suggestions: GetLaunchOptionsResponse | undefine
   };
 }
 
-/** A workstream as the operator reads it: its title beside its ID, else its showcase line (rulings P3). */
+/** A workstream as the operator reads it: its title beside its ID, else its showcase line. */
 export function workstreamWords(w: Workstream): { id: string; title: string } {
   return { id: w.id, title: w.title || w.showcase };
-}
-
-/** How the desk reaches Web Console to start sessions (rulings F14, V8). */
-export type WebConsoleAccess = "credential" | "availability" | "unknown";
-
-/**
- * The access the API reports, as a kind the UI words plainly. The API sends
- * its phrase (peer.AccessCredential / AccessAvailability); an enum would make
- * this one line.
- */
-export function webConsoleAccess(said: string): WebConsoleAccess {
-  if (said.startsWith("service credential")) return "credential";
-  if (said.startsWith("local availability policy")) return "availability";
-  return "unknown";
 }
 
 export { ControlAction };
@@ -197,7 +183,9 @@ export type {
   Gate,
   GetLaunchOptionsResponse,
   LaunchRecord,
+  PacketLimits,
   PacketResult,
   PreflightResponse,
+  StateExcerpt,
   TopicVerdict,
 } from "@vrooli/proto-types/research-desk/v1/launch/launch_pb";

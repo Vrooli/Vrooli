@@ -403,28 +403,30 @@ func (l *Launcher) ResendStance(ctx context.Context, t Target, stance string) er
 // Ready, pauses an active goal and quits Codex; then it ends the remaining
 // Codex processes of that session only (the app-server outlives the window).
 // A process that merely shares the Codex home is left alone. The session row
-// and its files stay.
-func (l *Launcher) Stop(ctx context.Context, t Target, windowOpen bool) error {
+// and its files stay. The result says what was found and ended.
+func (l *Launcher) Stop(ctx context.Context, t Target, windowOpen bool) (Stopped, error) {
+	out := Stopped{Session: t.Session}
 	if strings.TrimSpace(t.Session) == "" {
-		return errors.New("no session to stop")
+		return out, errors.New("no session to stop")
 	}
 	if windowOpen {
 		if err := l.Ready(ctx, t); err != nil {
-			return err
+			return out, err
 		}
 		if status, err := l.GoalStatus(ctx, t); err == nil && status == "active" {
 			if _, err := l.Pause(ctx, t); err != nil {
-				return fmt.Errorf("pause the goal before quitting: %w", err)
+				return out, fmt.Errorf("pause the goal before quitting: %w", err)
 			}
 		}
 		for _, keys := range [][]Key{{Escape}, {CtrlC}, {CtrlC}} {
 			if err := l.Terminal.Keys(ctx, t.Session, keys...); err != nil {
-				return err
+				return out, err
 			}
 			if _, err := l.Terminal.WaitIdle(ctx, t.Session, time.Second, 5*time.Second); err != nil {
-				return err
+				return out, err
 			}
 		}
+		out.Window = true
 	}
 	signal := l.Signal
 	if signal == nil {
@@ -435,7 +437,7 @@ func (l *Launcher) Stop(ctx context.Context, t Target, windowOpen bool) error {
 	for {
 		procs, err := l.Sessions.SessionProcesses(t.Session)
 		if err != nil {
-			return fmt.Errorf("check the session's Codex processes: %w", err)
+			return out, fmt.Errorf("check the session's Codex processes: %w", err)
 		}
 		var pids []string
 		for _, p := range procs {
@@ -446,20 +448,40 @@ func (l *Launcher) Stop(ctx context.Context, t Target, windowOpen bool) error {
 			if !signalled[p.PID] {
 				signalled[p.PID] = true
 				if err := signal(p.PID); err != nil && !errors.Is(err, syscall.ESRCH) {
-					return fmt.Errorf("end Codex process %d: %w", p.PID, err)
+					return out, fmt.Errorf("end Codex process %d: %w", p.PID, err)
 				}
 			}
 		}
+		out.Ended = len(signalled)
 		if len(pids) == 0 {
-			return nil
+			return out, nil
 		}
 		if time.Now().After(deadline) {
-			return fmt.Errorf("Codex processes %s of this session are still running; end them from Web Console", strings.Join(pids, ", "))
+			return out, fmt.Errorf("Codex processes %s of this session are still running; end them from Web Console", strings.Join(pids, ", "))
 		}
 		if err := sleep(ctx, l.poll()); err != nil {
-			return err
+			return out, err
 		}
 	}
+}
+
+// Stopped is what a stop found and ended in one session.
+type Stopped struct {
+	Session string
+	// Window is true when a supervisor window was open and was quit.
+	Window bool
+	// Ended counts the session's Codex processes that were signalled.
+	Ended int
+}
+
+// Outcome says in plain words what a successful stop left: whether a
+// window was found, and that nothing of the session is still running.
+func (s Stopped) Outcome() string {
+	found := "no window found"
+	if s.Window {
+		found = "window stopped"
+	}
+	return fmt.Sprintf("%s; %d Codex process(es) of session %s ended; none still running", found, s.Ended, s.Session)
 }
 
 func sleep(ctx context.Context, d time.Duration) error {

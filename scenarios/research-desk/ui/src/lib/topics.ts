@@ -7,7 +7,7 @@ export function matching(list: TopicSummary[], filter: string): TopicSummary[] {
   return list.filter((x) => x.topic.includes(needle) || (x.title?.value ?? "").toLowerCase().includes(needle));
 }
 
-/** Newest research write first (rulings V6, P8); topics never written to last, by name. */
+/** Newest research write first; topics never written to last, by name. */
 export function sortByResearchWrite(list: TopicSummary[]): TopicSummary[] {
   const at = (x: TopicSummary) => lastResearchWrite(x)?.at?.value?.seconds ?? -1n;
   return [...list].sort((a, b) => {

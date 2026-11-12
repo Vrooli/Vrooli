@@ -5,6 +5,7 @@ import {
   type RouteObject,
 } from "react-router-dom";
 
+import { RouteError } from "../components/RouteError";
 import { AppShell } from "../layout/AppShell";
 import { CommissionPage } from "../pages/CommissionPage";
 import { CommissionsPage } from "../pages/CommissionsPage";
@@ -20,6 +21,21 @@ import { TopicPage } from "../pages/TopicPage";
 import { TopicsPage } from "../pages/TopicsPage";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
+const PAGES: RouteObject[] = [
+  { index: true, element: <DashboardPage /> },
+  { path: "needs-you", element: <NeedsYouPage /> },
+  { path: "topics", element: <TopicsPage /> },
+  { path: "topics/:topic", element: <TopicPage /> },
+  { path: "commissions", element: <CommissionsPage /> },
+  { path: "commissions/:id", element: <CommissionPage /> },
+  { path: "launch", element: <LaunchPage /> },
+  { path: "launch/:id", element: <LaunchStatusPage /> },
+  { path: "reviews", element: <ReviewsPage /> },
+  { path: "reviews/:id", element: <ReviewPage /> },
+  { path: "files/*", element: <FilePage /> },
+  { path: "desk", element: <DeskPage /> },
+];
+
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
  * from the same config the production app uses.
@@ -31,22 +47,18 @@ export const routes: RouteObject[] = [
   {
     path: "/",
     element: <AppShell />,
+    // A shell that fails still shows a readable error rather than the router's raw stack.
+    errorElement: <RouteError />,
     children: [
-      { index: true, element: <DashboardPage /> },
-      { path: "needs-you", element: <NeedsYouPage /> },
-      { path: "topics", element: <TopicsPage /> },
-      { path: "topics/:topic", element: <TopicPage /> },
-      { path: "commissions", element: <CommissionsPage /> },
-      { path: "commissions/:id", element: <CommissionPage /> },
-      { path: "launch", element: <LaunchPage /> },
-      { path: "launch/:id", element: <LaunchStatusPage /> },
-      { path: "reviews", element: <ReviewsPage /> },
-      { path: "reviews/:id", element: <ReviewPage /> },
-      { path: "files/*", element: <FilePage /> },
-      { path: "desk", element: <DeskPage /> },
+      {
+        // A page that fails to render shows its error inside the shell; the tabs keep working.
+        errorElement: <RouteError />,
+        children: PAGES,
+      },
     ],
   },
 ];
+
 
 // Opt in before React Router v7 makes these behaviors the defaults. Data
 // routers own both flags; RouterProvider owns transition scheduling only.

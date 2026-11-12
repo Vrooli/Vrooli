@@ -9,12 +9,15 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/vrooli/api-core/authn"
+	"github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/schedule"
 
 	"research-desk/internal/home"
@@ -297,8 +300,12 @@ func TestStopPausesTheGoalQuitsCodexAndEndsOnlyTheSessionsProcesses(t *testing.T
 	codex.procs = append(codex.procs,
 		home.Process{PID: 43, CodexHome: "x", WebConsoleSession: "sess-1"},
 		home.Process{PID: 44, CodexHome: "x", WebConsoleSession: "sess-2", InTerminal: true})
-	if err := launcher(codex).Stop(context.Background(), target, true); err != nil {
+	stopped, err := launcher(codex).Stop(context.Background(), target, true)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if !stopped.Window || stopped.Ended != 2 || !strings.HasPrefix(stopped.Outcome(), "window stopped; 2 Codex process(es) of session "+target.Session+" ended; none still running") {
+		t.Fatalf("the stop says what it found and left: %+v %q", stopped, stopped.Outcome())
 	}
 	want := []string{"type:/goal pause", "key:Enter", "key:Escape", "key:ctrl+c", "key:ctrl+c"}
 	if got := codex.typed(); !slices.Equal(got, want) {
@@ -310,7 +317,7 @@ func TestStopPausesTheGoalQuitsCodexAndEndsOnlyTheSessionsProcesses(t *testing.T
 
 	stubborn := newCodex()
 	stubborn.keepProcs = true
-	err := launcher(stubborn).Stop(context.Background(), target, true)
+	_, err = launcher(stubborn).Stop(context.Background(), target, true)
 	if err == nil || !strings.Contains(err.Error(), "41, 42") || !slices.Equal(stubborn.signalled, []int{41, 42}) {
 		t.Fatalf("err = %v, signalled %v; want each process signalled once and named", err, stubborn.signalled)
 	}
@@ -318,13 +325,14 @@ func TestStopPausesTheGoalQuitsCodexAndEndsOnlyTheSessionsProcesses(t *testing.T
 	// A closed window is not typed into; its leftover processes still end.
 	closed := newCodex()
 	closed.screen = Screen{Text: "$ ", CursorRow: 0}
-	if err := launcher(closed).Stop(context.Background(), target, false); err != nil || len(closed.typed()) != 0 || len(closed.signalled) != 2 {
-		t.Fatalf("err = %v, typed %q, signalled %v", err, closed.typed(), closed.signalled)
+	gone, err := launcher(closed).Stop(context.Background(), target, false)
+	if err != nil || len(closed.typed()) != 0 || len(closed.signalled) != 2 || !strings.HasPrefix(gone.Outcome(), "no window found; 2 Codex process(es)") {
+		t.Fatalf("err = %v, typed %q, signalled %v, outcome %q", err, closed.typed(), closed.signalled, gone.Outcome())
 	}
 }
 
 // [REQ:RD-P0-012]
-// F5: a control reads and types for the commission's own thread, and types
+// A control reads and types for the commission's own thread, and types
 // nothing unless the terminal shows that thread at an idle input row; only
 // /goal pause and /goal resume may go in during a running turn (measured).
 func TestControlsReachTheCommissionsOwnThreadOrNothing(t *testing.T) {
@@ -354,7 +362,7 @@ func TestControlsReachTheCommissionsOwnThreadOrNothing(t *testing.T) {
 			func() error { _, err := l.Pause(ctx, target); return err },
 			func() error { _, err := l.Resume(ctx, target); return err },
 			func() error { return l.ResendStance(ctx, target, "Stance.") },
-			func() error { return l.Stop(ctx, target, true) },
+			func() error { _, err := l.Stop(ctx, target, true); return err },
 		} {
 			if err := act(); !errors.Is(err, ErrNotReady) || !strings.Contains(err.Error(), "OPERATOR.md") {
 				t.Fatalf("%s: err = %v, want not ready with the manual path", name, err)
@@ -381,7 +389,7 @@ func TestControlsReachTheCommissionsOwnThreadOrNothing(t *testing.T) {
 		if err := l.ResendStance(ctx, target, "Stance."); !errors.Is(err, ErrNotReady) {
 			t.Fatalf("stance during a turn: %v", err)
 		}
-		if err := l.Stop(ctx, target, true); !errors.Is(err, ErrNotReady) {
+		if _, err := l.Stop(ctx, target, true); !errors.Is(err, ErrNotReady) {
 			t.Fatalf("stop during a turn: %v", err)
 		}
 	}
@@ -466,7 +474,7 @@ func newRig(t *testing.T) *rig {
 		sessions: map[string]string{},
 		tweaks:   map[string]func(*home.Commission){},
 	}
-	w := writer.New(research, h.State)
+	w := writer.New(research, h.State, testutil.EntryChars)
 	t.Cleanup(func() { w.Close() })
 	codex := newCodex()
 	limits := &skillscripts.Limits{}
@@ -535,7 +543,7 @@ func TestAPreparedPacketLaunchesAndEveryStepIsRecorded(t *testing.T) {
 }
 
 // [REQ:RD-P0-002]
-// P2: a launch is blocked only by a commission that may be running; each
+// A launch is blocked only by a commission that may be running; each
 // blocker carries its choices and the desk's recommendation, and the
 // request's choice clears it.
 func TestBlockersAreFewAndResolvedInTheRequest(t *testing.T) {
@@ -614,12 +622,60 @@ func TestBlockersAreFewAndResolvedInTheRequest(t *testing.T) {
 		}
 	}
 
+	// Unknown with a recent write but no session or goal found anywhere:
+	// nothing to stop, so run alongside is recommended and supersede stays
+	// offered. With a session found, the operator chooses.
+	r.reader.tweaks[handRun] = func(c *home.Commission) {
+		c.Session, c.LastWrite = nil, home.Time{Value: now.Add(-time.Hour), Evidence: home.Evidence{Known: true}}
+		c.NeverStarted = home.NeverStarted{Assertable: true, Reason: "no session or goal names this charter"}
+	}
+	if v = verdict(must(r.service.PreflightSpec(ctx, spec, Choices{}))); !v.Blocks || v.Recommended != RunAlongside || !slices.Contains(v.Choices, Supersede) || !strings.Contains(v.RecommendedReason, "nothing to stop") {
+		t.Fatalf("an unknown commission with nothing found running: %+v", v)
+	}
+	r.reader.tweaks[handRun] = func(c *home.Commission) {
+		c.Session = &home.Match{SessionID: "sess-1"}
+		c.NeverStarted = home.NeverStarted{Reason: "session sess-1 names this charter"}
+	}
+	if v = verdict(must(r.service.PreflightSpec(ctx, spec, Choices{}))); !v.Blocks || v.Recommended != "" {
+		t.Fatalf("an unknown commission with a session found: %+v", v)
+	}
+
 	// A stopped one never blocks and offers its checkpoint.
 	delete(r.reader.tweaks, handRun)
 	r.reader.states[handRun] = home.StateStopped
 	p, _ = r.service.PreflightSpec(ctx, []byte(`{"topics":["ai-video-production-and-funnels"]}`), Choices{})
 	if !p.Launchable() || len(p.Verdicts) != 1 || !strings.HasSuffix(p.Verdicts[0].ReadFirst, "ai-video-production-and-funnels/runs/"+handRun+"/CHECKPOINT.md") {
 		t.Fatalf("a stopped commission should offer its checkpoint as read_first: %+v", p.Verdicts)
+	}
+}
+
+// commandText is command-line text in a sentence the operator reads.
+var commandText = regexp.MustCompile("`|research-desk [a-z]|vrooli [a-z]|packet\\.py|(^|\\s)--[a-z]")
+
+// Blocker lines and verdict messages say what is wrong and what the
+// operator can choose, in every state, and never name a command.
+func TestBlockerAndVerdictTextNamesNoCommand(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	spec := []byte(`{"topics":["niche-book-production"],"allowance_hours":8}`)
+	seen := 0
+	for _, state := range []home.State{home.StateLive, home.StatePaused, home.StateLimited, home.StateUnknown, home.StateStopped, home.StateEnded, home.StatePrepared} {
+		r.reader.states[handRun] = state
+		for _, p := range []Preflight{must(r.service.PreflightSpec(ctx, spec, Choices{})), must(r.service.PreflightCommission(ctx, handRun, Choices{}))} {
+			lines := slices.Clone(p.Blockers)
+			for _, v := range p.Verdicts {
+				lines = append(lines, v.Message, v.RecommendedReason)
+			}
+			for _, line := range lines {
+				seen++
+				if commandText.MatchString(line) {
+					t.Errorf("%s: %q names a command", state, line)
+				}
+			}
+		}
+	}
+	if seen < 10 {
+		t.Fatalf("only %d lines were checked", seen)
 	}
 }
 
@@ -641,7 +697,7 @@ func (r *rig) sharing() {
 	r.codex.goals = []home.Goal{{SessionID: "sess-1", ThreadID: "thread-1", Objective: "old", Status: "active"}}
 }
 
-// P2 and F5: superseding stops the old supervisor through its own thread
+// Superseding stops the old supervisor through its own thread
 // first, then launches; it records both sides.
 func TestSupersedingStopsTheOldSupervisorFirstAndRecordsBothSides(t *testing.T) {
 	r := newRig(t)
@@ -667,13 +723,46 @@ func TestSupersedingStopsTheOldSupervisorFirstAndRecordsBothSides(t *testing.T) 
 	if old.SupersededBy != prepared || old.Discarded == nil || !strings.Contains(old.Discarded.Reason, "superseded by "+prepared) || old.Controls[len(old.Controls)-1].Action != ActSupersede || old.WebConsoleSessionID != "sess-1" {
 		t.Fatalf("the old LAUNCH.json records the supersession: %+v", old)
 	}
+	if got := old.Controls[len(old.Controls)-1].Outcome; !strings.HasPrefix(got, "window stopped;") || !strings.HasSuffix(got, "none still running") {
+		t.Fatalf("the old LAUNCH.json says whether a window was found and that nothing still runs: %q", got)
+	}
 	if rec := r.launchFile(t, prepared); rec.Failed != nil || !slices.Equal(rec.Supersedes, []string{handRun}) || len(rec.Steps) != len(stepOrder) {
 		t.Fatalf("the new LAUNCH.json: %+v", rec)
 	}
 }
 
+func TestDelegatedLaunchChecksEverySupersededTargetBeforeEffects(t *testing.T) {
+	r := newRig(t)
+	r.sharing()
+	p := identity.Principal{Kind: identity.ActorAgent, Subject: "research-requester", Verified: true, Scopes: []string{"research-desk:write"}, Grant: &identity.OperationGrant{
+		ID: "approved", Approver: "operator", ExpiresAt: time.Now().Add(time.Hour),
+		Operations: []string{"research.launch", "research.control"}, Targets: []string{"research-desk:commission/" + prepared},
+	}}
+	ctx := identity.WithPrincipal(context.Background(), p)
+	ch := Choices{Resolutions: map[string]Resolution{handRun: Supersede}}
+	_, err := r.service.Launch(ctx, prepared, ch)
+	if !errors.Is(err, authn.ErrOperation) || !strings.Contains(err.Error(), "research-desk:commission/"+handRun) {
+		t.Fatalf("unapproved supersession must request its own target: %v", err)
+	}
+	if len(r.codex.typed()) != 0 {
+		t.Fatal("typed before all target grants passed")
+	}
+	if _, err := os.Stat(filepath.Join(r.research, "cohorts", prepared, "LAUNCH.json")); !os.IsNotExist(err) {
+		t.Fatalf("launch record written before approval: %v", err)
+	}
+	p.Grant.Targets = append(p.Grant.Targets, "research-desk:commission/"+handRun)
+	ctx = identity.WithPrincipal(context.Background(), p)
+	if _, err := r.service.Launch(ctx, prepared, ch); err != nil {
+		t.Fatal(err)
+	}
+	r.wait(t, prepared)
+	if r.launchFile(t, prepared).Failed != nil {
+		t.Fatalf("approved launch failed: %+v", r.launchFile(t, prepared).Failed)
+	}
+}
+
 // [REQ:RD-P0-002]
-// P2 with two paused supervisors (programme-three and programme-four on the
+// Superseding with two paused supervisors (programme-three and programme-four on the
 // real home): both are stopped through their own sessions before anything
 // launches and both record superseded_by; if either cannot be stopped the
 // whole launch is refused, naming it, and nothing is typed.
@@ -716,7 +805,7 @@ func TestSupersedingTwoStopsBothOrNeither(t *testing.T) {
 		t.Fatalf("the new LAUNCH.json: %+v (first record %+v)", got, rec)
 	}
 	for _, id := range []string{handRun, other} {
-		if old := r.launchFile(t, id); old.SupersededBy != prepared || old.Discarded == nil {
+		if old := r.launchFile(t, id); old.SupersededBy != prepared || old.Discarded == nil || !strings.HasSuffix(old.Controls[len(old.Controls)-1].Outcome, "none still running") {
 			t.Fatalf("%s LAUNCH.json: %+v", id, old)
 		}
 	}
@@ -758,7 +847,7 @@ func TestASupersessionThatCannotStopRefusesBeforeAnythingIsLaunched(t *testing.T
 	}
 }
 
-// P1: an unknown commission is launched on the operator's assertion only
+// An unknown commission is launched on the operator's assertion only
 // when the desk found no session or goal for it; the assertion is recorded.
 func TestAnUnknownCommissionLaunchesOnTheOperatorsAssertion(t *testing.T) {
 	r := newRig(t)
@@ -789,26 +878,35 @@ func TestAnUnknownCommissionLaunchesOnTheOperatorsAssertion(t *testing.T) {
 	}
 }
 
-// P3: suggested stance quotes come from the newest commission on the topics,
-// from PACKET.json first, else STANCE-MESSAGE.txt's quoted lines; workstreams
-// carry their titles.
+// Suggested stance quotes are the operator's words or nothing: a desk-built
+// PACKET.json first, else the stance of a commission that started, never a
+// hand-made folder that never started; workstreams carry their titles.
 func TestDefaultsForALaunchNeedNoTyping(t *testing.T) {
 	r := newRig(t)
 	ctx := context.Background()
-	s, err := r.service.Suggest(ctx, []string{"standing-teams-work-routes"})
+	topic := []string{"standing-teams-work-routes"}
+	s, err := r.service.Suggest(ctx, topic)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(s.Quotes) != 1 || !strings.HasPrefix(s.Quotes[0].Text, "at least for now things are still meant to flow through swarm manager") || s.Quotes[0].CommissionID != other || !strings.HasSuffix(s.Quotes[0].Source, other+"/"+home.StanceFile) || strings.HasPrefix(s.Quotes[0].Text, `"`) || strings.HasPrefix(s.Quotes[0].Text, "“") {
-		t.Fatalf("quotes from the real STANCE-MESSAGE.txt, unquoted: %+v (%s)", s.Quotes, s.QuotesReason)
+	if len(s.Quotes) != 0 || !strings.Contains(s.QuotesReason, "no commission on these topics has started") || !strings.Contains(s.QuotesReason, "type the stance quotes") {
+		t.Fatalf("a hand-made packet that never started is not a source: %+v (%s)", s.Quotes, s.QuotesReason)
 	}
-	packet := `{"schema":"research-desk.packet/v1","commission_id":"` + other + `","built_at":"2026-11-10T09:00:00Z","spec":{"topics":["standing-teams-work-routes"],"stance_quotes":["\"Be bold.\"","Land it."]}}`
+	r.reader.tweaks[other] = func(c *home.Commission) {
+		c.Started = home.Time{Value: time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC), Evidence: home.Evidence{Known: true, Source: "session"}}
+	}
+	s, _ = r.service.Suggest(ctx, topic)
+	if len(s.Quotes) != 1 || !strings.HasPrefix(s.Quotes[0].Text, "at least for now things are still meant to flow through swarm manager") || s.Quotes[0].CommissionID != other || !strings.HasSuffix(s.Quotes[0].Source, other+"/"+home.StanceFile) || strings.HasPrefix(s.Quotes[0].Text, `"`) || strings.HasPrefix(s.Quotes[0].Text, "“") {
+		t.Fatalf("once started, the quoted lines of its STANCE-MESSAGE.txt, unquoted: %+v (%s)", s.Quotes, s.QuotesReason)
+	}
+	delete(r.reader.tweaks, other)
+	packet := `{"schema":"research-desk.packet/v1","commission_id":"` + other + `","built_at":"2026-11-10T09:00:00Z","spec":{"topics":["standing-teams-work-routes"],"stance_quotes":["\"Be bold.\"","Land it … all of it."]}}`
 	if err := os.WriteFile(filepath.Join(r.research, "cohorts", other, home.PacketFile), []byte(packet), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	s, _ = r.service.Suggest(ctx, []string{"standing-teams-work-routes"})
-	if len(s.Quotes) != 2 || s.Quotes[0].Text != "Be bold." || s.Quotes[1].Text != "Land it." || !strings.HasSuffix(s.Quotes[0].Source, home.PacketFile) {
-		t.Fatalf("PACKET.json's stance_quotes come first: %+v", s.Quotes)
+	s, _ = r.service.Suggest(ctx, topic)
+	if len(s.Quotes) != 2 || s.Quotes[0].Text != "Be bold." || s.Quotes[1].Text != "Land it … all of it." || !strings.HasSuffix(s.Quotes[0].Source, home.PacketFile) {
+		t.Fatalf("a desk-built PACKET.json's stance_quotes come first, ellipses as written: %+v (%s)", s.Quotes, s.QuotesReason)
 	}
 	if len(s.Topics) != 1 || s.Topics[0].Topic != "standing-teams-work-routes" {
 		t.Fatalf("one workstream list per topic: %+v", s.Topics)
@@ -911,7 +1009,7 @@ func TestARelaunchIsANewCommissionFromTheOldSpec(t *testing.T) {
 }
 
 // [REQ:RD-P0-003]
-// G2: a bad start that never wrote BASELINE.json is relaunched from the same
+// A bad start that never wrote BASELINE.json is relaunched from the same
 // packet through the real packet.py; the new commission records its own
 // baseline. One that has a baseline carries it.
 func TestABadStartRelaunchesThroughPacketPyWithOrWithoutABaseline(t *testing.T) {
@@ -954,7 +1052,7 @@ func TestABadStartRelaunchesThroughPacketPyWithOrWithoutABaseline(t *testing.T) 
 }
 
 // [REQ:RD-P0-002]
-// P2: the operator's choices at Build go into the spec, so the charter that
+// The operator's choices at Build go into the spec, so the charter that
 // packet.py renders names every commission it supersedes and each one it runs
 // alongside; the request wins over the spec.
 func TestBuildWritesTheChoicesIntoTheCharter(t *testing.T) {
@@ -1022,7 +1120,7 @@ func TestTheLaunchTestReportsEachStatusAndStopsItsSession(t *testing.T) {
 	}
 }
 
-// E1: a goal database that cannot be read leaves the goal's status unknown;
+// A goal database that cannot be read leaves the goal's status unknown;
 // pause and resume, which need it, are refused with the reason and type
 // nothing.
 func TestAnUnreadableGoalStatusIsUnknownAndRefusesPauseAndResume(t *testing.T) {
@@ -1041,5 +1139,55 @@ func TestAnUnreadableGoalStatusIsUnknownAndRefusesPauseAndResume(t *testing.T) {
 	}
 	if got := known(r.service.Launcher.GoalStatus(context.Background(), target)); !strings.HasPrefix(got, "unknown: ") {
 		t.Errorf("the launch test reports %q, not a blank status", got)
+	}
+}
+
+// Launching an existing packet shows the start of its own STATE.md verbatim,
+// capped at 12 lines or 800 characters, with its path; it never blocks.
+func TestPreflightShowsTheStartOfThePacketsOwnState(t *testing.T) {
+	r := newRig(t)
+	ctx := context.Background()
+	r.reader.states[prepared] = home.StatePrepared // rewriting STATE.md would make it unknown
+	path := filepath.Join(r.research, "cohorts", prepared, home.StateFile)
+	real, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	excerpt := func() *StateExcerpt {
+		t.Helper()
+		p, err := r.service.PreflightCommission(ctx, prepared, Choices{})
+		if err != nil || p.PacketState == nil || p.PacketState.Path != path {
+			t.Fatalf("an existing packet carries its STATE.md excerpt: %+v %v", p, err)
+		}
+		if !p.Launchable() {
+			t.Fatalf("the excerpt never blocks: %v", p.Blockers)
+		}
+		return p.PacketState
+	}
+	if e := excerpt(); e.Text == "" || !strings.HasPrefix(string(real), e.Text) || strings.Count(e.Text, "\n") > ExcerptLines || len([]rune(e.Text)) > ExcerptChars || e.Truncated != (len(e.Text) < len(real)) {
+		t.Fatalf("the real STATE.md's start, verbatim: %+v", e)
+	}
+	lines := strings.Repeat("Do not start the research yet.\n", 30)
+	if err := os.WriteFile(path, []byte(lines), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if e := excerpt(); e.Text != strings.Repeat("Do not start the research yet.\n", ExcerptLines) || !e.Truncated {
+		t.Fatalf("first 12 lines: %+v", e)
+	}
+	if err := os.WriteFile(path, []byte(strings.Repeat("é", 1000)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if e := excerpt(); e.Text != strings.Repeat("é", ExcerptChars) || !e.Truncated {
+		t.Fatalf("first 800 characters, not bytes: %d runes", len([]rune(e.Text)))
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if e := excerpt(); e.Text != "" || e.Reason != "no "+home.StateFile {
+		t.Fatalf("an absent STATE.md is said: %+v", e)
+	}
+	spec := []byte(`{"topics":["local-model-performance"]}`)
+	if p, err := r.service.PreflightSpec(ctx, spec, Choices{}); err != nil || p.PacketState != nil {
+		t.Fatalf("a spec has no packet of its own yet: %+v %v", p.PacketState, err)
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"research-desk/internal/testutil"
 	"research-desk/internal/writer"
 
+	activityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/activity"
 	launchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/launch"
 	launchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/launch/launch_v1connect"
 )
@@ -52,11 +53,13 @@ func newHandler(t *testing.T, automatic error) (*handler, string) {
 	research := h.Research
 	clock := schedule.NewFake(time.Date(2026, 11, 12, 9, 0, 0, 0, time.UTC))
 	reader := home.NewReader(home.Config{ResearchDir: research, CodexDir: h.Codex}, home.Deps{Clock: clock, Procs: home.FixedProcs{}})
-	w := writer.New(research, h.State)
+	w := writer.New(research, h.State, testutil.EntryChars)
 	t.Cleanup(func() { w.Close() })
 	limits := &skillscripts.Limits{Path: "limits.json"}
 	limits.Defaults.SupervisorModel = "gpt-5.5"
 	limits.Models.SupervisorModel = []string{"gpt-5.5", "gpt-5.4"}
+	limits.Packet.TopicsMax, limits.Packet.AllowanceHoursMin, limits.Packet.AllowanceHoursMax = 6, 1, 72
+	limits.Packet.AllowanceHoursDefault, limits.Packet.OrderedWorkstreamsMax = 24, 4
 	service := &launch.Service{
 		Reader: reader, Writer: w, Packets: packets{}, Launcher: &launch.Launcher{}, Clock: clock, Logger: log.New(io.Discard, "", 0),
 		Limits: func() (*skillscripts.Limits, error) { return limits, nil },
@@ -64,13 +67,13 @@ func newHandler(t *testing.T, automatic error) (*handler, string) {
 	return NewHandler(Deps{ResearchDir: research, Service: service, Automatic: func(context.Context) (string, error) { return peer.AccessAvailability, automatic }, Logger: log.New(io.Discard, "", 0)}), research
 }
 
-// F14: the access used is shown, and a refusal turns automatic launch off
+// The access used is shown, and a refusal turns automatic launch off
 // with the reason.
 func TestOptionsShowTheWebConsoleAccessAndARefusal(t *testing.T) {
 	h, _ := newHandler(t, nil)
 	resp, err := h.GetLaunchOptions(context.Background(), connect.NewRequest(&launchv1.GetLaunchOptionsRequest{}))
 	if err != nil || !resp.Msg.AutomaticAvailable || resp.Msg.WebConsoleAccess != "local availability policy (no desk credential)" ||
-		resp.Msg.WebConsoleAccessKind != launchv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_AVAILABILITY_POLICY {
+		resp.Msg.WebConsoleAccessKind != activityv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_AVAILABILITY_POLICY {
 		t.Fatalf("options = %+v %v", resp, err)
 	}
 
@@ -83,18 +86,9 @@ func TestOptionsShowTheWebConsoleAccessAndARefusal(t *testing.T) {
 	if m.AutomaticAvailable || !strings.HasPrefix(m.AutomaticReason, "web-console refused") || !strings.HasSuffix(m.AutomaticReason, "launch by hand with the two messages") || m.DefaultSupervisorModel != "gpt-5.5" || len(m.SupervisorModels) != 2 {
 		t.Fatalf("options = %+v", m)
 	}
-}
-
-// F14: the access is an enum beside its phrase, so no client matches prose.
-func TestTheWebConsoleAccessIsAKind(t *testing.T) {
-	for said, want := range map[string]launchv1.WebConsoleAccess{
-		peer.AccessCredential:   launchv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_SERVICE_CREDENTIAL,
-		peer.AccessAvailability: launchv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_AVAILABILITY_POLICY,
-		"":                      launchv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_UNSPECIFIED,
-	} {
-		if got := accessKind(said); got != want {
-			t.Errorf("accessKind(%q) = %v, want %v", said, got, want)
-		}
+	if p := m.PacketLimits; p.GetTopicsMax() != 6 || p.GetAllowanceHoursMin() != 1 || p.GetAllowanceHoursMax() != 72 ||
+		p.GetAllowanceHoursDefault() != 24 || p.GetOrderedWorkstreamsMax() != 4 {
+		t.Errorf("the packet limits come from limits.json, so the form holds no copy: %+v", p)
 	}
 }
 
@@ -114,7 +108,7 @@ func TestTheTwoLaunchMessagesAreARead(t *testing.T) {
 		t.Fatalf("reading the messages wrote LAUNCH.json: %v", err)
 	}
 	if slices.Contains(OperatorProcedures, launchconnect.LaunchServiceGetLaunchMessagesProcedure) {
-		t.Fatal("reading the messages is a read, open to every verified caller (rulings P4)")
+		t.Fatal("reading the messages is a read, open to every verified caller")
 	}
 }
 

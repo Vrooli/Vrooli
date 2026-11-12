@@ -1,13 +1,18 @@
 package launch
 
 import (
+	"errors"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"research-desk/internal/home"
 )
 
 // Resolution is the operator's choice for an earlier commission that blocks
-// a launch (rulings P2).
+// a launch.
 type Resolution string
 
 // Resolutions.
@@ -21,7 +26,7 @@ const (
 
 // QuietAfter is how long an unknown commission must have gone without a
 // write, and without an open session, to be listed as quiet rather than
-// block a launch (rulings P2).
+// block a launch.
 const QuietAfter = 24 * time.Hour
 
 // Verdict says what one earlier commission on a topic means for a launch.
@@ -127,10 +132,14 @@ func quietUnknown(c *home.Commission, now time.Time) (bool, string) {
 }
 
 // recommend is the desk's choice for a blocker: supersede a paused or
-// limited commission whose allowance has ended; nothing for a live one or
-// when the desk cannot tell.
+// limited commission whose allowance has ended; run alongside an unknown one
+// with no session or goal anywhere the desk reads (superseding would mark a
+// packet the operator prepared as replaced); nothing for a live one or when
+// the desk cannot tell.
 func recommend(c *home.Commission, now time.Time) (Resolution, string) {
 	switch {
+	case c.State == home.StateUnknown && c.NeverStarted.Assertable:
+		return RunAlongside, "no session or goal found for it; nothing to stop; it stays launchable"
 	case c.State == home.StateLive:
 		return "", "it is live: the operator chooses"
 	case (c.State == home.StatePaused || c.State == home.StateLimited) && c.AllowanceEnd.Known && now.After(c.AllowanceEnd.Value):
@@ -159,4 +168,40 @@ func checkpoint(c *home.Commission, topic string) *home.FileFact {
 		}
 	}
 	return nil
+}
+
+// StateExcerpt is the start of a packet's own STATE.md, verbatim: advice
+// written there before launch is seen, never interpreted or blocking.
+type StateExcerpt struct {
+	Path      string
+	Text      string
+	Truncated bool
+	// Reason says why there is no text.
+	Reason string
+}
+
+// Excerpt bounds: the first ExcerptLines lines or ExcerptChars characters,
+// whichever is shorter.
+const (
+	ExcerptLines = 12
+	ExcerptChars = 800
+)
+
+func stateExcerpt(c *home.Commission) *StateExcerpt {
+	path := filepath.Join(c.Dir, home.StateFile)
+	data, err := os.ReadFile(path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		return &StateExcerpt{Path: path, Reason: "no " + home.StateFile}
+	case err != nil:
+		return &StateExcerpt{Path: path, Reason: home.Unreadable(path, err).Reason}
+	}
+	text := string(data)
+	if lines := strings.SplitAfter(text, "\n"); len(lines) > ExcerptLines {
+		text = strings.Join(lines[:ExcerptLines], "")
+	}
+	if r := []rune(text); len(r) > ExcerptChars {
+		text = string(r[:ExcerptChars])
+	}
+	return &StateExcerpt{Path: path, Text: text, Truncated: len(text) < len(data)}
 }

@@ -20,6 +20,7 @@ const AT = "2026-11-11T09:30:00Z";
 
 /** Values the API sends; each must reach the screen verbatim. */
 const WIRE = {
+  scenarioLens: "notification hub lens reason",
   stateRule: "goal active in an open window",
   stateReason: "goal status active",
   claim: "IT6 landed",
@@ -31,6 +32,9 @@ const WIRE = {
   otherTopic: "other-topic",
   mode: "delivery",
   workstream: "IT6",
+  topicsReason: "REVIEW.md names no topic in its headings or links",
+  verdictHeading: "### t · last Tuesday",
+  notShown: "Workstream status changes need a recorded look; mark this seen to start one.",
   missionError: "missing showcase",
   missionWarning: "long card",
   title: "Programme one",
@@ -179,7 +183,15 @@ describe("What changed", () => {
     await waitFor(() => expect(calls.filter((c) => c.path.endsWith("/MarkSeen"))).toEqual([{ path: `${OPERATOR}/MarkSeen`, body: { subject: "CHANGE_SUBJECT_COMMISSION", id: "c1" } }]));
   });
 
-  it("with no look recorded reports the last 24 hours and says so, and says when nothing changed (rulings P7)", async () => {
+  it("with no look recorded reports the last 24 hours and says so, and says when nothing changed", async () => {
+    const ledger = [{ path: `${HOME}/cohorts/c1/LEDGER.md`, text: WIRE.claim, fromDatedHeadings: true }];
+    wire({ [`${ACTIVITY}/GetChanges`]: { since: AT, baseline: WIRE.lastDay, baselineKind: "BASELINE_LAST_DAY", notShown: [WIRE.notShown], ledger } });
+    render("/commissions/c1");
+    expect(await screen.findByText(WIRE.lastDay)).toBeInTheDocument();
+    // What it cannot show is said, in the API's words, and ledger text taken by its dated headings says so.
+    expect(screen.getByText(WIRE.notShown)).toBeInTheDocument();
+    expect(screen.getByText(strings.changes.fromDatedHeadings)).toBeInTheDocument();
+    cleanup();
     wire({ [`${ACTIVITY}/GetChanges`]: { since: AT, baseline: WIRE.lastDay, baselineKind: "BASELINE_LAST_DAY" } });
     render("/commissions/c1");
     expect(await screen.findByText(WIRE.lastDay)).toBeInTheDocument();
@@ -286,7 +298,7 @@ describe("Topics", () => {
     const links = await screen.findAllByRole("link", { name: /Title|silent/ });
     expect(links.map((l) => l.getAttribute("href"))).toEqual(["/topics/newer", "/topics/older", "/topics/silent"]);
     expect(screen.getByText(WIRE.mode)).toBeInTheDocument();
-    // A write under a paused owner says so (rulings P8).
+    // A write under a paused owner says so.
     expect(screen.getByText(WIRE.writtenWhilePaused)).toBeInTheDocument();
     expect(screen.getByText(strings.topics.problems)).toBeInTheDocument();
     expect(screen.getAllByText(strings.topics.noCheck, { exact: false })).toHaveLength(2);
@@ -426,9 +438,11 @@ describe("Now", () => {
   const needs = (courier: Record<string, unknown>) => ({
     items: [
       { id: "AV4", title: "Choose how AV4 handles yt-dlp", commissionId: "c1" },
-      { id: "G1", title: "Global ask" },
+      { id: "GLOBAL1", title: "Global ask" },
       { id: "old", title: WIRE.answeredTitle, commissionId: "c1", answer: { text: "keep" } },
     ],
+    // The API's count: two still wait; the answered one is listed but not counted.
+    itemCount: 2,
     courier,
   });
 
@@ -442,7 +456,7 @@ describe("Now", () => {
     ...extra,
   });
 
-  it("answers what is moving first: status line, then what needs the operator, then supervisors with topics (rulings V5)", async () => {
+  it("answers what is moving first: status line, then what needs the operator, then supervisors with topics", async () => {
     const errors = vi.spyOn(console, "error");
     wire({
       [`${ACTIVITY}/GetOverview`]: {
@@ -450,11 +464,16 @@ describe("Now", () => {
         generatedAt: AT,
         stateCounts: [{ state: "COMMISSION_STATE_LIVE", count: 1 }, { state: "COMMISSION_STATE_PAUSED", count: 1 }],
         running: [commission, paused("c2")],
-        // One overlap per pair per topic, as the API sends it; c3 is history (not open now).
+        // One overlap per pair per topic, as the API sends it. Every pair ever includes c3's
+        // history; the open-now list is the API's own, and Now shows only that.
         overlaps: [
           { topic: "local-model-performance", commissionIds: ["c1", "c2"] },
           { topic: WIRE.otherTopic, commissionIds: ["c2", "c1"] },
           { topic: WIRE.otherTopic, commissionIds: ["c1", "c3"] },
+        ],
+        openOverlaps: [
+          { topic: "local-model-performance", commissionIds: ["c1", "c2"] },
+          { topic: WIRE.otherTopic, commissionIds: ["c2", "c1"] },
         ],
         lenses: [{ name: "agent-manager", available: false, reason: WIRE.lensReason }],
         unreadable: [{ source: `${HOME}/cohorts/c9/STATE.md`, reason: WIRE.unreadable }],
@@ -468,9 +487,9 @@ describe("Now", () => {
     const status = await screen.findByTestId(selectors.now.status);
     expect(within(status).getByText(strings.now.openSummary)).toBeInTheDocument();
     expect(await within(status).findByRole("link", { name: "newer" })).toHaveAttribute("href", "/topics/newer");
-    // Items link to commission plus ID, never the bare ID (V2).
+    // Items link to commission plus ID, never the bare ID.
     expect(await screen.findByRole("link", { name: /Choose how AV4 handles yt-dlp/ })).toHaveAttribute("href", "/needs-you#c1%2FAV4");
-    expect(screen.getByRole("link", { name: /Global ask/ })).toHaveAttribute("href", "/needs-you#global%2FG1");
+    expect(screen.getByRole("link", { name: /Global ask/ })).toHaveAttribute("href", "/needs-you#global%2FGLOBAL1");
     expect(screen.queryByText(WIRE.answeredTitle)).not.toBeInTheDocument();
     const needsYou = screen.getByRole("heading", { name: strings.now.needsYou });
     const live = await screen.findByRole("heading", { name: strings.now.liveTitle });
@@ -482,7 +501,7 @@ describe("Now", () => {
     expect(within(counts).getAllByRole("link").map((l) => l.getAttribute("href"))).toEqual(["/commissions?state=5", "/commissions?state=6"]);
     expect(screen.getByText(WIRE.lensReason)).toBeInTheDocument();
     expect(screen.getByText(WIRE.unreadable)).toBeInTheDocument();
-    // Only pairs of commissions open now, each once, with every topic they share.
+    // Only the pairs the API says are open now, each once, with every topic they share.
     const pairs = screen.getAllByRole("list", { name: strings.now.overlapPair });
     expect(pairs.map((pair) => within(pair).getAllByRole("link").map((l) => l.textContent))).toEqual([["c1", "c2"]]);
     expect(within(screen.getByRole("list", { name: strings.now.overlapTopics })).getAllByRole("link")).toHaveLength(2);
@@ -497,7 +516,7 @@ describe("Now", () => {
       [`${ACTIVITY}/GetOverview`]: {
         researchHome: HOME,
         stateCounts: [{ state: "COMMISSION_STATE_PAUSED", count: 2 }, { state: "COMMISSION_STATE_UNKNOWN", count: 18 }],
-        running: [paused("c1", { lastWrite: { value: AT, evidence: { known: true, reason: WIRE.atLeast } } }), paused("c2")],
+        running: [paused("c1", { lastWrite: { value: AT, atLeast: true, evidence: { known: true, reason: WIRE.atLeast } } }), paused("c2")],
       },
       [`${OPERATOR}/ListNeedsYou`]: { items: [], courier: { writer: true, globalOn: true, hubRead: true } },
     });
@@ -507,7 +526,7 @@ describe("Now", () => {
     expect(screen.getByRole("heading", { name: strings.now.pausedTitle })).toBeInTheDocument();
     expect(screen.getByText(strings.now.pausedNote)).toBeInTheDocument();
     expect(screen.getAllByText(strings.state.pastAllowance)).toHaveLength(2);
-    // A cut-short walk is a lower bound, said as such (F3).
+    // A cut-short walk is a lower bound, said as such.
     expect(screen.getAllByText(strings.common.atLeast, { exact: false })).toHaveLength(1);
     expect(screen.queryByText(strings.now.nothingOpen)).not.toBeInTheDocument();
   });
@@ -519,7 +538,7 @@ describe("Now", () => {
     expect(await screen.findByText(strings.now.nothingOpen)).toBeInTheDocument();
   });
 
-  it("shows what changed since the last look or a chosen period, and marks everything seen only after confirming (rulings V7)", async () => {
+  it("shows what changed since the last look or a chosen period, and marks everything seen only after confirming", async () => {
     const user = userEvent.setup();
     const recent = new Date(Date.now() - 3_600_000).toISOString();
     const calls = wire({
@@ -547,7 +566,7 @@ describe("Now", () => {
     expect(await screen.findByText(strings.now.caughtUpDone)).toBeInTheDocument();
   });
 
-  it("warns once, in one line, when items are open and nothing is delivered, linking to the switch (rulings V3)", async () => {
+  it("warns once, in one line, when items are open and nothing is delivered, linking to the switch", async () => {
     wire({ [`${OPERATOR}/ListNeedsYou`]: needs({ writer: true, globalOn: false, hubRead: false }) });
     render("/");
     expect(await screen.findAllByText(strings.delivery.allOff)).toHaveLength(1);
@@ -564,30 +583,36 @@ describe("Desk", () => {
         lenses: [
           { name: "research home", available: true, reason: HOME },
           { name: "web-console access", available: true, reason: WIRE.accessLens },
+          { name: "nh", available: false, reason: WIRE.scenarioLens },
         ],
       },
       [`${OPERATOR}/ListNeedsYou`]: { items: [], courier: { writer: false, writerReason: WIRE.writerReason } },
-      [`${LAUNCH}/GetLaunchOptions`]: { automaticAvailable: false, automaticReason: WIRE.automaticReason, webConsoleAccess: WIRE.access },
+      [`${LAUNCH}/GetLaunchOptions`]: { automaticAvailable: false, automaticReason: WIRE.automaticReason, webConsoleAccess: WIRE.access, webConsoleAccessKind: "WEB_CONSOLE_ACCESS_AVAILABILITY_POLICY" },
     });
     render("/desk");
     expect(await screen.findByText(strings.desk.unknownWhileDown)).toBeInTheDocument();
     expect(screen.queryByText(WIRE.startCommand)).not.toBeInTheDocument();
     expect(await screen.findByText(WIRE.writerReason)).toBeInTheDocument();
     expect(await screen.findByText(WIRE.automaticReason)).toBeInTheDocument();
-    // Web Console access in plain words, never the raw lens row (V8).
+    // Web Console access in plain words, never the raw lens row.
     expect(screen.getByText(strings.access.availability)).toBeInTheDocument();
     expect(screen.queryByText(WIRE.accessLens)).not.toBeInTheDocument();
     expect(screen.getByText(strings.desk.neverRun, { exact: false })).toBeInTheDocument();
+    // An optional scenario is listed once, not again among the sources.
+    expect(screen.queryByText(WIRE.scenarioLens)).not.toBeInTheDocument();
   });
 
   it("reads each scenario's health in plain words, and says when the probe itself fails", async () => {
     wire({
-      "/api/v1/capabilities/describe": { states: [{ id: "am", name: "Agent Manager", status: "healthy", uses: [{ id: "s", name: "sessions" }] }, { id: WIRE.bareCapability, status: "degraded" }, { id: "x", name: "Other", status: "starting" }] },
+      "/api/v1/capabilities/describe": { states: [{ id: "am", name: "Agent Manager", status: "available", uses: [{ id: "s", name: "sessions" }] }, { id: WIRE.bareCapability, status: "unknown" }, { id: "x", name: "Other", status: "unavailable" }] },
       [`${LAUNCH}/GetLaunchTest`]: { at: AT, failedStep: "goal_sent", failedReason: "composer busy" },
     });
     render("/desk");
     expect(await screen.findByText(strings.desk.usedFor)).toBeInTheDocument();
     expect(screen.getByText(WIRE.bareCapability)).toBeInTheDocument();
+    // Status codes read as words, never the code itself.
+    expect(screen.getByText(strings.desk.available)).toBeInTheDocument();
+    expect(screen.getByText(strings.desk.unavailable)).toBeInTheDocument();
     expect(await screen.findByText(strings.launch.failedAt, { exact: false })).toBeInTheDocument();
     cleanup();
     stubWire((path) => (path === "/api/v1/capabilities/describe" ? "{}" : path === `${LAUNCH}/GetLaunchTest` ? { running: true, at: AT } : {}));
@@ -597,7 +622,7 @@ describe("Desk", () => {
     expect(screen.getByRole("button", { name: strings.desk.runLaunchTest })).toBeDisabled();
   });
 
-  it("runs each self-test, launch and courier, only after confirming, and shows the courier off rather than green (rulings F15, V3)", async () => {
+  it("runs each self-test, launch and courier, only after confirming, and shows the courier off rather than green", async () => {
     const user = userEvent.setup();
     const calls = wire({
       [`${ACTIVITY}/GetOverview`]: { researchHome: HOME, lenses: [{ name: "courier", available: true, reason: WIRE.courierHealth }] },
@@ -655,6 +680,31 @@ describe("One review", () => {
     expect((await screen.findAllByRole("link", { name: /REVIEW\.html/ })).some((l) => l.getAttribute("target") === "_blank")).toBe(true);
     expect(await screen.findByRole("link", { name: "proposal" })).toHaveAttribute("href", "/files/reviews/r1/proposals/t-MISSION.md");
     expect(screen.getByText(strings.reviews.proposals)).toBeInTheDocument();
+  });
+
+  it("reports a VERDICTS.md heading it cannot read with its line, beside the verdicts it can", async () => {
+    wire({ [`${OPERATOR}/ListReviews`]: { reviews: [{ ...review, unparsedHeadings: [{ line: 12, text: WIRE.verdictHeading }] }] }, "/api/v1/home/reviews/r1/REVIEW.md": "# Review" });
+    render("/reviews/r1");
+    expect(await screen.findByText(WIRE.verdictHeading)).toBeInTheDocument();
+    expect(screen.getByText(strings.unreadable.headings)).toBeInTheDocument();
+    expect(screen.getByText(strings.unreadable.line)).toBeInTheDocument();
+    expect(screen.getByText(WIRE.verdict)).toBeInTheDocument();
+  });
+
+  it("says a review's topics are unknown when the API could not tell, and none only when it knows", async () => {
+    const unknown = { ...review, topics: [], verdicts: [], topicsEvidence: { known: false, reason: WIRE.topicsReason } };
+    wire({ [`${OPERATOR}/ListReviews`]: { reviews: [unknown] }, "/api/v1/home/reviews/r1/REVIEW.md": "# Review" });
+    render("/reviews/r1");
+    expect(await screen.findByText(strings.reviews.topicsUnknown)).toBeInTheDocument();
+    expect(screen.queryByText(strings.reviews.noTopics)).not.toBeInTheDocument();
+    cleanup();
+    wire({ [`${OPERATOR}/ListReviews`]: { reviews: [unknown] } });
+    render("/reviews");
+    expect(await screen.findByText(strings.reviews.summaryTopicsUnknown)).toBeInTheDocument();
+    cleanup();
+    wire({ [`${OPERATOR}/ListReviews`]: { reviews: [{ ...unknown, topicsEvidence: { known: true } }] }, "/api/v1/home/reviews/r1/REVIEW.md": "# Review" });
+    render("/reviews/r1");
+    expect(await screen.findByText(strings.reviews.noTopics)).toBeInTheDocument();
   });
 
   it("names a review that is not in the home", async () => {

@@ -19,20 +19,22 @@ the common contract and its implementation references.
 - `components/`: shared pieces: `QueryView` (loading, failed, stale, loaded), `Confirm`
   (every outward action, showing the exact text), `Fact` (a value with its evidence on
   tap, or `unknown` with the reason), `When`/`DerivedWhen` (relative time; "at least" when
-  the API's walk was cut short), `Unreadable` (files that exist but cannot be read, shown
-  as unknown rather than empty), `EntryField` (operator words with the 4,000-character
-  entry count), `CourierHealth` (the courier lens from the overview), `Markdown` (a small
-  local renderer; see `docs/reference/component-library-gaps.md`), `HtmlOpen` (review
+  the API marks the time `at_least`), `Unreadable` (files that exist but cannot be read, shown
+  as unknown rather than empty; `UnparsedHeadings` lists a heading the API could not parse
+  with its line), `EntryField` (operator words counted against the entry
+  limit the API sends with the page's data), `CourierHealth` (the courier lens from the overview), `Markdown` (a small
+  local renderer, with `InlineMarkdown` for one line such as a workstream title; see `docs/reference/component-library-gaps.md`), `HtmlOpen` (review
   HTML opened in its own tab, since the file route refuses framing), `WouldWrite` (the
   exact entry a write's dry run returns and when it is read; the UI never rebuilds the
   file grammar), `ResearchWrite` (a topic's last research write with its source and note),
-  `Changes` (what changed, worded by the API's baseline kind).
+  `Changes` (what changed, worded by the API's baseline kind), `RouteError` (a page that fails
+  to render shows its error inside the shell with the tabs still working; the router catches
+  render errors before the app-level `ErrorBoundary`).
 - `lib/`: pure helpers (`format`, `errorMessage`, `spec` for the launch form and its
   session-storage copy, `choices` for the blocker choices with the desk's recommendation
   selected, `paths`, `states` for state words, which states have a window open and which
-  packets launch as they are, `entry` for the entry limit, `needsYou` for item anchors,
-  `overlaps`, `topics` for the filter and sort, `period` for the Since periods, `words`
-  for dropping quoted commands from API prose, `useDebounced`).
+  packets launch as they are, `entry` for counting an entry against the API's limit, `needsYou` for row anchors, the waiting rows and their count by the API's row kind (item or older list),
+  `overlaps`, `topics` for the filter and sort, `period` for the Since periods, `useDebounced`).
 - `styles.css`: the `rd-*` document rules, built only from design tokens.
 
 Reads poll (30 s, 2 s while a launch runs) and keep the last good read on screen when a

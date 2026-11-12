@@ -41,7 +41,7 @@ describe("operator requests", () => {
     ]);
   });
 
-  it("asks each write for its exact text as a dry run, which the API never writes (rulings P5)", async () => {
+  it("asks each write for its exact text as a dry run, which the API never writes", async () => {
     const calls = stubWire();
     await operatorApi.answer("c1", "AV4", "keep", "", true);
     await operatorApi.addEntry("c1", EntryKind.DIRECTION, "Focus on IT6.", true);
@@ -86,7 +86,7 @@ describe("launch requests", () => {
     ]);
   });
 
-  it("carries one choice per blocking commission and the never-started assertion, never undecided ones (rulings P1, P2)", async () => {
+  it("carries one choice per blocking commission and the never-started assertion, never undecided ones", async () => {
     const calls = stubWire();
     await launchApi.launch("standing-teams-w1-20261110", {
       choices: { "programme-four-20261110": "supersede", "local-models-w1-20261111": "alongside", "research-night-20261031": "" },
@@ -107,7 +107,7 @@ describe("launch requests", () => {
     ]);
   });
 
-  it("builds with the operator's choices so the charter names them (rulings P2)", async () => {
+  it("builds with the operator's choices so the charter names them", async () => {
     const calls = stubWire();
     await launchApi.buildFromSpec("{}", { "programme-four-20261110": "supersede" });
     expect(calls).toEqual([{ path: `${LAUNCH}/Build`, body: { specJson: "{}", resolutions: [{ commissionId: "programme-four-20261110", choice: "RESOLUTION_SUPERSEDE" }] } }]);

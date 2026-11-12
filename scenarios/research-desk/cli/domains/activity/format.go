@@ -66,8 +66,8 @@ func (h *handlers) nowReport(_ cliapp.OperationContext, msg *activityv1.GetOverv
 	for _, c := range msg.Running {
 		report.Results = append(report.Results, commissionLine(c), "    "+c.StateRule+" · claim: "+render.Text(c.Claim))
 	}
-	for _, o := range msg.Overlaps {
-		report.Results = append(report.Results, fmt.Sprintf("overlap on %s: %s", o.Topic, strings.Join(o.CommissionIds, ", ")))
+	for _, o := range msg.OpenOverlaps {
+		report.Results = append(report.Results, fmt.Sprintf("open on the same topic now, %s: %s", o.Topic, strings.Join(o.CommissionIds, ", ")))
 	}
 	report.Results = append(report.Results, render.Unreadable(msg.Unreadable)...)
 	for _, lens := range msg.Lenses {
@@ -76,6 +76,8 @@ func (h *handlers) nowReport(_ cliapp.OperationContext, msg *activityv1.GetOverv
 			report.Summary = append(report.Summary, lens.Reason)
 		case lens.Name == "courier":
 			report.Summary = append(report.Summary, "Courier: "+lens.Reason)
+		case !lens.Available && lens.Command != "":
+			report.Results = append(report.Results, fmt.Sprintf("lens %s unavailable: %s (next: %s)", lens.Name, lens.Reason, lens.Command))
 		case !lens.Available:
 			report.Results = append(report.Results, fmt.Sprintf("lens %s unavailable: %s", lens.Name, lens.Reason))
 		}
@@ -151,13 +153,13 @@ func (h *handlers) commissionReport(_ cliapp.OperationContext, msg *activityv1.G
 			lines = append(lines, "  flag:         "+flag)
 		}
 	}
-	lines = append(lines, "steering:       "+render.Flag(msg.Steering, "the charter tells the scheduler to read OPERATOR.md", "not enabled; direction will not be seen until `enable-steering "+c.Id+"`"))
+	lines = append(lines, "steering:       "+render.Flag(msg.Steering, "the charter tells the scheduler to read OPERATOR.md", "not enabled; direction will not be read until `enable-steering "+c.Id+"`"))
 	lines = append(lines, "decisions:      "+render.Flag(msg.Decisions, "the charter leaves delivery to the desk", "its scheduler delivers needs-you items itself; the courier waits two hours for `Delivered:`"))
 	for _, e := range msg.OperatorEntries {
 		lines = append(lines, "operator:       "+render.Entry(e))
 	}
-	if msg.OperatorUnparsed > 0 {
-		lines = append(lines, fmt.Sprintf("operator:       %d `### ` line(s) in OPERATOR.md do not match the entry grammar", msg.OperatorUnparsed))
+	for _, u := range msg.OperatorUnparsedHeadings {
+		lines = append(lines, fmt.Sprintf("operator:       OPERATOR.md line %d is not an entry heading, so its entry is not shown: %s", u.Line, u.Text))
 	}
 	for _, e := range msg.RecordErrors {
 		lines = append(lines, "record error:   "+e)
@@ -216,6 +218,10 @@ func (h *handlers) changesReport(_ cliapp.OperationContext, msg *activityv1.GetC
 		if l.Truncated {
 			cut = " (cut at 16 KiB)"
 		}
+		if l.FromDatedHeadings {
+			report.Results = append(report.Results, fmt.Sprintf("ledger %s: %d bytes under headings dated after then%s", l.Path, len(l.Text), cut))
+			continue
+		}
 		report.Results = append(report.Results, fmt.Sprintf("ledger %s: %d new bytes%s", l.Path, len(l.Text), cut))
 	}
 	for _, line := range msg.ShowcaseLines {
@@ -232,11 +238,14 @@ func (h *handlers) changesReport(_ cliapp.OperationContext, msg *activityv1.GetC
 	if msg.Truncated {
 		report.Results = append(report.Results, "the file walk stopped at its cap; more files may have changed")
 	}
+	for _, n := range msg.NotShown {
+		report.Results = append(report.Results, "not shown: "+n)
+	}
 	return report
 }
 
 // researchWrite says when a topic's run folders were last written, by which
-// commission, and what that means when it is paused or ended (rulings P8).
+// commission, and what that means when it is paused or ended.
 func researchWrite(w *activityv1.ResearchWrite) string {
 	at := w.GetAt()
 	if !at.GetEvidence().GetKnown() {

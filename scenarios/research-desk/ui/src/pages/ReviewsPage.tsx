@@ -2,14 +2,14 @@ import { EmptyState } from "@vrooli/react-component-library/EmptyState/1";
 import { PageHeader } from "@vrooli/react-component-library/PageHeader/2";
 import { Link } from "react-router-dom";
 
-import { useReviews } from "../api/operator";
+import { topicsUnknown, useReviews } from "../api/operator";
 import { QueryView } from "../components/QueryView";
 import { Unreadable } from "../components/Unreadable";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 
-/** Review sessions written by the research-review skill (G7). */
+/** Review sessions written by the research-review skill. */
 export function ReviewsPage() {
   const { t } = useTranslation();
   const query = useReviews();
@@ -31,7 +31,9 @@ export function ReviewsPage() {
                       <span className="rd-id block">{r.id}</span>
                     </Link>
                     <span className="text-body-sm text-app-muted-foreground">
-                      {t(strings.reviews.summary, { topics: r.topics.length, verdicts: r.verdicts.length })}
+                      {topicsUnknown(r)
+                        ? t(strings.reviews.summaryTopicsUnknown, { verdicts: r.verdicts.length })
+                        : t(strings.reviews.summary, { topics: r.topics.length, verdicts: r.verdicts.length })}
                     </span>
                   </li>
                 ))}

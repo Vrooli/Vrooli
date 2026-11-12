@@ -250,11 +250,11 @@
           "validation": {
             "requiredHeadings": [
               "1. Shape",
-              "2. Domains and surface",
+              "2. Surface",
               "4. Commission state",
-              "6. Control (G12)",
-              "8. What changed since I last looked (G13)",
-              "12. Proofs on the real home"
+              "6. Control",
+              "8. Since last look",
+              "11. Proofs and scope"
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
@@ -262,6 +262,34 @@
             "requiredLinks": [
               "../reference/FILE-CONTRACT.md",
               "../DECISIONS.md"
+            ]
+          }
+        },
+        {
+          "path": "concepts/METHOD.md",
+          "docType": "concept",
+          "title": "Why Supervised Research Works",
+          "aliases": [
+            "method",
+            "supervised-research"
+          ],
+          "description": "The research method the desk serves: why it works, where it breaks, and the rules that keep a change from weakening it",
+          "audience": [
+            "developers",
+            "agents",
+            "operators"
+          ],
+          "canonicalFor": [
+            "research-method"
+          ],
+          "maturity": "draft",
+          "completion": "optional",
+          "validation": {
+            "forbiddenPlaceholders": [
+              "[TODO]"
+            ],
+            "requiredLinks": [
+              "SYSTEM.md"
             ]
           }
         },
@@ -506,44 +534,6 @@
             ],
             "forbiddenPlaceholders": [
               "[TODO]"
-            ]
-          }
-        },
-        {
-          "path": "guides/skills-move.md",
-          "docType": "skills-guide",
-          "title": "Skills Move",
-          "aliases": [
-            "skills-move",
-            "skills"
-          ],
-          "description": "Executable plan for the skills owner: ceilings, move with compatibility links, new material, decision-delivery change, Program Runtime verdicts, link repair, no-growth test",
-          "audience": [
-            "developers",
-            "agents"
-          ],
-          "canonicalFor": [
-            "skills-move",
-            "skill-ownership"
-          ],
-          "maturity": "draft",
-          "requiredBy": [
-            "oriented",
-            "implemented"
-          ],
-          "completion": "required",
-          "validation": {
-            "requiredHeadings": [
-              "0. Record the ceilings first",
-              "1. Move each skill (one at a time)",
-              "4. Program Runtime programs (C8)",
-              "6. No-growth test (B5)"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
-            ],
-            "requiredLinks": [
-              "../reference/FILE-CONTRACT.md"
             ]
           }
         }
@@ -971,42 +961,6 @@
           }
         },
         {
-          "path": "internal/DECISIONS.md",
-          "docType": "decisions",
-          "title": "Decisions",
-          "aliases": [
-            "decision-log",
-            "adr",
-            "tradeoffs"
-          ],
-          "description": "Durable decisions and tradeoffs future agents should not accidentally relitigate",
-          "audience": [
-            "developers",
-            "agents"
-          ],
-          "canonicalFor": [
-            "decision-log",
-            "tradeoffs"
-          ],
-          "maturity": "not-applicable",
-          "requiredBy": [
-            "generated",
-            "implemented"
-          ],
-          "completion": "required",
-          "validation": {
-            "requiredHeadings": [
-              "Purpose Of This Document",
-              "Decision Log",
-              "Superseded Decisions",
-              "Cross-References"
-            ],
-            "forbiddenPlaceholders": [
-              "[TODO]"
-            ]
-          }
-        },
-        {
           "path": "internal/PROBLEMS.md",
           "docType": "problems",
           "title": "Problems",
@@ -1118,9 +1072,14 @@
         },
         {
           "path": "DECISIONS.md",
-          "docType": "design-decisions",
-          "title": "Design Decisions",
-          "aliases": [],
+          "docType": "decisions",
+          "title": "Decisions",
+          "aliases": [
+            "decision-log",
+            "adr",
+            "tradeoffs",
+            "design-decisions"
+          ],
           "description": "Each design choice with alternatives, reasons and cost to switch",
           "audience": [
             "developers",
@@ -1128,7 +1087,9 @@
             "operators"
           ],
           "canonicalFor": [
-            "decisions"
+            "decisions",
+            "decision-log",
+            "tradeoffs"
           ],
           "maturity": "draft",
           "requiredBy": [
@@ -1137,9 +1098,6 @@
           ],
           "completion": "required",
           "validation": {
-            "requiredHeadings": [
-              "Rulings not followed as written"
-            ],
             "forbiddenPlaceholders": [
               "[TODO]"
             ]

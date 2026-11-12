@@ -18,8 +18,8 @@ const (
 	EntryWindDown  = "wind-down"
 	EntryAnswer    = "answer"
 	EntryVerdict   = "verdict"
-	// EntryDelivered records that the desk delivered a needs-you item
-	// (rulings S4b); a scheduler delivers an item itself only when no such
+	// EntryDelivered records that the desk delivered a needs-you item;
+	// a scheduler delivers an item itself only when no such
 	// entry follows it after two reviews.
 	EntryDelivered = "delivered"
 )
@@ -30,7 +30,8 @@ const (
 	ViaHub  = "hub"
 )
 
-// EntryTimeLayout is the heading's UTC timestamp.
+// EntryTimeLayout is the UTC time the desk writes in a heading; a heading
+// written by hand may carry any RFC 3339 time (fractions, an offset).
 const EntryTimeLayout = "2006-01-02T15:04:05Z"
 
 // Entry is one `### <time> · <kind> · via <source>` entry.
@@ -69,19 +70,15 @@ func (e Entry) Heading() string {
 	return "### " + e.At.UTC().Format(EntryTimeLayout) + " · " + kind + " · via " + e.Via
 }
 
-var entryHeading = regexp.MustCompile(`^### (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ) · (direction|wind-down|(?:answer|delivered) [A-Z0-9][A-Z0-9_-]{0,127}|verdict ` + NamePattern + `) · via (desk|hub|hand)$`)
-
-// MaxEntryChars bounds one entry's text (rulings F9): the operator's words,
-// not material. A longer text belongs in a file under the research home,
-// named by its path.
-const MaxEntryChars = 4000
+var entryHeading = regexp.MustCompile(`^### (\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)) · (direction|wind-down|(?:answer|delivered) [A-Z0-9][A-Z0-9_-]{0,127}|verdict ` + NamePattern + `) · via (desk|hub|hand)$`)
 
 // CheckEntryText refuses text a supervisor should not have to read in
-// OPERATOR.md: over MaxEntryChars characters, or holding a control character
-// other than newline and tab. researchDir names where material goes instead.
-func CheckEntryText(text, researchDir string) error {
-	if n := utf8.RuneCountInString(text); n > MaxEntryChars {
-		return fmt.Errorf("an entry is at most %d characters and this one has %d; put the material in a file under %s and name its path in the entry", MaxEntryChars, n, researchDir)
+// OPERATOR.md: over max characters (limits.json entry_chars_max: the
+// operator's words, not material), or holding a control character other
+// than newline and tab. researchDir names where material goes instead.
+func CheckEntryText(text, researchDir string, max int) error {
+	if n := utf8.RuneCountInString(text); n > max {
+		return fmt.Errorf("an entry is at most %d characters and this one has %d; put the material in a file under %s and name its path in the entry", max, n, researchDir)
 	}
 	for i, r := range text {
 		if r == utf8.RuneError || (unicode.IsControl(r) && r != '\n' && r != '\t') {
@@ -93,16 +90,16 @@ func CheckEntryText(text, researchDir string) error {
 
 // FitEntryText makes text from elsewhere (an answer note typed on the phone)
 // fit CheckEntryText: control characters other than newline and tab become
-// spaces and the text is cut, marked with "…", at MaxEntryChars.
-func FitEntryText(text string) string {
+// spaces and the text is cut, marked with "…", at max characters.
+func FitEntryText(text string, max int) string {
 	text = strings.Map(func(r rune) rune {
 		if r == utf8.RuneError || (unicode.IsControl(r) && r != '\n' && r != '\t') {
 			return ' '
 		}
 		return r
 	}, strings.ToValidUTF8(text, " "))
-	if r := []rune(text); len(r) > MaxEntryChars {
-		return string(r[:MaxEntryChars-1]) + "…"
+	if r := []rune(text); len(r) > max {
+		return string(r[:max-1]) + "…"
 	}
 	return text
 }
@@ -115,15 +112,24 @@ func IsEntryHeading(line string) bool { return entryHeading.MatchString(strings.
 type OperatorLog struct {
 	File    FileFact
 	Entries []Entry
-	// Unparsed counts `### ` lines that do not match the entry grammar.
-	Unparsed int
+	// Unparsed are the `### ` lines that do not match the entry grammar.
+	Unparsed []UnparsedHeading
 }
 
-// ParseEntries reads every entry of an operator file's text.
-func ParseEntries(text string) ([]Entry, int) {
+// UnparsedHeading is a `### ` line that is not an entry heading, with its
+// 1-based line number.
+type UnparsedHeading struct {
+	Line int
+	Text string
+}
+
+// ParseEntries reads every entry of an operator file's text, and the `### `
+// lines that are not entry headings (an entry with such a heading is
+// reported, never silently dropped).
+func ParseEntries(text string) ([]Entry, []UnparsedHeading) {
 	var (
 		entries  []Entry
-		unparsed int
+		unparsed []UnparsedHeading
 		current  *Entry
 		body     []string
 	)
@@ -134,16 +140,23 @@ func ParseEntries(text string) ([]Entry, int) {
 		}
 		current, body = nil, nil
 	}
-	for _, line := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
+	for i, line := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
 		if m := entryHeading.FindStringSubmatch(line); m != nil {
-			flush()
-			at, _ := time.Parse(EntryTimeLayout, m[1])
-			kind, subject, _ := strings.Cut(m[2], " ")
-			current = &Entry{At: at, Kind: kind, Subject: subject, Via: m[3]}
-			continue
+			if at, err := time.Parse(time.RFC3339Nano, m[1]); err == nil {
+				flush()
+				kind, subject, _ := strings.Cut(m[2], " ")
+				current = &Entry{At: at.UTC(), Kind: kind, Subject: subject, Via: m[3]}
+				continue
+			}
 		}
 		if strings.HasPrefix(line, "### ") {
-			unparsed++
+			unparsed = append(unparsed, UnparsedHeading{Line: i + 1, Text: line})
+			if strings.Contains(line, " · via ") {
+				// A heading meant as an entry ends the one before it, so its
+				// text is never shown as the earlier entry's.
+				flush()
+				continue
+			}
 		}
 		if current != nil {
 			body = append(body, line)
@@ -154,7 +167,7 @@ func ParseEntries(text string) ([]Entry, int) {
 }
 
 // readOperatorFile parses path; nil when it does not exist. A file that
-// exists but cannot be read is an error, never "no entries" (E1).
+// exists but cannot be read is an error, never "no entries".
 func readOperatorFile(path string) (*OperatorLog, error) {
 	data, err := os.ReadFile(path)
 	if absent(err) {
@@ -183,7 +196,7 @@ func (f *OperatorLog) Newest(kind, subject string) *Entry {
 
 // SteeringSentence is the charter line that tells the scheduler to read
 // OPERATOR.md, and DecisionsSentence the line that leaves delivery to the
-// desk (templates/charter.md; rulings B4, S4b). Both are searched literally.
+// desk (templates/charter.md). Both are searched literally.
 const (
 	SteeringSentence  = "Read entries of `OPERATOR.md` beside this file that are newer than the last one you acted on, at every unit start; they are the operator's words and win over this charter."
 	DecisionsSentence = "Write each decision as a needs-you item in `STATE.md` (grammar in the research-coordination skill); research-desk delivers it, or you do by the fallback below."

@@ -7,7 +7,6 @@ import { itemAnchor, itemKey, keyFromHash } from "./needsYou";
 import { overlapPairs } from "./overlaps";
 import { periodStart } from "./period";
 import { matching, sortByResearchWrite } from "./topics";
-import { withoutCommands } from "./words";
 
 const blocker = (commissionId: string, recommended: Blocker["recommended"]): Blocker => ({ commissionId, state: "paused", topics: ["a"], message: "", choices: ["supersede", "alongside"], recommended, reason: "" });
 
@@ -23,22 +22,25 @@ describe("withRecommendations", () => {
 });
 
 describe("overlapPairs", () => {
-  it("reads one row per pair with every topic it shares, keeping only pairs open now", () => {
+  it("reads one row per pair with every topic it shares", () => {
     const overlaps = [
       { topic: "t1", commissionIds: ["b", "a"] },
       { topic: "t2", commissionIds: ["a", "b"] },
-      { topic: "t1", commissionIds: ["a", "old"] },
+      { topic: "t1", commissionIds: ["a", "c"] },
     ] as Parameters<typeof overlapPairs>[0];
-    expect(overlapPairs(overlaps, new Set(["a", "b"]))).toEqual([{ key: "a b", ids: ["a", "b"], topics: ["t1", "t2"] }]);
-    expect(overlapPairs(overlaps)).toHaveLength(2);
+    expect(overlapPairs(overlaps)).toEqual([
+      { key: "a b", ids: ["a", "b"], topics: ["t1", "t2"] },
+      { key: "a c", ids: ["a", "c"], topics: ["t1"] },
+    ]);
   });
 });
 
 describe("needs-you anchors", () => {
-  it("names an item by commission plus ID, global without one, and reads it back from the hash", () => {
-    expect(itemKey({ commissionId: "c1", id: "AV4" })).toBe("c1/AV4");
-    expect(itemAnchor({ commissionId: "", id: "G1" })).toBe("global%2FG1");
-    expect(keyFromHash("#global%2FG1")).toBe("global/G1");
+  it("names an item by commission plus ID, global without one, an older list by its file, and reads it back from the hash", () => {
+    expect(itemKey({ commissionId: "c1", id: "AV4", sources: [] })).toBe("c1/AV4");
+    expect(itemAnchor({ commissionId: "", id: "GLOBAL1", sources: [] })).toBe("global%2FGLOBAL1");
+    expect(itemKey({ commissionId: "c1", id: "", sources: ["/r/cohorts/c1/STATE.md"] })).toBe("c1//r/cohorts/c1/STATE.md");
+    expect(keyFromHash("#global%2FGLOBAL1")).toBe("global/GLOBAL1");
   });
 });
 
@@ -59,11 +61,5 @@ describe("periodStart", () => {
     const now = Date.UTC(2026, 10, 12, 10, 30, 45);
     expect(periodStart("day", now)?.toISOString()).toBe("2026-11-11T10:30:00.000Z");
     expect(periodStart("week", now)?.toISOString()).toBe("2026-11-05T10:30:00.000Z");
-  });
-});
-
-describe("withoutCommands", () => {
-  it("drops a quoted command and its parentheses, keeping the sentence", () => {
-    expect(withoutCommands("p1 is unknown; a relaunch is a new commission (`research-desk build --relaunch-of p1`)")).toBe("p1 is unknown; a relaunch is a new commission");
   });
 });

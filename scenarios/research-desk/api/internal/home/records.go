@@ -43,13 +43,13 @@ type LaunchRecord struct {
 	Discarded        *Discard       `json:"discarded"`
 	Controls         []ControlEntry `json:"controls"`
 	// Supersedes are the commissions this launch stopped and replaced, by the
-	// operator's choice (rulings P2); RunAlongside those it runs beside.
+	// operator's choice; RunAlongside those it runs beside.
 	Supersedes   []string `json:"supersedes,omitempty"`
 	RunAlongside []string `json:"run_alongside,omitempty"`
 	// SupersededBy is set on a commission a later launch replaced.
 	SupersededBy string `json:"superseded_by,omitempty"`
 	// NeverStarted is the operator's assertion that this commission, which
-	// the desk could not prove unstarted, never started (rulings P1).
+	// the desk could not prove unstarted, never started.
 	NeverStarted *Assertion `json:"never_started,omitempty"`
 }
 
@@ -82,6 +82,9 @@ type Discard struct {
 type ControlEntry struct {
 	Action string    `json:"action"`
 	At     time.Time `json:"at"`
+	// Outcome says what a stop or supersede found and left: "window
+	// stopped" or "no window found", and whether anything still runs.
+	Outcome string `json:"outcome,omitempty"`
 }
 
 // PacketRecord is PACKET.json, written by packet.py build.

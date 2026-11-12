@@ -29,10 +29,10 @@ const THEME_LABEL = {
 } as const satisfies Record<ThemeChoice, string>;
 
 /**
- * The desk itself (I5): which optional scenarios it can reach, what reads
+ * The desk itself: which optional scenarios it can reach, what reads
  * `unknown` because one is down, where it reads from, how it starts sessions
- * and delivers decisions, in plain words (rulings V8), and the two self-tests,
- * launch and courier, each one confirmed action (F15). Appearance lives here
+ * and delivers decisions, in plain words, and the two self-tests,
+ * launch and courier, each one confirmed action. Appearance lives here
  * too.
  */
 export function DeskPage() {
@@ -59,11 +59,22 @@ export function DeskPage() {
   );
 }
 
-function tone(status: string): "success" | "warning" | "danger" | "neutral" {
-  if (status === "available" || status === "ok" || status === "healthy") return "success";
-  if (status === "degraded" || status === "unknown") return "warning";
-  if (status === "unavailable" || status === "down" || status === "error") return "danger";
-  return "neutral";
+/** The capability registry's three status codes, each as a word and a tone. */
+const STATUS = {
+  available: { word: strings.desk.available, tone: "success" },
+  unavailable: { word: strings.desk.unavailable, tone: "danger" },
+  unknown: { word: strings.common.unknown, tone: "warning" },
+} as const;
+
+function statusOf(code: string) {
+  switch (code) {
+    case "available":
+      return STATUS.available;
+    case "unavailable":
+      return STATUS.unavailable;
+    default:
+      return STATUS.unknown;
+  }
 }
 
 function Capabilities() {
@@ -86,12 +97,13 @@ function Capabilities() {
 
 function CapabilityRow({ capability: c }: { capability: Capability }) {
   const { t } = useTranslation();
-  const ok = tone(c.status) === "success";
+  const status = statusOf(c.status);
+  const ok = status.tone === "success";
   return (
     <li className="rd-row">
       <span className="flex flex-wrap items-center justify-between gap-space-xs">
         <span className="font-semibold">{c.name || c.id}</span>
-        <StatusBadge tone={tone(c.status)}>{c.status}</StatusBadge>
+        <StatusBadge tone={status.tone}>{t(status.word)}</StatusBadge>
       </span>
       {c.message ? <span className="text-body-sm">{c.message}</span> : null}
       {c.uses && c.uses.length > 0 ? (
@@ -104,20 +116,23 @@ function CapabilityRow({ capability: c }: { capability: Capability }) {
 }
 
 /**
- * Where the desk reads from, then how it reaches the world outside the home:
+ * Where the desk reads from (files and processes; the optional scenarios are
+ * listed above), then how it reaches the world outside the home:
  * starting sessions in Web Console and delivering decisions, each in plain
  * words rather than a raw lens row.
  */
 function Sources() {
   const { t } = useTranslation();
   const overview = useOverview();
+  // An optional scenario is shown once, under Optional scenarios, not again as a source.
+  const scenarios = new Set((useCapabilities().data ?? []).map((c) => c.id));
   return (
     <Section id="sources" title={t(strings.desk.sources)}>
       <QueryView query={overview}>
         {(o) => (
           <ul className="rd-rows">
             {o.lenses
-              .filter((lens) => lens.name !== LENS.courier && lens.name !== LENS.webConsoleAccess)
+              .filter((lens) => lens.name !== LENS.courier && lens.name !== LENS.webConsoleAccess && !scenarios.has(lens.name))
               .map((lens) => (
                 <li key={lens.name} className="rd-row">
                   <span className="flex flex-wrap items-center justify-between gap-space-xs">
@@ -136,7 +151,7 @@ function Sources() {
   );
 }
 
-/** How the desk starts sessions in Web Console, and whether it can (rulings F14, V8). */
+/** How the desk starts sessions in Web Console, and whether it can. */
 function StartingSessions() {
   const { t } = useTranslation();
   const options = useLaunchOptions();
@@ -149,7 +164,7 @@ function StartingSessions() {
           <span className="font-semibold">{t(strings.desk.automatic)}</span>
           <StatusBadge tone={o.automaticAvailable ? "success" : "neutral"}>{t(o.automaticAvailable ? strings.desk.automaticOn : strings.desk.automaticOff)}</StatusBadge>
         </span>
-        <AccessWords said={o.webConsoleAccess} />
+        <AccessWords kind={o.webConsoleAccessKind} said={o.webConsoleAccess} />
         {!o.automaticAvailable && o.automaticReason ? <span className="text-body-sm">{o.automaticReason}</span> : null}
       </div>
     </div>
@@ -178,7 +193,7 @@ function Delivery() {
 
 /**
  * The two self-tests, beside each other: each touches real services, never
- * runs on its own, and starts only after its confirmation (rulings F15).
+ * runs on its own, and starts only after its confirmation.
  */
 function Tests() {
   const { t } = useTranslation();

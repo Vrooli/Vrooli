@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
@@ -13,8 +14,10 @@ import (
 	"github.com/vrooli/cli-core/cliapp"
 	"github.com/vrooli/cli-core/cliapptest"
 
+	activityv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/activity"
 	launchv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/launch"
 	launchconnect "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/launch/launch_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared"
 )
 
 func TestManifestCoversLaunchService(t *testing.T) {
@@ -91,9 +94,18 @@ func TestPreflightSendsAFileAsASpecAndAWordAsACommission(t *testing.T) {
 	require.True(t, svc.preflight.AssertNeverStarted)
 	require.Len(t, svc.preflight.Resolutions, 1)
 	require.Equal(t, launchv1.Resolution_RESOLUTION_RUN_ALONGSIDE, svc.preflight.Resolutions[0].Choice)
+
+	// --spec-file is the named form of a spec, as program callers send it.
+	_, err = cliapptest.RunCommand(t, cmd, core, "--spec-file", spec)
+	require.NoError(t, err)
+	require.Equal(t, `{"topics":["niche-book-production"]}`, svc.preflight.GetSpecJson())
+	_, err = cliapptest.RunCommand(t, cmd, core, "local-models-w1-20261111", "--spec-file", spec)
+	require.ErrorContains(t, err, "not both")
+	_, err = cliapptest.RunCommand(t, cmd, core)
+	require.ErrorContains(t, err, "give a prepared commission")
 }
 
-// P1, P2: the launch request carries each blocker's choice and the
+// The launch request carries each blocker's choice and the
 // operator's assertion.
 func TestLaunchCarriesChoicesAndTheAssertion(t *testing.T) {
 	svc := &service{}
@@ -138,4 +150,29 @@ func TestControlWordsAndWindDown(t *testing.T) {
 
 	_, err = cliapptest.RunCommand(t, cmd, core, "programme-four-20261110", "wind-down")
 	require.ErrorContains(t, err, "say <commission-id> wind-down")
+}
+
+func TestAutomaticLaunchLineFollowsTheAccessKind(t *testing.T) {
+	line := func(kind activityv1.WebConsoleAccess) string {
+		r := optionsReport(nil, &launchv1.GetLaunchOptionsResponse{AutomaticAvailable: true, WebConsoleAccessKind: kind})
+		return r.Summary[0]
+	}
+	require.Contains(t, line(activityv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_SERVICE_CREDENTIAL), "service credential")
+	policy := line(activityv1.WebConsoleAccess_WEB_CONSOLE_ACCESS_AVAILABILITY_POLICY)
+	require.Contains(t, policy, "having no credential")
+	require.NotContains(t, policy, "with a credential")
+	off := optionsReport(nil, &launchv1.GetLaunchOptionsResponse{AutomaticReason: "Web Console is not running"})
+	require.Equal(t, "Automatic launch unavailable: Web Console is not running.", off.Summary[0])
+}
+
+func TestPreflightPrintsOwnerReadingAndThePacketsOwnState(t *testing.T) {
+	r := preflightReport(nil, &launchv1.PreflightResponse{
+		Launchable:   true,
+		OwnerReading: []*sharedv1.ReadSet{{Role: "owner-start:ai-video", Bytes: 92000, EstimatedTokens: 23000, Flags: []string{"the ai-video mission is 71041 bytes; the next architect pass tidies the mission"}}},
+		PacketState:  &launchv1.StateExcerpt{Path: "/r/cohorts/x/STATE.md", Text: "# State\nDo not start yet.\n", Truncated: true},
+	})
+	out := strings.Join(r.Results, "\n")
+	for _, want := range []string{"owner-start:ai-video reads 92000 bytes", "flag: the ai-video mission", "/r/cohorts/x/STATE.md (start only), verbatim:", "    | Do not start yet."} {
+		require.Contains(t, out, want)
+	}
 }

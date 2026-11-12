@@ -29,7 +29,7 @@ const LINE: Partial<Record<Baseline, Line>> = {
 
 /**
  * One line for a list row: "4 changes since you looked 3 hours ago", or,
- * with no look recorded, the last 24 hours, saying so (rulings P7). With
+ * with no look recorded, the last 24 hours, saying so. With
  * `quiet`, a subject with nothing new renders nothing.
  */
 export function ChangesLine({ subject, id, since, quiet }: { subject: ChangeSubject; id: string; since?: Date; quiet?: boolean }) {
@@ -55,8 +55,9 @@ function localInput(date: Date): string {
 
 /**
  * What changed since the operator last looked, or since a time they pick
- * (SYSTEM.md §8, rulings F10): new ledger text, changed checkpoints,
- * workstream status changes and touched files. Reading never records a look;
+ * (SYSTEM.md §8): new ledger text, changed checkpoints,
+ * workstream status changes and touched files, and in the API's words what it
+ * cannot show (status changes need a recorded look). Reading never records a look;
  * "Mark as seen" does, in the desk's own state folder.
  */
 export function ChangesPanel({ subject, id }: { subject: ChangeSubject; id: string }) {
@@ -123,6 +124,9 @@ export function ChangesPanel({ subject, id }: { subject: ChangeSubject; id: stri
               </div>
               <ActionError error={error} />
               <Unreadable evidence={c.unreadable} />
+              {c.notShown.length > 0 ? (
+                <ul className="rd-list text-body-sm text-app-muted-foreground">{c.notShown.map((line) => <li key={line}>{line}</li>)}</ul>
+              ) : null}
               {from && changeCount(c) === 0 && c.unreadable.length === 0 ? <p className="text-body-sm">{t(strings.changes.nothing)}</p> : null}
               {c.statusChanges.length > 0 ? (
                 <div>
@@ -146,6 +150,7 @@ export function ChangesPanel({ subject, id }: { subject: ChangeSubject; id: stri
                 <div key={entry.path}>
                   <h3 className="rd-h3">{t(strings.changes.ledger)}</h3>
                   <PathText path={entry.path} />
+                  {entry.fromDatedHeadings ? <p className="text-caption text-app-muted-foreground">{t(strings.changes.fromDatedHeadings)}</p> : null}
                   <Markdown content={entry.text} className="rd-quote" />
                   {entry.truncated ? <p className="text-caption text-app-muted-foreground">{t(strings.changes.truncatedText)}</p> : null}
                 </div>

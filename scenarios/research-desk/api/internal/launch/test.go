@@ -47,7 +47,7 @@ const (
 // TestLaunch starts the whole launch path on one throwaway session in the
 // background, then pauses, resumes and stops it; LatestTest reads the
 // outcome. The session row stays, labelled as a test.
-func (s *Service) TestLaunch(context.Context) (TestReport, error) {
+func (s *Service) TestLaunch(ctx context.Context) (TestReport, error) {
 	if err := s.Writer.Held(); err != nil {
 		return TestReport{}, err
 	}
@@ -66,9 +66,11 @@ func (s *Service) TestLaunch(context.Context) (TestReport, error) {
 	}
 	first := t.report
 	first.Running = true
+	// The test outlives the request that started it; GetLaunchTest reads it.
+	background := context.WithoutCancel(ctx)
 	go func() {
 		defer s.release(testClaim)
-		t.run(context.Background(), Settings{Model: limits.Defaults.SupervisorModel, Effort: limits.Defaults.SupervisorEffort})
+		t.run(background, Settings{Model: limits.Defaults.SupervisorModel, Effort: limits.Defaults.SupervisorEffort})
 	}()
 	return first, nil
 }
@@ -145,7 +147,8 @@ func (t *tester) run(ctx context.Context, settings Settings) {
 		if report.SessionID != "" {
 			// The window may hold a half-typed message: end the session's
 			// processes without typing.
-			report.Stopped = s.Launcher.Stop(ctx, target, false) == nil
+			_, serr := s.Launcher.Stop(ctx, target, false)
+			report.Stopped = serr == nil
 		}
 		t.fail(failure(err))
 		return
@@ -176,7 +179,7 @@ func (t *tester) run(ctx context.Context, settings Settings) {
 		t.fail(ActStop, err.Error())
 		return
 	}
-	if err := s.Launcher.Stop(ctx, target, true); err != nil {
+	if _, err := s.Launcher.Stop(ctx, target, true); err != nil {
 		t.fail(ActStop, err.Error())
 		return
 	}
@@ -185,7 +188,7 @@ func (t *tester) run(ctx context.Context, settings Settings) {
 }
 
 // known is a goal status for the report: an unreadable one is "unknown"
-// with the reason, never blank (rulings E1).
+// with the reason, never blank.
 func known(status string, err error) string {
 	if err != nil {
 		return "unknown: " + err.Error()

@@ -1,4 +1,4 @@
-/** The periods "What changed" offers (rulings V7): since the last look, or a fixed span. */
+/** The periods "What changed" offers: since the last look, or a fixed span. */
 export const PERIODS = ["look", "day", "week"] as const;
 export type Period = (typeof PERIODS)[number];
 

@@ -9,7 +9,7 @@ import { Link, useParams } from "react-router-dom";
 import { useTopics } from "../api/activity";
 import { apiPathUrl } from "../api/client";
 import { useHomeText } from "../api/desk";
-import { operatorApi, useDryRun, useReviews, type Review } from "../api/operator";
+import { operatorApi, topicsUnknown, useDryRun, useReviews, type Review } from "../api/operator";
 import { Confirm } from "../components/Confirm";
 import { EntryField } from "../components/EntryField";
 import { HtmlOpen } from "../components/HtmlOpen";
@@ -17,7 +17,7 @@ import { Markdown } from "../components/Markdown";
 import { PathText } from "../components/PathText";
 import { QueryView } from "../components/QueryView";
 import { Section } from "../components/Section";
-import { Unreadable } from "../components/Unreadable";
+import { Unreadable, UnparsedHeadings } from "../components/Unreadable";
 import { When } from "../components/When";
 import { WouldWrite } from "../components/WouldWrite";
 import { selectors } from "../consts/selectors";
@@ -58,7 +58,12 @@ function ReviewBody({ review }: { review: Review }) {
       <PageHeader headingId="review-heading" title={review.title?.value || review.id} eyebrow={<span className="rd-id">{review.id}</span>} />
       <Unreadable evidence={review.unreadable} />
       <Section id="verdicts" title={t(strings.reviews.verdicts)} note={t(strings.reviews.verdictsNote)}>
-        {listed.length === 0 ? <p className="text-body-sm">{t(strings.reviews.noTopics)}</p> : (
+        <UnparsedHeadings file="VERDICTS.md" headings={review.unparsedHeadings} />
+        {listed.length === 0 ? (
+          <p className="text-body-sm">
+            {topicsUnknown(review) ? t(strings.reviews.topicsUnknown, { reason: review.topicsEvidence?.reason || t(strings.common.unknown) }) : t(strings.reviews.noTopics)}
+          </p>
+        ) : (
           <ul className="rd-rows">
             {listed.map((topic) => (
               <VerdictForm key={topic} review={review} topic={topic} />
@@ -93,6 +98,8 @@ function VerdictForm({ review, topic }: { review: Review; topic: string }) {
   const client = useQueryClient();
   const [text, setText] = useState("");
   const [open, setOpen] = useState(false);
+  // The page's own reviews query: the limit arrives with the list.
+  const limit = useReviews().data?.entryCharsMax ?? 0;
   const recorded = review.verdicts.filter((v) => v.subject === topic);
   const words = useDebounced(text.trim(), 400);
   const preview = useDryRun(["verdict", review.id, topic, words], () => operatorApi.addVerdict(review.id, topic, words, true), open && Boolean(words));
@@ -110,9 +117,9 @@ function VerdictForm({ review, topic }: { review: Review; topic: string }) {
           </div>
         );
       })}
-      <EntryField label={t(strings.reviews.verdictLabel)} rows={3} value={text} onChange={setText} />
+      <EntryField label={t(strings.reviews.verdictLabel)} rows={3} value={text} limit={limit} onChange={setText} />
       <div>
-        <Button variant="secondary" disabled={!text.trim() || entryTooLong(text)} onClick={() => setOpen(true)}>{t(strings.reviews.record)}</Button>
+        <Button variant="secondary" disabled={!text.trim() || entryTooLong(text, limit)} onClick={() => setOpen(true)}>{t(strings.reviews.record)}</Button>
       </div>
       <Confirm
         open={open}

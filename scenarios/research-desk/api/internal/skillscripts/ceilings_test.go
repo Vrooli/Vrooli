@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -12,10 +13,10 @@ import (
 	"research-desk/internal/testutil"
 )
 
-// No-growth (ruling B5): what a scheduler and an owner are told to read at
+// No-growth: what a scheduler and an owner are told to read at
 // start and at each unit stays within the ceilings recorded in limits.json.
 // The read sets and the skill-text sizes are what the desk itself reads
-// (Paths.Ceilings, rulings E2). The charter is the one packet.py renders now
+// (Paths.Ceilings). The charter is the one packet.py renders now
 // from internal/testutil's niche-book-production mission; the other
 // commission files are the sizes limits.json records as measured on
 // programme-three, because the research writes them, not the skill. Skill
@@ -105,5 +106,8 @@ func TestReadSetsStayWithinTheirCeilings(t *testing.T) {
 	}
 	if charter > ceilings.CharterBytes {
 		t.Errorf("the rendered charter is %d bytes, over the %d-byte gate", charter, ceilings.CharterBytes)
+	}
+	if !slices.Contains(ceilings.OwnerTopic, home.MissionFile) || ceilings.MissionBytes <= 0 {
+		t.Errorf("each owner also reads its topic's %s, flagged past a mission size: owner_topic %v, mission_bytes %d", home.MissionFile, ceilings.OwnerTopic, ceilings.MissionBytes)
 	}
 }

@@ -13,6 +13,7 @@
 /api/api
 /api/main
 /api/*-api
+/api/research-desk
 /cli/cli
 /cli/main
 /cli/*.exe

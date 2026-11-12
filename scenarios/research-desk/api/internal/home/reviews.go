@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -27,17 +28,43 @@ type Review struct {
 	Review *FileFact
 	// HTML is REVIEW.html with embedded media, when the review wrote one.
 	HTML *FileFact
-	// Topics are the existing topics REVIEW.md has a `## <topic>` heading for.
-	Topics   []string
-	Verdicts *OperatorLog
+	// Topics are the existing topics REVIEW.md has a `## <topic>` heading
+	// for, else the ones it links as topics/<topic>. TopicsEvidence says
+	// which, or why they are unknown: never an empty list that reads as none.
+	Topics         []string
+	TopicsEvidence Evidence
+	Verdicts       *OperatorLog
 	// Proposals are the files under proposals/.
 	Proposals []FileFact
 	// Unreadable lists REVIEW.md, VERDICTS.md or proposals/ when they exist
-	// but cannot be read (rulings E1).
+	// but cannot be read.
 	Unreadable []Evidence
 }
 
-var reviewTopicHeading = regexp.MustCompile(`(?m)^## +(` + NamePattern + `)\s*$`)
+var (
+	reviewTopicHeading = regexp.MustCompile(`(?m)^## +(` + NamePattern + `)\s*$`)
+	reviewTopicLink    = regexp.MustCompile(`\btopics/(` + NamePattern + `)\b`)
+)
+
+// reviewTopics are the existing topics a REVIEW.md names: its per-topic
+// headings, else its links into topics/. Neither leaves them unknown.
+func reviewTopics(path string, data []byte, topicOf func(string) (string, bool)) ([]string, Evidence) {
+	for _, way := range []struct {
+		re   *regexp.Regexp
+		what string
+	}{{reviewTopicHeading, "its ## <topic> headings"}, {reviewTopicLink, "its topics/<topic> links"}} {
+		var out []string
+		for _, m := range way.re.FindAllStringSubmatch(string(data), -1) {
+			if slug, ok := topicOf(m[1]); ok && !slices.Contains(out, slug) {
+				out = append(out, slug)
+			}
+		}
+		if len(out) > 0 {
+			return out, Evidence{Known: true, Source: path, Reason: "from " + way.what}
+		}
+	}
+	return nil, Unknown(path + " names no topic by a ## <topic> heading or a topics/<topic> link")
+}
 
 // readReviews lists reviews/<id>/ folders, newest REVIEW.md first. A missing
 // reviews folder has none; an unreadable one is an error.
@@ -56,21 +83,18 @@ func readReviews(researchDir string, topicOf func(string) (string, bool)) ([]*Re
 			continue
 		}
 		dir := filepath.Join(root, entry.Name())
-		r := &Review{ID: entry.Name(), Dir: dir, Title: Text{Evidence: Unknown("no " + ReviewFile + " yet")}}
+		r := &Review{ID: entry.Name(), Dir: dir, Title: Text{Evidence: Unknown("no " + ReviewFile + " yet")}, TopicsEvidence: Unknown("no " + ReviewFile + " yet")}
 		path := filepath.Join(dir, ReviewFile)
 		if fact, ok := stat(path); ok {
 			r.Review = &fact
 			if title, ok := firstHeading(path); ok {
 				r.Title = title
 			}
-			data, err := os.ReadFile(path)
-			if err != nil {
+			if data, err := os.ReadFile(path); err != nil {
 				r.Unreadable = append(r.Unreadable, Unreadable(path, err))
-			}
-			for _, m := range reviewTopicHeading.FindAllStringSubmatch(string(data), -1) {
-				if slug, ok := topicOf(m[1]); ok {
-					r.Topics = append(r.Topics, slug)
-				}
+				r.TopicsEvidence = Unknown("cannot read " + path + ": " + err.Error())
+			} else {
+				r.Topics, r.TopicsEvidence = reviewTopics(path, data, topicOf)
 			}
 		}
 		if fact, ok := stat(filepath.Join(dir, ReviewHTML)); ok {

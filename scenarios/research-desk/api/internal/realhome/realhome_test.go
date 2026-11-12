@@ -1,8 +1,10 @@
 //go:build realhome
 
 // Package realhome holds the one read-only test over the operator's real
-// research home (rulings E7). Run it with `make real-home-check`; it skips,
-// loudly, when the home is absent. It never writes the home: the courier's
+// research home. Run it with `make real-home-check`. An absent home fails the
+// check, because a check that passes without looking proves nothing; on a
+// machine with no research home, REAL_HOME_CHECK_SKIP=1 turns that into a
+// loud skip. It never writes the home: the courier's
 // state and any write it might attempt go to temporary folders.
 package realhome
 
@@ -24,6 +26,7 @@ import (
 	"research-desk/internal/home"
 	"research-desk/internal/launch"
 	"research-desk/internal/skillscripts"
+	"research-desk/internal/testutil"
 	"research-desk/internal/writer"
 )
 
@@ -35,7 +38,10 @@ func realHome(t *testing.T) (home.Config, *home.Reader, *schedule.Fake) {
 	}
 	cfg := home.DefaultConfig(userHome)
 	if info, err := os.Stat(filepath.Join(cfg.ResearchDir, "cohorts")); err != nil || !info.IsDir() {
-		t.Skipf("SKIPPED: no research home at %s; this check needs the operator's real home", cfg.ResearchDir)
+		if os.Getenv("REAL_HOME_CHECK_SKIP") == "" {
+			t.Fatalf("no research home at %s: this check needs the operator's real home (REAL_HOME_CHECK_SKIP=1 skips it on a machine without one)", cfg.ResearchDir)
+		}
+		t.Skipf("SKIPPED, NOT CHECKED: no research home at %s and REAL_HOME_CHECK_SKIP is set", cfg.ResearchDir)
 	}
 	paths := skillscripts.Paths{Skills: "../../../skills"}
 	clock := schedule.NewFake(time.Now())
@@ -136,7 +142,7 @@ func TestRealHomeInvariants(t *testing.T) {
 	}
 	t.Logf("%d topics", len(snap.Topics))
 
-	// F3 on the real home.
+	// Overlapping windows on the real home.
 	for _, o := range snap.Overlaps() {
 		if slices.Contains(o.CommissionIDs, "programme-four-20261108") && slices.Contains(o.CommissionIDs, "programme-four-20261110") {
 			for _, id := range o.CommissionIDs {
@@ -146,10 +152,17 @@ func TestRealHomeInvariants(t *testing.T) {
 			t.Errorf("programme four of 11-08 and of 11-10 reported overlapping on %s", o.Topic)
 		}
 	}
-	// P8: research writes, mission edits and reviews are told apart.
+	// Research writes, mission edits and reviews are told apart.
 	if medical := snap.Topic("medical-practice-it-modernization"); medical != nil {
 		w := medical.LastResearchWrite
 		t.Logf("medical-practice-it-modernization: research write %v %s (%s); mission %+v; review %+v", w.Known, w.Value.UTC().Format(time.RFC3339), w.Reason, medical.Mission, medical.LastReview)
+	}
+	// A delivery the desk made is never credited to the scheduler, even
+	// where the scheduler copied the desk's receipt into its own line.
+	for _, f := range snap.NeedsYou().Items {
+		if _, reason, why := f.Delivery(); reason == home.ReasonSchedulerDelivered && f.Delivered != nil && strings.Contains(f.Item.Delivered, home.DeskRoute) {
+			t.Errorf("%s: the desk delivered it, yet: %s", f.Key(), why)
+		}
 	}
 	latest := snap.LatestResearchWrite()
 	t.Logf("latest research write: %s %s by %s (%s) %q", latest.Topic, latest.Value.UTC().Format(time.RFC3339), latest.CommissionID, latest.State, latest.Note)
@@ -164,10 +177,12 @@ func TestRealHomeInvariants(t *testing.T) {
 	}
 }
 
-// P1 and P3 on the real home: each prepared packet reaches the Launch
-// confirmation (preflight passes) on the operator's assertion where the desk
-// classes it unknown, with the desk's recommended choice for any blocker;
-// the launch defaults need no typing. Nothing is launched or written.
+// Each packet waiting to launch (prepared, or unknown with nothing found that
+// started it) reaches the Launch confirmation (preflight passes) on the
+// operator's assertion where the desk classes it unknown, with the desk's
+// recommended choice for any blocker; the launch defaults need no typing.
+// Which packets wait changes as the operator launches them, so they are found,
+// not named. Nothing is launched or written.
 func TestTheRealPacketsReachTheLaunchConfirmation(t *testing.T) {
 	cfg, reader, _ := realHome(t)
 	before := desk(t, cfg.ResearchDir)
@@ -180,12 +195,15 @@ func TestTheRealPacketsReachTheLaunchConfirmation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"standing-teams-w1-20261110", "local-models-w1-20261111"} {
-		c := snap.Commission(id)
-		if c == nil {
-			t.Errorf("%s: not in the home", id)
-			continue
+	var waiting []*home.Commission
+	for _, c := range snap.Commissions {
+		if c.State == home.StatePrepared || (c.State == home.StateUnknown && c.NeverStarted.Assertable) {
+			waiting = append(waiting, c)
 		}
+	}
+	t.Logf("%d packets wait to launch", len(waiting))
+	for _, c := range waiting {
+		id := c.ID
 		t.Logf("%s: %s (%s); never started: %+v", id, c.State, c.StateRule, c.NeverStarted)
 		first, err := svc.PreflightCommission(ctx, id, launch.Choices{})
 		if err != nil {
@@ -205,6 +223,18 @@ func TestTheRealPacketsReachTheLaunchConfirmation(t *testing.T) {
 		if !p.Launchable() {
 			t.Errorf("%s does not reach the Launch confirmation: %q", id, p.Blockers)
 		}
+		// What the operator reads names no command.
+		for _, pf := range []launch.Preflight{first, p} {
+			lines := slices.Clone(pf.Blockers)
+			for _, v := range pf.Verdicts {
+				lines = append(lines, v.Message, v.RecommendedReason)
+			}
+			for _, line := range lines {
+				if strings.Contains(line, "`") || strings.Contains(line, "research-desk ") || strings.Contains(line, "vrooli ") {
+					t.Errorf("%s: %q names a command", id, line)
+				}
+			}
+		}
 		var topics []string
 		for _, ref := range c.Topics {
 			topics = append(topics, ref.Topic)
@@ -214,8 +244,16 @@ func TestTheRealPacketsReachTheLaunchConfirmation(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Logf("%s: %d suggested quotes (%s)", id, len(sug.Quotes), sug.QuotesReason)
-		if len(sug.Quotes) == 0 {
-			t.Errorf("%s: a default launch needs typing: %s", id, sug.QuotesReason)
+		// Suggested quotes are the operator's words or nothing: only from a
+		// packet the desk built or a commission that started.
+		if len(sug.Quotes) == 0 && !strings.Contains(sug.QuotesReason, "type the stance quotes") {
+			t.Errorf("%s: no quotes and no reason: %q", id, sug.QuotesReason)
+		}
+		for _, q := range sug.Quotes {
+			src := snap.Commission(q.CommissionID)
+			if src == nil || (src.Packet == nil && !src.Started.Known) {
+				t.Errorf("%s: quote %q comes from %s, which the desk did not build and which never started", id, q.Text, q.CommissionID)
+			}
 		}
 		for _, tw := range sug.Topics {
 			titled := 0
@@ -235,13 +273,13 @@ func TestTheRealPacketsReachTheLaunchConfirmation(t *testing.T) {
 	}
 }
 
-// F6 on the real home: turning every switch on now sends none of the items
+// Turning every switch on now sends none of the items
 // already there, at once or after the two-hour wait.
 func TestTurningTheCourierOnSendsNoCurrentItem(t *testing.T) {
 	_, reader, clock := realHome(t)
 	scratch := t.TempDir()
 	// Writes the courier might attempt land in an empty folder, never the home.
-	w := writer.New(filepath.Join(scratch, "research"), filepath.Join(scratch, "state"))
+	w := writer.New(filepath.Join(scratch, "research"), filepath.Join(scratch, "state"), testutil.EntryChars)
 	t.Cleanup(func() { w.Close() })
 	hub := &recordingHub{}
 	c := &courier.Courier{Reader: reader, Writer: w, Hub: hub, Clock: clock}

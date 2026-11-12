@@ -38,7 +38,7 @@ type Match struct {
 
 // recognize finds the sessions that name a commission. charterForms are the
 // spellings of the charter path that count as exact (absolute and ~-form).
-// Matches before windowStart are ignored (ruling A11).
+// Matches before windowStart are ignored.
 func recognize(id string, charterForms []string, launch *LaunchRecord, launchPath string, records CodexRecords, windowStart time.Time) []Match {
 	goalByThread := map[string]Goal{}
 	for _, goal := range records.Goals {
@@ -146,7 +146,7 @@ func charterForms(researchDir, userHome, id string) []string {
 }
 
 // windowStart is the start of the recognition window: the local midnight one
-// day before the commission folder's earliest file time (ruling A11).
+// day before the commission folder's earliest file time.
 func windowStart(files []FileFact) time.Time {
 	var earliest time.Time
 	for _, f := range files {

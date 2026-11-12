@@ -2,6 +2,7 @@ package writer
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,7 +22,7 @@ func newHome(t *testing.T) (*Writer, string) {
 	if err := os.MkdirAll(filepath.Join(h.Research, "reviews", "ai-video-1"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	w := New(h.Research, h.State)
+	w := New(h.Research, h.State, testutil.EntryChars)
 	t.Cleanup(func() { w.Close() })
 	return w, h.Research
 }
@@ -44,12 +45,12 @@ func TestAppendOperatorKeepsTheGrammar(t *testing.T) {
 		t.Fatalf("OPERATOR.md:\n%s\nwant:\n%s", data, want)
 	}
 	entries, unparsed := home.ParseEntries(string(data))
-	if len(entries) != 2 || unparsed != 0 || entries[0].Body != "Put AV6 first.\nThen books." {
-		t.Errorf("the written file must parse back: %+v %d", entries, unparsed)
+	if len(entries) != 2 || len(unparsed) != 0 || entries[0].Body != "Put AV6 first.\nThen books." {
+		t.Errorf("the written file must parse back: %+v %+v", entries, unparsed)
 	}
 }
 
-// P5: a render is the exact text an append would add, it writes nothing, and
+// A render is the exact text an append would add, it writes nothing, and
 // it needs no writer role.
 func TestARenderIsTheExactTextAndWritesNothing(t *testing.T) {
 	w, research := newHome(t)
@@ -77,7 +78,7 @@ func TestARenderIsTheExactTextAndWritesNothing(t *testing.T) {
 		t.Fatalf("a render refuses what an append refuses: %v", err)
 	}
 
-	ro := New(research, t.TempDir())
+	ro := New(research, t.TempDir(), testutil.EntryChars)
 	ro.ReadOnly("another instance holds the lock")
 	if _, text, err := ro.RenderVerdict("ai-video-1", home.Entry{At: at, Kind: home.EntryVerdict, Subject: "x", Via: home.ViaDesk, Body: "Films first."}); err != nil || !strings.HasPrefix(text, "# Verdicts — ai-video-1\n\n") {
 		t.Fatalf("a render needs no writer role: %q %v", text, err)
@@ -133,23 +134,30 @@ func TestEnableSteeringOnRealOlderCharter(t *testing.T) {
 	if strings.Contains(string(before), home.SteeringSentence) {
 		t.Fatal("the real programme-three charter predates the Steering sentence")
 	}
-	_, written, err := w.EnableSteering("programme-three-20261111")
-	if err != nil || !written {
-		t.Fatalf("first enable: %v %v", written, err)
+	_, shown, err := w.RenderSteering("programme-three-20261111")
+	if err != nil || !strings.Contains(shown, "## Steering\n\n"+home.SteeringSentence) {
+		t.Fatalf("the dry run shows the section: %q %v", shown, err)
 	}
-	_, written, err = w.EnableSteering("programme-three-20261111")
-	if err != nil || written {
-		t.Fatalf("second enable must change nothing: %v %v", written, err)
+	if now, _ := os.ReadFile(charter); string(now) != string(before) {
+		t.Fatal("the dry run must not write")
+	}
+	_, text, err := w.EnableSteering("programme-three-20261111")
+	if err != nil || text != shown {
+		t.Fatalf("first enable appends what the dry run showed: %q %v", text, err)
+	}
+	_, text, err = w.EnableSteering("programme-three-20261111")
+	if err != nil || text != "" {
+		t.Fatalf("second enable must change nothing: %q %v", text, err)
 	}
 	after, _ := os.ReadFile(charter)
-	if !strings.HasPrefix(string(after), string(before)) || strings.Count(string(after), home.SteeringSentence) != 1 {
+	if string(after) != string(before)+shown || strings.Count(string(after), home.SteeringSentence) != 1 {
 		t.Error("enable-steering only appends, once")
 	}
 }
 
 func TestOneWriterAtATime(t *testing.T) {
 	w, research := newHome(t)
-	other := New(research, w.StateDir())
+	other := New(research, w.StateDir(), testutil.EntryChars)
 	defer other.Close()
 	if err := w.Held(); err != nil {
 		t.Fatal(err)
@@ -190,19 +198,23 @@ func TestJSONIsReplacedAtomically(t *testing.T) {
 }
 
 // [REQ:RD-P0-005]
-// F9: one entry is at most 4,000 printable characters; a longer one is
+// One entry is at most 4,000 printable characters; a longer one is
 // refused with where the material goes instead.
 func TestOperatorTextIsBounded(t *testing.T) {
 	w, research := newHome(t)
+	max, err := testutil.EntryChars()
+	if err != nil {
+		t.Fatal(err)
+	}
 	say := func(body string) error {
 		_, err := w.AppendOperator("programme-three-20261111", home.Entry{At: at, Kind: home.EntryDirection, Via: home.ViaDesk, Body: body})
 		return err
 	}
-	if err := say(strings.Repeat("é", home.MaxEntryChars-3) + "\n\t."); err != nil {
-		t.Fatalf("4,000 characters with a newline and a tab are fine: %v", err)
+	if err := say(strings.Repeat("é", max-3) + "\n\t."); err != nil {
+		t.Fatalf("the limit's characters with a newline and a tab are fine: %v", err)
 	}
-	err := say(strings.Repeat("a", home.MaxEntryChars+1))
-	if !errors.Is(err, home.ErrInvalid) || !strings.Contains(err.Error(), "4001") || !strings.Contains(err.Error(), "put the material in a file under "+research) {
+	err = say(strings.Repeat("a", max+1))
+	if !errors.Is(err, home.ErrInvalid) || !strings.Contains(err.Error(), fmt.Sprint(max+1)) || !strings.Contains(err.Error(), "put the material in a file under "+research) {
 		t.Fatalf("a longer entry: %v", err)
 	}
 	for _, body := range []string{"stop\x00now", "bell\a", "esc\x1b[31m", "lone\rreturn", "bad \xff byte"} {
@@ -210,7 +222,7 @@ func TestOperatorTextIsBounded(t *testing.T) {
 			t.Errorf("%q: want refused, got %v", body, err)
 		}
 	}
-	if got := home.FitEntryText("a\x00b" + strings.Repeat("c", home.MaxEntryChars)); home.CheckEntryText(got, research) != nil || !strings.HasPrefix(got, "a b") {
+	if got := w.FitEntry("a\x00b" + strings.Repeat("c", max)); home.CheckEntryText(got, research, max) != nil || !strings.HasPrefix(got, "a b") {
 		t.Errorf("a phone note is fitted, not refused: %q…", got[:8])
 	}
 }

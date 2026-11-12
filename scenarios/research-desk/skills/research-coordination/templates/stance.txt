@@ -1,6 +1,6 @@
 Research commission{{window_phrase}}: {{topic_titles}}. You are the scheduler. Your charter is {{charter_path}}. Re-read it and STATE.md beside it at every unit start and after every compaction, and follow its scheduler procedure exactly.
 
-My words, verbatim:
+My words, {{stance_label}}:
 
 {{stance_quotes}}
 {{emphasis_paragraph}}

@@ -10,7 +10,7 @@ import { deliveryOn } from "../lib/needsYou";
 
 /**
  * Whether what needs the operator reaches them, as one compact line shown once
- * per screen (rulings V3). Silent when delivery works or nothing is open. Open
+ * per screen. Silent when delivery works or nothing is open. Open
  * items with nothing being delivered is a warning; `switchAt` links to where
  * delivery is switched.
  */
@@ -33,7 +33,7 @@ export function DeliveryBanner({ courier, error, open = 0, switchAt }: { courier
   return null;
 }
 
-/** A warning that costs one line of a phone screen, not a card (rulings V3). */
+/** A warning that costs one line of a phone screen, not a card. */
 function WarningLine({ text, action }: { text: string; action?: ReactNode }) {
   return (
     <p role="status" data-tone="warning" className="rd-warn-line">
