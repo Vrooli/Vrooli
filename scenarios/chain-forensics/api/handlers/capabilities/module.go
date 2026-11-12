@@ -2,6 +2,7 @@ package capabilities
 
 import (
 	"net/http"
+
 	"chain-forensics/internal/capabilities"
 	"chain-forensics/internal/module"
 

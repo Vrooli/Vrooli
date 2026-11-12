@@ -18,11 +18,10 @@ Machine-tier claims should only be added when the UI has stable selectors and
 the claim can be checked by the experience phase. Manual claims need
 attestations with expiry; aspirational claims are useful intent but never gate.
 
-The generated `notes` page is part of the removable example domain. Running
-`template-manager detemplate chain-forensics` removes its page spec and registry
-entry with the rest of the notes example.
-
-The Notes example also demonstrates the generated semantic foundation: its
-`notes` region is bound to `data-experience-surface="notes"` and reports the
-canonical lifecycle vocabulary. Keep this boundary for every independently
-meaningful async region; passive UI primitives inherit their parent state.
+The active case-review page is `/cases`, described by `pages/cases.json` and
+covered by `bas/cases/experience-spec/cases.json`. Its UI reviews persistent
+source-backed observations, supported flow edges, separate analyst labels,
+unresolved gaps, and explicit local packet export. The original generated
+Notes example domain has been removed. Use `template-manager orient
+chain-forensics --json` to see the remaining scenario-specific orientation
+work.

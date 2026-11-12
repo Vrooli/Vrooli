@@ -20,15 +20,17 @@ the standard full-stack Vrooli scenario shape:
 ## Current CF6 checkpoint
 
 The first deterministic evidence seam is in [`packages/chain-forensics`](../../packages/chain-forensics):
-typed source/claim/occurrence/edge records, exact decimal quantities, Bitcoin
-transaction normalization, exact outpoint joins, strict provenance validation,
-and an explicitly private packet serializer. Its offline 1HQ3 forfeiture excerpt
-contains two hash-verified mempool.space captures and a DOJ source citation.
-`go test ./...` passes in that package.
+typed case, source, claim, occurrence, flow-edge, wallet-snapshot and packet
+records; exact decimal quantities; Bitcoin transaction normalization; exact
+outpoint joins; strict provenance validation; and canonical private packet
+serialization with content hashes. The scenario persists typed case documents,
+analyst labels and immutable private packet receipts in SQLite, exposes the
+case operations over Connect and its registered CLI, and provides a local case
+review/export surface. The generated Notes example domain has been removed.
 
-The case package is not yet connected to this scenario's generated Connect API,
-registered CLI, or case-review UI, and CI2 does not yet import it. The generated
-Notes routes remain scaffold. The full CF6 mission remains open; see
+The published 1HQ3 reconstruction, a real private rug/bridge/exchange case
+handed to attention, and Crypto Infrastructure CI2's evaluator import remain
+open until their complete showcases are rehearsed. See
 [`docs/internal/PROGRESS.md`](docs/internal/PROGRESS.md),
 [`docs/internal/PROBLEMS.md`](docs/internal/PROBLEMS.md), and Plan Manager plan
 `cf6-chain-forensics-capability` for the verified checkpoint and next owner.
@@ -70,7 +72,9 @@ The generated scaffold is intentionally not the product. When you build
 the real UX, treat these as **placeholders** to replace:
 
 - The `notes` domain (proto, API, CLI, UI feature) — a worked vertical
-  slice meant to be copied once and then deleted.
+  slice from the original generated template. It has been removed; analyst
+  notes and graded labels belong to case analysis and stay separate from chain
+  observations.
 - Starter page content such as the dashboard metric placeholders.
 - The bare-minimum settings surface once your scenario needs more than
   theme and locale.
@@ -125,8 +129,7 @@ an `EndpointDescriptor`, stop — use a proto service method instead.
 Codegen rejects literal Paths that lack an explicit `RESTException`
 tag; the four allowed REST reasons (multipart upload, webhook
 receiver, third-party shape, ops probe) are enumerated in
-`api/internal/module/module.go`. The notes attachments endpoint is
-the worked REST example.
+`api/internal/module/module.go`.
 
 [`docs/START-HERE.md`](docs/START-HERE.md) describes the replacement
 workflow in full.

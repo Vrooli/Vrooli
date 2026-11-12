@@ -49,7 +49,6 @@ describe("AppShell structure (cimode)", () => {
     renderShell("/settings");
     for (const key of [
       "dashboard",
-      "notes", // EXAMPLE-DOMAIN:notes
       "settings",
     ] as const) {
       expect(screen.getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();

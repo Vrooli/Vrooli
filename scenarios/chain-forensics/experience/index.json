@@ -7,7 +7,7 @@
   },
   "schemaVersion": "1.0.0",
   "scenario": "chain-forensics",
-  "description": "Experience contract for a local-first chain case desk. The first product route is the evidence workspace; the notes page remains a removable generated reference until the first vertical slice is green.",
+  "description": "Experience contract for a local-first chain case desk with source-backed case review and explicit private packet export.",
   "pages": [
     {
       "id": "dashboard",
@@ -16,9 +16,9 @@
       "status": "active"
     },
     {
-      "id": "notes",
-      "path": "pages/notes.json",
-      "title": "Notes",
+      "id": "cases",
+      "path": "pages/cases.json",
+      "title": "Forensic cases",
       "status": "active"
     },
     {

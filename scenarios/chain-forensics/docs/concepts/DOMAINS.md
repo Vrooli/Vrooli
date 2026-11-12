@@ -9,34 +9,34 @@ rewrite what a public source actually showed.
 
 | Domain | Primary Archetype | Responsibility | Owns | First implementation | Source Paths |
 |---|---|---|---|---|---|
-| Case analysis | service | Reconstruct a bounded question into a source-linked graph, grade edges, record gaps, and prepare a private evidence packet. | Case metadata, flow graphs, analyst notes, packet lifecycle | Public 1HQ3 forfeiture case, with DOJ allegations kept separate from Bitcoin observations | `packages/chain-forensics/examples/cases/us-v-1hq3/`; future scenario case repository |
-| Source acquisition | service | Retrieve normalized observations from free, keyless public chain interfaces; preserve capture time, URL, response hash, and completeness. | Provider adapters, cache entries, source terms, rate-limit/backoff state | mempool.space BTC address and transaction reads | `packages/chain-forensics/mempool_client.go`; future scenario source adapters |
+| Case analysis | service | Reconstruct a bounded question into a source-linked graph, grade edges, record gaps, and prepare a private evidence packet. | Typed case documents, claims, occurrences, flow edges, analyst labels and immutable packet receipts | Public 1HQ3 forfeiture reconstruction; private real-rug case remains open | `packages/chain-forensics/case.go`; `scenarios/chain-forensics/api/internal/cases/` |
+| Source acquisition | service | Retrieve normalized observations from free, keyless public chain interfaces; preserve capture time, URL, response hash, and completeness. | BTC transaction/address pages, EVM receipt/wallet snapshots, Solana finalized signature pages; bounded provider caches | Served mempool.space BTC, Base JSON-RPC, and Solana JSON-RPC routes | `packages/chain-forensics/mempool_client.go`; `packages/chain-forensics/evm_client.go`; `packages/chain-forensics/solana_client.go` |
 | Protocol correlation | service | Decode token, launch, bridge, and service events and join matching occurrences across chains. | Versioned decoders, protocol identities, cross-chain correlation candidates | Deferred until the BTC source/event contract is stable | Future package protocol decoders |
 | Labels and clusters | service | Store sourced public labels and evaluate explainable deposit-cluster rules without turning them into identity claims. | Label provenance, rule versions, candidate membership, counter-evidence | Deferred; requires independently sourced exchange-deposit labels | Future private scenario label store |
 | Health | reporting | Report service readiness and dependency reachability. | No product data | Generated operational domain | Scenario lifecycle health endpoints |
 
 ## First vertical slice: published BTC forfeiture case
 
-The first domain is **Case analysis**. It owns the case view and packet, while
-**Source acquisition** supplies observations through an injectable interface.
+The first domain is **Case analysis**. It owns persistent case documents,
+source-linked facts, flow edges, labels, and packet receipts, while
+**Source acquisition** supplies observations through bounded keyless readers.
 The public case source records the U.S. complaint's narrative as a sourced legal
 assertion. BTC transactions from mempool.space independently establish the
 corresponding transaction inputs, outputs, block times, and satoshi amounts.
 These are different evidence kinds and must remain distinct.
 
-The initial flow is: identify the public case by ID → load the local case seed →
-read or replay captured BTC source observations → normalize transaction outputs
-into chain-specific occurrences → build typed edges → grade direct on-chain
-edges separately from legal narrative links → render a local packet with source
-URLs, hashes, gaps, and counter-explanations. The slice does not identify the
-owner of an address or infer a person's intent.
+The case path is: identify/import a validated case → capture bounded public
+source pages or transactions → persist normalized records and exact supported
+edges → add separately graded analyst labels → generate and retain a versioned
+private packet receipt → explicitly download the bytes locally. The slice does
+not identify the owner of an address or infer a person's intent.
 
 | Surface | First slice obligation |
 |---|---|
 | API | Return typed case facts, events, edges, provenance, grades, and gaps; never merge legal assertion with chain observation. |
 | CLI | `chain-forensics cases inspect <id> --json` must produce the same normalized result for scripts. |
 | UI | Case review must show source facts and interpretations separately, with loading, empty, partial, and source-error states. |
-| Go package | Deterministic chain-event validation, graph construction, grade rules, and packet serialization stay independent of HTTP, SQLite, and RPC clients. |
+| Go package | Deterministic chain-event validation, graph construction, grade rules, packet serialization, and packet hashes stay independent of HTTP, SQLite, and RPC clients. |
 
 ## Later domains and ownership boundaries
 

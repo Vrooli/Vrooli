@@ -123,59 +123,6 @@ The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
-<!-- EXAMPLE-DOMAIN:notes START -->
-### Example domain — `notes` (removed by `template-manager detemplate`)
-
-The `notes` domain is the canonical worked example. Copy its layout
-when adding the first non-trivial domain to your scenario, then remove
-it.
-
-#### `chain-forensics notes list`
-
-List notes, newest-first. Calls the generated Connect-RPC
-`Notes/List` method. Uses the
-**data-retrieval contract**: `Summary → Results → Retrieval Hints`.
-
-```bash
-chain-forensics notes list
-chain-forensics notes list --json
-```
-
-#### `chain-forensics notes create --title <title> [--body <body>]`
-
-Create a note. Calls the generated Connect-RPC `Notes/Create` method. Uses the **mutation
-contract**: `Result → What Changed → Next Command`.
-
-```bash
-chain-forensics notes create --title "First note" --body "Hello world"
-```
-
-`--title` is required. `--body` is optional. Validation lives in the
-API service, so an empty title surfaces as an `invalid_argument`
-Connect error rather than a CLI-side check.
-
-#### `chain-forensics notes get <id>`
-
-Fetch a note by id. Calls the generated Connect-RPC `Notes/Get` method.
-
-```bash
-chain-forensics notes get abc123
-```
-
-A non-existent id surfaces as `not_found`; the CLI translates the
-typed Connect code to an actionable error message.
-
-#### `chain-forensics notes attach <id> --file <path>`
-
-Attach a file to a note. This is the documented REST multipart
-exception because the request body contains opaque bytes. The response
-is proto-typed attachment metadata.
-
-```bash
-chain-forensics notes attach abc123 --file ./example.png
-```
-<!-- EXAMPLE-DOMAIN:notes END -->
-
 ## Output contracts
 
 Every scenario command should render through one of three human
@@ -205,6 +152,29 @@ maturity capability. Legitimate special cases (streaming, upload, passthrough,
 external delegation, durable runs) go in the manifest's top-level `exceptions[]`.
 
 ## Adding a new command
+
+### Append a case revision
+
+Create a JSON file matching `ReviseCaseRequest`: include `case_id`, the exact
+`expected_updated_at` from the current `cases get` response, and typed arrays
+of new `sources`, `claims`, `occurrences`, `edges`, `gaps`, `counterexamples`,
+or `source_disagreements`. An optional non-empty `summary` updates the case
+summary; `resolved_gaps` removes only exact strings currently present. New
+edges can reference occurrences added in the same request; all cross-references
+are validated against the combined case. Use `edge_revisions` to name an
+existing edge ID and provide its replacement with a new ID. The old edge is
+removed from the current edge set but remains in the complete prior-case
+snapshot in revision history. Then run:
+
+```bash
+chain-forensics cases revise --revision revision.json
+chain-forensics cases revisions <case-id>
+```
+
+The revision route is optimistic: stale `expected_updated_at` values fail with
+an aborted response. Each receipt retains the prior complete case snapshot.
+Represent a changed edge assessment with a new edge ID and preserve the
+previous edge and its evidence.
 
 For a new domain, copy the worked CRUD command group in the fenced
 example above first, then replace it once your real domain is green.

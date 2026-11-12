@@ -12,6 +12,7 @@ package server
 import (
 	"log"
 	"net/http"
+
 	"chain-forensics/internal/middleware"
 	"chain-forensics/internal/module"
 

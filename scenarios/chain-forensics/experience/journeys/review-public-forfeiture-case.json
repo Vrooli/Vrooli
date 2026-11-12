@@ -10,16 +10,22 @@
   },
   "steps": [
     {
-      "page": "dashboard",
+      "page": "cases",
       "state": "empty",
-      "intent": "Choose the bundled public case when no local cases have been opened.",
-      "via": "Open published example"
+      "intent": "Import or select the locally stored public forfeiture case without sending case data elsewhere.",
+      "via": "Import case file or choose a stored case"
     },
     {
-      "page": "dashboard",
+      "page": "cases",
       "state": "partial",
-      "intent": "Inspect the verified transaction excerpt, source citations, evidence grades, and explicit gaps.",
-      "via": "Select transaction edge"
+      "intent": "Inspect the 2013 consolidation's source captures and exact Bitcoin outpoint edges while keeping the complaint allegation and unresolved predecessor transaction separate.",
+      "via": "Open the case and inspect its sources, observations, supported links, and gaps"
+    },
+    {
+      "page": "cases",
+      "state": "default",
+      "intent": "Create and download a versioned private case packet; verify the returned digest against the retained packet receipt.",
+      "via": "Export private packet"
     }
   ]
 }

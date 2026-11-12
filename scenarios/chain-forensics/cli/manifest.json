@@ -1,19 +1,19 @@
 {
   "$schema": "../../../../.vrooli/schemas/cli-manifest.schema.json",
   "name": "chain-forensics",
-  "description": "Template scenario CLI surface. Single source of truth for the `notes` domain: schema-validated against cli-manifest/v1 and cross-validated against the NotesService proto descriptor at test time. Loaded by cli/main.go via cliapp.LoadFromManifest.",
+  "description": "CLI surface for private evidence-backed cases. This manifest is schema-validated and cross-checked against the CasesService proto descriptor; cli/main.go loads it through cliapp.LoadFromManifest.",
   "groups": [
     {
-      "name": "notes",
-      "description": "Manage notes (CRUD reference)",
+      "name": "cases",
+      "description": "Manage private, evidence-backed forensic cases",
       "commands": [
         {
           "name": "list",
-          "description": "List all notes",
+          "description": "List cases",
           "binding": {
             "kind": "connect-rpc",
-            "service": "vrooli.chain_forensics.v1.notes.NotesService",
-            "method": "ListNotes"
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "ListCases"
           },
           "governance": {
             "effect": "read",
@@ -27,27 +27,27 @@
           }
         },
         {
-          "name": "create",
-          "description": "Create a note",
+          "name": "import",
+          "description": "Import a validated case JSON document",
           "flags": [
             {
-              "name": "title",
+              "name": "case",
               "required": true,
-              "description": "Note title"
-            },
-            {
-              "name": "body",
-              "description": "Note body"
+              "description": "Path to a typed EvidenceCase JSON file",
+              "bind": {
+                "field": "case",
+                "kind": "json_file"
+              }
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "vrooli.chain_forensics.v1.notes.NotesService",
-            "method": "CreateNote"
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "ImportCase"
           },
           "governance": {
             "effect": "write",
-            "run_eligible": true,
+            "run_eligible": false,
             "permissions": [
               "network:internal"
             ]
@@ -58,18 +58,18 @@
         },
         {
           "name": "get",
-          "description": "Get a note by id",
+          "description": "Get a case by id",
           "positionals": [
             {
               "name": "id",
               "required": true,
-              "description": "Note id"
+              "description": "Case id"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "vrooli.chain_forensics.v1.notes.NotesService",
-            "method": "GetNote"
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "GetCase"
           },
           "governance": {
             "effect": "read",
@@ -83,20 +83,79 @@
           }
         },
         {
-          "name": "count",
-          "description": "Count notes created in a time window (the reference measure)",
-          "flags": [
+          "name": "packet",
+          "description": "Export a validated private packet as JSON",
+          "positionals": [
             {
-              "name": "window",
-              "default": "this_week",
-              "description": "Time window token (this_week, last_7d, last_30d, this_month, last_month, this_quarter)",
-              "bind_waiver": "CLI resolves the canonical time-window token into the structured TimeWindow RPC message."
+              "name": "id",
+              "required": true,
+              "description": "Case id"
             }
           ],
           "binding": {
             "kind": "connect-rpc",
-            "service": "vrooli.chain_forensics.v1.notes.NotesService",
-            "method": "CountNotes"
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "ExportPrivatePacket"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "add-label",
+          "description": "Record an analyst hypothesis separately from chain facts",
+          "flags": [
+            {
+              "name": "label",
+              "required": true,
+              "description": "Path to an AnalystLabel JSON file",
+              "bind": {
+                "field": "label",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "AddAnalystLabel"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "labels",
+          "description": "List analyst labels for a case",
+          "positionals": [
+            {
+              "name": "case-id",
+              "required": true,
+              "description": "Case id",
+              "bind": {
+                "field": "case_id",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "ListAnalystLabels"
           },
           "governance": {
             "effect": "read",
@@ -107,46 +166,307 @@
           },
           "architecture": {
             "primitive": "proto_list"
-          },
-          "measure": {
-            "intent": "How many notes were created in a given time window.",
-            "questions": [
-              "how many notes were created this week",
-              "notes created last month",
-              "how many notes did we add in the last 7 days"
-            ],
-            "params": {
-              "window": {
-                "type": "time_window",
-                "default": "this_week"
+          }
+        },
+        {
+          "name": "capture-evm",
+          "description": "Fetch a public Ethereum, Base or Arbitrum transaction and append native/ERC-20 transfer provenance to a case",
+          "flags": [
+            {
+              "name": "case-id",
+              "required": true,
+              "description": "Case id",
+              "bind": {
+                "field": "case_id",
+                "kind": "raw_string"
               }
             },
-            "result": {
-              "kind": "scalar",
-              "value_field": "count",
-              "unit": "notes",
-              "summary_template": "{count} notes created ({window})"
+            {
+              "name": "chain",
+              "required": true,
+              "description": "ethereum, base or arbitrum",
+              "bind": {
+                "field": "chain",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "transaction-hash",
+              "required": true,
+              "description": "Confirmed 32-byte transaction hash",
+              "bind": {
+                "field": "transaction_hash",
+                "kind": "raw_string"
+              }
             }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "CaptureEVMTransaction"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "capture-bitcoin",
+          "description": "Fetch a confirmed public Bitcoin transaction and append provenance to a case",
+          "flags": [
+            {
+              "name": "case-id",
+              "required": true,
+              "description": "Case id",
+              "bind": {
+                "field": "case_id",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "transaction-id",
+              "required": true,
+              "description": "64-character transaction id",
+              "bind": {
+                "field": "transaction_id",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "CaptureBitcoinTransaction"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "capture-bitcoin-address",
+          "description": "Fetch one bounded confirmed Bitcoin address-history page",
+          "flags": [
+            {
+              "name": "case-id",
+              "required": true,
+              "description": "Case id",
+              "bind": {
+                "field": "case_id",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "address",
+              "required": true,
+              "description": "Bitcoin mainnet address",
+              "bind": {
+                "field": "address",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "after-txid",
+              "description": "Next-page cursor returned by the previous capture",
+              "bind": {
+                "field": "after_txid",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "CaptureBitcoinAddressPage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "capture-evm-wallet",
+          "description": "Capture native and selected ERC-20 balances pinned to one Ethereum or Base block",
+          "flags": [
+            {
+              "name": "case-id",
+              "required": true,
+              "description": "Case id",
+              "bind": {
+                "field": "case_id",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "chain",
+              "required": true,
+              "description": "ethereum or base",
+              "bind": {
+                "field": "chain",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "address",
+              "required": true,
+              "description": "20-byte EVM wallet address",
+              "bind": {
+                "field": "address",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "token-contracts",
+              "description": "Optional comma-separated ERC-20 contract addresses",
+              "bind": {
+                "field": "token_contracts",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "CaptureEVMWalletSnapshot"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "capture-solana-address",
+          "description": "Capture one bounded finalized Solana signature page and SPL account deltas",
+          "flags": [
+            {
+              "name": "case-id",
+              "required": true,
+              "description": "Case id",
+              "bind": {
+                "field": "case_id",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "address",
+              "required": true,
+              "description": "Solana base58 public key",
+              "bind": {
+                "field": "address",
+                "kind": "raw_string"
+              }
+            },
+            {
+              "name": "before-signature",
+              "description": "Next-page signature cursor from the previous capture",
+              "bind": {
+                "field": "before_signature",
+                "kind": "raw_string"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "CaptureSolanaAddressPage"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "revise",
+          "description": "Append typed evidence and graded edges to a case using its last-read version",
+          "flags": [
+            {
+              "name": "revision",
+              "required": true,
+              "description": "Path to typed ReviseCaseRequest JSON including case_id and expected_updated_at",
+              "bind": {
+                "field": "revision",
+                "kind": "json_file"
+              }
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "ReviseCase"
+          },
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_mutation"
+          }
+        },
+        {
+          "name": "revisions",
+          "description": "List immutable typed revision receipts for a case",
+          "positionals": [
+            {
+              "name": "case-id",
+              "required": true,
+              "description": "Case id"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "vrooli.chain_forensics.v1.cases.CasesService",
+            "method": "ListCaseRevisions"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
           }
         }
       ]
     }
   ],
   "measures": {
-    "domains": [
-      {
-        "domain": "notes",
-        "stateful": true,
-        "reason": "Notes are countable persisted rows; the notes count measure covers this domain at full tier."
-      }
-    ]
+    "domains": []
   },
-  "exceptions": [
-    {
-      "command": "notes attach",
-      "class": "upload",
-      "reason": "Multipart file upload is exposed through the notes REST attachment endpoint, while cli-manifest/v1 only models Connect-RPC bindings."
-    }
-  ],
+  "exceptions": [],
   "omitted": []
 }

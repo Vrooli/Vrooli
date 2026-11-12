@@ -49,202 +49,18 @@
       "path": "/api/v1/capabilities/describe",
       "method": "GET",
       "summary": "Describe declared scenario dependencies and their current recovery actions.",
-      "category": "capabilities"
-    },
-    {
-      "id": "notes_list",
-      "path": "/vrooli.chain_forensics.v1.notes.NotesService/ListNotes",
-      "method": "POST",
-      "summary": "List notes",
-      "description": "Returns up to 100 notes ordered newest-first by created_at through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "response": {
-        "type": "object",
-        "properties": {
-          "notes": "array<Note>"
-        }
-      },
-      "errors": [
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "List notes",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.chain_forensics.v1.notes.NotesService/ListNotes -H 'Content-Type: application/json' -d '{}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_create",
-      "path": "/vrooli.chain_forensics.v1.notes.NotesService/CreateNote",
-      "method": "POST",
-      "summary": "Create a note",
-      "description": "Persists a new note. Title is required and validated by notes.Service; body is optional.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "body": "string",
-          "title": "string (required, non-whitespace)"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Missing or whitespace-only title"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository write failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Create note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.chain_forensics.v1.notes.NotesService/CreateNote -H 'Content-Type: application/json' -d '{\"title\":\"first\",\"body\":\"hello\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_get",
-      "path": "/vrooli.chain_forensics.v1.notes.NotesService/GetNote",
-      "method": "POST",
-      "summary": "Get a note by id",
-      "description": "Returns the note matching the request id through the generated Connect-RPC Notes service.",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "id": "string"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "note": "Note"
-        }
-      },
-      "errors": [
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Get note",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.chain_forensics.v1.notes.NotesService/GetNote -H 'Content-Type: application/json' -d '{\"id\":\"abc123\"}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_count",
-      "path": "/vrooli.chain_forensics.v1.notes.NotesService/CountNotes",
-      "method": "POST",
-      "summary": "Count notes in a time window",
-      "description": "Counts notes created within the requested canonical time window. Bound to the `notes count` measure (read-only, run-eligible) so search-hub can answer analytical questions like \"how many notes were created this week\".",
-      "category": "notes",
-      "request": {
-        "type": "object",
-        "properties": {
-          "window": "TimeWindow (vrooli.measures.v1; e.g. {\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"})"
-        }
-      },
-      "response": {
-        "type": "object",
-        "properties": {
-          "count": "int64 (notes created in the window)"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_argument",
-          "description": "Unresolvable or malformed time window"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "Repository read failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Count this week",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.chain_forensics.v1.notes.NotesService/CountNotes -H 'Content-Type: application/json' -d '{\"window\":{\"token\":\"TIME_WINDOW_TOKEN_THIS_WEEK\"}}'"
-        }
-      ]
-    },
-    {
-      "id": "notes_attach",
-      "path": "/api/v1/notes/{id}/attachments",
-      "method": "POST",
-      "summary": "Upload a note attachment",
-      "description": "Uploads opaque file bytes through the documented REST multipart exception and returns proto-typed attachment metadata.",
-      "category": "notes",
-      "request": {
-        "type": "multipart/form-data",
-        "properties": {
-          "file": "file (required)"
-        }
-      },
-      "response": {
-        "type": "UploadAttachmentResponse",
-        "properties": {
-          "attachment": "Attachment"
-        }
-      },
-      "errors": [
-        {
-          "status": 400,
-          "code": "invalid_request",
-          "description": "Missing file or invalid multipart upload"
-        },
-        {
-          "status": 404,
-          "code": "not_found",
-          "description": "No note with that id exists"
-        },
-        {
-          "status": 500,
-          "code": "internal",
-          "description": "BlobStore or metadata persistence failure"
-        }
-      ],
-      "examples": [
-        {
-          "name": "Attach file",
-          "curl": "curl -X POST http://localhost:${API_PORT}/api/v1/notes/abc123/attachments -F file=@./example.png"
-        }
-      ],
+      "description": "",
+      "category": "capabilities",
       "rest_exception": {
-        "reason": "multipart_upload",
-        "note": "Multipart/form-data request transport cannot be expressed in proto. The response payload is still the proto-typed UploadAttachmentResponse message.",
+        "reason": "ops_probe",
+        "note": "Read by lifecycle and setup tooling before a generated Connect client exists; reports declared-dependency liveness.",
         "proto_payloads": {
           "request": {
-            "transport": "multipart/form-data",
-            "conformance": "transport_only"
+            "transport": "none",
+            "conformance": "none"
           },
           "response": {
-            "proto_full_name": "vrooli.chain_forensics.v1.notes.UploadAttachmentResponse",
+            "proto_full_name": "vrooli.chain_forensics.v1.shared.Response",
             "transport": "json",
             "conformance": "protojson"
           },
@@ -255,6 +71,110 @@
           }
         }
       }
+    },
+    {
+      "id": "cases_list",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/ListCases",
+      "method": "POST",
+      "summary": "List forensic cases",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_import",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/ImportCase",
+      "method": "POST",
+      "summary": "Import validated evidence case",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_get",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/GetCase",
+      "method": "POST",
+      "summary": "Get forensic case",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_private_packet",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/ExportPrivatePacket",
+      "method": "POST",
+      "summary": "Export a private packet locally",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_add_label",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/AddAnalystLabel",
+      "method": "POST",
+      "summary": "Add analyst label separately from chain evidence",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_list_labels",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/ListAnalystLabels",
+      "method": "POST",
+      "summary": "List analyst labels",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_capture_evm",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/CaptureEVMTransaction",
+      "method": "POST",
+      "summary": "Capture a public Ethereum, Base or Arbitrum transaction and transfer evidence into a case",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_capture_bitcoin",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/CaptureBitcoinTransaction",
+      "method": "POST",
+      "summary": "Capture a confirmed public Bitcoin transaction into a case",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_capture_bitcoin_address_page",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/CaptureBitcoinAddressPage",
+      "method": "POST",
+      "summary": "Capture one bounded confirmed Bitcoin address-history page",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_capture_evm_wallet_snapshot",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/CaptureEVMWalletSnapshot",
+      "method": "POST",
+      "summary": "Capture native and selected ERC-20 balances at a pinned EVM block",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_capture_solana_address_page",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/CaptureSolanaAddressPage",
+      "method": "POST",
+      "summary": "Capture one bounded finalized Solana signature page and SPL balance deltas",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_revise",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/ReviseCase",
+      "method": "POST",
+      "summary": "Append typed case evidence with optimistic concurrency",
+      "description": "",
+      "category": "cases"
+    },
+    {
+      "id": "cases_revision_history",
+      "path": "/vrooli.chain_forensics.v1.cases.CasesService/ListCaseRevisions",
+      "method": "POST",
+      "summary": "List immutable case revision receipts",
+      "description": "",
+      "category": "cases"
     }
   ]
 }

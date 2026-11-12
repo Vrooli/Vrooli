@@ -9,6 +9,7 @@ package health
 import (
 	"context"
 	"net/http"
+
 	"chain-forensics/internal/database"
 
 	apihealth "github.com/vrooli/api-core/health"

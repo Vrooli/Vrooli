@@ -9,7 +9,6 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/stretchr/testify v1.10.0
 	github.com/vrooli/api-core v0.0.0
-	github.com/vrooli/measures-go v0.0.0
 	github.com/vrooli/vrooli/packages/capability-registry-go v0.0.0
 	github.com/vrooli/vrooli/packages/proto v0.0.0
 	google.golang.org/protobuf v1.36.11
@@ -28,12 +27,10 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
-	github.com/vrooli/ai-go v0.0.0 // indirect
 	github.com/vrooli/cli-core v0.0.0 // indirect
 	github.com/vrooli/envkit-go v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/repo-contract-go v0.0.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.72.3 // indirect
@@ -41,8 +38,11 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-// gorilla/handlers alone selects httpsnoop v1.0.3; v1.0.4 is the approved version.
-require github.com/felixge/httpsnoop v1.0.4 // indirect
+require (
+	// gorilla/handlers alone selects httpsnoop v1.0.3; v1.0.4 is the approved version.
+	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/vrooli/chain-forensics v0.0.0
+)
 
 replace github.com/vrooli/api-core => ../../../packages/api-core
 
@@ -50,14 +50,12 @@ replace github.com/vrooli/envkit-go => ../../../packages/envkit-go
 
 replace github.com/vrooli/cli-core => ../../../packages/cli-core
 
-replace github.com/vrooli/measures-go => ../../../packages/measures-go
-
 replace github.com/vrooli/vrooli/packages/capability-registry-go => ../../../packages/capability-registry-go
-
-replace github.com/vrooli/ai-go => ../../../packages/ai-go
 
 replace github.com/vrooli/vrooli/packages/proto => ../../../packages/proto
 
 replace github.com/vrooli/repo-contract-go => ../../../packages/repo-contract-go
 
 replace github.com/vrooli/platform-go => ../../../packages/platform-go
+
+replace github.com/vrooli/chain-forensics => ../../../packages/chain-forensics

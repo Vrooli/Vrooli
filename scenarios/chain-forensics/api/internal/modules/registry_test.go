@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+
 	"chain-forensics/internal/modules"
 
 	db "github.com/vrooli/api-core/databasetest"

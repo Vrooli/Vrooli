@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
 	"chain-forensics/internal/middleware"
 
 	"github.com/stretchr/testify/require"

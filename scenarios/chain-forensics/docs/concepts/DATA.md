@@ -5,7 +5,7 @@
 | Record | Owner | Key identity | Retention boundary |
 |---|---|---|---|
 | Case | Case analysis | Stable local case ID | Local SQLite; user may delete |
-| Source capture | Source acquisition | Provider + request URL + capture hash | Cache immutable responses; refresh only mutable head data |
+| Source capture | Source acquisition | Provider + request URL + capture hash | Captured metadata/facts persist with the case; provider caches are bounded in memory, and retained response bodies are source-specific |
 | Chain occurrence | Source acquisition | Chain + tx/signature + block/slot + event index | Rebuildable from captured source; never keyed by amount/time alone |
 | Flow edge | Case analysis | From occurrence/output to destination occurrence/output | Derived, versioned, rebuildable |
 | Label | Labels and clusters | Chain + address + label source + scope + observed-at | Preserve publisher and expiry/review status |
@@ -47,10 +47,10 @@ the private ownership dispute.
 
 ## Privacy boundary
 
-The local store contains only public chain records, public source references,
-and analyst-authored case notes. Packets are private local artifacts, default
-to redacting analyst notes, and never send data to external destinations.
-Telemetry must not include wallet lists, packet text, labels, source response
-bodies, or user notes. There is no identity-enrichment provider, tip submission,
-contact workflow, or public publishing route.
+The local store contains public chain records and source references, plus
+private analyst-authored labels and packet receipts. Analyst labels are stored
+separately and are not embedded in the current packet schema. Packet bytes are
+retained locally and returned only through an explicit export call; there is
+no submission, contact, or public publishing route. Telemetry must not include
+wallet lists, packet text, labels, source response bodies, or user notes.
 
