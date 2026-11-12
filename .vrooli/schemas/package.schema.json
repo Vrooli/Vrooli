@@ -37,7 +37,6 @@
             "go_cli",
             "python_runtime",
             "rust_runtime",
-            "go_testkit",
             "internal_platform",
             "schema_or_contract"
           ]

@@ -1,5 +1,0 @@
-scenarios/nutrition-planner/api/handlers/planning/connect_handler.go
-scenarios/nutrition-planner/api/handlers/planning/connect_handler_test.go
-scenarios/nutrition-planner/api/handlers/recipe/connect_handler_test.go
-scenarios/nutrition-planner/api/handlers/portability/connect_handler.go
-scenarios/nutrition-planner/api/handlers/portability/connect_handler_test.go

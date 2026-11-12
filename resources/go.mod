@@ -7,6 +7,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/vrooli/agentharness v0.0.0
 	github.com/vrooli/ai-provider-go v0.0.0
+	github.com/vrooli/api-core v0.0.0
 	github.com/vrooli/cli-core v0.0.0
 	github.com/vrooli/envkit-go v0.0.0
 	github.com/vrooli/repo-contract-go v0.0.0
@@ -28,12 +29,12 @@ require (
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.3.1 // indirect
-	github.com/vrooli/api-core v0.0.0 // indirect
 	github.com/vrooli/binaryfetch v0.0.0 // indirect
 	github.com/vrooli/cliresolve v0.0.0 // indirect
 	github.com/vrooli/platform-go v0.0.0 // indirect
 	github.com/vrooli/vrooli/packages/proto v0.0.0 // indirect
 	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	modernc.org/libc v1.72.3 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
@@ -60,7 +61,5 @@ replace github.com/vrooli/repo-contract-go => ../packages/repo-contract-go
 replace github.com/vrooli/vrooli => ..
 
 replace github.com/vrooli/vrooli/packages/proto => ../packages/proto
-
-replace github.com/vrooli/vrooli/scenarios/scenario-to-desktop/runtime => ../scenarios/scenario-to-desktop/runtime
 
 replace github.com/vrooli/ai-provider-go => ../packages/ai-provider-go

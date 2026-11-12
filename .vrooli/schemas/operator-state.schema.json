@@ -210,6 +210,18 @@
               "minimum": 0
             }
           }
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": {"type": "string", "minLength": 1, "maxLength": 64},
+            "executable": {"type": "string", "minLength": 1, "maxLength": 4096},
+            "version": {"type": "string", "minLength": 1, "maxLength": 64},
+            "sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}
+          },
+          "description": "Explicit operator-selected acquisition source for resources that declare alternatives."
         }
           }
         }

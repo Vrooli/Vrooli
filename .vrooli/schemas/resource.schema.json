@@ -414,6 +414,11 @@
               },
               "additionalProperties": false
             },
+            "arguments": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Managed-service argv elements appended when this backend is selected. No shell parsing is performed."
+            },
             "library_paths": {
               "type": "array",
               "items": {
@@ -459,6 +464,11 @@
                 }
               },
               "additionalProperties": false
+            },
+            "arguments": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Managed-service argv elements appended when this backend is selected. No shell parsing is performed."
             },
             "library_paths": {
               "type": "array",
@@ -506,6 +516,11 @@
               },
               "additionalProperties": false
             },
+            "arguments": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Managed-service argv elements appended when this backend is selected. No shell parsing is performed."
+            },
             "library_paths": {
               "type": "array",
               "items": {
@@ -552,6 +567,11 @@
               },
               "additionalProperties": false
             },
+            "arguments": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Managed-service argv elements appended when this backend is selected. No shell parsing is performed."
+            },
             "library_paths": {
               "type": "array",
               "items": {
@@ -593,6 +613,11 @@
                 }
               },
               "additionalProperties": false
+            },
+            "arguments": {
+              "type": "array",
+              "items": {"type": "string"},
+              "description": "Managed-service argv elements appended when this backend is selected. No shell parsing is performed."
             },
             "library_paths": {
               "type": "array",
@@ -900,7 +925,8 @@
               "tcp",
               "command",
               "postgresql",
-              "redis"
+              "redis",
+              "openrgb-sdk-v6"
             ]
           },
           "kind": {
@@ -1495,12 +1521,90 @@
       "additionalProperties": false
     },
     "managedService": {
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "task_scoped_container": {
+                "const": true
+              }
+            },
+            "required": [
+              "task_scoped_container"
+            ]
+          },
+          "then": {
+            "not": {
+              "required": [
+                "artifact"
+              ]
+            }
+          },
+          "else": {
+            "required": [
+              "artifact"
+            ]
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {
+                "required": [
+                  "source_selection_required"
+                ],
+                "properties": {
+                  "source_selection_required": {
+                    "const": true
+                  }
+                }
+              },
+              {
+                "required": [
+                  "host_tool_executable"
+                ]
+              },
+              {
+                "required": [
+                  "host_tool_version"
+                ]
+              }
+            ]
+          },
+          "then": {
+            "required": [
+              "acquisition",
+              "host_tool_executable",
+              "host_tool_version"
+            ]
+          }
+        }
+      ],
       "type": "object",
       "required": [
-        "provider_policy",
-        "artifact"
+        "provider_policy"
       ],
       "properties": {
+        "host_tool_executable": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^/\\\\]+$",
+          "description": "Command basename for explicitly selected existing installations; compatibility and whole-bundle qualification remain owner checks."
+        },
+        "host_tool_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact compatible existing-source release version."
+        },
+        "source_selection_required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Require explicit managed-versus-existing source selection before acquisition or launch."
+        },
+        "task_scoped_container": {
+          "type": "boolean",
+          "description": "This resource creates isolated containers per declared task/sandbox through its resource-owned runtime API. Generic singleton start/stop is disabled. Requires runtime.image pinned by digest."
+        },
         "artifact_role": {
           "type": "string",
           "minLength": 1,
@@ -1702,6 +1806,14 @@
           },
           "description": "Literal environment values supplied only to the managed process. Secrets are not permitted here; resolve them through provider-scoped credentials."
         },
+        "environment_file": {
+          "type": "string",
+          "minLength": 1,
+          "not": {
+            "pattern": "^/|(^|/)\\.\\.(/|$)"
+          },
+          "description": "Resource-owned KEY=VALUE state file, relative to RESOURCE_DATA_DIR, read without a shell and merged over environment at launch (for example the active model selection the resource CLI writes)."
+        },
         "run_as_user": {
           "type": "string",
           "pattern": "^[A-Za-z_][A-Za-z0-9_-]{0,31}$",
@@ -1831,8 +1943,11 @@
         "config": {
           "type": "object",
           "required": [
-            "path",
-            "content"
+            "path"
+          ],
+          "oneOf": [
+            { "required": ["content"] },
+            { "required": ["content_file"] }
           ],
           "properties": {
             "path": {
@@ -1841,7 +1956,13 @@
             },
             "content": {
               "type": "string",
-              "minLength": 1
+              "minLength": 1,
+              "description": "Inline non-secret configuration content. Use exactly one of content and content_file."
+            },
+            "content_file": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Resource-root-relative non-secret configuration asset. Use exactly one of content and content_file."
             }
           },
           "additionalProperties": false
@@ -1854,6 +1975,56 @@
               "type": "array",
               "items": {
                 "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "update_policy": {
+          "type": "object",
+          "description": "Explicit managed update eligibility. This is not automatic-update enrollment or lifecycle authority.",
+          "required": [
+            "strategy",
+            "candidate_port"
+          ],
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "enum": [
+                "rolling-stateless",
+                "exclusive-stop-start"
+              ]
+            },
+            "candidate_port": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[a-z][a-z0-9_-]*$"
+            },
+            "readiness_metrics": {
+              "type": "array",
+              "maxItems": 8,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path",
+                  "name",
+                  "minimum"
+                ],
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "pattern": "^/[^?#]*$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z_:][a-zA-Z0-9_:]*$"
+                  },
+                  "minimum": {
+                    "type": "number",
+                    "exclusiveMinimum": 0
+                  }
+                }
               }
             }
           },
@@ -1916,8 +2087,10 @@
         "resource_kind": {
           "type": "string",
           "enum": [
-            "vram"
-          ]
+            "vram",
+            "ram"
+          ],
+          "description": "Capacity the broker reserves: vram (one GPU's video memory) or ram (host memory, which the broker also gates on swap pressure)."
         },
         "default_preferred_bytes": {
           "type": "integer",
@@ -1959,6 +2132,16 @@
           "type": "object",
           "description": "The adopter-declared degradation ladder, ordered preferred to floor.",
           "properties": {
+            "model": {
+              "type": "object",
+              "description": "Exact model artifact identity that any durable residency transition must match.",
+              "properties": {
+                "name": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" },
+                "digest": { "type": "string", "minLength": 1, "pattern": ".*\\S.*" }
+              },
+              "required": ["name", "digest"],
+              "additionalProperties": false
+            },
             "steps_source": {
               "type": "string",
               "pattern": "^[^/]+\\.json$",

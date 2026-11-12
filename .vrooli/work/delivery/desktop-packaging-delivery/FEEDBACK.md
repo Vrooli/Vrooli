@@ -215,3 +215,9 @@ Status: resolved
 ## Resolved
 
 All original evidence and dispositions remain in the linked verbatim source.
+
+### AGENT-CONNECT-E18A-OWNERSHIP-CHECK-20261101 — orchestrator note
+
+Status: recorded; no desktop team state changed.
+
+`prompt-manager team show desktop-packaging-delivery` reports the team disabled. `prompt-manager team execution-status desktop-packaging-delivery --json` reports the sole orchestrator paused and the queue empty, with no child worker IDs. The retained run `f8d106ed-6a46-4c3a-854a-0031e789628e` is `RUN_STATUS_PARKED`; its latest messages show no active or ended children. `agent-manager effort board` timed out, while the team status and run reads succeeded. The current agent-connect delivery carries E18a separately through its authorized chat lane; this does not enable or wake the desktop team.

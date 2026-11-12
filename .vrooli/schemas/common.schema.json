@@ -459,6 +459,17 @@
         "sensitive": {
           "type": "boolean"
         },
+        "projection": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "project_scope": {
+              "type": "boolean",
+              "description": "Whether the harness also discovers skills in a project-local directory, so projected skills may be scoped to a project."
+            }
+          },
+          "description": "Skill-projection facts for a native skill discovery directory. Where the directory moves is declared once, in relocation.key; this block never repeats it."
+        },
         "relocation": {
           "type": "object",
           "additionalProperties": false,

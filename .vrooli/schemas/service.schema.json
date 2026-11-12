@@ -978,6 +978,7 @@
     },
     "component": {
       "type": "object",
+      "description": "A built and launched process, or (role asset) a build-only artifact another component serves, such as a Vite bundle a Go server embeds. Asset components are installed, built, and fingerprinted by setup but never launched, so they carry no run block.",
       "properties": {
         "role": {
           "type": "string",
@@ -985,7 +986,8 @@
             "api",
             "ui",
             "worker",
-            "sidecar"
+            "sidecar",
+            "asset"
           ]
         },
         "build": {
@@ -997,9 +999,27 @@
       },
       "required": [
         "role",
-        "build",
-        "run"
+        "build"
       ],
+      "if": {
+        "properties": {
+          "role": {
+            "const": "asset"
+          }
+        }
+      },
+      "then": {
+        "not": {
+          "required": [
+            "run"
+          ]
+        }
+      },
+      "else": {
+        "required": [
+          "run"
+        ]
+      },
       "additionalProperties": false
     },
     "componentBuild": {
@@ -1698,8 +1718,10 @@
           "enum": [
             "calculated",
             "estimated",
-            "manual"
-          ]
+            "manual",
+            "measured"
+          ],
+          "description": "Where the footprint numbers came from: calculated (derived by a tool from other declarations), estimated (an authored judgement without observation), manual (an operator-set value that overrides derivation), or measured (rounded up from an observed run whose evidence the owner retains, for example recorded RSS)."
         },
         "confidence": {
           "type": "string",

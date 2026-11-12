@@ -1,16 +1,31 @@
 {
-  "last_run": "2026-11-05T01:45:25.64836348Z",
+  "last_run": "2026-11-11T22:37:30.515026161Z",
   "status": "warning",
   "measured": 4,
   "total": 4,
   "findings": [
     {
+      "runner": "codex",
+      "type": "upstream_cli_behind",
+      "severity": "warning",
+      "model": "0.167.1",
+      "message": "codex selected CLI 0.167.0 is behind latest 0.167.1 (provisioning pin 0.166.0); qualify resource-codex update and retain rollback before activation",
+      "fingerprint": "model-policy-drift/v2/codex/17d7971e57f2/upstream_cli_behind//0.167.1"
+    },
+    {
       "runner": "claude-code",
       "type": "upstream_cli_behind",
       "severity": "warning",
-      "model": "2.1.318",
-      "message": "claude-code selected CLI 2.1.316 is behind latest 2.1.318 (provisioning pin 2.1.185); qualify resource-claude-code update and retain rollback before activation",
-      "fingerprint": "model-policy-drift/v2/claude-code/22b3300902a0/upstream_cli_behind//2.1.318"
+      "model": "2.1.322",
+      "message": "claude-code selected CLI 2.1.321 is behind latest 2.1.322 (provisioning pin 2.1.185); qualify resource-claude-code update and retain rollback before activation",
+      "fingerprint": "model-policy-drift/v2/claude-code/05f0c5ddc2e5/upstream_cli_behind//2.1.322"
+    },
+    {
+      "runner": "grok",
+      "type": "catalog_stale",
+      "severity": "warning",
+      "message": "catalog age is 15 days; staleness budget is 14 days",
+      "fingerprint": "model-policy-drift/v2/grok/53d02c37ff2c/catalog_stale//"
     },
     {
       "runner": "grok",
@@ -84,7 +99,9 @@
     }
   ],
   "reported": {
-    "model-policy-drift/v2/claude-code/22b3300902a0/upstream_cli_behind//2.1.318": "knw-1793751095269432739",
+    "model-policy-drift/v2/claude-code/05f0c5ddc2e5/upstream_cli_behind//2.1.322": "knw-1794338536822160487",
+    "model-policy-drift/v2/codex/17d7971e57f2/upstream_cli_behind//0.167.1": "knw-1794373197363769548",
+    "model-policy-drift/v2/grok/53d02c37ff2c/catalog_stale//": "knw-1794355721526422584",
     "model-policy-drift/v2/grok/53d02c37ff2c/unconfirmed_primary_model/code.cheap/grok-build": "knw-1793453677280124026",
     "model-policy-drift/v2/grok/53d02c37ff2c/unconfirmed_primary_model/code.default/grok-build": "knw-1793453679522852386",
     "model-policy-drift/v2/grok/53d02c37ff2c/unconfirmed_primary_model/code.fast/grok-build": "knw-1793453681756019354",

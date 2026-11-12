@@ -61,13 +61,14 @@ templates/scenarios/*/ui/coverage/
 # copied into the contract-owned runtime store by the owning phase.
 scenarios/*/test-results/
 
-# protogen staging trees (packages/proto/protogen/generator.go). Generation
-# stages a full copy of the generated fleet beside packages/proto and publishes
-# from it; a failed run deliberately retains its tree for inspection. Retention
-# is bounded by stageRetention, but the trees must never be commit candidates.
+# protogen staging trees (packages/proto/protogen/staging.go). Staging lives
+# beside the runtime artifact store; these in-tree parents are only the fallback
+# when that store is on another filesystem, and residue there is listed by
+# `make cleanup`. The trees must never be commit candidates.
 packages/.proto-gen-stage-*/
 packages/.proto-gen-verify-*/
 packages/.proto-descriptor-*/
+packages/proto/.proto-compatibility-*/
 *.lcov
 **/coverage*.html
 **/coverage*_report.*
@@ -593,59 +594,6 @@ scenarios/**/signing/*.key
 # React Component Library scratch output is disposable; durable evidence lives
 # under the scenario's docs/reports directory.
 
-# Local delivery captures and rendered design exports. Keep delivery Markdown,
-# authored prototypes, verification scripts, and operational instructions visible.
-/docs/internal/delivery-operations/*/.monitor.lock
-/docs/internal/delivery-operations/*/assets/
-/docs/internal/delivery-operations/*/sources/execution-evidence/
-/docs/internal/external-knowledge-delivery/email-design-v1.1/visual-originals/renders/
-/docs/internal/external-knowledge-delivery/email-design-v1.1/visual-originals/boards/
-
-# Delivery research keeps authored findings and compact follow-through
-# manifests in Git. Raw source archives, run outputs, source-byte snapshots, and
-# duplicate patch artifacts remain local. GCT path snapshots are metadata-only
-# by default and expire under their bounded lease; estimate a small exact subset.
-/docs/internal/delivery-reliability-research/sources/**
-!/docs/internal/delivery-reliability-research/sources/**/
-!/docs/internal/delivery-reliability-research/sources/**/*.md
-!/docs/internal/delivery-reliability-research/sources/**/SHA256SUMS*
-!/docs/internal/delivery-reliability-research/sources/**/*sha256sum*.txt
-!/docs/internal/delivery-reliability-research/sources/**/*.sha256
-
-# Historical capture directories are raw work products, including their copied
-# Markdown receipts. Curated findings remain at sources/*.md and in follow-through.
-/docs/internal/delivery-reliability-research/sources/*logs/
-
-/docs/internal/delivery-reliability-research/follow-through/evidence/**
-!/docs/internal/delivery-reliability-research/follow-through/evidence/**/
-!/docs/internal/delivery-reliability-research/follow-through/evidence/**/*.md
-!/docs/internal/delivery-reliability-research/follow-through/evidence/**/manifest.json
-!/docs/internal/delivery-reliability-research/follow-through/evidence/**/source-map.json
-!/docs/internal/delivery-reliability-research/follow-through/evidence/**/SHA256SUMS*
-!/docs/internal/delivery-reliability-research/follow-through/evidence/**/*sha256sum*.txt
-!/docs/internal/delivery-reliability-research/follow-through/evidence/**/*.sha256
-
-# Markdown copied into source archives and evidence preimage trees is still a
-# snapshot, not authored findings. Root status-file copies are likewise local;
-# the current canonical GOAL/QUEUE/ACCEPTANCE/RESUME files remain visible above.
-/docs/internal/delivery-reliability-research/sources/**/preimage/
-/docs/internal/delivery-reliability-research/sources/**/preimages/
-/docs/internal/delivery-reliability-research/sources/**/candidate/
-/docs/internal/delivery-reliability-research/sources/**/candidates/
-/docs/internal/delivery-reliability-research/sources/**/snapshot/
-/docs/internal/delivery-reliability-research/sources/**/snapshots/
-/docs/internal/delivery-reliability-research/sources/**/src/
-/docs/internal/delivery-reliability-research/sources/**/source/
-/docs/internal/delivery-reliability-research/follow-through/evidence/**/preimage/
-/docs/internal/delivery-reliability-research/follow-through/evidence/**/preimages/
-/docs/internal/delivery-reliability-research/follow-through/evidence/**/root-doc-preimages/
-/docs/internal/delivery-reliability-research/follow-through/evidence/**/source-before.sha256
-/docs/internal/delivery-reliability-research/follow-through/evidence/**/source-after.sha256
-/docs/internal/delivery-reliability-research/follow-through/evidence/**/GOAL.md
-/docs/internal/delivery-reliability-research/follow-through/evidence/**/QUEUE.md
-/docs/internal/delivery-reliability-research/follow-through/evidence/**/ACCEPTANCE.md
-/docs/internal/delivery-reliability-research/follow-through/evidence/**/RESUME.md
-
 # Delivery goals retain copied source baselines locally, across scenarios.
 # Keep their manifests visible; ignore only copied bytes and log snapshots.
 /scenarios/*/docs/internal/goal/**/bytes/
@@ -686,10 +634,41 @@ scenarios/**/signing/*.key
 /.vrooli/work/delivery/**/*.stderr
 /.vrooli/work/delivery/**/*.jsonl
 
-# Two small, acceptance-relevant owner receipts are linked from current docs.
-!/docs/internal/delivery-reliability-research/follow-through/evidence/owner-ui-speed-feedback-20261020/ui-served-comparison-20261020.json
-!/docs/internal/delivery-reliability-research/follow-through/evidence/continuation-admission/known-team-return-20261020/bas-author-flow-parameters/native-consumer-receiving-readback-20261020.json
-
 # scenario-to-desktop's Go target package is source code, not a build target.
 !/scenarios/scenario-to-desktop/api/target/
 !/scenarios/scenario-to-desktop/api/target/*.go
+
+# Historical design payloads live in the runtime research home. These retired
+# source-tree locations remain excluded from accidental data reintroduction.
+# See docs/internal/research-experimentation/README.md for the current entry point.
+/docs/internal/delivery-operations
+/docs/internal/delivery-reliability-research
+/.vrooli/work/delivery/vega-redesign-delivery
+/.vrooli/work/delivery/notification-hub-delivery
+/.vrooli/work/delivery/rcl-prompt-manager-ux-design-campaign
+/.vrooli/work/delivery/experience-quality-delivery
+/.vrooli/work/delivery/browser-automation-studio-delivery
+/.vrooli/work/delivery/nooch-delivery
+/.vrooli/work/delivery/personal-planner-delivery
+/.vrooli/work/delivery/external-knowledge-delivery
+/.vrooli/work/delivery/marketing-i16-delivery
+/output/pdf/vega-atlas-source
+
+# --- Private operator material (added 2026-11-11 after an exposure audit) ---
+# Runtime instance of the OpenEMR demo: private key, database credentials, uploaded documents
+/openemr/
+# Copy of the operator's research home used as a test fixture (holds client details and private
+# Drive links). Replace it with a synthetic fixture before any test depends on it being committed.
+/scenarios/research-desk/api/internal/home/testdata/research/
+# Working evidence with home-network details, captures and verbatim operator dictation
+/.vrooli/work/live-lighting-*
+/.vrooli/work/reviews/
+/.vrooli/work/infrastructure-optimization-*/
+/.vrooli/work/delivery/host-hardware-lighting/
+/.vrooli/work/delivery/agent-connect*/
+/.vrooli/work/research-desk/OPERATOR-WORDS.md
+# Evidence bundles and effort artifacts (private Drive links, operator email in logs)
+/.vrooli/evidence/
+/.vrooli/plan-artifacts/
+# Operator working notes
+/docs/internal/standing-team-route-investigation-*/

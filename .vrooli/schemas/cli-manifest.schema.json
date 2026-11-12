@@ -124,6 +124,12 @@
       "additionalProperties": false,
       "properties": {
         "name": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$" },
+        "aliases": {
+          "type": "array",
+          "description": "Alternative names that dispatch to this command. Declare one only when it names exactly the same operation; cli-core already resolves singular/plural forms and suggests near verbs.",
+          "items": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$" },
+          "uniqueItems": true
+        },
         "description": { "type": "string" },
         "needs_api": { "type": "boolean", "description": "Override the group's API requirement for this command. Use false only for a local command that must fail closed when the scenario API is unavailable." },
         "positionals": {

@@ -19,19 +19,69 @@
         "obtain_url": "https://github.com/Vrooli/Vrooli/tree/master/docs/configuration/host/safeguards.md",
         "provisioning": "operator",
         "required": false
+      },
+      {
+        "description": "Free api.data.gov key for federal open-data APIs (GovInfo, Federal Register and others) used by public-records research.",
+        "field": "api-key",
+        "label": "api.data.gov API key",
+        "logical_id": "vrooli/api-data-gov",
+        "obtain_url": "https://api.data.gov/signup/",
+        "provisioning": "operator",
+        "required": false
+      },
+      {
+        "description": "CourtListener REST API token for docket and opinion lookups used by public-records research. Shown in the account profile under the API settings.",
+        "field": "api-token",
+        "label": "CourtListener API token",
+        "logical_id": "vrooli/courtlistener",
+        "obtain_url": "https://www.courtlistener.com/",
+        "provisioning": "operator",
+        "required": false
+      },
+      {
+        "description": "CourtListener account password, kept so the account is recoverable; API calls use the api-token field.",
+        "field": "account-password",
+        "label": "CourtListener account password",
+        "logical_id": "vrooli/courtlistener",
+        "obtain_url": "https://www.courtlistener.com/",
+        "provisioning": "operator",
+        "required": false
+      },
+      {
+        "description": "SAM.gov public API key (needs a login.gov account) for contractor entity records and exclusions used by public-records research.",
+        "field": "api-key",
+        "label": "SAM.gov API key",
+        "logical_id": "vrooli/sam-gov",
+        "obtain_url": "https://sam.gov/",
+        "provisioning": "operator",
+        "required": false
+      },
+      {
+        "description": "Make (make.com) API token for the operator's free account. Used only by Freelance research to rehearse client automation workflows in Make with made-up data; never for client accounts.",
+        "field": "api-token",
+        "label": "Make API token",
+        "logical_id": "vrooli/make-com",
+        "obtain_url": "https://www.make.com/",
+        "provisioning": "operator",
+        "required": false
       }
     ]
   },
   "dependencies": {
     "resources": {
-      "adguard-home": {
-        "description": "Managed AdGuard Home DNS filtering and resolver service for scenarios such as Network Manager",
-        "enabled": false,
+      "abliteration": {
+        "description": "Explicit-only hosted research and red-team models",
+        "enabled": true,
         "required": false
       },
       "ace-step": {
         "description": "Governed ACE-Step 1.5 local music generation resource",
         "enabled": true,
+        "required": false
+      },
+      "adguard-home": {
+        "description": "Managed AdGuard Home DNS filtering and resolver service for scenarios such as Network Manager",
+        "enabled": false,
         "required": false
       },
       "android-sdk": {
@@ -102,6 +152,11 @@
         "enabled": true,
         "required": false
       },
+      "n8n": {
+        "description": "Task-scoped n8n workflow rehearsal runtimes; acquired and started only through the F7 runtime owner",
+        "enabled": false,
+        "required": false
+      },
       "ollama": {
         "enabled": true,
         "healthCheck": {
@@ -113,8 +168,16 @@
           "running": true
         }
       },
+      "ollaya": {
+        "description": "Local decision-model service (Laya/Winnow behind a TypeSafe-compatible API) plus credential-gated hosted Jev/Clef upstreams; serves ai-gateway's decide.* roles",
+        "enabled": true,
+        "required": false
+      },
       "opencode": {
         "enabled": true
+      },
+      "openrgb": {
+        "enabled": false
       },
       "openrouter": {
         "description": "Unified API to many model providers for AI access",
@@ -126,9 +189,9 @@
         "enabled": true,
         "required": false
       },
-      "abliteration": {
-        "description": "Explicit-only hosted research and red-team models",
-        "enabled": true,
+      "pii-detector": {
+        "description": "Tiered CPU ONNX-Runtime PII detection (regex/checksum + token-classification NER); small + large tiers run real NER end-to-end",
+        "enabled": false,
         "required": false
       },
       "postgres": {
@@ -167,16 +230,6 @@
         "required": true,
         "version": "7"
       },
-      "pii-detector": {
-        "description": "Tiered CPU ONNX-Runtime PII detection (regex/checksum + token-classification NER); small + large tiers run real NER end-to-end",
-        "enabled": false,
-        "required": false
-      },
-      "ollaya": {
-        "description": "Local decision-model service (Laya/Winnow behind a TypeSafe-compatible API) plus credential-gated hosted Jev/Clef upstreams; serves ai-gateway's decide.* roles",
-        "enabled": true,
-        "required": false
-      },
       "reranker": {
         "enabled": true
       },
@@ -190,16 +243,16 @@
         "enabled": false,
         "required": false
       },
+      "songgen": {
+        "description": "Explicitly activated local MiniMax Music3 and HeartMuLa song generation",
+        "enabled": false,
+        "required": false
+      },
       "speaker-verification": {
         "enabled": false
       },
       "stable-audio-3": {
         "description": "Pinned Stable Audio 3 Medium local music generation; explicitly started CUDA pilot",
-        "enabled": false,
-        "required": false
-      },
-      "songgen": {
-        "description": "Explicitly activated local MiniMax Music3 and HeartMuLa song generation",
         "enabled": false,
         "required": false
       },
@@ -241,7 +294,7 @@
   "hostSafeguards": [
     {
       "name": "clock",
-      "notes": "Checks clock against remote HTTP time sources; syncs via hwclock/ntpdate/timedatectl if >5 minutes off",
+      "notes": "Checks clock against remote HTTP time sources; syncs via hwclock/ntpdate/timedatectl if \u003e5 minutes off",
       "reason": "Verify system clock accuracy for TLS certificate validation and JWT operations",
       "required": false,
       "when": [
@@ -365,7 +418,7 @@
     },
     {
       "name": "host_hardening",
-      "notes": "Writes /etc/sysctl.d/99-vrooli-host-hardening.conf and /etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf. Depends on the kdump-tools tool being armed (Phase 2 of 2026-05-07 work) \u2014 without that, panic_on_oops=1 turns survivable oopses into reboots that produce no diagnostics.",
+      "notes": "Writes /etc/sysctl.d/99-vrooli-host-hardening.conf and /etc/systemd/journald.conf.d/99-vrooli-ratelimit.conf. Depends on the kdump-tools tool being armed (Phase 2 of 2026-05-07 work) — without that, panic_on_oops=1 turns survivable oopses into reboots that produce no diagnostics.",
       "reason": "Turn silent hard resets into observable kdump-able panics (sysrq, hung_task/softlockup/NMI/oops panic) and rate-limit journald so UFW BLOCK floods don't drown panic info",
       "required": false,
       "when": [
@@ -411,8 +464,8 @@
     },
     {
       "name": "pstore_ramoops",
-      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.<timestamp>. REQUIRES OPERATOR REBOOT \u2014 Vrooli does NOT auto-run update-grub. Configure mem_address and mem_size in operator-state when native pstore is unavailable.",
-      "reason": "RAM-backed pstore fallback for hosts without native pstore \u2014 opt-in only, requires explicit memory-region configuration",
+      "notes": "Modifies GRUB_CMDLINE_LINUX in /etc/default/grub. Backup written to /etc/default/grub.vrooli-bak.\u003ctimestamp\u003e. REQUIRES OPERATOR REBOOT — Vrooli does NOT auto-run update-grub. Configure mem_address and mem_size in operator-state when native pstore is unavailable.",
+      "reason": "RAM-backed pstore fallback for hosts without native pstore — opt-in only, requires explicit memory-region configuration",
       "required": false,
       "when": [
         "setup"
@@ -439,7 +492,7 @@
     },
     {
       "name": "edac_modules",
-      "notes": "Detects CPU vendor/family and modprobes the matching EDAC driver (currently amd64_edac for AMD Family 15h\u20131Ah). Reports SupportNotApplicable on consumer Ryzen 7000 where ECC is not exposed by firmware.",
+      "notes": "Detects CPU vendor/family and modprobes the matching EDAC driver (currently amd64_edac for AMD Family 15h–1Ah). Reports SupportNotApplicable on consumer Ryzen 7000 where ECC is not exposed by firmware.",
       "reason": "Load EDAC drivers so memory error counters become readable under /sys/devices/system/edac/ on supported chipsets",
       "required": false,
       "when": [
@@ -478,7 +531,7 @@
     },
     {
       "name": "emergency_watchdog",
-      "notes": "Installs ~/.vrooli/libexec/emergency-watchdog.sh plus a systemd user service and timer under the invoking user's home. Needs no privilege. Replaces scripts/emergency-watchdog.sh, which was referenced by runbooks, installed by nothing, and whose hand-created unit hard-coded one operator's repository path. Holds unit restarts while CPU PSI shows the host is saturated.",
+      "notes": "Installs the user-owned ~/.vrooli/libexec/vrooli-watchdog executable and native scheduler. Scheduled runs report pressure and may request bounded storage recovery; they do not perform generic workload reclamation or unit restarts. Setup qualifies a staged executable and retains the prior image before publication. The independent runtime supervisor reconciles an interrupted admitted executable publication; scheduled-check readiness and scheduler-definition rollback are separate obligations.",
       "reason": "Give setup ownership of the last line of defense so every host has it, rather than depending on a hand-placed systemd unit that existed on exactly one machine",
       "required": true,
       "when": [
@@ -525,8 +578,17 @@
     },
     {
       "name": "harness_file_ownership",
-      "notes": "Changes the owner of root-owned coding-agent files back to the invoking operator: ~/.local/bin/<agent>, the upstream installer copies and each agent's version directory. Changes ownership only, never contents, and never follows a symlink. Moving a standalone file aside and linking Vrooli's copy stays a user-privileged action in `vrooli resource update`.",
+      "notes": "Changes the owner of root-owned coding-agent files back to the invoking operator: ~/.local/bin/\u003cagent\u003e, the upstream installer copies and each agent's version directory. Changes ownership only, never contents, and never follows a symlink. Moving a standalone file aside and linking Vrooli's copy stays a user-privileged action in `vrooli resource update`.",
       "reason": "Web Console reports a root-owned agent file as `needs setup` and shows `sudo vrooli setup --include-optional`; this safeguard is what makes that command repair it",
+      "required": false,
+      "when": [
+        "setup"
+      ]
+    },
+    {
+      "name": "generated_tree_ownership",
+      "notes": "Changes the owner of root-owned generated Proto files in the repository (packages/proto/gen, its replaced copy gen.previous and staging directories) back to the invoking operator. Changes ownership only, never contents, and never follows a symlink.",
+      "reason": "A root-run materialization can leave root-owned generated files that an unprivileged `make build` cannot replace; setup is the one place sudo runs, so setup repairs them",
       "required": false,
       "when": [
         "setup"
@@ -544,18 +606,18 @@
   ],
   "hostTools": [
     {
-      "name": "uv",
-      "required": false,
-      "version": ">=0.5.0",
-      "reason": "Optional Python builder and typecheck fixture support",
-      "when": [
-        "setup",
-        "test"
-      ],
       "environments": [
         "development",
         "production",
         "minimal"
+      ],
+      "name": "uv",
+      "reason": "Optional Python builder and typecheck fixture support",
+      "required": false,
+      "version": "\u003e=0.5.0",
+      "when": [
+        "setup",
+        "test"
       ]
     },
     {
@@ -823,7 +885,7 @@
         "minimal"
       ],
       "name": "mcelog",
-      "notes": "Custom handler enables mcelog.service; on modern AMD systems mcelog is often masked because rasdaemon owns the MCE channel \u2014 that is treated as ExecutionAlreadyPresent, not a failure.",
+      "notes": "Custom handler enables mcelog.service; on modern AMD systems mcelog is often masked because rasdaemon owns the MCE channel — that is treated as ExecutionAlreadyPresent, not a failure.",
       "platforms": [
         "linux"
       ],
