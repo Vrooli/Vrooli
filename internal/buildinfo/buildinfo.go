@@ -486,6 +486,8 @@ func FingerprintTargetsForExecutable(executableName string) []string {
 		return []string{"cmd/vrooli", "cli", "internal", "packages", "go.mod", "go.sum"}
 	case "vrooli-watchdog":
 		return []string{"cmd/vrooli-watchdog", "internal", "packages", "go.mod", "go.sum"}
+	case "vrooli-atomic-install":
+		return []string{"cmd/vrooli-atomic-install", "internal", "packages", "go.mod", "go.sum"}
 	default:
 		return nil
 	}

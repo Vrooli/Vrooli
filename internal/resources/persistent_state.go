@@ -5,10 +5,16 @@ import (
 	"strings"
 
 	"github.com/vrooli/binaryfetch"
+	platform "github.com/vrooli/platform-go"
+	"github.com/vrooli/vrooli/internal/hostreqkit"
 	"github.com/vrooli/vrooli/internal/statecontract"
 )
 
 const (
+	openRGBDevicePolicySchemaVersion       = 1
+	openRGBNativeDevicePolicySchemaVersion = 2
+	openRGBNativeOwnerVersion              = 2
+	openRGBNativeCapsuleVersion            = 1
 	managedUpdateCredentialSchemaVersion   = 1
 	managedUpdateExecFenceSchemaVersion    = 1
 	managedUpdateInputCleanupSchemaVersion = 1
@@ -22,7 +28,7 @@ const (
 func PersistentState() statecontract.Owner {
 	return statecontract.Owner{
 		Name: "resources",
-		Roots: []reflect.Type{
+		Roots: append([]reflect.Type{
 			reflect.TypeFor[managedUpdateLedger](),
 			reflect.TypeFor[ManagedServiceUpdate](),
 			reflect.TypeFor[ManagedUpdateEvent](),
@@ -31,8 +37,14 @@ func PersistentState() statecontract.Owner {
 			reflect.TypeFor[managedUpdateExecFence](),
 			reflect.TypeFor[managedUpdateInputCleanup](),
 			reflect.TypeFor[ManagedServiceState](),
+			reflect.TypeFor[openRGBInitialAttempt](),
 			reflect.TypeFor[ManagedServiceArtifact](),
 			reflect.TypeFor[ResourceManifest](),
+			reflect.TypeFor[OpenRGBDevicePolicyRecord](),
+			reflect.TypeFor[openRGBNativeOwner](),
+			reflect.TypeFor[openRGBNativeCapsule](),
+			reflect.TypeFor[openRGBDeviceSetupStoredPlan](),
+			reflect.TypeFor[openRGBDeviceSetupApplied](),
 			reflect.TypeFor[InstallFacts](),
 			reflect.TypeFor[managedComposeManifest](),
 			reflect.TypeFor[binaryfetch.ComposeStep](),
@@ -43,9 +55,16 @@ func PersistentState() statecontract.Owner {
 			reflect.TypeFor[resourceQualificationObservation](),
 			reflect.TypeFor[DeprecatedResourceList](),
 			reflect.TypeFor[BlueprintArchivedResourceList](),
-		},
+		}, hostreqkit.OpenRGBPermissionPersistentTypes()...),
 		Facts: map[string]any{
 			"managedUpdateSchemaVersion":             managedUpdateSchemaVersion,
+			"openRGBInitialSchemaVersion":            openRGBInitialSchemaVersion,
+			"openRGBDevicePolicySchemaVersion":       openRGBDevicePolicySchemaVersion,
+			"openRGBNativeDevicePolicySchemaVersion": openRGBNativeDevicePolicySchemaVersion,
+			"openRGBNativeOwnerVersion":              openRGBNativeOwnerVersion,
+			"openRGBNativeCapsuleVersion":            openRGBNativeCapsuleVersion,
+			"native_launcher_publication_profile":    platform.NativeLauncherProfileOpenRGB,
+			"openRGBNativeBootRetirementVersion":     openRGBNativeBootRetirementVersion,
 			"managedUpdateCredentialSchemaVersion":   managedUpdateCredentialSchemaVersion,
 			"managedUpdateExecFenceSchemaVersion":    managedUpdateExecFenceSchemaVersion,
 			"managedUpdateInputCleanupSchemaVersion": managedUpdateInputCleanupSchemaVersion,

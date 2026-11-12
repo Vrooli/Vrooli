@@ -53,9 +53,12 @@ func capabilityFactsFromSnapshot(snap hostinventory.Snapshot) hostreqspec.Capabi
 	}
 	var maxVRAM uint64
 	for _, gpu := range snap.GPUs {
+		if gpu.Source == hostinventory.SourceDarwinUnifiedMemory {
+			continue
+		}
 		facts.HasGPU = true
-		if gpu.VRAMBytes > maxVRAM {
-			maxVRAM = gpu.VRAMBytes
+		if gpu.DedicatedVRAMBytes() > maxVRAM {
+			maxVRAM = gpu.DedicatedVRAMBytes()
 		}
 	}
 	facts.MaxVRAMGb = bytesToGiB(maxVRAM)

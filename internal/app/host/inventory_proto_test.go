@@ -96,3 +96,14 @@ func TestWriteHostSnapshotJSONContract(t *testing.T) {
 		t.Errorf("field_provenance.os mismatch: %v", osProv)
 	}
 }
+
+func TestHostSnapshotPreservesUnknownPortableMetrics(t *testing.T) {
+	snapshot := hostinventory.Snapshot{OS: "darwin", Arch: "arm64", ProbeStatuses: map[string]string{"load": "ok", "load.running_procs": "unsupported"}, GPUs: []hostinventory.GPU{{Name: "legacy estimate", Source: hostinventory.SourceDarwinUnifiedMemory, VRAMBytes: 16 << 30, VRAMUsedBytes: 8 << 30}}}
+	response := hostSnapshotResponse(snapshot)
+	if response.ProbeStatuses["load.running_procs"] != "unsupported" {
+		t.Fatal("absent runnable count lost its status")
+	}
+	if len(response.Gpus) != 1 || response.Gpus[0].VramBytes != 0 || response.Gpus[0].VramUsedBytes != 0 {
+		t.Fatalf("legacy estimate became API measurement: %+v", response.Gpus)
+	}
+}

@@ -20,6 +20,7 @@ import (
 // version with new bytes, which is what happened to postgres on 2026-10-08.
 func runningArtifactFixture(t *testing.T) (*Controller, ResourceManifest, string, *ManagedServiceSupervisor, *httptest.Server) {
 	t.Helper()
+	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", t.TempDir())
 	release := []byte("#!/bin/sh\necho replacement\n" + strings.Repeat("#", 2048) + "\n")
 	sum := sha256.Sum256(release)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(release) }))

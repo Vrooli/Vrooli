@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	platform "github.com/vrooli/platform-go"
@@ -25,15 +26,50 @@ func stopManagedUpdateOriginal(ctx context.Context, u ManagedServiceUpdate) (man
 	if err := u.Validate(); err != nil {
 		return managedUpdateOriginalStopReceipt{}, err
 	}
-	if u.Phase != UpdatePrimaryStopping || (u.OriginalScope == nil && u.Original.UpdateLaunch == nil) {
+	if u.Phase != UpdatePrimaryStopping || (u.OriginalScope == nil && managedUpdateOriginalNativeRef(u.Original) == nil) {
 		return managedUpdateOriginalStopReceipt{}, fmt.Errorf("original primary stop lacks its admitted exact native owner")
 	}
-	if _, err := observeManagedUpdateProcess(ctx, u, u.Candidate, u.Target); err != nil {
-		return managedUpdateOriginalStopReceipt{}, fmt.Errorf("refuse original stop without a current verified candidate: %w", err)
+	if u.Resource == openRGBResourceName {
+		if handled, err := reconcileOpenRGBServingBoot(ctx, u.Original); handled || err != nil {
+			if err != nil {
+				return managedUpdateOriginalStopReceipt{}, err
+			}
+			return managedUpdateOriginalStopReceipt{Native: managedUpdateOriginalNativeRef(u.Original), RootGone: true, TreeQuiescent: true}, nil
+		}
 	}
-	if u.RollbackQualificationRequired {
-		if _, err := observeManagedUpdateProcess(ctx, u, u.RollbackProbe, u.Rollback); err != nil {
-			return managedUpdateOriginalStopReceipt{}, fmt.Errorf("refuse original stop without its live qualified rollback probe: %w", err)
+	if exclusiveStopStart(u) {
+		if u.Candidate.Intent != nil || u.RollbackProbe.Intent != nil || u.RollbackQualifiedAt == nil ||
+			!freshStateUpdateProof(u.OriginalProof, u.Original, *u.RollbackQualifiedAt) {
+			return managedUpdateOriginalStopReceipt{}, fmt.Errorf("exclusive stop lacks in-place rollback qualification or contains a shadow role")
+		}
+		quiescent, err := managedUpdateOriginalQuiescent(ctx, u)
+		if err != nil {
+			return managedUpdateOriginalStopReceipt{}, err
+		}
+		if quiescent {
+			// A prior stop may have completed before its release acknowledgement.
+			// Reconcile that exact owner instead of leaving an empty native unit.
+			return stopManagedUpdateOriginalNative(ctx, u)
+		}
+		if _, err := observeManagedUpdateOriginal(ctx, u); err != nil {
+			return managedUpdateOriginalStopReceipt{}, fmt.Errorf("refuse original stop without current exact-owner readiness: %w", err)
+		}
+		if err := verifyManagedUpdateOriginalConfig(u); err != nil {
+			return managedUpdateOriginalStopReceipt{}, err
+		}
+		if u.Resource == openRGBResourceName {
+			if err := verifyOpenRGBManagedUpdateStop(ctx, u); err != nil {
+				return managedUpdateOriginalStopReceipt{}, fmt.Errorf("refuse OpenRGB original stop without current role policy proof: %w", err)
+			}
+		}
+	} else {
+		if _, err := observeManagedUpdateProcess(ctx, u, u.Candidate, u.Target); err != nil {
+			return managedUpdateOriginalStopReceipt{}, fmt.Errorf("refuse original stop without a current verified candidate: %w", err)
+		}
+		if u.RollbackQualificationRequired {
+			if _, err := observeManagedUpdateProcess(ctx, u, u.RollbackProbe, u.Rollback); err != nil {
+				return managedUpdateOriginalStopReceipt{}, fmt.Errorf("refuse original stop without its live qualified rollback probe: %w", err)
+			}
 		}
 	}
 	return stopManagedUpdateOriginalNative(ctx, u)
@@ -52,18 +88,45 @@ func stopManagedUpdateOriginalForRestoration(ctx context.Context, u ManagedServi
 	if u.Phase != UpdateRestoring || u.PrimaryStopVerified || u.Primary.Intent == nil {
 		return managedUpdateOriginalStopReceipt{}, fmt.Errorf("original stop recovery is outside its admitted restoration phase")
 	}
-	_, rollbackErr := observeManagedUpdateProcess(ctx, u, u.RollbackProbe, u.Rollback)
-	if rollbackErr != nil {
-		if _, candidateErr := observeManagedUpdateProcess(ctx, u, u.Candidate, u.Target); candidateErr != nil {
-			return managedUpdateOriginalStopReceipt{}, fmt.Errorf("refuse unresolved original stop without a current serving shadow")
+	if u.Resource == openRGBResourceName {
+		if handled, err := reconcileOpenRGBServingBoot(ctx, u.Original); handled || err != nil {
+			if err != nil {
+				return managedUpdateOriginalStopReceipt{}, err
+			}
+			return managedUpdateOriginalStopReceipt{Native: managedUpdateOriginalNativeRef(u.Original), RootGone: true, TreeQuiescent: true}, nil
+		}
+	}
+	if !exclusiveStopStart(u) {
+		_, rollbackErr := observeManagedUpdateProcess(ctx, u, u.RollbackProbe, u.Rollback)
+		if rollbackErr != nil {
+			if _, candidateErr := observeManagedUpdateProcess(ctx, u, u.Candidate, u.Target); candidateErr != nil {
+				return managedUpdateOriginalStopReceipt{}, fmt.Errorf("refuse unresolved original stop without a current serving shadow")
+			}
+		}
+	}
+	if u.Resource == openRGBResourceName && exclusiveStopStart(u) {
+		if err := verifyOpenRGBManagedUpdateStop(ctx, u); err != nil {
+			return managedUpdateOriginalStopReceipt{}, fmt.Errorf("refuse OpenRGB restoration stop without current retained policy proof: %w", err)
 		}
 	}
 	return stopManagedUpdateOriginalNative(ctx, u)
 }
 
 func stopManagedUpdateOriginalNative(ctx context.Context, u ManagedServiceUpdate) (managedUpdateOriginalStopReceipt, error) {
-	if u.Original.UpdateLaunch != nil {
-		ref := u.Original.UpdateLaunch.NativeRef
+	return stopManagedUpdateOriginalNativeWithBoot(ctx, u, reconcileOpenRGBServingBoot)
+}
+
+func stopManagedUpdateOriginalNativeWithBoot(ctx context.Context, u ManagedServiceUpdate, boot func(context.Context, ManagedServiceState) (bool, error)) (managedUpdateOriginalStopReceipt, error) {
+	if u.Resource == openRGBResourceName {
+		if handled, err := boot(ctx, u.Original); handled || err != nil {
+			if err != nil {
+				return managedUpdateOriginalStopReceipt{}, err
+			}
+			return managedUpdateOriginalStopReceipt{Native: managedUpdateOriginalNativeRef(u.Original), RootGone: true, TreeQuiescent: true}, nil
+		}
+	}
+	if nativeRef := managedUpdateOriginalNativeRef(u.Original); nativeRef != nil {
+		ref := *nativeRef
 		quiescent, err := managedUpdateOriginalQuiescent(ctx, u)
 		if err != nil {
 			return managedUpdateOriginalStopReceipt{}, err
@@ -110,11 +173,39 @@ func verifyManagedUpdateOriginalImage(ctx context.Context, u ManagedServiceUpdat
 	if err := verifyManagedServiceOwnership(u.Original); err != nil {
 		return err
 	}
-	image, err := platform.OpenProcessExecutable(u.Original.PID)
+	var image *os.File
+	var err error
+	if u.Resource == openRGBResourceName {
+		image, err = openOpenRGBRecordedImage(ctx, u.Original)
+	} else {
+		image, err = platform.OpenProcessExecutable(u.Original.PID)
+	}
 	if err != nil {
 		return err
 	}
 	defer image.Close()
+	if u.Resource == openRGBResourceName && managedUpdateOriginalNativeRef(u.Original) != nil {
+		_, runtime, err := openRGBOriginalLaunch(u.Original)
+		if err != nil {
+			return err
+		}
+		owner := &Controller{Root: runtime.Root, Home: runtime.Home}
+		stage, err := owner.verifyOpenRGBRoleArtifact(ctx, u.Rollback.Artifact)
+		if err != nil {
+			return err
+		}
+		if stage != nil {
+			info, err := image.Stat()
+			if err != nil || !os.SameFile(stage.payload, info) {
+				return fmt.Errorf("OpenRGB original is not the witnessed staged payload: %v", err)
+			}
+			digest, err := managedUpdateImageDigest(ctx, image)
+			if err != nil || digest != stage.payloadSHA256 {
+				return fmt.Errorf("OpenRGB original payload changed before native stop: %v", err)
+			}
+			return nil
+		}
+	}
 	digest, err := managedUpdateImageDigest(ctx, image)
 	if err != nil {
 		return err

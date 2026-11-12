@@ -34,7 +34,7 @@ func TestManagedUpdateCurrentHostFullRunnerProbe(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			t.Setenv("XDG_STATE_HOME", filepath.Join(root, "xdg-state"))
+			isolateNativeUpdateFixtureStorage(t, root)
 			t.Setenv("VROOLI_RESOURCE_ARTIFACT_DIR", filepath.Join(root, "artifacts"))
 			u := updateTestInitial(t)
 			u.ID = "full-update-probe-" + strconv.FormatInt(time.Now().UnixNano(), 10)

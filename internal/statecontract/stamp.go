@@ -57,11 +57,21 @@ var WholeSources = map[string][]string{
 	// Scope these exact machinery files, excluding ordinary preflight/reporting,
 	// CLI output, host discovery and unsigned build implementation. Embedded
 	// recipe identities and actual artifact vocabulary are explicit owner facts.
-	"host-wireless":               {"internal/hostwireless/activation.g*", "internal/hostwireless/artifact*", "internal/hostwireless/asus_bluetooth_artifact*", "internal/hostwireless/signed_bundle*", "internal/hostwireless/signed_copy*", "internal/hostwireless/recovery_proof*", "internal/hostwireless/durable_wireless*", "internal/hostwireless/live_root*", "internal/hostwireless/radio_transaction*", "internal/hostwireless/radio_observe*", "internal/hostwireless/operations_linux*", "internal/hostwireless/journal_operations*", "internal/tools/mt7927-source"},
-	"core-activation":             {"internal/coreactivation"},
-	"watchdog-publication":        {"internal/safeguards/emergency-watchdog"},
-	"coding-agent-recovery":       {"internal/recovery"},
-	"native-operation-identities": {"packages/platform-go/operation*", "packages/platform-go/owned_service*", "packages/platform-go/containment*"},
+	"host-wireless":         {"internal/hostwireless/activation.g*", "internal/hostwireless/artifact*", "internal/hostwireless/asus_bluetooth_artifact*", "internal/hostwireless/signed_bundle*", "internal/hostwireless/signed_copy*", "internal/hostwireless/recovery_proof*", "internal/hostwireless/durable_wireless*", "internal/hostwireless/live_root*", "internal/hostwireless/radio_transaction*", "internal/hostwireless/radio_observe*", "internal/hostwireless/operations_linux*", "internal/hostwireless/journal_operations*", "internal/tools/mt7927-source"},
+	"core-activation":       {"internal/coreactivation"},
+	"watchdog-publication":  {"internal/safeguards/emergency-watchdog"},
+	"coding-agent-recovery": {"internal/recovery"},
+	"native-operation-identities": {
+		"packages/platform-go/operation*", "packages/platform-go/owned_service*", "packages/platform-go/containment*",
+		"packages/platform-go/darwin_owned*", "packages/platform-go/windows_owned*", "packages/platform-go/native_owned*",
+		"packages/platform-go/native_system_broker*", "packages/platform-go/native_system_supervisor*", "packages/platform-go/service_system_broker*", "packages/platform-go/native_resource_storage*",
+		"packages/platform-go/darwin_image_exec*", "packages/platform-go/darwin_nochildren*", "packages/platform-go/process_image*", "packages/platform-go/process_facts_darwin*", "packages/platform-go/process_security_darwin*", "packages/platform-go/native_process_security_proof*", "packages/platform-go/service_manager_query_darwin*",
+		"packages/platform-go/owned_image_child*", "packages/platform-go/owned_launcher_image*", "packages/platform-go/native_image_handoff*", "packages/platform-go/native_immutable_publish*", "packages/platform-go/native_serving_image*", "packages/platform-go/process_alive_observed*",
+		"packages/platform-go/task_scheduler_windows.go*", "packages/platform-go/windows_task_contract*", "packages/platform-go/task_boot_*", "packages/platform-go/task_legacy_retirement_windows.go*", "packages/platform-go/render_windowstask.go*",
+		"internal/resources/openrgb_native_capsule*",
+		"internal/runtimesupervisor/service_install*", "internal/app/runtime/runtime_native*", "internal/app/runtime/lighting_native*", "internal/app/runtime/lighting_commands.go*",
+		"cmd/vrooli/native_system_broker*", "cmd/vrooli/openrgb_native_capsule.go*",
+	},
 	// Acquisition declarations resources stores (manifest vocabulary that
 	// binaryfetch validates inline) and the artifact identity digests the
 	// prior recomputes to verify what it launches.
@@ -69,7 +79,7 @@ var WholeSources = map[string][]string{
 	// Sealing, key wrapping and the unlock cache; the rest of securestore is
 	// precise.
 	// The resource storage root layout: where every resource's state lives.
-	"resource-storage": {"internal/resources/runtime/storage"},
+	"resource-storage": {"internal/resources/runtime/storage", "internal/resources/storage_paths.go*", "internal/resources/openrgb_native_storage*", "internal/resources/openrgb_native_sealed_root*", "internal/resources/openrgb_native_ipc_root.go*"},
 	"secure-store":     {"internal/credentialpolicy", "internal/securestore/sealedfile*", "internal/securestore/encryptedstore*", "internal/securestore/keyprovider*", "internal/securestore/unlock*", "internal/securestore/native_wrap*", "internal/securestore/device_identity*"},
 }
 

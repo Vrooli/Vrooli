@@ -58,6 +58,7 @@ import (
 	kdumptools "github.com/vrooli/vrooli/internal/tools/kdump-tools"
 	"github.com/vrooli/vrooli/internal/tools/kubo"
 	"github.com/vrooli/vrooli/internal/tools/mcelog"
+	msvcruntime "github.com/vrooli/vrooli/internal/tools/msvc-runtime"
 	"github.com/vrooli/vrooli/internal/tools/protoc"
 	protocgenconnectgo "github.com/vrooli/vrooli/internal/tools/protoc-gen-connect-go"
 	protocgenes "github.com/vrooli/vrooli/internal/tools/protoc-gen-es"
@@ -97,6 +98,7 @@ var customToolHandlers = map[string]func(hostreqkit.ToolManifest) hostreqkit.Han
 	"stripe":                stripe.NewHandler,
 	"triposr_source":        triposrsource.NewHandler,
 	"vault":                 vault.NewHandler,
+	"msvc-runtime":          msvcruntime.NewHandler,
 	"webkitgtk":             webkitgtk.NewHandler,
 }
 

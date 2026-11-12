@@ -205,7 +205,7 @@ func TestLoadResourceClaimSpec(t *testing.T) {
 	root := t.TempDir()
 	// The claim lives inside the acceleration block, so a resource cannot
 	// reserve VRAM without declaring the backend it needs it on.
-	writeResourceManifest(t, root, "img", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","default_preferred_bytes":100,"floor_bytes":0,"default_priority":"batch","confidence":"estimated","idle_grace_seconds":900,"yield_when_idle":true,"profile":{"steps":[{"label":"fp16","default_amount_bytes":100},{"label":"cpu","default_amount_bytes":0}],"apply":{"verb":"capacity","argv":["degrade","--to","{label}"]},"upshift":true}}}}`)
+	writeResourceManifest(t, root, "img", `{"acceleration":{"backends":["cuda","cpu"],"cuda":{},"cpu":{},"claim":{"resource_kind":"vram","default_preferred_bytes":100,"floor_bytes":0,"default_priority":"batch","confidence":"estimated","idle_grace_seconds":900,"yield_when_idle":true,"profile":{"model":{"name":"model.bin","digest":"sha256:fixture"},"steps":[{"label":"fp16","default_amount_bytes":100},{"label":"cpu","default_amount_bytes":0}],"apply":{"verb":"capacity","argv":["degrade","--to","{label}"]},"upshift":true}}}}`)
 	spec, ok, err := LoadResourceClaimSpec(root, "img")
 	if err != nil || !ok {
 		t.Fatalf("LoadResourceClaimSpec() = ok %v err %v", ok, err)
@@ -216,6 +216,9 @@ func TestLoadResourceClaimSpec(t *testing.T) {
 	if spec.Profile == nil || len(spec.Profile.Steps) != 2 || spec.Profile.Steps[1].Label != "cpu" {
 		t.Errorf("spec profile = %+v", spec.Profile)
 	}
+	if spec.Profile.Model != (ModelIdentity{Name: "model.bin", Digest: "sha256:fixture"}) {
+		t.Fatalf("spec model = %+v, want exact claim model identity", spec.Profile.Model)
+	}
 }
 
 func TestRealWhisperHasRequiredCapacitySpec(t *testing.T) {
@@ -225,6 +228,10 @@ func TestRealWhisperHasRequiredCapacitySpec(t *testing.T) {
 	}
 	if spec.PreferredBytes != 2*1024*1024*1024 || spec.FloorBytes != 0 {
 		t.Fatalf("whisper claim = %+v, want 2 GiB preferred and CPU floor", spec)
+	}
+	wantModel := ModelIdentity{Name: "ggml-medium.bin", Digest: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208"}
+	if spec.Profile == nil || spec.Profile.Model != wantModel {
+		t.Fatalf("whisper residency model = %+v, want %+v", spec.Profile, wantModel)
 	}
 }
 

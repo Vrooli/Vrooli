@@ -67,6 +67,11 @@ type Scenario struct {
 	// "the same as Path", so every caller that never sets it is unchanged.
 	// The lifecycle sets it from its engagement layout policy (engagement.go).
 	SourceDir string
+	// RetainedReleaseID and RetainedBuildIdentity are populated only by the
+	// lifecycle's verified artifact resolver. They are runtime descriptors,
+	// not authored manifest settings or claims that data was rolled back.
+	RetainedReleaseID     string
+	RetainedBuildIdentity string
 }
 
 // SourcePath returns the directory this instance builds and runs from: its

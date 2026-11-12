@@ -262,6 +262,11 @@ func ParseSystemProfilerGPUs(input string) []GPU {
 	var gpus []GPU
 	for _, line := range strings.Split(input, "\n") {
 		line = strings.TrimSpace(line)
+		if strings.HasPrefix(strings.ToLower(line), "metal support:") && len(gpus) > 0 {
+			value := strings.ToLower(strings.TrimSpace(strings.SplitN(line, ":", 2)[1]))
+			gpus[len(gpus)-1].MetalSupported = strings.HasPrefix(value, "supported") || strings.HasPrefix(value, "metal ")
+			continue
+		}
 		if !strings.HasPrefix(strings.ToLower(line), "chipset model:") {
 			continue
 		}

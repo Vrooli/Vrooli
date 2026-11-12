@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
@@ -101,6 +102,54 @@ func TestReconcileNilAttributorDegradesToUnknown(t *testing.T) {
 	}
 	if findings[0].OwnerID != "ollama" { // falls back to process name
 		t.Errorf("owner = %q, want process-name fallback ollama", findings[0].OwnerID)
+	}
+}
+
+func TestMeasureClaimResidencyRequiresFreshExactOwnershipOrProvenAbsence(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now().UTC()
+	claim := CapacityClaim{ClaimID: "claim-whisper", OwnerID: "whisper", OwnerKind: OwnerKindResource, ResourceKind: ResourceKindVRAM, GPUIndex: gpu(0), Generation: 3, Status: StatusGranted, CreatedAt: now.Add(-time.Minute), UpdatedAt: now.Add(-time.Minute)}
+	snapshot := hostinventory.Snapshot{
+		GPUs:          []hostinventory.GPU{{Index: 0, Name: "Test", Source: "nvidia-smi", VRAMBytes: 16 * uint64(gib)}},
+		GPUProcesses:  []hostinventory.GPUProcess{{GPUIndex: 0, PID: 42, ProcessName: "whisper", UsedBytes: 4096}},
+		ProbeStatuses: map[string]string{"nvidia_gpu": "ok", "nvidia_gpu_processes": "ok"},
+		FieldProvenance: map[string]hostinventory.Provenance{
+			"gpu_processes": {ObservedAt: now.Add(-100 * time.Millisecond)},
+		},
+	}
+	measured, err := MeasureClaimResidency(ctx, []CapacityClaim{claim}, claim, snapshot, fakeAttributor{42: {OwnerID: "whisper"}}, now)
+	if err != nil || measured.ClaimID != claim.ClaimID || measured.Bytes != 4096 || !measured.ObservedAt.Equal(snapshot.FieldProvenance["gpu_processes"].ObservedAt) {
+		t.Fatalf("exact owner sample=%+v err=%v", measured, err)
+	}
+
+	unknown := snapshot
+	unknown.GPUProcesses = []hostinventory.GPUProcess{{GPUIndex: 0, PID: 42, ProcessName: "python", UsedBytes: 4096}}
+	if _, err := MeasureClaimResidency(ctx, []CapacityClaim{claim}, claim, unknown, fakeAttributor{}, now); err == nil {
+		t.Fatal("unknown process attribution was treated as measured zero")
+	}
+
+	absent := snapshot
+	absent.GPUProcesses = nil
+	zero, err := MeasureClaimResidency(ctx, []CapacityClaim{claim}, claim, absent, fakeAttributor{}, now)
+	if err != nil || zero.Bytes != 0 {
+		t.Fatalf("fresh complete absence sample=%+v err=%v", zero, err)
+	}
+
+	for label, mutate := range map[string]func(*hostinventory.Snapshot){
+		"failed process probe": func(s *hostinventory.Snapshot) { s.ProbeStatuses["nvidia_gpu_processes"] = "failed" },
+		"stale provenance": func(s *hostinventory.Snapshot) {
+			s.FieldProvenance["gpu_processes"] = hostinventory.Provenance{ObservedAt: now.Add(-time.Minute)}
+		},
+	} {
+		t.Run(label, func(t *testing.T) {
+			candidate := snapshot
+			candidate.ProbeStatuses = map[string]string{"nvidia_gpu": "ok", "nvidia_gpu_processes": "ok"}
+			candidate.FieldProvenance = map[string]hostinventory.Provenance{"gpu_processes": {ObservedAt: now.Add(-100 * time.Millisecond)}}
+			mutate(&candidate)
+			if _, err := MeasureClaimResidency(ctx, []CapacityClaim{claim}, claim, candidate, fakeAttributor{42: {OwnerID: "whisper"}}, now); err == nil {
+				t.Fatal("invalid physical inventory sample was accepted")
+			}
+		})
 	}
 }
 

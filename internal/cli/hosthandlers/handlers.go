@@ -38,7 +38,7 @@ type hostService struct {
 
 const hostMemoryBytesPerMegabyte = 1024
 
-var hostCommandNames = []string{"cron", "inventory", "kernel-memory", "service", "desktop-session", "install", "safeguard", "reboot", "volume", "storage", "hyperframes", "renderer-profile", "triposr-source", "renderer-cache-repair"}
+var hostCommandNames = []string{"cron", "inventory", "kernel-memory", "service", "desktop-session", "install", "safeguard", "reboot", "volume", "storage", "hyperframes", "renderer-profile", "triposr-source", "renderer-cache-repair", "wireless"}
 
 // RegisteredCommandPaths returns the child paths bound by the host handler.
 func RegisteredCommandPaths() []string {
@@ -145,6 +145,8 @@ func hostBindings(ctx *rootcli.CommandContext, names []string) map[string]func(c
 					return runTripoSRSourceProfile(runCtx, ctx)
 				case "renderer-cache-repair":
 					return runRendererCacheRepair(runCtx, ctx)
+				case "wireless":
+					return runHostWireless(runCtx, ctx)
 				case "install":
 					return runHostInstall(runCtx, ctx)
 				case "safeguard":
@@ -573,10 +575,11 @@ func runDesktopSession(runCtx cliapp.RunContext, parent *rootcli.CommandContext)
 
 func runHyperframes(runCtx cliapp.RunContext, parent *rootcli.CommandContext) error {
 	request, out := strings.TrimSpace(runCtx.Flag("request")), strings.TrimSpace(runCtx.Flag("out"))
+	diskLeaseFile := strings.TrimSpace(runCtx.Flag("disk-lease-file"))
 	if request == "" || out == "" {
 		return rootcli.UsageErrorf("host hyperframes", "--request and --out are required")
 	}
-	receipt, err := hyperframes.Execute(parent.OperationContext(), request, out)
+	receipt, err := hyperframes.ExecuteWithDiskLease(parent.OperationContext(), request, out, diskLeaseFile)
 	if parent.Globals.JSON || runCtx.JSON() {
 		if e := cliout.WriteJSONValue(runCtx.Stdout(), receipt); e != nil {
 			return e

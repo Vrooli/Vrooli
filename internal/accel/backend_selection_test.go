@@ -24,7 +24,7 @@ func appleSiliconHost() hostinventory.Snapshot {
 		OS: "darwin", Arch: "arm64",
 		RuntimeTools:  map[string]hostinventory.Tool{hostinventory.ToolSystemProfiler: {Present: true}},
 		ProbeStatuses: map[string]string{"nvidia_gpu": "not_present", "rocm": "unsupported", "vulkan": "no_devices"},
-		GPUs:          []hostinventory.GPU{{Index: 0, Name: "Apple M3 Pro", VRAMBytes: 12 << 30, Source: hostinventory.SourceSystemProfiler}},
+		GPUs:          []hostinventory.GPU{{Index: 0, Name: "Apple M3 Pro", MetalSupported: true, Source: hostinventory.SourceSystemProfiler}},
 	}
 }
 
@@ -157,6 +157,34 @@ func TestHostPublishesASelectableBackendFact(t *testing.T) {
 			// Then a target can select on exactly one value
 			if got != tc.want {
 				t.Fatalf("accel.backend = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestMetalSelectionRequiresExplicitSupportedDevice(t *testing.T) {
+	for _, tc := range []struct {
+		name, source string
+		supported    bool
+	}{
+		{name: "Apple name alone", source: hostinventory.SourceSystemProfiler},
+		{name: "legacy fabricated GPU", source: hostinventory.SourceDarwinUnifiedMemory, supported: true},
+		{name: "explicit Metal support", source: hostinventory.SourceSystemProfiler, supported: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			snapshot := appleSiliconHost()
+			snapshot.GPUs[0].Source = tc.source
+			snapshot.GPUs[0].MetalSupported = tc.supported
+			result, err := accel.ReadinessFromSnapshot(snapshot, accel.Spec{Resource: "fixture", Backends: []accel.Backend{accel.BackendMetal, accel.BackendCPU}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := accel.BackendCPU
+			if tc.supported && tc.source != hostinventory.SourceDarwinUnifiedMemory {
+				want = accel.BackendMetal
+			}
+			if result.Selected != want {
+				t.Fatalf("Selected=%q, want %q; verdicts=%+v", result.Selected, want, result.Considered)
 			}
 		})
 	}

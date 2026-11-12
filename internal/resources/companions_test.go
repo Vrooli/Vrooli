@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -18,6 +19,29 @@ import (
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
+
+func TestWhisperActivityEdgeHasStablePrivateControlOwner(t *testing.T) {
+	c := ResourceCompanion{Name: "activity-edge", Command: "resource-whisper", Args: []string{"activity-edge", "--native"}}
+	got := companionLaunchArgs("whisper", c, "/runtime/processes/resources/whisper", 4321)
+	want := []string{"activity-edge", "--native", "--control-socket", "/runtime/processes/resources/whisper/activity-edge.control.sock"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Whisper activity-edge args=%v, want %v", got, want)
+	}
+	other := companionLaunchArgs("reranker", ResourceCompanion{Name: "activity-edge", Args: []string{"activity-edge"}}, "/tmp", 4321)
+	if !reflect.DeepEqual(other, []string{"activity-edge", "--parent-pid", "4321"}) {
+		t.Fatalf("non-Whisper companion args=%v", other)
+	}
+	ollama := companionLaunchArgs("ollama", ResourceCompanion{Name: "activity-edge", Args: []string{"activity-edge"}}, "/runtime/processes/resources/ollama", 4321)
+	wantOllama := []string{"activity-edge", "--control-socket", "/runtime/processes/resources/ollama/activity-edge.control.sock"}
+	if !reflect.DeepEqual(ollama, wantOllama) {
+		t.Fatalf("Ollama activity-edge args=%v, want %v", ollama, wantOllama)
+	}
+	for resource, want := range map[string]bool{"whisper": true, "ollama": true, "reranker": false} {
+		if got := hasStableActivityEdge(resource); got != want {
+			t.Errorf("hasStableActivityEdge(%q)=%t, want %t", resource, got, want)
+		}
+	}
+}
 
 // TestStartCompanionsDormant proves the supervisor is a no-op (byte-identical)
 // for a resource that declares no companions.

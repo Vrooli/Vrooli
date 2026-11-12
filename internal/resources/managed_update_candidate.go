@@ -7,10 +7,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strconv"
-	"strings"
 	"time"
 
 	platform "github.com/vrooli/platform-go"
@@ -25,6 +23,7 @@ import (
 // launch reconciles the persisted intent; absence or caller loss never causes
 // redispatch. The complete promotion/recovery runner owns subsequent phases.
 func (c *Controller) AdvanceManagedUpdateCandidate(ctx context.Context, resource, request string) (ManagedServiceUpdate, error) {
+
 	if resource == openRGBResourceName {
 		return c.runOpenRGBPublicUpdate(ctx, func(ctx context.Context) (ManagedServiceUpdate, error) {
 			return c.advanceManagedUpdateCandidate(ctx, resource, request)
@@ -149,8 +148,7 @@ func observeManagedUpdateProcess(ctx context.Context, u ManagedServiceUpdate, p 
 	if err != nil {
 		return p, err
 	}
-	_, ticks, ok := strings.Cut(incarnation, ":")
-	if !ok || ticks != ref.RootStartTime {
+	if !ref.MatchesIncarnation(incarnation) {
 		return p, fmt.Errorf("native root incarnation changed")
 	}
 	fences, err := newManagedUpdateExecStore(u.Resource, u.ID, i.InstanceID)
@@ -164,11 +162,11 @@ func observeManagedUpdateProcess(ctx context.Context, u ManagedServiceUpdate, p 
 	if fence.Intent != i || fence.State != managedUpdateExecFenceClaimed || fence.Claim == nil || fence.ClaimedAt == nil || !reflect.DeepEqual(*fence.Claim, ref) {
 		return p, fmt.Errorf("resource exec claim is absent, revoked or belongs to another native identity")
 	}
-	root, err := i.Runtime.roleRoot(u.ID, i.InstanceID)
+	tokenPath, err := i.Runtime.tokenPath(u.ID, i.InstanceID)
 	if err != nil {
 		return p, err
 	}
-	token, err := readManagedUpdateToken(filepath.Join(root, "ownership-token"))
+	token, err := readManagedUpdateToken(tokenPath)
 	if err != nil {
 		return p, err
 	}
@@ -178,6 +176,14 @@ func observeManagedUpdateProcess(ctx context.Context, u ManagedServiceUpdate, p 
 	invocation, err := renderManagedUpdateInvocation(c, i.Runtime, u.ID, i.InstanceID, token)
 	if err != nil {
 		return p, err
+	}
+	payloadPID := ref.RootPID
+	if u.Resource == openRGBResourceName && fence.OpenRGBWitness != nil {
+		observation := openRGBServingObservation{ref: ref, witness: *fence.OpenRGBWitness}
+		payloadPID, err = observation.servingPID()
+		if err != nil {
+			return p, err
+		}
 	}
 	executing := invocation
 	expectedImageSHA := c.Artifact.SHA256
@@ -196,21 +202,21 @@ func observeManagedUpdateProcess(ctx context.Context, u ManagedServiceUpdate, p 
 			expectedImageSHA = appImageStage.payloadSHA256
 		}
 	}
-	actualEnv, err := process.ReadEnvironment(ref.RootPID)
+	actualEnv, err := process.ReadEnvironment(payloadPID)
 	if err != nil {
 		return p, err
 	}
 	if !reflect.DeepEqual(actualEnv, managedServiceEnvValues(executing.Env)) {
 		return p, fmt.Errorf("running role environment differs from frozen inputs")
 	}
-	args, err := platform.ProcessArguments(ref.RootPID)
+	args, err := platform.ProcessArguments(payloadPID)
 	if err != nil {
 		return p, err
 	}
 	if !reflect.DeepEqual(args, append([]string{executing.Path}, executing.Args...)) {
 		return p, fmt.Errorf("running role arguments differ from frozen inputs")
 	}
-	image, err := platform.OpenProcessExecutable(ref.RootPID)
+	image, err := openOpenRGBRoleImage(ctx, u.Resource, ref, fence.OpenRGBWitness, payloadPID)
 	if err != nil {
 		return p, err
 	}
@@ -227,7 +233,7 @@ func observeManagedUpdateProcess(ctx context.Context, u ManagedServiceUpdate, p 
 	if digest != expectedImageSHA {
 		return p, fmt.Errorf("running role image differs from frozen checksum")
 	}
-	if err := managedUpdateOwnedListener(i.Runtime.Port, ref.RootPID); err != nil {
+	if err := observeManagedUpdateRoleListener(u.Resource, i.Runtime.Port, payloadPID); err != nil {
 		return p, err
 	}
 	var openRGBServing *openRGBServingObservation
@@ -251,7 +257,7 @@ func observeManagedUpdateProcess(ctx context.Context, u ManagedServiceUpdate, p 
 	if err != nil {
 		return p, err
 	}
-	if err := managedUpdateOwnedListener(i.Runtime.Port, ref.RootPID); err != nil {
+	if err := observeManagedUpdateRoleListener(u.Resource, i.Runtime.Port, payloadPID); err != nil {
 		return p, err
 	}
 	after, err := platform.InspectOwnedService(ctx, ref)
@@ -265,7 +271,7 @@ func observeManagedUpdateProcess(ctx context.Context, u ManagedServiceUpdate, p 
 	if after.State != platform.OperationRunning || !after.RootAlive || !after.Populated || finalIncarnation != incarnation {
 		return p, fmt.Errorf("native role changed during readiness observation")
 	}
-	finalImage, err := platform.OpenProcessExecutable(ref.RootPID)
+	finalImage, err := openOpenRGBRoleImage(ctx, u.Resource, ref, fence.OpenRGBWitness, payloadPID)
 	if err != nil {
 		return p, err
 	}

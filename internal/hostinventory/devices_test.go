@@ -343,12 +343,14 @@ func TestCollectDevicesReportsPlatformStatus(t *testing.T) {
 		goos string
 		want string
 	}{
-		{goos: "darwin", want: "unimplemented"},
+		{goos: "darwin", want: "unsupported"},
 		{goos: "plan9", want: "unsupported"},
-		{goos: "windows", want: "unavailable"},
+		{goos: "windows", want: "unsupported"},
 	} {
 		t.Run(testCase.goos, func(t *testing.T) {
-			collector := Collector{Commands: &shelltest.Fake{}, Files: fakeFileReader{}, GOOS: testCase.goos, GOARCH: "arm64"}
+			collector := Collector{Commands: &shelltest.Fake{}, Files: fakeFileReader{}, GOOS: testCase.goos, GOARCH: "arm64", NativeDevices: func(context.Context, CommandRunner) NativeDeviceObservation {
+				return unavailableNativeDevices("fixture", IntegrityProbeUnsupported, nil)
+			}}
 			snapshot, err := collector.CollectGPUFacts(context.Background())
 			if err != nil {
 				t.Fatalf("CollectGPUFacts() error = %v", err)
@@ -363,59 +365,48 @@ func TestCollectDevicesReportsPlatformStatus(t *testing.T) {
 	}
 }
 
-func TestCollectWindowsDevicesUsesPNPIdentity(t *testing.T) {
-	const output = "\r\nAdapterCompatibility=NVIDIA\r\nDriverVersion=32.0.15.6636\r\nName=NVIDIA GeForce RTX 4070 Ti SUPER\r\nPNPDeviceID=PCI\\VEN_10DE&DEV_2705&SUBSYS_89571043&REV_A1\\4&2E5A2E5B&0&0008\r\n\r\nAdapterCompatibility=Advanced Micro Devices, Inc.\r\nDriverVersion=31.0.24033.1003\r\nName=AMD Radeon(TM) Graphics\r\nPNPDeviceID=PCI\\VEN_1002&DEV_164E&SUBSYS_88771043&REV_C1\\4&1B2A7A18&0&0041\r\n\r\n"
-	collector := Collector{
-		Commands: &shelltest.Fake{
-			Paths: map[string]string{"wmic": `C:\Windows\System32\wbem\WMIC.exe`},
-			Outputs: map[string][]byte{
-				"wmic path win32_VideoController get AdapterCompatibility,DriverVersion,Name,PNPDeviceID /Value": []byte(output),
-			},
+func TestCollectWindowsDevicesUsesNativePNPIdentity(t *testing.T) {
+	id := `pnp:PCI\VEN_10DE&DEV_2705\INSTANCE`
+	collector := Collector{Commands: &shelltest.Fake{}, Files: fakeFileReader{}, GOOS: "windows", GOARCH: "amd64",
+		NativeDevices: func(context.Context, CommandRunner) NativeDeviceObservation {
+			return NativeDeviceObservation{Mechanism: "SetupAPI", Devices: []DeviceInfo{{ID: id, Class: "display controller", VendorName: "NVIDIA", DeviceName: "RTX fixture"}}, ProbeStatus: map[string]IntegrityProbeState{"devices": IntegrityProbeOK}}
 		},
-		Files:  fakeFileReader{},
-		GOOS:   "windows",
-		GOARCH: "amd64",
 	}
 	snapshot, err := collector.CollectGPUFacts(context.Background())
 	if err != nil {
-		t.Fatalf("CollectGPUFacts() error = %v", err)
+		t.Fatal(err)
 	}
-	graphics := snapshot.DevicesOfClass(DeviceClassGraphics)
-	if len(graphics) != 2 {
-		t.Fatalf("graphics devices = %#v, want 2", graphics)
+	if len(snapshot.Devices) != 1 || snapshot.Devices[0].ID != id || snapshot.Devices[0].DiscoveredBy != "SetupAPI" {
+		t.Fatalf("devices = %#v", snapshot.Devices)
 	}
-	if graphics[0].ID != `pnp:PCI\VEN_10DE&DEV_2705&SUBSYS_89571043&REV_A1\4&2E5A2E5B&0&0008` {
-		t.Fatalf("device id = %q", graphics[0].ID)
-	}
-	if graphics[0].DiscoveredBy != "windows-pnp-device-tree" || graphics[1].Vendor != "Advanced Micro Devices, Inc." {
-		t.Fatalf("devices = %#v", graphics)
+	if len(snapshot.GPUs) != 1 || snapshot.GPUs[0].DeviceID != id || snapshot.GPUs[0].VRAMBytes != 0 {
+		t.Fatalf("gpus = %#v", snapshot.GPUs)
 	}
 	if snapshot.ProbeStatuses["device_tree"] != "ok" {
-		t.Fatalf("device_tree status = %q", snapshot.ProbeStatuses["device_tree"])
+		t.Fatal(snapshot.ProbeStatuses)
 	}
 }
 
-// TestCollectWindowsDevicesReportsUnrecognizedOutput keeps a wmic output shape
-// this parser does not understand from being reported as "this machine has no
-// graphics device".
-func TestCollectWindowsDevicesReportsUnrecognizedOutput(t *testing.T) {
-	collector := Collector{
-		Commands: &shelltest.Fake{
-			Paths: map[string]string{"wmic": `C:\Windows\System32\wbem\WMIC.exe`},
-			Outputs: map[string][]byte{
-				"wmic path win32_VideoController get AdapterCompatibility,DriverVersion,Name,PNPDeviceID /Value": []byte("Node,AdapterCompatibility,Name\r\nHOST,NVIDIA,RTX\r\n"),
-			},
-		},
-		Files:  fakeFileReader{},
-		GOOS:   "windows",
-		GOARCH: "amd64",
-	}
-	snapshot, err := collector.CollectGPUFacts(context.Background())
-	if err != nil {
-		t.Fatalf("CollectGPUFacts() error = %v", err)
-	}
-	if snapshot.ProbeStatuses["device_tree"] != "unrecognized_output" {
-		t.Fatalf("device_tree status = %q", snapshot.ProbeStatuses["device_tree"])
+func TestCollectNativeGraphicsPreservesPartialAndUnknownCoverage(t *testing.T) {
+	for _, state := range []IntegrityProbeState{IntegrityProbeOK, IntegrityProbeFailed, IntegrityProbeDegraded, IntegrityProbeUnsupported, ""} {
+		collector := Collector{Commands: &shelltest.Fake{}, Files: fakeFileReader{}, GOOS: "darwin", NativeDevices: func(context.Context, CommandRunner) NativeDeviceObservation {
+			o := NativeDeviceObservation{Mechanism: "IORegistry", ProbeStatus: map[string]IntegrityProbeState{}, ProbeErrors: map[string]string{"devices": "fixture"}}
+			if state != "" {
+				o.ProbeStatus["devices"] = state
+			}
+			return o
+		}}
+		snapshot, err := collector.CollectGPUFacts(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := state
+		if want == "" {
+			want = IntegrityProbeFailed
+		}
+		if snapshot.ProbeStatuses["device_tree"] != string(want) || len(snapshot.GPUs) != 0 {
+			t.Fatalf("state %q: %#v", state, snapshot)
+		}
 	}
 }
 

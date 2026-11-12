@@ -41,17 +41,21 @@ type Config struct {
 	DBPath   string
 	Clock    clock.Clock
 	ReadOnly bool
+	// MinimumDiskFloorBytes overrides the production 120 GiB post-peak floor.
+	// Tests may set it to zero to avoid host-capacity assumptions.
+	MinimumDiskFloorBytes *int64
 }
 
 // SQLiteStore is the capacity claim ledger backed by SQLite (modernc, pure-Go).
 // It mirrors internal/scenarioruntime.SQLiteStore's patterns (single conn, WAL,
 // busy_timeout, withRetryableTx) without importing it.
 type SQLiteStore struct {
-	db            *sql.DB
-	clock         clock.Clock
-	dbPath        string
-	admissionOnce sync.Once
-	admissionGate chan struct{}
+	db               *sql.DB
+	clock            clock.Clock
+	dbPath           string
+	diskFloorMinimum int64
+	admissionOnce    sync.Once
+	admissionGate    chan struct{}
 }
 
 // DefaultDBPath resolves the capacity ledger SQLite path. It lives beside the
@@ -145,7 +149,15 @@ func NewSQLiteStore(ctx context.Context, cfg Config) (*SQLiteStore, error) {
 	}
 	db.SetMaxOpenConns(1)
 
-	store := &SQLiteStore{db: db, clock: clk, dbPath: dbPath}
+	diskFloorMinimum := int64(120 << 30)
+	if cfg.MinimumDiskFloorBytes != nil {
+		if !testing.Testing() && *cfg.MinimumDiskFloorBytes < diskFloorMinimum {
+			db.Close()
+			return nil, fmt.Errorf("capacity ledger disk floor cannot be lowered below 120 GiB outside tests")
+		}
+		diskFloorMinimum = *cfg.MinimumDiskFloorBytes
+	}
+	store := &SQLiteStore{db: db, clock: clk, dbPath: dbPath, diskFloorMinimum: diskFloorMinimum}
 	if !readOnly {
 		if err := store.ensureSchema(ctx); err != nil {
 			db.Close()
@@ -304,6 +316,20 @@ func (s *SQLiteStore) ReportActivity(ctx context.Context, claimID string, genera
 	now := s.now()
 	var out CapacityClaim
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		// Serialize the demand report against transition creation on this exact
+		// claim. BeginResidencyTransition takes the same SQLite write authority
+		// before it checks idleness; whichever operation wins is therefore
+		// authoritative, and a late active signal cannot race an open unload.
+		if _, err := tx.ExecContext(ctx, `UPDATE capacity_claims SET claim_id=claim_id WHERE claim_id=?`, claimID); err != nil {
+			return fmt.Errorf("acquire activity claim write authority: %w", err)
+		}
+		unresolved, fenceErr := hasUnresolvedResidencyTransitionTx(ctx, tx, claimID, s.now())
+		if fenceErr != nil {
+			return fenceErr
+		}
+		if unresolved {
+			return ErrResidencyTransitionOpen
+		}
 		prior, getErr := getClaimTx(ctx, tx, claimID)
 		if getErr != nil {
 			return getErr
@@ -354,6 +380,13 @@ func (s *SQLiteStore) DegradeClaim(ctx context.Context, claimID string, generati
 	now := s.now()
 	var out CapacityClaim
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		unresolved, fenceErr := hasUnresolvedResidencyTransitionTx(ctx, tx, claimID, s.now())
+		if fenceErr != nil {
+			return fenceErr
+		}
+		if unresolved {
+			return ErrResidencyTransitionOpen
+		}
 		result, execErr := tx.ExecContext(ctx, `
 UPDATE capacity_claims
 SET status = ?, amount_bytes = ?, generation = generation + 1, updated_at = ?
@@ -391,6 +424,13 @@ func (s *SQLiteStore) ResizeClaim(ctx context.Context, claimID string, generatio
 	now := s.now()
 	var out CapacityClaim
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		unresolved, fenceErr := hasUnresolvedResidencyTransitionTx(ctx, tx, claimID, s.now())
+		if fenceErr != nil {
+			return fenceErr
+		}
+		if unresolved {
+			return ErrResidencyTransitionOpen
+		}
 		result, execErr := tx.ExecContext(ctx, `
 UPDATE capacity_claims
 SET status = ?, amount_bytes = ?, preferred_bytes = ?, generation = generation + 1, updated_at = ?
@@ -423,6 +463,13 @@ func (s *SQLiteStore) UpshiftClaim(ctx context.Context, claimID string, generati
 	now := s.now()
 	var out CapacityClaim
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		unresolved, fenceErr := hasUnresolvedResidencyTransitionTx(ctx, tx, claimID, s.now())
+		if fenceErr != nil {
+			return fenceErr
+		}
+		if unresolved {
+			return ErrResidencyTransitionOpen
+		}
 		result, execErr := tx.ExecContext(ctx, `
 UPDATE capacity_claims
 SET status = ?, amount_bytes = ?, generation = generation + 1, updated_at = ?
@@ -453,6 +500,13 @@ func (s *SQLiteStore) PreemptClaim(ctx context.Context, claimID string, generati
 	_ = reason
 	var out CapacityClaim
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		unresolved, fenceErr := hasUnresolvedResidencyTransitionTx(ctx, tx, claimID, s.now())
+		if fenceErr != nil {
+			return fenceErr
+		}
+		if unresolved {
+			return ErrResidencyTransitionOpen
+		}
 		result, err := tx.ExecContext(ctx, `UPDATE capacity_claims SET status = ?, generation = generation + 1, updated_at = ?
 WHERE claim_id = ? AND generation = ? AND status IN (?, ?, ?) AND activity_state = ? AND protected = 0`,
 			StatusPreempted, formatTime(s.now()), claimID, generation, StatusReserved, StatusGranted, StatusDegraded, ActivityIdle)
@@ -471,6 +525,13 @@ func (s *SQLiteStore) terminate(ctx context.Context, claimID, status string) (Ca
 	now := s.now()
 	var out CapacityClaim
 	err := s.withRetryableTx(ctx, func(tx *sql.Tx) error {
+		unresolved, fenceErr := hasUnresolvedResidencyTransitionTx(ctx, tx, claimID, s.now())
+		if fenceErr != nil {
+			return fenceErr
+		}
+		if unresolved {
+			return ErrResidencyTransitionOpen
+		}
 		result, execErr := tx.ExecContext(ctx, `
 UPDATE capacity_claims
 SET status = ?, generation = generation + 1, updated_at = ?
@@ -527,6 +588,13 @@ ORDER BY created_at ASC`, StatusReserved, StatusGranted, StatusDegraded, formatT
 			// The scan or earlier rows can age an absence witness. Validate at this
 			// row's mutation boundary while retaining exclusive SQLite write authority.
 			now := s.now()
+			unresolved, fenceErr := hasUnresolvedResidencyTransitionTx(ctx, tx, claim.ClaimID, now)
+			if fenceErr != nil {
+				return fenceErr
+			}
+			if unresolved {
+				continue
+			}
 			if claim.ResourceKind == ResourceKindVRAM && claim.OwnerKind != OwnerKindOp && !proofs[claim.ClaimID].validFor(claim, now) {
 				continue
 			}

@@ -11,7 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/config"
 )
 
 func TestManagedUpdateCredentialBindingRequiresCurrentUnchangedAuthority(t *testing.T) {
@@ -107,7 +106,7 @@ func TestManagedUpdateCurrentHostLegacyObservationProbe(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := config.WriteOwnedFileDurable(out, append(data, '\n'), 0o600); err != nil {
+		if err := writeResourceOwnedFileDurable(out, append(data, '\n'), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -145,6 +145,9 @@ type BackendConfig struct {
 	ComposeOverlay string `json:"compose_overlay,omitempty"`
 	// Env is applied to the resource process when this backend is selected.
 	Env map[string]string `json:"env,omitempty"`
+	// Arguments are appended to the managed-service invocation when this backend
+	// is selected. They remain argv elements; no shell parsing is performed.
+	Arguments []string `json:"arguments,omitempty"`
 	// LibraryPaths are directories the dynamic loader must search for this
 	// backend's shared libraries, relative to the staged artifact or absolute.
 	// Acquisition checks the artifact's runtime closure against them, so a
@@ -441,6 +444,14 @@ func (a AccelerationSpec) validateClaim() error {
 	if a.Claim.Profile == nil || len(a.Claim.Profile.Steps) == 0 {
 		return fmt.Errorf("acceleration.claim.profile with at least one step is required for a %q claim, otherwise the broker can never step the resource down", capacity.ResourceKindVRAM)
 	}
+	model := a.Claim.Profile.Model
+	modelName, modelDigest := strings.TrimSpace(model.Name), strings.TrimSpace(model.Digest)
+	if (modelName == "") != (modelDigest == "") {
+		return fmt.Errorf("acceleration.claim.profile.model requires both name and digest")
+	}
+	if modelName == "" && (model.Name != "" || model.Digest != "") {
+		return fmt.Errorf("acceleration.claim.profile.model name and digest must contain non-whitespace characters")
+	}
 	if !a.Claim.YieldWhenIdle {
 		return fmt.Errorf("acceleration.claim.yield_when_idle is required for a %q claim, otherwise an idle claim never releases capacity to active work", capacity.ResourceKindVRAM)
 	}
@@ -481,6 +492,11 @@ func (b BackendConfig) validate(backend string) error {
 	for key := range b.Env {
 		if strings.TrimSpace(key) == "" {
 			return fmt.Errorf("acceleration.%s.env has an empty variable name", backend)
+		}
+	}
+	for _, argument := range b.Arguments {
+		if strings.TrimSpace(argument) == "" {
+			return fmt.Errorf("acceleration.%s.arguments has an empty argv element", backend)
 		}
 	}
 	for _, path := range b.LibraryPaths {

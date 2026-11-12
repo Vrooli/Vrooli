@@ -211,3 +211,22 @@ func TestHostFactsReaderRechecksClockAfterLocalMutexWait(t *testing.T) {
 		})
 	}
 }
+
+func TestHostFactsRejectPreviousCollectorSchema(t *testing.T) {
+	now := time.Now()
+	r := &hostFactsReader{Path: t.TempDir() + "/facts.json", TTL: map[string]time.Duration{"gpu": time.Hour}, BootID: func() string { return "boot" }, Now: func() time.Time { return now }, Probe: func(context.Context, string) (json.RawMessage, error) { return json.RawMessage(`{"gpus":[]}`), nil }}
+	old, err := json.Marshal(hostFactsFile{Schema: hostFactsSchemaVersion - 1, BootID: "boot", Entries: map[string]hostFactsFileEntry{"gpu": {FetchedAt: now, Value: json.RawMessage(`{"gpus":[{"source":"darwin-unified-memory","vram_bytes":17179869184}]}`)}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(r.Path, old, 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := r.Read(context.Background(), "gpu")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != `{"gpus":[]}` {
+		t.Fatalf("old estimates survived: %s", got)
+	}
+}

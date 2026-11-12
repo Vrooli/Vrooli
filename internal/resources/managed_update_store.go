@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/artifactlock"
-	"github.com/vrooli/vrooli/internal/config"
 )
 
 var (
@@ -78,9 +77,12 @@ func newManagedUpdateStore(resource string) (*managedUpdateStore, error) {
 	return &managedUpdateStore{
 		resource: resource, path: filepath.Join(paths.StateDir, managedUpdateLedgerFile),
 		lock: func(ctx context.Context) (func(), error) {
+			if nativeOpenRGBUsesPrivateLocks(resource) {
+				return acquireOpenRGBNativeOwnerLock(ctx, "resource-update-state:"+resource)
+			}
 			return artifactlock.AcquireContext(ctx, "resource-update-state:"+resource)
 		},
-		write: config.WriteOwnedFileDurable, now: time.Now,
+		write: writeResourceOwnedFileDurable, now: time.Now,
 	}, nil
 }
 
@@ -117,7 +119,10 @@ func (s *managedUpdateStore) read() (managedUpdateLedger, error) {
 	}
 	ids, requests := map[string]bool{}, map[string]bool{}
 	active := 0
-	for _, entry := range ledger.Records {
+	for index := range ledger.Records {
+		entry := &ledger.Records[index]
+		entry.State.Target.markLegacyFileConfig()
+		entry.State.Rollback.markLegacyFileConfig()
 		u := entry.State
 		if err := u.Validate(); err != nil {
 			return managedUpdateLedger{}, fmt.Errorf("invalid retained update: %w", err)
@@ -393,7 +398,11 @@ func (s *managedUpdateStore) Commit(ctx context.Context, observed ManagedService
 		if old.Revision != observed.Revision {
 			return ManagedServiceUpdate{}, ErrManagedUpdateRevision
 		}
-		if err := validManagedUpdateObservation(old, observed); err != nil {
+		validateObservation := validManagedUpdateObservation
+		if event == UpdateFinishDisabled && old.Resource == openRGBResourceName {
+			validateObservation = validOpenRGBUpdateRetirementObservation
+		}
+		if err := validateObservation(old, observed); err != nil {
 			return ManagedServiceUpdate{}, err
 		}
 		next, err := transitionManagedUpdate(observed, event, s.now().UTC())
@@ -435,7 +444,9 @@ func validManagedUpdateObservation(old, next ManagedServiceUpdate) error {
 			return fmt.Errorf("%w: launch identity changed", ErrManagedUpdateConflict)
 		}
 		if pair.old.Intent == nil && pair.next.Intent != nil && old.Phase != pair.intentPhase {
-			return fmt.Errorf("launch intent was not recorded before its dispatch phase")
+			if !(pair.old == old.Primary && old.Phase == UpdatePrepared && exclusiveStopStart(old)) {
+				return fmt.Errorf("launch intent was not recorded before its dispatch phase")
+			}
 		}
 		if pair.old.State != nil && !reflect.DeepEqual(pair.old.State, pair.next.State) {
 			return fmt.Errorf("%w: owned process identity changed", ErrManagedUpdateConflict)
@@ -452,6 +463,9 @@ func validManagedUpdateObservation(old, next ManagedServiceUpdate) error {
 	}
 	if old.RollbackQualifiedAt != nil && !reflect.DeepEqual(old.RollbackProbe.Proof, next.RollbackProbe.Proof) {
 		return fmt.Errorf("rollback qualification proof is immutable after verification")
+	}
+	if old.RollbackQualifiedAt != nil && exclusiveStopStart(old) && !reflect.DeepEqual(old.OriginalProof, next.OriginalProof) {
+		return fmt.Errorf("exclusive rollback qualification proof is immutable after verification")
 	}
 	if old.RollbackProbeQuiescent && !next.RollbackProbeQuiescent {
 		return fmt.Errorf("rollback qualification quiescence cannot be revoked")

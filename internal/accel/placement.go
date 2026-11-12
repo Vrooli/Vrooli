@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/tuning"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
@@ -88,14 +89,15 @@ func Describe(target PlacementTarget) string {
 type State string
 
 const (
-	// StateOK means the observed backend equals the declared backend.
+	// StateOK means physical observation evidence places the running resource on
+	// its desired backend. A declaration alone is not an observation.
 	StateOK State = "ok"
 	// StateDrift means the resource is serving on a backend below the one it
 	// declared. It is serving, so it is not down; it is degraded.
 	StateDrift State = "drift"
-	// StateUndetermined means the placement signal is not present yet. It is
-	// distinct from drift: an absent workload cannot prove CPU placement and
-	// must not block a start.
+	// StateUndetermined means physical placement evidence is not available yet.
+	// It is distinct from drift: a declaration or absent workload cannot prove
+	// CPU placement and must not block a start.
 	StateUndetermined State = "undetermined"
 	// BackendUndetermined is the public placement verdict name. Its State type
 	// prevents callers from treating an unreadable verdict as a boolean.
@@ -122,6 +124,9 @@ type ContainerProbe func(ctx context.Context, container string, backend Backend)
 type Placement struct {
 	// Declared is the backend the resource asked the platform for.
 	Declared Backend `json:"declared"`
+	// Desired is an explicit alias for Declared in the placement contract.
+	// It remains separate from observed physical state.
+	Desired Backend `json:"desired"`
 	// Observed is the backend the host says the process is using. Empty when
 	// State is StateUndetermined.
 	Observed Backend `json:"observed,omitempty"`
@@ -131,10 +136,49 @@ type Placement struct {
 	Reason string `json:"reason"`
 	// Target describes what was inspected.
 	Target string `json:"target"`
+	// Model identity is supplied by the resource owner when available. The
+	// accelerator probe cannot infer which artifact a process loaded.
+	ModelName   string `json:"model_name,omitempty"`
+	ModelDigest string `json:"model_digest,omitempty"`
+	// FootprintBytes is nil until the observation source verifies a byte count.
+	// Zero is a measured value and must not be used for unavailable evidence.
+	FootprintBytes *int64     `json:"footprint_bytes,omitempty"`
+	FootprintAt    *time.Time `json:"footprint_at,omitempty"`
+	// ObservedAt timestamps this probe result; it is not a transition timestamp.
+	ObservedAt time.Time `json:"observed_at"`
+	// EvidenceMissing lists facts this placement-only probe cannot establish.
+	EvidenceMissing []string `json:"evidence_missing,omitempty"`
 }
 
 // Drifted reports whether the resource is serving below its declared backend.
 func (p Placement) Drifted() bool { return p.State == StateDrift }
+
+// DesiredResidencyPlacement converts the declared backend into the shared
+// capacity contract while preserving invalid declarations as unknown evidence.
+func (p Placement) DesiredResidencyPlacement() capacity.ResidencyPlacement {
+	return capacity.ResidencyPlacement{
+		Backend: string(p.Desired),
+		Known:   validPlacementBackend(p.Desired),
+		Reason:  fmt.Sprintf("resource declared backend %q", p.Desired),
+	}
+}
+
+// ObservedResidencyPlacement converts probe state without guessing CPU when
+// verification is undetermined or the returned backend is outside the closed
+// accelerator backend set.
+func (p Placement) ObservedResidencyPlacement() capacity.ResidencyPlacement {
+	known := (p.State == StateOK || p.State == StateDrift) && validPlacementBackend(p.Observed)
+	return capacity.ResidencyPlacement{Backend: string(p.Observed), Known: known, Reason: p.Reason}
+}
+
+func validPlacementBackend(backend Backend) bool {
+	switch backend {
+	case BackendCPU, BackendCUDA, BackendMetal, BackendROCm, BackendVulkan:
+		return true
+	default:
+		return false
+	}
+}
 
 // ErrAccessRevoked is returned when a container that previously had the device
 // can no longer open it. This is the daemon-reload failure mode: the host GPU
@@ -171,6 +215,15 @@ type Verifier struct {
 	Backoff time.Duration
 	// Sleep is the pause implementation. nil uses a context-aware timer.
 	Sleep func(ctx context.Context, d time.Duration) error
+	// Now stamps the observation independently from any owner transition time.
+	Now func() time.Time
+}
+
+func (v Verifier) now() time.Time {
+	if v.Now != nil {
+		return v.Now()
+	}
+	return time.Now()
 }
 
 func (v Verifier) attempts() int {
@@ -209,14 +262,16 @@ func (v Verifier) sleep(ctx context.Context, d time.Duration) error {
 // a known repair: a container that lost a device it used to hold.
 func (v Verifier) VerifyPlacement(ctx context.Context, resource string, target PlacementTarget, declared Backend) (Placement, error) {
 	description := Describe(target)
-	placement := Placement{Declared: declared, State: StateUndetermined, Target: description}
+	placement := Placement{
+		Declared: declared, Desired: declared, State: StateUndetermined, Target: description,
+		EvidenceMissing: []string{"observed_placement", "model_identity", "verified_footprint", "transition_identity"},
+	}
 
 	if declared == BackendCPU {
-		// Every host can run on the CPU, so a CPU declaration is trivially met
-		// and needs no probe.
-		placement.Observed = BackendCPU
-		placement.State = StateOK
-		placement.Reason = "the cpu backend needs no device"
+		// A CPU declaration needs no device probe to be eligible, but it does
+		// not establish where a particular process is running. Keep physical
+		// placement unknown until an independent observer supplies that fact.
+		placement.Reason = "the cpu backend needs no device; physical placement was not observed"
 		return placement, nil
 	}
 
@@ -225,10 +280,15 @@ func (v Verifier) VerifyPlacement(ctx context.Context, resource string, target P
 	for attempt := range attempts {
 		observed, access, reason, err := v.observe(ctx, target, declared)
 		if err != nil {
+			placement.ObservedAt = v.now()
 			return placement, err
 		}
+		placement.ObservedAt = v.now()
 		lastAccess = access
 		placement.Observed = observed
+		if validPlacementBackend(observed) {
+			placement.EvidenceMissing = removeMissingEvidence(placement.EvidenceMissing, "observed_placement")
+		}
 		placement.Reason = reason
 		if observed == declared {
 			placement.State = StateOK
@@ -250,6 +310,15 @@ func (v Verifier) VerifyPlacement(ctx context.Context, resource string, target P
 		return placement, &AccessRevokedError{Resource: resource, Target: description, Reason: placement.Reason}
 	}
 	return placement, nil
+}
+
+func removeMissingEvidence(missing []string, fact string) []string {
+	for i, candidate := range missing {
+		if candidate == fact {
+			return append(missing[:i], missing[i+1:]...)
+		}
+	}
+	return missing
 }
 
 // observe reads the evidence for one (target, backend) pair. It returns the

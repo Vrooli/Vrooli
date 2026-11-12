@@ -236,6 +236,9 @@ func (r *Runner) runPhaseDetailed(name, phaseName string, opts PhaseOptions, sto
 	if item, err = r.withSourceLayout(item); err != nil {
 		return PhaseResult{}, err
 	}
+	if item.RetainedReleaseID != "" {
+		return PhaseResult{}, fmt.Errorf("standalone phase %q cannot mutate a retained runtime; select source explicitly first", phaseName)
+	}
 	release, err := r.acquireScenarioLock(item.Slug)
 	if err != nil {
 		wrapped := fmt.Errorf("scenario %q phase %q blocked by concurrent lifecycle operation: %w", item.Slug, phaseName, err)
@@ -371,6 +374,24 @@ func (r *Runner) ExecutePhaseDetailed(item scenario.Scenario, phaseName string, 
 
 //nolint:gocyclo // phase execution coordinates setup, command, timeout, log, and cleanup outcomes.
 func (r *Runner) executePhaseDetailed(ctx context.Context, item scenario.Scenario, phaseName string, env map[string]string, logWriter io.Writer, childWriter io.Writer, forceSetup bool) (PhaseResult, error) {
+	if item.RetainedReleaseID != "" {
+		if phaseName != phasesDevelop && phaseName != "stop" {
+			return PhaseResult{}, fmt.Errorf("phase %s cannot mutate a retained runtime", phaseName)
+		}
+		verified, err := r.runtimeReleaseStore().Verify(ctxOrBackground(ctx), item.Slug, item.Variant, item.RetainedReleaseID)
+		if err != nil {
+			return PhaseResult{}, err
+		}
+		item, err = r.bindRetainedRuntime(item, verified)
+		if err != nil {
+			return PhaseResult{}, err
+		}
+		for _, key := range []string{"NODE_OPTIONS", "NODE_PATH"} {
+			if env[key] != "" {
+				return PhaseResult{}, fmt.Errorf("retained runtime cannot use external Node loader override %s", key)
+			}
+		}
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -1157,7 +1178,7 @@ func (r *Runner) startTrackedProcessContext(ctx context.Context, item scenario.S
 		return newPhaseStepError(item.Slug, phase, step.Name, logFile, fmt.Errorf("assign process containment: %w", err))
 	}
 	r.registerContainment(cmd.Process.Pid, containmentRelease)
-	if err := r.placeServiceProcess(slug, step.Name, cmd.Process.Pid); err != nil {
+	if err := r.placeServiceProcess(slug, step.Name, generation, cmd.Process.Pid); err != nil {
 		// This process was just started with Setsid. Never signal a caller's
 		// group if that invariant cannot be proved. No runtime record has been
 		// published yet, and the os.Process handle still owns the root.
@@ -1461,9 +1482,15 @@ func declaredCommandForStep(item scenario.Scenario, step scenario.PhaseStep, bas
 			return declaredStepCommand{}, false, err
 		}
 		environment := envSliceMap(baseEnv)
+		unexpanded := append([]string(nil), argv...)
 		argv, err = expandDeclaredValues(argv, environment)
 		if err != nil {
 			return declaredStepCommand{}, false, fmt.Errorf("component %s run.argv: %w", step.Name, err)
+		}
+		if item.RetainedReleaseID != "" {
+			if argv[0] != unexpanded[0] || (len(argv) > 2 && argv[1] == "--no-global-search-paths" && argv[2] != unexpanded[2]) {
+				return declaredStepCommand{}, false, fmt.Errorf("retained runtime command paths cannot change during environment expansion")
+			}
 		}
 		dir, err := componentWorkingDir(item.SourcePath(), component.Run.CWD)
 		if err != nil {
@@ -1803,8 +1830,8 @@ func extractExitCode(err error) int {
 // Placement is required wherever the platform supports adoption. Otherwise a
 // bounded recovery caller's expiry kills an apparently recovered service.
 // Off Linux the platform has no adoption primitive and this is a no-op.
-func (r *Runner) placeServiceProcess(slug, step string, pid int) error {
-	scope := serviceScopeName(slug, step)
+func (r *Runner) placeServiceProcess(slug, step, generation string, pid int) error {
+	scope := scenarioruntime.ServiceLaunchScopeName(slug, step, generation)
 	ref, method, err := r.runtimeDeps().adoptIntoScope(platform.AdoptSpec{
 		PID:         pid,
 		Scope:       scope,
@@ -1821,14 +1848,3 @@ func (r *Runner) placeServiceProcess(slug, step string, pid int) error {
 	r.Logger.Debug("service placed", "scenario", slug, "step", step, "scope", ref.Path, "method", method)
 	return nil
 }
-
-// serviceScopeName is the scope unit a service gets. It is derived from the
-// variant-aware record slug and step so an operator can identify the service.
-// A digest preserves identity across sanitization, tuple boundaries, and
-// truncation; a restart of the same service reuses the same name.
-func serviceScopeName(slug, step string) string {
-	return scenarioruntime.ServiceScopeName(slug, step)
-}
-
-// serviceScopeNameLimit keeps a unit name inside systemd's bound.
-const serviceScopeNameLimit = scenarioruntime.ServiceScopeNameLimit

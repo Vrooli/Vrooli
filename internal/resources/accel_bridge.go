@@ -16,6 +16,7 @@ import (
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/gpuaccess"
 	resourcecontrol "github.com/vrooli/vrooli/internal/resources/control"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	valuehelpers "github.com/vrooli/vrooli/internal/values"
 )
@@ -290,23 +291,42 @@ func applyGPUOverride(readiness accel.ReadinessResult, spec accel.Spec) (accel.R
 // process configuration after generic environment/config files. Selecting CPU
 // must actually constrain an auto-detecting daemon, not just change its ledger.
 func managedServiceBackendEnvironment(ctx context.Context, manifest ResourceManifest, env []string) ([]string, error) {
+	config, ok, err := managedServiceBackendConfig(ctx, manifest)
+	if err != nil || !ok {
+		return env, err
+	}
+	for key, value := range config.Env {
+		env = valuehelpers.SetEnv(env, key, value)
+	}
+	return env, nil
+}
+
+func managedServiceBackendArguments(ctx context.Context, manifest ResourceManifest) ([]string, error) {
+	config, ok, err := managedServiceBackendConfig(ctx, manifest)
+	if err != nil || !ok {
+		return nil, err
+	}
+	return append([]string(nil), config.Arguments...), nil
+}
+
+func managedServiceBackendConfig(ctx context.Context, manifest ResourceManifest) (manifestpkg.BackendConfig, bool, error) {
 	declaration := manifest.EffectiveAcceleration()
 	if declaration == nil || len(declaration.Backends) == 0 {
-		return env, nil
+		return manifestpkg.BackendConfig{}, false, nil
 	}
-	hasEnvironment := false
+	hasConfiguration := false
 	for _, backend := range declaration.Backends {
-		if config, ok := declaration.Config(backend); ok && len(config.Env) > 0 {
-			hasEnvironment = true
+		if config, ok := declaration.Config(backend); ok && (len(config.Env) > 0 || len(config.Arguments) > 0) {
+			hasConfiguration = true
 			break
 		}
 	}
-	if !hasEnvironment {
-		return env, nil
+	if !hasConfiguration {
+		return manifestpkg.BackendConfig{}, false, nil
 	}
 	backends, err := accel.ParseBackends(declaration.Backends)
 	if err != nil {
-		return nil, err
+		return manifestpkg.BackendConfig{}, false, err
 	}
 	selected := backends[0]
 	switch gpuOverride() {
@@ -318,19 +338,16 @@ func managedServiceBackendEnvironment(ctx context.Context, manifest ResourceMani
 		if len(backends) > 1 {
 			readiness, err := accel.Readiness(ctx, accelFactSource, accel.Spec{Resource: manifest.Name, Backends: backends, Require: declaration.EffectiveRequire()})
 			if err != nil {
-				return nil, fmt.Errorf("select managed-service backend environment: %w", err)
+				return manifestpkg.BackendConfig{}, false, fmt.Errorf("select managed-service backend configuration: %w", err)
 			}
 			selected = readiness.Selected
 		}
 	}
 	config, ok := declaration.Config(string(selected))
 	if !ok {
-		return nil, fmt.Errorf("resource %q has no configuration for selected backend %s", manifest.Name, selected)
+		return manifestpkg.BackendConfig{}, false, fmt.Errorf("resource %q has no configuration for selected backend %s", manifest.Name, selected)
 	}
-	for key, value := range config.Env {
-		env = valuehelpers.SetEnv(env, key, value)
-	}
-	return env, nil
+	return config, true, nil
 }
 
 // applyHealthToStatus is the single place a health verdict becomes a status

@@ -13,7 +13,6 @@ import (
 
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/artifactlock"
-	"github.com/vrooli/vrooli/internal/config"
 )
 
 // The exec fence's states. The prior image validates a fence strictly against
@@ -34,21 +33,33 @@ var (
 // immediately before replacing itself with the resource. A claimed fence is
 // never replay permission, even when its acknowledgement was lost. Revocation
 // prevents a late native wrapper from executing the resource at all.
+type managedExecAdmissionKind string
+
+const managedExecAdmissionInitial managedExecAdmissionKind = "initial"
+
 type managedUpdateExecFence struct {
-	SchemaVersion int                       `json:"schema_version"`
-	Resource      string                    `json:"resource"`
-	OperationID   string                    `json:"operation_id"`
-	Intent        ManagedUpdateLaunchIntent `json:"intent"`
-	State         string                    `json:"state"`
-	Claim         *platform.ServiceRef      `json:"claim,omitempty"`
-	ClaimedAt     *time.Time                `json:"claimed_at,omitempty"`
-	RevokedAt     *time.Time                `json:"revoked_at,omitempty"`
-	RejectedClaim *platform.ServiceRef      `json:"rejected_claim,omitempty"`
-	RejectedAt    *time.Time                `json:"rejected_at,omitempty"`
+	NativeBootRetirements []openRGBNativeBootRetirement `json:"native_boot_retirements,omitempty"`
+	AdmissionKind         managedExecAdmissionKind      `json:"admission_kind,omitempty"`
+	SchemaVersion         int                           `json:"schema_version"`
+	Resource              string                        `json:"resource"`
+	OperationID           string                        `json:"operation_id"`
+	Intent                ManagedUpdateLaunchIntent     `json:"intent"`
+	State                 string                        `json:"state"`
+	Claim                 *platform.ServiceRef          `json:"claim,omitempty"`
+	ClaimedAt             *time.Time                    `json:"claimed_at,omitempty"`
+	RevokedAt             *time.Time                    `json:"revoked_at,omitempty"`
+	NativeRetiredAt       *time.Time                    `json:"native_retired_at,omitempty"`
+	RejectedClaim         *platform.ServiceRef          `json:"rejected_claim,omitempty"`
+	RejectedAt            *time.Time                    `json:"rejected_at,omitempty"`
+	OpenRGBPolicy         *openRGBExecPolicy            `json:"openrgb_policy,omitempty"`
+	OpenRGBWitness        *openRGBExecWitness           `json:"openrgb_witness,omitempty"`
 }
 
 func (f managedUpdateExecFence) validate() error {
-	if f.SchemaVersion != managedUpdateExecFenceSchemaVersion || !managedUpdateResource.MatchString(f.Resource) || !managedUpdateKey.MatchString(f.OperationID) || !managedUpdateKey.MatchString(f.Intent.InstanceID) || !updateDigest(f.Intent.ContractDigest) || !updateDigest(f.Intent.OwnershipTokenHash) || f.Intent.NativeIntent.ValidateIdentity() != nil || f.Intent.NativeIntent.Owner != "resource-update" || f.Intent.NativeIntent.AttemptID != f.Intent.InstanceID || f.Intent.Runtime.validate() != nil {
+	if err := f.validateNativeBootRetirements(); err != nil {
+		return err
+	}
+	if f.SchemaVersion != managedUpdateExecFenceSchemaVersion || !managedUpdateResource.MatchString(f.Resource) || !managedUpdateKey.MatchString(f.OperationID) || !managedUpdateKey.MatchString(f.Intent.InstanceID) || !updateDigest(f.Intent.ContractDigest) || !updateDigest(f.Intent.OwnershipTokenHash) || f.Intent.NativeIntent.ValidateIdentity() != nil || !f.validNativeAdmission() || f.Intent.NativeIntent.AttemptID != f.Intent.InstanceID || f.Intent.Runtime.validate() != nil {
 		return fmt.Errorf("invalid resource exec fence identity")
 	}
 	if (f.Claim == nil) != (f.ClaimedAt == nil) {
@@ -57,8 +68,14 @@ func (f managedUpdateExecFence) validate() error {
 	if f.Claim != nil && (f.Claim.ValidateIdentity() != nil || f.Claim.Intent != platform.OperationIntent(f.Intent.NativeIntent) || f.Claim.RootPID <= 0 || f.ClaimedAt.IsZero()) {
 		return fmt.Errorf("resource exec claim differs from its native intent")
 	}
+	if err := f.validateOpenRGBWitness(); err != nil {
+		return err
+	}
 	if f.RevokedAt != nil && (f.RevokedAt.IsZero() || f.ClaimedAt != nil && f.RevokedAt.Before(*f.ClaimedAt)) {
 		return fmt.Errorf("invalid resource exec revocation time")
+	}
+	if f.NativeRetiredAt != nil && (f.State != managedUpdateExecFenceRevoked || f.RevokedAt == nil || f.NativeRetiredAt.IsZero() || f.NativeRetiredAt.Before(*f.RevokedAt)) {
+		return fmt.Errorf("resource exec native retirement lacks prior revocation")
 	}
 	if (f.RejectedClaim == nil) != (f.RejectedAt == nil) {
 		return fmt.Errorf("resource exec rejection is incomplete")
@@ -85,7 +102,15 @@ func (f managedUpdateExecFence) validate() error {
 	return nil
 }
 
+func (f managedUpdateExecFence) validNativeAdmission() bool {
+	if f.AdmissionKind == "" {
+		return f.Intent.NativeIntent.Owner == "resource-update"
+	}
+	return f.AdmissionKind == managedExecAdmissionInitial && f.Resource == openRGBResourceName && f.OperationID == f.Intent.InstanceID && f.Intent.NativeIntent.Owner == "resource-initial"
+}
+
 type managedUpdateExecStore struct {
+	admissionKind                 managedExecAdmissionKind
 	resource, operation, instance string
 	path                          string
 	lock                          func(context.Context) (func(), error)
@@ -105,10 +130,35 @@ func newManagedUpdateExecStore(resource, operation, instance string) (*managedUp
 		resource: resource, operation: operation, instance: instance,
 		path: filepath.Join(paths.StateDir, "managed-update-exec", operation, instance, "fence.json"),
 		lock: func(ctx context.Context) (func(), error) {
+			if nativeOpenRGBUsesPrivateLocks(resource) {
+				return acquireOpenRGBNativeOwnerLock(ctx, "resource-update-exec:"+resource+":"+operation+":"+instance)
+			}
 			return artifactlock.AcquireContext(ctx, "resource-update-exec:"+resource+":"+operation+":"+instance)
 		},
-		write: config.WriteOwnedFileDurable, now: time.Now,
+		write: writeResourceOwnedFileDurable, now: time.Now,
 	}, nil
+}
+
+// Initial launches share the durable one-shot claim and revocation mechanics,
+// while retaining a distinct typed admission and owner-derived namespace.
+func newManagedInitialExecStore(instance string) (*managedUpdateExecStore, error) {
+	s, err := newManagedUpdateExecStore(openRGBResourceName, instance, instance)
+	if err != nil {
+		return nil, err
+	}
+	paths, err := resourceStoragePaths(openRGBResourceName)
+	if err != nil {
+		return nil, err
+	}
+	s.admissionKind = managedExecAdmissionInitial
+	s.path = filepath.Join(paths.StateDir, "native-start", instance, "fence.json")
+	s.lock = func(ctx context.Context) (func(), error) {
+		if nativeOpenRGBUsesPrivateLocks(openRGBResourceName) {
+			return acquireOpenRGBNativeOwnerLock(ctx, "resource-initial-exec:"+instance)
+		}
+		return artifactlock.AcquireContext(ctx, "resource-initial-exec:"+instance)
+	}
+	return s, nil
 }
 
 func (s *managedUpdateExecStore) read() (managedUpdateExecFence, error) {
@@ -136,6 +186,13 @@ func (s *managedUpdateExecStore) read() (managedUpdateExecFence, error) {
 	if err := decoder.Decode(new(any)); err != io.EOF {
 		return managedUpdateExecFence{}, fmt.Errorf("resource exec fence has trailing content")
 	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return managedUpdateExecFence{}, err
+	}
+	if _, present := fields["native_boot_retirements"]; present && len(f.NativeBootRetirements) == 0 {
+		return managedUpdateExecFence{}, fmt.Errorf("native boot cleanup field requires versioned native receipts")
+	}
 	if err := s.validateIdentity(f); err != nil {
 		return managedUpdateExecFence{}, err
 	}
@@ -146,7 +203,7 @@ func (s *managedUpdateExecStore) validateIdentity(f managedUpdateExecFence) erro
 	if err := f.validate(); err != nil {
 		return err
 	}
-	if f.Resource != s.resource || f.OperationID != s.operation || f.Intent.InstanceID != s.instance {
+	if f.AdmissionKind != s.admissionKind || f.Resource != s.resource || f.OperationID != s.operation || f.Intent.InstanceID != s.instance {
 		return fmt.Errorf("%w: resource exec fence belongs to another owner path", ErrManagedUpdateConflict)
 	}
 	return nil
@@ -170,7 +227,7 @@ func (s *managedUpdateExecStore) save(f managedUpdateExecFence) error {
 }
 
 func sameManagedExecIdentity(a, b managedUpdateExecFence) bool {
-	return a.SchemaVersion == b.SchemaVersion && a.Resource == b.Resource && a.OperationID == b.OperationID && a.Intent == b.Intent
+	return a.AdmissionKind == b.AdmissionKind && a.SchemaVersion == b.SchemaVersion && a.Resource == b.Resource && a.OperationID == b.OperationID && a.Intent == b.Intent
 }
 
 // Prepare precedes role-intent admission and performs no process effect. The
@@ -193,7 +250,7 @@ func (s *managedUpdateExecStore) Prepare(ctx context.Context, initial managedUpd
 	}
 	old, err := s.read()
 	if err == nil {
-		if !sameManagedExecIdentity(old, initial) {
+		if !sameManagedExecIdentity(old, initial) || !sameOpenRGBExecPolicy(old.OpenRGBPolicy, initial.OpenRGBPolicy) {
 			return managedUpdateExecFence{}, ErrManagedUpdateConflict
 		}
 		if old.State == managedUpdateExecFenceClaimed {
@@ -217,14 +274,51 @@ func (s *managedUpdateExecStore) Prepare(ctx context.Context, initial managedUpd
 }
 
 func (s *managedUpdateExecStore) Claim(ctx context.Context, expected managedUpdateExecFence, ref platform.ServiceRef) (managedUpdateExecFence, error) {
-	return s.mutate(ctx, expected, &ref)
+	return s.mutate(ctx, expected, &ref, nil)
+}
+
+func (s *managedUpdateExecStore) ClaimOpenRGB(ctx context.Context, expected managedUpdateExecFence, ref platform.ServiceRef, witness openRGBExecWitness) (managedUpdateExecFence, error) {
+	return s.mutate(ctx, expected, &ref, &witness)
 }
 
 func (s *managedUpdateExecStore) Revoke(ctx context.Context, expected managedUpdateExecFence) (managedUpdateExecFence, error) {
-	return s.mutate(ctx, expected, nil)
+	return s.mutate(ctx, expected, nil, nil)
 }
 
-func (s *managedUpdateExecStore) mutate(ctx context.Context, expected managedUpdateExecFence, claim *platform.ServiceRef) (managedUpdateExecFence, error) {
+// recordNativeRetired acknowledges completed native cleanup, separately from
+// revocation. Reconstructing a missing fence can prevent future exec, but does
+// not establish that an earlier delivery has released its device descriptors.
+// Only the native cleanup owner calls this after exact absence or stop/release.
+func (s *managedUpdateExecStore) recordNativeRetired(ctx context.Context, expected managedUpdateExecFence) error {
+	if err := s.validateIdentity(expected); err != nil {
+		return err
+	}
+	release, err := s.lock(ctx)
+	if err != nil {
+		return err
+	}
+	defer release()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	f, err := s.read()
+	if err != nil {
+		return err
+	}
+	if !sameManagedExecIdentity(f, expected) || f.State != managedUpdateExecFenceRevoked {
+		return ErrManagedUpdateConflict
+	}
+	if f.NativeRetiredAt != nil {
+		// Visibility after a failed directory fsync is not durable receipt.
+		// Reconfirm the same acknowledgement on every recovery attempt.
+		return s.save(f)
+	}
+	at := s.now().UTC()
+	f.NativeRetiredAt = &at
+	return s.save(f)
+}
+
+func (s *managedUpdateExecStore) mutate(ctx context.Context, expected managedUpdateExecFence, claim *platform.ServiceRef, witness *openRGBExecWitness) (managedUpdateExecFence, error) {
 	if err := s.validateIdentity(expected); err != nil {
 		return managedUpdateExecFence{}, err
 	}
@@ -265,8 +359,12 @@ func (s *managedUpdateExecStore) mutate(ctx context.Context, expected managedUpd
 		if f.State == managedUpdateExecFenceClaimed {
 			return managedUpdateExecFence{}, ErrManagedUpdateExecClaimed
 		}
+		if f.Resource == openRGBResourceName && (witness == nil || f.OpenRGBPolicy == nil || !sameOpenRGBExecPolicy(f.OpenRGBPolicy, expected.OpenRGBPolicy)) {
+			return managedUpdateExecFence{}, fmt.Errorf("OpenRGB resource exec requires the admitted same-confinement device witness")
+		}
 		copy := *claim
 		f.State, f.Claim, f.ClaimedAt = managedUpdateExecFenceClaimed, &copy, &at
+		f.OpenRGBWitness = witness
 	} else {
 		if f.RevokedAt == nil {
 			f.RevokedAt = &at

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -251,6 +252,44 @@ func TestExecutorScopeUnreadableRegistryCannotGrantServiceExclusion(t *testing.T
 func TestExecutorScopeRegisteredServiceOwnsInheritedLabels(t *testing.T) {
 	f := newServiceScopeFixture(t)
 	f.check(t, "absent")
+}
+
+func TestExecutorScopeAgentManagerServiceRequiresRegisteredLaunchScope(t *testing.T) {
+	const legacyUnit = "vrooli-service-agent-manager-start-api-6acf5936c54e535eab5b633b80b28d84"
+	const generation = "11223344556677889900aabbccddeeff"
+	const previous = "00112233445566778899aabbccddeeff"
+	for _, tc := range []struct {
+		name   string
+		unit   string
+		refID  string
+		oldRun bool
+		want   string
+	}{
+		{"registered generation", legacyUnit + "-" + generation, "launch-" + generation, false, "absent"},
+		{"legacy scope", legacyUnit, "launch-" + generation, false, "absent"},
+		{"different generation", legacyUnit + "-" + previous, "launch-" + generation, false, "present"},
+		{"missing launch reference", legacyUnit + "-" + generation, generation, false, "present"},
+		{"detached run in previous scope", legacyUnit + "-" + generation, "launch-" + generation, true, "present"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newServiceScopeFixture(t)
+			f.instance.Scenario = "agent-manager"
+			f.ref.RefID = tc.refID
+			for pid, identity := range f.identities {
+				identity.Scenario = f.instance.Scenario
+				f.identities[pid] = identity
+				entry := f.table[pid]
+				entry.Cgroup = filepath.Join(filepath.Dir(fixtureServiceScope), tc.unit+".scope")
+				f.table[pid] = entry
+			}
+			if tc.oldRun {
+				f.table[40] = processTableEntry{PID: 40, PPID: 1, PGID: 40, Cgroup: filepath.Join(filepath.Dir(fixtureServiceScope), legacyUnit+"-"+previous+".scope")}
+				f.identities[40] = scopeIdentity{RunID: f.executor.RunID}
+				f.births[40] = supervision.ProcessInfo{PID: 40, StartedAt: f.ref.StartedAt.Add(-time.Second)}
+			}
+			f.check(t, tc.want)
+		})
+	}
 }
 
 func TestExecutorScopeRegisteredServiceRetainsActualRunDescendant(t *testing.T) {

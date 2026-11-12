@@ -10,11 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vrooli/vrooli/internal/config"
 )
 
 func updateCredentialTestStore(t *testing.T, u ManagedServiceUpdate) (*managedUpdateCredentialStore, *string, *int) {
 	t.Helper()
+	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", t.TempDir())
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	paths, err := resourceStoragePaths(u.Resource)
 	if err != nil {
@@ -133,7 +133,7 @@ func TestManagedUpdateCredentialSnapshotLostAcknowledgementKeepsSameCapture(t *t
 				t.Fatal("unconfirmed snapshot returned admission permission")
 			}
 			*value = "new-authority-after-lost-reply"
-			s.write = config.WriteOwnedFileDurable
+			s.write = writeResourceOwnedFileDurable
 			snapshot, err := s.Prepare(context.Background(), u)
 			if err != nil {
 				t.Fatal(err)

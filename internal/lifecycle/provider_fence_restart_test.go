@@ -18,6 +18,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostsession"
 	"github.com/vrooli/vrooli/internal/scenario"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
+	"github.com/vrooli/vrooli/internal/testenv"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	commonv1connect "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1/commonv1connect"
 )
@@ -131,6 +132,65 @@ func TestPrepareProviderFenceAllowsExplicitOverrideForNonAuthoritativeRuntime(t 
 	}
 	if fence != nil {
 		t.Fatalf("prepareProviderFence() fence = %#v, want no fence for unprovable stale generation", fence)
+	}
+}
+
+func TestPrepareProviderFenceAllowsDeadPrelaunchStartupWithoutProviderRPC(t *testing.T) {
+	ctx := context.Background()
+	home := t.TempDir()
+	clock := testenv.NewClock(time.Now().Add(-time.Hour))
+	store, err := scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home, Clock: clock})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ownerPID := 2_000_000_000
+	instance, err := store.CreateLease(ctx, scenarioruntime.Instance{
+		Scenario: "alpha", Variant: "live", Status: scenarioruntime.StatusStarting, Phase: "setup",
+		OwnerKind: scenarioruntime.OwnerKindLifecycle, OwnerPID: &ownerPID, HostBootID: "provider-fence-test-boot",
+	}, scenarioruntime.DefaultHeartbeatTTL)
+	if err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	if err := listener.Close(); err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	if _, err := store.AcquirePortClaim(ctx, scenarioruntime.PortClaim{
+		InstanceID: instance.InstanceID, Scenario: "alpha", Variant: "live", PortName: "api", EnvVar: "API_PORT",
+		Port: port, Status: scenarioruntime.ClaimStatusReserved,
+	}); err != nil {
+		_ = store.Close()
+		t.Fatal(err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	runner := &Runner{Home: home, deps: lifecycleDeps{
+		runtimeRegistry: func(ctx context.Context, home string) (scenarioRuntimeStore, error) {
+			return scenarioruntime.NewSQLiteStore(ctx, scenarioruntime.Config{HomeDir: home, Clock: clock})
+		},
+		hostSession: func(context.Context, string) (hostsession.Snapshot, error) {
+			return hostsession.Snapshot{BootID: "provider-fence-test-boot"}, nil
+		},
+	}}
+	item := scenario.Scenario{
+		Slug: "alpha", Variant: "live",
+		Manifest: scenario.ServiceManifest{Ports: map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}},
+	}
+	fence, err := runner.prepareProviderFence(ctx, item, false, "", "operation-1", nil, nil)
+	if err != nil {
+		t.Fatalf("prepareProviderFence() error = %v, want safe absent-provider result", err)
+	}
+	if fence != nil {
+		t.Fatalf("prepareProviderFence() fence = %#v, want no RPC fence for absent provider", fence)
 	}
 }
 

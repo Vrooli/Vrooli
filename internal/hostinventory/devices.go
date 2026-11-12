@@ -52,8 +52,7 @@ const (
 //     "pci:<domain>:<bus>:<device>.<function>" preferred on Intel Macs where
 //     an IOPCIDevice exposes a bus address. The IORegistry path is built from
 //     the firmware device tree, so it does not depend on probe order. macOS
-//     enumeration is not implemented yet and reports an explicit unimplemented
-//     probe status rather than an empty device list.
+//     enumeration uses the shared native IORegistry adapter.
 type Device struct {
 	ID     string      `json:"id"`
 	Class  DeviceClass `json:"class"`
@@ -149,53 +148,77 @@ func (c Collector) collectDevices(ctx context.Context, snap *Snapshot, observedA
 				File:       result.NamesFile,
 			}
 		}
-	case hostreqspec.PlatformWindows:
-		c.collectWindowsDevices(ctx, snap, observedAt)
-	case hostreqspec.PlatformMacOS:
-		// Recorded scheme, not yet implemented: see the Device doc comment.
-		// Reporting unimplemented keeps "I could not look" distinguishable
-		// from "I looked and there is no GPU".
-		snap.ProbeStatuses["device_tree"] = "unimplemented"
+	case hostreqspec.PlatformWindows, hostreqspec.PlatformMacOS:
+		c.collectNativeGraphics(ctx, snap, observedAt)
 	default:
 		snap.ProbeStatuses["device_tree"] = string(IntegrityProbeUnsupported)
 	}
 }
 
-func (c Collector) collectWindowsDevices(ctx context.Context, snap *Snapshot, observedAt time.Time) {
-	path, err := c.Commands.LookPath("wmic")
-	snap.RuntimeTools["wmic"] = Tool{Present: err == nil, Path: path}
-	if err != nil {
-		snap.ProbeStatuses["device_tree"] = devicesUnavailable
-		return
+// collectNativeGraphics projects the same identity adapter used by integrity
+// and System Monitor. It carries scope failures even when useful rows survived.
+func (c Collector) collectNativeGraphics(ctx context.Context, snap *Snapshot, observedAt time.Time) {
+	probe := c.NativeDevices
+	if probe == nil {
+		probe = CollectNativeDevices
 	}
-	const command = "wmic path win32_VideoController get AdapterCompatibility,DriverVersion,Name,PNPDeviceID /Value"
-	out, err := c.Commands.Run(ctx, "wmic", "path", "win32_VideoController", "get", "AdapterCompatibility,DriverVersion,Name,PNPDeviceID", "/Value")
-	if err != nil {
-		snap.Warnings = append(snap.Warnings, fmt.Sprintf("wmic video controllers: %v", err))
-		snap.ProbeStatuses["device_tree"] = string(IntegrityProbeFailed)
-		return
+	observation := probe(ctx, c.Commands)
+	state, ok := observation.ProbeStatus["devices"]
+	if !ok {
+		state = IntegrityProbeFailed
 	}
-	devices := ParseWindowsVideoControllers(string(out))
-	if len(devices) == 0 {
-		// A machine with no display adapter at all is possible, but so is a
-		// wmic output shape this parser does not understand. Distinguish them
-		// instead of reporting a confident empty list.
-		if strings.TrimSpace(string(out)) != "" {
-			snap.Warnings = append(snap.Warnings, "wmic reported video controller output that yielded no identifiable device")
-			snap.ProbeStatuses["device_tree"] = devicesUnrecognizedOutput
-			return
+	snap.ProbeStatuses["device_tree"] = string(state)
+	for scope, status := range observation.ProbeStatus {
+		snap.ProbeStatuses["device_tree."+scope] = string(status)
+	}
+	for scope, problem := range observation.ProbeErrors {
+		snap.Warnings = append(snap.Warnings, "native devices "+scope+": "+problem)
+	}
+	for _, device := range observation.Devices {
+		if device.Class != "display controller" {
+			continue
 		}
-		snap.ProbeStatuses["device_tree"] = collectorNoDevices
-		return
+		snap.Devices = append(snap.Devices, Device{
+			ID: device.ID, Class: DeviceClassGraphics, Vendor: device.VendorName,
+			VendorID: device.VendorID, Model: device.DeviceName, ModelID: device.DeviceID,
+			Driver: device.BoundDriver, DiscoveredBy: observation.Mechanism,
+		})
 	}
-	snap.Devices = append(snap.Devices, devices...)
-	snap.ProbeStatuses["device_tree"] = "ok"
-	snap.FieldProvenance["devices"] = Provenance{
-		SourceKind: SourceKindCommand,
-		Source:     "windows pnp video controllers",
-		ObservedAt: observedAt,
-		Confidence: "medium",
-		Command:    command,
+	snap.FieldProvenance["devices"] = Provenance{SourceKind: SourceKindCommand,
+		Source: observation.Mechanism, ObservedAt: observedAt, Confidence: "high"}
+	snap.FieldProvenance["gpus"] = snap.FieldProvenance["devices"]
+}
+
+// projectNativeGraphics adds identity-only rows only where vendor telemetry has
+// not already described the same adapter. Neither order nor generic vendor is a
+// safe match; an exact model must identify one device and one telemetry row.
+func projectNativeGraphics(snap *Snapshot) {
+	for _, device := range snap.DevicesOfClass(DeviceClassGraphics) {
+		match := -1
+		for i, gpu := range snap.GPUs {
+			if gpu.DeviceID == device.ID {
+				match = i
+				break
+			}
+			if gpu.DeviceID == "" && device.Model != "" && strings.EqualFold(gpu.Name, device.Model) {
+				count := 0
+				for _, candidate := range snap.Devices {
+					if strings.EqualFold(candidate.Model, device.Model) {
+						count++
+					}
+				}
+				if count != 1 || match >= 0 {
+					match = -1
+					break
+				}
+				match = i
+			}
+		}
+		if match >= 0 {
+			snap.GPUs[match].DeviceID = device.ID
+			continue
+		}
+		snap.GPUs = append(snap.GPUs, GPU{Index: len(snap.GPUs), Name: device.Model, DeviceID: device.ID, Source: SourceNativeDevice})
 	}
 }
 
@@ -230,6 +253,9 @@ func (c Collector) linkNvidiaDevices(ctx context.Context, snap *Snapshot, observ
 	unmatched := make([]string, 0)
 	matched := 0
 	for i := range snap.GPUs {
+		if snap.GPUs[i].Source != SourceNvidiaSMI {
+			continue
+		}
 		address, ok := addresses[snap.GPUs[i].Index]
 		if !ok {
 			continue

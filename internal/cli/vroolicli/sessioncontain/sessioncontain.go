@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -19,6 +20,10 @@ import (
 
 // Container adapts platform-go's containment to cli-core's seam.
 type Container struct{}
+
+// Native owner seams permit isolated tests without creating host scopes.
+var newContainedCommand = platform.ContainedCommand
+var observeContainedProcess = cliutil.ObserveProcessBinding
 
 // Register installs the container as cli-core's default.
 func Register() {
@@ -35,7 +40,7 @@ func containment(c cliutil.SessionContainment) platform.Containment {
 // failure after spawn is cleaned up at the platform boundary. Cancellation
 // stops the acquired scope and reaps the exact root before returning.
 func (Container) Run(ctx context.Context, scope string, c cliutil.SessionContainment, p cliutil.SessionProcess) (cliutil.ContainedSession, error) {
-	contained, err := platform.ContainedCommand(platform.ContainedSpec{
+	contained, err := newContainedCommand(platform.ContainedSpec{
 		Path: p.Path, Args: p.Args, Env: p.Env, Dir: p.Dir, Stdin: p.Stdin, Stdout: p.Stdout, Stderr: p.Stderr,
 		Scope: scope, Containment: containment(c),
 	})
@@ -55,7 +60,10 @@ func (Container) Run(ctx context.Context, scope string, c cliutil.SessionContain
 		// post-spawn placement failure. Never start a fallback agent here.
 		return cliutil.ContainedSession{Scope: contained.Scope.String(), Method: contained.Method}, err
 	}
-	session := cliutil.ContainedSession{Scope: contained.Scope.String(), Method: contained.Method}
+	session := nativeContainmentEvidence(contained.Scope.String(), contained.Method, contained.Cmd.Process.Pid, contained.Method == platform.MethodSystemdRun)
+	if p.OnContained != nil {
+		p.OnContained(session)
+	}
 	if ctx.Done() == nil {
 		return session, contained.Cmd.Wait()
 	}
@@ -94,7 +102,51 @@ func (Container) Run(ctx context.Context, scope string, c cliutil.SessionContain
 // ContainSelf moves the calling process into the scope before an exec.
 func (Container) ContainSelf(scope string, c cliutil.SessionContainment) (cliutil.ContainedSession, error) {
 	ref, method, err := platform.ContainSelf(scope, containment(c))
-	return cliutil.ContainedSession{Scope: ref.String(), Method: method}, err
+	session := cliutil.ContainedSession{Scope: ref.String(), Method: method}
+	if err == nil {
+		session = nativeContainmentEvidence(ref.String(), method, os.Getpid(), true)
+	}
+	return session, err
+}
+
+// nativeContainmentEvidence is deliberately narrower than a placement success.
+// Only a Linux cgroup with a live exact root, established before target exec,
+// supports descendant absence proofs. A late cgroup write or inferred vanished
+// systemd scope remains unavailable. These reads do not change launch behavior.
+func nativeContainmentEvidence(scope, method string, pid int, beforeExec bool) cliutil.ContainedSession {
+	session := cliutil.ContainedSession{Scope: scope, Method: method}
+	if !beforeExec {
+		session.ProofFailure = "native placement occurred after target start; descendant containment is unproven"
+		return session
+	}
+	process, err := observeContainedProcess(pid)
+	if err != nil {
+		session.ProofFailure = "native process incarnation unavailable: " + err.Error()
+		return session
+	}
+	path, ok := strings.CutPrefix(scope, "cgroup:")
+	if !ok || path == "" || !exactUnifiedCgroup(process.Cgroup, path) {
+		session.ProofFailure = "native process does not occupy the established cgroup"
+		return session
+	}
+	// Re-read after the scope check so PID reuse or relocation during collection
+	// cannot splice two process incarnations into one successful observation.
+	again, err := observeContainedProcess(pid)
+	if err != nil || again != process {
+		session.ProofFailure = "native process changed while containment was observed"
+		return session
+	}
+	session.Process, session.BeforeExec = process, true
+	return session
+}
+
+func exactUnifiedCgroup(raw, path string) bool {
+	for _, line := range strings.Split(raw, "\n") {
+		if line == "0::"+path {
+			return true
+		}
+	}
+	return false
 }
 
 // SupportsContainment satisfies cliutil.ContainmentCapability so the launcher

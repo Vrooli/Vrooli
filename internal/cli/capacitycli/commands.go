@@ -19,20 +19,30 @@ const (
 type CommandID string
 
 const (
-	CommandClaim     CommandID = "claim"
-	CommandHeartbeat CommandID = "heartbeat"
-	CommandActivity  CommandID = "activity"
-	CommandRelease   CommandID = "release"
-	CommandDegrade   CommandID = "degrade"
-	CommandResize    CommandID = "resize"
-	CommandList      CommandID = "list"
-	CommandReconcile CommandID = "reconcile"
-	CommandSweep     CommandID = "sweep"
-	CommandGC        CommandID = "gc"
-	CommandRecommend CommandID = "recommend"
-	CommandFootprint CommandID = "footprint"
-	CommandFit       CommandID = "fit"
-	CommandPolicy    CommandID = "policy"
+	CommandClaim            CommandID = "claim"
+	CommandHeartbeat        CommandID = "heartbeat"
+	CommandActivity         CommandID = "activity"
+	CommandRelease          CommandID = "release"
+	CommandDegrade          CommandID = "degrade"
+	CommandResize           CommandID = "resize"
+	CommandList             CommandID = "list"
+	CommandReconcile        CommandID = "reconcile"
+	CommandSweep            CommandID = "sweep"
+	CommandGC               CommandID = "gc"
+	CommandRecommend        CommandID = "recommend"
+	CommandFootprint        CommandID = "footprint"
+	CommandFit              CommandID = "fit"
+	CommandPolicy           CommandID = "policy"
+	CommandDiskReserve      CommandID = "disk-reserve"
+	CommandDiskHeartbeat    CommandID = "disk-heartbeat"
+	CommandDiskExtend       CommandID = "disk-extend"
+	CommandDiskComplete     CommandID = "disk-complete"
+	CommandDiskList         CommandID = "disk-list"
+	CommandDiskReservations CommandID = "disk-reservations"
+	CommandDiskReconcile    CommandID = "disk-reconcile"
+	CommandDiskObserve      CommandID = "disk-observe"
+	CommandDiskSample       CommandID = "disk-sample"
+	CommandResidency        CommandID = "residency"
 )
 
 const (
@@ -200,6 +210,46 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 				Options: []commandtree.OptionArg{commandtree.JSONOption()},
 			},
 			Handler: CommandPolicy,
+		},
+		{
+			Name: string(CommandDiskReserve), Summary: "Atomically reserve a multi-filesystem disk job from a JSON request file", Group: groupClaims,
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--request-file", ValueName: "path", Description: "JSON DiskJobRequest file"}, {Name: "--lease-file", ValueName: "path", Description: "Private 0600 file for lease credential"}, commandtree.JSONOption()}}, Handler: CommandDiskReserve,
+		},
+		{
+			Name: string(CommandDiskHeartbeat), Summary: "Renew an active disk job lease using its private lease file", Group: groupClaims,
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--lease-file", ValueName: "path", Description: "Private disk job lease credential file"}, commandtree.JSONOption()}}, Handler: CommandDiskHeartbeat,
+		},
+		{
+			Name: string(CommandDiskExtend), Summary: "Atomically extend a disk job lease before further growth", Group: groupClaims,
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--lease-file", ValueName: "path", Description: "Private disk job lease credential file"}, {Name: "--paths-file", ValueName: "path", Description: "JSON array of added/expanded paths"}, commandtree.JSONOption()}}, Handler: CommandDiskExtend,
+		},
+		{
+			Name: string(CommandDiskComplete), Summary: "Complete a disk job after output and cleanup are verified", Group: groupClaims,
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--lease-file", ValueName: "path", Description: "Private disk job lease credential file"}, {Name: "--cleanup-verified", Description: "Assert output publication and temporary cleanup are verified"}, commandtree.JSONOption()}}, Handler: CommandDiskComplete,
+		},
+		{
+			Name: string(CommandDiskList), Summary: "List durable disk jobs or refresh leased-filesystem headroom", Group: groupObserve,
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--active", Description: "Only active disk jobs"}, {Name: "--observe", Description: "Refresh aggregate headroom for every filesystem with an active disk lease; observational only, not an admission"}, commandtree.JSONOption()}}, Handler: CommandDiskList,
+		},
+		{
+			Name: string(CommandDiskReservations), Summary: "List legacy single-path disk reservation receipts", Group: groupObserve,
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--active", Description: "Only active reservations"}, {Name: "--owner", ValueName: "id", Description: "Filter by reservation owner"}, {Name: "--filesystem", ValueName: "id", Description: "Filter by filesystem id"}, commandtree.JSONOption()}}, Handler: CommandDiskReservations,
+		},
+		{
+			Name: string(CommandDiskReconcile), Summary: "Release a stale disk job after process stop and cleanup verification", Group: groupObserve,
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--lease-id", ValueName: "id", Description: "Disk job lease id"}, {Name: "--process-stopped", Description: "Assert the owner process was stopped"}, {Name: "--cleanup-verified", Description: "Assert the owner paths were reconciled"}, commandtree.JSONOption()}}, Handler: CommandDiskReconcile,
+		},
+		{
+			Name: string(CommandDiskObserve), Summary: "Observe free bytes and safe additional lease headroom", Group: groupObserve,
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--lease-file", ValueName: "path", Description: "Private disk job lease credential file"}, commandtree.JSONOption()}}, Handler: CommandDiskObserve,
+		},
+		{
+			Name: string(CommandDiskSample), Summary: "Record an owner-measured path baseline/checkpoint, optionally extending atomically", Group: groupClaims,
+			Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--lease-file", ValueName: "path", Description: "Private disk job lease credential file"}, {Name: "--path", ValueName: "path", Description: "Exact declared write path"}, {Name: "--bytes", ValueName: "n", Description: "Owner-measured current path bytes"}, {Name: "--extend-peak", ValueName: "n", Description: "Optional new total peak for this path"}, {Name: "--docker-container", ValueName: "name-or-id", Description: "Docker container authoritatively resolving an inaccessible host path"}, {Name: "--docker-destination", ValueName: "path", Description: "Container mount destination (omit only with --docker-upper-dir or --docker-root-dir)"}, {Name: "--docker-upper-dir", Description: "Resolve the container's daemon-reported writable upper directory"}, {Name: "--docker-root-dir", Description: "Resolve Docker daemon root for pre-provision admission"}, commandtree.JSONOption()}}, Handler: CommandDiskSample,
+		},
+		{
+			Name: string(CommandResidency), Summary: "Persist or replay owner-measured model residency transitions", Group: groupObserve,
+			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "action", Description: "begin|complete|reconcile|recover|get|history|release"}}, Options: []commandtree.OptionArg{{Name: "--request-file", ValueName: "path", Description: "Owner-authored transition JSON for begin/complete/reconcile/recover; exact owner/claim/model release JSON for release"}, {Name: "--transition-id", ValueName: "id", Description: "Exact transition identity for get/history"}, commandtree.JSONOption()}}, Handler: CommandResidency,
 		},
 	}
 }

@@ -31,6 +31,7 @@ const (
 	CommandHygiene                CommandID = "hygiene"
 	CommandLifecycle              CommandID = "lifecycle"
 	CommandCLIRefresh             CommandID = "cli-refresh"
+	CommandManagedServiceExec     CommandID = "managed-service-exec"
 	CommandManagedUpdateExec      CommandID = "managed-update-exec"
 	CommandManagedUpdateCandidate CommandID = "managed-update-candidate"
 	CommandManagedUpdateRun       CommandID = "managed-update-run"
@@ -54,6 +55,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 	return []commandtree.Spec[CommandID]{
 		{Name: string(CommandManagedUpdateRun), Group: "Internal Commands", Summary: "Reconcile an admitted native managed update", Handler: CommandManagedUpdateRun, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true}, Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "resource", Required: true}, {Name: "request", Required: true}}}},
 		{Name: string(CommandManagedUpdateCandidate), Group: "Internal Commands", Summary: "Advance an already-admitted managed update's parallel candidate", Handler: CommandManagedUpdateCandidate, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true}, Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "resource", Required: true}, {Name: "request", Required: true}}}},
+		{Name: string(CommandManagedServiceExec), Group: "Internal Commands", Summary: "Execute one admitted initial native resource", Handler: CommandManagedServiceExec, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true}, Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "resource", Required: true}, {Name: "attempt", Required: true}}}},
 		{Name: string(CommandManagedUpdateExec), Group: "Internal Commands", Summary: "Execute one admitted native managed-service update role", Handler: CommandManagedUpdateExec, Hidden: true, Suggestable: false, RootPolicy: commandtree.RootPolicy{RequiresRoot: true}, Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "resource", Required: true}, {Name: "request", Required: true}, {Name: "instance", Required: true}}}},
 		{Name: string(CommandSetup), Group: "Lifecycle Commands", Summary: "Initialize the development environment", Handler: CommandSetup, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},
 		{Name: string(CommandDevelop), Group: "Lifecycle Commands", Summary: "Start development servers", Handler: CommandDevelop, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot}},

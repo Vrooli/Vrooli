@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -12,7 +13,18 @@ import (
 func Incarnation(pid int) (string, error) { return processIncarnation(pid) }
 
 // LaunchRefID binds the registry's opaque process reference to one launch.
-func LaunchRefID(generation string) string { return "launch-" + generation }
+func LaunchRefID(generation string) string { return launchRefPrefix + generation }
+
+const launchRefPrefix = "launch-"
+
+// LaunchRefGeneration returns the generation carried by a launch reference.
+func LaunchRefGeneration(refID string) string {
+	generation, found := strings.CutPrefix(refID, launchRefPrefix)
+	if !found {
+		return ""
+	}
+	return generation
+}
 
 // PinRecord opens a stable handle and verifies the recorded launch while it is
 // alive. The caller owns Close. A previously dead PID cannot supply exit proof.

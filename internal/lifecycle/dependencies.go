@@ -344,6 +344,11 @@ func (r *Runner) ensureDependency(ctx context.Context, item scenario.Scenario, o
 	// artifact work, and must not inherit the parent's much longer ceiling.
 	dependencyOpts.Context = ctx
 	dependencyOpts.CustomPath = ""
+	// Retained selection is scoped to the explicitly addressed instance.
+	// Dependencies use their own durable selection and never inherit a
+	// parent's release ID or compare-and-set expectation.
+	dependencyOpts.RetainedReleaseID = ""
+	dependencyOpts.ExpectedRetainedReleaseID = ""
 	dependencyOpts.CleanStale = false
 	// Dependencies are shared live infrastructure: a shadow scenario adopts
 	// the live dependency instances rather than spinning variant-scoped

@@ -14,11 +14,11 @@ import (
 	"time"
 
 	"github.com/vrooli/vrooli/internal/artifactlock"
-	"github.com/vrooli/vrooli/internal/config"
+	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
 )
 
 func updateTestStoreAt(path string, now time.Time) *managedUpdateStore {
-	return &managedUpdateStore{resource: "cloudflared", path: path, now: func() time.Time { return now }, write: config.WriteOwnedFileDurable, lock: func(ctx context.Context) (func(), error) {
+	return &managedUpdateStore{resource: "cloudflared", path: path, now: func() time.Time { return now }, write: writeResourceOwnedFileDurable, lock: func(ctx context.Context) (func(), error) {
 		return artifactlock.AcquireWithPathContext(ctx, "update-test:"+path, func(string) (string, error) { return path + ".lock", nil })
 	}}
 }
@@ -93,6 +93,166 @@ func TestManagedUpdateStoreCrashReloadAndReplayAtEveryCheckpoint(t *testing.T) {
 	}
 }
 
+func TestManagedUpdateStoreReadsLegacyRollingCheckpoint(t *testing.T) {
+	fixturePath := filepath.Join(projectRoot(t), "internal", "resources", "testdata", "managed_update_legacy_rolling_checkpoint.json")
+	data, err := os.ReadFile(fixturePath)
+	if err != nil {
+		t.Fatalf("read retained legacy rolling checkpoint: %v", err)
+	}
+	const checkpointTime = "2026-11-05T21:00:00Z"
+	updatedAt, err := time.Parse(time.RFC3339, checkpointTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := updateTestStoreAt(filepath.Join(t.TempDir(), managedUpdateLedgerFile), updatedAt)
+	if err := os.WriteFile(s.path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := s.Lookup("request-fixture")
+	if err != nil {
+		t.Fatalf("read prior rolling managed-update checkpoint: %v", err)
+	}
+	if loaded.ID != "update-fixture" || loaded.Target.Manifest.ManagedService.UpdatePolicy.Strategy != "rolling-stateless" {
+		t.Fatalf("prior rolling checkpoint changed after read: %+v", loaded)
+	}
+	if len(loaded.Target.ConfigBytes) != 0 || loaded.Target.ConfigFile != "" || loaded.Target.ConfigSHA256 != "" {
+		t.Fatalf("legacy checkpoint unexpectedly acquired frozen config fields: %+v", loaded.Target)
+	}
+}
+
+func TestManagedUpdateStoreReconfirmsLegacyFileBackedV1CheckpointForRecovery(t *testing.T) {
+	fixturePath := filepath.Join(projectRoot(t), "internal", "resources", "testdata", "managed_update_legacy_file_config_v1.json")
+	data, err := os.ReadFile(fixturePath)
+	if err != nil {
+		t.Fatalf("read fixed pre-freeze v1 checkpoint: %v", err)
+	}
+	s := updateTestStoreAt(filepath.Join(t.TempDir(), managedUpdateLedgerFile), time.Date(2026, 11, 5, 21, 0, 0, 0, time.UTC))
+	s.resource = openRGBResourceName
+	if err := os.WriteFile(s.path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := s.Lookup("request-fixture")
+	if err != nil {
+		t.Fatalf("read legacy file-backed checkpoint: %v", err)
+	}
+	if loaded.Target.ConfigFile != "" || len(loaded.Target.ConfigBytes) != 0 || !loaded.Target.legacyFileConfig {
+		t.Fatalf("legacy config representation was not preserved: %+v", loaded.Target)
+	}
+	confirmed, err := s.Confirm(context.Background(), loaded.RequestID, loaded.Revision)
+	if err != nil || !confirmed.Target.legacyFileConfig {
+		t.Fatalf("durably reconfirm legacy recovery checkpoint: %+v %v", confirmed, err)
+	}
+	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", filepath.Join(t.TempDir(), "resource-state"))
+	paths, err := resourceStoragePaths(openRGBResourceName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyConfigPath := filepath.Join(paths.ConfigDir, filepath.FromSlash(confirmed.Rollback.Manifest.ManagedService.Config.Path))
+	if err := os.MkdirAll(filepath.Dir(legacyConfigPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(legacyConfigPath, []byte("prior unversioned config"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyManagedUpdateOriginalConfig(confirmed); err != nil {
+		t.Fatalf("legacy checkpoint unexpectedly requires an unavailable historic config digest: %v", err)
+	}
+
+	runtime := updateLaunchTestRuntime(t)
+	assetRel := filepath.FromSlash(confirmed.Target.Manifest.ManagedService.Config.ContentFile)
+	assetRoot := filepath.Join(runtime.Root, "resources", openRGBResourceName)
+	if err := os.MkdirAll(filepath.Join(assetRoot, filepath.Dir(assetRel)), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	asset, err := os.ReadFile(filepath.Join(projectRoot(t), "resources", openRGBResourceName, assetRel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(assetRoot, assetRel), asset, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	invocation, err := renderManagedUpdateInvocation(confirmed.Rollback, runtime, confirmed.ID, "legacy-restore", "private-token")
+	if err != nil {
+		t.Fatalf("prepare legacy rollback recovery invocation: %v", err)
+	}
+	if invocation.ConfigContent != string(asset) || !strings.HasSuffix(invocation.ConfigPath, filepath.Join("legacy-restore", "runtime", "config", filepath.FromSlash(confirmed.Rollback.Manifest.ManagedService.Config.Path))) {
+		t.Fatalf("legacy recovery config did not preserve source semantics: config_match=%t path=%s", invocation.ConfigContent == string(asset), invocation.ConfigPath)
+	}
+	active, err := s.Active()
+	if err != nil || active.RequestID != confirmed.RequestID || !active.Rollback.legacyFileConfig {
+		t.Fatalf("legacy active operation is not recoverable: %+v %v", active, err)
+	}
+}
+
+func TestManagedUpdateStorePersistsOpenRGBManifestContract(t *testing.T) {
+	root := projectRoot(t)
+	resourceRoot := filepath.Join(root, "resources", "openrgb")
+	manifest, err := manifestpkg.Load(filepath.Join(resourceRoot, "resource.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := manifest.ManagedService.Artifact.SHA256ByPlatform["linux-amd64"]
+	artifact := ManagedServiceArtifact{
+		Resource: manifest.Name,
+		Path:     filepath.Join(t.TempDir(), "openrgb.AppImage"),
+		Version:  manifest.ManagedService.Artifact.Version,
+		SHA256:   digest,
+	}
+	target, err := newManagedUpdateContractForResource(manifest, artifact, resourceRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rollbackManifest := manifest
+	rollbackManagedService := *manifest.ManagedService
+	rollbackManifest.ManagedService = &rollbackManagedService
+	rollbackManifest.ManagedService.Artifact.Version = "1.0.0"
+	rollbackDigest := updateTestDigest("openrgb-prior-release")
+	rollbackManifest.ManagedService.Artifact.SHA256ByPlatform = map[string]string{"linux-amd64": rollbackDigest}
+	rollbackArtifact := ManagedServiceArtifact{
+		Resource: manifest.Name,
+		Path:     filepath.Join(t.TempDir(), "openrgb-prior.AppImage"),
+		Version:  rollbackManifest.ManagedService.Artifact.Version,
+		SHA256:   rollbackDigest,
+	}
+	rollback, err := newManagedUpdateContractForResource(rollbackManifest, rollbackArtifact, resourceRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := updateTestInitial(t)
+	u.Resource = manifest.Name
+	u.Target, u.Rollback = target, rollback
+	u.Original.ArtifactPath = rollback.Artifact.Path
+	u.Original.ArtifactSHA256 = rollback.Artifact.SHA256
+	u.Original.ArtifactVersion = rollback.Artifact.Version
+	if err := u.Validate(); err != nil {
+		t.Fatalf("fixture update: %v", err)
+	}
+	s := updateTestStoreAt(filepath.Join(t.TempDir(), managedUpdateLedgerFile), u.UpdatedAt)
+	s.resource = manifest.Name
+	if _, replayed, err := s.Create(context.Background(), u, false); err != nil || replayed {
+		t.Fatalf("persist OpenRGB update contract: replayed=%t err=%v", replayed, err)
+	}
+	loaded, err := s.Lookup(u.RequestID)
+	if err != nil {
+		t.Fatalf("reload OpenRGB update contract: %v", err)
+	}
+	if got := loaded.Target.Manifest.ManagedService.UpdatePolicy.Strategy; got != "exclusive-stop-start" {
+		t.Fatalf("reloaded update strategy = %q", got)
+	}
+	readinessFound := false
+	for _, check := range loaded.Target.Manifest.HealthChecks {
+		if check.Kind == manifestpkg.HealthCheckReadiness && check.Type == manifestpkg.HealthCheckOpenRGBV6 {
+			readinessFound = true
+		}
+	}
+	if !readinessFound {
+		t.Fatal("reloaded manifest lost the OpenRGB SDK v6 readiness kind")
+	}
+	if loaded.Target.ConfigFile != target.ConfigFile || loaded.Target.ConfigSHA256 != target.ConfigSHA256 || string(loaded.Target.ConfigBytes) != string(target.ConfigBytes) {
+		t.Fatal("reloaded OpenRGB managed-update contract lost its frozen config bytes")
+	}
+}
+
 func TestManagedUpdateStorePersistenceFailureNeverAcknowledgesNextEffect(t *testing.T) {
 	for _, afterRename := range []bool{false, true} {
 		t.Run(fmt.Sprintf("after_rename_%v", afterRename), func(t *testing.T) {
@@ -109,7 +269,7 @@ func TestManagedUpdateStorePersistenceFailureNeverAcknowledgesNextEffect(t *test
 				injected := errors.New("injected durable commit acknowledgement loss")
 				s.write = func(path string, data []byte, mode os.FileMode) error {
 					if afterRename {
-						if err := config.WriteOwnedFileDurable(path, data, mode); err != nil {
+						if err := writeResourceOwnedFileDurable(path, data, mode); err != nil {
 							return err
 						}
 					}
@@ -162,7 +322,7 @@ func TestManagedUpdateStoreRestoreRetirementSurvivesLostCommitAcknowledgement(t 
 			injected := errors.New("retirement directory sync acknowledgement lost")
 			s.write = func(path string, data []byte, mode os.FileMode) error {
 				if afterRename {
-					if err := config.WriteOwnedFileDurable(path, data, mode); err != nil {
+					if err := writeResourceOwnedFileDurable(path, data, mode); err != nil {
 						return err
 					}
 				}
@@ -197,7 +357,7 @@ func TestManagedUpdateStoreFailedAdmissionReplaysWithoutDuplicate(t *testing.T) 
 	u := updateTestInitial(t)
 	s := updateTestStore(t, u)
 	s.write = func(path string, data []byte, mode os.FileMode) error {
-		if err := config.WriteOwnedFileDurable(path, data, mode); err != nil {
+		if err := writeResourceOwnedFileDurable(path, data, mode); err != nil {
 			return err
 		}
 		return errors.New("acknowledgement lost")

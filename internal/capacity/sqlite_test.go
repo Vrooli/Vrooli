@@ -164,6 +164,41 @@ func TestReportActivityBumpsGenerationAndAutoProtectsInteractive(t *testing.T) {
 	}
 }
 
+func TestReportActivityCannotChangeDemandDuringResidencyTransition(t *testing.T) {
+	ctx := context.Background()
+	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))
+	store := testenv.NewSQLiteStore(t, "capacity.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(context.Background(), Config{DBPath: path, Clock: clk})
+	})
+	model := ModelIdentity{Name: "whisper-medium", Digest: "sha256:whisper-medium"}
+	claim := sampleClaim()
+	claim.DegradeProfile = &DegradeProfile{Model: model}
+	created, err := store.CreateClaim(ctx, claim, 0)
+	if err != nil {
+		t.Fatalf("CreateClaim() error = %v", err)
+	}
+	startedAt := clk.Now()
+	transition := ResidencyTransition{
+		ID: "activity-transition-fence", Model: model,
+		Desired: ResidencyPlacement{Backend: ResidencyBackendUnloaded, Known: true},
+		Reason:  "idle_unload", StartedAt: startedAt,
+	}
+	if _, err := store.BeginResidencyTransition(ctx, created.ClaimID, created.Generation, transition); err != nil {
+		t.Fatalf("BeginResidencyTransition() error = %v", err)
+	}
+
+	if _, err := store.ReportActivity(ctx, created.ClaimID, created.Generation, ActivityActive); !errors.Is(err, ErrResidencyTransitionOpen) {
+		t.Fatalf("ReportActivity(active) during open transition = %v, want ErrResidencyTransitionOpen", err)
+	}
+	after, err := store.GetClaim(ctx, created.ClaimID)
+	if err != nil {
+		t.Fatalf("GetClaim() after rejected activity = %v", err)
+	}
+	if after.Generation != created.Generation || after.ActivityState != ActivityIdle || after.Protected {
+		t.Fatalf("rejected demand changed claim state: before=%+v after=%+v", created, after)
+	}
+}
+
 func TestDegradeClaimSetsAmountAndStatus(t *testing.T) {
 	ctx := context.Background()
 	clk := testenv.NewClock(time.Date(2026, 6, 22, 12, 0, 0, 0, time.UTC))

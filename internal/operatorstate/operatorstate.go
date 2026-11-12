@@ -57,6 +57,16 @@ type ScenarioChoice struct {
 type EnabledChoice struct {
 	Enabled  *bool           `json:"enabled,omitempty"`
 	Capacity *CapacityChoice `json:"capacity,omitempty"`
+	// Source selects a resource's explicitly declared acquisition source. It is
+	// empty unless that resource exposes a source choice; it never implies opt-in.
+	Source *ResourceSourceChoice `json:"source,omitempty"`
+}
+
+type ResourceSourceChoice struct {
+	Mode       string `json:"mode"`
+	Executable string `json:"executable,omitempty"`
+	Version    string `json:"version,omitempty"`
+	SHA256     string `json:"sha256,omitempty"`
 }
 
 type CapacityChoice struct {
@@ -337,11 +347,13 @@ func (d Document) EffectiveUpdateControl() string {
 }
 
 type Config struct {
-	RepoRoot    string
-	StorageRoot string
-	StateRoot   string
-	SchemaPath  string
-	Roots       *filerouting.RoutedRoots
+	// LogicalOperatorHome binds broker calls to the original operator namespace.
+	LogicalOperatorHome string
+	RepoRoot            string
+	StorageRoot         string
+	StateRoot           string
+	SchemaPath          string
+	Roots               *filerouting.RoutedRoots
 	// StatePath is reserved for isolated tests and embedded callers that own
 	// their storage seam. Production callers should provide Roots or let this
 	// package resolve the contract-routed onboarding state namespace.
@@ -398,7 +410,16 @@ func (s *Service) Path(ctx context.Context) (string, error) {
 	// Under go test the shared resolver refuses the operator's live storage, so
 	// a test with only a temporary RepoRoot (which keys the writer lock but does
 	// not place the document) fails instead of seeding the real file.
-	resolver, err := storage.NewResolver(storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto})
+	resolverConfig := storage.ResolverConfig{AppID: "vrooli", Profile: storage.ProfileAuto}
+	if home := s.cfg.LogicalOperatorHome; home != "" {
+		if !filepath.IsAbs(home) || filepath.Clean(home) != home {
+			return "", errors.New("operator state requires a canonical logical operator home")
+		}
+		resolverConfig.UserHomeDir = func() (string, error) { return home, nil }
+		// Machine supervisor environment cannot redirect original operator state.
+		resolverConfig.EnvGet = func(string) string { return "" }
+	}
+	resolver, err := storage.NewResolver(resolverConfig)
 	if err != nil {
 		return "", fmt.Errorf("create operator-state storage resolver: %w", err)
 	}
@@ -416,11 +437,18 @@ func (s *Service) Load(ctx context.Context) (Document, error) {
 	if err != nil {
 		return Document{}, err
 	}
+	if s.nativePrivateStorage() {
+		if _, statErr := os.Lstat(path); errors.Is(statErr, os.ErrNotExist) {
+			return Default(), nil
+		} else if statErr != nil {
+			return Document{}, statErr
+		}
+	}
 	if err := s.lockContext(ctx); err != nil {
 		return Document{}, err
 	}
 	defer s.lock.Unlock()
-	release, err := acquireStateFileLock(ctx, path)
+	release, err := s.acquireStateFileLock(ctx, path)
 	if err != nil {
 		return Document{}, err
 	}
@@ -674,7 +702,7 @@ func (s *Service) applyAtRevision(ctx context.Context, expectedRevision string, 
 		return Document{}, err
 	}
 	defer s.lock.Unlock()
-	release, err := acquireStateFileLock(ctx, path)
+	release, err := s.acquireStateFileLock(ctx, path)
 	if err != nil {
 		return Document{}, err
 	}
@@ -715,7 +743,7 @@ func (s *Service) applyAtRevision(ctx context.Context, expectedRevision string, 
 	if err != nil {
 		return Document{}, err
 	}
-	if err := storage.WriteFileAtomic(path, append(data, '\n'), storage.SecretFilePerm); err != nil {
+	if err := s.writeStateFile(path, append(data, '\n')); err != nil {
 		return Document{}, fmt.Errorf("write operator state: %w", err)
 	}
 	if s.cfg.Roots != nil {
@@ -813,7 +841,7 @@ func (s *Service) RecordDegradedAcknowledgement(ctx context.Context, readinessDi
 func (s *Service) Effective(ctx context.Context) (Document, error) { return s.Load(ctx) }
 
 func (s *Service) loadLocked(path string) (Document, error) {
-	data, err := os.ReadFile(path)
+	data, err := s.readStateFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return Default(), nil
 	}
@@ -1020,3 +1048,10 @@ func mustJSON(data []byte) any {
 // WithTestMode is a small convenience for callers that use api-core's routed
 // file roots. It keeps the service's write accounting explicit at the seam.
 func WithTestMode(ctx context.Context) context.Context { return database.WithTestMode(ctx) }
+
+func (s *Service) writeStateFile(path string, data []byte) error {
+	if s.nativePrivateStorage() {
+		return s.writeNativeStateFile(path, data)
+	}
+	return storage.WriteFileAtomic(path, data, storage.SecretFilePerm)
+}

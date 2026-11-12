@@ -39,6 +39,175 @@ type FootprintRequest struct {
 	Resource string
 }
 
+// DiskJobStore is the durable multi-filesystem lease surface used by the disk
+// admission CLI and owner adapters. The capability is returned only on create
+// and must be held by the job owner.
+type DiskJobStore interface {
+	ReserveDiskJob(context.Context, engine.DiskJobRequest) (engine.DiskJobReceipt, string, error)
+	HeartbeatDiskJob(context.Context, string, string, int, string) error
+	ObserveDiskJob(context.Context, string, string, int, string) (engine.DiskJobHeadroom, error)
+	ExtendDiskJob(context.Context, string, string, int, string, []engine.DiskJobPath) (engine.DiskJobReceipt, error)
+	SampleDiskJobPath(context.Context, string, string, int, string, string, string, string, bool, bool, int64, int64) (engine.DiskJobReceipt, error)
+	CompleteDiskJob(context.Context, string, string, int, string) (engine.DiskJobReceipt, error)
+	GetDiskJob(context.Context, string) (engine.DiskJobReceipt, error)
+	ListDiskJobs(context.Context, bool) ([]engine.DiskJobReceipt, error)
+	ListDiskHeadroom(context.Context) (engine.DiskHeadroomSnapshot, error)
+	ReconcileDiskJob(context.Context, string, bool, bool) (engine.DiskJobReceipt, error)
+}
+
+// DiskReservationStore exposes the legacy single-path disk lease receipts.
+// These rows are still part of shared admission accounting, so operators need
+// a read path that can distinguish them from newer multi-path disk jobs.
+type DiskReservationStore interface {
+	ListDiskReservations(context.Context, engine.DiskReservationFilter) ([]engine.DiskReservationRecord, error)
+}
+
+type DiskJobCredential struct {
+	ID           string `json:"id"`
+	Capability   string `json:"capability"`
+	ProcessID    int    `json:"process_id"`
+	ProcessStart string `json:"process_start"`
+}
+
+func (s Service) DiskJobReserve(ctx context.Context, req engine.DiskJobRequest) (engine.DiskJobReceipt, DiskJobCredential, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return engine.DiskJobReceipt{}, DiskJobCredential{}, err
+	}
+	defer store.Close()
+	repo, ok := store.(DiskJobStore)
+	if !ok {
+		return engine.DiskJobReceipt{}, DiskJobCredential{}, fmt.Errorf("capacity store does not support disk jobs")
+	}
+	r, capability, err := repo.ReserveDiskJob(ctx, req)
+	if err != nil {
+		return engine.DiskJobReceipt{}, DiskJobCredential{}, err
+	}
+	return r, DiskJobCredential{ID: r.ID, Capability: capability, ProcessID: r.ProcessID, ProcessStart: r.ProcessStart}, nil
+}
+
+func (s Service) DiskJobHeartbeat(ctx context.Context, c DiskJobCredential) (engine.DiskJobReceipt, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return engine.DiskJobReceipt{}, err
+	}
+	defer store.Close()
+	repo, ok := store.(DiskJobStore)
+	if !ok {
+		return engine.DiskJobReceipt{}, fmt.Errorf("capacity store does not support disk jobs")
+	}
+	if err := repo.HeartbeatDiskJob(ctx, c.ID, c.Capability, c.ProcessID, c.ProcessStart); err != nil {
+		return engine.DiskJobReceipt{}, err
+	}
+	return repo.GetDiskJob(ctx, c.ID)
+}
+
+func (s Service) DiskJobObserve(ctx context.Context, c DiskJobCredential) (engine.DiskJobHeadroom, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return engine.DiskJobHeadroom{}, err
+	}
+	defer store.Close()
+	repo, ok := store.(DiskJobStore)
+	if !ok {
+		return engine.DiskJobHeadroom{}, fmt.Errorf("capacity store does not support disk jobs")
+	}
+	return repo.ObserveDiskJob(ctx, c.ID, c.Capability, c.ProcessID, c.ProcessStart)
+}
+
+func (s Service) DiskJobExtend(ctx context.Context, c DiskJobCredential, paths []engine.DiskJobPath) (engine.DiskJobReceipt, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return engine.DiskJobReceipt{}, err
+	}
+	defer store.Close()
+	repo, ok := store.(DiskJobStore)
+	if !ok {
+		return engine.DiskJobReceipt{}, fmt.Errorf("capacity store does not support disk jobs")
+	}
+	return repo.ExtendDiskJob(ctx, c.ID, c.Capability, c.ProcessID, c.ProcessStart, paths)
+}
+
+func (s Service) DiskJobSamplePath(ctx context.Context, c DiskJobCredential, path, dockerContainer, dockerDestination string, dockerUpperDir, dockerRootDir bool, bytes, largerPeakBytes int64) (engine.DiskJobReceipt, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return engine.DiskJobReceipt{}, err
+	}
+	defer store.Close()
+	repo, ok := store.(DiskJobStore)
+	if !ok {
+		return engine.DiskJobReceipt{}, fmt.Errorf("capacity store does not support disk job path samples")
+	}
+	return repo.SampleDiskJobPath(ctx, c.ID, c.Capability, c.ProcessID, c.ProcessStart, path, dockerContainer, dockerDestination, dockerUpperDir, dockerRootDir, bytes, largerPeakBytes)
+}
+
+func (s Service) DiskJobComplete(ctx context.Context, c DiskJobCredential) (engine.DiskJobReceipt, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return engine.DiskJobReceipt{}, err
+	}
+	defer store.Close()
+	repo, ok := store.(DiskJobStore)
+	if !ok {
+		return engine.DiskJobReceipt{}, fmt.Errorf("capacity store does not support disk jobs")
+	}
+	return repo.CompleteDiskJob(ctx, c.ID, c.Capability, c.ProcessID, c.ProcessStart)
+}
+
+func (s Service) DiskJobList(ctx context.Context, active bool) ([]engine.DiskJobReceipt, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer store.Close()
+	repo, ok := store.(DiskJobStore)
+	if !ok {
+		return nil, fmt.Errorf("capacity store does not support disk jobs")
+	}
+	return repo.ListDiskJobs(ctx, active)
+}
+
+// DiskHeadroom refreshes current filesystem capacity against all active
+// reservations. Its result is observational and never an admission verdict.
+func (s Service) DiskHeadroom(ctx context.Context) (engine.DiskHeadroomSnapshot, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return engine.DiskHeadroomSnapshot{}, err
+	}
+	defer store.Close()
+	repo, ok := store.(DiskJobStore)
+	if !ok {
+		return engine.DiskHeadroomSnapshot{}, fmt.Errorf("capacity store does not support disk headroom observations")
+	}
+	return repo.ListDiskHeadroom(ctx)
+}
+
+func (s Service) DiskReservationList(ctx context.Context, filter engine.DiskReservationFilter) ([]engine.DiskReservationRecord, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer store.Close()
+	repo, ok := store.(DiskReservationStore)
+	if !ok {
+		return nil, fmt.Errorf("capacity store does not support disk reservations")
+	}
+	return repo.ListDiskReservations(ctx, filter)
+}
+
+func (s Service) DiskJobReconcile(ctx context.Context, id string, processStoppedVerified, cleanupVerified bool) (engine.DiskJobReceipt, error) {
+	store, err := s.openStore(ctx)
+	if err != nil {
+		return engine.DiskJobReceipt{}, err
+	}
+	defer store.Close()
+	repo, ok := store.(DiskJobStore)
+	if !ok {
+		return engine.DiskJobReceipt{}, fmt.Errorf("capacity store does not support disk jobs")
+	}
+	return repo.ReconcileDiskJob(ctx, id, processStoppedVerified, cleanupVerified)
+}
+
 type FootprintOutput struct {
 	Footprints []engine.Footprint `json:"footprints,omitempty"`
 	Reset      int64              `json:"reset,omitempty"`

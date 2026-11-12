@@ -36,6 +36,13 @@ func TestRootHandlerRendersRuntimeHelp(t *testing.T) {
 	if !strings.Contains(ctx.stdout.String(), "retry CANDIDATE") || !strings.Contains(ctx.stdout.String(), "Enrollment controls") {
 		t.Fatalf("update help was replaced by generic runtime help: %q", ctx.stdout.String())
 	}
+	ctx.stdout.Reset()
+	if err := handler(ctx, []string{"lighting", "permissions", "apply", "--help"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(ctx.stdout.String(), "--plan-id") || !strings.Contains(ctx.stdout.String(), "--sudo-mode") {
+		t.Fatalf("lighting help lost fixed typed operation: %q", ctx.stdout.String())
+	}
 }
 
 // A help flag after a root update verb must render usage and never reach the

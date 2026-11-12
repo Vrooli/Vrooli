@@ -56,6 +56,11 @@ func TestVerifyPlacementReportsOKForAHostProcessOnItsDevice(t *testing.T) {
 	if placement.State != accel.StateOK || placement.Observed != accel.BackendCUDA {
 		t.Fatalf("placement = %+v, want state ok on cuda", placement)
 	}
+	for _, missing := range placement.EvidenceMissing {
+		if missing == "observed_placement" {
+			t.Fatalf("evidence missing includes observed placement despite probe-backed result: %+v", placement)
+		}
+	}
 	if !strings.Contains(placement.Reason, "631242752") {
 		t.Fatalf("reason = %q, want it to carry the observed device memory", placement.Reason)
 	}
@@ -282,8 +287,8 @@ func TestVerifyPlacementReportsMetalUnsupportedOffDarwin(t *testing.T) {
 	}
 }
 
-// Scenario: a cpu declaration needs no probe at all.
-func TestVerifyPlacementAcceptsACPUDeclarationWithoutProbing(t *testing.T) {
+// Scenario: a cpu declaration needs no device probe but proves no physical placement.
+func TestVerifyPlacementLeavesObservedCPUUnknownWithoutAProbe(t *testing.T) {
 	// Given a verifier with no fact source and no container probe
 	verifier := accel.Verifier{}
 
@@ -294,13 +299,123 @@ func TestVerifyPlacementAcceptsACPUDeclarationWithoutProbing(t *testing.T) {
 		accel.ComposeService{Project: "p", Service: "s"},
 	} {
 		placement, err := verifier.VerifyPlacement(context.Background(), "fixture", target, accel.BackendCPU)
-		// Then it is ok without touching the host
+		// Then desired CPU is retained but the process's physical placement stays unknown
 		if err != nil {
 			t.Fatalf("VerifyPlacement(%T) = %v, want nil", target, err)
 		}
-		if placement.State != accel.StateOK || placement.Observed != accel.BackendCPU {
-			t.Fatalf("VerifyPlacement(%T) = %+v, want ok on cpu", target, placement)
+		if placement.Desired != accel.BackendCPU || placement.State != accel.StateUndetermined || placement.Observed != "" {
+			t.Fatalf("VerifyPlacement(%T) = %+v, want desired cpu with unknown observed placement", target, placement)
 		}
+		if !placement.ObservedAt.IsZero() {
+			t.Errorf("VerifyPlacement(%T) stamped an observation without a physical probe: %s", target, placement.ObservedAt)
+		}
+	}
+}
+
+func TestVerifyPlacementKeepsProbeEvidenceDistinctFromModelAndTransitionFacts(t *testing.T) {
+	at := time.Date(2026, 11, 11, 14, 0, 0, 0, time.UTC)
+	verifier := accel.Verifier{Now: func() time.Time { return at }}
+	placement, err := verifier.VerifyPlacement(context.Background(), "fixture", accel.HostProcess{PID: 1}, accel.BackendCPU)
+	if err != nil {
+		t.Fatalf("VerifyPlacement() = %v, want nil", err)
+	}
+	if placement.Declared != accel.BackendCPU || placement.Desired != accel.BackendCPU || placement.Observed != "" || placement.State != accel.StateUndetermined {
+		t.Fatalf("desired and observed placement = %+v, want known desired cpu and unknown observation", placement)
+	}
+	if !placement.ObservedAt.IsZero() || placement.Reason == "" {
+		t.Fatalf("unobserved placement timestamp/reason = %s/%q, want no timestamp and an explanation", placement.ObservedAt, placement.Reason)
+	}
+	if placement.ModelName != "" || placement.ModelDigest != "" || placement.FootprintBytes != nil || placement.FootprintAt != nil {
+		t.Fatalf("placement probe invented model or footprint evidence: %+v", placement)
+	}
+	wantMissing := map[string]bool{"observed_placement": false, "model_identity": false, "verified_footprint": false, "transition_identity": false}
+	for _, missing := range placement.EvidenceMissing {
+		if _, ok := wantMissing[missing]; ok {
+			wantMissing[missing] = true
+		}
+	}
+	for fact, found := range wantMissing {
+		if !found {
+			t.Errorf("missing evidence list %v does not include %q", placement.EvidenceMissing, fact)
+		}
+	}
+}
+
+func TestUnprobedCPUDeclarationDoesNotBecomeKnownCapacityObservation(t *testing.T) {
+	placement, err := (accel.Verifier{}).VerifyPlacement(context.Background(), "fixture", accel.HostProcess{PID: 1}, accel.BackendCPU)
+	if err != nil {
+		t.Fatalf("VerifyPlacement() = %v, want nil", err)
+	}
+	if desired := placement.DesiredResidencyPlacement(); !desired.Known || desired.Backend != string(accel.BackendCPU) {
+		t.Fatalf("desired capacity placement = %+v, want known cpu declaration", desired)
+	}
+	observed := placement.ObservedResidencyPlacement()
+	if observed.Known || observed.Backend != "" {
+		t.Fatalf("observed capacity placement = %+v, want unknown with no backend", observed)
+	}
+}
+
+func TestPlacementResidencyAdaptersPreserveUnknownAndInvalidFacts(t *testing.T) {
+	cases := []struct {
+		name              string
+		placement         accel.Placement
+		wantDesiredKnown  bool
+		wantObservedKnown bool
+		wantObserved      accel.Backend
+	}{
+		{
+			name: "unknown observation does not guess CPU",
+			placement: accel.Placement{
+				Desired: accel.BackendCUDA, State: accel.StateUndetermined,
+				Reason: "container probe unavailable",
+			},
+			wantDesiredKnown:  true,
+			wantObservedKnown: false,
+		},
+		{
+			name: "invalid desired backend remains unknown",
+			placement: accel.Placement{
+				Desired: accel.Backend("typo"), State: accel.StateUndetermined,
+			},
+			wantDesiredKnown:  false,
+			wantObservedKnown: false,
+		},
+		{
+			name: "invalid observed backend remains unknown even in ok state",
+			placement: accel.Placement{
+				Desired: accel.BackendCUDA, Observed: accel.Backend("typo"),
+				State: accel.StateOK, Reason: "driver returned unsupported backend",
+			},
+			wantDesiredKnown:  true,
+			wantObservedKnown: false,
+			wantObserved:      accel.Backend("typo"),
+		},
+		{
+			name: "valid drift observation remains known",
+			placement: accel.Placement{
+				Desired: accel.BackendCUDA, Observed: accel.BackendCPU,
+				State: accel.StateDrift, Reason: "device access revoked",
+			},
+			wantDesiredKnown:  true,
+			wantObservedKnown: true,
+			wantObserved:      accel.BackendCPU,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			desired := tc.placement.DesiredResidencyPlacement()
+			observed := tc.placement.ObservedResidencyPlacement()
+			if desired.Known != tc.wantDesiredKnown {
+				t.Errorf("desired = %+v, Known = %t, want %t", desired, desired.Known, tc.wantDesiredKnown)
+			}
+			if observed.Known != tc.wantObservedKnown || observed.Backend != string(tc.wantObserved) {
+				t.Errorf("observed = %+v, want Known=%t Backend=%q", observed, tc.wantObservedKnown, tc.wantObserved)
+			}
+			if observed.Reason != tc.placement.Reason {
+				t.Errorf("observed reason = %q, want original probe reason %q", observed.Reason, tc.placement.Reason)
+			}
+		})
 	}
 }
 

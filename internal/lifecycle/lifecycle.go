@@ -324,6 +324,12 @@ type StartOptions struct {
 	Context    context.Context
 	CustomPath string
 	CleanStale bool
+	// RetainedReleaseID changes the durable runtime selection only when explicit.
+	// "source" returns to the working tree. Empty keeps the current selection.
+	// ExpectedRetainedReleaseID is the compare-and-set value; "source" means none.
+	// These select a verified release, never a general skip-build switch.
+	RetainedReleaseID         string
+	ExpectedRetainedReleaseID string
 	// DemandManaged opts this instance into demand-lease lifecycle
 	// reconciliation. Only callers that also hold renewable demand leases
 	// should set it; ordinary operator, core, and autoheal starts remain
@@ -702,6 +708,16 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 			detachRecorder()
 		}
 	}()
+	if opts.RetainedReleaseID != "" || opts.ExpectedRetainedReleaseID != "" {
+		candidate, beginErr := r.beginStartOperationRecord(name, opts)
+		if beginErr != nil {
+			return Result{}, beginErr
+		}
+		attachRecorder(candidate)
+		if err := r.selectRequestedRuntime(name, opts); err != nil {
+			return Result{}, err
+		}
+	}
 	if opts.stopFirst && name != "agent-manager" {
 		item, err = r.loadScenario(name, opts.CustomPath)
 		if err != nil {
@@ -711,11 +727,13 @@ func (r *Runner) startLocked(name string, opts StartOptions, session *startSessi
 		// Admit this attempt before replacement preparation. Builds and drain
 		// can take minutes while the old instance still serves; a waiter must
 		// observe this operation rather than the previous successful start.
-		candidate, beginErr := r.beginStartOperationRecord(name, opts)
-		if beginErr != nil {
-			return Result{}, beginErr
+		if recorder == nil {
+			candidate, beginErr := r.beginStartOperationRecord(name, opts)
+			if beginErr != nil {
+				return Result{}, beginErr
+			}
+			attachRecorder(candidate)
 		}
-		attachRecorder(candidate)
 		// Build and preflight before the stop: a restart whose replacement
 		// cannot be built or whose host requirements fail must leave the
 		// running instance serving (O14), as an ordinary stale replacement

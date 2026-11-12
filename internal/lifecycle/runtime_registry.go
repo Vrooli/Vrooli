@@ -108,7 +108,7 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 		BuildIdentity:     buildIdentity,
 		Variant:           item.Variant,
 		Status:            scenarioruntime.StatusStarting,
-		Phase:             "planning",
+		Phase:             scenarioruntime.PhasePlanning,
 		ScopePath:         r.Root,
 		OwnerKind:         scenarioruntime.OwnerKindLifecycle,
 		SupervisionPolicy: policy,
@@ -120,6 +120,23 @@ func (r *Runner) beginRuntimeRegistryStart(ctx context.Context, item scenario.Sc
 	if err != nil {
 		_ = store.Close()
 		return runtimeRegistrySession{}, fmt.Errorf("create scenario runtime lease: %w", err)
+	}
+	if item.RetainedReleaseID != "" {
+		details, _ := json.Marshal(map[string]any{
+			"release_id": item.RetainedReleaseID, "generation": instance.Generation,
+			"build_identity": buildIdentity, "runtime_dir": sourceDir,
+			"canonical_data_origin": item.Path,
+		})
+		if _, err := store.RecordEvent(ctx, scenarioruntime.Event{
+			InstanceID: instance.InstanceID, Scenario: item.Slug,
+			EventType: "runtime_release_selected", DetailsJSON: string(details),
+		}); err != nil {
+			// No component has been launched. Leave a failed lease, not an
+			// apparent running release without durable artifact evidence.
+			_, _ = store.UpdateInstanceStatus(context.WithoutCancel(ctx), instance.InstanceID, instance.Generation, scenarioruntime.StatusFailed, "planning")
+			_ = store.Close()
+			return runtimeRegistrySession{}, fmt.Errorf("record retained runtime identity: %w", err)
+		}
 	}
 	return runtimeRegistrySession{
 		enabled:        true,

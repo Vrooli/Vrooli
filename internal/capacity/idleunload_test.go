@@ -2,11 +2,50 @@ package capacity
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/testenv"
 )
+
+type verifiedUnloadExecutor struct {
+	store *SQLiteStore
+}
+
+func (e verifiedUnloadExecutor) Apply(ctx context.Context, owner, _ string, _ []string) error {
+	claim, err := e.store.GetClaim(ctx, "clm-idle")
+	if err != nil {
+		return err
+	}
+	startedAt := time.Now().UTC()
+	preAt := *claim.ObservedAt
+	transition := ResidencyTransition{
+		ID: fmt.Sprintf("%s-unload-%d", owner, startedAt.UnixNano()), Model: claim.DegradeProfile.Model,
+		Desired: ResidencyPlacement{Backend: ResidencyBackendUnloaded, Known: true}, Reason: "idle_unload", StartedAt: startedAt,
+		PreFootprint: ResidencyFootprint{Bytes: claim.ObservedBytes, Source: FootprintSourceMeasured, ObservedAt: preAt, Verified: true},
+	}
+	started, err := e.store.BeginResidencyTransition(ctx, claim.ClaimID, claim.Generation, transition)
+	if err != nil {
+		return err
+	}
+	postAt := startedAt.Add(time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
+	if _, err := e.store.RecordObserved(ctx, claim.ClaimID, 0, 0, postAt, &AbsenceProof{Generation: claim.Generation, ObservedAt: postAt}); err != nil {
+		return err
+	}
+	completedAt := time.Now().UTC()
+	transition.CompletedAt = &completedAt
+	transition.Observed = ResidencyPlacement{Backend: ResidencyBackendUnloaded, Known: true}
+	transition.Footprint = ResidencyFootprint{Bytes: 0, Source: FootprintSourceMeasured, ObservedAt: postAt, Verified: true}
+	transition.EffectsVerified = true
+	completed, err := e.store.CompleteResidencyTransition(ctx, claim.ClaimID, claim.Generation, started.Revision, transition)
+	if err != nil {
+		return err
+	}
+	_, err = e.store.ReleaseClaimAfterResidency(ctx, owner, claim.ClaimID, claim.Generation, transition.ID, completed.Revision, transition.Model)
+	return err
+}
 
 // idleUnloadClaim returns an active, idle claim at its top step with an
 // idle_unload_ttl, last active `idleFor` ago relative to `now`.
@@ -41,6 +80,10 @@ func TestIdleUnloadEligibilityTable(t *testing.T) {
 		{"sub-ttl idle is skipped", idleUnloadClaim(now, 5*time.Minute), false},
 		{"no profile is skipped", mutate(func(c *CapacityClaim) { c.DegradeProfile = nil }), false},
 		{"already at floor is skipped", mutate(func(c *CapacityClaim) { c.AmountBytes = 2 * gib }), false},
+		{"CPU residency can still unload", mutate(func(c *CapacityClaim) {
+			c.AmountBytes = 0
+			c.DegradeProfile = &DegradeProfile{Model: residencyTestModel, Steps: []DegradeStep{{Label: "vulkan", AmountBytes: 8 * gib}, {Label: "cpu", AmountBytes: 0}, {Label: "unloaded", AmountBytes: 0}}}
+		}), true},
 		{"protected is skipped", mutate(func(c *CapacityClaim) { c.Protected = true }), false},
 		{"no ttl + no policy default is skipped", mutate(func(c *CapacityClaim) { c.IdleUnloadTTL = 0 }), false},
 	}
@@ -117,6 +160,46 @@ func TestRunIdleUnloadAdvisoryVsEnforce(t *testing.T) {
 	got, _ := store.GetClaim(ctx, created.ClaimID)
 	if got.Status != StatusDegraded || got.AmountBytes != 2*gib {
 		t.Errorf("after enforce unload: status=%s amount=%d, want degraded/2GiB", got.Status, got.AmountBytes)
+	}
+}
+
+func TestRunIdleUnloadUsesVerifiedOwnerTransitionAndMeasuredFreedBytes(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now().UTC()
+	store := testenv.NewSQLiteStore(t, "capacity-unload.db", func(path string) (*SQLiteStore, error) {
+		return NewSQLiteStore(ctx, Config{DBPath: path})
+	})
+	claim := idleUnloadClaim(now, time.Hour)
+	claim.ClaimID = "clm-idle"
+	claim.AmountBytes = 1 << 30
+	claim.PreferredBytes = 1 << 30
+	claim.FloorBytes = 0
+	claim.DegradeProfile.Model = residencyTestModel
+	claim.DegradeProfile.Steps = []DegradeStep{{Label: "vulkan", AmountBytes: 1 << 30}, {Label: "cpu", AmountBytes: 0}, {Label: "unloaded", AmountBytes: 0}}
+	claim.ObservedBytes = 1 << 30
+	observedAt := now.Add(-time.Second)
+	claim.ObservedAt = &observedAt
+	created, err := store.CreateClaim(ctx, claim, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, err := store.GetClaim(ctx, created.ClaimID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy := DefaultPolicy()
+	plan, result, err := RunIdleUnload(ctx, store, []CapacityClaim{stored}, verifiedUnloadExecutor{store: store}, policy, EnforceOn, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Actions) != 1 || plan.Actions[0].Action != ActionRequestResidencyUnload || plan.Actions[0].ToStep != "unloaded" {
+		t.Fatalf("idle unload plan = %+v", plan.Actions)
+	}
+	if len(result.Outcomes) != 1 || !result.Outcomes[0].Applied || result.FreedBytes != 1<<30 || result.Outcomes[0].FreedBytes != 1<<30 {
+		t.Fatalf("verified unload result = %+v", result)
+	}
+	if got, err := store.GetClaim(ctx, created.ClaimID); err != nil || got.Status != StatusReleased {
+		t.Fatalf("unloaded claim = %+v, %v", got, err)
 	}
 }
 

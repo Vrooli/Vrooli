@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -136,7 +137,18 @@ type GCResult struct {
 const (
 	FootprintSourceManifestDefault = "manifest_default"
 	FootprintSourceMeasured        = "measured"
+	ResidencyBackendCPU            = "cpu"
+	ResidencyBackendCUDA           = "cuda"
+	ResidencyBackendMetal          = "metal"
+	ResidencyBackendROCm           = "rocm"
+	ResidencyBackendVulkan         = "vulkan"
+	ResidencyBackendUnloaded       = "unloaded"
 )
+
+// Keep release evidence no older than the default host GPU inventory TTL.
+// This cap is intentionally fixed and conservative even when inventory caching
+// is configured with a longer lifetime.
+const maxResidencyFootprintAge = 2 * time.Minute
 
 // Footprint is the durable, monotonic high-water mark for one effective
 // resource configuration. It is deliberately separate from claim history so
@@ -168,6 +180,124 @@ type FootprintObservation struct {
 	Bytes       int64
 	Source      string
 	ObservedAt  time.Time
+}
+
+// ModelIdentity names the exact model artifact involved in a residency
+// observation. Both fields are required before an observation can be joined
+// to model-specific policy or evidence; a display name alone is not identity.
+type ModelIdentity struct {
+	Name   string `json:"name,omitempty"`
+	Digest string `json:"digest,omitempty"`
+}
+
+func (m ModelIdentity) Complete() bool {
+	return strings.TrimSpace(m.Name) != "" && strings.TrimSpace(m.Digest) != ""
+}
+
+// ResidencyPlacement describes a desired or observed location without
+// collapsing unknown evidence into CPU or absence. Known is explicit because
+// an empty backend can mean either a verified unload or a failed observation.
+type ResidencyPlacement struct {
+	Backend string `json:"backend,omitempty"`
+	Known   bool   `json:"known"`
+	Reason  string `json:"reason,omitempty"`
+}
+
+// ResidencyFootprint is one measured physical sample. Source and ObservedAt
+// preserve provenance and freshness independently from the transition's claim
+// that the sample has been verified.
+type ResidencyFootprint struct {
+	Bytes      int64     `json:"bytes"`
+	Source     string    `json:"source"`
+	ObservedAt time.Time `json:"observed_at"`
+	Verified   bool      `json:"verified"`
+}
+
+// ResidencyTransition records one owner's transition attempt. Desired state,
+// physical observation, model identity, reason, and footprint are independent
+// facts. A partial or uncertain effect never reports released capacity.
+type ResidencyTransition struct {
+	ID              string             `json:"id"`
+	Model           ModelIdentity      `json:"model"`
+	Desired         ResidencyPlacement `json:"desired"`
+	Observed        ResidencyPlacement `json:"observed"`
+	Reason          string             `json:"reason"`
+	StartedAt       time.Time          `json:"started_at"`
+	CompletedAt     *time.Time         `json:"completed_at,omitempty"`
+	PreFootprint    ResidencyFootprint `json:"pre_footprint"`
+	Footprint       ResidencyFootprint `json:"footprint"`
+	EffectsVerified bool               `json:"effects_verified"`
+}
+
+// VerifiedReleasedBytes derives the released amount from verified pre/post
+// measurements after a completed unload. Missing baselines, declared intent,
+// and partial effects never prove that capacity is physically free.
+func (t ResidencyTransition) VerifiedReleasedBytes() int64 {
+	return t.verifiedReleasedBytesAt(time.Now())
+}
+
+func (t ResidencyTransition) verifiedReleasedBytesAt(now time.Time) int64 {
+	if !t.verifiedUnloadAt(now) {
+		return 0
+	}
+	return t.PreFootprint.Bytes - t.Footprint.Bytes
+}
+
+// VerifiedUnload reports an owner-verified absent model even when it held no
+// VRAM before unload (for example a CPU-resident model). Such a release frees
+// zero device bytes but still safely closes the exact zero-byte VRAM claim.
+func (t ResidencyTransition) VerifiedUnload() bool {
+	return t.verifiedUnloadAt(time.Now())
+}
+
+func (t ResidencyTransition) verifiedUnloadAt(now time.Time) bool {
+	if t.ID == "" || !t.Model.Complete() || t.Reason == "" || t.StartedAt.IsZero() || t.CompletedAt == nil || !t.CompletedAt.After(t.StartedAt) {
+		return false
+	}
+	if !t.EffectsVerified || !t.PreFootprint.Verified || !t.Footprint.Verified {
+		return false
+	}
+	if t.PreFootprint.Source != FootprintSourceMeasured || t.Footprint.Source != FootprintSourceMeasured {
+		return false
+	}
+	if t.PreFootprint.ObservedAt.IsZero() || t.Footprint.ObservedAt.IsZero() {
+		return false
+	}
+	if t.PreFootprint.ObservedAt.After(t.StartedAt) || !t.Footprint.ObservedAt.After(t.StartedAt) || t.Footprint.ObservedAt.After(*t.CompletedAt) {
+		return false
+	}
+	if now.Before(*t.CompletedAt) || t.StartedAt.Sub(t.PreFootprint.ObservedAt) > maxResidencyFootprintAge || now.Sub(t.Footprint.ObservedAt) > maxResidencyFootprintAge {
+		return false
+	}
+	if t.PreFootprint.Bytes < 0 || t.Footprint.Bytes != 0 {
+		return false
+	}
+	if !t.Desired.Known || !validResidencyBackend(t.Desired.Backend) || t.Desired.Backend != ResidencyBackendUnloaded {
+		return false
+	}
+	if !t.Observed.Known || !validResidencyBackend(t.Observed.Backend) || t.Observed.Backend != ResidencyBackendUnloaded {
+		return false
+	}
+	return true
+}
+
+func (t ResidencyTransition) hasFreshVerifiedObservation(now time.Time) bool {
+	if t.CompletedAt == nil || now.Before(*t.CompletedAt) || !t.EffectsVerified || !t.Observed.Known || !validResidencyBackend(t.Observed.Backend) {
+		return false
+	}
+	if !t.Footprint.Verified || t.Footprint.Source != FootprintSourceMeasured || t.Footprint.ObservedAt.IsZero() || !t.Footprint.ObservedAt.After(t.StartedAt) || t.Footprint.ObservedAt.After(*t.CompletedAt) {
+		return false
+	}
+	return !t.Footprint.ObservedAt.After(now) && now.Sub(t.Footprint.ObservedAt) <= maxResidencyFootprintAge
+}
+
+func validResidencyBackend(backend string) bool {
+	switch backend {
+	case ResidencyBackendCPU, ResidencyBackendCUDA, ResidencyBackendMetal, ResidencyBackendROCm, ResidencyBackendVulkan, ResidencyBackendUnloaded:
+		return true
+	default:
+		return false
+	}
 }
 
 var (
@@ -270,10 +400,14 @@ type DegradeApply struct {
 // are ordered top (preferred) to bottom (floor); the last step's amount equals
 // the claim's floor_bytes. For image-tools the last step is "cpu" (amount 0).
 type DegradeProfile struct {
-	StepsSource string        `json:"steps_source,omitempty"`
-	Steps       []DegradeStep `json:"steps"`
-	Apply       DegradeApply  `json:"apply"`
-	Upshift     bool          `json:"upshift"`
+	StepsSource string `json:"steps_source,omitempty"`
+	// Model binds residency transitions to the exact model artifact owned by
+	// this claim. It is optional for ordinary capacity-only profiles, but a
+	// residency transition is rejected unless both name and digest are present.
+	Model   ModelIdentity `json:"model,omitempty"`
+	Steps   []DegradeStep `json:"steps"`
+	Apply   DegradeApply  `json:"apply"`
+	Upshift bool          `json:"upshift"`
 }
 
 // CapacityClaim is the ledger row (plan §8.1).

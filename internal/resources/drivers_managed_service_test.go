@@ -653,6 +653,7 @@ func TestReadManagedServiceEnvironmentFileMissingUsesManifestDefaults(t *testing
 }
 
 func TestManagedServiceArtifactPathUsesInstalledSignedArtifactStore(t *testing.T) {
+	t.Setenv("VROOLI_RESOURCE_ARTIFACT_DIR", "") // Exercise the home-relative fallback explicitly.
 	root := t.TempDir()
 	home := filepath.Join(root, "home")
 	controller := NewController(root, home)

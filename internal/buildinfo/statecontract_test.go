@@ -156,6 +156,61 @@ func TestPackageConstantsDigestCoversUntypedConstantsButNotBodies(t *testing.T) 
 	}
 }
 
+func TestCapacityConstantsExcludeOnlyNonpersistentResidencyEvidence(t *testing.T) {
+	root := t.TempDir()
+	const dir = "internal/capacity"
+	const baseline = `package capacity
+import "time"
+const (
+ FootprintSourceManifestDefault = "manifest-default"
+ FootprintSourceMeasured = "measured"
+)
+const StatusGranted = "granted"
+`
+	const residency = `package capacity
+import "time"
+const (
+ FootprintSourceManifestDefault = "manifest-default"
+ FootprintSourceMeasured = "measured"
+ ResidencyBackendCPU = "cpu"
+ ResidencyBackendCUDA = "cuda"
+ ResidencyBackendMetal = "metal"
+ ResidencyBackendROCm = "rocm"
+ ResidencyBackendVulkan = "vulkan"
+ ResidencyBackendUnloaded = "unloaded"
+)
+const StatusGranted = "granted"
+const maxResidencyFootprintAge = 2 * time.Minute
+`
+	digest := func(source string) string {
+		t.Helper()
+		writeTestFile(t, root, dir+"/types.go", source)
+		value, err := packageConstantsDigest(root, []string{dir}, statecontract.NotStoredConstants)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return value
+	}
+	before := digest(baseline)
+	if digest(residency) != before {
+		t.Fatal("in-memory residency vocabulary or freshness tunable changed the stored capacity contract")
+	}
+	if digest(strings.Replace(residency, "2 * time.Minute", "3 * time.Minute", 1)) != before {
+		t.Fatal("nonpersistent freshness tuning changed the stored capacity contract")
+	}
+	for name, source := range map[string]string{
+		"existing stored footprint source": strings.Replace(residency, `"measured"`, `"measured-v2"`, 1),
+		"existing stored status":           strings.Replace(residency, `"granted"`, `"granted-v2"`, 1),
+		"new unclassified stored enum":     residency + `const StatusPaused = "paused"` + "\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			if digest(source) == before {
+				t.Fatal("stored or unclassified vocabulary change escaped the contract")
+			}
+		})
+	}
+}
+
 func TestOwnerAnalysisClassifiesStoredValuesAndGatesVersionsAndLayouts(t *testing.T) {
 	root := t.TempDir()
 	const base = "package pkg\n\nimport \"time\"\n\nconst recordVersion = 2\n\nconst (\n\tStatusRunning = \"running\"\n\tenvName = \"VROOLI_X\"\n)\n\ntype Record struct {\n\tVersion int `json:\"version\"`\n\tSchemaVersion string `json:\"schema_version\"`\n\tArtifactVersion string `json:\"artifact_version\"`\n\tAt string `json:\"at\"`\n}\n\nfunc write(t time.Time, v string) Record {\n\treturn Record{Version: recordVersion, SchemaVersion: \"\", ArtifactVersion: v, At: t.Format(time.RFC3339)}\n}\n"

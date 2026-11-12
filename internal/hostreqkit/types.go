@@ -1,6 +1,7 @@
 package hostreqkit
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -49,6 +50,7 @@ type Host struct {
 }
 
 type EnsureOptions struct {
+	Context     context.Context
 	Environment string
 	SudoMode    string
 	DryRun      bool

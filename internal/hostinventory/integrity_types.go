@@ -1,6 +1,32 @@
 package hostinventory
 
-import "time"
+import (
+	"regexp"
+	"strings"
+	"time"
+)
+
+var pciAddressIdentityPattern = regexp.MustCompile(`^(?:[0-9a-f]{4}:)?[0-9a-f]{2}:[0-9a-f]{2}\.[0-9a-f]$`)
+
+// DriverBindingRepairRoute points consumers back to the control-plane owner
+// for supported host changes. Runtime scenarios report evidence and never
+// install a driver or write host configuration themselves.
+const DriverBindingRepairRoute = "Run `vrooli setup status` to identify supported host requirements, then `vrooli setup explain <requirement>` before applying a supported safeguard. Do not infer or install a driver from a device name alone."
+
+// CanonicalPCIIdentity returns the shared stable identity used by control-plane
+// inventory and telemetry consumers. lspci omits the domain unless requested;
+// a missing domain is the conventional zero domain, while sysfs always carries
+// the full domain:bus:device.function address.
+func CanonicalPCIIdentity(address string) string {
+	address = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(address)), "pci:")
+	if !pciAddressIdentityPattern.MatchString(address) {
+		return ""
+	}
+	if len(address) == 7 {
+		address = "0000:" + address
+	}
+	return "pci:" + address
+}
 
 // IntegrityProbeState describes the quality of one host-integrity observation.
 // It is intentionally separate from the capability snapshot probe statuses:
@@ -46,16 +72,64 @@ type KernelInfo struct {
 }
 
 type DeviceInfo struct {
-	BusType          string   `json:"busType"`
-	Address          string   `json:"address,omitempty"`
-	Class            string   `json:"class,omitempty"`
-	VendorID         string   `json:"vendorId,omitempty"`
-	VendorName       string   `json:"vendorName,omitempty"`
-	DeviceID         string   `json:"deviceId,omitempty"`
-	DeviceName       string   `json:"deviceName,omitempty"`
-	BoundDriver      string   `json:"boundDriver,omitempty"`
-	AvailableModules []string `json:"availableKernelModules,omitempty"`
+	ID               string           `json:"id,omitempty"`
+	BusType          string           `json:"busType"`
+	Address          string           `json:"address,omitempty"`
+	SysPath          string           `json:"sysPath,omitempty"`
+	Class            string           `json:"class,omitempty"`
+	VendorID         string           `json:"vendorId,omitempty"`
+	VendorName       string           `json:"vendorName,omitempty"`
+	DeviceID         string           `json:"deviceId,omitempty"`
+	DeviceName       string           `json:"deviceName,omitempty"`
+	BoundDriver      string           `json:"boundDriver,omitempty"`
+	BindingState     string           `json:"bindingState,omitempty"`
+	Modalias         string           `json:"modalias,omitempty"`
+	Functions        []DeviceFunction `json:"functions,omitempty"`
+	Readiness        DeviceReadiness  `json:"readiness"`
+	AvailableModules []string         `json:"availableKernelModules,omitempty"`
 }
+
+// DeviceFunction records a separately bound interface below an enumerated
+// physical device, such as a USB Bluetooth function. The parent USB device's
+// generic "usb" driver does not stand in for its functional interface driver.
+type DeviceFunction struct {
+	ID           string `json:"id"`
+	Class        string `json:"class,omitempty"`
+	Modalias     string `json:"modalias,omitempty"`
+	BoundDriver  string `json:"boundDriver,omitempty"`
+	BindingState string `json:"bindingState"`
+}
+
+// DeviceReadiness keeps firmware, OS-interface and function evidence separate
+// from physical enumeration and driver binding. Unknown and unverified are
+// explicit: a bound driver alone proves none of these stages.
+type DeviceReadiness struct {
+	FirmwareState   string            `json:"firmwareState"`
+	FirmwareReason  string            `json:"firmwareReason,omitempty"`
+	InterfaceState  string            `json:"interfaceState"`
+	InterfaceNames  []string          `json:"interfaceNames,omitempty"`
+	InterfaceStatus map[string]string `json:"interfaceStatus,omitempty"`
+	InterfaceReason string            `json:"interfaceReason,omitempty"`
+	FunctionState   string            `json:"functionState"`
+	FunctionReason  string            `json:"functionReason,omitempty"`
+}
+
+const (
+	DeviceBindingBound   = "bound"
+	DeviceBindingUnbound = "unbound"
+	DeviceBindingUnknown = "unknown"
+	DeviceBindingPartial = "partial"
+
+	DeviceReadinessUnknown       = "unknown"
+	DeviceReadinessNotApplicable = "not_applicable"
+	DeviceReadinessMissing       = "missing"
+	DeviceReadinessAbsent        = "absent"
+	DeviceReadinessInitialized   = "initialized"
+	DeviceReadinessDisabled      = "disabled"
+	DeviceReadinessDisconnected  = "disconnected"
+	DeviceReadinessUnverified    = "unverified"
+	DeviceReadinessVerified      = "verified"
+)
 
 type RuntimeToolInfo struct {
 	Name     string `json:"name"`
@@ -164,6 +238,7 @@ type Change struct {
 type SnapshotRecord struct {
 	ID            string        `json:"id"`
 	CollectedAt   time.Time     `json:"collectedAt"`
+	LastSeenAt    time.Time     `json:"lastSeenAt,omitempty"`
 	Platform      string        `json:"platform"`
 	OS            string        `json:"os"`
 	Arch          string        `json:"arch"`

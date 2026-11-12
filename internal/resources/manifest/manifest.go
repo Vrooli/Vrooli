@@ -59,7 +59,7 @@ var AllowedDrivers = []string{
 }
 
 var (
-	AllowedPlatformSupportStates = []string{"supported", "build-verified", "partial", manifestUnsupported}
+	AllowedPlatformSupportStates = []string{"supported", "build-verified", "unqualified", "partial", manifestUnsupported}
 	AllowedHealthCheckKinds      = []string{HealthCheckReadiness, HealthCheckLiveness}
 )
 

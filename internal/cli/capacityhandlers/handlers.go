@@ -2,8 +2,16 @@ package capacityhandlers
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
 
 	capacityapp "github.com/vrooli/vrooli/internal/app/capacity"
+	engine "github.com/vrooli/vrooli/internal/capacity"
 	"github.com/vrooli/vrooli/internal/cli/capacitycli"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
@@ -155,8 +163,344 @@ func buildCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree.Spec[ro
 			},
 			capacitycli.RenderPolicy,
 		),
+		capacitycli.CommandDiskReserve:      diskReserveHandler(deps),
+		capacitycli.CommandDiskHeartbeat:    diskHeartbeatHandler(deps),
+		capacitycli.CommandDiskExtend:       diskExtendHandler(deps),
+		capacitycli.CommandDiskComplete:     diskCompleteHandler(deps),
+		capacitycli.CommandDiskList:         diskListHandler(deps),
+		capacitycli.CommandDiskReservations: diskReservationsHandler(deps),
+		capacitycli.CommandDiskReconcile:    diskReconcileHandler(deps),
+		capacitycli.CommandDiskObserve:      diskObserveHandler(deps),
+		capacitycli.CommandDiskSample:       diskSampleHandler(deps),
 	}
+	handlerMap[capacitycli.CommandResidency] = residencyHandler(deps)
 	return commandtree.BindSpecs(capacitycli.CommandSpecs(), handlerMap)
+}
+
+type diskLeaseFile struct {
+	ID           string `json:"id"`
+	Capability   string `json:"capability"`
+	ProcessID    int    `json:"process_id"`
+	ProcessStart string `json:"process_start"`
+}
+
+func diskReserveHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
+	return func(ctx C, args []string) error {
+		format, err := deps.OutputFormat(ctx)
+		if err != nil {
+			return err
+		}
+		svc, err := newService(deps, ctx, format)
+		if err != nil {
+			return err
+		}
+		parsed, err := capacitycli.ParseDiskReserveRequest(args)
+		if err != nil {
+			return err
+		}
+		raw, err := os.ReadFile(parsed.RequestFile)
+		if err != nil {
+			return fmt.Errorf("read disk job request: %w", err)
+		}
+		var req engine.DiskJobRequest
+		if err := json.Unmarshal(raw, &req); err != nil {
+			return fmt.Errorf("decode disk job request: %w", err)
+		}
+		if req.ProcessID == 0 || req.ProcessStart == "" {
+			return errors.New("disk-reserve request must bind process_id and process_start to the long-running job")
+		}
+		receipt, cred, err := svc.DiskJobReserve(context.Background(), req)
+		if err != nil {
+			return err
+		}
+		lease := diskLeaseFile{ID: cred.ID, Capability: cred.Capability, ProcessID: cred.ProcessID, ProcessStart: cred.ProcessStart}
+		if err := writePrivateLeaseFile(parsed.LeaseFile, lease); err != nil {
+			_ = os.Remove(parsed.LeaseFile)
+			_, completeErr := svc.DiskJobComplete(context.Background(), cred)
+			if completeErr != nil {
+				return errors.Join(fmt.Errorf("disk lease admitted but credential persistence failed; lease remains active %s: %w", receipt.ID, err), fmt.Errorf("complete admission with verified no-write cleanup: %w", completeErr))
+			}
+			return fmt.Errorf("disk lease credential could not be persisted; the empty admission was completed safely: %w", err)
+		}
+		return renderDiskOutput(deps.Stdout(ctx), format, receipt)
+	}
+}
+
+func diskHeartbeatHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
+	return func(ctx C, args []string) error {
+		format, err := deps.OutputFormat(ctx)
+		if err != nil {
+			return err
+		}
+		svc, err := newService(deps, ctx, format)
+		if err != nil {
+			return err
+		}
+		parsed, err := capacitycli.ParseDiskLeaseRequest(capacitycli.CommandDiskHeartbeat, args)
+		if err != nil {
+			return err
+		}
+		cred, err := readPrivateLeaseFile(parsed.LeaseFile)
+		if err != nil {
+			return err
+		}
+		receipt, err := svc.DiskJobHeartbeat(context.Background(), cred)
+		if err != nil {
+			return err
+		}
+		return renderDiskOutput(deps.Stdout(ctx), format, receipt)
+	}
+}
+
+func diskExtendHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
+	return func(ctx C, args []string) error {
+		format, err := deps.OutputFormat(ctx)
+		if err != nil {
+			return err
+		}
+		svc, err := newService(deps, ctx, format)
+		if err != nil {
+			return err
+		}
+		parsed, err := capacitycli.ParseDiskExtendRequest(args)
+		if err != nil {
+			return err
+		}
+		cred, err := readPrivateLeaseFile(parsed.LeaseFile)
+		if err != nil {
+			return err
+		}
+		raw, err := os.ReadFile(parsed.PathsFile)
+		if err != nil {
+			return err
+		}
+		var paths []engine.DiskJobPath
+		if err := json.Unmarshal(raw, &paths); err != nil {
+			return fmt.Errorf("decode extension paths: %w", err)
+		}
+		receipt, err := svc.DiskJobExtend(context.Background(), cred, paths)
+		if err != nil {
+			return err
+		}
+		return renderDiskOutput(deps.Stdout(ctx), format, receipt)
+	}
+}
+
+func diskCompleteHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
+	return func(ctx C, args []string) error {
+		format, err := deps.OutputFormat(ctx)
+		if err != nil {
+			return err
+		}
+		svc, err := newService(deps, ctx, format)
+		if err != nil {
+			return err
+		}
+		parsed, err := capacitycli.ParseDiskCompleteRequest(args)
+		if err != nil {
+			return err
+		}
+		cred, err := readPrivateLeaseFile(parsed.LeaseFile)
+		if err != nil {
+			return err
+		}
+		receipt, err := svc.DiskJobComplete(context.Background(), cred)
+		if err != nil {
+			return err
+		}
+		if err := renderDiskOutput(deps.Stdout(ctx), format, receipt); err != nil {
+			return err
+		}
+		if err := os.Remove(parsed.LeaseFile); err != nil {
+			return fmt.Errorf("lease completed but private credential file could not be removed: %w", err)
+		}
+		return nil
+	}
+}
+
+func diskListHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
+	return func(ctx C, args []string) error {
+		format, err := deps.OutputFormat(ctx)
+		if err != nil {
+			return err
+		}
+		svc, err := newService(deps, ctx, format)
+		if err != nil {
+			return err
+		}
+		parsed, err := capacitycli.ParseDiskListRequest(args)
+		if err != nil {
+			return err
+		}
+		if parsed.Observe {
+			out, err := svc.DiskHeadroom(context.Background())
+			if err != nil {
+				return err
+			}
+			return renderDiskOutput(deps.Stdout(ctx), format, out)
+		}
+		rows, err := svc.DiskJobList(context.Background(), parsed.Active)
+		if err != nil {
+			return err
+		}
+		return renderDiskOutput(deps.Stdout(ctx), format, rows)
+	}
+}
+
+func diskReservationsHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
+	return func(ctx C, args []string) error {
+		format, err := deps.OutputFormat(ctx)
+		if err != nil {
+			return err
+		}
+		svc, err := newService(deps, ctx, format)
+		if err != nil {
+			return err
+		}
+		parsed, err := capacitycli.ParseDiskReservationsRequest(args)
+		if err != nil {
+			return err
+		}
+		rows, err := svc.DiskReservationList(context.Background(), engine.DiskReservationFilter{ActiveOnly: parsed.Active, OwnerID: parsed.Owner, FilesystemID: parsed.Filesystem})
+		if err != nil {
+			return err
+		}
+		return renderDiskOutput(deps.Stdout(ctx), format, rows)
+	}
+}
+
+func diskReconcileHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
+	return func(ctx C, args []string) error {
+		format, err := deps.OutputFormat(ctx)
+		if err != nil {
+			return err
+		}
+		svc, err := newService(deps, ctx, format)
+		if err != nil {
+			return err
+		}
+		parsed, err := capacitycli.ParseDiskReconcileRequest(args)
+		if err != nil {
+			return err
+		}
+		receipt, err := svc.DiskJobReconcile(context.Background(), parsed.LeaseID, parsed.ProcessStopped, parsed.CleanupVerified)
+		if err != nil {
+			return err
+		}
+		return renderDiskOutput(deps.Stdout(ctx), format, receipt)
+	}
+}
+
+func diskObserveHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
+	return func(ctx C, args []string) error {
+		format, err := deps.OutputFormat(ctx)
+		if err != nil {
+			return err
+		}
+		svc, err := newService(deps, ctx, format)
+		if err != nil {
+			return err
+		}
+		parsed, err := capacitycli.ParseDiskObserveRequest(args)
+		if err != nil {
+			return err
+		}
+		cred, err := readPrivateLeaseFile(parsed.LeaseFile)
+		if err != nil {
+			return err
+		}
+		out, err := svc.DiskJobObserve(context.Background(), cred)
+		if err != nil {
+			return err
+		}
+		return renderDiskOutput(deps.Stdout(ctx), format, out)
+	}
+}
+
+func diskSampleHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
+	return func(ctx C, args []string) error {
+		format, err := deps.OutputFormat(ctx)
+		if err != nil {
+			return err
+		}
+		svc, err := newService(deps, ctx, format)
+		if err != nil {
+			return err
+		}
+		parsed, err := capacitycli.ParseDiskSampleRequest(args)
+		if err != nil {
+			return err
+		}
+		cred, err := readPrivateLeaseFile(parsed.LeaseFile)
+		if err != nil {
+			return err
+		}
+		receipt, err := svc.DiskJobSamplePath(context.Background(), cred, parsed.Path, parsed.DockerContainer, parsed.DockerDestination, parsed.DockerUpperDir, parsed.DockerRootDir, parsed.Bytes, parsed.ExtendPeak)
+		if err != nil {
+			return err
+		}
+		return renderDiskOutput(deps.Stdout(ctx), format, receipt)
+	}
+}
+
+func writePrivateLeaseFile(path string, lease diskLeaseFile) error {
+	if strings.TrimSpace(path) == "" {
+		return errors.New("lease file path is required")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	raw, err := json.Marshal(lease)
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err = f.Write(raw); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+func readPrivateLeaseFile(path string) (capacityapp.DiskJobCredential, error) {
+	pathInfo, err := os.Lstat(path)
+	if err != nil {
+		return capacityapp.DiskJobCredential{}, err
+	}
+	if !pathInfo.Mode().IsRegular() {
+		return capacityapp.DiskJobCredential{}, fmt.Errorf("lease credential file must be a regular file with mode 0600")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return capacityapp.DiskJobCredential{}, err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return capacityapp.DiskJobCredential{}, err
+	}
+	if !info.Mode().IsRegular() || info.Mode().Perm() != 0o600 || !os.SameFile(pathInfo, info) {
+		return capacityapp.DiskJobCredential{}, fmt.Errorf("lease credential file must be a regular file with mode 0600")
+	}
+	raw, err := io.ReadAll(f)
+	if err != nil {
+		return capacityapp.DiskJobCredential{}, err
+	}
+	var lease diskLeaseFile
+	if err := json.Unmarshal(raw, &lease); err != nil {
+		return capacityapp.DiskJobCredential{}, err
+	}
+	if lease.ID == "" || lease.Capability == "" || lease.ProcessID <= 0 || lease.ProcessStart == "" {
+		return capacityapp.DiskJobCredential{}, errors.New("lease credential file is incomplete")
+	}
+	return capacityapp.DiskJobCredential{ID: lease.ID, Capability: lease.Capability, ProcessID: lease.ProcessID, ProcessStart: lease.ProcessStart}, nil
+}
+
+func renderDiskOutput(w io.Writer, format cliout.Format, out any) error {
+	return cliout.RenderJSONOr(w, format, func(w io.Writer) error { return cliout.WriteJSON(w, out) }, func(w io.Writer) error { _, err := fmt.Fprintln(w, "disk job receipt recorded"); return err })
 }
 
 func refHandler[C any](deps rootcli.HandlerDeps[C], id capacitycli.CommandID, command string, run func(capacityapp.Service, capacityapp.Ref) (capacityapp.ClaimView, error)) rootcli.Handler[C] {

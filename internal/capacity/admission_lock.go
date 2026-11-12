@@ -3,6 +3,9 @@ package capacity
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/vrooli/vrooli/internal/artifactlock"
 )
@@ -32,7 +35,48 @@ func (s *SQLiteStore) LockAdmission(ctx context.Context) (func(), error) {
 			return nil, ctx.Err()
 		}
 	}
-	return artifactlock.AcquireWithPathContext(ctx, "capacity-admission:"+s.dbPath, func(string) (string, error) {
-		return s.dbPath + ".admission.lock", nil
+	return LockAdmissionPath(ctx, s.dbPath)
+}
+
+// AdmissionLockPath resolves one ledger identity for CLI, lifecycle and public
+// broker callers, including construction before the SQLite file exists.
+func AdmissionLockPath(dbPath string) (string, error) {
+	if strings.TrimSpace(dbPath) == "" || dbPath == ":memory:" {
+		return "", nil
+	}
+	absolute, err := filepath.Abs(dbPath)
+	if err != nil {
+		return "", err
+	}
+	path, suffix := filepath.Clean(absolute), ""
+	for {
+		canonical, err := filepath.EvalSymlinks(path)
+		if err == nil {
+			return filepath.Join(canonical, suffix) + ".admission.lock", nil
+		}
+		if !os.IsNotExist(err) {
+			return "", fmt.Errorf("resolve capacity admission identity: %w", err)
+		}
+		suffix = filepath.Join(filepath.Base(path), suffix)
+		parent := filepath.Dir(path)
+		if parent == path {
+			return "", fmt.Errorf("capacity admission has no existing ancestor: %s", dbPath)
+		}
+		path = parent
+	}
+}
+
+// LockAdmissionPath is also used before opening SQLite so schema initialization
+// cannot race a live no-reclaim admission on the same ledger.
+func LockAdmissionPath(ctx context.Context, dbPath string) (func(), error) {
+	path, err := AdmissionLockPath(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	if path == "" {
+		return func() {}, nil
+	}
+	return artifactlock.AcquireWithPathContext(ctx, "capacity-admission:"+path, func(string) (string, error) {
+		return path, nil
 	})
 }

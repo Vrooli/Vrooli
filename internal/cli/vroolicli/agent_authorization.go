@@ -32,7 +32,7 @@ func (app *App) runAgentAuthorization(ctx *AppContext, action string, args []str
 	fs := commandtree.NewFlagSet("vrooli agent " + action)
 	fs.SetOutput(ctx.Stderr)
 	duration := fs.Duration("expires-in", 24*time.Hour, "grant lifetime (at most 168h; ends early when the session or run ends)")
-	approvalBase := fs.String("approval-base", strings.TrimSpace(os.Getenv("AGENT_MANAGER_AUTHORIZATION_URL")), "authenticated Agent Manager browser URL")
+	approvalBase := fs.String("approval-base", strings.TrimSpace(os.Getenv("AGENT_MANAGER_AUTHORIZATION_URL")), "authenticated Agent Manager browser URL (default: AGENT_MANAGER_AUTHORIZATION_URL, else Agent Manager's public tunnel origin)")
 	reason := fs.String("reason", "", "requester-provided explanation shown to the human reviewer; not proof or authority")
 	technicalDetails := fs.String("technical-details", "", "requester-provided technical context shown to the human reviewer; do not include secrets")
 	rules := &authorizationRules{}
@@ -80,6 +80,11 @@ func (app *App) runAgentAuthorization(ctx *AppContext, action string, args []str
 	if _, err := cliutil.ObserveProcessBinding(lease.PID); err != nil {
 		return fmt.Errorf("session process is no longer live: %w", err)
 	}
+	// A refusal's request command names no origin when the refusing scenario is not
+	// configured with one, so resolve the same public origin Agent Manager uses.
+	if (action == "revoke-authorization" || action == "authorize") && *approvalBase == "" {
+		*approvalBase = resolveApprovalBase(ctx.OperationContext())
+	}
 	if action == "revoke-authorization" {
 		if *approvalBase == "" {
 			return errors.New("set --approval-base to the authenticated Agent Manager browser URL")
@@ -117,7 +122,7 @@ func (app *App) runAgentAuthorization(ctx *AppContext, action string, args []str
 		return clipolicy.UsageErrorf("agent authorize", "%s", err.Error())
 	}
 	if *approvalBase == "" {
-		return errors.New("set --approval-base (or AGENT_MANAGER_AUTHORIZATION_URL) to the authenticated Agent Manager browser URL; tunnel reachability alone is not human proof")
+		return errors.New("set --approval-base (or AGENT_MANAGER_AUTHORIZATION_URL) to the authenticated Agent Manager browser URL; no public Agent Manager origin could be resolved, and tunnel reachability alone is not human proof")
 	}
 	if _, err := authorizationDecisionURL(*approvalBase, "request", "approve"); err != nil {
 		return err
@@ -161,6 +166,28 @@ func (app *App) runAgentAuthorization(ctx *AppContext, action string, args []str
 	}
 	fmt.Fprintf(ctx.Stdout, "Authorization request %s is pending human consent.\n%s\nApprove by: %s\nPermission lifetime starts at approval. After approval, this running session uses the grant on subsequent CLI requests.\nA newer request replaces this one while it is pending, and a newer approval replaces this session's earlier grant: ask for every policy the work needs in one request (repeat --policy, each with its --target).\n", grant.ID, approval, grant.RequestExpiresAt.Format(time.RFC3339))
 	return nil
+}
+
+// externalOriginOf resolves a scenario's browser origin; tests replace it.
+var externalOriginOf = discovery.ResolveExternalURLForNotice
+
+// resolveApprovalBase returns Agent Manager's public browser origin when no flag
+// or environment value names one: the origin Agent Manager itself puts in the
+// review links it publishes. Only an HTTPS origin qualifies. A localhost port is
+// not an authenticated approval origin (tunnel reachability alone is not human
+// proof), so none resolves to "" and the caller asks for --approval-base.
+func resolveApprovalBase(parent context.Context) string {
+	ctx, cancel := context.WithTimeout(parent, 3*time.Second)
+	defer cancel()
+	public, err := externalOriginOf(ctx, "agent-manager")
+	if err != nil {
+		return ""
+	}
+	u, err := url.Parse(strings.TrimSpace(public))
+	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || (u.Path != "" && u.Path != "/") {
+		return ""
+	}
+	return strings.TrimRight(u.String(), "/")
 }
 
 func verifiedLaunchWebConsoleSessionID(lease scenarioruntime.EditorLease) string {

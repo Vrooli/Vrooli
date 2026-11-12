@@ -160,6 +160,16 @@ func newManagedServiceSupervisor(statePath, logPath string) *ManagedServiceSuper
 }
 
 func managedServiceSupervisorFor(resource string) (*ManagedServiceSupervisor, runtimestorage.Paths, error) {
+	if resource == openRGBResourceName && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+		paths, err := resourceStoragePaths(resource)
+		if err != nil {
+			return nil, runtimestorage.Paths{}, err
+		}
+		// Status and missing-state observation are read-only. Explicit native setup
+		// provisions the exact owner/service directories before dispatch.
+		supervisor := newManagedServiceSupervisor(filepath.Join(paths.StateDir, managedServiceStateFile), filepath.Join(paths.LogsDir, "service.log"))
+		return supervisor, paths, nil
+	}
 	resolver, err := resourceStorageResolver()
 	if err != nil {
 		return nil, runtimestorage.Paths{}, err
@@ -184,6 +194,7 @@ func (s *ManagedServiceSupervisor) Status() (ManagedServiceState, bool, error) {
 		}
 		return ManagedServiceState{}, false, err
 	}
+
 	// A confirmed initial-native stop is final. A later process reusing the
 	// numeric PID must not revive that publication or block a fresh enable.
 	if state.InitialLaunch != nil && state.StoppedAt != nil {
@@ -654,6 +665,13 @@ func managedServiceArtifactPath(controller *Controller, manifest ResourceManifes
 			return "", fmt.Errorf("resource %s requires an explicit source choice; run `vrooli resource source %s managed` or `vrooli resource source %s host`", manifest.Name, manifest.Name, manifest.Name)
 		}
 		if selected && choice.Mode == "host" {
+			if manifest.Name == openRGBResourceName {
+				profile, err := openRGBReleaseProfileForCurrentHost()
+				if err != nil || profile.validate() != nil || choice.Executable == "" || !filepath.IsAbs(choice.Executable) || choice.Version != openRGBAppImageVersion || !profile.acceptsArtifactSHA256(choice.SHA256) {
+					return "", errors.Join(errors.New("OpenRGB adopted source record differs from its exact native release profile"), err)
+				}
+				return choice.Executable, nil
+			}
 			if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
 				return "", fmt.Errorf("resource %s host-tool adoption is only qualified for linux-amd64; this host is %s-%s", manifest.Name, runtime.GOOS, runtime.GOARCH)
 			}

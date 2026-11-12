@@ -16,6 +16,8 @@ import (
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/coreactivation"
 	"github.com/vrooli/vrooli/internal/hostsession"
+	"github.com/vrooli/vrooli/internal/hostwireless"
+	"github.com/vrooli/vrooli/internal/lightingruntime"
 	"github.com/vrooli/vrooli/internal/operatorcapability"
 	"github.com/vrooli/vrooli/internal/operatorstate"
 	"github.com/vrooli/vrooli/internal/process"
@@ -52,6 +54,7 @@ func nativePersistenceOwners() []statecontract.Owner {
 		capacity.PersistentState(),
 		process.PersistentState(),
 		hostsession.PersistentState(),
+		hostwireless.PersistentState(),
 		agentsession.PersistentState(),
 		setpoint.PersistentState(),
 		resources.PersistentState(),
@@ -60,6 +63,7 @@ func nativePersistenceOwners() []statecontract.Owner {
 		coreactivation.PersistentState(),
 		recovery.PersistentState(),
 		runtimesupervisor.PersistentState(),
+		lightingruntime.PersistentState(),
 		watchdog.PersistentState(),
 		nativeOperationIdentities(),
 		operatorstate.PersistentState(),
@@ -123,6 +127,7 @@ func nativeOperationIdentities() statecontract.Owner {
 	return statecontract.Owner{
 		Name:        "native-operation-identities",
 		WholeSource: true,
-		Roots:       []reflect.Type{reflect.TypeFor[platform.OperationIntent](), reflect.TypeFor[platform.OperationRef](), reflect.TypeFor[platform.ServiceIntent](), reflect.TypeFor[platform.ServiceRef]()},
+		Roots:       platform.NativeOwnedPersistentTypes(),
+		Facts:       platform.NativeOwnedPersistentFacts(),
 	}
 }

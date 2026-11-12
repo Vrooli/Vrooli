@@ -40,6 +40,10 @@ func TestClassifyAgentCommandBlocksDestructiveMaintenance(t *testing.T) {
 		{"vrooli", "stop"},
 		{"vrooli", "scenario", "stop-all"},
 		{"vrooli", "resource", "stop-all"},
+		{"vrooli", "resource", "stop"},
+		{"vrooli", "resource", "stop", "all"},
+		{"vrooli", "resource", "stop", "postgres", "redis"},
+		{"vrooli", "resource", "stop", "--json"},
 	}
 	for _, argv := range tests {
 		t.Run(argv[0], func(t *testing.T) {
@@ -49,6 +53,22 @@ func TestClassifyAgentCommandBlocksDestructiveMaintenance(t *testing.T) {
 			}
 			if decision.Code != CodeDestructiveVrooliMaintenanceBlocked {
 				t.Fatalf("code = %q, want %q", decision.Code, CodeDestructiveVrooliMaintenanceBlocked)
+			}
+		})
+	}
+}
+
+func TestClassifyAgentCommandAllowsSingleResourceStop(t *testing.T) {
+	env := []string{"VROOLI_SANDBOX_ID=sbx-1"}
+	for _, argv := range [][]string{
+		{"vrooli", "resource", "stop", "ace-step"},
+		{"vrooli", "--json", "resource", "stop", "postgres"},
+		{"env", "VROOLI_SANDBOX_ID=sbx-1", "vrooli", "resource", "stop", "redis"},
+		{"bash", "-lc", "vrooli resource stop ace-step"},
+	} {
+		t.Run(argv[0], func(t *testing.T) {
+			if decision := ClassifyAgentCommand(argv, env); !decision.Allowed {
+				t.Fatalf("ClassifyAgentCommand(%v) denied one explicit resource stop: %+v", argv, decision)
 			}
 		})
 	}

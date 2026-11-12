@@ -51,6 +51,18 @@ const (
 // first, then rendered native definitions, then file-backed fixtures.
 func All() ([]Invoker, error) {
 	items := []Invoker{
+		static("lighting/resource-permission-apply", "internal/resources/openrgb_device_setup.go", cliinvoke.RuntimeLightingPermissionApply("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")),
+		static("lighting/resource-permission-rollback", "internal/resources/openrgb_device_setup.go", cliinvoke.RuntimeLightingPermissionRollback("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")),
+		static("lighting/devices", "scenarios/lighting-control/api/internal/setup/cli.go", cliinvoke.RuntimeLightingDevices()),
+		static("lighting/permission-plan", "scenarios/lighting-control/api/internal/setup/cli.go", cliinvoke.RuntimeLightingPermissionPlan([]string{"device-id"})),
+		static("lighting/permission-apply", "scenarios/lighting-control/api/internal/setup/cli.go", cliinvoke.RuntimeLightingPermissionApply("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")),
+		static("lighting/permission-rollback", "scenarios/lighting-control/api/internal/setup/cli.go", cliinvoke.RuntimeLightingPermissionRollback("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")),
+		static("lighting-native/start", "internal/app/runtime/lighting_native.go", cliinvoke.ScenarioLifecycle("start", "lighting-control", false)),
+		static("lighting/prepare", "internal/app/runtime/lighting_native_prepare.go", cliinvoke.RuntimeLightingPrepare()),
+		static("lighting/status", "scenarios/lighting-control/api/internal/setup/cli.go", cliinvoke.RuntimeLightingStatus()),
+		static("lighting/disable", "scenarios/lighting-control/api/internal/setup/cli.go", cliinvoke.RuntimeLightingDisable()),
+		static("lighting/setup", "scenarios/lighting-control/api/internal/setup/cli.go", cliinvoke.RuntimeLightingSetup("managed", "1.1", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "policy")),
+		static("lighting/enable", "scenarios/lighting-control/api/internal/setup/cli.go", cliinvoke.RuntimeLightingEnable("managed", "1.1", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "policy")),
 		static("autoheal-loop/lifecycle-start", loopOwner, cliinvoke.ScenarioLifecycle("start", autohealScenario, true)),
 		static("autoheal-loop/lifecycle-restart", loopOwner, cliinvoke.ScenarioLifecycle("restart", autohealScenario, true)),
 		static("autoheal-loop/status-json", loopPortsOwner, cliinvoke.ScenarioStatusJSON(autohealScenario)),

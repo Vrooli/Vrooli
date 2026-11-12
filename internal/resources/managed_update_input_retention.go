@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/vrooli/vrooli/internal/config"
 )
 
 type managedUpdateInputCleanup struct {
@@ -117,7 +116,7 @@ func (c *Controller) pruneManagedServiceUpdateInputsLocked(ctx context.Context, 
 		}
 		receipt := managedUpdateInputCleanup{SchemaVersion: managedUpdateInputCleanupSchemaVersion, OperationID: u.ID, Revision: u.Revision, PreservedInstance: preserve, RemovedRuntimeInstances: removed, PrunedAt: time.Now().UTC()}
 		data, _ := json.Marshal(receipt)
-		if err := config.WriteOwnedFileDurable(receiptPath, data, 0o600); err != nil {
+		if err := writeResourceOwnedFileDurable(receiptPath, data, 0o600); err != nil {
 			return fmt.Errorf("%w: private input cleanup acknowledgement: %w", ErrManagedUpdateCommitUnknown, err)
 		}
 	}

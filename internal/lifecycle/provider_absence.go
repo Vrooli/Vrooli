@@ -13,7 +13,25 @@ import (
 // This only skips an RPC to an absent provider; teardown still owns process
 // identity checks and termination of the remaining UI.
 func providerKnownAbsent(item scenario.Scenario, instance scenarioruntime.Instance, boot string, claims []scenarioruntime.PortClaim, refs []scenarioruntime.ProcessRef, listening func(int) network.ListenerState, alive func(int) bool) bool {
-	if boot == "" || instance.HostBootID != boot || instance.Status != scenarioruntime.StatusRunning {
+	if boot == "" || instance.HostBootID != boot {
+		return false
+	}
+	// A lifecycle-owned startup that is still in planning or setup has not
+	// entered the component launch phase: component launches are declared only
+	// for develop. Authored setup commands are arbitrary and could leave a
+	// provider behind, so they make absence unprovable just like a process ref.
+	// If the exact owner is known dead, setup has no authored exec commands,
+	// there are no process refs, and every claimed API port is known unbound,
+	// the provider is absent despite the incomplete lease. This is deliberately
+	// narrower than general stale-instance recovery.
+	if instance.Status == scenarioruntime.StatusStarting {
+		if instance.OwnerKind != scenarioruntime.OwnerKindLifecycle || instance.OwnerPID == nil || *instance.OwnerPID <= 0 || alive == nil || alive(*instance.OwnerPID) ||
+			(instance.Phase != scenarioruntime.PhasePlanning && instance.Phase != "setup") || len(refs) != 0 || hasAuthoredSetupExec(item.Manifest) {
+			return false
+		}
+		return apiClaimsKnownUnbound(item, claims, listening)
+	}
+	if instance.Status != scenarioruntime.StatusRunning {
 		return false
 	}
 	apiSteps := map[string]bool{}
@@ -29,21 +47,7 @@ func providerKnownAbsent(item scenario.Scenario, instance scenarioruntime.Instan
 	if len(apiSteps) != 1 {
 		return false
 	}
-	apiClaim := false
-	for _, claim := range claims {
-		if claim.EnvVar != "API_PORT" && item.Manifest.PortEnvVar(claim.PortName) != "API_PORT" {
-			continue
-		}
-		if claim.Port <= 0 {
-			return false
-		}
-		state := listening(claim.Port)
-		if !state.Known || state.Listening {
-			return false
-		}
-		apiClaim = true
-	}
-	if !apiClaim {
+	if !apiClaimsKnownUnbound(item, claims, listening) {
 		return false
 	}
 	apiRef := false
@@ -59,4 +63,35 @@ func providerKnownAbsent(item scenario.Scenario, instance scenarioruntime.Instan
 		}
 	}
 	return apiRef
+}
+
+func hasAuthoredSetupExec(manifest scenario.ServiceManifest) bool {
+	phase, ok := lookupPhase(manifest, phasesSetup)
+	if !ok {
+		return false
+	}
+	for _, step := range phase.Steps {
+		if len(step.Exec) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func apiClaimsKnownUnbound(item scenario.Scenario, claims []scenarioruntime.PortClaim, listening func(int) network.ListenerState) bool {
+	apiClaim := false
+	for _, claim := range claims {
+		if claim.EnvVar != "API_PORT" && item.Manifest.PortEnvVar(claim.PortName) != "API_PORT" {
+			continue
+		}
+		if claim.Port <= 0 || listening == nil {
+			return false
+		}
+		state := listening(claim.Port)
+		if !state.Known || state.Listening {
+			return false
+		}
+		apiClaim = true
+	}
+	return apiClaim
 }

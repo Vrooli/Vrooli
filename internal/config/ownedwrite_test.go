@@ -1,9 +1,13 @@
 package config
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
+	"strings"
+	"sync"
 	"testing"
 )
 
@@ -69,6 +73,47 @@ func TestWriteOwnedFileWritesWithoutRoot(t *testing.T) {
 	}
 	if string(data) != "hello" {
 		t.Fatalf("contents = %q, want hello", string(data))
+	}
+}
+
+func TestWriteOwnedFileAtomicCrossProcessSerializesPublishers(t *testing.T) {
+	const targetEnv = "VROOLI_OWNED_WRITE_TARGET"
+	const valueEnv = "VROOLI_OWNED_WRITE_VALUE"
+	if target := os.Getenv(targetEnv); target != "" {
+		if err := WriteOwnedFileAtomic(target, []byte(os.Getenv(valueEnv)), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+
+	runtimeHome := t.TempDir()
+	t.Setenv("HOME", runtimeHome)
+	path := filepath.Join(t.TempDir(), "published.json")
+	const writers = 12
+	var wg sync.WaitGroup
+	errs := make(chan error, writers)
+	for i := 0; i < writers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			cmd := exec.Command(os.Args[0], "-test.run=^TestWriteOwnedFileAtomicCrossProcessSerializesPublishers$")
+			cmd.Env = append(os.Environ(), targetEnv+"="+path, valueEnv+"="+fmt.Sprintf("writer-%02d", i))
+			if output, err := cmd.CombinedOutput(); err != nil {
+				errs <- fmt.Errorf("writer %d: %w: %s", i, err, output)
+			}
+		}(i)
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read published file: %v", err)
+	}
+	if !strings.HasPrefix(string(data), "writer-") {
+		t.Fatalf("published file is incomplete: %q", data)
 	}
 }
 

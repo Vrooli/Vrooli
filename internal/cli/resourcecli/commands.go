@@ -9,6 +9,8 @@ import (
 type (
 	CommandID            string
 	AcquisitionCommandID string
+	N8NCommandID         string
+	N8NRuntimeCommandID  string
 	BlueprintCommandID   string
 	ArchiveCommandID     string
 	SchemaCommandID      string
@@ -46,6 +48,25 @@ const (
 	CommandSchema                CommandID = "schema"
 	CommandAcquisition           CommandID = "acquisition"
 	CommandAcceleration          CommandID = "acceleration"
+	CommandSource                CommandID = "source"
+	CommandN8N                   CommandID = "n8n"
+)
+
+const (
+	N8NRuntimeAcquire                N8NRuntimeCommandID = "acquire"
+	N8NRuntimeStart                  N8NRuntimeCommandID = "start"
+	N8NRuntimeStatus                 N8NRuntimeCommandID = "status"
+	N8NRuntimeAttachCompanion        N8NRuntimeCommandID = "attach-companion"
+	N8NRuntimeDetachCompanion        N8NRuntimeCommandID = "detach-companion"
+	N8NRuntimeCompanionStart         N8NRuntimeCommandID = "companion-start"
+	N8NRuntimeCompanionStop          N8NRuntimeCommandID = "companion-stop"
+	N8NRuntimeCompanionStartHTTPMock N8NRuntimeCommandID = "companion-start-http-mock"
+	N8NRuntimeCompanionStopHTTPMock  N8NRuntimeCommandID = "companion-stop-http-mock"
+	N8NRuntimeStop                   N8NRuntimeCommandID = "stop"
+	N8NRuntimeImportWorkflow         N8NRuntimeCommandID = "import-workflow"
+	N8NRuntimeExecuteWorkflow        N8NRuntimeCommandID = "execute-workflow"
+	N8NRuntimeExecuteManualWorkflow  N8NRuntimeCommandID = "execute-manual-workflow"
+	N8NRuntimeDispatchWebhookEvent   N8NRuntimeCommandID = "dispatch-webhook-event"
 )
 
 const (
@@ -189,7 +210,73 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 		{Name: string(CommandSchema), Summary: "Manage resource-derived schema artifacts", Handler: CommandSchema},
 		{Name: string(CommandAcquisition), Summary: "Inspect declared resource acquisition", Handler: CommandAcquisition},
 		{Name: string(CommandAcceleration), Summary: "Inspect accelerator declaration, readiness and placement", Handler: CommandAcceleration},
+		{Name: string(CommandSource), Summary: "Select an explicit managed-service source", Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "resource", Required: true}, {Name: "managed|host", Required: true}}}, Handler: CommandSource},
+		{Name: string(CommandN8N), Summary: "Manage task-scoped n8n rehearsal runtimes", Handler: CommandN8N},
 	}
+}
+
+func N8NRuntimeCommandSpecs() []commandtree.Spec[N8NRuntimeCommandID] {
+	return []commandtree.Spec[N8NRuntimeCommandID]{
+		{Name: string(N8NRuntimeAcquire), Summary: "Acquire the digest-pinned n8n image under host disk admission", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{commandtree.JSONOption()}}, Handler: N8NRuntimeAcquire},
+		{Name: string(N8NRuntimeStart), Summary: "Start one isolated n8n runtime for a Sandbox UUID", Args: taskRuntimeArgs(false), Handler: N8NRuntimeStart},
+		{Name: string(N8NRuntimeStatus), Summary: "Observe one task-scoped n8n runtime", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"}, commandtree.JSONOption()}}, Handler: N8NRuntimeStatus},
+		{Name: string(N8NRuntimeAttachCompanion), Summary: "Attach one declared Sandbox companion to the private n8n network", Args: taskRuntimeArgs(true), Handler: N8NRuntimeAttachCompanion},
+		{Name: string(N8NRuntimeDetachCompanion), Summary: "Detach one declared Sandbox companion from the private n8n network", Args: taskRuntimeArgs(true), Handler: N8NRuntimeDetachCompanion},
+		{Name: string(N8NRuntimeCompanionStart), Summary: "Start the pinned synthetic Postgres companion for a Sandbox", Args: companionStartArgs(), Handler: N8NRuntimeCompanionStart},
+		{Name: string(N8NRuntimeCompanionStop), Summary: "Stop and remove only the owned synthetic Postgres companion", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"}, {Name: "--companion-runtime-id", ValueName: "id", Description: "Owner-issued companion runtime ID"}, commandtree.JSONOption()}}, Handler: N8NRuntimeCompanionStop},
+		{Name: string(N8NRuntimeCompanionStartHTTPMock), Summary: "Start exact synthetic HTTP fixtures on the private task network", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"}, {Name: "--config-stdin", Description: "Read the bounded HTTP mock config from stdin"}, commandtree.JSONOption()}}, Handler: N8NRuntimeCompanionStartHTTPMock},
+		{Name: string(N8NRuntimeCompanionStopHTTPMock), Summary: "Stop only the owned synthetic HTTP mock companion", Args: commandtree.ArgSchema{Options: []commandtree.OptionArg{{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"}, {Name: "--companion-runtime-id", ValueName: "id", Description: "Owner-issued HTTP mock runtime ID"}, commandtree.JSONOption()}}, Handler: N8NRuntimeCompanionStopHTTPMock},
+		{Name: string(N8NRuntimeStop), Summary: "Stop and clean up one task-scoped n8n runtime", Args: taskRuntimeArgs(false), Handler: N8NRuntimeStop},
+		{Name: string(N8NRuntimeImportWorkflow), Summary: "Import one sanitized synthetic workflow from bounded stdin", Args: workflowRuntimeArgs(true), Handler: N8NRuntimeImportWorkflow},
+		{Name: string(N8NRuntimeExecuteWorkflow), Summary: "Execute the owner-derived synthetic workflow for an operation ID", Args: workflowRuntimeArgs(false), Handler: N8NRuntimeExecuteWorkflow},
+		{Name: string(N8NRuntimeExecuteManualWorkflow), Summary: "Execute only an imported workflow with one pinned Manual Trigger", Args: workflowRuntimeArgs(false), Handler: N8NRuntimeExecuteManualWorkflow},
+		{Name: string(N8NRuntimeDispatchWebhookEvent), Summary: "Publish and dispatch one bounded synthetic event to the imported Webhook trigger", Args: webhookEventRuntimeArgs(), Handler: N8NRuntimeDispatchWebhookEvent},
+	}
+}
+
+func webhookEventRuntimeArgs() commandtree.ArgSchema {
+	return commandtree.ArgSchema{Options: []commandtree.OptionArg{
+		{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"},
+		{Name: "--runtime-id", ValueName: "id", Description: "Owner-issued n8n runtime ID"},
+		{Name: "--operation-id", ValueName: "uuid", Description: "Stable caller-generated operation UUID used for import"},
+		{Name: "--event-stdin", Description: "Read bounded synthetic JSON event from stdin"},
+		commandtree.JSONOption(),
+	}}
+}
+
+func companionStartArgs() commandtree.ArgSchema {
+	return commandtree.ArgSchema{Options: []commandtree.OptionArg{
+		{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"},
+		{Name: "--companion-name", ValueName: "name", Description: "Must be the fixed synthetic Postgres profile name"},
+		{Name: "--service-version", ValueName: "version", Description: "Must match the fixed Postgres 16.4 profile"},
+		{Name: "--database", ValueName: "name", Description: "Must be the fixed synthetic workflow database"},
+		commandtree.JSONOption(),
+	}}
+}
+
+func workflowRuntimeArgs(postgresCompanion bool) commandtree.ArgSchema {
+	options := []commandtree.OptionArg{
+		{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"},
+		{Name: "--runtime-id", ValueName: "id", Description: "Owner-issued n8n runtime ID"},
+		{Name: "--operation-id", ValueName: "uuid", Description: "Stable caller-generated operation UUID"},
+	}
+	if postgresCompanion {
+		options = append(options, commandtree.OptionArg{Name: "--postgres-companion-runtime-id", ValueName: "id", Description: "Declared attached Postgres companion used by synthetic credentials"})
+	}
+	options = append(options, commandtree.JSONOption())
+	return commandtree.ArgSchema{Options: options}
+}
+
+func taskRuntimeArgs(companion bool) commandtree.ArgSchema {
+	options := []commandtree.OptionArg{
+		{Name: "--sandbox-id", ValueName: "uuid", Description: "Workspace Sandbox UUID"},
+		{Name: "--runtime-id", ValueName: "id", Description: "Owner-issued n8n runtime ID"},
+	}
+	if companion {
+		options = append(options, commandtree.OptionArg{Name: "--companion-runtime-id", ValueName: "id", Description: "Runtime ID returned by Workspace Sandbox companion service"})
+	}
+	options = append(options, commandtree.JSONOption())
+	return commandtree.ArgSchema{Options: options}
 }
 
 func AcquisitionCommandSpecs() []commandtree.Spec[AcquisitionCommandID] {

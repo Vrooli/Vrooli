@@ -23,17 +23,26 @@ import (
 // Credentials remain logical references in the contract, resolved in the role's
 // private state directory. No caller environment is retained or inherited.
 type ManagedUpdateRuntime struct {
-	Root           string                 `json:"root"`
-	Home           string                 `json:"home"`
-	StateHome      string                 `json:"state_home,omitempty"`
-	StateDir       string                 `json:"state_dir"`
-	Launcher       string                 `json:"launcher"`
-	LauncherSHA256 string                 `json:"launcher_sha256"`
-	Port           int                    `json:"port"`
-	Limits         platform.ServiceLimits `json:"limits"`
+	OwnerPrincipal        string                 `json:"owner_principal,omitempty"`
+	NativeAccount         string                 `json:"native_account,omitempty"`
+	Root                  string                 `json:"root"`
+	Home                  string                 `json:"home"`
+	StateHome             string                 `json:"state_home,omitempty"`
+	StateDir              string                 `json:"state_dir"`
+	Launcher              string                 `json:"launcher"`
+	LauncherSHA256        string                 `json:"launcher_sha256"`
+	NativeLauncherProfile string                 `json:"native_launcher_profile,omitempty"`
+	Port                  int                    `json:"port"`
+	Limits                platform.ServiceLimits `json:"limits"`
 }
 
 func (r ManagedUpdateRuntime) validate() error {
+	if r.NativeLauncherProfile != "" && (r.NativeAccount == "" || r.NativeLauncherProfile != platform.NativeLauncherProfileOpenRGB) {
+		return fmt.Errorf("invalid native launcher publication profile")
+	}
+	if len(r.NativeAccount) > 256 || strings.ContainsAny(r.NativeAccount, "\x00\r\n") || len(r.OwnerPrincipal) > 256 || strings.ContainsAny(r.OwnerPrincipal, "\x00\r\n") {
+		return fmt.Errorf("invalid native service account")
+	}
 	for _, p := range []string{r.Root, r.Home, r.StateDir, r.Launcher} {
 		if !filepath.IsAbs(p) || filepath.Clean(p) != p || strings.ContainsRune(p, 0) {
 			return fmt.Errorf("update runtime requires canonical absolute owner paths")
@@ -55,7 +64,21 @@ func (r ManagedUpdateRuntime) roleRoot(operation, instance string) (string, erro
 	if !managedUpdateKey.MatchString(operation) || !managedUpdateKey.MatchString(instance) {
 		return "", fmt.Errorf("invalid update runtime namespace")
 	}
+	if r.NativeAccount != "" {
+		return filepath.Join(filepath.Dir(r.StateDir), "runtime", "managed-update", operation, instance), nil
+	}
 	return filepath.Join(r.StateDir, "managed-update-exec", operation, instance, "runtime"), nil
+}
+
+func (r ManagedUpdateRuntime) tokenPath(operation, instance string) (string, error) {
+	root, err := r.roleRoot(operation, instance)
+	if err != nil {
+		return "", err
+	}
+	if r.NativeAccount != "" {
+		root = filepath.Join(r.StateDir, "managed-update-exec", operation, instance)
+	}
+	return filepath.Join(root, "ownership-token"), nil
 }
 
 type managedUpdateInvocation struct {
@@ -71,6 +94,18 @@ func renderManagedUpdateInvocation(c ManagedUpdateContract, r ManagedUpdateRunti
 	if err := c.validate(); err != nil {
 		return managedUpdateInvocation{}, err
 	}
+	root, err := r.roleRoot(operation, instance)
+	if err != nil {
+		return managedUpdateInvocation{}, err
+	}
+	return renderManagedServiceInvocation(c, r, root, token)
+}
+
+func renderManagedServiceInvocation(c ManagedUpdateContract, r ManagedUpdateRuntime, root, token string) (managedUpdateInvocation, error) {
+	if err := c.validate(); err != nil {
+		return managedUpdateInvocation{}, err
+	}
+	var err error
 	m := c.Manifest
 	if m.ManagedService.UpdatePolicy == nil {
 		return managedUpdateInvocation{}, fmt.Errorf("update policy is required")
@@ -79,10 +114,6 @@ func renderManagedUpdateInvocation(c ManagedUpdateContract, r ManagedUpdateRunti
 		return managedUpdateInvocation{}, err
 	}
 	if err := manifestpkg.ValidateManagedServiceUpdate(m); err != nil {
-		return managedUpdateInvocation{}, err
-	}
-	root, err := r.roleRoot(operation, instance)
-	if err != nil {
 		return managedUpdateInvocation{}, err
 	}
 	if token == "" || strings.ContainsAny(token, "\x00\r\n") {
@@ -130,9 +161,24 @@ func renderManagedUpdateInvocation(c ManagedUpdateContract, r ManagedUpdateRunti
 			return managedUpdateInvocation{}, err
 		}
 		invocation.ConfigPath = filepath.Join(values["RESOURCE_CONFIG_DIR"], filepath.FromSlash(declaration.Path))
-		invocation.ConfigContent, err = expand(declaration.Content)
-		if err != nil {
-			return managedUpdateInvocation{}, err
+		if declaration.ContentFile != "" {
+			if c.legacyFileConfig && c.ConfigFile == "" && len(c.ConfigBytes) == 0 {
+				legacyBytes, readErr := readManagedUpdateConfigFile(filepath.Join(r.Root, "resources", m.Name), declaration.ContentFile)
+				if readErr != nil {
+					return managedUpdateInvocation{}, fmt.Errorf("read legacy update config asset: %w", readErr)
+				}
+				invocation.ConfigContent = string(legacyBytes)
+			} else {
+				if c.ConfigFile != declaration.ContentFile || len(c.ConfigBytes) == 0 {
+					return managedUpdateInvocation{}, fmt.Errorf("frozen update config asset is absent")
+				}
+				invocation.ConfigContent = string(c.ConfigBytes)
+			}
+		} else {
+			invocation.ConfigContent, err = expand(declaration.Content)
+			if err != nil {
+				return managedUpdateInvocation{}, err
+			}
 		}
 	}
 	return invocation, nil
@@ -167,7 +213,7 @@ func materializeManagedUpdateInvocation(u ManagedServiceUpdate, c ManagedUpdateC
 		if err := ensureManagedUpdatePrivateDirectory(invocation.RuntimeRoot, filepath.Dir(invocation.ConfigPath)); err != nil {
 			return err
 		}
-		if err := config.WriteOwnedFileDurable(invocation.ConfigPath, []byte(invocation.ConfigContent), 0o600); err != nil {
+		if err := writeResourceOwnedFileDurable(invocation.ConfigPath, []byte(invocation.ConfigContent), 0o600); err != nil {
 			return err
 		}
 	}
@@ -190,7 +236,17 @@ func ensureManagedUpdatePrivateDirectory(base, destination string) error {
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return fmt.Errorf("private runtime path escapes owner base")
 	}
-	if err := os.MkdirAll(base, 0o700); err != nil {
+	if native, err := nativeOpenRGBPrivatePath(base); err != nil {
+		return err
+	} else if native {
+		p, err := resourcePrivatePathPolicy(base)
+		if err != nil {
+			return err
+		}
+		if err = config.EnsurePrivateDirectory(base, p); err != nil {
+			return err
+		}
+	} else if err := os.MkdirAll(base, 0o700); err != nil {
 		return err
 	}
 	path := base
@@ -201,7 +257,20 @@ func ensureManagedUpdatePrivateDirectory(base, destination string) error {
 		path = filepath.Join(path, part)
 		info, err := os.Lstat(path)
 		if os.IsNotExist(err) {
-			if err = os.Mkdir(path, 0o700); err != nil && !os.IsExist(err) {
+			native, nativeErr := nativeOpenRGBPrivatePath(path)
+			if nativeErr != nil {
+				return nativeErr
+			}
+			if native {
+				p, e := resourcePrivatePathPolicy(path)
+				if e != nil {
+					return e
+				}
+				err = config.EnsurePrivateDirectory(path, p)
+			} else {
+				err = os.Mkdir(path, 0o700)
+			}
+			if err != nil && !os.IsExist(err) {
 				return err
 			}
 			info, err = os.Lstat(path)
@@ -211,6 +280,17 @@ func ensureManagedUpdatePrivateDirectory(base, destination string) error {
 		}
 		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
 			return fmt.Errorf("private runtime path contains a directory alias or non-directory")
+		}
+		if native, err := nativeOpenRGBPrivatePath(path); err != nil {
+			return err
+		} else if native {
+			p, err := resourcePrivatePathPolicy(path)
+			if err != nil {
+				return err
+			}
+			if err = config.EnsurePrivateDirectory(path, p); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -277,4 +357,19 @@ func managedUpdateTemplateResolver(values, declared map[string]string) (func(str
 		}
 	}
 	return expand, nil
+}
+
+// Legacy runtimes have no publication proof and retain their exact original
+// spec digest. Only newly prepared native successors set this profile.
+func (r ManagedUpdateRuntime) nativeLauncherProof() *platform.NativeLauncherProof {
+	if r.NativeLauncherProfile == "" {
+		return nil
+	}
+	return &platform.NativeLauncherProof{SchemaVersion: platform.NativeLauncherProofVersion, Profile: r.NativeLauncherProfile, SHA256: r.LauncherSHA256}
+}
+
+// Initial, update and observed wrapper identities share this closed invocation.
+func (r ManagedUpdateRuntime) nativeWrapperSpec(instance string) platform.OwnedServiceSpec {
+	capsule, _ := openRGBNativeCapsulePath(instance)
+	return platform.OwnedServiceSpec{Path: r.Launcher, Dir: filepath.Dir(r.Launcher), NativeAccount: r.NativeAccount, NativeLauncher: r.nativeLauncherProof(), Args: []string{"__vrooli-openrgb-native-capsule", capsule}, Env: []string{}, Limits: r.Limits}
 }

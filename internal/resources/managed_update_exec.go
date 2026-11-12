@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	platform "github.com/vrooli/platform-go"
@@ -16,9 +15,12 @@ const managedUpdateExecCommand = "managed-update-exec"
 
 func managedUpdateWrapperSpec(u ManagedServiceUpdate, i ManagedUpdateLaunchIntent) platform.OwnedServiceSpec {
 	r := i.Runtime
+	if r.NativeAccount != "" {
+		return r.nativeWrapperSpec(i.InstanceID)
+	}
 	env := []string{"HOME=" + r.Home, "PATH=/usr/local/bin:/usr/bin:/bin", "XDG_STATE_HOME=" + r.StateHome}
 	return platform.OwnedServiceSpec{
-		Path: r.Launcher, Dir: r.Root,
+		Path: r.Launcher, Dir: r.Root, NativeAccount: r.NativeAccount,
 		Args: []string{managedUpdateExecCommand, u.Resource, u.RequestID, i.InstanceID}, Env: env, Limits: r.Limits,
 	}
 }
@@ -53,12 +55,16 @@ func managedUpdateAdmittedRole(u ManagedServiceUpdate, instance string) (Managed
 }
 
 type managedUpdateExecOwner struct {
-	lookup      func(context.Context, platform.ServiceIntent) (platform.ServiceRef, error)
-	claim       func(context.Context, managedUpdateExecFence, platform.ServiceRef) (managedUpdateExecFence, error)
-	selfImage   func(int) (*os.File, error)
-	incarnation func(int) (string, error)
-	replace     func(*os.File, []string, []string) error
-	chdir       func(string) error
+	capacity       func(context.Context, ManagedServiceUpdate) error
+	lookup         func(context.Context, platform.ServiceIntent) (platform.ServiceRef, error)
+	claim          func(context.Context, managedUpdateExecFence, platform.ServiceRef) (managedUpdateExecFence, error)
+	selfImage      func(int) (*os.File, error)
+	incarnation    func(int) (string, error)
+	replace        func(*os.File, []string, []string) error
+	chdir          func(string) error
+	openRGB        *openRGBExecOwner
+	openRGBObserve func(context.Context, ManagedUpdateContract, managedUpdateInvocation, managedUpdateExecFence, platform.ServiceRef, string) (openRGBExecWitness, error)
+	openRGBImage   func(context.Context, ManagedServiceArtifact, managedUpdateInvocation, int) (openRGBAppImageStage, managedUpdateInvocation, *os.File, error)
 }
 
 // RunManagedUpdateExec is internal native-service plumbing. Command-line
@@ -70,6 +76,11 @@ func (c *Controller) RunManagedUpdateExec(ctx context.Context, resource, request
 	defer cancel()
 	if !managedUpdateResource.MatchString(resource) || !managedUpdateKey.MatchString(request) || !managedUpdateKey.MatchString(instance) {
 		return fmt.Errorf("invalid resource exec selector")
+	}
+	if resource == openRGBResourceName {
+		if err := c.requireOpenRGBEnabled(ctx); err != nil {
+			return err
+		}
 	}
 	s, err := newManagedUpdateStore(resource)
 	if err != nil {
@@ -98,11 +109,15 @@ func (c *Controller) RunManagedUpdateExec(ctx context.Context, resource, request
 	return executeManagedUpdateRole(ctx, u, instance, managedUpdateExecOwner{
 		lookup: platform.LookupOwnedService, claim: f.Claim, selfImage: platform.OpenProcessExecutable,
 		incarnation: process.Incarnation, replace: platform.ReplaceProcessImage,
-		chdir: os.Chdir,
+		chdir: os.Chdir, openRGB: &openRGBExecOwner{readFence: f.read, claim: f.ClaimOpenRGB, observe: c.observeOpenRGBFrozenExecWitness, confineExecThread: confineOpenRGBExecThread}, openRGBObserve: c.observeOpenRGBFrozenExecWitness, openRGBImage: c.prepareOpenRGBAppImageExecution,
 	})
 }
 
 func executeManagedUpdateRole(ctx context.Context, u ManagedServiceUpdate, instance string, owner managedUpdateExecOwner) error {
+	verifyCapacity := owner.capacity
+	if verifyCapacity == nil {
+		verifyCapacity = verifyManagedUpdateCapacity
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -137,15 +152,14 @@ func executeManagedUpdateRole(ctx context.Context, u ManagedServiceUpdate, insta
 	if err != nil {
 		return err
 	}
-	_, ticks, ok := strings.Cut(incarnation, ":")
-	if ref.ValidateIdentity() != nil || ref.Intent != platform.OperationIntent(i.NativeIntent) || ref.RootPID != os.Getpid() || !ok || ref.RootStartTime != ticks {
+	if ref.ValidateIdentity() != nil || ref.Intent != platform.OperationIntent(i.NativeIntent) || ref.RootPID != os.Getpid() || !ref.MatchesIncarnation(incarnation) {
 		return fmt.Errorf("resource wrapper is outside its exact admitted native root")
 	}
-	root, err := i.Runtime.roleRoot(u.ID, instance)
+	tokenPath, err := i.Runtime.tokenPath(u.ID, i.InstanceID)
 	if err != nil {
 		return err
 	}
-	token, err := readManagedUpdateToken(filepath.Join(root, "ownership-token"))
+	token, err := readManagedUpdateToken(tokenPath)
 	if err != nil {
 		return err
 	}
@@ -156,41 +170,96 @@ func executeManagedUpdateRole(ctx context.Context, u ManagedServiceUpdate, insta
 	if err != nil {
 		return err
 	}
-	image, err := os.Open(invocation.Path)
-	if err != nil {
-		return err
+	var image *os.File
+	if u.Resource != openRGBResourceName {
+		image, err = os.Open(invocation.Path)
+		if err != nil {
+			return err
+		}
+		defer image.Close()
+		digest, err = managedUpdateImageDigest(ctx, image)
+		if err != nil {
+			return err
+		}
+		if digest != c.Artifact.SHA256 {
+			return fmt.Errorf("resource image differs from its frozen checksum")
+		}
 	}
-	defer image.Close()
-	digest, err = managedUpdateImageDigest(ctx, image)
-	if err != nil {
-		return err
-	}
-	if digest != c.Artifact.SHA256 {
-		return fmt.Errorf("resource image differs from its frozen checksum")
-	}
-	if err := materializeManagedUpdateInvocation(u, c, invocation); err != nil {
-		return err
-	}
+	// OpenRGB's concrete final-context image owner validates the authoritative
+	// retained envelope and sealed closure; a vanished source pathname is not
+	// a reason to discard those governed rollback bytes.
+	execution := invocation
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	fence := managedUpdateExecFence{SchemaVersion: managedUpdateExecFenceSchemaVersion, Resource: u.Resource, OperationID: u.ID, Intent: i, State: managedUpdateExecFencePrepared}
-	if err := verifyManagedUpdateCapacity(ctx, u); err != nil {
+	if u.Resource == openRGBResourceName {
+		if owner.openRGB == nil || owner.openRGB.readFence == nil {
+			return fmt.Errorf("OpenRGB same-confinement exec witness owner is unavailable")
+		}
+		admitted, err := owner.openRGB.readFence()
+		if err != nil {
+			return err
+		}
+		if !sameManagedExecIdentity(admitted, fence) {
+			return ErrManagedUpdateConflict
+		}
+		fence.OpenRGBPolicy = admitted.OpenRGBPolicy
+	}
+	if err := verifyCapacity(ctx, u); err != nil {
 		return err
 	}
-	if _, err := owner.claim(ctx, fence, ref); err != nil {
-		return err
+	if u.Resource == openRGBResourceName {
+		if owner.openRGB == nil {
+			return fmt.Errorf("OpenRGB same-confinement exec witness owner is unavailable")
+		}
+		release, err := owner.openRGB.confineExecThread()
+		if err != nil {
+			return err
+		}
+		defer release()
+		if owner.openRGBImage == nil {
+			return errOpenRGBReleasePayloadUnqualified
+		}
+		_, derived, payload, err := owner.openRGBImage(ctx, c.Artifact, invocation, i.Runtime.Port)
+		if err != nil {
+			return err
+		}
+		if payload == nil {
+			return errOpenRGBReleasePayloadUnqualified
+		}
+		defer payload.Close()
+		execution, image = derived, payload
+		// The witness uses frozen in-memory config bytes. Publish no role config
+		// until the exact same-context witness and durable one-time claim succeed.
+		if owner.openRGBObserve == nil {
+			return fmt.Errorf("OpenRGB frozen-config witness observer is unavailable")
+		}
+		owner.openRGB.observe = owner.openRGBObserve
+		if err := owner.openRGB.claimVerified(ctx, c, invocation, fence, ref, incarnation, owner.lookup); err != nil {
+			return err
+		}
+		if err := materializeManagedUpdateInvocation(u, c, invocation); err != nil {
+			return err
+		}
+	} else {
+		if err := materializeManagedUpdateInvocation(u, c, invocation); err != nil {
+			return err
+		}
+		if _, err := owner.claim(ctx, fence, ref); err != nil {
+			return err
+		}
 	}
 	// A successful claim is consumed even if exec fails or the caller disappears.
 	// Recovery reconciles this unit; it never launches this identity again.
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if err := verifyManagedUpdateCapacity(ctx, u); err != nil {
+	if err := verifyCapacity(ctx, u); err != nil {
 		return err
 	}
-	if err := owner.chdir(invocation.Dir); err != nil {
+	if err := owner.chdir(execution.Dir); err != nil {
 		return err
 	}
-	return owner.replace(image, append([]string{invocation.Path}, invocation.Args...), invocation.Env)
+	return owner.replace(image, append([]string{execution.Path}, execution.Args...), execution.Env)
 }

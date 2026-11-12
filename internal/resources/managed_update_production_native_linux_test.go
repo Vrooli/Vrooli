@@ -16,7 +16,6 @@ import (
 	"time"
 
 	platform "github.com/vrooli/platform-go"
-	"github.com/vrooli/vrooli/internal/config"
 )
 
 func TestManagedUpdateNativeResourcePayload(t *testing.T) {
@@ -65,7 +64,7 @@ func TestManagedUpdateCurrentHostProductionWrapperProbe(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			t.Setenv("XDG_STATE_HOME", filepath.Join(root, "xdg-state"))
+			isolateNativeUpdateFixtureStorage(t, root)
 			u := updateTestInitial(t)
 			u.ID = "production-probe-" + strconv.FormatInt(time.Now().UnixNano(), 10)
 			u.RequestID = u.ID
@@ -132,7 +131,7 @@ func TestManagedUpdateCurrentHostProductionWrapperProbe(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := config.WriteOwnedFileDurable(filepath.Join(roleRoot, "ownership-token"), []byte("isolated-native-token"), 0o600); err != nil {
+			if err := writeResourceOwnedFileDurable(filepath.Join(roleRoot, "ownership-token"), []byte("isolated-native-token"), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

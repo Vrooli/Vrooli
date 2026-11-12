@@ -139,20 +139,15 @@ func TestAcceleratorFactsOverAppleSiliconFixtureReportMetal(t *testing.T) {
 	}
 }
 
-// Scenario: Apple Silicon still reports metal when system_profiler is absent.
-func TestAcceleratorFactsOnAppleSiliconUnifiedMemoryReportMetal(t *testing.T) {
-	// Given the unified-memory device the collector derives when system_profiler
-	// is unavailable
-	snap := Snapshot{
-		OS: "darwin", Arch: "arm64",
-		RuntimeTools: map[string]Tool{},
-		GPUs:         []GPU{{Index: 0, Name: "Apple GPU (unified)", VRAMBytes: 24 << 30, Source: "darwin-unified-memory"}},
+// Cached historical estimates must fail closed even when loaded unchanged.
+func TestAcceleratorFactsRejectLegacyUnifiedMemoryEstimate(t *testing.T) {
+	snap := Snapshot{OS: "darwin", Arch: "arm64", GPUs: []GPU{{Name: "Apple GPU (unified)", VRAMBytes: 24 << 30, Source: SourceDarwinUnifiedMemory}}}
+	facts := snap.AcceleratorFacts()
+	if _, ok := facts[FactAccelVRAMBytes]; ok {
+		t.Fatalf("invented capacity survived: %v", facts)
 	}
-
-	// When the accelerator facts are projected
-	// Then metal is still reachable
-	if got := backendsOf(t, snap); !slices.Contains(got, BackendMetal) {
-		t.Fatalf("accel.backends = %v, want it to contain metal", got)
+	if slices.Contains(backendsOf(t, snap), BackendMetal) {
+		t.Fatalf("invented backend survived: %v", facts)
 	}
 }
 

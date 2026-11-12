@@ -15,11 +15,14 @@ import (
 
 func TestNativeSessionMarkerKeepsDestructiveCommandsGuarded(t *testing.T) {
 	for _, env := range [][]string{{cliutil.AgentSessionEnv + "=vrooli-agent-codex-probe.scope"}, {cliutil.AgentSessionEnv + "=vrooli-op-coding-agent-recovery-probe.service"}} {
-		for _, argv := range [][]string{{"vrooli", "stop-all"}, {"vrooli", "cleanup", "orphans"}, {"vrooli", "resource", "stop", "postgres"}} {
+		for _, argv := range [][]string{{"vrooli", "stop-all"}, {"vrooli", "cleanup", "orphans"}, {"vrooli", "resource", "stop-all"}} {
 			got := ClassifyAgentCommand(argv, env)
 			if got.Allowed || got.Code != CodeDestructiveVrooliMaintenanceBlocked {
 				t.Errorf("native marker %v command %v bypassed guard: %+v", env, argv, got)
 			}
+		}
+		if got := ClassifyAgentCommand([]string{"vrooli", "resource", "stop", "postgres"}, env); !got.Allowed {
+			t.Errorf("native marker %v denied one explicitly named resource stop: %+v", env, got)
 		}
 		for _, argv := range [][]string{{"vrooli", "scenario", "restart", "agent-manager"}, {"vrooli", "scenario", "wait", "agent-manager", "--json"}, {"vrooli", "cleanup", "locks"}} {
 			if got := ClassifyAgentCommand(argv, env); !got.Allowed {

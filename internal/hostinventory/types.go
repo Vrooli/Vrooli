@@ -207,6 +207,8 @@ type Swap struct {
 }
 
 type GPU struct {
+	// MetalSupported is true only when native display metadata explicitly reports support.
+	MetalSupported           bool     `json:"metal_supported,omitempty"`
 	Index                    int      `json:"index"`
 	UUID                     string   `json:"uuid,omitempty"`
 	Name                     string   `json:"name"`
@@ -228,6 +230,22 @@ type GPU struct {
 	// reported a GPU the device tree did not enumerate, which the collector
 	// also records as a warning.
 	DeviceID string `json:"device_id,omitempty"`
+}
+
+// DedicatedVRAMBytes excludes historical unified-memory estimates. Shared system
+// RAM is not observed dedicated device memory and must not feed admission.
+func (g GPU) DedicatedVRAMBytes() uint64 {
+	if g.Source == SourceDarwinUnifiedMemory {
+		return 0
+	}
+	return g.VRAMBytes
+}
+
+func (g GPU) DedicatedVRAMUsedBytes() uint64 {
+	if g.Source == SourceDarwinUnifiedMemory {
+		return 0
+	}
+	return g.VRAMUsedBytes
 }
 
 type GPUProcess struct {

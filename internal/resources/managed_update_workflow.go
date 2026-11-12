@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -12,12 +14,14 @@ import (
 
 	platform "github.com/vrooli/platform-go"
 	manifestpkg "github.com/vrooli/vrooli/internal/resources/manifest"
+	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 )
 
 const (
 	managedUpdateSchemaVersion   = 1
 	managedUpdateProofMaxAge     = 10 * time.Second
 	managedUpdateRestoreAttempts = 4
+	managedUpdateConfigMaxBytes  = 1 << 20
 )
 
 var (
@@ -49,17 +53,42 @@ const (
 	UpdateFailedPreserved        ManagedUpdatePhase = "failed_preserved"
 	UpdateFailedRestored         ManagedUpdatePhase = "failed_restored"
 	UpdateAborted                ManagedUpdatePhase = "aborted"
+	UpdateResourceDisabled       ManagedUpdatePhase = "resource_disabled"
 )
 
 // ManagedUpdateContract freezes source declarations and a verified artifact.
 // It does not capture the caller's environment or resolve credential references.
+// Legacy v1 file-backed contracts retain their original digest and resolve the
+// declared resource asset when preparing a recovered role.
 type ManagedUpdateContract struct {
-	Manifest ResourceManifest       `json:"manifest"`
-	Artifact ManagedServiceArtifact `json:"artifact"`
-	Digest   string                 `json:"digest"`
+	Manifest         ResourceManifest       `json:"manifest"`
+	Artifact         ManagedServiceArtifact `json:"artifact"`
+	ConfigFile       string                 `json:"config_file,omitempty"`
+	ConfigSHA256     string                 `json:"config_sha256,omitempty"`
+	ConfigBytes      []byte                 `json:"config_bytes,omitempty"`
+	Digest           string                 `json:"digest"`
+	legacyFileConfig bool                   `json:"-"`
 }
 
 func newManagedUpdateContract(m ResourceManifest, artifact ManagedServiceArtifact) (ManagedUpdateContract, error) {
+	if m.ManagedService != nil && m.ManagedService.Config != nil && m.ManagedService.Config.ContentFile != "" {
+		return ManagedUpdateContract{}, fmt.Errorf("file-backed update configuration must be frozen from its resource root")
+	}
+	return newManagedUpdateContractWithConfig(m, artifact, "", nil)
+}
+
+func newManagedUpdateContractForResource(m ResourceManifest, artifact ManagedServiceArtifact, resourceRoot string) (ManagedUpdateContract, error) {
+	if m.ManagedService == nil || m.ManagedService.Config == nil || m.ManagedService.Config.ContentFile == "" {
+		return newManagedUpdateContract(m, artifact)
+	}
+	content, err := readManagedUpdateConfigFile(resourceRoot, m.ManagedService.Config.ContentFile)
+	if err != nil {
+		return ManagedUpdateContract{}, err
+	}
+	return newManagedUpdateContractWithConfig(m, artifact, m.ManagedService.Config.ContentFile, content)
+}
+
+func newManagedUpdateContractWithConfig(m ResourceManifest, artifact ManagedServiceArtifact, configFile string, configBytes []byte) (ManagedUpdateContract, error) {
 	encoded, err := json.Marshal(m)
 	if err != nil {
 		return ManagedUpdateContract{}, err
@@ -68,16 +97,58 @@ func newManagedUpdateContract(m ResourceManifest, artifact ManagedServiceArtifac
 	if err := json.Unmarshal(encoded, &frozen); err != nil {
 		return ManagedUpdateContract{}, err
 	}
-	c := ManagedUpdateContract{Manifest: frozen, Artifact: artifact}
+	c := ManagedUpdateContract{Manifest: frozen, Artifact: artifact, ConfigFile: configFile, ConfigBytes: append([]byte(nil), configBytes...)}
+	if len(c.ConfigBytes) > 0 {
+		sum := sha256.Sum256(c.ConfigBytes)
+		c.ConfigSHA256 = hex.EncodeToString(sum[:])
+	}
 	c.Digest = c.digest()
 	return c, c.validate()
 }
 
+func readManagedUpdateConfigFile(resourceRoot, relative string) ([]byte, error) {
+	if resourceRoot == "" || filepath.IsAbs(relative) || filepath.Clean(relative) != relative || strings.ContainsRune(relative, 0) {
+		return nil, fmt.Errorf("update config asset requires a canonical resource-relative path")
+	}
+	base, err := filepath.EvalSymlinks(resourceRoot)
+	if err != nil {
+		return nil, fmt.Errorf("resolve update config resource root: %w", err)
+	}
+	asset, err := filepath.EvalSymlinks(filepath.Join(base, filepath.FromSlash(relative)))
+	if err != nil {
+		return nil, fmt.Errorf("resolve update config asset: %w", err)
+	}
+	rel, err := filepath.Rel(base, asset)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return nil, fmt.Errorf("update config asset escapes its resource root")
+	}
+	f, err := os.Open(asset)
+	if err != nil {
+		return nil, fmt.Errorf("open update config asset: %w", err)
+	}
+	defer f.Close()
+	before, err := f.Stat()
+	if err != nil || !before.Mode().IsRegular() || before.Size() <= 0 || before.Size() > managedUpdateConfigMaxBytes {
+		return nil, fmt.Errorf("update config asset must be a nonempty regular file no larger than %d bytes", managedUpdateConfigMaxBytes)
+	}
+	data, err := io.ReadAll(io.LimitReader(f, managedUpdateConfigMaxBytes+1))
+	if err != nil || len(data) == 0 || len(data) > managedUpdateConfigMaxBytes || strings.ContainsRune(string(data), 0) {
+		return nil, fmt.Errorf("update config asset is unreadable, empty, oversized or contains NUL")
+	}
+	after, err := f.Stat()
+	if err != nil || before.Size() != after.Size() || before.ModTime() != after.ModTime() || !os.SameFile(before, after) || int64(len(data)) != after.Size() {
+		return nil, fmt.Errorf("update config asset changed while it was frozen")
+	}
+	return data, nil
+}
+
 func (c ManagedUpdateContract) digest() string {
 	data, _ := json.Marshal(struct {
-		Manifest ResourceManifest       `json:"manifest"`
-		Artifact ManagedServiceArtifact `json:"artifact"`
-	}{c.Manifest, c.Artifact})
+		Manifest     ResourceManifest       `json:"manifest"`
+		Artifact     ManagedServiceArtifact `json:"artifact"`
+		ConfigFile   string                 `json:"config_file,omitempty"`
+		ConfigSHA256 string                 `json:"config_sha256,omitempty"`
+	}{c.Manifest, c.Artifact, c.ConfigFile, c.ConfigSHA256})
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
 }
@@ -97,6 +168,21 @@ func (c ManagedUpdateContract) validate() error {
 	if c.Manifest.ManagedService == nil || !managedUpdateResource.MatchString(c.Manifest.Name) || c.Artifact.Resource != c.Manifest.Name || c.Artifact.Version == "" || c.Manifest.ManagedService.Artifact.Version != c.Artifact.Version || !filepath.IsAbs(c.Artifact.Path) || filepath.Clean(c.Artifact.Path) != c.Artifact.Path || !updateDigest(c.Artifact.SHA256) {
 		return fmt.Errorf("update contract requires a retained resource artifact identity")
 	}
+	config := c.Manifest.ManagedService.Config
+	if config != nil && config.ContentFile != "" {
+		legacyConfig := c.legacyFileConfig && c.ConfigFile == "" && c.ConfigSHA256 == "" && len(c.ConfigBytes) == 0 && c.Digest == c.digest()
+		if !legacyConfig && (c.ConfigFile != config.ContentFile || !updateDigest(c.ConfigSHA256) || len(c.ConfigBytes) == 0 || len(c.ConfigBytes) > managedUpdateConfigMaxBytes || strings.ContainsRune(string(c.ConfigBytes), 0)) {
+			return fmt.Errorf("update contract requires frozen bytes for its declared config asset")
+		}
+		if !legacyConfig {
+			sum := sha256.Sum256(c.ConfigBytes)
+			if c.ConfigSHA256 != hex.EncodeToString(sum[:]) {
+				return fmt.Errorf("frozen update config digest mismatch")
+			}
+		}
+	} else if c.ConfigFile != "" || c.ConfigSHA256 != "" || len(c.ConfigBytes) != 0 {
+		return fmt.Errorf("update contract contains undeclared config asset bytes")
+	}
 	if !updateDigest(c.Digest) || c.Digest != c.digest() {
 		return fmt.Errorf("update launch contract digest mismatch")
 	}
@@ -105,6 +191,39 @@ func (c ManagedUpdateContract) validate() error {
 		return fmt.Errorf("update launch artifact differs from the frozen platform contract")
 	}
 	return nil
+}
+
+// markLegacyFileConfig permits only pre-freeze contracts whose old digest still
+// matches. New constructors never set this in-memory compatibility marker.
+func (c *ManagedUpdateContract) markLegacyFileConfig() {
+	if c == nil || c.Manifest.ManagedService == nil || c.Manifest.ManagedService.Config == nil || c.Manifest.ManagedService.Config.ContentFile == "" ||
+		c.ConfigFile != "" || c.ConfigSHA256 != "" || len(c.ConfigBytes) != 0 {
+		return
+	}
+	c.legacyFileConfig = c.Digest == c.digest()
+}
+
+func (c ManagedUpdateContract) withArtifact(artifact ManagedServiceArtifact) (ManagedUpdateContract, error) {
+	c.Artifact = artifact
+	c.Digest = c.digest()
+	return c, c.validate()
+}
+
+func (c ManagedUpdateContract) withConfigBytes(file string, data []byte) (ManagedUpdateContract, error) {
+	c.ConfigFile = file
+	c.ConfigBytes = append([]byte(nil), data...)
+	c.ConfigSHA256 = ""
+	if len(c.ConfigBytes) > 0 {
+		sum := sha256.Sum256(c.ConfigBytes)
+		c.ConfigSHA256 = hex.EncodeToString(sum[:])
+	}
+	c.Digest = c.digest()
+	return c, c.validate()
+}
+
+func exclusiveStopStart(u ManagedServiceUpdate) bool {
+	return u.Target.Manifest.ManagedService != nil && u.Target.Manifest.ManagedService.UpdatePolicy != nil &&
+		u.Target.Manifest.ManagedService.UpdatePolicy.Strategy == resourcedeployment.UpdateStrategyExclusiveStopStart
 }
 
 // ManagedUpdateProof records an observation for one exact process. The effect
@@ -179,6 +298,7 @@ type ManagedServiceUpdate struct {
 	Rollback                      ManagedUpdateContract            `json:"rollback"`
 	Credentials                   *ManagedUpdateCredentialSnapshot `json:"credentials,omitempty"`
 	Capacity                      *ManagedUpdateCapacityBudget     `json:"capacity,omitempty"`
+	OpenRGBPolicies               *openRGBManagedUpdatePolicies    `json:"openrgb_policies,omitempty"`
 	RollbackQualificationRequired bool                             `json:"rollback_qualification_required"`
 	RollbackQualifiedAt           *time.Time                       `json:"rollback_qualified_at,omitempty"`
 	RollbackProbe                 ManagedUpdateProcess             `json:"rollback_probe"`
@@ -200,13 +320,16 @@ type ManagedServiceUpdate struct {
 
 func (p ManagedUpdatePhase) Terminal() bool {
 	switch p {
-	case UpdateSucceeded, UpdateFailedPreserved, UpdateFailedRestored, UpdateAborted:
+	case UpdateSucceeded, UpdateFailedPreserved, UpdateFailedRestored, UpdateAborted, UpdateResourceDisabled:
 		return true
 	}
 	return false
 }
 
 func (u ManagedServiceUpdate) Validate() error {
+	if err := validateOpenRGBUpdateSnapshot(u); err != nil {
+		return err
+	}
 	if u.RollbackOf != "" && (!managedUpdateKey.MatchString(u.RollbackOf) || u.RollbackOf == u.RequestID) {
 		return fmt.Errorf("invalid retained rollback request identity")
 	}
@@ -246,11 +369,19 @@ func (u ManagedServiceUpdate) Validate() error {
 			return fmt.Errorf("original recorded native launch differs from rollback or has two owners")
 		}
 	}
+	if u.Original.InitialLaunch != nil {
+		if u.Resource != openRGBResourceName || u.OriginalScope != nil || u.Original.UpdateLaunch != nil || validateManagedInitialServing(u.Original) != nil {
+			return fmt.Errorf("original initial native launch differs from its exact retained owner")
+		}
+	}
 	if u.Target.Manifest.ManagedService.UpdatePolicy == nil {
 		return fmt.Errorf("update target has no explicit policy")
 	}
 	if err := u.Target.Manifest.ManagedService.ValidateUpdatePolicy(); err != nil {
 		return err
+	}
+	if exclusiveStopStart(u) && (u.Candidate.Intent != nil || u.RollbackProbe.Intent != nil) {
+		return fmt.Errorf("exclusive update cannot contain parallel candidate or rollback-probe roles")
 	}
 	for _, p := range []struct {
 		process  ManagedUpdateProcess
@@ -278,7 +409,7 @@ func (u ManagedServiceUpdate) Validate() error {
 	if u.Candidate.Quiescence != nil || u.Primary.Quiescence != nil || u.RollbackProbe.Quiescence != nil {
 		return fmt.Errorf("restoration retirement evidence is attached to a different role")
 	}
-	if u.Restored.Quiescence != nil && (u.Phase != UpdateRestoring || !matchingUpdateQuiescence(u.Restored)) {
+	if u.Restored.Quiescence != nil && (u.Phase != UpdateRestoring && u.Phase != UpdateResourceDisabled && !(u.PrimaryStopVerified && u.PrimaryQuiescent && u.CandidateQuiescent) || !matchingUpdateQuiescence(u.Restored)) {
 		return fmt.Errorf("restoration retirement lacks exact ownership evidence")
 	}
 	if len(u.RetiredRestores) >= managedUpdateRestoreAttempts {
@@ -314,7 +445,11 @@ func (u ManagedServiceUpdate) Validate() error {
 		return fmt.Errorf("unexpected rollback qualification state")
 	}
 	if u.RollbackQualifiedAt != nil {
-		if u.RollbackQualifiedAt.Before(u.CreatedAt) || u.RollbackQualifiedAt.After(u.UpdatedAt) || !freshUpdateProof(u.RollbackProbe, u.Rollback, *u.RollbackQualifiedAt) {
+		qualified := freshUpdateProof(u.RollbackProbe, u.Rollback, *u.RollbackQualifiedAt)
+		if exclusiveStopStart(u) {
+			qualified = freshStateUpdateProof(u.OriginalProof, u.Original, *u.RollbackQualifiedAt)
+		}
+		if u.RollbackQualifiedAt.Before(u.CreatedAt) || u.RollbackQualifiedAt.After(u.UpdatedAt) || !qualified {
 			return fmt.Errorf("rollback qualification lacks its historical exact readiness proof")
 		}
 	}
@@ -340,8 +475,15 @@ func (u ManagedServiceUpdate) Validate() error {
 			return fmt.Errorf("candidate identity is absent")
 		}
 	case UpdatePrimaryStopping, UpdatePrimaryStarting, UpdatePrimaryVerifying, UpdateCommitting, UpdateSucceeded:
-		if !validUpdateProcess(u.Candidate, u.Target) || u.Primary.Intent == nil {
-			return fmt.Errorf("promotion lacks isolated candidate and primary intent")
+		if u.Primary.Intent == nil {
+			return fmt.Errorf("promotion lacks primary launch intent")
+		}
+		if exclusiveStopStart(u) {
+			if u.Candidate.Intent != nil || u.RollbackProbe.Intent != nil || u.RollbackQualifiedAt == nil || !freshStateUpdateProof(u.OriginalProof, u.Original, *u.RollbackQualifiedAt) {
+				return fmt.Errorf("exclusive promotion requires in-place rollback qualification and no shadow roles")
+			}
+		} else if !validUpdateProcess(u.Candidate, u.Target) {
+			return fmt.Errorf("rolling promotion lacks its isolated candidate")
 		}
 		if u.Phase != UpdatePrimaryStopping && !u.PrimaryStopVerified {
 			return fmt.Errorf("promotion lacks original stop evidence")
@@ -366,7 +508,7 @@ func (u ManagedServiceUpdate) Validate() error {
 		if u.Error == "" || (u.RecoveryFrom != UpdatePreserving && u.RecoveryFrom != UpdateRestoring) {
 			return fmt.Errorf("unresolved recovery has no continuation")
 		}
-	case UpdateFailedPreserved, UpdateFailedRestored, UpdateAborted:
+	case UpdateFailedPreserved, UpdateFailedRestored, UpdateAborted, UpdateResourceDisabled:
 	default:
 		return fmt.Errorf("unknown update phase %q", u.Phase)
 	}
@@ -403,6 +545,10 @@ func (u ManagedServiceUpdate) Validate() error {
 			} else if !freshStateUpdateProof(u.OriginalProof, u.Original, u.UpdatedAt) {
 				return fmt.Errorf("abort lacks preserved service")
 			}
+		case UpdateResourceDisabled:
+			if u.Resource != openRGBResourceName || !u.AbortRequested || u.Error == "" || !u.PrimaryStopVerified || !u.PrimaryQuiescent || u.Restored.Intent != nil && !freshUpdateQuiescence(u.Restored, u.UpdatedAt) {
+				return fmt.Errorf("disabled update lacks exact original and role quiescence")
+			}
 		}
 	}
 	return nil
@@ -434,6 +580,7 @@ const (
 	UpdateRetryRecovery         ManagedUpdateEvent = "retry_recovery"
 	UpdateRetireRestore         ManagedUpdateEvent = "retire_restore"
 	UpdateBeginAbort            ManagedUpdateEvent = "begin_abort"
+	UpdateFinishDisabled        ManagedUpdateEvent = "finish_disabled"
 )
 
 func beforeUpdatePromotion(p ManagedUpdatePhase) bool {
@@ -464,6 +611,12 @@ func transitionManagedUpdate(u ManagedServiceUpdate, event ManagedUpdateEvent, a
 	next := u.Phase
 	retiredRestore := false
 	switch event {
+	case UpdateFinishDisabled:
+		if u.Resource == openRGBResourceName && u.PrimaryStopVerified && u.PrimaryQuiescent && u.CandidateQuiescent && (u.RollbackProbe.Intent == nil || u.RollbackProbeQuiescent) && (u.Restored.Intent == nil || freshUpdateQuiescence(u.Restored, at)) {
+			u.AbortRequested = true
+			u.Error = "resource disabled after exact native original and role retirement"
+			next = UpdateResourceDisabled
+		}
 	case UpdateLaunchRollbackProbe:
 		if u.Phase == UpdatePrepared && u.RollbackQualificationRequired && u.RollbackQualifiedAt == nil && validUpdateIntent(u.RollbackProbe.Intent, u.Rollback) {
 			next = UpdateRollbackProbeStarting
@@ -491,6 +644,10 @@ func transitionManagedUpdate(u ManagedServiceUpdate, event ManagedUpdateEvent, a
 		}
 	case UpdateStopPrimary:
 		if u.Phase == UpdateCandidateReady && validUpdateIntent(u.Primary.Intent, u.Target) && freshUpdateProof(u.Candidate, u.Target, at) {
+			next = UpdatePrimaryStopping
+		} else if u.Phase == UpdatePrepared && exclusiveStopStart(u) && validUpdateIntent(u.Primary.Intent, u.Target) && freshStateUpdateProof(u.OriginalProof, u.Original, at) {
+			u.RollbackQualifiedAt = &at
+			u.CandidateQuiescent = true
 			next = UpdatePrimaryStopping
 		}
 	case UpdatePrimaryStopped:
@@ -610,8 +767,7 @@ func validUpdateProcess(p ManagedUpdateProcess, c ManagedUpdateContract) bool {
 	if !validUpdateIntent(p.Intent, c) || p.State == nil || !validRetainedUpdateState(*p.State, c) || p.State.InstanceID != p.Intent.InstanceID || p.State.OwnershipTokenHash != p.Intent.OwnershipTokenHash || p.NativeRef == nil || p.NativeRef.ValidateIdentity() != nil {
 		return false
 	}
-	_, start, found := strings.Cut(p.State.Incarnation, ":")
-	return found && p.NativeRef.Intent == platform.OperationIntent(p.Intent.NativeIntent) && p.NativeRef.RootPID == p.State.PID && p.NativeRef.RootStartTime == start
+	return p.NativeRef.MatchesIncarnation(p.State.Incarnation) && p.NativeRef.Intent == platform.OperationIntent(p.Intent.NativeIntent) && p.NativeRef.RootPID == p.State.PID
 }
 
 func matchingUpdateProof(p *ManagedUpdateProof, s ManagedServiceState) bool {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/vrooli/vrooli/internal/hostinventory"
 )
@@ -128,6 +129,52 @@ func observeClaimUsage(ctx context.Context, claims []CapacityClaim, snapshot hos
 		result.unbound = append(result.unbound, unboundProcess{proc: proc, attr: a, reason: reason})
 	}
 	return result
+}
+
+// ClaimResidencySample is a fresh process-attributed GPU observation for one
+// exact resource claim. It is read-only; callers persist the sample together
+// with their durable residency transition rather than mutating claim state.
+type ClaimResidencySample struct {
+	ClaimID    string
+	Bytes      int64
+	ObservedAt time.Time
+}
+
+// MeasureClaimResidency attributes one complete GPU-process snapshot against
+// the full active claim cohort. A terminal target is included as a temporary
+// active candidate solely for exact attribution; no claim status is changed.
+// Unknown or ambiguous ownership and incomplete/stale probes remain errors,
+// never inferred zero use.
+func MeasureClaimResidency(ctx context.Context, cohort []CapacityClaim, target CapacityClaim, snapshot hostinventory.Snapshot, attr Attributor, now time.Time) (ClaimResidencySample, error) {
+	if target.ClaimID == "" || target.OwnerKind != OwnerKindResource || target.ResourceKind != ResourceKindVRAM || target.Generation <= 0 {
+		return ClaimResidencySample{}, fmt.Errorf("residency sampling requires an exact resource VRAM claim")
+	}
+	if !gpuProcessAbsenceVerified(snapshot, target, now) {
+		return ClaimResidencySample{}, fmt.Errorf("GPU process inventory is incomplete, stale, or predates the claim boundary")
+	}
+	count := 0
+	for _, claim := range cohort {
+		if claim.ClaimID == target.ClaimID {
+			count++
+		}
+	}
+	if count > 1 {
+		return ClaimResidencySample{}, fmt.Errorf("residency sampling has duplicate target claim identity")
+	}
+	claims := append([]CapacityClaim(nil), cohort...)
+	if count == 0 {
+		target.Status = StatusGranted
+		claims = append(claims, target)
+	}
+	usage := observeClaimUsage(ctx, claims, snapshot, attr)
+	if reason := usage.uncertain[target.ClaimID]; reason != "" {
+		return ClaimResidencySample{}, fmt.Errorf("GPU process ownership for claim %q is uncertain: %s", target.ClaimID, reason)
+	}
+	var observed int64
+	for _, proc := range usage.assigned[target.ClaimID] {
+		observed += int64(proc.UsedBytes)
+	}
+	return ClaimResidencySample{ClaimID: target.ClaimID, Bytes: observed, ObservedAt: snapshot.FieldProvenance["gpu_processes"].ObservedAt.UTC()}, nil
 }
 
 func ownerCandidates(a Attribution, proc hostinventory.GPUProcess) map[string]bool {

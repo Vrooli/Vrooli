@@ -94,7 +94,7 @@ func (Service) Install(ctx context.Context, tool string, opts InstallOptions) (h
 		return hostreqkit.ItemStatus{}, fmt.Errorf("host install context is nil")
 	}
 	return hostruntime.EnsureTool(tool, hostruntime.EnsureOptions{
-		AutoInstall: true, IncludeOptional: true, DryRun: opts.DryRun, SudoMode: opts.SudoMode,
+		Context: ctx, AutoInstall: true, IncludeOptional: true, DryRun: opts.DryRun, SudoMode: opts.SudoMode,
 	})
 }
 
@@ -219,7 +219,7 @@ func (Service) InventoryField(snapshot hostinventory.Snapshot, field string) (st
 	case "first_gpu_summary":
 		for _, gpu := range snapshot.GPUs {
 			if gpu.Name != "" {
-				return fmt.Sprintf("%s,%d,%d", gpu.Name, gpu.VRAMUsedBytes/hostBytesPerMegabyte, gpu.VRAMBytes/hostBytesPerMegabyte), nil
+				return fmt.Sprintf("%s,%d,%d", gpu.Name, gpu.DedicatedVRAMUsedBytes()/hostBytesPerMegabyte, gpu.DedicatedVRAMBytes()/hostBytesPerMegabyte), nil
 			}
 		}
 		return "", nil

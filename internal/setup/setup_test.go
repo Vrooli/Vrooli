@@ -151,7 +151,7 @@ func TestRepoMaintainsCanonicalInstallContract(t *testing.T) {
 		t.Fatalf("read Makefile: %v", err)
 	}
 	makefileContents := string(makefileData)
-	if !strings.Contains(makefileContents, "install: build") {
+	if !strings.Contains(makefileContents, "install: prepare-install") {
 		t.Fatalf("Makefile missing install target contract")
 	}
 	if !strings.Contains(makefileContents, "INSTALL_DIR = $(HOME)/.vrooli/bin") &&

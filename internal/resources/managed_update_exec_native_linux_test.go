@@ -13,7 +13,6 @@ import (
 	"time"
 
 	platform "github.com/vrooli/platform-go"
-	"github.com/vrooli/vrooli/internal/config"
 )
 
 const execNativeFixtureEnv = "VROOLI_UPDATE_EXEC_NATIVE_FIXTURE"
@@ -85,7 +84,7 @@ func TestManagedUpdateCurrentHostRevokedExecProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := config.WriteOwnedFileDurable(input, data, 0o600); err != nil {
+	if err := writeResourceOwnedFileDurable(input, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cleaned := false

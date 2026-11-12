@@ -8,8 +8,12 @@ package sessionlease
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
+	"path"
+	"strings"
 	"time"
 
 	"github.com/vrooli/cli-core/cliutil"
@@ -28,6 +32,8 @@ type Recorder struct {
 	// from this (the launcher's) process: its environment, its terminal and,
 	// for a bundled desktop app, the app runtime among its ancestors.
 	Owner func() scenarioruntime.EditorLeaseOwner
+	// Observe reads exact native process identity; tests inject isolated facts.
+	Observe func(int) (cliutil.ProcessBinding, error)
 }
 
 // Register installs the recorder as cli-core's default.
@@ -128,4 +134,149 @@ func (r Recorder) Overlaps(ctx context.Context, paths []string) ([]cliutil.Claim
 		})
 	}
 	return out, nil
+}
+
+// BeginBinding records only this new launch attempt. Existing rows never gain
+// evidence through reads, migration, owner backfill, or a session refresh.
+func (r Recorder) BeginBinding(ctx context.Context, record cliutil.EditorLeaseRecord) (string, error) {
+	process, err := r.observe(record.PID)
+	if err != nil || process.PID != record.PID || process.PID <= 1 || process.Boot == "" || process.Start == "" {
+		return "", fmt.Errorf("%w: %v", cliutil.ErrEditorLeaseBindingUnavailable, err)
+	}
+	var raw [16]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", err
+	}
+	id := hex.EncodeToString(raw[:])
+	store, err := r.open(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer store.Close()
+	owner := r.Owner
+	if owner == nil {
+		owner = launchOwner
+	}
+	lease := scenarioruntime.EditorLease{
+		SessionID: record.SessionID, Harness: record.Harness, Agent: record.Agent,
+		PID: record.PID, HostBootID: process.Boot, WorkingDir: record.WorkingDir,
+		Scope: record.Scope, Claims: record.Claims, Owner: owner(),
+	}
+	binding, err := store.CreateEditorLeaseBinding(ctx, lease, scenarioruntime.EditorLeaseProvenance{
+		BindingID: id, SessionID: record.SessionID, PID: process.PID, UID: process.UID,
+		HostBootID: process.Boot, ProcessStart: process.Start, IntendedScope: record.Scope,
+	}, cliutil.EditorLeaseTTL)
+	if err != nil {
+		return "", err
+	}
+	return binding.BindingID, nil
+}
+
+func (r Recorder) observe(pid int) (cliutil.ProcessBinding, error) {
+	if r.Observe != nil {
+		return r.Observe(pid)
+	}
+	return cliutil.ObserveProcessBinding(pid)
+}
+
+// RecordContainment accepts only a current exact launcher binding and a native
+// successful before-exec observation. Planned names and return-time scopes are
+// not proof. Failed evidence writes remain fail-open at the launcher seam.
+func (r Recorder) RecordContainment(ctx context.Context, sessionID, bindingID string, evidence cliutil.EditorLeaseContainment) error {
+	store, err := r.open(ctx)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	binding, err := store.GetEditorLeaseProvenance(ctx, bindingID)
+	if err != nil {
+		return err
+	}
+	process, err := r.observe(binding.PID)
+	if err != nil || process.PID != binding.PID || process.UID != binding.UID || process.Boot != binding.HostBootID || process.Start != binding.ProcessStart {
+		return fmt.Errorf("session lease: launcher incarnation changed or unavailable")
+	}
+	update := scenarioruntime.EditorLeaseProvenance{}
+	switch {
+	case evidence.Failure != "" || evidence.Unavailable:
+		update.ContainmentState = scenarioruntime.EditorContainmentFailed
+		if evidence.Unavailable {
+			update.ContainmentState = scenarioruntime.EditorContainmentUnavailable
+		}
+		update.Failure = evidence.Failure
+		if update.Failure == "" {
+			update.Failure = "native containment evidence unavailable"
+		}
+	case !evidence.Session.BeforeExec || !validNativeScopeEvidence(binding, evidence.Session):
+		update.ContainmentState = scenarioruntime.EditorContainmentUnavailable
+		update.Failure = evidence.Session.ProofFailure
+		if update.Failure == "" {
+			update.Failure = "native before-exec containment evidence unavailable or does not match launch intent"
+		}
+	default:
+		native := evidence.Session.Process
+		again, observeErr := r.observe(native.PID)
+		if observeErr != nil || again != native || native.PID <= 1 || native.Start == "" || native.Boot != binding.HostBootID || native.UID != binding.UID {
+			update.ContainmentState = scenarioruntime.EditorContainmentUnavailable
+			update.Failure = "contained process incarnation changed or unavailable"
+		} else {
+			update.ContainmentState = scenarioruntime.EditorContainmentEstablished
+			update.Scope, update.Method = evidence.Session.Scope, evidence.Session.Method
+			update.EvidencePID, update.EvidenceUID = native.PID, native.UID
+			update.EvidenceBootID, update.EvidenceProcessStart = native.Boot, native.Start
+		}
+	}
+	_, err = store.RecordEditorLeaseContainment(ctx, sessionID, bindingID, update)
+	return err
+}
+
+func (r Recorder) HeartbeatBinding(ctx context.Context, sessionID, bindingID string) error {
+	store, err := r.open(ctx)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	_, err = store.HeartbeatEditorLeaseBinding(ctx, sessionID, bindingID, cliutil.EditorLeaseTTL)
+	return err
+}
+
+func (r Recorder) StopBinding(ctx context.Context, sessionID, bindingID, reason string) error {
+	store, err := r.open(ctx)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	_, err = store.StopEditorLeaseBinding(ctx, sessionID, bindingID, reason)
+	return err
+}
+
+// A registered container's boolean is not enough: the actual cgroup must match
+// the intended native unit, the observed process, and a supported birth-safe
+// mechanism. Self placement is safe only for this launcher's own incarnation.
+func validNativeScopeEvidence(binding scenarioruntime.EditorLeaseProvenance, session cliutil.ContainedSession) bool {
+	ref, err := platform.ParseScopeRef(session.Scope)
+	if err != nil || ref.Kind != platform.ScopeKindCgroup || path.Clean(ref.Path) != ref.Path || ref.Path == "/" {
+		return false
+	}
+	intended := strings.TrimSuffix(binding.IntendedScope, ".scope") + ".scope"
+	if binding.IntendedScope == "" || path.Base(ref.Path) != intended {
+		return false
+	}
+	member := false
+	for _, line := range strings.Split(session.Process.Cgroup, "\n") {
+		if line == "0::"+ref.Path {
+			member = true
+		}
+	}
+	if !member {
+		return false
+	}
+	switch session.Method {
+	case platform.MethodSystemdRun:
+		return true
+	case platform.MethodTransientUnit, platform.MethodCgroupWrite:
+		return session.Process.PID == binding.PID && session.Process.Start == binding.ProcessStart && session.Process.Boot == binding.HostBootID
+	default:
+		return false
+	}
 }

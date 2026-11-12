@@ -12,8 +12,6 @@ import (
 	"strings"
 
 	platform "github.com/vrooli/platform-go"
-	"github.com/vrooli/vrooli/internal/artifactlock"
-	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/tuning"
 )
@@ -71,7 +69,7 @@ func (c *Controller) RetainManagedServiceRollbackArtifact(ctx context.Context, n
 	if err := verifyManagedServiceOwnership(observed); err != nil {
 		return ManagedServiceArtifact{}, err
 	}
-	image, err := platform.OpenProcessExecutable(state.PID)
+	image, err := c.openManagedServiceRollbackRetentionSource(ctx, name, state)
 	if err != nil {
 		return ManagedServiceArtifact{}, err
 	}
@@ -89,10 +87,41 @@ func (c *Controller) RetainManagedServiceRollbackArtifact(ctx context.Context, n
 	if err := verifyManagedServiceOwnership(observed); err != nil {
 		return ManagedServiceArtifact{}, err
 	}
+	if name == openRGBResourceName {
+		if ref := managedUpdateOriginalNativeRef(state); ref != nil && ref.Native != nil {
+			contract, _, err := openRGBOriginalLaunch(state)
+			if err != nil {
+				return ManagedServiceArtifact{}, err
+			}
+			if err = verifyManagedUpdateOriginalImage(ctx, ManagedServiceUpdate{Resource: name, Original: state, Rollback: contract}); err != nil {
+				return ManagedServiceArtifact{}, err
+			}
+		}
+	}
 	if err := ctx.Err(); err != nil {
 		return ManagedServiceArtifact{}, err
 	}
 	return artifact, nil
+}
+
+// Native OpenRGB executes an extracted payload, while its release identity is
+// the verified official envelope. Prove the live payload first and retain the
+// complete sealed envelope; hashing payload bytes as an archive cannot qualify
+// rollback or restore the dependency closure.
+func (c *Controller) openManagedServiceRollbackRetentionSource(ctx context.Context, name string, state ManagedServiceState) (*os.File, error) {
+	if name == openRGBResourceName {
+		if ref := managedUpdateOriginalNativeRef(state); ref != nil && ref.Native != nil {
+			contract, _, err := openRGBOriginalLaunch(state)
+			if err != nil {
+				return nil, err
+			}
+			if err = verifyManagedUpdateOriginalImage(ctx, ManagedServiceUpdate{Resource: name, Original: state, Rollback: contract}); err != nil {
+				return nil, err
+			}
+			return c.openOpenRGBRollbackEnvelope(ctx, contract.Artifact)
+		}
+	}
+	return platform.OpenProcessExecutable(state.PID)
 }
 
 // Caller holds the resource lifecycle lock. This then takes the acquisition
@@ -110,7 +139,7 @@ func retainManagedUpdateFile(ctx context.Context, c *Controller, name, version, 
 		return ManagedServiceArtifact{}, err
 	}
 	path := filepath.Join(root, name, version, ".rollback", digest)
-	release, err := artifactlock.AcquireContext(ctx, "resource:"+name)
+	release, err := acquireResourceArtifactOwnerLock(ctx, name)
 	if err != nil {
 		return ManagedServiceArtifact{}, err
 	}
@@ -118,7 +147,7 @@ func retainManagedUpdateFile(ctx context.Context, c *Controller, name, version, 
 	if _, err := image.Seek(0, io.SeekStart); err != nil {
 		return ManagedServiceArtifact{}, err
 	}
-	if err := config.WriteOwnedFileDurableStream(path, tuning.PermExecutable, func(dst io.Writer) error {
+	if err := writeResourceOwnedFileDurableStream(path, tuning.PermExecutable, func(dst io.Writer) error {
 		hash := sha256.New()
 		source := &managedUpdateContextReader{ctx: ctx, reader: image}
 		written, err := io.CopyBuffer(io.MultiWriter(dst, hash), &io.LimitedReader{R: source, N: info.Size()}, make([]byte, 64*1024))

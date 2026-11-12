@@ -186,9 +186,36 @@ func destructiveVrooliArgs(args []string) bool {
 	case "scenario":
 		return len(args) > 1 && NormalizeCommandName(args[1]) == agentSafetyStopAll
 	case "resource":
-		return len(args) > 1 && (NormalizeCommandName(args[1]) == agentSafetyStopAll || NormalizeCommandName(args[1]) == "stop")
+		if len(args) < agentSafetyParameterA {
+			return false
+		}
+		switch NormalizeCommandName(args[1]) {
+		case agentSafetyStopAll:
+			return true
+		case "stop":
+			// A named resource stop has one explicit target and is scoped to that
+			// resource. Keep malformed, multi-target, and stop-all-like forms
+			// guarded; the resource CLI owns final name validation.
+			return !hasSingleResourceStopTarget(args[2:])
+		}
 	}
 	return false
+}
+
+func hasSingleResourceStopTarget(args []string) bool {
+	if len(args) != 1 {
+		return false
+	}
+	target := strings.TrimSpace(args[0])
+	if target == "" || strings.HasPrefix(target, "-") {
+		return false
+	}
+	switch NormalizeCommandName(target) {
+	case "all", agentSafetyStopAll:
+		return false
+	default:
+		return true
+	}
 }
 
 func commandArgsUntilBoundary(words []string) []string {

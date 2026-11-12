@@ -54,3 +54,49 @@ func TestProviderAbsenceRequiresDeadOwnerAndKnownUnboundPort(t *testing.T) {
 		})
 	}
 }
+
+func TestProviderAbsenceAcceptsOnlyDeadPrelaunchLifecycleStartup(t *testing.T) {
+	for _, name := range []string{"dead-owner-setup", "live-owner", "missing-owner", "supervised-owner", "component-phase", "has-process-ref", "authored-setup-exec", "unknown-listener", "listener", "missing-api-claim"} {
+		t.Run(name, func(t *testing.T) {
+			item := scenario.Scenario{Manifest: scenario.ServiceManifest{Ports: map[string]scenario.Port{"api": {EnvVar: "API_PORT"}}}}
+			ownerPID, apiPID := 101, 102
+			instance := scenarioruntime.Instance{
+				HostBootID: "boot", Status: scenarioruntime.StatusStarting,
+				OwnerKind: scenarioruntime.OwnerKindLifecycle, OwnerPID: &ownerPID, Phase: "setup",
+			}
+			if name == "authored-setup-exec" {
+				item.Manifest.Lifecycle.Setup.Steps = []scenario.PhaseStep{{Name: "untracked", Exec: []string{"sh", "-c", "true"}}}
+			}
+			claims := []scenarioruntime.PortClaim{{PortName: "api", EnvVar: "API_PORT", Port: 18000, Status: scenarioruntime.ClaimStatusReserved}}
+			var refs []scenarioruntime.ProcessRef
+			state := network.ListenerState{Known: true}
+			ownerLive := false
+			switch name {
+			case "live-owner":
+				ownerLive = true
+			case "missing-owner":
+				instance.OwnerPID = nil
+			case "supervised-owner":
+				instance.OwnerKind = scenarioruntime.OwnerKindSupervisor
+			case "component-phase":
+				instance.Phase = "develop"
+			case "has-process-ref":
+				refs = []scenarioruntime.ProcessRef{{Step: "start-api", PID: &apiPID, HostBootID: "boot"}}
+			case "unknown-listener":
+				state.Known = false
+			case "listener":
+				state.Listening = true
+			case "missing-api-claim":
+				claims = nil
+			}
+
+			got := providerKnownAbsent(item, instance, "boot", claims, refs,
+				func(int) network.ListenerState { return state },
+				func(pid int) bool { return pid == ownerPID && ownerLive },
+			)
+			if got != (name == "dead-owner-setup") {
+				t.Fatalf("providerKnownAbsent = %v, want %v", got, name == "dead-owner-setup")
+			}
+		})
+	}
+}

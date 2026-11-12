@@ -9,8 +9,8 @@ import (
 	"github.com/vrooli/vrooli/internal/maintenance"
 )
 
-// ExecutorScope is a local read; it does not open the registry, contact a
-// scenario, exchange an owner credential, or mutate lifecycle/business state.
+// ExecutorScope reads local process and canonical lease identities. It does not
+// contact a scenario, exchange an owner credential, or mutate lifecycle/business state.
 func (app *Service) ExecutorScope(ctx context.Context, in io.Reader, out io.Writer) error {
 	ctx, cancel := context.WithTimeout(ctx, maintenance.ExecutorScopeTimeout)
 	defer cancel()

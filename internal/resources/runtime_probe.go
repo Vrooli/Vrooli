@@ -60,10 +60,10 @@ func (c *Controller) ProbeManagedRuntime(ctx context.Context, name string, impor
 	if err != nil {
 		return receipt, err
 	}
-	if err := (managedServiceDriver{}).verifyArtifactAt(ctx, manifest, path); err != nil {
+	if err := (managedServiceDriver{}).verifyArtifactAt(ctx, c, manifest, path); err != nil {
 		return receipt, err
 	}
-	artifact, err := managedServiceArtifactForLaunch(ctx, manifest, path)
+	artifact, err := managedServiceArtifactForLaunch(ctx, c, manifest, path)
 	if err != nil {
 		return receipt, err
 	}

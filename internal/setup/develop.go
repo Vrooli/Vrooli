@@ -2,6 +2,7 @@ package setup
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -43,18 +44,51 @@ func RunBuild(root, home string, stdout, stderr io.Writer) error {
 		}
 	}
 	buildTime := time.Now().UTC().Format(time.RFC3339)
+	stageDir, err := os.MkdirTemp(buildDir, ".build-*")
+	if err != nil {
+		return fmt.Errorf("create build staging directory: %w", err)
+	}
+	defer os.RemoveAll(stageDir)
 
-	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli-api"), "./cmd/vrooli-api", buildinfo.FingerprintTargetsForExecutable("vrooli-api"), gitCommit, buildTime, stdout, stderr); err != nil {
-		return err
+	type buildStep struct {
+		name  string
+		build func(string) error
 	}
-	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli"), "./cmd/vrooli", buildinfo.FingerprintTargetsForExecutable("vrooli"), gitCommit, buildTime, stdout, stderr); err != nil {
-		return err
+	steps := []buildStep{
+		{name: "vrooli-api", build: func(output string) error {
+			return buildProjectBinary(root, output, "./cmd/vrooli-api", buildinfo.FingerprintTargetsForExecutable("vrooli-api"), gitCommit, buildTime, stdout, stderr)
+		}},
+		{name: "vrooli", build: func(output string) error {
+			return buildProjectBinary(root, output, "./cmd/vrooli", buildinfo.FingerprintTargetsForExecutable("vrooli"), gitCommit, buildTime, stdout, stderr)
+		}},
+		{name: "vrooli-atomic-install", build: func(output string) error {
+			return buildProjectBinary(root, output, "./cmd/vrooli-atomic-install", buildinfo.FingerprintTargetsForExecutable("vrooli-atomic-install"), gitCommit, buildTime, stdout, stderr)
+		}},
+		{name: "vrooli-agent-launcher", build: func(output string) error {
+			return buildProjectBinary(root, output, "./cmd/vrooli-agent-launcher", []string{"cmd/vrooli-agent-launcher", "packages/cli-core"}, gitCommit, buildTime, stdout, stderr)
+		}},
+		{name: "vrooli-policy-runner", build: func(output string) error {
+			return buildNestedModuleBinary(filepath.Join(root, "cmd", "vrooli-policy-runner"), output, stdout, stderr)
+		}},
 	}
-	if err := buildProjectBinary(root, filepath.Join(buildDir, "vrooli-agent-launcher"), "./cmd/vrooli-agent-launcher", []string{"cmd/vrooli-agent-launcher", "packages/cli-core"}, gitCommit, buildTime, stdout, stderr); err != nil {
-		return err
+
+	var buildErrors []error
+	for _, step := range steps {
+		stagedPath := filepath.Join(stageDir, step.name)
+		if err := step.build(stagedPath); err != nil {
+			buildErrors = append(buildErrors, fmt.Errorf("build %s: %w", step.name, err))
+		}
 	}
-	if err := buildNestedModuleBinary(filepath.Join(root, "cmd", "vrooli-policy-runner"), filepath.Join(buildDir, "vrooli-policy-runner"), stdout, stderr); err != nil {
-		return err
+	if err := errors.Join(buildErrors...); err != nil {
+		return fmt.Errorf("project build failed; existing binaries were left untouched:\n%w", err)
+	}
+
+	for _, step := range steps {
+		stagedPath := filepath.Join(stageDir, step.name)
+		finalPath := filepath.Join(buildDir, step.name)
+		if err := platform.AtomicReplace(stagedPath, finalPath); err != nil {
+			return fmt.Errorf("publish built %s: %w", step.name, err)
+		}
 	}
 	return nil
 }

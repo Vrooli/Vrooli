@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -48,9 +49,10 @@ const (
 )
 
 type Controller struct {
-	Root        string
-	Home        string
-	Environment string
+	Root          string
+	Home          string
+	Environment   string
+	operatorState *operatorstate.Service
 	// NoReclaim requires manifest-derived starts to use only already-free capacity.
 	NoReclaim bool
 	// healthObservationOnly separates frequent process/health observations from
@@ -60,9 +62,23 @@ type Controller struct {
 	admitCapacity func(context.Context, capacity.AdmitOptions, func(context.Context) error) error
 	// The supervisor retains one controller so bounded recovery passes rotate
 	// fairly across unresolved resources instead of retrying the first forever.
-	updateResumeMu     sync.Mutex
-	updateResumeAfter  string
-	updateCleanupAfter string
+	openRGBPayloadEffects *openRGBPayloadEffects
+	updateEffects         *managedUpdateEffects
+	openRGBUpdateEffects  *openRGBPublicUpdateEffects
+	updateResumeMu        sync.Mutex
+	updateResumeAfter     string
+	updateCleanupAfter    string
+}
+
+func (c *Controller) operatorStateService() *operatorstate.Service {
+	if c.operatorState != nil {
+		return c.operatorState
+	}
+	cfg := operatorstate.Config{RepoRoot: c.Root}
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		cfg.LogicalOperatorHome = c.Home
+	}
+	return operatorstate.New(cfg)
 }
 
 type (
@@ -100,9 +116,12 @@ func NewController(root, home string) *Controller {
 // records explicitly leave artifact verification unevaluated; it changes no
 // acquisition or launch gate and never mutates the original controller.
 func (c *Controller) ForHealthObservation() *Controller {
-	copy := *c
-	copy.healthObservationOnly = true
-	return &copy
+	return &Controller{
+		Root: c.Root, Home: c.Home, Environment: c.Environment, operatorState: c.operatorState,
+		NoReclaim: c.NoReclaim, healthObservationOnly: true, admitCapacity: c.admitCapacity,
+		openRGBPayloadEffects: c.openRGBPayloadEffects, updateEffects: c.updateEffects,
+		openRGBUpdateEffects: c.openRGBUpdateEffects,
+	}
 }
 
 func normalizeEnvironment(value string) string {
@@ -207,6 +226,112 @@ func (c *Controller) SetEnabled(name string, enabled bool) error {
 	service := operatorstate.New(operatorstate.Config{RepoRoot: c.Root})
 	_, err = service.Apply(context.Background(), data)
 	return err
+}
+
+// SetManagedServiceSource persists an operator's explicit source selection.
+// Host-tool adoption is preflighted before state changes and never modifies the
+// selected executable.
+func (c *Controller) SetManagedServiceSource(ctx context.Context, name, mode string) (operatorstate.ResourceSourceChoice, error) {
+	manifest, err := c.ResourceManifest(name)
+	if err != nil {
+		return operatorstate.ResourceSourceChoice{}, err
+	}
+	service := manifest.ManagedService
+	if manifest.Driver != "managed-service" || service == nil || service.HostToolExecutable == "" || service.HostToolVersion == "" {
+		return operatorstate.ResourceSourceChoice{}, fmt.Errorf("resource %s does not declare selectable managed-service sources", name)
+	}
+	switch mode {
+	case "managed":
+		choice := operatorstate.ResourceSourceChoice{Mode: "managed"}
+		if err := c.persistManagedServiceSource(ctx, name, choice); err != nil {
+			return choice, err
+		}
+		return choice, nil
+	case "host":
+
+		var path string
+		var err error
+		if name == openRGBResourceName {
+			path, err = resolveOpenRGBAdoptionPath(c.Home, service.HostToolExecutable)
+		} else {
+			path, err = exec.LookPath(service.HostToolExecutable)
+		}
+		if err != nil {
+			return operatorstate.ResourceSourceChoice{}, fmt.Errorf("compatible host OpenRGB not found on PATH: %w", err)
+		}
+		path, err = filepath.Abs(path)
+		if err != nil {
+			return operatorstate.ResourceSourceChoice{}, err
+		}
+		if name == openRGBResourceName {
+			digest, err := inspectOpenRGBAdoptedSource(ctx, path)
+			if err != nil {
+				return operatorstate.ResourceSourceChoice{}, err
+			}
+			choice := operatorstate.ResourceSourceChoice{Mode: "host", Executable: path, Version: openRGBAppImageVersion, SHA256: digest}
+			if err := c.persistManagedServiceSource(ctx, name, choice); err != nil {
+				return choice, err
+			}
+			return choice, nil
+		}
+
+		cmd := exec.CommandContext(ctx, path, "--version")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			return operatorstate.ResourceSourceChoice{}, fmt.Errorf("read host OpenRGB version: %w: %s", err, strings.TrimSpace(string(output)))
+		}
+		version := strings.TrimSpace(string(output))
+		if !compatibleHostToolVersion(version, service.HostToolVersion) {
+			return operatorstate.ResourceSourceChoice{}, fmt.Errorf("host OpenRGB version is incompatible: expected %s, found %q", service.HostToolVersion, version)
+		}
+		digest, err := managedFileSHA256(path)
+		if err != nil {
+			return operatorstate.ResourceSourceChoice{}, fmt.Errorf("fingerprint adopted OpenRGB executable: %w", err)
+		}
+		choice := operatorstate.ResourceSourceChoice{Mode: "host", Executable: path, Version: service.HostToolVersion, SHA256: digest}
+		if err := c.persistManagedServiceSource(ctx, name, choice); err != nil {
+			return choice, err
+		}
+		return choice, nil
+	default:
+		return operatorstate.ResourceSourceChoice{}, fmt.Errorf("source must be managed or host")
+	}
+}
+
+func compatibleHostToolVersion(output, expected string) bool {
+	expected = strings.TrimSpace(strings.TrimPrefix(strings.ToLower(expected), "v"))
+	for _, line := range strings.Split(output, "\n") {
+		fields := strings.Fields(strings.TrimSpace(line))
+		if len(fields) < 2 || !strings.EqualFold(strings.TrimSpace(fields[0]), "OpenRGB") {
+			continue
+		}
+		version := strings.Trim(strings.TrimPrefix(strings.ToLower(fields[1]), "v"), ",;()[]")
+		if version == expected {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Controller) persistManagedServiceSource(ctx context.Context, name string, choice operatorstate.ResourceSourceChoice) error {
+	patch, err := json.Marshal(map[string]any{"resources": map[string]any{name: map[string]any{"source": choice}}})
+	if err != nil {
+		return err
+	}
+	_, err = c.operatorStateService().Apply(ctx, patch)
+	return err
+}
+
+func (c *Controller) ManagedServiceSource(ctx context.Context, name string) (operatorstate.ResourceSourceChoice, bool, error) {
+	doc, err := c.operatorStateService().Load(ctx)
+	if err != nil {
+		return operatorstate.ResourceSourceChoice{}, false, err
+	}
+	resource, ok := doc.Resources[name]
+	if !ok || resource.Source == nil {
+		return operatorstate.ResourceSourceChoice{}, false, nil
+	}
+	return *resource.Source, true, nil
 }
 
 func (c *Controller) readConfigEntries() (map[string]ConfigEntry, error) {

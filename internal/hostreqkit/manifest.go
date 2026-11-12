@@ -15,6 +15,7 @@ type ToolManifest struct {
 	VersionArgs       []string                           `json:"versionArgs"`
 	DefaultPackage    string                             `json:"defaultPackage,omitempty"`
 	Packages          map[string]string                  `json:"packages,omitempty"`
+	UserLocalAPT      map[string]UserLocalAPT            `json:"userLocalAPT,omitempty"`
 	InstallHint       string                             `json:"installHint,omitempty"`
 	Platforms         []string                           `json:"platforms,omitempty"`
 	Handler           string                             `json:"handler,omitempty"`
@@ -27,6 +28,16 @@ type ToolManifest struct {
 	VerificationCheck *VerificationCheck                 `json:"verificationCheck,omitempty"`
 	Version           string                             `json:"version,omitempty"`
 	Notes             string                             `json:"notes,omitempty"`
+}
+
+// UserLocalAPT declares relocatable package payloads, keyed by Go architecture.
+// The host's authenticated APT index owns versions and checksums. Installation
+// extracts data only; it does not run package scripts or change the system DB.
+type UserLocalAPT struct {
+	Packages   []string          `json:"packages"`
+	Executable string            `json:"executable"`
+	LibraryDir string            `json:"libraryDir"`
+	RuntimeEnv map[string]string `json:"runtimeEnv,omitempty"`
 }
 
 // ToolSource and ToolSourceTarget are aliases, not independent schema models.

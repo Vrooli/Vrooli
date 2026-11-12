@@ -9,6 +9,44 @@ import (
 	engine "github.com/vrooli/vrooli/internal/capacity"
 )
 
+func TestParseDiskReservationsRequest(t *testing.T) {
+	got, err := ParseDiskReservationsRequest([]string{"--active", "--owner", " foreign:job ", "--filesystem", "dev:66306", "--json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Active || got.Owner != "foreign:job" || got.Filesystem != "dev:66306" {
+		t.Fatalf("parsed = %+v", got)
+	}
+}
+
+func TestParseDiskListRequestCurrentObservation(t *testing.T) {
+	got, err := ParseDiskListRequest([]string{"--observe", "--json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Active || !got.Observe {
+		t.Fatalf("disk-list flags = %+v", got)
+	}
+}
+
+func TestParseDiskSampleDockerIdentityFlags(t *testing.T) {
+	got, err := ParseDiskSampleRequest([]string{"--lease-file", "/tmp/lease.json", "--path", "/var/lib/docker/volumes/x/_data", "--bytes", "42", "--docker-container", "m5-openemr", "--docker-destination", "/var/lib/mysql", "--json"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.LeaseFile != "/tmp/lease.json" || got.DockerContainer != "m5-openemr" || got.DockerDestination != "/var/lib/mysql" || got.DockerUpperDir || got.Bytes != 42 {
+		t.Fatalf("parsed sample=%+v", got)
+	}
+	upper, err := ParseDiskSampleRequest([]string{"--lease-file", "/tmp/lease.json", "--path", "/var/lib/docker/overlay2/x/diff", "--bytes", "7", "--docker-container", "m5-openemr", "--docker-upper-dir", "--json"})
+	if err != nil || !upper.DockerUpperDir {
+		t.Fatalf("upper-dir sample=%+v, err=%v", upper, err)
+	}
+	root, err := ParseDiskSampleRequest([]string{"--lease-file", "/tmp/lease.json", "--path", "/var/lib/docker", "--bytes", "0", "--docker-root-dir", "--json"})
+	if err != nil || !root.DockerRootDir {
+		t.Fatalf("Docker root sample=%+v, err=%v", root, err)
+	}
+}
+
 func TestRenderClaimSeparatesRecordedAmountFromAdvisoryVerdict(t *testing.T) {
 	var output bytes.Buffer
 	err := RenderClaim(&output, "", capacityapp.ClaimOutput{

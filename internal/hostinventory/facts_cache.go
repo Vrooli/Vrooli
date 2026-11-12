@@ -15,7 +15,9 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
-const hostFactsSchemaVersion = 1
+// Version 2 invalidates pre-native identity snapshots and RAM-derived Apple GPU
+// estimates. Old persisted snapshots also fail closed in accelerator projections.
+const hostFactsSchemaVersion = 2
 
 type hostFactsProbe func(context.Context, string) (json.RawMessage, error)
 

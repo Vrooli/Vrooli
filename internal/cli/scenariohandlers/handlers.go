@@ -117,6 +117,7 @@ func runWithScenarioService[C any, Resp any](deps rootcli.HandlerDeps[C], ctx C,
 
 func buildHandlerMap[C any](deps rootcli.HandlerDeps[C]) map[CommandID]rootcli.Handler[C] {
 	return mergeHandlerMaps(
+		buildRuntimeReleaseHandlers(deps),
 		buildScenarioReadHandlers(deps),
 		buildScenarioLifecycleHandlers(deps),
 		buildScenarioUtilityHandlers(deps),
@@ -378,7 +379,7 @@ func buildScenarioStartHandlers[C any](deps rootcli.HandlerDeps[C]) map[CommandI
 				return ParseStartRequest(deps.Globals(ctx).JSON, args)
 			},
 			func(ctx C, format cliout.Format, req StartRequest) ([]LifecycleItemOutput, error) {
-				if err := ensureScenarioCLIs(deps, ctx, req.Names...); err != nil {
+				if err := ensureSourceScenarioCLIs(deps, ctx, req.Options.RetainedReleaseID, req.Names...); err != nil {
 					return nil, err
 				}
 				return runWithScenarioService(deps, ctx, format, func(format cliout.Format, service scenarioapp.Service) ([]LifecycleItemOutput, error) {
@@ -409,7 +410,7 @@ func buildScenarioStartHandlers[C any](deps rootcli.HandlerDeps[C]) map[CommandI
 						return items, decodeErr
 					}
 					if req.Options.CustomPath == "" {
-						if err := ensureScenarioCLIs(deps, ctx, req.Names...); err != nil {
+						if err := ensureSourceScenarioCLIs(deps, ctx, req.Options.RetainedReleaseID, req.Names...); err != nil {
 							return nil, err
 						}
 					}
@@ -483,7 +484,7 @@ func buildScenarioStartHandlers[C any](deps rootcli.HandlerDeps[C]) map[CommandI
 						}
 					}
 					if req.Options.CustomPath == "" {
-						if err := ensureScenarioCLIs(deps, ctx, req.Name); err != nil {
+						if err := ensureSourceScenarioCLIs(deps, ctx, req.Options.RetainedReleaseID, req.Name); err != nil {
 							return nil, err
 						}
 					}
@@ -764,6 +765,9 @@ func callRemoteScenario[C any](deps rootcli.HandlerDeps[C], ctx C, node, scenari
 
 func remoteStartArgs(options lifecycle.StartOptions, openAfter bool, timeoutSeconds int) []string {
 	args := []string{}
+	if options.RetainedReleaseID != "" {
+		args = append(args, "--runtime-release", options.RetainedReleaseID, "--expected-runtime-release", options.ExpectedRetainedReleaseID)
+	}
 	if options.CustomPath != "" {
 		args = append(args, "--path", options.CustomPath)
 	}

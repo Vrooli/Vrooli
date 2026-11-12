@@ -80,6 +80,40 @@ func TestServiceClaimGrantAndList(t *testing.T) {
 	}
 }
 
+func TestDiskReservationListExposesLegacyAdmissionRows(t *testing.T) {
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "capacity.db")
+	root := t.TempDir()
+	now := time.Date(2026, 11, 10, 22, 0, 0, 0, time.UTC)
+	svc := Service{OpenStore: func(ctx context.Context) (Store, error) {
+		return engine.NewSQLiteStore(ctx, engine.Config{DBPath: dbPath, Clock: clockFunc(func() time.Time { return now })})
+	}}
+
+	store, err := engine.NewSQLiteStore(ctx, engine.Config{DBPath: dbPath, Clock: clockFunc(func() time.Time { return now })})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := store.ReserveDisk(ctx, "foreign:legacy-job", root, 1024, 0)
+	if err != nil {
+		t.Fatalf("ReserveDisk() error = %v", err)
+	}
+	if _, err := store.ReserveDisk(ctx, "other:legacy-job", root, 2048, 0); err != nil {
+		t.Fatalf("second ReserveDisk() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
+	now = now.Add(20 * time.Minute) // deadline elapsed; cleanup is still unverified.
+
+	rows, err := svc.DiskReservationList(ctx, engine.DiskReservationFilter{ActiveOnly: true, OwnerID: "foreign:legacy-job"})
+	if err != nil {
+		t.Fatalf("DiskReservationList() error = %v", err)
+	}
+	if len(rows) != 1 || rows[0].ID != first.ID || rows[0].PeakBytes != 1024 || rows[0].FilesystemID == "" || rows[0].Status != "active" || !rows[0].ExpiresAt.Before(now) {
+		t.Fatalf("DiskReservationList() = %+v, want the filtered active legacy receipt", rows)
+	}
+}
+
 func TestServiceListShowsWarmAndColdIdleState(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "capacity.db")

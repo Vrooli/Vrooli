@@ -1,0 +1,37 @@
+{
+  "version": "35a5dcc71735eb42606be34e313f9eb8148b6a42",
+  "inputs": [
+    {
+      "name": "linux-hwe-7.0_7.0.0-30.30~24.04.1.dsc",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20260824T000000Z/pool/main/l/linux-hwe-7.0/linux-hwe-7.0_7.0.0-30.30~24.04.1.dsc",
+      "sha256": "40f75f7cb8ee224d7fdecc6aa470263b389503a50fa0ff048851d646943b4b48",
+      "bytes": 8259,
+      "provenance": "Ubuntu Archive signing key authenticated the 20260824 noble-security InRelease. The verified Sources index pins linux-hwe-7.0 version 7.0.0-30.30~24.04.1 and its three source inputs.",
+      "license": "Ubuntu source package metadata"
+    },
+    {
+      "name": "linux-hwe-7.0_7.0.0.orig.tar.gz",
+      "url": "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.0.tar.gz",
+      "sha256": "c6343795c8c7e4feff55f5b309365c8e0eaf49cd6abcb412e32315313f149536",
+      "bytes": 254937830,
+      "provenance": "The authenticated Ubuntu Sources index and selected .dsc pin these exact orig bytes. Kernel.org publishes the identical SHA-256 and byte count for linux-7.0.tar.gz.",
+      "license": "Linux kernel source, see COPYING and per-file SPDX identifiers"
+    },
+    {
+      "name": "linux-hwe-7.0_7.0.0-30.30~24.04.1.diff.gz",
+      "url": "https://snapshot.ubuntu.com/ubuntu/20260824T000000Z/pool/main/l/linux-hwe-7.0/linux-hwe-7.0_7.0.0-30.30~24.04.1.diff.gz",
+      "sha256": "91a45f5cf28f149bee8cfff8a9cefd7f710467535db52eac34c88103ed746809",
+      "bytes": 1988323,
+      "provenance": "Exact Ubuntu delta from the authenticated Sources index and .dsc. Ubuntu hwe-7.0 source tag peels to b44290cc0ccc40ae4cd2b736453a66b821021150.",
+      "license": "Ubuntu kernel source delta, see per-file SPDX identifiers and package copyright"
+    },
+    {
+      "name": "mt7927-pcie-series.patch",
+      "url": "https://github.com/torvalds/linux/compare/6794edb55b5f5ef834e03b0b241b1a8b725f82c0...35a5dcc71735eb42606be34e313f9eb8148b6a42.patch",
+      "sha256": "a16aa8755cda961731420db68e58924683dc188f63d0c0515579fb92a4ea6ad4",
+      "bytes": 74504,
+      "provenance": "Vrooli-measured SHA-256 of the upstream mbox. All 20 ordered mbox commits matched primary GitHub compare metadata for the exact contiguous range. Each patch path is inside drivers/net/wireless/mediatek/mt76.",
+      "license": "Linux upstream patch series, see the patched source files"
+    }
+  ]
+}

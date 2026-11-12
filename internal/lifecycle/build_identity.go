@@ -24,6 +24,15 @@ var buildIdentityIgnoredDirectories = map[string]struct{}{
 // Generated outputs and runtime state are excluded so a health identity tracks
 // the source that a managed build was asked to serve.
 func scenarioBuildIdentity(item scenario.Scenario) (string, error) {
+	if item.RetainedReleaseID != "" {
+		if item.RetainedBuildIdentity == "" {
+			return "", fmt.Errorf("retained release lacks original build provenance")
+		}
+		// A capture identifies current retained bytes, not the historical source
+		// of the process observed during capture. Runtime identity follows those
+		// verified bytes; observed source provenance remains in release metadata.
+		return item.RetainedBuildIdentity, nil
+	}
 	root := filepath.Clean(item.SourcePath())
 	info, err := os.Stat(root)
 	if err != nil {

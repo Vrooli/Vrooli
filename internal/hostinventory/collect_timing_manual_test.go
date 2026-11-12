@@ -40,7 +40,6 @@ func TestLiveCollectStageTimingsOnThisHost(t *testing.T) {
 		{"nvidiaNodeAccess", func() { c.collectNvidiaNodeAccess(&snap, now) }},
 		{"rocm", func() { c.collectROCm(ctx, &snap, now) }},
 		{"vulkanICDs", func() { c.collectVulkanICDs(&snap, now) }},
-		{"appleSiliconGPU", func() { c.collectAppleSiliconGPU(&snap, now) }},
 		{"appleToolchain", func() { c.collectAppleToolchain(ctx, &snap, now) }},
 		{"androidToolchain", func() { c.collectAndroidToolchain(ctx, &snap, now) }},
 		{"desktopToolchain", func() { c.collectDesktopToolchain(ctx, &snap, now) }},

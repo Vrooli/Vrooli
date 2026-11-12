@@ -64,17 +64,17 @@ func (c *Controller) ResumeManagedServiceUpdates(ctx context.Context) error {
 		for _, record := range ledger.Records {
 			u := record.State
 			if u.Phase.Terminal() {
-				if e := releaseManagedUpdateCapacity(ctx, u); e != nil {
+				if e := c.managedUpdateEffectOwner().release(ctx, u); e != nil {
 					failures = append(failures, fmt.Errorf("resource %s terminal capacity release: %w", u.Resource, e))
 				}
 				continue
 			}
 			active = append(active, u)
-			if e := reserveManagedUpdateCapacity(ctx, u); e != nil {
+			if e := c.managedUpdateEffectOwner().reserve(ctx, u); e != nil {
 				failures = append(failures, fmt.Errorf("resource %s update capacity: %w", u.Resource, e))
 			}
 		}
-		if len(ledger.Records) > 0 {
+		if len(ledger.Records) > 0 && entry.Name() != openRGBResourceName {
 			cleanupResources = append(cleanupResources, entry.Name())
 		}
 	}

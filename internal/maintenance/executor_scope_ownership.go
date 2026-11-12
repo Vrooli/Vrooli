@@ -11,6 +11,7 @@ import (
 
 	"github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/hostsession"
+	"github.com/vrooli/vrooli/internal/process"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
 	"github.com/vrooli/vrooli/internal/supervision"
 )
@@ -85,8 +86,13 @@ func (c *Controller) inheritedServiceTags(ctx context.Context, executors []Execu
 				entry.PGID != *ref.PGID || birth.Before(ref.StartedAt.Add(-2*time.Second)) || birth.After(ref.StartedAt.Add(2*time.Second)) {
 				continue
 			}
-			unit := scenarioruntime.ServiceScopeName((scenarioruntime.InstanceKey{Scenario: instance.Scenario, Variant: instance.Variant}).Slug(), ref.Step) + ".scope"
-			if !filepath.IsAbs(entry.Cgroup) || filepath.Base(entry.Cgroup) != unit || filepath.Base(filepath.Dir(entry.Cgroup)) != platform.ServicesSlice {
+			if !filepath.IsAbs(entry.Cgroup) || filepath.Base(filepath.Dir(entry.Cgroup)) != platform.ServicesSlice {
+				continue
+			}
+			slug := (scenarioruntime.InstanceKey{Scenario: instance.Scenario, Variant: instance.Variant}).Slug()
+			unit := filepath.Base(entry.Cgroup)
+			legacyUnit := scenarioruntime.ServiceScopeName(slug, ref.Step) + ".scope"
+			if unit != legacyUnit && unit != scenarioruntime.ServiceLaunchScopeName(slug, ref.Step, process.LaunchRefGeneration(ref.RefID))+".scope" {
 				continue
 			}
 			roots[pid] = identity

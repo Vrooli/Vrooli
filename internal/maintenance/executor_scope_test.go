@@ -20,11 +20,11 @@ import (
 func scopeFixture(t *testing.T, table map[int]processTableEntry, identities map[int]scopeIdentity) {
 	t.Helper()
 	oldTable, oldIdentity, oldBirths, oldListeners := scopeProcessTable, scopeReadIdentity, scopeProcessBirths, scopeListeners
-	oldLeases, oldMembers, oldGone, oldBoot := scopeEditorLeases, scopeEditorScopeMembers, scopeEditorScopeGone, scopeCurrentBootID
+	oldLeases, oldMembers, oldGone, oldBoot := scopeEditorLeaseBindings, scopeEditorScopeMembers, scopeEditorScopeGone, scopeCurrentBootID
 	oldCgroupPath, oldOccupancy, oldScopeProcesses, oldLeaseBySession := scopeSessionCgroupPath, scopeEditorScopeOccupancy, scopeEditorScopeProcesses, scopeEditorLeaseBySession
 	t.Cleanup(func() {
 		scopeProcessTable, scopeReadIdentity, scopeProcessBirths, scopeListeners = oldTable, oldIdentity, oldBirths, oldListeners
-		scopeEditorLeases, scopeEditorScopeMembers, scopeEditorScopeGone, scopeCurrentBootID = oldLeases, oldMembers, oldGone, oldBoot
+		scopeEditorLeaseBindings, scopeEditorScopeMembers, scopeEditorScopeGone, scopeCurrentBootID = oldLeases, oldMembers, oldGone, oldBoot
 		scopeSessionCgroupPath, scopeEditorScopeOccupancy, scopeEditorScopeProcesses, scopeEditorLeaseBySession = oldCgroupPath, oldOccupancy, oldScopeProcesses, oldLeaseBySession
 	})
 	scopeProcessTable = func(context.Context) (map[int]processTableEntry, error) { return table, nil }
@@ -32,7 +32,19 @@ func scopeFixture(t *testing.T, table map[int]processTableEntry, identities map[
 	scopeProcessBirths = func(context.Context) (map[int]supervision.ProcessInfo, error) {
 		return map[int]supervision.ProcessInfo{}, nil
 	}
-	scopeEditorLeases = func(context.Context, string) ([]scenarioruntime.EditorLease, error) { return nil, nil }
+	scopeEditorLeaseBindings = func(context.Context, string, []string) ([]scenarioruntime.EditorLease, error) { return nil, nil }
+	scopeEditorLeaseBySession = func(ctx context.Context, home, sessionID string) (scenarioruntime.EditorLease, error) {
+		leases, err := scopeEditorLeaseBindings(ctx, home, []string{sessionID})
+		if err != nil {
+			return scenarioruntime.EditorLease{}, err
+		}
+		for _, lease := range leases {
+			if lease.SessionID == sessionID {
+				return lease, nil
+			}
+		}
+		return scenarioruntime.EditorLease{}, scenarioruntime.ErrNotFound
+	}
 	scopeEditorScopeMembers = func(string) ([]int, error) { return nil, nil }
 	scopeEditorScopeGone = func(context.Context, string) (bool, error) { return false, nil }
 	scopeCurrentBootID = func() string { return "boot-current" }
@@ -46,7 +58,7 @@ func TestExecutorScopeExactAttachedLeaseProvesRunWithoutEnvironmentTag(t *testin
 	scopeProcessBirths = func(context.Context) (map[int]supervision.ProcessInfo, error) {
 		return map[int]supervision.ProcessInfo{42: {PID: 42, StartedAt: created}}, nil
 	}
-	scopeEditorLeases = func(context.Context, string) ([]scenarioruntime.EditorLease, error) {
+	scopeEditorLeaseBindings = func(context.Context, string, []string) ([]scenarioruntime.EditorLease, error) {
 		return []scenarioruntime.EditorLease{{SessionID: "run-1", PID: 42, HostBootID: "boot-current", Scope: "vrooli-agent-claude-code-abc", Status: scenarioruntime.EditorLeaseActive, CreatedAt: created, Owner: scenarioruntime.EditorLeaseOwner{Kind: "web-console-session", Ref: "web-console-1"}}}, nil
 	}
 	scopeEditorScopeMembers = func(unit string) ([]int, error) {
@@ -115,8 +127,8 @@ func TestExecutorScopeReregisteredLeaseUsesCurrentProcessAndScope(t *testing.T) 
 			scopeProcessBirths = func(context.Context) (map[int]supervision.ProcessInfo, error) {
 				return map[int]supervision.ProcessInfo{43: {PID: 43, StartedAt: restartedAt}}, nil
 			}
-			scopeEditorLeases = func(ctx context.Context, _ string) ([]scenarioruntime.EditorLease, error) {
-				return listScopeEditorLeases(ctx, home)
+			scopeEditorLeaseBindings = func(ctx context.Context, _ string, keys []string) ([]scenarioruntime.EditorLease, error) {
+				return listScopeEditorLeaseBindings(ctx, home, keys)
 			}
 			scopeEditorScopeMembers = func(unit string) ([]int, error) {
 				if unit != "vrooli-agent-claude-code-new.scope" {
@@ -172,7 +184,7 @@ func TestExecutorScopeAttachedLeaseMismatchRemainsUnknown(t *testing.T) {
 				}
 				return map[int]supervision.ProcessInfo{42: {PID: 42, StartedAt: birth}}, nil
 			}
-			scopeEditorLeases = func(context.Context, string) ([]scenarioruntime.EditorLease, error) {
+			scopeEditorLeaseBindings = func(context.Context, string, []string) ([]scenarioruntime.EditorLease, error) {
 				status := tc.leaseStatus
 				if status == "" {
 					status = scenarioruntime.EditorLeaseActive
@@ -249,7 +261,7 @@ func TestExecutorScopeMissingAttachedLeaderRequiresExactGoneScope(t *testing.T) 
 				scope = "vrooli-agent-claude-code-abc"
 			}
 			lease := scenarioruntime.EditorLease{SessionID: "run-1", PID: 42, HostBootID: boot, Scope: scope, Status: scenarioruntime.EditorLeaseActive, CreatedAt: created}
-			scopeEditorLeases = func(context.Context, string) ([]scenarioruntime.EditorLease, error) {
+			scopeEditorLeaseBindings = func(context.Context, string, []string) ([]scenarioruntime.EditorLease, error) {
 				return []scenarioruntime.EditorLease{lease}, nil
 			}
 			scopeEditorLeaseBySession = func(_ context.Context, _ string, sessionID string) (scenarioruntime.EditorLease, error) {
@@ -405,7 +417,7 @@ func TestListScopeEditorLeasesReadsCanonicalRegistryReadOnly(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatal(err)
 	}
-	leases, err := listScopeEditorLeases(t.Context(), home)
+	leases, err := listScopeEditorLeaseBindings(t.Context(), home, []string{"run-1"})
 	if err != nil || len(leases) != 1 || leases[0].SessionID != "run-1" || leases[0].Owner.Ref != "web-console-1" {
 		t.Fatalf("read-only runtime lease listing: leases=%+v err=%v", leases, err)
 	}
@@ -522,8 +534,7 @@ func TestExecutorScopeBoundsAndMidReadBirth(t *testing.T) {
 }
 
 func TestExecutorScopeIgnoresUnrelatedHostProcessChurn(t *testing.T) {
-	oldTable, oldIdentity := scopeProcessTable, scopeReadIdentity
-	t.Cleanup(func() { scopeProcessTable, scopeReadIdentity = oldTable, oldIdentity })
+	scopeFixture(t, nil, nil)
 	calls := 0
 	scopeProcessTable = func(context.Context) (map[int]processTableEntry, error) {
 		calls++

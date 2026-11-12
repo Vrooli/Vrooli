@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,21 +50,48 @@ func managedServiceAcquisitionTarget(ctx context.Context, manifest ResourceManif
 // comparing a target against a different observation than the one that produced
 // it.
 func managedServiceAcquisitionTargetWithFacts(ctx context.Context, manifest ResourceManifest) (binaryfetch.AcquisitionTarget, binaryfetch.Facts, error) {
+	return managedServiceAcquisitionTargetWithFactSource(ctx, manifest, runtime.GOOS, runtime.GOARCH, collectManagedServiceAcquisitionFacts)
+}
+
+func managedServiceAcquisitionTargetWithFactSource(ctx context.Context, manifest ResourceManifest, hostOS, hostArch string, genericFacts func(context.Context) (binaryfetch.Facts, error)) (binaryfetch.AcquisitionTarget, binaryfetch.Facts, error) {
 	if manifest.ManagedService == nil || manifest.ManagedService.Acquisition == nil {
 		return binaryfetch.AcquisitionTarget{}, nil, nil
 	}
-	// The accelerator-only collection path: a resource start must not wait on
-	// desktop or credential-store probes to learn which artifact it needs.
-	snapshot, err := hostinventory.CollectGPUFacts(ctx)
+	facts, err := managedServiceAcquisitionFactsWithSource(ctx, manifest, hostOS, hostArch, genericFacts)
 	if err != nil {
 		return binaryfetch.AcquisitionTarget{}, nil, fmt.Errorf("collect host facts for %s acquisition: %w", manifest.Name, err)
 	}
-	facts := acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts())
 	target, err := manifest.ManagedService.Acquisition.Resolve(facts)
 	if err != nil {
 		return target, facts, fmt.Errorf("resolve acquisition target for %s: %w", manifest.Name, err)
 	}
 	return target, facts, nil
+}
+
+// Target selection and post-acquisition sidecars share the same bounded fact
+// owner. A best-effort provenance write must not reintroduce hardware probes.
+func managedServiceAcquisitionFactsWithSource(ctx context.Context, manifest ResourceManifest, hostOS, hostArch string, genericFacts func(context.Context) (binaryfetch.Facts, error)) (binaryfetch.Facts, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if manifest.Name == openRGBResourceName && (hostOS == "darwin" || hostOS == "windows") {
+		for _, target := range manifest.ManagedService.Acquisition.Targets {
+			if !binaryfetch.UsesOnlyBuildTimeFacts(target) {
+				return nil, fmt.Errorf("native OpenRGB acquisition requires static OS/architecture profiles")
+			}
+		}
+		return binaryfetch.Facts{"os": hostOS, "arch": hostArch}, nil
+	}
+	return genericFacts(ctx)
+}
+
+func collectManagedServiceAcquisitionFacts(ctx context.Context) (binaryfetch.Facts, error) {
+	// Preserve Linux and other-resource accelerator/preference observations.
+	snapshot, err := hostinventory.CollectGPUFacts(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts()), nil
 }
 
 func acquisitionFactsWithOperatorPreference(ctx context.Context, facts binaryfetch.Facts) binaryfetch.Facts {
@@ -100,13 +128,83 @@ func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, m
 		}
 		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
 	}
+	choice, selected, err := controller.ManagedServiceSource(ctx, manifest.Name)
+	if err != nil {
+		return err
+	}
+	if manifest.ManagedService.SourceSelectionRequired && !selected {
+		return fmt.Errorf("resource %s requires an explicit source choice; run `vrooli resource source %s managed` or `vrooli resource source %s host`", manifest.Name, manifest.Name, manifest.Name)
+	}
+	if selected && choice.Mode == "host" {
+		path, pathErr := managedServiceArtifactPath(controller, manifest)
+		if pathErr != nil {
+			return pathErr
+		}
+		info, statErr := os.Stat(path)
+		if statErr != nil {
+			return fmt.Errorf("adopted %s executable is unavailable: %w", manifest.Name, statErr)
+		}
+		if !info.Mode().IsRegular() || runtime.GOOS != "windows" && info.Mode()&0o111 == 0 {
+			return fmt.Errorf("adopted %s executable is not a regular executable file", manifest.Name)
+		}
+		digest, digestErr := managedFileSHA256(path)
+		if digestErr != nil {
+			return digestErr
+		}
+		if digest != choice.SHA256 {
+			return fmt.Errorf("adopted %s executable changed after compatibility preflight; reselect it with `vrooli resource source %s host`", manifest.Name, manifest.Name)
+		}
+		if manifest.Name == openRGBResourceName {
+			if _, err := inspectOpenRGBAdoptedSource(ctx, path); err != nil {
+				return err
+			}
+			return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+		}
+
+		cmd := exec.CommandContext(ctx, path, "--version")
+		output, runErr := cmd.CombinedOutput()
+		if runErr != nil {
+			return fmt.Errorf("verify adopted %s version: %w: %s", manifest.Name, runErr, strings.TrimSpace(string(output)))
+		}
+		if !compatibleHostToolVersion(string(output), manifest.ManagedService.HostToolVersion) {
+			return fmt.Errorf("adopted %s executable no longer reports compatible version %s", manifest.Name, manifest.ManagedService.HostToolVersion)
+		}
+		return ensureManagedServiceDataArtifacts(ctx, controller, manifest)
+	}
+	if selected && choice.Mode != "managed" {
+		return fmt.Errorf("resource %s has unsupported source selection %q", manifest.Name, choice.Mode)
+	}
+	return ensureManagedServiceAcquiredArtifact(ctx, controller, manifest)
+}
+
+// Explicit staging bypasses the adopted-host branch entirely. A source change
+// may invalidate completion, but cannot redirect downloads or evaluate a host
+// executable under the managed acquisition lease.
+func ensureManagedServiceArtifactForStaging(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	if err := controller.requireManagedArtifactSource(ctx, manifest); err != nil {
+		return err
+	}
+	return ensureManagedServiceAcquiredArtifact(ctx, controller, manifest)
+}
+
+func ensureManagedServiceAcquiredArtifact(ctx context.Context, controller *Controller, manifest ResourceManifest) error {
+	if manifest.Name == openRGBResourceName {
+		if _, err := openRGBReleaseProfileForCurrentHost(); err != nil {
+			return err
+		}
+	}
 	release, err := artifactlock.AcquireContext(ctx, "resource:"+manifest.Name)
 	if err != nil {
 		return err
 	}
 	defer release()
 
-	path, err := managedServiceArtifactPath(controller, manifest)
+	var path string
+	if strings.EqualFold(manifest.ManagedService.Artifact.Verification, "host-tool") {
+		path, err = managedServiceArtifactPath(controller, manifest)
+	} else {
+		path, err = managedServiceArtifactStorePath(controller, manifest)
+	}
 	if err != nil {
 		return err
 	}
@@ -206,6 +304,16 @@ func ensureManagedServiceArtifact(ctx context.Context, controller *Controller, m
 				return err
 			}
 			spec.Authorization = auth
+			if size, bounded := managedServiceExactDownloadBytes(manifest, target); bounded {
+				if err := binaryfetch.DownloadExact(ctx, spec, candidate, size); err != nil {
+					return fmt.Errorf("acquire exact %s artifact: %w", manifest.Name, err)
+				}
+				permissions, err := strconv.ParseUint(mode, 8, 32)
+				if err != nil {
+					return err
+				}
+				return os.Chmod(candidate, os.FileMode(permissions))
+			}
 			if layout == managedServiceAcquisitionDir {
 				if _, err := binaryfetch.FetchDir(ctx, spec, candidate, nil); err != nil {
 					return fmt.Errorf("acquire %s artifact tree: %w", manifest.Name, err)
@@ -341,11 +449,10 @@ func replaceManagedServiceArtifact(candidate, destination string) error {
 // mismatch explainable. It is best-effort: the artifact is already staged and
 // verified, and a missing record only costs the better diagnosis later.
 func recordManagedServiceInstallFacts(ctx context.Context, manifest ResourceManifest, path string, target binaryfetch.AcquisitionTarget, artifact resourcedeployment.ServiceArtifact) {
-	snapshot, err := hostinventory.CollectGPUFacts(ctx)
+	facts, err := managedServiceAcquisitionFactsWithSource(ctx, manifest, runtime.GOOS, runtime.GOARCH, collectManagedServiceAcquisitionFacts)
 	if err != nil {
 		return
 	}
-	facts := acquisitionFactsWithOperatorPreference(ctx, snapshot.AcceleratorFacts())
 	_ = writeInstallFacts(path, manifest.Name, facts, target, artifact, time.Now())
 }
 
@@ -847,7 +954,20 @@ func managedServiceArtifactForTarget(manifest ResourceManifest, target binaryfet
 // this host right now. artifactPath is the staged artifact it will be compared
 // against; an empty path skips the fact-drift check, which is correct for a
 // caller that has no staged artifact to compare.
-func managedServiceArtifactForLaunch(ctx context.Context, manifest ResourceManifest, artifactPath string) (resourcedeployment.ServiceArtifact, error) {
+func managedServiceArtifactForLaunch(ctx context.Context, controller *Controller, manifest ResourceManifest, artifactPath string) (resourcedeployment.ServiceArtifact, error) {
+	if manifest.ManagedService.Acquisition != nil {
+		choice, selected, err := controller.ManagedServiceSource(ctx, manifest.Name)
+		if err != nil {
+			return resourcedeployment.ServiceArtifact{}, err
+		}
+		if selected && choice.Mode == "host" {
+			artifact := manifest.ManagedService.Artifact
+			artifact.Verification = "host-tool"
+			artifact.SHA256 = choice.SHA256
+			artifact.SHA256ByPlatform = nil
+			return artifact, nil
+		}
+	}
 	if manifest.ManagedService.Acquisition == nil {
 		return managedServiceArtifactForTarget(manifest, binaryfetch.AcquisitionTarget{})
 	}

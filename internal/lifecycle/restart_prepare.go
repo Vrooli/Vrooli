@@ -87,6 +87,12 @@ func (r *Runner) prepareRestartBeforeStop(name string, opts *StartOptions) error
 }
 
 func (r *Runner) prepareReplacementArtifacts(ctx context.Context, item scenario.Scenario, view registryRuntimeView, force bool, operation string) error {
+	if item.RetainedReleaseID != "" {
+		if force {
+			return fmt.Errorf("retained runtime cannot be rebuilt; select source explicitly first")
+		}
+		return nil
+	}
 	env := envFromRuntimeView(item.Manifest, view)
 	if operation == "" {
 		operation = "stage"

@@ -584,7 +584,11 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadResourceEnvironment(fixturecli): %v", err)
 	}
-	if got := fixtureEnv["FIXTURECLI_DATA_PATH"]; got != filepath.Join(home, ".local", "share", "vrooli", "resources", "fixturecli", "data") {
+	fixturePaths, err := resourceStoragePaths("fixturecli")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fixtureEnv["FIXTURECLI_DATA_PATH"]; got != filepath.Join(fixturePaths.DataDir, "data") {
 		t.Fatalf("FIXTURECLI_DATA_PATH = %q", got)
 	}
 
@@ -661,22 +665,26 @@ func TestLoadResourceEnvironmentSupportsNativeNonDockerContracts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadResourceEnvironment(opencode): %v", err)
 	}
-	if got := opencodeEnv["OPENCODE_DATA_DIR"]; got != filepath.Join(home, ".local", "share", "vrooli", "resources", "opencode") {
+	opencodePaths, err := resourceStoragePaths("opencode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := opencodeEnv["OPENCODE_DATA_DIR"]; got != opencodePaths.DataDir {
 		t.Fatalf("OPENCODE_DATA_DIR = %q", got)
 	}
-	if got := opencodeEnv["OPENCODE_CONFIG_DIR"]; got != filepath.Join(home, ".config", "vrooli", "resources", "opencode") {
+	if got := opencodeEnv["OPENCODE_CONFIG_DIR"]; got != opencodePaths.ConfigDir {
 		t.Fatalf("OPENCODE_CONFIG_DIR = %q", got)
 	}
-	if got := opencodeEnv["OPENCODE_CACHE_DIR"]; got != filepath.Join(home, ".cache", "vrooli", "resources", "opencode") {
+	if got := opencodeEnv["OPENCODE_CACHE_DIR"]; got != opencodePaths.CacheDir {
 		t.Fatalf("OPENCODE_CACHE_DIR = %q", got)
 	}
-	if got := opencodeEnv["OPENCODE_LOG_DIR"]; got != filepath.Join(home, ".local", "state", "logs", "vrooli", "resources", "opencode") {
+	if got := opencodeEnv["OPENCODE_LOG_DIR"]; got != opencodePaths.LogsDir {
 		t.Fatalf("OPENCODE_LOG_DIR = %q", got)
 	}
-	if got := opencodeEnv["OPENCODE_STATE_DIR"]; got != filepath.Join(home, ".local", "state", "vrooli", "resources", "opencode") {
+	if got := opencodeEnv["OPENCODE_STATE_DIR"]; got != opencodePaths.StateDir {
 		t.Fatalf("OPENCODE_STATE_DIR = %q", got)
 	}
-	if got := opencodeEnv["OPENCODE_XDG_DATA_HOME"]; got != filepath.Join(home, ".local", "share", "vrooli", "resources", "opencode", "xdg-data") {
+	if got := opencodeEnv["OPENCODE_XDG_DATA_HOME"]; got != filepath.Join(opencodePaths.DataDir, "xdg-data") {
 		t.Fatalf("OPENCODE_XDG_DATA_HOME = %q", got)
 	}
 }
@@ -790,7 +798,11 @@ func TestActualNonDockerResourceManifestsResolveNativeExports(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadResourceEnvironment(opencode): %v", err)
 	}
-	if got := opencodeEnv["OPENCODE_XDG_CONFIG_HOME"]; got != filepath.Join(home, ".config", "vrooli", "resources", "opencode", "xdg-config") {
+	opencodePaths, err := resourceStoragePaths("opencode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := opencodeEnv["OPENCODE_XDG_CONFIG_HOME"]; got != filepath.Join(opencodePaths.ConfigDir, "xdg-config") {
 		t.Fatalf("OPENCODE_XDG_CONFIG_HOME = %q", got)
 	}
 }

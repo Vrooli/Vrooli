@@ -389,3 +389,147 @@ func TestAttachedRunProofCorrelatesExactLeaseAndProcess(t *testing.T) {
 		})
 	}
 }
+
+type attachedProofLeaseLookupFunc func(context.Context, string) (scenarioruntime.EditorLease, error)
+
+func (f attachedProofLeaseLookupFunc) GetEditorLease(ctx context.Context, id string) (scenarioruntime.EditorLease, error) {
+	return f(ctx, id)
+}
+
+func TestAttachedRunProofFailsClosedDuringLeaseSelection(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		lookupErr error
+		mismatch  bool
+		cancel    bool
+		wantErr   string
+	}{
+		{name: "unavailable registry", lookupErr: errors.New("registry unavailable"), wantErr: "lease_unavailable"},
+		{name: "canonical row mismatch", mismatch: true, wantErr: "lease_identity_mismatch"},
+		{name: "canceled during canonical read", cancel: true, wantErr: "proof_cancelled"},
+		{name: "canceled canonical missing cannot fall back", lookupErr: scenarioruntime.ErrNotFound, cancel: true, wantErr: "proof_cancelled"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			deps, reader, _, _ := proofFixture()
+			lease := reader.leases[0]
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			calls := 0
+			deps.lease = attachedProofLeaseLookupFunc(func(_ context.Context, key string) (scenarioruntime.EditorLease, error) {
+				calls++
+				if key != proofHarnessSessionID {
+					t.Fatalf("invalid canonical lookup fell back to %q", key)
+				}
+				if tc.cancel {
+					cancel()
+				}
+				if tc.mismatch {
+					lease.SessionID = proofRunID
+				}
+				return lease, tc.lookupErr
+			})
+			_, err := proveAgentRunBinding(ctx, deps, proofRunID, proofHarnessSessionID, proofWCID, "codex", lease.PID)
+			if err == nil || err.Error() != tc.wantErr || calls != 1 {
+				t.Fatalf("error=%v calls=%d, want %s and one exact read", err, calls, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestAttachedRunProofRetainsFinalLeaseReread(t *testing.T) {
+	deps, reader, _, _ := proofFixture()
+	lease := reader.leases[0]
+	calls := 0
+	deps.lease = attachedProofLeaseLookupFunc(func(_ context.Context, key string) (scenarioruntime.EditorLease, error) {
+		calls++
+		if key != proofHarnessSessionID {
+			t.Fatalf("read unrelated lease %q", key)
+		}
+		result := lease
+		if calls == 3 {
+			result.Owner.Source = agentsession.SourceBackfill
+		}
+		return result, nil
+	})
+	_, err := proveAgentRunBinding(context.Background(), deps, proofRunID, proofHarnessSessionID, proofWCID, "codex", lease.PID)
+	if err == nil || err.Error() != "lease_changed_during_proof" || calls != 3 {
+		t.Fatalf("error=%v calls=%d, want final reread to reject changed lease", err, calls)
+	}
+}
+
+func TestAttachedRunProofRevalidatesCanonicalSelectionAfterProcessProof(t *testing.T) {
+	for _, tc := range []struct {
+		name                 string
+		legacy               bool
+		canonicalAppears     bool
+		finalBindingChanges  bool
+		finalLookupFails     bool
+		cancelFinalSelection bool
+		wantErr              string
+		wantCalls            int
+	}{
+		{name: "unchanged canonical remains accepted", wantCalls: 4},
+		{name: "unchanged legacy remains accepted", legacy: true, wantCalls: 6},
+		{name: "conflicting canonical appears during legacy proof", legacy: true, canonicalAppears: true, wantErr: "lease_changed_during_proof", wantCalls: 5},
+		{name: "canonical binding changes after nested reread", finalBindingChanges: true, wantErr: "lease_changed_during_proof", wantCalls: 4},
+		{name: "legacy binding changes after nested reread", legacy: true, finalBindingChanges: true, wantErr: "lease_changed_during_proof", wantCalls: 6},
+		{name: "final canonical lookup unavailable", legacy: true, finalLookupFails: true, wantErr: "lease_changed_during_proof", wantCalls: 5},
+		{name: "canceled final canonical selection", cancelFinalSelection: true, wantErr: "proof_cancelled", wantCalls: 4},
+		{name: "canceled final legacy selection cannot fall back", legacy: true, cancelFinalSelection: true, wantErr: "proof_cancelled", wantCalls: 5},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			deps, reader, _, _ := proofFixture()
+			lease := reader.leases[0]
+			if tc.legacy {
+				lease.SessionID = proofRunID
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			finalCanonicalRead := 4
+			if tc.legacy {
+				finalCanonicalRead = 5
+			}
+			var selectors []string
+			deps.lease = attachedProofLeaseLookupFunc(func(_ context.Context, key string) (scenarioruntime.EditorLease, error) {
+				selectors = append(selectors, key)
+				finalSelection := len(selectors) >= finalCanonicalRead
+				if finalSelection && key == proofHarnessSessionID {
+					if tc.cancelFinalSelection {
+						cancel()
+					}
+					if tc.finalLookupFails {
+						return scenarioruntime.EditorLease{}, errors.New("registry unavailable")
+					}
+				}
+				if tc.legacy && key == proofHarnessSessionID {
+					if finalSelection && tc.canonicalAppears {
+						conflict := lease
+						conflict.SessionID = proofHarnessSessionID
+						conflict.PID++
+						return conflict, nil
+					}
+					return scenarioruntime.EditorLease{}, scenarioruntime.ErrNotFound
+				}
+				if key != lease.SessionID {
+					t.Fatalf("unexpected exact lease key %q", key)
+				}
+				result := lease
+				if finalSelection && tc.finalBindingChanges {
+					result.Owner.Ref = "different-owner"
+				}
+				return result, nil
+			})
+			proof, err := proveAgentRunBinding(ctx, deps, proofRunID, proofHarnessSessionID, proofWCID, "codex", lease.PID)
+			if tc.wantErr != "" {
+				if err == nil || err.Error() != tc.wantErr {
+					t.Fatalf("proof=%+v error=%v, want %s", proof, err, tc.wantErr)
+				}
+			} else if err != nil || proof.HarnessSessionID != proofHarnessSessionID || proof.LeaseSessionID != lease.SessionID || proof.Binding.PID != lease.PID {
+				t.Fatalf("unchanged binding rejected or changed: proof=%+v error=%v", proof, err)
+			}
+			if len(selectors) != tc.wantCalls || selectors[finalCanonicalRead-1] != proofHarnessSessionID {
+				t.Fatalf("read keys=%q, want %d reads with fresh canonical selection at read %d", selectors, tc.wantCalls, finalCanonicalRead)
+			}
+		})
+	}
+}

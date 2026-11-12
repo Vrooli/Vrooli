@@ -1,0 +1,45 @@
+{
+  "version": "5467fd1237391e8b76625c0fd6fad3285d7ff930",
+  "inputs": [
+    {
+      "name": "mediatek-mt7927-dkms.tar.gz",
+      "url": "https://codeload.github.com/jetm/mediatek-mt7927-dkms/tar.gz/5467fd1237391e8b76625c0fd6fad3285d7ff930",
+      "sha256": "d7a306e8bde0264fc6ec6deaec8db489c50f19458ee5740e236ec52c0998f8a6",
+      "bytes": 95418,
+      "provenance": "Backport v2.17-2, archive PAX commit matches the selected commit and its reconstructed Git tree matches GitHub tree 9fae255b35ab9e8d33bd9d10005659bdbc6e063f. Archive SHA-256 measured by Vrooli.",
+      "license": "GPL-2.0-only"
+    },
+    {
+      "name": "linux-7.3.tar.xz",
+      "url": "https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-7.3.tar.xz",
+      "sha256": "87363c24f10e06321eb362765521094e94471f6bff8bce2d6b3e40f39f004953",
+      "bytes": 162399360,
+      "provenance": "Kernel.org v7.x sha256sums.asc, also pinned by the backport PKGBUILD at the selected commit.",
+      "license": "GPL-2.0-only WITH Linux-syscall-note"
+    },
+    {
+      "name": "WIFI_MT6639_PATCH_MCU_2_1_hdr.bin",
+      "url": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/69e51bb26f3fa3e118dd770f1962a93bed690dc1/mediatek/mt7927/WIFI_MT6639_PATCH_MCU_2_1_hdr.bin",
+      "sha256": "7a5aacf68ed8526c1d94ba962f84046496b3909562decf8bb690cfbd8de5b65e",
+      "bytes": 297120,
+      "provenance": "linux-firmware GitLab file metadata at the pinned commit, content commit 238e3a14b64bb43814cc338ced682134d6ea33d6.",
+      "license": "LICENCE.mediatek"
+    },
+    {
+      "name": "WIFI_RAM_CODE_MT6639_2_1.bin",
+      "url": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/69e51bb26f3fa3e118dd770f1962a93bed690dc1/mediatek/mt7927/WIFI_RAM_CODE_MT6639_2_1.bin",
+      "sha256": "e841f5ed4fe547ff2f15275a2f330bb19a253db92e3e59cbdfd8581d72b2582d",
+      "bytes": 1596792,
+      "provenance": "linux-firmware GitLab file metadata at the pinned commit, content commit 238e3a14b64bb43814cc338ced682134d6ea33d6.",
+      "license": "LICENCE.mediatek"
+    },
+    {
+      "name": "LICENCE.mediatek",
+      "url": "https://gitlab.com/kernel-firmware/linux-firmware/-/raw/69e51bb26f3fa3e118dd770f1962a93bed690dc1/LICENSES/LICENCE.mediatek",
+      "sha256": "a90d3f66704d85889945fec5525ea77622549da83aced1aac99828383f8f1805",
+      "bytes": 561,
+      "provenance": "linux-firmware WHENCE associates both selected Wi-Fi files with this MediaTek use and redistribution license.",
+      "license": "LICENCE.mediatek"
+    }
+  ]
+}

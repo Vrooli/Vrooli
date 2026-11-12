@@ -27,13 +27,15 @@ type ExecutorScopeRequest struct {
 }
 
 type ExecutorScopeRef struct {
-	RunID     string     `json:"runId"`
-	Tag       string     `json:"tag"`
-	LegacyTag string     `json:"legacyTag"`
-	PID       int        `json:"pid"`
-	PGID      int        `json:"pgid"`
-	StartedAt *time.Time `json:"startedAt,omitempty"`
-	EndedAt   *time.Time `json:"endedAt,omitempty"`
+	RunID            string     `json:"runId"`
+	HarnessSessionID string     `json:"harnessSessionId,omitempty"`
+	HarnessKind      string     `json:"harnessKind,omitempty"`
+	Tag              string     `json:"tag"`
+	LegacyTag        string     `json:"legacyTag"`
+	PID              int        `json:"pid"`
+	PGID             int        `json:"pgid"`
+	StartedAt        *time.Time `json:"startedAt,omitempty"`
+	EndedAt          *time.Time `json:"endedAt,omitempty"`
 }
 
 type ExecutorScopeEvidence struct {
@@ -44,9 +46,10 @@ type ExecutorScopeEvidence struct {
 }
 
 type ExecutorScopeReport struct {
-	SchemaVersion string                  `json:"schemaVersion"`
-	Complete      bool                    `json:"complete"`
-	Executors     []ExecutorScopeEvidence `json:"executors"`
+	IdentityVersion string                  `json:"identityVersion"`
+	SchemaVersion   string                  `json:"schemaVersion"`
+	Complete        bool                    `json:"complete"`
+	Executors       []ExecutorScopeEvidence `json:"executors"`
 }
 
 // Only these labels survive reading a process environment. In particular no
@@ -58,11 +61,11 @@ type scopeIdentity struct {
 }
 
 var (
-	scopeProcessTable       = listProcessTableContext
-	scopeReadIdentity       = readScopeIdentity
-	scopeProcessBirths      = (supervision.NativeProcessTableSource{}).ProcessesContext
-	scopeEditorLeases       = listScopeEditorLeases
-	scopeEditorScopeMembers = func(unit string) ([]int, error) {
+	scopeProcessTable        = listProcessTableContext
+	scopeReadIdentity        = readScopeIdentity
+	scopeProcessBirths       = (supervision.NativeProcessTableSource{}).ProcessesContext
+	scopeEditorLeaseBindings = listScopeEditorLeaseBindings
+	scopeEditorScopeMembers  = func(unit string) ([]int, error) {
 		return agentsession.NewHostFacts().ScopeMembers(unit)
 	}
 	scopeSessionCgroupPath    = agentsession.ScopeCgroupPath
@@ -114,7 +117,11 @@ const (
 	ExecutorScopeMaxReferences = 65536
 	ExecutorScopeMaxBytes      = 32 << 20
 	ExecutorScopeTimeout       = 4 * time.Second
-	executorScopeSampleBudget  = 65536
+
+	// Older v1 readers silently ignore unknown request fields. The consumer
+	// requires this version before trusting immutable attached-key evidence.
+	ExecutorScopeIdentityVersion = "attached-key-v1"
+	executorScopeSampleBudget    = 65536
 )
 
 // Index only requested identities. Samples are bounded independently of host
@@ -172,7 +179,7 @@ func indexExecutorScopes(ctx context.Context, refs []ExecutorScopeRef, entries m
 }
 
 func (c *Controller) ExecutorScope(parent context.Context, req ExecutorScopeRequest) (ExecutorScopeReport, error) {
-	report := ExecutorScopeReport{SchemaVersion: "executor-scope-v1", Complete: true, Executors: []ExecutorScopeEvidence{}}
+	report := ExecutorScopeReport{SchemaVersion: "executor-scope-v1", IdentityVersion: ExecutorScopeIdentityVersion, Complete: true, Executors: []ExecutorScopeEvidence{}}
 	if len(req.Executors) < 1 || len(req.Executors) > ExecutorScopeMaxReferences {
 		return report, fmt.Errorf("executor-scope requires 1..%d executors", ExecutorScopeMaxReferences)
 	}
@@ -184,6 +191,13 @@ func (c *Controller) ExecutorScope(parent context.Context, req ExecutorScopeRequ
 		if strings.TrimSpace(ref.RunID) == "" || ref.Tag == "" || ref.LegacyTag == "" || ref.PID < 0 || ref.PGID < 0 ||
 			len(ref.RunID) > 128 || len(ref.Tag) > 256 || len(ref.LegacyTag) > 256 || seen[ref.RunID] {
 			return report, fmt.Errorf("executor-scope requires unique runId, current and legacy tags, and nonnegative pid/pgid")
+		}
+		if ref.HarnessSessionID != "" || ref.HarnessKind != "" {
+			if strings.TrimSpace(ref.HarnessSessionID) == "" || strings.TrimSpace(ref.HarnessKind) == "" ||
+				strings.TrimSpace(ref.HarnessSessionID) != ref.HarnessSessionID || strings.TrimSpace(ref.HarnessKind) != ref.HarnessKind ||
+				len(ref.HarnessSessionID) > 512 || len(ref.HarnessKind) > 100 || ref.PID <= 1 {
+				return report, fmt.Errorf("executor-scope attached identity requires an exact harnessSessionId, harnessKind, and persisted pid")
+			}
 		}
 		seen[ref.RunID] = true
 		if ref.StartedAt != nil && ref.EndedAt != nil && ref.EndedAt.Before(*ref.StartedAt) {
@@ -251,7 +265,7 @@ func (c *Controller) ExecutorScope(parent context.Context, req ExecutorScopeRequ
 			evidence.PIDs = append(evidence.PIDs, pid)
 		} else if attachedUncertain[ref.RunID] {
 			evidence.State = "unknown"
-			evidence.Reasons = append(evidence.Reasons, "matching active attached-session lease lacks current process/scope proof")
+			evidence.Reasons = append(evidence.Reasons, "attached-session binding lacks current process/scope proof")
 		} else if attachedErr != nil {
 			evidence.State = "unknown"
 			evidence.Reasons = append(evidence.Reasons, attachedErr.Error())
@@ -314,25 +328,55 @@ func (c *Controller) attachedExecutorLeases(ctx context.Context, refs []Executor
 	if bootID == "" {
 		return matched, uncertain, reasons, fmt.Errorf("attached executor host boot identity unavailable")
 	}
-	leases, err := scopeEditorLeases(ctx, c.Home)
+	keys := make([]string, 0, 2*len(refs))
+	for _, ref := range refs {
+		keys = append(keys, ref.RunID)
+		if ref.HarnessSessionID != "" {
+			keys = append(keys, ref.HarnessSessionID)
+		}
+	}
+	leases, err := scopeEditorLeaseBindings(ctx, c.Home, keys)
 	if err != nil {
 		return matched, uncertain, reasons, fmt.Errorf("attached executor lease registry unavailable")
 	}
-	refsByRun := make(map[string]ExecutorScopeRef, len(refs))
-	for _, ref := range refs {
-		refsByRun[ref.RunID] = ref
-	}
+	// Preserve one bounded registry snapshot for the whole inventory, but join
+	// each attached run by its immutable launcher key. Only a missing canonical
+	// key permits the older run-ID key; conflicting canonical rows never do.
+	bySession := scopeLeaseSnapshot{}
 	for _, lease := range leases {
+		bySession[lease.SessionID] = append(bySession[lease.SessionID], lease)
+	}
+	for _, ref := range refs {
 		if err := ctx.Err(); err != nil {
 			return matched, uncertain, reasons, fmt.Errorf("attached executor observation deadline or cancellation")
 		}
-		ref, requested := refsByRun[lease.SessionID]
-		if !requested || lease.Status != scenarioruntime.EditorLeaseActive {
+		lease, lookupErr := scenarioruntime.ResolveAttachedEditorLease(ctx, bySession, ref.RunID, ref.HarnessSessionID)
+		anchored := ref.HarnessSessionID != ""
+		if lookupErr != nil {
+			if !anchored && errors.Is(lookupErr, scenarioruntime.ErrNotFound) {
+				continue // No legacy lease; retain the independent process proof.
+			}
+			uncertain[ref.RunID] = true
+			reasons[ref.RunID] = "attached-session exact lease identity could not be resolved"
+			continue
+		}
+		if !anchored && lease.Status != scenarioruntime.EditorLeaseActive {
 			continue
 		}
 		uncertain[ref.RunID] = true
+		if anchored && (lease.PID != ref.PID || lease.Harness != ref.HarnessKind) {
+			reasons[ref.RunID] = "attached-session lease conflicts with persisted PID or harness identity"
+			continue
+		}
 		if lease.HostBootID != "" && lease.HostBootID != bootID {
-			delete(uncertain, ref.RunID) // the lease belongs to a prior host boot
+			// The old boot cannot still hold a process. Re-resolve the exact
+			// binding before excluding it, retaining all independent process
+			// evidence and refusing a concurrent canonical-key registration.
+			if c.scopeLeaseBindingCurrent(ctx, ref, lease) {
+				delete(uncertain, ref.RunID)
+			} else {
+				reasons[ref.RunID] = "attached-session lease changed during prior-boot proof"
+			}
 			continue
 		}
 		if lease.HostBootID == "" || lease.PID <= 0 || lease.Scope == "" {
@@ -343,6 +387,14 @@ func (c *Controller) attachedExecutorLeases(ctx context.Context, refs []Executor
 		identity := identities[lease.PID]
 		birth, stable := stableScopeBirth(lease.PID, before, after)
 		if !exists || strings.HasPrefix(entry.State, "Z") {
+			if anchored {
+				// Launchers historically wrote the planned scope before trying
+				// best-effort containment. A missing scope cannot establish that
+				// this executor or its descendants ever occupied it. Do not widen
+				// the legacy exclusion policy to these newly resolved identities.
+				reasons[ref.RunID] = "attached-session leader is gone but established containment provenance is unavailable"
+				continue
+			}
 			session := agentsession.Session{Scope: lease.Scope}
 			unit := session.ScopeUnit()
 			if unit == "" || !agentscope.IsSessionScope(unit) {
@@ -358,13 +410,7 @@ func (c *Controller) attachedExecutorLeases(ctx context.Context, refs []Executor
 				// Reattach refreshes the exact SessionID lease in place. Re-read
 				// that row after the native proof so an old PID/scope snapshot
 				// cannot classify a newer attached executor as absent.
-				current, readErr := scopeEditorLeaseBySession(ctx, c.Home, lease.SessionID)
-				if readErr != nil {
-					reasons[ref.RunID] = "attached-session lease could not be revalidated after native scope proof"
-					continue
-				}
-				if current.SessionID != lease.SessionID || current.Status != scenarioruntime.EditorLeaseActive ||
-					current.PID != lease.PID || current.HostBootID != lease.HostBootID || current.Scope != lease.Scope {
+				if !c.scopeLeaseBindingCurrent(ctx, ref, lease) {
 					reasons[ref.RunID] = "attached-session lease changed during native scope proof"
 					continue
 				}
@@ -402,13 +448,67 @@ func (c *Controller) attachedExecutorLeases(ctx context.Context, refs []Executor
 			return matched, uncertain, reasons, fmt.Errorf("attached executor native scope membership unavailable")
 		}
 		if slices.Contains(members, lease.PID) {
+			// Native membership and a list snapshot are not enough if a launcher
+			// rebinds the session during the observation. Revalidate the exact
+			// selected key, including its owner, after the native proof.
+			if !c.scopeLeaseBindingCurrent(ctx, ref, lease) {
+				reasons[ref.RunID] = "attached-session lease changed or became unavailable during native scope proof"
+				continue
+			}
 			matched[ref.RunID] = lease.PID
 			delete(uncertain, ref.RunID)
 		} else {
 			reasons[ref.RunID] = "leased PID is not a member of the recorded native session scope"
 		}
 	}
+	if len(matched) > 0 {
+		// A PID may be reused after the batched process read but during native
+		// scope inspection. One final batched birth read closes that interval
+		// without an unbounded host scan per attached run.
+		finalBirths, finalErr := scopeProcessBirths(ctx)
+		for runID, pid := range matched {
+			if _, stable := stableScopeBirth(pid, after, finalBirths); finalErr != nil || !stable {
+				delete(matched, runID)
+				uncertain[runID] = true
+				reasons[runID] = "leased PID birth changed or became unavailable during native scope proof"
+			}
+		}
+	}
 	return matched, uncertain, reasons, nil
+}
+
+type scopeLeaseReader func(context.Context, string) (scenarioruntime.EditorLease, error)
+
+func (r scopeLeaseReader) GetEditorLease(ctx context.Context, key string) (scenarioruntime.EditorLease, error) {
+	return r(ctx, key)
+}
+
+func (c *Controller) scopeLeaseBindingCurrent(ctx context.Context, ref ExecutorScopeRef, selected scenarioruntime.EditorLease) bool {
+	reader := scopeLeaseReader(func(ctx context.Context, key string) (scenarioruntime.EditorLease, error) {
+		return scopeEditorLeaseBySession(ctx, c.Home, key)
+	})
+	// Re-resolve, rather than rereading only the previously selected legacy
+	// row: a newly created canonical row must not be bypassed mid-proof.
+	current, err := scenarioruntime.ResolveAttachedEditorLease(ctx, reader, ref.RunID, ref.HarnessSessionID)
+	return err == nil && scenarioruntime.EditorLeaseBindingEqual(current, selected)
+}
+
+// scopeLeaseSnapshot is an exact-key adapter for the shared canonical/legacy
+// selector. Duplicate rows are conflicting evidence, never a last-writer win.
+type scopeLeaseSnapshot map[string][]scenarioruntime.EditorLease
+
+func (s scopeLeaseSnapshot) GetEditorLease(ctx context.Context, sessionID string) (scenarioruntime.EditorLease, error) {
+	if err := ctx.Err(); err != nil {
+		return scenarioruntime.EditorLease{}, err
+	}
+	rows := s[sessionID]
+	if len(rows) == 0 {
+		return scenarioruntime.EditorLease{}, scenarioruntime.ErrNotFound
+	}
+	if len(rows) != 1 {
+		return scenarioruntime.EditorLease{}, fmt.Errorf("duplicate attached-session lease identity")
+	}
+	return rows[0], nil
 }
 
 func getScopeEditorLeaseBySession(ctx context.Context, home, sessionID string) (scenarioruntime.EditorLease, error) {
@@ -427,7 +527,7 @@ func getScopeEditorLeaseBySession(ctx context.Context, home, sessionID string) (
 	return store.GetEditorLease(ctx, sessionID)
 }
 
-func listScopeEditorLeases(ctx context.Context, home string) ([]scenarioruntime.EditorLease, error) {
+func listScopeEditorLeaseBindings(ctx context.Context, home string, keys []string) ([]scenarioruntime.EditorLease, error) {
 	path, err := scenarioruntime.DefaultDBPath(home)
 	if err != nil {
 		return nil, err
@@ -440,7 +540,7 @@ func listScopeEditorLeases(ctx context.Context, home string) ([]scenarioruntime.
 		return nil, err
 	}
 	defer store.Close()
-	return store.ListEditorLeases(ctx, false)
+	return store.GetEditorLeaseBindings(ctx, keys)
 }
 
 // Reuse the maintenance process table and platform process handles, not a

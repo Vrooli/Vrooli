@@ -188,11 +188,11 @@ func gpuFreeHeadroom(snapshot hostinventory.Snapshot, ledger []CapacityClaim, gp
 		}
 		committed += c.AmountBytes
 	}
-	used := int64(gpu.VRAMUsedBytes)
+	used := int64(gpu.DedicatedVRAMUsedBytes())
 	if committed > used {
 		used = committed
 	}
-	free := int64(gpu.VRAMBytes) - used
+	free := int64(gpu.DedicatedVRAMBytes()) - used
 	if free < 0 {
 		free = 0
 	}

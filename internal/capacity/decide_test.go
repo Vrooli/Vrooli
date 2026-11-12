@@ -294,3 +294,33 @@ func TestDecideCannotReclaimAnotherGPU(t *testing.T) {
 		t.Fatalf("wrong-GPU reclaim changed verdict: %+v", got)
 	}
 }
+
+// Old shared inventory caches may contain the retired RAM/2 estimate. Neither
+// admission nor recovery may turn that value into dedicated GPU capacity.
+func TestLegacyUnifiedMemoryCannotFundVRAMAdmissionOrUpshift(t *testing.T) {
+	snapshot := snapshotWith(16, 1)
+	snapshot.GPUs[0].Source = hostinventory.SourceDarwinUnifiedMemory
+	verdict := Decide(vramReq(4, 1, PriorityBatch), snapshot, nil, DefaultPolicy(), time.Now())
+	if verdict.Kind == VerdictGrant || verdict.GrantedBytes > 0 {
+		t.Fatalf("fabricated unified-memory estimate funded a VRAM grant: %+v", verdict)
+	}
+	if headroom := gpuFreeHeadroom(snapshot, nil, 0); headroom != 0 {
+		t.Fatalf("fabricated unified-memory estimate funded upshift headroom: %d", headroom)
+	}
+}
+
+func TestMeasuredDedicatedVRAMStillFundsAdmissionAndUpshift(t *testing.T) {
+	for _, source := range []string{hostinventory.SourceNvidiaSMI, hostinventory.SourceROCmSMI, hostinventory.SourceSystemProfiler} {
+		t.Run(source, func(t *testing.T) {
+			snapshot := snapshotWith(16, 1)
+			snapshot.GPUs[0].Source = source
+			verdict := Decide(vramReq(4, 1, PriorityBatch), snapshot, nil, DefaultPolicy(), time.Now())
+			if verdict.Kind != VerdictGrant || verdict.GrantedBytes != 4*gib {
+				t.Fatalf("measured memory grant = %+v", verdict)
+			}
+			if headroom := gpuFreeHeadroom(snapshot, nil, 0); headroom != 15*gib {
+				t.Fatalf("measured headroom = %d", headroom)
+			}
+		})
+	}
+}

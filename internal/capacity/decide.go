@@ -184,7 +184,7 @@ func resolveCapacity(req CapacityRequest, snapshot hostinventory.Snapshot) (tota
 		if !found {
 			return 0, 0, false, "no matching GPU available for vram request"
 		}
-		return int64(gpu.VRAMBytes), int64(gpu.VRAMUsedBytes), true, ""
+		return int64(gpu.DedicatedVRAMBytes()), int64(gpu.DedicatedVRAMUsedBytes()), true, ""
 	case ResourceKindRAM:
 		total = int64(snapshot.Memory.TotalBytes)
 		if total <= 0 {

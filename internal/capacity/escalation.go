@@ -9,10 +9,11 @@ import (
 // Escalation ladder rungs (plan §7 Phase 4). The broker climbs the ladder only
 // as far as needed and never past a rung the policy forbids.
 const (
-	ActionWarn           = "warn"            // surface an unclaimed/contended consumer; no action
-	ActionRequestDegrade = "request-degrade" // ask the adopter to step down its profile
-	ActionRequestUpshift = "request-upshift" // ask the adopter to step UP toward preferred when headroom frees
-	ActionPreempt        = "preempt"         // stop the owner (last rung, config-gated)
+	ActionWarn                   = "warn"                     // surface an unclaimed/contended consumer; no action
+	ActionRequestDegrade         = "request-degrade"          // ask the adopter to step down its profile
+	ActionRequestResidencyUnload = "request-residency-unload" // ask the owner to unload and release a verified residency claim
+	ActionRequestUpshift         = "request-upshift"          // ask the adopter to step UP toward preferred when headroom frees
+	ActionPreempt                = "preempt"                  // stop the owner (last rung, config-gated)
 )
 
 // EscalationAction is one planned step against a reclaim target.

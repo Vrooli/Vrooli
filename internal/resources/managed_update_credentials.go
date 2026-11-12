@@ -16,7 +16,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/credentialauthority"
 )
 
@@ -104,7 +103,7 @@ func newManagedUpdateCredentialStore(stateDir, operation string) (*managedUpdate
 		return nil, fmt.Errorf("invalid credential snapshot owner path")
 	}
 	return &managedUpdateCredentialStore{
-		dir: filepath.Join(stateDir, "managed-update-exec", operation, "credentials"), write: config.WriteOwnedFileDurable,
+		dir: filepath.Join(stateDir, "managed-update-exec", operation, "credentials"), write: writeResourceOwnedFileDurable,
 		resolve: func(ctx context.Context, item ManagedUpdateCredentialItem) (string, error) {
 			if err := ctx.Err(); err != nil {
 				return "", err
@@ -131,8 +130,11 @@ func readManagedUpdatePrivateFile(path string, limit int) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !info.Mode().IsRegular() || info.Mode().Perm()&0o077 != 0 || info.Size() > int64(limit) {
+	if !info.Mode().IsRegular() || info.Size() > int64(limit) {
 		return nil, fmt.Errorf("private update file has unsafe type, permissions or size")
+	}
+	if err := verifyManagedUpdatePrivatePath(path, info); err != nil {
+		return nil, err
 	}
 	file, err := os.Open(path)
 	if err != nil {
@@ -367,7 +369,7 @@ func materializeManagedUpdateCredentials(u ManagedServiceUpdate, c ManagedUpdate
 			return err
 		}
 		path := filepath.Join(values["RESOURCE_STATE_DIR"], filepath.FromSlash(declaration.Path))
-		if err := config.WriteOwnedFileDurable(path, append(value, '\n'), 0o600); err != nil {
+		if err := writeResourceOwnedFileDurable(path, append(value, '\n'), 0o600); err != nil {
 			return err
 		}
 	}

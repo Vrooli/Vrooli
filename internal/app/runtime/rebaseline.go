@@ -29,7 +29,8 @@ import (
 // candidate writes. It is an operator decision, and it composes the existing
 // owners in one governed sequence:
 //
-//  1. qualify the pair from the actual images (same runtime-home layout, only
+//  1. freeze the candidate into a private image, qualify the pair from the
+//     actual images (same runtime-home layout, only
 //     the state contract differs), build the watchdog from the same checkout
 //     and qualify it against the candidate, show the owner-level changes and
 //     ask for confirmation;
@@ -203,13 +204,28 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 	if err := e.guard(ctx, home); err != nil {
 		return result, err
 	}
-	if err := e.validateRole(request.Candidate); err != nil {
-		return result, fmt.Errorf("candidate is not a governed root CLI image: %w", err)
-	}
+	// The caller pins the original candidate to its source checkout. Freeze
+	// its bytes before qualification: another build may replace that path
+	// while the operator reads the prompt. All subsequent probes, explanations
+	// and installation use only this run's private copy.
 	candidateSHA, err := e.imageDigest(ctx, request.Candidate)
+	if err != nil {
+		return result, fmt.Errorf("observe candidate root CLI: %w", err)
+	}
+	work, err := os.MkdirTemp(transitionsDir(transitions), "work-")
 	if err != nil {
 		return result, err
 	}
+	defer os.RemoveAll(work)
+	stagedCandidate := filepath.Join(work, "vrooli")
+	copiedSHA, err := retainRebaselineFile(request.Candidate, stagedCandidate)
+	if err != nil {
+		return result, fmt.Errorf("snapshot candidate root CLI: %w", err)
+	}
+	if copiedSHA != candidateSHA {
+		return result, fmt.Errorf("candidate root CLI changed while preparing its private image: expected SHA-256 %s, observed %s; rebuild and retry", candidateSHA, copiedSHA)
+	}
+	request.Candidate = stagedCandidate
 	servingSHA, err := e.imageDigest(ctx, layout.Executable)
 	if err != nil {
 		return result, fmt.Errorf("observe serving root CLI: %w", err)
@@ -219,16 +235,20 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 	refuse := func(err error) (RebaselineResult, error) {
 		return result, fmt.Errorf("%w\n%s", err, e.enrollmentState(home, pausePath))
 	}
+	if err := e.validateRole(request.Candidate); err != nil {
+		return refuse(fmt.Errorf("candidate is not a governed root CLI image: %w", err))
+	}
+	if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
+		return refuse(err)
+	}
 	candidate, err := e.probeIdentity(ctx, request.Candidate)
 	if err != nil {
 		return refuse(fmt.Errorf("candidate root CLI identity: %w", err))
 	}
-	finishing := servingSHA == candidateSHA
-	work, err := os.MkdirTemp(transitionsDir(transitions), "work-")
-	if err != nil {
-		return result, err
+	if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
+		return refuse(err)
 	}
-	defer os.RemoveAll(work)
+	finishing := servingSHA == candidateSHA
 	// Build the watchdog from the same checkout as the candidate and qualify
 	// the pair before anything changes. The exact qualified bytes, bound by
 	// digest, are published after the root; the live tree is not consulted
@@ -260,6 +280,9 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 	if err != nil {
 		return refuse(err)
 	}
+	if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
+		return refuse(err)
+	}
 	fail := func(step string, cause error) (RebaselineResult, error) {
 		where := ""
 		if retained != "" {
@@ -281,12 +304,18 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 			if finishing {
 				return nil
 			}
+			if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
+				return err
+			}
 			if err := e.installRoot(request.Candidate, layout.Executable); err != nil {
 				return err
 			}
 			installed, err := e.imageDigest(ctx, layout.Executable)
-			if err != nil || installed != candidateSHA {
-				return fmt.Errorf("installed root CLI is not the candidate image")
+			if err != nil {
+				return fmt.Errorf("verify installed root CLI digest: %w", err)
+			}
+			if installed != candidateSHA {
+				return fmt.Errorf("installed root CLI is not the qualified candidate image: expected SHA-256 %s, observed %s", candidateSHA, installed)
 			}
 			return nil
 		}},
@@ -324,6 +353,17 @@ func (e rebaselineEffects) run(ctx context.Context, home string, request Rebasel
 	}
 	result.Build, result.Contract, result.RetainedDir, result.Finished = candidate.GetBuildIdentity(), candidate.GetPersistentStateContractSha256(), retained, finishing
 	return result, nil
+}
+
+func (e rebaselineEffects) verifyPrivateCandidate(ctx context.Context, path, expected string) error {
+	actual, err := e.imageDigest(ctx, path)
+	if err != nil {
+		return fmt.Errorf("verify private candidate image digest: %w", err)
+	}
+	if actual != expected {
+		return fmt.Errorf("private candidate image changed: expected SHA-256 %s, observed %s", expected, actual)
+	}
+	return nil
 }
 
 func transitionsDir(path string) string {
@@ -368,6 +408,9 @@ func (e rebaselineEffects) qualifyAndRetain(ctx context.Context, home string, la
 		CandidateSHA: candidateSHA, CandidateBuild: candidate.GetBuildIdentity(), CandidateContract: candidate.GetPersistentStateContractSha256(),
 		Changes: e.explain(ctx, layout.Executable, request.Candidate),
 	}
+	if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
+		return "", err
+	}
 	dir := filepath.Join(transitions, receipt.ID)
 	confirmed, err := request.Confirm(RebaselinePlan{ServingBuild: receipt.ServingBuild, ServingContract: receipt.ServingContract, CandidateBuild: receipt.CandidateBuild, CandidateContract: receipt.CandidateContract, Changes: receipt.Changes, RetainedDir: dir})
 	if err != nil {
@@ -375,6 +418,9 @@ func (e rebaselineEffects) qualifyAndRetain(ctx context.Context, home string, la
 	}
 	if !confirmed {
 		return "", fmt.Errorf("root rebaseline cancelled; nothing was changed")
+	}
+	if err := e.verifyPrivateCandidate(ctx, request.Candidate, candidateSHA); err != nil {
+		return "", err
 	}
 	if _, err := config.EnsureOwnedDir(dir); err != nil {
 		return "", err
@@ -484,14 +530,15 @@ func (e rebaselineEffects) enrollmentState(home, path string) string {
 	}
 }
 
-// retainRebaselineFile streams a bounded regular file into the retained
-// baseline and returns the digest of the bytes written.
+// retainRebaselineFile streams a bounded regular file into a private candidate
+// or retained baseline and returns the digest of the bytes durably written.
 func retainRebaselineFile(source, destination string) (string, error) {
+	const limit = 1 << 30
 	info, err := os.Lstat(source)
 	if err != nil {
 		return "", err
 	}
-	if !info.Mode().IsRegular() || info.Size() > 1<<30 {
+	if !info.Mode().IsRegular() || info.Size() > limit {
 		return "", fmt.Errorf("%s is not a bounded regular file", source)
 	}
 	in, err := os.Open(source)
@@ -499,20 +546,22 @@ func retainRebaselineFile(source, destination string) (string, error) {
 		return "", err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(destination+".partial", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o700)
-	if err != nil {
-		return "", err
+	opened, err := in.Stat()
+	if err != nil || !os.SameFile(info, opened) {
+		return "", fmt.Errorf("%s changed while opening", source)
 	}
-	hash := sha256.New()
-	_, copyErr := io.Copy(io.MultiWriter(out, hash), in)
-	syncErr := out.Sync()
-	closeErr := out.Close()
-	if err := errors.Join(copyErr, syncErr, closeErr); err != nil {
-		_ = os.Remove(destination + ".partial")
-		return "", err
-	}
-	if err := os.Rename(destination+".partial", destination); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	var digest string
+	err = config.WriteOwnedFileDurableStream(destination, 0o700, func(out io.Writer) error {
+		hash := sha256.New()
+		n, err := io.Copy(io.MultiWriter(out, hash), io.LimitReader(in, limit+1))
+		if err != nil {
+			return err
+		}
+		if n > limit {
+			return fmt.Errorf("%s exceeded the copy bound", source)
+		}
+		digest = hex.EncodeToString(hash.Sum(nil))
+		return nil
+	})
+	return digest, err
 }

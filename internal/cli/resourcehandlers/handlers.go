@@ -1,6 +1,7 @@
 package resourcehandlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"maps"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/vrooli/cli-core/upstreamcheck"
 	resourceapp "github.com/vrooli/vrooli/internal/app/resource"
+	runtimeapp "github.com/vrooli/vrooli/internal/app/runtime"
 	"github.com/vrooli/vrooli/internal/cli/commandtree"
 	"github.com/vrooli/vrooli/internal/cli/resourcecli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
@@ -21,6 +23,7 @@ import (
 	"github.com/vrooli/vrooli/internal/hostinventory"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
 	"github.com/vrooli/vrooli/internal/resources"
+	n8nresource "github.com/vrooli/vrooli/internal/resources/n8n"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 )
 
@@ -270,8 +273,176 @@ func buildResourceCommandTable[C any](deps rootcli.HandlerDeps[C]) []commandtree
 		resourcecli.CommandAcceleration: func(ctx C, controller *resources.Controller, args []string) error {
 			return runResourceSubcommandSet(ctx, controller, args, showResourceAccelerationHelp, "resource acceleration", buildResourceAccelerationCommandHandlers(deps), deps.Stdout)
 		},
+		resourcecli.CommandSource: func(ctx C, controller *resources.Controller, args []string) error {
+			if len(args) != 2 || strings.TrimSpace(args[0]) == "" {
+				return rootcli.UsageErrorf("resource source", "usage: vrooli resource source <resource> <managed|host>")
+			}
+			choice, err := controller.SetManagedServiceSource(rootcli.ResolveOperationContext(deps, ctx), strings.TrimSpace(args[0]), strings.TrimSpace(args[1]))
+			if err != nil {
+				return err
+			}
+			_, err = fmt.Fprintf(deps.Stdout(ctx), "Selected %s source for %s", choice.Mode, strings.TrimSpace(args[0]))
+			if choice.Mode == "host" {
+				_, _ = fmt.Fprintf(deps.Stdout(ctx), " (%s, version %s, sha256 %s)", choice.Executable, choice.Version, choice.SHA256)
+			}
+			if err == nil {
+				_, err = fmt.Fprintln(deps.Stdout(ctx))
+			}
+			return err
+		},
+		resourcecli.CommandN8N: func(ctx C, controller *resources.Controller, args []string) error {
+			return runResourceSubcommandSet(ctx, controller, args, showResourceN8NHelp, "resource n8n", buildResourceN8NCommandHandlers(deps), deps.Stdout)
+		},
 	}
 	return commandtree.BindSpecs(resourcecli.CommandSpecs(), handlerMap)
+}
+
+func buildResourceN8NCommandHandlers[C any](deps rootcli.HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+	return map[string]rootcli.ResourceHandler[C]{
+		"runtime": func(ctx C, controller *resources.Controller, args []string) error {
+			return runResourceSubcommandSet(ctx, controller, args, showResourceN8NRuntimeHelp, "resource n8n runtime", buildResourceN8NRuntimeHandlers(deps), deps.Stdout)
+		},
+	}
+}
+
+func buildResourceN8NRuntimeHandlers[C any](deps rootcli.HandlerDeps[C]) map[string]rootcli.ResourceHandler[C] {
+	items := map[resourcecli.N8NRuntimeCommandID]rootcli.ResourceHandler[C]{}
+	for _, spec := range resourcecli.N8NRuntimeCommandSpecs() {
+		action := spec.Handler
+		items[action] = resourceCommandWithFormat(deps, func(ctx C, controller *resources.Controller, args []string, format cliout.Format) error {
+			request, err := resourcecli.ParseN8NRuntimeRequest(action, args)
+			if err != nil {
+				return err
+			}
+			var workflowJSON []byte
+			var httpMockJSON []byte
+			var webhookEventJSON []byte
+			if action == resourcecli.N8NRuntimeImportWorkflow {
+				var input io.Reader
+				if deps.Stdin != nil {
+					input = deps.Stdin(ctx)
+				}
+				workflowJSON, err = resourcecli.ReadN8NWorkflowInput(input)
+				if err != nil {
+					return err
+				}
+			}
+			if action == resourcecli.N8NRuntimeCompanionStartHTTPMock {
+				var input io.Reader
+				if deps.Stdin != nil {
+					input = deps.Stdin(ctx)
+				}
+				httpMockJSON, err = resourcecli.ReadN8NHTTPMockInput(input)
+				if err != nil {
+					return err
+				}
+			}
+			if action == resourcecli.N8NRuntimeDispatchWebhookEvent {
+				var input io.Reader
+				if deps.Stdin != nil {
+					input = deps.Stdin(ctx)
+				}
+				webhookEventJSON, err = resourcecli.ReadN8NWebhookEventInput(input)
+				if err != nil {
+					return err
+				}
+			}
+			owner, err := newN8NResourceOwner(controller)
+			if err != nil {
+				return err
+			}
+			operationCtx := rootcli.ResolveOperationContext(deps, ctx)
+			var response any
+			switch action {
+			case resourcecli.N8NRuntimeAcquire:
+				response, err = owner.AcquireImage(operationCtx)
+			case resourcecli.N8NRuntimeStart:
+				response, err = owner.Start(operationCtx, request.SandboxID)
+			case resourcecli.N8NRuntimeStatus:
+				response, err = owner.Status(operationCtx, request.SandboxID)
+			case resourcecli.N8NRuntimeAttachCompanion:
+				response, err = owner.AttachCompanion(operationCtx, request.SandboxID, request.RuntimeID, request.CompanionRuntimeID)
+			case resourcecli.N8NRuntimeDetachCompanion:
+				response, err = owner.DetachCompanion(operationCtx, request.SandboxID, request.RuntimeID, request.CompanionRuntimeID)
+			case resourcecli.N8NRuntimeCompanionStart:
+				response, err = owner.StartSyntheticPostgres(operationCtx, request.SandboxID, request.CompanionName, request.ServiceVersion, request.Database)
+			case resourcecli.N8NRuntimeCompanionStop:
+				err = owner.StopSyntheticPostgres(operationCtx, request.SandboxID, request.CompanionRuntimeID)
+				response = map[string]string{"sandboxId": request.SandboxID, "companionRuntimeId": request.CompanionRuntimeID, "status": "stopped"}
+			case resourcecli.N8NRuntimeCompanionStartHTTPMock:
+				response, err = owner.StartHTTPMock(operationCtx, request.SandboxID, httpMockJSON)
+			case resourcecli.N8NRuntimeCompanionStopHTTPMock:
+				response, err = owner.StopHTTPMock(operationCtx, request.SandboxID, request.CompanionRuntimeID)
+			case resourcecli.N8NRuntimeStop:
+				response, err = owner.Stop(operationCtx, request.SandboxID, request.RuntimeID)
+			case resourcecli.N8NRuntimeImportWorkflow:
+				response, err = owner.ImportSyntheticWorkflow(operationCtx, request.SandboxID, request.RuntimeID, n8nresource.SyntheticWorkflowImport{
+					OperationID: request.OperationID, JSON: workflowJSON, PostgresCompanionRuntimeID: request.PostgresCompanionRuntimeID,
+				})
+			case resourcecli.N8NRuntimeExecuteWorkflow:
+				response, err = owner.ExecuteSyntheticWorkflow(operationCtx, request.SandboxID, request.RuntimeID, request.OperationID)
+			case resourcecli.N8NRuntimeExecuteManualWorkflow:
+				response, err = owner.ExecuteSyntheticManualWorkflow(operationCtx, request.SandboxID, request.RuntimeID, request.OperationID)
+			case resourcecli.N8NRuntimeDispatchWebhookEvent:
+				response, err = owner.DispatchSyntheticWebhook(operationCtx, request.SandboxID, request.RuntimeID, request.OperationID, webhookEventJSON)
+			default:
+				return fmt.Errorf("unsupported n8n runtime operation %q", action)
+			}
+			if err != nil {
+				return err
+			}
+			if action == resourcecli.N8NRuntimeCompanionStartHTTPMock || action == resourcecli.N8NRuntimeCompanionStopHTTPMock {
+				encoded, err := json.Marshal(response)
+				if err != nil {
+					return fmt.Errorf("encode n8n HTTP mock response: %w", err)
+				}
+				if len(encoded)+1 > n8nresource.HTTPMockOutputBound() {
+					return fmt.Errorf("n8n HTTP mock response exceeds %d bytes", n8nresource.HTTPMockOutputBound())
+				}
+			}
+			return writeN8NRuntimeResponse(deps.Stdout(ctx), response, request.JSON || format == cliout.FormatJSON)
+		})
+	}
+	return commandtree.BuildHandlerMap(commandtree.BindSpecs(resourcecli.N8NRuntimeCommandSpecs(), items))
+}
+
+func newN8NResourceOwner(controller *resources.Controller) (*n8nresource.Owner, error) {
+	manifest, err := controller.LoadManifest(filepath.Join(controller.Root, "resources", "n8n", "resource.json"))
+	if err != nil {
+		return nil, err
+	}
+	if manifest.Name != "n8n" || manifest.ManagedService == nil || !manifest.ManagedService.TaskScopedContainer || manifest.Runtime.Image != n8nresource.ImageRef {
+		return nil, fmt.Errorf("n8n runtime manifest does not match the owner contract")
+	}
+	owner := n8nresource.NewOwner(controller.Home)
+	owner.Image = manifest.Runtime.Image
+	return owner, nil
+}
+
+func writeN8NRuntimeResponse(w io.Writer, response any, asJSON bool) error {
+	if asJSON {
+		encoder := json.NewEncoder(w)
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(response); err != nil {
+			return fmt.Errorf("encode n8n runtime response: %w", err)
+		}
+		return nil
+	}
+	data, err := json.MarshalIndent(response, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode n8n runtime response: %w", err)
+	}
+	_, err = fmt.Fprintln(w, string(data))
+	return err
+}
+
+func showResourceN8NHelp(w io.Writer) {
+	_, _ = fmt.Fprintln(w, "Usage:\n  vrooli resource n8n runtime <subcommand> [options]\n\nTask-scoped n8n owner commands:")
+	_, _ = fmt.Fprintln(w, "    runtime             Manage isolated per-Sandbox runtime containers")
+}
+
+func showResourceN8NRuntimeHelp(w io.Writer) {
+	resourcecli.RenderCommandHelp(w, "", "vrooli resource n8n runtime <subcommand> [options]", "n8n Runtime", resourcecli.N8NRuntimeCommandSpecs())
 }
 
 func resourceCLISyncHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.ResourceHandler[C] {
@@ -780,11 +951,26 @@ func singleResourceControlHandler[C any](deps rootcli.HandlerDeps[C], action str
 		if action == "logs" && req.TailLines > 0 {
 			operationArgs = append(operationArgs, "--tail", strconv.Itoa(req.TailLines))
 		}
-		if err := operation.RunContext(operationCtx, req.Name, operationArgs, deps.Stdout(ctx), deps.Stderr(ctx)); err != nil {
-			return err
+		if action == "uninstall" {
+			return uninstallThenDisable(req.Name,
+				func() error {
+					return operation.RunContext(operationCtx, req.Name, operationArgs, deps.Stdout(ctx), deps.Stderr(ctx))
+				},
+				func() error { return controller.SetEnabled(req.Name, false) },
+			)
 		}
-		return nil
+		return operation.RunContext(operationCtx, req.Name, operationArgs, deps.Stdout(ctx), deps.Stderr(ctx))
 	}
+}
+
+func uninstallThenDisable(name string, uninstall, disable func() error) error {
+	if err := uninstall(); err != nil {
+		return err
+	}
+	if err := disable(); err != nil {
+		return fmt.Errorf("resource %s was uninstalled but its disabled state could not be saved: %w", name, err)
+	}
+	return nil
 }
 
 // enforceResourceHostRequirements installs the declared hostTools and
@@ -835,6 +1021,10 @@ func ensureNamedResourceCLI[C any](deps rootcli.HandlerDeps[C], ctx C, name stri
 }
 
 func resourceToggleHandler[C any](deps rootcli.HandlerDeps[C], enabled bool) rootcli.ResourceHandler[C] {
+	return resourceToggleHandlerWithLighting(deps, enabled, runtimeapp.Service{})
+}
+
+func resourceToggleHandlerWithLighting[C any](deps rootcli.HandlerDeps[C], enabled bool, app runtimeapp.Service) rootcli.ResourceHandler[C] {
 	return func(ctx C, controller *resources.Controller, args []string) error {
 		action := "enable"
 		if !enabled {
@@ -843,7 +1033,38 @@ func resourceToggleHandler[C any](deps rootcli.HandlerDeps[C], enabled bool) roo
 		if len(args) != 1 {
 			return rootcli.UsageErrorf("resource "+action, "resource %s requires exactly one resource name", action)
 		}
-		if err := controller.SetEnabled(args[0], enabled); err != nil {
+		if !enabled && args[0] == "openrgb" {
+			// Use the same durable lighting intent and exact native retirement
+			// owner as runtime lighting disable. A generic stop cannot revoke
+			// admitted update wrappers or fence a concurrent reconciliation.
+			actions, err := app.NewNativeLightingActions(controller.Root, controller.Home, runtimeapp.EnsureNativeLightingScenario)
+			if err != nil {
+				return err
+			}
+			if err := actions.Control.Disable(rootcli.ResolveOperationContext(deps, ctx)); err != nil {
+				return err
+			}
+		} else if !enabled {
+			// Disabled resources are excluded from future start-all runs. Stop
+			// the current instance first so disable is also an immediate runtime
+			// boundary (notably for host-facing services such as OpenRGB).
+			manifest, err := controller.ResourceManifest(args[0])
+			if err != nil {
+				return err
+			}
+			operationCtx := rootcli.ResolveOperationContext(deps, ctx)
+			if err := operationCtx.Err(); err != nil {
+				return err
+			}
+			if err := stopBeforeDisable(args[0], manifest,
+				func() error {
+					return controller.RunContext(operationCtx, args[0], []string{"stop"}, deps.Stdout(ctx), deps.Stderr(ctx))
+				},
+				func() error { return controller.SetEnabled(args[0], false) },
+			); err != nil {
+				return err
+			}
+		} else if err := controller.SetEnabled(args[0], enabled); err != nil {
 			return err
 		}
 		if enabled && deps.EnsureCLI != nil {
@@ -854,6 +1075,15 @@ func resourceToggleHandler[C any](deps rootcli.HandlerDeps[C], enabled bool) roo
 		_, _ = fmt.Fprintf(deps.Stdout(ctx), "Updated %s: enabled=%t\n", args[0], enabled)
 		return nil
 	}
+}
+
+func stopBeforeDisable(name string, manifest resources.ResourceManifest, stop, disable func() error) error {
+	if manifest.Driver == "managed-service" {
+		if err := stop(); err != nil {
+			return fmt.Errorf("stop resource %s before disabling: %w", name, err)
+		}
+	}
+	return disable()
 }
 
 func parseResourceListRequest(args []string) (resourcecli.NoArgsRequest, error) {

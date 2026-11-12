@@ -32,10 +32,6 @@ const (
 	collectorToolNotPresent = "tool_not_present"
 )
 
-const (
-	collectorParameterA = 2
-)
-
 type CommandRunner = shell.Runner
 
 type EnvironmentCommandRunner interface {
@@ -58,6 +54,8 @@ type Collector struct {
 	GOOS     string
 	GOARCH   string
 	CPUCount func() int
+	// NativeDevices injects the shared Windows/macOS identity adapter for fixtures.
+	NativeDevices func(context.Context, CommandRunner) NativeDeviceObservation
 	// DeviceRoots overrides the filesystem locations device-tree enumeration
 	// reads. The zero value means the live host.
 	DeviceRoots DeviceRoots
@@ -200,7 +198,6 @@ func (c Collector) CollectGPUFacts(ctx context.Context) (Snapshot, error) {
 	c.collectROCm(ctx, &snap, now)
 	c.collectVulkanICDs(&snap, now)
 	c.collectMemory(&snap, now)
-	c.collectAppleSiliconGPU(&snap, now)
 	return snap, nil
 }
 
@@ -236,7 +233,6 @@ func (c Collector) Collect(ctx context.Context) (Snapshot, error) {
 	c.collectNvidiaNodeAccess(&snap, now)
 	c.collectROCm(ctx, &snap, now)
 	c.collectVulkanICDs(&snap, now)
-	c.collectAppleSiliconGPU(&snap, now)
 	c.collectAppleToolchain(ctx, &snap, now)
 	c.collectAndroidToolchain(ctx, &snap, now)
 	c.collectDesktopToolchain(ctx, &snap, now)
@@ -529,6 +525,7 @@ func (c Collector) collectDarwinGPUs(ctx context.Context, snap *Snapshot, observ
 	if hostreqspec.PlatformFromGOOS(snap.OS) != hostreqspec.PlatformMacOS {
 		return
 	}
+	projectNativeGraphics(snap)
 	path, err := c.Commands.LookPath("system_profiler")
 	snap.RuntimeTools["system_profiler"] = Tool{Present: err == nil, Path: path}
 	if err != nil {
@@ -541,68 +538,51 @@ func (c Collector) collectDarwinGPUs(ctx context.Context, snap *Snapshot, observ
 		snap.ProbeStatuses["darwin_gpu"] = scenarioruntime.StatusFailed
 		return
 	}
-	gpus := ParseSystemProfilerGPUs(string(out))
-	if len(gpus) == 0 {
-		snap.ProbeStatuses["darwin_gpu"] = collectorNoDevices
-		return
+	metadata := ParseSystemProfilerGPUs(string(out))
+	// Display metadata may enrich only a device already observed by IORegistry.
+	// With several adapters, only unique exact model matches are safe; ordering
+	// is not identity. Unknown memory remains unknown.
+	for _, info := range metadata {
+		modelCount := 0
+		for _, candidate := range metadata {
+			if strings.EqualFold(candidate.Name, info.Name) {
+				modelCount++
+			}
+		}
+		if modelCount != 1 {
+			continue
+		}
+		match := -1
+		for i, gpu := range snap.GPUs {
+			if gpu.Source != SourceNativeDevice {
+				continue
+			}
+			if (snap.ProbeStatuses["device_tree"] == "ok" && len(metadata) == 1 && len(snap.GPUs) == 1) || strings.EqualFold(gpu.Name, info.Name) {
+				if match >= 0 {
+					match = -1
+					break
+				}
+				match = i
+			}
+		}
+		if match < 0 {
+			continue
+		}
+		snap.GPUs[match].Name = info.Name
+		snap.GPUs[match].MetalSupported = info.MetalSupported
 	}
-	snap.GPUs = append(snap.GPUs, gpus...)
-	snap.ProbeStatuses["darwin_gpu"] = "ok"
+	snap.ProbeStatuses["darwin_gpu"] = snap.ProbeStatuses["device_tree"]
 	snap.FieldProvenance["gpus.darwin"] = Provenance{
-		SourceKind: SourceKindCommand,
-		Source:     "system_profiler",
-		ObservedAt: observedAt,
-		Confidence: "medium",
-		Command:    "system_profiler SPDisplaysDataType",
+		SourceKind: SourceKindCommand, Source: "system_profiler metadata over native identity",
+		ObservedAt: observedAt, Confidence: "medium", Command: "system_profiler SPDisplaysDataType",
 	}
 }
 
+// collectWindowsGPUs projects the native identity inventory; optional WMIC is
+// never a prerequisite for seeing an adapter. Vendor telemetry enriches it separately.
 func (c Collector) collectWindowsGPUs(ctx context.Context, snap *Snapshot, observedAt time.Time) {
-	if hostreqspec.PlatformFromGOOS(snap.OS) != hostreqspec.PlatformWindows {
-		return
-	}
-	path, err := c.Commands.LookPath("wmic")
-	snap.RuntimeTools["wmic"] = Tool{Present: err == nil, Path: path}
-	if err != nil {
-		snap.ProbeStatuses["windows_gpu"] = collectorToolNotPresent
-		return
-	}
-	out, err := c.Commands.Run(ctx, "wmic", "path", "win32_VideoController", "get", "name")
-	if err != nil {
-		snap.Warnings = append(snap.Warnings, fmt.Sprintf("wmic gpu: %v", err))
-		snap.ProbeStatuses["windows_gpu"] = scenarioruntime.StatusFailed
-		return
-	}
-	gpus := ParseWindowsGPUNames(string(out))
-	if len(gpus) == 0 {
-		snap.ProbeStatuses["windows_gpu"] = collectorNoDevices
-		return
-	}
-	snap.GPUs = append(snap.GPUs, gpus...)
-	snap.ProbeStatuses["windows_gpu"] = "ok"
-	snap.FieldProvenance["gpus.windows"] = Provenance{
-		SourceKind: SourceKindCommand,
-		Source:     "windows wmic",
-		ObservedAt: observedAt,
-		Confidence: "medium",
-		Command:    "wmic path win32_VideoController get name",
-	}
-}
-
-func (c Collector) collectAppleSiliconGPU(snap *Snapshot, observedAt time.Time) {
-	if hostreqspec.PlatformFromGOOS(snap.OS) != hostreqspec.PlatformMacOS || snap.Arch != "arm64" || snap.Memory.TotalBytes == 0 || len(snap.GPUs) > 0 {
-		return
-	}
-	snap.GPUs = append(snap.GPUs, GPU{
-		Index:     len(snap.GPUs),
-		Name:      "Apple GPU (unified)",
-		VRAMBytes: snap.Memory.TotalBytes / collectorParameterA,
-		Source:    "darwin-unified-memory",
-	})
-	snap.FieldProvenance["gpus.apple_unified"] = Provenance{
-		SourceKind: SourceKindDerived,
-		Source:     "darwin arm64 unified memory estimate",
-		ObservedAt: observedAt,
-		Confidence: "medium",
+	if hostreqspec.PlatformFromGOOS(snap.OS) == hostreqspec.PlatformWindows {
+		projectNativeGraphics(snap)
+		snap.ProbeStatuses["windows_gpu"] = snap.ProbeStatuses["device_tree"]
 	}
 }

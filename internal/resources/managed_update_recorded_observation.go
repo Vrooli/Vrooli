@@ -5,12 +5,16 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 
 	platform "github.com/vrooli/platform-go"
 )
+
+const openRGBResourceName = "openrgb"
 
 type managedUpdateAdmissionSource struct {
 	SourceRevision     string
@@ -41,9 +45,19 @@ func (c *Controller) observeManagedUpdateAdmissionSource(ctx context.Context, m 
 	if err != nil || !running {
 		return managedUpdateAdmissionSource{}, fmt.Errorf("serving resource owner is unavailable: %v", err)
 	}
+	if m.Name == openRGBResourceName && state.InitialLaunch != nil {
+		return c.observeOpenRGBInitialAdmission(ctx, state)
+	}
 	if state.UpdateLaunch == nil {
 		legacy, err := c.observeManagedServiceLegacyLaunchLocked(ctx, m)
-		return managedUpdateAdmissionSource{SourceRevision: legacy.SourceRevision, Process: legacy.Process, Contract: legacy.Contract, Scope: &legacy.NativeScope, CredentialStateDir: paths.StateDir}, err
+		if err != nil {
+			return managedUpdateAdmissionSource{}, err
+		}
+		contract, err := freezeManagedUpdateServingConfig(legacy.Process, paths.ConfigDir, legacy.Contract)
+		if err != nil {
+			return managedUpdateAdmissionSource{}, err
+		}
+		return managedUpdateAdmissionSource{SourceRevision: legacy.SourceRevision, Process: legacy.Process, Contract: contract, Scope: &legacy.NativeScope, CredentialStateDir: paths.StateDir}, nil
 	}
 	l := state.UpdateLaunch
 	u := ManagedServiceUpdate{Resource: m.Name, Original: state, Rollback: l.Contract}
@@ -54,10 +68,19 @@ func (c *Controller) observeManagedUpdateAdmissionSource(ctx context.Context, m 
 	if _, err := observeManagedUpdateProcess(ctx, old, p, contract); err != nil {
 		return managedUpdateAdmissionSource{}, err
 	}
+	contract, err = freezeManagedUpdateServingConfig(state, paths.ConfigDir, contract)
+	if err != nil {
+		return managedUpdateAdmissionSource{}, err
+	}
 	if len(m.Ports) != 1 || m.Ports[0].Host != l.Runtime.Port {
 		return managedUpdateAdmissionSource{}, fmt.Errorf("target changes the canonical serving port")
 	}
-	image, err := platform.OpenProcessExecutable(state.PID)
+	var image *os.File
+	if m.Name == openRGBResourceName {
+		image, err = c.openOpenRGBRollbackEnvelope(ctx, contract.Artifact)
+	} else {
+		image, err = platform.OpenProcessExecutable(state.PID)
+	}
 	if err != nil {
 		return managedUpdateAdmissionSource{}, err
 	}
@@ -66,7 +89,7 @@ func (c *Controller) observeManagedUpdateAdmissionSource(ctx context.Context, m 
 	if err != nil {
 		return managedUpdateAdmissionSource{}, err
 	}
-	rollback, err := newManagedUpdateContract(contract.Manifest, retained)
+	rollback, err := contract.withArtifact(retained)
 	if err != nil {
 		return managedUpdateAdmissionSource{}, err
 	}
@@ -89,9 +112,109 @@ func (c *Controller) observeManagedUpdateAdmissionSource(ctx context.Context, m 
 	return managedUpdateAdmissionSource{SourceRevision: hex.EncodeToString(digest[:]), Process: state, Contract: rollback, CredentialStateDir: filepath.Join(root, "state")}, nil
 }
 
+func freezeManagedUpdateServingConfig(state ManagedServiceState, fallbackConfigDir string, contract ManagedUpdateContract) (ManagedUpdateContract, error) {
+	declaration := contract.Manifest.ManagedService.Config
+	if declaration == nil || declaration.ContentFile == "" {
+		return contract, nil
+	}
+	configDir := fallbackConfigDir
+	if state.InitialLaunch != nil {
+		a, _, err := readOpenRGBInitialServing(state)
+		if err != nil {
+			return ManagedUpdateContract{}, err
+		}
+		configDir = filepath.Join(a.root(), "config")
+	} else if state.UpdateLaunch != nil {
+		root, err := state.UpdateLaunch.Runtime.roleRoot(state.UpdateLaunch.OperationID, state.InstanceID)
+		if err != nil {
+			return ManagedUpdateContract{}, err
+		}
+		configDir = filepath.Join(root, "config")
+	}
+	current, err := readManagedUpdateConfigFile(configDir, declaration.Path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return contract, nil
+		}
+		return ManagedUpdateContract{}, err
+	}
+	if contract.Manifest.Name == openRGBResourceName {
+		if err := verifyOpenRGBNormalizedServingSettings(contract.ConfigBytes, current); err != nil {
+			return ManagedUpdateContract{}, fmt.Errorf("verify frozen OpenRGB serving config: %w", err)
+		}
+		return contract, nil
+	}
+	return contract.withConfigBytes(declaration.ContentFile, current)
+}
+
+func mergeManagedUpdateTargetConfig(target ManagedUpdateContract, rollback ManagedUpdateContract) (ManagedUpdateContract, error) {
+	declaration := target.Manifest.ManagedService.Config
+	if declaration == nil || declaration.ContentFile == "" || rollback.Manifest.Name != target.Manifest.Name || len(rollback.ConfigBytes) == 0 {
+		return target, nil
+	}
+	if target.Manifest.Name == "openrgb" {
+		merged, err := mergeOpenRGBConfigContent(rollback.ConfigBytes, string(target.ConfigBytes))
+		if err != nil {
+			return ManagedUpdateContract{}, fmt.Errorf("merge OpenRGB update config: %w", err)
+		}
+		return target.withConfigBytes(declaration.ContentFile, []byte(merged))
+	}
+	if target.ConfigFile == rollback.ConfigFile {
+		return target.withConfigBytes(declaration.ContentFile, rollback.ConfigBytes)
+	}
+	return target, nil
+}
+
+func verifyManagedUpdateOriginalConfig(u ManagedServiceUpdate) error {
+	declaration := u.Rollback.Manifest.ManagedService.Config
+	if declaration == nil || declaration.ContentFile == "" {
+		return nil
+	}
+	if u.Rollback.legacyFileConfig {
+		// V1 checkpoints did not bind config bytes. Keep their prior recovery
+		// behavior instead of comparing live config to an unavailable digest.
+		return nil
+	}
+	configDir := ""
+	if u.Original.InitialLaunch != nil {
+		a, _, err := readOpenRGBInitialServing(u.Original)
+		if err != nil {
+			return err
+		}
+		configDir = filepath.Join(a.root(), "config")
+	} else if u.Original.UpdateLaunch != nil {
+		root, err := u.Original.UpdateLaunch.Runtime.roleRoot(u.Original.UpdateLaunch.OperationID, u.Original.InstanceID)
+		if err != nil {
+			return err
+		}
+		configDir = filepath.Join(root, "config")
+	} else {
+		paths, err := resourceStoragePaths(u.Resource)
+		if err != nil {
+			return err
+		}
+		configDir = paths.ConfigDir
+	}
+	data, err := readManagedUpdateConfigFile(configDir, declaration.Path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	if u.Resource == openRGBResourceName {
+		return verifyOpenRGBNormalizedServingSettings(u.Rollback.ConfigBytes, data)
+	}
+	sum := sha256.Sum256(data)
+	if hex.EncodeToString(sum[:]) != u.Rollback.ConfigSHA256 {
+		return fmt.Errorf("serving config changed after update admission; refusing exclusive stop")
+	}
+	return nil
+}
+
 func managedUpdateOriginalQuiescent(ctx context.Context, u ManagedServiceUpdate) (bool, error) {
-	if u.Original.UpdateLaunch != nil {
-		ref := u.Original.UpdateLaunch.NativeRef
+	if nativeRef := managedUpdateOriginalNativeRef(u.Original); nativeRef != nil {
+		ref := *nativeRef
 		native, err := platform.InspectOwnedService(ctx, ref)
 		if err == nil {
 			return !native.RootAlive && !native.Populated, nil
@@ -105,6 +228,16 @@ func managedUpdateOriginalQuiescent(ctx context.Context, u ManagedServiceUpdate)
 	}
 	native, err := platform.InspectServiceScope(ctx, *u.OriginalScope)
 	return err == nil && !native.RootAlive && !native.TreePopulated, err
+}
+
+func managedUpdateOriginalNativeRef(state ManagedServiceState) *platform.ServiceRef {
+	if state.InitialLaunch != nil {
+		return &state.InitialLaunch.NativeRef
+	}
+	if state.UpdateLaunch != nil {
+		return &state.UpdateLaunch.NativeRef
+	}
+	return nil
 }
 
 // Only a retained state for this exact root supplies cross-boot exclusion.

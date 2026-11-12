@@ -13,7 +13,6 @@ import (
 	"time"
 
 	platform "github.com/vrooli/platform-go"
-	"github.com/vrooli/vrooli/internal/config"
 )
 
 // This explicit live fault drill stops only the newly dispatched primary of
@@ -33,6 +32,7 @@ func TestManagedUpdateCurrentHostLivePrimaryFailureDrill(t *testing.T) {
 	if !updateDigest(sourceSHA) || !managedUpdateKey.MatchString(request) {
 		t.Fatal("exact expected original checksum and request are required")
 	}
+	restoreExplicitLiveResourceStorage(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 140*time.Second)
 	defer cancel()
 	store, err := newManagedUpdateStore("cloudflared")
@@ -85,7 +85,7 @@ func TestManagedUpdateCurrentHostLivePrimaryFailureDrill(t *testing.T) {
 								if readStateErr == nil && latest.Phase == UpdatePrimaryStarting && latest.ID == u.ID && connections <= 1 && time.Since(*fence.ClaimedAt) < 1500*time.Millisecond {
 									before := map[string]any{"request": request, "operation": u.ID, "phase": latest.Phase, "revision": latest.Revision, "primary_ref": fence.Claim, "primary_image_sha256": digest, "primary_connections_before_fault": connections, "both_serving_shadows_fresh": true, "injected": false}
 									data, _ := json.MarshalIndent(before, "", "  ")
-									if err := config.WriteOwnedFileDurable(out, append(data, '\n'), 0o600); err != nil {
+									if err := writeResourceOwnedFileDurable(out, append(data, '\n'), 0o600); err != nil {
 										t.Fatal(err)
 									}
 									latest, e = store.Lookup(request)
@@ -117,7 +117,7 @@ func TestManagedUpdateCurrentHostLivePrimaryFailureDrill(t *testing.T) {
 	}
 	result := map[string]any{"request": request, "operation": selected.ID, "injected": true, "injected_at": injectedAt, "stopped_primary_ref": stopped, "phase": selected.Phase, "revision": selected.Revision, "restored": selected.Restored, "candidate_quiescent": selected.CandidateQuiescent, "rollback_probe_quiescent": selected.RollbackProbeQuiescent, "error": selected.Error, "authenticated_remote_proved": false}
 	data, _ := json.MarshalIndent(result, "", "  ")
-	if err := config.WriteOwnedFileDurable(out, append(data, '\n'), 0o600); err != nil {
+	if err := writeResourceOwnedFileDurable(out, append(data, '\n'), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if selected.Phase != UpdateFailedRestored || selected.Restored.State == nil || selected.Restored.State.ArtifactSHA256 != sourceSHA || !selected.CandidateQuiescent || !selected.RollbackProbeQuiescent {

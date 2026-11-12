@@ -15,7 +15,9 @@ import (
 	"github.com/vrooli/vrooli/internal/buildinfo"
 	"github.com/vrooli/vrooli/internal/cliinstall"
 	"github.com/vrooli/vrooli/internal/cliout"
+	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/hostreqspec"
+	"github.com/vrooli/vrooli/internal/lightingruntime"
 	"github.com/vrooli/vrooli/internal/resources"
 	"github.com/vrooli/vrooli/internal/runtimesupervisor"
 	"github.com/vrooli/vrooli/internal/scenarioruntime"
@@ -35,6 +37,16 @@ func (app *Service) RunSupervisor(operationCtx context.Context, home string, opt
 	if operationCtx == nil {
 		return fmt.Errorf("runtime operation context is nil")
 	}
+
+	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
+		if err := requireNativeLightingOperator(); err != nil {
+			return err
+		}
+		if err := resources.NewController("", home).ValidateOpenRGBNativeResourceStorage(operationCtx); err != nil {
+			return err
+		}
+	}
+
 	cfg := runtimesupervisor.EnvConfig()
 	cfg.HomeDir = home
 	cfg.Version = app.Version
@@ -52,6 +64,43 @@ func (app *Service) RunSupervisor(operationCtx context.Context, home string, opt
 		}
 		return errors.Join(watchdogErr, updates.ResumeManagedServiceUpdates(ctx))
 	}
+	cfg.LightingReconcile = func(ctx context.Context) error {
+		inert, err := lightingruntime.NewController(home, lightingruntime.Owners{})
+		if err != nil {
+			return err
+		}
+		intent, err := inert.Current()
+		if err != nil {
+			return err
+		}
+		if intent.Phase == lightingruntime.Disabled {
+			return nil
+		}
+		root, err := app.resolveRoot()
+		if err != nil {
+			return err
+		}
+		actions, err := app.NewNativeLightingActions(root, home, EnsureNativeLightingScenario)
+		if err != nil {
+			return err
+		}
+		return actions.Control.controller.Reconcile(ctx)
+	}
+	if app.Lighting != nil {
+		owners := *app.Lighting
+		var lighting *lightingruntime.Controller
+		cfg.LightingReconcile = func(ctx context.Context) error {
+			if lighting == nil {
+				controller, err := lightingruntime.NewController(home, owners)
+				if err != nil {
+					return fmt.Errorf("configure headless lighting: %w", err)
+				}
+				lighting = controller
+			}
+			return lighting.Reconcile(ctx)
+		}
+	}
+
 	return runtimesupervisor.Run(operationCtx, cfg)
 }
 
@@ -105,6 +154,9 @@ func (app *Service) SupervisorStatus(operationCtx context.Context, home string, 
 
 // InstallSupervisor installs the runtime supervisor service.
 func (app *Service) InstallSupervisor(operationCtx context.Context, home string, out io.Writer, opts SupervisorServiceOptions) error {
+	if err := resources.NewController("", home).ValidateOpenRGBNativeResourceStorage(operationCtx); err != nil {
+		return err
+	}
 	if operationCtx == nil {
 		return fmt.Errorf("runtime operation context is nil")
 	}
@@ -153,7 +205,14 @@ func (app *Service) UninstallSupervisor(operationCtx context.Context, out io.Wri
 	if operationCtx == nil {
 		return fmt.Errorf("runtime operation context is nil")
 	}
-	result, err := runtimesupervisor.UninstallService(operationCtx, runtimesupervisor.ServiceInstallOptions{User: opts.User})
+	home, err := config.HomeDir()
+	if err != nil {
+		return err
+	}
+	if err := resources.NewController("", home).ValidateOpenRGBNativeResourceStorage(operationCtx); err != nil {
+		return err
+	}
+	result, err := runtimesupervisor.UninstallService(operationCtx, runtimesupervisor.ServiceInstallOptions{HomeDir: home, User: opts.User})
 	if err != nil {
 		return err
 	}

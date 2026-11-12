@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/vrooli/binaryfetch"
 )
@@ -17,7 +18,7 @@ func (c *Controller) managedUpdateAdmissionTarget(ctx context.Context, m Resourc
 		if err != nil {
 			return ManagedUpdateContract{}, err
 		}
-		return newManagedUpdateContract(m, artifact)
+		return newManagedUpdateContractForResource(m, artifact, filepath.Join(c.Root, "resources", m.Name))
 	}
 	source, err := store.Lookup(opts.RollbackOf)
 	if err != nil {

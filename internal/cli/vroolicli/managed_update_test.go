@@ -27,3 +27,21 @@ func TestManagedUpdateInternalCommandsRequireAnAdmittedRequest(t *testing.T) {
 		})
 	}
 }
+
+func TestInitialManagedServiceSelectorCannotCreateAdmission(t *testing.T) {
+	root := t.TempDir()
+	testkitgo.WriteRepoContract(t, root, "scenarios")
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	app := newRuntimeTestApp(t, root)
+	home := t.TempDir()
+	app.HomeDirFn = func() (string, error) { return home, nil }
+	for _, resource := range []string{"openrgb", "cloudflared"} {
+		var stdout, stderr bytes.Buffer
+		if code := app.Run([]string{"managed-service-exec", resource, "not-admitted"}, &stdout, &stderr); code == 0 {
+			t.Fatal("selector created initial admission")
+		}
+		if strings.Contains(stderr.String(), "Unknown command") {
+			t.Fatalf("initial native dispatch is not registered: %s", stderr.String())
+		}
+	}
+}

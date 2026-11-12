@@ -32,6 +32,9 @@ func withManagedServiceLifecycleLock(ctx context.Context, resource string, fn fu
 }
 
 func acquireManagedServiceLifecycleLock(ctx context.Context, resource string) (func(), error) {
+	if nativeOpenRGBUsesPrivateLocks(resource) {
+		return acquireOpenRGBNativeOwnerLock(ctx, "resource-lifecycle:"+resource)
+	}
 	return artifactlock.AcquireContext(ctx, "resource-lifecycle:"+resource)
 }
 
@@ -41,7 +44,11 @@ func acquireManagedLifecycleLocks(ctx context.Context, manifest ResourceManifest
 	var groupRelease func()
 	if group := manifest.Lifecycle.ExclusiveGroup; group != "" {
 		var err error
-		groupRelease, err = artifactlock.AcquireContext(ctx, "resource-exclusive-group:"+group)
+		if nativeOpenRGBUsesPrivateLocks(manifest.Name) {
+			groupRelease, err = acquireOpenRGBNativeOwnerLock(ctx, "resource-exclusive-group:"+group)
+		} else {
+			groupRelease, err = artifactlock.AcquireContext(ctx, "resource-exclusive-group:"+group)
+		}
 		if err != nil {
 			return nil, err
 		}

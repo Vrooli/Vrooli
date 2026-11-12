@@ -73,7 +73,7 @@ func ReserveOperationRAM(ctx context.Context, opts OperationReservationOptions) 
 		return store.HeartbeatClaim(ctx, c.ClaimID, c.Generation, opts.TTL)
 	}
 	req := CapacityRequest{OwnerKind: OwnerKindOp, OwnerID: opts.OwnerID, InstanceID: opts.InstanceID, ResourceKind: ResourceKindRAM, PreferredBytes: opts.AmountBytes, FloorBytes: opts.AmountBytes, Priority: PriorityInteractive, NoReclaim: true, Protected: true, TTL: opts.TTL}
-	v, err := EvaluateAdmission(ctx, store, req, AdmissionOptions{Source: opts.Admission.Source, MemoryPressure: opts.Admission.MemoryPressure, Attributor: opts.Admission.Attributor, Policy: policy, Enforce: effective, Clock: opts.Admission.Clock})
+	v, err := EvaluateAdmission(ctx, store, req, AdmissionOptions{Source: opts.Admission.Source, MemoryPressure: opts.Admission.MemoryPressure, Attributor: opts.Admission.Attributor, Exec: opts.Admission.Exec, Policy: policy, Enforce: effective, Clock: opts.Admission.Clock})
 	if err != nil {
 		return CapacityClaim{}, err
 	}

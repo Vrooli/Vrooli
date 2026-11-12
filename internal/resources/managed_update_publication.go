@@ -5,11 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 	"time"
 
 	platform "github.com/vrooli/platform-go"
-	"github.com/vrooli/vrooli/internal/config"
 )
 
 // ManagedUpdateServingLaunch retains native ownership and the frozen private
@@ -39,10 +37,9 @@ func validateManagedUpdateServing(state ManagedServiceState) error {
 	if state.ArtifactPath != l.Contract.Artifact.Path || state.ArtifactSHA256 != l.Contract.Artifact.SHA256 || state.ArtifactVersion != l.Contract.Artifact.Version || state.PID != l.NativeRef.RootPID || len(l.Contract.Manifest.Ports) != 1 || l.Runtime.Port != l.Contract.Manifest.Ports[0].Host {
 		return fmt.Errorf("native serving record differs from its resource launch")
 	}
-	_, stamp, found := strings.Cut(state.Incarnation, ":")
 	i := ManagedUpdateLaunchIntent{InstanceID: state.InstanceID, OwnershipTokenHash: state.OwnershipTokenHash, ContractDigest: l.Contract.Digest, NativeIntent: platform.ServiceIntent(l.NativeRef.Intent), Runtime: l.Runtime}
 	u := ManagedServiceUpdate{ID: l.OperationID, RequestID: l.RequestID, Resource: l.Contract.Manifest.Name}
-	if !found || stamp != l.NativeRef.RootStartTime || !validUpdateIntent(&i, l.Contract) || i.NativeIntent.ValidateSpec(managedUpdateWrapperSpec(u, i)) != nil {
+	if !l.NativeRef.MatchesIncarnation(state.Incarnation) || !validUpdateIntent(&i, l.Contract) || i.NativeIntent.ValidateSpec(managedUpdateWrapperSpec(u, i)) != nil {
 		return fmt.Errorf("native serving record lost exact process/specification binding")
 	}
 	return nil
@@ -56,7 +53,7 @@ func writeManagedUpdateServingState(supervisor *ManagedServiceSupervisor, state 
 	if err != nil {
 		return err
 	}
-	if err := config.WriteOwnedFileDurable(supervisor.statePath, data, 0o600); err != nil {
+	if err := writeResourceOwnedFileDurable(supervisor.statePath, data, 0o600); err != nil {
 		return fmt.Errorf("%w: native serving publication: %w", ErrManagedUpdateCommitUnknown, err)
 	}
 	return nil
@@ -136,6 +133,19 @@ func (s *ManagedServiceSupervisor) stopManagedUpdateServing(ctx context.Context,
 	defer cancel()
 	if err := validateManagedUpdateServing(state); err != nil {
 		return err
+	}
+	if state.UpdateLaunch.Contract.Manifest.Name == openRGBResourceName {
+		handled, err := reconcileOpenRGBServingBoot(ctx, state)
+		if err != nil {
+			return err
+		}
+		if handled {
+			if state.StoppedAt == nil {
+				now := time.Now().UTC()
+				state.StoppedAt = &now
+			}
+			return writeManagedUpdateServingState(s, state)
+		}
 	}
 	ref := state.UpdateLaunch.NativeRef
 	if state.StoppedAt != nil {

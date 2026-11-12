@@ -10,6 +10,9 @@ import (
 	"github.com/vrooli/vrooli/internal/tuning"
 )
 
+// PhasePlanning is persisted when lifecycle creates a managed runtime lease.
+const PhasePlanning = "planning"
+
 const (
 	// SchemaVersion stamps PRAGMA user_version so an older or unknown database
 	// fails loudly instead of being misread. schemaSQL describes the current

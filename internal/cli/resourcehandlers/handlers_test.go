@@ -27,16 +27,115 @@ import (
 	"github.com/vrooli/vrooli/internal/testenv"
 	resourcedeployment "github.com/vrooli/vrooli/packages/resource-deployment"
 
+	"github.com/vrooli/vrooli/internal/cli/resourcecli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli"
 	"github.com/vrooli/vrooli/internal/cli/rootcli/rootclitest"
 	"github.com/vrooli/vrooli/internal/cliout"
 	"github.com/vrooli/vrooli/internal/resources"
+	n8nresource "github.com/vrooli/vrooli/internal/resources/n8n"
 	vrooliruntime "github.com/vrooli/vrooli/internal/runtime"
 )
 
 type testContext struct {
 	stdout *bytes.Buffer
 	stderr *bytes.Buffer
+	stdin  io.Reader
+}
+
+func TestN8NWorkflowImportReadsOnlyBoundedStdinBeforeOwnerLookup(t *testing.T) {
+	for name, input := range map[string]io.Reader{
+		"empty":     bytes.NewReader(nil),
+		"too large": bytes.NewReader(bytes.Repeat([]byte("x"), n8nresource.MaxSyntheticWorkflowBytes+1)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}, stdin: input}
+			handlers := buildResourceN8NRuntimeHandlers(rootcli.HandlerDeps[testContext]{
+				Stdout: func(c testContext) io.Writer { return c.stdout },
+				Stdin:  func(c testContext) io.Reader { return c.stdin },
+				OutputFormat: func(testContext) (cliout.Format, error) {
+					return cliout.FormatHuman, nil
+				},
+			})
+			handler := handlers[string(resourcecli.N8NRuntimeImportWorkflow)]
+			if handler == nil {
+				t.Fatal("n8n import-workflow handler was not registered")
+			}
+			args := []string{"--sandbox-id", "5e33a6f0-b1bf-4f5d-9315-95ba60d9e025", "--runtime-id", "n8n:5e33a6f0-b1bf-4f5d-9315-95ba60d9e025", "--operation-id", "f0a7d3e6-2a6b-4f8a-9714-1bb8be3eb1e2"}
+			err := handler(ctx, nil, args)
+			if err == nil || !strings.Contains(err.Error(), "stdin") && name == "empty" || !strings.Contains(err.Error(), "limit") && name == "too large" {
+				t.Fatalf("unexpected stdin boundary error: %v", err)
+			}
+		})
+	}
+}
+
+func TestN8NHTTPMockStartReadsOnlyBoundedStdinBeforeOwnerLookup(t *testing.T) {
+	for name, input := range map[string]io.Reader{
+		"empty":     bytes.NewReader(nil),
+		"too large": bytes.NewReader(bytes.Repeat([]byte("x"), n8nresource.MaxSyntheticHTTPMockConfigBytes+1)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}, stdin: input}
+			handlers := buildResourceN8NRuntimeHandlers(rootcli.HandlerDeps[testContext]{
+				Stdout:       func(c testContext) io.Writer { return c.stdout },
+				Stdin:        func(c testContext) io.Reader { return c.stdin },
+				OutputFormat: func(testContext) (cliout.Format, error) { return cliout.FormatHuman, nil },
+			})
+			handler := handlers[string(resourcecli.N8NRuntimeCompanionStartHTTPMock)]
+			if handler == nil {
+				t.Fatal("HTTP mock companion handler was not registered")
+			}
+			err := handler(ctx, nil, []string{"--sandbox-id", "5e33a6f0-b1bf-4f5d-9315-95ba60d9e025", "--config-stdin"})
+			if err == nil || !strings.Contains(err.Error(), "stdin") && name == "empty" || !strings.Contains(err.Error(), "limit") && name == "too large" {
+				t.Fatalf("unexpected HTTP mock stdin boundary error: %v", err)
+			}
+		})
+	}
+}
+
+func TestN8NWebhookDispatchReadsOnlyBoundedStdinBeforeOwnerLookup(t *testing.T) {
+	for name, input := range map[string]io.Reader{
+		"empty":     bytes.NewReader(nil),
+		"too large": bytes.NewReader(bytes.Repeat([]byte("x"), n8nresource.MaxSyntheticWebhookEventBytes+1)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}, stdin: input}
+			handlers := buildResourceN8NRuntimeHandlers(rootcli.HandlerDeps[testContext]{
+				Stdout:       func(c testContext) io.Writer { return c.stdout },
+				Stdin:        func(c testContext) io.Reader { return c.stdin },
+				OutputFormat: func(testContext) (cliout.Format, error) { return cliout.FormatHuman, nil },
+			})
+			handler := handlers[string(resourcecli.N8NRuntimeDispatchWebhookEvent)]
+			if handler == nil {
+				t.Fatal("webhook event handler was not registered")
+			}
+			err := handler(ctx, nil, []string{"--sandbox-id", "5e33a6f0-b1bf-4f5d-9315-95ba60d9e025", "--runtime-id", "n8n:5e33a6f0-b1bf-4f5d-9315-95ba60d9e025", "--operation-id", "f0a7d3e6-2a6b-4f8a-9714-1bb8be3eb1e2", "--event-stdin"})
+			if err == nil || !strings.Contains(err.Error(), "stdin") && name == "empty" || !strings.Contains(err.Error(), "limit") && name == "too large" {
+				t.Fatalf("unexpected webhook event stdin boundary error: %v", err)
+			}
+		})
+	}
+}
+
+func TestN8NManualExecutionHandlerRejectsCallerWorkflowIDBeforeOwnerLookup(t *testing.T) {
+	ctx := testContext{stdout: &bytes.Buffer{}, stderr: &bytes.Buffer{}}
+	handlers := buildResourceN8NRuntimeHandlers(rootcli.HandlerDeps[testContext]{
+		Stdout:       func(c testContext) io.Writer { return c.stdout },
+		OutputFormat: func(testContext) (cliout.Format, error) { return cliout.FormatJSON, nil },
+	})
+	handler := handlers[string(resourcecli.N8NRuntimeExecuteManualWorkflow)]
+	if handler == nil {
+		t.Fatal("execute-manual-workflow handler was not registered")
+	}
+	args := []string{
+		"--sandbox-id", "5e33a6f0-b1bf-4f5d-9315-95ba60d9e025",
+		"--runtime-id", "n8n:5e33a6f0-b1bf-4f5d-9315-95ba60d9e025",
+		"--operation-id", "f0a7d3e6-2a6b-4f8a-9714-1bb8be3eb1e2",
+		"--workflow-id", "arbitrary",
+	}
+	if err := handler(ctx, nil, args); err == nil || !strings.Contains(err.Error(), "workflow-id") {
+		t.Fatalf("handler accepted free-form workflow identity before owner lookup: %v", err)
+	}
 }
 
 func TestInspectDataHelpDoesNotRequireControllerOrCredential(t *testing.T) {
@@ -95,6 +194,67 @@ func TestEnforceResourceHostRequirementsSkipsNonMutatingActions(t *testing.T) {
 	}
 	if called != 0 {
 		t.Fatalf("enforce must not fire for non-mutating actions; calls=%d", called)
+	}
+}
+
+func TestDisableStopsManagedServiceBeforeChangingEnabledState(t *testing.T) {
+	var calls []string
+	manifest := resources.ResourceManifest{Driver: "managed-service"}
+	if err := stopBeforeDisable("fixture-managed", manifest,
+		func() error { calls = append(calls, "stop"); return nil },
+		func() error { calls = append(calls, "disable"); return nil },
+	); err != nil {
+		t.Fatalf("disable managed service: %v", err)
+	}
+	if got := strings.Join(calls, ","); got != "stop,disable" {
+		t.Fatalf("managed-service disable order = %q, want stop,disable", got)
+	}
+}
+
+func TestDisableDoesNotInvokeUnsupportedStopForNonServiceResource(t *testing.T) {
+	calls := 0
+	manifest := resources.ResourceManifest{Driver: "external-cli"}
+	if err := stopBeforeDisable("fixture", manifest,
+		func() error { calls++; return nil },
+		func() error { calls++; return nil },
+	); err != nil {
+		t.Fatalf("disable external CLI: %v", err)
+	}
+	if calls != 1 {
+		t.Fatalf("non-service disable invoked %d operations, want only config update", calls)
+	}
+}
+
+func TestDisableLeavesResourceEnabledWhenStopFails(t *testing.T) {
+	stopErr := errors.New("backend did not stop")
+	disabled := false
+	err := stopBeforeDisable("fixture-managed", resources.ResourceManifest{Driver: "managed-service"},
+		func() error { return stopErr },
+		func() error { disabled = true; return nil },
+	)
+	if !errors.Is(err, stopErr) || disabled {
+		t.Fatalf("disable after failed stop: err=%v disabled=%t", err, disabled)
+	}
+}
+
+func TestUninstallDisablesOnlyAfterSuccessfulRemoval(t *testing.T) {
+	var calls []string
+	err := uninstallThenDisable("openrgb",
+		func() error { calls = append(calls, "uninstall"); return nil },
+		func() error { calls = append(calls, "disable"); return nil },
+	)
+	if err != nil {
+		t.Fatalf("uninstall then disable: %v", err)
+	}
+	if got := strings.Join(calls, ","); got != "uninstall,disable" {
+		t.Fatalf("operation order = %q, want uninstall,disable", got)
+	}
+
+	removeErr := errors.New("uninstall failed")
+	disabled := false
+	err = uninstallThenDisable("openrgb", func() error { return removeErr }, func() error { disabled = true; return nil })
+	if !errors.Is(err, removeErr) || disabled {
+		t.Fatalf("failed uninstall changed enabled state: err=%v disabled=%t", err, disabled)
 	}
 }
 
@@ -350,7 +510,7 @@ func TestNoReclaimStartRefusesBeforeDriverAndDoesNotLeakPolicy(t *testing.T) {
 	marker := filepath.Join(root, "started")
 	t.Setenv("VROOLI_ADMISSION_TEST_MARKER", marker)
 	if err := os.WriteFile(binary, []byte(shelltest.BashShebang()+`printf entered > "$VROOLI_ADMISSION_TEST_MARKER"
-`), 0700); err != nil {
+`), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	testscenario.WriteProjectResourceConfig(t, root, "admission-fixture", true)

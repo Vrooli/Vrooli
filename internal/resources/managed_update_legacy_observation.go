@@ -210,7 +210,7 @@ func (c *Controller) observeManagedServiceLegacyLaunchLocked(ctx context.Context
 	frozen.ManagedService.Artifact.Version = state.ArtifactVersion
 	frozen.ManagedService.Artifact.SHA256ByPlatform = nil
 	frozen.ManagedService.Artifact.SHA256 = state.ArtifactSHA256
-	contract, err := newManagedUpdateContract(frozen, retained)
+	contract, err := newManagedUpdateContractForResource(frozen, retained, filepath.Join(c.Root, "resources", name))
 	if err != nil {
 		return ManagedUpdateLegacyObservation{}, err
 	}

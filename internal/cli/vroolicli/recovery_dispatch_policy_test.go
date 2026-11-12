@@ -27,8 +27,9 @@ func TestRecoveryNativeSessionCommandDispatchPolicy(t *testing.T) {
 		args         []string
 		agentBlocked bool
 	}{
-		{[]string{"--json", "resource", "stop", "postgres"}, true},
+		{[]string{"--json", "resource", "stop", "postgres"}, false},
 		{[]string{"resource", "--json", "stop-all"}, true},
+		{[]string{"--json", "resource", "stop-all"}, true},
 		{[]string{"--quiet", "scenario", "stop-all", "--json"}, true},
 		{[]string{"--json", "stop"}, true},
 		{[]string{"--json", "cleanup", "orphans"}, true},

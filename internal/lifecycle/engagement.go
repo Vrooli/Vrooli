@@ -169,6 +169,9 @@ func layoutVariant(item scenario.Scenario) sourceVariant {
 // layout routes this instance to the restore-point copy, that copy is returned
 // instead.
 func (r *Runner) effectiveSourceDir(item scenario.Scenario) (string, error) {
+	if item.RetainedReleaseID != "" {
+		return item.SourcePath(), nil
+	}
 	if r.Engagements == nil {
 		return item.Path, nil
 	}
@@ -213,6 +216,11 @@ func (r *Runner) effectiveSourceDir(item scenario.Scenario) (string, error) {
 // working directories follow the layout, which is what makes an engaged live
 // instance serve the frozen copy while the working tree holds the candidate.
 func (r *Runner) withSourceLayout(item scenario.Scenario) (scenario.Scenario, error) {
+	resolved, selected, err := r.retainedSourceLayout(item)
+	if err != nil || selected {
+		return resolved, err
+	}
+	item = resolved
 	dir, err := r.effectiveSourceDir(item)
 	if err != nil {
 		return item, err

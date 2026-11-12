@@ -924,6 +924,16 @@ func topLevelHandlerDefinitions() map[topcli.CommandID]rootcli.Handler[*AppConte
 		},
 		topcli.CommandUninstall: func(ctx *AppContext, args []string) error { return ctx.app.runUninstallCommand(ctx, args) },
 		topcli.CommandLifecycle: projectcli.LifecycleHandler(commandStdout, func(ctx *AppContext, args []string) error { return ctx.app.runLifecycleProtectCommand(ctx, args) }),
+		topcli.CommandManagedServiceExec: func(ctx *AppContext, args []string) error {
+			if len(args) != 2 {
+				return fmt.Errorf("managed-service-exec requires resource and attempt")
+			}
+			home, err := ctx.HomeDir()
+			if err != nil {
+				return err
+			}
+			return resources.NewController(ctx.Root, home).RunManagedServiceExec(ctx.OperationContext(), args[0], args[1])
+		},
 		topcli.CommandManagedUpdateExec: func(ctx *AppContext, args []string) error {
 			if len(args) != 3 {
 				return fmt.Errorf("managed-update-exec requires resource, request and instance")

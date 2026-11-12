@@ -89,6 +89,7 @@ func TestDiscardStagedArtifactAllowsStoppedOrAbsentResource(t *testing.T) {
 
 func discardArtifactFixture(t *testing.T) (*Controller, string, *ManagedServiceSupervisor) {
 	t.Helper()
+	t.Setenv("VROOLI_RESOURCE_STORAGE_ROOT", t.TempDir())
 	root, home := t.TempDir(), t.TempDir()
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
 	t.Setenv("XDG_DATA_HOME", t.TempDir())

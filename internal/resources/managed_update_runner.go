@@ -5,10 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"net/http"
-	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	platform "github.com/vrooli/platform-go"
@@ -22,6 +19,16 @@ import (
 // reloaded starting phases observe, never redispatch. Serving roles survive the
 // caller. The supervisor can resume this same request after caller loss.
 func (c *Controller) AdvanceManagedServiceUpdate(ctx context.Context, resource, request string, abort bool) (ManagedServiceUpdate, error) {
+
+	if resource == openRGBResourceName {
+		return c.runOpenRGBPublicUpdate(ctx, func(ctx context.Context) (ManagedServiceUpdate, error) {
+			return c.advanceManagedServiceUpdate(ctx, resource, request, abort)
+		})
+	}
+	return c.advanceManagedServiceUpdate(ctx, resource, request, abort)
+}
+
+func (c *Controller) advanceManagedServiceUpdate(ctx context.Context, resource, request string, abort bool) (out ManagedServiceUpdate, outcome error) {
 	if !managedUpdateResource.MatchString(resource) || !managedUpdateKey.MatchString(request) {
 		return ManagedServiceUpdate{}, fmt.Errorf("invalid update selector")
 	}
@@ -47,6 +54,15 @@ func (c *Controller) AdvanceManagedServiceUpdate(ctx context.Context, resource, 
 	if abort && !u.Phase.Terminal() {
 		u, err = s.Commit(ctx, u, UpdateBeginAbort)
 		if err != nil {
+			return u, err
+		}
+	}
+	effects := c.managedUpdateEffectOwner()
+	if effects.close != nil {
+		defer func() { outcome = errors.Join(outcome, effects.close()) }()
+	}
+	if resource == openRGBResourceName && !u.Phase.Terminal() {
+		if err := c.qualifyOpenRGBResumption(ctx, u); err != nil {
 			return u, err
 		}
 	}
@@ -81,22 +97,48 @@ func (c *Controller) AdvanceManagedServiceUpdate(ctx context.Context, resource, 
 			return u, err
 		}
 		if u.Phase.Terminal() {
-			return u, releaseManagedUpdateCapacity(ctx, u)
+			return u, effects.release(ctx, u)
+		}
+		if resource == openRGBResourceName {
+			if err := c.qualifyOpenRGBResumption(ctx, u); err != nil {
+				return u, err
+			}
 		}
 		switch u.Phase {
-		case UpdatePrepared, UpdateRollbackProbeStarting, UpdateRollbackProbeVerifying, UpdateCandidateStarting, UpdateCandidateVerifying:
-			u, err = c.advanceManagedUpdateCandidateLocked(ctx, u, s)
+		case UpdatePrepared:
+			if exclusiveStopStart(u) {
+				u.OriginalProof, err = effects.original(ctx, u)
+				if err != nil {
+					u, err = fail(err, false)
+					break
+				}
+				instance := "mu-" + updateOperationRoleDigest(u.ID, managedUpdateRolePrimary)
+				intent, e := effects.prepare(ctx, u, u.Target, instance, u.Target.Manifest.Ports[0].Host)
+				if e != nil {
+					u, err = fail(e, false)
+					break
+				}
+				u.Primary.Intent = &intent
+				u, err = s.Commit(ctx, u, UpdateStopPrimary)
+			} else {
+				u, err = effects.candidate(ctx, u, s)
+				if err != nil {
+					u, err = fail(err, false)
+				}
+			}
+		case UpdateRollbackProbeStarting, UpdateRollbackProbeVerifying, UpdateCandidateStarting, UpdateCandidateVerifying:
+			u, err = effects.candidate(ctx, u, s)
 			if err != nil {
 				u, err = fail(err, false)
 			}
 		case UpdateCandidateReady:
-			u.Candidate, err = observeManagedUpdateProcess(ctx, u, u.Candidate, u.Target)
+			u.Candidate, err = effects.observe(ctx, u, u.Candidate, u.Target)
 			if err != nil {
 				u, err = fail(err, false)
 				break
 			}
 			instance := "mu-" + updateOperationRoleDigest(u.ID, managedUpdateRolePrimary)
-			intent, e := c.prepareManagedUpdateLaunch(ctx, u, u.Target, instance, u.Target.Manifest.Ports[0].Host)
+			intent, e := effects.prepare(ctx, u, u.Target, instance, u.Target.Manifest.Ports[0].Host)
 			if e != nil {
 				u, err = fail(e, false)
 				break
@@ -104,63 +146,69 @@ func (c *Controller) AdvanceManagedServiceUpdate(ctx context.Context, resource, 
 			u.Primary.Intent = &intent
 			u, err = s.Commit(ctx, u, UpdateStopPrimary)
 		case UpdatePrimaryStopping:
-			if e := reserveManagedUpdateCapacity(ctx, u); e != nil {
+			if e := effects.reserve(ctx, u); e != nil {
 				return u, e
 			}
-			if _, e := stopManagedUpdateOriginal(ctx, u); e != nil {
+			if resource == openRGBResourceName {
+				if e := c.openRGBPublicOwners().quiesce(ctx); e != nil {
+					u, err = fail(e, false)
+					break
+				}
+			}
+			if _, e := effects.stopOriginal(ctx, u); e != nil {
 				u, err = fail(e, false)
 				break
 			}
-			if e := managedUpdatePortUnbound(u.Target.Manifest.Ports[0].Host); e != nil {
+			if e := effects.portUnbound(u.Target.Manifest.Ports[0].Host); e != nil {
 				u, err = fail(e, false)
 				break
 			}
 			u.PrimaryStopVerified = true
 			u, err = s.Commit(ctx, u, UpdatePrimaryStopped)
 			if err == nil {
-				_, err = platform.StartOwnedService(ctx, u.Primary.Intent.NativeIntent, managedUpdateWrapperSpec(u, *u.Primary.Intent))
+				_, err = effects.start(ctx, u.Primary.Intent.NativeIntent, managedUpdateWrapperSpec(u, *u.Primary.Intent))
 				if err != nil {
 					u, err = fail(err, false)
 				}
 			}
 		case UpdatePrimaryStarting:
-			u.Primary, err = waitManagedUpdateProcess(ctx, u, u.Primary, u.Target)
+			u.Primary, err = effects.wait(ctx, u, u.Primary, u.Target)
 			if err != nil {
 				u, err = fail(err, false)
 			} else {
 				u, err = s.Commit(ctx, u, UpdatePrimaryStarted)
 			}
 		case UpdatePrimaryVerifying:
-			u.Primary, err = observeManagedUpdateProcess(ctx, u, u.Primary, u.Target)
+			u.Primary, err = effects.observe(ctx, u, u.Primary, u.Target)
 			if err != nil {
 				u, err = fail(err, false)
 			} else {
 				u, err = s.Commit(ctx, u, UpdatePrimaryVerified)
 			}
 		case UpdateCommitting:
-			if e := publishManagedUpdateServing(ctx, u, managedUpdateRolePrimary); e != nil {
+			if e := effects.publish(ctx, u, managedUpdateRolePrimary); e != nil {
 				if errors.Is(e, ErrManagedUpdateCommitUnknown) || errors.Is(e, ErrManagedUpdateConflict) {
 					return u, e
 				}
 				u, err = fail(e, false)
 				break
 			}
-			if e := cleanupManagedUpdateRole(ctx, u, u.Candidate); e != nil {
+			if e := effects.cleanup(ctx, u, u.Candidate); e != nil {
 				return u, e
 			}
-			if e := cleanupManagedUpdateRole(ctx, u, u.RollbackProbe); e != nil {
+			if e := effects.cleanup(ctx, u, u.RollbackProbe); e != nil {
 				return u, e
 			}
 			u.CandidateQuiescent = true
 			u.RollbackProbeQuiescent = u.RollbackProbe.Intent != nil
-			u.Primary, err = observeManagedUpdateProcess(ctx, u, u.Primary, u.Target)
+			u.Primary, err = effects.observe(ctx, u, u.Primary, u.Target)
 			if err != nil {
 				u, err = fail(err, false)
 			} else {
 				u, err = s.Commit(ctx, u, UpdateFinishSuccess)
 			}
 		case UpdatePreserving, UpdatePreserveCommitting:
-			proof, e := observeManagedUpdateOriginal(ctx, u)
+			proof, e := effects.original(ctx, u)
 			if e != nil {
 				u, err = fail(e, true)
 				break
@@ -170,45 +218,50 @@ func (c *Controller) AdvanceManagedServiceUpdate(ctx context.Context, resource, 
 				u, err = s.Commit(ctx, u, UpdateOriginalVerified)
 				break
 			}
-			if e := cleanupManagedUpdateRole(ctx, u, u.Candidate); e != nil {
+			if e := effects.cleanup(ctx, u, u.Candidate); e != nil {
 				return u, e
 			}
-			if e := cleanupManagedUpdateRole(ctx, u, u.RollbackProbe); e != nil {
+			if e := effects.cleanup(ctx, u, u.RollbackProbe); e != nil {
 				return u, e
 			}
 			u.CandidateQuiescent = true
 			u.RollbackProbeQuiescent = u.RollbackProbe.Intent != nil
-			u.OriginalProof, err = observeManagedUpdateOriginal(ctx, u)
+			u.OriginalProof, err = effects.original(ctx, u)
 			if err != nil {
 				u, err = fail(err, true)
 			} else {
 				u, err = s.Commit(ctx, u, UpdateFinishPreserved)
 			}
 		case UpdateRestoring:
+			if resource == openRGBResourceName {
+				if e := c.openRGBPublicOwners().quiesce(ctx); e != nil {
+					return u, e
+				}
+			}
 			if !u.PrimaryStopVerified {
 				// Do not convert uncertain original ownership into permission to
 				// stop it. Reconcile a prior admitted stop against the exact scope.
-				quiescent, e := managedUpdateOriginalQuiescent(ctx, u)
+				quiescent, e := effects.originalQuiescent(ctx, u)
 				if e != nil {
 					return u, fmt.Errorf("original stop remains unresolved: %v", e)
 				}
 				if !quiescent {
-					if _, e := stopManagedUpdateOriginalForRestoration(ctx, u); e != nil {
+					if _, e := effects.stopRestoration(ctx, u); e != nil {
 						return u, e
 					}
-					quiescent, e = managedUpdateOriginalQuiescent(ctx, u)
+					quiescent, e = effects.originalQuiescent(ctx, u)
 					if e != nil || !quiescent {
 						return u, fmt.Errorf("original stop recovery remains unresolved: %v", e)
 					}
 				}
 				u.PrimaryStopVerified = true
 			}
-			if e := cleanupManagedUpdateRole(ctx, u, u.Primary); e != nil {
+			if e := effects.cleanup(ctx, u, u.Primary); e != nil {
 				return u, e
 			}
 			u.PrimaryQuiescent = true
 			if u.Restored.Intent != nil {
-				if e := cleanupManagedUpdateRole(ctx, u, u.Restored); e != nil {
+				if e := effects.cleanup(ctx, u, u.Restored); e != nil {
 					return u, e
 				}
 				if len(u.RetiredRestores) >= managedUpdateRestoreAttempts-1 {
@@ -225,49 +278,49 @@ func (c *Controller) AdvanceManagedServiceUpdate(ctx context.Context, resource, 
 					break
 				}
 			}
-			if e := managedUpdatePortUnbound(u.Rollback.Manifest.Ports[0].Host); e != nil {
+			if e := effects.portUnbound(u.Rollback.Manifest.Ports[0].Host); e != nil {
 				return u, e
 			}
 			instance := "mu-" + updateOperationRoleDigest(u.ID, "restore-"+strconv.Itoa(len(u.RetiredRestores)))
-			intent, e := c.prepareManagedUpdateLaunch(ctx, u, u.Rollback, instance, u.Rollback.Manifest.Ports[0].Host)
+			intent, e := effects.prepare(ctx, u, u.Rollback, instance, u.Rollback.Manifest.Ports[0].Host)
 			if e != nil {
 				return u, e
 			}
 			u.Restored.Intent = &intent
 			u, err = s.Commit(ctx, u, UpdateLaunchRestore)
 			if err == nil {
-				_, err = platform.StartOwnedService(ctx, intent.NativeIntent, managedUpdateWrapperSpec(u, intent))
+				_, err = effects.start(ctx, intent.NativeIntent, managedUpdateWrapperSpec(u, intent))
 				if err != nil {
 					u, err = fail(err, true)
 				}
 			}
 		case UpdateRestoreStarting:
-			u.Restored, err = waitManagedUpdateProcess(ctx, u, u.Restored, u.Rollback)
+			u.Restored, err = effects.wait(ctx, u, u.Restored, u.Rollback)
 			if err != nil {
 				u, err = fail(err, true)
 			} else {
 				u, err = s.Commit(ctx, u, UpdateRestoreStarted)
 			}
 		case UpdateRestoreVerifying:
-			u.Restored, err = observeManagedUpdateProcess(ctx, u, u.Restored, u.Rollback)
+			u.Restored, err = effects.observe(ctx, u, u.Restored, u.Rollback)
 			if err != nil {
 				u, err = fail(err, true)
 			} else {
 				u, err = s.Commit(ctx, u, UpdateRestoreVerified)
 			}
 		case UpdateRestoreCommitting:
-			if e := publishManagedUpdateServing(ctx, u, managedUpdateRoleRestored); e != nil {
+			if e := effects.publish(ctx, u, managedUpdateRoleRestored); e != nil {
 				return u, e
 			}
-			if e := cleanupManagedUpdateRole(ctx, u, u.Candidate); e != nil {
+			if e := effects.cleanup(ctx, u, u.Candidate); e != nil {
 				return u, e
 			}
-			if e := cleanupManagedUpdateRole(ctx, u, u.RollbackProbe); e != nil {
+			if e := effects.cleanup(ctx, u, u.RollbackProbe); e != nil {
 				return u, e
 			}
 			u.CandidateQuiescent = true
 			u.RollbackProbeQuiescent = u.RollbackProbe.Intent != nil
-			u.Restored, err = observeManagedUpdateProcess(ctx, u, u.Restored, u.Rollback)
+			u.Restored, err = effects.observe(ctx, u, u.Restored, u.Rollback)
 			if err != nil {
 				u, err = fail(err, true)
 			} else {
@@ -318,6 +371,21 @@ func cleanupManagedUpdateRole(ctx context.Context, u ManagedServiceUpdate, p Man
 		known = f.Claim
 	}
 	current, lookupErr := platform.LookupOwnedService(ctx, i.NativeIntent)
+	if u.Resource == openRGBResourceName {
+		var observed *platform.ServiceRef
+		if lookupErr == nil {
+			observed = &current
+		} else if !errors.Is(lookupErr, platform.ErrOperationOutcomeLost) {
+			return lookupErr
+		}
+		handled, e := retireOpenRGBNativeBoot(ctx, fences, f, observed)
+		if e != nil {
+			return e
+		}
+		if handled {
+			return fences.recordNativeRetired(ctx, f)
+		}
+	}
 	if lookupErr == nil {
 		if known != nil && known.NativeInvocationID != current.NativeInvocationID {
 			return fmt.Errorf("%w: cleanup native invocation changed", ErrManagedUpdateConflict)
@@ -356,10 +424,25 @@ func cleanupManagedUpdateRole(ctx context.Context, u ManagedServiceUpdate, p Man
 			}
 		}
 	}
+	if u.Resource == openRGBResourceName {
+		return fences.recordNativeRetired(ctx, f)
+	}
 	return nil
 }
 
 func observeManagedUpdateOriginal(ctx context.Context, u ManagedServiceUpdate) (*ManagedUpdateProof, error) {
+	if u.Original.InitialLaunch != nil {
+		a, _, err := readOpenRGBInitialServing(u.Original)
+		if err != nil {
+			return nil, err
+		}
+		owner := &Controller{Root: a.Runtime.Root, Home: a.Runtime.Home}
+		state, err := owner.observeOpenRGBInitialProcess(ctx, a)
+		if err != nil || !sameOpenRGBInitialState(state, u.Original) {
+			return nil, errors.Join(errors.New("initial OpenRGB original changed during update qualification"), err)
+		}
+		return &ManagedUpdateProof{PID: state.PID, Incarnation: state.Incarnation, InstanceID: state.InstanceID, ArtifactSHA256: state.ArtifactSHA256, ObservedAt: time.Now().UTC(), OwnedListener: true, Ready: true}, nil
+	}
 	if u.Original.UpdateLaunch != nil {
 		old, p, contract, err := managedUpdateRecordedOriginal(u)
 		if err != nil {
@@ -397,33 +480,13 @@ func observeManagedUpdateOriginal(ctx context.Context, u ManagedServiceUpdate) (
 	if err := managedUpdateOwnedListener(port, u.Original.PID); err != nil {
 		return nil, err
 	}
-	ready := ""
 	key := resourcedeployment.ServicePortEnvironmentName(u.Rollback.Manifest.ManagedService.UpdatePolicy.CandidatePort)
-	for _, check := range u.Rollback.Manifest.HealthChecks {
-		if check.Kind == "readiness" && check.Type == "http" {
-			ready = strings.ReplaceAll(check.Target, "${"+key+"}", strconv.Itoa(port))
-			break
-		}
-	}
-	endpoint, err := url.Parse(ready)
-	if err != nil || endpoint.Scheme != "http" || endpoint.Host != "127.0.0.1:"+strconv.Itoa(port) || strings.Contains(ready, "$") {
-		return nil, fmt.Errorf("original readiness endpoint is not qualified")
-	}
-	transport := &http.Transport{Proxy: nil, DisableKeepAlives: true}
-	defer transport.CloseIdleConnections()
-	client := &http.Client{Transport: transport, Timeout: 2 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ready, nil)
+	values := map[string]string{key: strconv.Itoa(port)}
+	client, err := observeManagedUpdateReadiness(ctx, u.Rollback, port, values, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("original readiness failed: %w", err)
 	}
-	response, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	_ = response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("original readiness returned HTTP %d", response.StatusCode)
-	}
+	defer client.CloseIdleConnections()
 	metrics, err := observeManagedUpdateMetrics(ctx, client, port, u.Rollback)
 	if err != nil {
 		return nil, err

@@ -575,6 +575,17 @@ func TestManagedUpdateLedgerConstantsAreStored(t *testing.T) {
 	if contains(NotStoredConstants["internal/resources"], "openRGBResourceName") {
 		t.Error("openRGBResourceName is incorrectly classified as not stored")
 	}
+	for constant, reachability := range map[string]string{
+		"openRGBSealedServingProfile": "the durable serving metadata filename and stage layout",
+		"openRGBMacOrphanFramework":   "omit[].path in the recipe embedded in durable serving metadata",
+	} {
+		if !contains(StoredConstants["internal/resources"], constant) {
+			t.Errorf("%s is not classified as stored; it reaches %s", constant, reachability)
+		}
+		if contains(NotStoredConstants["internal/resources"], constant) {
+			t.Errorf("%s is incorrectly classified as not stored", constant)
+		}
+	}
 }
 
 func testStampWithout(t *testing.T, owner string) string {

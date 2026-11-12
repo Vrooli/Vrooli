@@ -41,6 +41,7 @@ const (
 // GPU probe source names. A GPU row records which probe enumerated it, and the
 // probe decides what the row proves about compute reachability.
 const (
+	SourceNativeDevice        = "native-device-tree"
 	SourceNvidiaSMI           = ToolNvidiaSMI
 	SourceROCmSMI             = ToolROCmSMI
 	SourceSystemProfiler      = ToolSystemProfiler
@@ -217,22 +218,14 @@ func (s Snapshot) OpenableDeviceNode(path string) bool {
 	return false
 }
 
-// hasMetalDevice reports a Metal-capable device. Every GPU macOS enumerates is
-// Metal-capable on a supported macOS release, so the platform plus an
-// enumerated display device is the evidence.
+// hasMetalDevice requires an explicit supported-Metal observation. Display
+// identity or an ARM architecture alone cannot prove a compute backend.
 func (s Snapshot) hasMetalDevice() bool {
 	if hostreqspec.PlatformFromGOOS(s.OS) != hostreqspec.PlatformMacOS {
 		return false
 	}
 	for _, gpu := range s.GPUs {
-		if strings.TrimSpace(gpu.Name) == "" {
-			continue
-		}
-		// system_profiler enumerates a discrete or integrated GPU;
-		// darwin-unified-memory is the Apple Silicon shared-memory device the
-		// collector derives when system_profiler is unavailable. Both are
-		// Metal-capable.
-		if gpu.Source == SourceSystemProfiler || gpu.Source == SourceDarwinUnifiedMemory {
+		if gpu.MetalSupported && strings.TrimSpace(gpu.Name) != "" && gpu.Source != SourceDarwinUnifiedMemory {
 			return true
 		}
 	}
@@ -293,8 +286,8 @@ func (s Snapshot) highestCUDACompute() string {
 func (s Snapshot) largestDeviceVRAMBytes() uint64 {
 	var largest uint64
 	for _, gpu := range s.GPUs {
-		if gpu.VRAMBytes > largest {
-			largest = gpu.VRAMBytes
+		if gpu.DedicatedVRAMBytes() > largest {
+			largest = gpu.DedicatedVRAMBytes()
 		}
 	}
 	return largest
@@ -310,6 +303,9 @@ func (s Snapshot) acceleratorVendors() []string {
 		}
 	}
 	for _, gpu := range s.GPUs {
+		if gpu.Source == SourceDarwinUnifiedMemory {
+			continue
+		}
 		if vendor := vendorFromGPU(gpu); vendor != "" {
 			seen[vendor] = true
 		}

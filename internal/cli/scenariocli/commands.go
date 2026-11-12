@@ -78,6 +78,8 @@ const (
 	CommandStartAll        CommandID = "start-all"
 	CommandSetup           CommandID = "setup"
 	CommandRestart         CommandID = "restart"
+	CommandCaptureRuntime  CommandID = "capture-runtime"
+	CommandVerifyRuntime   CommandID = "verify-runtime"
 	CommandStop            CommandID = "stop"
 	CommandDelete          CommandID = "delete"
 	CommandWait            CommandID = "wait"
@@ -96,6 +98,8 @@ const (
 
 func CommandSpecs() []commandtree.Spec[CommandID] {
 	return []commandtree.Spec[CommandID]{
+		runtimeReleaseSpec(CommandCaptureRuntime),
+		runtimeReleaseSpec(CommandVerifyRuntime),
 		{
 			Name: string(CommandProfile), Group: "Read-only Commands", Summary: "Collect a bounded CPU profile from one exact local component launch", Handler: CommandProfile, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}}, Options: []commandtree.OptionArg{
@@ -157,7 +161,7 @@ func CommandSpecs() []commandtree.Spec[CommandID] {
 			Name: string(CommandRestart), Group: "Lifecycle and Utility Commands", Summary: "Restart a scenario", Handler: CommandRestart, Suggestable: true, RootPolicy: commandtree.RootPolicy{RequiresRoot: true, CanRunWithoutRoot: HelpOnlyWithoutRoot},
 			Args: commandtree.ArgSchema{
 				Positionals: []commandtree.PositionalArg{{Name: "scenario name", Required: true}},
-				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--variant-dependencies", ValueName: "scenarios", Description: "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"}, {Name: "--force-lifecycle", Description: "Accept lifecycle replacement risk, including missing owner proof"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audited reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, {Name: restartDeployReportFlag, Description: "Print the deploy report (changes since the running build) to stderr before restarting"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
+				Options:     []commandtree.OptionArg{{Name: "--path", ValueName: "path"}, {Name: "--best-effort"}, {Name: "--clean-stale"}, {Name: "--demand-managed", Description: "Tie this instance to renewable demand leases"}, {Name: "--force", Description: "Rebuild artifacts even when their inputs are fresh"}, {Name: "--accept-credential-loss", Description: "Explicitly permit witnessed generated-credential replacement"}, {Name: "--variant-dependencies", ValueName: "scenarios", Description: "Comma-separated dependencies this non-live instance resolves at its own variant instead of live (no live fallback)"}, {Name: "--runtime-release", ValueName: "id|source", Description: "Select a verified retained runtime, or working source"}, {Name: "--expected-runtime-release", ValueName: "id|source", Description: "Required current selection when changing runtime release"}, {Name: "--force-lifecycle", Description: "Accept lifecycle replacement risk, including missing owner proof"}, {Name: "--lifecycle-override-reason", ValueName: "reason", Description: "Audited reason required with --force-lifecycle"}, {Name: "--open"}, {Name: "--timeout", ValueName: "seconds", Description: "Ceiling for the whole restart; on expiry exit 124 — the operation record stays honest and the next start/wait resumes"}, {Name: restartDeployReportFlag, Description: "Print the deploy report (changes since the running build) to stderr before restarting"}, commandtree.JSONOption(), instanceOption(), nodeOption()},
 			},
 		},
 		{
@@ -364,18 +368,25 @@ func parseScenarioStartArgs(command string, commandID CommandID, defaultJSON boo
 	}
 	out := ScenarioStartArgs{
 		Options: lifecycle.StartOptions{
-			BestEffort:              parsed.HasFlag("--best-effort"),
-			CleanStale:              parsed.HasFlag("--clean-stale"),
-			ForceSetup:              parsed.HasFlag("--force"),
-			ForceLifecycle:          parsed.HasFlag("--force-lifecycle"),
-			LifecycleOverrideReason: parsed.FlagValue("--lifecycle-override-reason"),
-			AcceptCredentialLoss:    parsed.HasFlag("--accept-credential-loss"),
-			VariantDependencies:     splitListFlag(parsed.FlagValue("--variant-dependencies")),
-			DemandManaged:           parsed.HasFlag("--demand-managed"),
-			CustomPath:              parsed.FlagValue("--path"),
+			BestEffort:                parsed.HasFlag("--best-effort"),
+			CleanStale:                parsed.HasFlag("--clean-stale"),
+			ForceSetup:                parsed.HasFlag("--force"),
+			ForceLifecycle:            parsed.HasFlag("--force-lifecycle"),
+			LifecycleOverrideReason:   parsed.FlagValue("--lifecycle-override-reason"),
+			AcceptCredentialLoss:      parsed.HasFlag("--accept-credential-loss"),
+			VariantDependencies:       splitListFlag(parsed.FlagValue("--variant-dependencies")),
+			DemandManaged:             parsed.HasFlag("--demand-managed"),
+			CustomPath:                parsed.FlagValue("--path"),
+			RetainedReleaseID:         parsed.FlagValue("--runtime-release"),
+			ExpectedRetainedReleaseID: parsed.FlagValue("--expected-runtime-release"),
 		},
 		JSON:      defaultJSON || parsed.HasFlag("--json"),
 		OpenAfter: parsed.HasFlag("--open"),
+	}
+	if parsed.HasFlag("--runtime-release") || parsed.HasFlag("--expected-runtime-release") {
+		if strings.TrimSpace(parsed.FlagValue("--runtime-release")) == "" || strings.TrimSpace(parsed.FlagValue("--expected-runtime-release")) == "" {
+			return ScenarioStartArgs{}, clipolicy.UsageErrorf("scenario "+command, "--runtime-release and --expected-runtime-release must both name an exact release ID or source")
+		}
 	}
 	if out.Options.ForceLifecycle && strings.TrimSpace(out.Options.LifecycleOverrideReason) == "" {
 		return ScenarioStartArgs{}, clipolicy.UsageErrorf("scenario "+command, "--lifecycle-override-reason is required with --force-lifecycle")

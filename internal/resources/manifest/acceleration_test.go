@@ -211,6 +211,16 @@ func TestAccelerationValidateRejectsUnsteppableVRAMClaim(t *testing.T) {
 			mutate:   func(c *capacity.ResourceClaimSpec) { c.ResourceKind = "" },
 			wantErr:  "resource_kind is required",
 		},
+		{
+			scenario: "Given a partial residency model identity, Then it is rejected",
+			mutate:   func(c *capacity.ResourceClaimSpec) { c.Profile.Model.Name = "medium"; c.Profile.Model.Digest = "" },
+			wantErr:  "profile.model requires both name and digest",
+		},
+		{
+			scenario: "Given whitespace-only residency model identity, Then it is rejected",
+			mutate:   func(c *capacity.ResourceClaimSpec) { c.Profile.Model.Name = " \t"; c.Profile.Model.Digest = " \t" },
+			wantErr:  "must contain non-whitespace characters",
+		},
 	}
 
 	for _, tc := range cases {

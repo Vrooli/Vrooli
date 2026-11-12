@@ -110,9 +110,9 @@ func InvokingUserIDs() (uid int, gid int, ok bool) {
 // InvokingUserHomeDir returns the home directory of InvokingUser. Reads
 // /etc/passwd directly because sudo sets HOME=/root by default — calling
 // os.UserHomeDir from a sudo'd process returns /root, not the operator's
-// home. /etc/passwd is consulted by both Linux and macOS for local
-// accounts; AD-bound or NIS-only setups fall back to $HOME (which is
-// correct for the invoking process even if not for cross-user lookups).
+// home. A macOS sudo account missing from passwd is resolved by authoritative
+// SUDO_UID through the native account directory; root's HOME is never a
+// cross-user fallback. Non-escalated and other platform behavior is unchanged.
 func InvokingUserHomeDir() (string, error) {
 	user := InvokingUser()
 	if user == "" {
@@ -120,6 +120,9 @@ func InvokingUserHomeDir() (string, error) {
 	}
 	if home := lookupHomeFromPasswdFn(user); home != "" {
 		return home, nil
+	}
+	if home, handled, err := nativeInvokingUserHome(); handled {
+		return home, err
 	}
 	if h := strings.TrimSpace(os.Getenv("HOME")); h != "" {
 		return h, nil

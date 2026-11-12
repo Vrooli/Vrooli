@@ -299,6 +299,15 @@ func TestSupportForCurrentPlatformUsesMappedOSNames(t *testing.T) {
 	}
 }
 
+func TestPlatformUnqualifiedRetainsSourceQualificationPath(t *testing.T) {
+	if err := validatePlatforms(ResourcePlatforms{MacOS: "unqualified", Windows: "unqualified"}); err != nil {
+		t.Fatalf("canonical unqualified state rejected: %v", err)
+	}
+	if err := validatePlatforms(ResourcePlatforms{Windows: "assume-supported"}); err == nil {
+		t.Fatal("arbitrary support declaration accepted")
+	}
+}
+
 func TestResourceCredentialsUnmarshalAcceptsCanonicalDescriptors(t *testing.T) {
 	var manifest ResourceManifest
 	err := json.Unmarshal([]byte(`{

@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -170,6 +171,13 @@ func (c *Controller) inspectManagedServiceArtifactWithRunning(ctx context.Contex
 	}
 	info := ManagedServiceArtifact{Resource: manifest.Name, Path: path, Version: artifact.Version, SHA256: artifact.SHA256}
 	if strings.EqualFold(artifact.Verification, "host-tool") {
+		if manifest.Name == openRGBResourceName {
+			actual, err := inspectOpenRGBAdoptedSource(ctx, path)
+			if err != nil || actual != artifact.SHA256 {
+				return info, errors.Join(errors.New("OpenRGB adopted native profile or dependency closure changed after selection"), err)
+			}
+			return info, nil
+		}
 		actual, hashErr := managedFileSHA256(path)
 		if hashErr != nil {
 			return info, hashErr

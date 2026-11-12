@@ -16,11 +16,10 @@ import (
 
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/artifactlock"
-	"github.com/vrooli/vrooli/internal/config"
 )
 
 func execFenceTestStore(path string, f managedUpdateExecFence) *managedUpdateExecStore {
-	return &managedUpdateExecStore{path: path, resource: f.Resource, operation: f.OperationID, instance: f.Intent.InstanceID, now: time.Now, write: config.WriteOwnedFileDurable, lock: func(ctx context.Context) (func(), error) {
+	return &managedUpdateExecStore{path: path, resource: f.Resource, operation: f.OperationID, instance: f.Intent.InstanceID, now: time.Now, write: writeResourceOwnedFileDurable, lock: func(ctx context.Context) (func(), error) {
 		return artifactlock.AcquireWithPathContext(ctx, "exec-fence-test:"+path, func(string) (string, error) { return path + ".lock", nil })
 	}}
 }
@@ -85,7 +84,7 @@ func TestManagedUpdateExecFenceRejectedDeliverySurvivesLostAuditAcknowledgement(
 			}
 			s.write = func(path string, data []byte, mode os.FileMode) error {
 				if visible {
-					if err := config.WriteOwnedFileDurable(path, data, mode); err != nil {
+					if err := writeResourceOwnedFileDurable(path, data, mode); err != nil {
 						return err
 					}
 				}
@@ -117,7 +116,7 @@ func TestManagedUpdateExecFenceLostAcknowledgementNeverAuthorizesAnUnconfirmedEx
 			failure := errors.New("injected exec claim acknowledgement loss")
 			s.write = func(path string, data []byte, mode os.FileMode) error {
 				if afterRename {
-					if err := config.WriteOwnedFileDurable(path, data, mode); err != nil {
+					if err := writeResourceOwnedFileDurable(path, data, mode); err != nil {
 						return err
 					}
 				}

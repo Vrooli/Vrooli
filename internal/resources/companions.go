@@ -1,6 +1,7 @@
 package resources
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -20,6 +21,7 @@ import (
 	repocontract "github.com/vrooli/repo-contract-go"
 	"github.com/vrooli/vrooli/internal/config"
 	"github.com/vrooli/vrooli/internal/process"
+	"github.com/vrooli/vrooli/packages/capacity/activityedge"
 )
 
 // startCompanions launches every declared host-side companion (idempotent,
@@ -161,17 +163,48 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 	}
 	pidPath := filepath.Join(dir, c.Name+".pid")
 	statePath := filepath.Join(dir, c.Name+".state")
+	stableControlEdge := hasStableActivityEdge(resourceName) && c.Name == "activity-edge"
 	previousPID, previousOK := readCompanionPID(statePath)
 	pidfilePID, pidfileOK := readCompanionPID(pidPath)
 	// Idempotent: a live companion is left running so a restart does not gap the
 	// data path (the reverse proxy is stateless and dials the recreated container).
 	if pid, ok := pidfilePID, pidfileOK; ok {
 		if process.IsPIDRunning(pid) {
-			clearCompanionCrashState(dir, c.Name)
-			return nil
+			if stableControlEdge {
+				readyCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+				err := activityedge.ControlSocketReady(readyCtx, filepath.Join(dir, "activity-edge.control.sock"))
+				cancel()
+				if err != nil {
+					bin, binErr := exec.LookPath(c.Command)
+					if binErr != nil {
+						return binErr
+					}
+					if !activityEdgeProcessOwned(pid, bin, filepath.Join(dir, "activity-edge.control.sock"), c.Args) {
+						return fmt.Errorf("%s activity edge PID %d lacks exact executable and argv ownership proof", resourceName, pid)
+					}
+					if stopErr := stopCompanion(resourceName, c); stopErr != nil {
+						return fmt.Errorf("retire %s activity edge without lifecycle control: %w", resourceName, stopErr)
+					}
+					pidfileOK = false
+				} else {
+					clearCompanionCrashState(dir, c.Name)
+					return nil
+				}
+			} else {
+				clearCompanionCrashState(dir, c.Name)
+				return nil
+			}
 		}
 		// A dead pidfile is stale state, not evidence that the companion is
 		// still owned. Reap it before attempting recovery.
+		if stableControlEdge {
+			if !previousOK || previousPID != pid {
+				return fmt.Errorf("refuse to recover %s control socket without matching dead companion identity", resourceName)
+			}
+			if err := removeStaleActivityEdgeControlSocket(filepath.Join(dir, "activity-edge.control.sock"), pid); err != nil {
+				return fmt.Errorf("recover stale %s activity-edge control socket: %w", resourceName, err)
+			}
+		}
 		_ = os.Remove(pidPath)
 		if !previousOK || previousPID != pid {
 			if err := recordCompanionCrashAttempt(dir, c.Name, recoveryAttempts); err != nil {
@@ -182,6 +215,11 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 		// Status intentionally reaps dead pidfiles. The state file preserves
 		// the fact that the prior launch existed, so a later start still counts
 		// the crash.
+		if stableControlEdge {
+			if err := removeStaleActivityEdgeControlSocket(filepath.Join(dir, "activity-edge.control.sock"), previousPID); err != nil {
+				return fmt.Errorf("recover state-file-owned %s control socket: %w", resourceName, err)
+			}
+		}
 		if err := recordCompanionCrashAttempt(dir, c.Name, recoveryAttempts); err != nil {
 			return err
 		}
@@ -214,10 +252,7 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 	}
 	defer logf.Close()
 
-	cmd := shell.NewCommand(bin, c.Args...)
-	if len(parentPIDs) > 0 && parentPIDs[0] > 1 {
-		cmd = shell.NewCommand(bin, append(append([]string{}, c.Args...), "--parent-pid", strconv.Itoa(parentPIDs[0]))...)
-	}
+	cmd := shell.NewCommand(bin, companionLaunchArgs(resourceName, c, dir, parentPID)...)
 	cmd.Env = detachedResourceEnvironment(os.Environ())
 	cmd.Stdout = logf
 	cmd.Stderr = logf
@@ -238,6 +273,49 @@ func startCompanion(resourceName string, c ResourceCompanion, recoveryAttempts i
 		return err
 	}
 	return os.WriteFile(statePath, []byte(strconv.Itoa(pid)), tuning.PermFile)
+}
+
+func whisperEdgeProcessOwned(pid int, bin, socket string, declaredArgs []string) bool {
+	return activityEdgeProcessOwned(pid, bin, socket, declaredArgs)
+}
+
+func activityEdgeProcessOwned(pid int, bin, socket string, declaredArgs []string) bool {
+	if pid <= 1 {
+		return false
+	}
+	executable, executableErr := platform.ProcessExecutablePath(pid)
+	command, commandErr := platform.ProcessCommandLine(pid)
+	if executableErr != nil || commandErr != nil || filepath.Clean(strings.TrimSuffix(executable, " (deleted)")) != filepath.Clean(bin) {
+		return false
+	}
+	expected := append(append([]string(nil), declaredArgs...), "--control-socket", socket)
+	for _, arg := range expected {
+		if arg == "" || strings.ContainsAny(arg, " \t\r\n") {
+			return false
+		}
+	}
+	actual := strings.Fields(command)
+	return len(actual) == len(expected)+1 && strings.Join(actual[1:], " ") == strings.Join(expected, " ")
+}
+
+func companionLaunchArgs(resourceName string, c ResourceCompanion, dir string, parentPID int) []string {
+	args := append([]string{}, c.Args...)
+	if hasStableActivityEdge(resourceName) && c.Name == "activity-edge" {
+		return append(args, "--control-socket", filepath.Join(dir, "activity-edge.control.sock"))
+	}
+	if parentPID > 1 {
+		args = append(args, "--parent-pid", strconv.Itoa(parentPID))
+	}
+	return args
+}
+
+func hasStableActivityEdge(resourceName string) bool {
+	switch resourceName {
+	case "whisper", "ollama":
+		return true
+	default:
+		return false
+	}
 }
 
 func terminateCompanion(pid int) error {

@@ -27,7 +27,7 @@ func TestManagedUpdateCurrentHostOriginalStopGuardProbe(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("XDG_STATE_HOME", filepath.Join(root, "xdg-state"))
+	isolateNativeUpdateFixtureStorage(t, root)
 	u := updateTestInitial(t)
 	name := "original-stop-probe-" + strconv.FormatInt(time.Now().UnixNano(), 10)
 	u.ID = name

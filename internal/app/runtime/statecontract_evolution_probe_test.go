@@ -41,6 +41,10 @@ func goPackageDirs(t *testing.T, root string, patterns ...string) map[string]str
 // control-plane state the native supervisor writes. Keys are type keys or
 // prefixes ending in "/" or ".".
 var versionedEnvelopeExemptions = map[string]string{
+	"github.com/vrooli/vrooli/internal/hostreqkit.ToolManifest":      "source-owned tool.json declaration loaded by host requirements; never written as runtime state (durable OpenRGB permission records are resource-owned)",
+	"github.com/vrooli/vrooli/internal/hostreqkit.SafeguardManifest": "source-owned safeguard.json declaration loaded by host requirements; never written as runtime state",
+	"github.com/vrooli/vrooli/internal/hostreqkit.ItemStatus":        "in-memory inspection/application response, whose version is observed tool version rather than a persistence envelope; never read back as control-plane state",
+
 	"github.com/vrooli/vrooli/internal/setpoint.Document":                       "source-owned setpoint document read from the repository, never written",
 	"github.com/vrooli/vrooli/packages/resource-deployment.ReleaseManifest":     "release-owned metadata read from a published release directory",
 	"github.com/vrooli/vrooli/packages/resource-deployment.ReleaseSignature":    "signed release metadata verified in memory",
@@ -112,6 +116,8 @@ func TestPersistenceOwnersDeclareEveryVersionedEnvelope(t *testing.T) {
 // new writer entering the native closure fails this test instead of passing
 // silently. Moving one into the inventory removes it here.
 var unauditedWriters = map[string]string{
+	"github.com/vrooli/vrooli/internal/runtimeprofile": "Capture publishes caller-requested binary pprof forensic output using a temporary file and exclusive hard link; no control-plane reader reloads it across activation and Result is returned rather than persisted",
+
 	"github.com/vrooli/api-core/database":                             "shared database helpers; callers own their schemas",
 	"github.com/vrooli/api-core/retention":                            "scenario retention helpers; not written by the root supervisor's own stores",
 	"github.com/vrooli/api-core/scopecatalog":                         "scope catalog cache; unaudited",

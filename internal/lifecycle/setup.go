@@ -61,6 +61,12 @@ func forceSetupFor(opts StartOptions, slug string) bool {
 
 // setupNeededCached returns component build freshness, memoized through cache.
 func (r *Runner) setupNeededCached(item scenario.Scenario, force bool, session *startSession) (bool, []string, error) {
+	if item.RetainedReleaseID != "" {
+		if force {
+			return false, nil, fmt.Errorf("retained runtime cannot be rebuilt; select source explicitly first")
+		}
+		return false, nil, nil
+	}
 	// Release bundles contain their published component artifacts. Starting a
 	// release must never turn into a source build on a target host.
 	if os.Getenv(buildinfo.ArtifactModeEnvVar) == "1" && !force {

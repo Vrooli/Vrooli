@@ -205,14 +205,17 @@ func TestManagedArtifactPrivateLifecycleIntegration(t *testing.T) {
 
 func stagedArtifact(t *testing.T, resource, binary string) string {
 	t.Helper()
-	root := os.Getenv("VROOLI_RESOURCE_ARTIFACT_DIR")
-	if root == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			t.Fatal(err)
-		}
-		root = filepath.Join(home, ".vrooli", "artifacts")
+	// Explicit native integration may read the pre-staged signed artifacts.
+	// Keep its runtime state/config private; never weaken TestMain isolation
+	// merely because the opt-in flag was inherited by unrelated tests.
+	if os.Getenv("VROOLI_RESOURCE_INTEGRATION") != "1" {
+		t.Fatal("staged native artifacts require explicit resource integration opt-in")
 	}
+	root := inheritedResourceTestEnvironment["VROOLI_RESOURCE_ARTIFACT_DIR"].value
+	if root == "" {
+		root = filepath.Join(inheritedResourceTestHome, ".vrooli", "artifacts")
+	}
+	t.Setenv("VROOLI_RESOURCE_ARTIFACT_DIR", root)
 	name := fmt.Sprintf("%s_%s_%s", binary, runtime.GOOS, runtime.GOARCH)
 	path := filepath.Join(root, resource, map[string]string{
 		"minio":    "RELEASE.2025-07-23T15-54-02Z",

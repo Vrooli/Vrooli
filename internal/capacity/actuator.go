@@ -105,6 +105,14 @@ func Actuate(ctx context.Context, plan EscalationPlan, store ClaimRepository, ex
 			if applied {
 				result.FreedBytes += outcome.FreedBytes
 			}
+		case ActionRequestResidencyUnload:
+			applied, err := actuateResidencyUnload(ctx, store, exec, policy, now, action, &outcome)
+			if err != nil {
+				return result, err
+			}
+			if applied {
+				result.FreedBytes += outcome.FreedBytes
+			}
 		case ActionRequestUpshift:
 			applied, err := actuateUpshift(ctx, store, exec, policy, now, action, &outcome)
 			if err != nil {
@@ -140,6 +148,80 @@ func Actuate(ctx context.Context, plan EscalationPlan, store ClaimRepository, ex
 		result.Outcomes = append(result.Outcomes, outcome)
 	}
 	return result, nil
+}
+
+func actuateResidencyUnload(ctx context.Context, store ClaimRepository, exec ApplyExecutor, policy Policy, now time.Time, action EscalationAction, outcome *ActuationOutcome) (bool, error) {
+	claim, err := store.GetClaim(ctx, action.ClaimID)
+	if err != nil {
+		outcome.Err = err.Error()
+		return false, nil
+	}
+	if !actuationTargetCurrent(claim, action) {
+		outcome.Skipped = true
+		outcome.Reason = "unload target changed before callback"
+		return false, nil
+	}
+	if claim.DegradeProfile == nil || !claim.DegradeProfile.Model.Complete() {
+		outcome.Skipped = true
+		outcome.Reason = "unload target has no exact model identity"
+		return false, nil
+	}
+	targetAmount, ok := stepAmount(claim.DegradeProfile, action.ToStep)
+	if !ok || action.ToStep != "unloaded" {
+		outcome.Skipped = true
+		outcome.Reason = "verified unload action does not target the declared unloaded rung"
+		return false, nil
+	}
+	if claim.Status == StatusDegraded && policy.DegradeDebounce > 0 && now.Sub(claim.UpdatedAt) < policy.DegradeDebounce {
+		outcome.Skipped = true
+		outcome.Reason = fmt.Sprintf("debounced: last degraded %s ago (< %s)", now.Sub(claim.UpdatedAt).Round(time.Second), policy.DegradeDebounce)
+		return false, nil
+	}
+	verb := strings.TrimSpace(claim.DegradeProfile.Apply.Verb)
+	if verb == "" {
+		outcome.Err = "target unload profile declares no apply verb"
+		return false, nil
+	}
+	if exec == nil {
+		exec = DefaultExecutor()
+	}
+	if err := exec.Apply(ctx, claim.OwnerID, verb, substituteLabel(claim.DegradeProfile.Apply.Argv, action.ToStep)); err != nil {
+		outcome.Err = err.Error()
+		outcome.Reason = "unload callback failed; claim retained"
+		return false, nil
+	}
+	after, err := store.GetClaim(ctx, action.ClaimID)
+	if err != nil {
+		outcome.Err = "owner callback returned success but claim could not be replayed: " + err.Error()
+		return false, nil
+	}
+	if after.Status != StatusReleased || after.Generation != action.Generation+1 {
+		outcome.Err = "owner callback returned success without releasing the exact claim generation"
+		return false, nil
+	}
+	repo, ok := store.(ResidencyRepository)
+	if !ok {
+		outcome.Err = "capacity store cannot replay verified residency unload evidence"
+		return false, nil
+	}
+	record, err := repo.GetLatestResidencyTransitionForClaim(ctx, claim.ClaimID)
+	if err != nil {
+		outcome.Err = "released claim lacks a replayable residency transition: " + err.Error()
+		return false, nil
+	}
+	verificationTime := time.Now().UTC()
+	if record.ClaimGeneration != action.Generation || record.Transition.Model != claim.DegradeProfile.Model || !record.Transition.verifiedUnloadAt(verificationTime) {
+		outcome.Err = "released claim lacks fresh, exact model-bound unload evidence"
+		return false, nil
+	}
+	if record.Transition.Footprint.Bytes != targetAmount {
+		outcome.Err = "unloaded rung amount does not match the verified zero-VRAM postcondition"
+		return false, nil
+	}
+	outcome.Applied = true
+	outcome.FreedBytes = record.Transition.verifiedReleasedBytesAt(verificationTime)
+	outcome.Reason = "resource owner completed exact model unload, measured zero-VRAM postcondition, and claim release"
+	return true, nil
 }
 
 func actuationTargetCurrent(claim CapacityClaim, action EscalationAction) bool {

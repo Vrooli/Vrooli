@@ -724,6 +724,34 @@ func TestProjectFingerprintIncludesSharedGoAndModuleInputs(t *testing.T) {
 	}
 }
 
+func TestInstallerFingerprintIncludesInstallerAndSharedInputs(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "cmd/vrooli-atomic-install/main.go", "package main\n")
+	writeTestFile(t, root, "internal/example.go", "package internal\n")
+	writeTestFile(t, root, "packages/cli-core/cliutil/launch.go", "package cliutil\n")
+	writeTestFile(t, root, "go.mod", "module example.test/root\n")
+	writeTestFile(t, root, "go.sum", "initial\n")
+	targets := FingerprintTargetsForExecutable("vrooli-atomic-install")
+	previous, err := ComputeSourceFingerprintForPaths(root, targets...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range []struct{ path, content string }{
+		{"cmd/vrooli-atomic-install/main.go", "package main\nconst Version = 2\n"},
+		{"internal/example.go", "package internal\nconst Version = 2\n"},
+		{"packages/cli-core/cliutil/launch.go", "package cliutil\nconst Version = 2\n"},
+		{"go.mod", "module example.test/changed\n"},
+		{"go.sum", "updated\n"},
+	} {
+		writeTestFile(t, root, change.path, change.content)
+		next, err := ComputeSourceFingerprintForPaths(root, targets...)
+		if err != nil || next == previous {
+			t.Fatalf("installer source/module change %s did not invalidate freshness: %v", change.path, err)
+		}
+		previous = next
+	}
+}
+
 func TestFingerprintTargetsInfersTargetsFromExecutableName(t *testing.T) {
 	originalExecutablePathFn := executablePathFn
 	t.Cleanup(func() {

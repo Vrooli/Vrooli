@@ -45,3 +45,24 @@ func TestFitRunsWhenBrokerStoreIsUnavailable(t *testing.T) {
 		t.Fatalf("Fit() = %#v", got)
 	}
 }
+
+func TestFitRejectsLegacyUnifiedMemoryAsDedicatedCapacity(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".vrooli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".vrooli", "service.json"), []byte(`{"dependencies":{"resources":{}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	service := Service{SourceRoot: root,
+		Source:            engine.StaticSource{Inventory: hostinventory.Snapshot{OS: "darwin", GPUs: []hostinventory.GPU{{Name: "Apple GPU", Source: hostinventory.SourceDarwinUnifiedMemory, VRAMBytes: 16 << 30}}}},
+		LoadOperatorState: func(context.Context, string) (operatorstate.Document, error) { return operatorstate.Default(), nil },
+	}
+	got, err := service.Fit(context.Background(), FitRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Machine.VRAMBytes != 0 || got.Machine.UsableBytes != 0 {
+		t.Fatalf("legacy cache funded fit capacity: %+v", got.Machine)
+	}
+}

@@ -32,6 +32,7 @@ const runtimeHelpText = `vrooli runtime - Manage Vrooli runtime control-plane se
 
 Usage:
 	 vrooli runtime executor-scope --json < request.json
+  vrooli runtime lighting <status|setup|enable|disable|devices|permissions> [--json]
   vrooli runtime supervisor run [options]
   vrooli runtime supervisor status [--json]
   vrooli runtime supervisor install [--user]
@@ -61,7 +62,7 @@ Environment:
 // RegisteredCommandPaths returns the child paths bound by the runtime handler.
 func RegisteredCommandPaths() []string {
 	paths := make([]string, 0, len(supervisorCommandNames)+len(recoveryPolicyNames))
-	paths = append(paths, "runtime executor-scope")
+	paths = append(paths, "runtime executor-scope", "runtime lighting status", "runtime lighting setup", "runtime lighting enable", "runtime lighting disable", "runtime lighting devices", "runtime lighting permissions plan", "runtime lighting permissions apply", "runtime lighting permissions rollback")
 	for _, name := range supervisorCommandNames {
 		paths = append(paths, "runtime supervisor "+name)
 	}
@@ -93,6 +94,9 @@ func RootHandler[C any](deps rootcli.HandlerDeps[C]) rootcli.Handler[C] {
 						return fmt.Errorf("root update command failed (exit %d)", code)
 					}
 					return nil
+				}
+				if len(args) > 0 && args[0] == "lighting" {
+					return runLightingManifest(operationCtx, app, commandCtx, args[1:])
 				}
 				if len(args) == 0 || manifestdispatch.WantsHelp(args) {
 					return writeRuntimeHelp(deps.Stdout(ctx))

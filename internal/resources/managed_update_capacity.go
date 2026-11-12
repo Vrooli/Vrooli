@@ -38,23 +38,28 @@ func (b ManagedUpdateCapacityBudget) validate(u ManagedServiceUpdate) error {
 
 func reserveManagedUpdateCapacity(ctx context.Context, u ManagedServiceUpdate) error {
 	if u.Capacity == nil {
-		return nil
-	} // Legacy isolated test/admitted fixtures.
+		if nativeOpenRGBUsesPrivateLocks(u.Resource) {
+			return fmt.Errorf("native OpenRGB update has no admitted RAM budget")
+		}
+		return nil // Preserve legacy Linux admitted records.
+	}
 	if err := u.Capacity.validate(u); err != nil {
 		return err
 	}
-	_, err := capacity.ReserveOperationRAM(ctx, managedUpdateCapacityOptions(*u.Capacity))
+	_, err := capacity.ReserveOperationRAM(ctx, managedUpdateCapacityOptionsFor(u))
 	return err
 }
-
 func verifyManagedUpdateCapacity(ctx context.Context, u ManagedServiceUpdate) error {
 	if u.Capacity == nil {
+		if nativeOpenRGBUsesPrivateLocks(u.Resource) {
+			return fmt.Errorf("native OpenRGB update has no admitted RAM budget")
+		}
 		return nil
 	}
 	if err := u.Capacity.validate(u); err != nil {
 		return err
 	}
-	return capacity.VerifyOperationRAM(ctx, managedUpdateCapacityOptions(*u.Capacity), 30*time.Second)
+	return capacity.VerifyOperationRAM(ctx, managedUpdateCapacityOptionsFor(u), 30*time.Second)
 }
 
 func releaseManagedUpdateCapacity(ctx context.Context, u ManagedServiceUpdate) error {
@@ -77,9 +82,13 @@ func releaseManagedUpdateCapacityClaims(ctx context.Context, u ManagedServiceUpd
 	if err := u.Capacity.validate(u); err != nil {
 		return err
 	}
-	return capacity.ReleaseOperationRAM(ctx, managedUpdateCapacityOptions(*u.Capacity))
+
+	return capacity.ReleaseOperationRAM(ctx, managedUpdateCapacityOptionsFor(u))
 }
 
 func managedUpdateCapacityOptions(b ManagedUpdateCapacityBudget) capacity.OperationReservationOptions {
 	return capacity.OperationReservationOptions{OwnerID: b.OwnerID, InstanceID: b.InstanceID, AmountBytes: b.AmountBytes, TTL: managedUpdateCapacityTTL, Ledger: b.LedgerPath}
+}
+func managedUpdateCapacityOptionsFor(u ManagedServiceUpdate) capacity.OperationReservationOptions {
+	return managedUpdateCapacityOptions(*u.Capacity)
 }

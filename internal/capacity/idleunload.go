@@ -26,8 +26,7 @@ func idleUnloadTTLFor(c CapacityClaim, policy Policy) time.Duration {
 //   - it is not protected (an interactive owner active right now is protected), AND
 //   - it is an active VRAM claim, AND
 //   - its activity_state is idle AND it has dwelt idle ≥ idle_unload_ttl, AND
-//   - it has a degrade profile with a rung below its current amount (something to
-//     unload to — a claim already at its floor is skipped).
+//   - it has either an explicit unloaded rung or a lower declared profile rung.
 //
 // Age and utilization NEVER make a claim eligible — only the work-owner-reported
 // idle state plus the declared TTL.
@@ -49,12 +48,25 @@ func IdleUnloadEligible(c CapacityClaim, policy Policy, now time.Time) bool {
 	return ok
 }
 
-// idleUnloadAction builds the request-degrade action that drops an idle claim all
-// the way to its lowest profile rung (floor / "unloaded"), freeing the most VRAM.
-// ok is false when the claim has no profile or is already at (or below) its floor.
+// idleUnloadAction prefers an explicit verified-unload rung. Older profiles
+// without one retain their prior lowest-rung request-degrade behavior.
 func idleUnloadAction(c CapacityClaim) (EscalationAction, bool) {
 	if c.DegradeProfile == nil || len(c.DegradeProfile.Steps) == 0 {
 		return EscalationAction{}, false
+	}
+	for _, step := range c.DegradeProfile.Steps {
+		if step.Label != "unloaded" {
+			continue
+		}
+		if !c.DegradeProfile.Model.Complete() || c.AmountBytes < step.AmountBytes {
+			return EscalationAction{}, false
+		}
+		return EscalationAction{
+			ClaimID: c.ClaimID, Generation: c.Generation, OwnerID: c.OwnerID,
+			Action: ActionRequestResidencyUnload, ToStep: step.Label,
+			FreesBytes: c.AmountBytes - step.AmountBytes,
+			Reason:     fmt.Sprintf("idle beyond idle_unload_ttl; requesting verified model unload for %q", c.OwnerID),
+		}, true
 	}
 	floor := c.DegradeProfile.Steps[0]
 	for _, st := range c.DegradeProfile.Steps {

@@ -252,9 +252,12 @@ func TestCollectDarwinGPUFromSystemProfiler(t *testing.T) {
 				"system_profiler": "/usr/sbin/system_profiler",
 			},
 			Outputs: map[string][]byte{
-				"system_profiler SPDisplaysDataType": []byte("Graphics/Displays:\n    Chipset Model: Apple M3 Pro\n"),
+				"system_profiler SPDisplaysDataType": []byte("Graphics/Displays:\n    Chipset Model: Apple M3 Pro\n    Metal Support: Metal 3\n"),
 				"sysctl -n hw.memsize":               []byte("34359738368\n"),
 			},
+		},
+		NativeDevices: func(context.Context, CommandRunner) NativeDeviceObservation {
+			return NativeDeviceObservation{Mechanism: "IORegistry", Devices: []DeviceInfo{{ID: "ioreg:IOService:/gpu@0", Class: "display controller", DeviceName: "gpu@0"}}, ProbeStatus: map[string]IntegrityProbeState{"devices": IntegrityProbeOK}}
 		},
 		Clock:    testenv.NewClock(now),
 		GOOS:     "darwin",
@@ -265,7 +268,7 @@ func TestCollectDarwinGPUFromSystemProfiler(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Collect() error = %v", err)
 	}
-	if len(got.GPUs) != 1 || got.GPUs[0].Name != "Apple M3 Pro" || got.GPUs[0].Source != "system_profiler" {
+	if len(got.GPUs) != 1 || got.GPUs[0].Name != "Apple M3 Pro" || got.GPUs[0].Source != SourceNativeDevice || !got.GPUs[0].MetalSupported || got.GPUs[0].VRAMBytes != 0 || got.GPUs[0].DeviceID != "ioreg:IOService:/gpu@0" {
 		t.Fatalf("gpus = %#v", got.GPUs)
 	}
 	if got.ProbeStatuses["darwin_gpu"] != "ok" {
@@ -338,7 +341,7 @@ func TestDarwinAutoLoginStatusUnknownRetainsRedactedDiagnosticLine(t *testing.T)
 	}
 }
 
-func TestCollectWindowsGPUFromWMIC(t *testing.T) {
+func TestCollectWindowsGPUFromNativeInventory(t *testing.T) {
 	now := time.Date(2026, 6, 10, 12, 0, 0, 0, time.UTC)
 	c := Collector{
 		Commands: &shelltest.Fake{
@@ -350,6 +353,9 @@ func TestCollectWindowsGPUFromWMIC(t *testing.T) {
 				"wmic path win32_VideoController get name":           []byte("Name\nNVIDIA GeForce RTX 3080\nMicrosoft Basic Display Adapter\n"),
 			},
 		},
+		NativeDevices: func(context.Context, CommandRunner) NativeDeviceObservation {
+			return NativeDeviceObservation{Mechanism: "SetupAPI", Devices: []DeviceInfo{{ID: "pnp:PCI\\VEN_10DE&DEV_2206\\fixture", Class: "display controller", DeviceName: "NVIDIA GeForce RTX 3080"}}, ProbeStatus: map[string]IntegrityProbeState{"devices": IntegrityProbeOK}}
+		},
 		Clock:    testenv.NewClock(now),
 		GOOS:     "windows",
 		GOARCH:   "amd64",
@@ -359,7 +365,7 @@ func TestCollectWindowsGPUFromWMIC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Collect() error = %v", err)
 	}
-	if len(got.GPUs) != 1 || got.GPUs[0].Name != "NVIDIA GeForce RTX 3080" || got.GPUs[0].Source != "wmic" {
+	if len(got.GPUs) != 1 || got.GPUs[0].Name != "NVIDIA GeForce RTX 3080" || got.GPUs[0].Source != SourceNativeDevice {
 		t.Fatalf("gpus = %#v", got.GPUs)
 	}
 	if got.ProbeStatuses["windows_gpu"] != "ok" {
@@ -510,5 +516,39 @@ func TestParseNvidiaGPUCSVSkipsMalformedRows(t *testing.T) {
 	}
 	if got[0].Index != 0 || got[0].VRAMBytes != 24564*1024*1024 {
 		t.Fatalf("gpu = %#v", got[0])
+	}
+}
+
+func TestDarwinCollectionNeverInventsGPUFromSystemMemory(t *testing.T) {
+	for _, entry := range []string{"inventory", "gpu"} {
+		t.Run(entry, func(t *testing.T) {
+			collector := Collector{GOOS: "darwin", GOARCH: "arm64", Files: fakeFileReader{},
+				Commands: &shelltest.Fake{Paths: map[string]string{"system_profiler": "/usr/sbin/system_profiler"}, Outputs: map[string][]byte{
+					"sysctl -n hw.memsize":               []byte("34359738368\n"),
+					"system_profiler SPDisplaysDataType": []byte("Chipset Model: Apple M3 Pro\nMetal Support: Metal 3\n"),
+				}}, NativeDevices: func(context.Context, CommandRunner) NativeDeviceObservation {
+					return NativeDeviceObservation{Mechanism: "IORegistry", ProbeStatus: map[string]IntegrityProbeState{"devices": IntegrityProbeFailed}, ProbeErrors: map[string]string{"devices": "fixture probe unavailable"}}
+				}}
+			var snapshot Snapshot
+			var err error
+			if entry == "gpu" {
+				snapshot, err = collector.CollectGPUFacts(context.Background())
+			} else {
+				snapshot, err = collector.Collect(context.Background())
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if snapshot.Memory.TotalBytes != 32<<30 {
+				t.Fatalf("memory fixture missing: %#v", snapshot.Memory)
+			}
+			if len(snapshot.GPUs) != 0 || len(snapshot.Devices) != 0 {
+				t.Fatalf("display metadata invented identity: %#v", snapshot.GPUs)
+			}
+			facts := snapshot.AcceleratorFacts()
+			if _, ok := facts[FactAccelVRAMBytes]; ok || facts[FactAccelBackends] != BackendCPU {
+				t.Fatalf("invented accelerator facts: %v", facts)
+			}
+		})
 	}
 }

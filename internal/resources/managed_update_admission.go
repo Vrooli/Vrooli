@@ -27,6 +27,7 @@ type ManagedServiceUpdateAdmission struct {
 // must qualify the retained image in isolation before target candidate launch.
 // Reusing the request reconciles the same operation, including after caller loss.
 func (c *Controller) AdmitManagedServiceUpdate(ctx context.Context, name string, opts ManagedServiceUpdateAdmission) (ManagedServiceUpdate, bool, error) {
+
 	if name != openRGBResourceName {
 		return c.admitManagedServiceUpdate(ctx, name, opts)
 	}

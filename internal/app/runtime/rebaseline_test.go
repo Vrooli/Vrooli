@@ -191,6 +191,196 @@ func TestRebaselineQualifiesBeforeActingAndComposesTheOwnersInOrder(t *testing.T
 	}
 }
 
+func TestRebaselineInstallsConfirmedBytesWhenTheBuildPathIsReplaced(t *testing.T) {
+	f := newRebaselineFixture(t)
+	effects := f.effects()
+	probe := effects.probeIdentity
+	qualifiedPath := ""
+	effects.probeIdentity = func(ctx context.Context, path string) (*cliv1.CliVersion, error) {
+		if path != f.layout.Executable {
+			qualifiedPath = path
+		}
+		return probe(ctx, path)
+	}
+	request := f.request(true)
+	confirm := request.Confirm
+	request.Confirm = func(plan RebaselinePlan) (bool, error) {
+		// Another make build atomically publishes a new candidate while the
+		// operator is reading the confirmation. It can even change contract.
+		replacement := f.candidate + ".new"
+		if err := os.WriteFile(replacement, []byte("a different contract image"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Rename(replacement, f.candidate); err != nil {
+			t.Fatal(err)
+		}
+		return confirm(plan)
+	}
+	result, err := effects.run(context.Background(), f.home, request)
+	if err != nil {
+		t.Fatalf("a concurrent candidate build changed the confirmed transition: %v", err)
+	}
+	if qualifiedPath == f.candidate || qualifiedPath == "" {
+		t.Fatalf("qualification used the mutable build path: %q", qualifiedPath)
+	}
+	installed, _ := os.ReadFile(f.layout.Executable)
+	if string(installed) != "candidate image" || result.Contract != strings.Repeat("d", 64) || !result.Enrolled {
+		t.Fatalf("installed bytes or contract differ from the confirmed image: bytes=%q result=%+v", installed, result)
+	}
+	if current, _ := os.ReadFile(f.candidate); string(current) != "a different contract image" {
+		t.Fatal("transition overwrote the concurrent build")
+	}
+	if _, err := os.Stat(qualifiedPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("private candidate was not cleaned up: %v", err)
+	}
+}
+
+func TestRebaselineRefusesPrivateCandidateChangesBeforePausingEnrollment(t *testing.T) {
+	for _, when := range []string{"role", "identity", "watchdog", "explanation", "confirmation"} {
+		t.Run(when, func(t *testing.T) {
+			f := newRebaselineFixture(t)
+			effects := f.effects()
+			privatePath := ""
+			mutate := func() {
+				t.Helper()
+				if err := os.WriteFile(privatePath, []byte("changed private candidate"), 0o700); err != nil {
+					t.Fatal(err)
+				}
+			}
+			role := effects.validateRole
+			effects.validateRole = func(path string) error {
+				privatePath = path
+				if when == "role" {
+					mutate()
+				}
+				return role(path)
+			}
+			probe := effects.probeIdentity
+			effects.probeIdentity = func(ctx context.Context, path string) (*cliv1.CliVersion, error) {
+				identity, err := probe(ctx, path)
+				if when == "identity" && path == privatePath {
+					mutate()
+				}
+				return identity, err
+			}
+			worker := effects.probeWorker
+			effects.probeWorker = func(ctx context.Context, path string, identity *cliv1.CliVersion) error {
+				if when == "watchdog" {
+					mutate()
+				}
+				return worker(ctx, path, identity)
+			}
+			explain := effects.explain
+			effects.explain = func(ctx context.Context, serving, candidate string) []string {
+				if candidate != privatePath {
+					t.Fatalf("explanation used unqualified bytes: %q", candidate)
+				}
+				if when == "explanation" {
+					mutate()
+				}
+				return explain(ctx, serving, candidate)
+			}
+			request := f.request(true)
+			confirm := request.Confirm
+			request.Confirm = func(plan RebaselinePlan) (bool, error) {
+				if when == "confirmation" {
+					mutate()
+				}
+				return confirm(plan)
+			}
+			_, err := effects.run(context.Background(), f.home, request)
+			if err == nil || !strings.Contains(err.Error(), "private candidate image") {
+				t.Fatalf("changed private image was not refused: %v", err)
+			}
+			if !f.enrolled || f.updated != 1 {
+				t.Fatal("private image changed before confirmation but enrollment was paused")
+			}
+			if installed, _ := os.ReadFile(f.layout.Executable); string(installed) != "serving image" {
+				t.Fatalf("private image mismatch changed installed bytes: %q", installed)
+			}
+			for _, call := range f.calls {
+				if call == "install" || call == "disable" || call == "publish-watchdog" || call == "converge" {
+					t.Fatalf("private image mismatch reached activation: %v", f.calls)
+				}
+			}
+			if when != "confirmation" && len(f.confirmed) != 0 {
+				t.Fatal("operator was asked to confirm a changed private image")
+			}
+		})
+	}
+}
+
+func TestRebaselineRefusesCandidateReplacementWhilePreparingItsSnapshot(t *testing.T) {
+	f := newRebaselineFixture(t)
+	effects := f.effects()
+	digest := effects.imageDigest
+	effects.imageDigest = func(ctx context.Context, path string) (string, error) {
+		observed, err := digest(ctx, path)
+		if path == f.candidate {
+			if err := os.WriteFile(path, []byte("concurrent replacement"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		return observed, err
+	}
+	_, err := effects.run(context.Background(), f.home, f.request(true))
+	if err == nil || !strings.Contains(err.Error(), "changed while preparing its private image") {
+		t.Fatalf("mixed candidate observation was accepted: %v", err)
+	}
+	if len(f.confirmed) != 0 || strings.Join(f.calls, ",") != "guard" || !f.enrolled {
+		t.Fatalf("raced snapshot was qualified or activated: confirmed=%d calls=%v enrolled=%t", len(f.confirmed), f.calls, f.enrolled)
+	}
+	if installed, _ := os.ReadFile(f.layout.Executable); string(installed) != "serving image" {
+		t.Fatal("raced snapshot changed the installed root")
+	}
+}
+
+func TestRebaselinePreservesInstalledDigestFailureDetails(t *testing.T) {
+	for _, failure := range []string{"mismatch", "read-error"} {
+		t.Run(failure, func(t *testing.T) {
+			f := newRebaselineFixture(t)
+			effects := f.effects()
+			installed := false
+			install := effects.installRoot
+			effects.installRoot = func(source, destination string) error {
+				if err := install(source, destination); err != nil {
+					return err
+				}
+				installed = true
+				if failure == "mismatch" {
+					return os.WriteFile(destination, []byte("unexpected installed image"), 0o700)
+				}
+				return nil
+			}
+			readErr := errors.New("injected installed digest read failure")
+			digest := effects.imageDigest
+			effects.imageDigest = func(ctx context.Context, path string) (string, error) {
+				if installed && path == f.layout.Executable && failure == "read-error" {
+					return "", readErr
+				}
+				return digest(ctx, path)
+			}
+			_, err := effects.run(context.Background(), f.home, f.request(true))
+			if err == nil || !strings.Contains(err.Error(), `stopped at "install the candidate root CLI"`) || !strings.Contains(err.Error(), "paused by an unfinished rebaseline") {
+				t.Fatalf("post-install failure lost its live transition state: %v", err)
+			}
+			if failure == "read-error" && !errors.Is(err, readErr) {
+				t.Fatalf("digest read cause was discarded: %v", err)
+			}
+			if failure == "mismatch" {
+				expected, _ := fileDigest(f.candidate)
+				actual, _ := fileDigest(f.layout.Executable)
+				if !strings.Contains(err.Error(), expected) || !strings.Contains(err.Error(), actual) {
+					t.Fatalf("digest mismatch omitted expected or observed digest: %v", err)
+				}
+			}
+			if f.enrolled || strings.Join(f.calls, ",") != "guard,build-watchdog,qualify-watchdog,disable,install" {
+				t.Fatalf("failed post-install verification continued activation or re-enrollment: %v", f.calls)
+			}
+		})
+	}
+}
+
 func TestRebaselineRefusesWhatAutomaticActivationOrNoOneShouldCross(t *testing.T) {
 	cases := map[string]struct {
 		mutate func(*rebaselineFixture)

@@ -165,6 +165,7 @@ func TestResourceSchemaRejectsMalformedAccelerationBlocks(t *testing.T) {
 					"confidence":              "estimated",
 					"yield_when_idle":         true,
 					"profile": map[string]any{
+						"model": map[string]any{"name": "model.bin", "digest": "sha256:fixture"},
 						"steps": []any{
 							map[string]any{"label": "full", "default_amount_bytes": 2 << 30},
 							map[string]any{"label": "reduced", "default_amount_bytes": 1 << 30},
@@ -175,6 +176,22 @@ func TestResourceSchemaRejectsMalformedAccelerationBlocks(t *testing.T) {
 				},
 			},
 			wantReject: false,
+		},
+		{
+			scenario: "Given a partial residency model identity, Then the schema rejects it",
+			accelerate: map[string]any{
+				"backends": []any{"cuda", "cpu"}, "cuda": map[string]any{}, "cpu": map[string]any{},
+				"claim": map[string]any{
+					"resource_kind": "vram", "default_preferred_bytes": 2 << 30, "floor_bytes": 1 << 30,
+					"confidence": "estimated", "yield_when_idle": true,
+					"profile": map[string]any{
+						"model": map[string]any{"name": "model.bin"},
+						"steps": []any{map[string]any{"label": "full", "default_amount_bytes": 2 << 30}, map[string]any{"label": "reduced", "default_amount_bytes": 1 << 30}},
+						"apply": map[string]any{"verb": "capacity"},
+					},
+				},
+			},
+			wantReject: true,
 		},
 		{
 			scenario: "Given a manifest claim uses the retired machine-choice fields, Then the schema rejects it",

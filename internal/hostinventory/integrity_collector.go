@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -39,6 +40,7 @@ type IntegrityCommandRunner = shell.Runner
 type IntegrityFileSystem interface {
 	ReadFile(string) ([]byte, error)
 	ReadDir(string) ([]os.DirEntry, error)
+	Readlink(string) (string, error)
 	Stat(string) (os.FileInfo, error)
 }
 
@@ -47,16 +49,20 @@ type IntegrityCollector interface {
 }
 
 type IntegrityCollectorOptions struct {
-	Commands IntegrityCommandRunner
-	Files    IntegrityFileSystem
-	GOOS     string
-	GOARCH   string
-	Now      func() time.Time
+	Commands      IntegrityCommandRunner
+	Files         IntegrityFileSystem
+	NativeDevices func(context.Context, IntegrityCommandRunner) NativeDeviceObservation
+	SysRoot       string
+	GOOS          string
+	GOARCH        string
+	Now           func() time.Time
 }
 
 type IntegrityDefaultCollector struct {
 	commands IntegrityCommandRunner
 	files    IntegrityFileSystem
+	native   func(context.Context, IntegrityCommandRunner) NativeDeviceObservation
+	sysRoot  string
 	goos     string
 	goarch   string
 	now      func() time.Time
@@ -66,6 +72,7 @@ type nativeIntegrityFiles struct{}
 
 func (nativeIntegrityFiles) ReadFile(path string) ([]byte, error)       { return os.ReadFile(path) }
 func (nativeIntegrityFiles) ReadDir(path string) ([]os.DirEntry, error) { return os.ReadDir(path) }
+func (nativeIntegrityFiles) Readlink(path string) (string, error)       { return os.Readlink(path) }
 func (nativeIntegrityFiles) Stat(path string) (os.FileInfo, error)      { return os.Stat(path) }
 
 func NewIntegrityCollector(options IntegrityCollectorOptions) *IntegrityDefaultCollector {
@@ -75,16 +82,22 @@ func NewIntegrityCollector(options IntegrityCollectorOptions) *IntegrityDefaultC
 	if options.Files == nil {
 		options.Files = nativeIntegrityFiles{}
 	}
+	if options.NativeDevices == nil {
+		options.NativeDevices = CollectNativeDevices
+	}
 	if options.GOOS == "" {
 		options.GOOS = runtime.GOOS
 	}
 	if options.GOARCH == "" {
 		options.GOARCH = runtime.GOARCH
 	}
+	if options.SysRoot == "" {
+		options.SysRoot = "/sys"
+	}
 	if options.Now == nil {
 		options.Now = clock.Real{}.Now
 	}
-	return &IntegrityDefaultCollector{commands: options.Commands, files: options.Files, goos: options.GOOS, goarch: options.GOARCH, now: options.Now}
+	return &IntegrityDefaultCollector{commands: options.Commands, files: options.Files, native: options.NativeDevices, sysRoot: options.SysRoot, goos: options.GOOS, goarch: options.GOARCH, now: options.Now}
 }
 
 type CachedIntegrityCollector struct {
@@ -113,8 +126,7 @@ func (c *IntegrityDefaultCollector) Collect(ctx context.Context) (HostInventory,
 	now := c.now().UTC()
 	inv := HostInventory{CollectedAt: now, Platform: c.goos, OS: c.goos, Arch: c.goarch, ProbeStatus: map[string]IntegrityProbeState{}, ProbeErrors: map[string]string{}}
 	if hostreqspec.PlatformFromGOOS(c.goos) != hostreqspec.PlatformLinux {
-		setIntegrityProbe(&inv, "host", IntegrityProbeUnsupported, nil)
-		inv.Unsupported = append(inv.Unsupported, "detailed host-integrity probes are currently implemented on Linux")
+		populateNativeDeviceInventory(&inv, c.native(ctx, c.commands))
 		inv.Fingerprint = Fingerprint(inv)
 		return inv, nil
 	}
@@ -151,12 +163,14 @@ func (c *IntegrityDefaultCollector) Collect(ctx context.Context) (HostInventory,
 		setIntegrityProbe(&inv, "loadedModules", IntegrityProbeDegraded, err)
 	}
 	inv.Devices = collectIntegrityDevices(ctx, c, &inv)
+	observeLinuxBluetoothControllers(ctx, inv.Devices, c.commands.Run)
 	inv.Runtimes = collectIntegrityRuntimes(ctx, c)
 	inv.Packages = collectIntegrityPackages(ctx, c, inv.Kernel.Release)
 	enrichIntegrityDrivers(ctx, c, &inv)
 	inv.SecureBoot = collectIntegritySecureBoot(ctx, c)
 	inv.CrashEvidence = collectIntegrityCrashEvidence(c)
 	inv.Signals = collectIntegritySignals(ctx)
+	applyMissingFirmwareEvidence(inv.Devices, inv.Signals)
 	inv.ResetReasons = integrityResetReasons(inv.Signals)
 	setIntegrityProbe(&inv, "journal", integrityProbeForSignals(inv.Signals), nil)
 	setIntegrityProbe(&inv, "host", IntegrityProbeOK, nil)
@@ -169,15 +183,17 @@ func (c *IntegrityDefaultCollector) Collect(ctx context.Context) (HostInventory,
 
 func Fingerprint(inv HostInventory) string {
 	stable := struct {
-		Platform string
-		OS       string
-		Arch     string
-		BootID   string
-		Kernel   KernelInfo
-		Devices  []DeviceInfo
-		Runtimes []RuntimeToolInfo
-		Packages PackageState
-	}{inv.Platform, inv.OS, inv.Arch, inv.BootID, inv.Kernel, append([]DeviceInfo(nil), inv.Devices...), append([]RuntimeToolInfo(nil), inv.Runtimes...), inv.Packages}
+		Platform    string
+		OS          string
+		Arch        string
+		BootID      string
+		Kernel      KernelInfo
+		Devices     []DeviceInfo
+		Runtimes    []RuntimeToolInfo
+		Packages    PackageState
+		ProbeStatus map[string]IntegrityProbeState
+		ProbeErrors map[string]string
+	}{inv.Platform, inv.OS, inv.Arch, inv.BootID, inv.Kernel, append([]DeviceInfo(nil), inv.Devices...), append([]RuntimeToolInfo(nil), inv.Runtimes...), inv.Packages, inv.ProbeStatus, inv.ProbeErrors}
 	sort.Slice(stable.Kernel.LoadedModules, func(i, j int) bool { return stable.Kernel.LoadedModules[i] < stable.Kernel.LoadedModules[j] })
 	sort.Slice(stable.Devices, func(i, j int) bool { return stable.Devices[i].Address < stable.Devices[j].Address })
 	sort.Slice(stable.Runtimes, func(i, j int) bool { return stable.Runtimes[i].Name < stable.Runtimes[j].Name })
@@ -219,60 +235,375 @@ func parseIntegrityModules(content string) []string {
 	return modules
 }
 
-var integrityPCILineRE = regexp.MustCompile(`^([0-9a-fA-F:.]+)\s+([^:]+):\s+(.+?)(?:\s+\[([0-9a-fA-F]{4}):([0-9a-fA-F]{4})\])?$`)
-
-func collectIntegrityDevices(ctx context.Context, c *IntegrityDefaultCollector, inv *HostInventory) []DeviceInfo {
-	if _, err := c.commands.LookPath("lspci"); err != nil {
-		setIntegrityProbe(inv, "devices", IntegrityProbeUnsupported, err)
-		return nil
+func collectIntegrityDevices(_ context.Context, c *IntegrityDefaultCollector, inv *HostInventory) []DeviceInfo {
+	var devices []DeviceInfo
+	busResults := make([]IntegrityProbeState, 0, 2)
+	bindingResults := make([]IntegrityProbeState, 0, 2)
+	var interfaceErrors error
+	for _, bus := range []string{"pci", "usb"} {
+		result := collectIntegrityBusDevices(c, bus)
+		devices = append(devices, result.devices...)
+		interfaceErrors = errors.Join(interfaceErrors, result.interfaceError)
+		setIntegrityProbe(inv, bus+"Devices", result.enumerationState, result.enumerationError)
+		setIntegrityProbe(inv, bus+"DriverBindings", result.bindingState, result.bindingError)
+		if bus == "usb" {
+			state, probeErr := probeForError(result.bluetoothError), result.bluetoothError
+			if result.enumerationState != IntegrityProbeOK {
+				state, probeErr = result.enumerationState, result.enumerationError
+			}
+			setIntegrityProbe(inv, "bluetoothInterfaces", state, probeErr)
+		}
+		busResults = append(busResults, result.enumerationState)
+		bindingResults = append(bindingResults, result.bindingState)
 	}
-	out, err := c.commands.Run(ctx, "lspci", "-nnk")
-	if err != nil {
-		setIntegrityProbe(inv, "devices", IntegrityProbeDegraded, err)
-		return nil
+	switch {
+	case busResults[0] == IntegrityProbeUnsupported:
+		setIntegrityProbe(inv, "networkInterfaces", IntegrityProbeUnsupported, errors.New("PCI enumeration is unavailable; network-interface presence cannot be evaluated"))
+	case busResults[0] != IntegrityProbeOK:
+		setIntegrityProbe(inv, "networkInterfaces", IntegrityProbeDegraded, errors.New("PCI enumeration is incomplete; network-interface presence may be incomplete"))
+	default:
+		setIntegrityProbe(inv, "networkInterfaces", probeForError(interfaceErrors), interfaceErrors)
 	}
-	devices := parseIntegrityPCI(string(out))
-	setIntegrityProbe(inv, "devices", IntegrityProbeOK, nil)
+	if busResults[0] == IntegrityProbeOK && busResults[1] == IntegrityProbeOK {
+		setIntegrityProbe(inv, "devices", IntegrityProbeOK, nil)
+	} else if busResults[0] == IntegrityProbeUnsupported && busResults[1] == IntegrityProbeUnsupported {
+		setIntegrityProbe(inv, "devices", IntegrityProbeUnsupported, errors.New("neither PCI nor USB device enumeration is available through sysfs"))
+	} else {
+		setIntegrityProbe(inv, "devices", IntegrityProbeDegraded, errors.New("host device inventory is incomplete; inspect the pciDevices and usbDevices probe results"))
+	}
+	if bindingResults[0] == IntegrityProbeOK && bindingResults[1] == IntegrityProbeOK {
+		setIntegrityProbe(inv, "deviceBindings", IntegrityProbeOK, nil)
+	} else if bindingResults[0] == IntegrityProbeUnsupported && bindingResults[1] == IntegrityProbeUnsupported {
+		setIntegrityProbe(inv, "deviceBindings", IntegrityProbeUnsupported, errors.New("neither PCI nor USB driver binding is observable through sysfs"))
+	} else {
+		setIntegrityProbe(inv, "deviceBindings", IntegrityProbeDegraded, errors.New("some device driver bindings could not be read; inspect the per-bus DriverBindings probe results"))
+	}
 	return devices
 }
 
-func parseIntegrityPCI(output string) []DeviceInfo {
-	var devices []DeviceInfo
-	var current *DeviceInfo
-	for _, raw := range strings.Split(output, "\n") {
-		line := strings.TrimRight(raw, "\r")
-		if strings.TrimSpace(line) == "" {
-			continue
+func populateNativeDeviceInventory(inv *HostInventory, observation NativeDeviceObservation) {
+	inv.Devices = observation.Devices
+	if observation.ProbeStatus == nil {
+		observation.ProbeStatus = make(map[string]IntegrityProbeState)
+	}
+	if observation.ProbeErrors == nil {
+		observation.ProbeErrors = make(map[string]string)
+	}
+	for _, scope := range []string{"devices", "deviceBindings", "pciDevices", "usbDevices", "networkInterfaces"} {
+		if _, observed := observation.ProbeStatus[scope]; !observed {
+			observation.setProbe(scope, IntegrityProbeFailed, fmt.Errorf("native adapter omitted %s probe coverage", scope))
 		}
-		if !strings.HasPrefix(line, "\t") && !strings.HasPrefix(line, " ") {
-			match := integrityPCILineRE.FindStringSubmatch(line)
-			device := DeviceInfo{BusType: "pci"}
-			if len(match) > 0 {
-				device.Address, device.Class, device.DeviceName, device.VendorID, device.DeviceID = match[1], strings.TrimSpace(match[2]), strings.TrimSpace(match[3]), match[4], match[5]
-			} else if fields := strings.Fields(line); len(fields) > 0 {
-				device.Address = fields[0]
-				device.DeviceName = strings.TrimSpace(strings.TrimPrefix(line, device.Address))
+	}
+	for scope, state := range observation.ProbeStatus {
+		setIntegrityProbe(inv, scope, state, nil)
+	}
+	for scope, reason := range observation.ProbeErrors {
+		if reason != "" {
+			setIntegrityProbe(inv, scope, observation.ProbeStatus[scope], errors.New(reason))
+		}
+	}
+	setIntegrityProbe(inv, "host", IntegrityProbeUnsupported,
+		errors.New("native device enumeration is available, but detailed kernel, module, package and host-integrity probes are unsupported on this platform"))
+	inv.Unsupported = append(inv.Unsupported,
+		"detailed kernel, module, package and host-integrity probes are not implemented for this platform")
+}
+
+type integrityBusResult struct {
+	devices          []DeviceInfo
+	enumerationState IntegrityProbeState
+	enumerationError error
+	bindingState     IntegrityProbeState
+	bindingError     error
+	interfaceError   error
+	bluetoothError   error
+}
+
+func collectIntegrityBusDevices(c *IntegrityDefaultCollector, bus string) integrityBusResult {
+	root := filepath.Join(c.sysRoot, "bus", bus, "devices")
+	entries, err := c.files.ReadDir(root)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return integrityBusResult{enumerationState: IntegrityProbeUnsupported, enumerationError: err, bindingState: IntegrityProbeUnsupported, bindingError: err}
+		}
+		return integrityBusResult{enumerationState: IntegrityProbeDegraded, enumerationError: err, bindingState: IntegrityProbeUnsupported}
+	}
+	devices := make([]DeviceInfo, 0, len(entries))
+	result := integrityBusResult{devices: devices, enumerationState: IntegrityProbeOK, bindingState: IntegrityProbeOK}
+	deviceIndexes := make(map[string]int, len(entries))
+	var enumerationErr error
+	var bindingErr error
+	for _, entry := range entries {
+		name := entry.Name()
+		if bus == "usb" && strings.Contains(name, ":") {
+			continue // sysfs names USB interfaces <device>:<configuration>.<interface>.
+		}
+		device := DeviceInfo{BusType: bus, Address: name, SysPath: filepath.Join(root, name)}
+		if bus == "pci" {
+			device.ID = CanonicalPCIIdentity(name)
+			if device.ID == "" {
+				enumerationErr = errors.Join(enumerationErr, fmt.Errorf("ignoring malformed PCI sysfs address %q", name))
+				continue
 			}
-			devices = append(devices, device)
-			current = &devices[len(devices)-1]
-			continue
+			if err := readSysfsDeviceFields(c, &device); err != nil {
+				enumerationErr = errors.Join(enumerationErr, fmt.Errorf("PCI device %s identity: %w", name, err))
+			}
+		} else {
+			device.ID = "usb:" + name
+			if err := readSysfsUSBFields(c, &device); err != nil {
+				enumerationErr = errors.Join(enumerationErr, fmt.Errorf("USB device %s identity: %w", name, err))
+			}
 		}
-		if current == nil {
-			continue
+		if bus == "pci" {
+			if bindingReadErr := readDeviceBinding(c, &device); bindingReadErr != nil {
+				bindingErr = errors.Join(bindingErr, fmt.Errorf("PCI device %s driver link: %w", name, bindingReadErr))
+			}
 		}
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "Kernel driver in use:") {
-			current.BoundDriver = strings.TrimSpace(strings.TrimPrefix(line, "Kernel driver in use:"))
+		deviceIndexes[name] = len(devices)
+		devices = append(devices, device)
+	}
+	if bus == "usb" {
+		for _, entry := range entries {
+			name := entry.Name()
+			if !strings.Contains(name, ":") {
+				continue
+			}
+			parent, _, _ := strings.Cut(name, ":")
+			index, ok := deviceIndexes[parent]
+			if !ok {
+				continue
+			}
+			function := DeviceFunction{ID: name, BindingState: DeviceBindingUnknown}
+			functionRoot := filepath.Join(root, name)
+			if data, readErr := c.files.ReadFile(filepath.Join(functionRoot, "bInterfaceClass")); readErr == nil {
+				function.Class = strings.TrimSpace(string(data))
+			}
+			if data, readErr := c.files.ReadFile(filepath.Join(functionRoot, "modalias")); readErr == nil {
+				function.Modalias = strings.TrimSpace(string(data))
+			}
+			if link, readErr := c.files.Readlink(filepath.Join(functionRoot, "driver")); readErr == nil {
+				function.BoundDriver = filepath.Base(filepath.Clean(link))
+				function.BindingState = DeviceBindingBound
+			} else if errors.Is(readErr, os.ErrNotExist) {
+				function.BindingState = DeviceBindingUnbound
+			} else {
+				bindingErr = errors.Join(bindingErr, fmt.Errorf("USB function %s driver link: %w", name, readErr))
+			}
+			devices[index].Functions = append(devices[index].Functions, function)
 		}
-		if strings.HasPrefix(line, "Kernel modules:") {
-			for _, module := range strings.Split(strings.TrimSpace(strings.TrimPrefix(line, "Kernel modules:")), ",") {
-				if module = strings.TrimSpace(module); module != "" {
-					current.AvailableModules = append(current.AvailableModules, module)
-				}
+		for index := range devices {
+			deriveUSBDeviceBinding(&devices[index])
+		}
+	}
+	for index := range devices {
+		if err := observeLinuxDeviceInterfaces(c.files, &devices[index]); err != nil {
+			if bus == "usb" {
+				result.bluetoothError = errors.Join(result.bluetoothError, err)
+			} else {
+				result.interfaceError = errors.Join(result.interfaceError, err)
 			}
 		}
 	}
-	return devices
+	result.devices = devices
+	if enumerationErr != nil {
+		result.enumerationState = IntegrityProbeDegraded
+		result.enumerationError = enumerationErr
+	}
+	if bindingErr != nil {
+		result.bindingState = IntegrityProbeDegraded
+		result.bindingError = bindingErr
+	}
+	return result
+}
+
+func readDeviceBinding(c *IntegrityDefaultCollector, device *DeviceInfo) error {
+	link, err := c.files.Readlink(filepath.Join(device.SysPath, "driver"))
+	if err == nil {
+		device.BoundDriver = filepath.Base(filepath.Clean(link))
+		device.BindingState = DeviceBindingBound
+	} else if errors.Is(err, os.ErrNotExist) {
+		device.BindingState = DeviceBindingUnbound
+	} else {
+		device.BindingState = DeviceBindingUnknown
+		return err
+	}
+	return nil
+}
+
+func deriveUSBDeviceBinding(device *DeviceInfo) {
+	if len(device.Functions) == 0 {
+		device.BindingState = DeviceBindingUnknown
+		return
+	}
+	var drivers []string
+	hasUnbound, hasUnknown := false, false
+	for _, function := range device.Functions {
+		switch function.BindingState {
+		case DeviceBindingBound:
+			drivers = append(drivers, function.BoundDriver)
+		case DeviceBindingUnbound:
+			hasUnbound = true
+		case DeviceBindingUnknown:
+			hasUnknown = true
+		}
+	}
+	if len(drivers) > 0 {
+		slices.Sort(drivers)
+		device.BoundDriver = strings.Join(slices.Compact(drivers), ",")
+		if hasUnbound || hasUnknown {
+			device.BindingState = DeviceBindingPartial
+		} else {
+			device.BindingState = DeviceBindingBound
+		}
+	} else if hasUnknown {
+		device.BindingState = DeviceBindingUnknown
+	} else if hasUnbound {
+		device.BindingState = DeviceBindingUnbound
+	}
+}
+
+func readSysfsDeviceFields(c *IntegrityDefaultCollector, device *DeviceInfo) error {
+	read := func(name string) (string, error) {
+		data, err := c.files.ReadFile(filepath.Join(device.SysPath, name))
+		if err != nil {
+			return "", fmt.Errorf("read %s: %w", name, err)
+		}
+		value := strings.TrimSpace(string(data))
+		if value == "" {
+			return "", fmt.Errorf("read %s: attribute is empty", name)
+		}
+		return value, nil
+	}
+	var readErr error
+	vendor, err := read("vendor")
+	readErr = errors.Join(readErr, err)
+	device.VendorID = strings.TrimPrefix(strings.ToLower(vendor), "0x")
+	product, err := read("device")
+	readErr = errors.Join(readErr, err)
+	device.DeviceID = strings.TrimPrefix(strings.ToLower(product), "0x")
+	class, err := read("class")
+	readErr = errors.Join(readErr, err)
+	classCode := strings.TrimPrefix(strings.ToLower(class), "0x")
+	device.Class = pciClassName(classCode)
+	device.DeviceName = device.DeviceID
+	device.Modalias, _ = read("modalias") // Optional for stable sysfs identity and class.
+	device.VendorName = device.VendorID
+	return readErr
+}
+
+func observeLinuxDeviceInterfaces(files IntegrityFileSystem, device *DeviceInfo) error {
+	device.Readiness = DeviceReadiness{
+		FirmwareState:  DeviceReadinessUnknown,
+		FirmwareReason: "firmware load state is not directly exposed by this device inventory probe",
+		InterfaceState: DeviceReadinessNotApplicable,
+		FunctionState:  DeviceReadinessUnverified,
+		FunctionReason: "device enumeration and driver binding do not verify end-to-end function",
+	}
+	if strings.Contains(strings.ToLower(device.Class), "network") {
+		return readSysfsNetworkInterfaces(files, device)
+	}
+	return readSysfsBluetoothInterfaces(files, device)
+}
+
+func readSysfsNetworkInterfaces(files IntegrityFileSystem, device *DeviceInfo) error {
+	interfaces, err := files.ReadDir(filepath.Join(device.SysPath, "net"))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			device.Readiness.InterfaceState = DeviceReadinessAbsent
+			device.Readiness.InterfaceReason = "no network interface is exposed for this enumerated network controller"
+			return nil
+		}
+		device.Readiness.InterfaceState = DeviceReadinessUnknown
+		device.Readiness.InterfaceReason = "network interface enumeration failed: " + err.Error()
+		return err
+	}
+	for _, entry := range interfaces {
+		name := entry.Name()
+		device.Readiness.InterfaceNames = append(device.Readiness.InterfaceNames, name)
+		status, statusErr := files.ReadFile(filepath.Join(device.SysPath, "net", name, "operstate"))
+		if device.Readiness.InterfaceStatus == nil {
+			device.Readiness.InterfaceStatus = make(map[string]string, len(interfaces))
+		}
+		if statusErr != nil {
+			device.Readiness.InterfaceStatus[name] = DeviceReadinessUnknown
+		} else {
+			device.Readiness.InterfaceStatus[name] = strings.ToLower(strings.TrimSpace(string(status)))
+		}
+	}
+	slices.Sort(device.Readiness.InterfaceNames)
+	if len(device.Readiness.InterfaceNames) == 0 {
+		device.Readiness.InterfaceState = DeviceReadinessAbsent
+		device.Readiness.InterfaceReason = "network interface directory is readable and empty"
+		return nil
+	}
+	device.Readiness.InterfaceState = DeviceReadinessInitialized
+	allDown, allLowerLayerDown := true, true
+	for _, status := range device.Readiness.InterfaceStatus {
+		allDown = allDown && status == "down"
+		allLowerLayerDown = allLowerLayerDown && status == "lowerlayerdown"
+	}
+	switch {
+	case allDown:
+		device.Readiness.InterfaceState = DeviceReadinessDisabled
+		device.Readiness.InterfaceReason = "all exposed interfaces report operstate=down; the specific cause and radio state are not established"
+	case allLowerLayerDown:
+		device.Readiness.InterfaceState = DeviceReadinessDisconnected
+		device.Readiness.InterfaceReason = "all exposed interfaces report operstate=lowerlayerdown; the specific cause is not established"
+	default:
+		device.Readiness.InterfaceReason = "an OS network interface is initialized; link, radio and peer function are not verified"
+	}
+	return nil
+}
+
+func readSysfsUSBFields(c *IntegrityDefaultCollector, device *DeviceInfo) error {
+	read := func(name string) (string, error) {
+		data, err := c.files.ReadFile(filepath.Join(device.SysPath, name))
+		if err != nil {
+			return "", fmt.Errorf("read %s: %w", name, err)
+		}
+		value := strings.TrimSpace(string(data))
+		if value == "" {
+			return "", fmt.Errorf("read %s: attribute is empty", name)
+		}
+		return value, nil
+	}
+	var readErr error
+	vendor, err := read("idVendor")
+	readErr = errors.Join(readErr, err)
+	device.VendorID = strings.TrimPrefix(strings.ToLower(vendor), "0x")
+	product, err := read("idProduct")
+	readErr = errors.Join(readErr, err)
+	device.DeviceID = strings.TrimPrefix(strings.ToLower(product), "0x")
+	device.VendorName, _ = read("manufacturer") // Optional human-readable metadata.
+	device.DeviceName, _ = read("product")      // Optional human-readable metadata.
+	device.Modalias, _ = read("modalias")       // Optional for stable USB identity.
+	if device.DeviceName == "" {
+		device.DeviceName = device.DeviceID
+	}
+	if device.VendorName == "" {
+		device.VendorName = device.VendorID
+	}
+	device.Class = "usb device"
+	return readErr
+}
+
+func pciClassName(code string) string {
+	if len(code) < 2 {
+		return "pci device"
+	}
+	switch code[:2] {
+	case "01":
+		return "storage controller"
+	case "02":
+		return "network controller"
+	case "03":
+		return "display controller"
+	case "04":
+		return "multimedia controller"
+	case "0c":
+		return "serial bus controller"
+	default:
+		return "pci device"
+	}
 }
 
 func collectIntegrityRuntimes(ctx context.Context, c *IntegrityDefaultCollector) []RuntimeToolInfo {
@@ -513,12 +844,20 @@ func collectIntegrityCrashEvidence(c *IntegrityDefaultCollector) CrashEvidencePr
 }
 
 func collectIntegritySignals(ctx context.Context) []HostSignal {
-	result, err := platformgo.ReadHostLogs(platformgo.HostLogOptions{Arguments: []string{"--no-pager", "-k", "--since", "24 hours ago", "-p", "0..4", "-n", "50", "-r"}})
+	result, err := platformgo.ReadHostLogs(platformgo.HostLogOptions{Arguments: integrityJournalArgs()})
+	return parseIntegritySignals(result.Raw, err)
+}
+
+func integrityJournalArgs() []string {
+	return []string{"--no-pager", "-k", "--since", "24 hours ago", "-p", "0..4", "-n", "50", "-r"}
+}
+
+func parseIntegritySignals(raw []byte, err error) []HostSignal {
 	if err != nil {
 		return []HostSignal{{Source: "journal", Severity: "warning", Category: "probe_error", Message: truncateIntegrity(err.Error(), integrityCollectorParameterB)}}
 	}
 	var signals []HostSignal
-	for _, line := range strings.Split(string(result.Raw), "\n") {
+	for _, line := range strings.Split(string(raw), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
@@ -534,6 +873,9 @@ func collectIntegritySignals(ctx context.Context) []HostSignal {
 
 func integritySignalCategory(message string) string {
 	lower := strings.ToLower(message)
+	if missingFirmwareMessage(lower) {
+		return "firmware_missing"
+	}
 	for _, pair := range []struct{ needle, category string }{
 		{"machine check", "machine_check"},
 		{"mce", "machine_check"},
@@ -554,6 +896,55 @@ func integritySignalCategory(message string) string {
 		}
 	}
 	return ""
+}
+
+func missingFirmwareMessage(lower string) bool {
+	if !strings.Contains(lower, "firmware") {
+		return false
+	}
+	return strings.Contains(lower, "failed with error -2") ||
+		strings.Contains(lower, "no such file or directory") ||
+		strings.Contains(lower, "firmware") && strings.Contains(lower, "not found")
+}
+
+func applyMissingFirmwareEvidence(devices []DeviceInfo, signals []HostSignal) {
+	for i := range devices {
+		address := strings.ToLower(strings.TrimSpace(devices[i].Address))
+		if address == "" {
+			continue
+		}
+		for _, signal := range signals {
+			if signal.Category != "firmware_missing" || !containsDeviceAddress(signal.Message, address) {
+				continue
+			}
+			devices[i].Readiness.FirmwareState = DeviceReadinessMissing
+			devices[i].Readiness.FirmwareReason = "kernel log reports a missing firmware file for this device: " + truncateIntegrity(signal.Message, integrityCollectorParameterC)
+			break
+		}
+	}
+}
+
+func containsDeviceAddress(message, address string) bool {
+	lowerMessage := strings.ToLower(message)
+	for offset := 0; offset < len(lowerMessage); {
+		index := strings.Index(lowerMessage[offset:], address)
+		if index < 0 {
+			return false
+		}
+		index += offset
+		end := index + len(address)
+		leftOK := index == 0 || !isAddressCharacter(lowerMessage[index-1])
+		rightOK := end == len(lowerMessage) || !isAddressCharacter(lowerMessage[end])
+		if leftOK && rightOK {
+			return true
+		}
+		offset = index + 1
+	}
+	return false
+}
+
+func isAddressCharacter(char byte) bool {
+	return char >= 'a' && char <= 'z' || char >= '0' && char <= '9' || char == '_' || char == '-' || char == '.'
 }
 
 func integrityResetReasons(signals []HostSignal) []ResetReason {

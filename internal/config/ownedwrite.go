@@ -2,16 +2,18 @@ package config
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 
+	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/fsx"
-	"github.com/vrooli/vrooli/internal/tuning"
-
 	"github.com/vrooli/vrooli/internal/hostreqkit"
+	"github.com/vrooli/vrooli/internal/tuning"
 )
 
 const defaultVrooliDirPerm = tuning.PermDir
@@ -42,11 +44,18 @@ func RepairIdentity() (uint32, uint32) {
 // sudo'd vrooli never leaves root-owned directories in the operator's home and
 // never disturbs pre-existing ownership. Returns the directory path.
 func EnsureOwnedDir(dir string) (string, error) {
+	return EnsureOwnedDirMode(dir, defaultVrooliDirPerm)
+}
+
+// EnsureOwnedDirMode gives a sensitive owner an explicit creation mode while
+// preserving the canonical invoking-user ownership of newly created ancestors.
+// Existing directories are not chmodded or reassigned by this generic helper.
+func EnsureOwnedDirMode(dir string, mode os.FileMode) (string, error) {
 	if dir == "" {
 		return "", fmt.Errorf("config: empty directory path")
 	}
 	created := missingAncestors(dir)
-	if err := os.MkdirAll(dir, defaultVrooliDirPerm); err != nil {
+	if err := os.MkdirAll(dir, mode); err != nil {
 		return "", err
 	}
 	if err := chownCreatedToInvokingUser(created); err != nil {
@@ -79,6 +88,11 @@ func writeOwnedFileAtomicStream(path string, perm os.FileMode, write func(io.Wri
 	if _, err := EnsureOwnedDir(filepath.Dir(path)); err != nil {
 		return err
 	}
+	release, err := acquireOwnedWriteLock(path)
+	if err != nil {
+		return err
+	}
+	defer release()
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".vrooli-owned-*")
 	if err != nil {
 		return err
@@ -120,6 +134,41 @@ func writeOwnedFileAtomicStream(path string, perm os.FileMode, write func(io.Wri
 		return fmt.Errorf("config: published owned file identity changed")
 	}
 	return nil
+}
+
+// acquireOwnedWriteLock serializes publishers targeting the same file across
+// processes. Atomic rename alone is insufficient: a concurrent publisher can
+// replace the just-published inode before its writer verifies identity. The
+// lock lives in the runtime home's owned-write lock directory, so publishing
+// does not add artifacts to the target directory. Its key uses the resolved
+// parent directory so aliases to the same target share one lock namespace.
+func acquireOwnedWriteLock(path string) (func(), error) {
+	absolute, err := filepath.Abs(filepath.Clean(path))
+	if err != nil {
+		return nil, fmt.Errorf("config: resolve owned file path: %w", err)
+	}
+	parent, err := filepath.EvalSymlinks(filepath.Dir(absolute))
+	if err != nil {
+		return nil, fmt.Errorf("config: resolve owned file parent: %w", err)
+	}
+	lockDir, err := VrooliPath("state", "locks", "owned-writes")
+	if err != nil {
+		return nil, fmt.Errorf("config: resolve owned write lock directory: %w", err)
+	}
+	if _, err := EnsureOwnedDir(lockDir); err != nil {
+		return nil, err
+	}
+	key := sha256.Sum256([]byte(filepath.Join(parent, filepath.Base(absolute))))
+	lockPath := filepath.Join(lockDir, hex.EncodeToString(key[:])+".lock")
+	release, err := platform.AcquireFileLock(lockPath)
+	if err != nil {
+		return nil, fmt.Errorf("config: acquire owned file lock: %w", err)
+	}
+	if err := ChownToInvokingUser(lockPath); err != nil {
+		release()
+		return nil, fmt.Errorf("config: assign owned file lock: %w", err)
+	}
+	return release, nil
 }
 
 // WriteOwnedFileDurable commits an owned file and syncs the rename and its

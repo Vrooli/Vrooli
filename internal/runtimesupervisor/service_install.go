@@ -30,11 +30,12 @@ type ServiceInstallOptions struct {
 }
 
 type ServiceInstallResult struct {
-	UnitName string `json:"unit_name"`
-	UnitPath string `json:"unit_path"`
-	Scope    string `json:"scope"`
-	Active   bool   `json:"active"`
-	LogPath  string `json:"log_path,omitempty"`
+	StateRoot string `json:"state_root,omitempty"`
+	UnitName  string `json:"unit_name"`
+	UnitPath  string `json:"unit_path"`
+	Scope     string `json:"scope"`
+	Active    bool   `json:"active"`
+	LogPath   string `json:"log_path,omitempty"`
 	// Executable is the absolute path the installed unit will run, and
 	// ExecutableIsCanonical reports whether that is the installed CLI rather
 	// than a build output or other transient binary. Surfaced so an operator
@@ -109,18 +110,41 @@ func isExecutableFile(path string) bool {
 }
 
 func InstallService(ctx context.Context, opts ServiceInstallOptions) (ServiceInstallResult, error) {
+	return installSupervisorServiceWith(ctx, opts, supervisorServiceInstallEffects{target: runtime.GOOS, executable: ExecutablePath, operator: nativeSupervisorInstallOperator, install: platform.InstallService})
+}
+
+type supervisorServiceInstallEffects struct {
+	target     string
+	executable func(string, string) (string, bool, error)
+	operator   func(string, string, string) (platform.NativeSystemServiceBrokerOptions, error)
+	install    func(platform.ServiceInstallOptions) (platform.ServiceInstallResult, error)
+}
+
+func installSupervisorServiceWith(ctx context.Context, opts ServiceInstallOptions, e supervisorServiceInstallEffects) (ServiceInstallResult, error) {
 	if err := ctx.Err(); err != nil {
 		return ServiceInstallResult{}, err
+	}
+	if !opts.User && (e.target == "darwin" || e.target == "windows") {
+		executable, _, err := e.executable(opts.HomeDir, opts.Executable)
+		if err != nil {
+			return ServiceInstallResult{}, err
+		}
+		broker, err := e.operator(e.target, opts.HomeDir, executable)
+		if err != nil {
+			return ServiceInstallResult{}, err
+		}
+		result, err := e.install(platform.ServiceInstallOptions{Executable: executable, SystemBroker: &broker})
+		return ServiceInstallResult{UnitName: result.UnitName, UnitPath: result.UnitPath, Scope: result.Scope, Active: result.Active, LogPath: result.LogPath, StateRoot: result.StateRoot, Executable: result.SealedExecutablePath, ExecutableIsCanonical: result.SealedExecutablePath != ""}, err
 	}
 	logPath, err := LogPath(opts.HomeDir)
 	if err != nil {
 		return ServiceInstallResult{}, err
 	}
-	executable, canonical, err := ExecutablePath(opts.HomeDir, opts.Executable)
+	executable, canonical, err := e.executable(opts.HomeDir, opts.Executable)
 	if err != nil {
 		return ServiceInstallResult{}, err
 	}
-	result, err := platform.InstallService(platform.ServiceInstallOptions{
+	result, err := e.install(platform.ServiceInstallOptions{
 		HomeDir: opts.HomeDir, Executable: executable, SourceRoot: opts.SourceRoot, User: opts.User,
 		LogPath: logPath,
 	})
@@ -135,7 +159,21 @@ func UninstallService(ctx context.Context, opts ServiceInstallOptions) (ServiceI
 	if err := ctx.Err(); err != nil {
 		return ServiceInstallResult{}, err
 	}
-	result, err := platform.UninstallService(platform.ServiceInstallOptions{HomeDir: opts.HomeDir, User: opts.User})
+	var request platform.ServiceInstallOptions
+	if !opts.User && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+		executable, _, err := ExecutablePath(opts.HomeDir, opts.Executable)
+		if err != nil {
+			return ServiceInstallResult{}, err
+		}
+		broker, err := nativeSupervisorInstallOperator(runtime.GOOS, opts.HomeDir, executable)
+		if err != nil {
+			return ServiceInstallResult{}, err
+		}
+		request = platform.ServiceInstallOptions{Executable: executable, SystemBroker: &broker}
+	} else {
+		request = platform.ServiceInstallOptions{HomeDir: opts.HomeDir, User: opts.User}
+	}
+	result, err := platform.UninstallService(request)
 	return ServiceInstallResult{UnitName: result.UnitName, UnitPath: result.UnitPath, Scope: result.Scope, Active: result.Active}, err
 }
 

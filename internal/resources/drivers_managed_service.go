@@ -22,6 +22,7 @@ import (
 
 	platform "github.com/vrooli/platform-go"
 	"github.com/vrooli/vrooli/internal/capacity"
+	"github.com/vrooli/vrooli/internal/lightingruntime"
 
 	"github.com/vrooli/vrooli/internal/shell"
 	"github.com/vrooli/vrooli/internal/tuning"
@@ -112,6 +113,14 @@ func (d managedServiceDriver) Status(ctx context.Context, controller *Controller
 		status.Message = err.Error()
 		status.ProbeError = err.Error()
 		return status, nil
+	}
+	if manifest.Name == openRGBResourceName {
+		if err := controller.ValidateOpenRGBNativeResourceStorage(ctx); err != nil {
+			status.StatusCode = StatusCodeCommandError
+			status.Message = "native OpenRGB storage configuration is unverified"
+			status.ProbeError = err.Error()
+			return status, nil
+		}
 	}
 	if manifest.ManagedService != nil && manifest.ManagedService.TaskScopedContainer {
 		status.Installed = true
@@ -309,6 +318,23 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 	if manifest.Name == openRGBResourceName && (action == brokerTransportStart || action == brokerTransportRestart) {
 		return runOpenRGBNativeResourceAction(ctx, controller, action, args)
 	}
+	if manifest.Name == openRGBResourceName && action == brokerTransportStop && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
+		if len(args) != 0 {
+			return errors.New("OpenRGB native stop accepts no process or launch overrides")
+		}
+		if err := requireOpenRGBNativeOperatorAuthority(); err != nil {
+			return err
+		}
+		if err := controller.ValidateOpenRGBNativeResourceStorage(ctx); err != nil {
+			return err
+		}
+		owner, err := lightingruntime.NewController(controller.Home, lightingruntime.Owners{Resource: NewOpenRGBHeadless(controller, controller.OpenRGBDevicePolicyVerifier()), Scenario: openRGBNativeStopScenario{quiesce: controller.openRGBPublicOwners().quiesce}})
+		if err != nil {
+			return err
+		}
+		return owner.Disable(ctx)
+	}
+
 	if manifest.ManagedService != nil && manifest.ManagedService.TaskScopedContainer {
 		if err := ensureSupportedPlatform(manifest); err != nil {
 			return managedServiceDriverError(item.Name, action, "Platform", err)
@@ -378,6 +404,15 @@ func (d managedServiceDriver) Run(ctx context.Context, controller *Controller, i
 				if err := pruneIdleExclusiveModelCaches(ctx, controller, manifest); err != nil {
 					_, _ = fmt.Fprintf(stderr, "warning: inactive model-cache retention skipped: %s\n", err)
 				}
+			}
+		}
+		if manifest.Name == "whisper" && mode == resourcedeployment.ProviderManagedPrivate && (action == brokerTransportStart || action == brokerTransportRestart) {
+			supervisor, _, supervisorErr := managedServiceSupervisorFor(manifest.Name)
+			if supervisorErr != nil {
+				return supervisorErr
+			}
+			if err := recoverWhisperOpenResidency(ctx, controller, manifest, supervisor); err != nil {
+				return fmt.Errorf("reconcile interrupted Whisper residency before new admission: %w", err)
 			}
 		}
 		// Admission is serialized with stop/restart. A lease created while
@@ -617,6 +652,11 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := verifyStartedPlacement(ctx, controller, manifest, os.Stderr); err != nil {
 			return err
 		}
+		if hasStableActivityEdge(manifest.Name) {
+			if err := controlResourceActivityEdge(ctx, manifest.Name, "resume"); err != nil {
+				return fmt.Errorf("resume %s activity edge after verified start: %w", manifest.Name, err)
+			}
+		}
 		if err := recordQualificationObservation(controller.Root, manifest.Name); err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "warning: record portability qualification for %q: %s\n", manifest.Name, err)
 		}
@@ -631,7 +671,22 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := ensureManagedServiceArtifact(ctx, controller, manifest); err != nil {
 			return fmt.Errorf("prepare managed-service restart: %w", err)
 		}
-		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
+		stableActivityEdge := hasStableActivityEdge(manifest.Name)
+		var whisperTransition *whisperResidencyTransition
+		if stableActivityEdge {
+			if err := controlResourceActivityEdge(ctx, manifest.Name, "drain"); err != nil {
+				return fmt.Errorf("drain %s activity edge before placement restart: %w", manifest.Name, err)
+			}
+			if manifest.Name == "whisper" && strings.EqualFold(strings.TrimSpace(os.Getenv("VROOLI_GPU")), "off") {
+				whisperTransition, err = beginWhisperCPUTransition(ctx, controller, manifest)
+				if err != nil {
+					resumeErr := controlWhisperActivityEdge(ctx, "resume")
+					return errors.Join(fmt.Errorf("begin durable Whisper CPU placement transition: %w", err), resumeErr)
+				}
+			}
+		} else {
+			stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
+		}
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
 		err := stopManagedService(stopCtx, manifest, supervisor)
 		cancel()
@@ -660,10 +715,31 @@ func (d managedServiceDriver) runPrivate(ctx context.Context, controller *Contro
 		if err := recordQualificationObservation(controller.Root, manifest.Name); err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "warning: record portability qualification for %q: %s\n", manifest.Name, err)
 		}
+		if whisperTransition != nil {
+			if err := whisperTransition.completeCPU(ctx, controller, manifest, supervisor); err != nil {
+				return fmt.Errorf("complete durable Whisper CPU placement transition: %w", err)
+			}
+		}
+		if stableActivityEdge {
+			if err := controlResourceActivityEdge(ctx, manifest.Name, "resume"); err != nil {
+				return fmt.Errorf("resume %s activity edge after verified restart: %w", manifest.Name, err)
+			}
+		}
 		return nil
 	case brokerTransportStop, "uninstall":
 		if err := ctx.Err(); err != nil {
 			return err
+		}
+		if manifest.Name == "whisper" && strings.TrimSpace(os.Getenv("VROOLI_CAPACITY_UNLOAD")) == "1" {
+			if len(args) != 0 {
+				return fmt.Errorf("capacity-driven Whisper unload accepts no launch or process overrides")
+			}
+			return stopWhisperForCapacityUnload(ctx, controller, manifest, supervisor)
+		}
+		if hasStableActivityEdge(manifest.Name) {
+			if err := controlResourceActivityEdge(ctx, manifest.Name, "drain"); err != nil {
+				return fmt.Errorf("drain %s activity edge before stop: %w", manifest.Name, err)
+			}
 		}
 		stopCompanions(manifest.Name, manifest.Companions, os.Stderr)
 		stopCtx, cancel := managedServiceStopContext(ctx, manifest)
@@ -851,6 +927,12 @@ func (d managedServiceDriver) startPrivateAt(ctx context.Context, controller *Co
 		return err
 	}
 	arguments := renderManagedServiceValues(manifest.ManagedService.ArgumentsFor(runtime.GOOS, runtime.GOARCH), env)
+	backendArguments, err := managedServiceBackendArguments(ctx, manifest)
+	if err != nil {
+		cleanupCredentials()
+		return err
+	}
+	arguments = append(arguments, renderManagedServiceValues(backendArguments, env)...)
 	if manifest.ManagedService.UpdatePolicy != nil && runtime.GOOS == "linux" {
 		supervisor.verifyPlacement = func(pid int) error {
 			scope, err := platform.ProcessScope(pid)
