@@ -37,6 +37,17 @@ type fakeClient struct {
 	snap     *evalv1.ConfigSnapshot
 }
 
+type clockAdvancingClient struct {
+	fakeClient
+	clock   *scheduletest.FakeClock
+	elapsed time.Duration
+}
+
+func (f clockAdvancingClient) Search(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32, opts eval.SearchCallOptions) ([]*routingv1.SearchHit, error) {
+	f.clock.Advance(f.elapsed)
+	return f.fakeClient.Search(ctx, d, query, limit, opts)
+}
+
 func (f fakeClient) Search(_ context.Context, _ *registryv1.ProviderDescriptor, query string, _ int32, _ eval.SearchCallOptions) ([]*routingv1.SearchHit, error) {
 	if f.errQuery != nil {
 		if err, ok := f.errQuery[query]; ok {
@@ -90,18 +101,20 @@ func TestRunner_OutcomeLabels(t *testing.T) {
 		{CaseId: "gib-ok", Query: "q-gib-ok", Tags: []string{"gibberish"}, ExpectNoStrongHit: true, ExpectMaxScore: 0.4},
 		// gibberish unexpected_hit: a hit exceeds the ceiling.
 		{CaseId: "gib-bad", Query: "q-gib-bad", Tags: []string{"gibberish"}, ExpectNoStrongHit: true, ExpectMaxScore: 0.4},
-		{CaseId: "entity-alias", Query: "q-alias", ExpectIds: []string{"run-expected"}, ExpectWithinTopK: 1},
+		{CaseId: "entity-alias", Query: "q-alias", ExpectIds: []string{"run-expected"}, ExpectWithinTopK: 1, ExpectedIdentityField: "run_id"},
+		{CaseId: "tenant-alias-is-not-entity", Query: "q-tenant-alias", ExpectIds: []string{"run-expected"}, ExpectWithinTopK: 1},
 	}
 	client := fakeClient{
 		snap: &evalv1.ConfigSnapshot{RerankerLeg: "cross-encoder:bge", RerankEnabled: true},
 		byQuery: map[string][]*routingv1.SearchHit{
-			"q-met":     {hit("a", 0.82), hit("b", 0.5)},
-			"q-missing": {hit("x", 0.7), hit("y", 0.6)},
-			"q-low":     {hit("a", 0.42)},
-			"q-nada":    {hit("a", 0.3)},
-			"q-gib-ok":  {hit("a", 0.31), hit("b", 0.2)},
-			"q-gib-bad": {hit("a", 0.77)},
-			"q-alias":   {hitWithIdentity(t, "stable-chunk-id", "run_id", "run-expected", 0.91)},
+			"q-met":          {hit("a", 0.82), hit("b", 0.5)},
+			"q-missing":      {hit("x", 0.7), hit("y", 0.6)},
+			"q-low":          {hit("a", 0.42)},
+			"q-nada":         {hit("a", 0.3)},
+			"q-gib-ok":       {hit("a", 0.31), hit("b", 0.2)},
+			"q-gib-bad":      {hit("a", 0.77)},
+			"q-alias":        {hitWithIdentity(t, "stable-chunk-id", "run_id", "run-expected", 0.91)},
+			"q-tenant-alias": {hitWithIdentity(t, "tenant-hit", "tenant_id", "run-expected", 0.91)},
 		},
 	}
 	run, err := newRunner(client).Run(context.Background(), suiteWith(cases...), "cross-encoder", 0)
@@ -121,6 +134,8 @@ func TestRunner_OutcomeLabels(t *testing.T) {
 	require.Equal(t, "met", got["entity-alias"].GetOutcome())
 	require.EqualValues(t, 1, got["entity-alias"].GetExpectedRank())
 	require.Equal(t, "stable-chunk-id", got["entity-alias"].GetTop()[0].GetId(), "stored evidence keeps the stable hit identity")
+	require.Equal(t, "below_expectation", got["tenant-alias-is-not-entity"].GetOutcome(), "unrelated metadata cannot impersonate the expected entity")
+	require.Zero(t, got["tenant-alias-is-not-entity"].GetExpectedRank())
 	require.Equal(t, "below_expectation", got["low-score"].GetOutcome())
 	require.Equal(t, "n/a", got["nada"].GetOutcome())
 	require.Equal(t, "met", got["gib-ok"].GetOutcome())
@@ -128,9 +143,9 @@ func TestRunner_OutcomeLabels(t *testing.T) {
 
 	// Aggregate includes the metadata-identity match without rewriting its stored hit ID.
 	agg := run.GetAggregate()
-	require.EqualValues(t, 7, agg.GetCases())
+	require.EqualValues(t, 8, agg.GetCases())
 	require.EqualValues(t, 3, agg.GetMet()) // strong-met + gib-ok + entity-alias
-	require.EqualValues(t, 2, agg.GetBelow())
+	require.EqualValues(t, 3, agg.GetBelow())
 	require.InDelta(t, 0.82, agg.GetMeanStrongTop1(), 1e-9)
 	require.InDelta(t, 0.77, agg.GetMaxGibberishScore(), 1e-9) // worst junk leakage
 }
@@ -171,6 +186,21 @@ func TestRunner_SearchErrorDegradesCaseNotRun(t *testing.T) {
 	require.EqualValues(t, 1, run.GetAggregate().GetGradedCases())
 }
 
+func TestRunnerRecordsFailedCallAttemptAndIncludesItInLatencyP95(t *testing.T) {
+	clock := scheduletest.New(time.Date(2026, 6, 4, 12, 0, 0, 0, time.UTC))
+	client := clockAdvancingClient{
+		fakeClient: fakeClient{errQuery: map[string]error{"slow-down": errors.New("provider timeout")}},
+		clock:      clock, elapsed: 123 * time.Millisecond,
+	}
+	run, err := eval.NewRunner(fakeResolver{desc: &registryv1.ProviderDescriptor{ProviderId: "p"}}, client, clock, func() string { return "failed-latency" }).Run(
+		context.Background(), suiteWith(&evalv1.EvalCase{CaseId: "slow", Query: "slow-down", ExpectIds: []string{"a"}}), "latency", 0)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, run.GetResults()[0].GetAttemptCount())
+	require.EqualValues(t, 123, run.GetResults()[0].GetLatencyMs())
+	require.EqualValues(t, 123, run.GetAggregate().GetLatencyP95Ms(), "failed calls still affect latency/resource evidence")
+	require.Zero(t, run.GetAggregate().GetGradedCases(), "transport failure is not a retrieval-quality miss")
+}
+
 func TestRunner_ExcludesCandidateCasesFromProviderAndAggregate(t *testing.T) {
 	client := fakeClient{
 		errQuery: map[string]error{"candidate": errors.New("candidate must not be searched")},
@@ -193,6 +223,32 @@ func TestRunner_ExcludesCandidateCasesFromProviderAndAggregate(t *testing.T) {
 	require.EqualValues(t, 1, run.GetAggregate().GetGradedCases())
 	require.EqualValues(t, 1, run.GetAggregate().GetMet())
 	require.InDelta(t, 1.0, run.GetAggregate().GetPassRate(), 1e-9)
+}
+
+func TestRunnerExcludesUnreviewedGeneratedCaseFromCallsAndDenominator(t *testing.T) {
+	client := fakeClient{
+		errQuery: map[string]error{"generated-unreviewed": errors.New("must not be searched")},
+		byQuery: map[string][]*routingv1.SearchHit{
+			"ordinary":           {hit("a", 0.9)},
+			"generated-reviewed": {hit("b", 0.8)},
+		},
+	}
+	run, err := newRunner(client).Run(context.Background(), suiteWith(
+		&evalv1.EvalCase{CaseId: "ordinary", Query: "ordinary", ExpectIds: []string{"a"}},
+		&evalv1.EvalCase{CaseId: "generated-unreviewed", Query: "generated-unreviewed", Tags: []string{"generated"}, ExpectIds: []string{"b"}},
+		&evalv1.EvalCase{CaseId: "generated-reviewed", Query: "generated-reviewed", Tags: []string{"generated", "heldout"}, ExpectIds: []string{"b"}},
+	), "generated-review-exclusion", 0)
+	require.NoError(t, err)
+	results := map[string]*evalv1.CaseResult{}
+	for _, result := range run.GetResults() {
+		results[result.GetCaseId()] = result
+	}
+	require.Equal(t, "n/a", results["generated-unreviewed"].GetOutcome())
+	require.Equal(t, "generated case excluded until owner review", results["generated-unreviewed"].GetOutcomeReason())
+	require.Equal(t, "met", results["ordinary"].GetOutcome())
+	require.Equal(t, "met", results["generated-reviewed"].GetOutcome())
+	require.EqualValues(t, 2, run.GetAggregate().GetGradedCases())
+	require.Len(t, run.GetComparisonIdentity().GetDenominatorCaseIds(), 2)
 }
 
 func TestRunner_InfrastructureFailureIsUnavailableAndExcluded(t *testing.T) {

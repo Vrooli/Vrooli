@@ -572,6 +572,56 @@
           }
         },
         {
+          "name": "validation-receipt",
+          "description": "Read the newest durable corpus-validation receipt identity without exposing probed queries or error text",
+          "positionals": [
+            {
+              "name": "suite_id",
+              "required": true,
+              "description": "Suite id whose latest validation receipt to read"
+            }
+          ],
+          "binding": {
+            "kind": "connect-rpc",
+            "service": "EvalService",
+            "method": "GetLatestCorpusValidation"
+          },
+          "governance": {
+            "effect": "read",
+            "run_eligible": true,
+            "permissions": [
+              "network:internal"
+            ]
+          },
+          "architecture": {
+            "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "denominator-freeze",
+          "description": "Explicitly freeze the current positive labels after independent human review",
+          "positionals": [
+            {"name": "suite_id", "required": true, "description": "Reviewed suite id"}
+          ],
+          "flags": [
+            {"name": "reviewer", "required": true, "description": "Independent reviewer identity"},
+            {"name": "evidence_uri", "required": true, "description": "Durable URI for the independent label review evidence"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "EvalService", "method": "FreezeFixedDenominator"},
+          "governance": {"effect": "write", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_mutation"}
+        },
+        {
+          "name": "denominator",
+          "description": "Read the independently reviewed denominator identity without exposing query text",
+          "positionals": [
+            {"name": "suite_id", "required": true, "description": "Suite id whose denominator to read"}
+          ],
+          "binding": {"kind": "connect-rpc", "service": "EvalService", "method": "GetFixedDenominator"},
+          "governance": {"effect": "read", "run_eligible": true, "permissions": ["network:internal"]},
+          "architecture": {"primitive": "proto_list"}
+        },
+        {
           "name": "compare-strategies",
           "description": "Compare registered retrieval strategies against router.routing with guarded evidence",
           "flags": [
@@ -780,6 +830,43 @@
           },
           "architecture": {
             "primitive": "proto_list"
+          }
+        },
+        {
+          "name": "harvest-callers",
+          "description": "Harvest selected real Agent Manager operator messages into a private candidate bundle; no record is acceptance eligible",
+          "flags": [
+            {
+              "name": "run-ids",
+              "required": true,
+              "description": "Comma-separated run IDs selected from Agent Manager's ListRuns inventory"
+            },
+            {
+              "name": "agent-manager-url",
+              "description": "Local Agent Manager API base; defaults to AGENT_MANAGER_API_URL or AGENT_MANAGER_API_BASE",
+              "local_only": true
+            },
+            {
+              "name": "output-file",
+              "required": true,
+              "description": "New local path for the caller-text candidate bundle; file is created with mode 0600",
+              "local_only": true
+            }
+          ],
+          "binding": {
+            "kind": "local"
+          },
+          "needs_api": false,
+          "governance": {
+            "effect": "write",
+            "run_eligible": false,
+            "permissions": [
+              "network:internal",
+              "filesystem:write"
+            ]
+          },
+          "architecture": {
+            "primitive": "action"
           }
         },
         {

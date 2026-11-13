@@ -4,20 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"math"
 	"sort"
 	"strings"
 
 	"connectrpc.com/connect"
+	aisearch "github.com/vrooli/ai-go/search"
 
+	internaleval "search-hub/internal/eval"
 	internalregistry "search-hub/internal/registry"
 
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 )
-
-const strategyHeldoutFraction = 0.30
 
 // CompareStrategies runs every requested strategy through the existing
 // federated evaluator, persists every run before scoring it, and applies the
@@ -108,19 +107,35 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 	}
 
 	result := &evalv1.CompareStrategiesResponse{SuiteId: suite.GetSuiteId(), ActiveStrategy: active}
+	tuningScore := make(map[string]float64, len(names))
 	for _, name := range names {
 		arm := scoreStrategyArm(suite, runs[name], routable)
 		result.Arms = append(result.Arms, arm)
 	}
 	baseline := runs[active]
 	baselineRecall := routingRecallByCase(suite, baseline)
-	_, heldout := strategySplit(suite)
+	tuning, heldout := strategySplit(suite)
 	for _, arm := range result.Arms {
 		candidate := runs[arm.GetStrategyName()]
 		if arm.GetStrategyName() == active {
 			arm.Accepted = true
 			arm.HeldoutHolds = true
 			arm.SignificanceReason = "incumbent"
+			continue
+		}
+		if reason := incompleteStrategyRun(suite, baseline); reason != "" {
+			arm.HeldoutReason = "incumbent comparison incomplete: " + reason
+			arm.RejectionReason = arm.HeldoutReason
+			continue
+		}
+		if reason := incompleteStrategyRun(suite, candidate); reason != "" {
+			arm.HeldoutReason = "candidate comparison incomplete: " + reason
+			arm.RejectionReason = arm.HeldoutReason
+			continue
+		}
+		if identityErr := internaleval.ValidateComparableRuns(baseline.GetComparisonIdentity(), candidate.GetComparisonIdentity()); identityErr != nil {
+			arm.HeldoutReason = "unbound or mismatched immutable comparison identity: " + identityErr.Error()
+			arm.RejectionReason = arm.HeldoutReason
 			continue
 		}
 		candidateRecall := routingRecallByCase(suite, candidate)
@@ -132,7 +147,8 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 			}
 			continue
 		}
-		mean, low := pairedRoutingCI(candidateRecall, baselineRecall)
+		tuningScore[arm.GetStrategyName()] = meanRecallForCaseIDs(candidateRecall, tuning)
+		mean, low := strategySignificance(candidateRecall, baselineRecall, tuning)
 		arm.Significant = low > 0
 		arm.SignificanceReason = fmt.Sprintf("paired routing delta mean=%.4f, 95%% CI lower=%.4f", mean, low)
 		arm.HeldoutHolds, arm.HeldoutReason = heldoutRoutingHolds(candidateRecall, baselineRecall, heldout)
@@ -143,7 +159,7 @@ func (h *connectHandler) CompareStrategies(ctx context.Context, req *connect.Req
 	}
 
 	if req.Msg.GetApply() {
-		winner := bestAccepted(result.Arms, active)
+		winner := bestAccepted(result.Arms, active, tuningScore)
 		if winner == nil {
 			result.WritebackReason = "write-back refused: no strategy cleared both paired significance and held-out validation"
 		} else {
@@ -183,11 +199,7 @@ func containsName(names []string, want string) bool {
 func scoreStrategyArm(suite *evalv1.EvalSuite, run *evalv1.EvalRun, routable map[string]struct{}) *evalv1.StrategyComparisonArm {
 	arm := &evalv1.StrategyComparisonArm{StrategyName: strings.TrimPrefix(run.GetTag(), "strategy-compare:"), RunId: run.GetRunId(), Aggregate: run.GetAggregate()}
 	for _, c := range suite.GetCases() {
-		if c == nil || c.GetStatus() == "candidate" || c.GetExpectedProviderId() == "" || len(c.GetExpectIds()) == 0 {
-			continue
-		}
-		cr := resultByCase(run, c.GetCaseId())
-		if cr == nil || !strategyGradeable(cr.GetOutcome()) {
+		if !isStrategyPositiveCase(c) {
 			continue
 		}
 		arm.AllDenominator++
@@ -198,19 +210,20 @@ func scoreStrategyArm(suite *evalv1.EvalSuite, run *evalv1.EvalRun, routable map
 		if isRoutable {
 			arm.RoutableDenominator++
 		}
-		if cr.GetProviderRouted() {
+		cr := resultByCase(run, c.GetCaseId())
+		if cr != nil && cr.GetProviderRouted() {
 			arm.AllRouted++
 			if isRoutable {
 				arm.RoutableRouted++
 			}
 		}
-		if cr.GetExpectedRank() == 1 {
+		if cr != nil && strategyGradeable(cr.GetOutcome()) && cr.GetExpectedRank() == 1 {
 			arm.Top1++
 		}
-		if cr.GetExpectedRank() > 0 && cr.GetExpectedRank() <= 3 {
+		if cr != nil && strategyGradeable(cr.GetOutcome()) && cr.GetExpectedRank() > 0 && cr.GetExpectedRank() <= 3 {
 			arm.Top3++
 		}
-		if cr.GetExpectedRank() > 0 && cr.GetExpectedRank() <= 6 {
+		if cr != nil && strategyGradeable(cr.GetOutcome()) && cr.GetExpectedRank() > 0 && cr.GetExpectedRank() <= 6 {
 			arm.Top6++
 		}
 	}
@@ -244,51 +257,93 @@ func strategyGradeable(outcome string) bool {
 func routingRecallByCase(suite *evalv1.EvalSuite, run *evalv1.EvalRun) map[string]float64 {
 	result := make(map[string]float64)
 	for _, c := range suite.GetCases() {
-		if c == nil || c.GetStatus() == "candidate" || c.GetExpectedProviderId() == "" || len(c.GetExpectIds()) == 0 {
+		if !isStrategyPositiveCase(c) {
 			continue
 		}
 		cr := resultByCase(run, c.GetCaseId())
-		if cr != nil && strategyGradeable(cr.GetOutcome()) {
-			if cr.GetProviderRouted() {
-				result[c.GetCaseId()] = 1
-			} else {
-				result[c.GetCaseId()] = 0
-			}
+		if cr != nil && strategyGradeable(cr.GetOutcome()) && cr.GetProviderRouted() {
+			result[c.GetCaseId()] = 1
+		} else {
+			result[c.GetCaseId()] = 0
 		}
 	}
 	return result
 }
 
-func strategySplit(suite *evalv1.EvalSuite) (tuning, heldout []string) {
-	ids := make([]string, 0, len(suite.GetCases()))
-	for _, c := range suite.GetCases() {
-		if c != nil && c.GetStatus() != "candidate" && c.GetExpectedProviderId() != "" && len(c.GetExpectIds()) > 0 {
-			ids = append(ids, c.GetCaseId())
-		}
+func isStrategyPositiveCase(c *evalv1.EvalCase) bool {
+	if c == nil || c.GetStatus() == "candidate" || c.GetExpectedProviderId() == "" || len(c.GetExpectIds()) == 0 {
+		return false
 	}
-	sort.Slice(ids, func(i, j int) bool { return strategyHash(ids[i]) < strategyHash(ids[j]) })
-	k := int(math.Ceil(strategyHeldoutFraction * float64(len(ids))))
-	if k < 3 {
-		k = 3
-	}
-	if k > len(ids) {
-		k = len(ids)
-	}
-	return ids[k:], ids[:k]
+	return !hasStrategyTag(c.GetTags(), aisearch.TagGenerated) || hasStrategyTag(c.GetTags(), aisearch.TagHeldout)
 }
 
-func strategyHash(id string) uint64 {
-	h := fnv.New64a()
-	_, _ = h.Write([]byte(id))
-	return h.Sum64()
+func strategySplit(suite *evalv1.EvalSuite) (tuning, heldout []string) {
+	ids := make([]string, 0, len(suite.GetCases()))
+	generated := make(map[string]bool)
+	heldoutCases := make(map[string]bool)
+	for _, c := range suite.GetCases() {
+		if isStrategyPositiveCase(c) {
+			ids = append(ids, c.GetCaseId())
+			if hasStrategyTag(c.GetTags(), "generated") {
+				generated[c.GetCaseId()] = true
+			}
+			if hasStrategyTag(c.GetTags(), aisearch.TagHeldout) {
+				heldoutCases[c.GetCaseId()] = true
+			}
+		}
+	}
+	tuning, heldout, _ = aisearch.FixedEvaluationSplit(ids, heldoutCases, generated)
+	return tuning, heldout
+}
+
+func hasStrategyTag(tags []string, want string) bool {
+	for _, tag := range tags {
+		if tag == want {
+			return true
+		}
+	}
+	return false
+}
+
+func recallForCaseIDs(recall map[string]float64, ids []string) map[string]float64 {
+	selected := make(map[string]float64, len(ids))
+	for _, id := range ids {
+		if value, ok := recall[id]; ok {
+			selected[id] = value
+		}
+	}
+	return selected
+}
+
+func strategySignificance(candidate, baseline map[string]float64, tuning []string) (mean, low float64) {
+	return pairedRoutingCI(recallForCaseIDs(candidate, tuning), recallForCaseIDs(baseline, tuning))
+}
+
+func meanRecallForCaseIDs(recall map[string]float64, ids []string) float64 {
+	if len(ids) == 0 {
+		return 0
+	}
+	selected := recallForCaseIDs(recall, ids)
+	if len(selected) != len(ids) {
+		return 0
+	}
+	var total float64
+	for _, value := range selected {
+		total += value
+	}
+	return total / float64(len(selected))
 }
 
 func pairedRoutingCI(candidate, baseline map[string]float64) (mean, low float64) {
+	if len(candidate) < 3 || len(candidate) != len(baseline) {
+		return 0, 0
+	}
 	ids := make([]string, 0, len(baseline))
 	for id := range baseline {
-		if _, ok := candidate[id]; ok {
-			ids = append(ids, id)
+		if _, ok := candidate[id]; !ok {
+			return 0, 0
 		}
+		ids = append(ids, id)
 	}
 	if len(ids) == 0 {
 		return 0, 0
@@ -332,7 +387,7 @@ func heldoutRoutingHolds(candidate, baseline map[string]float64, heldout []strin
 		candidateValue, candidateOK := candidate[id]
 		baselineValue, baselineOK := baseline[id]
 		if !candidateOK || !baselineOK {
-			continue
+			return false, "held-out denominator differs between arms"
 		}
 		candidateSum += candidateValue
 		baselineSum += baselineValue
@@ -347,13 +402,78 @@ func heldoutRoutingHolds(candidate, baseline map[string]float64, heldout []strin
 	return true, fmt.Sprintf("held-out paired cases=%d candidate=%.4f incumbent=%.4f", count, candidateSum/float64(count), baselineSum/float64(count))
 }
 
-func bestAccepted(arms []*evalv1.StrategyComparisonArm, active string) *evalv1.StrategyComparisonArm {
+func incompleteStrategyRun(suite *evalv1.EvalSuite, run *evalv1.EvalRun) string {
+	if run == nil {
+		return "run is missing"
+	}
+	if run.GetDegraded() {
+		return "run is degraded: " + run.GetDegradedReason()
+	}
+	want := strategyPositiveCaseIDs(suite)
+	seen := make(map[string]bool, len(want))
+	for _, result := range run.GetResults() {
+		if result == nil || !containsString(want, result.GetCaseId()) {
+			continue
+		}
+		if seen[result.GetCaseId()] {
+			return "duplicate result for case " + result.GetCaseId()
+		}
+		seen[result.GetCaseId()] = true
+		if !strategyGradeable(result.GetOutcome()) {
+			return fmt.Sprintf("case %s has non-gradeable outcome %q", result.GetCaseId(), result.GetOutcome())
+		}
+	}
+	for _, id := range want {
+		if !seen[id] {
+			return "missing fixed-denominator case " + id
+		}
+	}
+	if !equalCaseIDs(want, run.GetComparisonIdentity().GetDenominatorCaseIds()) {
+		return "run identity does not bind the fixed positive case IDs"
+	}
+	return ""
+}
+
+func strategyPositiveCaseIDs(suite *evalv1.EvalSuite) []string {
+	ids := make([]string, 0, len(suite.GetCases()))
+	for _, c := range suite.GetCases() {
+		if isStrategyPositiveCase(c) {
+			ids = append(ids, c.GetCaseId())
+		}
+	}
+	sort.Strings(ids)
+	return ids
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
+}
+
+func equalCaseIDs(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func bestAccepted(arms []*evalv1.StrategyComparisonArm, active string, tuningScore map[string]float64) *evalv1.StrategyComparisonArm {
 	var best *evalv1.StrategyComparisonArm
 	for _, arm := range arms {
 		if !arm.GetAccepted() || arm.GetStrategyName() == active {
 			continue
 		}
-		if best == nil || arm.GetRoutableRoutingPrecision() > best.GetRoutableRoutingPrecision() {
+		if best == nil || tuningScore[arm.GetStrategyName()] > tuningScore[best.GetStrategyName()] ||
+			(tuningScore[arm.GetStrategyName()] == tuningScore[best.GetStrategyName()] && arm.GetStrategyName() < best.GetStrategyName()) {
 			best = arm
 		}
 	}

@@ -38,14 +38,17 @@ func TestValidatorClassifiesReviewedPositiveLabels(t *testing.T) {
 	}
 	require.Equal(t, evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_LIVE, got["live"])
 	require.Equal(t, evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_HARD, got["hard"])
-	require.Equal(t, evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_STALE, got["stale"])
+	require.Equal(t, evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_INCONCLUSIVE, got["stale"], "retrieval absence is not provider-owned membership evidence")
 	require.NotContains(t, got, "candidate")
 	require.NotContains(t, got, "junk")
 	require.EqualValues(t, 3, resp.GetRollup().GetPositives())
 	require.EqualValues(t, 1, resp.GetRollup().GetCandidate())
 	require.EqualValues(t, 1, resp.GetRollup().GetLive())
 	require.EqualValues(t, 1, resp.GetRollup().GetHard())
-	require.EqualValues(t, 1, resp.GetRollup().GetStale())
+	require.Zero(t, resp.GetRollup().GetStale())
+	require.Len(t, resp.GetSuiteSha256(), 64)
+	require.Equal(t, []string{"hard", "live", "stale"}, resp.GetDenominatorCaseIds())
+	require.Len(t, resp.GetDenominatorSha256(), 64)
 }
 
 func TestValidatorConfirmProbeCanRecoverHardLabel(t *testing.T) {
@@ -65,7 +68,7 @@ func TestValidatorAcceptsMappedEntityIdentityWithoutReplacingStableHitID(t *test
 	client := fakeClient{byQuery: map[string][]*routingv1.SearchHit{
 		"prior run": {hitWithIdentity(t, "stable-chunk-id", "run_id", "retained-run-id", 0.9)},
 	}}
-	suite := suiteWith(&evalv1.EvalCase{CaseId: "c", Query: "prior run", ExpectIds: []string{"retained-run-id"}})
+	suite := suiteWith(&evalv1.EvalCase{CaseId: "c", Query: "prior run", ExpectIds: []string{"retained-run-id"}, ExpectedIdentityField: "run_id"})
 	resp, err := eval.NewValidator(fakeResolver{desc: validationDescriptor()}, client).ValidateCorpus(context.Background(), suite, 5)
 	require.NoError(t, err)
 	require.Len(t, resp.GetCases(), 1)

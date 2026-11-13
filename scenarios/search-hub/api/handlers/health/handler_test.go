@@ -12,9 +12,9 @@ import (
 	"search-hub/handlers/health"
 	"search-hub/internal/module"
 	"search-hub/internal/server"
-	"search-hub/internal/testutil/mocks"
 
 	"github.com/vrooli/api-core/apihttptest"
+	"github.com/vrooli/api-core/databasetest"
 	httpx "github.com/vrooli/api-core/servertest"
 
 	apihealth "github.com/vrooli/api-core/health"
@@ -83,7 +83,7 @@ func TestHealthHandler(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			pinger := &mocks.FakePinger{PingErr: tc.pingErr}
+			pinger := &databasetest.FakePinger{PingErr: tc.pingErr}
 			h := health.NewHandler(health.Deps{
 				Pinger:  pinger,
 				Service: "react-vite-test",
@@ -124,7 +124,7 @@ func TestHealthHandler(t *testing.T) {
 
 func TestHealthHandlerSurfacesProviderResourceFailureAsDegraded(t *testing.T) {
 	h := health.NewHandler(health.Deps{
-		Pinger:         &mocks.FakePinger{},
+		Pinger:         &databasetest.FakePinger{},
 		Service:        "search-hub",
 		Version:        "1",
 		ResourceChecks: []apihealth.Checker{fakeResourceCheck{err: errors.New("connection refused")}},

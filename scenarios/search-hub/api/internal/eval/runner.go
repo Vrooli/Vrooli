@@ -65,17 +65,40 @@ type Runner struct {
 	client   ProviderClient
 	clock    schedule.Clock
 	newID    func() string
+	evidence IdentityEvidenceReaders
 }
 
 // NewRunner constructs a Runner. newID supplies run_ids (uuid in production, a
 // deterministic counter in tests); when nil it falls back to a timestamp-based
 // id so production wiring can omit it.
-func NewRunner(resolver ProviderResolver, client ProviderClient, clk schedule.Clock, newID func() string) *Runner {
+func NewRunner(resolver ProviderResolver, client ProviderClient, clk schedule.Clock, newID func() string, evidence ...IdentityEvidenceReaders) *Runner {
 	if newID == nil {
 		var n int
 		newID = func() string { n++; return fmt.Sprintf("run-%d", n) }
 	}
-	return &Runner{resolver: resolver, client: client, clock: clk, newID: newID}
+	var readers IdentityEvidenceReaders
+	if len(evidence) > 0 {
+		readers = evidence[0]
+	}
+	return &Runner{resolver: resolver, client: client, clock: clk, newID: newID, evidence: readers}
+}
+
+func (r *Runner) comparisonIdentity(ctx context.Context, suite *evalv1.EvalSuite, snapshot *evalv1.ConfigSnapshot, denominator *evalv1.FixedDenominatorSnapshot, persisted bool) *evalv1.EvaluationIdentity {
+	caller := CallerIdentity{}
+	if r.evidence.Caller != nil {
+		if resolved, err := r.evidence.Caller.ResolveCallerIdentity(ctx, suite); err == nil {
+			caller = resolved
+		}
+	}
+	var validation *CorpusValidationRecord
+	if r.evidence.Validation != nil {
+		validation, _ = r.evidence.Validation.LatestCorpusValidation(ctx, suite.GetSuiteId())
+	}
+	identity := BuildComparisonIdentity(suite, snapshot, caller, validation, r.clock.Now())
+	if persisted {
+		identity = BindFixedDenominatorIdentity(identity, denominator)
+	}
+	return identity
 }
 
 // Run executes every case in suite against the suite's provider and returns a
@@ -102,12 +125,23 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 	if suite == nil {
 		return nil, fmt.Errorf("nil suite")
 	}
+	denominatorSnapshot, denominator, persistedDenominator, err := r.fixedDenominator(ctx, suite)
+	if err != nil {
+		return nil, err
+	}
+	evaluationSuite := suite
+	if denominatorSnapshot != nil {
+		evaluationSuite, err = SuiteWithFixedDenominator(suite, denominatorSnapshot)
+		if err != nil {
+			return nil, fmt.Errorf("prepare fixed denominator suite: %w", err)
+		}
+	}
 	desc, err := r.resolver.Get(ctx, suite.GetProviderId())
 	if err != nil {
 		return nil, fmt.Errorf("resolve provider %q: %w", suite.GetProviderId(), err)
 	}
 
-	effLimit := effectiveLimit(suite, limit)
+	effLimit := effectiveLimit(evaluationSuite, limit)
 	snapshot := r.client.Snapshot(ctx, desc)
 	if snapshot == nil {
 		snapshot = &evalv1.ConfigSnapshot{}
@@ -122,21 +156,26 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 		snapshot.EmbedModel = "unknown"
 	}
 
-	results := make([]*evalv1.CaseResult, 0, len(suite.GetCases()))
-	latencies := make([]int64, 0, len(suite.GetCases()))
+	results := make([]*evalv1.CaseResult, 0, len(evaluationSuite.GetCases()))
+	latencies := make([]int64, 0, len(evaluationSuite.GetCases()))
+	preloaded := newPreloadedSuiteSearcher()
 	var unavailable []*evalv1.UnavailableCase
 	var firstFailure string
-	for _, c := range suite.GetCases() {
-		// Candidate cases are exploratory evidence, not part of the acceptance
-		// denominator. Keep an explicit result for operator visibility, but do
-		// not call the provider or let the case affect aggregate quality or
-		// latency. This mirrors aisearch.GradeSuite and prevents a candidate
-		// corpus from masquerading as reviewed evidence in stored runs.
-		if c.GetStatus() == "candidate" {
+	var fixedDenominatorGrade *aisearch.SuiteReport
+	for _, c := range evaluationSuite.GetCases() {
+		// Candidate and unreviewed generated cases are not acceptance evidence.
+		// Keep an explicit result for operator visibility, but do not call the
+		// provider or let the case affect quality or latency.
+		if isExcludedEvaluationCase(c) {
+			reason := "candidate excluded from acceptance denominator"
+			if c != nil && hasEvaluationTag(c.GetTags(), aisearch.TagGenerated) {
+				reason = "generated case excluded until owner review"
+			}
 			results = append(results, &evalv1.CaseResult{
 				CaseId:        c.GetCaseId(),
 				Outcome:       "n/a",
-				OutcomeReason: "candidate excluded from acceptance denominator",
+				OutcomeReason: reason,
+				AttemptCount:  0,
 			})
 			latencies = append(latencies, 0)
 			continue
@@ -152,9 +191,10 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 		hits, searchErr := r.client.Search(caseCtx, desc, c.GetQuery(), effLimit, caseOpts)
 		cancel()
 		latencies = append(latencies, r.clock.Now().Sub(start).Milliseconds())
+		preloaded.Add(c, hits, searchErr)
 
 		top := toScoredHits(hits)
-		cr := &evalv1.CaseResult{CaseId: c.GetCaseId(), Top: top}
+		cr := &evalv1.CaseResult{CaseId: c.GetCaseId(), Top: top, AttemptCount: 1}
 		if searchErr != nil {
 			cr.Outcome = "error"
 			cr.OutcomeReason = searchErr.Error()
@@ -165,24 +205,39 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 			if firstFailure == "" {
 				firstFailure = searchErr.Error()
 			}
+			cr.LatencyMs = int32(latencies[len(latencies)-1])
 			results = append(results, cr)
 			continue
 		}
 		cr.Outcome, cr.ExpectedRank, cr.ObservedTopScore = labelCase(c, top, hits, effLimit)
+		cr.LatencyMs = int32(latencies[len(latencies)-1])
 		results = append(results, cr)
+	}
+	if denominatorSnapshot != nil {
+		searchSuite := aisearch.TestSuite{SuiteID: denominator.SuiteID, Cases: denominator.Cases}
+		policy := aisearch.DefaultScoringPolicy
+		policy.GateK, policy.DeepK = int(effLimit), int(effLimit)
+		grade, gradeErr := aisearch.GradeSuiteOnFixedDenominator(ctx, preloaded, searchSuite, denominator, policy)
+		if gradeErr != nil {
+			return nil, fmt.Errorf("grade fixed denominator: %w", gradeErr)
+		}
+		fixedDenominatorGrade = &grade
+		applyFixedDenominatorGrade(results, grade)
 	}
 
 	run := &evalv1.EvalRun{
-		RunId:            r.newID(),
-		SuiteId:          suite.GetSuiteId(),
-		Tag:              tag,
-		CreatedAt:        r.clock.Now().UTC().Format(timeFormat),
-		Config:           snapshot,
-		Results:          results,
-		Aggregate:        aggregate(suite, results, latencies),
-		Tier:             "provider_direct",
-		UnavailableCases: unavailable,
+		RunId:              r.newID(),
+		SuiteId:            suite.GetSuiteId(),
+		Tag:                tag,
+		CreatedAt:          r.clock.Now().UTC().Format(timeFormat),
+		Config:             snapshot,
+		Results:            results,
+		Aggregate:          aggregate(evaluationSuite, results, latencies),
+		Tier:               "provider_direct",
+		UnavailableCases:   unavailable,
+		ComparisonIdentity: r.comparisonIdentity(ctx, suite, snapshot, denominatorSnapshot, persistedDenominator),
 	}
+	applyFixedDenominatorMetrics(run.Aggregate, fixedDenominatorGrade)
 	run.Aggregate.UnavailableCases = int32(len(unavailable))
 	if run.Aggregate.GradedCases > 0 {
 		run.Aggregate.PassRate = float64(run.Aggregate.Met) / float64(run.Aggregate.GradedCases)
@@ -201,6 +256,32 @@ func (r *Runner) RunWith(ctx context.Context, suite *evalv1.EvalSuite, tag strin
 		}
 	}
 	return run, nil
+}
+
+func (r *Runner) fixedDenominator(ctx context.Context, suite *evalv1.EvalSuite) (*evalv1.FixedDenominatorSnapshot, aisearch.FixedDenominator, bool, error) {
+	return resolveFixedDenominator(ctx, suite, r.evidence.Denominators, r.clock.Now())
+}
+
+func applyFixedDenominatorGrade(results []*evalv1.CaseResult, grade aisearch.SuiteReport) {
+	byID := make(map[string]*evalv1.CaseResult, len(results))
+	for _, result := range results {
+		byID[result.GetCaseId()] = result
+	}
+	for _, report := range grade.PerCase {
+		result := byID[report.CaseID]
+		if result == nil || result.GetOutcome() == "error" || result.GetOutcome() == "unavailable" {
+			continue
+		}
+		result.ExpectedRank = int32(report.ExpectedRank)
+		result.ObservedTopScore = report.ObservedTopScore
+		if report.Outcome == aisearch.CaseOutcomeHit {
+			result.Outcome = "met"
+			result.OutcomeReason = "fixed-denominator expected document retrieved"
+		} else {
+			result.Outcome = "below_expectation"
+			result.OutcomeReason = "fixed-denominator expected document missing"
+		}
+	}
 }
 
 // effectiveLimit is the per-case fetch depth: the explicit request limit when
@@ -294,6 +375,7 @@ func protoCaseToSearchCase(c *evalv1.EvalCase) aisearch.TestCase {
 		ID:                c.GetCaseId(),
 		Query:             c.GetQuery(),
 		Scope:             c.GetScope(),
+		Status:            c.GetStatus(),
 		Tags:              append([]string(nil), c.GetTags()...),
 		ExpectIDs:         append([]string(nil), c.GetExpectIds()...),
 		ExpectWithinTopK:  int(c.GetExpectWithinTopK()),
@@ -317,37 +399,35 @@ func scoredToSearchResults(top []*evalv1.ScoredHit) []aisearch.SearchResult {
 func aggregate(suite *evalv1.EvalSuite, results []*evalv1.CaseResult, latencies []int64) *evalv1.EvalAggregate {
 	tagsByCase := make(map[string][]string, len(suite.GetCases()))
 	statusByCase := make(map[string]string, len(suite.GetCases()))
+	excludedByCase := make(map[string]bool, len(suite.GetCases()))
 	for _, c := range suite.GetCases() {
 		tagsByCase[c.GetCaseId()] = c.GetTags()
 		statusByCase[c.GetCaseId()] = c.GetStatus()
+		excludedByCase[c.GetCaseId()] = isExcludedEvaluationCase(c)
 	}
 
 	agg := &evalv1.EvalAggregate{Cases: int32(len(results))}
 	var strongSum float64
 	var strongN int
-	gradedLatencies := make([]int64, 0, len(latencies))
+	observedLatencies := make([]int64, 0, len(latencies))
 	for i, cr := range results {
-		if statusByCase[cr.GetCaseId()] == "candidate" {
+		if statusByCase[cr.GetCaseId()] == "candidate" || excludedByCase[cr.GetCaseId()] {
 			continue
 		}
-		graded := false
+		if cr.GetAttemptCount() > 0 && i < len(latencies) {
+			observedLatencies = append(observedLatencies, latencies[i])
+		}
 		switch cr.GetOutcome() {
 		case "met":
 			agg.Met++
 			agg.GradedCases++
-			graded = true
 		case "below_expectation":
 			agg.Below++
 			agg.GradedCases++
-			graded = true
 		case "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "no_result", "thin_margin":
 			// These are evaluated outcomes even though they are not counted as
 			// successful or below-floor positive cases.
 			agg.GradedCases++
-			graded = true
-		}
-		if graded && i < len(latencies) {
-			gradedLatencies = append(gradedLatencies, latencies[i])
 		}
 		tags := tagsByCase[cr.GetCaseId()]
 		if hasTag(tags, "strong") {
@@ -361,7 +441,7 @@ func aggregate(suite *evalv1.EvalSuite, results []*evalv1.CaseResult, latencies 
 	if strongN > 0 {
 		agg.MeanStrongTop1 = strongSum / float64(strongN)
 	}
-	agg.LatencyP95Ms = int32(p95(gradedLatencies))
+	agg.LatencyP95Ms = int32(p95(observedLatencies))
 	if agg.GradedCases > 0 {
 		agg.PassRate = float64(agg.Met) / float64(agg.GradedCases)
 	}

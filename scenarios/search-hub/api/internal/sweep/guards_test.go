@@ -47,30 +47,35 @@ func TestPairedMarginCI_EmptyOrMismatched(t *testing.T) {
 
 func TestSplitCases_Deterministic(t *testing.T) {
 	ids := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
-	tun1, held1 := splitCases(ids, nil, 0.3)
-	tun2, held2 := splitCases(ids, nil, 0.3)
-	if len(held1) != 3 { // ceil(0.3*10)
-		t.Fatalf("held-out size = %d, want 3", len(held1))
+	heldoutCases := map[string]bool{"c": true, "h": true}
+	tun1, held1, excluded1 := splitCases(ids, heldoutCases, nil)
+	tun2, held2, excluded2 := splitCases(ids, heldoutCases, nil)
+	if len(held1) != 2 {
+		t.Fatalf("held-out size = %d, want explicit owner count 2", len(held1))
 	}
-	if len(tun1)+len(held1) != len(ids) {
-		t.Fatalf("split lost cases: %d + %d != %d", len(tun1), len(held1), len(ids))
+	if len(tun1)+len(held1)+len(excluded1) != len(ids) {
+		t.Fatalf("split lost cases: %d + %d + %d != %d", len(tun1), len(held1), len(excluded1), len(ids))
 	}
-	if !equalStrings(tun1, tun2) || !equalStrings(held1, held2) {
-		t.Fatalf("split is not deterministic: %v/%v vs %v/%v", tun1, held1, tun2, held2)
+	if !equalStrings(tun1, tun2) || !equalStrings(held1, held2) || !equalStrings(excluded1, excluded2) {
+		t.Fatalf("split is not deterministic: %v/%v/%v vs %v/%v/%v", tun1, held1, excluded1, tun2, held2, excluded2)
 	}
 }
 
-func TestSplitCases_GeneratedAlwaysHeldOut(t *testing.T) {
+func TestSplitCases_GeneratedExcludedUnlessOwnerMarksHeldout(t *testing.T) {
 	ids := []string{"a", "b", "c", "d"}
 	gen := map[string]bool{"a": true, "b": true}
-	tuning, heldout := splitCases(ids, gen, 0.0) // fraction 0: only generated held out
+	tuning, heldout, excluded := splitCases(ids, nil, gen)
 	for _, id := range tuning {
 		if gen[id] {
 			t.Fatalf("generated case %q leaked into the tuning fold", id)
 		}
 	}
-	if !contains(heldout, "a") || !contains(heldout, "b") {
-		t.Fatalf("generated cases must be held out, got heldout=%v", heldout)
+	if len(heldout) != 0 || !equalStrings(excluded, []string{"a", "b"}) {
+		t.Fatalf("generated cases without owner review are excluded, got heldout=%v excluded=%v", heldout, excluded)
+	}
+	tuning, heldout, excluded = splitCases(ids, map[string]bool{"a": true}, gen)
+	if !equalStrings(heldout, []string{"a"}) || !equalStrings(excluded, []string{"b"}) || contains(tuning, "a") {
+		t.Fatalf("only owner-tagged generated case may validate, got tuning=%v heldout=%v excluded=%v", tuning, heldout, excluded)
 	}
 }
 

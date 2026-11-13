@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	aisearch "github.com/vrooli/ai-go/search"
 	"github.com/vrooli/api-core/identity"
 
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
@@ -60,10 +61,20 @@ type staticResolver struct {
 type orderedDescriptionIndex struct {
 	order []string
 	seen  int
+	query routing.ProviderDescriptionQuery
 }
 
-func (i *orderedDescriptionIndex) Shortlist(_ context.Context, _ string, profiles []routing.ProviderProfile, limit int) ([]routing.ProviderProfile, routing.DescriptionIndexResult) {
+type testDescriptionIdentityResolver struct {
+	verified routing.VerifiedProviderSemanticContext
+}
+
+func (r testDescriptionIdentityResolver) ResolveProviderSemanticContext(context.Context) (routing.VerifiedProviderSemanticContext, error) {
+	return r.verified, nil
+}
+
+func (i *orderedDescriptionIndex) Shortlist(_ context.Context, request routing.ProviderDescriptionQuery, profiles []routing.ProviderProfile) ([]routing.ProviderProfile, routing.DescriptionIndexResult) {
 	i.seen = len(profiles)
+	i.query = request
 	byID := make(map[string]routing.ProviderProfile, len(profiles))
 	for _, profile := range profiles {
 		byID[profile.ProviderID] = profile
@@ -74,8 +85,8 @@ func (i *orderedDescriptionIndex) Shortlist(_ context.Context, _ string, profile
 			result = append(result, profile)
 		}
 	}
-	if limit > 0 && len(result) > limit {
-		result = result[:limit]
+	if request.Limit > 0 && len(result) > request.Limit {
+		result = result[:request.Limit]
 	}
 	return result, routing.DescriptionIndexResult{Available: true, Total: len(profiles), Returned: len(result)}
 }
@@ -344,21 +355,84 @@ func TestSemanticStrategyRanksEveryEligibleLeafBeforeBoundedSelection(t *testing
 			{Kind: routing.StageCrossEncoder, Params: map[string]interface{}{"fanout_width": float64(2)}},
 		},
 	}
+	semanticIdentity := semanticIdentityForTest(t)
 	r := routing.NewRouter(routing.Deps{
 		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
-		DescriptionIndex: index, Strategy: &strategy, RouterFactors: &routing.RouterFactorValues{
+		DescriptionIndex: index, DescriptionIdentity: testDescriptionIdentityResolver{verified: semanticIdentity}, Strategy: &strategy, RouterFactors: &routing.RouterFactorValues{
 			MaxFanoutWidth: 2, WidenThreshold: 0.45, PerProviderTimeout: 4 * time.Second,
 			Concurrency: 8, QueryBudget: 25 * time.Second, ZeroYieldMinimumRoutes: 5,
 			DemotionWindow: 15 * time.Minute,
 		},
 	})
 
-	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "where are the records", Explain: true})
+	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorAgent, Subject: "agent-test", Verified: true})
+	resp, err := r.Query(ctx, &routingv1.QueryRequest{Query: "where are the records", Explain: true})
 	require.NoError(t, err)
 	require.Equal(t, 3, index.seen, "semantic selection must rank every eligible leaf before fan-out")
+	require.Equal(t, "operation-test", index.query.OperationID)
+	require.Equal(t, "tenant-test", index.query.TenantID)
+	require.Equal(t, "arm-test", index.query.ArmID)
+	require.Equal(t, "recipe-test", index.query.RecipeID)
+	require.Equal(t, "where are the records", index.query.Text)
+	require.Equal(t, 3, index.query.Limit)
+	require.Equal(t, "agent-test", index.query.Attribution.CallerID)
+	require.Equal(t, "file:///rights/receipt.json", index.query.Attribution.RightsEvidenceURI)
+	require.Equal(t, strings.Repeat("d", 64), index.query.Attribution.RightsEvidenceSHA256)
+	require.Equal(t, "file:///quality/evidence.json", index.query.Attribution.QualityEvidenceURI)
+	require.Equal(t, strings.Repeat("c", 64), index.query.Attribution.QualityEvidenceSHA256)
 	require.Len(t, resp.GetGroups(), 2, "the active strategy still applies its bounded fan-out")
 	require.Contains(t, resp.GetCorporaSearched(), "swarm-manager.records")
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "semantic provider-description index ranked 3 eligible leaves")
+}
+
+func TestSemanticStrategyRefusesBeforeIndexWhenOwnerIdentityIsMissing(t *testing.T) {
+	index := &orderedDescriptionIndex{order: []string{"swarm-manager.records"}}
+	strategy := routing.RetrievalStrategy{
+		Name:   "semantic-test",
+		Stages: []routing.RetrievalStage{{Kind: routing.StageEmbedding, Params: map[string]interface{}{"candidate_scope": "all"}}},
+	}
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
+		DescriptionIndex: index, Strategy: &strategy,
+	})
+	ctx := identity.WithPrincipal(context.Background(), identity.Principal{Kind: identity.ActorAgent, Subject: "agent-test", Verified: true})
+	resp, err := r.Query(ctx, &routingv1.QueryRequest{Query: "where are the records", Explain: true})
+	require.NoError(t, err)
+	require.Equal(t, 0, index.seen, "semantic index must not be invoked without current owner identity and rights receipt")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "routing_identity_unavailable")
+	require.NotEmpty(t, resp.GetGroups(), "the local lexical fallback remains available")
+}
+
+type testProviderRightsVerifier struct {
+	digest string
+	err    error
+}
+
+func (v testProviderRightsVerifier) VerifyCurrentAllowedProviderRights(context.Context, routing.ProviderDescriptionIdentity) (string, error) {
+	return v.digest, v.err
+}
+
+func semanticIdentityForTest(t *testing.T) routing.VerifiedProviderSemanticContext {
+	t.Helper()
+	verified, err := routing.VerifyProviderSemanticContext(context.Background(), routing.ProviderDescriptionIdentity{
+		OperationID: "operation-test", TenantID: "tenant-test", ArmID: "arm-test", RecipeID: "recipe-test",
+		RightsReceiptURI: "file:///rights/receipt.json", QualityEvidenceURI: "file:///quality/evidence.json",
+		QualityEvidenceSHA256: strings.Repeat("c", 64),
+	}, testProviderRightsVerifier{digest: strings.Repeat("d", 64)})
+	require.NoError(t, err)
+	return verified
+}
+
+func TestProviderSemanticContextRequiresAllowedCanonicalReceiptVerification(t *testing.T) {
+	identity := routing.ProviderDescriptionIdentity{
+		OperationID: "operation-test", TenantID: "tenant-test", ArmID: "arm-test", RecipeID: "recipe-test",
+		RightsReceiptURI: "file:///rights/receipt.json", QualityEvidenceURI: "file:///quality/evidence.json",
+		QualityEvidenceSHA256: strings.Repeat("c", 64),
+	}
+	_, err := routing.VerifyProviderSemanticContext(context.Background(), identity, testProviderRightsVerifier{err: errors.New("receipt is unknown or stale")})
+	require.Error(t, err)
+	_, err = routing.VerifyProviderSemanticContext(context.Background(), identity, testProviderRightsVerifier{digest: "not-a-sha256"})
+	require.Error(t, err)
 }
 
 func TestQueryReturnsPartialResultsWhenDeadlineLeavesProviderPending(t *testing.T) {
@@ -733,7 +807,7 @@ func TestAutoRouteLexicalFallbackUsesBoundedFanout(t *testing.T) {
 	require.Len(t, resp.GetGroups(), 3, "model-free fallback uses the router's bounded provider set")
 	require.True(t, resp.GetDegraded(), "missing cross-encoder is visible as a strategy fallback")
 	require.Equal(t, "lexical", resp.GetSelectorLeg())
-	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "cross-encoder and LLM provider picks unavailable")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "cross-encoder and configured reranker fallback unavailable")
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "bounded automatic fan-out width=6")
 }
 
@@ -747,7 +821,7 @@ func TestAutoRouteCrossEncoderErrorFallsBackToLexical(t *testing.T) {
 	require.Len(t, resp.GetGroups(), 3)
 	require.True(t, resp.GetDegraded(), "cross-encoder selection failure flags the response degraded")
 	require.Equal(t, "lexical", resp.GetSelectorLeg())
-	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "cross-encoder and LLM provider picks unavailable")
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "cross-encoder and configured reranker fallback unavailable")
 }
 
 func TestAutomaticFanoutFusesMultipleProviderGroups(t *testing.T) {
@@ -805,6 +879,38 @@ type fakeReranker struct {
 	calls            int
 	gotQuery         string
 	gotCount         int
+}
+
+type cpuFallbackReranker struct{ inner *routing.CPULexicalReranker }
+
+func (r cpuFallbackReranker) Name() string { return r.inner.Name() }
+
+func (r cpuFallbackReranker) Available(context.Context) bool { return true }
+
+func (r cpuFallbackReranker) ActiveName(context.Context) string { return r.inner.Name() }
+
+func (r cpuFallbackReranker) ActiveNameWithPreference(_ context.Context, preference string) string {
+	if preference == aisearch.RerankPreferenceCrossEncoderRequired {
+		return "none"
+	}
+	return r.inner.Name()
+}
+
+func (r cpuFallbackReranker) Rerank(ctx context.Context, query string, candidates []*routingv1.SearchHit) ([]*routingv1.SearchHit, error) {
+	return r.inner.Rerank(ctx, query, candidates)
+}
+
+func (r cpuFallbackReranker) RerankWithPreference(ctx context.Context, query string, candidates []*routingv1.SearchHit, preference string) ([]*routingv1.SearchHit, error) {
+	if preference == aisearch.RerankPreferenceCrossEncoderRequired {
+		return nil, errors.New("required cross encoder unavailable")
+	}
+	return r.inner.Rerank(ctx, query, candidates)
+}
+
+type telemetryCapture struct{ sample routing.TelemetrySample }
+
+func (c *telemetryCapture) Record(_ context.Context, sample routing.TelemetrySample) {
+	c.sample = sample
 }
 
 func (f *fakeReranker) Rerank(ctx context.Context, query string, candidates []*routingv1.SearchHit) ([]*routingv1.SearchHit, error) {
@@ -882,6 +988,26 @@ func TestRerankProducesUnifiedRankedList(t *testing.T) {
 		require.Empty(t, group.GetHits(), "reranked hits must not be duplicated under provider groups")
 	}
 	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranked 2 candidate")
+}
+
+func TestCPUDegradedLegFlowsThroughQueryAndTelemetryRecorder(t *testing.T) {
+	recorder := &telemetryCapture{}
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
+		Reranker: cpuFallbackReranker{inner: routing.NewCPULexicalReranker()}, Recorder: recorder,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "restart a scenario", All: true, Explain: true})
+	require.NoError(t, err)
+	require.True(t, resp.GetReranked())
+	require.True(t, resp.GetDegraded())
+	require.Equal(t, "cpu-lexical:v1", resp.GetRerankerLeg())
+	require.Contains(t, strings.Join(resp.GetRoutingExplanation(), "\n"), "reranker_degraded_to_cpu_lexical")
+	require.True(t, recorder.sample.Reranked)
+	require.True(t, recorder.sample.Degraded)
+	require.Equal(t, "cpu-lexical:v1", recorder.sample.RerankerLeg)
+	require.Contains(t, recorder.sample.ResponseDegradeReason, "reranker_degraded_to_cpu_lexical")
+	require.GreaterOrEqual(t, recorder.sample.RerankLatencyMs, int64(0))
 }
 
 func TestBackgroundEvaluationBypassesModelsAndFansOutExplicitly(t *testing.T) {

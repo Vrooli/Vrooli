@@ -55,6 +55,41 @@ type CorpusValidationReader interface {
 	LatestCorpusValidation(context.Context, string) (*CorpusValidationRecord, error)
 }
 
+// FixedDenominatorStore persists an independently reviewed exact query/label
+// snapshot. Re-freezing is an explicit review operation; suite updates alone
+// never shrink or replace the acceptance set.
+type FixedDenominatorStore interface {
+	FreezeFixedDenominator(context.Context, *evalv1.EvalSuite, string, string) (*evalv1.FixedDenominatorSnapshot, error)
+	GetFixedDenominator(context.Context, string) (*evalv1.FixedDenominatorSnapshot, error)
+}
+
+// FixedDenominatorReader is consumed by production eval runners. Test runners
+// may omit it to exercise isolated grading behavior without a persistence layer.
+type FixedDenominatorReader interface {
+	GetFixedDenominator(context.Context, string) (*evalv1.FixedDenominatorSnapshot, error)
+}
+
+// RerankCorpusOwnerReceiptVerifier must establish that the receipt came from
+// the provider-owned corpus source, not merely that its self-hash is valid.
+// Implementations bind the receipt and exact suite bytes to the provider id.
+type RerankCorpusOwnerReceiptVerifier interface {
+	VerifyRerankCorpusOwnerReceipt(context.Context, *evalv1.EvalSuite, string) error
+}
+
+type RerankCorpusOwnerReceiptVerifierFunc func(context.Context, *evalv1.EvalSuite, string) error
+
+func (f RerankCorpusOwnerReceiptVerifierFunc) VerifyRerankCorpusOwnerReceipt(ctx context.Context, suite *evalv1.EvalSuite, receiptSHA256 string) error {
+	return f(ctx, suite, receiptSHA256)
+}
+
+// VerifiedRerankCorpusOwnerReceipt is minted only after the configured owner
+// source verifier accepts the exact receipt digest. Its fields stay private so
+// an API caller cannot manufacture qualification evidence from receipt JSON.
+type VerifiedRerankCorpusOwnerReceipt struct {
+	receiptSHA256 string
+	verified      bool
+}
+
 // ErrInvalidSuite is the typed sentinel returned by Validate (and propagated by
 // Store.UpsertSuite) when a suite fails validation. Handlers translate via
 // errors.As into a 400 carrying connect.CodeInvalidArgument with message

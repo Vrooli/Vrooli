@@ -77,6 +77,9 @@ const (
 	// The LLM fallback is intentionally looser because its warm path is
 	// model-dependent; cold residency is a host concern, not router code.
 	defaultLLMRerankTimeout = 8 * time.Second
+	// The in-process lexical fallback has a one-slot CPU gate and a hard
+	// candidate/text ceiling, so it receives a small wait budget.
+	defaultCPULexicalRerankTimeout = 500 * time.Millisecond
 	// defaultResponseCushion reserves a small tail of the query budget for
 	// response construction, telemetry stamping, and Connect header write-out.
 	defaultResponseCushion = 500 * time.Millisecond
@@ -225,6 +228,7 @@ type Deps struct {
 	Recorder                  TelemetryRecorder
 	EvalQuality               EvalQualityReader
 	DescriptionIndex          ProviderDescriptionIndex
+	DescriptionIdentity       ProviderSemanticContextResolver
 	Logger                    *log.Logger
 	Concurrency               int
 	PerProviderTimeout        time.Duration
@@ -1052,8 +1056,14 @@ func (r *Router) maybeRerank(ctx context.Context, query string, groups []*routin
 	}
 	if strings.HasPrefix(leg, "llm:") {
 		rankReason = "reranker_degraded_to_llm"
+	} else if strings.HasPrefix(leg, "cpu-lexical:") {
+		rankReason = "reranker_degraded_to_cpu_lexical"
 	}
-	return ranked, true, false, rankReason, leg, []string{fmt.Sprintf("reranked %d candidate(s) into one unified cross-provider list via %s", len(ranked), leg)}
+	explanation := fmt.Sprintf("reranked %d candidate(s) into one unified cross-provider list via %s", len(ranked), leg)
+	if rankReason != "" {
+		explanation += " (" + rankReason + ")"
+	}
+	return ranked, true, strings.HasPrefix(leg, "cpu-lexical:"), rankReason, leg, []string{explanation}
 }
 
 func rerankPreference(targets []*registryv1.ProviderDescriptor) string {
@@ -1076,6 +1086,8 @@ func (r *Router) rerankBudgetForLeg(ctx context.Context, preference string) (tim
 			timeout = r.deps.CrossEncoderRerankTimeout
 		case strings.HasPrefix(active, "llm:") && r.deps.LLMRerankTimeout > 0:
 			timeout = r.deps.LLMRerankTimeout
+		case strings.HasPrefix(active, "cpu-lexical:"):
+			timeout = defaultCPULexicalRerankTimeout
 		}
 	}
 	return r.rerankBudgetWithTimeout(ctx, timeout)
@@ -1154,27 +1166,35 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 			trace.UnavailableReason = routingIndexReason
 			explain = append(explain, "semantic provider-description index unavailable; lexical fallback strategy selected")
 		} else {
-			semantic, result := r.deps.DescriptionIndex.Shortlist(ctx, query, profiles, candidateLimit)
-			if result.Available && len(semantic) > 0 {
-				semanticRanking = semantic
-				denseScores = result.Scores
-				trace.IndexStatus = "available"
-				trace.DenseTopProviderIds = topProviderIDs(semanticRanking, routingTraceTopK)
-				evidenceWidth := strategyIntParam(strategy, StageEmbedding, "evidence_width", r.factors.MaxFanoutWidth)
-				if strategyStringParam(strategy, StageEmbedding, "evidence_scope", "") == "all" {
-					evidenceWidth = len(profiles)
-				}
-				shortlist = boundedProviderEvidenceUnion(semantic, lexicalRanking, evidenceWidth)
-				explain = append(explain, fmt.Sprintf("semantic provider-description index ranked %d eligible leaves", result.Total))
-				explain = append(explain, fmt.Sprintf("semantic and lexical top-%d provider evidence windows fused with reciprocal rank evidence", evidenceWidth))
-			} else {
-				routingIndexReason = result.Reason
-				if routingIndexReason == "" {
-					routingIndexReason = "routing_index_unavailable"
-				}
+			semanticRequest, identityErr := r.providerDescriptionQuery(ctx, query, candidateLimit)
+			if identityErr != nil {
+				routingIndexReason = "routing_identity_unavailable"
 				trace.IndexReason = routingIndexReason
 				trace.UnavailableReason = routingIndexReason
-				explain = append(explain, fmt.Sprintf("semantic provider-description index unavailable (%s); lexical fallback strategy selected", routingIndexReason))
+				explain = append(explain, "semantic provider-description index unavailable (routing_identity_unavailable); lexical fallback strategy selected")
+			} else {
+				semantic, result := r.deps.DescriptionIndex.Shortlist(ctx, semanticRequest, profiles)
+				if result.Available && len(semantic) > 0 {
+					semanticRanking = semantic
+					denseScores = result.Scores
+					trace.IndexStatus = "available"
+					trace.DenseTopProviderIds = topProviderIDs(semanticRanking, routingTraceTopK)
+					evidenceWidth := strategyIntParam(strategy, StageEmbedding, "evidence_width", r.factors.MaxFanoutWidth)
+					if strategyStringParam(strategy, StageEmbedding, "evidence_scope", "") == "all" {
+						evidenceWidth = len(profiles)
+					}
+					shortlist = boundedProviderEvidenceUnion(semantic, lexicalRanking, evidenceWidth)
+					explain = append(explain, fmt.Sprintf("semantic provider-description index ranked %d eligible leaves", result.Total))
+					explain = append(explain, fmt.Sprintf("semantic and lexical top-%d provider evidence windows fused with reciprocal rank evidence", evidenceWidth))
+				} else {
+					routingIndexReason = result.Reason
+					if routingIndexReason == "" {
+						routingIndexReason = "routing_index_unavailable"
+					}
+					trace.IndexReason = routingIndexReason
+					trace.UnavailableReason = routingIndexReason
+					explain = append(explain, fmt.Sprintf("semantic provider-description index unavailable (%s); lexical fallback strategy selected", routingIndexReason))
+				}
 			}
 		}
 	}
@@ -1208,7 +1228,7 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 			selectionFallback = true
 			selectionReason = rerankerDegradationReason(ctx, err)
 			trace.UnavailableReason = selectionReason
-			explain = append(explain, fmt.Sprintf("cross-encoder and LLM provider picks unavailable (%s); lexical provider pick selected (%s)", oneLine(err.Error()), selectionReason))
+			explain = append(explain, fmt.Sprintf("cross-encoder and configured reranker fallback unavailable (%s); lexical provider pick selected (%s)", oneLine(err.Error()), selectionReason))
 		} else {
 			ordered = picked
 			selectionReason = "cross_encoder"
@@ -1234,9 +1254,15 @@ func (r *Router) autoSelect(ctx context.Context, active []*registryv1.ProviderDe
 				}
 			}
 			selectorLeg = leg
+			if leg == selectorLegCPULexical {
+				selectionFallback = true
+				selectionReason = selectorLegCPULexical
+			}
 			switch leg {
 			case selectorLegLLM:
 				explain = append(explain, "cross-encoder provider pick unavailable; LLM provider pick selected the leading lexical candidate")
+			case selectorLegCPULexical:
+				explain = append(explain, "cross-encoder provider pick unavailable; CPU lexical provider pick selected the leading lexical candidate")
 			default:
 				explain = append(explain, "cross-encoder provider pick selected the leading lexical candidate")
 			}
@@ -1571,6 +1597,43 @@ func callerPartition(ctx context.Context) string {
 	data, _ := json.Marshal(value) // Principal contains only JSON-compatible fields.
 	digest := sha256.Sum256(data)
 	return fmt.Sprintf("%x", digest)
+}
+
+func (r *Router) providerDescriptionQuery(ctx context.Context, query string, limit int) (ProviderDescriptionQuery, error) {
+	if r == nil || r.deps.DescriptionIdentity == nil {
+		return ProviderDescriptionQuery{}, fmt.Errorf("provider semantic identity resolver unavailable")
+	}
+	principal, ok := identity.PrincipalFromContext(ctx)
+	if !ok || !principal.IsVerified() || strings.TrimSpace(principal.Subject) == "" {
+		return ProviderDescriptionQuery{}, fmt.Errorf("verified caller identity unavailable")
+	}
+	verified, err := r.deps.DescriptionIdentity.ResolveProviderSemanticContext(ctx)
+	if err != nil {
+		return ProviderDescriptionQuery{}, err
+	}
+	if !verified.verified {
+		return ProviderDescriptionQuery{}, fmt.Errorf("verified provider semantic context unavailable")
+	}
+	resolved := verified.identity
+	request := ProviderDescriptionQuery{
+		OperationID: strings.TrimSpace(resolved.OperationID),
+		TenantID:    strings.TrimSpace(resolved.TenantID),
+		ArmID:       strings.TrimSpace(resolved.ArmID),
+		RecipeID:    strings.TrimSpace(resolved.RecipeID),
+		Text:        query,
+		Limit:       limit,
+		Attribution: ProviderDescriptionAttribution{
+			CallerID:              strings.TrimSpace(principal.Subject),
+			RightsEvidenceURI:     strings.TrimSpace(resolved.RightsReceiptURI),
+			RightsEvidenceSHA256:  verified.rightsEvidenceSHA,
+			QualityEvidenceURI:    strings.TrimSpace(resolved.QualityEvidenceURI),
+			QualityEvidenceSHA256: strings.TrimSpace(resolved.QualityEvidenceSHA256),
+		},
+	}
+	if !validProviderDescriptionQuery(request) {
+		return ProviderDescriptionQuery{}, fmt.Errorf("provider semantic identity incomplete")
+	}
+	return request, nil
 }
 
 func (r *Router) callProvider(ctx context.Context, d *registryv1.ProviderDescriptor, query string, limit int32, scope string) *routingv1.ProviderResultGroup {

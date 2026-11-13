@@ -3,7 +3,9 @@ package eval_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/stretchr/testify/require"
@@ -23,10 +25,11 @@ import (
 // covered by internal/eval/store_test.go; here we assert the handler's
 // orchestration and error translation.
 type fakeStore struct {
-	suites    map[string]*evalv1.EvalSuite
-	runs      map[string]*evalv1.EvalRun
-	appended  []*evalv1.EvalRun
-	upsertErr error
+	suites     map[string]*evalv1.EvalSuite
+	runs       map[string]*evalv1.EvalRun
+	appended   []*evalv1.EvalRun
+	upsertErr  error
+	validation *internaleval.CorpusValidationRecord
 }
 
 func newFakeStore() *fakeStore {
@@ -88,6 +91,10 @@ func (f *fakeStore) GetRun(_ context.Context, id string) (*evalv1.EvalRun, error
 		return r, nil
 	}
 	return nil, internaleval.ErrRunNotFound{RunID: id}
+}
+
+func (f *fakeStore) LatestCorpusValidation(context.Context, string) (*internaleval.CorpusValidationRecord, error) {
+	return f.validation, nil
 }
 
 // fakeRunner returns a canned run (or error) and records its inputs.
@@ -215,6 +222,59 @@ func TestGetSuiteNotFound(t *testing.T) {
 	_, err := client.GetSuite(context.Background(), connect.NewRequest(&evalv1.GetSuiteRequest{SuiteId: "nope"}))
 	require.Error(t, err)
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+}
+
+func TestGetSuiteReportsRerankQualificationRefusalWithoutOwnerReceipt(t *testing.T) {
+	store := newFakeStore()
+	suite := validSuite()
+	store.suites[suite.GetSuiteId()] = suite
+	client := newClient(t, store, &fakeRunner{})
+
+	resp, err := client.GetSuite(context.Background(), connect.NewRequest(&evalv1.GetSuiteRequest{SuiteId: suite.GetSuiteId()}))
+	require.NoError(t, err)
+	require.NotNil(t, resp.Msg.GetRerankQualification())
+	require.False(t, resp.Msg.GetRerankQualification().GetQualified())
+	require.Equal(t, "owner_receipt_missing", resp.Msg.GetRerankQualification().GetRefusalReason())
+}
+
+func TestGetLatestCorpusValidationReturnsRedactedReceiptIdentity(t *testing.T) {
+	store := newFakeStore()
+	store.validation = &internaleval.CorpusValidationRecord{
+		CreatedAt: time.Date(2026, 11, 11, 10, 0, 0, 0, time.UTC),
+		Result: &evalv1.ValidateCorpusResponse{
+			SuiteId: "search-hub.docs.primary", ProviderId: "search-hub.docs",
+			SuiteSha256: strings.Repeat("a", 64), DenominatorSha256: strings.Repeat("b", 64),
+			DenominatorCaseIds: []string{"routing-trust"},
+			Rollup:             &evalv1.CorpusValidationRollup{Positives: 1, Live: 1},
+			Cases:              []*evalv1.CorpusValidationCase{{CaseId: "routing-trust", ProbedQueries: []string{"private query text"}, Message: "private provider detail"}},
+		},
+	}
+	client := newClient(t, store, &fakeRunner{})
+
+	resp, err := client.GetLatestCorpusValidation(context.Background(), connect.NewRequest(&evalv1.GetLatestCorpusValidationRequest{SuiteId: " search-hub.docs.primary "}))
+	require.NoError(t, err)
+	require.True(t, resp.Msg.GetFound())
+	require.Equal(t, "search-hub.docs.primary", resp.Msg.GetSuiteId())
+	require.Equal(t, "search-hub.docs", resp.Msg.GetProviderId())
+	require.Equal(t, strings.Repeat("a", 64), resp.Msg.GetSuiteSha256())
+	require.Equal(t, strings.Repeat("b", 64), resp.Msg.GetDenominatorSha256())
+	require.Equal(t, []string{"routing-trust"}, resp.Msg.GetDenominatorCaseIds())
+	require.Equal(t, "2026-11-11T10:00:00Z", resp.Msg.GetCreatedAt())
+	require.Len(t, resp.Msg.GetReceiptSha256(), 64)
+	require.NotContains(t, resp.Msg.String(), "private query text")
+	require.NotContains(t, resp.Msg.String(), "private provider detail")
+}
+
+func TestGetLatestCorpusValidationNotFoundAndRequiresSuiteID(t *testing.T) {
+	client := newClient(t, newFakeStore(), &fakeRunner{})
+	resp, err := client.GetLatestCorpusValidation(context.Background(), connect.NewRequest(&evalv1.GetLatestCorpusValidationRequest{SuiteId: "search-hub.docs.primary"}))
+	require.NoError(t, err)
+	require.False(t, resp.Msg.GetFound())
+	require.Equal(t, "search-hub.docs.primary", resp.Msg.GetSuiteId())
+
+	_, err = client.GetLatestCorpusValidation(context.Background(), connect.NewRequest(&evalv1.GetLatestCorpusValidationRequest{}))
+	require.Error(t, err)
+	require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 }
 
 func TestRunSuiteExecutesAndPersists(t *testing.T) {

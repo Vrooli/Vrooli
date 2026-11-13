@@ -1,7 +1,6 @@
 package sweep
 
 import (
-	"hash/fnv"
 	"math"
 	"math/rand"
 	"sort"
@@ -20,7 +19,8 @@ import (
 //  2. Held-out validation: the winner, SELECTED on the tuning fold, must not
 //     regress on an independent held-out fold (and the gibberish/negative
 //     constraint must still hold — handled by the constraint guard on the full
-//     run). Auto-`generated` cases are always held out (never select on them).
+//     run). Only owner-tagged heldout cases validate; generated cases stay out
+//     of both folds until reviewed.
 //  3. Multi-objective constraints: recall is maximized SUBJECT TO a gibberish
 //     ceiling and a latency budget — an arm that leaks more junk or blows the
 //     budget is infeasible regardless of recall.
@@ -85,43 +85,12 @@ func percentile(sorted []float64, p float64) float64 {
 
 // --- Guard 2: held-out split ------------------------------------------------
 
-// splitCases deterministically partitions positive case ids into a tuning fold
-// (used to SELECT the winner) and a held-out fold (used to VALIDATE it). The
-// split is stable across runs (a hash order, not RNG) so a sweep is
-// reproducible. `generated` cases are forced into the held-out fold first; the
-// remainder are split so the held-out fold is ceil(fraction · N) of them. With
-// fraction ≤ 0 or ≥ 1 the split degrades sensibly (all-tuning / all-heldout).
-func splitCases(positive []string, generated map[string]bool, fraction float64) (tuning, heldout []string) {
-	// generated → always held out.
-	var rest []string
-	for _, id := range positive {
-		if generated[id] {
-			heldout = append(heldout, id)
-		} else {
-			rest = append(rest, id)
-		}
-	}
-	// Stable pseudo-random order by hash so the held-out choice is deterministic
-	// but not correlated with id lexical order (which often tracks difficulty).
-	sort.Slice(rest, func(i, j int) bool { return hashID(rest[i]) < hashID(rest[j]) })
-	k := 0
-	if fraction > 0 {
-		k = int(math.Ceil(fraction * float64(len(rest))))
-	}
-	if k > len(rest) {
-		k = len(rest)
-	}
-	heldout = append(heldout, rest[:k]...)
-	tuning = append(tuning, rest[k:]...)
-	sort.Strings(tuning)
-	sort.Strings(heldout)
-	return tuning, heldout
-}
-
-func hashID(s string) uint64 {
-	h := fnv.New64a()
-	_, _ = h.Write([]byte(s))
-	return h.Sum64()
+// splitCases uses dataset-owner tags only. Generated cases are excluded from
+// both folds until an owner reviews them; untagged reviewed positives remain
+// tuning cases. The fraction argument was removed because a random/hash split
+// cannot establish independent held-out provenance.
+func splitCases(positive []string, heldoutCases, generated map[string]bool) (tuning, heldout, excluded []string) {
+	return aisearch.FixedEvaluationSplit(positive, heldoutCases, generated)
 }
 
 // heldoutHolds reports whether a candidate validates on the held-out fold: the

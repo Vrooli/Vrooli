@@ -23,6 +23,7 @@ type fakeFederatedQuery struct {
 	responses map[string]*routingv1.QueryResponse
 	errors    map[string]error
 	snapshot  *evalv1.ConfigSnapshot
+	calls     *int
 }
 
 type fakeRoutability struct {
@@ -34,6 +35,9 @@ func (f fakeRoutability) Status(context.Context) (*routingv1.StatusResponse, err
 }
 
 func (f fakeFederatedQuery) Query(_ context.Context, req *routingv1.QueryRequest) (*routingv1.QueryResponse, error) {
+	if f.calls != nil {
+		*f.calls++
+	}
 	if err := f.errors[req.GetQuery()]; err != nil {
 		return nil, err
 	}
@@ -98,6 +102,30 @@ func TestFederatedRunnerLabelsRoutingRankMarginAndDegradation(t *testing.T) {
 	require.True(t, run.GetDegraded())
 }
 
+func TestFederatedRunnerExcludesUnreviewedGeneratedCaseFromCallsAndDenominators(t *testing.T) {
+	calls := 0
+	query := fakeFederatedQuery{
+		calls: &calls,
+		responses: map[string]*routingv1.QueryResponse{
+			"ordinary":           {CorporaSearched: []string{"owner.leaf"}, Ranked: []*routingv1.SearchHit{federatedHit("owner.leaf", "ordinary-id", 0.9)}},
+			"generated-reviewed": {CorporaSearched: []string{"owner.leaf"}, Ranked: []*routingv1.SearchHit{federatedHit("owner.leaf", "reviewed-id", 0.8)}},
+		},
+		errors: map[string]error{"generated-unreviewed": errors.New("must not query unreviewed generated example")},
+	}
+	run, err := newFederatedRunner(query).Run(context.Background(), federatedSuite(
+		&evalv1.EvalCase{CaseId: "ordinary", Query: "ordinary", ExpectIds: []string{"ordinary-id"}},
+		&evalv1.EvalCase{CaseId: "generated-unreviewed", Query: "generated-unreviewed", Tags: []string{"generated"}, ExpectIds: []string{"invented-id"}},
+		&evalv1.EvalCase{CaseId: "generated-reviewed", Query: "generated-reviewed", Tags: []string{"generated", "heldout"}, ExpectIds: []string{"reviewed-id"}},
+	), "generated-review-exclusion", 10)
+	require.NoError(t, err)
+	require.Equal(t, 2, calls, "only ordinary and owner-reviewed cases may query the provider")
+	require.Equal(t, "n/a", run.GetResults()[1].GetOutcome())
+	require.Equal(t, "generated case excluded until owner review", run.GetResults()[1].GetOutcomeReason())
+	require.EqualValues(t, 2, run.GetAggregate().GetGradedCases())
+	require.Len(t, run.GetComparisonIdentity().GetDenominatorCaseIds(), 2)
+	require.InDelta(t, 1.0, run.GetAggregate().GetRetrievalRecall(), 1e-9)
+}
+
 func TestFederatedRunnerGradesMappedEntityIdentityWithoutReplacingStableHitID(t *testing.T) {
 	metadata, err := structpb.NewStruct(map[string]any{"run_id": "expected-run"})
 	require.NoError(t, err)
@@ -111,11 +139,64 @@ func TestFederatedRunnerGradesMappedEntityIdentityWithoutReplacingStableHitID(t 
 		},
 	}}).Run(context.Background(), federatedSuite(&evalv1.EvalCase{
 		CaseId: "entity-alias", Query: "prior discussion", ExpectIds: []string{"expected-run"}, ExpectWithinTopK: 1,
+		ExpectedIdentityField: "run_id",
 	}), "baseline", 10)
 	require.NoError(t, err)
 	require.Equal(t, "met", run.GetResults()[0].GetOutcome())
 	require.EqualValues(t, 1, run.GetResults()[0].GetExpectedRank())
 	require.Equal(t, "stable-chunk-id", run.GetResults()[0].GetTop()[0].GetId())
+}
+
+func TestFederatedRunnerBindsSearchHubWorkloadIdentityToEvaluatedQueryPath(t *testing.T) {
+	called := false
+	identityEvidence := eval.IdentityEvidenceReaders{Caller: eval.CallerIdentityResolverFunc(func(_ context.Context, suite *evalv1.EvalSuite) (eval.CallerIdentity, error) {
+		called = true
+		require.Equal(t, "suite", suite.GetSuiteId())
+		return eval.CallerIdentity{ID: "search-hub", Version: "sha256:search-hub-source"}, nil
+	})}
+	runner := eval.NewFederatedRunnerWithRoutability(
+		fakeResolver{desc: &registryv1.ProviderDescriptor{ProviderId: "provider.corpus"}},
+		fakeFederatedQuery{responses: map[string]*routingv1.QueryResponse{"query": {CorporaSearched: []string{"provider.corpus"}, Ranked: []*routingv1.SearchHit{federatedHit("provider.corpus", "expected", 0.9)}}}},
+		scheduletest.New(time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)),
+		func() string { return "federated-identity" }, nil, identityEvidence,
+	)
+	run, err := runner.Run(context.Background(), federatedSuite(&evalv1.EvalCase{CaseId: "positive", Query: "query", ExpectIds: []string{"expected"}}), "identity-regression", 5)
+	require.NoError(t, err)
+	require.True(t, called, "the evaluated Search Hub QueryService workload must resolve its comparison identity")
+	require.Equal(t, "search-hub", run.GetComparisonIdentity().GetCallerId())
+	require.Equal(t, "sha256:search-hub-source", run.GetComparisonIdentity().GetCallerVersion())
+	require.NotEqual(t, run.GetComparisonIdentity().GetCorpusProviderId(), run.GetComparisonIdentity().GetCallerId())
+}
+
+func TestFederatedRunnerLeavesCallerUnknownWhenSuiteMakesNoQueryServiceCalls(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		cases []*evalv1.EvalCase
+	}{
+		{name: "empty suite"},
+		{name: "candidate-only suite", cases: []*evalv1.EvalCase{{CaseId: "candidate", Query: "not executed", Status: "candidate"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			resolverCalls := 0
+			runner := eval.NewFederatedRunnerWithRoutability(
+				fakeResolver{desc: &registryv1.ProviderDescriptor{ProviderId: "provider.corpus"}},
+				fakeFederatedQuery{calls: &calls},
+				scheduletest.New(time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)),
+				func() string { return "federated-no-query" }, nil,
+				eval.IdentityEvidenceReaders{Caller: eval.CallerIdentityResolverFunc(func(context.Context, *evalv1.EvalSuite) (eval.CallerIdentity, error) {
+					resolverCalls++
+					return eval.CallerIdentity{ID: "search-hub", Version: "sha256:search-hub-source"}, nil
+				})},
+			)
+			run, err := runner.Run(context.Background(), federatedSuite(tc.cases...), "no-query", 5)
+			require.NoError(t, err)
+			require.Zero(t, calls, "degenerate suites must not invoke QueryService")
+			require.Zero(t, resolverCalls, "workload identity requires an evaluated Search Hub query")
+			require.Empty(t, run.GetComparisonIdentity().GetCallerId())
+			require.Empty(t, run.GetComparisonIdentity().GetCallerVersion())
+		})
+	}
 }
 
 func TestFederatedRunnerPersistsStratifiedRoutingEvidence(t *testing.T) {

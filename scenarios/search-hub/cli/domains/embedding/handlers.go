@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,8 +19,10 @@ import (
 )
 
 type handlers struct {
-	core   *cliapp.ScenarioApp
-	client registryconnect.RegistryServiceClient
+	core          *cliapp.ScenarioApp
+	client        registryconnect.RegistryServiceClient
+	inventory     func(context.Context, string, string) ([]aisearch.EmbeddingInventoryEntry, error)
+	resolveTarget func(context.Context, string, string, string) (aisearch.EmbeddingMetadata, error)
 }
 
 type result struct {
@@ -54,7 +54,7 @@ func newHandlers(core *cliapp.ScenarioApp) *handlers {
 }
 
 func (h *handlers) inventoryCall(ctx cliapp.OperationContext) (result, error) {
-	entries, err := aisearch.InventoryQdrantCollections(context.Background(), qdrantURL(), os.Getenv("QDRANT_API_KEY"))
+	entries, err := h.inventoryCollections(context.Background(), qdrantURL(), os.Getenv("QDRANT_API_KEY"))
 	if err != nil {
 		return result{}, err
 	}
@@ -62,11 +62,11 @@ func (h *handlers) inventoryCall(ctx cliapp.OperationContext) (result, error) {
 }
 
 func (h *handlers) planCall(ctx cliapp.OperationContext) (result, error) {
-	entries, err := aisearch.InventoryQdrantCollections(context.Background(), qdrantURL(), os.Getenv("QDRANT_API_KEY"))
+	entries, err := h.inventoryCollections(context.Background(), qdrantURL(), os.Getenv("QDRANT_API_KEY"))
 	if err != nil {
 		return result{}, err
 	}
-	target, err := resolveTarget(context.Background(), ctx.Flag("model"), ctx.Flag("role"), ctx.Flag("dimensions"))
+	target, err := h.resolveEmbeddingTarget(context.Background(), ctx.Flag("model"), ctx.Flag("role"), ctx.Flag("dimensions"))
 	if err != nil {
 		return result{}, err
 	}
@@ -82,6 +82,20 @@ func (h *handlers) planCall(ctx cliapp.OperationContext) (result, error) {
 	return result{Operation: "embedding retarget plan", Status: "ok", Plan: &plan, Message: fmt.Sprintf("classified %s for %d store(s)", plan.Compatibility, len(plan.StoreDetails))}, nil
 }
 
+func (h *handlers) inventoryCollections(ctx context.Context, baseURL, apiKey string) ([]aisearch.EmbeddingInventoryEntry, error) {
+	if h.inventory != nil {
+		return h.inventory(ctx, baseURL, apiKey)
+	}
+	return aisearch.InventoryQdrantCollections(ctx, baseURL, apiKey)
+}
+
+func (h *handlers) resolveEmbeddingTarget(ctx context.Context, model, role, dimensions string) (aisearch.EmbeddingMetadata, error) {
+	if h.resolveTarget != nil {
+		return h.resolveTarget(ctx, model, role, dimensions)
+	}
+	return resolveTarget(ctx, model, role, dimensions)
+}
+
 func (h *handlers) applyShadowCall(ctx cliapp.OperationContext) (result, error) {
 	if !ctx.BoolFlag("shadow") {
 		return result{}, errors.New("embedding retarget apply requires --shadow; live collections are never written directly")
@@ -90,11 +104,11 @@ func (h *handlers) applyShadowCall(ctx cliapp.OperationContext) (result, error) 
 	if providerID == "" {
 		return result{}, errors.New("--provider-id is required for a provider-owned shadow build")
 	}
-	entries, err := aisearch.InventoryQdrantCollections(context.Background(), qdrantURL(), os.Getenv("QDRANT_API_KEY"))
+	entries, err := h.inventoryCollections(context.Background(), qdrantURL(), os.Getenv("QDRANT_API_KEY"))
 	if err != nil {
 		return result{}, err
 	}
-	target, err := resolveTarget(context.Background(), ctx.Flag("model"), ctx.Flag("role"), ctx.Flag("dimensions"))
+	target, err := h.resolveEmbeddingTarget(context.Background(), ctx.Flag("model"), ctx.Flag("role"), ctx.Flag("dimensions"))
 	if err != nil {
 		return result{}, err
 	}
@@ -118,27 +132,46 @@ func (h *handlers) applyShadowCall(ctx cliapp.OperationContext) (result, error) 
 	store := aisearch.NewQdrantEmbeddingStore(collection)
 	plan := aisearch.PlanEmbeddingRetargetForStores(old, target, []aisearch.EmbeddingStore{store})
 	state := migrationState{ProviderID: providerID, LiveCollection: collection, ShadowCollection: collection + "__retarget_shadow", ActiveCollection: collection, Plan: plan, State: "shadow_build_requested", UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
-	providerResponse, err := h.invokeProviderControl(context.Background(), providerID, map[string]any{"action": "shadow", "provider_id": providerID, "collection": collection, "shadow_collection": state.ShadowCollection, "model": target.Model, "role": target.Role, "dimensions": target.Dimensions, "policy_schema_version": target.PolicySchemaVersion})
-	if err != nil {
-		return result{}, err
-	}
-	state.JobID = providerResponse.GetJobId()
-	if state.JobID != "" {
-		if err := h.waitMigration(context.Background(), providerID, state.JobID, &state); err != nil {
-			return result{}, err
-		}
-	}
-	state.State = "shadow_ready"
 	if err := saveState(state); err != nil {
 		return result{}, err
 	}
-	return result{Operation: "embedding retarget apply --shadow", Status: "accepted", Migration: &state, Message: "provider reindex endpoint accepted a shadow-only build; live collection was not written"}, nil
+	providerResponse, err := h.invokeProviderControl(context.Background(), providerID, map[string]any{"action": "shadow", "provider_id": providerID, "collection": collection, "shadow_collection": state.ShadowCollection, "model": target.Model, "role": target.Role, "dimensions": target.Dimensions, "policy_schema_version": target.PolicySchemaVersion})
+	if err != nil {
+		state.State = "shadow_build_failed"
+		state.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		_ = saveState(state)
+		return result{}, err
+	}
+	state.JobID = providerResponse.GetJobId()
+	if state.JobID == "" {
+		state.State = "shadow_build_failed"
+		state.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		_ = saveState(state)
+		return result{}, errors.New("provider accepted shadow request without a job_id; completion cannot be verified")
+	}
+	state.State = "shadow_build_running"
+	state.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	if err := saveState(state); err != nil {
+		return result{}, err
+	}
+	if err := h.waitMigration(context.Background(), providerID, state.JobID, &state); err != nil {
+		return result{}, err
+	}
+	state.State = "shadow_ready"
+	state.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	if err := saveState(state); err != nil {
+		return result{}, err
+	}
+	return result{Operation: "embedding retarget apply --shadow", Status: "ready", Migration: &state, Message: "provider shadow build completed and reported succeeded; live collection was not switched"}, nil
 }
 
 func (h *handlers) recordCompareCall(ctx cliapp.OperationContext) (result, error) {
 	state, err := loadState()
 	if err != nil {
 		return result{}, err
+	}
+	if state.State != "shadow_ready" {
+		return result{}, fmt.Errorf("cannot record comparison while migration state is %q; require shadow_ready", state.State)
 	}
 	verdict := strings.ToLower(strings.TrimSpace(ctx.Flag("verdict")))
 	if verdict != "pass" && verdict != "fail" && verdict != "withheld" {
@@ -154,22 +187,7 @@ func (h *handlers) recordCompareCall(ctx cliapp.OperationContext) (result, error
 }
 
 func (h *handlers) abortCall(ctx cliapp.OperationContext) (result, error) {
-	state, err := loadState()
-	if err != nil {
-		return result{}, err
-	}
-	if state.ShadowCollection == "" {
-		return result{}, errors.New("migration has no shadow collection")
-	}
-	if err := deleteCollection(context.Background(), state.ShadowCollection); err != nil {
-		return result{}, err
-	}
-	state.State = "aborted"
-	state.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
-	if err := saveState(state); err != nil {
-		return result{}, err
-	}
-	return result{Operation: "embedding retarget abort", Status: "ok", Migration: &state, Message: "shadow collection dropped; live collection remains active"}, nil
+	return result{}, errors.New("embedding migration abort is unsupported: provider cancellation and collection lease protection are not implemented; no data was changed")
 }
 
 func (h *handlers) cutoverCall(ctx cliapp.OperationContext) (result, error) {
@@ -179,6 +197,9 @@ func (h *handlers) cutoverCall(ctx cliapp.OperationContext) (result, error) {
 	}
 	if err := requirePassingCompare(state); err != nil {
 		return result{}, err
+	}
+	if state.State != "shadow_compared" {
+		return result{}, fmt.Errorf("refusing cutover: migration state is %q; require a completed shadow comparison", state.State)
 	}
 	if _, err := h.invokeProviderControl(context.Background(), state.ProviderID, map[string]any{"action": "cutover", "provider_id": state.ProviderID, "collection": state.LiveCollection, "shadow_collection": state.ShadowCollection}); err != nil {
 		return result{}, err
@@ -207,6 +228,9 @@ func (h *handlers) rollbackCall(ctx cliapp.OperationContext) (result, error) {
 	}
 	if state.OldCollection == "" {
 		return result{}, errors.New("no retained live collection is recorded; rollback is unavailable")
+	}
+	if state.State != "cutover" {
+		return result{}, fmt.Errorf("refusing rollback: migration state is %q; require cutover", state.State)
 	}
 	if _, err := h.invokeProviderControl(context.Background(), state.ProviderID, map[string]any{"action": "rollback", "provider_id": state.ProviderID, "collection": state.ActiveCollection, "rollback_collection": state.OldCollection}); err != nil {
 		return result{}, err
@@ -239,12 +263,38 @@ func (h *handlers) waitMigration(ctx context.Context, providerID, jobID string, 
 		if err != nil {
 			return fmt.Errorf("read provider migration job %q: %w", jobID, err)
 		}
-		state.State = resp.Msg.GetState()
-		switch resp.Msg.GetState() {
+		providerState := strings.ToLower(strings.TrimSpace(resp.Msg.GetState()))
+		state.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		switch providerState {
 		case "succeeded":
+			state.State = "shadow_build_succeeded"
+			if err := saveState(*state); err != nil {
+				return err
+			}
 			return nil
-		case "failed", "cancelled":
-			return fmt.Errorf("provider migration job %q ended %s: %s", jobID, resp.Msg.GetState(), resp.Msg.GetError())
+		case "failed":
+			state.State = "shadow_build_failed"
+			if err := saveState(*state); err != nil {
+				return err
+			}
+			return fmt.Errorf("provider migration job %q ended failed: %s", jobID, resp.Msg.GetError())
+		case "cancelled":
+			state.State = "shadow_build_cancelled"
+			if err := saveState(*state); err != nil {
+				return err
+			}
+			return fmt.Errorf("provider migration job %q ended cancelled: %s", jobID, resp.Msg.GetError())
+		case "pending", "running":
+			state.State = "shadow_build_running"
+		default:
+			state.State = "shadow_status_unknown"
+			if err := saveState(*state); err != nil {
+				return err
+			}
+			return fmt.Errorf("provider migration job %q returned unsupported state %q", jobID, resp.Msg.GetState())
+		}
+		if err := saveState(*state); err != nil {
+			return err
 		}
 		time.Sleep(time.Second)
 	}
@@ -334,24 +384,4 @@ func saveState(state migrationState) error {
 		return fmt.Errorf("encode embedding migration state: %w", err)
 	}
 	return os.WriteFile(path, append(blob, '\n'), 0o600)
-}
-
-func deleteCollection(ctx context.Context, collection string) error {
-	endpoint := strings.TrimRight(qdrantURL(), "/") + "/collections/" + url.PathEscape(collection)
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint, nil)
-	if err != nil {
-		return err
-	}
-	if key := strings.TrimSpace(os.Getenv("QDRANT_API_KEY")); key != "" {
-		req.Header.Set("api-key", key)
-	}
-	resp, err := (&http.Client{Timeout: 15 * time.Second}).Do(req)
-	if err != nil {
-		return fmt.Errorf("drop shadow collection %q: %w", collection, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
-		return fmt.Errorf("drop shadow collection %q: HTTP %d", collection, resp.StatusCode)
-	}
-	return nil
 }

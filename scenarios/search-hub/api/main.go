@@ -12,10 +12,14 @@ import (
 	"time"
 
 	"search-hub/internal/eval"
+	"search-hub/internal/experimentarms"
 	"search-hub/internal/modules"
 	internalregistry "search-hub/internal/registry"
 	"search-hub/internal/server"
 
+	ollamapolicy "github.com/vrooli/ai-go/ollama/policy"
+	aisearch "github.com/vrooli/ai-go/search"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/vrooli/api-core/apihttp"
@@ -24,10 +28,13 @@ import (
 	apihealth "github.com/vrooli/api-core/health"
 	"github.com/vrooli/api-core/preflight"
 	apiserver "github.com/vrooli/api-core/server"
+	corestorage "github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
+	capacitybroker "github.com/vrooli/vrooli/packages/capacity"
 	_ "modernc.org/sqlite"
 
 	evalH "search-hub/handlers/eval"
+	experimentH "search-hub/handlers/experimentarms"
 	healthH "search-hub/handlers/health"
 	metricsH "search-hub/handlers/metrics"
 	registryH "search-hub/handlers/registry"
@@ -40,6 +47,38 @@ func envOrDefault(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func resolveQdrantStoragePath(repoRoot string) (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve process home: %w", err)
+	}
+	if strings.TrimSpace(home) == "" {
+		return "", fmt.Errorf("process home directory is empty")
+	}
+	seams := corestorage.PlatformSeams{UserHomeDir: func() (string, error) { return home, nil }}
+	inventory, err := corestorage.LoadOwnerInventory(corestorage.InventoryOptions{RepoRoot: repoRoot, Platform: corestorage.HostPlatform(), PlatformSeams: seams})
+	if err != nil {
+		return "", fmt.Errorf("read storage owner inventory: %w", err)
+	}
+	for _, owner := range inventory.Owners {
+		if owner.Kind != corestorage.OwnerResource || owner.ID != "qdrant" {
+			continue
+		}
+		for _, entry := range owner.StorageEntries {
+			if entry.Name != "storage" {
+				continue
+			}
+			path, err := corestorage.ResolveOwnerStoragePath(repoRoot, owner, entry, corestorage.HostPlatform(), seams)
+			if err != nil {
+				return "", fmt.Errorf("resolve Qdrant storage entry: %w", err)
+			}
+			return path, nil
+		}
+		return "", fmt.Errorf("Qdrant storage owner has no storage entry")
+	}
+	return "", fmt.Errorf("Qdrant resource storage owner was not found")
 }
 
 type serviceResource struct {
@@ -116,6 +155,63 @@ func main() {
 	if err := internalregistry.NewSQLiteStore(db, schedule.System()).MigrateLegacyControlTokens(context.Background()); err != nil {
 		log.Fatalf("provider control-token migration failed; credential authority must be restored before Search Hub can serve providers: %v", err)
 	}
+	searchNamespace, err := corestorage.ResolveNamespace(corestorage.NamespaceConfig{FallbackScenario: "search-hub"})
+	if err != nil {
+		log.Fatalf("Search Hub storage namespace resolution failed: %v", err)
+	}
+	armRegistry, err := experimentarms.NewForNamespace(db, searchNamespace)
+	if err != nil {
+		log.Fatalf("embedding experiment registry construction failed: %v", err)
+	}
+	// Search Hub owns each embedding-fleet operation. Reserve its bounded Qdrant
+	// storage peak through the shared capacity disk-job ledger and persist the
+	// operation/arm/target binding beside the fleet catalog. The model role and
+	// digest-bound rights identity come from resource-ollama policy; the encoder
+	// and peak estimator are owner implementations, never request fields.
+	var fleetAdmission aisearch.FleetAdmissionGate
+	fleetEncoder, encoderErr := experimentarms.NewTrustedOllamaFleetDescriptionEncoder(context.Background(), ollamapolicy.Resolver{})
+	if encoderErr != nil {
+		log.Printf("trusted Ollama fleet encoder remains unavailable: %v", encoderErr)
+	}
+	capacityBroker, capacityErr := capacitybroker.NewBroker(context.Background(), "")
+	if capacityErr != nil {
+		log.Printf("Qdrant fleet operation admission remains unavailable: open shared capacity broker: %v", capacityErr)
+	} else {
+		defer capacityBroker.Close()
+		storagePath, pathErr := resolveQdrantStoragePath(repoRoot)
+		if pathErr != nil {
+			log.Printf("Qdrant fleet operation admission remains unavailable: resolve owner storage path: %v", pathErr)
+		} else {
+			gate, gateErr := experimentarms.NewDiskJobFleetAdmissionGate(db.Primary(), capacityBroker, storagePath, searchNamespace.Root()+".qdrant-fleet")
+			if gateErr == nil {
+				gateErr = gate.Initialize(context.Background())
+			}
+			if gateErr != nil {
+				log.Printf("Qdrant fleet operation admission remains unavailable: initialize owner gate: %v", gateErr)
+			} else {
+				fleetAdmission = gate
+			}
+		}
+	}
+	fleetStage, fleetStageErr := armRegistry.NewFleetGenerationStage(
+		aisearch.QdrantFleetOptions{BaseURL: envOrDefault("QDRANT_URL", aisearch.DefaultQdrantURL), Admission: fleetAdmission},
+		fleetEncoder,
+		experimentarms.ProviderDescriptionFleetPeakEstimator{},
+	)
+	if fleetStageErr != nil {
+		log.Printf("embedding generation stage remains unavailable until verified runtime and trusted peak estimator are registered: %v", fleetStageErr)
+	}
+	var fleetSemanticStore aisearch.FleetSemanticStore
+	constructedSemanticStore, fleetSemanticErr := armRegistry.NewProviderDescriptionFleetSemanticStore(
+		aisearch.QdrantFleetOptions{BaseURL: envOrDefault("QDRANT_URL", aisearch.DefaultQdrantURL)},
+		nil,
+		aisearch.FleetSemanticOptions{RuntimeRole: "search-hub-embedding"},
+	)
+	if fleetSemanticErr != nil {
+		log.Printf("steady-state embedding search/upsert/delete remains unavailable until verified recipe encoder, bounded peak estimator, and semantic operation admission are registered: %v", fleetSemanticErr)
+	} else {
+		fleetSemanticStore = constructedSemanticStore
+	}
 
 	// Register the SHRINKING set of starter eval suites search-hub still ships
 	// (idempotent upsert by suite_id) for the one provider that has not yet
@@ -133,7 +229,12 @@ func main() {
 	// injected into the routing module so each federated query records telemetry
 	// (Phase 7), while the routing handler stays free of any metrics-store import.
 	telemetryRecorder := metricsH.Recorder(db, schedule.System(), log.Default())
-	router := routingH.NewRouter(db, schedule.System(), log.Default(), telemetryRecorder)
+	// The fleet-backed semantic caller is composed only when both its owner
+	// store and a source-verified caller context resolver are available. The
+	// latter remains absent until rights and quality evidence has a current
+	// authenticated owner source; nil keeps routing on lexical fallback without
+	// constructing a legacy generic embedder.
+	router := routingH.NewRouterWithFleetSemanticStore(db, schedule.System(), log.Default(), telemetryRecorder, fleetSemanticStore, nil)
 	routingH.StartRecoveryProbes(router, log.Default())
 	resourceChecks := requiredResourceChecks(repoRoot)
 	resourceChecks = append(resourceChecks, apihealth.Func("federation", func(ctx context.Context) error {
@@ -152,6 +253,7 @@ func main() {
 		healthH.Module(db, "search-hub-api", "1.0.0", resourceChecks...),
 		metricsH.Module(db, schedule.System(), log.Default()),
 		registryH.Module(db, schedule.System(), log.Default(), repoRoot),
+		experimentH.Module(armRegistry, fleetStage),
 		routingH.ModuleWithRouter(router, log.Default()),
 		evalH.ModuleWithRoutability(db, schedule.System(), log.Default(), router),
 		validationH.Module(log.Default(), repoRoot, db, schedule.System(), router),
@@ -163,6 +265,14 @@ func main() {
 	rootMux := http.NewServeMux()
 	devrouting.Register(rootMux, db)
 	rootMux.Handle("/", srv.Handler())
+	// Search Hub's embedding-arm lifecycle writes require a verified principal
+	// and operation-scoped authority. Keep API-core's passive middleware enabled
+	// even when no interactive provider is configured so Agent Manager identity
+	// and separately approved operation grants reach the domain handler.
+	authConfig, err := authn.FromEnvironment(os.Getenv)
+	if err != nil {
+		log.Fatalf("authentication configuration failed: %v", err)
+	}
 
 	// apihttp.TestModeMiddleware reads X-Vrooli-Test-Mode: 1 and marks the
 	// request context so *database.RoutedDB routes the call to the
@@ -170,7 +280,8 @@ func main() {
 	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
+		Handler:        handler,
+		Authentication: &authConfig,
 		// EvalService.RunSuite is a synchronous, long-running RPC: it fans out one
 		// HTTP call per golden case to the target provider, and a provider whose
 		// active reranker leg is an LLM (seconds per query) can push a full suite

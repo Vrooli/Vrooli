@@ -8,8 +8,21 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/shared"
 )
+
+func testProviderDescriptionQuery(text string, limit int) ProviderDescriptionQuery {
+	return ProviderDescriptionQuery{
+		OperationID: "operation-test", TenantID: "tenant-test", ArmID: "arm-test", RecipeID: "recipe-test",
+		Text: text, Limit: limit,
+		Attribution: ProviderDescriptionAttribution{
+			CallerID: "caller-test", RightsEvidenceURI: "file:///rights/receipt.json",
+			RightsEvidenceSHA256: strings.Repeat("a", 64), QualityEvidenceURI: "file:///quality/evidence.json",
+			QualityEvidenceSHA256: strings.Repeat("b", 64),
+		},
+	}
+}
 
 type fixtureDescriptionEmbedder struct{}
 
@@ -80,7 +93,7 @@ func TestEmbeddingDescriptionIndexShortlistsAndNamesOmissions(t *testing.T) {
 		{ProviderID: "commands", Description: "code and command evidence"},
 		{ProviderID: "web", Description: "external web facts"},
 	}
-	shortlist, result := index.Shortlist(context.Background(), "where is the code command", profiles, 2)
+	shortlist, result := index.Shortlist(context.Background(), testProviderDescriptionQuery("where is the code command", 2), profiles)
 	require.True(t, result.Available)
 	require.Equal(t, 3, result.Total)
 	require.Equal(t, 2, result.Returned)
@@ -95,7 +108,7 @@ func TestEmbeddingDescriptionIndexRanksTheFullCandidateScope(t *testing.T) {
 		{ProviderID: "commands", Description: "code and command evidence"},
 		{ProviderID: "web", Description: "external web facts"},
 	}
-	shortlist, result := index.Shortlist(context.Background(), "external web facts", profiles, len(profiles))
+	shortlist, result := index.Shortlist(context.Background(), testProviderDescriptionQuery("external web facts", len(profiles)), profiles)
 	require.True(t, result.Available)
 	require.Equal(t, 3, result.Returned)
 	require.Equal(t, []string{"web", "commands", "records"}, []string{shortlist[0].ProviderID, shortlist[1].ProviderID, shortlist[2].ProviderID})
@@ -109,10 +122,25 @@ func TestEmbeddingDescriptionIndexUsesTheBestDescriptionSegment(t *testing.T) {
 		{ProviderID: "other", Description: "unrelated context"},
 	}
 
-	shortlist, result := index.Shortlist(context.Background(), "needle", profiles, 1)
+	shortlist, result := index.Shortlist(context.Background(), testProviderDescriptionQuery("needle", 1), profiles)
 
 	require.True(t, result.Available)
 	require.Equal(t, []string{"target"}, []string{shortlist[0].ProviderID})
+}
+
+func TestEmbeddingDescriptionIndexRefusesMissingCallerIdentityBeforeEmbedding(t *testing.T) {
+	embedder := &countingDescriptionEmbedder{}
+	index := NewEmbeddingDescriptionIndex(embedder)
+	profiles := []ProviderProfile{{ProviderID: "commands", Description: "code and command evidence"}}
+	request := testProviderDescriptionQuery("code", 1)
+	request.TenantID = ""
+
+	shortlist, result := index.Shortlist(context.Background(), request, profiles)
+
+	require.False(t, result.Available)
+	require.Equal(t, "routing_identity_unavailable", result.Reason)
+	require.Equal(t, 0, embedder.calls, "missing source identity must refuse before query or document embedding")
+	require.Equal(t, []string{"commands"}, []string{shortlist[0].ProviderID}, "lexical fallback remains available")
 }
 
 func TestDescriptionEmbeddingSegmentsCarryRegistryContext(t *testing.T) {
@@ -289,7 +317,7 @@ func TestLexicalCompatibilityAllowsNearlyMatchingSameType(t *testing.T) {
 func TestDescriptionIndexUnavailableUsesBoundedFallbackReason(t *testing.T) {
 	index := NewEmbeddingDescriptionIndex(nil)
 	profiles := []ProviderProfile{{ProviderID: "a", Description: "unrelated"}, {ProviderID: "b", Description: "database commands"}, {ProviderID: "c", Description: "unrelated"}}
-	shortlist, result := index.Shortlist(context.Background(), "database commands", profiles, 2)
+	shortlist, result := index.Shortlist(context.Background(), testProviderDescriptionQuery("database commands", 2), profiles)
 	require.False(t, result.Available)
 	require.Equal(t, "routing_index_unavailable", result.Reason)
 	require.Equal(t, []string{"b", "a"}, []string{shortlist[0].ProviderID, shortlist[1].ProviderID})
@@ -299,8 +327,8 @@ func TestDescriptionIndexUnavailableUsesBoundedFallbackReason(t *testing.T) {
 func TestDescriptionIndexFallbackIsDeterministic(t *testing.T) {
 	index := NewEmbeddingDescriptionIndex(nil)
 	profiles := []ProviderProfile{{ProviderID: "z", Description: "code"}, {ProviderID: "a", Description: "code"}, {ProviderID: "m", Description: "other"}}
-	first, _ := index.Shortlist(context.Background(), "code", profiles, 2)
-	second, _ := index.Shortlist(context.Background(), "code", profiles, 2)
+	first, _ := index.Shortlist(context.Background(), testProviderDescriptionQuery("code", 2), profiles)
+	second, _ := index.Shortlist(context.Background(), testProviderDescriptionQuery("code", 2), profiles)
 	require.Equal(t, []string{"a", "z"}, []string{first[0].ProviderID, first[1].ProviderID})
 	require.Equal(t, []string{first[0].ProviderID, first[1].ProviderID}, []string{second[0].ProviderID, second[1].ProviderID})
 }
@@ -308,7 +336,7 @@ func TestDescriptionIndexFallbackIsDeterministic(t *testing.T) {
 func TestDescriptionIndexDropsOnlyFailedEntry(t *testing.T) {
 	index := NewEmbeddingDescriptionIndex(&countingDescriptionEmbedder{failed: map[string]bool{"bad corpus": true}})
 	profiles := []ProviderProfile{{ProviderID: "good", Description: "code commands"}, {ProviderID: "bad", Description: "bad corpus"}}
-	shortlist, result := index.Shortlist(context.Background(), "code commands", profiles, 1)
+	shortlist, result := index.Shortlist(context.Background(), testProviderDescriptionQuery("code commands", 1), profiles)
 	require.Equal(t, []string{"good"}, []string{shortlist[0].ProviderID})
 	require.Equal(t, []string{"bad"}, result.Dropped)
 }
@@ -319,14 +347,14 @@ func TestDescriptionIndexReembedsOnlyChangedDescriptorAndSurvivesRestart(t *test
 	firstEmbedder := &countingDescriptionEmbedder{}
 	profiles := []ProviderProfile{{ProviderID: "a", Description: "code commands"}, {ProviderID: "b", Description: "external web"}}
 	first := NewPersistentEmbeddingDescriptionIndex(firstEmbedder, cache)
-	first.Shortlist(context.Background(), "code", profiles, 1)
+	first.Shortlist(context.Background(), testProviderDescriptionQuery("code", 1), profiles)
 	firstCalls := firstEmbedder.calls
-	first.Shortlist(context.Background(), "code", []ProviderProfile{{ProviderID: "a", Description: "changed code commands"}, profiles[1]}, 1)
+	first.Shortlist(context.Background(), testProviderDescriptionQuery("code", 1), []ProviderProfile{{ProviderID: "a", Description: "changed code commands"}, profiles[1]})
 	require.Equal(t, firstCalls+2, firstEmbedder.calls, "one query and one changed descriptor should be embedded")
 
 	secondEmbedder := &countingDescriptionEmbedder{}
 	second := NewPersistentEmbeddingDescriptionIndex(secondEmbedder, cache)
-	second.Shortlist(context.Background(), "code", []ProviderProfile{{ProviderID: "a", Description: "changed code commands"}, profiles[1]}, 1)
+	second.Shortlist(context.Background(), testProviderDescriptionQuery("code", 1), []ProviderProfile{{ProviderID: "a", Description: "changed code commands"}, profiles[1]})
 	require.Equal(t, 1, secondEmbedder.calls, "restart should reuse persisted descriptor vectors and embed only the query")
 }
 
@@ -335,11 +363,11 @@ func TestDescriptionIndexInvalidatesPersistedVectorsWhenModelChanges(t *testing.
 	cache := t.TempDir() + "/description-index.json"
 	profiles := []ProviderProfile{{ProviderID: "a", Description: "code commands"}, {ProviderID: "b", Description: "external web"}}
 	firstEmbedder := &countingDescriptionEmbedder{}
-	NewPersistentEmbeddingDescriptionIndex(firstEmbedder, cache).Shortlist(context.Background(), "code", profiles, 1)
+	NewPersistentEmbeddingDescriptionIndex(firstEmbedder, cache).Shortlist(context.Background(), testProviderDescriptionQuery("code", 1), profiles)
 
 	t.Setenv("SEARCH_HUB_DESCRIPTION_EMBED_MODEL", "model-b")
 	secondEmbedder := &countingDescriptionEmbedder{}
-	NewPersistentEmbeddingDescriptionIndex(secondEmbedder, cache).Shortlist(context.Background(), "code", profiles, 1)
+	NewPersistentEmbeddingDescriptionIndex(secondEmbedder, cache).Shortlist(context.Background(), testProviderDescriptionQuery("code", 1), profiles)
 	require.Equal(t, 3, secondEmbedder.calls, "model change must invalidate both cached descriptor vectors plus the query")
 }
 
@@ -361,7 +389,7 @@ func BenchmarkDescriptionIndexShortlist(b *testing.B) {
 			index := NewEmbeddingDescriptionIndex(fixtureDescriptionEmbedder{})
 			b.ResetTimer()
 			for n := 0; n < b.N; n++ {
-				index.Shortlist(context.Background(), "where are the project contracts documented", corpus, 8)
+				index.Shortlist(context.Background(), testProviderDescriptionQuery("where are the project contracts documented", 8), corpus)
 			}
 		})
 	}

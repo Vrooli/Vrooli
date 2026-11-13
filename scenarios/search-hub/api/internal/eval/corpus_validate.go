@@ -41,9 +41,16 @@ func (v *Validator) ValidateCorpus(ctx context.Context, suite *evalv1.EvalSuite,
 	}
 
 	out := &evalv1.ValidateCorpusResponse{
-		SuiteId:    suite.GetSuiteId(),
-		ProviderId: suite.GetProviderId(),
-		Rollup:     &evalv1.CorpusValidationRollup{},
+		SuiteId:            suite.GetSuiteId(),
+		ProviderId:         suite.GetProviderId(),
+		Rollup:             &evalv1.CorpusValidationRollup{},
+		SuiteSha256:        corpusDigest(suite),
+		DenominatorCaseIds: reviewedPositiveCaseIDs(suite),
+	}
+	out.DenominatorSha256 = denominatorDigest(out.GetDenominatorCaseIds())
+	denominator := make(map[string]struct{}, len(out.GetDenominatorCaseIds()))
+	for _, id := range out.GetDenominatorCaseIds() {
+		denominator[id] = struct{}{}
 	}
 	for _, c := range suite.GetCases() {
 		if !positiveProtoCase(c) {
@@ -51,6 +58,9 @@ func (v *Validator) ValidateCorpus(ctx context.Context, suite *evalv1.EvalSuite,
 		}
 		if c.GetStatus() == "candidate" {
 			out.Rollup.Candidate++
+			continue
+		}
+		if _, included := denominator[c.GetCaseId()]; !included {
 			continue
 		}
 		out.Rollup.Positives++
@@ -80,7 +90,7 @@ func (v *Validator) validateCase(ctx context.Context, desc *registryv1.ProviderD
 		return providerErrorCase(c, probes, err)
 	}
 	ref, rank := classifyHits(hits, c, policy)
-	if ref != evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_STALE {
+	if ref != evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_INCONCLUSIVE {
 		return &evalv1.CorpusValidationCase{CaseId: c.GetCaseId(), Referential: ref, ObservedRank: int32(rank), ProbedQueries: probes}
 	}
 
@@ -91,15 +101,15 @@ func (v *Validator) validateCase(ctx context.Context, desc *registryv1.ProviderD
 			return providerErrorCase(c, probes, confirmErr)
 		}
 		ref, rank = classifyHits(confirmHits, c, policy)
-		if ref != evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_STALE {
+		if ref != evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_INCONCLUSIVE {
 			return &evalv1.CorpusValidationCase{CaseId: c.GetCaseId(), Referential: ref, ObservedRank: int32(rank), ProbedQueries: probes}
 		}
 	}
 	return &evalv1.CorpusValidationCase{
 		CaseId:        c.GetCaseId(),
-		Referential:   evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_STALE,
+		Referential:   evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_INCONCLUSIVE,
 		ProbedQueries: probes,
-		Message:       "expected id absent from case query and confirm probes",
+		Message:       "expected id absent from retrieval probes; provider-owned membership was not available",
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -78,8 +79,19 @@ func ModuleWithRoutability(db *database.RoutedDB, clk schedule.Clock, logger *lo
 		ProviderClient: newHTTPProviderClient(newScenarioResolver(), httpc.NewDefault()),
 		substrate:      routingClient,
 	}
-	runner := internaleval.NewRunner(resolver, client, clk, uuid.NewString)
-	federated := internaleval.NewFederatedRunnerWithRoutability(resolver, routingClient, clk, uuid.NewString, routability)
+	var validationReader internaleval.CorpusValidationReader
+	if reader, ok := store.(internaleval.CorpusValidationReader); ok {
+		validationReader = reader
+	}
+	var denominatorReader internaleval.FixedDenominatorReader
+	if reader, ok := store.(internaleval.FixedDenominatorReader); ok {
+		denominatorReader = reader
+	}
+	providerDirectEvidence, searchHubWorkloadEvidence := evaluationIdentityEvidence(validationReader, os.Getenv("VROOLI_BUILD_IDENTITY"))
+	providerDirectEvidence.Denominators = denominatorReader
+	searchHubWorkloadEvidence.Denominators = denominatorReader
+	runner := internaleval.NewRunner(resolver, client, clk, uuid.NewString, providerDirectEvidence)
+	federated := internaleval.NewFederatedRunnerWithRoutability(resolver, routingClient, clk, uuid.NewString, routability, searchHubWorkloadEvidence)
 	validator := internaleval.NewValidator(resolver, client)
 
 	// One registry-side control client drives BOTH the sweep's index-time tier +
@@ -136,6 +148,31 @@ func ModuleWithRoutability(db *database.RoutedDB, clk schedule.Clock, logger *lo
 		},
 		Endpoints: Endpoints,
 	}
+}
+
+// evaluationIdentityEvidence keeps provider-direct measurements caller-unknown
+// while binding federated measurements to the Search Hub workload that handles
+// every QueryService request. Trigger principals and corpus/provider identities
+// are separate provenance and never fill these fields.
+func evaluationIdentityEvidence(validation internaleval.CorpusValidationReader, buildIdentity string) (internaleval.IdentityEvidenceReaders, internaleval.IdentityEvidenceReaders) {
+	providerDirect := internaleval.IdentityEvidenceReaders{Validation: validation}
+	searchHubWorkload := internaleval.IdentityEvidenceReaders{
+		Validation: validation,
+		Caller: internaleval.CallerIdentityResolverFunc(func(_ context.Context, suite *evalv1.EvalSuite) (internaleval.CallerIdentity, error) {
+			// This resolver is wired only to the federated runner, whose cases go
+			// through Search Hub's QueryService. Provider-direct runs use the other
+			// resolver and must not inherit this caller identity.
+			if suite == nil {
+				return internaleval.CallerIdentity{}, nil
+			}
+			version := strings.TrimSpace(buildIdentity)
+			if version == "" {
+				return internaleval.CallerIdentity{}, nil
+			}
+			return internaleval.CallerIdentity{ID: "search-hub", Version: version}, nil
+		}),
+	}
+	return providerDirect, searchHubWorkload
 }
 
 type routingQueryClient struct {

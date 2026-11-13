@@ -21,6 +21,7 @@ const defaultMaxFanoutWidth = aisearch.DefaultRouterMaxFanoutWidth
 const (
 	selectorLegCrossEncoder = "cross_encoder"
 	selectorLegLLM          = "llm"
+	selectorLegCPULexical   = "cpu_lexical"
 	selectorLegLexical      = "lexical"
 )
 
@@ -80,6 +81,14 @@ func buildProfiles(active []*registryv1.ProviderDescriptor) []ProviderProfile {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ProviderID < out[j].ProviderID })
 	return out
+}
+
+// ProviderProfilesForFleet is the shared projection from Search Hub's
+// authoritative registry descriptors to the exact profiles used by routing.
+// Fleet snapshots and live query shortlists must not drift in which identity,
+// routing facets, or inactive providers they include.
+func ProviderProfilesForFleet(descriptors []*registryv1.ProviderDescriptor) []ProviderProfile {
+	return buildProfiles(descriptors)
 }
 
 func cleanRouteValues(values []string) []string {
@@ -437,11 +446,13 @@ func rerankProviderCandidates(ctx context.Context, query string, profiles []Prov
 	if err != nil {
 		crossEncoderErr := err
 		// The required call intentionally probes only the cross-encoder. A
-		// second preferred call lets the shared chain select its LLM leg while
-		// preserving a deterministic lexical escape hatch when both are down.
+		// second preferred call lets the configured degraded policy select its
+		// next leg (LLM or CPU lexical) while preserving a deterministic lexical
+		// escape hatch if that leg also fails.
 		ranked, err = rank(aisearch.RerankPreferenceCrossEncoderPreferred)
+		fallbackLeg := selectorLeg(selectorLegLLM)
 		if err != nil {
-			return nil, "", nil, fmt.Errorf("cross-encoder: %v; llm: %w", crossEncoderErr, err)
+			return nil, "", nil, fmt.Errorf("cross-encoder: %v; %s: %w", crossEncoderErr, fallbackLeg, err)
 		}
 		selectorLeg = func(fallback string) string {
 			if named, ok := reranker.(interface{ ActiveName(context.Context) string }); ok {
@@ -451,9 +462,9 @@ func rerankProviderCandidates(ctx context.Context, query string, profiles []Prov
 		}
 		ordered := orderProviderProfiles(ranked, profiles)
 		if len(ordered) == 0 {
-			return nil, "", nil, fmt.Errorf("llm provider pick returned no provider choice")
+			return nil, "", nil, fmt.Errorf("%s provider pick returned no provider choice", fallbackLeg)
 		}
-		return ordered, selectorLeg(selectorLegLLM), rerankScoresByProviderID(ranked), nil
+		return ordered, fallbackLeg, rerankScoresByProviderID(ranked), nil
 	}
 	ordered := orderProviderProfiles(ranked, profiles)
 	if len(ordered) == 0 {
@@ -497,6 +508,8 @@ func normalizeSelectorLeg(name, fallback string) string {
 		return selectorLegCrossEncoder
 	case strings.HasPrefix(name, "llm"):
 		return selectorLegLLM
+	case strings.HasPrefix(name, "cpu-lexical:"):
+		return selectorLegCPULexical
 	default:
 		return fallback
 	}

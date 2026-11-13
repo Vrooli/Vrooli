@@ -2,6 +2,7 @@ package routing
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -34,7 +35,92 @@ type DescriptionIndexResult struct {
 // registry remains the source of truth and this index is rebuilt when a
 // descriptor's identity or description changes.
 type ProviderDescriptionIndex interface {
-	Shortlist(ctx context.Context, query string, profiles []ProviderProfile, limit int) ([]ProviderProfile, DescriptionIndexResult)
+	Shortlist(ctx context.Context, request ProviderDescriptionQuery, profiles []ProviderProfile) ([]ProviderProfile, DescriptionIndexResult)
+}
+
+// ProviderDescriptionAttribution contains source-owned rights and quality
+// evidence references. Digests bind the referenced bytes; the router never
+// infers or manufactures these values from the query or provider registry.
+type ProviderDescriptionAttribution struct {
+	CallerID              string
+	RightsEvidenceURI     string
+	RightsEvidenceSHA256  string
+	QualityEvidenceURI    string
+	QualityEvidenceSHA256 string
+}
+
+// ProviderDescriptionIdentity is resolved by the owning caller/runtime
+// composition. Tenant, operation, experiment arm, recipe, and evidence must
+// come from trusted server state, not user query fields.
+type ProviderDescriptionIdentity struct {
+	OperationID           string
+	TenantID              string
+	ArmID                 string
+	RecipeID              string
+	RightsReceiptURI      string
+	QualityEvidenceURI    string
+	QualityEvidenceSHA256 string
+}
+
+// ProviderDescriptionQuery is the complete caller contract passed to a
+// semantic provider-description index. Keeping identity and query together
+// prevents an adapter from silently dropping tenant, rights, or quality
+// attribution while forwarding the text.
+type ProviderDescriptionQuery struct {
+	OperationID string
+	TenantID    string
+	ArmID       string
+	RecipeID    string
+	Text        string
+	Limit       int
+	Attribution ProviderDescriptionAttribution
+}
+
+// ProviderSemanticContextResolver supplies owner-controlled operation,
+// tenant, arm, recipe, and evidence identities for this request. CallerID is
+// filled by the router from api-core's verified principal after this resolver
+// succeeds. A missing resolver means semantic routing is unavailable.
+type ProviderSemanticContextResolver interface {
+	ResolveProviderSemanticContext(context.Context) (VerifiedProviderSemanticContext, error)
+}
+
+// ProviderRightsDecisionVerifier is implemented at the trusted owner boundary.
+// Its implementation must call the canonical W2 rights-decision/v1 verifier
+// against freshly resolved source facts and reject unknown or mismatched
+// receipts. Evidence references alone are not proof.
+type ProviderRightsDecisionVerifier interface {
+	VerifyCurrentAllowedProviderRights(context.Context, ProviderDescriptionIdentity) (receiptSHA256 string, err error)
+}
+
+// VerifiedProviderSemanticContext can only be created after the canonical
+// rights receipt has been rechecked against current owner facts and allowed.
+// Its fields stay private so routing cannot mistake raw receipt bytes for a
+// verified current decision.
+type VerifiedProviderSemanticContext struct {
+	identity          ProviderDescriptionIdentity
+	rightsEvidenceSHA string
+	verified          bool
+}
+
+// VerifyProviderSemanticContext is the construction path for an owner
+// resolver. The resolver must obtain identity and current owner facts from
+// trusted source state, then use a verifier backed by the canonical W2
+// rights-decision/v1 API. The verifier must reject unknown or mismatched data.
+func VerifyProviderSemanticContext(ctx context.Context, identity ProviderDescriptionIdentity, verifier ProviderRightsDecisionVerifier) (VerifiedProviderSemanticContext, error) {
+	if strings.TrimSpace(identity.RightsReceiptURI) == "" || strings.TrimSpace(identity.QualityEvidenceURI) == "" || !isSHA256Hex(identity.QualityEvidenceSHA256) {
+		return VerifiedProviderSemanticContext{}, fmt.Errorf("provider semantic evidence identity is incomplete")
+	}
+	if verifier == nil {
+		return VerifiedProviderSemanticContext{}, fmt.Errorf("provider rights receipt verifier unavailable")
+	}
+	digest, err := verifier.VerifyCurrentAllowedProviderRights(ctx, identity)
+	if err != nil {
+		return VerifiedProviderSemanticContext{}, fmt.Errorf("embedding rights receipt is not current and allowed: %w", err)
+	}
+	if !isSHA256Hex(digest) {
+		return VerifiedProviderSemanticContext{}, fmt.Errorf("provider rights verifier returned an invalid receipt digest")
+	}
+	return VerifiedProviderSemanticContext{identity: identity, rightsEvidenceSHA: strings.ToLower(digest), verified: true}, nil
 }
 
 type descriptionVector struct {
@@ -73,10 +159,16 @@ func NewPersistentEmbeddingDescriptionIndex(embedder aisearch.Embedder, cachePat
 	return index
 }
 
-func (i *EmbeddingDescriptionIndex) Shortlist(ctx context.Context, query string, profiles []ProviderProfile, limit int) ([]ProviderProfile, DescriptionIndexResult) {
+func (i *EmbeddingDescriptionIndex) Shortlist(ctx context.Context, request ProviderDescriptionQuery, profiles []ProviderProfile) ([]ProviderProfile, DescriptionIndexResult) {
+	query, limit := request.Text, request.Limit
 	result := DescriptionIndexResult{Total: len(profiles), Scores: make(map[string]float64, len(profiles))}
 	if limit <= 0 {
 		limit = defaultMaxFanoutWidth
+	}
+	if !validProviderDescriptionQuery(request) {
+		unavailable := unavailableDescriptionIndexResult(query, profiles, limit)
+		unavailable.Reason = "routing_identity_unavailable"
+		return fallbackDescriptionProfiles(query, profiles, limit, unavailable.Reason), unavailable
 	}
 	if i == nil || i.embedder == nil {
 		return fallbackDescriptionProfiles(query, profiles, limit, "routing_index_unavailable"), unavailableDescriptionIndexResult(query, profiles, limit)
@@ -129,6 +221,29 @@ func (i *EmbeddingDescriptionIndex) Shortlist(ctx context.Context, query string,
 		}
 	}
 	return shortlist, result
+}
+
+func validProviderDescriptionQuery(request ProviderDescriptionQuery) bool {
+	values := []string{
+		request.OperationID, request.TenantID, request.ArmID, request.RecipeID,
+		request.Text, request.Attribution.CallerID,
+		request.Attribution.RightsEvidenceURI, request.Attribution.RightsEvidenceSHA256,
+		request.Attribution.QualityEvidenceURI, request.Attribution.QualityEvidenceSHA256,
+	}
+	for _, value := range values {
+		if strings.TrimSpace(value) == "" {
+			return false
+		}
+	}
+	return request.Limit > 0 && isSHA256Hex(request.Attribution.RightsEvidenceSHA256) && isSHA256Hex(request.Attribution.QualityEvidenceSHA256)
+}
+
+func isSHA256Hex(value string) bool {
+	if len(value) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(value)
+	return err == nil
 }
 
 type scoredProfile struct {
@@ -196,6 +311,22 @@ func embedDescriptionDocument(ctx context.Context, embedder aisearch.Embedder, d
 		return taskEmbedder.EmbedDocument(ctx, document)
 	}
 	return embedder.Embed(ctx, document)
+}
+
+// ProviderDescriptionSegments returns the same bounded, identity-enriched
+// text units indexed by the live routing shortlist. The Search Hub fleet source
+// uses this owner implementation when building a versioned Qdrant generation.
+func ProviderDescriptionSegments(profile ProviderProfile) []string {
+	return descriptionEmbeddingSegments(profile)
+}
+
+// EmbedProviderDescription embeds one source-owned description segment with
+// the same document task prefix used by the live router index.
+func EmbedProviderDescription(ctx context.Context, embedder aisearch.Embedder, document string) ([]float64, error) {
+	if embedder == nil {
+		return nil, fmt.Errorf("provider-description embedder is unavailable")
+	}
+	return embedDescriptionDocument(ctx, embedder, document)
 }
 
 func fallbackDescriptionProfiles(query string, profiles []ProviderProfile, limit int, _ string) []ProviderProfile {
@@ -269,6 +400,10 @@ func profileFingerprint(profiles []ProviderProfile) string {
 // be compared with task-prefixed query vectors or prior representations after
 // a restart.
 const descriptionIndexPolicyVersion = "5"
+
+// ProviderDescriptionFleetRecipeVersion is the immutable recipe component
+// for the source-owned segment composer used by fleet generations.
+const ProviderDescriptionFleetRecipeVersion = "provider-description-segments/v" + descriptionIndexPolicyVersion
 
 // descriptionEmbeddingSegments keeps each registered routing description's
 // distinct route examples and responsibilities searchable without storing

@@ -154,6 +154,32 @@ Defined in `packages/proto/schemas/search-hub/v1/notes/notes.proto`.
 
 ---
 
+## Embedding experiment generation
+
+### `POST /v1/embedding-experiments/arms/{armID}/generation`
+
+Stage the Search Hub provider-description generation for an already allocated
+immutable embedding arm. The operation reads the arm's stored recipe and the
+provider registry's durable snapshot/change feed. The request has no recipe,
+collection, snapshot, or peak-byte fields; those values come from the trusted
+arm, owner database, and runtime/admission services.
+
+The endpoint currently returns `503 unavailable`. Search Hub's lifecycle does
+not yet register a full-recipe encoder, a trusted peak-byte estimator, or a
+resource-owned exact-operation capacity admission issuer. The stage service
+constructor refuses to build without all three. The legacy description-index
+CLI embedder does not attest artifact digest, tokenizer/runtime build, or
+precision and cannot substitute for that runtime contract. No generation or
+Qdrant request is started while these dependencies are absent.
+
+| | |
+|---|---|
+| **Auth** | Local lifecycle control API; no caller-selected owner namespace |
+| **Request** | Empty object; all extra request fields are ignored by the stage handler and cannot control the operation |
+| **Response** | Durable `FleetGeneration` after a future admitted stage |
+| **Errors** | `404 not_found` — missing arm; `409 conflict` — arm not allocated; `503 unavailable` — verified runtime, estimator, or admission not composed |
+| **CLI** | None |
+
 ## Adding a new endpoint
 
 For a new domain, copy the notes vertical slice first, then replace it

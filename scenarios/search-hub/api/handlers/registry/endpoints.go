@@ -74,14 +74,14 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        registryconnect.RegistryServiceExecuteEmbeddingMigrationProcedure,
 		Method:      "POST",
 		Summary:     "Execute an authenticated provider embedding migration action",
-		Description: "Proxies a shadow, status, cutover, or rollback action through the provider's declared reindex endpoint while retaining the provider control token inside Search Hub.",
+		Description: "Negotiates provider migration protocol/capabilities, then validates and forwards supported shadow, status, cutover/promote, or rollback requests before forwarding it through the provider's reindex endpoint. Providers that do not implement the requested migration action must refuse it before ordinary reconciliation; submission is not completion.",
 		Category:    "registry",
 		Request: &module.Schema{Type: "object", Properties: map[string]string{
-			"provider_id": "string (required)", "action": "string (shadow|status|cutover|rollback)", "job_id": "string (status only)",
+			"provider_id": "string (required)", "action": "string (capabilities|shadow|status|cutover|promote|rollback; required)", "job_id": "string (status only)",
 			"shadow_collection": "string", "rollback_collection": "string", "embedding_model": "string", "embedding_role": "string", "embedding_dimensions": "int32", "embedding_policy_schema_version": "string", "scope": "string", "dry_run": "boolean",
 		}},
-		Response: &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string", "state": "string", "planned_upserts": "int32", "planned_deletes": "int32", "processed": "int32", "total": "int32", "error": "string"}},
-		Errors:   []module.ErrorDesc{{Status: 500, Code: "internal", Description: "Provider control endpoint failed"}},
+		Response: &module.Schema{Type: "object", Properties: map[string]string{"job_id": "string", "state": "string", "planned_upserts": "int32", "planned_deletes": "int32", "processed": "int32", "total": "int32", "error": "string", "migration_protocol_version": "uint32", "supported_actions": "string[]"}},
+		Errors:   []module.ErrorDesc{{Status: 400, Code: "invalid_argument", Description: "Invalid migration request"}, {Status: 412, Code: "failed_precondition", Description: "Provider capability negotiation failed or requested action is unsupported"}, {Status: 500, Code: "internal", Description: "Provider control endpoint failed"}},
 	},
 	{
 		ID:          "providers_remove",

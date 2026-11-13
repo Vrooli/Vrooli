@@ -23,6 +23,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	evalH "search-hub/handlers/eval"
+	experimentH "search-hub/handlers/experimentarms"
 	healthH "search-hub/handlers/health"
 	metricsH "search-hub/handlers/metrics"
 	registryH "search-hub/handlers/registry"
@@ -47,6 +48,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, evalH.Endpoints...)
+	out = append(out, experimentH.Endpoints...)
 	out = append(out, metricsH.Endpoints...)
 	out = append(out, registryH.Endpoints...)
 	out = append(out, routingH.Endpoints...)
@@ -100,6 +102,7 @@ func AllSchemas() []apidb.SchemaProvider {
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
 		apidb.SchemaProviderFunc(evalH.Schema),
+		apidb.SchemaProviderFunc(experimentH.Schema),
 		apidb.SchemaProviderFunc(metricsH.Schema),
 		apidb.SchemaProviderFunc(registryH.Schema),
 		apidb.SchemaProviderFunc(routingDomain.Schema),

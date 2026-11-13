@@ -3,12 +3,13 @@ package registry
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
+	"strings"
 
 	"connectrpc.com/connect"
 
-	"search-hub/internal/control"
-
+	aisearch "github.com/vrooli/ai-go/search"
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 
@@ -20,8 +21,13 @@ type Deps struct {
 	Store    internalregistry.Store
 	RepoRoot string
 	Logger   *log.Logger
-	Control  *control.Client
+	Control  ProviderControlClient
 	Probe    EndpointProber
+}
+
+type ProviderControlClient interface {
+	ReindexRequest(context.Context, *registryv1.ProviderDescriptor, string, *controlv1.ReindexRequest) (*controlv1.ReindexResponse, error)
+	ReindexStatus(context.Context, *registryv1.ProviderDescriptor, string, string) (*controlv1.ReindexStatusResponse, error)
 }
 
 type connectHandler struct {
@@ -85,6 +91,9 @@ func (h *connectHandler) RegisterProvider(ctx context.Context, req *connect.Requ
 }
 
 func (h *connectHandler) ExecuteEmbeddingMigration(ctx context.Context, req *connect.Request[registryv1.ExecuteEmbeddingMigrationRequest]) (*connect.Response[registryv1.ExecuteEmbeddingMigrationResponse], error) {
+	if err := validateEmbeddingMigrationRequest(req.Msg); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
 	if h.deps.Control == nil {
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("provider control client is not configured"))
 	}
@@ -97,7 +106,8 @@ func (h *connectHandler) ExecuteEmbeddingMigration(ctx context.Context, req *con
 	if err != nil {
 		return nil, toConnectError(err)
 	}
-	if r.GetAction() == "status" {
+	action := aisearch.NormalizeReindexMigrationAction(r.GetAction())
+	if action == "status" {
 		status, statusErr := h.deps.Control.ReindexStatus(ctx, desc, token, r.GetJobId())
 		if statusErr != nil {
 			return nil, connect.NewError(connect.CodeInternal, statusErr)
@@ -106,18 +116,120 @@ func (h *connectHandler) ExecuteEmbeddingMigration(ctx context.Context, req *con
 			JobId: status.GetJobId(), State: status.GetState(), Processed: status.GetProcessed(), Total: status.GetTotal(), Error: status.GetError(),
 		}), nil
 	}
+	if action == "capabilities" {
+		capabilities, capabilityErr := h.deps.Control.ReindexRequest(ctx, desc, token, &controlv1.ReindexRequest{Action: "capabilities"})
+		if capabilityErr != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("provider migration capability negotiation failed: %w", capabilityErr))
+		}
+		if capabilities.GetMigrationProtocolVersion() != aisearch.ReindexMigrationProtocolVersion {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("provider migration protocol version %d is unsupported; require %d", capabilities.GetMigrationProtocolVersion(), aisearch.ReindexMigrationProtocolVersion))
+		}
+		return connect.NewResponse(&registryv1.ExecuteEmbeddingMigrationResponse{
+			MigrationProtocolVersion: capabilities.GetMigrationProtocolVersion(),
+			SupportedActions:         capabilities.GetSupportedMigrationActions(),
+		}), nil
+	}
+	if action != "" {
+		capabilities, capabilityErr := h.deps.Control.ReindexRequest(ctx, desc, token, &controlv1.ReindexRequest{Action: "capabilities"})
+		if capabilityErr != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("provider migration capability negotiation failed: %w", capabilityErr))
+		}
+		if err := validateNegotiatedMigrationCapability(capabilities, action); err != nil {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+		}
+	}
 	response, err := h.deps.Control.ReindexRequest(ctx, desc, token, &controlv1.ReindexRequest{
-		Action: r.GetAction(), ShadowCollection: r.GetShadowCollection(), RollbackCollection: r.GetRollbackCollection(),
+		Action: action, ShadowCollection: r.GetShadowCollection(), RollbackCollection: r.GetRollbackCollection(),
 		EmbeddingModel: r.GetEmbeddingModel(), EmbeddingRole: r.GetEmbeddingRole(), EmbeddingDimensions: r.GetEmbeddingDimensions(),
 		EmbeddingPolicySchemaVersion: r.GetEmbeddingPolicySchemaVersion(), Scope: r.GetScope(), DryRun: r.GetDryRun(),
 	})
 	if err != nil {
-		return nil, connect.NewError(connect.CodeInternal, err)
+		code := connect.CodeOf(err)
+		if code == connect.CodeUnknown {
+			code = connect.CodeInternal
+		}
+		return nil, connect.NewError(code, err)
+	}
+	state, stateErr := embeddingMigrationSubmissionState(action, r.GetDryRun(), response)
+	if stateErr != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, stateErr)
 	}
 	return connect.NewResponse(&registryv1.ExecuteEmbeddingMigrationResponse{
 		JobId: response.GetJobId(), PlannedUpserts: response.GetPlannedUpserts(), PlannedDeletes: response.GetPlannedDeletes(),
-		State: "accepted",
+		State: state,
 	}), nil
+}
+
+func validateNegotiatedMigrationCapability(response *controlv1.ReindexResponse, action string) error {
+	if response == nil {
+		return errors.New("provider returned no migration capabilities")
+	}
+	if response.GetMigrationProtocolVersion() != aisearch.ReindexMigrationProtocolVersion {
+		return fmt.Errorf("provider migration protocol version %d is unsupported; require %d", response.GetMigrationProtocolVersion(), aisearch.ReindexMigrationProtocolVersion)
+	}
+	for _, supported := range response.GetSupportedMigrationActions() {
+		if aisearch.NormalizeReindexMigrationAction(supported) == action {
+			return nil
+		}
+	}
+	return fmt.Errorf("provider does not support migration action %q", action)
+}
+
+func embeddingMigrationSubmissionState(action string, dryRun bool, response *controlv1.ReindexResponse) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(action)) {
+	case "shadow":
+		if dryRun {
+			return "planned", nil
+		}
+		if response == nil || strings.TrimSpace(response.GetJobId()) == "" {
+			return "", errors.New("provider accepted shadow build without a job_id; completion cannot be verified")
+		}
+		return "building", nil
+	case "cutover":
+		return "cutover", nil
+	case "rollback":
+		return "rolled_back", nil
+	default:
+		return "", fmt.Errorf("unsupported embedding migration action %q", action)
+	}
+}
+
+func validateEmbeddingMigrationRequest(request *registryv1.ExecuteEmbeddingMigrationRequest) error {
+	if request == nil {
+		return errors.New("embedding migration request is required")
+	}
+	action := aisearch.NormalizeReindexMigrationAction(request.GetAction())
+	if strings.TrimSpace(request.GetProviderId()) == "" {
+		return errors.New("provider_id is required")
+	}
+	controlRequest := &aisearch.ReindexMigrationRequest{
+		Action: action, ShadowCollection: request.GetShadowCollection(), RollbackCollection: request.GetRollbackCollection(),
+		EmbeddingModel: request.GetEmbeddingModel(), EmbeddingRole: request.GetEmbeddingRole(),
+		EmbeddingDimensions: request.GetEmbeddingDimensions(), EmbeddingPolicySchemaVersion: request.GetEmbeddingPolicySchemaVersion(),
+		DryRun: request.GetDryRun(),
+	}
+	switch action {
+	case "status":
+		if strings.TrimSpace(request.GetJobId()) == "" {
+			return errors.New("status requires a job_id")
+		}
+		if request.GetShadowCollection() != "" || request.GetRollbackCollection() != "" || request.GetEmbeddingModel() != "" || request.GetEmbeddingRole() != "" || request.GetEmbeddingDimensions() != 0 || request.GetEmbeddingPolicySchemaVersion() != "" || request.GetScope() != "" || request.GetDryRun() {
+			return errors.New("status cannot include migration targets")
+		}
+		return nil
+	case "capabilities":
+		if request.GetJobId() != "" || request.GetScope() != "" {
+			return errors.New("capabilities cannot include job_id or scope")
+		}
+		return aisearch.ValidateReindexMigrationRequest(controlRequest, "capabilities")
+	case "shadow", "cutover", "rollback":
+		if request.GetJobId() != "" {
+			return errors.New("job_id is only valid for status")
+		}
+		return aisearch.ValidateReindexMigrationRequest(controlRequest, action)
+	default:
+		return fmt.Errorf("unsupported embedding migration action %q", action)
+	}
 }
 
 func (h *connectHandler) ListProviders(ctx context.Context, req *connect.Request[registryv1.ListProvidersRequest]) (*connect.Response[registryv1.ListProvidersResponse], error) {

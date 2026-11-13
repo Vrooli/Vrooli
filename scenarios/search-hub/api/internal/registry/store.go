@@ -121,6 +121,11 @@ const providerTimeFormat = time.RFC3339Nano
 var marshalOpts = protojson.MarshalOptions{UseProtoNames: true}
 
 func (s *sqliteStore) Upsert(ctx context.Context, d *registryv1.ProviderDescriptor, presentedToken string) (bool, string, error) {
+	release, err := AcquireProviderDescriptionWrite(ctx)
+	if err != nil {
+		return false, "", err
+	}
+	defer release()
 	controlTokenSetMu.Lock()
 	defer controlTokenSetMu.Unlock()
 	if err := s.migrateLegacyTokensLocked(ctx); err != nil {
@@ -533,6 +538,11 @@ func (s *sqliteStore) Get(ctx context.Context, id string) (*registryv1.ProviderD
 }
 
 func (s *sqliteStore) Delete(ctx context.Context, id string) (bool, error) {
+	release, err := AcquireProviderDescriptionWrite(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer release()
 	controlTokenSetMu.Lock()
 	defer controlTokenSetMu.Unlock()
 

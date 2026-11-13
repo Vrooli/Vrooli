@@ -194,6 +194,51 @@
       ]
     },
     {
+      "id": "evals_latest_corpus_validation",
+      "path": "/vrooli.search_hub.v1.eval.EvalService/GetLatestCorpusValidation",
+      "method": "POST",
+      "summary": "Read latest corpus-validation receipt",
+      "description": "Returns the exact durable provider-validation identity, timestamp, rollup, and receipt digest without exposing probed queries or provider error text.",
+      "category": "eval",
+      "request": {
+        "type": "object",
+        "properties": {
+          "suite_id": "string (required)"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "created_at": "RFC3339Nano",
+          "denominator_case_ids": "array<string>",
+          "denominator_sha256": "string",
+          "found": "bool",
+          "provider_id": "string",
+          "receipt_sha256": "SHA-256",
+          "rollup": "CorpusValidationRollup",
+          "suite_id": "string",
+          "suite_sha256": "string"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "suite_id is required"
+        },
+        {
+          "status": 501,
+          "code": "unimplemented",
+          "description": "Durable corpus-validation receipts are unavailable"
+        },
+        {
+          "status": 500,
+          "code": "internal",
+          "description": "Eval store read failure"
+        }
+      ]
+    },
+    {
       "id": "evals_list_runs",
       "path": "/vrooli.search_hub.v1.eval.EvalService/ListRuns",
       "method": "POST",
@@ -471,6 +516,152 @@
       ]
     },
     {
+      "id": "embedding_arms_create",
+      "path": "/v1/embedding-experiments/arms",
+      "method": "POST",
+      "summary": "Create or read an immutable embedding experiment arm",
+      "description": "Persists exact recipe, caller/build identities and source evidence references. Owner identity is injected from the trusted Search Hub lifecycle namespace. Repeating an identical arm ID is idempotent; conflicting immutable identity is rejected.",
+      "category": "embedding-experiments",
+      "request": {
+        "type": "object",
+        "properties": {
+          "arm_id": "string",
+          "build_id": "string",
+          "caller_id": "string",
+          "evidence": "array<EvidenceRef>",
+          "experiment_id": "string",
+          "provider_id": "string",
+          "recipe": "EmbeddingRecipeInput"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "arm": "Durable embedding experiment arm"
+        }
+      },
+      "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Arm, recipe or evidence identity is invalid"
+        },
+        {
+          "status": 409,
+          "code": "conflict",
+          "description": "Arm ID already names a different immutable identity"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Search Hub's local lifecycle control API records immutable arm operations before provider work is scheduled."
+      }
+    },
+    {
+      "id": "embedding_arms_get",
+      "path": "/v1/embedding-experiments/arms/{armID}",
+      "method": "GET",
+      "summary": "Read a durable embedding experiment arm",
+      "description": "Returns the persisted immutable recipe and current CAS version/state.",
+      "category": "embedding-experiments",
+      "request": {
+        "type": "object",
+        "properties": {
+          "arm_id": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "arm": "Durable embedding experiment arm"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Arm does not exist"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Search Hub lifecycle control reads the registry without requiring a generated client."
+      }
+    },
+    {
+      "id": "embedding_arms_transition",
+      "path": "/v1/embedding-experiments/arms/{armID}/transitions",
+      "method": "POST",
+      "summary": "CAS transition an embedding experiment arm",
+      "description": "Enforces the arm state machine, expected version and idempotency key. State recording never invokes physical provider operations.",
+      "category": "embedding-experiments",
+      "request": {
+        "type": "object",
+        "properties": {
+          "expected_state": "string",
+          "expected_version": "integer",
+          "idempotency_key": "string",
+          "receipt": "EvidenceRef (optional)",
+          "to": "string"
+        }
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "arm": "Transition result at the committed version"
+        }
+      },
+      "errors": [
+        {
+          "status": 409,
+          "code": "conflict",
+          "description": "Stale version or idempotency-key conflict"
+        },
+        {
+          "status": 422,
+          "code": "illegal_transition",
+          "description": "Transition is not allowed by the state machine"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Search Hub's local lifecycle control API records arm transitions before provider operations are run."
+      }
+    },
+    {
+      "id": "embedding_arm_generation_stage",
+      "path": "/v1/embedding-experiments/arms/{armID}/generation",
+      "method": "POST",
+      "summary": "Stage the Search Hub descriptor generation for an immutable arm",
+      "description": "Uses the arm's persisted recipe and Search Hub's own provider registry source. The runtime encoder, trusted peak estimator, and exact-operation capacity admission gate are lifecycle dependencies; the endpoint returns 503 while any are absent. Request bodies cannot select recipe, source, Qdrant target, or peak bytes.",
+      "category": "embedding-experiments",
+      "request": {
+        "type": "object"
+      },
+      "response": {
+        "type": "object",
+        "properties": {
+          "generation": "Durable staged generation receipt"
+        }
+      },
+      "errors": [
+        {
+          "status": 404,
+          "code": "not_found",
+          "description": "Arm does not exist"
+        },
+        {
+          "status": 503,
+          "code": "unavailable",
+          "description": "Verified runtime, trusted peak estimator or capacity admission is unavailable"
+        }
+      ],
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Generation stage is disabled until Search Hub lifecycle injects a verified encoder and resource-owned capacity admission."
+      }
+    },
+    {
       "id": "metrics_insights",
       "path": "/vrooli.search_hub.v1.metrics.MetricsService/Insights",
       "method": "POST",
@@ -537,21 +728,7 @@
       "category": "measures",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "measures-go serves a framework-neutral harvest endpoint consumed without a generated client.",
-        "proto_payloads": {
-          "request": {
-            "transport": "none",
-            "conformance": "none"
-          },
-          "response": {
-            "transport": "json",
-            "conformance": "external_shape"
-          },
-          "error": {
-            "transport": "json",
-            "conformance": "external_shape"
-          }
-        }
+        "note": "measures-go serves a framework-neutral harvest endpoint consumed without a generated client."
       }
     },
     {
@@ -629,21 +806,7 @@
       "category": "measures",
       "rest_exception": {
         "reason": "ops_probe",
-        "note": "measures-go serves a uniform JSON execution endpoint shared across scenarios.",
-        "proto_payloads": {
-          "request": {
-            "transport": "json",
-            "conformance": "external_shape"
-          },
-          "response": {
-            "transport": "json",
-            "conformance": "external_shape"
-          },
-          "error": {
-            "transport": "json",
-            "conformance": "external_shape"
-          }
-        }
+        "note": "measures-go serves a uniform JSON execution endpoint shared across scenarios."
       }
     },
     {
@@ -725,12 +888,12 @@
       "path": "/vrooli.search_hub.v1.registry.RegistryService/ExecuteEmbeddingMigration",
       "method": "POST",
       "summary": "Execute an authenticated provider embedding migration action",
-      "description": "Proxies a shadow, status, cutover, or rollback action through the provider's declared reindex endpoint while retaining the provider control token inside Search Hub.",
+      "description": "Negotiates provider migration protocol/capabilities, then validates and forwards supported shadow, status, cutover/promote, or rollback requests before forwarding it through the provider's reindex endpoint. Providers that do not implement the requested migration action must refuse it before ordinary reconciliation; submission is not completion.",
       "category": "registry",
       "request": {
         "type": "object",
         "properties": {
-          "action": "string (shadow|status|cutover|rollback)",
+          "action": "string (capabilities|shadow|status|cutover|promote|rollback; required)",
           "dry_run": "boolean",
           "embedding_dimensions": "int32",
           "embedding_model": "string",
@@ -748,14 +911,26 @@
         "properties": {
           "error": "string",
           "job_id": "string",
+          "migration_protocol_version": "uint32",
           "planned_deletes": "int32",
           "planned_upserts": "int32",
           "processed": "int32",
           "state": "string",
+          "supported_actions": "string[]",
           "total": "int32"
         }
       },
       "errors": [
+        {
+          "status": 400,
+          "code": "invalid_argument",
+          "description": "Invalid migration request"
+        },
+        {
+          "status": 412,
+          "code": "failed_precondition",
+          "description": "Provider capability negotiation failed or requested action is unsupported"
+        },
         {
           "status": 500,
           "code": "internal",

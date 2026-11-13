@@ -34,15 +34,18 @@ import (
 
 // knownTables is the exhaustive allow-list of tables the thin router is
 // permitted to own. Any CREATE TABLE in the SQLite schema files that names a
-// table NOT on this list is a boundary violation — it may indicate corpus
-// content being stored inside the router.
+// table NOT on this list is a boundary violation — it may indicate provider
+// documents or vectors being stored inside the router.
 //
 // To add a legitimate table: extend this list in the same PR that adds the
-// schema, and explain in the commit message why the new table is still
-// consistent with the thin-router invariant (registry/telemetry only).
+// schema, and explain why the new table is still consistent with the thin
+// router invariant (registry, telemetry, or provider-profile lineage only).
 var knownTables = map[string]bool{
 	// Provider registry (internal/registry/schema.sql)
 	"providers": true,
+	// W9 source lineage contains only the provider-description routing profile
+	// projection and cursor. It has no provider document content or vectors.
+	"provider_description_changes": true,
 	// Credential-loss witnesses are registry metadata; bearer values live in
 	// the credential authority, not in router storage.
 	"provider_control_token_witness": true,
@@ -59,6 +62,10 @@ var knownTables = map[string]bool{
 	"eval_corpus_validations": true,
 	// Durable provider health policy state (internal/metrics/schema.sql).
 	"provider_demotion_state": true,
+	// Fleet snapshots pin the same routing-profile projection while a candidate
+	// is built; vectors remain in the owner-managed Qdrant generation.
+	"provider_description_fleet_snapshots":         true,
+	"provider_description_fleet_snapshot_profiles": true,
 }
 
 // createTableRE matches: CREATE TABLE [IF NOT EXISTS] <name>
@@ -155,8 +162,8 @@ func TestThinRouterBoundary_NoCorpusContentTables(t *testing.T) {
 
 	if len(violations) > 0 {
 		t.Errorf("OT-P0-006 violated: SQL schema declares table(s) outside the thin-router allow-list.")
-		t.Errorf("The allow-list (knownTables) admits only registry + telemetry tables.")
-		t.Errorf("Corpus-content tables must live in provider scenarios, not the router.")
+		t.Errorf("The allow-list (knownTables) admits registry, telemetry, and declared provider-profile lineage tables only.")
+		t.Errorf("Provider documents and vectors must live in provider scenarios, not the router.")
 		for _, v := range violations {
 			t.Errorf("  %s", v)
 		}

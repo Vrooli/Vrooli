@@ -11,6 +11,7 @@ import (
 
 	"github.com/vrooli/api-core/schedule"
 
+	aisearch "github.com/vrooli/ai-go/search"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	routingv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/routing"
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/shared"
@@ -60,6 +61,7 @@ type FederatedRunner struct {
 	clock       schedule.Clock
 	newID       func() string
 	routability RoutabilityReader
+	evidence    IdentityEvidenceReaders
 }
 
 type federatedCaseObservation struct {
@@ -69,6 +71,8 @@ type federatedCaseObservation struct {
 	degradedReason string
 	selectorLeg    string
 	rerankerLeg    string
+	searchErr      error
+	hits           []*routingv1.SearchHit
 }
 
 func NewFederatedRunner(resolver ProviderResolver, query QueryClient, clk schedule.Clock, newID func() string) *FederatedRunner {
@@ -78,11 +82,37 @@ func NewFederatedRunner(resolver ProviderResolver, query QueryClient, clk schedu
 // NewFederatedRunnerWithRoutability preserves the small constructor used by
 // offline callers while wiring the production runner to the same eligibility
 // status surface that governs automatic routing.
-func NewFederatedRunnerWithRoutability(resolver ProviderResolver, query QueryClient, clk schedule.Clock, newID func() string, routability RoutabilityReader) *FederatedRunner {
+func NewFederatedRunnerWithRoutability(resolver ProviderResolver, query QueryClient, clk schedule.Clock, newID func() string, routability RoutabilityReader, evidence ...IdentityEvidenceReaders) *FederatedRunner {
 	if newID == nil {
 		newID = func() string { return "federated-run" }
 	}
-	return &FederatedRunner{resolver: resolver, query: query, clock: clk, newID: newID, routability: routability}
+	var readers IdentityEvidenceReaders
+	if len(evidence) > 0 {
+		readers = evidence[0]
+	}
+	return &FederatedRunner{resolver: resolver, query: query, clock: clk, newID: newID, routability: routability, evidence: readers}
+}
+
+func (r *FederatedRunner) comparisonIdentity(ctx context.Context, suite *evalv1.EvalSuite, snapshot *evalv1.ConfigSnapshot, denominator *evalv1.FixedDenominatorSnapshot, persisted bool) *evalv1.EvaluationIdentity {
+	caller := CallerIdentity{}
+	if hasSearchHubWorkloadCase(suite) && r.evidence.Caller != nil {
+		if resolved, err := r.evidence.Caller.ResolveCallerIdentity(ctx, suite); err == nil {
+			caller = resolved
+		}
+	}
+	var validation *CorpusValidationRecord
+	if r.evidence.Validation != nil {
+		validation, _ = r.evidence.Validation.LatestCorpusValidation(ctx, suite.GetSuiteId())
+	}
+	identity := BuildComparisonIdentity(suite, snapshot, caller, validation, r.clock.Now())
+	if persisted {
+		identity = BindFixedDenominatorIdentity(identity, denominator)
+	}
+	return identity
+}
+
+func (r *FederatedRunner) fixedDenominator(ctx context.Context, suite *evalv1.EvalSuite) (*evalv1.FixedDenominatorSnapshot, aisearch.FixedDenominator, bool, error) {
+	return resolveFixedDenominator(ctx, suite, r.evidence.Denominators, r.clock.Now())
 }
 
 func (r *FederatedRunner) Run(ctx context.Context, suite *evalv1.EvalSuite, tag string, limit int32) (*evalv1.EvalRun, error) {
@@ -113,13 +143,24 @@ func (r *FederatedRunner) runWithStrategy(ctx context.Context, suite *evalv1.Eva
 	if suite == nil {
 		return nil, fmt.Errorf("nil suite")
 	}
+	denominatorSnapshot, denominator, persistedDenominator, err := r.fixedDenominator(ctx, suite)
+	if err != nil {
+		return nil, err
+	}
+	evaluationSuite := suite
+	if denominatorSnapshot != nil {
+		evaluationSuite, err = SuiteWithFixedDenominator(suite, denominatorSnapshot)
+		if err != nil {
+			return nil, fmt.Errorf("prepare fixed denominator suite: %w", err)
+		}
+	}
 	if suite.GetSuiteId() != RouterSuiteID {
 		if _, err := r.resolver.Get(ctx, suite.GetProviderId()); err != nil {
 			return nil, fmt.Errorf("resolve provider %q: %w", suite.GetProviderId(), err)
 		}
 	}
 	if limit <= 0 {
-		limit = effectiveLimit(suite, limit)
+		limit = effectiveLimit(evaluationSuite, limit)
 	}
 	if suite.GetSuiteId() == RouterSuiteID {
 		// The composed router suite measures provider selection only; its
@@ -132,14 +173,15 @@ func (r *FederatedRunner) runWithStrategy(ctx context.Context, suite *evalv1.Eva
 	// to the provider (background marker) or bypassing the reranker would
 	// report a provider-sorted group concatenation as "retrieval recall",
 	// which is not the unified list an agent actually receives.
-	cases := suite.GetCases()
+	cases := evaluationSuite.GetCases()
 	results := make([]*evalv1.CaseResult, len(cases))
 	latencies := make([]int64, len(cases))
 	observations := make([]federatedCaseObservation, len(cases))
 	var unavailable []*evalv1.UnavailableCase
+	var fixedDenominatorGrade *aisearch.SuiteReport
 	run := &evalv1.EvalRun{
 		RunId:   r.newID(),
-		SuiteId: suite.GetSuiteId(),
+		SuiteId: evaluationSuite.GetSuiteId(),
 		Tag:     tag,
 		Tier:    "federated",
 		Config:  defaultFederatedConfig(),
@@ -160,7 +202,7 @@ func (r *FederatedRunner) runWithStrategy(ctx context.Context, suite *evalv1.Eva
 	}
 	automaticExclusions := exclusions
 	if automaticExclusions == nil {
-		automaticExclusions = r.automaticExclusions(ctx, suite)
+		automaticExclusions = r.automaticExclusions(ctx, evaluationSuite)
 	}
 	jobs := make(chan int)
 	var wg sync.WaitGroup
@@ -173,7 +215,18 @@ func (r *FederatedRunner) runWithStrategy(ctx context.Context, suite *evalv1.Eva
 		go func() {
 			defer wg.Done()
 			for index := range jobs {
-				observations[index] = r.runFederatedCase(ctx, suite, cases[index], limit, strategyName, automaticExclusions)
+				if isExcludedEvaluationCase(cases[index]) {
+					reason := "candidate excluded from fixed acceptance denominator"
+					if cases[index] != nil && hasEvaluationTag(cases[index].GetTags(), "generated") {
+						reason = "generated case excluded until owner review"
+					}
+					observations[index] = federatedCaseObservation{result: &evalv1.CaseResult{
+						CaseId: cases[index].GetCaseId(), Outcome: "n/a",
+						OutcomeReason: reason,
+					}}
+					continue
+				}
+				observations[index] = r.runFederatedCase(ctx, evaluationSuite, cases[index], limit, strategyName, automaticExclusions)
 			}
 		}()
 	}
@@ -199,6 +252,21 @@ func (r *FederatedRunner) runWithStrategy(ctx context.Context, suite *evalv1.Eva
 			}
 		}
 	}
+	if denominatorSnapshot != nil {
+		preloaded := newPreloadedSuiteSearcher()
+		for index, observation := range observations {
+			preloaded.Add(cases[index], observation.hits, observation.searchErr)
+		}
+		searchSuite := aisearch.TestSuite{SuiteID: denominator.SuiteID, Cases: denominator.Cases}
+		policy := aisearch.DefaultScoringPolicy
+		policy.GateK, policy.DeepK = int(limit), int(limit)
+		grade, gradeErr := aisearch.GradeSuiteOnFixedDenominator(ctx, preloaded, searchSuite, denominator, policy)
+		if gradeErr != nil {
+			return nil, fmt.Errorf("grade fixed denominator: %w", gradeErr)
+		}
+		fixedDenominatorGrade = &grade
+		applyFixedDenominatorGradeFederated(results, grade)
+	}
 	for _, result := range results {
 		if result == nil {
 			continue
@@ -217,11 +285,13 @@ func (r *FederatedRunner) runWithStrategy(ctx context.Context, suite *evalv1.Eva
 	// the selector leg is whatever the live response reported (already copied
 	// from the per-case observations above). Do not fabricate a
 	// "background_provider" label that would describe a route this run did not take.
+	run.ComparisonIdentity = r.comparisonIdentity(ctx, suite, run.Config, denominatorSnapshot, persistedDenominator)
 	run.Results = results
-	run.Aggregate = aggregate(suite, results, latencies)
+	run.Aggregate = aggregate(evaluationSuite, results, latencies)
+	applyFixedDenominatorMetrics(run.Aggregate, fixedDenominatorGrade)
 	run.UnavailableCases = unavailable
 	run.Aggregate.UnavailableCases = int32(len(unavailable))
-	run.Aggregate.RoutingPrecision, run.Aggregate.RetrievalRecall = federatedRates(suite, results)
+	run.Aggregate.RoutingPrecision, run.Aggregate.RetrievalRecall = federatedRates(evaluationSuite, results)
 	if run.Aggregate.GradedCases > 0 {
 		run.Aggregate.PassRate = float64(run.Aggregate.Met) / float64(run.Aggregate.GradedCases)
 	}
@@ -272,14 +342,14 @@ func (r *FederatedRunner) runFederatedCase(ctx context.Context, suite *evalv1.Ev
 	if expectedProvider == "" {
 		expectedProvider = suite.GetProviderId()
 	}
-	cr := &evalv1.CaseResult{CaseId: c.GetCaseId(), ExpectedProviderId: expectedProvider}
+	cr := &evalv1.CaseResult{CaseId: c.GetCaseId(), ExpectedProviderId: expectedProvider, AttemptCount: 1, LatencyMs: int32(latency)}
 	if routingResponse != nil {
 		cr.RoutingTrace = routingResponse.GetRoutingTrace()
 	}
 	if reason, withheld := automaticExclusions[expectedProvider]; withheld {
 		cr.Outcome = "unavailable"
 		cr.OutcomeReason = fmt.Sprintf("expected provider %q withheld from automatic routing: %s", expectedProvider, reason)
-		return federatedCaseObservation{result: cr, latency: latency}
+		return federatedCaseObservation{result: cr, latency: latency, searchErr: err}
 	}
 	if err != nil {
 		cr.Outcome = "error"
@@ -299,6 +369,8 @@ func (r *FederatedRunner) runFederatedCase(ctx context.Context, suite *evalv1.Ev
 	if len(top) == 0 {
 		top = flattenGroups(routingResponse.GetGroups())
 	}
+	// Keep the exact returned ranked hits for shared fixed-denominator grading.
+	// The grader consumes the same retrieval response the evaluator observed.
 	cr.Top = toScoredHits(top)
 	cr.ExpectedRank = expectedRankForHits(c, top)
 	if len(top) > 0 {
@@ -313,6 +385,7 @@ func (r *FederatedRunner) runFederatedCase(ctx context.Context, suite *evalv1.Ev
 	observation := federatedCaseObservation{
 		result:      cr,
 		latency:     latency,
+		hits:        append([]*routingv1.SearchHit(nil), top...),
 		selectorLeg: strings.TrimSpace(routingResponse.GetSelectorLeg()),
 		rerankerLeg: strings.TrimSpace(routingResponse.GetRerankerLeg()),
 		degraded:    routingResponse.GetDegraded(),
@@ -420,6 +493,41 @@ func federatedGradeable(outcome string) bool {
 	}
 }
 
+func applyFixedDenominatorGradeFederated(results []*evalv1.CaseResult, grade aisearch.SuiteReport) {
+	byID := make(map[string]*evalv1.CaseResult, len(results))
+	for _, result := range results {
+		if result != nil {
+			byID[result.GetCaseId()] = result
+		}
+	}
+	for _, report := range grade.PerCase {
+		result := byID[report.CaseID]
+		if result == nil || result.GetOutcome() == "error" || result.GetOutcome() == "unavailable" || result.GetOutcome() == "misrouted" || result.GetOutcome() == "answered_by_sibling" {
+			continue
+		}
+		result.ExpectedRank = int32(report.ExpectedRank)
+		result.ObservedTopScore = report.ObservedTopScore
+		if report.Outcome == aisearch.CaseOutcomeHit {
+			if result.GetOutcome() == "met" {
+				continue
+			}
+			// Preserve routing and margin failures: a shared retrieval hit cannot
+			// make a thin margin or route miss pass.
+			if result.GetOutcome() == "no_result" || result.GetOutcome() == "below_expectation" {
+				result.Outcome = "met"
+				result.OutcomeReason = "fixed-denominator expected document retrieved"
+			}
+			continue
+		}
+		// A frozen positive target absent from the actual ranked response is a
+		// miss even if the live suite previously removed or relabelled it.
+		if result.GetOutcome() == "met" || result.GetOutcome() == "no_result" {
+			result.Outcome = "below_expectation"
+		}
+		result.OutcomeReason = "fixed-denominator expected document missing"
+	}
+}
+
 func expectedRankForHits(c *evalv1.EvalCase, hits []*routingv1.SearchHit) int32 {
 	for i, hit := range hits {
 		if matchingExpectedIdentity(c, hit) != "" {
@@ -435,28 +543,31 @@ func matchingExpectedIdentity(c *evalv1.EvalCase, hit *routingv1.SearchHit) stri
 	}
 	for _, want := range c.GetExpectIds() {
 		metadata := hit.GetMetadata()
-		if hit.GetId() == want || (metadata != nil && metadataContainsIdentity(metadata.AsMap(), want)) {
+		if hit.GetId() == want || (metadata != nil && metadataIdentityEquals(metadata.AsMap(), c.GetExpectedIdentityField(), want)) {
 			return want
 		}
 	}
 	return ""
 }
 
-func metadataContainsIdentity(metadata map[string]any, want string) bool {
-	for key, value := range metadata {
-		normalized := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(key), "-", "_"))
-		switch typed := value.(type) {
-		case string:
-			if (normalized == "id" || strings.HasSuffix(normalized, "_id")) && typed == want {
-				return true
-			}
-		case map[string]any:
-			if metadataContainsIdentity(typed, want) {
-				return true
-			}
+func metadataIdentityEquals(metadata map[string]any, field, want string) bool {
+	field = strings.TrimSpace(field)
+	if field == "" || want == "" {
+		return false
+	}
+	var value any = metadata
+	for _, part := range strings.Split(field, ".") {
+		object, ok := value.(map[string]any)
+		if !ok {
+			return false
+		}
+		value, ok = object[part]
+		if !ok {
+			return false
 		}
 	}
-	return false
+	actual, ok := value.(string)
+	return ok && actual == want
 }
 
 func margin(hits []*routingv1.SearchHit) float64 {

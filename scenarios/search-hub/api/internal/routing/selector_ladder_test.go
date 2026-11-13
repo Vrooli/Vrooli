@@ -16,6 +16,7 @@ import (
 type selectorLadderReranker struct {
 	crossErr error
 	llmErr   error
+	cpu      bool
 	active   string
 }
 
@@ -41,6 +42,10 @@ func (r *selectorLadderReranker) RerankWithPreference(_ context.Context, _ strin
 		}
 		r.active = "cross-encoder:test"
 	default:
+		if r.cpu && r.crossErr != nil {
+			r.active = "cpu-lexical:v1"
+			return candidates, nil
+		}
 		if r.llmErr != nil {
 			return nil, r.llmErr
 		}
@@ -62,6 +67,23 @@ func TestAutomaticSelectionUsesLLMLegWithoutDegrading(t *testing.T) {
 	require.Equal(t, "llm", resp.GetSelectorLeg())
 	require.False(t, resp.GetDegraded(), "a named LLM selection leg is not degradation")
 	require.Contains(t, resp.GetRoutingExplanation(), "cross-encoder provider pick unavailable; LLM provider pick selected the leading lexical candidate")
+}
+
+func TestAutomaticSelectionReportsConfiguredCPULexicalLeg(t *testing.T) {
+	rec := &recordingRecorder{}
+	r := routing.NewRouter(routing.Deps{
+		Lister: threeProviderLister(), Resolver: threeProviderResolver(), Doer: threeProviderDoer(),
+		Reranker: &selectorLadderReranker{crossErr: errors.New("cross-encoder down"), cpu: true},
+		Recorder: rec,
+	})
+
+	resp, err := r.Query(context.Background(), &routingv1.QueryRequest{Query: "where is the provider type declared", Explain: true})
+	require.NoError(t, err)
+	require.Equal(t, "cpu_lexical", resp.GetSelectorLeg())
+	require.True(t, resp.GetDegraded(), "CPU lexical is an explicit degraded ranking leg")
+	require.Contains(t, resp.GetRoutingExplanation(), "cross-encoder provider pick unavailable; CPU lexical provider pick selected the leading lexical candidate")
+	require.Len(t, rec.samples, 1)
+	require.Contains(t, rec.samples[0].ResponseDegradeReason, "cpu_lexical")
 }
 
 func TestAutomaticSelectionUsesCrossEncoderLeg(t *testing.T) {
@@ -89,5 +111,5 @@ func TestAutomaticSelectionUsesLexicalLegOnlyWhenBothModelsFail(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "lexical", resp.GetSelectorLeg())
 	require.True(t, resp.GetDegraded())
-	require.Contains(t, resp.GetRoutingExplanation(), "cross-encoder and LLM provider picks unavailable (cross-encoder: cross-encoder down; llm: ollama down); lexical provider pick selected (reranker_down)")
+	require.Contains(t, resp.GetRoutingExplanation(), "cross-encoder and configured reranker fallback unavailable (cross-encoder: cross-encoder down; llm: ollama down); lexical provider pick selected (reranker_down)")
 }

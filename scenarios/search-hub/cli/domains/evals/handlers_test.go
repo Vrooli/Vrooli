@@ -13,15 +13,19 @@ func TestFormatAggregateShowsFederatedRatesAndUnsetDirectRates(t *testing.T) {
 	federated := &evalv1.EvalRun{Aggregate: &evalv1.EvalAggregate{
 		Cases: 4, Met: 2, PassRate: 0.5, RoutingPrecision: &routing, RetrievalRecall: &recall,
 	}}
+	fixedRecall := 0.25
+	federated.Aggregate.FixedDenominatorRecall = &fixedRecall
+	federated.Aggregate.RetrievalDenominator = 8
+	federated.Aggregate.RetrievalHits = 2
 	formatted := formatAggregate(federated)
-	for _, want := range []string{"pass_rate=0.500", "routing_precision=0.750", "retrieval_recall=0.500"} {
+	for _, want := range []string{"pass_rate=0.500", "routing_precision=0.750", "retrieval_recall=0.500", "fixed_denominator_recall=0.250", "retrieval_hits=2/8"} {
 		if !strings.Contains(formatted, want) {
 			t.Fatalf("formatted aggregate %q does not contain %q", formatted, want)
 		}
 	}
 
 	direct := formatAggregate(&evalv1.EvalRun{Aggregate: &evalv1.EvalAggregate{PassRate: 1}})
-	if !strings.Contains(direct, "routing_precision=unset") || !strings.Contains(direct, "retrieval_recall=unset") {
+	if !strings.Contains(direct, "routing_precision=unset") || !strings.Contains(direct, "retrieval_recall=unset") || !strings.Contains(direct, "fixed_denominator_recall=unset") {
 		t.Fatalf("direct aggregate did not preserve unset rates: %q", direct)
 	}
 }

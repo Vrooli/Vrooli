@@ -43,10 +43,10 @@ var Endpoints = []module.EndpointDescriptor{
 		Path:        evalconnect.EvalServiceGetSuiteProcedure,
 		Method:      "POST",
 		Summary:     "Get an eval suite",
-		Description: "Returns the suite with the given suite_id.",
+		Description: "Returns the suite, ordinary adequacy findings, and read-only reranker held-out qualification. Qualification reports why owner receipt or immutable candidate snapshots are missing without calling a provider.",
 		Category:    "eval",
 		Request:     &module.Schema{Type: "object", Properties: map[string]string{"suite_id": "string (required)"}},
-		Response:    &module.Schema{Type: "object", Properties: map[string]string{"suite": "EvalSuite"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"suite": "EvalSuite", "adequacy": "array<AdequacyWarning>", "rerank_qualification": "RerankCorpusQualification"}},
 		Errors: []module.ErrorDesc{
 			{Status: 404, Code: "not_found", Description: "No such suite"},
 			{Status: 500, Code: "internal", Description: "Eval store read failure"},
@@ -79,6 +79,21 @@ var Endpoints = []module.EndpointDescriptor{
 		Errors: []module.ErrorDesc{
 			{Status: 404, Code: "not_found", Description: "No such suite"},
 			{Status: 400, Code: "failed_precondition", Description: "Suite's provider is not registered/reachable"},
+		},
+	},
+	{
+		ID:          "evals_latest_corpus_validation",
+		Path:        evalconnect.EvalServiceGetLatestCorpusValidationProcedure,
+		Method:      "POST",
+		Summary:     "Read latest corpus-validation receipt",
+		Description: "Returns the exact durable provider-validation identity, timestamp, rollup, and receipt digest without exposing probed queries or provider error text.",
+		Category:    "eval",
+		Request:     &module.Schema{Type: "object", Properties: map[string]string{"suite_id": "string (required)"}},
+		Response:    &module.Schema{Type: "object", Properties: map[string]string{"found": "bool", "suite_id": "string", "provider_id": "string", "suite_sha256": "string", "denominator_sha256": "string", "denominator_case_ids": "array<string>", "rollup": "CorpusValidationRollup", "created_at": "RFC3339Nano", "receipt_sha256": "SHA-256"}},
+		Errors: []module.ErrorDesc{
+			{Status: 400, Code: "invalid_argument", Description: "suite_id is required"},
+			{Status: 501, Code: "unimplemented", Description: "Durable corpus-validation receipts are unavailable"},
+			{Status: 500, Code: "internal", Description: "Eval store read failure"},
 		},
 	},
 	{

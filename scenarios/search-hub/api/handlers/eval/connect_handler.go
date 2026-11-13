@@ -72,6 +72,10 @@ type Deps struct {
 	Sweeper        Sweeper
 	ActiveStrategy string
 	Routability    RoutabilityReader
+	// RerankOwnerReceipt verifies a receipt against its provider-owned source.
+	// A missing verifier leaves qualification blocked even when receipt JSON is
+	// structurally complete.
+	RerankOwnerReceipt internaleval.RerankCorpusOwnerReceiptVerifier
 	// Generator proposes machine-generated cases for a suite (Generate RPC).
 	Generator CorpusGenerator
 	// Control + Tokens drive the corpus write-back: `generate --apply` persists the
@@ -101,6 +105,8 @@ func NewConnectHandler(d Deps) *connectHandler {
 var _ = func() any {
 	type evalServiceHandler interface {
 		RegisterSuite(context.Context, *connect.Request[evalv1.RegisterSuiteRequest]) (*connect.Response[evalv1.RegisterSuiteResponse], error)
+		FreezeFixedDenominator(context.Context, *connect.Request[evalv1.FreezeFixedDenominatorRequest]) (*connect.Response[evalv1.FreezeFixedDenominatorResponse], error)
+		GetFixedDenominator(context.Context, *connect.Request[evalv1.GetFixedDenominatorRequest]) (*connect.Response[evalv1.GetFixedDenominatorResponse], error)
 		ListSuites(context.Context, *connect.Request[evalv1.ListSuitesRequest]) (*connect.Response[evalv1.ListSuitesResponse], error)
 		GetSuite(context.Context, *connect.Request[evalv1.GetSuiteRequest]) (*connect.Response[evalv1.GetSuiteResponse], error)
 		RunSuite(context.Context, *connect.Request[evalv1.RunSuiteRequest]) (*connect.Response[evalv1.RunSuiteResponse], error)
@@ -129,6 +135,42 @@ func (h *connectHandler) RegisterSuite(ctx context.Context, req *connect.Request
 		return nil, connectErr
 	}
 	return connect.NewResponse(&evalv1.RegisterSuiteResponse{Suite: suite, Created: created}), nil
+}
+
+func (h *connectHandler) FreezeFixedDenominator(ctx context.Context, req *connect.Request[evalv1.FreezeFixedDenominatorRequest]) (*connect.Response[evalv1.FreezeFixedDenominatorResponse], error) {
+	suiteID := strings.TrimSpace(req.Msg.GetSuiteId())
+	if suiteID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("suite_id is required"))
+	}
+	suite, err := h.deps.Store.GetSuite(ctx, suiteID)
+	if err != nil {
+		return nil, h.logged("eval.FreezeFixedDenominator.getSuite", suiteID, err)
+	}
+	store, ok := h.deps.Store.(internaleval.FixedDenominatorStore)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("fixed denominator review storage is not configured"))
+	}
+	snapshot, err := store.FreezeFixedDenominator(ctx, suite, req.Msg.GetReviewerId(), req.Msg.GetReviewEvidenceUri())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	return connect.NewResponse(&evalv1.FreezeFixedDenominatorResponse{Snapshot: snapshot}), nil
+}
+
+func (h *connectHandler) GetFixedDenominator(ctx context.Context, req *connect.Request[evalv1.GetFixedDenominatorRequest]) (*connect.Response[evalv1.GetFixedDenominatorResponse], error) {
+	suiteID := strings.TrimSpace(req.Msg.GetSuiteId())
+	if suiteID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("suite_id is required"))
+	}
+	store, ok := h.deps.Store.(internaleval.FixedDenominatorReader)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("fixed denominator storage is not configured"))
+	}
+	snapshot, err := store.GetFixedDenominator(ctx, suiteID)
+	if err != nil {
+		return nil, toConnectError(err)
+	}
+	return connect.NewResponse(&evalv1.GetFixedDenominatorResponse{Found: snapshot != nil, Snapshot: snapshot}), nil
 }
 
 // ReapOrphanSuites is deliberately a dry-run unless confirm=true. It computes
@@ -203,8 +245,9 @@ func (h *connectHandler) GetSuite(ctx context.Context, req *connect.Request[eval
 		return nil, h.logged("eval.GetSuite", req.Msg.GetSuiteId(), err)
 	}
 	return connect.NewResponse(&evalv1.GetSuiteResponse{
-		Suite:    suite,
-		Adequacy: internaleval.CheckAdequacy(suite, nil),
+		Suite:               suite,
+		Adequacy:            internaleval.CheckAdequacy(suite, nil),
+		RerankQualification: internaleval.QualifyRerankCorpus(ctx, suite, h.deps.RerankOwnerReceipt),
 	}), nil
 }
 
@@ -319,6 +362,35 @@ func (h *connectHandler) ValidateCorpus(ctx context.Context, req *connect.Reques
 		}
 	}
 	return connect.NewResponse(resp), nil
+}
+
+func (h *connectHandler) GetLatestCorpusValidation(ctx context.Context, req *connect.Request[evalv1.GetLatestCorpusValidationRequest]) (*connect.Response[evalv1.GetLatestCorpusValidationResponse], error) {
+	suiteID := strings.TrimSpace(req.Msg.GetSuiteId())
+	if suiteID == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("suite_id is required"))
+	}
+	reader, ok := h.deps.Store.(internaleval.CorpusValidationReader)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("durable corpus validation receipts are not configured on this server"))
+	}
+	record, err := reader.LatestCorpusValidation(ctx, suiteID)
+	if err != nil {
+		return nil, toConnectError(err)
+	}
+	response := &evalv1.GetLatestCorpusValidationResponse{SuiteId: suiteID}
+	if record == nil || record.Result == nil {
+		return connect.NewResponse(response), nil
+	}
+	result := record.Result
+	response.Found = true
+	response.ProviderId = result.GetProviderId()
+	response.SuiteSha256 = result.GetSuiteSha256()
+	response.DenominatorSha256 = result.GetDenominatorSha256()
+	response.DenominatorCaseIds = append([]string(nil), result.GetDenominatorCaseIds()...)
+	response.Rollup = result.GetRollup()
+	response.CreatedAt = record.CreatedAt.UTC().Format(time.RFC3339Nano)
+	response.ReceiptSha256 = internaleval.CorpusValidationReceiptDigest(result)
+	return connect.NewResponse(response), nil
 }
 
 func (h *connectHandler) ListRuns(ctx context.Context, req *connect.Request[evalv1.ListRunsRequest]) (*connect.Response[evalv1.ListRunsResponse], error) {

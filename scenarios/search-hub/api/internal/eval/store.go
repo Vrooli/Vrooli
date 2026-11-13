@@ -175,6 +175,53 @@ func (s *sqliteStore) GetSuite(ctx context.Context, id string) (*evalv1.EvalSuit
 	return unmarshalSuite(blob)
 }
 
+// FreezeFixedDenominator records an explicit independent review of the suite's
+// exact positive query/label set. Repeated reviews append immutable snapshots;
+// runners always read the newest one.
+func (s *sqliteStore) FreezeFixedDenominator(ctx context.Context, suite *evalv1.EvalSuite, reviewerID, evidenceURI string) (*evalv1.FixedDenominatorSnapshot, error) {
+	if suite == nil {
+		return nil, fmt.Errorf("suite is required")
+	}
+	snapshot, err := NewFixedDenominatorSnapshot(suite, reviewerID, evidenceURI, s.clock.Now())
+	if err != nil {
+		return nil, err
+	}
+	blob, err := marshalOpts.Marshal(snapshot)
+	if err != nil {
+		return nil, fmt.Errorf("marshal fixed denominator snapshot: %w", err)
+	}
+	_, err = s.db.ExecContext(ctx, `
+INSERT INTO eval_fixed_denominators (suite_id, created_at, snapshot)
+VALUES (?, ?, ?)`, suite.GetSuiteId(), snapshot.GetReviewedAt(), string(blob))
+	if err != nil {
+		return nil, fmt.Errorf("persist fixed denominator snapshot: %w", err)
+	}
+	return snapshot, nil
+}
+
+// GetFixedDenominator returns the newest immutable reviewed snapshot for a
+// suite. Suite edits do not mutate or implicitly shrink this record.
+func (s *sqliteStore) GetFixedDenominator(ctx context.Context, suiteID string) (*evalv1.FixedDenominatorSnapshot, error) {
+	var blob string
+	err := s.db.QueryRowContext(ctx, `
+SELECT snapshot FROM eval_fixed_denominators
+WHERE suite_id = ? ORDER BY created_at DESC, id DESC LIMIT 1`, suiteID).Scan(&blob)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get fixed denominator: %w", err)
+	}
+	snapshot := &evalv1.FixedDenominatorSnapshot{}
+	if err := protojson.Unmarshal([]byte(blob), snapshot); err != nil {
+		return nil, fmt.Errorf("unmarshal fixed denominator snapshot: %w", err)
+	}
+	if _, err := ValidateFixedDenominatorSnapshot(snapshot); err != nil {
+		return nil, fmt.Errorf("stored fixed denominator is invalid: %w", err)
+	}
+	return snapshot, nil
+}
+
 func (s *sqliteStore) DeleteSuite(ctx context.Context, id string) error {
 	if strings.TrimSpace(id) == "" {
 		return fmt.Errorf("suite_id required")

@@ -3,6 +3,7 @@ package sweep
 import (
 	"sort"
 
+	aisearch "github.com/vrooli/ai-go/search"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 )
 
@@ -18,6 +19,9 @@ import (
 // objective: it carries a positive expectation (an expected id or a top-K
 // requirement) and is not a negative/gibberish case.
 func isPositiveCase(c *evalv1.EvalCase) bool {
+	if hasStringTag(c.GetTags(), aisearch.TagGenerated) && !hasStringTag(c.GetTags(), aisearch.TagHeldout) {
+		return false
+	}
 	if c.GetExpectNoStrongHit() || hasStringTag(c.GetTags(), "gibberish") {
 		return false
 	}
@@ -29,7 +33,7 @@ func isPositiveCase(c *evalv1.EvalCase) bool {
 func positiveCaseIDs(suite *evalv1.EvalSuite) []string {
 	ids := make([]string, 0, len(suite.GetCases()))
 	for _, c := range suite.GetCases() {
-		if isPositiveCase(c) {
+		if c.GetStatus() != "candidate" && isPositiveCase(c) {
 			ids = append(ids, c.GetCaseId())
 		}
 	}
@@ -37,14 +41,23 @@ func positiveCaseIDs(suite *evalv1.EvalSuite) []string {
 	return ids
 }
 
-// generatedCaseIDs returns the set of case ids the corpus marks as machine
-// `generated` (Phase 7). The sweep always holds these out of the tuning fold so
-// auto-generated cases can never inflate a winner's selection score (overfit
-// guard #2). Until Phase 7 marks any case, this is empty and harmless.
+// generatedCaseIDs returns machine-generated case IDs. They are excluded from
+// both folds until the dataset owner reviews the labels and explicitly tags
+// them as heldout.
 func generatedCaseIDs(suite *evalv1.EvalSuite) map[string]bool {
 	out := map[string]bool{}
 	for _, c := range suite.GetCases() {
 		if hasStringTag(c.GetTags(), "generated") {
+			out[c.GetCaseId()] = true
+		}
+	}
+	return out
+}
+
+func ownerHeldoutCaseIDs(suite *evalv1.EvalSuite) map[string]bool {
+	out := map[string]bool{}
+	for _, c := range suite.GetCases() {
+		if hasStringTag(c.GetTags(), aisearch.TagHeldout) {
 			out[c.GetCaseId()] = true
 		}
 	}
@@ -59,7 +72,7 @@ func generatedCaseIDs(suite *evalv1.EvalSuite) map[string]bool {
 func recallByCase(suite *evalv1.EvalSuite, run *evalv1.EvalRun) map[string]float64 {
 	positive := map[string]bool{}
 	for _, c := range suite.GetCases() {
-		if isPositiveCase(c) {
+		if c.GetStatus() != "candidate" && isPositiveCase(c) {
 			positive[c.GetCaseId()] = true
 		}
 	}
@@ -75,6 +88,46 @@ func recallByCase(suite *evalv1.EvalSuite, run *evalv1.EvalRun) map[string]float
 		}
 	}
 	return out
+}
+
+func completePositiveRun(suite *evalv1.EvalSuite, run *evalv1.EvalRun) string {
+	if run == nil {
+		return "run is missing"
+	}
+	if run.GetDegraded() {
+		return "run is degraded: " + run.GetDegradedReason()
+	}
+	want := positiveCaseIDs(suite)
+	seen := make(map[string]bool, len(want))
+	for _, result := range run.GetResults() {
+		if result == nil || !containsCaseID(want, result.GetCaseId()) {
+			continue
+		}
+		if seen[result.GetCaseId()] {
+			return "duplicate result for fixed-denominator case " + result.GetCaseId()
+		}
+		seen[result.GetCaseId()] = true
+		switch result.GetOutcome() {
+		case "met", "below_expectation", "above_expectation", "unexpected_hit", "answered_by_sibling", "misrouted", "no_result", "thin_margin":
+		default:
+			return "fixed-denominator case " + result.GetCaseId() + " has non-gradeable outcome " + result.GetOutcome()
+		}
+	}
+	for _, id := range want {
+		if !seen[id] {
+			return "missing fixed-denominator case " + id
+		}
+	}
+	return ""
+}
+
+func containsCaseID(ids []string, want string) bool {
+	for _, id := range ids {
+		if id == want {
+			return true
+		}
+	}
+	return false
 }
 
 // meanOver returns the mean of recall[id] over the given ids (0 when ids is

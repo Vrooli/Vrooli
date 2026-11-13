@@ -65,6 +65,21 @@ func TestCheckAdequacy_TooFewCases(t *testing.T) {
 	require.True(t, hasCode(got, "too_few_cases"), "got %v", codes(got))
 }
 
+func TestCheckAdequacyGeneratedCasesRequireOwnerReviewToCount(t *testing.T) {
+	suite := richSuite(MinPositiveCases - 1)
+	for i := 0; i < MinPositiveCases*2; i++ {
+		suite.Cases = append(suite.Cases, &evalv1.EvalCase{
+			CaseId: fmt.Sprintf("generated-%d", i), Query: fmt.Sprintf("generated query %d", i),
+			Tags: []string{"generated", "strong"}, ExpectIds: []string{fmt.Sprintf("doc-%d", i)},
+		})
+	}
+	require.True(t, hasCode(CheckAdequacy(suite, nil), "too_few_cases"), "unreviewed generated positives cannot satisfy corpus breadth")
+	suite.Cases = append(suite.Cases, &evalv1.EvalCase{
+		CaseId: "generated-reviewed", Query: "reviewed generated query", Tags: []string{"generated", "heldout", "strong"}, ExpectIds: []string{"reviewed-doc"},
+	})
+	require.False(t, hasCode(CheckAdequacy(suite, nil), "too_few_cases"), "owner-reviewed generated positive may count")
+}
+
 func TestCheckAdequacy_NoNegatives(t *testing.T) {
 	s := &evalv1.EvalSuite{SuiteId: "s", ProviderId: "p"}
 	for i := 0; i < MinPositiveCases; i++ {

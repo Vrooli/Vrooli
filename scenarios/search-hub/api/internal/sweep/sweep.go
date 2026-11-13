@@ -34,6 +34,7 @@ import (
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
 	"google.golang.org/protobuf/proto"
+	internaleval "search-hub/internal/eval"
 )
 
 // Arm tiers (the SweepArm.Tier value).
@@ -105,7 +106,6 @@ type Deps struct {
 // every field with the documented default via withDefaults.
 type Options struct {
 	BootstrapIters    int           // paired-CI resamples (default 2000)
-	HeldoutFraction   float64       // held-out fold size (default 0.30)
 	MinHeldout        int           // min held-out cases to validate (default 3)
 	GibberishFloor    float64       // absolute gibberish ceiling floor (default 0.50)
 	LatencyMultiplier float64       // p95 budget = incumbent p95 × this (default 3.0)
@@ -116,9 +116,6 @@ type Options struct {
 func (o Options) withDefaults() Options {
 	if o.BootstrapIters <= 0 {
 		o.BootstrapIters = 2000
-	}
-	if o.HeldoutFraction <= 0 {
-		o.HeldoutFraction = 0.30
 	}
 	if o.MinHeldout <= 0 {
 		o.MinHeldout = 3
@@ -161,6 +158,9 @@ type armEval struct {
 	proto       *evalv1.SweepArm
 	tuning      aisearch.TuningConfig
 	recall      map[string]float64 // per positive case (0/1)
+	identity    *evalv1.EvaluationIdentity
+	complete    string
+	degraded    bool
 	isIncumbent bool
 }
 
@@ -338,6 +338,7 @@ func (o *Orchestrator) awaitReindex(ctx context.Context, desc *registryv1.Provid
 // full config that produced it) and computes the per-case recall vector.
 func (o *Orchestrator) evalArm(suite *evalv1.EvalSuite, run *evalv1.EvalRun, t aisearch.TuningConfig, tier, note string, incumbent bool) *armEval {
 	run.Config = snapshotFor(run.GetConfig(), t)
+	run.ComparisonIdentity = internaleval.UpdateComparisonArmIdentity(run.GetComparisonIdentity(), run.GetConfig())
 	recall := recallByCase(suite, run)
 	score := meanOver(recall, positiveCaseIDs(suite))
 	return &armEval{
@@ -352,6 +353,9 @@ func (o *Orchestrator) evalArm(suite *evalv1.EvalSuite, run *evalv1.EvalRun, t a
 		},
 		tuning:      t,
 		recall:      recall,
+		identity:    run.GetComparisonIdentity(),
+		complete:    completePositiveRun(suite, run),
+		degraded:    run.GetDegraded(),
 		isIncumbent: incumbent,
 	}
 }
@@ -367,14 +371,15 @@ func deadArm(tag, tier string, t aisearch.TuningConfig, reason string) *armEval 
 			Feasible: false,
 			Note:     reason,
 		},
-		tuning: t,
-		recall: map[string]float64{},
+		tuning:   t,
+		recall:   map[string]float64{},
+		complete: reason,
 	}
 }
 
 // decide ranks the arms and renders the promotion verdict under the four guards.
 func (o *Orchestrator) decide(suite *evalv1.EvalSuite, arms []*armEval, incumbent *armEval, qtCount, itCount, dropped int, positive []string) *evalv1.SweepResult {
-	tuningFold, heldout := splitCases(positive, generatedCaseIDs(suite), o.opts.HeldoutFraction)
+	tuningFold, heldout, _ := splitCases(positive, ownerHeldoutCaseIDs(suite), generatedCaseIDs(suite))
 	// Constraints are anchored to the incumbent (the baseline arm): a winner may
 	// not leak materially more junk nor blow a latency budget set relative to it.
 	constraints := deriveConstraints(incumbent.runAggregateHolder(), o.opts.GibberishFloor, o.opts.LatencyMultiplier)
@@ -385,6 +390,20 @@ func (o *Orchestrator) decide(suite *evalv1.EvalSuite, arms []*armEval, incumben
 			continue
 		}
 		ok, reason := constraints.feasible(a.runAggregateHolder())
+		if a.complete != "" {
+			ok, reason = false, "fixed-denominator evidence incomplete: "+a.complete
+		}
+		if a.degraded {
+			ok, reason = false, "run degraded; incomplete cases cannot qualify"
+		}
+		if identityErr := internaleval.ValidatePromotionIdentity(a.identity); identityErr != nil {
+			ok, reason = false, "immutable comparison identity is unbound: "+identityErr.Error()
+		}
+		if a != incumbent {
+			if identityErr := internaleval.ValidateComparableRuns(incumbent.identity, a.identity); identityErr != nil {
+				ok, reason = false, "incumbent comparison identity mismatch: "+identityErr.Error()
+			}
+		}
 		a.proto.Feasible = ok
 		if !ok && a.proto.GetNote() == "" {
 			a.proto.Note = reason

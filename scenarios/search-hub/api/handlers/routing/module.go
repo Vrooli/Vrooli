@@ -60,6 +60,36 @@ func Module(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recor
 // NewRouter builds the production router once so the health domain and the
 // RoutingService observe the same breaker state and registry snapshot.
 func NewRouter(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder) *internalrouting.Router {
+	return newRouterWithDescriptionIndex(db, clk, logger, recorder, newProviderDescriptionIndex(), nil)
+}
+
+// NewRouterWithFleetSemanticStore wires the production owner-bound semantic
+// adapter into provider-description routing only when both the shared store
+// and a trusted per-request identity resolver are present. With either absent,
+// the router has no semantic index and follows its bounded lexical fallback.
+func NewRouterWithFleetSemanticStore(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder, store aisearch.FleetSemanticStore, identity internalrouting.ProviderSemanticContextResolver) *internalrouting.Router {
+	index, trustedIdentity := fleetSemanticRoutingDependencies(store, identity)
+	if index == nil || trustedIdentity == nil {
+		if logger != nil {
+			logger.Printf("fleet semantic provider-description index unavailable: store or verified caller context is missing")
+		}
+		return newRouterWithDescriptionIndex(db, clk, logger, recorder, nil, nil)
+	}
+	return newRouterWithDescriptionIndex(db, clk, logger, recorder, index, trustedIdentity)
+}
+
+func fleetSemanticRoutingDependencies(store aisearch.FleetSemanticStore, identity internalrouting.ProviderSemanticContextResolver) (internalrouting.ProviderDescriptionIndex, internalrouting.ProviderSemanticContextResolver) {
+	if store == nil || identity == nil {
+		return nil, nil
+	}
+	index, err := newFleetSemanticDescriptionIndex(store)
+	if err != nil {
+		return nil, nil
+	}
+	return index, identity
+}
+
+func newRouterWithDescriptionIndex(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, recorder internalrouting.TelemetryRecorder, descriptionIndex internalrouting.ProviderDescriptionIndex, identity internalrouting.ProviderSemanticContextResolver) *internalrouting.Router {
 	activeStrategy, routerFactors, err := internalrouting.LoadActiveStrategy()
 	if err != nil {
 		// Strategy data is part of the executable's startup contract. Continuing
@@ -76,10 +106,11 @@ func NewRouter(db *database.RoutedDB, clk schedule.Clock, logger *log.Logger, re
 		Lister:                    store,
 		Resolver:                  newScenarioResolver(),
 		Doer:                      httpc.NewDefault(),
-		Reranker:                  internalrouting.NewDefaultRerankerChain(),
+		Reranker:                  internalrouting.NewDefaultRerankerChain(activeStrategy),
 		Recorder:                  recorder,
 		EvalQuality:               newEvalQualityReader(db, clk),
-		DescriptionIndex:          newProviderDescriptionIndex(),
+		DescriptionIndex:          descriptionIndex,
+		DescriptionIdentity:       identity,
 		DemotionStore:             internalmetrics.NewSQLiteDemotionStore(db, clk),
 		Logger:                    logger,
 		Strategy:                  &activeStrategy,

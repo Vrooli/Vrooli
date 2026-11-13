@@ -290,6 +290,14 @@ func parseSnapshot(raw []byte) *evalv1.ConfigSnapshot {
 	if n, ok := firstNumber(m, "indexed_count", "indexedCount", "search_documents", "searchDocuments", "document_count", "documentCount"); ok {
 		snap.IndexedCount = int32(n)
 	}
+	snap.ModelId = firstString(m, "model_id", "modelId")
+	snap.ArtifactSha256 = firstString(m, "artifact_sha256", "artifactSha256")
+	snap.LicenseId = firstString(m, "license_id", "licenseId")
+	snap.RightsDecisionId = firstString(m, "rights_decision_id", "rightsDecisionId")
+	snap.RuntimeId = firstString(m, "runtime_id", "runtimeId")
+	snap.RuntimeSha256 = firstString(m, "runtime_sha256", "runtimeSha256")
+	snap.RecipeSha256 = firstString(m, "recipe_sha256", "recipeSha256")
+	snap.ProviderRevision = firstString(m, "provider_revision", "providerRevision")
 	return snap
 }
 

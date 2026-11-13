@@ -2,6 +2,8 @@ package sweep
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -14,6 +16,7 @@ import (
 	controlv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/control"
 	evalv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/eval"
 	registryv1 "github.com/vrooli/vrooli/packages/proto/gen/go/search-hub/v1/registry"
+	"google.golang.org/protobuf/proto"
 )
 
 // ---------------------------------------------------------------------------
@@ -40,16 +43,22 @@ type runnerCall struct {
 }
 
 type fakeRunner struct {
-	calls   []runnerCall
-	n       int
-	produce func(tag string) (met map[string]bool, agg *evalv1.EvalAggregate)
+	calls        []runnerCall
+	n            int
+	omitIdentity bool
+	produce      func(tag string) (met map[string]bool, agg *evalv1.EvalAggregate)
 }
 
 func (f *fakeRunner) Run(_ context.Context, suite *evalv1.EvalSuite, tag string, ov *aisearch.SearchOverrides, _ string, _ int32) (*evalv1.EvalRun, error) {
 	f.calls = append(f.calls, runnerCall{tag: tag, overrides: ov})
 	f.n++
 	met, agg := f.produce(tag)
-	return buildRun(fmt.Sprintf("run-%d", f.n), tag, suite, met, agg), nil
+	run := buildRun(fmt.Sprintf("run-%d", f.n), tag, suite, met, agg)
+	if f.omitIdentity {
+		run.Config = &evalv1.ConfigSnapshot{}
+		run.ComparisonIdentity = nil
+	}
+	return run, nil
 }
 
 func buildRun(id, tag string, suite *evalv1.EvalSuite, met map[string]bool, agg *evalv1.EvalAggregate) *evalv1.EvalRun {
@@ -68,7 +77,26 @@ func buildRun(id, tag string, suite *evalv1.EvalSuite, met map[string]bool, agg 
 	if agg == nil {
 		agg = &evalv1.EvalAggregate{}
 	}
-	return &evalv1.EvalRun{RunId: id, SuiteId: suite.GetSuiteId(), Tag: tag, Results: results, Aggregate: agg, Config: &evalv1.ConfigSnapshot{}}
+	config := &evalv1.ConfigSnapshot{
+		ProviderRevision: "caller-rev", ModelId: "model-id", ArtifactSha256: strings.Repeat("a", 64),
+		LicenseId: "license-id", RightsDecisionId: "rights-decision", RuntimeId: "runtime-id",
+		RuntimeSha256: strings.Repeat("b", 64), RecipeSha256: strings.Repeat("c", 64),
+	}
+	ids := positiveCaseIDs(suite)
+	denom := sha256.Sum256([]byte(strings.Join(ids, "\n")))
+	canonical := proto.Clone(suite).(*evalv1.EvalSuite)
+	canonical.Name, canonical.Description, canonical.CreatedAt, canonical.UpdatedAt = "", "", "", ""
+	encoded, _ := (proto.MarshalOptions{Deterministic: true}).Marshal(canonical)
+	corpus := sha256.Sum256(encoded)
+	identity := &evalv1.EvaluationIdentity{
+		CorpusProviderId: suite.GetProviderId(), CorpusId: suite.GetSuiteId(), CorpusSha256: hex.EncodeToString(corpus[:]),
+		SplitVersion: "test-split/v1", DenominatorCaseIds: ids, DenominatorSha256: hex.EncodeToString(denom[:]),
+		CallerId: "test-caller", CallerVersion: "test-caller-build", ModelId: config.GetModelId(),
+		ArtifactSha256: config.GetArtifactSha256(), LicenseId: config.GetLicenseId(), RightsDecisionId: config.GetRightsDecisionId(),
+		RuntimeId: config.GetRuntimeId(), RuntimeSha256: config.GetRuntimeSha256(), RecipeSha256: strings.Repeat("d", 64),
+		EvaluationVersion: "test-evaluation/v1", ProviderValidationSha256: strings.Repeat("e", 64), ProviderValidationAt: "2026-11-11T08:00:00Z",
+	}
+	return &evalv1.EvalRun{RunId: id, SuiteId: suite.GetSuiteId(), Tag: tag, Results: results, Aggregate: agg, Config: config, ComparisonIdentity: identity}
 }
 
 type fakeControl struct {
@@ -121,7 +149,11 @@ func (c *fakeCache) Upsert(_ context.Context, d *registryv1.ProviderDescriptor, 
 func makeSuite(n int) *evalv1.EvalSuite {
 	cases := make([]*evalv1.EvalCase, 0, n+1)
 	for i := 0; i < n; i++ {
-		cases = append(cases, &evalv1.EvalCase{CaseId: fmt.Sprintf("p%d", i), Query: fmt.Sprintf("q%d", i), Tags: []string{"strong"}, ExpectIds: []string{fmt.Sprintf("id%d", i)}, ExpectWithinTopK: 5})
+		tags := []string{"strong"}
+		if i >= n-3 {
+			tags = append(tags, aisearch.TagHeldout)
+		}
+		cases = append(cases, &evalv1.EvalCase{CaseId: fmt.Sprintf("p%d", i), Query: fmt.Sprintf("q%d", i), Tags: tags, ExpectIds: []string{fmt.Sprintf("id%d", i)}, ExpectWithinTopK: 5})
 	}
 	cases = append(cases, &evalv1.EvalCase{CaseId: "g", Query: "zzzz", Tags: []string{"gibberish"}, ExpectNoStrongHit: true, ExpectMaxScore: 0.5})
 	return &evalv1.EvalSuite{SuiteId: "s.primary", ProviderId: "p", Cases: cases}
@@ -151,7 +183,7 @@ func newHarnessWithCache(t *testing.T, suite *evalv1.EvalSuite, incumbent aisear
 		Clock:     schedule.System(),
 		Sleep:     func(time.Duration) {},
 		Rand:      newSeededRand(),
-	}, Options{HeldoutFraction: 0.5, MinHeldout: 2, BootstrapIters: 500, GibberishFloor: 0.5, LatencyMultiplier: 0, PollInterval: time.Millisecond})
+	}, Options{MinHeldout: 2, BootstrapIters: 500, GibberishFloor: 0.5, LatencyMultiplier: 0, PollInterval: time.Millisecond})
 }
 
 func allSet(ids ...string) map[string]bool {
@@ -226,6 +258,31 @@ func TestSweep_PromotesClearWinner_QueryTimeOnly(t *testing.T) {
 	}
 }
 
+func TestSweepMissingProviderIdentityCannotPromote(t *testing.T) {
+	suite := makeSuite(8)
+	inc := aisearch.TuningConfig{Engine: aisearch.EngineDense}.WithDefaults()
+	runner := &fakeRunner{omitIdentity: true, produce: func(tag string) (map[string]bool, *evalv1.EvalAggregate) {
+		if strings.Contains(tag, "rerank_enabled=true,rerank_blend=true") {
+			return allSet(posIDs(8)...), &evalv1.EvalAggregate{MaxGibberishScore: 0.1}
+		}
+		return map[string]bool{}, &evalv1.EvalAggregate{MaxGibberishScore: 0.1}
+	}}
+	result, err := newHarness(t, suite, inc, runner, &fakeControl{}).Run(context.Background(), &evalv1.SweepRequest{SuiteId: suite.GetSuiteId(), QueryTimeOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.GetWinnerTag() != "" {
+		t.Fatalf("unbound model/runtime evidence promoted %q", result.GetWinnerTag())
+	}
+	for _, arm := range result.GetArms() {
+		if arm.GetRunId() != "" && strings.Contains(arm.GetTag(), "rerank_enabled=true,rerank_blend=true") {
+			if arm.GetFeasible() || !strings.Contains(arm.GetNote(), "identity") {
+				t.Fatalf("unbound arm feasibility = %t note=%q", arm.GetFeasible(), arm.GetNote())
+			}
+		}
+	}
+}
+
 func TestSweep_WriteBack_RefreshesTuningCache(t *testing.T) {
 	suite := makeSuite(8)
 	inc := aisearch.TuningConfig{Engine: aisearch.EngineDense}.WithDefaults()
@@ -292,7 +349,7 @@ func TestSweep_WithinNoise_NoPromotion(t *testing.T) {
 	inc := aisearch.TuningConfig{Engine: aisearch.EngineDense}.WithDefaults()
 	// One tuning-fold case improves → beats incumbent on the fold but the paired
 	// CI overlaps 0 (guard #1 blocks).
-	tuning, _ := splitCases(posIDs(8), nil, 0.5)
+	tuning, _, _ := splitCases(posIDs(8), ownerHeldoutCaseIDs(suite), nil)
 	improve := tuning[0]
 	control := &fakeControl{}
 	runner := &fakeRunner{produce: func(tag string) (map[string]bool, *evalv1.EvalAggregate) {
@@ -350,7 +407,7 @@ func TestSweep_ConstraintViolation_BlocksPromotion(t *testing.T) {
 func TestSweep_HeldOutRegression_Blocks(t *testing.T) {
 	suite := makeSuite(8)
 	inc := aisearch.TuningConfig{Engine: aisearch.EngineDense}.WithDefaults()
-	tuning, heldout := splitCases(posIDs(8), nil, 0.5)
+	tuning, heldout, _ := splitCases(posIDs(8), ownerHeldoutCaseIDs(suite), nil)
 	control := &fakeControl{}
 	runner := &fakeRunner{produce: func(tag string) (map[string]bool, *evalv1.EvalAggregate) {
 		if strings.Contains(tag, "incumbent") {

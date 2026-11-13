@@ -13,8 +13,8 @@
 --     history/trend/compare reads without parsing every blob.
 --
 -- Times are RFC3339Nano strings, matching the registry convention and the wire
--- format. The hub holds NO corpus content here — only suite definitions and the
--- runs taken against them.
+-- format. Fixed-denominator snapshots intentionally retain reviewed query and
+-- label bytes so suite edits cannot silently change an acceptance exam.
 CREATE TABLE IF NOT EXISTS eval_suites (
   suite_id    TEXT PRIMARY KEY,
   provider_id TEXT NOT NULL DEFAULT '',
@@ -50,3 +50,16 @@ CREATE TABLE IF NOT EXISTS eval_corpus_validations (
 
 CREATE INDEX IF NOT EXISTS idx_eval_validations_suite_created
   ON eval_corpus_validations(suite_id, created_at);
+
+-- Independently reviewed, immutable positive-denominator snapshots. The full
+-- EvalCase bytes retain queries and expected IDs after a suite update removes
+-- a case; the digest binds membership and labels to the review metadata.
+CREATE TABLE IF NOT EXISTS eval_fixed_denominators (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  suite_id    TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  snapshot    TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_eval_fixed_denominators_suite_created
+  ON eval_fixed_denominators(suite_id, created_at, id);

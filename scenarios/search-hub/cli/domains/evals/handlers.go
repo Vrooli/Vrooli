@@ -342,6 +342,78 @@ func (h *handlers) validateReport(ctx cliapp.OperationContext, msg *evalv1.Valid
 	}
 }
 
+func (h *handlers) latestValidationCall(ctx cliapp.OperationContext) (*evalv1.GetLatestCorpusValidationResponse, error) {
+	id := ctx.Positional("suite_id")
+	resp, err := h.client.GetLatestCorpusValidation(context.Background(), connect.NewRequest(&evalv1.GetLatestCorpusValidationRequest{SuiteId: id}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError(fmt.Sprintf("read latest corpus-validation receipt for %q", id), err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no corpus-validation receipt response")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) latestValidationReport(_ cliapp.OperationContext, msg *evalv1.GetLatestCorpusValidationResponse) cliapp.ListReport {
+	if !msg.GetFound() {
+		return cliapp.ListReport{Summary: []string{fmt.Sprintf("No durable corpus-validation receipt exists for %s.", msg.GetSuiteId())}}
+	}
+	r := msg.GetRollup()
+	return cliapp.ListReport{
+		Summary: []string{
+			fmt.Sprintf("Latest corpus-validation receipt for %s [provider=%s]", msg.GetSuiteId(), msg.GetProviderId()),
+			fmt.Sprintf("created=%s positives=%d live=%d hard=%d stale=%d inconclusive=%d candidate=%d provider_errors=%d", msg.GetCreatedAt(), r.GetPositives(), r.GetLive(), r.GetHard(), r.GetStale(), r.GetInconclusive(), r.GetCandidate(), r.GetProviderErrors()),
+			fmt.Sprintf("suite_sha256=%s denominator_sha256=%s receipt_sha256=%s", msg.GetSuiteSha256(), msg.GetDenominatorSha256(), msg.GetReceiptSha256()),
+		},
+		ResultsHeading: "Fixed denominator case IDs",
+		Results:        append([]string(nil), msg.GetDenominatorCaseIds()...),
+	}
+}
+
+func (h *handlers) freezeDenominatorCall(ctx cliapp.OperationContext) (*evalv1.FreezeFixedDenominatorResponse, error) {
+	request := &evalv1.FreezeFixedDenominatorRequest{
+		SuiteId:           strings.TrimSpace(ctx.Positional("suite_id")),
+		ReviewerId:        strings.TrimSpace(ctx.Flag("reviewer")),
+		ReviewEvidenceUri: strings.TrimSpace(ctx.Flag("evidence_uri")),
+	}
+	if request.GetSuiteId() == "" || request.GetReviewerId() == "" || request.GetReviewEvidenceUri() == "" {
+		return nil, fmt.Errorf("suite_id, --reviewer and --evidence-uri are required to freeze a reviewed denominator")
+	}
+	resp, err := h.client.FreezeFixedDenominator(context.Background(), connect.NewRequest(request))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("freeze independently reviewed denominator", err, nil)
+	}
+	if resp == nil || resp.Msg == nil || resp.Msg.GetSnapshot() == nil {
+		return nil, fmt.Errorf("server returned no fixed-denominator snapshot")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) freezeDenominatorReport(_ cliapp.OperationContext, msg *evalv1.FreezeFixedDenominatorResponse) cliapp.MutationReport {
+	s := msg.GetSnapshot()
+	return cliapp.MutationReport{Result: []string{fmt.Sprintf("Froze %d independently reviewed positive cases for %s.", len(s.GetCaseIds()), s.GetSuiteId())}, Changes: []string{fmt.Sprintf("reviewer=%s reviewed_at=%s denominator_sha256=%s", s.GetReviewerId(), s.GetReviewedAt(), s.GetDenominatorSha256())}}
+}
+
+func (h *handlers) fixedDenominatorCall(ctx cliapp.OperationContext) (*evalv1.GetFixedDenominatorResponse, error) {
+	id := strings.TrimSpace(ctx.Positional("suite_id"))
+	resp, err := h.client.GetFixedDenominator(context.Background(), connect.NewRequest(&evalv1.GetFixedDenominatorRequest{SuiteId: id}))
+	if err != nil {
+		return nil, cliapp.WrapAPIError("read fixed denominator", err, nil)
+	}
+	if resp == nil || resp.Msg == nil {
+		return nil, fmt.Errorf("server returned no fixed-denominator response")
+	}
+	return resp.Msg, nil
+}
+
+func (h *handlers) fixedDenominatorReport(ctx cliapp.OperationContext, msg *evalv1.GetFixedDenominatorResponse) cliapp.ListReport {
+	s := msg.GetSnapshot()
+	if !msg.GetFound() || s == nil {
+		return cliapp.ListReport{Summary: []string{fmt.Sprintf("No independently reviewed fixed denominator exists for %s.", ctx.Positional("suite_id"))}}
+	}
+	return cliapp.ListReport{Summary: []string{fmt.Sprintf("Fixed denominator for %s: %d cases; reviewer=%s reviewed_at=%s", s.GetSuiteId(), len(s.GetCaseIds()), s.GetReviewerId(), s.GetReviewedAt()), fmt.Sprintf("denominator_sha256=%s corpus_sha256=%s review_evidence_uri=%s", s.GetDenominatorSha256(), s.GetCorpusSha256(), s.GetReviewEvidenceUri())}}
+}
+
 // sweep runs the two-tier overfit-safe tuning sweep and renders the ranked arms
 // + the promotion verdict. --apply gates the write-back; default is preview.
 func (h *handlers) sweepCall(ctx cliapp.OperationContext) (*evalv1.SweepResult, error) {
@@ -672,7 +744,7 @@ func formatCase(c *evalv1.EvalCase) string {
 
 func formatAggregate(r *evalv1.EvalRun) string {
 	a := r.GetAggregate()
-	rates := fmt.Sprintf("routing_precision=%s retrieval_recall=%s", optionalRate(a.RoutingPrecision), optionalRate(a.RetrievalRecall))
+	rates := fmt.Sprintf("routing_precision=%s retrieval_recall=%s fixed_denominator_recall=%s retrieval_hits=%d/%d", optionalRate(a.RoutingPrecision), optionalRate(a.RetrievalRecall), optionalRate(a.FixedDenominatorRecall), a.GetRetrievalHits(), a.GetRetrievalDenominator())
 	return fmt.Sprintf("aggregate: cases=%d met=%d below=%d pass_rate=%.3f %s mean_strong_top1=%.3f max_gibberish=%.3f p95=%dms",
 		a.GetCases(), a.GetMet(), a.GetBelow(), a.GetPassRate(), rates, a.GetMeanStrongTop1(), a.GetMaxGibberishScore(), a.GetLatencyP95Ms())
 }

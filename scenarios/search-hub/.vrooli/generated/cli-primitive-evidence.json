@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "search-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "976b742b161b9caffc9ff1a98f8e40e831dd39cd0e6aff31cd22cee18171bb2f",
+  "manifest_hash": "976b7fe2c2e4bcb99ec2562de280dec15cdfd41f5b43b88d40496f7ea4d8210f",
   "commands": [
     {
       "path": "embedding abort",
@@ -163,6 +163,14 @@
       "group": "evals",
       "command": "validate",
       "binding": "EvalService.ValidateCorpus",
+      "declared_primitive": "proto_list",
+      "observed_primitive": "proto_list"
+    },
+    {
+      "path": "evals validation-receipt",
+      "group": "evals",
+      "command": "validation-receipt",
+      "binding": "EvalService.GetLatestCorpusValidation",
       "declared_primitive": "proto_list",
       "observed_primitive": "proto_list"
     },

@@ -2,6 +2,7 @@ package eval_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -112,6 +113,40 @@ func TestGetSuiteNotFound(t *testing.T) {
 	_, err := store.GetSuite(context.Background(), "nope")
 	var nf eval.ErrSuiteNotFound
 	require.ErrorAs(t, err, &nf)
+}
+
+func TestCorpusValidationReceiptPersistsExactSuiteDenominatorAndOutcomes(t *testing.T) {
+	store, _ := newStore(t)
+	type validationStore interface {
+		eval.CorpusValidationReader
+		AppendCorpusValidation(context.Context, string, *evalv1.ValidateCorpusResponse, time.Time) error
+	}
+	validation, ok := store.(validationStore)
+	require.True(t, ok, "production store exposes durable corpus validation evidence")
+
+	ctx := context.Background()
+	observedAt := time.Date(2026, 6, 4, 12, 30, 0, 0, time.UTC)
+	result := &evalv1.ValidateCorpusResponse{
+		SuiteId: "cli-health.commands.primary", ProviderId: "cli-health.commands",
+		SuiteSha256: strings.Repeat("a", 64), DenominatorSha256: strings.Repeat("b", 64),
+		DenominatorCaseIds: []string{"restart", "search"},
+		Cases: []*evalv1.CorpusValidationCase{
+			{CaseId: "restart", Referential: evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_LIVE},
+			{CaseId: "search", Referential: evalv1.ReferentialOutcome_REFERENTIAL_OUTCOME_HARD},
+		},
+		Rollup: &evalv1.CorpusValidationRollup{Positives: 2, Live: 1, Hard: 1},
+	}
+	require.NoError(t, validation.AppendCorpusValidation(ctx, result.GetSuiteId(), result, observedAt))
+
+	stored, err := validation.LatestCorpusValidation(ctx, result.GetSuiteId())
+	require.NoError(t, err)
+	require.NotNil(t, stored)
+	require.Equal(t, observedAt, stored.CreatedAt)
+	require.Equal(t, result.GetSuiteSha256(), stored.Result.GetSuiteSha256())
+	require.Equal(t, result.GetDenominatorSha256(), stored.Result.GetDenominatorSha256())
+	require.Equal(t, result.GetDenominatorCaseIds(), stored.Result.GetDenominatorCaseIds())
+	require.Equal(t, result.GetCases(), stored.Result.GetCases())
+	require.Equal(t, result.GetRollup(), stored.Result.GetRollup())
 }
 
 func TestDeleteSuiteRemovesRunsAndSuite(t *testing.T) {

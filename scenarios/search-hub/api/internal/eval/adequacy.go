@@ -18,9 +18,9 @@ import (
 // ever blocking the operator who chooses to run it anyway.
 
 // MinPositiveCases is the floor below which a corpus is flagged "too few cases"
-// to tune against safely. At the sweep's default held-out fraction (1/3) a
-// 12-case corpus still leaves a non-trivial validation fold; below that the
-// held-out split is too small to detect overfitting. Advisory, not enforced.
+// to tune against safely. Held-out cases are assigned explicitly by the owner;
+// this breadth floor does not imply any held-out membership. Advisory, not
+// enforced.
 const MinPositiveCases = 12
 
 // difficultyTags are the labels that mark a case's difficulty band. A corpus
@@ -54,6 +54,8 @@ func CheckAdequacy(s *evalv1.EvalSuite, strata []string) []*evalv1.AdequacyWarni
 	difficultyClasses := map[string]bool{}
 	for _, c := range s.GetCases() {
 		switch {
+		case isExcludedEvaluationCase(c):
+			continue
 		case isNegativeCase(c):
 			negatives++
 		case isPositiveCase(c):
@@ -109,7 +111,7 @@ func CheckAdequacy(s *evalv1.EvalSuite, strata []string) []*evalv1.AdequacyWarni
 // positive expectation and is not a negative case. Mirrors the sweep's objective
 // predicate so adequacy and scoring agree on what a "positive case" is.
 func isPositiveCase(c *evalv1.EvalCase) bool {
-	if isNegativeCase(c) {
+	if isExcludedEvaluationCase(c) || isNegativeCase(c) {
 		return false
 	}
 	return len(c.GetExpectIds()) > 0 || c.GetExpectWithinTopK() > 0
