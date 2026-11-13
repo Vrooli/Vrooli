@@ -384,16 +384,29 @@ func PublishOnce(ctx context.Context, repoRoot string, now time.Time, grants Gra
 // is logged; the previous snapshot stays until it expires, and then the floor
 // decides alone, which is stricter, never looser.
 func Start(ctx context.Context, logger *log.Logger, repoRoot string, grants GrantSource, republish *Republisher) {
+	StartGuarded(ctx, logger, repoRoot, grants, republish, nil)
+}
+
+// StartGuarded lets the API fence each publication during maintenance.
+func StartGuarded(ctx context.Context, logger *log.Logger, repoRoot string, grants GrantSource, republish *Republisher, run func(func() error) error) {
 	go func() {
-		publish := func() {
+		publishOnce := func() error {
 			count, warnings, err := PublishOnce(ctx, repoRoot, time.Now(), grants)
 			if err != nil {
 				logger.Printf("agent-policy path rules not published: %v", err)
-				return
+				return nil
 			}
 			logger.Printf("agent-policy path rules published: %d declared locations", count)
 			for _, warning := range warnings {
 				logger.Printf("agent-policy path rules: %s", warning)
+			}
+			return nil
+		}
+		publish := func() {
+			if run != nil {
+				_ = run(publishOnce)
+			} else {
+				_ = publishOnce()
 			}
 		}
 		publish()

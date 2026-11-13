@@ -2,6 +2,7 @@ package providers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -1002,4 +1003,78 @@ func TestMeasureBudget_ContextExpiryKeepsMeasuredUnits(t *testing.T) {
 	if _, err := provider.Preview(cancelled, cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: now, Recovery: true}, Policy: cleanup.ProviderPolicy{Enabled: true}}); err == nil {
 		t.Fatal("caller cancellation was reported as a successful partial measurement")
 	}
+}
+
+func TestTopLevelPreviewExcludesUnreadableUnitsAndPreservesVerifiedSiblings(t *testing.T) {
+	for _, failure := range []string{"child-metadata", "subtree-walk", "root-listing", "canceled"} {
+		t.Run(failure, func(t *testing.T) {
+			good, bad := filepath.Join(tmpRoot, "good"), filepath.Join(tmpRoot, "bad")
+			fsys := &partialObservationFS{FileSystem: &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{
+				good: dir(good, at(20, 0)), good + "/payload": file(good+"/payload", 100, at(20, 0)), bad: dir(bad, at(20, 0)), bad + "/unknown": file(bad+"/unknown", 900, now)}}, failure: failure, bad: bad}
+			provider := NewTmpProvider(fsys, cleanupfakes.Clock{Time: now}, FileProviderConfig{ID: "tmp", Roots: []string{tmpRoot}, TopLevelEntries: true})
+			preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: now, CompleteCensus: true}, Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: 7 * 24 * time.Hour}})
+			if failure == "root-listing" || failure == "canceled" {
+				if err == nil || len(preview.Items) != 0 {
+					t.Fatalf("global failure exposed candidates: %#v %v", preview, err)
+				}
+				return
+			}
+			if err != nil || len(preview.Items) != 1 || preview.Items[0].Path != good || preview.Items[0].Bytes != 4196 || len(preview.Warnings) == 0 {
+				t.Fatalf("failed unit not protected: %#v %v", preview, err)
+			}
+		})
+	}
+}
+
+type partialObservationFS struct {
+	*cleanupfakes.FileSystem
+	failure, bad string
+}
+
+func (f *partialObservationFS) ReadDir(ctx context.Context, path string) ([]cleanup.FileInfo, error) {
+	entries, err := f.FileSystem.ReadDir(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	if f.failure == "root-listing" {
+		return nil, errors.New("root read failed")
+	}
+	if f.failure == "child-metadata" {
+		var good []cleanup.FileInfo
+		for _, entry := range entries {
+			if entry.Path != f.bad {
+				good = append(good, entry)
+			}
+		}
+		return good, &cleanup.PartialDirectoryError{Failures: []error{errors.New("transport endpoint is not connected")}}
+	}
+	return entries, nil
+}
+func (f *partialObservationFS) Walk(ctx context.Context, root string, visit func(cleanup.FileInfo) error) error {
+	if root == f.bad {
+		if f.failure == "canceled" {
+			return context.Canceled
+		}
+		if f.failure == "subtree-walk" {
+			_ = visit(f.Files[root])
+			return errors.New("transport endpoint is not connected")
+		}
+	}
+	return f.FileSystem.Walk(ctx, root, visit)
+}
+
+func TestTemporaryRecoveryRetainsVerifiedSiblingsAfterPartialListing(t *testing.T) {
+	good, bad := filepath.Join(tmpRoot, "good"), filepath.Join(tmpRoot, "bad")
+	fsys := &partialObservationFS{FileSystem: &cleanupfakes.FileSystem{Root: tmpRoot, Files: map[string]cleanup.FileInfo{good: dir(good, at(20, 0)), good + "/payload": file(good+"/payload", 100, at(20, 0)), bad: dir(bad, at(20, 0))}}, failure: "child-metadata", bad: bad}
+	provider := NewTmpProvider(&partialResumableFS{fsys}, cleanupfakes.Clock{Time: now}, FileProviderConfig{ID: "tmp", Roots: []string{tmpRoot}, TopLevelEntries: true})
+	preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Scope: cleanup.ObservationScope{Now: now, Recovery: true}, Policy: cleanup.ProviderPolicy{Enabled: true, MinAge: 7 * 24 * time.Hour}})
+	if err != nil || len(preview.Items) != 1 || preview.Items[0].Path != good || len(preview.Warnings) == 0 {
+		t.Fatalf("recovery lost protected partial observation: %#v %v", preview, err)
+	}
+}
+
+type partialResumableFS struct{ *partialObservationFS }
+
+func (f *partialResumableFS) OpenWalk(ctx context.Context, path string) (cleanup.FileWalk, error) {
+	return (&treeWalkFS{f.FileSystem}).OpenWalk(ctx, path)
 }

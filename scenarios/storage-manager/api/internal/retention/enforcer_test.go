@@ -441,11 +441,138 @@ func TestEnforceDefersCustomRetentionToOwner(t *testing.T) {
 			Reclaim: &coreStorage.ReclaimDeclaration{Pruner: "custom"}, Budget: &coreStorage.BudgetDeclaration{MaxBytes: "1B"},
 		}},
 	}}}
-	results, err := (Enforcer{RepoRoot: root, Platform: coreStorage.PlatformLinux}).Enforce(context.Background(), inventory)
-	if err != nil || !results["demo"].Refused || results["demo"].Deleted != 0 {
-		t.Fatalf("results=%+v err=%v", results, err)
+	var events []map[string]any
+	enforcer := Enforcer{RepoRoot: root, Platform: coreStorage.PlatformLinux, OverBudgetCycles: map[string]int{}, BudgetEvent: func(_ context.Context, kind string, payload map[string]any) error {
+		if kind != "storage.budget.exceeded" {
+			t.Errorf("unexpected event %q", kind)
+		}
+		events = append(events, payload)
+		return nil
+	}}
+	for cycle := 1; cycle <= 2; cycle++ {
+		results, err := enforcer.Enforce(context.Background(), inventory)
+		result := entryResult(t, results, "demo", "cache")
+		if err != nil || !result.Refused || result.Deleted != 0 || result.UsedBytes != 4 || result.BudgetBytes != 1 || result.OverBytes != 3 || result.Escalated != (cycle == 2) || len(result.Locations) != 1 {
+			t.Fatalf("cycle %d results=%+v err=%v", cycle, results, err)
+		}
+		if strings.Contains(result.Reason, "is enforced") {
+			t.Fatalf("unsupported enforcement claim: %q", result.Reason)
+		}
+	}
+	if len(events) != 1 || events[0]["measured_bytes"] != int64(4) || events[0]["budget_bytes"] != int64(1) {
+		t.Fatalf("budget events = %+v", events)
 	}
 	if _, err := os.Stat(path); err != nil {
 		t.Fatalf("owner protection bypassed: %v", err)
+	}
+}
+
+func TestCustomRetentionIncompleteMeasurementBreaksBreachSequence(t *testing.T) {
+	root := contractFixture(t)
+	dir := filepath.Join(root, "resources", "demo", "cache")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, "active")
+	if err := os.WriteFile(path, []byte("1234"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	inventory := coreStorage.OwnerInventory{Owners: []coreStorage.OwnerManifest{{
+		Kind: coreStorage.OwnerResource, ID: "demo", ManifestPath: filepath.Join(root, "resources", "demo", "resource.json"),
+		StorageEntries: []coreStorage.StorageEntry{{Name: "cache", Kind: "dir", Path: coreStorage.PortablePath{Value: "cache"}, Regenerable: true, Reclaim: &coreStorage.ReclaimDeclaration{Pruner: "custom"}, Budget: &coreStorage.BudgetDeclaration{MaxBytes: "1B"}}},
+	}}}
+	events := 0
+	e := Enforcer{RepoRoot: root, Platform: coreStorage.PlatformLinux, OverBudgetCycles: map[string]int{}, BudgetEvent: func(context.Context, string, map[string]any) error { events++; return nil }}
+	e.customMeasureLimit = 2 // root plus one file fits exactly
+	run := func(ctx context.Context) Result {
+		results, err := e.Enforce(ctx, inventory)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return entryResult(t, results, "demo", "cache")
+	}
+	if got := run(context.Background()); got.UsedBytes != 4 || got.Incomplete {
+		t.Fatalf("initial observation: %+v", got)
+	}
+	e.customMeasureLimit = 1
+	if got := run(context.Background()); !got.Incomplete || !got.Refused || got.Error == "" || got.UsedBytes != 0 || got.OverBytes != 0 {
+		t.Fatalf("limited observation: %+v", got)
+	}
+	e.customMeasureLimit = 2
+	if got := run(context.Background()); got.Escalated || events != 0 {
+		t.Fatalf("unknown observation did not break sequence: %+v events=%d", got, events)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if got := run(ctx); !got.Incomplete || got.Error == "" || got.UsedBytes != 0 {
+		t.Fatalf("cancelled observation: %+v", got)
+	}
+	if got := run(context.Background()); got.Escalated || events != 0 {
+		t.Fatalf("cancellation did not break sequence: %+v events=%d", got, events)
+	}
+	if got := run(context.Background()); !got.Escalated || events != 1 {
+		t.Fatalf("two complete breaches: %+v events=%d", got, events)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("cache output removed: %v", err)
+	}
+}
+
+// Exercise the shipped tool declaration through the inventory loader: a budget
+// must not make a shared cache eligible for generic directory deletion.
+func TestEnforceShippedGoBuildCacheDoesNotDelete(t *testing.T) {
+	root := contractFixture(t)
+	manifestDir := filepath.Join(root, "internal", "tools", "go")
+	if err := os.MkdirAll(manifestDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	sourceRoot := filepath.Dir(filepath.Dir(repoContractPath(t)))
+	raw, err := os.ReadFile(filepath.Join(sourceRoot, "internal", "tools", "go", "tool.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(manifestDir, "tool.json"), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	inventory, err := coreStorage.LoadOwnerInventory(coreStorage.InventoryOptions{RepoRoot: root, Platform: coreStorage.PlatformLinux})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var selected *coreStorage.StorageEntry
+	for i := range inventory.Owners {
+		owner := &inventory.Owners[i]
+		if owner.Kind != coreStorage.OwnerTool || owner.ID != "go" {
+			continue
+		}
+		for j := range owner.StorageEntries {
+			if owner.StorageEntries[j].Name == "build_cache" {
+				selected = &owner.StorageEntries[j]
+			}
+		}
+		owner.StorageEntries = nil // the module cache is outside this test
+		if selected != nil {
+			owner.StorageEntries = []coreStorage.StorageEntry{*selected}
+			selected = &owner.StorageEntries[0]
+		}
+	}
+	if selected == nil {
+		t.Fatal("Go build cache declaration missing from inventory")
+	}
+	cache := filepath.Join(root, "fixture-cache")
+	if err := os.MkdirAll(cache, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(cache, "active-output")
+	if err := os.WriteFile(path, []byte("1234"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	selected.Path = coreStorage.PortablePath{Value: cache}
+	selected.Budget = &coreStorage.BudgetDeclaration{MaxBytes: "1B"}
+	results, err := (Enforcer{RepoRoot: root, Platform: coreStorage.PlatformLinux}).Enforce(context.Background(), inventory)
+	if err != nil || !results["go"].Refused || results["go"].Deleted != 0 || !strings.Contains(results["go"].Reason, "custom retention") {
+		t.Fatalf("results=%+v err=%v", results, err)
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("active cache output removed: %v", err)
 	}
 }

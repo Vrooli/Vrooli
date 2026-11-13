@@ -116,3 +116,28 @@ provider could have created are expired.
 
 The provider declares Linux and macOS support. Tests substitute a fake
 filesystem and a fake instance registry.
+
+## Ollama model retention
+
+`ollama-model-retention` observes installed tags through Ollama's `/api/tags`
+and active residency through `/api/ps`. A candidate requires a stable digest,
+an idle usage window, no active model-policy reference, and an owner
+authorization that proves exact installation provenance and retention intent,
+plus a supported owner mutation that serializes deletion with those facts.
+The Ollama `ensure` owner writes
+`${RESOURCE_DATA_DIR}/ollama-install-provenance.json` only after its pinned
+public-registry pull, installed digest verification, and temporary alias
+cleanup succeed. Storage Manager's current registry does not read that receipt
+as deletion authority. It does not prove continued registry availability or
+retention intent; direct API pulls and custom models also lack a matching
+receipt.
+
+The production adapter has no delete method. Ollama's public delete operation
+accepts a model name without digest/size preconditions or a shared activity,
+policy, and lifecycle fence. Preview and apply-time reads are advisory and do
+not narrow or close that race. No Ollama model is eligible for deletion until
+an owner-supported atomic retention operation and exact provenance authority
+are wired. Preview reports Ollama's per-tag logical size with a warning that
+shared blobs make it neither unique filesystem usage nor reclaimable bytes.
+Estimated and reclaimed bytes remain zero; actual filesystem delta is unknown
+until an owner reports an authoritative measurement.

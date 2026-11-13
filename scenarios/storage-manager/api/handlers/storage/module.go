@@ -154,7 +154,7 @@ func Module(d ModuleDeps) module.Module {
 				http.Error(w, inventoryErr.Error(), http.StatusInternalServerError)
 				return
 			}
-			report, err := census.ScanInventory(root, inventory)
+			report, err := census.ScanInventoryContext(req.Context(), root, inventory)
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return

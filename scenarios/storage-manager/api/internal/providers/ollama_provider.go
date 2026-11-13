@@ -1,7 +1,6 @@
 package providers
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,11 +25,14 @@ type OllamaModel struct {
 type OllamaModelInventory interface {
 	ListModels(context.Context) ([]OllamaModel, error)
 	ListRunningModels(context.Context) ([]OllamaModel, error)
-	DeleteModel(context.Context, string) error
 }
 
-// HTTPOllamaModelInventory is the storage-manager boundary to Ollama. It
-// deliberately uses only the public model APIs and never inspects model blobs.
+// HTTPOllamaModelInventory is the inventory-only storage-manager boundary to
+// Ollama. The public delete API accepts a model name without a digest/size
+// precondition. Storage Manager has no supported owner operation that
+// serializes deletion with every active request, role-policy writer, and
+// lifecycle transition, so this adapter intentionally has no delete method.
+// Preview and pre-apply observations do not establish that missing fence.
 type HTTPOllamaModelInventory struct {
 	BaseURL string
 	HTTP    *http.Client
@@ -74,14 +76,6 @@ func (c *HTTPOllamaModelInventory) ListRunningModels(ctx context.Context) ([]Oll
 	return out, nil
 }
 
-func (c *HTTPOllamaModelInventory) DeleteModel(ctx context.Context, model string) error {
-	body, err := json.Marshal(map[string]string{"name": model})
-	if err != nil {
-		return err
-	}
-	return c.doJSON(ctx, http.MethodDelete, "/api/delete", bytes.NewReader(body), nil)
-}
-
 func (c *HTTPOllamaModelInventory) doJSON(ctx context.Context, method, path string, body io.Reader, out any) error {
 	req, err := http.NewRequestWithContext(ctx, method, c.BaseURL+path, body)
 	if err != nil {
@@ -122,6 +116,7 @@ type ollamaModelPolicy struct {
 
 type ollamaModelLedger interface {
 	Record(context.Context, time.Time, []OllamaModel) error
+	RecordInventory(context.Context, time.Time, []OllamaModel) (ollamaInventoryTotals, error)
 	Eligible(string, time.Time, time.Duration) bool
 }
 
@@ -138,13 +133,13 @@ func NewOllamaModelRetentionProvider(client OllamaModelInventory, ledger ollamaM
 
 func (p *OllamaModelRetentionProvider) Metadata() cleanup.ProviderMetadata {
 	return cleanup.ProviderMetadata{
-		ID: "ollama-model-retention", Name: "Ollama models eligible for retention", Version: "v1",
+		ID: "ollama-model-retention", Name: "Ollama model retention (held without owner fence)", Version: "v3",
 		OwnerScenario: "storage-manager", SafetyTier: cleanup.SafetyTierSafeWithOwner,
-		// Preview is safe to run automatically; deletion remains operator-gated
-		// by both the conditional tier and Apply's approval check.
+		// Preview is observational. Apply requires operator approval and also
+		// fails closed until a supported atomic owner deletion contract exists.
 		DefaultMode: cleanup.ProviderModeEnabled, DefaultApproval: cleanup.ApprovalModeOperator,
 		SupportedPlatforms: []string{"linux", "darwin", "windows"}, RequiredPrivileges: []string{"ollama-api"},
-		IrreversibleEffects: []string{"operator-approved Ollama model deletion through the service API"}, TestSubstitute: "fake-ollama-model-inventory",
+		IrreversibleEffects: []string{"none; model retention is held until an atomic owner deletion contract exists"}, TestSubstitute: "fake-ollama-model-inventory",
 	}
 }
 
@@ -171,26 +166,30 @@ func (p *OllamaModelRetentionProvider) referencedModels() (map[string]bool, erro
 	return refs, nil
 }
 
-func (p *OllamaModelRetentionProvider) observe(ctx context.Context, now time.Time) ([]OllamaModel, []OllamaModel, map[string]bool, error) {
+func (p *OllamaModelRetentionProvider) observe(ctx context.Context, now time.Time) ([]OllamaModel, []OllamaModel, map[string]bool, ollamaInventoryTotals, error) {
 	if p.client == nil || p.ledger == nil {
-		return nil, nil, nil, fmt.Errorf("Ollama inventory or usage ledger unavailable")
+		return nil, nil, nil, ollamaInventoryTotals{}, fmt.Errorf("Ollama inventory or usage ledger unavailable")
 	}
 	models, err := p.client.ListModels(ctx)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, ollamaInventoryTotals{}, err
 	}
 	running, err := p.client.ListRunningModels(ctx)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, ollamaInventoryTotals{}, err
 	}
 	if err := p.ledger.Record(ctx, now, running); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, ollamaInventoryTotals{}, err
+	}
+	totals, err := p.ledger.RecordInventory(ctx, now, models)
+	if err != nil {
+		return nil, nil, nil, ollamaInventoryTotals{}, err
 	}
 	refs, err := p.referencedModels()
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, ollamaInventoryTotals{}, err
 	}
-	return models, running, refs, nil
+	return models, running, refs, totals, nil
 }
 
 func (p *OllamaModelRetentionProvider) Estimate(ctx context.Context, req cleanup.EstimateRequest) (cleanup.Estimate, error) {
@@ -203,9 +202,13 @@ func (p *OllamaModelRetentionProvider) Estimate(ctx context.Context, req cleanup
 	}
 	var bytes int64
 	for _, item := range preview.Items {
-		bytes += item.Bytes
+		bytes = saturatingAddNonnegative(bytes, item.Bytes)
 	}
-	return cleanup.Estimate{ProviderID: p.Metadata().ID, ProviderVersion: p.Metadata().Version, EstimatedBytes: bytes, ItemCount: len(preview.Items), RequiresApproval: true, ObservedAt: req.Scope.Now}, nil
+	notices := append([]string(nil), preview.Warnings...)
+	if len(preview.Items) == 0 {
+		notices = append(notices, "estimated reclaimable bytes are zero because retention has no authorized deletion candidate; actual filesystem bytes reclaimed are unknown until an owner reports an authoritative delta")
+	}
+	return cleanup.Estimate{ProviderID: p.Metadata().ID, ProviderVersion: p.Metadata().Version, EstimatedBytes: bytes, ItemCount: len(preview.Items), RequiresApproval: true, ObservedAt: req.Scope.Now, Notices: notices}, nil
 }
 
 func (p *OllamaModelRetentionProvider) Preview(ctx context.Context, req cleanup.PreviewRequest) (cleanup.Preview, error) {
@@ -216,14 +219,14 @@ func (p *OllamaModelRetentionProvider) Preview(ctx context.Context, req cleanup.
 }
 
 func (p *OllamaModelRetentionProvider) preview(ctx context.Context, now time.Time, policy cleanup.ProviderPolicy) (cleanup.Preview, error) {
-	out := cleanup.Preview{ProviderID: p.Metadata().ID, ProviderVersion: p.Metadata().Version}
+	out := cleanup.Preview{ProviderID: p.Metadata().ID, ProviderVersion: p.Metadata().Version, MinAge: policy.MinAge}
 	if now.IsZero() {
 		if p.clock == nil {
 			return out, fmt.Errorf("Ollama retention observation clock is unavailable")
 		}
 		now = p.clock.Now()
 	}
-	models, running, refs, err := p.observe(ctx, now)
+	models, running, refs, totals, err := p.observe(ctx, now)
 	if err != nil {
 		out.BlockedReason = err.Error()
 		return out, nil
@@ -232,27 +235,53 @@ func (p *OllamaModelRetentionProvider) preview(ctx context.Context, now time.Tim
 	for _, model := range running {
 		runningSet[model.Name] = true
 	}
+	var logicalBytes int64
+	var explicitlyProtectedBytes int64
+	observedModels := 0
 	for _, model := range models {
-		if model.Name == "" || runningSet[model.Name] {
+		if model.Name == "" {
 			continue
 		}
-		reason := ""
-		safety := cleanup.SafetyTierConditional
-		switch {
-		case !refs[model.Name]:
-			reason = "unreferenced by model-policy.json"
-		case p.ledger.Eligible(model.Name, now, policy.MinAge):
-			reason = fmt.Sprintf("not observed loaded for %s", policy.MinAge)
-		default:
+		observedModels++
+		logicalBytes = saturatingAddNonnegative(logicalBytes, model.Size)
+		isRunning := runningSet[model.Name]
+		isPolicyReferenced := refs[model.Name]
+		if isRunning || isPolicyReferenced {
+			explicitlyProtectedBytes = saturatingAddNonnegative(explicitlyProtectedBytes, model.Size)
+		}
+		if isRunning {
 			continue
 		}
-		out.Items = append(out.Items, cleanup.PreviewItem{ID: "ollama-model:" + model.Name, Description: fmt.Sprintf("Ollama model %s (%s)", model.Name, reason), Bytes: model.Size, Action: "ollama-delete-model", SafetyTier: safety})
+		if isPolicyReferenced {
+			out.Warnings = append(out.Warnings, fmt.Sprintf("%s: protected by the active Ollama model policy", model.Name))
+		}
+		if model.Digest == "" {
+			out.Warnings = append(out.Warnings, fmt.Sprintf("%s: Ollama did not report a digest; retention identity is unknown", model.Name))
+			continue
+		}
+		if isPolicyReferenced {
+			continue
+		}
+		// This is deliberately a permanent fail-closed gate until Ollama exposes
+		// a supported owner mutation contract that atomically covers role-policy
+		// references, runtime activity/lifecycle and the observed model identity.
+		// Storage Manager's preview and pre-apply reads are advisory only; they
+		// do not serialize with request-time usage or every model writer.
+		out.Warnings = append(out.Warnings, fmt.Sprintf("%s: held; exact install provenance is unavailable and Ollama exposes only name-based deletion, with no supported atomic retention fence", model.Name))
 	}
+	if observedModels > 0 {
+		out.Warnings = append(out.Warnings, fmt.Sprintf("this preview observed %d Ollama model tags with %d bytes of reported logical model size at %s; shared blobs mean this is not unique filesystem usage or reclaimable-byte attribution", observedModels, logicalBytes, now.UTC().Format(time.RFC3339Nano)))
+	}
+	// All installed bytes remain retained until the serving owner can apply an
+	// atomic reference/activity fence. The explicitly protected subtotal calls
+	// out policy/running references, while the remainder is still held by the
+	// fail-closed provider contract.
+	out.Warnings = append(out.Warnings, fmt.Sprintf("Ollama persisted logical tag accounting: baseline=%d B current=%d B peak=%d B retained=%d B; retained includes every installed tag because no atomic owner deletion fence exists; snapshot observed %s. Explicit policy/running protected bytes in this preview=%d B at %s. Shared blobs make these tag totals non-physical and non-reclaimable", totals.BaselineLogicalBytes, totals.CurrentLogicalBytes, totals.PeakLogicalBytes, totals.CurrentLogicalBytes, totals.LastObservedAt.UTC().Format(time.RFC3339Nano), explicitlyProtectedBytes, now.UTC().Format(time.RFC3339Nano)))
 	sort.Slice(out.Items, func(i, j int) bool { return out.Items[i].ID < out.Items[j].ID })
 	return out, nil
 }
 
-func (p *OllamaModelRetentionProvider) Apply(ctx context.Context, req cleanup.ApplyRequest) (cleanup.ApplyResult, error) {
+func (p *OllamaModelRetentionProvider) Apply(_ context.Context, req cleanup.ApplyRequest) (cleanup.ApplyResult, error) {
 	if req.ProviderVersion != p.Metadata().Version {
 		return cleanup.ApplyResult{}, fmt.Errorf("provider %s version mismatch: got %q want %q", p.Metadata().ID, req.ProviderVersion, p.Metadata().Version)
 	}
@@ -263,22 +292,30 @@ func (p *OllamaModelRetentionProvider) Apply(ctx context.Context, req cleanup.Ap
 		return cleanup.ApplyResult{ProviderID: p.Metadata().ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"operator approval required"}}, nil
 	}
 	result := cleanup.ApplyResult{ProviderID: p.Metadata().ID}
-	for _, item := range req.Preview.Items {
-		const prefix = "ollama-model:"
-		if !strings.HasPrefix(item.ID, prefix) {
-			result.SkippedItems = append(result.SkippedItems, item.ID)
-			continue
-		}
-		if err := p.client.DeleteModel(ctx, strings.TrimPrefix(item.ID, prefix)); err != nil {
-			result.Warnings = append(result.Warnings, fmt.Sprintf("%s: %v", item.ID, err))
-			continue
-		}
-		result.ReclaimedBytes += item.Bytes
+	result.SkippedItems = previewItemIDs(req.Preview.Items)
+	if len(result.SkippedItems) > 0 {
+		result.Warnings = append(result.Warnings, "Ollama model retention is disabled: no supported atomic owner fence covers role-policy references, runtime activity, lifecycle operations, and model identity at deletion time; no authoritative filesystem delta is available, so reclaimed bytes remain unknown and are reported as zero")
 	}
-	result.Applied = result.ReclaimedBytes > 0
 	return result, nil
 }
 
-func (p *OllamaModelRetentionProvider) Verify(context.Context, cleanup.VerifyRequest) (cleanup.VerifyResult, error) {
-	return cleanup.VerifyResult{Verified: true, Message: "Ollama model eviction uses the service API and operator approval"}, nil
+func (p *OllamaModelRetentionProvider) Verify(_ context.Context, req cleanup.VerifyRequest) (cleanup.VerifyResult, error) {
+	if len(req.ApplyResult.SkippedItems) > 0 {
+		return cleanup.VerifyResult{Verified: false, Message: "Ollama retention apply skipped one or more items"}, nil
+	}
+	if len(req.ApplyResult.AppliedItems) == 0 {
+		return cleanup.VerifyResult{Verified: false, Message: "no Ollama model deletion was reported for verification"}, nil
+	}
+	return cleanup.VerifyResult{Verified: false, Message: "Ollama exposes no supported atomic retention deletion contract"}, nil
+}
+
+func saturatingAddNonnegative(total, value int64) int64 {
+	if value <= 0 {
+		return total
+	}
+	max := int64(^uint64(0) >> 1)
+	if total > max-value {
+		return max
+	}
+	return total + value
 }

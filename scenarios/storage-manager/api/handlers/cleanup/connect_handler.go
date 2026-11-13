@@ -341,14 +341,24 @@ func planToProto(plan orchestrator.Plan) *cleanupv1.Plan {
 			ApprovalMode:    string(pp.Policy.ApprovalMode),
 		}
 		for _, item := range pp.Preview.Items {
-			provider.Items = append(provider.Items, &cleanupv1.PreviewItem{
-				Id:          item.ID,
-				Path:        item.Path,
-				Description: item.Description,
-				Bytes:       item.Bytes,
-				Action:      item.Action,
-				SafetyTier:  string(item.SafetyTier),
-			})
+			protoItem := &cleanupv1.PreviewItem{
+				Id:             item.ID,
+				Path:           item.Path,
+				Description:    item.Description,
+				Bytes:          item.Bytes,
+				Action:         item.Action,
+				SafetyTier:     string(item.SafetyTier),
+				ObjectIdentity: item.Identity,
+			}
+			if !item.ModTime.IsZero() {
+				protoItem.ModifiedAt = timestamppb.New(item.ModTime)
+				protoItem.AgeKnown = true
+				age := plan.CreatedAt.Sub(item.ModTime)
+				if age > 0 {
+					protoItem.AgeSeconds = int64(age / time.Second)
+				}
+			}
+			provider.Items = append(provider.Items, protoItem)
 		}
 		out.Providers = append(out.Providers, provider)
 	}

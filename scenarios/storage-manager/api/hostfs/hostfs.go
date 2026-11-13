@@ -127,6 +127,9 @@ func (f *FS) ReadFile(ctx context.Context, path string) ([]byte, error) {
 // Like Walk it is forgiving about individual entries: one child that vanished
 // between the directory listing and its stat does not invalidate the rest of
 // the listing, which in a temp directory is a routine race rather than a fault.
+// Other child metadata failures return verified siblings with PartialDirectoryError;
+// the failed children remain excluded and callers must surface the partial result.
+// A failure to list the parent itself is never converted into a partial listing.
 // Symlinks are excluded for the same reason Walk excludes them — a link is
 // never a unit of reclaimable space, and following one would let a path inside
 // a configured root stand in for a tree outside it.
@@ -144,8 +147,16 @@ func (f *FS) ReadDir(ctx context.Context, path string) ([]cleanup.FileInfo, erro
 		return nil, err
 	}
 
+	return f.readDirEntries(ctx, path, entries)
+}
+
+func (f *FS) readDirEntries(ctx context.Context, path string, entries []fs.DirEntry) ([]cleanup.FileInfo, error) {
 	out := make([]cleanup.FileInfo, 0, len(entries))
+	var failures []error
 	for _, entry := range entries {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		if entry.Type()&fs.ModeSymlink != 0 {
 			continue
 		}
@@ -154,12 +165,16 @@ func (f *FS) ReadDir(ctx context.Context, path string) ([]cleanup.FileInfo, erro
 			if isBenignWalkError(err) {
 				continue
 			}
-			return nil, err
+			failures = append(failures, err)
+			continue
 		}
 		if f.restrictToOwner && !ownedByCurrentUser(info) {
 			continue
 		}
 		out = append(out, toFileInfo(filepath.Join(path, entry.Name()), info))
+	}
+	if len(failures) > 0 {
+		return out, &cleanup.PartialDirectoryError{Failures: failures}
 	}
 	return out, nil
 }

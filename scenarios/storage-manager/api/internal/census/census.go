@@ -218,6 +218,17 @@ func Scan(root string, manifests map[string][]Declaration) (Report, error) {
 // tools, and safeguards. Relative scenario paths are rooted at the scenario;
 // other relative paths are rooted beside their native manifest.
 func ScanInventory(root string, inventory corestorage.OwnerInventory) (Report, error) {
+	return ScanInventoryContext(context.Background(), root, inventory)
+}
+
+// ScanInventoryContext measures the same owner inventory as ScanInventory,
+// but stops walking promptly when the caller is canceled. Production request
+// handlers should use this form so abandoned census requests do not keep
+// traversing the host filesystem in the background.
+func ScanInventoryContext(ctx context.Context, root string, inventory corestorage.OwnerInventory) (Report, error) {
+	if err := ctx.Err(); err != nil {
+		return Report{}, err
+	}
 	root, err := filepath.Abs(root)
 	if err != nil {
 		return Report{}, fmt.Errorf("census: resolve root: %w", err)
@@ -226,7 +237,7 @@ func ScanInventory(root string, inventory corestorage.OwnerInventory) (Report, e
 	if err != nil {
 		return Report{}, err
 	}
-	return scanInventory(root, inventory, policy, true, hostFileSystem{}, NewDeviceProbe())
+	return scanInventory(ctx, root, inventory, policy, true, hostFileSystem{}, NewDeviceProbe())
 }
 
 // ScanInventoryWithPolicy is the deterministic seam used by acceptance tests
@@ -237,10 +248,13 @@ func ScanInventoryWithPolicy(root string, inventory corestorage.OwnerInventory, 
 	if err != nil {
 		return Report{}, fmt.Errorf("census: resolve root: %w", err)
 	}
-	return scanInventory(root, inventory, policy, false, hostFileSystem{}, NewDeviceProbe())
+	return scanInventory(context.Background(), root, inventory, policy, false, hostFileSystem{}, NewDeviceProbe())
 }
 
-func scanInventory(root string, inventory corestorage.OwnerInventory, policy ScanPolicy, deviceScoped bool, filesystem FileSystem, probe DeviceProbe) (Report, error) {
+func scanInventory(ctx context.Context, root string, inventory corestorage.OwnerInventory, policy ScanPolicy, deviceScoped bool, filesystem FileSystem, probe DeviceProbe) (Report, error) {
+	if err := ctx.Err(); err != nil {
+		return Report{}, err
+	}
 	declarations := make([]resolvedDeclaration, 0)
 	ownerRoots := make([]string, 0)
 	counts := map[string]int{}
@@ -267,8 +281,11 @@ func scanInventory(root string, inventory corestorage.OwnerInventory, policy Sca
 		ownerRoots = append(ownerRoots, ownerStorageRoots(root, owner)...)
 	}
 	declarations = append(declarations, runtimeHomeDeclarations(hostRuntimeHomeEntries(root), declarations, ownerRoots)...)
-	orphans := orphanScenarioRoots(root, inventory, filesystem)
-	report, err := scanWithPolicyUsing(scanRequest{
+	orphans := orphanScenarioRootsContext(ctx, root, inventory, filesystem)
+	if err := ctx.Err(); err != nil {
+		return Report{}, err
+	}
+	report, err := scanWithPolicyUsingContext(ctx, scanRequest{
 		displayRoot:  root,
 		policy:       policy,
 		declarations: declarations,
@@ -291,6 +308,10 @@ func scanInventory(root string, inventory corestorage.OwnerInventory, policy Sca
 // recursive walk of each directory, which used to re-read every orphaned
 // node_modules tree on every census.
 func orphanScenarioRoots(repoRoot string, inventory corestorage.OwnerInventory, filesystem FileSystem) []string {
+	return orphanScenarioRootsContext(context.Background(), repoRoot, inventory, filesystem)
+}
+
+func orphanScenarioRootsContext(ctx context.Context, repoRoot string, inventory corestorage.OwnerInventory, filesystem FileSystem) []string {
 	base := filepath.Join(repoRoot, "scenarios")
 	owned := make(map[string]bool, len(inventory.Owners))
 	for _, owner := range inventory.Owners {
@@ -300,6 +321,9 @@ func orphanScenarioRoots(repoRoot string, inventory corestorage.OwnerInventory, 
 	}
 	var out []string
 	_ = filesystem.WalkDir(base, func(path string, entry fs.DirEntry, err error) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if err != nil {
 			return nil
 		}
@@ -446,6 +470,13 @@ type scanRequest struct {
 }
 
 func scanWithPolicyUsing(request scanRequest, filesystem FileSystem, probe DeviceProbe) (Report, error) {
+	return scanWithPolicyUsingContext(context.Background(), request, filesystem, probe)
+}
+
+func scanWithPolicyUsingContext(ctx context.Context, request scanRequest, filesystem FileSystem, probe DeviceProbe) (Report, error) {
+	if err := ctx.Err(); err != nil {
+		return Report{}, err
+	}
 	displayRoot, err := filepath.Abs(request.displayRoot)
 	if err != nil {
 		return Report{}, err
@@ -525,6 +556,9 @@ func scanWithPolicyUsing(request scanRequest, filesystem FileSystem, probe Devic
 	walked := make([]string, 0, len(scanRoots))
 	unattributedTree := &unattributedNode{path: accountingRoot, buckets: map[string]int64{}}
 	for _, rawRoot := range scanRoots {
+		if err := ctx.Err(); err != nil {
+			return Report{}, err
+		}
 		root, absErr := filepath.Abs(rawRoot)
 		if absErr != nil {
 			return Report{}, absErr
@@ -553,6 +587,9 @@ func scanWithPolicyUsing(request scanRequest, filesystem FileSystem, probe Devic
 		}
 		walked = append(walked, root)
 		walkErr := filesystem.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			if walkErr != nil {
 				unreadable = append(unreadable, path)
 				if d != nil && !d.IsDir() {

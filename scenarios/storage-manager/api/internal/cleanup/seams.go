@@ -2,6 +2,7 @@ package cleanup
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"time"
 )
@@ -14,6 +15,17 @@ type FileInfo struct {
 	IsDir   bool
 	// Identity binds a measured entry to its native filesystem object.
 	Identity string
+}
+
+// PartialDirectoryError reports children excluded because their metadata could not
+// be read. The returned listing contains only independently verified siblings;
+// it must never be used as proof that a whole parent subtree was measured.
+type PartialDirectoryError struct {
+	Failures []error
+}
+
+func (e *PartialDirectoryError) Error() string {
+	return fmt.Sprintf("directory entries excluded from observation: %v", e.Failures)
 }
 
 // FileWalk retains traversal position between bounded observations. EOF means
@@ -47,6 +59,8 @@ type FileSystem interface {
 	// single whole-root walk there is no way to tell those apart, and an entry
 	// judged on a half-read subtree could be deleted while holding a file the
 	// walk never reached.
+	// PartialDirectoryError permits using the returned independent children only.
+	// Every other error invalidates the listing.
 	ReadDir(ctx context.Context, path string) ([]FileInfo, error)
 
 	Walk(ctx context.Context, root string, visit func(FileInfo) error) error

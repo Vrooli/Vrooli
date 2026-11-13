@@ -39,8 +39,15 @@ is read-only and is the input to the census and adoption views.
 | | |
 |---|---|
 | **Auth** | Operator-local API access |
-| **Response** | `OwnerInventory { repo_root, owners[], findings[], ollama_models? }`; when Ollama is available, `ollama_models.models[]` contains each installed model's name, digest, logical size, policy reachability, and regeneration rationale, plus physical/unattributed accounting for the model root. |
+| **Response** | `OwnerInventory { repo_root, owners[], findings[], ollama_models? }`; when Ollama is available, `ollama_models.models[]` contains each installed model's normalized name, digest, logical size, policy reachability, `policy_reachability_known`, referenced role names, and regeneration rationale. If policy load/decode fails, reachability is unknown (`policy_reachability_known=false`), not a negative claim. Duplicate normalized `/api/tags` names make total-size accounting unknown; if a role references a duplicate tag, it appears in that role's `ambiguous_models` and its role byte total is unknown. `ollama_models.roles[]` reports each role's primary and fallback tags, the distinct installed tags reachable from that role, logical model bytes, missing tags, and ambiguous tags. `role_accounting_known` is false if the policy, a referenced model size, or a referenced model identity is incomplete. Role totals are per-role logical attribution: a shared tag is counted once within each role and may appear in several role totals, so totals are non-additive and are not unique or allocated bytes. `total_model_bytes_known`, `logical_file_length_bytes_known`, and `unattributed_logical_file_length_known` distinguish measured totals from unavailable/invalid values. The model-root summary reports summed logical file lengths and any logical-length remainder; `physical_bytes_known` is false and `physical_bytes`/`unattributed_bytes` are null until an allocated-byte owner measurement exists. |
 | **CLI** | `storage-manager storage inventory` |
+
+Ollama policy reachability is not installation provenance. `install_provenance_status`
+is `matched` only when the ensure-owned receipt's model name and digest match
+the current `/api/tags` row. It records source history, but is not delete
+authority or proof that the registry still serves the artifact. `regenerable`
+remains false until same-artifact restoration is proven; model identity and
+logical size come from Ollama's service API.
 
 The loader lives in `packages/api-core/storage/owners.go`; native manifest
 locations remain authoritative and are not copied into a second manifest tree.
@@ -54,6 +61,9 @@ default). The response includes all owner kinds, measured/attributed/
 unattributed bytes, an accounting identity, confidence, typed findings,
 persisted snapshot identity, and the latest growth slope. Unreadable paths and
 overlaps are findings; they are never silently treated as closed accounting.
+The request context is checked between filesystem entries; cancellation stops
+the walk and no partial snapshot is persisted. An individual filesystem call
+already in progress is not preemptible.
 
 ### `GET /api/v1/census/history`
 
@@ -272,7 +282,15 @@ mode and token.
 
 The plan id is a stable hash of policy version, provider versions,
 provider policies, preview items, and blocked reasons. Creating a plan
-does not mutate host state.
+does not mutate host state. Each `PreviewItem` may also include
+`object_identity` (the local filesystem device/inode when the provider can
+observe it), `modified_at`, `age_seconds` at `Plan.created_at`, and
+`age_known`. These values are read-only review metadata exposed on the
+operator-local loopback API; they are never authorization tokens. An unknown
+age is represented by `age_known=false`, not by treating the item as new.
+For the temporary-file provider, apply rechecks the current item identity,
+retention age throughout the tree, active leases/processes, and protected
+paths before removal. Preview metadata alone does not authorize deletion.
 
 #### `POST /vrooli.cleanup_manager.v1.cleanup.CleanupService/ApplyPlan`
 

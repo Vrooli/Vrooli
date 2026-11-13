@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -390,4 +391,46 @@ func newTestService(t *testing.T, mode cleanup.ProviderMode, approval cleanup.Ap
 		t.Fatalf("SavePolicy() error = %v", err)
 	}
 	return svc, fsys
+}
+
+func TestPlanWithUnreadableChildRetainsIndependentCandidatesAsPartial(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 7, 7, 12, 0, 0, 0, time.UTC)
+	fsys := &cleanupfakes.FileSystem{Root: "/fake", Files: map[string]cleanup.FileInfo{"/fake/tmp/safe": {Path: "/fake/tmp/safe", Size: 64, ModTime: now.Add(-48 * time.Hour)}}}
+	provider := providers.NewTmpProvider(partialListingFS{fsys}, cleanupfakes.Clock{Time: now}, providers.FileProviderConfig{ID: "tmp", Name: "Temporary files", Roots: []string{"/fake/tmp"}, TopLevelEntries: true})
+	registry, err := providers.NewRegistry(provider)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(registry, NewMemoryStore(), cleanupfakes.Clock{Time: now})
+	if err := svc.store.SavePolicy(ctx, Policy{Version: "partial-policy", Profile: policy.ProfileConservative, Providers: map[string]cleanup.ProviderPolicy{"tmp": {Enabled: true, MinAge: 24 * time.Hour, ApprovalMode: cleanup.ApprovalModeOperator}}}); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := svc.Plan(ctx, cleanup.ObservationScope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.CensusStatus != CensusStatusPartial || plan.TotalBytes != 64 || plan.TotalItems != 1 || len(plan.Providers) != 1 || len(plan.Providers[0].Preview.Warnings) != 1 || plan.Providers[0].Preview.Items[0].Path != "/fake/tmp/safe" {
+		t.Fatalf("partial plan lost failure/protection: %#v", plan)
+	}
+	stored, ok, err := svc.store.GetPlan(ctx, plan.ID)
+	if err != nil || !ok || stored.CensusStatus != CensusStatusPartial {
+		t.Fatalf("partial status not retained: %#v %v", stored, err)
+	}
+	if _, err := svc.Apply(ctx, ApplyInput{PlanID: plan.ID, PolicyVersion: plan.PolicyVersion, ItemIDs: []string{"unreadable-child"}, IdempotencyKey: "unknown-item"}); err == nil {
+		t.Fatal("unreadable child could be selected for apply")
+	}
+	if len(fsys.Removed) != 0 {
+		t.Fatalf("preview or invalid selection removed paths: %v", fsys.Removed)
+	}
+}
+
+type partialListingFS struct{ *cleanupfakes.FileSystem }
+
+func (f partialListingFS) ReadDir(ctx context.Context, path string) ([]cleanup.FileInfo, error) {
+	entries, err := f.FileSystem.ReadDir(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+	return entries, &cleanup.PartialDirectoryError{Failures: []error{errors.New("transport endpoint is not connected")}}
 }

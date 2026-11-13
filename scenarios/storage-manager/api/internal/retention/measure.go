@@ -1,8 +1,10 @@
 package retention
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -10,6 +12,105 @@ import (
 
 	coreStorage "github.com/vrooli/api-core/storage"
 )
+
+// measureEntryBounded uses streaming directory reads so neither a large tree
+// nor a single large directory can monopolize the recovery lock. Partial
+// counts are discarded on every error or limit; they are not usage totals.
+func measureEntryBounded(ctx context.Context, repoRoot string, owner coreStorage.OwnerManifest, entry coreStorage.StorageEntry, platform coreStorage.Platform, limit int) (EntryMeasurement, error) {
+	locations, err := coreStorage.ResolveOwnerStorageLocations(repoRoot, owner, entry, platform, coreStorage.PlatformSeams{})
+	if err != nil {
+		return EntryMeasurement{}, err
+	}
+	exclude := nestedSiblingLocations(repoRoot, owner, entry, platform, locations)
+	out := EntryMeasurement{Locations: make([]LocationMeasurement, 0, len(locations))}
+	visited := 0
+	for _, root := range locations {
+		if err := ctx.Err(); err != nil {
+			return EntryMeasurement{}, err
+		}
+		info, err := os.Lstat(root)
+		if errors.Is(err, fs.ErrNotExist) {
+			out.Locations = append(out.Locations, LocationMeasurement{Path: root})
+			continue
+		}
+		if err != nil {
+			return EntryMeasurement{}, err
+		}
+		visited++
+		if visited > limit {
+			return EntryMeasurement{}, fmt.Errorf("measurement entry limit %d exceeded", limit)
+		}
+		var bytes int64
+		if info.Mode().IsRegular() {
+			bytes = info.Size()
+		}
+		pending := []string{}
+		if info.IsDir() {
+			pending = append(pending, root)
+		}
+		for len(pending) > 0 {
+			if err := ctx.Err(); err != nil {
+				return EntryMeasurement{}, err
+			}
+			dir := pending[len(pending)-1]
+			pending = pending[:len(pending)-1]
+			f, err := os.Open(dir)
+			if err != nil {
+				return EntryMeasurement{}, err
+			}
+			for {
+				if err = ctx.Err(); err != nil {
+					break
+				}
+				entries, readErr := f.ReadDir(128)
+				for _, child := range entries {
+					if err = ctx.Err(); err != nil {
+						break
+					}
+					visited++
+					if visited > limit {
+						err = fmt.Errorf("measurement entry limit %d exceeded", limit)
+						break
+					}
+					path := filepath.Join(dir, child.Name())
+					if _, skip := exclude[filepath.Clean(path)]; skip {
+						continue
+					}
+					var childInfo fs.FileInfo
+					childInfo, err = child.Info()
+					if err != nil {
+						break
+					}
+					if childInfo.IsDir() {
+						pending = append(pending, path)
+					} else if childInfo.Mode().IsRegular() {
+						bytes += childInfo.Size()
+					}
+				}
+				if err != nil {
+					break
+				}
+				if readErr != nil {
+					err = readErr
+					break
+				}
+			}
+			closeErr := f.Close()
+			if err != nil && !errors.Is(err, io.EOF) {
+				return EntryMeasurement{}, err
+			}
+			if closeErr != nil {
+				return EntryMeasurement{}, closeErr
+			}
+		}
+		out.Bytes += bytes
+		out.Locations = append(out.Locations, LocationMeasurement{Path: root, Bytes: bytes, Exists: true})
+	}
+	if err := ctx.Err(); err != nil {
+		return EntryMeasurement{}, err
+	}
+	return out, nil
+}
 
 // LocationMeasurement is one physical location of an entry and its bytes.
 type LocationMeasurement struct {

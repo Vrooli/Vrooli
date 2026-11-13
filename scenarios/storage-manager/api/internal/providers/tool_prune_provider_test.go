@@ -74,7 +74,7 @@ func TestToolPruneProviderGoCacheMetadataStaysOperatorGated(t *testing.T) {
 
 func TestToolPruneProviderEstimateAndPreviewMeasureTheCache(t *testing.T) {
 	fsys := cacheFS("/fake/go-build", 1000, "aa/out-a", "bb/out-b", "cc/out-c")
-	provider, err := NewToolPruneProvider(fsys, &cleanupfakes.ProcessRunner{}, cleanupfakes.Clock{Time: now}, goBuildCacheToolPruneConfig("/fake/go-build"))
+	provider, err := NewToolPruneProvider(fsys, &cleanupfakes.ProcessRunner{}, cleanupfakes.Clock{Time: now}, testToolPruneConfig("/fake/go-build"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestToolPruneProviderEstimateAndPreviewMeasureTheCache(t *testing.T) {
 	if !preview.AllowSingleOvershoot {
 		t.Error("preview must set AllowSingleOvershoot for the indivisible prune")
 	}
-	if !strings.Contains(item.Description, "go clean -cache") {
+	if !strings.Contains(item.Description, "tool-prune --cache") {
 		t.Errorf("preview description = %q, want the prune command named", item.Description)
 	}
 }
@@ -112,7 +112,7 @@ func TestToolPruneProviderEstimateAndPreviewMeasureTheCache(t *testing.T) {
 func TestToolPruneProviderApplyRunsCommandAndReportsMeasuredReclaim(t *testing.T) {
 	fsys := cacheFS("/fake/go-build", 1000, "aa/out-a", "bb/out-b")
 	runner := &pruningRunner{fsys: fsys, result: cleanup.ProcessResult{ExitCode: 0}}
-	provider, err := NewToolPruneProvider(fsys, runner, cleanupfakes.Clock{Time: now}, goBuildCacheToolPruneConfig("/fake/go-build"))
+	provider, err := NewToolPruneProvider(fsys, runner, cleanupfakes.Clock{Time: now}, testToolPruneConfig("/fake/go-build"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,16 +120,16 @@ func TestToolPruneProviderApplyRunsCommandAndReportsMeasuredReclaim(t *testing.T
 		ProviderVersion: "v1",
 		IdempotencyKey:  "run-1",
 		ApprovalMode:    cleanup.ApprovalModeOperator,
-		Preview: cleanup.Preview{ProviderID: "go-build-cache", ProviderVersion: "v1", Items: []cleanup.PreviewItem{
-			{ID: "go-build-cache:tool-prune", Path: "/fake/go-build", Bytes: 2000, Action: "tool-prune"},
+		Preview: cleanup.Preview{ProviderID: "test-cache", ProviderVersion: "v1", Items: []cleanup.PreviewItem{
+			{ID: "test-cache:tool-prune", Path: "/fake/go-build", Bytes: 2000, Action: "tool-prune"},
 		}},
 	}
 	result, err := provider.Apply(context.Background(), req)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(runner.calls) != 1 || runner.calls[0].Name != "go" || strings.Join(runner.calls[0].Args, " ") != "clean -cache" {
-		t.Fatalf("expected one `go clean -cache` invocation, got %#v", runner.calls)
+	if len(runner.calls) != 1 || runner.calls[0].Name != "tool-prune" || strings.Join(runner.calls[0].Args, " ") != "--cache" {
+		t.Fatalf("expected one `tool-prune --cache` invocation, got %#v", runner.calls)
 	}
 	// Reclaimed bytes come from the measured before/after delta, not the echoed
 	// estimate: the whole 2000-byte cache was emptied.
@@ -141,7 +141,7 @@ func TestToolPruneProviderApplyRunsCommandAndReportsMeasuredReclaim(t *testing.T
 func TestToolPruneProviderApplyNonZeroExitReclaimsNothing(t *testing.T) {
 	fsys := cacheFS("/fake/go-build", 1000, "aa/out-a")
 	runner := &pruningRunner{fsys: fsys, result: cleanup.ProcessResult{ExitCode: 2, Stderr: "go: cannot clean cache"}}
-	provider, err := NewToolPruneProvider(fsys, runner, cleanupfakes.Clock{Time: now}, goBuildCacheToolPruneConfig("/fake/go-build"))
+	provider, err := NewToolPruneProvider(fsys, runner, cleanupfakes.Clock{Time: now}, testToolPruneConfig("/fake/go-build"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func TestToolPruneProviderApplyNonZeroExitReclaimsNothing(t *testing.T) {
 		ProviderVersion: "v1",
 		IdempotencyKey:  "run-1",
 		ApprovalMode:    cleanup.ApprovalModeOperator,
-		Preview:         cleanup.Preview{ProviderID: "go-build-cache", ProviderVersion: "v1", Items: []cleanup.PreviewItem{{ID: "go-build-cache:tool-prune", Path: "/fake/go-build", Bytes: 1000}}},
+		Preview:         cleanup.Preview{ProviderID: "test-cache", ProviderVersion: "v1", Items: []cleanup.PreviewItem{{ID: "test-cache:tool-prune", Path: "/fake/go-build", Bytes: 1000}}},
 	}
 	result, err := provider.Apply(context.Background(), req)
 	if err != nil {
@@ -168,7 +168,7 @@ func TestToolPruneProviderApplyNonZeroExitReclaimsNothing(t *testing.T) {
 
 func TestToolPruneProviderDisabledPolicyBlocks(t *testing.T) {
 	fsys := cacheFS("/fake/go-build", 1000, "aa/out-a")
-	provider, err := NewToolPruneProvider(fsys, &cleanupfakes.ProcessRunner{}, cleanupfakes.Clock{Time: now}, goBuildCacheToolPruneConfig("/fake/go-build"))
+	provider, err := NewToolPruneProvider(fsys, &cleanupfakes.ProcessRunner{}, cleanupfakes.Clock{Time: now}, testToolPruneConfig("/fake/go-build"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +183,7 @@ func TestToolPruneProviderDisabledPolicyBlocks(t *testing.T) {
 
 func TestToolPruneProviderApplyRequiresIdempotencyKeyAndVersion(t *testing.T) {
 	fsys := cacheFS("/fake/go-build", 1000, "aa/out-a")
-	provider, err := NewToolPruneProvider(fsys, &pruningRunner{fsys: fsys}, cleanupfakes.Clock{Time: now}, goBuildCacheToolPruneConfig("/fake/go-build"))
+	provider, err := NewToolPruneProvider(fsys, &pruningRunner{fsys: fsys}, cleanupfakes.Clock{Time: now}, testToolPruneConfig("/fake/go-build"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +238,7 @@ func TestToolPruneProviderRecoveryRunsOnlyAboveDeclaredCeiling(t *testing.T) {
 		{"recovery without ceiling", 0, true, 3000},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := goBuildCacheToolPruneConfig("/fake/go-build")
+			cfg := testToolPruneConfig("/fake/go-build")
 			cfg.MaxBytes = tc.ceiling
 			provider, err := NewToolPruneProvider(cacheFS("/fake/go-build", 1000, "aa/a", "bb/b", "cc/c"), &cleanupfakes.ProcessRunner{}, cleanupfakes.Clock{Time: now}, cfg)
 			if err != nil {
@@ -261,5 +261,45 @@ func TestToolPruneProviderRecoveryRunsOnlyAboveDeclaredCeiling(t *testing.T) {
 				t.Fatal("indivisible prune lost its single-overshoot authority")
 			}
 		})
+	}
+}
+
+func testToolPruneConfig(root string) ToolPruneProviderConfig {
+	cfg := goBuildCacheToolPruneConfig(root)
+	cfg.ID = "test-cache"
+	cfg.Name = "Governed test cache"
+	cfg.Command = cleanup.ProcessCommand{Name: "tool-prune", Args: []string{"--cache"}}
+	return cfg
+}
+
+func TestGoToolPruneRefusesEstimatePreviewAndPreviouslyApprovedApply(t *testing.T) {
+	for _, id := range []string{"go-build-cache", "spec-go-build-cache"} {
+		for _, approval := range []cleanup.ApprovalMode{cleanup.ApprovalModeNone, cleanup.ApprovalModeOperator, cleanup.ApprovalModeOwner} {
+			t.Run(id+"/"+string(approval), func(t *testing.T) {
+				fsys := cacheFS("/fake/go-build", 1000, "aa/output-d")
+				runner := &pruningRunner{fsys: fsys}
+				cfg := goBuildCacheToolPruneConfig("/fake/go-build")
+				cfg.ID = id
+				provider, err := NewToolPruneProvider(fsys, runner, cleanupfakes.Clock{Time: now}, cfg)
+				if err != nil {
+					t.Fatal(err)
+				}
+				policy := cleanup.ProviderPolicy{Enabled: true, ApprovalMode: approval, AllowFreshReclaim: true}
+				for _, recovery := range []bool{false, true} {
+					estimate, err := provider.Estimate(context.Background(), cleanup.EstimateRequest{Policy: policy, Scope: cleanup.ObservationScope{Recovery: recovery}})
+					if err != nil || estimate.EstimatedBytes != 0 || estimate.ItemCount != 0 || !strings.Contains(estimate.BlockedReason, "build-use") {
+						t.Fatalf("unsafe estimate: %#v %v", estimate, err)
+					}
+					preview, err := provider.Preview(context.Background(), cleanup.PreviewRequest{Policy: policy, Scope: cleanup.ObservationScope{Recovery: recovery}, Estimate: cleanup.Estimate{ProviderID: id, EstimatedBytes: 1000}})
+					if err != nil || len(preview.Items) != 0 || !strings.Contains(preview.BlockedReason, "exact cache-target") {
+						t.Fatalf("unsafe stale preview: %#v %v", preview, err)
+					}
+				}
+				result, err := provider.Apply(context.Background(), cleanup.ApplyRequest{ProviderVersion: "v1", IdempotencyKey: "approved-old-plan", ApprovalMode: approval, Preview: cleanup.Preview{Items: []cleanup.PreviewItem{{ID: id + ":tool-prune", Path: cfg.Root, Bytes: 1000}}}})
+				if err != nil || result.Applied || result.ReclaimedBytes != 0 || len(result.SkippedItems) != 1 || len(result.Warnings) != 1 || len(runner.calls) != 0 || len(fsys.Files) != 1 {
+					t.Fatalf("approval bypassed reference safety: %#v err=%v calls=%v", result, err, runner.calls)
+				}
+			})
+		}
 	}
 }

@@ -219,3 +219,22 @@ selection. Empty selection preserves whole-plan behavior. This permits selecting
 large temporary units directly without waiting behind thousands of tiny files
 or granting model/history deletion. No retention profile or standing authority
 was changed.
+
+## Work ladder — fleet database source boundary (2026-11-11)
+
+- Rung: W3, localized validation implementation defect. Original Test Genie run `storage-manager/20261111-135414-877754d3` failed `TestFleetHasNoGenericDatabasePaths`: its private filesystem walk treated retained Device Studio documentation evidence as production source.
+- Repair: the fleet guard uses `repocontract.Contract.WalkSource`, preserving the canonical distinction between owner documentation trees and actual source packages named `docs`. Source read/walk errors fail the audit explicitly. Existing production database-path detection remains intact; a fixture checks both live source locations while excluding a retained evidence snapshot.
+- Evidence: `~/.vrooli/evidence/local-inference-maturity/supervision-validation-recovery/`; focused source-boundary and live fleet regressions pass. Final scoped consumer run `20261111-141502-085b3670` passed unit (18s) and dependencies (6s), after Agent Manager adopted canonical typed journal-size tuning. Original failed run remains historical truth.
+
+## Work ladder — lifecycle owner work (2026-11-12)
+
+- Rung: W3, localized implementation defect. The shared lifecycle provider was
+  configured with no owner hooks although recovery and census detach from their
+  initiating requests and retention and other background tasks run independently.
+- Repair: register detached work before dispatch and fence scheduled and
+  one-shot background admissions while waiting for active work to finish.
+- Evidence: focused race tests cover admission, cancellation, retry and resume,
+  including lifecycle transport. Test Genie unit phase
+  `20261112-061231-087d042e` passed. The live instance was not restarted;
+  its predecessor cannot prove quiescence through the newly added hooks, so
+  first replacement still needs an independently proved bootstrap transition.

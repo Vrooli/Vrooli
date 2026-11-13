@@ -24,8 +24,10 @@ import (
 	"storage-manager/internal/providers"
 	managerRetention "storage-manager/internal/retention"
 	"storage-manager/internal/server"
+	"storage-manager/internal/workgate"
 
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/lifecycle"
 	"github.com/vrooli/api-core/operatordecision"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/api-core/schedule"
@@ -105,20 +107,23 @@ func main() {
 	// API remains fast to ready, while long-lived processes persist immutable
 	// observations for infra-health and the operator console.
 	schedulerContext, stopScheduler := context.WithCancel(context.Background())
-	startCensusBackfill(schedulerContext, logger, db, repoRoot)
+	backgroundGate := &workgate.Gate{}
+	startCensusBackfill(schedulerContext, logger, db, repoRoot, backgroundGate)
 	if repoRoot != "" {
 		snapshotStore := census.NewSnapshotStore(db).WithFreshness(censusInterval())
 		storageScheduler := census.NewScheduler(censusInterval(), func(ctx context.Context) error {
-			inventory, err := inventorycache.Load(repoRoot, storage.Platform(runtime.GOOS))
-			if err != nil {
+			return backgroundGate.Run(func() error {
+				inventory, err := inventorycache.Load(repoRoot, storage.Platform(runtime.GOOS))
+				if err != nil {
+					return err
+				}
+				report, err := census.ScanInventory(repoRoot, inventory)
+				if err != nil {
+					return err
+				}
+				_, err = snapshotStore.Save(ctx, report)
 				return err
-			}
-			report, err := census.ScanInventory(repoRoot, inventory)
-			if err != nil {
-				return err
-			}
-			_, err = snapshotStore.Save(ctx, report)
-			return err
+			})
 		}).WithDutyCycle(censusDutyCycle()).WithObserver(func(cycle census.Cycle) {
 			if cycle.Err != nil {
 				logger.Printf("census cycle failed after %s: %v", cycle.Duration.Round(time.Millisecond), cycle.Err)
@@ -137,7 +142,9 @@ func main() {
 		// where the contract declares deletion safe, owner-confirmed, or durable,
 		// plus any location an operator has approved a time-boxed deletion grant
 		// for through the decision inbox (projected as an allow rule).
-		policybridge.Start(schedulerContext, logger, repoRoot, policyGrantSource{store: grantStore}, grantRepublisher)
+		policybridge.StartGuarded(schedulerContext, logger, repoRoot, policyGrantSource{store: grantStore}, grantRepublisher, func(fn func() error) error {
+			return backgroundGate.RunWhenOpen(schedulerContext, fn)
+		})
 		// Fail closed: retention deletes, so a pass that cannot write receipts
 		// must not start at all. Skipping the scheduler is the right blast
 		// radius -- the API keeps serving, and the one subsystem that would
@@ -146,14 +153,15 @@ func main() {
 		if retentionLedger, ledgerErr := openRetentionLedger(); ledgerErr != nil {
 			logger.Printf("retention scheduler disabled, nothing will be pruned: %v", ledgerErr)
 		} else {
-			startRetentionScheduler(schedulerContext, logger, repoRoot, retentionLedger, db)
+			startRetentionScheduler(schedulerContext, logger, repoRoot, retentionLedger, db, backgroundGate)
 		}
 	}
 
+	cleanupModule, cleanupService := cleanupH.ModuleWithLifecycle(schedulerContext, logger, db, fileRoots, backgroundGate)
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: logger},
 		healthH.Module(db, "storage-manager-api", "1.0.0"),
-		cleanupH.ModuleWithContext(schedulerContext, logger, db, fileRoots),
+		cleanupModule,
 		fleetH.Module(logger, repoRoot, db, schedule.System()),
 		advisorH.Module(logger, repoRoot),
 		validationH.Module(logger, repoRoot),
@@ -196,11 +204,14 @@ func main() {
 		if port := strings.TrimSpace(os.Getenv("API_PORT")); port != "" {
 			target := "http://127.0.0.1:" + port + deletiongrant.WebhookPath
 			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-				defer cancel()
-				if err := deletiongrant.ReconcileSubscription(ctx, target); err != nil {
-					logger.Printf("deletion-grant answer subscription reconcile failed: %v", err)
-				}
+				_ = backgroundGate.RunWhenOpen(schedulerContext, func() error {
+					ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+					defer cancel()
+					if err := deletiongrant.ReconcileSubscription(ctx, target); err != nil {
+						logger.Printf("deletion-grant answer subscription reconcile failed: %v", err)
+					}
+					return nil
+				})
 			}()
 		}
 	} else {
@@ -216,7 +227,8 @@ func main() {
 	handler := apihttp.TestModeMiddleware(rootMux)
 
 	if err := apiserver.Run(apiserver.Config{
-		Handler: handler,
+		Handler:        handler,
+		LifecycleHooks: ownerLifecycleHooks(backgroundGate, cleanupService),
 		// Fleet scans classify every owner and can legitimately take several
 		// minutes on a large workspace. The default api-core write timeout is
 		// 30 seconds, which closes the socket after the server has completed
@@ -238,7 +250,7 @@ func main() {
 // can starve handler initialization and make lifecycle health time out. The
 // migration is an explicit opt-in maintenance action and is delayed even when
 // enabled so the listener is already serving.
-func startCensusBackfill(ctx context.Context, logger *log.Logger, db *database.RoutedDB, repoRoot string) {
+func startCensusBackfill(ctx context.Context, logger *log.Logger, db *database.RoutedDB, repoRoot string, gate *workgate.Gate) {
 	if strings.TrimSpace(os.Getenv("STORAGE_CENSUS_BACKFILL")) != "1" || strings.TrimSpace(repoRoot) == "" {
 		return
 	}
@@ -250,16 +262,19 @@ func startCensusBackfill(ctx context.Context, logger *log.Logger, db *database.R
 			return
 		case <-timer.C:
 		}
-		backfillCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
-		defer cancel()
-		root, err := census.DeviceRoot(repoRoot)
-		if err != nil {
-			logger.Printf("census sample backfill root resolution failed: %v", err)
-			return
-		}
-		if _, err := census.NewSnapshotStore(db).BackfillEntrySamples(backfillCtx, root, 100); err != nil {
-			logger.Printf("census sample backfill failed: %v", err)
-		}
+		_ = gate.RunWhenOpen(ctx, func() error {
+			backfillCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+			defer cancel()
+			root, err := census.DeviceRoot(repoRoot)
+			if err != nil {
+				logger.Printf("census sample backfill root resolution failed: %v", err)
+				return nil
+			}
+			if _, err := census.NewSnapshotStore(db).BackfillEntrySamples(backfillCtx, root, 100); err != nil {
+				logger.Printf("census sample backfill failed: %v", err)
+			}
+			return nil
+		})
 	}()
 }
 
@@ -332,40 +347,42 @@ func openRetentionLedger() (*artifactledger.Ledger, error) {
 }
 
 // startRetentionScheduler runs declared storage-entry budgets on an interval.
-func startRetentionScheduler(ctx context.Context, logger *log.Logger, repoRoot string, ledger *artifactledger.Ledger, db *database.RoutedDB) {
+func startRetentionScheduler(ctx context.Context, logger *log.Logger, repoRoot string, ledger *artifactledger.Ledger, db *database.RoutedDB, gate *workgate.Gate) {
 	platform := storage.Platform(runtime.GOOS)
 	budgetCycles := map[string]int{}
 	reclaimAttempts := map[string]time.Time{}
 	reclaimer := &managerRetention.HTTPOwnerReclaimer{ResolveURL: discovery.ResolveScenarioURLDefault, HTTPClient: http.DefaultClient}
 	events := eventbus.NewDiscoveredClient(ctx)
 	managerRetention.NewScheduler(retentionInterval(), func(cycleCtx context.Context) error {
-		inventory, err := inventorycache.Load(repoRoot, platform)
-		if err != nil {
+		return gate.Run(func() error {
+			inventory, err := inventorycache.Load(repoRoot, platform)
+			if err != nil {
+				return err
+			}
+			var results map[string]managerRetention.Result
+			results, err = (managerRetention.Enforcer{
+				RepoRoot: repoRoot, Platform: platform, Ledger: ledger, RecoveryLockPath: storageRecoveryLockPath(repoRoot),
+				OverBudgetCycles: budgetCycles, OwnerReclaim: reclaimer, OwnerReclaimAttempts: reclaimAttempts,
+				BudgetEvent: func(eventCtx context.Context, eventType string, payload map[string]any) error {
+					return events.PublishDomainEvent(eventCtx, eventbus.DomainEvent{Source: "storage-manager", EventType: eventType, Payload: payload, Occurred: time.Now().UTC()})
+				},
+			}).Enforce(cycleCtx, inventory)
+			managerRetention.RecordCycle(time.Now().UTC(), results, err)
+			// Ledger rows are derived evidence and have their own retention
+			// policy; do not route them through owner filesystem pruning. They
+			// are pruned even when owner enforcement failed this cycle, because a
+			// persistently failing owner must not leave the manager's own tables
+			// unbounded.
+			store := orchestrator.NewSQLiteStore(db)
+			snapshots := census.NewSnapshotStore(db)
+			err = errors.Join(err,
+				store.PruneRecoveryLedger(cycleCtx, time.Now().UTC()),
+				store.PruneAuditTrail(cycleCtx, time.Now().UTC()),
+				snapshots.Prune(cycleCtx, time.Now().UTC()),
+			)
+			maintainOwnDatabase(cycleCtx, logger, db, snapshots)
 			return err
-		}
-		var results map[string]managerRetention.Result
-		results, err = (managerRetention.Enforcer{
-			RepoRoot: repoRoot, Platform: platform, Ledger: ledger, RecoveryLockPath: storageRecoveryLockPath(repoRoot),
-			OverBudgetCycles: budgetCycles, OwnerReclaim: reclaimer, OwnerReclaimAttempts: reclaimAttempts,
-			BudgetEvent: func(eventCtx context.Context, eventType string, payload map[string]any) error {
-				return events.PublishDomainEvent(eventCtx, eventbus.DomainEvent{Source: "storage-manager", EventType: eventType, Payload: payload, Occurred: time.Now().UTC()})
-			},
-		}).Enforce(cycleCtx, inventory)
-		managerRetention.RecordCycle(time.Now().UTC(), results, err)
-		// Ledger rows are derived evidence and have their own retention
-		// policy; do not route them through owner filesystem pruning. They
-		// are pruned even when owner enforcement failed this cycle, because a
-		// persistently failing owner must not leave the manager's own tables
-		// unbounded.
-		store := orchestrator.NewSQLiteStore(db)
-		snapshots := census.NewSnapshotStore(db)
-		err = errors.Join(err,
-			store.PruneRecoveryLedger(cycleCtx, time.Now().UTC()),
-			store.PruneAuditTrail(cycleCtx, time.Now().UTC()),
-			snapshots.Prune(cycleCtx, time.Now().UTC()),
-		)
-		maintainOwnDatabase(cycleCtx, logger, db, snapshots)
-		return err
+		})
 	}).WithObserver(func(cycle sharedscheduler.Cycle) {
 		if cycle.Err != nil {
 			logger.Printf("retention cycle failed after %s: %v", cycle.Duration.Round(time.Millisecond), cycle.Err)
@@ -440,4 +457,31 @@ func storageRecoveryLockPath(repoRoot string) string {
 		}
 	}
 	return filepath.Join(repoRoot, ".vrooli", "state", "storage-manager", "recovery.lock")
+}
+
+// ownerLifecycleHooks composes scheduled work and detached cleanup under the
+// process-local lifecycle fence. The shared provider serializes hook calls.
+func ownerLifecycleHooks(gate *workgate.Gate, service *orchestrator.Service) lifecycle.Hooks {
+	return lifecycle.Hooks{
+		Snapshot: func(ctx context.Context) (lifecycle.Inventory, error) {
+			inventory, err := service.Snapshot(ctx)
+			if err == nil {
+				inventory.Remaining += int32(gate.Active())
+			}
+			return inventory, err
+		},
+		Quiesce: func(ctx context.Context) error {
+			if err := gate.Quiesce(ctx); err != nil {
+				return err
+			}
+			return service.Quiesce(ctx)
+		},
+		Resume: func(ctx context.Context) error {
+			if err := service.Resume(ctx); err != nil {
+				return err
+			}
+			gate.Resume()
+			return nil
+		},
+	}
 }

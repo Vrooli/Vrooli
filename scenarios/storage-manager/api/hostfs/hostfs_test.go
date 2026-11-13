@@ -2,6 +2,8 @@ package hostfs
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -439,3 +441,46 @@ func TestRemoveAll_PermissionRepairNeverFollowsSymlinksOutOfCandidate(t *testing
 		t.Fatalf("symlink target contents removed: %v", err)
 	}
 }
+
+func TestReadDirRetainsVerifiedSiblingsAndReportsUnreadableChild(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "safe"), "payload")
+	info, err := os.Lstat(filepath.Join(root, "safe"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bad := errors.New("transport endpoint is not connected")
+	entries := []fs.DirEntry{metadataEntry{name: "broken", err: bad}, metadataEntry{name: "safe", info: info}}
+	got, err := New(Options{}).readDirEntries(context.Background(), root, entries)
+	var partial *cleanup.PartialDirectoryError
+	if !errors.As(err, &partial) || len(partial.Failures) != 1 || !errors.Is(partial.Failures[0], bad) {
+		t.Fatalf("failure lost: %v", err)
+	}
+	if len(got) != 1 || got[0].Path != filepath.Join(root, "safe") || got[0].Size != 7 {
+		t.Fatalf("unverified listing: %#v", got)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if got, err := New(Options{}).readDirEntries(ctx, root, entries); !errors.Is(err, context.Canceled) || len(got) != 0 {
+		t.Fatalf("cancellation candidates: %#v %v", got, err)
+	}
+	if got, err := New(Options{}).ReadDir(context.Background(), filepath.Join(root, "safe", "child")); err == nil || len(got) != 0 {
+		t.Fatalf("invalid root accepted: %#v %v", got, err)
+	}
+}
+
+type metadataEntry struct {
+	name string
+	info fs.FileInfo
+	err  error
+}
+
+func (e metadataEntry) Name() string { return e.name }
+func (e metadataEntry) IsDir() bool  { return e.info != nil && e.info.IsDir() }
+func (e metadataEntry) Type() fs.FileMode {
+	if e.info == nil {
+		return 0
+	}
+	return e.info.Mode().Type()
+}
+func (e metadataEntry) Info() (fs.FileInfo, error) { return e.info, e.err }

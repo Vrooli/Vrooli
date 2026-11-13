@@ -135,6 +135,17 @@ const (
 // StartRecovery accepts a trigger and returns before provider measurement or
 // deletion begins. The request context cannot own the worker lifetime.
 func (s *Service) StartRecovery(ctx context.Context, trigger, partition string, usedPercent float64, availableBytes int64, targetFreePercent float64, dryRun bool) (RecoveryRun, error) {
+	sequence := atomic.AddUint64(&s.recoverySeq, 1)
+	id := fmt.Sprintf("recovery-%s-%d", s.recoveryInstance, sequence)
+	if err := s.beginLifecycleWork(id, "recovery"); err != nil {
+		return RecoveryRun{}, err
+	}
+	dispatched := false
+	defer func() {
+		if !dispatched {
+			s.endLifecycleWork(id)
+		}
+	}()
 	if partition == "" {
 		return RecoveryRun{}, fmt.Errorf("partition is required")
 	}
@@ -162,8 +173,6 @@ func (s *Service) StartRecovery(ctx context.Context, trigger, partition string, 
 	if targetFreePercent < 0 || targetFreePercent >= 100 {
 		return RecoveryRun{}, fmt.Errorf("target free percent must be between 0 and 100")
 	}
-	sequence := atomic.AddUint64(&s.recoverySeq, 1)
-	id := fmt.Sprintf("recovery-%s-%d", s.recoveryInstance, sequence)
 	done := make(chan struct{})
 	run := &RecoveryRun{ID: id, Status: RecoveryRunning, Trigger: trigger, Partition: partition, StartedAt: s.now(), Done: done}
 	s.recoveryMu.Lock()
@@ -177,17 +186,22 @@ func (s *Service) StartRecovery(ctx context.Context, trigger, partition string, 
 	}
 	s.recoveryGate.Unlock()
 	if locked {
+		s.recoveryMu.Lock()
 		run.Status = RecoveryFailed
 		run.Reason = "lock held by another recovery run"
 		run.StoppedBecause = "lock_held"
 		run.CompletedAt = s.now()
 		s.persistRecovery(ctx, *run)
 		close(done)
-		return cloneRecoveryRun(*run), nil
+		result := cloneRecoveryRun(*run)
+		s.recoveryMu.Unlock()
+		return result, nil
 	}
 	initial := cloneRecoveryRun(*run)
 
+	dispatched = true
 	go func() {
+		defer s.endLifecycleWork(id)
 		defer func() {
 			s.recoveryGate.Lock()
 			s.recoveryBusy = false

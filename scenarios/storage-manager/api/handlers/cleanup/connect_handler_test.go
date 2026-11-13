@@ -223,6 +223,7 @@ func TestConnectHandlerPlanApplyAndAuditUseServiceContracts(t *testing.T) {
 				Estimate:        cleanupcore.Estimate{EstimatedBytes: 64, ItemCount: 1},
 				Preview: cleanupcore.Preview{Items: []cleanupcore.PreviewItem{{
 					ID: "tmp/old", Path: "/redacted", Bytes: 64, SafetyTier: cleanupcore.SafetyTierSafe,
+					Identity: "dev:13", ModTime: fixedTime().Add(-48 * time.Hour),
 				}}},
 				Policy: cleanupcore.ProviderPolicy{Enabled: true, ApprovalMode: cleanupcore.ApprovalModeNone},
 			}},
@@ -243,8 +244,12 @@ func TestConnectHandlerPlanApplyAndAuditUseServiceContracts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePlan() error = %v", err)
 	}
-	if planResp.Msg.GetPlan().GetId() != "plan-test" || planResp.Msg.GetPlan().GetProviders()[0].GetItems()[0].GetBytes() != 64 {
+	planItem := planResp.Msg.GetPlan().GetProviders()[0].GetItems()[0]
+	if planResp.Msg.GetPlan().GetId() != "plan-test" || planItem.GetBytes() != 64 {
 		t.Fatalf("plan proto = %#v", planResp.Msg.GetPlan())
+	}
+	if planItem.GetObjectIdentity() != "dev:13" || !planItem.GetAgeKnown() || planItem.GetAgeSeconds() != int64(48*time.Hour/time.Second) || planItem.GetModifiedAt().AsTime() != fixedTime().Add(-48*time.Hour) {
+		t.Fatalf("preview evidence = identity %q, age-known %t, age-seconds %d, modified-at %s; want the source observation", planItem.GetObjectIdentity(), planItem.GetAgeKnown(), planItem.GetAgeSeconds(), planItem.GetModifiedAt().AsTime())
 	}
 
 	applyResp, err := handler.ApplyPlan(context.Background(), connect.NewRequest(&cleanupv1.ApplyPlanRequest{
@@ -266,6 +271,23 @@ func TestConnectHandlerPlanApplyAndAuditUseServiceContracts(t *testing.T) {
 	}
 	if auditResp.Msg.GetEvents()[0].GetType() != "apply.completed" {
 		t.Fatalf("audit proto = %#v", auditResp.Msg.GetEvents())
+	}
+}
+
+func TestPlanToProtoLeavesUnavailableAgeUnknown(t *testing.T) {
+	plan := orchestrator.Plan{
+		CreatedAt: fixedTime(),
+		Providers: []orchestrator.ProviderPlan{{
+			ProviderID: "legacy-provider",
+			Preview: cleanupcore.Preview{Items: []cleanupcore.PreviewItem{{
+				ID: "legacy:item", Path: "/legacy/item",
+			}}},
+		}},
+	}
+
+	item := planToProto(plan).GetProviders()[0].GetItems()[0]
+	if item.GetAgeKnown() || item.GetAgeSeconds() != 0 || item.GetModifiedAt() != nil {
+		t.Fatalf("preview age = known:%t seconds:%d modified:%v, want explicitly unknown", item.GetAgeKnown(), item.GetAgeSeconds(), item.GetModifiedAt())
 	}
 }
 

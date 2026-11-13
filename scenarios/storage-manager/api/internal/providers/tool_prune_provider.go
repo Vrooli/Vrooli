@@ -12,14 +12,11 @@ import (
 // ToolPruneProvider reclaims a tool-owned cache by invoking the tool's own
 // prune command instead of deleting files underneath it.
 //
-// Some caches cannot be safely reclaimed by a generic age-and-size file walk.
-// The Go build cache is the motivating case: Go promises that a Get/Put output
-// stays available until the cache is Closed, so a file walk can delete an
-// output a running build still depends on. The FileProvider refuses these for
-// exactly that reason (see file_provider.go reclaimBlockedReason). The owning
-// tool, by contrast, knows its own liveness and concurrency rules, so its own
-// prune command is the owner-coordinated reclamation the file providers leave
-// to it. `go clean -cache` is precisely that command for the Go build cache.
+// Go's whole-cache clean is withheld: unlike its ordinary age-based trimming,
+// it deletes cache shards without proving that active builds released their
+// outputs. Tool ownership and operator consent alone do not supply that proof.
+// Both legacy file previews and tool-prune previews must remain unavailable
+// until a canonical build-use/quiescence and exact-target protocol exists.
 //
 // The command is data, taken verbatim from the repository storage contract
 // (.vrooli/repo-contract.json storage.roots[].tool_prune_command) and executed
@@ -174,6 +171,9 @@ func (p *ToolPruneProvider) Apply(ctx context.Context, req cleanup.ApplyRequest)
 	if req.IdempotencyKey == "" {
 		return cleanup.ApplyResult{}, fmt.Errorf("provider %s apply requires idempotency key", meta.ID)
 	}
+	if isGoBuildCacheProvider(meta.ID) {
+		return cleanup.ApplyResult{ProviderID: meta.ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{goBuildCacheReclaimBlockedReason}}, nil
+	}
 	if req.ApprovalMode == cleanup.ApprovalModeDisabled {
 		return cleanup.ApplyResult{ProviderID: meta.ID, SkippedItems: previewItemIDs(req.Preview.Items), Warnings: []string{"provider disabled by policy"}}, nil
 	}
@@ -217,6 +217,8 @@ func (p *ToolPruneProvider) Verify(context.Context, cleanup.VerifyRequest) (clea
 // failing the run.
 func (p *ToolPruneProvider) blockedReason(policy cleanup.ProviderPolicy) string {
 	switch {
+	case isGoBuildCacheProvider(p.cfg.ID):
+		return goBuildCacheReclaimBlockedReason
 	case !policy.Enabled:
 		return "provider disabled by policy"
 	case p.runner == nil:

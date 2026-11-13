@@ -229,13 +229,15 @@ func isGoBuildCacheProvider(id string) bool {
 	return id == "go-build-cache" || id == "spec-go-build-cache"
 }
 
+const goBuildCacheReclaimBlockedReason = "Go build cache reclaim requires tool-owner build-use or quiescence proof and exact cache-target binding; operator approval and go clean -cache cannot provide it"
+
 func (p *FileProvider) reclaimBlockedReason() string {
 	if isGoBuildCacheProvider(p.meta.ID) {
 		// Go promises a Get/Put output remains available through cache Close.
 		// File age, a byte cap, and a snapshot of open handles cannot establish
 		// that all builds have finished using it. This provider has no tool-owner
 		// build-use protocol; even operator approval is not that evidence.
-		return "Go build cache reclaim requires tool-owner build-use or quiescence proof; generic filesystem cleanup cannot provide it"
+		return goBuildCacheReclaimBlockedReason
 	}
 	return ""
 }
@@ -814,7 +816,11 @@ func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, 
 	}
 	entries, err := p.files.ReadDir(ctx, root)
 	if err != nil {
-		return err
+		var partial *cleanup.PartialDirectoryError
+		if !errors.As(err, &partial) {
+			return err
+		}
+		out.Warnings = append(out.Warnings, cleanup.Redact(partial.Error()))
 	}
 	entries, err = p.expandGovernedUnits(ctx, entries)
 	if err != nil {
@@ -911,7 +917,13 @@ func (p *FileProvider) collectTopLevelEntries(ctx context.Context, root string, 
 				unmeasured++
 				continue
 			}
-			return err
+			if ctx.Err() != nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+				return err
+			}
+			// A failed subtree has no complete size or age observation. Exclude
+			// the whole unit, retaining independent fully measured siblings only.
+			out.Warnings = append(out.Warnings, fmt.Sprintf("entry %s excluded after measurement failed: %s", cleanup.Redact(entry.Path), cleanup.Redact(err.Error())))
+			continue
 		}
 		measuredBytes += agg.bytes
 		if agg.protected {

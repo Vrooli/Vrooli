@@ -56,15 +56,23 @@ type Enforcer struct {
 	// VROOLI_STORAGE_ROOT: a redirected instance measures every owner but
 	// prunes only inside its tree and never asks a live owner to reclaim.
 	Scope authority.Scope
+	// customMeasureLimit is a test override; production uses the fixed bound.
+	customMeasureLimit int
 }
+
+// A million entries gives the currently observed Go cache more than twice its
+// measured entry count while preserving a fixed per-cycle traversal ceiling.
+// The deadline and incomplete result remain authoritative on slower hosts.
+const customMeasureMaxEntries = 1000000
+const customMeasureTimeout = 5 * time.Second
 
 // Result records the outcome for one owner entry. A successful result means
 // the builtin provider measured and reconciled the directory, including the
 // no-op case where it was already within its ceiling.
 //
-// A refused result means the entry was measured but deliberately not pruned.
-// That is still a governed outcome: the budget keeps working as an alarm, it
-// just never works as a deleter.
+// A refused result means the entry was deliberately not pruned. A complete
+// measurement can still drive a budget alarm; an incomplete measurement is
+// explicitly unknown and cannot establish a breach or an enforcement receipt.
 type Result struct {
 	Owner       string `json:"owner"`
 	Entry       string `json:"entry,omitempty"`
@@ -122,18 +130,20 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 		hasCustom := false
 		for _, entry := range owner.StorageEntries {
 			if entry.Budget == nil || (entry.Kind != "dir" && entry.Kind != "file") {
+				if entry.Reclaim != nil && entry.Reclaim.Pruner == "custom" {
+					e.clearBudgetBreach(owner.ID, entry.Name)
+				}
 				continue
 			}
-			if entry.Reclaim != nil && entry.Reclaim.Pruner == "custom" {
+			custom := entry.Reclaim != nil && entry.Reclaim.Pruner == "custom"
+			if custom {
 				hasCustom = true
-				addResult(results, owner.ID, Result{
-					Owner: owner.ID, Entry: entry.Name, Refused: true,
-					Reason: "custom retention is enforced by the owner with live-work protection",
-				})
-				continue
 			}
 			path, err := coreStorage.ResolveOwnerStoragePath(e.RepoRoot, owner, entry, platform, coreStorage.PlatformSeams{})
 			if err != nil {
+				if custom {
+					e.clearBudgetBreach(owner.ID, entry.Name)
+				}
 				var notApplicable *coreStorage.NotApplicable
 				if errors.As(err, &notApplicable) {
 					continue
@@ -145,6 +155,9 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 			if strings.TrimSpace(entry.Budget.MaxBytes) != "" {
 				budget.MaxBytes, err = coreRetention.ParseBytes(entry.Budget.MaxBytes)
 				if err != nil {
+					if custom {
+						e.clearBudgetBreach(owner.ID, entry.Name)
+					}
 					addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("parse max_bytes: %w", err).Error()})
 					continue
 				}
@@ -152,9 +165,35 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 			if strings.TrimSpace(entry.Budget.MaxAge) != "" {
 				budget.MaxAge, err = coreRetention.ParseAge(entry.Budget.MaxAge)
 				if err != nil {
+					if custom {
+						e.clearBudgetBreach(owner.ID, entry.Name)
+					}
 					addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Error: fmt.Errorf("parse max_age: %w", err).Error()})
 					continue
 				}
+			}
+			if custom {
+				limit := e.customMeasureLimit
+				if limit <= 0 {
+					limit = customMeasureMaxEntries
+				}
+				measureCtx, cancel := context.WithTimeout(ctx, customMeasureTimeout)
+				measurement, measureErr := measureEntryBounded(measureCtx, e.RepoRoot, owner, entry, platform, limit)
+				cancel()
+				if measureErr != nil {
+					e.clearBudgetBreach(owner.ID, entry.Name)
+					addResult(results, owner.ID, Result{Owner: owner.ID, Entry: entry.Name, Refused: true, Incomplete: true, Reason: "custom retention measurement incomplete; generic pruning was not attempted", Error: fmt.Errorf("measure custom retention entry: %w", measureErr).Error()})
+					continue
+				}
+				over := overBytes(measurement.Bytes, budget.MaxBytes)
+				cycles := e.recordBudgetBreach(ctx, owner.ID, entry.Name, measurement.Bytes, budget.MaxBytes, over > 0, entry.Regenerable)
+				addResult(results, owner.ID, Result{
+					Owner: owner.ID, Entry: entry.Name, Refused: true,
+					Reason:    "custom retention requires owner handling; generic pruning was not attempted",
+					UsedBytes: measurement.Bytes, BudgetBytes: budget.MaxBytes, OverBytes: over,
+					Locations: measurement.Locations, Escalated: over > 0 && cycles >= 2,
+				})
+				continue
 			}
 			// Pruning deletes files. For an entry its owner declared it cannot
 			// rebuild, the deleted bytes are the only copy, so a budget here is
@@ -250,6 +289,12 @@ func (e Enforcer) Enforce(ctx context.Context, inventory coreStorage.OwnerInvent
 		}
 	}
 	return results, nil
+}
+
+func (e Enforcer) clearBudgetBreach(owner, entry string) {
+	if e.OverBudgetCycles != nil {
+		delete(e.OverBudgetCycles, owner+"/"+entry)
+	}
 }
 
 // recordBudgetBreach returns how many consecutive cycles the entry has been

@@ -64,6 +64,9 @@ The operator console reads the same API-backed ledger as the CLI. Start with
 policy decision. A census is read-only and persists an immutable snapshot. A
 snapshot is only `closed` when measured bytes equal attributed bytes plus the
 explicitly unattributed remainder and no unreadable paths remain.
+Forced API census walks honor client cancellation between filesystem entries
+and discard partial results. A filesystem call already in progress cannot be
+interrupted, so cancellation is cooperative rather than a hard time limit.
 
 Long-lived API processes can record scheduled observations by setting
 `STORAGE_CENSUS_INTERVAL` to a duration of at least one minute (the default is

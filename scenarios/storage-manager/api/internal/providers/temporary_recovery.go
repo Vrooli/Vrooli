@@ -134,6 +134,11 @@ func (p *FileProvider) measureTemporaryRecovery(ctx context.Context, fsys cleanu
 				continue
 			}
 			entries, err := p.files.ReadDir(measuring, root)
+			var partial *cleanup.PartialDirectoryError
+			if errors.As(err, &partial) && measuring.Err() == nil {
+				out.Warnings = append(out.Warnings, cleanup.Redact(partial.Error()))
+				err = nil
+			}
 			if err == nil {
 				entries, err = p.expandGovernedUnits(measuring, entries)
 			}

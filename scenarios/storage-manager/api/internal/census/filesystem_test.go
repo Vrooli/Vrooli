@@ -1,6 +1,8 @@
 package census
 
 import (
+	"context"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -8,6 +10,48 @@ import (
 	"testing"
 	"testing/fstest"
 )
+
+type cancelAfterWalkEntryFS struct {
+	FileSystem
+	cancel context.CancelFunc
+}
+
+func (f cancelAfterWalkEntryFS) WalkDir(root string, fn fs.WalkDirFunc) error {
+	first := true
+	return f.FileSystem.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if first {
+			first = false
+			if callbackErr := fn(path, entry, err); callbackErr != nil {
+				return callbackErr
+			}
+			f.cancel()
+			return nil
+		}
+		return fn(path, entry, err)
+	})
+}
+
+func TestCensusContextStopsFilesystemWalk(t *testing.T) {
+	hostRoot, err := filepath.Abs("root")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	filesystem := cancelAfterWalkEntryFS{
+		FileSystem: treeFileSystem{FS: fstest.MapFS{
+			"root/a": &fstest.MapFile{Data: []byte("a")},
+			"root/b": &fstest.MapFile{Data: []byte("b")},
+		}, HostRoot: hostRoot},
+		cancel: cancel,
+	}
+	_, err = scanWithPolicyUsingContext(ctx, scanRequest{
+		displayRoot: hostRoot,
+		policy:      ScanPolicy{Roots: []PolicyRoot{{Path: hostRoot}}, FloorBytes: 1},
+	}, filesystem, fakeDeviceProbe{})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("scan error = %v, want context.Canceled", err)
+	}
+}
 
 type fakeDeviceProbe struct {
 	info DeviceInfo

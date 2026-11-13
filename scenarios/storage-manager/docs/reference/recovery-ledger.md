@@ -23,9 +23,9 @@ cached output must remain available between compile, link, and vet. A file need
 not have an open handle throughout that interval. Age, cache size, disk pressure,
 and operator or standing approval do not prove build quiescence.
 
-The generic file provider MUST refuse estimate/preview and apply for
+Both the generic file provider and the tool-prune provider MUST refuse estimate/preview and apply for
 `go-build-cache` and the legacy `spec-go-build-cache` identity until a tool-owner
-build-use or quiescence protocol exists. The refusal also covers old regenerable
+build-use or quiescence protocol exists and binds the actual command target to the previewed cache. The refusal also covers old regenerable
 declarations, fresh-reclaim recovery overrides, and replay of previously approved
 plans. Unavailable reclaim is reported as blocked, not as an empty cache. The
 declared retention limits are not authority to delete. Go's own trimming remains

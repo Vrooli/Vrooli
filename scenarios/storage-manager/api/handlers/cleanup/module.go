@@ -32,6 +32,7 @@ import (
 	"storage-manager/internal/orchestrator"
 	"storage-manager/internal/providers"
 	managerRetention "storage-manager/internal/retention"
+	"storage-manager/internal/workgate"
 
 	"github.com/vrooli/api-core/discovery"
 	"github.com/vrooli/api-core/eventbus"
@@ -61,6 +62,12 @@ func Module(logger *log.Logger, db *database.RoutedDB, fileRoots *filerouting.Ro
 // lifetime. Request contexts still control how long callers wait, but do not
 // detach recovery work from orderly service shutdown.
 func ModuleWithContext(serviceContext context.Context, logger *log.Logger, db *database.RoutedDB, fileRoots *filerouting.RoutedRoots) module.Module {
+	m, _ := ModuleWithLifecycle(serviceContext, logger, db, fileRoots, nil)
+	return m
+}
+
+// ModuleWithLifecycle exposes the detached-work owner to the API lifecycle.
+func ModuleWithLifecycle(serviceContext context.Context, logger *log.Logger, db *database.RoutedDB, fileRoots *filerouting.RoutedRoots, gate *workgate.Gate) (module.Module, *orchestrator.Service) {
 	if logger == nil {
 		logger = log.New(io.Discard, "", 0)
 	}
@@ -118,21 +125,27 @@ func ModuleWithContext(serviceContext context.Context, logger *log.Logger, db *d
 		// Delay the first cycle until after readiness. Disabled policy and the
 		// global kill switch are checked by the controller on every cycle.
 		managerRetention.NewScheduler(15*time.Minute, func(ctx context.Context) error {
-			run, err := service.StartTemporaryRetention(ctx)
-			if err != nil || run.ID == "" {
-				return err
+			runCycle := func() error {
+				run, err := service.StartTemporaryRetention(ctx)
+				if err != nil || run.ID == "" {
+					return err
+				}
+				receipt, err := service.WaitRecovery(ctx, run.ID)
+				if err != nil {
+					return err
+				}
+				if receipt.Status == orchestrator.RecoveryFailed {
+					return fmt.Errorf("temporary retention %s: %s", receipt.ID, receipt.Reason)
+				}
+				return nil
 			}
-			receipt, err := service.WaitRecovery(ctx, run.ID)
-			if err != nil {
-				return err
+			if gate != nil {
+				return gate.Run(runCycle)
 			}
-			if receipt.Status == orchestrator.RecoveryFailed {
-				return fmt.Errorf("temporary retention %s: %s", receipt.ID, receipt.Reason)
-			}
-			return nil
+			return runCycle()
 		}).Start(serviceContext)
 	}
-	return ModuleWithService(service)
+	return ModuleWithService(service), service
 }
 
 func wireWarningPressure(service *orchestrator.Service, db *database.RoutedDB) {
@@ -539,7 +552,8 @@ func governedRootSpecs(repoRoot string) ([]providers.RootSpec, error) {
 // behind — those outside the safe/regenerable tiers — so no root is both file
 // pruned and tool pruned. The Go build cache is the motivating member: it is
 // tier conditional precisely because a file walk cannot prove its outputs are
-// no longer in use, so `go clean -cache` is its only safe reclamation.
+// no longer in use. Its declared `go clean -cache` command is withheld too:
+// it lacks build-use/quiescence and exact cache-target proof.
 func toolPruneSpecs(repoRoot string) ([]providers.ToolPruneProviderConfig, error) {
 	specs, err := providers.LoadRootSpecs(repoRoot)
 	if err != nil {

@@ -155,7 +155,11 @@ type Service struct {
 	// recoveryContext is owned by the API process, not by an individual RPC.
 	// Server-owned recovery work must survive a caller disconnect but stop when
 	// the service itself shuts down.
-	recoveryContext context.Context
+	recoveryContext  context.Context
+	lifecycleMu      sync.Mutex
+	lifecycleClosed  bool
+	lifecycleWork    map[string]string
+	lifecycleChanged chan struct{}
 
 	// Disk-pressure intake state. pressure collapses duplicate reports of the
 	// same event; autonomousApply is the kill switch for unattended deletion.
@@ -213,13 +217,15 @@ func NewServiceWithContext(serviceContext context.Context, registry *providers.R
 		serviceContext = context.Background()
 	}
 	return &Service{
-		registry:        registry,
-		store:           store,
-		clock:           clock,
-		recoveryContext: serviceContext,
-		pressure:        newPressureGuard(defaultPressureDedupWindow),
-		warningBugLast:  make(map[string]time.Time),
-		warningBugBusy:  make(map[string]bool),
+		registry:         registry,
+		store:            store,
+		clock:            clock,
+		recoveryContext:  serviceContext,
+		lifecycleWork:    make(map[string]string),
+		lifecycleChanged: make(chan struct{}),
+		pressure:         newPressureGuard(defaultPressureDedupWindow),
+		warningBugLast:   make(map[string]time.Time),
+		warningBugBusy:   make(map[string]bool),
 		// Autonomous apply is on by default: the incident happened because
 		// nothing acted overnight. The kill switch exists to turn remediation
 		// off deliberately, not to require a deliberate act to turn it on.
@@ -520,6 +526,9 @@ func (s *Service) Plan(ctx context.Context, scope cleanup.ObservationScope) (Pla
 // caller's request lifetime. It returns before providers are walked.
 func (s *Service) StartCensus(_ context.Context, scope cleanup.ObservationScope) (string, error) {
 	id := fmt.Sprintf("census-%d", atomic.AddUint64(&s.censusSeq, 1))
+	if err := s.beginLifecycleWork(id, "census"); err != nil {
+		return "", err
+	}
 	job := &censusJob{done: make(chan struct{})}
 	scope.CompleteCensus = true
 	s.censusMu.Lock()
@@ -577,6 +586,7 @@ func (s *Service) markCensusConsumedJob(job *censusJob) {
 }
 
 func (s *Service) runCensus(id string, scope cleanup.ObservationScope, job *censusJob) {
+	defer s.endLifecycleWork(id)
 	plan, err := s.planSync(context.Background(), id, scope)
 	s.censusMu.Lock()
 	job.result = plan
