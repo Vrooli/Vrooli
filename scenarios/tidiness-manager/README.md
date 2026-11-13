@@ -56,8 +56,8 @@ tidiness-manager/
 ## Core Capabilities
 
 ### Light Scanning
-- Collects file metrics and supports legacy parser workflows
-- Computes per-file line counts and flags files exceeding thresholds
+- Uses Code Facts `FILE_METRICS` for catalog-backed source inventory and non-empty line counts
+- Flags files exceeding line-count thresholds, then combines language-specific analysis
 - Completes in <60s for small scenarios, <120s for medium scenarios
 
 ### Tidiness Scanning

@@ -331,13 +331,13 @@ func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath 
 
 	scanStage := collector.Stage("scan")
 	scanner := NewLightScanner(scenarioPath, timeout, excludes...).withCodeFacts(codeFacts)
-	fileMetrics, err := scanner.collectFileMetrics()
+	fileMetrics, err := scanner.collectFileMetricsContext(ctx)
 	if err != nil {
 		scanStage.End()
 		return nil, nil, err
 	}
 	languages := languagesFromFileMetrics(fileMetrics)
-	languageMetrics := scanner.collectLanguageMetrics(ctx, languages)
+	languageMetrics := scanner.collectLanguageMetrics(ctx, languages, fileMetrics)
 	scanStage.End()
 
 	analysisStage := collector.Stage("analysis")
@@ -384,7 +384,17 @@ func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath 
 		}
 	}
 
-	codeAnalyzer := NewCodeMetricsAnalyzer(scenarioPath)
+	fileMetricsByPath := make(map[string]FileMetric, len(fileMetrics))
+	for _, metric := range fileMetrics {
+		fileMetricsByPath[metric.Path] = metric
+	}
+	var graphMetrics map[string]map[Language]graphFileMetric
+	for _, language := range languageMetrics {
+		if language != nil && language.facts != nil {
+			graphMetrics = graphFileMetrics(language.facts)
+			break
+		}
+	}
 	for lang, metrics := range languageMetrics {
 		langInfoFiles := languages[lang].Files
 		if len(langInfoFiles) == 0 {
@@ -396,9 +406,10 @@ func buildTidinessScanWithAudit(ctx context.Context, scenarioName, scenarioPath 
 			if fileRole == FileRoleGenerated {
 				continue
 			}
-			if codeMetrics, err := codeAnalyzer.analyzeFile(filepath.Join(scenarioPath, relPath), lang); err == nil {
-				if imports, functions, graphBacked := graphFileCounts(metrics.facts, relPath, lang); graphBacked {
-					codeMetrics.ImportCount, codeMetrics.FunctionCount = imports, functions
+			if metric, ok := fileMetricsByPath[relPath]; ok {
+				codeMetrics := codeMetricsFromFileMetric(metric)
+				if graphMetric, ok := graphMetrics[relPath][lang]; ok && graphMetric.graphBacked {
+					codeMetrics.ImportCount, codeMetrics.FunctionCount = graphMetric.imports, graphMetric.functions
 				}
 				findings = append(findings, techDebtFindings(scenarioName, relPath, codeMetrics)...)
 				// Composition roots aggregate many collaborators by design;

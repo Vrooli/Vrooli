@@ -9,7 +9,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/vrooli/api-core/factgraph"
 	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
 )
 
@@ -42,6 +44,7 @@ type Opportunity struct {
 
 type Calibration struct {
 	HistoricalCases      int                `json:"historical_cases"`
+	HistoricalAudit      *HistoricalAudit   `json:"historical_audit,omitempty"`
 	Basis                string             `json:"basis"`
 	ScopeFrameID         string             `json:"scope_frame_id,omitempty"`
 	ScopeCases           int                `json:"scope_cases,omitempty"`
@@ -65,6 +68,23 @@ type Calibration struct {
 	Recall               *float64           `json:"recall"`
 	CorpusVersion        string             `json:"corpus_version"`
 	EvidenceFrames       []CalibrationFrame `json:"evidence_frames,omitempty"`
+}
+
+// HistoricalAudit describes the retained prior-run and ecosystem-hunt audit.
+// It is deliberately separate from confusion counts: archived detector output
+// could not be joined to current detector inputs, so reviewed history is not a
+// source of true/false labels or precision estimates.
+type HistoricalAudit struct {
+	EvidenceRef                 string `json:"evidence_ref"`
+	EvidenceSHA256              string `json:"evidence_sha256"`
+	RunsReviewed                int    `json:"runs_reviewed"`
+	HuntEntriesReviewed         int    `json:"hunt_entries_reviewed"`
+	DetectorsAudited            int    `json:"detectors_audited"`
+	ReductionDetectorsAudited   int    `json:"reduction_detectors_audited"`
+	ArchivedPredictionsJoinable int    `json:"archived_predictions_joinable"`
+	DetectorContractSHA256      string `json:"detector_contract_sha256,omitempty"`
+	SourceLabelCount            int    `json:"source_label_count"`
+	SourceManifestSHA256        string `json:"source_manifest_sha256,omitempty"`
 }
 
 // CalibrationFrame reports exact measurements for a declared bounded
@@ -157,6 +177,11 @@ type symbol struct {
 // constructor and the same labelled-corpus evaluation as existing detectors.
 type Registry struct{ detectors []Detector }
 
+var (
+	defaultRegistryOnce sync.Once
+	defaultRegistry     *Registry
+)
+
 func New() *Registry {
 	registry := &Registry{detectors: []Detector{
 		{ID: "standards.scenario-auditor", Owner: "scenario-auditor", Input: "scenario-auditor: cached standards violations", Description: "Scenario Auditor standards findings with original severity, standard, rule, source and remediation guidance"},
@@ -167,6 +192,14 @@ func New() *Registry {
 	}}
 	registry.calibrate()
 	return registry
+}
+
+// Default returns the immutable process-wide detector registry. Building the
+// registry replays the labelled corpus; requests should reuse that result
+// instead of recalibrating every detector for every recommendation.
+func Default() *Registry {
+	defaultRegistryOnce.Do(func() { defaultRegistry = New() })
+	return defaultRegistry
 }
 
 func (r *Registry) Describe() []Detector { return append([]Detector(nil), r.detectors...) }
@@ -342,47 +375,57 @@ func auditorLocationPath(targetRoot, scenario, findingPath string) (string, bool
 }
 
 func graphSymbols(report *facts.CodeFactsReport, includeTests bool) ([]symbol, []string) {
+	symbols, warnings, _ := graphSymbolsWithLanguageFiles(report, includeTests)
+	return symbols, warnings
+}
+
+// graphSymbolsWithLanguageFiles extracts symbols and records which valid
+// target paths had language evidence in the same graph traversal.
+func graphSymbolsWithLanguageFiles(report *facts.CodeFactsReport, includeTests bool) ([]symbol, []string, map[string]map[string]bool) {
 	var result []symbol
-	var warnings []string
+	index := factgraph.NewIndex(report)
+	warnings := index.Warnings()
 	seen := map[string]bool{}
-	for _, envelope := range report.GetGraphs() {
-		unit := envelope.GetParseUnit()
-		if language := unit.GetLanguage(); language != "go" && language != "typescript" && language != "javascript" {
-			warnings = append(warnings, "syntax reduction detectors do not yet cover "+unit.GetLanguage())
+	evidence := map[string]map[string]bool{}
+	unsupportedLanguages := map[string]bool{}
+	for _, file := range index.Files() {
+		path, language := file.Path(), file.Language()
+		if language != "go" && language != "typescript" && language != "javascript" {
+			unsupportedLanguages[language] = true
 			continue
 		}
-		prefix, err := filepath.Rel(report.GetTarget().GetRootPath(), unit.GetRootPath())
-		if err != nil || prefix == ".." || strings.HasPrefix(prefix, "../") {
-			warnings = append(warnings, "parse unit outside target: "+unit.GetRootPath())
-			continue
+		byLanguage := evidence[path]
+		if byLanguage == nil {
+			byLanguage = map[string]bool{}
+			evidence[path] = byLanguage
 		}
-		for _, node := range envelope.GetGraph().GetNodes() {
-			attrs := node.GetAttributes()
-			if attrs["signature"] == "" && attrs["type_expression"] == "" && attrs["body_hash"] == "" {
+		byLanguage[language] = true
+		for _, node := range file.Nodes() {
+			attribute := node.Attribute
+			if attribute("signature") == "" && attribute("type_expression") == "" && attribute("body_hash") == "" {
 				continue
 			}
-			path := filepath.ToSlash(filepath.Join(prefix, node.GetPath()))
-			if filepath.IsAbs(node.GetPath()) || path == ".." || strings.HasPrefix(path, "../") {
-				warnings = append(warnings, "symbol outside target: "+node.GetPath())
+			if (!includeTests && (attribute("is_test") == "true" || strings.HasSuffix(path, "_test.go"))) || strings.HasSuffix(path, ".pb.go") || strings.Contains("/"+path, "/generated/") || strings.Contains("/"+path, "/vendor/") {
 				continue
 			}
-			if (!includeTests && (attrs["is_test"] == "true" || strings.HasSuffix(path, "_test.go"))) || strings.HasSuffix(path, ".pb.go") || strings.Contains("/"+path, "/generated/") || strings.Contains("/"+path, "/vendor/") {
-				continue
-			}
-			number := func(key string) int { n, _ := strconv.Atoi(attrs[key]); return n }
-			key := path + ":" + attrs["start_line"] + ":" + node.GetName()
+			number := func(key string) int { n, _ := strconv.Atoi(attribute(key)); return n }
+			key := path + ":" + attribute("start_line") + ":" + node.Name()
 			if number("start_line") <= 0 || number("end_line") < number("start_line") || seen[key] {
 				continue
 			}
 			seen[key] = true
-			language := attrs["language"]
-			if language == "" {
-				language = unit.GetLanguage()
-			}
-			result = append(result, symbol{id: unit.GetId() + ":" + node.GetId(), language: language, name: node.GetName(), path: path, pkg: unit.GetId() + ":" + attrs["package_id"], receiver: attrs["receiver"], signature: attrs["signature"], bodyHash: attrs["body_hash"], typeExpression: attrs["type_expression"], start: number("start_line"), end: number("end_line"), bodyLines: number("body_lines"), nameOccurrences: number("package_name_occurrences"), complexity: number("cyclomatic_complexity"), exported: attrs["exported"] == "true"})
+			result = append(result, symbol{id: node.UnitID() + ":" + node.ID(), language: language, name: node.Name(), path: path, pkg: node.UnitID() + ":" + attribute("package_id"), receiver: attribute("receiver"), signature: attribute("signature"), bodyHash: attribute("body_hash"), typeExpression: attribute("type_expression"), start: number("start_line"), end: number("end_line"), bodyLines: number("body_lines"), nameOccurrences: number("package_name_occurrences"), complexity: number("cyclomatic_complexity"), exported: attribute("exported") == "true"})
 		}
 	}
-	return result, warnings
+	languages := make([]string, 0, len(unsupportedLanguages))
+	for language := range unsupportedLanguages {
+		languages = append(languages, language)
+	}
+	sort.Strings(languages)
+	for _, language := range languages {
+		warnings = append(warnings, "syntax reduction detectors do not yet cover "+language)
+	}
+	return result, warnings, evidence
 }
 
 func location(s symbol) Location {
@@ -466,6 +509,7 @@ func identicalBodyGroups(symbols []symbol, language string) [][]symbol {
 // scanner's legacy duplicate-block response shape. Parsing and clone identity
 // remain owned by the shared graph providers.
 type DuplicateBodyGroup struct {
+	Language  string
 	Locations []Location
 	Lines     int
 }
@@ -475,17 +519,39 @@ func DuplicateFunctionBodies(report *facts.CodeFactsReport, minLines int) ([]Dup
 }
 
 func DuplicateFunctionBodiesForLanguage(report *facts.CodeFactsReport, minLines int, language string) ([]DuplicateBodyGroup, []string) {
-	symbols, warnings := graphSymbols(report, false)
+	groups, warnings, _ := DuplicateFunctionBodiesForLanguageWithEvidence(report, minLines, language)
+	return groups, warnings
+}
+
+// DuplicateFunctionBodiesForLanguageWithEvidence shares a single graph walk
+// between duplicate grouping and the caller's missing-language decision.
+func DuplicateFunctionBodiesForLanguageWithEvidence(report *facts.CodeFactsReport, minLines int, language string) ([]DuplicateBodyGroup, []string, map[string]map[string]bool) {
+	symbols, warnings, evidence := graphSymbolsWithLanguageFiles(report, false)
+	return duplicateBodyGroups(symbols, minLines, language), warnings, evidence
+}
+
+// DuplicateFunctionBodiesByLanguageWithEvidence groups every language from one
+// Code Facts graph traversal for multi-language scan callers.
+func DuplicateFunctionBodiesByLanguageWithEvidence(report *facts.CodeFactsReport, minLines int) (map[string][]DuplicateBodyGroup, []string, map[string]map[string]bool) {
+	symbols, warnings, evidence := graphSymbolsWithLanguageFiles(report, false)
+	result := make(map[string][]DuplicateBodyGroup)
+	for _, group := range duplicateBodyGroups(symbols, minLines, "") {
+		result[group.Language] = append(result[group.Language], group)
+	}
+	return result, warnings, evidence
+}
+
+func duplicateBodyGroups(symbols []symbol, minLines int, language string) []DuplicateBodyGroup {
 	var result []DuplicateBodyGroup
 	for _, members := range identicalBodyGroups(symbols, language) {
 		if members[0].bodyLines < minLines {
 			continue
 		}
-		group := DuplicateBodyGroup{Lines: members[0].bodyLines}
+		group := DuplicateBodyGroup{Language: members[0].language, Lines: members[0].bodyLines}
 		for _, member := range members {
 			group.Locations = append(group.Locations, location(member))
 		}
 		result = append(result, group)
 	}
-	return result, warnings
+	return result
 }

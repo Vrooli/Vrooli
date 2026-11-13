@@ -37,7 +37,7 @@ func TestScenarioValidationHandlerPacksTidinessNativeDetail(t *testing.T) {
 		t.Fatalf("write source: %v", err)
 	}
 
-	handler := newScenarioValidationHandler(&Server{})
+	handler := newScenarioValidationHandler(&Server{reductionFacts: localCatalogFactsSource()})
 	resp, err := handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
 		Scenario: "demo",
 		Path:     tmpDir,
@@ -94,6 +94,7 @@ func TestValidateTargetHonorsContractExcludesWhileToolTargetReportsFindings(t *t
 
 	handler := newScenarioValidationHandler(&Server{
 		scenarioLocator: &ScenarioLocator{repoRoot: repoRoot},
+		reductionFacts:  localCatalogFactsSource(),
 	})
 	controlPlane, err := handler.ValidateTarget(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateTargetRequest{
 		Target: &commonv1.ValidationTarget{
@@ -147,7 +148,7 @@ func TestValidateScenarioAttachesMetrics(t *testing.T) {
 		t.Fatalf("write source: %v", err)
 	}
 
-	handler := newScenarioValidationHandler(&Server{})
+	handler := newScenarioValidationHandler(&Server{reductionFacts: localCatalogFactsSource()})
 	resp, err := handler.ValidateScenario(context.Background(), connect.NewRequest(&scenariovalidationv1.ValidateScenarioRequest{
 		Scenario: "demo",
 		Path:     tmpDir,
@@ -221,10 +222,14 @@ func TestScenarioValidationIncludesMaintainedSidecarSource(t *testing.T) {
 	}
 	calls := 0
 	var graphReport *facts.CodeFactsReport
-	server := &Server{reductionFacts: reductionSourceFunc(func(_ context.Context, request *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
+	localMetrics := localCatalogFactsSource()
+	server := &Server{reductionFacts: reductionSourceFunc(func(ctx context.Context, request *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
+		if len(request.Msg.GetInclude()) == 1 && request.Msg.GetInclude()[0] == facts.FactFamily_FACT_FAMILY_FILE_METRICS {
+			return localMetrics.DescribeCodeFacts(ctx, request)
+		}
 		calls++
-		if got := request.Msg.GetTarget().GetLanguageFilter(); len(got) != 1 || got[0] != "typescript" {
-			t.Fatalf("Code Facts language filter = %v, want [typescript]", got)
+		if got := request.Msg.GetTarget().GetLanguageFilter(); len(got) != 3 || got[0] != "go" || got[1] != "typescript" || got[2] != "javascript" {
+			t.Fatalf("Code Facts language filter = %v, want [go typescript javascript]", got)
 		}
 		var nodes []*commonv1.CodeGraphNode
 		var edges []*commonv1.CodeGraphEdge
@@ -257,8 +262,9 @@ func TestScenarioValidationIncludesMaintainedSidecarSource(t *testing.T) {
 	if calls != 1 {
 		t.Fatalf("Code Facts requests = %d, want one shared language response", calls)
 	}
-	if imports, _, graphBacked := graphFileCounts(graphReport, "playwright-driver/src/source.ts", LanguageTypeScript); imports != 22 || !graphBacked {
-		t.Fatalf("shared graph import count = %d, want 22", imports)
+	graphMetric := graphFileMetrics(graphReport)["playwright-driver/src/source.ts"][LanguageTypeScript]
+	if graphMetric.imports != 22 || !graphMetric.graphBacked {
+		t.Fatalf("shared graph import count = %d, want 22", graphMetric.imports)
 	}
 	var native validationv1.TidinessScanResponse
 	if err := response.Msg.GetNativeDetail().UnmarshalTo(&native); err != nil {

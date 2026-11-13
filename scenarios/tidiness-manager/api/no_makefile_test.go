@@ -25,7 +25,7 @@ func TestNoMakefile_GracefulHandling(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	ctx := context.Background()
 
 	result, err := scanner.Scan(ctx)
@@ -89,7 +89,7 @@ func TestNoMakefile_EmptyMakefile(t *testing.T) {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	ctx := context.Background()
 
 	result, err := scanner.Scan(ctx)
@@ -136,7 +136,7 @@ test:
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	ctx := context.Background()
 
 	result, err := scanner.Scan(ctx)
@@ -181,7 +181,7 @@ lint:
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	ctx := context.Background()
 
 	result, err := scanner.Scan(ctx)
@@ -216,7 +216,7 @@ type:
 		t.Fatalf("failed to create Makefile: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	ctx := context.Background()
 
 	result, err := scanner.Scan(ctx)
@@ -260,7 +260,7 @@ func TestNoMakefile_NoSourceFiles(t *testing.T) {
 		t.Fatalf("failed to create package.json: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	ctx := context.Background()
 
 	result, err := scanner.Scan(ctx)
@@ -301,7 +301,7 @@ lint:
 		t.Fatalf("failed to create test file: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	ctx := context.Background()
 
 	result, err := scanner.Scan(ctx)

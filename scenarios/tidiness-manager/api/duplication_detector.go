@@ -86,63 +86,63 @@ func (dd *DuplicationDetector) detectGraphDuplication(ctx context.Context, files
 }
 
 func (dd *DuplicationDetector) DetectDuplicationFromFacts(files []string, language string, report *facts.CodeFactsReport) (*DuplicateResult, error) {
-	if len(files) == 0 {
-		return &DuplicateResult{Skipped: true, SkipReason: "no files to analyze"}, nil
-	}
-	if _, err := resolveScenarioFiles(dd.scenarioPath, files); err != nil {
-		return &DuplicateResult{Skipped: true, SkipReason: err.Error()}, nil
-	}
-
-	allowed := make(map[string]bool, len(files))
-	for _, file := range files {
-		allowed[filepath.ToSlash(filepath.Clean(file))] = true
-	}
-	if !hasLanguageFile(report, language, allowed) {
-		return &DuplicateResult{Skipped: true, SkipReason: "Code Facts returned no " + language + " source evidence for the requested files", Tool: "code-facts"}, nil
-	}
-
-	groups, warnings := debt.DuplicateFunctionBodiesForLanguage(report, DuplicateMinimumLines, language)
-	blocks := make([]DuplicateBlock, 0, len(groups))
-	totalLines := 0
-	for _, group := range groups {
-		block := DuplicateBlock{Lines: group.Lines}
-		for _, location := range group.Locations {
-			if allowed[filepath.ToSlash(filepath.Clean(location.Path))] {
-				block.Files = append(block.Files, DuplicateLocation{Path: location.Path, StartLine: location.StartLine, EndLine: location.EndLine})
-			}
-		}
-		if len(block.Files) > 1 {
-			blocks = append(blocks, block)
-			totalLines += block.Lines
-		}
-	}
-
-	return &DuplicateResult{
-		TotalDuplicates: len(blocks),
-		DuplicateBlocks: blocks,
-		TotalLines:      totalLines,
-		Skipped:         len(warnings) > 0,
-		SkipReason:      strings.Join(warnings, "; "),
-		Tool:            "code-facts",
-	}, nil
+	return dd.DetectDuplicationForLanguagesFromFacts(map[string][]string{language: files}, report)[language], nil
 }
 
-func hasLanguageFile(report *facts.CodeFactsReport, language string, allowed map[string]bool) bool {
-	for _, envelope := range report.GetGraphs() {
-		unit := envelope.GetParseUnit()
-		prefix, err := filepath.Rel(report.GetTarget().GetRootPath(), unit.GetRootPath())
-		if err != nil || prefix == ".." || strings.HasPrefix(prefix, "../") {
+// DetectDuplicationForLanguagesFromFacts projects all language groups from one
+// graph traversal, allowing multi-language scans to reuse shared symbols.
+func (dd *DuplicationDetector) DetectDuplicationForLanguagesFromFacts(filesByLanguage map[string][]string, report *facts.CodeFactsReport) map[string]*DuplicateResult {
+	groupsByLanguage, warnings, evidence := debt.DuplicateFunctionBodiesByLanguageWithEvidence(report, DuplicateMinimumLines)
+	results := make(map[string]*DuplicateResult, len(filesByLanguage))
+	for language, files := range filesByLanguage {
+		if len(files) == 0 {
+			results[language] = &DuplicateResult{Skipped: true, SkipReason: "no files to analyze"}
 			continue
 		}
-		for _, node := range envelope.GetGraph().GetNodes() {
-			if node.GetAttributes()["language"] != language || node.GetPath() == "" {
-				continue
-			}
-			path := filepath.ToSlash(filepath.Join(prefix, node.GetPath()))
-			if allowed[path] {
-				return true
+		if _, err := resolveScenarioFiles(dd.scenarioPath, files); err != nil {
+			results[language] = &DuplicateResult{Skipped: true, SkipReason: err.Error()}
+			continue
+		}
+
+		allowed := make(map[string]bool, len(files))
+		for _, file := range files {
+			allowed[filepath.ToSlash(filepath.Clean(file))] = true
+		}
+		hasEvidence := false
+		for path := range allowed {
+			if evidence[path][language] {
+				hasEvidence = true
+				break
 			}
 		}
+		if !hasEvidence {
+			results[language] = &DuplicateResult{Skipped: true, SkipReason: "Code Facts returned no " + language + " source evidence for the requested files", Tool: "code-facts"}
+			continue
+		}
+		groups := groupsByLanguage[language]
+		blocks := make([]DuplicateBlock, 0, len(groups))
+		totalLines := 0
+		for _, group := range groups {
+			block := DuplicateBlock{Lines: group.Lines}
+			for _, location := range group.Locations {
+				if allowed[filepath.ToSlash(filepath.Clean(location.Path))] {
+					block.Files = append(block.Files, DuplicateLocation{Path: location.Path, StartLine: location.StartLine, EndLine: location.EndLine})
+				}
+			}
+			if len(block.Files) > 1 {
+				blocks = append(blocks, block)
+				totalLines += block.Lines
+			}
+		}
+
+		results[language] = &DuplicateResult{
+			TotalDuplicates: len(blocks),
+			DuplicateBlocks: blocks,
+			TotalLines:      totalLines,
+			Skipped:         len(warnings) > 0,
+			SkipReason:      strings.Join(warnings, "; "),
+			Tool:            "code-facts",
+		}
 	}
-	return false
+	return results
 }

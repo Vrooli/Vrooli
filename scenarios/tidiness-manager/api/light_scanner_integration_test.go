@@ -70,7 +70,7 @@ export default function App() {
 	}
 
 	// Execute full scan
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Light scan integration failed: %v", err)
@@ -176,7 +176,7 @@ func TestLightScanner_Integration_PartialFailure(t *testing.T) {
 	}
 
 	// Use short timeout to force Makefile command failure
-	scanner := NewLightScanner(tmpDir, 1*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 1*time.Second)
 	result, err := scanner.Scan(context.Background())
 	// INTEGRATION VALIDATION: Partial failure should not prevent overall scan
 	if err != nil {
@@ -209,7 +209,7 @@ func TestLightScanner_Integration_EmptyScenario(t *testing.T) {
 
 	tmpDir := t.TempDir()
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Integration error: Empty scenario should scan successfully: %v", err)
@@ -255,7 +255,7 @@ func TestLightScanner_Integration_ContextCancellation(t *testing.T) {
 	// Create context that will be cancelled during scan
 	ctx, cancel := context.WithCancel(context.Background())
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 
 	// Cancel context after 100ms
 	time.AfterFunc(100*time.Millisecond, cancel)
@@ -308,7 +308,7 @@ test:
 		t.Fatal(err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Scan should complete despite missing Makefile commands: %v", err)
@@ -367,7 +367,7 @@ func TestLightScanner_Integration_SymlinksAndSpecialFiles(t *testing.T) {
 		t.Logf("Skipping symlink test (not supported): %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 30*time.Second)
+	scanner := newLightScannerForTest(tmpDir, 30*time.Second)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Scan should handle special files gracefully: %v", err)
@@ -398,8 +398,8 @@ func TestLightScanner_Integration_ConcurrentScans(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	scanner1 := NewLightScanner(tmpDir1, 30*time.Second)
-	scanner2 := NewLightScanner(tmpDir2, 30*time.Second)
+	scanner1 := newLightScannerForTest(tmpDir1, 30*time.Second)
+	scanner2 := newLightScannerForTest(tmpDir2, 30*time.Second)
 
 	// Run scans concurrently
 	ctx := context.Background()
@@ -462,7 +462,7 @@ func TestLightScannerIncrementalRetainsWholeLanguageInventory(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	result, err := NewLightScanner(root, 30*time.Second).ScanWithOptions(context.Background(), ScanOptions{Incremental: true, DB: db})
+	result, err := newLightScannerForTest(root, 30*time.Second).ScanWithOptions(context.Background(), ScanOptions{Incremental: true, DB: db})
 	if err != nil {
 		t.Fatal(err)
 	}

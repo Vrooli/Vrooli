@@ -32,7 +32,7 @@ func (s *Server) recommendReductions(ctx context.Context, scenario string, limit
 	if err != nil {
 		return debt.Report{}, err
 	}
-	registry := debt.New()
+	registry := debt.Default()
 	findings, err := currentAuditorFindings(ctx, s.auditorFindings, scenario)
 	result := registry.RecommendWithAuditorFindings(report, findings, limit, minLines)
 	if err != nil {
@@ -114,4 +114,16 @@ func currentCodeFacts(ctx context.Context, client ReductionFacts, target *facts.
 		return nil, fmt.Errorf("Code Facts returned no source evidence")
 	}
 	return response.Msg, nil
+}
+
+// resolvedCodeFactsClient keeps the service lifecycle independent from Code
+// Facts startup order while making the broker mandatory for production scans.
+type resolvedCodeFactsClient struct{}
+
+func (resolvedCodeFactsClient) DescribeCodeFacts(ctx context.Context, request *connect.Request[facts.DescribeCodeFactsRequest]) (*connect.Response[facts.CodeFactsReport], error) {
+	baseURL, err := discovery.NewResolver(discovery.ResolverConfig{}).ResolveScenarioURLDefault(ctx, "code-facts")
+	if err != nil {
+		return nil, fmt.Errorf("resolve Code Facts: %w", err)
+	}
+	return factsconnect.NewCodeFactsServiceClient(http.DefaultClient, baseURL).DescribeCodeFacts(ctx, request)
 }

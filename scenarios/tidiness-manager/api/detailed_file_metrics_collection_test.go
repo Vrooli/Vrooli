@@ -237,7 +237,7 @@ func TestCollectDetailedFileMetrics_UnknownLanguage(t *testing.T) {
 	writeTestFile(t, filepath.Join(tmpDir, "script.sh"), "#!/bin/bash\necho 'test'\n")
 
 	files := []string{"script.sh"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Fatalf("CollectDetailedFileMetrics should handle unknown languages: %v", err)
 	}
@@ -276,7 +276,7 @@ func TestCollectDetailedFileMetrics_JSONFiles(t *testing.T) {
 	writeTestFile(t, filepath.Join(configDir, "package.json"), jsonContent)
 
 	files := []string{"config/package.json"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Fatalf("CollectDetailedFileMetrics should handle JSON files: %v", err)
 	}
@@ -300,7 +300,7 @@ func TestCollectDetailedFileMetrics_JSONFiles(t *testing.T) {
 func TestCollectDetailedFileMetrics_EmptyList(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	metrics, err := CollectDetailedFileMetrics(tmpDir, []string{})
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, []string{}, nil)
 	if err != nil {
 		t.Fatalf("CollectDetailedFileMetrics should handle empty list: %v", err)
 	}
@@ -320,7 +320,7 @@ func TestCollectDetailedFileMetrics_NonExistentFiles(t *testing.T) {
 	}
 
 	files := []string{"api/nonexistent.go"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Logf("CollectDetailedFileMetrics returned error for non-existent file: %v", err)
 		return
@@ -348,7 +348,7 @@ func TestCollectDetailedFileMetrics_MixedLanguages(t *testing.T) {
 	writeTestFile(t, filepath.Join(uiDir, "util.ts"), "export function test() {\n  return 42;\n}\n")
 
 	files := []string{"api/main.go", "ui/src/util.ts"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Fatalf("CollectDetailedFileMetrics failed: %v", err)
 	}
@@ -556,7 +556,7 @@ func TestCollectDetailedFileMetrics_BinaryFiles(t *testing.T) {
 	writeTestFile(t, filepath.Join(tmpDir, "binary.dat"), string(binaryData))
 
 	files := []string{"binary.dat"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Logf("CollectDetailedFileMetrics handled binary file with error: %v", err)
 		return
@@ -598,7 +598,7 @@ func TestCollectDetailedFileMetrics_EmptyFiles(t *testing.T) {
 	writeTestFile(t, filepath.Join(apiDir, "empty.go"), "")
 
 	files := []string{"api/empty.go"}
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Fatalf("CollectDetailedFileMetrics should handle empty files: %v", err)
 	}
@@ -752,7 +752,7 @@ func TestCollectDetailedFileMetrics_PathNormalization(t *testing.T) {
 	}
 
 	for _, path := range testPaths {
-		metrics, err := CollectDetailedFileMetrics(tmpDir, []string{path})
+		metrics, err := collectDetailedFileMetricsForTest(tmpDir, []string{path}, nil)
 		if err != nil {
 			t.Errorf("CollectDetailedFileMetrics failed for path %q: %v", path, err)
 			continue
@@ -792,7 +792,7 @@ func TestCollectDetailedFileMetrics_Concurrent(t *testing.T) {
 				done <- true
 			}()
 
-			metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+			metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 			if err != nil {
 				t.Errorf("Goroutine %d: CollectDetailedFileMetrics failed: %v", goroutineID, err)
 				return
@@ -811,11 +811,11 @@ func TestCollectDetailedFileMetrics_Concurrent(t *testing.T) {
 
 func collectAndValidateMetricsWithGraph(t *testing.T, root string, files []string, expected int, lang Language, path string, imports, functions int) []DetailedFileMetrics {
 	t.Helper()
-	metrics, err := CollectDetailedFileMetricsWithLangMetrics(root, files, map[Language]*LanguageMetrics{
+	metrics, err := collectDetailedFileMetricsForTest(root, files, map[Language]*LanguageMetrics{
 		lang: {facts: testMetricsGraph(root, path, lang, imports, functions)},
 	})
 	if err != nil {
-		t.Fatalf("CollectDetailedFileMetricsWithLangMetrics() error = %v", err)
+		t.Fatalf("collectDetailedFileMetricsForTest() error = %v", err)
 	}
 	if len(metrics) != expected {
 		t.Fatalf("got %d metrics, want %d", len(metrics), expected)

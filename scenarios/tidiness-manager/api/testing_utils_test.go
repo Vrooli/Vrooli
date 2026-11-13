@@ -212,7 +212,7 @@ func requireMetricsByPath(t *testing.T, metrics []DetailedFileMetrics, filePath 
 // collectAndValidateMetrics collects metrics and validates the count
 func collectAndValidateMetrics(t *testing.T, tmpDir string, files []string, expectedCount int) []DetailedFileMetrics {
 	t.Helper()
-	metrics, err := CollectDetailedFileMetrics(tmpDir, files)
+	metrics, err := collectDetailedFileMetricsForTest(tmpDir, files, nil)
 	if err != nil {
 		t.Fatalf("CollectDetailedFileMetrics failed: %v", err)
 	}

@@ -303,7 +303,7 @@ func (sc *ScanCoordinator) LightScan(ctx context.Context, req LightScanRequest) 
 	if len(filePaths) > 0 {
 		// Pass language metrics for complexity/duplication data
 		var metricsErr error
-		detailedMetrics, metricsErr = CollectDetailedFileMetricsWithLangMetrics(scenarioPath, filePaths, result.LanguageMetrics)
+		detailedMetrics, metricsErr = CollectDetailedFileMetricsFromInventory(scenarioPath, result.FileMetrics, result.LanguageMetrics)
 		if metricsErr != nil {
 			sc.log("failed to collect detailed metrics", map[string]interface{}{
 				"error":    metricsErr.Error(),
@@ -482,7 +482,7 @@ func (sc *ScanCoordinator) EnsureFileMetrics(ctx context.Context, scenario strin
 	}
 
 	// Pass language metrics for complexity/duplication data
-	detailedMetrics, metricsErr := CollectDetailedFileMetricsWithLangMetrics(scenarioPath, filePaths, result.LanguageMetrics)
+	detailedMetrics, metricsErr := CollectDetailedFileMetricsFromInventory(scenarioPath, result.FileMetrics, result.LanguageMetrics)
 	if metricsErr != nil {
 		sc.log("failed to collect detailed metrics", map[string]interface{}{
 			"error":    metricsErr.Error(),

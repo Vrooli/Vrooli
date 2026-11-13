@@ -10,6 +10,12 @@ import (
 	"tidiness-manager/internal/testutil"
 )
 
+func TestDefaultRegistryIsProcessScoped(t *testing.T) {
+	if first, second := Default(), Default(); first == nil || first != second {
+		t.Fatalf("Default must reuse one calibrated registry, got %p and %p", first, second)
+	}
+}
+
 func TestLabelledCorpusAndCalibrationProvenance(t *testing.T) {
 	registry := New()
 	for _, detector := range registry.detectors {
@@ -255,6 +261,28 @@ func TestDuplicateFunctionBodiesUsesSharedGraphIdentity(t *testing.T) {
 	groups, warnings = DuplicateFunctionBodiesForLanguage(report, 5, "javascript")
 	if len(warnings) != 0 || len(groups) != 1 || len(groups[0].Locations) != 2 {
 		t.Fatalf("JavaScript graph nodes inside a TypeScript project must be language-routed: groups=%+v warnings=%v", groups, warnings)
+	}
+}
+
+func TestDuplicateFunctionBodiesByLanguageSharesGraphEvidence(t *testing.T) {
+	makeNode := func(id, path, language string) *common.CodeGraphNode {
+		return testutil.GraphNode(id, id, path, map[string]string{
+			"language": language, "signature": "func()", "start_line": "3", "end_line": "9",
+			"body_lines": "7", "body_hash": "same-" + language,
+		})
+	}
+	report := testutil.GraphReport("/repo",
+		testutil.GraphUnit{ID: "api", Language: "go", RootPath: "/repo/api", Nodes: []*common.CodeGraphNode{makeNode("g1", "a.go", "go"), makeNode("g2", "b.go", "go")}},
+		testutil.GraphUnit{ID: "ui", Language: "typescript", RootPath: "/repo/ui", Nodes: []*common.CodeGraphNode{makeNode("t1", "a.ts", "typescript"), makeNode("t2", "b.ts", "typescript")}},
+	)
+	groups, warnings, evidence := DuplicateFunctionBodiesByLanguageWithEvidence(report, 5)
+	if len(warnings) != 0 || len(groups["go"]) != 1 || len(groups["typescript"]) != 1 {
+		t.Fatalf("multi-language groups=%+v warnings=%v", groups, warnings)
+	}
+	for _, path := range []string{"api/a.go", "api/b.go", "ui/a.ts", "ui/b.ts"} {
+		if len(evidence[path]) != 1 {
+			t.Errorf("language evidence for %s = %v", path, evidence[path])
+		}
 	}
 }
 

@@ -185,7 +185,10 @@ func TestBuildTidinessScanReportsMaintainabilityOnly(t *testing.T) {
 		t.Fatalf("write source: %v", err)
 	}
 
-	result, err := buildTidinessScan(context.Background(), "demo", tmpDir, 0)
+	result, _, err := buildTidinessScanWithAudit(context.Background(), "demo", tmpDir, 0, nil, localCatalogFactsSource())
+	if err != nil {
+		t.Fatalf("buildTidinessScanWithAudit() error = %v", err)
+	}
 	if err != nil {
 		t.Fatalf("buildTidinessScan failed: %v", err)
 	}

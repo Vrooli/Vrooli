@@ -126,6 +126,16 @@ type CampaignEnvelope struct {
 	Campaign Campaign `json:"campaign"`
 }
 
+type DetectorHistoricalAudit struct {
+	EvidenceRef                 string `json:"evidence_ref"`
+	EvidenceSHA256              string `json:"evidence_sha256"`
+	RunsReviewed                int    `json:"runs_reviewed"`
+	HuntEntriesReviewed         int    `json:"hunt_entries_reviewed"`
+	DetectorsAudited            int    `json:"detectors_audited"`
+	ReductionDetectorsAudited   int    `json:"reduction_detectors_audited"`
+	ArchivedPredictionsJoinable int    `json:"archived_predictions_joinable"`
+}
+
 type Recommendation struct {
 	ID         string `json:"id"`
 	DetectorID string `json:"detector_id"`
@@ -141,19 +151,20 @@ type Recommendation struct {
 	NetLines         int      `json:"net_lines"`
 	ExpectedNetLines *float64 `json:"expected_net_lines"`
 	Calibration      struct {
-		Basis              string   `json:"basis"`
-		ScopeFrameID       string   `json:"scope_frame_id"`
-		ScopeCases         int      `json:"scope_cases"`
-		HistoricalCases    int      `json:"historical_cases"`
-		RegressionCases    int      `json:"regression_cases"`
-		RegressionFailures int      `json:"regression_failures"`
-		Precision          *float64 `json:"precision"`
-		Recall             *float64 `json:"recall"`
-		CorpusVersion      string   `json:"corpus_version"`
-		TruePositive       int      `json:"true_positive"`
-		FalsePositive      int      `json:"false_positive"`
-		FalseNegative      int      `json:"false_negative"`
-		TrueNegative       int      `json:"true_negative"`
+		Basis              string                   `json:"basis"`
+		ScopeFrameID       string                   `json:"scope_frame_id"`
+		ScopeCases         int                      `json:"scope_cases"`
+		HistoricalCases    int                      `json:"historical_cases"`
+		RegressionCases    int                      `json:"regression_cases"`
+		RegressionFailures int                      `json:"regression_failures"`
+		Precision          *float64                 `json:"precision"`
+		Recall             *float64                 `json:"recall"`
+		CorpusVersion      string                   `json:"corpus_version"`
+		TruePositive       int                      `json:"true_positive"`
+		FalsePositive      int                      `json:"false_positive"`
+		FalseNegative      int                      `json:"false_negative"`
+		TrueNegative       int                      `json:"true_negative"`
+		HistoricalAudit    *DetectorHistoricalAudit `json:"historical_audit,omitempty"`
 	} `json:"calibration"`
 	Reason string `json:"reason"`
 	Action string `json:"action"`

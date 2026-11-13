@@ -1,6 +1,8 @@
 package discovery
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 	"testing"
 )
@@ -33,6 +35,34 @@ func TestIncompleteProbabilitySampleKeepsGlobalMetricsUnknown(t *testing.T) {
 	}
 }
 
+func TestRegistryCarriesHistoricalRunAndHuntAuditWithoutInventingLabels(t *testing.T) {
+	const evidenceRef = "programme-four-20261110/dr1-historical-detector-evidence-v2.json"
+	const evidenceSHA256 = "15b312062b5eb9f68702eb95c68cb9b68bb116c6573e8e8e176d88ef3ac14b4b"
+	for _, detector := range New().Describe() {
+		audit := detector.Calibration.HistoricalAudit
+		if audit == nil || audit.EvidenceRef != evidenceRef || audit.EvidenceSHA256 != evidenceSHA256 {
+			t.Errorf("%s lost the retained historical audit identity: %+v", detector.ID, audit)
+			continue
+		}
+		if audit.RunsReviewed != 48 || audit.HuntEntriesReviewed != 110 || audit.DetectorsAudited != 5 || audit.ReductionDetectorsAudited != 4 || audit.ArchivedPredictionsJoinable != 0 {
+			t.Errorf("%s historical audit coverage changed: %+v", detector.ID, audit)
+		}
+		if detector.ID != "standards.scenario-auditor" && (detector.Calibration.Precision != nil || detector.Calibration.Recall != nil) {
+			t.Errorf("%s inferred detector metrics from an archive with no joinable predictions: %+v", detector.ID, detector.Calibration)
+		}
+		wantSourceLabels := map[string]int{
+			"duplication.identical-function-body": 10,
+			"migration.unbound-cli-handler":       8,
+		}[detector.ID]
+		if audit.SourceLabelCount != wantSourceLabels {
+			t.Errorf("%s source-identifiable labels=%d, want %d: %+v", detector.ID, audit.SourceLabelCount, wantSourceLabels, audit)
+		}
+		if wantSourceLabels > 0 && (len(audit.DetectorContractSHA256) != 64 || len(audit.SourceManifestSHA256) != 64) {
+			t.Errorf("%s omitted its source/config identity manifest: %+v", detector.ID, audit)
+		}
+	}
+}
+
 func TestHistoricalSourceReplaysHaveExplicitLanguageAndBoundaryProvenance(t *testing.T) {
 	detectors := map[string]Detector{}
 	for _, detector := range New().Describe() {
@@ -43,7 +73,20 @@ func TestHistoricalSourceReplaysHaveExplicitLanguageAndBoundaryProvenance(t *tes
 		"migration.unbound-cli-handler":       8,
 	}
 	gotCases := map[string]int{}
+	corpus := readCorpus()
+	for detectorID, contract := range corpus.HistoricalDetectorChecks {
+		digest := sha256.Sum256([]byte(contract.Contract))
+		if hex.EncodeToString(digest[:]) != contract.SHA256 {
+			t.Errorf("%s detector contract hash does not match its declared contract", detectorID)
+		}
+	}
 	for _, c := range corpusCases() {
+		if c.Origin == "repository-beforeimage" || c.Origin == "source-replay-boundary" {
+			contract, ok := corpus.HistoricalDetectorChecks[c.DetectorID]
+			if !ok || c.SourceSnapshotSHA256 == "" || len(c.SourceSnapshotSHA256) != 64 || c.DetectorContractSHA256 != contract.SHA256 || len(contract.SHA256) != 64 || c.Revision == "" {
+				t.Errorf("historical source replay %s lacks exact source/revision/detector-contract identity: %+v", c.ID, c)
+			}
+		}
 		if c.Origin != "repository-beforeimage" {
 			continue
 		}
@@ -101,6 +144,43 @@ func TestHistoricalSourceReplaysHaveExplicitLanguageAndBoundaryProvenance(t *tes
 	}
 	if !boundaryFound {
 		t.Fatal("missing source-replayed historical clone-block scope-boundary negative")
+	}
+}
+
+func TestTypeScriptCensusRatesRemainBoundToSavedSourceAndConfig(t *testing.T) {
+	const (
+		frameID    = "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1"
+		sourceHash = "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2"
+		configHash = "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230"
+	)
+	var calibration Calibration
+	for _, detector := range New().Describe() {
+		if detector.ID == "duplication.identical-function-body.typescript" {
+			calibration = detector.Calibration
+			break
+		}
+	}
+	if calibration.Precision != nil || calibration.Recall != nil {
+		t.Fatalf("one exact TypeScript target must not become a fleet estimate: %+v", calibration)
+	}
+	var frame *CalibrationFrame
+	for i := range calibration.EvidenceFrames {
+		if calibration.EvidenceFrames[i].FrameID == frameID {
+			frame = &calibration.EvidenceFrames[i]
+			break
+		}
+	}
+	if frame == nil || frame.Cases != 19 || frame.TruePositive != 17 || frame.FalsePositive != 0 || frame.FalseNegative != 2 || frame.TrueNegative != 0 {
+		t.Fatalf("unexpected TypeScript target confusion matrix: %+v", frame)
+	}
+	if frame.Precision == nil || *frame.Precision != 1 || frame.Recall == nil || *frame.Recall != 17.0/19.0 || len(frame.Targets) != 1 || frame.Targets[0].SourceHash != sourceHash || frame.Targets[0].ConfigHash != configHash {
+		t.Fatalf("TypeScript metrics lost their exact saved source/config identity: %+v", frame)
+	}
+	if got := calibrationForTarget(calibration, "browser-automation-studio", sourceHash, configHash); got.ScopeFrameID != frameID || got.Precision == nil || *got.Precision != 1 || got.Recall == nil || *got.Recall != 17.0/19.0 {
+		t.Fatalf("exact saved target must receive scoped rates: %+v", got)
+	}
+	if got := calibrationForTarget(calibration, "browser-automation-studio", sourceHash, "changed-config"); got.ScopeFrameID != "" || got.Precision != nil || got.Recall != nil {
+		t.Fatalf("stale config must not receive the old TypeScript rates: %+v", got)
 	}
 }
 

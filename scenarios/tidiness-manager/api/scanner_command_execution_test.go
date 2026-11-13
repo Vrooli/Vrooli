@@ -47,7 +47,7 @@ func TestMakefileCommandExecutionValidOutput(t *testing.T) {
 	for _, command := range scannerCommands {
 		t.Run(command.name, func(t *testing.T) {
 			root := writeScannerProject(t, makeTarget(command.name, command.validLines...))
-			result, err := NewLightScanner(root, 30*time.Second).Scan(context.Background())
+			result, err := newLightScannerForTest(root, 30*time.Second).Scan(context.Background())
 			if err != nil {
 				t.Fatalf("scan failed: %v", err)
 			}
@@ -76,7 +76,7 @@ func TestMakefileCommandExecutionNonzeroExit(t *testing.T) {
 		t.Run(command.name, func(t *testing.T) {
 			root := writeScannerProject(t, makeTarget(command.name,
 				`@echo "src/error.go:1:1: synthetic failure"`, "@exit 1"))
-			result, err := NewLightScanner(root, 30*time.Second).Scan(context.Background())
+			result, err := newLightScannerForTest(root, 30*time.Second).Scan(context.Background())
 			if err != nil {
 				t.Fatalf("scan should complete despite target failure: %v", err)
 			}
@@ -93,7 +93,7 @@ func TestMakefileCommandExecutionInvalidCommand(t *testing.T) {
 		t.Run(command.name, func(t *testing.T) {
 			root := writeScannerProject(t, makeTarget(command.name,
 				"@definitely-missing-vrooli-command --flag", `@echo "must not run"`))
-			result, err := NewLightScanner(root, 30*time.Second).Scan(context.Background())
+			result, err := newLightScannerForTest(root, 30*time.Second).Scan(context.Background())
 			if err != nil {
 				t.Fatalf("scan should tolerate invalid target commands: %v", err)
 			}
@@ -109,7 +109,7 @@ func TestMakefileCommandExecutionTimeout(t *testing.T) {
 	for _, command := range scannerCommands {
 		t.Run(command.name, func(t *testing.T) {
 			root := writeScannerProject(t, makeTarget(command.name, "@sleep 10"))
-			result, err := NewLightScanner(root, 100*time.Millisecond).Scan(context.Background())
+			result, err := newLightScannerForTest(root, 100*time.Millisecond).Scan(context.Background())
 			if err != nil {
 				t.Fatalf("scan should return partial metrics after command timeout: %v", err)
 			}
@@ -134,7 +134,7 @@ func TestMakefileCommandExecutionConcurrentSafety(t *testing.T) {
 			done := make(chan scanResult, workers)
 			for i := 0; i < workers; i++ {
 				go func() {
-					result, err := NewLightScanner(root, 30*time.Second).Scan(context.Background())
+					result, err := newLightScannerForTest(root, 30*time.Second).Scan(context.Background())
 					if err != nil || result == nil {
 						done <- scanResult{err: err}
 						return
@@ -161,7 +161,7 @@ func TestMakefileCommandExecutionContextCancellation(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 			defer cancel()
 			started := time.Now()
-			result, err := NewLightScanner(root, 10*time.Second).Scan(ctx)
+			result, err := newLightScannerForTest(root, 10*time.Second).Scan(ctx)
 			if time.Since(started) > time.Second {
 				t.Fatal("scan did not stop promptly after context cancellation")
 			}
@@ -179,7 +179,7 @@ func TestMakefileCommandExecutionEmptyOutput(t *testing.T) {
 	for _, command := range scannerCommands {
 		t.Run(command.name, func(t *testing.T) {
 			root := writeScannerProject(t, makeTarget(command.name, "@true"))
-			result, err := NewLightScanner(root, 30*time.Second).Scan(context.Background())
+			result, err := newLightScannerForTest(root, 30*time.Second).Scan(context.Background())
 			if err != nil {
 				t.Fatalf("scan failed: %v", err)
 			}

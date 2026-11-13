@@ -1,5 +1,14 @@
 {
-  "version": "debt-detector-corpus-v10",
+  "version": "debt-detector-corpus-v12",
+  "historical_audit": {
+    "evidence_ref": "programme-four-20261110/dr1-historical-detector-evidence-v2.json",
+    "evidence_sha256": "15b312062b5eb9f68702eb95c68cb9b68bb116c6573e8e8e176d88ef3ac14b4b",
+    "runs_reviewed": 48,
+    "hunt_entries_reviewed": 110,
+    "detectors_audited": 5,
+    "reduction_detectors_audited": 4,
+    "archived_predictions_joinable": 0
+  },
   "cases": [
     {
       "id": "agent-manager-json-types-dupl-blocks-are-not-identical-function-bodies",
@@ -145,7 +154,9 @@
         }
       ],
       "evidence_ref": "dr1-historical-detector-evidence-v2.json#/scope_boundary_labels/labels/0",
-      "original_prediction": "unknown"
+      "original_prediction": "unknown",
+      "source_snapshot_sha256": "f32f4ad6359278398694b3c27c7277dbc40bc0f1c27ed33959028d15649dfaf7",
+      "detector_contract_sha256": "75d942eb9d1566d5f9a9244e87c700148438937419df71714fd83cc3e86fdb0d"
     },
     {
       "id": "agent-manager-json-types-nullable-value-clones",
@@ -207,7 +218,9 @@
         }
       ],
       "original_prediction": "unknown",
-      "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/agent-manager-json-types-nullable-value-clones"
+      "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/agent-manager-json-types-nullable-value-clones",
+      "source_snapshot_sha256": "f32f4ad6359278398694b3c27c7277dbc40bc0f1c27ed33959028d15649dfaf7",
+      "detector_contract_sha256": "75d942eb9d1566d5f9a9244e87c700148438937419df71714fd83cc3e86fdb0d"
     },
     {
       "id": "architecture-cartographer-archetype-proto-mappers",
@@ -243,7 +256,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/architecture-cartographer-archetype-proto-mappers",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "abb4b373530bc5da02081eab94b85de9a8fc93732520b628117f6cd506b142e9",
+      "detector_contract_sha256": "75d942eb9d1566d5f9a9244e87c700148438937419df71714fd83cc3e86fdb0d"
     },
     {
       "id": "architecture-cartographer-cli-archetype-labels",
@@ -279,7 +294,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/architecture-cartographer-cli-archetype-labels",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "f3e212b8aa6764cc0f42572ef936964eec88d157978c08d47198d255e2304084",
+      "detector_contract_sha256": "75d942eb9d1566d5f9a9244e87c700148438937419df71714fd83cc3e86fdb0d"
     },
     {
       "id": "architecture-cartographer-cli-finding-class-labels",
@@ -315,7 +332,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/architecture-cartographer-cli-finding-class-labels",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "add80d2b35d97793834bf3683e732b691eeb42fafa44827baeb4a6ad29db9de5",
+      "detector_contract_sha256": "75d942eb9d1566d5f9a9244e87c700148438937419df71714fd83cc3e86fdb0d"
     },
     {
       "id": "architecture-cartographer-finding-class-proto-mappers",
@@ -351,7 +370,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/architecture-cartographer-finding-class-proto-mappers",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "0c8dd08d16befd0157821dc9e43582ead05ad1e381572f586c13c54a92003cc2",
+      "detector_contract_sha256": "75d942eb9d1566d5f9a9244e87c700148438937419df71714fd83cc3e86fdb0d"
     },
     {
       "id": "architecture-cartographer-severity-proto-mappers",
@@ -398,7 +419,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/architecture-cartographer-severity-proto-mappers",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "0c8dd08d16befd0157821dc9e43582ead05ad1e381572f586c13c54a92003cc2",
+      "detector_contract_sha256": "75d942eb9d1566d5f9a9244e87c700148438937419df71714fd83cc3e86fdb0d"
     },
     {
       "id": "architecture-cartographer-shared-graph-client-construction",
@@ -456,7 +479,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/architecture-cartographer-shared-graph-client-construction",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "f3e212b8aa6764cc0f42572ef936964eec88d157978c08d47198d255e2304084",
+      "detector_contract_sha256": "75d942eb9d1566d5f9a9244e87c700148438937419df71714fd83cc3e86fdb0d"
     },
     {
       "id": "architecture-cartographer-sorted-domain-list",
@@ -490,7 +515,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/architecture-cartographer-sorted-domain-list",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "a40b0a42d28e6c870b8d5951e20af3a924aea203a6dc616583228b9f003b11d8",
+      "detector_contract_sha256": "75d942eb9d1566d5f9a9244e87c700148438937419df71714fd83cc3e86fdb0d"
     },
     {
       "id": "bound",
@@ -556,7 +583,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/code-facts-cache-clear",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "b0e3c777259c968b68d599ab56a301ee15286952dce098e11cf69be5b92d742c",
+      "detector_contract_sha256": "894335132d8dec21a68ef9b70bd7e9005cd21daacdc72739a11eb14b2e31c184"
     },
     {
       "id": "code-facts-cache-inspect",
@@ -590,7 +619,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/code-facts-cache-inspect",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "b0e3c777259c968b68d599ab56a301ee15286952dce098e11cf69be5b92d742c",
+      "detector_contract_sha256": "894335132d8dec21a68ef9b70bd7e9005cd21daacdc72739a11eb14b2e31c184"
     },
     {
       "id": "code-facts-cache-status",
@@ -624,7 +655,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/code-facts-cache-status",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "b0e3c777259c968b68d599ab56a301ee15286952dce098e11cf69be5b92d742c",
+      "detector_contract_sha256": "894335132d8dec21a68ef9b70bd7e9005cd21daacdc72739a11eb14b2e31c184"
     },
     {
       "id": "code-facts-facts-describe",
@@ -658,7 +691,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/code-facts-facts-describe",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "20e1e24973f00191dfc61f2184db0b5c3281f6a3321e429f8c591f0b332202b6",
+      "detector_contract_sha256": "894335132d8dec21a68ef9b70bd7e9005cd21daacdc72739a11eb14b2e31c184"
     },
     {
       "id": "code-facts-facts-endpointProof",
@@ -692,7 +727,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/code-facts-facts-endpointProof",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "20e1e24973f00191dfc61f2184db0b5c3281f6a3321e429f8c591f0b332202b6",
+      "detector_contract_sha256": "894335132d8dec21a68ef9b70bd7e9005cd21daacdc72739a11eb14b2e31c184"
     },
     {
       "id": "code-facts-facts-protoAdoption",
@@ -726,7 +763,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/code-facts-facts-protoAdoption",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "20e1e24973f00191dfc61f2184db0b5c3281f6a3321e429f8c591f0b332202b6",
+      "detector_contract_sha256": "894335132d8dec21a68ef9b70bd7e9005cd21daacdc72739a11eb14b2e31c184"
     },
     {
       "id": "code-facts-facts-search",
@@ -760,7 +799,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/code-facts-facts-search",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "20e1e24973f00191dfc61f2184db0b5c3281f6a3321e429f8c591f0b332202b6",
+      "detector_contract_sha256": "894335132d8dec21a68ef9b70bd7e9005cd21daacdc72739a11eb14b2e31c184"
     },
     {
       "id": "code-facts-facts-surfaces",
@@ -794,7 +835,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/code-facts-facts-surfaces",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "20e1e24973f00191dfc61f2184db0b5c3281f6a3321e429f8c591f0b332202b6",
+      "detector_contract_sha256": "894335132d8dec21a68ef9b70bd7e9005cd21daacdc72739a11eb14b2e31c184"
     },
     {
       "id": "distinct-implementations",
@@ -12076,7 +12119,9 @@
       ],
       "original_prediction": "unknown",
       "evidence_ref": "dr1-historical-detector-evidence-v1.json#historical_replayable_labels/scenario-auditor-content-type-noop-stubs",
-      "language": "go"
+      "language": "go",
+      "source_snapshot_sha256": "50e46dcee565c2914e85e09012e06721bff128c706a030f29e48e0c77d5fdff0",
+      "detector_contract_sha256": "75d942eb9d1566d5f9a9244e87c700148438937419df71714fd83cc3e86fdb0d"
     },
     {
       "id": "trivial-forwarders",
@@ -12858,6 +12903,708 @@
           "BodyLines": 36,
           "Start": 43,
           "End": 78
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-184cf04c879b9920",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; absent from the saved served registry output, so this is a false negative.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": false,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/0",
+      "symbols": [
+        {
+          "Name": "rawElementMetaToProto",
+          "Path": "playwright-driver/src/proto/recording.ts",
+          "BodyHash": "184cf04c879b99205c4d52718213b69b9c9cafa5e8261cc02a58829a8743f693",
+          "Start": 578,
+          "End": 590,
+          "BodyLines": 13
+        },
+        {
+          "Name": "rawElementMetaToProto",
+          "Path": "playwright-driver/src/telemetry/element-context.ts",
+          "BodyHash": "184cf04c879b99205c4d52718213b69b9c9cafa5e8261cc02a58829a8743f693",
+          "Start": 283,
+          "End": 295,
+          "BodyLines": 13
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-9b11b63d0587ad49",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; absent from the saved served registry output, so this is a false negative.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": false,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/1",
+      "symbols": [
+        {
+          "Name": "safeJsonParse",
+          "Path": "playwright-driver/src/recording/testing/diagnostics.ts",
+          "BodyHash": "9b11b63d0587ad492db54b75ca7f5b29d3a06cd06bde7f63e77c1730d221503e",
+          "Start": 62,
+          "End": 68,
+          "BodyLines": 7
+        },
+        {
+          "Name": "safeJsonParse",
+          "Path": "playwright-driver/src/recording/validation/verification.ts",
+          "BodyHash": "9b11b63d0587ad492db54b75ca7f5b29d3a06cd06bde7f63e77c1730d221503e",
+          "Start": 59,
+          "End": 65,
+          "BodyLines": 7
+        },
+        {
+          "Name": "safeJsonParse",
+          "Path": "playwright-driver/src/routes/record-mode/recording-diagnostics-routes.ts",
+          "BodyHash": "9b11b63d0587ad492db54b75ca7f5b29d3a06cd06bde7f63e77c1730d221503e",
+          "Start": 45,
+          "End": 51,
+          "BodyLines": 7
+        },
+        {
+          "Name": "safeParseJson",
+          "Path": "ui/src/stores/settingsStore.ts",
+          "BodyHash": "9b11b63d0587ad492db54b75ca7f5b29d3a06cd06bde7f63e77c1730d221503e",
+          "Start": 67,
+          "End": 73,
+          "BodyLines": 7
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-dfd97f959f9b905f",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/2",
+      "symbols": [
+        {
+          "Name": "formatDuration",
+          "Path": "ui/src/domains/executions/history/ExecutionCard.tsx",
+          "BodyHash": "dfd97f959f9b905f5ca8609d58572174bfc067fdf32f685de95799a86b6d5787",
+          "Start": 23,
+          "End": 29,
+          "BodyLines": 7
+        },
+        {
+          "Name": "formatExecutionDuration",
+          "Path": "ui/src/domains/exports/presentation/formatters.ts",
+          "BodyHash": "dfd97f959f9b905f5ca8609d58572174bfc067fdf32f685de95799a86b6d5787",
+          "Start": 33,
+          "End": 39,
+          "BodyLines": 7
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-3b0414396d3dc131",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/3",
+      "symbols": [
+        {
+          "Name": "extractConsoleLogs",
+          "Path": "ui/src/domains/executions/InlineExecutionViewer.tsx",
+          "BodyHash": "3b0414396d3dc131e2dbcdd02972615efe8886535c8abe74f75b8a7d25d32913",
+          "Start": 58,
+          "End": 83,
+          "BodyLines": 26
+        },
+        {
+          "Name": "extractConsoleLogs",
+          "Path": "ui/src/domains/recording/utils/artifact-extraction.ts",
+          "BodyHash": "3b0414396d3dc131e2dbcdd02972615efe8886535c8abe74f75b8a7d25d32913",
+          "Start": 16,
+          "End": 41,
+          "BodyLines": 26
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-b3d745bd15445d6d",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/4",
+      "symbols": [
+        {
+          "Name": "extractNetworkEvents",
+          "Path": "ui/src/domains/executions/InlineExecutionViewer.tsx",
+          "BodyHash": "b3d745bd15445d6d0a0c8e206009a29eb4340e0d188d4773f22a11e8724e43a7",
+          "Start": 85,
+          "End": 118,
+          "BodyLines": 34
+        },
+        {
+          "Name": "extractNetworkEvents",
+          "Path": "ui/src/domains/recording/utils/artifact-extraction.ts",
+          "BodyHash": "b3d745bd15445d6d0a0c8e206009a29eb4340e0d188d4773f22a11e8724e43a7",
+          "Start": 47,
+          "End": 80,
+          "BodyLines": 34
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-9c556b1f6f492856",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/5",
+      "symbols": [
+        {
+          "Name": "connectErrorMessage",
+          "Path": "ui/src/domains/exports/api/downloadClient.ts",
+          "BodyHash": "9c556b1f6f492856252f17b9e33a7ae0daf52a889630cff8f18412cbbabb7349",
+          "Start": 101,
+          "End": 105,
+          "BodyLines": 5
+        },
+        {
+          "Name": "errorMessage",
+          "Path": "ui/src/domains/exports/store.ts",
+          "BodyHash": "9c556b1f6f492856252f17b9e33a7ae0daf52a889630cff8f18412cbbabb7349",
+          "Start": 142,
+          "End": 146,
+          "BodyLines": 5
+        },
+        {
+          "Name": "messageFromError",
+          "Path": "ui/src/stores/entitlementStore.ts",
+          "BodyHash": "9c556b1f6f492856252f17b9e33a7ae0daf52a889630cff8f18412cbbabb7349",
+          "Start": 113,
+          "End": 117,
+          "BodyLines": 5
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-a61b21352cf77d4e",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/6",
+      "symbols": [
+        {
+          "Name": "formatFileSize",
+          "Path": "ui/src/domains/import/constants.ts",
+          "BodyHash": "a61b21352cf77d4e9d590a4d1295629f8a09dd845d8cb1037066d2211efa2d1b",
+          "Start": 94,
+          "End": 98,
+          "BodyLines": 5
+        },
+        {
+          "Name": "formatFileSize",
+          "Path": "ui/src/domains/import/modals/AssetImportModal.tsx",
+          "BodyHash": "a61b21352cf77d4e9d590a4d1295629f8a09dd845d8cb1037066d2211efa2d1b",
+          "Start": 514,
+          "End": 518,
+          "BodyLines": 5
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-2779427c1ffca1d8",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/7",
+      "symbols": [
+        {
+          "Name": "parseJson",
+          "Path": "ui/src/domains/import/hooks/useFolderScanner.ts",
+          "BodyHash": "2779427c1ffca1d8f22a7dba920de30c12ab26e88130086706bba7d9badb67e3",
+          "Start": 80,
+          "End": 86,
+          "BodyLines": 7
+        },
+        {
+          "Name": "parseJson",
+          "Path": "ui/src/domains/import/hooks/useProjectImport.ts",
+          "BodyHash": "2779427c1ffca1d8f22a7dba920de30c12ab26e88130086706bba7d9badb67e3",
+          "Start": 79,
+          "End": 85,
+          "BodyLines": 7
+        },
+        {
+          "Name": "parseJson",
+          "Path": "ui/src/domains/import/hooks/useRoutineImport.ts",
+          "BodyHash": "2779427c1ffca1d8f22a7dba920de30c12ab26e88130086706bba7d9badb67e3",
+          "Start": 22,
+          "End": 28,
+          "BodyLines": 7
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-5e9f8fc614914980",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/8",
+      "symbols": [
+        {
+          "Name": "getStoredNumber",
+          "Path": "ui/src/domains/preview-settings/usePreviewSettingsPanel.ts",
+          "BodyHash": "5e9f8fc614914980bc6ff4fd99262f2736adbd50fcb7926c8bdc6294bfcee9d6",
+          "Start": 33,
+          "End": 45,
+          "BodyLines": 13
+        },
+        {
+          "Name": "getStoredNumber",
+          "Path": "ui/src/domains/recording/sidebar/useUnifiedSidebar.ts",
+          "BodyHash": "5e9f8fc614914980bc6ff4fd99262f2736adbd50fcb7926c8bdc6294bfcee9d6",
+          "Start": 28,
+          "End": 40,
+          "BodyLines": 13
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-539d94b3eef3570c",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/9",
+      "symbols": [
+        {
+          "Name": "setStoredValue",
+          "Path": "ui/src/domains/preview-settings/usePreviewSettingsPanel.ts",
+          "BodyHash": "539d94b3eef3570c2fa562df6de1c8edb89d8253cf471a2f161001ad5690d895",
+          "Start": 47,
+          "End": 54,
+          "BodyLines": 8
+        },
+        {
+          "Name": "setStoredValue",
+          "Path": "ui/src/domains/recording/sidebar/useAISettings.ts",
+          "BodyHash": "539d94b3eef3570c2fa562df6de1c8edb89d8253cf471a2f161001ad5690d895",
+          "Start": 48,
+          "End": 55,
+          "BodyLines": 8
+        },
+        {
+          "Name": "setStoredValue",
+          "Path": "ui/src/domains/recording/sidebar/useUnifiedSidebar.ts",
+          "BodyHash": "539d94b3eef3570c2fa562df6de1c8edb89d8253cf471a2f161001ad5690d895",
+          "Start": 90,
+          "End": 97,
+          "BodyLines": 8
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-8a1bbad42540f228",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/10",
+      "symbols": [
+        {
+          "Name": "extractDomainFromUrl",
+          "Path": "ui/src/domains/recording/hooks/useLinkPreview.ts",
+          "BodyHash": "8a1bbad42540f2281eab2815959517313d23de559b1f6363ba6bb2b56b44af3f",
+          "Start": 243,
+          "End": 250,
+          "BodyLines": 8
+        },
+        {
+          "Name": "extractDomain",
+          "Path": "ui/src/domains/recording/timeline/RecordPreviewPanel.tsx",
+          "BodyHash": "8a1bbad42540f2281eab2815959517313d23de559b1f6363ba6bb2b56b44af3f",
+          "Start": 126,
+          "End": 133,
+          "BodyLines": 8
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-265a851e694ed04c",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/11",
+      "symbols": [
+        {
+          "Name": "clampViewportDimension",
+          "Path": "ui/src/domains/workflows/builder/components/viewportDialogUtils.ts",
+          "BodyHash": "265a851e694ed04cc6306aa97b636c48d4ebfb62cbb52f090efcb9546e354546",
+          "Start": 13,
+          "End": 21,
+          "BodyLines": 9
+        },
+        {
+          "Name": "clampDimension",
+          "Path": "ui/src/stores/workflow/utils/viewport.ts",
+          "BodyHash": "265a851e694ed04cc6306aa97b636c48d4ebfb62cbb52f090efcb9546e354546",
+          "Start": 18,
+          "End": 23,
+          "BodyLines": 6
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-1b2c726c9303e666",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/12",
+      "symbols": [
+        {
+          "Name": "summarizeCandidate",
+          "Path": "ui/src/domains/workflows/components/ElementPickerModal.tsx",
+          "BodyHash": "1b2c726c9303e666b52cb41c762f19898eb30d84ab174ae79d0688cee4db6680",
+          "Start": 33,
+          "End": 43,
+          "BodyLines": 11
+        },
+        {
+          "Name": "summarizeElement",
+          "Path": "ui/src/domains/workflows/nodes/utils/elementHierarchy.ts",
+          "BodyHash": "1b2c726c9303e666b52cb41c762f19898eb30d84ab174ae79d0688cee4db6680",
+          "Start": 79,
+          "End": 91,
+          "BodyLines": 13
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-4ce6949f2ed13a37",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/13",
+      "symbols": [
+        {
+          "Name": "stringifyPath",
+          "Path": "ui/src/domains/workflows/components/ElementPickerModal.tsx",
+          "BodyHash": "4ce6949f2ed13a37c706a4033382a325b8bd8c9a6d0827f5c2283dd789c83a51",
+          "Start": 45,
+          "End": 53,
+          "BodyLines": 9
+        },
+        {
+          "Name": "stringifyPath",
+          "Path": "ui/src/domains/workflows/nodes/utils/elementHierarchy.ts",
+          "BodyHash": "4ce6949f2ed13a37c706a4033382a325b8bd8c9a6d0827f5c2283dd789c83a51",
+          "Start": 96,
+          "End": 104,
+          "BodyLines": 9
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-42e22ac09a47afe1",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/14",
+      "symbols": [
+        {
+          "Name": "formatDuration",
+          "Path": "ui/src/hooks/useScheduleNotifications.ts",
+          "BodyHash": "42e22ac09a47afe13e056d1de71325d4b08fcf07a3bedc3663510540269b1944",
+          "Start": 26,
+          "End": 32,
+          "BodyLines": 7
+        },
+        {
+          "Name": "formatDuration",
+          "Path": "ui/src/stores/uxMetricsStore.ts",
+          "BodyHash": "42e22ac09a47afe13e056d1de71325d4b08fcf07a3bedc3663510540269b1944",
+          "Start": 514,
+          "End": 520,
+          "BodyLines": 7
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-217c74dc7e9b4080",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/15",
+      "symbols": [
+        {
+          "Name": "useSyncedBoolean",
+          "Path": "ui/src/hooks/useSyncedField.ts",
+          "BodyHash": "217c74dc7e9b408026dad077995c426e1723e0c4491a5bb3992f22c6b5e5d8b6",
+          "Start": 218,
+          "End": 225,
+          "BodyLines": 8
+        },
+        {
+          "Name": "useSyncedSelect",
+          "Path": "ui/src/hooks/useSyncedField.ts",
+          "BodyHash": "217c74dc7e9b408026dad077995c426e1723e0c4491a5bb3992f22c6b5e5d8b6",
+          "Start": 251,
+          "End": 258,
+          "BodyLines": 8
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-ca00a38680192783",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/16",
+      "symbols": [
+        {
+          "Name": "normalizeExecutionStatus",
+          "Path": "ui/src/stores/dashboardStore.ts",
+          "BodyHash": "ca00a38680192783610f47b70eb8958272c8a14b5ce91c5c06ecd07eb2aad6bc",
+          "Start": 148,
+          "End": 157,
+          "BodyLines": 10
+        },
+        {
+          "Name": "normalizeExecutionStatus",
+          "Path": "ui/src/views/AllExecutionsView/controllers/executionListController.ts",
+          "BodyHash": "ca00a38680192783610f47b70eb8958272c8a14b5ce91c5c06ecd07eb2aad6bc",
+          "Start": 26,
+          "End": 34,
+          "BodyLines": 9
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-b673fa329a7bcf34",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/17",
+      "symbols": [
+        {
+          "Name": "parseWorkflowFromCreateProto",
+          "Path": "ui/src/stores/workflow/utils/proto.ts",
+          "BodyHash": "b673fa329a7bcf34789ae2fe78197541ed4627e2cebbd9a412e5b783345c5fc7",
+          "Start": 80,
+          "End": 88,
+          "BodyLines": 9
+        },
+        {
+          "Name": "parseWorkflowFromUpdateProto",
+          "Path": "ui/src/stores/workflow/utils/proto.ts",
+          "BodyHash": "b673fa329a7bcf34789ae2fe78197541ed4627e2cebbd9a412e5b783345c5fc7",
+          "Start": 102,
+          "End": 110,
+          "BodyLines": 9
+        }
+      ]
+    },
+    {
+      "id": "typescript-browser-automation-studio-84ca999cba3145a9",
+      "detector_id": "duplication.identical-function-body.typescript",
+      "language": "typescript",
+      "expected": true,
+      "origin": "live-source-census",
+      "source": "scenarios/browser-automation-studio",
+      "reason": "Complete TypeScript source census exact group; it appears in the saved served registry output.",
+      "sampling_frame": "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1",
+      "sampling_population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+      "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+      "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+      "predicted": true,
+      "evidence_ref": "dr1-typescript-body-census-v1.json#/source_groups/18",
+      "symbols": [
+        {
+          "Name": "formatRelativeTime",
+          "Path": "ui/src/views/AllExecutionsView/GlobalExecutionsView.tsx",
+          "BodyHash": "84ca999cba3145a9d8bc294a55e7fef63202fb02007973982bd238b28c117338",
+          "Start": 12,
+          "End": 24,
+          "BodyLines": 13
+        },
+        {
+          "Name": "formatRelativeTime",
+          "Path": "ui/src/views/AllWorkflowsView/GlobalWorkflowsView.tsx",
+          "BodyHash": "84ca999cba3145a9d8bc294a55e7fef63202fb02007973982bd238b28c117338",
+          "Start": 20,
+          "End": 32,
+          "BodyLines": 13
+        },
+        {
+          "Name": "formatRelativeTime",
+          "Path": "ui/src/views/DashboardView/widgets/RecentExecutionsWidget.tsx",
+          "BodyHash": "84ca999cba3145a9d8bc294a55e7fef63202fb02007973982bd238b28c117338",
+          "Start": 9,
+          "End": 21,
+          "BodyLines": 13
+        },
+        {
+          "Name": "formatRelativeTime",
+          "Path": "ui/src/views/DashboardView/widgets/RecentWorkflowsWidget.tsx",
+          "BodyHash": "84ca999cba3145a9d8bc294a55e7fef63202fb02007973982bd238b28c117338",
+          "Start": 9,
+          "End": 21,
+          "BodyLines": 13
         }
       ]
     }
@@ -14531,6 +15278,44 @@
           "prediction_basis": "local Tidiness registry owner-path replay; target source/config identity from Code Facts parse_units report cache. Full graph recommendation response not verified."
         }
       ]
+    },
+    "dr1-go-stratified-sample-browser-automation-studio-typescript-census-v1": {
+      "detector_id": "duplication.identical-function-body.typescript",
+      "population_id": "b4fb410224eb657b84e0aec792de86439fc116049ac6f5c0af600f18a79f9c4d",
+      "population": "One complete TypeScript production-source census of the browser-automation-studio target selected in the Go-bearing scenario sample; no TypeScript-fleet generalization.",
+      "complete_census": true,
+      "sampling_unit": "all eligible TypeScript function and method body groups under browser-automation-studio/ui at the frozen target source snapshot",
+      "selection_method": "target was selected by the frozen stratified probability sample of Go-bearing scenarios; TypeScript applicability is target-scoped and not representative of the TypeScript fleet",
+      "random_seed": "dr1-probability-go-scenarios-2026-11-11-v1",
+      "adjudication_protocol": "Independent ts-morph/TypeScript Compiler API census using the provider's documented SHA-256 syntax-printer normalization, excluding test, declaration, generated, and vendored sources; compare every full production location set to the retained served recommendation response. This measures syntax group recognition, not actionability or safe net removal.",
+      "adjudication_complete": true,
+      "measurement_method": "Independent TypeScript source census compared against the exact saved served recommendation response; both source and configuration hashes are retained from that response and its parser report.",
+      "response_complete": true,
+      "generalization_scope": "exact frozen target only; no TypeScript fleet rate",
+      "targets": [
+        {
+          "scenario": "browser-automation-studio",
+          "source_hash": "c22d16347c2e89c32ef75b4ad39278b78e276e7fdbab27f041897b094ae1c5b2",
+          "config_hash": "59363f08aabb9623a62055514ab7f3640ed07d433bc224e0efbd8292eab1e230",
+          "source_manifest_sha256": "b8fcbdac93cd438399cfcfefcf4bf0939f839c90ee08f489ad7d8b3d2f26ee1a",
+          "source_file_count": 872,
+          "eligible_functions": 1782,
+          "source_groups": 19,
+          "served_groups": 17,
+          "served_recommendations": 17,
+          "response_complete": true
+        }
+      ]
+    }
+  },
+  "historical_detector_contracts": {
+    "duplication.identical-function-body": {
+      "contract": "contract-v1|language=go|identity=code-facts.body_hash|minimum-body-lines=5|production-only|group-size>=2",
+      "sha256": "75d942eb9d1566d5f9a9244e87c700148438937419df71714fd83cc3e86fdb0d"
+    },
+    "migration.unbound-cli-handler": {
+      "contract": "contract-v1|language=go|non-exported|receiver-method|name-occurrences=1|signature-contains=cliapp.RunContext|same-package-same-receiver-replacement=<name>Call|replacement-signature-contains=cliapp.OperationContext",
+      "sha256": "894335132d8dec21a68ef9b70bd7e9005cd21daacdc72739a11eb14b2e31c184"
     }
   }
 }

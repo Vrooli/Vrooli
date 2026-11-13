@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"sort"
+	"strconv"
+	"strings"
 )
 
 //go:embed corpus.json
@@ -18,7 +20,10 @@ type corpusCase struct {
 	Expected               bool   `json:"expected"`
 	Origin                 string `json:"origin"`
 	Source                 string `json:"source"`
+	Revision               string `json:"revision,omitempty"`
 	EvidenceRef            string `json:"evidence_ref,omitempty"`
+	SourceSnapshotSHA256   string `json:"source_snapshot_sha256,omitempty"`
+	DetectorContractSHA256 string `json:"detector_contract_sha256,omitempty"`
 	OriginalPrediction     string `json:"original_prediction,omitempty"`
 	Reason                 string `json:"reason"`
 	SamplingFrame          string `json:"sampling_frame,omitempty"`
@@ -67,9 +72,14 @@ type corpusDocumentSampling struct {
 }
 
 type corpusDocument struct {
-	Sampling corpusDocumentSampling `json:"sampling"`
-	Frames   map[string]corpusFrame `json:"frames,omitempty"`
-	Cases    []corpusCase           `json:"cases"`
+	Sampling                 corpusDocumentSampling `json:"sampling"`
+	HistoricalAudit          HistoricalAudit        `json:"historical_audit"`
+	HistoricalDetectorChecks map[string]struct {
+		Contract string `json:"contract"`
+		SHA256   string `json:"sha256"`
+	} `json:"historical_detector_contracts"`
+	Frames map[string]corpusFrame `json:"frames,omitempty"`
+	Cases  []corpusCase           `json:"cases"`
 }
 
 func readCorpus() corpusDocument {
@@ -101,15 +111,21 @@ func (r *Registry) calibrate() {
 	corpus := readCorpus()
 	for i := range r.detectors {
 		detector := &r.detectors[i]
-		calibration := Calibration{Basis: "uncalibrated", CorpusVersion: "sha256:" + hex.EncodeToString(digest[:])}
+		audit := corpus.HistoricalAudit
+		contract, hasContract := corpus.HistoricalDetectorChecks[detector.ID]
+		if hasContract {
+			audit.DetectorContractSHA256 = contract.SHA256
+		}
+		calibration := Calibration{Basis: "uncalibrated", CorpusVersion: "sha256:" + hex.EncodeToString(digest[:]), HistoricalAudit: &audit}
 		if detector.detect == nil {
 			// External policy evidence is not a prediction of removable code.
 			// Keep its calibration explicitly not-applicable instead of treating
 			// absent reduction labels as zero precision.
-			detector.Calibration = Calibration{Basis: "not-applicable: policy findings are not reduction predictions", CorpusVersion: calibration.CorpusVersion}
+			detector.Calibration = Calibration{Basis: "not-applicable: policy findings are not reduction predictions", CorpusVersion: calibration.CorpusVersion, HistoricalAudit: &audit}
 			continue
 		}
 		frameCounts := map[string]*CalibrationFrame{}
+		var historicalSourceIdentities []string
 		for frameID, frame := range corpus.Frames {
 			if frame.DetectorID != detector.ID {
 				continue
@@ -126,6 +142,9 @@ func (r *Registry) calibrate() {
 		for _, c := range corpus.Cases {
 			if c.DetectorID != detector.ID {
 				continue
+			}
+			if (c.Origin == "repository-beforeimage" || c.Origin == "source-replay-boundary") && c.SourceSnapshotSHA256 != "" {
+				historicalSourceIdentities = append(historicalSourceIdentities, strings.Join([]string{c.ID, c.Source, c.Revision, c.SourceSnapshotSHA256, c.DetectorContractSHA256, strconv.FormatBool(c.Expected)}, "\x00"))
 			}
 			hit := len(detector.detect(c.input())) > 0
 			if c.Origin == "live-source-census" {
@@ -210,6 +229,13 @@ func (r *Registry) calibrate() {
 		calibration.AdjudicationProtocol = corpus.Sampling.AdjudicationProtocol
 		calibration.AdjudicationComplete = corpus.Sampling.AdjudicationComplete
 		calibration.RepresentativeSample = corpus.Sampling.hasRateProvenance()
+		if len(historicalSourceIdentities) > 0 {
+			sort.Strings(historicalSourceIdentities)
+			sourceDigest := sha256.Sum256([]byte(strings.Join(historicalSourceIdentities, "\n")))
+			audit.SourceLabelCount = len(historicalSourceIdentities)
+			audit.SourceManifestSHA256 = hex.EncodeToString(sourceDigest[:])
+			calibration.HistoricalAudit = &audit
+		}
 		calibration.setRates()
 		detector.Calibration = calibration
 	}

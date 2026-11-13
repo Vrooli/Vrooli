@@ -15,7 +15,7 @@
 
 ### 🔴 P0 – Must ship for viability
 - [ ] OT-P0-001 | Maintainability scanning | Detect long files, technical debt markers, coupling, complexity, and duplication, then return normalized tidiness findings for agents and Test Genie
-- [ ] OT-P0-002 | Code quality metrics | Detect languages (Go/TS/JS/Python/Rust), compute line counts, technical debt markers (TODO/FIXME/HACK), import/function metrics, cyclomatic complexity and Go/TS/JS function-body identities from Code Facts, and surface duplicate-body findings through the shared detector registry with honest degradation
+- [ ] OT-P0-002 | Code quality metrics | Consume source inventory and non-empty line counts from Code Facts `FILE_METRICS`; detect languages (Go/TS/JS/Python/Rust), compute technical debt markers (TODO/FIXME/HACK), import/function metrics, cyclomatic complexity and Go/TS/JS function-body identities from Code Facts, and surface duplicate-body findings through the shared detector registry with honest degradation
 - [x] OT-P0-003 | Light scan performance | Complete light scans for typical scenarios in under 60-120 seconds or surface clear timeout status
 - [ ] OT-P0-004 | AI batch scanning | Process files in batches using resource-claude-code/resource-codes with configurable limits
 - [ ] OT-P0-005 | visited-tracker integration | Create/attach to campaigns and prioritize unvisited/least-visited files for smart scans

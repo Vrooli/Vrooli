@@ -33,7 +33,7 @@ func TestCollectFileMetrics_LineCounting(t *testing.T) {
 	}
 
 	// Create scanner and collect metrics
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	metrics, err := scanner.collectFileMetrics()
 	if err != nil {
 		t.Fatalf("collectFileMetrics failed: %v", err)
@@ -91,7 +91,7 @@ func TestCollectFileMetrics_ExtensionFiltering(t *testing.T) {
 		writeTestFile(t, fullPath, "test content\n")
 	}
 
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	metrics, err := scanner.collectFileMetrics()
 	if err != nil {
 		t.Fatalf("collectFileMetrics failed: %v", err)
@@ -158,7 +158,7 @@ func TestLongFileThreshold(t *testing.T) {
 	}
 
 	// Run full scan which includes long file detection
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
@@ -202,7 +202,7 @@ func TestLongFileThreshold_Configurable(t *testing.T) {
 	}
 	writeTestFile(t, fullPath, content)
 
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
@@ -245,7 +245,7 @@ func TestFileMetrics_Totals(t *testing.T) {
 		expectedTotal += tf.lines
 	}
 
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	result, err := scanner.Scan(context.Background())
 	if err != nil {
 		t.Fatalf("Scan failed: %v", err)
@@ -286,7 +286,7 @@ func TestCollectFileMetrics_EmptyFiles(t *testing.T) {
 		writeTestFile(t, fullPath, content)
 	}
 
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	metrics, err := scanner.collectFileMetrics()
 	if err != nil {
 		t.Fatalf("collectFileMetrics failed: %v", err)
@@ -328,7 +328,7 @@ func TestCollectFileMetrics_ExcludeHiddenDirs(t *testing.T) {
 		writeTestFile(t, fullPath, "content\n")
 	}
 
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	metrics, err := scanner.collectFileMetrics()
 	if err != nil {
 		t.Fatalf("collectFileMetrics failed: %v", err)
@@ -390,7 +390,7 @@ func TestCollectFileMetrics_UnreadableFiles(t *testing.T) {
 	}
 	defer func() { _ = os.Chmod(unreadablePath, 0o644) }() // Cleanup
 
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	metrics, err := scanner.collectFileMetrics()
 	// Should complete despite unreadable file (may skip it or return error)
 	if err != nil {
@@ -427,7 +427,7 @@ func TestCollectFileMetrics_DeepNesting(t *testing.T) {
 		t.Fatalf("Failed to write deep file: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	metrics, err := scanner.collectFileMetrics()
 	if err != nil {
 		t.Fatalf("collectFileMetrics failed: %v", err)
@@ -469,7 +469,7 @@ func TestCollectFileMetrics_ExtensionMetadata(t *testing.T) {
 		writeTestFile(t, fullPath, "content\n")
 	}
 
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	metrics, err := scanner.collectFileMetrics()
 	if err != nil {
 		t.Fatalf("collectFileMetrics failed: %v", err)
@@ -506,7 +506,7 @@ func TestCollectFileMetrics_LargeFile(t *testing.T) {
 		t.Fatalf("Failed to write large file: %v", err)
 	}
 
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	metrics, err := scanner.collectFileMetrics()
 	if err != nil {
 		t.Fatalf("collectFileMetrics failed: %v", err)
@@ -547,7 +547,7 @@ func TestCollectFileMetrics_Symlinks(t *testing.T) {
 		t.Skip("Cannot create symlinks on this system")
 	}
 
-	scanner := NewLightScanner(tmpDir, 0)
+	scanner := newLightScannerForTest(tmpDir, 0)
 	metrics, err := scanner.collectFileMetrics()
 	if err != nil {
 		t.Fatalf("collectFileMetrics failed: %v", err)
@@ -573,7 +573,7 @@ func TestCollectFileMetrics_Concurrent(t *testing.T) {
 	done := make(chan error, 5)
 	for i := 0; i < 5; i++ {
 		go func() {
-			scanner := NewLightScanner(tmpDir, 0)
+			scanner := newLightScannerForTest(tmpDir, 0)
 			_, err := scanner.collectFileMetrics()
 			done <- err
 		}()
@@ -612,7 +612,7 @@ func TestCollectFileMetrics_LineEndings(t *testing.T) {
 				t.Fatalf("Failed to write file: %v", err)
 			}
 
-			scanner := NewLightScanner(tmpDir, 0)
+			scanner := newLightScannerForTest(tmpDir, 0)
 			metrics, err := scanner.collectFileMetrics()
 			if err != nil {
 				t.Fatalf("collectFileMetrics failed: %v", err)
@@ -659,7 +659,7 @@ func TestLongFileThreshold_BoundaryConditions(t *testing.T) {
 				t.Fatalf("Failed to write file: %v", err)
 			}
 
-			scanner := NewLightScanner(tmpDir, 0)
+			scanner := newLightScannerForTest(tmpDir, 0)
 			result, err := scanner.Scan(context.Background())
 			if err != nil {
 				t.Fatalf("Scan failed: %v", err)
@@ -704,7 +704,7 @@ func BenchmarkCollectFileMetrics_Small(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		scanner := NewLightScanner(tmpDir, 0)
+		scanner := newLightScannerForTest(tmpDir, 0)
 		_, err := scanner.collectFileMetrics()
 		if err != nil {
 			b.Fatalf("collectFileMetrics failed: %v", err)
@@ -733,7 +733,7 @@ func BenchmarkCollectFileMetrics_Large(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		scanner := NewLightScanner(tmpDir, 0)
+		scanner := newLightScannerForTest(tmpDir, 0)
 		_, err := scanner.collectFileMetrics()
 		if err != nil {
 			b.Fatalf("collectFileMetrics failed: %v", err)
@@ -766,7 +766,7 @@ func BenchmarkLongFileDetection(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		scanner := NewLightScanner(tmpDir, 0)
+		scanner := newLightScannerForTest(tmpDir, 0)
 		_, err := scanner.Scan(context.Background())
 		if err != nil {
 			b.Fatalf("Scan failed: %v", err)

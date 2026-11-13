@@ -81,6 +81,7 @@ func NewServer() (*Server, error) {
 		environment = nil
 	}
 	srv := &Server{
+		reductionFacts:  resolvedCodeFactsClient{},
 		config:          &Config{},
 		db:              db,
 		store:           store,
