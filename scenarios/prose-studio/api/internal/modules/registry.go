@@ -17,7 +17,9 @@
 package modules
 
 import (
+	jobsH "prose-studio/handlers/jobs"
 	proseH "prose-studio/handlers/prose"
+	jobs "prose-studio/internal/jobs"
 	"prose-studio/internal/module"
 	prose "prose-studio/internal/prose"
 
@@ -37,6 +39,7 @@ import (
 func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
+	out = append(out, jobsH.Endpoints...)
 	out = append(out, proseH.Endpoints...)
 	return out
 }
@@ -77,6 +80,7 @@ func AllSchemas() []apidb.SchemaProvider {
 	return []apidb.SchemaProvider{
 		apidb.SchemaProviderFunc(localdb.SystemSchema),
 		apidb.SchemaProviderFunc(healthH.Schema),
+		apidb.SchemaProviderFunc(jobs.Schema),
 		apidb.SchemaProviderFunc(prose.Schema),
 	}
 }

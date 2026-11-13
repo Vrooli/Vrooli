@@ -62,6 +62,10 @@ to the survivor.
 | `session` | sessions | SQLite | `api/internal/sessions/schema.sql` | Retained; abandoned sessions kept for provenance. | Append-only DAG root; per-session budget ceiling. |
 | `document`, `section` | documents | SQLite | `api/internal/documents/schema.sql` | Retained. | Outline is an ordinary candidate. Section profile resolves by inheritance. |
 | `context_snapshot` | documents | SQLite | `api/internal/documents/schema.sql` | With its section. | Prior refs carried, following intents declared, what was summarized. Makes a reroll's blast radius answerable. |
+| `job_openings` | job-readiness | SQLite | `api/internal/jobs/schema.go` | Durable; no delete action is exposed yet. | Original role URL, description, source, category, status; local records remain usable when sources are unavailable. |
+| `job_facts` | job-readiness | SQLite | `api/internal/jobs/schema.go` | Durable; no delete action is exposed yet. | User-curated evidence snippets linked to resume and letter drafts. |
+| `job_resumes` | job-readiness | SQLite | `api/internal/jobs/schema.go` | Durable; each saved record is a role-specific draft. | Resume text, opening and fact IDs, plus last deterministic review findings. |
+| `job_cover_letters` | job-readiness | SQLite | `api/internal/jobs/schema.go` | Durable; each saved record is a practice draft. | Letter text, opening and fact IDs; never submitted by the scenario. |
 
 ## Schema Map
 

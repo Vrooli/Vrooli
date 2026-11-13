@@ -29,6 +29,27 @@ func TestAllEndpoints_NonEmpty(t *testing.T) {
 	require.NotEmpty(t, got, "AllEndpoints must include at least the health endpoint")
 }
 
+func TestJobsRESTEndpointsAreRegisteredWithBrowserSurfaceException(t *testing.T) {
+	want := map[string]bool{
+		"jobs_list_openings": false, "jobs_create_opening": false,
+		"jobs_update_opening": false, "jobs_list_facts": false, "jobs_create_fact": false,
+		"jobs_list_resumes": false, "jobs_create_resume": false, "jobs_review_resume": false,
+		"jobs_list_cover_letters": false, "jobs_create_cover_letter": false,
+		"jobs_list_discovery_sources": false, "jobs_discover_openings": false,
+	}
+	for _, endpoint := range modules.AllEndpoints() {
+		if _, ok := want[endpoint.ID]; !ok {
+			continue
+		}
+		want[endpoint.ID] = true
+		require.NotNil(t, endpoint.RESTException, "job REST route %s must declare its transport exception", endpoint.ID)
+		require.Equal(t, "browser_surface", string(endpoint.RESTException.Reason), "job route %s uses the browser-facing JSON surface", endpoint.ID)
+	}
+	for id, found := range want {
+		require.True(t, found, "missing job endpoint descriptor %s", id)
+	}
+}
+
 // TestAllEndpoints_StableOrder pins the stable-order contract that the
 // diff-exit-code CI check on .vrooli/endpoints.json depends on. Two
 // consecutive calls must return slices with the same element order;

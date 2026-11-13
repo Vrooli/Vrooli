@@ -20,7 +20,8 @@ The core rules are intentional:
 - Go Connect-RPC API and JSON-compatible REST projections (`api/`)
 - CLI verb parity with JSON output (`cli/`)
 - React/Vite operator surfaces: Variation Board, Style Library, Document
-  Workspace, and Declaration Registry (`ui/`)
+  Workspace, Declaration Registry, and the phone-first Job Readiness workbench
+  (`ui/`)
 - shared deterministic metrics package (`packages/textmetrics`)
 
 Start with [`docs/START-HERE.md`](docs/START-HERE.md), then read [`PRD.md`](PRD.md)
@@ -39,6 +40,14 @@ Every generation is a measured, comparable candidate set with resolved
 profile instructions, model/token provenance, disclosure, and an append-only
 session history. Styles and profiles can also arrive as consumer-owned
 declaration files, so adding a new voice does not require integration code.
+
+Job Readiness keeps openings and categories, a reusable evidence bank,
+fact-linked resume variants with deterministic hostile review, and cover-letter
+practice drafts in scenario-local SQLite. A public Remote OK feed runs on demand
+alongside LinkedIn, Indeed, and Google Jobs search links and manual URL intake;
+no provider credential is required. Review findings are checks for evidence linkage and role terms;
+they cannot establish that a claim is true. The scenario never submits an
+application.
 
 ## Documentation Map
 

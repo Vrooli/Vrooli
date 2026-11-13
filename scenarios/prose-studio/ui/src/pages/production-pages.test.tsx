@@ -18,6 +18,34 @@ describe("production operator pages", () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
   });
 
+  it("keeps the draft available and retries a failed save action", async () => {
+    let commitAttempts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const body = JSON.parse((init?.body ?? "{}") as string);
+      const url = typeof input === "string" ? input : input instanceof URL ? input.href : "";
+      if (url.includes("sessions/action") && body.action === "commit" && ++commitAttempts === 1) {
+        return Promise.resolve(new Response(JSON.stringify({ message: "temporary outage" }), { status: 503 }));
+      }
+      if (url.includes("sessions/action") && body.action === "commit") {
+        return Promise.resolve(new Response(JSON.stringify({ id: "s", status: "committed", pinned: ["c"] }), { status: 200 }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ session: { id: "s", status: "active" }, round: {}, candidates: [{ id: "c", text: "Draft with checkable proof", eligibility: { eligible: true } }] }), { status: 200 }));
+    });
+    renderWithProviders(<VariationPage />);
+    fireEvent.change(screen.getByLabelText("Subject"), { target: { value: "a role-specific resume draft" } });
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+    await screen.findByText("Draft with checkable proof");
+    fireEvent.click(screen.getByRole("button", { name: "Save this choice" }));
+    await screen.findByRole("alert");
+    expect(screen.getByText("Draft with checkable proof")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save this choice" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Save this choice" }));
+    await waitFor(() => expect(screen.getByText("Choice saved to this session.")).toBeInTheDocument());
+    expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining("sessions/action"), expect.objectContaining({ body: expect.stringContaining('"action":"commit"') }));
+    expect(screen.getByText("Draft with checkable proof")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choice saved" })).toBeDisabled();
+  });
+
   it("creates a document and displays its committed output", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(JSON.stringify({ document: { id: "d", outline: [{ intent: "Opening", summary: "Hook", target_words: 100 }], assembled_text: "A completed document." } }), { status: 200 }));
     renderWithProviders(<DocumentPage />);

@@ -10,7 +10,9 @@ import (
 	"strings"
 	"time"
 
+	jobsH "prose-studio/handlers/jobs"
 	proseH "prose-studio/handlers/prose"
+	jobs "prose-studio/internal/jobs"
 	"prose-studio/internal/modules"
 	prose "prose-studio/internal/prose"
 	"prose-studio/internal/server"
@@ -100,6 +102,11 @@ func main() {
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "prose-studio-api", "1.0.0"),
 		proseH.Module(proseService),
+		jobsH.Module(jobs.New(
+			db.Primary(),
+			jobs.ConfiguredSourcesFromEnv(),
+			jobs.NewRemoteOKProvider(&http.Client{Timeout: 5 * time.Second}),
+		)),
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

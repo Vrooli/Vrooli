@@ -55,6 +55,7 @@ export const strings = {
     bottomNavLabel: "layout.bottomNavLabel",
     nav: {
       dashboard: "layout.nav.dashboard",
+      jobs: "layout.nav.jobs",
       settings: "layout.nav.settings",
     },
     sidebarLabel: "layout.sidebarLabel",

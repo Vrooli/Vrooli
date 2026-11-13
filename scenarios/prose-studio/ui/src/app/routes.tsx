@@ -12,6 +12,7 @@ import { DeclarationsPage } from "../pages/DeclarationsPage";
 import { DocumentPage } from "../pages/DocumentPage";
 import { StylesPage } from "../pages/StylesPage";
 import { VariationPage } from "../pages/VariationPage";
+import { JobReadinessPage } from "../pages/JobReadinessPage";
 
 /**
  * Canonical route table. Exported so tests can construct an in-memory router
@@ -26,6 +27,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, element: <DashboardPage /> },
       { path: "variation", element: <VariationPage /> },
+      { path: "jobs", element: <JobReadinessPage /> },
       { path: "styles", element: <StylesPage /> },
       { path: "styles/:styleId", element: <StylesPage /> },
       { path: "document", element: <DocumentPage /> },

@@ -116,6 +116,7 @@ type ResolvedProfile struct {
 
 type Provenance struct {
 	ProfileVersion           string           `json:"profile_version"`
+	Locality                 string           `json:"locality,omitempty"`
 	StyleVersions            []string         `json:"style_versions"`
 	Strategy                 string           `json:"strategy"`
 	StrategyParameters       Sampler          `json:"strategy_parameters"`

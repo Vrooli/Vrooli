@@ -1,4 +1,5 @@
 import {
+  BriefcaseBusiness,
   Home,
   Settings,
 } from "lucide-react";
@@ -14,6 +15,7 @@ export interface NavItem {
   /** Selector parameter; stable across locales. */
   key:
     | "dashboard"
+    | "jobs"
     | "settings";
   /** Router path. */
   path: string;
@@ -25,12 +27,15 @@ export interface NavItem {
 
 export const NAV_ITEMS: readonly NavItem[] = [
   { key: "dashboard", path: "/", end: true, labelKey: strings.layout.nav.dashboard },
+  { key: "jobs", path: "/jobs", labelKey: strings.layout.nav.jobs },
   { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
 ];
 
 export function iconForItem(item: NavItem) {
   const iconClass = "h-5 w-5";
   switch (item.key) {
+    case "jobs":
+      return <BriefcaseBusiness aria-hidden className={iconClass} />;
     case "settings":
       return <Settings aria-hidden className={iconClass} />;
     case "dashboard":

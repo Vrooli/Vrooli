@@ -16,6 +16,7 @@ invariants are enforced in code.
 | `sessions` | Append-only round graph and convergence verbs | Manage pin/reject/reroll/refine/commit/abandon | Sessions and rounds | orchestration | mutation, validation | `api/internal/prose`, `api/handlers/prose` |
 | `declarations` | Consumer file scan, hashes, collisions, lifecycle states | Register file-authoritative consumers | Declaration projections | validation | mutation, query | `api/internal/prose`, `.vrooli/prose-studio` |
 | `documents` | Outline candidates, section sessions, bounded context, assembly | Compose converged sections into documents | Documents and sections | composition-root | orchestration, aggregation | `api/internal/prose` |
+| `job-readiness` | Opening intake/search links, editable categories, reusable evidence facts, role-specific resume and cover-letter drafts, deterministic hostile review | Prepare private, fact-linked application materials without submitting applications | Openings, facts, resume variants, cover letters | inbox / sequential workbench | search adapter, evidence review | `api/internal/jobs`, `api/handlers/jobs`, `ui/src/pages/JobReadinessPage.tsx` |
 
 The dependency direction is:
 
@@ -28,6 +29,14 @@ textmetrics -> styles -> profiles -> generation -> selection -> sessions -> docu
 No domain calls a model vendor. Inference crosses the ai-gateway seam only.
 No domain renders presentation bytes; assembly returns ordered text and
 structure for document-manager's generation spine.
+
+Job readiness is an independent writing workflow. It does not require
+ai-gateway or a job-board credential: manual role intake and built-in search
+links work without either. Remote OK is an optional read-only JSON feed whose
+query terms are sent only when the operator runs a search; failures are isolated
+from the manual path. Resume review is a deterministic evidence and role-term
+check, never a claim that the truth of a statement has been verified. The UI
+keeps external application submission under the operator's control.
 
 ## Purpose Of This Document
 

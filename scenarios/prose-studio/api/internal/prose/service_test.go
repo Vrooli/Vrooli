@@ -321,7 +321,7 @@ func TestConformanceSeparatesAntiPatternAndPreferredSpansAndHonoursComparator(t 
 func TestTransformsRecordSourceAndAxisCellsArePlanned(t *testing.T) {
 	s, _ := newTestService(t)
 	ctx := context.Background()
-	_, err := s.CreateProfile(ctx, Profile{Key: "transform", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 100}})
+	_, err := s.CreateProfile(ctx, Profile{Key: "transform", Locality: "local_only", Sampler: Sampler{Kind: samplerDirect, K: 1}, Budget: Budget{MaxOutputTokens: 100}})
 	require.NoError(t, err)
 	out, err := s.Generate(ctx, GenerateRequest{ProfileKey: "transform", Query: "subject", IncludeCandidates: true})
 	require.NoError(t, err)
@@ -329,6 +329,20 @@ func TestTransformsRecordSourceAndAxisCellsArePlanned(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{out.Candidates[0].ID}, derived.DerivedFrom)
 	require.Equal(t, out.Candidates[0].ID, derived.Transform.SourceCandidate)
+	require.Equal(t, "local_only", out.Candidates[0].Provenance.Locality)
+	require.Equal(t, "local_only", derived.Provenance.Locality)
+
+	// Candidates written before locality was included in provenance must not
+	// gain the gateway's broader default route when transformed.
+	out.Candidates[0].Provenance.Locality = ""
+	require.NoError(t, s.saveJSON(ctx, "prose_candidates", out.Candidates[0].ID, out.Candidates[0]))
+	_, err = s.TransformCandidate(ctx, out.Candidates[0].ID, "simplification", map[string]any{"target_words": 20})
+	require.NoError(t, err)
+	gateway := s.gateway.(*fakeGateway)
+	require.Len(t, gateway.calls, 3)
+	require.Equal(t, "local_only", gateway.calls[0].Locality)
+	require.Equal(t, "local_only", gateway.calls[1].Locality)
+	require.Equal(t, "local_only", gateway.calls[2].Locality)
 	space := AxisSpace{Key: "marketing", Axes: []Axis{{Name: "audience", Variants: []string{"builder", "operator"}}, {Name: "framing", Variants: []string{"evidence", "lesson"}}}}
 	cells := PlanAxisCells(space)
 	require.Len(t, cells, 4)

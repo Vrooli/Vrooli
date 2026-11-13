@@ -2,7 +2,7 @@
 // when calling external services.
 //
 // Production wires *http.Client directly — it satisfies Doer through
-// the compile-time assertion below. Tests substitute mocks.FakeDoer to
+// the compile-time assertion below. Tests substitute apihttptest.FakeDoer to
 // pin request shape and stub responses without touching the network.
 //
 // # Why ship the seam unwired in production
@@ -25,7 +25,7 @@ import "net/http"
 // Doer is the canonical outbound HTTP interface. The single-method
 // surface is intentional — handlers depend on what they need (Do)
 // rather than the full *http.Client surface (Get / Post / CloseIdle…),
-// which keeps the FakeDoer surface small and the seam easy to substitute.
+// which keeps the shared test fake small and the seam easy to substitute.
 type Doer interface {
 	Do(*http.Request) (*http.Response, error)
 }

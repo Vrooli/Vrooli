@@ -9,10 +9,17 @@ export type Candidate = {
 };
 
 export type Generation = {
-  session: { id: string };
+  session: Session;
   round: { measurement_basis?: string; measurement_fallback?: string; semantic_set_measurements?: { diversity?: number; basis?: string }; lexical_set_measurements?: { diversity?: number; basis?: string } };
   candidates?: Candidate[];
   selected?: Candidate;
+};
+
+export type Session = {
+  id: string;
+  status?: string;
+  pinned?: string[];
+  rejected?: string[];
 };
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -24,6 +31,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 export const proseApi = {
   generate: (profileKey: string, query: string) => post<Generation>("/api/v1/prose/generate", { profile_key: profileKey, query, include_candidates: true }),
   reroll: (sessionId: string) => post<Generation>("/api/v1/prose/sessions/reroll", { session_id: sessionId, include_candidates: true }),
+  sessionAction: (action: "pin" | "unpin" | "reject" | "commit", sessionId: string, candidateId: string) => post<Session>("/api/v1/prose/sessions/action", { action, session_id: sessionId, candidate_id: candidateId }),
   createDocument: (title: string, profileKey: string) => post<{ document: Record<string, unknown> }>("/api/v1/prose/documents", { document: { title, profile_key: profileKey } }),
   assemble: (id: string) => post<{ document: Record<string, unknown> }>("/api/v1/prose/documents/assemble", { id }),
   registry: () => post<Record<string, unknown>>("/api/v1/prose/registry", {}),

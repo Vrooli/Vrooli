@@ -31,6 +31,7 @@ outcome, statefulness, and validation level.
 | Declaration registration | declarations | Startup scan, or an explicit reindex verb. | Every declaration file in the fleet registered, invalid, or unregistered. | Idempotent; must never block startup; collisions must not resolve. | Level 4 — declarative contract. |
 | Document composition | documents | An operator creates a document against a profile and brief. | An assembled document of committed sections with coherence measured across them. | Stateful and ordered; feasibility gates entry; a reroll of a committed section invalidates downstream context snapshots. | **Level 5 — ordering and staleness are the risk.** |
 | Profile feasibility check | documents | Profile validation, and again pre-call per section. | Accept, or a named refusal identifying the worst-case section and the resolved model's window. | Stateless, deterministic; static check must target the worst section, not the first. | Level 4 — declarative contract. |
+| Job readiness | job-readiness | Run searches or save a role, then select evidence and draft materials. | Persistent categorized openings, fact-linked resume variants with hostile findings, and role-specific cover letters. | Resumable CRUD workflow; every external search is optional and isolated; never submits applications. | Focused API and UI unit tests for persistence, partial search, review, and drafting. |
 
 ## Flow Details
 

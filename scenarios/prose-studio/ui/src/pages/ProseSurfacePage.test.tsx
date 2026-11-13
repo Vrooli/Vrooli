@@ -31,12 +31,20 @@ describe("Prose Studio surfaces", () => {
   });
 
   it("renders candidate text and enables a negative reroll action without introducing a per-card quality ordering", async () => {
-    renderWithProviders(<VariationBoard candidates={["A measured paragraph"]} />);
+    const reroll = vi.fn();
+    renderWithProviders(<VariationBoard candidates={["A measured paragraph"]} onReroll={reroll} />);
     expect(screen.getByLabelText("Candidate 1")).toHaveTextContent("A measured paragraph");
-    const reroll = screen.getByRole("button", { name: /reroll/i });
-    expect(reroll).toBeEnabled();
-    await reroll.click();
-    expect(screen.getByRole("status")).toHaveTextContent("Reroll requested");
+    const rerollButton = screen.getByRole("button", { name: /reroll/i });
+    expect(rerollButton).toBeEnabled();
+    await rerollButton.click();
+    expect(reroll).toHaveBeenCalledOnce();
+  });
+
+  it("renders one-tap keep, reject, and save controls with explicit disabled reasons", () => {
+    renderWithProviders(<VariationBoard candidates={[{ id: "c1", text: "A draft" }]} session={{ id: "s1", status: "active", pinned: ["c1"] }} onAction={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Unkeep" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save this choice" })).toBeEnabled();
   });
 
   it("shows measured diversity and transient generation states", () => {

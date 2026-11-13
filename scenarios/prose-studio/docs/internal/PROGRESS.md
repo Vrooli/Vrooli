@@ -16,6 +16,8 @@ with the owning plan.
 
 | Date | Author | Status | Summary |
 |---|---|---|---|
+| 2026-11-12 | Codex | done | Exposed keep/reject/save actions on measured candidates with touch-sized controls and retry-preserved drafts; replaced the duplicate HTTP fake with api-core's shared test fake. Test Genie unit phase passes. |
+| 2026-11-12 | Codex | done | Added persistent opening intake and categorization, optional Remote OK search, a reusable evidence bank, current-resume baseline and role-specific resume drafts with hostile review, and cover-letter practice. Focused UI/API checks and the Test Genie unit phase pass; private resume import and phone visual review remain operator-side follow-ups. |
 
 ## Entry Template
 

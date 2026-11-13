@@ -94,6 +94,21 @@ func localityProfile(name string) (sharedv1.Profile, error) {
 	return profile, nil
 }
 
+// transformLocality preserves the original profile stance for newly generated
+// candidates. Older persisted candidates did not record locality, so their
+// follow-up transform is constrained to local execution rather than gaining a
+// remote route from missing provenance.
+func transformLocality(name string) string {
+	trimmed := strings.TrimSpace(strings.ToLower(name))
+	if trimmed == "" {
+		return "local_only"
+	}
+	if _, ok := localityNames[trimmed]; !ok {
+		return "local_only"
+	}
+	return trimmed
+}
+
 // samplingControls turns a profile's temperature stance into an explicit
 // gateway control. "ignored" and "role_default" send nothing, which the gateway
 // reads as "use the role's declared sampling". Any other value must parse as a
@@ -845,7 +860,7 @@ func (s *Service) generateResolved(ctx context.Context, req GenerateRequest, res
 		if capValue == 0 && capSource == "" {
 			capValue, capSource = effectiveCap, "profile"
 		}
-		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, SetIndex: i, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints, response.Text, gateInputs{Selection: req.Selection, Artifacts: req.Artifacts}), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: capValue, MaxOutputTokensSource: capSource, InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: estimateContextTokens(req.Query)}}}
+		candidate := Candidate{ID: id, RoundID: round.ID, Text: response.Text, SetIndex: i, Measurements: measurements[i], SetMeasurements: setMeasurements, Eligibility: gate(measurements[i], resolved.Profile.Constraints, response.Text, gateInputs{Selection: req.Selection, Artifacts: req.Artifacts}), Provenance: Provenance{ProfileVersion: fmt.Sprintf("%s@%d", resolved.Profile.Key, resolved.Profile.Version), Locality: transformLocality(resolved.Profile.Locality), StyleVersions: styleVersions(resolved.Styles), Strategy: resolved.Profile.Sampler.Kind, StrategyParameters: resolved.Profile.Sampler, Provider: response.Provider, ResolvedModelRef: response.Model, GatewayRole: resolved.Profile.GatewayRole, TemperatureSent: response.Temperature, TemperatureSupport: response.TemperatureSupport, MaxOutputTokensEffective: capValue, MaxOutputTokensSource: capSource, InputTokens: response.InputTokens, OutputTokens: response.OutputTokens, CostMicros: cost, MachineGenerated: true, Disclosure: "machine_generated", ContextSnapshot: &ContextSnapshot{EstimatedTokens: estimateContextTokens(req.Query)}}}
 		if resolved.Profile.Sampler.Kind == samplerVSStandard {
 			candidate.VerbalizedHint = &VerbalizedHint{Ordinal: response.HintOrdinal, Calibrated: false}
 		}
@@ -972,7 +987,8 @@ func (s *Service) TransformCandidate(ctx context.Context, candidateID, operation
 	if err != nil {
 		return Candidate{}, err
 	}
-	responses, err := s.gateway.Generate(ctx, GatewayRequest{Role: "write.default", Instruction: instruction, Query: string(params) + "\n\nSOURCE:\n" + source.Text, Strategy: samplerDirect, K: 1, MaxOutputTokens: source.Provenance.MaxOutputTokensEffective})
+	locality := transformLocality(source.Provenance.Locality)
+	responses, err := s.gateway.Generate(ctx, GatewayRequest{Role: "write.default", Instruction: instruction, Query: string(params) + "\n\nSOURCE:\n" + source.Text, Strategy: samplerDirect, K: 1, MaxOutputTokens: source.Provenance.MaxOutputTokensEffective, Locality: locality})
 	if err != nil {
 		return Candidate{}, err
 	}
@@ -981,6 +997,7 @@ func (s *Service) TransformCandidate(ctx context.Context, candidateID, operation
 	}
 	response := responses[0]
 	derived := Candidate{ID: uuid.NewString(), RoundID: source.RoundID, DerivedFrom: []string{source.ID}, Text: response.Text, SetIndex: source.SetIndex, Measurements: textmetrics.Analyze(response.Text, nil), SetMeasurements: source.SetMeasurements, Provenance: source.Provenance, Eligibility: Eligibility{Eligible: true}, Transform: &Transform{Operation: operation, Parameters: parameters, SourceCandidate: source.ID, GatewayRole: "write.default", CreatedAt: s.now()}}
+	derived.Provenance.Locality = locality
 	derived.Provenance.Provider, derived.Provenance.ResolvedModelRef, derived.Provenance.CostMicros = response.Provider, response.Model, response.CostMicros
 	if err := s.saveJSON(ctx, "prose_candidates", derived.ID, derived); err != nil {
 		return Candidate{}, err

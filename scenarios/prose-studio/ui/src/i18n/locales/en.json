@@ -43,6 +43,7 @@
     "bottomNavLabel": "Mobile navigation",
     "nav": {
       "dashboard": "Dashboard",
+      "jobs": "Job readiness",
       "settings": "Settings"
     },
     "sidebarLabel": "Primary navigation"

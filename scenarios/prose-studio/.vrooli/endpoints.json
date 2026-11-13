@@ -45,6 +45,287 @@
       }
     },
     {
+      "id": "jobs_list_openings",
+      "path": "/api/v1/jobs/openings",
+      "method": "GET",
+      "summary": "List saved job openings",
+      "description": "Returns persisted openings with category, status, source, and role details.",
+      "category": "jobs",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "openings": "array<Opening>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
+      "id": "jobs_create_opening",
+      "path": "/api/v1/jobs/openings",
+      "method": "POST",
+      "summary": "Save a job opening",
+      "description": "Persists a job opening for tracking in the application pipeline.",
+      "category": "jobs",
+      "request": {
+        "type": "Opening",
+        "properties": {
+          "category": "string",
+          "company": "string",
+          "description": "string",
+          "location": "string",
+          "source": "string",
+          "source_id": "string",
+          "status": "string",
+          "title": "string",
+          "url": "string"
+        }
+      },
+      "response": {
+        "type": "Response",
+        "properties": {
+          "opening": "Opening"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
+      "id": "jobs_update_opening",
+      "path": "/api/v1/jobs/openings/{id}",
+      "method": "PATCH",
+      "summary": "Update an opening",
+      "description": "Updates opening details, including its pipeline status or category.",
+      "category": "jobs",
+      "request": {
+        "type": "OpeningPatch",
+        "properties": {
+          "category": "string",
+          "company": "string",
+          "description": "string",
+          "location": "string",
+          "source": "string",
+          "source_id": "string",
+          "status": "string",
+          "title": "string",
+          "url": "string"
+        }
+      },
+      "response": {
+        "type": "Response",
+        "properties": {
+          "opening": "Opening"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
+      "id": "jobs_list_facts",
+      "path": "/api/v1/jobs/facts",
+      "method": "GET",
+      "summary": "List reusable career facts",
+      "description": "Returns persisted facts that can support resume variants and cover letters.",
+      "category": "jobs",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "facts": "array<Fact>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
+      "id": "jobs_create_fact",
+      "path": "/api/v1/jobs/facts",
+      "method": "POST",
+      "summary": "Save a reusable career fact",
+      "description": "Persists a factual career record for reuse in application materials.",
+      "category": "jobs",
+      "request": {
+        "type": "Fact",
+        "properties": {
+          "content": "string",
+          "label": "string",
+          "tags": "array<string>"
+        }
+      },
+      "response": {
+        "type": "Response",
+        "properties": {
+          "fact": "Fact"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
+      "id": "jobs_list_resumes",
+      "path": "/api/v1/jobs/resumes",
+      "method": "GET",
+      "summary": "List resume variants",
+      "description": "Returns persisted resume variants, linked fact IDs, and review findings.",
+      "category": "jobs",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "resumes": "array<Resume>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
+      "id": "jobs_create_resume",
+      "path": "/api/v1/jobs/resumes",
+      "method": "POST",
+      "summary": "Save a resume variant",
+      "description": "Persists resume text and links to reusable facts and an opening.",
+      "category": "jobs",
+      "request": {
+        "type": "Resume",
+        "properties": {
+          "content": "string",
+          "fact_ids": "array<string>",
+          "opening_id": "string",
+          "title": "string"
+        }
+      },
+      "response": {
+        "type": "Response",
+        "properties": {
+          "resume": "Resume"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
+      "id": "jobs_review_resume",
+      "path": "/api/v1/jobs/resumes/{id}/review",
+      "method": "POST",
+      "summary": "Review a resume variant",
+      "description": "Runs deterministic server-side checks against linked facts and opening keywords, then persists findings.",
+      "category": "jobs",
+      "request": {
+        "type": "ReviewRequest"
+      },
+      "response": {
+        "type": "Response",
+        "properties": {
+          "resume": "Resume",
+          "review": "array<string>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
+      "id": "jobs_list_cover_letters",
+      "path": "/api/v1/jobs/cover-letters",
+      "method": "GET",
+      "summary": "List cover letter drafts",
+      "description": "Returns persisted cover letter drafts, linked facts, and opening associations.",
+      "category": "jobs",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "cover_letters": "array<CoverLetter>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
+      "id": "jobs_create_cover_letter",
+      "path": "/api/v1/jobs/cover-letters",
+      "method": "POST",
+      "summary": "Save a cover letter draft",
+      "description": "Persists a cover letter draft linked to reusable facts and an opening.",
+      "category": "jobs",
+      "request": {
+        "type": "CoverLetter",
+        "properties": {
+          "content": "string",
+          "fact_ids": "array<string>",
+          "opening_id": "string",
+          "title": "string"
+        }
+      },
+      "response": {
+        "type": "Response",
+        "properties": {
+          "cover_letter": "CoverLetter"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
+      "id": "jobs_list_discovery_sources",
+      "path": "/api/v1/jobs/sources",
+      "method": "GET",
+      "summary": "List job discovery sources",
+      "description": "Returns configured link-out sources and optional provider integrations.",
+      "category": "discovery",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "sources": "array<Source>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
+      "id": "jobs_discover_openings",
+      "path": "/api/v1/jobs/discover",
+      "method": "POST",
+      "summary": "Discover job openings",
+      "description": "Runs saved-search links and configured providers independently; a provider outage does not prevent other results.",
+      "category": "discovery",
+      "request": {
+        "type": "DiscoverRequest",
+        "properties": {
+          "query": "string"
+        }
+      },
+      "response": {
+        "type": "DiscoveryResult",
+        "properties": {
+          "partial": "boolean",
+          "results": "array<SearchResult>"
+        }
+      },
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON API for the job application pipeline; the UI contract is intentionally exposed as REST and has no generated Connect procedure or proto payload counterpart."
+      }
+    },
+    {
       "id": "prose_registry",
       "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/Registry",
       "method": "POST",
@@ -107,6 +388,22 @@
       "summary": "Validate declarations without test-genie",
       "description": "",
       "category": "declarations"
+    },
+    {
+      "id": "prose_list_documents",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/ListDocuments",
+      "method": "POST",
+      "summary": "List generated documents, newest first",
+      "description": "",
+      "category": "documents"
+    },
+    {
+      "id": "prose_get_document",
+      "path": "/vrooli.prose_studio.v1.prose.ProseStudioService/GetDocument",
+      "method": "POST",
+      "summary": "Read one document with its outline, coherence, and provenance",
+      "description": "",
+      "category": "documents"
     },
     {
       "id": "prose_create_document",

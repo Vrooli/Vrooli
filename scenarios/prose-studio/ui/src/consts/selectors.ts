@@ -41,6 +41,7 @@ const literalSelectors = {
     styles: "page-styles",
     document: "page-document",
     declarations: "page-declarations",
+    jobs: "page-jobs",
   },
   errorBoundary: {
     root: "error-boundary-root",
@@ -58,6 +59,7 @@ const dynamicSelectorDefinitions = {
           type: "enum",
           values: [
             "dashboard",
+            "jobs",
             "settings",
           ] as const,
         },

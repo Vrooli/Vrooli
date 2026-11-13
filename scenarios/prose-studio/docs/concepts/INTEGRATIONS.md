@@ -21,6 +21,9 @@ Use this document to answer:
 | Vrooli lifecycle | local platform | yes | API, UI, CLI | `.vrooli/service.json`, Makefile targets | Scenario is started through lifecycle commands only. |
 | ai-gateway | scenario | yes | `generation` | Typed inference `Run`; roles `write.default` and `write.diverse` | Generation refuses with a named error; every read path stays available. |
 | Consumer declaration files | filesystem | no | `declarations` | `.vrooli/prose-studio/*.json` in a consuming scenario | A malformed file registers `invalid` with its parse error; the service still starts. |
+| Job-board search links | third-party websites | no | `job-readiness` | Built-in LinkedIn, Indeed and Google Jobs URL templates; optional `PROSE_STUDIO_JOB_SOURCES` JSON config uses `{query}` templates. | Outbound links do not require API credentials; manually saved openings stay readable when providers are unavailable. |
+| Remote OK public jobs feed | third-party API | no | `job-readiness` | Read-only JSON feed at `https://remoteok.com/api`; only the operator-entered query terms are sent as tags. Each listing links to its original post. | The provider has a 3-second bound and returns its own error; manual intake and the three link-out sources still work. |
+| Future job-search provider adapters | third-party API | no | `job-readiness` | `DiscoveryProvider` seam supports independent adapters; no credentials or other provider APIs are wired by default. | Each wired provider returns its own error; other sources still return results. |
 
 ## Vrooli Resources
 
