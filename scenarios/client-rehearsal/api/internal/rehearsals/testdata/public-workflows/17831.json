@@ -1,0 +1,274 @@
+{
+  "nodes": [
+    {
+      "id": "b317980a-7f82-4b3a-9dcd-91849a7e28bc",
+      "name": "Formulaire / Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -750,
+        0
+      ],
+      "parameters": {
+        "path": "be-free-intake",
+        "options": {},
+        "httpMethod": "POST",
+        "responseMode": "lastNode"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "5a235485-f250-40e1-b7ac-1c9349242940",
+      "name": "Test manuel",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -750,
+        320
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "9a4af879-788f-4525-9b68-61bf5bd07ceb",
+      "name": "Données de démonstration",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -400,
+        320
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json:{\n  body:{\n    client_name:\"Synthetic Client\",\n    email:\"recipient@synthetic.invalid\",\n    project_name:\"Synthetic Project\",\n    project_type:\"Synthetic\",\n    phone:\"+10000000000\",\n    deadline:\"2026-09-30\",\n    message:\"Synthetic intake request.\"\n  },\n  source:\"manual_test\"\n}}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "b21b2d6a-cec3-4e0f-b6d7-f73d594047f7",
+      "name": "Normaliser et valider",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const src = $json.body ?? $json;\nconst clean = (v) => String(v ?? '').trim();\nconst required = ['client_name','email','project_name'];\nconst missing = required.filter(k => !clean(src[k]));\nconst email = clean(src.email).toLowerCase();\nconst validEmail = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);\nif (!validEmail && email) missing.push('email_invalid');\nconst stamp = new Date().toISOString().slice(0,10).replaceAll('-','');\nconst random = Math.random().toString(36).slice(2,6).toUpperCase();\nreturn [{json:{\n  valid: missing.length === 0,\n  missing:[...new Set(missing)],\n  project_id:`AFF-${stamp}-${random}`,\n  client_name:clean(src.client_name), email,\n  project_name:clean(src.project_name), project_type:clean(src.project_type || 'Non précisé'),\n  phone:clean(src.phone), deadline:clean(src.deadline), message:clean(src.message),\n  received_at:new Date().toISOString(), status:'NOUVEAU', source:clean($json.source || 'webhook')\n}}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "89b8a2e2-b135-4e53-9ded-bc2621a36ac7",
+      "name": "Données valides ?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        350,
+        100
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "fb96eff4-212f-4e14-8492-74266d1c21b2",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": ""
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "415edf5c-7af3-4cb7-86b1-c0b1f30d3cb0",
+      "name": "Ajouter au registre",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        750,
+        0
+      ],
+      "parameters": {
+        "columns": {
+          "value": {
+            "email": "={{ $json.email }}",
+            "status": "={{ $json.status }}",
+            "deadline": "={{ $json.deadline }}",
+            "project_id": "={{ $json.project_id }}",
+            "client_name": "={{ $json.client_name }}",
+            "received_at": "={{ $json.received_at }}",
+            "project_name": "={{ $json.project_name }}",
+            "project_type": "={{ $json.project_type }}"
+          },
+          "schema": [],
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {},
+        "operation": "append",
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Projects"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_GOOGLE_SHEET_ID"
+        }
+      },
+      "typeVersion": 4.7
+    },
+    {
+      "id": "120c94be-8f77-4211-8a2c-1534d763606a",
+      "name": "Accusé de réception client",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        1150,
+        0
+      ],
+      "parameters": {
+        "sendTo": "={{ $(\"Normaliser et valider\").item.json.email }}",
+        "message": "=Bonjour {{ $(\"Normaliser et valider\").item.json.client_name }},<br><br>Votre demande <b>{{ $(\"Normaliser et valider\").item.json.project_name }}</b> a été enregistrée sous la référence <b>{{ $(\"Normaliser et valider\").item.json.project_id }}</b>.<br><br>Ceci est un message automatique.",
+        "options": {},
+        "subject": "Demande reçue — {{ $(\"Normaliser et valider\").item.json.project_id }}",
+        "emailType": "html"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "1f5f5fe3-1fd2-406b-9c09-677f168ebca3",
+      "name": "Réponse succès",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1550,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json:{success:true,project_id:$(\"Normaliser et valider\").item.json.project_id,message:'Demande enregistrée'}}];"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "8552aa4b-645b-42da-8ef8-b38d4c2fe5d0",
+      "name": "Réponse erreur",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        750,
+        500
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "return [{json:{success:false,error:'Champs invalides ou manquants',missing:$json.missing}}];"
+      },
+      "typeVersion": 2
+    }
+  ],
+  "settings": {
+    "timezone": "Europe/Paris",
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  },
+  "connections": {
+    "Test manuel": {
+      "main": [
+        [
+          {
+            "node": "Données de démonstration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Données valides ?": {
+      "main": [
+        [
+          {
+            "node": "Ajouter au registre",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Réponse erreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ajouter au registre": {
+      "main": [
+        [
+          {
+            "node": "Accusé de réception client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formulaire / Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normaliser et valider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normaliser et valider": {
+      "main": [
+        [
+          {
+            "node": "Données valides ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Données de démonstration": {
+      "main": [
+        [
+          {
+            "node": "Normaliser et valider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accusé de réception client": {
+      "main": [
+        [
+          {
+            "node": "Réponse succès",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "id": "public-template-17831",
+  "name": "Public template 17831 (sanitized)",
+  "active": false
+}

@@ -69,6 +69,72 @@ func TestDescriptionSimulatorMatchesRecordedExchangeByHostMethodAndPath(t *testi
 	}
 }
 
+func TestRecordedExchangesExportToExactSyntheticSandboxRoutes(t *testing.T) {
+	raw := `{"kind":"recorded-exchanges","exchanges":[{"method":"POST","host":"crm.synthetic.invalid","path":"/v1/events","status":201,"response":{"id":"source-event-123","email":"person@private.example","status":"recorded"}},{"method":"GET","host":"crm.synthetic.invalid","path":"/v1/health","status":200,"response":{"status":"ok"}}]}`
+	simulator, err := NewDescriptionSimulator(raw, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := simulator.ExportHTTPMockProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profile.SchemaVersion != 1 || len(profile.Operations) != 2 {
+		t.Fatalf("recorded exchanges should export as a bounded profile: %#v", profile)
+	}
+	seen := map[string]HTTPMockRoute{}
+	for _, operation := range profile.Operations {
+		if operation.Selector.NodeType != "recorded-exchange" || operation.Selector.Resource != "http" || !strings.HasPrefix(operation.Selector.Operation, "exchange-") {
+			t.Fatalf("recorded route lacks a stable synthetic selector: %#v", operation.Selector)
+		}
+		key := operation.Route.Method + " " + operation.Route.Path
+		seen[key] = operation.Route
+	}
+	created := seen["POST /v1/events"]
+	if created.Host != "crm.synthetic.invalid" || created.Status != http.StatusCreated || created.ContentType != "application/json" || strings.Contains(created.Body, "source-event-123") || strings.Contains(created.Body, "person@private.example") {
+		t.Fatalf("recorded response was not route-bound and syntheticized: %#v", created)
+	}
+	if seen["GET /v1/health"].Body != `{"status":"active"}` {
+		t.Fatalf("recorded health fixture lost its safe response shape: %#v", seen["GET /v1/health"])
+	}
+	if _, err := normalizeExportedHTTPMockProfile(profile); err != nil {
+		t.Fatalf("export should satisfy the Workspace Sandbox profile contract: %v", err)
+	}
+}
+
+func TestRecordedExchangeSandboxExportFailsClosed(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+	}{
+		{"real host", `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"api.example.com","path":"/v1/items","status":200,"response":{"id":"1"}}]}`},
+		{"error response", `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"api.synthetic.invalid","path":"/v1/items","status":503,"response":{"status":"unavailable"}}]}`},
+		{"credential field", `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"api.synthetic.invalid","path":"/v1/items","status":200,"response":{"access_token":"secret"}}]}`},
+		{"unsafe path", `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"api.synthetic.invalid","path":"/v1/../admin","status":200,"response":{"id":"1"}}]}`},
+		{"invalid status", `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"api.synthetic.invalid","path":"/v1/items","status":"200","response":{"id":"1"}}]}`},
+		{"missing response", `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"api.synthetic.invalid","path":"/v1/items","status":200}]}`},
+		{"unknown source field", `{"kind":"recorded-exchanges","authorization":"must-not-be-ignored","exchanges":[{"method":"GET","host":"api.synthetic.invalid","path":"/v1/items","status":200,"response":{"id":"1"}}]}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			simulator, err := NewDescriptionSimulator(tc.raw, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := simulator.ExportHTTPMockProfile(); err == nil {
+				t.Fatal("unsafe or unsupported exchange should not produce a Sandbox profile")
+			}
+		})
+	}
+}
+
+func TestRecordedExchangesRejectDuplicateMethodHostPath(t *testing.T) {
+	raw := `{"kind":"recorded-exchanges","exchanges":[{"method":"GET","host":"crm.synthetic.invalid","path":"/v1/items","status":200,"response":{"id":"1"}},{"method":"get","host":"CRM.synthetic.invalid","path":"/v1/items","status":200,"response":{"id":"2"}}]}`
+	if _, err := NewDescriptionSimulator(raw, false); err == nil {
+		t.Fatal("duplicate recorded routes must not silently overwrite an earlier response")
+	}
+}
+
 func TestNativeServiceBindingUsesProfileRouteAndRejectsUnmappedOperations(t *testing.T) {
 	simulator, err := NewDescriptionSimulator(readFixture(t, "native_service_catalog.json"), false)
 	if err != nil {

@@ -59,8 +59,9 @@ func simulatorSourceSHA256(raw string) (string, error) {
 }
 
 // HTTPMockProfile mirrors the bounded Workspace Sandbox declaration format.
-// It is emitted from generic API descriptions so callers can persist/start the
-// same exact synthetic operations outside the in-process simulator.
+// It is emitted from generic API descriptions or sanitized recorded exchanges
+// so callers can persist/start the same exact synthetic routes outside the
+// in-process simulator.
 type HTTPMockProfile struct {
 	SchemaVersion uint32                     `json:"schemaVersion"`
 	Operations    []HTTPMockProfileOperation `json:"operations"`
@@ -155,6 +156,9 @@ func NewDescriptionSimulator(raw string, injectFault bool) (*DescriptionSimulato
 			sim.services = append(sim.services, service)
 		}
 	case "recorded-exchanges":
+		if !onlyKeys(source, "kind", "exchanges") {
+			return nil, ErrInvalid{Field: "simulator_source_json", Reason: "recorded-exchange source contains an unsupported field"}
+		}
 		items, _ := source["exchanges"].([]any)
 		if len(items) == 0 || len(items) > 4096 {
 			return nil, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "requires 1 to 4096 recorded exchanges"}
@@ -164,13 +168,29 @@ func NewDescriptionSimulator(raw string, injectFault bool) (*DescriptionSimulato
 			if !ok {
 				return nil, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "each exchange must be an object"}
 			}
+			if !onlyKeys(item, "method", "host", "path", "status", "response") {
+				return nil, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "exchange contains an unsupported field"}
+			}
 			method, _ := item["method"].(string)
 			path, _ := item["path"].(string)
 			host, _ := item["host"].(string)
 			if method == "" || path == "" || !strings.HasPrefix(path, "/") || strings.ContainsAny(path, "?#") || !validSimulatorHost(host) {
 				return nil, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "each exchange requires method, an exact host, and an absolute path without query or fragment"}
 			}
-			sim.exchanges[exchangeKey(method, host, path)] = item
+			if rawStatus, exists := item["status"]; exists {
+				status, ok := rawStatus.(float64)
+				if !ok || status < 100 || status > 599 || status != float64(int(status)) {
+					return nil, ErrInvalid{Field: "simulator_source_json.exchanges.status", Reason: "status must be an integer from 100 through 599"}
+				}
+			}
+			if _, exists := item["response"]; !exists {
+				return nil, ErrInvalid{Field: "simulator_source_json.exchanges.response", Reason: "each exchange requires a response fixture"}
+			}
+			key := exchangeKey(method, host, path)
+			if _, exists := sim.exchanges[key]; exists {
+				return nil, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "recorded exchanges must have unique method/host/path keys"}
+			}
+			sim.exchanges[key] = item
 		}
 	default:
 		return nil, ErrInvalid{Field: "simulator_source_json.kind", Reason: "must be openapi, openapi-catalog, or recorded-exchanges"}
@@ -196,11 +216,15 @@ func NewDescriptionSimulator(raw string, injectFault bool) (*DescriptionSimulato
 }
 
 // ExportHTTPMockProfile derives exact static routes from OpenAPI operations
-// explicitly bound to n8n node/resource/operation selectors. It refuses
-// parameterized paths, non-synthetic hosts, duplicate routes, and non-catalog
-// sources. Recorded exchanges do not carry selectors and cannot be exported
-// without an explicit API-description binding.
+// explicitly bound to n8n node/resource/operation selectors, or from exact
+// sanitized recorded exchanges. OpenAPI export refuses parameterized paths,
+// non-synthetic hosts, duplicate routes, and unbound API operations. Recorded
+// exchanges receive stable route selectors and are restricted to successful
+// responses on synthetic.invalid hosts.
 func (s *DescriptionSimulator) ExportHTTPMockProfile() (HTTPMockProfile, error) {
+	if s != nil && s.kind == "recorded-exchanges" {
+		return s.exportRecordedExchangeHTTPMockProfile()
+	}
 	if s == nil || len(s.services) == 0 {
 		return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export requires an OpenAPI API catalog"}
 	}
@@ -294,6 +318,60 @@ func (s *DescriptionSimulator) ExportHTTPMockProfile() (HTTPMockProfile, error) 
 		return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json", Reason: "HTTP mock export exceeds the 2 MiB profile bound"}
 	}
 	return profile, nil
+}
+
+// exportRecordedExchangeHTTPMockProfile converts explicitly recorded,
+// synthetic-host exchanges into exact Sandbox routes. The generated selector
+// is stable source identity; it does not claim to represent an n8n node or
+// execute the exchange itself. Real hosts, query strings, error responses and
+// sensitive response fields fail closed rather than being silently rewritten
+// into a different network operation.
+func (s *DescriptionSimulator) exportRecordedExchangeHTTPMockProfile() (HTTPMockProfile, error) {
+	if s == nil || len(s.exchanges) == 0 || len(s.exchanges) > 128 {
+		return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "Sandbox export requires 1 to 128 recorded exchanges"}
+	}
+	keys := make([]string, 0, len(s.exchanges))
+	for key := range s.exchanges {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	profile := HTTPMockProfile{SchemaVersion: 1, Operations: make([]HTTPMockProfileOperation, 0, len(keys))}
+	for _, key := range keys {
+		item := s.exchanges[key]
+		parts := strings.SplitN(key, " ", 3)
+		if len(parts) != 3 {
+			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "recorded exchange key is malformed"}
+		}
+		method, host, path := parts[0], parts[1], parts[2]
+		if !validSimulatorHost(host) || !strings.HasSuffix(strings.ToLower(host), ".synthetic.invalid") {
+			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges.host", Reason: "Sandbox export requires an exact synthetic.invalid host"}
+		}
+		if !validSandboxProfilePath(path) || !oneOfFold(method, http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodOptions) {
+			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges", Reason: "Sandbox export requires a bounded exact path and supported method"}
+		}
+		status := http.StatusOK
+		if number, ok := item["status"].(float64); ok {
+			status = int(number)
+		}
+		if status < 200 || status >= 300 {
+			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges.status", Reason: "Sandbox route export supports only successful 2xx exchanges"}
+		}
+		response, exists := item["response"]
+		if !exists || containsSecretKey(response) {
+			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges.response", Reason: "Sandbox export requires a response without credential-shaped fields"}
+		}
+		body := responseString(syntheticize(response, ""))
+		if len(body) > maxSandboxProfileResponseBytes {
+			return HTTPMockProfile{}, ErrInvalid{Field: "simulator_source_json.exchanges.response", Reason: "synthetic response exceeds the Sandbox route bound"}
+		}
+		sum := sha256.Sum256([]byte(key))
+		operation := "exchange-" + hex.EncodeToString(sum[:16])
+		profile.Operations = append(profile.Operations, HTTPMockProfileOperation{
+			Selector: HTTPMockProfileSelector{NodeType: "recorded-exchange", Resource: "http", Operation: operation},
+			Route:    HTTPMockRoute{Host: strings.ToLower(host), Method: strings.ToUpper(method), Path: path, Status: status, ContentType: "application/json", Body: body},
+		})
+	}
+	return normalizeExportedHTTPMockProfile(profile)
 }
 
 func canonicalInputMatch(match map[string]any) string {

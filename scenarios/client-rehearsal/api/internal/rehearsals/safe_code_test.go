@@ -61,6 +61,46 @@ func TestSafeCodeSupportsBoundedPublicLoopExpressions(t *testing.T) {
 	}
 }
 
+func TestSafeCodeDateLocaleStringUsesDeterministicUTCSubset(t *testing.T) {
+	now := time.Date(2026, 11, 12, 15, 4, 5, 0, time.UTC)
+	for _, tc := range []struct{ locale, want string }{
+		{"id-ID", "12/11/2026 15.04.05"},
+		{"ru-RU", "12.11.2026, 15:04:05"},
+		{"en-US", "11/12/2026, 3:04:05 PM"},
+	} {
+		source := `return [{json:{formatted:new Date('2026-11-12T15:04:05Z').toLocaleString('` + tc.locale + `')}}];`
+		if _, err := parseSafeCode(source); err != nil {
+			t.Fatalf("parse locale %s: %v", tc.locale, err)
+		}
+		got, err := executeSafeCode(source, nil, now)
+		if err != nil {
+			t.Fatalf("evaluate locale %s: %v", tc.locale, err)
+		}
+		jsonValue := got[0]["json"].(map[string]any)["formatted"]
+		if jsonValue != tc.want {
+			t.Fatalf("locale %s output = %#v, want %q", tc.locale, jsonValue, tc.want)
+		}
+	}
+	if _, err := executeSafeCode(`return [{json:{formatted:new Date('2026-11-12T15:04:05Z').toLocaleString('xx-YY')}}];`, nil, now); err == nil {
+		t.Fatal("unsupported locale must fail closed")
+	}
+}
+
+func TestSafeCodeArraySpreadDeduplicatesSetInInsertionOrder(t *testing.T) {
+	source := `const unique=[...new Set(['a','b','a'])]; return [{json:{unique}}];`
+	if _, err := parseSafeCode(source); err != nil {
+		t.Fatalf("parse bounded Set spread: %v", err)
+	}
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("evaluate bounded Set spread: %v", err)
+	}
+	values := got[0]["json"].(map[string]any)["unique"].(*safeArray).values
+	if !reflect.DeepEqual(values, []any{"a", "b"}) {
+		t.Fatalf("Set spread values = %#v, want insertion-ordered unique values", values)
+	}
+}
+
 func TestSafeCodeSubsetRejectsUnboundedAndEffectfulSyntax(t *testing.T) {
 	for name, source := range map[string]string{
 		"unsafe property write":          `const a = {}; a.__proto__ = 1; return [];`,

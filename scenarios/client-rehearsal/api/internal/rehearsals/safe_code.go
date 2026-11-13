@@ -139,6 +139,11 @@ func lexSafeCode(source string) ([]codeToken, error) {
 			i += end + 4
 			continue
 		}
+		if c == '/' && isSafeDivisionPosition(out) {
+			out = append(out, codeToken{"/", "punct"})
+			i++
+			continue
+		}
 		if c == '`' {
 			end := safeTemplateLiteralEnd(source, i+1)
 			if end < 0 {
@@ -229,7 +234,7 @@ func lexSafeCode(source string) ([]codeToken, error) {
 			i += len(matched)
 			continue
 		}
-		if strings.ContainsRune("{}[]().,;:=!<>+-*?", rune(c)) {
+		if strings.ContainsRune("{}[]().,;:=!<>+-*/?", rune(c)) {
 			out = append(out, codeToken{string(c), "punct"})
 			i++
 			continue
@@ -237,6 +242,25 @@ func lexSafeCode(source string) ([]codeToken, error) {
 		return nil, fmt.Errorf("character %q is unsupported", c)
 	}
 	return out, nil
+}
+
+func isSafeDivisionPosition(tokens []codeToken) bool {
+	if len(tokens) == 0 {
+		return false
+	}
+	previous := tokens[len(tokens)-1]
+	if previous.kind == "number" || previous.kind == "string" || previous.kind == "template" || previous.kind == "regex" {
+		return true
+	}
+	if previous.kind == "ident" {
+		switch previous.text {
+		case "return", "new", "throw", "typeof", "void", "delete":
+			return false
+		default:
+			return true
+		}
+	}
+	return previous.text == ")" || previous.text == "]" || previous.text == "}"
 }
 
 func safeTemplateLiteralEnd(source string, start int) int {
@@ -1010,7 +1034,7 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			}
 		}
 		return nil
-	case "spread":
+	case "spread", "arraySpread":
 		return validateSafeExpr(expr.left, scope)
 	case "prop":
 		if err := validateSafeExpr(expr.left, scope); err != nil {
@@ -1025,7 +1049,7 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			return err
 		}
 		switch expr.value {
-		case "all", "first", "toISOString", "toISO", "getDay", "getDate", "getMonth", "getFullYear", "test", "trim", "toLowerCase", "replace", "match", "slice", "split", "push", "join", "map", "filter", "forEach", "includes", "indexOf", "has", "concat", "from", "isArray", "fromCodePoint", "floor", "round", "random", "fromISO", "diff", "toFormat", "stringify", "parse", "keys":
+		case "all", "first", "toString", "toISOString", "toISO", "toLocaleString", "toLocaleDateString", "toLocaleTimeString", "getDay", "getDate", "getMonth", "getFullYear", "test", "trim", "toLowerCase", "toUpperCase", "replace", "replaceAll", "match", "slice", "split", "push", "join", "map", "filter", "forEach", "some", "includes", "indexOf", "has", "concat", "from", "isArray", "fromCodePoint", "ceil", "floor", "round", "random", "fromISO", "diff", "toFormat", "stringify", "parse", "keys":
 		default:
 			return fmt.Errorf("method %q is not allowed", expr.value)
 		}
@@ -1054,7 +1078,7 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			return fmt.Errorf("Array.isArray requires one bounded value")
 		}
 		for index, a := range expr.args {
-			if (expr.value == "map" || expr.value == "filter" || expr.value == "forEach") && index == 0 {
+			if (expr.value == "map" || expr.value == "filter" || expr.value == "forEach" || expr.value == "some") && index == 0 {
 				if a.op != "lambda" || len(safeLambdaParameters(a)) != 1 {
 					return fmt.Errorf("array %s requires one bounded arrow callback", expr.value)
 				}
@@ -1101,13 +1125,16 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 				return fmt.Errorf("%s requires a direct input or static prior-node receiver and no arguments", expr.value)
 			}
 		}
-		if expr.value == "map" || expr.value == "filter" || expr.value == "forEach" {
+		if expr.value == "map" || expr.value == "filter" || expr.value == "forEach" || expr.value == "some" {
 			if len(expr.args) != 1 || expr.args[0].op != "lambda" {
 				return fmt.Errorf("array %s supports one bounded arrow callback", expr.value)
 			}
 		}
 		if expr.value == "floor" && (expr.left.op != "var" || expr.left.value != "Math" || len(expr.args) != 1) {
 			return fmt.Errorf("Math.floor requires one numeric argument")
+		}
+		if expr.value == "ceil" && (expr.left.op != "var" || expr.left.value != "Math" || len(expr.args) != 1) {
+			return fmt.Errorf("Math.ceil requires one numeric argument")
 		}
 		if expr.value == "random" && (expr.left.op != "var" || expr.left.value != "Math" || len(expr.args) != 0) {
 			return fmt.Errorf("Math.random takes no arguments")
@@ -1184,7 +1211,7 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			return err
 		}
 		return validateSafeExpr(expr.right, scope)
-	case "??", "||", "&&", "===", "==", "!==", "!=", "in", ">", ">=", "<", "<=", "+", "-", "*":
+	case "??", "||", "&&", "===", "==", "!==", "!=", "in", ">", ">=", "<", "<=", "+", "-", "*", "/":
 		if err := validateSafeExpr(expr.left, scope); err != nil {
 			return err
 		}
@@ -1358,9 +1385,13 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 			var xs []*codeExpr
 			if !p.take("]") {
 				for {
+					spread := p.take("...")
 					x, e := p.expr(0)
 					if e != nil {
 						return nil, e
+					}
+					if spread {
+						x = &codeExpr{op: "arraySpread", left: x}
 					}
 					xs = append(xs, x)
 					if p.take("]") {
@@ -1555,7 +1586,7 @@ func (p *codeParser) expr(min int) (*codeExpr, error) {
 			continue
 		}
 		op := p.peek().text
-		prec := map[string]int{"??": 1, "||": 1, "&&": 2, "===": 3, "!==": 3, "==": 3, "!=": 3, "in": 3, ">": 4, ">=": 4, "<": 4, "<=": 4, "+": 5, "-": 6, "*": 7}[op]
+		prec := map[string]int{"??": 1, "||": 1, "&&": 2, "===": 3, "!==": 3, "==": 3, "!=": 3, "in": 3, ">": 4, ">=": 4, "<": 4, "<=": 4, "+": 5, "-": 6, "*": 7, "/": 7}[op]
 		if prec < min || prec == 0 {
 			break
 		}
@@ -2147,7 +2178,10 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			if !valid {
 				return nil, fmt.Errorf("Set values must be bounded primitive scalars")
 			}
-			set.values[key] = item
+			if _, exists := set.values[key]; !exists {
+				set.values[key] = item
+				set.ordered = append(set.ordered, item)
+			}
 		}
 		return set, nil
 	case "post++":
@@ -2227,9 +2261,30 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 	case "array":
 		a := &safeArray{values: make([]any, 0, len(e.args)), bytes: 2}
 		for _, x := range e.args {
-			v, er := c.eval(x)
+			expression := x
+			if x.op == "arraySpread" {
+				expression = x.left
+			}
+			v, er := c.eval(expression)
 			if er != nil {
 				return nil, er
+			}
+			if x.op == "arraySpread" {
+				switch spread := v.(type) {
+				case *safeArray:
+					if len(a.values)+len(spread.values) > maxSyntheticItems {
+						return nil, fmt.Errorf("array spread output item bound exceeded")
+					}
+					a.values = append(a.values, spread.values...)
+				case safeSet:
+					if len(a.values)+len(spread.ordered) > maxSyntheticItems {
+						return nil, fmt.Errorf("array spread output item bound exceeded")
+					}
+					a.values = append(a.values, spread.ordered...)
+				default:
+					return nil, fmt.Errorf("array spread requires a bounded array or Set")
+				}
+				continue
 			}
 			a.values = append(a.values, v)
 		}
@@ -2338,6 +2393,22 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			return nil, er
 		}
 		var x, y float64
+		if left, ok := a.(safeDate); ok {
+			right, rightOK := b.(safeDate)
+			if !rightOK {
+				return nil, fmt.Errorf("date comparison requires two bounded dates")
+			}
+			switch e.op {
+			case ">":
+				return left.at.After(right.at), nil
+			case ">=":
+				return !left.at.Before(right.at), nil
+			case "<":
+				return left.at.Before(right.at), nil
+			default:
+				return !left.at.After(right.at), nil
+			}
+		}
 		switch n := a.(type) {
 		case float64:
 			x = n
@@ -2381,7 +2452,7 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			}
 		}
 		return fmt.Sprint(a) + fmt.Sprint(b), nil
-	case "-", "*":
+	case "-", "*", "/":
 		a, er := c.eval(e.left)
 		if er != nil {
 			return nil, er
@@ -2393,10 +2464,23 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		x, okX := numberValue(a)
 		y, okY := numberValue(b)
 		if !okX || !okY {
+			if e.op == "-" {
+				left, leftOK := a.(safeDate)
+				right, rightOK := b.(safeDate)
+				if leftOK && rightOK {
+					return float64(left.at.Sub(right.at).Milliseconds()), nil
+				}
+			}
 			return nil, fmt.Errorf("arithmetic requires numeric operands")
 		}
 		if e.op == "-" {
 			return x - y, nil
+		}
+		if e.op == "/" {
+			if y == 0 {
+				return nil, fmt.Errorf("division by zero is not allowed")
+			}
+			return x / y, nil
 		}
 		return x * y, nil
 	case "prop":
@@ -2479,7 +2563,7 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			}
 			return boundedSafeArray(result)
 		}
-		if method == "map" || method == "filter" || method == "forEach" {
+		if method == "map" || method == "filter" || method == "forEach" || method == "some" {
 			if len(e.args) != 1 || e.args[0].op != "lambda" {
 				return nil, fmt.Errorf("array %s requires one bounded arrow callback", method)
 			}
@@ -2496,6 +2580,9 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 				if evalErr != nil {
 					return nil, evalErr
 				}
+				if method == "some" && truthy(value) {
+					return true, nil
+				}
 				if method == "map" {
 					result = append(result, value)
 				} else if method == "filter" && truthy(value) {
@@ -2504,6 +2591,9 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 			}
 			if method == "forEach" {
 				return nil, nil
+			}
+			if method == "some" {
+				return false, nil
 			}
 			return boundedSafeArray(result)
 		}
@@ -2542,6 +2632,15 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		}
 		if mathBuiltin, ok := receiver.(safeBuiltin); ok && mathBuiltin == "Math" {
 			switch method {
+			case "ceil":
+				if len(args) != 1 {
+					return nil, fmt.Errorf("Math.ceil requires one numeric argument")
+				}
+				n, ok := numberValue(args[0])
+				if !ok {
+					return nil, fmt.Errorf("Math.ceil requires a numeric argument")
+				}
+				return math.Ceil(n), nil
 			case "floor":
 				if len(args) != 1 {
 					return nil, fmt.Errorf("Math.floor requires one numeric argument")
@@ -2784,8 +2883,11 @@ type (
 	safeExecution  struct{ resumeURL string }
 	safeDate       struct{ at time.Time }
 	safeDateTime   struct{ at time.Time }
-	safeSet        struct{ values map[string]any }
-	safeRegex      struct {
+	safeSet        struct {
+		values  map[string]any
+		ordered []any
+	}
+	safeRegex struct {
 		pattern    string
 		global     bool
 		ignoreCase bool
@@ -2899,6 +3001,14 @@ func (a *safeArray) MarshalJSON() ([]byte, error) { return json.Marshal(a.values
 
 func safeProperty(v any, k string) (any, error) {
 	switch x := v.(type) {
+	case float64:
+		if k == "toString" {
+			return safeBuiltin("number.toString:" + strconv.FormatFloat(x, 'g', -1, 64)), nil
+		}
+	case int:
+		if k == "toString" {
+			return safeBuiltin("number.toString:" + strconv.Itoa(x)), nil
+		}
 	case map[string]any:
 		return toSafeJSON(x[k], 0)
 	case *safeArray:
@@ -3049,6 +3159,31 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 	}
 	switch x := receiver.(type) {
 	case safeDate:
+		if method == "toLocaleDateString" || method == "toLocaleTimeString" {
+			return formatSafeLocaleDate(x.at, method, args)
+		}
+		if method == "toLocaleString" && len(args) <= 1 {
+			locale := "en-US"
+			if len(args) == 1 {
+				var ok bool
+				locale, ok = args[0].(string)
+				if !ok {
+					return nil, fmt.Errorf("Date.toLocaleString supports only a bounded locale string")
+				}
+			}
+			// The simulator fixes time to UTC and supports a small explicit locale set.
+			// This keeps public workflow traces deterministic without consulting host locale.
+			switch locale {
+			case "en-US":
+				return x.at.UTC().Format("1/2/2006, 3:04:05 PM"), nil
+			case "id-ID":
+				return x.at.UTC().Format("02/01/2006 15.04.05"), nil
+			case "ru-RU":
+				return x.at.UTC().Format("02.01.2006, 15:04:05"), nil
+			default:
+				return nil, fmt.Errorf("Date.toLocaleString supports only en-US, id-ID, or ru-RU in UTC")
+			}
+		}
 		if method == "toISOString" && len(args) == 0 {
 			return x.at.Format("2006-01-02T15:04:05.000Z"), nil
 		}
@@ -3097,6 +3232,22 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 			_, exists := x.values[key]
 			return exists, nil
 		}
+	case float64:
+		if method == "toString" && len(args) <= 1 {
+			radix, err := safeNumberRadix(args)
+			if err != nil {
+				return nil, err
+			}
+			return formatSafeNumberRadix(x, radix), nil
+		}
+	case int:
+		if method == "toString" && len(args) <= 1 {
+			radix, err := safeNumberRadix(args)
+			if err != nil {
+				return nil, err
+			}
+			return formatSafeNumberRadix(float64(x), radix), nil
+		}
 	case safeInput:
 		if method == "all" && len(args) == 0 {
 			return &safeArray{values: x.items}, nil
@@ -3126,6 +3277,18 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 			return r.MatchString(fmt.Sprint(args[0])), nil
 		}
 	case string:
+		if method == "replaceAll" && len(args) == 2 {
+			search, searchOK := args[0].(string)
+			replacement, replacementOK := args[1].(string)
+			if !searchOK || search == "" || len(search) > 256 || !replacementOK || len(replacement) > maxSafeCodeItemBytes {
+				return nil, fmt.Errorf("replaceAll requires bounded nonempty literal strings")
+			}
+			result := strings.ReplaceAll(x, search, replacement)
+			if len(result) > maxSafeCodeItemBytes {
+				return nil, fmt.Errorf("replaceAll output item bound exceeded")
+			}
+			return result, nil
+		}
 		if method == "match" && len(args) == 1 {
 			pattern, ok := args[0].(safeRegex)
 			if !ok || pattern.global {
@@ -3192,22 +3355,33 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 				return strings.TrimSpace(x), nil
 			case "toLowerCase":
 				return strings.ToLower(x), nil
+			case "toUpperCase":
+				return strings.ToUpper(x), nil
 			}
 		}
 		if method == "slice" && len(args) == 2 {
 			start, startOK := args[0].(float64)
 			end, endOK := args[1].(float64)
-			if !startOK || !endOK || start != 0 || end < 0 || end > maxSafeCodeSliceUnits || end != float64(int(end)) {
-				return nil, fmt.Errorf("slice supports only slice(0, boundedLength)")
+			if !startOK || !endOK || start < 0 || end < 0 || start > maxSafeCodeSliceUnits || end > maxSafeCodeSliceUnits || start != float64(int(start)) || end != float64(int(end)) {
+				return nil, fmt.Errorf("slice supports only nonnegative bounded integer start and end indexes")
 			}
 			units := utf16.Encode([]rune(x))
-			if int(end) < len(units) {
-				if int(end) > 0 && units[int(end)-1] >= 0xD800 && units[int(end)-1] <= 0xDBFF && units[int(end)] >= 0xDC00 && units[int(end)] <= 0xDFFF {
+			startIndex, endIndex := int(start), int(end)
+			if startIndex > len(units) {
+				startIndex = len(units)
+			}
+			if endIndex > len(units) {
+				endIndex = len(units)
+			}
+			if endIndex < startIndex {
+				endIndex = startIndex
+			}
+			for _, boundary := range []int{startIndex, endIndex} {
+				if boundary > 0 && boundary < len(units) && units[boundary-1] >= 0xD800 && units[boundary-1] <= 0xDBFF && units[boundary] >= 0xDC00 && units[boundary] <= 0xDFFF {
 					return nil, fmt.Errorf("slice boundary splits a Unicode surrogate pair; unsupported safe string output")
 				}
-				units = units[:int(end)]
 			}
-			return string(utf16.Decode(units)), nil
+			return string(utf16.Decode(units[startIndex:endIndex])), nil
 		}
 		if method == "split" && len(args) == 1 {
 			separator, ok := args[0].(string)
@@ -3256,6 +3430,21 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 			return strings.Join(anyStrings(x.values), fmt.Sprint(args[0])), nil
 		}
 	case safeBuiltin:
+		if strings.HasPrefix(string(x), "number.toString:") && method == "call" && len(args) <= 1 {
+			value, err := strconv.ParseFloat(strings.TrimPrefix(string(x), "number.toString:"), 64)
+			if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+				return nil, fmt.Errorf("Number.toString requires a finite value")
+			}
+			radix := 10
+			if len(args) == 1 {
+				n, ok := numberValue(args[0])
+				if !ok || n < 2 || n > 36 || n != math.Trunc(n) {
+					return nil, fmt.Errorf("Number.toString radix must be an integer from 2 to 36")
+				}
+				radix = int(n)
+			}
+			return formatSafeNumberRadix(value, radix), nil
+		}
 		if x == "String" && method == "fromCodePoint" && len(args) == 1 {
 			number, ok := numberValue(args[0])
 			if !ok || number < 0 || number > 0x10ffff || number != math.Trunc(number) || number >= 0xd800 && number <= 0xdfff {
@@ -3270,6 +3459,116 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 		}
 	}
 	return nil, fmt.Errorf("call %q on %T is not allowed", method, receiver)
+}
+
+func formatSafeNumberRadix(value float64, radix int) string {
+	if radix == 10 {
+		return strconv.FormatFloat(value, 'g', -1, 64)
+	}
+	const digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+	if value == 0 {
+		return "0"
+	}
+	sign := ""
+	if value < 0 {
+		sign = "-"
+		value = -value
+	}
+	whole := uint64(value)
+	wholeText := ""
+	for whole > 0 {
+		wholeText = string(digits[whole%uint64(radix)]) + wholeText
+		whole /= uint64(radix)
+	}
+	if wholeText == "" {
+		wholeText = "0"
+	}
+	fraction := value - math.Floor(value)
+	if fraction == 0 {
+		return sign + wholeText
+	}
+	var decimal strings.Builder
+	decimal.WriteString(sign)
+	decimal.WriteString(wholeText)
+	decimal.WriteByte('.')
+	for i := 0; i < 32 && fraction > 0; i++ {
+		fraction *= float64(radix)
+		part := int(fraction)
+		decimal.WriteByte(digits[part])
+		fraction -= float64(part)
+	}
+	return decimal.String()
+}
+
+func safeNumberRadix(args []any) (int, error) {
+	if len(args) == 0 {
+		return 10, nil
+	}
+	radix, ok := numberValue(args[0])
+	if !ok || radix < 2 || radix > 36 || radix != math.Trunc(radix) {
+		return 0, fmt.Errorf("Number.toString radix must be an integer from 2 to 36")
+	}
+	return int(radix), nil
+}
+
+func formatSafeLocaleDate(at time.Time, method string, args []any) (any, error) {
+	if len(args) > 2 {
+		return nil, fmt.Errorf("%s supports only a locale and bounded options", method)
+	}
+	locale := "en-US"
+	if len(args) > 0 {
+		var ok bool
+		locale, ok = args[0].(string)
+		if !ok {
+			return nil, fmt.Errorf("%s requires a bounded locale string", method)
+		}
+	}
+	options := map[string]any{}
+	if len(args) == 2 {
+		var ok bool
+		options, ok = args[1].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("%s options must be a bounded object", method)
+		}
+	}
+	if locale != "en-US" && locale != "en-GB" {
+		return nil, fmt.Errorf("%s supports only en-US and en-GB", method)
+	}
+	zone := "UTC"
+	if value, exists := options["timeZone"]; exists {
+		var ok bool
+		zone, ok = value.(string)
+		if !ok || zone != "UTC" && zone != "Europe/Berlin" {
+			return nil, fmt.Errorf("%s supports only UTC and Europe/Berlin time zones", method)
+		}
+	}
+	if len(options) > 4 {
+		return nil, fmt.Errorf("%s options exceed the supported field set", method)
+	}
+	for key := range options {
+		if key != "timeZone" && key != "day" && key != "month" && key != "year" && key != "hour" && key != "minute" && key != "hour12" {
+			return nil, fmt.Errorf("%s option %q is not supported", method, key)
+		}
+	}
+	location := time.UTC
+	if zone == "Europe/Berlin" {
+		var err error
+		location, err = time.LoadLocation(zone)
+		if err != nil {
+			return nil, fmt.Errorf("%s time zone is unavailable", method)
+		}
+	}
+	local := at.In(location)
+	if method == "toLocaleDateString" {
+		if locale == "en-GB" && options["day"] == "2-digit" && options["month"] == "long" && options["year"] == "numeric" {
+			return fmt.Sprintf("%d %s %d", local.Day(), local.Month().String(), local.Year()), nil
+		}
+		return nil, fmt.Errorf("toLocaleDateString supports bounded en-GB day/month/year formatting")
+	}
+	if locale == "en-GB" && options["hour"] == "2-digit" && options["minute"] == "2-digit" && options["hour12"] == false {
+		return local.Format("15:04"), nil
+	}
+	return nil, fmt.Errorf("toLocaleTimeString supports bounded en-GB 24-hour hour/minute formatting")
 }
 
 func safeRegexReplaceCallback(input string, pattern safeRegex, callback *codeExpr, context *safeCodeContext) (string, error) {

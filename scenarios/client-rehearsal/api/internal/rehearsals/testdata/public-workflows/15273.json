@@ -1,0 +1,715 @@
+{
+  "nodes": [
+    {
+      "id": "2bd93ac3-f66a-4e83-b1b3-1eb4208bd08d",
+      "name": "Route by Failure Type",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -768,
+        1040
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 1,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "a98473ab-c316-46fe-9e92-61761ba2f6ce",
+              "operator": {
+                "name": "filter.operator.equals",
+                "type": "string",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.failure_type }}",
+              "rightValue": "soft"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "21fd0fb4-1ecf-4728-b10d-a118f10329c9",
+      "name": "Normalize Payment Data",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        -1216,
+        1040
+      ],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "order_value",
+              "value": "={{$json.body?.data?.object?.amount / 100}}"
+            },
+            {
+              "name": "retry_count"
+            }
+          ],
+          "string": [
+            {
+              "name": "order_id",
+              "value": "={{$json.body?.data?.object?.id}}"
+            },
+            {
+              "name": "customer_email",
+              "value": "={{$json.body?.data?.object?.billing_details?.email}}"
+            },
+            {
+              "name": "customer_name",
+              "value": "={{$json.body?.data?.object?.billing_details?.name || 'Customer'}}"
+            },
+            {
+              "name": "failure_reason",
+              "value": "={{$json.body?.data?.object?.last_payment_error?.message || 'Unknown'}}"
+            },
+            {
+              "name": "gateway",
+              "value": "={{$json.body?.type?.includes('stripe') ? 'stripe' : 'stripe'}}"
+            },
+            {
+              "name": "currency",
+              "value": "={{$json.body?.data?.object?.currency || 'USD'}}"
+            },
+            {
+              "name": "retry_url",
+              "value": "={{$json.retry_url || 'https://yourstore.com/checkout'}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "0843f219-8800-4968-8146-0d50de5bf6ef",
+      "name": "Identify Failure Type",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        -976,
+        1040
+      ],
+      "parameters": {
+        "functionCode": "const error = $json.body?.data?.object?.last_payment_error || {};\nconst declineCode = (error.decline_code || '').toLowerCase();\nconst message = (error.message || '').toLowerCase();\n\nlet type = 'hard';\n\n// FRAUD (highest priority)\nif (\n  ['fraudulent', 'restricted_card', 'stolen_card'].includes(declineCode) ||\n  message.includes('fraud') ||\n  message.includes('stolen') ||\n  message.includes('restricted')\n) {\n  type = 'fraud';\n}\n\n// SOFT (retryable only)\nelse if (\n  ['insufficient_funds', 'processing_error'].includes(declineCode) ||\n  message.includes('insufficient') ||\n  message.includes('temporary') ||\n  message.includes('timeout')\n) {\n  type = 'soft';\n}\n\n// HARD (default – includes expired_card)\nelse {\n  type = 'hard';\n}\n\nreturn [\n  {\n    json: {\n      ...$json,\n      failure_type: type,\n      decline_code: declineCode || null\n    }\n  }\n];\n"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "6556a7f8-3a39-4973-bde8-02a8f97c6fd1",
+      "name": "Notify Team: Payment Failed",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        -336,
+        704
+      ],
+      "parameters": {
+        "text": "=*Payment Failed|Order:* {{$json.order_id}}\nAmount: {{$json.order_value}} {{$json.currency}}\nType: {{$json.failure_type}}\nReason: {{$json.failure_reason}}\nCustomer: {{$json.customer_email}}",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "C09S57E2JQ2",
+          "cachedResultName": "n8n"
+        },
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "typeVersion": 2.3
+    },
+    {
+      "id": "5fac7b78-ffde-4be0-8f32-b14034ffe4af",
+      "name": "Is This a High-Value Order?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -112,
+        704
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 1,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "fe51ec7e-a9f1-41c1-a206-3bee35bc56d2",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              },
+              "leftValue": "={{ $('Route by Failure Type').item.json.order_value }}",
+              "rightValue": 500
+            }
+          ]
+        }
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "2cc80803-5f90-4907-97cd-ad152c78e76c",
+      "name": "Notify Customer to Retry Payment",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        160,
+        688
+      ],
+      "parameters": {
+        "sendTo": "={{ $('Route by Failure Type').item.json.body.data.object.billing_details.email }}",
+        "message": "=Hi {{ $('Route by Failure Type').item.json.body.data.object.billing_details.name }},  \n\nYour payment didn’t go through due to a temporary issue.  \n\nRetry here: {{ $('Route by Failure Type').item.json.retry_url }}\n\nIf the issue continues, we’re happy to help.  \n\n— Support Team",
+        "options": {},
+        "subject": "=Payment issue with your order",
+        "emailType": "text"
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "d1c2a98f-95b6-470d-a081-4a314fd6cbf0",
+      "name": "Wait Before Next Retry Attempt",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        384,
+        688
+      ],
+      "parameters": {
+        "unit": "minutes",
+        "amount": 2
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "2469687a-7103-4933-a3cd-a01039b5834d",
+      "name": "Increase Retry Attempt Count",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        608,
+        688
+      ],
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "retry_count",
+              "value": "={{ ($('Route by Failure Type').item.json.retry_count || 0) + 1}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "ddd834d1-dd35-4b08-b1ea-279819125b2a",
+      "name": "Save Payment Failure Record",
+      "type": "n8n-nodes-base.supabase",
+      "position": [
+        720,
+        1248
+      ],
+      "parameters": {
+        "tableId": "payment_failure",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $json.logged_at }}"
+            },
+            {
+              "fieldId": "payment_type",
+              "fieldValue": "={{ $json.payment_status }}"
+            },
+            {
+              "fieldId": "order_id",
+              "fieldValue": "={{ $json.order_id }}"
+            },
+            {
+              "fieldId": "customer_email",
+              "fieldValue": "={{ $json.customer_email }}"
+            },
+            {
+              "fieldId": "failure_reason",
+              "fieldValue": "={{ $json.failure_reason }}"
+            },
+            {
+              "fieldId": "retry_count",
+              "fieldValue": "={{ $json.retry_count }}"
+            },
+            {
+              "fieldId": "order_value",
+              "fieldValue": "={{ $json.order_value }}"
+            }
+          ]
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "ae3d905f-054b-485d-94c0-786bc688260c",
+      "name": "Log Retry Attempt Result",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1152,
+        672
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "logged_at",
+              "value": "={{new Date().toISOString()}}"
+            },
+            {
+              "name": "payment_status",
+              "value": "=payment_failed-  {{ $('Route by Failure Type').item.json.failure_type }}"
+            },
+            {
+              "name": "order_id",
+              "value": "={{ $('Route by Failure Type').item.json.order_id }}"
+            },
+            {
+              "name": "customer_email",
+              "value": "={{ $('Route by Failure Type').item.json.customer_email }}"
+            },
+            {
+              "name": "failure_reason",
+              "value": "={{ $('Route by Failure Type').item.json.failure_reason }}"
+            },
+            {
+              "name": "retry_count",
+              "value": "={{ $json.retry_count }}"
+            },
+            {
+              "name": "order_value",
+              "value": "={{ $('Route by Failure Type').item.json.order_value }}"
+            }
+          ]
+        },
+        "options": {},
+        "keepOnlySet": true
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "c7c5b979-ac34-4e4d-b45d-1d096adbc36f",
+      "name": "Is This a Fraudulent Payment?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -320,
+        1232
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "2ffa8ca8-d565-4112-a04e-1821cd392058",
+              "operator": {
+                "name": "filter.operator.equals",
+                "type": "string",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.failure_type }}",
+              "rightValue": "fraud"
+            }
+          ]
+        }
+      },
+      "typeVersion": 2.2
+    },
+    {
+      "id": "c514fde9-1465-478c-bad8-ff31b96366c0",
+      "name": "Log Fraud Case",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        192,
+        1152
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "logged_at",
+              "value": "={{new Date().toISOString()}}"
+            },
+            {
+              "name": "payment_status",
+              "value": "=payment_failed-  {{ $('Route by Failure Type').item.json.failure_type }}"
+            },
+            {
+              "name": "order_id",
+              "value": "={{ $('Route by Failure Type').item.json.order_id }}"
+            },
+            {
+              "name": "customer_email",
+              "value": "={{ $('Route by Failure Type').item.json.customer_email }}"
+            },
+            {
+              "name": "failure_reason",
+              "value": "={{ $('Route by Failure Type').item.json.failure_reason }}"
+            },
+            {
+              "name": "order_value",
+              "value": "={{ $('Route by Failure Type').item.json.order_value }}"
+            }
+          ]
+        },
+        "options": {},
+        "keepOnlySet": true
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "88281841-2a81-47e2-af39-4bbef3bc7dfe",
+      "name": "Log Hard Failure Case",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        192,
+        1328
+      ],
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "logged_at",
+              "value": "={{new Date().toISOString()}}"
+            },
+            {
+              "name": "payment_status",
+              "value": "=payment_failed-  {{ $('Route by Failure Type').item.json.failure_type }}"
+            },
+            {
+              "name": "order_id",
+              "value": "={{ $('Route by Failure Type').item.json.order_id }}"
+            },
+            {
+              "name": "customer_email",
+              "value": "={{ $('Route by Failure Type').item.json.customer_email }}"
+            },
+            {
+              "name": "failure_reason",
+              "value": "={{ $('Route by Failure Type').item.json.failure_reason }}"
+            },
+            {
+              "name": "order_value",
+              "value": "={{ $('Route by Failure Type').item.json.order_value }}"
+            }
+          ]
+        },
+        "options": {},
+        "keepOnlySet": true
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "6530d147-da01-4372-8f16-a788d010e430",
+      "name": "Notify Team: Fraud Detected",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        -48,
+        1152
+      ],
+      "parameters": {
+        "text": "=*FRAUD ALERT|Order:* {{$json.order_id}}\nAmount: {{$json.order_value}}\nType: {{$json.failure_type}}\nReason: {{$json.failure_reason}}\nCustomer: {{$json.customer_email}}",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "C09S57E2JQ2",
+          "cachedResultName": "n8n"
+        },
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "typeVersion": 2.3
+    },
+    {
+      "id": "fff993df-fc69-41ec-9c80-4fbad16f4b7f",
+      "name": "Notify Team: Payment Failure",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        -48,
+        1328
+      ],
+      "parameters": {
+        "text": "=*Hard ALERT|Order:* {{$json.order_id}}\nAmount: {{$json.order_value}}\nType: {{$json.failure_type}}\nReason: {{$json.failure_reason}}\nCustomer: {{$json.customer_email}}",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "C09S57E2JQ2",
+          "cachedResultName": "n8n"
+        },
+        "otherOptions": {
+          "includeLinkToWorkflow": false
+        }
+      },
+      "typeVersion": 2.3
+    },
+    {
+      "id": "ba5d26ed-7160-437c-aa5a-772b9f013e75",
+      "name": "Receive Payment Failure",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -1504,
+        1040
+      ],
+      "parameters": {
+        "path": "payment-failed-enterprise",
+        "options": {},
+        "httpMethod": "POST"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "beba9efa-5e9b-4954-91a9-95da30a02b68",
+      "name": "Has Retry Limit Been Reached?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        864,
+        688
+      ],
+      "parameters": {
+        "options": {},
+        "conditions": {
+          "options": {
+            "version": 1,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "634b7e70-5b4e-4675-93d5-b18ce4f36bad",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              },
+              "leftValue": "={{ $json.retry_count }}",
+              "rightValue": 3
+            }
+          ]
+        }
+      },
+      "typeVersion": 2
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "Log Fraud Case": {
+      "main": [
+        [
+          {
+            "node": "Save Payment Failure Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identify Failure Type": {
+      "main": [
+        [
+          {
+            "node": "Route by Failure Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Hard Failure Case": {
+      "main": [
+        [
+          {
+            "node": "Save Payment Failure Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Failure Type": {
+      "main": [
+        [
+          {
+            "node": "Notify Team: Payment Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is This a Fraudulent Payment?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Payment Data": {
+      "main": [
+        [
+          {
+            "node": "Identify Failure Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Receive Payment Failure": {
+      "main": [
+        [
+          {
+            "node": "Normalize Payment Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Retry Attempt Result": {
+      "main": [
+        [
+          {
+            "node": "Save Payment Failure Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is This a High-Value Order?": {
+      "main": [
+        [
+          {
+            "node": "Notify Customer to Retry Payment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Notify Team: Fraud Detected": {
+      "main": [
+        [
+          {
+            "node": "Log Fraud Case",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Team: Payment Failed": {
+      "main": [
+        [
+          {
+            "node": "Is This a High-Value Order?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increase Retry Attempt Count": {
+      "main": [
+        [
+          {
+            "node": "Has Retry Limit Been Reached?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Team: Payment Failure": {
+      "main": [
+        [
+          {
+            "node": "Log Hard Failure Case",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Retry Limit Been Reached?": {
+      "main": [
+        [
+          {
+            "node": "Log Retry Attempt Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is This a Fraudulent Payment?": {
+      "main": [
+        [
+          {
+            "node": "Notify Team: Fraud Detected",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Team: Payment Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Next Retry Attempt": {
+      "main": [
+        [
+          {
+            "node": "Increase Retry Attempt Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Customer to Retry Payment": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Next Retry Attempt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "id": "public-template-15273",
+  "name": "Public template 15273 (sanitized)",
+  "active": false
+}

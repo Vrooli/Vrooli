@@ -1,0 +1,158 @@
+{
+  "nodes": [
+    {
+      "id": "ef401694-6d19-4d49-8269-0bfeefbc35e9",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "position": [
+        20,
+        320
+      ],
+      "parameters": {},
+      "typeVersion": 1
+    },
+    {
+      "id": "e950234f-06c7-4304-b8a6-62d3ba6b7a50",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        240,
+        320
+      ],
+      "parameters": {
+        "jsCode": "// Perfect error access untuk N8N v1.99.1\nconst errorData = $input.first().json;\nconst execution = errorData.execution;\nconst workflow = errorData.workflow;\nconst error = execution.error;\n\nconst message = `🚨 <b>WORKFLOW ERROR</b>\\n\\n` +\n  `📋 Workflow: <b>${workflow.name}</b>\\n` +\n  `⚙️ Node: <code>${error.node.name}</code>\\n` +\n  `❌ Error: <code>${error.message}</code>\\n` +\n  `📝 Description: <i>${error.description}</i>\\n` +\n  `🕐 Waktu: ${new Date(error.timestamp).toLocaleString('id-ID')}\\n` +\n  `🔍 Execution: <a href=\"${execution.url}\">${execution.id}</a>\\n` +\n  `⚠️ Level: ${error.level.toUpperCase()}`;\n\nreturn {\n  message: message,\n  parse_mode: 'HTML',\n  chat_id: '621412350'\n};"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "09a04430-1cb6-4bd5-b97d-d6b98541fd82",
+      "name": "Notify Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "position": [
+        460,
+        320
+      ],
+      "parameters": {
+        "options": {}
+      },
+      "typeVersion": 2.1
+    },
+    {
+      "id": "d78b5623-caab-4616-aa3a-e00af03cba3a",
+      "name": "Notify Whatsapp",
+      "type": "n8n-nodes-base.whatsApp",
+      "disabled": true,
+      "position": [
+        460,
+        520
+      ],
+      "parameters": {
+        "operation": "send",
+        "additionalFields": {}
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "8c5dbd37-cc37-4a1a-89c4-bbf692339b93",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "disabled": true,
+      "position": [
+        460,
+        720
+      ],
+      "parameters": {
+        "otherOptions": {}
+      },
+      "typeVersion": 2.3
+    },
+    {
+      "id": "0ec6e5cb-c290-4073-9560-0f237f85a6bd",
+      "name": "Notify Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "position": [
+        460,
+        120
+      ],
+      "parameters": {
+        "text": "={{ $json.message }}",
+        "chatId": "<your_chat_id>",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "4e378031-382d-4abd-94f5-b7274f42161e",
+      "name": "Notify Discord",
+      "type": "n8n-nodes-base.discord",
+      "disabled": true,
+      "position": [
+        460,
+        -80
+      ],
+      "parameters": {
+        "content": "={{ $json.message }}",
+        "options": {},
+        "authentication": "webhook"
+      },
+      "typeVersion": 2
+    }
+  ],
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "connections": {
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Notify Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Discord",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Whatsapp",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Whatsapp": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "id": "public-template-5629",
+  "name": "Public template 5629 (sanitized)",
+  "active": false
+}

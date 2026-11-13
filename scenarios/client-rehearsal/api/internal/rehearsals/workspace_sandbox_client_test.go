@@ -95,6 +95,63 @@ func TestWorkspaceSandboxProfileClientDeclaresStartsAndStopsExactProfile(t *test
 	}
 }
 
+func TestWorkspaceSandboxProfileClientStartsRecordedExchangeSource(t *testing.T) {
+	simulator, err := NewDescriptionSimulator(`{"kind":"recorded-exchanges","exchanges":[{"method":"POST","host":"crm.synthetic.invalid","path":"/v1/contacts","status":201,"response":{"id":"private-contact-1","email":"person@private.example","status":"created"}}]}`, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	profile, err := simulator.ExportHTTPMockProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+	const sandboxID = "7d5eb3fd-9847-4cf6-ae0f-f4c063443ce9"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPut && r.URL.Path == "/api/v1/sandboxes/"+sandboxID+"/companion-services":
+			var request struct {
+				Services []struct {
+					HTTPProfile HTTPMockProfile `json:"httpProfile"`
+				} `json:"services"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&request); err != nil || len(request.Services) != 1 || len(request.Services[0].HTTPProfile.Operations) != 1 {
+				t.Errorf("unexpected recorded-exchange declaration: %#v err=%v", request, err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			route := request.Services[0].HTTPProfile.Operations[0].Route
+			if route.Host != "crm.synthetic.invalid" || route.Path != "/v1/contacts" || route.Status != http.StatusCreated || strings.Contains(route.Body, "private-contact-1") || strings.Contains(route.Body, "person@private.example") {
+				t.Errorf("recorded exchange was not reduced to an exact synthetic route: %#v", route)
+			}
+			_, _ = w.Write([]byte(`{"services":[]}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/sandboxes/"+sandboxID+"/companion-services/workflow-apis/start":
+			var receipt WorkspaceSandboxProfileReceipt
+			receipt.Spec.Name, receipt.Spec.Kind, receipt.Spec.Version = "workflow-apis", "http-mock", "1.0.0"
+			receipt.Status = "running"
+			receipt.ProfileSHA256, _ = httpMockProfileDigest(profile)
+			receipt.Addresses = map[string]string{"crm.synthetic.invalid": "http://crm.synthetic.invalid:18080"}
+			for _, operation := range profile.Operations {
+				receipt.OperationAddresses = append(receipt.OperationAddresses, HTTPMockOperationAddress{Selector: operation.Selector, Method: operation.Route.Method, URL: "http://" + operation.Route.Host + ":18080" + operation.Route.Path})
+			}
+			_ = json.NewEncoder(w).Encode(receipt)
+		default:
+			t.Errorf("unexpected Sandbox request: %s %s", r.Method, r.URL.String())
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+	client, err := NewWorkspaceSandboxProfileClient(server.URL, server.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt, err := client.DeclareAndStartProfile(context.Background(), sandboxID, "workflow-apis", "1.0.0", profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Status != "running" || len(receipt.OperationAddresses) != 1 {
+		t.Fatalf("recorded-exchange Sandbox receipt is incomplete: %#v", receipt)
+	}
+}
+
 func TestWorkspaceSandboxProfileReceiptPreservesDisjointInputSelectorsAndQueries(t *testing.T) {
 	profile := HTTPMockProfile{SchemaVersion: 1, Operations: []HTTPMockProfileOperation{
 		{Selector: HTTPMockProfileSelector{NodeType: "n8n-nodes-base.googleSheets", Resource: "sheet", Operation: "read", InputMatch: map[string]any{"sheetName": "products"}}, Route: HTTPMockRoute{Host: "sheets.synthetic.invalid", Method: http.MethodGet, Path: "/v1/spreadsheets", Query: "sheetName=products", Status: http.StatusOK, ContentType: "application/json", Body: `[]`}},

@@ -128,6 +128,7 @@ type (
 		NodeName         string `json:"node_name,omitempty"`
 		Operator         string `json:"operator"`
 		Value            any    `json:"value"`
+		NowFormat        string `json:"now_format,omitempty"`
 		RightNodeName    string `json:"right_node_name,omitempty"`
 		RightPath        string `json:"right_path,omitempty"`
 		SubtractNodeName string `json:"subtract_node_name,omitempty"`

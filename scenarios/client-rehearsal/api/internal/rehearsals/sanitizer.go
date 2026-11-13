@@ -421,6 +421,9 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 			if err != nil && params["fields"] != nil {
 				values, projections, expressions, includeInput, err = normalizeSetFields(params)
 			}
+			if err != nil && params["values"] != nil {
+				values, projections, expressions, includeInput, err = normalizeSetValueGroups(params)
+			}
 			if err != nil {
 				return WorkflowNode{}, err
 			}
@@ -429,7 +432,15 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 			node.SetExpressions = expressions
 			node.SetIncludeInput = includeInput
 		} else {
-			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.mode", Reason: "Set accepts only bounded manual assignments or a raw JSON-path projection"}
+			if params["values"] != nil {
+				values, projections, expressions, includeInput, err := normalizeSetValueGroups(params)
+				if err != nil {
+					return WorkflowNode{}, err
+				}
+				node.SetValues, node.SetProjections, node.SetExpressions, node.SetIncludeInput = values, projections, expressions, includeInput
+			} else {
+				return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.mode", Reason: "Set accepts only bounded manual assignments or a raw JSON-path projection"}
+			}
 		}
 	case "n8n-nodes-base.splitOut":
 		field, _ := params["fieldToSplitOut"].(string)
@@ -620,9 +631,9 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 		if typeName == "n8n-nodes-base.googleSheets" && resource == "" {
 			resource = "sheet"
 		}
-		if typeName == "n8n-nodes-base.googleSheets" && resource == "sheet" && action == "" && (typeVersion == 4.6 || typeVersion == 4.7) {
+		if typeName == "n8n-nodes-base.googleSheets" && resource == "sheet" && action == "" && typeVersion >= 4 && typeVersion <= 4.7 {
 			// Pinned n8n 2.48.0 GoogleSheetsV2 uses Sheet.resource's default
-			// operation "read" for node versions 4.6 and 4.7.
+			// operation "read" across its supported v4 node versions.
 			// Source: https://github.com/n8n-io/n8n/blob/n8n@2.48.0/packages/nodes-base/nodes/Google/Sheet/v2/actions/sheet/Sheet.resource.ts
 			action = "read"
 		}
@@ -924,6 +935,64 @@ func normalizeSetFields(params map[string]any) (map[string]any, map[string]strin
 	return normalizeSetAssignments(map[string]any{"assignments": map[string]any{"assignments": assignments}, "includeOtherFields": include})
 }
 
+// normalizeSetValueGroups handles the n8n Set node's older grouped-value
+// representation. Each type bucket is only a transport shape: expressions are
+// still validated and evaluated by the same bounded assignment interpreter.
+func normalizeSetValueGroups(params map[string]any) (map[string]any, map[string]string, map[string]string, bool, error) {
+	if !onlyKeys(params, "values", "options", "keepOnlySet") {
+		return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters", Reason: "Set value groups accept only values, empty options and keepOnlySet"}
+	}
+	groups, ok := params["values"].(map[string]any)
+	if !ok || !onlyKeys(groups, "string", "number", "boolean", "array", "object") {
+		return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.values", Reason: "Set value groups require known bounded type buckets"}
+	}
+	assignments := make([]any, 0, 16)
+	for _, kind := range []string{"string", "number", "boolean", "array", "object"} {
+		entries, exists := groups[kind]
+		if !exists {
+			continue
+		}
+		items, ok := entries.([]any)
+		if !ok || len(items) > 64 || len(assignments)+len(items) > 64 {
+			return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.values", Reason: "Set type buckets must be arrays with at most 64 assignments"}
+		}
+		for _, raw := range items {
+			entry, ok := raw.(map[string]any)
+			if !ok || !onlyKeys(entry, "name", "value") {
+				return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.values", Reason: "each Set type-bucket entry requires only name and value"}
+			}
+			name, _ := entry["name"].(string)
+			value, hasValue := entry["value"]
+			if !hasValue {
+				switch kind {
+				case "string":
+					value = ""
+				case "number":
+					value = float64(0)
+				case "boolean":
+					value = false
+				case "array":
+					value = "[]"
+				case "object":
+					value = "{}"
+				}
+			}
+			assignments = append(assignments, map[string]any{"name": name, "type": kind, "value": value})
+		}
+	}
+	if len(assignments) == 0 {
+		return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.values", Reason: "Set requires at least one value assignment"}
+	}
+	include := false
+	if keep, ok := params["keepOnlySet"].(bool); ok {
+		include = !keep
+	}
+	if options, ok := params["options"].(map[string]any); ok && len(options) != 0 {
+		return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.options", Reason: "Set value-group options must be empty"}
+	}
+	return normalizeSetAssignments(map[string]any{"assignments": map[string]any{"assignments": assignments}, "includeOtherFields": include})
+}
+
 func normalizeLegacySetExpression(source string) (string, error) {
 	if strings.HasPrefix(source, "={{") && strings.HasSuffix(source, "}}") {
 		return normalizeSafeExpression(source)
@@ -1216,6 +1285,18 @@ func parseJSONPath(path string) ([]jsonPathSegment, bool) {
 			}
 			end += pos
 			value := path[pos+1 : end]
+			if len(value) >= 2 && (value[0] == '\'' || value[0] == '"') && value[len(value)-1] == value[0] {
+				key := value[1 : len(value)-1]
+				if !validQuotedJSONKey(key) {
+					return nil, false
+				}
+				result = append(result, jsonPathSegment{key: key})
+				pos = end + 1
+				if len(result) > 8 {
+					return nil, false
+				}
+				continue
+			}
 			if value == "" || len(value) > 3 {
 				return nil, false
 			}
@@ -1530,10 +1611,35 @@ func conditionFromEntry(entry map[string]any) (Condition, error) {
 	if left == "" {
 		left, _ = entry["value1"].(string)
 	}
+	if match := dateAfterNowExpression.FindStringSubmatch(strings.TrimSpace(left)); len(match) == 2 {
+		path, nodeName, ok := parseJSONExpressionSource("={{" + strings.TrimSpace(match[1]) + "}}")
+		if !ok || nodeName != "" {
+			return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.leftValue", Reason: "date comparison requires a bounded input JSON path"}
+		}
+		return Condition{Path: path, Operator: "dateAfterNow"}, nil
+	}
+	if match := numericRangeExpression.FindStringSubmatch(strings.TrimSpace(left)); len(match) == 5 {
+		path, nodeName, ok := parseJSONExpressionSource("={{" + match[1] + "}}")
+		secondPath, secondNode, secondOK := parseJSONExpressionSource("={{" + match[3] + "}}")
+		lower, lowErr := strconv.ParseFloat(match[2], 64)
+		upper, highErr := strconv.ParseFloat(match[4], 64)
+		if !ok || !secondOK || nodeName != "" || secondNode != "" || secondPath != path || lowErr != nil || highErr != nil || lower >= upper {
+			return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions.leftValue", Reason: "numeric range requires one JSON path and increasing numeric bounds"}
+		}
+		return Condition{Path: path, Operator: "numericRange", Value: []any{lower, upper}}, nil
+	}
+	operatorRoot, _ := entry["operator"].(map[string]any)
+	operator, _ := operatorRoot["operation"].(string)
+	right, _ := entry["rightValue"].(string)
+	if operator == "equals" && strings.TrimSpace(right) == "={{ $now.format('yyyy-MM-dd') }}" {
+		path, nodeName, ok := parseJSONExpressionSource(left)
+		if !ok {
+			return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions", Reason: "date equality left value must use a simple JSON path expression"}
+		}
+		return Condition{Path: path, NodeName: nodeName, Operator: operator, NowFormat: "2006-01-02"}, nil
+	}
 	if strings.TrimSpace(left) == "={{ $input.all().length }}" {
 		path := "$input.length"
-		operatorRoot, _ := entry["operator"].(map[string]any)
-		operator, _ := operatorRoot["operation"].(string)
 		value, ok := entry["rightValue"]
 		if !ok {
 			value = entry["value2"]
@@ -1548,8 +1654,6 @@ func conditionFromEntry(entry map[string]any) (Condition, error) {
 	if !ok {
 		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions", Reason: "condition must use a simple JSON path expression"}
 	}
-	operatorRoot, _ := entry["operator"].(map[string]any)
-	operator, _ := operatorRoot["operation"].(string)
 	if operatorRoot["type"] == "dateTime" && operator == "afterOrEquals" {
 		leftPath, leftNode, ok := parseJSONExpressionSource(left)
 		if !ok {
@@ -1581,6 +1685,8 @@ func conditionFromEntry(entry map[string]any) (Condition, error) {
 }
 
 var dateTimeMinusExpression = regexp.MustCompile(`^\$\('([^']+)'\)\.first\(\)\.json\.([A-Za-z0-9_.-]+)\.toDateTime\(\)\.minus\(\$\('([^']+)'\)\.first\(\)\.json\.([A-Za-z0-9_.-]+), 'minutes'\)$`)
+var dateAfterNowExpression = regexp.MustCompile(`^=\{\{\s*new Date\((\$json(?:\.[A-Za-z0-9_-]+|\[(?:"[^"]+"|'[^']+')\])+)\)\s*>\s*new Date\(\)\s*\}\}$`)
+var numericRangeExpression = regexp.MustCompile(`^=\{\{\s*(\$json(?:\.[A-Za-z0-9_-]+|\[(?:"[^"]+"|'[^']+')\])*)\s*>\s*(-?[0-9]+(?:\.[0-9]+)?)\s*&&\s*(\$json(?:\.[A-Za-z0-9_-]+|\[(?:"[^"]+"|'[^']+')\])*)\s*<=\s*(-?[0-9]+(?:\.[0-9]+)?)\s*\}\}$`)
 
 func normalizeSwitch(params map[string]any) ([]SwitchRule, error) {
 	rulesRoot, _ := params["rules"].(map[string]any)
@@ -1651,6 +1757,8 @@ func parseJSONExpressionSource(raw string) (string, string, bool) {
 	path, nodeName := "", ""
 	if strings.HasPrefix(expression, "$json.") {
 		path = "." + strings.TrimPrefix(expression, "$json.")
+	} else if strings.HasPrefix(expression, "$json[") {
+		path = strings.TrimPrefix(expression, "$json")
 	} else if strings.HasPrefix(expression, "$node[") {
 		jsonIndex := strings.Index(expression, "].json")
 		if jsonIndex < 0 {
@@ -1673,13 +1781,14 @@ func parseJSONExpressionSource(raw string) (string, string, bool) {
 	}
 	parts := []string{}
 	for len(path) > 0 {
-		if strings.HasPrefix(path, `["`) {
-			end := strings.Index(path[2:], `"]`)
+		if strings.HasPrefix(path, `["`) || strings.HasPrefix(path, `['`) {
+			quote := path[1]
+			end := strings.Index(path[2:], string([]byte{quote, ']'}))
 			if end < 0 {
 				return "", "", false
 			}
 			part := path[2 : 2+end]
-			if !validPathPart(part) {
+			if !validQuotedJSONKey(part) {
 				return "", "", false
 			}
 			parts = append(parts, part)
@@ -1732,7 +1841,19 @@ func parseJSONExpressionSource(raw string) (string, string, bool) {
 	if len(parts) == 0 {
 		return "", "", false
 	}
-	return strings.Join(parts, "."), nodeName, true
+	pathParts := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if validPathPart(part) {
+			pathParts = append(pathParts, part)
+		} else {
+			pathParts = append(pathParts, `['`+part+`']`)
+		}
+	}
+	return strings.Join(pathParts, "."), nodeName, true
+}
+
+func validQuotedJSONKey(key string) bool {
+	return key != "" && len(key) <= 64 && !strings.ContainsAny(key, "\x00\r\n[]'\"")
 }
 
 func validPathPart(part string) bool {

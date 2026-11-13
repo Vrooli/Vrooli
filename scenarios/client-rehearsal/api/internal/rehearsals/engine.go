@@ -419,13 +419,13 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 					operation = node.Request.Operation
 				}
 			case node.Condition != nil:
-				matches := evaluateGraphCondition(*node.Condition, input, priorNodeOutputs)
+				matches := evaluateGraphCondition(*node.Condition, input, priorNodeOutputs, now)
 				if !matches {
 					outputPort = 1
 				}
 				operation = "If " + node.Condition.Path + " " + node.Condition.Operator
 			case len(node.FilterConditions) > 0:
-				matches := evaluateFilterConditions(node.FilterConditions, node.FilterCombinator, input, priorNodeOutputs)
+				matches := evaluateFilterConditions(node.FilterConditions, node.FilterCombinator, input, priorNodeOutputs, now)
 				if !matches {
 					outputPort = 1
 					responseSummary = "sent item to discarded output"
@@ -434,7 +434,7 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 				}
 				operation = "Filter " + node.FilterConditions[0].Path + " " + node.FilterConditions[0].Operator
 			case node.FilterCondition != nil:
-				matches := evaluateGraphCondition(*node.FilterCondition, input, priorNodeOutputs)
+				matches := evaluateGraphCondition(*node.FilterCondition, input, priorNodeOutputs, now)
 				if !matches {
 					outputPort = 1
 					responseSummary = "sent item to discarded output"
@@ -447,10 +447,13 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 				outputs = []map[string]any{output}
 				operation = "Set JSON projection"
 			case node.SetValues != nil:
-				values := cloneMap(node.SetValues)
+				values := map[string]any{}
+				for key, value := range node.SetValues {
+					assignJSONPath(values, key, value)
+				}
 				for key, path := range node.SetProjections {
 					if value, ok := jsonPathValue(input, path); ok {
-						values[key] = value
+						assignJSONPath(values, key, value)
 					}
 				}
 				for key, expression := range node.SetExpressions {
@@ -458,7 +461,7 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 					if expressionErr != nil {
 						return last, fmt.Errorf("Set expression %s failed in safe interpreter: %w", key, expressionErr)
 					}
-					values[key] = value
+					assignJSONPath(values, key, value)
 				}
 				if node.SetIncludeInput {
 					output = mergeMaps([]map[string]any{input, values})
@@ -486,7 +489,7 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 			case len(node.SwitchRules) > 0:
 				outputPort = -1
 				for _, rule := range node.SwitchRules {
-					if evaluateGraphCondition(rule.Condition, input, priorNodeOutputs) {
+					if evaluateGraphCondition(rule.Condition, input, priorNodeOutputs, now) {
 						outputPort = rule.OutputPort
 						break
 					}
@@ -729,6 +732,33 @@ func jsonPathValue(input map[string]any, path string) (any, bool) {
 	return value, true
 }
 
+func assignJSONPath(target map[string]any, path string, value any) {
+	segments, ok := parseJSONPath(path)
+	if !ok || len(segments) == 0 {
+		target[path] = value
+		return
+	}
+	current := target
+	for _, segment := range segments[:len(segments)-1] {
+		if segment.isIndex {
+			target[path] = value
+			return
+		}
+		next, ok := current[segment.key].(map[string]any)
+		if !ok {
+			next = map[string]any{}
+			current[segment.key] = next
+		}
+		current = next
+	}
+	last := segments[len(segments)-1]
+	if last.isIndex {
+		target[path] = value
+		return
+	}
+	current[last.key] = value
+}
+
 func projectedValue(input map[string]any, path string) map[string]any {
 	value, ok := jsonPathValue(input, path)
 	if !ok {
@@ -863,6 +893,16 @@ func evaluateCondition(condition Condition, input map[string]any) bool {
 	if !ok {
 		return false
 	}
+	if condition.Operator == "numericRange" {
+		bounds, valid := condition.Value.([]any)
+		if !valid || len(bounds) != 2 {
+			return false
+		}
+		actual, actualErr := strconv.ParseFloat(fmt.Sprint(value), 64)
+		minimum, minErr := strconv.ParseFloat(fmt.Sprint(bounds[0]), 64)
+		maximum, maxErr := strconv.ParseFloat(fmt.Sprint(bounds[1]), 64)
+		return actualErr == nil && minErr == nil && maxErr == nil && actual > minimum && actual <= maximum
+	}
 	left := fmt.Sprint(value)
 	right := fmt.Sprint(condition.Value)
 	switch condition.Operator {
@@ -897,7 +937,22 @@ func evaluateCondition(condition Condition, input map[string]any) bool {
 	}
 }
 
-func evaluateGraphCondition(condition Condition, input map[string]any, prior map[string][]map[string]any) bool {
+func evaluateGraphCondition(condition Condition, input map[string]any, prior map[string][]map[string]any, now time.Time) bool {
+	if condition.Operator == "dateAfterNow" {
+		left, ok := conditionValue(condition.NodeName, condition.Path, input, prior)
+		if !ok {
+			return false
+		}
+		leftTime, valid := parseWorkflowTime(left)
+		return valid && leftTime.After(now.UTC())
+	}
+	if condition.NowFormat != "" {
+		left, ok := conditionValue(condition.NodeName, condition.Path, input, prior)
+		if !ok || condition.NowFormat != "2006-01-02" {
+			return false
+		}
+		return fmt.Sprint(left) == now.UTC().Format(condition.NowFormat)
+	}
 	if condition.Operator == "dateAfterOrEquals" {
 		left, ok := conditionValue(condition.NodeName, condition.Path, input, prior)
 		if !ok {
@@ -929,20 +984,20 @@ func evaluateGraphCondition(condition Condition, input map[string]any, prior map
 	return evaluateCondition(condition, outputs[0])
 }
 
-func evaluateFilterConditions(conditions []Condition, combinator string, input map[string]any, prior map[string][]map[string]any) bool {
+func evaluateFilterConditions(conditions []Condition, combinator string, input map[string]any, prior map[string][]map[string]any, now time.Time) bool {
 	if len(conditions) == 0 || len(conditions) > 8 {
 		return false
 	}
 	if combinator == "or" {
 		for _, condition := range conditions {
-			if evaluateGraphCondition(condition, input, prior) {
+			if evaluateGraphCondition(condition, input, prior, now) {
 				return true
 			}
 		}
 		return false
 	}
 	for _, condition := range conditions {
-		if !evaluateGraphCondition(condition, input, prior) {
+		if !evaluateGraphCondition(condition, input, prior, now) {
 			return false
 		}
 	}
