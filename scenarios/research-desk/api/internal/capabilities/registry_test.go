@@ -16,10 +16,9 @@ import (
 	"research-desk/internal/home"
 )
 
-// The real manifest declares exactly the services the desk calls (launch
-// through Web Console; the courier sends through Vrooli Events and reads
-// Notification Hub), all optional,
-// each with an operator action.
+// The real manifest declares the services the desk calls: Web Console for
+// launch, Vrooli Events and Notification Hub for delivery, and Data Backup
+// Manager for research-home recovery.
 func TestLoadProjectsTheManifest(t *testing.T) {
 	defs, err := Load("../../../.vrooli/service.json")
 	require.NoError(t, err)
@@ -27,13 +26,18 @@ func TestLoadProjectsTheManifest(t *testing.T) {
 	for _, def := range defs {
 		slugs[def.DependencySlug] = def
 	}
-	called := []string{"web-console", "vrooli-events", "notification-hub"}
+	called := map[string]string{
+		"web-console":         "ignore",
+		"vrooli-events":       "ignore",
+		"notification-hub":    "ignore",
+		"data-backup-manager": "try_start",
+	}
 	require.Len(t, slugs, len(called), "service.json declares exactly the services the desk calls")
-	for _, slug := range called {
+	for slug, startupPolicy := range called {
 		def, ok := slugs[slug]
 		require.True(t, ok, "service.json must declare %s", slug)
 		require.False(t, def.Required, "%s must be optional", slug)
-		require.Equal(t, "ignore", def.StartupPolicy, "%s must not be started with the desk", slug)
+		require.Equal(t, startupPolicy, def.StartupPolicy)
 		require.Equal(t, "vrooli scenario start "+slug+" --json", def.OperatorCommand)
 		require.NotEmpty(t, def.Uses, "%s must say what the desk uses it for", slug)
 	}

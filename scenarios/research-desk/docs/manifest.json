@@ -283,6 +283,9 @@
             "research-method"
           ],
           "maturity": "draft",
+          "requiredBy": [
+            "oriented"
+          ],
           "completion": "optional",
           "validation": {
             "forbiddenPlaceholders": [

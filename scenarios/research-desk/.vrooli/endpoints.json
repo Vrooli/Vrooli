@@ -211,7 +211,7 @@
       "path": "/vrooli.research_desk.v1.launch.LaunchService/Preflight",
       "method": "POST",
       "summary": "Preflight a spec or a prepared packet",
-      "description": "Runs packet.py preview on a spec (or check on a commission), and says for every earlier commission on the same topics whether it blocks the launch, the choices that clear it (supersede or run alongside) with the desk's recommendation, and which checkpoint to read first. Resolutions and the never-started assertion are judged as a launch would judge them.",
+      "description": "Runs packet.py preview on a spec (or check on a commission), and says for every earlier commission on the same topics whether it blocks the launch, the choices that clear it (supersede or run alongside) with the desk's recommendation, and which checkpoint to read first. The supersedes and run_alongside choices and the never-started assertion are judged as a launch would judge them.",
       "category": "launch",
       "errors": [
         {
@@ -242,7 +242,7 @@
       "path": "/vrooli.research_desk.v1.launch.LaunchService/Build",
       "method": "POST",
       "summary": "Build a packet",
-      "description": "Runs packet.py build to write a new commission folder from a spec, or from an earlier commission's PACKET.json with supersedes and carry_baseline_from set (a relaunch is a new commission). resolutions are written into the spec first, so the charter names the commission it supersedes (one) and each it runs alongside.",
+      "description": "Runs packet.py build to write a new commission folder from a spec, or from an earlier commission's PACKET.json with supersedes and carry_baseline_from set (a relaunch is a new commission). supersedes and run_alongside are written into the spec first, so the charter names the commission it supersedes (one) and each it runs alongside.",
       "category": "launch",
       "errors": [
         {
@@ -305,7 +305,7 @@
       "examples": [
         {
           "name": "Supersede",
-          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/Launch -H 'Content-Type: application/json' -d '{\"commission_id\":\"programme-five-20261112\",\"resolutions\":[{\"commission_id\":\"programme-four-20261110\",\"choice\":\"RESOLUTION_SUPERSEDE\"}]}'"
+          "curl": "curl http://localhost:${API_PORT}/vrooli.research_desk.v1.launch.LaunchService/Launch -H 'Content-Type: application/json' -d '{\"commission_id\":\"programme-five-20261112\",\"supersedes\":[\"programme-four-20261110\"]}'"
         }
       ]
     },

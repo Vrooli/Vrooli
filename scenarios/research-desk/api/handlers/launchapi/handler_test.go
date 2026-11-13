@@ -160,3 +160,39 @@ func TestNoLaunchTestHasRunYet(t *testing.T) {
 		t.Fatalf("report = %+v", resp.Msg)
 	}
 }
+
+// The two choice lists carry the spec's and LAUNCH.json's names; a
+// commission named in both is refused with a code before anything is read,
+// built or launched.
+func TestAChoiceInBothListsIsRefusedBeforeAnyEffect(t *testing.T) {
+	ch, err := choices([]string{"programme-four-20261110"}, []string{"programme-three-20261111"}, true)
+	if err != nil || ch.Resolutions["programme-four-20261110"] != launch.Supersede || ch.Resolutions["programme-three-20261111"] != launch.RunAlongside || !ch.AssertNeverStarted {
+		t.Fatalf("choices = %+v %v", ch, err)
+	}
+	h, research := newHandler(t, nil)
+	ctx := context.Background()
+	both := []string{"programme-four-20261110"}
+	for name, call := range map[string]func() error{
+		"preflight": func() error {
+			_, err := h.Preflight(ctx, connect.NewRequest(&launchv1.PreflightRequest{Target: &launchv1.PreflightRequest_CommissionId{CommissionId: prepared}, Supersedes: both, RunAlongside: both}))
+			return err
+		},
+		"build": func() error {
+			// packet.py is unavailable here, so reaching it would say Unavailable.
+			_, err := h.Build(ctx, connect.NewRequest(&launchv1.BuildRequest{Source: &launchv1.BuildRequest_SpecJson{SpecJson: `{"topics":["x"]}`}, Supersedes: both, RunAlongside: both}))
+			return err
+		},
+		"launch": func() error {
+			_, err := h.Launch(ctx, connect.NewRequest(&launchv1.LaunchRequest{CommissionId: prepared, Supersedes: both, RunAlongside: both}))
+			return err
+		},
+	} {
+		err := call()
+		if connect.CodeOf(err) != connect.CodeInvalidArgument || !strings.Contains(err.Error(), "named in both supersedes and run_alongside") {
+			t.Errorf("%s: %v", name, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(research, "cohorts", prepared, home.LaunchFile)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("a refused launch wrote LAUNCH.json: %v", err)
+	}
+}

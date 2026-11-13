@@ -68,8 +68,14 @@ const WIRE = {
   neverRefused: "p1 has a goal in thread t-9",
 } as const;
 
-type Resolutions = { commissionId: string; choice: string }[];
-const chosenIn = (body: unknown, id: string) => ((body as { resolutions?: Resolutions } | undefined)?.resolutions ?? []).find((r) => r.commissionId === id)?.choice;
+/** The two lists a Preflight, Build or Launch request carries; empty lists are left off the wire. */
+type Lists = { supersedes?: string[]; runAlongside?: string[] };
+const chosenIn = (body: unknown, id: string) => {
+  const lists = (body ?? {}) as Lists;
+  if (lists.supersedes?.includes(id)) return "RESOLUTION_SUPERSEDE";
+  if (lists.runAlongside?.includes(id)) return "RESOLUTION_RUN_ALONGSIDE";
+  return undefined;
+};
 
 /** An earlier commission's verdict as the API judges it with the request's choice. */
 function verdict(topic: string, commissionId: string, state: string, body: unknown, recommended = "", recommendedReason = "") {
@@ -647,8 +653,9 @@ describe("Launch", () => {
     expect(await screen.findByText(WIRE.kernel)).toBeInTheDocument();
     const launch = screen.getByRole("button", { name: strings.launch.launch });
     await waitFor(() => expect(launch).toBeEnabled(), { timeout: 3000 });
-    const asked = calls.filter((c) => c.path === `${LAUNCH}/Preflight`).at(-1)?.body as { specJson: string; resolutions: Resolutions };
-    expect(asked.resolutions).toEqual([{ commissionId: "old-1", choice: "RESOLUTION_RUN_ALONGSIDE" }]);
+    const asked = calls.filter((c) => c.path === `${LAUNCH}/Preflight`).at(-1)?.body as { specJson: string } & Lists;
+    expect(asked.runAlongside).toEqual(["old-1"]);
+    expect(asked.supersedes).toBeUndefined();
     // The choice travels in the request; the spec holds only the operator's packet.
     const spec = JSON.parse(asked.specJson);
     expect(spec).toMatchObject({ topics: ["local-model-performance"], order: { "local-model-performance": ["IT6"] }, stance_quotes: ["make it reliable"], allowance_hours: 18 });
@@ -662,7 +669,7 @@ describe("Launch", () => {
     expect(writes(calls)).toHaveLength(0);
     await user.click(within(dialog).getByRole("button", { name: strings.launch.launch }));
     await waitFor(() => expect(writes(calls).map((c) => c.path)).toEqual([`${LAUNCH}/Build`, `${LAUNCH}/Launch`]));
-    expect(writes(calls)[0]?.body).toMatchObject({ resolutions: [{ commissionId: "old-1", choice: "RESOLUTION_RUN_ALONGSIDE" }] });
+    expect(writes(calls)[0]?.body).toMatchObject({ runAlongside: ["old-1"] });
     expect(writes(calls)[1]?.body).toEqual({ commissionId: "local-models-w1-20261112" });
   });
 
@@ -813,9 +820,10 @@ describe("Launch", () => {
     await tap(within(dialog).getByRole("button", { name: strings.launch.launch }));
     await waitFor(() => expect(writes(calls).map((c) => c.path)).toEqual([`${LAUNCH}/Build`, `${LAUNCH}/Launch`]));
     expect(taps).toBe(5);
-    const build = writes(calls)[0]?.body as { specJson: string; resolutions: Resolutions };
+    const build = writes(calls)[0]?.body as { specJson: string } & Lists;
     expect(JSON.parse(build.specJson)).toMatchObject({ topics: ["a", "b", "c"], stance_quotes: [WIRE.suggestedQuote] });
-    expect(build.resolutions).toEqual([{ commissionId: "p-4", choice: "RESOLUTION_SUPERSEDE" }]);
+    expect(build.supersedes).toEqual(["p-4"]);
+    expect(build.runAlongside).toBeUndefined();
   });
 
   it("supersedes both paused commissions by default and sends both choices with Build", async () => {
@@ -850,10 +858,7 @@ describe("Launch", () => {
     await tap(within(dialog).getByRole("button", { name: strings.launch.launch }));
     await waitFor(() => expect(writes(calls).map((c) => c.path)).toEqual([`${LAUNCH}/Build`, `${LAUNCH}/Launch`]));
     expect(taps).toBe(5);
-    expect((writes(calls)[0]?.body as { resolutions: Resolutions }).resolutions).toEqual([
-      { commissionId: "p-3", choice: "RESOLUTION_SUPERSEDE" },
-      { commissionId: "p-4", choice: "RESOLUTION_SUPERSEDE" },
-    ]);
+    expect((writes(calls)[0]?.body as Lists).supersedes).toEqual(["p-3", "p-4"]);
   });
 
   it("keeps the form when the operator leaves and returns, until it is cleared", async () => {

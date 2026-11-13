@@ -41,21 +41,11 @@ func list(flag string) []string {
 	return out
 }
 
-// resolutions reads --supersede and --alongside: the operator's choice for
-// each blocking commission.
-func resolutions(ctx cliapp.OperationContext) ([]*launchv1.BlockerResolution, error) {
-	var out []*launchv1.BlockerResolution
-	seen := map[string]bool{}
-	for flag, choice := range map[string]launchv1.Resolution{"supersede": launchv1.Resolution_RESOLUTION_SUPERSEDE, "alongside": launchv1.Resolution_RESOLUTION_RUN_ALONGSIDE} {
-		for _, id := range list(ctx.Flag(flag)) {
-			if seen[id] {
-				return nil, fmt.Errorf("%s is named in both --supersede and --alongside; choose one", id)
-			}
-			seen[id] = true
-			out = append(out, &launchv1.BlockerResolution{CommissionId: id, Choice: choice})
-		}
-	}
-	return out, nil
+// blockerChoices reads --supersede and --alongside, comma-separated: the
+// commissions this launch supersedes and those it runs alongside. The API
+// refuses a commission named in both.
+func blockerChoices(ctx cliapp.OperationContext) (supersedes, runAlongside []string) {
+	return list(ctx.Flag("supersede")), list(ctx.Flag("alongside"))
 }
 
 // preflightCall sends --spec-file, or a target naming a file, as a spec and
@@ -70,11 +60,8 @@ func (h *handlers) preflightCall(ctx cliapp.OperationContext) (*launchv1.Preflig
 	case target == "":
 		return nil, fmt.Errorf("give a prepared commission's folder name, or a spec JSON file (docs/reference/FILE-CONTRACT.md §2)")
 	}
-	res, err := resolutions(ctx)
-	if err != nil {
-		return nil, err
-	}
-	req := &launchv1.PreflightRequest{Resolutions: res, AssertNeverStarted: ctx.BoolFlag("assert-never-started")}
+	sup, along := blockerChoices(ctx)
+	req := &launchv1.PreflightRequest{Supersedes: sup, RunAlongside: along, AssertNeverStarted: ctx.BoolFlag("assert-never-started")}
 	if info, err := os.Stat(target); err == nil && !info.IsDir() {
 		spec, err := specFile(target)
 		if err != nil {
@@ -89,15 +76,12 @@ func (h *handlers) preflightCall(ctx cliapp.OperationContext) (*launchv1.Preflig
 
 func (h *handlers) buildCall(ctx cliapp.OperationContext) (*launchv1.BuildResponse, error) {
 	old, file := ctx.Flag("relaunch-of"), ctx.Positional("spec-file")
-	res, err := resolutions(ctx)
-	if err != nil {
-		return nil, err
-	}
+	sup, along := blockerChoices(ctx)
 	switch {
 	case old != "" && file != "":
 		return nil, fmt.Errorf("give a spec file or --relaunch-of, not both")
 	case old != "":
-		return render.Call("relaunch "+old, h.client.Build, &launchv1.BuildRequest{Source: &launchv1.BuildRequest_RelaunchOf{RelaunchOf: old}, Resolutions: res})
+		return render.Call("relaunch "+old, h.client.Build, &launchv1.BuildRequest{Source: &launchv1.BuildRequest_RelaunchOf{RelaunchOf: old}, Supersedes: sup, RunAlongside: along})
 	case file == "":
 		return nil, fmt.Errorf("give a spec JSON file (docs/reference/FILE-CONTRACT.md §2) or --relaunch-of <commission-id>")
 	}
@@ -105,15 +89,12 @@ func (h *handlers) buildCall(ctx cliapp.OperationContext) (*launchv1.BuildRespon
 	if err != nil {
 		return nil, err
 	}
-	return render.Call("build a packet", h.client.Build, &launchv1.BuildRequest{Source: &launchv1.BuildRequest_SpecJson{SpecJson: spec}, Resolutions: res})
+	return render.Call("build a packet", h.client.Build, &launchv1.BuildRequest{Source: &launchv1.BuildRequest_SpecJson{SpecJson: spec}, Supersedes: sup, RunAlongside: along})
 }
 
 func (h *handlers) launchCall(ctx cliapp.OperationContext) (*launchv1.LaunchResponse, error) {
-	res, err := resolutions(ctx)
-	if err != nil {
-		return nil, err
-	}
-	req := &launchv1.LaunchRequest{CommissionId: ctx.Positional("commission-id"), Resolutions: res, AssertNeverStarted: ctx.BoolFlag("assert-never-started")}
+	sup, along := blockerChoices(ctx)
+	req := &launchv1.LaunchRequest{CommissionId: ctx.Positional("commission-id"), Supersedes: sup, RunAlongside: along, AssertNeverStarted: ctx.BoolFlag("assert-never-started")}
 	return render.Call("launch "+req.CommissionId, h.client.Launch, req)
 }
 

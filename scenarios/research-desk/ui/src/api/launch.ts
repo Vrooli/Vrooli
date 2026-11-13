@@ -37,14 +37,14 @@ export interface Decisions {
 }
 
 function decided({ choices, assertNeverStarted = false }: Decisions) {
-  return { resolutions: resolutions(choices), assertNeverStarted };
+  return { ...blockerLists(choices), assertNeverStarted };
 }
 
 /** packet.py preview of a spec, judged with the operator's choices: renders in memory and writes nothing. */
 export function usePreflightSpec(specJson: string | null, choices: Decisions["choices"]) {
   const asked = decided({ choices });
   return useQuery({
-    queryKey: ["launch", "preflight", "spec", specJson, asked.resolutions.map((r) => `${r.commissionId}=${r.choice}`)],
+    queryKey: ["launch", "preflight", "spec", specJson, asked.supersedes, asked.runAlongside],
     queryFn: () => client.preflight({ target: { case: "specJson", value: specJson ?? "" }, ...asked }),
     enabled: specJson !== null,
     placeholderData: keepPreviousData,
@@ -55,7 +55,7 @@ export function usePreflightSpec(specJson: string | null, choices: Decisions["ch
 export function usePreflightPrepared(commissionId: string, decisions: Decisions, enabled = true) {
   const asked = decided(decisions);
   return useQuery({
-    queryKey: ["launch", "preflight", "commission", commissionId, asked.resolutions.map((r) => `${r.commissionId}=${r.choice}`), asked.assertNeverStarted],
+    queryKey: ["launch", "preflight", "commission", commissionId, asked.supersedes, asked.runAlongside, asked.assertNeverStarted],
     queryFn: () => client.preflight({ target: { case: "commissionId", value: commissionId }, ...asked }),
     enabled,
     placeholderData: keepPreviousData,
@@ -85,7 +85,7 @@ export function useLaunchTest() {
 
 export const launchApi = {
   /** Builds a packet; the choices are written into its charter ("Supersedes …", "Runs alongside …"), so its launch needs none. */
-  buildFromSpec: (specJson: string, choices: Decisions["choices"] = {}) => client.build({ source: { case: "specJson", value: specJson }, resolutions: resolutions(choices) }),
+  buildFromSpec: (specJson: string, choices: Decisions["choices"] = {}) => client.build({ source: { case: "specJson", value: specJson }, ...blockerLists(choices) }),
   relaunch: (commissionId: string) => client.build({ source: { case: "relaunchOf", value: commissionId } }),
   /**
    * Starts the automatic launch. A packet built with its choices needs none;
@@ -100,18 +100,18 @@ export const launchApi = {
 /** What a launch does about an earlier commission still holding one of its topics. */
 export type BlockerChoice = "supersede" | "alongside";
 
-const TO_RESOLUTION = { supersede: Resolution.SUPERSEDE, alongside: Resolution.RUN_ALONGSIDE } as const;
-
 function fromResolution(r: Resolution): BlockerChoice | null {
   return r === Resolution.SUPERSEDE ? "supersede" : r === Resolution.RUN_ALONGSIDE ? "alongside" : null;
 }
 
-/** The operator's choices as the request carries them, one per decided commission, in a stable order. */
-export function resolutions(choices: Record<string, BlockerChoice | "">): { commissionId: string; choice: Resolution }[] {
-  return Object.entries(choices)
-    .filter((entry): entry is [string, BlockerChoice] => entry[1] !== "")
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([commissionId, choice]) => ({ commissionId, choice: TO_RESOLUTION[choice] }));
+/** The operator's choices as the request carries them: the commissions to supersede and to run alongside, each sorted. */
+export function blockerLists(choices: Record<string, BlockerChoice | "">): { supersedes: string[]; runAlongside: string[] } {
+  const named = (want: BlockerChoice) =>
+    Object.entries(choices)
+      .filter(([, choice]) => choice === want)
+      .map(([commissionId]) => commissionId)
+      .sort((a, b) => a.localeCompare(b));
+  return { supersedes: named("supersede"), runAlongside: named("alongside") };
 }
 
 /** One earlier commission this launch must decide about, across every topic it holds. */

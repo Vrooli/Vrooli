@@ -84,22 +84,38 @@
         ]
       },
       "vrooli-events": {
-      "type": "scenario",
-      "enabled": true,
-      "required": false,
-      "startup_policy": "ignore",
-      "description": "Carries the courier's decision and notice events to Notification Hub (research_desk.needs_you.decision_requested.v1 and .notification.v1), the route every scenario-originated decision takes.",
-      "degraded_behavior": "Nothing is sent; the desk says why in the needs-you feed and the operator answers in the desk. The scheduler's own delivery covers items without a delivered entry.",
-      "uses": [
-        {
-          "id": "decision-events",
-          "name": "Decision events",
-          "description": "Publish needs-you decisions and notices for Notification Hub",
-          "group": "decisions"
-        }
-      ]
-    },
-    "notification-hub": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "ignore",
+        "description": "Carries the courier's decision and notice events to Notification Hub (research_desk.needs_you.decision_requested.v1 and .notification.v1), the route every scenario-originated decision takes.",
+        "degraded_behavior": "Nothing is sent; the desk says why in the needs-you feed and the operator answers in the desk. The scheduler's own delivery covers items without a delivered entry.",
+        "uses": [
+          {
+            "id": "decision-events",
+            "name": "Decision events",
+            "description": "Publish needs-you decisions and notices for Notification Hub",
+            "group": "decisions"
+          }
+        ]
+      },
+      "data-backup-manager": {
+        "type": "scenario",
+        "enabled": true,
+        "required": false,
+        "startup_policy": "try_start",
+        "description": "Registers the research home that the desk owns as a filesystem backup target.",
+        "degraded_behavior": "Research remains available; the live desk retries target registration while Data Backup Manager is unavailable.",
+        "uses": [
+          {
+            "id": "research-home-backup",
+            "name": "Research home backup",
+            "description": "Register the desk's research home for scheduled recovery snapshots",
+            "group": "recovery"
+          }
+        ]
+      },
+      "notification-hub": {
         "type": "scenario",
         "enabled": true,
         "required": false,
@@ -215,6 +231,89 @@
     "usage": {
       "source": "skills/research-desk/SKILL.md"
     }
+  },
+  "storage": {
+    "entries": {
+      "courier_switches": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "courier.json",
+        "regenerable": false,
+        "agent_removal": "deny",
+        "rationale": "The operator's courier switches per commission and for global items, with when each was turned on. Losing it turns delivery off.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "rationale": "A few hundred bytes per commission; alarm-only because it records operator choices."
+        }
+      },
+      "first_sightings": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "first-sightings.json",
+        "regenerable": false,
+        "agent_removal": "deny",
+        "rationale": "When each needs-you item was first found. An item first sighted before its switch was turned on is never sent; deleting the file would make old items look new, so it is never removed by a sweep.",
+        "budget": {
+          "max_bytes": "4MiB",
+          "rationale": "One line per open item; items that leave the files are forgotten. Alarm-only."
+        }
+      },
+      "looks": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "looks",
+        "regenerable": false,
+        "rationale": "The operator's recorded looks (mark-seen), one JSON file per commission or topic; `changes` reports from them. Deleting one resets its 'since'.",
+        "budget": {
+          "max_bytes": "4MiB",
+          "rationale": "One small file per commission or topic. Alarm-only because the looks are operator history."
+        }
+      },
+      "launch_tests": {
+        "rung": "owned",
+        "kind": "dir",
+        "class": "state",
+        "subpath": "launch-tests",
+        "regenerable": false,
+        "rationale": "One report per launch test run against a throwaway session; the newest is read by GetLaunchTest.",
+        "budget": {
+          "max_bytes": "16MiB",
+          "rationale": "A report is a few kilobytes and the operator starts each test; alarm-only because the reports are evidence."
+        }
+      },
+      "instance_lock": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "subpath": "instance.lock",
+        "regenerable": true,
+        "rationale": "Empty lock file held by the one desk instance allowed to write.",
+        "budget": {
+          "max_bytes": "1KiB",
+          "rationale": "Always empty; recreated at start."
+        }
+      },
+      "retention": {
+        "rung": "owned",
+        "kind": "file",
+        "class": "state",
+        "format": "json",
+        "subpath": "retention/enforcement-receipt.json",
+        "regenerable": true,
+        "rationale": "Shared storage retention enforcement writes the latest compact receipt under the desk's state namespace.",
+        "budget": {
+          "max_bytes": "1MiB",
+          "max_age": "30d",
+          "rationale": "The receipt is bounded regenerable operational state and is replaced on each enforcement run."
+        }
+      }
+    },
+    "rationale": "The desk writes only its state namespace; the research home under ~/.vrooli/research belongs to the operator's research skills and is not claimed here."
   },
   "version": "1.0.0"
 }

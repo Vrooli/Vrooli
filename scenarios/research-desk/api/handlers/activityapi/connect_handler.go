@@ -19,17 +19,12 @@ import (
 	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/shared"
 )
 
-// Snapshotter is the home reader seam.
-type Snapshotter interface {
-	Snapshot(ctx context.Context, opts home.Options) (*home.Snapshot, error)
-}
-
 // WebConsoleLens is the overview lens for Web Console access.
 const WebConsoleLens = "web-console access"
 
 // Deps wires the activity handler.
 type Deps struct {
-	Reader Snapshotter
+	Reader home.Snapshotter
 	// Looks reads the look snapshots OperatorService.MarkSeen records in the
 	// desk state folder; nil refuses GetChanges (failed_precondition).
 	Looks Looks

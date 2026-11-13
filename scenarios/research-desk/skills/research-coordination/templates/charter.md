@@ -47,7 +47,12 @@ Packet: /absolute/path/to/details.md
 IDs match `[A-Z0-9][A-Z0-9_-]{0,127}` and name the decision, never a workstream; option keys
 `[a-z0-9-]{1,32}`. A decision always has `Recommended:`; a notice has none; a secret has
 `Secret: <where it goes>`, never its value. Empty section: `No actionable items are recorded.`
-A chat answer counts. Once you act on an answer, remove the item from both files.
+Before writing either file, draft its full updated text and run
+`python3 <research-desk>/skills/research-coordination/scripts/needs_you.py validate --file <draft> --section "Needs you"`
+(use `Actionable now` for `ATTENTION.md`). The validator rejects a recommendation not present
+in `Options:` (or in the default `accept`/`hold` choices) and prints the line and a repair hint.
+Write only after validation succeeds. A chat answer counts. Once you act on an answer, remove
+the item from both files.
 
 **Fallback.** The desk appends `### <UTC> · delivered <ID> · via desk` to `OPERATOR.md` when it
 delivers an item. An item with no such entry at the second review after you wrote it: deliver

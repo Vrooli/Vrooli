@@ -24,16 +24,11 @@ import (
 	operatorv1 "github.com/vrooli/vrooli/packages/proto/gen/go/research-desk/v1/operator"
 )
 
-// Snapshotter is the home reader seam.
-type Snapshotter interface {
-	Snapshot(ctx context.Context, opts home.Options) (*home.Snapshot, error)
-}
-
 // Deps wires the operator handler.
 type Deps struct {
 	// ResearchDir is the research home the file route serves.
 	ResearchDir string
-	Reader      Snapshotter
+	Reader      home.Snapshotter
 	Writer      *writer.Writer
 	Courier     *courier.Courier
 	Clock       schedule.NowSource

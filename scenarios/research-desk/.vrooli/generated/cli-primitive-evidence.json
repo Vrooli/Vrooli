@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "research-desk",
   "generator": "v1.0.0",
-  "manifest_hash": "016211b513b241970c06ca25072ecd43566241c479a5d51434992fd2848236cb",
+  "manifest_hash": "d8b5e6e235a964bbc564d4a4d39477ac1140c3b372a84c9370982e986483a622",
   "commands": [
     {
       "path": "answer",

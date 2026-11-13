@@ -74,9 +74,7 @@ Use this shape so entries are scannable. Append newest at the bottom.
   five skills were read through `prompt-manager` and by path, `packet.py preview` and `check`
   and `mission_check.py` ran, the supervisor stayed alive, and an owner wrote its checkpoint
   (07:10:23Z). Log: [`evidence/stop-test.txt`](evidence/stop-test.txt).
-- **`--supersede` and `--alongside` have no request field of their own.** On `preflight` and `build` both fill `resolutions` (a repeated message), so the contracts phase reports `binding.arg_unmapped` and a program caller cannot fill them.
-  Real fix: requests carry `repeated string supersede` and `repeated string alongside` in place of `resolutions` (a wire change for the API, CLI and UI). Owner: research-desk.
-- **Storage check misreads a foreign read-only database.** `api/internal/home/codex.go` opens Codex's own `state_5.sqlite` with `mode=ro`; storage reports `RAW_SQL_OPEN` and `ROUTED_SEAMS_UNWIRED`
+- **Storage check misreads a foreign read-only database.** `codex.go` in the API's `home` package opens Codex's own `state_5.sqlite` with `mode=ro`; storage reports `RAW_SQL_OPEN` and `ROUTED_SEAMS_UNWIRED`
   because no declaration marks a foreign read-only read, and the scenario database seam must not carry it. Real fix: such a declaration in storage-manager. Owner: storage-manager.
 - **Accepted limit: a caller with no token passes as the operator.** A request from this host
   with no token, an agent's included, is the operator; a failed verification never falls back
@@ -141,3 +139,17 @@ a migration handoff with a planned retirement path back into
 - [`SEAMS.md`](SEAMS.md) — boundary registry (load-bearing for tests)
 - [`TESTING.md`](TESTING.md) — test patterns
 - [`../guides/troubleshooting.md`](../guides/troubleshooting.md) — generic-template issues
+
+## Work ladder
+
+- Rung: W3
+- Evidence: the debt-research brief authorized behavior-preserving implementation cleanup; focused Go tests passed for `home`, `courier`, `launch`, `activityapi`, `operatorapi`, and `capabilities`; Test Genie run `20261112-215032-f2667c63` passed structure and docs but unit failed in three UI navigation flows with a Node/DOM `AbortSignal` type error.
+- Blocker: UI unit failure recorded as `knw-1794520336126341932`; scoped Go behavior checks passed.
+- Measured: 2026-11-12
+
+### 2026-11-13 — courier peer reachability and option grammar
+
+- Rung: W3
+- Evidence: before repair, `research-desk now --json` showed `vrooli-events` as `not evaluated: deadline reached` and a failed courier pass; after targeted dependency resolution and restart, both `vrooli-events` and `notification-hub` were healthy and the courier last pass succeeded. The needs-you validator rejected malformed recommendation keys with a fix hint; corrected live `STATE.md` validates.
+- Blocker: Test Genie unit remains red only for three UI navigation tests failing on cross-realm `AbortSignal`; bug `knw-1794539667732355246`.
+- Measured: 2026-11-13

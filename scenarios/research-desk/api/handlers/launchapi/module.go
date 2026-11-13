@@ -59,14 +59,14 @@ var Endpoints = []module.EndpointDescriptor{
 	{
 		ID: "launch_preflight", Path: launchconnect.LaunchServicePreflightProcedure, Method: "POST", Category: "launch",
 		Summary:     "Preflight a spec or a prepared packet",
-		Description: "Runs packet.py preview on a spec (or check on a commission), and says for every earlier commission on the same topics whether it blocks the launch, the choices that clear it (supersede or run alongside) with the desk's recommendation, and which checkpoint to read first. Resolutions and the never-started assertion are judged as a launch would judge them.",
+		Description: "Runs packet.py preview on a spec (or check on a commission), and says for every earlier commission on the same topics whether it blocks the launch, the choices that clear it (supersede or run alongside) with the desk's recommendation, and which checkpoint to read first. The supersedes and run_alongside choices and the never-started assertion are judged as a launch would judge them.",
 		Errors:      []module.ErrorDesc{invalid, noSuch, unavailable},
 		Examples:    example("Spec", "Preflight", `{"spec_json":"{\"topics\":[\"niche-book-production\"],\"allowance_hours\":12,\"stance_quotes\":[\"Books first.\"]}"}`),
 	},
 	{
 		ID: "launch_build", Path: launchconnect.LaunchServiceBuildProcedure, Method: "POST", Category: "launch",
 		Summary:     "Build a packet",
-		Description: "Runs packet.py build to write a new commission folder from a spec, or from an earlier commission's PACKET.json with supersedes and carry_baseline_from set (a relaunch is a new commission). resolutions are written into the spec first, so the charter names the commission it supersedes (one) and each it runs alongside.",
+		Description: "Runs packet.py build to write a new commission folder from a spec, or from an earlier commission's PACKET.json with supersedes and carry_baseline_from set (a relaunch is a new commission). supersedes and run_alongside are written into the spec first, so the charter names the commission it supersedes (one) and each it runs alongside.",
 		Errors:      []module.ErrorDesc{readOnly, invalid, noSuch, unavailable},
 		Examples:    example("Relaunch", "Build", `{"relaunch_of":"programme-five-20261112"}`),
 	},
@@ -75,7 +75,7 @@ var Endpoints = []module.EndpointDescriptor{
 		Summary:     "Launch a commission",
 		Description: "Refuses unless the packet passes, every blocker is resolved (supersede or run alongside) and the commission is prepared, or unknown with the operator's assertion that it never started and no session or goal found for it. Writes LAUNCH.json with the choices, then in the background stops each superseded supervisor through its own session and records it, creates the Web Console session, sends the stance, waits for ready, sets the goal and verifies it.",
 		Errors:      []module.ErrorDesc{readOnly, noSuch, unavailable, missingGrant},
-		Examples:    example("Supersede", "Launch", `{"commission_id":"programme-five-20261112","resolutions":[{"commission_id":"programme-four-20261110","choice":"RESOLUTION_SUPERSEDE"}]}`),
+		Examples:    example("Supersede", "Launch", `{"commission_id":"programme-five-20261112","supersedes":["programme-four-20261110"]}`),
 	},
 	{
 		ID: "launch_messages", Path: launchconnect.LaunchServiceGetLaunchMessagesProcedure, Method: "POST", Category: "launch",

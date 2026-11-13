@@ -1,7 +1,7 @@
 {
   "_metadata": {
     "description": "Requirement stubs scaffolded from the P0 operational targets.",
-    "last_validated_at": "2026-11-12T02:17:32-05:00",
+    "last_validated_at": "2026-11-12T02:29:23-05:00",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -268,7 +268,7 @@
     {
       "id": "RD-P0-009",
       "title": "Scenario-owned research skills",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-009",
       "criticality": "P0",
       "description": "Research skills move into scenarios/research-desk/skills through the supported ownership route with prompt-manager skill read and the direct-file fallback still working, and the supervisor procedure gains written route discipline for failing optional routes.",
@@ -335,7 +335,7 @@
     {
       "id": "RD-P0-011",
       "title": "Phone-first interface",
-      "status": "planned",
+      "status": "complete",
       "prd_ref": "OT-P0-011",
       "criticality": "P0",
       "description": "API and CLI first, then a UI designed for phone width on the tunnel hostname that replaces the generated placeholder completely.",

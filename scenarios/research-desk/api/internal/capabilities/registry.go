@@ -157,7 +157,7 @@ func Reach(registry *Registry, resolver PortResolver, slug string) func(context.
 		if registry == nil {
 			return "", fmt.Errorf("%s: the capability registry is not loaded (.vrooli/service.json not found; set VROOLI_ROOT)", slug)
 		}
-		state, ok := Find(registry.Resolve(ctx), slug)
+		state, ok := registry.ResolveOne(ctx, slug)
 		switch {
 		case !ok:
 			return "", fmt.Errorf("%s is not a dependency in .vrooli/service.json", slug)

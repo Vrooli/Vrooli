@@ -18,11 +18,30 @@ First discover supported routes and inspect the latest evidence, including super
 
 `ATTENTION.md` and cohort `STATE.md` are navigable views of what needs the operator. A Hub ask is answered in Hub; never repeat it as unanswered after compaction.
 
+Write every item and linked review packet to the shared [operator legibility
+standard](../../../../../docs/agent-system/SWARM_MANAGER_WORK.md#operator-legibility).
+The index stays Markdown because the research desk reads its headings and fields
+as a file contract; HTML is for a self-contained review packet, not a
+replacement for the index. The operator must understand the decision before
+opening a packet. Start each packet with a short **In brief** section, then put
+evidence and technical detail after it.
+
 - Open every reply to the operator, and `STATE.md`, with the `Needs you` items (grammar under
   "Keep one navigable view").
 - Each item opens with one or two plain sentences: the decision, your recommendation, and what it
   unlocks, followed by the link or command that answers it. Put no hash, run identifier or
   evidence path in the item; link the packet that holds them.
+- Assume the operator does not know the scenario or its shorthand. Replace jargon with the
+  practical effect; explain any necessary term or acronym at first use. Give each option's
+  consequence and the exact next owner action. A packet link adds evidence; it must not be needed
+  to understand the choice.
+- For an informational item, state whether any response is needed. For a decision, state where to
+  answer, any real deadline or review point, and what happens if there is no answer. Do not imply
+  that a pending ask, a ready channel, or a delivery receipt proves that the operator saw it.
+- Put the last reconciliation time near the top of `ATTENTION.md`. Refresh it when reading the
+  canonical decision owner. If that owner is unavailable, label the affected item's state
+  unverified. Remove answered, dismissed, withdrawn, expired, and superseded decisions from the
+  actionable section; retain their outcomes in history.
 - Order: decisions that gate a showcase first, then proposals, then older actionable items.
 - An item stays in the list, in every reply, until the operator answers it or it is withdrawn.
   A clause inside a status paragraph is not a delivery.
@@ -57,6 +76,8 @@ Secret: where the operator puts it
 ```
 
 An item runs from `### <ID> — <title>` (ID `[A-Z0-9][A-Z0-9_-]{0,127}`, naming the decision, never a workstream) to the next `###` or `##`. Every decision has `Recommended:`; an item without it, or with `Secret:`, goes out as a plain notice; a secret's value never goes in a file. Option keys match `[a-z0-9-]{1,32}`. No prose before the first item; an empty section's only line is `No actionable items are recorded.` Identity is commission plus ID: a commission's item copied to `ATTENTION.md` gains `Commission: <id>`; one without it is global. After delivering an item yourself, add `Delivered: <route> <UTC>` to it; the desk never sends such an item. The `## Proposals awaiting approval` section above follows the same rules (empty: `No proposals are recorded.`); a missing or malformed section reads as unknown, not empty. Keep agent prerequisites and future gates in a concise section below. Move dated updates and answered or superseded requests verbatim to `ATTENTION-HISTORY.md` beside it, newest first. Preserve the detailed context beneath each heading. After acting on its answer, remove the item from `STATE.md` and `ATTENTION.md`.
+
+**Reject bad option grammar before writing.** Draft the complete updated markdown in a temporary file, then run `python3 <research-desk>/skills/research-coordination/scripts/needs_you.py validate --file <draft> --section "Needs you"` (use `Actionable now` for `ATTENTION.md`). Write the draft only when the command succeeds. A `Recommended:` key must be one of that item's `Options:` keys; without `Options:`, it must be `accept` or `hold`. On failure, use the printed line number and fix hint to correct the recommendation or offered options, then validate again.
 
 Before dispatching a fresh commission and immediately before every delivery, read each relevant ask from Notification Hub and reconcile its latest owner state. Treat answered (including `other`), dismissed, withdrawn and expired as distinct terminal or review outcomes; none remains actionable unless the operator's answer created a new, explicit request. Move terminal items out of `Actionable now`, update the triage/checkpoint and recompute the inline digest before sending. Never copy an old actionable entry into a fresh commission without this owner-state check. If the owner cannot be read, mark the state unobserved and do not describe it as pending or resolved.
 
@@ -129,6 +150,8 @@ Use this content order so the operator can scan either format:
 
 Keep the choices in the Notification Hub option fields as well as explaining their consequences in the question text. Keep the inline digest short enough for a phone screen; the action file holds full context.
 
+Before sending, apply the [operator legibility check](../../../../../docs/agent-system/SWARM_MANAGER_WORK.md#check-before-delivery): a reader outside the project must be able to explain what happened, why the operator is needed, what each choice changes, and exactly where to respond without opening the evidence packet.
+
 ## Use the existing notification owner
 
 Before presenting a permission decision, trace the operation owner and the
@@ -148,7 +171,7 @@ authorship from that field.
 
 ### Send and ask
 
-A verified agent session or run sends and asks with no grant or consent: `notification-hub notifications send` for information, `notification-hub conversations ask` for a decision. Each run has a cooldown (default 6 sends and 3 asks per 10 minutes). Over the limit, the Hub refuses with `resource_exhausted` and the retry time, and stores nothing: retry the same terms and key after that time. Bundle updates into one notification; the cooldown is a flood guard, not a budget to spend. Answers, dismissals, preferences and subscriptions stay with the operator. For a decision on an enrolled effort's goal home, `agent-manager effort decision raise` is the alternative route.
+Any caller, including a plain host process without agent identity, sends and asks without permission: `notification-hub notifications send` for information, `notification-hub conversations ask` for a decision. A per-source bucket starts with six device pushes and refills one token per minute; configure capacity and refill interval through the Notification Hub environment settings. When empty, the Hub still stores every notification and ask but suppresses device pushes until tokens refill. Requests continue to other configured channels. Bundle updates when that improves clarity. Answers, dismissals, preferences and subscriptions stay with the operator. For a decision on an enrolled effort's goal home, `agent-manager effort decision raise` remains the source-qualified route.
 
 ### Route and reconcile requests
 

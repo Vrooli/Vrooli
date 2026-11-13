@@ -50,14 +50,8 @@ type Flag struct {
 
 // later returns whichever known time is later; an unknown side loses.
 func later(a, b Time) Time {
-	switch {
-	case !b.Known:
-		return a
-	case !a.Known:
-		return b
-	case b.Value.After(a.Value):
-		return b
-	default:
+	if !b.Known || (a.Known && !b.Value.After(a.Value)) {
 		return a
 	}
+	return b
 }

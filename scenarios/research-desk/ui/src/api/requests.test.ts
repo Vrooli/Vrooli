@@ -97,10 +97,8 @@ describe("launch requests", () => {
         path: `${LAUNCH}/Launch`,
         body: {
           commissionId: "standing-teams-w1-20261110",
-          resolutions: [
-            { commissionId: "local-models-w1-20261111", choice: "RESOLUTION_RUN_ALONGSIDE" },
-            { commissionId: "programme-four-20261110", choice: "RESOLUTION_SUPERSEDE" },
-          ],
+          supersedes: ["programme-four-20261110"],
+          runAlongside: ["local-models-w1-20261111"],
           assertNeverStarted: true,
         },
       },
@@ -110,7 +108,7 @@ describe("launch requests", () => {
   it("builds with the operator's choices so the charter names them", async () => {
     const calls = stubWire();
     await launchApi.buildFromSpec("{}", { "programme-four-20261110": "supersede" });
-    expect(calls).toEqual([{ path: `${LAUNCH}/Build`, body: { specJson: "{}", resolutions: [{ commissionId: "programme-four-20261110", choice: "RESOLUTION_SUPERSEDE" }] } }]);
+    expect(calls).toEqual([{ path: `${LAUNCH}/Build`, body: { specJson: "{}", supersedes: ["programme-four-20261110"] } }]);
   });
 
   it("relaunches from an earlier packet", async () => {

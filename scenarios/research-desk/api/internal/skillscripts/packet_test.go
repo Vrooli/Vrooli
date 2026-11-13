@@ -2,6 +2,8 @@ package skillscripts
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -68,6 +70,33 @@ func TestAScriptThatPrintsNoResultSaysSo(t *testing.T) {
 		_, err := Packets{Paths: Paths{Skills: skillsDir}, Runner: badRunner{out}}.Check(context.Background(), "x")
 		if err == nil || !strings.Contains(err.Error(), "packet.py") {
 			t.Errorf("%s: err = %v", name, err)
+		}
+	}
+}
+
+// The research skills live in this scenario and the charter the desk renders
+// from them carries the supervisor's route discipline: a failing optional
+// route is recorded and the direct path taken, and decisions are written as
+// needs-you items the desk delivers.
+// [REQ:RD-P0-009]
+func TestTheScenarioOwnedSkillsRenderRouteDiscipline(t *testing.T) {
+	for _, skill := range []string{"research-coordination", "adaptive-research", "local-experimentation", "research-review", "research-desk"} {
+		if _, err := os.Stat(filepath.Join(skillsDir, skill, "SKILL.md")); err != nil {
+			t.Errorf("skill %s is not owned by this scenario: %v", skill, err)
+		}
+	}
+	spec := `{"topics":["niche-book-production"],"allowance_hours":12,"stance_quotes":["Make it big."],"slug":"programme-five","window":"fifth"}`
+	result, err := packets(t).Preview(context.Background(), []byte(spec))
+	if err != nil || !result.OK || result.Texts == nil {
+		t.Fatalf("preview: %v %+v", err, result)
+	}
+	for _, line := range []string{
+		"## Route discipline",
+		"`Route failure · <UTC> · <route> · <command> · <first error line> · direct path taken`",
+		"Write each decision as a needs-you item in `STATE.md`",
+	} {
+		if !strings.Contains(result.Texts.Charter, line) {
+			t.Errorf("the charter lacks %q", line)
 		}
 	}
 }

@@ -246,9 +246,7 @@ func (p Plan) keep(key string) bool {
 
 // Courier runs passes.
 type Courier struct {
-	Reader interface {
-		Snapshot(ctx context.Context, opts home.Options) (*home.Snapshot, error)
-	}
+	Reader home.Snapshotter
 	Writer *writer.Writer
 	Hub    Hub
 	Clock  schedule.NowSource

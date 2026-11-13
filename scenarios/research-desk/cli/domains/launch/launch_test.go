@@ -92,8 +92,8 @@ func TestPreflightSendsAFileAsASpecAndAWordAsACommission(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "local-models-w1-20261111", svc.preflight.GetCommissionId())
 	require.True(t, svc.preflight.AssertNeverStarted)
-	require.Len(t, svc.preflight.Resolutions, 1)
-	require.Equal(t, launchv1.Resolution_RESOLUTION_RUN_ALONGSIDE, svc.preflight.Resolutions[0].Choice)
+	require.Equal(t, []string{"programme-three-20261111"}, svc.preflight.RunAlongside)
+	require.Empty(t, svc.preflight.Supersedes)
 
 	// --spec-file is the named form of a spec, as program callers send it.
 	_, err = cliapptest.RunCommand(t, cmd, core, "--spec-file", spec)
@@ -112,15 +112,16 @@ func TestLaunchCarriesChoicesAndTheAssertion(t *testing.T) {
 	cmd, core := command(t, svc, "launch")
 	out, err := cliapptest.RunCommand(t, cmd, core, "local-models-w1-20261111", "--supersede", "programme-three-20261111, programme-four-20261110")
 	require.NoError(t, err)
-	require.Len(t, svc.launch.Resolutions, 2)
-	for _, r := range svc.launch.Resolutions {
-		require.Equal(t, launchv1.Resolution_RESOLUTION_SUPERSEDE, r.Choice)
-	}
+	require.Equal(t, []string{"programme-three-20261111", "programme-four-20261110"}, svc.launch.Supersedes)
+	require.Empty(t, svc.launch.RunAlongside)
 	require.False(t, svc.launch.AssertNeverStarted)
 	require.Contains(t, out, "It supersedes programme-three-20261111")
 
+	// Both lists go as given; the API refuses a commission named in both.
 	_, err = cliapptest.RunCommand(t, cmd, core, "x", "--supersede", "a", "--alongside", "a")
-	require.ErrorContains(t, err, "choose one")
+	require.NoError(t, err)
+	require.Equal(t, []string{"a"}, svc.launch.Supersedes)
+	require.Equal(t, []string{"a"}, svc.launch.RunAlongside)
 }
 
 func TestRelaunchAndBuildUseTheirSources(t *testing.T) {

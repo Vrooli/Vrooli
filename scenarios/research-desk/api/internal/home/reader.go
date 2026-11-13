@@ -63,6 +63,11 @@ type Reader struct {
 	walks  *walkCache
 }
 
+// Snapshotter is the read-only boundary shared by the scenario's domains.
+type Snapshotter interface {
+	Snapshot(ctx context.Context, opts Options) (*Snapshot, error)
+}
+
 // NewReader returns a Reader.
 func NewReader(cfg Config, deps Deps) *Reader {
 	return &Reader{cfg: cfg, deps: deps, codex: newCodexIndex(), others: newCodexIndex(), walks: &walkCache{}}

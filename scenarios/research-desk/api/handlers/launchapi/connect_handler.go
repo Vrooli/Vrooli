@@ -6,8 +6,10 @@ package launchapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"path/filepath"
+	"strings"
 
 	"connectrpc.com/connect"
 
@@ -94,26 +96,31 @@ var resolutionWire = map[launch.Resolution]launchv1.Resolution{
 	launch.RunAlongside: launchv1.Resolution_RESOLUTION_RUN_ALONGSIDE,
 }
 
-// choices reads a request's per-blocker resolutions and its assertion that the packet never started.
-func choices(list []*launchv1.BlockerResolution, assert bool) (launch.Choices, error) {
+// choices reads a request's blocker choices, the commissions it supersedes
+// and those it runs alongside, and its assertion that the packet never
+// started. A commission in both lists is refused before anything happens.
+func choices(supersedes, runAlongside []string, assert bool) (launch.Choices, error) {
 	out := launch.Choices{AssertNeverStarted: assert, Resolutions: map[string]launch.Resolution{}}
-	for _, r := range list {
-		var choice launch.Resolution
-		for k, v := range resolutionWire {
-			if v == r.GetChoice() {
-				choice = k
+	for _, list := range []struct {
+		ids    []string
+		choice launch.Resolution
+	}{{supersedes, launch.Supersede}, {runAlongside, launch.RunAlongside}} {
+		for _, id := range list.ids {
+			id = strings.TrimSpace(id)
+			if id == "" {
+				return out, home.Cause(home.ErrInvalid, errors.New("a commission named in supersedes or run_alongside is empty"))
 			}
+			if prior, ok := out.Resolutions[id]; ok && prior != list.choice {
+				return out, home.Cause(home.ErrInvalid, fmt.Errorf("%s is named in both supersedes and run_alongside; choose one", id))
+			}
+			out.Resolutions[id] = list.choice
 		}
-		if choice == "" || r.GetCommissionId() == "" {
-			return out, home.Cause(home.ErrInvalid, errors.New("each resolution names a commission_id and a choice of RESOLUTION_SUPERSEDE or RESOLUTION_RUN_ALONGSIDE"))
-		}
-		out.Resolutions[r.GetCommissionId()] = choice
 	}
 	return out, nil
 }
 
 func (h *handler) Preflight(ctx context.Context, req *connect.Request[launchv1.PreflightRequest]) (*connect.Response[launchv1.PreflightResponse], error) {
-	ch, err := choices(req.Msg.GetResolutions(), req.Msg.GetAssertNeverStarted())
+	ch, err := choices(req.Msg.GetSupersedes(), req.Msg.GetRunAlongside(), req.Msg.GetAssertNeverStarted())
 	if err != nil {
 		return nil, h.fail("preflight", err)
 	}
@@ -140,7 +147,7 @@ func (h *handler) Preflight(ctx context.Context, req *connect.Request[launchv1.P
 }
 
 func (h *handler) Build(ctx context.Context, req *connect.Request[launchv1.BuildRequest]) (*connect.Response[launchv1.BuildResponse], error) {
-	ch, err := choices(req.Msg.GetResolutions(), false)
+	ch, err := choices(req.Msg.GetSupersedes(), req.Msg.GetRunAlongside(), false)
 	if err != nil {
 		return nil, h.fail("build", err)
 	}
@@ -164,7 +171,7 @@ func (h *handler) Launch(ctx context.Context, req *connect.Request[launchv1.Laun
 	if err := wire.ResearchOperation(ctx, "research.launch", id); err != nil {
 		return nil, h.fail("authorize launch", err)
 	}
-	ch, err := choices(req.Msg.GetResolutions(), req.Msg.GetAssertNeverStarted())
+	ch, err := choices(req.Msg.GetSupersedes(), req.Msg.GetRunAlongside(), req.Msg.GetAssertNeverStarted())
 	if err != nil {
 		return nil, h.fail("launch", err)
 	}

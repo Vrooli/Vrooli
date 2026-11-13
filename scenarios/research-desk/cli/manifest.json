@@ -220,11 +220,17 @@
             },
             {
               "name": "supersede",
-              "description": "Comma-separated blocking commissions this launch supersedes: each is stopped through its own session first and recorded as superseded"
+              "description": "Comma-separated blocking commissions this launch supersedes: each is stopped through its own session first and recorded as superseded",
+              "bind": {
+                "field": "supersedes"
+              }
             },
             {
               "name": "alongside",
-              "description": "Comma-separated blocking commissions this launch runs alongside"
+              "description": "Comma-separated blocking commissions this launch runs alongside",
+              "bind": {
+                "field": "run_alongside"
+              }
             },
             {
               "name": "assert-never-started",
@@ -268,11 +274,17 @@
             },
             {
               "name": "supersede",
-              "description": "Comma-separated blocking commissions this packet supersedes: its charter names each, and the launch stops their supervisors first"
+              "description": "Comma-separated blocking commissions this packet supersedes: its charter names each, and the launch stops their supervisors first",
+              "bind": {
+                "field": "supersedes"
+              }
             },
             {
               "name": "alongside",
-              "description": "Comma-separated blocking commissions this packet runs alongside: its charter names each"
+              "description": "Comma-separated blocking commissions this packet runs alongside: its charter names each",
+              "bind": {
+                "field": "run_alongside"
+              }
             }
           ]
         },
@@ -289,11 +301,17 @@
           "flags": [
             {
               "name": "supersede",
-              "description": "Comma-separated blocking commissions this launch supersedes: each is stopped through its own session first and recorded as superseded"
+              "description": "Comma-separated blocking commissions this launch supersedes: each is stopped through its own session first and recorded as superseded",
+              "bind": {
+                "field": "supersedes"
+              }
             },
             {
               "name": "alongside",
-              "description": "Comma-separated blocking commissions this launch runs alongside"
+              "description": "Comma-separated blocking commissions this launch runs alongside",
+              "bind": {
+                "field": "run_alongside"
+              }
             },
             {
               "name": "assert-never-started",

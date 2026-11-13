@@ -32,7 +32,7 @@ type Packets interface {
 // Service is the launch domain over one research home.
 type Service struct {
 	Reader interface {
-		Snapshot(ctx context.Context, opts home.Options) (*home.Snapshot, error)
+		home.Snapshotter
 		CodexHome(sessionID string) string
 	}
 	Writer   *writer.Writer
@@ -106,7 +106,8 @@ func readSpec(spec []byte) (map[string]json.RawMessage, specChoices) {
 	return fields, sc
 }
 
-// resolutions merges a spec's choices with the request's; the request wins.
+// resolutions merges a spec's choices with the request's supersedes and
+// run_alongside; the request wins.
 func resolutions(alongside, supersedes []string, req map[string]Resolution) map[string]Resolution {
 	out := map[string]Resolution{}
 	for _, id := range alongside {
@@ -233,9 +234,9 @@ func (s *Service) Build(ctx context.Context, spec []byte, req map[string]Resolut
 	return judge(snap, result, sc, nil, result.CommissionID), nil
 }
 
-// withChoices writes the request's resolutions into a spec: run_alongside
+// withChoices writes the request's choices into a spec: run_alongside
 // lists every commission run alongside, supersedes every superseded one, so
-// the charter packet.py renders names each. Without resolutions, or when the
+// the charter packet.py renders names each. Without choices, or when the
 // spec is not a JSON object, the spec passes through verbatim. It returns the
 // choices the desk reads from the result.
 func withChoices(spec []byte, req map[string]Resolution) ([]byte, specChoices, error) {
@@ -476,6 +477,10 @@ func (s *Service) Launch(ctx context.Context, id string, ch Choices) (*home.Laun
 	return &snapshot, nil
 }
 
+// StepSupersede is the failure step when a superseded supervisor could not
+// be stopped; nothing was launched.
+const StepSupersede = "supersede"
+
 func ids(sups []supersession) []string {
 	var out []string
 	for _, s := range sups {
@@ -483,10 +488,6 @@ func ids(sups []supersession) []string {
 	}
 	return out
 }
-
-// StepSupersede is the failure step when a superseded supervisor could not
-// be stopped; nothing was launched.
-const StepSupersede = "supersede"
 
 func (s *Service) run(ctx context.Context, id, charter string, record *home.LaunchRecord, texts Texts, settings Settings, sups []supersession, claimed []string) {
 	defer s.release(claimed...)

@@ -10,10 +10,14 @@ import (
 	"path/filepath"
 	"time"
 
+	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/preflight"
 	"github.com/vrooli/api-core/schedule"
 	"github.com/vrooli/api-core/storage"
 	repocontract "github.com/vrooli/repo-contract-go"
+	sourcesv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/sources"
+	targetsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/targets"
+	targetsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/data-backup-manager/v1/targets/targets_v1connect"
 
 	"research-desk/internal/capabilities"
 	"research-desk/internal/courier"
@@ -227,10 +231,63 @@ func (w *wiring) serve(ctx context.Context) {
 		case <-time.After(10 * time.Second):
 		}
 	}
+	go w.registerResearchBackupTargetUntilAvailable(ctx)
 	if err := w.launch.MarkInterrupted(ctx); err != nil {
 		log.Printf("launches interrupted by the last stop were not marked: %v", err)
 	}
 	w.courier.Run(ctx, time.Minute)
+}
+
+func (w *wiring) registerResearchBackupTargetUntilAvailable(ctx context.Context) {
+	for {
+		attempt, cancel := context.WithTimeout(ctx, peer.CallTimeout+capabilities.CheckTimeout)
+		err := w.registerResearchBackupTarget(attempt)
+		cancel()
+		if err == nil {
+			log.Printf("research home backup target is registered")
+			return
+		}
+		log.Printf("research home backup target registration will retry: %v", err)
+		timer := time.NewTimer(5 * time.Minute)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
+	}
+}
+
+// registerResearchBackupTarget keeps the desk's externally located research
+// home attached to the owner's lifecycle. The DBM dependency is optional: a
+// temporarily unavailable backup service must not stop the desk from serving
+// its research home. Only the live lifecycle writer reaches this call.
+func (w *wiring) registerResearchBackupTarget(ctx context.Context) error {
+	if w.registry == nil || w.resolver == nil {
+		return errors.New("capability registry is unavailable")
+	}
+	port, err := w.resolver.ResolveScenarioPort(ctx, "data-backup-manager", "API_PORT")
+	if err != nil {
+		return fmt.Errorf("resolve Data Backup Manager API port: %w", err)
+	}
+	dbm := &peer.Peer{
+		Name: "data-backup-manager",
+		BaseURL: func(context.Context) (string, error) {
+			return fmt.Sprintf("http://localhost:%d", port), nil
+		},
+	}
+	httpClient, baseURL, option, err := dbm.Dial(ctx)
+	if err != nil {
+		return err
+	}
+	client := targetsconnect.NewTargetsServiceClient(httpClient, baseURL, option)
+	_, err = client.RegisterTarget(ctx, connect.NewRequest(&targetsv1.RegisterTargetRequest{
+		Owner:      scenarioName,
+		Name:       "research-home",
+		SourceKind: sourcesv1.SourceKind_SOURCE_KIND_FILESYSTEM,
+		Locator:    w.homeConfig.ResearchDir,
+	}))
+	return err
 }
 
 // webConsoleCredential is the desk's own Web Console credential. The desk has
