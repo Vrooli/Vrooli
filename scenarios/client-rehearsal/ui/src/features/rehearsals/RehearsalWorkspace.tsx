@@ -67,10 +67,10 @@ const SYNTHETIC_OPENAPI = JSON.stringify({
 
 function stateLabel(item: Rehearsal, t: ReturnType<typeof useTranslation>["t"]) {
   switch (item.state) {
-    case RehearsalState.REHEARSAL_STATE_NEEDS_REVIEW: return t(strings.rehearsals.stateNeedsReview);
-    case RehearsalState.REHEARSAL_STATE_APPROVED: return t(strings.rehearsals.stateApproved);
-    case RehearsalState.REHEARSAL_STATE_CHANGES_REQUESTED: return t(strings.rehearsals.stateChangesRequested);
-    case RehearsalState.REHEARSAL_STATE_FAILED: return t(strings.rehearsals.stateFailed);
+    case RehearsalState.NEEDS_REVIEW: return t(strings.rehearsals.stateNeedsReview);
+    case RehearsalState.APPROVED: return t(strings.rehearsals.stateApproved);
+    case RehearsalState.CHANGES_REQUESTED: return t(strings.rehearsals.stateChangesRequested);
+    case RehearsalState.FAILED: return t(strings.rehearsals.stateFailed);
     default: return t(strings.rehearsals.stateUnknown);
   }
 }
@@ -108,6 +108,7 @@ export function RehearsalWorkspace() {
   const [file, setFile] = useState<File | null>(null);
   const [triggerOptions, setTriggerOptions] = useState<TriggerOption[]>([]);
   const [selectedTriggerNodeId, setSelectedTriggerNodeId] = useState("");
+  const [taskScoped, setTaskScoped] = useState(false);
   const [title, setTitle] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [simulatorSource, setSimulatorSource] = useState("");
@@ -133,6 +134,7 @@ export function RehearsalWorkspace() {
         simulatorProfile: "synthetic-default",
         simulatorSourceJson: source,
         injectSeededFault: true,
+        taskScoped,
       });
     },
     onSuccess: (result) => {
@@ -180,6 +182,13 @@ export function RehearsalWorkspace() {
             <label className="flex flex-col gap-1 text-sm font-medium" htmlFor="workflow-title">{t(strings.rehearsals.titleLabel)}
               <input id="workflow-title" value={title} onChange={(event) => setTitle(event.currentTarget.value)} maxLength={120} className="rounded-control border border-app-border bg-app-background px-3 py-2" />
             </label>
+            <div className="flex flex-col gap-1 rounded-panel border border-app-border p-3">
+              <label className="flex items-center gap-2 text-sm font-medium" htmlFor="task-scoped">
+                <input id="task-scoped" type="checkbox" checked={taskScoped} onChange={(event) => setTaskScoped(event.currentTarget.checked)} />
+                {t(strings.rehearsals.taskScopeLabel)}
+              </label>
+              <p className="text-xs text-app-muted-foreground">{t(strings.rehearsals.taskScopeHint)}</p>
+            </div>
             <details>
               <summary className="cursor-pointer text-sm text-app-muted-foreground">{t(strings.rehearsals.simulatorAdvanced)}</summary>
               <label className="mt-2 flex flex-col gap-1 text-sm font-medium" htmlFor="simulator-source">{t(strings.rehearsals.simulatorSource)}
@@ -208,7 +217,7 @@ export function RehearsalWorkspace() {
 
         {current && <Card className="xl:col-span-2" data-testid={selectors.rehearsals.detail}>
           <CardHeader className="flex flex-wrap items-center justify-between gap-2"><CardTitle as="h2">{current.title} <span className="text-sm font-normal text-app-muted-foreground">· {stateLabel(current, t)}</span></CardTitle>
-            {current.state === RehearsalState.REHEARSAL_STATE_NEEDS_REVIEW && <div className="flex flex-wrap gap-2">
+            {current.state === RehearsalState.NEEDS_REVIEW && <div className="flex flex-wrap gap-2">
               <Button data-testid={selectors.rehearsals.approveButton} size="sm" disabled={review.isPending} onClick={() => review.mutate(ReviewDecision.APPROVE)}>{t(strings.rehearsals.approve)}</Button>
               <Button data-testid={selectors.rehearsals.changesButton} size="sm" disabled={review.isPending} onClick={() => review.mutate(ReviewDecision.REQUEST_CHANGES)}>{t(strings.rehearsals.requestChanges)}</Button>
             </div>}

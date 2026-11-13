@@ -2,7 +2,7 @@
 
 ## Current slice
 
-No external resource is required to build or use the local rehearsal adapter. It interprets a normalized synthetic workflow graph and resolves HTTP operations against OpenAPI descriptions or recorded exchanges. Native service nodes can select a declared profile operation by n8n node type, resource, and operation; the profile declares those mappings through `x-n8n-node-type`, `x-n8n-resource`, and `x-n8n-operation` extensions. This is reusable across workflows and never dispatches the node's real service code. OpenAPI catalogs and sanitized recorded exchanges can also export bounded exact routes into a Workspace Sandbox HTTP-mock profile. Recorded-exchange export requires successful responses on synthetic `.invalid` hosts with static paths; it rejects real hosts, credential-shaped response fields, and error responses. This produces a reusable mock profile, not proof that native n8n reached it. The tested local HTTP handler remains unattached to n8n.
+No external resource is required for ordinary local rehearsal. An opt-in `task_scoped` request uses the configured loopback Workspace Sandbox API. Client Rehearsal mints the logical task ID; Workspace Sandbox resolves the task directory and owner. OpenAPI catalogs and sanitized recorded exchanges export bounded exact routes into the task's HTTP-mock companion. Task-scoped native service calls are sent to the exact returned `*.synthetic.invalid` alias and the route-hit receipt is retained in the handoff. The integration test proves the service path with a fake transport that maps the alias to a local fixture server; the actual API-to-task-network DNS route and deny-by-default egress remain unverified.
 
 ## Planned owner integrations
 

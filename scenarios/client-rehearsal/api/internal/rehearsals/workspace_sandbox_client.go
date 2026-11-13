@@ -25,16 +25,14 @@ const (
 )
 
 var (
-	sandboxIDPattern          = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
-	sandboxNamePattern        = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
-	sandboxVersionPattern     = regexp.MustCompile(`^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][A-Za-z0-9.-]+)?$`)
-	sandboxDigestPattern      = regexp.MustCompile(`^[a-f0-9]{64}$`)
-	sandboxOwnerPattern       = regexp.MustCompile(`^client-rehearsal:[A-Za-z0-9._-]{1,80}$`)
-	sandboxIdempotencyPattern = regexp.MustCompile(`^client-rehearsal:[A-Za-z0-9._-]{1,80}$`)
-	sandboxTagPattern         = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
-	sandboxProfileQueryKey    = regexp.MustCompile(`^[A-Za-z0-9_.~-]{1,128}$`)
-	sandboxProfileCredential  = regexp.MustCompile(`(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}|\b(?:sk-[A-Za-z0-9]{16,}|gh[pousr]_[A-Za-z0-9]{16,})\b`)
-	sandboxProfileEmail       = regexp.MustCompile(`(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}`)
+	taskScopeIDPattern       = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
+	sandboxIDPattern         = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+	sandboxNamePattern       = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
+	sandboxVersionPattern    = regexp.MustCompile(`^[0-9]+\.[0-9]+(?:\.[0-9]+)?(?:[-+][A-Za-z0-9.-]+)?$`)
+	sandboxDigestPattern     = regexp.MustCompile(`^[a-f0-9]{64}$`)
+	sandboxProfileQueryKey   = regexp.MustCompile(`^[A-Za-z0-9_.~-]{1,128}$`)
+	sandboxProfileCredential = regexp.MustCompile(`(?i)\b(?:bearer|basic)\s+[A-Za-z0-9._~+/=-]{8,}|\b(?:sk-[A-Za-z0-9]{16,}|gh[pousr]_[A-Za-z0-9]{16,})\b`)
+	sandboxProfileEmail      = regexp.MustCompile(`(?i)[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}`)
 )
 
 // WorkspaceSandboxProfileClient declares and starts a synthetic profile on an
@@ -45,22 +43,29 @@ type WorkspaceSandboxProfileClient struct {
 	httpClient *http.Client
 }
 
-// WorkspaceSandboxTaskRequest identifies an already-authorized empty workspace
-// scope for one rehearsal run. Paths and ownership are supplied by the local
-// caller; they are never derived from imported workflow data.
+// WorkspaceSandboxTaskRequest selects a logical task identity. Workspace
+// Sandbox resolves its directory and owner attribution from trusted server
+// configuration; callers cannot choose either path or owner.
 type WorkspaceSandboxTaskRequest struct {
-	Name           string   `json:"name,omitempty"`
-	ScopePath      string   `json:"scopePath"`
-	ProjectRoot    string   `json:"projectRoot"`
-	Owner          string   `json:"owner"`
-	OwnerType      string   `json:"ownerType"`
-	Tags           []string `json:"tags,omitempty"`
-	IdempotencyKey string   `json:"idempotencyKey"`
+	TaskID string `json:"taskId"`
+	Name   string `json:"name,omitempty"`
+}
+
+type WorkspaceSandboxTaskRecord struct {
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	ProjectRoot    string `json:"projectRoot"`
+	ScopePath      string `json:"scopePath"`
+	Owner          string `json:"owner"`
+	OwnerType      string `json:"ownerType"`
+	IdempotencyKey string `json:"idempotencyKey"`
 }
 
 type WorkspaceSandboxProfileLease struct {
 	SandboxID string
 	Name      string
+	Task      WorkspaceSandboxTaskRecord
+	Runtime   N8NTaskRuntimeLease
 	Receipt   WorkspaceSandboxProfileReceipt
 }
 
@@ -81,6 +86,22 @@ type HTTPMockOperationAddress struct {
 	Selector HTTPMockProfileSelector `json:"selector"`
 	Method   string                  `json:"method"`
 	URL      string                  `json:"url"`
+}
+
+type HTTPMockRouteHit struct {
+	Host   string `json:"host"`
+	Method string `json:"method"`
+	Path   string `json:"path"`
+	Query  string `json:"query,omitempty"`
+	Count  uint64 `json:"count"`
+}
+
+type HTTPMockRouteHitsReceipt struct {
+	SandboxID          string             `json:"sandboxId"`
+	CompanionRuntimeID string             `json:"companionRuntimeId"`
+	Status             string             `json:"status"`
+	TotalHits          uint64             `json:"totalHits"`
+	Routes             []HTTPMockRouteHit `json:"routes"`
 }
 
 func NewWorkspaceSandboxProfileClient(base string, client *http.Client) (*WorkspaceSandboxProfileClient, error) {
@@ -107,65 +128,63 @@ func NewWorkspaceSandboxProfileClient(base string, client *http.Client) (*Worksp
 
 // CreateTaskSandbox creates a bounded caller-owned workspace task record
 // using the Workspace Sandbox API's existing idempotency contract.
-func (c *WorkspaceSandboxProfileClient) CreateTaskSandbox(ctx context.Context, input WorkspaceSandboxTaskRequest) (string, error) {
+func (c *WorkspaceSandboxProfileClient) CreateTaskSandbox(ctx context.Context, input WorkspaceSandboxTaskRequest) (WorkspaceSandboxTaskRecord, error) {
 	if c == nil || c.baseURL == nil || c.httpClient == nil {
-		return "", errors.New("Workspace Sandbox profile client is not initialized")
+		return WorkspaceSandboxTaskRecord{}, errors.New("Workspace Sandbox profile client is not initialized")
 	}
-	if !sandboxNamePattern.MatchString(input.Name) || !filepath.IsAbs(input.ProjectRoot) || input.ProjectRoot == string(filepath.Separator) || filepath.Clean(input.ProjectRoot) != input.ProjectRoot || !filepath.IsAbs(input.ScopePath) || filepath.Clean(input.ScopePath) != input.ScopePath || !sandboxOwnerPattern.MatchString(input.Owner) || input.OwnerType != "task" || input.IdempotencyKey != input.Owner || !sandboxIdempotencyPattern.MatchString(input.IdempotencyKey) || len(input.Tags) > 8 {
-		return "", errors.New("task sandbox requires a bounded name, clean absolute authorized paths, owner, task owner type and idempotency key")
-	}
-	for _, tag := range input.Tags {
-		if !sandboxTagPattern.MatchString(tag) {
-			return "", errors.New("task sandbox tags must be bounded lowercase labels")
-		}
-	}
-	rel, err := filepath.Rel(input.ProjectRoot, input.ScopePath)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-		return "", errors.New("task sandbox scope must remain inside its authorized project root")
+	if !taskScopeIDPattern.MatchString(input.TaskID) || input.TaskID == "." || input.TaskID == ".." || (input.Name != "" && !sandboxNamePattern.MatchString(input.Name)) {
+		return WorkspaceSandboxTaskRecord{}, errors.New("task sandbox requires a bounded task ID and optional name")
 	}
 	body, err := json.Marshal(input)
 	if err != nil || len(body) > maxWorkspaceSandboxRequestBytes {
-		return "", errors.New("task sandbox declaration is invalid or exceeds 2 MiB")
+		return WorkspaceSandboxTaskRecord{}, errors.New("task sandbox declaration is invalid or exceeds 2 MiB")
 	}
-	var created struct {
-		ID             string `json:"id"`
-		Name           string `json:"name"`
-		ProjectRoot    string `json:"projectRoot"`
-		ScopePath      string `json:"scopePath"`
-		Owner          string `json:"owner"`
-		OwnerType      string `json:"ownerType"`
-		IdempotencyKey string `json:"idempotencyKey"`
+	var created WorkspaceSandboxTaskRecord
+	if err := c.requestJSON(ctx, http.MethodPost, "/api/v1/task-scopes", body, &created); err != nil {
+		return WorkspaceSandboxTaskRecord{}, fmt.Errorf("create server-owned task Sandbox: %w", err)
 	}
-	if err := c.requestJSON(ctx, http.MethodPost, "/api/v1/sandboxes", body, &created); err != nil {
-		return "", fmt.Errorf("create task Sandbox: %w", err)
+	if !sandboxIDPattern.MatchString(created.ID) || created.OwnerType != "task" || created.IdempotencyKey != "task-scope:"+input.TaskID || !filepath.IsAbs(created.ProjectRoot) || !filepath.IsAbs(created.ScopePath) {
+		return WorkspaceSandboxTaskRecord{}, errors.New("Workspace Sandbox returned an incomplete server-owned task scope")
 	}
-	if !sandboxIDPattern.MatchString(created.ID) {
-		return "", errors.New("Workspace Sandbox returned an invalid task ID")
+	if (input.Name != "" && created.Name != input.Name) || !strings.HasSuffix(created.Owner, ":"+input.TaskID) || len(created.Owner) <= len(input.TaskID)+1 {
+		return WorkspaceSandboxTaskRecord{}, errors.New("Workspace Sandbox returned a task scope with unexpected name or missing server-owned attribution")
 	}
-	if created.Name != input.Name || created.ProjectRoot != input.ProjectRoot || created.ScopePath != input.ScopePath || created.Owner != input.Owner || created.OwnerType != input.OwnerType || created.IdempotencyKey != input.IdempotencyKey {
-		return "", errors.New("Workspace Sandbox returned an existing task with different name, scope, project root or owner")
+	rel, err := filepath.Rel(created.ProjectRoot, created.ScopePath)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return WorkspaceSandboxTaskRecord{}, errors.New("Workspace Sandbox returned a task scope outside its project root")
 	}
-	return created.ID, nil
+	return created, nil
 }
 
 // CreateAndStartTaskProfile owns the reversible create→declare→start path.
 // If declaration or start fails after creation, it asks Workspace Sandbox to
 // delete that task record; Sandbox owns companion stop-before-delete cleanup.
 func (c *WorkspaceSandboxProfileClient) CreateAndStartTaskProfile(ctx context.Context, task WorkspaceSandboxTaskRequest, profileName, version string, profile HTTPMockProfile) (WorkspaceSandboxProfileLease, error) {
-	sandboxID, err := c.CreateTaskSandbox(ctx, task)
+	created, err := c.CreateTaskSandbox(ctx, task)
 	if err != nil {
 		return WorkspaceSandboxProfileLease{}, err
 	}
-	receipt, err := c.DeclareAndStartProfile(ctx, sandboxID, profileName, version, profile)
+	lease, err := c.StartTaskProfileOnSandbox(ctx, created, profileName, version, profile)
 	if err == nil {
-		return WorkspaceSandboxProfileLease{SandboxID: sandboxID, Name: profileName, Receipt: receipt}, nil
+		return lease, nil
 	}
 	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer cancel()
-	if cleanupErr := c.DeleteTaskSandbox(cleanupCtx, sandboxID); cleanupErr != nil {
+	if cleanupErr := c.DeleteTaskSandbox(cleanupCtx, created.ID); cleanupErr != nil {
 		return WorkspaceSandboxProfileLease{}, fmt.Errorf("start Sandbox profile failed (%v); task cleanup also failed: %w", err, cleanupErr)
 	}
 	return WorkspaceSandboxProfileLease{}, fmt.Errorf("start Sandbox profile failed; created task was deleted: %w", err)
+}
+
+func (c *WorkspaceSandboxProfileClient) StartTaskProfileOnSandbox(ctx context.Context, task WorkspaceSandboxTaskRecord, profileName, version string, profile HTTPMockProfile) (WorkspaceSandboxProfileLease, error) {
+	if !sandboxIDPattern.MatchString(task.ID) || task.OwnerType != "task" || task.ScopePath == "" || task.ProjectRoot == "" {
+		return WorkspaceSandboxProfileLease{}, errors.New("server-owned Sandbox task record is incomplete")
+	}
+	receipt, err := c.DeclareAndStartProfile(ctx, task.ID, profileName, version, profile)
+	if err != nil {
+		return WorkspaceSandboxProfileLease{}, err
+	}
+	return WorkspaceSandboxProfileLease{SandboxID: task.ID, Name: profileName, Task: task, Receipt: receipt}, nil
 }
 
 func (c *WorkspaceSandboxProfileClient) StopAndDeleteTaskProfile(ctx context.Context, lease WorkspaceSandboxProfileLease) error {
@@ -255,6 +274,21 @@ func (c *WorkspaceSandboxProfileClient) StopProfile(ctx context.Context, sandbox
 	}
 	path := "/api/v1/sandboxes/" + url.PathEscape(sandboxID) + "/companion-services/" + url.PathEscape(name) + "/stop"
 	return c.requestJSON(ctx, http.MethodPost, path, []byte(`{}`), nil)
+}
+
+func (c *WorkspaceSandboxProfileClient) ReadRouteHits(ctx context.Context, sandboxID, name string) (HTTPMockRouteHitsReceipt, error) {
+	if c == nil || c.baseURL == nil || c.httpClient == nil || !sandboxIDPattern.MatchString(sandboxID) || !sandboxNamePattern.MatchString(name) {
+		return HTTPMockRouteHitsReceipt{}, errors.New("Sandbox ID or companion name is invalid")
+	}
+	var receipt HTTPMockRouteHitsReceipt
+	path := "/api/v1/sandboxes/" + url.PathEscape(sandboxID) + "/companion-services/" + url.PathEscape(name) + "/route-hits"
+	if err := c.requestJSON(ctx, http.MethodGet, path, nil, &receipt); err != nil {
+		return HTTPMockRouteHitsReceipt{}, fmt.Errorf("read Workspace Sandbox route-hit evidence: %w", err)
+	}
+	if receipt.SandboxID != sandboxID || receipt.Status != "available" || receipt.Routes == nil {
+		return HTTPMockRouteHitsReceipt{}, errors.New("Workspace Sandbox returned an incomplete route-hit evidence receipt")
+	}
+	return receipt, nil
 }
 
 func (c *WorkspaceSandboxProfileClient) requestJSON(ctx context.Context, method, path string, body []byte, output any) error {

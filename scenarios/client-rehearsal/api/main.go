@@ -6,9 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
+	"strings"
 
 	"client-rehearsal/internal/capabilities"
 	"client-rehearsal/internal/modules"
+	"client-rehearsal/internal/rehearsals"
 	"client-rehearsal/internal/server"
 
 	"github.com/vrooli/api-core/schedule"
@@ -73,12 +76,32 @@ func main() {
 	}
 	fileRoots := filerouting.New(primaryFileRoots)
 
+	var sandboxClient *rehearsals.WorkspaceSandboxProfileClient
+	if sandboxURL := strings.TrimSpace(os.Getenv("CLIENT_REHEARSAL_WORKSPACE_SANDBOX_URL")); sandboxURL != "" {
+		sandboxClient, err = rehearsals.NewWorkspaceSandboxProfileClient(sandboxURL, nil)
+		if err != nil {
+			log.Fatalf("Workspace Sandbox configuration is invalid: %v", err)
+		}
+	}
+
+	rehearsalModule := rehearsalsH.ModuleWithWorkspaceSandbox(db, schedule.System(), log.Default(), sandboxClient)
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("CLIENT_REHEARSAL_N8N_RUNTIME_ENABLED")), "true") {
+		if sandboxClient == nil {
+			log.Fatalf("native n8n rehearsal requires CLIENT_REHEARSAL_WORKSPACE_SANDBOX_URL")
+		}
+		vrooliCLI, lookErr := exec.LookPath("vrooli")
+		if lookErr != nil {
+			log.Fatalf("native n8n rehearsal requires the vrooli owner CLI on PATH: %v", lookErr)
+		}
+		rehearsalModule = rehearsalsH.ModuleWithNativeN8N(db, schedule.System(), log.Default(), sandboxClient, vrooliCLI, os.Environ)
+	}
+
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.Module(db, "client-rehearsal-api", "1.0.0"),
-		capsH.Module(capabilities.NewRegistry()),
+		capsH.Module(capabilities.NewRegistry(), log.Default()),
 		notesH.Module(db, schedule.System(), log.Default()), // EXAMPLE-DOMAIN:notes
-		rehearsalsH.Module(db, schedule.System(), log.Default()),
+		rehearsalModule,
 	)
 
 	// Top-level mux that mounts the API handler plus, when in development

@@ -30,6 +30,15 @@ const (
 	maxSafeCodeEachItems   = 128
 )
 
+func isASCII(value string) bool {
+	for index := 0; index < len(value); index++ {
+		if value[index] >= 0x80 {
+			return false
+		}
+	}
+	return true
+}
+
 type (
 	codeToken struct{ text, kind string }
 	codeExpr  struct {
@@ -499,6 +508,33 @@ func (p *codeParser) statement() (codeStmt, error) {
 			expr, err := p.expr(0)
 			return codeStmt{kind: "objectdecl", params: names, fields: fields, expr: expr}, err
 		}
+		if p.take("[") {
+			var names []string
+			if !p.take("]") {
+				for {
+					name := p.peek().text
+					if p.peek().kind != "ident" || !safeCodeIdentifier(name) {
+						return codeStmt{}, fmt.Errorf("array destructuring requires bounded local identifiers")
+					}
+					p.pos++
+					names = append(names, name)
+					if p.take("]") {
+						break
+					}
+					if err := p.need(","); err != nil {
+						return codeStmt{}, err
+					}
+				}
+			}
+			if len(names) == 0 || len(names) > 64 {
+				return codeStmt{}, fmt.Errorf("array destructuring requires 1..64 bindings")
+			}
+			if err := p.need("="); err != nil {
+				return codeStmt{}, err
+			}
+			expr, err := p.expr(0)
+			return codeStmt{kind: "arraydecl", params: names, expr: expr}, err
+		}
 		name := p.peek().text
 		if p.peek().kind != "ident" {
 			return codeStmt{}, fmt.Errorf("expected local variable")
@@ -836,6 +872,19 @@ func validateSafeStatements(statements []codeStmt, scope map[string]bool) error 
 				}
 				scope[name] = false
 			}
+		case "arraydecl":
+			if err := validateSafeExpr(statement.expr, scope); err != nil {
+				return err
+			}
+			if len(statement.params) == 0 || len(statement.params) > 64 {
+				return fmt.Errorf("array destructuring bindings are invalid")
+			}
+			for _, name := range statement.params {
+				if _, exists := scope[name]; exists {
+					return fmt.Errorf("redeclaration of %q is unsupported", name)
+				}
+				scope[name] = false
+			}
 		case "assign":
 			mutable, exists := scope[statement.name]
 			if !exists && !scope["__legacy_function__"] {
@@ -1049,7 +1098,7 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			return err
 		}
 		switch expr.value {
-		case "all", "first", "toString", "toISOString", "toISO", "toLocaleString", "toLocaleDateString", "toLocaleTimeString", "getDay", "getDate", "getMonth", "getFullYear", "test", "trim", "toLowerCase", "toUpperCase", "replace", "replaceAll", "match", "slice", "split", "push", "join", "map", "filter", "forEach", "some", "includes", "indexOf", "has", "concat", "from", "isArray", "fromCodePoint", "ceil", "floor", "round", "random", "fromISO", "diff", "toFormat", "stringify", "parse", "keys":
+		case "all", "first", "toString", "toISOString", "toISO", "toLocaleString", "toLocaleDateString", "toLocaleTimeString", "getDay", "getDate", "getMonth", "getFullYear", "test", "trim", "toLowerCase", "toUpperCase", "replace", "replaceAll", "match", "slice", "split", "padStart", "push", "join", "map", "filter", "forEach", "some", "includes", "indexOf", "has", "add", "concat", "from", "isArray", "fromCodePoint", "ceil", "floor", "round", "random", "fromISO", "diff", "toFormat", "stringify", "parse", "keys":
 		default:
 			return fmt.Errorf("method %q is not allowed", expr.value)
 		}
@@ -1140,7 +1189,7 @@ func validateSafeExpr(expr *codeExpr, scope map[string]bool) error {
 			return fmt.Errorf("Math.random takes no arguments")
 		}
 		if expr.value == "includes" && len(expr.args) != 1 {
-			return fmt.Errorf("array includes supports one argument")
+			return fmt.Errorf("includes supports one bounded argument")
 		}
 		if expr.value == "concat" && len(expr.args) != 1 {
 			return fmt.Errorf("array concat supports one bounded argument")
@@ -1883,6 +1932,22 @@ func (c *safeCodeContext) run(ss []codeStmt) (any, error) {
 			for index, name := range s.params {
 				c.locals[name] = object[s.fields[index]]
 			}
+		case "arraydecl":
+			value, err := c.eval(s.expr)
+			if err != nil {
+				return nil, err
+			}
+			array, ok := value.(*safeArray)
+			if !ok || len(s.params) == 0 || len(s.params) > 64 {
+				return nil, fmt.Errorf("array destructuring requires a bounded array")
+			}
+			for index, name := range s.params {
+				if index < len(array.values) {
+					c.locals[name] = array.values[index]
+				} else {
+					c.locals[name] = nil
+				}
+			}
 		case "assign":
 			current, exists := c.locals[s.name]
 			v, e := c.eval(s.expr)
@@ -2161,7 +2226,7 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 		}
 		return nil, fmt.Errorf("Date input is not a valid ISO date")
 	case "set":
-		set := safeSet{values: map[string]any{}}
+		set := &safeSet{values: map[string]any{}}
 		if e.left == nil {
 			return set, nil
 		}
@@ -2276,7 +2341,10 @@ func (c *safeCodeContext) eval(e *codeExpr) (any, error) {
 						return nil, fmt.Errorf("array spread output item bound exceeded")
 					}
 					a.values = append(a.values, spread.values...)
-				case safeSet:
+				case *safeSet:
+					if spread == nil {
+						return nil, fmt.Errorf("array spread requires a valid Set")
+					}
 					if len(a.values)+len(spread.ordered) > maxSyntheticItems {
 						return nil, fmt.Errorf("array spread output item bound exceeded")
 					}
@@ -3058,13 +3126,25 @@ func safeProperty(v any, k string) (any, error) {
 		if k == "getDay" || k == "getDate" || k == "getMonth" || k == "getFullYear" {
 			return safeBuiltin("date." + k), nil
 		}
-	case safeSet:
+	case *safeSet:
+		if x == nil {
+			return nil, fmt.Errorf("invalid synthetic Set")
+		}
 		if k == "has" {
 			return safeBuiltin("set.has"), nil
 		}
+		if k == "add" {
+			return safeBuiltin("set.add"), nil
+		}
+		if k == "size" {
+			return float64(len(x.ordered)), nil
+		}
 	case safeRegex:
 		if k == "test" {
-			return safeBuiltin("regex.test:" + x.pattern), nil
+			if x.global {
+				return nil, fmt.Errorf("global regex test is stateful and unsupported")
+			}
+			return safeBuiltin("regex.test:" + x.flags() + "\x00" + x.pattern), nil
 		}
 	case safeBuiltin:
 		if x == "String" && k == "fromCodePoint" {
@@ -3150,7 +3230,16 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 			if len(args) != 1 {
 				return nil, fmt.Errorf("regex.test requires one argument")
 			}
-			r, e := regexp.Compile(strings.TrimPrefix(string(b), "regex.test:"))
+			spec := strings.TrimPrefix(string(b), "regex.test:")
+			flags, pattern := "", spec
+			if split := strings.IndexByte(spec, '\x00'); split >= 0 {
+				flags, pattern = spec[:split], spec[split+1:]
+			}
+			if strings.Contains(flags, "i") {
+				pattern = "(?i)" + pattern
+			}
+			pattern = strings.ReplaceAll(pattern, `\/`, "/")
+			r, e := regexp.Compile(pattern)
 			if e != nil {
 				return nil, e
 			}
@@ -3223,7 +3312,10 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 			seconds -= minutes * 60
 			return map[string]any{"hours": hours, "minutes": minutes, "seconds": seconds}, nil
 		}
-	case safeSet:
+	case *safeSet:
+		if x == nil {
+			return nil, fmt.Errorf("invalid synthetic Set")
+		}
 		if method == "has" && len(args) == 1 {
 			key, ok := safeSetKey(args[0])
 			if !ok {
@@ -3231,6 +3323,20 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 			}
 			_, exists := x.values[key]
 			return exists, nil
+		}
+		if method == "add" && len(args) == 1 {
+			key, ok := safeSetKey(args[0])
+			if !ok {
+				return nil, fmt.Errorf("Set.add requires a bounded primitive scalar")
+			}
+			if _, exists := x.values[key]; !exists {
+				if len(x.ordered) >= maxSyntheticItems {
+					return nil, fmt.Errorf("Set item bound exceeded")
+				}
+				x.values[key] = args[0]
+				x.ordered = append(x.ordered, args[0])
+			}
+			return x, nil
 		}
 	case float64:
 		if method == "toString" && len(args) <= 1 {
@@ -3270,6 +3376,9 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 		}
 	case safeRegex:
 		if method == "test" && len(args) == 1 {
+			if x.global {
+				return nil, fmt.Errorf("global regex test is stateful and unsupported")
+			}
 			r, e := compileSafeRegex(x)
 			if e != nil {
 				return nil, e
@@ -3277,6 +3386,13 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 			return r.MatchString(fmt.Sprint(args[0])), nil
 		}
 	case string:
+		if method == "includes" && len(args) == 1 {
+			search, ok := args[0].(string)
+			if !ok || len(x) > maxSafeCodeItemBytes || len(search) > maxSafeCodeItemBytes {
+				return nil, fmt.Errorf("string includes requires one bounded string")
+			}
+			return strings.Contains(x, search), nil
+		}
 		if method == "replaceAll" && len(args) == 2 {
 			search, searchOK := args[0].(string)
 			replacement, replacementOK := args[1].(string)
@@ -3382,6 +3498,26 @@ func safeCall(c *safeCodeContext, receiver any, method string, args []any) (any,
 				}
 			}
 			return string(utf16.Decode(units[startIndex:endIndex])), nil
+		}
+		if method == "padStart" && (len(args) == 1 || len(args) == 2) {
+			width, ok := args[0].(float64)
+			if !ok || width < 0 || width > 256 || width != math.Trunc(width) || len(x) > maxSafeCodeItemBytes || !isASCII(x) {
+				return nil, fmt.Errorf("padStart requires a bounded integer width and ASCII input")
+			}
+			padding := " "
+			if len(args) == 2 {
+				var valid bool
+				padding, valid = args[1].(string)
+				if !valid || len(padding) > 64 || !isASCII(padding) {
+					return nil, fmt.Errorf("padStart requires a bounded ASCII pad string")
+				}
+			}
+			if len(padding) == 0 || int(width) <= len(x) {
+				return x, nil
+			}
+			missing := int(width) - len(x)
+			fill := strings.Repeat(padding, (missing+len(padding)-1)/len(padding))[:missing]
+			return fill + x, nil
 		}
 		if method == "split" && len(args) == 1 {
 			separator, ok := args[0].(string)
@@ -3956,7 +4092,22 @@ func safeCodeRegex(pattern, flags string) bool {
 	case `\s+`:
 		return flags == "g"
 	default:
-		return false
+		if len(pattern) == 0 || len(pattern) > 256 || strings.ContainsAny(pattern, "\x00\r\n") || strings.Contains(pattern, "(?") || strings.Contains(pattern, `\1`) {
+			return false
+		}
+		seenFlags := map[rune]bool{}
+		for _, flag := range flags {
+			if (flag != 'g' && flag != 'i') || seenFlags[flag] {
+				return false
+			}
+			seenFlags[flag] = true
+		}
+		compiledPattern := strings.ReplaceAll(pattern, `\/`, "/")
+		if seenFlags['i'] {
+			compiledPattern = "(?i)" + compiledPattern
+		}
+		_, err := regexp.Compile(compiledPattern)
+		return err == nil
 	}
 }
 

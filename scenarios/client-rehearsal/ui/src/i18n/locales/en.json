@@ -116,6 +116,8 @@
     "workflowFile": "n8n workflow export (.json)",
     "triggerLabel": "Trigger to rehearse",
     "titleLabel": "Rehearsal title",
+    "taskScopeLabel": "Use a Workspace Sandbox task scope",
+    "taskScopeHint": "The server creates the task identity and workspace path. This requires CLIENT_REHEARSAL_WORKSPACE_SANDBOX_URL to point to the local Workspace Sandbox API.",
     "simulatorAdvanced": "Use a custom OpenAPI or recorded-exchange profile",
     "simulatorSource": "Simulator source JSON",
     "simulatorDefault": "Leave empty to use the built-in synthetic CRM and Sheets catalog.",

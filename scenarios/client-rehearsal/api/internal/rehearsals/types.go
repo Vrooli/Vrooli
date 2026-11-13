@@ -62,6 +62,7 @@ type (
 		SwitchRules                 []SwitchRule      `json:"switch_rules,omitempty"`
 		SwitchFallbackOutput        bool              `json:"switch_fallback_output,omitempty"`
 		OutputPath                  string            `json:"output_path,omitempty"`
+		HTMLExtractFields           map[string]string `json:"html_extract_fields,omitempty"`
 		SetValues                   map[string]any    `json:"set_values,omitempty"`
 		SetProjections              map[string]string `json:"set_projections,omitempty"`
 		SetExpressions              map[string]string `json:"set_expressions,omitempty"`
@@ -126,6 +127,7 @@ type (
 	Condition struct {
 		Path             string `json:"path"`
 		NodeName         string `json:"node_name,omitempty"`
+		NodeOutputMode   string `json:"node_output_mode,omitempty"`
 		Operator         string `json:"operator"`
 		Value            any    `json:"value"`
 		NowFormat        string `json:"now_format,omitempty"`
@@ -188,6 +190,14 @@ type Rehearsal struct {
 	CreatedAt              time.Time
 	ReviewedAt             *time.Time
 }
+
+// TaskScopedRun returns the persisted rehearsal and the owner receipts that
+// prove its synthetic service lifecycle. The evidence is also copied into the
+// rehearsal trace and handoff before persistence.
+type TaskScopedRun struct {
+	Rehearsal Rehearsal
+	Lifecycle WorkspaceSandboxLifecycleEvidence
+}
 type CreateInput struct {
 	Title               string
 	WorkflowJSON        string
@@ -197,6 +207,7 @@ type CreateInput struct {
 	InjectSeededFault   bool
 	RequiredOutputPaths []string
 	RepairOfID          string
+	taskSandbox         *WorkspaceSandboxTaskRequest
 }
 type ReviewInput struct {
 	ID       string

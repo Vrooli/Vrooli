@@ -1,13 +1,15 @@
 import {
   createBrowserRouter,
-  createMemoryRouter,
+  MemoryRouter,
   RouterProvider,
   type RouteObject,
+  useRoutes,
 } from "react-router-dom";
 
 import { AppShell } from "../layout/AppShell";
 import { DashboardPage } from "../pages/DashboardPage";
 import { SettingsPage } from "../pages/SettingsPage";
+import { NotesPage } from "../pages/NotesPage";
 import { ThemeProvider } from "../theme/ThemeProvider";
 
 /**
@@ -22,6 +24,7 @@ export const routes: RouteObject[] = [
     element: <AppShell />,
     children: [
       { index: true, element: <DashboardPage /> },
+      { path: "notes", element: <NotesPage /> },
       { path: "settings", element: <SettingsPage /> },
     ],
   },
@@ -52,10 +55,15 @@ export function AppRouter() {
  * specific starting URL. Only used by `routes.test.tsx`.
  */
 export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
-  const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
   return (
     <ThemeProvider>
-      <RouterProvider router={router} future={routerProviderFuture} />
+      <MemoryRouter initialEntries={initialEntries} future={dataRouterFuture}>
+        <TestRouteTable />
+      </MemoryRouter>
     </ThemeProvider>
   );
+}
+
+function TestRouteTable() {
+  return useRoutes(routes);
 }

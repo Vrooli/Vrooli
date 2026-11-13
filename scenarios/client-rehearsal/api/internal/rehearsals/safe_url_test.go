@@ -83,3 +83,42 @@ func TestSafeSyntheticURLExpressionRejectsCodeAndRealDestinations(t *testing.T) 
 		t.Fatal("resolved real host must be rejected")
 	}
 }
+
+func TestSafeSyntheticURLTemplateResolvesOnlyCurrentSyntheticURLs(t *testing.T) {
+	template := `=https://{{$json["body"]["url"]}}`
+	current := map[string]any{"body": map[string]any{"url": "article.synthetic.invalid/story"}}
+	request, err := requestWithSafeURLExpression(Step{Method: "GET"}, template, nil, current)
+	if err != nil {
+		t.Fatalf("resolve bounded current-item URL: %v", err)
+	}
+	if request.Host != "article.synthetic.invalid" || request.URL != "/story" {
+		t.Fatalf("unexpected resolved synthetic destination: host=%q path=%q", request.Host, request.URL)
+	}
+	for _, value := range []string{
+		"example.com/path",
+		"user@article.synthetic.invalid/story",
+		"article.synthetic.invalid/story?token=secret",
+		"article.synthetic.invalid/story#fragment",
+		"article.synthetic.invalid/../private",
+		"article.synthetic.invalid/%2e%2e/private",
+	} {
+		t.Run(value, func(t *testing.T) {
+			input := map[string]any{"body": map[string]any{"url": value}}
+			if _, err := requestWithSafeURLExpression(Step{Method: "GET"}, template, nil, input); err == nil {
+				t.Fatalf("accepted unsafe dynamic URL %q", value)
+			}
+		})
+	}
+}
+
+func TestSafeSyntheticURLTemplateRejectsUnboundedExpressions(t *testing.T) {
+	for _, raw := range []string{
+		`=https://{{$node["Other"].json.url}}`,
+		`=https://{{$json["body"]["url"]}}/path?query={{$json.path}}`,
+		"=https://{{$json.url}}\r",
+	} {
+		if _, err := parseSafeSyntheticURLExpression(raw); err == nil {
+			t.Errorf("accepted unsupported URL template %q", raw)
+		}
+	}
+}

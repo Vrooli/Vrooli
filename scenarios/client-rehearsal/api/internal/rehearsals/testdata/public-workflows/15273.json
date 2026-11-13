@@ -80,7 +80,7 @@
             },
             {
               "name": "retry_url",
-              "value": "={{$json.retry_url || 'https://yourstore.com/checkout'}}"
+              "value": "={{$json.retry_url || 'https://store.synthetic.invalid/checkout'}}"
             }
           ]
         },
@@ -115,7 +115,7 @@
         "channelId": {
           "__rl": true,
           "mode": "list",
-          "value": "C09S57E2JQ2",
+              "value": "payment-ops-synthetic",
           "cachedResultName": "n8n"
         },
         "otherOptions": {
@@ -432,7 +432,7 @@
         "channelId": {
           "__rl": true,
           "mode": "list",
-          "value": "C09S57E2JQ2",
+          "value": "payment-ops-synthetic",
           "cachedResultName": "n8n"
         },
         "otherOptions": {
@@ -455,7 +455,7 @@
         "channelId": {
           "__rl": true,
           "mode": "list",
-          "value": "C09S57E2JQ2",
+          "value": "payment-ops-synthetic",
           "cachedResultName": "n8n"
         },
         "otherOptions": {

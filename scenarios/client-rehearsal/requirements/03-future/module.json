@@ -8,11 +8,11 @@
   "requirements": [
     {
       "criticality": "P2",
-      "description": "Extend the same engagement, credential-substitution, simulator, fault, scoring, and handoff contracts across additional execution engines and client-shaped workflows without changing domain semantics.",
+      "description": "The scenario may extend its reusable service catalogue and protocol support to additional client workflow patterns while preserving synthetic credentials, provenance, and auditable handoffs.",
       "id": "CR-P2-001",
       "prd_ref": "OT-P2-001",
       "status": "planned",
-      "title": "Reusable engine and simulator ecosystem",
+      "title": "Expanded simulator ecosystem",
       "validation": [
         {
           "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CR-P2-001] tag) once the behavior exists.",

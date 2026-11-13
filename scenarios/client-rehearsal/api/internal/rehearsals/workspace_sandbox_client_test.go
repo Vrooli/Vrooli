@@ -247,18 +247,18 @@ func TestWorkspaceSandboxProfileClientCreatesOwnsAndDeletesTaskSandbox(t *testin
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		methods = append(methods, r.Method+" "+r.URL.Path)
 		switch {
-		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/sandboxes":
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/task-scopes":
 			var request WorkspaceSandboxTaskRequest
 			if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 				t.Errorf("decode task create: %v", err)
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
-			if request.ProjectRoot != "/workspace/project" || request.ScopePath != "/workspace/project/.rehearsals/run-1" || request.Owner != "client-rehearsal:run-1" || request.OwnerType != "task" || request.IdempotencyKey != request.Owner {
-				t.Errorf("task identity was not retained: %#v", request)
+			if request.TaskID != "run-1" || request.Name != "f7-run-1" {
+				t.Errorf("logical task identity was not retained: %#v", request)
 			}
 			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"id":"` + id + `","name":"f7-run-1","projectRoot":"/workspace/project","scopePath":"/workspace/project/.rehearsals/run-1","owner":"client-rehearsal:run-1","ownerType":"task","idempotencyKey":"client-rehearsal:run-1"}`))
+			_, _ = w.Write([]byte(`{"id":"` + id + `","name":"f7-run-1","projectRoot":"/workspace/project","scopePath":"/workspace/project/.rehearsals/run-1","owner":"trusted-service:run-1","ownerType":"task","idempotencyKey":"task-scope:run-1"}`))
 		case r.Method == http.MethodPut && r.URL.Path == "/api/v1/sandboxes/"+id+"/companion-services":
 			var request struct {
 				Services []struct {
@@ -300,8 +300,7 @@ func TestWorkspaceSandboxProfileClientCreatesOwnsAndDeletesTaskSandbox(t *testin
 		t.Fatal(err)
 	}
 	lease, err := client.CreateAndStartTaskProfile(context.Background(), WorkspaceSandboxTaskRequest{
-		Name: "f7-run-1", ProjectRoot: "/workspace/project", ScopePath: "/workspace/project/.rehearsals/run-1",
-		Owner: "client-rehearsal:run-1", OwnerType: "task", IdempotencyKey: "client-rehearsal:run-1", Tags: []string{"f7", "task-owned"},
+		TaskID: "run-1", Name: "f7-run-1",
 	}, "workflow-apis", "1.0.0", profile)
 	if err != nil {
 		t.Fatal(err)
@@ -313,7 +312,7 @@ func TestWorkspaceSandboxProfileClientCreatesOwnsAndDeletesTaskSandbox(t *testin
 		t.Fatal(err)
 	}
 	want := []string{
-		"POST /api/v1/sandboxes",
+		"POST /api/v1/task-scopes",
 		"PUT /api/v1/sandboxes/" + id + "/companion-services",
 		"POST /api/v1/sandboxes/" + id + "/companion-services/workflow-apis/start",
 		"POST /api/v1/sandboxes/" + id + "/companion-services/workflow-apis/stop",
@@ -334,9 +333,9 @@ func TestWorkspaceSandboxProfileClientDeletesCreatedSandboxWhenStartFails(t *tes
 	deleted := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/sandboxes":
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/task-scopes":
 			w.WriteHeader(http.StatusCreated)
-			_, _ = w.Write([]byte(`{"id":"` + id + `","name":"f7-run-1","projectRoot":"/workspace/project","scopePath":"/workspace/project/.rehearsals/run-1","owner":"client-rehearsal:run-1","ownerType":"task","idempotencyKey":"client-rehearsal:run-1"}`))
+			_, _ = w.Write([]byte(`{"id":"` + id + `","name":"f7-run-1","projectRoot":"/workspace/project","scopePath":"/workspace/project/.rehearsals/run-1","owner":"trusted-service:run-1","ownerType":"task","idempotencyKey":"task-scope:run-1"}`))
 		case r.Method == http.MethodPut && r.URL.Path == "/api/v1/sandboxes/"+id+"/companion-services":
 			_, _ = w.Write([]byte(`{"services":[]}`))
 		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/start"):
@@ -359,8 +358,7 @@ func TestWorkspaceSandboxProfileClientDeletesCreatedSandboxWhenStartFails(t *tes
 		Route:    HTTPMockRoute{Host: "gmail.synthetic.invalid", Method: "POST", Path: "/v1/messages", Status: 202, ContentType: "application/json", Body: `{}`},
 	}}}
 	_, err = client.CreateAndStartTaskProfile(context.Background(), WorkspaceSandboxTaskRequest{
-		Name: "f7-run-1", ProjectRoot: "/workspace/project", ScopePath: "/workspace/project/.rehearsals/run-1",
-		Owner: "client-rehearsal:run-1", OwnerType: "task", IdempotencyKey: "client-rehearsal:run-1",
+		TaskID: "run-1", Name: "f7-run-1",
 	}, "workflow-apis", "1.0.0", profile)
 	if err == nil || !deleted {
 		t.Fatalf("expected failed start and deletion of task sandbox, err=%v deleted=%v", err, deleted)
@@ -372,11 +370,8 @@ func TestWorkspaceSandboxProfileClientRequiresTaskScopeInsideAuthorizedRoot(t *t
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = client.CreateTaskSandbox(context.Background(), WorkspaceSandboxTaskRequest{
-		Name: "f7-run-1", ProjectRoot: "/workspace/project", ScopePath: "/workspace/outside",
-		Owner: "client-rehearsal:run-1", OwnerType: "task", IdempotencyKey: "client-rehearsal:run-1",
-	})
+	_, err = client.CreateTaskSandbox(context.Background(), WorkspaceSandboxTaskRequest{TaskID: "../outside", Name: "f7-run-1"})
 	if err == nil {
-		t.Fatal("scope outside project root must be rejected before request")
+		t.Fatal("caller-selected traversal task ID must be rejected before request")
 	}
 }

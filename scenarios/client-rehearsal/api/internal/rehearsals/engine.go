@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"html"
 	"net/url"
 	"sort"
 	"strconv"
@@ -355,6 +356,12 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 				operation = "Wait / virtual resume"
 			case node.Request != nil:
 				request := *node.Request
+				if request.NodeType != "" {
+					// Native service operations receive the current synthetic item as
+					// their request payload. Keep sanitized static selectors on top so
+					// profile routing cannot be changed by upstream workflow data.
+					request.Input = mergeMaps([]map[string]any{input, request.Input})
+				}
 				if node.RSSURLPath != "" {
 					feedValue, ok := jsonPathValue(input, node.RSSURLPath)
 					feedURL, valid := feedValue.(string)
@@ -382,7 +389,7 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 					responseSummary = fmt.Sprintf("%s: %d deterministic synthetic articles", requestSummary, len(outputs))
 					operation = "RSS Feed Read / synthetic profile"
 				} else if node.RequestURLExpression != "" {
-					request, err = requestWithSafeURLExpression(request, node.RequestURLExpression, priorNodeOutputs)
+					request, err = requestWithSafeURLExpression(request, node.RequestURLExpression, priorNodeOutputs, input)
 					if err != nil {
 						return last, fmt.Errorf("resolve synthetic URL for %s: %w", node.Name, err)
 					}
@@ -446,6 +453,30 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 				output = projectedValue(input, node.OutputPath)
 				outputs = []map[string]any{output}
 				operation = "Set JSON projection"
+			case len(node.HTMLExtractFields) > 0:
+				markup := ""
+				for _, field := range []string{"body", "data", "html"} {
+					if value, ok := input[field].(string); ok {
+						markup = value
+						break
+					}
+				}
+				if markup == "" {
+					return last, fmt.Errorf("HTML Extract input has no bounded body, data, or html string")
+				}
+				title, ok := extractSafeHTMLTitle(markup)
+				if !ok {
+					return last, fmt.Errorf("HTML Extract input has no bounded title element")
+				}
+				output = cloneMap(input)
+				for key, selector := range node.HTMLExtractFields {
+					if selector != "title" {
+						return last, fmt.Errorf("HTML Extract selector %q is unsupported", selector)
+					}
+					output[key] = title
+				}
+				outputs = []map[string]any{output}
+				operation = "HTML Extract title"
 			case node.SetValues != nil:
 				values := map[string]any{}
 				for key, value := range node.SetValues {
@@ -524,6 +555,8 @@ func executeGraphMany(ctx context.Context, workflow Workflow, entryID string, in
 				operation = "Execute Workflow Trigger"
 			case node.Type == "n8n-nodes-base.respondToWebhook":
 				operation = "Respond to Webhook"
+			case node.Type == "n8n-nodes-base.stopAndError":
+				return last, fmt.Errorf("Stop And Error halted the synthetic workflow at %s", node.Name)
 			case node.Type == "n8n-nodes-base.stickyNote":
 				operation = "Non-executable Note"
 			case node.Trigger != "":
@@ -939,7 +972,7 @@ func evaluateCondition(condition Condition, input map[string]any) bool {
 
 func evaluateGraphCondition(condition Condition, input map[string]any, prior map[string][]map[string]any, now time.Time) bool {
 	if condition.Operator == "dateAfterNow" {
-		left, ok := conditionValue(condition.NodeName, condition.Path, input, prior)
+		left, ok := conditionValueWithMode(condition.NodeName, condition.Path, condition.NodeOutputMode, input, prior)
 		if !ok {
 			return false
 		}
@@ -947,14 +980,14 @@ func evaluateGraphCondition(condition Condition, input map[string]any, prior map
 		return valid && leftTime.After(now.UTC())
 	}
 	if condition.NowFormat != "" {
-		left, ok := conditionValue(condition.NodeName, condition.Path, input, prior)
+		left, ok := conditionValueWithMode(condition.NodeName, condition.Path, condition.NodeOutputMode, input, prior)
 		if !ok || condition.NowFormat != "2006-01-02" {
 			return false
 		}
 		return fmt.Sprint(left) == now.UTC().Format(condition.NowFormat)
 	}
 	if condition.Operator == "dateAfterOrEquals" {
-		left, ok := conditionValue(condition.NodeName, condition.Path, input, prior)
+		left, ok := conditionValueWithMode(condition.NodeName, condition.Path, condition.NodeOutputMode, input, prior)
 		if !ok {
 			return false
 		}
@@ -977,11 +1010,13 @@ func evaluateGraphCondition(condition Condition, input map[string]any, prior map
 	if condition.NodeName == "" {
 		return evaluateCondition(condition, input)
 	}
-	outputs, exists := prior[condition.NodeName]
-	if !exists || len(outputs) == 0 {
+	value, ok := conditionValueWithMode(condition.NodeName, condition.Path, condition.NodeOutputMode, input, prior)
+	if !ok {
 		return false
 	}
-	return evaluateCondition(condition, outputs[0])
+	namedCondition := condition
+	namedCondition.Path = "value"
+	return evaluateCondition(namedCondition, map[string]any{"value": value})
 }
 
 func evaluateFilterConditions(conditions []Condition, combinator string, input map[string]any, prior map[string][]map[string]any, now time.Time) bool {
@@ -1005,11 +1040,21 @@ func evaluateFilterConditions(conditions []Condition, combinator string, input m
 }
 
 func conditionValue(nodeName, path string, input map[string]any, prior map[string][]map[string]any) (any, bool) {
+	return conditionValueWithMode(nodeName, path, "", input, prior)
+}
+
+func conditionValueWithMode(nodeName, path, mode string, input map[string]any, prior map[string][]map[string]any) (any, bool) {
 	if nodeName == "" {
+		if mode != "" {
+			return nil, false
+		}
 		return jsonPathValue(input, path)
 	}
 	outputs, ok := prior[nodeName]
 	if !ok || len(outputs) == 0 {
+		return nil, false
+	}
+	if mode == "item" && len(outputs) != 1 || (mode != "" && mode != "item" && mode != "first") {
 		return nil, false
 	}
 	return jsonPathValue(outputs[0], path)
@@ -1105,4 +1150,44 @@ func decodeSimulatorItems(raw string) ([]map[string]any, error) {
 	default:
 		return nil, fmt.Errorf("response must be an object or array of objects")
 	}
+}
+
+func extractSafeHTMLTitle(markup string) (string, bool) {
+	if len(markup) == 0 || len(markup) > maxSafeCodeInputBytes || strings.ContainsRune(markup, '\x00') {
+		return "", false
+	}
+	lower := strings.ToLower(markup)
+	start := strings.Index(lower, "<title")
+	if start < 0 {
+		return "", false
+	}
+	openEnd := strings.IndexByte(markup[start:], '>')
+	if openEnd < 0 {
+		return "", false
+	}
+	contentStart := start + openEnd + 1
+	closeOffset := strings.Index(lower[contentStart:], "</title>")
+	if closeOffset < 0 {
+		return "", false
+	}
+	content := markup[contentStart : contentStart+closeOffset]
+	var text strings.Builder
+	inTag := false
+	for _, r := range content {
+		switch r {
+		case '<':
+			inTag = true
+		case '>':
+			inTag = false
+		default:
+			if !inTag {
+				text.WriteRune(r)
+			}
+		}
+	}
+	result := strings.TrimSpace(html.UnescapeString(text.String()))
+	if result == "" || len(result) > 4096 || strings.ContainsAny(result, "\x00\r\n") {
+		return "", false
+	}
+	return result, true
 }

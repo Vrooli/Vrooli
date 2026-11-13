@@ -32,7 +32,7 @@ func TestPublic15238PromoExpiryRunsWithSyntheticHandoffs(t *testing.T) {
 	}
 	input := map[string]any{"body": map[string]any{
 		"code": "SYNTHETIC-20", "discount_type": "percent", "value": 20,
-		"expiry": "2026-11-14T00:00:00Z", "usage_limit": 50,
+		"expiry": "2026-11-16T00:00:00Z", "usage_limit": 50,
 	}}
 	now := time.Date(2026, 11, 12, 15, 4, 5, 0, time.UTC)
 	run, err := executeDetailedWithInput(context.Background(), workflow, workflow.EntryNodeIDs[0], simulator, false, now, input)

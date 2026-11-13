@@ -8,14 +8,14 @@
   "requirements": [
     {
       "criticality": "P1",
-      "description": "Rehearse thirty unlike public community workflows spanning webhook, schedule, polling, sub-workflow, error-workflow, large-payload, and community-node cases; repair ten seeded defects and retain evidence and a handoff for each.",
-      "id": "CR-P1-001",
+      "description": "Where an additional engine is configured, the scenario should run the shared engagement, simulator, fault, repair, and handoff contracts through that adapter without changing domain semantics.",
+      "id": "CR-P1-002",
       "prd_ref": "OT-P1-001",
       "status": "planned",
-      "title": "Generic coverage and repair",
+      "title": "Additional workflow engine adapters",
       "validation": [
         {
-          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CR-P1-001] tag) once the behavior exists.",
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CR-P1-002] tag) once the behavior exists.",
           "status": "planned",
           "type": "manual"
         }

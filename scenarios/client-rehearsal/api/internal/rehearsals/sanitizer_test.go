@@ -24,6 +24,41 @@ func TestNormalizeWorkflowImportsN8NGraphAndDropsCredentialMaterial(t *testing.T
 	}
 }
 
+func TestNormalizeWorkflowBypassesDisabledMainNodeWithoutItsAdapter(t *testing.T) {
+	workflowJSON := `{"name":"disabled passthrough","nodes":[{"name":"Start","type":"n8n-nodes-base.manualTrigger","parameters":{}},{"name":"Optional community notifier","type":"community.unknownNode","disabled":true,"parameters":{"arbitrary":"ignored because disabled"}},{"name":"End","type":"n8n-nodes-base.noOp","parameters":{}}],"connections":{"Start":{"main":[[{"node":"Optional community notifier"}]]},"Optional community notifier":{"main":[[{"node":"End"}]]}}}`
+	workflow, _, _, err := normalizeWorkflow(workflowJSON)
+	if err != nil {
+		t.Fatalf("normalize disabled pass-through: %v", err)
+	}
+	if len(workflow.Nodes) != 2 || len(workflow.EntryNodeIDs) != 1 {
+		t.Fatalf("disabled node should be omitted without changing enabled trigger: nodes=%#v entries=%#v", workflow.Nodes, workflow.EntryNodeIDs)
+	}
+	if len(workflow.Connections) != 1 || workflow.Connections[0].From != workflow.EntryNodeIDs[0] || workflow.Connections[0].To != workflow.Nodes[1].ID || workflow.Connections[0].OutputPort != 0 || workflow.Connections[0].InputPort != 0 {
+		t.Fatalf("disabled node should pass its first main input through output zero: %#v", workflow.Connections)
+	}
+}
+
+func TestNormalizeWorkflowRejectsDisabledNodeNonzeroInputPort(t *testing.T) {
+	workflowJSON := `{"name":"disabled nonzero input","nodes":[{"name":"Start","type":"n8n-nodes-base.manualTrigger","parameters":{}},{"name":"Disabled","type":"community.unknownNode","disabled":true,"parameters":{}},{"name":"End","type":"n8n-nodes-base.noOp","parameters":{}}],"connections":{"Start":{"main":[[{"node":"Disabled","index":1}]]},"Disabled":{"main":[[{"node":"End"}]]}}}`
+	if _, _, _, err := normalizeWorkflow(workflowJSON); err == nil || !strings.Contains(err.Error(), "disabled nodes with nonzero main input ports") {
+		t.Fatalf("expected fail-closed rejection of unsupported disabled input port, got %v", err)
+	}
+}
+
+func TestNormalizeTelegramLegacyVersionsUsePinnedMessageDefaults(t *testing.T) {
+	for _, version := range []float64{1, 1.1, 1.2} {
+		node, err := normalizeWorkflowNodeVersion("telegram", "Notify", "n8n-nodes-base.telegram", map[string]any{
+			"text": "synthetic notification", "chatId": "synthetic-chat", "additionalFields": map[string]any{},
+		}, version)
+		if err != nil {
+			t.Fatalf("normalize Telegram v%v defaults: %v", version, err)
+		}
+		if node.Request == nil || node.Request.Resource != "message" || node.Request.Action != "sendMessage" {
+			t.Fatalf("Telegram v%v normalized to unexpected operation: %#v", version, node.Request)
+		}
+	}
+}
+
 func TestWorkflowFingerprintIncludesNativeOperationAndSetProjection(t *testing.T) {
 	base := `{"nodes":[{"name":"Manual","type":"n8n-nodes-base.manualTrigger","parameters":{}},{"name":"Set","type":"n8n-nodes-base.set","parameters":{"mode":"raw","jsonOutput":"={{ $json.body }}"}},{"name":"Native","type":"n8n-nodes-base.supabase","parameters":{"resource":"row","operation":"get"}}],"connections":{"Manual":{"main":[[{"node":"Set"}]]},"Set":{"main":[[{"node":"Native"}]]}}}`
 	first, firstHash, _, err := normalizeWorkflow(base)
@@ -100,6 +135,48 @@ func TestNormalizeManualSetAndSplitOutUsesBoundedStaticSelectors(t *testing.T) {
 		if validJSONPath(oversized) {
 			t.Fatalf("unsafe array path %q accepted", oversized)
 		}
+	}
+}
+
+func TestNormalizeLegacySetGroupsPreservesInputUnlessKeepOnlySetIsTrue(t *testing.T) {
+	base := `{"nodes":[{"name":"Manual","type":"n8n-nodes-base.manualTrigger","parameters":{}},{"name":"Settings","type":"n8n-nodes-base.set","parameters":{"values":{"string":[{"name":"status","value":"synthetic"}]},"options":{}}}],"connections":{"Manual":{"main":[[{"node":"Settings"}]]}}}`
+	for _, test := range []struct {
+		name      string
+		export    string
+		wantInput bool
+	}{
+		{name: "omitted defaults to preserving input", export: base, wantInput: true},
+		{name: "explicit false preserves input", export: strings.Replace(base, `"options":{}`, `"options":{},"keepOnlySet":false`, 1), wantInput: true},
+		{name: "explicit true keeps only assigned fields", export: strings.Replace(base, `"options":{}`, `"options":{},"keepOnlySet":true`, 1), wantInput: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			workflow, _, _, err := normalizeWorkflow(test.export)
+			if err != nil {
+				t.Fatalf("normalize legacy Set: %v", err)
+			}
+			if got := workflow.Nodes[1].SetIncludeInput; got != test.wantInput {
+				t.Fatalf("SetIncludeInput = %t, want %t", got, test.wantInput)
+			}
+		})
+	}
+	invalid := strings.Replace(base, `"options":{}`, `"options":{},"keepOnlySet":"false"`, 1)
+	if _, _, _, err := normalizeWorkflow(invalid); err == nil {
+		t.Fatal("non-boolean legacy keepOnlySet must fail closed")
+	}
+}
+
+func TestNormalizeEmptyLegacySetPassesInputThrough(t *testing.T) {
+	for _, version := range []float64{1, 2} {
+		node, err := normalizeWorkflowNodeVersion("legacy-empty-set", "Empty Set", "n8n-nodes-base.set", map[string]any{}, version)
+		if err != nil {
+			t.Fatalf("normalize empty Set v%v: %v", version, err)
+		}
+		if node.SetValues == nil || len(node.SetValues) != 0 || !node.SetIncludeInput {
+			t.Fatalf("empty Set v%v must preserve input with an empty assignment map: %#v", version, node)
+		}
+	}
+	if _, err := normalizeWorkflowNodeVersion("modern-empty-set", "Empty Set", "n8n-nodes-base.set", map[string]any{}, 3.4); err == nil {
+		t.Fatal("empty modern Set must not inherit legacy pass-through defaults")
 	}
 }
 

@@ -1,11 +1,11 @@
 package mocks
 
 import (
+	"client-rehearsal/internal/notes"
 	"context"
 	"sync"
 	"sync/atomic"
 	"time"
-	"client-rehearsal/internal/notes"
 )
 
 // FakeAttachmentsRepository satisfies notes.AttachmentsRepository for
@@ -20,6 +20,9 @@ import (
 // up the on-disk schema.
 type FakeAttachmentsRepository struct {
 	mu sync.Mutex
+	// Now supplies deterministic timestamp backfills when a test wants the
+	// fake to mirror SQLite behavior. Nil leaves UploadedAt unchanged.
+	Now func() time.Time
 
 	// Attachments records each successful insert in arrival order.
 	// ListAttachmentKeys filters by NoteID so a single fake serves
@@ -33,10 +36,9 @@ type FakeAttachmentsRepository struct {
 	ListCalls   atomic.Int64
 }
 
-// CreateAttachment appends a to the in-memory slice. Mirrors the
-// sqlite repository's UploadedAt backfill (zero time → now in UTC) so
-// service tests don't have to pre-populate the timestamp. Returns
-// CreateErr if set, before mutating state — keeps the failure path
+// CreateAttachment appends a to the in-memory slice. It fills UploadedAt
+// only when a test supplies Now, keeping the fake deterministic. CreateErr
+// is returned before mutating state, which keeps the failure path
 // observable as "didn't insert" via len(f.Attachments).
 func (f *FakeAttachmentsRepository) CreateAttachment(ctx context.Context, a notes.Attachment) (notes.Attachment, error) {
 	f.CreateCalls.Add(1)
@@ -47,8 +49,8 @@ func (f *FakeAttachmentsRepository) CreateAttachment(ctx context.Context, a note
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if a.UploadedAt.IsZero() {
-		a.UploadedAt = time.Now().UTC()
+	if a.UploadedAt.IsZero() && f.Now != nil {
+		a.UploadedAt = f.Now().UTC()
 	}
 	f.Attachments = append(f.Attachments, a)
 	return a, nil

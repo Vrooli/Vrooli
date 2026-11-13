@@ -1,5 +1,19 @@
 # Seams — Client Workflow Rehearsal
 
+## Seam Registry
+
+| Seam | Declaration | Production Impl | Test Double | Why it exists |
+|---|---|---|---|---|
+| `logx.Logger` | `api/internal/logx/logger.go` | `*log.Logger`, wired in `api/main.go` | `api/internal/testutil/mocks/logger.go` (`FakeLogger`) | Substitutes API logging without package-global logger calls. |
+| `rehearsals.TimestampSource` | `api/internal/rehearsals/service.go` | `schedule.Clock.Now`, wired in `handlers/rehearsals/module.go` | `scheduletest.FakeClock.Now` in service tests | Supplies deterministic import, trace, and review timestamps; constructors reject nil. |
+| `rehearsals.N8NWorkflowRuntimeCLI.Environment` | `api/internal/rehearsals/n8n_workflow_runtime.go` | Not yet wired; native runtime remains gated, and a future composition root must supply the allowlisted environment | Injected function in `n8n_workflow_runtime_test.go` | Keeps child-process environment reads outside the domain adapter and controllable in tests. |
+| `rehearsals.N8NWorkflowCommandRunner` | `api/internal/rehearsals/n8n_workflow_runtime.go` | `execN8NWorkflowCommandRunner` | `scriptedN8NRunner` in `n8n_workflow_runtime_test.go` | Controls fixed owner CLI calls and bounded stdin/stdout in tests. |
+
+`internal/testutil/seam_registry_test.go` reconciles each `// seam:` tag with
+this table. The shared `schedule.Clock` used by repository and middleware
+timestamps is supplied by api-core and remains covered by the `Clock` row
+below.
+
 | Seam | Contract | Current implementation | Proof / limit |
 |---|---|---|---|
 | Engine adapter | Imports a credential-free workflow graph; triggers one classified entry; executes/cancels and returns typed trace/failure. Runtime credentials stay behind the resource owner. | Local deterministic DAG adapter supports manual, webhook, schedule, polling, chat, error, and subworkflow entry classifications; HTTP Request, generic native service operation, If, Switch, no-op, subworkflow, and error workflow nodes. | Cross-fixture unit tests only. This is not n8n import or runtime execution. |

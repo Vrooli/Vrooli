@@ -1,9 +1,9 @@
 package notes
 
 import (
-	"context"
-	"log"
+	"client-rehearsal/internal/logx"
 	"client-rehearsal/internal/notes"
+	"context"
 
 	"github.com/vrooli/api-core/schedule"
 
@@ -18,7 +18,7 @@ type Deps struct {
 	// Clock anchors the CountNotes measure's relative time-window resolution
 	// (e.g. "this_week"). Explicit so tests resolve windows deterministically.
 	Clock  schedule.Clock
-	Logger *log.Logger
+	Logger logx.Logger
 }
 
 type connectHandler struct {
@@ -27,7 +27,7 @@ type connectHandler struct {
 
 func NewConnectHandler(d Deps) *connectHandler {
 	if d.Logger == nil {
-		d.Logger = log.Default()
+		panic("notes.NewConnectHandler requires Logger")
 	}
 	if d.Clock == nil {
 		d.Clock = schedule.System()

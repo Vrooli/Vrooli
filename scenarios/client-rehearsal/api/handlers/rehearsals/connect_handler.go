@@ -1,9 +1,10 @@
 package rehearsals
 
 import (
+	"client-rehearsal/internal/logx"
 	"context"
 	"errors"
-	"log"
+	"github.com/google/uuid"
 
 	internal "client-rehearsal/internal/rehearsals"
 	"connectrpc.com/connect"
@@ -13,18 +14,29 @@ import (
 
 type ConnectHandler struct {
 	service internal.Service
-	logger  *log.Logger
+	logger  logx.Logger
 }
 
-func NewConnectHandler(service internal.Service, logger *log.Logger) *ConnectHandler {
+func NewConnectHandler(service internal.Service, logger logx.Logger) *ConnectHandler {
 	if logger == nil {
-		logger = log.Default()
+		panic("NewConnectHandler requires Logger")
 	}
 	return &ConnectHandler{service: service, logger: logger}
 }
 
 func (h *ConnectHandler) CreateAndRunRehearsal(ctx context.Context, req *connect.Request[v1.CreateAndRunRehearsalRequest]) (*connect.Response[v1.CreateAndRunRehearsalResponse], error) {
-	item, err := h.service.CreateAndRun(ctx, internal.CreateInput{Title: req.Msg.Title, WorkflowJSON: req.Msg.WorkflowJson, TriggerNodeID: req.Msg.TriggerNodeId, SimulatorProfile: req.Msg.SimulatorProfile, SimulatorSourceJSON: req.Msg.SimulatorSourceJson, InjectSeededFault: req.Msg.InjectSeededFault, RequiredOutputPaths: req.Msg.RequiredOutputPaths, RepairOfID: req.Msg.RepairOfId})
+	input := internal.CreateInput{Title: req.Msg.Title, WorkflowJSON: req.Msg.WorkflowJson, TriggerNodeID: req.Msg.TriggerNodeId, SimulatorProfile: req.Msg.SimulatorProfile, SimulatorSourceJSON: req.Msg.SimulatorSourceJson, InjectSeededFault: req.Msg.InjectSeededFault, RequiredOutputPaths: req.Msg.RequiredOutputPaths, RepairOfID: req.Msg.RepairOfId}
+	var item internal.Rehearsal
+	var err error
+	if req.Msg.TaskScoped {
+		run, scopedErr := h.service.CreateAndRunTaskScoped(ctx, input, internal.WorkspaceSandboxTaskRequest{TaskID: uuid.NewString(), Name: "client-rehearsal"})
+		if scopedErr != nil {
+			return nil, toConnectError(scopedErr)
+		}
+		item = run.Rehearsal
+	} else {
+		item, err = h.service.CreateAndRun(ctx, input)
+	}
 	if err != nil {
 		return nil, toConnectError(err)
 	}

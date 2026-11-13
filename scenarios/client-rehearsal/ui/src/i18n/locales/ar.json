@@ -116,6 +116,8 @@
     "workflowFile": "تصدير n8n ‏(.json)",
     "triggerLabel": "المشغّل المراد تجربته",
     "titleLabel": "عنوان المراجعة",
+    "taskScopeLabel": "استخدم نطاق مهمة Workspace Sandbox",
+    "taskScopeHint": "ينشئ الخادم هوية المهمة ومسار مساحة العمل. يلزم ضبط CLIENT_REHEARSAL_WORKSPACE_SANDBOX_URL على واجهة Workspace Sandbox المحلية.",
     "simulatorAdvanced": "استخدام ملف OpenAPI أو تبادلات مسجلة مخصص",
     "simulatorSource": "بيانات مصدر المحاكي بصيغة JSON",
     "simulatorDefault": "اتركه فارغًا لاستخدام كتالوج CRM وSheets الاصطناعي المضمّن.",

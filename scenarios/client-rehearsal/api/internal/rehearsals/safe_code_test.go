@@ -101,6 +101,181 @@ func TestSafeCodeArraySpreadDeduplicatesSetInInsertionOrder(t *testing.T) {
 	}
 }
 
+func TestSafeCodeArrayDestructuringBindsBoundedArrayValues(t *testing.T) {
+	source := `const [month, day, year]=['12','3','2026']; return [{json:{month,day,year}}];`
+	if _, err := parseSafeCode(source); err != nil {
+		t.Fatalf("parse bounded array destructuring: %v", err)
+	}
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("evaluate bounded array destructuring: %v", err)
+	}
+	data := got[0]["json"].(map[string]any)
+	if data["month"] != "12" || data["day"] != "3" || data["year"] != "2026" {
+		t.Fatalf("array destructuring bindings = %#v", data)
+	}
+	short, err := executeSafeCode(`const [first, second]=['only']; return [{json:{first,second}}];`, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("short array uses undefined-like nil for missing binding: %v", err)
+	}
+	shortData := short[0]["json"].(map[string]any)
+	if shortData["first"] != "only" || shortData["second"] != nil {
+		t.Fatalf("short array bindings = %#v", shortData)
+	}
+	for _, unsupported := range []string{
+		`const [,second]=['a','b']; return [];`,
+		`const [first,...rest]=['a','b']; return [];`,
+		`const [[first]]= [['a']]; return [];`,
+		`const [first]={0:'a'}; return [];`,
+	} {
+		if _, err := parseSafeCode(unsupported); err == nil {
+			t.Errorf("unsupported array destructuring accepted: %s", unsupported)
+		}
+	}
+	if _, err := executeSafeCode(`const [first]='abc'; return [];`, nil, time.Time{}); err == nil {
+		t.Fatal("array destructuring must reject non-array values")
+	}
+}
+
+func TestSafeCodeStringPadStartUsesBoundedASCIIArguments(t *testing.T) {
+	source := `return [{json:{padded:'7'.padStart(3,'0'),unchanged:'123'.padStart(2,'0'),space:'x'.padStart(3)}}];`
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("evaluate bounded string padStart: %v", err)
+	}
+	data := got[0]["json"].(map[string]any)
+	if data["padded"] != "007" || data["unchanged"] != "123" || data["space"] != "  x" {
+		t.Fatalf("padStart results = %#v", data)
+	}
+	for _, unsupported := range []string{
+		`return [{json:{bad:'x'.padStart(1000,'0')}}];`,
+		`return [{json:{bad:'x'.padStart(2,'é')}}];`,
+		`return [{json:{bad:'x'.padStart(-1,'0')}}];`,
+	} {
+		if _, err := executeSafeCode(unsupported, nil, time.Time{}); err == nil {
+			t.Errorf("unbounded padStart accepted: %s", unsupported)
+		}
+	}
+}
+
+func TestNormalizeSortDefaultsOmittedDirectionToAscending(t *testing.T) {
+	fields, err := normalizeSort(map[string]any{
+		"options": map[string]any{},
+		"sortFieldsUi": map[string]any{"sortField": []any{
+			map[string]any{"fieldName": "priorityRank"},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("normalize static Sort field with omitted direction: %v", err)
+	}
+	if len(fields) != 1 || fields[0].Path != "priorityRank" || fields[0].Descending {
+		t.Fatalf("normalized fields = %#v, want priorityRank ascending", fields)
+	}
+	for _, order := range []string{"ascending", "descending", "sideways"} {
+		_, err := normalizeSort(map[string]any{
+			"options": map[string]any{},
+			"sortFieldsUi": map[string]any{"sortField": []any{
+				map[string]any{"fieldName": "priorityRank", "order": order},
+			}},
+		})
+		if (order == "sideways") != (err != nil) {
+			t.Errorf("order %q error = %v", order, err)
+		}
+	}
+}
+
+func TestStopAndErrorNodeHaltsSyntheticExecution(t *testing.T) {
+	node, err := normalizeWorkflowNodeVersion("stop", "Stop", "n8n-nodes-base.stopAndError", map[string]any{}, 1)
+	if err != nil {
+		t.Fatalf("normalize pinned Stop And Error node: %v", err)
+	}
+	if _, err := normalizeWorkflowNodeVersion("unsupported", "Stop", "n8n-nodes-base.stopAndError", map[string]any{"errorMessage": "dynamic"}, 1); err == nil {
+		t.Fatal("Stop And Error must reject unmodeled parameters")
+	}
+	workflow := Workflow{
+		ID: "synthetic-test",
+		Nodes: []WorkflowNode{
+			{ID: "entry", Name: "Manual", Type: "n8n-nodes-base.manualTrigger", Trigger: TriggerManual},
+			node,
+		},
+		Connections: []Connection{{From: "entry", To: "stop", OutputPort: 0}},
+	}
+	var trace []TraceEvent
+	_, err = executeWorkflowEntry(context.Background(), workflow, "entry", map[string]any{}, nil, false, time.Time{}, &trace, map[string]bool{}, 0)
+	if err == nil || !strings.Contains(err.Error(), "Stop And Error halted") {
+		t.Fatalf("Stop And Error execution error = %v", err)
+	}
+}
+
+func TestGoogleTasksCreateDefaultsAreBoundedAndGeneric(t *testing.T) {
+	node, err := normalizeWorkflowNodeVersion("task", "Create task", "n8n-nodes-base.googleTasks", map[string]any{
+		"task":             "synthetic-list",
+		"title":            "={{ $json.taskName }}",
+		"additionalFields": map[string]any{"notes": "=Priority: {{ $json.priority }}"},
+	}, 1)
+	if err != nil {
+		t.Fatalf("normalize pinned Google Tasks create defaults: %v", err)
+	}
+	if node.Request == nil || node.Request.Resource != "task" || node.Request.Action != "create" {
+		t.Fatalf("normalized Google Tasks request = %#v, want task.create", node.Request)
+	}
+	for _, params := range []map[string]any{
+		{"task": "synthetic-list", "title": "task", "additionalFields": map[string]any{"unknown": "value"}},
+		{"task": "synthetic-list", "title": strings.Repeat("x", 4097), "additionalFields": map[string]any{}},
+		{"task": "synthetic-list", "title": "task", "additionalFields": map[string]any{"notes": 3}},
+	} {
+		if _, err := normalizeWorkflowNodeVersion("task", "Create task", "n8n-nodes-base.googleTasks", params, 1); err == nil {
+			t.Errorf("unsafe Google Tasks parameters accepted: %#v", params)
+		}
+	}
+}
+
+func TestSafeCodeSetAddPreservesBoundedInsertionOrderAndUniqueness(t *testing.T) {
+	source := `const seen=new Set(); seen.add('a'); seen.add('b'); seen.add('a'); return [{json:{values:[...seen],size:seen.size,hasB:seen.has('b')}}];`
+	if _, err := parseSafeCode(source); err != nil {
+		t.Fatalf("parse bounded Set.add: %v", err)
+	}
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("evaluate bounded Set.add: %v", err)
+	}
+	data := got[0]["json"].(map[string]any)
+	values := data["values"].(*safeArray).values
+	if !reflect.DeepEqual(values, []any{"a", "b"}) || data["size"] != float64(2) || data["hasB"] != true {
+		t.Fatalf("Set.add result = %#v, want ordered unique values [a b], size 2 and hasB true", data)
+	}
+}
+
+func TestSafeCodeSetAddRejectsUnboundedAndWrongArity(t *testing.T) {
+	for _, source := range []string{
+		`const seen=new Set(); seen.add({value:'x'}); return [];`,
+		`const seen=new Set(); seen.add(); return [];`,
+		`const seen=new Set(); seen.add('x','y'); return [];`,
+	} {
+		if _, err := executeSafeCode(source, nil, time.Time{}); err == nil {
+			t.Errorf("expected bounded Set.add rejection for %s", source)
+		}
+	}
+}
+
+func TestSafeCodeStringIncludesUsesBoundedLiteralSemantics(t *testing.T) {
+	source := `const message='temporary synthetic decline'; return [{json:{matches:message.includes('temporary'),misses:message.includes('fraud')}}];`
+	if _, err := parseSafeCode(source); err != nil {
+		t.Fatalf("parse bounded string includes: %v", err)
+	}
+	got, err := executeSafeCode(source, nil, time.Time{})
+	if err != nil {
+		t.Fatalf("evaluate bounded string includes: %v", err)
+	}
+	data := got[0]["json"].(map[string]any)
+	if data["matches"] != true || data["misses"] != false {
+		t.Fatalf("string includes results = %#v, want true/false", data)
+	}
+	if _, err := executeSafeCode(`return [{json:{bad:'x'.includes(1)}}];`, nil, time.Time{}); err == nil {
+		t.Fatal("string includes must reject non-string search values")
+	}
+}
+
 func TestSafeCodeSubsetRejectsUnboundedAndEffectfulSyntax(t *testing.T) {
 	for name, source := range map[string]string{
 		"unsafe property write":          `const a = {}; a.__proto__ = 1; return [];`,
@@ -108,7 +283,7 @@ func TestSafeCodeSubsetRejectsUnboundedAndEffectfulSyntax(t *testing.T) {
 		"network call":                   `return fetch('https://example.com');`,
 		"dynamic eval":                   `return eval('1+1');`,
 		"while loop":                     `while (true) { } return [];`,
-		"unsupported regex":              `const r = /x/g; return [];`,
+		"unsupported regex":              `const r = /(?=x)/; return [];`,
 		"input method on other receiver": `return [{json:{items: [].first()}}];`,
 		"arbitrary property call":        `return globalThis.require('fs');`,
 	} {
@@ -153,6 +328,36 @@ return [{json:{email,valid,message:String(b.message||'').slice(0,2000)}}];`
 	}
 	if _, err := executeSafeCode(source, []map[string]any{{"body": map[string]any{"email": "lead@example.invalid", "message": strings.Repeat("x", 1999) + "😀"}}}, time.Time{}); err == nil {
 		t.Fatal("slice must fail closed if the output boundary would split a UTF-16 surrogate pair")
+	}
+}
+
+func TestSafeCodeRegexTestSupportsBoundedStaticRE2PatternsAndCaseFlag(t *testing.T) {
+	source := `const mime=$input.first().json.mime||'';
+const kind=/pdf|jpeg|png|tiff/.test(mime);
+const unclear=/uncertain|unclear|illegible/i.test($input.first().json.quality||'');
+return [{json:{kind,unclear}}];`
+	input := []map[string]any{{"mime": "image/jpeg", "quality": "UnClear"}}
+	got, err := executeSafeCode(source, input, time.Time{})
+	if err != nil {
+		t.Fatalf("execute bounded RE2 predicates: %v", err)
+	}
+	data := got[0]["json"].(map[string]any)
+	if data["kind"] != true || data["unclear"] != true {
+		t.Fatalf("unexpected bounded regex results: %#v", data)
+	}
+	for _, pattern := range []string{`/(?=unsafe)/`, `/\\1/`} {
+		code := "const matched=" + pattern + ".test('safe'); return [{json:{matched}}];"
+		if _, err := parseSafeCode(code); err == nil {
+			t.Errorf("accepted unsupported regex pattern %s", pattern)
+		}
+	}
+	linear := `const matched=/(a+)+$/.test('aaaaaaaaaaaaaaaa'); return [{json:{matched}}];`
+	if _, err := executeSafeCode(linear, nil, time.Time{}); err != nil {
+		t.Fatalf("RE2-compatible nested quantifier should remain bounded: %v", err)
+	}
+	stateful := `const matched=/pdf/g.test('pdf'); return [{json:{matched}}];`
+	if _, err := executeSafeCode(stateful, nil, time.Time{}); err == nil {
+		t.Fatal("global regex test must fail closed because JavaScript lastIndex is stateful")
 	}
 }
 

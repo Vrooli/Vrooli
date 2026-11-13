@@ -1,10 +1,12 @@
 package httpx_test
 
 import (
+	"client-rehearsal/internal/httpx"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"client-rehearsal/internal/httpx"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -59,7 +61,7 @@ func TestWriteError(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			rec := httptest.NewRecorder()
-			httpx.WriteError(rec, tc.status, tc.code, tc.message)
+			httpx.WriteError(rec, tc.status, tc.code, tc.message, log.New(io.Discard, "", 0))
 
 			require.Equal(t, tc.wantStatus, rec.Code)
 			require.Equal(t, "application/json", rec.Header().Get("Content-Type"))

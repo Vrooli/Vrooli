@@ -1,6 +1,6 @@
 {
   "_metadata": {
-    "description": "P0 product requirement for safe synthetic workflow rehearsal.",
+    "description": "Requirement stubs scaffolded from the P0 operational targets.",
     "module": "P0-targets",
     "priority": "P0",
     "schema_version": "1.0.0"
@@ -8,7 +8,7 @@
   "requirements": [
     {
       "criticality": "P0",
-      "description": "Import representative workflow exports, replace every client credential and sensitive value with scoped synthetic stand-ins, execute through an engine adapter against simulated services with no real-client data or credential use, and retain an auditable run record.",
+      "description": "The scenario shall import representative workflow exports, replace every client credential and sensitive value with scoped synthetic stand-ins, execute through an engine adapter against simulator behavior derived from published API descriptions or recorded exchanges without hand-written per-workflow stubs or real-client access, and retain an auditable run record.",
       "id": "CR-P0-001",
       "prd_ref": "OT-P0-001",
       "status": "planned",
@@ -34,6 +34,66 @@
           "phase": "unit",
           "status": "planned",
           "notes": "[REQ:CR-P0-001] Proves fault/retry evidence is retained and execution remains unapproved until an explicit human decision."
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "Rehearse thirty unlike public community workflows spanning webhook, schedule, polling, sub-workflow, error-workflow, large-payload, and community-node cases; repair ten seeded defects and retain evidence and a handoff for each.",
+      "id": "CR-P1-001",
+      "prd_ref": "OT-P0-002",
+      "status": "planned",
+      "title": "Generic coverage and repair",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CR-P1-002] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The scenario shall import and run one client-shaped workflow using synthetic Gmail, Sheets, and CRM services from import through recorded handoff in one sitting.",
+      "id": "CR-P0-003",
+      "prd_ref": "OT-P0-003",
+      "status": "planned",
+      "title": "Client-shaped Gmail, Sheets, and CRM handoff",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CR-P0-003] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "criticality": "P0",
+      "description": "The scenario shall redo A1 in Make and A2–A3 in their requested tools with made-up data, retaining source-backed handoffs without creating real messages or client state.",
+      "id": "CR-P0-004",
+      "prd_ref": "OT-P0-004",
+      "status": "planned",
+      "title": "Named-tool A1–A3 rehearsal handoffs",
+      "validation": [
+        {
+          "notes": "Scaffolded stub: replace with a test-typed validation (ref + [REQ:CR-P0-004] tag) once the behavior exists.",
+          "status": "planned",
+          "type": "manual"
+        }
+      ]
+    },
+    {
+      "id": "CR-P0-005",
+      "title": "Reusable description-derived simulators",
+      "status": "planned",
+      "prd_ref": "OT-P0-001",
+      "criticality": "P0",
+      "description": "The scenario shall derive reusable simulated service behavior from published API descriptions or recorded exchanges without hand-written stubs for individual workflows.",
+      "validation": [
+        {
+          "type": "manual",
+          "status": "planned",
+          "notes": "Scaffolded contract obligation; add test-typed validation and a [REQ:CR-P0-005] tag when reusable protocol derivation is implemented."
         }
       ]
     }

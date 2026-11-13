@@ -15,15 +15,18 @@ Purpose: Client Workflow Rehearsal is a permanent Vrooli capability for importin
 
 ### 🔴 P0 – Must ship for viability
 
-- [ ] OT-P0-001 | Safe synthetic rehearsal | Import representative workflow exports, replace every client credential and sensitive value with scoped synthetic stand-ins, execute through an engine adapter against simulated services with no real-client data or credential use, and retain an auditable run record.
+- [ ] OT-P0-001 | Safe synthetic rehearsal | The scenario shall import representative workflow exports, replace every client credential and sensitive value with scoped synthetic stand-ins, execute through an engine adapter against simulator behavior derived from published API descriptions or recorded exchanges without hand-written per-workflow stubs or real-client access, and retain an auditable run record.
+- [ ] OT-P0-002 | Thirty-workflow coverage and seeded repair | The scenario shall import and run at least thirty unlike public community workflows spanning webhook, schedule, polling, sub-workflow, error-workflow, large-payload, and community-node cases; find and fix seeded defects in ten workflows and record a handoff for each.
+- [ ] OT-P0-003 | Client-shaped Gmail, Sheets, and CRM handoff | The scenario shall import and run one client-shaped workflow using synthetic Gmail, Sheets, and CRM services from import through recorded handoff in one sitting.
+- [ ] OT-P0-004 | Named-tool A1–A3 rehearsal handoffs | The scenario shall redo A1 in Make and A2–A3 in their requested tools with made-up data, retaining source-backed handoffs without creating real messages or client state.
 
 ### 🟠 P1 – Should have post-launch
 
-- [ ] OT-P1-001 | Generic coverage and repair | Rehearse thirty unlike public community workflows spanning webhook, schedule, polling, sub-workflow, error-workflow, large-payload, and community-node cases; repair ten seeded defects and retain evidence and a handoff for each.
+- [ ] OT-P1-001 | Additional workflow engine adapters | Where an additional engine is configured, the scenario should run the shared engagement, simulator, fault, repair, and handoff contracts through that adapter without changing domain semantics.
 
 ### 🟢 P2 – Future / expansion
 
-- [ ] OT-P2-001 | Reusable engine and simulator ecosystem | Extend the same engagement, credential-substitution, simulator, fault, scoring, and handoff contracts across additional execution engines and client-shaped workflows without changing domain semantics.
+- [ ] OT-P2-001 | Expanded simulator ecosystem | The scenario may extend its reusable service catalogue and protocol support to additional client workflow patterns while preserving synthetic credentials, provenance, and auditable handoffs.
 
 ## 🧱 Tech Direction Snapshot
 

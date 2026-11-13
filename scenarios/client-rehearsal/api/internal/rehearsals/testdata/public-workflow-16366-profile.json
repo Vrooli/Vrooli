@@ -1,0 +1,245 @@
+{
+  "kind": "openapi-catalog",
+  "services": [
+    {
+      "id": "synthetic-task-sheet",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic task spreadsheet",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://sheets.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/tasks/read": {
+            "get": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": [
+                        {
+                          "row_number": 2,
+                          "taskName": "Prepare synthetic release notes",
+                          "priority": "high",
+                          "category": "Operations",
+                          "dueDate": "2026-11-13",
+                          "status": "pending",
+                          "createdAt": "2026-11-12T10:00:00Z"
+                        },
+                        {
+                          "row_number": 3,
+                          "taskName": "Review synthetic onboarding copy",
+                          "priority": "medium",
+                          "category": "Content",
+                          "dueDate": "2026-11-14",
+                          "status": "pending",
+                          "createdAt": "2026-11-12T10:05:00Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "read"
+            }
+          },
+          "/v1/tasks/append": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "status": "recorded",
+                        "row_number": 4
+                      }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "append"
+            }
+          },
+          "/v1/tasks/update": {
+            "put": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "status": "recorded"
+                      }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.googleSheets",
+              "x-n8n-resource": "sheet",
+              "x-n8n-operation": "update"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-task-list",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic Google Tasks",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://tasks.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/tasks": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "id": "synthetic-task-1",
+                        "status": "recorded"
+                      }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.googleTasks",
+              "x-n8n-resource": "task",
+              "x-n8n-operation": "create"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-task-alert",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic Slack",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://slack.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/messages": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "ok": true,
+                        "ts": "synthetic-message-1"
+                      }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.slack",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "post"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-task-mail",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic Gmail",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://mail.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/messages": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "id": "synthetic-message-1",
+                        "status": "recorded"
+                      }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "n8n-nodes-base.gmail",
+              "x-n8n-resource": "message",
+              "x-n8n-operation": "send"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "synthetic-task-ai",
+      "document": {
+        "openapi": "3.0.3",
+        "info": {
+          "title": "Synthetic task-summary model",
+          "version": "1"
+        },
+        "servers": [
+          {
+            "url": "https://ai.synthetic.invalid"
+          }
+        ],
+        "paths": {
+          "/v1/chat/completions": {
+            "post": {
+              "responses": {
+                "200": {
+                  "content": {
+                    "application/json": {
+                      "example": {
+                        "output": [
+                          {
+                            "content": [
+                              {
+                                "text": "Synthetic summary: prioritize release notes, then review onboarding copy."
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              },
+              "x-n8n-node-type": "@n8n/n8n-nodes-langchain.openAi",
+              "x-n8n-resource": "chat",
+              "x-n8n-operation": "completion"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

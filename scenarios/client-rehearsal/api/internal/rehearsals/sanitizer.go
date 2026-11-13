@@ -144,6 +144,7 @@ func normalizeN8NWorkflow(raw rawWorkflow) (Workflow, error) {
 		workflow.ID = "workflow-1"
 	}
 	byName := make(map[string]string, len(raw.Nodes))
+	disabledByID := make(map[string]bool)
 	for index, value := range raw.Nodes {
 		node, ok := value.(map[string]any)
 		if !ok {
@@ -169,6 +170,14 @@ func normalizeN8NWorkflow(raw rawWorkflow) (Workflow, error) {
 		}
 		byName[name] = id
 		byName["id:"+id] = id
+		disabled, _ := node["disabled"].(bool)
+		disabledByID[id] = disabled
+		if disabled {
+			// n8n bypasses a disabled node: it forwards the first main input
+			// through main output zero. Its implementation and parameters do not
+			// run, so the simulator must not require a node-type adapter here.
+			continue
+		}
 		params, _ := node["parameters"].(map[string]any)
 		typeVersion, _ := node["typeVersion"].(float64)
 		model, err := normalizeWorkflowNodeVersion(id, name, typeName, params, typeVersion)
@@ -242,6 +251,9 @@ func normalizeN8NWorkflow(raw rawWorkflow) (Workflow, error) {
 			}
 		}
 	}
+	if err := bypassDisabledNodes(&workflow, disabledByID); err != nil {
+		return Workflow{}, err
+	}
 	if err := validateLangChainReferences(workflow); err != nil {
 		return Workflow{}, err
 	}
@@ -253,6 +265,69 @@ func normalizeN8NWorkflow(raw rawWorkflow) (Workflow, error) {
 		return Workflow{}, err
 	}
 	return workflow, nil
+}
+
+// bypassDisabledNodes models n8n's disabled-node behavior for main-flow edges:
+// the node is not executed and its first main input is forwarded to main output
+// zero. Disabled-node AI links and nonzero main input ports are rejected because
+// their dataflow cannot be represented by the ordinary main-edge pass-through.
+func bypassDisabledNodes(workflow *Workflow, disabled map[string]bool) error {
+	for _, edge := range workflow.AIConnections {
+		if disabled[edge.From] || disabled[edge.To] {
+			return ErrInvalid{Field: "connections", Reason: "AI connections through disabled nodes are not modeled"}
+		}
+	}
+	for id, isDisabled := range disabled {
+		if !isDisabled {
+			continue
+		}
+		for _, edge := range workflow.Connections {
+			if edge.To == id && edge.InputPort != 0 {
+				return ErrInvalid{Field: "connections", Reason: "disabled nodes with nonzero main input ports are not modeled"}
+			}
+		}
+	}
+	// Repeated passes collapse disabled-node chains irrespective of map order.
+	for pass := 0; pass <= len(disabled); pass++ {
+		changed := false
+		for id, isDisabled := range disabled {
+			if !isDisabled {
+				continue
+			}
+			var incoming, outgoing []Connection
+			remaining := make([]Connection, 0, len(workflow.Connections))
+			for _, edge := range workflow.Connections {
+				if edge.To == id {
+					incoming = append(incoming, edge)
+					changed = true
+					continue
+				}
+				if edge.From == id {
+					if edge.OutputPort == 0 {
+						outgoing = append(outgoing, edge)
+					}
+					changed = true
+					continue
+				}
+				remaining = append(remaining, edge)
+			}
+			workflow.Connections = remaining
+			for _, in := range incoming {
+				for _, out := range outgoing {
+					workflow.Connections = append(workflow.Connections, Connection{From: in.From, To: out.To, OutputPort: in.OutputPort, InputPort: out.InputPort})
+				}
+			}
+		}
+		if !changed {
+			break
+		}
+	}
+	for _, edge := range workflow.Connections {
+		if disabled[edge.From] || disabled[edge.To] {
+			return ErrInvalid{Field: "connections", Reason: "disabled node graph could not be reduced to a bounded main-flow path"}
+		}
+	}
+	return nil
 }
 
 func normalizeWorkflowNode(id, name, typeName string, params map[string]any) (WorkflowNode, error) {
@@ -404,8 +479,46 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 		}
 	case "n8n-nodes-base.noOp":
 		// A no-op has deterministic pass-through semantics.
+	case "n8n-nodes-base.htmlExtract":
+		if !onlyKeys(params, "options", "extractionValues") {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "HTML Extract accepts only static extraction values and empty options"}
+		}
+		options, _ := params["options"].(map[string]any)
+		if len(options) != 0 {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.options", Reason: "HTML Extract options must be empty"}
+		}
+		root, ok := params["extractionValues"].(map[string]any)
+		if !ok || !onlyKeys(root, "values") {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.extractionValues", Reason: "HTML Extract requires a bounded values list"}
+		}
+		entries, ok := root["values"].([]any)
+		if !ok || len(entries) == 0 || len(entries) > 16 {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.extractionValues.values", Reason: "HTML Extract supports one to 16 bounded selectors"}
+		}
+		node.HTMLExtractFields = map[string]string{}
+		for _, raw := range entries {
+			entry, ok := raw.(map[string]any)
+			key, keyOK := entry["key"].(string)
+			selector, selectorOK := entry["cssSelector"].(string)
+			if !ok || !onlyKeys(entry, "key", "cssSelector") || !keyOK || !safeSyntheticFieldName(key) || !selectorOK || selector != "title" {
+				return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.extractionValues.values", Reason: "HTML Extract currently supports only a static title selector with a safe output key"}
+			}
+			if _, exists := node.HTMLExtractFields[key]; exists {
+				return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.extractionValues.values", Reason: "HTML Extract output keys must be unique"}
+			}
+			node.HTMLExtractFields[key] = selector
+		}
 	case "n8n-nodes-base.set":
 		mode, _ := params["mode"].(string)
+		// Legacy Set v1/v2 exports with no parameters behave as an empty
+		// manual mapping. Their default is to retain incoming item fields.
+		// Treating them as an empty replacement object loses the input and
+		// does not match n8n's legacy keepOnlySet=false behavior.
+		if len(params) == 0 && typeVersion <= 2 {
+			node.SetValues = map[string]any{}
+			node.SetIncludeInput = true
+			break
+		}
 		if mode == "" && (params["assignments"] != nil || params["fields"] != nil) {
 			mode = "manual"
 		}
@@ -587,6 +700,10 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 	case "n8n-nodes-base.respondToWebhook", "n8n-nodes-base.stickyNote":
 		// Response delivery belongs to the runtime adapter. Sticky note text is
 		// intentionally omitted from the normalized graph.
+	case "n8n-nodes-base.stopAndError":
+		if typeVersion != 1 || len(params) != 0 {
+			return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "Stop And Error supports only pinned v1 with empty static parameters"}
+		}
 	case "n8n-nodes-base.executeWorkflow":
 		node.SubworkflowID = workflowID(params["workflowId"])
 		if node.SubworkflowID == "" {
@@ -605,9 +722,17 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 			// https://raw.githubusercontent.com/n8n-io/n8n/n8n%402.48.0/packages/nodes-base/nodes/Hubspot/V2/ContactDescription.ts
 			resource = "contact"
 		}
-		if typeName == "n8n-nodes-base.notion" && typeVersion == 2 && resource == "databasePage" && action == "" {
+		if typeName == "n8n-nodes-base.notion" && typeVersion >= 2 && typeVersion <= 2.2 && resource == "databasePage" && action == "" {
 			// Pinned Notion v2.48.0 declares databasePage.operation's default as create.
 			// https://raw.githubusercontent.com/n8n-io/n8n/n8n%402.48.0/packages/nodes-base/nodes/Notion/shared/descriptions/DatabasePageDescription.ts
+			action = "create"
+		}
+		if typeName == "n8n-nodes-base.notion" && typeVersion == 1 && resource == "databasePage" && action == "" {
+			// Notion v1's Database Page resource defaults to Create. Keep the
+			// synthetic simulator mapping static and require its explicit database id.
+			if params["databaseId"] == nil {
+				return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.databaseId", Reason: "Notion database-page create requires a static database id"}
+			}
 			action = "create"
 		}
 		if typeName == "n8n-nodes-base.notion" && typeVersion == 2 && resource == "" {
@@ -636,6 +761,22 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 			// operation "read" across its supported v4 node versions.
 			// Source: https://github.com/n8n-io/n8n/blob/n8n@2.48.0/packages/nodes-base/nodes/Google/Sheet/v2/actions/sheet/Sheet.resource.ts
 			action = "read"
+		}
+		if typeName == "n8n-nodes-base.googleTasks" && typeVersion == 1 && resource == "" && action == "" {
+			if !onlyKeys(params, "task", "title", "additionalFields") {
+				return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "Google Tasks create supports only a static list, bounded title, and bounded additional fields"}
+			}
+			listID, _ := params["task"].(string)
+			title, _ := params["title"].(string)
+			additional, additionalOK := params["additionalFields"].(map[string]any)
+			notes, notesOK := additional["notes"].(string)
+			if listID == "" || len(listID) > 128 || strings.ContainsAny(listID, "\x00\r\n") || title == "" || len(title) > 4096 || strings.ContainsRune(title, '\x00') || !additionalOK || !onlyKeys(additional, "notes") || (len(additional) != 0 && (!notesOK || len(notes) > 4096 || strings.ContainsRune(notes, '\x00'))) {
+				return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "Google Tasks create requires a bounded task list, title, and optional notes"}
+			}
+			// Pinned n8n 2.48.0 GoogleTasks v1 defaults resource to task and
+			// operation to create. Synthetic profiles own the response.
+			// Sources: GoogleTasks.node.ts and TaskDescription.ts at n8n@2.48.0.
+			resource, action = "task", "create"
 		}
 		if typeName == "n8n-nodes-base.dataTable" && typeVersion == 1.1 && resource == "" {
 			// Pinned n8n 2.48.0 Data Table defaults resource to row.
@@ -677,15 +818,21 @@ func normalizeWorkflowNodeVersion(id, name, typeName string, params map[string]a
 			// and https://github.com/n8n-io/n8n/blob/n8n@2.48.0/packages/nodes-base/nodes/Discord/v2/actions/webhook/index.ts
 			resource, action = "webhook", "sendLegacy"
 		}
-		if typeName == "n8n-nodes-base.telegram" && typeVersion == 1.2 && resource == "" && action == "" {
+		if typeName == "n8n-nodes-base.telegram" && (typeVersion == 1 || typeVersion == 1.1 || typeVersion == 1.2) && resource == "" && action == "" {
 			text, _ := params["text"].(string)
 			chatID, _ := params["chatId"].(string)
 			additional, additionalOK := params["additionalFields"].(map[string]any)
-			if text == "" || len(text) > 4096 || strings.ContainsRune(text, '\x00') || chatID == "" || len(chatID) > 128 || strings.ContainsAny(chatID, "\x00\r\n") || !additionalOK || len(additional) != 0 {
-				return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "Telegram simulation requires bounded message text, a static chat id, and empty default fields"}
+			if text == "" || len(text) > 4096 || strings.ContainsRune(text, '\x00') || chatID == "" || len(chatID) > 128 || strings.ContainsAny(chatID, "\x00\r\n") || !additionalOK || !onlyKeys(additional, "parse_mode") {
+				return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters", Reason: "Telegram simulation requires bounded message text, a static chat id, and only a supported parse mode"}
+			}
+			if parseMode, exists := additional["parse_mode"]; exists {
+				mode, ok := parseMode.(string)
+				if !ok || mode != "HTML" && mode != "Markdown" && mode != "MarkdownV2" {
+					return WorkflowNode{}, ErrInvalid{Field: "nodes.parameters.additionalFields.parse_mode", Reason: "Telegram parse mode must be HTML, Markdown, or MarkdownV2"}
+				}
 			}
 			// Pinned n8n 2.48.0 Telegram.node.ts defaults resource to message and
-			// message operation to sendMessage for v1.2.
+			// message operation to sendMessage for the supported v1 node versions.
 			// https://github.com/n8n-io/n8n/blob/n8n@2.48.0/packages/nodes-base/nodes/Telegram/Telegram.node.ts
 			resource, action = "message", "sendMessage"
 		}
@@ -983,8 +1130,14 @@ func normalizeSetValueGroups(params map[string]any) (map[string]any, map[string]
 	if len(assignments) == 0 {
 		return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.values", Reason: "Set requires at least one value assignment"}
 	}
-	include := false
-	if keep, ok := params["keepOnlySet"].(bool); ok {
+	// The legacy Set flag is an opt-in to discarding the input. n8n's default
+	// is false, so an omitted field preserves existing input fields.
+	include := true
+	if rawKeep, exists := params["keepOnlySet"]; exists {
+		keep, ok := rawKeep.(bool)
+		if !ok {
+			return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.keepOnlySet", Reason: "legacy Set keepOnlySet must be boolean"}
+		}
 		include = !keep
 	}
 	if options, ok := params["options"].(map[string]any); ok && len(options) != 0 {
@@ -1106,33 +1259,98 @@ func normalizeSetAssignments(params map[string]any) (map[string]any, map[string]
 			}
 			values[name] = value
 		case "array":
-			text, ok := value.(string)
-			if !ok || len(text) > 4096 {
-				return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set array values must be bounded JSON array literals"}
+			decoded, err := decodeBoundedSetJSON(value, true)
+			if err != nil {
+				return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set array values must be bounded static JSON arrays: " + err.Error()}
 			}
-			var items []any
-			if err := json.Unmarshal([]byte(text), &items); err != nil || len(items) > 64 {
-				return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set array values must be JSON arrays with at most 64 primitive items"}
-			}
-			for _, item := range items {
-				switch item.(type) {
-				case nil, bool, float64, string:
-				default:
-					return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set array items must be JSON primitives"}
-				}
-				if stringItem, ok := item.(string); ok && (len(stringItem) > 512 || strings.ContainsRune(stringItem, '\x00')) {
-					return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set array strings must be bounded"}
-				}
-			}
-			values[name] = items
+			values[name] = decoded
 		case "object":
-			return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set object values must use a safe expression"}
+			decoded, err := decodeBoundedSetJSON(value, false)
+			if err != nil {
+				return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set object values must be bounded static JSON objects: " + err.Error()}
+			}
+			values[name] = decoded
 		default:
 			return nil, nil, nil, false, ErrInvalid{Field: "nodes.parameters.assignments", Reason: "Set supports bounded string, number, boolean and primitive array values"}
 		}
 	}
 	includeInput, _ := params["includeOtherFields"].(bool)
 	return values, projections, expressions, includeInput, nil
+}
+
+func decodeBoundedSetJSON(value any, wantArray bool) (any, error) {
+	var parsed any
+	switch typed := value.(type) {
+	case string:
+		if len(typed) > 4096 {
+			return nil, fmt.Errorf("literal exceeds 4096 bytes")
+		}
+		literal := strings.TrimSpace(typed)
+		if strings.HasPrefix(literal, "=") {
+			literal = strings.TrimSpace(strings.TrimPrefix(literal, "="))
+		}
+		if strings.Contains(literal, "={{") || literal == "" {
+			return nil, fmt.Errorf("expressions and empty literals are not accepted")
+		}
+		if err := json.Unmarshal([]byte(literal), &parsed); err != nil {
+			return nil, fmt.Errorf("literal is not JSON")
+		}
+	case []any, map[string]any:
+		parsed = typed
+	default:
+		return nil, fmt.Errorf("value must be a JSON literal string, array, or object")
+	}
+	if wantArray {
+		if _, ok := parsed.([]any); !ok {
+			return nil, fmt.Errorf("expected an array")
+		}
+	} else if _, ok := parsed.(map[string]any); !ok {
+		return nil, fmt.Errorf("expected an object")
+	}
+	count := 0
+	if err := validateBoundedSetJSON(parsed, 0, &count); err != nil {
+		return nil, err
+	}
+	return parsed, nil
+}
+
+func validateBoundedSetJSON(value any, depth int, count *int) error {
+	*count++
+	if depth > 8 || *count > 256 {
+		return fmt.Errorf("nested literal exceeds structural bound")
+	}
+	switch typed := value.(type) {
+	case nil, bool, float64:
+		return nil
+	case string:
+		if len(typed) > 2048 || strings.ContainsRune(typed, '\x00') {
+			return fmt.Errorf("string exceeds the safe bound")
+		}
+	case []any:
+		if len(typed) > 64 {
+			return fmt.Errorf("array exceeds 64 elements")
+		}
+		for _, item := range typed {
+			if err := validateBoundedSetJSON(item, depth+1, count); err != nil {
+				return err
+			}
+		}
+	case map[string]any:
+		if len(typed) > 64 {
+			return fmt.Errorf("object exceeds 64 fields")
+		}
+		for key, item := range typed {
+			if !validPathPart(key) {
+				return fmt.Errorf("object has an unsafe key")
+			}
+			if err := validateBoundedSetJSON(item, depth+1, count); err != nil {
+				return err
+			}
+		}
+	default:
+		return fmt.Errorf("literal contains a non-JSON value")
+	}
+	return nil
 }
 
 func normalizeAggregate(params map[string]any) ([]AggregateField, bool, bool, bool, error) {
@@ -1245,6 +1463,9 @@ func normalizeSort(params map[string]any) ([]SortField, error) {
 		entry, ok := raw.(map[string]any)
 		name, _ := entry["fieldName"].(string)
 		order, _ := entry["order"].(string)
+		if order == "" {
+			order = "ascending"
+		}
 		if !ok || !onlyKeys(entry, "fieldName", "order") || !validJSONPath(name) || order != "ascending" && order != "descending" {
 			return nil, ErrInvalid{Field: "nodes.parameters.sortFieldsUi.sortField", Reason: "Sort fields require a bounded JSON path and ascending or descending order"}
 		}
@@ -1479,7 +1700,7 @@ func appendUniqueTrigger(kinds []TriggerKind, kind TriggerKind) []TriggerKind {
 
 func normalizeHTTPNode(id, name string, params map[string]any) (Step, string, error) {
 	rawURL, _ := params["url"].(string)
-	if strings.Contains(rawURL, "={{") {
+	if strings.Contains(rawURL, "{{") {
 		if _, err := parseSafeSyntheticURLExpression(rawURL); err != nil {
 			return Step{}, "", ErrInvalid{Field: "nodes.parameters.url", Reason: "HTTP Request URL expression is outside the bounded synthetic URL subset"}
 		}
@@ -1632,11 +1853,11 @@ func conditionFromEntry(entry map[string]any) (Condition, error) {
 	operator, _ := operatorRoot["operation"].(string)
 	right, _ := entry["rightValue"].(string)
 	if operator == "equals" && strings.TrimSpace(right) == "={{ $now.format('yyyy-MM-dd') }}" {
-		path, nodeName, ok := parseJSONExpressionSource(left)
+		path, nodeName, nodeOutputMode, ok := parseConditionJSONExpressionSource(left)
 		if !ok {
 			return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions", Reason: "date equality left value must use a simple JSON path expression"}
 		}
-		return Condition{Path: path, NodeName: nodeName, Operator: operator, NowFormat: "2006-01-02"}, nil
+		return Condition{Path: path, NodeName: nodeName, NodeOutputMode: nodeOutputMode, Operator: operator, NowFormat: "2006-01-02"}, nil
 	}
 	if strings.TrimSpace(left) == "={{ $input.all().length }}" {
 		path := "$input.length"
@@ -1650,7 +1871,7 @@ func conditionFromEntry(entry map[string]any) (Condition, error) {
 		}
 		return Condition{Path: path, Operator: operator, Value: value}, nil
 	}
-	path, nodeName, ok := parseJSONExpressionSource(left)
+	path, nodeName, nodeOutputMode, ok := parseConditionJSONExpressionSource(left)
 	if !ok {
 		return Condition{}, ErrInvalid{Field: "nodes.parameters.conditions", Reason: "condition must use a simple JSON path expression"}
 	}
@@ -1669,6 +1890,10 @@ func conditionFromEntry(entry map[string]any) (Condition, error) {
 	if operator == "" {
 		operator, _ = entry["operation"].(string)
 	}
+	if operator == "notEqual" {
+		// Legacy IF nodes use notEqual; normalize it to the shared condition model.
+		operator = "notEquals"
+	}
 	if operator == "" {
 		operator = "equals"
 	}
@@ -1681,7 +1906,59 @@ func conditionFromEntry(entry map[string]any) (Condition, error) {
 	if !ok {
 		value = entry["value2"]
 	}
-	return Condition{Path: path, NodeName: nodeName, Operator: operator, Value: value}, nil
+	return Condition{Path: path, NodeName: nodeName, NodeOutputMode: nodeOutputMode, Operator: operator, Value: value}, nil
+}
+
+// parseConditionJSONExpressionSource accepts the current item path and an
+// explicit reference to one named node's current paired item or first output.
+// The engine has no arbitrary item-link graph, so `.item` is accepted only
+// when that named node has exactly one output during evaluation.
+func parseConditionJSONExpressionSource(raw string) (path, nodeName, mode string, ok bool) {
+	expression := strings.TrimSpace(raw)
+	if strings.HasPrefix(expression, "=") {
+		expression = strings.TrimSpace(strings.TrimPrefix(expression, "="))
+	}
+	if !strings.HasPrefix(expression, "{{") || !strings.HasSuffix(expression, "}}") {
+		path, nodeName, ok = parseJSONExpressionSource(raw)
+		return path, nodeName, "", ok
+	}
+	expression = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(expression, "{{"), "}}"))
+	if !strings.HasPrefix(expression, "$('") {
+		path, nodeName, ok = parseJSONExpressionSource(raw)
+		return path, nodeName, "", ok
+	}
+	end := strings.Index(expression[3:], "')")
+	if end < 0 {
+		return "", "", "", false
+	}
+	end += 3
+	nodeName = expression[3:end]
+	if !safeCodeNodeName(nodeName) {
+		return "", "", "", false
+	}
+	reference := expression[end+2:]
+	switch {
+	case strings.HasPrefix(reference, ".item.json"):
+		mode = "item"
+		reference = strings.TrimPrefix(reference, ".item.json")
+	case strings.HasPrefix(reference, ".first().json"):
+		mode = "first"
+		reference = strings.TrimPrefix(reference, ".first().json")
+	default:
+		return "", "", "", false
+	}
+	if reference == "" || (!strings.HasPrefix(reference, ".") && !strings.HasPrefix(reference, "[")) {
+		return "", "", "", false
+	}
+	encodedName, err := json.Marshal(nodeName)
+	if err != nil {
+		return "", "", "", false
+	}
+	path, parsedNode, ok := parseJSONExpressionSource("={{$node[" + string(encodedName) + "].json" + reference + "}}")
+	if !ok || parsedNode != nodeName {
+		return "", "", "", false
+	}
+	return path, nodeName, mode, true
 }
 
 var dateTimeMinusExpression = regexp.MustCompile(`^\$\('([^']+)'\)\.first\(\)\.json\.([A-Za-z0-9_.-]+)\.toDateTime\(\)\.minus\(\$\('([^']+)'\)\.first\(\)\.json\.([A-Za-z0-9_.-]+), 'minutes'\)$`)
@@ -1773,9 +2050,6 @@ func parseJSONExpressionSource(raw string) (string, string, bool) {
 			return "", "", false
 		}
 		path = expression[jsonIndex+len("].json"):]
-		if strings.HasPrefix(path, ".") {
-			path = strings.TrimPrefix(path, ".")
-		}
 	} else {
 		return "", "", false
 	}
@@ -1805,7 +2079,7 @@ func parseJSONExpressionSource(raw string) (string, string, bool) {
 			if err != nil || index < 0 || index > 100 {
 				return "", "", false
 			}
-			parts[len(parts)-1] += fmt.Sprintf("[%d]", index)
+			parts = append(parts, fmt.Sprintf("#index:%d", index))
 			path = path[end+1:]
 			continue
 		}
@@ -1841,15 +2115,24 @@ func parseJSONExpressionSource(raw string) (string, string, bool) {
 	if len(parts) == 0 {
 		return "", "", false
 	}
-	pathParts := make([]string, 0, len(parts))
+	var pathBuilder strings.Builder
 	for _, part := range parts {
+		if strings.HasPrefix(part, "#index:") {
+			pathBuilder.WriteByte('[')
+			pathBuilder.WriteString(strings.TrimPrefix(part, "#index:"))
+			pathBuilder.WriteByte(']')
+			continue
+		}
+		if pathBuilder.Len() > 0 {
+			pathBuilder.WriteByte('.')
+		}
 		if validPathPart(part) {
-			pathParts = append(pathParts, part)
+			pathBuilder.WriteString(part)
 		} else {
-			pathParts = append(pathParts, `['`+part+`']`)
+			pathBuilder.WriteString(`['` + part + `']`)
 		}
 	}
-	return strings.Join(pathParts, "."), nodeName, true
+	return pathBuilder.String(), nodeName, true
 }
 
 func validQuotedJSONKey(key string) bool {

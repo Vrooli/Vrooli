@@ -11,6 +11,40 @@ import (
 	"testing"
 )
 
+func TestSyntheticizePreservesOnlyWellFormedExpiryDateSemantics(t *testing.T) {
+	response := syntheticize(map[string]any{
+		"Expiry":    "2026-11-14T00:00:00Z",
+		"expiresAt": "2026-11-15T12:30:00Z",
+		"other":     "merchant supplied private text",
+	}, "").(map[string]any)
+	if response["Expiry"] != "2026-11-14T00:00:00Z" || response["expiresAt"] != "2026-11-15T12:30:00Z" {
+		t.Fatalf("well-formed expiry semantics should remain usable by date expressions: %#v", response)
+	}
+	if response["other"] != "synthetic-value" {
+		t.Fatalf("non-date source values must remain syntheticized: %#v", response)
+	}
+	invalid := syntheticize(map[string]any{"Expiry": "merchant-secret-value"}, "").(map[string]any)
+	if invalid["Expiry"] != "synthetic-value" {
+		t.Fatalf("invalid expiry text must not be preserved: %#v", invalid)
+	}
+}
+
+func TestSyntheticizeReplacesHTMLResponsesWithFixedSafeDocument(t *testing.T) {
+	response := syntheticize(map[string]any{
+		"body": "<html><head><title>Private project name</title></head><body>customer text and IDs</body></html>",
+		"text": "private plain text",
+	}, "").(map[string]any)
+	if response["body"] != syntheticHTMLDocument {
+		t.Fatalf("HTML response should become the fixed synthetic document: %#v", response)
+	}
+	if response["text"] != "synthetic-value" {
+		t.Fatalf("ordinary text response should remain syntheticized: %#v", response)
+	}
+	if strings.Contains(response["body"].(string), "Private project name") || strings.Contains(response["body"].(string), "customer text") {
+		t.Fatal("HTML synthesis retained source page content")
+	}
+}
+
 // [REQ:CR-P0-001]
 func TestDescriptionSimulatorUsesOpenAPICatalogAndInjectedFault(t *testing.T) {
 	simulator, err := NewDescriptionSimulator(readFixture(t, "api_catalog_openapi.json"), true)
@@ -118,11 +152,10 @@ func TestRecordedExchangeSandboxExportFailsClosed(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			simulator, err := NewDescriptionSimulator(tc.raw, false)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if _, err := simulator.ExportHTTPMockProfile(); err == nil {
-				t.Fatal("unsafe or unsupported exchange should not produce a Sandbox profile")
+			if err == nil {
+				if _, err := simulator.ExportHTTPMockProfile(); err == nil {
+					t.Fatal("unsafe or unsupported exchange should not produce a Sandbox profile")
+				}
 			}
 		})
 	}

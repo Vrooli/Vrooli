@@ -128,6 +128,8 @@ export const strings = {
     workflowFile: "rehearsals.workflowFile",
     triggerLabel: "rehearsals.triggerLabel",
     titleLabel: "rehearsals.titleLabel",
+    taskScopeLabel: "rehearsals.taskScopeLabel",
+    taskScopeHint: "rehearsals.taskScopeHint",
     simulatorAdvanced: "rehearsals.simulatorAdvanced",
     simulatorSource: "rehearsals.simulatorSource",
     simulatorDefault: "rehearsals.simulatorDefault",

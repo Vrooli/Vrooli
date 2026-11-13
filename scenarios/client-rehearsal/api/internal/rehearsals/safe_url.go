@@ -11,6 +11,7 @@ type safeURLExpressionPart struct {
 	literal   string
 	nodeName  string
 	field     string
+	inputPath string
 	transform string
 }
 
@@ -20,7 +21,13 @@ var safeURLReference = regexp.MustCompile(`^\$\('([^']+)'\)\.first\(\)\.json\.([
 // one statically named prior-node scalar, with only two URL cleanup transforms.
 // It is a small data expression grammar; it never evaluates JavaScript.
 func parseSafeSyntheticURLExpression(raw string) ([]safeURLExpressionPart, error) {
+	if strings.ContainsAny(raw, "\x00\r\n") {
+		return nil, fmt.Errorf("URL expression must not contain control characters")
+	}
 	raw = strings.TrimSpace(raw)
+	if strings.HasPrefix(raw, "=") && !strings.HasPrefix(raw, "={{") {
+		return parseSafeSyntheticURLTemplate(raw)
+	}
 	if !strings.HasPrefix(raw, "={{") || !strings.HasSuffix(raw, "}}") {
 		return nil, fmt.Errorf("expression wrapper is not canonical")
 	}
@@ -62,6 +69,42 @@ func parseSafeSyntheticURLExpression(raw string) ([]safeURLExpressionPart, error
 			}
 		}
 		parts = append(parts, part)
+	}
+	return parts, nil
+}
+
+// parseSafeSyntheticURLTemplate supports one JSON-path interpolation in an
+// n8n URL string, such as =https://{{$json["body"]["url"]}}. The resolved URL
+// is still validated against the synthetic.invalid host and path boundary.
+func parseSafeSyntheticURLTemplate(raw string) ([]safeURLExpressionPart, error) {
+	if len(raw) > 2048 || !strings.HasPrefix(raw, "=") || strings.ContainsAny(raw, "\x00\r\n\\") {
+		return nil, fmt.Errorf("URL template must be bounded and contain no controls or escapes")
+	}
+	body := raw[1:]
+	start := strings.Index(body, "{{")
+	if start < 0 {
+		return nil, fmt.Errorf("URL template requires one JSON-path interpolation")
+	}
+	end := strings.Index(body[start+2:], "}}")
+	if end < 0 {
+		return nil, fmt.Errorf("URL template interpolation is unterminated")
+	}
+	end += start + 2
+	if strings.Contains(body[start+2:end], "{") || strings.Contains(body[end+2:], "{{") || strings.Contains(body[end+2:], "}}") {
+		return nil, fmt.Errorf("URL template supports exactly one interpolation")
+	}
+	expression := strings.TrimSpace(body[start+2 : end])
+	path, nodeName, ok := parseJSONExpressionSource("={{" + expression + "}}")
+	if !ok || nodeName != "" {
+		return nil, fmt.Errorf("URL template interpolation must read one current-item JSON path")
+	}
+	parts := make([]safeURLExpressionPart, 0, 3)
+	if start > 0 {
+		parts = append(parts, safeURLExpressionPart{literal: body[:start]})
+	}
+	parts = append(parts, safeURLExpressionPart{inputPath: path})
+	if end+2 < len(body) {
+		parts = append(parts, safeURLExpressionPart{literal: body[end+2:]})
 	}
 	return parts, nil
 }
@@ -114,14 +157,28 @@ func splitSafeURLTerms(expression string) ([]string, error) {
 	return terms, nil
 }
 
-func resolveSafeSyntheticURLExpression(raw string, prior map[string][]map[string]any) (string, error) {
+func resolveSafeSyntheticURLExpression(raw string, prior map[string][]map[string]any, current ...map[string]any) (string, error) {
 	parts, err := parseSafeSyntheticURLExpression(raw)
 	if err != nil {
 		return "", err
 	}
 	var result strings.Builder
 	for _, part := range parts {
-		if part.nodeName == "" {
+		if part.inputPath != "" {
+			if len(current) == 0 {
+				return "", fmt.Errorf("URL template requires a current synthetic item")
+			}
+			value, ok := jsonPathValue(current[0], part.inputPath)
+			text, isString := value.(string)
+			if !ok || !isString || text == "" || strings.ContainsAny(text, "\x00\r\n") {
+				return "", fmt.Errorf("URL template input path must resolve to a bounded string")
+			}
+			result.WriteString(text)
+			if result.Len() > 2048 {
+				return "", fmt.Errorf("resolved URL exceeds the bound")
+			}
+			continue
+		} else if part.nodeName == "" {
 			result.WriteString(part.literal)
 			continue
 		}
@@ -161,8 +218,8 @@ func resolveSafeSyntheticURLExpression(raw string, prior map[string][]map[string
 	return parsed.String(), nil
 }
 
-func requestWithSafeURLExpression(base Step, expression string, prior map[string][]map[string]any) (Step, error) {
-	resolved, err := resolveSafeSyntheticURLExpression(expression, prior)
+func requestWithSafeURLExpression(base Step, expression string, prior map[string][]map[string]any, current ...map[string]any) (Step, error) {
+	resolved, err := resolveSafeSyntheticURLExpression(expression, prior, current...)
 	if err != nil {
 		return Step{}, err
 	}

@@ -4,13 +4,18 @@
  * produces (skip link, navigation landmarks, main). Feature cards keep their
  * own a11y tests.
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { expectNoA11yViolations, renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
 import { setLocale } from "../i18n";
 import { TestAppRouter } from "../app/routes";
+
+// This suite owns shell composition only. Feature surfaces exercise their
+// query/loading behavior in their own accessibility suites.
+vi.mock("../features/rehearsals/RehearsalWorkspace", () => ({ RehearsalWorkspace: () => <div /> }));
+vi.mock("../features/health/HealthCard", () => ({ HealthCard: () => <div /> }));
 
 describe("AppShell accessibility", () => {
   beforeEach(async () => {

@@ -2,6 +2,8 @@ package rehearsals
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -12,21 +14,48 @@ import (
 
 type Service interface {
 	CreateAndRun(context.Context, CreateInput) (Rehearsal, error)
+	CreateAndRunTaskScoped(context.Context, CreateInput, WorkspaceSandboxTaskRequest) (TaskScopedRun, error)
 	List(context.Context, int) ([]Rehearsal, error)
 	Get(context.Context, string) (Rehearsal, error)
 	Review(context.Context, ReviewInput) (Rehearsal, error)
 }
+
+// seam: rehearsals.TimestampSource substitutes wall-clock reads for service timestamps.
+type TimestampSource func() time.Time
+
 type service struct {
-	repo   Repository
-	engine Engine
-	now    func() time.Time
+	repo            Repository
+	engine          Engine
+	now             TimestampSource
+	sandbox         *WorkspaceSandboxProfileClient
+	n8n             N8NWorkflowRuntime
+	sandboxHTTPDoer sandboxHTTPDoer
 }
 
-func NewService(repo Repository, engine Engine, now func() time.Time) Service {
+func NewService(repo Repository, engine Engine, now TimestampSource) Service {
 	if now == nil {
-		now = time.Now
+		panic("rehearsals.NewService requires a clock")
 	}
 	return &service{repo: repo, engine: engine, now: now}
+}
+
+// NewServiceWithWorkspaceSandbox enables the explicit task-scoped rehearsal
+// path. Ordinary CreateAndRun remains in-process and never allocates a Sandbox.
+func NewServiceWithWorkspaceSandbox(repo Repository, engine Engine, now TimestampSource, sandbox *WorkspaceSandboxProfileClient) Service {
+	if now == nil {
+		panic("rehearsals.NewServiceWithWorkspaceSandbox requires a clock")
+	}
+	return &service{repo: repo, engine: engine, now: now, sandbox: sandbox}
+}
+
+// NewServiceWithNativeN8N enables owner-mediated task execution in the n8n
+// resource. Callers must only select this constructor after the operator's
+// license decision and deployment configuration allow a runtime.
+func NewServiceWithNativeN8N(repo Repository, engine Engine, now TimestampSource, sandbox *WorkspaceSandboxProfileClient, runtime N8NWorkflowRuntime) Service {
+	if now == nil {
+		panic("rehearsals.NewServiceWithNativeN8N requires a clock")
+	}
+	return &service{repo: repo, engine: engine, now: now, sandbox: sandbox, n8n: runtime}
 }
 
 func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, error) {
@@ -85,15 +114,73 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 	if triggerNodeID == "" {
 		return Rehearsal{}, ErrInvalid{Field: "trigger_node_id", Reason: "required when the imported workflow has more than one trigger"}
 	}
+	if _, detailed := s.engine.(DetailedEngine); !detailed && len(requiredPaths) > 0 {
+		return Rehearsal{}, ErrInvalid{Field: "required_output_paths", Reason: "the selected engine does not return internal assertion output"}
+	}
+	if in.taskSandbox != nil && s.n8n != nil {
+		if !containsTrigger(workflow.TriggerKinds, TriggerManual) {
+			return Rehearsal{}, ErrInvalid{Field: "workflow.trigger", Reason: "native n8n execution currently supports only a Manual Trigger"}
+		}
+		if in.InjectSeededFault {
+			return Rehearsal{}, ErrInvalid{Field: "inject_seeded_fault", Reason: "native n8n execution does not yet have a fault-injection profile"}
+		}
+		if len(requiredPaths) > 0 {
+			return Rehearsal{}, ErrInvalid{Field: "required_output_paths", Reason: "native n8n execution retains output inside the resource and cannot return values for assertions"}
+		}
+	}
+	var taskLease WorkspaceSandboxProfileLease
+	var lifecycle *WorkspaceSandboxLifecycleEvidence
+	if in.taskSandbox != nil {
+		if s.sandbox == nil {
+			return Rehearsal{}, errors.New("task-scoped rehearsal requires a configured Workspace Sandbox client")
+		}
+		exported, exportErr := simulator.ExportHTTPMockProfile()
+		if exportErr != nil {
+			return Rehearsal{}, fmt.Errorf("export synthetic Sandbox profile: %w", exportErr)
+		}
+		lease, evidence, startErr := s.beginTaskSandbox(ctx, *in.taskSandbox, exported)
+		if startErr != nil {
+			return Rehearsal{}, fmt.Errorf("start task-scoped Workspace Sandbox profile: %w", startErr)
+		}
+		taskLease, lifecycle = lease, &evidence
+	}
 	var execution ExecutionResult
 	var runErr error
-	if detailed, ok := s.engine.(DetailedEngine); ok {
-		execution, runErr = detailed.ExecuteDetailed(ctx, workflow, triggerNodeID, simulator, in.InjectSeededFault, now)
-	} else {
-		if len(requiredPaths) > 0 {
-			return Rehearsal{}, ErrInvalid{Field: "required_output_paths", Reason: "the selected engine does not return internal assertion output"}
+	engineSimulator := Simulator(simulator)
+	if taskLease.SandboxID != "" && taskLease.Runtime.RuntimeID == "" {
+		adapter, adapterErr := NewSandboxEngineAdapter(simulator, taskLease.Receipt, s.sandboxHTTPDoer)
+		if adapterErr != nil {
+			runErr = fmt.Errorf("attach Sandbox operation routes to in-process engine: %w", adapterErr)
+		} else {
+			engineSimulator = adapter
 		}
-		execution.Trace, runErr = s.engine.Execute(ctx, workflow, triggerNodeID, simulator, in.InjectSeededFault, now)
+	}
+	if taskLease.Runtime.RuntimeID != "" {
+		runtimeWorkflow, rewriteErr := rewriteWorkflowHTTPRequestsForSandbox(in.WorkflowJSON, taskLease.Receipt.OperationAddresses)
+		runtimeEvidence := N8NWorkflowExecutionEvidence{}
+		runtimeErr := rewriteErr
+		if runtimeErr == nil {
+			runtimeEvidence, runtimeErr = s.n8n.ImportAndExecuteManual(ctx, taskLease.Runtime, runtimeWorkflow)
+		}
+		runErr = runtimeErr
+		lifecycle.N8NExecution = &runtimeEvidence
+		lifecycle.N8NRuntimeStatus = "execution-complete"
+		if runtimeErr != nil {
+			lifecycle.N8NRuntimeError = runtimeErr.Error()
+			lifecycle.N8NRuntimeStatus = "execution-failed"
+		}
+		summary, _ := json.Marshal(runtimeEvidence)
+		status := "succeeded"
+		if runtimeErr != nil {
+			status = "failed"
+		}
+		execution.Trace = append(execution.Trace, TraceEvent{Sequence: uint32(len(execution.Trace) + 1), Operation: "n8n owner workflow import and execution", RequestSummary: "manual trigger; credentials replaced by n8n owner", ResponseSummary: string(summary), Status: status, OccurredAt: now})
+	} else if runErr == nil {
+		if detailed, ok := s.engine.(DetailedEngine); ok {
+			execution, runErr = detailed.ExecuteDetailed(ctx, workflow, triggerNodeID, engineSimulator, in.InjectSeededFault, now)
+		} else {
+			execution.Trace, runErr = s.engine.Execute(ctx, workflow, triggerNodeID, engineSimulator, in.InjectSeededFault, now)
+		}
 	}
 	missingPaths := missingRequiredOutputs(execution.Output, requiredPaths)
 	for _, path := range requiredPaths {
@@ -137,6 +224,61 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 		}
 		execution.Trace = append(execution.Trace, TraceEvent{Sequence: uint32(len(execution.Trace) + 1), Operation: "repair lineage", RequestSummary: "prior run " + repairedRun.ID, ResponseSummary: "changed workflow revision linked to failed evidence", Status: "succeeded", OccurredAt: now})
 	}
+	if lifecycle != nil {
+		hits, hitsErr := s.sandbox.ReadRouteHits(ctx, taskLease.SandboxID, taskLease.Name)
+		if hitsErr != nil {
+			lifecycle.RouteHitsStatus = "unavailable"
+			lifecycle.RouteHitsError = hitsErr.Error()
+		} else {
+			lifecycle.RouteHitsStatus = "available"
+			lifecycle.RouteHits = &hits
+		}
+		if taskLease.Runtime.RuntimeID != "" && nativeWorkflowRequiresCompanionRoute(workflow) && (hitsErr != nil || !nativeWorkflowHasCompanionRouteHit(workflow, hits)) {
+			gateErr := "native workflow completed without a matching verified request through its Workspace Sandbox companion route"
+			if hitsErr != nil {
+				gateErr = "native companion route evidence is unavailable: " + hitsErr.Error()
+			}
+			if runErr == nil {
+				state = StateFailed
+				fault = gateErr
+				repair = "Inspect the retained route receipt and ensure the selected native workflow path reaches a declared companion operation."
+			}
+			execution.Trace = append(execution.Trace, TraceEvent{Sequence: uint32(len(execution.Trace) + 1), Operation: "native companion route evidence gate", RequestSummary: "task-owned n8n HTTP Request nodes require a route hit", ResponseSummary: gateErr, Status: "failed", OccurredAt: now})
+		}
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		var cleanupErr error
+		if taskLease.Runtime.RuntimeID != "" {
+			if stopErr := s.n8n.Stop(cleanupCtx, taskLease.Runtime); stopErr != nil {
+				lifecycle.N8NRuntimeStatus = "stop-failed"
+				lifecycle.N8NRuntimeError = stopErr.Error()
+				cleanupErr = fmt.Errorf("stop task-owned n8n runtime: %w", stopErr)
+			} else {
+				lifecycle.N8NRuntimeStatus = "stopped"
+			}
+		}
+		if cleanupErr == nil {
+			cleanupErr = s.stopAndDeleteTaskSandbox(cleanupCtx, taskLease, taskLease.Task)
+		}
+		cancel()
+		lifecycle.CleanupConfirmedAt = s.now().UTC()
+		if cleanupErr != nil {
+			lifecycle.TeardownStatus = "failed"
+			lifecycle.TeardownError = cleanupErr.Error()
+		} else {
+			lifecycle.TeardownStatus = "succeeded"
+		}
+		if !lifecycle.SyntheticTargets || lifecycle.TeardownStatus != "succeeded" {
+			state = StateFailed
+			if lifecycle.TeardownStatus != "succeeded" {
+				fault = "Workspace Sandbox task teardown failed: " + lifecycle.TeardownError
+				repair = "Inspect the Sandbox owner receipt and retry cleanup before accepting this rehearsal."
+			} else {
+				fault = "Workspace Sandbox profile did not prove synthetic-only operation routes."
+			}
+		}
+		evidenceJSON, _ := json.Marshal(lifecycle)
+		execution.Trace = append(execution.Trace, TraceEvent{Sequence: uint32(len(execution.Trace) + 1), Operation: "sandbox task lifecycle receipt", RequestSummary: "sandbox=" + lifecycle.SandboxID + " profile=" + lifecycle.ProfileSHA256, ResponseSummary: string(evidenceJSON), Status: lifecycle.TeardownStatus, OccurredAt: lifecycle.CleanupConfirmedAt})
+	}
 	record := Rehearsal{ID: uuid.NewString(), Title: title, SourceFormat: "n8n-workflow-json/v1", SourceSHA256: sourceHash, CredentialReplacements: replacements, SimulatorProfile: profile, SimulatorSourceSHA256: simulatorHash, State: state, Trace: execution.Trace, FaultSummary: fault, RepairSummary: repair, CreatedAt: now}
 	record.HandoffMarkdown = handoff(record)
 	created, err := s.repo.Create(ctx, record)
@@ -144,6 +286,29 @@ func (s *service) CreateAndRun(ctx context.Context, in CreateInput) (Rehearsal, 
 		return Rehearsal{}, err
 	}
 	return created, nil
+}
+
+func nativeWorkflowRequiresCompanionRoute(workflow Workflow) bool {
+	for _, node := range workflow.Nodes {
+		if node.Type == "n8n-nodes-base.httpRequest" && node.Request != nil {
+			return true
+		}
+	}
+	return false
+}
+
+func nativeWorkflowHasCompanionRouteHit(workflow Workflow, hits HTTPMockRouteHitsReceipt) bool {
+	for _, node := range workflow.Nodes {
+		if node.Type != "n8n-nodes-base.httpRequest" || node.Request == nil {
+			continue
+		}
+		for _, hit := range hits.Routes {
+			if hit.Count > 0 && strings.EqualFold(hit.Host, node.Request.Host) && strings.EqualFold(hit.Method, node.Request.Method) && hit.Path == node.Request.URL {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func hasOutputAssertion(trace []TraceEvent) bool {
@@ -218,6 +383,15 @@ func contains(values []string, expected string) bool {
 	return false
 }
 
+func containsTrigger(values []TriggerKind, expected TriggerKind) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *service) List(ctx context.Context, limit int) ([]Rehearsal, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
@@ -249,10 +423,33 @@ func handoff(r Rehearsal) string {
 		"- Credentials replaced: " + itoa(r.CredentialReplacements) + "\n" +
 		"- Simulator profile: `" + r.SimulatorProfile + "`\n" +
 		"- Simulator source fingerprint: `" + r.SimulatorSourceSHA256 + "`\n" +
+		handoffSandboxEvidence(r.Trace) +
 		"- Run state: `" + string(r.State) + "`\n" +
 		"- Fault: " + r.FaultSummary + "\n" +
 		"- Repair: " + r.RepairSummary + "\n\n" +
 		"Human review is required; this rehearsal is synthetic evidence and does not contact a client service."
+}
+
+func handoffSandboxEvidence(trace []TraceEvent) string {
+	evidence := lifecycleEvidenceFromTrace(trace)
+	if evidence.SandboxID == "" {
+		return ""
+	}
+	handoff := "- Workspace Sandbox task: `" + evidence.SandboxID + "` (owner `" + evidence.Owner + "`, scope SHA-256 `" + evidence.ScopeSHA256 + "`)\n" +
+		"- Synthetic companion profile SHA-256: `" + evidence.ProfileSHA256 + "` (" + itoa(uint32(evidence.OperationCount)) + " operations; synthetic targets: `" + fmt.Sprint(evidence.SyntheticTargets) + "`)\n" +
+		"- Sandbox isolation evidence: " + evidence.IsolationClaim + "\n" +
+		"- Sandbox teardown: `" + evidence.TeardownStatus + "` at `" + evidence.CleanupConfirmedAt.UTC().Format(time.RFC3339) + "` " + evidence.TeardownError + "\n"
+	if evidence.N8NExecution != nil {
+		handoff += "- Native n8n runtime: `" + evidence.N8NRuntimeStatus + "`; execution `" + evidence.N8NExecution.Status + "` (" + itoa(uint32(evidence.N8NExecution.NodeCount)) + " nodes, " + itoa(uint32(evidence.N8NExecution.RunCount)) + " run(s), " + itoa(uint32(evidence.N8NExecution.ItemCount)) + " item(s))\n"
+	}
+	if evidence.RouteHitsStatus != "" {
+		hits, routes := uint64(0), 0
+		if evidence.RouteHits != nil {
+			hits, routes = evidence.RouteHits.TotalHits, len(evidence.RouteHits.Routes)
+		}
+		handoff += "- Companion route-hit receipt: `" + evidence.RouteHitsStatus + "` (" + fmt.Sprint(hits) + " hit(s) across " + itoa(uint32(routes)) + " route(s)) " + evidence.RouteHitsError + "\n"
+	}
+	return handoff
 }
 
 func itoa(n uint32) string {

@@ -112,6 +112,8 @@
     "workflowFile": "n8n ワークフローのエクスポート (.json)",
     "triggerLabel": "リハーサルするトリガー",
     "titleLabel": "リハーサル名",
+    "taskScopeLabel": "Workspace Sandbox のタスクスコープを使用",
+    "taskScopeHint": "タスク ID とワークスペースパスはサーバーが作成します。ローカル Workspace Sandbox API を CLIENT_REHEARSAL_WORKSPACE_SANDBOX_URL に設定してください。",
     "simulatorAdvanced": "OpenAPI または記録済み交換プロファイルを使用",
     "simulatorSource": "シミュレーターソース JSON",
     "simulatorDefault": "空欄の場合は組み込みの合成 CRM / Sheets カタログを使用します。",

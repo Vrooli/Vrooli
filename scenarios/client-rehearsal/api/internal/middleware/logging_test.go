@@ -1,13 +1,13 @@
 package middleware_test
 
 import (
-	"bytes"
-	"log"
+	"client-rehearsal/internal/middleware"
+	"client-rehearsal/internal/testutil/mocks"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
-	"client-rehearsal/internal/middleware"
 
 	"github.com/vrooli/api-core/scheduletest"
 
@@ -24,8 +24,7 @@ import (
 // fast hardware.
 func TestLoggingMiddleware_LogsDuration(t *testing.T) {
 	clk := scheduletest.New(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
-	buf := &bytes.Buffer{}
-	logger := log.New(buf, "", 0)
+	logger := &mocks.FakeLogger{}
 
 	mw := middleware.NewLoggingMiddleware(clk, logger)
 	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -38,24 +37,13 @@ func TestLoggingMiddleware_LogsDuration(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 
 	require.Equal(t, http.StatusOK, rec.Code)
-	require.Contains(t, buf.String(), "[GET]", "method should appear in log line")
-	require.Contains(t, buf.String(), "/probe", "URI should appear in log line")
-	require.Contains(t, buf.String(), "150ms", "deterministic duration must appear (150 * time.Millisecond)")
+	require.Len(t, logger.Lines, 1)
+	require.True(t, strings.Contains(logger.Lines[0], "[GET]"), "method should appear in log line")
+	require.True(t, strings.Contains(logger.Lines[0], "/probe"), "URI should appear in log line")
+	require.True(t, strings.Contains(logger.Lines[0], "150ms"), "deterministic duration must appear (150 * time.Millisecond)")
 }
 
-// TestLoggingMiddleware_NilLoggerDefaults verifies the nil-logger
-// fallback documented on NewLoggingMiddleware. Production callers
-// always pass a logger; this guard exists for the case where a
-// scenario forgets to wire it during early bring-up.
-func TestLoggingMiddleware_NilLoggerDefaults(t *testing.T) {
+func TestLoggingMiddlewareRequiresLogger(t *testing.T) {
 	clk := scheduletest.New(time.Time{})
-	mw := middleware.NewLoggingMiddleware(clk, nil)
-	handler := mw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/probe", nil)
-	require.NotPanics(t, func() { handler.ServeHTTP(rec, req) })
-	require.Equal(t, http.StatusOK, rec.Code)
+	require.Panics(t, func() { middleware.NewLoggingMiddleware(clk, nil) })
 }

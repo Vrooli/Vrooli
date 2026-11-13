@@ -1,0 +1,268 @@
+{
+  "id": "public-template-17164",
+  "name": "Sanitized public template 17164",
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "nodes": [
+    {
+      "name": "Schedule Daily Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        48,
+        48
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "typeVersion": 1.3,
+      "id": "synthetic-node-1"
+    },
+    {
+      "name": "Read Blog Feed",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "position": [
+        304,
+        48
+      ],
+      "parameters": {
+        "url": "<__PLACEHOLDER_VALUE__Your blog RSS feed URL (e.g. https://blog.example.com.synthetic.invalid/rss)__>",
+        "options": {}
+      },
+      "typeVersion": 1.2,
+      "id": "synthetic-node-2"
+    },
+    {
+      "name": "Keep Latest 3 Posts",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        544,
+        48
+      ],
+      "parameters": {
+        "jsCode": "return $input.all().slice(0, 3);"
+      },
+      "typeVersion": 2,
+      "id": "synthetic-node-3"
+    },
+    {
+      "name": "Set Brand Voice",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        848,
+        48
+      ],
+      "parameters": {
+        "options": {},
+        "assignments": {
+          "assignments": [
+            {
+              "name": "brandVoice",
+              "type": "string",
+              "value": "Helpful, upbeat and practical. No hype."
+            },
+            {
+              "name": "hashtags",
+              "type": "string",
+              "value": "#automation #nocode"
+            }
+          ]
+        },
+        "includeOtherFields": true
+      },
+      "typeVersion": 3.4,
+      "id": "synthetic-node-4"
+    },
+    {
+      "name": "Build Content Prompt",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1072,
+        48
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const cfg = $('Set Brand Voice').item.json;\nconst p = $json;\nconst title = p.title || '';\nconst link = p.link || p.guid || '';\nconst content = p.contentSnippet || p.content || '';\nconst prompt = [\n  'You are a social media manager. Repurpose the blog post into social posts and respond ONLY with minified JSON:',\n  '{\"twitter\": string, \"linkedin\": string}',\n  'Brand voice: ' + (cfg.brandVoice || ''),\n  'Keep the tweet under 280 characters. Add these hashtags where natural: ' + (cfg.hashtags || ''),\n  '',\n  'Title: ' + title,\n  'URL: ' + link,\n  'Excerpt:',\n  content\n].join('\\n');\nreturn { prompt, title, link };"
+      },
+      "typeVersion": 2,
+      "id": "synthetic-node-5"
+    },
+    {
+      "name": "Generate Social Posts with Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1280,
+        48
+      ],
+      "parameters": {
+        "url": "https://generativelanguage-googleapis-co.synthetic.invalid/v1beta/models/gemini-2.0-flash:generateContent",
+        "method": "POST",
+        "options": {},
+        "jsonBody": "={{ { \"contents\": [ { \"parts\": [ { \"text\": $json.prompt } ] } ], \"generationConfig\": { \"temperature\": 0.7, \"responseMimeType\": \"application/json\" } } }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "synthetic-nodecredentialtype-17164"
+      },
+      "typeVersion": 4.4,
+      "id": "synthetic-node-6"
+    },
+    {
+      "name": "Parse Social Posts",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1504,
+        48
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const meta = $('Build Content Prompt').item.json;\nlet text = '';\ntry { text = $json.candidates[0].content.parts[0].text; } catch (e) { text = ''; }\nlet d = {};\ntry { d = JSON.parse(text); } catch (e) { d = { twitter: (text || '').slice(0, 280), linkedin: text || '' }; }\nreturn { title: meta.title, link: meta.link, twitter: d.twitter || '', linkedin: d.linkedin || '' };"
+      },
+      "typeVersion": 2,
+      "id": "synthetic-node-7"
+    },
+    {
+      "name": "Save Drafts to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1792,
+        48
+      ],
+      "parameters": {
+        "operation": "append",
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Social Drafts"
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "Select your spreadsheet"
+        }
+      },
+      "typeVersion": 4.7,
+      "id": "synthetic-node-8"
+    },
+    {
+      "name": "Share Drafts for Review",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        2016,
+        48
+      ],
+      "parameters": {
+        "text": "=*:pencil: New social drafts ready for review*\n*Post:* {{ $(\"Parse Social Posts\").item.json.title }}\n*Source:* {{ $(\"Parse Social Posts\").item.json.link }}\n\n*Twitter/X:*\n{{ $(\"Parse Social Posts\").item.json.twitter }}\n\n*LinkedIn:*\n{{ $(\"Parse Social Posts\").item.json.linkedin }}",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "#social-content"
+        },
+        "otherOptions": {},
+        "authentication": "oAuth2"
+      },
+      "typeVersion": 2.5,
+      "id": "synthetic-node-9"
+    }
+  ],
+  "connections": {
+    "Read Blog Feed": {
+      "main": [
+        [
+          {
+            "node": "Keep Latest 3 Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Brand Voice": {
+      "main": [
+        [
+          {
+            "node": "Build Content Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Social Posts": {
+      "main": [
+        [
+          {
+            "node": "Save Drafts to Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep Latest 3 Posts": {
+      "main": [
+        [
+          {
+            "node": "Set Brand Voice",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Content Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Social Posts with Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Drafts to Sheet": {
+      "main": [
+        [
+          {
+            "node": "Share Drafts for Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Daily Check": {
+      "main": [
+        [
+          {
+            "node": "Read Blog Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Social Posts with Gemini": {
+      "main": [
+        [
+          {
+            "node": "Parse Social Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

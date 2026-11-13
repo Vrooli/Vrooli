@@ -43,7 +43,7 @@
                     "application/json": {
                       "example": {
                         "Code": "SYNTHETIC-20",
-                        "Expiry": "2026-11-14T00:00:00Z",
+                        "Expiry": "2026-11-16T00:00:00Z",
                         "Discount": 20,
                         "Usage Limit": 50
                       }

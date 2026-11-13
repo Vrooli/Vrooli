@@ -25,8 +25,13 @@ func TestPublic16667NormalizesInstanceRestartAsAnEventTrigger(t *testing.T) {
 	if entry.Type != "n8n-nodes-base.n8nTrigger" || entry.Trigger != TriggerEvent {
 		t.Fatalf("instance-start node normalized as %#v, want event trigger", entry)
 	}
-	if !hasServiceOperation(workflow, "n8n-nodes-base.discord:webhook.sendLegacy") || !hasServiceOperation(workflow, "n8n-nodes-base.n8n:execution.getAll") || !hasServiceOperation(workflow, "n8n-nodes-base.telegram:message.sendMessage") || !hasServiceOperation(workflow, "n8n-nodes-base.slack:message.post") {
+	if hasServiceOperation(workflow, "n8n-nodes-base.discord:webhook.sendLegacy") || !hasServiceOperation(workflow, "n8n-nodes-base.n8n:execution.getAll") || hasServiceOperation(workflow, "n8n-nodes-base.telegram:message.sendMessage") || !hasServiceOperation(workflow, "n8n-nodes-base.slack:message.post") {
 		t.Fatalf("public workflow native operations did not resolve through bounded source defaults: %#v", workflow.Nodes)
+	}
+	for _, node := range workflow.Nodes {
+		if node.Name == "Send Telegram Message" || node.Name == "Ping Discord Channel" {
+			t.Fatalf("disabled notification node %q must be omitted from the executable graph", node.Name)
+		}
 	}
 }
 
@@ -51,7 +56,7 @@ func hasServiceOperation(workflow Workflow, operation string) bool {
 	return false
 }
 
-func TestPublic16667InstanceEventRunsGenericExecutionSummaryAndThreeSyntheticAlerts(t *testing.T) {
+func TestPublic16667InstanceEventRunsGenericExecutionSummaryAndEnabledSyntheticAlerts(t *testing.T) {
 	workflow, _, _, err := normalizeWorkflow(readFixture(t, "public-workflows/16667.json"))
 	if err != nil {
 		t.Fatalf("normalize sanitized public instance-event workflow: %v", err)
@@ -66,12 +71,12 @@ func TestPublic16667InstanceEventRunsGenericExecutionSummaryAndThreeSyntheticAle
 		t.Fatalf("execute public instance-event workflow through generated synthetic services: %v; trace=%#v", err, run.Trace)
 	}
 	trace := strings.Join(traceSummaries(run.Trace), "\n")
-	for _, nodeName := range []string{"Fetch Execution Logs", "Filter Recent Executions", "Summarize Execution Data", "Sort Execution Summary", "Merge Execution Data", "Process Data in JavaScript", "Ping Discord Channel", "Send Telegram Message", "Post to Slack Channel"} {
+	for _, nodeName := range []string{"Fetch Execution Logs", "Filter Recent Executions", "Summarize Execution Data", "Sort Execution Summary", "Merge Execution Data", "Process Data in JavaScript", "Post to Slack Channel"} {
 		if !strings.Contains(trace, nodeName) {
 			t.Errorf("public event execution omitted node %q; trace:\n%s", nodeName, trace)
 		}
 	}
-	for _, operation := range []string{"n8n-nodes-base.n8n:execution.getAll", "n8n-nodes-base.discord:webhook.sendLegacy", "n8n-nodes-base.telegram:message.sendMessage", "n8n-nodes-base.slack:message.post"} {
+	for _, operation := range []string{"n8n-nodes-base.n8n:execution.getAll", "n8n-nodes-base.slack:message.post"} {
 		if !traceHasSuccessfulOperation(run.Trace, operation) {
 			t.Errorf("expected synthetic operation %q to succeed; trace=%#v", operation, run.Trace)
 		}

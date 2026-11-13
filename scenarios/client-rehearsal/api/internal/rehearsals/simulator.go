@@ -805,12 +805,16 @@ func syntheticize(value any, key string) any {
 	case string:
 		lower := strings.ToLower(key)
 		switch {
+		case oneOfFold(lower, "body", "data", "html") && looksLikeHTMLDocument(typed):
+			// Preserve the response shape needed by generic HTML extraction without
+			// retaining page text, metadata, links, or identifiers from the source.
+			return syntheticHTMLDocument
 		case safeSyntheticURL(typed):
 			// Synthetic URL values carry deterministic routing semantics (for
 			// example RSS feed links) and are safe only on explicitly synthetic
 			// domains. Real hosts are still replaced below.
 			return typed
-		case strings.Contains(lower, "date") && isSyntheticSafeISODate(typed) || (lower == "startedat" || lower == "timestamp") && isSyntheticSafeISODateTime(typed):
+		case strings.Contains(lower, "date") && isSyntheticSafeISODate(typed) || (lower == "startedat" || lower == "timestamp" || lower == "expiry" || lower == "expiresat") && isSyntheticSafeISODateTime(typed):
 			// Synthetic date/time values are behaviorally meaningful for time-window
 			// filters. Other unrecognized profile strings remain syntheticized.
 			return typed
@@ -846,6 +850,16 @@ func syntheticize(value any, key string) any {
 	default:
 		return typed
 	}
+}
+
+const syntheticHTMLDocument = `<!doctype html><html><head><title>Synthetic page</title></head><body><h1>Synthetic heading</h1><p>Synthetic body</p></body></html>`
+
+func looksLikeHTMLDocument(value string) bool {
+	if len(value) == 0 || len(value) > maxSimulatorSourceBytes || strings.ContainsRune(value, '\x00') {
+		return false
+	}
+	lower := strings.ToLower(value)
+	return strings.Contains(lower, "<html") || strings.Contains(lower, "<title") || strings.Contains(lower, "<!doctype html")
 }
 
 func safeSyntheticURL(raw string) bool {

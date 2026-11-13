@@ -1,27 +1,26 @@
 package mocks
 
 import (
+	"client-rehearsal/internal/notes"
 	"context"
 	"errors"
 	"sync"
 	"testing"
 	"time"
-	"client-rehearsal/internal/notes"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestFakeAttachmentsRepository_CreateBackfillsUploadedAt(t *testing.T) {
-	var f FakeAttachmentsRepository
+func TestFakeAttachmentsRepository_CreateBackfillsUploadedAtFromInjectedClock(t *testing.T) {
+	want := time.Date(2026, 5, 1, 12, 0, 0, 0, time.FixedZone("offset", 2*60*60))
+	f := FakeAttachmentsRepository{Now: func() time.Time { return want }}
 	got, err := f.CreateAttachment(context.Background(), notes.Attachment{
 		Key:    "notes/a/file.txt",
 		NoteID: "a",
 	})
 	require.NoError(t, err)
-	require.False(t, got.UploadedAt.IsZero(),
-		"CreateAttachment must backfill UploadedAt when caller leaves it zero, mirroring the sqlite repository")
-	require.Equal(t, time.UTC, got.UploadedAt.Location(),
-		"backfilled timestamp must be UTC for wire parity with the sqlite repository")
+	require.Equal(t, want.UTC(), got.UploadedAt,
+		"backfilled timestamp must come from the injected clock and normalize to UTC")
 	require.Equal(t, int64(1), f.CreateCalls.Load())
 	require.Len(t, f.Attachments, 1)
 }

@@ -39,7 +39,7 @@
         "workflowId": {
           "__rl": true,
           "mode": "list",
-          "value": "61Flju0VYVpEMHzD",
+          "value": "synthetic-notifier-child",
           "cachedResultName": "Error_Notifier-v1-no_db"
         },
         "workflowInputs": {
@@ -76,7 +76,7 @@
         700
       ],
       "parameters": {
-        "sendTo": "@gmail.com",
+        "sendTo": "alerts@synthetic.invalid",
         "message": "={{ $json.message }}",
         "options": {},
         "subject": "Error Workflow"
@@ -96,7 +96,7 @@
         "textBody": "={{ $json.message }}",
         "operation": "send",
         "additionalFields": {},
-        "recipientPhoneNumber": "+1234567890"
+        "recipientPhoneNumber": "synthetic-recipient"
       },
       "typeVersion": 1
     },
@@ -110,7 +110,7 @@
       ],
       "parameters": {
         "text": "={{ $json.message }}",
-        "chatId": "=YOUR_CHAT_ID",
+        "chatId": "synthetic-chat",
         "additionalFields": {
           "parse_mode": "HTML"
         }

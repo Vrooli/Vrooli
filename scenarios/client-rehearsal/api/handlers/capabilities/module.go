@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 
 	internal "client-rehearsal/internal/capabilities"
+	"client-rehearsal/internal/logx"
 	"client-rehearsal/internal/module"
 	"connectrpc.com/connect"
 	"github.com/gorilla/mux"
@@ -18,12 +18,12 @@ import (
 
 type ConnectHandler struct {
 	registry *internal.Registry
-	logger   *log.Logger
+	logger   logx.Logger
 }
 
-func NewConnectHandler(registry *internal.Registry, logger *log.Logger) *ConnectHandler {
+func NewConnectHandler(registry *internal.Registry, logger logx.Logger) *ConnectHandler {
 	if logger == nil {
-		logger = log.Default()
+		panic("NewConnectHandler requires Logger")
 	}
 	return &ConnectHandler{registry: registry, logger: logger}
 }
@@ -48,7 +48,7 @@ func (h *ConnectHandler) DescribeCapabilities(ctx context.Context, _ *connect.Re
 	return connect.NewResponse(&sharedv1.DescribeCapabilitiesResponse{Description: description}), nil
 }
 
-func Module(registry *internal.Registry) module.Module {
-	path, handler := sharedconnect.NewCapabilitiesServiceHandler(NewConnectHandler(registry, log.Default()))
+func Module(registry *internal.Registry, logger logx.Logger) module.Module {
+	path, handler := sharedconnect.NewCapabilitiesServiceHandler(NewConnectHandler(registry, logger))
 	return module.Module{Name: "capabilities", Mount: func(r *mux.Router) { connectx.RegisterServices(r, connectx.ServiceMount{Path: path, Handler: handler}) }, Endpoints: Endpoints}
 }
