@@ -59,5 +59,18 @@ export async function uploadFile(path: string, formData: FormData): Promise<Resp
   });
 }
 
+/** Resolve a sibling scenario's phone-safe URL through the API's discovery owner. */
+export async function fetchScenarioExternalUrl(scenario: string): Promise<string> {
+  const query = new URLSearchParams({ scenario });
+  const response = await fetch(buildApiUrl(`/external-url?${query.toString()}`, { baseUrl: REST_API_BASE }), {
+    method: "GET",
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`scenario URL lookup failed (${response.status})`);
+  const body = (await response.json()) as { url?: unknown };
+  return typeof body.url === "string" ? body.url : "";
+}
+
 export { fromJson, PROTO_READ_OPTIONS };
 export type { ErrorEnvelope, JsonValue };

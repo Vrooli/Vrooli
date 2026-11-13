@@ -39,10 +39,11 @@ locally against `scenario-authenticator`'s published JWKS through
 `api-core/owneridentity`, with no per-request callback. A recipient row is
 a projection of a verified external identity.
 
-Authenticated mutations fail closed. When the authenticator is unreachable,
-the API rejects mutations it cannot attribute to a verified identity.
-Already-accepted notifications continue to drain, because their recipient
-was resolved at acceptance time. Ordinary ask, notification, delivery, routing,
+Owner-only mutations fail closed. Notification and decision-request creation
+is intentionally identityless and always stores to the configured recipient;
+the per-source push bucket throttles device side effects only. Already-accepted
+notifications continue to drain, because their recipient was resolved at
+acceptance time. Ordinary ask, notification, delivery, routing,
 recipient/device metadata, and preference reads do not require an interactive
 login. Recipient data uses the Hub's configured recipient, and catalog reads
 return only source/category metadata. Recipient lookup does not create a row;
@@ -51,14 +52,13 @@ answering it. Ask answers, subscription/credential operations, and the
 recipient/device/preferences writes covered here retain their existing checks.
 Other endpoints are unchanged by this read rule.
 
-**Agents notify without a grant; volume is bounded per producer.** Send, relay
-and decision asks admit any server-verified agent run or the verified owner
-(`identity.ProducerFor`). A presented agent token that does not verify is refused
-and never falls back to another credential. Agent ingress always targets the
-configured recipient. The per-producer cooldown (`VROOLI_NOTIFICATION_PRODUCER_*`,
-see `path:docs/reference/configuration.md`) refuses a flooding producer with a
-retry time instead of storing its requests. Producer admission never grants owner
-identity: answers, dismissals, preferences and subscriptions require the owner.
+**Request creation is separate from owner identity.** Send, relay and decision
+asks do not require a verified identity, scope, grant or consent. A verified run
+or owner selects its own bucket; callers with no identity share the anonymous
+bucket. Invalid credentials still fail verification. The leaky bucket suppresses
+device pushes after its capacity is spent; every request is still stored and
+other channels continue. This does not grant owner identity: answers, dismissals,
+preferences and subscriptions require the owner.
 
 **Trust posture selects the recipient model.** `trust_posture` in
 `~/.vrooli/state/vrooli/vrooli-onboarding/operator-state.json` is `personal`, `shared`, or `hosted`.

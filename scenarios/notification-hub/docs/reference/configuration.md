@@ -35,29 +35,25 @@ ports as outbound source ports. See the project-level port allocation reference
 | `VROOLI_AUTH_COOKIE_SECURE` | `true` behind HTTPS (`X-Forwarded-Proto: https`) | Forces the `Secure` flag on the owner session cookies on or off. Leave unset. |
 | `VROOLI_NOTIFICATION_ASK_DEFAULT_FLOOR` | `12h` | Minimum time between an ask's first delivered receipt and applying its default (Go duration). Lower it only for fixtures such as the delivery canary. |
 
-Direct `notifications send`, `relay` and `conversations ask` accept two callers:
+Direct `notifications send`, `relay` and `conversations ask` need no identity,
+scope, grant or consent. Identityless host callers use the configured recipient
+and share the `anonymous` source bucket. When present, verified run or owner
+identity selects a separate source bucket; an invalid supplied credential is
+still rejected. A dedicated Treasury identity is not required.
 
-- Any verified agent run or session (the CLI sends `VROOLI_AGENT_IDENTITY_TOKEN`).
-  No scope, grant or consent is needed.
-- The verified owner: a Cloudflare Access login, or a scenario-authenticator token
-  set with `notification-hub configure token` or `NOTIFICATION_HUB_API_TOKEN`.
+Answers, dismissals, preferences, subscriptions and other recipient mutations
+stay owner-only; creating a notification or ask does not grant those rights.
 
-A caller with no credential, or with an agent token that does not verify, is refused
-with `unauthenticated`. Agent sends always go to the configured recipient. Answers,
-dismissals, preferences and subscriptions stay owner-only: an agent cannot answer
-or dismiss an ask, including its own.
-
-Each producer (one agent run, or the owner) has a cooldown:
+All direct sends, relays and asks share one in-memory leaky bucket per source:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `VROOLI_NOTIFICATION_PRODUCER_SEND_LIMIT` | `6/10m` | Most direct sends and relays per producer in a sliding window (`<count>/<Go duration>`, or `off`). |
-| `VROOLI_NOTIFICATION_PRODUCER_ASK_LIMIT` | `3/10m` | Most decision asks per producer in a sliding window. |
+| `VROOLI_NOTIFICATION_PUSH_BUCKET_CAPACITY` | `6` | Initial burst of device pushes allowed per source; `0` disables the limit. |
+| `VROOLI_NOTIFICATION_PUSH_BUCKET_REFILL_INTERVAL` | `1m` | Time to refill one push token. |
 
-A request over the limit is refused with `resource_exhausted`, a `Retry-After`
-header in seconds, and a message that names the retry time. Nothing is stored, so
-a refused ask is never dropped without the producer knowing. A replay of an
-existing idempotency key uses no budget. The window is in memory and restarts
+An empty bucket never rejects or delays the request: notifications and asks are
+stored as usual, while device push targets are suppressed until a token refills.
+Other configured channels continue to work. The bucket is in memory and resets
 with the API. Signed `*.notification.v1` and `*.decision_requested.v1` events use
 their own dedupe rules and are not counted.
 

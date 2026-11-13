@@ -1196,22 +1196,19 @@ func TestE21ReachEmptyFixtureTakesPrecedenceOverSettingsSeed(t *testing.T) {
 	}
 }
 
-func TestConfigureProducerCooldownReadsLimitsAndKeepsDefaultsOnInvalidValues(t *testing.T) {
-	service := cooldownSettings{hub.ProducerNotification: hub.DefaultNotificationCooldown, hub.ProducerAsk: hub.DefaultAskCooldown}
-	configureProducerCooldown(service, func(key string) string {
+func TestConfigurePushBudgetReadsCapacityAndRefillRate(t *testing.T) {
+	service := pushBudgetSettings{hub.DefaultPushBudget}
+	configurePushBudget(service, func(key string) string {
 		return map[string]string{
-			"VROOLI_NOTIFICATION_PRODUCER_SEND_LIMIT": "10/1h",
-			"VROOLI_NOTIFICATION_PRODUCER_ASK_LIMIT":  "often",
+			"VROOLI_NOTIFICATION_PUSH_BUCKET_CAPACITY":        "10",
+			"VROOLI_NOTIFICATION_PUSH_BUCKET_REFILL_INTERVAL": "17s",
 		}[key]
 	})
-	require.Equal(t, hub.CooldownLimit{Count: 10, Window: time.Hour}, service.ProducerCooldown(hub.ProducerNotification))
-	require.Equal(t, hub.DefaultAskCooldown, service.ProducerCooldown(hub.ProducerAsk))
+	require.Equal(t, hub.PushBudgetConfig{Capacity: 10, RefillInterval: 17 * time.Second}, service[0])
 }
 
-type cooldownSettings map[hub.ProducerKind]hub.CooldownLimit
+type pushBudgetSettings []hub.PushBudgetConfig
 
-func (c cooldownSettings) SetProducerCooldown(kind hub.ProducerKind, limit hub.CooldownLimit) {
-	c[kind] = limit
-}
+func (c pushBudgetSettings) SetPushBudget(config hub.PushBudgetConfig) { c[0] = config }
 
-func (c cooldownSettings) ProducerCooldown(kind hub.ProducerKind) hub.CooldownLimit { return c[kind] }
+func (c pushBudgetSettings) PushBudget() hub.PushBudgetConfig { return c[0] }

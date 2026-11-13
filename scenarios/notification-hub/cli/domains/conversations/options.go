@@ -62,3 +62,23 @@ func waitContext(deadline string) (context.Context, context.CancelFunc) {
 	}
 	return context.WithDeadline(context.Background(), at.Add(waitGrace))
 }
+
+// parseReassertWithin turns --reassert-within (a duration) into the whole
+// seconds the API takes. It needs --subject-key; the hub enforces the bounds.
+func parseReassertWithin(value, subjectKey string) (int32, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, nil
+	}
+	if strings.TrimSpace(subjectKey) == "" {
+		return 0, fmt.Errorf("--reassert-within needs --subject-key")
+	}
+	duration, err := time.ParseDuration(value)
+	if err != nil || duration <= 0 || duration%time.Second != 0 {
+		return 0, fmt.Errorf("--reassert-within %q must be a positive whole-second duration such as 15m", value)
+	}
+	if duration > 30*24*time.Hour {
+		return 0, fmt.Errorf("--reassert-within %q is longer than 30 days", value)
+	}
+	return int32(duration / time.Second), nil
+}

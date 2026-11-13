@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vrooli/api-core/operatordecision"
+
 	"notification-hub/internal/hub"
 )
 
@@ -13,9 +15,11 @@ import (
 // scenario raises through Vrooli Events, for example
 // agent_manager.effort.decision_requested.v1.
 const (
-	DecisionRequestPattern       = "**.decision_requested.v1"
-	DecisionWithdrawalPattern    = "agent_manager.run.decision_withdrawn.v1"
-	DecisionWithdrawalEventType  = DecisionWithdrawalPattern
+	DecisionRequestPattern = "**.decision_requested.v1"
+	// DecisionWithdrawalPattern routes every producer's withdrawal of its own
+	// decision (operatordecision.DecisionWithdrawnSuffix) to the hub.
+	DecisionWithdrawalPattern    = "**.decision_withdrawn.v1"
+	DecisionWithdrawalEventType  = "agent_manager.run.decision_withdrawn.v1"
 	RunApprovalDecisionEventType = "agent_manager.run.decision_requested.v1"
 	// InvestigationWithdrawalEventType closes an investigation approval Ask
 	// once the operator decided it in Agent Manager.
@@ -69,6 +73,54 @@ func ParseDecisionWithdrawal(eventType string, raw json.RawMessage) (DecisionWit
 	return withdrawal, nil
 }
 
+// IsGenericDecisionWithdrawal reports whether an event type closes a producer's
+// own decision by the generic contract: any `*.decision_withdrawn.v1` that is
+// not one of Agent Manager's typed run/investigation withdrawals.
+func IsGenericDecisionWithdrawal(eventType string) bool {
+	eventType = strings.TrimSpace(eventType)
+	return strings.HasSuffix(eventType, operatordecision.DecisionWithdrawnSuffix) && !IsDecisionWithdrawal(eventType)
+}
+
+// genericWithdrawalFacts is the producer contract for a
+// `*.decision_withdrawn.v1` event.
+type genericWithdrawalFacts struct {
+	SubjectKey      string `json:"subject_key"`
+	RequesterRef    string `json:"requester_ref"`
+	SourceEventType string `json:"source_event_type"`
+	Reason          string `json:"reason"`
+	AssertedAt      string `json:"asserted_at"`
+}
+
+// ParseGenericDecisionWithdrawal turns a `*.decision_withdrawn.v1` event into a
+// hub withdrawal. The request type defaults to the withdrawal type with its
+// suffix swapped. Any source may close its own decisions; the source of the
+// event is the owner the hub matches against.
+func ParseGenericDecisionWithdrawal(sourceScenario, eventType string, raw json.RawMessage) (hub.SubjectWithdrawal, error) {
+	var facts genericWithdrawalFacts
+	if err := json.Unmarshal(raw, &facts); err != nil {
+		return hub.SubjectWithdrawal{}, fmt.Errorf("%w: decision withdrawal payload is not valid JSON", hub.ErrInvalidArgument)
+	}
+	requestType := strings.TrimSpace(facts.SourceEventType)
+	if requestType == "" {
+		requestType = operatordecision.RequestEventTypeFor(eventType)
+	}
+	withdrawal := hub.SubjectWithdrawal{
+		Source:          strings.TrimSpace(sourceScenario),
+		SourceEventType: requestType,
+		SubjectKey:      strings.TrimSpace(facts.SubjectKey),
+		RequesterRef:    strings.TrimSpace(facts.RequesterRef),
+		Reason:          strings.TrimSpace(facts.Reason),
+	}
+	if value := strings.TrimSpace(facts.AssertedAt); value != "" {
+		asserted, err := time.Parse(time.RFC3339Nano, value)
+		if err != nil {
+			return hub.SubjectWithdrawal{}, fmt.Errorf("%w: asserted_at must be RFC 3339", hub.ErrInvalidArgument)
+		}
+		withdrawal.AssertedAt = asserted
+	}
+	return withdrawal, nil
+}
+
 // IsDecisionRequest reports whether an event type asks the operator for a
 // structured decision.
 func IsDecisionRequest(eventType string) bool {
@@ -92,6 +144,11 @@ type decisionFacts struct {
 	TechnicalDetails     string            `json:"technical_details"`
 	Note                 string            `json:"note"`
 	Correlation          map[string]string `json:"correlation"`
+	// SubjectKey, ReassertWithinSeconds and AssertedAt are the decision-subject
+	// fields (see operatordecision.Facts); all are optional.
+	SubjectKey            string `json:"subject_key"`
+	ReassertWithinSeconds int64  `json:"reassert_within_seconds"`
+	AssertedAt            string `json:"asserted_at"`
 }
 
 // DecisionAskSpec turns a decision-request event into an ask. The event id is
@@ -138,6 +195,17 @@ func DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID s
 		}
 		deadline = parsed
 	}
+	if facts.ReassertWithinSeconds < 0 || facts.ReassertWithinSeconds > 1<<31 {
+		return hub.AskSpec{}, fmt.Errorf("%w: reassert_within_seconds is out of range", hub.ErrInvalidArgument)
+	}
+	var assertedAt time.Time
+	if value := strings.TrimSpace(facts.AssertedAt); value != "" {
+		parsed, err := time.Parse(time.RFC3339Nano, value)
+		if err != nil {
+			return hub.AskSpec{}, fmt.Errorf("%w: asserted_at must be RFC 3339", hub.ErrInvalidArgument)
+		}
+		assertedAt = parsed
+	}
 	technicalDetails := facts.TechnicalDetails
 	if strings.TrimSpace(technicalDetails) == "" {
 		technicalDetails = facts.Note
@@ -170,5 +238,8 @@ func DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID s
 		Source:               sourceScenario,
 		SourceEventType:      eventType,
 		Correlation:          facts.Correlation,
+		SubjectKey:           strings.TrimSpace(facts.SubjectKey),
+		ReassertWithin:       time.Duration(facts.ReassertWithinSeconds) * time.Second,
+		AssertedAt:           assertedAt,
 	}, nil
 }

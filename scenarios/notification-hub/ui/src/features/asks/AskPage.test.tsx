@@ -7,6 +7,7 @@ import { expectNoA11yViolations, renderWithProviders } from "../../test-utils";
 import { setLocale } from "../../i18n";
 import { selectors } from "../../consts/selectors";
 import { conversationsClient, identityClient } from "../../api/notifications";
+import { fetchScenarioExternalUrl } from "../../api/client";
 import { orderedOptions, remainingUntil, safeContextUrl } from "./askView";
 import {
   clearAskDrafts,
@@ -26,6 +27,10 @@ vi.mock("../../api/notifications", () => ({
     ),
   },
   conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), dismiss: vi.fn(), listAsks: vi.fn() },
+}));
+vi.mock("../../api/client", async (importOriginal) => ({
+  ...await importOriginal<typeof import("../../api/client")>(),
+  fetchScenarioExternalUrl: vi.fn(() => Promise.resolve("https://web-console.example.test/")),
 }));
 
 const inThreeHours = new Date(
@@ -236,6 +241,65 @@ describe("AskPage", () => {
     expect(screen.queryByLabelText(/note/i)).not.toBeInTheDocument();
   });
 
+  it("shows why a decision was closed and links to the decision that replaced it", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: {
+        ...pendingAsk(),
+        state: "withdrawn",
+        reason: "Replaced by a newer version of this decision",
+        supersededByAskId: "ask-2",
+      },
+    } as never);
+    renderAsk();
+
+    expect(await screen.findByText("Replaced by a newer version of this decision")).toBeInTheDocument();
+    const link = screen.getByRole("link", { name: "See the decision that replaced this one" });
+    expect(link).toHaveAttribute("href", "/asks/ask-2");
+    expect(screen.queryAllByTestId(selectors.asks.option)).toHaveLength(0);
+  });
+
+  it("shows the producer's own closing reason without a link when nothing replaced it", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: { ...pendingAsk(), state: "withdrawn", reason: "Backups to the Elements drive succeeded again at 14:02." },
+    } as never);
+    renderAsk();
+
+    expect(await screen.findByText("Backups to the Elements drive succeeded again at 14:02.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /replaced this one/i })).not.toBeInTheDocument();
+  });
+
+  it("says how many times a decision was updated and keeps what it said before", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: {
+        ...pendingAsk(),
+        revisionCount: 2,
+        revisions: [
+          { revision: 2, question: "Backups have been blocked for an hour.", revisedAt: "2026-11-13T10:00:00Z" },
+          { revision: 1, question: "Backups are blocked.", revisedAt: "2026-11-13T09:00:00Z" },
+        ],
+      },
+    } as never);
+    renderAsk();
+
+    expect(await screen.findByText("Updated 2 times")).toBeInTheDocument();
+    expect(screen.getByText("Backups have been blocked for an hour.")).toBeInTheDocument();
+    expect(screen.getByText("Backups are blocked.")).toBeInTheDocument();
+  });
+
+  it("says a decision was updated once, and shows no history for one that never changed", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: { ...pendingAsk(), revisionCount: 1, revisions: [{ revision: 1, question: "Earlier.", revisedAt: "2026-11-13T09:00:00Z" }] },
+    } as never);
+    const first = renderAsk();
+    expect(await screen.findByText("Updated once")).toBeInTheDocument();
+    first.unmount();
+
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({ ask: pendingAsk() } as never);
+    renderAsk();
+    await screen.findAllByRole("radio");
+    expect(screen.queryByText(/^Updated/)).not.toBeInTheDocument();
+  });
+
   it("shows an expired decision as read-only", async () => {
     vi.mocked(conversationsClient.getAsk).mockResolvedValue({
       ask: { ...pendingAsk(), state: "expired" },
@@ -258,7 +322,7 @@ describe("AskPage", () => {
     );
   });
 
-  it("shows the purpose and technical context as separate disclosures", async () => {
+  it("shows the decision purpose immediately and keeps technical context optional", async () => {
     vi.mocked(conversationsClient.getAsk).mockResolvedValue({
       ask: {
         ...pendingAsk(),
@@ -268,9 +332,133 @@ describe("AskPage", () => {
     } as never);
     renderAsk();
 
-    expect(await screen.findByText("This keeps the quality goal useful.")).toBeInTheDocument();
-    expect(screen.getByText("Two required platform checks still fail.")).toBeInTheDocument();
+    const purpose = await screen.findByText("This keeps the quality goal useful.");
+    const technical = screen.getByText("Two required platform checks still fail.");
+    expect(purpose.closest("details")).toHaveProperty("open", true);
+    expect(technical.closest("details")).toHaveProperty("open", false);
     expect(screen.getByText("Add a note (optional)")).toBeInTheDocument();
+  });
+
+  it("renders safe phone-tappable links throughout decision prose", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: {
+        ...pendingAsk(),
+        question: "Review [the run](https://example.test/run)",
+        recommendationReason: "Details at [the report](https://example.test/report)",
+        bigPicture: "Purpose: [overview](https://example.test/overview)",
+        technicalDetails: "See [logs](https://example.test/logs) or https://example.test/raw-log",
+      },
+    } as never);
+    renderAsk();
+
+    expect(await screen.findByRole("heading", { name: "Review the run" })).toBeInTheDocument();
+    for (const [label, href] of [
+      ["the run", "https://example.test/run"],
+      ["the report", "https://example.test/report"],
+      ["overview", "https://example.test/overview"],
+      ["logs", "https://example.test/logs"],
+      ["https://example.test/raw-log", "https://example.test/raw-log"],
+    ]) {
+      const link = screen.getByRole("link", { name: label });
+      expect(link).toHaveAttribute("href", href);
+      expect(link).toHaveClass("min-h-11");
+    }
+  });
+
+  it("renders answer notes as safe Markdown and strips non-HTTP(S) link destinations", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: {
+        ...pendingAsk(),
+        state: "answered",
+        answer: "close",
+        note: "See [the record](https://example.test/record) and [unsafe](javascript:alert(1)).",
+      },
+    } as never);
+    renderAsk();
+
+    const link = await screen.findByRole("link", { name: "the record" });
+    expect(link).toHaveAttribute("href", "https://example.test/record");
+    expect(link).toHaveClass("min-h-11");
+    expect(screen.getByText("unsafe", { exact: false })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "unsafe" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /javascript:/i })).not.toBeInTheDocument();
+  });
+
+  it("opens Markdown, inline-code, and bare local file references in Web Console", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: {
+        ...pendingAsk(),
+        question: "Review [the source](scenarios/notification-hub/README.md), `scenarios/notification-hub/PRD.md`, and docs/internal/PROBLEMS.md.",
+      },
+    } as never);
+    renderAsk();
+
+    const source = await screen.findByRole("link", { name: "the source" });
+    const inline = screen.getByRole("link", { name: "scenarios/notification-hub/PRD.md" });
+    const bare = screen.getByRole("link", { name: "docs/internal/PROBLEMS.md" });
+    expect(source).toHaveAttribute("href", "https://web-console.example.test/?file=scenarios%2Fnotification-hub%2FREADME.md");
+    expect(inline).toHaveAttribute("href", "https://web-console.example.test/?file=scenarios%2Fnotification-hub%2FPRD.md");
+    expect(bare).toHaveAttribute("href", "https://web-console.example.test/?file=docs%2Finternal%2FPROBLEMS.md");
+    expect(source).toHaveAttribute("title", "Open file in Web Console");
+    expect(source).toHaveClass("min-h-11");
+  });
+
+  it("opens a local context artifact in Web Console while keeping the decision page available", async () => {
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: {
+        ...pendingAsk(),
+        contextUrl: "steward/delegations/channel-hub-decisions/RETURN.md",
+      },
+    } as never);
+    renderAsk();
+
+    const context = await screen.findByRole("link", { name: "More detail" });
+    expect(context).toHaveAttribute(
+      "href",
+      "https://web-console.example.test/?file=steward%2Fdelegations%2Fchannel-hub-decisions%2FRETURN.md",
+    );
+    expect(context).toHaveAttribute("target", "_blank");
+    expect(context).toHaveAttribute("rel", "noopener noreferrer");
+    expect(context).toHaveClass("min-h-11");
+  });
+
+  it("retries a local context link when Web Console discovery is temporarily unavailable", async () => {
+    const user = userEvent.setup();
+    vi.mocked(fetchScenarioExternalUrl)
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockRejectedValueOnce(new Error("offline"));
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: {
+        ...pendingAsk(),
+        contextUrl: "steward/delegations/channel-hub-decisions/RETURN.md",
+      },
+    } as never);
+    renderAsk();
+
+    const retry = await screen.findByTestId(selectors.asks.retryFileLinks);
+    await user.click(retry);
+
+    expect(await screen.findByRole("link", { name: "More detail" })).toHaveAttribute(
+      "href",
+      "https://web-console.example.test/?file=steward%2Fdelegations%2Fchannel-hub-decisions%2FRETURN.md",
+    );
+  });
+
+  it("keeps local paths visible but inert when Web Console cannot be resolved", async () => {
+    vi.mocked(fetchScenarioExternalUrl).mockRejectedValueOnce(new Error("offline"));
+    vi.mocked(fetchScenarioExternalUrl).mockRejectedValueOnce(new Error("offline"));
+    vi.mocked(conversationsClient.getAsk).mockResolvedValue({
+      ask: { ...pendingAsk(), question: "Review scenarios/notification-hub/README.md." },
+    } as never);
+    renderAsk();
+
+    expect(await screen.findByTestId(selectors.asks.question)).toHaveTextContent("scenarios/notification-hub/README.md");
+    const retry = await screen.findByTestId(selectors.asks.retryFileLinks);
+    await userEvent.setup().click(retry);
+    expect(await screen.findByRole("link", { name: "scenarios/notification-hub/README.md" })).toHaveAttribute(
+      "href",
+      "https://web-console.example.test/?file=scenarios%2Fnotification-hub%2FREADME.md",
+    );
   });
 
   it("preserves the answer note while both context disclosures open and close", async () => {
@@ -292,12 +480,13 @@ describe("AskPage", () => {
     for (const label of disclosures) {
       const details = label.closest("details");
       expect(details).not.toBeNull();
+      expect(details).toHaveProperty("open", label.textContent === "Why this matters");
       await user.click(label);
-      expect(details).toHaveProperty("open", true);
+      expect(details).toHaveProperty("open", label.textContent !== "Why this matters");
       expect(note).toHaveValue("keep the macOS follow-up");
       expect(conversationsClient.answer).not.toHaveBeenCalled();
       await user.click(label);
-      expect(details).toHaveProperty("open", false);
+      expect(details).toHaveProperty("open", label.textContent === "Why this matters");
       expect(note).toHaveValue("keep the macOS follow-up");
       expect(conversationsClient.answer).not.toHaveBeenCalled();
     }
@@ -324,6 +513,7 @@ describe("AskPage", () => {
     vi.mocked(conversationsClient.answer).mockResolvedValue({} as never);
     renderAsk();
 
+    expect(await screen.findByRole("group", { name: "Choose an answer" })).toBeInTheDocument();
     await screen.findAllByTestId(selectors.asks.option);
     await userEvent.type(
       screen.getByTestId(selectors.asks.note),

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strconv"
 	"time"
 
 	"connectrpc.com/connect"
@@ -36,10 +35,18 @@ func ModuleWithVerifier(service *hub.Service, verifier identity.Verifier) module
 	}, Endpoints: Endpoints}
 }
 
-// producer admits a direct ask or withdrawal from a verified agent run or the
+// producer admits a direct ask withdrawal from a verified agent run or the
 // verified owner. It never admits an answer or a dismissal: those use owner.
 func (h *handler) producer(ctx context.Context, headers http.Header) (identity.Producer, error) {
 	producer, err := identity.ProducerFor(ctx, headers, h.verifier, h.service.ResolveRecipient(ctx))
+	if err != nil {
+		return identity.Producer{}, connect.NewError(connect.CodeUnauthenticated, errors.New("a verified agent run or verified owner identity is required"))
+	}
+	return producer, nil
+}
+
+func (h *handler) directProducer(ctx context.Context, headers http.Header) (identity.Producer, error) {
+	producer, err := identity.ProducerForDirect(ctx, headers, h.verifier, h.service.ResolveRecipient(ctx))
 	if err != nil {
 		return identity.Producer{}, connect.NewError(connect.CodeUnauthenticated, errors.New("a verified agent run or verified owner identity is required"))
 	}
@@ -55,7 +62,7 @@ func (h *handler) owner(ctx context.Context, headers http.Header) (string, error
 }
 
 func (h *handler) Ask(ctx context.Context, req *connect.Request[v1.AskRequest]) (*connect.Response[v1.AskResponse], error) {
-	producer, err := h.producer(ctx, req.Header())
+	producer, err := h.directProducer(ctx, req.Header())
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +79,7 @@ func (h *handler) Ask(ctx context.Context, req *connect.Request[v1.AskRequest]) 
 			options = append(options, hub.AskOption{Key: key, Label: key})
 		}
 	}
-	ask, notification, err := h.service.AskFrom(ctx, producer.Key, hub.AskSpec{
+	result, err := h.service.AskDecision(ctx, hub.AskSpec{
 		Recipient:               producer.Recipient,
 		Question:                req.Msg.GetQuestion(),
 		Options:                 options,
@@ -89,11 +96,14 @@ func (h *handler) Ask(ctx context.Context, req *connect.Request[v1.AskRequest]) 
 		DeadlineSpecified:       true,
 		SensitivityLabel:        req.Msg.GetSensitivityLabel(),
 		IdempotencyKey:          req.Msg.GetIdempotencyKey(),
-	})
+		SubjectKey:              req.Msg.GetSubjectKey(),
+		ReassertWithin:          time.Duration(req.Msg.GetReassertWithinSeconds()) * time.Second,
+	}, producer.Key)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&v1.AskResponse{AskId: ask.ID, Notification: &shared.Notification{Id: notification.ID, RequestedBy: notification.RequestedBy, Title: notification.Title, Body: notification.Body, Urgency: notification.Urgency, SensitivityLabel: notification.SensitivityLabel, IdempotencyKey: notification.IdempotencyKey, DedupeKey: notification.DedupeKey, State: notificationState(notification.State), Reason: notification.Reason, CreatedAt: notification.CreatedAt, UpdatedAt: notification.UpdatedAt}}), nil
+	ask, notification := result.Ask, result.Notification
+	return connect.NewResponse(&v1.AskResponse{AskId: ask.ID, Outcome: result.Outcome, Notification: &shared.Notification{Id: notification.ID, RequestedBy: notification.RequestedBy, Title: notification.Title, Body: notification.Body, Urgency: notification.Urgency, SensitivityLabel: notification.SensitivityLabel, IdempotencyKey: notification.IdempotencyKey, DedupeKey: notification.DedupeKey, State: notificationState(notification.State), Reason: notification.Reason, CreatedAt: notification.CreatedAt, UpdatedAt: notification.UpdatedAt}}), nil
 }
 
 func notificationState(state string) shared.NotificationState {
@@ -153,7 +163,15 @@ func (h *handler) Withdraw(ctx context.Context, req *connect.Request[v1.Withdraw
 	if err != nil {
 		return nil, err
 	}
-	ask, err := h.service.WithdrawDirectAsk(ctx, req.Msg.GetAskId(), requester.Recipient, req.Msg.GetReason())
+	var ask hub.AskRecord
+	switch {
+	case req.Msg.GetSubjectKey() != "" && req.Msg.GetAskId() != "":
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("give ask_id or subject_key, not both"))
+	case req.Msg.GetSubjectKey() != "":
+		ask, err = h.service.WithdrawDirectSubject(ctx, requester.Recipient, req.Msg.GetSubjectKey(), req.Msg.GetReason())
+	default:
+		ask, err = h.service.WithdrawDirectAsk(ctx, req.Msg.GetAskId(), requester.Recipient, req.Msg.GetReason())
+	}
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -183,7 +201,24 @@ func (h *handler) GetAsk(ctx context.Context, req *connect.Request[v1.GetAskRequ
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&v1.GetAskResponse{Ask: h.toProto(ask)}), nil
+	revisions, err := h.service.ListAskRevisions(ctx, ask.ID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	out := h.toProto(ask)
+	for _, revision := range revisions {
+		options := make([]*v1.AskOption, 0, len(revision.Options))
+		for _, option := range revision.Options {
+			options = append(options, &v1.AskOption{Key: option.Key, Label: option.Label})
+		}
+		out.Revisions = append(out.Revisions, &v1.AskRevision{
+			Revision: int32(revision.Revision), Title: revision.Title, Question: revision.Question,
+			RecommendationReason: revision.RecommendationReason, ContextUrl: revision.ContextURL,
+			BigPicture: revision.BigPicture, TechnicalDetails: revision.TechnicalDetails, Options: options,
+			Deadline: revision.Deadline, RevisedAt: revision.RevisedAt,
+		})
+	}
+	return connect.NewResponse(&v1.GetAskResponse{Ask: out}), nil
 }
 
 func (h *handler) ListAsks(ctx context.Context, req *connect.Request[v1.ListAsksRequest]) (*connect.Response[v1.ListAsksResponse], error) {
@@ -225,6 +260,9 @@ func (h *handler) toProto(ask hub.AskRecord) *v1.Ask {
 		Source: ask.Source, SourceEventType: ask.SourceEventType, RequesterRef: ask.RequesterRef,
 		ResolvedAt: ask.ResolvedAt, CreatedAt: ask.CreatedAt, UpdatedAt: ask.UpdatedAt,
 		ProviderDecisionContext: providerDecisionContextToProto(ask.ProviderDecisionContext),
+		SubjectKey:              ask.SubjectKey, LastAssertedAt: ask.LastAssertedAt,
+		ReassertWithinSeconds: int32(ask.ReassertWithinSeconds), RevisionCount: int32(ask.RevisionCount),
+		SupersededByAskId: ask.SupersededByAskID,
 	}
 }
 
@@ -266,12 +304,7 @@ func providerDecisionContextToProto(value *hub.ProviderDecisionContext) *v1.Prov
 }
 
 func connectError(err error) error {
-	var cooldown *hub.CooldownError
 	switch {
-	case errors.As(err, &cooldown):
-		refusal := connect.NewError(connect.CodeResourceExhausted, err)
-		refusal.Meta().Set("Retry-After", strconv.Itoa(int(cooldown.RetryAfter/time.Second)))
-		return refusal
 	case errors.Is(err, hub.ErrNotFound):
 		return connect.NewError(connect.CodeNotFound, err)
 	case errors.Is(err, hub.ErrAskResolved):

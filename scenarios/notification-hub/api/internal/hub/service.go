@@ -144,9 +144,10 @@ type Service struct {
 	// delivery (app_delivery.go). Nil keeps every device on Chimesail.
 	appEligibility      AppEligibility
 	appEligibilityCache *appEligibilityCache
-	// cooldown bounds direct notifications and asks per producer
-	// (producer_cooldown.go).
-	cooldown *producerCooldown
+	// pushBudget limits device delivery only; durable writes are never rejected.
+	pushBudget   *pushBudget
+	pushMu       sync.Mutex
+	noDevicePush map[string]struct{}
 }
 
 // BrandResolver is the optional capability the preferences seam exposes to
@@ -321,7 +322,7 @@ func New(db *database.RoutedDB, clock Clock, logger *log.Logger) *Service {
 	if logger == nil {
 		logger = log.Default()
 	}
-	s := &Service{db: db, clock: newSwappableClock(clock), log: logger, push: unavailablePush{}, email: unavailableEmail{}, desktop: unavailableDesktop{}, worker: make(chan string, 128), iconBaseByID: map[string]string{}, cooldown: newProducerCooldown()}
+	s := &Service{db: db, clock: newSwappableClock(clock), log: logger, push: unavailablePush{}, email: unavailableEmail{}, desktop: unavailableDesktop{}, worker: make(chan string, 128), iconBaseByID: map[string]string{}, pushBudget: newPushBudget(), noDevicePush: make(map[string]struct{})}
 	s.iconURL = s.defaultIconURL
 	s.ensureAdditiveColumns(context.Background())
 	go s.runWorker()
@@ -343,9 +344,27 @@ func (s *Service) ensureAdditiveColumns(ctx context.Context) {
 		`ALTER TABLE push_subscriptions ADD COLUMN user_agent TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE push_subscriptions ADD COLUMN permission TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE push_subscriptions ADD COLUMN confirmed_at TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN subject_key TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN last_asserted_at TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN reassert_within_seconds INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE asks ADD COLUMN revision_count INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE asks ADD COLUMN superseded_by_ask_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN current_event_id TEXT NOT NULL DEFAULT ''`,
 	} {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 			s.log.Printf("ensure notification column: %v", err)
+		}
+	}
+	// Indexes over the subject columns must follow the ALTERs: on an existing
+	// database the columns do not exist when schema.sql runs. Rows written before
+	// subjects existed have an empty subject_key and stay outside both indexes.
+	for _, stmt := range []string{
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_open_subject ON asks(source, source_event_type, subject_key) WHERE subject_key <> '' AND state IN ('pending', 'escalated')`,
+		`CREATE INDEX IF NOT EXISTS idx_asks_subject ON asks(source, source_event_type, subject_key, created_at) WHERE subject_key <> ''`,
+		`CREATE INDEX IF NOT EXISTS idx_asks_current_event ON asks(source, current_event_id) WHERE current_event_id <> ''`,
+	} {
+		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
+			s.log.Printf("ensure ask subject index: %v", err)
 		}
 	}
 }
@@ -782,6 +801,7 @@ func (s *Service) lockNotification(id string) func() {
 
 func (s *Service) Process(ctx context.Context, id string) error {
 	defer s.lockNotification(id)()
+	suppressDevicePush := s.takeNoDevicePush(id)
 	n, _, err := s.Get(ctx, id)
 	if err != nil {
 		return err
@@ -883,6 +903,18 @@ func (s *Service) Process(ctx context.Context, id string) error {
 			targets = append(targets, channelTarget{Channel: "web_push", Address: sub.Endpoint, MachineID: "local", ApprovedLabels: []string{"public", "private", "sensitive", "critical"}})
 		}
 	}
+	if suppressDevicePush {
+		filtered := targets[:0]
+		for _, target := range targets {
+			if !devicePushChannel(target.Channel) {
+				filtered = append(filtered, target)
+			}
+		}
+		targets = filtered
+		if len(targets) == 0 {
+			return s.appendEvent(ctx, n.ID, "suppressed", "stored in notification-hub; per-source device-push bucket is empty", s.clock.Now().UTC().Format(time.RFC3339Nano))
+		}
+	}
 	if len(targets) == 0 {
 		now := s.clock.Now().UTC().Format(time.RFC3339Nano)
 		reason := "no recipient configured: no channel address or live web push subscription is registered for recipient " + strconv.Quote(n.RequestedBy) + "; " + RecipientSettingHint
@@ -970,6 +1002,15 @@ func (s *Service) Process(ctx context.Context, id string) error {
 		return s.appendEvent(ctx, n.ID, "delivered", "at least one approved channel accepted the payload", s.clock.Now().UTC().Format(time.RFC3339Nano))
 	}
 	return s.appendEvent(ctx, n.ID, "failed", fmt.Sprintf("retry budget exhausted: %s", safeReason(lastErr)), s.clock.Now().UTC().Format(time.RFC3339Nano))
+}
+
+func devicePushChannel(channel string) bool {
+	switch strings.ToLower(strings.TrimSpace(channel)) {
+	case "web_push", "browser", "desktop", "ios", "android", "push", "macos_notification", "linux_notification":
+		return true
+	default:
+		return false
+	}
 }
 
 // preferenceSuppression consults the per-recipient preference for a

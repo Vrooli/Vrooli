@@ -395,10 +395,10 @@ func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secr
 			}
 			spec, specErr := DecisionAskSpecWithDefaults(recipient, payload.SourceScenario, payload.EventType, eventID, payload.Payload, time.Now().UTC(), sensitivityLabel, defaultDeadline)
 			if specErr == nil {
-				var ask hub.AskRecord
-				ask, _, specErr = service.AskWithSpec(r.Context(), spec)
+				var result hub.AskResult
+				result, specErr = service.AskDecision(r.Context(), spec, "")
 				if specErr == nil {
-					writeJSON(w, http.StatusAccepted, map[string]string{"ask_id": ask.ID, "event_id": eventID})
+					writeDecisionRequestResult(w, eventID, result)
 					return
 				}
 				if errors.Is(specErr, hub.ErrAskWithdrawn) {
@@ -413,6 +413,30 @@ func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secr
 				status = http.StatusConflict
 			}
 			writeJSONError(w, status, specErr.Error())
+			return
+		}
+		if IsGenericDecisionWithdrawal(payload.EventType) {
+			if eventID == "" || strings.TrimSpace(payload.SourceScenario) == "" {
+				writeJSONError(w, http.StatusBadRequest, "event_id and a source scenario are required")
+				return
+			}
+			withdrawal, parseErr := ParseGenericDecisionWithdrawal(payload.SourceScenario, payload.EventType, payload.Payload)
+			if parseErr != nil {
+				writeJSONError(w, http.StatusBadRequest, parseErr.Error())
+				return
+			}
+			changed, withdrawErr := service.WithdrawDecisionSubject(r.Context(), withdrawal)
+			if withdrawErr != nil {
+				status := http.StatusInternalServerError
+				if errors.Is(withdrawErr, hub.ErrInvalidArgument) {
+					status = http.StatusBadRequest
+				} else if errors.Is(withdrawErr, hub.ErrAskIdentityConflict) {
+					status = http.StatusConflict
+				}
+				writeJSONError(w, status, withdrawErr.Error())
+				return
+			}
+			writeJSON(w, http.StatusAccepted, map[string]any{"event_id": eventID, "withdrawn": changed})
 			return
 		}
 		if IsDecisionWithdrawal(payload.EventType) {
@@ -665,15 +689,21 @@ func nonEmpty(value, fallback string) string {
 // Subscription names owned by the hub. The operator configures the pattern
 // of the first; the decision subscription is part of the ask contract.
 const (
-	eventSubscriptionName               = "notification-hub-events"
-	decisionSubscriptionName            = "notification-hub-decisions"
-	notificationSubscriptionName        = "notification-hub-notifications"
-	heartbeatAttemptSubscriptionName    = "notification-hub-prompt-manager-heartbeat-attempts"
-	heartbeatOwnerStateSubscriptionName = "notification-hub-prompt-manager-heartbeat-owner-states"
-	HeartbeatAttemptEventType           = "prompt-manager.heartbeat.attempt.v1"
-	HeartbeatAttemptEventPattern        = "prompt-manager.heartbeat.attempt.v1"
-	HeartbeatOwnerStateEventType        = "prompt-manager.heartbeat.owner-state.v1"
-	HeartbeatOwnerStateEventPattern     = "prompt-manager.heartbeat.owner-state.v1"
+	eventSubscriptionName        = "notification-hub-events"
+	decisionSubscriptionName     = "notification-hub-decisions"
+	notificationSubscriptionName = "notification-hub-notifications"
+	// decisionWithdrawalSubscriptionName predates the generic pattern: it first
+	// carried only Agent Manager's run withdrawal and is reconciled in place.
+	decisionWithdrawalSubscriptionName = "notification-hub-decision-withdrawals"
+	// retiredInvestigationWithdrawalSubscriptionName carried only Agent
+	// Manager's investigation withdrawal, which the generic pattern now covers.
+	retiredInvestigationWithdrawalSubscriptionName = "notification-hub-investigation-withdrawals"
+	heartbeatAttemptSubscriptionName               = "notification-hub-prompt-manager-heartbeat-attempts"
+	heartbeatOwnerStateSubscriptionName            = "notification-hub-prompt-manager-heartbeat-owner-states"
+	HeartbeatAttemptEventType                      = "prompt-manager.heartbeat.attempt.v1"
+	HeartbeatAttemptEventPattern                   = "prompt-manager.heartbeat.attempt.v1"
+	HeartbeatOwnerStateEventType                   = "prompt-manager.heartbeat.owner-state.v1"
+	HeartbeatOwnerStateEventPattern                = "prompt-manager.heartbeat.owner-state.v1"
 )
 
 // SubscriptionSpec is one named vrooli-events subscription delivered to the
@@ -697,13 +727,16 @@ func EnsureDecisionSubscription(ctx context.Context, baseURL, target string) err
 	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{{Name: decisionSubscriptionName, Pattern: DecisionRequestPattern}})
 }
 
-// EnsureDecisionWithdrawalSubscription routes producer lifecycle withdrawals
-// through the same signed Events webhook without treating them as answers.
+// EnsureDecisionWithdrawalSubscription routes every producer's
+// `*.decision_withdrawn.v1` through the same signed Events webhook without
+// treating them as answers. Agent Manager's typed run and investigation
+// withdrawals arrive through the same pattern, so the earlier exact-type
+// investigation subscription is retired: left alone it would deliver every
+// Agent Manager withdrawal a second time.
 func EnsureDecisionWithdrawalSubscription(ctx context.Context, baseURL, target string) error {
-	return EnsureEventSubscriptions(ctx, baseURL, target, []SubscriptionSpec{
-		{Name: "notification-hub-decision-withdrawals", Pattern: DecisionWithdrawalPattern},
-		{Name: "notification-hub-investigation-withdrawals", Pattern: InvestigationWithdrawalEventType},
-	})
+	return EnsureEventSubscriptionsRetiring(ctx, baseURL, target,
+		[]SubscriptionSpec{{Name: decisionWithdrawalSubscriptionName, Pattern: DecisionWithdrawalPattern}},
+		[]string{retiredInvestigationWithdrawalSubscriptionName})
 }
 
 // EnsureNotificationSubscription reconciles the subscription that turns every
@@ -727,6 +760,12 @@ func EnsureHeartbeatAttemptSubscription(ctx context.Context, baseURL, target str
 // one with the same name is updated in place; the unnamed legacy row of the
 // primary subscription is adopted; anything else is created.
 func EnsureEventSubscriptions(ctx context.Context, baseURL, target string, specs []SubscriptionSpec) error {
+	return EnsureEventSubscriptionsRetiring(ctx, baseURL, target, specs, nil)
+}
+
+// EnsureEventSubscriptionsRetiring is EnsureEventSubscriptions that then deletes
+// the hub's own subscriptions named in retired, once the replacements exist.
+func EnsureEventSubscriptionsRetiring(ctx context.Context, baseURL, target string, specs []SubscriptionSpec, retired []string) error {
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	target = strings.TrimSpace(target)
 	if baseURL == "" || target == "" || len(specs) == 0 {
@@ -802,6 +841,16 @@ func EnsureEventSubscriptions(ctx context.Context, baseURL, target string, specs
 			return fmt.Errorf("%s event subscription %s: %w", verb, spec.Name, err)
 		}
 	}
+	for _, item := range existing {
+		for _, name := range retired {
+			if item.Name != name || item.ID == 0 {
+				continue
+			}
+			if err := sendSubscription(ctx, client, http.MethodDelete, fmt.Sprintf("%s/api/v1/subscriptions/%d", baseURL, item.ID), nil); err != nil {
+				return fmt.Errorf("retire event subscription %s: %w", name, err)
+			}
+		}
+	}
 	return nil
 }
 
@@ -832,6 +881,23 @@ func validSignature(body []byte, value, secret string) bool {
 	_, _ = mac.Write(body)
 	expected := mac.Sum(nil)
 	return len(provided) == len(expected) && subtle.ConstantTimeCompare(provided, expected) == 1
+}
+
+// writeDecisionRequestResult answers a decision request with what the hub did:
+// stale means a later withdrawal already closed the situation, and
+// suppressed means the operator dismissed these exact terms.
+func writeDecisionRequestResult(w http.ResponseWriter, eventID string, result hub.AskResult) {
+	body := map[string]any{"event_id": eventID}
+	if result.Ask.ID != "" {
+		body["ask_id"] = result.Ask.ID
+	}
+	if result.Outcome != "" {
+		body["outcome"] = result.Outcome
+	}
+	if result.Outcome == hub.AskStale {
+		body["stale"] = true
+	}
+	writeJSON(w, http.StatusAccepted, body)
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

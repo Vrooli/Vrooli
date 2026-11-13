@@ -6,6 +6,7 @@ import { Button } from "@vrooli/react-component-library/Button/2";
 import type { Ask } from "@vrooli/proto-types/notification-hub/v1/conversations/conversations_pb";
 
 import { conversationsClient } from "../../api/notifications";
+import { fetchScenarioExternalUrl } from "../../api/client";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
@@ -24,6 +25,11 @@ import {
   clearAskDraft,
 } from "./askDrafts";
 import { preserveRoutedTestMode } from "../routedTestMode";
+import { fileReferenceHref, hasLocalFileReference, renderDecisionText } from "./DecisionText";
+
+function DecisionText({ value, className = "", inheritText = false, webConsoleUrl = "" }: { value: string; className?: string; inheritText?: boolean; webConsoleUrl?: string }) {
+  return <span className={`whitespace-pre-wrap break-words ${inheritText ? "" : "text-sm"} ${className}`}>{renderDecisionText(value, webConsoleUrl)}</span>;
+}
 
 /**
  * One decision, built for a phone: a push opens this page, option selection
@@ -90,6 +96,30 @@ function AskBody({
 }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const hasFileLinks = [
+    ask.question,
+    ask.recommendationReason,
+    ask.bigPicture,
+    ask.technicalDetails,
+    ask.note,
+    ask.contextUrl,
+  ]
+    .some((text) => hasLocalFileReference(text ?? ""));
+  const webConsoleUrl = useQuery({
+    queryKey: ["scenario-external-url", "web-console"],
+    queryFn: async () => {
+      const value = await fetchScenarioExternalUrl("web-console");
+      const url = new URL(value);
+      if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password) {
+        throw new Error("Web Console returned an unusable URL");
+      }
+      return url.href;
+    },
+    enabled: hasFileLinks,
+    staleTime: 5 * 60_000,
+    retry: 1,
+    retryDelay: 200,
+  });
   const location = useLocation();
   const navigate = useNavigate();
   const [draft, setDraft] = useState(() => readAskDraft(subject, ask.id));
@@ -158,7 +188,10 @@ function AskBody({
   const now = useNow();
   const open = ask.state === "pending" || ask.state === "escalated";
   const canAnswer = open || ask.state === "defaulted";
-  const context = ask.contextUrl ? safeContextUrl(ask.contextUrl) : null;
+  const contextPath = ask.contextUrl && hasLocalFileReference(ask.contextUrl) ? ask.contextUrl : "";
+  let context: string | null = null;
+  if (contextPath) context = fileReferenceHref(contextPath, webConsoleUrl.data);
+  else if (ask.contextUrl) context = safeContextUrl(ask.contextUrl);
   const returnState = location.state as { from?: unknown } | null;
   const returnTo = typeof returnState?.from === "string" && /^\/(?:asks|history)(?:\?|$)/.test(returnState.from)
     ? returnState.from
@@ -195,21 +228,46 @@ function AskBody({
         data-testid={selectors.asks.question}
         className="break-words text-3xl font-bold leading-tight tracking-tight sm:text-5xl"
       >
-        {ask.question}
+        <DecisionText value={ask.question} inheritText webConsoleUrl={webConsoleUrl.data} />
       </h1>
       {context && (
-        <a href={context} className="text-sm underline" rel="noreferrer">
+        <a
+          href={context}
+          className="inline-flex min-h-11 items-center text-sm underline"
+          rel="noopener noreferrer"
+          target={contextPath ? "_blank" : undefined}
+        >
           {t(strings.asks.detail.more)}
         </a>
       )}
+      <AskRevisions ask={ask} webConsoleUrl={webConsoleUrl.data} />
+      {hasFileLinks && !webConsoleUrl.data && (
+        <div className="flex flex-wrap items-center gap-3 text-sm text-app-muted-foreground">
+          <p role="status">
+          {webConsoleUrl.isPending
+              ? t(strings.asks.detail.fileLinksLoading)
+              : t(strings.asks.detail.fileLinksUnavailable)}
+          </p>
+          {webConsoleUrl.isError && (
+            <Button
+              data-testid={selectors.asks.retryFileLinks}
+              className="min-h-11"
+              type="button"
+              variant="outline"
+              disabled={webConsoleUrl.isFetching}
+              onClick={() => { void webConsoleUrl.refetch(); }}
+            >
+              {webConsoleUrl.isFetching ? t(strings.asks.detail.fileLinksLoading) : t(strings.asks.detail.retryFileLinks)}
+            </Button>
+          )}
+        </div>
+      )}
       {ask.bigPicture && (
-        <details className="rounded-panel border border-app-border p-3">
+        <details open className="rounded-panel border border-app-border p-3">
           <summary className="cursor-pointer font-medium">
             {t(strings.asks.detail.bigPicture)}
           </summary>
-          <p className="mt-2 whitespace-pre-wrap break-words text-sm text-app-muted-foreground">
-            {ask.bigPicture}
-          </p>
+          <DecisionText value={ask.bigPicture} webConsoleUrl={webConsoleUrl.data} className="mt-2 text-app-muted-foreground" />
         </details>
       )}
       {ask.technicalDetails && (
@@ -217,12 +275,10 @@ function AskBody({
           <summary className="cursor-pointer font-medium">
             {t(strings.asks.detail.technicalDetails)}
           </summary>
-          <p className="mt-2 whitespace-pre-wrap break-words text-sm text-app-muted-foreground">
-            {ask.technicalDetails}
-          </p>
+          <DecisionText value={ask.technicalDetails} webConsoleUrl={webConsoleUrl.data} className="mt-2 text-app-muted-foreground" />
         </details>
       )}
-      <AskStatus ask={ask} now={now} />
+      <AskStatus ask={ask} now={now} webConsoleUrl={webConsoleUrl.data} />
       {answer.isSuccess && readback.isPending && <p role="status">{t(strings.asks.detail.checking)}</p>}
       {outcome === "recorded" && <p role="status">{t(strings.asks.detail.recorded, { option: recordedLabel })}</p>}
       {outcome === "uncertain" && <p role="alert">{t(strings.asks.detail.uncertain)}</p>}
@@ -242,23 +298,24 @@ function AskBody({
       )}
       {canAnswer && signedIn && (
         <div className="flex flex-col gap-3">
-          {orderedOptions(ask).map((option) => {
-            const recommended = option.key === ask.recommended;
-            const label = option.key === "other" ? t(strings.asks.detail.otherOption) : option.label;
-            return (
-              <div key={option.key} className={`flex flex-col gap-1 rounded-panel border p-3 ${draft.answer === option.key ? "border-app-accent bg-app-surface-muted" : "border-app-border"}`}>
-                <label className="flex min-h-11 cursor-pointer items-center gap-3">
-                  <input data-testid={selectors.asks.option} data-option-key={option.key} type="radio" name={`answer-${ask.id}`} value={option.key} checked={draft.answer === option.key} disabled={Boolean(attempt) || answer.isPending} onChange={() => updateDraft({ ...draft, answer: option.key })} />
-                  <span className="font-medium">{label}{recommended && <span className="ms-2 text-xs text-app-muted-foreground">({t(strings.asks.detail.recommended)})</span>}</span>
-                </label>
-                {recommended && ask.recommendationReason && (
-                  <p className="text-sm text-app-muted-foreground">
-                    {ask.recommendationReason}
-                  </p>
-                )}
-              </div>
-            );
-          })}
+          <fieldset className="flex min-w-0 flex-col gap-3">
+            <legend className="text-sm font-medium">{t(strings.asks.detail.choose)}</legend>
+            {orderedOptions(ask).map((option) => {
+              const recommended = option.key === ask.recommended;
+              const label = option.key === "other" ? t(strings.asks.detail.otherOption) : option.label;
+              return (
+                <div key={option.key} className={`flex flex-col gap-1 rounded-panel border p-3 ${draft.answer === option.key ? "border-app-accent bg-app-surface-muted" : "border-app-border"}`}>
+                  <label className="flex min-h-11 cursor-pointer items-center gap-3">
+                    <input data-testid={selectors.asks.option} data-option-key={option.key} type="radio" name={`answer-${ask.id}`} value={option.key} checked={draft.answer === option.key} disabled={Boolean(attempt) || answer.isPending} onChange={() => updateDraft({ ...draft, answer: option.key })} />
+                    <span className="font-medium">{label}{recommended && <span className="ms-2 text-xs text-app-muted-foreground">({t(strings.asks.detail.recommended)})</span>}</span>
+                  </label>
+                  {recommended && ask.recommendationReason && (
+                    <DecisionText value={ask.recommendationReason} webConsoleUrl={webConsoleUrl.data} className="text-app-muted-foreground" />
+                  )}
+                </div>
+              );
+            })}
+          </fieldset>
           {draft.answer === "other" && (
             <div className="flex flex-col gap-1">
               <label htmlFor={`other-answer-${ask.id}`} className="text-sm font-medium">{t(strings.asks.detail.otherPrompt)}</label>
@@ -309,7 +366,7 @@ function AskBody({
   );
 }
 
-function AskStatus({ ask, now }: { ask: Ask; now: number }) {
+function AskStatus({ ask, now, webConsoleUrl = "" }: { ask: Ask; now: number; webConsoleUrl?: string }) {
   const { t } = useTranslation();
   if (ask.state === "answered") {
     return (
@@ -348,7 +405,7 @@ function AskStatus({ ask, now }: { ask: Ask; now: number }) {
           </div>
         )}
         {ask.note && (
-          <p className="mt-1 text-sm text-app-muted-foreground">{ask.note}</p>
+          <DecisionText value={ask.note} webConsoleUrl={webConsoleUrl} className="mt-1 text-app-muted-foreground" />
         )}
       </div>
     );
@@ -372,11 +429,7 @@ function AskStatus({ ask, now }: { ask: Ask; now: number }) {
     );
   }
   if (ask.state === "withdrawn") {
-    return (
-      <p data-testid={selectors.asks.status} role="status">
-        {t(strings.asks.detail.withdrawn)}
-      </p>
-    );
+    return <WithdrawnStatus ask={ask} webConsoleUrl={webConsoleUrl} />;
   }
   if (ask.state === "dismissed") {
     return (
@@ -397,6 +450,61 @@ function AskStatus({ ask, now }: { ask: Ask; now: number }) {
         ? t(strings.asks.detail.defaultIn, { option, time: remaining })
         : t(strings.asks.detail.defaultWaiting, { option })}
     </p>
+  );
+}
+
+/**
+ * A decision its requester closed. The reason is the requester's own words (or
+ * the hub's, for a replaced or lapsed decision) and, when a newer decision took
+ * its place, a link to it.
+ */
+function WithdrawnStatus({ ask, webConsoleUrl = "" }: { ask: Ask; webConsoleUrl?: string }) {
+  const { t } = useTranslation();
+  const location = useLocation();
+  return (
+    <div data-testid={selectors.asks.status} role="status" className="rounded-panel border border-app-border p-3">
+      <p className="font-medium">{t(strings.asks.detail.withdrawn)}</p>
+      {ask.reason && (
+        <p className="mt-1 text-sm">
+          <span className="text-app-muted-foreground">{t("asks.detail.closedReason")} </span>
+          <DecisionText value={ask.reason} webConsoleUrl={webConsoleUrl} inheritText />
+        </p>
+      )}
+      {ask.supersededByAskId && (
+        <p className="mt-2 text-sm">
+          <Link to={preserveRoutedTestMode(`/asks/${ask.supersededByAskId}`, location.search)} className="font-medium underline">
+            {t("asks.detail.replacedBy")}
+          </Link>
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * "Updated N times" with what the decision said before each update, so the
+ * operator can tell a refreshed decision from a new one.
+ */
+function AskRevisions({ ask, webConsoleUrl = "" }: { ask: Ask; webConsoleUrl?: string }) {
+  const { t } = useTranslation();
+  if (!ask.revisionCount) return null;
+  return (
+    <details className="rounded-panel border border-app-border p-3">
+      <summary className="cursor-pointer font-medium">
+        {t("asks.detail.updatedTimes", { count: ask.revisionCount })}
+      </summary>
+      <ol className="mt-2 flex flex-col gap-3">
+        {ask.revisions.map((revision) => (
+          <li key={revision.revision} className="border-t border-app-border pt-2 first:border-t-0 first:pt-0">
+            <p className="text-xs text-app-muted-foreground">
+              {t("asks.detail.revisionReplaced")}{" "}
+              <time dateTime={revision.revisedAt}>{formatAskTime(revision.revisedAt)}</time>
+            </p>
+            <DecisionText value={revision.question} webConsoleUrl={webConsoleUrl} className="text-app-muted-foreground" />
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }
 

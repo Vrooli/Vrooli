@@ -78,7 +78,9 @@ describe("Updates page", () => {
     }
     expect(page).not.toHaveTextContent("raw adapter failure sentinel");
     expect(page).toHaveTextContent(/Unknown status.*Unknown status/s);
-    expect(screen.getByRole("link", { name: "Open decision" })).toHaveAttribute("href", "/asks/ask-1");
+    const decisionLink = screen.getByRole("link", { name: "Open decision" });
+    expect(decisionLink).toHaveAttribute("href", "/asks/ask-1");
+    expect(decisionLink).toHaveClass("min-h-11", "inline-flex");
     expect(screen.getAllByRole("link", { name: "Delivery details" })).toHaveLength(9);
     expect(screen.queryByRole("link", { name: /Open decision/ })).toHaveAttribute("href", "/asks/ask-1");
     expect(screen.queryByRole("button", { name: /read|acknowledge/i })).not.toBeInTheDocument();

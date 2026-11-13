@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 )
 
 func TestParseOptionsKeepsLabelsAndDefaultsThemToKeys(t *testing.T) {
@@ -42,5 +43,34 @@ func TestWaitContextOutlivesDefaultTimeoutUntilDeadline(t *testing.T) {
 	want, _ := time.Parse(time.RFC3339, deadline)
 	if !ok || !got.Equal(want.Add(waitGrace)) {
 		t.Fatalf("wait context deadline = %v (set=%v), want %v", got, ok, want.Add(waitGrace))
+	}
+}
+
+func TestParseReassertWithinNeedsASubjectKeyAndStaysInRange(t *testing.T) {
+	got, err := parseReassertWithin("15m", "disk-pressure")
+	require.NoError(t, err)
+	require.Equal(t, int32(900), got)
+	got, err = parseReassertWithin("", "")
+	require.NoError(t, err)
+	require.Zero(t, got, "no flag, no lapse")
+	for name, value := range map[string]string{"words": "soon", "zero": "0s", "negative": "-5m", "fraction": "1500ms", "over thirty days": "721h"} {
+		_, err = parseReassertWithin(value, "disk-pressure")
+		require.Error(t, err, name)
+	}
+	_, err = parseReassertWithin("15m", "")
+	require.Error(t, err, "a window without a subject key has nothing to apply to")
+}
+
+func TestAskOutcomeLineSaysWhatTheHubDid(t *testing.T) {
+	for outcome, want := range map[string]string{
+		"":           "Created ask a-1.",
+		"created":    "Created ask a-1.",
+		"reasserted": "Ask a-1 is already open with these terms; nothing new was sent.",
+		"updated":    "Updated open ask a-1 in place; no new notification was sent.",
+		"replaced":   "Created ask a-1; it replaced the open ask for this subject.",
+		"suppressed": "Ask a-1 was dismissed with these exact terms; no new ask was created.",
+		"returned":   "Ask a-1 was just answered; returning it instead of creating another.",
+	} {
+		require.Equal(t, want, askOutcomeLine(&v1.AskResponse{AskId: "a-1", Outcome: outcome}), outcome)
 	}
 }

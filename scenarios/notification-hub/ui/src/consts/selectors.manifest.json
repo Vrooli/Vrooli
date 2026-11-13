@@ -133,6 +133,10 @@
       "testId": "ask-default-notice",
       "selector": "[data-testid=\"ask-default-notice\"]"
     },
+    "asks.retryFileLinks": {
+      "testId": "ask-retry-file-links",
+      "selector": "[data-testid=\"ask-retry-file-links\"]"
+    },
     "reach.root": {
       "testId": "reach-settings",
       "selector": "[data-testid=\"reach-settings\"]"
@@ -733,7 +737,7 @@
   },
   "sources": {
     "ui/src/consts/selectors.library.ts": "3ec3c9838278fa31a4c7b468f3121b5d00a1d188e8aa63447c8569d44a97a293",
-    "ui/src/consts/selectors.ts": "ff81e41e41718f5dd0a06d1924fc57d79a8b0647ee0e439a7c58f6e53b81f6be",
+    "ui/src/consts/selectors.ts": "40a368714213d9ec5aa0d4c0adeed9de9ded77845f964333ea70c2b20beae192",
     "ui/src/i18n/locales.ts": "1c6b3983d8b3b59460629079f96c0982b6b6d341add5acbddb3db845919d1ca6"
   }
 }

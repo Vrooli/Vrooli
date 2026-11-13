@@ -123,23 +123,16 @@ func (h *handler) Relay(ctx context.Context, req *connect.Request[v1.RelayReques
 }
 
 func (h *handler) producer(ctx context.Context, headers http.Header) (identity.Producer, error) {
-	producer, err := identity.ProducerFor(ctx, headers, h.verifier, h.service.ResolveRecipient(ctx))
+	producer, err := identity.ProducerForDirect(ctx, headers, h.verifier, h.service.ResolveRecipient(ctx))
 	if err != nil {
 		return identity.Producer{}, connect.NewError(connect.CodeUnauthenticated, errors.New("a verified agent run or verified owner identity is required"))
 	}
 	return producer, nil
 }
 
-// SendError maps a refused direct send. A cooldown refusal is
-// ResourceExhausted and carries Retry-After (seconds) so the producer knows
-// when to retry.
+// SendError maps a rejected notification payload. Push budgets never reject
+// accepted sends.
 func SendError(err error) error {
-	var cooldown *hub.CooldownError
-	if errors.As(err, &cooldown) {
-		refusal := connect.NewError(connect.CodeResourceExhausted, err)
-		refusal.Meta().Set("Retry-After", strconv.Itoa(int(cooldown.RetryAfter/time.Second)))
-		return refusal
-	}
 	return connect.NewError(connect.CodeInvalidArgument, err)
 }
 

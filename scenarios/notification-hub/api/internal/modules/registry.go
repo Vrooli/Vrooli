@@ -23,6 +23,7 @@ import (
 	capsH "notification-hub/handlers/capabilities"
 	conversationH "notification-hub/handlers/conversations"
 	deliveryH "notification-hub/handlers/delivery"
+	externalURLH "notification-hub/handlers/externalurl"
 	notificationH "notification-hub/handlers/notifications"
 	recipientsH "notification-hub/handlers/recipients"
 	routingH "notification-hub/handlers/routing"
@@ -58,6 +59,7 @@ func AllEndpoints() []module.EndpointDescriptor {
 	out := make([]module.EndpointDescriptor, 0)
 	out = append(out, healthH.Endpoints...)
 	out = append(out, capsH.Endpoints...)
+	out = append(out, externalURLH.Endpoints...)
 	out = append(out, appDeliveryH.Endpoints...)
 	out = append(out, conversationH.Endpoints...)
 	out = append(out, deliveryH.Endpoints...)

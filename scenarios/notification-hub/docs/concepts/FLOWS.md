@@ -406,12 +406,19 @@ stateDiagram-v2
     expired --> [*]
 ```
 
-A reversible ask with a default never escalates or expires. The one-minute
+A reversible ask with a default never escalates or expires while it is
+reachable. The one-minute
 sweep applies its default only when the deadline has passed **and** at least
 the floor (12 h, `VROOLI_NOTIFICATION_ASK_DEFAULT_FLOOR`) has passed since the
 first delivered receipt. With no delivered receipt the ask stays `pending`
 with the reason "operator not reached", so a default never fires on a
-decision nobody saw.
+decision nobody saw. An ask that stays undelivered does not stay open forever:
+seven days after its deadline the sweep expires it ("never delivered ... default
+not applied") without applying the default.
+
+The same sweep closes an ask whose producer promised to re-send it
+(`reassert_within_seconds`) and did not: it becomes `withdrawn` with "No longer
+confirmed by <source> since <time>".
 
 Reads never change an ask. The blocking call returns on `answered`,
 `defaulted` or `expired`; when the caller's own deadline passes first it
@@ -420,7 +427,9 @@ that disconnects does not cancel the ask; the answer is still recorded.
 Every terminal transition publishes `notification_hub.ask.resolved.v1`
 (see [`INTEGRATIONS.md`](INTEGRATIONS.md)). Before routing a still-pending or
 held notification, the hub checks its linked Ask; an already `answered`,
-`withdrawn`, or `expired` Ask suppresses the stale question. `defaulted`
+`withdrawn`, or `expired` Ask suppresses the stale question. An ask with a
+subject key that is updated in place is never re-routed: the inbox shows the
+current text and no second push is sent. `defaulted`
 remains routable under the late-answer contract, and ordinary notifications
 without an Ask are unaffected. This check prevents a later queued/recovery pass
 from starting delivery after resolution; it cannot retract a send a provider

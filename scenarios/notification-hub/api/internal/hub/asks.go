@@ -50,6 +50,9 @@ const (
 	maxBigPictureCodePoints       = 4_000
 	maxTechnicalDetailsCodePoints = 12_000
 	operatorNotReached            = "operator not reached: no delivered receipt yet; default withheld"
+	// neverDeliveredExpiredReason closes an ask whose default was withheld for
+	// lack of a delivered receipt for a week after its deadline.
+	neverDeliveredExpiredReason = "expired: never delivered to the operator, 7 days after its deadline; default not applied"
 )
 
 var (
@@ -100,6 +103,17 @@ type AskSpec struct {
 	// decisions. Its canonical JSON is persisted inside the ask's correlation
 	// record and is compared during idempotent retries.
 	ProviderDecisionContext *ProviderDecisionContext
+	// SubjectKey names the ongoing situation the ask is about. With a key the
+	// hub keeps at most one open ask per (Source, SourceEventType, SubjectKey):
+	// a repeat re-asserts it, a text change updates it in place, a changed
+	// answer menu replaces it. See ask_subjects.go.
+	SubjectKey string
+	// ReassertWithin closes the open ask when the producer has not re-sent it
+	// for this long. It needs SubjectKey.
+	ReassertWithin time.Duration
+	// AssertedAt is when the producer last saw the decision was still needed.
+	// It orders a request against the subject's withdrawals; zero means now.
+	AssertedAt time.Time
 }
 
 // AskRecord is the read model of one ask. Reading it never changes it.
@@ -139,6 +153,18 @@ type AskRecord struct {
 	ResolvedAt               string
 	CreatedAt                string
 	UpdatedAt                string
+	// SubjectKey is the producer's subject key; empty for a one-off decision.
+	SubjectKey string
+	// LastAssertedAt is when the producer last confirmed the decision.
+	LastAssertedAt string
+	// ReassertWithinSeconds is the producer's re-send cadence bound; 0 means none.
+	ReassertWithinSeconds int
+	// RevisionCount is the number of in-place updates the ask received.
+	RevisionCount int
+	// SupersededByAskID names the decision that replaced this one.
+	SupersededByAskID string
+	// CurrentEventID is the event id of the revision the ask shows now.
+	CurrentEventID string
 }
 
 // Open reports whether the ask still waits for an answer.
@@ -217,6 +243,9 @@ func normalizeAskSpec(spec AskSpec) (AskSpec, error) {
 		return spec, err
 	}
 	spec.ProviderDecisionContext = decisionContext
+	if err := normalizeSubject(&spec); err != nil {
+		return spec, err
+	}
 	if !utf8.ValidString(spec.BigPicture) || utf8.RuneCountInString(spec.BigPicture) > maxBigPictureCodePoints {
 		return spec, fmt.Errorf("%w: big_picture must be valid UTF-8 and at most %d Unicode code points", ErrInvalidArgument, maxBigPictureCodePoints)
 	}
@@ -316,10 +345,41 @@ func optionLabel(options []AskOption, key string) string {
 // AskWithSpec opens an ask. It is idempotent on (Source, IdempotencyKey):
 // a repeated request returns the existing ask and sends nothing new.
 func (s *Service) AskWithSpec(ctx context.Context, spec AskSpec) (AskRecord, Notification, error) {
+	return s.askWithSpec(ctx, spec, "")
+}
+
+// AskFrom accepts a direct decision ask without requiring producer authority.
+// The source key selects the producer's device-push bucket; it never affects
+// whether the ask is stored.
+func (s *Service) AskFrom(ctx context.Context, source string, spec AskSpec) (AskRecord, Notification, error) {
+	return s.askWithSpec(ctx, spec, source)
+}
+
+func (s *Service) askWithSpec(ctx context.Context, spec AskSpec, pushSource string) (AskRecord, Notification, error) {
+	result, err := s.AskDecision(ctx, spec, pushSource)
+	if err == nil && result.Outcome == AskStale {
+		err = ErrAskStale
+	}
+	return result.Ask, result.Notification, err
+}
+
+// AskDecision opens, re-asserts, updates or replaces an ask and reports which
+// happened. An ask with a SubjectKey follows the decision-subject rules; any
+// other ask is idempotent on (Source, IdempotencyKey) and its Outcome is empty.
+// pushSource is "" for event-sourced asks and the producer key for direct asks.
+func (s *Service) AskDecision(ctx context.Context, spec AskSpec, pushSource string) (AskResult, error) {
 	spec, err := normalizeAskSpec(spec)
 	if err != nil {
-		return AskRecord{}, Notification{}, err
+		return AskResult{}, err
 	}
+	if spec.SubjectKey != "" {
+		return s.askSubject(ctx, spec, pushSource)
+	}
+	record, n, err := s.askPlain(ctx, spec, pushSource)
+	return AskResult{Ask: record, Notification: n}, err
+}
+
+func (s *Service) askPlain(ctx context.Context, spec AskSpec, pushSource string) (AskRecord, Notification, error) {
 	if existing, err := s.askByRequester(ctx, spec.Source, spec.IdempotencyKey); err == nil {
 		if existing.SourceEventType != spec.SourceEventType {
 			return AskRecord{}, Notification{}, ErrAskIdentityConflict
@@ -346,23 +406,8 @@ func (s *Service) AskWithSpec(ctx context.Context, spec AskSpec) (AskRecord, Not
 		return AskRecord{}, Notification{}, err
 	}
 	defer tx.Rollback()
-	// The A239 lifecycle ledger covers the withdrawable Agent Manager asks
-	// (withdrawableDecisions). Other producers and direct/manual asks keep their
-	// existing path. A mismatched Agent Manager type still cannot reuse a ref
-	// already reserved by an exact withdrawal contract.
-	if spec.Source == "agent-manager" && spec.IdempotencyKey != "" {
-		var withdrawn bool
-		if withdrawableDecision(spec.SourceEventType) {
-			withdrawn, err = reserveDecisionRequestTx(ctx, tx, spec.Source, spec.IdempotencyKey, spec.SourceEventType, s.clock.Now().UTC().Format(time.RFC3339Nano))
-		} else {
-			withdrawn, err = checkDecisionRequestLifecycleTx(ctx, tx, spec.Source, spec.IdempotencyKey, spec.SourceEventType)
-		}
-		if err != nil {
-			return AskRecord{}, Notification{}, err
-		}
-		if withdrawn {
-			return AskRecord{}, Notification{}, ErrAskWithdrawn
-		}
+	if err := s.requestLifecycleGateTx(ctx, tx, spec); err != nil {
+		return AskRecord{}, Notification{}, err
 	}
 	n, created, err := s.persistNotificationUsing(ctx, tx, SendInput{RequestedBy: spec.Recipient, Title: spec.Title, Body: spec.Body, Urgency: spec.Urgency, SensitivityLabel: spec.SensitivityLabel, IdempotencyKey: spec.IdempotencyKey})
 	if err != nil {
@@ -379,38 +424,13 @@ func (s *Service) AskWithSpec(ctx context.Context, spec AskSpec) (AskRecord, Not
 			return existing, n, nil
 		}
 	}
-	allowed := make([]string, 0, len(spec.Options))
-	for _, option := range spec.Options {
-		allowed = append(allowed, option.Key)
-	}
-	allowedJSON, _ := json.Marshal(allowed)
-	optionsJSON, _ := json.Marshal(spec.Options)
-	correlation := make(map[string]string, len(spec.Correlation)+1)
-	for key, value := range spec.Correlation {
-		correlation[key] = value
-	}
-	if _, exists := correlation[providerDecisionCorrelationKey]; exists {
-		return AskRecord{}, Notification{}, fmt.Errorf("%w: correlation uses a reserved provider decision key", ErrInvalidArgument)
-	}
-	if spec.ProviderDecisionContext != nil {
-		encodedContext, encodeErr := encodeProviderDecisionContext(spec.ProviderDecisionContext)
-		if encodeErr != nil {
-			return AskRecord{}, Notification{}, encodeErr
-		}
-		correlation[providerDecisionCorrelationKey] = encodedContext
-	}
-	correlationJSON := ""
-	if len(correlation) > 0 {
-		encoded, _ := json.Marshal(correlation)
-		if len(encoded) > maxAskCorrelationLen {
-			return AskRecord{}, Notification{}, fmt.Errorf("%w: correlation exceeds %d bytes", ErrInvalidArgument, maxAskCorrelationLen)
-		}
-		correlationJSON = string(encoded)
+	enc, err := encodeAskRow(spec)
+	if err != nil {
+		return AskRecord{}, Notification{}, err
 	}
 	id := uuid.NewString()
 	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-	if _, err := tx.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at, options_json, recommended, recommendation_reason, default_answer, reversible, urgency, context_url, big_picture, technical_details, source, source_event_type, requester_ref, correlation_json) VALUES (?, ?, ?, ?, ?, 'pending', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, n.ID, spec.Question, string(allowedJSON), spec.Deadline.UTC().Format(time.RFC3339Nano), now, now, string(optionsJSON), spec.Recommended, strings.TrimSpace(spec.RecommendationReason), spec.DefaultAnswer, boolInt(spec.Reversible), spec.Urgency, strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, spec.Source, strings.TrimSpace(spec.SourceEventType), spec.IdempotencyKey, correlationJSON); err != nil {
+	if err := insertAskTx(ctx, tx, id, n.ID, spec, enc, now, ""); err != nil {
 		// Either notification idempotency or the durable requester identity
 		// constraint may have selected a concurrent winner. Re-read by the
 		// immutable identity first so a different recipient cannot split one
@@ -456,7 +476,11 @@ func (s *Service) AskWithSpec(ctx context.Context, spec AskSpec) (AskRecord, Not
 	// The successful Ask insert owns routing. Under concurrent same-terms
 	// retries, the notification creator can lose the Ask insert race; dispatch
 	// based on `created` would then leave the winning durable Ask unrouted.
-	s.dispatch(n.ID)
+	if pushSource == "" {
+		s.dispatch(n.ID)
+	} else {
+		s.dispatchDirect(n.ID, pushSource)
+	}
 	record, err := s.GetAsk(ctx, id)
 	return record, n, err
 }
@@ -479,7 +503,7 @@ func notificationByIDTx(ctx context.Context, tx dbTx, id string) (Notification, 
 }
 
 func sameAskTerms(existing AskRecord, notification Notification, spec AskSpec) bool {
-	if existing.Source != spec.Source || existing.RequesterRef != spec.IdempotencyKey ||
+	if existing.Source != spec.Source || existing.RequesterRef != spec.IdempotencyKey || existing.SubjectKey != spec.SubjectKey ||
 		existing.Recipient != spec.Recipient || notification.Title != spec.Title ||
 		notification.Urgency != spec.Urgency || notification.SensitivityLabel != spec.SensitivityLabel ||
 		existing.Question != spec.Question ||
@@ -529,6 +553,7 @@ func sameCorrelation(a, b map[string]string) bool {
 }
 
 const askSelect = `SELECT a.id, a.notification_id, a.question, a.allowed_answers, a.options_json, a.recommended, a.recommendation_reason, a.default_answer, a.reversible, a.urgency, a.context_url, a.big_picture, a.technical_details, a.source, a.source_event_type, a.requester_ref, a.correlation_json, a.deadline, a.state, a.reason, a.default_applied_at, a.resolved_at, a.created_at, a.updated_at,
+  a.subject_key, a.last_asserted_at, a.reassert_within_seconds, a.revision_count, a.superseded_by_ask_id, a.current_event_id,
   COALESCE(ans.answer, ''), COALESCE(ans.answered_by, ''), COALESCE(ans.answered_at, ''), COALESCE(ans.note, ''), COALESCE(ans.late, 0),
   COALESCE(ai.identity_kind, ''), COALESCE(ai.identity_source, ''),
   COALESCE((SELECT MIN(r.delivered_at) FROM receipts r WHERE r.notification_id = a.notification_id), ''),
@@ -541,6 +566,7 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 	var allowedJSON, optionsJSON, correlationJSON string
 	var reversible, late int
 	err := row.Scan(&record.ID, &record.NotificationID, &record.Question, &allowedJSON, &optionsJSON, &record.Recommended, &record.RecommendationReason, &record.DefaultAnswer, &reversible, &record.Urgency, &record.ContextURL, &record.BigPicture, &record.TechnicalDetails, &record.Source, &record.SourceEventType, &record.RequesterRef, &correlationJSON, &record.Deadline, &record.State, &record.Reason, &record.DefaultAppliedAt, &record.ResolvedAt, &record.CreatedAt, &record.UpdatedAt,
+		&record.SubjectKey, &record.LastAssertedAt, &record.ReassertWithinSeconds, &record.RevisionCount, &record.SupersededByAskID, &record.CurrentEventID,
 		&record.Answer, &record.AnsweredBy, &record.AnsweredAt, &record.Note, &late, &record.AnsweredByIdentityKind, &record.AnsweredByIdentitySource, &record.FirstDeliveredAt, &record.Recipient, &record.Title)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AskRecord{}, ErrNotFound
@@ -980,6 +1006,18 @@ func (s *Service) applyDefaultIfDue(ctx context.Context, askID string) error {
 	now := s.clock.Now().UTC()
 	nowText := now.Format(time.RFC3339Nano)
 	if record.FirstDeliveredAt == "" {
+		// A default is withheld until the operator was reached, but an ask that
+		// never reached them must not stay open forever.
+		if deadline, parseErr := time.Parse(time.RFC3339Nano, record.Deadline); parseErr == nil && !now.Before(deadline.Add(neverDeliveredExpiry)) {
+			result, execErr := s.db.ExecContext(ctx, `UPDATE asks SET state='expired', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND state IN ('pending','escalated')`, neverDeliveredExpiredReason, nowText, nowText, record.ID)
+			if execErr != nil {
+				return execErr
+			}
+			if changed, _ := result.RowsAffected(); changed == 1 {
+				s.kickResolutions(ctx)
+			}
+			return nil
+		}
 		return s.setAskReason(ctx, record, operatorNotReached, nowText)
 	}
 	delivered, err := time.Parse(time.RFC3339Nano, record.FirstDeliveredAt)
@@ -1140,6 +1178,8 @@ func AskResolvedEvent(record AskRecord) eventbus.DomainEvent {
 			"requester_ref":               record.RequesterRef,
 			"correlation":                 correlation,
 			"resolved_at":                 record.ResolvedAt,
+			"subject_key":                 record.SubjectKey,
+			"superseded_by_ask_id":        record.SupersededByAskID,
 		},
 	}
 	if record.ProviderDecisionContext != nil {

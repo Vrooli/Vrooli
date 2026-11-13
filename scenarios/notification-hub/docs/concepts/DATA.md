@@ -110,6 +110,20 @@ directly. Cross-domain reads go through a service seam.
 - `asks` — a question, its allowed answers, its deadline, and its state.
   Durable so a restart between question and answer does not strand a
   blocked caller.
+  Decision-subject columns: `subject_key`, `last_asserted_at`,
+  `reassert_within_seconds`, `revision_count`, `superseded_by_ask_id` and
+  `current_event_id`. A partial unique index admits one open ask per
+  `(source, source_event_type, subject_key)` for a nonempty key. The index and
+  the columns are added to an existing database by
+  `Service.ensureAdditiveColumns` (the index only after the `ALTER`s), not by
+  `schema.sql`.
+- `ask_revisions` — what an updated ask said before each update (text,
+  correlation, deadline, event id); the newest 50 per ask.
+- `ask_event_ids` — event ids an ask carried as `requester_ref` before an
+  update or re-send moved it to the latest event's id; they still find the ask
+  for redeliveries and withdrawals (newest 200 per ask).
+- `decision_subject_withdrawals` — the last withdrawal a producer asserted per
+  subject; a request asserted earlier is stale.
 - `answers` — the chosen answer, who gave it, and when.
 - `escalation_steps` — each escalation taken for an unanswered critical
   ask, with the channel tried and the outcome.
@@ -150,7 +164,7 @@ hypothetical one.
 | `routing_decisions` | 90 days, with the notification. | Needed to explain a past choice. |
 | `holds`, `suppressions` | Deleted when released or expired. | Working state, not history. |
 | `machine_channel_status` | Overwritten per observation; no history. | A cache. |
-| `asks`, `answers`, `escalation_steps` | 90 days | Audit of decisions taken through the fleet gate. |
+| `asks`, `answers`, `escalation_steps`, `ask_revisions` | 90 days | Audit of decisions taken through the fleet gate. |
 | `push_subscriptions` | Deleted immediately when the push service reports the endpoint gone. | A dead subscription that looks alive is the failure mode OT-P0-014 exists to prevent. |
 
 A retention pass runs on a schedule and records how many rows it removed.

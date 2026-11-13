@@ -27,7 +27,7 @@ Line numbers are as of this change and will drift.
 | Source filter (new) | `module.go:125` (`sourceFilter`, `filterSources`, `filterPreferences`) | `?source_scenario=a[,b]`, repeatable |
 | Catalog storage | `api/internal/preferences/preferences.go:317` (`ListCatalog`) | Observed + declared sources; hides undeclared sources that aren't installed scenarios |
 | Read identity | `module.go:62` (`configuredRecipient`) via `main.go:257` `service.ResolveRecipient` | Reads use the installation's configured recipient, no auth required |
-| Write identity | `module.go:58` → `internal/identity/identity.go:63` (`Subject`) | Writes require a verified owner (CF Access > Bearer > cookie) |
+| Write identity | Preferences and device settings use `Subject`; direct notifications and decision asks use the configured recipient | Preference/device writes require a verified owner. Notification and ask creation do not require identity or permission. |
 | Contract doc | `docs/concepts/NOTIFICATIONS.md` §Preference Model | Describes Connect endpoints; the shipped surface is REST (doc now notes this) |
 
 There is no proto for preferences: the module header (`module.go:1-11`)

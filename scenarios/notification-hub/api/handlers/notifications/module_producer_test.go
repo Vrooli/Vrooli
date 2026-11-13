@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http/httptest"
 	"strings"
 	"sync"
@@ -81,8 +82,6 @@ func (f producerFixture) send(ctx context.Context, token, key string) (*connect.
 	if token != "" {
 		req.Header().Set(cliutil.HeaderAgentIdentityToken, token)
 	}
-	// A forged owner header never authenticates once a verifier is wired.
-	req.Header().Set("X-Vrooli-Identity-Subject", "forged-owner")
 	return f.client.Send(ctx, req)
 }
 
@@ -105,9 +104,8 @@ func (f producerFixture) settle(t *testing.T, ids ...string) {
 	}
 }
 
-// [REQ:NOTIFICA-P0-002] Any verified agent run sends and relays to the
-// configured recipient without a scope or an operation grant. A caller without
-// a verified agent run or owner credential is refused and nothing is stored.
+// [REQ:NOTIFICA-P0-002] Direct send and relay accept identityless host callers
+// as well as verified agents and owners, always using the configured recipient.
 func TestNotificationProducerIngress(t *testing.T) {
 	runs := map[string]agentRun{
 		"managed":     {scopes: []string{"notification-hub:write"}},
@@ -124,7 +122,7 @@ func TestNotificationProducerIngress(t *testing.T) {
 			{name: "interactive session without scope or grant", token: "valid-interactive"},
 			{name: "run with only a read scope", token: "valid-read-only"},
 			{name: "session holding an unrelated grant", token: "valid-other-grant"},
-			{name: "anonymous caller", code: connect.CodeUnauthenticated},
+			{name: "identityless host caller"},
 			{name: "unverified agent token", token: "forged-run", code: connect.CodeUnauthenticated},
 		} {
 			t.Run(method+"/"+tc.name, func(t *testing.T) {
@@ -181,29 +179,47 @@ func (c *steppingClock) advance(d time.Duration) {
 	c.now = c.now.Add(d)
 }
 
-// A producer over its cooldown is refused with ResourceExhausted, the retry
-// time and Retry-After; nothing is stored. Replays and other producers are not
-// affected, and the producer may send again when the window passes.
-func TestNotificationProducerCooldown(t *testing.T) {
+type pushCounter struct {
+	mu sync.Mutex
+	n  int
+}
+
+func (p *pushCounter) Send(context.Context, hub.PushSubscription, hub.PushMessage) (string, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.n++
+	return fmt.Sprintf("push-%d", p.n), nil
+}
+
+func (p *pushCounter) count() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.n
+}
+
+// Sends stay accepted and durable after the per-run bucket empties. Only the
+// device push stops, then resumes after a token drains back into the bucket.
+func TestNotificationProducerPushBudgetStoresWithoutDevicePush(t *testing.T) {
 	ctx := context.Background()
 	clock := &steppingClock{now: time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)}
 	f := newProducerFixture(t, clock, map[string]agentRun{"looping": {}, "other": {}})
-	f.service.SetProducerCooldown(hub.ProducerNotification, hub.CooldownLimit{Count: 2, Window: 10 * time.Minute})
+	f.service.SetPushBudget(hub.PushBudgetConfig{Capacity: 2, RefillInterval: time.Minute})
+	require.NoError(t, f.service.RegisterPushSubscription(ctx, "configured-owner", hub.PushSubscription{Endpoint: "https://push.example/device", P256DH: "key", Auth: "auth", Origin: "https://app.example"}))
+	sender := &pushCounter{}
+	f.service.SetPushSender(sender)
 
 	var ids []string
-	for _, key := range []string{"one", "two"} {
+	for _, key := range []string{"one", "two", "three"} {
 		resp, err := f.send(ctx, "valid-looping", key)
 		require.NoError(t, err)
 		ids = append(ids, resp.Msg.GetNotification().GetId())
 	}
-	clock.advance(time.Minute)
-	_, err := f.send(ctx, "valid-looping", "three")
-	require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err))
-	var refusal *connect.Error
-	require.ErrorAs(t, err, &refusal)
-	require.Equal(t, "540", refusal.Meta().Get("Retry-After"))
-	require.Contains(t, refusal.Message(), "retry after 2026-11-11T12:10:00Z")
-	require.Equal(t, 2, f.count(t), "a refused send stores nothing")
+	require.Equal(t, 3, f.count(t), "all accepted sends remain in the hub")
+	f.settle(t, ids...)
+	require.Eventually(t, func() bool { return sender.count() == 2 }, time.Second, 10*time.Millisecond)
+	stored, _, err := f.service.GetForRecipient(ctx, ids[2], "configured-owner")
+	require.NoError(t, err)
+	require.Equal(t, "suppressed", stored.State, "the over-limit item remains visible in the hub")
 
 	replay, err := f.send(ctx, "valid-looping", "one")
 	require.NoError(t, err, "an idempotent replay uses no budget")
@@ -211,11 +227,12 @@ func TestNotificationProducerCooldown(t *testing.T) {
 
 	other, err := f.send(ctx, "valid-other", "other-one")
 	require.NoError(t, err, "each run has its own budget")
-	ids = append(ids, other.Msg.GetNotification().GetId())
+	f.settle(t, other.Msg.GetNotification().GetId())
+	require.Eventually(t, func() bool { return sender.count() == 3 }, time.Second, 10*time.Millisecond)
 
-	clock.advance(9 * time.Minute)
-	later, err := f.send(ctx, "valid-looping", "three")
-	require.NoError(t, err, "the producer may send again after the window")
-	ids = append(ids, later.Msg.GetNotification().GetId())
-	f.settle(t, ids...)
+	clock.advance(time.Minute)
+	later, err := f.send(ctx, "valid-looping", "four")
+	require.NoError(t, err, "requests remain accepted after bucket refill")
+	f.settle(t, later.Msg.GetNotification().GetId())
+	require.Eventually(t, func() bool { return sender.count() == 4 }, time.Second, 10*time.Millisecond)
 }

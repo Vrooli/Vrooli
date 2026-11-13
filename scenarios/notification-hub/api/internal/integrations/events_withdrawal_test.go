@@ -175,7 +175,7 @@ func TestEnsureSchemasAddsWithdrawalLedgerWithoutChangingExistingAsks(t *testing
 	require.Equal(t, 1, lifecycleRows, "first real lifecycle event records exact legacy Ask provenance without rewriting prior data")
 }
 
-func TestEnsureDecisionWithdrawalSubscriptionUsesExactProducerRoute(t *testing.T) {
+func TestEnsureDecisionWithdrawalSubscriptionRoutesEveryProducersWithdrawals(t *testing.T) {
 	created := map[string]string{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -190,10 +190,48 @@ func TestEnsureDecisionWithdrawalSubscriptionUsesExactProducerRoute(t *testing.T
 	}))
 	defer server.Close()
 	require.NoError(t, EnsureDecisionWithdrawalSubscription(context.Background(), server.URL, "https://hub.test/events"))
-	require.Equal(t, map[string]string{
-		"notification-hub-decision-withdrawals":      DecisionWithdrawalPattern,
-		"notification-hub-investigation-withdrawals": InvestigationWithdrawalEventType,
-	}, created)
+	require.Equal(t, map[string]string{"notification-hub-decision-withdrawals": "**.decision_withdrawn.v1"}, created)
+}
+
+// A hub that already has the two exact Agent Manager withdrawal subscriptions
+// must end with one generic subscription: left as is, every Agent Manager
+// withdrawal would be delivered twice (generic and exact).
+func TestEnsureDecisionWithdrawalSubscriptionReconcilesTheLegacyExactSubscriptions(t *testing.T) {
+	type call struct{ method, path, pattern string }
+	var calls []call
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			_, _ = w.Write([]byte(`[
+				{"id": 11, "name": "notification-hub-decision-withdrawals", "event_pattern": "agent_manager.run.decision_withdrawn.v1", "delivery_target": "https://hub.test/events", "enabled": true},
+				{"id": 12, "name": "notification-hub-investigation-withdrawals", "event_pattern": "agent_manager.investigation.decision_withdrawn.v1", "delivery_target": "https://hub.test/events", "enabled": true},
+				{"id": 13, "name": "notification-hub-decisions", "event_pattern": "**.decision_requested.v1", "delivery_target": "https://hub.test/events", "enabled": true}
+			]`))
+			return
+		}
+		entry := call{method: r.Method, path: r.URL.Path}
+		if r.Method == http.MethodPut {
+			var body map[string]any
+			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			entry.pattern = body["event_pattern"].(string)
+		}
+		calls = append(calls, entry)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	require.NoError(t, EnsureDecisionWithdrawalSubscription(context.Background(), server.URL, "https://hub.test/events"))
+	require.Equal(t, []call{
+		{http.MethodPut, "/api/v1/subscriptions/11", "**.decision_withdrawn.v1"},
+		{http.MethodDelete, "/api/v1/subscriptions/12", ""},
+	}, calls, "the named subscription is widened in place, the exact investigation one is retired, others are untouched")
+
+	// Reconciling the result again changes nothing.
+	calls = nil
+	satisfied := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodGet, r.Method)
+		_, _ = w.Write([]byte(`[{"id": 11, "name": "notification-hub-decision-withdrawals", "event_pattern": "**.decision_withdrawn.v1", "delivery_target": "https://hub.test/events", "enabled": true}]`))
+	}))
+	defer satisfied.Close()
+	require.NoError(t, EnsureDecisionWithdrawalSubscription(context.Background(), satisfied.URL, "https://hub.test/events"))
 }
 
 func TestWithdrawalEventsCloseOnlyTheirOwnRequestType(t *testing.T) {

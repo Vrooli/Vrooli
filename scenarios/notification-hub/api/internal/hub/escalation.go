@@ -16,10 +16,14 @@ const escalationSlice = 5 * time.Minute
 // background sweep.
 //
 // A reversible ask with a default never escalates or expires: the sweep
-// applies its default once it is due (see applyDefaultIfDue). Critical asks
+// applies its default once it is due (see applyDefaultIfDue), or expires it
+// when it was never delivered and has waited a week past its deadline. Critical asks
 // without an applicable default follow the recipient's escalation chain;
 // non-critical asks expire directly when their response window elapses.
 func (s *Service) ProcessEscalations(ctx context.Context) error {
+	if err := s.closeLapsedSubjects(ctx); err != nil {
+		return err
+	}
 	now := s.clock.Now().UTC()
 	rows, err := s.db.QueryContext(ctx, `SELECT a.id, a.notification_id, a.default_answer, a.reversible, n.urgency FROM asks a JOIN notifications n ON n.id=a.notification_id WHERE a.state IN ('pending', 'escalated') AND a.deadline <= ? ORDER BY a.deadline`, now.Format(time.RFC3339Nano))
 	if err != nil {

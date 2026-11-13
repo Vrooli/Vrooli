@@ -286,11 +286,18 @@
       "readbackFailed": "依頼の状態を確認できません。送信内容は保持されています。再送信せず、状態をもう一度確認してください。",
       "answerError": "回答を確認できません。送信内容は保持されています。再送信する前に状態を確認してください。",
       "expiredSession": "セッションの期限が切れました。続けるには再ログインしてください。この依頼の下書きはメモリに保持されます。",
+      "fileLinksLoading": "ファイルリンクを準備しています…",
+      "fileLinksUnavailable": "ファイルパスを表示していますが、Web Consoleに接続できないため開けません。",
+      "retryFileLinks": "ファイルリンクを再試行",
       "dismiss": "回答せずに閉じる",
       "dismissing": "閉じています…",
       "dismissed": "回答せずにこの判断を閉じました。",
       "otherOption": "その他",
-      "otherPrompt": "どのような案をお考えですか？"
+      "otherPrompt": "どのような案をお考えですか？",
+      "closedReason": "理由:",
+      "replacedBy": "この判断に代わった新しい判断を見る",
+      "revisionReplaced": "置き換え日時",
+      "updatedTimes": "{{count}} 回更新されました"
     }
   },
   "session": {

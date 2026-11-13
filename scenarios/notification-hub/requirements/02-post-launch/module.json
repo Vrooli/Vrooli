@@ -166,7 +166,7 @@
       "status": "in_progress",
       "prd_ref": "OT-P1-010",
       "criticality": "P1",
-      "description": "The system should expose a request that delivers a question and blocks until the recipient answers or a caller-supplied deadline expires, and should return the answer or a stated timeout to the caller. This is the calling convention an agent needs; NOTIFICA-P1-009 is the data path underneath it. If the linked Ask is answered, withdrawn, or expired before a pending or held notification is routed, the hub should suppress that stale question; defaulted remains eligible for its documented late-answer path.",
+      "description": "Any caller can create a decision request without identity or permission. The system should expose a request that delivers a question and blocks until the recipient answers or a caller-supplied deadline expires, and should return the answer or a stated timeout to the caller. This is the calling convention an agent needs; NOTIFICA-P1-009 is the data path underneath it. If the linked Ask is answered, withdrawn, or expired before a pending or held notification is routed, the hub should suppress that stale question; defaulted remains eligible for its documented late-answer path.",
       "validation": [
         {
           "type": "test",
@@ -181,6 +181,27 @@
           "phase": "unit",
           "status": "planned",
           "notes": "Resolved linked Asks are suppressed before a pending/held notification is routed; open/defaulted Ask and ordinary FYI routing remain eligible."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/conversations/module_producer_test.go::TestAgentAsksWithoutGrantButCannotDecide",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "An identityless caller can create an ask; owner-only answers and dismissals remain protected."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/conversations/module_producer_test.go::TestAgentAskPushBudgetStoresWithoutDevicePush",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "An over-limit decision request remains stored while its device push is suppressed."
+        },
+        {
+          "type": "test",
+          "ref": "cli/host_ingress_test.go::TestHostCommandsSendAndAskWithoutIdentityOrPermission",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "The actual conversations ask CLI command reaches an isolated API without agent identity or owner credentials."
         }
       ]
     },

@@ -28,14 +28,35 @@
       "status": "in_progress",
       "prd_ref": "OT-P0-002",
       "criticality": "P0",
-      "description": "When an agent, scenario, or operator submits a notification request, the system shall persist it and shall return a durable notification id.",
+      "description": "Any caller, including a plain host process with no agent identity, can submit a notification without permission; the system shall persist it and return a durable notification id. A configurable per-source bucket limits device pushes only, and over-limit requests remain stored.",
       "validation": [
         {
           "type": "test",
           "ref": "api/internal/hub/service_test.go::TestSend_IsIdempotentAndLeavesDurableTerminalState",
           "phase": "unit",
-          "status": "failing",
+          "status": "passing",
           "notes": "Durable acceptance and idempotency are covered by the hub service test."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/notifications/module_producer_test.go::TestNotificationProducerIngress",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Identityless host callers can send and relay without requesting permission; all writes use the configured recipient."
+        },
+        {
+          "type": "test",
+          "ref": "api/handlers/notifications/module_producer_test.go::TestNotificationProducerPushBudgetStoresWithoutDevicePush",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "Under-limit requests push; an over-limit request remains stored with device push suppressed."
+        },
+        {
+          "type": "test",
+          "ref": "cli/host_ingress_test.go::TestHostCommandsSendAndAskWithoutIdentityOrPermission",
+          "phase": "unit",
+          "status": "passing",
+          "notes": "The actual notifications send CLI command reaches an isolated API without agent identity or owner credentials."
         }
       ]
     },

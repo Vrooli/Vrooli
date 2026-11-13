@@ -102,15 +102,15 @@ export function DashboardPage() {
                     <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
                       <Link
                         to={preserveRoutedTestMode(`/delivery/${encodeURIComponent(item.id)}`, location.search)}
-                        className="rounded-sm underline focus-visible:outline focus-visible:outline-2"
+                        className="inline-flex min-h-11 items-center rounded-sm underline focus-visible:outline focus-visible:outline-2"
                       >
                         {t(strings.pages.dashboard.deliveryDetails)}
                       </Link>
-                      {contextUrl && <a href={contextUrl} rel="noreferrer" className="rounded-sm underline focus-visible:outline focus-visible:outline-2">{t(strings.nativeConsent.context)}</a>}
+                      {contextUrl && <a href={contextUrl} rel="noreferrer" className="inline-flex min-h-11 items-center rounded-sm underline focus-visible:outline focus-visible:outline-2">{t(strings.nativeConsent.context)}</a>}
                       {askId && (
                         <Link
                           to={preserveRoutedTestMode(`/asks/${encodeURIComponent(askId)}`, location.search)}
-                          className="rounded-sm underline focus-visible:outline focus-visible:outline-2"
+                          className="inline-flex min-h-11 items-center rounded-sm underline focus-visible:outline focus-visible:outline-2"
                         >
                           {t(strings.pages.dashboard.openDecision)}
                         </Link>

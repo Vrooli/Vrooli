@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, decodeApiError, uploadFile } from "./client";
+import { ApiError, decodeApiError, fetchScenarioExternalUrl, uploadFile } from "./client";
 
 describe("api/client REST helpers", () => {
   let fetchSpy: ReturnType<typeof vi.fn>;
@@ -46,5 +46,15 @@ describe("api/client REST helpers", () => {
     expect(url).toMatch(/\/api\/v1\/things\/thing-1\/attachments$/);
     expect(init).toMatchObject({ method: "POST", body: formData, cache: "no-store" });
     expect(init.headers).toBeUndefined();
+  });
+
+  it("resolves sibling scenario URLs through the same-origin API", async () => {
+    fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify({ scenario: "web-console", url: "https://web-console.example.test/" }), { status: 200 }));
+
+    await expect(fetchScenarioExternalUrl("web-console")).resolves.toBe("https://web-console.example.test/");
+
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toMatch(/\/api\/v1\/external-url\?scenario=web-console$/);
+    expect(init).toMatchObject({ method: "GET", credentials: "same-origin", cache: "no-store" });
   });
 });

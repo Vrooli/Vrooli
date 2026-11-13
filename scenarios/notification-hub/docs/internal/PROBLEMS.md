@@ -422,3 +422,57 @@ Agent Manager review URL). Not verified: the Needs You list as rendered on the o
 phone, a request filed by a new Web Console Codex session, and any rollback path (the
 displaced previous binary is not a qualified rollback).
 
+## Work ladder — decision links from the phone (2026-11-12)
+
+- Rung: scoped W3 in decision reading and response affordances; expected behavior is
+  established by operator feedback F2. No W0–W2 readiness claim.
+- Evidence: AskPage rendered question, recommendation, and context prose as plain text;
+  URLs embedded there were not activatable. Updates already matched notifications to exact
+  returned asks and kept the feed available on lookup failure. AskPage now renders safe
+  HTTP(S) Markdown/bare links as 44px targets and Updates action links use the same target
+  height. Focused UI validation passed (2 files, 39 tests). Physical-device acceptance and
+  full scenario unit validation remain open; see the delegation return for current evidence.
+
+### 2026-11-12 — Decision links can open local files in Web Console
+
+**Status:** IMPLEMENTED; phone acceptance and scenario unit suite remain unverified.
+
+Notification Hub decision text now recognizes local file references and sends them
+to Web Console's existing file viewer through a same-origin, allowlisted external URL
+lookup. Web Console consumes `?file=` only after workspace hydration and an active
+session, then opens through its existing preview controller. The links remain inert
+when URL resolution fails and expose a retry action. URL links remain restricted to
+HTTP(S); no user information is included in the lookup response.
+
+Focused Notification Hub tests and type checking pass. The formal `unit` Test Genie
+phase still fails at `pnpm run test:coverage`; details and prior unrelated UI test
+failures are in the delegation return. A real phone read-and-open check is still
+required before calling the operator-facing acceptance complete.
+
+**Owner:** notification-hub / web-console.
+
+**Refs:** `api/handlers/externalurl/`, `ui/src/features/asks/DecisionText.tsx`,
+`scenarios/web-console/ui/src/hooks/useFilePreviewDeepLink.ts`.
+
+### 2026-11-13 — Decision context and mobile capture recheck
+
+The phone decision page now opens the plain-language “Why this matters” section by
+default while keeping technical details optional. Notification Hub AskPage tests pass
+30/30; Web Console file-link tests pass 5/5; both UI type checks and the external URL
+handler test pass. Test Genie unit runs `20261113-041041-3144fd31` and
+`20261113-042415-93f85cfe` both failed at UI coverage (`pnpm run test:coverage`);
+the first reported 296 passed and six failures, including React Router's
+`RequestInit` AbortSignal mismatch. Bug report: `knw-1794543157607928864`. The focused
+AskPage test includes a labeled answer group and passed 30/30. Web Console unit run
+`20261113-041641-3947f907` also failed in unrelated API/UI suites; focused file-link
+tests passed 5/5.
+
+Workflow Health run `ef988e46-5956-4370-a7b9-d9b8e49aded9` executed one phone-sized
+read of the real pending ask `91df4be1-58a3-4192-9ae8-b69fb5ed4e97`; capture is retained
+at the delegation's `mobile-real-decision.png` (390×844 CSS px). The local capture is
+signed out, so it shows the question and More detail link but no answer controls; the
+steward's authenticated phone check must verify choices and completion. The one-off
+capture case was removed after use. The Workflow Health static assessment reported
+`workflow.registry_stale` while that temporary case existed; its selected execution
+passed 1/1.
+

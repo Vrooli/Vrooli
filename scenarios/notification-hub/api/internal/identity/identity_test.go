@@ -77,9 +77,9 @@ func TestProducerIdentityDoesNotGrantOwnerAuthority(t *testing.T) {
 	}
 }
 
-// A verified run without scopes or grants is a producer for the configured
-// recipient, keyed by its run for the cooldown. The owner is keyed separately.
-func TestProducerForAdmitsVerifiedRunsAndTheOwner(t *testing.T) {
+// Verified callers retain stable producer keys, while identityless direct
+// producers share the configured recipient and the anonymous source bucket.
+func TestProducerSourceKeysAndIdentitylessFallback(t *testing.T) {
 	verifier := verifierFunc(func(_ context.Context, token string) (owneridentity.Identity, error) {
 		if token != "owner-token" {
 			return owneridentity.Identity{}, errors.New("invalid token")
@@ -101,7 +101,8 @@ func TestProducerForAdmitsVerifiedRunsAndTheOwner(t *testing.T) {
 	if err != nil || producer != (Producer{Recipient: "owner-1", Key: "owner:owner-1"}) {
 		t.Fatalf("verified owner = %+v, err=%v", producer, err)
 	}
-	if _, err := ProducerFor(context.Background(), http.Header{}, verifier, "configured-owner"); err == nil {
-		t.Fatal("an anonymous caller must be refused")
+	producer, err = ProducerForDirect(context.Background(), http.Header{}, verifier, "configured-owner")
+	if err != nil || producer != (Producer{Recipient: "configured-owner", Key: "source:anonymous"}) {
+		t.Fatalf("identityless producer = %+v, err=%v", producer, err)
 	}
 }

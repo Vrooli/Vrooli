@@ -33,27 +33,33 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			if err != nil {
 				return err
 			}
+			reassertWithin, err := parseReassertWithin(ctx.Flag("reassert-within"), ctx.Flag("subject-key"))
+			if err != nil {
+				return err
+			}
 			askOptions := make([]*v1.AskOption, 0, len(options))
 			for _, option := range options {
 				askOptions = append(askOptions, &v1.AskOption{Key: option.Key, Label: option.Label})
 			}
 			resp, callErr := client.Ask(context.Background(), connect.NewRequest(&v1.AskRequest{
-				Question:             ctx.Flag("question"),
-				Options:              askOptions,
-				Recommended:          ctx.Flag("recommend"),
-				RecommendationReason: ctx.Flag("recommend-reason"),
-				DefaultAnswer:        ctx.Flag("default"),
-				Reversible:           ctx.BoolFlag("reversible"),
-				Urgency:              ctx.Flag("urgency"),
-				ContextUrl:           ctx.Flag("context-url"),
-				Deadline:             deadline,
-				SensitivityLabel:     ctx.Flag("sensitivity-label"),
-				IdempotencyKey:       ctx.Flag("idempotency-key"),
+				Question:              ctx.Flag("question"),
+				Options:               askOptions,
+				Recommended:           ctx.Flag("recommend"),
+				RecommendationReason:  ctx.Flag("recommend-reason"),
+				DefaultAnswer:         ctx.Flag("default"),
+				Reversible:            ctx.BoolFlag("reversible"),
+				Urgency:               ctx.Flag("urgency"),
+				ContextUrl:            ctx.Flag("context-url"),
+				Deadline:              deadline,
+				SensitivityLabel:      ctx.Flag("sensitivity-label"),
+				IdempotencyKey:        ctx.Flag("idempotency-key"),
+				SubjectKey:            ctx.Flag("subject-key"),
+				ReassertWithinSeconds: reassertWithin,
 			}))
 			if callErr != nil {
 				return cliapp.WrapAPIError("ask notification question", callErr, nil)
 			}
-			return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Created ask %s.", resp.Msg.GetAskId())}})
+			return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{askOutcomeLine(resp.Msg)}})
 		},
 		"ConversationsService.Answer": func(ctx cliapp.RunContext) error {
 			resp, callErr := client.Answer(context.Background(), connect.NewRequest(&v1.AnswerRequest{
@@ -77,9 +83,14 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Dismissed ask %s without answering.", resp.Msg.GetAskId())}})
 		},
 		"ConversationsService.Withdraw": func(ctx cliapp.RunContext) error {
+			askID, subjectKey := ctx.Flag("ask-id"), ctx.Flag("subject-key")
+			if (askID == "") == (subjectKey == "") {
+				return fmt.Errorf("give exactly one of --ask-id or --subject-key")
+			}
 			resp, callErr := client.Withdraw(context.Background(), connect.NewRequest(&v1.WithdrawRequest{
-				AskId:  ctx.Flag("ask-id"),
-				Reason: ctx.Flag("reason"),
+				AskId:      askID,
+				SubjectKey: subjectKey,
+				Reason:     ctx.Flag("reason"),
 			}))
 			if callErr != nil {
 				return cliapp.WrapAPIError("withdraw notification question", callErr, nil)
@@ -123,6 +134,25 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 		return cliapp.SubcommandGroup{}, fmt.Errorf("conversations: load manifest: %w", err)
 	}
 	return group, nil
+}
+
+// askOutcomeLine says what the hub did with an ask. Only an ask with a
+// --subject-key can be anything but newly created.
+func askOutcomeLine(resp *v1.AskResponse) string {
+	id := resp.GetAskId()
+	switch resp.GetOutcome() {
+	case "reasserted":
+		return fmt.Sprintf("Ask %s is already open with these terms; nothing new was sent.", id)
+	case "updated":
+		return fmt.Sprintf("Updated open ask %s in place; no new notification was sent.", id)
+	case "replaced":
+		return fmt.Sprintf("Created ask %s; it replaced the open ask for this subject.", id)
+	case "suppressed":
+		return fmt.Sprintf("Ask %s was dismissed with these exact terms; no new ask was created.", id)
+	case "returned":
+		return fmt.Sprintf("Ask %s was just answered; returning it instead of creating another.", id)
+	}
+	return fmt.Sprintf("Created ask %s.", id)
 }
 
 func askSummary(ask *v1.Ask) string {

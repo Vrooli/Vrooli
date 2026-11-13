@@ -100,9 +100,11 @@ all delivered to `POST /api/v1/integrations/events`:
 |---|---|---|
 | `notification-hub-events` | operator-configured (default `incident.**`, `PUT /api/v1/config/event-integration`) | Fallback-only ingress for events that carry no neutral `notificationFacts`. The incident renderer (check_id/severity/message/…) stays the translator for this pattern and for autoheal remediation approvals |
 | `notification-hub-decisions` | `**.decision_requested.v1` | Operator decisions from any scenario (Agent Manager first) |
+| `notification-hub-decision-withdrawals` | `**.decision_withdrawn.v1` | A producer closing its own open decision (see "Decision subjects"). Agent Manager's typed run and investigation withdrawals arrive here too; reconciliation widens the earlier exact-type subscription in place and deletes `notification-hub-investigation-withdrawals`, so no withdrawal is delivered twice |
 | `notification-hub-notifications` | `**.notification.v1` | First-class FYI notifications from any scenario, carrying neutral `notificationFacts` (the hub owns the copy) |
 
-The `**.notification.v1` and `**.decision_requested.v1` subscriptions are
+The `**.notification.v1`, `**.decision_requested.v1` and
+`**.decision_withdrawn.v1` subscriptions are
 **structural**: they are reconciled unconditionally from the event-type suffix,
 never operator-configured, exactly parallel to one another. The operator-configured
 `incident.**` pattern and its incident renderer remain only as the **fallback** for
@@ -135,6 +137,20 @@ The producer sends facts; the hub owns the copy. The event id is the
 idempotency key, so a redelivery or re-publish returns the same ask and
 sends nothing new.
 
+Write operator-facing questions to the shared [operator legibility
+standard](../../../../docs/agent-system/SWARM_MANAGER_WORK.md#operator-legibility).
+The recipient may not know the sending scenario or its terms. Explain the
+problem and its practical effect in the question, define necessary acronyms at
+first use, and state what each option causes the owner to do. Put detailed
+evidence in `big_picture` or a useful context link; do not make it necessary to
+understand the choice. The recommendation reason should explain the benefit or
+risk in ordinary language. Each event represents one choice and one next
+action. Keep the question short and plain; explain its practical consequence in
+`big_picture` and state each option's result. If the owner needs answers to
+independent or multi-part decisions, publish separate events so the operator
+can answer each one with a tap. Do not require an operator to compose JSON or
+combine unrelated choices in the free-text `Other` answer.
+
 | Field | Required | Meaning |
 |---|---|---|
 | `question` | yes | One sentence, at most 600 characters |
@@ -146,7 +162,7 @@ sends nothing new.
 | `deadline` | no | RFC 3339; defaults to 24 h after receipt |
 | `urgency` | no | `low`, `normal`, `high` (default) or `critical`; only `critical` can pass a quiet window, and only when that window allows it |
 | `subject` | no | Short name shown in the title ("Decision needed: BAS") |
-| `context_url` | no | Link for more detail |
+| `context_url` | no | HTTPS/HTTP link, or a local artifact path opened in Web Console |
 | `correlation` | no | String map (at most 1 KB) echoed verbatim in the resolution event |
 
 Any scenario opts into operator asks by publishing a `*.decision_requested.v1`
@@ -156,6 +172,91 @@ publishes `agent_manager.run.decision_requested.v1` when a run enters
 review page, and `correlation.run_id`; the resolution's `answer` then drives the
 run's approve/reject back in Agent Manager. This is the general mechanism, not a
 hub-side special case.
+
+### Decision subjects: one open decision per situation
+
+A decision that is about an ongoing situation (a blocked backup, a mode left on,
+a pending grant) carries a **subject key**. The hub then keeps at most one open
+decision per `(source, source_event_type, subject_key)`, the producer can
+update or close it, and a stale decision closes itself. Producers use
+`operatordecision.Facts.SubjectKey` and `operatordecision.Withdrawal`
+(`packages/api-core/operatordecision`).
+
+| Request field | Meaning |
+|---|---|
+| `subject_key` | 1–128 of `A-Z a-z 0-9 . _ : / @ -`, first a letter or digit, e.g. `backup-failure:<destination-id>` |
+| `reassert_within_seconds` | Optional, 60 s – 30 days, needs `subject_key`. The hub closes the open decision when the producer has not re-sent it for this long |
+| `asserted_at` | Optional RFC 3339 time the producer last saw the decision was still needed; orders a request against the subject's withdrawals |
+
+What a request with a subject key does:
+
+| State of the subject | Request terms | Result |
+|---|---|---|
+| No open decision | any | A new decision is created and delivered |
+| Open decision | identical | Nothing is delivered; the hub records the re-assertion time |
+| Open decision | same answer menu (option keys in order, recommended, default, reversible, urgency, recipient, sensitivity; option **labels** are text), other text or correlation changed | **Update in place**: the text, correlation and deadline become the new revision's, no new push, the previous text is kept as a revision |
+| Open decision | different answer menu | **Replace**: the old decision closes as withdrawn, "Replaced by a newer version of this decision", linked to the new one, which is delivered |
+| Last decision dismissed by the operator | identical to the dismissed terms | Suppressed: no new decision until the terms change |
+| Last decision answered or defaulted under 15 minutes ago | identical | Returns that decision (the producer has not processed the answer yet) |
+| Last withdrawal asserted after this request's `asserted_at` | any | Ignored as stale; the response says `stale: true` |
+
+Details the table leaves implicit:
+
+- A request with no `deadline` keeps the open decision's deadline; it does not
+  extend it. A deadline-only change (the producer's explicit deadline moved)
+  is applied without a new revision.
+- A request carrying the event id of a revision the decision has already moved
+  past (a redelivery) changes nothing, as does a re-send whose `asserted_at`
+  is older than the decision's last confirmation. The same event id with
+  different terms is `409`.
+- At most 50 earlier revisions are kept per decision; `revision_count` keeps
+  counting.
+- The request response names the outcome: `created`, `reasserted`, `updated`,
+  `replaced`, `suppressed` (a dismissed decision with identical terms) or
+  `returned` (answered or defaulted under 15 minutes ago); `stale: true` and no
+  `ask_id` for a stale request.
+
+Every accepted re-send (an update in place, or identical terms under a new
+event id) makes its event id the decision's `requester_ref`; every earlier id
+is kept and still matches. A redelivered earlier
+revision returns the current decision unchanged, and a request asserted
+before the current revision is ignored, so an update never reverts. An answer
+to a decision that was updated in place carries the latest revision's
+`requester_ref` and correlation. A producer must still treat an answer that names an
+older generation of the same subject as an answer to the current one, or as a
+benign no-op.
+
+**Closing (`*.decision_withdrawn.v1`).** The producer publishes
+`<source>.<kind>.decision_withdrawn.v1` with `reason` (1–300 bytes, shown to the
+operator, plain words) and either `subject_key` or `requester_ref` (the request
+event id; an earlier revision's event id also matches). `source_event_type`
+names the request type and defaults to the withdrawal type with its suffix
+swapped. The producer is the event's source: a withdrawal closes only that
+source's decision. Naming a `requester_ref` finds the decision by any of its
+revisions' event ids, and follows a replaced decision to its successor. The hub
+closes only an open decision, as `withdrawn` with the reason;
+an answered, defaulted, expired or dismissed decision keeps its outcome. A
+withdrawal that arrives before its request is recorded, so a delayed request
+asserted earlier is not delivered. Agent Manager's typed run and investigation
+withdrawals keep their fixed reasons (`verified_empty_diff` and the like are
+codes, not free text); their event types are never read as generic ones.
+Ordering uses `asserted_at` (the hub's receipt time when absent): a withdrawal
+asserted before the decision's last confirmation does not close it, and a
+withdrawal that names a `subject_key` is remembered per subject for the stale
+rule above.
+
+**Safety nets.**
+- A subject with `reassert_within_seconds` whose producer stops re-sending
+  closes as withdrawn: "No longer confirmed by <source> since <time>".
+- An open decision whose default was withheld because it was never delivered
+  expires 7 days after its deadline instead of staying open forever.
+
+**Direct asks** (`notification-hub conversations ask`) take the same
+`--subject-key`; `conversations withdraw --subject-key <k> --reason <r>` closes
+the requester's own open ask for that key.
+
+**Resolutions** carry `subject_key` and, on a replaced decision,
+`superseded_by_ask_id`. `state: withdrawn` means no operator answer applies.
 
 ### Notifications (`*.notification.v1`)
 
@@ -188,13 +289,14 @@ centralized-delivery principle — lives in [`NOTIFICATIONS.md`](NOTIFICATIONS.m
 
 ### Ask resolution (`notification_hub.ask.resolved.v1`)
 
-Every terminal transition of an ask (answered, defaulted, expired, and a late
-answer after a default) publishes one event through Vrooli Events with source
+Every terminal transition of an ask (answered, defaulted, expired, withdrawn,
+dismissed, and a late answer after a default) publishes one event through Vrooli Events with source
 `notification-hub`. The payload carries `ask_id`, `state`, `answer`,
 `answer_label`, `note`, `answered_by` (`default` for a default),
 `answered_at`, `by_default`, `late`, `default_answer`, `reason`, `source`,
 `source_event_type`, `requester_ref` (the event id or idempotency key that
-opened the ask), `correlation`, and `resolved_at`. Publication uses an outbox:
+opened the ask), `subject_key`, `superseded_by_ask_id` (set on a decision a newer
+one replaced), `correlation` (the latest revision's), and `resolved_at`. Publication uses an outbox:
 a failed publish is retried by the one-minute sweep, and the event id is
 derived from the content, so a retry is deduplicated by vrooli-events.
 

@@ -31,29 +31,20 @@ func WithLeasedTestOwner(ctx context.Context, subject string) context.Context {
 	return context.WithValue(ctx, ownerContextKey{}, ownerContext{identity: owneridentity.Identity{Subject: strings.TrimSpace(subject)}})
 }
 
-// Producer is the admitted sender of a direct notification or decision ask.
+// Producer names the source bucket and configured recipient for a direct
+// notification or decision ask. It does not confer owner authority.
 type Producer struct {
 	// Recipient is the hub's recipient partition (requested_by). An agent
 	// always reaches the configured recipient; it cannot choose another one.
 	Recipient string
-	// Key names the producer for the per-producer cooldown: one key per
-	// verified agent run, and one for the verified owner.
+	// Key names the source for the shared device-push bucket. Identityless
+	// callers share the anonymous source bucket.
 	Key string
 }
 
-// ProducerFor admits the sender of a direct notification, relay or decision
-// ask. Two callers are admitted:
-//
-//   - a server-verified agent run (an Agent Manager run, or an interactive
-//     Codex, Claude or Web Console session attached to a run). It needs no
-//     scope and no operation grant; the per-producer cooldown bounds volume.
-//   - the verified owner (Cloudflare Access login, loopback owner in
-//     personal_local mode, or a scenario-authenticator bearer or cookie).
-//
-// A presented agent token that does not verify is refused and never falls back
-// to another credential. Admission as a producer never makes a run the owner:
-// answers, dismissals, preferences and subscriptions keep the owner check in
-// Subject.
+// ProducerFor resolves an authenticated producer for an ask withdrawal.
+// It never grants owner authority: answers, dismissals and owner settings keep
+// using Subject.
 func ProducerFor(ctx context.Context, headers http.Header, verifier Verifier, recipient string) (Producer, error) {
 	if owner, ok := ownerFromContext(ctx); ok && owner.refused {
 		return Producer{}, owneridentity.ErrUnauthenticated
@@ -73,6 +64,32 @@ func ProducerFor(ctx context.Context, headers http.Header, verifier Verifier, re
 		return Producer{}, err
 	}
 	return Producer{Recipient: subject, Key: "owner:" + subject}, nil
+}
+
+// ProducerForDirect accepts notification and decision-request creation from
+// host processes without identity. Existing verified identities still get
+// separate source buckets, while empty-credential callers share one bucket.
+// A supplied but invalid credential remains an error.
+func ProducerForDirect(ctx context.Context, headers http.Header, verifier Verifier, recipient string) (Producer, error) {
+	producer, err := ProducerFor(ctx, headers, verifier, recipient)
+	if owner, ok := ownerFromContext(ctx); ok && owner.refused {
+		return Producer{}, err
+	}
+	if err == nil || hasProducerCredential(headers) {
+		return producer, err
+	}
+	recipient = strings.TrimSpace(recipient)
+	if recipient == "" {
+		return Producer{}, err
+	}
+	return Producer{Recipient: recipient, Key: "source:anonymous"}, nil
+}
+
+func hasProducerCredential(headers http.Header) bool {
+	return strings.TrimSpace(headers.Get(cliutil.HeaderAgentIdentityToken)) != "" ||
+		strings.TrimSpace(headers.Get("Authorization")) != "" ||
+		strings.TrimSpace(headers.Get("Cf-Access-Jwt-Assertion")) != "" ||
+		strings.TrimSpace(headers.Get("Cookie")) != ""
 }
 
 // Subject verifies the owner: a Cloudflare Access login first, then the

@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -45,6 +46,7 @@ import (
 	capsH "notification-hub/handlers/capabilities"
 	conversationH "notification-hub/handlers/conversations"
 	deliveryH "notification-hub/handlers/delivery"
+	externalURLH "notification-hub/handlers/externalurl"
 	healthH "notification-hub/handlers/health"
 	identityH "notification-hub/handlers/identity"
 	notificationH "notification-hub/handlers/notifications"
@@ -309,12 +311,13 @@ func main() {
 	slog.Info("vrooli-events webhook secret", "resolved", webhookSecret() != "")
 	service.SetResolutionPublisher(integrations.EventsPublisher{BaseURL: func() string { return eventsBase(context.Background()) }})
 	configureAskDefaultFloor(service)
-	configureProducerCooldown(service, os.Getenv)
+	configurePushBudget(service, os.Getenv)
 
 	srv := server.New(
 		server.Deps{Clock: schedule.System(), Logger: log.Default()},
 		healthH.ModuleWithIdentity(db, ownerVerifier, "notification-hub-api", "1.0.0", posture),
 		capsH.Module(capabilities.NewRegistry()),
+		externalURLH.Module(),
 		notificationH.ModuleWithVerifier(service, ownerVerifier),
 		recipientsH.ModuleWithVerifier(service, ownerVerifier),
 		appDeliveryH.ModuleWithVerifier(service, ownerVerifier),
@@ -1474,32 +1477,29 @@ func configureAskDefaultFloor(service *hub.Service) {
 	slog.Info("ask default floor configured", "floor", floor.String())
 }
 
-type producerCooldownSetter interface {
-	SetProducerCooldown(hub.ProducerKind, hub.CooldownLimit)
-	ProducerCooldown(hub.ProducerKind) hub.CooldownLimit
+type pushBudgetSetter interface {
+	SetPushBudget(hub.PushBudgetConfig)
+	PushBudget() hub.PushBudgetConfig
 }
 
-// configureProducerCooldown reads the per-producer limits for direct
-// notifications and decision asks ("<count>/<Go duration>" or "off"). An
-// invalid value keeps the default and logs a warning.
-func configureProducerCooldown(service producerCooldownSetter, getenv func(string) string) {
-	for _, setting := range []struct {
-		env  string
-		kind hub.ProducerKind
-	}{
-		{"VROOLI_NOTIFICATION_PRODUCER_SEND_LIMIT", hub.ProducerNotification},
-		{"VROOLI_NOTIFICATION_PRODUCER_ASK_LIMIT", hub.ProducerAsk},
-	} {
-		if value := strings.TrimSpace(getenv(setting.env)); value != "" {
-			limit, err := hub.ParseCooldownLimit(value)
-			if err != nil {
-				slog.Warn("ignoring invalid producer cooldown; using the default", "env", setting.env, "value", value, "error", err)
-			} else {
-				service.SetProducerCooldown(setting.kind, limit)
-			}
-		}
-		slog.Info("producer cooldown configured", "kind", setting.kind, "limit", service.ProducerCooldown(setting.kind).String())
+// configurePushBudget tunes the in-memory per-source device-push bucket.
+// Notifications and asks remain accepted and stored when it is empty.
+func configurePushBudget(service pushBudgetSetter, getenv func(string) string) {
+	defaults := hub.DefaultPushBudget
+	capacity, refill := strconv.Itoa(defaults.Capacity), defaults.RefillInterval.String()
+	if value := strings.TrimSpace(getenv("VROOLI_NOTIFICATION_PUSH_BUCKET_CAPACITY")); value != "" {
+		capacity = value
 	}
+	if value := strings.TrimSpace(getenv("VROOLI_NOTIFICATION_PUSH_BUCKET_REFILL_INTERVAL")); value != "" {
+		refill = value
+	}
+	config, err := hub.ParsePushBudgetConfig(capacity, refill)
+	if err != nil {
+		slog.Warn("ignoring invalid notification push bucket settings; using defaults", "error", err)
+		config = defaults
+	}
+	service.SetPushBudget(config)
+	slog.Info("notification push bucket configured", "config", service.PushBudget().String())
 }
 
 func configureWebPush(service *hub.Service, fileRoots *filerouting.RoutedRoots) {

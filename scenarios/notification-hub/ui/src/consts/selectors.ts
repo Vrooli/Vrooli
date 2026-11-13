@@ -55,6 +55,7 @@ const literalSelectors = {
     note: "ask-note",
     status: "ask-status",
     defaultNotice: "ask-default-notice",
+    retryFileLinks: "ask-retry-file-links",
   },
   reach: {
     root: "reach-settings",
