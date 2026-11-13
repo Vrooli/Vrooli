@@ -223,6 +223,10 @@ func (h *Handlers) DeleteSandbox(w http.ResponseWriter, r *http.Request) {
 		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
 		return
 	}
+	if err := h.stopSandboxCompanions(r.Context(), id); err != nil {
+		h.JSONError(w, "could not safely clean up sandbox companion services: "+err.Error(), http.StatusBadGateway)
+		return
+	}
 
 	if err := h.Service.Delete(r.Context(), id); h.HandleDomainError(w, err) {
 		return
@@ -236,6 +240,10 @@ func (h *Handlers) StopSandbox(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(mux.Vars(r)["id"])
 	if err != nil {
 		h.JSONError(w, "invalid sandbox ID", http.StatusBadRequest)
+		return
+	}
+	if err := h.stopSandboxCompanions(r.Context(), id); err != nil {
+		h.JSONError(w, "could not safely clean up sandbox companion services: "+err.Error(), http.StatusBadGateway)
 		return
 	}
 

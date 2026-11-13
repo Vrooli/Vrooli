@@ -29,6 +29,13 @@ export default [
     },
   },
   {
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.{ts,tsx}", "src/**/*.spec.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [{ group: ["**/test-utils", "**/test-utils/*", "@/test-utils", "@/test-utils/*", "**/features/*/mocks", "**/features/*/mocks/*", "@/features/*/mocks", "@/features/*/mocks/*"] }] }],
+    },
+  },
+  {
     ignores: ["dist/**", "node_modules/**"],
   },
 ];

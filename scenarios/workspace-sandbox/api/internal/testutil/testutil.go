@@ -30,7 +30,7 @@
 // # Subpackages
 //
 //   - mocks/    — single canonical fake per seam (FakeRepository,
-//     FakeDriver, FakeGitOps, FakeService, FakePinger,
+//     FakeDriver, FakeGitOps, FakeService,
 //     FakeReconciler, FakeProfileStore, FakeProcFS).
 //     Future-phase fakes (FakeClock, FakeMounter, FakeStarter,
 //     FakeSSEWriter, FakeAuditEmitter) land in their respective

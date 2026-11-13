@@ -28,14 +28,18 @@ import (
 //
 // If req.IdempotencyKey is provided, the system first checks if a sandbox was
 // already created with that key. If found, the existing sandbox is returned
-// without creating a duplicate. This enables safe retries of create requests.
+// without creating a duplicate only when owner and canonical workspace
+// identity match. Reuse by a different owner or scope is rejected without
+// returning the existing record.
 //
 // # Errors
 //
 // Returns ValidationError for invalid input, ScopeConflictError if the scope
 // overlaps with an existing sandbox, or DriverError if mounting fails.
 func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, error) {
-	if existing, ok := s.checkIdempotency(ctx, req); ok {
+	if existing, ok, err := s.checkIdempotency(ctx, req); err != nil {
+		return nil, err
+	} else if ok {
 		return existing, nil
 	}
 
@@ -58,20 +62,64 @@ func (s *Service) Create(ctx context.Context, req *types.CreateRequest) (*types.
 // checkIdempotency checks if a sandbox was already created with the
 // given idempotency key. Returns (existing sandbox, true) if found,
 // or (nil, false) if not.
-func (s *Service) checkIdempotency(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, bool) {
+func (s *Service) checkIdempotency(ctx context.Context, req *types.CreateRequest) (*types.Sandbox, bool, error) {
 	if req.IdempotencyKey == "" {
-		return nil, false
+		return nil, false, nil
 	}
 
 	existing, err := s.repo.FindByIdempotencyKey(ctx, req.IdempotencyKey)
 	if err != nil {
-		fmt.Printf("warning: failed to check idempotency key: %v\n", err)
-		return nil, false
+		return nil, false, fmt.Errorf("check sandbox idempotency key: %w", err)
 	}
 	if existing != nil {
-		return existing, true
+		if !matchesCreateIdentity(req, existing, s.config.DefaultProjectRoot) {
+			return nil, false, &types.IdempotencyIdentityConflictError{}
+		}
+		return existing, true, nil
 	}
-	return nil, false
+	return nil, false, nil
+}
+
+// matchesCreateIdentity binds a retry key to the task owner and canonical
+// workspace identity. A mismatched retry must not receive the existing
+// sandbox record (which can contain task-owned companion profile state).
+func matchesCreateIdentity(req *types.CreateRequest, existing *types.Sandbox, defaultProjectRoot string) bool {
+	if req == nil || existing == nil || req.Owner != existing.Owner {
+		return false
+	}
+	reqOwnerType := req.OwnerType
+	if reqOwnerType == "" {
+		reqOwnerType = types.OwnerTypeUser
+	}
+	existingOwnerType := existing.OwnerType
+	if existingOwnerType == "" {
+		existingOwnerType = types.OwnerTypeUser
+	}
+	if reqOwnerType != existingOwnerType {
+		return false
+	}
+	reqRoot := req.ProjectRoot
+	if reqRoot == "" {
+		reqRoot = defaultProjectRoot
+	}
+	existingRoot := existing.ProjectRoot
+	if existingRoot == "" {
+		existingRoot = defaultProjectRoot
+	}
+	reqValidator, err := NewPathValidator(reqRoot)
+	if err != nil {
+		return false
+	}
+	existingValidator, err := NewPathValidator(existingRoot)
+	if err != nil || reqValidator.ProjectRoot() != existingValidator.ProjectRoot() {
+		return false
+	}
+	reqScope, err := reqValidator.NormalizePath(req.ScopePath)
+	if err != nil {
+		return false
+	}
+	existingScope, err := existingValidator.NormalizePath(existing.ScopePath)
+	return err == nil && reqScope == existingScope
 }
 
 // validateCreateRequest validates the create request and returns the

@@ -165,16 +165,10 @@ func TestConcurrentModificationDetection(t *testing.T) {
 	t.Log("ConcurrentModificationError correctly indicates version conflict")
 }
 
-// TestIdempotencyKeyCollision verifies behavior when different parameters
-// are used with the same idempotency key.
-func TestIdempotencyKeyCollision(t *testing.T) {
-	// When two requests have the same idempotency key but different parameters,
-	// the system returns the sandbox from the first request (the idempotency key
-	// is authoritative, not the parameters).
-	//
-	// This is by design: the idempotency key represents "this logical operation"
-	// and the first successful execution is the canonical result.
-
+// TestAlreadyExistsErrorContract verifies the legacy duplicate-resource error
+// value. Service-level create replay and task-identity behavior are covered
+// by service_test.go.
+func TestAlreadyExistsErrorContract(t *testing.T) {
 	existingID := uuid.New().String()
 	err := types.NewAlreadyExistsError("test-key", existingID)
 

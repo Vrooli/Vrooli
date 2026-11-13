@@ -18,23 +18,31 @@ import (
 // known service families and pinned versions; it never accepts images,
 // commands, host paths, credentials, or arbitrary network destinations.
 type CompanionServiceSpec struct {
-	Name    string            `json:"name"`
-	Kind    string            `json:"kind"`
-	Version string            `json:"version"`
-	Options map[string]string `json:"options,omitempty"`
+	Name         string            `json:"name"`
+	Kind         string            `json:"kind"`
+	Version      string            `json:"version"`
+	Options      map[string]string `json:"options,omitempty"`
+	HTTPFixtures []HTTPMockFixture `json:"httpFixtures,omitempty"`
+	HTTPProfile  *HTTPMockProfile  `json:"httpProfile,omitempty"`
 }
 
 type CompanionServiceState struct {
-	Spec      CompanionServiceSpec `json:"spec"`
-	Status    string               `json:"status"`
-	RuntimeID string               `json:"runtimeId,omitempty"`
-	Address   string               `json:"address,omitempty"`
-	Error     string               `json:"error,omitempty"`
+	Spec               CompanionServiceSpec       `json:"spec"`
+	Status             string                     `json:"status"`
+	RuntimeID          string                     `json:"runtimeId,omitempty"`
+	Address            string                     `json:"address,omitempty"`
+	Addresses          map[string]string          `json:"addresses,omitempty"`
+	OperationAddresses []HTTPMockOperationAddress `json:"operationAddresses,omitempty"`
+	ProfileSHA256      string                     `json:"profileSha256,omitempty"`
+	Error              string                     `json:"error,omitempty"`
 }
 
 type CompanionRuntime struct {
-	ID      string
-	Address string
+	ID                 string
+	Address            string
+	Addresses          map[string]string
+	OperationAddresses []HTTPMockOperationAddress
+	ProfileSHA256      string
 }
 
 // CompanionServiceAPI is the provider seam for scenario-owned service
@@ -64,7 +72,7 @@ func (h *Handlers) PutCompanionServices(w http.ResponseWriter, r *http.Request) 
 	var input struct {
 		Services []CompanionServiceSpec `json:"services"`
 	}
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64*1024))
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, MaxCompanionConfigBytes))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&input); err != nil {
 		h.JSONError(w, "invalid companion service declaration: "+err.Error(), http.StatusBadRequest)
@@ -124,6 +132,49 @@ func (h *Handlers) StopCompanionService(w http.ResponseWriter, r *http.Request) 
 	h.changeCompanionService(w, r, false)
 }
 
+// stopSandboxCompanions fences sandbox stop/delete behind owned companion
+// cleanup. Each completed stop is persisted before continuing so a partial
+// teardown remains visible and retryable after a failure.
+func (h *Handlers) stopSandboxCompanions(ctx context.Context, id uuid.UUID) error {
+	if h.CompanionStore == nil {
+		return nil
+	}
+	sb, err := h.CompanionStore.Get(ctx, id)
+	if err != nil {
+		return err
+	}
+	if sb == nil {
+		return nil
+	}
+	states := readCompanionStates(sb.Metadata)
+	for i := range states {
+		state := &states[i]
+		if state.Status != "running" {
+			continue
+		}
+		if h.CompanionServices == nil {
+			return errors.New("companion provider is not configured; cannot safely stop a running companion")
+		}
+		if err := h.CompanionServices.Stop(ctx, id, *state); err != nil {
+			return fmt.Errorf("stop companion %q: %w", state.Spec.Name, err)
+		}
+		state.Status, state.RuntimeID, state.Address, state.Error = "declared", "", "", ""
+		state.Addresses = nil
+		state.OperationAddresses = nil
+		state.ProfileSHA256 = ""
+		if sb.Metadata == nil {
+			sb.Metadata = map[string]interface{}{}
+		}
+		sb.Metadata["companionServices"] = states
+		version := sb.Version
+		if err := h.CompanionStore.UpdateWithVersionCheck(ctx, sb, version); err != nil {
+			return fmt.Errorf("persist stopped companion %q: %w", state.Spec.Name, err)
+		}
+		_ = h.CompanionStore.LogAuditEvent(ctx, &types.AuditEvent{SandboxID: &id, EventType: "companion_services.stopped", ActorType: "system", Details: map[string]interface{}{"name": state.Spec.Name, "reason": "sandbox_lifecycle"}})
+	}
+	return nil
+}
+
 func (h *Handlers) changeCompanionService(w http.ResponseWriter, r *http.Request, start bool) {
 	store, id, ok := h.companionStore(w, r)
 	if !ok {
@@ -167,6 +218,9 @@ func (h *Handlers) changeCompanionService(w http.ResponseWriter, r *http.Request
 			return
 		}
 		state.Status, state.RuntimeID, state.Address, state.Error = "running", runtime.ID, runtime.Address, ""
+		state.Addresses = runtime.Addresses
+		state.OperationAddresses = runtime.OperationAddresses
+		state.ProfileSHA256 = runtime.ProfileSHA256
 	} else {
 		if state.Status != "running" {
 			h.JSONSuccess(w, state)
@@ -177,6 +231,9 @@ func (h *Handlers) changeCompanionService(w http.ResponseWriter, r *http.Request
 			return
 		}
 		state.Status, state.RuntimeID, state.Address, state.Error = "declared", "", "", ""
+		state.Addresses = nil
+		state.OperationAddresses = nil
+		state.ProfileSHA256 = ""
 	}
 	if sb.Metadata == nil {
 		sb.Metadata = map[string]interface{}{}
@@ -235,6 +292,22 @@ func validateCompanionSpecs(specs []CompanionServiceSpec) ([]CompanionServiceSta
 		}
 		if len(spec.Options) > 8 {
 			return nil, fmt.Errorf("service %q has too many options", spec.Name)
+		}
+		if spec.Kind == "http-mock" {
+			if spec.HTTPProfile != nil {
+				if len(spec.HTTPFixtures) != 0 {
+					return nil, fmt.Errorf("service %q must use either httpProfile or httpFixtures, not both", spec.Name)
+				}
+				profile, _, err := NormalizeHTTPMockProfile(*spec.HTTPProfile)
+				if err != nil {
+					return nil, fmt.Errorf("service %q profile: %w", spec.Name, err)
+				}
+				spec.HTTPProfile = &profile
+			} else if err := ValidateHTTPMockFixtures(spec.HTTPFixtures); err != nil {
+				return nil, fmt.Errorf("service %q fixtures: %w", spec.Name, err)
+			}
+		} else if len(spec.HTTPFixtures) != 0 || spec.HTTPProfile != nil {
+			return nil, fmt.Errorf("service %q cannot declare HTTP fixtures for kind %s", spec.Name, spec.Kind)
 		}
 		for key, value := range spec.Options {
 			if !regexp.MustCompile(`^[a-z][a-z0-9_]{0,31}$`).MatchString(key) || len(value) > 256 {

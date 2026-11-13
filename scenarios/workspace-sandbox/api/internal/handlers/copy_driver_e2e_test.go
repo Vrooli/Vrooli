@@ -31,6 +31,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/gorilla/websocket"
+	"github.com/vrooli/api-core/databasetest"
 	"github.com/vrooli/api-core/storage"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 
@@ -212,7 +213,7 @@ func newCopyE2E(t *testing.T) *copyE2E {
 	h := &handlers.Handlers{
 		Service:        svc,
 		DriverSlot:     driver.NewSlot(drv),
-		DB:             mocks.NewFakePinger(),
+		DB:             &databasetest.FakePinger{},
 		Config:         config.Config{},
 		Clock:          clk,
 		Mounter:        fsmount.NewSystemMounter(starter),

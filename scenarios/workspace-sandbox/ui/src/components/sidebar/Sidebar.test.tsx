@@ -4,8 +4,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 
 import { Sidebar } from "./Sidebar";
 import { sidebarReducer, createInitialState } from "./useSidebarState";
@@ -102,11 +102,6 @@ function useReducerLocal(initialTab: "active" | "history") {
   return useReducer(sidebarReducer, { ...init, activeTab: initialTab });
 }
 
-function renderWithQueryClient(ui: React.ReactNode) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
-
 describe("Sidebar", () => {
   beforeEach(() => {
     listHistoryMock.mockReset();
@@ -123,14 +118,14 @@ describe("Sidebar", () => {
       makeSandbox({ id: "a1", status: "active", scopePath: "/repo/sb1" }),
       makeSandbox({ id: "a2", status: "stopped", scopePath: "/repo/sb2" }),
     ];
-    renderWithQueryClient(<Harness sandboxes={sandboxes} />);
+    renderWithProviders(<Harness sandboxes={sandboxes} />);
     expect(screen.getByTestId("sidebar-active-tab")).toBeInTheDocument();
     expect(screen.getByTestId("sidebar-tab-active-count")).toHaveTextContent("2");
     expect(screen.queryByTestId("sidebar-history-tab")).not.toBeInTheDocument();
   });
 
   it("does NOT call listHistory while on the Active tab", () => {
-    renderWithQueryClient(<Harness sandboxes={[makeSandbox({ status: "active" })]} />);
+    renderWithProviders(<Harness sandboxes={[makeSandbox({ status: "active" })]} />);
     expect(listHistoryMock).not.toHaveBeenCalled();
   });
 
@@ -141,7 +136,7 @@ describe("Sidebar", () => {
       limit: 100,
       offset: 0,
     });
-    renderWithQueryClient(<Harness sandboxes={[]} />);
+    renderWithProviders(<Harness sandboxes={[]} />);
     await act(async () => {
       fireEvent.click(screen.getByTestId("sidebar-tab-history"));
     });
@@ -156,7 +151,7 @@ describe("Sidebar", () => {
       limit: 100,
       offset: 0,
     });
-    renderWithQueryClient(<Harness sandboxes={[]} initialTab="history" />);
+    renderWithProviders(<Harness sandboxes={[]} initialTab="history" />);
     await waitFor(() => expect(screen.queryByTestId("sidebar-history-list")).toBeInTheDocument());
     // Size formatting from formatBytes; expect KB unit.
     expect(screen.getByTestId("sidebar-history-list")).toHaveTextContent(/4(\.0)? KB/);
@@ -171,7 +166,7 @@ describe("Sidebar", () => {
       offset: 0,
     });
     const onSelectArchive = vi.fn();
-    renderWithQueryClient(
+    renderWithProviders(
       <Harness sandboxes={[]} initialTab="history" onSelectArchive={onSelectArchive} />,
     );
     await waitFor(() => expect(screen.queryByTestId("sidebar-history-list")).toBeInTheDocument());
@@ -184,7 +179,7 @@ describe("Sidebar", () => {
       makeSandbox({ id: "a1", status: "active", scopePath: "/repo/alpha" }),
       makeSandbox({ id: "a2", status: "active", scopePath: "/repo/beta" }),
     ];
-    renderWithQueryClient(<Harness sandboxes={sandboxes} />);
+    renderWithProviders(<Harness sandboxes={sandboxes} />);
     fireEvent.change(screen.getByTestId("sidebar-search"), { target: { value: "alpha" } });
     const list = screen.getByTestId("sidebar-active-list");
     const items = list.querySelectorAll('[data-testid="sandbox-item"]');
@@ -199,7 +194,7 @@ describe("Sidebar", () => {
       limit: 100,
       offset: 0,
     });
-    renderWithQueryClient(<Harness sandboxes={[]} initialTab="history" />);
+    renderWithProviders(<Harness sandboxes={[]} initialTab="history" />);
     await waitFor(() => expect(listHistoryMock).toHaveBeenCalledTimes(1));
 
     // Open filter bar, toggle the rejected status pill.
@@ -218,7 +213,7 @@ describe("Sidebar", () => {
       makeSandbox({ id: "a1", status: "active" }),
       makeSandbox({ id: "d1", status: "deleted" }),
     ];
-    renderWithQueryClient(<Harness sandboxes={sandboxes} />);
+    renderWithProviders(<Harness sandboxes={sandboxes} />);
     const list = screen.getByTestId("sidebar-active-list");
     const items = list.querySelectorAll('[data-testid="sandbox-item"]');
     expect(items).toHaveLength(1);
@@ -227,7 +222,7 @@ describe("Sidebar", () => {
 
   it("error-status sandboxes render in the Active tab (operationally interesting)", () => {
     const sandboxes = [makeSandbox({ id: "e1", status: "error", errorMessage: "boom" })];
-    renderWithQueryClient(<Harness sandboxes={sandboxes} />);
+    renderWithProviders(<Harness sandboxes={sandboxes} />);
     expect(screen.getByTestId("sidebar-active-list")).toBeInTheDocument();
     const item = screen.getByTestId("sandbox-item");
     expect(item).toHaveAttribute("data-sandbox-status", "error");

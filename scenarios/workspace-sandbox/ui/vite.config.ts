@@ -46,6 +46,8 @@ export default defineConfig(({ mode }): UserConfig => {
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],
       coverage: {
+        exclude: ['src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}', 'src/**/*.d.ts', 'src/main.tsx', 'src/test-setup.ts', 'src/test-utils/**', 'src/consts/strings.generated.ts', 'src/i18n/locales/**', 'src/**/generated/**'],
+        include: ['src/**/*.{ts,tsx}'],
         provider: 'v8',
         reporter: ['json-summary', 'json', 'text'],
         reportOnFailure: true,

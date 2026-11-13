@@ -48,6 +48,7 @@ import (
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
 
+	"github.com/vrooli/api-core/databasetest"
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
@@ -105,7 +106,7 @@ func newSSEFixture(t *testing.T) *sseFixture {
 
 	h := &handlers.Handlers{
 		Clock:          clk,
-		DB:             mocks.NewFakePinger(),
+		DB:             &databasetest.FakePinger{},
 		DriverSlot:     driver.NewSlot(mocks.NewFakeDriver()),
 		Service:        svc,
 		Config:         config.Config{},

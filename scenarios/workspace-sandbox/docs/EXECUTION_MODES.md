@@ -658,16 +658,31 @@ workspace-sandbox process exec $sandbox_id --vrooli-aware -- \
 
 Sandbox companion services are declared per sandbox. The current API stores a complete, versioned declaration in sandbox metadata and records a declaration audit event:
 
+Client Rehearsal obtains its task-owned Sandbox UUID through the existing creation API; there is no separate rehearsal-only sandbox type or hidden ID allocation path. Create with the workspace scope/root it is authorized to isolate, a task-specific `owner`, and a stable `idempotencyKey`, then use the returned `id` for the companion routes below:
+
+```http
+POST /api/v1/sandboxes
+Content-Type: application/json
+
+{"name":"f7-rehearsal-task-42","scopePath":"/synthetic-rehearsal","projectRoot":"/workspace/client-rehearsal","owner":"client-rehearsal:task-42","tags":["f7","task-owned"],"idempotencyKey":"client-rehearsal:task-42"}
+```
+
+The caller must supply paths accepted by the normal Sandbox creation contract. Profile declaration, start, stop, and delete all address the returned UUID. Reusing the idempotency key allows safe create retries to resolve to the same sandbox. The `owner` label and UUID provide task association, but this API does not enforce authorization by owner label; the engagement service must retain and use only the UUID returned for that task.
+
+Create retries bind the key to the original owner, owner type, canonical project root and canonical scope. A retry with a different owner or workspace identity receives a conflict without the existing sandbox ID. Matching retries return the existing record, including companion profile metadata. Callers must use a new idempotency key for a distinct task; knowing the key is not a substitute for the caller-side task/UUID association.
+
 ```http
 PUT /api/v1/sandboxes/{id}/companion-services
 Content-Type: application/json
 
-{"services":[{"name":"crm","kind":"http-mock","version":"1.0.0","options":{"fixture":"contacts-v1"}}]}
+{"services":[{"name":"workflow-apis","kind":"http-mock","version":"1.0.0","httpProfile":{"schemaVersion":1,"operations":[{"selector":{"nodeType":"n8n-nodes-base.gmail","resource":"message","operation":"send"},"route":{"host":"gmail.synthetic.invalid","method":"POST","path":"/v1/messages","status":202,"contentType":"application/json","body":"{\"messageId\":\"message_synthetic_1\",\"status\":\"queued\"}"}},{"selector":{"nodeType":"n8n-nodes-base.googleSheets","resource":"sheet","operation":"append"},"route":{"host":"sheets.synthetic.invalid","method":"POST","path":"/v1/rows","query":"spreadsheetId=synthetic-sheet","status":201,"contentType":"application/json","body":"{\"rowId\":\"row_synthetic_1\"}"}}]}}]}
 ```
 
-Read the declaration with `GET /api/v1/sandboxes/{id}/companion-services`. The declaration accepts at most 16 named services. Supported kinds are `postgres`, `redis`, and `http-mock`; versions must be pinned numeric versions. Options use per-kind allowlists. The API rejects images, commands, host paths, credentials, and arbitrary network destinations.
+Read the declaration with `GET /api/v1/sandboxes/{id}/companion-services`. The declaration accepts at most 16 named services. Supported kinds are `postgres`, `redis`, and `http-mock`; versions must be pinned numeric versions. Redis remains fail-closed. HTTP mock declarations may use either legacy `httpFixtures` or the generic `httpProfile`, but never both. A profile has schema version 1 and 1–128 operations. Each operation maps a reusable `(nodeType, resource, operation)` selector to one exact synthetic route and fixed response. Selectors and routes must each be unique; selectors contain no workflow ID or node-instance name. Workspace Sandbox validates the bounded selector tuple and fixture fields, sorts normalized operations deterministically, and exposes the resulting SHA-256 profile digest.
 
-Start and stop a declared service with `POST /api/v1/sandboxes/{id}/companion-services/{name}/start` and `/stop`. These routes return `503` until a concrete isolated runtime provider is configured. Do not interpret a stored declaration as a running service. F7 must add task-scoped lifecycle and cleanup. A companion container must start with no network (`--network none` or an equivalent) and must not join Docker default bridge or any egress-capable network; the n8n resource owner validates its Workspace Sandbox UUID/runtime/declaration labels and attaches only that companion to its task-owned `--internal` network. The provider must not claim this isolation until that end-to-end path is wired and tested.
+Each route requires an exact `*.synthetic.invalid` host, allowlisted method, exact path and fixed status/content type/body. Optional query strings are parsed, bounded to 32 unique keys / 2 KiB total, and canonicalized by key order; duplicate values, malformed encodings, sensitive/credential-shaped values and real email addresses are rejected. Responses support JSON, plain text and XML, with a 64 KiB per-response and 1 MiB aggregate response cap. Redirect statuses, sensitive response fields and duplicate routes are rejected. The profile adapter in client-rehearsal interprets OpenAPI or recorded exchanges and sends normalized static operations; Workspace Sandbox does not parse source descriptions, open their URLs or accept upstream forwarding behavior. Unknown routes return a local not-found response.
+
+Start and stop a declared service with `POST /api/v1/sandboxes/{id}/companion-services/{name}/start` and `/stop`. Workspace Sandbox delegates to fixed n8n resource-owner operations; it never calls Docker itself. HTTP mock starts pass only the bounded static routes on owner stdin, require an owner receipt for the exact fixture hosts, fixed port 18080, the matching Sandbox UUID, attached status and `noEgressVerified: true`. The start response includes host base addresses, normalized selector-to-operation URLs/methods, and the normalized profile digest. A declaration is not proof that a service is running. Sandbox stop/delete stops persisted running companions first, records each successful stop, and refuses to finish if cleanup fails. Owner fake tests verify the contract; actual container DNS/route response, no-egress enforcement and cleanup still require runtime evidence.
 
 ## See Also
 

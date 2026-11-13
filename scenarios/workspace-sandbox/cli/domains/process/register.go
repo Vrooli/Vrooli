@@ -25,16 +25,26 @@ func Register(deps support.Dependencies) cliapp.SubcommandGroup {
 		Description: "Execute commands, inspect processes, and manage interactive sessions",
 		NeedsAPI:    true,
 		Subcommands: []cliapp.Command{
-			{Name: "exec", Description: "Execute a command in a sandbox", Run: func(args []string) error { return runExec(deps, args) }},
-			{Name: "run", Description: "Start a background process", Run: func(args []string) error { return runRun(deps, args) }},
-			{Name: "list", Description: "List processes in a sandbox", Run: func(args []string) error { return runList(deps, args) }},
-			{Name: "kill", Description: "Kill one or all processes", Run: func(args []string) error { return runKill(deps, args) }},
-			{Name: "logs", Description: "Show process logs", Run: func(args []string) error { return runLogs(deps, args) }},
-			{Name: "shell", Description: "Open an interactive shell", Run: func(args []string) error { return runShell(deps, args) }},
-			{Name: "attach", Description: "Run an interactive command", Run: func(args []string) error { return runAttach(deps, args) }},
+			{Name: "exec", Description: "Execute a command in a sandbox", Usage: processExecUsage, HelpText: "Options: --memory=MB, --cpu-time=SECONDS, --timeout=SECONDS, --max-procs=N, --max-files=N, --network, --vrooli-aware, --workdir=PATH, --env=KEY=VALUE, --json. Place -- before the command. Example: workspace-sandbox process exec <sandbox-id> --timeout=120 -- npm run build", Run: func(args []string) error { return runExec(deps, args) }},
+			{Name: "run", Description: "Start a background process", Usage: processRunUsage, HelpText: "Options: --memory=MB, --cpu-time=SECONDS, --max-procs=N, --max-files=N, --network, --vrooli-aware, --workdir=PATH, --env=KEY=VALUE, --name=NAME, --json. Place -- before the command. Example: workspace-sandbox process run <sandbox-id> --name=build -- npm run build", Run: func(args []string) error { return runRun(deps, args) }},
+			{Name: "list", Description: "List processes in a sandbox", Usage: processListUsage, HelpText: "Use --running to show only active processes.", Run: func(args []string) error { return runList(deps, args) }},
+			{Name: "kill", Description: "Kill one or all processes", Usage: processKillUsage, HelpText: "Choose exactly one target: --pid=<pid> or --all.", Run: func(args []string) error { return runKill(deps, args) }},
+			{Name: "logs", Description: "Show process logs", Usage: processLogsUsage, HelpText: "Use --pid=<pid> for a process log. Add --follow to stream it; --stream accepts stdout or stderr.", Run: func(args []string) error { return runLogs(deps, args) }},
+			{Name: "shell", Description: "Open an interactive shell", Usage: processShellUsage, HelpText: "Options: --memory=MB, --network, --vrooli-aware.", Run: func(args []string) error { return runShell(deps, args) }},
+			{Name: "attach", Description: "Run an interactive command", Usage: processAttachUsage, HelpText: "Options: --memory=MB, --network, --vrooli-aware. Place -- before the command. Example: workspace-sandbox process attach <sandbox-id> -- bash", Run: func(args []string) error { return runAttach(deps, args) }},
 		},
 	}
 }
+
+const (
+	processExecUsage   = "workspace-sandbox process exec <sandbox-id> [options] -- <command> [args...]"
+	processRunUsage    = "workspace-sandbox process run <sandbox-id> [options] -- <command> [args...]"
+	processListUsage   = "workspace-sandbox process list <sandbox-id> [--running] [--json]"
+	processKillUsage   = "workspace-sandbox process kill <sandbox-id> (--pid=<pid> | --all) [--json]"
+	processLogsUsage   = "workspace-sandbox process logs <sandbox-id> [--pid=<pid>] [--stream=stdout|stderr] [--follow] [--tail=N] [--json]"
+	processShellUsage  = "workspace-sandbox process shell <sandbox-id> [--vrooli-aware] [--network] [--memory=MB]"
+	processAttachUsage = "workspace-sandbox process attach <sandbox-id> [--vrooli-aware] [--network] [--memory=MB] -- <command> [args...]"
+)
 
 func runExec(deps support.Dependencies, args []string) error {
 	sandboxID, command, cmdArgs, opts, err := parseProcessCommandArgs(args, true)
@@ -142,7 +152,7 @@ func runList(deps support.Dependencies, args []string) error {
 		return err
 	}
 	if fs.NArg() == 0 {
-		return fmt.Errorf("usage: %s process list <sandbox-id> [--running] [--json]", support.CLIName)
+		return fmt.Errorf("usage: %s", processListUsage)
 	}
 
 	sandboxID, err := support.ResolveSandboxID(deps.ScenarioApp(), fs.Arg(0))
@@ -200,7 +210,7 @@ func runKill(deps support.Dependencies, args []string) error {
 		}
 	}
 	if sandboxID == "" {
-		return fmt.Errorf("usage: %s process kill <sandbox-id> (--pid=<pid> | --all) [--json]", support.CLIName)
+		return fmt.Errorf("usage: %s", processKillUsage)
 	}
 	if pid == 0 && !killAll {
 		return fmt.Errorf("must specify --pid=<pid> or --all")
@@ -269,7 +279,7 @@ func runLogs(deps support.Dependencies, args []string) error {
 		}
 	}
 	if sandboxID == "" {
-		return fmt.Errorf("usage: %s process logs <sandbox-id> [--pid=<pid>] [--stream=stdout|stderr] [--follow] [--tail=N] [--json]", support.CLIName)
+		return fmt.Errorf("usage: %s", processLogsUsage)
 	}
 	if stream != "stdout" && stream != "stderr" {
 		return fmt.Errorf("invalid stream %q: expected stdout or stderr", stream)
@@ -344,7 +354,7 @@ func runShell(deps support.Dependencies, args []string) error {
 		}
 	}
 	if sandboxID == "" {
-		return fmt.Errorf("usage: %s process shell <sandbox-id> [--vrooli-aware] [--network] [--memory=MB]", support.CLIName)
+		return fmt.Errorf("usage: %s", processShellUsage)
 	}
 
 	resolvedID, err := support.ResolveSandboxID(deps.ScenarioApp(), sandboxID)
@@ -398,7 +408,7 @@ func runAttach(deps support.Dependencies, args []string) error {
 		}
 	}
 	if sandboxID == "" || command == "" {
-		return fmt.Errorf("usage: %s process attach <sandbox-id> [--vrooli-aware] [--network] [--memory=MB] -- <command> [args...]", support.CLIName)
+		return fmt.Errorf("usage: %s", processAttachUsage)
 	}
 
 	resolvedID, err := support.ResolveSandboxID(deps.ScenarioApp(), sandboxID)
@@ -480,9 +490,9 @@ func parseProcessCommandArgs(args []string, includeTimeout bool) (string, string
 	}
 	if sandboxID == "" || command == "" {
 		if includeTimeout {
-			return "", "", nil, opts, fmt.Errorf("usage: %s process exec <sandbox-id> [options] -- <command> [args...]", support.CLIName)
+			return "", "", nil, opts, fmt.Errorf("usage: %s", processExecUsage)
 		}
-		return "", "", nil, opts, fmt.Errorf("usage: %s process run <sandbox-id> [options] -- <command> [args...]", support.CLIName)
+		return "", "", nil, opts, fmt.Errorf("usage: %s", processRunUsage)
 	}
 	return sandboxID, command, cmdArgs, opts, nil
 }

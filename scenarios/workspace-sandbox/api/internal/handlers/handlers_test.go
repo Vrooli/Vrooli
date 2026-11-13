@@ -34,6 +34,7 @@ import (
 	"workspace-sandbox/internal/testutil/mocks/sandboxiface"
 	"workspace-sandbox/internal/types"
 
+	"github.com/vrooli/api-core/databasetest"
 	httpx "github.com/vrooli/api-core/servertest"
 
 	"github.com/vrooli/api-core/schedule"
@@ -61,7 +62,7 @@ func newLive(t *testing.T, svc sandbox.ServiceAPI, opts ...liveOpt) *httpx.LiveS
 	h := &handlers.Handlers{
 		Clock:      schedule.System(),
 		Service:    svc,
-		DB:         mocks.NewFakePinger(),
+		DB:         &databasetest.FakePinger{},
 		DriverSlot: driver.NewSlot(mocks.NewFakeDriver()),
 		Config:     config.Config{},
 	}

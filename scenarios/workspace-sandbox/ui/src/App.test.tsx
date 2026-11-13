@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { screen } from '@testing-library/react';
+import type { QueryClient } from '@tanstack/react-query';
+import { createTestQueryClient, renderWithProviders } from './test-utils';
 import App from './App';
 
 // Mock the API functions. We use importOriginal so all type-level
@@ -46,15 +47,6 @@ vi.mock('./lib/api', async (importOriginal) => {
   };
 });
 
-const createQueryClient = () =>
-  new QueryClient({
-    defaultOptions: {
-      queries: {
-        retry: false,
-      },
-    },
-  });
-
 function setViewportWidth(width: number) {
   Object.defineProperty(window, 'innerWidth', { value: width, writable: true, configurable: true });
   window.dispatchEvent(new Event('resize'));
@@ -65,7 +57,7 @@ describe('App - Desktop Layout', () => {
   const originalWidth = window.innerWidth;
 
   beforeEach(() => {
-    queryClient = createQueryClient();
+    queryClient = createTestQueryClient();
     setViewportWidth(1024);
   });
 
@@ -78,11 +70,7 @@ describe('App - Desktop Layout', () => {
    * Verifies the UI renders health status from the API
    */
   it('renders the app container', () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    );
+    renderWithProviders(<App />, { queryClient });
 
     const appContainer = screen.getByTestId('workspace-sandbox-app');
     expect(appContainer).toBeInTheDocument();
@@ -93,11 +81,7 @@ describe('App - Desktop Layout', () => {
    * Verifies the create sandbox button is present
    */
   it('renders the create sandbox button', async () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    );
+    renderWithProviders(<App />, { queryClient });
 
     const createButton = await screen.findByTestId('create-sandbox-button');
     expect(createButton).toBeInTheDocument();
@@ -108,22 +92,14 @@ describe('App - Desktop Layout', () => {
    * Verifies the sandbox list renders
    */
   it('renders the sandbox list container', () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    );
+    renderWithProviders(<App />, { queryClient });
 
     const sandboxList = screen.getByTestId('sandbox-list');
     expect(sandboxList).toBeInTheDocument();
   });
 
   it('does not render mobile navigation on desktop', () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    );
+    renderWithProviders(<App />, { queryClient });
 
     expect(screen.queryByTestId('mobile-nav')).not.toBeInTheDocument();
     expect(screen.queryByTestId('mobile-header')).not.toBeInTheDocument();
@@ -135,7 +111,7 @@ describe('App - Mobile Layout', () => {
   const originalWidth = window.innerWidth;
 
   beforeEach(() => {
-    queryClient = createQueryClient();
+    queryClient = createTestQueryClient();
     setViewportWidth(375);
   });
 
@@ -144,42 +120,26 @@ describe('App - Mobile Layout', () => {
   });
 
   it('renders mobile navigation', () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    );
+    renderWithProviders(<App />, { queryClient });
 
     expect(screen.getByTestId('mobile-nav')).toBeInTheDocument();
     expect(screen.getByTestId('mobile-header')).toBeInTheDocument();
   });
 
   it('renders sandbox list on the sandboxes tab', () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    );
+    renderWithProviders(<App />, { queryClient });
 
     expect(screen.getByTestId('sandbox-list')).toBeInTheDocument();
   });
 
   it('does not render the desktop status header on mobile', () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    );
+    renderWithProviders(<App />, { queryClient });
 
     expect(screen.queryByTestId('status-header')).not.toBeInTheDocument();
   });
 
   it('renders the app container with data-testid', () => {
-    render(
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    );
+    renderWithProviders(<App />, { queryClient });
 
     expect(screen.getByTestId('workspace-sandbox-app')).toBeInTheDocument();
   });

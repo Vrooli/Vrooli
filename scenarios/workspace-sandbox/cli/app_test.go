@@ -105,6 +105,57 @@ func TestProcessRunUsesBackgroundProcessEndpoint(t *testing.T) {
 	}
 }
 
+func TestProcessHelpShowsRunnableSyntaxAndOptions(t *testing.T) {
+	t.Setenv("CLI_CONFIG_DIR_OVERRIDE", t.TempDir())
+	app, err := NewApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name string
+		args []string
+		want []string
+	}{
+		{"exec", []string{"process", "exec", "--help"}, []string{"process exec <sandbox-id> [options] -- <command> [args...]", "--timeout=SECONDS", "Place -- before the command", "npm run build"}},
+		{"run", []string{"process", "run", "--help"}, []string{"process run <sandbox-id> [options] -- <command> [args...]", "--name=NAME", "Place -- before the command"}},
+		{"list", []string{"process", "list", "--help"}, []string{"process list <sandbox-id> [--running] [--json]", "--running"}},
+		{"kill", []string{"process", "kill", "--help"}, []string{"process kill <sandbox-id> (--pid=<pid> | --all) [--json]", "Choose exactly one target"}},
+		{"logs", []string{"process", "logs", "--help"}, []string{"process logs <sandbox-id>", "--stream=stdout|stderr", "--follow"}},
+		{"shell", []string{"process", "shell", "--help"}, []string{"process shell <sandbox-id>", "--vrooli-aware", "--network"}},
+		{"attach", []string{"process", "attach", "--help"}, []string{"process attach <sandbox-id>", "-- <command> [args...]", "bash"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reader, writer, err := os.Pipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			originalStdout := os.Stdout
+			os.Stdout = writer
+			runErr := app.Run(tt.args)
+			os.Stdout = originalStdout
+			if err := writer.Close(); err != nil {
+				t.Fatal(err)
+			}
+			output, err := io.ReadAll(reader)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := reader.Close(); err != nil {
+				t.Fatal(err)
+			}
+			if runErr != nil {
+				t.Fatalf("help failed: %v", runErr)
+			}
+			for _, want := range tt.want {
+				if !strings.Contains(string(output), want) {
+					t.Errorf("help missing %q:\n%s", want, output)
+				}
+			}
+		})
+	}
+}
+
 func TestProcessLogsForwardsRequiredStreamParameter(t *testing.T) {
 	const sandboxID = "bd34c03c-e2bf-4f24-97fb-0f078570fb8a"
 	const logPath = "/api/v1/sandboxes/" + sandboxID + "/processes/4321/logs"

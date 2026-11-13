@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	osexec "os/exec"
 
 	"github.com/google/uuid"
 	gorillahandlers "github.com/gorilla/handlers"
@@ -337,6 +338,12 @@ func NewServer() (*Server, error) {
 		Clock:                 clk,
 		Mounter:               mounter,
 		Starter:               starter,
+	}
+	if vrooliPath, pathErr := osexec.LookPath("vrooli"); pathErr == nil {
+		h.CompanionServices = handlers.N8NCompanionServiceRouter{
+			Postgres: handlers.N8NCompanionServiceProvider{Owner: handlers.N8NCompanionCLI{Binary: vrooliPath}},
+			HTTPMock: handlers.N8NHTTPMockServiceProvider{Owner: handlers.N8NHTTPMockCLI{Binary: vrooliPath}},
+		}
 	}
 	if err := h.ConfigureLifecycle(context.Background(), repo, "workspace-sandbox", "workspace-sandbox", h.ProviderIncarnationID); err != nil {
 		return nil, fmt.Errorf("failed to initialize lifecycle fence: %w", err)

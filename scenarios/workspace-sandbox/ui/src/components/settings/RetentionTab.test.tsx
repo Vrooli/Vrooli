@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { screen, fireEvent, waitFor, act } from "@testing-library/react";
+import { renderWithProviders } from "../../test-utils";
 
 import { RetentionTab } from "./RetentionTab";
 import { parseHumanBytes, bytesToHumanReadable } from "./byteFormat";
@@ -17,11 +17,6 @@ vi.mock("../../lib/api", async (importOriginal) => {
 const apiModule = await import("../../lib/api");
 const fetchMock = apiModule.fetchRetentionConfig as unknown as ReturnType<typeof vi.fn>;
 const updateMock = apiModule.updateRetentionConfig as unknown as ReturnType<typeof vi.fn>;
-
-function renderWithClient(ui: React.ReactNode) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
-}
 
 describe("parseHumanBytes", () => {
   it.each([
@@ -67,7 +62,7 @@ describe("RetentionTab", () => {
       maxArchiveSizeBytes: 10 * 1024 ** 3,
       maxArchivesPerProject: 0,
     });
-    renderWithClient(<RetentionTab />);
+    renderWithProviders(<RetentionTab />);
     await waitFor(() => expect(screen.queryByTestId("retention-tab")).toBeInTheDocument());
     expect(screen.getByTestId<HTMLInputElement>("retention-age-days").value).toBe("90");
     expect(screen.getByTestId<HTMLInputElement>("retention-size").value).toBe("10 GiB");
@@ -86,7 +81,7 @@ describe("RetentionTab", () => {
       maxArchiveSizeBytes: 10 * 1024 ** 3,
       maxArchivesPerProject: 0,
     });
-    renderWithClient(<RetentionTab />);
+    renderWithProviders(<RetentionTab />);
     await waitFor(() => expect(screen.queryByTestId("retention-tab")).toBeInTheDocument());
 
     const ageInput = screen.getByTestId<HTMLInputElement>("retention-age-days");
@@ -109,7 +104,7 @@ describe("RetentionTab", () => {
       maxArchiveSizeBytes: 0,
       maxArchivesPerProject: 0,
     });
-    renderWithClient(<RetentionTab />);
+    renderWithProviders(<RetentionTab />);
     await waitFor(() => expect(screen.queryByTestId("retention-tab")).toBeInTheDocument());
 
     fireEvent.change(screen.getByTestId("retention-age-days"), { target: { value: "-5" } });
@@ -123,7 +118,7 @@ describe("RetentionTab", () => {
       maxArchiveSizeBytes: 0,
       maxArchivesPerProject: 0,
     });
-    renderWithClient(<RetentionTab />);
+    renderWithProviders(<RetentionTab />);
     await waitFor(() => expect(screen.queryByTestId("retention-tab")).toBeInTheDocument());
 
     fireEvent.change(screen.getByTestId("retention-size"), { target: { value: "10 furlongs" } });
@@ -137,7 +132,7 @@ describe("RetentionTab", () => {
       maxArchiveSizeBytes: 10 * 1024 ** 3,
       maxArchivesPerProject: 0,
     });
-    renderWithClient(<RetentionTab />);
+    renderWithProviders(<RetentionTab />);
     await waitFor(() => expect(screen.queryByTestId("retention-tab")).toBeInTheDocument());
 
     const ageInput = screen.getByTestId<HTMLInputElement>("retention-age-days");
@@ -160,7 +155,7 @@ describe("RetentionTab", () => {
       maxArchiveSizeBytes: 10 * 1024 ** 3,
       maxArchivesPerProject: 0,
     });
-    renderWithClient(<RetentionTab />);
+    renderWithProviders(<RetentionTab />);
     await waitFor(() => expect(screen.queryByTestId("retention-tab")).toBeInTheDocument());
 
     fireEvent.change(screen.getByTestId("retention-age-days"), { target: { value: "0" } });

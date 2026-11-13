@@ -327,12 +327,31 @@ func NewConcurrentModificationError(id string, expected, actual int64) *Concurre
 	}
 }
 
-// AlreadyExistsError indicates a duplicate creation was attempted.
-// This is used when an idempotency key collision occurs but the parameters differ.
+// AlreadyExistsError indicates a duplicate resource creation was attempted.
+// Sandbox create retries with mismatched task identity use the redacted
+// IdempotencyIdentityConflictError below instead.
 type AlreadyExistsError struct {
 	Resource       string
 	IdempotencyKey string
 	ExistingID     string
+}
+
+// IdempotencyIdentityConflictError indicates that an idempotency key was
+// reused for a sandbox with a different owner or workspace identity. It
+// intentionally omits the existing sandbox ID so a conflicting caller cannot
+// learn another task's resource ID from a retry response.
+type IdempotencyIdentityConflictError struct{}
+
+func (e *IdempotencyIdentityConflictError) Error() string {
+	return "sandbox idempotency key was already used with a different owner or workspace identity"
+}
+
+func (e *IdempotencyIdentityConflictError) HTTPStatus() int { return http.StatusConflict }
+
+func (e *IdempotencyIdentityConflictError) IsRetryable() bool { return false }
+
+func (e *IdempotencyIdentityConflictError) Hint() string {
+	return "Repeat the original owner and workspace scope, or use a new idempotency key for a different task."
 }
 
 func (e *AlreadyExistsError) Error() string {

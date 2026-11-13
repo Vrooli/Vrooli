@@ -136,8 +136,12 @@ func TestService_Create_IdempotencyKey(t *testing.T) {
 		t.Fatalf("First Create() error = %v", err)
 	}
 
-	// Second create with same key should return same sandbox
-	sandbox2, err := svc.Create(ctx, req)
+	// A same-task retry with a syntactically different but canonically equal
+	// scope/root should return the same sandbox.
+	retry := *req
+	retry.ScopePath = "/tmp/project/./src"
+	retry.ProjectRoot = "/tmp/project/."
+	sandbox2, err := svc.Create(ctx, &retry)
 	if err != nil {
 		t.Fatalf("Second Create() error = %v", err)
 	}
@@ -146,9 +150,85 @@ func TestService_Create_IdempotencyKey(t *testing.T) {
 		t.Errorf("Idempotent create returned different IDs: %v vs %v", sandbox1.ID, sandbox2.ID)
 	}
 
+	// A create replay must return the same sandbox record without replacing
+	// task-owned companion metadata added after creation.
+	sandbox1.Metadata = map[string]interface{}{"companionServices": "profile-sha256-synthetic"}
+	sandbox2, err = svc.Create(ctx, req)
+	if err != nil {
+		t.Fatalf("third Create() replay error = %v", err)
+	}
+	if sandbox2.Metadata["companionServices"] != "profile-sha256-synthetic" {
+		t.Fatalf("idempotent replay lost associated task profile: metadata=%v", sandbox2.Metadata)
+	}
+
 	// Should only have one sandbox in repository
 	if len(repo.Sandboxes) != 1 {
 		t.Errorf("Expected 1 sandbox, got %d", len(repo.Sandboxes))
+	}
+}
+
+func TestService_Create_IdempotencyKeyRejectsDifferentTaskIdentity(t *testing.T) {
+	base := &types.CreateRequest{
+		Name:           "client-rehearsal-task",
+		ScopePath:      "/tmp/project/rehearsal",
+		ProjectRoot:    "/tmp/project",
+		Owner:          "client-rehearsal:task-42",
+		OwnerType:      types.OwnerTypeAgent,
+		IdempotencyKey: "client-rehearsal:task-42",
+	}
+	for _, tc := range []struct {
+		name   string
+		change func(*types.CreateRequest)
+	}{
+		{name: "different owner", change: func(req *types.CreateRequest) { req.Owner = "client-rehearsal:task-99" }},
+		{name: "different owner type", change: func(req *types.CreateRequest) { req.OwnerType = types.OwnerTypeUser }},
+		{name: "different scope", change: func(req *types.CreateRequest) { req.ScopePath = "/tmp/project/other" }},
+		{name: "different project root", change: func(req *types.CreateRequest) { req.ProjectRoot = "/tmp/other-project" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := mocks.NewFakeRepository()
+			drv := mocks.NewFakeDriver()
+			svc := newTestService(repo, drv)
+			first, err := svc.Create(context.Background(), base)
+			if err != nil {
+				t.Fatalf("first Create() error = %v", err)
+			}
+			first.Metadata = map[string]interface{}{"companionServices": "private-profile"}
+			secondReq := *base
+			secondReq.Metadata = nil
+			tc.change(&secondReq)
+
+			second, err := svc.Create(context.Background(), &secondReq)
+			var mismatch *types.IdempotencyIdentityConflictError
+			if !errors.As(err, &mismatch) {
+				t.Fatalf("mismatched retry returned sandbox=%v err=%v; want identity conflict", second, err)
+			}
+			if mismatch.HTTPStatus() != 409 || mismatch.IsRetryable() || strings.Contains(err.Error(), first.ID.String()) {
+				t.Fatalf("identity conflict status/retryability leaked existing task ID: %v", err)
+			}
+			if second != nil || len(repo.Sandboxes) != 1 || repo.Sandboxes[first.ID].Metadata["companionServices"] != "private-profile" {
+				t.Fatalf("mismatched retry changed task/profile state: result=%v sandboxes=%d metadata=%v", second, len(repo.Sandboxes), repo.Sandboxes[first.ID].Metadata)
+			}
+		})
+	}
+}
+
+func TestService_Create_IdempotencyLookupFailureDoesNotRetryAsNewCreate(t *testing.T) {
+	repo := mocks.NewFakeRepository()
+	repo.FindByIdempotencyKeyErr = errors.New("synthetic repository unavailable")
+	drv := mocks.NewFakeDriver()
+	svc := newTestService(repo, drv)
+	req := &types.CreateRequest{
+		ScopePath:      "/tmp/project/rehearsal",
+		ProjectRoot:    "/tmp/project",
+		Owner:          "client-rehearsal:task-42",
+		IdempotencyKey: "client-rehearsal:task-42",
+	}
+	if _, err := svc.Create(context.Background(), req); err == nil || !strings.Contains(err.Error(), "check sandbox idempotency key") {
+		t.Fatalf("create with failed idempotency lookup returned err=%v; want fail-closed lookup error", err)
+	}
+	if len(repo.Sandboxes) != 0 || drv.Mounted {
+		t.Fatalf("create proceeded after idempotency lookup failure: sandboxes=%d mounted=%v", len(repo.Sandboxes), drv.Mounted)
 	}
 }
 

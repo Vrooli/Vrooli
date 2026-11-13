@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithProviders } from "../test-utils";
 
 import { ClosedSandboxDetail } from "./ClosedSandboxDetail";
 import type { DiffArchive, DiffResult } from "../lib/api";
@@ -51,7 +52,7 @@ function makeDiff(overrides: Partial<DiffResult> = {}): DiffResult {
 
 describe("ClosedSandboxDetail", () => {
   it("renders archive metadata with terminal status badge", () => {
-    render(
+    renderWithProviders(
       <ClosedSandboxDetail
         archive={makeArchive({ sandboxStatus: "approved" })}
         diff={makeDiff()}
@@ -65,7 +66,7 @@ describe("ClosedSandboxDetail", () => {
   });
 
   it("surfaces the not-captured banner for skipped archives", () => {
-    render(
+    renderWithProviders(
       <ClosedSandboxDetail
         archive={makeArchive({ archiveState: "not_captured", sandboxStatus: "deleted" })}
         diff={makeDiff({ archiveState: "not_captured" })}
@@ -77,7 +78,7 @@ describe("ClosedSandboxDetail", () => {
   });
 
   it("does not render the not-captured banner for complete archives", () => {
-    render(
+    renderWithProviders(
       <ClosedSandboxDetail
         archive={makeArchive({ archiveState: "complete" })}
         diff={makeDiff()}

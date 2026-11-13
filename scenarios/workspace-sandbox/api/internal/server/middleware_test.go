@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -96,7 +97,7 @@ func TestResponseWriter_FlushPassThrough(t *testing.T) {
 	router := mux.NewRouter()
 	mw.Apply(router)
 
-	flushed := false
+	flushed := make(chan struct{})
 	router.HandleFunc("/stream", func(w http.ResponseWriter, _ *http.Request) {
 		f, ok := w.(http.Flusher)
 		if !ok {
@@ -106,7 +107,7 @@ func TestResponseWriter_FlushPassThrough(t *testing.T) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		_, _ = w.Write([]byte("data: hello\n\n"))
 		f.Flush()
-		flushed = true
+		close(flushed)
 	})
 
 	srv := httptest.NewServer(router)
@@ -118,8 +119,17 @@ func TestResponseWriter_FlushPassThrough(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = resp.Body.Close() })
 
-	if !flushed {
+	select {
+	case <-flushed:
+	case <-time.After(time.Second):
 		t.Error("handler did not reach Flush() — middleware blocked the writer chain")
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read flushed event: %v", err)
+	}
+	if !strings.Contains(string(body), "data: hello\n\n") {
+		t.Errorf("flushed response body = %q, want SSE event", body)
 	}
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want 200", resp.StatusCode)
