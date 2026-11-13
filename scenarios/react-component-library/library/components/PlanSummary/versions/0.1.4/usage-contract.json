@@ -1,0 +1,24 @@
+{
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 32,
+      "primaryAction": "not-applicable",
+      "property": "facts",
+      "stableIdField": "label",
+      "typicalCount": 3
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 10,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "items",
+      "stableIdField": "label",
+      "typicalCount": 3
+    }
+  ],
+  "componentId": "react-component-library:PlanSummary",
+  "version": "0.1.4-draft.1"
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"react-component-library/internal/librarywalk"
@@ -51,7 +52,7 @@ func ValidateConsumerPins(scope Scope) (Result, error) {
 			add("missing", "published version does not exist", "Migrate every named consumer to a version present in the asset manifest and version tree.")
 			continue
 		}
-		if contains(manifest.DeprecatedVersions, resolved) {
+		if slices.Contains(manifest.DeprecatedVersions, resolved) {
 			add("deprecated", "version is deprecated", "Migrate every named consumer to a non-deprecated version in the same supported major.")
 		}
 		if versionMajor(resolved) < versionMajor(manifest.Latest) {

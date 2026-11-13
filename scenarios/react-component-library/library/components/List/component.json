@@ -19,6 +19,16 @@
     "1.0.4",
     "1.0.5"
   ],
-  "latest": "1.0.6",
-  "libraryId": "react-component-library:List"
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:List",
+  "displayName": "List",
+  "description": "The semantic collection with sections, item actions, selection, keyboard navigation, loading placeholders, separators, and responsive density.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

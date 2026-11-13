@@ -76,6 +76,9 @@ window.addEventListener("message", (ev) => {
     let resolved;
     try { resolved = new URL(String(raw), window.location.href); } catch (e) { return null; }
     if (resolved.origin !== window.location.origin) return null;
+    // Ordinary document fragments belong to the specimen. Let its React
+    // handler receive the click and decide native default/focus behavior.
+    if (resolved.pathname === harnessPath && resolved.search === window.location.search && resolved.hash && !resolved.hash.startsWith("#/")) return null;
     if (resolved.pathname === harnessPath && resolved.hash.startsWith("#/")) return resolved.pathname + resolved.search + resolved.hash;
     if (resolved.pathname === harnessPath && !resolved.search && !resolved.hash) return null;
     return harnessPath + "#" + resolved.pathname + resolved.search + resolved.hash;
@@ -114,6 +117,16 @@ window.addEventListener("message", (ev) => {
     event.preventDefault();
     event.stopPropagation();
   }, true);
+  // A specimen may handle an ordinary fragment itself. If it leaves the
+  // default intact, use the browser's base-aware destination to keep a
+  // <base href="/"> from turning that fragment into cross-page navigation.
+  document.addEventListener("click", (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const anchor = event.target && event.target.closest ? event.target.closest("a[href]") : null;
+    if (!anchor || anchor.target === "_blank" || !applyRoute(anchor.href, false)) return;
+    event.preventDefault();
+    event.stopPropagation();
+  });
 })();
 // Inspector (req IS-001..003): minimal implementation of the
 // @vrooli/iframe-bridge INSPECT wire protocol. The host sends

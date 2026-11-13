@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -771,7 +772,7 @@ func vacuousFindings(repoRoot string, docs []assetDoc) []Finding {
 			// they do not need a fictitious second copy of the same gate.
 			if !applicable && rung == "production-ready" {
 				for _, gate := range config.Gates {
-					if gate.Blocking && gate.Rung == "verified" && contains(gate.AppliesTo, doc.Asset.Kind) {
+					if gate.Blocking && gate.Rung == "verified" && slices.Contains(gate.AppliesTo, doc.Asset.Kind) {
 						applicable = true
 						break
 					}
@@ -783,15 +784,6 @@ func vacuousFindings(repoRoot string, docs []assetDoc) []Finding {
 		}
 	}
 	return out
-}
-
-func contains(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
 }
 
 func rel(root, path string) string {

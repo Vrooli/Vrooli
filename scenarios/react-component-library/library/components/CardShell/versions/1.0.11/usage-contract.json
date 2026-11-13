@@ -1,0 +1,12 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Button",
+      "IconButton"
+    ],
+    "maximumCount": 2,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:CardShell",
+  "version": "1.0.11"
+}

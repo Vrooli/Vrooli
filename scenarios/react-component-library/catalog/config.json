@@ -482,7 +482,7 @@
     {
       "id": "accessibility", "reads": "asset",
       "rung": "verified",
-      "description": "Semantics, naming, focus order, announcement, keyboard operation, and contrast, reconciled against captured evidence.",
+      "description": "The version-pinned browser story renders and satisfies its role, name, focus, keyboard, and state assertions. A failed story is a gate finding.",
       "appliesTo": [
         "primitive",
         "component",
@@ -492,7 +492,7 @@
       ],
       "blocking": true,
       "runner": {
-        "react-vite": "vrooli scenario test react-component-library --phase experience"
+        "react-vite": "react-component-library components test {assetId} --version {version} --json"
       },
       "experienceClaimTypes": [
         "element-present",
@@ -506,7 +506,7 @@
     {
       "id": "responsive", "reads": "asset",
       "rung": "verified",
-      "description": "Behavior across the kit's baseline viewport matrix, including the declared responsive transformations.",
+      "description": "The version-pinned browser story satisfies its declared responsive layout and overflow assertions at the story's declared geometry. A failed story is a gate finding.",
       "appliesTo": [
         "primitive",
         "component",
@@ -516,7 +516,7 @@
       ],
       "blocking": true,
       "runner": {
-        "react-vite": "vrooli scenario test react-component-library --phase experience"
+        "react-vite": "react-component-library components test {assetId} --version {version} --json"
       },
       "experienceClaimTypes": [
         "visible-without-scroll",

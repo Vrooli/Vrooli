@@ -23,6 +23,9 @@
     "0.1.0",
     "0.3.4"
   ],
-  "latest": "0.3.5",
-  "libraryId": "react-component-library:TargetSwitcher"
+  "latest": "0.3.8",
+  "libraryId": "react-component-library:TargetSwitcher",
+  "displayName": "TargetSwitcher",
+  "description": "",
+  "tags": []
 }

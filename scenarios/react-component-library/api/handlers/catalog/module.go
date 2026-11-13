@@ -26,6 +26,7 @@ import (
 	"react-component-library/internal/jobs"
 	"react-component-library/internal/librarywalk"
 	"react-component-library/internal/module"
+	"react-component-library/internal/textutil"
 	"react-component-library/internal/versionledger"
 
 	"connectrpc.com/connect"
@@ -184,7 +185,7 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 	ctx = context.WithValue(ctx, assetCheckProfileContextKey{}, profile)
 	if profile == assetCheckProfileEdit && h.assets != nil {
 		if component, resolveErr := resolveAsset(ctx, h.assets, assetID); resolveErr == nil {
-			version := firstNonEmpty(req.Msg.GetVersion(), component.LatestVersion)
+			version := textutil.FirstNonBlank(req.Msg.GetVersion(), component.LatestVersion)
 			if version != "" {
 				ctx = context.WithValue(ctx, assetCheckVersionContextKey{}, version)
 			}
@@ -193,7 +194,7 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 	cacheKey := ""
 	if h.assets != nil {
 		if component, resolveErr := resolveAsset(ctx, h.assets, assetID); resolveErr == nil {
-			version := firstNonEmpty(req.Msg.GetVersion(), component.LatestVersion)
+			version := textutil.FirstNonBlank(req.Msg.GetVersion(), component.LatestVersion)
 			if revision, revisionErr := catalogcoverage.CurrentRevisionForVersion(h.repoRoot, component.LibraryID, version); revisionErr == nil {
 				cacheKey = component.LibraryID + "@" + version + "#" + revision + "#profile=" + profile
 				h.checkMu.RLock()
@@ -291,7 +292,7 @@ func (h *handler) CheckAsset(ctx context.Context, req *connect.Request[catalogv1
 		addStage("tests", "fault", resolveErr.Error(), started)
 		return connect.NewResponse(response), nil
 	}
-	requestedVersion := firstNonEmpty(req.Msg.GetVersion(), component.LatestVersion)
+	requestedVersion := textutil.FirstNonBlank(req.Msg.GetVersion(), component.LatestVersion)
 	if component.AssetKind == components.AssetKindHook {
 		addStage("tests", "n/a", "hooks have no browser-backed component-test stage", started)
 		packageStart := time.Now()
@@ -477,20 +478,11 @@ func componentTestStageStatus(verdict componenttests.Verdict) string {
 	return "blocked"
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
-}
-
 func findingCatalogID(finding gates.Finding) string {
 	if finding.Scope == gates.FindingScopeCorpus || strings.HasPrefix(finding.AssetID, "__corpus__") {
 		return ""
 	}
-	return firstNonEmpty(finding.CatalogID, finding.AssetID)
+	return textutil.FirstNonBlank(finding.CatalogID, finding.AssetID)
 }
 
 func findingScope(finding gates.Finding) catalogv1.FindingScope {

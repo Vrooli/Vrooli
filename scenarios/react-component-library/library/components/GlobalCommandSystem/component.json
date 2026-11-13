@@ -23,6 +23,9 @@
     "1.0.4",
     "1.0.5"
   ],
-  "latest": "1.0.6",
-  "libraryId": "react-component-library:GlobalCommandSystem"
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:GlobalCommandSystem",
+  "displayName": "GlobalCommandSystem",
+  "description": "The command infrastructure combining registry, palette, shortcut hints, menu surfacing, scope and availability, argument prompting, execution, and history.",
+  "tags": []
 }

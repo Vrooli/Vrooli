@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"react-component-library/internal/components"
@@ -137,7 +138,7 @@ func ResolveDeterministicFixture(asset, version, state string) (DeterministicFix
 	default:
 		return DeterministicFixturePayload{}, frameBundleError(asset, "fixture family has no deterministic Preview implementation")
 	}
-	if !contains([]string{"empty", "typical", "overflow", "volume", "failure", "partial", "recovery", "permission", "timeout"}, state) {
+	if !slices.Contains([]string{"empty", "typical", "overflow", "volume", "failure", "partial", "recovery", "permission", "timeout"}, state) {
 		return DeterministicFixturePayload{}, frameBundleError(asset, fmt.Sprintf("fixture state %q is not supported", state))
 	}
 	return fixture, nil
@@ -154,7 +155,7 @@ func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame)
 	if frameDoc.Kind != "catalog-asset" || frameDoc.Asset.ID != frame.Asset {
 		return "", "", "", nil, frameBundleError(frame.Asset, "frame asset is not a catalog asset")
 	}
-	if !contains(frameDoc.Asset.Targets, "react-vite") {
+	if !slices.Contains(frameDoc.Asset.Targets, "react-vite") {
 		return "", "", "", nil, frameBundleError(frame.Asset, "frame asset does not target react-vite")
 	}
 	regionDeclared := false
@@ -188,7 +189,7 @@ func (s *service) bundleFrame(ctx context.Context, frame *components.StoryFrame)
 		if expect.Capability != "data-source" {
 			continue
 		}
-		if fixtureDoc.Fixture.Satisfies == nil || fixtureDoc.Fixture.Satisfies.Capability != "data-source" || !compatibleFrameTypes(expect.TypeArguments, fixtureDoc.Fixture.Satisfies.TypeArguments) {
+		if fixtureDoc.Fixture.Satisfies == nil || fixtureDoc.Fixture.Satisfies.Capability != "data-source" || !components.CompatibleTypeArguments(expect.TypeArguments, fixtureDoc.Fixture.Satisfies.TypeArguments) {
 			return "", "", "", nil, frameBundleError(frame.Fixture, "frame fixture does not satisfy the frame asset's data-source port")
 		}
 	}
@@ -287,28 +288,4 @@ func (s *service) readCatalogFrame(id string) (frameCatalogDocument, error) {
 
 func frameBundleError(sourcePath, detail string) error {
 	return ErrBundle{SourcePath: sourcePath, Messages: []string{detail}}
-}
-
-func contains(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
-}
-
-func compatibleFrameTypes(expected, actual []string) bool {
-	if len(expected) != len(actual) {
-		return false
-	}
-	for index := range expected {
-		if strings.HasPrefix(expected[index], "T") {
-			continue
-		}
-		if expected[index] != actual[index] {
-			return false
-		}
-	}
-	return true
 }

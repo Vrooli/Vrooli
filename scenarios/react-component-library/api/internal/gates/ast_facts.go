@@ -104,22 +104,6 @@ func readSourceFactsIndex(root string, scope Scope) (map[string]sourceFacts, err
 	return index, nil
 }
 
-// sourceHasOverlayRole consumes the shared AST facts emitted by the package's
-// ast-grep parser. The byte fallback exists only for sparse Go fixtures that
-// intentionally do not carry the repository package tree; production scans
-// always use the structured facts path.
-func sourceHasOverlayRole(root, path string, source []byte) (bool, error) {
-	_ = root
-	_ = path
-	if sourceContainsOverlayRole(source) {
-		return true, nil
-	}
-	// Compatibility coverage for isolated fixtures: the live gate consumes
-	// source facts, but this helper also recognizes a computed role without
-	// starting a second analyzer process.
-	return bytes.Contains(source, []byte("role={")) && bytes.Contains(source, []byte(`"dialog"`)), nil
-}
-
 func sourceHasOverlayRoleFromFacts(index map[string]sourceFacts, path string) bool {
 	fact, ok := index[filepath.Clean(path)]
 	if !ok {

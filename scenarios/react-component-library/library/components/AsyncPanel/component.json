@@ -17,6 +17,9 @@
   ],
   "draft": "",
   "evictedVersions": [],
-  "latest": "1.0.5",
-  "libraryId": "react-component-library:AsyncPanel"
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:AsyncPanel",
+  "displayName": "Async Panel",
+  "description": "Reusable async panel component implementation for the React component library.",
+  "tags": []
 }

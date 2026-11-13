@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -204,7 +205,7 @@ func ResolveRuleSet(root, assetID string) ([]RuleBinding, error) {
 			bindings = append(bindings, RuleBinding{GateID: definition.ID, Source: RuleSourceAsset, DeclaredIn: assetDeclarationPath(catalogRoot, assetID)})
 			continue
 		}
-		if !containsKind(definition.AppliesTo, asset.Kind) {
+		if !slices.Contains(definition.AppliesTo, asset.Kind) {
 			continue
 		}
 		source := RuleSourceKind
@@ -281,7 +282,7 @@ func assetDeclarationPath(catalogRoot, assetID string) string {
 func appliesToAllKinds(kinds []string) bool {
 	canonical := []string{"foundation", "runtime-hook", "runtime-service", "adapter", "primitive", "component", "pattern", "page-template", "navigation", "fixture", "generator"}
 	for _, kind := range canonical {
-		if !containsKind(kinds, kind) {
+		if !slices.Contains(kinds, kind) {
 			return false
 		}
 	}

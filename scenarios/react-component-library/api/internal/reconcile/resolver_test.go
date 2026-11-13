@@ -155,7 +155,7 @@ func TestTestIDRequiresLiteralIntrinsicJSXAttribute(t *testing.T) {
 		if err := json.Unmarshal([]byte(tc.source), &fact); err != nil {
 			t.Fatal(err)
 		}
-		if got := hasLiteralTestID(fact, "target"); got != tc.want {
+		if got := hasLiteralAttribute(fact, "data-testid", "target"); got != tc.want {
 			t.Fatalf("%s: got %v", tc.source, got)
 		}
 	}
@@ -178,7 +178,7 @@ export const Fixture = () => <div data-testid="actual"><Card data-testid="unforw
 		t.Fatal(err)
 	}
 	for _, id := range []string{"actual", "comment-only", "string-only", "unforwarded"} {
-		if got := hasLiteralTestID(facts[sourcePath], id); got != (id == "actual") {
+		if got := hasLiteralAttribute(facts[sourcePath], "data-testid", id); got != (id == "actual") {
 			t.Fatalf("binding %q proved=%v", id, got)
 		}
 	}

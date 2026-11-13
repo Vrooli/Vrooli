@@ -11,6 +11,7 @@ import (
 	"hash"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -1032,7 +1033,7 @@ func staleAssetsByGate(root string, persisted []GateEvidence, definitions []Gate
 			// legacy definition-driven applicability in that case; production
 			// catalogs still use the resolver above as the source of truth.
 			for _, definition := range definitions {
-				if definition.Attribution == "corpus" || !containsKind(definition.AppliesTo, asset.Kind) {
+				if definition.Attribution == "corpus" || !slices.Contains(definition.AppliesTo, asset.Kind) {
 					continue
 				}
 				bindings = append(bindings, RuleBinding{GateID: definition.ID})
@@ -1522,15 +1523,6 @@ func recomputeEvidenceWithSkip(root string, runtimeDB *sql.DB, stale map[string]
 func hasFinding(findings []gates.Finding, assetID, implementation, gate string) bool {
 	for _, finding := range findings {
 		if finding.AssetID == assetID || finding.AssetID == implementation {
-			return true
-		}
-	}
-	return false
-}
-
-func containsKind(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
 			return true
 		}
 	}

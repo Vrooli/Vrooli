@@ -92,10 +92,6 @@ func validateTokenMapping(mapping TokenMapping, roles []string) error {
 	return nil
 }
 
-func validateTokenMappingInjective(namespace string, mapping map[string]string, roles []string) error {
-	return validateTokenMappingInjectiveString(namespace, mapping, roles)
-}
-
 func validateTokenMappingInjectiveString(namespace string, mapping map[string]string, roles []string) error {
 	seen := map[string]string{}
 	for _, role := range roles {

@@ -82,6 +82,12 @@ func TestVersionsManifestPromotesOnlyNarrowRecoveryCommand(t *testing.T) {
 			continue
 		}
 		for _, command := range group.Commands {
+			if command.Name == "reconcile-presence" && command.Binding.Kind != "local" {
+				t.Fatalf("reconcile-presence must be a local, explicit-apply wrapper: %+v", command.Binding)
+			}
+			if command.Name == "reachability" {
+				t.Fatal("duplicate filesystem reachability command must be retired")
+			}
 			if command.Name == "recover-button-224" {
 				if command.Binding.Kind != "local" || command.Binding.Service != "" || command.Binding.Method != "" {
 					t.Fatalf("recover-button-224 must stay a local, narrow wrapper: %+v", command.Binding)
@@ -100,4 +106,25 @@ func TestVersionsManifestPromotesOnlyNarrowRecoveryCommand(t *testing.T) {
 		}
 	}
 	t.Fatal("versions recover-button-224 command is missing")
+}
+
+func TestVersionsManifestPromotesPresenceReconciliation(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "manifest.json"))
+	if err != nil {
+		t.Fatalf("read cli/manifest.json: %v", err)
+	}
+	var manifest struct {
+		Omitted []struct {
+			Service string `json:"service"`
+			Method  string `json:"method"`
+		} `json:"omitted"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatalf("decode cli/manifest.json: %v", err)
+	}
+	for _, method := range manifest.Omitted {
+		if method.Service == "VersionLifecycleService" && method.Method == "ReconcilePresence" {
+			t.Fatal("ReconcilePresence must be available through the governed versions command")
+		}
+	}
 }

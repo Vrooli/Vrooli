@@ -27,6 +27,9 @@
     "1.0.5",
     "1.0.6"
   ],
-  "latest": "1.0.7",
-  "libraryId": "react-component-library:ResourceDetail"
+  "latest": "1.0.9",
+  "libraryId": "react-component-library:ResourceDetail",
+  "displayName": "ResourceDetail",
+  "description": "The detail pattern with header, metadata, sections, history, contextual actions, permission handling, responsive inspector, and editable regions.",
+  "tags": []
 }

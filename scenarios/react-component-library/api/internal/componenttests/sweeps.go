@@ -4,16 +4,54 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 )
 
 const (
-	SweepRunning  = "running"
-	SweepComplete = "complete"
-	SweepBlocked  = "blocked"
-	SweepFailed   = "failed"
+	SweepRunning  SweepStatus = "running"
+	SweepComplete SweepStatus = "complete"
+	SweepBlocked  SweepStatus = "blocked"
+	SweepFailed   SweepStatus = "failed"
 )
+
+type SweepStatus string
+
+func (s SweepStatus) Valid() bool {
+	switch s {
+	case SweepRunning, SweepComplete, SweepBlocked, SweepFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s SweepStatus) CanTransitionTo(next SweepStatus) bool {
+	if !s.Valid() || !next.Valid() {
+		return false
+	}
+	if s == next {
+		return true
+	}
+	switch s {
+	case SweepRunning:
+		return next == SweepComplete || next == SweepBlocked || next == SweepFailed
+	case SweepBlocked, SweepFailed:
+		return next == SweepRunning
+	default:
+		return false
+	}
+}
+
+type ErrInvalidSweepTransition struct {
+	Current SweepStatus
+	Next    SweepStatus
+}
+
+func (e ErrInvalidSweepTransition) Error() string {
+	return fmt.Sprintf("invalid component test sweep transition %q -> %q", e.Current, e.Next)
+}
 
 // Sweep is the durable state needed to resume a corpus run without treating
 // an absent result as a pass. Results is keyed by library id and version.
@@ -23,9 +61,21 @@ type Sweep struct {
 	IncludeClosure  bool
 	StartedAt       time.Time
 	CompletedAt     time.Time
-	Status          string
+	Status          SweepStatus
 	Results         map[string]string
 	Errors          []string
+}
+
+func (s *Sweep) TransitionStatus(next SweepStatus) error {
+	if s == nil || !s.Status.CanTransitionTo(next) {
+		current := SweepStatus("<nil>")
+		if s != nil {
+			current = s.Status
+		}
+		return ErrInvalidSweepTransition{Current: current, Next: next}
+	}
+	s.Status = next
+	return nil
 }
 
 type SweepRepository interface {
@@ -58,6 +108,12 @@ FROM component_test_sweeps WHERE component_filter = ? AND status <> ? ORDER BY s
 }
 
 func (r *SQLiteSweepRepository) Save(ctx context.Context, sweep Sweep) error {
+	if sweep.ID == "" || !sweep.Status.Valid() {
+		return ErrInvalidSweepTransition{Current: "<new>", Next: sweep.Status}
+	}
+	if sweep.Status == SweepRunning && !sweep.CompletedAt.IsZero() {
+		return ErrInvalidSweepTransition{Current: sweep.Status, Next: sweep.Status}
+	}
 	if sweep.Results == nil {
 		sweep.Results = map[string]string{}
 	}
@@ -65,7 +121,7 @@ func (r *SQLiteSweepRepository) Save(ctx context.Context, sweep Sweep) error {
 	if err != nil {
 		return fmt.Errorf("encode sweep results: %w", err)
 	}
-	errors, err := json.Marshal(sweep.Errors)
+	errorsJSON, err := json.Marshal(sweep.Errors)
 	if err != nil {
 		return fmt.Errorf("encode sweep errors: %w", err)
 	}
@@ -73,14 +129,44 @@ func (r *SQLiteSweepRepository) Save(ctx context.Context, sweep Sweep) error {
 	if !sweep.CompletedAt.IsZero() {
 		completed = sweep.CompletedAt.UTC().Format(time.RFC3339Nano)
 	}
-	_, err = r.db.ExecContext(ctx, `INSERT INTO component_test_sweeps
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var currentStatus, currentResults, currentErrors string
+	err = tx.QueryRowContext(ctx, `SELECT status, results_json, errors_json FROM component_test_sweeps WHERE id = ?`, sweep.ID).Scan(&currentStatus, &currentResults, &currentErrors)
+	if errors.Is(err, sql.ErrNoRows) {
+		if sweep.Status != SweepRunning {
+			return ErrInvalidSweepTransition{Current: "<new>", Next: sweep.Status}
+		}
+		_, err = tx.ExecContext(ctx, `INSERT INTO component_test_sweeps
  (id, component_filter, include_closure, started_at, completed_at, status, results_json, errors_json)
- VALUES (?, ?, ?, ?, ?, ?, ?, ?)
- ON CONFLICT(id) DO UPDATE SET component_filter=excluded.component_filter,
- include_closure=excluded.include_closure, completed_at=excluded.completed_at,
- status=excluded.status, results_json=excluded.results_json, errors_json=excluded.errors_json`,
-		sweep.ID, sweep.ComponentFilter, sweep.IncludeClosure, sweep.StartedAt.UTC().Format(time.RFC3339Nano), completed, sweep.Status, string(results), string(errors))
-	return err
+ VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, sweep.ID, sweep.ComponentFilter, sweep.IncludeClosure, sweep.StartedAt.UTC().Format(time.RFC3339Nano), completed, sweep.Status, string(results), string(errorsJSON))
+		if err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+	if err != nil {
+		return err
+	}
+	current := SweepStatus(currentStatus)
+	if !current.CanTransitionTo(sweep.Status) {
+		return ErrInvalidSweepTransition{Current: current, Next: sweep.Status}
+	}
+	result, err := tx.ExecContext(ctx, `UPDATE component_test_sweeps SET component_filter=?, include_closure=?, completed_at=?, status=?, results_json=?, errors_json=? WHERE id=? AND status=? AND results_json=? AND errors_json=?`, sweep.ComponentFilter, sweep.IncludeClosure, completed, sweep.Status, string(results), string(errorsJSON), sweep.ID, currentStatus, currentResults, currentErrors)
+	if err != nil {
+		return err
+	}
+	changed, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if changed != 1 {
+		return fmt.Errorf("component test sweep %q changed during save", sweep.ID)
+	}
+	return tx.Commit()
 }
 
 type sweepScanner interface{ Scan(...any) error }
@@ -91,6 +177,9 @@ func scanSweep(row sweepScanner) (Sweep, error) {
 	var started, completed, results, errors string
 	if err := row.Scan(&sweep.ID, &sweep.ComponentFilter, &include, &started, &completed, &sweep.Status, &results, &errors); err != nil {
 		return Sweep{}, err
+	}
+	if !sweep.Status.Valid() {
+		return Sweep{}, fmt.Errorf("unknown component test sweep status %q", sweep.Status)
 	}
 	sweep.IncludeClosure = include != 0
 	if err := sweep.StartedAt.UnmarshalText([]byte(started)); err != nil {

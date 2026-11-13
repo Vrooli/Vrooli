@@ -28,6 +28,9 @@ func NewSQLiteRepository(db *sql.DB, clk schedule.Clock) Repository {
 }
 
 func (r *sqliteRepository) Create(ctx context.Context, w Workflow) (Workflow, error) {
+	if !validStatus(w.Status) {
+		return Workflow{}, fmt.Errorf("create workflow: invalid initial status %q", w.Status)
+	}
 	if w.ID == "" {
 		w.ID = uuid.NewString()
 	}
@@ -98,17 +101,38 @@ func (r *sqliteRepository) List(ctx context.Context, assetID, target string, act
 }
 
 func (r *sqliteRepository) Update(ctx context.Context, w Workflow) (Workflow, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Workflow{}, fmt.Errorf("begin workflow update: %w", err)
+	}
+	defer tx.Rollback()
+
+	var current Status
+	if err := tx.QueryRowContext(ctx, `SELECT status FROM assisted_workflows WHERE id=?`, w.ID).Scan(&current); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Workflow{}, ErrNotFound
+		}
+		return Workflow{}, fmt.Errorf("read workflow before update: %w", err)
+	}
+	guard := Workflow{Status: current}
+	if err := guard.TransitionStatus(w.Status); err != nil {
+		return Workflow{}, err
+	}
+
 	w.UpdatedAt = r.clk.Now().UTC()
 	if !w.Status.Active() && w.CompletedAt.IsZero() {
 		w.CompletedAt = w.UpdatedAt
 	}
-	res, err := r.db.ExecContext(ctx, `UPDATE assisted_workflows SET agent_manager_task_id=?,agent_manager_run_id=?,agent_manager_execution_id=?,status=?,last_event_sequence=?,summary=?,error=?,updated_at=?,completed_at=? WHERE id=?`, w.AgentManagerTaskID, w.AgentManagerRunID, w.AgentManagerExecutionID, w.Status, w.LastEventSequence, w.Summary, w.Error, stamp(w.UpdatedAt), stamp(w.CompletedAt), w.ID)
+	res, err := tx.ExecContext(ctx, `UPDATE assisted_workflows SET agent_manager_task_id=?,agent_manager_run_id=?,agent_manager_execution_id=?,status=?,last_event_sequence=?,summary=?,error=?,updated_at=?,completed_at=? WHERE id=? AND status=?`, w.AgentManagerTaskID, w.AgentManagerRunID, w.AgentManagerExecutionID, w.Status, w.LastEventSequence, w.Summary, w.Error, stamp(w.UpdatedAt), stamp(w.CompletedAt), w.ID, current)
 	if err != nil {
 		return Workflow{}, fmt.Errorf("update workflow: %w", err)
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return Workflow{}, ErrNotFound
+		return Workflow{}, fmt.Errorf("update workflow: %w", ErrNotFound)
+	}
+	if err := tx.Commit(); err != nil {
+		return Workflow{}, fmt.Errorf("commit workflow update: %w", err)
 	}
 	return w, nil
 }

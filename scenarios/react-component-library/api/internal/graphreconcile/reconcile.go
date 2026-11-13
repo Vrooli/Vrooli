@@ -17,8 +17,10 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
-	graphv1 "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph"
-	graphconnect "github.com/vrooli/vrooli/packages/proto/gen/go/typescript-code-graph/v1/graph/graph_v1connect"
+	"github.com/vrooli/api-core/factgraph"
+	factsv1 "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	factsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts/facts_v1connect"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 	"github.com/vrooli/vrooli/packages/react-component-library/libspec"
 )
 
@@ -71,7 +73,7 @@ func Compare(assetIDs []string, catalogEdges, manifestEdges, importEdges map[str
 		case !implemented[id]:
 			verdict, cause = NotImplemented, "the catalog declares this asset but no library implementation exists yet"
 		case !importsAvailable:
-			verdict, cause = ImportsUnavailable, "typescript-code-graph could not provide an import graph"
+			verdict, cause = ImportsUnavailable, "code-facts could not provide an import graph"
 		case len(manifest) == 0 && (len(catalog) > 0 || len(imports) > 0):
 			verdict, cause = ManifestEmpty, "the implementation manifest declares no dependency pins"
 		case difference(imports, manifest) != nil:
@@ -407,22 +409,21 @@ func extractImports(parent context.Context, repoRoot string, sourceImpls, allImp
 	}
 	defer os.RemoveAll(project)
 	resolver := discovery.NewResolver(discovery.ResolverConfig{})
-	baseURL, err := resolver.ResolveScenarioURLDefault(ctx, "typescript-code-graph")
+	baseURL, err := resolver.ResolveScenarioURLDefault(ctx, "code-facts")
 	if err != nil {
-		return map[string][]string{}, false, "typescript-code-graph could not provide an import graph: scenario discovery failed: " + err.Error(), nil
+		return map[string][]string{}, false, "code-facts could not provide an import graph: scenario discovery failed: " + err.Error(), nil
 	}
-	client := graphconnect.NewTypeScriptCodeGraphServiceClient(&http.Client{Timeout: 90 * time.Second}, baseURL)
-	response, err := client.Extract(ctx, connect.NewRequest(&graphv1.ExtractRequest{ProjectPath: filepath.Join(project, "tsconfig.json")}))
+	client := factsconnect.NewCodeFactsServiceClient(&http.Client{Timeout: 90 * time.Second}, baseURL)
+	response, err := client.DescribeCodeFacts(ctx, connect.NewRequest(&factsv1.DescribeCodeFactsRequest{
+		Target:        &factsv1.CodeTarget{Kind: factsv1.TargetKind_TARGET_KIND_PATH, Path: project},
+		Include:       []factsv1.FactFamily{factsv1.FactFamily_FACT_FAMILY_IMPORTS},
+		IncludeGraphs: true,
+	}))
 	if err != nil {
 		return map[string][]string{}, false, extractionCause(err, ""), nil
 	}
-	document := response.Msg.GetGraph()
-	if document == nil {
-		return map[string][]string{}, false, "typescript-code-graph returned an empty graph", nil
-	}
-	nodePath := map[string]string{}
-	for _, node := range document.GetNodes() {
-		nodePath[node.GetId()] = filepath.ToSlash(node.GetPath())
+	if len(response.Msg.GetGraphs()) == 0 {
+		return map[string][]string{}, false, "code-facts returned no language graphs", nil
 	}
 	// Extractor paths are relative to the generated project directory, so they
 	// carry one ascent per level between it and the scenario root. Strip every
@@ -442,14 +443,7 @@ func extractImports(parent context.Context, repoRoot string, sourceImpls, allImp
 		}
 		return ""
 	}
-	imports := map[string][]string{}
-	for _, edge := range document.GetEdges() {
-		from := assetForPath(nodePath[edge.GetFromNodeId()])
-		to := assetForPath(nodePath[edge.GetToNodeId()])
-		if from != "" && to != "" && from != to {
-			imports[from] = append(imports[from], to)
-		}
-	}
+	imports := importEdgesByAsset(response.Msg, assetForPath)
 	// The graph service may represent package-resolved imports as external
 	// nodes because the generated project contains library sources while the
 	// package export target lives outside that project. Preserve the graph
@@ -478,6 +472,31 @@ func extractImports(parent context.Context, repoRoot string, sourceImpls, allImp
 	return imports, true, "", nil
 }
 
+// importEdgesByAsset projects a Code Facts response through the shared graph
+// index. Its node paths may intentionally leave the generated tsconfig root:
+// graphSourceFiles admits only the library's published and draft versions,
+// and assetForPath further limits retained edges to those owned implementations.
+func importEdgesByAsset(report *factsv1.CodeFactsReport, assetForPath func(string) string) map[string][]string {
+	imports := map[string][]string{}
+	for _, unit := range factgraph.NewIndex(report).Units() {
+		nodePath := map[string]string{}
+		for _, node := range unit.Nodes() {
+			nodePath[node.ID()] = filepath.ToSlash(node.Path())
+		}
+		for _, edge := range unit.Edges() {
+			if edge.Kind() != commonv1.EdgeKind_EDGE_KIND_IMPORT.String() {
+				continue
+			}
+			from := assetForPath(nodePath[edge.From()])
+			to := assetForPath(nodePath[edge.To()])
+			if from != "" && to != "" && from != to {
+				imports[from] = append(imports[from], to)
+			}
+		}
+	}
+	return imports
+}
+
 // extractionCause keeps the extractor's own diagnosis in the report. Without
 // it every asset reports imports-unavailable with no way to tell a stopped
 // sidecar from an unresolvable project.
@@ -493,7 +512,7 @@ func extractionCause(err error, stderr string) string {
 	if len(detail) > limit {
 		detail = detail[:limit] + "…"
 	}
-	return "typescript-code-graph could not provide an import graph: " + detail
+	return "code-facts could not provide an import graph: " + detail
 }
 
 // latestVersionLockDependencies reads the generated per-version lock beside an

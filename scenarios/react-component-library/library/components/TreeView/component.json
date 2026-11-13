@@ -17,6 +17,16 @@
     "1.0.6",
     "1.0.0"
   ],
-  "latest": "1.0.7",
-  "libraryId": "react-component-library:TreeView"
+  "latest": "1.0.8",
+  "libraryId": "react-component-library:TreeView",
+  "displayName": "TreeView",
+  "description": "The hierarchical collection with lazily loaded nodes, expansion, selection, keyboard traversal, drag reordering, filtering, virtualization, and accessible tree semantics.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -10,7 +10,7 @@ func TestKnownRegistryDefinitionsAreValid(t *testing.T) {
 	if len(Known) != 4 {
 		t.Fatalf("known capability definitions = %d, want 4", len(Known))
 	}
-	for _, id := range []string{"agent-manager", "experience-manager", "ui-health", "typescript-code-graph"} {
+	for _, id := range []string{"agent-manager", "experience-manager", "ui-health", "code-facts"} {
 		found := false
 		for _, definition := range Known {
 			if definition.ID == id {

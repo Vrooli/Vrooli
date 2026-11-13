@@ -16,7 +16,7 @@
   "evictedVersions": [
     "0.1.0"
   ],
-  "latest": "0.1.1",
+  "latest": "0.1.4",
   "libraryId": "react-component-library:RunLadder",
   "tags": []
 }

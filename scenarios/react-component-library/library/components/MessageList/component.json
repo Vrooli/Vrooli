@@ -14,6 +14,9 @@
     "0.1.0",
     "1.1.2"
   ],
-  "latest": "1.1.4",
-  "libraryId": "react-component-library:MessageList"
+  "latest": "1.1.7",
+  "libraryId": "react-component-library:MessageList",
+  "displayName": "MessageList",
+  "description": "The message collection preserving streaming scroll position, supporting branching, grouping, history loading, a new-message indicator, and stable anchoring while content grows above and below.",
+  "tags": []
 }

@@ -319,12 +319,3 @@ func UnmeasuredGate(root string) (Result, error) {
 	result.Status = "unmeasured"
 	return result, nil
 }
-
-func contains(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
-}

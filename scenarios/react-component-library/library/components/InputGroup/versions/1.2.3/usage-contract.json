@@ -1,0 +1,14 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "InputGroupField",
+      "InputGroupAdornment",
+      "InputGroupAction",
+      "InputGroupSegment"
+    ],
+    "maximumCount": 4,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:InputGroup",
+  "version": "1.2.3"
+}

@@ -64,7 +64,7 @@
     "vitest": "^2.1.4"
   },
   "name": "react-component-library-ui",
-  "packageManager": "pnpm@9.12.1",
+  "packageManager": "pnpm@10.34.9+sha512.f49b5a8ea0fdedb44bb3c0c1d6575092a53c2950d95b7ad15df11f17974877a2de3a01c07e934e9b28ce716e51c09a94962c7306d09be2e1e4b18a8c8762fd32",
   "private": true,
   "scripts": {
     "build": "pnpm experience:check && pnpm pins:check && pnpm tokens:check && pnpm selector:manifest && pnpm strings:check && pnpm strings:gen && pnpm build:preview-kits && vite build",
@@ -95,7 +95,9 @@
     "design-token-generate": "node scripts/design-token-generate.mjs",
     "tokens:check": "node scripts/design-token-generate.mjs --check",
     "pins:check": "node scripts/library-pins-check.mjs",
-    "experience:check": "node scripts/experience-routes-check.mjs"
+    "experience:check": "node scripts/experience-routes-check.mjs",
+    "usage-contracts:check": "node scripts/check-usage-contracts.mjs",
+    "usage-contracts:catalog-check": "node scripts/check-catalog-usage-contracts.mjs"
   },
   "type": "module",
   "version": "1.0.0"

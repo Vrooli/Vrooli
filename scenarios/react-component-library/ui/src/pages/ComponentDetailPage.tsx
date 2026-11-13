@@ -8,7 +8,7 @@
  * Closing the editor returns the user to the components list.
  */
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
@@ -55,6 +55,9 @@ function DetailTabs({
   testable?: boolean;
 }) {
   const { t } = useTranslation();
+  const tabsViewportRef = useRef<HTMLDivElement>(null);
+  const tabsTrackRef = useRef<HTMLDivElement>(null);
+  const [hasOverflow, setHasOverflow] = useState(false);
   const tabs: Array<{ id: InfoTab; label: string; count?: number }> = [
     ...(renderable
       ? [
@@ -91,64 +94,107 @@ function DetailTabs({
     if (next) onChange(next.id);
   };
 
+  useEffect(() => {
+    const viewport = tabsViewportRef.current;
+    const track = tabsTrackRef.current;
+    if (!viewport || !track) return;
+
+    const updateOverflow = () => {
+      if (viewport.clientWidth > 0) {
+        setHasOverflow(viewport.scrollWidth > viewport.clientWidth + 1);
+      }
+    };
+    updateOverflow();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateOverflow);
+      return () => window.removeEventListener("resize", updateOverflow);
+    }
+    const observer = new ResizeObserver(updateOverflow);
+    observer.observe(viewport);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, [tabs.length]);
+
   return (
-    <div
-      className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain"
-      data-testid="component-detail-tabs-scroll"
-      role="tablist"
-      aria-label={t("componentDetail.info.tabs", { defaultValue: "Asset information" })}
-    >
-      <div className="flex w-max min-w-full gap-space-3xs border-b border-app-border">
-        {tabs.map(({ id, label, count }) => {
-          const selected = active === id;
-          const testId =
-            id === "overview"
-              ? selectors.assets.hookOverviewTab
-              : id === "files"
-                ? selectors.assets.hookFilesTab
-                : id === "preview"
-                  ? selectors.assets.componentPreviewTab
-                  : undefined;
-          return (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              tabIndex={selected ? 0 : -1}
-              data-testid={testId}
-              onClick={() => onChange(id)}
-              onKeyDown={(event) => {
-                if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-                  event.preventDefault();
-                  moveTab(id, 1);
-                } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-                  event.preventDefault();
-                  moveTab(id, -1);
-                } else if (event.key === "Home") {
-                  event.preventDefault();
-                  onChange(tabs[0]!.id);
-                } else if (event.key === "End") {
-                  event.preventDefault();
-                  onChange(tabs[tabs.length - 1]!.id);
-                }
-              }}
-              className={`relative inline-flex min-h-touch shrink-0 items-center gap-space-2xs whitespace-nowrap rounded-t-control px-space-sm text-sm font-semibold transition-colors ${
-                selected
-                  ? "text-app-primary after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-app-primary"
-                  : "text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
-              }`}
-            >
-              {label}
-              {count !== undefined && (
-                <span aria-hidden="true" className="inline-flex min-w-4 items-center justify-center rounded-full bg-app-primary/10 px-space-3xs py-space-3xs text-[0.6875rem] leading-none text-app-primary">
-                  {count}
-                </span>
-              )}
-            </button>
-          );
-        })}
+    <div className="min-w-0 max-w-full">
+      <div
+        ref={tabsViewportRef}
+        className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain"
+        data-testid="component-detail-tabs-scroll"
+        role="tablist"
+        aria-label={t("componentDetail.info.tabs", { defaultValue: "Asset information" })}
+        aria-describedby={hasOverflow ? "component-detail-tabs-scroll-hint" : undefined}
+      >
+        <div
+          ref={tabsTrackRef}
+          className="flex w-max min-w-full gap-space-3xs border-b border-app-border"
+        >
+          {tabs.map(({ id, label, count }) => {
+            const selected = active === id;
+            const testId =
+              id === "overview"
+                ? selectors.assets.hookOverviewTab
+                : id === "files"
+                  ? selectors.assets.hookFilesTab
+                  : id === "preview"
+                    ? selectors.assets.componentPreviewTab
+                    : undefined;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                tabIndex={selected ? 0 : -1}
+                data-testid={testId}
+                onClick={() => onChange(id)}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+                    event.preventDefault();
+                    moveTab(id, 1);
+                  } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+                    event.preventDefault();
+                    moveTab(id, -1);
+                  } else if (event.key === "Home") {
+                    event.preventDefault();
+                    onChange(tabs[0]!.id);
+                  } else if (event.key === "End") {
+                    event.preventDefault();
+                    onChange(tabs[tabs.length - 1]!.id);
+                  }
+                }}
+                className={`relative inline-flex min-h-touch shrink-0 items-center gap-space-2xs whitespace-nowrap rounded-t-control px-space-sm text-sm font-semibold transition-colors ${
+                  selected
+                    ? "text-app-primary after:absolute after:inset-x-0 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-app-primary"
+                    : "text-app-muted-foreground hover:bg-app-surface-muted hover:text-app-foreground"
+                }`}
+              >
+                {label}
+                {count !== undefined && (
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex min-w-4 items-center justify-center rounded-full bg-app-primary/10 px-space-3xs py-space-3xs text-[0.6875rem] leading-none text-app-primary"
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
+      {hasOverflow && (
+        <p
+          id="component-detail-tabs-scroll-hint"
+          className="mt-space-3xs text-xs text-app-muted-foreground"
+          data-testid="component-detail-tabs-scroll-hint"
+        >
+          {t("componentDetail.info.scrollForMore", {
+            defaultValue: "Swipe or scroll horizontally to see all tabs",
+          })}
+        </p>
+      )}
     </div>
   );
 }

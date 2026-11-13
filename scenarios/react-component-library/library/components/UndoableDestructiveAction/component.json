@@ -17,6 +17,16 @@
     "1.0.7",
     "1.0.4"
   ],
-  "latest": "1.0.8",
-  "libraryId": "react-component-library:UndoableDestructiveAction"
+  "latest": "1.0.11",
+  "libraryId": "react-component-library:UndoableDestructiveAction",
+  "displayName": "UndoableDestructiveAction",
+  "description": "The destructive-action pattern preferring reversible removal with visible undo, escalating to explicit confirmation only where reversal is genuinely impossible, and handling undo that itself fails.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

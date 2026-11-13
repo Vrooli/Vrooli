@@ -44,7 +44,7 @@ var Known = []Def{
 	{ID: "agent-manager", Name: "Agent Manager", Description: "Assisted extraction and adoption workflows.", DependencyKind: DependencyScenario, DependencySlug: "agent-manager", ActionKind: ActionKindScenarioStart, ActionLabel: "Start agent-manager", OperatorCommand: "vrooli scenario start agent-manager"},
 	{ID: "experience-manager", Name: "Experience Manager", Description: "Shared experience contracts and capture reconciliation.", DependencyKind: DependencyScenario, DependencySlug: "experience-manager", ActionKind: ActionKindScenarioStart, ActionLabel: "Start experience-manager", OperatorCommand: "vrooli scenario start experience-manager"},
 	{ID: "ui-health", Name: "UI Health", Description: "Shared UI inventory and provenance contracts.", DependencyKind: DependencyScenario, DependencySlug: "ui-health", ActionKind: ActionKindScenarioStart, ActionLabel: "Start ui-health", OperatorCommand: "vrooli scenario start ui-health"},
-	{ID: "typescript-code-graph", Name: "TypeScript Code Graph", Description: "Parsed TypeScript import graph for catalog reconciliation.", DependencyKind: DependencyScenario, DependencySlug: "typescript-code-graph", Criticality: capabilityregistry.CriticalityRequired, ActionKind: ActionKindScenarioStart, ActionLabel: "Start typescript-code-graph", OperatorCommand: "vrooli scenario start typescript-code-graph"},
+	{ID: "code-facts", Name: "Code Facts", Description: "Shared parsed import graph for catalog reconciliation.", DependencyKind: DependencyScenario, DependencySlug: "code-facts", Criticality: capabilityregistry.CriticalityRequired, ActionKind: ActionKindScenarioStart, ActionLabel: "Start code-facts", OperatorCommand: "vrooli scenario start code-facts"},
 }
 
 // DeclaredCoverage is the server-computed reconciliation between catalog
@@ -176,10 +176,10 @@ func ReconcileDeclaredWithStatuses(declarations map[string][]string, statuses ma
 
 func NewRegistry() *Registry {
 	return capabilityregistry.New(Known, map[string]Checker{
-		"agent-manager":         ScenarioChecker{Slug: "agent-manager"},
-		"experience-manager":    ScenarioChecker{Slug: "experience-manager"},
-		"ui-health":             ScenarioChecker{Slug: "ui-health"},
-		"typescript-code-graph": ScenarioChecker{Slug: "typescript-code-graph"},
+		"agent-manager":      ScenarioChecker{Slug: "agent-manager"},
+		"experience-manager": ScenarioChecker{Slug: "experience-manager"},
+		"ui-health":          ScenarioChecker{Slug: "ui-health"},
+		"code-facts":         ScenarioChecker{Slug: "code-facts"},
 	}, 30*time.Second)
 }
 

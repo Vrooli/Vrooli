@@ -1,0 +1,41 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "*"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "collections": [
+    {
+      "labelField": "term",
+      "maximumCount": 24,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "entries",
+      "stableIdField": "term",
+      "typicalCount": 5
+    },
+    {
+      "labelField": "action",
+      "maximumCount": 20,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "history",
+      "stableIdField": "action",
+      "typicalCount": 4
+    }
+  ],
+  "componentId": "react-component-library:ResourceDetail",
+  "slots": {
+    "actions": {
+      "allowedChildComponents": [
+        "OverlayActionBar"
+      ],
+      "maximumCount": 1,
+      "primaryAction": "exactly one primary action through OverlayActionBar",
+      "typicalCount": 1
+    }
+  },
+  "version": "1.0.9"
+}

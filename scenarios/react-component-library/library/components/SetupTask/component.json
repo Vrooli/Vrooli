@@ -19,6 +19,9 @@
     "0.1.1",
     "0.1.0"
   ],
-  "latest": "0.2.0",
-  "libraryId": "react-component-library:SetupTask"
+  "latest": "0.2.3",
+  "libraryId": "react-component-library:SetupTask",
+  "displayName": "SetupTask",
+  "description": "",
+  "tags": []
 }

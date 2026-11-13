@@ -32,7 +32,7 @@
     "1.1.0"
   ],
   "kind": "control",
-  "latest": "1.1.2",
+  "latest": "1.1.3",
   "libraryId": "react-component-library:IntegrationsOverview",
   "retiredMajorAliases": [
     "0"

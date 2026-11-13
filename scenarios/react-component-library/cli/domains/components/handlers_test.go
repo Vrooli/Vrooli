@@ -692,7 +692,7 @@ func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
 	core := clitest.NewTestApp(t, connectAPI(t, svc))
 	h := newHandlers(core)
 	ctx, _ := cliapptest.NewCapturedRunContext(core, cliapp.ArgSchema{
-		Positionals: []cliapp.Positional{{Name: "component-id", Required: true}},
+		Positionals: []cliapp.Positional{{Name: "component", Required: true}},
 		Flags: []cliapp.Flag{
 			{Name: "display-name"},
 			{Name: "description"},
@@ -705,11 +705,11 @@ func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
 			{Name: "catalog-id"},
 			{Name: "entry"},
 			{Name: "replaced-by"},
-			{Name: "clear-supplemental-justification"},
-			{Name: "clear-catalog-id"},
+			{Name: "clear-supplemental-justification", Bool: true},
+			{Name: "clear-catalog-id", Bool: true},
 		},
 	}, cliapptest.TestRunContextOptions{
-		Positionals: map[string]string{"component-id": "cmp-1"},
+		Positionals: map[string]string{"component": "cmp-1"},
 		Flags: map[string]string{
 			"display-name":                     "Header",
 			"description":                      "Updated",
@@ -725,7 +725,9 @@ func TestComponentsManifestUpdate_ForwardsMetadata(t *testing.T) {
 		},
 	})
 
-	require.NoError(t, h.manifestUpdate(ctx))
+	msg, err := h.manifestUpdateCall(ctx)
+	require.NoError(t, err)
+	require.NoError(t, ctx.RenderMutation(h.manifestUpdateReport(ctx, msg)))
 	require.Len(t, svc.manifestReqs, 1)
 	require.Equal(t, []string{"layout", "nav"}, svc.manifestReqs[0].Tags)
 	require.Equal(t, []string{"0.1.0"}, svc.manifestReqs[0].DeprecatedVersions)

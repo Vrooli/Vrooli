@@ -63,14 +63,20 @@ func (s *service) Start(ctx context.Context, in StartInput) (Workflow, int, erro
 	}
 	dispatch, err := s.dispatcher.Start(ctx, in)
 	if err != nil {
-		w.Status = StatusUnavailable
+		if transitionErr := w.TransitionStatus(StatusUnavailable); transitionErr != nil {
+			return Workflow{}, 0, transitionErr
+		}
 		w.Error = err.Error()
 		w, _ = s.repo.Update(ctx, w)
 		return w, 0, nil
 	}
-	w.AgentManagerExecutionID, w.Status, w.Summary, w.Error = dispatch.ExecutionID, dispatch.Status, dispatch.Summary, dispatch.Error
-	if w.Status == "" {
-		w.Status = StatusQueued
+	w.AgentManagerExecutionID, w.Summary, w.Error = dispatch.ExecutionID, dispatch.Summary, dispatch.Error
+	dispatchStatus := dispatch.Status
+	if dispatchStatus == "" {
+		dispatchStatus = StatusQueued
+	}
+	if err := w.TransitionStatus(dispatchStatus); err != nil {
+		return Workflow{}, 0, err
 	}
 	w, err = s.repo.Update(ctx, w)
 	if err != nil {
@@ -80,14 +86,21 @@ func (s *service) Start(ctx context.Context, in StartInput) (Workflow, int, erro
 	// a caller disconnect cannot orphan the RCL record from its workflow.
 	completed, err := s.dispatcher.Wait(ctx, w.AgentManagerExecutionID)
 	if err != nil {
-		w.Status, w.Error = StatusUnavailable, err.Error()
+		if transitionErr := w.TransitionStatus(StatusUnavailable); transitionErr != nil {
+			return Workflow{}, 0, transitionErr
+		}
+		w.Error = err.Error()
 		w, _ = s.repo.Update(ctx, w)
 		return w, 0, nil
 	}
-	w.Status, w.Summary, w.Error = completed.Status, completed.Summary, completed.Error
-	if w.Status == "" {
-		w.Status = StatusQueued
+	completedStatus := completed.Status
+	if completedStatus == "" {
+		completedStatus = StatusQueued
 	}
+	if err := w.TransitionStatus(completedStatus); err != nil {
+		return Workflow{}, 0, err
+	}
+	w.Summary, w.Error = completed.Summary, completed.Error
 	w, err = s.repo.Update(ctx, w)
 	return w, 0, err
 }
@@ -114,7 +127,10 @@ func (s *service) List(ctx context.Context, asset, target string, active bool, l
 		if refreshErr != nil {
 			continue
 		}
-		workflow.Status, workflow.Summary, workflow.Error = snapshot.Status, snapshot.Summary, snapshot.Error
+		if err := workflow.TransitionStatus(snapshot.Status); err != nil {
+			continue
+		}
+		workflow.Summary, workflow.Error = snapshot.Summary, snapshot.Error
 		if !workflow.Status.Active() {
 			updated, updateErr := s.repo.Update(ctx, workflow)
 			if updateErr != nil {
@@ -154,7 +170,10 @@ func (s *service) reconcileActive(ctx context.Context, w Workflow) (Workflow, er
 			if refreshErr != nil {
 				return Workflow{}, refreshErr
 			}
-			w.Status, w.Summary, w.Error = snapshot.Status, snapshot.Summary, snapshot.Error
+			if err := w.TransitionStatus(snapshot.Status); err != nil {
+				return Workflow{}, err
+			}
+			w.Summary, w.Error = snapshot.Summary, snapshot.Error
 			if !w.Status.Active() {
 				updated, err := s.repo.Update(ctx, w)
 				if err != nil {
@@ -179,9 +198,12 @@ func (s *service) Stop(ctx context.Context, id string) (Workflow, error) {
 	if err != nil {
 		return Workflow{}, err
 	}
-	w.Status = snap.Status
-	if w.Status == "" {
-		w.Status = StatusStopped
+	nextStatus := snap.Status
+	if nextStatus == "" {
+		nextStatus = StatusStopped
+	}
+	if err := w.TransitionStatus(nextStatus); err != nil {
+		return Workflow{}, err
 	}
 	w.Summary = snap.Summary
 	w.Error = snap.Error

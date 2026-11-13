@@ -1,0 +1,17 @@
+{
+  "componentId": "react-component-library:Sortable",
+  "items": {
+    "labelField": "label",
+    "maximumCount": 20,
+    "maximumLabelCharacters": 48,
+    "primaryAction": "not-applicable",
+    "property": "items",
+    "requiredFields": [
+      "id",
+      "value"
+    ],
+    "stableIdField": "id",
+    "typicalCount": 5
+  },
+  "version": "1.1.2"
+}

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "react-component-library",
   "generator": "v1.0.0",
-  "manifest_hash": "c3aac7aae0501e5a95a631f48501cb842b210851fba91258f90b887858373c0d",
+  "manifest_hash": "54431452475676ca15e70f499f6f19d0dcad09612bb28dc9beb8fa0993dbb74a",
   "commands": [
     {
       "path": "adoptions link",
@@ -387,16 +387,16 @@
       "declared_primitive": "action"
     },
     {
-      "path": "versions reachability",
+      "path": "versions reap",
       "group": "versions",
-      "command": "reachability",
+      "command": "reap",
       "binding": ".",
       "declared_primitive": "action"
     },
     {
-      "path": "versions reap",
+      "path": "versions reconcile-presence",
       "group": "versions",
-      "command": "reap",
+      "command": "reconcile-presence",
       "binding": ".",
       "declared_primitive": "action"
     },

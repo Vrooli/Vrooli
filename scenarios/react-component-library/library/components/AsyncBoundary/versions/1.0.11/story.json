@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 5,
+  "kind": "component",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "stories": [
+    {
+      "id": "default",
+      "name": "Default",
+      "args": {},
+      "expect": [
+        {
+          "kind": "visible",
+          "selector": "[data-rcl-async-boundary]"
+        }
+      ],
+      "role": "anatomy"
+    },
+    {"id":"empty","name":"Empty content","args":{},"expect":[{"kind":"visible","selector":"[data-rcl-async-boundary]"}],"role":"boundary","mode":"pinned"},
+    {"id":"loading","name":"Loading content","args":{"state":"loading"},"expect":[{"kind":"visible","selector":"[data-rcl-async-boundary]"}],"role":"boundary","mode":"pinned"},
+    {"id":"error","name":"Failed content","args":{"state":"error"},"expect":[{"kind":"visible","selector":"[data-rcl-async-boundary]"}],"role":"boundary","mode":"pinned"},
+    {"id":"overflow","name":"Long content","args":{},"expect":[{"kind":"visible","selector":"[data-rcl-async-boundary]"}],"role":"boundary","mode":"pinned"}
+  ]
+}

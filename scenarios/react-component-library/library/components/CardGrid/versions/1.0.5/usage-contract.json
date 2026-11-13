@@ -1,0 +1,11 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Card"
+    ],
+    "maximumCount": 8,
+    "typicalCount": 3
+  },
+  "componentId": "react-component-library:CardGrid",
+  "version": "1.0.5"
+}

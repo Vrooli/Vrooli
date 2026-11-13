@@ -17,6 +17,7 @@ import (
 	"react-component-library/internal/catalogvalidate"
 	"react-component-library/internal/components"
 	domain "react-component-library/internal/componenttests"
+	"react-component-library/internal/textutil"
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/metrics"
@@ -498,15 +499,6 @@ func shouldSkipGeneratedFixture(selectedVersions, skippedSelectedVersions int, c
 		len(versionListingFailures) == 0
 }
 
-func hasReusableReport(reports []domain.Report, libraryID, version string) bool {
-	for _, report := range reports {
-		if report.RootLibraryID == libraryID && report.RootVersion == version && report.IncludeClosure && report.Verdict != domain.VerdictBlocked {
-			return true
-		}
-	}
-	return false
-}
-
 func (h *sharedHandler) storyCoverageGaps(ctx context.Context, componentID, version string) []components.StoryCoverageGap {
 	rows, err := h.assets.ListStories(ctx, components.StoryQuery{ComponentID: componentID, Version: version, Limit: 1})
 	if err != nil || len(rows) != 1 {
@@ -601,7 +593,7 @@ func canonicalComponentTestsPresentation(a *commonv1.MaturityAssessment) *common
 	currentLabel := ""
 	for _, level := range local.GetLevels() {
 		if level.GetId() == current {
-			currentLabel = firstNonBlank(level.GetStatusLabel(), level.GetName())
+			currentLabel = textutil.FirstNonBlank(level.GetStatusLabel(), level.GetName())
 			break
 		}
 	}
@@ -620,7 +612,7 @@ func canonicalComponentTestsPresentation(a *commonv1.MaturityAssessment) *common
 	if levels := local.GetLevels(); len(levels) > 0 {
 		top := levels[len(levels)-1]
 		presentation.CeilingLevel = top.GetId()
-		presentation.NorthStar = firstNonBlank(top.GetCapabilitySummary(), top.GetName())
+		presentation.NorthStar = textutil.FirstNonBlank(top.GetCapabilitySummary(), top.GetName())
 	}
 	for _, capability := range a.GetCapabilities() {
 		if capability == nil {
@@ -629,7 +621,7 @@ func canonicalComponentTestsPresentation(a *commonv1.MaturityAssessment) *common
 		capabilityLabel := ""
 		for _, level := range capability.GetLevels() {
 			if level.GetId() == capability.GetCurrentLevel() {
-				capabilityLabel = firstNonBlank(level.GetStatusLabel(), level.GetName())
+				capabilityLabel = textutil.FirstNonBlank(level.GetStatusLabel(), level.GetName())
 				break
 			}
 		}
@@ -723,15 +715,6 @@ func canonicalComponentTestsPresentation(a *commonv1.MaturityAssessment) *common
 		}
 	}
 	return presentation
-}
-
-func firstNonBlank(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 func sortedStrings(values []string) []string {

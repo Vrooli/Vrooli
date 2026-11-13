@@ -137,6 +137,13 @@ type StoryExecutor interface {
 	ExecuteStory(context.Context, string, string, string) (StoryExecution, error)
 }
 
+// StoryGeometryExecutor applies the versioned story's declared viewport when
+// the executor owns browser capture. Executors without this optional
+// capability keep their existing behavior.
+type StoryGeometryExecutor interface {
+	ExecuteStoryWithGeometry(context.Context, string, string, string, *components.StoryGeometry) (StoryExecution, error)
+}
+
 // ExecutorProber is an optional preflight capability for executors backed by
 // an external browser service. Providers can fail a validation phase before
 // scheduling a corpus of jobs when that service is unavailable.
@@ -265,7 +272,13 @@ func (r Runner) contractStoryResults(ctx context.Context, asset components.Compo
 			results = append(results, Result{Stage: StageDeclared, AssetLibraryID: asset.LibraryID, Version: version.Version, Subject: definition.ID, Verdict: VerdictBlocked, Message: "story executor is not configured", Remediation: "configure the preview harness executor before trusting story results"})
 			continue
 		}
-		execution, err := r.Executor.ExecuteStory(ctx, asset.LibraryID, version.Version, definition.ID)
+		var execution StoryExecution
+		var err error
+		if geometryExecutor, ok := r.Executor.(StoryGeometryExecutor); ok {
+			execution, err = geometryExecutor.ExecuteStoryWithGeometry(ctx, asset.LibraryID, version.Version, definition.ID, definition.Geometry)
+		} else {
+			execution, err = r.Executor.ExecuteStory(ctx, asset.LibraryID, version.Version, definition.ID)
+		}
 		if err != nil {
 			var unavailable ExecutorUnavailableError
 			if errors.As(err, &unavailable) {

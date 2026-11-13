@@ -12,6 +12,7 @@ import (
 	apidb "github.com/vrooli/api-core/database"
 	dbtest "github.com/vrooli/api-core/databasetest"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 )
 
 type gatewayFunc func(context.Context, *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error)
@@ -32,6 +33,8 @@ func TestConcurrentDispatchIsDurableAndReplayDoesNotChargeAgain(t *testing.T) {
 	client := gatewayFunc(func(ctx context.Context, r *connect.Request[inferencev1.RunRequest]) (*connect.Response[inferencev1.RunResponse], error) {
 		calls.Add(1)
 		require.Equal(t, "extract.structured", r.Msg.Role)
+		require.Equal(t, sharedv1.Profile_PROFILE_LOCAL_ONLY, r.Msg.GetProfile())
+		require.Equal(t, sharedv1.PrivacyClass_PRIVACY_CLASS_UNSPECIFIED, r.Msg.GetPrivacyClass(), "the design request has no sourced privacy classification")
 		require.Equal(t, int32(4096), r.Msg.MaxOutputTokens)
 		close(entered)
 		<-release

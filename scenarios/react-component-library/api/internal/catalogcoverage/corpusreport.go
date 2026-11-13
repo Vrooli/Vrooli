@@ -347,15 +347,6 @@ func timeCLI(cli string, args []string, timeout time.Duration) (int, bool) {
 	return int(math.Ceil(time.Since(started).Seconds())), true
 }
 
-type matrixFailureCell struct {
-	Verdict      string `json:"verdict"`
-	FindingCount int    `json:"finding_count"`
-}
-
-type matrixFailureReport struct {
-	Cells []matrixFailureCell `json:"cells"`
-}
-
 // liveMatrixFailures evaluates the same gate definitions used by the catalog
 // matrix. The aggregate catalog API intentionally exposes only totals, so
 // using that API here would make it impossible to prove that every failing
@@ -375,20 +366,6 @@ func liveMatrixFailures(root string, catalog *sql.DB) (int, bool) {
 		return 0, false
 	}
 	return failures, true
-}
-
-func countMatrixFailures(output []byte) (int, error) {
-	var report matrixFailureReport
-	if err := json.Unmarshal(output, &report); err != nil {
-		return 0, err
-	}
-	failures := 0
-	for _, cell := range report.Cells {
-		if cell.Verdict == "fail" && cell.FindingCount == 0 {
-			failures++
-		}
-	}
-	return failures, nil
 }
 
 func liveBuildFailures(root string) (int, bool) {

@@ -7,6 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	facts "github.com/vrooli/vrooli/packages/proto/gen/go/code-facts/v1/facts"
+	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
 )
 
 func TestCompareVerdictPrecedenceAndDeterminism(t *testing.T) {
@@ -54,6 +57,38 @@ func TestCompareUnpinnedImport(t *testing.T) {
 	got := Compare([]string{"asset"}, map[string][]string{"asset": {"catalog"}}, map[string][]string{"asset": {"manifest"}}, map[string][]string{"asset": {"import"}}, map[string]bool{"asset": true}, true)
 	if got.Assets[0].Verdict != UnpinnedImport {
 		t.Fatalf("got %#v", got.Assets[0])
+	}
+}
+
+func TestImportEdgesByAssetUsesSharedGraphProjection(t *testing.T) {
+	report := &facts.CodeFactsReport{
+		Target: &facts.TargetContext{RootPath: "/repo/ui/.graph-project"},
+		Graphs: []*facts.LanguageGraph{
+			{ParseUnit: &facts.ParseUnit{Id: "a", Language: "typescript", RootPath: "/repo/ui/.graph-project"}, Graph: &commonv1.CodeGraph{
+				Nodes: []*commonv1.CodeGraphNode{{Id: "module", Path: "../../../library/components/a/versions/v1/index.ts"}, {Id: "dep", Path: "../../../library/components/b/versions/v2/index.ts"}},
+				Edges: []*commonv1.CodeGraphEdge{{Kind: commonv1.EdgeKind_EDGE_KIND_IMPORT, FromNodeId: "module", ToNodeId: "dep"}},
+			}},
+			{ParseUnit: &facts.ParseUnit{Id: "b", Language: "typescript", RootPath: "/repo/ui/.graph-project"}, Graph: &commonv1.CodeGraph{
+				Nodes: []*commonv1.CodeGraphNode{{Id: "module", Path: "../../../library/components/b/versions/v2/index.ts"}, {Id: "dep", Path: "../../../library/components/a/versions/v1/index.ts"}},
+				Edges: []*commonv1.CodeGraphEdge{{Kind: commonv1.EdgeKind_EDGE_KIND_IMPORT, FromNodeId: "module", ToNodeId: "dep"}},
+			}},
+		},
+	}
+	assetForPath := func(source string) string {
+		for strings.HasPrefix(source, "../") {
+			source = strings.TrimPrefix(source, "../")
+		}
+		if strings.HasPrefix(source, "library/components/a/") {
+			return "asset-a"
+		}
+		if strings.HasPrefix(source, "library/components/b/") {
+			return "asset-b"
+		}
+		return ""
+	}
+	got := importEdgesByAsset(report, assetForPath)
+	if len(got["asset-a"]) != 1 || got["asset-a"][0] != "asset-b" || len(got["asset-b"]) != 1 || got["asset-b"][0] != "asset-a" {
+		t.Fatalf("projected import edges = %#v", got)
 	}
 }
 
@@ -150,10 +185,10 @@ func TestLiveReconcileReportsEveryCatalogAsset(t *testing.T) {
 // manifest field again, every asset collapses to ManifestEmpty and the gate
 // silently stops measuring anything — a green report that proves nothing.
 func TestLiveReconcileIsNotUniformlyManifestEmpty(t *testing.T) {
-	// The import view comes from the running typescript-code-graph scenario,
+	// The import view comes from the running code-facts scenario,
 	// so this is a live check: without it every asset reads imports-unavailable.
 	if os.Getenv("VROOLI_RCL_GRAPH_LIVE") == "" {
-		t.Skip("set VROOLI_RCL_GRAPH_LIVE=1 with typescript-code-graph running to reconcile the live corpus")
+		t.Skip("set VROOLI_RCL_GRAPH_LIVE=1 with code-facts running to reconcile the live corpus")
 	}
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
 	if err != nil {

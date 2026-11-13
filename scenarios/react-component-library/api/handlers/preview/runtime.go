@@ -296,14 +296,6 @@ func runtimeNeedsReactRequireShim(externals []string) bool {
 	return false
 }
 
-func packageRuntimeEntry(moduleName, runtimePath string) (string, bool) {
-	root, err := findVendoredNodeModulesRoot()
-	if err != nil {
-		return "", false
-	}
-	return packageRuntimeEntryFromRoot(root, moduleName, runtimePath)
-}
-
 func packageRuntimeEntryAtRoot(repoRoot, moduleName, runtimePath string) (string, bool) {
 	root, err := previewRuntimePackageRoot(repoRoot, moduleName, "")
 	if err != nil {

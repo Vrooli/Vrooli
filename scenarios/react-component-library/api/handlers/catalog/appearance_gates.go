@@ -9,8 +9,10 @@ import (
 	"react-component-library/internal/gates"
 )
 
-type assetCheckProfileContextKey struct{}
-type assetCheckVersionContextKey struct{}
+type (
+	assetCheckProfileContextKey struct{}
+	assetCheckVersionContextKey struct{}
+)
 
 const (
 	assetCheckProfilePublish = "publish"
@@ -18,7 +20,12 @@ const (
 )
 
 func appearanceGate(gate string) bool {
-	return gate == "unit" || gate == "interaction"
+	// These gates are all backed by immutable, version-pinned browser stories.
+	// Accessibility assertions exercise roles, names, focus/keyboard operations,
+	// and state; responsive stories assert layout at the story's declared phone
+	// geometry. They must enter the browser runner rather than the registry's
+	// declaration-only placeholders.
+	return gate == "unit" || gate == "interaction" || gate == "accessibility" || gate == "responsive"
 }
 
 func profileFor(ctx context.Context) string {

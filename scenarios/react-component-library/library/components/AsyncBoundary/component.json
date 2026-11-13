@@ -25,6 +25,9 @@
     "1.0.7",
     "1.0.8"
   ],
-  "latest": "1.0.9",
-  "libraryId": "react-component-library:AsyncBoundary"
+  "latest": "1.0.11",
+  "libraryId": "react-component-library:AsyncBoundary",
+  "displayName": "AsyncBoundary",
+  "description": "The declarative boundary coordinating loading, empty, partial, stale, refreshing, offline, error, and success presentation around arbitrary content, so no surface hand-rolls its own state ladder.",
+  "tags": []
 }

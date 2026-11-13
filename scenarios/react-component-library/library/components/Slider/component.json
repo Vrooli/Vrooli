@@ -27,6 +27,9 @@
     "1.1.2",
     "1.2.3"
   ],
-  "latest": "1.2.4",
-  "libraryId": "react-component-library:Slider"
+  "latest": "1.2.7",
+  "libraryId": "react-component-library:Slider",
+  "displayName": "Slider",
+  "description": "The single-value range control with keyboard stepping, snapping, marks, formatted output, touch-friendly hit area, and accessible value text.",
+  "tags": []
 }

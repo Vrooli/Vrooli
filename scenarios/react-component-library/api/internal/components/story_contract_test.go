@@ -8,6 +8,15 @@ import (
 	"testing"
 )
 
+func TestCompatibleTypeArgumentsHonorsExpectedTypeVariables(t *testing.T) {
+	if !CompatibleTypeArguments([]string{"TRecord", "Route"}, []string{"Model", "Route"}) {
+		t.Fatal("a T-prefixed expected argument should accept a concrete fixture type")
+	}
+	if CompatibleTypeArguments([]string{"TRecord", "Route"}, []string{"Model", "Path"}) {
+		t.Fatal("concrete expected arguments must still match")
+	}
+}
+
 func TestPublishedSchemasAgreeWithContractStructSurface(t *testing.T) {
 	repoRoot := repositoryRootWithMarker(t, filepath.Join(".vrooli", "schemas", "story-contract.schema.json"))
 	readSchema := func(name string) map[string]any {

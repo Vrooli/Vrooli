@@ -11,6 +11,9 @@
   "draft": "",
   "entry": "BoardController.tsx",
   "evictedVersions": [],
-  "latest": "0.1.2",
-  "libraryId": "react-component-library:CycleController"
+  "latest": "0.1.3",
+  "libraryId": "react-component-library:CycleController",
+  "displayName": "CycleController",
+  "description": "",
+  "tags": []
 }

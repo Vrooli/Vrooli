@@ -21,6 +21,9 @@
     "1.0.2",
     "1.0.3"
   ],
-  "latest": "1.0.4",
-  "libraryId": "react-component-library:CardGrid"
+  "latest": "1.0.5",
+  "libraryId": "react-component-library:CardGrid",
+  "displayName": "Card Grid",
+  "description": "A restrained responsive card arrangement that establishes a raised surface context for repeated records without turning every page section into a floating panel.",
+  "tags": []
 }

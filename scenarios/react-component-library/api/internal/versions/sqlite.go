@@ -11,6 +11,8 @@ import (
 	"github.com/vrooli/api-core/schedule"
 
 	"github.com/google/uuid"
+
+	"react-component-library/internal/textutil"
 )
 
 type sqliteRepository struct {
@@ -41,7 +43,7 @@ func (s *sqliteRepository) Insert(ctx context.Context, v Version) (Version, erro
 INSERT INTO component_versions
   (id, component_id, library_id, version, status, source_path, content, content_sha256, changelog_md, indexed_at, created_at, released_at, presence)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-`, v.ID, v.ComponentID, v.LibraryID, v.Version, v.Status, v.SourcePath, v.Content, v.ContentSHA256, v.ChangelogMD, v.RecordedAt.UTC().Format(timeFormat), v.CreatedAt.UTC().Format(timeFormat), formatOptionalTime(v.ReleasedAt), firstNonEmpty(v.Presence, "materialized")); err != nil {
+`, v.ID, v.ComponentID, v.LibraryID, v.Version, v.Status, v.SourcePath, v.Content, v.ContentSHA256, v.ChangelogMD, v.RecordedAt.UTC().Format(timeFormat), v.CreatedAt.UTC().Format(timeFormat), formatOptionalTime(v.ReleasedAt), textutil.FirstNonBlank(v.Presence, "materialized")); err != nil {
 		if isUniqueVersionError(err) {
 			return Version{}, ErrVersionExists{ComponentID: v.ComponentID, Version: v.Version}
 		}
@@ -197,15 +199,6 @@ func scanVersion(s rowScanner) (Version, error) {
 		v.ReleasedAt = rt
 	}
 	return v, nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }
 
 func isUniqueVersionError(err error) bool {

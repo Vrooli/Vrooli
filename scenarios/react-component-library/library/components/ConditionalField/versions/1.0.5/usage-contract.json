@@ -1,0 +1,15 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Input",
+      "Select",
+      "Checkbox",
+      "FormSection",
+      "Text"
+    ],
+    "maximumCount": 3,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:ConditionalField",
+  "version": "1.0.5"
+}

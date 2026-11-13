@@ -1,0 +1,17 @@
+{
+  "componentId": "react-component-library:DrawerShell",
+  "version": "1.1.9",
+  "children": {
+    "typicalCount": 1,
+    "maximumCount": 1,
+    "allowedChildComponents": [
+      "any-content-composition"
+    ]
+  },
+  "actions": {
+    "sharedContract": "react-component-library:OverlayActionBar@1.0.0"
+  },
+  "sharedParts": [
+    "react-component-library:OverlayActionBar"
+  ]
+}

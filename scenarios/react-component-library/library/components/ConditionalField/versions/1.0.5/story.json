@@ -1,0 +1,79 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {
+    "fields": []
+  },
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Default",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Plan",
+          "role": "combobox"
+        },
+        {
+          "kind": "role",
+          "name": "Billing email",
+          "role": "textbox"
+        }
+      ],
+      "id": "default",
+      "mode": "live",
+      "name": "Visible dependency",
+      "role": "anatomy"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "ResetOnHide",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "role",
+          "name": "Plan",
+          "role": "combobox"
+        },
+        {
+          "kind": "role",
+          "role": "status"
+        },
+        {
+          "kind": "text",
+          "value": "Tax details cleared when the plan changes."
+        }
+      ],
+      "id": "reset-on-hide",
+      "interactions": [
+        {
+          "kind": "click",
+          "target": {
+            "name": "Hide tax details",
+            "role": "button"
+          }
+        },
+        {
+          "kind": "settle"
+        }
+      ],
+      "mode": "live",
+      "name": "Reset on hide",
+      "role": "boundary"
+    }
+  ],
+  "title": "ConditionalField"
+}

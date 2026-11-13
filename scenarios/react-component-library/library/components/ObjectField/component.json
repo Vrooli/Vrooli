@@ -31,6 +31,9 @@
     "1.0.7",
     "1.0.8"
   ],
-  "latest": "1.0.9",
-  "libraryId": "react-component-library:ObjectField"
+  "latest": "1.0.10",
+  "libraryId": "react-component-library:ObjectField",
+  "displayName": "ObjectField",
+  "description": "The nested-object field grouping child fields, collapsing sections, summarizing nested errors, supporting optional objects, and preserving per-field subscriptions.",
+  "tags": []
 }

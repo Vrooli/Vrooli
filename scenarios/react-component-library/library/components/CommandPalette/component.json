@@ -35,6 +35,9 @@
     "1.1.7",
     "1.1.9"
   ],
-  "latest": "1.1.11",
-  "libraryId": "react-component-library:CommandPalette"
+  "latest": "1.1.12",
+  "libraryId": "react-component-library:CommandPalette",
+  "displayName": "CommandPalette",
+  "description": "The global or scoped command interface with fuzzy search, recent actions, categories, keyboard navigation, argument collection, async execution, and command history.",
+  "tags": []
 }

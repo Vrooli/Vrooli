@@ -69,13 +69,36 @@ func ValidateOverlaySurfaceComposition(scope Scope) (Result, error) {
 				if factsErr != nil {
 					overlayRole = sourceContainsOverlayRole(source)
 				}
-				if overlayRole && !bytes.Contains(source, []byte("useOverlaySurface")) && strings.TrimSpace(doc.OverlaySurfaceOptOutReason) == "" {
-					result.Findings = append(result.Findings, Finding{Code: "catalog.overlay_surface_composition", AssetID: assetID, File: repoRel(root, path), Message: "overlay role is implemented without useOverlaySurface", Remediation: "Compose useOverlaySurface, or add overlaySurfaceOptOutReason with a concrete non-overlay rationale.", DocsRef: "docs/reference/overlay-contract.md"})
+				if !overlayRole || bytes.Contains(source, []byte("useOverlaySurface")) {
+					continue
 				}
+				reason := strings.TrimSpace(doc.OverlaySurfaceOptOutReason)
+				if !meaningfulOverlayOptOutReason(reason) {
+					result.Findings = append(result.Findings, Finding{Code: "catalog.overlay_surface_composition", AssetID: assetID, File: repoRel(root, path), Message: "overlay role is implemented without useOverlaySurface and has no meaningful overlaySurfaceOptOutReason", Remediation: "Compose useOverlaySurface, or document a specific reason of at least 20 characters explaining why this overlay does not need the shared behavior.", DocsRef: "docs/reference/overlay-contract.md"})
+					continue
+				}
+				result.InformationalFindings = append(result.InformationalFindings, Finding{Code: "catalog.overlay_surface_opt_out", AssetID: assetID, File: repoRel(root, path), Message: "shared overlay surface opted out: " + reason, DocsRef: "docs/reference/overlay-contract.md"})
 			}
 		}
 	}
 	return nonEmpty(result, "overlay-surface-composition"), nil
+}
+
+// meaningfulOverlayOptOutReason rejects empty, placeholder, and generic
+// explanations. Accepted opt-outs are surfaced as informational findings so
+// reports retain both their count and the reason behind each exception.
+func meaningfulOverlayOptOutReason(reason string) bool {
+	reason = strings.TrimSpace(reason)
+	if len([]rune(reason)) < 20 {
+		return false
+	}
+	normalized := strings.ToLower(strings.Join(strings.Fields(reason), " "))
+	for _, placeholder := range []string{"todo", "tbd", "n/a", "not applicable", "legacy", "does not apply", "not needed", "not required"} {
+		if normalized == placeholder || strings.HasPrefix(normalized, placeholder+" ") {
+			return false
+		}
+	}
+	return true
 }
 
 var (

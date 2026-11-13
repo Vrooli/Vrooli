@@ -11,6 +11,16 @@
     "1.0.0",
     "1.1.0"
   ],
-  "latest": "1.1.1",
-  "libraryId": "react-component-library:FormWizard"
+  "latest": "1.1.4",
+  "libraryId": "react-component-library:FormWizard",
+  "displayName": "FormWizard",
+  "description": "The multi-step form controller with per-step validation boundaries, optional branches, resumable drafts, progress, back navigation, URL synchronization, and final submission.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

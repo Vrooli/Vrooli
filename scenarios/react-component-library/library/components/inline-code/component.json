@@ -13,6 +13,16 @@
     "0.3.3",
     "0.3.4"
   ],
-  "latest": "0.3.5",
-  "libraryId": "react-component-library:inline-code"
+  "latest": "0.3.7",
+  "libraryId": "react-component-library:inline-code",
+  "displayName": "Code",
+  "description": "The code-text primitive for inline and block snippets with preserved whitespace, overflow affordances, language metadata, and optional lazily loaded highlighting.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -9,9 +9,18 @@
   ],
   "draft": "",
   "evictedVersions": [
-    "1.2.1",
-    "1.2.0"
+    "1.2.1"
   ],
-  "latest": "1.2.2",
-  "libraryId": "react-component-library:StatusBadge"
+  "latest": "1.2.5",
+  "libraryId": "react-component-library:StatusBadge",
+  "displayName": "Status Badge",
+  "description": "Reusable status badge component implementation for the React component library.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

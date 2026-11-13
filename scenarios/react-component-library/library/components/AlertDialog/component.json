@@ -34,6 +34,9 @@
     "1.0.0",
     "2.0.9"
   ],
-  "latest": "2.0.11",
-  "libraryId": "react-component-library:AlertDialog"
+  "latest": "2.0.12",
+  "libraryId": "react-component-library:AlertDialog",
+  "displayName": "AlertDialog",
+  "description": "The focused confirmation surface for consequential decisions, explaining impact, separating safe from destructive actions, and resisting accidental dismissal.",
+  "tags": []
 }

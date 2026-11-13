@@ -338,8 +338,10 @@ func TestValidateOverlaySurfaceCompositionAcceptsSharedCoreAndReasonedOptOut(t *
 		manifest string
 		source   string
 	}{
-		{name: "Composed", manifest: `{"libraryId":"react-component-library:Composed","catalogId":"overlays.composed","category":"overlays","latest":"1.0.0"}`, source: `import { useOverlaySurface } from "x"; export function Composed(){ useOverlaySurface({open:true}); return <section role="dialog" /> }`},
+		{name: "Composed", manifest: `{"libraryId":"react-component-library:Composed","catalogId":"overlays.composed","category":"overlays","latest":"1.0.0"}`, source: `import { useOverlaySurface } from "x"; export function Composed({open}){ useOverlaySurface({open}); return <section role={open ? "dialog" : "complementary"} /> }`},
 		{name: "OptOut", manifest: `{"libraryId":"react-component-library:OptOut","catalogId":"overlays.opt-out","category":"overlays","latest":"1.0.0","overlaySurfaceOptOutReason":"Static semantics-only example; it never opens or dismisses."}`, source: `export function OptOut(){ return <section role="dialog" /> }`},
+		{name: "ShortReason", manifest: `{"libraryId":"react-component-library:ShortReason","catalogId":"overlays.short-reason","category":"overlays","latest":"1.0.0","overlaySurfaceOptOutReason":"test"}`, source: `export function ShortReason(){ return <section role="dialog" /> }`},
+		{name: "GenericReason", manifest: `{"libraryId":"react-component-library:GenericReason","catalogId":"overlays.generic-reason","category":"overlays","latest":"1.0.0","overlaySurfaceOptOutReason":"Not applicable to this component."}`, source: `export function GenericReason(){ return <section role="dialog" /> }`},
 	}
 	for _, fixture := range fixtures {
 		dir := filepath.Join(base, fixture.name, "versions", "1.0.0")
@@ -357,50 +359,11 @@ func TestValidateOverlaySurfaceCompositionAcceptsSharedCoreAndReasonedOptOut(t *
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Findings) != 0 {
-		t.Fatalf("overlay composition findings = %+v", result.Findings)
+	if len(result.Findings) != 2 {
+		t.Fatalf("overlay composition findings = %+v, want invalid short and generic reasons", result.Findings)
 	}
-}
-
-// The behaviour under test is that the AST pass sees a role assembled at
-// runtime, which a text match over the source cannot. It is deliberately not
-// pinned to a corpus path: the cold-version tier legitimately moves released
-// version folders into the durable mirror, and a test that reads one directly
-// fails for a storage decision rather than a behaviour change.
-func TestStructuredSourceFactsDetectComputedOverlayRole(t *testing.T) {
-	root := liveRoot(t)
-	source := []byte(`export const Shell = ({ modal }: { modal: boolean }) => (
-  <aside role={modal ? "dialog" : "complementary"} data-rcl-shell="sidebar" />
-);
-`)
-	path := filepath.Join(t.TempDir(), "Shell.tsx")
-	if err := os.WriteFile(path, source, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	got, err := sourceHasOverlayRole(root, path, source)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !got {
-		t.Fatal("structured AST facts did not detect the computed dialog role")
-	}
-}
-
-// The same pass must not invent a role that is nowhere in the source.
-func TestStructuredSourceFactsRejectSourceWithNoOverlayRole(t *testing.T) {
-	root := liveRoot(t)
-	source := []byte(`export const Plain = () => <div data-rcl-shell="plain" />;
-`)
-	path := filepath.Join(t.TempDir(), "Plain.tsx")
-	if err := os.WriteFile(path, source, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	got, err := sourceHasOverlayRole(root, path, source)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got {
-		t.Fatal("structured AST facts reported an overlay role for source that declares none")
+	if len(result.InformationalFindings) != 1 || result.InformationalFindings[0].Code != "catalog.overlay_surface_opt_out" {
+		t.Fatalf("valid overlay opt-outs should be counted in report as informational findings: %+v", result.InformationalFindings)
 	}
 }
 

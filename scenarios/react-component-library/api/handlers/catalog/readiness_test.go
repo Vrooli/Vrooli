@@ -67,7 +67,7 @@ func TestReadinessUsesMaturityAndBlastRadius(t *testing.T) {
 	if got := achievedRung(report); got != "verified" {
 		t.Fatalf("achieved rung = %q, want verified", got)
 	}
-	rows := readinessTriage(report)
+	rows, _ := readinessTriageWithOmitted(report)
 	if len(rows) != 2 || rows[0].GetAssetId() != "high" {
 		t.Fatalf("triage ordering = %+v", rows)
 	}

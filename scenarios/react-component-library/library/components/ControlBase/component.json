@@ -22,6 +22,9 @@
     "1.1.0",
     "1.1.4"
   ],
-  "latest": "1.1.5",
-  "libraryId": "react-component-library:ControlBase"
+  "latest": "1.1.6",
+  "libraryId": "react-component-library:ControlBase",
+  "displayName": "Control Base",
+  "description": "Reusable control base component implementation for the React component library.",
+  "tags": []
 }

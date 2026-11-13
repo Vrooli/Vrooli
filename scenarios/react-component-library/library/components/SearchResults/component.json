@@ -19,6 +19,9 @@
     "1.0.5",
     "1.0.6"
   ],
-  "latest": "1.0.7",
-  "libraryId": "react-component-library:SearchResults"
+  "latest": "1.0.10",
+  "libraryId": "react-component-library:SearchResults",
+  "displayName": "SearchResults",
+  "description": "The complete result collection with query context, match highlighting, grouping, ranking metadata, filters, and every generic state including no-matches versus nothing-indexed.",
+  "tags": []
 }

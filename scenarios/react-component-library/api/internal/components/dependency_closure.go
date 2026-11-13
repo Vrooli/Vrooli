@@ -3,8 +3,11 @@ package components
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
+
+	"react-component-library/internal/textutil"
 )
 
 // DependencyReader is the narrow catalog seam used to expand manifest-pinned
@@ -137,7 +140,7 @@ func ResolveDependencyClosureReport(ctx context.Context, reader DependencyReader
 	}
 	rootVersion = strings.TrimSpace(rootVersion)
 	if rootVersion == "" {
-		rootVersion = firstAssetVersion(root.LatestVersion, root.Version)
+		rootVersion = textutil.FirstNonBlank(root.LatestVersion, root.Version)
 	}
 	if rootVersion == "" {
 		return ClosureReport{}, ErrAssetDependency{FromLibraryID: root.LibraryID, LibraryID: root.LibraryID, Cause: fmt.Errorf("asset has no indexed version")}
@@ -174,7 +177,7 @@ func ResolveDependencyClosureReport(ctx context.Context, reader DependencyReader
 			return declarations[i].LibraryID < declarations[j].LibraryID
 		})
 		for _, dep := range declarations {
-			if dep.Kind.normalized() == DependencySuggests && !containsString(includeSuggestions, dep.LibraryID) {
+			if dep.Kind.normalized() == DependencySuggests && !slices.Contains(includeSuggestions, dep.LibraryID) {
 				continue
 			}
 			dependency, err := reader.GetByLibraryID(ctx, dep.LibraryID)
@@ -205,7 +208,7 @@ func ResolveDependencyClosureReport(ctx context.Context, reader DependencyReader
 	available := make(map[string]struct{})
 	for _, resolved := range out {
 		for _, dep := range resolved.Asset.Dependencies {
-			if dep.Kind.normalized() == DependencySuggests && !containsString(includeSuggestions, dep.LibraryID) {
+			if dep.Kind.normalized() == DependencySuggests && !slices.Contains(includeSuggestions, dep.LibraryID) {
 				available[dep.LibraryID] = struct{}{}
 			}
 		}
@@ -216,22 +219,4 @@ func ResolveDependencyClosureReport(ctx context.Context, reader DependencyReader
 	}
 	sort.Strings(suggestions)
 	return ClosureReport{Assets: out, SatisfiedPorts: resolution.Satisfied, AvailableSuggestions: suggestions}, nil
-}
-
-func containsString(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
-}
-
-func firstAssetVersion(values ...string) string {
-	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-	}
-	return ""
 }

@@ -9,13 +9,6 @@ import (
 	"github.com/vrooli/api-core/databasetest"
 )
 
-func TestCountMatrixFailuresRequiresFindingAttribution(t *testing.T) {
-	output := []byte(`{"cells":[{"verdict":"fail","finding_count":1},{"verdict":"fail","finding_count":0},{"verdict":"pass","finding_count":0},{"verdict":"unmeasured","finding_count":0}]}`)
-	got, err := countMatrixFailures(output)
-	require.NoError(t, err)
-	require.Equal(t, 1, got)
-}
-
 func TestBuildCorpusReportEmitsAllPlanInvariants(t *testing.T) {
 	root := t.TempDir()
 	version := filepath.Join(root, "scenarios/react-component-library/library/components/Panel/versions/1.0.0")

@@ -110,9 +110,9 @@ func TestPackageRuntimeEntryResolvesPackageExports(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			withTempNodeModulesPackage(t, tt.moduleName, tt.packageJSON)
+			root := withTempNodeModulesPackage(t, tt.moduleName, tt.packageJSON)
 
-			got, ok := packageRuntimeEntry(tt.moduleName, "index.js")
+			got, ok := packageRuntimeEntryFromRoot(filepath.Join(root, "ui", "node_modules"), tt.moduleName, "index.js")
 
 			require.True(t, ok)
 			require.Equal(t, tt.want, got)
@@ -121,7 +121,7 @@ func TestPackageRuntimeEntryResolvesPackageExports(t *testing.T) {
 }
 
 func TestPackageRuntimeEntryRejectsUnsafeExportEntry(t *testing.T) {
-	withTempNodeModulesPackage(t, "unsafe-export", `{
+	root := withTempNodeModulesPackage(t, "unsafe-export", `{
   "exports": {
     ".": {
       "import": "../escape.mjs"
@@ -129,22 +129,22 @@ func TestPackageRuntimeEntryRejectsUnsafeExportEntry(t *testing.T) {
   }
 }`)
 
-	_, ok := packageRuntimeEntry("unsafe-export", "index.js")
+	_, ok := packageRuntimeEntryFromRoot(filepath.Join(root, "ui", "node_modules"), "unsafe-export", "index.js")
 
 	require.False(t, ok)
 }
 
 func TestPackageRuntimeEntryPreservesExplicitRuntimeSubpath(t *testing.T) {
-	got, ok := packageRuntimeEntry("tailwind-merge", "dist/bundle-mjs.mjs")
+	got, ok := packageRuntimeEntryFromRoot(t.TempDir(), "tailwind-merge", "dist/bundle-mjs.mjs")
 
 	require.True(t, ok)
 	require.Equal(t, filepath.Join("tailwind-merge", "dist", "bundle-mjs.mjs"), got)
 }
 
 func TestInstalledPackageCandidatesIgnoreLibraryUINodeModules(t *testing.T) {
-	withTempNodeModulesPackage(t, "ui-only", `{"version":"9.9.9"}`)
+	root := withTempNodeModulesPackage(t, "ui-only", `{"version":"9.9.9"}`)
 
-	require.Empty(t, installedPackageVersionCandidates("ui-only"))
+	require.Empty(t, installedPackageVersionCandidatesAtRoot(root, "ui-only"))
 }
 
 func TestRuntimeHandlerServesPackageOnlyFromGovernedStore(t *testing.T) {
@@ -181,11 +181,12 @@ func TestRuntimeHandlerMissingPackageNamesGovernedPopulateCommand(t *testing.T) 
 	require.Contains(t, rec.Body.String(), "scenario-dependency-analyzer deps install npm/missing-package@2.0.0")
 }
 
-func withTempNodeModulesPackage(t *testing.T, moduleName, packageJSON string) {
+func withTempNodeModulesPackage(t *testing.T, moduleName, packageJSON string) string {
 	t.Helper()
 	root := t.TempDir()
 	t.Chdir(root)
 	dir := filepath.Join(root, "ui", "node_modules", filepath.FromSlash(moduleName))
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "package.json"), []byte(packageJSON), 0o600))
+	return root
 }

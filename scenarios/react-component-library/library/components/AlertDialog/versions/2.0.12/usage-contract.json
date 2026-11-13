@@ -1,0 +1,14 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Text",
+      "Form",
+      "Input",
+      "Banner"
+    ],
+    "maximumCount": 4,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:AlertDialog",
+  "version": "2.0.12"
+}

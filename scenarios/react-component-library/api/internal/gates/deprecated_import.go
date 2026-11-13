@@ -3,6 +3,7 @@ package gates
 import (
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/vrooli/vrooli/packages/react-component-library/libspec"
 )
@@ -24,7 +25,7 @@ func ValidateDeprecatedImports(scope Scope) (Result, error) {
 			return Result{}, err
 		}
 		for _, specifier := range libspec.ParseAll(string(data)) {
-			if specifier.Selector == "" || !contains(deprecated[specifier.Name], specifier.Selector) {
+			if specifier.Selector == "" || !slices.Contains(deprecated[specifier.Name], specifier.Selector) {
 				continue
 			}
 			importPath := libspec.Prefix + specifier.Name + "/" + specifier.Selector

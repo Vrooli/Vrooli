@@ -884,45 +884,6 @@ func (h *handlers) normalizeDraftLibrarySpecifiers(component *componentsv1.Compo
 	return nil
 }
 
-func (h *handlers) manifestUpdate(ctx cliapp.RunContext) error {
-	req := &componentsv1.UpdateComponentManifestRequest{
-		ComponentId:                    ctx.Positional("component-id"),
-		DisplayName:                    ctx.Flag("display-name"),
-		Description:                    ctx.Flag("description"),
-		LatestVersion:                  ctx.Flag("latest-version"),
-		DraftVersion:                   ctx.Flag("draft-version"),
-		CatalogId:                      ctx.Flag("catalog-id"),
-		Entry:                          ctx.Flag("entry"),
-		ClearSupplementalJustification: ctx.Flag("clear-supplemental-justification") != "",
-		ClearCatalogId:                 ctx.Flag("clear-catalog-id") != "",
-	}
-	req.ClearRetiredMajorAliases = ctx.Flag("clear-retired-major-aliases") != ""
-	if raw := ctx.Flag("retired-major-aliases"); raw != "" {
-		req.RetiredMajorAliases = splitCSV(raw)
-	}
-	if rawTags := ctx.Flag("tags"); rawTags != "" {
-		req.Tags = splitCSV(rawTags)
-	}
-	if raw := ctx.Flag("deprecated-versions"); raw != "" {
-		req.DeprecatedVersions = splitCSV(raw)
-	}
-	if raw := ctx.Flag("replaced-by"); raw != "" {
-		req.ReplacedBy = splitCSV(raw)
-	}
-	resp, err := h.client.UpdateComponentManifest(context.Background(), connect.NewRequest(req))
-	if err != nil {
-		return cliapp.WrapAPIError("update component manifest", err, nil)
-	}
-	if resp == nil || resp.Msg == nil || resp.Msg.Component == nil {
-		return fmt.Errorf("server returned no manifest update response")
-	}
-	return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{
-		Summary:        []string{fmt.Sprintf("Updated %s.", resp.Msg.Component.LibraryId)},
-		ResultsHeading: "Component",
-		Results:        []string{formatComponent(resp.Msg.Component)},
-	})
-}
-
 func (h *handlers) manifestUpdateCall(ctx cliapp.OperationContext) (*componentsv1.UpdateComponentManifestResponse, error) {
 	req := &componentsv1.UpdateComponentManifestRequest{
 		ComponentId:                    ctx.Positional("component"),

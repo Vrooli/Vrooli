@@ -21,6 +21,16 @@
     "1.0.7",
     "1.0.8"
   ],
-  "latest": "1.0.9",
-  "libraryId": "react-component-library:UnsavedChangesFlow"
+  "latest": "1.0.12",
+  "libraryId": "react-component-library:UnsavedChangesFlow",
+  "displayName": "UnsavedChangesFlow",
+  "description": "The protection workflow intercepting navigation or dismissal and offering save, discard, continue editing, or background preservation of the work in progress.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

@@ -17,6 +17,16 @@
     "1.0.0",
     "1.0.5"
   ],
-  "latest": "1.0.6",
-  "libraryId": "react-component-library:Chip"
+  "latest": "1.0.7",
+  "libraryId": "react-component-library:Chip",
+  "displayName": "Chip",
+  "description": "The interactive compact value component supporting selection, removal, leading icons or avatars, keyboard operation, and overflow within a cluster.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

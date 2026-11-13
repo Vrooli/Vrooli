@@ -2,6 +2,7 @@ package componenttests_test
 
 import (
 	"context"
+	"database/sql"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"react-component-library/handlers/components"
 	componenttests "react-component-library/handlers/componenttests"
@@ -308,6 +310,44 @@ func TestModuleRunsAndListsDurableContractReport(t *testing.T) {
 	require.Equal(t, http.StatusOK, secondProvider.Code, secondProvider.Body.String())
 	require.Contains(t, secondProvider.Body.String(), `"reused_versions":1`)
 	require.Contains(t, secondProvider.Body.String(), `"skipped_versions":1`)
+}
+
+func TestSweepResumeTransitionsBlockedRunBackToRunningAndCompletes(t *testing.T) {
+	bas := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/health" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer bas.Close()
+	t.Setenv("RCL_BAS_API_URL", bas.URL)
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema)))
+	root := t.TempDir()
+	assets, repo := components.BuildService(database, schedule.System(), root)
+	router := mux.NewRouter()
+	components.ModuleFromService(assets, repo, root, log.New(io.Discard, "", 0)).Mount(router)
+	componenttests.ModuleWithExecutor(database, assets, root, passingExecutor{}, log.New(io.Discard, "", 0)).Mount(router)
+	sweeps := domain.NewSQLiteSweepRepository(database)
+	sweep, err := sweeps.Start(context.Background(), "", false, "resume-test")
+	require.NoError(t, err)
+	sweep.Results["rcl:Button@1.0.0"] = "passed"
+	require.NoError(t, sweeps.Save(context.Background(), sweep))
+	require.NoError(t, sweep.TransitionStatus(domain.SweepBlocked))
+	sweep.CompletedAt = time.Now().UTC()
+	require.NoError(t, sweeps.Save(context.Background(), sweep))
+
+	response := call(router, testsconnect.ComponentTestsServiceSweepComponentTestsProcedure, `{"resume":true}`)
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	_, err = sweeps.LatestOpen(context.Background(), "")
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	var persisted string
+	var completed, results string
+	require.NoError(t, database.QueryRowContext(context.Background(), `SELECT status, completed_at, results_json FROM component_test_sweeps WHERE id='resume-test'`).Scan(&persisted, &completed, &results))
+	require.Equal(t, string(domain.SweepComplete), persisted)
+	require.NotEmpty(t, completed)
+	require.Contains(t, results, `"rcl:Button@1.0.0":"passed"`)
 }
 
 func call(router *mux.Router, path, body string) *httptest.ResponseRecorder {

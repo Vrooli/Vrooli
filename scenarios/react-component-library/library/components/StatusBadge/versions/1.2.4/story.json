@@ -1,0 +1,118 @@
+{
+  "$schema": "../../../../../../.vrooli/schemas/story-contract.schema.json",
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "children": "Current",
+        "tone": "neutral"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Current"
+        }
+      ],
+      "id": "neutral",
+      "mode": "pinned",
+      "name": "Neutral",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "children": "Current",
+        "tone": "success"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Current"
+        }
+      ],
+      "id": "success",
+      "mode": "pinned",
+      "name": "Success",
+      "role": "axis",
+      "axis": "tone",
+      "covers": {
+        "tone": [
+          "neutral",
+          "success",
+          "warning",
+          "info",
+          "danger"
+        ]
+      }
+    },
+    {
+      "args": {
+        "children": "Behind",
+        "tone": "warning"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Behind"
+        }
+      ],
+      "id": "warning",
+      "mode": "pinned",
+      "name": "Warning",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Requires manual review",
+        "tone": "info"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Requires manual review"
+        }
+      ],
+      "id": "long-label",
+      "mode": "pinned",
+      "name": "Long Label",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "children": "Blocked",
+        "tone": "danger"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Blocked"
+        }
+      ],
+      "id": "danger",
+      "mode": "pinned",
+      "name": "Danger",
+      "role": "boundary"
+    },
+    {
+      "id": "empty",
+      "name": "Empty status",
+      "args": {"children": "", "tone": "neutral"},
+      "expect": [{"kind": "visible", "selector": "[data-rcl-status-badge]"}],
+      "role": "boundary",
+      "mode": "pinned"
+    },
+    {
+      "id": "overflow",
+      "name": "Overflow status",
+      "args": {"children": "Requires manual review before this release can proceed", "tone": "warning"},
+      "expect": [{"kind": "text", "value": "Requires manual review before this release can proceed"}],
+      "role": "boundary",
+      "mode": "pinned"
+    }
+  ],
+  "title": "Status Badge"
+}

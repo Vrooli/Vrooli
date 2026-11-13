@@ -1,0 +1,12 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Text",
+      "Link"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 0
+  },
+  "componentId": "react-component-library:UndoableDestructiveAction",
+  "version": "1.0.10"
+}

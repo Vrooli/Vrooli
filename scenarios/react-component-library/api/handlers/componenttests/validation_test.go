@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"react-component-library/internal/catalogvalidate"
-	domain "react-component-library/internal/componenttests"
 
 	"github.com/stretchr/testify/require"
 	commonv1 "github.com/vrooli/vrooli/packages/proto/gen/go/common/v1"
@@ -46,18 +45,6 @@ func TestComponentValidationWorkersLeaveBASSessionHeadroom(t *testing.T) {
 	// the entire driver budget by itself.
 	require.Less(t, componentValidationWorkers, 10)
 	require.Greater(t, componentValidationWorkers, 0)
-}
-
-func TestHasReusableReportRequiresExactImmutableClosureAndNonBlockedVerdict(t *testing.T) {
-	reports := []domain.Report{
-		{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: false, Verdict: domain.VerdictPassed},
-		{RootLibraryID: "rcl:Card", RootVersion: "1.1.0", IncludeClosure: true, Verdict: domain.VerdictPassed},
-		{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: true, Verdict: domain.VerdictFailed},
-	}
-	require.True(t, hasReusableReport(reports, "rcl:Card", "1.2.0"))
-	reports = append(reports, domain.Report{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: true, Verdict: domain.VerdictFailed})
-	require.True(t, hasReusableReport(reports, "rcl:Card", "1.2.0"))
-	require.False(t, hasReusableReport([]domain.Report{{RootLibraryID: "rcl:Card", RootVersion: "1.2.0", IncludeClosure: true, Verdict: domain.VerdictBlocked}}, "rcl:Card", "1.2.0"))
 }
 
 func TestGeneratedFixtureIsSkippedOnlyForCleanUnchangedSelections(t *testing.T) {

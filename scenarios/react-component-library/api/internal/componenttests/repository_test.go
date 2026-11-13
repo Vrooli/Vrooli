@@ -122,9 +122,62 @@ func TestSQLiteSweepRepositoryResumesDurableResults(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "sweep-test", resumed.ID)
 	require.Equal(t, string(VerdictPassed), resumed.Results["rcl:Button@1.0.0"])
-	resumed.Status = SweepComplete
+	require.NoError(t, resumed.TransitionStatus(SweepComplete))
 	resumed.CompletedAt = time.Now().UTC()
 	require.NoError(t, store.Save(context.Background(), resumed))
 	_, err = store.LatestOpen(context.Background(), "component-id")
 	require.ErrorIs(t, err, sql.ErrNoRows)
+}
+
+func TestSweepStatusTransitionMatrix(t *testing.T) {
+	allowed := map[SweepStatus][]SweepStatus{
+		SweepRunning:  {SweepRunning, SweepComplete, SweepBlocked, SweepFailed},
+		SweepBlocked:  {SweepBlocked, SweepRunning},
+		SweepFailed:   {SweepFailed, SweepRunning},
+		SweepComplete: {SweepComplete},
+	}
+	for from, targets := range allowed {
+		for _, to := range []SweepStatus{SweepRunning, SweepComplete, SweepBlocked, SweepFailed, "unknown"} {
+			expected := false
+			for _, valid := range targets {
+				if valid == to {
+					expected = true
+				}
+			}
+			require.Equal(t, expected, from.CanTransitionTo(to), "%s -> %s", from, to)
+		}
+	}
+	require.False(t, SweepStatus("unknown").CanTransitionTo(SweepRunning))
+}
+
+func TestSQLiteSweepRepositoryRejectsInvalidEdgesAndRecoversDurably(t *testing.T) {
+	database := db.NewSQLite(t)
+	require.NoError(t, apidb.EnsureSchemas(context.Background(), database, apidb.SchemaProviderFunc(localdb.SystemSchema), apidb.SchemaProviderFunc(internalcomponents.Schema)))
+	store := NewSQLiteSweepRepository(database)
+	sweep, err := store.Start(context.Background(), "component-id", false, "recoverable")
+	require.NoError(t, err)
+	sweep.Results["rcl:Button@1.0.0"] = string(VerdictPassed)
+	require.NoError(t, store.Save(context.Background(), sweep))
+	require.NoError(t, sweep.TransitionStatus(SweepBlocked))
+	sweep.CompletedAt = time.Now().UTC()
+	require.NoError(t, store.Save(context.Background(), sweep))
+	invalid := sweep
+	require.Error(t, invalid.TransitionStatus(SweepComplete)) // blocked cannot complete without resuming work
+	invalid.Status = SweepComplete
+	invalid.CompletedAt = time.Now().UTC()
+	require.Error(t, store.Save(context.Background(), invalid))
+	resumed, err := store.LatestOpen(context.Background(), "component-id")
+	require.NoError(t, err)
+	require.Equal(t, SweepBlocked, resumed.Status)
+	require.Equal(t, string(VerdictPassed), resumed.Results["rcl:Button@1.0.0"])
+	require.NoError(t, resumed.TransitionStatus(SweepRunning))
+	resumed.CompletedAt = time.Time{}
+	require.NoError(t, store.Save(context.Background(), resumed))
+	require.Equal(t, string(VerdictPassed), resumed.Results["rcl:Button@1.0.0"])
+	require.NoError(t, resumed.TransitionStatus(SweepComplete))
+	resumed.CompletedAt = time.Now().UTC()
+	require.NoError(t, store.Save(context.Background(), resumed))
+	resumed.Status = SweepRunning
+	resumed.CompletedAt = time.Time{}
+	require.Error(t, store.Save(context.Background(), resumed))
 }

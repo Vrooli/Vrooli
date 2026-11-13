@@ -2,6 +2,7 @@ package gates
 
 import (
 	"fmt"
+	"slices"
 )
 
 func ValidateFixtures(scope Scope) (Result, error) {
@@ -24,7 +25,7 @@ func ValidateFixtures(scope Scope) (Result, error) {
 				DocsRef:     "docs/internal/TESTING.md",
 			})
 		}
-		if !contains(asset.Fixture.DataShapes, "failure") && !contains(asset.Fixture.DataShapes, "overflow") {
+		if !slices.Contains(asset.Fixture.DataShapes, "failure") && !slices.Contains(asset.Fixture.DataShapes, "overflow") {
 			result.Findings = append(result.Findings, Finding{
 				Code: "catalog.fixture_adversarial", AssetID: asset.Asset.ID,
 				Message:     fmt.Sprintf("fixture declares %v but neither \"failure\" nor \"overflow\"", asset.Fixture.DataShapes),

@@ -28,6 +28,9 @@
     "1.0.6",
     "1.1.0"
   ],
-  "latest": "1.1.1",
-  "libraryId": "react-component-library:Draggable"
+  "latest": "1.1.2",
+  "libraryId": "react-component-library:Draggable",
+  "displayName": "Draggable",
+  "description": "The direct-manipulation primitive with pointer capture, keyboard dragging, constraints, drag handles, cancellation, velocity reporting, position announcements, and overlay support.",
+  "tags": []
 }

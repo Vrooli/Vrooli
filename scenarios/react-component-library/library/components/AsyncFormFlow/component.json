@@ -27,6 +27,9 @@
     "1.0.8",
     "1.0.9"
   ],
-  "latest": "1.0.10",
-  "libraryId": "react-component-library:AsyncFormFlow"
+  "latest": "1.0.11",
+  "libraryId": "react-component-library:AsyncFormFlow",
+  "displayName": "AsyncFormFlow",
+  "description": "The create-or-edit workflow covering initial load, validation, submission, progress, server-error mapping, success, retry, cancellation, and the navigation that follows.",
+  "tags": []
 }

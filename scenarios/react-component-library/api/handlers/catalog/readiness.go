@@ -265,11 +265,6 @@ func readinessIndexStartedAt(coverageDir, runID string) string {
 	return ""
 }
 
-func readinessTriage(report *catalogcoverage.Report) []*catalogv1.ReadinessTriageRow {
-	rows, _ := readinessTriageWithOmitted(report)
-	return rows
-}
-
 func readinessTriageWithOmitted(report *catalogcoverage.Report) ([]*catalogv1.ReadinessTriageRow, int) {
 	rows := make([]*catalogv1.ReadinessTriageRow, 0)
 	for _, row := range report.Rows {

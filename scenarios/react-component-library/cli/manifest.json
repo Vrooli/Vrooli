@@ -1036,19 +1036,25 @@
           }
         },
         {
-          "name": "reachability",
-          "description": "Compute reachable and unreachable materialized library versions",
+          "name": "reconcile-presence",
+          "description": "Preview or apply the API-owned reachability-based version storage plan",
           "flags": [
             {
-              "name": "workspace",
-              "description": "Workspace root (defaults to the repository root)"
+              "name": "component-id",
+              "description": "Only versions for this component or stable library id"
+            },
+            {
+              "name": "apply",
+              "bool": true,
+              "description": "Apply the API's current reachability plan; otherwise preview it"
             }
           ],
           "governance": {
-            "effect": "read",
+            "effect": "write",
             "run_eligible": true,
             "permissions": [
-              "filesystem:read"
+              "network:internal",
+              "filesystem:write"
             ]
           },
           "binding": {
@@ -1082,15 +1088,6 @@
               "name": "confirm",
               "bool": true,
               "description": "Apply the exact reviewed plan"
-            },
-            {
-              "name": "dry-run",
-              "bool": true,
-              "description": "Use workspace reachability mode and preview exact directory removals"
-            },
-            {
-              "name": "workspace",
-              "description": "Workspace root for reachability mode (defaults to the repository root)"
             }
           ],
           "governance": {
@@ -2738,11 +2735,6 @@
       "service": "VersionLifecycleService",
       "method": "PlanCleanup",
       "reason": "Cleanup planning is composed by the promoted versions reap workflow."
-    },
-    {
-      "service": "VersionLifecycleService",
-      "method": "ReconcilePresence",
-      "reason": "Presence reconciliation is an internal lifecycle/doctor operation."
     },
     {
       "service": "VersionLifecycleService",

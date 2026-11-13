@@ -146,11 +146,11 @@
         "degraded_behavior": "Catalog and component APIs remain available; cross-scenario UI inventory integration is unavailable until ui-health is healthy.",
         "startup_policy": "try_start"
       },
-      "typescript-code-graph": {
+      "code-facts": {
         "type": "scenario",
         "enabled": true,
         "required": true,
-        "description": "Supplies the parsed TypeScript import graph required by the blocking graph-reconciled catalog gate.",
+        "description": "Supplies the shared parsed TypeScript import graph required by the blocking graph-reconciled catalog gate.",
         "startup_policy": "must_start"
       }
     },

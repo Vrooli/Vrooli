@@ -35,6 +35,9 @@
     "1.2.2",
     "1.4.0"
   ],
-  "latest": "1.4.1",
-  "libraryId": "react-component-library:SwipeActions"
+  "latest": "1.4.2",
+  "libraryId": "react-component-library:SwipeActions",
+  "displayName": "SwipeActions",
+  "description": "Reveals bounded row actions through a staged swipe while preserving keyboard and handedness behavior.",
+  "tags": []
 }

@@ -32,7 +32,7 @@ func ValidateGraphReconciled(scope Scope) (Result, error) {
 		result.Findings = append(result.Findings, Finding{
 			Code: "catalog.graph_reconciled_unavailable", AssetID: "__corpus__.graph-reconciled",
 			Message:     fmt.Sprintf("imports-unavailable: %s", row.Cause),
-			Remediation: "Start typescript-code-graph and confirm it has indexed scenarios/react-component-library; the gate is blocking because an unavailable import graph cannot prove dependency reconciliation.",
+			Remediation: "Start code-facts and confirm its TypeScript analyzer is available; the gate is blocking because an unavailable import graph cannot prove dependency reconciliation.",
 			DocsRef:     "docs/concepts/ARCHITECTURE.md#catalog-graph-projection",
 		})
 		return result, nil
@@ -47,7 +47,7 @@ func ValidateGraphReconciled(scope Scope) (Result, error) {
 		remediation := "Bring the three dependency views into agreement: the requires edges in catalog/assets/, the dependencies[] pins in the asset's library/**/component.json, and the imports the source actually makes. Whichever two agree usually identifies the stale one. The gate reports and never edits library/ on your behalf."
 		switch row.Verdict {
 		case graphreconcile.ImportsUnavailable:
-			remediation = "The reconciler could not obtain an import graph from typescript-code-graph, so the source-import view is missing and no reconciliation verdict is possible. Start the graph service and confirm it has indexed scenarios/react-component-library."
+			remediation = "The reconciler could not obtain an import graph from code-facts, so the source-import view is missing and no reconciliation verdict is possible. Start code-facts and confirm its TypeScript analyzer is available."
 		case graphreconcile.NotImplemented:
 			// The catalog is desired state, so this is the expected resting
 			// verdict for anything not built yet. It is reported for census,

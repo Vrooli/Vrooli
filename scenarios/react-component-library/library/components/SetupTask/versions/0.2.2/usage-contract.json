@@ -1,0 +1,21 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "*"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:SetupTask",
+  "slots": {
+    "actions": {
+      "allowedChildComponents": [
+        "OverlayActionBar"
+      ],
+      "maximumCount": 1,
+      "primaryAction": "one primary action; secondary actions remain subordinate",
+      "typicalCount": 1
+    }
+  },
+  "version": "0.2.2"
+}

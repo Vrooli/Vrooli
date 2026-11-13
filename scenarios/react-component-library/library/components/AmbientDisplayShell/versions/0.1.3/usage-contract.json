@@ -1,0 +1,17 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "AmbientCanvas",
+      "Chart",
+      "CartesianCharts",
+      "HeroReadout",
+      "PanelReadout",
+      "Text",
+      "StatusBadge"
+    ],
+    "maximumCount": 8,
+    "typicalCount": 3
+  },
+  "componentId": "react-component-library:AmbientDisplayShell",
+  "version": "0.1.3"
+}

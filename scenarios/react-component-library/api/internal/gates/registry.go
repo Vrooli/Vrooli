@@ -156,11 +156,6 @@ func legacyRunner(run func(Scope) (Result, error)) ContextRunner {
 	}
 }
 
-func declarationOnlyDefinition(id string, corpus bool, inputs ...string) Definition {
-	reads := declaredReads(id, corpus)
-	return Definition{ID: id, Reads: reads, DeterminismInputs: append([]string(nil), inputs...)}
-}
-
 func declaredReads(id string, corpus bool) Reads {
 	if reads, ok := readOverrides[id]; ok {
 		return reads

@@ -27,6 +27,9 @@
     "1.0.0",
     "1.0.8"
   ],
-  "latest": "1.0.9",
-  "libraryId": "react-component-library:AsyncOptionsField"
+  "latest": "1.0.10",
+  "libraryId": "react-component-library:AsyncOptionsField",
+  "displayName": "AsyncOptionsField",
+  "description": "The reusable controller for remote choices with query debouncing, cancellation, caching, pagination, error handling, retry, and stale-result protection.",
+  "tags": []
 }

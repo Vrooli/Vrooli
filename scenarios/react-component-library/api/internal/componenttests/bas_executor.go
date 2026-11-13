@@ -40,11 +40,11 @@ type BASCaptureExecutor struct {
 }
 
 // ReportFreshnessKey versions the BAS evidence policy that affects durable
-// component reports. Policy 2 also requires preview to hydrate its exact
-// pinned dependency closure before capture, so pre-hydration failures cannot
-// be reused as evidence for the repaired preview path.
+// component reports. Policy 3 also applies each story's declared pixel
+// geometry to the browser viewport, so desktop reports cannot certify a
+// phone-width story.
 func (BASCaptureExecutor) ReportFreshnessKey() string {
-	return "bas-story-sheet-dsf=" + strconv.FormatFloat(basStorySheetDeviceScaleFactor, 'f', -1, 64) + ";policy=2"
+	return "bas-story-sheet-dsf=" + strconv.FormatFloat(basStorySheetDeviceScaleFactor, 'f', -1, 64) + ";policy=3"
 }
 
 const basCaptureServicePath = "/browser_automation_studio.v1.capture.CaptureService/Capture"
@@ -249,6 +249,10 @@ type URLCapture struct {
 }
 
 func (e BASCaptureExecutor) ExecuteStory(ctx context.Context, libraryID, version, storyID string) (StoryExecution, error) {
+	return e.ExecuteStoryWithGeometry(ctx, libraryID, version, storyID, nil)
+}
+
+func (e BASCaptureExecutor) ExecuteStoryWithGeometry(ctx context.Context, libraryID, version, storyID string, geometry *components.StoryGeometry) (StoryExecution, error) {
 	if strings.TrimSpace(e.RCLBaseURL) == "" {
 		return StoryExecution{}, ExecutorUnavailableError{Err: fmt.Errorf("RCL preview API base URL is required")}
 	}
@@ -259,7 +263,27 @@ func (e BASCaptureExecutor) ExecuteStory(ctx context.Context, libraryID, version
 	if err != nil {
 		return StoryExecution{}, err
 	}
-	return e.executeCapture(ctx, storyURL, fmt.Sprintf("rcl:%s@%s:%s", libraryID, version, storyID), libraryID, version, storyID)
+	return e.executeCaptureAtDimensions(ctx, storyURL, fmt.Sprintf("rcl:%s@%s:%s", libraryID, version, storyID), libraryID, version, storyID, storyViewport(geometry))
+}
+
+var pixelDimension = regexp.MustCompile(`^([1-9][0-9]{0,3})px$`)
+
+func storyViewport(geometry *components.StoryGeometry) basDimensions {
+	dimensions := basDimensions{Width: 1280, Height: 800}
+	if geometry == nil {
+		return dimensions
+	}
+	if match := pixelDimension.FindStringSubmatch(strings.TrimSpace(geometry.Width)); len(match) == 2 {
+		if value, err := strconv.Atoi(match[1]); err == nil && value >= 240 && value <= 1920 {
+			dimensions.Width = value
+		}
+	}
+	if match := pixelDimension.FindStringSubmatch(strings.TrimSpace(geometry.Height)); len(match) == 2 {
+		if value, err := strconv.Atoi(match[1]); err == nil && value >= 240 && value <= 2160 {
+			dimensions.Height = value
+		}
+	}
+	return dimensions
 }
 
 func (e BASCaptureExecutor) ExecuteStorySheet(ctx context.Context, libraryID, version string, storyIDs []string) (StoryExecution, error) {

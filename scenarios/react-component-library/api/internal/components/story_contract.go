@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/url"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -395,10 +396,10 @@ func validateStoryFrame(pointer string, frame *StoryFrame, registry CatalogFrame
 	if !found {
 		return []StoryDiagnostic{storyDiagnostic(pointer+"/asset", "frame_asset_exists", "frame asset is not declared in the catalog")}
 	}
-	if !containsFrameString(asset.Targets, "react-vite") {
+	if !slices.Contains(asset.Targets, "react-vite") {
 		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/asset", "frame_target", "frame asset does not target react-vite"))
 	}
-	if !containsFrameString(asset.Regions, frame.Region) {
+	if !slices.Contains(asset.Regions, frame.Region) {
 		diagnostics = append(diagnostics, storyDiagnostic(pointer+"/region", "frame_region_exists", "frame region is not declared by the frame asset"))
 	}
 	if required := asset.RegionCapabilities[frame.Region]; required != "" && frame.Capability != required {
@@ -417,14 +418,16 @@ func validateStoryFrame(pointer string, frame *StoryFrame, registry CatalogFrame
 		if expect.Capability != "data-source" {
 			continue
 		}
-		if fixture.FixtureSatisfies == nil || fixture.FixtureSatisfies.Capability != "data-source" || !compatibleTypeArguments(expect.TypeArguments, fixture.FixtureSatisfies.TypeArguments) {
+		if fixture.FixtureSatisfies == nil || fixture.FixtureSatisfies.Capability != "data-source" || !CompatibleTypeArguments(expect.TypeArguments, fixture.FixtureSatisfies.TypeArguments) {
 			diagnostics = append(diagnostics, storyDiagnostic(pointer+"/fixture", "frame_fixture_data_source", "frame fixture does not satisfy the frame asset's data-source port"))
 		}
 	}
 	return diagnostics
 }
 
-func compatibleTypeArguments(expected, actual []string) bool {
+// CompatibleTypeArguments applies the story contract's fixture generic rule:
+// concrete arguments must match, while expected T-prefixed names are variables.
+func CompatibleTypeArguments(expected, actual []string) bool {
 	if len(expected) != len(actual) {
 		return false
 	}
@@ -448,15 +451,6 @@ var assetVersionPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\
 
 func validAssetVersion(value string) bool {
 	return assetVersionPattern.MatchString(strings.TrimSpace(value))
-}
-
-func containsFrameString(values []string, wanted string) bool {
-	for _, value := range values {
-		if value == wanted {
-			return true
-		}
-	}
-	return false
 }
 
 // StoryCoverageGap is a release-readiness finding. Enum options are part of

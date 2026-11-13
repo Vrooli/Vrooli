@@ -1,0 +1,14 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Card",
+      "CardGrid",
+      "Form",
+      "FormSection"
+    ],
+    "maximumCount": 4,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:ExperienceSurface",
+  "version": "1.0.4"
+}

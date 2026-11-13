@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 
 	"react-component-library/internal/components"
+	"react-component-library/internal/textutil"
 )
 
 // FakeRepository satisfies components.Repository for service and
@@ -77,7 +78,7 @@ func (f *FakeRepository) Upsert(ctx context.Context, in components.UpsertInput) 
 		DisplayName:   in.DisplayName,
 		Description:   in.Description,
 		Slot:          in.Slot,
-		Category:      firstNonEmpty(in.Category, in.Headers["category"]),
+		Category:      textutil.FirstNonBlank(in.Category, in.Headers["category"]),
 		SourcePath:    in.SourcePath,
 		Version:       in.Version,
 		LatestVersion: in.LatestVersion,
@@ -277,15 +278,6 @@ func (f *FakeRepository) List(ctx context.Context, q components.SearchQuery) ([]
 		out = out[:limit]
 	}
 	return out, nil
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 func (f *FakeRepository) DeleteMissing(ctx context.Context, keep []string) (int, error) {

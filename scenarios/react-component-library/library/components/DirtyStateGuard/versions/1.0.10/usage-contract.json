@@ -1,0 +1,15 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Form",
+      "FormSection",
+      "Input",
+      "Select",
+      "Text"
+    ],
+    "maximumCount": 6,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:DirtyStateGuard",
+  "version": "1.0.10"
+}

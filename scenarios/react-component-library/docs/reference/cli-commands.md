@@ -122,6 +122,19 @@ Draft cleanup remains an internal lifecycle operation; drafts are mutable
 work-in-progress and are removed from the manifest rather than retained as
 released history.
 
+Materialized version placement uses the same API-owned reference graph as
+adoption hooks and indexing. Preview or apply that reconciliation with:
+
+```bash
+react-component-library versions reconcile-presence --component-id "react-component-library:Button"
+react-component-library versions reconcile-presence --component-id "react-component-library:Button" --apply
+```
+
+Without `--apply`, the command only reports the proposed tier moves. Applying
+evicts unreachable version bytes into the SQLite file mirror, where
+`versions materialize` can restore them. There is no workspace scanner or
+filesystem-only deletion mode.
+
 ## Scenario commands — `adoptions`
 
 Use `adoptions preflight`, `adoptions link`, and `adoptions obligations` for

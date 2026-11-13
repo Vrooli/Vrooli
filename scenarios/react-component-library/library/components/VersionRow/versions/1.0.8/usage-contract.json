@@ -1,0 +1,33 @@
+{
+  "collections": [
+    {
+      "labelField": "viewport",
+      "maximumCount": 6,
+      "maximumLabelCharacters": 24,
+      "primaryAction": "not-applicable",
+      "property": "captures",
+      "stableIdField": "id",
+      "typicalCount": 2
+    },
+    {
+      "labelField": "message",
+      "maximumCount": 6,
+      "maximumLabelCharacters": 80,
+      "primaryAction": "not-applicable",
+      "property": "findings",
+      "stableIdField": "id",
+      "typicalCount": 2
+    },
+    {
+      "labelField": "scenario",
+      "maximumCount": 12,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "adopters",
+      "stableIdField": "scenario",
+      "typicalCount": 2
+    }
+  ],
+  "componentId": "react-component-library:VersionRow",
+  "version": "1.0.8-draft.1"
+}

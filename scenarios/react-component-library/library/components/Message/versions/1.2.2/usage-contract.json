@@ -1,0 +1,35 @@
+{
+  "collections": [
+    {
+      "labelField": "name",
+      "maximumCount": 5,
+      "maximumLabelCharacters": 32,
+      "primaryAction": "not-applicable",
+      "property": "attachments",
+      "stableIdField": "id",
+      "typicalCount": 1
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 8,
+      "maximumLabelCharacters": 36,
+      "primaryAction": "not-applicable",
+      "property": "citations",
+      "stableIdField": "id",
+      "typicalCount": 2
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 3,
+      "maximumLabelCharacters": 20,
+      "primaryAction": "optional",
+      "primaryCount": 1,
+      "primaryField": "primary",
+      "property": "actions",
+      "stableIdField": "id",
+      "typicalCount": 1
+    }
+  ],
+  "componentId": "react-component-library:Message",
+  "version": "1.2.2-draft.1"
+}

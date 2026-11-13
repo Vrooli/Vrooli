@@ -27,6 +27,9 @@
     "1.0.0",
     "1.0.6"
   ],
-  "latest": "1.0.7",
-  "libraryId": "react-component-library:VersionRow"
+  "latest": "1.0.9",
+  "libraryId": "react-component-library:VersionRow",
+  "displayName": "VersionRow",
+  "description": "Selectable version history row with lifecycle, adoption, test health, and source identity details.",
+  "tags": []
 }

@@ -1,0 +1,21 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "*"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:ResponsiveDialog",
+  "slots": {
+    "footer": {
+      "allowedChildComponents": [
+        "OverlayActionBar"
+      ],
+      "maximumCount": 1,
+      "primaryAction": "exactly one; use OverlayActionBar and keep one row",
+      "typicalCount": 1
+    }
+  },
+  "version": "1.3.7"
+}

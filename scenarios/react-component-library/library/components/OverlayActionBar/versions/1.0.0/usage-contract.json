@@ -1,0 +1,25 @@
+{
+  "componentId": "react-component-library:OverlayActionBar",
+  "version": "1.0.0",
+  "children": {
+    "typicalCount": 1,
+    "maximumCount": 1,
+    "allowedChildComponents": ["button", "overflow-menu"]
+  },
+  "items": {
+    "property": "actions",
+    "typicalCount": 2,
+    "maximumCount": 4,
+    "requiredFields": ["id", "label", "onSelect"],
+    "requiredFieldTypes": { "id": "string", "label": "string", "onSelect": "function" },
+    "primaryField": "primary",
+    "primaryCount": 1,
+    "typicalLabelCharacters": 18,
+    "maximumLabelCharacters": 28
+  },
+  "layout": {
+    "rowCount": 1,
+    "overflowAfterVisibleCount": 2,
+    "neverStack": true
+  }
+}

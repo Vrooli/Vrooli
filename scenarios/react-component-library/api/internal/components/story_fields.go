@@ -112,9 +112,3 @@ func firstCommentSentence(comment string) string {
 	}
 	return strings.TrimSpace(comment)
 }
-
-func sameStoryFields(left, right []StoryField) bool {
-	leftJSON, _ := json.Marshal(left)
-	rightJSON, _ := json.Marshal(right)
-	return string(leftJSON) == string(rightJSON)
-}

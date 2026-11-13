@@ -20,6 +20,16 @@
     "1.0.8",
     "1.1.0"
   ],
-  "latest": "1.1.1",
-  "libraryId": "react-component-library:ErrorState"
+  "latest": "1.1.3",
+  "libraryId": "react-component-library:ErrorState",
+  "displayName": "ErrorState",
+  "description": "The recoverable failure composition with a plain-language explanation, a diagnostic-detail policy, retry, alternative actions, and support context that leaks nothing sensitive.",
+  "tags": [],
+  "designStyles": [
+    {
+      "styleId": "vrooli-default",
+      "affinity": "native",
+      "reason": "token-native operational-console baseline"
+    }
+  ]
 }

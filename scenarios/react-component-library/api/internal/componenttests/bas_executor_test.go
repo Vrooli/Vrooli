@@ -15,7 +15,30 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/cli-core/cliutil"
+	"react-component-library/internal/components"
 )
+
+func TestStoryViewportUsesDeclaredPhoneGeometry(t *testing.T) {
+	require.Equal(t, basDimensions{Width: 390, Height: 240}, storyViewport(&components.StoryGeometry{Width: "390px", Height: "240px"}))
+	require.Equal(t, basDimensions{Width: 1280, Height: 800}, storyViewport(&components.StoryGeometry{Width: "min(100vw, 390px)", Height: "auto"}))
+}
+
+func TestBASCaptureExecutorUsesDeclaredPhoneGeometry(t *testing.T) {
+	var request basCaptureRequest
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			t.Fatal(err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"durationMs":1,"domHtml":"<pre id=\"rcl-story-result\">{\"passed\":true,\"failures\":[]}</pre>","accessibilityJson":"{}","artifacts":[]}`))
+	}))
+	defer server.Close()
+
+	executor := BASCaptureExecutor{RCLBaseURL: "http://rcl.test", BASBaseURL: server.URL, HTTPClient: server.Client()}
+	_, err := executor.ExecuteStoryWithGeometry(context.Background(), "rcl:OverlayActionBar", "1.0.0", "phone", &components.StoryGeometry{Width: "390px", Height: "844px"})
+	require.NoError(t, err)
+	require.Equal(t, basDimensions{Width: 390, Height: 844}, request.Dimensions)
+}
 
 func TestBASCaptureExecutorProbeRequiresHealthyBoundary(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -212,9 +235,9 @@ func TestPageStoryCaptureKeepsPageOwnedScreenshotBoundary(t *testing.T) {
 
 	root := t.TempDir()
 	dir := filepath.Join(root, "ui", "src", "pages")
-	require.NoError(t, os.MkdirAll(dir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.tsx"), []byte("export function Design() { return null }"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.story.json"), []byte(`{"schemaVersion":5,"kind":"page","route":"/design","environment":{"fixtures":[]},"stories":[{"id":"detail","name":"Detail","route":"/design/demo/page","role":"anatomy","expect":[{"kind":"text","value":"Design"}]}]}`), 0644))
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.tsx"), []byte("export function Design() { return null }"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.story.json"), []byte(`{"schemaVersion":5,"kind":"page","route":"/design","environment":{"fixtures":[]},"stories":[{"id":"detail","name":"Detail","route":"/design/demo/page","role":"anatomy","expect":[{"kind":"text","value":"Design"}]}]}`), 0o644))
 	executor := BASCaptureExecutor{RCLBaseURL: "http://rcl.test", BASBaseURL: server.URL, HTTPClient: server.Client(), PageSourceRoot: root, PageUIBaseURL: "http://ui.test"}
 	_, err := executor.ExecuteStory(context.Background(), "page:Design", "workspace", "detail")
 	require.NoError(t, err)
@@ -224,9 +247,9 @@ func TestPageStoryCaptureKeepsPageOwnedScreenshotBoundary(t *testing.T) {
 func TestPageStoryURLUsesConcreteStoryRoute(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "ui", "src", "pages")
-	require.NoError(t, os.MkdirAll(dir, 0755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.tsx"), []byte("export function Design() { return null }"), 0644))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.story.json"), []byte(`{"schemaVersion":5,"kind":"page","route":"/design","environment":{"fixtures":[]},"stories":[{"id":"detail","name":"Detail","route":"/design/demo/page","role":"anatomy","expect":[{"kind":"text","value":"Design"}]}]}`), 0644))
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.tsx"), []byte("export function Design() { return null }"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Design.story.json"), []byte(`{"schemaVersion":5,"kind":"page","route":"/design","environment":{"fixtures":[]},"stories":[{"id":"detail","name":"Detail","route":"/design/demo/page","role":"anatomy","expect":[{"kind":"text","value":"Design"}]}]}`), 0o644))
 	executor := BASCaptureExecutor{PageSourceRoot: root, PageUIBaseURL: "http://ui.test"}
 	got, err := executor.storyURL("page:Design", "workspace", "detail")
 	require.NoError(t, err)

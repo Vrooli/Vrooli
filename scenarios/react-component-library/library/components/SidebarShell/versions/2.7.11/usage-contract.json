@@ -1,0 +1,11 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "*"
+    ],
+    "maximumCount": 1,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:SidebarShell",
+  "version": "2.7.11"
+}

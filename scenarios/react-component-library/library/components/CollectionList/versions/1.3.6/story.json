@@ -1,0 +1,207 @@
+{
+  "args": {},
+  "environment": {
+    "fixtures": []
+  },
+  "kind": "component",
+  "schemaVersion": 5,
+  "stories": [
+    {
+      "args": {
+        "bulkBar": "none",
+        "fields": {
+          "description": "description",
+          "key": "id",
+          "meta": "channel",
+          "title": "title"
+        },
+        "height": 420,
+        "items": [
+          {
+            "channel": "In-app · Release assistant",
+            "description": "Maya: Can you review the deployment results?",
+            "id": "support",
+            "title": "Support escalation"
+          },
+          {
+            "channel": "Slack · Operations assistant",
+            "description": "All services are healthy. The next check is scheduled.",
+            "id": "operations",
+            "title": "Operations handoff"
+          },
+          {
+            "channel": "Email · Support assistant",
+            "description": "An attachment is waiting for review.",
+            "id": "triage",
+            "title": "Incident triage"
+          }
+        ],
+        "label": "Conversations",
+        "virtualize": true
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Support escalation"
+        }
+      ],
+      "id": "default",
+      "name": "Conversation collection",
+      "role": "anatomy"
+    },
+    {
+      "args": {
+        "bulkBar": "none",
+        "fields": {
+          "description": "description",
+          "key": "id",
+          "meta": "channel",
+          "title": "title"
+        },
+        "height": 420,
+        "items": [],
+        "label": "Conversations",
+        "virtualize": true
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Nothing here yet."
+        }
+      ],
+      "id": "empty",
+      "name": "Empty collection",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "Interactive",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Support escalation"
+        }
+      ],
+      "id": "interactive",
+      "mode": "live",
+      "name": "Open and filter a collection",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "bulkBar": "none",
+        "currentKey": "triage",
+        "fields": {
+          "description": "description",
+          "key": "id",
+          "meta": "channel",
+          "title": "title"
+        },
+        "height": 420,
+        "items": [
+          {
+            "channel": "In-app · Release assistant",
+            "description": "Maya: Can you review the deployment results?",
+            "id": "support",
+            "title": "Support escalation"
+          },
+          {
+            "channel": "Slack · Operations assistant",
+            "description": "All services are healthy. The next check is scheduled.",
+            "id": "operations",
+            "title": "Operations handoff"
+          },
+          {
+            "channel": "Email · Support assistant",
+            "description": "An attachment is waiting for review.",
+            "id": "triage",
+            "title": "Incident triage"
+          }
+        ],
+        "label": "Conversations",
+        "virtualize": true
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Support escalation"
+        }
+      ],
+      "id": "current-detail",
+      "name": "Open detail independent of keyboard cursor",
+      "role": "boundary"
+    },
+    {
+      "args": {},
+      "composition": {
+        "specimen": {
+          "export": "KeyboardVirtualized",
+          "module": "./story.tsx"
+        }
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Record 1"
+        }
+      ],
+      "id": "keyboard-virtualized",
+      "mode": "live",
+      "name": "Keyboard navigation through virtualized records",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "items": [
+          {
+            "description": "Maya: Can you review the deployment results?",
+            "id": "support",
+            "title": "Support escalation"
+          }
+        ],
+        "label": "Conversations",
+        "loading": true
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Loading…"
+        }
+      ],
+      "id": "loading",
+      "mode": "pinned",
+      "name": "Loading collection",
+      "role": "boundary"
+    },
+    {
+      "args": {
+        "error": {
+          "message": "Unable to load conversations."
+        },
+        "items": [
+          {
+            "description": "Maya: Can you review the deployment results?",
+            "id": "support",
+            "title": "Support escalation"
+          }
+        ],
+        "label": "Conversations"
+      },
+      "expect": [
+        {
+          "kind": "text",
+          "value": "Unable to load conversations."
+        }
+      ],
+      "id": "error",
+      "mode": "pinned",
+      "name": "Collection error",
+      "role": "boundary"
+    }
+  ]
+}

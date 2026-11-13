@@ -1,0 +1,24 @@
+{
+  "collections": [
+    {
+      "labelField": "actor.name",
+      "maximumCount": 30,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "messages",
+      "stableIdField": "id",
+      "typicalCount": 6
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 6,
+      "maximumLabelCharacters": 24,
+      "primaryAction": "not-applicable",
+      "property": "branches",
+      "stableIdField": "id",
+      "typicalCount": 2
+    }
+  ],
+  "componentId": "react-component-library:MessageList",
+  "version": "1.1.5-draft.1"
+}

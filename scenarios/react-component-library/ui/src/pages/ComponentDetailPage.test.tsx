@@ -147,6 +147,39 @@ describe("ComponentDetailPage", () => {
     expect(screen.queryByTestId("monaco-stub")).not.toBeInTheDocument();
   });
 
+  it("shows a scroll hint when the asset tabs do not fit the viewport", async () => {
+    const clientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+    const scrollWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollWidth");
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get() {
+        return this.getAttribute("data-testid") === "component-detail-tabs-scroll" ? 390 : 500;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollWidth", {
+      configurable: true,
+      get() {
+        return this.getAttribute("data-testid") === "component-detail-tabs-scroll" ? 691 : 500;
+      },
+    });
+
+    try {
+      renderWithProviders(
+        <Routes>
+          <Route path="/components/:id" element={<ComponentDetailPage />} />
+        </Routes>,
+        { routerEntries: ["/components/cmp-42"] },
+      );
+
+      const tabList = await screen.findByTestId("component-detail-tabs-scroll");
+      const hint = await screen.findByTestId("component-detail-tabs-scroll-hint");
+      expect(tabList).toHaveAttribute("aria-describedby", hint.id);
+    } finally {
+      if (clientWidth) Object.defineProperty(HTMLElement.prototype, "clientWidth", clientWidth);
+      if (scrollWidth) Object.defineProperty(HTMLElement.prototype, "scrollWidth", scrollWidth);
+    }
+  });
+
   it("shows declared behavior, evidence tier, verdict, and capture link", async () => {
     const user = userEvent.setup();
     renderWithProviders(

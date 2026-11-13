@@ -7,6 +7,7 @@ import (
 	"github.com/vrooli/api-core/discovery"
 	inferencev1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference"
 	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
+	sharedv1 "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/shared"
 	"google.golang.org/protobuf/encoding/protojson"
 	"net/http"
 	"time"
@@ -53,7 +54,7 @@ func (s *Service) Run(ctx context.Context, key string, request Request) (Operati
 	if !claimed {
 		return s.Repository.Get(ctx, op.ID)
 	}
-	response, callErr := client.Run(ctx, connect.NewRequest(&inferencev1.RunRequest{Source: request.Source, SchemaJson: request.Schema, Instruction: request.Instruction, Role: request.Role, MaxOutputTokens: request.MaxOutputTokens}))
+	response, callErr := client.Run(ctx, connect.NewRequest(&inferencev1.RunRequest{Source: request.Source, SchemaJson: request.Schema, Instruction: request.Instruction, Role: request.Role, Profile: sharedv1.Profile_PROFILE_LOCAL_ONLY, MaxOutputTokens: request.MaxOutputTokens}))
 	// Preserve a received response even when the caller stops observing it.
 	saveCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()

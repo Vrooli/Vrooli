@@ -329,6 +329,7 @@ func (h *connectHandler) SweepComponentTests(ctx context.Context, req *connect.R
 		return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("component test sweep is not wired to the component registry"))
 	}
 	var sweep domain.Sweep
+	resumedSweep := false
 	if h.sweeps != nil {
 		if probeErr := domain.NewBASCaptureExecutor().Probe(ctx); probeErr != nil {
 			return nil, h.error(fmt.Errorf("refusing to start component sweep: %w", probeErr))
@@ -339,6 +340,7 @@ func (h *connectHandler) SweepComponentTests(ctx context.Context, req *connect.R
 			switch {
 			case resumeErr == nil:
 				sweep = resumed
+				resumedSweep = true
 			case errors.Is(resumeErr, sql.ErrNoRows):
 				sweep, resumeErr = h.sweeps.Start(ctx, filter, req.Msg.GetIncludeClosure(), "")
 				if resumeErr != nil {
@@ -352,6 +354,15 @@ func (h *connectHandler) SweepComponentTests(ctx context.Context, req *connect.R
 			sweep, startErr = h.sweeps.Start(ctx, filter, req.Msg.GetIncludeClosure(), "")
 			if startErr != nil {
 				return nil, h.error(startErr)
+			}
+		}
+		if resumedSweep {
+			if err := sweep.TransitionStatus(domain.SweepRunning); err != nil {
+				return nil, h.error(err)
+			}
+			sweep.CompletedAt = time.Time{}
+			if err := h.sweeps.Save(ctx, sweep); err != nil {
+				return nil, h.error(err)
 			}
 		}
 	}
@@ -399,7 +410,9 @@ func (h *connectHandler) SweepComponentTests(ctx context.Context, req *connect.R
 					} else if len(existing) > 0 && existing[0].Verdict != domain.VerdictBlocked && h.storyEvidenceFresh(ctx, version) {
 						previous = string(existing[0].Verdict)
 						sweep.Results[key] = previous
-						_ = h.sweeps.Save(ctx, sweep)
+						if saveErr := h.sweeps.Save(ctx, sweep); saveErr != nil {
+							return nil, h.error(saveErr)
+						}
 					}
 				}
 				if previous != "" && previous != string(domain.VerdictBlocked) {
@@ -414,7 +427,9 @@ func (h *connectHandler) SweepComponentTests(ctx context.Context, req *connect.R
 				response.Errors = append(response.Errors, fmt.Sprintf("%s@%s: %v", asset.LibraryID, version.Version, runErr))
 				if h.sweeps != nil {
 					sweep.Results[key] = string(domain.VerdictBlocked)
-					_ = h.sweeps.Save(ctx, sweep)
+					if saveErr := h.sweeps.Save(ctx, sweep); saveErr != nil {
+						return nil, h.error(saveErr)
+					}
 				}
 				continue
 			}
@@ -424,7 +439,9 @@ func (h *connectHandler) SweepComponentTests(ctx context.Context, req *connect.R
 			response.Reports = append(response.Reports, toProto(report))
 			if h.sweeps != nil {
 				sweep.Results[key] = string(report.Verdict)
-				_ = h.sweeps.Save(ctx, sweep)
+				if saveErr := h.sweeps.Save(ctx, sweep); saveErr != nil {
+					return nil, h.error(saveErr)
+				}
 			}
 			switch report.Verdict {
 			case domain.VerdictPassed:
@@ -438,11 +455,14 @@ func (h *connectHandler) SweepComponentTests(ctx context.Context, req *connect.R
 	}
 	response.Complete = len(response.Errors) == 0 && response.Blocked == 0
 	if h.sweeps != nil {
-		sweep.Status = domain.SweepComplete
+		nextStatus := domain.SweepComplete
 		if response.Blocked > 0 {
-			sweep.Status = domain.SweepBlocked
+			nextStatus = domain.SweepBlocked
 		} else if len(response.Errors) > 0 || response.Failed > 0 {
-			sweep.Status = domain.SweepFailed
+			nextStatus = domain.SweepFailed
+		}
+		if err := sweep.TransitionStatus(nextStatus); err != nil {
+			return nil, h.error(err)
 		}
 		sweep.CompletedAt = time.Now().UTC()
 		if saveErr := h.sweeps.Save(ctx, sweep); saveErr != nil {

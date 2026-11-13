@@ -221,10 +221,6 @@ func normalizeSlug(value string) string {
 	return strings.Trim(nonAlnum.ReplaceAllString(strings.ToLower(value), "-"), "-")
 }
 
-func hasLiteralTestID(fact gates.SourceFacts, testID string) bool {
-	return testID != "" && hasLiteralAttribute(fact, "data-testid", testID)
-}
-
 // Only a single exact attribute selector can be proved from file-local JSX
 // facts. Combinators, pseudo-classes, CSS escapes and substring matches need a
 // richer oracle and must remain explicit unknowns.

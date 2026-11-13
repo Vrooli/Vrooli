@@ -1,0 +1,12 @@
+{
+  "children": {
+    "allowedChildComponents": [
+      "Button",
+      "Link"
+    ],
+    "maximumCount": 3,
+    "typicalCount": 1
+  },
+  "componentId": "react-component-library:EntitlementErrorCard",
+  "version": "1.0.6"
+}

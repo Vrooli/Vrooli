@@ -98,6 +98,12 @@
       "publishedAt": "2026-10-17T02:36:42Z"
     },
     {
+      "libraryId": "react-component-library:AlertDialog",
+      "version": "2.0.12",
+      "draftVersion": "2.0.12-draft.1",
+      "publishedAt": "2026-11-13T21:25:00Z"
+    },
+    {
       "libraryId": "react-component-library:AmbientCanvas",
       "version": "0.1.1",
       "draftVersion": "0.1.1-draft.1",
@@ -126,6 +132,12 @@
       "version": "0.1.2",
       "draftVersion": "0.1.2-draft.1",
       "publishedAt": "2026-09-04T00:22:07Z"
+    },
+    {
+      "libraryId": "react-component-library:AmbientDisplayShell",
+      "version": "0.1.3",
+      "draftVersion": "0.1.3-draft.1",
+      "publishedAt": "2026-11-13T21:25:03Z"
     },
     {
       "libraryId": "react-component-library:AppNavigation",
@@ -482,6 +494,18 @@
       "publishedAt": "2026-09-05T12:29:17Z"
     },
     {
+      "libraryId": "react-component-library:AsyncBoundary",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:16:29Z"
+    },
+    {
+      "libraryId": "react-component-library:AsyncBoundary",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-11-13T21:19:50Z"
+    },
+    {
       "libraryId": "react-component-library:AsyncFormFlow",
       "version": "1.0.4",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -516,6 +540,12 @@
       "version": "1.0.10",
       "draftVersion": "1.0.10-draft.1",
       "publishedAt": "2026-09-08T20:06:34Z"
+    },
+    {
+      "libraryId": "react-component-library:AsyncFormFlow",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-11-13T21:25:08Z"
     },
     {
       "libraryId": "react-component-library:AsyncOptionsField",
@@ -554,6 +584,12 @@
       "publishedAt": "2026-09-08T20:04:54Z"
     },
     {
+      "libraryId": "react-component-library:AsyncOptionsField",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:25:12Z"
+    },
+    {
       "libraryId": "react-component-library:AsyncPanel",
       "version": "1.0.2",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -576,6 +612,18 @@
       "version": "1.0.5",
       "draftVersion": "1.0.5-draft.1",
       "publishedAt": "2026-09-06T22:39:49Z"
+    },
+    {
+      "libraryId": "react-component-library:AsyncPanel",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-11-13T21:16:33Z"
+    },
+    {
+      "libraryId": "react-component-library:AsyncPanel",
+      "version": "1.0.7",
+      "draftVersion": "1.0.7-draft.1",
+      "publishedAt": "2026-11-13T21:19:54Z"
     },
     {
       "libraryId": "react-component-library:AttachmentPreview",
@@ -680,6 +728,18 @@
       "publishedAt": "2026-09-08T20:07:35Z"
     },
     {
+      "libraryId": "react-component-library:AutoAnimateLayout",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:16:37Z"
+    },
+    {
+      "libraryId": "react-component-library:AutoAnimateLayout",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-11-13T21:19:58Z"
+    },
+    {
       "libraryId": "react-component-library:Avatar",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -746,6 +806,12 @@
       "publishedAt": "2026-09-08T20:17:09Z"
     },
     {
+      "libraryId": "react-component-library:Avatar",
+      "version": "1.3.16",
+      "draftVersion": "1.3.16-draft.1",
+      "publishedAt": "2026-11-13T21:25:17Z"
+    },
+    {
       "libraryId": "react-component-library:Badge",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -798,6 +864,12 @@
       "version": "1.0.14",
       "draftVersion": "1.0.14-draft.1",
       "publishedAt": "2026-09-08T20:04:55Z"
+    },
+    {
+      "libraryId": "react-component-library:Banner",
+      "version": "1.0.15",
+      "draftVersion": "1.0.15-draft.1",
+      "publishedAt": "2026-11-13T21:25:21Z"
     },
     {
       "libraryId": "react-component-library:BaseStyles",
@@ -912,6 +984,12 @@
       "version": "1.5.6",
       "draftVersion": "1.5.6-draft.1",
       "publishedAt": "2026-11-07T18:16:53Z"
+    },
+    {
+      "libraryId": "react-component-library:BottomNav",
+      "version": "1.5.7",
+      "draftVersion": "1.5.7-draft.1",
+      "publishedAt": "2026-11-13T21:17:52Z"
     },
     {
       "libraryId": "react-component-library:BottomSheet",
@@ -1304,6 +1382,12 @@
       "publishedAt": "2026-09-10T03:12:18Z"
     },
     {
+      "libraryId": "react-component-library:Button",
+      "version": "2.2.13",
+      "draftVersion": "2.2.13-draft.1",
+      "publishedAt": "2026-11-13T21:16:44Z"
+    },
+    {
       "libraryId": "react-component-library:ButtonGroup",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -1442,6 +1526,12 @@
       "publishedAt": "2026-09-02T03:40:58Z"
     },
     {
+      "libraryId": "react-component-library:Card",
+      "version": "1.3.1",
+      "draftVersion": "1.3.1-draft.1",
+      "publishedAt": "2026-11-13T21:16:48Z"
+    },
+    {
       "libraryId": "react-component-library:CardGrid",
       "version": "1.0.1",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -1464,6 +1554,12 @@
       "version": "1.0.4",
       "draftVersion": "1.0.4-draft.1",
       "publishedAt": "2026-09-08T20:07:51Z"
+    },
+    {
+      "libraryId": "react-component-library:CardGrid",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:16:54Z"
     },
     {
       "libraryId": "react-component-library:CardShell",
@@ -1526,6 +1622,12 @@
       "publishedAt": "2026-10-20T04:15:21Z"
     },
     {
+      "libraryId": "react-component-library:CardShell",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-11-13T21:17:01Z"
+    },
+    {
       "libraryId": "react-component-library:CartesianCharts",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -1548,6 +1650,12 @@
       "version": "1.0.6",
       "draftVersion": "1.0.6-draft.1",
       "publishedAt": "2026-08-31T05:06:34Z"
+    },
+    {
+      "libraryId": "react-component-library:CartesianCharts",
+      "version": "1.0.7",
+      "draftVersion": "1.0.7-draft.1",
+      "publishedAt": "2026-11-13T21:25:26Z"
     },
     {
       "libraryId": "react-component-library:Chart",
@@ -1604,6 +1712,12 @@
       "publishedAt": "2026-09-04T01:15:53Z"
     },
     {
+      "libraryId": "react-component-library:Chart",
+      "version": "1.0.12",
+      "draftVersion": "1.0.12-draft.1",
+      "publishedAt": "2026-11-13T21:25:30Z"
+    },
+    {
       "libraryId": "react-component-library:Checkbox",
       "version": "1.0.5",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -1650,6 +1764,12 @@
       "version": "1.0.6",
       "draftVersion": "1.0.6-draft.1",
       "publishedAt": "2026-08-31T05:48:24Z"
+    },
+    {
+      "libraryId": "react-component-library:Chip",
+      "version": "1.0.7",
+      "draftVersion": "1.0.7-draft.1",
+      "publishedAt": "2026-11-13T21:17:07Z"
     },
     {
       "libraryId": "react-component-library:ChromeTheme",
@@ -1814,6 +1934,12 @@
       "publishedAt": "2026-10-19T19:16:40Z"
     },
     {
+      "libraryId": "react-component-library:CollectionList",
+      "version": "1.3.6",
+      "draftVersion": "1.3.6-draft.1",
+      "publishedAt": "2026-11-13T21:18:21Z"
+    },
+    {
       "libraryId": "react-component-library:CollectionPage",
       "version": "1.0.4",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -1958,6 +2084,12 @@
       "publishedAt": "2026-09-08T20:07:37Z"
     },
     {
+      "libraryId": "react-component-library:Combobox",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-11-13T21:17:30Z"
+    },
+    {
       "libraryId": "react-component-library:CommandButton",
       "version": "1.0.2",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2000,6 +2132,12 @@
       "publishedAt": "2026-09-08T20:06:33Z"
     },
     {
+      "libraryId": "react-component-library:CommandButton",
+      "version": "1.0.9",
+      "draftVersion": "1.0.9-draft.1",
+      "publishedAt": "2026-11-13T21:17:14Z"
+    },
+    {
       "libraryId": "react-component-library:CommandCenterShell",
       "version": "1.0.2",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2016,6 +2154,12 @@
       "version": "1.0.4",
       "draftVersion": "1.0.4-draft.1",
       "publishedAt": "2026-08-31T05:19:13Z"
+    },
+    {
+      "libraryId": "react-component-library:CommandCenterShell",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:25:34Z"
     },
     {
       "libraryId": "react-component-library:CommandPalette",
@@ -2084,6 +2228,12 @@
       "publishedAt": "2026-10-17T02:34:32Z"
     },
     {
+      "libraryId": "react-component-library:CommandPalette",
+      "version": "1.1.12",
+      "draftVersion": "1.1.12-draft.1",
+      "publishedAt": "2026-11-13T21:17:59Z"
+    },
+    {
       "libraryId": "react-component-library:CommandRegistry",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2124,6 +2274,12 @@
       "version": "1.0.4",
       "draftVersion": "1.0.4-draft.1",
       "publishedAt": "2026-10-19T18:20:33Z"
+    },
+    {
+      "libraryId": "react-component-library:ComposerAttachmentTray",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:25:39Z"
     },
     {
       "libraryId": "react-component-library:ComputedField",
@@ -2186,6 +2342,12 @@
       "publishedAt": "2026-09-08T20:07:23Z"
     },
     {
+      "libraryId": "react-component-library:ConditionalField",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:25:43Z"
+    },
+    {
       "libraryId": "react-component-library:ConflictResolutionFlow",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2232,6 +2394,12 @@
       "version": "1.0.11",
       "draftVersion": "1.0.11-draft.1",
       "publishedAt": "2026-09-08T20:06:26Z"
+    },
+    {
+      "libraryId": "react-component-library:ConflictResolutionFlow",
+      "version": "1.0.12",
+      "draftVersion": "1.0.12-draft.1",
+      "publishedAt": "2026-11-13T21:25:48Z"
     },
     {
       "libraryId": "react-component-library:Container",
@@ -2348,6 +2516,30 @@
       "publishedAt": "2026-09-10T17:57:09Z"
     },
     {
+      "libraryId": "react-component-library:ContextMenu",
+      "version": "1.3.3",
+      "draftVersion": "1.3.3-draft.1",
+      "publishedAt": "2026-11-13T21:17:04Z"
+    },
+    {
+      "libraryId": "react-component-library:ContextMenu",
+      "version": "1.3.4",
+      "draftVersion": "1.3.4-draft.1",
+      "publishedAt": "2026-11-13T21:19:10Z"
+    },
+    {
+      "libraryId": "react-component-library:ContextMenu",
+      "version": "1.3.5",
+      "draftVersion": "1.3.5-draft.1",
+      "publishedAt": "2026-11-13T21:20:58Z"
+    },
+    {
+      "libraryId": "react-component-library:ContextMenu",
+      "version": "1.3.6",
+      "draftVersion": "1.3.6-draft.1",
+      "publishedAt": "2026-11-13T21:22:12Z"
+    },
+    {
       "libraryId": "react-component-library:Contracts",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2402,6 +2594,12 @@
       "publishedAt": "2026-09-08T03:53:39Z"
     },
     {
+      "libraryId": "react-component-library:ControlBase",
+      "version": "1.1.6",
+      "draftVersion": "1.1.6-draft.1",
+      "publishedAt": "2026-11-13T21:17:23Z"
+    },
+    {
       "libraryId": "react-component-library:CopyIconButton",
       "version": "1.0.0",
       "draftVersion": "1.0.0-draft.1",
@@ -2448,6 +2646,12 @@
       "version": "0.1.2",
       "draftVersion": "0.1.2-draft.1",
       "publishedAt": "2026-09-04T00:19:17Z"
+    },
+    {
+      "libraryId": "react-component-library:CycleController",
+      "version": "0.1.3",
+      "draftVersion": "0.1.3-draft.1",
+      "publishedAt": "2026-11-13T21:25:52Z"
     },
     {
       "libraryId": "react-component-library:DashboardPage",
@@ -2516,6 +2720,30 @@
       "publishedAt": "2026-11-07T17:35:41Z"
     },
     {
+      "libraryId": "react-component-library:DataTable",
+      "version": "1.4.5",
+      "draftVersion": "1.4.5-draft.1",
+      "publishedAt": "2026-11-13T21:16:41Z"
+    },
+    {
+      "libraryId": "react-component-library:DataTable",
+      "version": "1.4.6",
+      "draftVersion": "1.4.6-draft.1",
+      "publishedAt": "2026-11-13T21:18:56Z"
+    },
+    {
+      "libraryId": "react-component-library:DataTable",
+      "version": "1.4.7",
+      "draftVersion": "1.4.7-draft.1",
+      "publishedAt": "2026-11-13T21:20:44Z"
+    },
+    {
+      "libraryId": "react-component-library:DataTable",
+      "version": "1.4.8",
+      "draftVersion": "1.4.8-draft.1",
+      "publishedAt": "2026-11-13T21:41:19Z"
+    },
+    {
       "libraryId": "react-component-library:DataToolbar",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2556,6 +2784,30 @@
       "version": "1.0.9",
       "draftVersion": "1.0.9-draft.1",
       "publishedAt": "2026-09-08T20:14:49Z"
+    },
+    {
+      "libraryId": "react-component-library:DataToolbar",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:16:57Z"
+    },
+    {
+      "libraryId": "react-component-library:DataToolbar",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-11-13T21:19:06Z"
+    },
+    {
+      "libraryId": "react-component-library:DataToolbar",
+      "version": "1.0.12",
+      "draftVersion": "1.0.12-draft.1",
+      "publishedAt": "2026-11-13T21:20:53Z"
+    },
+    {
+      "libraryId": "react-component-library:DataToolbar",
+      "version": "1.0.13",
+      "draftVersion": "1.0.13-draft.1",
+      "publishedAt": "2026-11-13T21:41:42Z"
     },
     {
       "libraryId": "react-component-library:DescriptionList",
@@ -2738,6 +2990,12 @@
       "publishedAt": "2026-08-31T05:05:36Z"
     },
     {
+      "libraryId": "react-component-library:DirtyStateGuard",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:25:57Z"
+    },
+    {
       "libraryId": "react-component-library:DragDropStore",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2796,6 +3054,12 @@
       "version": "1.1.1",
       "draftVersion": "1.1.1-draft.1",
       "publishedAt": "2026-09-08T20:08:05Z"
+    },
+    {
+      "libraryId": "react-component-library:Draggable",
+      "version": "1.1.2",
+      "draftVersion": "1.1.2-draft.1",
+      "publishedAt": "2026-11-13T21:28:31Z"
     },
     {
       "libraryId": "react-component-library:DrawerShell",
@@ -2894,6 +3158,12 @@
       "publishedAt": "2026-09-08T20:08:12Z"
     },
     {
+      "libraryId": "react-component-library:EditableResource",
+      "version": "1.0.12",
+      "draftVersion": "1.0.12-draft.1",
+      "publishedAt": "2026-11-13T21:28:37Z"
+    },
+    {
       "libraryId": "react-component-library:EmptyState",
       "version": "1.7.7",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2966,6 +3236,18 @@
       "publishedAt": "2026-08-31T05:19:20Z"
     },
     {
+      "libraryId": "react-component-library:EntitlementErrorCard",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-11-13T21:17:32Z"
+    },
+    {
+      "libraryId": "react-component-library:EntitlementErrorCard",
+      "version": "1.0.7",
+      "draftVersion": "1.0.7-draft.1",
+      "publishedAt": "2026-11-13T21:20:02Z"
+    },
+    {
       "libraryId": "react-component-library:EntitlementStore",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -2994,6 +3276,12 @@
       "version": "1.0.9",
       "draftVersion": "1.0.9-draft.1",
       "publishedAt": "2026-09-08T20:06:54Z"
+    },
+    {
+      "libraryId": "react-component-library:ErrorBoundary",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:28:41Z"
     },
     {
       "libraryId": "react-component-library:ErrorState",
@@ -3026,6 +3314,18 @@
       "publishedAt": "2026-09-03T02:38:11Z"
     },
     {
+      "libraryId": "react-component-library:ErrorState",
+      "version": "1.1.2",
+      "draftVersion": "1.1.2-draft.1",
+      "publishedAt": "2026-11-13T21:17:39Z"
+    },
+    {
+      "libraryId": "react-component-library:ErrorState",
+      "version": "1.1.3",
+      "draftVersion": "1.1.3-draft.1",
+      "publishedAt": "2026-11-13T21:20:06Z"
+    },
+    {
       "libraryId": "react-component-library:EvidenceCarousel",
       "version": "1.0.14",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -3038,6 +3338,12 @@
       "publishedAt": "2026-08-31T05:05:44Z"
     },
     {
+      "libraryId": "react-component-library:EvidenceCarousel",
+      "version": "1.0.16",
+      "draftVersion": "1.0.16-draft.1",
+      "publishedAt": "2026-11-13T21:28:45Z"
+    },
+    {
       "libraryId": "react-component-library:ExperienceSurface",
       "version": "1.0.2",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -3048,6 +3354,12 @@
       "version": "1.0.3",
       "draftVersion": "1.0.3-draft.1",
       "publishedAt": "2026-08-31T05:18:49Z"
+    },
+    {
+      "libraryId": "react-component-library:ExperienceSurface",
+      "version": "1.0.4",
+      "draftVersion": "1.0.4-draft.1",
+      "publishedAt": "2026-11-13T21:17:47Z"
     },
     {
       "libraryId": "react-component-library:FilePath",
@@ -3146,6 +3458,12 @@
       "publishedAt": "2026-09-06T22:39:51Z"
     },
     {
+      "libraryId": "react-component-library:FilterBar",
+      "version": "1.3.2",
+      "draftVersion": "1.3.2-draft.1",
+      "publishedAt": "2026-11-13T21:28:50Z"
+    },
+    {
       "libraryId": "react-component-library:FindingList",
       "version": "1.0.7",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -3200,6 +3518,12 @@
       "publishedAt": "2026-09-08T20:08:39Z"
     },
     {
+      "libraryId": "react-component-library:Form",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:17:56Z"
+    },
+    {
       "libraryId": "react-component-library:FormActions",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -3228,6 +3552,12 @@
       "version": "1.0.5",
       "draftVersion": "1.0.5-draft.1",
       "publishedAt": "2026-09-08T20:08:25Z"
+    },
+    {
+      "libraryId": "react-component-library:FormActions",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-11-13T21:18:03Z"
     },
     {
       "libraryId": "react-component-library:FormField",
@@ -3308,6 +3638,12 @@
       "publishedAt": "2026-09-08T20:06:20Z"
     },
     {
+      "libraryId": "react-component-library:FormSection",
+      "version": "1.0.8",
+      "draftVersion": "1.0.8-draft.1",
+      "publishedAt": "2026-11-13T21:18:10Z"
+    },
+    {
       "libraryId": "react-component-library:FormStore",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -3354,6 +3690,24 @@
       "version": "1.1.1",
       "draftVersion": "1.1.1-draft.1",
       "publishedAt": "2026-09-03T02:38:11Z"
+    },
+    {
+      "libraryId": "react-component-library:FormWizard",
+      "version": "1.1.2",
+      "draftVersion": "1.1.2-draft.1",
+      "publishedAt": "2026-11-13T21:17:27Z"
+    },
+    {
+      "libraryId": "react-component-library:FormWizard",
+      "version": "1.1.3",
+      "draftVersion": "1.1.3-draft.1",
+      "publishedAt": "2026-11-13T21:19:25Z"
+    },
+    {
+      "libraryId": "react-component-library:FormWizard",
+      "version": "1.1.4",
+      "draftVersion": "1.1.4-draft.1",
+      "publishedAt": "2026-11-13T21:21:17Z"
     },
     {
       "libraryId": "react-component-library:FreshnessArc",
@@ -3656,6 +4010,24 @@
       "publishedAt": "2026-09-08T20:07:57Z"
     },
     {
+      "libraryId": "react-component-library:GeneratedForm",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:17:35Z"
+    },
+    {
+      "libraryId": "react-component-library:GeneratedForm",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-11-13T21:19:30Z"
+    },
+    {
+      "libraryId": "react-component-library:GeneratedForm",
+      "version": "1.0.12",
+      "draftVersion": "1.0.12-draft.1",
+      "publishedAt": "2026-11-13T21:21:26Z"
+    },
+    {
       "libraryId": "react-component-library:GestureDirection",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -3732,6 +4104,12 @@
       "version": "1.0.6",
       "draftVersion": "1.0.6-draft.1",
       "publishedAt": "2026-09-08T20:07:58Z"
+    },
+    {
+      "libraryId": "react-component-library:GlobalCommandSystem",
+      "version": "1.0.7",
+      "draftVersion": "1.0.7-draft.1",
+      "publishedAt": "2026-11-13T21:28:55Z"
     },
     {
       "libraryId": "react-component-library:Heading",
@@ -3950,6 +4328,12 @@
       "publishedAt": "2026-11-07T14:36:54Z"
     },
     {
+      "libraryId": "react-component-library:IconButton",
+      "version": "3.1.8",
+      "draftVersion": "3.1.8-draft.1",
+      "publishedAt": "2026-11-13T21:18:17Z"
+    },
+    {
       "libraryId": "react-component-library:IconGeometry",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -4056,6 +4440,12 @@
       "version": "1.2.2",
       "draftVersion": "1.2.2-draft.1",
       "publishedAt": "2026-08-31T05:48:35Z"
+    },
+    {
+      "libraryId": "react-component-library:InputGroup",
+      "version": "1.2.3",
+      "draftVersion": "1.2.3-draft.1",
+      "publishedAt": "2026-11-13T21:18:24Z"
     },
     {
       "libraryId": "react-component-library:InspectorLayout",
@@ -4172,6 +4562,12 @@
       "publishedAt": "2026-11-07T14:28:08Z"
     },
     {
+      "libraryId": "react-component-library:IntegrationsOverview",
+      "version": "1.1.3",
+      "draftVersion": "1.1.3-draft.1",
+      "publishedAt": "2026-11-13T21:28:59Z"
+    },
+    {
       "libraryId": "react-component-library:JsonViewer",
       "version": "1.0.5",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -4280,6 +4676,12 @@
       "publishedAt": "2026-08-31T05:05:47Z"
     },
     {
+      "libraryId": "react-component-library:List",
+      "version": "1.0.7",
+      "draftVersion": "1.0.7-draft.1",
+      "publishedAt": "2026-11-13T21:18:13Z"
+    },
+    {
       "libraryId": "react-component-library:LiveAnnouncer",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -4332,6 +4734,12 @@
       "version": "1.0.9",
       "draftVersion": "1.0.9-draft.1",
       "publishedAt": "2026-09-08T20:06:48Z"
+    },
+    {
+      "libraryId": "react-component-library:MasterDetail",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:29:03Z"
     },
     {
       "libraryId": "react-component-library:MeasurementBar",
@@ -4398,6 +4806,12 @@
       "version": "2.0.1",
       "draftVersion": "2.0.1-draft.1",
       "publishedAt": "2026-09-08T20:14:56Z"
+    },
+    {
+      "libraryId": "react-component-library:Menu",
+      "version": "2.0.2",
+      "draftVersion": "2.0.2-draft.1",
+      "publishedAt": "2026-11-13T21:18:35Z"
     },
     {
       "libraryId": "react-component-library:Message",
@@ -4472,6 +4886,24 @@
       "publishedAt": "2026-09-08T20:17:10Z"
     },
     {
+      "libraryId": "react-component-library:Message",
+      "version": "1.2.2",
+      "draftVersion": "1.2.2-draft.1",
+      "publishedAt": "2026-11-13T21:17:10Z"
+    },
+    {
+      "libraryId": "react-component-library:Message",
+      "version": "1.2.3",
+      "draftVersion": "1.2.3-draft.1",
+      "publishedAt": "2026-11-13T21:19:15Z"
+    },
+    {
+      "libraryId": "react-component-library:Message",
+      "version": "1.2.4",
+      "draftVersion": "1.2.4-draft.1",
+      "publishedAt": "2026-11-13T21:21:03Z"
+    },
+    {
       "libraryId": "react-component-library:MessageList",
       "version": "1.0.0",
       "draftVersion": "0.1.0-draft.1",
@@ -4512,6 +4944,24 @@
       "version": "1.1.4",
       "draftVersion": "1.1.4-draft.1",
       "publishedAt": "2026-10-19T19:09:49Z"
+    },
+    {
+      "libraryId": "react-component-library:MessageList",
+      "version": "1.1.5",
+      "draftVersion": "1.1.5-draft.1",
+      "publishedAt": "2026-11-13T21:17:17Z"
+    },
+    {
+      "libraryId": "react-component-library:MessageList",
+      "version": "1.1.6",
+      "draftVersion": "1.1.6-draft.1",
+      "publishedAt": "2026-11-13T21:19:21Z"
+    },
+    {
+      "libraryId": "react-component-library:MessageList",
+      "version": "1.1.7",
+      "draftVersion": "1.1.7-draft.1",
+      "publishedAt": "2026-11-13T21:21:09Z"
     },
     {
       "libraryId": "react-component-library:Meter",
@@ -4742,6 +5192,12 @@
       "publishedAt": "2026-11-07T14:35:45Z"
     },
     {
+      "libraryId": "react-component-library:NotificationBadge",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:18:39Z"
+    },
+    {
       "libraryId": "react-component-library:NumberField",
       "version": "1.0.3",
       "draftVersion": "1.0.3-draft.1",
@@ -4800,6 +5256,12 @@
       "version": "1.0.9",
       "draftVersion": "1.0.9-draft.1",
       "publishedAt": "2026-09-08T20:06:32Z"
+    },
+    {
+      "libraryId": "react-component-library:ObjectField",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:29:08Z"
     },
     {
       "libraryId": "react-component-library:OfflineState",
@@ -5036,6 +5498,24 @@
       "publishedAt": "2026-10-19T04:24:39Z"
     },
     {
+      "libraryId": "react-component-library:PlanSummary",
+      "version": "0.1.4",
+      "draftVersion": "0.1.4-draft.1",
+      "publishedAt": "2026-11-13T21:17:49Z"
+    },
+    {
+      "libraryId": "react-component-library:PlanSummary",
+      "version": "0.1.5",
+      "draftVersion": "0.1.5-draft.1",
+      "publishedAt": "2026-11-13T21:19:38Z"
+    },
+    {
+      "libraryId": "react-component-library:PlanSummary",
+      "version": "0.1.6",
+      "draftVersion": "0.1.6-draft.1",
+      "publishedAt": "2026-11-13T21:21:35Z"
+    },
+    {
       "libraryId": "react-component-library:Popover",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -5132,6 +5612,12 @@
       "publishedAt": "2026-10-30T02:04:27Z"
     },
     {
+      "libraryId": "react-component-library:Popover",
+      "version": "1.4.1",
+      "draftVersion": "1.4.1-draft.1",
+      "publishedAt": "2026-11-13T21:29:13Z"
+    },
+    {
       "libraryId": "react-component-library:Portal",
       "version": "1.1.1",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -5142,6 +5628,12 @@
       "version": "1.1.2",
       "draftVersion": "1.1.2-draft.1",
       "publishedAt": "2026-08-31T05:48:36Z"
+    },
+    {
+      "libraryId": "react-component-library:Portal",
+      "version": "1.1.3",
+      "draftVersion": "1.1.3-draft.1",
+      "publishedAt": "2026-11-13T21:29:16Z"
     },
     {
       "libraryId": "react-component-library:Presence",
@@ -5214,6 +5706,12 @@
       "version": "1.0.4",
       "draftVersion": "1.0.4-draft.1",
       "publishedAt": "2026-09-08T20:14:54Z"
+    },
+    {
+      "libraryId": "react-component-library:Pressable",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:29:20Z"
     },
     {
       "libraryId": "react-component-library:PreviewDock",
@@ -5300,6 +5798,12 @@
       "publishedAt": "2026-09-03T23:46:16Z"
     },
     {
+      "libraryId": "react-component-library:ProgressLadder",
+      "version": "1.0.9",
+      "draftVersion": "1.0.9-draft.1",
+      "publishedAt": "2026-11-13T21:29:24Z"
+    },
+    {
       "libraryId": "react-component-library:ProgressiveImage",
       "version": "1.1.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -5364,6 +5868,12 @@
       "version": "1.0.4",
       "draftVersion": "1.0.4-draft.1",
       "publishedAt": "2026-10-19T18:20:36Z"
+    },
+    {
+      "libraryId": "react-component-library:PromptComposer",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:29:29Z"
     },
     {
       "libraryId": "react-component-library:ProvenanceInk",
@@ -5456,6 +5966,12 @@
       "publishedAt": "2026-09-08T20:08:19Z"
     },
     {
+      "libraryId": "react-component-library:RadioGroup",
+      "version": "1.2.3",
+      "draftVersion": "1.2.3-draft.1",
+      "publishedAt": "2026-11-13T21:29:33Z"
+    },
+    {
       "libraryId": "react-component-library:RelativeTime",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -5504,6 +6020,18 @@
       "publishedAt": "2026-08-31T05:07:35Z"
     },
     {
+      "libraryId": "react-component-library:Resizable",
+      "version": "2.0.5",
+      "draftVersion": "2.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:34:11Z"
+    },
+    {
+      "libraryId": "react-component-library:Resizable",
+      "version": "2.0.6",
+      "draftVersion": "2.0.6-draft.1",
+      "publishedAt": "2026-11-13T21:36:45Z"
+    },
+    {
       "libraryId": "react-component-library:ResizableSidebar",
       "version": "2.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -5538,6 +6066,18 @@
       "version": "2.0.5",
       "draftVersion": "2.0.5-draft.1",
       "publishedAt": "2026-08-31T05:08:39Z"
+    },
+    {
+      "libraryId": "react-component-library:ResizableSidebar",
+      "version": "2.0.6",
+      "draftVersion": "2.0.6-draft.1",
+      "publishedAt": "2026-11-13T21:34:18Z"
+    },
+    {
+      "libraryId": "react-component-library:ResizableSidebar",
+      "version": "2.0.7",
+      "draftVersion": "2.0.7-draft.1",
+      "publishedAt": "2026-11-13T21:36:57Z"
     },
     {
       "libraryId": "react-component-library:ResizeHandle",
@@ -5618,6 +6158,30 @@
       "publishedAt": "2026-09-08T20:14:47Z"
     },
     {
+      "libraryId": "react-component-library:ResourceCollection",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-11-13T21:16:51Z"
+    },
+    {
+      "libraryId": "react-component-library:ResourceCollection",
+      "version": "1.0.12",
+      "draftVersion": "1.0.12-draft.1",
+      "publishedAt": "2026-11-13T21:19:01Z"
+    },
+    {
+      "libraryId": "react-component-library:ResourceCollection",
+      "version": "1.0.13",
+      "draftVersion": "1.0.13-draft.1",
+      "publishedAt": "2026-11-13T21:20:49Z"
+    },
+    {
+      "libraryId": "react-component-library:ResourceCollection",
+      "version": "1.0.14",
+      "draftVersion": "1.0.14-draft.1",
+      "publishedAt": "2026-11-13T21:41:58Z"
+    },
+    {
       "libraryId": "react-component-library:ResourceDetail",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -5652,6 +6216,18 @@
       "version": "1.0.7",
       "draftVersion": "1.0.7-draft.1",
       "publishedAt": "2026-09-08T20:08:11Z"
+    },
+    {
+      "libraryId": "react-component-library:ResourceDetail",
+      "version": "1.0.8",
+      "draftVersion": "1.0.8-draft.1",
+      "publishedAt": "2026-11-13T21:34:24Z"
+    },
+    {
+      "libraryId": "react-component-library:ResourceDetail",
+      "version": "1.0.9",
+      "draftVersion": "1.0.9-draft.1",
+      "publishedAt": "2026-11-13T21:37:09Z"
     },
     {
       "libraryId": "react-component-library:ResponsiveDialog",
@@ -5840,6 +6416,24 @@
       "publishedAt": "2026-10-16T04:00:05Z"
     },
     {
+      "libraryId": "react-component-library:ResponsiveDialog",
+      "version": "1.3.6",
+      "draftVersion": "1.3.6-draft.1",
+      "publishedAt": "2026-11-13T21:34:32Z"
+    },
+    {
+      "libraryId": "react-component-library:ResponsiveDialog",
+      "version": "1.3.7",
+      "draftVersion": "1.3.7-draft.1",
+      "publishedAt": "2026-11-13T21:37:23Z"
+    },
+    {
+      "libraryId": "react-component-library:ResponsiveDialog",
+      "version": "1.3.8",
+      "draftVersion": "1.3.8-draft.1",
+      "publishedAt": "2026-11-13T21:37:42Z"
+    },
+    {
       "libraryId": "react-component-library:ResponsivePanel",
       "version": "1.1.4",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -5850,6 +6444,24 @@
       "version": "1.1.5",
       "draftVersion": "1.1.5-draft.1",
       "publishedAt": "2026-08-31T05:06:02Z"
+    },
+    {
+      "libraryId": "react-component-library:ResponsivePanel",
+      "version": "1.1.6",
+      "draftVersion": "1.1.6-draft.1",
+      "publishedAt": "2026-11-13T21:34:38Z"
+    },
+    {
+      "libraryId": "react-component-library:ResponsivePanel",
+      "version": "1.1.7",
+      "draftVersion": "1.1.7-draft.1",
+      "publishedAt": "2026-11-13T21:37:34Z"
+    },
+    {
+      "libraryId": "react-component-library:ResponsivePanel",
+      "version": "1.1.8",
+      "draftVersion": "1.1.8-draft.1",
+      "publishedAt": "2026-11-13T21:37:49Z"
     },
     {
       "libraryId": "react-component-library:RollingNumber",
@@ -5898,6 +6510,24 @@
       "version": "0.1.1",
       "draftVersion": "0.1.0-draft.1",
       "publishedAt": "2026-10-30T03:07:28Z"
+    },
+    {
+      "libraryId": "react-component-library:RunLadder",
+      "version": "0.1.2",
+      "draftVersion": "0.1.2-draft.1",
+      "publishedAt": "2026-11-13T21:17:43Z"
+    },
+    {
+      "libraryId": "react-component-library:RunLadder",
+      "version": "0.1.3",
+      "draftVersion": "0.1.3-draft.1",
+      "publishedAt": "2026-11-13T21:19:33Z"
+    },
+    {
+      "libraryId": "react-component-library:RunLadder",
+      "version": "0.1.4",
+      "draftVersion": "0.1.4-draft.1",
+      "publishedAt": "2026-11-13T21:21:31Z"
     },
     {
       "libraryId": "react-component-library:SampleSeries",
@@ -6020,6 +6650,18 @@
       "publishedAt": "2026-09-08T20:14:48Z"
     },
     {
+      "libraryId": "react-component-library:SearchFilterResults",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-11-13T21:34:45Z"
+    },
+    {
+      "libraryId": "react-component-library:SearchFilterResults",
+      "version": "1.0.7",
+      "draftVersion": "1.0.7-draft.1",
+      "publishedAt": "2026-11-13T21:38:36Z"
+    },
+    {
       "libraryId": "react-component-library:SearchInput",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -6054,6 +6696,24 @@
       "version": "1.0.7",
       "draftVersion": "1.0.7-draft.1",
       "publishedAt": "2026-09-08T20:06:12Z"
+    },
+    {
+      "libraryId": "react-component-library:SearchResults",
+      "version": "1.0.8",
+      "draftVersion": "1.0.8-draft.1",
+      "publishedAt": "2026-11-13T21:34:51Z"
+    },
+    {
+      "libraryId": "react-component-library:SearchResults",
+      "version": "1.0.9",
+      "draftVersion": "1.0.9-draft.1",
+      "publishedAt": "2026-11-13T21:37:52Z"
+    },
+    {
+      "libraryId": "react-component-library:SearchResults",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:38:46Z"
     },
     {
       "libraryId": "react-component-library:Select",
@@ -6210,6 +6870,18 @@
       "version": "1.3.21",
       "draftVersion": "1.3.21-draft.1",
       "publishedAt": "2026-11-07T17:47:07Z"
+    },
+    {
+      "libraryId": "react-component-library:Select",
+      "version": "1.3.22",
+      "draftVersion": "1.3.22-draft.1",
+      "publishedAt": "2026-11-10T17:25:43Z"
+    },
+    {
+      "libraryId": "react-component-library:Select",
+      "version": "1.3.23",
+      "draftVersion": "1.3.23-draft.1",
+      "publishedAt": "2026-11-13T21:17:20Z"
     },
     {
       "libraryId": "react-component-library:SelectionControl",
@@ -6446,6 +7118,30 @@
       "publishedAt": "2026-10-29T20:17:19Z"
     },
     {
+      "libraryId": "react-component-library:SettingsList",
+      "version": "1.3.1",
+      "draftVersion": "1.3.1-draft.1",
+      "publishedAt": "2026-11-13T21:34:56Z"
+    },
+    {
+      "libraryId": "react-component-library:SettingsList",
+      "version": "1.3.2",
+      "draftVersion": "1.3.2-draft.1",
+      "publishedAt": "2026-11-13T21:37:59Z"
+    },
+    {
+      "libraryId": "react-component-library:SettingsList",
+      "version": "1.3.3",
+      "draftVersion": "1.3.3-draft.1",
+      "publishedAt": "2026-11-13T21:38:56Z"
+    },
+    {
+      "libraryId": "react-component-library:SettingsList",
+      "version": "1.3.4",
+      "draftVersion": "1.3.4-draft.1",
+      "publishedAt": "2026-11-13T21:39:16Z"
+    },
+    {
       "libraryId": "react-component-library:SetupTask",
       "version": "0.1.1",
       "draftVersion": "0.1.0-draft.1",
@@ -6486,6 +7182,24 @@
       "version": "0.2.0",
       "draftVersion": "0.2.0-draft.1",
       "publishedAt": "2026-09-11T04:56:29Z"
+    },
+    {
+      "libraryId": "react-component-library:SetupTask",
+      "version": "0.2.1",
+      "draftVersion": "0.2.1-draft.1",
+      "publishedAt": "2026-11-13T21:35:04Z"
+    },
+    {
+      "libraryId": "react-component-library:SetupTask",
+      "version": "0.2.2",
+      "draftVersion": "0.2.2-draft.1",
+      "publishedAt": "2026-11-13T21:38:05Z"
+    },
+    {
+      "libraryId": "react-component-library:SetupTask",
+      "version": "0.2.3",
+      "draftVersion": "0.2.3-draft.1",
+      "publishedAt": "2026-11-13T21:39:23Z"
     },
     {
       "libraryId": "react-component-library:ShortcutRegistry",
@@ -6650,6 +7364,24 @@
       "publishedAt": "2026-11-07T14:36:32Z"
     },
     {
+      "libraryId": "react-component-library:SidebarShell",
+      "version": "2.7.9",
+      "draftVersion": "2.7.9-draft.1",
+      "publishedAt": "2026-11-13T21:35:11Z"
+    },
+    {
+      "libraryId": "react-component-library:SidebarShell",
+      "version": "2.7.10",
+      "draftVersion": "2.7.10-draft.1",
+      "publishedAt": "2026-11-13T21:38:14Z"
+    },
+    {
+      "libraryId": "react-component-library:SidebarShell",
+      "version": "2.7.11",
+      "draftVersion": "2.7.11-draft.1",
+      "publishedAt": "2026-11-13T21:39:32Z"
+    },
+    {
       "libraryId": "react-component-library:Skeleton",
       "version": "1.0.4",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -6728,6 +7460,24 @@
       "publishedAt": "2026-09-08T20:07:43Z"
     },
     {
+      "libraryId": "react-component-library:Slider",
+      "version": "1.2.5",
+      "draftVersion": "1.2.5-draft.1",
+      "publishedAt": "2026-11-13T21:35:16Z"
+    },
+    {
+      "libraryId": "react-component-library:Slider",
+      "version": "1.2.6",
+      "draftVersion": "1.2.6-draft.1",
+      "publishedAt": "2026-11-13T21:38:21Z"
+    },
+    {
+      "libraryId": "react-component-library:Slider",
+      "version": "1.2.7",
+      "draftVersion": "1.2.7-draft.1",
+      "publishedAt": "2026-11-13T21:39:53Z"
+    },
+    {
       "libraryId": "react-component-library:Slot",
       "version": "1.0.1",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -6786,6 +7536,12 @@
       "version": "1.1.1",
       "draftVersion": "1.1.1-draft.1",
       "publishedAt": "2026-09-08T20:07:00Z"
+    },
+    {
+      "libraryId": "react-component-library:Sortable",
+      "version": "1.1.2",
+      "draftVersion": "1.1.2-draft.1",
+      "publishedAt": "2026-11-13T21:18:27Z"
     },
     {
       "libraryId": "react-component-library:Spinner",
@@ -6974,6 +7730,24 @@
       "publishedAt": "2026-08-31T05:24:23Z"
     },
     {
+      "libraryId": "react-component-library:StatusBadge",
+      "version": "1.2.3",
+      "draftVersion": "1.2.3-draft.1",
+      "publishedAt": "2026-11-13T21:35:20Z"
+    },
+    {
+      "libraryId": "react-component-library:StatusBadge",
+      "version": "1.2.4",
+      "draftVersion": "1.2.4-draft.1",
+      "publishedAt": "2026-11-13T21:38:29Z"
+    },
+    {
+      "libraryId": "react-component-library:StatusBadge",
+      "version": "1.2.5",
+      "draftVersion": "1.2.5-draft.1",
+      "publishedAt": "2026-11-13T21:40:00Z"
+    },
+    {
       "libraryId": "react-component-library:StatusIndicator",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -7154,6 +7928,12 @@
       "publishedAt": "2026-09-08T20:08:04Z"
     },
     {
+      "libraryId": "react-component-library:SwipeActions",
+      "version": "1.4.2",
+      "draftVersion": "1.4.2-draft.1",
+      "publishedAt": "2026-11-13T21:18:32Z"
+    },
+    {
       "libraryId": "react-component-library:Switch",
       "version": "1.0.5",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -7232,6 +8012,24 @@
       "publishedAt": "2026-09-08T20:07:02Z"
     },
     {
+      "libraryId": "react-component-library:Table",
+      "version": "1.0.4",
+      "draftVersion": "1.0.4-draft.1",
+      "publishedAt": "2026-11-13T21:35:24Z"
+    },
+    {
+      "libraryId": "react-component-library:Table",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:38:39Z"
+    },
+    {
+      "libraryId": "react-component-library:Table",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-11-13T21:40:08Z"
+    },
+    {
       "libraryId": "react-component-library:Tabs",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -7304,6 +8102,12 @@
       "publishedAt": "2026-10-31T05:01:06Z"
     },
     {
+      "libraryId": "react-component-library:Tabs",
+      "version": "1.3.5",
+      "draftVersion": "1.3.5-draft.1",
+      "publishedAt": "2026-11-13T21:17:41Z"
+    },
+    {
       "libraryId": "react-component-library:TargetSwitcher",
       "version": "0.1.1",
       "draftVersion": "0.1.0-draft.1",
@@ -7368,6 +8172,24 @@
       "version": "0.3.5",
       "draftVersion": "0.3.5-draft.1",
       "publishedAt": "2026-10-19T20:22:39Z"
+    },
+    {
+      "libraryId": "react-component-library:TargetSwitcher",
+      "version": "0.3.6",
+      "draftVersion": "0.3.6-draft.1",
+      "publishedAt": "2026-11-13T21:35:29Z"
+    },
+    {
+      "libraryId": "react-component-library:TargetSwitcher",
+      "version": "0.3.7",
+      "draftVersion": "0.3.7-draft.1",
+      "publishedAt": "2026-11-13T21:38:49Z"
+    },
+    {
+      "libraryId": "react-component-library:TargetSwitcher",
+      "version": "0.3.8",
+      "draftVersion": "0.3.8-draft.1",
+      "publishedAt": "2026-11-13T21:40:28Z"
     },
     {
       "libraryId": "react-component-library:Text",
@@ -7458,6 +8280,24 @@
       "version": "1.0.7",
       "draftVersion": "1.0.7-draft.1",
       "publishedAt": "2026-09-03T23:56:00Z"
+    },
+    {
+      "libraryId": "react-component-library:Timeline",
+      "version": "1.0.8",
+      "draftVersion": "1.0.8-draft.1",
+      "publishedAt": "2026-11-13T21:35:33Z"
+    },
+    {
+      "libraryId": "react-component-library:Timeline",
+      "version": "1.0.9",
+      "draftVersion": "1.0.9-draft.1",
+      "publishedAt": "2026-11-13T21:38:59Z"
+    },
+    {
+      "libraryId": "react-component-library:Timeline",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:40:39Z"
     },
     {
       "libraryId": "react-component-library:Toast",
@@ -7580,6 +8420,18 @@
       "publishedAt": "2026-09-08T20:07:57Z"
     },
     {
+      "libraryId": "react-component-library:Toggle",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:33:48Z"
+    },
+    {
+      "libraryId": "react-component-library:Toggle",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-11-13T21:36:32Z"
+    },
+    {
       "libraryId": "react-component-library:Tokens",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -7664,6 +8516,18 @@
       "publishedAt": "2026-09-08T20:05:00Z"
     },
     {
+      "libraryId": "react-component-library:Toolbar",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:33:59Z"
+    },
+    {
+      "libraryId": "react-component-library:Toolbar",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-11-13T21:36:36Z"
+    },
+    {
       "libraryId": "react-component-library:Tooltip",
       "version": "1.0.1",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -7692,6 +8556,24 @@
       "version": "1.0.5",
       "draftVersion": "1.0.5-draft.1",
       "publishedAt": "2026-09-08T20:17:08Z"
+    },
+    {
+      "libraryId": "react-component-library:Tooltip",
+      "version": "1.0.6",
+      "draftVersion": "1.0.6-draft.1",
+      "publishedAt": "2026-11-13T21:34:03Z"
+    },
+    {
+      "libraryId": "react-component-library:Tooltip",
+      "version": "1.0.7",
+      "draftVersion": "1.0.7-draft.1",
+      "publishedAt": "2026-11-13T21:36:41Z"
+    },
+    {
+      "libraryId": "react-component-library:Tooltip",
+      "version": "1.0.8",
+      "draftVersion": "1.0.8-draft.1",
+      "publishedAt": "2026-11-13T21:40:31Z"
     },
     {
       "libraryId": "react-component-library:TopBar",
@@ -7782,6 +8664,12 @@
       "version": "1.0.7",
       "draftVersion": "1.0.7-draft.1",
       "publishedAt": "2026-08-31T05:06:10Z"
+    },
+    {
+      "libraryId": "react-component-library:TreeView",
+      "version": "1.0.8",
+      "draftVersion": "1.0.8-draft.1",
+      "publishedAt": "2026-11-13T21:18:06Z"
     },
     {
       "libraryId": "react-component-library:TrendSpark",
@@ -7892,6 +8780,24 @@
       "publishedAt": "2026-08-31T05:25:02Z"
     },
     {
+      "libraryId": "react-component-library:UndoableDestructiveAction",
+      "version": "1.0.9",
+      "draftVersion": "1.0.9-draft.1",
+      "publishedAt": "2026-11-13T21:34:08Z"
+    },
+    {
+      "libraryId": "react-component-library:UndoableDestructiveAction",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:36:48Z"
+    },
+    {
+      "libraryId": "react-component-library:UndoableDestructiveAction",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-11-13T21:40:47Z"
+    },
+    {
       "libraryId": "react-component-library:UnsavedChangesFlow",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -7920,6 +8826,24 @@
       "version": "1.0.9",
       "draftVersion": "1.0.9-draft.1",
       "publishedAt": "2026-08-31T05:07:28Z"
+    },
+    {
+      "libraryId": "react-component-library:UnsavedChangesFlow",
+      "version": "1.0.10",
+      "draftVersion": "1.0.10-draft.1",
+      "publishedAt": "2026-11-13T21:34:15Z"
+    },
+    {
+      "libraryId": "react-component-library:UnsavedChangesFlow",
+      "version": "1.0.11",
+      "draftVersion": "1.0.11-draft.1",
+      "publishedAt": "2026-11-13T21:36:53Z"
+    },
+    {
+      "libraryId": "react-component-library:UnsavedChangesFlow",
+      "version": "1.0.12",
+      "draftVersion": "1.0.12-draft.1",
+      "publishedAt": "2026-11-13T21:40:42Z"
     },
     {
       "libraryId": "react-component-library:UpgradePrompt",
@@ -7956,6 +8880,18 @@
       "version": "1.0.3",
       "draftVersion": "1.0.3-draft.1",
       "publishedAt": "2026-09-03T13:07:47Z"
+    },
+    {
+      "libraryId": "react-component-library:ValidationAdapter",
+      "version": "1.0.4",
+      "draftVersion": "1.0.4-draft.1",
+      "publishedAt": "2026-11-13T21:34:21Z"
+    },
+    {
+      "libraryId": "react-component-library:ValidationAdapter",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:36:59Z"
     },
     {
       "libraryId": "react-component-library:ValidationSummary",
@@ -8066,6 +9002,18 @@
       "publishedAt": "2026-09-08T20:06:05Z"
     },
     {
+      "libraryId": "react-component-library:VersionRow",
+      "version": "1.0.8",
+      "draftVersion": "1.0.8-draft.1",
+      "publishedAt": "2026-11-13T21:34:28Z"
+    },
+    {
+      "libraryId": "react-component-library:VersionRow",
+      "version": "1.0.9",
+      "draftVersion": "1.0.9-draft.1",
+      "publishedAt": "2026-11-13T21:37:04Z"
+    },
+    {
       "libraryId": "react-component-library:VirtualList",
       "version": "1.0.4",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -8132,6 +9080,18 @@
       "publishedAt": "2026-10-19T19:29:59Z"
     },
     {
+      "libraryId": "react-component-library:VirtualList",
+      "version": "1.3.5",
+      "draftVersion": "1.3.5-draft.1",
+      "publishedAt": "2026-11-13T21:34:36Z"
+    },
+    {
+      "libraryId": "react-component-library:VirtualList",
+      "version": "1.3.6",
+      "draftVersion": "1.3.6-draft.1",
+      "publishedAt": "2026-11-13T21:37:12Z"
+    },
+    {
       "libraryId": "react-component-library:VisualRecipes",
       "version": "1.0.0",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -8196,6 +9156,24 @@
       "version": "1.0.2",
       "draftVersion": "1.0.2-draft.1",
       "publishedAt": "2026-08-31T05:24:26Z"
+    },
+    {
+      "libraryId": "react-component-library:WorkspaceHeader",
+      "version": "1.0.3",
+      "draftVersion": "1.0.3-draft.1",
+      "publishedAt": "2026-11-13T21:34:42Z"
+    },
+    {
+      "libraryId": "react-component-library:WorkspaceHeader",
+      "version": "1.0.4",
+      "draftVersion": "1.0.4-draft.1",
+      "publishedAt": "2026-11-13T21:37:16Z"
+    },
+    {
+      "libraryId": "react-component-library:WorkspaceHeader",
+      "version": "1.0.5",
+      "draftVersion": "1.0.5-draft.1",
+      "publishedAt": "2026-11-13T21:40:35Z"
     },
     {
       "libraryId": "react-component-library:async-state",
@@ -8270,6 +9248,18 @@
       "publishedAt": "2026-08-31T05:48:41Z"
     },
     {
+      "libraryId": "react-component-library:inline-code",
+      "version": "0.3.6",
+      "draftVersion": "0.3.6-draft.1",
+      "publishedAt": "2026-11-13T21:34:49Z"
+    },
+    {
+      "libraryId": "react-component-library:inline-code",
+      "version": "0.3.7",
+      "draftVersion": "0.3.7-draft.1",
+      "publishedAt": "2026-11-13T21:37:20Z"
+    },
+    {
       "libraryId": "react-component-library:markdown-renderer",
       "version": "0.3.2",
       "publishedAt": "2026-08-27T00:00:00Z",
@@ -8328,6 +9318,18 @@
       "version": "0.5.1",
       "draftVersion": "0.5.1-draft.1",
       "publishedAt": "2026-11-07T18:17:09Z"
+    },
+    {
+      "libraryId": "react-component-library:markdown-renderer",
+      "version": "0.5.2",
+      "draftVersion": "0.5.2-draft.1",
+      "publishedAt": "2026-11-13T21:35:00Z"
+    },
+    {
+      "libraryId": "react-component-library:markdown-renderer",
+      "version": "0.5.3",
+      "draftVersion": "0.5.3-draft.1",
+      "publishedAt": "2026-11-13T21:37:29Z"
     },
     {
       "libraryId": "react-component-library:mermaid-diagram",
@@ -8778,6 +9780,12 @@
       "version": "1.1.2",
       "draftVersion": "1.1.2-draft.1",
       "publishedAt": "2026-09-08T20:15:29Z"
+    },
+    {
+      "libraryId": "react-component-library:useLongPress",
+      "version": "1.0.0",
+      "publishedAt": "2026-09-03T21:07:18.953309357Z",
+      "backfilled": true
     },
     {
       "libraryId": "react-component-library:useLongPress",
@@ -9258,6 +10266,18 @@
       "version": "1.1.4",
       "draftVersion": "1.1.4-draft.1",
       "publishedAt": "2026-10-28T20:08:12Z"
+    },
+    {
+      "libraryId": "react-component-library:useViewportEnvironment",
+      "version": "1.1.5",
+      "draftVersion": "1.1.5-draft.1",
+      "publishedAt": "2026-11-13T21:35:06Z"
+    },
+    {
+      "libraryId": "react-component-library:useViewportEnvironment",
+      "version": "1.1.6",
+      "draftVersion": "1.1.6-draft.1",
+      "publishedAt": "2026-11-13T21:37:36Z"
     },
     {
       "libraryId": "react-component-library:useVoiceInput",

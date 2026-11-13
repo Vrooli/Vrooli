@@ -1,0 +1,31 @@
+{
+  "collections": [
+    {
+      "labelField": "label",
+      "maximumCount": 80,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "items",
+      "requiredFields": [
+        "id",
+        "label"
+      ],
+      "stableIdField": "id",
+      "typicalCount": 12
+    },
+    {
+      "labelField": "label",
+      "maximumCount": 80,
+      "maximumLabelCharacters": 48,
+      "primaryAction": "not-applicable",
+      "property": "nodes",
+      "requiredFields": [
+        "label"
+      ],
+      "stableIdField": "generated position-and-label id",
+      "typicalCount": 12
+    }
+  ],
+  "componentId": "react-component-library:TreeView",
+  "version": "1.0.8"
+}

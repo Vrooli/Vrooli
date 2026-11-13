@@ -25,6 +25,9 @@
     "1.0.7",
     "1.0.8"
   ],
-  "latest": "1.0.9",
-  "libraryId": "react-component-library:ErrorBoundary"
+  "latest": "1.0.10",
+  "libraryId": "react-component-library:ErrorBoundary",
+  "displayName": "ErrorBoundary",
+  "description": "The recoverable rendering boundary with reset keys, contextual fallback, telemetry reporting, retry, safe diagnostic disclosure, and preservation of the unaffected interface.",
+  "tags": []
 }
