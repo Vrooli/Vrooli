@@ -254,7 +254,19 @@ func (s *Supervisor) doHandshake(startupCtx context.Context) error {
 		RequestID:       reqID,
 		ProtocolVersion: ProtocolVersion,
 	}
-	if err := s.writer.Write(req); err != nil {
+	// One deadline covers delivering the handshake and receiving the reply.
+	ctx, cancel := context.WithTimeout(startupCtx, s.cfg.HandshakeTimeout)
+	defer cancel()
+	timedOut := func() error {
+		if err := startupCtx.Err(); err != nil {
+			return err
+		}
+		return ErrSidecarTimeout
+	}
+	if err := s.writer.Write(ctx, req); err != nil {
+		if ctx.Err() != nil {
+			return timedOut()
+		}
 		return err
 	}
 
@@ -271,10 +283,8 @@ func (s *Supervisor) doHandshake(startupCtx context.Context) error {
 			return &SidecarVersionMismatch{Want: ProtocolVersion, Got: hr.ProtocolVersion}
 		}
 		return nil
-	case <-time.After(s.cfg.HandshakeTimeout):
-		return ErrSidecarTimeout
-	case <-startupCtx.Done():
-		return startupCtx.Err()
+	case <-ctx.Done():
+		return timedOut()
 	case <-s.rootCtx.Done():
 		return s.rootCtx.Err()
 	}
@@ -499,16 +509,19 @@ func (s *Supervisor) heartbeatOnce() bool {
 	ch := s.registerPending(reqID)
 	defer s.unregisterPending(reqID)
 
-	if err := w.Write(heartbeatRequest{Type: "heartbeat", RequestID: reqID}); err != nil {
-		return false
+	// One deadline covers delivering the heartbeat and receiving the reply.
+	// A child that stopped reading stdin must fail here, not block the
+	// watchdog in the write.
+	ctx, cancel := context.WithTimeout(s.rootCtx, s.cfg.HeartbeatTimeout)
+	defer cancel()
+	if err := w.Write(ctx, heartbeatRequest{Type: "heartbeat", RequestID: reqID}); err != nil {
+		return s.rootCtx.Err() != nil // shutdown in progress; don't kill
 	}
 	select {
 	case resp := <-ch:
 		return resp.kind == "heartbeat"
-	case <-time.After(s.cfg.HeartbeatTimeout):
-		return false
-	case <-s.rootCtx.Done():
-		return true // shutdown in progress; don't kill
+	case <-ctx.Done():
+		return s.rootCtx.Err() != nil // shutdown in progress; don't kill
 	}
 }
 
@@ -535,7 +548,7 @@ func (s *Supervisor) Shutdown(ctx context.Context) error {
 
 	if w != nil {
 		// Best-effort graceful message; ignore write errors.
-		_ = w.Write(map[string]string{"type": "shutdown"})
+		_ = w.Write(ctx, map[string]string{"type": "shutdown"})
 	}
 
 	// Wait for supervisor exit or ctx expiry.
@@ -604,7 +617,12 @@ func (s *Supervisor) Extract(ctx context.Context, projectPath string) (ExtractRe
 	if w == nil {
 		return ExtractResult{}, ErrSidecarUnavailable
 	}
-	if err := w.Write(extractRequest{Type: "extract", RequestID: reqID, ProjectPath: projectPath}); err != nil {
+	if err := w.Write(ctx, extractRequest{Type: "extract", RequestID: reqID, ProjectPath: projectPath}); err != nil {
+		if ctx.Err() != nil {
+			// The frame may still reach the child once its stdin drains.
+			s.sendCancel(w, reqID)
+			return ExtractResult{RequestID: reqID}, ctx.Err()
+		}
 		return ExtractResult{}, fmt.Errorf("%w: %v", ErrSidecarUnavailable, err)
 	}
 
@@ -612,9 +630,9 @@ func (s *Supervisor) Extract(ctx context.Context, projectPath string) (ExtractRe
 	case resp := <-ch:
 		return s.decodeExtractResponse(reqID, resp)
 	case <-ctx.Done():
-		// Best-effort cancel IPC; resolve locally regardless. The reqID
-		// still travels back so callers can correlate the cancelled work.
-		_ = w.Write(cancelRequest{Type: "cancel", RequestID: reqID})
+		// Resolve locally regardless of the child. The reqID still travels
+		// back so callers can correlate the cancelled work.
+		s.sendCancel(w, reqID)
 		return ExtractResult{RequestID: reqID}, ctx.Err()
 	}
 }
@@ -657,12 +675,16 @@ func (s *Supervisor) RewriteApply(ctx context.Context, projectPath string, ops [
 	if w == nil {
 		return nil, ErrSidecarUnavailable
 	}
-	if err := w.Write(rewriteApplyRequest{
+	if err := w.Write(ctx, rewriteApplyRequest{
 		Type:        "rewrite_apply",
 		RequestID:   reqID,
 		ProjectPath: projectPath,
 		Operations:  ops,
 	}); err != nil {
+		if ctx.Err() != nil {
+			s.sendCancel(w, reqID)
+			return nil, ctx.Err()
+		}
 		return nil, fmt.Errorf("%w: %v", ErrSidecarUnavailable, err)
 	}
 
@@ -670,7 +692,7 @@ func (s *Supervisor) RewriteApply(ctx context.Context, projectPath string, ops [
 	case resp := <-ch:
 		return s.decodeRewriteResponse(resp)
 	case <-ctx.Done():
-		_ = w.Write(cancelRequest{Type: "cancel", RequestID: reqID})
+		s.sendCancel(w, reqID)
 		return nil, ctx.Err()
 	}
 }
@@ -694,6 +716,18 @@ func (s *Supervisor) decodeRewriteResponse(resp rawResponse) ([]OperationResult,
 	default:
 		return nil, fmt.Errorf("unexpected response kind %q", resp.kind)
 	}
+}
+
+// sendCancel asks the child to drop a request whose caller has gone. The
+// sidecar discards cancelled work that has not started yet. Delivery runs in
+// the background so a child that stopped reading stdin cannot hold the
+// caller past its deadline; it is bounded like a heartbeat.
+func (s *Supervisor) sendCancel(w *frameWriter, reqID string) {
+	go func() {
+		ctx, cancel := context.WithTimeout(s.rootCtx, s.cfg.HeartbeatTimeout)
+		defer cancel()
+		_ = w.Write(ctx, cancelRequest{Type: "cancel", RequestID: reqID})
+	}()
 }
 
 func (s *Supervisor) finishActiveRequest() {

@@ -7,6 +7,8 @@
 //   IGNORE_HEARTBEAT=1    swallow heartbeat requests without replying
 //   SLOW_EXTRACT_MS=<n>   delay extract reply by N ms (for cancel tests)
 //   BLOCK_EXTRACT_MS=<n>  block the event loop before extract reply
+//   HANG_ON_EXTRACT=1     block the event loop forever on the first extract,
+//                         so stdin is never read again (a wedged ts-morph run)
 //   PROTOCOL_VERSION=<n>  override handshake reply protocol_version
 //
 // Stderr is fine for noise; stdout is framed JSON only.
@@ -18,6 +20,7 @@ const ignoreHeartbeat = process.env.IGNORE_HEARTBEAT === '1';
 const slowExtractMs = parseInt(process.env.SLOW_EXTRACT_MS || '0', 10);
 const blockExtractMs = parseInt(process.env.BLOCK_EXTRACT_MS || '0', 10);
 const protoVersion = parseInt(process.env.PROTOCOL_VERSION || '1', 10);
+const hangOnExtract = process.env.HANG_ON_EXTRACT === '1';
 
 let processed = 0;
 
@@ -70,6 +73,10 @@ rl.on('line', (line) => {
       maybeExit();
       break;
     case 'extract':
+      if (hangOnExtract) {
+        // Sleep without spinning; only SIGKILL ends this.
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+      }
       if (blockExtractMs > 0) {
         blockFor(blockExtractMs);
         send({

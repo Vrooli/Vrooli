@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/connectx"
 
 	rewriteH "typescript-code-graph/handlers/rewrite"
 	intgraph "typescript-code-graph/internal/graph"
@@ -88,7 +89,7 @@ func (h *connectHandler) RewriteApply(ctx context.Context, req *connect.Request[
 // logs internal failures (client-attributable codes are not logged so
 // a buggy caller cannot spam the operator's log).
 func (h *connectHandler) toClientError(projectPath string, err error) error {
-	connectErr := intgraph.ToConnectError(err)
+	connectErr := connectx.WrapError(err, intgraph.ErrorToConnectCode)
 	if connect.CodeOf(connectErr) == connect.CodeInternal {
 		h.deps.Logger.Printf("graph.Extract(%q): %v", projectPath, err)
 	}

@@ -83,7 +83,7 @@ func main() {
 		EngineDeps:       engineDeps,
 	})
 
-	if err := aiService.EnsureCollection(context.Background()); err != nil {
+	if err := ensureSearchCollection(context.Background(), 5*time.Second, aiService.EnsureCollection); err != nil {
 		logger.Printf("[ui-health] qdrant collection ensure failed (continuing with degraded search): %v", err)
 	}
 
@@ -124,6 +124,18 @@ func main() {
 	}); err != nil {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// ensureSearchCollection keeps optional search infrastructure out of the API
+// readiness path. The Qdrant client has a longer transport timeout than this
+// scenario's startup grace period, so always bound the best-effort boot check.
+func ensureSearchCollection(parent context.Context, timeout time.Duration, ensure func(context.Context) error) error {
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
+	defer cancel()
+	return ensure(ctx)
 }
 
 // surfacesProviderID is the provider id ui-health owns in its search.json SSOT.

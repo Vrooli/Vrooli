@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -186,11 +187,28 @@ func (c *connectRunner) downloadExecutionScreenshot(ctx context.Context, ex apic
 	if selectedURL == "" {
 		return nil, ""
 	}
+	selectedURL = absoluteAssetURL(baseURL, selectedURL)
 	data, err := c.downloadAsset(ctx, baseURL, selectedURL)
 	if err != nil {
 		return nil, selectedURL
 	}
 	return data, selectedURL
+}
+
+func absoluteAssetURL(baseURL, assetURL string) string {
+	assetURL = strings.TrimSpace(assetURL)
+	if assetURL == "" || strings.HasPrefix(assetURL, "http://") || strings.HasPrefix(assetURL, "https://") {
+		return assetURL
+	}
+	base, err := url.Parse(strings.TrimSpace(baseURL))
+	if err != nil || base == nil || base.Scheme == "" || base.Host == "" {
+		return assetURL
+	}
+	ref, err := url.Parse(assetURL)
+	if err != nil {
+		return assetURL
+	}
+	return base.ResolveReference(ref).String()
 }
 
 func (c *connectRunner) downloadAsset(ctx context.Context, baseURL, assetURL string) ([]byte, error) {

@@ -41,3 +41,36 @@ func TestReadinessProfilePrefersConcreteStateSetupRoutes(t *testing.T) {
 	require.NoError(t, json.Unmarshal([]byte(`{"pages":[{"routes":["/assets/:id"],"runtimeRoutes":["/assets/Button?tab=preview"],"regions":[]}]}`), &profile))
 	require.Equal(t, []string{"/assets/Button?tab=preview"}, profile.routes())
 }
+
+func TestReadinessProfileSkipsUnresolvedTemplatesAndReportsGap(t *testing.T) {
+	var profile readinessProfile
+	require.NoError(t, json.Unmarshal([]byte(`{"pages":[{"routes":["/design/:scenario"],"regions":[]},{"routes":["/design/:scenario/:page"],"runtimeRoutes":["/design/switchboard/dashboard"],"regions":[]}]}`), &profile))
+	require.Equal(t, []string{"/design/switchboard", "/design/switchboard/dashboard"}, profile.routes())
+	require.Empty(t, profile.unresolvedRouteTemplates())
+}
+
+func TestReadinessProfileExpandsTemplatesFromConcreteSiblingRoutes(t *testing.T) {
+	var profile readinessProfile
+	require.NoError(t, json.Unmarshal([]byte(`{"pages":[{"routes":["/assets/:id"],"runtimeRoutes":["/assets/react-component-library%3AButton?tab=preview"]},{"routes":["/assets/:id/preview"]},{"routes":["/design/:scenario"]},{"routes":["/design/:scenario/:page"],"runtimeRoutes":["/design/switchboard/dashboard"]}]}`), &profile))
+	require.Equal(t, []string{
+		"/assets/react-component-library%3AButton?tab=preview",
+		"/assets/react-component-library%3AButton/preview",
+		"/design/switchboard",
+		"/design/switchboard/dashboard",
+	}, profile.routes())
+	require.Empty(t, profile.unresolvedRouteTemplates())
+}
+
+func TestReadinessProfileReportsTemplatesWithoutConcreteSibling(t *testing.T) {
+	var profile readinessProfile
+	require.NoError(t, json.Unmarshal([]byte(`{"pages":[{"routes":["/design/:scenario"],"regions":[]}]}`), &profile))
+	require.Equal(t, []string{"/"}, fallbackRoutes(&profile))
+	require.Equal(t, []string{"/design/:scenario"}, profile.unresolvedRouteTemplates())
+}
+
+func fallbackRoutes(profile *readinessProfile) []string {
+	if routes := profile.routes(); len(routes) > 0 {
+		return routes
+	}
+	return []string{"/"}
+}

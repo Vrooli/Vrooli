@@ -154,6 +154,20 @@ This file ships empty in newly generated scenarios. Append entries as they appea
 
 **Resolution:** Resolved by Phase 2 of the implementation plan. `sidecar/{package.json, tsconfig.json, src/, tests/, scripts/build.mjs}` ship complete; `dist/index.js` is gated by `.vrooli/service.json` lifecycle setup. Kept as a historical marker; remove on next janitorial pass.
 
+### 2026-11-12 — A started extract cannot be interrupted
+
+**Symptom:** A single extract that runs long holds the sidecar's only event loop. Heartbeats are skipped while any caller waits, and other projects' extracts queue behind it.
+
+**Root cause:** ts-morph work in `extract()` is synchronous, so a `cancel` can only drop requests that have not started. In the 2026-11-12 incident the sidecar spent 44 h at 100 % of a core. Three defects compounded this constraint. Location lookups rescanned the whole file per node, making extraction quadratic: one minified 520 KB line never finished. Cancelled requests that were queued behind the path lock still ran. Unbounded Go frame writes blocked on the full 8 KiB stdin pipe, which silenced the heartbeat watchdog. All three are fixed (`sidecar/src/extract.ts` `lineAndColumnAt`, `sidecar/src/index.ts` cancel check under the lock, `api/internal/sidecar/framing.go` context-bounded `Write`), and JavaScript-only discovery now skips minified bundles.
+
+**Workaround:** None needed for known inputs; the slowest real caller project now extracts in about 2 s.
+
+**Real fix:** Move extraction off the event loop (a worker thread per request that can be terminated on cancel) if any input again makes a single extract run longer than callers wait.
+
+**Owner:** unassigned.
+
+**Refs:** `sidecar/tests/source-locations.test.ts`, `sidecar/tests/dispatch-cancel.test.ts`, `api/internal/sidecar/stalled_stdin_test.go`.
+
 ## Architecture Drift
 
 | Area | Drift | Maturity Impact | Real Fix |

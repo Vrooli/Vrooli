@@ -50,9 +50,12 @@ async function handleExtract(req: ExtractRequest): Promise<void> {
   activeWork++;
   try {
     const result = await withPathLock(req.project_path, async () => {
+      // The caller may have given up while this request waited for the
+      // path lock; starting ts-morph then only burns CPU for nobody.
+      if (entry.cancelled) return undefined;
       return extract({ projectPath: req.project_path });
     });
-    if (entry.cancelled) {
+    if (entry.cancelled || result === undefined) {
       logger.debug("discarding result of cancelled extract", { request_id: req.request_id });
       return;
     }
@@ -78,12 +81,14 @@ async function handleRewriteApply(req: RewriteApplyRequest): Promise<void> {
   activeWork++;
   try {
     const results = await withPathLock(req.project_path, async () => {
+      // A rewrite whose caller already gave up must not touch the tree.
+      if (entry.cancelled) return undefined;
       return applyRewrite({
         projectPath: req.project_path,
         operations: req.operations,
       });
     });
-    if (entry.cancelled) {
+    if (entry.cancelled || results === undefined) {
       logger.debug("discarding result of cancelled rewrite_apply", { request_id: req.request_id });
       return;
     }
@@ -124,7 +129,8 @@ async function handleShutdown(_req: ShutdownRequest): Promise<void> {
   process.exit(0);
 }
 
-async function dispatch(msg: Request): Promise<void> {
+/** Exported for tests; production input arrives through startStdioLoop. */
+export async function dispatch(msg: Request): Promise<void> {
   switch (msg.type) {
     case "handshake":
       writeMessage(handleHandshake(msg as HandshakeRequest));

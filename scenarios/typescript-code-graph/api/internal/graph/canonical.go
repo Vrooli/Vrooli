@@ -30,7 +30,7 @@ func CanonicalJSON(g Graph) ([]byte, error) {
 			Kind:            nodeKindToWire(n.Kind),
 			Name:            n.Name,
 			Path:            n.Path,
-			Attributes:      canonicalAttrs(n.Attributes),
+			Attributes:      cloneAttrs(n.Attributes),
 			LeadingComments: lc,
 		})
 	}
@@ -40,7 +40,7 @@ func CanonicalJSON(g Graph) ([]byte, error) {
 			Kind:       edgeKindToWire(e.Kind),
 			FromNodeID: e.From,
 			ToNodeID:   e.To,
-			Attributes: canonicalAttrs(e.Attributes),
+			Attributes: cloneAttrs(e.Attributes),
 		})
 	}
 	// Mirror what the sidecar emits (already sorted by Normalize, but be
@@ -95,19 +95,6 @@ type wireEdge struct {
 type wireGraph struct {
 	Edges []wireEdge `json:"edges"`
 	Nodes []wireNode `json:"nodes"`
-}
-
-// canonicalAttrs returns a copy of in, or nil if empty (encoding/json sorts
-// map keys when marshaling, so we only need to nil-out empties for omitempty).
-func canonicalAttrs(in map[string]string) map[string]string {
-	if len(in) == 0 {
-		return nil
-	}
-	out := make(map[string]string, len(in))
-	for k, v := range in {
-		out[k] = v
-	}
-	return out
 }
 
 // nodeKindToWire reverses graph.NodeKind to the int32 wire enum values, mirroring

@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/connectx"
 
 	rewritedom "typescript-code-graph/internal/rewrite"
 
@@ -28,7 +29,7 @@ func RewritePlan(ctx context.Context, req *connect.Request[graphv1.RewritePlanRe
 	}
 	out, err := svc.Plan(ctx, in)
 	if err != nil {
-		return nil, rewritedom.ToConnectError(err)
+		return nil, connectx.WrapError(err, rewritedom.ErrorToConnectCode)
 	}
 	return connect.NewResponse(&graphv1.RewritePlanResponse{
 		PlanId:               string(out.PlanID),
@@ -58,7 +59,7 @@ func RewriteApply(ctx context.Context, req *connect.Request[graphv1.RewriteApply
 	}
 	out, err := svc.Apply(ctx, in)
 	if err != nil {
-		return nil, rewritedom.ToConnectError(err)
+		return nil, connectx.WrapError(err, rewritedom.ErrorToConnectCode)
 	}
 	return connect.NewResponse(&graphv1.RewriteApplyResponse{
 		PlanId:  string(out.PlanID),

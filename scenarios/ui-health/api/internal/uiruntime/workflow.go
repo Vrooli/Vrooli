@@ -490,14 +490,18 @@ const artifactCaptureTemplate = `(() => {
     for (var parent = el.parentElement; parent; parent = parent.parentElement) {
       var style = window.getComputedStyle(parent);
       var scrollsY = /(auto|scroll|overlay)/.test(style.overflowY || '');
-      if (scrollsY && parent.scrollHeight > parent.clientHeight + 1) { return true; }
+      var scrollsX = /(auto|scroll|overlay)/.test(style.overflowX || '');
+      if ((scrollsY && parent.scrollHeight > parent.clientHeight + 1) ||
+          (scrollsX && parent.scrollWidth > parent.clientWidth + 1)) { return true; }
     }
-    // The document viewport is also a reachable scroll container.  Without
-    // this check, controls farther down an ordinary scrollable page are
-    // indistinguishable from controls clipped by an unreachable fixed layout.
+    // The document viewport is also a reachable scroll container. Without
+    // this check, controls outside an ordinary page's vertical or horizontal
+    // scroll range are indistinguishable from controls clipped by a fixed layout.
     var root = el.ownerDocument && el.ownerDocument.documentElement;
     var body = el.ownerDocument && el.ownerDocument.body;
-    return !!(root && body && Math.max(root.scrollHeight, body.scrollHeight) > window.innerHeight + 1);
+    return !!(root && body && (
+      Math.max(root.scrollHeight, body.scrollHeight) > window.innerHeight + 1 ||
+      Math.max(root.scrollWidth, body.scrollWidth) > window.innerWidth + 1));
   }
 
   function elementRecord(el) {
@@ -557,6 +561,113 @@ const artifactCaptureTemplate = `(() => {
     return Array.prototype.slice.call(doc.querySelectorAll(selector), 0, 250).map(elementRecord);
   }
 
+  // Keep a compact computed-style census beside each page's detailed records.
+  // The page census can be aggregated across served routes by the UX critic to
+  // identify inconsistent button, footer, heading and spacing patterns.
+  function computedPatternCensus(doc) {
+    var counts = Object.create(null);
+    var tokenizedProperties = Object.create(null);
+    var sourceRuleCache = null;
+    var propertyAliases = {
+      height: ['height', 'min-height', 'max-height'],
+      'border-radius': ['border-radius'],
+      'font-size': ['font-size', 'font'],
+      'background-color': ['background-color', 'background'],
+      color: ['color'],
+      gap: ['gap', 'row-gap', 'column-gap'],
+      padding: ['padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left'],
+      margin: ['margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left']
+    };
+    function add(key) { if (key) { counts[key] = (counts[key] || 0) + 1; } }
+    function recordTokenizedProperties(element, pattern) {
+      var sourceRules = tokenizedSourceRules(doc);
+      var tokenized = Object.create(null);
+      var literal = Object.create(null);
+      sourceRules.forEach(function (rule) {
+        try {
+          if (!element.matches(rule.selector)) { return; }
+          Object.keys(rule.properties).forEach(function (property) {
+            Object.keys(propertyAliases).forEach(function (measured) {
+              if (propertyAliases[measured].indexOf(property) !== -1) {
+                if (rule.properties[property]) { tokenized[measured] = true; }
+                else { literal[measured] = true; }
+              }
+            });
+          });
+        } catch (e) {}
+      });
+      Object.keys(tokenized).forEach(function (property) { if (literal[property]) { delete tokenized[property]; } });
+      if (Object.keys(tokenized).length === 0) { return; }
+      if (!tokenizedProperties[pattern]) { tokenizedProperties[pattern] = Object.create(null); }
+      Object.keys(tokenized).forEach(function (property) {
+        tokenizedProperties[pattern][property] = (tokenizedProperties[pattern][property] || 0) + 1;
+      });
+    }
+    function tokenizedSourceRules(doc) {
+      if (sourceRuleCache) { return sourceRuleCache; }
+      var rules = [];
+      var visited = 0;
+      function collect(ruleList) {
+        if (!ruleList) { return; }
+        for (var i = 0; i < ruleList.length && visited < 20000; i++) {
+          var rule = ruleList[i];
+          visited++;
+          try {
+            if (rule.cssRules) {
+              if (rule.constructor && rule.constructor.name === 'CSSMediaRule' && !doc.defaultView.matchMedia(rule.conditionText).matches) { continue; }
+              if (rule.constructor && rule.constructor.name === 'CSSSupportsRule' && !doc.defaultView.CSS.supports(rule.conditionText)) { continue; }
+              collect(rule.cssRules);
+            } else if (rule.styleSheet) {
+              collect(rule.styleSheet.cssRules);
+            }
+            if (!rule.selectorText || !rule.style) { continue; }
+            var properties = Object.create(null);
+            for (var j = 0; j < rule.style.length; j++) {
+              var property = rule.style[j];
+              if (property && Object.keys(propertyAliases).some(function (measured) { return propertyAliases[measured].indexOf(property) !== -1; })) {
+                properties[property] = /var\(\s*--[\w-]+/.test(rule.style.getPropertyValue(property));
+              }
+            }
+            if (Object.keys(properties).length > 0) { rules.push({ selector: rule.selectorText, properties: properties }); }
+          } catch (e) {}
+        }
+      }
+      var styleSheets = Array.prototype.slice.call(doc.styleSheets || []);
+      if (doc.adoptedStyleSheets) { styleSheets = styleSheets.concat(Array.prototype.slice.call(doc.adoptedStyleSheets)); }
+      styleSheets.forEach(function (sheet) { try { collect(sheet.cssRules); } catch (e) {} });
+      sourceRuleCache = rules;
+      return rules;
+    }
+    function bucket(n) { return Math.round(n / 4) * 4; }
+    var buttons = Array.prototype.slice.call(doc.querySelectorAll('button,[role="button"]'), 0, 200);
+    buttons.forEach(function (el) {
+      var s = doc.defaultView.getComputedStyle(el);
+      var pattern = 'button:' + [s.height, s.borderRadius, s.fontSize, s.fontWeight, s.backgroundColor, s.color].join('|');
+      add(pattern);
+      recordTokenizedProperties(el, pattern);
+    });
+    var headings = Array.prototype.slice.call(doc.querySelectorAll('h1,h2,h3,[role="heading"]'), 0, 100);
+    headings.forEach(function (el) {
+      var s = doc.defaultView.getComputedStyle(el);
+      var pattern = 'heading:' + [el.tagName.toLowerCase(), s.fontSize, s.fontWeight, s.lineHeight, s.color].join('|');
+      add(pattern);
+      recordTokenizedProperties(el, pattern);
+    });
+    Array.prototype.slice.call(doc.querySelectorAll('footer,[role="contentinfo"],[data-rcl-bottom-nav]'), 0, 30).forEach(function (el) {
+      var s = doc.defaultView.getComputedStyle(el);
+      var pattern = 'footer:' + [el.tagName.toLowerCase(), s.position, s.display, s.flexWrap, s.backgroundColor].join('|');
+      add(pattern);
+      recordTokenizedProperties(el, pattern);
+    });
+    Array.prototype.slice.call(doc.querySelectorAll('main,section,article, [class*="gap-"], [class*="space-"]'), 0, 250).forEach(function (el) {
+      var s = doc.defaultView.getComputedStyle(el);
+      var pattern = 'spacing:' + [bucket(parseFloat(s.gap) || 0), bucket(parseFloat(s.padding) || 0), bucket(parseFloat(s.margin) || 0)].join('|');
+      add(pattern);
+      recordTokenizedProperties(el, pattern);
+    });
+    return { patterns: counts, tokenizedProperties: tokenizedProperties };
+  }
+
   // Shell readiness only proves the iframe booted. Semantic surfaces are
   // collected separately so adopted experience contracts can validate
   // functional lifecycle without treating every DOM primitive as a surface.
@@ -584,6 +695,41 @@ const artifactCaptureTemplate = `(() => {
           if (value) { values.push(value); }
         }
       }
+    } catch (e) {}
+    return values;
+  }
+
+  // Census token values are separate from the token evidence consumed by the
+  // per-element fallback validator, whose token vocabulary is intentionally
+  // conservative to avoid turning every literal computed style into a warning.
+  function censusTokenValues(doc) {
+    var values = [];
+    var names = Object.create(null);
+    try {
+      var visitedRules = 0;
+      var maxRules = 10000;
+      var maxTokens = 512;
+      function collect(rules) {
+        for (var ri = 0; ri < rules.length && visitedRules < maxRules && Object.keys(names).length < maxTokens; ri++) {
+          visitedRules++;
+          var rule = rules[ri];
+          if (rule.style) {
+            for (var si = 0; si < rule.style.length; si++) {
+              var property = rule.style[si];
+              if (property && property.indexOf('--') === 0) { names[property] = true; }
+            }
+          }
+          if (rule.cssRules) { collect(rule.cssRules); }
+        }
+      }
+      for (var sheetIndex = 0; sheetIndex < doc.styleSheets.length; sheetIndex++) {
+        try { collect(doc.styleSheets[sheetIndex].cssRules); } catch (e) {}
+      }
+      var rootStyle = doc.defaultView.getComputedStyle(doc.documentElement);
+      Object.keys(names).sort().slice(0, maxTokens).forEach(function (name) {
+        var value = rootStyle.getPropertyValue(name).trim();
+        if (value && value.length <= 128 && values.indexOf(value) === -1) { values.push(value); }
+      });
     } catch (e) {}
     return values;
   }
@@ -675,6 +821,7 @@ const artifactCaptureTemplate = `(() => {
     visualViewportHeight: window.visualViewport ? window.visualViewport.height : 0,
     visualViewportScale: window.visualViewport ? window.visualViewport.scale : 0
   };
+  var patternCensus = computedPatternCensus(doc);
   var layout = {
     capture: { kind: "browser_viewport", nativeScreen: false },
     viewport: viewport,
@@ -687,7 +834,10 @@ const artifactCaptureTemplate = `(() => {
     chrome: declaredChrome(doc),
     safeArea: readSafeAreaInsets(doc),
     tokens: tokenValues(doc),
+    censusTokens: censusTokenValues(doc),
     elements: collectElements(doc),
+    patternCensus: patternCensus.patterns,
+    tokenizedPatternProperties: patternCensus.tokenizedProperties,
     experienceSurfaces: experienceSurfaces(doc)
   };
   var network = [];

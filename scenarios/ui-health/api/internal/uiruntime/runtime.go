@@ -14,6 +14,7 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/vrooli/api-core/discovery"
+	inferenceconnect "github.com/vrooli/vrooli/packages/proto/gen/go/ai-gateway/v1/inference/inference_v1connect"
 	contractv1 "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract"
 	contractconnect "github.com/vrooli/vrooli/packages/proto/gen/go/experience-manager/v1/contract/contract_v1connect"
 	visualpb "github.com/vrooli/vrooli/packages/proto/gen/go/ui-health/v1/visualhealth"
@@ -42,7 +43,8 @@ var runtimeViewportProfiles = []viewportProfile{
 // drives the iframe-bridge handshake workflow on BAS, and maps the verdict to
 // findings. Missing infrastructure degrades to skipped findings.
 type Runner struct {
-	bas basRunner
+	bas    basRunner
+	vision visionJudge
 	// resolveUI returns the target scenario's running UI base URL (or an error /
 	// empty when it is not up).
 	resolveUI        func(ctx context.Context, scenario string) (string, error)
@@ -57,7 +59,15 @@ func New(logger *log.Logger) *Runner {
 		logger = log.Default()
 	}
 	resolver := discovery.NewResolver(discovery.ResolverConfig{})
+	vision := newGatewayVisionJudge(func(ctx context.Context) (visionRunClient, error) {
+		base, err := resolver.ResolveScenarioURLDefault(ctx, "ai-gateway")
+		if err != nil {
+			return nil, err
+		}
+		return inferenceconnect.NewInferenceServiceClient(&http.Client{Timeout: 90 * time.Second}, base), nil
+	})
 	runner := &Runner{
+		vision: vision,
 		bas: &connectRunner{
 			resolveBAS: func(ctx context.Context) (string, error) {
 				return resolver.ResolveScenarioURLDefault(ctx, basScenarioID)
@@ -93,6 +103,7 @@ func New(logger *log.Logger) *Runner {
 // Check runs the runtime/render group. It never returns an error; infra absence
 // becomes a skipped finding so the single report still carries the static groups.
 func (r *Runner) Check(ctx context.Context, in Input) []manifestvalidation.Finding {
+	ctx = withVisionRunCircuit(ctx)
 	url, err := r.resolveUI(ctx, in.Scenario)
 	if err != nil || strings.TrimSpace(url) == "" {
 		return []manifestvalidation.Finding{skip(
@@ -113,9 +124,40 @@ func (r *Runner) Check(ctx context.Context, in Input) []manifestvalidation.Findi
 		routes = declared
 	}
 	var findings []manifestvalidation.Finding
+	for _, route := range profile.unresolvedRouteTemplates() {
+		findings = append(findings, manifestvalidation.Finding{
+			Severity:   manifestvalidation.SeverityInfo,
+			Code:       "runtime_route_template_skipped",
+			Location:   runtimeURLForRoute(url, route),
+			Message:    fmt.Sprintf("route template %q has no concrete runtimeRoutes example, so it was not visited", route),
+			Suggestion: "Declare a concrete runtimeRoutes URL for this page so served UX validation can capture it without testing a placeholder identity.",
+		})
+	}
+	var census []PagePatternCensus
 	for _, route := range routes {
 		targetURL := runtimeURLForRoute(url, route)
-		findings = append(findings, r.checkProfiles(ctx, targetURL, profile.requiredSurfacesForRoute(route))...)
+		routeFindings, routeCensus := r.checkProfiles(ctx, in.Scenario, route, targetURL, profile.requiredSurfacesForRoute(route))
+		findings = append(findings, routeFindings...)
+		census = append(census, routeCensus...)
+	}
+	for _, outlier := range CompareScenarioCensus(census, 0.5) {
+		location := runtimeURLForRoute(url, outlier.Route)
+		if strings.TrimSpace(outlier.ScreenshotRef) != "" {
+			location = outlier.ScreenshotRef
+		}
+		message := fmt.Sprintf("%s differs from the declared scenario design tokens on %s (%s viewport, rank score %.2f)", outlier.Pattern, outlier.Route, outlier.Viewport, outlier.Score)
+		if outlier.Property != "" {
+			message = fmt.Sprintf("%s %s value %q is absent from declared scenario design tokens on %s (%s viewport, observed %d times, rank score %.2f; captured pattern: %s)", outlier.ElementFamily, outlier.Property, outlier.Pattern, outlier.Route, outlier.Viewport, outlier.ObservedCount, outlier.Score, outlier.ElementPattern)
+		} else if outlier.Family != "" {
+			message = fmt.Sprintf("%s style %q differs from dominant style %q on %s (%s viewport, rank score %.2f)", outlier.Family, outlier.Pattern, outlier.DominantPattern, outlier.Route, outlier.Viewport, outlier.Score)
+		}
+		findings = append(findings, manifestvalidation.Finding{
+			Severity:   manifestvalidation.SeverityWarning,
+			Code:       "scenario_pattern_outlier",
+			Location:   location,
+			Message:    message,
+			Suggestion: "Open the served screenshot at the finding location, then compare this page with the scenario's other routes and current React Component Library tokens.",
+		})
 	}
 	return findings
 }
@@ -142,10 +184,11 @@ func runtimeURLForRoute(base, route string) string {
 type profileResult struct {
 	index    int
 	findings []manifestvalidation.Finding
+	census   PagePatternCensus
 	err      error
 }
 
-func (r *Runner) checkProfiles(ctx context.Context, url string, expected []requiredSurface) []manifestvalidation.Finding {
+func (r *Runner) checkProfiles(ctx context.Context, scenario, route, url string, expected []requiredSurface) ([]manifestvalidation.Finding, []PagePatternCensus) {
 	runCtx, cancel := r.runtimeContext(ctx)
 	defer cancel()
 
@@ -187,22 +230,27 @@ func (r *Runner) checkProfiles(ctx context.Context, url string, expected []requi
 			for _, res := range results {
 				all = append(all, res.findings...)
 			}
-			return appendRuntimeSkip(all, url, runCtx.Err())
+			return appendRuntimeSkip(all, url, runCtx.Err()), nil
 		}
 	}
 
 	var all []manifestvalidation.Finding
+	var census []PagePatternCensus
 	var basErr error
 	for _, res := range results {
 		all = append(all, res.findings...)
+		if res.census.Patterns != nil {
+			res.census.Scenario, res.census.Route = scenario, route
+			census = append(census, res.census)
+		}
 		if res.err != nil {
 			basErr = res.err
 		}
 	}
 	if basErr != nil {
-		return appendRuntimeSkip(all, url, basErr)
+		return appendRuntimeSkip(all, url, basErr), census
 	}
-	return all
+	return all, census
 }
 
 func (r *Runner) runtimeContext(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -233,13 +281,20 @@ func (r *Runner) checkProfile(ctx context.Context, url string, index int, profil
 		}}}
 	}
 	visualFinds := applyVisualHealth(&ev, res.visualStep(url, profile.id))
+	if r.vision != nil {
+		visualFinds = append(visualFinds, r.vision.Check(ctx, res.screenshotPNG, profile.width, profile.height, url, res.screenshotRef)...)
+	}
 	finds := findingsFromEvidence(ev, profile.id)
 	finds = append(finds, readinessSurfaceFindings(res.layoutJSON, expected, url, profile.id)...)
 	if missing := missingEvidenceArtifacts(res, profile); len(missing) > 0 {
 		finds = append([]manifestvalidation.Finding{evidenceIncompleteFinding(url, profile.id, missing)}, finds...)
 	}
 	finds = append(finds, visualFinds...)
-	return profileResult{index: index, findings: finds}
+	screenshotRef := res.screenshotRef
+	if len(res.screenshotPNG) == 0 {
+		screenshotRef = ""
+	}
+	return profileResult{index: index, findings: finds, census: pageCensus(res.layoutJSON, url, profile.id, screenshotRef)}
 }
 
 // missingEvidenceArtifacts defines the evidence floor for a runtime render

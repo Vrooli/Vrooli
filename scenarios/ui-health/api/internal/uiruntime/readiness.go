@@ -38,7 +38,7 @@ func (p *readinessProfile) requiredSurfacesForRoute(route string) []requiredSurf
 	for _, page := range p.Pages {
 		matched := false
 		for _, declared := range append(page.Routes, page.RuntimeRoutes...) {
-			if declared == route {
+			if declared == route || matchesRouteTemplate(declared, route) {
 				matched = true
 				break
 			}
@@ -65,6 +65,22 @@ func (p *readinessProfile) routes() []string {
 		return nil
 	}
 	seen := map[string]bool{}
+	var candidates []string
+	for _, page := range p.Pages {
+		for _, route := range page.RuntimeRoutes {
+			route = strings.TrimSpace(route)
+			if route != "" && !isUnresolvedRouteTemplate(route) {
+				candidates = appendUnique(candidates, seen, route)
+			}
+		}
+		for _, route := range page.Routes {
+			route = strings.TrimSpace(route)
+			if route != "" && !isUnresolvedRouteTemplate(route) {
+				candidates = appendUnique(candidates, seen, route)
+			}
+		}
+	}
+	seen = map[string]bool{}
 	var collected []string
 	for _, page := range p.Pages {
 		pageRoutes := page.RuntimeRoutes
@@ -73,14 +89,136 @@ func (p *readinessProfile) routes() []string {
 		}
 		for _, route := range pageRoutes {
 			route = strings.TrimSpace(route)
-			if route == "" || seen[route] {
+			if route == "" {
 				continue
 			}
-			seen[route] = true
-			collected = append(collected, route)
+			if isUnresolvedRouteTemplate(route) {
+				expanded, ok := instantiateRouteTemplate(route, candidates)
+				if !ok {
+					continue
+				}
+				route = expanded
+			}
+			collected = appendUnique(collected, seen, route)
 		}
 	}
 	return collected
+}
+
+func appendUnique(routes []string, seen map[string]bool, route string) []string {
+	if seen[route] {
+		return routes
+	}
+	seen[route] = true
+	return append(routes, route)
+}
+
+// unresolvedRouteTemplates returns route patterns that cannot be visited
+// without a concrete example from a sibling route or state setup.
+func (p *readinessProfile) unresolvedRouteTemplates() []string {
+	if p == nil {
+		return nil
+	}
+	candidates := make([]string, 0)
+	for _, page := range p.Pages {
+		for _, route := range append(append([]string(nil), page.RuntimeRoutes...), page.Routes...) {
+			route = strings.TrimSpace(route)
+			if route != "" && !isUnresolvedRouteTemplate(route) {
+				candidates = append(candidates, route)
+			}
+		}
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, page := range p.Pages {
+		for _, route := range page.Routes {
+			route = strings.TrimSpace(route)
+			if route == "" || !isUnresolvedRouteTemplate(route) || seen[route] {
+				continue
+			}
+			if _, ok := instantiateRouteTemplate(route, candidates); ok {
+				continue
+			}
+			seen[route] = true
+			out = append(out, route)
+		}
+	}
+	return out
+}
+
+func isUnresolvedRouteTemplate(route string) bool {
+	for _, segment := range strings.Split(routePath(route), "/") {
+		if strings.HasPrefix(segment, ":") && len(segment) > 1 {
+			return true
+		}
+	}
+	return false
+}
+
+func instantiateRouteTemplate(template string, candidates []string) (string, bool) {
+	templatePath := routePath(template)
+	pattern := strings.Split(strings.Trim(templatePath, "/"), "/")
+	lastParam := -1
+	for i, segment := range pattern {
+		if strings.HasPrefix(segment, ":") && len(segment) > 1 {
+			lastParam = i
+		}
+	}
+	if lastParam < 0 {
+		return template, true
+	}
+	for _, candidate := range candidates {
+		candidatePath := routePath(candidate)
+		segments := strings.Split(strings.Trim(candidatePath, "/"), "/")
+		if len(segments) <= lastParam {
+			continue
+		}
+		instantiated := append([]string(nil), pattern...)
+		valid := true
+		for i := 0; i <= lastParam; i++ {
+			if strings.HasPrefix(pattern[i], ":") {
+				if segments[i] == "" || isUnresolvedRouteTemplate(segments[i]) {
+					valid = false
+					break
+				}
+				instantiated[i] = segments[i]
+			} else if pattern[i] != segments[i] {
+				valid = false
+				break
+			}
+		}
+		if valid {
+			return "/" + strings.Join(instantiated, "/"), true
+		}
+	}
+	return "", false
+}
+
+func routePath(route string) string {
+	if i := strings.IndexByte(route, '?'); i >= 0 {
+		return route[:i]
+	}
+	return route
+}
+
+func matchesRouteTemplate(template, route string) bool {
+	pattern := strings.Split(strings.Trim(routePath(template), "/"), "/")
+	actual := strings.Split(strings.Trim(routePath(route), "/"), "/")
+	if len(pattern) != len(actual) || !isUnresolvedRouteTemplate(template) {
+		return false
+	}
+	for i, segment := range pattern {
+		if strings.HasPrefix(segment, ":") {
+			if actual[i] == "" {
+				return false
+			}
+			continue
+		}
+		if segment != actual[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func readinessSurfaceFindings(layoutJSON string, expected []requiredSurface, url, viewport string) []manifestvalidation.Finding {

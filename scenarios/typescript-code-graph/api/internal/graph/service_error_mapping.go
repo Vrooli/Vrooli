@@ -57,15 +57,6 @@ func ErrorToConnectCode(err error) connect.Code {
 	return connect.CodeInternal
 }
 
-// ToConnectError wraps err in a connect.Error tagged with the code
-// returned by ErrorToConnectCode. nil in, nil out.
-func ToConnectError(err error) error {
-	if err == nil {
-		return nil
-	}
-	return connect.NewError(ErrorToConnectCode(err), err)
-}
-
 // fromSidecarError translates a sidecar.* sentinel or typed error into
 // the domain's ExtractError. Used by Service.Extract so the handler
 // only ever sees domain errors.

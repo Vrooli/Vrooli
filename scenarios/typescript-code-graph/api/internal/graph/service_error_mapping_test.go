@@ -49,14 +49,3 @@ func TestErrorToConnectCode_Canceled(t *testing.T) {
 	require.Equal(t, connect.CodeCanceled,
 		graph.ErrorToConnectCode(context.Canceled))
 }
-
-func TestToConnectError_WrapsAndPreservesCode(t *testing.T) {
-	in := graph.ExtractError{Kind: graph.ExtractErrorWorkspaceUnsupported, Message: "nope"}
-	out := graph.ToConnectError(in)
-	require.Error(t, out)
-	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(out))
-}
-
-func TestToConnectError_NilIn_NilOut(t *testing.T) {
-	require.Nil(t, graph.ToConnectError(nil))
-}

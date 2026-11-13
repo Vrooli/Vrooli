@@ -405,9 +405,9 @@ func TestReadTimelinePairsPostTabFocusWithInitialVisualArtifacts(t *testing.T) {
 			Context: &basbase.EventContext{ExtractedData: map[string]*commonpb.JsonValue{
 				"keyboard_focus_artifacts": objectValue(map[string]*commonpb.JsonValue{
 					"keyboardFocus": objectValue(map[string]*commonpb.JsonValue{
-						"focused":      &commonpb.JsonValue{Kind: &commonpb.JsonValue_BoolValue{BoolValue: true}},
-						"focusVisible": &commonpb.JsonValue{Kind: &commonpb.JsonValue_BoolValue{BoolValue: true}},
-						"visible":      &commonpb.JsonValue{Kind: &commonpb.JsonValue_BoolValue{BoolValue: true}},
+						"focused":      {Kind: &commonpb.JsonValue_BoolValue{BoolValue: true}},
+						"focusVisible": {Kind: &commonpb.JsonValue_BoolValue{BoolValue: true}},
+						"visible":      {Kind: &commonpb.JsonValue_BoolValue{BoolValue: true}},
 						"nodeKey":      stringValue("html > body > a:nth-of-type(1)"),
 						"nodeIdentity": stringValue("doc-1:1"),
 						"rect":         objectValue(map[string]*commonpb.JsonValue{"x": intValue(8), "y": intValue(0), "width": intValue(117), "height": intValue(32)}),
@@ -437,11 +437,11 @@ func TestReadTimelineKeepsOffscreenFindingWhenKeyboardCaptureHasNoTarget(t *test
 					"layout": objectValue(map[string]*commonpb.JsonValue{
 						"viewport": objectValue(map[string]*commonpb.JsonValue{"width": intValue(390), "height": intValue(844)}),
 						"elements": listValue([]*commonpb.JsonValue{objectValue(map[string]*commonpb.JsonValue{
-							"nodeKey": stringValue("[data-testid=\"layout-shell-skip\"]"),
+							"nodeKey":      stringValue("[data-testid=\"layout-shell-skip\"]"),
 							"nodeIdentity": stringValue("doc-1:skip"),
-							"selector": stringValue("a[data-testid=\"layout-shell-skip\"]"),
-							"tag": stringValue("a"),
-							"rect": objectValue(map[string]*commonpb.JsonValue{"x": intValue(8), "y": intValue(-64), "width": intValue(117), "height": intValue(32)}),
+							"selector":     stringValue("a[data-testid=\"layout-shell-skip\"]"),
+							"tag":          stringValue("a"),
+							"rect":         objectValue(map[string]*commonpb.JsonValue{"x": intValue(8), "y": intValue(-64), "width": intValue(117), "height": intValue(32)}),
 						})}),
 					}),
 				}),
@@ -451,7 +451,7 @@ func TestReadTimelineKeepsOffscreenFindingWhenKeyboardCaptureHasNoTarget(t *test
 			NodeId: &focusNode,
 			Context: &basbase.EventContext{ExtractedData: map[string]*commonpb.JsonValue{
 				"keyboard_focus_artifacts": objectValue(map[string]*commonpb.JsonValue{
-					"keyboardFocus": objectValue(map[string]*commonpb.JsonValue{"focused": &commonpb.JsonValue{Kind: &commonpb.JsonValue_BoolValue{BoolValue: false}}}),
+					"keyboardFocus": objectValue(map[string]*commonpb.JsonValue{"focused": {Kind: &commonpb.JsonValue_BoolValue{BoolValue: false}}}),
 				}),
 			}},
 		},

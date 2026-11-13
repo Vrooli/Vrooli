@@ -76,6 +76,28 @@ export function different() { return 4; }
     }
   });
 
+  it("leaves minified bundles out of a JavaScript-only project", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "ts-graph-js-minified-"));
+    try {
+      fs.mkdirSync(path.join(root, "src"));
+      fs.mkdirSync(path.join(root, "public", "draco"), { recursive: true });
+      fs.writeFileSync(
+        path.join(root, "src", "scene.js"),
+        "// Loads the decoder at runtime; the bundle is not part of this module graph.\n" +
+          "export function loadDecoder(loader) {\n  return loader.setDecoderPath('/draco/');\n}\n",
+      );
+      const minified = Array.from({ length: 2_000 }, (_, i) => `var d${i}=function(x){return x+${i}};`).join("");
+      fs.writeFileSync(path.join(root, "public", "draco", "draco_decoder.js"), `${minified}\n${minified}\n`);
+
+      const nodes = extract({ projectPath: root }).graph.nodes;
+
+      expect(nodes.some((n) => n.name === "loadDecoder")).toBe(true);
+      expect(nodes.filter((n) => n.path?.startsWith("public/"))).toEqual([]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("emits file + module nodes and classifies hook, component, class, interface, type", () => {
     const project = inMemoryProject();
     project.createSourceFile(

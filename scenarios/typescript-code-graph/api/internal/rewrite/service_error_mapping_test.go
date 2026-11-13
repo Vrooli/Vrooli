@@ -59,13 +59,3 @@ func TestFromSidecarError_Classifies(t *testing.T) {
 		})
 	}
 }
-
-func TestToConnectError(t *testing.T) {
-	if ToConnectError(nil) != nil {
-		t.Error("nil in should produce nil out")
-	}
-	err := ToConnectError(RewriteError{Kind: RewriteErrorPlanNotFound})
-	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Errorf("expected CodeFailedPrecondition, got %v", connect.CodeOf(err))
-	}
-}

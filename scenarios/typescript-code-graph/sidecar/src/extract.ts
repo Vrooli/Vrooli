@@ -28,6 +28,7 @@ import {
   ts,
 } from "ts-morph";
 
+import { logger } from "./logger.js";
 import type {
   CodeGraph,
   CodeGraphEdge,
@@ -299,7 +300,7 @@ export function extract(input: ExtractInput): ExtractOutput {
     }
 
     const symbolIndex = buildSymbolIndex(decls, declarationNodeIds);
-    nodes.push(...usageFactNodes(relPath, sf, symbolIndex));
+    appendUsageFactNodes(nodes, relPath, sf, symbolIndex);
 
     // Diagnostics → warnings
     for (const diag of sf.getPreEmitDiagnostics()) {
@@ -453,11 +454,33 @@ function javascriptSourceFiles(rootDir: string): string[] {
         visit(path.join(dir, entry.name));
         continue;
       }
-      if (entry.isFile() && isJavaScriptPath(entry.name)) found.push(path.join(dir, entry.name));
+      if (!entry.isFile() || !isJavaScriptPath(entry.name)) continue;
+      const filePath = path.join(dir, entry.name);
+      if (isMinifiedJavaScript(filePath)) {
+        logger.info("skipping minified JavaScript", { file: path.relative(rootDir, filePath) });
+        continue;
+      }
+      found.push(filePath);
     }
   };
   visit(rootDir);
   return found;
+}
+
+// Minified bundles (vendored Draco or Emscripten builds kept under public/,
+// for example) are build output, not project source, and a single one adds
+// 100k+ facts to the graph. The test is GitHub Linguist's minified-file rule:
+// average line length above 110 characters.
+function isMinifiedJavaScript(filePath: string): boolean {
+  let text: string;
+  try {
+    text = fs.readFileSync(filePath, "utf8");
+  } catch {
+    return false;
+  }
+  const lines = text.split(/\r\n|\r|\n/);
+  const characters = lines.reduce((sum, line) => sum + line.length, 0);
+  return characters / lines.length > 110;
 }
 
 function isJavaScriptPath(filePath: string): boolean {
@@ -800,12 +823,14 @@ function exportFactNode(
   };
 }
 
-function usageFactNodes(
+// Appends in place: a minified bundle yields hundreds of thousands of facts,
+// more than `push(...facts)` can pass as call arguments.
+function appendUsageFactNodes(
+  nodes: CodeGraphNode[],
   relPath: string,
   sf: SourceFile,
   symbolIndex: Map<ts.Symbol, SymbolInfo>,
-): CodeGraphNode[] {
-  const nodes: CodeGraphNode[] = [];
+): void {
   sf.forEachDescendant((child) => {
     if (Node.isImportDeclaration(child) || Node.isExportDeclaration(child)) return;
     if (Node.isCallExpression(child)) {
@@ -832,7 +857,6 @@ function usageFactNodes(
     ) return;
     nodes.push(referenceFactNode(relPath, child, symbolIndex));
   });
-  return nodes;
 }
 
 function routeRegistrationFactNode(relPath: string, call: import("ts-morph").CallExpression): CodeGraphNode | null {
@@ -1013,8 +1037,8 @@ function isObjectLiteralPropertyName(ident: import("ts-morph").Identifier): bool
 
 function sourceRangeAttrs(node: Node): Record<string, string> {
   const sf = node.getSourceFile();
-  const start = sf.getLineAndColumnAtPos(node.getStart());
-  const end = sf.getLineAndColumnAtPos(node.getEnd());
+  const start = lineAndColumnAt(sf, node.getStart());
+  const end = lineAndColumnAt(sf, node.getEnd());
   return {
     start_line: String(start.line),
     start_column: String(start.column),
@@ -1038,8 +1062,8 @@ function bodySyntaxAttrs(declaration: Node): Record<string, string> {
   const normalized = ts
     .createPrinter({ removeComments: true })
     .printNode(ts.EmitHint.Unspecified, body.compilerNode, declaration.getSourceFile().compilerNode);
-  const start = body.getSourceFile().getLineAndColumnAtPos(body.getStart());
-  const end = body.getSourceFile().getLineAndColumnAtPos(body.getEnd());
+  const start = lineAndColumnAt(body.getSourceFile(), body.getStart());
+  const end = lineAndColumnAt(body.getSourceFile(), body.getEnd());
   return {
     body_hash: createHash("sha256").update(normalized).digest("hex"),
     body_lines: String(end.line - start.line + 1),
@@ -1047,8 +1071,64 @@ function bodySyntaxAttrs(declaration: Node): Record<string, string> {
 }
 
 function stableLocation(node: Node): string {
-  const start = node.getSourceFile().getLineAndColumnAtPos(node.getStart());
+  const start = lineAndColumnAt(node.getSourceFile(), node.getStart());
   return `${start.line}:${start.column}`;
+}
+
+// Line-break offsets for one source text, built once per file.
+// `newlines` holds every "\n" offset (ts-morph counts lines by "\n" only);
+// `lineBreaks` holds every "\n" or "\r" offset (ts-morph restarts the
+// column after either).
+interface LineIndex {
+  newlines: number[];
+  lineBreaks: number[];
+}
+
+const lineIndexes = new WeakMap<ts.SourceFile, LineIndex>();
+
+function lineIndexOf(sf: SourceFile): LineIndex {
+  const key = sf.compilerNode;
+  const cached = lineIndexes.get(key);
+  if (cached) return cached;
+  const text = key.text;
+  const index: LineIndex = { newlines: [], lineBreaks: [] };
+  for (let i = 0; i < text.length; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 10) {
+      index.newlines.push(i);
+      index.lineBreaks.push(i);
+    } else if (code === 13) {
+      index.lineBreaks.push(i);
+    }
+  }
+  lineIndexes.set(key, index);
+  return index;
+}
+
+/** Number of entries in ascending `offsets` that are < pos. */
+function countBefore(offsets: number[], pos: number): number {
+  let lo = 0;
+  let hi = offsets.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (offsets[mid]! < pos) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/**
+ * 1-based line and column of `pos`, identical to ts-morph's
+ * SourceFile.getLineAndColumnAtPos. ts-morph rescans the file from offset 0
+ * (and back to the line start) on every call, which makes a whole-file walk
+ * quadratic: one minified bundle line pinned the sidecar for days. This
+ * answers from a per-file index in O(log n).
+ */
+export function lineAndColumnAt(sf: SourceFile, pos: number): { line: number; column: number } {
+  const { newlines, lineBreaks } = lineIndexOf(sf);
+  const breaksBefore = countBefore(lineBreaks, pos);
+  const lineStart = breaksBefore === 0 ? 0 : lineBreaks[breaksBefore - 1]! + 1;
+  return { line: countBefore(newlines, pos) + 1, column: pos - lineStart + 1 };
 }
 
 function sanitizeId(value: string): string {

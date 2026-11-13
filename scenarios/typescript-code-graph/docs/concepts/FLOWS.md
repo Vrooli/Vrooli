@@ -39,14 +39,14 @@ Plain query operations (`/health`, `extract` for a single quiet path) do not nee
      - Mark sidecar `unhealthy`. Pending requests get `SidecarUnavailable`.
      - Apply exponential backoff: 100ms, 200ms, 400ms, ... capped at 5 seconds.
      - Respawn. Up to 5 attempts in 60 seconds before giving up and marking `permanently_unhealthy`.
-  6. Periodic heartbeat: every 10 seconds, send `{type: "heartbeat"}`. If no response within 5 seconds, kill the child and respawn.
+  6. Periodic heartbeat: every 10 seconds while no `Extract` / `Rewrite` caller is waiting, send `{type: "heartbeat"}`. One 5-second deadline covers delivering the heartbeat and receiving the reply; on expiry, kill the child and respawn. Every frame write is deadline-bounded, so a child that stops reading stdin (its pipe can be as small as 8 KiB when the user exceeds `fs.pipe-user-pages-soft`) fails the heartbeat rather than blocking it.
 - **Outputs**: sidecar process running; status visible via `/health` and the explorer's diagnostics page.
 - **Failure modes**:
   - `permanently_unhealthy` — exhausted restart budget. Manual `make restart` required.
   - `SidecarUnavailable` — returned to in-flight `graph` / `rewrite` requests during the restart gap.
   - `SidecarVersionMismatch` — handshake rejected; never enters service.
 - **Retry/cancel behavior**: callers retry their `Extract` / `Rewrite` call after `SidecarUnavailable` — there's nothing the caller can do beyond wait for the supervisor to bring the sidecar back.
-- **Tests**: `api/internal/sidecar/supervisor_test.go` (spawn + handshake), `api/internal/sidecar/restart_test.go` (kill child mid-call, verify restart), `api/internal/sidecar/heartbeat_test.go` (stalled-channel detection).
+- **Tests**: `api/internal/sidecar/supervisor_test.go` (spawn + handshake), `api/internal/sidecar/restart_test.go` (kill child mid-call, verify restart), `api/internal/sidecar/heartbeat_test.go` (stalled-channel detection), `api/internal/sidecar/stalled_stdin_test.go` (child stops reading stdin: callers return at their deadline, heartbeat replaces the child).
 
 ### Extract
 
@@ -72,7 +72,7 @@ Plain query operations (`/health`, `extract` for a single quiet path) do not nee
   - `SidecarUnavailable` — sidecar is not `ready`.
   - `SidecarTimeout{request_id, duration}` — IPC stalled past the request timeout.
   - Per-file parse / type-check failures → `Warnings[]`, not errors.
-- **Retry/cancel behavior**: caller may retry. Cancellation through `context.Context` cancels the pending IPC request (sidecar receives a `{type: "cancel", request_id}` message).
+- **Retry/cancel behavior**: caller may retry. Cancellation through `context.Context` returns to the caller at its deadline, even when the child has stopped reading stdin, and sends `{type: "cancel", request_id}` in the background. The sidecar never starts a cancelled request that is still queued behind its per-path lock; an extract that has already started runs to completion (ts-morph work is synchronous) and its result is discarded.
 - **Tests**: `api/internal/graph/extract_test.go` (unit, normalization), `api/internal/graph/concurrent_test.go` (per-path mutex), `api/internal/graph/integration_test.go` (fixture-driven), `api/internal/graph/performance_test.go` (SLA), `bas/fixtures/ts-jsdoc-tags/` integration test (leading-comment contract).
 
 ### Rewrite plan
