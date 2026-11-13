@@ -18,23 +18,23 @@ System-level architecture belongs in [`ARCHITECTURE.md`](ARCHITECTURE.md). Workf
 
 | Domain | Responsibility | Purpose | Owns Data | Primary Archetype | Secondary Traits | Glossary | Source Paths |
 |---|---|---|---|---|---|---|---|
-| graph | Build the ground-truth code graph for a target Go module by loading `golang.org/x/tools/go/packages` and normalizing the result into the shared envelope. | Produce deterministic Go graph evidence for cartographer and other consumers. | No data in v1; graph is returned, not persisted. | service | provider | Graph, Node, Edge, Package, Symbol, ImportEdge | `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/go-code-graph/v1/graph/`, `packages/proto/schemas/common/v1/code_graph.proto` |
+| graph | Adapt the shared Go extraction substrate to this scenario's Connect API, fixture validation, and rewrite workflow. API Core `gograph` loads `golang.org/x/tools/go/packages` and owns deterministic normalization. | Produce deterministic Go graph evidence for Code Facts, cartographer and other consumers, while retaining this scenario's operator-facing graph and rewrite surface. | No data in v1; graph is returned, not persisted. | service | provider | Graph, Node, Edge, Package, Symbol, ImportEdge | `packages/api-core/gograph/`, `api/internal/graph/`, `api/handlers/graph/`, `cli/domains/graph/`, `ui/src/features/graph/`, `packages/proto/schemas/go-code-graph/v1/graph/`, `packages/proto/schemas/common/v1/code_graph.proto` |
 | rewrite | Plan and execute mechanical Go refactors (file moves + import rewrites) as a two-step `plan → apply` operation. | Provide deterministic filesystem mutation for approved Go refactors. | Optional Operation Log in SQLite. | mutation | service | RewritePlan, RewriteApply, Operation, PlanStore | `api/internal/rewrite/`, `api/handlers/rewrite/`, `cli/domains/rewrite/`, `ui/src/features/rewrite/`, `packages/proto/schemas/go-code-graph/v1/rewrite/` |
 | explorer | UI surface for human debugging: paste a module path, view extracted nodes/edges/warnings, inspect recent calls. | Let humans inspect extraction diagnostics and fixture diffs. | None. | reporting | query | Explorer, FixtureValidator, Diagnostic | `ui/src/features/explorer/`, `ui/src/features/fixtures/`, `api/handlers/explorer/` |
 | health | Report runtime readiness and dependency reachability. | Expose API/database readiness and show the UI can read live backend state. | No product data. | reporting | query | HealthHandler | `api/handlers/health/`, `ui/src/features/health/`, `packages/proto/schemas/go-code-graph/v1/health/` |
 
-The four domains map one-to-one onto the operational targets in [`../../PRD.md`](../../PRD.md): `graph` owns extraction; `rewrite` owns the two-step refactor surface; `explorer` owns the UI debug path; `health` is template-inherited infrastructure.
+The four domains map one-to-one onto the operational targets in [`../../PRD.md`](../../PRD.md): API Core `gograph` owns shared extraction; this scenario's `graph` domain adapts it and owns the Connect/fixture surface; `rewrite` owns the two-step refactor capability; `explorer` owns the UI debug path; `health` is template-inherited infrastructure.
 
 ## Domain Details
 
 ### graph
 
-- Purpose: produce a deterministic, byte-stable graph snapshot of a Go module by delegating all parsing to `golang.org/x/tools/go/packages` and normalizing the result into `common.v1.code_graph.Graph`.
+- Purpose: expose the deterministic, byte-stable Go graph from API Core `gograph` through the scenario RPC contract. Parsing, normalization, hashing, cache and common-envelope projection have one shared owner.
 - Primary archetype: service / parser.
 - Secondary traits: deterministic serialization, partial-graph error reporting, per-path serialization.
 - Owns: the Go parser client (a single load-mode configuration), normalization rules from raw `*packages.Package` to the shared envelope, warning aggregation, the per-path mutex registry, and the graph-hash derivation.
 - Does not own: storage (graph is returned, not persisted in v1), the shared envelope itself (lives in `common/v1/`), or rewriting (that is `rewrite`'s job).
-- API: `api/internal/graph/`, `api/handlers/graph/`. Connect-RPC service `GoCodeGraphService` with method `Extract`.
+- API: `packages/api-core/gograph/`, `api/internal/graph/`, `api/handlers/graph/`. Connect-RPC service `GoCodeGraphService` with method `Extract`.
 - CLI: `cli/domains/graph/` with `go-code-graph extract <path>` (default human output, optional `--json`).
 - UI: `ui/src/features/graph/` — surfaces a read-only graph display for the `explorer` feature to consume.
 - Storage: none in v1.

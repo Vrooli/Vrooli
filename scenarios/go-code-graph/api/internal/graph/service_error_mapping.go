@@ -39,12 +39,3 @@ func ErrorToConnectCode(err error) connect.Code {
 	}
 	return connect.CodeInternal
 }
-
-// ToConnectError wraps err in a connect.Error tagged with the code
-// returned by ErrorToConnectCode. nil in, nil out.
-func ToConnectError(err error) error {
-	if err == nil {
-		return nil
-	}
-	return connect.NewError(ErrorToConnectCode(err), err)
-}

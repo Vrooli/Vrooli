@@ -218,11 +218,11 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 
 | | |
 |---|---|
-| **Seam** | The single point where `golang.org/x/tools/go/packages.Load` is invoked. Hides the parser library from the rest of the `graph` domain so tests substitute deterministic graph fixtures without spinning up real `go/packages` loads. |
-| **Interface** | `internal/graph/loader.go::PackagesLoader` (`Load(ctx, modulePath string, opts LoadOptions) ([]*packages.Package, error)`). |
-| **Production wiring** | `main.go` constructs `graph.NewPackagesLoader()` (returns `*PackagesLoaderImpl`) with the fixed load mode `NeedFiles \| NeedImports \| NeedTypes \| NeedSyntax \| NeedTypesInfo \| NeedName \| NeedDeps`. Compile-time check: `var _ PackagesLoader = (*PackagesLoaderImpl)(nil)`. |
-| **Test fake** | `internal/graph/mocks::FakeLoader` (returns canned `[]*packages.Package` fixtures from `bas/fixtures/`). |
-| **Why it exists** | Real `go/packages.Load` is slow and requires an on-disk module. Unit tests that exercise normalization, warning aggregation, and graph-hash determinism must not spin it up. The seam also fixes the load mode in production so consumers can rely on byte-stable output. |
+| **Seam** | The single point where `golang.org/x/tools/go/packages.Load` is invoked. API Core `gograph` owns the parser boundary so Code Facts and Go Code Graph use the same loader and deterministic graph semantics. |
+| **Interface** | `packages/api-core/gograph/loader.go::PackagesLoader` (`Load(ctx, modulePath string, opts LoadOptions) ([]*packages.Package, error)`). |
+| **Production wiring** | Go Code Graph's composition root constructs `graph.NewPackagesLoader()` through its API Core alias. The shared owner fixes full compatibility mode and supports explicit structural/semantic profiles. Compile-time check: `var _ PackagesLoader = (*PackagesLoaderImpl)(nil)`. |
+| **Test fake** | `packages/api-core/gograph` tests inject fake `PackagesLoader` values and exercise real module fixtures in the owning graph scenario. |
+| **Why it exists** | Real `go/packages.Load` is slow and requires an on-disk module. Tests exercise normalization, warning aggregation, and graph-hash determinism without invoking it, while the shared production loader keeps all consumers on the same profiles and output contract. |
 
 ### RewriteExecutor (file mutation)
 
@@ -248,8 +248,8 @@ The authoritative quick-reference table. Detailed rows for each seam follow belo
 
 | | |
 |---|---|
-| **Seam** | The registry of per-path mutexes that serializes concurrent extraction and apply on the same `module_path`. Lives inside the `graph` package; both `graph.Service` and `rewrite.Service` consume the same `PathMutex` instance from the scenario composition root so calls for the same path serialize. |
-| **Interface** | `internal/graph/mutex.go::PathMutex` (concrete type, not interface — `Lock(path string) (unlock func())`). Substitution happens at the consumer level: tests construct their own `*PathMutex` (or no mutex at all) per case rather than mocking the type. |
+| **Seam** | The registry of per-path mutexes that serializes concurrent extraction and apply on the same `module_path`. API Core `gograph` owns the type; Go Code Graph's extraction and rewrite services share the same instance from the scenario composition root. |
+| **Interface** | `packages/api-core/gograph/mutex.go::PathMutex` (concrete type, not interface — `Lock(path string) (unlock func())`). Substitution happens at the consumer level: tests construct their own `*PathMutex` (or no mutex at all) per case rather than mocking the type. |
 | **Production wiring** | `main.go` constructs a single `graph.NewPathMutex()` and passes it into both `graph.NewService(...)` and `rewrite.NewService(...)`. Keyed by `filepath.Abs(modulePath)`. |
 | **Test fake** | None. Concurrency tests (`internal/graph/mutex_test.go`) drive the real type with controlled goroutine interleavings via `testing.T.Parallel()` + channel sync. |
 | **Why it exists** | `go/packages.Load` is CPU-heavy and not safe to run concurrently against the same module; `Rewrite apply` mutating the same files concurrently with `Extract` is incoherent. The mutex makes the serialization invariant mechanical. The memory-leak risk (unbounded map growth) is recorded in [`PROBLEMS.md`](PROBLEMS.md). |

@@ -316,9 +316,6 @@ func TestErrorToConnectCodeNil(t *testing.T) {
 	if got := intgraph.ErrorToConnectCode(nil); got != connect.Code(0) {
 		t.Fatalf("nil err → code(0), got %v", got)
 	}
-	if got := intgraph.ToConnectError(nil); got != nil {
-		t.Fatalf("ToConnectError(nil) should be nil, got %v", got)
-	}
 }
 
 // TestErrorToConnectCodeUnknownErr asserts non-ExtractError values

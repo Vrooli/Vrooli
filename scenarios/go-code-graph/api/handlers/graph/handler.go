@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/connectx"
 	"github.com/vrooli/api-core/schedule"
 
 	intgraph "go-code-graph/internal/graph"
@@ -66,7 +67,7 @@ func (h *connectHandler) Extract(ctx context.Context, req *connect.Request[graph
 	g, warnings, stats, err := h.deps.GraphService.ExtractWithStats(ctx, in)
 	elapsedMs := schedule.Since(start).Milliseconds()
 	if err != nil {
-		connectErr := intgraph.ToConnectError(err)
+		connectErr := connectx.WrapError(err, intgraph.ErrorToConnectCode)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
 			h.deps.Logger.Printf("graph.Extract(%q): %v", in.ModulePath, err)
 		}
@@ -133,7 +134,7 @@ func (h *connectHandler) RewritePlan(ctx context.Context, req *connect.Request[g
 
 	plan, err := h.deps.RewriteService.Plan(ctx, in)
 	if err != nil {
-		connectErr := intrewrite.ToConnectError(err)
+		connectErr := connectx.WrapError(err, intrewrite.ErrorToConnectCode)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
 			h.deps.Logger.Printf("rewrite.Plan(%q): %v", in.ModulePath, err)
 		}
@@ -161,7 +162,7 @@ func (h *connectHandler) RewriteApply(ctx context.Context, req *connect.Request[
 
 	result, err := h.deps.RewriteService.Apply(ctx, in)
 	if err != nil {
-		connectErr := intrewrite.ToConnectError(err)
+		connectErr := connectx.WrapError(err, intrewrite.ErrorToConnectCode)
 		if connect.CodeOf(connectErr) == connect.CodeInternal {
 			h.deps.Logger.Printf("rewrite.Apply(%q, plan=%q): %v", in.ModulePath, in.PlanID, err)
 		}

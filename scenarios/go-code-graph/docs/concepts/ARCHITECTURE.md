@@ -193,7 +193,8 @@ Every product path lives in exactly one of these layers. Add a row when a new di
 | `api/handlers/health` | Transport edge | health | Liveness probe (template-inherited; only REST-shaped surface). |
 | `api/handlers/graph` | Transport edge | graph + rewrite | Connect-RPC handlers for `GoCodeGraphService`. Owns all three RPC mounts (`Extract`, `RewritePlan`, `RewriteApply`) on a single service. |
 | `api/handlers/rewrite` | Registry | rewrite | EndpointDescriptors only; no Connect handler is mounted here. The rewrite RPCs live on the graph handler because the proto service is shared. |
-| `api/internal/graph` | Domain logic | graph | Extract orchestration, package-loader seam, deterministic normalization, graph hashing, per-path mutex, warning aggregation. |
+| `packages/api-core/gograph` | Shared domain logic | graph | Go package loading, extraction orchestration, deterministic normalization, graph hashing, per-path mutex, warning aggregation, cache, and common-proto projection. |
+| `api/internal/graph` | Scenario adapter | graph | Type aliases and the Connect error mapping that preserve Go Code Graph's service contract while using API Core's shared extractor. |
 | `api/internal/rewrite` | Domain logic | rewrite | Plan/apply orchestration, operation normalization, plan store seam, executor seam. |
 | `packages/api-core/schedule` | Infrastructure | shared | Injectable deterministic time seam. |
 | `api/internal/httpc` | Infrastructure | shared | `httpc.Doer` seam; outbound HTTP boundary. |
