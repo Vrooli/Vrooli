@@ -1,0 +1,130 @@
+{
+  "id": "rate-errors-timeouts-03",
+  "family": "rate-errors-timeouts",
+  "family_name": "Rate limits, errors and timeouts",
+  "difficulty": 3,
+  "title": "Rate limits, errors and timeouts: level 3",
+  "task": "Extract every matching record from the rate limits, errors and timeouts page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "resilience",
+  "tags": [
+    "difficulty-3",
+    "resilience"
+  ],
+  "page": {
+    "title": "Rate limits, errors and timeouts Practice 3",
+    "records": [
+      {
+        "id": "RAT-03-001",
+        "name": "Rate Item 3-1",
+        "category": "beta",
+        "value": 931,
+        "active": true
+      },
+      {
+        "id": "RAT-03-002",
+        "name": "Rate Item 3-2",
+        "category": "gamma",
+        "value": 932,
+        "active": true
+      },
+      {
+        "id": "RAT-03-003",
+        "name": "Rate Item 3-3",
+        "category": "alpha",
+        "value": 933,
+        "active": true
+      },
+      {
+        "id": "RAT-03-004",
+        "name": "Rate Item 3-4",
+        "category": "beta",
+        "value": 934,
+        "active": false
+      },
+      {
+        "id": "RAT-03-005",
+        "name": "Rate Item 3-5",
+        "category": "gamma",
+        "value": 935,
+        "active": true
+      },
+      {
+        "id": "RAT-03-006",
+        "name": "Rate Item 3-6",
+        "category": "alpha",
+        "value": 936,
+        "active": true
+      },
+      {
+        "id": "RAT-03-007",
+        "name": "Rate Item 3-7",
+        "category": "beta",
+        "value": 937,
+        "active": true
+      }
+    ],
+    "page_size": 7,
+    "variant": 3,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {
+      "status_code": 503,
+      "delay_ms": 0,
+      "retry_after_seconds": 0
+    },
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "RAT-03-001",
+      "name": "Rate Item 3-1",
+      "category": "beta",
+      "value": 931,
+      "active": true
+    },
+    {
+      "id": "RAT-03-002",
+      "name": "Rate Item 3-2",
+      "category": "gamma",
+      "value": 932,
+      "active": true
+    },
+    {
+      "id": "RAT-03-003",
+      "name": "Rate Item 3-3",
+      "category": "alpha",
+      "value": 933,
+      "active": true
+    },
+    {
+      "id": "RAT-03-004",
+      "name": "Rate Item 3-4",
+      "category": "beta",
+      "value": 934,
+      "active": false
+    },
+    {
+      "id": "RAT-03-005",
+      "name": "Rate Item 3-5",
+      "category": "gamma",
+      "value": 935,
+      "active": true
+    },
+    {
+      "id": "RAT-03-006",
+      "name": "Rate Item 3-6",
+      "category": "alpha",
+      "value": 936,
+      "active": true
+    },
+    {
+      "id": "RAT-03-007",
+      "name": "Rate Item 3-7",
+      "category": "beta",
+      "value": 937,
+      "active": true
+    }
+  ]
+}

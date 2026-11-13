@@ -1,0 +1,143 @@
+{
+  "id": "search-forms-04",
+  "family": "search-forms",
+  "family_name": "Search forms",
+  "difficulty": 4,
+  "title": "Search forms: level 4",
+  "task": "Extract every matching record from the search forms page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "search",
+  "tags": [
+    "difficulty-4",
+    "search"
+  ],
+  "page": {
+    "title": "Search forms Practice 4",
+    "records": [
+      {
+        "id": "SEA-04-001",
+        "name": "Search Item 4-1",
+        "category": "gamma",
+        "value": 341,
+        "active": true
+      },
+      {
+        "id": "SEA-04-002",
+        "name": "Search Item 4-2",
+        "category": "alpha",
+        "value": 342,
+        "active": true
+      },
+      {
+        "id": "SEA-04-003",
+        "name": "Search Item 4-3",
+        "category": "beta",
+        "value": 343,
+        "active": true
+      },
+      {
+        "id": "SEA-04-004",
+        "name": "Search Item 4-4",
+        "category": "gamma",
+        "value": 344,
+        "active": false
+      },
+      {
+        "id": "SEA-04-005",
+        "name": "Search Item 4-5",
+        "category": "alpha",
+        "value": 345,
+        "active": true
+      },
+      {
+        "id": "SEA-04-006",
+        "name": "Search Item 4-6",
+        "category": "beta",
+        "value": 346,
+        "active": true
+      },
+      {
+        "id": "SEA-04-007",
+        "name": "Search Item 4-7",
+        "category": "gamma",
+        "value": 347,
+        "active": true
+      },
+      {
+        "id": "SEA-04-008",
+        "name": "Search Item 4-8",
+        "category": "alpha",
+        "value": 348,
+        "active": false
+      }
+    ],
+    "page_size": 8,
+    "variant": 4,
+    "search_fields": [
+      "name",
+      "category"
+    ],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "SEA-04-001",
+      "name": "Search Item 4-1",
+      "category": "gamma",
+      "value": 341,
+      "active": true
+    },
+    {
+      "id": "SEA-04-002",
+      "name": "Search Item 4-2",
+      "category": "alpha",
+      "value": 342,
+      "active": true
+    },
+    {
+      "id": "SEA-04-003",
+      "name": "Search Item 4-3",
+      "category": "beta",
+      "value": 343,
+      "active": true
+    },
+    {
+      "id": "SEA-04-004",
+      "name": "Search Item 4-4",
+      "category": "gamma",
+      "value": 344,
+      "active": false
+    },
+    {
+      "id": "SEA-04-005",
+      "name": "Search Item 4-5",
+      "category": "alpha",
+      "value": 345,
+      "active": true
+    },
+    {
+      "id": "SEA-04-006",
+      "name": "Search Item 4-6",
+      "category": "beta",
+      "value": 346,
+      "active": true
+    },
+    {
+      "id": "SEA-04-007",
+      "name": "Search Item 4-7",
+      "category": "gamma",
+      "value": 347,
+      "active": true
+    },
+    {
+      "id": "SEA-04-008",
+      "name": "Search Item 4-8",
+      "category": "alpha",
+      "value": 348,
+      "active": false
+    }
+  ]
+}

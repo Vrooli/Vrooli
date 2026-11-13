@@ -1,0 +1,140 @@
+{
+  "id": "downloads-04",
+  "family": "downloads",
+  "family_name": "Downloads",
+  "difficulty": 4,
+  "title": "Downloads: level 4",
+  "task": "Extract every matching record from the downloads page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "download",
+  "tags": [
+    "difficulty-4",
+    "download"
+  ],
+  "page": {
+    "title": "Downloads Practice 4",
+    "records": [
+      {
+        "id": "DOW-04-001",
+        "name": "Downloads Item 4-1",
+        "category": "gamma",
+        "value": 641,
+        "active": true
+      },
+      {
+        "id": "DOW-04-002",
+        "name": "Downloads Item 4-2",
+        "category": "alpha",
+        "value": 642,
+        "active": true
+      },
+      {
+        "id": "DOW-04-003",
+        "name": "Downloads Item 4-3",
+        "category": "beta",
+        "value": 643,
+        "active": true
+      },
+      {
+        "id": "DOW-04-004",
+        "name": "Downloads Item 4-4",
+        "category": "gamma",
+        "value": 644,
+        "active": false
+      },
+      {
+        "id": "DOW-04-005",
+        "name": "Downloads Item 4-5",
+        "category": "alpha",
+        "value": 645,
+        "active": true
+      },
+      {
+        "id": "DOW-04-006",
+        "name": "Downloads Item 4-6",
+        "category": "beta",
+        "value": 646,
+        "active": true
+      },
+      {
+        "id": "DOW-04-007",
+        "name": "Downloads Item 4-7",
+        "category": "gamma",
+        "value": 647,
+        "active": true
+      },
+      {
+        "id": "DOW-04-008",
+        "name": "Downloads Item 4-8",
+        "category": "alpha",
+        "value": 648,
+        "active": false
+      }
+    ],
+    "page_size": 8,
+    "variant": 4,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "csv",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "DOW-04-001",
+      "name": "Downloads Item 4-1",
+      "category": "gamma",
+      "value": 641,
+      "active": true
+    },
+    {
+      "id": "DOW-04-002",
+      "name": "Downloads Item 4-2",
+      "category": "alpha",
+      "value": 642,
+      "active": true
+    },
+    {
+      "id": "DOW-04-003",
+      "name": "Downloads Item 4-3",
+      "category": "beta",
+      "value": 643,
+      "active": true
+    },
+    {
+      "id": "DOW-04-004",
+      "name": "Downloads Item 4-4",
+      "category": "gamma",
+      "value": 644,
+      "active": false
+    },
+    {
+      "id": "DOW-04-005",
+      "name": "Downloads Item 4-5",
+      "category": "alpha",
+      "value": 645,
+      "active": true
+    },
+    {
+      "id": "DOW-04-006",
+      "name": "Downloads Item 4-6",
+      "category": "beta",
+      "value": 646,
+      "active": true
+    },
+    {
+      "id": "DOW-04-007",
+      "name": "Downloads Item 4-7",
+      "category": "gamma",
+      "value": 647,
+      "active": true
+    },
+    {
+      "id": "DOW-04-008",
+      "name": "Downloads Item 4-8",
+      "category": "alpha",
+      "value": 648,
+      "active": false
+    }
+  ]
+}

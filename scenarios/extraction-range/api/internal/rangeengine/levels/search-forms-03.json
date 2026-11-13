@@ -1,0 +1,129 @@
+{
+  "id": "search-forms-03",
+  "family": "search-forms",
+  "family_name": "Search forms",
+  "difficulty": 3,
+  "title": "Search forms: level 3",
+  "task": "Extract every matching record from the search forms page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "search",
+  "tags": [
+    "difficulty-3",
+    "search"
+  ],
+  "page": {
+    "title": "Search forms Practice 3",
+    "records": [
+      {
+        "id": "SEA-03-001",
+        "name": "Search Item 3-1",
+        "category": "beta",
+        "value": 331,
+        "active": true
+      },
+      {
+        "id": "SEA-03-002",
+        "name": "Search Item 3-2",
+        "category": "gamma",
+        "value": 332,
+        "active": true
+      },
+      {
+        "id": "SEA-03-003",
+        "name": "Search Item 3-3",
+        "category": "alpha",
+        "value": 333,
+        "active": true
+      },
+      {
+        "id": "SEA-03-004",
+        "name": "Search Item 3-4",
+        "category": "beta",
+        "value": 334,
+        "active": false
+      },
+      {
+        "id": "SEA-03-005",
+        "name": "Search Item 3-5",
+        "category": "gamma",
+        "value": 335,
+        "active": true
+      },
+      {
+        "id": "SEA-03-006",
+        "name": "Search Item 3-6",
+        "category": "alpha",
+        "value": 336,
+        "active": true
+      },
+      {
+        "id": "SEA-03-007",
+        "name": "Search Item 3-7",
+        "category": "beta",
+        "value": 337,
+        "active": true
+      }
+    ],
+    "page_size": 7,
+    "variant": 3,
+    "search_fields": [
+      "name",
+      "category"
+    ],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "SEA-03-001",
+      "name": "Search Item 3-1",
+      "category": "beta",
+      "value": 331,
+      "active": true
+    },
+    {
+      "id": "SEA-03-002",
+      "name": "Search Item 3-2",
+      "category": "gamma",
+      "value": 332,
+      "active": true
+    },
+    {
+      "id": "SEA-03-003",
+      "name": "Search Item 3-3",
+      "category": "alpha",
+      "value": 333,
+      "active": true
+    },
+    {
+      "id": "SEA-03-004",
+      "name": "Search Item 3-4",
+      "category": "beta",
+      "value": 334,
+      "active": false
+    },
+    {
+      "id": "SEA-03-005",
+      "name": "Search Item 3-5",
+      "category": "gamma",
+      "value": 335,
+      "active": true
+    },
+    {
+      "id": "SEA-03-006",
+      "name": "Search Item 3-6",
+      "category": "alpha",
+      "value": 336,
+      "active": true
+    },
+    {
+      "id": "SEA-03-007",
+      "name": "Search Item 3-7",
+      "category": "beta",
+      "value": 337,
+      "active": true
+    }
+  ]
+}

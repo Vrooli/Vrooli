@@ -1,0 +1,140 @@
+{
+  "id": "owned-bot-checks-04",
+  "family": "owned-bot-checks",
+  "family_name": "Bot checks on owned ground",
+  "difficulty": 4,
+  "title": "Bot checks on owned ground: level 4",
+  "task": "Complete the explicitly owned practice challenge, then extract every record with id, name, category, value and active. This is a synthetic challenge, not a real website.",
+  "mechanism": "bot_check",
+  "tags": [
+    "difficulty-4",
+    "bot_check"
+  ],
+  "page": {
+    "title": "Bot checks on owned ground Practice 4",
+    "records": [
+      {
+        "id": "OWN-04-001",
+        "name": "Bot Item 4-1",
+        "category": "gamma",
+        "value": 1041,
+        "active": true
+      },
+      {
+        "id": "OWN-04-002",
+        "name": "Bot Item 4-2",
+        "category": "alpha",
+        "value": 1042,
+        "active": true
+      },
+      {
+        "id": "OWN-04-003",
+        "name": "Bot Item 4-3",
+        "category": "beta",
+        "value": 1043,
+        "active": true
+      },
+      {
+        "id": "OWN-04-004",
+        "name": "Bot Item 4-4",
+        "category": "gamma",
+        "value": 1044,
+        "active": false
+      },
+      {
+        "id": "OWN-04-005",
+        "name": "Bot Item 4-5",
+        "category": "alpha",
+        "value": 1045,
+        "active": true
+      },
+      {
+        "id": "OWN-04-006",
+        "name": "Bot Item 4-6",
+        "category": "beta",
+        "value": 1046,
+        "active": true
+      },
+      {
+        "id": "OWN-04-007",
+        "name": "Bot Item 4-7",
+        "category": "gamma",
+        "value": 1047,
+        "active": true
+      },
+      {
+        "id": "OWN-04-008",
+        "name": "Bot Item 4-8",
+        "category": "alpha",
+        "value": 1048,
+        "active": false
+      }
+    ],
+    "page_size": 8,
+    "variant": 4,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": "simulated-token"
+  },
+  "answer": [
+    {
+      "id": "OWN-04-001",
+      "name": "Bot Item 4-1",
+      "category": "gamma",
+      "value": 1041,
+      "active": true
+    },
+    {
+      "id": "OWN-04-002",
+      "name": "Bot Item 4-2",
+      "category": "alpha",
+      "value": 1042,
+      "active": true
+    },
+    {
+      "id": "OWN-04-003",
+      "name": "Bot Item 4-3",
+      "category": "beta",
+      "value": 1043,
+      "active": true
+    },
+    {
+      "id": "OWN-04-004",
+      "name": "Bot Item 4-4",
+      "category": "gamma",
+      "value": 1044,
+      "active": false
+    },
+    {
+      "id": "OWN-04-005",
+      "name": "Bot Item 4-5",
+      "category": "alpha",
+      "value": 1045,
+      "active": true
+    },
+    {
+      "id": "OWN-04-006",
+      "name": "Bot Item 4-6",
+      "category": "beta",
+      "value": 1046,
+      "active": true
+    },
+    {
+      "id": "OWN-04-007",
+      "name": "Bot Item 4-7",
+      "category": "gamma",
+      "value": 1047,
+      "active": true
+    },
+    {
+      "id": "OWN-04-008",
+      "name": "Bot Item 4-8",
+      "category": "alpha",
+      "value": 1048,
+      "active": false
+    }
+  ]
+}

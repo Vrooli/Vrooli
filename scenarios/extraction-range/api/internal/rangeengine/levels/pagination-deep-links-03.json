@@ -1,0 +1,126 @@
+{
+  "id": "pagination-deep-links-03",
+  "family": "pagination-deep-links",
+  "family_name": "Pagination and deep links",
+  "difficulty": 3,
+  "title": "Pagination and deep links: level 3",
+  "task": "Extract every matching record from the pagination and deep links page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "pagination",
+  "tags": [
+    "difficulty-3",
+    "pagination"
+  ],
+  "page": {
+    "title": "Pagination and deep links Practice 3",
+    "records": [
+      {
+        "id": "PAG-03-001",
+        "name": "Pagination Item 3-1",
+        "category": "beta",
+        "value": 231,
+        "active": true
+      },
+      {
+        "id": "PAG-03-002",
+        "name": "Pagination Item 3-2",
+        "category": "gamma",
+        "value": 232,
+        "active": true
+      },
+      {
+        "id": "PAG-03-003",
+        "name": "Pagination Item 3-3",
+        "category": "alpha",
+        "value": 233,
+        "active": true
+      },
+      {
+        "id": "PAG-03-004",
+        "name": "Pagination Item 3-4",
+        "category": "beta",
+        "value": 234,
+        "active": false
+      },
+      {
+        "id": "PAG-03-005",
+        "name": "Pagination Item 3-5",
+        "category": "gamma",
+        "value": 235,
+        "active": true
+      },
+      {
+        "id": "PAG-03-006",
+        "name": "Pagination Item 3-6",
+        "category": "alpha",
+        "value": 236,
+        "active": true
+      },
+      {
+        "id": "PAG-03-007",
+        "name": "Pagination Item 3-7",
+        "category": "beta",
+        "value": 237,
+        "active": true
+      }
+    ],
+    "page_size": 2,
+    "variant": 3,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "PAG-03-001",
+      "name": "Pagination Item 3-1",
+      "category": "beta",
+      "value": 231,
+      "active": true
+    },
+    {
+      "id": "PAG-03-002",
+      "name": "Pagination Item 3-2",
+      "category": "gamma",
+      "value": 232,
+      "active": true
+    },
+    {
+      "id": "PAG-03-003",
+      "name": "Pagination Item 3-3",
+      "category": "alpha",
+      "value": 233,
+      "active": true
+    },
+    {
+      "id": "PAG-03-004",
+      "name": "Pagination Item 3-4",
+      "category": "beta",
+      "value": 234,
+      "active": false
+    },
+    {
+      "id": "PAG-03-005",
+      "name": "Pagination Item 3-5",
+      "category": "gamma",
+      "value": 235,
+      "active": true
+    },
+    {
+      "id": "PAG-03-006",
+      "name": "Pagination Item 3-6",
+      "category": "alpha",
+      "value": 236,
+      "active": true
+    },
+    {
+      "id": "PAG-03-007",
+      "name": "Pagination Item 3-7",
+      "category": "beta",
+      "value": 237,
+      "active": true
+    }
+  ]
+}

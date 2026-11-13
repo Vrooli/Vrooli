@@ -1,0 +1,115 @@
+{
+  "id": "search-forms-02",
+  "family": "search-forms",
+  "family_name": "Search forms",
+  "difficulty": 2,
+  "title": "Search forms: level 2",
+  "task": "Extract every matching record from the search forms page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "search",
+  "tags": [
+    "difficulty-2",
+    "search"
+  ],
+  "page": {
+    "title": "Search forms Practice 2",
+    "records": [
+      {
+        "id": "SEA-02-001",
+        "name": "Search Item 2-1",
+        "category": "alpha",
+        "value": 321,
+        "active": true
+      },
+      {
+        "id": "SEA-02-002",
+        "name": "Search Item 2-2",
+        "category": "beta",
+        "value": 322,
+        "active": true
+      },
+      {
+        "id": "SEA-02-003",
+        "name": "Search Item 2-3",
+        "category": "gamma",
+        "value": 323,
+        "active": true
+      },
+      {
+        "id": "SEA-02-004",
+        "name": "Search Item 2-4",
+        "category": "alpha",
+        "value": 324,
+        "active": false
+      },
+      {
+        "id": "SEA-02-005",
+        "name": "Search Item 2-5",
+        "category": "beta",
+        "value": 325,
+        "active": true
+      },
+      {
+        "id": "SEA-02-006",
+        "name": "Search Item 2-6",
+        "category": "gamma",
+        "value": 326,
+        "active": true
+      }
+    ],
+    "page_size": 6,
+    "variant": 2,
+    "search_fields": [
+      "name",
+      "category"
+    ],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "SEA-02-001",
+      "name": "Search Item 2-1",
+      "category": "alpha",
+      "value": 321,
+      "active": true
+    },
+    {
+      "id": "SEA-02-002",
+      "name": "Search Item 2-2",
+      "category": "beta",
+      "value": 322,
+      "active": true
+    },
+    {
+      "id": "SEA-02-003",
+      "name": "Search Item 2-3",
+      "category": "gamma",
+      "value": 323,
+      "active": true
+    },
+    {
+      "id": "SEA-02-004",
+      "name": "Search Item 2-4",
+      "category": "alpha",
+      "value": 324,
+      "active": false
+    },
+    {
+      "id": "SEA-02-005",
+      "name": "Search Item 2-5",
+      "category": "beta",
+      "value": 325,
+      "active": true
+    },
+    {
+      "id": "SEA-02-006",
+      "name": "Search Item 2-6",
+      "category": "gamma",
+      "value": 326,
+      "active": true
+    }
+  ]
+}

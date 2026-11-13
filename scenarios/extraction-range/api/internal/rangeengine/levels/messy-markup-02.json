@@ -1,0 +1,112 @@
+{
+  "id": "messy-markup-02",
+  "family": "messy-markup",
+  "family_name": "Messy markup",
+  "difficulty": 2,
+  "title": "Messy markup: level 2",
+  "task": "Extract every matching record from the messy markup page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "messy_markup",
+  "tags": [
+    "difficulty-2",
+    "messy_markup"
+  ],
+  "page": {
+    "title": "Messy markup Practice 2",
+    "records": [
+      {
+        "id": "MES-02-001",
+        "name": "Messy Item 2-1",
+        "category": "alpha",
+        "value": 721,
+        "active": true
+      },
+      {
+        "id": "MES-02-002",
+        "name": "Messy Item 2-2",
+        "category": "beta",
+        "value": 722,
+        "active": true
+      },
+      {
+        "id": "MES-02-003",
+        "name": "Messy Item 2-3",
+        "category": "gamma",
+        "value": 723,
+        "active": true
+      },
+      {
+        "id": "MES-02-004",
+        "name": "Messy Item 2-4",
+        "category": "alpha",
+        "value": 724,
+        "active": false
+      },
+      {
+        "id": "MES-02-005",
+        "name": "Messy Item 2-5",
+        "category": "beta",
+        "value": 725,
+        "active": true
+      },
+      {
+        "id": "MES-02-006",
+        "name": "Messy Item 2-6",
+        "category": "gamma",
+        "value": 726,
+        "active": true
+      }
+    ],
+    "page_size": 6,
+    "variant": 2,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "MES-02-001",
+      "name": "Messy Item 2-1",
+      "category": "alpha",
+      "value": 721,
+      "active": true
+    },
+    {
+      "id": "MES-02-002",
+      "name": "Messy Item 2-2",
+      "category": "beta",
+      "value": 722,
+      "active": true
+    },
+    {
+      "id": "MES-02-003",
+      "name": "Messy Item 2-3",
+      "category": "gamma",
+      "value": 723,
+      "active": true
+    },
+    {
+      "id": "MES-02-004",
+      "name": "Messy Item 2-4",
+      "category": "alpha",
+      "value": 724,
+      "active": false
+    },
+    {
+      "id": "MES-02-005",
+      "name": "Messy Item 2-5",
+      "category": "beta",
+      "value": 725,
+      "active": true
+    },
+    {
+      "id": "MES-02-006",
+      "name": "Messy Item 2-6",
+      "category": "gamma",
+      "value": 726,
+      "active": true
+    }
+  ]
+}

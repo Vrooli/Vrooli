@@ -1,0 +1,144 @@
+{
+  "id": "rate-errors-timeouts-04",
+  "family": "rate-errors-timeouts",
+  "family_name": "Rate limits, errors and timeouts",
+  "difficulty": 4,
+  "title": "Rate limits, errors and timeouts: level 4",
+  "task": "Extract every matching record from the rate limits, errors and timeouts page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "resilience",
+  "tags": [
+    "difficulty-4",
+    "resilience"
+  ],
+  "page": {
+    "title": "Rate limits, errors and timeouts Practice 4",
+    "records": [
+      {
+        "id": "RAT-04-001",
+        "name": "Rate Item 4-1",
+        "category": "gamma",
+        "value": 941,
+        "active": true
+      },
+      {
+        "id": "RAT-04-002",
+        "name": "Rate Item 4-2",
+        "category": "alpha",
+        "value": 942,
+        "active": true
+      },
+      {
+        "id": "RAT-04-003",
+        "name": "Rate Item 4-3",
+        "category": "beta",
+        "value": 943,
+        "active": true
+      },
+      {
+        "id": "RAT-04-004",
+        "name": "Rate Item 4-4",
+        "category": "gamma",
+        "value": 944,
+        "active": false
+      },
+      {
+        "id": "RAT-04-005",
+        "name": "Rate Item 4-5",
+        "category": "alpha",
+        "value": 945,
+        "active": true
+      },
+      {
+        "id": "RAT-04-006",
+        "name": "Rate Item 4-6",
+        "category": "beta",
+        "value": 946,
+        "active": true
+      },
+      {
+        "id": "RAT-04-007",
+        "name": "Rate Item 4-7",
+        "category": "gamma",
+        "value": 947,
+        "active": true
+      },
+      {
+        "id": "RAT-04-008",
+        "name": "Rate Item 4-8",
+        "category": "alpha",
+        "value": 948,
+        "active": false
+      }
+    ],
+    "page_size": 8,
+    "variant": 4,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "",
+    "behavior": {
+      "status_code": 200,
+      "delay_ms": 350,
+      "retry_after_seconds": 0
+    },
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "RAT-04-001",
+      "name": "Rate Item 4-1",
+      "category": "gamma",
+      "value": 941,
+      "active": true
+    },
+    {
+      "id": "RAT-04-002",
+      "name": "Rate Item 4-2",
+      "category": "alpha",
+      "value": 942,
+      "active": true
+    },
+    {
+      "id": "RAT-04-003",
+      "name": "Rate Item 4-3",
+      "category": "beta",
+      "value": 943,
+      "active": true
+    },
+    {
+      "id": "RAT-04-004",
+      "name": "Rate Item 4-4",
+      "category": "gamma",
+      "value": 944,
+      "active": false
+    },
+    {
+      "id": "RAT-04-005",
+      "name": "Rate Item 4-5",
+      "category": "alpha",
+      "value": 945,
+      "active": true
+    },
+    {
+      "id": "RAT-04-006",
+      "name": "Rate Item 4-6",
+      "category": "beta",
+      "value": 946,
+      "active": true
+    },
+    {
+      "id": "RAT-04-007",
+      "name": "Rate Item 4-7",
+      "category": "gamma",
+      "value": 947,
+      "active": true
+    },
+    {
+      "id": "RAT-04-008",
+      "name": "Rate Item 4-8",
+      "category": "alpha",
+      "value": 948,
+      "active": false
+    }
+  ]
+}

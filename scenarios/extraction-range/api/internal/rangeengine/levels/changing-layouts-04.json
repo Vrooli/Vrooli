@@ -1,0 +1,140 @@
+{
+  "id": "changing-layouts-04",
+  "family": "changing-layouts",
+  "family_name": "Layouts that change between visits",
+  "difficulty": 4,
+  "title": "Layouts that change between visits: level 4",
+  "task": "Extract every matching record from the layouts that change between visits page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "changing_layout",
+  "tags": [
+    "difficulty-4",
+    "changing_layout"
+  ],
+  "page": {
+    "title": "Layouts that change between visits Practice 4",
+    "records": [
+      {
+        "id": "CHA-04-001",
+        "name": "Layouts Item 4-1",
+        "category": "gamma",
+        "value": 841,
+        "active": true
+      },
+      {
+        "id": "CHA-04-002",
+        "name": "Layouts Item 4-2",
+        "category": "alpha",
+        "value": 842,
+        "active": true
+      },
+      {
+        "id": "CHA-04-003",
+        "name": "Layouts Item 4-3",
+        "category": "beta",
+        "value": 843,
+        "active": true
+      },
+      {
+        "id": "CHA-04-004",
+        "name": "Layouts Item 4-4",
+        "category": "gamma",
+        "value": 844,
+        "active": false
+      },
+      {
+        "id": "CHA-04-005",
+        "name": "Layouts Item 4-5",
+        "category": "alpha",
+        "value": 845,
+        "active": true
+      },
+      {
+        "id": "CHA-04-006",
+        "name": "Layouts Item 4-6",
+        "category": "beta",
+        "value": 846,
+        "active": true
+      },
+      {
+        "id": "CHA-04-007",
+        "name": "Layouts Item 4-7",
+        "category": "gamma",
+        "value": 847,
+        "active": true
+      },
+      {
+        "id": "CHA-04-008",
+        "name": "Layouts Item 4-8",
+        "category": "alpha",
+        "value": 848,
+        "active": false
+      }
+    ],
+    "page_size": 8,
+    "variant": 4,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "cards",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "CHA-04-001",
+      "name": "Layouts Item 4-1",
+      "category": "gamma",
+      "value": 841,
+      "active": true
+    },
+    {
+      "id": "CHA-04-002",
+      "name": "Layouts Item 4-2",
+      "category": "alpha",
+      "value": 842,
+      "active": true
+    },
+    {
+      "id": "CHA-04-003",
+      "name": "Layouts Item 4-3",
+      "category": "beta",
+      "value": 843,
+      "active": true
+    },
+    {
+      "id": "CHA-04-004",
+      "name": "Layouts Item 4-4",
+      "category": "gamma",
+      "value": 844,
+      "active": false
+    },
+    {
+      "id": "CHA-04-005",
+      "name": "Layouts Item 4-5",
+      "category": "alpha",
+      "value": 845,
+      "active": true
+    },
+    {
+      "id": "CHA-04-006",
+      "name": "Layouts Item 4-6",
+      "category": "beta",
+      "value": 846,
+      "active": true
+    },
+    {
+      "id": "CHA-04-007",
+      "name": "Layouts Item 4-7",
+      "category": "gamma",
+      "value": 847,
+      "active": true
+    },
+    {
+      "id": "CHA-04-008",
+      "name": "Layouts Item 4-8",
+      "category": "alpha",
+      "value": 848,
+      "active": false
+    }
+  ]
+}

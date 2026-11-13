@@ -1,0 +1,98 @@
+{
+  "id": "changing-layouts-01",
+  "family": "changing-layouts",
+  "family_name": "Layouts that change between visits",
+  "difficulty": 1,
+  "title": "Layouts that change between visits: level 1",
+  "task": "Extract every matching record from the layouts that change between visits page and return records in source order. Include id, name, category, value and active.",
+  "mechanism": "changing_layout",
+  "tags": [
+    "difficulty-1",
+    "changing_layout"
+  ],
+  "page": {
+    "title": "Layouts that change between visits Practice 1",
+    "records": [
+      {
+        "id": "CHA-01-001",
+        "name": "Layouts Item 1-1",
+        "category": "gamma",
+        "value": 811,
+        "active": true
+      },
+      {
+        "id": "CHA-01-002",
+        "name": "Layouts Item 1-2",
+        "category": "alpha",
+        "value": 812,
+        "active": true
+      },
+      {
+        "id": "CHA-01-003",
+        "name": "Layouts Item 1-3",
+        "category": "beta",
+        "value": 813,
+        "active": true
+      },
+      {
+        "id": "CHA-01-004",
+        "name": "Layouts Item 1-4",
+        "category": "gamma",
+        "value": 814,
+        "active": false
+      },
+      {
+        "id": "CHA-01-005",
+        "name": "Layouts Item 1-5",
+        "category": "alpha",
+        "value": 815,
+        "active": true
+      }
+    ],
+    "page_size": 5,
+    "variant": 1,
+    "search_fields": [],
+    "requires_session": false,
+    "download_format": "",
+    "layout_variant": "table",
+    "behavior": {},
+    "bot_gate": ""
+  },
+  "answer": [
+    {
+      "id": "CHA-01-001",
+      "name": "Layouts Item 1-1",
+      "category": "gamma",
+      "value": 811,
+      "active": true
+    },
+    {
+      "id": "CHA-01-002",
+      "name": "Layouts Item 1-2",
+      "category": "alpha",
+      "value": 812,
+      "active": true
+    },
+    {
+      "id": "CHA-01-003",
+      "name": "Layouts Item 1-3",
+      "category": "beta",
+      "value": 813,
+      "active": true
+    },
+    {
+      "id": "CHA-01-004",
+      "name": "Layouts Item 1-4",
+      "category": "gamma",
+      "value": 814,
+      "active": false
+    },
+    {
+      "id": "CHA-01-005",
+      "name": "Layouts Item 1-5",
+      "category": "alpha",
+      "value": 815,
+      "active": true
+    }
+  ]
+}
