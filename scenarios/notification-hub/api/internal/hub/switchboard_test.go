@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -94,16 +93,14 @@ func TestRecipientResolvesFromOperatorStateBeforeSourceFallback(t *testing.T) {
 
 func TestTestModeRecipientRequiresAnInstalledLease(t *testing.T) {
 	ctx := database.WithTestMode(context.Background())
-	primaryPath := filepath.Join(t.TempDir(), "primary.db")
-	db, err := database.Open(context.Background(), database.Config{Driver: database.DriverSQLite, DSN: primaryPath})
-	require.NoError(t, err)
+	db := OpenTestDB(t, "primary.db")
 	defer db.Close()
 	service := New(db, schedule.System(), log.Default())
+	t.Cleanup(service.Close)
 	service.SetOwnerFallback(OperatorSubject)
 	require.Equal(t, OperatorSubject, service.ResolveRecipient(ctx), "test-mode header without a lease must not select the fixture")
 
-	testPath := filepath.Join(t.TempDir(), "leased.db")
-	require.NoError(t, db.InstallTestPool(context.Background(), testPath, "fixture-lease", 0))
+	require.NoError(t, db.InstallTestPool(context.Background(), FileDSN(t, "leased.db"), "fixture-lease", 0))
 	require.Equal(t, TestRecipientSubject, service.ResolveRecipient(ctx))
 	require.Equal(t, OperatorSubject, service.ResolveRecipient(context.Background()), "ordinary requests keep the configured owner recipient")
 	stats := db.LeaseStats()

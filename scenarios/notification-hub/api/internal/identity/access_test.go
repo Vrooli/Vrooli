@@ -294,3 +294,53 @@ func TestLoopbackOwnerIsOnlyTheExplicitLocalMode(t *testing.T) {
 		t.Fatalf("default providers = %#v, want Cloudflare Access only", defaults)
 	}
 }
+
+// A bearer is not an owner credential for this middleware: the owner's CLI token
+// and the service tokens (ask-reader, sender) are verified by the handlers. With
+// Access as the only provider, a request carrying one must still reach them,
+// instead of being refused as a failed owner login.
+func TestABearerTokenIsLeftToTheHandlersWhenAccessIsTheOnlyProvider(t *testing.T) {
+	fixture := newAccessFixture(t)
+	provider := NewAccessProvider(func(context.Context) (cloudflareaccess.Config, error) { return fixture.cfg, nil })
+	owner, err := ownerThrough(t, provider, func(r *http.Request) { r.Header.Set("Authorization", "Bearer cookie-token") })
+	if err != nil || owner.Subject != "authenticator-user" {
+		t.Fatalf("owner = %#v, err = %v; want the bearer verified by the handler", owner, err)
+	}
+
+	auth := OwnerAuthenticator{Providers: []authn.Provider{provider}, OwnerSubject: func(context.Context) string { return "operator" }}
+	var refused bool
+	req := httptest.NewRequest(http.MethodPost, "/x", nil)
+	req.Header.Set("Authorization", "Bearer a-service-token")
+	auth.Middleware(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) { refused = Refused(r.Context()) })).ServeHTTP(httptest.NewRecorder(), req)
+	if refused {
+		t.Fatal("a service bearer was refused as an owner login before the handler could verify it")
+	}
+	if got := req.Header.Get("Authorization"); got == "" {
+		t.Fatal("the handler needs the bearer: the middleware must not remove it from the request it passes on")
+	}
+}
+
+// The bearer does not weaken an Access assertion that is presented with it: a
+// bad assertion is still refused, a good one is still the owner.
+func TestABearerDoesNotHideAnAccessAssertion(t *testing.T) {
+	fixture := newAccessFixture(t)
+	otherKey, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := NewAccessProvider(func(context.Context) (cloudflareaccess.Config, error) { return fixture.cfg, nil })
+	_, err = ownerThrough(t, provider, func(r *http.Request) {
+		r.Header.Set("Authorization", "Bearer cookie-token")
+		r.Header.Set(accessAssertionHeader, fixture.assertion(t, otherKey, nil))
+	})
+	if !errors.Is(err, owneridentity.ErrUnauthenticated) {
+		t.Fatalf("a bad assertion beside a bearer: err = %v, want unauthenticated", err)
+	}
+	owner, err := ownerThrough(t, provider, func(r *http.Request) {
+		r.Header.Set("Authorization", "Bearer cookie-token")
+		r.Header.Set(accessAssertionHeader, fixture.assertion(t, fixture.key, nil))
+	})
+	if err != nil || owner.Subject != "operator" {
+		t.Fatalf("owner = %#v, err = %v; want the Access login", owner, err)
+	}
+}

@@ -38,21 +38,28 @@ func (p EventsPublisher) PublishDomainEvent(ctx context.Context, event eventbus.
 	if err := (eventbus.Client{BaseURL: base}).PublishDomainEvent(ctx, event); err != nil {
 		return err
 	}
-	// Only Agent Manager's decision route has an exact durable subscription
-	// contract here. Keep its resolution in the outbox until Events confirms
-	// the corresponding queue row; other producers retain their own routing.
+	// Decision producers with a durable answer route keep the resolution in
+	// the outbox until Events confirms the matching delivery queue row. Other
+	// producers retain their own routing.
 	source, _ := event.Payload["source"].(string)
-	if event.EventType != "notification_hub.ask.resolved.v1" || source != "agent-manager" {
+	if event.EventType != "notification_hub.ask.resolved.v1" {
 		return nil
 	}
-	return reconcileAgentManagerResolution(ctx, base, event)
+	switch source {
+	case "agent-manager":
+		return reconcileDecisionResolution(ctx, base, source, "agent-manager-decision-answers", event)
+	case "treasury":
+		return reconcileDecisionResolution(ctx, base, source, "treasury-approval-decision-answers", event)
+	default:
+		return nil
+	}
 }
 
-func reconcileAgentManagerResolution(ctx context.Context, base string, event eventbus.DomainEvent) error {
+func reconcileDecisionResolution(ctx context.Context, base, owner, subscriptionName string, event eventbus.DomainEvent) error {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	base = strings.TrimRight(base, "/")
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/subscriptions?owner=agent-manager", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/api/v1/subscriptions?owner="+owner, nil)
 	if err != nil {
 		return err
 	}
@@ -62,7 +69,7 @@ func reconcileAgentManagerResolution(ctx context.Context, base string, event eve
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("list Agent Manager subscriptions: %s", response.Status)
+		return fmt.Errorf("list %s subscriptions: %s", owner, response.Status)
 	}
 	var subscriptions []struct {
 		ID      int64  `json:"id"`
@@ -75,15 +82,15 @@ func reconcileAgentManagerResolution(ctx context.Context, base string, event eve
 	}
 	var id int64
 	for _, sub := range subscriptions {
-		if sub.Name == "agent-manager-decision-answers" && sub.Enabled && sub.Pattern == "notification_hub.ask.resolved.v1" {
+		if sub.Name == subscriptionName && sub.Enabled && sub.Pattern == "notification_hub.ask.resolved.v1" {
 			if id != 0 {
-				return errors.New("multiple Agent Manager answer subscriptions")
+				return fmt.Errorf("multiple %s answer subscriptions", owner)
 			}
 			id = sub.ID
 		}
 	}
 	if id == 0 {
-		return errors.New("Agent Manager answer subscription unavailable")
+		return fmt.Errorf("%s answer subscription unavailable", owner)
 	}
 	// This is the same deterministic identity used by eventbus.Client.
 	seed, err := json.Marshal(event)
@@ -106,7 +113,7 @@ func reconcileAgentManagerResolution(ctx context.Context, base string, event eve
 	}
 	defer response.Body.Close()
 	if response.StatusCode != http.StatusAccepted {
-		return fmt.Errorf("reconcile Agent Manager answer delivery: %s", response.Status)
+		return fmt.Errorf("reconcile %s answer delivery: %s", owner, response.Status)
 	}
 	return nil
 }

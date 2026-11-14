@@ -91,16 +91,18 @@ func (s *Service) GetRecipient(ctx context.Context, subject string) (Recipient, 
 	if err := s.EnsureRecipient(ctx, subject); err != nil {
 		return Recipient{}, err
 	}
-	var out Recipient
-	err := s.db.QueryRowContext(ctx, `SELECT id, subject, trust_posture, created_at, updated_at FROM recipients WHERE subject=?`, subject).Scan(&out.ID, &out.Subject, &out.TrustPosture, &out.CreatedAt, &out.UpdatedAt)
-	return out, err
+	return s.getRecipient(ctx, subject)
 }
 
 // GetRecipientReadOnly returns configured recipient metadata without creating
 // the recipient row. Public read handlers use this so a GET never mutates state.
 func (s *Service) GetRecipientReadOnly(ctx context.Context, subject string) (Recipient, error) {
+	return s.getRecipient(ctx, strings.TrimSpace(subject))
+}
+
+func (s *Service) getRecipient(ctx context.Context, subject string) (Recipient, error) {
 	var out Recipient
-	err := s.db.QueryRowContext(ctx, `SELECT id, subject, trust_posture, created_at, updated_at FROM recipients WHERE subject=?`, strings.TrimSpace(subject)).Scan(&out.ID, &out.Subject, &out.TrustPosture, &out.CreatedAt, &out.UpdatedAt)
+	err := s.db.QueryRowContext(ctx, `SELECT id, subject, trust_posture, created_at, updated_at FROM recipients WHERE subject=?`, subject).Scan(&out.ID, &out.Subject, &out.TrustPosture, &out.CreatedAt, &out.UpdatedAt)
 	return out, err
 }
 
@@ -165,19 +167,29 @@ func (s *Service) deviceByID(ctx context.Context, id string) (Device, error) {
 	return out, rows.Err()
 }
 
+// RemoveDevice deletes one of the recipient's devices with everything that hangs
+// off it. The dependents are deleted explicitly, in one transaction, so the
+// result never depends on the connection enforcing foreign keys.
 func (s *Service) RemoveDevice(ctx context.Context, recipient, id string) error {
-	_, err := s.db.ExecContext(ctx, `DELETE FROM push_subscriptions WHERE device_id IN (SELECT id FROM devices WHERE id=? AND recipient_id=(SELECT id FROM recipients WHERE subject=?))`, id, recipient)
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	result, err := s.db.ExecContext(ctx, `DELETE FROM devices WHERE id=? AND recipient_id=(SELECT id FROM recipients WHERE subject=?)`, id, recipient)
+	defer func() { _ = tx.Rollback() }()
+	owned := `SELECT id FROM devices WHERE id=? AND recipient_id=(SELECT id FROM recipients WHERE subject=?)`
+	for _, table := range []string{"push_subscriptions", "channel_addresses"} {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE device_id IN (`+owned+`)`, id, recipient); err != nil {
+			return err
+		}
+	}
+	result, err := tx.ExecContext(ctx, `DELETE FROM devices WHERE id=? AND recipient_id=(SELECT id FROM recipients WHERE subject=?)`, id, recipient)
 	if err != nil {
 		return err
 	}
 	if count, _ := result.RowsAffected(); count == 0 {
 		return sql.ErrNoRows
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (s *Service) UpsertChannelAddress(ctx context.Context, recipient string, address ChannelAddress) (ChannelAddress, error) {
@@ -402,19 +414,7 @@ func (s *Service) GetEscalationChainReadOnly(ctx context.Context, recipient stri
 	if err != nil {
 		return EscalationChain{}, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT ordinal, channel FROM escalation_chains WHERE recipient_id=? ORDER BY ordinal`, chain.RecipientID)
-	if err != nil {
-		return EscalationChain{}, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var step EscalationStep
-		if err := rows.Scan(&step.Ordinal, &step.Channel); err != nil {
-			return EscalationChain{}, err
-		}
-		chain.Steps = append(chain.Steps, step)
-	}
-	return chain, rows.Err()
+	return s.readEscalationSteps(ctx, chain)
 }
 
 func (s *Service) GetEscalationChain(ctx context.Context, recipient string) (EscalationChain, error) {
@@ -431,6 +431,10 @@ func (s *Service) GetEscalationChain(ctx context.Context, recipient string) (Esc
 			return EscalationChain{}, err
 		}
 	}
+	return s.readEscalationSteps(ctx, chain)
+}
+
+func (s *Service) readEscalationSteps(ctx context.Context, chain EscalationChain) (EscalationChain, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT ordinal, channel FROM escalation_chains WHERE recipient_id=? ORDER BY ordinal`, chain.RecipientID)
 	if err != nil {
 		return EscalationChain{}, err

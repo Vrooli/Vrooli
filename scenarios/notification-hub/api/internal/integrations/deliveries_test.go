@@ -11,6 +11,7 @@ import (
 
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
@@ -20,7 +21,7 @@ import (
 func TestDeliveryProjectionBoundsExactIncidentFilterAndReportsTruncation(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
-	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
 	handler := DeliveryProjectionHandler(service)
 
 	query := url.Values{"prefix": {"incident."}, "limit": {"200"}, "incident_id": {"inc-1"}}

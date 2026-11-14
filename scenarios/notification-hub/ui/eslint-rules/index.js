@@ -5,8 +5,8 @@
  * template scaffolds:
  *
  *   - `strings/codegen-fresh`   — fails when src/consts/strings.generated.ts
- *                                 diverges from src/i18n/locales/en.json.
- *   - `strings/no-unused-keys`  — fails when a catalog key in en.json has
+ *                                 diverges from src/i18n/locales/en/*.json.
+ *   - `strings/no-unused-keys`  — fails when a catalog key in the English catalog has
  *                                 no callsite under src/.
  *
  * Both rules anchor on `src/consts/strings.generated.ts` so the gates run

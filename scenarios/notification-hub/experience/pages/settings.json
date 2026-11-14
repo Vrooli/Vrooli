@@ -5,9 +5,45 @@
   "page": {
     "id": "settings",
     "title": "Settings",
-    "routes": ["/settings", "/settings/reach"],
+    "routes": [
+      "/settings",
+      "/settings/reach",
+      "/settings/reach/devices/:deviceId",
+      "/settings/reach/devices/:deviceId/channels/:channel",
+      "/settings/quiet-hours",
+      "/settings/escalation",
+      "/settings/appearance",
+      "/settings/session",
+      "/settings/sources"
+    ],
     "purpose": "Expose the minimum configuration surface needed to understand and operate Notification Hub safely.",
-    "prd_refs": ["OT-P1-001"]
+    "prd_refs": [
+      "OT-P1-001"
+    ]
   },
-  "states": [{ "id": "default" }]
+  "states": [
+    {
+      "id": "default"
+    },
+    {
+      "id": "loading",
+      "description": "Placeholder rows hold the place while a screen's first read is in flight, and are announced as loading."
+    },
+    {
+      "id": "empty",
+      "description": "A screen with nothing yet (no devices, no quiet hours, no escalation channels, no event sources) says so in a sentence and offers the one next step."
+    },
+    {
+      "id": "partial",
+      "description": "A save that landed for some days or a channel and not others names exactly what did not save and keeps the draft; the rest stays saved."
+    },
+    {
+      "id": "request-error",
+      "description": "A failed read names the cause with a retry, or shows the sign-in card when the owner session is missing; it never shows an error as an empty list."
+    },
+    {
+      "id": "stale",
+      "description": "Rows from an earlier read stay on screen with a note while a refresh fails, so the screen does not claim they are current."
+    }
+  ]
 }

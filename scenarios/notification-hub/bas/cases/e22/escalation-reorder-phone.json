@@ -1,0 +1,303 @@
+{
+  "metadata": {
+    "name": "escalation-reorder-phone",
+    "description": "Move a channel in the escalation order, save, and confirm the Hub holds the new order after a reload.",
+    "requirement": "NOTIFICA-P0-006",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-escalation-reorder-phone"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Move a channel in the escalation order, save, and confirm the Hub holds the new order after a reload.",
+      "requirement": "NOTIFICA-P0-006",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Open Settings so the page can reach the Hub API"
+          }
+        }
+      },
+      {
+        "id": "seed-reach",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/seed-owner.json",
+            "args": {
+              "profile": {
+                "string_value": "reach"
+              }
+            }
+          },
+          "metadata": {
+            "label": "Start from two devices with email then push as the order"
+          }
+        }
+      },
+      {
+        "id": "open-escalation",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/escalation?vrooli_test_mode=1",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Open Escalation order"
+          }
+        }
+      },
+      {
+        "id": "wait-list",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalation.list",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the order"
+          }
+        }
+      },
+      {
+        "id": "move-email-down",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalation.moveDown(channel=email)"
+          },
+          "metadata": {
+            "label": "Move Email below Web push"
+          }
+        }
+      },
+      {
+        "id": "wait-save",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalation.save",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Saving is offered once the order changed"
+          }
+        }
+      },
+      {
+        "id": "zero-insets",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');return true;})()"
+          },
+          "metadata": {
+            "label": "Zero the safe-area insets so the capture matches a desktop browser"
+          }
+        }
+      },
+      {
+        "id": "capture-reordered",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the reordered, unsaved escalation order"
+          }
+        }
+      },
+      {
+        "id": "save",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/escalation.save"
+          },
+          "metadata": {
+            "label": "Save the order"
+          }
+        }
+      },
+      {
+        "id": "wait-saved",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalation.message",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the saved notice"
+          }
+        }
+      },
+      {
+        "id": "assert-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const call=async(method)=>{const r=await fetch('/vrooli.notification_hub.v1.recipients.RecipientsService/'+method,{method:'POST',headers:{'content-type':'application/json','X-Vrooli-Test-Mode':'1','X-Vrooli-Browser-Session':'1'},credentials:'same-origin',body:'{}'});if(!r.ok)throw new Error(method+' failed '+r.status);return r.json();};const {steps=[]}=await call('GetEscalationChain');const order=steps.sort((a,b)=>a.ordinal-b.ordinal).map(s=>s.channel);if(order.join()!=='web_push,email')throw new Error('unexpected order '+order.join());return {order};})()"
+          },
+          "metadata": {
+            "label": "The Hub holds Web push then Email"
+          }
+        }
+      },
+      {
+        "id": "reload",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/escalation?vrooli_test_mode=1",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Reload the screen"
+          }
+        }
+      },
+      {
+        "id": "wait-reloaded",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/escalation.list",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the order after reload"
+          }
+        }
+      },
+      {
+        "id": "assert-reloaded-order",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const list=document.querySelector('[data-testid=\"escalation-list\"]');const keys=[...list.querySelectorAll('[data-testid^=\"escalation-step-\"]')].map(el=>el.getAttribute('data-testid').replace('escalation-step-',''));if(keys.join()!=='web_push,email')throw new Error('reloaded order is '+keys.join());return keys;})()"
+          },
+          "metadata": {
+            "label": "The reloaded screen shows the saved order"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-00",
+        "source": "open-settings",
+        "target": "seed-reach",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-01",
+        "source": "seed-reach",
+        "target": "open-escalation",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-02",
+        "source": "open-escalation",
+        "target": "wait-list",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-03",
+        "source": "wait-list",
+        "target": "move-email-down",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-04",
+        "source": "move-email-down",
+        "target": "wait-save",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-05",
+        "source": "wait-save",
+        "target": "zero-insets",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-06",
+        "source": "zero-insets",
+        "target": "capture-reordered",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-07",
+        "source": "capture-reordered",
+        "target": "save",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-08",
+        "source": "save",
+        "target": "wait-saved",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-09",
+        "source": "wait-saved",
+        "target": "assert-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-10",
+        "source": "assert-readback",
+        "target": "reload",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-11",
+        "source": "reload",
+        "target": "wait-reloaded",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-12",
+        "source": "wait-reloaded",
+        "target": "assert-reloaded-order",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

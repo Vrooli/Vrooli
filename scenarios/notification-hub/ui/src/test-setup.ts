@@ -26,6 +26,12 @@ import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, vi } from "vitest";
 import { i18n } from "./i18n";
 
+// jsdom does not implement layout, so scrolling is a no-op (the component
+// library's scroll lock restores the page position with scrollTo when a drawer
+// closes). Tests that care replace these with their own spy.
+Element.prototype.scrollIntoView = vi.fn();
+window.scrollTo = vi.fn();
+
 let consoleError: ReturnType<typeof vi.spyOn>;
 let consoleWarn: ReturnType<typeof vi.spyOn>;
 

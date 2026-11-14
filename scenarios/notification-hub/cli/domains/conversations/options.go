@@ -9,6 +9,10 @@ import (
 
 type askOption struct{ Key, Label string }
 
+// maxOptions is the most options the Hub accepts for one ask (maxAskOptions in
+// api/internal/hub/asks.go). The Hub refuses more; saying so here saves the trip.
+const maxOptions = 8
+
 // parseOptions turns repeated --option values (key or key=label) into
 // structured answers; a missing label shows the key.
 func parseOptions(values []string) ([]askOption, error) {
@@ -30,15 +34,16 @@ func parseOptions(values []string) ([]askOption, error) {
 		}
 		options = append(options, askOption{Key: key, Label: label})
 	}
-	if len(options) < 2 {
-		return nil, fmt.Errorf("an ask needs at least two --option values")
+	if len(options) < 2 || len(options) > maxOptions {
+		return nil, fmt.Errorf("an ask needs 2 to %d --option values, got %d", maxOptions, len(options))
 	}
 	return options, nil
 }
 
-// parseDeadline accepts an RFC 3339 time or a positive duration from now
-// (for example 24h) and returns RFC 3339 for the API.
-func parseDeadline(value string, now time.Time) (string, error) {
+// parseTime reads the value of a time flag (--expires or --timeout): an RFC 3339
+// time, or a positive duration from now such as 24h. It returns RFC 3339 for the
+// API; flag names the flag in the error.
+func parseTime(flag, value string, now time.Time) (string, error) {
 	value = strings.TrimSpace(value)
 	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
 		return parsed.UTC().Format(time.RFC3339), nil
@@ -46,7 +51,7 @@ func parseDeadline(value string, now time.Time) (string, error) {
 	if duration, err := time.ParseDuration(value); err == nil && duration > 0 {
 		return now.Add(duration).UTC().Format(time.RFC3339), nil
 	}
-	return "", fmt.Errorf("--deadline %q must be an RFC 3339 time or a positive duration such as 24h", value)
+	return "", fmt.Errorf("%s %q must be an RFC 3339 time or a positive duration such as 24h", flag, value)
 }
 
 // waitGrace lets the server answer its own deadline before the client gives up.

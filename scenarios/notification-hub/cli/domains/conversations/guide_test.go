@@ -40,15 +40,15 @@ func TestGuideReminderTellsAnUnreadAgentHowToReadAndFixInPlace(t *testing.T) {
 
 func TestGuideReminderWithoutConfirmationNamesTheCauseAndTheWithdrawRoute(t *testing.T) {
 	got := reminder(guideReceipt{Status: guideUnverified, Reason: "this shell has no agent identity"}, askGuideContext{AskID: "ask-42"})
-	for _, want := range []string{"could not confirm", "this shell has no agent identity", guideReadCommand, "withdraw --ask-id ask-42"} {
+	for _, want := range []string{"could not confirm", "this shell has no agent identity", guideReadCommand, "withdraw ask-42"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("reminder lacks %q:\n%s", want, got)
 		}
 	}
 }
 
-func TestGuideReminderSkipsAsksThatCanNoLongerChange(t *testing.T) {
-	for _, outcome := range []string{"returned", "suppressed"} {
+func TestGuideReminderSkipsAsksThatCanNoLongerChangeAndRevisions(t *testing.T) {
+	for _, outcome := range []string{"returned", "suppressed", "updated", "reasserted"} {
 		if got := reminder(guideReceipt{Status: guideNotRead}, askGuideContext{AskID: "a1", SubjectKey: "k", Outcome: outcome}); got != "" {
 			t.Fatalf("%s ask got a reminder: %q", outcome, got)
 		}

@@ -6,8 +6,12 @@ import (
 	"net/http"
 	"strings"
 
+	"connectrpc.com/connect"
+	"github.com/vrooli/api-core/authn"
 	"github.com/vrooli/api-core/database"
+	"github.com/vrooli/api-core/hubsender"
 	"github.com/vrooli/api-core/owneridentity"
+	"github.com/vrooli/api-core/principalrole"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
 )
@@ -40,7 +44,51 @@ type Producer struct {
 	// Key names the source for the shared device-push bucket. Identityless
 	// callers share the anonymous source bucket.
 	Key string
+	// Conversation is the verified conversation of an agent run (shared with the
+	// runs recovered from it and spawned by it); empty for any other producer
+	// and for a token that carries none.
+	Conversation string
+	// Subject is the verified owner account behind the producer: the run's owner
+	// for an agent run, the owner for the owner. Empty when none is verified.
+	Subject string
+	// Source is the scenario a verified service sender sends as, read off its
+	// principal name (hubsender); empty for every other producer. It attributes
+	// what the sender raises and is never taken from a request.
+	Source string
 }
+
+// ServiceVerifiers holds the verifier of each service-principal role the Hub
+// accepts. A nil verifier turns its role off: a token of that role is then
+// never admitted.
+type ServiceVerifiers struct {
+	// AskReaders verifies askreader tokens (read the asks a source raised as events).
+	AskReaders authn.TokenVerifier
+	// Senders verifies hubsender tokens (send notices and asks as the source).
+	Senders authn.TokenVerifier
+}
+
+// serviceKeyPrefix starts the Key of a verified service sender, so its asks are
+// recorded as created by the service and read back by the same service.
+const serviceKeyPrefix = "service:"
+
+// anonymousSourceKey is the shared source bucket of callers with no identity.
+const anonymousSourceKey = "source:anonymous"
+
+// AskSource is the source a direct ask of this producer is stored under: the
+// scenario a verified sender sends as, and for every other producer the
+// recipient, which is the Hub's own default source. The ask's subject key and
+// its withdrawal are scoped by it.
+func (p Producer) AskSource() string {
+	if p.Source != "" {
+		return p.Source
+	}
+	return p.Recipient
+}
+
+// Anonymous reports that the producer presented no identity at all. Such a
+// producer may create notifications and asks, nothing that stores or reads host
+// data on its behalf.
+func (p Producer) Anonymous() bool { return p.Key == anonymousSourceKey }
 
 // ProducerFor resolves an authenticated producer for an ask withdrawal.
 // It never grants owner authority: answers, dismissals and owner settings keep
@@ -57,32 +105,80 @@ func ProducerFor(ctx context.Context, headers http.Header, verifier Verifier, re
 		}
 		// requested_by is the hub's recipient partition, not the acting run.
 		// Verified run attribution stays in canonical request provenance.
-		return Producer{Recipient: recipient, Key: "run:" + strings.TrimSpace(agent.RunID)}, nil
+		return Producer{
+			Recipient: recipient, Key: "run:" + strings.TrimSpace(agent.RunID),
+			Conversation: strings.TrimSpace(agent.ConversationID), Subject: strings.TrimSpace(agent.Subject),
+		}, nil
 	}
 	subject, err := Subject(ctx, headers, verifier)
 	if err != nil {
 		return Producer{}, err
 	}
-	return Producer{Recipient: subject, Key: "owner:" + subject}, nil
+	return Producer{Recipient: subject, Key: "owner:" + subject, Subject: subject}, nil
 }
 
 // ProducerForDirect accepts notification and decision-request creation from
 // host processes without identity. Existing verified identities still get
-// separate source buckets, while empty-credential callers share one bucket.
-// A supplied but invalid credential remains an error.
-func ProducerForDirect(ctx context.Context, headers http.Header, verifier Verifier, recipient string) (Producer, error) {
+// separate source buckets, while empty-credential callers share one bucket. A
+// verified service sender (a hubsender principal) sends as its own scenario.
+// A supplied but invalid credential remains an error: it is never downgraded to
+// the anonymous bucket, and a verified service token that is not a sender
+// is refused with the reason (principalrole.ErrRefused).
+func ProducerForDirect(ctx context.Context, headers http.Header, verifier Verifier, services ServiceVerifiers, recipient string) (Producer, error) {
 	producer, err := ProducerFor(ctx, headers, verifier, recipient)
+	if err == nil {
+		return producer, nil
+	}
 	if owner, ok := ownerFromContext(ctx); ok && owner.refused {
 		return Producer{}, err
 	}
-	if err == nil || hasProducerCredential(headers) {
-		return producer, err
+	if !hasProducerCredential(headers) {
+		recipient = strings.TrimSpace(recipient)
+		if recipient == "" {
+			return Producer{}, err
+		}
+		return Producer{Recipient: recipient, Key: anonymousSourceKey}, nil
 	}
+	return serviceProducer(ctx, headers, services, recipient, err)
+}
+
+// serviceProducer admits a bearer that is a verified sender service token. It
+// is the last resort for a presented credential, so ownerErr, the owner and
+// agent resolution's own refusal, stands unless the bearer is a service token.
+func serviceProducer(ctx context.Context, headers http.Header, services ServiceVerifiers, recipient string, ownerErr error) (Producer, error) {
 	recipient = strings.TrimSpace(recipient)
-	if recipient == "" {
+	if services.Senders == nil || recipient == "" || strings.TrimSpace(headers.Get(cliutil.HeaderAgentIdentityToken)) != "" {
+		return Producer{}, ownerErr
+	}
+	source, err := hubsender.VerifiedSource(ctx, services.Senders, headers)
+	switch {
+	case err == nil:
+		return Producer{Recipient: recipient, Key: serviceKeyPrefix + source, Source: source}, nil
+	case errors.Is(err, principalrole.ErrRefused):
 		return Producer{}, err
 	}
-	return Producer{Recipient: recipient, Key: "source:anonymous"}, nil
+	return Producer{}, ownerErr
+}
+
+// DirectProducerError is the Connect refusal for a direct producer that could
+// not be resolved. A service token that verified but is not a sender is
+// PermissionDenied and names what is missing, so its operator can fix the
+// principal; every other failure keeps the generic unauthenticated answer.
+func DirectProducerError(err error) error {
+	if errors.Is(err, principalrole.ErrRefused) {
+		return connect.NewError(connect.CodePermissionDenied, err)
+	}
+	return connect.NewError(connect.CodeUnauthenticated, errors.New("a verified agent run, verified owner or notification-hub sender identity is required"))
+}
+
+// ResolveDirectProducer applies the shared direct-send identity policy and
+// maps refusals to the Connect status callers should return.
+func ResolveDirectProducer(ctx context.Context, headers http.Header, verifier Verifier, services ServiceVerifiers, recipient string) (Producer, error) {
+	producer, err := ProducerForDirect(ctx, headers, verifier, services, recipient)
+	if err != nil {
+		return Producer{}, DirectProducerError(err)
+	}
+	return producer, nil
 }
 
 func hasProducerCredential(headers http.Header) bool {

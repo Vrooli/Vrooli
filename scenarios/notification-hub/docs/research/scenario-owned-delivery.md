@@ -178,8 +178,10 @@ regeneration or a codemod adds that one line. The script must contain:
 
 - a `push` handler that **always** calls `showNotification` inside
   `event.waitUntil`. iOS revokes a subscription after 3 pushes that show
-  nothing ([WebKit commit
-  108ccb4](https://webkit.googlesource.com/WebKit/+/108ccb442e40e9705d212e74c1f213e3b5a0ea05)).
+  nothing (WebKit requires every push to show a notification; the count of 3 was
+  read from WebKit commit 108ccb4, which is no longer reachable, so the rule is
+  confirmed by [Meet Declarative Web Push](https://webkit.org/blog/16535/meet-declarative-web-push/)
+  and the number is not).
 - `notificationclick` with the pending-nav stash pattern lifted from
   Chimesail (`sw.js:11-31`, `:86-115`), plus the matching app-side hook that
   reads the stash on foreground.
@@ -207,7 +209,7 @@ fall back to Chimesail.
 | Ramp | How it packages today | Push it would need |
 |---|---|---|
 | `scenario-to-ios` | Capacitor shell that wraps the scenario's web bundle in an Xcode project (`scenarios/scenario-to-ios/PRD.md:18`, `:26`). Signing material comes from secrets-manager (`:32`). Readiness ladder from "no account" upward (`:34`). **No Apple Developer Program enrollment exists** (`docs/internal/PROBLEMS.md:180-182`). A WKWebView shell **cannot use web push**. | APNs through `@capacitor/push-notifications` (device token). Needs the Developer Program ($99/yr), an `aps-environment` entitlement, and a .p8 token key (Key ID plus Team ID; one key covers every bundle id in the team). Delivery is `POST /3/device/<token>` over HTTP/2 to `api.push.apple.com` with `apns-topic`=bundle id, which Go `net/http` can do ([Apple](https://developer.apple.com/documentation/usernotifications/establishing-a-token-based-connection-to-apns)). Rich images need a Notification Service Extension (`mutable-content: 1`). A sender avatar needs Communication Notifications with `INSendMessageIntent` ([Apple](https://developer.apple.com/documentation/usernotifications/implementing-communication-notifications)). Both are native targets the Capacitor template would have to generate. |
-| `scenario-to-android` | Capacitor shell first, in a pluggable shell family (`scenarios/scenario-to-android/docs/internal/DECISIONS.md:25`). A `project_kind=native` build exists (`docs/internal/PROGRESS.md:43`). Upload key in secrets-manager (`PRD.md:30`). Play ladder (`:32`). | FCM HTTP v1: a Firebase project plus a service account (OAuth2), with `google-services.json` in the generated project ([Firebase](https://firebase.google.com/docs/cloud-messaging/migrate-v1)). Android 13+ needs the `POST_NOTIFICATIONS` permission. For de-Googled devices, UnifiedPush through the hub's preserved **ntfy** resource blueprint (`docs/internal/PROGRESS.md` 2026-08-18 row) is a natural second transport. FCM can also carry iOS if an APNs key is uploaded ([Courier](https://www.courier.com/docs/integrations/push/firebase-fcm)), but that adds a Google dependency to iOS. |
+| `scenario-to-android` | Capacitor shell first, in a pluggable shell family (`scenarios/scenario-to-android/docs/internal/DECISIONS.md:25`). A `project_kind=native` build exists (`docs/internal/PROGRESS.md:43`). Upload key in secrets-manager (`PRD.md:30`). Play ladder (`:32`). | FCM HTTP v1: a Firebase project plus a service account (OAuth2), with `google-services.json` in the generated project ([Firebase](https://firebase.google.com/docs/cloud-messaging/send/v1-api)). Android 13+ needs the `POST_NOTIFICATIONS` permission. For de-Googled devices, UnifiedPush through the hub's preserved **ntfy** resource blueprint (`docs/internal/PROGRESS.md` 2026-08-18 row) is a natural second transport. FCM can also carry iOS if an APNs key is uploaded ([Courier](https://www.courier.com/docs/integrations/push/firebase-fcm)), but that adds a Google dependency to iOS. |
 | `scenario-to-desktop` | Electron, either a bundled runtime or a thin client to an external server (`scenarios/scenario-to-desktop/README.md`). Templates already expose `window.electron.notification.show` (`PRD.md:32`; `docs/guides/desktop-integration.md:101-107`). | Electron has **no Push API**. Its `pushNotifications` module is macOS-APNs only and needs signing ([Electron](https://electronjs.org/docs/latest/api/push-notifications)). The practical channel is a **live connection**: the running app holds an SSE or Connect stream to the hub, and the hub shows the notification locally through `Notification`. The face is healthy only while the stream is connected. Otherwise the hub falls back to Chimesail web push or to the host `linux_notification`/`macos_notification` senders (`api/internal/hub/transports.go:108-231`). |
 
 **How the hub delivers to native tokens:** these are new face kinds in the
@@ -242,7 +244,7 @@ a push sender. That is the thing NOTIFICATIONS.md rejects.
 | **Declarative Web Push** (iOS 18.4, macOS 15.5): a JSON payload with `"web_push": 8030` and `notification.{title, navigate, body, silent, app_badge, …}`. It is shown even if the worker fails, so the 3-strike risk does not apply, and an optional `mutable` flag lets the worker rewrite it. | verified | [WebKit 16535](https://webkit.org/blog/16535/meet-declarative-web-push/), [WWDC25 235](https://developer.apple.com/videos/play/wwdc2025/235/) |
 | No web mechanism shows a per-notification image on iOS; only a native NSE can. | verified (absence) | as above |
 | iOS 26 changes to web push | none found | [unverified] |
-| iOS revokes the subscription after 3 pushes that show no notification. | verified | [WebKit commit](https://webkit.googlesource.com/WebKit/+/108ccb442e40e9705d212e74c1f213e3b5a0ea05) |
+| iOS revokes the subscription after pushes that show no notification (WebKit calls it the silent push penalty box). | partly verified: the rule is confirmed; the count of 3 came from WebKit commit 108ccb4, which is no longer reachable | [WebKit 16535](https://webkit.org/blog/16535/meet-declarative-web-push/) |
 | Some iOS subscriptions become invalid over time; handle 404/410 and `pushsubscriptionchange`. | verified | [WebKit bug 273063](https://bugs.webkit.org/show_bug.cgi?id=273063) |
 | Android Chrome supports icon, monochrome `badge`, `image` (big picture), up to 2 `actions`, and `tag`/`renotify`. | partly verified | [Chrome actions](https://developer.chrome.com/blog/notification-actions), [MDN maxActions](https://developer.mozilla.org/en-US/docs/Web/API/Notification/maxActions_static) |
 | Android: notifications inside a WebAPK's scope are attributed to the WebAPK (its name and icon), not to Chrome. | verified | [Chromium change](https://chromium.googlesource.com/chromium/src.git/+/f3267daa0067ce785e944e8f778346a17b3f35c7), [web.dev WebAPKs](https://web.dev/articles/webapks) |
@@ -410,7 +412,6 @@ backgrounded, and subscription survival across a tunnel origin change. The next 
 - https://developer.apple.com/forums/thread/726793
 - https://bugs.webkit.org/show_bug.cgi?id=181849
 - https://bugs.webkit.org/show_bug.cgi?id=273063
-- https://webkit.googlesource.com/WebKit/+/108ccb442e40e9705d212e74c1f213e3b5a0ea05
 - https://developer.chrome.com/blog/notification-actions
 - https://developer.mozilla.org/en-US/docs/Web/API/Notification/maxActions_static
 - https://chromium.googlesource.com/chromium/src.git/+/f3267daa0067ce785e944e8f778346a17b3f35c7
@@ -420,6 +421,6 @@ backgrounded, and subscription survival across a tunnel origin change. The next 
 - https://learn.microsoft.com/microsoft-edge/progressive-web-apps-chromium/whats-new/pwa
 - https://developer.apple.com/documentation/usernotifications/establishing-a-token-based-connection-to-apns
 - https://developer.apple.com/documentation/usernotifications/implementing-communication-notifications
-- https://firebase.google.com/docs/cloud-messaging/migrate-v1
+- https://firebase.google.com/docs/cloud-messaging/send/v1-api
 - https://www.courier.com/docs/integrations/push/firebase-fcm
 - https://electronjs.org/docs/latest/api/push-notifications

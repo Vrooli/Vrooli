@@ -2,12 +2,11 @@ package hub
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -16,6 +15,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/eventbus"
+	"github.com/vrooli/api-core/operatordecision"
+	"notification-hub/internal/dbvalue"
 )
 
 // Ask states. pending and escalated are open; answered, defaulted, expired,
@@ -32,15 +33,23 @@ const (
 )
 
 const (
-	// DefaultAskUrgency keeps asks inside quiet hours unless a requester
-	// explicitly asks for critical.
-	DefaultAskUrgency = "high"
+	// DefaultAskUrgency is the urgency of an ask whose requester names none. It
+	// matches the CLI, so the same decision has the same urgency whichever route
+	// raised it. A producer whose work is blocked on the answer says "high".
+	DefaultAskUrgency = "normal"
+	// DefaultAskDeadline is how long an ask that names no deadline waits for its
+	// answer.
+	DefaultAskDeadline = 24 * time.Hour
+	// DefaultAskSensitivity labels an ask whose requester names none: the
+	// operator's own phone is the only audience, so the label that fits an
+	// ordinary decision.
+	DefaultAskSensitivity = "private"
 	// DefaultAskDefaultFloor is the minimum time between the first delivered
 	// receipt and applying a default answer.
 	DefaultAskDefaultFloor = 12 * time.Hour
 	// AskResolvedEventType tells the requester an ask was answered, defaulted,
 	// expired, withdrawn, or dismissed. It is published once per transition.
-	AskResolvedEventType = "notification_hub.ask.resolved.v1"
+	AskResolvedEventType = operatordecision.AskResolvedEventType
 	// DefaultAnsweredBy marks an answer the sweep applied.
 	DefaultAnsweredBy = "default"
 
@@ -56,7 +65,11 @@ const (
 )
 
 var (
-	ErrAskResolved         = errors.New("ask is already resolved")
+	ErrAskResolved = errors.New("ask is already resolved")
+	// ErrAskChanged reports an answer checked against a revision of the ask that
+	// the requester has since replaced. Nothing was stored; the answerer should
+	// reload the ask and review the answers against its new text and form.
+	ErrAskChanged          = errors.New("ask_changed: the requester updated this ask while you were answering; reload it and check your answers")
 	ErrAskIdentityConflict = errors.New("ask identity is already bound to different immutable terms")
 	ErrAskWithdrawn        = errors.New("decision request was withdrawn before ask creation")
 	askOptionKeyRule       = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$`)
@@ -114,7 +127,85 @@ type AskSpec struct {
 	// AssertedAt is when the producer last saw the decision was still needed.
 	// It orders a request against the subject's withdrawals; zero means now.
 	AssertedAt time.Time
+	// AcceptsContextRequests is the asker's declaration that it will answer a
+	// context request by revising this ask under the same SubjectKey. The Hub
+	// offers the operator the button only for an ask that declared it, and drops
+	// the declaration (with a warning) from an ask without a SubjectKey.
+	AcceptsContextRequests bool
+	// Keep lists the fields the request did not say. A revision keeps the open
+	// ask's value for each, so it says only what changes; a request with no open
+	// ask takes each field's default (and needs a question and answers). The zero
+	// value says every field, which is what an event producer sends. See
+	// keepOpenTerms.
+	Keep AskKeep
+	// ClearAttachments and ClearQuestions make a revision drop every current
+	// attachment (the explainer included) or form question before applying the
+	// ones it sends. Without them a revision keeps what it does not mention.
+	ClearAttachments, ClearQuestions bool
+	// RemoveAttachments names current attachments a revision drops, leaving the
+	// others. It applies after ClearAttachments and before the attachments sent.
+	RemoveAttachments []string
+	// RemoveQuestions names the ids of current form questions a revision drops,
+	// leaving the others. It applies after ClearQuestions and before the
+	// questions sent.
+	RemoveQuestions []string
+	// ContextResponse is the requester's written answer to the operator's open
+	// context questions. It is not a term of the ask: the revision stores it with
+	// each question it answers. sealAsk drops it, with a warning, when no question
+	// is open.
+	ContextResponse string
+	// Questions is the answer form shown under the main options. normalizeQuestions
+	// validates it; a question that breaks a rule is dropped with a warning.
+	Questions []AskQuestion
+	// Attachments are the files and folders the operator opens inside the Hub.
+	// prepareAttachments validates them against the blob inventory; one the Hub
+	// cannot accept is dropped with a warning.
+	Attachments []AskAttachment
+	// VerifiedProducer is set by the handler that verified who is asking (an
+	// agent run or the owner). Attachments carry host paths the Hub later probes
+	// and bytes it stores, so an ask without a verified producer has them all
+	// dropped with a warning.
+	VerifiedProducer bool
+	// CreatedBy is the verified identity that sends the ask (run:<id> or
+	// owner:<subject>); empty when the sender has none. See AskAudience for who
+	// may read the ask back.
+	CreatedBy string
+	// CreatedConversation is the verified conversation the sending run belongs
+	// to (shared by its recovered and child runs); empty when the sender is not
+	// a run or its token carries no conversation claim.
+	CreatedConversation string
+	// CreatedSubject is the verified owner account behind the sender; empty when
+	// it has none. It is what makes a subject key a capability for a run of the
+	// same owner.
+	CreatedSubject string
+	// Sender is who the requester says is asking ("Research Desk"). Unverified
+	// display text; empty on a revision keeps the ask's sender, and on a new ask
+	// the Hub names it (DeriveSender).
+	Sender string
+	// DefaultSender is a name the caller's tooling suggests (the label of the
+	// session it ran in). It names a new ask that has no Sender and nothing else:
+	// a revision never renames from it, and a replacement keeps the name of the
+	// ask it replaces. Unlike Sender it is repaired, not refused.
+	DefaultSender string
+	// sourceName is the name the Hub has registered for Source, read by
+	// prepareAsk before any transaction opens. The store has one connection, so
+	// a lookup made while a write transaction is open would wait on itself.
+	sourceName string
 }
+
+// AskKeep names the fields of an AskSpec its request left unsaid. Each is kept
+// from the open ask the request revises.
+type AskKeep struct {
+	Question, Options                      bool
+	Recommended, RecommendationReason      bool
+	DefaultAnswer, Reversible              bool
+	Urgency, ContextURL                    bool
+	BigPicture, TechnicalDetails           bool
+	ReassertWithin, AcceptsContextRequests bool
+}
+
+// Any reports whether the request left any field unsaid.
+func (k AskKeep) Any() bool { return k != AskKeep{} }
 
 // AskRecord is the read model of one ask. Reading it never changes it.
 type AskRecord struct {
@@ -165,10 +256,47 @@ type AskRecord struct {
 	SupersededByAskID string
 	// CurrentEventID is the event id of the revision the ask shows now.
 	CurrentEventID string
+	// CreatedBy is the verified identity that sent the ask; empty when it had
+	// none, and for event-sourced asks.
+	CreatedBy string
+	// CreatedConversation and CreatedSubject are the sender's verified
+	// conversation and owner account; see AskSpec.
+	CreatedConversation string
+	CreatedSubject      string
+	// Sender is who the operator reads as asking; see DeriveSender. Never empty
+	// on a record read from the store.
+	Sender string
+	// Questions is the answer form of the ask's current revision.
+	Questions []AskQuestion
+	// AcceptsContextRequests records that the asker declared it answers context
+	// requests; see CanRequestContext.
+	AcceptsContextRequests bool
+	// Responses are the operator's answers to Questions, in question order.
+	Responses []AskQuestionResponse
+	// AttachmentNotes are the notes the operator pinned to attachments in the
+	// answer.
+	AttachmentNotes []AskAttachmentNote
+	// AnswerSummary is the plain-text rendering of the whole answer; empty until
+	// an operator answered.
+	AnswerSummary string
+	// OpenContextRequestCount counts the recipient's context requests the
+	// requester has not addressed by revising the ask.
+	OpenContextRequestCount int
+	// AttachmentCount is how many attachments the current revision has; the
+	// attachments themselves come from Service.AskAttachments.
+	AttachmentCount int
+	// AttachmentsDigest identifies what the producer attached, for comparing a
+	// resend with the open ask.
+	AttachmentsDigest string
 }
 
 // Open reports whether the ask still waits for an answer.
 func (r AskRecord) Open() bool { return r.State == AskPending || r.State == AskEscalated }
+
+// CanRequestContext reports whether the operator may ask this ask's requester a
+// question: the ask is open and its requester declared it answers by revising the
+// ask. Without that, the question would go to a sender that cannot reply.
+func (r AskRecord) CanRequestContext() bool { return r.Open() && r.AcceptsContextRequests }
 
 // AnswerInput records an operator answer. Note is stored verbatim.
 //
@@ -180,9 +308,16 @@ func (r AskRecord) Open() bool { return r.State == AskPending || r.State == AskE
 // recipient's ask while recording who really answered.
 type AnswerInput struct {
 	AskID, Answer, Actor, Note string
-	AnsweredBy                 string
-	AnsweredByIdentityKind     string
-	AnsweredByIdentitySource   string
+	// Responses answer the ask's Questions. An unknown question id or a response
+	// of the wrong shape is refused; required questions bind only when Answer is
+	// one of the requester's options.
+	Responses []AskQuestionResponse
+	// AttachmentNotes are notes pinned to the ask's attachments; one that names
+	// an attachment (or folder entry) the ask does not have is refused.
+	AttachmentNotes          []AskAttachmentNote
+	AnsweredBy               string
+	AnsweredByIdentityKind   string
+	AnsweredByIdentitySource string
 }
 
 // ResolutionPublisher is the Vrooli Events publisher seam
@@ -238,6 +373,13 @@ func normalizeAskSpec(spec AskSpec) (AskSpec, error) {
 	spec.Urgency = strings.ToLower(strings.TrimSpace(spec.Urgency))
 	spec.BigPicture = normalizeExplanation(spec.BigPicture)
 	spec.TechnicalDetails = normalizeExplanation(spec.TechnicalDetails)
+	spec.ContextResponse = normalizeExplanation(spec.ContextResponse)
+	sender, err := normalizeSender(spec.Sender)
+	if err != nil {
+		return spec, err
+	}
+	spec.Sender = sender
+	spec.DefaultSender = repairSender(spec.DefaultSender)
 	decisionContext, err := normalizeProviderDecisionContext(spec.ProviderDecisionContext)
 	if err != nil {
 		return spec, err
@@ -251,6 +393,17 @@ func normalizeAskSpec(spec AskSpec) (AskSpec, error) {
 	}
 	if !utf8.ValidString(spec.TechnicalDetails) || utf8.RuneCountInString(spec.TechnicalDetails) > maxTechnicalDetailsCodePoints {
 		return spec, fmt.Errorf("%w: technical_details must be valid UTF-8 and at most %d Unicode code points", ErrInvalidArgument, maxTechnicalDetailsCodePoints)
+	}
+	if !utf8.ValidString(spec.ContextResponse) || utf8.RuneCountInString(spec.ContextResponse) > maxContextResponseCodePoints {
+		return spec, fmt.Errorf("%w: context_response must be valid UTF-8 and at most %d Unicode code points", ErrInvalidArgument, maxContextResponseCodePoints)
+	}
+	if spec.Source == "" {
+		spec.Source = spec.Recipient
+	}
+	if spec.Keep.Any() {
+		// The request leaves fields to the open ask it revises; the merge reads
+		// that ask (found by Source and SubjectKey) and then normalizes the whole.
+		return spec, nil
 	}
 	if spec.Deadline.IsZero() || len(spec.Options) == 0 || spec.Question == "" {
 		return spec, fmt.Errorf("%w: question, deadline, and allowed answers are required", ErrInvalidArgument)
@@ -368,15 +521,125 @@ func (s *Service) askWithSpec(ctx context.Context, spec AskSpec, pushSource stri
 // other ask is idempotent on (Source, IdempotencyKey) and its Outcome is empty.
 // pushSource is "" for event-sourced asks and the producer key for direct asks.
 func (s *Service) AskDecision(ctx context.Context, spec AskSpec, pushSource string) (AskResult, error) {
-	spec, err := normalizeAskSpec(spec)
+	spec, warnings, err := s.prepareAsk(ctx, spec, false)
 	if err != nil {
 		return AskResult{}, err
 	}
+	// What the request says is read before it is sealed (sealing clears Keep), and
+	// the open ask is read before the revision changes it: together they tell which
+	// findings of the packet check are news.
+	revision := s.beginRevision(ctx, spec, s.ReadAttachmentBlob)
+	result, err := s.openAsk(ctx, spec, pushSource)
+	if err == nil && result.packet != nil {
+		result.Warnings = append(result.Warnings, revision.markCarriedOver(s.checkPacket(ctx, *result.packet, s.ReadAttachmentBlob))...)
+	}
+	result.Warnings = append(warnings, result.Warnings...)
+	return result, err
+}
+
+// prepareAsk is everything an ask goes through before it is stored and needs no
+// database read of the ask itself: validation and the request's own attachments.
+// Laying them over the open ask's packet (sealAsk) needs that ask, so it
+// happens where the ask is written. A packet part never fails an ask: what the
+// Hub cannot accept is dropped and reported in the warnings.
+//
+// check is a dry run: it stores and touches nothing, and takes the request's
+// files as stored with the sha256 and size the request states.
+func (s *Service) prepareAsk(ctx context.Context, spec AskSpec, check bool) (AskSpec, []PacketWarning, error) {
+	spec, err := normalizeAskSpec(spec)
+	if err != nil {
+		return spec, nil, err
+	}
+	spec.sourceName = s.resolveDisplayName(ctx, spec.Source)
+	return s.prepareAttachments(ctx, spec, check)
+}
+
+// AskCheck is what a request would do, found without storing anything.
+type AskCheck struct {
+	// Warnings are the packet check's findings, as Ask would report them.
+	Warnings []PacketWarning
+	// PushTitle and PushBody are the notification the operator would receive.
+	PushTitle, PushBody string
+	// RevisesAskID is the open ask a keyed request would revise; empty when it
+	// would create one.
+	RevisesAskID string
+	// Sender is the name the operator would see on the ask, and SenderSource
+	// says where it came from. They come from the rule a real send uses.
+	Sender       string
+	SenderSource SenderSource
+}
+
+// CheckInput is what a dry run is given besides the request: the content of the
+// files the check reads, by SHA-256. A dry run uploads nothing, so the Hub reads
+// these in place of a stored copy, keeps none of them, and takes every
+// attachment of the request as stored.
+type CheckInput struct {
+	Contents map[string][]byte
+}
+
+// reader reads a blob from the input's contents, and from the Hub's store when
+// the input does not hold it.
+func (in CheckInput) reader(stored BlobReader) BlobReader {
+	return func(ctx context.Context, sha string, max int64) ([]byte, error) {
+		if data, ok := in.Contents[sha]; ok {
+			if int64(len(data)) > max {
+				return nil, ErrBlobTooLarge
+			}
+			return data, nil
+		}
+		return stored(ctx, sha, max)
+	}
+}
+
+// CheckAsk runs an ask through validation and the packet check and reports what
+// the operator would see, changing nothing: no ask, notification, attachment or
+// blob row is written. A revision is checked as it would be stored, merged over
+// the open ask of its subject, and its findings are marked the way Ask marks them.
+func (s *Service) CheckAsk(ctx context.Context, spec AskSpec, in CheckInput) (AskCheck, error) {
+	read := in.reader(s.ReadAttachmentBlob)
+	spec, warnings, err := s.prepareAsk(ctx, spec, true)
+	if err != nil {
+		return AskCheck{}, err
+	}
+	open, found, err := s.openSubjectAsk(ctx, spec)
+	if err != nil {
+		return AskCheck{}, err
+	}
+	var openAsk *AskRecord
+	var current []AskAttachment
+	if found {
+		openAsk = &open
+		if current, err = s.loadAttachments(ctx, open.ID); err != nil {
+			return AskCheck{}, err
+		}
+	}
+	revision := s.beginRevision(ctx, spec, read)
+	spec, sealed, err := sealAsk(ctx, spec, openAsk, current, read)
+	if err != nil {
+		return AskCheck{}, err
+	}
+	findings := revision.markCarriedOver(s.checkPacket(ctx, spec, read))
+	check := AskCheck{Warnings: append(append(warnings, sealed...), findings...), PushTitle: spec.Title, PushBody: spec.Body}
+	kept := ""
+	if found {
+		check.RevisesAskID = open.ID
+		kept = open.Sender
+	}
+	check.Sender, check.SenderSource = senderOf(spec, kept)
+	return check, nil
+}
+
+func (s *Service) openAsk(ctx context.Context, spec AskSpec, pushSource string) (AskResult, error) {
 	if spec.SubjectKey != "" {
 		return s.askSubject(ctx, spec, pushSource)
 	}
+	// Nothing to revise: the packet is what the request sends.
+	spec, warnings, err := sealAsk(ctx, spec, nil, nil, s.ReadAttachmentBlob)
+	if err != nil {
+		return AskResult{}, err
+	}
 	record, n, err := s.askPlain(ctx, spec, pushSource)
-	return AskResult{Ask: record, Notification: n}, err
+	return AskResult{Ask: record, Notification: n, Warnings: warnings, packet: &spec}, err
 }
 
 func (s *Service) askPlain(ctx context.Context, spec AskSpec, pushSource string) (AskRecord, Notification, error) {
@@ -429,7 +692,8 @@ func (s *Service) askPlain(ctx context.Context, spec AskSpec, pushSource string)
 		return AskRecord{}, Notification{}, err
 	}
 	id := uuid.NewString()
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	now := storedTime(s.clock.Now())
+	spec.Sender, _ = senderOf(spec, "")
 	if err := insertAskTx(ctx, tx, id, n.ID, spec, enc, now, ""); err != nil {
 		// Either notification idempotency or the durable requester identity
 		// constraint may have selected a concurrent winner. Re-read by the
@@ -465,6 +729,9 @@ func (s *Service) askPlain(ctx context.Context, spec AskSpec, pushSource string)
 		}
 		return AskRecord{}, Notification{}, fmt.Errorf("persist ask: %w", err)
 	}
+	if err := insertAttachmentsTx(ctx, tx, id, spec.Attachments); err != nil {
+		return AskRecord{}, Notification{}, err
+	}
 	if err := tx.Commit(); err != nil {
 		return AskRecord{}, Notification{}, err
 	}
@@ -477,9 +744,9 @@ func (s *Service) askPlain(ctx context.Context, spec AskSpec, pushSource string)
 	// retries, the notification creator can lose the Ask insert race; dispatch
 	// based on `created` would then leave the winning durable Ask unrouted.
 	if pushSource == "" {
-		s.dispatch(n.ID)
+		s.dispatch(ctx, n.ID)
 	} else {
-		s.dispatchDirect(n.ID, pushSource)
+		s.dispatchDirect(ctx, n.ID, pushSource)
 	}
 	record, err := s.GetAsk(ctx, id)
 	return record, n, err
@@ -513,6 +780,7 @@ func sameAskTerms(existing AskRecord, notification Notification, spec AskSpec) b
 		existing.BigPicture != spec.BigPicture || existing.TechnicalDetails != spec.TechnicalDetails ||
 		existing.SourceEventType != spec.SourceEventType || len(existing.Options) != len(spec.Options) ||
 		!sameProviderDecisionContext(existing.ProviderDecisionContext, spec.ProviderDecisionContext) ||
+		!sameQuestions(existing.Questions, spec.Questions) ||
 		!sameCorrelation(existing.Correlation, spec.Correlation) {
 		return false
 	}
@@ -521,7 +789,7 @@ func sameAskTerms(existing AskRecord, notification Notification, spec AskSpec) b
 			return false
 		}
 	}
-	if spec.DeadlineSpecified && existing.Deadline != spec.Deadline.UTC().Format(time.RFC3339Nano) {
+	if spec.DeadlineSpecified && existing.Deadline != storedTime(spec.Deadline) {
 		return false
 	}
 	if spec.Body != renderAskBody(spec) {
@@ -554,6 +822,9 @@ func sameCorrelation(a, b map[string]string) bool {
 
 const askSelect = `SELECT a.id, a.notification_id, a.question, a.allowed_answers, a.options_json, a.recommended, a.recommendation_reason, a.default_answer, a.reversible, a.urgency, a.context_url, a.big_picture, a.technical_details, a.source, a.source_event_type, a.requester_ref, a.correlation_json, a.deadline, a.state, a.reason, a.default_applied_at, a.resolved_at, a.created_at, a.updated_at,
   a.subject_key, a.last_asserted_at, a.reassert_within_seconds, a.revision_count, a.superseded_by_ask_id, a.current_event_id,
+  a.questions_json, a.accepts_context_requests, COALESCE(ans.responses_json, ''), COALESCE(ans.attachment_notes_json, ''),
+  (SELECT COUNT(*) FROM ask_context_requests c WHERE c.ask_id = a.id AND c.addressed_at = ''),
+  a.attachment_count, a.attachments_digest, a.created_by, a.created_conversation, a.created_subject, a.sender,
   COALESCE(ans.answer, ''), COALESCE(ans.answered_by, ''), COALESCE(ans.answered_at, ''), COALESCE(ans.note, ''), COALESCE(ans.late, 0),
   COALESCE(ai.identity_kind, ''), COALESCE(ai.identity_source, ''),
   COALESCE((SELECT MIN(r.delivered_at) FROM receipts r WHERE r.notification_id = a.notification_id), ''),
@@ -563,10 +834,12 @@ FROM asks a LEFT JOIN answers ans ON ans.ask_id = a.id LEFT JOIN answer_identity
 
 func scanAsk(row rowScanner) (AskRecord, error) {
 	var record AskRecord
-	var allowedJSON, optionsJSON, correlationJSON string
-	var reversible, late int
+	var allowedJSON, optionsJSON, correlationJSON, questionsJSON, responsesJSON, notesJSON string
+	var reversible, late, acceptsContext int
 	err := row.Scan(&record.ID, &record.NotificationID, &record.Question, &allowedJSON, &optionsJSON, &record.Recommended, &record.RecommendationReason, &record.DefaultAnswer, &reversible, &record.Urgency, &record.ContextURL, &record.BigPicture, &record.TechnicalDetails, &record.Source, &record.SourceEventType, &record.RequesterRef, &correlationJSON, &record.Deadline, &record.State, &record.Reason, &record.DefaultAppliedAt, &record.ResolvedAt, &record.CreatedAt, &record.UpdatedAt,
 		&record.SubjectKey, &record.LastAssertedAt, &record.ReassertWithinSeconds, &record.RevisionCount, &record.SupersededByAskID, &record.CurrentEventID,
+		&questionsJSON, &acceptsContext, &responsesJSON, &notesJSON, &record.OpenContextRequestCount,
+		&record.AttachmentCount, &record.AttachmentsDigest, &record.CreatedBy, &record.CreatedConversation, &record.CreatedSubject, &record.Sender,
 		&record.Answer, &record.AnsweredBy, &record.AnsweredAt, &record.Note, &late, &record.AnsweredByIdentityKind, &record.AnsweredByIdentitySource, &record.FirstDeliveredAt, &record.Recipient, &record.Title)
 	if errors.Is(err, sql.ErrNoRows) {
 		return AskRecord{}, ErrNotFound
@@ -576,6 +849,13 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 	}
 	record.Reversible = reversible != 0
 	record.Late = late != 0
+	if record.Sender == "" {
+		record.Sender = DeriveSender("", record.Source, record.SourceEventType, record.CreatedBy, record.Recipient, nil)
+	}
+	record.AcceptsContextRequests = acceptsContext != 0
+	record.Questions = decodeQuestions(questionsJSON)
+	record.Responses = decodeResponses(responsesJSON)
+	record.AttachmentNotes = decodeAttachmentNotes(notesJSON)
 	if record.AnsweredByIdentityKind == "" {
 		record.AnsweredByIdentityKind = AnswerIdentityKindUnknown
 	}
@@ -610,6 +890,7 @@ func scanAsk(row rowScanner) (AskRecord, error) {
 			record.AnswerLabel = "Other"
 		}
 	}
+	record.AnswerSummary = AnswerSummary(record)
 	return record, nil
 }
 
@@ -647,128 +928,6 @@ func (s *Service) GetAskForRecipient(ctx context.Context, id, recipient string) 
 		return AskRecord{}, ErrNotFound
 	}
 	return scanAsk(s.db.QueryRowContext(ctx, askSelect+` WHERE a.id = ? AND a.notification_id IN (SELECT id FROM notifications WHERE requested_by = ?)`, strings.TrimSpace(id), recipient))
-}
-
-// ListAsks is the first-page convenience used by existing internal callers.
-// Browser and API callers use ListAsksPage to continue through every result.
-func (s *Service) ListAsks(ctx context.Context, recipient string, openOnly bool, limit int) ([]AskRecord, error) {
-	page, err := s.ListAsksPage(ctx, recipient, AskListOptions{OpenOnly: openOnly, Limit: limit})
-	return page.Asks, err
-}
-
-type AskListOptions struct {
-	OpenOnly    bool
-	Limit       int
-	Cursor      string
-	Query       string
-	StateFilter string
-}
-
-type AskListPage struct {
-	Asks       []AskRecord
-	NextCursor string
-}
-
-type askListCursor struct {
-	Version   int    `json:"v"`
-	Scope     string `json:"scope"`
-	CreatedAt string `json:"created_at"`
-	ID        string `json:"id"`
-}
-
-// ListAsksPage searches the recipient's full retained inventory before applying
-// a stable keyset boundary. Reads never resolve, answer or otherwise change asks.
-// Pages are live: newly created rows appear on refresh, not midway through older pages.
-func (s *Service) ListAsksPage(ctx context.Context, recipient string, opts AskListOptions) (AskListPage, error) {
-	if strings.TrimSpace(recipient) == "" {
-		return AskListPage{}, ErrNotFound
-	}
-	if opts.Limit <= 0 {
-		opts.Limit = 50
-	}
-	if opts.Limit > 200 {
-		opts.Limit = 200
-	}
-	opts.Query = strings.TrimSpace(opts.Query)
-	if !utf8.ValidString(opts.Query) || utf8.RuneCountInString(opts.Query) > 500 {
-		return AskListPage{}, fmt.Errorf("%w: search must be valid UTF-8 and at most 500 characters", ErrInvalidArgument)
-	}
-	state := strings.TrimSpace(opts.StateFilter)
-	if state == "" {
-		state = "all"
-	}
-	if opts.OpenOnly {
-		if state != "all" && state != "awaiting" && state != AskPending && state != AskEscalated {
-			return AskListPage{}, fmt.Errorf("%w: open_only conflicts with state_filter", ErrInvalidArgument)
-		}
-		if state == "all" {
-			state = "awaiting"
-		}
-	}
-	switch state {
-	case "all", "awaiting", AskPending, AskEscalated, AskAnswered, AskDefaulted, AskExpired, AskWithdrawn, AskDismissed:
-	default:
-		return AskListPage{}, fmt.Errorf("%w: unknown state_filter", ErrInvalidArgument)
-	}
-	scopeBytes, _ := json.Marshal([]string{recipient, opts.Query, state})
-	scope := fmt.Sprintf("%x", sha256.Sum256(scopeBytes))
-	query := askSelect + ` WHERE a.notification_id IN (SELECT id FROM notifications WHERE requested_by = ?)`
-	args := []any{recipient}
-	if state == "awaiting" {
-		query += ` AND a.state IN ('pending', 'escalated')`
-	} else if state != "all" {
-		query += ` AND a.state = ?`
-		args = append(args, state)
-	}
-	if opts.Query != "" {
-		// User wildcards are literal. Include option labels so readable answers,
-		// not only their machine keys, are searchable without loading all records.
-		pattern := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(strings.ToLower(opts.Query)) + "%"
-		query += ` AND (LOWER(a.question) LIKE ? ESCAPE '\' OR LOWER(a.source) LIKE ? ESCAPE '\' OR LOWER(a.options_json) LIKE ? ESCAPE '\' OR LOWER(a.default_answer) LIKE ? ESCAPE '\' OR LOWER(a.requester_ref) LIKE ? ESCAPE '\' OR LOWER(COALESCE(ans.answer, '')) LIKE ? ESCAPE '\' OR LOWER(COALESCE(ans.note, '')) LIKE ? ESCAPE '\' OR LOWER((SELECT n.title FROM notifications n WHERE n.id = a.notification_id)) LIKE ? ESCAPE '\')`
-		for range 8 {
-			args = append(args, pattern)
-		}
-	}
-	if opts.Cursor != "" {
-		if len(opts.Cursor) > 2048 {
-			return AskListPage{}, fmt.Errorf("%w: cursor is too long", ErrInvalidArgument)
-		}
-		var cursor askListCursor
-		decoded, err := base64.RawURLEncoding.DecodeString(opts.Cursor)
-		if err != nil || json.Unmarshal(decoded, &cursor) != nil || cursor.Version != 1 || cursor.Scope != scope || cursor.CreatedAt == "" || cursor.ID == "" {
-			return AskListPage{}, fmt.Errorf("%w: cursor does not match this search", ErrInvalidArgument)
-		}
-		if _, err := time.Parse(time.RFC3339Nano, cursor.CreatedAt); err != nil {
-			return AskListPage{}, fmt.Errorf("%w: invalid cursor time", ErrInvalidArgument)
-		}
-		query += ` AND (a.created_at < ? OR (a.created_at = ? AND a.id < ?))`
-		args = append(args, cursor.CreatedAt, cursor.CreatedAt, cursor.ID)
-	}
-	args = append(args, opts.Limit+1)
-	rows, err := s.db.QueryContext(ctx, query+` ORDER BY a.created_at DESC, a.id DESC LIMIT ?`, args...)
-	if err != nil {
-		return AskListPage{}, err
-	}
-	defer rows.Close()
-	out := make([]AskRecord, 0, opts.Limit+1)
-	for rows.Next() {
-		record, scanErr := scanAsk(rows)
-		if scanErr != nil {
-			return AskListPage{}, scanErr
-		}
-		out = append(out, record)
-	}
-	if err := rows.Err(); err != nil {
-		return AskListPage{}, err
-	}
-	page := AskListPage{Asks: out}
-	if len(out) > opts.Limit {
-		page.Asks = out[:opts.Limit]
-		last := page.Asks[len(page.Asks)-1]
-		encoded, _ := json.Marshal(askListCursor{Version: 1, Scope: scope, CreatedAt: last.CreatedAt, ID: last.ID})
-		page.NextCursor = base64.RawURLEncoding.EncodeToString(encoded)
-	}
-	return page, nil
 }
 
 // DefaultEligibleAt is when the sweep may apply the ask's default:
@@ -839,22 +998,13 @@ func (s *Service) AnswerAsk(ctx context.Context, in AnswerInput) (AskRecord, err
 	if !found {
 		return AskRecord{}, fmt.Errorf("%w: answer is not one of the allowed answers", ErrInvalidArgument)
 	}
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-	reason := "answered by the operator"
-	if late {
-		reason = "operator answer after the default supersedes it"
-	}
-	tx, err := s.db.BeginTx(ctx, nil)
+	responses, err := normalizeResponses(record.Questions, answer, in.Responses)
 	if err != nil {
 		return AskRecord{}, err
 	}
-	defer func() { _ = tx.Rollback() }()
-	result, err := tx.ExecContext(ctx, `UPDATE asks SET state='answered', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND state=?`, reason, now, now, record.ID, record.State)
+	notes, err := s.attachmentNotesFor(ctx, record.ID, in.AttachmentNotes)
 	if err != nil {
 		return AskRecord{}, err
-	}
-	if changed, _ := result.RowsAffected(); changed != 1 {
-		return AskRecord{}, fmt.Errorf("%w: ask changed while answering", ErrAskResolved)
 	}
 	// answered_by records the ACTUAL verified human; it falls back to the
 	// recipient-check actor when the request carried no per-human identity.
@@ -868,10 +1018,54 @@ func (s *Service) AnswerAsk(ctx context.Context, in AnswerInput) (AskRecord, err
 		(identitySource != AnswerIdentitySourceAccess && identitySource != AnswerIdentitySourceLocal) {
 		identityKind, identitySource = AnswerIdentityKindUnknown, ""
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO answers (id, ask_id, answer, answered_by, answered_at, note, late) VALUES (?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), record.ID, answer, answeredBy, now, in.Note, boolInt(late)); err != nil {
+	if hook := s.beforeAnswerCommit.Load(); hook != nil {
+		(*hook)()
+	}
+	return s.commitAnswer(ctx, record, answerPlan{
+		answer: answer, note: in.Note, late: late, responses: responses, notes: notes,
+		answeredBy: answeredBy, identityKind: identityKind, identitySource: identitySource,
+	})
+}
+
+// answerPlan is a validated answer, checked against one revision of the ask.
+type answerPlan struct {
+	answer, note                             string
+	late                                     bool
+	responses                                []AskQuestionResponse
+	notes                                    []AskAttachmentNote
+	answeredBy, identityKind, identitySource string
+}
+
+// commitAnswer stores an answer that was validated against record. The ask must
+// still be in the state and at the revision record had: if the requester revised
+// it in between, the answers were checked against a form that is gone, so
+// nothing is stored and the caller gets ErrAskChanged.
+func (s *Service) commitAnswer(ctx context.Context, record AskRecord, plan answerPlan) (AskRecord, error) {
+	now := storedTime(s.clock.Now())
+	reason := "answered by the operator"
+	if plan.late {
+		reason = "operator answer after the default supersedes it"
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return AskRecord{}, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	result, err := tx.ExecContext(ctx, `UPDATE asks SET state='answered', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND state=? AND revision_count=?`, reason, now, now, record.ID, record.State, record.RevisionCount)
+	if err != nil {
+		return AskRecord{}, err
+	}
+	if changed, _ := result.RowsAffected(); changed != 1 {
+		current, readErr := scanAsk(tx.QueryRowContext(ctx, askSelect+` WHERE a.id = ?`, record.ID))
+		if readErr == nil && current.State == record.State && current.RevisionCount != record.RevisionCount {
+			return AskRecord{}, ErrAskChanged
+		}
+		return AskRecord{}, fmt.Errorf("%w: ask changed while answering", ErrAskResolved)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO answers (id, ask_id, answer, answered_by, answered_at, note, late, responses_json, attachment_notes_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), record.ID, plan.answer, plan.answeredBy, now, plan.note, dbvalue.BoolInt(plan.late), encodeResponses(plan.responses), encodeAttachmentNotes(plan.notes)); err != nil {
 		return AskRecord{}, fmt.Errorf("%w: ask already has an answer", ErrAskResolved)
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO answer_identity (ask_id, identity_kind, identity_source) VALUES (?, ?, ?)`, record.ID, identityKind, identitySource); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO answer_identity (ask_id, identity_kind, identity_source) VALUES (?, ?, ?)`, record.ID, plan.identityKind, plan.identitySource); err != nil {
 		return AskRecord{}, fmt.Errorf("persist answer identity: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -913,7 +1107,7 @@ func (s *Service) DismissAsk(ctx context.Context, askID, actor, note string) (As
 	if note != "" {
 		reason += ": " + note
 	}
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	now := storedTime(s.clock.Now())
 	result, err := s.db.ExecContext(ctx, `UPDATE asks SET state='dismissed', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND state IN ('pending','escalated')`, reason, now, now, record.ID)
 	if err != nil {
 		return AskRecord{}, err
@@ -929,15 +1123,19 @@ func (s *Service) DismissAsk(ctx context.Context, askID, actor, note string) (As
 	return s.GetAsk(ctx, record.ID)
 }
 
-// WithdrawDirectAsk lets the direct requester close its own pending ask.
-// Provider-owned event decisions retain their source-specific withdrawal
-// contracts so an ask ID alone cannot cancel another owner's workflow.
-func (s *Service) WithdrawDirectAsk(ctx context.Context, askID, requester, reason string) (AskRecord, error) {
+// WithdrawDirectAsk lets a direct requester close a pending ask it may read: a
+// reader outside the ask's audience is told the ask does not exist, exactly as
+// a read is. source is the source the requester's asks are stored under
+// (identity.Producer.AskSource). Provider-owned event decisions retain their
+// source-specific withdrawal contracts so an ask ID alone cannot cancel another
+// owner's workflow.
+func (s *Service) WithdrawDirectAsk(ctx context.Context, askID, source, reason string, audience AskAudience) (AskRecord, error) {
 	record, err := s.GetAsk(ctx, askID)
 	if err != nil {
 		return AskRecord{}, err
 	}
-	if strings.TrimSpace(requester) == "" || strings.TrimSpace(requester) != record.Source || record.SourceEventType != "" {
+	source = strings.TrimSpace(source)
+	if source == "" || source != record.Source || record.SourceEventType != "" || !audience.Sees(record) {
 		return AskRecord{}, ErrNotFound
 	}
 	if record.State == AskWithdrawn {
@@ -950,8 +1148,8 @@ func (s *Service) WithdrawDirectAsk(ctx context.Context, askID, requester, reaso
 	if reason == "" || len(reason) > 2_000 {
 		return AskRecord{}, fmt.Errorf("%w: a withdrawal reason of 1-2000 bytes is required", ErrInvalidArgument)
 	}
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-	result, err := s.db.ExecContext(ctx, `UPDATE asks SET state='withdrawn', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND source=? AND source_event_type='' AND state IN ('pending','escalated')`, reason, now, now, record.ID, requester)
+	now := storedTime(s.clock.Now())
+	result, err := s.db.ExecContext(ctx, `UPDATE asks SET state='withdrawn', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND source=? AND source_event_type='' AND state IN ('pending','escalated')`, reason, now, now, record.ID, source)
 	if err != nil {
 		return AskRecord{}, err
 	}
@@ -964,31 +1162,6 @@ func (s *Service) WithdrawDirectAsk(ctx context.Context, askID, requester, reaso
 	}
 	s.kickResolutions(ctx)
 	return s.GetAsk(ctx, record.ID)
-}
-
-// Wait blocks until the ask is resolved or the caller's deadline passes. It
-// never changes the ask: when the caller's deadline passes first it returns
-// the open state, and the ask keeps waiting for the operator.
-func (s *Service) Wait(ctx context.Context, askID string, deadline time.Time) (string, string, string, error) {
-	ticker := time.NewTicker(25 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		record, err := s.GetAsk(ctx, askID)
-		if err != nil {
-			return "", "", "", err
-		}
-		if !record.Open() {
-			return record.State, record.Answer, record.Reason, nil
-		}
-		if !deadline.IsZero() && !s.clock.Now().Before(deadline) {
-			return record.State, "", "caller deadline reached; the ask is still open", nil
-		}
-		select {
-		case <-ctx.Done():
-			return "", "", "", ctx.Err()
-		case <-ticker.C:
-		}
-	}
 }
 
 // applyDefaultIfDue is the sweep rule for an overdue reversible ask with a
@@ -1004,7 +1177,7 @@ func (s *Service) applyDefaultIfDue(ctx context.Context, askID string) error {
 		return nil
 	}
 	now := s.clock.Now().UTC()
-	nowText := now.Format(time.RFC3339Nano)
+	nowText := storedTime(now)
 	if record.FirstDeliveredAt == "" {
 		// A default is withheld until the operator was reached, but an ask that
 		// never reached them must not stay open forever.
@@ -1053,17 +1226,22 @@ func (s *Service) setAskReason(ctx context.Context, record AskRecord, reason, no
 	return err
 }
 
-// askPath is the deep link a push opens for an ask notification, relative to
-// the UI's service-worker scope. Non-ask notifications return "".
-func (s *Service) askPath(ctx context.Context, notificationID string) string {
+// recordPath is the page a push for a notification opens: the Hub's own record
+// of it, as a path relative to the UI's service-worker scope (so it keeps the
+// base path the app is served under). An ask opens its decision; any other
+// notification opens its delivery record.
+func (s *Service) recordPath(ctx context.Context, notificationID string) string {
 	var id string
-	if err := s.db.QueryRowContext(ctx, `SELECT id FROM asks WHERE notification_id = ?`, notificationID).Scan(&id); err != nil {
-		return ""
+	if err := s.db.QueryRowContext(ctx, `SELECT id FROM asks WHERE notification_id = ?`, notificationID).Scan(&id); err == nil {
+		return "asks/" + url.PathEscape(id)
 	}
-	return "asks/" + id
+	return "delivery/" + url.PathEscape(notificationID)
 }
 
+// kickResolutions runs after a transition that may need publishing: it wakes
+// Wait callers, then drains the ask outboxes in the background.
 func (s *Service) kickResolutions(ctx context.Context) {
+	s.askChanges.notify()
 	s.resolutions.mu.Lock()
 	if s.resolutions.running || s.resolutions.publisher == nil {
 		s.resolutions.mu.Unlock()
@@ -1079,8 +1257,8 @@ func (s *Service) kickResolutions(ctx context.Context) {
 		}()
 		publishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 		defer cancel()
-		if err := s.PublishPendingResolutions(publishCtx); err != nil {
-			s.log.Printf("publish ask resolutions: %v", err)
+		if err := s.publishAskEvents(publishCtx); err != nil {
+			s.log.Printf("publish ask events: %v", err)
 		}
 	}()
 }
@@ -1134,7 +1312,7 @@ func (s *Service) PublishPendingResolutions(ctx context.Context) error {
 			publishErrors = append(publishErrors, fmt.Errorf("publish %s for ask %s: %w", AskResolvedEventType, id, err))
 			continue
 		}
-		if _, err := s.db.ExecContext(ctx, `UPDATE asks SET resolution_published_at=? WHERE id=? AND resolved_at=?`, s.clock.Now().UTC().Format(time.RFC3339Nano), id, record.ResolvedAt); err != nil {
+		if _, err := s.db.ExecContext(ctx, `UPDATE asks SET resolution_published_at=? WHERE id=? AND resolved_at=?`, storedTime(s.clock.Now()), id, record.ResolvedAt); err != nil {
 			return err
 		}
 	}
@@ -1151,10 +1329,6 @@ func (s *Service) PublishPendingResolutions(ctx context.Context) error {
 // event id or idempotency key that opened the ask) or on correlation.
 func AskResolvedEvent(record AskRecord) eventbus.DomainEvent {
 	occurred, _ := time.Parse(time.RFC3339Nano, record.ResolvedAt)
-	correlation := make(map[string]any, len(record.Correlation))
-	for key, value := range record.Correlation {
-		correlation[key] = value
-	}
 	event := eventbus.DomainEvent{
 		Source:    "notification-hub",
 		EventType: AskResolvedEventType,
@@ -1176,10 +1350,13 @@ func AskResolvedEvent(record AskRecord) eventbus.DomainEvent {
 			"source":                      record.Source,
 			"source_event_type":           record.SourceEventType,
 			"requester_ref":               record.RequesterRef,
-			"correlation":                 correlation,
+			"correlation":                 correlationPayload(record.Correlation),
 			"resolved_at":                 record.ResolvedAt,
 			"subject_key":                 record.SubjectKey,
 			"superseded_by_ask_id":        record.SupersededByAskID,
+			"responses":                   ResponsePayload(record.Responses),
+			"attachment_notes":            AttachmentNotePayload(record.AttachmentNotes),
+			"answer_summary":              record.AnswerSummary,
 		},
 	}
 	if record.ProviderDecisionContext != nil {

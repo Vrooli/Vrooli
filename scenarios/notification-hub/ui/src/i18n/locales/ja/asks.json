@@ -1,0 +1,41 @@
+{
+  "list": {
+    "title": "要回答",
+    "loadError": "判断を読み込めませんでした。",
+    "loadErrorBoth": "判断と権限リクエストを確認できませんでした。",
+    "stale": "以前に読み込んだ結果を表示しています。更新に失敗しました。",
+    "notCleared": "何も破棄されていません。",
+    "waiting": "{{count}} 件が回答待ち",
+    "allClear": "すべて対応済み",
+    "searchOpen": "判断を検索",
+    "searchClose": "検索を閉じる",
+    "matching": "回答待ち {{total}} 件中 {{count}} 件"
+  },
+  "row": {
+    "dueIn": "期限 {{when}}",
+    "escalated": "エスカレーション済み"
+  },
+  "urgency": {
+    "low": "低",
+    "normal": "通常",
+    "high": "高",
+    "critical": "緊急"
+  },
+  "sort": {
+    "label": "並べ替え",
+    "attention": "緊急度の高い順",
+    "due": "期限の近い順",
+    "newest": "新しい順",
+    "oldest": "古い順"
+  },
+  "filters": {
+    "open": "絞り込み",
+    "title": "判断を絞り込む",
+    "urgency": "緊急度",
+    "sender": "送信元",
+    "show": "{{count}} 件を表示",
+    "remove": "絞り込みを解除: {{name}}",
+    "active": "適用中の絞り込み",
+    "openActive": "絞り込み ({{count}})"
+  }
+}

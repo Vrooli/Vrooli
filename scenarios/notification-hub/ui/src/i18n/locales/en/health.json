@@ -1,0 +1,9 @@
+{
+  "error": "Can’t reach the Hub.",
+  "loading": "Checking the Hub…",
+  "refresh": "Check again",
+  "title": "Hub status",
+  "running": "Running",
+  "notRunning": "Not fully healthy",
+  "checked": "Checked {{time}}"
+}

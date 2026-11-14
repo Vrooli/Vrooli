@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"notification-hub/internal/hub"
@@ -23,6 +24,9 @@ import (
 type handler struct {
 	service  *hub.Service
 	verifier identity.Verifier
+	// services verifies the service-principal roles; Senders admits a notification
+	// sender as its own scenario. A nil verifier turns its role off.
+	services identity.ServiceVerifiers
 }
 
 func Module(service *hub.Service) module.Module {
@@ -30,7 +34,13 @@ func Module(service *hub.Service) module.Module {
 }
 
 func ModuleWithVerifier(service *hub.Service, verifier identity.Verifier) module.Module {
-	h := &handler{service: service, verifier: verifier}
+	return ModuleWithIdentities(service, verifier, identity.ServiceVerifiers{})
+}
+
+// ModuleWithIdentities is ModuleWithVerifier plus the verifiers of the service
+// roles (hubsender.NewVerifier admits a scenario sending as itself).
+func ModuleWithIdentities(service *hub.Service, verifier identity.Verifier, services identity.ServiceVerifiers) module.Module {
+	h := &handler{service: service, verifier: verifier, services: services}
 	return module.Module{Name: "notifications", Mount: func(r *mux.Router) {
 		path, svc := connectv1.NewNotificationsServiceHandler(h)
 		r.PathPrefix(path).Handler(svc)
@@ -81,7 +91,10 @@ func (h *handler) Send(ctx context.Context, req *connect.Request[v1.SendRequest]
 			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("scheduled_at must be RFC3339"))
 		}
 	}
-	n, err := h.service.SendFrom(ctx, producer.Key, hub.SendInput{RequestedBy: producer.Recipient, Title: req.Msg.GetTitle(), Body: req.Msg.GetBody(), Urgency: req.Msg.GetUrgency(), SensitivityLabel: req.Msg.GetSensitivityLabel(), IdempotencyKey: req.Msg.GetIdempotencyKey(), DedupeKey: req.Msg.GetDedupeKey(), ScheduledAt: scheduled, DigestWindow: time.Duration(req.Msg.GetDigestWindowSeconds()) * time.Second})
+	if err := hub.ValidateContextURL(req.Msg.GetContextUrl()); err != nil {
+		return nil, SendError(err)
+	}
+	n, err := h.service.SendFrom(ctx, producer.Key, hub.SendInput{RequestedBy: producer.Recipient, Title: req.Msg.GetTitle(), Body: req.Msg.GetBody(), Urgency: req.Msg.GetUrgency(), SensitivityLabel: req.Msg.GetSensitivityLabel(), IdempotencyKey: req.Msg.GetIdempotencyKey(), DedupeKey: req.Msg.GetDedupeKey(), ContextURL: strings.TrimSpace(req.Msg.GetContextUrl()), SourceScenario: producer.Source, ScheduledAt: scheduled, DigestWindow: time.Duration(req.Msg.GetDigestWindowSeconds()) * time.Second})
 	if err != nil {
 		return nil, SendError(err)
 	}
@@ -96,6 +109,7 @@ type relayPayload struct {
 	IdempotencyKey   string `json:"idempotency_key"`
 	DedupeKey        string `json:"dedupe_key"`
 	DedupeWindowSecs int64  `json:"dedupe_window_seconds"`
+	ContextURL       string `json:"context_url"`
 }
 
 // Relay is the bridge-safe ingress. The payload is one base64 token so the
@@ -115,7 +129,10 @@ func (h *handler) Relay(ctx context.Context, req *connect.Request[v1.RelayReques
 	if err := json.Unmarshal(raw, &payload); err != nil || payload.Body == "" || payload.SensitivityLabel == "" || payload.IdempotencyKey == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("relay payload is invalid"))
 	}
-	n, err := h.service.SendFrom(ctx, producer.Key, hub.SendInput{RequestedBy: producer.Recipient, Title: payload.Title, Body: payload.Body, Urgency: payload.Urgency, SensitivityLabel: payload.SensitivityLabel, IdempotencyKey: payload.IdempotencyKey, DedupeKey: payload.DedupeKey, DedupeWindow: time.Duration(payload.DedupeWindowSecs) * time.Second})
+	if err := hub.ValidateContextURL(payload.ContextURL); err != nil {
+		return nil, SendError(err)
+	}
+	n, err := h.service.SendFrom(ctx, producer.Key, hub.SendInput{RequestedBy: producer.Recipient, Title: payload.Title, Body: payload.Body, Urgency: payload.Urgency, SensitivityLabel: payload.SensitivityLabel, IdempotencyKey: payload.IdempotencyKey, DedupeKey: payload.DedupeKey, ContextURL: strings.TrimSpace(payload.ContextURL), SourceScenario: producer.Source, DedupeWindow: time.Duration(payload.DedupeWindowSecs) * time.Second})
 	if err != nil {
 		return nil, SendError(err)
 	}
@@ -123,11 +140,7 @@ func (h *handler) Relay(ctx context.Context, req *connect.Request[v1.RelayReques
 }
 
 func (h *handler) producer(ctx context.Context, headers http.Header) (identity.Producer, error) {
-	producer, err := identity.ProducerForDirect(ctx, headers, h.verifier, h.service.ResolveRecipient(ctx))
-	if err != nil {
-		return identity.Producer{}, connect.NewError(connect.CodeUnauthenticated, errors.New("a verified agent run or verified owner identity is required"))
-	}
-	return producer, nil
+	return identity.ResolveDirectProducer(ctx, headers, h.verifier, h.services, h.service.ResolveRecipient(ctx))
 }
 
 // SendError maps a rejected notification payload. Push budgets never reject
@@ -142,7 +155,7 @@ func (h *handler) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) 
 	if err != nil {
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
-	out := &v1.GetResponse{Notification: ToRecipientReadProto(n)}
+	out := &v1.GetResponse{Notification: ToRecipientReadProto(n), NativeConsentReviewUrl: n.NativeConsentReviewURL()}
 	for _, receipt := range receipts {
 		out.Receipts = append(out.Receipts, receiptProtoForRead(receipt))
 	}
@@ -202,4 +215,4 @@ func receiptProtoForRead(r hub.Receipt) *shared.DeliveryReceipt {
 	return &shared.DeliveryReceipt{Id: r.ID, NotificationId: r.NotificationID, Channel: r.Channel, DeliveredAt: r.DeliveredAt}
 }
 
-var Endpoints = []module.EndpointDescriptor{{ID: "notifications_send", Path: connectv1.NotificationsServiceSendProcedure, Method: http.MethodPost, Summary: "Accept a notification and return its durable id", Category: "notifications"}, {ID: "notifications_relay", Path: connectv1.NotificationsServiceRelayProcedure, Method: http.MethodPost, Summary: "Accept a bridge-safe base64 notification payload", Category: "notifications"}, {ID: "notifications_get", Path: connectv1.NotificationsServiceGetProcedure, Method: http.MethodPost, Summary: "Read notification state and receipts", Category: "notifications"}, {ID: "notifications_list", Path: connectv1.NotificationsServiceListProcedure, Method: http.MethodPost, Summary: "List the delivery timeline", Category: "notifications"}, {ID: "notifications_delivery_attempts", Path: "/api/v1/notifications/{id}/attempts", Method: http.MethodGet, Summary: "Read bounded recipient-scoped delivery attempts", Category: "notifications"}}
+var Endpoints = []module.EndpointDescriptor{{ID: "notifications_send", Path: connectv1.NotificationsServiceSendProcedure, Method: http.MethodPost, Summary: "Accept a notification and return its durable id", Category: "notifications"}, {ID: "notifications_relay", Path: connectv1.NotificationsServiceRelayProcedure, Method: http.MethodPost, Summary: "Accept a bridge-safe base64 notification payload", Category: "notifications"}, {ID: "notifications_get", Path: connectv1.NotificationsServiceGetProcedure, Method: http.MethodPost, Summary: "Read notification state and receipts", Category: "notifications"}, {ID: "notifications_list", Path: connectv1.NotificationsServiceListProcedure, Method: http.MethodPost, Summary: "List the delivery timeline", Category: "notifications"}, {ID: "notifications_delivery_attempts", Path: "/api/v1/notifications/{id}/attempts", Method: http.MethodGet, Summary: "Read bounded recipient-scoped delivery attempts", Description: "Returns up to `limit` (1-100, default 100) delivery attempts of one notification for the configured recipient, plus truncated. Unknown or foreign notifications are 404.", Category: "notifications", RESTException: &module.RESTException{Reason: module.RESTReasonBrowserSurface, Note: "Browser UI JSON read of the delivery timeline with a bounded limit and plain 404/400/500 statuses; it has no generated Connect procedure or proto payload counterpart. The response is {attempts, truncated}; errors are plain-text HTTP statuses.", ProtoPayloads: &module.RESTProtoPayloads{Request: module.RESTPayload{Transport: "none", Conformance: "none"}, Response: module.RESTPayload{Transport: "json", Conformance: "external_shape"}, Error: module.RESTPayload{Transport: "none", Conformance: "none"}}}}}

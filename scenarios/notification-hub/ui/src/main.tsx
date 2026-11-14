@@ -4,14 +4,22 @@ import { BaseStyles } from "@vrooli/react-component-library/BaseStyles/1";
 import { i18n } from "./i18n";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { installChunkReloadGuard } from "@vrooli/api-base";
 import { initIframeBridgeChild } from "@vrooli/iframe-bridge";
 import { initSpatialNav } from "@vrooli/iframe-bridge/spatial";
 // Keep the production entry's module graph connected to the route table and
 // AppShell so ownership checks can follow the served browser entry.
 import App from "./App";
+import { createQueryClient } from "./api/queryClient";
 import { initPendingNavigation } from "./features/pendingNav";
 import "./styles.css";
+
+// Self-heal stale lazy-chunk imports: every rebuild/restart deletes the old
+// content-hashed Vite chunks, so a tab opened before a deploy (an installed app
+// left open on a phone) would 404 on its next lazy() navigation, such as opening
+// a decision packet. The guard reloads once (60s cooldown) on vite:preloadError.
+installChunkReloadGuard();
 
 // INTEROP-CRITICAL: Embedded mounts identify themselves before React renders so
 // the parent shell can route iframe bridge events to this scenario.
@@ -43,7 +51,7 @@ if (!rootEl) {
 }
 const appRoot = rootEl;
 
-const queryClient = new QueryClient();
+const queryClient = createQueryClient();
 
 async function bootstrap() {
   const [{ ErrorBoundary }, { onProfilerRender }] = await Promise.all([

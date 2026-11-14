@@ -215,6 +215,14 @@ func TestStructuredPayloadCarriesTheDeepLinkForTheServiceWorker(t *testing.T) {
 	require.JSONEq(t, `{"title":"Decision needed","body":"Close or re-aim?","id":"notification-1","url":"asks/ask-1"}`, payload)
 }
 
+func TestStructuredPayloadCarriesTheAwaitingCountForTheAppBadge(t *testing.T) {
+	three, none := 3, 0
+	require.JSONEq(t, `{"title":"Decision needed","body":"","awaiting":3}`, structuredPayload(Message{Title: "Decision needed", Awaiting: &three}))
+	require.JSONEq(t, `{"title":"Update","body":"","awaiting":0}`, structuredPayload(Message{Title: "Update", Awaiting: &none}),
+		"0 clears the badge, so it is sent rather than omitted")
+	require.JSONEq(t, `{"title":"Update","body":""}`, structuredPayload(Message{Title: "Update"}), "an uncounted message has no key")
+}
+
 func TestVAPIDSubjectReplacesLocalhostContactWithHTTPSOrigin(t *testing.T) {
 	// Apple's push service answers 403 BadJwtToken for a localhost contact.
 	require.Equal(t, "https://hub.example", vapidSubject("mailto:notification-hub@localhost", "https://hub.example"))

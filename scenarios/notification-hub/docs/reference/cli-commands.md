@@ -123,6 +123,71 @@ The scaffold ships one fully worked CRUD command group as a copyable
 reference (see the fenced example below); `template-manager detemplate
 <scenario>` removes it once your real domains are green.
 
+### Notification Hub decisions (`conversations`)
+
+`notification-hub conversations` is how an agent raises a decision, revises it,
+waits for the answer and withdraws it. The flags, their defaults and their errors
+are in `--help` (generated from `cli/manifest.json`); the writing rules are in
+`skills/notification-hub/SKILL.md` and the packet model in
+[`DECISION_PACKETS.md`](../concepts/DECISION_PACKETS.md). This section holds what
+a program branches on.
+
+| Command | Does | Ends with |
+|---|---|---|
+| `ask [--from NAME]` | Raises a decision, or revises the open ask of its `--subject-key`; the CLI names the sender from your Web Console session label (`--from` overrides it), which the operator reads and filters by | `ask_id=... state=... outcome=... [idempotency_key=...] [next: ...]` |
+| `wait <ask-id>` / `wait --subject-key K` | Blocks for the answer; also `ask --and-wait` | `ask_id=... state=... [answer=...]` and an exit status |
+| `get <ask-id>` / `get --subject-key K` | Reads one ask (`--ask-id` is the same as the positional) | the whole ask |
+| `list [--open \| --state S] [--sort attention\|due\|newest\|oldest] [--urgency U]... [--sender NAME]... [--query WORDS]` | Lists your conversation's asks; `--json` adds `facets` (counts by urgency and sender) and `next_cursor` | one line per ask: `id [state] question \| from SENDER, urgency, due T`; a summary of the counts |
+| `withdraw <ask-id>` / `withdraw --subject-key K` | Closes an ask you sent, with `--reason` | `Withdrew ask ...` |
+
+Flags that were one word with three meanings now have three names. `ask --expires`
+is when an unanswered ask closes (default 24h); `wait --timeout` and
+`ask --timeout` (with `--and-wait`) are how long the command waits (default 30m).
+The old `--deadline` and `--wait-for` are gone and fail as unknown options; the
+error names the flag that replaced each.
+
+Exit statuses of `wait` and `ask --and-wait`:
+
+| Status | Meaning |
+|---|---|
+| 0 | An answer is available (answered, or the default applied) |
+| 3 | The operator asked for more context; the ask is still open; their question is `context_request.question`; answer it with `ask --subject-key K --context-response '...'` |
+| 4 | Your wait timed out (`--timeout`); the ask is still open and has not expired |
+| 5 | The ask closed without an answer: withdrawn, dismissed or expired (by id also: replaced by a revision with new options) |
+| 1 | The command failed: bad flags, an unreachable Hub, a refused read |
+
+`ask` reports an `outcome` for a keyed ask: `created`, `updated`, `replaced`,
+`reasserted`, `suppressed` or `returned` (an ask without a subject key is always
+`created`); the meaning of each is in the skill's "Revise, withdraw and check".
+
+With `--json`, `ask`, `wait`, `get` and `ask --dry-run` print one JSON document on
+stdout with the Hub's snake_case field names, on every exit status; guidance and the
+packet check go to stderr. The exact documents and paths, one real example per exit
+status and answer shape, are in
+[`skills/notification-hub/references/cli-results.md`](../../skills/notification-hub/references/cli-results.md).
+That file is generated: `TestAgentResultsDocumentIsWhatTheCLIPrints` (in
+`api/handlers/conversations`) runs the real CLI against an in-process Hub and fails
+when the file differs from what it printed; `go test ./handlers/conversations -run
+TestAgentResultsDocument -update` refreshes it.
+
+A host program with no agent run identity (the portfolio steward, started by a
+systemd timer) sets `NOTIFICATION_HUB_SEND_AS=<source>`. The CLI then exchanges
+the credential of the service principal `<source>-notification-hub` (declared in
+the scenario's `.vrooli/service-principals.json` and issued by `scenario-authenticator
+service-principals sync --apply`) and presents the token as the bearer on every
+conversations call, with no agent identity header. The Hub attributes what it sends
+to `<source>` and lists only the asks that source sent. Order of precedence: a run
+identity (`VROOLI_AGENT_IDENTITY_TOKEN`) wins and the switch is unused; then an
+explicit token (`NOTIFICATION_HUB_API_TOKEN`, `VROOLI_API_TOKEN` or the saved config
+token); then the principal, with no fallback. An unissued credential, a credential
+store the process cannot read, and a credential that fails to exchange each fail the
+command with their own message, naming the principal and, when it is not issued, the
+issue command. The code is `cli/domains/conversations/sendas.go`.
+
+Who can reach an ask: by ask id, the runs of the conversation that sent it; by exact
+`--subject-key`, any run of the same owner account; `list` shows only the
+conversation's asks. Withdrawing follows the same rule as reading.
+
 ## Output contracts
 
 Every scenario command should render through one of three human

@@ -20,7 +20,8 @@ ui/src/
 │   └── <feature>/  # feature-component slot — components inside a feature
 ├── hooks/          # hook slot — reusable React hooks
 ├── i18n/           # i18n bootstrap
-│   └── locales/    # i18n-strings slot — one JSON per locale
+│   ├── catalog.ts  # assembles each locale's files into one typed catalog
+│   └── locales/    # i18n-strings slot — <locale>/<namespace>.json, one file per catalog subtree
 ├── layout/         # layout-shell + layout-nav slots — AppShell, Sidebar, TopBar, BottomNav
 ├── lib/            # lib-util slot — framework-agnostic utilities
 ├── pages/          # page slot — routed pages mounted under <Outlet />
@@ -73,10 +74,120 @@ badges that the canon already provides.
    (`ui/src/components/<ComponentName>.tsx`). Both flag warnings on the
    resulting adoption record.
 
+## Shell And Shared Surfaces
+
+The shell and the pages around the decision page follow
+[UX_DIRECTION.md](UX_DIRECTION.md). Shared building blocks live in
+`components/`, not `components/ui/` (that folder holds adopted library
+copies): `Page` (the `h1`, description, actions and reading measure of every
+routed page), `BackLink`, `ListGroup`/`ListItem`/`ListRow` (grouped, navigable
+lists with an urgency bar), `SectionTabs` (route-linked segmented switch),
+`FilterChips`, `Skeleton`, `QueryNotice` (`QueryError`, `EmptyNotice`,
+`InlineNote`), `Time` (relative time with the exact time in the tooltip) and
+`Facts`. Rules:
+
+- The shell (`layout/`) knows nothing about routes. A page draws its own title
+  and back link; there is no header extension point.
+- Four destinations (Needs you, Updates, History, Settings). Delivery is the
+  second tab of Updates, so `isCurrent` in `layout/navItems.tsx` keeps Updates
+  current on `/delivery` and `/delivery/:id`.
+- The Needs-you badge and the installed app's badge come from `useNeedsYou`
+  (the Hub's exact `total_awaiting` from a one-row read plus pending permission
+  requests, refreshed at the inbox cadence). Both decision lists
+  share `RequestList` (`features/asks/HistoryPage.tsx`): the view (sort, urgency
+  and sender filters) is parsed from and written to the address by
+  `features/asks/askListView.ts`, sent to the Hub on every read, and rendered by
+  `ListControls` with the facet counts the Hub returns. The queue defaults to
+  `ORDER_ATTENTION`, History to the server's newest-first. Tests that script `ListAsks` page by page use `asksInOrder` /
+  `listAsksFor` from `test-utils` so that count read does not consume the script.
+- Catalogs are split by owner: `i18n/locales/<locale>/<namespace>.json`, where the
+  file name is the dotted key path of the subtree it holds (`pages.dashboard.json`
+  is `pages.dashboard.*`). Edit only your own files; a new namespace needs a file
+  in every locale directory (the parity test names a missing one). Tests read
+  catalogs through `i18n/catalog` (`en`, `ja`, `ar`), not the JSON.
+- Every list renders loading (`SkeletonRows`), failure (`QueryError`, which shows
+  the sign-in card when the cause is a missing session), empty (`EmptyNotice`)
+  and a one-line footnote about its scope; none writes its own.
+- Times are relative in lists and exact in `title` and `dateTime`
+  (`lib/ago.ts`); deadlines read "Due in 2 hours".
+
+## Decision Page (`features/packet`)
+
+The decision page (`/asks/:askId`) is one feature folder. The product contract
+is [DECISION_PACKETS.md](DECISION_PACKETS.md); this section is only the map.
+
+```
+features/packet/
+├── PacketPage.tsx        # route element: loads the ask, composes everything below
+├── PacketCover.tsx       # question, big picture, recommendation, technical details
+├── DecisionText.tsx      # prose with safe links; decisionLinks.tsx holds the pure parsing
+├── model/                # pure TypeScript, no React
+│   ├── questions.ts      # question kinds (unknown type -> text), limits
+│   ├── draft.ts          # the unsent answer (options, responses, notes on files)
+│   ├── draftStore.ts     # per-owner, per-ask browser copy + the frozen attempt
+│   └── answer.ts         # draft -> AnswerPayload, required rule, pre-fill, explainer pre-fill
+├── form/                 # the Hub's own answer form (the only thing that answers)
+│   ├── AnswerPanel.tsx   # stacked on wide screens, guided steps + review on a phone
+│   ├── MainOptions.tsx, QuestionField.tsx, ChoiceQuestion.tsx, VariantQuestion.tsx,
+│   │   SectionReviewQuestion.tsx, PinnedNotes.tsx, ReviewSummary.tsx
+│   └── ActionBar.tsx, SecondaryActions.tsx
+├── viewer/               # attachments: tiles, path matching, the manifest, the viewer host
+├── explainer/            # the sealed HTML page: document builder, bridge, frame, kit/
+├── context/              # "I need more context": the sheet and the waiting/updated notices
+├── status/               # decision status and what happened to the answer
+├── useAnswerFlow.ts      # send once, freeze the attempt, only ever read back
+├── usePacketDraft.ts, useNextDecision.ts, useDecisionLinks.ts
+└── mocks/                # test factories (never imported by production code)
+```
+
+Rules the folder keeps, each covered by tests:
+
+- **Nothing a packet part does can stop an answer.** Attachments, the explainer
+  and typed questions all degrade (a tile that fails, a frame that shows a
+  fallback, an unknown question type drawn as text); "Other" and Send are
+  always reachable, and a draft that no longer matches a revised ask is
+  filtered when it is built, never sent as invalid.
+- **One answer, sent once.** `useAnswerFlow` freezes the payload as an attempt
+  before it leaves; after any uncertain response the page only reads the
+  decision back.
+- **The explainer is untrusted.** `explainer/document.ts` builds the `srcdoc`
+  (policy first, kit, bridge); `explainer/bridge.ts` validates every message
+  from the frame; a pre-fill only edits the draft.
+- **The sticky action bar is a direct child of the tall page content** (a sticky
+  element cannot leave its parent), so the aside holding the form is
+  `display: contents` below the wide layout.
+- **Opacity modifiers work on every theme color.** The theme colors are CSS
+  variables holding hex values, so `tailwind.config.ts` wraps each in an opacity
+  function that emits `color-mix(in srgb, var(--color-x) NN%, transparent)`.
+  Write `bg-app-warning/15`, not a per-component tint class.
+- **Files open in the shared viewer, and the Hub only hosts it.**
+  `viewer/AttachmentViewer.tsx` gives `@vrooli/file-viewer` a manifest source
+  (`viewer/manifest.ts`: the ask's stored copies on the content route, read
+  through the session fetch so a 401 reaches the sign-in path) and fills its
+  footer slot with what is specific to a decision: the "changed since" warning,
+  previous/next between attachments, and "Comment here". The viewer owns
+  rendering, folders, anchors and its own close control. It is loaded lazily
+  (its PDF, 3D and document engines stay out of the main chunk), and
+  `theme/viewerTokens.css` maps the Hub palette onto its `--fv-*` channel
+  triplets (`viewerTokens.test.ts` fails if a triplet drifts from the palette).
+  Spreadsheets and Mermaid need optional engines the Hub does not install, so
+  they degrade to their download link.
+- **Generated proto types are read from source.** `vite.config.ts` and
+  `tsconfig.json` alias `@vrooli/proto-types` to `packages/proto/gen/typescript`
+  (and `@bufbuild/protobuf` to this app's copy, because the source sits outside
+  the package). The installed `file:` copy of the proto package goes stale
+  whenever the proto is regenerated, which made a new field type-check in one
+  consumer and be missing at runtime in another. Vitest, `tsc` and the build all
+  read the same generated files, so they cannot drift. The `package.json`
+  entry stays (removing it is a dependency change).
+- **Tests run in a jsdom environment with Node's `AbortController`**
+  (`src/test-environment.ts`), because Node's `Request` rejects jsdom's signal
+  and every React Router data navigation builds one.
+
 ## Experience Contract
 
 The generated `experience/` folder is the UX-intent contract for the route
-table in `ui/src/app/routes.tsx`. Keep those two surfaces aligned:
+table in `ui/src/app/routeTable.tsx`. Keep those two surfaces aligned:
 
 - add an L0 page spec when a new user-facing route is added;
 - remove or deprecate a page spec when a route is removed;

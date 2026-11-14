@@ -20,6 +20,36 @@
       "path": "pages/settings.json",
       "title": "Settings",
       "status": "active"
+    },
+    {
+      "id": "decision",
+      "path": "pages/decision.json",
+      "title": "Decision",
+      "status": "active"
+    },
+    {
+      "id": "asks",
+      "path": "pages/asks.json",
+      "title": "Needs you",
+      "status": "active"
+    },
+    {
+      "id": "history",
+      "path": "pages/history.json",
+      "title": "History",
+      "status": "active"
+    },
+    {
+      "id": "delivery",
+      "path": "pages/delivery.json",
+      "title": "Delivery",
+      "status": "active"
+    },
+    {
+      "id": "delivery-detail",
+      "path": "pages/delivery-detail.json",
+      "title": "Delivery details",
+      "status": "active"
     }
   ],
   "journeys": [

@@ -4,7 +4,7 @@
   "source_manifest": "cli/manifest.json",
   "scenario": "notification-hub",
   "generator": "v1.0.0",
-  "manifest_hash": "1dbb80b7c1c6bc089a06a8d289a6548214120fabd2b2bc58e62901891f586193",
+  "manifest_hash": "58cf8fd332477e9b8a8ae8a961c0e9814a991dde1f55635dafbbeab34ab74b7b",
   "commands": [
     {
       "path": "channels status",
@@ -43,6 +43,12 @@
       "binding": "ConversationsService.ListAsks"
     },
     {
+      "path": "conversations request-context",
+      "group": "conversations",
+      "command": "request-context",
+      "binding": "ConversationsService.RequestContext"
+    },
+    {
       "path": "conversations wait",
       "group": "conversations",
       "command": "wait",
@@ -75,12 +81,14 @@
     {
       "path": "integrations event-config",
       "group": "integrations",
-      "command": "event-config"
+      "command": "event-config",
+      "binding": "."
     },
     {
       "path": "integrations event-config-set",
       "group": "integrations",
-      "command": "event-config-set"
+      "command": "event-config-set",
+      "binding": "."
     },
     {
       "path": "notifications get",

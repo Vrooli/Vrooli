@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../.vrooli/schemas/scenario-experience-spec.schema.json",
+  "kind": "experience-page",
+  "schemaVersion": "1.0.0",
+  "page": {
+    "id": "decision",
+    "title": "Decision",
+    "routes": ["/asks/:askId"],
+    "purpose": "Let the operator catch up on one decision cold, on a phone, and answer it in about a minute: read the cover, look at the attached files inside the Hub, and answer with the Hub's own form.",
+    "prd_refs": ["OT-P0-001"]
+  },
+  "priorities": [
+    { "statement": "The question, in plain words, with the big picture and the requester's recommendation, so a cold reader can decide without opening anything else." },
+    { "statement": "The attached files, shown as tiles that open inside the Hub as the requester saw them, with a change marker when the original moved on." },
+    { "statement": "The answer form: the requester's options (Other always available) and any typed questions, with Accept all recommended as a pre-fill the operator still sends." },
+    { "statement": "What happens to the answer: sending it is deliberate, an uncertain result is never replayed, and a recorded answer offers the next waiting decision." },
+    { "statement": "When the operator cannot answer yet, one tap asks the requester for more context and the page says it is waiting for the agent." }
+  ],
+  "states": [
+    { "id": "default", "description": "An open decision with its cover, attachments and answer form." },
+    { "id": "loading", "description": "The decision is being read." },
+    { "id": "empty", "description": "A question with nothing attached, no page from the requester and no typed questions: the cover and the answer form in one column, with no empty attachment or page section drawn." },
+    { "id": "submitting", "description": "An answer is on its way; the form is locked and the page then reads the decision back." },
+    { "id": "validation-error", "description": "Send is unavailable until an answer is chosen, a required question is answered, or Other is explained; the reason is said next to the button." },
+    { "id": "partial", "description": "The decision is readable while an attachment or the requester's page could not be loaded; the answer form is unaffected." },
+    { "id": "request-error", "description": "The answer could not be confirmed. The attempted answer is kept and only status can be checked." },
+    { "id": "permission-denied", "description": "Signed out: the decision stays readable and the form is replaced by sign-in." },
+    { "id": "success", "description": "The answer is recorded; the next waiting decision is offered." },
+    { "id": "waiting-for-context", "description": "The operator asked for more context and the requester has not yet updated the decision." },
+    { "id": "stale", "description": "The requester updated the decision while the operator was answering, so nothing was sent: the revised decision is reloaded, the draft is kept, and the page says to check it against what changed before sending again." },
+    { "id": "updated", "description": "The requester updated the decision after a question; what changed is one tap away." },
+    { "id": "defaulted", "description": "The requester's default was applied; one later answer is still allowed." },
+    { "id": "closed", "description": "Answered, expired, withdrawn or dismissed: read-only." }
+  ],
+  "elements": [
+    { "id": "question", "role": "heading", "description": "The decision's question in plain words." },
+    { "id": "attachments", "role": "region", "name": "Attached", "description": "Tiles for the attached files and folders." },
+    { "id": "explainer", "role": "region", "name": "Agent's page", "description": "The requester's sealed HTML page, when it sent one." },
+    { "id": "answer-form", "role": "group", "description": "The requester's options and typed questions." },
+    { "id": "send", "role": "button", "name": "Send answer", "description": "The one action that answers." },
+    { "id": "need-context", "role": "button", "name": "I need more context", "description": "Asks the requester to update the decision; it stays open." }
+  ],
+  "bindings": {
+    "elements": {
+      "question": { "testid": "ask-question" },
+      "attachments": { "testid": "packet-attachments" },
+      "explainer": { "testid": "packet-explainer" },
+      "answer-form": { "testid": "packet-form" },
+      "send": { "testid": "packet-send" },
+      "need-context": { "testid": "packet-need-context" }
+    }
+  }
+}

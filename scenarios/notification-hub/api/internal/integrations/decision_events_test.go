@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vrooli/api-core/operatordecision"
+
+	"notification-hub/internal/hub"
 )
 
 func TestDecisionAskSpecCarriesContextAndUsesProducerNoteFallback(t *testing.T) {
@@ -41,4 +44,55 @@ func TestDecisionAskSpecRejectsInteractiveReviewOnlyPayload(t *testing.T) {
 	_, err = DecisionAskSpecWithDefaults("operator", "agent-manager", "agent_manager.interactive_authorization.decision_requested.v1", "event-interactive", encoded, time.Now().UTC(), "private", 24*time.Hour)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "at least two options")
+}
+
+// A producer's declaration travels in the payload operatordecision.Facts builds,
+// and only then does the ask carry it.
+func TestDecisionAskSpecCarriesTheProducersContextRequestDeclaration(t *testing.T) {
+	facts := operatordecision.Facts{
+		Question: "Retry the backup?", Options: []operatordecision.Option{{Key: "retry", Label: "Retry"}, {Key: "skip", Label: "Skip"}},
+		Recommended: "retry", Urgency: "normal", SubjectKey: "backup-failure:vol-1",
+	}
+	const eventType = "data-backup-manager.backup.decision_requested.v1"
+	build := func() hub.AskSpec {
+		encoded, err := json.Marshal(facts.Payload())
+		require.NoError(t, err)
+		spec, err := DecisionAskSpec("operator", "data-backup-manager", eventType, "event-1", encoded, time.Now().UTC())
+		require.NoError(t, err)
+		return spec
+	}
+	require.False(t, build().AcceptsContextRequests, "an undeclared decision stays undeclared")
+	facts.AcceptsContextRequests = true
+	require.True(t, build().AcceptsContextRequests)
+}
+
+func TestDecisionAskSpecNeedsNoRecommendation(t *testing.T) {
+	encoded, err := json.Marshal(map[string]any{
+		"question": "Retry the backup?",
+		"options":  []map[string]string{{"key": "retry", "label": "Retry"}, {"key": "skip", "label": "Skip"}},
+	})
+	require.NoError(t, err)
+	spec, err := DecisionAskSpec("operator", "data-backup-manager", "data-backup-manager.backup.decision_requested.v1", "event-1", encoded, time.Now().UTC())
+	require.NoError(t, err)
+	require.Empty(t, spec.Recommended)
+}
+
+// An event cannot say who published it, so a decision event never brings files
+// or an explainer into the ask, whatever its payload claims. A scenario that
+// wants a packet sends Ask as its own verified sender.
+func TestDecisionAskSpecIgnoresFilesAPayloadClaims(t *testing.T) {
+	encoded, err := json.Marshal(map[string]any{
+		"question": "Apply this change?",
+		"options":  []map[string]string{{"key": "apply", "label": "Apply"}, {"key": "reject", "label": "Reject"}},
+		"attachments": []map[string]any{
+			{"name": "page.html", "kind": "file", "role": "explainer", "sha256": "abc", "source_path": "/etc/passwd"},
+		},
+		"questions": []map[string]any{{"id": "q1", "type": "text", "prompt": "Why?"}},
+	})
+	require.NoError(t, err)
+	spec, err := DecisionAskSpec("operator", "research-desk", "research_desk.needs_you.decision_requested.v1", "event-1", encoded, time.Now().UTC())
+	require.NoError(t, err)
+	require.Empty(t, spec.Attachments)
+	require.Empty(t, spec.Questions)
+	require.False(t, spec.VerifiedProducer, "an event ask is never a verified producer's")
 }

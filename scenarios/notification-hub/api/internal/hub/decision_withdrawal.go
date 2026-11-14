@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 )
 
 const (
@@ -121,7 +120,7 @@ func (s *Service) WithdrawDecisionAsk(ctx context.Context, in DecisionWithdrawal
 		return false, nil
 	}
 
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	now := storedTime(s.clock.Now())
 	inserted, err := tx.ExecContext(ctx, `INSERT INTO decision_request_lifecycle (source, requester_ref, source_event_type, state, reason, created_at, updated_at) VALUES (?, ?, ?, 'withdrawn', ?, ?, ?) ON CONFLICT(source, requester_ref) DO NOTHING`, source, ref, typeName, reason, now, now)
 	if err != nil {
 		return false, err

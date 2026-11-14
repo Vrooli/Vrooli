@@ -16,41 +16,23 @@
  * returning visits all stay in sync.
  *
  * Adding a locale:
- *   1. Drop `./locales/<code>.json` next to en.json (same shape).
- *   2. Append the code to `LOCALE_CODES` in `./locales.ts`.
- *   3. Add the matching entry to `LOCALE_CONFIG` below (TypeScript will fail
- *      the build if you forget — the Record is keyed by `Locale`).
- *   4. Import + register the JSON in the `resources` block below.
- *   5. The language switcher reads `LOCALE_CONFIG` directly — no UI changes.
- *      The locales-parity test (`./locales/locales.test.ts`) verifies that
- *      `LOCALE_CODES`, `LOCALE_CONFIG`, and the catalog files all agree.
+ *   1. Add the locale's code, label, and direction to `./locales.ts`.
+ *   2. Add a `./locales/<code>/` directory with the same namespace files as `en/`.
+ *   3. Export the assembled catalog from `./catalog.ts` and register it in the
+ *      `resources` block below.
+ *   4. The language switcher reads `LOCALE_CONFIG` directly — no UI changes.
+ *      The locales-parity test (`./locales/locales.test.ts`) verifies catalog
+ *      directory parity; TypeScript checks metadata against `LOCALE_CODES`.
  */
 import i18n from "i18next";
 import { initReactI18next, useTranslation } from "react-i18next";
-import { LOCALE_CODES, type Locale } from "./locales";
-import { readLocalPreference, writeLocalPreference } from "../theme/ThemeProvider";
-import ar from "./locales/ar.json";
-import en from "./locales/en.json";
-import ja from "./locales/ja.json";
-
-interface LocaleConfig {
-  /** Native-language label shown in switchers; never translated. */
-  nativeLabel: string;
-  /** HTML text direction. Set up now so adding RTL locales is a config change, not a code change. */
-  dir: "ltr" | "rtl";
-}
-
-// `LOCALE_CODES` (in ./locales) is the canonical list of supported locales.
-// `LOCALE_CONFIG` is keyed against it so adding a code without an entry — or
-// vice versa — is a TypeScript error.
-const LOCALE_CONFIG = {
-  en: { nativeLabel: "English", dir: "ltr" },
-  ja: { nativeLabel: "日本語", dir: "ltr" },
-  ar: { nativeLabel: "العربية", dir: "rtl" },
-} as const satisfies Record<Locale, LocaleConfig>;
+import { LOCALE_CODES, LOCALE_CONFIG, type Locale, type LocaleConfig } from "./locales";
+import { readLocalPreference, writeLocalPreference } from "../theme/preferenceStorage";
+import { isolateInterpolation } from "./bidi";
+import { ar, en, ja } from "./catalog";
 
 // Re-export so callers that already import { Locale } from "./i18n" keep working.
-export { LOCALE_CODES, type Locale };
+export { LOCALE_CODES, LOCALE_CONFIG, type Locale, type LocaleConfig };
 export const SUPPORTED_LOCALES = LOCALE_CODES;
 
 const STORAGE_KEY = "vrooli.locale";
@@ -82,7 +64,8 @@ void i18n.use(initReactI18next).init({
   lng: detectInitialLocale(),
   fallbackLng: "en",
   // React already escapes interpolated values; double-escaping mangles output.
-  interpolation: { escapeValue: false },
+  // Interpolated values that run against the sentence's script get bidi isolation.
+  interpolation: { escapeValue: false, format: isolateInterpolation, alwaysFormat: true },
   returnNull: false,
 });
 

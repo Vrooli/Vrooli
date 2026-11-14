@@ -71,10 +71,149 @@
       }
     },
     {
+      "id": "external_url",
+      "path": "/api/v1/external-url",
+      "method": "GET",
+      "summary": "Resolve an installed scenario's browser-openable URL.",
+      "description": "",
+      "category": "system",
+      "response": {
+        "type": "Response",
+        "properties": {
+          "scenario": "string",
+          "url": "string"
+        }
+      },
+      "rest_exception": {
+        "reason": "ops_probe",
+        "note": "Read-only URL lookup for UI navigation; returns an empty URL when the allowlisted scenario cannot be resolved.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "json",
+            "conformance": "external_shape"
+          }
+        }
+      }
+    },
+    {
+      "id": "app_delivery_state",
+      "path": "/vrooli.notification_hub.v1.appdelivery.AppDeliveryService/GetAppState",
+      "method": "POST",
+      "summary": "Read a scenario app's notification state and pairable devices",
+      "description": "",
+      "category": "appdelivery"
+    },
+    {
+      "id": "app_delivery_enable",
+      "path": "/vrooli.notification_hub.v1.appdelivery.AppDeliveryService/EnableApp",
+      "method": "POST",
+      "summary": "Pair a scenario app with a device so it shows that scenario's notifications",
+      "description": "",
+      "category": "appdelivery"
+    },
+    {
+      "id": "app_delivery_confirm",
+      "path": "/vrooli.notification_hub.v1.appdelivery.AppDeliveryService/ConfirmApp",
+      "method": "POST",
+      "summary": "Record that a scenario app was opened and its notification permission",
+      "description": "",
+      "category": "appdelivery"
+    },
+    {
+      "id": "app_delivery_disable",
+      "path": "/vrooli.notification_hub.v1.appdelivery.AppDeliveryService/DisableApp",
+      "method": "POST",
+      "summary": "Return a device to Chimesail for the calling scenario",
+      "description": "",
+      "category": "appdelivery"
+    },
+    {
+      "id": "app_delivery_devices",
+      "path": "/vrooli.notification_hub.v1.appdelivery.AppDeliveryService/ListDeviceApps",
+      "method": "POST",
+      "summary": "List each device and the apps that show notifications on it",
+      "description": "",
+      "category": "appdelivery"
+    },
+    {
+      "id": "app_delivery_remove",
+      "path": "/vrooli.notification_hub.v1.appdelivery.AppDeliveryService/RemoveDeviceApp",
+      "method": "POST",
+      "summary": "Remove one scenario app from a device",
+      "description": "",
+      "category": "appdelivery"
+    },
+    {
+      "id": "conversations_stat_attachment_blobs",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/StatAttachmentBlobs",
+      "method": "POST",
+      "summary": "Report which attachment content hashes the Hub does not hold (producer-only)",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "conversations_put_attachment_blob",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/PutAttachmentBlob",
+      "method": "POST",
+      "summary": "Store one attachment file under its SHA-256 (producer-only, at most 64 MiB)",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "conversations_attachment_content",
+      "path": "/api/v1/asks/{ask_id}/attachments/{name}",
+      "method": "GET",
+      "summary": "Open one attached file of an ask",
+      "description": "Streams the Hub's stored copy of an attachment (or ?path= inside a folder attachment) to the ask's recipient, with byte ranges for video and audio. Requires a verified owner identity like Answer (401 without one). Unknown asks, other owners' asks, attachments and paths are all 404.",
+      "category": "conversations",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Raw file bytes with Range support for the Hub's viewer; a Connect procedure cannot stream or seek. Metadata for the same attachments is the proto AskAttachment on GetAsk. Errors are plain-text HTTP statuses (401, 404).",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "conversations_list_native_consents",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/ListNativeConsents",
+      "method": "POST",
+      "summary": "Read source-owned native consent without approving or creating an ask",
+      "description": "",
+      "category": "conversations"
+    },
+    {
       "id": "conversations_ask",
       "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/Ask",
       "method": "POST",
       "summary": "Ask a question and persist its deadline",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "conversations_check_ask",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/CheckAsk",
+      "method": "POST",
+      "summary": "Run the packet check and preview the notification for an ask without storing it",
       "description": "",
       "category": "conversations"
     },
@@ -87,10 +226,34 @@
       "category": "conversations"
     },
     {
+      "id": "conversations_dismiss",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/Dismiss",
+      "method": "POST",
+      "summary": "Dismiss an ask without answering",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "conversations_withdraw",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/Withdraw",
+      "method": "POST",
+      "summary": "Withdraw a direct ask you created",
+      "description": "",
+      "category": "conversations"
+    },
+    {
       "id": "conversations_wait",
       "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/Wait",
       "method": "POST",
-      "summary": "Block until an ask is resolved or the caller deadline passes",
+      "summary": "Block until an ask is resolved or the caller's wait runs out",
+      "description": "",
+      "category": "conversations"
+    },
+    {
+      "id": "conversations_request_context",
+      "path": "/vrooli.notification_hub.v1.conversations.ConversationsService/RequestContext",
+      "method": "POST",
+      "summary": "Ask the requester for more context on an open ask",
       "description": "",
       "category": "conversations"
     },
@@ -191,10 +354,36 @@
       "category": "notifications"
     },
     {
+      "id": "notifications_delivery_attempts",
+      "path": "/api/v1/notifications/{id}/attempts",
+      "method": "GET",
+      "summary": "Read bounded recipient-scoped delivery attempts",
+      "description": "Returns up to `limit` (1-100, default 100) delivery attempts of one notification for the configured recipient, plus truncated. Unknown or foreign notifications are 404.",
+      "category": "notifications",
+      "rest_exception": {
+        "reason": "browser_surface",
+        "note": "Browser UI JSON read of the delivery timeline with a bounded limit and plain 404/400/500 statuses; it has no generated Connect procedure or proto payload counterpart. The response is {attempts, truncated}; errors are plain-text HTTP statuses.",
+        "proto_payloads": {
+          "request": {
+            "transport": "none",
+            "conformance": "none"
+          },
+          "response": {
+            "transport": "json",
+            "conformance": "external_shape"
+          },
+          "error": {
+            "transport": "none",
+            "conformance": "none"
+          }
+        }
+      }
+    },
+    {
       "id": "recipients_get",
       "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/GetRecipient",
       "method": "POST",
-      "summary": "Read the authenticated recipient projection",
+      "summary": "Read the configured recipient projection",
       "description": "",
       "category": "recipients"
     },
@@ -243,6 +432,30 @@
       "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/UpsertChannelAddress",
       "method": "POST",
       "summary": "Register or update a channel address",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_address_list",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/ListChannelAddresses",
+      "method": "POST",
+      "summary": "List owner-scoped channel addresses",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_address_create",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/CreateChannelAddress",
+      "method": "POST",
+      "summary": "Create a channel address with stable-ID retry",
+      "description": "",
+      "category": "recipients"
+    },
+    {
+      "id": "recipients_address_update",
+      "path": "/vrooli.notification_hub.v1.recipients.RecipientsService/UpdateChannelAddress",
+      "method": "POST",
+      "summary": "Update one owner-scoped channel address",
       "description": "",
       "category": "recipients"
     },

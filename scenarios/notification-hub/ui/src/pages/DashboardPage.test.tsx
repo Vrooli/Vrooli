@@ -1,3 +1,4 @@
+import { en } from "../i18n/catalog";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import { QueryClient } from "@tanstack/react-query";
@@ -7,10 +8,6 @@ import { NotificationState } from "@vrooli/proto-types/notification-hub/v1/share
 import { selectors } from "../consts/selectors";
 import { setLocale } from "../i18n";
 import { DashboardPage } from "./DashboardPage";
-
-vi.mock("../features/health/HealthCard", () => ({
-  HealthCard: () => <div data-testid="health-card" />,
-}));
 
 vi.mock("../api/notifications", () => ({
   deliveryClient: { getTimeline: vi.fn() },
@@ -32,11 +29,12 @@ describe("Updates page", () => {
     getTimeline.mockResolvedValue({ notifications: [{ id: "native", title: "Permission", contextUrl: "https://agent-manager.example.test/api/v1/authorizations/native/approve", state: NotificationState.DELIVERED }, { id: "unsafe", title: "Unsafe", contextUrl: "javascript:alert(1)", state: NotificationState.PENDING }] } as never);
     listAsks.mockResolvedValue({ asks: [] } as never);
     renderWithProviders(<DashboardPage />);
-    expect(await screen.findByRole("link", { name: "Open original source" })).toHaveAttribute("href", "https://agent-manager.example.test/api/v1/authorizations/native/approve");
-    expect(screen.getAllByRole("link", { name: "Open original source" })).toHaveLength(1);
+    // The destination host is part of the link, so the operator sees where it goes before leaving.
+    expect(await screen.findByRole("link", { name: "Open source · agent-manager.example.test" })).toHaveAttribute("href", "https://agent-manager.example.test/api/v1/authorizations/native/approve");
+    expect(screen.getAllByRole("link", { name: /^Open source/ })).toHaveLength(1);
   });
 
-  it("scopes an empty state to the returned list and keeps API health separate", async () => {
+  it("says plainly that nothing has arrived yet, and keeps Hub health on the Delivery page", async () => {
     await setLocale("en");
     getTimeline.mockResolvedValue({ notifications: [] } as never);
     listAsks.mockResolvedValue({ asks: [] } as never);
@@ -44,10 +42,9 @@ describe("Updates page", () => {
     renderWithProviders(<DashboardPage />);
 
     const page = await screen.findByTestId(selectors.pages.dashboard);
-    expect(page).toHaveTextContent(/No notifications were returned in this request’s scope/);
-    expect(page).toHaveTextContent(/This does not indicate producer health/);
-    expect(page).toHaveTextContent(/Decision links are matched against up to 200 returned asks/);
-    expect(screen.getByTestId("health-card")).toBeInTheDocument();
+    expect(page).toHaveTextContent("No updates yet");
+    expect(page).toHaveTextContent("When an agent sends you something, it shows up here.");
+    expect(screen.queryByTestId(selectors.health.card)).not.toBeInTheDocument();
     expect(listAsks).toHaveBeenCalledWith({ openOnly: false, limit: 200 });
   });
 
@@ -149,7 +146,7 @@ describe("Updates page", () => {
     renderWithProviders(<DashboardPage />);
 
     expect(await screen.findByText(/Informational update/)).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Checking linked decisions…");
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Open decision" })).not.toBeInTheDocument();
   });
 
@@ -168,7 +165,7 @@ describe("Updates page", () => {
 
     const page = await screen.findByTestId(selectors.pages.dashboard);
     expect(page).toHaveTextContent("Informational update");
-    expect(page).toHaveTextContent("Decision links could not be checked, so no decision actions are shown.");
+    expect(page).toHaveTextContent("Couldn’t check which updates have a decision, so decision links are hidden.");
     expect(screen.queryByRole("link", { name: "Open decision" })).not.toBeInTheDocument();
     queryClient.clear();
   });
@@ -180,7 +177,7 @@ describe("Updates page", () => {
 
     renderWithProviders(<DashboardPage />);
 
-    expect(await screen.findByTestId(selectors.pages.dashboard)).toHaveTextContent("Updates could not be loaded.");
+    expect(await screen.findByTestId(selectors.pages.dashboard)).toHaveTextContent("Couldn’t load updates.");
   });
 
   it("announces initial feed loading while keeping the Updates region available", async () => {
@@ -192,8 +189,8 @@ describe("Updates page", () => {
 
     const page = screen.getByTestId(selectors.pages.dashboard);
     expect(page).toHaveAccessibleName("Updates");
-    expect(page).toHaveTextContent("Loading decision…");
-    expect(page).not.toHaveTextContent("No notifications were returned");
+    expect(page).toHaveTextContent(en.common.loading);
+    expect(page).not.toHaveTextContent("No updates yet");
   });
 
   it("retains returned feed content with a stale marker when refresh fails", async () => {
@@ -209,9 +206,8 @@ describe("Updates page", () => {
 
     const page = await screen.findByTestId(selectors.pages.dashboard);
     expect(page).toHaveTextContent("Previously loaded update");
-    expect(page).toHaveTextContent("Updates could not be loaded.");
-    expect(page).toHaveTextContent("Showing previously loaded updates; refresh failed.");
-    expect(page).not.toHaveTextContent("No notifications were returned");
+    expect(page).toHaveTextContent("Showing what loaded earlier; the refresh failed.");
+    expect(page).not.toHaveTextContent("No updates yet");
     queryClient.clear();
   });
 });

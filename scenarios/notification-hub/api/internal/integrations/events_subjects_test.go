@@ -10,6 +10,7 @@ import (
 
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
@@ -36,7 +37,7 @@ func newSubjectHarness(t *testing.T) *subjectHarness {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "subject-test-secret"
 	return &subjectHarness{t: t, service: service, db: db, handler: EventWebhook(service, secret), secret: secret}
 }

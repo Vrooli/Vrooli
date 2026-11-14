@@ -1,0 +1,118 @@
+{
+  "edges": [
+    {
+      "id": "edge-navigate-updates-to-open-delivery-tab",
+      "source": "navigate-updates",
+      "target": "open-delivery-tab"
+    },
+    {
+      "id": "edge-open-delivery-tab-to-open-record",
+      "source": "open-delivery-tab",
+      "target": "open-record"
+    },
+    {
+      "id": "edge-open-record-to-wait-delivery-detail-page",
+      "source": "open-record",
+      "target": "wait-delivery-detail-page"
+    },
+    {
+      "id": "edge-wait-delivery-detail-page-to-capture-delivery-detail",
+      "source": "wait-delivery-detail-page",
+      "target": "capture-delivery-detail"
+    }
+  ],
+  "metadata": {
+    "description": "Given the leased disposable recipient, when the owner opens the delivered record from Delivery at phone width, then its record page renders and is captured.",
+    "execution_mode": "mutating",
+    "labels": {
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "spec_entry_id": "delivery-detail",
+      "surface": "experience-delivery-detail-routed-smoke"
+    },
+    "name": "experience-delivery-detail-routed-smoke",
+    "requirement": "OT-P0-001",
+    "version": "2"
+  },
+  "nodes": [
+    {
+      "id": "navigate-updates",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/updates?vrooli_test_mode=1&e4_fixture=delivery-pending-state",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed Updates with the pending-state fixture"
+        }
+      }
+    },
+    {
+      "id": "open-delivery-tab",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/updates.tab(id=delivery)"
+        },
+        "metadata": {
+          "label": "Switch to the Delivery tab"
+        }
+      }
+    },
+    {
+      "id": "open-record",
+      "action": {
+        "type": "ACTION_TYPE_CLICK",
+        "click": {
+          "selector": "@selector/delivery.recordDetailsLink(id=e4-test-delivered)"
+        },
+        "metadata": {
+          "label": "Open the delivered record"
+        }
+      }
+    },
+    {
+      "id": "wait-delivery-detail-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.deliveryDetail",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "Delivery record page visible"
+        }
+      }
+    },
+    {
+      "id": "capture-delivery-detail",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture the delivery record at 390 pixel phone width"
+        }
+      }
+    }
+  ],
+  "settings": {
+    "browser_profile": {
+      "extra_headers": {
+        "X-Vrooli-Test-Mode": "1"
+      },
+      "fingerprint": {
+        "device_scale_factor": 2
+      }
+    },
+    "viewport_height": 844,
+    "viewport_width": 390
+  }
+}

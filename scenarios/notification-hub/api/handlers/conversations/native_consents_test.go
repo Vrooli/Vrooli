@@ -1,8 +1,13 @@
 package conversations_test
 
 import (
-	"connectrpc.com/connect"
 	"context"
+	"net/http/httptest"
+	"testing"
+	"time"
+
+	"connectrpc.com/connect"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
@@ -10,12 +15,11 @@ import (
 	"github.com/vrooli/api-core/databasetest"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	cv1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect"
-	"net/http/httptest"
+
 	conversations "notification-hub/handlers/conversations"
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
-	"testing"
-	"time"
+	"notification-hub/internal/testutil/hubtest"
 )
 
 type pendingNativeConsent struct{}
@@ -23,11 +27,12 @@ type pendingNativeConsent struct{}
 func (pendingNativeConsent) ReadConsent(_ context.Context, id string) (hub.NativeConsentStatus, error) {
 	return hub.NativeConsentStatus{AuthorizationID: id, State: "pending", ReviewExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)}, nil
 }
+
 func TestNativeConsentRPC_GivenExistingOwnerNotification_WhenRead_ThenReturnsNativeReviewWithoutAnswerAuthority(t *testing.T) {
 	ctx := context.Background()
 	db := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, db, modules.AllSchemas()...))
-	s := hub.New(database.NewFromPrimary(db), nil, nil)
+	s := hubtest.New(t, database.NewFromPrimary(db), nil, nil)
 	s.SetDefaultRecipient("alice")
 	s.SetNativeConsentReader(pendingNativeConsent{})
 	id := uuid.NewString()

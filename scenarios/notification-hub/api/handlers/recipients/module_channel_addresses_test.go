@@ -16,6 +16,7 @@ import (
 	recipientsH "notification-hub/handlers/recipients"
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 )
 
 func ownerRequest[T any](message *T, subject string) *connect.Request[T] {
@@ -29,7 +30,7 @@ func TestChannelAddressRPCsUseStableCreateAndExactOwnerIDUpdate(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	service.SetDefaultRecipient("alice")
 	device, err := service.UpsertDevice(ctx, "alice", hub.Device{Name: "Phone", MachineID: "local"})
 	require.NoError(t, err)
@@ -86,7 +87,7 @@ func TestLegacyUpsertChannelAddressCannotOverwriteNaturalKey(t *testing.T) {
 	ctx := context.Background()
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
-	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
 	device, err := service.UpsertDevice(ctx, "alice", hub.Device{Name: "Phone", MachineID: "local"})
 	require.NoError(t, err)
 	router := mux.NewRouter()

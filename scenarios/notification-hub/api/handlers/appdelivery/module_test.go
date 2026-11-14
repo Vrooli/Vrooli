@@ -16,6 +16,7 @@ import (
 	appDeliveryH "notification-hub/handlers/appdelivery"
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 )
 
 func newClient(t *testing.T) (appconnect.AppDeliveryServiceClient, *hub.Service) {
@@ -23,7 +24,7 @@ func newClient(t *testing.T) (appconnect.AppDeliveryServiceClient, *hub.Service)
 	ctx := context.Background()
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
-	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
 	service.SetWebPushPublicKey("hub-public-key")
 	service.SetAppEligibility(func(_ context.Context, scenario string) (string, error) {
 		return "https://" + scenario + ".example.test", nil

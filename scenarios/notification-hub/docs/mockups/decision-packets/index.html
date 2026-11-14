@@ -1,0 +1,405 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Decision Packets</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column of layers; each layer = options strip + phone mockups grid. */
+:root{
+  --bg:#f4f6f9; --surface:#ffffff; --sunk:#eceff4; --ink:#141c27; --muted:#566476; --line:#d6dce4;
+  --accent:#2148c9; --accent-soft:#e3e9fb; --signal:#a86400; --signal-soft:#fbf0dc;
+  --ok:#1b7f52; --ok-soft:#dff3e8; --warn:#b0461a; --warn-soft:#fbe6dc;
+  --f-display:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --f-body:"Inter",ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e131a; --surface:#151c25; --sunk:#1b2430; --ink:#e4e9f0; --muted:#94a1b2; --line:#2a3542;
+  --accent:#86a2ff; --accent-soft:#1f2a47; --signal:#f0a944; --signal-soft:#3a2c14;
+  --ok:#55c792; --ok-soft:#163327; --warn:#f2915e; --warn-soft:#3b2216; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e131a; --surface:#151c25; --sunk:#1b2430; --ink:#e4e9f0; --muted:#94a1b2; --line:#2a3542;
+  --accent:#86a2ff; --accent-soft:#1f2a47; --signal:#f0a944; --signal-soft:#3a2c14;
+  --ok:#55c792; --ok-soft:#163327; --warn:#f2915e; --warn-soft:#3b2216; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 64px}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:clamp(30px,5vw,44px);font-weight:700;letter-spacing:-.01em}
+h2{font-size:clamp(22px,3.2vw,28px);font-weight:600}
+h3{font-size:17px;font-weight:600}
+p{margin:0;max-width:68ch}
+code,.mono{font-family:var(--f-mono);font-size:.86em}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.lede{font-size:17px;color:var(--muted)}
+section{display:flex;flex-direction:column;gap:20px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+.fact{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.fact b{font-family:var(--f-display);font-size:15px}
+.fact span{color:var(--muted);font-size:14px}
+.anatomy{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.anatomy>div{padding:16px 18px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:6px;min-width:0}
+.anatomy>div:last-child{border-right:0}
+.anatomy .k{font-family:var(--f-mono);font-size:12px;color:var(--accent);letter-spacing:.06em;text-transform:uppercase}
+.options{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.opt{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.opt.rec{border-color:var(--signal);box-shadow:0 0 0 1px var(--signal) inset}
+.opt .tag{align-self:flex-start;font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:99px;background:var(--sunk);color:var(--muted)}
+.opt.rec .tag{background:var(--signal-soft);color:var(--signal)}
+.opt ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:3px}
+.opt li.pro::marker{content:"+  ";color:var(--ok)}
+.opt li.con::marker{content:"–  ";color:var(--warn)}
+.verdict{background:var(--signal-soft);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.verdict b{color:var(--signal);font-family:var(--f-display)}
+.phones{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:24px;align-items:start}
+figure{margin:0;display:flex;flex-direction:column;gap:10px;min-width:0}
+figcaption{font-size:13px;color:var(--muted);max-width:44ch}
+figcaption b{color:var(--ink)}
+.phone{width:100%;max-width:310px;border:1px solid var(--line);border-radius:30px;background:var(--surface);padding:10px;box-shadow:0 10px 30px -18px rgba(10,20,40,.35)}
+.screen{border-radius:22px;background:var(--bg);overflow:hidden;font-size:12.5px;line-height:1.45;display:flex;flex-direction:column;min-height:540px}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface);font-size:11.5px;color:var(--muted)}
+.bar b{color:var(--ink);font-family:var(--f-display);font-size:12.5px}
+.scr{padding:12px 14px;display:flex;flex-direction:column;gap:10px;flex:1}
+.q{font-family:var(--f-display);font-size:15px;font-weight:600;line-height:1.25}
+.sm{font-size:11.5px;color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;padding:2px 7px;border-radius:99px;background:var(--sunk);color:var(--muted);font-family:var(--f-mono)}
+.chip.rec{background:var(--signal-soft);color:var(--signal)}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.att{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tile{border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden;display:flex;flex-direction:column}
+.tile .th{aspect-ratio:4/3;max-width:100%;background:var(--sunk);display:flex;align-items:center;justify-content:center}
+.tile .nm{font-family:var(--f-mono);font-size:9.5px;padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.radio{display:flex;gap:8px;align-items:flex-start;padding:7px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.radio.on{border-color:var(--accent);background:var(--accent-soft)}
+.dot{flex:none;width:12px;height:12px;border-radius:50%;border:1.5px solid var(--muted);margin-top:2px}
+.radio.on .dot{border-color:var(--accent);background:radial-gradient(var(--accent) 45%,transparent 50%)}
+.box{flex:none;width:12px;height:12px;border-radius:3px;border:1.5px solid var(--muted);margin-top:2px}
+.radio.on .box{border-color:var(--accent);background:var(--accent)}
+.btn{display:flex;align-items:center;justify-content:center;border-radius:9px;padding:9px;font-weight:600;font-size:12.5px;background:var(--accent);color:var(--surface)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:500}
+.note{border:1px dashed var(--line);border-radius:7px;padding:6px 8px;color:var(--muted);font-size:11.5px;background:var(--surface)}
+.note.filled{border-style:solid;color:var(--ink)}
+.steps{display:flex;gap:4px}
+.steps i{flex:1;height:3px;border-radius:2px;background:var(--line)}
+.steps i.on{background:var(--accent)}
+.sec{display:flex;flex-direction:column;gap:4px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface)}
+.sec h4{margin:0;font-family:var(--f-display);font-size:12.5px}
+.sec p{font-size:11px;color:var(--muted)}
+.verbs{display:flex;gap:5px}
+.verbs span{font-size:10.5px;padding:2px 8px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
+.verbs span.ok{background:var(--ok-soft);border-color:transparent;color:var(--ok)}
+.verbs span.ch{background:var(--warn-soft);border-color:transparent;color:var(--warn)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.cmp .tile.on{outline:2px solid var(--accent);outline-offset:-1px}
+.viewer{background:#0b0f15;flex:1;display:flex;flex-direction:column}
+.viewer .vt{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;color:#c9d2de;font-size:11px;font-family:var(--f-mono)}
+.viewer .stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative}
+.viewer .vb{display:flex;gap:6px;padding:9px 12px;overflow:hidden}
+.viewer .vb span{font-size:10px;font-family:var(--f-mono);color:#c9d2de;border:1px solid #2b3542;border-radius:6px;padding:3px 7px;white-space:nowrap}
+.viewer .vb span.on{background:#1f2a3a;border-color:#4f6aa8}
+.sandbox{border:1.5px dashed var(--warn);border-radius:10px;overflow:hidden;background:var(--surface)}
+.sandbox .lbl{font-family:var(--f-mono);font-size:9.5px;color:var(--warn);background:var(--warn-soft);padding:3px 8px}
+.dock{border-top:1px solid var(--line);background:var(--surface);padding:10px 14px;display:flex;flex-direction:column;gap:7px}
+pre{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;font-family:var(--f-mono);font-size:12.5px;line-height:1.55;color:var(--ink)}
+pre .c{color:var(--muted)}
+pre .k{color:var(--accent)}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.two>*{min-width:0}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;counter-reset:r}
+.rule{border-left:3px solid var(--accent);padding:4px 0 4px 14px;display:flex;flex-direction:column;gap:4px}
+.rule span{color:var(--muted);font-size:14px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:620px}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+tr:last-child td{border-bottom:0}
+td.n{font-family:var(--f-display);font-weight:600;white-space:nowrap}
+.asks{display:flex;flex-direction:column;gap:10px}
+.ask{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;grid-template-columns:1fr;gap:6px}
+.ask .rc{font-size:14px}
+.ask .rc b{color:var(--signal)}
+.hr{height:1px;background:var(--line)}
+</style>
+
+<div class="wrap">
+
+<header class="stack">
+  <span class="eyebrow">Notification Hub · proposal · 13 Nov 2026</span>
+  <h1>Decision packets: decisions you can catch up on in a minute</h1>
+  <p class="lede">Right now a decision is one block of text and one multiple-choice answer. This page proposes making each decision a <b>packet</b>: a short cover, attached files you can open inside the Hub, and an answer form shaped to the question. It shows the options for each part, with mockups, and my recommendation for each.</p>
+</header>
+
+<section>
+  <span class="eyebrow">What exists today (checked in the code)</span>
+  <div class="facts">
+    <div class="fact"><b>One answer plus one note</b><span>An answer is one option key and a note of up to 4,096 characters. A decision can have at most 8 options. There is no way to answer several questions at once.</span></div>
+    <div class="fact"><b>Files open in a second app</b><span>The Hub turns file paths in the text into links that open Web Console in a new tab. It shows Markdown images inline. All other Markdown shows as plain text.</span></div>
+    <div class="fact"><b>Web Console already views ~25 file types</b><span>Markdown, images, video, audio, PDF, 3D models (GLB), folders, archives, SQLite, spreadsheets, slides, fonts and diffs. About 7,000 lines of UI and 5,500 lines of Go. Relative paths are found from a terminal session's folder.</span></div>
+    <div class="fact"><b>Writing rules have landed</b><span>The other agent's work is in place. The <code>notification-hub</code> skill teaches the SBAR format, and the CLI reminds an agent that has not read the skill. The reminder never blocks the send.</span></div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">The idea</span>
+  <h2>A packet has three parts, and each can improve on its own</h2>
+  <div class="anatomy">
+    <div><span class="k">A · Cover</span><h3>What and why</h3><p class="sm" style="font-size:14px">The question, the big picture and the recommendation. The skill already covers this. Below I add a check that the Hub runs when the packet is created.</p></div>
+    <div><span class="k">B · Attachments</span><h3>The evidence</h3><p class="sm" style="font-size:14px">Plans, mockups, renders, GLB models and folders. You open them inside the Hub with the same viewer as Web Console.</p></div>
+    <div><span class="k">C · Answer form</span><h3>Your reply</h3><p class="sm" style="font-size:14px">One question or several. Pick a variant, approve a plan section by section, choose several items. The answer goes back to the agent as structured data and as plain text.</p></div>
+  </div>
+</section>
+
+<div class="hr"></div>
+
+<!-- ============ B. ATTACHMENTS ============ -->
+<section>
+  <span class="eyebrow">Part B · Viewing attachments</span>
+  <h2>How the Hub shows files</h2>
+  <div class="options">
+    <div class="opt"><span class="tag">B1 · today</span><h3>Link out to Web Console</h3>
+      <ul><li class="pro">Already built</li><li class="con">Opens a new tab and loses your place on a phone</li><li class="con">Breaks when Web Console is down</li><li class="con">Shows the file as it is now, not as it was when the agent asked</li></ul></div>
+    <div class="opt"><span class="tag">B2</span><h3>Embed Web Console's viewer in a frame</h3>
+      <ul><li class="pro">Fast: about a week of work</li><li class="pro">Viewer upgrades reach both apps at once</li><li class="con">The Hub stops working well when Web Console fails, which goes against the anti-fragile goal</li><li class="con">Sign-in has to work across two apps inside a frame</li></ul></div>
+    <div class="opt rec"><span class="tag">B3 · recommended</span><h3>Move the viewer into shared packages</h3>
+      <ul><li class="pro">One viewer that both apps use, with no runtime link between them</li><li class="pro">Each app supplies its own file source: Web Console uses terminal sessions, the Hub uses the packet's attachments</li><li class="con">Larger work. The renderers depend on Web Console only through text strings, selectors and one API client, so the split is clean.</li></ul></div>
+  </div>
+  <div class="verdict"><b>Recommendation: B3, plus snapshots</b>
+    <p>When an agent attaches a file, the Hub copies it into its own store and records a hash. You see what the agent saw, even after a scratch folder is cleaned up or the plan is edited. When the original has changed, a "changed since asked" label appears with a link to the current version. Folders become a browsable copy of that subtree. Above a size limit (for example 200 MB per packet) the Hub keeps a reference and hash only. The Hub serves <b>only the files the agent attached</b>. It never serves any path on the host over the tunnel. That rule is also the security boundary.</p></div>
+
+  <div class="phones">
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="bar"><span>‹ Decisions</span><b>Video studio · 1 of 4</b><span>2 min read</span></div>
+        <div class="scr">
+          <span class="chip">Video research · due Fri</span>
+          <div class="q">Do these studio set and character work for the first product video?</div>
+          <p class="sm">I built two set layouts and one character for the short demo videos. Before I render the shots, I need you to choose a set and confirm the character. Rendering takes about a day. If you do not answer, I keep improving the lighting and wait.</p>
+          <div class="sm" style="font-weight:600;color:var(--ink)">Attached · 5</div>
+          <div class="att">
+            <div class="tile"><div class="th"><svg width="44" height="34" viewBox="0 0 44 34"><rect x="2" y="2" width="40" height="30" rx="2" fill="none" stroke="currentColor" opacity=".35"/><rect x="6" y="7" width="18" height="2.5" fill="currentColor" opacity=".55"/><rect x="6" y="12" width="30" height="2" fill="currentColor" opacity=".3"/><rect x="6" y="16" width="26" height="2" fill="currentColor" opacity=".3"/><rect x="6" y="20" width="29" height="2" fill="currentColor" opacity=".3"/></svg></div><span class="nm">brief.md</span></div>
+            <div class="tile"><div class="th" style="background:linear-gradient(160deg,#c9a77c,#6e4b33)"><svg width="44" height="30" viewBox="0 0 44 30"><rect x="6" y="18" width="32" height="4" fill="#3a2718"/><rect x="10" y="8" width="8" height="10" fill="#e7d3b0"/><circle cx="31" cy="10" r="4" fill="#f6e2b8"/></svg></div><span class="nm">set-a.png</span></div>
+            <div class="tile"><div class="th" style="background:linear-gradient(160deg,#9fb4c9,#3e5468)"><svg width="44" height="30" viewBox="0 0 44 30"><rect x="4" y="21" width="36" height="2" fill="#20303f"/><rect x="8" y="4" width="10" height="17" fill="#dbe6f0" opacity=".7"/><rect x="26" y="4" width="10" height="17" fill="#dbe6f0" opacity=".7"/></svg></div><span class="nm">set-b.png</span></div>
+            <div class="tile"><div class="th"><svg width="30" height="34" viewBox="0 0 30 34"><circle cx="15" cy="8" r="5" fill="var(--accent)"/><path d="M7 30 L9 16 Q15 13 21 16 L23 30 Z" fill="var(--accent)" opacity=".7"/></svg></div><span class="nm">character.glb</span></div>
+            <div class="tile"><div class="th"><svg width="40" height="30" viewBox="0 0 40 30"><path d="M3 7 h12 l3 3 h19 v17 h-34 z" fill="var(--signal)" opacity=".55"/></svg></div><span class="nm">test-renders/</span></div>
+            <div class="tile"><div class="th"><span class="chip warn" style="font-size:9px">changed</span></div><span class="nm">shot-list.md</span></div>
+          </div>
+          <div class="card"><span class="sm">Recommended</span><b style="font-size:12.5px">Set B, keep the character</b><span class="sm">Set B reads better on a phone screen, and the character passed the walk test.</span></div>
+          <div class="btn" style="margin-top:auto">Answer · 3 questions</div>
+        </div>
+      </div></div>
+      <figcaption><b>The cover.</b> The question and big picture come first, then the attachments as thumbnails. One file is marked "changed" because it was edited after the agent asked.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="viewer">
+          <div class="vt"><span>✕</span><span>character.glb · 4.2 MB</span><span>4 / 6</span></div>
+          <div class="stage">
+            <svg width="170" height="240" viewBox="0 0 170 240" aria-label="3D character preview">
+              <ellipse cx="85" cy="222" rx="58" ry="10" fill="#1d2633"/>
+              <ellipse cx="85" cy="200" rx="70" ry="22" fill="none" stroke="#3b4d6b" stroke-dasharray="4 5"/>
+              <circle cx="85" cy="48" r="24" fill="#8fa6d8"/>
+              <path d="M52 205 L58 98 Q85 80 112 98 L118 205 Z" fill="#5d76b3"/>
+              <path d="M58 104 L36 160" stroke="#5d76b3" stroke-width="12" stroke-linecap="round"/>
+              <path d="M112 104 L134 160" stroke="#5d76b3" stroke-width="12" stroke-linecap="round"/>
+              <path d="M140 196 a10 10 0 1 1 -6 -14" fill="none" stroke="#c9d2de" stroke-width="1.6"/>
+              <path d="M134 182 l1 -6 l5 4" fill="none" stroke="#c9d2de" stroke-width="1.6"/>
+            </svg>
+            <span style="position:absolute;bottom:8px;left:12px;font-size:10px;color:#94a1b2;font-family:var(--f-mono)">drag to orbit · pinch to zoom</span>
+          </div>
+          <div class="vb"><span>Comment here</span><span class="on">Model</span><span>Wireframe</span><span>Animations ▸ walk</span></div>
+          <div class="vb" style="padding-top:0"><span>‹ set-b.png</span><span>test-renders/ ›</span></div>
+        </div>
+      </div></div>
+      <figcaption><b>The viewer sheet.</b> It is the shared file viewer (the one Web Console uses) running inside the Hub. The arrows under the file move between attachments. "Comment here" pins a note to this file, and the note goes into your answer.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<div class="hr"></div>
+
+<!-- ============ C. ANSWER FORM ============ -->
+<section>
+  <span class="eyebrow">Part C · Answering</span>
+  <h2>How you reply</h2>
+  <div class="options">
+    <div class="opt"><span class="tag">C1 · today</span><h3>One choice plus a note</h3>
+      <ul><li class="pro">Fast for yes/no</li><li class="con">"Mostly yes, but…" goes into one long note</li><li class="con">Leads agents to send several separate decisions about one topic</li></ul></div>
+    <div class="opt rec"><span class="tag">C2 · recommended</span><h3>Typed form with several questions</h3>
+      <ul><li class="pro">Choose one, choose several, rank, short text, pick a variant</li><li class="pro">Each question has its own recommendation and note</li><li class="pro">The Hub validates it and draws it the same way every time, so agent mistakes cannot lose your answer</li><li class="con">The agent has to describe the form, which is about 10 lines of YAML</li></ul></div>
+    <div class="opt rec"><span class="tag">C3 · recommended</span><h3>Section-by-section review</h3>
+      <ul><li class="pro">For "review this plan": each heading gets Approve, Change or Drop, with a note</li><li class="pro">Matches how you actually approve plans: mostly yes, with notes</li><li class="con">Needs Markdown with real headings, which the plan-writing standard already requires</li></ul></div>
+    <div class="opt"><span class="tag">C4</span><h3>Agent writes the whole page in HTML</h3>
+      <ul><li class="pro">Full freedom: side-by-side layouts, sliders, timelines</li><li class="con">Every packet looks different, and an agent bug can lose your answer</li><li class="con">Agent JavaScript would run in your signed-in browser</li><li class="con">The answer has no fixed shape, so the next agent cannot rely on it</li></ul></div>
+  </div>
+  <div class="verdict"><b>Recommendation: C2 + C3 for answering. HTML only as an attachment.</b>
+    <p>An agent may attach an HTML explainer when a layout helps, such as a before/after slider or an interactive timeline. The Hub shows it in a sealed frame with no network access and no access to your sign-in. The answer always comes from the Hub's own form below it. Later, the HTML page may <i>pre-fill</i> that form (tap mockup B, and question 1 changes to B), but it can never submit. This gives the agent full freedom in how it presents the packet, while your answer stays reliable.</p></div>
+
+  <div class="phones">
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="bar"><span>‹ Cover</span><b>Answer</b><span>1 of 3</span></div>
+        <div class="scr">
+          <div class="steps"><i class="on"></i><i></i><i></i></div>
+          <div class="q">Which studio set should I build?</div>
+          <div class="cmp">
+            <div class="tile"><div class="th" style="background:linear-gradient(160deg,#c9a77c,#6e4b33)"><svg width="80" height="54" viewBox="0 0 44 30"><rect x="6" y="18" width="32" height="4" fill="#3a2718"/><rect x="10" y="8" width="8" height="10" fill="#e7d3b0"/><circle cx="31" cy="10" r="4" fill="#f6e2b8"/></svg></div><span class="nm">A · Warm desk</span></div>
+            <div class="tile on"><div class="th" style="background:linear-gradient(160deg,#9fb4c9,#3e5468)"><svg width="80" height="54" viewBox="0 0 44 30"><rect x="4" y="21" width="36" height="2" fill="#20303f"/><rect x="8" y="4" width="10" height="17" fill="#dbe6f0" opacity=".7"/><rect x="26" y="4" width="10" height="17" fill="#dbe6f0" opacity=".7"/></svg></div><span class="nm">B · Open loft <span class="chip rec" style="font-size:8.5px;padding:0 5px">rec</span></span></div>
+          </div>
+          <span class="sm">Tap a picture to see it full screen. Tap the name to choose it.</span>
+          <div class="note filled">Less clutter on the back shelf.</div>
+          <div class="hr"></div>
+          <div class="q" style="font-size:13.5px">Which shots should I make first?</div>
+          <div class="radio on"><span class="box"></span><span>Intro walk-on (15 s)</span></div>
+          <div class="radio on"><span class="box"></span><span>Product demo (40 s)</span></div>
+          <div class="radio"><span class="box"></span><span>Sign-off (8 s)</span></div>
+          <div style="display:flex;gap:8px;margin-top:auto"><div class="btn ghost" style="flex:1">Accept all recommended</div><div class="btn" style="flex:1">Next</div></div>
+        </div>
+      </div></div>
+      <figcaption><b>C2, typed form.</b> "Pick a variant" questions use attachments as the choices. "Accept all recommended" sends the whole packet with one tap, and it is offered only when every choice can be undone.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="bar"><span>‹ Answer</span><b>brief.md · review</b><span>3 of 3</span></div>
+        <div class="scr">
+          <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+          <span class="sm">Each heading gets a verdict. Headings you skip count as <b>Approve</b>.</span>
+          <div class="sec"><h4>Goal</h4><p>Three 30–60 s product videos, rendered locally, one character.</p><div class="verbs"><span class="ok">✓ Approve</span><span>Change</span><span>Drop</span></div></div>
+          <div class="sec"><h4>Pipeline</h4><p>Blender rig → local render queue → ffmpeg cut with captions.</p><div class="verbs"><span class="ok">✓ Approve</span><span>Change</span><span>Drop</span></div></div>
+          <div class="sec" style="border-color:var(--warn)"><h4>Timeline</h4><p>Four weeks, with a review after each video.</p><div class="verbs"><span>Approve</span><span class="ch">✎ Change</span><span>Drop</span></div><div class="note filled">Two weeks. Review only after the first video.</div></div>
+          <div class="sec"><h4>Voice</h4><p>Try three local text-to-speech voices.</p><div class="verbs"><span>Approve</span><span>Change</span><span>Drop</span></div></div>
+          <div class="btn" style="margin-top:auto">Send answer</div>
+        </div>
+      </div></div>
+      <figcaption><b>C3, section review.</b> This is "I largely approve, with notes" as a real answer shape. The agent receives each heading's verdict, so it does not have to interpret a long note.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="phone"><div class="screen">
+        <div class="bar"><span>‹ Decisions</span><b>Hub redesign · 2 of 4</b><span></span></div>
+        <div class="scr" style="gap:8px">
+          <div class="q" style="font-size:13.5px">Which inbox layout should the Hub use?</div>
+          <div class="sandbox">
+            <div class="lbl">AGENT PAGE · sealed · no network · cannot submit</div>
+            <div style="padding:8px;display:flex;flex-direction:column;gap:6px">
+              <div style="position:relative;height:120px;border-radius:6px;overflow:hidden;background:var(--sunk)">
+                <div style="position:absolute;inset:0 50% 0 0;background:linear-gradient(180deg,var(--line) 0 14%,transparent 14% 20%,var(--line) 20% 34%,transparent 34% 40%,var(--line) 40% 54%,transparent 54%);opacity:.8"></div>
+                <div style="position:absolute;inset:0 0 0 50%;display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:6px"><div style="background:var(--accent-soft);border-radius:4px"></div><div style="background:var(--accent-soft);border-radius:4px"></div><div style="background:var(--accent-soft);border-radius:4px"></div><div style="background:var(--accent-soft);border-radius:4px"></div></div>
+                <div style="position:absolute;top:0;bottom:0;left:50%;width:2px;background:var(--accent)"></div>
+                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;background:var(--accent);border:2px solid var(--surface)"></div>
+              </div>
+              <span class="sm">Drag to compare: list (today) and cards (proposed). Tap a side to choose it.</span>
+            </div>
+          </div>
+          <div class="dock" style="margin:0 -14px -12px;flex:1">
+            <span class="sm" style="font-weight:600;color:var(--ink)">Your answer · Hub form</span>
+            <div class="radio"><span class="dot"></span><span>Keep the list</span></div>
+            <div class="radio on"><span class="dot"></span><span>Cards <span class="chip rec">rec</span> <span class="chip">pre-filled by page</span></span></div>
+            <div class="note">Add a note (optional)</div>
+            <div class="btn">Send answer</div>
+          </div>
+        </div>
+      </div></div>
+      <figcaption><b>HTML as an attachment.</b> The agent's page explains. The Hub's form answers. If the page breaks, you can still answer.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">What the agent sends and gets back</span>
+  <div class="two">
+<pre><span class="c"># notification-hub conversations ask … \</span>
+<span class="c">#   --attach brief.md --attach mockups/ --attach character.glb \</span>
+<span class="c">#   --form form.yaml</span>
+<span class="k">questions:</span>
+  - id: set
+    kind: <span class="k">pick-variant</span>
+    prompt: Which studio set should I build?
+    variants:
+      a: { label: Warm desk, attachment: mockups/set-a.png }
+      b: { label: Open loft, attachment: mockups/set-b.png }
+    recommend: b
+    why: Reads better on a phone screen.
+  - id: shots
+    kind: <span class="k">choose-many</span>
+    prompt: Which shots should I make first?
+    options: { intro: Intro walk-on, demo: Product demo, outro: Sign-off }
+  - id: brief
+    kind: <span class="k">review-sections</span>
+    attachment: brief.md
+    unanswered: approve</pre>
+<pre><span class="c"># conversations wait --ask-id … --json</span>
+{
+  "answers": {
+    "set":   { "choice": "b", "note": "Less clutter on the back shelf." },
+    "shots": { "choices": ["intro", "demo"] },
+    "brief": { "sections": {
+      "Timeline": { "verdict": "change",
+        "note": "Two weeks. Review only after the first video." } } }
+  },
+  "file_comments": [
+    { "file": "character.glb", "note": "Hair is too glossy." } ],
+  <span class="k">"summary"</span>: "Set B (less clutter on the back shelf). First shots:
+    intro, demo. Brief approved except Timeline: two weeks,
+    review only after the first video. character.glb: hair
+    is too glossy."
+}</pre>
+  </div>
+  <p class="sm" style="font-size:14px">The <code>summary</code> line means an agent that never parses JSON still understands the answer. A plain <code>--option</code> decision with no <code>--form</code> works exactly as it does today, because it becomes a form with one question.</p>
+</section>
+
+<div class="hr"></div>
+
+<section>
+  <span class="eyebrow">Part A, plus catching up on many decisions</span>
+  <h2>Smaller ideas with a large effect</h2>
+  <div class="options">
+    <div class="opt rec"><span class="tag">recommended · small</span><h3>"I need more context"</h3><p class="sm" style="font-size:14px">A fourth button next to Answer and Dismiss. You type what is unclear. The decision stays open and goes back to the requesting agent, which rewrites it in place. Revising in place by subject key already works, so this is mostly one new state and one event.</p></div>
+    <div class="opt rec"><span class="tag">recommended · small</span><h3>Packet check when sent</h3><p class="sm" style="font-size:14px">The Hub checks a new packet: IDs in the question, no big picture, a missing attachment, a form option that names an attachment that does not exist. It returns warnings to the agent, the same way as the skill-read reminder. It never blocks.</p></div>
+    <div class="opt"><span class="tag">medium</span><h3>Review session</h3><p class="sm" style="font-size:14px">For the "few dozen waiting" case. Decisions open one after another as full-screen cards, grouped by objective, with reading time shown and a skip option. A short note says what changed since you last looked.</p></div>
+    <div class="opt"><span class="tag">later · optional</span><h3>Ask the packet</h3><p class="sm" style="font-size:14px">A chat box that answers "what does X mean here?" from the packet and its attachments, using a local model. It is useful but it adds a dependency, so it waits until the rest works.</p></div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Rules that keep it anti-fragile</span>
+  <div class="rules">
+    <div class="rule"><b>You can always answer</b><span>Every packet keeps a flat fallback: the question, the options, "Accept all recommended" and "Reply in words". This works from a push action, from the CLI, or when a viewer or form fails to load.</span></div>
+    <div class="rule"><b>Sending never fails on extras</b><span>A missing or oversized attachment, or a form that fails validation, gives a warning and a degraded packet. The core ask is still delivered.</span></div>
+    <div class="rule"><b>No runtime link between apps</b><span>The Hub uses the shared viewer package, not a live Web Console. Either app can be down without breaking the other.</span></div>
+    <div class="rule"><b>Unknown means plain text</b><span>A question type that an older Hub does not know shows as a free-text question. Answers always include a plain-text summary.</span></div>
+    <div class="rule"><b>Agent code stays sealed</b><span>HTML attachments run with no network access and no same-origin access. They can only send a pre-fill message, never submit.</span></div>
+  </div>
+</section>
+
+<section>
+  <span class="eyebrow">Suggested order · each stage is useful by itself</span>
+  <div class="tw"><table>
+    <thead><tr><th>Stage</th><th>Ships</th><th>Main work</th></tr></thead>
+    <tbody>
+      <tr><td class="n">1 · See</td><td>Attachments with snapshots. Viewer in the Hub for Markdown, images, video, PDF and folders. "Changed since asked".</td><td>Extract the Go resolver and blob server to <code>packages/filepreview-go</code>, with sources passed in. Extract the renderers to a <code>@vrooli/file-preview</code> package with a source interface. Web Console moves to it first with no visible change.</td></tr>
+      <tr><td class="n">2 · Answer</td><td>Typed form: choose one, choose several, pick a variant, short text. JSON answer plus summary. "I need more context". Packet check.</td><td>Proto: <code>AskForm</code> and <code>FormAnswer</code>, with old asks converted to one-question forms. Hub UI form. Skill update.</td></tr>
+      <tr><td class="n">3 · Review</td><td>Section-by-section review. Comments pinned to files.</td><td>Markdown heading anchors, a review renderer, and per-file comments in the answer.</td></tr>
+      <tr><td class="n">4 · Rich</td><td>The rest of the viewer: GLB, SQLite, archives, slides. Sealed HTML attachments with pre-fill. Review session.</td><td>Lazy-loaded heavy renderers. Sealed frame plus a pre-fill bridge (<code>@vrooli/iframe-bridge</code> may fit).</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <span class="eyebrow">Your call · my recommendation is shown for each</span>
+  <div class="asks">
+    <div class="ask"><b>1. How should the Hub show attached files?</b><span class="rc"><b>Recommend:</b> move Web Console's viewer into shared packages (B3). Embedding it in a frame is faster, but then the Hub depends on Web Console being up.</span></div>
+    <div class="ask"><b>2. Copy attachments when the agent asks, or link to the live file?</b><span class="rc"><b>Recommend:</b> copy, with a size limit and a "changed since asked" label. Scratch folders get cleaned up, and you should judge exactly what the agent saw.</span></div>
+    <div class="ask"><b>3. How much freedom do agents get with HTML?</b><span class="rc"><b>Recommend:</b> HTML is allowed as a sealed attachment that can pre-fill the Hub form, and the Hub form always submits. Agent-built forms (C4) are not allowed.</span></div>
+    <div class="ask"><b>4. Where should work start?</b><span class="rc"><b>Recommend:</b> Stage 1 and the "I need more context" button together. The button is small, and it immediately helps with the decisions that are waiting now.</span></div>
+  </div>
+  <p class="sm" style="font-size:14px">Risks I have not checked yet: how much of Web Console's viewer state (back/forward stack, relative-path search) depends on terminal sessions, and whether the React component library or a new package is the right home under its publishing rules. Both are short reads at the start of Stage 1.</p>
+</section>
+
+</div>
+
+</body></html>

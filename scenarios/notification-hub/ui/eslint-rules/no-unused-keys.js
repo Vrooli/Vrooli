@@ -1,7 +1,8 @@
 /**
  * ESLint rule: `strings/no-unused-keys`
  *
- * Walks `src/i18n/locales/en.json`, flattens it to dotted key paths, and
+ * Reads the English catalog (`src/i18n/locales/en/*.json`, assembled by
+ * `scripts/catalog-source.mjs`), flattens it to dotted key paths, and
  * scans every `*.ts`/`*.tsx` file under `src/` for at least one usage of
  * each leaf key. Reports each orphan as a separate diagnostic.
  *
@@ -12,9 +13,9 @@
  * diagnostic on `strings.generated.ts` so the rule reports exactly once
  * per run regardless of how many files ESLint lints.
  *
- * Why anchor on `strings.generated.ts` and not `en.json`: the template's
+ * Why anchor on `strings.generated.ts` and not a catalog file: the template's
  * `eslint.config.js` has `files: ["**\/*.{ts,tsx}"]`, so ESLint never
- * visits `en.json`. `strings.generated.ts` IS already linted, exists
+ * visits the catalog JSON. `strings.generated.ts` IS already linted, exists
  * exactly once per scenario, and is the closest semantic mirror of the
  * catalog — it's the right anchor.
  *
@@ -30,15 +31,16 @@
  * `t(strings.health.refreshCount, { count })` covers all variants. We
  * treat any plural-suffixed key as "used iff its base key is used."
  */
-import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, relative, extname } from "node:path";
+import { SOURCE_LOCALE, localeDir, readCatalog } from "../scripts/catalog-source.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const UI_ROOT = join(__dirname, "..");
 const SRC_DIR = join(UI_ROOT, "src");
-const CATALOG_PATH = join(UI_ROOT, "src/i18n/locales/en.json");
+const CATALOG_PATH = localeDir(SOURCE_LOCALE);
 
 const ANCHOR_BASENAME = "strings.generated.ts";
 const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
@@ -113,15 +115,18 @@ const ACCESSOR_RE = /\bstrings\.([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)/g;
 // Match every quoted dotted-string literal (single or double quotes) that
 // looks like an i18next key (`"feature.key"`, `"a.b.c"`). The string must
 // contain at least one `.` so we don't match every plain identifier string.
-const DOTTED_RE = /["']([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+)["']/g;
+// Catalog segments may contain hyphens (`navigation.app-shell.open-navigation`).
+const DOTTED_RE = /["']([A-Za-z_$][\w$-]*(?:\.[A-Za-z_$][\w$-]*)+)["']/g;
 
 const computeOrphans = () => {
   if (cached) return cached;
-  if (!existsSync(CATALOG_PATH)) {
+  let catalog;
+  try {
+    catalog = readCatalog(SOURCE_LOCALE);
+  } catch {
     cached = { orphans: [], catalogMissing: true };
     return cached;
   }
-  const catalog = JSON.parse(readFileSync(CATALOG_PATH, "utf-8"));
   const allKeys = flattenKeys(catalog);
   // Strip plural suffix to a base key — usage is reported iff the base form
   // is referenced anywhere. i18next resolves variants from the base call.
@@ -172,14 +177,14 @@ export default {
     type: "problem",
     docs: {
       description:
-        "Catalog keys in en.json must be referenced from at least one src/ file. Prevents accumulating dead translations.",
+        "Catalog keys in the English catalog must be referenced from at least one src/ file. Prevents accumulating dead translations.",
     },
     schema: [],
     messages: {
       orphan:
-        "Catalog key '{{key}}' has no callsite in src/. Either reference it (via `t(strings.{{key}})`) or remove it from src/i18n/locales/en.json.",
+        "Catalog key '{{key}}' has no callsite in src/. Either reference it (via `t(strings.{{key}})`) or remove it from its file under src/i18n/locales/<locale>/.",
       catalogMissing:
-        "Could not read catalog at {{path}} — the no-unused-keys audit cannot run.",
+        "Could not read the catalog directory {{path}} — the no-unused-keys audit cannot run.",
     },
   },
   create(context) {

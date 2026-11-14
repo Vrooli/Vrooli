@@ -5,26 +5,26 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
 import { setLocale } from "../i18n";
-import en from "../i18n/locales/en.json";
-import ja from "../i18n/locales/ja.json";
-import ar from "../i18n/locales/ar.json";
+import { en, ja, ar } from "../i18n/catalog";
 import { TestAppRouter } from "../app/routes";
 import { AppShell } from "./AppShell";
 import { conversationsClient, recipientsClient } from "../api/notifications";
-import { clearAskDrafts, readAskDraft } from "../features/asks/askDrafts";
+import { makeAsk } from "../features/packet/mocks/askFactory";
+import { clearAskDrafts, readAskDraft } from "../features/packet/model/draftStore";
+
 
 vi.mock("../api/notifications", () => ({
   identityClient: { getSession: vi.fn(() => Promise.resolve({ signedIn: true, subject: "owner-1" })) },
   recipientsClient: { listDevices: vi.fn(() => Promise.resolve({ devices: [], vapidPublicKey: "" })) },
   registerBrowserPushSubscription: vi.fn(),
-  conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), listAsks: vi.fn(() => Promise.resolve({ asks: [] })) },
+  conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), listAsks: vi.fn(() => Promise.resolve({ asks: [], totalAwaiting: 0 })), listNativeConsents: vi.fn(() => Promise.resolve({ consents: [] })) },
   deliveryClient: { getTimeline: vi.fn(() => Promise.resolve({ notifications: [] })) },
 }));
 
@@ -76,13 +76,15 @@ describe("AppShell structure (cimode)", () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: originalInnerWidth });
   });
 
-  it("renders the title, sidebar, and main outlet with the persistent mobile navigation", () => {
+  it("renders the sidebar and main outlet with the persistent mobile tab bar and no header chrome", () => {
     renderShell();
     expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-mobile-nav", "menu-tabs");
+    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-mobile-nav", "tabs");
     expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getAllByTestId(selectors.app.title).length).toBeGreaterThan(0);
     expect(screen.getByTestId(`${selectors.layout.navLink({ key: "asks" })}-tab`)).toHaveAttribute("aria-current", "page");
+    expect(screen.queryByTestId(`${selectors.layout.shell}-menu`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`${selectors.layout.shell}-header`)).not.toBeInTheDocument();
   });
 
   it("consumes the same top safe-area inset at the shell boundary while retaining viewport height", () => {
@@ -101,105 +103,42 @@ describe("AppShell structure (cimode)", () => {
     expect(screen.queryByTestId(selectors.settingsPage.localeOption({ code: "ja" }))).not.toBeInTheDocument();
   });
 
-  it("renders all five canonical destinations in desktop navigation", () => {
+  it("renders the four canonical destinations in desktop navigation, with Delivery inside Updates", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
     const desktopNavigation = screen.getByTestId(`${selectors.layout.shell}-navigation`);
-    const orderedKeys = [
-      "asks",
-      "dashboard",
-      "history",
-      "delivery",
-      "settings",
-    ] as const;
-    for (const key of orderedKeys) {
-      expect(within(desktopNavigation).getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
-    }
+    const orderedKeys = ["asks", "dashboard", "history", "settings"] as const;
     expect(Array.from(desktopNavigation.querySelectorAll("a")).map(link => link.getAttribute("data-testid"))).toEqual(
       orderedKeys.map(key => selectors.layout.navLink({ key })),
     );
   });
 
-  it("shows the nested Settings and Reach header while keeping primary navigation", async () => {
-    setViewportWidth(390);
-    await setLocale("en");
-    renderWithProviders(
-      <AppShellWithRouterLocation initialEntry="/settings/reach" />,
-      { withoutRouter: true },
-    );
-    const header = screen.getByTestId(`${selectors.layout.shell}-header`);
-    expect(within(header).getByTestId(`${selectors.layout.shell}-header-brand`)).toHaveAttribute("href", "/settings");
-    expect(within(header).getByTestId(`${selectors.layout.shell}-menu`)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-mobile-nav", "menu-tabs");
-    await userEvent.click(within(header).getByTestId(`${selectors.layout.shell}-header-brand`));
-    expect(screen.getByTestId("router-location")).toHaveTextContent("/settings");
+  it.each(["/delivery", "/delivery/DEMO-N043"])("keeps Updates current while %s is open", (path) => {
+    renderWithProviders(<TestAppRouter initialEntries={[path]} />, { withoutRouter: true });
+    const desktopNavigation = screen.getByTestId(`${selectors.layout.shell}-navigation`);
+    expect(within(desktopNavigation).getByTestId(selectors.layout.navLink({ key: "dashboard" }))).toHaveAttribute("aria-current", "page");
+    expect(within(desktopNavigation).getByTestId(selectors.layout.navLink({ key: "asks" }))).not.toHaveAttribute("aria-current");
   });
 
-  it("uses the selected device context header for removal review and returns to the owner list", async () => {
-    setViewportWidth(390);
+  it("counts what needs the owner on the Needs you tab and says so to assistive technology", async () => {
     await setLocale("en");
-    vi.mocked(recipientsClient.listDevices).mockResolvedValue({
-      devices: [{ id: "device-demo-work", name: "Work browser", machineId: "demo-workstation", channels: ["web_push"] }],
-      vapidPublicKey: "AQID",
-    } as never);
-    const user = userEvent.setup();
-    renderWithProviders(<TestAppRouter initialEntries={["/settings/reach"]} />, { withoutRouter: true });
-    await user.click(await screen.findByRole("button", { name: "Remove device" }));
-
-    const header = screen.getByTestId(`${selectors.layout.shell}-header`);
-    const contextHeader = header.querySelector<HTMLElement>("[data-selected-quiet-editor-header]");
-    expect(contextHeader).not.toBeNull();
-    if (!contextHeader) throw new Error("selected device context header is missing");
-    expect(within(contextHeader).getByText("Devices")).toBeInTheDocument();
-    expect(within(contextHeader).getByText("Work browser")).toBeInTheDocument();
-    expect(within(header).getByTestId(`${selectors.layout.shell}-menu`)).toBeInTheDocument();
-    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-mobile-nav", "menu-tabs");
-
-    await user.click(within(contextHeader).getByRole("button", { name: /Devices/ }));
-    expect(screen.queryByTestId("reach-remove-review")).not.toBeInTheDocument();
-    await waitFor(() => expect(document.activeElement).toHaveAttribute("id", "reach-remove-trigger-device-demo-work"));
+    vi.mocked(conversationsClient.listAsks).mockResolvedValue({ asks: [makeAsk({ id: "a" })], nextCursor: "", totalAwaiting: 2 } as never);
+    vi.mocked(conversationsClient.listNativeConsents).mockResolvedValue({ consents: [{ authorizationId: "c", state: "pending" }, { authorizationId: "d", state: "unavailable" }] } as never);
+    renderShell();
+    const badge = await screen.findByRole("img", { name: "3 waiting", hidden: true });
+    expect(within(screen.getByTestId(selectors.layout.navLink({ key: "asks" }))).getByRole("img", { name: "3 waiting", hidden: true })).toBe(badge);
+    expect(conversationsClient.listAsks).toHaveBeenCalledWith({ limit: 1, stateFilter: "awaiting" }, expect.anything());
   });
 
-  it("uses one selected Delivery context header and returns to the Delivery list", async () => {
-    setViewportWidth(390);
+  it("shows no count when nothing waits, and shows the Hub's exact total however long the queue is", async () => {
     await setLocale("en");
-    const user = userEvent.setup();
-    renderWithProviders(
-      <AppShellWithRouterLocation initialEntry="/delivery/DEMO-N043?vrooli_test_mode=1" />,
-      { withoutRouter: true },
-    );
-
-    const header = screen.getByTestId(`${selectors.layout.shell}-header`);
-    expect(within(header).getByTestId(`${selectors.layout.shell}-menu`)).toBeInTheDocument();
-    const selectedHeader = header.querySelector<HTMLElement>("[data-selected-delivery-header]");
-    expect(selectedHeader).not.toBeNull();
-    if (!selectedHeader) throw new Error("selected Delivery header is missing");
-    expect(within(selectedHeader).getByText("DEMO-N043")).toBeInTheDocument();
-    expect(within(selectedHeader).getByRole("link", { name: "Delivery" })).toHaveAttribute("href", "/delivery?vrooli_test_mode=1");
-    const styles = readFileSync("src/styles.css", "utf8");
-    expect(styles).toContain(".delivery-context-shell [data-rcl-app-shell-header-brand] {\n    display: none !important;");
-
-    const backLink = within(selectedHeader).getByRole("link", { name: "Delivery" });
-    expect(backLink.tabIndex).toBe(0);
-
-    await user.click(backLink);
-    expect(screen.getByTestId("router-location")).toHaveTextContent("/delivery?vrooli_test_mode=1");
-  });
-
-  it("uses the selected Delivery context on the analytics route with a distinct back target", async () => {
-    setViewportWidth(390);
-    await setLocale("en");
-    renderWithProviders(
-      <AppShellWithRouterLocation initialEntry="/delivery?vrooli_test_mode=1" />,
-      { withoutRouter: true },
-    );
-
-    const header = screen.getByTestId(`${selectors.layout.shell}-header`);
-    const selectedHeader = header.querySelector<HTMLElement>("[data-selected-delivery-header]");
-    expect(selectedHeader).not.toBeNull();
-    if (!selectedHeader) throw new Error("selected Delivery analytics header is missing");
-    expect(within(selectedHeader).getAllByText("Delivery")).toHaveLength(2);
-    expect(within(selectedHeader).getByRole("link", { name: "Delivery" })).toHaveAttribute("href", "/?vrooli_test_mode=1");
-    expect(selectedHeader.className).toContain("gap-4");
+    renderShell();
+    await screen.findByTestId(selectors.pages.asks);
+    expect(screen.queryByRole("img", { name: /waiting/, hidden: true })).not.toBeInTheDocument();
+    cleanup();
+    vi.mocked(conversationsClient.listAsks).mockResolvedValue({ asks: [makeAsk({ id: "ask-1" })], nextCursor: "more", totalAwaiting: 120 } as never);
+    renderShell();
+    expect((await screen.findAllByRole("img", { name: "120 waiting", hidden: true })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText("120")).length).toBeGreaterThan(0);
   });
 
   it("keeps ordinary recipient reads available when the owner session expires", async () => {
@@ -221,7 +160,8 @@ describe("AppShell structure (cimode)", () => {
     await user.tab();
 
     expect(skipLink).toHaveFocus();
-    expect(skipLink.matches(":focus-visible")).toBe(true);
+    // jsdom does not implement :focus-visible, so the reveal is pinned in the stylesheet that browsers apply.
+    expect(readFileSync("src/styles.css", "utf8")).toMatch(/\[data-rcl-app-shell-skip\]:focus-visible\s*\{\s*transform:\s*none;/);
     expect(skipLink).toHaveAttribute("href", `#${selectors.layout.shell}-main`);
     const main = screen.getByTestId(`${selectors.layout.shell}-main`);
     expect(main).toHaveAttribute("tabindex", "-1");
@@ -230,7 +170,7 @@ describe("AppShell structure (cimode)", () => {
     await waitFor(() => expect(main).toHaveFocus());
   });
 
-  it("keeps all five phone destinations in the bottom bar and restores compact-menu focus", async () => {
+  it("keeps the four phone destinations in the bottom bar and moves focus to the page on selection", async () => {
     setViewportWidth(390);
     await setLocale("en");
     const user = userEvent.setup();
@@ -239,38 +179,22 @@ describe("AppShell structure (cimode)", () => {
       { withoutRouter: true },
     );
 
-    const menuButton = screen.getByTestId(`${selectors.layout.shell}-menu`);
-    expect(menuButton).toHaveAccessibleName("Open navigation");
-    expect(menuButton.querySelector("svg")).toBeInTheDocument();
-    expect(menuButton).not.toHaveTextContent("Menu");
-    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-mobile-nav", "menu-tabs");
-    const compactHeader = screen.getByTestId(`${selectors.layout.shell}-header`);
-    expect(within(compactHeader).getByTestId(selectors.app.title)).toHaveTextContent(en.app.title);
-    expect(menuButton).toHaveAttribute("data-rcl-app-shell-menu");
-    await user.click(menuButton);
-
-    const menuPanel = await screen.findByTestId(`${selectors.layout.shell}-menu-panel`);
-    expect(menuPanel.querySelectorAll("a")).toHaveLength(5);
-    expect(within(menuPanel).getByTestId(selectors.layout.navLink({ key: "history" }))).toHaveAttribute("aria-current", "page");
-
-    await user.keyboard("{Escape}");
-    await waitFor(() => expect(menuButton).toHaveFocus());
-    expect(screen.queryByTestId(`${selectors.layout.shell}-menu-panel`)).not.toBeInTheDocument();
+    expect(screen.getByTestId(selectors.layout.shell)).toHaveAttribute("data-mobile-nav", "tabs");
+    const bottomBar = screen.getByTestId(`${selectors.layout.shell}-tabs`);
+    expect(bottomBar.querySelectorAll("a")).toHaveLength(4);
+    expect(within(bottomBar).getByTestId(`${selectors.layout.navLink({ key: "history" })}-tab`)).toHaveAttribute("aria-current", "page");
 
     const destinations = [
       ["dashboard", "/updates"],
       ["asks", "/asks"],
       ["history", "/history"],
-      ["delivery", "/delivery"],
       ["settings", "/settings"],
     ] as const;
     for (const [key, path] of destinations) {
-      const bottomBar = screen.getByTestId(`${selectors.layout.shell}-tabs`);
       await user.click(within(bottomBar).getByTestId(`${selectors.layout.navLink({ key })}-tab`));
       await waitFor(() => expect(screen.getByTestId("router-location")).toHaveTextContent(`${path}?vrooli_test_mode=1`));
       await waitFor(() => expect(screen.getByTestId(`${selectors.layout.shell}-main`)).toHaveFocus());
       expect(within(bottomBar).getByTestId(`${selectors.layout.navLink({ key })}-tab`)).toHaveAttribute("aria-current", "page");
-      expect(screen.queryByTestId(`${selectors.layout.shell}-menu-panel`)).not.toBeInTheDocument();
     }
   });
 
@@ -279,19 +203,10 @@ describe("AppShell structure (cimode)", () => {
     await setLocale("en");
     clearAskDrafts();
     vi.mocked(conversationsClient.getAsk).mockResolvedValue({
-      ask: {
-        id: "ask-1",
+      ask: makeAsk({
         question: "Which option should we take?",
         options: [{ key: "re-aim", label: "Re-aim" }, { key: "close", label: "Close" }],
-        recommended: "re-aim",
-        recommendationReason: "Quality gaps remain.",
-        defaultAnswer: "re-aim",
-        reversible: true,
-        state: "pending",
-        contextUrl: "",
-        bigPicture: "",
-        technicalDetails: "",
-      },
+      }),
     } as never);
     const user = userEvent.setup();
     renderWithProviders(
@@ -307,14 +222,14 @@ describe("AppShell structure (cimode)", () => {
     expect(closeOption).toBeDefined();
     await user.click(closeOption!);
     await user.type(screen.getByTestId(selectors.asks.note), "keep this unsent note");
-    expect(readAskDraft("owner-1", "ask-1")).toEqual({ answer: "close", note: "keep this unsent note" });
+    expect(readAskDraft("owner-1", "ask-1")).toMatchObject({ answer: "close", note: "keep this unsent note" });
 
     const bottomBar = screen.getByTestId(`${selectors.layout.shell}-tabs`);
     await user.click(within(bottomBar).getByTestId(`${selectors.layout.navLink({ key: "settings" })}-tab`));
     expect(await screen.findByTestId(selectors.pages.settings)).toBeInTheDocument();
-    expect(readAskDraft("owner-1", "ask-1")).toEqual({ answer: "close", note: "keep this unsent note" });
+    expect(readAskDraft("owner-1", "ask-1")).toMatchObject({ answer: "close", note: "keep this unsent note" });
 
-    expect(readAskDraft("owner-1", "ask-1")).toEqual({ answer: "close", note: "keep this unsent note" });
+    expect(readAskDraft("owner-1", "ask-1")).toMatchObject({ answer: "close", note: "keep this unsent note" });
   });
 
   it("uses shared default links for router navigation and retains routed test mode", async () => {
@@ -329,10 +244,10 @@ describe("AppShell structure (cimode)", () => {
     expect(historyLink).toHaveAttribute("href", "/history?vrooli_test_mode=1");
     expect(screen.getByTestId("router-location")).toHaveTextContent("/history?vrooli_test_mode=1&q=mobile");
 
-    await user.click(screen.getByTestId(selectors.layout.navLink({ key: "delivery" })));
+    await user.click(screen.getByTestId(selectors.layout.navLink({ key: "dashboard" })));
 
     await waitFor(() => {
-      expect(screen.getByTestId("router-location")).toHaveTextContent("/delivery?vrooli_test_mode=1");
+      expect(screen.getByTestId("router-location")).toHaveTextContent("/updates?vrooli_test_mode=1");
       expect(screen.getByTestId(`${selectors.layout.shell}-main`)).toHaveFocus();
     });
   });
@@ -343,11 +258,11 @@ describe("AppShell structure (cimode)", () => {
     renderWithProviders(<TestAppRouter initialEntries={["/history"]} />, { withoutRouter: true });
 
     const desktopNavigation = screen.getByTestId(`${selectors.layout.shell}-navigation`);
-    for (const key of ["dashboard", "asks", "history", "delivery", "settings"] as const) {
+    for (const key of ["dashboard", "asks", "history", "settings"] as const) {
       expect(within(desktopNavigation).getByTestId(selectors.layout.navLink({ key }))).toBeInTheDocument();
     }
     expect(screen.queryByTestId(`${selectors.layout.shell}-menu-panel`)).not.toBeInTheDocument();
-    expect(screen.getByTestId(`${selectors.layout.shell}-menu`)).toBeInTheDocument();
+    expect(screen.queryByTestId(`${selectors.layout.shell}-menu`)).not.toBeInTheDocument();
   });
 });
 
@@ -368,13 +283,9 @@ describe("Locale switching through the shell (real locales)", () => {
     expect(document.documentElement.dir).toBe("ltr");
   });
 
-  it("switches to Japanese when the 日本語 toggle is clicked", async () => {
-    const user = userEvent.setup();
-    const { queryClient } = renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
-    await waitFor(() => {
-      expect(queryClient.getQueryData(["owner-session"])).toEqual(expect.objectContaining({ signedIn: true }));
-    });
-    await user.click(await screen.findByTestId(selectors.settingsPage.localeOption({ code: "ja" })));
+  it("re-renders the navigation in Japanese when the language changes", async () => {
+    renderShell();
+    await act(() => setLocale("ja"));
 
     await waitFor(() => {
       expect(screen.getAllByText(ja.layout.nav.dashboard).length).toBeGreaterThan(0);
@@ -382,13 +293,9 @@ describe("Locale switching through the shell (real locales)", () => {
     expect(document.documentElement.lang).toBe("ja");
   });
 
-  it("flips <html dir> to rtl when an RTL locale (ar) is chosen", async () => {
-    const user = userEvent.setup();
-    const { queryClient } = renderWithProviders(<TestAppRouter initialEntries={["/settings"]} />, { withoutRouter: true });
-    await waitFor(() => {
-      expect(queryClient.getQueryData(["owner-session"])).toEqual(expect.objectContaining({ signedIn: true }));
-    });
-    await user.click(await screen.findByTestId(selectors.settingsPage.localeOption({ code: "ar" })));
+  it("flips <html dir> to rtl and mirrors the navigation when an RTL locale (ar) is chosen", async () => {
+    renderShell();
+    await act(() => setLocale("ar"));
 
     await waitFor(() => {
       expect(document.documentElement.dir).toBe("rtl");

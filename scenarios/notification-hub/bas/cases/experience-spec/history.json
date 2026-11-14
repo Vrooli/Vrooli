@@ -1,0 +1,122 @@
+{
+  "edges": [
+    {
+      "id": "edge-navigate-history-to-wait-history-page",
+      "source": "navigate-history",
+      "target": "wait-history-page"
+    },
+    {
+      "id": "edge-wait-history-page-to-wait-history-filters",
+      "source": "wait-history-page",
+      "target": "wait-history-filters"
+    },
+    {
+      "id": "edge-wait-history-filters-to-wait-history-row",
+      "source": "wait-history-filters",
+      "target": "wait-history-row"
+    },
+    {
+      "id": "edge-wait-history-row-to-capture-history",
+      "source": "wait-history-row",
+      "target": "capture-history"
+    }
+  ],
+  "metadata": {
+    "description": "Given the leased disposable recipient with the bounded history fixture, when the owner opens History at phone width, then the page, its filters and the fixture's answered request render and are captured.",
+    "execution_mode": "mutating",
+    "labels": {
+      "requires_confirmation": "true",
+      "reset": "none",
+      "routed_isolation": "true",
+      "spec_entry_id": "history",
+      "surface": "experience-history-routed-smoke"
+    },
+    "name": "experience-history-routed-smoke",
+    "requirement": "OT-P0-001",
+    "version": "2"
+  },
+  "nodes": [
+    {
+      "id": "navigate-history",
+      "action": {
+        "type": "ACTION_TYPE_NAVIGATE",
+        "navigate": {
+          "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+          "scenario": "notification-hub",
+          "scenario_path": "/history?vrooli_test_mode=1&e4_fixture=nh16.2-history",
+          "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+          "timeout_ms": 30000
+        },
+        "metadata": {
+          "label": "Open routed History with the bounded fixture"
+        }
+      }
+    },
+    {
+      "id": "wait-history-page",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/pages.history",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "History page visible"
+        }
+      }
+    },
+    {
+      "id": "wait-history-filters",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/history.filterLink(state=answered)",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "The answered filter is offered"
+        }
+      }
+    },
+    {
+      "id": "wait-history-row",
+      "action": {
+        "type": "ACTION_TYPE_WAIT",
+        "wait": {
+          "selector": "@selector/history.row(id=e4-test-answered-ask)",
+          "state": "WAIT_STATE_VISIBLE",
+          "timeout_ms": 15000
+        },
+        "metadata": {
+          "label": "The fixture's answered request is listed"
+        }
+      }
+    },
+    {
+      "id": "capture-history",
+      "action": {
+        "type": "ACTION_TYPE_SCREENSHOT",
+        "screenshot": {
+          "full_page": false
+        },
+        "metadata": {
+          "label": "Capture History at 390 pixel phone width"
+        }
+      }
+    }
+  ],
+  "settings": {
+    "browser_profile": {
+      "extra_headers": {
+        "X-Vrooli-Test-Mode": "1"
+      },
+      "fingerprint": {
+        "device_scale_factor": 2
+      }
+    },
+    "viewport_height": 844,
+    "viewport_width": 390
+  }
+}

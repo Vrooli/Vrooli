@@ -18,6 +18,7 @@ import (
 
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
@@ -27,11 +28,17 @@ import (
 	"notification-hub/internal/identity"
 )
 
+// asyncWait bounds how long a test waits for the Service's background worker. It
+// only matters when something is wrong: a wait ends the moment its condition
+// holds, so the bound is generous enough that a starved machine is never read as
+// a failure.
+const asyncWait = 30 * time.Second
+
 // [REQ:NOTIFICA-P1-003]
 func TestEventWebhookAcceptsDurableEventsPayload(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
-	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
 	secret := "event-secret"
 	body := []byte(`{"event_id":"evt-1","event_type":"job.completed.v1","source_scenario":"worker","payload":{"title":"Job complete","body":"done","sensitivity_label":"public"}}`)
 	mac := hmac.New(sha256.New, []byte(secret))
@@ -50,7 +57,7 @@ func TestEventWebhookAcceptsDurableEventsPayload(t *testing.T) {
 func TestEventWebhookRejectsProducerOwnedCopy(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
-	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
 	secret := "event-secret"
 	body := []byte(`{"event_id":"evt-copy","event_type":"incident.opened.v1","title":"producer copy","payload":{"severity":"critical"}}`)
 	mac := hmac.New(sha256.New, []byte(secret))
@@ -67,7 +74,7 @@ func TestEventWebhookRecordsCriticalUnroutableDeliveryAttempt(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	body := []byte(`{"event_id":"evt-critical-host","event_type":"incident.opened.v1","source_scenario":"vrooli-autoheal","payload":{"incident_id":"inc-host","severity":"critical","status":"open","source_check_id":"host-kernel-module-drift"}}`)
 	mac := hmac.New(sha256.New, []byte(secret))
@@ -84,14 +91,14 @@ func TestEventWebhookRecordsCriticalUnroutableDeliveryAttempt(t *testing.T) {
 		var outcome, reason, sensitivity string
 		err := db.QueryRowContext(context.Background(), `SELECT a.outcome, a.reason, n.sensitivity_label FROM delivery_attempts a JOIN notifications n ON n.id = a.notification_id WHERE n.idempotency_key = ?`, "evt-critical-host").Scan(&outcome, &reason, &sensitivity)
 		return err == nil && outcome == "unroutable" && reason != "" && sensitivity == "critical"
-	}, time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 }
 
 func TestEventWebhookCreatesDurableApprovalAskForRemediationFactEvent(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	body := []byte(`{"event_id":"evt-approval-ask","event_type":"incident.remediation_approval_requested.v1","source_scenario":"vrooli-autoheal","payload":{"incident_id":"inc-approval","incident_title":"Kernel module drift","severity":"critical","status":"open","message":"operator review required","candidate_id":"candidate-1","candidate_title":"Review coupling"}}`)
 	mac := hmac.New(sha256.New, []byte(secret))
@@ -212,7 +219,7 @@ func signedEventRequest(t *testing.T, secret, eventID string, body []byte) *http
 func TestEventWebhookFailsClosedUntilTheSecretResolves(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
-	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
 	body := []byte(`{"event_id":"evt-secret","event_type":"incident.opened.v1","source_scenario":"vrooli-autoheal","payload":{"severity":"warning","message":"disk low"}}`)
 	secret := ""
 	handler := EventWebhookFromSecretSource(service, func() string { return secret }, nil, nil)
@@ -258,7 +265,7 @@ func TestEventWebhookTurnsDecisionRequestIntoOneStructuredAsk(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	body := []byte(`{"event_id":"evt-decision","event_type":"agent_manager.effort.decision_requested.v1","source_scenario":"agent-manager","payload":{"subject":"BAS","question":"Close the goal or re-aim at quality?","options":[{"key":"close","label":"Close the goal"},{"key":"re-aim","label":"Re-aim at quality"}],"recommended":"re-aim","recommendation_reason":"quality gaps remain","default_answer":"re-aim","reversible":true,"deadline":"2030-01-01T00:00:00Z","correlation":{"decision_id":"BAS-D-065"}}}`)
 	handler := EventWebhook(service, secret)
@@ -285,7 +292,7 @@ func TestEventWebhookTurnsDecisionRequestIntoOneStructuredAsk(t *testing.T) {
 	n, _, err := service.Get(context.Background(), ask.NotificationID)
 	require.NoError(t, err)
 	require.Equal(t, "Decision needed: BAS", n.Title)
-	require.Equal(t, "high", n.Urgency)
+	require.Equal(t, "normal", n.Urgency, "a decision event that names no urgency takes the Hub's default")
 	var notifications int
 	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM notifications`).Scan(&notifications))
 	require.Equal(t, 1, notifications)
@@ -295,7 +302,7 @@ func TestEventWebhookRejectsProviderDecisionEvenWithSharedHMACAndClaimedGatewayS
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	for _, source := range []string{"ai-gateway", "other-scenario"} {
 		t.Run(source, func(t *testing.T) {
@@ -315,7 +322,7 @@ func TestEventWebhookRejectsProviderDecisionEvenWithSharedHMACAndClaimedGatewayS
 func TestEventWebhookRejectsProviderDecisionEventEvenWhenHeaderIdentityMismatches(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
-	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
 	secret := "event-secret"
 	body := []byte(`{"event_id":"body-id","event_type":"ai_gateway.provider_decision.decision_requested.v1","source_scenario":"ai-gateway","payload":{}}`)
 	recorder := httptest.NewRecorder()
@@ -379,7 +386,7 @@ func TestProviderDecisionPublishRequiresDedicatedVerifiedServiceIdentity(t *test
 func TestProviderDecisionPublishCreatesExactDurableHumanAsk(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
-	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
 	service.SetOwnerFallback("operator@example.test")
 	eventID := "provider-rule-digest-v1"
 	body := []byte(`{"event_id":"` + eventID + `","payload":{"subject":"Review provider terms","question":"Approve these exact provider terms?","options":[{"key":"approve","label":"Reject"},{"key":"reject","label":"Approve"}],"recommended":"reject","recommendation_reason":"Approval requires explicit review.","deadline":"2030-01-01T00:00:00Z","provider_decision_context":{"schema_version":1,"canonical_terms_sha256":"` + strings.Repeat("a", 64) + `","scope":"provider_rule"}}}`)
@@ -430,7 +437,7 @@ func TestEventWebhookAcceptsAgentManagerAuthorizationFYI(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	eventID := "authorization-generation-1"
 	consentURL := "https://agent-manager.example.test/api/v1/authorizations/123e4567-e89b-12d3-a456-426614174000/approve"
@@ -452,11 +459,23 @@ func TestEventWebhookAcceptsAgentManagerAuthorizationFYI(t *testing.T) {
 	require.Equal(t, consentURL, contextURL)
 }
 
+func TestNotificationSuffixRequiresUsableFacts(t *testing.T) {
+	primary := databasetest.NewSQLite(t)
+	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
+	const secret = "event-secret"
+	body := []byte(`{"event_id":"missing-body","event_type":"worker.finished.notification.v1","source_scenario":"worker","payload":{"title":"Finished"}}`)
+	recorder := httptest.NewRecorder()
+	EventWebhook(service, secret).ServeHTTP(recorder, signedEventRequest(t, secret, "missing-body", body))
+	require.Equal(t, http.StatusBadRequest, recorder.Code, recorder.Body.String())
+	require.Contains(t, recorder.Body.String(), "non-empty body")
+}
+
 func TestEventWebhookTurnsThresholdHeartbeatEpisodeIntoIdempotentFYI(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	const episodeID = "episode-heartbeat-team-a-agent-b-success-1"
 	handler := EventWebhook(service, secret)
@@ -491,7 +510,7 @@ func TestEventWebhookDoesNotAlertForNonthresholdOrNonfailureHeartbeatAttempts(t 
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	for _, tc := range []struct {
 		id, status string
@@ -517,7 +536,7 @@ func TestEventWebhookMapsRetainedOwnerStateToScopedFYIWithoutDecisionActions(t *
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	eventID := "retained-owner-event-1"
 	body := []byte(`{"event_id":"retained-owner-event-1","event_type":"prompt-manager.heartbeat.owner-state.v1","source_scenario":"prompt-manager","payload":{"teamId":"team-a","agentId":"agent-a","ownerObligationId":"obligation-a","retainedOwnerState":"dispatch_uncertain","status":"dispatch_uncertain","observedAt":"2026-10-17T01:02:03Z","reviewUrl":"https://pm.example/teams/team-a"}}`)
@@ -541,14 +560,14 @@ func TestEventWebhookMapsRetainedOwnerStateToScopedFYIWithoutDecisionActions(t *
 	require.Eventually(t, func() bool {
 		notification, _, err := service.Get(context.Background(), id)
 		return err == nil && notification.State == "unroutable"
-	}, time.Second, 10*time.Millisecond, "finish the accepted owner's delivery attempt before closing the test database")
+	}, asyncWait, 10*time.Millisecond, "finish the accepted owner's delivery attempt before closing the test database")
 }
 
 func TestEventWebhookMapsPreparationInterruptedToStableScopedFYIWithoutAsk(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	eventID := "preparation-interrupted-event-1"
 	body := []byte(`{"event_id":"preparation-interrupted-event-1","event_type":"prompt-manager.heartbeat.owner-state.v1","source_scenario":"prompt-manager","payload":{"teamId":"team-a","agentId":"agent-a","ownerObligationId":"obligation-preparation-1","retainedOwnerState":"preparation_interrupted","observedAt":"2026-10-17T01:02:03Z","reviewUrl":"https://pm.example/teams/team-a"}}`)
@@ -579,14 +598,14 @@ func TestEventWebhookMapsPreparationInterruptedToStableScopedFYIWithoutAsk(t *te
 	require.Eventually(t, func() bool {
 		notification, _, err := service.Get(context.Background(), id)
 		return err == nil && notification.State == "unroutable"
-	}, time.Second, 10*time.Millisecond, "finish the accepted owner's delivery attempt before closing the test database")
+	}, asyncWait, 10*time.Millisecond, "finish the accepted owner's delivery attempt before closing the test database")
 }
 
 func TestEventWebhookRejectsPreparationInterruptedOwnerStateWithRunID(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	eventID := "preparation-interrupted-with-run"
 	body := []byte(`{"event_id":"preparation-interrupted-with-run","event_type":"prompt-manager.heartbeat.owner-state.v1","source_scenario":"prompt-manager","payload":{"teamId":"team-a","agentId":"agent-a","ownerObligationId":"obligation-preparation-2","retainedOwnerState":"preparation_interrupted","runId":"run-should-not-exist","observedAt":"2026-10-17T01:02:03Z","reviewUrl":"https://pm.example/teams/team-a"}}`)
@@ -604,7 +623,7 @@ func TestHeartbeatOwnerStateMapperDoesNotCreateAnApprovalAsk(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	body := []byte(`{"event_id":"retained-owner-approval-pending","event_type":"prompt-manager.heartbeat.owner-state.v1","source_scenario":"prompt-manager","payload":{"teamId":"team-a","agentId":"agent-a","ownerObligationId":"obligation-a","retainedOwnerState":"approval_pending","status":"approval_pending","observedAt":"2026-10-17T01:02:03Z"}}`)
 	recorder := httptest.NewRecorder()
@@ -621,7 +640,7 @@ func TestHeartbeatFailureEpisodesForDifferentTeamsDoNotCollapse(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "event-secret"
 	for _, tc := range []struct {
 		eventID, teamID, episodeID string
@@ -643,7 +662,7 @@ func TestHeartbeatFailureEpisodesForDifferentTeamsDoNotCollapse(t *testing.T) {
 func TestEventWebhookRejectsUnsafeDecisionRequest(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
-	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
 	secret := "event-secret"
 	body := []byte(`{"event_id":"evt-unsafe","event_type":"agent_manager.effort.decision_requested.v1","source_scenario":"agent-manager","payload":{"question":"Delete the product surface?","options":[{"key":"delete"},{"key":"keep"}],"recommended":"delete","default_answer":"delete","reversible":false}}`)
 	recorder := httptest.NewRecorder()

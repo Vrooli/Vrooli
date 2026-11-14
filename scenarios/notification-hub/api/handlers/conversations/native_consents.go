@@ -1,8 +1,10 @@
 package conversations
 
 import (
-	"connectrpc.com/connect"
 	"context"
+
+	"connectrpc.com/connect"
+
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 )
 

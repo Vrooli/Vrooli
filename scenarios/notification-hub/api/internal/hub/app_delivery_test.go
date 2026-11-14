@@ -21,6 +21,7 @@ const (
 
 type sentPush struct {
 	endpoint, title, navigate string
+	awaiting                  *int
 }
 
 type appRecordingSender struct {
@@ -29,7 +30,7 @@ type appRecordingSender struct {
 }
 
 func (s *appRecordingSender) Send(_ context.Context, sub hub.PushSubscription, msg hub.PushMessage) (string, error) {
-	s.sent = append(s.sent, sentPush{endpoint: sub.Endpoint, title: msg.Title, navigate: msg.Navigate})
+	s.sent = append(s.sent, sentPush{endpoint: sub.Endpoint, title: msg.Title, navigate: msg.Navigate, awaiting: msg.Awaiting})
 	if s.gone[sub.Endpoint] {
 		return "", retiredEndpointError{}
 	}
@@ -126,8 +127,10 @@ func TestAppDelivery_PairedAppReplacesChimesailOnItsDeviceOnly(t *testing.T) {
 		if p.endpoint == app {
 			require.Equal(t, appOrigin+"/sessions/abc?tab=2", p.navigate, "a tap opens the exact in-app screen")
 			require.Equal(t, "Agent needs your input", p.title, "the OS already names the app, so the title is unprefixed")
+			require.Nil(t, p.awaiting, "another app's badge is not the hub's awaiting count")
 		} else {
 			require.Empty(t, p.navigate, "Chimesail keeps the classic payload")
+			require.NotNil(t, p.awaiting, "Chimesail's own app badge follows the hub's count")
 		}
 	}
 }

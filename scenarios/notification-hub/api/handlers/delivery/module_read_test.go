@@ -16,8 +16,8 @@ import (
 	shared "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/shared"
 
 	deliveryH "notification-hub/handlers/delivery"
-	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 )
 
 func TestConfiguredRecipientCanReadDeliveryViewsWithoutIdentity(t *testing.T) {
@@ -25,7 +25,7 @@ func TestConfiguredRecipientCanReadDeliveryViewsWithoutIdentity(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	service.SetDefaultRecipient("alice")
 	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
 	insert := func(id, recipient, contextURL string) {

@@ -327,33 +327,35 @@
         {
           "id": "quiet-hours",
           "case_patterns": [
-            "bas/cases/e22/quiet-*.json",
-            "bas/cases/e22/e22-quiet-*.json"
+            "bas/cases/e22/quiet-*.json"
           ],
           "inputs": [
             "scenarios/notification-hub/ui/src/pages/SettingsPage.tsx",
-            "scenarios/notification-hub/ui/src/features/settings/QuietHoursPanel.tsx"
+            "scenarios/notification-hub/ui/src/features/settings/QuietHoursPage.tsx",
+            "scenarios/notification-hub/ui/src/features/settings/QuietScheduleEditor.tsx",
+            "scenarios/notification-hub/ui/src/features/settings/quietSchedule.ts",
+            "scenarios/notification-hub/api/internal/hub/quiet.go"
           ]
         },
         {
           "id": "escalation-order",
           "case_patterns": [
-            "bas/cases/e22/order-*.json"
+            "bas/cases/e22/escalation-*.json"
           ],
           "inputs": [
             "scenarios/notification-hub/ui/src/pages/SettingsPage.tsx",
-            "scenarios/notification-hub/ui/src/features/settings/EscalationOrderPanel.tsx"
+            "scenarios/notification-hub/ui/src/features/settings/EscalationPage.tsx"
           ]
         },
         {
           "id": "settings-integrated",
           "case_patterns": [
-            "bas/cases/e22/settings-owner*.json"
+            "bas/cases/e22/settings-*.json"
           ],
           "inputs": [
             "scenarios/notification-hub/ui/src/pages/SettingsPage.tsx",
-            "scenarios/notification-hub/ui/src/features/settings/QuietHoursPanel.tsx",
-            "scenarios/notification-hub/ui/src/features/settings/EscalationOrderPanel.tsx"
+            "scenarios/notification-hub/ui/src/features/settings/SectionList.tsx",
+            "scenarios/notification-hub/ui/src/features/settings/sections.tsx"
           ]
         },
         {
@@ -363,7 +365,8 @@
             "bas/cases/e23/*.json"
           ],
           "inputs": [
-            "scenarios/notification-hub/ui/src/pages/SettingsPage.tsx",
+            "scenarios/notification-hub/ui/src/features/settings/AppearancePage.tsx",
+            "scenarios/notification-hub/ui/src/features/settings/SourcesPage.tsx",
             "scenarios/notification-hub/ui/src/features/reach/**",
             "scenarios/notification-hub/ui/src/pages/ReachPage.tsx"
           ]

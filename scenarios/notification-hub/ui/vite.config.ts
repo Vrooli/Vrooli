@@ -1,6 +1,16 @@
 import { defineConfig, type UserConfig } from "vite";
+import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
+import { fileViewer } from "@vrooli/file-viewer/vite";
 import stringsCodegen from "./scripts/vite-plugin-strings-codegen.mjs";
+
+// The generated proto types are read from their source, not from the installed
+// `file:` copy, which goes stale whenever the proto is regenerated. The source
+// sits outside this package, so its `@bufbuild/protobuf` import is pointed at
+// this app's copy (one runtime, one set of message classes). tsconfig.json
+// carries the same two paths for the type checker.
+const protoTypesPath = fileURLToPath(new URL("../../../packages/proto/gen/typescript", import.meta.url));
+const protobufPath = fileURLToPath(new URL("./node_modules/@bufbuild/protobuf/dist/esm", import.meta.url));
 
 // Mode-aware config. A regular `vite build` ships the lean prod artifact;
 // `vite build --mode profile` produces a perf-build channel for performance
@@ -29,18 +39,24 @@ export default defineConfig(({ mode }): UserConfig => {
 
   return {
     base: './',  // Required for tunnel/proxy contexts
-    plugins: [react(), stringsCodegen()],
-    resolve: isProfile
-      ? {
-          alias: {
-            "react-dom/client": "react-dom/profiling",
-            // Internal references inside react-dom/client.js do
-            // `require('react-dom')`, which would resolve back to the
-            // stripped-prod bundle. Force them through the profiling entry too.
-            "react-dom$": "react-dom/profiling",
-          },
-        }
-      : undefined,
+    plugins: [react(), stringsCodegen(), fileViewer()],
+    // The shared viewer locates its workers and wasm relative to its own files, so it must not be pre-bundled.
+    optimizeDeps: { exclude: ["@vrooli/file-viewer"] },
+    resolve: {
+      alias: {
+        "@vrooli/proto-types": protoTypesPath,
+        "@bufbuild/protobuf": protobufPath,
+        ...(isProfile
+          ? {
+              "react-dom/client": "react-dom/profiling",
+              // Internal references inside react-dom/client.js do
+              // `require('react-dom')`, which would resolve back to the
+              // stripped-prod bundle. Force them through the profiling entry too.
+              "react-dom$": "react-dom/profiling",
+            }
+          : {}),
+      },
+    },
     esbuild: isProfile
       ? {
           keepNames: true,
@@ -49,7 +65,13 @@ export default defineConfig(({ mode }): UserConfig => {
     test: {
       globals: true,
       environment: 'jsdom',
+      // Same jsdom, plus Node's own AbortController/AbortSignal so React Router's
+      // `new Request(url, { signal })` accepts the signal (see src/test-environment.ts).
+      environmentMatchGlobs: [['src/**/*.{ts,tsx}', './src/test-environment.ts']],
       setupFiles: ['./src/test-setup.ts'],
+      // The viewer's dist uses Vite-only imports (?raw, ?url), and the component library it renders
+      // imports JSON without an import attribute, so Vitest compiles both instead of handing them to Node.
+      server: { deps: { inline: [/@vrooli\/(file-viewer|react-component-library)/] } },
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json-summary', 'json'],
@@ -81,6 +103,8 @@ export default defineConfig(({ mode }): UserConfig => {
           'src/test-setup.ts',
           'src/test-utils/**',
           'src/consts/strings.generated.ts',
+          // Compile-only: it holds `@ts-expect-error` checks for t() and never runs.
+          'src/consts/strings.typecheck.ts',
           'src/i18n/locales/**',
           // Temporal-flow codegen. Everything under generated/ is
           // emitted by the flow-verifier scenario and verified by the

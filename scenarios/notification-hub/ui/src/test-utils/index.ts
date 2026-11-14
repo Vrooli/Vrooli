@@ -85,3 +85,7 @@ export type { HealthResponse } from "./factories";
 // at module top level. See mocks/api.ts for the canonical usage shape.
 export { makeApiMocks } from "./mocks/api";
 export type { ApiMocks } from "./mocks/api";
+
+// Scripting `ListAsks` without the shell's waiting-count read consuming the script.
+export { asksInOrder, listAsksFor } from "./asks";
+export type { AsksPage } from "./asks";

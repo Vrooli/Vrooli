@@ -49,7 +49,7 @@ func terminalState(t *testing.T, service *hub.Service, id string) (string, strin
 			return true
 		}
 		return false
-	}, 2*time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 	return state, reason
 }
 

@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/discovery"
+	"notification-hub/internal/dbvalue"
 )
 
 const (
@@ -61,6 +62,11 @@ type PushMessage struct {
 	// absolute in-app URL a tap opens. Senders then use the Declarative Web
 	// Push envelope, which iOS shows and opens without running a worker.
 	Navigate string
+	// Awaiting is how many asks await the recipient when the message is sent,
+	// for the service worker to set the app badge to. nil when it could not be
+	// counted; 0 is a real count and clears the badge. Only the hub's own app
+	// gets it: another app's badge is not the hub's count.
+	Awaiting *int
 }
 
 // PushSender is intentionally narrow. Production wires the RFC 8291 sender;
@@ -115,22 +121,29 @@ func (unavailablePush) Send(context.Context, PushSubscription, PushMessage) (str
 }
 
 type Service struct {
-	db                  *database.RoutedDB
-	clock               *swappableClock
-	log                 *log.Logger
-	mu                  sync.RWMutex
-	push                PushSender
-	email               EmailSender
-	desktop             DesktopSender
-	remote              RemoteDelivery
-	channel             ChannelDelivery
-	defaultRecipient    string
-	recipientResolver   func(context.Context) string
-	ownerFallback       string
-	webPushPublicKey    string
-	worker              chan string
-	askDefaultFloor     time.Duration
-	resolutions         askResolutions
+	db                *database.RoutedDB
+	clock             *swappableClock
+	log               *log.Logger
+	mu                sync.RWMutex
+	push              PushSender
+	email             EmailSender
+	desktop           DesktopSender
+	remote            RemoteDelivery
+	channel           ChannelDelivery
+	defaultRecipient  string
+	recipientResolver func(context.Context) string
+	ownerFallback     string
+	webPushPublicKey  string
+	worker            chan dispatchItem
+	askDefaultFloor   time.Duration
+	resolutions       askResolutions
+	askChanges        askChangeFeed
+	// beforeAnswerCommit runs between an answer's validation and its storage; tests
+	// use it to revise the ask in that window.
+	beforeAnswerCommit  atomic.Pointer[func()]
+	attachments         attachmentState
+	life                serviceLifecycle
+	lastRetention       atomic.Int64
 	processLocks        [processLockStripes]sync.Mutex
 	preferences         Preferences
 	nativeConsentReader NativeConsentReader
@@ -148,6 +161,13 @@ type Service struct {
 	pushBudget   *pushBudget
 	pushMu       sync.Mutex
 	noDevicePush map[string]struct{}
+}
+
+// dispatchItem carries the request's routed database lease only for test-mode
+// requests. Production work always runs on the service-owned worker context.
+type dispatchItem struct {
+	id  string
+	ctx context.Context
 }
 
 // BrandResolver is the optional capability the preferences seam exposes to
@@ -322,7 +342,7 @@ func New(db *database.RoutedDB, clock Clock, logger *log.Logger) *Service {
 	if logger == nil {
 		logger = log.Default()
 	}
-	s := &Service{db: db, clock: newSwappableClock(clock), log: logger, push: unavailablePush{}, email: unavailableEmail{}, desktop: unavailableDesktop{}, worker: make(chan string, 128), iconBaseByID: map[string]string{}, pushBudget: newPushBudget(), noDevicePush: make(map[string]struct{})}
+	s := &Service{db: db, clock: newSwappableClock(clock), log: logger, push: unavailablePush{}, email: unavailableEmail{}, desktop: unavailableDesktop{}, worker: make(chan dispatchItem, 128), iconBaseByID: map[string]string{}, pushBudget: newPushBudget(), noDevicePush: make(map[string]struct{}), life: newServiceLifecycle()}
 	s.iconURL = s.defaultIconURL
 	s.ensureAdditiveColumns(context.Background())
 	go s.runWorker()
@@ -350,6 +370,17 @@ func (s *Service) ensureAdditiveColumns(ctx context.Context) {
 		`ALTER TABLE asks ADD COLUMN revision_count INTEGER NOT NULL DEFAULT 0`,
 		`ALTER TABLE asks ADD COLUMN superseded_by_ask_id TEXT NOT NULL DEFAULT ''`,
 		`ALTER TABLE asks ADD COLUMN current_event_id TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN questions_json TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN accepts_context_requests INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE answers ADD COLUMN responses_json TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE answers ADD COLUMN attachment_notes_json TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN attachment_count INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE asks ADD COLUMN attachments_digest TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN created_by TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN created_conversation TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN created_subject TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE asks ADD COLUMN sender TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE ask_context_requests ADD COLUMN response TEXT NOT NULL DEFAULT ''`,
 	} {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column") {
 			s.log.Printf("ensure notification column: %v", err)
@@ -362,11 +393,15 @@ func (s *Service) ensureAdditiveColumns(ctx context.Context) {
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_open_subject ON asks(source, source_event_type, subject_key) WHERE subject_key <> '' AND state IN ('pending', 'escalated')`,
 		`CREATE INDEX IF NOT EXISTS idx_asks_subject ON asks(source, source_event_type, subject_key, created_at) WHERE subject_key <> ''`,
 		`CREATE INDEX IF NOT EXISTS idx_asks_current_event ON asks(source, current_event_id) WHERE current_event_id <> ''`,
+		`CREATE INDEX IF NOT EXISTS idx_asks_created_by ON asks(created_by, created_at) WHERE created_by <> ''`,
+		`CREATE INDEX IF NOT EXISTS idx_asks_created_conversation ON asks(created_conversation, created_at) WHERE created_conversation <> ''`,
 	} {
 		if _, err := s.db.ExecContext(ctx, stmt); err != nil {
 			s.log.Printf("ensure ask subject index: %v", err)
 		}
 	}
+	s.normalizeStoredTimes(ctx)
+	s.backfillAskSenders(ctx)
 }
 
 func (s *Service) SetPushSender(sender PushSender) {
@@ -557,7 +592,7 @@ func (s *Service) Send(ctx context.Context, in SendInput) (Notification, error) 
 		return Notification{}, err
 	}
 	if created {
-		s.dispatch(n.ID)
+		s.dispatch(ctx, n.ID)
 	}
 	return n, nil
 }
@@ -593,10 +628,10 @@ func (s *Service) persistNotificationUsing(ctx context.Context, q dbTx, in SendI
 	if err := s.ensureRecipientUsing(ctx, q, in.RequestedBy); err != nil {
 		return Notification{}, false, err
 	}
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	now := storedTime(s.clock.Now())
 	scheduledAt := ""
 	if !in.ScheduledAt.IsZero() {
-		scheduledAt = in.ScheduledAt.UTC().Format(time.RFC3339Nano)
+		scheduledAt = storedTime(in.ScheduledAt)
 		if in.ScheduledAt.Before(s.clock.Now()) {
 			return Notification{}, false, fmt.Errorf("%w: scheduled_at must be in the future", ErrInvalidArgument)
 		}
@@ -622,11 +657,23 @@ func (s *Service) persistNotificationUsing(ctx context.Context, q dbTx, in SendI
 // dispatch schedules routing for a durable notification. The id is durable
 // before this channel is scheduled, so a caller never waits on a provider to
 // learn that its request exists.
-func (s *Service) dispatch(id string) {
+
+func (s *Service) dispatch(ctx context.Context, id string) {
+	item := dispatchItem{id: id}
+	if database.IsTestMode(ctx) {
+		// Preserve the pinned test-pool value while allowing delivery to finish
+		// after the HTTP/request context is canceled.
+		item.ctx = context.WithoutCancel(ctx)
+	}
 	select {
-	case s.worker <- id:
+	case s.worker <- item:
 	default:
-		go func() { s.worker <- id }()
+		go func() {
+			select {
+			case s.worker <- item:
+			case <-s.life.ctx.Done():
+			}
+		}()
 	}
 }
 
@@ -639,7 +686,17 @@ func (s *Service) findByIdempotencyUsing(ctx context.Context, q dbTx, requestedB
 }
 
 func (s *Service) Get(ctx context.Context, id string) (Notification, []Receipt, error) {
-	n, err := s.scanNotification(s.db.QueryRowContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications WHERE id = ?`, id))
+	return s.getNotification(ctx, id, "")
+}
+
+func (s *Service) getNotification(ctx context.Context, id, recipient string) (Notification, []Receipt, error) {
+	query := `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications WHERE id = ?`
+	args := []any{id}
+	if recipient != "" {
+		query += ` AND requested_by = ?`
+		args = append(args, recipient)
+	}
+	n, err := s.scanNotification(s.db.QueryRowContext(ctx, query, args...))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Notification{}, nil, ErrNotFound
 	}
@@ -667,20 +724,7 @@ func (s *Service) GetForRecipient(ctx context.Context, id, recipient string) (No
 	if recipient == "" {
 		return Notification{}, nil, ErrNotFound
 	}
-	n, err := s.scanNotification(s.db.QueryRowContext(ctx, `SELECT id, requested_by, title, body, urgency, sensitivity_label, idempotency_key, dedupe_key, scheduled_at, digest_key, digest_window_seconds, source_scenario, category, context_url, scope_key, created_at, updated_at FROM notifications WHERE id = ? AND requested_by = ?`, id, recipient))
-	if errors.Is(err, sql.ErrNoRows) {
-		return Notification{}, nil, ErrNotFound
-	}
-	if err != nil {
-		return Notification{}, nil, err
-	}
-	state, reason, err := s.currentState(ctx, id)
-	if err != nil {
-		return Notification{}, nil, err
-	}
-	n.State, n.Reason = state, reason
-	receipts, err := s.listReceipts(ctx, id)
-	return n, receipts, err
+	return s.getNotification(ctx, id, recipient)
 }
 
 // ListForRecipient returns a bounded timeline for one configured recipient.
@@ -733,28 +777,6 @@ func (s *Service) listNotifications(ctx context.Context, recipient string, scope
 	return out, nil
 }
 
-func (s *Service) runWorker() {
-	s.recoverPending(context.Background())
-	ticker := time.NewTicker(time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case id := <-s.worker:
-			if err := s.Process(context.Background(), id); err != nil {
-				s.log.Printf("notification %s: %v", id, err)
-			}
-		case <-ticker.C:
-			s.recoverPending(context.Background())
-			if err := s.ProcessEscalations(context.Background()); err != nil {
-				s.log.Printf("process ask escalations: %v", err)
-			}
-			if err := s.PublishPendingResolutions(context.Background()); err != nil {
-				s.log.Printf("publish ask resolutions: %v", err)
-			}
-		}
-	}
-}
-
 func (s *Service) recoverPending(ctx context.Context) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id FROM notifications ORDER BY created_at ASC`)
 	if err != nil {
@@ -774,6 +796,9 @@ func (s *Service) recoverPending(ctx context.Context) {
 	}
 	_ = rows.Close()
 	for _, id := range ids {
+		if s.closing() {
+			return
+		}
 		n, _, getErr := s.Get(ctx, id)
 		if getErr == nil && (n.State == "pending" || n.State == "held") {
 			if processErr := s.Process(ctx, id); processErr != nil {
@@ -813,7 +838,7 @@ func (s *Service) Process(ctx context.Context, id string) error {
 	if askErr == nil {
 		switch ask.State {
 		case AskAnswered, AskWithdrawn, AskExpired:
-			return s.appendEvent(ctx, n.ID, "suppressed", "linked ask already resolved before notification routing", s.clock.Now().UTC().Format(time.RFC3339Nano))
+			return s.appendEvent(ctx, n.ID, "suppressed", "linked ask already resolved before notification routing", storedTime(s.clock.Now()))
 		}
 	} else if !errors.Is(askErr, ErrNotFound) {
 		return askErr
@@ -832,7 +857,7 @@ func (s *Service) Process(ctx context.Context, id string) error {
 	if n.ScheduledAt != "" {
 		scheduled, parseErr := time.Parse(time.RFC3339Nano, n.ScheduledAt)
 		if parseErr != nil {
-			return s.appendEvent(ctx, n.ID, "failed", "scheduled_at is invalid", s.clock.Now().UTC().Format(time.RFC3339Nano))
+			return s.appendEvent(ctx, n.ID, "failed", "scheduled_at is invalid", storedTime(s.clock.Now()))
 		}
 		if s.clock.Now().Before(scheduled) {
 			return s.holdUntil(ctx, n.ID, scheduled, "scheduled delivery")
@@ -844,7 +869,7 @@ func (s *Service) Process(ctx context.Context, id string) error {
 			return err
 		}
 		if firstID != "" && firstID != n.ID {
-			return s.appendEvent(ctx, n.ID, "suppressed", "collapsed into digest "+firstID, s.clock.Now().UTC().Format(time.RFC3339Nano))
+			return s.appendEvent(ctx, n.ID, "suppressed", "collapsed into digest "+firstID, storedTime(s.clock.Now()))
 		}
 		if firstCreated != "" {
 			created, parseErr := time.Parse(time.RFC3339Nano, firstCreated)
@@ -854,7 +879,7 @@ func (s *Service) Process(ctx context.Context, id string) error {
 					return s.holdUntil(ctx, n.ID, releaseAt, "digest window")
 				}
 				var count int
-				if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM notifications WHERE requested_by=? AND digest_key=? AND created_at < ?`, n.RequestedBy, n.DigestKey, releaseAt.UTC().Format(time.RFC3339Nano)).Scan(&count); err == nil && count > 1 {
+				if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM notifications WHERE requested_by=? AND digest_key=? AND created_at < ?`, n.RequestedBy, n.DigestKey, storedTime(releaseAt)).Scan(&count); err == nil && count > 1 {
 					n.Body = fmt.Sprintf("%s (%d notifications in digest)", n.Body, count)
 				}
 			}
@@ -885,10 +910,10 @@ func (s *Service) Process(ctx context.Context, id string) error {
 		return err
 	}
 	if quiet {
-		return s.appendEvent(ctx, n.ID, "held", "quiet window active; critical override did not apply", s.clock.Now().UTC().Format(time.RFC3339Nano))
+		return s.appendEvent(ctx, n.ID, "held", "quiet window active; critical override did not apply", storedTime(s.clock.Now()))
 	}
 	if suppressed, reason := s.preferenceSuppression(ctx, n); suppressed {
-		return s.appendEvent(ctx, n.ID, "suppressed", reason, s.clock.Now().UTC().Format(time.RFC3339Nano))
+		return s.appendEvent(ctx, n.ID, "suppressed", reason, storedTime(s.clock.Now()))
 	}
 	targets, err := s.channelTargets(ctx, n.RequestedBy)
 	if err != nil {
@@ -912,11 +937,11 @@ func (s *Service) Process(ctx context.Context, id string) error {
 		}
 		targets = filtered
 		if len(targets) == 0 {
-			return s.appendEvent(ctx, n.ID, "suppressed", "stored in notification-hub; per-source device-push bucket is empty", s.clock.Now().UTC().Format(time.RFC3339Nano))
+			return s.appendEvent(ctx, n.ID, "suppressed", "stored in notification-hub; per-source device-push bucket is empty", storedTime(s.clock.Now()))
 		}
 	}
 	if len(targets) == 0 {
-		now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+		now := storedTime(s.clock.Now())
 		reason := "no recipient configured: no channel address or live web push subscription is registered for recipient " + strconv.Quote(n.RequestedBy) + "; " + RecipientSettingHint
 		if _, err := s.db.ExecContext(ctx, `INSERT INTO delivery_attempts (notification_id, channel, machine_id, attempt_number, outcome, reason, next_attempt_at, created_at) VALUES (?, 'none', '', 1, 'unroutable', ?, '', ?)`, n.ID, reason, now); err != nil {
 			return err
@@ -927,7 +952,7 @@ func (s *Service) Process(ctx context.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	_ = s.appendEvent(ctx, n.ID, "routed", "channel targets selected from recipient registry", s.clock.Now().UTC().Format(time.RFC3339Nano))
+	_ = s.appendEvent(ctx, n.ID, "routed", "channel targets selected from recipient registry", storedTime(s.clock.Now()))
 	s.mu.RLock()
 	sender := s.push
 	emailSender := s.email
@@ -946,7 +971,7 @@ func (s *Service) Process(ctx context.Context, id string) error {
 			contentMode = "pointer"
 			body = "Notification available in notification-hub"
 		}
-		_, _ = s.db.ExecContext(ctx, `INSERT INTO routing_decisions (id, notification_id, channel, machine_id, approved, content_mode, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), n.ID, target.Channel, target.MachineID, boolInt(approved), contentMode, func() string {
+		_, _ = s.db.ExecContext(ctx, `INSERT INTO routing_decisions (id, notification_id, channel, machine_id, approved, content_mode, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), n.ID, target.Channel, target.MachineID, dbvalue.BoolInt(approved), contentMode, func() string {
 			if target.App != "" {
 				return "delivered to the " + target.App + " app paired on this device instead of Chimesail"
 			}
@@ -954,9 +979,9 @@ func (s *Service) Process(ctx context.Context, id string) error {
 				return "channel approved for sensitivity label"
 			}
 			return "channel not approved; content-free pointer used"
-		}(), s.clock.Now().UTC().Format(time.RFC3339Nano))
+		}(), storedTime(s.clock.Now()))
 		for attempt := 1; attempt <= MaxAttempts; attempt++ {
-			started := s.clock.Now().UTC().Format(time.RFC3339Nano)
+			started := storedTime(s.clock.Now())
 			provider, sendErr := s.deliverTarget(ctx, target, n, body, sender, emailSender, desktopSender, remoteSender)
 			outcome, reason := "delivered", ""
 			if sendErr != nil {
@@ -964,7 +989,7 @@ func (s *Service) Process(ctx context.Context, id string) error {
 			}
 			_, _ = s.db.ExecContext(ctx, `INSERT INTO delivery_attempts (notification_id, channel, machine_id, attempt_number, outcome, reason, next_attempt_at, created_at) VALUES (?, ?, ?, ?, ?, ?, '', ?)`, n.ID, target.Channel, target.MachineID, attempt, outcome, reason, started)
 			if sendErr == nil {
-				now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+				now := storedTime(s.clock.Now())
 				r := Receipt{ID: uuid.NewString(), NotificationID: n.ID, Channel: "web_push", ProviderID: provider, DeliveredAt: now}
 				r.Channel = target.Channel
 				r.MachineID = target.MachineID
@@ -994,14 +1019,14 @@ func (s *Service) Process(ctx context.Context, id string) error {
 		// A scenario app that is gone or kept failing hands its device back to
 		// Chimesail in the same pass, so the notification is never lost.
 		if target.App != "" && len(target.Fallback) > 0 {
-			_ = s.appendEvent(ctx, n.ID, "routed", "the "+target.App+" app did not accept the notification; delivering to Chimesail on that device", s.clock.Now().UTC().Format(time.RFC3339Nano))
+			_ = s.appendEvent(ctx, n.ID, "routed", "the "+target.App+" app did not accept the notification; delivering to Chimesail on that device", storedTime(s.clock.Now()))
 			targets = append(targets, target.Fallback...)
 		}
 	}
 	if delivered > 0 {
-		return s.appendEvent(ctx, n.ID, "delivered", "at least one approved channel accepted the payload", s.clock.Now().UTC().Format(time.RFC3339Nano))
+		return s.appendEvent(ctx, n.ID, "delivered", "at least one approved channel accepted the payload", storedTime(s.clock.Now()))
 	}
-	return s.appendEvent(ctx, n.ID, "failed", fmt.Sprintf("retry budget exhausted: %s", safeReason(lastErr)), s.clock.Now().UTC().Format(time.RFC3339Nano))
+	return s.appendEvent(ctx, n.ID, "failed", fmt.Sprintf("retry budget exhausted: %s", safeReason(lastErr)), storedTime(s.clock.Now()))
 }
 
 func devicePushChannel(channel string) bool {
@@ -1041,7 +1066,7 @@ func (s *Service) preferenceSuppression(ctx context.Context, n Notification) (bo
 }
 
 func (s *Service) recordSuppression(ctx context.Context, n Notification, collapsedInto, reason string) error {
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	now := storedTime(s.clock.Now())
 	if _, err := s.db.ExecContext(ctx, `INSERT INTO suppressions (id, notification_id, collapsed_into, dedupe_key, created_at) VALUES (?, ?, ?, ?, ?)`, uuid.NewString(), n.ID, collapsedInto, n.DedupeKey, now); err != nil {
 		return err
 	}
@@ -1061,11 +1086,10 @@ func (s *Service) deliverTarget(ctx context.Context, target channelTarget, n Not
 		if err != nil {
 			return "", err
 		}
-		url := s.askPath(ctx, n.ID)
-		if strings.TrimSpace(n.ContextURL) != "" {
-			url = n.ContextURL
-		}
-		msg := PushMessage{Title: pushTitle(s.resolveDisplayName(ctx, n.SourceScenario), n.Title), Body: body, Tag: n.ID, URL: url}
+		// A tap opens the Hub's own record of the notification, never the producer's
+		// context_url: that link is shown on the record as a second, deliberate tap,
+		// so a push cannot send the operator straight to another site.
+		msg := PushMessage{Title: pushTitle(s.resolveDisplayName(ctx, n.SourceScenario), n.Title), Body: body, Tag: n.ID, URL: s.recordPath(ctx, n.ID)}
 		if target.App != "" {
 			// The OS already shows the app's own name and icon.
 			msg.Navigate = appNavigateURL(sub.Origin, n.ContextURL)
@@ -1074,6 +1098,11 @@ func (s *Service) deliverTarget(ctx context.Context, target channelTarget, n Not
 		}
 		if s.iconURL != nil {
 			msg.Icon = s.resolveIconURL(ctx, n.SourceScenario)
+		}
+		if awaiting, err := s.CountAwaiting(ctx, n.RequestedBy, OwnerAudience()); err != nil {
+			s.log.Printf("count awaiting asks for the push badge: %v", err)
+		} else {
+			msg.Awaiting = &awaiting
 		}
 		return push.Send(ctx, sub, msg)
 	case "email":
@@ -1100,14 +1129,14 @@ func (s *Service) pushSubscription(ctx context.Context, recipient, endpoint stri
 }
 
 func (s *Service) holdUntil(ctx context.Context, notificationID string, releaseAt time.Time, reason string) error {
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO holds (id, notification_id, release_at, released_at, reason) VALUES (?, ?, ?, '', ?) ON CONFLICT(notification_id) DO UPDATE SET release_at=excluded.release_at, reason=excluded.reason`, uuid.NewString(), notificationID, releaseAt.UTC().Format(time.RFC3339Nano), reason); err != nil {
+	now := storedTime(s.clock.Now())
+	if _, err := s.db.ExecContext(ctx, `INSERT INTO holds (id, notification_id, release_at, released_at, reason) VALUES (?, ?, ?, '', ?) ON CONFLICT(notification_id) DO UPDATE SET release_at=excluded.release_at, reason=excluded.reason`, uuid.NewString(), notificationID, storedTime(releaseAt), reason); err != nil {
 		return err
 	}
 	var state string
 	_ = s.db.QueryRowContext(ctx, `SELECT state FROM notification_events WHERE notification_id=? ORDER BY id DESC LIMIT 1`, notificationID).Scan(&state)
 	if state != "held" {
-		return s.appendEvent(ctx, notificationID, "held", reason+"; release at "+releaseAt.UTC().Format(time.RFC3339Nano), now)
+		return s.appendEvent(ctx, notificationID, "held", reason+"; release at "+storedTime(releaseAt), now)
 	}
 	return nil
 }
@@ -1133,7 +1162,7 @@ func (s *Service) releaseScheduledHold(ctx context.Context, n Notification) (rel
 	if s.clock.Now().Before(due) {
 		return false, true, nil
 	}
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	now := storedTime(s.clock.Now())
 	if _, err := s.db.ExecContext(ctx, `UPDATE holds SET released_at=? WHERE notification_id=? AND released_at=''`, now, n.ID); err != nil {
 		return false, false, err
 	}
@@ -1188,99 +1217,6 @@ func (s *Service) ListDevices(ctx context.Context, recipient string) ([]Device, 
 	return out, nil
 }
 
-func (s *Service) SetQuietWindow(ctx context.Context, recipient string, window QuietWindow) (QuietWindow, error) {
-	if recipient == "" || window.Weekday < 0 || window.Weekday > 6 || window.Start == "" || window.End == "" || window.Timezone == "" {
-		return QuietWindow{}, fmt.Errorf("%w: recipient, weekday, start, end, and timezone are required", ErrInvalidArgument)
-	}
-	start, startErr := time.Parse("15:04", window.Start)
-	end, endErr := time.Parse("15:04", window.End)
-	if startErr != nil || endErr != nil || start.Format("15:04") != window.Start || end.Format("15:04") != window.End {
-		return QuietWindow{}, fmt.Errorf("%w: quiet window times must use 24-hour HH:MM", ErrInvalidArgument)
-	}
-	if window.Start == window.End {
-		return QuietWindow{}, fmt.Errorf("%w: quiet window start and end must differ", ErrInvalidArgument)
-	}
-	if window.End < window.Start {
-		return QuietWindow{}, fmt.Errorf("%w: overnight quiet windows are held pending policy support", ErrInvalidArgument)
-	}
-	if _, err := time.LoadLocation(window.Timezone); err != nil {
-		return QuietWindow{}, fmt.Errorf("%w: invalid timezone", ErrInvalidArgument)
-	}
-	if err := s.EnsureRecipient(ctx, recipient); err != nil {
-		return QuietWindow{}, err
-	}
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return QuietWindow{}, err
-	}
-	defer tx.Rollback()
-	if _, err := tx.ExecContext(ctx, `DELETE FROM quiet_windows WHERE recipient_id = (SELECT id FROM recipients WHERE subject=?) AND weekday = ?`, recipient, window.Weekday); err != nil {
-		return QuietWindow{}, err
-	}
-	window.ID = uuid.NewString()
-	if _, err := tx.ExecContext(ctx, `INSERT INTO quiet_windows (id, recipient_id, weekday, start_time, end_time, timezone, critical_override) VALUES (?, (SELECT id FROM recipients WHERE subject=?), ?, ?, ?, ?, ?)`, window.ID, recipient, window.Weekday, window.Start, window.End, window.Timezone, boolInt(window.CriticalOverride)); err != nil {
-		return QuietWindow{}, err
-	}
-	if err := tx.Commit(); err != nil {
-		return QuietWindow{}, err
-	}
-	return window, nil
-}
-
-func (s *Service) inQuietWindow(ctx context.Context, recipient, urgency string, now time.Time) (bool, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT weekday, start_time, end_time, timezone, critical_override FROM quiet_windows WHERE recipient_id = (SELECT id FROM recipients WHERE subject=?)`, recipient)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var weekday int
-		var start, end, timezone string
-		var criticalOverride int
-		if err := rows.Scan(&weekday, &start, &end, &timezone, &criticalOverride); err != nil {
-			return false, err
-		}
-		location, err := time.LoadLocation(timezone)
-		if err != nil {
-			continue
-		}
-		local := now.In(location)
-		if weekday != int(local.Weekday()) {
-			continue
-		}
-		current := local.Hour()*60 + local.Minute()
-		parseMinutes := func(value string) int {
-			parsed, parseErr := time.Parse("15:04", value)
-			if parseErr != nil {
-				return -1
-			}
-			return parsed.Hour()*60 + parsed.Minute()
-		}
-		from, until := parseMinutes(start), parseMinutes(end)
-		if from < 0 || until < 0 {
-			continue
-		}
-		active := current >= from && current < until
-		if from > until {
-			active = current >= from || current < until
-		}
-		if active {
-			if urgency == "critical" && criticalOverride != 0 {
-				return false, nil
-			}
-			return true, nil
-		}
-	}
-	return false, rows.Err()
-}
-
-func boolInt(value bool) int {
-	if value {
-		return 1
-	}
-	return 0
-}
-
 func (s *Service) liveSubscriptions(ctx context.Context, recipient string) ([]PushSubscription, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id, endpoint, p256dh, auth, origin FROM push_subscriptions WHERE recipient_id = (SELECT id FROM recipients WHERE subject=?) AND app_scenario = '' ORDER BY updated_at DESC`, recipient)
 	if err != nil {
@@ -1302,7 +1238,7 @@ func (s *Service) RegisterPushSubscription(ctx context.Context, recipient string
 	if recipient == "" || p.Endpoint == "" || p.P256DH == "" || p.Auth == "" || p.Origin == "" {
 		return fmt.Errorf("%w: recipient and complete push subscription are required", ErrInvalidArgument)
 	}
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	now := storedTime(s.clock.Now())
 	if err := s.EnsureRecipient(ctx, recipient); err != nil {
 		return err
 	}
@@ -1334,7 +1270,7 @@ func (s *Service) ChannelsStatus(ctx context.Context, recipient, _ string) ([]Ch
 	if err != nil {
 		return nil, err
 	}
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	now := storedTime(s.clock.Now())
 	s.mu.RLock()
 	email, desktop, remote := s.email, s.desktop, s.remote
 	s.mu.RUnlock()
@@ -1406,14 +1342,6 @@ func (s *Service) Ask(ctx context.Context, recipient string, question string, al
 func (s *Service) Answer(ctx context.Context, askID, answer, actor string) error {
 	_, err := s.AnswerAsk(ctx, AnswerInput{AskID: askID, Answer: answer, Actor: actor})
 	return err
-}
-
-func (s *Service) Retain(ctx context.Context, before time.Time) (int64, error) {
-	result, err := s.db.ExecContext(ctx, `DELETE FROM notifications WHERE created_at < ?`, before.UTC().Format(time.RFC3339Nano))
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
 }
 
 func (s *Service) appendEvent(ctx context.Context, notificationID, state, reason, at string) error {

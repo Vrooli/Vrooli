@@ -260,7 +260,7 @@ func heartbeatAttemptFYI(eventType, sourceScenario, eventID string, raw json.Raw
 		DedupeKey:        HeartbeatAttemptEventType + ":" + episodeID,
 		SourceScenario:   sourceScenario,
 		Category:         "prompt_manager_heartbeat",
-		ContextURL:       strings.TrimSpace(attempt.ReviewURL),
+		ContextURL:       eventContextURL(sourceScenario, eventType, attempt.ReviewURL),
 		ScopeKey:         "prompt-manager:" + teamID + ":" + agentID,
 	}, true, nil
 }
@@ -305,7 +305,7 @@ func heartbeatRetainedOwnerStateFYI(sourceScenario, eventID string, fact heartbe
 		DedupeKey:        HeartbeatAttemptEventType + ":owner-state:" + obligationKey,
 		SourceScenario:   sourceScenario,
 		Category:         "prompt_manager_heartbeat",
-		ContextURL:       strings.TrimSpace(fact.ReviewURL),
+		ContextURL:       eventContextURL(sourceScenario, HeartbeatOwnerStateEventType, fact.ReviewURL),
 		ScopeKey:         "prompt-manager:" + teamID + ":" + agentID,
 	}, true, nil
 }
@@ -501,9 +501,9 @@ func EventWebhookFromSecretSourceWithDecisionDefaults(service *hub.Service, secr
 		// event type carries the notification suffix OR the payload parses into
 		// usable neutral facts (a non-empty body). The legacy incident renderer
 		// below stays the fallback for events that carry no neutral facts.
-		if IsNotificationRequest(payload.EventType) || func() bool { _, ok := parseNotificationFacts(payload.Payload); return ok }() {
-			facts, ok := parseNotificationFacts(payload.Payload)
-			if !ok || eventID == "" {
+		facts, hasFacts := parseNotificationFacts(payload.Payload)
+		if IsNotificationRequest(payload.EventType) || hasFacts {
+			if !hasFacts || eventID == "" {
 				writeJSONError(w, http.StatusBadRequest, "event_id and a non-empty body are required")
 				return
 			}

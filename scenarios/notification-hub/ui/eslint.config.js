@@ -7,6 +7,47 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import stringsPlugin from "./eslint-rules/index.js";
 
+/** Copy that reaches the DOM only through JSX text, expression strings or string attributes. */
+const JSX_COPY_SELECTORS = [
+  {
+    selector: "JSXText[value=/[a-zA-Z]/]",
+    message:
+      "User-facing strings must go through the i18n registry. Reference them as `{t(strings.feature.key)}` instead of inlining JSX text.",
+  },
+  {
+    selector: "JSXExpressionContainer > Literal[value=/[a-zA-Z]/]",
+    message:
+      "User-facing strings must go through the i18n registry. Reference them as `{t(strings.feature.key)}` instead of `{\"...\"}`.",
+  },
+  {
+    selector:
+      "JSXAttribute[name.name=/^(aria-label|aria-description|aria-placeholder|aria-roledescription|aria-valuetext|placeholder|title|alt|label)$/] > Literal[value=/[a-zA-Z]/]",
+    message:
+      "User-facing string attributes must go through the i18n registry. Use `aria-label={t(strings.feature.key)}` (etc.) instead of a string literal.",
+  },
+];
+
+/**
+ * English prose written straight into code: a string with at least one common
+ * English function word. Class names, test ids, keys and selectors never carry
+ * one, so this catches copy that should be in the registry (`const COPY = {
+ * en: "Save changes" }`, `t(key, { defaultValue: "…" })`) without a word list
+ * of the product's own vocabulary. Messages of `new Error(...)` are developer
+ * text and are exempt. A single word, such as "Retry", is not detectable here
+ * and still relies on review.
+ */
+const PROSE = String.raw`/(^|\s)(the|and|in|of|for|to|is|are|was|your|you|this|that|with|from|not|could|can|now|on|has|have|will|be)(\s|[.,;:!?]|$)/`;
+const PROSE_SELECTORS = [
+  {
+    selector: `Literal[value=${PROSE}]:not(NewExpression > Literal)`,
+    message: "English prose in code must live in src/i18n/locales/<locale>/*.json and be read through `t(strings.feature.key)`.",
+  },
+  {
+    selector: `TemplateElement[value.cooked=${PROSE}]:not(NewExpression TemplateElement)`,
+    message: "English prose in code must live in src/i18n/locales/<locale>/*.json and be read through `t(strings.feature.key)`.",
+  },
+];
+
 export default tseslint.config(
   { ignores: ["dist", "node_modules", "coverage", "src/**/flow/generated/**"] },
   {
@@ -111,10 +152,10 @@ export default tseslint.config(
       // ════════════════════════════════════════════════════════════════════════
       // STRING REGISTRY ENFORCEMENT
       //
-      // User-facing strings live in src/i18n/locales/<locale>.json and are
+      // User-facing strings live in src/i18n/locales/<locale>/<namespace>.json and are
       // referenced through the typed `strings.*` registry in src/consts/strings.ts.
-      // The registry derives dotted key paths from en.json at build/load time,
-      // so `strings.app.titel` is a TypeScript error and renames in en.json
+      // The registry derives dotted key paths from the English catalog at build/load time,
+      // so `strings.app.titel` is a TypeScript error and renames in the catalog
       // produce errors at every callsite.
       //
       // The rules below ensure the registry stays the *only* path that copy
@@ -126,8 +167,8 @@ export default tseslint.config(
       //                              `title="…"`, `alt="…"`
       //
       // If you hit one of these rules:
-      //   ✅ DO: add the string to src/i18n/locales/en.json (and every other
-      //         locale), then reference it as `{t(strings.feature.key)}`.
+      //   ✅ DO: add the string to its namespace file under
+      //         src/i18n/locales/en/ (and every other locale), then reference it as `{t(strings.feature.key)}`.
       //         For interpolation, use i18next's `{{var}}` placeholders in
       //         the JSON and call `t(strings.feature.key, { var: value })`.
       //   ❌ DON'T: disable the rule, or work around it with a template literal
@@ -143,25 +184,7 @@ export default tseslint.config(
       "strings/codegen-fresh": "error",
       "strings/no-unused-keys": "error",
 
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: "JSXText[value=/[a-zA-Z]/]",
-          message:
-            "User-facing strings must go through the i18n registry. Reference them as `{t(strings.feature.key)}` instead of inlining JSX text.",
-        },
-        {
-          selector: "JSXExpressionContainer > Literal[value=/[a-zA-Z]/]",
-          message:
-            "User-facing strings must go through the i18n registry. Reference them as `{t(strings.feature.key)}` instead of `{\"...\"}`.",
-        },
-        {
-          selector:
-            "JSXAttribute[name.name=/^(aria-label|aria-description|aria-placeholder|aria-roledescription|aria-valuetext|placeholder|title|alt|label)$/] > Literal[value=/[a-zA-Z]/]",
-          message:
-            "User-facing string attributes must go through the i18n registry. Use `aria-label={t(strings.feature.key)}` (etc.) instead of a string literal.",
-        },
-      ],
+      "no-restricted-syntax": ["error", ...JSX_COPY_SELECTORS, ...PROSE_SELECTORS],
 
       // ════════════════════════════════════════════════════════════════════════
       // TEST-UTILS QUARANTINE (mirrors api/internal/testutil/no_prod_import_test.go)
@@ -218,6 +241,12 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // Developer-facing descriptions, test fixtures and the sealed explainer
+    // kit are not operator copy.
+    files: ["src/consts/selectors*.ts", "src/**/mocks/**", "src/features/packet/explainer/kit/**"],
+    rules: { "no-restricted-syntax": ["error", ...JSX_COPY_SELECTORS] },
   },
   {
     files: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],

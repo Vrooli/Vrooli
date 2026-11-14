@@ -61,5 +61,9 @@ func SubcommandGroups(core *cliapp.ScenarioApp, manifest []byte) ([]cliapp.Subco
 	if err != nil {
 		return nil, err
 	}
-	return []cliapp.SubcommandGroup{group, channelsGroup, deliveryGroup, conversationsGroup, recipientsGroup, integrations.Register(core)}, nil
+	integrationsGroup, err := integrations.Register(core, manifest)
+	if err != nil {
+		return nil, err
+	}
+	return []cliapp.SubcommandGroup{group, channelsGroup, deliveryGroup, conversationsGroup, recipientsGroup, integrationsGroup}, nil
 }

@@ -16,15 +16,17 @@ import (
 	conversationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect"
 
 	conversationsH "notification-hub/handlers/conversations"
-	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 )
 
-func TestAskReadsAreUnauthenticatedAndConfiguredRecipientScoped(t *testing.T) {
+// The owner reads every ask addressed to the configured recipient and no one
+// else's. Readers other than the owner are covered by ask_reads_test.go.
+func TestOwnerAskReadsAreConfiguredRecipientScoped(t *testing.T) {
 	ctx := context.Background()
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
-	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
 	service.SetDefaultRecipient("alice")
 	deadline := time.Now().Add(time.Hour)
 	aliceAsk, _, err := service.Ask(ctx, "alice", "Alice question", []string{"yes", "no"}, deadline, "public", "alice-read-test")
@@ -36,7 +38,8 @@ func TestAskReadsAreUnauthenticatedAndConfiguredRecipientScoped(t *testing.T) {
 	conversationsH.Module(service).Mount(router)
 	server := httptest.NewServer(router)
 	defer server.Close()
-	client := conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL)
+	client := conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL, asSubject("alice"))
+	anonymous := conversationsconnect.NewConversationsServiceClient(server.Client(), server.URL)
 
 	listRequest := connect.NewRequest(&v1.ListAsksRequest{OpenOnly: true, Limit: 50})
 	list, err := client.ListAsks(ctx, listRequest)
@@ -79,7 +82,7 @@ func TestAskReadsAreUnauthenticatedAndConfiguredRecipientScoped(t *testing.T) {
 	require.ErrorAs(t, err, &connectErr)
 	require.Equal(t, connect.CodeNotFound, connectErr.Code())
 
-	_, err = client.Answer(ctx, connect.NewRequest(&v1.AnswerRequest{AskId: aliceAsk, Answer: "yes"}))
+	_, err = anonymous.Answer(ctx, connect.NewRequest(&v1.AnswerRequest{AskId: aliceAsk, Answer: "yes"}))
 	require.ErrorAs(t, err, &connectErr, "the answer mutation must keep its human identity requirement")
 	require.Equal(t, connect.CodeUnauthenticated, connectErr.Code())
 	require.Equal(t, "verified owner identity is required", connectErr.Message())
@@ -100,7 +103,7 @@ func TestDismissEndpointClosesOnlyTheVerifiedRecipientAsk(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	service.SetDefaultRecipient("alice")
 	deadline := time.Now().Add(time.Hour)
 	askID, _, err := service.Ask(ctx, "alice", "Choose?", []string{"approve", "reject"}, deadline, "public", "dismiss-endpoint-test")
@@ -133,7 +136,7 @@ func TestGetAskExposesProviderDecisionContextAsTypedOwnerEvidence(t *testing.T) 
 	ctx := context.Background()
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
-	service := hub.New(database.NewFromPrimary(primary), nil, nil)
+	service := hubtest.New(t, database.NewFromPrimary(primary), nil, nil)
 	service.SetDefaultRecipient("alice")
 
 	router := mux.NewRouter()
@@ -154,7 +157,7 @@ func TestGetAskExposesProviderDecisionContextAsTypedOwnerEvidence(t *testing.T) 
 	askResponse, err := client.Ask(ctx, askRequest)
 	require.NoError(t, err)
 
-	get, err := client.GetAsk(ctx, connect.NewRequest(&v1.GetAskRequest{AskId: askResponse.Msg.GetAskId()}))
+	get, err := client.GetAsk(ctx, as("alice", &v1.GetAskRequest{AskId: askResponse.Msg.GetAskId()}))
 	require.NoError(t, err)
 	gotContext := get.Msg.GetAsk().GetProviderDecisionContext()
 	require.Equal(t, decisionContext.GetSchemaVersion(), gotContext.GetSchemaVersion())

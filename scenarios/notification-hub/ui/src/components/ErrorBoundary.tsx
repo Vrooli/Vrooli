@@ -4,8 +4,6 @@ import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
 
-/* eslint-disable react-refresh/only-export-components -- class error boundaries are component exports by design. */
-
 type Props = {
   children: ReactNode;
   fallback?: ReactNode;
@@ -24,7 +22,7 @@ type State = {
 //
 // onError is exposed for scenarios to wire telemetry (Sentry, etc.).
 // Custom fallback content can be supplied via the `fallback` prop;
-// the default is DefaultFallback below, which uses the strings +
+// the default is ErrorFallback below, which uses the strings +
 // selectors registries so test IDs and copy stay coherent with the
 // rest of the UI.
 export class ErrorBoundary extends Component<Props, State> {
@@ -49,11 +47,12 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.props.fallback !== undefined) {
       return this.props.fallback;
     }
-    return <DefaultFallback onRetry={this.handleRetry} />;
+    return <ErrorFallback onRetry={this.handleRetry} />;
   }
 }
 
-function DefaultFallback({ onRetry }: { onRetry: () => void }) {
+/** The default screen for a render failure. */
+export function ErrorFallback({ onRetry }: { onRetry: () => void }) {
   const { t } = useTranslation();
   return (
     <div

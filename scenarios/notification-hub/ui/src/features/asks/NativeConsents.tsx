@@ -1,35 +1,73 @@
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { conversationsClient } from "../../api/notifications";
-import { useTranslation } from "../../i18n";
-import { strings } from "../../consts/strings";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { ShieldQuestion } from "lucide-react";
 
-/** Native consent is reviewed at its source. This component has no mutation client. */
-export function NativeConsents({ query }: { query: string }) {
-  const { t, i18n } = useTranslation();
-  const list = useInfiniteQuery({
-    queryKey: ["native-consents", query], initialPageParam: "",
-    queryFn: ({ pageParam, signal }) => conversationsClient.listNativeConsents({ limit: 25, cursor: pageParam, query }, { signal }),
-    getNextPageParam: (page) => page.nextCursor || undefined,
-    retry: false, staleTime: 0, refetchInterval: 60_000,
-  });
+import { ListGroup, ListItem } from "../../components/ListRow";
+import { SkeletonRows } from "../../components/Skeleton";
+import { strings } from "../../consts/strings";
+import { useNow } from "../../hooks/useNow";
+import { useTranslation } from "../../i18n";
+import { isUnauthenticated } from "../../lib/apiError";
+import { formatAgo, formatDueIn } from "../../lib/ago";
+import type { NativeConsentsRead } from "./useNativeConsents";
+
+/**
+ * Permission requests owned by Agent Manager. They are reviewed at their source:
+ * this component has no mutation client, and a link opens the source page only.
+ * A failed read is the queue page's to report (one message for everything that
+ * could not load); here it only means the requests shown are unverified.
+ */
+export function NativeConsents({ list }: { list: NativeConsentsRead }) {
+  const { t } = useTranslation();
+  const now = useNow();
   const consents = [...new Map(list.data?.pages.flatMap((page) => page.consents).map((c) => [c.authorizationId || c.notificationId, c]) ?? []).values()];
-  const format = (value: string) => {
-    const date = new Date(value);
-    return Number.isNaN(date.valueOf()) ? "" : new Intl.DateTimeFormat(i18n.language, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(date);
-  };
+  // A missing session is the list's to explain once; this section has nothing of its own to say.
+  if (isUnauthenticated(list.error)) return null;
+  if (list.isError && !consents.length) return null;
   if (list.isSuccess && !consents.length && !list.hasNextPage) return null;
-  return <section aria-labelledby="native-consent-heading" className="flex flex-col gap-3 rounded-panel border border-app-border bg-app-surface p-4">
-    <h3 id="native-consent-heading" className="text-lg font-semibold">{t(strings.nativeConsent.title)}</h3>
-    <p className="text-sm text-app-muted-foreground">{t(strings.nativeConsent.authority)}</p>
-    {list.isPending && <p role="status">{t(strings.nativeConsent.loading)}</p>}
-    {list.isError && <div role="alert"><p>{t(strings.nativeConsent.unavailable)}</p><button type="button" onClick={() => void list.refetch()} className="min-h-11 underline">{t(strings.asks.list.retry)}</button></div>}
-    {consents.length > 0 && <ul className="divide-y divide-app-border">{consents.map((consent) => <li key={consent.authorizationId || consent.notificationId} className="py-3">
-      <h4 className="font-medium">{consent.title}</h4>
-      <p className="mt-1 whitespace-pre-line text-sm">{consent.body}</p>
-      <p className="mt-2 text-sm text-app-muted-foreground">{t(consent.state === "pending" && !list.isError ? strings.nativeConsent.pending : strings.nativeConsent.unverified)}</p>
-      {consent.state === "pending" && !list.isError && <p className="text-xs text-app-muted-foreground">{t(strings.nativeConsent.checked, { time: format(consent.observedAt), expiry: format(consent.reviewExpiresAt) })}</p>}
-      {consent.reviewUrl && <a href={consent.reviewUrl} className="mt-2 inline-flex min-h-11 items-center font-medium underline underline-offset-4" rel="noreferrer">{t(strings.nativeConsent.open)}</a>}
-    </li>)}</ul>}
-    {list.hasNextPage && <button type="button" disabled={list.isFetching} onClick={() => void list.fetchNextPage()} className="min-h-11 rounded-control border border-app-border p-3">{t(strings.nativeConsent.more)}</button>}
-  </section>;
+  return (
+    <section aria-labelledby="native-consent-heading" className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <h2 id="native-consent-heading" className="flex items-center gap-2 text-base font-semibold">
+          <ShieldQuestion size={18} aria-hidden="true" className="text-app-warning" />
+          {t(strings.nativeConsent.title)}
+        </h2>
+        <details className="text-sm text-app-muted-foreground">
+          <summary className="min-h-11 cursor-pointer py-2.5">
+            {t(strings.nativeConsent.authorityShort)} <span className="font-medium text-app-primary">{t(strings.nativeConsent.authorityWhy)}</span>
+          </summary>
+          <p>{t(strings.nativeConsent.authority)}</p>
+        </details>
+      </div>
+      {list.isPending && <SkeletonRows rows={1} />}
+      {consents.length > 0 && (
+        <ListGroup>
+          {consents.map((consent) => {
+            const verified = consent.state === "pending" && !list.isError;
+            return (
+              <ListItem key={consent.authorizationId || consent.notificationId} tone="attention" className="flex flex-col gap-1 px-4 py-3">
+                <h3 className="font-semibold">{consent.title}</h3>
+                <p className="whitespace-pre-line text-sm">{consent.body}</p>
+                <p className="text-sm text-app-muted-foreground">{t(verified ? strings.nativeConsent.pending : strings.nativeConsent.unverified)}</p>
+                {verified && (
+                  <p className="text-xs text-app-muted-foreground">
+                    {t(strings.nativeConsent.checked, { time: formatAgo(consent.observedAt, now) ?? "", expiry: formatDueIn(consent.reviewExpiresAt, now) ?? "" })}
+                  </p>
+                )}
+                {consent.reviewUrl && (
+                  <a href={consent.reviewUrl} rel="noreferrer" className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-app-primary hover:underline">
+                    {t(strings.nativeConsent.open)}
+                  </a>
+                )}
+              </ListItem>
+            );
+          })}
+        </ListGroup>
+      )}
+      {list.hasNextPage && (
+        <Button type="button" variant="outline" disabled={list.isFetching} onClick={() => void list.fetchNextPage()}>
+          {t(strings.nativeConsent.more)}
+        </Button>
+      )}
+    </section>
+  );
 }

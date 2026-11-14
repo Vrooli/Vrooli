@@ -66,7 +66,7 @@ export async function availableServiceWorkerVersion(): Promise<string | null> {
 async function pushEndpointHost(): Promise<string> {
   if (!("serviceWorker" in navigator)) return "";
   const registration = await navigator.serviceWorker.getRegistration();
-  const subscription = await registration?.pushManager?.getSubscription?.();
+  const subscription = await registration?.pushManager.getSubscription();
   const endpoint = subscription?.endpoint;
   if (!endpoint) return "";
   try {

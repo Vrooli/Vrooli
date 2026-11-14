@@ -1,0 +1,15 @@
+{
+  "bottomNavLabel": "Mobile navigation",
+  "nav": {
+    "asks": "Needs you",
+    "dashboard": "Updates",
+    "history": "History",
+    "settings": "Settings"
+  },
+  "sidebarLabel": "Primary navigation",
+  "needsYouBadge": "{{count}} waiting",
+  "needsYouBadge_one": "1 waiting",
+  "account": {
+    "signedOut": "Not signed in"
+  }
+}

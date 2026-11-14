@@ -22,7 +22,7 @@
         "budget": {
           "max_bytes": "2GiB",
           "max_age": "90d",
-          "rationale": "Notification history is actively retained for 90 days and the SQLite working set is bounded to 2 GiB by the scenario maintenance pass."
+          "rationale": "Notifications and resolved asks are pruned at 90 days by the Hub's own daily retention pass (Service.Retain). The 2 GiB ceiling is a declared budget that no pass enforces by size, so a database past it is a signal to investigate, not a state the Hub corrects."
         },
         "rationale": "Durable notifications, recipient projections, routing decisions, delivery attempts, receipts, and conversation state."
       },
@@ -69,6 +69,20 @@
           "rationale": "The encoded P-256 VAPID private key is a single small stable secret; size bounds catch accidental replacement with unrelated data without rotating subscriptions."
         },
         "rationale": "Scenario-owned VAPID private key used to authenticate encrypted Web Push deliveries; the public half is returned to the authenticated UI and the private half never leaves state storage."
+      },
+      "decision-attachments": {
+        "class": "data",
+        "kind": "dir",
+        "subpath": "attachments",
+        "rung": "owned",
+        "regenerable": false,
+        "sensitive": true,
+        "budget": {
+          "max_bytes": "10GiB",
+          "max_age": "90d",
+          "rationale": "Decision packets copy attached files (up to 64 MiB each, 256 MiB per ask) so the operator judges exactly what the requester saw. The copies follow the 90-day decision history that references them: the Hub's daily retention pass removes resolved asks, and the same maintenance pass then deletes blobs no ask references 24 hours after their last use. Uploads no ask references yet are capped at 1 GiB. 10 GiB holds about forty maximal packets, far above a single operator's volume."
+        },
+        "rationale": "Content-addressed copies (sha256/<aa>/<hash>) of files and folders attached to decision asks, served only to the ask's recipient through the Hub's own content route. Attachments can hold anything the requester chose to attach, so the tree is sensitive."
       },
       "retention-receipts": {
         "class": "state",

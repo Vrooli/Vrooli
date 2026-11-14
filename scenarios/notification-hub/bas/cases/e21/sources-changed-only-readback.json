@@ -1,0 +1,209 @@
+{
+  "metadata": {
+    "name": "sources-changed-only-readback",
+    "description": "Turn off one event category, leave its sibling alone, and see the Hub hold exactly that change after a reload.",
+    "requirement": "NOTIFICA-P0-008",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "sources-changed-only-readback"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "Turn off one event category, leave its sibling alone, and see the Hub hold exactly that change after a reload.",
+      "requirement": "NOTIFICA-P0-008",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 1280,
+      "viewport_height": 900
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Open Settings so the page can reach the Hub API"
+          }
+        }
+      },
+      {
+        "id": "guard",
+        "action": {
+          "type": "ACTION_TYPE_SUBFLOW",
+          "subflow": {
+            "workflow_path": "actions/seed-owner.json",
+            "args": {
+              "profile": {
+                "string_value": "keep"
+              }
+            }
+          },
+          "metadata": {
+            "label": "Refuse to run unless the Hub answers as the routed test owner"
+          }
+        }
+      },
+      {
+        "id": "open-sources",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/sources?vrooli_test_mode=1",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Open Event sources"
+          }
+        }
+      },
+      {
+        "id": "wait-source",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/settings.source(scenario=settings-test-source)",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the declared test source"
+          }
+        }
+      },
+      {
+        "id": "turn-off-delivery",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settings.sourceToggle(scenario=settings-test-source,category=delivery)"
+          },
+          "metadata": {
+            "label": "Turn off Delivery updates only"
+          }
+        }
+      },
+      {
+        "id": "wait-off",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{for(let i=0;i<50;i+=1){const input=document.querySelector('[data-testid=\"notification-source-settings-test-source-delivery-toggle\"] input');if(input&&!input.checked)return true;await new Promise(r=>setTimeout(r,200));}throw new Error('Delivery updates never read as off');})()"
+          },
+          "metadata": {
+            "label": "Delivery updates reads as off"
+          }
+        }
+      },
+      {
+        "id": "reload",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings/sources?vrooli_test_mode=1",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Reload Event sources"
+          }
+        }
+      },
+      {
+        "id": "wait-reloaded",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/settings.source(scenario=settings-test-source)",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the source after reload"
+          }
+        }
+      },
+      {
+        "id": "assert-readback",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const response=await fetch('/api/v1/notifications/catalog',{headers:{'X-Vrooli-Browser-Session':'1','X-Vrooli-Test-Mode':'1'},credentials:'same-origin',cache:'no-store'});if(!response.ok)throw new Error('catalog read failed '+response.status);const catalog=await response.json();const saved=catalog.preferences.filter(p=>p.source_scenario==='settings-test-source');const card=document.querySelector('[data-testid=\"notification-source-settings-test-source\"]');const delivery=card.querySelector('input[aria-label=\"Allow Delivery updates\"]');const critical=card.querySelector('input[aria-label=\"Allow Critical notices\"]');if(delivery.checked||!critical.checked||saved.length!==1||saved[0].category!=='delivery'||saved[0].enabled!==false)throw new Error('changed-only mismatch '+JSON.stringify({delivery:delivery.checked,critical:critical.checked,saved}));return {storedRows:saved.length};})()"
+          },
+          "metadata": {
+            "label": "Exactly one stored choice: Delivery updates off, Critical notices untouched"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-00",
+        "source": "open-settings",
+        "target": "guard",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-01",
+        "source": "guard",
+        "target": "open-sources",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-02",
+        "source": "open-sources",
+        "target": "wait-source",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-03",
+        "source": "wait-source",
+        "target": "turn-off-delivery",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-04",
+        "source": "turn-off-delivery",
+        "target": "wait-off",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-05",
+        "source": "wait-off",
+        "target": "reload",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-06",
+        "source": "reload",
+        "target": "wait-reloaded",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-07",
+        "source": "wait-reloaded",
+        "target": "assert-readback",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

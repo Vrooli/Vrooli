@@ -93,14 +93,19 @@ type askGuideContext struct {
 	Outcome    string
 }
 
-// writeGuideReminder prints the reminder unless the run read the guide or the
-// ask can no longer change. It writes to stderr so --json output stays clean.
+// writeGuideReminder prints the reminder once per ask a run opens: not when the
+// run read the guide, not when the ask can no longer change, and not on a revision,
+// which is the run already acting on what the reminder says. It writes to stderr
+// so --json output stays clean.
 func writeGuideReminder(w io.Writer, receipt guideReceipt, ask askGuideContext) {
 	if receipt.Status == guideRead {
 		return
 	}
-	// An answered or operator-dismissed ask is closed; editing advice is noise.
-	if ask.Outcome == "returned" || ask.Outcome == "suppressed" {
+	switch ask.Outcome {
+	case "returned", "suppressed":
+		// An answered or operator-dismissed ask is closed; editing advice is noise.
+		return
+	case "updated", "reasserted":
 		return
 	}
 	var b strings.Builder
@@ -116,9 +121,9 @@ func writeGuideReminder(w io.Writer, receipt guideReceipt, ask askGuideContext) 
 	b.WriteString("  The operator reads this decision cold on a phone. The skill says how to write it so it can be answered without your context.\n")
 	fmt.Fprintf(&b, "  1. Read it if you have not: %s\n", guideReadCommand)
 	if strings.TrimSpace(ask.SubjectKey) != "" {
-		fmt.Fprintf(&b, "  2. If the ask falls short, fix it in place (no new push): run the same ask again with --subject-key %s and the same options, with a revised --question, --big-picture or --technical-details.\n", ask.SubjectKey)
+		fmt.Fprintf(&b, "  2. If the ask falls short, fix it in place (no new push): run ask again with --subject-key %s and only what changes, such as a revised --question, --big-picture or --technical-details; the rest of the ask stays.\n", ask.SubjectKey)
 	} else {
-		fmt.Fprintf(&b, "  2. If the ask falls short: this ask has no --subject-key, so it cannot be edited in place. Withdraw it with `notification-hub conversations withdraw --ask-id %s --reason 'rewritten'` and ask again with a --subject-key.\n", ask.AskID)
+		fmt.Fprintf(&b, "  2. If the ask falls short: this ask has no --subject-key, so it cannot be edited in place. Withdraw it with `notification-hub conversations withdraw %s --reason 'rewritten'` and ask again with a --subject-key.\n", ask.AskID)
 	}
 	_, _ = io.WriteString(w, b.String())
 }

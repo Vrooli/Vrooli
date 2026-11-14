@@ -1,41 +1,41 @@
-import {
-  Archive,
-  Bell,
-  ChartNoAxesCombined,
-  Inbox,
-  Settings,
-} from "lucide-react";
+import { Archive, Bell, Inbox, Settings } from "lucide-react";
 import { strings } from "../consts/strings";
 
 /**
- * Canonical nav-item list shared by `Sidebar` and `BottomNav` so the two
- * surfaces never drift. Replace these entries when this scenario's routes
- * change. `key` doubles as the selector parameter so tests can target a
- * specific link without binding to the translated label.
+ * The destinations of the Hub, in the order they appear in the phone tab bar and
+ * the desktop sidebar. `key` doubles as the selector parameter so tests can
+ * target a link without binding to the translated label. Delivery is not a
+ * destination of its own: it is the second tab of Updates, so the Updates item
+ * stays current on `/delivery` and `/delivery/:id` as well.
  */
 export interface NavItem {
   /** Selector parameter; stable across locales. */
-  key:
-    | "dashboard"
-    | "asks"
-    | "history"
-    | "delivery"
-    | "settings";
-  /** Router path. */
+  key: "dashboard" | "asks" | "history" | "settings";
+  /** Router path the item opens. */
   path: string;
-  /** True when this is the index route (used for `<NavLink end>`). */
-  end?: boolean;
+  /** Every path prefix that keeps this item current. */
+  within: readonly string[];
   /** Translation key path. */
   labelKey: (typeof strings.layout.nav)[keyof typeof strings.layout.nav];
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
-  { key: "asks", path: "/asks", labelKey: strings.layout.nav.asks },
-  { key: "dashboard", path: "/updates", end: true, labelKey: strings.layout.nav.dashboard },
-  { key: "history", path: "/history", labelKey: strings.layout.nav.history },
-  { key: "delivery", path: "/delivery", labelKey: strings.layout.nav.delivery },
-  { key: "settings", path: "/settings", labelKey: strings.layout.nav.settings },
+  { key: "asks", path: "/asks", within: ["/asks"], labelKey: strings.layout.nav.asks },
+  { key: "dashboard", path: "/updates", within: ["/updates", "/delivery"], labelKey: strings.layout.nav.dashboard },
+  { key: "history", path: "/history", within: ["/history"], labelKey: strings.layout.nav.history },
+  { key: "settings", path: "/settings", within: ["/settings"], labelKey: strings.layout.nav.settings },
 ];
+
+/**
+ * Whether the item is the current destination. A page may claim a destination
+ * (see `useClaimNavSection`), which wins; otherwise `pathname` decides, with the
+ * index route belonging to Needs you.
+ */
+export function isCurrent(item: NavItem, pathname: string, claimed: NavItem["key"] | null = null): boolean {
+  if (claimed) return item.key === claimed;
+  const path = pathname === "/" ? "/asks" : pathname;
+  return item.within.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+}
 
 export function iconForItem(item: NavItem) {
   const iconClass = "h-5 w-5";
@@ -48,7 +48,5 @@ export function iconForItem(item: NavItem) {
       return <Inbox aria-hidden className={iconClass} />;
     case "history":
       return <Archive aria-hidden className={iconClass} />;
-    case "delivery":
-      return <ChartNoAxesCombined aria-hidden className={iconClass} />;
   }
 }

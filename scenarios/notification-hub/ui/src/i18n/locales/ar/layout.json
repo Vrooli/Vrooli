@@ -1,0 +1,15 @@
+{
+  "sidebarLabel": "التنقل الرئيسي",
+  "bottomNavLabel": "التنقل على الهاتف",
+  "nav": {
+    "dashboard": "التحديثات",
+    "settings": "الإعدادات",
+    "asks": "بحاجة إلى ردك",
+    "history": "السجل"
+  },
+  "needsYouBadge": "{{count}} في الانتظار",
+  "needsYouBadge_one": "واحد في الانتظار",
+  "account": {
+    "signedOut": "غير مسجّل الدخول"
+  }
+}

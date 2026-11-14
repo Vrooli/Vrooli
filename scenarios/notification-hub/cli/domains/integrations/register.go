@@ -2,10 +2,7 @@ package integrations
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
-	"io"
-	"os"
 
 	"github.com/vrooli/cli-core/cliapp"
 )
@@ -20,36 +17,31 @@ type config struct {
 	} `json:"templates,omitempty"`
 }
 
-func Register(core *cliapp.ScenarioApp) cliapp.SubcommandGroup {
-	return cliapp.SubcommandGroup{
-		Name:        "integrations",
-		Description: "Inspect and update live event integration settings",
-		NeedsAPI:    true,
-		Subcommands: []cliapp.Command{
-			{Name: "event-config", Description: "Show live event integration settings", Run: func(args []string) error { return get(core) }},
-			{Name: "event-config-set", Description: "Update live event integration settings without restarting", Run: func(args []string) error { return set(core, args) }},
-		},
-	}
+// GroupName is the manifest group these commands belong to.
+const GroupName = "integrations"
+
+// Register builds the integrations group from cli/manifest.json. Both commands
+// call the API's event-integration settings route directly (it is an HTTP
+// settings document, not an RPC), so the manifest declares them local and this
+// package supplies their handlers by command name.
+func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
+	return cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
+		"event-config":     func(ctx cliapp.RunContext) error { return get(core, ctx) },
+		"event-config-set": func(ctx cliapp.RunContext) error { return set(core, ctx) },
+	})
 }
 
-func get(core *cliapp.ScenarioApp) error {
+func get(core *cliapp.ScenarioApp, ctx cliapp.RunContext) error {
 	body, err := core.Get("/config/event-integration", nil)
 	if err != nil {
 		return err
 	}
-	_, err = os.Stdout.Write(append(body, '\n'))
+	_, err = ctx.Stdout().Write(append(body, '\n'))
 	return err
 }
 
-func set(core *cliapp.ScenarioApp, args []string) error {
-	fs := flag.NewFlagSet("notification-hub integrations event-config-set", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-	base := fs.String("events-api-base", "", "vrooli-events API base URL")
-	target := fs.String("webhook-url", "", "notification-hub event webhook URL")
-	pattern := fs.String("pattern", "", "event subscription pattern")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
+func set(core *cliapp.ScenarioApp, ctx cliapp.RunContext) error {
+	base, target, pattern := ctx.Flag("events-api-base"), ctx.Flag("webhook-url"), ctx.Flag("pattern")
 	currentBody, err := core.Get("/config/event-integration", nil)
 	if err != nil {
 		return err
@@ -58,19 +50,19 @@ func set(core *cliapp.ScenarioApp, args []string) error {
 	if err := json.Unmarshal(currentBody, &current); err != nil {
 		return fmt.Errorf("decode current event integration config: %w", err)
 	}
-	if *base != "" {
-		current.EventsAPIBase = *base
+	if base != "" {
+		current.EventsAPIBase = base
 	}
-	if *target != "" {
-		current.WebhookURL = *target
+	if target != "" {
+		current.WebhookURL = target
 	}
-	if *pattern != "" {
-		current.Pattern = *pattern
+	if pattern != "" {
+		current.Pattern = pattern
 	}
 	updated, err := core.Request("PUT", "/config/event-integration", nil, current)
 	if err != nil {
 		return err
 	}
-	_, err = os.Stdout.Write(append(updated, '\n'))
+	_, err = ctx.Stdout().Write(append(updated, '\n'))
 	return err
 }

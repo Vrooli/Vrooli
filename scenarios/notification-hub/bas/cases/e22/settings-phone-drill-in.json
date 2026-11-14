@@ -1,0 +1,238 @@
+{
+  "metadata": {
+    "name": "settings-phone-drill-in",
+    "description": "On a phone, Settings is a list of summary rows; a row opens its screen and the back link returns to the list.",
+    "requirement": "NOTIFICA-P0-005",
+    "version": "1",
+    "labels": {
+      "reset": "none",
+      "routed_isolation": "true",
+      "requires_confirmation": "true",
+      "surface": "settings-phone-drill-in"
+    },
+    "execution_mode": "mutating"
+  },
+  "flow_definition": {
+    "metadata": {
+      "description": "On a phone, Settings is a list of summary rows; a row opens its screen and the back link returns to the list.",
+      "requirement": "NOTIFICA-P0-005",
+      "version": "1",
+      "execution_mode": "mutating",
+      "owner": "notification-hub"
+    },
+    "settings": {
+      "viewport_width": 390,
+      "viewport_height": 844
+    },
+    "nodes": [
+      {
+        "id": "open-settings",
+        "action": {
+          "type": "ACTION_TYPE_NAVIGATE",
+          "navigate": {
+            "destination_type": "NAVIGATE_DESTINATION_TYPE_SCENARIO",
+            "scenario": "notification-hub",
+            "scenario_path": "/settings?vrooli_test_mode=1",
+            "wait_until": "NAVIGATE_WAIT_EVENT_NETWORKIDLE",
+            "timeout_ms": 30000
+          },
+          "metadata": {
+            "label": "Open Settings"
+          }
+        }
+      },
+      {
+        "id": "wait-quiet-row",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/settings.row(key=quietHours)",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Wait for the Quiet hours row"
+          }
+        }
+      },
+      {
+        "id": "wait-escalation-row",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/settings.row(key=escalation)",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "The Escalation order row is in the same list"
+          }
+        }
+      },
+      {
+        "id": "wait-reach-row",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/settings.row(key=reach)",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "The Devices and channels row is in the same list"
+          }
+        }
+      },
+      {
+        "id": "zero-insets-list",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{const root=document.documentElement;root.style.setProperty('--safe-area-inset-top','0px');root.style.setProperty('--safe-area-inset-bottom','0px');return true;})()"
+          },
+          "metadata": {
+            "label": "Zero the safe-area insets so the capture matches a desktop browser"
+          }
+        }
+      },
+      {
+        "id": "capture-list",
+        "action": {
+          "type": "ACTION_TYPE_SCREENSHOT",
+          "screenshot": {
+            "full_page": false
+          },
+          "metadata": {
+            "label": "Capture the Settings list on a phone"
+          }
+        }
+      },
+      {
+        "id": "open-quiet",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settings.row(key=quietHours)"
+          },
+          "metadata": {
+            "label": "Open Quiet hours"
+          }
+        }
+      },
+      {
+        "id": "wait-quiet-add",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/quietHours.add",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "Quiet hours opens on its own screen"
+          }
+        }
+      },
+      {
+        "id": "assert-list-gone",
+        "action": {
+          "type": "ACTION_TYPE_EVALUATE",
+          "evaluate": {
+            "expression": "(async()=>{if(document.querySelector('[data-testid=\"settings-row-escalation\"]'))throw new Error('the list is still beside the quiet-hours screen on a phone');if(!location.pathname.endsWith('/settings/quiet-hours'))throw new Error('unexpected path '+location.pathname);return location.pathname;})()"
+          },
+          "metadata": {
+            "label": "The phone shows one screen, not the list beside it"
+          }
+        }
+      },
+      {
+        "id": "go-back",
+        "action": {
+          "type": "ACTION_TYPE_CLICK",
+          "click": {
+            "selector": "@selector/settings.back"
+          },
+          "metadata": {
+            "label": "Use the back link"
+          }
+        }
+      },
+      {
+        "id": "wait-list-again",
+        "action": {
+          "type": "ACTION_TYPE_WAIT",
+          "wait": {
+            "selector": "@selector/settings.row(key=escalation)",
+            "state": "WAIT_STATE_VISIBLE",
+            "timeout_ms": 15000
+          },
+          "metadata": {
+            "label": "The list is back"
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "edge-00",
+        "source": "open-settings",
+        "target": "wait-quiet-row",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-01",
+        "source": "wait-quiet-row",
+        "target": "wait-escalation-row",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-02",
+        "source": "wait-escalation-row",
+        "target": "wait-reach-row",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-03",
+        "source": "wait-reach-row",
+        "target": "zero-insets-list",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-04",
+        "source": "zero-insets-list",
+        "target": "capture-list",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-05",
+        "source": "capture-list",
+        "target": "open-quiet",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-06",
+        "source": "open-quiet",
+        "target": "wait-quiet-add",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-07",
+        "source": "wait-quiet-add",
+        "target": "assert-list-gone",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-08",
+        "source": "assert-list-gone",
+        "target": "go-back",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      },
+      {
+        "id": "edge-09",
+        "source": "go-back",
+        "target": "wait-list-again",
+        "type": "WORKFLOW_EDGE_TYPE_SMOOTHSTEP"
+      }
+    ]
+  }
+}

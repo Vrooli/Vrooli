@@ -168,6 +168,9 @@ type Message struct {
 	ID    string `json:"id,omitempty"`
 	URL   string `json:"url,omitempty"`
 	Icon  string `json:"icon,omitempty"`
+	// Awaiting is the asks waiting on the recipient, for the worker to set the app
+	// badge to. A pointer so that 0, which clears the badge, is still sent.
+	Awaiting *int `json:"awaiting,omitempty"`
 }
 
 func (s *Sender) Send(ctx context.Context, subscription Subscription, title, body string) (string, error) {

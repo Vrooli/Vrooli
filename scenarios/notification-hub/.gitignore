@@ -16,6 +16,10 @@
 /cli/cli
 /cli/main
 /cli/*.exe
+/api/cmd/schema-preflight/schema-preflight
+
+# Review screenshots belong in a scratchpad or a Test Genie/BAS run, not the tree
+/docs/mockups/**/*.png
 
 # Go test/coverage output
 /api/*.test

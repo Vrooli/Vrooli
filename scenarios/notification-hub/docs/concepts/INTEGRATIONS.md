@@ -156,15 +156,23 @@ the decision text follows the [`notification-hub` skill](../../skills/notificati
 |---|---|---|
 | `question` | yes | One sentence, at most 600 characters |
 | `options` | yes | 2–8 `{key, label}`; the key is what the requester gets back |
-| `recommended` | yes | One option key, shown first |
+| `recommended` | no | One option key, shown first. Leave it out when there is no honest preference; the operator then sees the options unranked |
 | `recommendation_reason` | no | At most 300 characters |
 | `default_answer` | no | One option key; allowed only with `reversible: true` |
 | `reversible` | with a default | The decision can be undone later |
 | `deadline` | no | RFC 3339; defaults to 24 h after receipt |
-| `urgency` | no | `low`, `normal`, `high` (default) or `critical`; only `critical` can pass a quiet window, and only when that window allows it |
+| `urgency` | no | `low`, `normal` (default), `high` or `critical`; say `high` when work is blocked on the answer right now. Only `critical` can pass a quiet window, and only when that window allows it |
 | `subject` | no | Short name shown in the title ("Decision needed: BAS") |
 | `context_url` | no | HTTPS/HTTP link, or a local artifact path opened in Web Console |
 | `correlation` | no | String map (at most 1 KB) echoed verbatim in the resolution event |
+
+An event carries no files and no answer form. A signed webhook has no verified
+sender, so the Hub drops attachments from an ask it did not receive from a verified
+agent run or the owner (`attachment_requires_identity`), and file bytes do not fit a
+JSON event. A decision that needs a packet is raised through the CLI or the direct
+`Ask` RPC instead; the [`notification-hub` skill](../../skills/notification-hub/SKILL.md)
+compares the routes. A producer builds the payload with
+`operatordecision.Facts`, whose zero values mean the Hub's defaults.
 
 Any scenario opts into operator asks by publishing a `*.decision_requested.v1`
 event with this payload — no code changes here. For example, Agent Manager
@@ -297,9 +305,77 @@ dismissed, and a late answer after a default) publishes one event through Vrooli
 `answered_at`, `by_default`, `late`, `default_answer`, `reason`, `source`,
 `source_event_type`, `requester_ref` (the event id or idempotency key that
 opened the ask), `subject_key`, `superseded_by_ask_id` (set on a decision a newer
-one replaced), `correlation` (the latest revision's), and `resolved_at`. Publication uses an outbox:
+one replaced), `correlation` (the latest revision's), and `resolved_at`. For an ask with an
+answer form it also carries `responses`, `attachment_notes` and `answer_summary`: `responses` is a list of
+`{question_id, selected[], text, sections[{section_key, verdict, note}]}` in question
+order (an empty list when there are none; a section review lists every section, an
+untouched one with the question's `unanswered_verdict`), `attachment_notes` is a list of
+`{attachment, path, note}` the operator pinned to attachments, and `answer_summary` is the plain-text
+rendering of the whole answer (option, note, responses; empty unless an operator
+answered), ready to paste into a requester's own log. Both are additive, so
+consumers that ignore them keep working. Publication uses an outbox:
 a failed publish is retried by the one-minute sweep, and the event id is
 derived from the content, so a retry is deduplicated by vrooli-events.
+
+**A consumer must not trust this event's body.** vrooli-events signs what it
+delivers but accepts an event from any caller with any `source`, so anything
+that can reach the bus can publish a `notification_hub.ask.resolved.v1` naming a
+real pending ask. A scenario applies a resolution only after reading the ask back
+from the Hub as its own ask-reader principal (`GetAsk` with the
+`<source>-ask-reader` token; the Hub shows it only its own source's asks) and
+applying the Hub's record, not the body's. `operatordecision.NewWebhook` does
+this for every effect (`packages/api-core/operatordecision/README.md`);
+`GetAsk` returns the ask's `correlation` for exactly that reason, because every
+effect locates its own record by it.
+
+### Context requests (`notification_hub.ask.context_requested.v1`)
+
+When the recipient taps "I need more context" on an open ask, the ask stays
+open and the hub publishes one event with source `notification-hub` through the
+same outbox and sweep as resolutions (an unpublished request is retried every
+minute, and the event id is derived from the content). The payload carries
+`ask_id`, `request_id`, `question` (the recipient's words), `requested_at`,
+`source`, `source_event_type`, `requester_ref` (the event id of the revision
+the ask shows when the event is published), `subject_key`, and `correlation`
+(the latest revision's), so a requester matches it the way it matches a
+resolution. The event type, the payload struct (`ContextRequest`) and its decoder
+(`DecodeContextRequest`) live in `packages/api-core/operatordecision`, and the Hub
+builds the payload from that struct. Nothing subscribes to it by default; a
+requester that wants to answer questions subscribes to the pattern
+`notification_hub.ask.context_requested.v1`.
+
+The Hub offers the operator the question only for a decision whose producer
+declared it answers: `accepts_context_requests: true` in the `decision_requested`
+payload (`operatordecision.Facts.AcceptsContextRequests`, which requires a
+`subject_key`). A producer that does not declare it gets no event and its
+decisions show no question button.
+
+**Opting in (event-driven producers).** (1) Set `Facts.AcceptsContextRequests`
+and a `SubjectKey`. (2) Subscribe the producer's existing resolution webhook to
+`notification_hub.ask.context_requested.v1` as well as
+`notification_hub.ask.resolved.v1`. (3) Make the `DomainEffect` that owns the
+decision also implement `operatordecision.ContextResponder`:
+`RespondToContext(ctx, ContextRequest)` revises the decision (the same `Facts`
+with the answer in `BigPicture` or `TechnicalDetails`, and the same `SubjectKey`)
+and returns `handled=true`; a request it already answered returns
+`(true, nil)`. `operatordecision.Webhook` routes the event; an effect without the
+method is never called. Producers that raise keyed decisions and should adopt it,
+none has yet: deployment-manager (release decisions), swarm-manager (proposal
+decisions), storage-manager (deletion grants), data-backup-manager (destination
+and sensitive-coverage decisions), vrooli-autoheal (remediation decisions),
+agent-manager (usage modes, evidence retention, authorization; a run-bound
+decision could forward the question to the raising run) and research-desk.
+
+The requester answers by sending the same request with the same `subject_key` and
+a `context_response` (`AskRequest.context_response`, 1-4,000 characters; not a
+term of the ask), with or without changed text. That marks every open request
+addressed (`addressed_at`, `addressed_revision`), stores the response with it
+(`response`) and clears the operator's "waiting for context" state. A revision
+with no response also addresses the questions; a request with identical text and no
+response only re-asserts the ask and answers nothing. A requester that declared it answers and waits with `Wait(return_on_context_request)`
+gets the question without a subscription. There is no new declared event
+subscription or catalog entry: the event type is documented here and in
+[`DECISION_PACKETS.md`](DECISION_PACKETS.md#context-requests).
 
 ## Cross-References
 

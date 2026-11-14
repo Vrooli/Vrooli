@@ -2,42 +2,10 @@ import {
   createBrowserRouter,
   createMemoryRouter,
   RouterProvider,
-  type RouteObject,
+  type MemoryRouterProps,
 } from "react-router-dom";
 
-import { AppShell } from "../layout/AppShell";
-import { DashboardPage } from "../pages/DashboardPage";
-import { SettingsPage } from "../pages/SettingsPage";
-import { AskPage } from "../features/asks/AskPage";
-import { AsksPage } from "../features/asks/AsksPage";
-import { HistoryPage } from "../features/asks/HistoryPage";
-import { DeliveryPage } from "../pages/DeliveryPage";
-import { DeliveryDetailPage } from "../pages/DeliveryDetailPage";
-import { ReachPage } from "../pages/ReachPage";
-
-/**
- * Canonical route table. Exported so tests can construct an in-memory router
- * from the same config the production app uses.
- *
- * Add new pages by appending to the `children` array.
- */
-export const routes: RouteObject[] = [
-  {
-    path: "/",
-    element: <AppShell />,
-    children: [
-      { index: true, element: <AsksPage /> },
-      { path: "updates", element: <DashboardPage /> },
-      { path: "asks", element: <AsksPage /> },
-      { path: "asks/:askId", element: <AskPage /> },
-      { path: "history", element: <HistoryPage /> },
-      { path: "delivery", element: <DeliveryPage /> },
-      { path: "delivery/:notificationId", element: <DeliveryDetailPage /> },
-      { path: "settings", element: <SettingsPage /> },
-      { path: "settings/reach", element: <ReachPage /> },
-    ],
-  },
-];
+import { routes } from "./routeTable";
 
 // Opt in before React Router v7 makes these behaviors the defaults. Data
 // routers own both flags; RouterProvider owns transition scheduling only.
@@ -63,7 +31,7 @@ export function AppRouter() {
  * Test helper: render the same routes against an in-memory router with a
  * specific starting URL. Only used by `routes.test.tsx`.
  */
-export function TestAppRouter({ initialEntries }: { initialEntries: string[] }) {
+export function TestAppRouter({ initialEntries }: { initialEntries: NonNullable<MemoryRouterProps["initialEntries"]> }) {
   const router = createMemoryRouter(routes, { initialEntries, future: dataRouterFuture });
   return <RouterProvider router={router} future={routerProviderFuture} />;
 }

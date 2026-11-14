@@ -84,7 +84,7 @@ func notificationSendInput(recipient, sourceScenario, eventType, eventID string,
 		DedupeKey:        dedupeKey,
 		SourceScenario:   sourceScenario,
 		Category:         strings.TrimSpace(facts.Category),
-		ContextURL:       strings.TrimSpace(facts.ContextURL),
+		ContextURL:       eventContextURL(sourceScenario, eventType, facts.ContextURL),
 		ScopeKey:         strings.TrimSpace(facts.ScopeKey),
 	}
 }

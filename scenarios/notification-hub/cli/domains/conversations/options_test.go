@@ -1,6 +1,7 @@
 package conversations
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -23,16 +24,18 @@ func TestParseOptionsRejectsTooFewOrRepeatedKeys(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestParseDeadlineAcceptsTimeOrDuration(t *testing.T) {
+func TestParseTimeAcceptsATimeOrADurationAndNamesTheFlagThatWasWrong(t *testing.T) {
 	now := time.Date(2026, time.October, 7, 12, 0, 0, 0, time.UTC)
-	got, err := parseDeadline("24h", now)
+	got, err := parseTime("--expires", "24h", now)
 	require.NoError(t, err)
 	require.Equal(t, "2026-10-08T12:00:00Z", got)
-	got, err = parseDeadline("2026-10-09T08:30:00+02:00", now)
+	got, err = parseTime("--timeout", "2026-10-09T08:30:00+02:00", now)
 	require.NoError(t, err)
 	require.Equal(t, "2026-10-09T06:30:00Z", got)
-	_, err = parseDeadline("tomorrow", now)
-	require.Error(t, err)
+	_, err = parseTime("--timeout", "tomorrow", now)
+	require.ErrorContains(t, err, `--timeout "tomorrow" must be an RFC 3339 time or a positive duration such as 24h`)
+	_, err = parseTime("--expires", "-5m", now)
+	require.ErrorContains(t, err, "--expires")
 }
 
 func TestWaitContextOutlivesDefaultTimeoutUntilDeadline(t *testing.T) {
@@ -73,4 +76,19 @@ func TestAskOutcomeLineSaysWhatTheHubDid(t *testing.T) {
 	} {
 		require.Equal(t, want, askOutcomeLine(&v1.AskResponse{AskId: "a-1", Outcome: outcome}), outcome)
 	}
+}
+
+func TestParseOptionsTakesTwoToEightLikeTheHub(t *testing.T) {
+	var values []string
+	for i := 0; i < maxOptions; i++ {
+		values = append(values, fmt.Sprintf("k%d", i))
+	}
+	options, err := parseOptions(values)
+	require.NoError(t, err)
+	require.Len(t, options, maxOptions)
+
+	_, err = parseOptions(append(values, "one-too-many"))
+	require.ErrorContains(t, err, "2 to 8 --option values, got 9")
+	_, err = parseOptions(values[:1])
+	require.ErrorContains(t, err, "2 to 8 --option values, got 1")
 }

@@ -7,7 +7,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 
-import { readLocalPreference, ThemeProvider, usePreferenceStorageUnavailable, useTheme, type ThemeChoice } from "./ThemeProvider";
+import { readLocalPreference, usePreferenceStorageUnavailable } from "./preferenceStorage";
+import { ThemeProvider } from "./ThemeProvider";
+import { useTheme, type ThemeChoice } from "./themeContext";
 
 const STORAGE_KEY = "vrooli.theme";
 
@@ -88,7 +90,7 @@ describe("ThemeProvider", () => {
   });
 
   it("persists the latest theme and clears its warning after storage recovers", () => {
-    const nativeSetItem = Storage.prototype.setItem;
+    const { setItem: nativeSetItem } = Storage.prototype as { setItem: (this: Storage, key: string, value: string) => void };
     let denyWrites = true;
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key: string, value: string) {
       if (denyWrites) throw new DOMException("blocked", "SecurityError");

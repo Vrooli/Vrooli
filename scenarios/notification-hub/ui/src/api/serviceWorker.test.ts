@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { availableServiceWorkerVersion, readConnectionStatus } from "./serviceWorker";
+import { availableServiceWorkerVersion, forceServiceWorkerUpdate, readConnectionStatus, runningServiceWorkerVersion } from "./serviceWorker";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -69,5 +69,95 @@ describe("readConnectionStatus staleness", () => {
     expect(status.stale).toBe(false);
     expect(status.subscribed).toBe(false);
     expect(status.controlled).toBe(true);
+  });
+});
+
+describe("runningServiceWorkerVersion", () => {
+  it("is null where service workers do not exist", async () => {
+    vi.stubGlobal("navigator", {});
+    expect(await runningServiceWorkerVersion()).toBeNull();
+  });
+
+  it("is null when nothing is registered or active yet", async () => {
+    vi.stubGlobal("navigator", { serviceWorker: { getRegistration: () => Promise.resolve(undefined) } });
+    expect(await runningServiceWorkerVersion()).toBeNull();
+    vi.stubGlobal("navigator", { serviceWorker: { getRegistration: () => Promise.resolve({ active: null }) } });
+    expect(await runningServiceWorkerVersion()).toBeNull();
+  });
+
+  it("gives up after two seconds on a worker that never answers", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal("navigator", { serviceWorker: { getRegistration: () => Promise.resolve({ active: { postMessage: () => undefined } }) } });
+      const pending = runningServiceWorkerVersion();
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(await pending).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores a reply that carries no version", async () => {
+    const active = { postMessage: (_m: unknown, ports: MessagePort[]) => ports[0]!.postMessage({ type: "VERSION" }) };
+    vi.stubGlobal("navigator", { serviceWorker: { getRegistration: () => Promise.resolve({ active }) } });
+    expect(await runningServiceWorkerVersion()).toBeNull();
+  });
+});
+
+describe("readConnectionStatus where push is not possible", () => {
+  it("reports unsupported, uncontrolled and unsubscribed without throwing", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: false })));
+    vi.stubGlobal("navigator", {});
+    vi.stubGlobal("Notification", undefined);
+    const status = await readConnectionStatus();
+    expect(status).toMatchObject({ supported: false, permission: "unsupported", controlled: false, stale: false, subscribed: false, endpointHost: "" });
+  });
+
+  it("shows no host for a push endpoint that is not a URL", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: false })));
+    const registration = { active: null, pushManager: { getSubscription: () => Promise.resolve({ endpoint: "not a url" }) } };
+    vi.stubGlobal("navigator", { serviceWorker: { controller: null, getRegistration: () => Promise.resolve(registration) } });
+    vi.stubGlobal("Notification", { permission: "default" });
+    const status = await readConnectionStatus();
+    expect(status.endpointHost).toBe("");
+    expect(status.subscribed).toBe(false);
+  });
+
+  it("does not call a worker stale when the deployed version cannot be read", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))));
+    vi.stubGlobal("navigator", { serviceWorker: { controller: {}, getRegistration: () => Promise.resolve({ active: null, pushManager: { getSubscription: () => Promise.resolve(null) } }) } });
+    vi.stubGlobal("PushManager", function () {});
+    vi.stubGlobal("Notification", { permission: "granted" });
+    expect((await readConnectionStatus()).stale).toBe(false);
+  });
+});
+
+describe("forceServiceWorkerUpdate", () => {
+  const withRegistration = (registration: unknown) => {
+    const addEventListener = vi.fn();
+    vi.stubGlobal("navigator", { serviceWorker: { getRegistration: () => Promise.resolve(registration), addEventListener } });
+    return addEventListener;
+  };
+
+  it("does nothing where service workers do not exist or none is registered", async () => {
+    vi.stubGlobal("navigator", {});
+    expect(await forceServiceWorkerUpdate()).toBe(false);
+    withRegistration(undefined);
+    expect(await forceServiceWorkerUpdate()).toBe(false);
+  });
+
+  it("promotes a waiting worker and reloads once it takes control", async () => {
+    const postMessage = vi.fn();
+    const update = vi.fn(() => Promise.resolve());
+    const addEventListener = withRegistration({ update, waiting: { postMessage }, installing: null });
+    expect(await forceServiceWorkerUpdate()).toBe(true);
+    expect(update).toHaveBeenCalled();
+    expect(postMessage).toHaveBeenCalledWith({ type: "SKIP_WAITING" });
+    expect(addEventListener).toHaveBeenCalledWith("controllerchange", expect.any(Function), { once: true });
+  });
+
+  it("reports false when the re-check finds nothing newer", async () => {
+    withRegistration({ update: () => Promise.resolve(), waiting: null, installing: null });
+    expect(await forceServiceWorkerUpdate()).toBe(false);
   });
 });

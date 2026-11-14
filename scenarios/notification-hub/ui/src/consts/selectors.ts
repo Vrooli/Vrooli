@@ -8,6 +8,17 @@ import { LOCALE_CODES } from "../i18n/locales";
 import { createSelectorRegistry, defineDynamicSelector, type LiteralSelectorTree, type DynamicSelectorTree } from "@vrooli/ui-selectors";
 export { createSelectorRegistry, defineDynamicSelector } from "@vrooli/ui-selectors";
 
+/**
+ * AlertDialog builds its test ids from a prefix: `<prefix>-dialog`, `-confirm`
+ * and `-cancel`. Each dialog the cases drive has one prefix, used both by the
+ * component and by the selectors below.
+ */
+export const dialogPrefixes = {
+  quietRemoval: "quiet-hours-removal",
+  deviceRemoval: "reach-device-removal",
+  channelWiden: "reach-channel-widen",
+} as const;
+
 const literalSelectors = {
   app: {
     title: "app-title",
@@ -22,12 +33,10 @@ const literalSelectors = {
     serviceValue: "health-service-value",
     timestampValue: "health-timestamp-value",
     refreshButton: "health-refresh-button",
-    refreshCount: "health-refresh-count",
   },
   layout: {
     shell: "layout-shell",
     main: "layout-shell-main",
-    menu: "layout-shell-menu",
   },
   theme: {
     switcher: "theme-switcher",
@@ -41,10 +50,13 @@ const literalSelectors = {
     history: "page-history",
     delivery: "page-delivery",
     deliveryDetail: "page-delivery-detail",
+    notFound: "page-not-found",
   },
   delivery: {
-    analyticsRecordsAction: "delivery-analytics-records-link",
     analyticsRetry: "delivery-analytics-retry",
+  },
+  history: {
+    filterStrip: "history-filter-strip",
   },
   asks: {
     list: "asks-list",
@@ -56,14 +68,40 @@ const literalSelectors = {
     status: "ask-status",
     defaultNotice: "ask-default-notice",
     retryFileLinks: "ask-retry-file-links",
+    loadRetry: "asks-load-retry",
+    sort: "asks-sort",
+    filtersOpen: "asks-filters-open",
+    filtersSheet: "asks-filters-sheet",
+    filtersShow: "asks-filters-show",
+    filtersClear: "asks-filters-clear",
+    activeFilters: "asks-active-filters",
+    senderChip: "asks-filter-sender",
+    group: "asks-group",
   },
-  reach: {
-    root: "reach-settings",
-    emptyDevices: "reach-empty-devices",
-    addBrowser: "reach-add-browser",
-    refreshDevices: "reach-refresh-devices",
-    permissionRecovery: "reach-permission-recovery",
-    permissionRecoveryBack: "reach-permission-recovery-back",
+  packet: {
+    explainer: "packet-explainer",
+    attachments: "packet-attachments",
+    attachment: "packet-attachment",
+    question: "packet-question",
+    form: "packet-form",
+    send: "packet-send",
+    startAnswer: "packet-start-answer",
+    acceptRecommended: "packet-accept-recommended",
+    contextUnavailable: "packet-context-unavailable",
+    loadRetry: "packet-load-retry",
+    textLink: "packet-text-link",
+    viewerOpenTab: "packet-viewer-open-tab",
+    needContext: "packet-need-context",
+    contextQuestion: "packet-context-question",
+    sendContext: "packet-send-context",
+    contextRequests: "packet-context-requests",
+    nextDecision: "packet-next-decision",
+    viewer: "packet-viewer",
+    viewerPrevious: "packet-viewer-previous",
+    viewerNext: "packet-viewer-next",
+    viewerComment: "packet-viewer-comment",
+    viewerNote: "packet-viewer-note",
+    viewerSaveNote: "packet-viewer-save-note",
   },
   session: {
     form: "session-form",
@@ -78,38 +116,59 @@ const literalSelectors = {
     root: "error-boundary-root",
     retryButton: "error-boundary-retry",
   },
-  quietHours: {
-    root: "quiet-hours-root",
-    openWeek: "quiet-hours-open-week",
-    saveButton: "quiet-hours-save",
-    stageRemoval: "quiet-hours-stage-removal",
-    review: "quiet-hours-review",
-    reviewButton: "quiet-hours-review-button",
-    message: "quiet-hours-message",
-    checkSavedButton: "quiet-hours-check-saved",
-    timezoneReview: "quiet-hours-timezone-review",
-    timezoneReviewStage: "quiet-hours-timezone-review-stage",
-    timezoneReviewKeepEditing: "quiet-hours-timezone-review-keep-editing",
-  },
   deviceApps: {
     root: "device-apps-root",
     removeButton: "device-apps-remove",
     message: "device-apps-message",
   },
-  escalationOrder: {
-    root: "escalation-order-root",
-    openButton: "escalation-order-open",
-    list: "escalation-order-list",
-    addSelect: "escalation-order-add-select",
-    addButton: "escalation-order-add",
-    clearButton: "escalation-order-clear",
-    confirmClear: "escalation-order-confirm-clear",
-    cancelClear: "escalation-order-cancel-clear",
-    saveButton: "escalation-order-save",
-    checkSavedButton: "escalation-order-check-saved",
-    editButton: "escalation-order-edit",
-    review: "escalation-order-review",
-    message: "escalation-order-message",
+  settings: {
+    back: "settings-back",
+  },
+  quietHours: {
+    add: "quiet-hours-add",
+    editor: "quiet-hours-editor",
+    save: "quiet-hours-save",
+    remove: "quiet-hours-remove",
+    start: "quiet-hours-start",
+    end: "quiet-hours-end",
+    timezone: "quiet-hours-timezone",
+    critical: "quiet-hours-critical",
+    issue: "quiet-hours-issue",
+    overnight: "quiet-hours-overnight",
+    removeDialog: `${dialogPrefixes.quietRemoval}-dialog`,
+    removeConfirm: `${dialogPrefixes.quietRemoval}-confirm`,
+    problem: "quiet-hours-problem",
+    message: "quiet-hours-message",
+  },
+  escalation: {
+    list: "escalation-list",
+    add: "escalation-add",
+    addSheet: "escalation-add-sheet",
+    save: "escalation-save",
+    discard: "escalation-discard",
+    message: "escalation-message",
+    problem: "escalation-problem",
+  },
+  reach: {
+    root: "reach-settings",
+    addBrowser: "reach-add-browser",
+    refreshDevices: "reach-refresh-devices",
+    connectionStatus: "connection-status",
+    subscriptionValue: "connection-subscription-value",
+    browserState: "reach-browser-state",
+    enrollResult: "reach-enroll-result",
+    addEmail: "reach-add-email",
+    removeDevice: "reach-remove-device",
+    removeDeviceDialog: `${dialogPrefixes.deviceRemoval}-dialog`,
+    removeDeviceConfirm: `${dialogPrefixes.deviceRemoval}-confirm`,
+    widenDialog: `${dialogPrefixes.channelWiden}-dialog`,
+    widenConfirm: `${dialogPrefixes.channelWiden}-confirm`,
+    deviceRemoved: "reach-device-removed",
+    channelSaved: "reach-channel-saved",
+    channelProblem: "reach-channel-problem",
+    channelSave: "reach-channel-save",
+    emailDestination: "reach-email-destination",
+    unknownLabelPreserved: "reach-unknown-label-preserved",
   },
 } satisfies LiteralSelectorTree;
 
@@ -125,16 +184,15 @@ const dynamicSelectorDefinitions = {
             "dashboard",
             "asks",
             "history",
-            "delivery",
             "settings",
           ] as const,
         },
       },
     }),
     visibleNavLink: defineDynamicSelector({
-      description: "Visible primary destination in sidebar, compact menu or bottom navigation",
+      description: "Visible primary destination in the sidebar or the bottom tab bar",
       selectorPattern: '[data-testid="layout-nav-link-${key}"]:visible, [data-testid="layout-nav-link-${key}-tab"]:visible',
-      params: { key: { type: "enum", values: ["dashboard", "asks", "history", "delivery", "settings"] as const } },
+      params: { key: { type: "enum", values: ["dashboard", "asks", "history", "settings"] as const } },
     }),
 
   },
@@ -145,7 +203,26 @@ const dynamicSelectorDefinitions = {
       params: { id: { type: "string" } },
     }),
   },
+  updates: {
+    tab: defineDynamicSelector({
+      description: "Updates or Delivery tab in the Updates section switcher",
+      testIdPattern: "updates-tab-${id}",
+      params: { id: { type: "enum", values: ["updates", "delivery"] as const } },
+    }),
+  },
+  asks: {
+    urgencyChip: defineDynamicSelector({
+      description: "Urgency filter chip in the decision filter sheet",
+      testIdPattern: "asks-filter-urgency-${urgency}",
+      params: { urgency: { type: "enum", values: ["critical", "high", "normal", "low"] as const } },
+    }),
+  },
   history: {
+    row: defineDynamicSelector({
+      description: "One request row in the decision list or History, by request ID",
+      selectorPattern: '[data-request-id="${id}"]',
+      params: { id: { type: "string" } },
+    }),
     filterLink: defineDynamicSelector({
       description: "History filter link by request lifecycle state",
       testIdPattern: "history-filter-${state}",
@@ -164,83 +241,82 @@ const dynamicSelectorDefinitions = {
       params: { code: { type: "enum", values: LOCALE_CODES } },
     }),
   },
+  settings: {
+    row: defineDynamicSelector({
+      description: "Row for one settings screen, in the settings list",
+      testIdPattern: "settings-row-${key}",
+      params: { key: { type: "enum", values: ["reach", "quietHours", "escalation", "appearance", "session", "sources"] as const } },
+    }),
+    source: defineDynamicSelector({
+      description: "Event source group by source scenario id",
+      testIdPattern: "notification-source-${scenario}",
+      params: { scenario: { type: "string" } },
+    }),
+    sourceToggle: defineDynamicSelector({
+      description: "The on/off switch of one event category, by source scenario id and category key",
+      testIdPattern: "notification-source-${scenario}-${category}-toggle",
+      params: { scenario: { type: "string" }, category: { type: "string" } },
+    }),
+  },
   quietHours: {
-    timezoneReviewInput: defineDynamicSelector({
-      description: "New timezone input on a quiet-window timezone review",
-      testIdPattern: "quiet-hours-timezone-review-input-${day}",
+    schedule: defineDynamicSelector({
+      description: "Quiet-hours schedule row, by its first weekday index (Sunday is 0)",
+      testIdPattern: "quiet-hours-schedule-${day}",
       params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
     }),
-    timezoneReviewOpen: defineDynamicSelector({
-      description: "Open the explicit quiet-window timezone review for a weekday index",
-      testIdPattern: "quiet-hours-timezone-review-open-${day}",
-      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
-    }),
-    editDay: defineDynamicSelector({
-      description: "Open the quiet-hours editor for a weekday index",
-      testIdPattern: "quiet-hours-edit-day-${day}",
-      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
-    }),
-    doneDay: defineDynamicSelector({
-      description: "Stage and close the quiet-hours editor for a weekday index",
-      testIdPattern: "quiet-hours-done-${day}",
-      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
-    }),
-    cancelDay: defineDynamicSelector({
-      description: "Discard and close the quiet-hours editor for a weekday index",
-      testIdPattern: "quiet-hours-cancel-${day}",
-      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
-    }),
-    dayEnabled: defineDynamicSelector({
-      description: "Quiet-hours enabled checkbox by weekday index",
-      testIdPattern: "quiet-hours-enabled-${day}",
-      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
-    }),
-    dayStart: defineDynamicSelector({
-      description: "Quiet-hours start-time input by weekday index",
-      testIdPattern: "quiet-hours-start-${day}",
-      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
-    }),
-    dayEnd: defineDynamicSelector({
-      description: "Quiet-hours end-time input by weekday index",
-      testIdPattern: "quiet-hours-end-${day}",
-      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
-    }),
-    dayTimezone: defineDynamicSelector({
-      description: "Quiet-hours timezone input by weekday index",
-      testIdPattern: "quiet-hours-timezone-${day}",
-      params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
-    }),
-    removeDay: defineDynamicSelector({
-      description: "Stage removal of the saved quiet window for a weekday index",
-      testIdPattern: "quiet-hours-remove-${day}",
+    day: defineDynamicSelector({
+      description: "Weekday toggle in the quiet-hours editor, by weekday index (Sunday is 0)",
+      testIdPattern: "quiet-hours-day-${day}",
       params: { day: { type: "enum", values: ["0", "1", "2", "3", "4", "5", "6"] as const } },
     }),
   },
-  escalationOrder: {
-    channelChoice: defineDynamicSelector({
-      description: "Supported channel choice in the escalation-order Add a channel view",
-      testIdPattern: "escalation-order-channel-choice-${channel}",
-      params: { channel: { type: "enum", values: ["browser", "email", "webhook", "web_push"] as const } },
-    }),
-    channelRow: defineDynamicSelector({
-      description: "Escalation channel row by stable channel key",
-      testIdPattern: "escalation-order-channel-${channel}",
+  escalation: {
+    step: defineDynamicSelector({
+      description: "Escalation step row by channel key",
+      testIdPattern: "escalation-step-${channel}",
       params: { channel: { type: "string" } },
     }),
     moveUp: defineDynamicSelector({
-      description: "Escalation channel move-up control by stable channel key",
-      testIdPattern: "escalation-order-up-${channel}",
+      description: "Move an escalation step up, by channel key",
+      testIdPattern: "escalation-up-${channel}",
       params: { channel: { type: "string" } },
     }),
     moveDown: defineDynamicSelector({
-      description: "Escalation channel move-down control by stable channel key",
-      testIdPattern: "escalation-order-down-${channel}",
+      description: "Move an escalation step down, by channel key",
+      testIdPattern: "escalation-down-${channel}",
       params: { channel: { type: "string" } },
     }),
     remove: defineDynamicSelector({
-      description: "Escalation channel removal control by stable channel key",
-      testIdPattern: "escalation-order-remove-${channel}",
+      description: "Remove an escalation step, by channel key",
+      testIdPattern: "escalation-remove-${channel}",
       params: { channel: { type: "string" } },
+    }),
+    choice: defineDynamicSelector({
+      description: "Channel choice in the Add a channel sheet, by channel key",
+      testIdPattern: "escalation-choice-${channel}",
+      params: { channel: { type: "string" } },
+    }),
+  },
+  reach: {
+    device: defineDynamicSelector({
+      description: "Device row in the devices list, by device id",
+      testIdPattern: "reach-device-${id}",
+      params: { id: { type: "string" } },
+    }),
+    channel: defineDynamicSelector({
+      description: "Channel row on a device page, by channel key",
+      testIdPattern: "reach-channel-${channel}",
+      params: { channel: { type: "string" } },
+    }),
+    channelEdit: defineDynamicSelector({
+      description: "Edit link of a channel row on a device page, by channel key",
+      testIdPattern: "reach-channel-edit-${channel}",
+      params: { channel: { type: "string" } },
+    }),
+    label: defineDynamicSelector({
+      description: "Content-label checkbox on the channel editor",
+      testIdPattern: "reach-label-${label}",
+      params: { label: { type: "enum", values: ["public", "private", "sensitive", "critical"] as const } },
     }),
   },
 } satisfies DynamicSelectorTree;

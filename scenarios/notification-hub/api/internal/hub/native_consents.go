@@ -14,16 +14,26 @@ import (
 	"github.com/google/uuid"
 )
 
+// Agent Manager owns interactive authorizations; its request notice is the only
+// source and category the Hub projects as a native permission request.
+const (
+	nativeConsentSource   = "agent-manager"
+	nativeConsentCategory = "authorization-requested"
+)
+
 // NativeConsentReader reads only the source's effective state. No approve,
 // dismiss, grant, delivery, or retry operation is part of this seam.
 type NativeConsentReader interface {
 	ReadConsent(context.Context, string) (NativeConsentStatus, error)
 }
-type NativeConsentStatus struct{ AuthorizationID, State, ReviewExpiresAt string }
-type NativeConsent struct {
-	AuthorizationID, NotificationID, Source, Title, Body, ReviewURL string
-	State, ReviewExpiresAt, ObservedAt, CreatedAt                   string
-}
+type (
+	NativeConsentStatus struct{ AuthorizationID, State, ReviewExpiresAt string }
+	NativeConsent       struct {
+		AuthorizationID, NotificationID, Source, Title, Body, ReviewURL string
+		State, ReviewExpiresAt, ObservedAt, CreatedAt                   string
+	}
+)
+
 type NativeConsentPage struct {
 	Consents   []NativeConsent
 	NextCursor string
@@ -58,8 +68,8 @@ func (s *Service) ListNativeConsents(ctx context.Context, recipient, query, curs
 			return out, ErrInvalidArgument
 		}
 	}
-	sql := `SELECT id, title, body, context_url, dedupe_key, created_at FROM notifications WHERE requested_by = ? AND source_scenario = 'agent-manager' AND category = 'authorization-requested' AND instr(lower(title || ' ' || body), lower(?)) > 0`
-	args := []any{recipient, query}
+	sql := `SELECT id, title, body, context_url, dedupe_key, created_at FROM notifications WHERE requested_by = ? AND source_scenario = ? AND category = ? AND instr(lower(title || ' ' || body), lower(?)) > 0`
+	args := []any{recipient, nativeConsentSource, nativeConsentCategory, query}
 	if cursor != "" {
 		sql += ` AND (created_at < ? OR (created_at = ? AND id < ?))`
 		args = append(args, after.CreatedAt, after.CreatedAt, after.ID)
@@ -77,7 +87,7 @@ func (s *Service) ListNativeConsents(ctx context.Context, recipient, query, curs
 			rows.Close()
 			return out, err
 		}
-		c.Source = "agent-manager"
+		c.Source = nativeConsentSource
 		c.State = "unavailable"
 		candidates = append(candidates, c)
 	}
@@ -127,7 +137,7 @@ func (s *Service) ListNativeConsents(ctx context.Context, recipient, query, curs
 					}
 					c.State = "pending"
 					c.ReviewExpiresAt = status.ReviewExpiresAt
-					c.ObservedAt = s.clock.Now().UTC().Format(time.RFC3339Nano)
+					c.ObservedAt = storedTime(s.clock.Now())
 				case "approved", "revoked", "expired", "superseded":
 					closed[i] = true
 				}
@@ -145,6 +155,20 @@ func (s *Service) ListNativeConsents(ctx context.Context, recipient, query, curs
 		}
 	}
 	return out, nil
+}
+
+// NativeConsentReviewURL is the original Agent Manager approval page when this
+// notification is a native permission request, and "" for every other
+// notification. It is the same identity test ListNativeConsents applies, and it
+// asks Agent Manager nothing: the page it names shows the live state.
+func (n Notification) NativeConsentReviewURL() string {
+	if n.SourceScenario != nativeConsentSource || n.Category != nativeConsentCategory {
+		return ""
+	}
+	if !validNativeConsentIdentity(NativeConsent{AuthorizationID: n.DedupeKey, ReviewURL: n.ContextURL}) {
+		return ""
+	}
+	return n.ContextURL
 }
 
 func validNativeConsentIdentity(c NativeConsent) bool {

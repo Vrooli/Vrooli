@@ -16,9 +16,9 @@ import (
 // environment override first, then the credential authority. The hub never
 // mints it; the publisher side owns the value.
 const (
-	eventsWebhookCredentialIdentity = "vrooli/vrooli-events"
-	eventsWebhookCredentialField    = "agent-manager-webhook-secret"
-	eventsWebhookSecretEnv          = "VROOLI_EVENTS_WEBHOOK_SECRET"
+	eventsWebhookCredentialIdentity = "vrooli/vrooli-events"         // #nosec G101 -- the NAME of a credential-authority identity, not a credential value.
+	eventsWebhookCredentialField    = "agent-manager-webhook-secret" // #nosec G101 -- the NAME of a credential-authority field, not a credential value.
+	eventsWebhookSecretEnv          = "VROOLI_EVENTS_WEBHOOK_SECRET" // #nosec G101 -- the NAME of an environment variable, not a credential value.
 	webhookSecretRetryInterval      = 30 * time.Second
 )
 

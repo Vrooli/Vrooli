@@ -12,12 +12,19 @@ import (
 
 	hub "notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
 	"github.com/vrooli/api-core/databasetest"
 )
+
+// asyncWait bounds how long a test waits for the Service's background worker or
+// outbox. It only matters when something is wrong: a wait ends the moment its
+// condition holds, so the bound is generous enough that a starved machine (a full
+// module run beside other packages) is never read as a failure.
+const asyncWait = 30 * time.Second
 
 type recordingSender struct {
 	mu       sync.Mutex
@@ -101,7 +108,7 @@ func testService(t *testing.T) (*hub.Service, *database.RoutedDB) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	return hub.New(db, nil, nil), db
+	return hubtest.New(t, db, nil, nil), db
 }
 
 func insertPending(t *testing.T, db *database.RoutedDB, recipient, body, sensitivity string) string {
@@ -140,7 +147,7 @@ func TestSend_IsIdempotentAndLeavesDurableTerminalState(t *testing.T) {
 	require.Eventually(t, func() bool {
 		n, _, getErr := service.Get(ctx, first.ID)
 		return getErr == nil && n.State == "unroutable"
-	}, time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 	var pending int
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM (SELECT notification_id, state, ROW_NUMBER() OVER (PARTITION BY notification_id ORDER BY id DESC) AS rank FROM notification_events) WHERE rank = 1 AND state = 'pending'`).Scan(&pending))
 	require.Zero(t, pending)
@@ -260,12 +267,12 @@ func TestRecipients_DevicesAndQuietWindowsAreDurable(t *testing.T) {
 	require.Equal(t, "held", n.State)
 }
 
-func TestSetQuietWindowRejectsAmbiguousOrHeldTimesWithoutReplacingCurrentWindow(t *testing.T) {
+func TestSetQuietWindowRejectsAmbiguousTimesWithoutReplacingCurrentWindow(t *testing.T) {
 	service, _ := testService(t)
 	ctx := context.Background()
 	current, err := service.SetQuietWindow(ctx, "alice", hub.QuietWindow{Weekday: 1, Start: "22:00", End: "23:00", Timezone: "UTC"})
 	require.NoError(t, err)
-	for _, tc := range []struct{ start, end string }{{"22:00", "22:00"}, {"bad", "23:00"}, {"22:00", "08:00"}} {
+	for _, tc := range []struct{ start, end string }{{"22:00", "22:00"}, {"bad", "23:00"}, {"7:00", "23:00"}, {"22:00", "24:00"}} {
 		_, err := service.SetQuietWindow(ctx, "alice", hub.QuietWindow{Weekday: 1, Start: tc.start, End: tc.end, Timezone: "UTC"})
 		require.ErrorIs(t, err, hub.ErrInvalidArgument)
 		windows, readErr := service.ListQuietWindows(ctx, "alice")
@@ -499,7 +506,7 @@ func TestRetain_DeletesExpiredNotificationHistory(t *testing.T) {
 	require.NoError(t, err)
 	removed, err := service.Retain(context.Background(), time.Date(2021, time.January, 1, 0, 0, 0, 0, time.UTC))
 	require.NoError(t, err)
-	require.EqualValues(t, 1, removed)
+	require.EqualValues(t, 1, removed.Notifications)
 	_, _, err = service.Get(context.Background(), id)
 	require.ErrorIs(t, err, hub.ErrNotFound)
 }
@@ -693,14 +700,17 @@ func TestAsk_AnswerIsValidatedAndWaitReturnsChosenAction(t *testing.T) {
 	askID, _, err := service.Ask(context.Background(), "alice", "approve", []string{"yes", "no"}, clock.now.Add(time.Minute), "public", "ask-answer-1")
 	require.NoError(t, err)
 	require.NoError(t, service.Answer(context.Background(), askID, "yes", "alice"))
-	state, answer, _, err := service.Wait(context.Background(), askID, clock.now.Add(time.Minute))
+	waited, err := service.Wait(context.Background(), askID, hub.WaitOptions{Deadline: clock.now.Add(time.Minute)})
 	require.NoError(t, err)
-	require.Equal(t, "answered", state)
-	require.Equal(t, "yes", answer)
+	require.Equal(t, "answered", waited.Ask.State)
+	require.Equal(t, "yes", waited.Ask.Answer)
 }
 
 func TestRecipientReadViewsDoNotCrossRecipients(t *testing.T) {
 	service, db := testService(t)
+	// New starts a recovery pass; stop it before inserting fixture notifications
+	// so the worker cannot route them while the read-only assertions run.
+	service.Close()
 	ctx := context.Background()
 	aliceID := insertPending(t, db, "alice", "alice body", "public")
 	bobID := insertPending(t, db, "bob", "bob body", "public")

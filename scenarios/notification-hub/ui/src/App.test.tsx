@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, screen } from "@testing-library/react";
 
 import { renderWithProviders } from "./test-utils";
+import App from "./App";
 import { Providers } from "./app/providers";
 import { TestAppRouter } from "./app/routes";
 import { selectors } from "./consts/selectors";
@@ -29,6 +30,12 @@ describe("App composition", () => {
       { withoutRouter: true },
     );
     // Both responsive brand locations can be mounted; visibility belongs to the shell.
+    expect(screen.getAllByTestId(selectors.app.title).length).toBeGreaterThan(0);
+  });
+
+  it("mounts the production composition with the browser router", () => {
+    window.history.pushState({}, "", "/updates");
+    renderWithProviders(<App />, { withoutRouter: true });
     expect(screen.getAllByTestId(selectors.app.title).length).toBeGreaterThan(0);
   });
 });

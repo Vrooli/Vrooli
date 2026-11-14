@@ -161,18 +161,18 @@ func (s *Service) SendFrom(ctx context.Context, source string, in SendInput) (No
 		return Notification{}, err
 	}
 	if created {
-		s.dispatchDirect(n.ID, source)
+		s.dispatchDirect(ctx, n.ID, source)
 	}
 	return n, nil
 }
 
-func (s *Service) dispatchDirect(id, source string) {
+func (s *Service) dispatchDirect(ctx context.Context, id, source string) {
 	if !s.pushBudget.allowPush(source, s.clock.Now()) {
 		s.pushMu.Lock()
 		s.noDevicePush[id] = struct{}{}
 		s.pushMu.Unlock()
 	}
-	s.dispatch(id)
+	s.dispatch(ctx, id)
 }
 
 func (s *Service) takeNoDevicePush(id string) bool {

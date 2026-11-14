@@ -72,7 +72,7 @@ func (a OwnerAuthenticator) authenticate(r *http.Request) context.Context {
 	if len(a.Providers) == 0 {
 		return ctx
 	}
-	principal, err := authn.Config{Providers: a.Providers}.Authenticate(ctx, r)
+	principal, err := authn.Config{Providers: a.Providers}.Authenticate(ctx, withoutBearer(r))
 	if err != nil {
 		failure, ok := apiidentity.FailureFromError(err)
 		if ok && (failure.Class == apiidentity.FailureMissing || failure.Class == apiidentity.FailureUnavailable) {
@@ -99,6 +99,22 @@ func (a OwnerAuthenticator) authenticate(r *http.Request) context.Context {
 		actor:    actor,
 		source:   principal.Source,
 	})
+}
+
+// withoutBearer is the request as the owner providers see it. They verify the
+// Cloudflare Access assertion, which travels in its own headers. An
+// Authorization bearer (the owner's CLI token, an ask-reader or sender service
+// token) is verified by the handlers, after this middleware; left on the
+// request, api-core's Config.Authenticate refuses it as an unverifiable owner
+// credential whenever Access is the only provider, which refused every service
+// token and every owner bearer in the production configuration.
+func withoutBearer(r *http.Request) *http.Request {
+	if len(r.Header.Values("Authorization")) == 0 {
+		return r
+	}
+	clone := r.Clone(r.Context())
+	clone.Header.Del("Authorization")
+	return clone
 }
 
 func ownerFromContext(ctx context.Context) (ownerContext, bool) {

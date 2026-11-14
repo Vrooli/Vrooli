@@ -1,0 +1,14 @@
+{
+  "sidebarLabel": "メインナビゲーション",
+  "bottomNavLabel": "モバイルナビゲーション",
+  "nav": {
+    "dashboard": "更新",
+    "settings": "設定",
+    "asks": "要回答",
+    "history": "履歴"
+  },
+  "needsYouBadge": "{{count}} 件が回答待ち",
+  "account": {
+    "signedOut": "サインインしていません"
+  }
+}

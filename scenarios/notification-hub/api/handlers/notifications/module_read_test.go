@@ -19,6 +19,7 @@ import (
 	notificationsH "notification-hub/handlers/notifications"
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 )
 
 func TestConfiguredRecipientCanReadNotificationsWithoutIdentity(t *testing.T) {
@@ -26,7 +27,7 @@ func TestConfiguredRecipientCanReadNotificationsWithoutIdentity(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	service.SetDefaultRecipient("alice")
 	createdAt := time.Now().UTC().Format(time.RFC3339Nano)
 	insert := func(id, recipient, contextURL string) {
@@ -106,7 +107,7 @@ func TestConfiguredRecipientCanReadBoundedRedactedAttempts(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	service.SetDefaultRecipient("alice")
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	for _, id := range []string{"mine", "empty", "theirs"} {

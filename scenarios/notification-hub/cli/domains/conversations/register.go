@@ -3,8 +3,10 @@ package conversations
 import (
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -15,71 +17,60 @@ import (
 
 const GroupName = "conversations"
 
+// service holds the Hub clients the conversations commands share. They differ
+// only in their client-side timeout.
+type service struct {
+	// client serves ordinary requests with the scenario's default timeout.
+	client connectv1.ConversationsServiceClient
+	// waitClient serves Wait, a server-owned long-poll that blocks until an
+	// answer or the requested deadline, so a short default timeout would abort
+	// it long before either. Its context is bounded by that deadline.
+	waitClient connectv1.ConversationsServiceClient
+	// uploadClient serves attachment blobs of up to 64 MiB.
+	uploadClient connectv1.ConversationsServiceClient
+	now          func() time.Time
+	// senderSource resolves the label that names the sender of an ask with no
+	// --from (see sender.go); nil means there is none. senderOnce makes the
+	// resolution happen at most once per process.
+	senderSource senderSource
+	senderOnce   sync.Once
+	sender       string
+	// stdin is read by --body-file - ; nil means the process's standard input.
+	stdin io.Reader
+	// sleep waits between attempts to reach the Hub; nil means time.Sleep.
+	sleep func(time.Duration)
+}
+
 func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup, error) {
+	var defaultTimeout time.Duration
+	if core != nil && core.HTTPClient != nil {
+		defaultTimeout = core.HTTPClient.Timeout()
+	}
 	h, base := cliapp.NewConnectHTTPClient(core)
-	client := connectv1.NewConversationsServiceClient(h, base)
-	// Wait is a server-owned long-poll that blocks until an answer or the
-	// requested deadline, so the scenario's short default client timeout would
-	// abort it long before either. Its context is bounded by that deadline.
 	waitHTTP, waitBase := cliapp.NewConnectHTTPClientWithTimeout(core, 0)
-	waitClient := connectv1.NewConversationsServiceClient(waitHTTP, waitBase)
+	uploadHTTP, uploadBase := cliapp.NewConnectHTTPClientWithTimeout(core, uploadTimeout)
+	// NOTIFICATION_HUB_SEND_AS swaps each of these for one that presents a
+	// service principal's token (see sendas.go); unset, they are used as they are.
+	h = hubHTTPClient(core, h, base, defaultTimeout)
+	waitHTTP = hubHTTPClient(core, waitHTTP, waitBase, 0)
+	uploadHTTP = hubHTTPClient(core, uploadHTTP, uploadBase, uploadTimeout)
+	return register(&service{
+		client:       connectv1.NewConversationsServiceClient(h, base),
+		waitClient:   connectv1.NewConversationsServiceClient(waitHTTP, waitBase),
+		uploadClient: connectv1.NewConversationsServiceClient(uploadHTTP, uploadBase),
+		now:          time.Now,
+		senderSource: senderOfThisRun,
+	}, manifest)
+}
+
+func register(s *service, manifest []byte) (cliapp.SubcommandGroup, error) {
 	group, err := cliapp.LoadFromManifest(manifest, GroupName, map[string]func(cliapp.RunContext) error{
-		"ConversationsService.Ask": func(ctx cliapp.RunContext) error {
-			options, err := parseOptions(ctx.FlagValues("option"))
-			if err != nil {
-				return err
-			}
-			deadline, err := parseDeadline(ctx.Flag("deadline"), time.Now())
-			if err != nil {
-				return err
-			}
-			reassertWithin, err := parseReassertWithin(ctx.Flag("reassert-within"), ctx.Flag("subject-key"))
-			if err != nil {
-				return err
-			}
-			askOptions := make([]*v1.AskOption, 0, len(options))
-			for _, option := range options {
-				askOptions = append(askOptions, &v1.AskOption{Key: option.Key, Label: option.Label})
-			}
-			resp, callErr := client.Ask(context.Background(), connect.NewRequest(&v1.AskRequest{
-				Question:              ctx.Flag("question"),
-				Options:               askOptions,
-				Recommended:           ctx.Flag("recommend"),
-				RecommendationReason:  ctx.Flag("recommend-reason"),
-				DefaultAnswer:         ctx.Flag("default"),
-				Reversible:            ctx.BoolFlag("reversible"),
-				Urgency:               ctx.Flag("urgency"),
-				ContextUrl:            ctx.Flag("context-url"),
-				BigPicture:            ctx.Flag("big-picture"),
-				TechnicalDetails:      ctx.Flag("technical-details"),
-				Deadline:              deadline,
-				SensitivityLabel:      ctx.Flag("sensitivity-label"),
-				IdempotencyKey:        ctx.Flag("idempotency-key"),
-				SubjectKey:            ctx.Flag("subject-key"),
-				ReassertWithinSeconds: reassertWithin,
-			}))
-			if callErr != nil {
-				return cliapp.WrapAPIError("ask notification question", callErr, nil)
-			}
-			if err := cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{askOutcomeLine(resp.Msg)}}); err != nil {
-				return err
-			}
-			writeGuideReminder(ctx.Stderr(), checkGuide(context.Background()), askGuideContext{AskID: resp.Msg.GetAskId(), SubjectKey: ctx.Flag("subject-key"), Outcome: resp.Msg.GetOutcome()})
-			return nil
-		},
-		"ConversationsService.Answer": func(ctx cliapp.RunContext) error {
-			resp, callErr := client.Answer(context.Background(), connect.NewRequest(&v1.AnswerRequest{
-				AskId:  ctx.Flag("ask-id"),
-				Answer: ctx.Flag("answer"),
-				Note:   ctx.Flag("note"),
-			}))
-			if callErr != nil {
-				return cliapp.WrapAPIError("answer notification question", callErr, nil)
-			}
-			return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Answered ask %s.", resp.Msg.GetAskId())}})
-		},
+		"ConversationsService.Ask":            s.ask,
+		"ConversationsService.Answer":         s.answer,
+		"ConversationsService.RequestContext": s.requestContext,
+		"ConversationsService.Wait":           s.wait,
 		"ConversationsService.Dismiss": func(ctx cliapp.RunContext) error {
-			resp, callErr := client.Dismiss(context.Background(), connect.NewRequest(&v1.DismissRequest{
+			resp, callErr := s.client.Dismiss(context.Background(), connect.NewRequest(&v1.DismissRequest{
 				AskId: ctx.Flag("ask-id"),
 				Note:  ctx.Flag("note"),
 			}))
@@ -89,11 +80,15 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Dismissed ask %s without answering.", resp.Msg.GetAskId())}})
 		},
 		"ConversationsService.Withdraw": func(ctx cliapp.RunContext) error {
-			askID, subjectKey := ctx.Flag("ask-id"), ctx.Flag("subject-key")
-			if (askID == "") == (subjectKey == "") {
-				return fmt.Errorf("give exactly one of --ask-id or --subject-key")
+			askID, err := askIDFrom(ctx)
+			if err != nil {
+				return err
 			}
-			resp, callErr := client.Withdraw(context.Background(), connect.NewRequest(&v1.WithdrawRequest{
+			subjectKey := ctx.Flag("subject-key")
+			if (askID == "") == (subjectKey == "") {
+				return fmt.Errorf("give exactly one of the ask id or --subject-key")
+			}
+			resp, callErr := s.client.Withdraw(context.Background(), connect.NewRequest(&v1.WithdrawRequest{
 				AskId:      askID,
 				SubjectKey: subjectKey,
 				Reason:     ctx.Flag("reason"),
@@ -101,40 +96,28 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 			if callErr != nil {
 				return cliapp.WrapAPIError("withdraw notification question", callErr, nil)
 			}
-			return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{Result: []string{fmt.Sprintf("Withdrew ask %s.", resp.Msg.GetAskId())}})
+			return cliapp.RenderProtoMutation(ctx, resp.Msg, cliapp.MutationReport{
+				Result:      []string{fmt.Sprintf("Withdrew ask %s.", resp.Msg.GetAskId())},
+				Changes:     []string{"The ask is closed with your reason, and its record is kept. A run waiting on it ends with status 5 and sees the reason."},
+				NextCommand: []string{getCommand(resp.Msg.GetAskId())},
+			})
 		},
-		"ConversationsService.Wait": func(ctx cliapp.RunContext) error {
-			deadline, err := parseDeadline(ctx.Flag("deadline"), time.Now())
+		"ConversationsService.GetAsk": func(ctx cliapp.RunContext) error {
+			askID, err := askIDFrom(ctx)
 			if err != nil {
 				return err
 			}
-			waitCtx, cancel := waitContext(deadline)
-			defer cancel()
-			resp, callErr := waitClient.Wait(waitCtx, connect.NewRequest(&v1.WaitRequest{AskId: ctx.Flag("ask-id"), Deadline: deadline}))
+			subjectKey := ctx.Flag("subject-key")
+			if (askID == "") == (subjectKey == "") {
+				return fmt.Errorf("give exactly one of the ask id or --subject-key")
+			}
+			resp, callErr := s.client.GetAsk(context.Background(), connect.NewRequest(&v1.GetAskRequest{AskId: askID, SubjectKey: subjectKey}))
 			if callErr != nil {
-				return cliapp.WrapAPIError("wait for notification answer", callErr, nil)
+				return readError("read ask", callErr)
 			}
-			return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("Ask %s: %s", resp.Msg.GetAskId(), resp.Msg.GetState())}, ResultsHeading: "Answer", Results: []string{resp.Msg.GetAnswer(), resp.Msg.GetReason()}})
+			return cliapp.RenderProtoList(ctx, resp.Msg, askDetailReport(resp.Msg.GetAsk()))
 		},
-		"ConversationsService.GetAsk": func(ctx cliapp.RunContext) error {
-			resp, callErr := client.GetAsk(context.Background(), connect.NewRequest(&v1.GetAskRequest{AskId: ctx.Positional("ask-id")}))
-			if callErr != nil {
-				return cliapp.WrapAPIError("read ask", callErr, nil)
-			}
-			return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{askSummary(resp.Msg.GetAsk())}, ResultsHeading: "Options", Results: askOptionLines(resp.Msg.GetAsk())})
-		},
-		"ConversationsService.ListAsks": func(ctx cliapp.RunContext) error {
-			limit, _ := strconv.Atoi(ctx.Flag("limit"))
-			resp, callErr := client.ListAsks(context.Background(), connect.NewRequest(&v1.ListAsksRequest{OpenOnly: ctx.BoolFlag("open"), Limit: int32(limit), Cursor: ctx.Flag("cursor"), Query: ctx.Flag("query")}))
-			if callErr != nil {
-				return cliapp.WrapAPIError("list asks", callErr, nil)
-			}
-			lines := make([]string, 0, len(resp.Msg.GetAsks()))
-			for _, ask := range resp.Msg.GetAsks() {
-				lines = append(lines, askSummary(ask))
-			}
-			return cliapp.RenderProtoList(ctx, resp.Msg, cliapp.ListReport{Summary: []string{fmt.Sprintf("%d asks", len(lines))}, ResultsHeading: "Asks", Results: lines})
-		},
+		"ConversationsService.ListAsks": s.list,
 	})
 	if err != nil {
 		return cliapp.SubcommandGroup{}, fmt.Errorf("conversations: load manifest: %w", err)
@@ -142,51 +125,20 @@ func Register(core *cliapp.ScenarioApp, manifest []byte) (cliapp.SubcommandGroup
 	return group, nil
 }
 
-// askOutcomeLine says what the hub did with an ask. Only an ask with a
-// --subject-key can be anything but newly created.
-func askOutcomeLine(resp *v1.AskResponse) string {
-	id := resp.GetAskId()
-	switch resp.GetOutcome() {
-	case "reasserted":
-		return fmt.Sprintf("Ask %s is already open with these terms; nothing new was sent.", id)
-	case "updated":
-		return fmt.Sprintf("Updated open ask %s in place; no new notification was sent.", id)
-	case "replaced":
-		return fmt.Sprintf("Created ask %s; it replaced the open ask for this subject.", id)
-	case "suppressed":
-		return fmt.Sprintf("Ask %s was dismissed with these exact terms; no new ask was created.", id)
-	case "returned":
-		return fmt.Sprintf("Ask %s was just answered; returning it instead of creating another.", id)
-	}
-	return fmt.Sprintf("Created ask %s.", id)
-}
+// maxPageLimit is the largest page the Hub returns.
+const maxPageLimit = 200
 
-func askSummary(ask *v1.Ask) string {
-	summary := fmt.Sprintf("%s [%s] %s", ask.GetId(), ask.GetState(), ask.GetQuestion())
-	if ask.GetAnswer() != "" {
-		summary += " -> " + ask.GetAnswer()
+// parsePageLimit reads --limit: empty means the Hub's default page, otherwise a
+// whole number from 1 to maxPageLimit. A value outside that range is an error
+// that names the range, not a page size the Hub silently changes.
+func parsePageLimit(value string) (int32, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return 0, nil
 	}
-	if ask.GetReason() != "" {
-		summary += " (" + ask.GetReason() + ")"
+	limit, err := strconv.ParseInt(value, 10, 32)
+	if err != nil || limit < 1 || limit > maxPageLimit {
+		return 0, fmt.Errorf("--limit must be a whole number from 1 to %d, got %q", maxPageLimit, value)
 	}
-	return summary
-}
-
-func askOptionLines(ask *v1.Ask) []string {
-	lines := make([]string, 0, len(ask.GetOptions()))
-	for _, option := range ask.GetOptions() {
-		var marks []string
-		if option.GetKey() == ask.GetRecommended() {
-			marks = append(marks, "recommended")
-		}
-		if option.GetKey() == ask.GetDefaultAnswer() {
-			marks = append(marks, "default")
-		}
-		line := option.GetKey() + " = " + option.GetLabel()
-		if len(marks) > 0 {
-			line += " (" + strings.Join(marks, ", ") + ")"
-		}
-		lines = append(lines, line)
-	}
-	return lines
+	return int32(limit), nil
 }

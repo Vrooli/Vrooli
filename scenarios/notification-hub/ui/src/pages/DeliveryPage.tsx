@@ -1,22 +1,33 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
+import { Radio } from "lucide-react";
+import { StatusBadge } from "@vrooli/react-component-library/StatusBadge/1";
+import type { GetAnalyticsResponse } from "@vrooli/proto-types/notification-hub/v1/delivery/delivery_pb";
 
 import { deliveryClient } from "../api/notifications";
+import { ListGroup, ListItem, ListRow } from "../components/ListRow";
+import { Page } from "../components/Page";
+import { EmptyNotice, InlineNote, QueryError } from "../components/QueryNotice";
+import { SkeletonRows } from "../components/Skeleton";
+import { Time } from "../components/Time";
+import { isUnauthenticated } from "../lib/apiError";
 import { selectors } from "../consts/selectors";
 import { strings } from "../consts/strings";
 import { useTranslation } from "../i18n";
-import { deliveryStateKey, formatDeliveryTime } from "../features/delivery/deliveryView";
+import { formatDate, formatNumber } from "../i18n/format";
+import { HubStatus } from "../features/health/HubStatus";
+import {
+  DELIVERY_STATES, DELIVERY_STATE_EXCEPTIONAL, DELIVERY_STATE_LABEL, DELIVERY_STATE_MEANING, DELIVERY_STATE_TONE, deliveryStateKey,
+} from "../features/delivery/deliveryView";
+import { UpdatesTabs } from "../features/delivery/UpdatesTabs";
 import { preserveRoutedTestMode } from "../features/routedTestMode";
 
 const DELIVERY_LIMIT = 20;
-const DELIVERY_STATES = ["pending", "held", "routed", "delivered", "failed", "unroutable", "suppressed"] as const;
 
+/** Did it reach me: recent notifications with their delivery state, plus how each channel is doing. */
 export function DeliveryPage() {
   const { t } = useTranslation();
-  const location = useLocation();
-  const [showRecords, setShowRecords] = useState(false);
-  const recordsRef = useRef<HTMLElement>(null);
+  const { search } = useLocation();
   const timeline = useQuery({
     queryKey: ["delivery", "overview"],
     queryFn: () => deliveryClient.getTimeline({ limit: DELIVERY_LIMIT }),
@@ -24,108 +35,118 @@ export function DeliveryPage() {
   });
   const analytics = useQuery({ queryKey: ["delivery", "analytics"], queryFn: () => deliveryClient.getAnalytics({}), retry: false });
   const notifications = timeline.data?.notifications ?? [];
-  const recordsVisible = !analytics.isError || showRecords;
-
-  useEffect(() => {
-    if (!analytics.isError || !showRecords) return;
-    const records = recordsRef.current;
-    if (!records) return;
-    records.scrollIntoView?.({ block: "start" });
-    records.focus({ preventScroll: true });
-  }, [analytics.isError, showRecords]);
 
   return (
-    <section data-testid={selectors.pages.delivery} aria-labelledby={analytics.isError ? "analytics-heading" : "delivery-states-heading"} className="mx-auto flex w-full max-w-4xl flex-col gap-4">
-      {analytics.isError && (
-        <section role="alert" aria-labelledby="analytics-heading" className="flex flex-col gap-4 border-b border-app-border pb-4">
-          <p className="text-sm text-app-muted-foreground">{t(strings.pages.delivery.analyticsEyebrow)}</p>
-          <h2 id="analytics-heading" className="text-[1.6875rem] font-bold leading-tight">{t(strings.pages.delivery.analyticsErrorTitle)}</h2>
-          <p className="max-w-prose text-[15px]">{t(strings.pages.delivery.analyticsError)}</p>
-          <aside className="border-s-4 border-app-warning ps-4 py-2">
-            <h3 className="text-lg font-semibold">{t(strings.pages.delivery.analyticsRecordsTitle)}</h3>
-            <p className="mt-1">{t(timeline.isError && !timeline.data ? strings.pages.delivery.analyticsRecordsUnavailable : strings.pages.delivery.analyticsRecordsAvailable)}</p>
-          </aside>
-          <div className="mt-8 flex flex-row gap-3 border-t border-app-border pt-4">
-            <button type="button" data-testid={selectors.delivery.analyticsRetry} onClick={() => void analytics.refetch()} disabled={analytics.isFetching} className="flex min-h-12 flex-1 items-center justify-center rounded-control bg-app-primary px-2 py-3 text-center text-sm font-semibold whitespace-nowrap text-app-primary-foreground focus-visible:outline focus-visible:outline-2 disabled:opacity-60">{t(strings.pages.delivery.retryAnalytics)}</button>
-            <button
-              type="button"
-              aria-controls="delivery-record-list"
-              data-testid={selectors.delivery.analyticsRecordsAction}
-              onClick={() => setShowRecords(true)}
-              className="flex min-h-12 flex-1 items-center justify-center rounded-control border border-app-border px-2 py-3 text-center text-sm whitespace-nowrap focus-visible:outline focus-visible:outline-2"
-            >
-              {t(strings.pages.delivery.viewRecords)}
-            </button>
-          </div>
-        </section>
-      )}
-      {!analytics.isError && <section aria-labelledby="delivery-states-heading" className="flex flex-col gap-2 text-[15px]">
-        <p className="text-sm text-app-muted-foreground">{t(strings.pages.delivery.stateGuideEyebrow)}</p>
-        <h2 id="delivery-states-heading" className="text-[1.6875rem] font-bold leading-tight">{t(strings.pages.delivery.stateGuideTitle)}</h2>
-        <p className="max-w-prose">{t(strings.pages.delivery.stateGuideDescription)}</p>
-        <dl className="flex flex-col">
-          {DELIVERY_STATES.map((key) => (
-            <div key={key} className="border-b border-app-border py-[18px] leading-5">
-              <dt className="font-semibold">{t(strings.pages.delivery.states[key])}</dt>
-              <dd className="mt-1 text-app-muted-foreground">{t(strings.pages.delivery.meanings[key])}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>}
-      {recordsVisible && (
-        <section
-          ref={recordsRef}
-          id="delivery-record-list"
-          tabIndex={-1}
-          aria-describedby="delivery-records-summary"
-          aria-label={t(strings.pages.delivery.recordsHeading)}
-          className="mt-16 flex flex-col gap-3 focus-visible:outline focus-visible:outline-2"
-        >
-          <p id="delivery-records-summary" className="text-sm text-app-muted-foreground">{t(strings.pages.delivery.loadedScope, { limit: DELIVERY_LIMIT })}</p>
-          {timeline.isPending && <p role="status">{t(strings.asks.detail.loading)}</p>}
-          {timeline.isError && (
-            <div role="alert" className="flex flex-col items-start gap-2">
-              <p>{t(strings.pages.delivery.loadError)}</p>
-              <button type="button" onClick={() => void timeline.refetch()} disabled={timeline.isFetching} className="w-fit rounded-control border border-app-border px-3 py-2 disabled:opacity-60">
-                {t(strings.errorBoundary.retry)}
-              </button>
-            </div>
+    <Page
+      width="wide"
+      testId={selectors.pages.delivery}
+      headingId="delivery-heading"
+      title={t(strings.pages.delivery.title)}
+      description={t(strings.pages.delivery.description)}
+    >
+      <UpdatesTabs current="delivery" />
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <section aria-labelledby="delivery-recent-heading" className="flex min-w-0 flex-col gap-3">
+          <h2 id="delivery-recent-heading" className="text-base font-semibold">{t(strings.pages.delivery.recentTitle)}</h2>
+          {timeline.isPending && <SkeletonRows rows={4} />}
+          {timeline.isError && !timeline.data && (
+            <QueryError error={timeline.error} title={t(strings.pages.delivery.loadError)} onRetry={() => void timeline.refetch()} retrying={timeline.isFetching} />
           )}
-          {timeline.isError && timeline.data && <p role="status">{t(strings.pages.delivery.stale)}</p>}
+          {timeline.isError && timeline.data && <InlineNote tone="warning">{t(strings.pages.delivery.stale)}</InlineNote>}
           {!timeline.isPending && !timeline.isError && notifications.length === 0 && (
-            <p className="text-app-muted-foreground">{t(strings.pages.delivery.emptyReturned)}</p>
+            <EmptyNotice icon={<Radio size={32} />} title={t(strings.pages.delivery.emptyReturned)} detail={t(strings.pages.delivery.emptyDetail)} />
           )}
           {notifications.length > 0 && (
-            <ul className="flex flex-col gap-3">
-          {notifications.map((notification) => {
-            const state = deliveryStateKey(notification.state);
-            const time = formatDeliveryTime(notification.createdAt);
-            return (
-              <li key={notification.id} className="rounded-panel border border-app-border p-4">
-                <article className="flex flex-col gap-2">
-                  <h3 className="break-words font-medium">{notification.title || t(strings.pages.dashboard.untitled)}</h3>
-                  <p className="text-sm">
-                    <span className="font-medium">{t(strings.pages.delivery.states[state])}</span>
-                    <span className="text-app-muted-foreground"> — {t(strings.pages.delivery.meanings[state])}</span>
-                  </p>
-                  <p className="text-sm text-app-muted-foreground">
-                    {time ? <time dateTime={notification.createdAt}>{time}</time> : t(strings.pages.delivery.timeUnavailable)}
-                  </p>
-                  <Link
-                    to={preserveRoutedTestMode(`/delivery/${encodeURIComponent(notification.id)}`, location.search)}
-                    data-testid={selectors.delivery.recordDetailsLink({ id: notification.id })}
-                    className="w-fit rounded-sm text-sm underline focus-visible:outline focus-visible:outline-2"
-                  >
-                    {t(strings.pages.delivery.openDetails)}
-                  </Link>
-                </article>
-              </li>
-            );
-          })}
-            </ul>
+            <ListGroup>
+              {notifications.map((notification) => {
+                const state = deliveryStateKey(notification.state);
+                return (
+                  <ListItem key={notification.id} tone={state === "failed" || state === "unroutable" ? "attention" : "normal"}>
+                    <ListRow
+                      to={preserveRoutedTestMode(`/delivery/${encodeURIComponent(notification.id)}`, search)}
+                      data-testid={selectors.delivery.recordDetailsLink({ id: notification.id })}
+                      trailing={<StatusBadge tone={DELIVERY_STATE_TONE[state]}>{t(DELIVERY_STATE_LABEL[state])}</StatusBadge>}
+                    >
+                      <p className="line-clamp-2 break-words text-base font-semibold leading-snug">{notification.title || t(strings.pages.dashboard.untitled)}</p>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm text-app-muted-foreground">
+                        <span className="[overflow-wrap:anywhere]">{notification.requestedBy || t(strings.pages.history.unknownSource)}</span>
+                        <span aria-hidden="true">·</span>
+                        <Time value={notification.createdAt} />
+                      </p>
+                      {DELIVERY_STATE_EXCEPTIONAL.has(state)
+                        ? <p className="mt-1 text-sm">{t(DELIVERY_STATE_MEANING[state])}</p>
+                        : <p className="sr-only">{t(DELIVERY_STATE_MEANING[state])}</p>}
+                    </ListRow>
+                  </ListItem>
+                );
+              })}
+            </ListGroup>
           )}
+          {notifications.length > 0 && <p className="text-xs text-app-muted-foreground">{t(strings.pages.delivery.loadedScope, { limit: DELIVERY_LIMIT })}</p>}
         </section>
+
+        <aside className="flex min-w-0 flex-col gap-4">
+          <HubStatus />
+          {!isUnauthenticated(analytics.error) && <section aria-labelledby="delivery-reliability-heading" className="flex flex-col gap-2 rounded-panel border border-app-border bg-app-surface p-4">
+            <h2 id="delivery-reliability-heading" className="text-sm font-semibold">{t(strings.pages.delivery.reliabilityTitle)}</h2>
+            {analytics.isPending && <SkeletonRows rows={1} />}
+            {analytics.isError && (
+              <QueryError
+                error={analytics.error}
+                title={t(strings.pages.delivery.analyticsError)}
+                onRetry={() => void analytics.refetch()}
+                retrying={analytics.isFetching}
+                retryTestId={selectors.delivery.analyticsRetry}
+              />
+            )}
+            {analytics.data && <ChannelReliability analytics={analytics.data} />}
+          </section>}
+          <details className="rounded-panel border border-app-border bg-app-surface px-4">
+            <summary className="flex min-h-11 cursor-pointer items-center text-sm font-semibold">{t(strings.pages.delivery.statesTitle)}</summary>
+            <p className="pb-2 text-sm text-app-muted-foreground">{t(strings.pages.delivery.stateGuideDescription)}</p>
+            <dl className="flex flex-col pb-2">
+              {DELIVERY_STATES.map((key) => (
+                <div key={key} className="border-t border-app-border py-2">
+                  <dt className="text-sm font-semibold">{t(DELIVERY_STATE_LABEL[key])}</dt>
+                  <dd className="text-sm text-app-muted-foreground">{t(DELIVERY_STATE_MEANING[key])}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+        </aside>
+      </div>
+    </Page>
+  );
+}
+
+function ChannelReliability({ analytics }: { analytics: GetAnalyticsResponse }) {
+  const { t } = useTranslation();
+  const since = analytics.since ? Date.parse(analytics.since) : NaN;
+  return (
+    <>
+      {!Number.isNaN(since) && (
+        <p className="text-xs text-app-muted-foreground">{t(strings.pages.delivery.reliabilitySince, { since: formatDate(since, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) })}</p>
       )}
-    </section>
+      {analytics.channels.length === 0 && <p className="text-sm text-app-muted-foreground">{t(strings.pages.delivery.noChannels)}</p>}
+      <ul className="flex flex-col divide-y divide-app-border">
+        {analytics.channels.map((channel) => {
+          const failed = Number(channel.failed);
+          return (
+            <li key={channel.channel} className="flex flex-col gap-0.5 py-2 first:pt-0 last:pb-0">
+              <p className="flex items-baseline justify-between gap-2 text-sm font-medium">
+                <span className="[overflow-wrap:anywhere]">{channel.channel}</span>
+                <span className={failed > 0 ? "text-app-danger" : "text-app-muted-foreground"}>
+                  {t(strings.pages.delivery.failureRate, { rate: formatNumber(channel.failureRate, { style: "percent", maximumFractionDigits: 1 }) })}
+                </span>
+              </p>
+              <p className="text-sm text-app-muted-foreground">
+                {t(strings.pages.delivery.channelSummary, { delivered: formatNumber(Number(channel.delivered)), failed: formatNumber(failed) })}
+                {channel.averageLatencyMs > 0 && ` · ${t(strings.pages.delivery.latency, { ms: formatNumber(Math.round(channel.averageLatencyMs)) })}`}
+              </p>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }

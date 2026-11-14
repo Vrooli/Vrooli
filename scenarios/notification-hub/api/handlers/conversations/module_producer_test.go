@@ -19,11 +19,19 @@ import (
 	"github.com/vrooli/cli-core/cliutil"
 	v1 "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations"
 	conversationsconnect "github.com/vrooli/vrooli/packages/proto/gen/go/notification-hub/v1/conversations/conversations_v1connect"
+	"google.golang.org/protobuf/proto"
 
 	conversationsH "notification-hub/handlers/conversations"
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 )
+
+// asyncWait bounds how long a test waits for the Service's background worker. It
+// only matters when something is wrong: a wait ends the moment its condition
+// holds, so the bound is generous enough that a starved machine is never read as
+// a failure.
+const asyncWait = 30 * time.Second
 
 type refusingOwnerVerifier struct{}
 
@@ -37,7 +45,7 @@ func newAskFixture(t *testing.T) (conversationsconnect.ConversationsServiceClien
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	service.SetDefaultRecipient("configured-owner")
 	router := mux.NewRouter()
 	conversationsH.ModuleWithVerifier(service, refusingOwnerVerifier{}).Mount(router)
@@ -65,6 +73,13 @@ func agentAsk(token, key string) *connect.Request[v1.AskRequest] {
 	if token != "" {
 		req.Header().Set(cliutil.HeaderAgentIdentityToken, token)
 	}
+	return req
+}
+
+// agentRead stamps a read with a verified run's identity token.
+func agentRead[T any](token string, msg *T) *connect.Request[T] {
+	req := connect.NewRequest(msg)
+	req.Header().Set(cliutil.HeaderAgentIdentityToken, token)
 	return req
 }
 
@@ -145,14 +160,14 @@ func TestAgentAskPushBudgetStoresWithoutDevicePush(t *testing.T) {
 	second, err := client.Ask(ctx, agentAsk("valid-run-1", "second"))
 	require.NoError(t, err, "over-budget decision requests still succeed")
 	require.Equal(t, 2, countAsks(t, db), "both asks remain stored")
-	require.Eventually(t, func() bool { return sender.count() == 1 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return sender.count() == 1 }, asyncWait, 10*time.Millisecond)
 	_, receipts, err := service.GetForRecipient(ctx, first.Msg.GetNotification().GetId(), "configured-owner")
 	require.NoError(t, err)
 	require.Len(t, receipts, 1, "the first ask's device push is delivered")
 	require.Eventually(t, func() bool {
 		stored, _, getErr := service.GetForRecipient(ctx, second.Msg.GetNotification().GetId(), "configured-owner")
 		return getErr == nil && stored.State == "suppressed"
-	}, time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 	require.NotEmpty(t, second.Msg.GetAskId())
 }
 
@@ -165,7 +180,7 @@ func subjectAsk(key, question string, options ...string) *connect.Request[v1.Ask
 		askOptions = append(askOptions, &v1.AskOption{Key: option, Label: option})
 	}
 	req := connect.NewRequest(&v1.AskRequest{
-		Question: question, Options: askOptions, Recommended: options[0], Deadline: askDeadline,
+		Question: question, Options: askOptions, Recommended: proto.String(options[0]), Deadline: askDeadline,
 		SensitivityLabel: "private", IdempotencyKey: key, SubjectKey: "disk-pressure",
 	})
 	req.Header().Set(cliutil.HeaderAgentIdentityToken, "valid-run-1")
@@ -194,7 +209,7 @@ func TestDirectAskSubjectKeyUpsertsAndWithdrawsBySubject(t *testing.T) {
 	require.Equal(t, askID, updated.Msg.GetAskId())
 	require.Equal(t, 1, countAsks(t, db))
 
-	read, err := client.GetAsk(ctx, connect.NewRequest(&v1.GetAskRequest{AskId: askID}))
+	read, err := client.GetAsk(ctx, agentRead("valid-run-1", &v1.GetAskRequest{AskId: askID}))
 	require.NoError(t, err)
 	ask := read.Msg.GetAsk()
 	require.Equal(t, "disk-pressure", ask.GetSubjectKey())
@@ -207,7 +222,7 @@ func TestDirectAskSubjectKeyUpsertsAndWithdrawsBySubject(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, hub.AskReplaced, replaced.Msg.GetOutcome())
 	require.NotEqual(t, askID, replaced.Msg.GetAskId())
-	old, err := client.GetAsk(ctx, connect.NewRequest(&v1.GetAskRequest{AskId: askID}))
+	old, err := client.GetAsk(ctx, agentRead("valid-run-1", &v1.GetAskRequest{AskId: askID}))
 	require.NoError(t, err)
 	require.Equal(t, hub.AskWithdrawn, old.Msg.GetAsk().GetState())
 	require.Equal(t, replaced.Msg.GetAskId(), old.Msg.GetAsk().GetSupersededByAskId(), "the page can link to the replacing decision")
@@ -223,7 +238,7 @@ func TestDirectAskSubjectKeyUpsertsAndWithdrawsBySubject(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, replaced.Msg.GetAskId(), closed.Msg.GetAskId())
 	require.Equal(t, hub.AskWithdrawn, closed.Msg.GetState())
-	current, err := client.GetAsk(ctx, connect.NewRequest(&v1.GetAskRequest{AskId: replaced.Msg.GetAskId()}))
+	current, err := client.GetAsk(ctx, agentRead("valid-run-1", &v1.GetAskRequest{AskId: replaced.Msg.GetAskId()}))
 	require.NoError(t, err)
 	require.Equal(t, "Disk is at 40% again.", current.Msg.GetAsk().GetReason())
 

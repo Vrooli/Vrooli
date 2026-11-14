@@ -16,6 +16,7 @@ import (
 	routingH "notification-hub/handlers/routing"
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 )
 
 func TestConfiguredRecipientCanReadChannelStatusWithoutIdentity(t *testing.T) {
@@ -23,7 +24,7 @@ func TestConfiguredRecipientCanReadChannelStatusWithoutIdentity(t *testing.T) {
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
 	serviceDB := database.NewFromPrimary(primary)
-	service := hub.New(serviceDB, nil, nil)
+	service := hubtest.New(t, serviceDB, nil, nil)
 	service.SetDefaultRecipient("alice")
 
 	router := mux.NewRouter()

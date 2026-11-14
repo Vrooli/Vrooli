@@ -2,13 +2,13 @@
  * ESLint rule: `strings/codegen-fresh`
  *
  * Fails when `src/consts/strings.generated.ts` diverges from what the
- * codegen would produce given the current `src/i18n/locales/en.json`.
+ * codegen would produce given the current English catalog (`src/i18n/locales/en/*.json`).
  *
  * Why this rule exists: the Vite plugin auto-regenerates `strings.generated.ts`
  * during dev/test/build, so drift typically auto-heals locally — which means
  * a developer can hand-edit the generated file (they shouldn't, it's a
  * `// AUTO-GENERATED` file) and not notice. Without this rule, that drift
- * wouldn't surface until someone bumped a key in `en.json` and the codegen
+ * wouldn't surface until someone bumped a key in the catalog and the codegen
  * overwrote their hand-edit. This rule catches it at lint time.
  *
  * Anchoring strategy: the rule emits exactly when the file being linted is
@@ -57,12 +57,12 @@ export default {
     type: "problem",
     docs: {
       description:
-        "Ensure src/consts/strings.generated.ts matches what scripts/gen-strings.mjs would produce from src/i18n/locales/en.json.",
+        "Ensure src/consts/strings.generated.ts matches what scripts/gen-strings.mjs would produce from src/i18n/locales/en/*.json.",
     },
     schema: [],
     messages: {
       stale:
-        "{{file}} is out of sync with en.json (first divergence at line {{line}}). Run `pnpm strings:gen` and commit the result.\n  expected: {{expected}}\n  actual:   {{actual}}",
+        "{{file}} is out of sync with the English catalog (first divergence at line {{line}}). Run `pnpm strings:gen` and commit the result.\n  expected: {{expected}}\n  actual:   {{actual}}",
     },
   },
   create(context) {

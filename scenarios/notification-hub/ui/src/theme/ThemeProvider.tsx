@@ -1,71 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
-export type ThemeChoice = "light" | "dark" | "system";
+import { readLocalPreference, writeLocalPreference } from "./preferenceStorage";
+import { ThemeContext, type ThemeChoice, type ThemeContextValue } from "./themeContext";
 
 const STORAGE_KEY = "vrooli.theme";
-export type LocalPreferenceKind = "theme" | "locale";
-
-const failedPreferenceWrites = new Set<LocalPreferenceKind>();
-const preferenceStorageListeners = new Set<() => void>();
-
-const notifyPreferenceStorageChange = () => {
-  for (const listener of preferenceStorageListeners) listener();
-};
-
-const recordPreferenceStorageResult = (kind: LocalPreferenceKind, succeeded: boolean) => {
-  const changed = succeeded ? failedPreferenceWrites.delete(kind) : !failedPreferenceWrites.has(kind);
-  if (!succeeded) failedPreferenceWrites.add(kind);
-  if (changed) notifyPreferenceStorageChange();
-};
-
-/** Read one browser-local preference without allowing storage denial to escape. */
-export const readLocalPreference = (kind: LocalPreferenceKind, key: string): string | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    const value = window.localStorage.getItem(key);
-    recordPreferenceStorageResult(kind, true);
-    return value;
-  } catch {
-    recordPreferenceStorageResult(kind, false);
-    return null;
-  }
-};
-
-/** Save one browser-local preference; the caller keeps its in-memory choice either way. */
-export const writeLocalPreference = (kind: LocalPreferenceKind, key: string, value: string): boolean => {
-  if (typeof window === "undefined") return false;
-  try {
-    window.localStorage.setItem(key, value);
-    recordPreferenceStorageResult(kind, true);
-    return true;
-  } catch {
-    recordPreferenceStorageResult(kind, false);
-    return false;
-  }
-};
-
-const subscribePreferenceStorage = (listener: () => void) => {
-  preferenceStorageListeners.add(listener);
-  return () => preferenceStorageListeners.delete(listener);
-};
-
-const getPreferenceStorageSnapshot = () => failedPreferenceWrites.size > 0;
-
-export const usePreferenceStorageUnavailable = () => useSyncExternalStore(
-  subscribePreferenceStorage,
-  getPreferenceStorageSnapshot,
-  () => false,
-);
-
-interface ThemeContextValue {
-  /** The user's stated choice (light/dark/system). */
-  choice: ThemeChoice;
-  /** The currently-applied theme; `system` resolves to light or dark via media query. */
-  resolved: "light" | "dark";
-  setTheme: (choice: ThemeChoice) => void;
-}
-
-const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const readStoredChoice = (): ThemeChoice => {
   const stored = readLocalPreference("theme", STORAGE_KEY);
@@ -77,7 +15,7 @@ const readStoredChoice = (): ThemeChoice => {
 
 const resolveChoice = (choice: ThemeChoice): "light" | "dark" => {
   if (choice === "light" || choice === "dark") return choice;
-  if (typeof window === "undefined" || !window.matchMedia) return "light";
+  if (typeof window === "undefined") return "light";
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 };
 
@@ -109,7 +47,7 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   }, [resolved, choice]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    if (typeof window === "undefined") return undefined;
     if (choice !== "system") return undefined;
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     const handler = () => setResolved(mq.matches ? "dark" : "light");
@@ -126,12 +64,4 @@ export function ThemeProvider({ children, initialChoice }: ThemeProviderProps) {
   const value = useMemo<ThemeContextValue>(() => ({ choice, resolved, setTheme }), [choice, resolved, setTheme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-}
-
-export function useTheme(): ThemeContextValue {
-  const ctx = useContext(ThemeContext);
-  if (!ctx) {
-    throw new Error("useTheme must be called inside <ThemeProvider>");
-  }
-  return ctx;
 }

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	hub "notification-hub/internal/hub"
+	"notification-hub/internal/testutil/hubtest"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/eventbus"
@@ -49,7 +50,7 @@ func TestResolutionOutboxContinuesPastFailedPageAfterRestart(t *testing.T) {
 	require.Empty(t, publisher.published)
 	// Recreate the owner service against the same database to verify that the
 	// continuation is durable, not merely a process-local offset.
-	restarted := hub.New(db, nil, nil)
+	restarted := hubtest.New(t, db, nil, nil)
 	restarted.SetResolutionPublisher(publisher)
 	require.NoError(t, restarted.PublishPendingResolutions(ctx))
 	require.Equal(t, []string{"healthy"}, publisher.published)
@@ -87,6 +88,9 @@ func decisionSpec(now time.Time, key string) hub.AskSpec {
 		Source:               "agent-manager",
 		SourceEventType:      "agent_manager.effort.decision_requested.v1",
 		Correlation:          map[string]string{"decision_id": "BAS-D-065"},
+		// The handler sets this for an agent run or the owner; a test that needs an
+		// identityless sender clears it.
+		VerifiedProducer: true,
 	}
 }
 
@@ -119,15 +123,23 @@ func TestAskResolvedEventPayloadIsVrooliEventsSerializable(t *testing.T) {
 }
 
 // [REQ:NOTIFICA-P1-009][REQ:NOTIFICA-P1-010]
-func TestAskWithSpec_PersistsStructuredDecisionAtHighUrgency(t *testing.T) {
+func TestAskWithSpec_PersistsStructuredDecisionAtNormalUrgencyUnlessTheRequesterSaysHigh(t *testing.T) {
 	service, _ := testService(t)
 	now := time.Date(2026, time.October, 7, 12, 0, 0, 0, time.UTC)
 	service.SetClockForTest(fixedClock{now: now})
 
 	ask, n, err := service.AskWithSpec(context.Background(), decisionSpec(now, "evt-1"))
 	require.NoError(t, err)
-	require.Equal(t, "high", n.Urgency, "asks default to high, not critical, so quiet hours hold them")
+	require.Equal(t, hub.DefaultAskUrgency, n.Urgency)
+	require.Equal(t, "normal", n.Urgency, "an ask that names no urgency is normal, the same as the CLI's")
 	require.Contains(t, n.Body, "Recommended: Re-aim at quality")
+
+	blocking := decisionSpec(now, "evt-blocking")
+	blocking.Urgency = "high"
+	blocking.Correlation = map[string]string{"decision_id": "BAS-D-066"}
+	_, blocked, err := service.AskWithSpec(context.Background(), blocking)
+	require.NoError(t, err)
+	require.Equal(t, "high", blocked.Urgency, "a requester whose work is blocked says so")
 
 	got, err := service.GetAsk(context.Background(), ask.ID)
 	require.NoError(t, err)
@@ -204,7 +216,7 @@ func TestAskWithSpec_RepeatedRequestReturnsOneAskAndOneDelivery(t *testing.T) {
 	require.Eventually(t, func() bool {
 		n, _, getErr := service.Get(context.Background(), first.NotificationID)
 		return getErr == nil && n.State == "delivered"
-	}, time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 	var asks int
 	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM asks`).Scan(&asks))
 	require.Equal(t, 1, asks)
@@ -230,7 +242,7 @@ func TestAskWithSpec_PersistsContextAndRefusesChangedImmutableTerms(t *testing.T
 	require.Eventually(t, func() bool {
 		notification, _, getErr := service.Get(context.Background(), first.NotificationID)
 		return getErr == nil && notification.State == "unroutable"
-	}, time.Second, 10*time.Millisecond, "drain the created notification before closing the test store")
+	}, asyncWait, 10*time.Millisecond, "drain the created notification before closing the test store")
 
 	retry, _, err := service.AskWithSpec(context.Background(), spec)
 	require.NoError(t, err, "same immutable terms remain idempotent")
@@ -303,12 +315,12 @@ func TestAskWithSpec_ConcurrentRequesterIdentityHasOneImmutableOwner(t *testing.
 		require.Eventually(t, func() bool {
 			notification, _, getErr := service.Get(context.Background(), persisted.NotificationID)
 			return getErr == nil && notification.State == "delivered"
-		}, time.Second, 10*time.Millisecond)
+		}, asyncWait, 10*time.Millisecond)
 		require.Eventually(t, func() bool {
 			sender.mu.Lock()
 			defer sender.mu.Unlock()
 			return len(sender.messages) == 1
-		}, time.Second, 10*time.Millisecond)
+		}, asyncWait, 10*time.Millisecond)
 	})
 
 	t.Run("different recipients cannot split one identity", func(t *testing.T) {
@@ -363,7 +375,7 @@ func TestAskWithSpec_ConcurrentRequesterIdentityHasOneImmutableOwner(t *testing.
 		require.Eventually(t, func() bool {
 			notification, _, getErr := service.Get(context.Background(), persisted.NotificationID)
 			return getErr == nil && notification.State == "unroutable"
-		}, time.Second, 10*time.Millisecond, "finish the committed winner's worker delivery before closing the test store")
+		}, asyncWait, 10*time.Millisecond, "finish the committed winner's worker delivery before closing the test store")
 	})
 }
 
@@ -395,20 +407,20 @@ func TestGetAskAndWait_NeverExpireAnOpenAsk(t *testing.T) {
 	require.NoError(t, err)
 
 	service.SetClockForTest(fixedClock{now: now.Add(2 * time.Minute)})
-	state, answer, reason, err := service.Wait(context.Background(), askID, now.Add(2*time.Minute))
+	waited, err := service.Wait(context.Background(), askID, hub.WaitOptions{Deadline: now.Add(2 * time.Minute)})
 	require.NoError(t, err)
-	require.Equal(t, hub.AskPending, state)
-	require.Empty(t, answer)
-	require.Contains(t, reason, "still open")
+	require.Equal(t, hub.AskPending, waited.Ask.State)
+	require.Empty(t, waited.Ask.Answer)
+	require.Contains(t, waited.Reason, "still open")
 	got, err := service.GetAsk(context.Background(), askID)
 	require.NoError(t, err)
 	require.Equal(t, hub.AskPending, got.State)
 
 	require.NoError(t, service.Answer(context.Background(), askID, "approve", "alice"))
-	state, answer, _, err = service.Wait(context.Background(), askID, now.Add(2*time.Minute))
+	waited, err = service.Wait(context.Background(), askID, hub.WaitOptions{Deadline: now.Add(2 * time.Minute)})
 	require.NoError(t, err)
-	require.Equal(t, hub.AskAnswered, state)
-	require.Equal(t, "approve", answer)
+	require.Equal(t, hub.AskAnswered, waited.Ask.State)
+	require.Equal(t, "approve", waited.Ask.Answer)
 }
 
 // [REQ:NOTIFICA-P1-011]
@@ -423,7 +435,7 @@ func TestProcessEscalations_WithholdsDefaultUntilDeliveredThenFloorPasses(t *tes
 	require.Eventually(t, func() bool {
 		n, _, getErr := service.Get(context.Background(), ask.NotificationID)
 		return getErr == nil && n.State == "unroutable"
-	}, time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 
 	// Deadline passed, but nothing was delivered: the default is withheld and
 	// the ask neither escalates nor expires.
@@ -450,7 +462,7 @@ func TestProcessEscalations_AppliesDefaultAtLeastTheFloorAfterDelivery(t *testin
 	require.Eventually(t, func() bool {
 		got, getErr := service.GetAsk(context.Background(), ask.ID)
 		return getErr == nil && got.FirstDeliveredAt != ""
-	}, time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 
 	// Past the 1 h deadline but inside the 12 h floor after delivery.
 	service.SetClockForTest(fixedClock{now: start.Add(2 * time.Hour)})
@@ -469,7 +481,7 @@ func TestProcessEscalations_AppliesDefaultAtLeastTheFloorAfterDelivery(t *testin
 	require.Equal(t, hub.DefaultAnsweredBy, got.AnsweredBy)
 
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
-	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, asyncWait, 10*time.Millisecond)
 	event := publisher.snapshot()[0]
 	require.Equal(t, hub.AskResolvedEventType, event.EventType)
 	require.Equal(t, true, event.Payload["by_default"])
@@ -493,7 +505,7 @@ func TestProcessEscalations_CriticalAskAdvancesAndRecordsStep(t *testing.T) {
 	require.Eventually(t, func() bool {
 		n, _, getErr := service.Get(ctx, ask.NotificationID)
 		return getErr == nil && n.State == "unroutable"
-	}, time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 
 	// Configure the fake adapter after initial routing so this call can only
 	// observe a delivery caused by the escalation step.
@@ -533,7 +545,7 @@ func TestProcessEscalations_NonCriticalAskExpiresWithoutEscalationEffects(t *tes
 	require.Eventually(t, func() bool {
 		n, _, getErr := service.Get(ctx, ask.NotificationID)
 		return getErr == nil && n.State == "unroutable"
-	}, time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 
 	// A configured chain and recording adapter make any accidental escalation
 	// visible while keeping this package test fully isolated.
@@ -648,7 +660,7 @@ func TestAnswerAsk_PublishesResolutionOnceAndLateAnswerSupersedesDefault(t *test
 	require.Equal(t, "keep macOS last", answered.Note)
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
-	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, asyncWait, 10*time.Millisecond)
 	payload := publisher.snapshot()[0].Payload
 	require.Equal(t, "close", payload["answer"])
 	require.Equal(t, "Close the goal", payload["answer_label"])
@@ -687,7 +699,7 @@ func TestAnswerAsk_OtherCarriesTheOperatorAuthoredAlternative(t *testing.T) {
 	require.Equal(t, "Other", answered.AnswerLabel)
 	require.Equal(t, "Keep the effort open and narrow the next milestone.", answered.Note)
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
-	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, asyncWait, 10*time.Millisecond)
 	require.Equal(t, "other", publisher.snapshot()[0].Payload["answer"])
 	require.Equal(t, "Other", publisher.snapshot()[0].Payload["answer_label"])
 	require.Equal(t, answered.Note, publisher.snapshot()[0].Payload["note"])
@@ -714,7 +726,7 @@ func TestDismissAsk_ClosesWithoutAnswerAndIsIdempotent(t *testing.T) {
 	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM answers WHERE ask_id=?`, ask.ID).Scan(&answerCount))
 	require.Zero(t, answerCount)
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
-	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, asyncWait, 10*time.Millisecond)
 	require.Equal(t, "dismissed", publisher.snapshot()[0].Payload["state"])
 }
 
@@ -798,7 +810,7 @@ func TestAnswerAsk_RecordsTheVerifiedHumanAsAnsweredBy(t *testing.T) {
 	require.Equal(t, "cloudflare_access", answered.AnsweredByIdentitySource)
 
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
-	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, asyncWait, 10*time.Millisecond)
 	require.Equal(t, "access:bob@example.test", publisher.snapshot()[0].Payload["answered_by"], "ask.resolved.v1 must carry the real verified human")
 	require.Equal(t, "verified_human", publisher.snapshot()[0].Payload["answered_by_identity_kind"])
 	require.Equal(t, "cloudflare_access", publisher.snapshot()[0].Payload["answered_by_identity_source"])

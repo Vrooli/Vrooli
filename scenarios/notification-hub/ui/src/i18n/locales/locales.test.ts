@@ -21,9 +21,12 @@
  *      `refreshCount` has `{{count}}`). The aggregate must match across
  *      locales.
  *
- * Catalogs are picked up via `import.meta.glob` so adding a new locale
- * (drop `fr.json` in this directory) requires no edits to this file —
- * the parity assertions automatically include it.
+ * Each locale is a directory of per-namespace files (`<lng>/<namespace>.json`),
+ * picked up via `import.meta.glob`, so adding a new locale (a `fr/` directory)
+ * requires no edits to this file — the parity assertions automatically include
+ * it. A fourth check compares the file set of every locale, so a namespace
+ * file missing from one locale is named directly rather than surfacing as a
+ * long list of missing keys.
  *
  * The same sentinel skip lives in `scripts/gen-strings.mjs` (so they
  * don't leak into `strings.generated.ts`) and `eslint-rules/no-unused-
@@ -31,21 +34,29 @@
  * duplicated by intent — each consumer documents its own contract.
  */
 import { describe, it, expect } from "vitest";
+import { assemble } from "../catalog";
 import { LOCALE_CODES } from "../locales";
 
-// `import.meta.glob` returns `{ "./en.json": {...}, "./ja.json": {...} }`
-// at build time when `eager: true`. Vitest reads the same Vite config that
-// production does, so this works in tests without an extra plugin.
-const catalogModules = import.meta.glob<{ default: Record<string, unknown> }>(
-  "./*.json",
-  { eager: true },
-);
+// `import.meta.glob` returns `{ "./en/health.json": {...}, ... }` at build
+// time when `eager: true`. Vitest reads the same Vite config that production
+// does, so this works in tests without an extra plugin.
+const catalogModules = import.meta.glob<unknown>("./*/*.json", {
+  eager: true,
+  import: "default",
+});
+
+const filesByLocale: Record<string, string[]> = {};
+const modulesByLocale: Record<string, Record<string, unknown>> = {};
+for (const [path, mod] of Object.entries(catalogModules)) {
+  // path looks like "./en/health.json".
+  const [, code = "", file = ""] = /^\.\/([^/]+)\/([^/]+)$/.exec(path) ?? [];
+  (filesByLocale[code] ??= []).push(file);
+  (modulesByLocale[code] ??= {})[path] = mod;
+}
 
 const catalogs: Record<string, Record<string, unknown>> = {};
-for (const [path, mod] of Object.entries(catalogModules)) {
-  // path looks like "./en.json" — strip leading "./" and trailing ".json".
-  const code = path.replace(/^\.\//, "").replace(/\.json$/, "");
-  catalogs[code] = mod.default;
+for (const [code, modules] of Object.entries(modulesByLocale)) {
+  catalogs[code] = assemble(modules);
 }
 
 const PLURAL_SUFFIX = /_(zero|one|two|few|many|other)$/;
@@ -99,16 +110,24 @@ const tokensPerBase = (catalog: Record<string, unknown>): Map<string, Set<string
 describe("locale catalogs", () => {
   const reference = catalogs.en;
   if (!reference) {
-    throw new Error("en.json must exist as the canonical reference catalog");
+    throw new Error("locales/en/ must exist as the canonical reference catalog");
   }
 
-  it("LOCALE_CODES matches the locale JSON files on disk", () => {
+  it("LOCALE_CODES matches the locale directories on disk", () => {
     // Catches the "added a code to LOCALE_CODES, forgot the JSON" failure mode
     // (i18next init silently ignores unknown codes today) and the inverse:
     // a JSON dropped in without registering its code.
-    expect(new Set(LOCALE_CODES), "LOCALE_CODES vs locales/*.json must agree").toEqual(
+    expect(new Set(LOCALE_CODES), "LOCALE_CODES vs locales/<code>/ must agree").toEqual(
       new Set(Object.keys(catalogs)),
     );
+  });
+
+  it("every locale has the same namespace files as en", () => {
+    const referenceFiles = [...(filesByLocale.en ?? [])].sort();
+    for (const [locale, files] of Object.entries(filesByLocale)) {
+      if (locale === "en") continue;
+      expect([...files].sort(), `${locale}/ namespace files vs en/`).toEqual(referenceFiles);
+    }
   });
 
   it("every locale shares the same logical key shape (plural variants stripped)", () => {
@@ -120,8 +139,8 @@ describe("locale catalogs", () => {
       const missing = [...referenceKeys].filter((k) => !candidate.has(k));
       const extra = [...candidate].filter((k) => !referenceKeys.has(k));
 
-      expect(missing, `${locale}.json is missing keys present in en.json`).toEqual([]);
-      expect(extra, `${locale}.json has keys not in en.json`).toEqual([]);
+      expect(missing, `${locale} is missing keys present in en`).toEqual([]);
+      expect(extra, `${locale} has keys not in en`).toEqual([]);
     }
   });
 
@@ -138,7 +157,7 @@ describe("locale catalogs", () => {
         const localTokens = candidateTokens.get(base) ?? new Set<string>();
         expect(
           [...localTokens].sort(),
-          `${locale}.json key '${base}' has different interpolation tokens than en.json`,
+          `${locale} key '${base}' has different interpolation tokens than en`,
         ).toEqual([...refTokens].sort());
       }
     }
@@ -148,7 +167,7 @@ describe("locale catalogs", () => {
     for (const [locale, catalog] of Object.entries(catalogs)) {
       const flat = flatten(catalog);
       for (const [key, value] of Object.entries(flat)) {
-        expect(value.trim(), `${locale}.json key '${key}' is empty`).not.toBe("");
+        expect(value.trim(), `${locale} key '${key}' is empty`).not.toBe("");
       }
     }
   });
@@ -157,7 +176,7 @@ describe("locale catalogs", () => {
     for (const [locale, catalog] of Object.entries(catalogs)) {
       const flat = flatten(catalog);
       for (const [key, value] of Object.entries(flat)) {
-        expect(typeof value, `${locale}.json key '${key}' is not a string`).toBe(
+        expect(typeof value, `${locale} key '${key}' is not a string`).toBe(
           "string",
         );
       }

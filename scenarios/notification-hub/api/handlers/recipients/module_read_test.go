@@ -16,6 +16,7 @@ import (
 	recipientsH "notification-hub/handlers/recipients"
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 )
 
 func TestConfiguredRecipientMetadataReadsNeedNoLoginAndDoNotCreateRows(t *testing.T) {
@@ -23,7 +24,7 @@ func TestConfiguredRecipientMetadataReadsNeedNoLoginAndDoNotCreateRows(t *testin
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	service.SetDefaultRecipient("alice")
 	device, err := service.UpsertDevice(ctx, "alice", hub.Device{Name: "Phone", MachineID: "local"})
 	require.NoError(t, err)

@@ -10,6 +10,7 @@ import (
 
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
@@ -20,7 +21,7 @@ func TestEventWebhookWithdrawsOnlyExactDecisionAskWithoutAnswering(t *testing.T)
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	spec := hub.AskSpec{
 		Recipient: "operator", Question: "Apply the run changes?",
 		Options:     []hub.AskOption{{Key: "approve", Label: "Approve"}, {Key: "reject", Label: "Reject"}},
@@ -81,7 +82,7 @@ func TestEventWebhookWithdrawalBeforeDelayedRequestCreatesNoAskOrNotification(t 
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(context.Background(), primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	secret := "withdrawal-ordering-secret"
 	handler := EventWebhook(service, secret)
 	post := func(eventID, eventType string, payload any) *httptest.ResponseRecorder {
@@ -123,7 +124,7 @@ func TestEnsureSchemasAddsWithdrawalLedgerWithoutChangingExistingAsks(t *testing
 	ctx := context.Background()
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	spec := hub.AskSpec{
 		Recipient: "operator", Question: "Apply the run changes?",
 		Options:     []hub.AskOption{{Key: "approve", Label: "Approve"}, {Key: "reject", Label: "Reject"}},

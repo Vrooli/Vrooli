@@ -1,0 +1,16 @@
+{
+  "title": "更新",
+  "description": "エージェントからのお知らせと、届いたかどうかを確認できます。",
+  "feedHeading": "最近の更新",
+  "loadedScope": "最新の {{limit}} 件を表示しています。",
+  "emptyReturned": "更新はまだありません",
+  "loadError": "更新を読み込めませんでした。",
+  "stale": "以前に読み込んだ内容を表示しています。更新に失敗しました。",
+  "askLinksUnavailable": "どの更新に判断が紐づくか確認できないため、判断へのリンクを非表示にしています。",
+  "untitled": "更新",
+  "deliveryDetails": "配信の詳細",
+  "openDecision": "判断を開く",
+  "emptyDetail": "エージェントから何か届くと、ここに表示されます。",
+  "openSource": "元のページを開く",
+  "sectionsLabel": "更新と配信"
+}

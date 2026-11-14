@@ -4,7 +4,7 @@
 // and flags the worker as stale when they differ — so a worker iOS refused to
 // swap is visible instead of silent. Keep this a simple literal the panel can
 // also parse out of the served source with a regex.
-const SW_VERSION = "2026-10-25.1";
+const SW_VERSION = "2026-11-14.1";
 const CACHE_NAME = "notification-hub-app-shell-v2";
 const APP_SHELL_URLS = ["./", "./public/site.webmanifest"];
 
@@ -15,6 +15,29 @@ const APP_SHELL_URLS = ["./", "./public/site.webmanifest"];
 // when it comes to the foreground (see src/features/pendingNav.ts).
 const PENDING_NAV_CACHE = "notification-hub-pending-nav";
 const PENDING_NAV_KEY = "/__pending_nav";
+
+// Where a tap may take the operator: a page of this app, resolved against the
+// worker's scope (the app's base path, whatever the tunnel serves it under), as an
+// absolute URL. A path ("asks/<id>" or "/asks/<id>") is relative to the scope.
+// Anything that does not land inside the scope on this origin is refused with "":
+// another site, a sibling subdomain, "//host/...", a backslash, javascript:, or an
+// absolute URL with credentials. A push never carries the operator off the Hub; the
+// notification's own link is a second, deliberate tap on the Hub's record of it.
+function hubTapTarget(raw) {
+  if (typeof raw !== "string") return "";
+  const value = raw.trim();
+  if (!value || value.startsWith("//") || value.includes("\\")) return "";
+  try {
+    const scope = new URL(self.registration.scope);
+    const target = new URL(value.startsWith("/") ? value.slice(1) : value, scope);
+    if (target.protocol !== "https:" && target.protocol !== "http:") return "";
+    if (target.origin !== scope.origin || target.username || target.password) return "";
+    if (!target.pathname.startsWith(scope.pathname)) return "";
+    return target.href;
+  } catch {
+    return "";
+  }
+}
 
 async function stashPendingNav(url) {
   if (!url) return;
@@ -86,7 +109,7 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const data = event.notification.data || {};
-  const url = typeof data.url === "string" ? data.url : "";
+  const url = hubTapTarget(data.url);
   event.waitUntil((async () => {
     // Record the destination first — this is what the foregrounded app acts on,
     // and the only mechanism that works on iOS (navigate/openWindow with a path
@@ -95,8 +118,10 @@ self.addEventListener("notificationclick", (event) => {
     // already-open app can act immediately without waiting on the cache read.
     await stashPendingNav(url);
     const windows = await clients.matchAll({ type: "window", includeUncontrolled: true });
-    for (const client of windows) {
-      client.postMessage({ type: "PENDING_NAV", url });
+    if (url) {
+      for (const client of windows) {
+        client.postMessage({ type: "PENDING_NAV", url });
+      }
     }
     if (windows.length > 0) {
       // On iOS this focus is all that happens — the client's PENDING_NAV /

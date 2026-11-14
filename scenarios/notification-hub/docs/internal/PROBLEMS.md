@@ -476,3 +476,74 @@ capture case was removed after use. The Workflow Health static assessment report
 `workflow.registry_stale` while that temporary case existed; its selected execution
 passed 1/1.
 
+
+
+### 2026-11-14 — Shared `file:` packages (file-viewer) cannot be adopted through the governed path
+
+**Status: open for the governed path; Notification Hub itself is adopted and working.**
+
+**Today's state:** Notification Hub's UI depends on `@vrooli/file-viewer` (`file:../../../packages/file-viewer`), with the governed installs of `xlsx`, `mermaid` and `jsdom` 27 done, so the viewer, the spreadsheet and Mermaid engines (lazy chunks), and the jsdom-based host tests all run. Nothing in the host needs a workaround any more.
+
+**What is still open:**
+- `scenario-dependency-analyzer deps install npm/@vrooli/file-viewer@file:... --apply` was denied by the closure probe (bounded pnpm closure and registry-metadata budget), and an earlier governed `--apply` into Web Console emptied its `node_modules` because the analyzer's pnpm store (`store/v10`) differs from the lifecycle store (`store/v3`). The first adoption therefore used one operator-approved lifecycle pnpm install. QA bugs: `knw-1794618858815944773`, `knw-1794619329121707178`. This agent did not verify that the analyzer fix has landed.
+- `vrooli package refresh file-viewer --no-restart` used to abort without a TTY (`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`) because the package's `node_modules` was linked against a different pnpm store than the lifecycle selected. Fixed in the control plane (`internal/packagegov/pnpm_store.go`, `internal/lifecycle/phases.go`: lifecycle installs follow the store `node_modules` is already linked to, and fail clearly instead of purging). The installed `vrooli` binary is stale until the operator rebuilds the CLI; until then the refresh runs through `go run ./cmd/vrooli package refresh ...`. Consumer setup stays deferred until their next coordinated restart.
+
+**Real fix:** the analyzer adopts and refreshes `file:` packages through the same store and install profile as the lifecycle, with closure sizing from a staged lock resolution, and the rebuilt CLI is installed; then this entry is deleted.
+
+**Owner:** scenario-dependency-analyzer owner (adoption); the operator installs the rebuilt CLI.
+
+**Refs:** `packages/file-viewer/README.md` (Consumer setup), `scenarios/scenario-dependency-analyzer/api/internal/installgateway/pnpm_closure.go`.
+
+### 2026-11-14 — Senders are not authenticated as services: the event path trusts a self-asserted source, the direct path has no service-principal route
+
+**Symptom:** Any process that can reach vrooli-events can raise a notice or decision ask in the operator's inbox as any source scenario, and can withdraw that source's pending asks. A Treasury (or any other) service credential presented on `NotificationsService.Send`, `ConversationsService.Ask` or `Relay` is refused with 401 rather than admitted as that service.
+
+**Root cause:** Three ingress paths, three trust models.
+1. Bearer endpoints (`/api/v1/internal/provider-decisions/{lookup,...}` publish and lookup, and ask reads) are correct: audience, subject, scope and `Verified` are all checked, publish pins the source to the principal (`ProviderDecisionSubject`, never the body), and ask reads bind the audience to the source named by the principal (`askreader.SourceOf`).
+2. The signed event webhook (`/api/v1/integrations/events`, where every scenario's `*.notification.v1`, `*.decision_requested.v1` and `*.decision_withdrawn.v1` arrives) checks one shared HMAC secret. That proves "vrooli-events delivered this", not who published. `source_scenario` is whatever the publisher wrote into the envelope: vrooli-events `handleIngest` has no caller authentication (only the agent-run provenance middleware, used for receipts). The only source the Hub refuses to take from the bus is the provider-decision one (`TestEventWebhookRejectsProviderDecisionEvenWithSharedHMACAndClaimedGatewaySource`). Withdrawal is scoped to the claimed source (`TestWebhookGenericWithdrawalAcceptsAnySourceByOwnSubjectOrRef`), which is only as strong as the claim.
+3. Direct Connect writes (`Send`, `Relay`, `Ask`) resolve the producer with `ProducerForDirect`: owner login, verified agent run, or no credential at all (shared `source:anonymous` bucket). The owner verifier expects audience `scenario-authenticator:default` and kind human, so a service token (audience `scenario-authenticator:<resource>`) fails verification, and because a credential was presented it is refused instead of downgraded to anonymous. Treasury's funding notice (`walletops.NotificationHub.Received`) sends exactly such a token, so it cannot succeed even once its credential is issued.
+
+**Status 2026-11-14 (later):** every consumer now confirms an operator's answer with the Hub before applying it (`operatordecision.Webhook` reads the ask back as its own ask-reader), so a forged `notification_hub.ask.resolved.v1` cannot approve anything for a consumer whose credential is issued; until the operator runs `service-principals sync --apply`, consumers apply the body and count it as unverified. For the request direction, vrooli-events now classifies and counts the publisher proof of every accepted event (`GET /api/v1/publisher-authentication`, observation only, nothing refused), `eventbus.Client` presents each source's `<source>-event-publisher` identity once a scenario registers `credential-authority-go/eventpublishing` and its credential is issued, and 12 publishers declare theirs. Enforcement per high-consequence family, then everywhere, is not done and is the operator's decision from the observed counts.
+
+**Fixed 2026-11-14 (service tokens reached the handlers):** in the production configuration (Cloudflare Access the only owner provider) `OwnerAuthenticator` handed every request, `Authorization` header included, to api-core `authn.Config.Authenticate`, which refuses any request carrying an `Authorization` header when no provider other than Access exists. So every service token (ask-reader reads, sender sends) and every owner bearer was refused as a failed owner login before the handler could verify it; Research Desk's `ListAsks` failed `unauthenticated` from the moment its ask-reader credential was issued (15:14Z), and the handler tests missed it because their fixtures mount no owner middleware. `OwnerAuthenticator` now shows its providers the request without the bearer (`withoutBearer` in `internal/identity/access.go`); the handlers verify the bearer as before. Needs a Hub restart to take effect.
+
+**Status 2026-11-14 (packets):** a service sender now also stores files (`StatAttachmentBlobs`, `PutAttachmentBlob`) and closes its own ask (`Withdraw`, by id or subject key; before this a sender's ask could never be withdrawn, because the withdrawal compared the ask's source with the recipient). Research Desk sends its decisions this way, with explainer pages; its credential awaits the operator's `service-principals sync --apply`.
+
+**Status 2026-11-14:** path 3 is fixed. A `<source>-notification-hub` principal (api-core `hubsender`) is admitted on `Send`, `Relay` and `Ask` as its own source, and a verified service token that is not a sender is refused with the mismatch named, never downgraded to anonymous. Treasury still has to declare its principal. Paths 2 and the idempotency note below remain open.
+
+**Fixed 2026-11-14 (context links):** direct `Send` and `Relay` refuse an unsafe `context_url`, and the event path drops one (stored without the link, counted per producer, logged) rather than reject the notice. A sample of the live store (4,120 notifications, 183 asks, 22 revisions; 640 distinct links) found every event-sourced link valid; the only 6 that fail are direct asks from the operator's own agents (`file://` paths and a relative path without a leading slash), which the direct `Ask` path deliberately still accepts, with an advice warning; `Ask` refuses only `javascript:`, `data:` and `vbscript:`. The drop count is not yet on any HTTP surface; it is in the log and `integrations.DroppedContextLinks()`.
+
+**Workaround:** None needed for the provider-decision and ask-read paths. For notices, senders that must reach the Hub today do so over the event bus (unauthenticated source) or without a credential (anonymous bucket).
+
+**Also open:** the notification-level idempotency key `(recipient, key)` is shared by every direct producer, so one sender's key can collide with another's (`already bound to different immutable terms`); senders prefix their keys with their own name until the Hub scopes it by source.
+
+**Real fix:** (a) Bind publisher to `source.scenario` where the principal is still known, in vrooli-events ingest (or have it attach a verified publisher identity that the Hub compares with the claimed source); the Hub cannot do this alone because the bus replaces the sender with its own HMAC. (b) Add a service-principal producer route on the Hub's direct writes: a verified service token with the Hub audience and a send scope is admitted with the source taken from the principal name (the ask-reader convention), never from the request; a mismatch is refused naming both. (c) Mark the Hub's high-consequence sources (agent-manager authorizations, storage deletion grants, Treasury approvals) as requiring (a) or (b), as provider decisions already do.
+
+**Owner:** unassigned; (b) is Notification Hub, (a) and (c) need vrooli-events.
+
+**Refs:** `api/internal/integrations/events.go` (`EventWebhookFromSecretSourceWithDecisionDefaults`, `validSignature`), `api/internal/identity/identity.go` (`ProducerForDirect`), `api/internal/identity/reader.go` (`verifiedServiceReader`), `api/internal/identity/provider_decision.go`, `scenarios/vrooli-events/api/handlers.go` (`handleIngest`), `packages/api-core/owneridentity/owneridentity.go` (`ExpectedAudience`), `scenarios/scenario-authenticator/docs/internal/PROBLEMS.md` (Treasury principals).
+
+## Work ladder — repeated storage and producer logic (2026-11-14)
+
+- Rung: W3; contract and obligations unchanged.
+- Evidence: focused Go tests passed for identity, hub, preferences, recipient,
+  conversation, notification, delivery, and dbvalue packages. Test Genie run
+  `20261114-081726-47cf595f` confirms no duplicated-code finding, while its
+  unrelated UI projection checks and existing long-file budget still fail.
+- Result: direct producer resolution, escalation-chain row loading, and
+  notification get/state/receipt loading now each have one implementation.
+  The separate ensure-recipient and recipient-scoped read rules remain explicit.
+
+### Follow-up — event ingress and unused transport scaffold (2026-11-14)
+
+- Rung: W3; contract and requirements unchanged.
+- Result: neutral event facts are decoded once and the unused `httpc.Doer` /
+  `FakeDoer` scaffold was removed; no production code used it. Locale labels,
+  directions, and bidi formatting now share the side-effect-free locale config.
+- Evidence: the full API `go test ./... -count=1` suite and full UI `pnpm test`
+  suite passed after `TestRecipientReadViewsDoNotCrossRecipients` stopped the
+  startup recovery worker before inserting its read-only fixtures. UI passed
+  483 tests; `pnpm run type-check` also passed. Test Genie run
+  `20261114-101655-41ea8b9f` did not reach a phase before its one wait timed out
+  in `preparing:provider_readiness`; the phase-less run was then explicitly
+  aborted. Reports are `knw-1794651212521488486` and `knw-1794651641400210129`.

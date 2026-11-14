@@ -149,6 +149,9 @@ type decisionFacts struct {
 	SubjectKey            string `json:"subject_key"`
 	ReassertWithinSeconds int64  `json:"reassert_within_seconds"`
 	AssertedAt            string `json:"asserted_at"`
+	// AcceptsContextRequests declares that the producer answers the operator's
+	// questions by re-sending the decision under the same subject key.
+	AcceptsContextRequests bool `json:"accepts_context_requests"`
 }
 
 // DecisionAskSpec turns a decision-request event into an ask. The event id is
@@ -179,9 +182,6 @@ func DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID s
 	}
 	if len(facts.Options) < 2 {
 		return hub.AskSpec{}, fmt.Errorf("%w: a decision needs at least two options", hub.ErrInvalidArgument)
-	}
-	if facts.Recommended == "" {
-		return hub.AskSpec{}, fmt.Errorf("%w: a decision needs a recommended option", hub.ErrInvalidArgument)
 	}
 	if len(facts.RecommendationReason) > maxDecisionRecommendationLen {
 		return hub.AskSpec{}, fmt.Errorf("%w: recommendation_reason exceeds %d characters", hub.ErrInvalidArgument, maxDecisionRecommendationLen)
@@ -219,27 +219,28 @@ func DecisionAskSpecWithDefaults(recipient, sourceScenario, eventType, eventID s
 		title += ": " + subject
 	}
 	return hub.AskSpec{
-		Recipient:            recipient,
-		Title:                title,
-		Question:             question,
-		Options:              facts.Options,
-		Recommended:          strings.TrimSpace(facts.Recommended),
-		RecommendationReason: strings.TrimSpace(facts.RecommendationReason),
-		DefaultAnswer:        strings.TrimSpace(facts.DefaultAnswer),
-		Reversible:           facts.Reversible,
-		Urgency:              facts.Urgency,
-		ContextURL:           strings.TrimSpace(facts.ContextURL),
-		BigPicture:           facts.BigPicture,
-		TechnicalDetails:     technicalDetails,
-		Deadline:             deadline,
-		DeadlineSpecified:    deadlineSpecified,
-		SensitivityLabel:     sensitivityLabel,
-		IdempotencyKey:       eventID,
-		Source:               sourceScenario,
-		SourceEventType:      eventType,
-		Correlation:          facts.Correlation,
-		SubjectKey:           strings.TrimSpace(facts.SubjectKey),
-		ReassertWithin:       time.Duration(facts.ReassertWithinSeconds) * time.Second,
-		AssertedAt:           assertedAt,
+		Recipient:              recipient,
+		Title:                  title,
+		Question:               question,
+		Options:                facts.Options,
+		Recommended:            strings.TrimSpace(facts.Recommended),
+		RecommendationReason:   strings.TrimSpace(facts.RecommendationReason),
+		DefaultAnswer:          strings.TrimSpace(facts.DefaultAnswer),
+		Reversible:             facts.Reversible,
+		Urgency:                facts.Urgency,
+		ContextURL:             eventContextURL(sourceScenario, eventType, facts.ContextURL),
+		BigPicture:             facts.BigPicture,
+		TechnicalDetails:       technicalDetails,
+		Deadline:               deadline,
+		DeadlineSpecified:      deadlineSpecified,
+		SensitivityLabel:       sensitivityLabel,
+		IdempotencyKey:         eventID,
+		Source:                 sourceScenario,
+		SourceEventType:        eventType,
+		Correlation:            facts.Correlation,
+		SubjectKey:             strings.TrimSpace(facts.SubjectKey),
+		ReassertWithin:         time.Duration(facts.ReassertWithinSeconds) * time.Second,
+		AssertedAt:             assertedAt,
+		AcceptsContextRequests: facts.AcceptsContextRequests,
 	}, nil
 }

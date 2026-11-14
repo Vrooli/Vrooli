@@ -25,7 +25,7 @@ func (s *Service) ProcessEscalations(ctx context.Context) error {
 		return err
 	}
 	now := s.clock.Now().UTC()
-	rows, err := s.db.QueryContext(ctx, `SELECT a.id, a.notification_id, a.default_answer, a.reversible, n.urgency FROM asks a JOIN notifications n ON n.id=a.notification_id WHERE a.state IN ('pending', 'escalated') AND a.deadline <= ? ORDER BY a.deadline`, now.Format(time.RFC3339Nano))
+	rows, err := s.db.QueryContext(ctx, `SELECT a.id, a.notification_id, a.default_answer, a.reversible, n.urgency FROM asks a JOIN notifications n ON n.id=a.notification_id WHERE a.state IN ('pending', 'escalated') AND a.deadline <= ? ORDER BY a.deadline`, storedTime(now))
 	if err != nil {
 		return err
 	}
@@ -70,7 +70,7 @@ func (s *Service) ProcessEscalations(ctx context.Context) error {
 }
 
 func (s *Service) expireNonCriticalAsk(ctx context.Context, askID string) error {
-	nowText := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	nowText := storedTime(s.clock.Now())
 	result, err := s.db.ExecContext(ctx, `UPDATE asks SET state='expired', reason='non-critical ask expired without escalation', resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND state IN ('pending','escalated')`, nowText, nowText, askID)
 	if err != nil {
 		return err
@@ -96,7 +96,7 @@ func (s *Service) escalateAsk(ctx context.Context, askID, notificationID string)
 	}
 	now := s.clock.Now().UTC()
 	if used >= len(chain.Steps) {
-		nowText := now.Format(time.RFC3339Nano)
+		nowText := storedTime(now)
 		result, err := s.db.ExecContext(ctx, `UPDATE asks SET state='expired', reason='escalation chain exhausted without an answer', resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND state IN ('pending','escalated')`, nowText, nowText, askID)
 		if err != nil {
 			return err
@@ -145,10 +145,10 @@ func (s *Service) escalateAsk(ctx context.Context, askID, notificationID string)
 				attemptOutcome, attemptReason = "failed", safeReason(err)
 				reason = attemptReason
 			}
-			_, _ = s.db.ExecContext(ctx, `INSERT INTO delivery_attempts (notification_id, channel, machine_id, attempt_number, outcome, reason, next_attempt_at, created_at) VALUES (?, ?, ?, ?, ?, ?, '', ?)`, n.ID, target.Channel, target.MachineID, attempt, attemptOutcome, attemptReason, s.clock.Now().UTC().Format(time.RFC3339Nano))
+			_, _ = s.db.ExecContext(ctx, `INSERT INTO delivery_attempts (notification_id, channel, machine_id, attempt_number, outcome, reason, next_attempt_at, created_at) VALUES (?, ?, ?, ?, ?, ?, '', ?)`, n.ID, target.Channel, target.MachineID, attempt, attemptOutcome, attemptReason, storedTime(s.clock.Now()))
 			if err == nil {
 				outcome = "delivered"
-				nowText := s.clock.Now().UTC().Format(time.RFC3339Nano)
+				nowText := storedTime(s.clock.Now())
 				_, _ = s.db.ExecContext(ctx, `INSERT INTO receipts (id, notification_id, channel, machine_id, provider_id, delivered_at) VALUES (?, ?, ?, ?, ?, ?)`, uuid.NewString(), n.ID, target.Channel, target.MachineID, provider, nowText)
 				break
 			}
@@ -165,10 +165,10 @@ func (s *Service) escalateAsk(ctx context.Context, askID, notificationID string)
 	if stepReason == "" {
 		stepReason = fmt.Sprintf("escalation step %d accepted by %s", step.Ordinal, step.Channel)
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO escalation_steps (id, ask_id, ordinal, channel, outcome, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), askID, step.Ordinal, step.Channel, outcome, stepReason, now.Format(time.RFC3339Nano))
+	_, err = s.db.ExecContext(ctx, `INSERT INTO escalation_steps (id, ask_id, ordinal, channel, outcome, reason, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, uuid.NewString(), askID, step.Ordinal, step.Channel, outcome, stepReason, storedTime(now))
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `UPDATE asks SET state='escalated', reason=?, deadline=?, updated_at=? WHERE id=? AND state IN ('pending','escalated')`, stepReason, now.Add(escalationSlice).Format(time.RFC3339Nano), now.Format(time.RFC3339Nano), askID)
+	_, err = s.db.ExecContext(ctx, `UPDATE asks SET state='escalated', reason=?, deadline=?, updated_at=? WHERE id=? AND state IN ('pending','escalated')`, stepReason, storedTime(now.Add(escalationSlice)), storedTime(now), askID)
 	return err
 }

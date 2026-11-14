@@ -65,7 +65,7 @@ func TestWithdrawDecisionAskRequiresExactSourceTypeAndRefAndIsNotAnAnswer(t *tes
 	require.NoError(t, db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM answers WHERE ask_id=?`, ask.ID).Scan(&answers))
 	require.Zero(t, answers, "producer withdrawal must never create a human answer")
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
-	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, asyncWait, 10*time.Millisecond)
 	resolved := publisher.snapshot()[0]
 	require.Equal(t, hub.AskResolvedEventType, resolved.EventType)
 	require.Equal(t, hub.AskWithdrawn, resolved.Payload["state"])

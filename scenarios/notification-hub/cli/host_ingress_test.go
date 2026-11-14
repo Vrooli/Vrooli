@@ -17,6 +17,10 @@ import (
 )
 
 func TestHostCommandsSendAndAskWithoutIdentityOrPermission(t *testing.T) {
+	// No identity: the ask must not look up a session label for a run this shell
+	// is not. The broker socket is found under the temp dir, so move that too.
+	t.Setenv(cliutil.EnvIdentityToken, "")
+	t.Setenv("TMPDIR", t.TempDir())
 	var sendCalled, askCalled bool
 	var askSeen conversationsv1.AskRequest
 	router := http.NewServeMux()
@@ -37,7 +41,7 @@ func TestHostCommandsSendAndAskWithoutIdentityOrPermission(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, app.Run([]string{
 		"conversations", "ask", "--question", "Host-shell test choice?", "--option", "yes=Yes", "--option", "no=No",
-		"--deadline", "24h", "--sensitivity-label", "private", "--idempotency-key", "host-ask-test",
+		"--expires", "24h", "--sensitivity-label", "private", "--idempotency-key", "host-ask-test",
 		"--big-picture", "Why this matters to a reader with no context.", "--technical-details", "Run 42; packet at /tmp/x.",
 	}))
 	require.True(t, askCalled)
@@ -59,14 +63,17 @@ func (s notificationIngressStub) Send(_ context.Context, req *connect.Request[no
 func (notificationIngressStub) Relay(context.Context, *connect.Request[notificationsv1.RelayRequest]) (*connect.Response[notificationsv1.RelayResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, nil)
 }
+
 func (notificationIngressStub) Get(context.Context, *connect.Request[notificationsv1.GetRequest]) (*connect.Response[notificationsv1.GetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, nil)
 }
+
 func (notificationIngressStub) List(context.Context, *connect.Request[notificationsv1.ListRequest]) (*connect.Response[notificationsv1.ListResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, nil)
 }
 
 type conversationIngressStub struct {
+	conversationsconnect.UnimplementedConversationsServiceHandler
 	askCalled *bool
 	seen      *conversationsv1.AskRequest
 }
@@ -76,28 +83,7 @@ func (s conversationIngressStub) Ask(_ context.Context, req *connect.Request[con
 		return nil, connect.NewError(connect.CodeUnauthenticated, nil)
 	}
 	*s.askCalled = true
-	s.seen.BigPicture, s.seen.TechnicalDetails = req.Msg.GetBigPicture(), req.Msg.GetTechnicalDetails()
+	bigPicture, technicalDetails := req.Msg.GetBigPicture(), req.Msg.GetTechnicalDetails()
+	s.seen.BigPicture, s.seen.TechnicalDetails = &bigPicture, &technicalDetails
 	return connect.NewResponse(&conversationsv1.AskResponse{AskId: "host-ask-test", Notification: &shared.Notification{Id: "host-ask-notification", RequestedBy: "configured-owner"}}), nil
-}
-
-func (conversationIngressStub) Answer(context.Context, *connect.Request[conversationsv1.AnswerRequest]) (*connect.Response[conversationsv1.AnswerResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
-}
-func (conversationIngressStub) Wait(context.Context, *connect.Request[conversationsv1.WaitRequest]) (*connect.Response[conversationsv1.WaitResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
-}
-func (conversationIngressStub) Dismiss(context.Context, *connect.Request[conversationsv1.DismissRequest]) (*connect.Response[conversationsv1.DismissResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
-}
-func (conversationIngressStub) Withdraw(context.Context, *connect.Request[conversationsv1.WithdrawRequest]) (*connect.Response[conversationsv1.WithdrawResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
-}
-func (conversationIngressStub) GetAsk(context.Context, *connect.Request[conversationsv1.GetAskRequest]) (*connect.Response[conversationsv1.GetAskResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
-}
-func (conversationIngressStub) ListAsks(context.Context, *connect.Request[conversationsv1.ListAsksRequest]) (*connect.Response[conversationsv1.ListAsksResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
-}
-func (conversationIngressStub) ListNativeConsents(context.Context, *connect.Request[conversationsv1.ListNativeConsentsRequest]) (*connect.Response[conversationsv1.ListNativeConsentsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, nil)
 }

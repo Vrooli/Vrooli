@@ -1,73 +1,116 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { Check, ChevronRight, Clock3, Search, X } from "lucide-react";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
+import { Button } from "@vrooli/react-component-library/Button/2";
+import { IconButton } from "@vrooli/react-component-library/IconButton/3";
+import { CheckCircle2, Inbox, Search, SearchX, X } from "lucide-react";
 
 import { conversationsClient } from "../../api/notifications";
+import { FilterChips } from "../../components/FilterChips";
+import { ListGroup } from "../../components/ListRow";
+import { Page } from "../../components/Page";
+import { EmptyNotice, InlineNote, QueryError } from "../../components/QueryNotice";
+import { SkeletonRows } from "../../components/Skeleton";
 import { selectors } from "../../consts/selectors";
 import { strings } from "../../consts/strings";
+import { useNow } from "../../hooks/useNow";
+import { useNeedsYou } from "./useNeedsYou";
 import { useTranslation } from "../../i18n";
+import { isUnauthenticated } from "../../lib/apiError";
+import { formatAgo } from "../../lib/ago";
 import { preserveRoutedTestMode } from "../routedTestMode";
-import { optionLabel } from "./askView";
+import { filterCount, groupByTier, listViewRequest, readListView, TIER_LABEL, writeListView, type ListView } from "./askListView";
+import { parseStateFilter, STATE_FILTERS, STATE_LABEL } from "./askState";
+import { DecisionRow } from "./DecisionRow";
+import { ListControls } from "./ListControls";
 import { NativeConsents } from "./NativeConsents";
+import { useNativeConsents } from "./useNativeConsents";
 
 const PAGE_SIZE = 50;
-const states = ["all", "awaiting", "answered", "defaulted", "expired", "withdrawn", "dismissed"] as const;
-type StateFilter = typeof states[number];
+const HEADING_ID = "request-list-heading";
 let returnPosition = { from: "", top: 0, askId: "", index: 0 };
 
 export function HistoryPage() {
   return <RequestList />;
 }
 
-/** Shared recipient-scoped browser: the queue fixes the state to Awaiting answer. */
+/**
+ * Shared decision browser. The queue ("Needs you") fixes the status to waiting
+ * and keeps search behind an icon; History keeps search open and offers every
+ * status. Both search the full authorized scope on the server before paging.
+ */
 export function RequestList({ queue = false }: { queue?: boolean }) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
-  const rawState = params.get("state") ?? "all";
-  const state: StateFilter = queue ? "awaiting" : states.includes(rawState as StateFilter) ? rawState as StateFilter : "all";
+  const state = queue ? "awaiting" : parseStateFilter(params.get("state"));
   const search = params.get("q") ?? "";
+  const view = readListView(params, queue);
   const [query, setQuery] = useState(search.trim());
+  const [searchOpen, setSearchOpen] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
   const returnFocusAfterReload = useRef(false);
   const from = `${queue ? "/asks" : "/history"}${location.search}`;
+  const showSearch = !queue || searchOpen || search !== "";
   useEffect(() => {
+    if (search.trim() === query) return;
     const timer = setTimeout(() => setQuery(search.trim()), 200);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, query]);
+  useEffect(() => {
+    if (queue && searchOpen) searchInput.current?.focus();
+  }, [queue, searchOpen]);
   const searching = query !== search.trim();
   const list = useInfiniteQuery({
-    queryKey: ["asks", queue ? "open" : "history", query, state],
+    queryKey: ["asks", queue ? "open" : "history", query, state, view],
     initialPageParam: "",
     queryFn: async ({ pageParam, signal }) => conversationsClient.listAsks({
       limit: PAGE_SIZE, cursor: pageParam, query, stateFilter: state,
+      ...listViewRequest(view, queue),
     }, { signal }),
+    // Changing a filter keeps the last answer's facets on screen, so the open
+    // filter sheet does not vanish under the finger that just touched it.
+    placeholderData: keepPreviousData,
     getNextPageParam: (page) => page.nextCursor || undefined,
     retry: false,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
+  // While a new search or filter is being read, the previous answer stays under
+  // the controls (their facets) but its rows are not shown as the new result.
+  const answered = list.isPlaceholderData ? undefined : list.data;
+  const facets = list.data?.pages[0]?.facets;
   // A live state change can move a row between pages; show each identity once.
-  const rows = [...new Map(list.data?.pages.flatMap((page) => page.asks).map((ask) => [ask.id, ask]) ?? []).values()];
-  const { data, hasNextPage, isFetching, isError, fetchNextPage } = list;
+  const rows = [...new Map(answered?.pages.flatMap((page) => page.asks).map((ask) => [ask.id, ask]) ?? []).values()];
+  const data = answered;
+  const { hasNextPage, isFetching, isError, fetchNextPage } = list;
+  // Coming back from a decision: the position this list remembered when the row
+  // was opened, or else the row the decision page asked to have restored.
+  const restoreAskId = (location.state as { restoreAskId?: string } | null)?.restoreAskId;
+  const restoredAskId = useRef("");
   useEffect(() => {
-    if (!data || searching || returnPosition.from !== from || !returnPosition.askId) return;
+    const remembered = returnPosition.from === from && returnPosition.askId ? returnPosition : null;
+    const asked = !remembered && restoreAskId && restoredAskId.current !== restoreAskId ? { from, askId: restoreAskId, index: 0, top: -1 } : null;
+    const restoring = remembered ?? asked;
+    if (!data || searching || !restoring) return;
     const nodes = [...document.querySelectorAll<HTMLElement>("[data-request-id]")];
-    const exact = nodes.find((node) => node.dataset.requestId === returnPosition.askId);
+    const exact = nodes.find((node) => node.dataset.requestId === restoring.askId);
     // If the cache expired while reading a detail, restore the required pages
     // through their normal cursor before focusing. A resolved/moved row falls
     // back to its nearest surviving neighbor rather than trapping navigation.
-    if (!exact && nodes.length <= returnPosition.index && hasNextPage) {
+    if (!exact && nodes.length <= restoring.index && hasNextPage) {
       if (!isFetching && !isError) void fetchNextPage();
       return;
     }
-    const target = exact ?? nodes[Math.min(returnPosition.index, nodes.length - 1)] ?? heading.current;
+    const heading = document.getElementById(HEADING_ID);
+    heading?.setAttribute("tabindex", "-1");
+    const target = exact ?? nodes[Math.min(restoring.index, nodes.length - 1)] ?? heading;
     target?.focus({ preventScroll: true });
-    document.querySelector<HTMLElement>("main")?.scrollTo({ top: returnPosition.top });
+    if (restoring.top >= 0) document.querySelector<HTMLElement>("main")?.scrollTo({ top: restoring.top });
+    else target?.scrollIntoView({ block: "center" });
+    restoredAskId.current = restoreAskId ?? "";
     returnPosition = { ...returnPosition, askId: "" };
-  }, [data, hasNextPage, isFetching, isError, fetchNextPage, searching, from]);
+  }, [data, hasNextPage, isFetching, isError, fetchNextPage, searching, from, restoreAskId]);
   useEffect(() => {
     if (!returnFocusAfterReload.current || list.isFetching || !list.isSuccess) return;
     returnFocusAfterReload.current = false;
@@ -78,95 +121,186 @@ export function RequestList({ queue = false }: { queue?: boolean }) {
     if (value) next.set("q", value); else next.delete("q");
     return next;
   }, { replace: true });
+  const changeView = (next: ListView) => setParams((current) => writeListView(current, next, queue), { replace: true });
   const clear = () => {
-    setParams((current) => { const next = new URLSearchParams(current); next.delete("q"); next.delete("state"); return next; }, { replace: true });
+    setParams((current) => {
+      const next = writeListView(current, { ...view, urgencies: [], senders: [] }, queue);
+      next.delete("q");
+      next.delete("state");
+      return next;
+    }, { replace: true });
     searchInput.current?.focus();
   };
-  const reload = () => { returnFocusAfterReload.current = true; void list.refetch(); };
-  const title = queue ? t(strings.asks.list.title) : t(strings.pages.history.title);
-  const formatTime = (value: string | undefined) => {
-    const date = value ? new Date(value) : null;
-    return date && !Number.isNaN(date.valueOf())
-      ? new Intl.DateTimeFormat(i18n.language, { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(date)
-      : t(strings.pages.history.timeUnavailable);
+  // The decisions the search and filters leave, across every page: the urgency
+  // counts already apply the sender filter and the search, so selected urgencies
+  // (or all of them, when none is selected) add up to it.
+  const matching = (facets?.urgencies ?? [])
+    .filter((facet) => view.urgencies.length === 0 || view.urgencies.some((urgency) => urgency === facet.value))
+    .reduce((sum, facet) => sum + facet.count, 0);
+  const consents = useNativeConsents(query, queue);
+  const consentsFailed = queue && consents.isError && !isUnauthenticated(consents.error);
+  const reload = () => {
+    returnFocusAfterReload.current = true;
+    if (initialError || refreshError) void list.refetch();
+    if (consentsFailed) void consents.refetch();
   };
-  const hasFilters = Boolean(search || (!queue && state !== "all"));
+  const hasFilters = Boolean(search || (!queue && state !== "all") || filterCount(view) > 0);
   const initialError = list.isError && !list.data;
   const refreshError = list.isError && Boolean(list.data) && !list.isFetchNextPageError;
+  const settled = list.isSuccess && !list.isPlaceholderData && !searching;
+  const needsYou = useNeedsYou();
+  const totalAwaiting = answered?.pages[0]?.totalAwaiting ?? 0;
+  const description = queue && settled
+    ? hasFilters
+      ? t(strings.asks.list.matching, { count: matching, total: totalAwaiting })
+      : rows.length === 0 && needsYou.count === 0
+        ? t(strings.asks.list.allClear)
+        : t(strings.asks.list.waiting, { count: Math.max(rows.length, needsYou.count) })
+    : undefined;
+  const pending = list.isPending || list.isPlaceholderData || searching;
+  // Ordered by attention the list reads as groups (escalated, then each urgency),
+  // which is what makes the order explain itself; one group needs no heading.
+  const groups = view.sort === "attention" ? groupByTier(rows) : [{ tier: "normal" as const, asks: rows }];
+  const grouped = view.sort === "attention" && groups.length > 1;
+  const now = useNow();
+  const updatedAgo = list.dataUpdatedAt > 0 ? formatAgo(new Date(list.dataUpdatedAt).toISOString(), now) : null;
+
+  const searchField = showSearch && (
+    <div className="request-search-field flex min-h-12 items-center gap-3 rounded-control border border-app-border bg-app-surface px-3">
+      <Search size={18} className="shrink-0 text-app-muted-foreground" aria-hidden="true" />
+      <input
+        ref={searchInput}
+        id="request-search"
+        type="search"
+        maxLength={500}
+        aria-label={t(strings.pages.history.searchLabel)}
+        value={search}
+        onChange={(event) => changeSearch(event.currentTarget.value)}
+        placeholder={t(strings.pages.history.searchHint)}
+        className="min-h-12 min-w-0 flex-1 bg-transparent text-base text-app-foreground outline-none placeholder:text-app-muted-foreground"
+      />
+      {hasFilters && (
+        <button type="button" onClick={clear} className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-control px-1 text-sm text-app-muted-foreground hover:text-app-foreground">
+          <X size={14} aria-hidden="true" />{t(strings.pages.history.clearFilters)}
+        </button>
+      )}
+    </div>
+  );
 
   return (
-    <section data-testid={queue ? selectors.pages.asks : selectors.pages.history} aria-labelledby="request-list-heading" className="mx-auto flex w-full max-w-3xl flex-col gap-5">
-      <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 ref={heading} id="request-list-heading" tabIndex={-1} className="text-2xl font-semibold tracking-tight">{title}</h2>
-        {list.dataUpdatedAt > 0 && <p className="text-xs text-app-muted-foreground">{t("pages.history.updated", { time: new Intl.DateTimeFormat(i18n.language, { hour: "numeric", minute: "2-digit" }).format(list.dataUpdatedAt) })}</p>}
-      </header>
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor="request-search" className="text-sm font-medium">{t("pages.history.searchLabel")}</label>
-          {hasFilters && <button type="button" onClick={clear} className="inline-flex min-h-11 items-center gap-1 text-sm text-app-muted-foreground hover:text-app-foreground"><X size={14} aria-hidden="true" />{t("pages.history.clearFilters")}</button>}
-        </div>
-        <div className="request-search-field flex min-h-12 items-center gap-3 rounded-control border border-app-border bg-app-surface px-3">
-          <Search size={18} className="shrink-0 text-app-muted-foreground" aria-hidden="true" />
-          <input ref={searchInput} id="request-search" type="search" maxLength={500} value={search} onChange={(event) => changeSearch(event.currentTarget.value)} placeholder={t("pages.history.searchHint")} className="min-h-12 min-w-0 flex-1 bg-transparent text-base text-app-foreground outline-none placeholder:text-app-muted-foreground" />
-        </div>
-        {!queue && <nav aria-label={t("pages.history.stateFilters")} className="history-state-filters flex flex-wrap gap-1 rounded-control border border-app-border bg-app-surface-muted p-1">
-          {states.map((value) => {
+    <Page
+      testId={queue ? selectors.pages.asks : selectors.pages.history}
+      headingId={HEADING_ID}
+      title={queue ? t(strings.asks.list.title) : t(strings.pages.history.title)}
+      description={description}
+      actions={queue && (
+        <IconButton
+          aria-label={t(searchOpen || search ? strings.asks.list.searchClose : strings.asks.list.searchOpen)}
+          aria-pressed={searchOpen || search !== ""}
+          surface="ghost"
+          shape="rounded"
+          size="lg"
+          onClick={() => {
+            if (searchOpen || search) { setSearchOpen(false); changeSearch(""); } else setSearchOpen(true);
+          }}
+        >
+          <Search size={20} aria-hidden="true" />
+        </IconButton>
+      )}
+    >
+      {searchField}
+      {!queue && (
+        <FilterChips
+          testId={selectors.history.filterStrip}
+          label={t(strings.pages.history.stateFilters)}
+          chips={STATE_FILTERS.map((value) => {
             const next = new URLSearchParams(params);
             if (value === "all") next.delete("state"); else next.set("state", value);
-            return <Link key={value} to={`/history${next.size ? `?${next}` : ""}`} data-testid={selectors.history.filterLink({ state: value })} aria-current={state === value ? "page" : undefined} className={`flex min-h-11 min-w-11 items-center justify-center rounded-control px-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 ${state === value ? "bg-app-primary text-app-primary-foreground shadow-sm" : "text-app-muted-foreground hover:text-app-foreground"}`}>{t(`pages.history.${value}`)}</Link>;
+            return {
+              id: value,
+              label: t(STATE_LABEL[value]),
+              current: state === value,
+              testId: selectors.history.filterLink({ state: value }),
+              to: preserveRoutedTestMode(`/history${next.size ? `?${next}` : ""}`, location.search),
+            };
           })}
-        </nav>}
-        {queue && <Link to={preserveRoutedTestMode(`/history${search ? `?q=${encodeURIComponent(search)}` : ""}`, location.search)} className="self-start text-sm font-medium underline underline-offset-4">{t("pages.history.searchAllStates")}</Link>}
-      </div>
-      {queue && <NativeConsents query={query} />}
-      {(list.isPending || searching) && <p role="status" className="text-sm text-app-muted-foreground">{t("pages.history.searching")}</p>}
-      {(initialError || refreshError) && <div className="rounded-control border border-app-border bg-app-surface p-4">
-        <p role="alert">{queue ? t(strings.asks.list.loadError) : t(strings.pages.history.loadError)}</p>
-        {refreshError && <p role="status" className="mt-1 text-sm text-app-muted-foreground">{t(strings.asks.list.stale)}</p>}
-        {initialError && <p className="mt-1 text-sm text-app-muted-foreground">{t(strings.asks.list.notCleared)}</p>}
-        <div className="mt-2 flex flex-wrap items-center gap-4">
-          <button type="button" onClick={reload} className="min-h-11 font-medium underline underline-offset-4">{t(strings.asks.list.retry)}</button>
-          <Link to={preserveRoutedTestMode("/settings", location.search)} className="inline-flex min-h-11 items-center text-sm underline">{t(strings.asks.list.openSettings)}</Link>
+        />
+      )}
+      {queue && <NativeConsents list={consents} />}
+      <ListControls view={view} facets={facets} matching={matching} onChange={changeView} onClear={clear} />
+      {pending && <SkeletonRows />}
+      {(initialError || refreshError || consentsFailed) && (
+        <QueryError
+          error={initialError || refreshError ? list.error : consents.error}
+          title={t(initialError || refreshError
+            ? consentsFailed ? strings.asks.list.loadErrorBoth : queue ? strings.asks.list.loadError : strings.pages.history.loadError
+            : strings.nativeConsent.unavailable)}
+          detail={initialError || refreshError ? (refreshError ? t(strings.asks.list.stale) : t(strings.asks.list.notCleared)) : undefined}
+          onRetry={reload}
+          retrying={list.isFetching || consents.isFetching}
+          retryTestId={selectors.asks.loadRetry}
+        />
+      )}
+      {settled && rows.length === 0 && (
+        <div data-testid={queue ? selectors.asks.empty : undefined}>
+          <EmptyNotice
+            icon={hasFilters ? <SearchX size={32} /> : queue ? <CheckCircle2 size={32} /> : <Inbox size={32} />}
+            title={t(hasFilters ? strings.pages.history.noMatches : queue ? strings.pages.history.noAwaiting : strings.pages.history.empty)}
+            detail={t(hasFilters ? strings.pages.history.trySearch : queue ? strings.pages.history.awaitingEmptyDetail : strings.pages.history.emptyDetail)}
+          >
+            {queue && !hasFilters && (
+              <Link to={preserveRoutedTestMode("/history", location.search)} className="inline-flex min-h-11 items-center text-sm font-medium text-app-primary hover:underline">
+                {t(strings.pages.history.seeHistory)}
+              </Link>
+            )}
+            {hasFilters && <Button type="button" variant="outline" onClick={clear}>{t(strings.pages.history.clearFilters)}</Button>}
+          </EmptyNotice>
         </div>
-      </div>}
-      {list.isSuccess && !searching && rows.length === 0 && <div data-testid={queue ? selectors.asks.empty : undefined} className="rounded-control border border-app-border bg-app-surface px-5 py-8">
-        <Clock3 size={24} className="mb-3 text-app-muted-foreground" aria-hidden="true" />
-        <h3 className="text-lg font-medium">{t(hasFilters ? "pages.history.noMatches" : queue ? "pages.history.noAwaiting" : "pages.history.empty")}</h3>
-        <p className="mt-2 text-sm text-app-muted-foreground">{t(hasFilters ? "pages.history.trySearch" : queue ? "pages.history.awaitingEmptyDetail" : "pages.history.emptyDetail")}</p>
-      </div>}
-      {rows.length > 0 && <ul data-testid={queue ? selectors.asks.list : undefined} aria-busy={searching || list.isFetching} className="divide-y divide-app-border border-y border-app-border">
-        {rows.map((ask, index) => {
-          const awaiting = ask.state === "pending" || ask.state === "escalated";
-          const stateKey: StateFilter | "unknownState" = awaiting ? "awaiting" : states.includes(ask.state as StateFilter) ? ask.state as StateFilter : "unknownState";
-          const outcomeAt = ask.answeredAt || ask.resolvedAt || ask.defaultAppliedAt || ask.createdAt;
-          const summary = ask.title && ask.title !== "Decision required" ? ask.title : ask.question;
-          const answerSummary = ask.state === "answered" ? ask.answerLabel || (ask.answer ? optionLabel(ask, ask.answer) : "") : "";
-          return <li key={ask.id} data-testid={queue ? selectors.asks.item : undefined}>
-            <Link data-request-id={ask.id} to={preserveRoutedTestMode(`/asks/${encodeURIComponent(ask.id)}`, location.search)} state={{ from }} onClick={() => { returnPosition = { from, askId: ask.id, index, top: document.querySelector<HTMLElement>("main")?.scrollTop ?? window.scrollY }; }} className="group relative flex min-h-11 items-start gap-3 rounded-sm py-3 focus-visible:outline focus-visible:outline-2">
-              <div className="min-w-0 flex-1">
-                <p className="line-clamp-2 break-words text-base font-medium leading-snug">{summary}</p>
-                {summary !== ask.question && <span className="sr-only">{ask.question}</span>}
-                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-app-muted-foreground">
-                  <span className="inline-flex max-w-full flex-wrap items-center gap-1 rounded bg-app-surface-muted px-1.5 py-1 font-medium text-app-foreground">
-                    {ask.state === "answered" ? <Check size={12} aria-hidden="true" /> : awaiting ? <Clock3 size={12} aria-hidden="true" /> : null}{t(`pages.history.${stateKey}`)}
-                    {ask.state === "escalated" && <span> · {t("pages.history.escalated")}</span>}
-                    {answerSummary && <span className="min-w-0 max-w-full [overflow-wrap:anywhere]"> · {t("pages.history.answerSummary", { answer: answerSummary })}</span>}
-                  </span>
-                  <span className="break-all">{ask.source || t(strings.pages.history.unknownSource)}</span>
-                  <time dateTime={outcomeAt || undefined}>{formatTime(outcomeAt)}</time>
-                </div>
-                {ask.state === "defaulted" && ask.reversible && ask.defaultAnswer && <p className="mt-2 text-sm text-app-muted-foreground">{t(strings.pages.history.lateAnswerAvailable)}</p>}
-                {ask.state === "expired" && <span className="sr-only">{t(strings.pages.history.expiredNoReopen)}</span>}
-              </div>
-              <ChevronRight size={18} className="mt-1 shrink-0 text-app-muted-foreground rtl:rotate-180" aria-hidden="true" />
-            </Link>
-          </li>;
-        })}
-      </ul>}
-      {list.isFetchNextPageError && <p role="alert" className="text-sm">{t("pages.history.moreError")}</p>}
-      {list.hasNextPage && <button type="button" disabled={list.isFetching || searching} onClick={() => void list.fetchNextPage()} className="min-h-11 rounded-control border border-app-border bg-app-surface px-4 py-3 text-sm font-medium disabled:opacity-60">{t(list.isFetchingNextPage ? "pages.history.loadingMore" : list.isFetchNextPageError ? "pages.history.retryMore" : "pages.history.loadMore")}</button>}
-      {list.isFetchingNextPage && <p role="status" className="text-sm text-app-muted-foreground">{t("pages.history.loadingMore")}</p>}
-      {list.isSuccess && rows.length > 0 && !searching && <p role="status" className="text-center text-xs text-app-muted-foreground">{t(list.hasNextPage ? "pages.history.loadedCount" : "pages.history.end", { count: rows.length })}</p>}
-    </section>
+      )}
+      {rows.length > 0 && (
+        <div data-testid={queue ? selectors.asks.list : undefined} aria-busy={searching || list.isFetching} className="flex flex-col gap-4">
+          {groups.map(({ tier, asks }) => {
+            const list = (
+              <ListGroup key={tier}>
+                {asks.map((ask) => (
+                  <DecisionRow
+                    key={ask.id}
+                    ask={ask}
+                    queue={queue}
+                    search={location.search}
+                    from={from}
+                    onOpen={() => { returnPosition = { from, askId: ask.id, index: rows.indexOf(ask), top: document.querySelector<HTMLElement>("main")?.scrollTop ?? window.scrollY }; }}
+                  />
+                ))}
+              </ListGroup>
+            );
+            return grouped ? (
+              <section key={tier} data-testid={selectors.asks.group} aria-labelledby={`${HEADING_ID}-${tier}`}>
+                <h2 id={`${HEADING_ID}-${tier}`} className="mb-2 text-sm font-semibold text-app-muted-foreground">{t(TIER_LABEL[tier])}</h2>
+                {list}
+              </section>
+            ) : list;
+          })}
+        </div>
+      )}
+      {list.isFetchNextPageError && <p role="alert" className="text-sm">{t(strings.pages.history.moreError)}</p>}
+      {list.hasNextPage && (
+        <Button type="button" variant="outline" disabled={list.isFetching || searching} onClick={() => void list.fetchNextPage()}>
+          {t(list.isFetchingNextPage ? strings.pages.history.loadingMore : list.isFetchNextPageError ? strings.pages.history.retryMore : strings.pages.history.loadMore)}
+        </Button>
+      )}
+      {list.isFetchingNextPage && <InlineNote>{t(strings.pages.history.loadingMore)}</InlineNote>}
+      {settled && rows.length > 0 && (
+        <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-app-muted-foreground">
+          <p role="status">{t(list.hasNextPage ? strings.pages.history.loadedCount : strings.pages.history.end, { count: rows.length })}</p>
+          {updatedAgo && <p>{t(strings.pages.history.updated, { time: updatedAgo })}</p>}
+        </footer>
+      )}
+      {queue && !pending && !initialError && (
+        <Link to={preserveRoutedTestMode(`/history${search ? `?q=${encodeURIComponent(search)}` : ""}`, location.search)} className="inline-flex min-h-11 w-fit items-center text-sm font-medium text-app-primary hover:underline">
+          {t(strings.pages.history.searchAllStates)}
+        </Link>
+      )}
+    </Page>
   );
 }

@@ -8,8 +8,10 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { identityClient } from "../../api/notifications";
 import { renderWithProviders } from "../../test-utils";
 import { selectors } from "../../consts/selectors";
-import { sessionQueryKey, SignInForm, SessionPanel, useSessionExpiryBoundary } from "./SessionGate";
+import { SignInForm, SessionPanel } from "./SessionGate";
+import { sessionQueryKey, useSessionExpiryBoundary } from "./useSession";
 import { setLocale } from "../../i18n";
+import { en } from "../../i18n/catalog";
 
 vi.mock("../../api/notifications", () => ({
   identityClient: { getSession: vi.fn(), login: vi.fn(), logout: vi.fn() },
@@ -80,15 +82,14 @@ describe("SessionGate", () => {
     await user.click(signOut);
     expect(identityClient.logout).not.toHaveBeenCalled();
     expect(await screen.findByRole("alertdialog", { name: "Sign out of this Hub session?" })).toBeInTheDocument();
-    expect(screen.getByText("Chimesail · Hub session")).toBeInTheDocument();
-    expect(screen.getByText("Other sign-ins stay separate")).toBeInTheDocument();
-    expect(screen.getByText("This clears Hub cookies in this browser.")).toBeInTheDocument();
+    expect(screen.getByText(en.session.signOutOtherAuthTitle)).toBeInTheDocument();
+    expect(screen.getByText(en.session.signOutDescription)).toBeInTheDocument();
     expect(screen.getByText(/does not revoke issued tokens or sign you out of Cloudflare Access/)).toBeInTheDocument();
     const confirmation = screen.getByRole("alertdialog");
     await user.click(within(confirmation).getByRole("button", { name: "Sign out of Hub" }));
     await waitFor(() => expect(identityClient.logout).toHaveBeenCalledTimes(1));
     expect(identityClient.logout).toHaveBeenCalledWith({});
-    expect(await screen.findByText("No Hub session is active")).toBeInTheDocument();
+    expect(await screen.findByText(en.session.hubSessionInactive)).toBeInTheDocument();
     await waitFor(() => expect(identityClient.getSession).toHaveBeenCalledTimes(2));
     expect(screen.queryByTestId(selectors.session.signedIn)).not.toBeInTheDocument();
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
@@ -100,9 +101,9 @@ describe("SessionGate", () => {
     renderWithProviders(<SessionPanel />);
 
     await user.click(await screen.findByTestId(selectors.session.signOut));
-    await user.click(screen.getByRole("button", { name: "Keep session" }));
+    await user.click(screen.getByRole("button", { name: en.session.keepSession }));
 
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument());
     expect(identityClient.logout).not.toHaveBeenCalled();
   });
 

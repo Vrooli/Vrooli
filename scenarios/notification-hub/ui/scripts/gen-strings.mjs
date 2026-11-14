@@ -1,5 +1,6 @@
 /**
- * Codegen: derive `src/consts/strings.generated.ts` from `src/i18n/locales/en.json`.
+ * Codegen: derive `src/consts/strings.generated.ts` from the English catalog
+ * (`src/i18n/locales/en/*.json`, assembled by `catalog-source.mjs`).
  *
  * NOTE: deliberately no `#!/usr/bin/env node` shebang. Vite's esbuild-based
  * config loader bundles this file when resolving the strings codegen plugin,
@@ -11,14 +12,14 @@
  *   node scripts/gen-strings.mjs --check   # exit 1 if the file is out of date
  *
  * The Vite plugin in `vite-plugin-strings-codegen.mjs` invokes this on every
- * dev start, on HMR of en.json, and on every build start, so the generated
+ * dev start, on HMR of the English catalog, and on every build start, so the generated
  * file stays in sync without any manual step. The CLI mode + `--check` flag
  * exists so:
- *   1. Contributors editing en.json without `vite dev` running can regenerate
+ *   1. Contributors editing the English catalog without `vite dev` running can regenerate
  *      on demand (`pnpm strings:gen`).
  *   2. CI can fail PRs that forgot to commit the regen (`pnpm strings:check`).
  *
- * Why a generated file (not runtime traversal)? Walking en.json at module
+ * Why a generated file (not runtime traversal)? Walking the catalog at module
  * load time forces the bundler to ship the catalog twice (once as i18next's
  * resource, once as input to the registry). At ~500 strings that's tens of KB
  * in every user's initial download. Codegen eliminates the second copy.
@@ -26,23 +27,23 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SOURCE_LOCALE, readCatalog } from "./catalog-source.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 
-export const SOURCE_PATH = join(ROOT, "src/i18n/locales/en.json");
 export const TARGET_PATH = join(ROOT, "src/consts/strings.generated.ts");
 
 const HEADER = `// AUTO-GENERATED — do not edit by hand.
 //
-// Source : src/i18n/locales/en.json
+// Source : src/i18n/locales/en/*.json
 // Codegen: scripts/gen-strings.mjs (invoked automatically by
-//          vite-plugin-strings-codegen on dev start, HMR of en.json, and
+//          vite-plugin-strings-codegen on dev start, HMR of the English catalog, and
 //          build start; also available as \`pnpm strings:gen\` and
 //          \`pnpm strings:check\`).
 //
 // See src/consts/strings.ts for the registry's purpose, why it exists, and
-// how to use it. This file mirrors the shape of en.json with each leaf
+// how to use it. This file mirrors the shape of the English catalog with each leaf
 // replaced by its dotted key path — that's the value the i18next \`t()\`
 // function takes as its first argument.
 `;
@@ -92,10 +93,7 @@ const renderTree = (tree, depth = 1) => {
 };
 
 export const generateContents = () => {
-  if (!existsSync(SOURCE_PATH)) {
-    throw new Error(`Catalog source not found: ${SOURCE_PATH}`);
-  }
-  const catalog = JSON.parse(readFileSync(SOURCE_PATH, "utf-8"));
+  const catalog = readCatalog(SOURCE_LOCALE);
   const tree = buildKeys(catalog);
   return `${HEADER}
 export const strings = ${renderTree(tree)} as const;
@@ -125,11 +123,11 @@ if (isMain) {
   if (check) {
     if (isOutOfDate()) {
       console.error(
-        `✖ ${rel} is out of date with en.json.\n  Run \`pnpm strings:gen\` and commit the result.`,
+        `✖ ${rel} is out of date with the English catalog.\n  Run \`pnpm strings:gen\` and commit the result.`,
       );
       process.exit(1);
     }
-    console.log(`✓ ${rel} is in sync with en.json`);
+    console.log(`✓ ${rel} is in sync with the English catalog`);
   } else {
     const wrote = writeIfChanged();
     console.log(wrote ? `✓ wrote ${rel}` : `✓ ${rel} already up to date`);

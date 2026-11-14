@@ -1,0 +1,175 @@
+/*
+ * Notification Hub explainer starter kit.
+ *
+ * Everything lives in `@layer hub-kit`, so any style a page writes itself wins
+ * without needing higher specificity. Colours follow the Hub's own tokens.
+ * Plain light values come first and work everywhere. Dark values follow the
+ * Hub theme (`data-theme` on the root) and, when the Hub sets none, the device
+ * (`prefers-color-scheme`). No modern colour function is needed for text or
+ * backgrounds, so an older browser never loses them.
+ */
+@layer hub-kit {
+  :root {
+    color-scheme: light;
+    --hub-bg: #f8fafc;
+    --hub-surface: #ffffff;
+    --hub-surface-muted: #f1f5f9;
+    --hub-fg: #0f172a;
+    --hub-muted: #475569;
+    --hub-border: #cbd5e1;
+    --hub-primary: #2563eb;
+    --hub-on-primary: #ffffff;
+    --hub-accent: #0e7490;
+    --hub-success: #15803d;
+    --hub-warning: #b45309;
+    --hub-danger: #dc2626;
+    --hub-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --hub-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+    --hub-radius: 0.5rem;
+    --hub-gap: 1rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --hub-bg: #020617;
+      --hub-surface: #0f172a;
+      --hub-surface-muted: #1e293b;
+      --hub-fg: #f8fafc;
+      --hub-muted: #94a3b8;
+      --hub-border: #334155;
+      --hub-primary: #60a5fa;
+      --hub-on-primary: #020617;
+      --hub-accent: #22d3ee;
+      --hub-success: #22c55e;
+      --hub-warning: #f59e0b;
+      --hub-danger: #f87171;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --hub-bg: #020617;
+    --hub-surface: #0f172a;
+    --hub-surface-muted: #1e293b;
+    --hub-fg: #f8fafc;
+    --hub-muted: #94a3b8;
+    --hub-border: #334155;
+    --hub-primary: #60a5fa;
+    --hub-on-primary: #020617;
+    --hub-accent: #22d3ee;
+    --hub-success: #22c55e;
+    --hub-warning: #f59e0b;
+    --hub-danger: #f87171;
+  }
+
+  /* Base ------------------------------------------------------------------ */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0 auto;
+    max-width: 44rem;
+    padding: 1rem 1rem 2rem;
+    background: var(--hub-bg);
+    color: var(--hub-fg);
+    font: 400 1rem/1.55 var(--hub-font);
+    overflow-wrap: break-word;
+  }
+  h1, h2, h3 { line-height: 1.25; letter-spacing: -0.01em; text-wrap: balance; }
+  h1 { margin: 0 0 0.5rem; font-size: 1.5rem; }
+  h2 { margin: 2rem 0 0.5rem; font-size: 1.1875rem; }
+  h3 { margin: 1.25rem 0 0.25rem; font-size: 1rem; }
+  p, ul, ol, figure, table { margin: 0 0 var(--hub-gap); }
+  ul, ol { padding-left: 1.25rem; }
+  a { color: var(--hub-primary); }
+  small { color: var(--hub-muted); }
+  code { font: 0.875em var(--hub-mono); background: var(--hub-surface-muted); padding: 0.1em 0.3em; border-radius: 0.25rem; }
+  img, video, svg { display: block; max-width: 100%; height: auto; border-radius: var(--hub-radius); }
+  button {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border: 1px solid var(--hub-primary);
+    border-radius: var(--hub-radius);
+    background: var(--hub-primary);
+    color: var(--hub-on-primary);
+    font: 600 0.9375rem var(--hub-font);
+    cursor: pointer;
+  }
+  button.is-quiet { background: transparent; color: var(--hub-primary); }
+  button:focus-visible, [data-hub-open]:focus-visible, .hub-compare:focus-within {
+    outline: 2px solid var(--hub-primary);
+    outline-offset: 2px;
+  }
+  [data-hub-open] { cursor: pointer; }
+
+  /* .hub-pair: two things side by side, stacked on a phone ------------------ */
+  .hub-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--hub-gap); margin-bottom: var(--hub-gap); }
+  .hub-pair > * { min-width: 0; padding: 0.875rem; background: var(--hub-surface); border: 1px solid var(--hub-border); border-radius: var(--hub-radius); }
+  .hub-pair > * > :last-child { margin-bottom: 0; }
+  @media (max-width: 560px) { .hub-pair { grid-template-columns: minmax(0, 1fr); } }
+
+  /* .hub-compare: before/after slider (kit.js adds the slider) --------------- */
+  .hub-compare { position: relative; display: grid; margin-bottom: var(--hub-gap); border: 1px solid var(--hub-border); border-radius: var(--hub-radius); overflow: hidden; background: var(--hub-surface); touch-action: pan-y; }
+  .hub-compare > * { margin: 0; }
+  .hub-compare[data-hub-ready] > .hub-compare__layer { grid-area: 1 / 1; min-width: 0; }
+  .hub-compare__after { clip-path: inset(0 0 0 var(--hub-pos, 50%)); background: var(--hub-surface); }
+  .hub-compare__tag { position: absolute; top: 0.5rem; padding: 0.125rem 0.5rem; border-radius: 999px; background: var(--hub-bg); border: 1px solid var(--hub-border); font: 600 0.75rem/1.25rem var(--hub-font); pointer-events: none; }
+  .hub-compare__tag.is-before { left: 0.5rem; }
+  .hub-compare__tag.is-after { right: 0.5rem; }
+  .hub-compare__handle { position: absolute; top: 0; bottom: 0; left: var(--hub-pos, 50%); width: 2px; margin-left: -1px; background: var(--hub-primary); pointer-events: none; }
+  .hub-compare__handle::after { content: "\2194"; position: absolute; top: 50%; left: 50%; width: 2.25rem; height: 2.25rem; margin: -1.125rem 0 0 -1.125rem; border-radius: 50%; background: var(--hub-primary); color: var(--hub-on-primary); font: 700 1rem/2.25rem var(--hub-font); text-align: center; }
+  .hub-compare__range { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); opacity: 0; }
+
+  /* .hub-timeline: ordered steps with dates -------------------------------- */
+  .hub-timeline { list-style: none; margin: 0 0 var(--hub-gap); padding: 0 0 0 1.5rem; border-left: 2px solid var(--hub-border); }
+  .hub-timeline > li { position: relative; padding: 0 0 1.25rem 0.5rem; }
+  .hub-timeline > li::before { content: ""; position: absolute; left: calc(-1.5rem - 7px); top: 0.3rem; width: 12px; height: 12px; border-radius: 50%; background: var(--hub-bg); border: 2px solid var(--hub-muted); }
+  .hub-timeline > li.is-done::before { background: var(--hub-success); border-color: var(--hub-success); }
+  .hub-timeline > li.is-now::before { background: var(--hub-primary); border-color: var(--hub-primary); box-shadow: 0 0 0 4px color-mix(in srgb, var(--hub-primary) 25%, transparent); }
+  .hub-timeline time, .hub-timeline .hub-when { display: block; font: 600 0.75rem/1.25rem var(--hub-font); letter-spacing: 0.04em; text-transform: uppercase; color: var(--hub-muted); }
+  .hub-timeline :is(h3, h4) { margin: 0; }
+  .hub-timeline p { margin: 0.125rem 0 0; color: var(--hub-muted); }
+
+  /* .hub-tradeoffs: pros/cons cards (div) or options by criteria (table) ----- */
+  div.hub-tradeoffs { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: var(--hub-gap); margin-bottom: var(--hub-gap); }
+  div.hub-tradeoffs > * { min-width: 0; padding: 0.875rem; background: var(--hub-surface); border: 1px solid var(--hub-border); border-radius: var(--hub-radius); }
+  div.hub-tradeoffs h3 { margin-top: 0; }
+  .hub-tradeoffs ul { list-style: none; margin: 0.5rem 0 0; padding: 0; }
+  .hub-tradeoffs li { position: relative; padding-left: 1.25rem; margin-bottom: 0.375rem; }
+  .hub-tradeoffs li::before { position: absolute; left: 0; font-weight: 700; }
+  .hub-tradeoffs .pro li::before { content: "+"; color: var(--hub-success); }
+  .hub-tradeoffs .con li::before { content: "\2212"; color: var(--hub-danger); }
+  .hub-tradeoffs .is-recommended { border-color: var(--hub-primary); box-shadow: 0 0 0 1px var(--hub-primary); }
+  table.hub-tradeoffs { width: 100%; border-collapse: collapse; background: var(--hub-surface); }
+  table.hub-tradeoffs th, table.hub-tradeoffs td { padding: 0.625rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--hub-border); }
+  table.hub-tradeoffs thead th { font: 600 0.75rem/1.25rem var(--hub-font); letter-spacing: 0.04em; text-transform: uppercase; color: var(--hub-muted); }
+  table.hub-tradeoffs tr.is-recommended > * { background: color-mix(in srgb, var(--hub-primary) 10%, transparent); }
+  @media (max-width: 560px) {
+    table.hub-tradeoffs, table.hub-tradeoffs tbody, table.hub-tradeoffs tr, table.hub-tradeoffs th, table.hub-tradeoffs td { display: block; }
+    table.hub-tradeoffs thead { position: absolute; left: -9999px; }
+    table.hub-tradeoffs tr { margin-bottom: var(--hub-gap); border: 1px solid var(--hub-border); border-radius: var(--hub-radius); overflow: hidden; }
+    table.hub-tradeoffs tr.is-recommended { border-color: var(--hub-primary); }
+      table.hub-tradeoffs th[scope="row"] { font-size: 1rem; background: var(--hub-surface-muted); }
+    table.hub-tradeoffs td[data-label]::before { content: attr(data-label); display: block; font: 600 0.75rem/1.25rem var(--hub-font); letter-spacing: 0.04em; text-transform: uppercase; color: var(--hub-muted); }
+    table.hub-tradeoffs td:last-child { border-bottom: 0; }
+  }
+
+  /* .hub-callout: one thing to notice ---------------------------------------- */
+  .hub-callout { --tone: var(--hub-primary); margin: 0 0 var(--hub-gap); padding: 0.75rem 1rem; border-left: 4px solid var(--tone); border-radius: 0 var(--hub-radius) var(--hub-radius) 0; background: var(--hub-surface); background: color-mix(in srgb, var(--tone) 10%, var(--hub-surface)); }
+  .hub-callout > :first-child { margin-top: 0; }
+  .hub-callout > :last-child { margin-bottom: 0; }
+  .hub-callout.is-success { --tone: var(--hub-success); }
+  .hub-callout.is-warning { --tone: var(--hub-warning); }
+  .hub-callout.is-danger { --tone: var(--hub-danger); }
+
+  /* .hub-figure: image, video, or model tile with a caption ----------------- */
+  .hub-figure { margin: 0 0 var(--hub-gap); }
+  .hub-figure > :where(img, video, svg, picture, [data-hub-open]) { width: 100%; min-height: 6rem; background: var(--hub-surface-muted); border: 1px solid var(--hub-border); }
+  .hub-figure figcaption { margin-top: 0.375rem; font-size: 0.875rem; color: var(--hub-muted); }
+
+  /* .hub-chip: short label --------------------------------------------------- */
+  .hub-chip { --tone: var(--hub-muted); display: inline-block; padding: 0 0.625rem; border: 1px solid var(--tone); border-radius: 999px; color: var(--tone); font: 600 0.75rem/1.375rem var(--hub-font); white-space: nowrap; }
+  .hub-chip.is-primary { --tone: var(--hub-primary); }
+  .hub-chip.is-success { --tone: var(--hub-success); }
+  .hub-chip.is-warning { --tone: var(--hub-warning); }
+  .hub-chip.is-danger { --tone: var(--hub-danger); }
+
+}

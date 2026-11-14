@@ -12,6 +12,7 @@ import (
 
 	hub "notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 
 	"github.com/stretchr/testify/require"
 	"github.com/vrooli/api-core/database"
@@ -70,7 +71,7 @@ func waitDelivered(t *testing.T, service *hub.Service, ask hub.AskRecord) {
 	require.Eventually(t, func() bool {
 		n, _, err := service.Get(context.Background(), ask.NotificationID)
 		return err == nil && n.State == "delivered"
-	}, 2*time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 }
 
 func TestSubject_NoOpenDecisionCreatesAndDeliversOne(t *testing.T) {
@@ -147,7 +148,7 @@ func TestSubject_ChangedTextUpdatesInPlaceWithoutANewPush(t *testing.T) {
 	require.Equal(t, 1, updated.Ask.RevisionCount)
 	require.Equal(t, changed.Question, updated.Ask.Question)
 	require.Equal(t, "7", updated.Ask.Correlation["failures"])
-	require.Equal(t, later.Add(48*time.Hour).Format(time.RFC3339Nano), updated.Ask.Deadline, "the new revision's deadline applies")
+	require.Equal(t, hub.StoredTime(later.Add(48*time.Hour)), updated.Ask.Deadline, "the new revision's deadline applies")
 
 	// The inbox shows the notification, so it carries the current text.
 	n, _, err := service.Get(context.Background(), first.Ask.NotificationID)
@@ -176,7 +177,7 @@ func TestSubject_ChangedTextUpdatesInPlaceWithoutANewPush(t *testing.T) {
 	_, err = service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: first.Ask.ID, Answer: "retry", Actor: "alice"})
 	require.NoError(t, err)
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
-	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, asyncWait, 10*time.Millisecond)
 	correlation := publisher.snapshot()[0].Payload["correlation"].(map[string]any)
 	require.Equal(t, "7", correlation["failures"])
 }
@@ -222,7 +223,7 @@ func TestSubject_ChangedAnswerMenuReplacesAndDeliversTheNewDecision(t *testing.T
 
 			// The producer learns which decision replaced the old one.
 			require.NoError(t, service.PublishPendingResolutions(context.Background()))
-			require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+			require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, asyncWait, 10*time.Millisecond)
 			payload := publisher.snapshot()[0].Payload
 			require.Equal(t, hub.AskWithdrawn, payload["state"])
 			require.Equal(t, subjectKey, payload["subject_key"])
@@ -324,7 +325,7 @@ func TestSubject_DefaultedDecisionIsReturnedForFifteenMinutes(t *testing.T) {
 	require.Eventually(t, func() bool {
 		got, err := service.GetAsk(context.Background(), first.Ask.ID)
 		return err == nil && got.FirstDeliveredAt != ""
-	}, 2*time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 	defaultedAt := start.Add(13 * time.Hour)
 	at(service, defaultedAt)
 	require.NoError(t, service.ProcessEscalations(context.Background()))
@@ -535,6 +536,27 @@ func TestSubject_WithdrawalBeforeItsRequestLeavesTheDelayedRequestUndelivered(t 
 	require.Zero(t, notifications)
 }
 
+// A request that states no assertion time is dated by the Hub and ordered by
+// the order it commits in. When the Hub's clock reads earlier than the time it
+// gave the previous request (a request that waited for the write lock, or a
+// stepped clock), the later request must still revise the decision.
+func TestSubject_RequestsWithoutAnAssertionTimeFollowCommitOrderNotTheClock(t *testing.T) {
+	service, _ := testService(t)
+	start := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
+	at(service, start.Add(time.Hour))
+	first := askSubject(t, service, subjectSpec(start, "evt-1"))
+
+	at(service, start) // the clock reads an hour earlier than the first request did
+	revised := subjectSpec(start, "evt-2")
+	revised.Question = "Revised text."
+	got := askSubject(t, service, revised)
+
+	require.Equal(t, hub.AskUpdated, got.Outcome, "a request the Hub dated is never late")
+	require.Equal(t, first.Ask.ID, got.Ask.ID)
+	require.Equal(t, "Revised text.", got.Ask.Question)
+	require.Equal(t, 1, got.Ask.RevisionCount)
+}
+
 func TestSubject_OutOfOrderEventsDoNotRollTheDecisionBack(t *testing.T) {
 	service, _ := testService(t)
 	start := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
@@ -644,7 +666,7 @@ func TestSubject_ReassertLapseClosesTheDecisionAndAReassertKeepsItOpen(t *testin
 	require.Equal(t, hub.AskWithdrawn, state(kept.Ask.ID).State)
 	require.Equal(t, hub.AskPending, state(foreverAsk.Ask.ID).State)
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
-	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 2 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 2 }, asyncWait, 10*time.Millisecond)
 }
 
 func TestSubject_NeverDeliveredDefaultAsksExpireSevenDaysAfterTheirDeadline(t *testing.T) {
@@ -659,7 +681,7 @@ func TestSubject_NeverDeliveredDefaultAsksExpireSevenDaysAfterTheirDeadline(t *t
 	require.Eventually(t, func() bool {
 		n, _, getErr := service.Get(context.Background(), ask.NotificationID)
 		return getErr == nil && n.State == "unroutable"
-	}, time.Second, 10*time.Millisecond)
+	}, asyncWait, 10*time.Millisecond)
 
 	deadline := start.Add(time.Hour)
 	at(service, deadline.Add(7*24*time.Hour-time.Minute))
@@ -677,7 +699,7 @@ func TestSubject_NeverDeliveredDefaultAsksExpireSevenDaysAfterTheirDeadline(t *t
 	require.Contains(t, got.Reason, "never delivered")
 	require.Empty(t, got.Answer, "the withheld default is not applied")
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
-	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, asyncWait, 10*time.Millisecond)
 	require.Equal(t, hub.AskExpired, publisher.snapshot()[0].Payload["state"])
 }
 
@@ -809,17 +831,17 @@ func TestSubject_DirectAsksUpsertAndWithdrawBySubjectKey(t *testing.T) {
 	require.Equal(t, first.Ask.ID, updated.Ask.ID)
 
 	// Another requester's subject is its own.
-	_, err = service.WithdrawDirectSubject(context.Background(), "bob", "disk-pressure", "done")
+	_, err = service.WithdrawDirectSubject(context.Background(), "bob", "disk-pressure", "done", hub.OwnerAudience())
 	require.ErrorIs(t, err, hub.ErrNotFound)
 
-	closed, err := service.WithdrawDirectSubject(context.Background(), "alice", "disk-pressure", "Disk is at 40% again.")
+	closed, err := service.WithdrawDirectSubject(context.Background(), "alice", "disk-pressure", "Disk is at 40% again.", hub.OwnerAudience())
 	require.NoError(t, err)
 	require.Equal(t, hub.AskWithdrawn, closed.State)
 	require.Equal(t, "Disk is at 40% again.", closed.Reason)
-	again, err := service.WithdrawDirectSubject(context.Background(), "alice", "disk-pressure", "Disk is at 40% again.")
+	again, err := service.WithdrawDirectSubject(context.Background(), "alice", "disk-pressure", "Disk is at 40% again.", hub.OwnerAudience())
 	require.NoError(t, err)
 	require.Equal(t, closed.ID, again.ID, "repeating the withdrawal returns the closed ask")
-	_, err = service.WithdrawDirectSubject(context.Background(), "alice", "no-such-subject", "x")
+	_, err = service.WithdrawDirectSubject(context.Background(), "alice", "no-such-subject", "x", hub.OwnerAudience())
 	require.ErrorIs(t, err, hub.ErrNotFound)
 }
 
@@ -856,7 +878,7 @@ CREATE INDEX idx_asks_resolution_outbox ON asks(resolution_published_at, resolve
 
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...), "schema.sql must run on the old shape")
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	service.SetClockForTest(fixedClock{now: time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)})
 
 	legacy, err := service.GetAsk(ctx, "legacy-ask")
@@ -895,7 +917,7 @@ CREATE INDEX idx_asks_resolution_outbox ON asks(resolution_published_at, resolve
 
 	// Re-opening the database (a restart) is idempotent.
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
-	hub.New(db, nil, nil)
+	hubtest.New(t, db, nil, nil)
 	var open int
 	require.NoError(t, primary.QueryRowContext(ctx, `SELECT COUNT(*) FROM asks WHERE subject_key = ?`, subjectKey).Scan(&open))
 	require.Equal(t, 1, open)
@@ -937,7 +959,7 @@ func TestSubject_ConcurrentRequestsOnADeferredPoolLeaveOneOpenDecision(t *testin
 	t.Cleanup(func() { _ = primary.Close() })
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, nil, nil)
+	service := hubtest.New(t, db, nil, nil)
 	now := time.Date(2026, 11, 13, 9, 0, 0, 0, time.UTC)
 	at(service, now)
 
@@ -1029,7 +1051,7 @@ func TestSubject_RequesterRefFollowsTheLatestRevision(t *testing.T) {
 	_, err = service.AnswerAsk(context.Background(), hub.AnswerInput{AskID: first.Ask.ID, Answer: "retry", Actor: "alice"})
 	require.NoError(t, err)
 	require.NoError(t, service.PublishPendingResolutions(context.Background()))
-	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return len(publisher.snapshot()) == 1 }, asyncWait, 10*time.Millisecond)
 	require.Equal(t, "evt-3", publisher.snapshot()[0].Payload["requester_ref"])
 }
 

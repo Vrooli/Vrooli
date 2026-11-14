@@ -42,7 +42,7 @@ func (s *Service) analytics(ctx context.Context, since, until, recipient string,
 	if err != nil {
 		return Analytics{}, fmt.Errorf("invalid until: %w", err)
 	}
-	fromText, toText := from.UTC().Format(time.RFC3339Nano), to.UTC().Format(time.RFC3339Nano)
+	fromText, toText := storedTime(from), storedTime(to)
 	if scoped {
 		recipient = strings.TrimSpace(recipient)
 		if recipient == "" {

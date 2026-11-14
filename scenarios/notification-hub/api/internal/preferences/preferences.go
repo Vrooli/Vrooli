@@ -10,6 +10,8 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+
+	"notification-hub/internal/dbvalue"
 )
 
 // DB is the narrow database seam the storage needs. Both *sql.DB and
@@ -139,7 +141,7 @@ func (s *Storage) UpsertDeclaredCategory(ctx context.Context, source, category, 
 			declared=1,
 			default_enabled=excluded.default_enabled,
 			default_min_urgency=excluded.default_min_urgency`,
-		source, category, strings.TrimSpace(displayName), strings.TrimSpace(description), boolInt(defaultEnabled), minUrgency, now)
+		source, category, strings.TrimSpace(displayName), strings.TrimSpace(description), dbvalue.BoolInt(defaultEnabled), minUrgency, now)
 	return err
 }
 
@@ -293,7 +295,7 @@ func (s *Storage) SetPreference(ctx context.Context, recipientKey, source, categ
 				min_urgency=excluded.min_urgency,
 				channel_override=excluded.channel_override,
 				updated_at=excluded.updated_at`,
-			recipientKey, source, strings.TrimSpace(category), scopeKey, boolInt(enabled), strings.TrimSpace(minUrgency), strings.TrimSpace(channelOverride), now)
+			recipientKey, source, strings.TrimSpace(category), scopeKey, dbvalue.BoolInt(enabled), strings.TrimSpace(minUrgency), strings.TrimSpace(channelOverride), now)
 		return err
 	}
 	_, err := s.db.ExecContext(ctx, `
@@ -304,7 +306,7 @@ func (s *Storage) SetPreference(ctx context.Context, recipientKey, source, categ
 			min_urgency=excluded.min_urgency,
 			channel_override=excluded.channel_override,
 			updated_at=excluded.updated_at`,
-		recipientKey, source, strings.TrimSpace(category), boolInt(enabled), strings.TrimSpace(minUrgency), strings.TrimSpace(channelOverride), now)
+		recipientKey, source, strings.TrimSpace(category), dbvalue.BoolInt(enabled), strings.TrimSpace(minUrgency), strings.TrimSpace(channelOverride), now)
 	return err
 }
 
@@ -450,11 +452,4 @@ func UrgencyAtLeast(have, min string) bool {
 		return true
 	}
 	return urgencyRank(have) >= urgencyRank(min)
-}
-
-func boolInt(value bool) int {
-	if value {
-		return 1
-	}
-	return 0
 }

@@ -9,9 +9,7 @@ import { AppDeliveryService } from "@vrooli/proto-types/notification-hub/v1/appd
 
 const TEST_MODE_QUERY = "vrooli_test_mode";
 const TEST_MODE_HEADER = "X-Vrooli-Test-Mode";
-const E21_FIXTURE_HEADER = "X-Notification-Hub-E21-Fixture";
-const E22_FIXTURE_HEADER = "X-Notification-Hub-E22-Fixture";
-const E22_FAULT_HEADER = "X-Notification-Hub-E22-Fault";
+const E4_FIXTURE_HEADER = "X-Notification-Hub-E4-Fixture";
 
 function isRoutedTestMode(): boolean {
   return typeof window !== "undefined" && new URLSearchParams(window.location.search).get(TEST_MODE_QUERY) === "1";
@@ -23,23 +21,15 @@ function isRoutedTestMode(): boolean {
  * scripts never see the token. The header tells sign-in not to echo tokens
  * into a response body.
  */
-const sessionFetch: typeof fetch = (input, init) => {
+export const sessionFetch: typeof fetch = (input, init) => {
   const headers = new Headers(input instanceof Request ? input.headers : undefined);
   new Headers(init?.headers).forEach((value, name) => headers.set(name, value));
   headers.set("X-Vrooli-Browser-Session", "1");
   if (isRoutedTestMode()) {
     headers.set(TEST_MODE_HEADER, "1");
     const search = new URLSearchParams(window.location.search);
-    const e21Fixture = search.get("e21_fixture");
-    if (e21Fixture === "reach-empty" || e21Fixture === "webpush-content-access") headers.set(E21_FIXTURE_HEADER, e21Fixture);
-    if (search.get("e22_fixture") === "settings-owner") {
-      headers.set(E22_FIXTURE_HEADER, "settings-owner");
-      const e22Case = search.get("e22_case");
-      if (e22Case) headers.set("X-Notification-Hub-E22-Case", e22Case);
-      if (window.location.pathname === "/settings/reach" && (e22Case === "e21-device-read-failure-light-phone" || e22Case === "e21-device-read-failure-dark-phone") && search.get("e22_fault") === "device-read-failure") {
-        headers.set(E22_FAULT_HEADER, "device-read-failure");
-      }
-    }
+    const e4Fixture = search.get("e4_fixture");
+    if (e4Fixture === "decision-links-phone") headers.set(E4_FIXTURE_HEADER, e4Fixture);
   }
   return fetch(input, { ...init, headers, credentials: "same-origin" }).then((response) => {
     if (response.status === 401 && typeof window !== "undefined") {

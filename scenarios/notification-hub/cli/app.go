@@ -56,5 +56,5 @@ func NewApp() (*App, error) {
 }
 
 func (a *App) Run(args []string) error {
-	return a.core.CLI.Run(args)
+	return explainRenamedFlag(args, a.core.CLI.Run(args))
 }

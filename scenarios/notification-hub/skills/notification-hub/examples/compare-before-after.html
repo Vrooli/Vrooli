@@ -1,0 +1,67 @@
+<!doctype html>
+<!--
+  Technique: show a change as before and after with a slider.
+  Shows: [data-hub-compare] with two ordinary blocks (the kit adds the slider).
+  Based on a real decision about tappable links in Notification Hub decisions.
+  The two layers are drawn in HTML, so there are no attachments:
+
+  notification-hub conversations ask \
+    --question 'Accept the new tappable links in decisions now, and check them on your phone at the next release?' \
+    --big-picture '...' \
+    --option 'accept=Yes, accept it now and check it on my phone at the next release' \
+    --option 'wait=No, wait until it has been checked on a phone' \
+    --recommend accept --recommend-reason '...' \
+    --subject-key tappable-links-acceptance \
+    --explainer ./compare-before-after.html
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tappable links, before and after</title>
+<style>
+  body { max-width: 34rem; }
+  .eyebrow { margin: 0 0 0.25rem; font-size: 0.8125rem; color: var(--hub-muted); }
+  .screen { padding: 2.75rem 1rem 1rem; }
+  .screen h2 { margin: 0 0 0.5rem; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--hub-muted); }
+  .screen p { margin: 0 0 0.75rem; font-size: 0.9375rem; }
+  .row { display: flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; margin-bottom: 0.5rem; padding: 0 0.75rem; font-size: 0.9375rem; }
+  .raw { font-family: var(--hub-mono); font-size: 0.8125rem; color: var(--hub-muted); }
+  .link { border: 1px solid var(--hub-primary); border-radius: var(--hub-radius); color: var(--hub-primary); font-weight: 600; }
+  .link span { margin-left: auto; font-weight: 400; color: var(--hub-muted); font-size: 0.8125rem; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; margin: 0; }
+  dt { font-weight: 700; }
+  dd { margin: 0; }
+</style>
+</head>
+<body>
+  <p class="eyebrow">Decision screen, technical details</p>
+  <h1>Links you can tap</h1>
+  <p>Before, you copied each address and went looking. Now one tap opens it and you come straight back. Drag the handle across, or tap anywhere on the picture.</p>
+
+  <div data-hub-compare data-before-label="Before" data-after-label="Now" data-position="50">
+    <div class="screen">
+      <h2>Technical details (example)</h2>
+      <p>The evidence is on the pricing page and in the saved results.</p>
+      <div class="row raw">vrooli.com/pricing</div>
+      <div class="row raw">phone-check-results.md</div>
+    </div>
+    <div class="screen">
+      <h2>Technical details (example)</h2>
+      <p>The evidence is on the pricing page and in the saved results.</p>
+      <div class="row link">Pricing page <span>opens in browser</span></div>
+      <div class="row link">Phone check results <span>opens in viewer</span></div>
+    </div>
+  </div>
+
+  <h2>What accepting means</h2>
+  <dl>
+    <dt>Tested</dt><dd>The feature's own tests pass.</dd>
+    <dt>Not yet tried</dt><dd>Nobody has used it on a phone.</dd>
+    <dt>Separate</dt><dd>A different decision asks you to try it on your phone now.</dd>
+  </dl>
+  <div class="hub-callout is-warning">
+    <strong>If you do not answer,</strong> the work stays unaccepted and the release plan waits for it.
+  </div>
+</body>
+</html>

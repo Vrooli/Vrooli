@@ -41,10 +41,34 @@ CREATE TABLE IF NOT EXISTS asks (
   superseded_by_ask_id TEXT NOT NULL DEFAULT '',
   -- Event id of the revision the ask currently shows (requester_ref is the
   -- first revision's id and never changes).
-  current_event_id TEXT NOT NULL DEFAULT ''
+  current_event_id TEXT NOT NULL DEFAULT '',
+  -- The answer form of the current revision: [AskQuestion] JSON, empty for none.
+  questions_json TEXT NOT NULL DEFAULT '',
+  accepts_context_requests INTEGER NOT NULL DEFAULT 0,
+  -- The attachments of the current revision (see ask_attachments): how many,
+  -- and a digest of what the producer attached, for the subject-key comparison.
+  attachment_count INTEGER NOT NULL DEFAULT 0,
+  attachments_digest TEXT NOT NULL DEFAULT '',
+  -- The verified identity that sent the ask: run:<run id> or owner:<subject>.
+  -- Empty for a caller with no identity and for every event-sourced ask.
+  -- created_conversation is the sender run's verified conversation (shared by its
+  -- recovered and child runs), and created_subject its verified owner account.
+  -- Together they decide who reads the ask back: the run, its conversation, a run
+  -- of the same owner that names the ask's subject_key, and the owner.
+  created_by TEXT NOT NULL DEFAULT '',
+  created_conversation TEXT NOT NULL DEFAULT '',
+  created_subject TEXT NOT NULL DEFAULT '',
+  -- Who the operator reads as asking: the sender the requester declared, else
+  -- the verified service's name, else the kind of caller (ask_sender.go). It is
+  -- display and filter text; it never decides who may read the ask.
+  sender TEXT NOT NULL DEFAULT ''
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_asks_notification ON asks(notification_id);
 CREATE INDEX IF NOT EXISTS idx_asks_resolution_outbox ON asks(resolution_published_at, resolved_at, id);
+-- The open asks, in attention order: the inbox page, the awaiting count and the
+-- deadline sweep read only these rows, never the history behind them. The WHERE
+-- must stay textually the one those queries use for SQLite to choose the index.
+CREATE INDEX IF NOT EXISTS idx_asks_open_attention ON asks(deadline, created_at, id) WHERE state IN ('pending', 'escalated');
 -- Continue a bounded outbox sweep even when older resolutions keep failing.
 CREATE TABLE IF NOT EXISTS resolution_outbox_cursor (
   singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
@@ -76,7 +100,11 @@ CREATE TABLE IF NOT EXISTS answers (
   answered_by TEXT NOT NULL,
   answered_at TEXT NOT NULL,
   note TEXT NOT NULL DEFAULT '',
-  late INTEGER NOT NULL DEFAULT 0
+  late INTEGER NOT NULL DEFAULT 0,
+  -- The operator's answers to the ask's questions: [AskQuestionResponse] JSON.
+  responses_json TEXT NOT NULL DEFAULT '',
+  -- Notes the operator pinned to the ask's attachments: [AskAttachmentNote] JSON.
+  attachment_notes_json TEXT NOT NULL DEFAULT ''
 );
 -- Answer attribution is sourced only from the request authenticator. Keeping
 -- it beside the durable Hub answer lets downstream decision verifiers fail
@@ -136,3 +164,65 @@ CREATE TABLE IF NOT EXISTS decision_subject_withdrawals (
   updated_at TEXT NOT NULL,
   PRIMARY KEY (source, source_event_type, subject_key)
 );
+-- "I need more context": the recipient's questions about an open ask. A
+-- revision of the ask marks the open ones addressed and keeps the requester's
+-- written answer (response) with them. published_at is the outbox
+-- marker for notification_hub.ask.context_requested.v1.
+CREATE TABLE IF NOT EXISTS ask_context_requests (
+  id TEXT PRIMARY KEY,
+  ask_id TEXT NOT NULL REFERENCES asks(id) ON DELETE CASCADE,
+  question TEXT NOT NULL,
+  requested_by TEXT NOT NULL,
+  requested_at TEXT NOT NULL,
+  addressed_at TEXT NOT NULL DEFAULT '',
+  addressed_revision INTEGER NOT NULL DEFAULT 0,
+  response TEXT NOT NULL DEFAULT '',
+  published_at TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_ask_context_requests_ask ON ask_context_requests(ask_id, requested_at);
+CREATE INDEX IF NOT EXISTS idx_ask_context_requests_outbox ON ask_context_requests(requested_at) WHERE published_at = '';
+-- Decision-packet attachments. attachment_blobs is the inventory of the Hub's
+-- own copies (the bytes live in the attachment blob store, keyed by sha256);
+-- an ask's attachments reference blobs by hash. A blob nothing references is
+-- swept 24 hours after last_touched_at (its last upload or reference).
+CREATE TABLE IF NOT EXISTS attachment_blobs (
+  sha256 TEXT PRIMARY KEY,
+  size_bytes INTEGER NOT NULL,
+  media_type TEXT NOT NULL DEFAULT '',
+  stored_at TEXT NOT NULL,
+  last_touched_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_attachment_blobs_touched ON attachment_blobs(last_touched_at);
+-- One row per attachment of an ask's current revision; a revision that changes
+-- attachments replaces them. file attachments carry sha256 and size_bytes;
+-- folders carry their files in ask_attachment_entries.
+CREATE TABLE IF NOT EXISTS ask_attachments (
+  ask_id TEXT NOT NULL REFERENCES asks(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  label TEXT NOT NULL DEFAULT '',
+  kind TEXT NOT NULL CHECK (kind IN ('file', 'folder')),
+  role TEXT NOT NULL DEFAULT 'evidence' CHECK (role IN ('evidence', 'explainer')),
+  source_path TEXT NOT NULL DEFAULT '',
+  source_host TEXT NOT NULL DEFAULT '',
+  sha256 TEXT NOT NULL DEFAULT '',
+  size_bytes INTEGER NOT NULL DEFAULT 0,
+  media_type TEXT NOT NULL DEFAULT '',
+  preview_kind TEXT NOT NULL DEFAULT '',
+  truncated INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (ask_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_ask_attachments_sha ON ask_attachments(sha256) WHERE sha256 <> '';
+CREATE TABLE IF NOT EXISTS ask_attachment_entries (
+  ask_id TEXT NOT NULL,
+  attachment_name TEXT NOT NULL,
+  position INTEGER NOT NULL,
+  path TEXT NOT NULL,
+  sha256 TEXT NOT NULL,
+  size_bytes INTEGER NOT NULL DEFAULT 0,
+  media_type TEXT NOT NULL DEFAULT '',
+  preview_kind TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (ask_id, attachment_name, path),
+  FOREIGN KEY (ask_id, attachment_name) REFERENCES ask_attachments(ask_id, name) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_ask_attachment_entries_sha ON ask_attachment_entries(sha256);

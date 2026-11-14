@@ -5,7 +5,7 @@
 import type { TFunction } from "i18next";
 import { strings } from "./strings";
 
-declare const t: TFunction<"translation">;
+declare const t: TFunction;
 
 // Valid generated registry keys remain accepted by the strict t() signature.
 t(strings.pages.history.today);

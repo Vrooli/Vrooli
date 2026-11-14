@@ -7,6 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"notification-hub/internal/hub"
+
+	"github.com/vrooli/api-core/hubsender"
+	apiidentity "github.com/vrooli/api-core/identity"
 	"github.com/vrooli/api-core/owneridentity"
 	"github.com/vrooli/api-core/provenance"
 	"github.com/vrooli/cli-core/cliutil"
@@ -98,11 +102,111 @@ func TestProducerSourceKeysAndIdentitylessFallback(t *testing.T) {
 	owner := http.Header{}
 	owner.Set("Authorization", "Bearer owner-token")
 	producer, err = ProducerFor(context.Background(), owner, verifier, "configured-owner")
-	if err != nil || producer != (Producer{Recipient: "owner-1", Key: "owner:owner-1"}) {
+	if err != nil || producer != (Producer{Recipient: "owner-1", Key: "owner:owner-1", Subject: "owner-1"}) {
 		t.Fatalf("verified owner = %+v, err=%v", producer, err)
 	}
-	producer, err = ProducerForDirect(context.Background(), http.Header{}, verifier, "configured-owner")
+	producer, err = ProducerForDirect(context.Background(), http.Header{}, verifier, ServiceVerifiers{}, "configured-owner")
 	if err != nil || producer != (Producer{Recipient: "configured-owner", Key: "source:anonymous"}) {
 		t.Fatalf("identityless producer = %+v, err=%v", producer, err)
+	}
+}
+
+// A run's conversation and owner come only from its verified identity, and they
+// are what its audience is made of: its conversation lineage, and, naming a
+// subject key, the asks of its own owner.
+func TestAVerifiedRunsProducerAndAudienceCarryItsConversationAndOwner(t *testing.T) {
+	ctx := provenance.NewContext(context.Background(), provenance.Provenance{
+		Actor: provenance.ActorAgent, VerificationStatus: provenance.VerificationVerified,
+		RunID: "run-7", ConversationID: " thread-1 ", Subject: " owner-9 ",
+	})
+	headers := http.Header{}
+	headers.Set(cliutil.HeaderAgentIdentityToken, "run-token")
+	producer, err := ProducerFor(ctx, headers, nil, "configured-owner")
+	want := Producer{Recipient: "configured-owner", Key: "run:run-7", Conversation: "thread-1", Subject: "owner-9"}
+	if err != nil || producer != want {
+		t.Fatalf("producer = %+v, err=%v, want %+v", producer, err, want)
+	}
+	if got := producer.Audience(); got != (hub.AskAudience{CreatedBy: "run:run-7", Conversation: "thread-1", Subject: "owner-9"}) {
+		t.Fatalf("run audience = %+v", got)
+	}
+	reader, err := ReaderFor(ctx, headers, nil, ServiceVerifiers{})
+	if err != nil || reader != producer.Audience() {
+		t.Fatalf("a run reads as the same audience it writes as: %+v, err=%v", reader, err)
+	}
+	if got := (Producer{Key: "owner:o", Subject: "o"}).Audience(); !got.Owner {
+		t.Fatalf("the owner reads everything: %+v", got)
+	}
+	if got := (Producer{Key: anonymousSourceKey}).Audience(); got != (hub.AskAudience{}) {
+		t.Fatalf("an identityless producer reads nothing: %+v", got)
+	}
+}
+
+type senderVerifier map[string]apiidentity.Principal
+
+func (v senderVerifier) Verify(_ context.Context, token string) (apiidentity.Principal, error) {
+	if principal, ok := v[token]; ok {
+		return principal, nil
+	}
+	return apiidentity.Principal{}, errors.New("invalid token")
+}
+
+func TestProducerForDirectAdmitsAVerifiedServiceSenderAsItsOwnSource(t *testing.T) {
+	senders := senderVerifier{"treasury": {
+		Kind: apiidentity.ActorService, Subject: "treasury-notification-hub", Verified: true,
+		Audience: hubsender.Audience, Scopes: []string{hubsender.Scope},
+	}}
+	services := ServiceVerifiers{Senders: senders}
+	bearer := func(token string) http.Header {
+		h := http.Header{}
+		h.Set("Authorization", "Bearer "+token)
+		return h
+	}
+	producer, err := ProducerForDirect(context.Background(), bearer("treasury"), nil, services, "configured-owner")
+	want := Producer{Recipient: "configured-owner", Key: "service:treasury", Source: "treasury"}
+	if err != nil || producer != want {
+		t.Fatalf("sender = %+v, err=%v, want %+v", producer, err, want)
+	}
+	if producer.Anonymous() || producer.Creator() != "service:treasury" {
+		t.Fatalf("a sender is a verified producer: %+v", producer)
+	}
+	if got := producer.Audience(); got != (hub.AskAudience{CreatedBy: "service:treasury"}) {
+		t.Fatalf("a sender's audience is what it sent: %+v", got)
+	}
+
+	for name, tc := range map[string]struct {
+		headers   http.Header
+		services  ServiceVerifiers
+		recipient string
+	}{
+		"unknown token":      {bearer("nothing"), services, "configured-owner"},
+		"no sender verifier": {bearer("treasury"), ServiceVerifiers{}, "configured-owner"},
+		"no recipient":       {bearer("treasury"), services, " "},
+		"agent token alongside": {func() http.Header {
+			h := bearer("treasury")
+			h.Set(cliutil.HeaderAgentIdentityToken, "forged")
+			return h
+		}(), services, "configured-owner"},
+	} {
+		if got, err := ProducerForDirect(context.Background(), tc.headers, nil, tc.services, tc.recipient); err == nil || got != (Producer{}) {
+			t.Fatalf("%s: producer = %+v, err=%v, want a refusal and no anonymous fallback", name, got, err)
+		}
+	}
+}
+
+// A service token is never read as an ask reader or sender of another role: a
+// sender reads only what it sent, by the key the Hub recorded for it.
+func TestReaderForAdmitsASenderOnlyToItsOwnAsks(t *testing.T) {
+	services := ServiceVerifiers{Senders: senderVerifier{"treasury": {
+		Kind: apiidentity.ActorService, Subject: "treasury-notification-hub", Verified: true,
+		Audience: hubsender.Audience, Scopes: []string{hubsender.Scope},
+	}}}
+	headers := http.Header{}
+	headers.Set("Authorization", "Bearer treasury")
+	got, err := ReaderFor(context.Background(), headers, nil, services)
+	if err != nil || got != (hub.AskAudience{CreatedBy: "service:treasury"}) {
+		t.Fatalf("sender reader = %+v, err=%v", got, err)
+	}
+	if _, err := ReaderFor(context.Background(), headers, nil, ServiceVerifiers{}); err == nil {
+		t.Fatal("without a sender verifier a service bearer reads nothing")
 	}
 }

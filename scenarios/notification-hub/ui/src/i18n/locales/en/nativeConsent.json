@@ -1,0 +1,12 @@
+{
+  "title": "Permission requests",
+  "authority": "Agent Manager owns these permissions. Review and confirm only on its original approval page. Opening a link grants nothing.",
+  "unavailable": "Couldn’t check permission requests. The list may not be complete.",
+  "pending": "Waiting for your review in Agent Manager.",
+  "unverified": "Current status is unverified. Check the original Agent Manager page before acting.",
+  "checked": "Checked {{time}} · closes {{expiry}}",
+  "open": "Review in Agent Manager",
+  "more": "Check older permission requests",
+  "authorityShort": "Approve these in Agent Manager, not here.",
+  "authorityWhy": "Why not here?"
+}

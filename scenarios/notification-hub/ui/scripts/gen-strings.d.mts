@@ -8,9 +8,6 @@
  * every plugin construction.
  */
 
-/** Absolute path to the canonical English catalog. */
-export const SOURCE_PATH: string;
-
 /** Absolute path to the generated registry file. */
 export const TARGET_PATH: string;
 

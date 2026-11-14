@@ -4,20 +4,31 @@
  * file's job is to assert the router config. Add one case per route you add.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, screen } from "@testing-library/react";
+import { cleanup, screen, within } from "@testing-library/react";
 
+import { en } from "../i18n/catalog";
+import { setLocale } from "../i18n";
 import { renderWithProviders } from "../test-utils";
 import { selectors } from "../consts/selectors";
-import { routes, TestAppRouter } from "./routes";
+import { routes } from "./routeTable";
+import { TestAppRouter } from "./routes";
 
 vi.mock("../api/notifications", () => ({
   identityClient: { getSession: vi.fn(() => Promise.resolve({ signedIn: true, subject: "owner-1" })) },
-  conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), listAsks: vi.fn(() => Promise.resolve({ asks: [] })) },
+  conversationsClient: { getAsk: vi.fn(), answer: vi.fn(), listAsks: vi.fn(() => Promise.resolve({ asks: [], totalAwaiting: 0 })) },
   notificationsClient: { get: vi.fn(() => Promise.resolve({ notification: { id: "record-1" }, receipts: [] })) },
   deliveryClient: { getTimeline: vi.fn(() => Promise.resolve({ notifications: [] })) },
 }));
-vi.mock("../pages/SettingsPage", () => ({ SettingsPage: () => <div data-testid="page-settings" /> }));
-vi.mock("../pages/ReachPage", () => ({ ReachPage: () => <div data-testid="page-reach" /> }));
+// The settings screens have their own route tests; here only the mount point matters.
+vi.mock("../features/settings/routes", () => ({
+  settingsRoute: {
+    path: "settings",
+    children: [
+      { index: true, element: <div data-testid="page-settings" /> },
+      { path: "reach", element: <div data-testid="page-reach" /> },
+    ],
+  },
+}));
 vi.mock("../pages/DashboardPage", () => ({ DashboardPage: () => <div data-testid="page-dashboard" /> }));
 
 describe("AppRouter", () => {
@@ -28,6 +39,15 @@ describe("AppRouter", () => {
   it("opens the authenticated Needs you queue at /", async () => {
     renderWithProviders(<TestAppRouter initialEntries={["/"]} />, { withoutRouter: true });
     expect(await screen.findByTestId(selectors.pages.asks)).toBeInTheDocument();
+  });
+
+  it("says so inside the shell when an address is not served, with one way back", async () => {
+    await setLocale("en");
+    renderWithProviders(<TestAppRouter initialEntries={["/nowhere"]} />, { withoutRouter: true });
+    const page = await screen.findByTestId(selectors.pages.notFound);
+    expect(within(page).getByRole("heading", { level: 1, name: en.pages.notFound.title })).toBeInTheDocument();
+    expect(within(page).getByRole("link", { name: en.pages.notFound.home })).toHaveAttribute("href", "/asks");
+    expect(screen.getByTestId(selectors.layout.shell)).toBeInTheDocument();
   });
 
   it("keeps Updates at its own destination", async () => {

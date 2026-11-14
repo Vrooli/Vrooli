@@ -324,7 +324,7 @@ func (s *Service) RegisterApp(ctx context.Context, recipient string, reg AppRegi
 			return AppState{}, fmt.Errorf("%w: that device no longer has Chimesail; choose another", ErrInvalidArgument)
 		}
 	}
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	now := storedTime(s.clock.Now())
 	// One app per scenario per device: a reinstall replaces the old endpoint.
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM push_subscriptions WHERE recipient_id=(SELECT id FROM recipients WHERE subject=?) AND app_scenario=? AND device_group=? AND endpoint<>?`, recipient, reg.Scenario, group, reg.Endpoint); err != nil {
 		return AppState{}, err
@@ -338,7 +338,7 @@ func (s *Service) RegisterApp(ctx context.Context, recipient string, reg AppRegi
 
 // ConfirmApp records that the app was opened and its current permission.
 func (s *Service) ConfirmApp(ctx context.Context, recipient, scenario, endpoint, permission, userAgent string) (bool, error) {
-	now := s.clock.Now().UTC().Format(time.RFC3339Nano)
+	now := storedTime(s.clock.Now())
 	res, err := s.db.ExecContext(ctx, `UPDATE push_subscriptions SET permission=?, confirmed_at=?, user_agent=CASE WHEN ?<>'' THEN ? ELSE user_agent END, updated_at=? WHERE recipient_id=(SELECT id FROM recipients WHERE subject=?) AND app_scenario=? AND endpoint=?`,
 		strings.TrimSpace(permission), now, strings.TrimSpace(userAgent), strings.TrimSpace(userAgent), now, recipient, strings.TrimSpace(scenario), endpoint)
 	if err != nil {

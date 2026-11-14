@@ -27,7 +27,14 @@ import (
 	notificationsH "notification-hub/handlers/notifications"
 	"notification-hub/internal/hub"
 	"notification-hub/internal/modules"
+	"notification-hub/internal/testutil/hubtest"
 )
+
+// asyncWait bounds how long a test waits for the Service's background worker. It
+// only matters when something is wrong: a wait ends the moment its condition
+// holds, so the bound is generous enough that a starved machine is never read as
+// a failure.
+const asyncWait = 30 * time.Second
 
 type producerOwnerVerifier struct{}
 
@@ -54,7 +61,7 @@ func newProducerFixture(t *testing.T, clock hub.Clock, runs map[string]agentRun)
 	primary := databasetest.NewSQLite(t)
 	require.NoError(t, database.EnsureSchemas(ctx, primary, modules.AllSchemas()...))
 	db := database.NewFromPrimary(primary)
-	service := hub.New(db, clock, nil)
+	service := hubtest.New(t, db, clock, nil)
 	service.SetDefaultRecipient("configured-owner")
 	router := mux.NewRouter()
 	notificationsH.ModuleWithVerifier(service, producerOwnerVerifier{}).Mount(router)
@@ -100,7 +107,7 @@ func (f producerFixture) settle(t *testing.T, ids ...string) {
 		require.Eventually(t, func() bool {
 			stored, _, err := f.service.GetForRecipient(context.Background(), id, "configured-owner")
 			return err == nil && stored.State != "pending"
-		}, 2*time.Second, 10*time.Millisecond)
+		}, asyncWait, 10*time.Millisecond)
 	}
 }
 
@@ -216,7 +223,7 @@ func TestNotificationProducerPushBudgetStoresWithoutDevicePush(t *testing.T) {
 	}
 	require.Equal(t, 3, f.count(t), "all accepted sends remain in the hub")
 	f.settle(t, ids...)
-	require.Eventually(t, func() bool { return sender.count() == 2 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return sender.count() == 2 }, asyncWait, 10*time.Millisecond)
 	stored, _, err := f.service.GetForRecipient(ctx, ids[2], "configured-owner")
 	require.NoError(t, err)
 	require.Equal(t, "suppressed", stored.State, "the over-limit item remains visible in the hub")
@@ -228,11 +235,11 @@ func TestNotificationProducerPushBudgetStoresWithoutDevicePush(t *testing.T) {
 	other, err := f.send(ctx, "valid-other", "other-one")
 	require.NoError(t, err, "each run has its own budget")
 	f.settle(t, other.Msg.GetNotification().GetId())
-	require.Eventually(t, func() bool { return sender.count() == 3 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return sender.count() == 3 }, asyncWait, 10*time.Millisecond)
 
 	clock.advance(time.Minute)
 	later, err := f.send(ctx, "valid-looping", "four")
 	require.NoError(t, err, "requests remain accepted after bucket refill")
 	f.settle(t, later.Msg.GetNotification().GetId())
-	require.Eventually(t, func() bool { return sender.count() == 4 }, time.Second, 10*time.Millisecond)
+	require.Eventually(t, func() bool { return sender.count() == 4 }, asyncWait, 10*time.Millisecond)
 }

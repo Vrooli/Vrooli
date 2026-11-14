@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/vrooli/api-core/operatordecision"
+	"notification-hub/internal/dbvalue"
 )
 
 // Decision subjects: one open decision per situation.
@@ -74,6 +75,11 @@ type AskResult struct {
 	// Outcome is one of the Ask* outcomes above for an ask with a subject key,
 	// and empty for an ask without one.
 	Outcome string
+	// Warnings are packet problems the producer should fix; the ask was still
+	// accepted. See PacketWarning.
+	Warnings []PacketWarning
+	// packet is the packet the ask was stored with, for the packet check.
+	packet *AskSpec
 }
 
 // AskRevision is one earlier version of an updated ask.
@@ -119,7 +125,7 @@ func assertedTime(asserted, now time.Time) time.Time {
 	return asserted.UTC()
 }
 
-type askRowEncoding struct{ allowed, options, correlation string }
+type askRowEncoding struct{ allowed, options, correlation, questions string }
 
 // encodeAskRow renders the JSON columns of an ask row.
 func encodeAskRow(spec AskSpec) (askRowEncoding, error) {
@@ -133,7 +139,7 @@ func encodeAskRow(spec AskSpec) (askRowEncoding, error) {
 	if err != nil {
 		return askRowEncoding{}, err
 	}
-	return askRowEncoding{allowed: string(allowedJSON), options: string(optionsJSON), correlation: correlationJSON}, nil
+	return askRowEncoding{allowed: string(allowedJSON), options: string(optionsJSON), correlation: correlationJSON, questions: encodeQuestions(spec.Questions)}, nil
 }
 
 func encodeCorrelation(spec AskSpec) (string, error) {
@@ -163,9 +169,9 @@ func encodeCorrelation(spec AskSpec) (string, error) {
 
 // insertAskTx writes one ask row. asserted is "" for an ask without a subject.
 func insertAskTx(ctx context.Context, tx dbTx, id, notificationID string, spec AskSpec, enc askRowEncoding, now, asserted string) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at, options_json, recommended, recommendation_reason, default_answer, reversible, urgency, context_url, big_picture, technical_details, source, source_event_type, requester_ref, correlation_json, subject_key, last_asserted_at, reassert_within_seconds, current_event_id) VALUES (?, ?, ?, ?, ?, 'pending', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		id, notificationID, spec.Question, enc.allowed, spec.Deadline.UTC().Format(time.RFC3339Nano), now, now, enc.options, spec.Recommended, strings.TrimSpace(spec.RecommendationReason), spec.DefaultAnswer, boolInt(spec.Reversible), spec.Urgency, strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, spec.Source, strings.TrimSpace(spec.SourceEventType), spec.IdempotencyKey, enc.correlation,
-		spec.SubjectKey, asserted, int(spec.ReassertWithin/time.Second), spec.IdempotencyKey)
+	_, err := tx.ExecContext(ctx, `INSERT INTO asks (id, notification_id, question, allowed_answers, deadline, state, reason, created_at, updated_at, options_json, recommended, recommendation_reason, default_answer, reversible, urgency, context_url, big_picture, technical_details, source, source_event_type, requester_ref, correlation_json, subject_key, last_asserted_at, reassert_within_seconds, current_event_id, questions_json, accepts_context_requests, created_by, created_conversation, created_subject, sender) VALUES (?, ?, ?, ?, ?, 'pending', '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		id, notificationID, spec.Question, enc.allowed, storedTime(spec.Deadline), now, now, enc.options, spec.Recommended, strings.TrimSpace(spec.RecommendationReason), spec.DefaultAnswer, dbvalue.BoolInt(spec.Reversible), spec.Urgency, strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, spec.Source, strings.TrimSpace(spec.SourceEventType), spec.IdempotencyKey, enc.correlation,
+		spec.SubjectKey, asserted, int(spec.ReassertWithin/time.Second), spec.IdempotencyKey, enc.questions, dbvalue.BoolInt(spec.AcceptsContextRequests), spec.CreatedBy, spec.CreatedConversation, spec.CreatedSubject, spec.Sender)
 	return err
 }
 
@@ -180,7 +186,7 @@ func (s *Service) requestLifecycleGateTx(ctx context.Context, tx dbTx, spec AskS
 	var withdrawn bool
 	var err error
 	if spec.Source == "agent-manager" && withdrawableDecision(spec.SourceEventType) {
-		withdrawn, err = reserveDecisionRequestTx(ctx, tx, spec.Source, spec.IdempotencyKey, spec.SourceEventType, s.clock.Now().UTC().Format(time.RFC3339Nano))
+		withdrawn, err = reserveDecisionRequestTx(ctx, tx, spec.Source, spec.IdempotencyKey, spec.SourceEventType, storedTime(s.clock.Now()))
 	} else {
 		withdrawn, err = checkDecisionRequestLifecycleTx(ctx, tx, spec.Source, spec.IdempotencyKey, spec.SourceEventType)
 	}
@@ -258,6 +264,32 @@ func askByEventIDTx(ctx context.Context, tx dbTx, source, eventType, eventID str
 	return scanAsk(tx.QueryRowContext(ctx, askSelect+` WHERE a.source = ? AND a.source_event_type = ? AND (a.requester_ref = ? OR EXISTS (SELECT 1 FROM ask_event_ids r WHERE r.ask_id = a.id AND r.event_id = ?)) ORDER BY a.created_at DESC, a.id DESC LIMIT 1`, source, eventType, eventID, eventID))
 }
 
+// askByRequestKeyTx finds the ask a request's idempotency key already names, if
+// the request is a redelivery of it.
+//
+// An event's id is delivered at least once, in any order, so every id the ask
+// has carried still names it. A direct request (no event type) is retried by the
+// sender, and only ever as the latest request it made: its key is a replay only
+// when it is the key of the subject's latest ask, as that ask last applied it.
+// An agent that revises A to B and back to A sends A's key again; A is not the
+// last applied request any more, so the revision is applied.
+func askByRequestKeyTx(ctx context.Context, tx dbTx, spec AskSpec) (AskRecord, error) {
+	if spec.SourceEventType != "" {
+		return askByEventIDTx(ctx, tx, spec.Source, spec.SourceEventType, spec.IdempotencyKey)
+	}
+	if spec.IdempotencyKey == "" {
+		return AskRecord{}, ErrNotFound
+	}
+	latest, err := latestSubjectAskTx(ctx, tx, spec.Source, spec.SourceEventType, spec.SubjectKey)
+	if err != nil {
+		return AskRecord{}, err
+	}
+	if latest.RequesterRef != spec.IdempotencyKey {
+		return AskRecord{}, ErrNotFound
+	}
+	return latest, nil
+}
+
 func subjectWithdrawalAssertedTx(ctx context.Context, tx dbTx, source, eventType, subject string) (time.Time, bool, error) {
 	var asserted string
 	err := tx.QueryRowContext(ctx, `SELECT asserted_at FROM decision_subject_withdrawals WHERE source = ? AND source_event_type = ? AND subject_key = ?`, source, eventType, subject).Scan(&asserted)
@@ -309,22 +341,72 @@ func sameSubjectContent(existing AskRecord, n Notification, spec AskSpec) bool {
 		existing.RecommendationReason == strings.TrimSpace(spec.RecommendationReason) &&
 		existing.ContextURL == strings.TrimSpace(spec.ContextURL) &&
 		existing.BigPicture == spec.BigPicture && existing.TechnicalDetails == spec.TechnicalDetails &&
+		sameQuestions(existing.Questions, spec.Questions) &&
+		existing.AcceptsContextRequests == spec.AcceptsContextRequests &&
+		existing.AttachmentsDigest == attachmentDigest(spec.Attachments) &&
 		sameCorrelation(existing.Correlation, spec.Correlation)
 }
 
+// sealedPacket is the packet askSubjectTx stored a request with, and what
+// sealing it reported.
+type sealedPacket struct {
+	spec     AskSpec
+	warnings []PacketWarning
+	done     bool
+}
+
 func (s *Service) askSubjectOnce(ctx context.Context, spec AskSpec, pushSource string) (AskResult, bool, error) {
-	now := s.clock.Now().UTC()
-	asserted := assertedTime(spec.AssertedAt, now)
+	var sealed sealedPacket
+	result, retry, err := s.askSubjectTx(ctx, spec, pushSource, &sealed)
+	if err == nil && sealed.done {
+		result.Warnings = append(result.Warnings, sealed.warnings...)
+		result.packet = &sealed.spec
+	}
+	return result, retry, err
+}
+
+// askSubjectTx is one attempt at a keyed request, in one write transaction. The
+// open ask and its packet are read, merged with what the request sends and
+// written under the same lock, so concurrent revisions cannot merge against a
+// packet the other has already changed.
+func (s *Service) askSubjectTx(ctx context.Context, spec AskSpec, pushSource string, sealed *sealedPacket) (AskResult, bool, error) {
 	tx, err := s.beginWriteTx(ctx)
 	if err != nil {
 		return AskResult{}, retryableSubjectError(err), err
 	}
 	defer tx.Rollback()
+	// The Hub's own time is read once the write lock is held, so requests that
+	// state no assertion time are ordered by the order they commit in. Read
+	// before the lock, a request that waited for it would carry an earlier time
+	// than the one it follows and lose to it as "stale".
+	now := s.clock.Now().UTC()
+	asserted := assertedTime(spec.AssertedAt, now)
 	fail := func(err error) (AskResult, bool, error) { return AskResult{}, retryableSubjectError(err), err }
 
 	if err := s.requestLifecycleGateTx(ctx, tx, spec); err != nil {
 		return AskResult{}, false, err
 	}
+	open, openErr := openSubjectAskTx(ctx, tx, spec.Source, spec.SourceEventType, spec.SubjectKey)
+	if openErr != nil && !errors.Is(openErr, ErrNotFound) {
+		return fail(openErr)
+	}
+	var openAsk *AskRecord
+	var current []AskAttachment
+	if openErr == nil {
+		openAsk = &open
+		if current, err = loadAttachmentsFrom(ctx, tx, open.ID); err != nil {
+			return fail(err)
+		}
+	}
+	var sealErr error
+	if sealed.spec, sealed.warnings, sealErr = sealAsk(ctx, spec, openAsk, current, s.ReadAttachmentBlob); sealErr != nil {
+		if openAsk == nil && errors.Is(sealErr, ErrInvalidArgument) {
+			sealErr = explainNoOpenAskTx(ctx, tx, spec, sealErr)
+		}
+		return AskResult{}, false, sealErr
+	}
+	sealed.done = true
+	spec = sealed.spec
 	// A redelivered event (or one of an earlier revision) changes nothing: the
 	// ask already moved past it.
 	replay, err := replayedSubjectRequestTx(ctx, tx, spec)
@@ -332,6 +414,9 @@ func (s *Service) askSubjectOnce(ctx context.Context, spec AskSpec, pushSource s
 		if err != nil {
 			return fail(err)
 		}
+		// The response of a retry was stored by the request it repeats; the ask
+		// has no open question left to hold it again, and saying so would mislead.
+		sealed.warnings = withoutWarning(sealed.warnings, WarnContextResponseUnused)
 		return *replay, false, nil
 	}
 	withdrawnAt, hasWithdrawal, err := subjectWithdrawalAssertedTx(ctx, tx, spec.Source, spec.SourceEventType, spec.SubjectKey)
@@ -341,12 +426,8 @@ func (s *Service) askSubjectOnce(ctx context.Context, spec AskSpec, pushSource s
 	if hasWithdrawal && withdrawnAt.After(asserted) {
 		return AskResult{Outcome: AskStale}, false, nil
 	}
-	open, err := openSubjectAskTx(ctx, tx, spec.Source, spec.SourceEventType, spec.SubjectKey)
-	if err == nil {
+	if openErr == nil {
 		return s.applyToOpenSubjectAsk(ctx, tx, open, spec, pushSource, now, asserted)
-	}
-	if !errors.Is(err, ErrNotFound) {
-		return fail(err)
 	}
 	// No open decision. The subject's latest decision decides whether an
 	// identical request is suppressed, answered a moment ago, or new.
@@ -360,19 +441,53 @@ func (s *Service) askSubjectOnce(ctx context.Context, spec AskSpec, pushSource s
 	return s.createSubjectAsk(ctx, tx, nil, spec, pushSource, now, asserted, AskCreated)
 }
 
-// replayedSubjectRequestTx recognizes a request whose event id already opened
-// or revised an ask. It returns that ask unchanged, ErrAskWithdrawn when the
-// ask was closed, or nil when the event id is new. Reusing an id for different
-// terms, or for an ask of another subject or type, is a conflict.
+// explainNoOpenAskTx says why a revision found nothing to revise. The usual cause
+// is a race the sender cannot see: the operator answered, or the ask closed,
+// between the sender's last look and this request. The error names what became
+// of the ask, so the sender reads the answer instead of guessing.
+func explainNoOpenAskTx(ctx context.Context, tx dbTx, spec AskSpec, cause error) error {
+	if !spec.Keep.Question && !spec.Keep.Options {
+		return cause
+	}
+	last, err := latestSubjectAskTx(ctx, tx, spec.Source, spec.SourceEventType, spec.SubjectKey)
+	if err != nil {
+		return cause
+	}
+	what := "was " + last.State
+	switch last.State {
+	case AskAnswered:
+		what = fmt.Sprintf("was answered %q", last.Answer)
+	case AskDefaulted:
+		what = fmt.Sprintf("closed when its default %q applied", last.Answer)
+	case AskExpired:
+		what = "expired without an answer"
+	case AskWithdrawn:
+		what = "was withdrawn"
+	}
+	return fmt.Errorf("%w: your revision was not applied: the ask with the subject key %q %s, so no open ask is left to revise. Read it with `conversations get --subject-key %s`; to ask again, send the whole ask with its question and answers", ErrInvalidArgument, spec.SubjectKey, what, spec.SubjectKey)
+}
+
+// replayedSubjectRequestTx recognizes a request that is a redelivery of one an
+// ask already applied (askByRequestKeyTx says which requests count). It returns
+// that ask unchanged, ErrAskWithdrawn when the ask was closed, or nil when the
+// request is new. Reusing a key for different terms, or for an ask of another
+// subject or type, is a conflict.
 func replayedSubjectRequestTx(ctx context.Context, tx dbTx, spec AskSpec) (*AskResult, error) {
-	replay, err := askByEventIDTx(ctx, tx, spec.Source, spec.SourceEventType, spec.IdempotencyKey)
+	replay, err := askByRequestKeyTx(ctx, tx, spec)
 	if errors.Is(err, ErrNotFound) {
-		if _, err := askByRequesterTx(ctx, tx, spec.Source, spec.IdempotencyKey); err == nil {
-			return nil, ErrAskIdentityConflict
-		} else if !errors.Is(err, ErrNotFound) {
-			return nil, err
+		held, holdErr := askByRequesterTx(ctx, tx, spec.Source, spec.IdempotencyKey)
+		switch {
+		case errors.Is(holdErr, ErrNotFound):
+			return nil, nil
+		case holdErr != nil:
+			return nil, holdErr
+		case spec.SourceEventType == "" && held.SubjectKey == spec.SubjectKey:
+			// A direct request's key exists only so that a retry is recognised, and a
+			// retry is always of the latest request. A key an earlier request of this
+			// subject used is a request returning to earlier terms, not a retry.
+			return nil, nil
 		}
-		return nil, nil
+		return nil, ErrAskIdentityConflict
 	}
 	if err != nil {
 		return nil, err
@@ -442,14 +557,33 @@ func (s *Service) createSubjectAsk(ctx context.Context, tx *sql.Tx, replaced *As
 		return AskResult{}, false, err
 	}
 	id := uuid.NewString()
-	nowText := now.Format(time.RFC3339Nano)
+	nowText := storedTime(now)
+	kept := ""
 	if replaced != nil {
+		// The replacement is the same requester's decision; it keeps the name the
+		// operator knew it by.
+		kept = replaced.Sender
 		if _, err := tx.ExecContext(ctx, `UPDATE asks SET state='withdrawn', reason=?, resolved_at=?, resolution_published_at='', superseded_by_ask_id=?, updated_at=? WHERE id=? AND state IN ('pending','escalated')`, AskReplacedReason, nowText, id, nowText, replaced.ID); err != nil {
 			return AskResult{}, retryableSubjectError(err), err
 		}
+		// The replacement answers the questions the operator asked of the ask it
+		// replaces (the new ask is the revision), and the operator finds them,
+		// with the answer, on the ask they now see.
+		if err := addressContextRequestsTx(ctx, tx, replaced.ID, replaced.RevisionCount+1, spec.ContextResponse, nowText); err != nil {
+			return AskResult{}, retryableSubjectError(err), err
+		}
 	}
+	spec.Sender, _ = senderOf(spec, kept)
 	if err := insertAskTx(ctx, tx, id, n.ID, spec, enc, nowText, subjectTime(asserted)); err != nil {
 		return AskResult{}, retryableSubjectError(err), fmt.Errorf("persist ask: %w", err)
+	}
+	if replaced != nil {
+		if err := carryContextRequestsTx(ctx, tx, replaced.ID, id, nowText); err != nil {
+			return AskResult{}, retryableSubjectError(err), err
+		}
+	}
+	if err := insertAttachmentsTx(ctx, tx, id, spec.Attachments); err != nil {
+		return AskResult{}, false, err
 	}
 	if err := tx.Commit(); err != nil {
 		return AskResult{}, retryableSubjectError(err), err
@@ -459,9 +593,9 @@ func (s *Service) createSubjectAsk(ctx context.Context, tx *sql.Tx, replaced *As
 		s.kickResolutions(ctx)
 	}
 	if pushSource == "" {
-		s.dispatch(n.ID)
+		s.dispatch(ctx, n.ID)
 	} else {
-		s.dispatchDirect(n.ID, pushSource)
+		s.dispatchDirect(ctx, n.ID, pushSource)
 	}
 	record, err := s.GetAsk(ctx, id)
 	return AskResult{Ask: record, Notification: n, Outcome: outcome}, false, err
@@ -472,10 +606,15 @@ func (s *Service) applyToOpenSubjectAsk(ctx context.Context, tx *sql.Tx, open As
 	if err != nil {
 		return AskResult{}, retryableSubjectError(err), err
 	}
-	// A re-send the producer made before its latest confirmation arrived late;
-	// it must not roll the decision back.
 	if lastAsserted, parseErr := time.Parse(time.RFC3339Nano, open.LastAssertedAt); parseErr == nil && asserted.Before(lastAsserted) {
-		return AskResult{Ask: open, Notification: n, Outcome: AskReasserted}, false, nil
+		// A re-send the producer dated before its latest confirmation arrived
+		// late; it must not roll the decision back. A request with no
+		// assertion time is dated by the Hub, whose clock can step back: it
+		// follows the confirmation it arrived after, so it is never late.
+		if !spec.AssertedAt.IsZero() {
+			return AskResult{Ask: open, Notification: n, Outcome: AskReasserted}, false, nil
+		}
+		asserted = lastAsserted
 	}
 	if !sameSubjectMenu(open, n, spec) {
 		return s.createSubjectAsk(ctx, tx, &open, spec, pushSource, now, asserted, AskReplaced)
@@ -484,20 +623,36 @@ func (s *Service) applyToOpenSubjectAsk(ctx context.Context, tx *sql.Tx, open As
 	// its own, and an escalated ask owns its deadline outright.
 	deadline := open.Deadline
 	if spec.DeadlineSpecified && open.State == AskPending {
-		deadline = spec.Deadline.UTC().Format(time.RFC3339Nano)
+		deadline = storedTime(spec.Deadline)
 	}
 	outcome := AskReasserted
-	if sameSubjectContent(open, n, spec) {
+	switch {
+	case sameSubjectContent(open, n, spec) && spec.ContextResponse != "":
+		// The request changes no term, only answers the operator's question: the
+		// ask is re-asserted and the questions are marked answered.
+		outcome = AskUpdated
+		if err = reassertSubjectAskTx(ctx, tx, open, spec, deadline, now, asserted); err == nil {
+			err = addressContextRequestsTx(ctx, tx, open.ID, open.RevisionCount, spec.ContextResponse, storedTime(now))
+		}
+	case sameSubjectContent(open, n, spec):
 		err = reassertSubjectAskTx(ctx, tx, open, spec, deadline, now, asserted)
-	} else {
+	default:
 		outcome = AskUpdated
 		err = updateSubjectAskTx(ctx, tx, open, n, spec, deadline, now, asserted)
+	}
+	// A sender the request names renames the ask; one it leaves out keeps it.
+	renamed := err == nil && spec.Sender != "" && spec.Sender != open.Sender
+	if renamed {
+		_, err = tx.ExecContext(ctx, `UPDATE asks SET sender = ? WHERE id = ? AND state IN ('pending','escalated')`, spec.Sender, open.ID)
 	}
 	if err == nil {
 		err = tx.Commit()
 	}
 	if err != nil {
 		return AskResult{}, retryableSubjectError(err), err
+	}
+	if outcome == AskUpdated || renamed {
+		s.askChanges.notify()
 	}
 	record, err := s.GetAsk(ctx, open.ID)
 	if err != nil {
@@ -511,7 +666,7 @@ func (s *Service) applyToOpenSubjectAsk(ctx context.Context, tx *sql.Tx, open As
 // reassertSubjectAskTx records that the producer still needs an unchanged
 // decision (and any explicit new deadline). Nothing is delivered.
 func reassertSubjectAskTx(ctx context.Context, tx dbTx, open AskRecord, spec AskSpec, deadline string, now, asserted time.Time) error {
-	if err := retireEventIDTx(ctx, tx, open, spec.IdempotencyKey, now.Format(time.RFC3339Nano)); err != nil {
+	if err := retireEventIDTx(ctx, tx, open, spec.IdempotencyKey, storedTime(now)); err != nil {
 		return err
 	}
 	_, err := tx.ExecContext(ctx, `UPDATE asks SET last_asserted_at=?, reassert_within_seconds=?, requester_ref=?, current_event_id=?, deadline=? WHERE id=? AND state IN ('pending','escalated')`,
@@ -538,7 +693,7 @@ func retireEventIDTx(ctx context.Context, tx dbTx, open AskRecord, latest, nowTe
 // the notification the inbox shows takes the new title and body. The
 // notification is never re-dispatched, so there is no new push.
 func updateSubjectAskTx(ctx context.Context, tx dbTx, open AskRecord, n Notification, spec AskSpec, deadline string, now, asserted time.Time) error {
-	nowText := now.Format(time.RFC3339Nano)
+	nowText := storedTime(now)
 	if err := insertRevisionTx(ctx, tx, open, n, nowText); err != nil {
 		return err
 	}
@@ -549,8 +704,15 @@ func updateSubjectAskTx(ctx context.Context, tx dbTx, open AskRecord, n Notifica
 	if err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `UPDATE asks SET question=?, recommendation_reason=?, context_url=?, big_picture=?, technical_details=?, options_json=?, correlation_json=?, deadline=?, revision_count=revision_count+1, requester_ref=?, current_event_id=?, last_asserted_at=?, reassert_within_seconds=?, updated_at=? WHERE id=? AND state IN ('pending','escalated')`,
-		spec.Question, strings.TrimSpace(spec.RecommendationReason), strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, enc.options, enc.correlation, deadline, spec.IdempotencyKey, spec.IdempotencyKey, subjectTime(asserted), int(spec.ReassertWithin/time.Second), nowText, open.ID); err != nil {
+	if _, err := tx.ExecContext(ctx, `UPDATE asks SET question=?, recommendation_reason=?, context_url=?, big_picture=?, technical_details=?, options_json=?, questions_json=?, accepts_context_requests=?, correlation_json=?, deadline=?, revision_count=revision_count+1, requester_ref=?, current_event_id=?, last_asserted_at=?, reassert_within_seconds=?, updated_at=? WHERE id=? AND state IN ('pending','escalated')`,
+		spec.Question, strings.TrimSpace(spec.RecommendationReason), strings.TrimSpace(spec.ContextURL), spec.BigPicture, spec.TechnicalDetails, enc.options, enc.questions, dbvalue.BoolInt(spec.AcceptsContextRequests), enc.correlation, deadline, spec.IdempotencyKey, spec.IdempotencyKey, subjectTime(asserted), int(spec.ReassertWithin/time.Second), nowText, open.ID); err != nil {
+		return err
+	}
+	// The revision answers every context request still open.
+	if err := addressContextRequestsTx(ctx, tx, open.ID, open.RevisionCount+1, spec.ContextResponse, nowText); err != nil {
+		return err
+	}
+	if err := replaceAttachmentsTx(ctx, tx, open.ID, spec.Attachments); err != nil {
 		return err
 	}
 	body := spec.Body
@@ -669,7 +831,7 @@ func (s *Service) WithdrawDecisionSubject(ctx context.Context, in SubjectWithdra
 	}
 	now := s.clock.Now().UTC()
 	in.AssertedAt = assertedTime(in.AssertedAt, now)
-	nowText := now.Format(time.RFC3339Nano)
+	nowText := storedTime(now)
 
 	var lastErr error
 	for attempt := 0; attempt < maxSubjectAttempts; attempt++ {
@@ -807,14 +969,17 @@ func (s *Service) withdrawSubjectOnce(ctx context.Context, in SubjectWithdrawal,
 	return false, nil
 }
 
-// WithdrawDirectSubject closes the requester's own open direct ask for a
-// subject key, the way WithdrawDirectAsk closes one by id. A subject whose
+// WithdrawDirectSubject closes the open direct ask for a subject key, the way
+// WithdrawDirectAsk closes one by id. Naming the key is a capability for a
+// reader of the same owner (AskAudience.HoldsKey), so a reader outside the ask's
+// audience that does not hold it is told the key has no ask. source is the source
+// the requester's asks are stored under (identity.Producer.AskSource). A subject whose
 // latest ask is already withdrawn returns it; one with no ask is not found.
-func (s *Service) WithdrawDirectSubject(ctx context.Context, requester, subject, reason string) (AskRecord, error) {
-	requester = strings.TrimSpace(requester)
+func (s *Service) WithdrawDirectSubject(ctx context.Context, source, subject, reason string, audience AskAudience) (AskRecord, error) {
+	source = strings.TrimSpace(source)
 	subject = strings.TrimSpace(subject)
 	reason = strings.TrimSpace(reason)
-	if requester == "" || !operatordecision.SubjectKeyRule.MatchString(subject) {
+	if source == "" || !operatordecision.SubjectKeyRule.MatchString(subject) {
 		return AskRecord{}, fmt.Errorf("%w: subject_key is invalid", ErrInvalidArgument)
 	}
 	if reason == "" || len(reason) > 2_000 {
@@ -822,7 +987,7 @@ func (s *Service) WithdrawDirectSubject(ctx context.Context, requester, subject,
 	}
 	var lastErr error
 	for attempt := 0; attempt < maxSubjectAttempts; attempt++ {
-		record, err := s.withdrawDirectSubjectOnce(ctx, requester, subject, reason)
+		record, err := s.withdrawDirectSubjectOnce(ctx, source, subject, reason, audience)
 		if err == nil || !retryableSubjectError(err) {
 			return record, err
 		}
@@ -831,19 +996,22 @@ func (s *Service) WithdrawDirectSubject(ctx context.Context, requester, subject,
 	return AskRecord{}, lastErr
 }
 
-func (s *Service) withdrawDirectSubjectOnce(ctx context.Context, requester, subject, reason string) (AskRecord, error) {
+func (s *Service) withdrawDirectSubjectOnce(ctx context.Context, source, subject, reason string, audience AskAudience) (AskRecord, error) {
 	now := s.clock.Now().UTC()
-	nowText := now.Format(time.RFC3339Nano)
+	nowText := storedTime(now)
 	tx, err := s.beginWriteTx(ctx)
 	if err != nil {
 		return AskRecord{}, err
 	}
 	defer tx.Rollback()
-	open, err := openSubjectAskTx(ctx, tx, requester, "", subject)
+	open, err := openSubjectAskTx(ctx, tx, source, "", subject)
 	if errors.Is(err, ErrNotFound) {
-		last, lastErr := latestSubjectAskTx(ctx, tx, requester, "", subject)
+		last, lastErr := latestSubjectAskTx(ctx, tx, source, "", subject)
 		if lastErr != nil {
 			return AskRecord{}, lastErr
+		}
+		if !audience.SeesByKey(last) {
+			return AskRecord{}, ErrNotFound
 		}
 		if last.State == AskWithdrawn {
 			return last, nil
@@ -853,9 +1021,12 @@ func (s *Service) withdrawDirectSubjectOnce(ctx context.Context, requester, subj
 	if err != nil {
 		return AskRecord{}, err
 	}
+	if !audience.SeesByKey(open) {
+		return AskRecord{}, ErrNotFound
+	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO decision_subject_withdrawals (source, source_event_type, subject_key, asserted_at, reason, updated_at) VALUES (?, '', ?, ?, ?, ?)
 		ON CONFLICT(source, source_event_type, subject_key) DO UPDATE SET asserted_at = excluded.asserted_at, reason = excluded.reason, updated_at = excluded.updated_at`,
-		requester, subject, subjectTime(now), reason, nowText); err != nil {
+		source, subject, subjectTime(now), reason, nowText); err != nil {
 		return AskRecord{}, err
 	}
 	result, err := tx.ExecContext(ctx, `UPDATE asks SET state='withdrawn', reason=?, resolved_at=?, resolution_published_at='', updated_at=? WHERE id=? AND state IN ('pending','escalated')`, reason, nowText, nowText, open.ID)
@@ -909,7 +1080,7 @@ func (s *Service) closeLapsedSubjects(ctx context.Context) error {
 	if err := rows.Close(); err != nil {
 		return err
 	}
-	nowText := now.Format(time.RFC3339Nano)
+	nowText := storedTime(now)
 	for _, item := range due {
 		reason := fmt.Sprintf("No longer confirmed by %s since %s", item.source, item.since.UTC().Format("Jan 2 15:04 MST"))
 		// last_asserted_at is part of the guard: a re-send that lands while the

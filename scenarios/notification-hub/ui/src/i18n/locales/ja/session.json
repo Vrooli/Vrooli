@@ -1,0 +1,23 @@
+{
+  "title": "サインイン",
+  "hubSessionActive": "Hub セッションは有効です",
+  "hubSessionInactive": "有効な Hub セッションはありません",
+  "draftsBrowserOnly": "未送信の判断用下書きはこのブラウザー内に保持され、自動送信されません。",
+  "intro": "サインインすると、回答待ちの確認や判断への回答ができます。",
+  "email": "メールアドレス",
+  "password": "パスワード",
+  "submit": "サインイン",
+  "submitting": "サインイン中…",
+  "invalid": "メールアドレスまたはパスワードが違います。",
+  "unavailable": "現在サインインできません。もう一度お試しください。",
+  "signedInAs": "{{email}} としてサインイン中",
+  "signOutHub": "Hub からサインアウト",
+  "signOutConfirmTitle": "この Hub セッションからサインアウトしますか？",
+  "signOutDescription": "このブラウザーの Hub Cookie を消去します。",
+  "signOutOtherAuthTitle": "他のサインイン状態には影響しません",
+  "signOutCookieScope": "発行済みトークンの失効や Cloudflare Access からのサインアウトは行いません。Cloudflare Access が有効な場合、このアプリでは引き続きあなたを識別します。",
+  "signOutDraftNotice": "続行する前に未保存の設定を確認してください。保存された下書きが自動送信されることはありません。",
+  "keepSession": "セッションを維持",
+  "signOutSuccess": "Hub セッションの Cookie を消去しました。Cloudflare Access と発行済みトークンは別管理です。",
+  "signOutUnconfirmed": "Hub セッションが消去されたことを確認できませんでした。再試行する前に状態を確認してください。"
+}

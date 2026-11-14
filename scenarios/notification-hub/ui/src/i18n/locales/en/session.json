@@ -1,0 +1,23 @@
+{
+  "draftsBrowserOnly": "Unsent decision drafts stay in this browser and are never sent automatically.",
+  "email": "Email",
+  "hubSessionActive": "Hub session active",
+  "hubSessionInactive": "No Hub session is active",
+  "intro": "Sign in to see what needs you and to answer decisions.",
+  "invalid": "Email or password is wrong.",
+  "keepSession": "Keep session",
+  "password": "Password",
+  "signOutConfirmTitle": "Sign out of this Hub session?",
+  "signOutCookieScope": "It does not revoke issued tokens or sign you out of Cloudflare Access. If Cloudflare Access is active, it will continue to identify you in this app.",
+  "signOutDescription": "This clears Hub cookies in this browser.",
+  "signOutDraftNotice": "Review unsaved settings before continuing. Nothing in a retained draft will be sent automatically.",
+  "signOutHub": "Sign out of Hub",
+  "signOutOtherAuthTitle": "Other sign-ins stay separate",
+  "signOutSuccess": "Hub session cookies were cleared. Cloudflare Access and issued tokens are separate.",
+  "signOutUnconfirmed": "The Hub session could not be confirmed as cleared. Check the session before trying again.",
+  "signedInAs": "Signed in as {{email}}",
+  "submit": "Sign in",
+  "submitting": "Signing in…",
+  "title": "Sign in",
+  "unavailable": "Sign-in is unavailable right now. Try again."
+}

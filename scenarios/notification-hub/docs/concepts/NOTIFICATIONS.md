@@ -278,6 +278,32 @@ goes to Chimesail on that device. If the push service retires the app's
 endpoint or it keeps failing, the hub removes it and delivers to that device's
 Chimesail in the same pass. A device never gets both.
 
+**Where a tap goes.** A tap on a Chimesail push opens the Hub's own record of the
+notification, never the producer's `context_url`: the ask page (`asks/<id>`) for an
+ask, otherwise the delivery record (`delivery/<id>`), which shows the context link as
+a visible "Open source" second tap. The push carries the path relative to the service
+worker's scope; the worker resolves it against that scope, so it keeps whatever base
+path or tunnel origin the Hub is served under, and refuses anything that lands outside
+the scope on this origin (another site, a sibling subdomain, `//host`, a backslash,
+`javascript:`, credentials in the URL). A refused target opens the app without
+navigating. The "Open source" link names its destination host beside the words
+("Open source · host", host shown as the browser will open it), so the operator sees
+where it goes before leaving. A native permission request is the one exception to the
+second tap: the Hub recognises it server-side (`GetResponse.native_consent_review_url`,
+the same identity test as `ListNativeConsents`, never inferred by the page) and its
+record leads with a primary "Review in Agent Manager" button above the facts. A record
+opened signed out shows the sign-in card and returns to the record after sign-in; a cold
+start reads the worker's stash at boot and lands on the same record. A push to a scenario's own app is separate: its `navigate` keeps a link on
+that app's own origin and otherwise opens the app's start page.
+
+**App badge.** The hub's own web push (Chimesail) carries `awaiting`: how many
+asks await the recipient when the push was sent, for the service worker to pass
+to `navigator.setAppBadge`. `0` is sent, not omitted, because it clears the
+badge. It is a count at send time; nothing is pushed when an ask is answered, so
+the foregrounded app refreshes the badge from `ListAsks.total_awaiting`. A
+Declarative push to a scenario's own app does not carry it: that app's badge is
+not the hub's count.
+
 **Accepted limitation (verified on iOS 26, 2026-10-28):** turning an app's
 notifications off in the phone's settings is invisible to the hub until that
 app is opened again. Apple's push service still accepts the send, the phone

@@ -1,119 +1,97 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { AlertDialog } from "@vrooli/react-component-library/AlertDialog/2";
+import { Button } from "@vrooli/react-component-library/Button/2";
 import { appDeliveryClient } from "../../api/notifications";
+import { QueryError } from "../../components/QueryNotice";
+import { ListGroup, ListItem } from "../../components/ListRow";
+import { SkeletonRows } from "../../components/Skeleton";
 import { selectors } from "../../consts/selectors";
+import { strings } from "../../consts/strings";
 import { useTranslation } from "../../i18n";
+import { Notice } from "../settings/Notice";
 
-type Copy = {
-  title: string; explanation: string; loading: string; readError: string; retry: string; empty: string;
-  chimesail: string; useChimesail: string; removing: string; removed: string; removeError: string; lastUsed: string;
-};
-
-const COPY: Record<string, Copy> = {
-  en: {
-    title: "Apps on your devices",
-    explanation: "A scenario's own app can show its notifications on a device instead of Chimesail. Turn that on from the scenario's app, in its notification settings. Each device still gets every notification once.",
-    loading: "Loading devices…", readError: "Devices could not be read.", retry: "Try again",
-    empty: "No device has notifications turned on yet.",
-    chimesail: "Chimesail", useChimesail: "Use Chimesail instead", removing: "Switching…",
-    removed: "{app} notifications on {device} now arrive in Chimesail.", removeError: "{app} could not be switched back. Try again.",
-    lastUsed: "Last seen {date}",
-  },
-  ja: {
-    title: "デバイスのアプリ",
-    explanation: "シナリオ独自のアプリで、Chimesail の代わりにそのデバイスで通知を表示できます。設定はそのアプリの通知設定から行います。各デバイスに届く通知は 1 回だけです。",
-    loading: "デバイスを読み込み中…", readError: "デバイスを読み込めませんでした。", retry: "再試行",
-    empty: "通知を有効にしたデバイスはまだありません。",
-    chimesail: "Chimesail", useChimesail: "Chimesail で受け取る", removing: "切り替え中…",
-    removed: "{device} の {app} の通知は Chimesail に届くようになりました。", removeError: "{app} を元に戻せませんでした。再試行してください。",
-    lastUsed: "最終確認 {date}",
-  },
-  ar: {
-    title: "التطبيقات على أجهزتك",
-    explanation: "يمكن لتطبيق السيناريو نفسه عرض إشعاراته على جهاز بدلًا من Chimesail. فعّل ذلك من إعدادات الإشعارات داخل تطبيق السيناريو. يصل كل إشعار إلى كل جهاز مرة واحدة فقط.",
-    loading: "جارٍ تحميل الأجهزة…", readError: "تعذّرت قراءة الأجهزة.", retry: "حاول مرة أخرى",
-    empty: "لم يتم تفعيل الإشعارات على أي جهاز بعد.",
-    chimesail: "Chimesail", useChimesail: "استخدام Chimesail بدلًا منه", removing: "جارٍ التبديل…",
-    removed: "إشعارات {app} على {device} تصل الآن إلى Chimesail.", removeError: "تعذّر إرجاع {app}. حاول مرة أخرى.",
-    lastUsed: "آخر ظهور {date}",
-  },
-};
-
-function fill(template: string, values: Record<string, string>) {
-  return template.replace(/\{(\w+)\}/g, (_, key: string) => values[key] ?? "");
-}
+interface Removal { id: string; app: string; device: string }
 
 /**
- * Lists each device that receives notifications and which app shows them
- * there: Chimesail, or a scenario's own app paired from that app's settings.
- * Removing a scenario app hands that device back to Chimesail.
+ * Which app shows notifications on each device: Chimesail, or a scenario's own
+ * app paired from that app's settings. Handing a device back to Chimesail is
+ * confirmed first, because pairing again happens on the other app.
  */
 export function DeviceAppsPanel() {
-  const { i18n } = useTranslation();
-  const c: Copy = COPY[i18n.language.split("-")[0] ?? "en"] ?? (COPY.en as Copy);
-  const [message, setMessage] = useState("");
+  const { t, i18n } = useTranslation();
+  const [outcome, setOutcome] = useState<{ ok: boolean; app: string; device: string } | null>(null);
+  const [confirming, setConfirming] = useState<Removal | null>(null);
   const devices = useQuery({ queryKey: ["device-apps"], queryFn: () => appDeliveryClient.listDeviceApps({}), refetchOnWindowFocus: true });
   const remove = useMutation({
-    mutationFn: async (input: { id: string; app: string; device: string }) => {
+    mutationFn: async (input: Removal) => {
       await appDeliveryClient.removeDeviceApp({ subscriptionId: input.id });
       return input;
     },
-    onSuccess: (input) => setMessage(fill(c.removed, { app: input.app, device: input.device })),
-    onError: (_error, input) => setMessage(fill(c.removeError, { app: input.app })),
+    onSuccess: (input) => setOutcome({ ok: true, app: input.app, device: input.device }),
+    onError: (_error, input) => setOutcome({ ok: false, app: input.app, device: input.device }),
     onSettled: () => void devices.refetch(),
   });
   const rows = devices.data?.devices ?? [];
-  const date = (iso: string) => {
+  const lastSeen = (iso: string) => {
     const parsed = new Date(iso);
     return Number.isNaN(parsed.getTime()) ? "" : parsed.toLocaleDateString(i18n.language, { month: "short", day: "numeric" });
   };
 
   return (
-    <section data-testid={selectors.deviceApps.root} aria-labelledby="device-apps-title" className="flex flex-col gap-3 rounded-lg border border-app-border p-4">
-      <h2 id="device-apps-title" className="text-lg font-semibold">{c.title}</h2>
-      <p className="text-sm text-app-muted-foreground">{c.explanation}</p>
-      {devices.isPending && <p className="text-sm">{c.loading}</p>}
-      {devices.isError && (
-        <p className="text-sm">
-          {c.readError}{" "}
-          <button type="button" className="min-h-11 underline underline-offset-4" onClick={() => void devices.refetch()}>{c.retry}</button>
-        </p>
+    <section data-testid={selectors.deviceApps.root} aria-labelledby="device-apps-title" className="mt-4 flex flex-col gap-2">
+      <h2 id="device-apps-title" className="px-1 text-base font-semibold">{t(strings.reach.deviceApps.title)}</h2>
+      <p className="px-1 text-sm text-app-muted-foreground">{t(strings.reach.deviceApps.explanation)}</p>
+      {outcome && (
+        <Notice tone={outcome.ok ? "success" : "danger"} testId={selectors.deviceApps.message}>
+          {t(outcome.ok ? strings.reach.deviceApps.removed : strings.reach.deviceApps.removeError, { app: outcome.app, device: outcome.device })}
+        </Notice>
       )}
-      {devices.isSuccess && rows.length === 0 && <p className="text-sm">{c.empty}</p>}
-      {rows.length > 0 && (
-        <ul className="flex flex-col divide-y divide-app-border">
-          {rows.map((device) => (
-            <li key={device.group} className="flex flex-col gap-2 py-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-medium">{device.label}</span>
-                {date(device.lastUsed) && <span className="text-xs text-app-muted-foreground">{fill(c.lastUsed, { date: date(device.lastUsed) })}</span>}
-              </div>
-              <ul className="flex flex-col gap-2">
-                {device.apps.map((app) => (
-                  <li key={app.subscriptionId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <span className="flex min-w-0 flex-col">
-                      <span className="font-medium">{app.scenario ? app.displayName : c.chimesail}</span>
-                      <span className="text-app-muted-foreground">{app.status}</span>
-                    </span>
-                    {app.scenario && (
-                      <button
-                        type="button"
-                        data-testid={selectors.deviceApps.removeButton}
-                        disabled={remove.isPending}
-                        onClick={() => remove.mutate({ id: app.subscriptionId, app: app.displayName, device: device.label })}
-                        className="min-h-11 rounded border border-app-border px-3 text-sm font-medium"
-                      >
-                        {remove.isPending && remove.variables.id === app.subscriptionId ? c.removing : c.useChimesail}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
+      {devices.isPending && <SkeletonRows rows={1} />}
+      {devices.isError && !devices.data && (
+        <QueryError error={devices.error} title={t(strings.reach.deviceApps.loadFailed)} onRetry={() => void devices.refetch()} retrying={devices.isFetching} />
       )}
-      {message && <p data-testid={selectors.deviceApps.message} role="status" className="text-sm">{message}</p>}
+      {devices.isSuccess && rows.length === 0 && <p className="px-1 text-sm">{t(strings.reach.deviceApps.empty)}</p>}
+      {rows.map((device) => (
+        <div key={device.group} className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 px-1">
+            <span className="text-sm font-semibold [overflow-wrap:anywhere]">{device.label}</span>
+            {lastSeen(device.lastUsed) && <span className="text-xs text-app-muted-foreground">{t(strings.reach.deviceApps.lastSeen, { date: lastSeen(device.lastUsed) })}</span>}
+          </div>
+          <ListGroup>
+            {device.apps.map((app) => (
+              <ListItem key={app.subscriptionId} className="flex items-center justify-between gap-3 px-4 py-3">
+                <span className="flex min-w-0 flex-col">
+                  <span className="font-medium [overflow-wrap:anywhere]">{app.scenario ? app.displayName : t(strings.reach.deviceApps.chimesail)}</span>
+                  <span className="text-sm text-app-muted-foreground">{app.status}</span>
+                </span>
+                {app.scenario && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    data-testid={selectors.deviceApps.removeButton}
+                    disabled={remove.isPending}
+                    onClick={() => setConfirming({ id: app.subscriptionId, app: app.displayName, device: device.label })}
+                  >
+                    {remove.isPending && remove.variables.id === app.subscriptionId ? t(strings.reach.deviceApps.removing) : t(strings.reach.deviceApps.useChimesail)}
+                  </Button>
+                )}
+              </ListItem>
+            ))}
+          </ListGroup>
+        </div>
+      ))}
+      <AlertDialog
+        open={confirming !== null}
+        title={t(strings.reach.deviceApps.confirmTitle, { app: confirming?.app ?? "", device: confirming?.device ?? "" })}
+        description={t(strings.reach.deviceApps.confirmBody, { app: confirming?.app ?? "" })}
+        confirmLabel={t(strings.reach.deviceApps.useChimesail)}
+        cancelLabel={t(strings.settings.action.cancel)}
+        closeLabel={t(strings.settings.action.cancel)}
+        onConfirm={() => { if (confirming) remove.mutate(confirming); setConfirming(null); }}
+        onCancel={() => setConfirming(null)}
+      />
     </section>
   );
 }
